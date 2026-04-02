@@ -1418,69 +1418,68 @@ let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
 let customerMeta = {plan:'Business', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv'};
+let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
 function toDashboardRecord(row) {
   return { id: String(row.id), fields: row };
 }
 
-async function queryCustomerRecord(customerRaw) {
-  const customer = (customerRaw || '').trim();
-  if (!customer) return null;
+async function resolveCustomerContext(forceReload) {
+  if (!forceReload && customerContext.customerId && customerContext.customerRecord) return customerContext;
 
-  const normalizedPhone = customer.replace(/\s+/g, '');
-  const isPhoneLike = customer.startsWith('+') || customer.startsWith('0');
-  const lookups = isPhoneLike
-    ? [
-        { strategy: 'phone-first', query: _sb.from(CUSTOMERS_TABLE).select('*').or(`voxera_nummer.eq.${customer},tel_nr.eq.${customer}`).limit(1) },
-        { strategy: 'customer-id-fallback', query: _sb.from(CUSTOMERS_TABLE).select('*').eq('customer_id', customer).limit(1) },
-        { strategy: 'phone-normalized-fallback', query: normalizedPhone !== customer ? _sb.from(CUSTOMERS_TABLE).select('*').or(`voxera_nummer.eq.${normalizedPhone},tel_nr.eq.${normalizedPhone}`).limit(1) : null }
-      ]
-    : [
-        { strategy: 'customer-id-first', query: _sb.from(CUSTOMERS_TABLE).select('*').eq('customer_id', customer).limit(1) },
-        { strategy: 'phone-fallback', query: _sb.from(CUSTOMERS_TABLE).select('*').or(`voxera_nummer.eq.${customer},tel_nr.eq.${customer}`).limit(1) },
-        { strategy: 'phone-normalized-fallback', query: normalizedPhone !== customer ? _sb.from(CUSTOMERS_TABLE).select('*').or(`voxera_nummer.eq.${normalizedPhone},tel_nr.eq.${normalizedPhone}`).limit(1) : null }
-      ];
-
-  for (const lookup of lookups) {
-    if (!lookup.query) continue;
-    const { data, error } = await lookup.query;
-    if (error) throw error;
-    const result = (data && data[0]) || null;
-    console.info('[voxera-dashboard] customers-query result', {
-      input: customer,
-      strategy: lookup.strategy,
-      found: !!result,
-      recordId: result ? result.id : null,
-      customerId: result ? result.customer_id : null
-    });
-    if (result) return result;
+  const authUser = currentUser || await getCurrentSessionUser();
+  const authUserId = authUser && authUser.id ? String(authUser.id).trim() : '';
+  console.info('[voxera-dashboard] auth user id', authUserId || null);
+  if (!authUserId) {
+    customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
+    return customerContext;
   }
 
-  return null;
+  const { data: userRow, error: userError } = await _sb
+    .from('users')
+    .select('id, customer_id')
+    .eq('id', authUserId)
+    .maybeSingle();
+  if (userError) throw userError;
+
+  const usersCustomerId = userRow && userRow.customer_id ? String(userRow.customer_id).trim() : '';
+  const urlFallbackCustomerId = (new URLSearchParams(location.search).get('customer') || '').trim();
+  const resolvedCustomerId = usersCustomerId || urlFallbackCustomerId || '';
+  console.info('[voxera-dashboard] users.customer_id', usersCustomerId || null);
+  if (!usersCustomerId && urlFallbackCustomerId) {
+    console.warn('[voxera-dashboard] using debug URL fallback customer id', urlFallbackCustomerId);
+  }
+
+  let customerRecord = null;
+  if (resolvedCustomerId) {
+    const { data: customerRow, error: customerError } = await _sb
+      .from(CUSTOMERS_TABLE)
+      .select('*')
+      .eq('id', resolvedCustomerId)
+      .maybeSingle();
+    if (customerError) throw customerError;
+    customerRecord = customerRow || null;
+    console.info('[voxera-dashboard] customers.id', customerRecord ? customerRecord.id : null);
+  } else {
+    console.info('[voxera-dashboard] customers.id', null);
+  }
+
+  customerContext = {
+    authUserId,
+    usersCustomerId: usersCustomerId || null,
+    customerId: resolvedCustomerId || null,
+    customerRecord
+  };
+  return customerContext;
 }
 
-function resolveCustomerLookup() {
-  const urlCustomer = new URLSearchParams(location.search).get('customer');
-  const metadataCustomerId = currentUser && currentUser.user_metadata ? currentUser.user_metadata.customer_id : null;
-  const resolved = (urlCustomer || metadataCustomerId || '').toString().trim();
-  console.info('[voxera-dashboard] customer lookup inputs', {
-    urlParamCustomer: urlCustomer || null,
-    metadataCustomerId: metadataCustomerId || null,
-    resolvedCustomerLookup: resolved || null
-  });
-  return resolved;
-}
-
-async function loadCallRecords(customerRaw) {
+async function loadCallRecords(customerIdRaw) {
   let query = _sb.from(CALLS_TABLE).select('*').order('created_date_raw', { ascending: false }).limit(500);
-  const customer = (customerRaw || '').trim();
-  if (customer) {
-    if (customer.startsWith('+') || customer.startsWith('0')) {
-      query = query.eq('called_number', customer);
-    } else {
-      query = query.eq('customer_id', customer);
-    }
+  const customerId = (customerIdRaw || '').trim();
+  console.info('[voxera-dashboard] calls query customer_id', customerId || null);
+  if (customerId) {
+    query = query.eq('customer_id', customerId);
   }
   const { data, error } = await query;
   if (error) throw error;
@@ -1670,19 +1669,18 @@ function estimateMinutesForRecord(record) {
 }
 
 async function loadCustomerMeta() {
-  const customer = resolveCustomerLookup();
-  if (!customer) return customerMeta;
-  const rec = await queryCustomerRecord(customer);
+  const context = await resolveCustomerContext();
+  const rec = context.customerRecord;
   if (!rec) return customerMeta;
   const f = rec || {};
   customerMeta = {
     plan: f.plan || customerMeta.plan || 'Business',
     startDate: f.start_date || '',
-    customerName: f.customer_name || f.voxera_nummer || customerMeta.customerName || '',
+    customerName: f.customer_name || f.voxera_number || customerMeta.customerName || '',
     customerEmail: f.email || '',
     status: f.status || 'aktiv',
-    customerId: f.customer_id || customer,
-    voxeraNumber: f.voxera_nummer || '',
+    customerId: f.id || context.customerId || '',
+    voxeraNumber: f.voxera_number || '',
     telNr: f.tel_nr || ''
   };
   const sub = document.getElementById('greeting-sub');
@@ -1853,8 +1851,8 @@ async function loadData() {
 
   try {
     await loadCustomerMeta().catch(()=>{});
-    const customer = resolveCustomerLookup();
-    const records = await loadCallRecords(customer || '');
+    const context = await resolveCustomerContext();
+    const records = await loadCallRecords(context.customerId || '');
 
     flagIncomingRecords(records);
     allRecords = records;
@@ -2461,17 +2459,15 @@ function openAccount() {
 }
 
 async function loadNotifSettings() {
-  const customer = new URLSearchParams(location.search).get('customer');
-  if (!customer) return;
+  const context = await resolveCustomerContext();
+  const rec = context.customerRecord;
+  if (!rec) return;
   try {
-    const rec = await queryCustomerRecord(customer);
-    if (rec) {
-      const f = rec;
-      // Explicit boolean check - treat null/undefined as true (default on)
-      document.getElementById('notif-new-log').checked = (f.new_log_email_active === false) ? false : true;
-      document.getElementById('notif-callback').checked = (f.notification_active === false) ? false : true;
-      document.getElementById('account-overlay').dataset.customerRecordId = rec.id;
-    }
+    const f = rec;
+    // Explicit boolean check - treat null/undefined as true (default on)
+    document.getElementById('notif-new-log').checked = (f.new_log_email_active === false) ? false : true;
+    document.getElementById('notif-callback').checked = (f.notification_active === false) ? false : true;
+    document.getElementById('account-overlay').dataset.customerRecordId = rec.id;
   } catch(e) { console.error('Notif load error:', e); }
 }
 
@@ -2480,12 +2476,9 @@ async function saveNotifSettings() {
   if (!recordId) {
     // Try to get record ID if not loaded yet
     try {
-      var customer = new URLSearchParams(location.search).get('customer');
-      if (customer) {
-        var rec = await queryCustomerRecord(customer);
-        if (rec) {
-          document.getElementById('account-overlay').dataset.customerRecordId = rec.id;
-        }
+      const context = await resolveCustomerContext();
+      if (context.customerRecord && context.customerRecord.id) {
+        document.getElementById('account-overlay').dataset.customerRecordId = context.customerRecord.id;
       }
     } catch(e) {}
     var rid = document.getElementById('account-overlay').dataset.customerRecordId;
@@ -2724,7 +2717,7 @@ function initSetupWizard(){
     }
   });
   updateSetupProgress();
-  var num = customerMeta.voxeraNumber || new URLSearchParams(location.search).get('customer') || '';
+  var num = customerMeta.voxeraNumber || customerMeta.customerId || '';
   var el1 = document.getElementById('setup-voxera-number');
   var el2 = document.getElementById('setup-voxera-number-2');
   var callBtn = document.getElementById('setup-call-btn');
@@ -2735,7 +2728,7 @@ function initSetupWizard(){
 
 function copyVoxeraNumber(e){
   if(e)e.stopPropagation();
-  var num = customerMeta.voxeraNumber || new URLSearchParams(location.search).get('customer') || '';
+  var num = customerMeta.voxeraNumber || customerMeta.customerId || '';
   if(!num){toast('Keine Nummer vorhanden');return;}
   navigator.clipboard.writeText(num).then(function(){toast('Nummer kopiert: '+num);}).catch(function(){toast(num);});
 }
@@ -2745,11 +2738,8 @@ async function saveSetupNotifications(){
   // Try to get the record ID if not set
   if(!recordId){
     try{
-      var customer = new URLSearchParams(location.search).get('customer');
-      if(customer){
-        var rec = await queryCustomerRecord(customer);
-        if(rec) recordId = rec.id;
-      }
+      const context = await resolveCustomerContext();
+      if(context.customerRecord && context.customerRecord.id) recordId = context.customerRecord.id;
     }catch(e){}
   }
   var newLog = document.getElementById('setup-notif-all').checked;
@@ -2915,17 +2905,10 @@ function showApp(user) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
-  // Customer ID from metadata
+  // User display fallback from auth profile
   const meta = user.user_metadata || {};
-  const customerId = meta.customer_id || new URLSearchParams(location.search).get('customer') || null;
-  console.info('[voxera-dashboard] auth metadata customer_id', meta.customer_id || null);
-  if (customerId && !new URLSearchParams(location.search).get('customer')) {
-    const url = new URL(location.href);
-    url.searchParams.set('customer', customerId);
-    history.replaceState({}, '', url.toString());
-  }
 
-  // User display - initial greeting, will be updated with customer_name after loadData
+  // Initial greeting, will be updated with customer_name after loadData
   const fallbackName = meta.full_name ? meta.full_name.split(' ')[0] : (user.email||'').split('@')[0];
   const greetingSub = document.getElementById('greeting-sub');
   const greetWord = new Date().getHours()<12?'Morgen':new Date().getHours()<18?'Tag':'Abend';
