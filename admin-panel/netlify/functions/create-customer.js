@@ -1,10 +1,11 @@
 // netlify/functions/create-customer.js
-// Erstellt: Auth User + public.customers + UPDATE public.users (Trigger erstellt users-Eintrag automatisch)
+// Erstellt: Auth User + public.customers + public.users
 // Benötigt Env-Variablen: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event) => {
+  // CORS Headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -20,6 +21,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
+  // Env check
   const sbUrl = process.env.SUPABASE_URL;
   const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -43,6 +45,7 @@ exports.handler = async (event) => {
 
   const { customer_id, customer_name, email, password, voxera_number, plan, start_date } = body;
 
+  // Validierung
   if (!customer_id || !customer_name || !email || !password || !voxera_number) {
     return {
       statusCode: 400, headers,
@@ -52,13 +55,10 @@ exports.handler = async (event) => {
 
   try {
     // 1. Auth User erstellen
-    // HINWEIS: Der Trigger "on_auth_user_created_ensure_public_user" erstellt
-    // automatisch einen Eintrag in public.users mit customer_id = NULL
     const { data: authData, error: authError } = await sbAdmin.auth.admin.createUser({
       email: email,
       password: password,
-      email_confirm: true,
-      user_metadata: { customer_id: customer_id }
+      email_confirm: true // User muss E-Mail nicht bestätigen
     });
 
     if (authError) {
@@ -90,26 +90,26 @@ exports.handler = async (event) => {
     });
 
     if (custError) {
-      // Rollback: Auth User löschen
+      // Rollback: Auth User löschen wenn Customer-Insert fehlschlägt
       await sbAdmin.auth.admin.deleteUser(authUserId);
       throw new Error('Customer erstellen fehlgeschlagen: ' + custError.message);
     }
 
-    // 4. public.users UPDATE (nicht INSERT — der Trigger hat den Eintrag bereits erstellt)
-    // Warte kurz damit der Trigger Zeit hat
-    await new Promise(r => setTimeout(r, 500));
-
-    const { error: userError } = await sbAdmin.from('users').update({
+    // 4. User in public.users erstellen (Link zwischen Auth und Customer)
+    const { error: userError } = await sbAdmin.from('users').insert({
+      id: authUserId,
       email: email,
       customer_id: customer_id,
       role: 'customer',
-      is_admin: false
-    }).eq('id', authUserId);
+      is_admin: false,
+      created_at: new Date().toISOString()
+    });
 
     if (userError) {
-      console.error('Users update failed:', userError.message);
-      // Kein Rollback — Customer und Auth User sind korrekt erstellt
-      // Der Trigger hat den users-Eintrag schon, nur ohne customer_id
+      // Rollback: Customer und Auth User löschen
+      await sbAdmin.from('customers').delete().eq('id', customer_id);
+      await sbAdmin.auth.admin.deleteUser(authUserId);
+      throw new Error('User erstellen fehlgeschlagen: ' + userError.message);
     }
 
     return {
