@@ -583,7 +583,6 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
 
 const SB_URL  = 'https://ulcofbgrovgcvowdjrge.supabase.co';
 const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk'; // TODO: Ersetzen, falls weiterhin "Unregistered API key" erscheint
-const SB_SVC  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDk0NTMzMCwiZXhwIjoyMDkwNTIxMzMwfQ.LduPIyc-HpplTSGdv9ou0Ky8cwMw0vOHxMYt7neV2A0';
 const AT_TOK  = 'patLLUtkxVfUTkPHK.4d0a3f492f39bd9d5bbf4c349203b808a2191bb399f0d8db7a83fccdb27f815b';
 const AT_BASE = 'appT3JEeMCkuoEtlc';
 const AT_KUND = 'Kunden';
@@ -595,13 +594,6 @@ if (!supabaseReady) {
   console.error('[voxera-admin] Supabase-Bibliothek nicht geladen.');
 }
 
-const _sba = supabaseReady
-  ? supabaseLib.createClient(SB_URL, SB_SVC, {
-      auth:{autoRefreshToken:false, persistSession:false, storage: window.sessionStorage}
-    })
-  : null;
-const _sb = _sba;
-
 // Auth client (anon key, session persists in localStorage)
 const _sbAuth = supabaseReady ? supabaseLib.createClient(SB_URL, SB_ANON_KEY) : null;
 
@@ -611,6 +603,10 @@ function ensureAdminAuthClient() {
   if (_sbAuth && _sbAuth.auth) return _sbAuth;
   showAuthRequired('Supabase nicht initialisiert. Seite neu laden oder Konfiguration prüfen.');
   return null;
+}
+
+function blockPrivilegedAction(actionLabel) {
+  alert(`${actionLabel} ist aktuell aus Sicherheitsgründen deaktiviert.\n\nPhase 2: Diese Aktion wird über einen serverseitigen Endpoint / eine Edge Function umgesetzt.`);
 }
 
 
@@ -667,59 +663,9 @@ async function getNextId() {
 // CREATE CUSTOMER
 const STEPS = ['Supabase User erstellen','Kunden-ID ermitteln','Airtable Eintrag erstellen','Fertig'];
 async function createCustomer() {
-  const v=document.getElementById('f-vorname').value.trim();
-  const n=document.getElementById('f-nachname').value.trim();
-  const e=document.getElementById('f-email').value.trim().toLowerCase();
-  const p=document.getElementById('f-password').value.trim();
-  const nr=document.getElementById('f-nummer').value.trim().replace(/\s/g,'');
-  const plan=document.getElementById('f-plan').value;
-  const sd=document.getElementById('f-startdatum').value;
-
-  if (!v||!n||!e||!p||!nr) { setStatus('create','error','Pflichtfelder fehlen','Bitte alle * Felder ausfüllen.'); return; }
-  if (!nr.startsWith('+')) { setStatus('create','error','Ungültige Nummer','Muss mit + beginnen (z.B. +41445053662)'); return; }
-
-  const fullName = v+' '+n;
-  const btn = document.getElementById('create-btn');
-  btn.disabled=true;
-  document.getElementById('create-btn-text').innerHTML='<div class="spinner"></div> Wird erstellt...';
-  setStatus('create','loading','Wird angelegt...');
-  renderSteps(STEPS, 0);
-
-  try {
-    renderSteps(STEPS, 0);
-    const {data:ud, error:ue} = await _sba.auth.admin.createUser({
-      email:e, password:p, email_confirm:true,
-      user_metadata:{full_name:fullName, customer_id:nr}
-    });
-    if (ue) throw new Error('Supabase: '+ue.message);
-
-    renderSteps(STEPS, 1);
-    const cid = await getNextId();
-
-    renderSteps(STEPS, 2);
-    const fields = { customer_id:cid, customer_name:fullName, 'E-Mail':e, Voxera_Nummer:nr, Dashboard_id:nr, Plan:plan };
-    if (sd) fields.start_date = sd;
-    await atReq(encodeURIComponent(AT_KUND), {method:'POST', body:JSON.stringify({fields})});
-
-    renderSteps(STEPS, 4);
-    setStatus('create','success','✅ Kunde angelegt!', `ID: ${cid} · ${e} · ${nr}`);
-    document.getElementById('create-steps').innerHTML += `
-      <div style="margin-top:12px;padding:14px 16px;background:white;border-radius:10px;border:1px solid var(--green-mid)">
-        <div style="font-size:12px;font-weight:700;color:#15803D;margin-bottom:8px">Nächste Schritte:</div>
-        <div style="font-size:12.5px;color:#166534;line-height:2">
-          1. ElevenLabs Agent für ${fullName} konfigurieren<br>
-          2. Twilio ${nr} mit ElevenLabs verknüpfen<br>
-          3. Testanruf machen<br>
-          4. Willkommensmail an ${e} senden<br>
-          <strong>Login: dashboard.voxera.ch · Passwort: ${p}</strong>
-        </div>
-      </div>`;
-    loadCustomers();
-  } catch(err) {
-    setStatus('create','error','Fehler', err.message);
-  }
-  btn.disabled=false;
-  document.getElementById('create-btn-text').textContent='➕ Kunden anlegen';
+  setStatus('create','error','Serverseitige Umsetzung erforderlich','Kundenerstellung mit erhöhten Rechten ist im Browser deaktiviert. Bitte Phase 2 Endpoint verwenden.');
+  blockPrivilegedAction('Kunden anlegen');
+  return;
 }
 
 function resetForm() {
@@ -1127,7 +1073,7 @@ function delCustomer(id, name) {
 function pwReset(email) {
   if (!email) { alert('Keine E-Mail'); return; }
   showConfirm('🔑','Passwort zurücksetzen?',`Reset-E-Mail wird an ${email} gesendet.`,'btn-primary',
-    async ()=>{ const {error}=await _sb.auth.resetPasswordForEmail(email,{redirectTo:'https://dashboard.voxera.ch'});
+    async ()=>{ const {error}=await _sbAuth.auth.resetPasswordForEmail(email,{redirectTo:'https://dashboard.voxera.ch'});
       if (error) alert('Fehler: '+error.message); else alert('✅ E-Mail gesendet an '+email); });
 }
 
@@ -1486,55 +1432,12 @@ function setAdminStatus(type, title, detail) {
 }
 
 async function createAdminAccount() {
-  const name     = document.getElementById('ca-name').value.trim();
-  const email    = document.getElementById('ca-email').value.trim().toLowerCase();
-  const role     = document.getElementById('ca-role').value;
-  const password = document.getElementById('ca-password').value;
-
-  if (!name || !email || !password) {
-    setAdminStatus('error', 'Pflichtfelder fehlen', 'Bitte alle * Felder ausfüllen.');
-    return;
-  }
-
-  const btn = document.getElementById('ca-save-btn');
-  btn.disabled = true;
-  setAdminStatus('loading', 'Wird angelegt...');
-
-  try {
-    // 1. Create Supabase auth user (requires service role)
-    const { data: ud, error: ue } = await _sba.auth.admin.createUser({
-      email, password, email_confirm: true,
-      user_metadata: { full_name: name }
-    });
-    if (ue) throw new Error('Auth: ' + ue.message);
-
-    // 2. Insert admin record (service role bypasses RLS)
-    const { error: ie } = await _sba.from('admins').insert({
-      id: ud.user.id,
-      email,
-      role,
-      full_name: name,
-      created_by: currentAdmin?.id || null,
-      force_password_change: true
-    });
-    if (ie) throw new Error('DB: ' + ie.message);
-
-    setAdminStatus('success', '✅ Admin angelegt!', `${email} · Temp-Passwort: ${password}`);
-    setTimeout(() => { closeCreateAdminModal(); loadAdmins(); }, 1500);
-  } catch(err) {
-    setAdminStatus('error', 'Fehler', err.message);
-  }
-  btn.disabled = false;
+  setAdminStatus('error', 'Serverseitige Umsetzung erforderlich', 'Admin-Erstellung ist im Browser deaktiviert. Bitte in Phase 2 über einen sicheren Endpoint/Edge Function umsetzen.');
+  blockPrivilegedAction('Admin anlegen');
 }
 
 function deleteAdmin(id, name) {
-  showConfirm('🗑', 'Admin löschen?', `"${name}" wird als Admin entfernt. Der Supabase-Login bleibt bestehen.`, 'btn-danger',
-    async () => {
-      const { error } = await _sba.from('admins').delete().eq('id', id);
-      if (error) { alert('Fehler: ' + error.message); return; }
-      loadAdmins();
-    }
-  );
+  blockPrivilegedAction(`Admin "${name}" löschen`);
 }
 
 </script>
