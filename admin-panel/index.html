@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voxera Admin</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A56DB;--blue-dark:#1340B0;--blue-light:#EBF0FC;--blue-mid:#C7D9F8;
+  --green:#16A34A;--green-light:#DCFCE7;--green-mid:#BBF7D0;
+  --red:#DC2626;--red-light:#FEE2E2;
+  --amber:#D97706;--amber-light:#FEF3C7;
+  --gray50:#F9FAFB;--gray100:#F3F4F6;--gray200:#E5E7EB;
+  --gray300:#D1D5DB;--gray400:#9CA3AF;--gray600:#4B5563;--gray900:#111827;
+  --white:#FFFFFF;--radius:10px;--radius-lg:14px;
+  --shadow-sm:0 1px 2px rgba(17,24,39,.04);
+  --shadow-md:0 2px 8px rgba(17,24,39,.06);
+  --shadow-lg:0 8px 24px rgba(17,24,39,.10);
+}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900);min-height:100vh;line-height:1.5;}
+
+/* ─── TOPBAR ─── */
+.topbar{background:var(--white);border-bottom:1px solid var(--gray200);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-sm);}
+.topbar-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--blue);letter-spacing:-.02em;}
+.topbar-badge{background:var(--amber-light);color:var(--amber);font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;border:1px solid #FDE68A;letter-spacing:.02em;}
+
+/* ─── PAGE ─── */
+.page{max-width:1140px;margin:0 auto;padding:28px 28px 44px;}
+.page-title{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px;letter-spacing:-.02em;}
+.page-sub{font-size:13.5px;color:var(--gray400);margin-bottom:28px;}
+
+/* ─── OVERVIEW GRID ─── */
+.overview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.overview-card{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-sm);transition:box-shadow .2s;}
+.overview-card:hover{box-shadow:var(--shadow-md);}
+.overview-label{font-size:11px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+.overview-value{font-family:"Bricolage Grotesque",sans-serif;font-size:28px;font-weight:800;line-height:1;color:var(--gray900);}
+.overview-sub{font-size:11.5px;color:var(--gray400);margin-top:8px;}
+
+/* ─── TABS ─── */
+.tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--gray100);padding:4px;border-radius:12px;width:fit-content;border:1px solid var(--gray200);}
+.tab-btn{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--gray600);font-family:inherit;transition:all .2s;}
+.tab-btn:hover{color:var(--gray900);}
+.tab-btn.active{background:var(--white);color:var(--gray900);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+
+/* ─── CARDS ─── */
+.card{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;box-shadow:var(--shadow-sm);}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.card-title{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:10px;}
+.card-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+
+/* ─── FORMS ─── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-group.full{grid-column:1/-1;}
+.form-label{font-size:11.5px;font-weight:600;color:var(--gray600);letter-spacing:.03em;}
+.form-input{padding:10px 14px;border:1.5px solid var(--gray200);border-radius:var(--radius);font-size:14px;font-family:inherit;color:var(--gray900);outline:none;transition:all .2s;background:var(--gray50);}
+.form-input:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.08);}
+.form-input::placeholder{color:var(--gray400);}
+.form-hint{font-size:11px;color:var(--gray400);margin-top:2px;}
+
+/* ─── BUTTONS ─── */
+.btn{padding:9px 18px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px;border:none;white-space:nowrap;}
+.btn-primary{background:var(--blue);color:var(--white);box-shadow:0 4px 12px rgba(26,86,219,.18);}
+.btn-primary:hover{background:var(--blue-dark);transform:translateY(-1px);box-shadow:0 6px 16px rgba(26,86,219,.22);}
+.btn-primary:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none;}
+.btn-secondary{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
+.btn-secondary:hover{background:var(--gray50);border-color:var(--gray300);}
+.btn-danger{background:var(--red-light);color:var(--red);border:1px solid #FECACA;}
+.btn-danger:hover{background:#FCD5D5;}
+.btn-warning{background:var(--amber-light);color:var(--amber);border:1px solid #FDE68A;}
+.btn-warning:hover{background:#FDE68A;}
+.btn-sm{padding:6px 14px;font-size:12px;}
+.btn-icon{width:30px;height:30px;padding:0;justify-content:center;font-size:14px;border-radius:8px;}
+.btn-quiet{background:var(--gray50);color:var(--gray600);border:1px solid var(--gray200);}
+.btn-quiet:hover{background:var(--gray100);}
+
+/* ─── STATUS BOX ─── */
+.status-box{border-radius:var(--radius);padding:14px 18px;font-size:13px;display:none;margin-top:18px;align-items:flex-start;gap:12px;}
+.status-box.show{display:flex;}
+.status-box.success{background:var(--green-light);border:1px solid var(--green-mid);color:#15803D;}
+.status-box.error{background:var(--red-light);border:1px solid #FECACA;color:var(--red);}
+.status-box.loading{background:var(--blue-light);border:1px solid var(--blue-mid);color:var(--blue);}
+.status-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.status-text{line-height:1.6;flex:1;}
+.status-text strong{display:block;margin-bottom:3px;}
+
+/* ─── STEPS ─── */
+.steps{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.step{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--gray600);}
+.step-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--gray200);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;transition:all .3s;}
+.step-dot.done{background:var(--green);border-color:var(--green);color:white;}
+.step-dot.active{background:var(--blue);border-color:var(--blue);color:white;}
+
+/* ─── CUSTOMER LIST ─── */
+.customer-list{display:flex;flex-direction:column;gap:10px;}
+.customer-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--gray200);border-radius:14px;background:var(--white);transition:all .2s;box-shadow:var(--shadow-sm);}
+.customer-row:hover{border-color:var(--blue-mid);box-shadow:0 4px 16px rgba(26,86,219,.08);}
+.customer-row.inactive{opacity:.55;}
+.customer-av{width:40px;height:40px;border-radius:50%;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.customer-info{min-width:0;}
+.customer-name{font-size:14.5px;font-weight:700;line-height:1.3;}
+.customer-meta{font-size:11.5px;color:var(--gray400);margin-top:5px;line-height:1.5;}
+.customer-nr{font-size:12px;font-weight:600;color:var(--blue);font-family:monospace;background:var(--blue-light);padding:3px 8px;border-radius:6px;}
+.customer-main{display:flex;flex-direction:column;gap:10px;min-width:0;}
+.customer-top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;}
+.customer-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.customer-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;}
+.action-cluster{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;}
+
+/* ─── BADGES ─── */
+.badge{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:6px;}
+.badge-active{background:var(--green-light);color:var(--green);}
+.badge-inactive{background:var(--gray100);color:var(--gray400);}
+.badge-plan{background:var(--blue-light);color:var(--blue);}
+.badge-draft{background:var(--gray100);color:var(--gray600);}
+.badge-signed{background:var(--green-light);color:var(--green);}
+.badge-uploaded{background:var(--blue-light);color:var(--blue);}
+
+/* ─── METRIC PILLS ─── */
+.metric-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}
+.metric-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--gray50);border:1px solid var(--gray200);font-size:11px;color:var(--gray600);font-weight:500;}
+.metric-pill strong{color:var(--gray900);font-weight:700;}
+
+/* ─── TOOLBAR ─── */
+.customer-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;margin-bottom:16px;}
+.toolbar-input,.toolbar-select{padding:10px 14px;border:1.5px solid var(--gray200);border-radius:10px;font-size:13px;font-family:inherit;color:var(--gray900);background:var(--gray50);outline:none;transition:all .2s;}
+.toolbar-input:focus,.toolbar-select:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.08);}
+
+/* ─── MODALS ─── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);z-index:100;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--white);border-radius:18px;padding:28px;width:100%;max-width:500px;box-shadow:0 24px 60px rgba(0,0,0,.18);animation:fadeUp .3s cubic-bezier(.16,1,.3,1) both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal h3{font-family:'Bricolage Grotesque',sans-serif;font-size:19px;font-weight:800;margin-bottom:6px;letter-spacing:-.01em;}
+.modal-sub{font-size:12.5px;color:var(--gray400);margin-bottom:22px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+
+/* ─── CONFIRM MODAL ─── */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.confirm-overlay.open{display:flex;}
+.confirm-box{background:var(--white);border-radius:18px;padding:32px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:fadeUp .25s cubic-bezier(.16,1,.3,1) both;}
+.confirm-icon{font-size:42px;margin-bottom:14px;}
+.confirm-title{font-size:17px;font-weight:700;margin-bottom:10px;}
+.confirm-text{font-size:13px;color:var(--gray600);margin-bottom:22px;line-height:1.6;}
+.confirm-actions{display:flex;gap:10px;justify-content:center;}
+
+/* ─── CALL LOG ─── */
+.call-log-item{padding:14px 16px;border:1px solid var(--gray200);border-radius:var(--radius);margin-bottom:10px;transition:border-color .15s;}
+.call-log-item:hover{border-color:var(--blue-mid);}
+.call-log-name{font-size:13.5px;font-weight:600;}
+.call-log-meta{font-size:11.5px;color:var(--gray400);margin-top:4px;}
+.call-log-summary{font-size:12.5px;color:var(--gray600);margin-top:7px;line-height:1.6;}
+
+/* ─── STATS ─── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+.stat-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:var(--radius);padding:18px;transition:border-color .15s;}
+.stat-card:hover{border-color:var(--blue-mid);}
+.stat-label{font-size:11px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
+.stat-val{font-size:28px;font-weight:800;font-family:"Bricolage Grotesque",sans-serif;line-height:1;}
+.stat-sub{font-size:11.5px;color:var(--gray400);margin-top:7px;}
+.stat-val.blue{color:var(--blue);}
+.stat-val.green{color:var(--green);}
+.stat-val.red{color:var(--red);}
+.stat-val.amber{color:var(--amber);}
+
+/* ─── MINUTES BAR ─── */
+.min-bar-wrap{margin-bottom:20px;}
+.min-bar-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;}
+.min-bar-track{height:12px;background:var(--gray100);border-radius:6px;overflow:hidden;}
+.min-bar-fill{height:100%;border-radius:6px;transition:width .6s ease;}
+.min-bar-fill.ok{background:var(--green);}
+.min-bar-fill.warn{background:var(--amber);}
+.min-bar-fill.over{background:var(--red);}
+.min-packages{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;}
+.min-pkg{border:1px solid var(--gray200);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;transition:all .15s;}
+.min-pkg:hover{border-color:var(--blue);background:var(--blue-light);transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.min-pkg-min{font-size:20px;font-weight:800;color:var(--blue);font-family:"Bricolage Grotesque",sans-serif;}
+.min-pkg-price{font-size:13px;font-weight:600;color:var(--gray900);margin-top:4px;}
+.min-pkg-rate{font-size:11px;color:var(--gray400);margin-top:4px;}
+.recent-calls{display:flex;flex-direction:column;gap:6px;}
+.recent-call-item{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--gray50);border-radius:8px;font-size:12.5px;transition:background .15s;}
+.recent-call-item:hover{background:var(--gray100);}
+.recent-call-name{font-weight:600;flex:1;}
+.recent-call-time{color:var(--gray400);}
+
+/* ─── PROFILE MODAL ─── */
+.profile-shell{display:flex;flex-direction:column;gap:14px;}
+.profile-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.profile-kpi{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:14px 16px;}
+.profile-kpi-label{font-size:11px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.profile-kpi-value{font-family:"Bricolage Grotesque",sans-serif;font-size:22px;font-weight:800;color:var(--gray900);line-height:1;}
+.profile-block-title{font-size:12px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+
+/* ─── DETAIL ITEMS ─── */
+.detail-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;}
+.detail-stack{display:flex;flex-direction:column;gap:14px;}
+.detail-item{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--gray200);font-size:13px;}
+.detail-item:last-child{border-bottom:none;padding-bottom:0;}
+.detail-key{color:var(--gray400);font-weight:600;}
+.detail-val{color:var(--gray900);font-weight:600;text-align:right;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.info-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;}
+.info-chip.on{background:var(--green-light);color:var(--green);border:1px solid var(--green-mid);}
+.info-chip.off{background:var(--gray100);color:var(--gray600);border:1px solid var(--gray200);}
+.detail-list{display:flex;flex-direction:column;gap:10px;}
+.detail-call{padding:14px 16px;border:1px solid var(--gray200);border-radius:var(--radius);background:var(--gray50);}
+.detail-call-top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:6px;}
+.detail-call-name{font-size:13.5px;font-weight:700;}
+.detail-call-meta{font-size:11.5px;color:var(--gray400);}
+.detail-call-summary{font-size:12.5px;color:var(--gray600);line-height:1.6;margin-top:6px;}
+
+/* ─── CONTRACT SECTION ─── */
+.contract-card{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:20px;margin:0;}
+.contract-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;}
+.contract-list{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+.contract-item{padding:16px;border:1px solid var(--gray200);border-radius:var(--radius);background:var(--gray50);transition:border-color .15s;}
+.contract-item:hover{border-color:var(--blue-mid);}
+.contract-main{margin-bottom:10px;}
+.contract-title{font-size:13.5px;font-weight:700;color:var(--gray900);margin-bottom:6px;}
+.contract-meta{font-size:11.5px;color:var(--gray400);line-height:1.7;}
+.contract-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.contract-modal-vx .form-grid{gap:14px;}
+.contract-preview-box{margin-top:18px;padding:16px;background:var(--gray50);border:1px solid var(--gray200);border-radius:var(--radius);font-size:12.5px;color:var(--gray600);line-height:1.7;}
+.contract-preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+.contract-preview-pill{background:var(--white);border:1px solid var(--gray200);border-radius:8px;padding:10px 12px;}
+.contract-preview-label{font-size:10.5px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+.contract-preview-value{font-size:14px;font-weight:700;color:var(--gray900);}
+
+.section-note{font-size:12px;color:var(--gray400);margin-top:-4px;margin-bottom:16px;}
+.hidden-file{position:absolute;width:0;height:0;overflow:hidden;opacity:0;}
+
+/* ─── UTILITY ─── */
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;}
+.spinner-blue{border-color:rgba(26,86,219,.15);border-top-color:var(--blue);}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:44px 20px;color:var(--gray400);font-size:13px;}
+.empty-icon{font-size:36px;margin-bottom:10px;}
+
+/* ─── ROLE BADGES ─── */
+.role-badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.02em;}
+.role-badge-super{background:var(--red-light);color:var(--red);border:1px solid #FECACA;}
+.role-badge-admin{background:var(--amber-light);color:var(--amber);border:1px solid #FDE68A;}
+.role-badge-support{background:var(--green-light);color:var(--green);border:1px solid var(--green-mid);}
+
+/* ─── ADMIN MANAGEMENT ─── */
+.admin-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;padding:14px 18px;border:1px solid var(--gray200);border-radius:14px;background:var(--white);margin-bottom:10px;transition:all .2s;box-shadow:var(--shadow-sm);}
+.admin-row:hover{border-color:var(--blue-mid);box-shadow:0 4px 14px rgba(26,86,219,.07);}
+.admin-av{width:38px;height:38px;border-radius:50%;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.admin-info .admin-name{font-size:14px;font-weight:700;}
+.admin-info .admin-meta{font-size:11.5px;color:var(--gray400);margin-top:4px;}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:900px){
+  .overview-grid{grid-template-columns:repeat(2,1fr);}
+  .detail-grid{grid-template-columns:1fr;}
+  .customer-row{grid-template-columns:1fr;gap:12px;}
+  .customer-av{display:none;}
+  .customer-toolbar{grid-template-columns:1fr;}
+  .profile-kpis{grid-template-columns:1fr;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .min-packages{grid-template-columns:repeat(2,1fr);}
+  .contract-preview-grid{grid-template-columns:1fr;}
+}
+@media(max-width:600px){
+  .form-grid{grid-template-columns:1fr;}
+  .page{padding:16px 16px 32px;}
+  .topbar{padding:14px 16px;}
+  .overview-grid,.info-grid{grid-template-columns:1fr;}
+  .customer-top{flex-direction:column;align-items:flex-start;}
+  .action-cluster,.customer-actions{justify-content:flex-start;}
+  .modal{padding:20px;border-radius:14px;}
+  .tabs{width:100%;overflow-x:auto;}
+  .tab-btn{flex-shrink:0;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">Voxera</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:12px;color:var(--gray400);font-weight:500" id="topbar-stats"></span>
+    <div id="topbar-admin-info" style="display:none;align-items:center;gap:8px">
+      <span style="font-size:13px;font-weight:600;color:var(--gray600)" id="topbar-admin-name"></span>
+      <span class="role-badge" id="topbar-role-badge"></span>
+    </div>
+    <button class="btn btn-secondary btn-sm" id="logout-btn" onclick="logoutAdmin()" style="display:none">Abmelden</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">Kundenverwaltung</div>
+  <div class="page-sub">Kunden anlegen, verwalten und überwachen</div>
+
+  <div class="overview-grid">
+    <div class="overview-card"><div class="overview-label">Kunden aktiv</div><div class="overview-value" id="ov-active">–</div><div class="overview-sub" id="ov-active-sub">–</div></div>
+    <div class="overview-card"><div class="overview-label">Monatlicher Umsatz</div><div class="overview-value" id="ov-mrr">–</div><div class="overview-sub" id="ov-mrr-sub">geschätzt nach Plan</div></div>
+    <div class="overview-card"><div class="overview-label">Business / Pro</div><div class="overview-value" id="ov-pro">–</div><div class="overview-sub">Upmarket Accounts</div></div>
+    <div class="overview-card"><div class="overview-label">Offene Rückrufe</div><div class="overview-value" id="ov-callbacks">–</div><div class="overview-sub" id="ov-callbacks-sub">über alle Kunden</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active role-guard-write" onclick="showSection('neuer-kunde',this)">➕ Neuer Kunde</button>
+    <button class="tab-btn" onclick="showSection('kunden-liste',this)">👥 Kunden</button>
+    <button class="tab-btn" onclick="showSection('anruf-log',this)">📞 Anruf-Log</button>
+    <button class="tab-btn" onclick="showSection('statistik',this)">📊 Statistik</button>
+    <button class="tab-btn role-guard-super" id="admin-tab-btn" onclick="showSection('admin-verwaltung',this)" style="display:none">👤 Admins</button>
+  </div>
+
+  <!-- NEUER KUNDE -->
+  <div id="section-neuer-kunde">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><div class="card-icon" style="background:var(--blue-light)">➕</div>Neuen Kunden anlegen</div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Vorname *</label><input class="form-input" id="f-vorname" placeholder="Patrick" type="text"></div>
+        <div class="form-group"><label class="form-label">Nachname *</label><input class="form-input" id="f-nachname" placeholder="Vogel" type="text"></div>
+        <div class="form-group"><label class="form-label">E-Mail *</label><input class="form-input" id="f-email" placeholder="kunde@email.ch" type="email"></div>
+        <div class="form-group">
+          <label class="form-label">Temporäres Passwort *</label>
+          <input class="form-input" id="f-password" type="text">
+          <span class="form-hint">Kunde kann Passwort später ändern</span>
+        </div>
+        <div class="form-group"><label class="form-label">Firma</label><input class="form-input" id="f-firma" placeholder="Allianz AG" type="text"></div>
+        <div class="form-group">
+          <label class="form-label">Voxera-Nummer *</label>
+          <input class="form-input" id="f-nummer" placeholder="+41445053662" type="tel">
+          <span class="form-hint">Twilio-Nummer mit + und Ländervorwahl</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Plan</label>
+          <select class="form-input" id="f-plan">
+            <option value="Pilot">Pilot (49 CHF/Mt)</option>
+            <option value="Starter">Starter (199 CHF/Mt)</option>
+            <option value="Business" selected>Business (349 CHF/Mt)</option>
+            <option value="Professional">Professional (549 CHF/Mt)</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Startdatum</label><input class="form-input" id="f-startdatum" type="date"></div>
+        <div class="form-group full"><label class="form-label">Interne Notiz</label><input class="form-input" id="f-notiz" placeholder="z.B. Versicherungsberater, Allianz Stans, Pilot 3 Monate" type="text"></div>
+      </div>
+      <div class="status-box" id="create-status">
+        <div class="status-icon" id="create-icon"></div>
+        <div class="status-text">
+          <strong id="create-title"></strong>
+          <div id="create-detail"></div>
+          <div class="steps" id="create-steps"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:22px">
+        <button class="btn btn-primary" id="create-btn" onclick="createCustomer()"><span id="create-btn-text">➕ Kunden anlegen</span></button>
+        <button class="btn btn-secondary" onclick="resetForm()">Zurücksetzen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KUNDEN LISTE -->
+  <div id="section-kunden-liste" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><div class="card-icon" style="background:var(--green-light)">👥</div>Alle Kunden</div>
+          <div class="section-note">Kompakter Überblick über Status, Plan, Umsatz und letzte Aktivität.</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="loadCustomers()">↻ Aktualisieren</button>
+      </div>
+      <div class="customer-toolbar">
+        <input class="toolbar-input" id="customer-search" placeholder="Kunde, E-Mail, Nummer oder Customer ID suchen..." oninput="renderCustomers()">
+        <select class="toolbar-select" id="customer-plan-filter" onchange="renderCustomers()">
+          <option value="">Alle Pläne</option>
+          <option value="Pilot">Pilot</option>
+          <option value="Starter">Starter</option>
+          <option value="Business">Business</option>
+          <option value="Professional">Professional</option>
+        </select>
+        <select class="toolbar-select" id="customer-status-filter" onchange="renderCustomers()">
+          <option value="">Alle Status</option>
+          <option value="aktiv">Aktiv</option>
+          <option value="inaktiv">Inaktiv</option>
+        </select>
+      </div>
+      <div id="customer-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
+    </div>
+  </div>
+
+  <!-- ANRUF LOG -->
+  <div id="section-anruf-log" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><div class="card-icon" style="background:var(--amber-light)">📞</div>Anruf-Log (letzte 20)</div>
+        <button class="btn btn-secondary btn-sm" onclick="loadCallLog()">↻ Aktualisieren</button>
+      </div>
+      <div id="call-log-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
+    </div>
+  </div>
+
+  <!-- STATISTIK -->
+  <div id="section-statistik" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><div class="card-icon" style="background:var(--blue-light)">📊</div>Kunden-Statistik</div>
+        <select class="form-input" id="stats-customer-select" onchange="loadStats()" style="width:auto;padding:8px 14px;font-size:13px">
+          <option value="">Kunden wählen...</option>
+        </select>
+      </div>
+      <div id="stats-content"><div class="empty"><div class="empty-icon">📊</div>Bitte einen Kunden auswählen</div></div>
+    </div>
+  </div>
+
+  <!-- ADMIN VERWALTUNG (nur Super-Admin) -->
+  <div id="section-admin-verwaltung" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><div class="card-icon" style="background:var(--red-light)">👤</div>Admin-Verwaltung</div>
+          <div class="section-note">Adminkonten erstellen, Rollen vergeben und verwalten</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openCreateAdminModal()">➕ Admin anlegen</button>
+      </div>
+      <div id="admin-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeEdit()">
+  <div class="modal">
+    <h3>Kunde bearbeiten</h3>
+    <div class="modal-sub" id="edit-sub"></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="edit-name" type="text"></div>
+      <div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" id="edit-email" type="email"></div>
+      <div class="form-group"><label class="form-label">Voxera-Nummer</label><input class="form-input" id="edit-nummer" type="tel"></div>
+      <div class="form-group">
+        <label class="form-label">Plan</label>
+        <select class="form-input" id="edit-plan">
+          <option value="Pilot">Pilot</option>
+          <option value="Starter">Starter</option>
+          <option value="Business">Business</option>
+          <option value="Professional">Professional</option>
+        </select>
+      </div>
+    </div>
+    <div class="status-box" id="edit-status">
+      <div class="status-icon" id="edit-icon"></div>
+      <div class="status-text"><strong id="edit-title"></strong><div id="edit-detail"></div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeEdit()">Abbrechen</button>
+      <button class="btn btn-primary" id="edit-save-btn" onclick="saveEdit()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER PROFILE MODAL -->
+<div class="modal-overlay" id="profile-modal" onclick="if(event.target===this)closeProfile()">
+  <div class="modal" style="max-width:680px;max-height:82vh;overflow:auto;padding:22px 22px 20px">
+    <h3>Kundenprofil</h3>
+    <div class="modal-sub" id="profile-sub"></div>
+    <div id="profile-content"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeProfile()">Schliessen</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="contract-upload-input" class="hidden-file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="handleSignedContractUpload(event)">
+
+<div class="modal-overlay" id="contract-modal" onclick="if(event.target===this)closeContractModal()">
+  <div class="modal contract-modal-vx">
+    <h3>Vertrag vorbereiten</h3>
+    <div class="modal-sub">Bitte Vertragsdetails vor der Generierung festlegen.</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Abo / Plan</label>
+        <select class="form-input" id="contract-plan" onchange="syncContractPlanDefaults();refreshContractPreview()">
+          <option value="Pilot">Pilot</option>
+          <option value="Starter">Starter</option>
+          <option value="Business">Business</option>
+          <option value="Professional">Professional</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Laufzeit</label>
+        <select class="form-input" id="contract-term" onchange="refreshContractPreview()">
+          <option value="1">1 Monat</option>
+          <option value="12" selected>12 Monate</option>
+          <option value="24">24 Monate</option>
+          <option value="36">36 Monate</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zahlungsfrequenz</label>
+        <select class="form-input" id="contract-billing" onchange="refreshContractPreview()">
+          <option value="monthly" selected>Monatlich</option>
+          <option value="yearly">Jährlich</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rabatt in %</label>
+        <input class="form-input" id="contract-discount" onchange="refreshContractPreview()" type="number" min="0" max="100" step="1" value="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Setup-Fee in CHF</label>
+        <input class="form-input" id="contract-setup" onchange="this.dataset.touched='true';refreshContractPreview()" type="number" min="0" step="10" value="490" placeholder="490">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Vertragsstart</label>
+        <input class="form-input" id="contract-start" onchange="refreshContractPreview()" type="date">
+      </div>
+    </div>
+    <div class="contract-preview-box" id="contract-preview-box"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeContractModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="confirmGenerateContract()">PDF erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="confirm-overlay" id="confirm-modal">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="confirm-title"></div>
+    <div class="confirm-text" id="confirm-text"></div>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" onclick="closeConfirm()">Abbrechen</button>
+      <button class="btn" id="confirm-ok" onclick="doConfirm()">Bestätigen</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE ADMIN MODAL -->
+<div class="modal-overlay" id="create-admin-modal" onclick="if(event.target===this)closeCreateAdminModal()">
+  <div class="modal">
+    <h3>Admin anlegen</h3>
+    <div class="modal-sub">Neues Admin-Konto erstellen. Ein temporäres Passwort wird generiert und muss beim ersten Login geändert werden.</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="ca-name" placeholder="Max Mustermann" type="text"></div>
+      <div class="form-group">
+        <label class="form-label">Rolle *</label>
+        <select class="form-input" id="ca-role">
+          <option value="support">🟢 Support (nur lesen)</option>
+          <option value="admin" selected>🟡 Admin (Kundenverwaltung)</option>
+          <option value="super-admin">🔴 Super-Admin (Vollzugriff)</option>
+        </select>
+      </div>
+      <div class="form-group full"><label class="form-label">E-Mail *</label><input class="form-input" id="ca-email" placeholder="admin@voxera.ch" type="email"></div>
+      <div class="form-group full">
+        <label class="form-label">Temporäres Passwort</label>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="ca-password" type="text" readonly style="flex:1;font-family:monospace;font-size:13px">
+          <button class="btn btn-secondary btn-sm" onclick="generateAdminPassword()">↻ Neu</button>
+        </div>
+        <span class="form-hint">Passwort muss beim ersten Login geändert werden</span>
+      </div>
+    </div>
+    <div class="status-box" id="ca-status">
+      <div class="status-icon" id="ca-icon"></div>
+      <div class="status-text"><strong id="ca-title"></strong><div id="ca-detail"></div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeCreateAdminModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="ca-save-btn" onclick="createAdminAccount()">Admin anlegen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const SB_URL  = 'https://ulcofbgrovgcvowdjrge.supabase.co';
+const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk'; // TODO: Ersetzen, falls weiterhin "Unregistered API key" erscheint
+// ─── AIRTABLE REMOVED ─── Alle Daten kommen jetzt aus Supabase ───
+// Alte Konstanten AT_TOK, AT_BASE, AT_KUND, AT_CALL wurden entfernt.
+
+const supabaseLib = window.supabase;
+const supabaseReady = !!(supabaseLib && typeof supabaseLib.createClient === 'function');
+if (!supabaseReady) {
+  console.error('[voxera-admin] Supabase-Bibliothek nicht geladen.');
+}
+
+// Auth client (anon key, session persists in localStorage)
+const _sbAuth = supabaseReady ? supabaseLib.createClient(SB_URL, SB_ANON_KEY) : null;
+
+// Data client – identisch mit Auth client, da wir anon key + RLS nutzen
+const _sb = _sbAuth;
+
+let editId = null, confirmCb = null, customers = [], profileId = null, currentAdmin = null;
+
+function ensureAdminAuthClient() {
+  if (_sbAuth && _sbAuth.auth) return _sbAuth;
+  showAuthRequired('Supabase nicht initialisiert. Seite neu laden oder Konfiguration prüfen.');
+  return null;
+}
+
+function blockPrivilegedAction(actionLabel) {
+  alert(`${actionLabel} ist aktuell aus Sicherheitsgründen deaktiviert.\n\nPhase 2: Diese Aktion wird über einen serverseitigen Endpoint / eine Edge Function umgesetzt.`);
+}
+
+
+// TABS
+function showSection(name, btn) {
+  ['neuer-kunde','kunden-liste','anruf-log','statistik','admin-verwaltung'].forEach(s =>
+    document.getElementById('section-'+s).style.display = s===name?'block':'none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (name==='kunden-liste') loadCustomers();
+  if (name==='anruf-log') loadCallLog();
+  if (name==='statistik') { initStats(); }
+  if (name==='admin-verwaltung') { loadAdmins(); }
+}
+
+// HELPERS
+function ini(name) { return (name||'?').trim().split(/\s+/).map(n=>n[0]||'').join('').toUpperCase().slice(0,2); }
+function fmtDate(r) {
+  if (!r) return '–';
+  try { const d=new Date(r); return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}); }
+  catch(e){return r;}
+}
+function fmtDateOnly(r){ if(!r) return '–'; try{ const d=new Date(r); return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return r;} }
+function monthsSince(r){ if(!r) return 0; try{ const d=new Date(r); const now=new Date(); let m=(now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth()); if(now.getDate() < d.getDate()) m -= 1; return Math.max(0,m); }catch(e){ return 0; } }
+// ─── SUPABASE HELPERS (ersetzt atReq) ───
+async function sbCustomers(opts = {}) {
+  let q = _sb.from('customers').select('*');
+  if (opts.order) q = q.order(opts.order, { ascending: opts.ascending !== false });
+  else q = q.order('id');
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+async function sbCalls(opts = {}) {
+  let q = _sb.from('calls').select('*');
+  if (opts.filter) {
+    for (const [col, val] of Object.entries(opts.filter)) {
+      q = q.eq(col, val);
+    }
+  }
+  if (opts.order) q = q.order(opts.order, { ascending: opts.ascending === true });
+  else q = q.order('created_date_raw', { ascending: false });
+  if (opts.limit) q = q.limit(opts.limit);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+// Hilfsfunktion: Supabase-Row → einheitliches Customer-Objekt
+// Alle render*-Funktionen nutzen c.id und c.<feldname> direkt
+function mapCustomer(row) { return row; }
+function mapCall(row) { return row; }
+function setStatus(pfx, type, title, detail='') {
+  document.getElementById(pfx+'-status').className='status-box show '+type;
+  document.getElementById(pfx+'-icon').textContent = type==='success'?'✅':type==='error'?'❌':'⏳';
+  document.getElementById(pfx+'-title').textContent = title;
+  document.getElementById(pfx+'-detail').textContent = detail;
+}
+function renderSteps(steps, active) {
+  document.getElementById('create-steps').innerHTML = steps.map((s,i)=>{
+    const cls = i<active?'done':i===active?'active':'';
+    return `<div class="step"><div class="step-dot ${cls}">${i<active?'✓':i+1}</div><span>${s}</span></div>`;
+  }).join('');
+}
+
+// GET NEXT CUSTOMER ID
+async function getNextId() {
+  const { data, error } = await _sb.from('customers').select('id').order('id', { ascending: false }).limit(1);
+  if (error) throw new Error(error.message);
+  let max = 0;
+  (data || []).forEach(r => { const n = parseInt(r.id || 0); if (!isNaN(n) && n > max) max = n; });
+  return String(max + 1).padStart(3, '0');
+}
+
+// CREATE CUSTOMER
+const STEPS = ['Kunden-ID ermitteln','Auth User erstellen','Kunde & User anlegen','Fertig'];
+async function createCustomer() {
+  const btn = document.getElementById('create-btn');
+  btn.disabled = true;
+
+  const vorname = document.getElementById('f-vorname').value.trim();
+  const nachname = document.getElementById('f-nachname').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const password = document.getElementById('f-password').value;
+  const firma = document.getElementById('f-firma').value.trim();
+  const nummer = document.getElementById('f-nummer').value.trim();
+  const plan = document.getElementById('f-plan').value;
+  const startdatum = document.getElementById('f-startdatum').value;
+  const notiz = document.getElementById('f-notiz').value.trim();
+
+  if (!vorname || !nachname || !email || !password || !nummer) {
+    setStatus('create','error','Fehlende Pflichtfelder','Vorname, Nachname, E-Mail, Passwort und Voxera-Nummer sind erforderlich.');
+    btn.disabled = false;
+    return;
+  }
+
+  const customerName = firma ? `${vorname} ${nachname} · ${firma}` : `${vorname} ${nachname}`;
+
+  try {
+    // Step 1: Kunden-ID ermitteln
+    renderSteps(STEPS, 0);
+    setStatus('create','loading','Kunde wird erstellt...','Schritt 1/4: Kunden-ID ermitteln');
+    const nextId = await getNextId();
+
+    // Step 2: Auth User + Customer + User via Netlify Function
+    renderSteps(STEPS, 1);
+    setStatus('create','loading','Kunde wird erstellt...','Schritt 2/4: Auth User erstellen');
+
+    const res = await fetch('/.netlify/functions/create-customer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_id: nextId,
+        customer_name: customerName,
+        email: email,
+        password: password,
+        voxera_number: nummer,
+        plan: plan,
+        start_date: startdatum || new Date().toISOString().split('T')[0]
+      })
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Fehler beim Erstellen');
+
+    // Step 3: Fertig
+    renderSteps(STEPS, 2);
+    setStatus('create','loading','Kunde wird erstellt...','Schritt 3/4: Daten werden gespeichert');
+
+    // Kurze Pause für UX
+    await new Promise(r => setTimeout(r, 500));
+    renderSteps(STEPS, 3);
+
+    setStatus('create','success','✅ Kunde erfolgreich erstellt',
+      `${customerName} (${email}) · ID: ${nextId} · Plan: ${plan}`);
+
+    // Liste aktualisieren
+    setTimeout(() => loadCustomers(), 1000);
+
+  } catch(e) {
+    setStatus('create','error','Fehler beim Erstellen', e.message);
+  }
+  btn.disabled = false;
+}
+
+function resetForm() {
+  ['f-vorname','f-nachname','f-email','f-firma','f-nummer','f-notiz'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('f-password').value='Voxera2026!';
+  document.getElementById('f-startdatum').value=new Date().toISOString().split('T')[0];
+  document.getElementById('create-status').className='status-box';
+  document.getElementById('create-steps').innerHTML='';
+}
+
+// LOAD CUSTOMERS
+async function loadCustomersData() {
+  const rows = await sbCustomers();
+  // Normalisiere auf einheitliches Format: customers[] = Array von Supabase-Rows
+  customers = rows;
+  document.getElementById('topbar-stats').textContent = customers.length + ' Kunden';
+  try {
+    const calls = await sbCalls({ limit: 200 });
+    updateOverview(customers, calls);
+  } catch(e) { updateOverview(customers, []); }
+  return customers;
+}
+
+async function loadCustomers() {
+  document.getElementById('customer-list').innerHTML='<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div>';
+  try {
+    await loadCustomersData();
+    renderCustomers();
+  } catch(e) {
+    document.getElementById('customer-list').innerHTML=`<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`;
+  }
+}
+
+function renderCustomers() {
+  const root = document.getElementById('customer-list');
+  if (!customers.length) { root.innerHTML='<div class="empty"><div class="empty-icon">👥</div>Noch keine Kunden</div>'; return; }
+  const q = (document.getElementById('customer-search')?.value || '').trim().toLowerCase();
+  const planFilter = document.getElementById('customer-plan-filter')?.value || '';
+  const statusFilter = document.getElementById('customer-status-filter')?.value || '';
+  const filtered = customers.filter(c => {
+    const status = (c.status || '').toLowerCase();
+    const hay = [c.customer_name, c.email, c.voxera_number, c.id, c.plan].join(' ').toLowerCase();
+    if (q && !hay.includes(q)) return false;
+    if (planFilter && (c.plan || '') !== planFilter) return false;
+    if (statusFilter && status !== statusFilter) return false;
+    return true;
+  });
+  if (!filtered.length) { root.innerHTML='<div class="empty"><div class="empty-icon">🔎</div>Keine Kunden für diese Filter</div>'; return; }
+  root.innerHTML = `<div class="customer-list">${filtered.map(c => {
+    const name = c.customer_name || '–';
+    const active = (c.status || '').toLowerCase() === 'active' || (c.status || '').toLowerCase() === 'aktiv';
+    const plan = c.plan || 'Pilot';
+    const monthly = (PLANS[plan] || PLANS.Pilot).monthlyPrice || 0;
+    const since = c.start_date ? fmtDateOnly(c.start_date) : '–';
+    const months = c.start_date ? monthsSince(c.start_date) : 0;
+    const canWrite = currentAdmin && ['admin','super-admin'].includes(currentAdmin.role);
+    return `<div class="customer-row ${!active?'inactive':''}">
+      <div class="customer-av">${ini(name)}</div>
+      <div class="customer-main">
+        <div class="customer-top">
+          <div class="customer-info">
+            <div class="customer-name">${name}</div>
+            <div class="customer-meta">${c.email||'–'} · ID ${c.id||'–'} · ${c.voxera_number||'–'}</div>
+          </div>
+          <div class="customer-tags">
+            <span class="badge badge-plan">${plan}</span>
+            <span class="badge ${active?'badge-active':'badge-inactive'}">${active?'Aktiv':'Inaktiv'}</span>
+          </div>
+        </div>
+        <div class="metric-pills">
+          <span class="metric-pill"><strong>${monthly} CHF</strong> / Mt</span>
+          <span class="metric-pill">Kunde seit <strong>${since}</strong></span>
+          <span class="metric-pill">Abo seit <strong>${months ? months + ' Mt' : '–'}</strong></span>
+        </div>
+      </div>
+      <div class="customer-actions">
+        <div class="action-cluster">
+          <button class="btn btn-primary btn-sm" onclick="openCustomerProfile('${c.id}')">Details</button>
+          <button class="btn btn-secondary btn-sm" onclick="openCustomerStats('${c.voxera_number||''}','${name}','${plan}')">Statistik</button>
+          ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="openEdit('${c.id}')">Bearbeiten</button>`:''}
+          ${canWrite?`<button class="btn ${active?'btn-warning':'btn-secondary'} btn-sm" onclick="toggleStatus('${c.id}','${name}',${active})">${active?'Pausieren':'Aktivieren'}</button>`:''}
+          ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="pwReset('${c.email||''}')">Passwort</button>`:''}
+          ${canWrite?`<button class="btn btn-danger btn-sm" onclick="delCustomer('${c.id}','${name}')">Löschen</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// CONTRACT FUNCTIONS
+function getContractStoreKey(customerId){ return 'voxera_contracts_' + (customerId || 'unknown'); }
+function readContracts(customerId){ try{return JSON.parse(localStorage.getItem(getContractStoreKey(customerId))||'[]');}catch(e){return [];} }
+function writeContracts(customerId, data){ localStorage.setItem(getContractStoreKey(customerId), JSON.stringify(data)); }
+function fmtCurrency(v){ return (Number(v)||0).toLocaleString('de-CH') + ' CHF'; }
+function getPlanConfig(plan){ return (PLANS[plan||'Pilot'] || PLANS.Pilot); }
+function currentCustomerMonthly(c){ return (getPlanConfig(c.plan||'Pilot').monthlyPrice||0); }
+function setupFeeForPlan(plan){ return (getPlanConfig(plan).setupFee||490); }
+function syncContractPlanDefaults(){
+  const plan = document.getElementById('contract-plan')?.value || 'Pilot';
+  const setupEl = document.getElementById('contract-setup');
+  if(setupEl && (!setupEl.dataset.touched || setupEl.dataset.touched!=='true')) setupEl.value = setupFeeForPlan(plan);
+}
+function contractDefaultsFor(c){
+  const monthly = currentCustomerMonthly(c);
+  return {
+    type:'Dienstleistungsvertrag – KI-Telefonassistenz',
+    plan: c.plan || 'Pilot',
+    monthlyPrice: monthly,
+    startDate: c.start_date || new Date().toISOString().split('T')[0],
+    termMonths:12,
+    discountPct:0,
+    billing:'monthly',
+    setupFee: setupFeeForPlan(c.plan || 'Pilot')
+  };
+}
+function effectiveMonthlyPrice(base, discountPct){ return Math.max(0, Math.round((Number(base)||0) * (1 - ((Number(discountPct)||0)/100)))); }
+function annualPriceFromMonthly(monthly){ return (Number(monthly)||0) * 12; }
+
+function renderContracts(customerRow){
+  const customerId = customerRow.id || customerRow.voxera_number || 'unknown';
+  const contracts = readContracts(customerId);
+  const emptyText = !contracts.length ? '<div style="font-size:12.5px;color:var(--gray400);margin-bottom:4px">Noch keine Verträge vorhanden.</div>' : '<div style="font-size:12px;color:var(--gray400);margin-bottom:4px">Verträge werden in dieser v1 lokal im Browser gespeichert.</div>';
+  return `<div class="contract-card"><div class="profile-block-title">Verträge</div>${emptyText}<div class="contract-toolbar"><button class="btn btn-primary btn-sm" onclick="openContractModal()">Vertrag erstellen</button><button class="btn btn-secondary btn-sm" onclick="promptSignedContractUpload()">Unterzeichneten Vertrag hochladen</button></div>${contracts.length?`<div class="contract-list">${contracts.map((c,i)=>`<div class="contract-item"><div class="contract-main"><div class="contract-title">${c.title||'Vertrag'}</div><div class="contract-meta">Plan: ${c.plan||'–'} · Laufzeit: ${c.termMonths||12} Mt · Zahlung: ${c.billing==='yearly'?'Jährlich':'Monatlich'} · Rabatt: ${c.discountPct||0}%</div><div class="contract-meta">Preis: ${fmtCurrency(c.monthlyPrice||0)} / Mt${c.setupFee!=null?` · Setup: ${fmtCurrency(c.setupFee)}`:''}</div><div class="contract-meta">Start: ${fmtDateOnly(c.startDate)} · Erstellt: ${fmtDate(c.createdAt)}${c.signedAt?` · Unterzeichnet: ${fmtDate(c.signedAt)}`:''}</div></div><div class="contract-actions"><span class="badge ${c.status==='Unterzeichnet'?'badge-signed':c.status==='Hochgeladen'?'badge-uploaded':'badge-draft'}">${c.status||'Entwurf'}</span>${c.downloadUrl?`<a class="btn btn-secondary btn-sm" href="${c.downloadUrl}" download="${c.fileName||'vertrag.pdf'}">Download</a>`:''}<button class="btn btn-quiet btn-sm" onclick="removeContract(${i})">Entfernen</button></div></div>`).join('')}</div>`:''}</div>`;
+}
+
+function openContractModal(){
+  if(!profileId) return;
+  const rec = customers.find(c=>c.id===profileId); if(!rec) return;
+  const d = contractDefaultsFor(rec);
+  document.getElementById('contract-plan').value = d.plan;
+  document.getElementById('contract-term').value = String(d.termMonths);
+  document.getElementById('contract-billing').value = d.billing;
+  document.getElementById('contract-discount').value = d.discountPct;
+  document.getElementById('contract-setup').dataset.touched = 'false';
+  document.getElementById('contract-setup').value = d.setupFee;
+  document.getElementById('contract-start').value = d.startDate;
+  refreshContractPreview();
+  document.getElementById('contract-modal').classList.add('open');
+}
+function closeContractModal(){ document.getElementById('contract-modal').classList.remove('open'); }
+
+function currentContractForm(){
+  const rec = customers.find(c=>c.id===profileId) || {};
+  const selectedPlan=document.getElementById('contract-plan').value || rec.plan || 'Pilot';
+  const base=(getPlanConfig(selectedPlan).monthlyPrice||0);
+  const discountPct=Number(document.getElementById('contract-discount').value||0);
+  const monthly=effectiveMonthlyPrice(base, discountPct);
+  const billing=document.getElementById('contract-billing').value;
+  const termMonths=Number(document.getElementById('contract-term').value||12);
+  const setupFee=Number(document.getElementById('contract-setup').value||0);
+  const startDate=document.getElementById('contract-start').value || (rec.start_date||new Date().toISOString().split('T')[0]);
+  const cycleAmount=billing==='yearly'?annualPriceFromMonthly(monthly):monthly;
+  return {customer:rec, plan:selectedPlan, baseMonthly:base, monthlyPrice:monthly, discountPct, billing, termMonths, setupFee, startDate, cycleAmount};
+}
+
+function refreshContractPreview(){
+  const c=currentContractForm();
+  const periodLabel = c.billing==='yearly' ? 'pro Jahr' : 'pro Monat';
+  document.getElementById('contract-preview-box').innerHTML = `<div style="font-weight:700;color:var(--gray900);margin-bottom:8px">Vorschau Vertragsdetails</div><div>Vor der PDF-Generierung werden Abo, Laufzeit, Rabatt und Zahlungsfrequenz in den Vertrag übernommen. Datenschutz- und AVV-Hinweise werden automatisch ergänzt.</div><div class="contract-preview-grid"><div class="contract-preview-pill"><div class="contract-preview-label">Plan</div><div class="contract-preview-value">${c.plan}</div></div><div class="contract-preview-pill"><div class="contract-preview-label">Preis nach Rabatt</div><div class="contract-preview-value">${fmtCurrency(c.monthlyPrice)} / Mt</div></div><div class="contract-preview-pill"><div class="contract-preview-label">Abrechnung</div><div class="contract-preview-value">${fmtCurrency(c.cycleAmount)} ${periodLabel}</div></div><div class="contract-preview-pill"><div class="contract-preview-label">Setup-Fee</div><div class="contract-preview-value">${fmtCurrency(c.setupFee)}</div></div></div>`;
+}
+
+function buildContractPdf(c){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 42;
+  let y = 40;
+  const blue=[26,86,219], gray=[17,24,39], light=[243,244,246], border=[229,231,235], red=[220,38,38];
+  function header(){
+    doc.setFillColor(...blue); doc.roundedRect(margin, y, pageW-margin*2, 72, 16, 16, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(255,255,255); doc.text('Voxera', margin+22, y+30);
+    doc.setFontSize(10); doc.setTextColor(230,238,255); doc.text('Dienstleistungsvertrag – KI-Telefonassistenz', margin+22, y+50);
+    y += 92;
+  }
+  function sectionTitle(title){
+    y += 8; doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...gray); doc.text(title, margin, y); y += 12;
+    doc.setDrawColor(...border); doc.line(margin, y, pageW-margin, y); y += 16;
+  }
+  function row(label, value){
+    doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(75,85,99); doc.text(label, margin, y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...gray);
+    const lines = doc.splitTextToSize(String(value||'–'), pageW - margin*2 - 130);
+    doc.text(lines, margin+128, y); y += Math.max(16, lines.length*13);
+  }
+  function para(text){
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(...gray);
+    const lines = doc.splitTextToSize(text, pageW - margin*2);
+    doc.text(lines, margin, y); y += lines.length*13 + 8;
+  }
+  function ensure(h=90){ if(y+h > 770){ doc.addPage(); y=40; header(); } }
+  header();
+  sectionTitle('Vertragspartner');
+  row('Anbieter', 'Voxera, Inhaber: Umut Yildirim, Schweiz');
+  row('E-Mail', 'info@voxera.ch');
+  row('Website', 'www.voxera.ch');
+  y += 4;
+  row('Kunde / Firma', c.customer.customer_name||'–');
+  row('E-Mail', c.customer.email||'–');
+  row('Voxera-Nummer', c.customer.voxera_number||'–');
+  row('Customer ID', c.customer.id||'–');
+  ensure();
+  sectionTitle('Vertragsdetails');
+  row('Gewählter Plan', c.plan);
+  row('Laufzeit', `${c.termMonths} Monate`);
+  row('Zahlungsfrequenz', c.billing==='yearly' ? 'Jährlich' : 'Monatlich');
+  row('Listenpreis', `${fmtCurrency(c.baseMonthly)} / Monat`);
+  row('Rabatt', `${c.discountPct||0}%`);
+  row('Preis nach Rabatt', `${fmtCurrency(c.monthlyPrice)} / Monat`);
+  row('Abrechnung', c.billing==='yearly' ? `${fmtCurrency(c.cycleAmount)} pro Jahr` : `${fmtCurrency(c.cycleAmount)} pro Monat`);
+  row('Setup-Fee', fmtCurrency(c.setupFee));
+  row('Vertragsstart', fmtDateOnly(c.startDate));
+  ensure(180);
+  sectionTitle('Vertragsgegenstand');
+  para('Voxera stellt dem Kunden einen KI-gestützten Telefonassistenten zur Verfügung. Dieser nimmt eingehende Anrufe entgegen, führt strukturierte Gespräche, erfasst relevante Informationen und überträgt diese automatisch in ein Echtzeit-Dashboard. Der Dienst wird als Software-as-a-Service (SaaS) bereitgestellt.');
+  sectionTitle('Leistungsumfang');
+  para(`• Entgegennahme eingehender Anrufe auf der zugewiesenen Rufnummer, 24 Stunden täglich, 7 Tage die Woche
+• Strukturierte Gesprächsführung gemäss vereinbartem Gesprächsleitfaden
+• Automatische Erfassung von Anruferdaten (Name, Telefonnummer, Anliegen, Lead-Qualität)
+• Bereitstellung eines passwortgeschützten Dashboards zur Anzeige aller Anrufe
+• Rückruf-Management inkl. Status-Tracking
+• Technischer Support per E-Mail`);
+  ensure(220);
+  sectionTitle('Laufzeit & Zahlungsbedingungen');
+  para(`Der Vertrag startet am ${fmtDateOnly(c.startDate)} und läuft für ${c.termMonths} Monate. Die Abrechnung erfolgt ${c.billing==='yearly' ? 'jährlich im Voraus' : 'monatlich im Voraus'}. Rabatte gemäss Vertragsdetails sind bereits berücksichtigt. Zusatzminuten über das Inklusivkontingent hinaus werden separat verrechnet. Rechnungen sind innert 14 Tagen fällig.`);
+  sectionTitle('Datenschutz & Datenverarbeitung');
+  para('Voxera verarbeitet personenbezogene Daten gemäss Schweizer DSG und, soweit anwendbar, DSGVO. Die Verarbeitung erfolgt ausschliesslich zur Erbringung des KI-Telefonassistenz-Dienstes. Verarbeitet werden insbesondere Namen von Anrufern, Telefonnummern, Gesprächsinhalte bzw. Zusammenfassungen, Zeitpunkt und Dauer der Anrufe sowie Firmenzugehörigkeit, soweit mitgeteilt.');
+  para('Voxera handelt dabei als Auftragsverarbeiter im Auftrag des Kunden. Es gelten die aktuellen Voxera AGB sowie der Auftragsverarbeitungsvertrag (AVV). Voxera setzt angemessene technische und organisatorische Massnahmen um, darunter Zugriffskontrolle, verschlüsselte Übertragung, Passwortschutz, Datensicherungen und Protokollierung.');
+  para('Nach Vertragsende werden Kundendaten innerhalb von 30 Tagen gelöscht, sofern keine gesetzliche Aufbewahrungspflicht besteht. Wesentliche Unterauftragsverarbeiter und datenschutzrelevante Änderungen werden dem Kunden vorgängig mitgeteilt.');
+  sectionTitle('Haftung & Recht');
+  para('Voxera haftet für Vorsatz und grobe Fahrlässigkeit. Im Übrigen ist die Haftung auf die in den letzten drei Monaten vom Kunden bezahlten Gebühren begrenzt. Es gilt ausschliesslich Schweizer Recht; Gerichtsstand ist der Sitz von Voxera in der Schweiz.');
+  ensure(150);
+  y += 8; doc.setFillColor(...light); doc.roundedRect(margin, y, pageW-margin*2, 88, 12, 12, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...gray); doc.text('Unterschriften', margin+16, y+22);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text('Ort, Datum: ________________________________', margin+16, y+48);
+  doc.text('Voxera – Umut Yildirim', margin+16, y+72);
+  doc.text('Kunde – Name & Stempel ________________________________', margin+250, y+72);
+  doc.setTextColor(...red); doc.setFontSize(9); doc.text('Voxera · www.voxera.ch · info@voxera.ch', margin, 810);
+  return doc;
+}
+
+function openGeneratedPdf(blobUrl){ window.open(blobUrl, '_blank'); }
+
+function confirmGenerateContract(){
+  if(!profileId) return; const c=currentContractForm();
+  const customerId = c.customer.id || 'unknown';
+  const filename = `vertrag_${customerId}_${new Date().toISOString().slice(0,10)}.pdf`;
+  let blobUrl='';
+  try{ const doc = buildContractPdf(c); const blob = doc.output('blob'); blobUrl = URL.createObjectURL(blob); doc.save(filename); }
+  catch(e){ console.error(e); alert('PDF konnte nicht erstellt werden.'); return; }
+  const contracts = readContracts(customerId);
+  contracts.unshift({
+    title:`Dienstleistungsvertrag · ${c.plan}`,
+    type:'Dienstleistungsvertrag', plan:c.plan, monthlyPrice:c.monthlyPrice, baseMonthly:c.baseMonthly, billing:c.billing,
+    discountPct:c.discountPct, setupFee:c.setupFee, cycleAmount:c.cycleAmount,
+    startDate:c.startDate, termMonths:c.termMonths, status:'Entwurf', createdAt:new Date().toISOString(),
+    downloadUrl:blobUrl, fileName:filename
+  });
+  writeContracts(customerId, contracts);
+  closeContractModal();
+  openCustomerProfile(profileId);
+}
+
+function promptSignedContractUpload(){ const input=document.getElementById('contract-upload-input'); if(input){ input.value=''; input.click(); } }
+
+function handleSignedContractUpload(event){
+  if(!profileId) return; const file = event.target.files && event.target.files[0]; if(!file) return;
+  const rec = customers.find(c=>c.id===profileId); if(!rec) return; const customerId = rec.id || 'unknown';
+  const reader = new FileReader();
+  reader.onload = function(){
+    const contracts = readContracts(customerId);
+    const draftIdx = contracts.findIndex(c => c.status==='Entwurf');
+    const payload = {
+      title:`Unterzeichneter Vertrag · ${rec.plan||'Pilot'}`, type:'Signed Upload', plan:rec.plan||'Pilot', monthlyPrice:currentCustomerMonthly(rec),
+      startDate:rec.start_date||new Date().toISOString().split('T')[0], termMonths:12, status:'Unterzeichnet', createdAt:new Date().toISOString(), signedAt:new Date().toISOString(),
+      downloadUrl:reader.result, fileName:file.name
+    };
+    if(draftIdx >= 0){
+      contracts[draftIdx] = { ...contracts[draftIdx], status:'Unterzeichnet', signedAt:new Date().toISOString(), downloadUrl:reader.result, fileName:file.name };
+    } else {
+      contracts.unshift(payload);
+    }
+    writeContracts(customerId, contracts);
+    openCustomerProfile(profileId);
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeContract(idx){
+  if(!profileId) return; const rec = customers.find(c=>c.id===profileId); if(!rec) return; const customerId=rec.id||'unknown';
+  const contracts=readContracts(customerId); contracts.splice(idx,1); writeContracts(customerId, contracts); openCustomerProfile(profileId);
+}
+
+function updateOverview(cards, calls=[]) {
+  const active = cards.filter(c => (c.status||'').toLowerCase() === 'aktiv' || (c.status||'').toLowerCase() === 'active').length;
+  const pro = cards.filter(c => ['business','professional'].includes((c.plan||'').toLowerCase())).length;
+  const callbacks = calls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+  document.getElementById('ov-active').textContent = active;
+  document.getElementById('ov-active-sub').textContent = cards.length ? cards.length + ' Kunden total' : 'Noch keine Kunden';
+  const mrr = cards.reduce((sum, c) => sum + ((PLANS[c.plan||'Pilot']||PLANS.Pilot).monthlyPrice||0), 0);
+  document.getElementById('ov-mrr').textContent = mrr ? mrr + ' CHF' : '–';
+  document.getElementById('ov-mrr-sub').textContent = cards.length ? 'Plan-basierter MRR' : 'Noch keine Kunden';
+  document.getElementById('ov-pro').textContent = pro;
+  document.getElementById('ov-callbacks').textContent = callbacks;
+  document.getElementById('ov-callbacks-sub').textContent = callbacks ? 'offen über alle Kunden' : 'aktuell keine offenen Rückrufe';
+}
+
+async function openCustomerProfile(id) {
+  profileId = id;
+  document.getElementById('profile-modal').classList.add('open');
+  document.getElementById('profile-content').innerHTML = '<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div>';
+  const rec = customers.find(c => c.id === id); if (!rec) return;
+  document.getElementById('profile-sub').textContent = (rec.customer_name||'–') + ' · ' + (rec.voxera_number||'–');
+  try {
+    const calls = await sbCalls({ filter: { customer_id: rec.id } });
+    const open = calls.filter(r => !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+    const callbacks = calls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+    const hot = calls.filter(r => (r.lead_quality||'').toLowerCase().includes('hot')).length;
+    const lastCall = calls[0]?.created_date_raw || '';
+    document.getElementById('profile-content').innerHTML = `
+      <div class="profile-shell">
+        <div class="profile-kpis">
+          <div class="profile-kpi"><div class="profile-kpi-label">Calls total</div><div class="profile-kpi-value">${calls.length}</div></div>
+          <div class="profile-kpi"><div class="profile-kpi-label">Offen / Rückruf</div><div class="profile-kpi-value">${open} / ${callbacks}</div></div>
+          <div class="profile-kpi"><div class="profile-kpi-label">Umsatz / Mt</div><div class="profile-kpi-value">${((PLANS[rec.plan||'Pilot']||PLANS.Pilot).monthlyPrice || 0)} CHF</div></div>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="profile-block-title">Kunde & Abo</div>
+          <div class="detail-item"><span class="detail-key">Kunde</span><span class="detail-val">${rec.customer_name||'–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Kunde seit</span><span class="detail-val">${rec.start_date ? fmtDateOnly(rec.start_date) + ' · ' + monthsSince(rec.start_date) + ' Mt' : '–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Aktuelles Abo</span><span class="detail-val">${rec.plan||'Pilot'} · ${rec.status||'aktiv'}</span></div>
+          <div class="detail-item"><span class="detail-key">Abo im Einsatz seit</span><span class="detail-val">${rec.start_date ? fmtDateOnly(rec.start_date) : '–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Jahresumsatz</span><span class="detail-val">${(((PLANS[rec.plan||'Pilot']||PLANS.Pilot).monthlyPrice || 0) * 12)} CHF / Jahr</span></div>
+          <div class="detail-item"><span class="detail-key">Umsatz seit Start</span><span class="detail-val">${(((PLANS[rec.plan||'Pilot']||PLANS.Pilot).monthlyPrice || 0) * Math.max(1, monthsSince(rec.start_date||new Date().toISOString())))} CHF</span></div>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="profile-block-title">Kontakt & Einstellungen</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <span class="info-chip ${(rec.new_log_email_active !== false) ? 'on' : 'off'}">✉️ Mail bei jedem Anruf ${(rec.new_log_email_active !== false) ? 'aktiv' : 'aus'}</span>
+            <span class="info-chip ${(rec.notification_active !== false) ? 'on' : 'off'}">☎ Rückruf-Mail ${(rec.notification_active !== false) ? 'aktiv' : 'aus'}</span>
+          </div>
+          <div class="detail-item"><span class="detail-key">Voxera-Nummer</span><span class="detail-val">${rec.voxera_number||'–'}</span></div>
+          <div class="detail-item"><span class="detail-key">E-Mail</span><span class="detail-val">${rec.email||'–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Customer ID</span><span class="detail-val">${rec.id||'–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Letzter Call</span><span class="detail-val">${lastCall ? fmtDate(lastCall) : '–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Dashboard ID</span><span class="detail-val">${rec.dashboard_id||'–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Upsell-Hinweis</span><span class="detail-val">${callbacks > 3 ? 'Reminder / SMS Upgrade' : hot > 4 ? 'Mehr Inklusivminuten' : 'Aktuell stabil'}</span></div>
+          <div class="detail-item"><span class="detail-key">Interne Notiz</span><span class="detail-val">–</span></div>
+        </div>
+        ${renderContracts(rec)}
+        <div class="card" style="margin:0">
+          <div class="profile-block-title">Letzte Calls</div>
+          <div class="detail-list">${calls.length ? calls.slice(0,3).map(r => { return `<div class="detail-call"><div class="detail-call-top"><div class="detail-call-name">${r.caller_name||'Unbekannt'}</div><div class="detail-call-meta">${fmtDate(r.created_date_raw)}</div></div><div class="detail-call-meta">${r.category||'–'} · ${r.lead_quality||'Neu'}${r.callback_requested ? ' · Rückruf' : ''}</div><div class="detail-call-summary">${r.call_summary||'Keine Zusammenfassung vorhanden.'}</div></div>`; }).join('') : '<div class="empty" style="padding:14px 0">Noch keine Anrufe</div>'}</div>
+        </div>
+      </div>`;
+  } catch(e) { document.getElementById('profile-content').innerHTML = `<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`; }
+}
+function closeProfile(){ document.getElementById('profile-modal').classList.remove('open'); profileId = null; }
+
+// EDIT
+function openEdit(id) {
+  const c = customers.find(r => r.id === id); if (!c) return;
+  editId = id;
+  document.getElementById('edit-sub').textContent = c.customer_name || '';
+  document.getElementById('edit-name').value = c.customer_name || '';
+  document.getElementById('edit-email').value = c.email || '';
+  document.getElementById('edit-nummer').value = c.voxera_number || '';
+  document.getElementById('edit-plan').value = c.plan || 'Business';
+  document.getElementById('edit-status').className = 'status-box';
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeEdit() { document.getElementById('edit-modal').classList.remove('open'); editId=null; }
+async function saveEdit() {
+  if (!editId) return;
+  const btn = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = 'Speichern...';
+  try {
+    const { error } = await _sb.from('customers').update({
+      customer_name: document.getElementById('edit-name').value.trim(),
+      email: document.getElementById('edit-email').value.trim(),
+      voxera_number: document.getElementById('edit-nummer').value.trim(),
+      plan: document.getElementById('edit-plan').value,
+      updated_at: new Date().toISOString()
+    }).eq('id', editId);
+    if (error) throw new Error(error.message);
+    setStatus('edit','success','✅ Gespeichert');
+    setTimeout(() => { closeEdit(); loadCustomers(); }, 800);
+  } catch(e) { setStatus('edit','error','Fehler',e.message); }
+  btn.disabled = false; btn.textContent = 'Speichern';
+}
+
+function toggleStatus(id, name, active) {
+  const newS = active ? 'inaktiv' : 'aktiv';
+  showConfirm(active?'⏸':'▶️', `Kunde ${active?'deaktivieren':'aktivieren'}?`,
+    `${name} wird auf "${newS}" gesetzt.`, active?'btn-warning':'btn-primary',
+    async ()=>{
+      const { error } = await _sb.from('customers').update({ status: newS, updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) throw new Error(error.message);
+      loadCustomers();
+    });
+}
+
+// DELETE
+function delCustomer(id, name) {
+  showConfirm('🗑','Kunde löschen?',`"${name}" wird aus Supabase gelöscht. Auth-User bleibt bestehen und muss ggf. separat entfernt werden.`,'btn-danger',
+    async ()=>{
+      const { error } = await _sb.from('customers').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+      loadCustomers();
+    });
+}
+
+// PASSWORD RESET
+function pwReset(email) {
+  if (!email) { alert('Keine E-Mail'); return; }
+  showConfirm('🔑','Passwort zurücksetzen?',`Reset-E-Mail wird an ${email} gesendet.`,'btn-primary',
+    async ()=>{ const {error}=await _sbAuth.auth.resetPasswordForEmail(email,{redirectTo:'https://dashboard.voxera.ch'});
+      if (error) alert('Fehler: '+error.message); else alert('✅ E-Mail gesendet an '+email); });
+}
+
+// CALL LOG
+async function loadCallLog() {
+  document.getElementById('call-log-list').innerHTML='<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div>';
+  try {
+    const records = await sbCalls({ limit: 20 });
+    if (!records.length) { document.getElementById('call-log-list').innerHTML='<div class="empty"><div class="empty-icon">📭</div>Keine Anrufe</div>'; return; }
+    document.getElementById('call-log-list').innerHTML = records.map(r=>{
+      const q=(r.lead_quality||'').toLowerCase();
+      const qc=q.includes('hot')?'var(--red)':q.includes('warm')?'var(--amber)':'var(--blue)';
+      return `<div class="call-log-item">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div class="call-log-name">${r.caller_name||'Unbekannt'}</div>
+          <div style="display:flex;gap:6px">
+            ${r.lead_quality?`<span style="font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;background:${qc}20;color:${qc}">${r.lead_quality}</span>`:''}
+            ${r.dashboard_status?`<span style="font-size:10.5px;color:var(--gray400)">${r.dashboard_status}</span>`:''}
+          </div>
+        </div>
+        <div class="call-log-meta">${r.caller_phone||'–'} · ${fmtDate(r.created_date_raw)} · ${r.called_number||'–'}</div>
+        ${r.call_summary?`<div class="call-log-summary">${r.call_summary}</div>`:''}
+      </div>`;
+    }).join('');
+  } catch(e) { document.getElementById('call-log-list').innerHTML=`<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`; }
+}
+}
+
+// CONFIRM
+function showConfirm(icon,title,text,btnClass,cb) {
+  document.getElementById('confirm-icon').textContent=icon;
+  document.getElementById('confirm-title').textContent=title;
+  document.getElementById('confirm-text').textContent=text;
+  document.getElementById('confirm-ok').className='btn '+btnClass;
+  document.getElementById('confirm-ok').textContent='Bestätigen';
+  confirmCb=cb;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirm-modal').classList.remove('open');confirmCb=null;}
+async function doConfirm(){
+  if(confirmCb){const btn=document.getElementById('confirm-ok');btn.disabled=true;btn.textContent='...';await confirmCb();btn.disabled=false;}
+  closeConfirm();
+}
+
+// PLAN CONFIG
+const PLANS = {
+  Pilot:    { monthlyPrice: 49,  minutes: 60,  extraRate: 0.90 },
+  Starter:  { monthlyPrice: 199, minutes: 60,  extraRate: 0.90 },
+  Business: { monthlyPrice: 349, minutes: 150, extraRate: 0.75 },
+  Professional:{ monthlyPrice: 549, minutes: 400, extraRate: 0.60 }
+};
+const MIN_PACKAGES = [
+  { min: 50,  price: 39,  label: '50 Min' },
+  { min: 100, price: 69,  label: '100 Min' },
+  { min: 250, price: 149, label: '250 Min' },
+  { min: 500, price: 269, label: '500 Min' }
+];
+const AVG_CALL_DURATION = 2.5;
+
+async function initStats() {
+  const sel = document.getElementById('stats-customer-select');
+  if (!sel) return;
+  if (!customers.length) {
+    await loadCustomersData();
+  }
+  sel.innerHTML = '<option value="">Kunden wählen...</option>';
+  customers.forEach(c => {
+    if (!c.voxera_number) return;
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.dataset.nummer = c.voxera_number;
+    opt.textContent = (c.customer_name || '–') + ' (' + (c.plan || 'Pilot') + ')';
+    sel.appendChild(opt);
+  });
+}
+
+function openCustomerStats(nummer, name, plan) {
+  const statsBtn = document.querySelector('.tab-btn[onclick*="statistik"]');
+  showSection('statistik', statsBtn);
+  setTimeout(() => {
+    const sel = document.getElementById('stats-customer-select');
+    if (sel) {
+      // Finde die Option anhand der Voxera-Nummer (für Rückwärtskompatibilität der onclick-Aufrufe)
+      const matchOpt = Array.from(sel.options).find(o => o.dataset.nummer === nummer);
+      if (matchOpt) {
+        sel.value = matchOpt.value;
+        loadStats();
+      }
+    }
+  }, 100);
+}
+
+async function loadStats() {
+  const sel = document.getElementById('stats-customer-select');
+  const customerId = sel.value;
+  if (!customerId) {
+    document.getElementById('stats-content').innerHTML = '<div class="empty"><div class="empty-icon">📊</div>Bitte einen Kunden auswählen</div>';
+    return;
+  }
+
+  const rec = customers.find(c => c.id === customerId);
+  const plan = rec ? (rec.plan || 'Pilot') : 'Pilot';
+  const name = rec ? (rec.customer_name || '–') : '–';
+  const planCfg = PLANS[plan] || PLANS.Pilot;
+
+  document.getElementById('stats-content').innerHTML = '<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Statistik wird geladen...</div>';
+
+  try {
+    const records = await sbCalls({ filter: { customer_id: customerId } });
+
+    const now = new Date();
+    const startOfWeek = new Date(now); const _dow = now.getDay() || 7; startOfWeek.setDate(now.getDate() - _dow + 1); startOfWeek.setHours(0,0,0,0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const total = records.length;
+    const thisWeek = records.filter(r => new Date(r.created_date_raw||0) >= startOfWeek).length;
+    const thisMonth = records.filter(r => new Date(r.created_date_raw||0) >= startOfMonth).length;
+    const hot = records.filter(r => (r.lead_quality||'').toLowerCase().includes('hot')).length;
+    const warm = records.filter(r => (r.lead_quality||'').toLowerCase().includes('warm')).length;
+    const offen = records.filter(r => r.callback_requested && r.dashboard_status !== 'Erledigt').length;
+    const erledigt = records.filter(r => r.dashboard_status === 'Erledigt').length;
+    const lastCall = records.length ? records[0].created_date_raw : null;
+
+    const estMinutesMonth = Math.round(thisMonth * AVG_CALL_DURATION);
+    const inclMinutes = planCfg.minutes;
+    const extraMinutes = Math.max(0, estMinutesMonth - inclMinutes);
+    const extraCost = Math.round(extraMinutes * planCfg.extraRate * 100) / 100;
+    const pct = Math.min(100, Math.round(estMinutesMonth / inclMinutes * 100));
+    const barClass = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
+
+    const daysInMonth = now.getDate();
+    const avgPerDay = daysInMonth > 0 ? (thisMonth / daysInMonth).toFixed(1) : '0';
+
+    document.getElementById('stats-content').innerHTML = `
+      <div style="margin-bottom:22px">
+        <div style="font-size:17px;font-weight:700;margin-bottom:4px">${name}</div>
+        <div style="font-size:12.5px;color:var(--gray400)">Plan: ${plan} · ${inclMinutes} inkl. Minuten/Mt · ${planCfg.extraRate} CHF/Zusatzmin</div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Anrufe total</div><div class="stat-val blue">${total}</div><div class="stat-sub">seit Beginn</div></div>
+        <div class="stat-card"><div class="stat-label">Dieser Monat</div><div class="stat-val">${thisMonth}</div><div class="stat-sub">${thisWeek} diese Woche</div></div>
+        <div class="stat-card"><div class="stat-label">Ø pro Tag</div><div class="stat-val green">${avgPerDay}</div><div class="stat-sub">diesen Monat</div></div>
+        <div class="stat-card"><div class="stat-label">Letzter Anruf</div><div class="stat-val" style="font-size:16px;margin-top:4px">${lastCall ? fmtDate(lastCall) : '–'}</div></div>
+        <div class="stat-card"><div class="stat-label">Hot Leads</div><div class="stat-val red">${hot}</div><div class="stat-sub">${total > 0 ? Math.round(hot/total*100) : 0}% aller Anrufe</div></div>
+        <div class="stat-card"><div class="stat-label">Warm Leads</div><div class="stat-val amber">${warm}</div><div class="stat-sub">${total > 0 ? Math.round(warm/total*100) : 0}% aller Anrufe</div></div>
+        <div class="stat-card"><div class="stat-label">Offene Rückrufe</div><div class="stat-val ${offen > 0 ? 'red' : 'green'}">${offen}</div><div class="stat-sub">${erledigt} erledigt</div></div>
+        <div class="stat-card"><div class="stat-label">Zusatzkosten</div><div class="stat-val ${extraCost > 0 ? 'amber' : 'green'}">${extraCost > 0 ? extraCost + ' CHF' : '0'}</div><div class="stat-sub">${extraMinutes > 0 ? extraMinutes + ' Zusatzmin' : 'Inklusiv-Min reichen'}</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-title" style="margin-bottom:16px">⏱ Minuten-Verbrauch (${new Date().toLocaleString('de-CH',{month:'long'})})</div>
+        <div class="min-bar-wrap">
+          <div class="min-bar-label">
+            <span style="font-weight:600">${estMinutesMonth} Min genutzt <span style="color:var(--gray400);font-weight:400">(Schätzung: ${AVG_CALL_DURATION} Min/Anruf)</span></span>
+            <span style="font-weight:600">${inclMinutes} Min inkl.</span>
+          </div>
+          <div class="min-bar-track"><div class="min-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray400);margin-top:6px">
+            <span>${pct}% verbraucht</span>
+            <span>${Math.max(0, inclMinutes - estMinutesMonth)} Min verbleibend</span>
+          </div>
+        </div>
+        ${extraMinutes > 0 ? `<div style="background:var(--amber-light);border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--amber);margin-top:14px">
+          ⚠️ <strong>${extraMinutes} Zusatzminuten</strong> – ${extraCost} CHF Mehrkosten diesen Monat
+        </div>` : `<div style="background:var(--green-light);border:1px solid var(--green-mid);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--green);margin-top:14px">
+          ✅ Inklusiv-Minuten reichen aus
+        </div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px">📦 Zusatz-Minuten-Pakete verkaufen</div>
+        <div style="font-size:12.5px;color:var(--gray400);margin-bottom:14px">Klick auf ein Paket um eine Rechnung zu erstellen</div>
+        <div class="min-packages">
+          ${MIN_PACKAGES.map(p => `
+            <div class="min-pkg" onclick="orderPackage('${name}','${p.min}','${p.price}')">
+              <div class="min-pkg-min">${p.min} Min</div>
+              <div class="min-pkg-price">${p.price} CHF</div>
+              <div class="min-pkg-rate">${(p.price/p.min).toFixed(2)} CHF/Min</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      ${records.length > 0 ? `
+      <div class="card" style="margin-top:18px">
+        <div class="card-title" style="margin-bottom:16px">📞 Letzte Anrufe</div>
+        <div class="recent-calls">
+          ${records.slice(0,8).map(r => {
+            const q = (r.lead_quality||'').toLowerCase();
+            const qc = q.includes('hot') ? 'var(--red)' : q.includes('warm') ? 'var(--amber)' : 'var(--blue)';
+            return `<div class="recent-call-item">
+              <div class="recent-call-name">${r.caller_name||'Unbekannt'}</div>
+              ${r.lead_quality ? `<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:${qc}20;color:${qc}">${r.lead_quality}</span>` : ''}
+              <div class="recent-call-time">${fmtDate(r.created_date_raw)}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+    `;
+  } catch(e) {
+    document.getElementById('stats-content').innerHTML = `<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`;
+  }
+}
+
+function orderPackage(customerName, minutes, price) {
+  showConfirm('📦', `${minutes} Min Paket für ${customerName}?`,
+    `Preis: ${price} CHF · Rechnung wird via Payrexx erstellt.`, 'btn-primary',
+    () => {
+      alert(`Rechnung erstellen:\n\nKunde: ${customerName}\nPaket: ${minutes} Minuten\nPreis: ${price} CHF\n\nBitte via Payrexx manuell erstellen.`);
+    }
+  );
+}
+
+// INIT
+document.getElementById('f-password').value='Voxera2026!';
+document.getElementById('f-startdatum').value=new Date().toISOString().split('T')[0];
+
+initAll();
+async function initAll() {
+  const authed = await initAuth();
+  if (!authed) return;
+  await loadCustomersData();
+  renderCustomers();
+  initStats();
+}
+
+// ─── AUTH ──────────────────────────────────────────────────────────
+
+async function initAuth() {
+  const authClient = ensureAdminAuthClient();
+  if (!authClient) return false;
+  const { data: { session } } = await authClient.auth.getSession();
+  if (!session) {
+    window.location.href = 'login.html';
+    return false;
+  }
+  const { data: adminData } = await _sbAuth.from('admins').select('*').eq('id', session.user.id).single();
+  if (!adminData) {
+    await _sbAuth.auth.signOut();
+    window.location.href = 'login.html';
+    return false;
+  }
+  currentAdmin = adminData;
+  updateTopbarAdmin();
+  applyRoleRestrictions();
+  return true;
+}
+
+function updateTopbarAdmin() {
+  if (!currentAdmin) return;
+  document.getElementById('topbar-admin-name').textContent = currentAdmin.name;
+  const roleLabels = { 'super-admin': '🔴 Super-Admin', 'admin': '🟡 Admin', 'support': '🟢 Support' };
+  const roleClasses = { 'super-admin': 'role-badge role-badge-super', 'admin': 'role-badge role-badge-admin', 'support': 'role-badge role-badge-support' };
+  const badge = document.getElementById('topbar-role-badge');
+  badge.textContent = roleLabels[currentAdmin.role] || currentAdmin.role;
+  badge.className = roleClasses[currentAdmin.role] || 'role-badge';
+  document.getElementById('topbar-admin-info').style.display = 'flex';
+  document.getElementById('logout-btn').style.display = '';
+}
+
+function applyRoleRestrictions() {
+  const role = currentAdmin?.role || 'support';
+  if (role === 'support') {
+    // Hide write-only elements (create tab, action buttons rendered later)
+    document.querySelectorAll('.role-guard-write').forEach(el => el.style.display = 'none');
+    // Default to Kunden tab for Support users
+    ['neuer-kunde','anruf-log','statistik','admin-verwaltung'].forEach(s => {
+      const el = document.getElementById('section-'+s);
+      if (el) el.style.display = 'none';
+    });
+    document.getElementById('section-kunden-liste').style.display = 'block';
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const kundenBtn = document.querySelector('.tab-btn[onclick*="kunden-liste"]');
+    if (kundenBtn) kundenBtn.classList.add('active');
+  }
+  if (role !== 'super-admin') {
+    document.querySelectorAll('.role-guard-super').forEach(el => el.style.display = 'none');
+  }
+}
+
+async function logoutAdmin() {
+  const authClient = ensureAdminAuthClient();
+  if (!authClient) return;
+  await authClient.auth.signOut();
+  window.location.href = 'login.html';
+}
+
+// ─── ADMIN MANAGEMENT (Super-Admin only) ──────────────────────────
+
+async function loadAdmins() {
+  document.getElementById('admin-list').innerHTML = '<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div>';
+  try {
+    const { data, error } = await _sbAuth.from('admins').select('*').order('created_at');
+    if (error) throw new Error(error.message);
+    renderAdmins(data || []);
+  } catch(e) {
+    document.getElementById('admin-list').innerHTML = `<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`;
+  }
+}
+
+function renderAdmins(list) {
+  if (!list.length) {
+    document.getElementById('admin-list').innerHTML = '<div class="empty"><div class="empty-icon">👤</div>Noch keine Admins</div>';
+    return;
+  }
+  const roleLabels = { 'super-admin': '🔴 Super-Admin', 'admin': '🟡 Admin', 'support': '🟢 Support' };
+  const roleClasses = { 'super-admin': 'role-badge role-badge-super', 'admin': 'role-badge role-badge-admin', 'support': 'role-badge role-badge-support' };
+  document.getElementById('admin-list').innerHTML = list.map(a => {
+    const isSelf = a.id === currentAdmin?.id;
+    const initials = (a.name||'?').trim().split(/\s+/).map(n=>n[0]||'').join('').toUpperCase().slice(0,2);
+    return `<div class="admin-row">
+      <div class="admin-av">${initials}</div>
+      <div class="admin-info">
+        <div class="admin-name">${a.name}${isSelf?' <span style="font-size:10.5px;color:var(--gray400)">(du)</span>':''}</div>
+        <div class="admin-meta">${a.email}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="${roleClasses[a.role]||'role-badge'}">${roleLabels[a.role]||a.role}</span>
+        ${!isSelf?`<button class="btn btn-danger btn-sm" data-id="${a.id}" data-name="${(a.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" onclick="deleteAdmin(this.dataset.id,this.dataset.name)">Löschen</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openCreateAdminModal() {
+  document.getElementById('ca-name').value = '';
+  document.getElementById('ca-email').value = '';
+  document.getElementById('ca-role').value = 'admin';
+  document.getElementById('ca-status').className = 'status-box';
+  generateAdminPassword();
+  document.getElementById('create-admin-modal').classList.add('open');
+}
+function closeCreateAdminModal() { document.getElementById('create-admin-modal').classList.remove('open'); }
+
+function generateAdminPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const specials = '!@#$%';
+  const rnd = new Uint8Array(7);
+  crypto.getRandomValues(rnd);
+  let pw = 'Voxera';
+  for (let i = 0; i < 4; i++) pw += chars[rnd[i] % chars.length];
+  pw += specials[rnd[4] % specials.length];
+  pw += String(10 + rnd[5] % 90);
+  document.getElementById('ca-password').value = pw;
+}
+
+function setAdminStatus(type, title, detail) {
+  document.getElementById('ca-status').className = 'status-box show ' + type;
+  document.getElementById('ca-icon').textContent = type==='success'?'✅':type==='error'?'❌':'⏳';
+  document.getElementById('ca-title').textContent = title;
+  document.getElementById('ca-detail').textContent = detail || '';
+}
+
+async function createAdminAccount() {
+  setAdminStatus('error', 'Serverseitige Umsetzung erforderlich', 'Admin-Erstellung ist im Browser deaktiviert. Bitte in Phase 2 über einen sicheren Endpoint/Edge Function umsetzen.');
+  blockPrivilegedAction('Admin anlegen');
+}
+
+function deleteAdmin(id, name) {
+  blockPrivilegedAction(`Admin "${name}" löschen`);
+}
+
+</script>
+</body>
+</html>
