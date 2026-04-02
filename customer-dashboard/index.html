@@ -1453,14 +1453,26 @@ async function resolveCustomerContext(forceReload) {
 
   let customerRecord = null;
   if (resolvedCustomerId) {
-    const { data: customerRow, error: customerError } = await _sb
+    const { data: customerRowById, error: customerErrorById } = await _sb
       .from(CUSTOMERS_TABLE)
       .select('*')
       .eq('id', resolvedCustomerId)
       .maybeSingle();
-    if (customerError) throw customerError;
-    customerRecord = customerRow || null;
-    console.info('[voxera-dashboard] customers.id', customerRecord ? customerRecord.id : null);
+    if (customerErrorById) throw customerErrorById;
+    customerRecord = customerRowById || null;
+    if (!customerRecord) {
+      const { data: customerRowByDashboardId, error: customerErrorByDashboardId } = await _sb
+        .from(CUSTOMERS_TABLE)
+        .select('*')
+        .eq('dashboard_id', resolvedCustomerId)
+        .maybeSingle();
+      if (customerErrorByDashboardId) throw customerErrorByDashboardId;
+      customerRecord = customerRowByDashboardId || null;
+      if (customerRecord) {
+        console.info('[voxera-dashboard] customers lookup matched by dashboard_id', resolvedCustomerId);
+      }
+    }
+    console.info('[voxera-dashboard] customers record', customerRecord || null);
   } else {
     console.info('[voxera-dashboard] customers.id', null);
   }
@@ -1683,6 +1695,11 @@ async function loadCustomerMeta() {
     voxeraNumber: f.voxera_number || '',
     telNr: f.tel_nr || ''
   };
+  console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
+  console.info('[voxera-dashboard] customerMeta numbers', {
+    voxeraNumber: customerMeta.voxeraNumber || null,
+    telNr: customerMeta.telNr || null
+  });
   const sub = document.getElementById('greeting-sub');
   if (sub && customerMeta.customerName) {
     sub.textContent = `${customerMeta.customerName} · ${customerMeta.plan}`;
@@ -2446,6 +2463,10 @@ function openAccount() {
     if(numEl) numEl.textContent = customerMeta.voxeraNumber || '–';
     var telEl = document.getElementById('settings-tel-nr');
     if(telEl) telEl.textContent = customerMeta.telNr || '–';
+    console.info('[voxera-dashboard] settings rendered numbers', {
+      voxeraNumber: numEl ? numEl.textContent : null,
+      telNr: telEl ? telEl.textContent : null
+    });
     var sysEl = document.getElementById('settings-system-status');
     if(sysEl){
       var hasRecent = false;
