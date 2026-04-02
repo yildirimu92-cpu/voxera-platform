@@ -1416,6 +1416,7 @@ let hasLoadedInitialRecords = false;
 let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
+let currentUser = null;
 let customerMeta = {plan:'Business', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv'};
 const AVG_CALL_DURATION = 2.5;
 
@@ -1427,16 +1428,48 @@ async function queryCustomerRecord(customerRaw) {
   const customer = (customerRaw || '').trim();
   if (!customer) return null;
 
-  let query = _sb.from(CUSTOMERS_TABLE).select('*').limit(1);
-  if (customer.startsWith('+') || customer.startsWith('0')) {
-    query = query.or(`voxera_nummer.eq.${customer},tel_nr.eq.${customer}`);
-  } else {
-    query = query.eq('customer_id', customer);
+  const normalizedPhone = customer.replace(/\s+/g, '');
+  const isPhoneLike = customer.startsWith('+') || customer.startsWith('0');
+  const lookups = isPhoneLike
+    ? [
+        { strategy: 'phone-first', query: _sb.from(CUSTOMERS_TABLE).select('*').or(`voxera_nummer.eq.${customer},tel_nr.eq.${customer}`).limit(1) },
+        { strategy: 'customer-id-fallback', query: _sb.from(CUSTOMERS_TABLE).select('*').eq('customer_id', customer).limit(1) },
+        { strategy: 'phone-normalized-fallback', query: normalizedPhone !== customer ? _sb.from(CUSTOMERS_TABLE).select('*').or(`voxera_nummer.eq.${normalizedPhone},tel_nr.eq.${normalizedPhone}`).limit(1) : null }
+      ]
+    : [
+        { strategy: 'customer-id-first', query: _sb.from(CUSTOMERS_TABLE).select('*').eq('customer_id', customer).limit(1) },
+        { strategy: 'phone-fallback', query: _sb.from(CUSTOMERS_TABLE).select('*').or(`voxera_nummer.eq.${customer},tel_nr.eq.${customer}`).limit(1) },
+        { strategy: 'phone-normalized-fallback', query: normalizedPhone !== customer ? _sb.from(CUSTOMERS_TABLE).select('*').or(`voxera_nummer.eq.${normalizedPhone},tel_nr.eq.${normalizedPhone}`).limit(1) : null }
+      ];
+
+  for (const lookup of lookups) {
+    if (!lookup.query) continue;
+    const { data, error } = await lookup.query;
+    if (error) throw error;
+    const result = (data && data[0]) || null;
+    console.info('[voxera-dashboard] customers-query result', {
+      input: customer,
+      strategy: lookup.strategy,
+      found: !!result,
+      recordId: result ? result.id : null,
+      customerId: result ? result.customer_id : null
+    });
+    if (result) return result;
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data && data[0]) || null;
+  return null;
+}
+
+function resolveCustomerLookup() {
+  const urlCustomer = new URLSearchParams(location.search).get('customer');
+  const metadataCustomerId = currentUser && currentUser.user_metadata ? currentUser.user_metadata.customer_id : null;
+  const resolved = (urlCustomer || metadataCustomerId || '').toString().trim();
+  console.info('[voxera-dashboard] customer lookup inputs', {
+    urlParamCustomer: urlCustomer || null,
+    metadataCustomerId: metadataCustomerId || null,
+    resolvedCustomerLookup: resolved || null
+  });
+  return resolved;
 }
 
 async function loadCallRecords(customerRaw) {
@@ -1637,10 +1670,9 @@ function estimateMinutesForRecord(record) {
 }
 
 async function loadCustomerMeta() {
-  const customer = new URLSearchParams(location.search).get('customer');
+  const customer = resolveCustomerLookup();
   if (!customer) return customerMeta;
-  const c = customer.toString().trim();
-  const rec = await queryCustomerRecord(c);
+  const rec = await queryCustomerRecord(customer);
   if (!rec) return customerMeta;
   const f = rec || {};
   customerMeta = {
@@ -1649,7 +1681,7 @@ async function loadCustomerMeta() {
     customerName: f.customer_name || f.voxera_nummer || customerMeta.customerName || '',
     customerEmail: f.email || '',
     status: f.status || 'aktiv',
-    customerId: f.customer_id || c,
+    customerId: f.customer_id || customer,
     voxeraNumber: f.voxera_nummer || '',
     telNr: f.tel_nr || ''
   };
@@ -1821,7 +1853,7 @@ async function loadData() {
 
   try {
     await loadCustomerMeta().catch(()=>{});
-    const customer = new URLSearchParams(location.search).get('customer');
+    const customer = resolveCustomerLookup();
     const records = await loadCallRecords(customer || '');
 
     flagIncomingRecords(records);
@@ -2879,12 +2911,14 @@ async function doLogout() {
 }
 
 function showApp(user) {
+  currentUser = user || null;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
   // Customer ID from metadata
   const meta = user.user_metadata || {};
   const customerId = meta.customer_id || new URLSearchParams(location.search).get('customer') || null;
+  console.info('[voxera-dashboard] auth metadata customer_id', meta.customer_id || null);
   if (customerId && !new URLSearchParams(location.search).get('customer')) {
     const url = new URL(location.href);
     url.searchParams.set('customer', customerId);
