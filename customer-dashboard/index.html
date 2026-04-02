@@ -2483,25 +2483,35 @@ function openAccount() {
   var ps = document.getElementById('pw-success'); if(ps) ps.style.display = 'none';
   var ns = document.getElementById('notif-success'); if(ns) ns.style.display = 'none';
   loadNotifSettings();
-  loadCustomerMeta().then(function(){
+}
+
+function renderSystemStatusInSettings() {
+  var sysEl = document.getElementById('settings-system-status');
+  if(!sysEl) return;
+  var hasRecent = false;
+  if(allRecords.length > 0){
+    var latest = new Date(allRecords[0].fields.created_date_raw || 0);
+    hasRecent = (new Date() - latest) / (1000*60*60) < 72;
+  }
+  sysEl.textContent = hasRecent ? 'Aktiv – Anrufe werden empfangen' : allRecords.length > 0 ? 'Bereit – letzter Anruf vor über 3 Tagen' : 'Warte auf ersten Anruf';
+}
+
+function renderSystemVoxeraNumbers(meta) {
+  var numEl = document.getElementById('settings-voxera-nr');
+  if(numEl) numEl.textContent = meta.voxeraNumber || '–';
+  var telEl = document.getElementById('settings-tel-nr');
+  if(telEl) telEl.textContent = meta.telNr || '–';
+  console.info('[voxera-dashboard] settings rendered numbers', {
+    voxeraNumber: numEl ? numEl.textContent : null,
+    telNr: telEl ? telEl.textContent : null
+  });
+}
+
+function syncSystemVoxeraSettings() {
+  loadCustomerMeta().then(function(meta){
     renderUsage(allRecords||[]);
-    var numEl = document.getElementById('settings-voxera-nr');
-    if(numEl) numEl.textContent = customerMeta.voxeraNumber || '–';
-    var telEl = document.getElementById('settings-tel-nr');
-    if(telEl) telEl.textContent = customerMeta.telNr || '–';
-    console.info('[voxera-dashboard] settings rendered numbers', {
-      voxeraNumber: numEl ? numEl.textContent : null,
-      telNr: telEl ? telEl.textContent : null
-    });
-    var sysEl = document.getElementById('settings-system-status');
-    if(sysEl){
-      var hasRecent = false;
-      if(allRecords.length > 0){
-        var latest = new Date(allRecords[0].fields.created_date_raw || 0);
-        hasRecent = (new Date() - latest) / (1000*60*60) < 72;
-      }
-      sysEl.textContent = hasRecent ? 'Aktiv – Anrufe werden empfangen' : allRecords.length > 0 ? 'Bereit – letzter Anruf vor über 3 Tagen' : 'Warte auf ersten Anruf';
-    }
+    renderSystemVoxeraNumbers(meta || customerMeta);
+    renderSystemStatusInSettings();
   }).catch(function(){});
 }
 
@@ -2604,6 +2614,9 @@ function showTab(name, el) {
   const mnav = document.getElementById('mnav-'+name);
   if (mnav) mnav.classList.add('active');
   try { sessionStorage.setItem('voxera_tab', name); } catch(e){}
+  if (name === 'einstellungen') {
+    syncSystemVoxeraSettings();
+  }
 }
 
 function restoreTab() {

@@ -37,7 +37,7 @@ begin
   if v_customer_hint is not null then
     select c.id into v_resolved_customer_id
     from public.customers c
-    where c.id::text = v_customer_hint
+    where c.id = v_customer_hint
     limit 1;
   end if;
 
