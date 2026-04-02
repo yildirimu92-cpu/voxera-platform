@@ -1319,6 +1319,13 @@ var _sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
     })
   : null;
 
+function getSupabaseAuthClient() {
+  if (_sb && _sb.auth) return _sb;
+  console.error('[voxera-dashboard] Supabase client is not initialized.');
+  showConfigError('Supabase-Client nicht initialisiert. Bitte Seite neu laden oder Konfiguration prüfen.');
+  return null;
+}
+
 function showConfigError(message) {
   const login = document.getElementById('login-screen');
   const app = document.getElementById('app');
@@ -2231,8 +2238,10 @@ window.addEventListener('online', () => safeLoadData());
 // Session-safe data loader - checks session before loading, avoids false logouts
 async function safeLoadData() {
   if (document.getElementById('app').style.display === 'none') return; // not logged in
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
   try {
-    var result = await _sb.auth.getSession();
+    var result = await sb.auth.getSession();
     if (!result.data.session) {
       // Session expired - try to recover silently
       console.log('Session check: no active session');
@@ -2365,7 +2374,9 @@ function openAccount() {
       emailEl.textContent = customerMeta.customerEmail;
     } else {
       // Fallback to Supabase auth email
-      _sb.auth.getUser().then(function(r) {
+      const sb = getSupabaseAuthClient();
+      if (!sb) return;
+      sb.auth.getUser().then(function(r) {
         if (r.data && r.data.user) emailEl.textContent = r.data.user.email || '–';
       });
     }
@@ -2447,6 +2458,8 @@ function closeAccount() {
 }
 
 async function changePassword() {
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
   const pw = document.getElementById('pw-new').value;
   const pw2 = document.getElementById('pw-confirm').value;
   const btn = document.getElementById('pw-save-btn');
@@ -2469,7 +2482,7 @@ async function changePassword() {
 
   btn.disabled = true; btn.textContent = 'Speichern...';
 
-  const { error } = await _sb.auth.updateUser({ password: pw });
+  const { error } = await sb.auth.updateUser({ password: pw });
   if (error) {
     errEl.textContent = error.message || 'Fehler beim Speichern.';
     errEl.style.display = 'block';
@@ -2696,6 +2709,8 @@ async function saveSetupNotifications(){
 }
 
 async function saveSetupPassword(){
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
   var pw = document.getElementById('setup-pw-new').value;
   var pw2 = document.getElementById('setup-pw-confirm').value;
   var errEl = document.getElementById('setup-pw-error');
@@ -2703,7 +2718,7 @@ async function saveSetupPassword(){
   errEl.style.display='none'; succEl.style.display='none';
   if(!pw||pw.length<8){errEl.textContent='Mindestens 8 Zeichen.';errEl.style.display='block';return;}
   if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein.';errEl.style.display='block';return;}
-  var result = await _sb.auth.updateUser({password:pw});
+  var result = await sb.auth.updateUser({password:pw});
   if(result.error){errEl.textContent=result.error.message||'Fehler.';errEl.style.display='block';return;}
   succEl.textContent='✓ Passwort erfolgreich geändert!';succEl.style.display='block';
   document.getElementById('setup-pw-new').value='';
@@ -2743,6 +2758,8 @@ function showForgotPassword() {
 }
 
 async function doForgotPassword() {
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
   var email = document.getElementById('forgot-email').value.trim();
   var btn = document.getElementById('forgot-btn');
   var errEl = document.getElementById('forgot-error');
@@ -2755,7 +2772,7 @@ async function doForgotPassword() {
     var redirectUrl = window.location.origin + window.location.pathname;
     // Remove any trailing query string or hash
     if (redirectUrl.includes('?')) redirectUrl = redirectUrl.split('?')[0];
-    var result = await _sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+    var result = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
     if (result.error) throw result.error;
     document.getElementById('login-card').innerHTML = '<div class="login-logo">Voxera</div><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-sub" style="margin-top:8px;">Prüfen Sie auch Ihren Spam-Ordner. Der Link ist 24 Stunden gültig.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">← Zurück zum Login</a></div></div>';
   } catch(e) {
@@ -2778,14 +2795,18 @@ async function doForgotPassword() {
 }
 
 async function getCurrentSessionUser() {
-  const { data: sessionData } = await _sb.auth.getSession();
+  const sb = getSupabaseAuthClient();
+  if (!sb) return null;
+  const { data: sessionData } = await sb.auth.getSession();
   if (sessionData && sessionData.session && sessionData.session.user) return sessionData.session.user;
 
-  const { data: userData } = await _sb.auth.getUser();
+  const { data: userData } = await sb.auth.getUser();
   return (userData && userData.user) || null;
 }
 
 async function doLogin() {
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const btn = document.getElementById('login-btn');
@@ -2801,7 +2822,7 @@ async function doLogin() {
   errEl.style.display = 'none';
 
   try {
-    const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
     const user = (data && data.user) ? data.user : await getCurrentSessionUser();
@@ -2824,8 +2845,10 @@ async function doLogin() {
 }
 
 async function doLogout() {
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-  await _sb.auth.signOut();
+  await sb.auth.signOut();
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-password').value = '';
@@ -2912,6 +2935,8 @@ function showPasswordResetForm(accessToken, refreshToken) {
 }
 
 async function doReset() {
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
   const pw = document.getElementById('new-pw').value;
   const pw2 = document.getElementById('confirm-pw').value;
   const btn = document.getElementById('reset-btn');
@@ -2924,17 +2949,17 @@ async function doReset() {
   try {
     // Implicit flow: set session from URL hash tokens before updating password
     if (pendingResetTokens) {
-      await _sb.auth.setSession({ access_token: pendingResetTokens.accessToken, refresh_token: pendingResetTokens.refreshToken });
+      await sb.auth.setSession({ access_token: pendingResetTokens.accessToken, refresh_token: pendingResetTokens.refreshToken });
       pendingResetTokens = null;
     }
-    const { error } = await _sb.auth.updateUser({password: pw});
+    const { error } = await sb.auth.updateUser({password: pw});
     if (error) throw error;
     document.getElementById('login-card').innerHTML = `
       <div class="login-logo">Voxera</div>
       <div class="login-sub" style="color:var(--green);font-weight:600;margin-top:20px;">✓ Passwort erfolgreich gesetzt!</div>
       <div class="login-sub">Sie werden eingeloggt...</div>
     `;
-    const { data } = await _sb.auth.getSession();
+    const { data } = await sb.auth.getSession();
     if (data.session) setTimeout(() => showApp(data.session.user), 1200);
   } catch(e) {
     err.textContent = e.message || 'Fehler.'; err.style.display='block';
@@ -2958,7 +2983,7 @@ function initNetworkCanvas() {
 // ═══════════════════════════════════════════
 const supabaseConfig = validateSupabaseConfig();
 console.info('[voxera-dashboard] build', APP_BUILD);
-if (!_sb) {
+if (!_sb || !_sb.auth) {
   showConfigError('Supabase-Bibliothek nicht geladen. Bitte Seite neu laden.');
 } else if (!supabaseConfig.ok) {
   showConfigError(supabaseConfig.message);
@@ -2983,7 +3008,7 @@ if (!_sb) {
   });
 }
 
-if (_sb) {
+if (_sb && _sb.auth) {
   _sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
       if (autoRefreshTimer) clearInterval(autoRefreshTimer);
