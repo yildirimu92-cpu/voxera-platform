@@ -1306,15 +1306,18 @@ const CALLS_TABLE = 'call_logs';
 const CUSTOMERS_TABLE = 'customers';
 
 // Init Supabase with explicit session persistence
-const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storage: window.localStorage,
-    storageKey: 'voxera-auth'
-  }
-});
+const supabaseLib = window.supabase;
+var _sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
+  ? supabaseLib.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+        storageKey: 'voxera-auth'
+      }
+    })
+  : null;
 
 function showConfigError(message) {
   const login = document.getElementById('login-screen');
@@ -2955,7 +2958,9 @@ function initNetworkCanvas() {
 // ═══════════════════════════════════════════
 const supabaseConfig = validateSupabaseConfig();
 console.info('[voxera-dashboard] build', APP_BUILD);
-if (!supabaseConfig.ok) {
+if (!_sb) {
+  showConfigError('Supabase-Bibliothek nicht geladen. Bitte Seite neu laden.');
+} else if (!supabaseConfig.ok) {
   showConfigError(supabaseConfig.message);
 } else if (handleRecoveryHash()) {
   // Showing password reset form
@@ -2978,25 +2983,27 @@ if (!supabaseConfig.ok) {
   });
 }
 
-_sb.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') {
-    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-  }
-  if (event === 'SIGNED_IN' && session && session.user && document.getElementById('app').style.display === 'none') {
-    showApp(session.user);
-  }
-  if (event === 'TOKEN_REFRESHED' && session) {
-    // Session refreshed successfully - continue normally
-    console.log('Session refreshed');
-  }
-  // Handle PKCE-flow password recovery (Supabase automatically exchanges the code
-  // and fires PASSWORD_RECOVERY; no URL hash tokens needed at this point)
-  if (event === 'PASSWORD_RECOVERY') {
-    showPasswordResetForm(null, null);
-  }
-});
+if (_sb) {
+  _sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+    }
+    if (event === 'SIGNED_IN' && session && session.user && document.getElementById('app').style.display === 'none') {
+      showApp(session.user);
+    }
+    if (event === 'TOKEN_REFRESHED' && session) {
+      // Session refreshed successfully - continue normally
+      console.log('Session refreshed');
+    }
+    // Handle PKCE-flow password recovery (Supabase automatically exchanges the code
+    // and fires PASSWORD_RECOVERY; no URL hash tokens needed at this point)
+    if (event === 'PASSWORD_RECOVERY') {
+      showPasswordResetForm(null, null);
+    }
+  });
+}
 
 function openAccountFromMobile(el) {
   document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
