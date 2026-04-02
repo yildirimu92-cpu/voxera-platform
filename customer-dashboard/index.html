@@ -1299,8 +1299,8 @@ const APP_BUILD = '2026-04-02.3';
 // ═══════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════
-const SUPABASE_URL   = (window.VOXERA_SUPABASE_URL || 'REPLACE_WITH_SUPABASE_URL').trim();
-const SUPABASE_KEY   = (window.VOXERA_SUPABASE_ANON_KEY || 'REPLACE_WITH_SUPABASE_ANON_KEY').trim();
+const SUPABASE_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_TShqsOXWSF5m3oQYHmPI8w_KNdSAXJ6'; // TODO: Ersetzen, falls weiterhin "Unregistered API key" erscheint
 // Customer param is read dynamically in loadData
 const CALLS_TABLE = 'call_logs';
 const CUSTOMERS_TABLE = 'customers';
@@ -1308,7 +1308,7 @@ const CUSTOMERS_TABLE = 'customers';
 // Init Supabase with explicit session persistence
 const supabaseLib = window.supabase;
 var _sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
-  ? supabaseLib.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  ? supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -1362,14 +1362,22 @@ function parseSupabaseProjectRefFromKey(key) {
 }
 
 function validateSupabaseConfig() {
-  if (!SUPABASE_URL || SUPABASE_URL === 'REPLACE_WITH_SUPABASE_URL') {
-    return { ok:false, message:'Supabase URL fehlt. Bitte VOXERA_SUPABASE_URL setzen.' };
+  if (!SUPABASE_URL) {
+    return { ok:false, message:'Supabase URL fehlt. Bitte SUPABASE_URL setzen.' };
   }
-  if (!SUPABASE_KEY || SUPABASE_KEY === 'REPLACE_WITH_SUPABASE_ANON_KEY') {
-    return { ok:false, message:'Supabase Anon Key fehlt. Bitte VOXERA_SUPABASE_ANON_KEY setzen.' };
+  try {
+    const parsed = new URL(SUPABASE_URL);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { ok:false, message:'Supabase URL muss mit http:// oder https:// beginnen.' };
+    }
+  } catch(e) {
+    return { ok:false, message:'Supabase URL ist ungültig. Bitte vollständige URL prüfen.' };
+  }
+  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.startsWith('TODO_')) {
+    return { ok:false, message:'Supabase Anon Key fehlt. Bitte SUPABASE_ANON_KEY setzen.' };
   }
   const urlRef = parseSupabaseProjectRefFromUrl(SUPABASE_URL);
-  const keyRef = parseSupabaseProjectRefFromKey(SUPABASE_KEY);
+  const keyRef = parseSupabaseProjectRefFromKey(SUPABASE_ANON_KEY);
   if (urlRef && keyRef && urlRef !== keyRef) {
     return { ok:false, message:'Supabase URL und Anon Key gehören zu unterschiedlichen Projekten. Bitte passendes Paar eintragen.' };
   }

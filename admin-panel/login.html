@@ -30,11 +30,11 @@
         const errorMessage = document.getElementById('error-message');
 
         const SB_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
-        const SB_ANON = 'sb_publishable_TShqsOXWSF5m3oQYHmPI8w_KNdSAXJ6';
+        const SB_ANON_KEY = 'sb_publishable_TShqsOXWSF5m3oQYHmPI8w_KNdSAXJ6'; // TODO: Ersetzen, falls weiterhin "Unregistered API key" erscheint
 
         const supabaseLib = window.supabase;
         const sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
-            ? supabaseLib.createClient(SB_URL, SB_ANON)
+            ? supabaseLib.createClient(SB_URL, SB_ANON_KEY)
             : null;
 
         if (!sb) {
