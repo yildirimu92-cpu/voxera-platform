@@ -17,7 +17,7 @@ declare
   v_meta jsonb := '{}'::jsonb;
   v_customer_hint text := null;
   v_dashboard_hint text := null;
-  v_resolved_customer_id uuid := null;
+  v_resolved_customer_id text := null;
 begin
   if v_auth_user_id is null then
     raise exception 'ensure_user_profile requires authenticated user';
