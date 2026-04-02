@@ -582,22 +582,37 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
 'use strict';
 
 const SB_URL  = 'https://ulcofbgrovgcvowdjrge.supabase.co';
-const SB_ANON = 'sb_publishable_TShqsOXWSF5m3oQYHmPI8w_KNdSAXJ6';
+const SB_ANON_KEY = 'sb_publishable_TShqsOXWSF5m3oQYHmPI8w_KNdSAXJ6'; // TODO: Ersetzen, falls weiterhin "Unregistered API key" erscheint
 const SB_SVC  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDk0NTMzMCwiZXhwIjoyMDkwNTIxMzMwfQ.LduPIyc-HpplTSGdv9ou0Ky8cwMw0vOHxMYt7neV2A0';
 const AT_TOK  = 'patLLUtkxVfUTkPHK.4d0a3f492f39bd9d5bbf4c349203b808a2191bb399f0d8db7a83fccdb27f815b';
 const AT_BASE = 'appT3JEeMCkuoEtlc';
 const AT_KUND = 'Kunden';
 const AT_CALL = 'tblyx9Zs9KinMiPiJ';
 
-const _sba = window.supabase.createClient(SB_URL, SB_SVC, {
-  auth:{autoRefreshToken:false, persistSession:false, storage: window.sessionStorage}
-});
+const supabaseLib = window.supabase;
+const supabaseReady = !!(supabaseLib && typeof supabaseLib.createClient === 'function');
+if (!supabaseReady) {
+  console.error('[voxera-admin] Supabase-Bibliothek nicht geladen.');
+}
+
+const _sba = supabaseReady
+  ? supabaseLib.createClient(SB_URL, SB_SVC, {
+      auth:{autoRefreshToken:false, persistSession:false, storage: window.sessionStorage}
+    })
+  : null;
 const _sb = _sba;
 
 // Auth client (anon key, session persists in localStorage)
-const _sbAuth = window.supabase.createClient(SB_URL, SB_ANON);
+const _sbAuth = supabaseReady ? supabaseLib.createClient(SB_URL, SB_ANON_KEY) : null;
 
 let editId = null, confirmCb = null, customers = [], profileId = null, currentAdmin = null;
+
+function ensureAdminAuthClient() {
+  if (_sbAuth && _sbAuth.auth) return _sbAuth;
+  showAuthRequired('Supabase nicht initialisiert. Seite neu laden oder Konfiguration prüfen.');
+  return null;
+}
+
 
 // TABS
 function showSection(name, btn) {
@@ -1344,14 +1359,18 @@ async function initAll() {
 // ─── AUTH ──────────────────────────────────────────────────────────
 
 async function initAuth() {
-  const { data: { session } } = await _sbAuth.auth.getSession();
+  const authClient = ensureAdminAuthClient();
+  if (!authClient) return false;
+  const { data: { session } } = await authClient.auth.getSession();
   if (!session) {
     window.location.href = 'login.html';
     return false;
   }
   const { data: adminData } = await _sbAuth.from('admins').select('*').eq('id', session.user.id).single();
   if (!adminData) {
-    await _sbAuth.auth.signOut();
+    const authClient = ensureAdminAuthClient();
+    if (!authClient) return;
+    await authClient.auth.signOut();
     window.location.href = 'login.html';
     return false;
   }
@@ -1394,7 +1413,9 @@ function applyRoleRestrictions() {
 }
 
 async function logoutAdmin() {
-  await _sbAuth.auth.signOut();
+  const authClient = ensureAdminAuthClient();
+  if (!authClient) return;
+  await authClient.auth.signOut();
   window.location.href = 'login.html';
 }
 
