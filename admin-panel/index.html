@@ -241,6 +241,16 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
 .section-note{font-size:12px;color:var(--gray400);margin-top:-4px;margin-bottom:16px;}
 .hidden-file{position:absolute;width:0;height:0;overflow:hidden;opacity:0;}
 
+/* ─── WELCOME MAIL ─── */
+.badge-mail-pending{background:var(--amber-light);color:var(--amber);border:1px solid #FDE68A;}
+.badge-mail-sent{background:var(--green-light);color:var(--green);border:1px solid var(--green-mid);}
+.btn-welcome{background:var(--blue-light);color:var(--blue);border:1px solid var(--blue-mid);}
+.btn-welcome:hover{background:var(--blue-mid);transform:translateY(-1px);}
+.btn-welcome.sent{background:var(--gray50);color:var(--gray600);border:1px solid var(--gray200);}
+.welcome-status{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:var(--radius);margin-bottom:14px;}
+.welcome-status.pending{background:var(--amber-light);border:1px solid #FDE68A;}
+.welcome-status.sent{background:var(--green-light);border:1px solid var(--green-mid);}
+
 /* ─── UTILITY ─── */
 .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;}
 .spinner-blue{border-color:rgba(26,86,219,.15);border-top-color:var(--blue);}
@@ -304,11 +314,12 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   <div class="page-title">Kundenverwaltung</div>
   <div class="page-sub">Kunden anlegen, verwalten und überwachen</div>
 
-  <div class="overview-grid">
+  <div class="overview-grid" style="grid-template-columns:repeat(5,1fr)">
     <div class="overview-card"><div class="overview-label">Kunden aktiv</div><div class="overview-value" id="ov-active">–</div><div class="overview-sub" id="ov-active-sub">–</div></div>
     <div class="overview-card"><div class="overview-label">Monatlicher Umsatz</div><div class="overview-value" id="ov-mrr">–</div><div class="overview-sub" id="ov-mrr-sub">geschätzt nach Plan</div></div>
     <div class="overview-card"><div class="overview-label">Business / Pro</div><div class="overview-value" id="ov-pro">–</div><div class="overview-sub">Upmarket Accounts</div></div>
     <div class="overview-card"><div class="overview-label">Offene Rückrufe</div><div class="overview-value" id="ov-callbacks">–</div><div class="overview-sub" id="ov-callbacks-sub">über alle Kunden</div></div>
+    <div class="overview-card"><div class="overview-label">Welcome-Mail offen</div><div class="overview-value" id="ov-welcome">–</div><div class="overview-sub" id="ov-welcome-sub">noch nicht gesendet</div></div>
   </div>
 
   <div class="tabs">
@@ -822,6 +833,7 @@ function renderCustomers() {
           <div class="customer-tags">
             <span class="badge badge-plan">${plan}</span>
             <span class="badge ${active?'badge-active':'badge-inactive'}">${active?'Aktiv':'Inaktiv'}</span>
+            <span class="badge ${c.welcome_sent?'badge-mail-sent':'badge-mail-pending'}">${c.welcome_sent?'✉️ Mail gesendet':'✉️ Mail offen'}</span>
           </div>
         </div>
         <div class="metric-pills">
@@ -833,7 +845,7 @@ function renderCustomers() {
       <div class="customer-actions">
         <div class="action-cluster">
           <button class="btn btn-primary btn-sm" onclick="openCustomerProfile('${c.id}')">Details</button>
-          <button class="btn btn-secondary btn-sm" onclick="openCustomerStats('${c.voxera_number||''}','${name}','${plan}')">Statistik</button>
+          ${canWrite?`<button class="btn btn-welcome btn-sm ${c.welcome_sent?'sent':''}" onclick="sendWelcomeMail('${c.id}','${(name).replace(/'/g,"\\'")}')">${c.welcome_sent?'✉️ Erneut senden':'✉️ Welcome Mail'}</button>`:''}
           ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="openEdit('${c.id}')">Bearbeiten</button>`:''}
           ${canWrite?`<button class="btn ${active?'btn-warning':'btn-secondary'} btn-sm" onclick="toggleStatus('${c.id}','${name}',${active})">${active?'Pausieren':'Aktivieren'}</button>`:''}
           ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="pwReset('${c.email||''}')">Passwort</button>`:''}
@@ -1051,6 +1063,7 @@ function updateOverview(cards, calls=[]) {
   const active = cards.filter(c => (c.status||'').toLowerCase() === 'aktiv' || (c.status||'').toLowerCase() === 'active').length;
   const pro = cards.filter(c => ['business','professional'].includes((c.plan||'').toLowerCase())).length;
   const callbacks = calls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+  const welcomeOpen = cards.filter(c => !c.welcome_sent).length;
   document.getElementById('ov-active').textContent = active;
   document.getElementById('ov-active-sub').textContent = cards.length ? cards.length + ' Kunden total' : 'Noch keine Kunden';
   const mrr = cards.reduce((sum, c) => sum + ((PLANS[c.plan||'Pilot']||PLANS.Pilot).monthlyPrice||0), 0);
@@ -1059,6 +1072,8 @@ function updateOverview(cards, calls=[]) {
   document.getElementById('ov-pro').textContent = pro;
   document.getElementById('ov-callbacks').textContent = callbacks;
   document.getElementById('ov-callbacks-sub').textContent = callbacks ? 'offen über alle Kunden' : 'aktuell keine offenen Rückrufe';
+  document.getElementById('ov-welcome').textContent = welcomeOpen;
+  document.getElementById('ov-welcome-sub').textContent = welcomeOpen ? welcomeOpen + ' Kunden warten' : 'alle gesendet';
 }
 
 async function openCustomerProfile(id) {
@@ -1091,6 +1106,14 @@ async function openCustomerProfile(id) {
         </div>
         <div class="card" style="margin:0">
           <div class="profile-block-title">Kontakt & Einstellungen</div>
+          <div class="welcome-status ${rec.welcome_sent?'sent':'pending'}">
+            <span style="font-size:14px">${rec.welcome_sent?'✅':'⏳'}</span>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;color:${rec.welcome_sent?'var(--green)':'var(--amber)'}">${rec.welcome_sent?'Welcome-Mail gesendet':'Welcome-Mail noch nicht gesendet'}</div>
+              ${rec.welcome_sent_at?`<div style="font-size:11px;color:var(--gray400);margin-top:2px">Gesendet am ${fmtDate(rec.welcome_sent_at)}</div>`:''}
+            </div>
+            <button class="btn ${rec.welcome_sent?'btn-quiet':'btn-welcome'} btn-sm" onclick="sendWelcomeMail('${rec.id}','${(rec.customer_name||'').replace(/'/g,"\\'")}')">${rec.welcome_sent?'Erneut senden':'Jetzt senden'}</button>
+          </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
             <span class="info-chip ${(rec.new_log_email_active !== false) ? 'on' : 'off'}">✉️ Mail bei jedem Anruf ${(rec.new_log_email_active !== false) ? 'aktiv' : 'aus'}</span>
             <span class="info-chip ${(rec.notification_active !== false) ? 'on' : 'off'}">☎ Rückruf-Mail ${(rec.notification_active !== false) ? 'aktiv' : 'aus'}</span>
@@ -1538,6 +1561,37 @@ async function createAdminAccount() {
 
 function deleteAdmin(id, name) {
   blockPrivilegedAction(`Admin "${name}" löschen`);
+}
+
+// ─── WELCOME MAIL ──────────────────────────────────────────────────
+
+async function sendWelcomeMail(customerId, customerName) {
+  const rec = customers.find(c => c.id === customerId);
+  const alreadySent = rec && rec.welcome_sent;
+  const action = alreadySent ? 'erneut senden' : 'senden';
+
+  showConfirm('✉️', `Welcome-Mail ${action}?`,
+    `Die Zugangsdaten werden an ${rec?.email || 'den Kunden'} gesendet.${alreadySent ? ' Die Mail wurde bereits einmal gesendet.' : ''}`,
+    'btn-primary',
+    async () => {
+      try {
+        const res = await fetch('/.netlify/functions/send-welcome', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customer_id: customerId })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Fehler beim Senden');
+        alert(`✅ Welcome-Mail an ${rec?.email || customerId} gesendet.`);
+        // Lokalen Status updaten und neu rendern
+        if (rec) { rec.welcome_sent = true; rec.welcome_sent_at = result.welcome_sent_at; }
+        renderCustomers();
+        loadCustomersData(); // Auch Overview aktualisieren
+      } catch(e) {
+        alert('❌ Fehler: ' + e.message);
+      }
+    }
+  );
 }
 
 </script>
