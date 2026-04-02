@@ -1307,8 +1307,16 @@ const CUSTOMERS_TABLE = 'customers';
 
 // Init Supabase with explicit session persistence
 const supabaseLib = window.supabase;
-var _sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
-  ? supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const supabaseUrlValue = String(SUPABASE_URL || '').trim();
+const supabaseAnonKeyValue = String(SUPABASE_ANON_KEY || '').trim();
+console.info('[voxera-dashboard] window.supabase verfügbar:', !!supabaseLib);
+console.info('[voxera-dashboard] SUPABASE_URL gesetzt:', !!supabaseUrlValue);
+console.info('[voxera-dashboard] SUPABASE_ANON_KEY gesetzt:', !!supabaseAnonKeyValue);
+
+var _sb = null;
+if (supabaseLib && typeof supabaseLib.createClient === 'function' && supabaseUrlValue && supabaseAnonKeyValue) {
+  try {
+    _sb = supabaseLib.createClient(supabaseUrlValue, supabaseAnonKeyValue, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -1316,8 +1324,15 @@ var _sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
         storage: window.localStorage,
         storageKey: 'voxera-auth'
       }
-    })
-  : null;
+    });
+    console.info('[voxera-dashboard] Client erfolgreich erstellt');
+  } catch (initErr) {
+    _sb = null;
+    console.error('[voxera-dashboard] Supabase createClient fehlgeschlagen:', initErr);
+  }
+} else {
+  console.warn('[voxera-dashboard] createClient nicht aufgerufen (fehlende Library/Felder).');
+}
 
 function getSupabaseAuthClient() {
   if (_sb && _sb.auth) return _sb;
@@ -1362,22 +1377,22 @@ function parseSupabaseProjectRefFromKey(key) {
 }
 
 function validateSupabaseConfig() {
-  if (!SUPABASE_URL) {
+  if (!supabaseUrlValue) {
     return { ok:false, message:'Supabase URL fehlt. Bitte SUPABASE_URL setzen.' };
   }
   try {
-    const parsed = new URL(SUPABASE_URL);
+    const parsed = new URL(supabaseUrlValue);
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       return { ok:false, message:'Supabase URL muss mit http:// oder https:// beginnen.' };
     }
   } catch(e) {
     return { ok:false, message:'Supabase URL ist ungültig. Bitte vollständige URL prüfen.' };
   }
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.startsWith('TODO_')) {
+  if (!supabaseAnonKeyValue || supabaseAnonKeyValue.startsWith('TODO_')) {
     return { ok:false, message:'Supabase Anon Key fehlt. Bitte SUPABASE_ANON_KEY setzen.' };
   }
-  const urlRef = parseSupabaseProjectRefFromUrl(SUPABASE_URL);
-  const keyRef = parseSupabaseProjectRefFromKey(SUPABASE_ANON_KEY);
+  const urlRef = parseSupabaseProjectRefFromUrl(supabaseUrlValue);
+  const keyRef = parseSupabaseProjectRefFromKey(supabaseAnonKeyValue);
   if (urlRef && keyRef && urlRef !== keyRef) {
     return { ok:false, message:'Supabase URL und Anon Key gehören zu unterschiedlichen Projekten. Bitte passendes Paar eintragen.' };
   }
