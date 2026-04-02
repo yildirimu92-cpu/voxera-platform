@@ -1425,6 +1425,30 @@ function toDashboardRecord(row) {
   return { id: String(row.id), fields: row };
 }
 
+function extractCustomerHint(authUser) {
+  const metadata = authUser && authUser.user_metadata ? authUser.user_metadata : {};
+  const metadataCustomerId = metadata && metadata.customer_id ? String(metadata.customer_id).trim() : '';
+  const metadataDashboardId = metadata && metadata.dashboard_id ? String(metadata.dashboard_id).trim() : '';
+  return {
+    customerId: metadataCustomerId || '',
+    dashboardId: metadataDashboardId || ''
+  };
+}
+
+async function ensurePublicUserProvisioning(authUser) {
+  if (!_sb || typeof _sb.rpc !== 'function' || !authUser || !authUser.id) return;
+  const hint = extractCustomerHint(authUser);
+  const email = authUser.email ? String(authUser.email).trim().toLowerCase() : '';
+  const { error } = await _sb.rpc('ensure_user_profile', {
+    p_customer_id: hint.customerId || null,
+    p_dashboard_id: hint.dashboardId || null,
+    p_email: email || null
+  });
+  if (error) {
+    console.warn('[voxera-dashboard] ensure_user_profile RPC fehlgeschlagen', error.message);
+  }
+}
+
 async function resolveCustomerContext(forceReload) {
   if (!forceReload && customerContext.customerId && customerContext.customerRecord) return customerContext;
 
@@ -1435,6 +1459,8 @@ async function resolveCustomerContext(forceReload) {
     customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
     return customerContext;
   }
+
+  await ensurePublicUserProvisioning(authUser);
 
   const { data: userRow, error: userError } = await _sb
     .from('users')
