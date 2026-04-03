@@ -24,15 +24,15 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch (e) { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ungueltiger Request Body' }) }; }
 
-  const { customer_id, customer_name, email, password, voxera_number, plan, start_date } = body;
-  if (!customer_id || !customer_name || !email || !password || !voxera_number) {
+  const { customer_id, customer_name, email, voxera_number, plan, start_date } = body;
+  if (!customer_id || !customer_name || !email || !voxera_number) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Pflichtfelder fehlen' }) };
   }
 
   try {
     // 1. Auth User erstellen
     const { data: authData, error: authError } = await sbAdmin.auth.admin.createUser({
-      email, password, email_confirm: true,
+      email, email_confirm: true,
       user_metadata: { customer_id }
     });
     if (authError) throw new Error('Auth: ' + authError.message);
@@ -63,6 +63,7 @@ exports.handler = async (event) => {
 
     // KEIN automatischer Welcome-Mail Versand
     // Welcome-Mail wird separat via send-welcome Function ausgelöst
+    // NOTE: Passwort-Setting und Account-Aktivierung müssen in separatem Aktivierungs-Flow erfolgen
 
     return {
       statusCode: 200, headers,
