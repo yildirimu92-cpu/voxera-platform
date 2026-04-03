@@ -24,7 +24,7 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch (e) { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ungültiger Request Body' }) }; }
 
-  const { customer_id, password } = body;
+  const { customer_id } = body;
   if (!customer_id) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'customer_id fehlt' }) };
   }
@@ -35,7 +35,21 @@ exports.handler = async (event) => {
       .select('*').eq('id', customer_id).single();
     if (custErr || !customer) throw new Error('Kunde nicht gefunden');
 
-    // Make Webhook aufrufen
+    // Supabase Recovery-Link generieren (zeitgebunden, kein eigener Token-Mechanismus)
+    // Der Link führt den Kunden auf die /activate-Seite, wo er sein Passwort selbst setzt
+    // Redirect-URL für den Aktivierungslink (muss in Supabase Auth als erlaubte Redirect-URL eingetragen sein)
+    const activateUrl = process.env.ACTIVATE_URL || 'https://dashboard.voxera.ch/activate';
+    const { data: linkData, error: linkErr } = await sbAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email: customer.email,
+      options: { redirectTo: activateUrl }
+    });
+    if (linkErr || !linkData?.properties?.action_link) {
+      throw new Error('Aktivierungslink konnte nicht generiert werden: ' + (linkErr?.message || 'Unbekannter Fehler'));
+    }
+    const activationLink = linkData.properties.action_link;
+
+    // Make Webhook aufrufen (activation_link statt password)
     const webhookUrl = process.env.MAKE_WELCOME_WEBHOOK || 'https://hook.eu1.make.com/3nqavrb751n3l1dd7qqib6ugp0pslxxj';
     const webhookRes = await fetch(webhookUrl, {
       method: 'POST',
@@ -43,7 +57,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         customer_name: customer.customer_name,
         email: customer.email,
-        password: password || '(Passwort wurde bei Erstellung vergeben)',
+        activation_link: activationLink,
         plan: customer.plan || 'Business',
         voxera_number: customer.voxera_number,
         customer_id: customer.id,

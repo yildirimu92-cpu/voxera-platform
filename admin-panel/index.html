@@ -1571,7 +1571,7 @@ async function sendWelcomeMail(customerId, customerName) {
   const action = alreadySent ? 'erneut senden' : 'senden';
 
   showConfirm('✉️', `Welcome-Mail ${action}?`,
-    `Die Zugangsdaten werden an ${rec?.email || 'den Kunden'} gesendet.${alreadySent ? ' Die Mail wurde bereits einmal gesendet.' : ''}`,
+    `Der Aktivierungslink wird an ${rec?.email || 'den Kunden'} gesendet.${alreadySent ? ' Die Mail wurde bereits einmal gesendet.' : ''}`,
     'btn-primary',
     async () => {
       try {
