@@ -875,7 +875,7 @@ function renderCustomers() {
           </div>
           <div class="customer-tags">
             <span class="badge badge-plan">${plan}</span>
-            <span class="badge ${active?'badge-active':'badge-inactive badge-pending'}">${active?'Aktiv':'Ausstehend'}</span>
+            <span class="badge ${active?'badge-active':'badge-pending'}">${active?'Aktiv':'Ausstehend'}</span>
             <span class="badge ${c.welcome_sent?'badge-mail-sent':'badge-mail-pending'}">${c.welcome_sent?'✉️ Mail gesendet':'✉️ Mail offen'}</span>
           </div>
         </div>
@@ -891,7 +891,7 @@ function renderCustomers() {
           ${canWrite && !active?`<button class="btn btn-activate btn-sm" onclick="openActivateModal('${c.id}')">✅ Abo aktivieren</button>`:''}
           ${canWrite?`<button class="btn btn-welcome btn-sm ${c.welcome_sent?'sent':''}" onclick="sendWelcomeMail('${c.id}','${(name).replace(/'/g,"\\'")}')">${c.welcome_sent?'✉️ Erneut senden':'✉️ Welcome Mail'}</button>`:''}
           ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="openEdit('${c.id}')">Bearbeiten</button>`:''}
-          ${canWrite?`<button class="btn ${active?'btn-warning':'btn-secondary'} btn-sm" onclick="toggleStatus('${c.id}','${name}',${active})">${active?'Pausieren':'Aktivieren'}</button>`:''}
+          ${canWrite && active?`<button class="btn btn-warning btn-sm" onclick="toggleStatus('${c.id}','${name}',${active})">Pausieren</button>`:''}
           ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="pwReset('${c.email||''}')">Passwort</button>`:''}
           ${canWrite?`<button class="btn btn-danger btn-sm" onclick="delCustomer('${c.id}','${name}')">Löschen</button>`:''}
         </div>
