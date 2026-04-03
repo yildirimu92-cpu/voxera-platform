@@ -2222,91 +2222,160 @@ async function loadData() {
 // ═══════════════════════════════════════════
 function renderDashboard(records) {
   const today = records.filter(r => isToday(r.fields.created_date_raw));
-  const week  = records.filter(r => isThisWeek(r.fields.created_date_raw));
-  const offen = records.filter(r => r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status));
-  const done  = week.filter(r => isClosedStatus(r.fields.dashboard_status));
+  const offen = records.filter(r =>
+    r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status)
+  );
 
-  document.getElementById('kpi-heute').textContent = today.length;
-  const hot  = today.filter(r => qualKey(r.fields.lead_quality) === 'hot').length;
-  const warm = today.filter(r => qualKey(r.fields.lead_quality) === 'warm').length;
-  document.getElementById('kpi-leads').textContent = today.filter(r => r.fields.lead_quality).length;
-  document.getElementById('kpi-leads-sub').textContent = hot + '× Hot · ' + warm + '× Warm';
-  document.getElementById('kpi-rueckrufe').textContent = offen.length;
-  document.getElementById('kpi-erledigt').textContent = done.length;
-  if (offen.length > 0) {
-    const oldest = offen[offen.length-1];
-    document.getElementById('kpi-cb-sub').textContent = '⚠ Ältester: ' + fmtTime(oldest.fields.created_date_raw);
+  // ── Hero ─────────────────────────────────────────────
+  const hero     = document.getElementById('dash-hero');
+  const heroNum  = document.getElementById('hero-count');
+  const heroSub  = document.getElementById('hero-sub');
+  const heroCta  = document.getElementById('hero-cta');
+
+  heroNum.textContent = offen.length;
+
+  if (offen.length === 0) {
+    hero.className       = 'dash-hero no-callbacks';
+    heroNum.className    = 'dash-hero-number green';
+    heroSub.className    = 'dash-hero-sub';
+    heroSub.textContent  = 'Alles erledigt – keine offenen Rückrufe.';
+    heroCta.className    = 'dash-hero-cta green';
+    heroCta.textContent  = 'Alle Anrufe ansehen →';
+    heroCta.onclick      = function() {
+      var n = document.getElementById('nav-anrufe');
+      if (n) showTab('anrufe', n);
+    };
+  } else {
+    hero.className    = 'dash-hero has-callbacks';
+    heroNum.className = 'dash-hero-number red';
+    // Ältester offener Rückruf
+    const oldest = offen[offen.length - 1];
+    const oldestTime = fmtDate(oldest && oldest.fields && oldest.fields.created_date_raw);
+    heroSub.className   = 'dash-hero-sub warn';
+    heroSub.textContent = offen.length === 1
+      ? '1 Anrufer wartet auf Ihren Rückruf – bitte zeitnah zurückrufen.'
+      : offen.length + ' Anrufer warten auf Ihren Rückruf. Ältester: ' + oldestTime;
+    heroCta.className   = 'dash-hero-cta';
+    heroCta.textContent = 'Alle ansehen →';
+    heroCta.onclick     = function() {
+      var n = document.getElementById('nav-rueckrufe');
+      if (n) showTab('rueckrufe', n);
+    };
   }
 
-  // Badges
+  // ── KPI: Anrufe heute ────────────────────────────────
+  const kpiHeute = document.getElementById('kpi-heute');
+  const kpiHeuteSub = document.getElementById('kpi-heute-sub');
+  if (kpiHeute) kpiHeute.textContent = today.length;
+  if (kpiHeuteSub) {
+    const hot  = today.filter(r => qualKey(r.fields.lead_quality) === 'hot').length;
+    const warm = today.filter(r => qualKey(r.fields.lead_quality) === 'warm').length;
+    kpiHeuteSub.textContent = hot > 0 || warm > 0
+      ? hot + '× Hot · ' + warm + '× Warm'
+      : today.length > 0 ? 'Alle Anrufe von heute' : 'Noch keine Anrufe heute';
+  }
+
+  // ── KPI: System-Status ───────────────────────────────
+  const kpiSys    = document.getElementById('kpi-system');
+  const kpiSysSub = document.getElementById('kpi-system-sub');
+  if (kpiSys) {
+    const hasRecentCall = records.some(r => {
+      const raw = r.fields && r.fields.created_date_raw;
+      if (!raw) return false;
+      return (Date.now() - new Date(raw).getTime()) < 24 * 60 * 60 * 1000;
+    });
+    kpiSys.textContent    = '● Aktiv';
+    kpiSys.style.color    = 'var(--green)';
+    kpiSys.style.fontSize = '18px';
+    if (kpiSysSub) kpiSysSub.textContent = 'Assistent nimmt Anrufe entgegen';
+  }
+
+  // ── Badges (Sidebar + Mobile Nav) ────────────────────
   const urgentOpen = records.filter(r => {
     const p = getPriority(r).key;
-    return !isClosedStatus(r.fields.dashboard_status) && ['overdue','callback','today','hot'].includes(p);
+    return !isClosedStatus(r.fields.dashboard_status) &&
+      ['overdue','callback','today','hot'].includes(p);
   });
-  const newToday = today.filter(r => !isClosedStatus(r.fields.dashboard_status)).length;
-  document.getElementById('badge-anrufe').textContent = urgentOpen.length;
-  document.getElementById('badge-rueckrufe').textContent = offen.length;
-  const mb1 = document.getElementById('mnav-badge-anrufe');
-  const mb2 = document.getElementById('mnav-badge-rueckrufe');
-  if (mb1) { mb1.textContent = urgentOpen.length; mb1.style.display = urgentOpen.length > 0 ? 'block' : 'none'; }
-  if (mb2) { mb2.textContent = offen.length; mb2.style.display = offen.length > 0 ? 'block' : 'none'; }
+  const badgeA  = document.getElementById('badge-anrufe');
+  const badgeR  = document.getElementById('badge-rueckrufe');
+  const mbA     = document.getElementById('mnav-badge-anrufe');
+  const mbR     = document.getElementById('mnav-badge-rueckrufe');
+  if (badgeA) badgeA.textContent = urgentOpen.length;
+  if (badgeR) badgeR.textContent = offen.length;
+  if (mbA) { mbA.textContent = urgentOpen.length; mbA.style.display = urgentOpen.length > 0 ? 'block' : 'none'; }
+  if (mbR) { mbR.textContent = offen.length;      mbR.style.display = offen.length > 0      ? 'block' : 'none'; }
 
-  const dueToday = records.filter(r => {
-    const raw = r.fields.follow_up_at;
-    if (!raw || isClosedStatus(r.fields.dashboard_status)) return false;
-    const d = new Date(raw);
-    return !Number.isNaN(d.getTime()) && d.getDate()===new Date().getDate() && d.getMonth()===new Date().getMonth() && d.getFullYear()===new Date().getFullYear();
-  });
-  const inProgress = records.filter(r => r.fields.dashboard_status === 'In Bearbeitung');
-  document.getElementById('focus-urgent').textContent = urgentOpen.length;
-  document.getElementById('focus-urgent-meta').textContent = urgentOpen.length ? 'Rückrufe, Hot Leads oder fällige Anfragen zuerst angehen.' : 'Keine dringenden offenen Leads.';
-  document.getElementById('focus-due').textContent = dueToday.length;
-  document.getElementById('focus-due-meta').textContent = dueToday.length ? 'Heute geplante Follow-ups sind hinterlegt.' : 'Heute ist kein Follow-up geplant.';
-  document.getElementById('focus-progress').textContent = inProgress.length;
-  document.getElementById('focus-progress-meta').textContent = inProgress.length ? 'Diese Leads sind aktiv in Bearbeitung.' : 'Aktuell ist nichts in Bearbeitung.';
+  // ── Rückruf-Liste (max 5) ────────────────────────────
+  const cbList    = document.getElementById('dash-cb-list');
+  const cbSection = document.getElementById('dash-cb-section');
+  if (!cbList) return;
 
-  renderUsage(records);
-
-  // Weekly bars
-  const bc = document.getElementById('weekly-bars');
-  bc.innerHTML = '';
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate()-i);
-    const cnt = records.filter(r => {
-      if (!r.fields.created_date_raw) return false;
-      const rd = new Date(r.fields.created_date_raw);
-      return rd.getDate()===d.getDate() && rd.getMonth()===d.getMonth() && rd.getFullYear()===d.getFullYear();
-    }).length;
-    days.push({label:d.toLocaleDateString('de-CH',{weekday:'short'}),cnt,today:i===0});
+  if (offen.length === 0) {
+    cbSection.style.display = 'none';
+    return;
   }
-  const max = Math.max(...days.map(d => d.cnt), 1);
-  days.forEach(d => {
-    const pct = Math.round(d.cnt/max*100);
-    bc.innerHTML += `<div class="bar-row"><span class="bar-day">${d.label}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${d.today?'#1A56DB':'#DBEAFE'}"></div></div><span class="bar-count">${d.cnt}</span></div>`;
-  });
 
-  // Donut
-  const total = records.length || 1;
-  const hotN = records.filter(r => qualKey(r.fields.lead_quality) === 'hot').length;
-  const warmN = records.filter(r => qualKey(r.fields.lead_quality) === 'warm').length;
-  const neuN = records.filter(r => qualKey(r.fields.lead_quality) === 'neu').length;
-  const C = 201;
-  const hp = hotN/total, wp = warmN/total, np = neuN/total;
-  document.getElementById('d-hot').setAttribute('stroke-dasharray',`${Math.round(hp*C)} ${C}`);
-  document.getElementById('d-warm').setAttribute('stroke-dasharray',`${Math.round(wp*C)} ${C}`);
-  document.getElementById('d-warm').setAttribute('stroke-dashoffset',`${-Math.round(hp*C)}`);
-  document.getElementById('d-neu').setAttribute('stroke-dasharray',`${Math.round(np*C)} ${C}`);
-  document.getElementById('d-neu').setAttribute('stroke-dashoffset',`${-Math.round((hp+wp)*C)}`);
-  document.getElementById('donut-total').textContent = records.length;
-  document.getElementById('pct-hot').textContent = Math.round(hp*100)+'%';
-  document.getElementById('pct-warm').textContent = Math.round(wp*100)+'%';
-  document.getElementById('pct-neu').textContent = Math.round(np*100)+'%';
-  document.getElementById('bar-hot').style.width = Math.round(hp*100)+'%';
-  document.getElementById('bar-warm').style.width = Math.round(wp*100)+'%';
-  document.getElementById('bar-neu').style.width = Math.round(np*100)+'%';
+  cbSection.style.display = 'block';
+  const toShow = offen.slice(0, 5);
+  cbList.innerHTML = toShow.map(function(r) {
+    const f   = r.fields || {};
+    const ini = initials(f.caller_name || f.name || '?');
+    const qk  = qualKey(f.lead_quality);
+    const name = f.caller_name || f.name || 'Unbekannt';
+    const phone = f.caller_phone || f.phone || '';
+    const time  = fmtDate(f.created_date_raw);
+    const qual  = qualChip(f.lead_quality);
+    const tel   = phone ? phone.replace(/\s/g,'') : '';
 
-  renderList('leads-list', records.slice(0,10), {showActions:true});
+    return `
+      <div class="cb-row" id="cb-row-${r.id}">
+        <div class="cb-av">${ini}</div>
+        <div class="cb-body">
+          <div class="cb-name">${name}</div>
+          <div class="cb-meta">
+            ${phone ? `<span class="cb-phone">${phone}</span>` : ''}
+            <span>${time}</span>
+            ${qual}
+          </div>
+          ${f.call_summary ? `<div class="call-summary" style="margin-top:5px">${f.call_summary.substring(0,100)}${f.call_summary.length > 100 ? '…' : ''}</div>` : ''}
+        </div>
+        <div class="cb-actions">
+          ${tel ? `<a class="btn-call" href="tel:${tel}">☎ Zurückrufen</a>` : ''}
+          <button class="btn-done-small" onclick="markCbDone('${r.id}')" title="Als erledigt markieren">✓</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Zeige "Alle X ansehen"-Link nur wenn mehr als 5
+  const cbHeader = document.querySelector('.dash-cb-link');
+  if (cbHeader) {
+    cbHeader.style.display = offen.length > 5 ? 'inline' : 'none';
+    cbHeader.textContent   = 'Alle ' + offen.length + ' Rückrufe ansehen →';
+  }
+
+  // Render usage für Einstellungen (bleibt kompatibel)
+  renderUsage(records);
+  updateSystemStatus(records);
+}
+
+// Schnell-Erledigen direkt aus der Dashboard-Rückrufliste
+async function markCbDone(recordId) {
+  const row = document.getElementById('cb-row-' + recordId);
+  if (row) { row.style.opacity = '.4'; row.style.pointerEvents = 'none'; }
+  try {
+    await patchCallRecord(recordId, {
+      dashboard_status: 'Abgeschlossen',
+      updated_at: new Date().toISOString()
+    });
+    toast('✓ Rückruf als erledigt markiert');
+    // Re-render nach kurzer Pause
+    setTimeout(function() { loadData(); }, 600);
+  } catch(e) {
+    toast('Fehler: ' + e.message);
+    if (row) { row.style.opacity = '1'; row.style.pointerEvents = ''; }
+  }
+}
 
   // Render follow-ups section
   renderFollowups(records);
