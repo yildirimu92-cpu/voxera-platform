@@ -988,61 +988,57 @@ body{
 
         <!-- DASHBOARD TAB -->
         <div class="tab-page active" id="tab-dashboard">
-          <div id="dash-loading" class="loading-wrap"><div class="spinner"></div><span>Laden...</span></div>
-          <div id="dash-content" style="display:none">
-            <div class="dash-setup-reminder" id="dash-setup-reminder">
-              <div class="dash-setup-reminder-text">⚙ Einrichtung noch nicht abgeschlossen – einige Schritte sind offen.</div>
-              <a href="javascript:void(0)" onclick="var n=document.getElementById('nav-einrichtung');if(n)showTab('einrichtung',n);">Jetzt einrichten →</a>
-            </div>
-            <div class="kpi-grid">
-              <div class="kpi"><div class="kpi-label">Anrufe heute</div><div class="kpi-val blue" id="kpi-heute">–</div><div class="kpi-sub" id="kpi-heute-sub">Eingegangene Anrufe seit Mitternacht</div></div>
-              <div class="kpi"><div class="kpi-label">Neue Leads</div><div class="kpi-val green" id="kpi-leads">–</div><div class="kpi-sub" id="kpi-leads-sub">Anrufer mit erkanntem Interesse</div></div>
-              <div class="kpi"><div class="kpi-label">Rückrufe offen</div><div class="kpi-val red" id="kpi-rueckrufe">–</div><div class="kpi-sub warn" id="kpi-cb-sub">Anrufer warten auf Ihren Rückruf</div></div>
-              <div class="kpi"><div class="kpi-label">Erledigt diese Woche</div><div class="kpi-val" id="kpi-erledigt">–</div><div class="kpi-sub up">Abgeschlossene Vorgänge</div></div>
-            </div>
-            <div class="focus-strip">
-              <div class="focus-card"><div class="focus-label">Dringend offen</div><div class="focus-value" id="focus-urgent">–</div><div class="focus-meta" id="focus-urgent-meta">–</div></div>
-              <div class="focus-card"><div class="focus-label">Heute fällig</div><div class="focus-value" id="focus-due">–</div><div class="focus-meta" id="focus-due-meta">–</div></div>
-              <div class="focus-card"><div class="focus-label">In Bearbeitung</div><div class="focus-value" id="focus-progress">–</div><div class="focus-meta" id="focus-progress-meta">–</div></div>
-            </div>
-            <div id="followups-section" style="display:none;margin-bottom:20px;">
-              <div class="section-head" style="margin-bottom:10px">
-                <div class="section-title">Anstehende Follow-ups</div>
-              </div>
-              <div class="call-list" id="followups-list"></div>
-            </div>
-            <div class="charts-row">
-              <div class="card"><div class="card-title">Anrufe – letzte 7 Tage</div><div class="bar-wrap" id="weekly-bars"></div></div>
-              <div class="card">
-                <div class="card-title">Lead-Qualität</div>
-                <div class="donut-wrap">
-                  <svg width="84" height="84" viewBox="0 0 84 84" style="flex-shrink:0">
-                    <circle cx="42" cy="42" r="32" fill="none" stroke="#F3F4F6" stroke-width="11"/>
-                    <circle cx="42" cy="42" r="32" fill="none" stroke="#DC2626" stroke-width="11" id="d-hot" stroke-dasharray="0 201" style="transform:rotate(-90deg);transform-origin:42px 42px"/>
-                    <circle cx="42" cy="42" r="32" fill="none" stroke="#D97706" stroke-width="11" id="d-warm" stroke-dasharray="0 201" style="transform:rotate(-90deg);transform-origin:42px 42px"/>
-                    <circle cx="42" cy="42" r="32" fill="none" stroke="#1A56DB" stroke-width="11" id="d-neu" stroke-dasharray="0 201" style="transform:rotate(-90deg);transform-origin:42px 42px"/>
-                    <text x="42" y="47" text-anchor="middle" font-size="14" font-weight="700" fill="#111827" font-family="Inter" id="donut-total">–</text>
-                  </svg>
-                  <div class="donut-legend">
-                    <div><div class="leg-item"><div class="leg-dot" style="background:#DC2626"></div><span class="leg-label">Hot</span><span class="leg-pct" id="pct-hot">–</span></div><div class="leg-bar-track"><div class="leg-bar-fill" id="bar-hot" style="background:#DC2626;width:0"></div></div></div>
-                    <div><div class="leg-item"><div class="leg-dot" style="background:#D97706"></div><span class="leg-label">Warm</span><span class="leg-pct" id="pct-warm">–</span></div><div class="leg-bar-track"><div class="leg-bar-fill" id="bar-warm" style="background:#D97706;width:0"></div></div></div>
-                    <div><div class="leg-item"><div class="leg-dot" style="background:#1A56DB"></div><span class="leg-label">Neu</span><span class="leg-pct" id="pct-neu">–</span></div><div class="leg-bar-track"><div class="leg-bar-fill" id="bar-neu" style="background:#1A56DB;width:0"></div></div></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="section-head">
-              <div class="section-title">Letzte Anrufe</div>
-              <div class="filter-tabs">
-                <button class="ftab active" onclick="filterList('leads-list','alle',this)">Alle</button>
-                <button class="ftab" onclick="filterList('leads-list','dringend',this)">Dringend</button>
-                <button class="ftab" onclick="filterList('leads-list','hot',this)">Hot</button>
-                <button class="ftab" onclick="filterList('leads-list','offen',this)">Offen</button>
-              </div>
-            </div>
-            <div class="call-list" id="leads-list"></div>
-          </div>
-        </div>
+  <div id="dash-loading" class="loading-wrap">
+    <div class="spinner"></div><span>Laden...</span>
+  </div>
+  <div id="dash-content" style="display:none">
+
+    <!-- Setup-Reminder (unverändert, bleibt kompatibel) -->
+    <div class="dash-setup-reminder" id="dash-setup-reminder">
+      <div class="dash-setup-reminder-text">⚙ Einrichtung noch nicht abgeschlossen – einige Schritte sind offen.</div>
+      <a href="javascript:void(0)" onclick="var n=document.getElementById('nav-einrichtung');if(n)showTab('einrichtung',n);">Jetzt einrichten →</a>
+    </div>
+
+    <!-- HERO: Offene Rückrufe -->
+    <div class="dash-hero" id="dash-hero">
+      <div class="dash-hero-left">
+        <div class="dash-hero-label">Offene Rückrufe</div>
+        <div class="dash-hero-number red" id="hero-count">–</div>
+        <div class="dash-hero-sub" id="hero-sub">Wird geladen...</div>
+      </div>
+      <a href="javascript:void(0)" class="dash-hero-cta" id="hero-cta"
+         onclick="var n=document.getElementById('nav-rueckrufe');if(n)showTab('rueckrufe',n);">
+        Alle ansehen →
+      </a>
+    </div>
+
+    <!-- 2 KPI KACHELN -->
+    <div class="dash-kpi-row">
+      <div class="dash-kpi">
+        <div class="dash-kpi-label">Anrufe heute</div>
+        <div class="dash-kpi-val" id="kpi-heute">–</div>
+        <div class="dash-kpi-sub" id="kpi-heute-sub">Eingegangene Anrufe</div>
+      </div>
+      <div class="dash-kpi">
+        <div class="dash-kpi-label">System</div>
+        <div class="dash-kpi-val" id="kpi-system" style="font-size:22px;margin-top:4px;">–</div>
+        <div class="dash-kpi-sub" id="kpi-system-sub">Status</div>
+      </div>
+    </div>
+
+    <!-- RÜCKRUF-LISTE -->
+    <div id="dash-cb-section">
+      <div class="dash-cb-header">
+        <div class="dash-cb-title">Offene Rückrufe</div>
+        <a class="dash-cb-link" onclick="var n=document.getElementById('nav-rueckrufe');if(n)showTab('rueckrufe',n);">
+          Alle Rückrufe ansehen →
+        </a>
+      </div>
+      <div id="dash-cb-list"></div>
+    </div>
+
+  </div>
+</div>
 
         <!-- ANRUFE TAB -->
         <div class="tab-page" id="tab-anrufe">
