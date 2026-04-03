@@ -103,6 +103,9 @@ exports.handler = async (event) => {
       ? `${baseUrl.replace(/\/$/, '')}/.netlify/functions/send-welcome`
       : '/.netlify/functions/send-welcome';
 
+    let welcome_email_sent = false;
+    let welcome_email_error = null;
+
     try {
       const welcomeRes = await fetch(welcomeUrl, {
         method: 'POST',
@@ -111,17 +114,21 @@ exports.handler = async (event) => {
       });
       if (!welcomeRes.ok) {
         const err = await welcomeRes.json().catch(() => ({}));
-        console.error('send-welcome fehlgeschlagen:', err.error || welcomeRes.status);
+        welcome_email_error = err.error || `HTTP ${welcomeRes.status}`;
+        console.error('send-welcome fehlgeschlagen:', welcome_email_error);
+      } else {
+        welcome_email_sent = true;
       }
     } catch (welcomeErr) {
       // Log but do not fail activation if welcome email encounters a transient error
+      welcome_email_error = welcomeErr.message;
       console.error('send-welcome Ausnahme:', welcomeErr.message);
     }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ success: true, subscription_id: subscriptionId, customer_id })
+      body: JSON.stringify({ success: true, subscription_id: subscriptionId, customer_id, welcome_email_sent, welcome_email_error })
     };
 
   } catch (e) {
