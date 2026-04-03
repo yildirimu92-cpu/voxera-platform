@@ -61,18 +61,24 @@ exports.handler = async (event) => {
       throw new Error('Kunde ist bereits aktiv. Bitte bestehende Subscription pruefen.');
     }
 
-    // 2. Create subscription record (status always 'active' on creation)
+    // 2. Upsert subscription record (status always 'active' on activation).
+    //
+    // NOTE: customer_id is UNIQUE for PR 1. An existing subscription row may be
+    // present if a customer was previously activated and then set back to 'pending'
+    // (e.g. via the admin pause action). In that case we update the existing row
+    // rather than inserting a new one, so the UNIQUE constraint is respected.
+    // Future PRs will replace this upsert with a plain INSERT once the UNIQUE
+    // constraint is removed and subscription history is supported.
     const { data: subscription, error: subErr } = await sbAdmin
       .from('subscriptions')
-      .insert({
+      .upsert({
         customer_id,
         plan,
         billing_cycle,
         start_date,
         status: 'active',
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      })
+      }, { onConflict: 'customer_id' })
       .select('id')
       .single();
     if (subErr) throw new Error('Subscription erstellen: ' + subErr.message);
