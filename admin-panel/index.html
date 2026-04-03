@@ -404,8 +404,8 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
         </select>
         <select class="toolbar-select" id="customer-status-filter" onchange="renderCustomers()">
           <option value="">Alle Status</option>
-          <option value="aktiv">Aktiv</option>
-          <option value="inaktiv">Inaktiv</option>
+          <option value="active">Aktiv</option>
+          <option value="pending">Ausstehend</option>
         </select>
       </div>
       <div id="customer-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
@@ -853,7 +853,9 @@ function renderCustomers() {
     const hay = [c.customer_name, c.email, c.voxera_number, c.id, c.plan].join(' ').toLowerCase();
     if (q && !hay.includes(q)) return false;
     if (planFilter && (c.plan || '') !== planFilter) return false;
-    if (statusFilter && status !== statusFilter) return false;
+    // Normalise legacy 'aktiv'/'inaktiv' values to 'active'/'pending' for filter comparison
+    const normStatus = status === 'aktiv' ? 'active' : (status === 'inaktiv' ? 'pending' : status);
+    if (statusFilter && normStatus !== statusFilter) return false;
     return true;
   });
   if (!filtered.length) { root.innerHTML='<div class="empty"><div class="empty-icon">🔎</div>Keine Kunden für diese Filter</div>'; return; }
@@ -1143,7 +1145,7 @@ async function openCustomerProfile(id) {
           <div class="profile-block-title">Kunde & Abo</div>
           <div class="detail-item"><span class="detail-key">Kunde</span><span class="detail-val">${rec.customer_name||'–'}</span></div>
           <div class="detail-item"><span class="detail-key">Kunde seit</span><span class="detail-val">${rec.start_date ? fmtDateOnly(rec.start_date) + ' · ' + monthsSince(rec.start_date) + ' Mt' : '–'}</span></div>
-          <div class="detail-item"><span class="detail-key">Aktuelles Abo</span><span class="detail-val">${rec.plan||'Pilot'} · ${rec.status||'aktiv'}</span></div>
+          <div class="detail-item"><span class="detail-key">Aktuelles Abo</span><span class="detail-val">${rec.plan||'Pilot'} · ${rec.status||'pending'}</span></div>
           <div class="detail-item"><span class="detail-key">Abo im Einsatz seit</span><span class="detail-val">${rec.start_date ? fmtDateOnly(rec.start_date) : '–'}</span></div>
           <div class="detail-item"><span class="detail-key">Jahresumsatz</span><span class="detail-val">${(((PLANS[rec.plan||'Pilot']||PLANS.Pilot).monthlyPrice || 0) * 12)} CHF / Jahr</span></div>
           <div class="detail-item"><span class="detail-key">Umsatz seit Start</span><span class="detail-val">${(((PLANS[rec.plan||'Pilot']||PLANS.Pilot).monthlyPrice || 0) * Math.max(1, monthsSince(rec.start_date||new Date().toISOString())))} CHF</span></div>
@@ -1213,9 +1215,10 @@ async function saveEdit() {
 }
 
 function toggleStatus(id, name, active) {
-  const newS = active ? 'inaktiv' : 'aktiv';
+  const newS = active ? 'pending' : 'active';
+  const label = active ? 'Ausstehend' : 'Aktiv';
   showConfirm(active?'⏸':'▶️', `Kunde ${active?'deaktivieren':'aktivieren'}?`,
-    `${name} wird auf "${newS}" gesetzt.`, active?'btn-warning':'btn-primary',
+    `${name} wird auf "${label}" gesetzt.`, active?'btn-warning':'btn-primary',
     async ()=>{
       const { error } = await _sb.from('customers').update({ status: newS, updated_at: new Date().toISOString() }).eq('id', id);
       if (error) throw new Error(error.message);
