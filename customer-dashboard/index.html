@@ -1512,6 +1512,25 @@ async function resolveCustomerContext(forceReload) {
   return customerContext;
 }
 
+// ═══════════════════════════════════════════
+//  ACCESS GUARD
+// ═══════════════════════════════════════════
+function validateAccessGuard(context) {
+  if (!context.authUserId) {
+    return { valid: false, reason: 'Auth-Benutzer nicht gefunden' };
+  }
+  if (!context.usersCustomerId) {
+    return { valid: false, reason: 'Benutzer-Zuordnung nicht gefunden' };
+  }
+  if (!context.customerRecord) {
+    return { valid: false, reason: 'Kundendaten nicht gefunden' };
+  }
+  if (context.customerRecord.status !== 'active') {
+    return { valid: false, reason: 'Konto ist nicht aktiv (Status: ' + context.customerRecord.status + ')' };
+  }
+  return { valid: true, reason: '' };
+}
+
 async function loadCallRecords(customerIdRaw) {
   let query = _sb.from(CALLS_TABLE).select('*').order('created_date_raw', { ascending: false }).limit(500);
   const customerId = (customerIdRaw || '').trim();
@@ -1898,6 +1917,21 @@ async function loadData() {
   try {
     await loadCustomerMeta().catch(()=>{});
     const context = await resolveCustomerContext();
+
+    // ─── ACCESS GUARD ───────────────────────────────────────────────────
+    const accessCheck = validateAccessGuard(context);
+    if (!accessCheck.valid) {
+      console.warn('[voxera-dashboard] Access denied:', accessCheck.reason);
+      await doLogout();
+      const errEl = document.getElementById('login-error');
+      if (errEl) {
+        errEl.textContent = 'Ihr Zugriff ist nicht mehr gültig. (' + accessCheck.reason + ')';
+        errEl.style.display = 'block';
+      }
+      return;
+    }
+    // ─── END ACCESS GUARD ────────────────────────────────────────────────
+
     const records = await loadCallRecords(context.customerId || '');
 
     flagIncomingRecords(records);
