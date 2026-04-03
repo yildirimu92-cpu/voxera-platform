@@ -251,6 +251,11 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
 .welcome-status.pending{background:var(--amber-light);border:1px solid #FDE68A;}
 .welcome-status.sent{background:var(--green-light);border:1px solid var(--green-mid);}
 
+/* ─── SUBSCRIPTION ACTIVATION ─── */
+.badge-pending{background:var(--amber-light);color:var(--amber);border:1px solid #FDE68A;}
+.btn-activate{background:var(--green-light);color:var(--green);border:1px solid var(--green-mid);}
+.btn-activate:hover{background:var(--green-mid);transform:translateY(-1px);}
+
 /* ─── UTILITY ─── */
 .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;}
 .spinner-blue{border-color:rgba(26,86,219,.15);border-top-color:var(--blue);}
@@ -555,6 +560,44 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   </div>
 </div>
 
+<!-- ACTIVATE SUBSCRIPTION MODAL -->
+<div class="modal-overlay" id="activate-modal" onclick="if(event.target===this)closeActivateModal()">
+  <div class="modal">
+    <h3>Abo aktivieren</h3>
+    <div class="modal-sub" id="activate-sub">Plan und Startdatum für den Kunden festlegen.</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Plan *</label>
+        <select class="form-input" id="activate-plan">
+          <option value="Pilot">Pilot (49 CHF/Mt)</option>
+          <option value="Starter">Starter (199 CHF/Mt)</option>
+          <option value="Business" selected>Business (349 CHF/Mt)</option>
+          <option value="Professional">Professional (549 CHF/Mt)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zahlungsfrequenz *</label>
+        <select class="form-input" id="activate-billing">
+          <option value="monthly" selected>Monatlich</option>
+          <option value="yearly">Jährlich</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Startdatum *</label>
+        <input class="form-input" id="activate-startdate" type="date">
+      </div>
+    </div>
+    <div class="status-box" id="activate-status">
+      <div class="status-icon" id="activate-icon"></div>
+      <div class="status-text"><strong id="activate-title"></strong><div id="activate-detail"></div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeActivateModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="activate-confirm-btn" onclick="confirmActivateSubscription()">✅ Aktivieren</button>
+    </div>
+  </div>
+</div>
+
 <!-- CREATE ADMIN MODAL -->
 <div class="modal-overlay" id="create-admin-modal" onclick="if(event.target===this)closeCreateAdminModal()">
   <div class="modal">
@@ -832,7 +875,7 @@ function renderCustomers() {
           </div>
           <div class="customer-tags">
             <span class="badge badge-plan">${plan}</span>
-            <span class="badge ${active?'badge-active':'badge-inactive'}">${active?'Aktiv':'Inaktiv'}</span>
+            <span class="badge ${active?'badge-active':'badge-pending'}">${active?'Aktiv':'Ausstehend'}</span>
             <span class="badge ${c.welcome_sent?'badge-mail-sent':'badge-mail-pending'}">${c.welcome_sent?'✉️ Mail gesendet':'✉️ Mail offen'}</span>
           </div>
         </div>
@@ -845,9 +888,10 @@ function renderCustomers() {
       <div class="customer-actions">
         <div class="action-cluster">
           <button class="btn btn-primary btn-sm" onclick="openCustomerProfile('${c.id}')">Details</button>
+          ${canWrite && !active?`<button class="btn btn-activate btn-sm" onclick="openActivateModal('${c.id}')">✅ Abo aktivieren</button>`:''}
           ${canWrite?`<button class="btn btn-welcome btn-sm ${c.welcome_sent?'sent':''}" onclick="sendWelcomeMail('${c.id}','${(name).replace(/'/g,"\\'")}')">${c.welcome_sent?'✉️ Erneut senden':'✉️ Welcome Mail'}</button>`:''}
           ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="openEdit('${c.id}')">Bearbeiten</button>`:''}
-          ${canWrite?`<button class="btn ${active?'btn-warning':'btn-secondary'} btn-sm" onclick="toggleStatus('${c.id}','${name}',${active})">${active?'Pausieren':'Aktivieren'}</button>`:''}
+          ${canWrite && active?`<button class="btn btn-warning btn-sm" onclick="toggleStatus('${c.id}','${name}',${active})">Pausieren</button>`:''}
           ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="pwReset('${c.email||''}')">Passwort</button>`:''}
           ${canWrite?`<button class="btn btn-danger btn-sm" onclick="delCustomer('${c.id}','${name}')">Löschen</button>`:''}
         </div>
@@ -1563,7 +1607,83 @@ function deleteAdmin(id, name) {
   blockPrivilegedAction(`Admin "${name}" löschen`);
 }
 
-// ─── WELCOME MAIL ──────────────────────────────────────────────────
+// ─── SUBSCRIPTION ACTIVATION ─────────────────────────────────────
+
+let activateCustomerId = null;
+
+function openActivateModal(id) {
+  const rec = customers.find(c => c.id === id);
+  if (!rec) return;
+  activateCustomerId = id;
+  document.getElementById('activate-sub').textContent =
+    (rec.customer_name || id) + ' – Plan und Startdatum festlegen.';
+  // Pre-fill plan from customer record if available
+  const planEl = document.getElementById('activate-plan');
+  if (rec.plan && planEl) planEl.value = rec.plan;
+  document.getElementById('activate-billing').value = 'monthly';
+  document.getElementById('activate-startdate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('activate-status').className = 'status-box';
+  document.getElementById('activate-confirm-btn').disabled = false;
+  document.getElementById('activate-confirm-btn').textContent = '✅ Aktivieren';
+  document.getElementById('activate-modal').classList.add('open');
+}
+
+function closeActivateModal() {
+  document.getElementById('activate-modal').classList.remove('open');
+  activateCustomerId = null;
+}
+
+async function confirmActivateSubscription() {
+  if (!activateCustomerId) return;
+  const plan = document.getElementById('activate-plan').value;
+  const billing_cycle = document.getElementById('activate-billing').value;
+  const start_date = document.getElementById('activate-startdate').value;
+
+  if (!plan || !billing_cycle || !start_date) {
+    document.getElementById('activate-status').className = 'status-box show error';
+    document.getElementById('activate-icon').textContent = '❌';
+    document.getElementById('activate-title').textContent = 'Pflichtfelder fehlen';
+    document.getElementById('activate-detail').textContent = 'Bitte Plan, Zahlungsfrequenz und Startdatum auswählen.';
+    return;
+  }
+
+  const btn = document.getElementById('activate-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = '...';
+  document.getElementById('activate-status').className = 'status-box show loading';
+  document.getElementById('activate-icon').textContent = '⏳';
+  document.getElementById('activate-title').textContent = 'Abo wird aktiviert…';
+  document.getElementById('activate-detail').textContent = '';
+
+  try {
+    const res = await fetch('/.netlify/functions/activate-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer_id: activateCustomerId, plan, billing_cycle, start_date })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Fehler bei der Aktivierung');
+
+    document.getElementById('activate-status').className = 'status-box show success';
+    document.getElementById('activate-icon').textContent = '✅';
+    document.getElementById('activate-title').textContent = 'Abo erfolgreich aktiviert';
+    document.getElementById('activate-detail').textContent = `Plan: ${plan} · Startdatum: ${start_date}`;
+
+    setTimeout(() => {
+      closeActivateModal();
+      loadCustomers();
+    }, 1200);
+  } catch (e) {
+    document.getElementById('activate-status').className = 'status-box show error';
+    document.getElementById('activate-icon').textContent = '❌';
+    document.getElementById('activate-title').textContent = 'Fehler bei der Aktivierung';
+    document.getElementById('activate-detail').textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = '✅ Aktivieren';
+  }
+}
+
+
 
 async function sendWelcomeMail(customerId, customerName) {
   const rec = customers.find(c => c.id === customerId);

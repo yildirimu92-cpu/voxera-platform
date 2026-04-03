@@ -43,7 +43,7 @@ exports.handler = async (event) => {
     const { error: custError } = await sbAdmin.from('customers').insert({
       id: customer_id, customer_name, email, voxera_number,
       plan: plan || 'Business', dashboard_id: dashboardId,
-      status: 'active', start_date: start_date || new Date().toISOString().split('T')[0],
+      status: 'pending', start_date: start_date || new Date().toISOString().split('T')[0],
       invite_status: 'active', welcome_sent: false,
       notification_active: true, new_log_email_active: true, missed_call_email_active: false,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString()
