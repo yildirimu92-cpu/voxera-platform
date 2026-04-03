@@ -60,25 +60,8 @@ exports.handler = async (event) => {
     const authUserId = userRow?.id ?? null;
     console.log(`[delete-customer] authUserId: ${authUserId ?? 'nicht gefunden'}`);
 
-    // B) Auth User löschen (falls vorhanden) – genau einmal, direkt
-    if (authUserId) {
-      const { error: authErr } = await sbAdmin.auth.admin.deleteUser(authUserId);
-
-      if (authErr) {
-        if (authErr.status === 404) {
-          console.warn(`[delete-customer] Auth User ${authUserId} nicht gefunden – übersprungen`);
-        } else {
-          throw new Error(`Auth User ${authUserId} löschen fehlgeschlagen: ${authErr.message}`);
-        }
-      } else {
-        console.log(`[delete-customer] ✅ Auth User ${authUserId} gelöscht`);
-        steps_completed.push('auth');
-      }
-    } else {
-      console.warn(`[delete-customer] Kein Auth User für customer_id ${customer_id} – übersprungen`);
-    }
-
-    // C) Datenbank-Einträge in der gewünschten Reihenfolge löschen
+    // B) Datenbank-Einträge in der gewünschten Reihenfolge löschen
+    // (VOR Auth User Löschung, um FK-Constraints zu vermeiden)
 
     // 1. contracts
     const { error: contractsErr, count: contractsCount } = await sbAdmin
@@ -110,7 +93,7 @@ exports.handler = async (event) => {
     console.log(`[delete-customer] ✅ ${callsCount ?? 0} Calls gelöscht`);
     steps_completed.push('calls');
 
-    // 4. public.users
+    // 4. public.users (WICHTIG: vor Auth User löschen, um FK-Constraint zu vermeiden)
     const { error: usersErr, count: usersCount } = await sbAdmin
       .from('users')
       .delete({ count: 'exact' })
@@ -132,6 +115,24 @@ exports.handler = async (event) => {
     }
     console.log(`[delete-customer] ✅ Customer ${customer_id} gelöscht`);
     steps_completed.push('customers');
+
+    // C) Auth User löschen (JETZT, nachdem public.users gelöscht wurde)
+    if (authUserId) {
+      const { error: authErr } = await sbAdmin.auth.admin.deleteUser(authUserId);
+
+      if (authErr) {
+        if (authErr.status === 404) {
+          console.warn(`[delete-customer] Auth User ${authUserId} nicht gefunden – übersprungen`);
+        } else {
+          throw new Error(`Auth User ${authUserId} löschen fehlgeschlagen: ${authErr.message}`);
+        }
+      } else {
+        console.log(`[delete-customer] ✅ Auth User ${authUserId} gelöscht`);
+        steps_completed.push('auth');
+      }
+    } else {
+      console.warn(`[delete-customer] Kein Auth User für customer_id ${customer_id} – übersprungen`);
+    }
 
     console.log(`[delete-customer] ✅ Löschung komplett für customer_id: ${customer_id}`);
 
