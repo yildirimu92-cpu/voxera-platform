@@ -1615,9 +1615,11 @@ function deleteAdmin(id, name) {
 let activateCustomerId = null;
 
 function openActivateModal(id) {
+  console.log('[ActivateModal] openActivateModal() called with id:', id);
   const rec = customers.find(c => c.id === id);
-  if (!rec) return;
+  if (!rec) { console.warn('[ActivateModal] No customer record found for id:', id); return; }
   activateCustomerId = id;
+  console.log('[ActivateModal] activateCustomerId set to:', activateCustomerId);
   document.getElementById('activate-sub').textContent =
     (rec.customer_name || id) + ' – Plan und Startdatum festlegen.';
   // Pre-fill plan from customer record if available
@@ -1637,12 +1639,16 @@ function closeActivateModal() {
 }
 
 async function confirmActivateSubscription() {
-  if (!activateCustomerId) return;
+  console.log('[ActivateModal] confirmActivateSubscription() called');
+  console.log('[ActivateModal] activateCustomerId:', activateCustomerId);
+  if (!activateCustomerId) { console.warn('[ActivateModal] Aborted: activateCustomerId is null'); return; }
   const plan = document.getElementById('activate-plan').value;
   const billing_cycle = document.getElementById('activate-billing').value;
   const start_date = document.getElementById('activate-startdate').value;
+  console.log('[ActivateModal] Form values – plan:', plan, '| billing_cycle:', billing_cycle, '| start_date:', start_date);
 
   if (!plan || !billing_cycle || !start_date) {
+    console.warn('[ActivateModal] Validation failed: missing required fields');
     document.getElementById('activate-status').className = 'status-box show error';
     document.getElementById('activate-icon').textContent = '❌';
     document.getElementById('activate-title').textContent = 'Pflichtfelder fehlen';
@@ -1659,6 +1665,7 @@ async function confirmActivateSubscription() {
   document.getElementById('activate-detail').textContent = '';
 
   try {
+    console.log('[ActivateModal] Sending fetch to /.netlify/functions/activate-subscription …');
     const res = await fetch('/.netlify/functions/activate-subscription', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
