@@ -1922,10 +1922,14 @@ async function loadData() {
     const accessCheck = validateAccessGuard(context);
     if (!accessCheck.valid) {
       console.warn('[voxera-dashboard] Access denied:', accessCheck.reason);
-      await doLogout();
+      try {
+        await doLogout();
+      } catch (logoutErr) {
+        console.error('[voxera-dashboard] Logout error:', logoutErr);
+      }
       const errEl = document.getElementById('login-error');
       if (errEl) {
-        errEl.textContent = 'Ihr Zugriff ist nicht mehr gültig. (' + accessCheck.reason + ')';
+        errEl.textContent = 'Ihr Zugriff ist nicht mehr gültig. Bitte wenden Sie sich an den Support.';
         errEl.style.display = 'block';
       }
       return;
