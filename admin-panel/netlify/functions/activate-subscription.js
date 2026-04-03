@@ -56,9 +56,9 @@ exports.handler = async (event) => {
       .single();
     if (custErr || !customer) throw new Error('Kunde nicht gefunden');
 
-    // Only 'pending' customers can be activated; 'active' customers have already been activated
-    if (customer.status === 'active') {
-      throw new Error('Kunde ist bereits aktiv. Bitte bestehende Subscription pruefen.');
+    // Only 'pending' customers can be activated
+    if (customer.status !== 'pending') {
+      throw new Error(`Kunde kann nicht aktiviert werden. Status ist '${customer.status}', erwartet wird 'pending'.`);
     }
 
     // 2. Upsert subscription record (status always 'active' on activation).
