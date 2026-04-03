@@ -853,7 +853,7 @@ function renderCustomers() {
     const hay = [c.customer_name, c.email, c.voxera_number, c.id, c.plan].join(' ').toLowerCase();
     if (q && !hay.includes(q)) return false;
     if (planFilter && (c.plan || '') !== planFilter) return false;
-    // Normalise legacy 'aktiv'/'inaktiv' values to 'active'/'pending' for filter comparison
+    // Normalize legacy 'aktiv'/'inaktiv' values to 'active'/'pending' for filter comparison
     const normStatus = status === 'aktiv' ? 'active' : (status === 'inaktiv' ? 'pending' : status);
     if (statusFilter && normStatus !== statusFilter) return false;
     return true;
