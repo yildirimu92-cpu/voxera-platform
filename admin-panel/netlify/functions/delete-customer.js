@@ -44,26 +44,26 @@ exports.handler = async (event) => {
       .eq('customer_id', customer_id)
       .single();
 
-    // 2. public.users löschen (vor customers wegen FK)
-    if (userRow) {
-      await sbAdmin.from('users').delete().eq('customer_id', customer_id);
-    }
-
-    // 3. Calls löschen die zum Kunden gehören
-    await sbAdmin.from('calls').delete().eq('customer_id', customer_id);
-
-    // 4. Customer löschen
-    const { error: custErr } = await sbAdmin.from('customers').delete().eq('id', customer_id);
-    if (custErr) throw new Error('Customer löschen: ' + custErr.message);
-
-    // 5. Auth User löschen
+    // 2. Auth User SOFORT löschen — bei Fehler wird der gesamte Vorgang abgebrochen.
+    //    Dadurch ist kein Passwort-Reset mehr möglich, bevor Datenbankeinträge entfernt werden.
     if (userRow) {
       const { error: authErr } = await sbAdmin.auth.admin.deleteUser(userRow.id);
-      if (authErr) {
-        console.error('Auth User löschen fehlgeschlagen:', authErr.message);
-        // Kein throw — Daten sind schon gelöscht
-      }
+      if (authErr) throw new Error('Auth User löschen fehlgeschlagen: ' + authErr.message);
     }
+
+    // 3. public.users löschen (vor customers wegen FK)
+    if (userRow) {
+      const { error: usersErr } = await sbAdmin.from('users').delete().eq('customer_id', customer_id);
+      if (usersErr) throw new Error('Users löschen fehlgeschlagen: ' + usersErr.message);
+    }
+
+    // 4. Calls löschen die zum Kunden gehören
+    const { error: callsErr } = await sbAdmin.from('calls').delete().eq('customer_id', customer_id);
+    if (callsErr) throw new Error('Calls löschen fehlgeschlagen: ' + callsErr.message);
+
+    // 5. Customer löschen
+    const { error: custErr } = await sbAdmin.from('customers').delete().eq('id', customer_id);
+    if (custErr) throw new Error('Customer löschen: ' + custErr.message);
 
     return {
       statusCode: 200, headers,
