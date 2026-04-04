@@ -782,7 +782,7 @@ body{
           Rückrufe
           <span class="nav-badge" id="badge-rueckrufe">–</span>
         </div>
-        <div class="nav-item" onclick="showTab('archiv',this)">
+        <div class="nav-item" id="nav-archiv" onclick="showTab('archiv',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M2 5v8a1 1 0 001 1h10a1 1 0 001-1V5" stroke="currentColor" stroke-width="1.3"/><path d="M6 8.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
           Archiv
         </div>
@@ -891,6 +891,11 @@ body{
         <div class="tab-page" id="tab-rueckrufe">
           <div class="section-head" style="margin-bottom:4px">
             <div class="section-title">Offene Rückrufe</div>
+            <div class="filter-tabs">
+              <button class="ftab active" onclick="filterList('rueckrufe-list','alle',this)">Alle</button>
+              <button class="ftab" onclick="filterList('rueckrufe-list','dringend',this)">Dringend</button>
+              <button class="ftab" onclick="filterList('rueckrufe-list','inbearbeitung',this)">In Bearbeitung</button>
+            </div>
           </div>
           <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Anrufer, die um einen Rückruf gebeten haben – bitte zeitnah zurückrufen.</div>
           <div class="search-wrap">
@@ -1328,6 +1333,18 @@ body{
     <div class="modal-sub" id="detail-sub"></div>
     <div id="detail-content"></div>
     <div class="modal-actions" style="margin-top:18px"><button class="btn-modal-cancel" onclick="closeDetail()">Schliessen</button></div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="overlay" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal()">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="confirm-title">Bitte bestätigen</h3>
+    <div class="modal-sub" id="confirm-sub">Sind Sie sicher?</div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeConfirmModal()">Abbrechen</button>
+      <button class="btn-modal-save" id="confirm-ok-btn" onclick="runConfirmModalAction()">Bestätigen</button>
+    </div>
   </div>
 </div>
 
@@ -2171,7 +2188,7 @@ function renderDashboard(records) {
     if (heroCta) {
       heroCta.className = 'dash-hero-cta';
       heroCta.textContent = 'Rückrufe ansehen →';
-      heroCta.onclick = function() { var n = document.getElementById('nav-rueckrufe'); if (n) showTab('rueckrufe', n); };
+      heroCta.onclick = function() { activateTab('rueckrufe'); };
     }
   }
   // CASE B: No callbacks, but open calls exist
@@ -2186,7 +2203,7 @@ function renderDashboard(records) {
     if (heroCta) {
       heroCta.className = 'dash-hero-cta green';
       heroCta.textContent = 'Alle Anrufe ansehen →';
-      heroCta.onclick = function() { var n = document.getElementById('nav-anrufe'); if (n) showTab('anrufe', n); };
+      heroCta.onclick = function() { activateTab('anrufe'); };
     }
   }
   // CASE C: No calls, no callbacks
@@ -2201,7 +2218,7 @@ function renderDashboard(records) {
     if (heroCta) {
       heroCta.className = 'dash-hero-cta green';
       heroCta.textContent = 'Archiv ansehen →';
-      heroCta.onclick = function() { var n = document.getElementById('nav-archiv'); if (n) showTab('archiv', n); };
+      heroCta.onclick = function() { activateTab('archiv'); };
     }
   }
 
@@ -2212,10 +2229,11 @@ function renderDashboard(records) {
   if (kpiHeuteSub) {
     var hot  = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'hot'; }).length;
     var warm = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'warm'; }).length;
-    var cold = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'cold'; }).length;
-    kpiHeuteSub.textContent = (hot > 0 || warm > 0 || cold > 0)
-      ? 'Cold: ' + cold + ' · Warm: ' + warm + ' · Hot: ' + hot
-      : today.length > 0 ? 'Alle Anrufe von heute' : 'Noch keine Anrufe heute';
+    var cold = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'kalt'; }).length;
+    var unqualified = today.length - hot - warm - cold;
+    kpiHeuteSub.textContent = today.length > 0
+      ? 'Cold: ' + cold + ' · Warm: ' + warm + ' · Hot: ' + hot + (unqualified > 0 ? ' · Neu/Unbekannt: ' + unqualified : '')
+      : 'Noch keine Anrufe heute';
   }
 
   // ── KPI: System-Status ───────────────────────────────
@@ -2296,7 +2314,7 @@ function renderDashboard(records) {
 
 function markCbDone(recordId) {
   const row = document.getElementById('cb-row-' + recordId);
-  doStatusChange(recordId, 'Abgeschlossen', row);
+  confirmClose(recordId, 'Abgeschlossen', row);
 }
 
 function renderFollowups(records) {
@@ -2452,11 +2470,51 @@ function renderArchiv(records) {
   renderList('archiv-list', done, {showActions:false});
 }
 
+function activateTab(name) {
+  const preferred = document.getElementById('nav-' + name) || document.getElementById('mnav-' + name);
+  if (preferred) {
+    showTab(name, preferred);
+  }
+}
+
 // ═══════════════════════════════════════════
 //  ACTIONS
 // ═══════════════════════════════════════════
+var confirmModalAction = null;
+
+function openConfirmModal(config) {
+  const titleEl = document.getElementById('confirm-title');
+  const subEl = document.getElementById('confirm-sub');
+  const okBtn = document.getElementById('confirm-ok-btn');
+  if (titleEl) titleEl.textContent = (config && config.title) || 'Bitte bestätigen';
+  if (subEl) subEl.textContent = (config && config.text) || 'Sind Sie sicher?';
+  if (okBtn) okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+  confirmModalAction = (config && typeof config.onConfirm === 'function') ? config.onConfirm : null;
+  const overlay = document.getElementById('confirm-overlay');
+  if (overlay) overlay.classList.add('open');
+}
+
+function closeConfirmModal() {
+  const overlay = document.getElementById('confirm-overlay');
+  if (overlay) overlay.classList.remove('open');
+  confirmModalAction = null;
+}
+
+function runConfirmModalAction() {
+  const fn = confirmModalAction;
+  closeConfirmModal();
+  if (typeof fn === 'function') fn();
+}
+
 function confirmClose(recordId, newStatus, rowElement) {
-  doStatusChange(recordId, newStatus, rowElement || null);
+  openConfirmModal({
+    title: 'Anruf als erledigt markieren?',
+    text: 'Dieser Eintrag wird aus den offenen Listen entfernt und ins Archiv verschoben.',
+    confirmLabel: 'Ja, erledigen',
+    onConfirm: function() {
+      doStatusChange(recordId, newStatus, rowElement || null);
+    }
+  });
 }
 
 // kept for backward compat (cb-row dashboard buttons still reference this name)
