@@ -13,7 +13,6 @@
 <link rel="apple-touch-icon" href="/favicon-180.png">
 <meta name="theme-color" content="#1A56DB">
 
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 /* ═══════════════════════════════════════════
@@ -21,6 +20,7 @@
 ═══════════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
+  --font-ui:'Helvetica Neue',Arial,sans-serif;
   --blue:#1A56DB;--blue-dark:#1340B0;--blue-light:#EBF0FC;--blue-mid:#C7D9F8;
   --green:#16A34A;--green-light:#DCFCE7;--green-mid:#BBF7D0;
   --red:#DC2626;--red-light:#FEE2E2;
@@ -35,7 +35,7 @@
 }
 html{scroll-behavior:smooth;}
 body{
-  font-family:'Inter',sans-serif;font-size:14px;
+  font-family:var(--font-ui);font-size:14px;line-height:1.45;
   color:var(--gray900);background:var(--gray50);
   min-height:100vh;overflow-x:hidden;
 }
@@ -58,7 +58,7 @@ body{
   animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both;
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-.login-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;color:var(--blue);letter-spacing:-.03em;margin-bottom:4px;}
+.login-logo{font-family:var(--font-ui);font-size:32px;font-weight:800;color:var(--blue);letter-spacing:-.02em;margin-bottom:4px;}
 .login-tag{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray400);margin-bottom:24px;}
 .login-sub{font-size:14px;color:var(--gray600);margin-bottom:32px;line-height:1.6;}
 .login-form{display:flex;flex-direction:column;gap:14px;margin-bottom:20px;text-align:left;}
@@ -113,7 +113,7 @@ body{
 ═══════════════════════════════════════════ */
 .setup-welcome{text-align:center;padding:20px 0 8px;}
 .setup-welcome-icon{font-size:48px;margin-bottom:12px;}
-.setup-welcome-title{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:800;color:var(--gray900);margin-bottom:8px;}
+.setup-welcome-title{font-family:var(--font-ui);font-size:24px;font-weight:800;color:var(--gray900);margin-bottom:8px;letter-spacing:-.01em;}
 .setup-welcome-sub{font-size:14px;color:var(--gray600);line-height:1.6;max-width:480px;margin:0 auto 24px;}
 .setup-steps{display:flex;flex-direction:column;gap:12px;max-width:600px;margin:0 auto;}
 .setup-step{background:var(--white);border:1.5px solid var(--gray200);border-radius:14px;padding:20px 22px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
@@ -167,10 +167,10 @@ body{
 .setup-progress-text{font-size:12px;color:var(--gray400);font-weight:600;white-space:nowrap;}
 .setup-complete{text-align:center;padding:40px 20px;}
 .setup-complete-icon{font-size:56px;margin-bottom:16px;}
-.setup-complete-title{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--gray900);margin-bottom:8px;}
+.setup-complete-title{font-family:var(--font-ui);font-size:22px;font-weight:800;color:var(--gray900);margin-bottom:8px;letter-spacing:-.01em;}
 .setup-complete-sub{font-size:14px;color:var(--gray600);line-height:1.6;margin-bottom:24px;}
 .setup-number-box{background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:10px;padding:14px 18px;margin:12px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.setup-number-val{font-size:18px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;color:var(--blue);letter-spacing:.02em;}
+.setup-number-val{font-size:18px;font-weight:800;font-family:var(--font-ui);color:var(--blue);letter-spacing:0;}
 .setup-number-copy{font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--blue-mid);background:white;font-family:inherit;}
 .setup-number-copy:hover{background:var(--blue-light);}
 .setup-skip{display:flex;justify-content:center;margin-top:20px;}
@@ -194,12 +194,12 @@ body{
   position:fixed;top:0;left:0;height:100vh;z-index:40;
 }
 .sidebar-logo{padding:20px;border-bottom:1px solid var(--gray200);}
-.sidebar-logo-text{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;color:var(--blue);}
+.sidebar-logo-text{font-family:var(--font-ui);font-size:20px;font-weight:800;color:var(--blue);letter-spacing:-.01em;}
 .nav{padding:8px 0;flex:1;}
 .nav-item{
   display:flex;align-items:center;gap:10px;
   padding:10px 20px;cursor:pointer;
-  font-size:13.5px;color:var(--gray600);
+  font-size:13px;font-weight:500;letter-spacing:.01em;color:var(--gray600);
   border-left:3px solid transparent;
   transition:all .15s;user-select:none;
 }
@@ -236,7 +236,7 @@ body{
   position:sticky;top:0;z-index:30;
 }
 .greeting-sub{font-size:12px;color:var(--gray400);margin-bottom:2px;}
-.greeting-main{font-size:18px;font-weight:800;letter-spacing:-.3px;font-family:'Bricolage Grotesque',sans-serif;}
+.greeting-main{font-size:18px;font-weight:800;letter-spacing:-.01em;font-family:var(--font-ui);}
 .topbar-right{display:flex;align-items:center;gap:16px;}
 .status-pill{
   display:flex;align-items:center;gap:6px;
@@ -306,7 +306,7 @@ body{
 }
 .kpi:hover{border-color:var(--blue-mid);box-shadow:0 2px 8px rgba(26,86,219,.06);}
 .kpi-label{font-size:11px;color:var(--gray400);font-weight:500;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;}
-.kpi-val{font-size:34px;font-weight:800;line-height:1;font-family:'Bricolage Grotesque',sans-serif;}
+.kpi-val{font-size:34px;font-weight:800;line-height:1;font-family:var(--font-ui);letter-spacing:-.01em;}
 .kpi-val.blue{color:var(--blue);}
 .kpi-val.green{color:var(--green);}
 .kpi-val.red{color:var(--red);}
@@ -339,7 +339,7 @@ body{
    SECTION HEADER
 ═══════════════════════════════════════════ */
 .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
-.section-title{font-size:14px;font-weight:600;color:var(--gray900);}
+.section-title{font-size:14px;font-weight:700;letter-spacing:-.005em;color:var(--gray900);}
 .filter-tabs{display:flex;gap:4px;flex-wrap:wrap;}
 .ftab{
   padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;
@@ -383,7 +383,7 @@ body{
 .call-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;}
 .call-name{font-size:13.5px;font-weight:600;color:var(--gray900);}
 .call-company{font-size:12px;color:var(--gray400);}
-.call-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray400);margin-bottom:5px;flex-wrap:wrap;}
+.call-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray600);margin-bottom:5px;flex-wrap:wrap;}
 .call-phone{display:inline-block;font-weight:600;color:var(--gray700, #374151);background:var(--gray100);padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums;}
 .call-summary{font-size:12px;color:var(--gray600);line-height:1.5;margin-bottom:6px;}
 .call-notiz{
@@ -398,7 +398,7 @@ body{
 /* ═══════════════════════════════════════════
    CHIPS
 ═══════════════════════════════════════════ */
-.chip{font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:6px;white-space:nowrap;}
+.chip{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;letter-spacing:.02em;}
 .chip-hot{background:#FEE2E2;color:#B91C1C;}
 .chip-warm{background:#FEF3C7;color:#B45309;}
 .chip-kalt{background:var(--gray100);color:var(--gray600);}
@@ -464,8 +464,8 @@ body{
   box-shadow:0 24px 60px rgba(0,0,0,.18);
   animation:fadeUp .3s cubic-bezier(.16,1,.3,1) both;
 }
-.modal h3{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:800;color:var(--gray900);margin-bottom:4px;}
-.modal-sub{font-size:12px;color:var(--gray400);margin-bottom:16px;}
+.modal h3{font-family:var(--font-ui);font-size:17px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.01em;}
+.modal-sub{font-size:12px;color:var(--gray600);margin-bottom:16px;line-height:1.5;}
 .modal-existing{
   background:var(--gray50);border:1px solid var(--gray200);border-radius:8px;
   padding:10px 12px;font-size:12px;color:var(--gray600);margin-bottom:12px;line-height:1.5;
@@ -520,7 +520,7 @@ body{
   animation:fadeUp .3s cubic-bezier(.16,1,.3,1) both;
   -webkit-overflow-scrolling:touch;
 }
-.account-modal h3{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;color:var(--gray900);margin-bottom:16px;}
+.account-modal h3{font-family:var(--font-ui);font-size:16px;font-weight:800;color:var(--gray900);margin-bottom:16px;letter-spacing:-.01em;}
 .account-section{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--gray200);}
 .account-section:last-of-type{border-bottom:none;margin-bottom:0;padding-bottom:0;}
 .account-label{font-size:11px;font-weight:600;color:var(--gray600);margin-bottom:5px;letter-spacing:.03em;}
@@ -569,7 +569,7 @@ body{
 
 .account-plan-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:14px;padding:16px;}
 .account-plan-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;}
-.account-plan-title{font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;color:var(--gray900);line-height:1.2;}
+.account-plan-title{font-size:16px;font-weight:800;font-family:var(--font-ui);color:var(--gray900);line-height:1.2;letter-spacing:-.01em;}
 .account-plan-sub{font-size:12px;color:var(--gray400);margin-top:4px;}
 .account-usage-meter{height:10px;background:var(--gray200);border-radius:999px;overflow:hidden;margin-bottom:8px;}
 .account-usage-meter-fill{height:100%;background:var(--blue);border-radius:999px;transition:width .3s ease;}
@@ -577,7 +577,7 @@ body{
 .account-usage-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;}
 .account-usage-mini{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:12px;}
 .account-usage-mini-label{font-size:11px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
-.account-usage-mini-val{font-size:18px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;color:var(--gray900);line-height:1.1;}
+.account-usage-mini-val{font-size:18px;font-weight:800;font-family:var(--font-ui);color:var(--gray900);line-height:1.1;letter-spacing:-.01em;}
 .account-upgrade-box{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:14px;}
 .account-upgrade-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .account-upgrade-copy{font-size:12px;color:var(--gray600);line-height:1.55;margin-bottom:12px;}
@@ -594,7 +594,7 @@ body{
 .focus-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:-6px 0 24px;}
 .focus-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:16px;}
 .focus-label{font-size:11px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
-.focus-value{font-size:24px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;line-height:1.1;}
+.focus-value{font-size:24px;font-weight:800;font-family:var(--font-ui);line-height:1.1;letter-spacing:-.01em;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:6px;line-height:1.45;}
 .followup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 12px;}
 .followup-field label{display:block;font-size:11.5px;font-weight:600;color:var(--gray600);margin-bottom:6px;}
@@ -681,8 +681,8 @@ body{
 .dash-hero.has-callbacks{border-color:#FECACA;background:#FFF9F9;}
 .dash-hero.no-callbacks{border-color:var(--green-mid);background:#FAFFF8;}
 .dash-hero-left{flex:1;min-width:0;}
-.dash-hero-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray400);margin-bottom:8px;}
-.dash-hero-number{font-family:'Bricolage Grotesque',sans-serif;font-size:64px;font-weight:800;line-height:1;letter-spacing:-.03em;margin-bottom:8px;}
+.dash-hero-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray600);margin-bottom:8px;}
+.dash-hero-number{font-family:var(--font-ui);font-size:64px;font-weight:800;line-height:1;letter-spacing:-.02em;margin-bottom:8px;}
 .dash-hero-number.red{color:var(--red);}
 .dash-hero-number.green{color:var(--green);}
 .dash-hero-sub{font-size:13px;color:var(--gray600);line-height:1.5;}
@@ -693,11 +693,11 @@ body{
 .dash-hero-cta.green:hover{background:#15803D;}
 .dash-kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;}
 .dash-kpi{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:18px 20px;}
-.dash-kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray400);margin-bottom:10px;}
-.dash-kpi-val{font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;line-height:1;color:var(--blue);margin-bottom:5px;}
-.dash-kpi-sub{font-size:12px;color:var(--gray400);}
+.dash-kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray600);margin-bottom:10px;}
+.dash-kpi-val{font-family:var(--font-ui);font-size:36px;font-weight:800;line-height:1;color:var(--blue);margin-bottom:5px;letter-spacing:-.01em;}
+.dash-kpi-sub{font-size:12px;color:var(--gray600);}
 .dash-cb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
-.dash-cb-title{font-size:14px;font-weight:700;color:var(--gray900);}
+.dash-cb-title{font-size:14px;font-weight:700;color:var(--gray900);letter-spacing:-.005em;}
 .dash-cb-link{font-size:12px;color:var(--blue);text-decoration:none;font-weight:500;cursor:pointer;}
 .dash-cb-link:hover{text-decoration:underline;}
 .cb-row{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;transition:border-color .15s,box-shadow .15s;}
@@ -705,7 +705,7 @@ body{
 .cb-av{width:38px;height:38px;border-radius:50%;background:var(--red-light);color:#991B1B;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
 .cb-body{flex:1;min-width:0;}
 .cb-name{font-size:13.5px;font-weight:600;color:var(--gray900);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.cb-meta{font-size:12px;color:var(--gray400);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.cb-meta{font-size:12px;color:var(--gray600);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .cb-phone{font-weight:600;color:var(--gray600);background:var(--gray100);padding:2px 7px;border-radius:5px;font-variant-numeric:tabular-nums;}
 .cb-actions{display:flex;gap:6px;flex-shrink:0;}
 .btn-call{display:inline-flex;align-items:center;gap:5px;background:var(--blue);color:var(--white);border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s;white-space:nowrap;}
@@ -1110,7 +1110,7 @@ body{
         <div class="tab-page" id="tab-einstellungen">
           <div style="max-width:640px">
             <div style="margin-bottom:20px">
-              <div class="section-title" style="font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;">Einstellungen</div>
+              <div class="section-title" style="font-size:16px;font-weight:800;font-family:var(--font-ui);letter-spacing:-.01em;">Einstellungen</div>
               <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Konto, Benachrichtigungen, Plan und Support verwalten.</div>
             </div>
 
@@ -1180,11 +1180,11 @@ body{
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
                 <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
                   <div style="font-size:10px;color:var(--gray400);font-weight:600;text-transform:uppercase;margin-bottom:4px;">Diesen Monat</div>
-                  <div style="font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;" id="usage-month-minutes">–</div>
+                  <div style="font-size:16px;font-weight:800;font-family:var(--font-ui);letter-spacing:-.01em;" id="usage-month-minutes">–</div>
                 </div>
                 <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
                   <div style="font-size:10px;color:var(--gray400);font-weight:600;text-transform:uppercase;margin-bottom:4px;">Inklusive</div>
-                  <div style="font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;" id="usage-included">–</div>
+                  <div style="font-size:16px;font-weight:800;font-family:var(--font-ui);letter-spacing:-.01em;" id="usage-included">–</div>
                 </div>
               </div>
               <div id="settings-upgrade-box" style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px;margin-top:6px;">
