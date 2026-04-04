@@ -2421,7 +2421,7 @@ function renderList(containerId, records, opts) {
         ${(followUpMeta || nextActionMeta)?`<div style="margin-bottom:6px">${followUpMeta}${nextActionMeta}</div>`:''}
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
-          ${callTarget&&!done?`<button class="btn-a btn-callback${opts.primaryCallback?' primary':''}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
+          ${callTarget&&!done?`<button class="${opts.primaryCallback?'btn-a btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
           ${!done?`<select class="status-sel" onchange="confirmCloseWithDropdownPreservation('${r.id}',this)">
             <option value="Neu"${(!f.dashboard_status||f.dashboard_status==='Neu')?' selected':''}>● Neu</option>
             <option value="In Bearbeitung"${f.dashboard_status==='In Bearbeitung'?' selected':''}>⏳ In Bearbeitung</option>
@@ -2719,7 +2719,7 @@ function openDetail(recordId) {
           <div class="detail-title">Nächste Schritte</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">${priorityChip(rec)}${qualChip(f.lead_quality)}${statusChip(f.dashboard_status)}${f.callback_requested && !isClosedStatus(f.dashboard_status) && getPriority(rec).key !== 'callback' ? '<span class="chip chip-rueckruf">📞 Rückruf</span>' : ''}</div>
           <div class="detail-actions">
-            ${tel ? `<a class="btn-a btn-callback" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')">Jetzt zurückrufen</a>` : ''}
+            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')">Jetzt zurückrufen</a>` : ''}
             <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up</button>
             <button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz</button>
           </div>
