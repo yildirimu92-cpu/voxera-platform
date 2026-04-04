@@ -2266,7 +2266,7 @@ function renderDashboard(records) {
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">☎ Anrufen</button>' : '')
           +   '<button class="btn-done-small btn-success" onclick="confirmCloseWithDropdownPreservation(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">✓ Erledigt</button>'
-          +   '<button class="btn-note btn-ghost" onclick="openDetail(\'' + r.id + '\')">🔍 Details</button>'
+          +   '<button class="btn-ghost" onclick="openDetail(\'' + r.id + '\')">🔍 Details</button>'
           + '</div>'
           + '</div>';
       }).join('');
@@ -2428,7 +2428,7 @@ function renderList(containerId, records, opts) {
             <option value="Abgeschlossen"${(f.dashboard_status==='Abgeschlossen'||f.dashboard_status==='Erledigt')?' selected':''}>✓ Abgeschlossen</option>
           </select>`:''}
           ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">🗓 Follow-up</button>`:''}
-          <button class="btn-a btn-note btn-ghost" onclick="openDetail('${r.id}')">🔍 Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
+          <button class="btn-a btn-ghost" onclick="openDetail('${r.id}')">🔍 Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
         </div>`:''}
       </div>
     </div>`;
