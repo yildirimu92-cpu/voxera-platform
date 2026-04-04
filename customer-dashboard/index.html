@@ -645,7 +645,6 @@ body{
   .kpi{padding:14px;}
   .kpi-val{font-size:28px;}
   .status-pill{display:none;}
-  .btn-refresh{padding:6px 10px;font-size:11px;}
   .greeting-main{font-size:16px;}
   .call-actions{gap:6px;}
   .btn-a{padding:6px 10px;font-size:11px;}
@@ -792,8 +791,7 @@ body{
           <div class="greeting-main">Anrufe & Rückrufe auf einen Blick.</div>
         </div>
         <div class="topbar-right">
-          <span id="last-updated-label" style="font-size:11px;color:var(--gray400);display:none;"></span>
-          <button class="btn-refresh" id="refresh-btn" onclick="manualRefresh()">↻ Aktualisieren</button>
+          <span id="last-updated-label" style="font-size:11px;color:var(--gray400);"></span>
         </div>
       </div>
 
@@ -814,10 +812,10 @@ body{
               </div>
             </div>
 
-            <!-- HERO: Offene Rückrufe -->
+            <!-- HERO: Nächste Aktion (Dynamic) -->
             <div class="dash-hero" id="dash-hero">
               <div class="dash-hero-left">
-                <div class="dash-hero-label">Offene Rückrufe</div>
+                <div class="dash-hero-label">Nächste Aktion</div>
                 <div class="dash-hero-number red" id="hero-count">–</div>
                 <div class="dash-hero-sub" id="hero-sub">Wird geladen...</div>
               </div>
@@ -1749,6 +1747,15 @@ function fmtTime(raw) {
   catch(e) { return ''; }
 }
 
+function updateLastUpdatedLabel() {
+  const label = document.getElementById('last-updated-label');
+  if (!label) return;
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'});
+  const dateStr = now.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit'});
+  label.textContent = 'Zuletzt aktualisiert: ' + dateStr + ', ' + timeStr;
+}
+
 function isToday(raw) {
   if (!raw) return false;
   const d = new Date(raw), t = new Date();
@@ -2069,6 +2076,7 @@ async function loadData() {
     renderAnrufe(records);
     renderRueckrufe(records);
     renderArchiv(records);
+    updateLastUpdatedLabel();
 
     document.getElementById('dash-loading').style.display = 'none';
     document.getElementById('dash-content').style.display = 'block';
@@ -2101,29 +2109,21 @@ async function loadData() {
 function renderDashboard(records) {
   var today = records.filter(function(r) { return isToday(r.fields.created_at); });
   var offen = records.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); });
+  var allOpen = records.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); });
 
-  // ── Hero ─────────────────────────────────────────────
+  // ── Hero: Nächste Aktion (Dynamic) ──────────────────────
   var hero    = document.getElementById('dash-hero');
   var heroNum = document.getElementById('hero-count');
   var heroSub = document.getElementById('hero-sub');
   var heroCta = document.getElementById('hero-cta');
 
-  if (heroNum) heroNum.textContent = offen.length;
-
-  if (offen.length === 0) {
-    if (hero)    hero.className    = 'dash-hero no-callbacks';
-    if (heroNum) heroNum.className = 'dash-hero-number green';
-    if (heroSub) { heroSub.className = 'dash-hero-sub'; heroSub.textContent = 'Alles erledigt – keine offenen Rückrufe.'; }
-    if (heroCta) {
-      heroCta.className = 'dash-hero-cta green';
-      heroCta.textContent = 'Alle Anrufe ansehen →';
-      heroCta.onclick = function() { var n = document.getElementById('nav-anrufe'); if (n) showTab('anrufe', n); };
-    }
-  } else {
-    if (hero)    hero.className    = 'dash-hero has-callbacks';
+  // CASE A: Open callback requests exist
+  if (offen.length > 0) {
+    if (heroNum) heroNum.textContent = offen.length;
     if (heroNum) heroNum.className = 'dash-hero-number red';
+    if (hero)    hero.className    = 'dash-hero has-callbacks';
     var oldest = offen[offen.length - 1];
-    var oldestTime = fmtDate(oldest && oldest.fields && oldest.fields.created_date_raw);
+    var oldestTime = fmtDate(oldest && oldest.fields && oldest.fields.created_at);
     if (heroSub) {
       heroSub.className = 'dash-hero-sub warn';
       heroSub.textContent = offen.length === 1
@@ -2132,8 +2132,38 @@ function renderDashboard(records) {
     }
     if (heroCta) {
       heroCta.className = 'dash-hero-cta';
-      heroCta.textContent = 'Alle ansehen →';
+      heroCta.textContent = 'Rückrufe ansehen →';
       heroCta.onclick = function() { var n = document.getElementById('nav-rueckrufe'); if (n) showTab('rueckrufe', n); };
+    }
+  }
+  // CASE B: No callbacks, but open calls exist
+  else if (allOpen.length > 0) {
+    if (heroNum) heroNum.textContent = allOpen.length;
+    if (heroNum) heroNum.className = 'dash-hero-number green';
+    if (hero)    hero.className    = 'dash-hero no-callbacks';
+    if (heroSub) {
+      heroSub.className = 'dash-hero-sub';
+      heroSub.textContent = 'Keine offenen Rückrufe – ' + allOpen.length + ' Anruf' + (allOpen.length === 1 ? '' : 'e') + ' zur Verfügung.';
+    }
+    if (heroCta) {
+      heroCta.className = 'dash-hero-cta green';
+      heroCta.textContent = 'Alle Anrufe ansehen →';
+      heroCta.onclick = function() { var n = document.getElementById('nav-anrufe'); if (n) showTab('anrufe', n); };
+    }
+  }
+  // CASE C: No calls, no callbacks
+  else {
+    if (heroNum) heroNum.textContent = '0';
+    if (heroNum) heroNum.className = 'dash-hero-number green';
+    if (hero)    hero.className    = 'dash-hero no-callbacks';
+    if (heroSub) {
+      heroSub.className = 'dash-hero-sub';
+      heroSub.textContent = 'Alle Anrufe abgeschlossen.';
+    }
+    if (heroCta) {
+      heroCta.className = 'dash-hero-cta green';
+      heroCta.textContent = 'Archiv ansehen →';
+      heroCta.onclick = function() { var n = document.getElementById('nav-archiv'); if (n) showTab('archiv', n); };
     }
   }
 
@@ -2208,7 +2238,6 @@ function renderDashboard(records) {
   }
 
   // ── Badges (Sidebar + Mobile Nav) ────────────────────
-  var allOpen = records.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); });
   var badgeA = document.getElementById('badge-anrufe');
   var badgeR = document.getElementById('badge-rueckrufe');
   var mb1    = document.getElementById('mnav-badge-anrufe');
@@ -2942,16 +2971,7 @@ function openAccountFromMobile(el) {
 }
 
 function manualRefresh() {
-  loadData().then(function() {
-    const label = document.getElementById('last-updated-label');
-    if (label) {
-      const now = new Date();
-      const formatted = now.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ', ' +
-                        now.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
-      label.textContent = 'Stand: ' + formatted;
-      label.style.display = 'inline';
-    }
-  });
+  loadData();
 }
 
 function dismissSetupReminder() {
