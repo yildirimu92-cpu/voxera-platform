@@ -411,6 +411,7 @@ body{
 .call-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray400);margin-bottom:5px;flex-wrap:wrap;}
 .call-phone{display:inline-block;font-weight:600;color:var(--gray700, #374151);background:var(--gray100);padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums;}
 .call-summary{font-size:12px;color:var(--gray600);line-height:1.5;margin-bottom:6px;}
+.followup-meta-line{font-size:11.5px;color:#6B7280;line-height:1.45;margin-bottom:6px;}
 .call-notiz{
   font-size:11px;color:var(--gray600);background:var(--gray50);
   padding:5px 10px;border-radius:6px;border-left:2px solid var(--gray200);
@@ -2560,9 +2561,17 @@ function renderList(containerId, records, opts) {
 
     const incoming = recentIncomingIds.has(r.id);
     const priority = getPriority(r);
-    // Follow-up: show "Geplant für DD.MM.YYYY, HH:mm" instead of relative time
-    const followUpMeta = f.follow_up_at ? `<span class="meta-pill">🗓 ${fmtFollowUpDisplay(f.follow_up_at)}</span>` : '';
-    const nextActionMeta = f.next_action ? `<span class="meta-pill">→ ${f.next_action}</span>` : '';
+    // Follow-up meta line (action/date/time) in short unified format
+    const followUpAt = resolveFollowUpAt(f);
+    const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
+    console.log('[VOXERA FOLLOWUP DEBUG][call-row]', {
+      id: r.id,
+      caller: f.caller_name || '',
+      next_action: f.next_action || '',
+      raw_follow_up_at: f.follow_up_at,
+      resolved_follow_up_at: followUpAt,
+      rendered_followup_text: followUpMetaText
+    });
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
@@ -2583,7 +2592,7 @@ function renderList(containerId, records, opts) {
           <span>${callDateTime}</span>
         </div>
         ${f.call_summary?`<div class="call-summary">${f.call_summary}</div>`:''}
-        ${(followUpMeta || nextActionMeta)?`<div style="margin-bottom:6px">${followUpMeta}${nextActionMeta}</div>`:''}
+        ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="${opts.primaryCallback?'btn-a btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
