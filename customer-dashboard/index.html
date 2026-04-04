@@ -1844,6 +1844,7 @@ function renderUsage(records) {
       // Find most recent billing period start (anniversary of start date)
       periodStart = new Date(now.getFullYear(), now.getMonth(), dayOfMonth, 0, 0, 0, 0);
       if (periodStart > now) {
+        // Go back one month; JS Date handles month=-1 (Jan) as Dec of prior year automatically
         periodStart = new Date(now.getFullYear(), now.getMonth() - 1, dayOfMonth, 0, 0, 0, 0);
       }
       // Don't go before actual start date
@@ -2497,12 +2498,6 @@ function dismissCompletedWarning() {
   }
 }
 
-function selectFollowupStatus(btn) {
-  // Legacy: kept for any remaining references but no longer used in UI
-  document.querySelectorAll('.followup-choice').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
 function closeFollowup() {
   document.getElementById('followup-overlay').classList.remove('open');
   document.getElementById('followup-input').value = '';
@@ -2887,7 +2882,10 @@ function manualRefresh() {
   loadData().then(function() {
     const label = document.getElementById('last-updated-label');
     if (label) {
-      label.textContent = 'Stand: ' + fmtExactDateTime(new Date().toISOString());
+      const now = new Date();
+      const formatted = now.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ', ' +
+                        now.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+      label.textContent = 'Stand: ' + formatted;
       label.style.display = 'inline';
     }
   });
