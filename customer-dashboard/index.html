@@ -1796,6 +1796,17 @@ function formatDurationForDisplay(durationSeconds) {
   return Math.round(secs / 60) + ' Min.';
 }
 
+function updateLastUpdatedLabel() {
+  var label = document.getElementById('last-updated-label');
+  if (!label) return;
+  var now = new Date();
+  var formatted = now.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'})
+                + ', '
+                + now.toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'});
+  label.textContent = 'Stand: ' + formatted;
+  label.style.display = 'inline';
+}
+
 function monthsSince(raw) {
   if (!raw) return 0;
   const d = new Date(raw);
@@ -2071,6 +2082,7 @@ async function loadData() {
 
     document.getElementById('dash-loading').style.display = 'none';
     document.getElementById('dash-content').style.display = 'block';
+    updateLastUpdatedLabel();
 
   } catch(e) {
     const rawMsg = String((e && e.message) || 'Unbekannter Fehler');
@@ -2941,16 +2953,7 @@ function openAccountFromMobile(el) {
 }
 
 function manualRefresh() {
-  loadData().then(function() {
-    const label = document.getElementById('last-updated-label');
-    if (label) {
-      const now = new Date();
-      const formatted = now.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ', ' +
-                        now.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
-      label.textContent = 'Stand: ' + formatted;
-      label.style.display = 'inline';
-    }
-  });
+  loadData();
 }
 
 function dismissSetupReminder() {
