@@ -847,18 +847,6 @@ body{
               <div id="dash-recent-list"></div>
             </div>
 
-            <!-- RÜCKRUF-LISTE -->
-            <div id="dash-cb-section">
-              <div class="dash-cb-header">
-                <div class="dash-cb-title">Offene Rückrufe</div>
-                <a class="dash-cb-link" id="dash-cb-link" style="display:none"
-                   onclick="var n=document.getElementById('nav-rueckrufe');if(n)showTab('rueckrufe',n);">
-                  Alle ansehen →
-                </a>
-              </div>
-              <div id="dash-cb-list"></div>
-            </div>
-
           </div>
         </div>
 
@@ -2275,43 +2263,7 @@ function renderDashboard(records) {
   if (mb1) { mb1.textContent = allOpen.length; mb1.style.display = allOpen.length > 0 ? 'block' : 'none'; }
   if (mb2) { mb2.textContent = offen.length;   mb2.style.display = offen.length > 0   ? 'block' : 'none'; }
 
-  // ── Rückruf-Liste (max 5) ────────────────────────────
-  var cbList    = document.getElementById('dash-cb-list');
-  var cbSection = document.getElementById('dash-cb-section');
-  var cbLink    = document.getElementById('dash-cb-link');
-
-  if (cbSection) cbSection.style.display = offen.length === 0 ? 'none' : 'block';
-  if (cbLink)    { cbLink.style.display = offen.length > 5 ? 'inline' : 'none'; cbLink.textContent = 'Alle ' + offen.length + ' Rückrufe ansehen →'; }
-
-  if (cbList && offen.length > 0) {
-    var toShow = offen.slice(0, 5);
-    cbList.innerHTML = toShow.map(function(r) {
-      var f    = r.fields || {};
-      var ini  = initials(f.caller_name || f.name || '?');
-      var name = f.caller_name || f.name || 'Unbekannt';
-      var phone = f.caller_phone || f.phone || '';
-      var time  = fmtDate(getRecordTimestamp(r));
-      var qual  = qualChip(f.lead_quality);
-      var tel   = phone ? phone.replace(/\s/g,'') : '';
-      var summary = f.call_summary ? '<div class="call-summary" style="margin-top:5px">' + f.call_summary.substring(0,100) + (f.call_summary.length > 100 ? '…' : '') + '</div>' : '';
-      return '<div class="cb-row" id="cb-row-' + r.id + '">'
-        + '<div class="cb-av">' + ini + '</div>'
-        + '<div class="cb-body">'
-        +   '<div class="cb-name">' + name + '</div>'
-        +   '<div class="cb-meta">'
-        +     (phone ? '<span class="cb-phone">' + phone + '</span>' : '')
-        +     '<span>' + time + '</span>'
-        +     qual
-        +   '</div>'
-        +   summary
-        + '</div>'
-        + '<div class="cb-actions">'
-        +   (tel ? '<a class="btn-call" href="tel:' + tel + '">☎ Zurückrufen</a>' : '')
-        +   '<button class="btn-done-small" onclick="markCbDone(\'' + r.id + '\')" title="Als erledigt markieren">✓</button>'
-        + '</div>'
-        + '</div>';
-    }).join('');
-  }
+  // Callback list lives on dedicated Rückrufe tab only
 
   // Kompatibilität: renderUsage und updateSystemStatus bleiben unverändert
   renderUsage(records);
