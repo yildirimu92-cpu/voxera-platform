@@ -2526,6 +2526,17 @@ async function doStatusChange(recordId, selectOrStatus, rowElement) {
     const fields = {dashboard_status: newStatus};
     if (isClosedStatus(newStatus)) fields.follow_up_at = null;
     await apiPatchOptional(recordId, fields, {dashboard_status: newStatus});
+    // Patch allRecords in-memory so renderArchiv (and active lists) reflects the new
+    // status immediately — without waiting for the loadData safety-net below.
+    const cached = allRecords.find(r => r.id === recordId);
+    if (cached && cached.fields) {
+      cached.fields.dashboard_status = newStatus;
+      if (isClosedStatus(newStatus)) cached.fields.follow_up_at = null;
+    }
+    renderDashboard(allRecords);
+    renderAnrufe(allRecords);
+    renderRueckrufe(allRecords);
+    renderArchiv(allRecords);
     toast(icons[newStatus] || 'Status aktualisiert');
   } catch(e) {
     toast('❌ Fehler – bitte nochmal');
