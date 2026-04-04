@@ -2266,7 +2266,7 @@ function renderDashboard(records) {
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">☎ Jetzt zurückrufen</button>' : '')
           +   '<button class="btn-done-small btn-success" onclick="confirmCloseWithDropdownPreservation(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">✓ Erledigt</button>'
-          +   '<button class="btn-ghost" onclick="openDetail(\'' + r.id + '\')">🔍 Details</button>'
+          +   '<button class="btn-a btn-note" onclick="openDetail(\'' + r.id + '\')">Details</button>'
           + '</div>'
           + '</div>';
       }).join('');
