@@ -153,7 +153,7 @@ body{
 .setup-step-content ol{padding-left:20px;margin:8px 0;}
 .setup-step-content ol li{margin-bottom:6px;}
 .setup-step-content code{background:var(--gray100);padding:2px 7px;border-radius:4px;font-size:12px;font-weight:600;color:var(--blue);}
-.setup-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:none;transition:all .15s;}
+.setup-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;border:none;transition:all .15s;}
 .setup-btn-primary{background:var(--blue);color:white;box-shadow:0 2px 8px rgba(26,86,219,.18);}
 .setup-btn-primary:hover{background:var(--blue-dark);}
 .setup-btn-secondary{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
@@ -408,12 +408,32 @@ body{
 .chip-rueckruf{background:#FEE2E2;color:#B91C1C;font-size:10px;}
 
 /* ═══════════════════════════════════════════
+   UNIFIED GLOBAL BUTTON SYSTEM
+═══════════════════════════════════════════ */
+.btn{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:8px 14px;border-radius:8px;border:none;
+  font-size:12.5px;font-weight:600;font-family:inherit;
+  cursor:pointer;white-space:nowrap;text-decoration:none;
+  transition:all .15s;
+}
+.btn:disabled{opacity:.45;cursor:default;}
+.btn-primary{background:var(--blue);color:var(--white);}
+.btn-primary:hover:not(:disabled){background:var(--blue-dark);}
+.btn-secondary{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
+.btn-secondary:hover:not(:disabled){background:var(--gray50);}
+.btn-success{background:var(--green);color:var(--white);border:none;}
+.btn-success:hover:not(:disabled){background:#15803D;}
+.btn-ghost{background:transparent;color:var(--gray600);border:none;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;}
+.btn-ghost:hover:not(:disabled){color:var(--gray900);text-decoration-color:var(--gray400);}
+
+/* ═══════════════════════════════════════════
    ACTION BUTTONS
 ═══════════════════════════════════════════ */
 .btn-a{
-  font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:7px;
+  font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;
   cursor:pointer;border:none;font-family:inherit;
-  transition:all .15s;display:inline-flex;align-items:center;gap:4px;
+  transition:all .15s;display:inline-flex;align-items:center;gap:5px;
   text-decoration:none;white-space:nowrap;
 }
 .btn-call{background:var(--blue);color:var(--white);}
@@ -647,7 +667,7 @@ body{
   .status-pill{display:none;}
   .greeting-main{font-size:16px;}
   .call-actions{gap:6px;}
-  .btn-a{padding:6px 10px;font-size:11px;}
+  .btn,.btn-a{padding:8px 12px;font-size:11px;}
   .btn-callback{width:auto;justify-content:center;font-size:11px;padding:8px 14px;}
   .modal{padding:24px 20px;}
   .charts-row{display:none;}
@@ -2245,8 +2265,8 @@ function renderDashboard(records) {
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">☎ Anrufen</button>' : '')
-          +   '<button class="btn-done-small" onclick="doStatusChange(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">✓ Erledigt</button>'
-          +   '<button class="btn-note" onclick="openDetail(\'' + r.id + '\')">Details</button>'
+          +   '<button class="btn-done-small btn-success" onclick="confirmCloseWithDropdownPreservation(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">✓ Erledigt</button>'
+          +   '<button class="btn-note btn-ghost" onclick="openDetail(\'' + r.id + '\')">🔍 Details</button>'
           + '</div>'
           + '</div>';
       }).join('');
@@ -2402,13 +2422,13 @@ function renderList(containerId, records, opts) {
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="btn-a btn-callback" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">☎ Jetzt zurückrufen</button>`:''}
-          ${!done?`<select class="status-sel" onchange="doStatusChange('${r.id}',this)">
+          ${!done?`<select class="status-sel" onchange="confirmCloseWithDropdownPreservation('${r.id}',this)">
             <option value="Neu"${(!f.dashboard_status||f.dashboard_status==='Neu')?' selected':''}>● Neu</option>
             <option value="In Bearbeitung"${f.dashboard_status==='In Bearbeitung'?' selected':''}>⏳ In Bearbeitung</option>
             <option value="Abgeschlossen"${(f.dashboard_status==='Abgeschlossen'||f.dashboard_status==='Erledigt')?' selected':''}>✓ Abgeschlossen</option>
           </select>`:''}
           ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">🗓 Follow-up</button>`:''}
-          <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
+          <button class="btn-a btn-note btn-ghost" onclick="openDetail('${r.id}')">🔍 Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
         </div>`:''}
       </div>
     </div>`;
@@ -2435,6 +2455,28 @@ function renderArchiv(records) {
 // ═══════════════════════════════════════════
 //  ACTIONS
 // ═══════════════════════════════════════════
+function confirmCloseWithDropdownPreservation(recordId, newStatusOrSelectElement, optionalRowElement) {
+  const isDropdown = newStatusOrSelectElement && typeof newStatusOrSelectElement === 'object' && newStatusOrSelectElement.tagName === 'SELECT';
+  const newStatus = isDropdown ? newStatusOrSelectElement.value : newStatusOrSelectElement;
+
+  if (newStatus === 'Abgeschlossen') {
+    const confirmed = confirm('Dieser Anruf wird als abgeschlossen markiert und ins Archiv verschoben. Fortfahren?');
+    if (!confirmed) {
+      if (isDropdown) {
+        const currentStatus = allRecords.find(r => r.id === recordId)?.fields?.dashboard_status || 'Neu';
+        newStatusOrSelectElement.value = currentStatus;
+      }
+      return;
+    }
+  }
+
+  if (isDropdown) {
+    doStatusChange(recordId, newStatusOrSelectElement);
+  } else {
+    doStatusChange(recordId, newStatusOrSelectElement, optionalRowElement);
+  }
+}
+
 async function doStatusChange(recordId, selectOrStatus, rowElement) {
   const isSelectElement = selectOrStatus && typeof selectOrStatus === 'object' && 'value' in selectOrStatus;
   const newStatus = isSelectElement ? selectOrStatus.value : selectOrStatus;
