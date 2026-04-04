@@ -238,14 +238,14 @@ body{
 }
 .greeting-sub{
   font-size:13px;
-  font-weight:500;
+  font-weight:400;
   letter-spacing:0;
   text-transform:none;
   color:#6B7280;
   margin-bottom:4px;
 }
 .greeting-main{
-  font-size:21px;
+  font-size:20px;
   font-weight:600;
   letter-spacing:-.25px;
   color:#111827;
@@ -357,7 +357,7 @@ body{
 ═══════════════════════════════════════════ */
 .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
 .section-title{
-  font-size:21px;
+  font-size:20px;
   font-weight:600;
   letter-spacing:-.25px;
   color:#111827;
@@ -702,8 +702,8 @@ body{
   .kpi{padding:14px;}
   .kpi-val{font-size:28px;}
   .status-pill{display:none;}
-  .greeting-main{font-size:20px;}
-  .section-title{font-size:20px;}
+  .greeting-main{font-size:18px;}
+  .section-title{font-size:18px;}
   /* Mobile call-actions: primary full-width, secondary in 2-column grid */
   .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
   .call-actions .btn-callback.primary,.call-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
@@ -1761,7 +1761,7 @@ function statusChip(s) {
 function getPriority(record) {
   const f = (record && record.fields) || {};
   const now = new Date();
-  const followUp = f.follow_up_at ? new Date(f.follow_up_at) : null;
+  const followUp = parseFollowUpDate(f.follow_up_at);
   const isClosed = isClosedStatus(f.dashboard_status);
   const isCallback = !!f.callback_requested;
   const isHot = qualKey(f.lead_quality) === 'hot';
@@ -1769,7 +1769,7 @@ function getPriority(record) {
 
   if (isClosed) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
   if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
-  if (isCallback) return { key: 'callback', label: 'Rückruf', icon: '📞' };
+  if (isCallback) return { key: 'callback', label: 'Rückruf gewünscht', icon: '📞' };
   if (followUp && !Number.isNaN(followUp.getTime()) && isToday(f.follow_up_at)) return { key: 'today', label: 'Heute fällig', icon: '🗓' };
   if (isHot) return { key: 'hot', label: 'Hot Lead', icon: '🔥' };
   if (inProgress) return { key: 'working', label: 'In Arbeit', icon: '⏳' };
@@ -1788,6 +1788,58 @@ function priorityChip(record) {
   return `<span class="chip ${map[p.key] || 'chip-neu'}">${p.icon} ${p.label}</span>`;
 }
 
+const DISPLAY_TIMEZONE = 'Europe/Zurich';
+const TIME_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, hour: '2-digit', minute: '2-digit' });
+const DATE_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit' });
+const DATE_LONG_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
+
+function formatTimeCH(date) {
+  return TIME_FORMAT_CH.format(date);
+}
+
+function formatDateShortCH(date) {
+  return DATE_SHORT_FORMAT_CH.format(date);
+}
+
+function formatDateLongCH(date) {
+  return DATE_LONG_FORMAT_CH.format(date);
+}
+
+function parseLocalDateTimeParts(raw) {
+  if (!raw) return null;
+  const value = String(raw).trim().replace(' ', 'T');
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  return {
+    year: Number(m[1]),
+    month: Number(m[2]),
+    day: Number(m[3]),
+    hour: Number(m[4]),
+    minute: Number(m[5]),
+    second: Number(m[6] || 0)
+  };
+}
+
+function normalizeFollowUpLocalValue(raw) {
+  if (!raw) return '';
+  const value = String(raw).trim().replace(' ', 'T');
+  const m = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return '';
+  return `${m[1]}T${m[2]}:${m[3]}`;
+}
+
+function pad2(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
+
+function formatPartsDate(parts) {
+  return `${pad2(parts.day)}.${pad2(parts.month)}.${parts.year}`;
+}
+
+function formatPartsTime(parts) {
+  return `${pad2(parts.hour)}:${pad2(parts.minute)}`;
+}
+
 function avClass(q, done) {
   if (done) return 'av-done';
   const k = qualKey(q);
@@ -1797,36 +1849,71 @@ function avClass(q, done) {
 function fmtDate(raw) {
   if (!raw) return '';
   try {
+    const localParts = parseLocalDateTimeParts(raw);
+    if (localParts) {
+      const dLocal = new Date(localParts.year, localParts.month - 1, localParts.day, localParts.hour, localParts.minute, localParts.second);
+      const diffLocal = Math.floor((new Date() - dLocal) / 1000);
+      if (diffLocal < 60) return 'Gerade eben';
+      if (diffLocal < 3600) return 'vor ' + Math.floor(diffLocal/60) + ' Min';
+      if (diffLocal < 86400) return 'vor ' + Math.floor(diffLocal/3600) + ' Std';
+      if (diffLocal < 172800) return 'Gestern ' + formatPartsTime(localParts);
+      return formatPartsDate(localParts) + ' ' + formatPartsTime(localParts);
+    }
     const d = new Date(raw), now = new Date();
     const diff = Math.floor((now - d) / 1000);
     if (diff < 60) return 'Gerade eben';
     if (diff < 3600) return 'vor ' + Math.floor(diff/60) + ' Min';
     if (diff < 86400) return 'vor ' + Math.floor(diff/3600) + ' Std';
-    if (diff < 172800) return 'Gestern ' + d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
-    return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'}) + ' ' +
-           d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    if (diff < 172800) return 'Gestern ' + formatTimeCH(d);
+    return formatDateShortCH(d) + ' ' + formatTimeCH(d);
   } catch(e) { return ''; }
 }
 
 function fmtExactDateTime(raw) {
   if (!raw) return '';
   try {
-    const d = new Date(raw);
+    const localParts = parseLocalDateTimeParts(raw);
+    if (localParts) return formatPartsDate(localParts) + ', ' + formatPartsTime(localParts);
+    const d = parseFollowUpDate(raw) || new Date(raw);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ', ' +
-           d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    return formatDateLongCH(d) + ', ' + formatTimeCH(d);
   } catch(e) { return ''; }
 }
 
 function fmtFollowUpDisplay(raw) {
   if (!raw) return '';
-  const exact = fmtExactDateTime(raw);
-  return exact ? 'Geplant für ' + exact : '';
+  const localValue = normalizeFollowUpLocalValue(raw);
+  if (!localValue) return '';
+  const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
+  const time = localValue.slice(11,16);
+  return 'Geplant für ' + date + ', ' + time;
+}
+
+function parseFollowUpDate(raw) {
+  if (!raw) return null;
+  const localParts = parseLocalDateTimeParts(raw);
+  if (localParts) {
+    return new Date(localParts.year, localParts.month - 1, localParts.day, localParts.hour, localParts.minute, localParts.second);
+  }
+  const value = String(raw).trim().replace(' ', 'T');
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function serializeFollowUpLocal(rawLocalValue) {
+  const value = normalizeFollowUpLocalValue(rawLocalValue);
+  return value || null;
 }
 
 function fmtTime(raw) {
   if (!raw) return '';
-  try { return new Date(raw).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}); }
+  try {
+    const localParts = parseLocalDateTimeParts(raw);
+    if (localParts) return formatPartsTime(localParts);
+    const d = parseFollowUpDate(raw) || new Date(raw);
+    if (Number.isNaN(d.getTime())) return '';
+    return formatTimeCH(d);
+  }
   catch(e) { return ''; }
 }
 
@@ -1834,20 +1921,22 @@ function updateLastUpdatedLabel() {
   const label = document.getElementById('last-updated-label');
   if (!label) return;
   const now = new Date();
-  const timeStr = now.toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'});
-  const dateStr = now.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit'});
+  const timeStr = formatTimeCH(now);
+  const dateStr = formatDateShortCH(now);
   label.textContent = 'Zuletzt aktualisiert: ' + dateStr + ', ' + timeStr;
 }
 
 function isToday(raw) {
   if (!raw) return false;
-  const d = new Date(raw), t = new Date();
+  const d = parseFollowUpDate(raw) || new Date(raw), t = new Date();
+  if (Number.isNaN(d.getTime())) return false;
   return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
 }
 
 function isThisWeek(raw) {
   if (!raw) return false;
-  const d = new Date(raw), now = new Date();
+  const d = parseFollowUpDate(raw) || new Date(raw), now = new Date();
+  if (Number.isNaN(d.getTime())) return false;
   const start = new Date(now);
   start.setDate(now.getDate()-now.getDay());
   start.setHours(0,0,0,0);
@@ -1864,18 +1953,23 @@ function toast(msg) {
 
 function fmtDateOnly(raw) {
   if (!raw) return '–';
+  const localParts = parseLocalDateTimeParts(raw);
+  if (localParts) return formatPartsDate(localParts);
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return '–';
-  return d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'});
+  return formatDateLongCH(d);
 }
 
 function fmtDateTimeLocal(raw) {
+  const localValue = normalizeFollowUpLocalValue(raw);
+  if (localValue) return localValue;
   if (!raw) return '';
   try {
-    const d = new Date(raw);
+    const localParts = parseLocalDateTimeParts(raw);
+    if (localParts) return `${localParts.year}-${pad2(localParts.month)}-${pad2(localParts.day)}T${pad2(localParts.hour)}:${pad2(localParts.minute)}`;
+    const d = parseFollowUpDate(raw) || new Date(raw);
     if (Number.isNaN(d.getTime())) return '';
-    const pad = function(n){ return n < 10 ? '0'+n : ''+n; };
-    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+    return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes());
   } catch(e) { return ''; }
 }
 
@@ -2316,6 +2410,9 @@ function renderDashboard(records) {
         var durationStr = formatDurationForDisplay(f.duration_seconds);
         var qual = qualChip(f.lead_quality);
         var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
+        var callbackChip = (f.callback_requested && !isClosedStatus(f.dashboard_status)) ? '<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>' : '';
+        var followUpMeta = f.follow_up_at ? '<div style="font-size:11.5px;color:#6B7280;margin-top:6px;">🗓 ' + escHtml(fmtFollowUpDisplay(f.follow_up_at)) + '</div>' : '';
+        var nextActionMeta = f.next_action ? '<div style="font-size:11.5px;color:#6B7280;margin-top:2px;">→ ' + escHtml(f.next_action) + '</div>' : '';
         return '<div class="cb-row">'
           + '<div class="cb-av">' + ini + '</div>'
           + '<div class="cb-body">'
@@ -2325,8 +2422,11 @@ function renderDashboard(records) {
           +     '<span>' + callDate + ', ' + callTime + '</span>'
           +     '<span>' + durationStr + '</span>'
           +     qual
+          +     callbackChip
           +   '</div>'
           +   (summary ? '<div style="font-size:12px;color:var(--gray600);margin-top:4px;">' + summary + '</div>' : '')
+          +   followUpMeta
+          +   nextActionMeta
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Jetzt zurückrufen</button>' : '')
@@ -2366,13 +2466,13 @@ function renderFollowups(records) {
     var f = r.fields || {};
     if (isClosedStatus(f.dashboard_status)) return false;
     if (!f.follow_up_at) return false;
-    var d = new Date(f.follow_up_at);
-    if (Number.isNaN(d.getTime())) return false;
+    var d = parseFollowUpDate(f.follow_up_at);
+    if (!d) return false;
     // Show overdue + next 7 days
     var diff = (d - now) / (1000*60*60*24);
     return diff < 7;
   });
-  upcoming.sort(function(a,b) { return new Date(a.fields.follow_up_at) - new Date(b.fields.follow_up_at); });
+  upcoming.sort(function(a,b) { return parseFollowUpDate(a.fields.follow_up_at) - parseFollowUpDate(b.fields.follow_up_at); });
   var section = document.getElementById('followups-section');
   var list = document.getElementById('followups-list');
   if (!section || !list) return;
@@ -2475,7 +2575,7 @@ function renderList(containerId, records, opts) {
           ${priorityChip(r)}
           ${qualChip(f.lead_quality)}
           ${statusChip(f.dashboard_status)}
-          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf</span>':''}
+          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>':''}
         </div>
         <div class="call-meta">
           ${displayPhone?`<span class="call-phone">${displayPhone}</span>`:''}
@@ -2730,7 +2830,7 @@ async function saveFollowup() {
     newStatus = 'In Bearbeitung';
   }
 
-  const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: followUpAt ? new Date(followUpAt).toISOString() : null };
+  const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: serializeFollowUpLocal(followUpAt) };
   if (newStatus) fields.dashboard_status = newStatus;
   if (newStatus === 'Abgeschlossen') fields.follow_up_at = null; // Completed calls have no pending follow-up
   const fallbackFields = { notes_customer_voxera: text };
