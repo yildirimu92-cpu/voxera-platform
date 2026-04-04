@@ -666,9 +666,12 @@ body{
   .kpi-val{font-size:28px;}
   .status-pill{display:none;}
   .greeting-main{font-size:16px;}
-  .call-actions{gap:6px;}
+  /* Mobile call-actions: primary full-width, secondary in 2-column grid */
+  .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+  .call-actions .btn-callback.primary,.call-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
+  .call-actions .status-sel{grid-column:1/-1;width:100%;}
+  .call-actions .btn-a,.call-actions .btn-call{width:100%;justify-content:center;}
   .btn,.btn-a{padding:8px 12px;font-size:11px;}
-  .btn-callback{width:auto;justify-content:center;font-size:11px;padding:8px 14px;}
   .modal{padding:24px 20px;}
   .charts-row{display:none;}
   .toast{bottom:80px;font-size:12px;padding:8px 16px;}
@@ -720,8 +723,10 @@ body{
   .dash-hero{flex-direction:column;align-items:flex-start;}
   .dash-hero-cta{width:100%;justify-content:center;padding:14px;font-size:15px;}
   .dash-hero-number{font-size:52px;}
-  .cb-actions{flex-direction:column;gap:8px;width:100%;}
-  .btn-call,.btn-done-small,.btn-note{width:100%;justify-content:center;padding:11px 12px;font-size:12px;}
+  /* Mobile cb-actions: primary full-width, secondary in 2-column grid */
+  .cb-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:8px;}
+  .cb-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
+  .btn-done-small,.btn-note{width:100%;justify-content:center;padding:11px 12px;font-size:12px;}
   .cb-row{flex-wrap:wrap;}
 }
 @media(max-width:380px){
@@ -1689,8 +1694,8 @@ function sortRecordsOpenFirst(records) {
 function statusChip(s) {
   if (s === 'Erledigt' || s === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
   if (s === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
-  if (s === 'Follow-up geplant') return '<span class="chip chip-working">🗓 Follow-up geplant</span>';
-  return '';
+  // 'Follow-up geplant' is shown via meta-pill (followUpMeta), not as a separate status chip
+  return '<span class="chip chip-neu">Neu</span>';
 }
 
 function getPriority(record) {
@@ -1713,13 +1718,12 @@ function getPriority(record) {
 
 function priorityChip(record) {
   const p = getPriority(record);
-  if (p.key === 'working' || p.key === 'done') return '';
+  if (p.key === 'working' || p.key === 'done' || p.key === 'normal') return '';
   const map = {
     overdue: 'chip-hot',
     callback: 'chip-rueckruf',
     today: 'chip-working',
-    hot: 'chip-hot',
-    normal: 'chip-neu'
+    hot: 'chip-hot'
   };
   return `<span class="chip ${map[p.key] || 'chip-neu'}">${p.icon} ${p.label}</span>`;
 }
