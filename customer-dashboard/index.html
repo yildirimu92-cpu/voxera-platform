@@ -754,12 +754,12 @@ body{
           <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6.5" height="6.5" rx="1.5"/><rect x="8.5" y="1" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="1" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".2"/></svg>
           Dashboard
         </div>
-        <div class="nav-item" onclick="showTab('anrufe',this)">
+        <div class="nav-item" id="nav-anrufe" onclick="showTab('anrufe',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M3.5 2.5h2l1 2.5-1.5 1c.8 1.5 2 2.7 3.5 3.5l1-1.5 2.5 1v2c0 .8-.7 1.5-1.5 1.5C5.2 13 3 7.5 3 4.5c0-.8.7-1 .5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
           Anrufe
           <span class="nav-badge blue" id="badge-anrufe">–</span>
         </div>
-        <div class="nav-item" onclick="showTab('rueckrufe',this)">
+        <div class="nav-item" id="nav-rueckrufe" onclick="showTab('rueckrufe',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3.5l2 1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
           Rückrufe
           <span class="nav-badge" id="badge-rueckrufe">–</span>
@@ -792,7 +792,10 @@ body{
         </div>
         <div class="topbar-right">
           <div class="status-pill" id="system-status"><span class="status-dot"></span><span id="system-status-text">System bereit</span></div>
-          <button class="btn-refresh" id="refresh-btn" onclick="loadData()">↻ Aktualisieren</button>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span id="last-updated-label" style="font-size:11px;color:var(--gray400);display:none;"></span>
+            <button class="btn-refresh" id="refresh-btn" onclick="manualRefresh()">↻ Aktualisieren</button>
+          </div>
         </div>
       </div>
 
@@ -807,7 +810,10 @@ body{
             <!-- Setup-Reminder -->
             <div class="dash-setup-reminder" id="dash-setup-reminder">
               <div class="dash-setup-reminder-text">⚙ Einrichtung noch nicht abgeschlossen – einige Schritte sind offen.</div>
-              <a href="javascript:void(0)" onclick="var n=document.getElementById('nav-einrichtung');if(n)showTab('einrichtung',n);">Jetzt einrichten →</a>
+              <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                <a href="javascript:void(0)" onclick="var n=document.getElementById('nav-einrichtung');if(n)showTab('einrichtung',n);">Jetzt einrichten →</a>
+                <button onclick="dismissSetupReminder()" style="background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;" title="Nicht mehr anzeigen">✕</button>
+              </div>
             </div>
 
             <!-- HERO: Offene Rückrufe -->
@@ -855,7 +861,7 @@ body{
         <!-- ANRUFE TAB -->
         <div class="tab-page" id="tab-anrufe">
           <div class="section-head" style="margin-bottom:4px">
-            <div class="section-title">Alle Anrufe</div>
+            <div class="section-title">Letzte Anrufe</div>
             <div class="filter-tabs">
               <button class="ftab active" onclick="filterList('anrufe-list','alle',this)">Alle</button>
               <button class="ftab" onclick="filterList('anrufe-list','dringend',this)">Dringend</button>
@@ -890,6 +896,10 @@ body{
             <div class="section-title">Archiv – Erledigte Anrufe</div>
           </div>
           <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Abgeschlossene Anrufe zur Nachverfolgung und Dokumentation.</div>
+          <div class="search-wrap">
+            <svg class="search-icon" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <input class="search-input" placeholder="Name oder Telefon suchen..." oninput="searchList('archiv-list',this.value)">
+          </div>
           <div class="call-list" id="archiv-list"></div>
         </div>
 
@@ -1180,10 +1190,6 @@ body{
                 <div class="settings-row-label">Voxera-Nummer</div>
                 <div class="settings-row-value" id="settings-voxera-nr">–</div>
               </div>
-              <div class="settings-row">
-                <div class="settings-row-label">Weiterleitung an</div>
-                <div class="settings-row-value" id="settings-tel-nr">–</div>
-              </div>
               <div class="settings-row" style="border-bottom:none;">
                 <div class="settings-row-label">Status</div>
                 <div class="settings-row-value" id="settings-system-status">–</div>
@@ -1266,30 +1272,37 @@ body{
   <div class="modal">
     <h3>Anruf nachbearbeiten</h3>
     <div class="modal-sub" id="followup-sub"></div>
-    <div class="followup-choices">
-      <button class="followup-choice" type="button" data-status="In Bearbeitung" onclick="selectFollowupStatus(this)">⏳ In Bearbeitung</button>
-      <button class="followup-choice" type="button" data-status="Abgeschlossen" onclick="selectFollowupStatus(this)">✓ Abgeschlossen</button>
-      <button class="followup-choice" type="button" data-status="" onclick="selectFollowupStatus(this)">Offen lassen</button>
+    <div id="followup-locked-warning" style="display:none;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:8px;padding:10px 14px;font-size:12.5px;color:#92400E;margin-bottom:12px;">
+      ⚠ Dieser Anruf ist abgeschlossen und kann nicht mehr bearbeitet werden.
+      <button onclick="dismissCompletedWarning()" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:13px;padding:0;">✕</button>
     </div>
-    <div class="followup-grid">
-      <div class="followup-field">
-        <label for="followup-next-action">Nächste Aktion</label>
-        <select id="followup-next-action">
-          <option value="">Keine Auswahl</option>
-          <option value="Zurückrufen">Zurückrufen</option>
-          <option value="Termin bestätigen">Termin bestätigen</option>
-          <option value="Offerte senden">Offerte senden</option>
-          <option value="Information senden">Information senden</option>
-          <option value="Erneut versuchen">Erneut versuchen</option>
-          <option value="Kein Bedarf">Kein Bedarf</option>
-        </select>
+    <div id="followup-editable">
+      <div class="followup-grid">
+        <div class="followup-field">
+          <label for="followup-next-action">Nächste Aktion</label>
+          <select id="followup-next-action">
+            <option value="">Keine Auswahl</option>
+            <option value="Zurückrufen">Zurückrufen</option>
+            <option value="Termin bestätigen">Termin bestätigen</option>
+            <option value="Offerte senden">Offerte senden</option>
+            <option value="Information senden">Information senden</option>
+            <option value="Erneut versuchen">Erneut versuchen</option>
+            <option value="Kein Bedarf">Kein Bedarf</option>
+          </select>
+        </div>
+        <div class="followup-field">
+          <label for="followup-datetime">Follow-up geplant</label>
+          <input type="datetime-local" id="followup-datetime">
+        </div>
       </div>
-      <div class="followup-field">
-        <label for="followup-datetime">Follow-up geplant</label>
-        <input type="datetime-local" id="followup-datetime">
+      <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf..."></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray900);">
+          <input type="checkbox" id="followup-mark-complete" style="width:16px;height:16px;accent-color:var(--green);">
+          Als abgeschlossen markieren
+        </label>
       </div>
     </div>
-    <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf..."></textarea>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeFollowup()">Später</button>
       <button class="btn-modal-save" id="followup-save-btn" onclick="saveFollowup()">Speichern</button>
@@ -1653,6 +1666,7 @@ function sortRecordsOpenFirst(records) {
 function statusChip(s) {
   if (s === 'Erledigt' || s === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
   if (s === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
+  if (s === 'Follow-up geplant') return '<span class="chip chip-working">🗓 Follow-up geplant</span>';
   return '';
 }
 
@@ -1705,6 +1719,22 @@ function fmtDate(raw) {
     return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'}) + ' ' +
            d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
   } catch(e) { return ''; }
+}
+
+function fmtExactDateTime(raw) {
+  if (!raw) return '';
+  try {
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ', ' +
+           d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) { return ''; }
+}
+
+function fmtFollowUpDisplay(raw) {
+  if (!raw) return '';
+  const exact = fmtExactDateTime(raw);
+  return exact ? 'Geplant für ' + exact : '';
 }
 
 function fmtTime(raw) {
@@ -1804,11 +1834,33 @@ async function loadCustomerMeta() {
 function renderUsage(records) {
   const cfg = PLAN_CONFIG[customerMeta.plan] || PLAN_CONFIG.Business;
   const now = new Date();
+
+  // Compute billing period start from subscription start date (monthly anniversary)
+  let periodStart = null;
+  if (customerMeta.startDate) {
+    const startDate = new Date(customerMeta.startDate);
+    if (!Number.isNaN(startDate.getTime())) {
+      const dayOfMonth = startDate.getDate();
+      // Find most recent billing period start (anniversary of start date)
+      periodStart = new Date(now.getFullYear(), now.getMonth(), dayOfMonth, 0, 0, 0, 0);
+      if (periodStart > now) {
+        // Go back one month; JS Date handles month=-1 (Jan) as Dec of prior year automatically
+        periodStart = new Date(now.getFullYear(), now.getMonth() - 1, dayOfMonth, 0, 0, 0, 0);
+      }
+      // Don't go before actual start date
+      if (periodStart < startDate) periodStart = startDate;
+    }
+  }
+  // Fallback: current calendar month
+  if (!periodStart) {
+    periodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  }
+
   const monthRecords = records.filter(r => {
     const raw = r.fields && r.fields.created_date_raw;
     if (!raw) return false;
     const d = new Date(raw);
-    return !Number.isNaN(d.getTime()) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    return !Number.isNaN(d.getTime()) && d >= periodStart && d <= now;
   });
   const used = Math.round(monthRecords.reduce((sum, r) => sum + estimateMinutesForRecord(r), 0));
   const included = cfg.minutes || 0;
@@ -2189,19 +2241,34 @@ function renderFollowups(records) {
 // ═══════════════════════════════════════════
 //  SYSTEM STATUS
 // ═══════════════════════════════════════════
+function getLatestCallDate(records) {
+  if (!records || !records.length) return null;
+  let maxTime = 0;
+  let latestDate = null;
+  records.forEach(function(r) {
+    const raw = r.fields && r.fields.created_date_raw;
+    if (!raw) return;
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime()) && d.getTime() > maxTime) {
+      maxTime = d.getTime();
+      latestDate = d;
+    }
+  });
+  return latestDate;
+}
+
 function updateSystemStatus(records) {
   var el = document.getElementById('system-status');
   var txt = document.getElementById('system-status-text');
   var dot = el ? el.querySelector('.status-dot') : null;
   if (!el || !txt) return;
 
-  // Determine status based on real data
+  var latest = getLatestCallDate(records);
   var hasRecent = false;
   var now = new Date();
-  if (records.length > 0) {
-    var latest = new Date(records[0].fields.created_date_raw || 0);
+  if (latest) {
     var hoursSince = (now - latest) / (1000 * 60 * 60);
-    hasRecent = hoursSince < 72; // Last call within 3 days
+    hasRecent = hoursSince < 72;
   }
 
   if (hasRecent) {
@@ -2249,8 +2316,11 @@ function renderList(containerId, records, opts) {
 
     const incoming = recentIncomingIds.has(r.id);
     const priority = getPriority(r);
-    const followUpMeta = f.follow_up_at ? `<span class="meta-pill">🗓 ${fmtDate(f.follow_up_at)}${fmtTime(f.follow_up_at)?' · '+fmtTime(f.follow_up_at):''}</span>` : '';
+    // Follow-up: show "Geplant für DD.MM.YYYY, HH:mm" instead of relative time
+    const followUpMeta = f.follow_up_at ? `<span class="meta-pill">🗓 ${fmtFollowUpDisplay(f.follow_up_at)}</span>` : '';
     const nextActionMeta = f.next_action ? `<span class="meta-pill">→ ${f.next_action}</span>` : '';
+    // Always show exact date/time for call
+    const callDateTime = fmtExactDateTime(f.created_date_raw);
 
     return `<div class="call-row${done?' done':''}${incoming?' incoming':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${(f.dashboard_status||'').toLowerCase()}">
       <div class="av ${avClass(f.lead_quality, done)}">${initials(f.caller_name)}</div>
@@ -2266,19 +2336,19 @@ function renderList(containerId, records, opts) {
         <div class="call-meta">
           ${displayPhone?`<span class="call-phone">${displayPhone}</span>`:''}
           ${f.category?`<span style="background:var(--gray100);padding:1px 7px;border-radius:4px;font-size:11px;">${f.category}</span>`:''}
-          <span>${fmtDate(f.created_date_raw)}</span>
+          <span>${callDateTime}</span>
         </div>
         ${f.call_summary?`<div class="call-summary">${f.call_summary}</div>`:''}
         ${(followUpMeta || nextActionMeta)?`<div style="margin-bottom:6px">${followUpMeta}${nextActionMeta}</div>`:''}
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="btn-a btn-callback" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">☎ Jetzt zurückrufen</button>`:''}
-          <select class="status-sel" onchange="doStatusChange('${r.id}',this)">
+          ${!done?`<select class="status-sel" onchange="doStatusChange('${r.id}',this)">
             <option value="Neu"${(!f.dashboard_status||f.dashboard_status==='Neu')?' selected':''}>● Neu</option>
             <option value="In Bearbeitung"${f.dashboard_status==='In Bearbeitung'?' selected':''}>⏳ In Bearbeitung</option>
             <option value="Abgeschlossen"${(f.dashboard_status==='Abgeschlossen'||f.dashboard_status==='Erledigt')?' selected':''}>✓ Abgeschlossen</option>
-          </select>
-          <button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">${f.follow_up_at?'🗓':'🗓'} Follow-up</button>
+          </select>`:''}
+          ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">🗓 Follow-up</button>`:''}
           <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
         </div>`:''}
       </div>
@@ -2388,28 +2458,44 @@ function openFollowupDirect(recordId) {
 
 function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt) {
   notizRecordId = recordId;
-  pendingFollowupStatus = '';
+  const done = isClosedStatus(currentStatus);
   document.getElementById('followup-sub').textContent = callerName ? 'Nach dem Rückruf mit ' + callerName : 'Anruf nachbearbeiten';
   document.getElementById('followup-input').value = existingNotiz || '';
   document.getElementById('followup-next-action').value = nextAction || '';
   document.getElementById('followup-datetime').value = fmtDateTimeLocal(followUpAt || '');
-  document.querySelectorAll('.followup-choice').forEach(btn => {
-    btn.classList.remove('active');
-    const val = btn.getAttribute('data-status');
-    if ((currentStatus === 'In Bearbeitung' && val === 'In Bearbeitung') || (isClosedStatus(currentStatus) && val === 'Abgeschlossen') || (!currentStatus && val === '')) {
-      btn.classList.add('active');
-      pendingFollowupStatus = val;
+  const markComplete = document.getElementById('followup-mark-complete');
+  if (markComplete) markComplete.checked = done;
+  const lockWarning = document.getElementById('followup-locked-warning');
+  const editableSection = document.getElementById('followup-editable');
+  const saveBtn = document.getElementById('followup-save-btn');
+  if (done) {
+    // Check if user already dismissed this warning permanently
+    const dismissed = _completedWarningDismissed(recordId);
+    if (lockWarning) lockWarning.style.display = dismissed ? 'none' : 'block';
+    if (editableSection) {
+      editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = true; });
     }
-  });
-  document.getElementById('followup-save-btn').disabled = false;
-  document.getElementById('followup-save-btn').textContent = 'Speichern';
+    if (saveBtn) saveBtn.disabled = true;
+  } else {
+    if (lockWarning) lockWarning.style.display = 'none';
+    if (editableSection) {
+      editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = false; });
+    }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Speichern'; }
+  }
   document.getElementById('followup-overlay').classList.add('open');
 }
 
-function selectFollowupStatus(btn) {
-  document.querySelectorAll('.followup-choice').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  pendingFollowupStatus = btn.getAttribute('data-status') || '';
+function _completedWarningDismissed(recordId) {
+  try { return !!localStorage.getItem('voxera_warn_dismissed_' + recordId); } catch(e) { return false; }
+}
+
+function dismissCompletedWarning() {
+  const w = document.getElementById('followup-locked-warning');
+  if (w) w.style.display = 'none';
+  if (notizRecordId) {
+    try { localStorage.setItem('voxera_warn_dismissed_' + notizRecordId, '1'); } catch(e) {}
+  }
 }
 
 function closeFollowup() {
@@ -2417,7 +2503,12 @@ function closeFollowup() {
   document.getElementById('followup-input').value = '';
   document.getElementById('followup-next-action').value = '';
   document.getElementById('followup-datetime').value = '';
-  pendingFollowupStatus = '';
+  const mc = document.getElementById('followup-mark-complete');
+  if (mc) mc.checked = false;
+  const editableSection = document.getElementById('followup-editable');
+  if (editableSection) {
+    editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = false; });
+  }
 }
 
 async function saveFollowup() {
@@ -2425,15 +2516,29 @@ async function saveFollowup() {
   const text = document.getElementById('followup-input').value.trim();
   const nextAction = document.getElementById('followup-next-action').value;
   const followUpAt = document.getElementById('followup-datetime').value;
+  const markComplete = document.getElementById('followup-mark-complete');
   const btn = document.getElementById('followup-save-btn');
   btn.disabled = true; btn.textContent = 'Speichern...';
+
+  // Auto-determine status:
+  // - "Abgeschlossen" if mark-complete is checked
+  // - "Follow-up geplant" if follow-up date is set (but no completion)
+  // - Otherwise keep existing / "In Bearbeitung"
+  let newStatus = null;
+  if (markComplete && markComplete.checked) {
+    newStatus = 'Abgeschlossen';
+  } else if (followUpAt) {
+    newStatus = 'Follow-up geplant';
+  }
+
   const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: followUpAt ? new Date(followUpAt).toISOString() : null };
-  if (pendingFollowupStatus) fields.dashboard_status = pendingFollowupStatus;
+  if (newStatus) fields.dashboard_status = newStatus;
+  if (newStatus === 'Abgeschlossen') fields.follow_up_at = null; // Completed calls have no pending follow-up
   const fallbackFields = { notes_customer_voxera: text };
-  if (pendingFollowupStatus) fallbackFields.dashboard_status = pendingFollowupStatus;
+  if (newStatus) fallbackFields.dashboard_status = newStatus;
   try {
     await apiPatchOptional(notizRecordId, fields, fallbackFields);
-    toast(nextAction || followUpAt ? '✓ Follow-up gespeichert' : '✓ Rückruf nachbearbeitet');
+    toast(newStatus === 'Abgeschlossen' ? '✓ Abgeschlossen' : followUpAt ? '✓ Follow-up gespeichert' : '✓ Gespeichert');
     closeFollowup();
     notizRecordId = null;
     setTimeout(loadData, 500);
@@ -2584,10 +2689,7 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
 //  ACCOUNT SETTINGS
 // ═══════════════════════════════════════════
 function openAccount() {
-  // Navigate to settings tab instead of modal
-  var navEl = document.getElementById('nav-einstellungen');
-  if (navEl) showTab('einstellungen', navEl);
-  // Load data into settings page - email from customer metadata
+  // Populate settings page data - email from customer metadata
   var emailEl = document.getElementById('account-email');
   if (emailEl) {
     if (customerMeta.customerEmail) {
@@ -2595,10 +2697,14 @@ function openAccount() {
     } else {
       // Fallback to Supabase auth email
       const sb = getSupabaseAuthClient();
-      if (!sb) return;
-      sb.auth.getUser().then(function(r) {
-        if (r.data && r.data.user) emailEl.textContent = r.data.user.email || '–';
-      });
+      if (sb) {
+        sb.auth.getUser().then(function(r) {
+          if (r.data && r.data.user) emailEl.textContent = r.data.user.email || '–';
+        }).catch(function(e) {
+          console.error('[voxera-dashboard] getUser fallback failed:', e);
+          emailEl.textContent = '–';
+        });
+      }
     }
   }
   var pn = document.getElementById('pw-new'); if(pn) pn.value = '';
@@ -2612,22 +2718,16 @@ function openAccount() {
 function renderSystemStatusInSettings() {
   var sysEl = document.getElementById('settings-system-status');
   if(!sysEl) return;
-  var hasRecent = false;
-  if(allRecords.length > 0){
-    var latest = new Date(allRecords[0].fields.created_date_raw || 0);
-    hasRecent = (new Date() - latest) / (1000*60*60) < 72;
-  }
+  var latest = getLatestCallDate(allRecords);
+  var hasRecent = latest && ((new Date() - latest) / (1000*60*60) < 72);
   sysEl.textContent = hasRecent ? 'Aktiv – Anrufe werden empfangen' : allRecords.length > 0 ? 'Bereit – letzter Anruf vor über 3 Tagen' : 'Warte auf ersten Anruf';
 }
 
 function renderSystemVoxeraNumbers(meta) {
   var numEl = document.getElementById('settings-voxera-nr');
   if(numEl) numEl.textContent = meta.voxeraNumber || '–';
-  var telEl = document.getElementById('settings-tel-nr');
-  if(telEl) telEl.textContent = meta.telNr || '–';
   console.info('[voxera-dashboard] settings rendered numbers', {
-    voxeraNumber: numEl ? numEl.textContent : null,
-    telNr: telEl ? telEl.textContent : null
+    voxeraNumber: numEl ? numEl.textContent : null
   });
 }
 
@@ -2740,6 +2840,7 @@ function showTab(name, el) {
   try { sessionStorage.setItem('voxera_tab', name); } catch(e){}
   if (name === 'einstellungen') {
     syncSystemVoxeraSettings();
+    openAccount();
   }
 }
 
@@ -2780,7 +2881,24 @@ function openAccountFromMobile(el) {
   openAccount();
 }
 
-function restoreMobileActiveTab() {
+function manualRefresh() {
+  loadData().then(function() {
+    const label = document.getElementById('last-updated-label');
+    if (label) {
+      const now = new Date();
+      const formatted = now.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ', ' +
+                        now.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+      label.textContent = 'Stand: ' + formatted;
+      label.style.display = 'inline';
+    }
+  });
+}
+
+function dismissSetupReminder() {
+  try { localStorage.setItem('voxera_setup_reminder_dismissed', '1'); } catch(e) {}
+  var el = document.getElementById('dash-setup-reminder');
+  if (el) el.classList.remove('show');
+}
   const saved = sessionStorage.getItem('voxera_tab') || 'dashboard';
   document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
   const btn = document.getElementById('mnav-' + saved);
@@ -2824,7 +2942,9 @@ function updateDashboardReminder(){
   var open = getOpenSteps();
   var finished = false;
   try{finished=!!localStorage.getItem('voxera_setup_finished');}catch(e){}
-  el.classList.toggle('show', finished && open.length > 0);
+  var dismissed = false;
+  try{dismissed=!!localStorage.getItem('voxera_setup_reminder_dismissed');}catch(e){}
+  el.classList.toggle('show', finished && open.length > 0 && !dismissed);
 }
 
 function toggleSetupStep(id){
@@ -3112,7 +3232,7 @@ function showApp(user) {
       restoreTab();
     }
   });
-  autoRefreshTimer = setInterval(loadData, 120000);
+  autoRefreshTimer = setInterval(safeLoadData, 12000);
 }
 
 // Handle password recovery token in URL hash
@@ -3252,12 +3372,6 @@ if (_sb && _sb.auth) {
       showPasswordResetForm(null, null);
     }
   });
-}
-
-function openAccountFromMobile(el) {
-  document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
-  el.classList.add('active');
-  openAccount();
 }
 </script>
 </body>
