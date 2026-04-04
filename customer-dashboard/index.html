@@ -1889,10 +1889,14 @@ function fmtFollowUpDisplay(raw) {
 
 function fmtFollowUpDateTime(raw) {
   const localValue = normalizeFollowUpLocalValue(raw);
-  if (!localValue) return '';
-  const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
-  const time = localValue.slice(11,16);
-  return `${date}, ${time}`;
+  if (localValue) {
+    const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
+    const time = localValue.slice(11,16);
+    return `${date}, ${time}`;
+  }
+  const parsed = parseFollowUpDate(raw);
+  if (!parsed || Number.isNaN(parsed.getTime())) return '';
+  return `${pad2(parsed.getDate())}.${pad2(parsed.getMonth()+1)}.${parsed.getFullYear()}, ${pad2(parsed.getHours())}:${pad2(parsed.getMinutes())}`;
 }
 
 function buildFollowUpMetaText(nextAction, followUpAt) {
@@ -1902,6 +1906,11 @@ function buildFollowUpMetaText(nextAction, followUpAt) {
   if (action) return action;
   if (dateTime) return `Geplant · ${dateTime}`;
   return '';
+}
+
+function resolveFollowUpAt(fields) {
+  if (!fields) return '';
+  return fields.follow_up_at || fields.followup_at || fields.followUpAt || fields.follow_up || '';
 }
 
 function parseFollowUpDate(raw) {
@@ -2426,7 +2435,8 @@ function renderDashboard(records) {
         var qual = qualChip(f.lead_quality);
         var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
         var callbackChip = (f.callback_requested && !isClosedStatus(f.dashboard_status)) ? '<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>' : '';
-        var followUpMetaText = buildFollowUpMetaText(f.next_action, f.follow_up_at);
+        var followUpAt = resolveFollowUpAt(f);
+        var followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
         var followUpMeta = followUpMetaText ? '<div class="followup-meta-line">' + escHtml(followUpMetaText) + '</div>' : '';
         return '<div class="cb-row">'
           + '<div class="cb-av">' + ini + '</div>'
@@ -2575,7 +2585,8 @@ function renderList(containerId, records, opts) {
     const incoming = recentIncomingIds.has(r.id);
     const priority = getPriority(r);
     // Follow-up meta line (action/date/time) in short unified format
-    const followUpMetaText = buildFollowUpMetaText(f.next_action, f.follow_up_at);
+    const followUpAt = resolveFollowUpAt(f);
+    const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
