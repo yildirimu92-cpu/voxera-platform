@@ -2429,7 +2429,7 @@ function renderList(containerId, records, opts) {
           </select>`:''}
           ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">🗓 Follow-up</button>`:''}
           ${!done?`<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation('${r.id}','Abgeschlossen',this.closest('.call-row'))">✓ Erledigt</button>`:''}
-          <button class="btn-a btn-ghost" onclick="openDetail('${r.id}')">🔍 Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
+          <button class="btn-a btn-note" onclick="openDetail('${r.id}')">🔍 Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
         </div>`:''}
       </div>
     </div>`;
