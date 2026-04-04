@@ -2898,7 +2898,6 @@ function dismissSetupReminder() {
   try { localStorage.setItem('voxera_setup_reminder_dismissed', '1'); } catch(e) {}
   var el = document.getElementById('dash-setup-reminder');
   if (el) el.classList.remove('show');
-}
   const saved = sessionStorage.getItem('voxera_tab') || 'dashboard';
   document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
   const btn = document.getElementById('mnav-' + saved);
