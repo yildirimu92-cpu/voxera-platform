@@ -448,12 +448,6 @@ body{
 .followup-choice{flex:1;min-width:120px;padding:10px 12px;border:1px solid var(--gray200);border-radius:10px;background:var(--white);color:var(--gray600);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
 .followup-choice.active{border-color:var(--blue);background:var(--blue-light);color:var(--blue);}
 .btn-a:disabled{opacity:.45;cursor:default;}
-.status-sel{
-  font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:7px;
-  border:1px solid var(--gray200);background:var(--white);color:var(--gray600);
-  font-family:inherit;cursor:pointer;transition:all .15s;
-}
-.status-sel:hover{border-color:var(--gray400);color:var(--gray700);}
 
 /* ═══════════════════════════════════════════
    NOTIZ MODAL
@@ -669,7 +663,6 @@ body{
   /* Mobile call-actions: primary full-width, secondary in 2-column grid */
   .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
   .call-actions .btn-callback.primary,.call-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
-  .call-actions .status-sel{grid-column:1/-1;width:100%;}
   .call-actions .btn-a{width:100%;justify-content:center;}
   .btn,.btn-a{padding:8px 12px;font-size:11px;}
   .modal{padding:24px 20px;}
@@ -1677,8 +1670,15 @@ function qualChip(q) {
   return `<span class="chip ${map[k]}">${lbl[k]}</span>`;
 }
 
+function normalizeStatus(s) {
+  if (!s) return 'Neu';
+  if (s === 'Erledigt') return 'Abgeschlossen';
+  if (s === 'Follow-up geplant') return 'In Bearbeitung';
+  return s;
+}
+
 function isClosedStatus(s) {
-  return s === 'Erledigt' || s === 'Abgeschlossen';
+  return normalizeStatus(s) === 'Abgeschlossen';
 }
 
 function sortRecordsOpenFirst(records) {
@@ -1692,11 +1692,10 @@ function sortRecordsOpenFirst(records) {
 
 
 function statusChip(s) {
-  if (s === 'Erledigt' || s === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
-  if (s === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
-  // 'Follow-up geplant' is shown via meta-pill (followUpMeta), not as a separate status chip
-  if (!s || s === 'Neu') return '<span class="chip chip-neu">Neu</span>';
-  return '';
+  const n = normalizeStatus(s);
+  if (n === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
+  if (n === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
+  return '<span class="chip chip-neu">Neu</span>';
 }
 
 function getPriority(record) {
@@ -1706,7 +1705,7 @@ function getPriority(record) {
   const isClosed = isClosedStatus(f.dashboard_status);
   const isCallback = !!f.callback_requested;
   const isHot = qualKey(f.lead_quality) === 'hot';
-  const inProgress = f.dashboard_status === 'In Bearbeitung';
+  const inProgress = normalizeStatus(f.dashboard_status) === 'In Bearbeitung';
 
   if (isClosed) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
   if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
@@ -2270,7 +2269,7 @@ function renderDashboard(records) {
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Jetzt zurückrufen</button>' : '')
-          +   '<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">Erledigt</button>'
+          +   '<button class="btn-a btn-done" onclick="confirmClose(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">Erledigt</button>'
           +   '<button class="btn-a btn-note" onclick="openDetail(\'' + r.id + '\')">Details</button>'
           + '</div>'
           + '</div>';
@@ -2427,13 +2426,8 @@ function renderList(containerId, records, opts) {
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="${opts.primaryCallback?'btn-a btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
-          ${!done?`<select class="status-sel" onchange="confirmCloseWithDropdownPreservation('${r.id}',this)">
-            <option value="Neu"${(!f.dashboard_status||f.dashboard_status==='Neu')?' selected':''}>● Neu</option>
-            <option value="In Bearbeitung"${f.dashboard_status==='In Bearbeitung'?' selected':''}>⏳ In Bearbeitung</option>
-            <option value="Abgeschlossen"${(f.dashboard_status==='Abgeschlossen'||f.dashboard_status==='Erledigt')?' selected':''}>✓ Abgeschlossen</option>
-          </select>`:''}
           ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}
-          ${!done?`<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation('${r.id}','Abgeschlossen',this.closest('.call-row'))">Erledigt</button>`:''}
+          ${!done?`<button class="btn-a btn-done" onclick="confirmClose('${r.id}','Abgeschlossen',this.closest('.call-row')||this.closest('.cb-row'))">Erledigt</button>`:''}
           <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>
         </div>`:''}
       </div>
@@ -2461,43 +2455,26 @@ function renderArchiv(records) {
 // ═══════════════════════════════════════════
 //  ACTIONS
 // ═══════════════════════════════════════════
-function confirmCloseWithDropdownPreservation(recordId, newStatusOrSelectElement, optionalRowElement) {
-  const isDropdown = newStatusOrSelectElement && typeof newStatusOrSelectElement === 'object' && newStatusOrSelectElement.tagName === 'SELECT';
-  const newStatus = isDropdown ? newStatusOrSelectElement.value : newStatusOrSelectElement;
-
-  if (newStatus === 'Abgeschlossen') {
-    const confirmed = confirm('Dieser Anruf wird als abgeschlossen markiert und ins Archiv verschoben. Fortfahren?');
-    if (!confirmed) {
-      if (isDropdown) {
-        const currentStatus = allRecords.find(r => r.id === recordId)?.fields?.dashboard_status || 'Neu';
-        newStatusOrSelectElement.value = currentStatus;
-      }
-      return;
-    }
-  }
-
-  if (isDropdown) {
-    doStatusChange(recordId, newStatusOrSelectElement);
-  } else {
-    doStatusChange(recordId, newStatusOrSelectElement, optionalRowElement);
-  }
+function confirmClose(recordId, newStatus, rowElement) {
+  doStatusChange(recordId, newStatus, rowElement || null);
 }
 
-async function doStatusChange(recordId, selectOrStatus, rowElement) {
-  const isSelectElement = selectOrStatus && typeof selectOrStatus === 'object' && 'value' in selectOrStatus;
-  const newStatus = isSelectElement ? selectOrStatus.value : selectOrStatus;
-  const select = isSelectElement ? selectOrStatus : null;
-  const row = rowElement !== undefined ? rowElement : (isSelectElement ? selectOrStatus.closest('.call-row') : null);
+// kept for backward compat (cb-row dashboard buttons still reference this name)
+function confirmCloseWithDropdownPreservation(recordId, newStatus, rowElement) {
+  confirmClose(recordId, newStatus, rowElement);
+}
 
-  if (select) select.disabled = true;
+async function doStatusChange(recordId, newStatus, rowElement) {
+  const normalizedStatus = normalizeStatus(newStatus);
+  const row = rowElement || null;
 
   if (row) {
     row.style.transition = 'all .3s ease';
-    if (isClosedStatus(newStatus)) {
+    if (isClosedStatus(normalizedStatus)) {
       row.style.opacity = '.5';
       row.style.background = '#F0FDF4';
       row.style.borderColor = '#BBF7D0';
-    } else if (newStatus === 'In Bearbeitung') {
+    } else if (normalizedStatus === 'In Bearbeitung') {
       row.style.background = '#FFFBEB';
       row.style.borderColor = '#FDE68A';
     } else {
@@ -2507,10 +2484,10 @@ async function doStatusChange(recordId, selectOrStatus, rowElement) {
     }
     const topRow = row.querySelector('.call-top');
     if (topRow) {
-      topRow.querySelectorAll('.chip-done,.chip-working,.chip-rueckruf').forEach(c => c.remove());
-      if (isClosedStatus(newStatus)) {
+      topRow.querySelectorAll('.chip-done,.chip-working,.chip-rueckruf,.chip-neu').forEach(c => c.remove());
+      if (isClosedStatus(normalizedStatus)) {
         const c = document.createElement('span'); c.className='chip chip-done'; c.textContent='✓ Abgeschlossen'; topRow.appendChild(c);
-      } else if (newStatus === 'In Bearbeitung') {
+      } else if (normalizedStatus === 'In Bearbeitung') {
         const c = document.createElement('span'); c.className='chip chip-working'; c.textContent='⏳ In Bearbeitung'; topRow.appendChild(c);
       } else {
         const original = allRecords.find(r => r.id === recordId);
@@ -2521,26 +2498,23 @@ async function doStatusChange(recordId, selectOrStatus, rowElement) {
     }
   }
 
-  const icons = {Neu:'● Neu', 'In Bearbeitung':'⏳ In Bearbeitung', Abgeschlossen:'✓ Abgeschlossen', Erledigt:'✓ Abgeschlossen'};
+  const icons = {'Neu':'● Neu', 'In Bearbeitung':'⏳ In Bearbeitung', 'Abgeschlossen':'✓ Abgeschlossen'};
   try {
-    const fields = {dashboard_status: newStatus};
-    if (isClosedStatus(newStatus)) fields.follow_up_at = null;
-    await apiPatchOptional(recordId, fields, {dashboard_status: newStatus});
-    // Patch allRecords in-memory so renderArchiv (and active lists) reflects the new
-    // status immediately — without waiting for the loadData safety-net below.
+    const fields = {dashboard_status: normalizedStatus};
+    if (isClosedStatus(normalizedStatus)) fields.follow_up_at = null;
+    await apiPatchOptional(recordId, fields, {dashboard_status: normalizedStatus});
     const cached = allRecords.find(r => r.id === recordId);
     if (cached && cached.fields) {
-      cached.fields.dashboard_status = newStatus;
-      if (isClosedStatus(newStatus)) cached.fields.follow_up_at = null;
+      cached.fields.dashboard_status = normalizedStatus;
+      if (isClosedStatus(normalizedStatus)) cached.fields.follow_up_at = null;
     }
     renderDashboard(allRecords);
     renderAnrufe(allRecords);
     renderRueckrufe(allRecords);
     renderArchiv(allRecords);
-    toast(icons[newStatus] || 'Status aktualisiert');
+    toast(icons[normalizedStatus] || 'Status aktualisiert');
   } catch(e) {
     toast('❌ Fehler – bitte nochmal');
-    if (select) select.disabled = false;
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
   } finally {
     setTimeout(loadData, 900);
@@ -2646,13 +2620,13 @@ async function saveFollowup() {
 
   // Auto-determine status:
   // - "Abgeschlossen" if mark-complete is checked
-  // - "Follow-up geplant" if follow-up date is set (but no completion)
-  // - Otherwise keep existing / "In Bearbeitung"
+  // - "In Bearbeitung" if follow-up date is set (but no completion)
+  // - Otherwise keep existing (no status change)
   let newStatus = null;
   if (markComplete && markComplete.checked) {
     newStatus = 'Abgeschlossen';
   } else if (followUpAt) {
-    newStatus = 'Follow-up geplant';
+    newStatus = 'In Bearbeitung';
   }
 
   const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: followUpAt ? new Date(followUpAt).toISOString() : null };
@@ -2736,7 +2710,7 @@ function openDetail(recordId) {
           <div class="detail-line"><span>Telefon</span><span>${escHtml(phone || '–')}</span></div>
           <div class="detail-line"><span>Kategorie</span><span>${escHtml(f.category || '–')}</span></div>
           <div class="detail-line"><span>Lead-Qualität</span><span>${escHtml(f.lead_quality || 'Neu')}</span></div>
-          <div class="detail-line"><span>Status</span><span>${escHtml(f.dashboard_status || 'Neu')}</span></div>
+          <div class="detail-line"><span>Status</span><span>${escHtml(normalizeStatus(f.dashboard_status))}</span></div>
           <div class="detail-line"><span>Rückruf</span><span>${f.callback_requested ? 'Ja' : 'Nein'}</span></div>
           <div class="detail-line"><span>Nächste Aktion</span><span>${escHtml(f.next_action || '–')}</span></div>
           <div class="detail-line"><span>Follow-up</span><span>${f.follow_up_at ? (fmtDate(f.follow_up_at) + ' ' + (fmtTime(f.follow_up_at)||'')) : '–'}</span></div>
@@ -2794,8 +2768,12 @@ async function saveNotiz() {
   const text = document.getElementById('notiz-input').value.trim();
   const btn = document.getElementById('notiz-save-btn');
   btn.disabled = true; btn.textContent = 'Speichern...';
+  const rec = allRecords.find(r => r.id === notizRecordId);
+  const currentStatus = rec && rec.fields ? normalizeStatus(rec.fields.dashboard_status) : 'Neu';
+  const fields = {notes_customer_voxera: text};
+  if (!isClosedStatus(currentStatus)) fields.dashboard_status = 'In Bearbeitung';
   try {
-    await apiPatch(notizRecordId, {notes_customer_voxera: text});
+    await apiPatchOptional(notizRecordId, fields, {notes_customer_voxera: text});
     toast('📝 Notiz gespeichert');
     closeNotiz();
     setTimeout(loadData, 600);
