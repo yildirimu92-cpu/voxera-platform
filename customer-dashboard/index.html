@@ -1769,7 +1769,7 @@ function getPriority(record) {
 
   if (isClosed) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
   if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
-  if (isCallback) return { key: 'callback', label: 'Rückruf', icon: '📞' };
+  if (isCallback) return { key: 'callback', label: 'Rückruf gewünscht', icon: '📞' };
   if (followUp && !Number.isNaN(followUp.getTime()) && isToday(f.follow_up_at)) return { key: 'today', label: 'Heute fällig', icon: '🗓' };
   if (isHot) return { key: 'hot', label: 'Hot Lead', icon: '🔥' };
   if (inProgress) return { key: 'working', label: 'In Arbeit', icon: '⏳' };
@@ -2519,7 +2519,7 @@ function renderList(containerId, records, opts) {
           ${priorityChip(r)}
           ${qualChip(f.lead_quality)}
           ${statusChip(f.dashboard_status)}
-          ${(f.callback_requested&&!done)?'<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>':''}
+          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>':''}
         </div>
         <div class="call-meta">
           ${displayPhone?`<span class="call-phone">${displayPhone}</span>`:''}
