@@ -3295,6 +3295,8 @@ async function doLogin() {
     const user = (data && data.user) ? data.user : await getCurrentSessionUser();
     if (!user) throw new Error('Auth session missing');
 
+    // Fresh login: always start on the dashboard tab, not a previously saved tab.
+    try { sessionStorage.removeItem('voxera_tab'); } catch(e) {}
     showApp(user);
   } catch(e) {
     const raw = (e && e.message) ? String(e.message) : '';
