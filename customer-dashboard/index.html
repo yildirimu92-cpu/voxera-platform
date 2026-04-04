@@ -1487,6 +1487,19 @@ function toDashboardRecord(row) {
   return { id: String(row.id), fields: row };
 }
 
+// Canonical timestamp helper: prefer actual call time (created_date_raw from webhook),
+// fall back to Supabase insertion time (created_at) for records where created_date_raw is absent.
+/**
+ * Returns the best available timestamp for a dashboard record.
+ * @param {Object} record - Dashboard record ({ id, fields })
+ * @returns {string|null} ISO-8601 string: created_date_raw (webhook call time) if present,
+ *   otherwise created_at (Supabase insertion time), or null if neither exists.
+ */
+function getRecordTimestamp(record) {
+  const f = (record && record.fields) || {};
+  return f.created_date_raw || f.created_at || null;
+}
+
 function extractCustomerHint(authUser) {
   const metadata = authUser && authUser.user_metadata ? authUser.user_metadata : {};
   const metadataCustomerId = metadata && metadata.customer_id ? String(metadata.customer_id).trim() : '';
@@ -1594,7 +1607,7 @@ function validateAccessGuard(context) {
 }
 
 async function loadCallRecords(customerIdRaw) {
-  let query = _sb.from(CALLS_TABLE).select('*').order('created_date_raw', { ascending: false }).limit(500);
+  let query = _sb.from(CALLS_TABLE).select('*').order('created_at', { ascending: false }).limit(500);
   const customerId = (customerIdRaw || '').trim();
   console.info('[voxera-dashboard] calls query customer_id', customerId || null);
   if (customerId) {
@@ -1662,7 +1675,7 @@ function sortRecordsOpenFirst(records) {
     const ad = isClosedStatus(a.fields.dashboard_status) ? 1 : 0;
     const bd = isClosedStatus(b.fields.dashboard_status) ? 1 : 0;
     if (ad !== bd) return ad - bd;
-    return new Date(b.fields.created_date_raw || 0) - new Date(a.fields.created_date_raw || 0);
+    return new Date(getRecordTimestamp(b) || 0) - new Date(getRecordTimestamp(a) || 0);
   });
 }
 
@@ -1892,8 +1905,8 @@ function renderUsage(records) {
       const currentCustomerId = String(customerMeta.customerId).trim();
       if (recordCustomerId !== currentCustomerId) return false;
     }
-    // Filter by billing period using created_at
-    const raw = r.fields && r.fields.created_at;
+    // Filter by billing period using canonical record timestamp
+    const raw = getRecordTimestamp(r);
     if (!raw) return false;
     const d = new Date(raw);
     return !Number.isNaN(d.getTime()) && d >= periodStart && d <= now;
@@ -2122,7 +2135,7 @@ async function loadData() {
 //  RENDER DASHBOARD
 // ═══════════════════════════════════════════
 function renderDashboard(records) {
-  var today = records.filter(function(r) { return isToday(r.fields.created_at); });
+  var today = records.filter(function(r) { return isToday(getRecordTimestamp(r)); });
   var offen = records.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); });
   var allOpen = records.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); });
 
@@ -2138,7 +2151,7 @@ function renderDashboard(records) {
     if (heroNum) heroNum.className = 'dash-hero-number red';
     if (hero)    hero.className    = 'dash-hero has-callbacks';
     var oldest = offen[offen.length - 1];
-    var oldestTime = fmtDate(oldest && oldest.fields && oldest.fields.created_at);
+    var oldestTime = fmtDate(oldest && getRecordTimestamp(oldest));
     if (heroSub) {
       heroSub.className = 'dash-hero-sub warn';
       heroSub.textContent = offen.length === 1
@@ -2210,8 +2223,8 @@ function renderDashboard(records) {
     return !isClosedStatus(r.fields.dashboard_status);
   });
   allOpenCalls.sort(function(a, b) {
-    var aDate = new Date(a.fields.created_at || 0);
-    var bDate = new Date(b.fields.created_at || 0);
+    var aDate = new Date(getRecordTimestamp(a) || 0);
+    var bDate = new Date(getRecordTimestamp(b) || 0);
     return bDate.getTime() - aDate.getTime();
   });
   var recentList = document.getElementById('dash-recent-list');
@@ -2227,8 +2240,8 @@ function renderDashboard(records) {
         var phone = escHtml(f.caller_phone || f.phone || '');
         var summaryRaw = (f.call_summary_short || f.call_summary || '').substring(0, 80);
         var summary = escHtml(summaryRaw);
-        var callDate = fmtDateOnly(f.created_at);
-        var callTime = fmtTime(f.created_at);
+        var callDate = fmtDateOnly(getRecordTimestamp(r));
+        var callTime = fmtTime(getRecordTimestamp(r));
         var durationStr = formatDurationForDisplay(f.duration_seconds);
         var qual = qualChip(f.lead_quality);
         var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
@@ -2279,7 +2292,7 @@ function renderDashboard(records) {
       var ini  = initials(f.caller_name || f.name || '?');
       var name = f.caller_name || f.name || 'Unbekannt';
       var phone = f.caller_phone || f.phone || '';
-      var time  = fmtDate(f.created_date_raw);
+      var time  = fmtDate(getRecordTimestamp(r));
       var qual  = qualChip(f.lead_quality);
       var tel   = phone ? phone.replace(/\s/g,'') : '';
       var summary = f.call_summary ? '<div class="call-summary" style="margin-top:5px">' + f.call_summary.substring(0,100) + (f.call_summary.length > 100 ? '…' : '') + '</div>' : '';
@@ -2351,7 +2364,7 @@ function getLatestCallDate(records) {
   let maxTime = 0;
   let latestDate = null;
   records.forEach(function(r) {
-    const raw = r.fields && r.fields.created_date_raw;
+    const raw = getRecordTimestamp(r);
     if (!raw) return;
     const d = new Date(raw);
     if (!Number.isNaN(d.getTime()) && d.getTime() > maxTime) {
@@ -2426,7 +2439,7 @@ function renderList(containerId, records, opts) {
     const followUpMeta = f.follow_up_at ? `<span class="meta-pill">🗓 ${fmtFollowUpDisplay(f.follow_up_at)}</span>` : '';
     const nextActionMeta = f.next_action ? `<span class="meta-pill">→ ${f.next_action}</span>` : '';
     // Always show exact date/time for call
-    const callDateTime = fmtExactDateTime(f.created_date_raw);
+    const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
     return `<div class="call-row${done?' done':''}${incoming?' incoming':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${(f.dashboard_status||'').toLowerCase()}">
       <div class="av ${avClass(f.lead_quality, done)}">${initials(f.caller_name)}</div>
@@ -2696,7 +2709,7 @@ function openDetail(recordId) {
   const phone = (f.phone_number || f.caller_phone || '–').trim();
   const tel = (f.tel_link || (phone && phone !== '–' ? ('tel:' + phone.replace(/\s/g,'')) : '')).trim();
   document.getElementById('detail-heading').textContent = f.caller_name || 'Call-Detail';
-  document.getElementById('detail-sub').textContent = (f.company_name || '–') + ' · ' + fmtDate(f.created_date_raw);
+  document.getElementById('detail-sub').textContent = (f.company_name || '–') + ' · ' + fmtDate(getRecordTimestamp(rec));
   document.getElementById('detail-content').innerHTML = `
     <div class="detail-layout">
       <div>
@@ -2725,7 +2738,7 @@ function openDetail(recordId) {
           <div class="detail-line"><span>Rückruf</span><span>${f.callback_requested ? 'Ja' : 'Nein'}</span></div>
           <div class="detail-line"><span>Nächste Aktion</span><span>${escHtml(f.next_action || '–')}</span></div>
           <div class="detail-line"><span>Follow-up</span><span>${f.follow_up_at ? (fmtDate(f.follow_up_at) + ' ' + (fmtTime(f.follow_up_at)||'')) : '–'}</span></div>
-          <div class="detail-line"><span>Erfasst</span><span>${fmtDate(f.created_date_raw)}</span></div>
+          <div class="detail-line"><span>Erfasst</span><span>${fmtDate(getRecordTimestamp(rec))}</span></div>
         </div>
       </div>
     </div>`;
