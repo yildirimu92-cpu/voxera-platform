@@ -448,12 +448,6 @@ body{
 .followup-choice{flex:1;min-width:120px;padding:10px 12px;border:1px solid var(--gray200);border-radius:10px;background:var(--white);color:var(--gray600);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
 .followup-choice.active{border-color:var(--blue);background:var(--blue-light);color:var(--blue);}
 .btn-a:disabled{opacity:.45;cursor:default;}
-.status-sel{
-  font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:7px;
-  border:1px solid var(--gray200);background:var(--white);color:var(--gray600);
-  font-family:inherit;cursor:pointer;transition:all .15s;
-}
-.status-sel:hover{border-color:var(--gray400);color:var(--gray700);}
 
 /* ═══════════════════════════════════════════
    NOTIZ MODAL
@@ -1359,6 +1353,18 @@ body{
   </div>
 </div>
 
+<!-- CONFIRM CLOSE MODAL -->
+<div class="overlay" id="confirm-close-overlay" onclick="if(event.target===this)_cancelConfirmClose()">
+  <div class="modal" style="max-width:380px;">
+    <h3>Anruf als erledigt markieren?</h3>
+    <div class="modal-sub">Der Anruf wird ins Archiv verschoben.</div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="_cancelConfirmClose()">Abbrechen</button>
+      <button class="btn-modal-save" onclick="_confirmClose()">Ja, erledigen</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -1487,6 +1493,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
+let _confirmClosePending = null;
 let customerMeta = {plan:'Business', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv'};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
@@ -1676,6 +1683,12 @@ function isClosedStatus(s) {
   return s === 'Erledigt' || s === 'Abgeschlossen';
 }
 
+function normalizeStatus(s) {
+  if (s === 'Erledigt') return 'Abgeschlossen';
+  if (s === 'Follow-up geplant') return 'In Bearbeitung';
+  return s ?? 'Neu';
+}
+
 function sortRecordsOpenFirst(records) {
   return [...records].sort((a,b) => {
     const ad = isClosedStatus(a.fields.dashboard_status) ? 1 : 0;
@@ -1687,9 +1700,9 @@ function sortRecordsOpenFirst(records) {
 
 
 function statusChip(s) {
-  if (s === 'Erledigt' || s === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
-  if (s === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
-  if (s === 'Follow-up geplant') return '<span class="chip chip-working">🗓 Follow-up geplant</span>';
+  const n = normalizeStatus(s);
+  if (n === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
+  if (n === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
   return '';
 }
 
@@ -2422,11 +2435,6 @@ function renderList(containerId, records, opts) {
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="${opts.primaryCallback?'btn-a btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
-          ${!done?`<select class="status-sel" onchange="confirmCloseWithDropdownPreservation('${r.id}',this)">
-            <option value="Neu"${(!f.dashboard_status||f.dashboard_status==='Neu')?' selected':''}>● Neu</option>
-            <option value="In Bearbeitung"${f.dashboard_status==='In Bearbeitung'?' selected':''}>⏳ In Bearbeitung</option>
-            <option value="Abgeschlossen"${(f.dashboard_status==='Abgeschlossen'||f.dashboard_status==='Erledigt')?' selected':''}>✓ Abgeschlossen</option>
-          </select>`:''}
           ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}
           ${!done?`<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation('${r.id}','Abgeschlossen',this.closest('.call-row'))">Erledigt</button>`:''}
           <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>
@@ -2457,25 +2465,30 @@ function renderArchiv(records) {
 //  ACTIONS
 // ═══════════════════════════════════════════
 function confirmCloseWithDropdownPreservation(recordId, newStatusOrSelectElement, optionalRowElement) {
-  const isDropdown = newStatusOrSelectElement && typeof newStatusOrSelectElement === 'object' && newStatusOrSelectElement.tagName === 'SELECT';
-  const newStatus = isDropdown ? newStatusOrSelectElement.value : newStatusOrSelectElement;
+  const newStatus = (newStatusOrSelectElement && typeof newStatusOrSelectElement === 'object' && newStatusOrSelectElement.tagName === 'SELECT')
+    ? newStatusOrSelectElement.value
+    : newStatusOrSelectElement;
 
   if (newStatus === 'Abgeschlossen') {
-    const confirmed = confirm('Dieser Anruf wird als abgeschlossen markiert und ins Archiv verschoben. Fortfahren?');
-    if (!confirmed) {
-      if (isDropdown) {
-        const currentStatus = allRecords.find(r => r.id === recordId)?.fields?.dashboard_status || 'Neu';
-        newStatusOrSelectElement.value = currentStatus;
-      }
-      return;
-    }
+    _confirmClosePending = {recordId: recordId, status: newStatus, rowElement: optionalRowElement};
+    document.getElementById('confirm-close-overlay').classList.add('open');
+    return;
   }
 
-  if (isDropdown) {
-    doStatusChange(recordId, newStatusOrSelectElement);
-  } else {
-    doStatusChange(recordId, newStatusOrSelectElement, optionalRowElement);
+  doStatusChange(recordId, newStatus, optionalRowElement);
+}
+
+function _confirmClose() {
+  document.getElementById('confirm-close-overlay').classList.remove('open');
+  if (_confirmClosePending) {
+    doStatusChange(_confirmClosePending.recordId, _confirmClosePending.status, _confirmClosePending.rowElement);
+    _confirmClosePending = null;
   }
+}
+
+function _cancelConfirmClose() {
+  document.getElementById('confirm-close-overlay').classList.remove('open');
+  _confirmClosePending = null;
 }
 
 async function doStatusChange(recordId, selectOrStatus, rowElement) {
@@ -2641,13 +2654,13 @@ async function saveFollowup() {
 
   // Auto-determine status:
   // - "Abgeschlossen" if mark-complete is checked
-  // - "Follow-up geplant" if follow-up date is set (but no completion)
-  // - Otherwise keep existing / "In Bearbeitung"
+  // - "In Bearbeitung" if follow-up date is set (but no completion)
+  // - Otherwise keep existing (null = no change)
   let newStatus = null;
   if (markComplete && markComplete.checked) {
     newStatus = 'Abgeschlossen';
   } else if (followUpAt) {
-    newStatus = 'Follow-up geplant';
+    newStatus = 'In Bearbeitung';
   }
 
   const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: followUpAt ? new Date(followUpAt).toISOString() : null };
@@ -2790,7 +2803,11 @@ async function saveNotiz() {
   const btn = document.getElementById('notiz-save-btn');
   btn.disabled = true; btn.textContent = 'Speichern...';
   try {
-    await apiPatch(notizRecordId, {notes_customer_voxera: text});
+    const rec = allRecords.find(r => r.id === notizRecordId);
+    const currentStatus = normalizeStatus(rec?.fields?.dashboard_status);
+    const fields = {notes_customer_voxera: text};
+    if (!isClosedStatus(currentStatus)) fields.dashboard_status = 'In Bearbeitung';
+    await apiPatch(notizRecordId, fields);
     toast('📝 Notiz gespeichert');
     closeNotiz();
     setTimeout(loadData, 600);
