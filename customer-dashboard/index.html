@@ -1619,14 +1619,12 @@ async function loadCallRecords(customerIdRaw) {
 }
 
 async function patchCallRecord(recordId, fields) {
-  const { data, error } = await _sb
+  // Fires UPDATE only; return value is not used by any caller.
+  const { error } = await _sb
     .from(CALLS_TABLE)
     .update(fields)
-    .eq('id', recordId)
-    .select('*')
-    .single();
+    .eq('id', recordId);
   if (error) throw error;
-  return toDashboardRecord(data);
 }
 
 async function patchCustomerRecord(recordId, fields) {
@@ -2259,7 +2257,7 @@ function renderDashboard(records) {
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">☎ Anrufen</button>' : '')
-          +   '<button class="btn-done-small" onclick="doStatusChange(\'' + r.id + '\',{value:\'Abgeschlossen\'})">✓ Erledigt</button>'
+          +   '<button class="btn-done-small" onclick="doStatusChange(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">✓ Erledigt</button>'
           +   '<button class="btn-note" onclick="openDetail(\'' + r.id + '\')">Details</button>'
           + '</div>'
           + '</div>';
@@ -2321,18 +2319,8 @@ function renderDashboard(records) {
 }
 
 function markCbDone(recordId) {
-  var row = document.getElementById('cb-row-' + recordId);
-  if (row) { row.style.opacity = '.4'; row.style.pointerEvents = 'none'; }
-  patchCallRecord(recordId, {
-    dashboard_status: 'Abgeschlossen',
-    updated_at: new Date().toISOString()
-  }).then(function() {
-    toast('✓ Rückruf als erledigt markiert');
-    setTimeout(function() { loadData(); }, 600);
-  }).catch(function(e) {
-    toast('Fehler: ' + e.message);
-    if (row) { row.style.opacity = '1'; row.style.pointerEvents = ''; }
-  });
+  const row = document.getElementById('cb-row-' + recordId);
+  doStatusChange(recordId, 'Abgeschlossen', row);
 }
 
 function renderFollowups(records) {
@@ -2495,10 +2483,13 @@ function renderArchiv(records) {
 // ═══════════════════════════════════════════
 //  ACTIONS
 // ═══════════════════════════════════════════
-async function doStatusChange(recordId, select) {
-  const newStatus = select.value;
-  const row = select.closest('.call-row');
-  select.disabled = true;
+async function doStatusChange(recordId, selectOrStatus, rowElement) {
+  const isSelectElement = selectOrStatus && typeof selectOrStatus === 'object' && 'value' in selectOrStatus;
+  const newStatus = isSelectElement ? selectOrStatus.value : selectOrStatus;
+  const select = isSelectElement ? selectOrStatus : null;
+  const row = rowElement !== undefined ? rowElement : (isSelectElement ? selectOrStatus.closest('.call-row') : null);
+
+  if (select) select.disabled = true;
 
   if (row) {
     row.style.transition = 'all .3s ease';
@@ -2531,17 +2522,28 @@ async function doStatusChange(recordId, select) {
   }
 
   const icons = {Neu:'● Neu', 'In Bearbeitung':'⏳ In Bearbeitung', Abgeschlossen:'✓ Abgeschlossen', Erledigt:'✓ Abgeschlossen'};
-  toast(icons[newStatus] || 'Status aktualisiert');
-
   try {
     const fields = {dashboard_status: newStatus};
     if (isClosedStatus(newStatus)) fields.follow_up_at = null;
     await apiPatchOptional(recordId, fields, {dashboard_status: newStatus});
-    setTimeout(loadData, 900);
+    // Patch allRecords in-memory so renderArchiv (and active lists) reflects the new
+    // status immediately — without waiting for the loadData safety-net below.
+    const cached = allRecords.find(r => r.id === recordId);
+    if (cached && cached.fields) {
+      cached.fields.dashboard_status = newStatus;
+      if (isClosedStatus(newStatus)) cached.fields.follow_up_at = null;
+    }
+    renderDashboard(allRecords);
+    renderAnrufe(allRecords);
+    renderRueckrufe(allRecords);
+    renderArchiv(allRecords);
+    toast(icons[newStatus] || 'Status aktualisiert');
   } catch(e) {
     toast('❌ Fehler – bitte nochmal');
-    select.disabled = false;
+    if (select) select.disabled = false;
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
+  } finally {
+    setTimeout(loadData, 900);
   }
 }
 
