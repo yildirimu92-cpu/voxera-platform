@@ -791,11 +791,8 @@ body{
           <div class="greeting-main">Anrufe & Rückrufe auf einen Blick.</div>
         </div>
         <div class="topbar-right">
-          <div class="status-pill" id="system-status"><span class="status-dot"></span><span id="system-status-text">System bereit</span></div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span id="last-updated-label" style="font-size:11px;color:var(--gray400);display:none;"></span>
-            <button class="btn-refresh" id="refresh-btn" onclick="manualRefresh()">↻ Aktualisieren</button>
-          </div>
+          <span id="last-updated-label" style="font-size:11px;color:var(--gray400);display:none;"></span>
+          <button class="btn-refresh" id="refresh-btn" onclick="manualRefresh()">↻ Aktualisieren</button>
         </div>
       </div>
 
@@ -841,6 +838,14 @@ body{
                 <div class="dash-kpi-val" id="kpi-system" style="font-size:18px;margin-top:4px;">–</div>
                 <div class="dash-kpi-sub" id="kpi-system-sub">Status</div>
               </div>
+            </div>
+
+            <!-- LETZTE ANRUFE (Latest 2, newest first) -->
+            <div id="dash-recent-section">
+              <div class="dash-cb-header">
+                <div class="dash-cb-title">Letzte Anrufe</div>
+              </div>
+              <div id="dash-recent-list"></div>
             </div>
 
             <!-- RÜCKRUF-LISTE -->
@@ -1783,6 +1788,14 @@ function fmtDateTimeLocal(raw) {
   } catch(e) { return ''; }
 }
 
+function formatDurationForDisplay(durationSeconds) {
+  if (!durationSeconds || durationSeconds <= 0) return '–';
+  var secs = Number(durationSeconds);
+  if (Number.isNaN(secs)) return '–';
+  if (secs < 60) return Math.round(secs) + ' Sek.';
+  return Math.round(secs / 60) + ' Min.';
+}
+
 function monthsSince(raw) {
   if (!raw) return 0;
   const d = new Date(raw);
@@ -2085,7 +2098,7 @@ async function loadData() {
 //  RENDER DASHBOARD
 // ═══════════════════════════════════════════
 function renderDashboard(records) {
-  var today = records.filter(function(r) { return isToday(r.fields.created_date_raw); });
+  var today = records.filter(function(r) { return isToday(r.fields.created_at); });
   var offen = records.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); });
 
   // ── Hero ─────────────────────────────────────────────
@@ -2145,19 +2158,64 @@ function renderDashboard(records) {
   }
   if (kpiSysSub) kpiSysSub.textContent = 'Assistent nimmt Anrufe entgegen';
 
-  // ── Badges (Sidebar + Mobile Nav) ────────────────────
-  var urgentOpen = records.filter(function(r) {
-    var p = getPriority(r).key;
-    return !isClosedStatus(r.fields.dashboard_status) && ['overdue','callback','today','hot'].indexOf(p) !== -1;
+  // ── Recent Calls (max 2, latest by created_at) ──────────────────────
+  var allOpenCalls = records.filter(function(r) {
+    return !isClosedStatus(r.fields.dashboard_status);
   });
+  allOpenCalls.sort(function(a, b) {
+    var aDate = new Date(a.fields.created_at || 0);
+    var bDate = new Date(b.fields.created_at || 0);
+    return bDate.getTime() - aDate.getTime();
+  });
+  var recentList = document.getElementById('dash-recent-list');
+  if (recentList) {
+    if (allOpenCalls.length === 0) {
+      recentList.innerHTML = '<div class="empty" style="padding:24px 20px;"><div class="empty-icon">–</div><div>Keine offenen Anrufe</div></div>';
+    } else {
+      var toShowRecent = allOpenCalls.slice(0, 2);
+      recentList.innerHTML = toShowRecent.map(function(r) {
+        var f    = r.fields || {};
+        var ini  = initials(escHtml(f.caller_name || f.name || '?'));
+        var name = escHtml(f.caller_name || f.name || 'Unbekannt');
+        var phone = escHtml(f.caller_phone || f.phone || '');
+        var summaryRaw = (f.call_summary_short || f.call_summary || '').substring(0, 80);
+        var summary = escHtml(summaryRaw);
+        var callDate = fmtDateOnly(f.created_at);
+        var callTime = fmtTime(f.created_at);
+        var durationStr = formatDurationForDisplay(f.duration_seconds);
+        var qual = qualChip(f.lead_quality);
+        var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
+        return '<div class="cb-row">'
+          + '<div class="cb-av">' + ini + '</div>'
+          + '<div class="cb-body">'
+          +   '<div class="cb-name">' + name + '</div>'
+          +   '<div class="cb-meta">'
+          +     (phone ? '<span class="cb-phone">' + phone + '</span>' : '')
+          +     '<span>' + callDate + ', ' + callTime + '</span>'
+          +     '<span>' + durationStr + '</span>'
+          +     qual
+          +   '</div>'
+          +   (summary ? '<div style="font-size:12px;color:var(--gray600);margin-top:4px;">' + summary + '</div>' : '')
+          + '</div>'
+          + '<div class="cb-actions">'
+          +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">☎ Anrufen</button>' : '')
+          +   '<button class="btn-done-small" onclick="doStatusChange(\'' + r.id + '\',{value:\'Abgeschlossen\'})">✓ Erledigt</button>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+    }
+  }
+
+  // ── Badges (Sidebar + Mobile Nav) ────────────────────
+  var allOpen = records.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); });
   var badgeA = document.getElementById('badge-anrufe');
   var badgeR = document.getElementById('badge-rueckrufe');
   var mb1    = document.getElementById('mnav-badge-anrufe');
   var mb2    = document.getElementById('mnav-badge-rueckrufe');
-  if (badgeA) badgeA.textContent = urgentOpen.length;
+  if (badgeA) badgeA.textContent = allOpen.length;
   if (badgeR) badgeR.textContent = offen.length;
-  if (mb1) { mb1.textContent = urgentOpen.length; mb1.style.display = urgentOpen.length > 0 ? 'block' : 'none'; }
-  if (mb2) { mb2.textContent = offen.length;      mb2.style.display = offen.length > 0      ? 'block' : 'none'; }
+  if (mb1) { mb1.textContent = allOpen.length; mb1.style.display = allOpen.length > 0 ? 'block' : 'none'; }
+  if (mb2) { mb2.textContent = offen.length;   mb2.style.display = offen.length > 0   ? 'block' : 'none'; }
 
   // ── Rückruf-Liste (max 5) ────────────────────────────
   var cbList    = document.getElementById('dash-cb-list');
@@ -2261,7 +2319,6 @@ function updateSystemStatus(records) {
   var el = document.getElementById('system-status');
   var txt = document.getElementById('system-status-text');
   var dot = el ? el.querySelector('.status-dot') : null;
-  if (!el || !txt) return;
 
   var latest = getLatestCallDate(records);
   var hasRecent = false;
@@ -2271,24 +2328,26 @@ function updateSystemStatus(records) {
     hasRecent = hoursSince < 72;
   }
 
-  if (hasRecent) {
-    txt.textContent = 'System aktiv';
-    el.style.background = 'var(--green-light)';
-    el.style.borderColor = 'var(--green-mid)';
-    el.style.color = 'var(--green)';
-    if (dot) dot.style.background = 'var(--green)';
-  } else if (records.length > 0) {
-    txt.textContent = 'Letzter Anruf vor über 3 Tagen';
-    el.style.background = 'var(--amber-light)';
-    el.style.borderColor = 'var(--amber-mid)';
-    el.style.color = 'var(--amber)';
-    if (dot) dot.style.background = 'var(--amber)';
-  } else {
-    txt.textContent = 'Warte auf ersten Anruf';
-    el.style.background = 'var(--gray100)';
-    el.style.borderColor = 'var(--gray200)';
-    el.style.color = 'var(--gray600)';
-    if (dot) dot.style.background = 'var(--gray400)';
+  if (el && txt) {
+    if (hasRecent) {
+      txt.textContent = 'System aktiv';
+      el.style.background = 'var(--green-light)';
+      el.style.borderColor = 'var(--green-mid)';
+      el.style.color = 'var(--green)';
+      if (dot) dot.style.background = 'var(--green)';
+    } else if (records.length > 0) {
+      txt.textContent = 'Letzter Anruf vor über 3 Tagen';
+      el.style.background = 'var(--amber-light)';
+      el.style.borderColor = 'var(--amber-mid)';
+      el.style.color = 'var(--amber)';
+      if (dot) dot.style.background = 'var(--amber)';
+    } else {
+      txt.textContent = 'Warte auf ersten Anruf';
+      el.style.background = 'var(--gray100)';
+      el.style.borderColor = 'var(--gray200)';
+      el.style.color = 'var(--gray600)';
+      if (dot) dot.style.background = 'var(--gray400)';
+    }
   }
 }
 
