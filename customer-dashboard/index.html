@@ -714,7 +714,7 @@ body{
 .cb-actions{display:flex;gap:6px;flex-shrink:0;}
 .btn-call{display:inline-flex;align-items:center;gap:5px;background:var(--blue);color:var(--white);border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s;white-space:nowrap;}
 .btn-call:hover{background:var(--blue-dark);}
-.btn-done-small{display:inline-flex;align-items:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.btn-done-small{display:inline-flex;align-items:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;height:36px;}
 .btn-done-small:hover{border-color:var(--gray400);color:var(--gray700);background:var(--white);}
 @media(max-width:768px){
   .dash-hero{flex-direction:column;align-items:flex-start;}
@@ -2265,7 +2265,7 @@ function renderDashboard(records) {
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">☎ Jetzt zurückrufen</button>' : '')
-          +   '<button class="btn-done-small btn-success" onclick="confirmCloseWithDropdownPreservation(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">✓ Erledigt</button>'
+          +   '<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">✓ Erledigt</button>'
           +   '<button class="btn-a btn-note" onclick="openDetail(\'' + r.id + '\')">Details</button>'
           + '</div>'
           + '</div>';
@@ -2428,6 +2428,7 @@ function renderList(containerId, records, opts) {
             <option value="Abgeschlossen"${(f.dashboard_status==='Abgeschlossen'||f.dashboard_status==='Erledigt')?' selected':''}>✓ Abgeschlossen</option>
           </select>`:''}
           ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">🗓 Follow-up</button>`:''}
+          ${!done?`<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation('${r.id}','Abgeschlossen',this.closest('.call-row'))">✓ Erledigt</button>`:''}
           <button class="btn-a btn-ghost" onclick="openDetail('${r.id}')">🔍 Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
         </div>`:''}
       </div>
