@@ -26,7 +26,7 @@
   --red:#DC2626;--red-light:#FEE2E2;
   --amber:#D97706;--amber-light:#FEF3C7;--amber-mid:#FDE68A;
   --gray50:#F9FAFB;--gray100:#F3F4F6;--gray200:#E5E7EB;
-  --gray400:#9CA3AF;--gray600:#4B5563;--gray900:#111827;
+  --gray400:#9CA3AF;--gray600:#4B5563;--gray700:#374151;--gray900:#111827;
   --white:#FFFFFF;
   --radius:10px;--radius-lg:14px;
   --shadow-sm:0 1px 3px rgba(0,0,0,0.06);
@@ -428,22 +428,22 @@ body{
 .btn-ghost:hover:not(:disabled){color:var(--gray900);text-decoration-color:var(--gray400);}
 
 /* ═══════════════════════════════════════════
-   ACTION BUTTONS
+   ACTION BUTTONS – PREMIUM CALM HIERARCHY
 ═══════════════════════════════════════════ */
 .btn-a{
   font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;
-  cursor:pointer;border:none;font-family:inherit;
+  cursor:pointer;border:1px solid var(--gray200);font-family:inherit;
   transition:all .15s;display:inline-flex;align-items:center;gap:5px;
   text-decoration:none;white-space:nowrap;height:36px;
 }
-.btn-call{background:var(--blue);color:var(--white);}
+/* PRIMARY FILLED ACTIONS */
+.btn-call{background:var(--blue);color:var(--white);border:none;}
 .btn-call:hover{background:var(--blue-dark);}
-.btn-done{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
-.btn-done:hover{border-color:var(--blue);color:var(--blue);background:var(--white);}
-.btn-note{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
-.btn-note:hover{border-color:var(--blue);color:var(--blue);background:var(--white);}
-.btn-callback{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
-.btn-callback:hover{border-color:var(--blue);color:var(--blue);background:var(--white);}
+.btn-callback.primary{background:var(--red);color:var(--white);border:none;}
+.btn-callback.primary:hover{background:#B91C1C;}
+/* SECONDARY OUTLINED ACTIONS (CALM SUBTLE HOVER) */
+.btn-done,.btn-note,.btn-callback:not(.primary){background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
+.btn-done:hover,.btn-note:hover,.btn-callback:not(.primary):hover{border-color:var(--gray400);color:var(--gray700);background:var(--white);}
 .followup-choices{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px;}
 .followup-choice{flex:1;min-width:120px;padding:10px 12px;border:1px solid var(--gray200);border-radius:10px;background:var(--white);color:var(--gray600);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
 .followup-choice.active{border-color:var(--blue);background:var(--blue-light);color:var(--blue);}
@@ -453,7 +453,7 @@ body{
   border:1px solid var(--gray200);background:var(--white);color:var(--gray600);
   font-family:inherit;cursor:pointer;transition:all .15s;
 }
-.status-sel:hover{border-color:var(--blue);color:var(--blue);}
+.status-sel:hover{border-color:var(--gray400);color:var(--gray700);}
 
 /* ═══════════════════════════════════════════
    NOTIZ MODAL
@@ -712,10 +712,10 @@ body{
 .cb-meta{font-size:12px;color:var(--gray400);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .cb-phone{font-weight:600;color:var(--gray600);background:var(--gray100);padding:2px 7px;border-radius:5px;font-variant-numeric:tabular-nums;}
 .cb-actions{display:flex;gap:6px;flex-shrink:0;}
-.btn-call{display:inline-flex;align-items:center;gap:5px;background:var(--red);color:var(--white);border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s;white-space:nowrap;}
-.btn-call:hover{background:#B91C1C;}
+.btn-call{display:inline-flex;align-items:center;gap:5px;background:var(--blue);color:var(--white);border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s;white-space:nowrap;}
+.btn-call:hover{background:var(--blue-dark);}
 .btn-done-small{display:inline-flex;align-items:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;}
-.btn-done-small:hover{border-color:var(--blue);color:var(--blue);background:var(--white);}
+.btn-done-small:hover{border-color:var(--gray400);color:var(--gray700);background:var(--white);}
 @media(max-width:768px){
   .dash-hero{flex-direction:column;align-items:flex-start;}
   .dash-hero-cta{width:100%;justify-content:center;padding:14px;font-size:15px;}
@@ -2421,7 +2421,7 @@ function renderList(containerId, records, opts) {
         ${(followUpMeta || nextActionMeta)?`<div style="margin-bottom:6px">${followUpMeta}${nextActionMeta}</div>`:''}
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
-          ${callTarget&&!done?`<button class="btn-a btn-callback" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">☎ Jetzt zurückrufen</button>`:''}
+          ${callTarget&&!done?`<button class="btn-a btn-callback${opts.primaryCallback?' primary':''}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">☎ Jetzt zurückrufen</button>`:''}
           ${!done?`<select class="status-sel" onchange="confirmCloseWithDropdownPreservation('${r.id}',this)">
             <option value="Neu"${(!f.dashboard_status||f.dashboard_status==='Neu')?' selected':''}>● Neu</option>
             <option value="In Bearbeitung"${f.dashboard_status==='In Bearbeitung'?' selected':''}>⏳ In Bearbeitung</option>
@@ -2444,7 +2444,7 @@ function renderRueckrufe(records) {
   const offen = records.filter(r => r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status));
   const order = {hot:0,warm:1,kalt:2,neu:2};
   offen.sort((a,b) => (order[qualKey(a.fields.lead_quality)]||2) - (order[qualKey(b.fields.lead_quality)]||2));
-  renderList('rueckrufe-list', offen, {showActions:true});
+  renderList('rueckrufe-list', offen, {showActions:true, primaryCallback:true});
 }
 
 function renderArchiv(records) {
