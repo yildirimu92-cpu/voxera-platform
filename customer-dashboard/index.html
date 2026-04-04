@@ -700,8 +700,8 @@ body{
   .dash-hero{flex-direction:column;align-items:flex-start;}
   .dash-hero-cta{width:100%;justify-content:center;padding:14px;font-size:15px;}
   .dash-hero-number{font-size:52px;}
-  .cb-actions{flex-direction:column;width:100%;}
-  .btn-call{justify-content:center;}
+  .cb-actions{flex-direction:column;gap:8px;width:100%;}
+  .btn-call,.btn-done-small,.btn-note{width:100%;justify-content:center;padding:11px 12px;font-size:12px;}
   .cb-row{flex-wrap:wrap;}
 }
 @media(max-width:380px){
@@ -2247,6 +2247,7 @@ function renderDashboard(records) {
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">☎ Anrufen</button>' : '')
           +   '<button class="btn-done-small" onclick="doStatusChange(\'' + r.id + '\',{value:\'Abgeschlossen\'})">✓ Erledigt</button>'
+          +   '<button class="btn-note" onclick="openDetail(\'' + r.id + '\')">Details</button>'
           + '</div>'
           + '</div>';
       }).join('');
