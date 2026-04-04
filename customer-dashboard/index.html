@@ -2533,7 +2533,7 @@ async function saveFollowup() {
 
   const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: followUpAt ? new Date(followUpAt).toISOString() : null };
   if (newStatus) fields.dashboard_status = newStatus;
-  if (newStatus === 'Abgeschlossen') fields.follow_up_at = null;
+  if (newStatus === 'Abgeschlossen') fields.follow_up_at = null; // Completed calls have no pending follow-up
   const fallbackFields = { notes_customer_voxera: text };
   if (newStatus) fallbackFields.dashboard_status = newStatus;
   try {
@@ -2700,6 +2700,9 @@ function openAccount() {
       if (sb) {
         sb.auth.getUser().then(function(r) {
           if (r.data && r.data.user) emailEl.textContent = r.data.user.email || '–';
+        }).catch(function(e) {
+          console.error('[voxera-dashboard] getUser fallback failed:', e);
+          emailEl.textContent = '–';
         });
       }
     }
