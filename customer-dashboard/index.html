@@ -3190,7 +3190,11 @@ async function saveSetupPassword(){
   completeSetupStep('s4');
 }
 
-function shouldShowSetupOnLogin(){
+function shouldShowSetupOnLogin(context){
+  // If the customer already has a resolved record in the database, they are an
+  // active/configured customer and should not be auto-redirected to setup,
+  // regardless of whether the localStorage flag happens to be present.
+  if(context && context.customerId && context.customerRecord) return false;
   try{return !localStorage.getItem('voxera_setup_finished');}catch(e){return true;}
 }
 
@@ -3291,6 +3295,8 @@ async function doLogin() {
     const user = (data && data.user) ? data.user : await getCurrentSessionUser();
     if (!user) throw new Error('Auth session missing');
 
+    // Fresh login: always start on the dashboard tab, not a previously saved tab.
+    try { sessionStorage.removeItem('voxera_tab'); } catch(e) {}
     showApp(user);
   } catch(e) {
     const raw = (e && e.message) ? String(e.message) : '';
@@ -3339,7 +3345,7 @@ function showApp(user) {
     greetingSub.textContent = 'Guten ' + greetWord + ', ' + displayName + '.';
     greetingSub.dataset.custom = '1';
     initSetupWizard();
-    if(shouldShowSetupOnLogin()){
+    if(shouldShowSetupOnLogin(customerContext)){
       var navEl = document.getElementById('nav-einrichtung');
       if(navEl) showTab('einrichtung',navEl);
     } else {
