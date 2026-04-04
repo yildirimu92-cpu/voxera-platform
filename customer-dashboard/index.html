@@ -670,7 +670,7 @@ body{
   .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
   .call-actions .btn-callback.primary,.call-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
   .call-actions .status-sel{grid-column:1/-1;width:100%;}
-  .call-actions .btn-a,.call-actions .btn-call{width:100%;justify-content:center;}
+  .call-actions .btn-a{width:100%;justify-content:center;}
   .btn,.btn-a{padding:8px 12px;font-size:11px;}
   .modal{padding:24px 20px;}
   .charts-row{display:none;}
@@ -1695,7 +1695,8 @@ function statusChip(s) {
   if (s === 'Erledigt' || s === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
   if (s === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
   // 'Follow-up geplant' is shown via meta-pill (followUpMeta), not as a separate status chip
-  return '<span class="chip chip-neu">Neu</span>';
+  if (!s || s === 'Neu') return '<span class="chip chip-neu">Neu</span>';
+  return '';
 }
 
 function getPriority(record) {
