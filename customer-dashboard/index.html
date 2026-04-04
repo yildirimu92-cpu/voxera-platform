@@ -96,7 +96,7 @@ body{
    SETTINGS PAGE
 ═══════════════════════════════════════════ */
 .settings-card{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:16px 18px;margin-bottom:12px;}
-.settings-card-title{font-size:11.5px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+.settings-card-title{font-size:11.5px;font-weight:600;color:#6B7280;text-transform:none;letter-spacing:0;margin-bottom:12px;}
 .settings-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--gray100);font-size:13px;}
 .settings-row:first-of-type{padding-top:0;}
 .settings-row-label{color:var(--gray400);font-weight:600;min-width:100px;flex-shrink:0;padding-top:2px;}
@@ -237,23 +237,23 @@ body{
   position:sticky;top:0;z-index:30;
 }
 .greeting-sub{
-  font-size:11px;
-  font-weight:600;
-  letter-spacing:.08em;
-  text-transform:uppercase;
+  font-size:13px;
+  font-weight:400;
+  letter-spacing:0;
+  text-transform:none;
   color:#6B7280;
   margin-bottom:4px;
 }
 .greeting-main{
-  font-size:24px;
-  font-weight:650;
-  letter-spacing:-.3px;
+  font-size:20px;
+  font-weight:600;
+  letter-spacing:-.25px;
   color:#111827;
   font-family:var(--headline-font);
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
-.page-title{font-family:var(--headline-font);font-weight:650;letter-spacing:-.3px;color:#111827;}
+.page-title{font-family:var(--headline-font);font-weight:600;letter-spacing:-.25px;color:#111827;}
 .topbar-right{display:flex;align-items:center;gap:16px;}
 .status-pill{
   display:flex;align-items:center;gap:6px;
@@ -322,7 +322,7 @@ body{
   transition:border-color .15s,box-shadow .15s;cursor:default;
 }
 .kpi:hover{border-color:var(--blue-mid);box-shadow:0 2px 8px rgba(26,86,219,.06);}
-.kpi-label{font-size:11px;color:var(--gray400);font-weight:500;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;}
+.kpi-label{font-size:11.5px;color:#6B7280;font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:10px;}
 .kpi-val{font-size:34px;font-weight:800;line-height:1;font-family:'Bricolage Grotesque',sans-serif;}
 .kpi-val.blue{color:var(--blue);}
 .kpi-val.green{color:var(--green);}
@@ -336,7 +336,7 @@ body{
 ═══════════════════════════════════════════ */
 .charts-row{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:24px;}
 .card{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:20px;}
-.card-title{font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;}
+.card-title{font-size:11.5px;font-weight:600;color:#6B7280;text-transform:none;letter-spacing:0;margin-bottom:16px;}
 .bar-wrap{display:flex;flex-direction:column;gap:9px;}
 .bar-row{display:flex;align-items:center;gap:10px;}
 .bar-day{font-size:11px;color:var(--gray400);width:24px;text-align:right;flex-shrink:0;}
@@ -357,9 +357,9 @@ body{
 ═══════════════════════════════════════════ */
 .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
 .section-title{
-  font-size:23px;
-  font-weight:650;
-  letter-spacing:-.3px;
+  font-size:20px;
+  font-weight:600;
+  letter-spacing:-.25px;
   color:#111827;
   font-family:var(--headline-font);
   -webkit-font-smoothing:antialiased;
@@ -411,6 +411,7 @@ body{
 .call-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray400);margin-bottom:5px;flex-wrap:wrap;}
 .call-phone{display:inline-block;font-weight:600;color:var(--gray700, #374151);background:var(--gray100);padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums;}
 .call-summary{font-size:12px;color:var(--gray600);line-height:1.5;margin-bottom:6px;}
+.followup-meta-line{font-size:11.5px;color:#6B7280;line-height:1.45;margin-bottom:6px;}
 .call-notiz{
   font-size:11px;color:var(--gray600);background:var(--gray50);
   padding:5px 10px;border-radius:6px;border-left:2px solid var(--gray200);
@@ -619,7 +620,7 @@ body{
 .account-usage-meta{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--gray600);margin-bottom:12px;flex-wrap:wrap;}
 .account-usage-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;}
 .account-usage-mini{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:12px;}
-.account-usage-mini-label{font-size:11px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+.account-usage-mini-label{font-size:11.5px;color:#6B7280;font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:6px;}
 .account-usage-mini-val{font-size:18px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;color:var(--gray900);line-height:1.1;}
 .account-upgrade-box{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:14px;}
 .account-upgrade-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
@@ -636,7 +637,7 @@ body{
 .priority-normal{background:var(--blue-light);color:var(--blue);}
 .focus-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:-6px 0 24px;}
 .focus-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:16px;}
-.focus-label{font-size:11px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+.focus-label{font-size:11.5px;color:#6B7280;font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:8px;}
 .focus-value{font-size:24px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:6px;line-height:1.45;}
 .followup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 12px;}
@@ -674,7 +675,7 @@ body{
 .detail-modal{background:var(--white);border-radius:20px;padding:28px;width:100%;max-width:860px;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.18);animation:fadeUp .3s cubic-bezier(.16,1,.3,1) both;}
 .detail-layout{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;}
 .detail-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:14px;padding:16px;}
-.detail-title{font-size:11px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+.detail-title{font-size:11.5px;font-weight:600;color:#6B7280;text-transform:none;letter-spacing:0;margin-bottom:10px;}
 .detail-line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--gray200);font-size:13px;}
 .detail-line:last-child{border-bottom:none;padding-bottom:0;}
 .detail-line span:first-child{color:var(--gray400);font-weight:600;}
@@ -702,8 +703,8 @@ body{
   .kpi{padding:14px;}
   .kpi-val{font-size:28px;}
   .status-pill{display:none;}
-  .greeting-main{font-size:22px;}
-  .section-title{font-size:22px;}
+  .greeting-main{font-size:18px;}
+  .section-title{font-size:18px;}
   /* Mobile call-actions: primary full-width, secondary in 2-column grid */
   .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
   .call-actions .btn-callback.primary,.call-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
@@ -725,7 +726,7 @@ body{
 .dash-hero.has-callbacks{border-color:#FECACA;background:#FFF9F9;}
 .dash-hero.no-callbacks{border-color:var(--green-mid);background:#FAFFF8;}
 .dash-hero-left{flex:1;min-width:0;}
-.dash-hero-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray400);margin-bottom:8px;}
+.dash-hero-label{font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0;color:#6B7280;margin-bottom:8px;}
 .dash-hero-number{font-family:'Bricolage Grotesque',sans-serif;font-size:64px;font-weight:800;line-height:1;letter-spacing:-.03em;margin-bottom:8px;}
 .dash-hero-number.red{color:var(--red);}
 .dash-hero-number.green{color:var(--green);}
@@ -737,7 +738,7 @@ body{
 .dash-hero-cta.green:hover{background:#15803D;}
 .dash-kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;}
 .dash-kpi{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:18px 20px;}
-.dash-kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray400);margin-bottom:10px;}
+.dash-kpi-label{font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0;color:#6B7280;margin-bottom:10px;}
 .dash-kpi-val{font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;line-height:1;color:var(--blue);margin-bottom:5px;}
 .dash-kpi-sub{font-size:12px;color:var(--gray400);}
 .dash-cb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
@@ -920,7 +921,6 @@ body{
               <button class="ftab active" onclick="filterList('anrufe-list','alle',this)">Alle</button>
               <button class="ftab" onclick="filterList('anrufe-list','dringend',this)">Dringend</button>
               <button class="ftab" onclick="filterList('anrufe-list','inbearbeitung',this)">In Bearbeitung</button>
-              <button class="ftab" onclick="filterList('anrufe-list','abgeschlossen',this)">Abgeschlossen</button>
             </div>
           </div>
           <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Alle eingegangenen Anrufe – filtern Sie nach Status oder suchen Sie nach Namen.</div>
@@ -1223,11 +1223,11 @@ body{
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
                 <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
-                  <div style="font-size:10px;color:var(--gray400);font-weight:600;text-transform:uppercase;margin-bottom:4px;">Diesen Monat</div>
+                  <div style="font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;">Diesen Monat</div>
                   <div style="font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;" id="usage-month-minutes">–</div>
                 </div>
                 <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
-                  <div style="font-size:10px;color:var(--gray400);font-weight:600;text-transform:uppercase;margin-bottom:4px;">Inklusive</div>
+                  <div style="font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;">Inklusive</div>
                   <div style="font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;" id="usage-included">–</div>
                 </div>
               </div>
@@ -1762,7 +1762,7 @@ function statusChip(s) {
 function getPriority(record) {
   const f = (record && record.fields) || {};
   const now = new Date();
-  const followUp = f.follow_up_at ? new Date(f.follow_up_at) : null;
+  const followUp = parseFollowUpDate(f.follow_up_at);
   const isClosed = isClosedStatus(f.dashboard_status);
   const isCallback = !!f.callback_requested;
   const isHot = qualKey(f.lead_quality) === 'hot';
@@ -1770,7 +1770,7 @@ function getPriority(record) {
 
   if (isClosed) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
   if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
-  if (isCallback) return { key: 'callback', label: 'Rückruf', icon: '📞' };
+  if (isCallback) return { key: 'callback', label: 'Rückruf gewünscht', icon: '📞' };
   if (followUp && !Number.isNaN(followUp.getTime()) && isToday(f.follow_up_at)) return { key: 'today', label: 'Heute fällig', icon: '🗓' };
   if (isHot) return { key: 'hot', label: 'Hot Lead', icon: '🔥' };
   if (inProgress) return { key: 'working', label: 'In Arbeit', icon: '⏳' };
@@ -1789,6 +1789,58 @@ function priorityChip(record) {
   return `<span class="chip ${map[p.key] || 'chip-neu'}">${p.icon} ${p.label}</span>`;
 }
 
+const DISPLAY_TIMEZONE = 'Europe/Zurich';
+const TIME_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, hour: '2-digit', minute: '2-digit' });
+const DATE_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit' });
+const DATE_LONG_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
+
+function formatTimeCH(date) {
+  return TIME_FORMAT_CH.format(date);
+}
+
+function formatDateShortCH(date) {
+  return DATE_SHORT_FORMAT_CH.format(date);
+}
+
+function formatDateLongCH(date) {
+  return DATE_LONG_FORMAT_CH.format(date);
+}
+
+function parseLocalDateTimeParts(raw) {
+  if (!raw) return null;
+  const value = String(raw).trim().replace(' ', 'T');
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  return {
+    year: Number(m[1]),
+    month: Number(m[2]),
+    day: Number(m[3]),
+    hour: Number(m[4]),
+    minute: Number(m[5]),
+    second: Number(m[6] || 0)
+  };
+}
+
+function normalizeFollowUpLocalValue(raw) {
+  if (!raw) return '';
+  const value = String(raw).trim().replace(' ', 'T');
+  const m = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return '';
+  return `${m[1]}T${m[2]}:${m[3]}`;
+}
+
+function pad2(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
+
+function formatPartsDate(parts) {
+  return `${pad2(parts.day)}.${pad2(parts.month)}.${parts.year}`;
+}
+
+function formatPartsTime(parts) {
+  return `${pad2(parts.hour)}:${pad2(parts.minute)}`;
+}
+
 function avClass(q, done) {
   if (done) return 'av-done';
   const k = qualKey(q);
@@ -1798,36 +1850,95 @@ function avClass(q, done) {
 function fmtDate(raw) {
   if (!raw) return '';
   try {
+    const localParts = parseLocalDateTimeParts(raw);
+    if (localParts) {
+      const dLocal = new Date(localParts.year, localParts.month - 1, localParts.day, localParts.hour, localParts.minute, localParts.second);
+      const diffLocal = Math.floor((new Date() - dLocal) / 1000);
+      if (diffLocal < 60) return 'Gerade eben';
+      if (diffLocal < 3600) return 'vor ' + Math.floor(diffLocal/60) + ' Min';
+      if (diffLocal < 86400) return 'vor ' + Math.floor(diffLocal/3600) + ' Std';
+      if (diffLocal < 172800) return 'Gestern ' + formatPartsTime(localParts);
+      return formatPartsDate(localParts) + ' ' + formatPartsTime(localParts);
+    }
     const d = new Date(raw), now = new Date();
     const diff = Math.floor((now - d) / 1000);
     if (diff < 60) return 'Gerade eben';
     if (diff < 3600) return 'vor ' + Math.floor(diff/60) + ' Min';
     if (diff < 86400) return 'vor ' + Math.floor(diff/3600) + ' Std';
-    if (diff < 172800) return 'Gestern ' + d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
-    return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'}) + ' ' +
-           d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    if (diff < 172800) return 'Gestern ' + formatTimeCH(d);
+    return formatDateShortCH(d) + ' ' + formatTimeCH(d);
   } catch(e) { return ''; }
 }
 
 function fmtExactDateTime(raw) {
   if (!raw) return '';
   try {
-    const d = new Date(raw);
+    const localParts = parseLocalDateTimeParts(raw);
+    if (localParts) return formatPartsDate(localParts) + ', ' + formatPartsTime(localParts);
+    const d = parseFollowUpDate(raw) || new Date(raw);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ', ' +
-           d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    return formatDateLongCH(d) + ', ' + formatTimeCH(d);
   } catch(e) { return ''; }
 }
 
 function fmtFollowUpDisplay(raw) {
   if (!raw) return '';
-  const exact = fmtExactDateTime(raw);
-  return exact ? 'Geplant für ' + exact : '';
+  const exact = fmtFollowUpDateTime(raw);
+  return exact ? 'Geplant · ' + exact : '';
+}
+
+function fmtFollowUpDateTime(raw) {
+  const localValue = normalizeFollowUpLocalValue(raw);
+  if (localValue) {
+    const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
+    const time = localValue.slice(11,16);
+    return `${date}, ${time}`;
+  }
+  const parsed = parseFollowUpDate(raw);
+  if (!parsed || Number.isNaN(parsed.getTime())) return '';
+  return `${pad2(parsed.getDate())}.${pad2(parsed.getMonth()+1)}.${parsed.getFullYear()}, ${pad2(parsed.getHours())}:${pad2(parsed.getMinutes())}`;
+}
+
+function buildFollowUpMetaText(nextAction, followUpAt) {
+  const action = (nextAction || '').trim();
+  const dateTime = fmtFollowUpDateTime(followUpAt);
+  if (action && dateTime) return `${action} · ${dateTime}`;
+  if (action) return action;
+  if (dateTime) return `Geplant · ${dateTime}`;
+  return '';
+}
+
+function resolveFollowUpAt(fields) {
+  if (!fields) return '';
+  return fields.follow_up_at || fields.followup_at || fields.followUpAt || fields.follow_up || '';
+}
+if (typeof window !== 'undefined') window.resolveFollowUpAt = resolveFollowUpAt;
+
+function parseFollowUpDate(raw) {
+  if (!raw) return null;
+  const localParts = parseLocalDateTimeParts(raw);
+  if (localParts) {
+    return new Date(localParts.year, localParts.month - 1, localParts.day, localParts.hour, localParts.minute, localParts.second);
+  }
+  const value = String(raw).trim().replace(' ', 'T');
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function serializeFollowUpLocal(rawLocalValue) {
+  const value = normalizeFollowUpLocalValue(rawLocalValue);
+  return value || null;
 }
 
 function fmtTime(raw) {
   if (!raw) return '';
-  try { return new Date(raw).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}); }
+  try {
+    const localParts = parseLocalDateTimeParts(raw);
+    if (localParts) return formatPartsTime(localParts);
+    const d = parseFollowUpDate(raw) || new Date(raw);
+    if (Number.isNaN(d.getTime())) return '';
+    return formatTimeCH(d);
+  }
   catch(e) { return ''; }
 }
 
@@ -1835,20 +1946,22 @@ function updateLastUpdatedLabel() {
   const label = document.getElementById('last-updated-label');
   if (!label) return;
   const now = new Date();
-  const timeStr = now.toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'});
-  const dateStr = now.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit'});
+  const timeStr = formatTimeCH(now);
+  const dateStr = formatDateShortCH(now);
   label.textContent = 'Zuletzt aktualisiert: ' + dateStr + ', ' + timeStr;
 }
 
 function isToday(raw) {
   if (!raw) return false;
-  const d = new Date(raw), t = new Date();
+  const d = parseFollowUpDate(raw) || new Date(raw), t = new Date();
+  if (Number.isNaN(d.getTime())) return false;
   return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
 }
 
 function isThisWeek(raw) {
   if (!raw) return false;
-  const d = new Date(raw), now = new Date();
+  const d = parseFollowUpDate(raw) || new Date(raw), now = new Date();
+  if (Number.isNaN(d.getTime())) return false;
   const start = new Date(now);
   start.setDate(now.getDate()-now.getDay());
   start.setHours(0,0,0,0);
@@ -1865,18 +1978,23 @@ function toast(msg) {
 
 function fmtDateOnly(raw) {
   if (!raw) return '–';
+  const localParts = parseLocalDateTimeParts(raw);
+  if (localParts) return formatPartsDate(localParts);
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return '–';
-  return d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'});
+  return formatDateLongCH(d);
 }
 
 function fmtDateTimeLocal(raw) {
+  const localValue = normalizeFollowUpLocalValue(raw);
+  if (localValue) return localValue;
   if (!raw) return '';
   try {
-    const d = new Date(raw);
+    const localParts = parseLocalDateTimeParts(raw);
+    if (localParts) return `${localParts.year}-${pad2(localParts.month)}-${pad2(localParts.day)}T${pad2(localParts.hour)}:${pad2(localParts.minute)}`;
+    const d = parseFollowUpDate(raw) || new Date(raw);
     if (Number.isNaN(d.getTime())) return '';
-    const pad = function(n){ return n < 10 ? '0'+n : ''+n; };
-    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+    return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes());
   } catch(e) { return ''; }
 }
 
@@ -2317,6 +2435,18 @@ function renderDashboard(records) {
         var durationStr = formatDurationForDisplay(f.duration_seconds);
         var qual = qualChip(f.lead_quality);
         var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
+        var callbackChip = (f.callback_requested && !isClosedStatus(f.dashboard_status)) ? '<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>' : '';
+        var followUpAt = resolveFollowUpAt(f);
+        var followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
+        console.log('[VOXERA FOLLOWUP DEBUG][cb-row]', {
+          id: r.id,
+          caller: f.caller_name || '',
+          next_action: f.next_action || '',
+          raw_follow_up_at: f.follow_up_at,
+          resolved_follow_up_at: followUpAt,
+          rendered_followup_text: followUpMetaText
+        });
+        var followUpMeta = followUpMetaText ? '<div class="followup-meta-line">' + escHtml(followUpMetaText) + '</div>' : '';
         return '<div class="cb-row">'
           + '<div class="cb-av">' + ini + '</div>'
           + '<div class="cb-body">'
@@ -2326,8 +2456,10 @@ function renderDashboard(records) {
           +     '<span>' + callDate + ', ' + callTime + '</span>'
           +     '<span>' + durationStr + '</span>'
           +     qual
+          +     callbackChip
           +   '</div>'
           +   (summary ? '<div style="font-size:12px;color:var(--gray600);margin-top:4px;">' + summary + '</div>' : '')
+          +   followUpMeta
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Jetzt zurückrufen</button>' : '')
@@ -2367,13 +2499,13 @@ function renderFollowups(records) {
     var f = r.fields || {};
     if (isClosedStatus(f.dashboard_status)) return false;
     if (!f.follow_up_at) return false;
-    var d = new Date(f.follow_up_at);
-    if (Number.isNaN(d.getTime())) return false;
+    var d = parseFollowUpDate(f.follow_up_at);
+    if (!d) return false;
     // Show overdue + next 7 days
     var diff = (d - now) / (1000*60*60*24);
     return diff < 7;
   });
-  upcoming.sort(function(a,b) { return new Date(a.fields.follow_up_at) - new Date(b.fields.follow_up_at); });
+  upcoming.sort(function(a,b) { return parseFollowUpDate(a.fields.follow_up_at) - parseFollowUpDate(b.fields.follow_up_at); });
   var section = document.getElementById('followups-section');
   var list = document.getElementById('followups-list');
   if (!section || !list) return;
@@ -2461,9 +2593,17 @@ function renderList(containerId, records, opts) {
 
     const incoming = recentIncomingIds.has(r.id);
     const priority = getPriority(r);
-    // Follow-up: show "Geplant für DD.MM.YYYY, HH:mm" instead of relative time
-    const followUpMeta = f.follow_up_at ? `<span class="meta-pill">🗓 ${fmtFollowUpDisplay(f.follow_up_at)}</span>` : '';
-    const nextActionMeta = f.next_action ? `<span class="meta-pill">→ ${f.next_action}</span>` : '';
+    // Follow-up meta line (action/date/time) in short unified format
+    const followUpAt = resolveFollowUpAt(f);
+    const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
+    console.log('[VOXERA FOLLOWUP DEBUG][call-row]', {
+      id: r.id,
+      caller: f.caller_name || '',
+      next_action: f.next_action || '',
+      raw_follow_up_at: f.follow_up_at,
+      resolved_follow_up_at: followUpAt,
+      rendered_followup_text: followUpMetaText
+    });
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
@@ -2476,7 +2616,7 @@ function renderList(containerId, records, opts) {
           ${priorityChip(r)}
           ${qualChip(f.lead_quality)}
           ${statusChip(f.dashboard_status)}
-          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf</span>':''}
+          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>':''}
         </div>
         <div class="call-meta">
           ${displayPhone?`<span class="call-phone">${displayPhone}</span>`:''}
@@ -2484,7 +2624,7 @@ function renderList(containerId, records, opts) {
           <span>${callDateTime}</span>
         </div>
         ${f.call_summary?`<div class="call-summary">${f.call_summary}</div>`:''}
-        ${(followUpMeta || nextActionMeta)?`<div style="margin-bottom:6px">${followUpMeta}${nextActionMeta}</div>`:''}
+        ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="${opts.primaryCallback?'btn-a btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
@@ -2731,7 +2871,7 @@ async function saveFollowup() {
     newStatus = 'In Bearbeitung';
   }
 
-  const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: followUpAt ? new Date(followUpAt).toISOString() : null };
+  const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: serializeFollowUpLocal(followUpAt) };
   if (newStatus) fields.dashboard_status = newStatus;
   if (newStatus === 'Abgeschlossen') fields.follow_up_at = null; // Completed calls have no pending follow-up
   const fallbackFields = { notes_customer_voxera: text };
@@ -3064,7 +3204,6 @@ function filterList(listId, type, btn) {
   btn.classList.add('active');
   document.querySelectorAll('#'+listId+' .call-row').forEach(row => {
     if (type === 'alle') { row.classList.remove('hidden'); return; }
-    if (type === 'abgeschlossen' || type === 'erledigt') { row.classList.toggle('hidden', row.dataset.done !== '1'); return; }
     if (type === 'offen') { row.classList.toggle('hidden', row.dataset.open !== '1'); return; }
     if (type === 'dringend') { row.classList.toggle('hidden', !['overdue','callback','today','hot'].includes(row.dataset.priority)); return; }
     if (type === 'inbearbeitung') { row.classList.toggle('hidden', row.dataset.status !== 'in bearbeitung'); return; }
