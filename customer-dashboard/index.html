@@ -1619,14 +1619,12 @@ async function loadCallRecords(customerIdRaw) {
 }
 
 async function patchCallRecord(recordId, fields) {
-  const { data, error } = await _sb
+  // Fires UPDATE only; return value is not used by any caller.
+  const { error } = await _sb
     .from(CALLS_TABLE)
     .update(fields)
-    .eq('id', recordId)
-    .select('*')
-    .single();
+    .eq('id', recordId);
   if (error) throw error;
-  return toDashboardRecord(data);
 }
 
 async function patchCustomerRecord(recordId, fields) {
@@ -2524,17 +2522,17 @@ async function doStatusChange(recordId, selectOrStatus, rowElement) {
   }
 
   const icons = {Neu:'● Neu', 'In Bearbeitung':'⏳ In Bearbeitung', Abgeschlossen:'✓ Abgeschlossen', Erledigt:'✓ Abgeschlossen'};
-  toast(icons[newStatus] || 'Status aktualisiert');
-
   try {
     const fields = {dashboard_status: newStatus};
     if (isClosedStatus(newStatus)) fields.follow_up_at = null;
     await apiPatchOptional(recordId, fields, {dashboard_status: newStatus});
-    setTimeout(loadData, 900);
+    toast(icons[newStatus] || 'Status aktualisiert');
   } catch(e) {
     toast('❌ Fehler – bitte nochmal');
     if (select) select.disabled = false;
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
+  } finally {
+    setTimeout(loadData, 900);
   }
 }
 
