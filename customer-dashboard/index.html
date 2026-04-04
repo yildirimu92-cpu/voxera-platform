@@ -920,7 +920,6 @@ body{
               <button class="ftab active" onclick="filterList('anrufe-list','alle',this)">Alle</button>
               <button class="ftab" onclick="filterList('anrufe-list','dringend',this)">Dringend</button>
               <button class="ftab" onclick="filterList('anrufe-list','inbearbeitung',this)">In Bearbeitung</button>
-              <button class="ftab" onclick="filterList('anrufe-list','abgeschlossen',this)">Abgeschlossen</button>
             </div>
           </div>
           <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Alle eingegangenen Anrufe – filtern Sie nach Status oder suchen Sie nach Namen.</div>
@@ -3064,7 +3063,6 @@ function filterList(listId, type, btn) {
   btn.classList.add('active');
   document.querySelectorAll('#'+listId+' .call-row').forEach(row => {
     if (type === 'alle') { row.classList.remove('hidden'); return; }
-    if (type === 'abgeschlossen' || type === 'erledigt') { row.classList.toggle('hidden', row.dataset.done !== '1'); return; }
     if (type === 'offen') { row.classList.toggle('hidden', row.dataset.open !== '1'); return; }
     if (type === 'dringend') { row.classList.toggle('hidden', !['overdue','callback','today','hot'].includes(row.dataset.priority)); return; }
     if (type === 'inbearbeitung') { row.classList.toggle('hidden', row.dataset.status !== 'in bearbeitung'); return; }
