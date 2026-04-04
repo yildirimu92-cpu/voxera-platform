@@ -865,7 +865,7 @@ body{
         <!-- ANRUFE TAB -->
         <div class="tab-page" id="tab-anrufe">
           <div class="section-head" style="margin-bottom:4px">
-            <div class="section-title">Letzte Anrufe</div>
+            <div class="section-title">Alle Anrufe</div>
             <div class="filter-tabs">
               <button class="ftab active" onclick="filterList('anrufe-list','alle',this)">Alle</button>
               <button class="ftab" onclick="filterList('anrufe-list','dringend',this)">Dringend</button>
@@ -2189,8 +2189,9 @@ function renderDashboard(records) {
   if (kpiHeuteSub) {
     var hot  = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'hot'; }).length;
     var warm = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'warm'; }).length;
-    kpiHeuteSub.textContent = (hot > 0 || warm > 0)
-      ? hot + '× Hot · ' + warm + '× Warm'
+    var cold = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'cold'; }).length;
+    kpiHeuteSub.textContent = (hot > 0 || warm > 0 || cold > 0)
+      ? 'Cold: ' + cold + ' · Warm: ' + warm + ' · Hot: ' + hot
       : today.length > 0 ? 'Alle Anrufe von heute' : 'Noch keine Anrufe heute';
   }
 
@@ -2460,7 +2461,10 @@ function renderList(containerId, records, opts) {
   }).join('');
 }
 
-function renderAnrufe(records) { renderList('anrufe-list', records, {showActions:true}); }
+function renderAnrufe(records) {
+  const openOnly = records.filter(r => !isClosedStatus(r.fields.dashboard_status));
+  renderList('anrufe-list', openOnly, {showActions:true});
+}
 
 function renderRueckrufe(records) {
   const offen = records.filter(r => r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status));
