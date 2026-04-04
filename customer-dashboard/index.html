@@ -1788,6 +1788,23 @@ function priorityChip(record) {
   return `<span class="chip ${map[p.key] || 'chip-neu'}">${p.icon} ${p.label}</span>`;
 }
 
+const DISPLAY_TIMEZONE = 'Europe/Zurich';
+const TIME_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, hour: '2-digit', minute: '2-digit' });
+const DATE_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit' });
+const DATE_LONG_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
+
+function formatTimeCH(date) {
+  return TIME_FORMAT_CH.format(date);
+}
+
+function formatDateShortCH(date) {
+  return DATE_SHORT_FORMAT_CH.format(date);
+}
+
+function formatDateLongCH(date) {
+  return DATE_LONG_FORMAT_CH.format(date);
+}
+
 function avClass(q, done) {
   if (done) return 'av-done';
   const k = qualKey(q);
@@ -1802,9 +1819,8 @@ function fmtDate(raw) {
     if (diff < 60) return 'Gerade eben';
     if (diff < 3600) return 'vor ' + Math.floor(diff/60) + ' Min';
     if (diff < 86400) return 'vor ' + Math.floor(diff/3600) + ' Std';
-    if (diff < 172800) return 'Gestern ' + d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
-    return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'}) + ' ' +
-           d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    if (diff < 172800) return 'Gestern ' + formatTimeCH(d);
+    return formatDateShortCH(d) + ' ' + formatTimeCH(d);
   } catch(e) { return ''; }
 }
 
@@ -1813,8 +1829,7 @@ function fmtExactDateTime(raw) {
   try {
     const d = parseFollowUpDate(raw) || new Date(raw);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ', ' +
-           d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    return formatDateLongCH(d) + ', ' + formatTimeCH(d);
   } catch(e) { return ''; }
 }
 
@@ -1846,7 +1861,7 @@ function fmtTime(raw) {
   try {
     const d = parseFollowUpDate(raw) || new Date(raw);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    return formatTimeCH(d);
   }
   catch(e) { return ''; }
 }
@@ -1855,8 +1870,8 @@ function updateLastUpdatedLabel() {
   const label = document.getElementById('last-updated-label');
   if (!label) return;
   const now = new Date();
-  const timeStr = now.toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'});
-  const dateStr = now.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit'});
+  const timeStr = formatTimeCH(now);
+  const dateStr = formatDateShortCH(now);
   label.textContent = 'Zuletzt aktualisiert: ' + dateStr + ', ' + timeStr;
 }
 
@@ -1889,7 +1904,7 @@ function fmtDateOnly(raw) {
   if (!raw) return '–';
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return '–';
-  return d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'});
+  return formatDateLongCH(d);
 }
 
 function fmtDateTimeLocal(raw) {
@@ -2339,6 +2354,9 @@ function renderDashboard(records) {
         var durationStr = formatDurationForDisplay(f.duration_seconds);
         var qual = qualChip(f.lead_quality);
         var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
+        var callbackChip = (f.callback_requested && !isClosedStatus(f.dashboard_status)) ? '<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>' : '';
+        var followUpMeta = f.follow_up_at ? '<div style="font-size:11.5px;color:#6B7280;margin-top:6px;">🗓 ' + escHtml(fmtFollowUpDisplay(f.follow_up_at)) + '</div>' : '';
+        var nextActionMeta = f.next_action ? '<div style="font-size:11.5px;color:#6B7280;margin-top:2px;">→ ' + escHtml(f.next_action) + '</div>' : '';
         return '<div class="cb-row">'
           + '<div class="cb-av">' + ini + '</div>'
           + '<div class="cb-body">'
@@ -2348,8 +2366,11 @@ function renderDashboard(records) {
           +     '<span>' + callDate + ', ' + callTime + '</span>'
           +     '<span>' + durationStr + '</span>'
           +     qual
+          +     callbackChip
           +   '</div>'
           +   (summary ? '<div style="font-size:12px;color:var(--gray600);margin-top:4px;">' + summary + '</div>' : '')
+          +   followUpMeta
+          +   nextActionMeta
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Jetzt zurückrufen</button>' : '')
@@ -2498,7 +2519,7 @@ function renderList(containerId, records, opts) {
           ${priorityChip(r)}
           ${qualChip(f.lead_quality)}
           ${statusChip(f.dashboard_status)}
-          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf</span>':''}
+          ${(f.callback_requested&&!done)?'<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>':''}
         </div>
         <div class="call-meta">
           ${displayPhone?`<span class="call-phone">${displayPhone}</span>`:''}
