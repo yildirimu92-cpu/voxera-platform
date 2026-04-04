@@ -1820,6 +1820,14 @@ function parseLocalDateTimeParts(raw) {
   };
 }
 
+function normalizeFollowUpLocalValue(raw) {
+  if (!raw) return '';
+  const value = String(raw).trim().replace(' ', 'T');
+  const m = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return '';
+  return `${m[1]}T${m[2]}:${m[3]}`;
+}
+
 function pad2(n) {
   return n < 10 ? '0' + n : '' + n;
 }
@@ -1874,8 +1882,11 @@ function fmtExactDateTime(raw) {
 
 function fmtFollowUpDisplay(raw) {
   if (!raw) return '';
-  const exact = fmtExactDateTime(raw);
-  return exact ? 'Geplant für ' + exact : '';
+  const localValue = normalizeFollowUpLocalValue(raw);
+  if (!localValue) return '';
+  const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
+  const time = localValue.slice(11,16);
+  return 'Geplant für ' + date + ', ' + time;
 }
 
 function parseFollowUpDate(raw) {
@@ -1890,9 +1901,8 @@ function parseFollowUpDate(raw) {
 }
 
 function serializeFollowUpLocal(rawLocalValue) {
-  if (!rawLocalValue) return null;
-  const value = String(rawLocalValue).trim();
-  return value.length === 16 ? value + ':00' : value;
+  const value = normalizeFollowUpLocalValue(rawLocalValue);
+  return value || null;
 }
 
 function fmtTime(raw) {
@@ -1951,6 +1961,8 @@ function fmtDateOnly(raw) {
 }
 
 function fmtDateTimeLocal(raw) {
+  const localValue = normalizeFollowUpLocalValue(raw);
+  if (localValue) return localValue;
   if (!raw) return '';
   try {
     const localParts = parseLocalDateTimeParts(raw);
