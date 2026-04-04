@@ -1703,7 +1703,7 @@ function statusChip(s) {
   const n = normalizeStatus(s);
   if (n === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
   if (n === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
-  return '';
+  return '<span class="chip chip-neu">● Neu</span>';
 }
 
 function getPriority(record) {
