@@ -2264,8 +2264,8 @@ function renderDashboard(records) {
           +   (summary ? '<div style="font-size:12px;color:var(--gray600);margin-top:4px;">' + summary + '</div>' : '')
           + '</div>'
           + '<div class="cb-actions">'
-          +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">☎ Jetzt zurückrufen</button>' : '')
-          +   '<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">✓ Erledigt</button>'
+          +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Jetzt zurückrufen</button>' : '')
+          +   '<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">Erledigt</button>'
           +   '<button class="btn-a btn-note" onclick="openDetail(\'' + r.id + '\')">Details</button>'
           + '</div>'
           + '</div>';
@@ -2421,15 +2421,15 @@ function renderList(containerId, records, opts) {
         ${(followUpMeta || nextActionMeta)?`<div style="margin-bottom:6px">${followUpMeta}${nextActionMeta}</div>`:''}
         ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
-          ${callTarget&&!done?`<button class="btn-a btn-callback${opts.primaryCallback?' primary':''}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">☎ Jetzt zurückrufen</button>`:''}
+          ${callTarget&&!done?`<button class="btn-a btn-callback${opts.primaryCallback?' primary':''}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
           ${!done?`<select class="status-sel" onchange="confirmCloseWithDropdownPreservation('${r.id}',this)">
             <option value="Neu"${(!f.dashboard_status||f.dashboard_status==='Neu')?' selected':''}>● Neu</option>
             <option value="In Bearbeitung"${f.dashboard_status==='In Bearbeitung'?' selected':''}>⏳ In Bearbeitung</option>
             <option value="Abgeschlossen"${(f.dashboard_status==='Abgeschlossen'||f.dashboard_status==='Erledigt')?' selected':''}>✓ Abgeschlossen</option>
           </select>`:''}
-          ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">🗓 Follow-up</button>`:''}
-          ${!done?`<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation('${r.id}','Abgeschlossen',this.closest('.call-row'))">✓ Erledigt</button>`:''}
-          <button class="btn-a btn-note" onclick="openDetail('${r.id}')">🔍 Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">📝 Notiz</button>
+          ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}
+          ${!done?`<button class="btn-a btn-done" onclick="confirmCloseWithDropdownPreservation('${r.id}','Abgeschlossen',this.closest('.call-row'))">Erledigt</button>`:''}
+          <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>
         </div>`:''}
       </div>
     </div>`;
@@ -2719,9 +2719,9 @@ function openDetail(recordId) {
           <div class="detail-title">Nächste Schritte</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">${priorityChip(rec)}${qualChip(f.lead_quality)}${statusChip(f.dashboard_status)}${f.callback_requested && !isClosedStatus(f.dashboard_status) && getPriority(rec).key !== 'callback' ? '<span class="chip chip-rueckruf">📞 Rückruf</span>' : ''}</div>
           <div class="detail-actions">
-            ${tel ? `<a class="btn-a btn-callback" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')">☎ Jetzt zurückrufen</a>` : ''}
-            <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">🗓 Follow-up</button>
-            <button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">📝 Notiz</button>
+            ${tel ? `<a class="btn-a btn-callback" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')">Jetzt zurückrufen</a>` : ''}
+            <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up</button>
+            <button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz</button>
           </div>
         </div>
       </div>
