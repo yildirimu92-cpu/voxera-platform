@@ -1824,6 +1824,14 @@ function estimateMinutesForRecord(record) {
   return AVG_CALL_DURATION;
 }
 
+function getBilledMinutesForRecord(record) {
+  const f = (record && record.fields) || {};
+  // Billing: use ONLY duration_seconds, no fallbacks, no estimates
+  const secs = Number(f.duration_seconds || 0);
+  if (!Number.isNaN(secs) && secs > 0) return secs / 60;
+  return 0;  // Missing or invalid duration = 0 minutes (billing must be actual data only)
+}
+
 async function loadCustomerMeta() {
   const context = await resolveCustomerContext();
   const rec = context.customerRecord;
@@ -1878,12 +1886,12 @@ function renderUsage(records) {
   }
 
   const monthRecords = records.filter(r => {
-    const raw = r.fields && r.fields.created_date_raw;
+    const raw = r.fields && r.fields.created_at;
     if (!raw) return false;
     const d = new Date(raw);
     return !Number.isNaN(d.getTime()) && d >= periodStart && d <= now;
   });
-  const used = Math.round(monthRecords.reduce((sum, r) => sum + estimateMinutesForRecord(r), 0));
+  const used = Math.round(monthRecords.reduce((sum, r) => sum + getBilledMinutesForRecord(r), 0));
   const included = cfg.minutes || 0;
   const over = Math.max(0, used - included);
   const pct = included > 0 ? Math.min(100, Math.round((used / included) * 100)) : 0;
