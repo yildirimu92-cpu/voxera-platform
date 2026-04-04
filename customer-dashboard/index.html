@@ -2427,7 +2427,7 @@ function renderList(containerId, records, opts) {
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="${opts.primaryCallback?'btn-a btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
           ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}
-          ${!done?`<button class="btn-a btn-done" onclick="confirmClose('${r.id}','Abgeschlossen',this.closest('.call-row')||this.closest('.cb-row'))">Erledigt</button>`:''}
+          ${!done?`<button class="btn-a btn-done" onclick="confirmClose('${r.id}','Abgeschlossen',this.closest('.call-row, .cb-row'))">Erledigt</button>`:''}
           <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>
         </div>`:''}
       </div>
