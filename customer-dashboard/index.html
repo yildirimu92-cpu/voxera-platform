@@ -198,6 +198,16 @@ body{
 .setup-step-content ol{padding-left:20px;margin:8px 0;}
 .setup-step-content ol li{margin-bottom:6px;}
 .setup-step-content code{background:var(--gray100);padding:2px 7px;border-radius:4px;font-size:12px;font-weight:600;color:var(--blue);}
+.setup-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;}
+.setup-choice-card{background:var(--white);border:1px solid var(--gray200);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;}
+.setup-choice-card.active{border-color:var(--blue);box-shadow:0 0 0 2px rgba(26,86,219,.08);}
+.setup-choice-title{font-size:13px;font-weight:700;color:var(--gray900);}
+.setup-choice-text{font-size:12px;color:var(--gray600);line-height:1.5;}
+.setup-choice-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.setup-device-panel{display:none;background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px;margin:8px 0;}
+.setup-device-panel.active{display:block;}
+.setup-helper-note{font-size:12px;color:var(--gray500);margin-top:6px;}
+.setup-info-note{margin-top:8px;font-size:12px;color:#92400E;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:8px;padding:8px 10px;}
 .setup-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;border:none;transition:all .15s;}
 .setup-btn-primary{background:var(--blue);color:white;box-shadow:0 2px 8px rgba(26,86,219,.18);}
 .setup-btn-primary:hover{background:var(--blue-dark);}
@@ -224,6 +234,7 @@ body{
 .setup-skip a{font-size:13px;color:var(--gray400);text-decoration:none;font-weight:500;}
 .setup-skip a:hover{color:var(--blue);text-decoration:underline;}
 @media(max-width:768px){.setup-step{padding:16px;}.setup-welcome-title{font-size:20px;}.setup-number-box{flex-direction:column;align-items:flex-start;}}
+@media(max-width:768px){.setup-choice-grid{grid-template-columns:1fr;}}
 
 .setup-help-modal{width:100%;max-width:640px;max-height:90vh;overflow:auto;}
 .setup-help-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
@@ -1129,7 +1140,7 @@ body{
                       <span class="setup-number-val" id="setup-voxera-number">Wird geladen...</span>
                       <button class="setup-number-copy" onclick="copyVoxeraNumber(event)">Kopieren</button>
                     </div>
-                    <p>Diese Nummer leiten Sie im nächsten Schritt auf Ihr Telefon um.</p>
+                    <p>Diese Nummer übernimmt Ihre eingehenden Anrufe.<br>Im nächsten Schritt richten Sie die Rufumleitung auf diese Nummer ein.</p>
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
@@ -1138,31 +1149,80 @@ body{
                 </div>
               </div>
 
-              <!-- Step 2: Testanruf -->
+              <!-- Step 2: Rufumleitung einrichten -->
               <div class="setup-step" id="setup-s2" onclick="toggleSetupStep('s2')">
                 <div class="setup-step-head">
                   <div class="setup-step-num">2</div>
                   <div class="setup-step-info">
-                    <div class="setup-step-title">Testanruf durchführen</div>
-                    <div class="setup-step-desc">Prüfen Sie, ob alles korrekt funktioniert</div>
+                    <div class="setup-step-title">Rufumleitung einrichten</div>
+                    <div class="setup-step-desc">Wählen Sie Ihr Gerät und richten Sie die Weiterleitung ein</div>
                   </div>
                   <div class="setup-step-check">✓</div>
                 </div>
                 <div class="setup-step-body">
                   <div class="setup-step-content">
-                    <p>Rufen Sie jetzt Ihre Voxera-Nummer an, um zu testen ob der Assistent korrekt antwortet.</p>
-                    <div class="setup-number-box">
-                      <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
-                      <a class="setup-btn setup-btn-primary" id="setup-call-btn" href="tel:">☎ Jetzt anrufen</a>
+                    <div class="setup-choice-grid">
+                      <div class="setup-choice-card active" id="setup-device-card-mobile">
+                        <div class="setup-choice-title">Smartphone</div>
+                        <div class="setup-choice-text">Sie möchten Anrufe von Ihrem Smartphone direkt an Voxera weiterleiten.</div>
+                        <div class="setup-choice-actions">
+                          <button class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Mit Smartphone einrichten</button>
+                        </div>
+                      </div>
+                      <div class="setup-choice-card" id="setup-device-card-landline">
+                        <div class="setup-choice-title">Festnetz oder Büro-Telefon</div>
+                        <div class="setup-choice-text">Sie nutzen ein Festnetz, eine Telefonanlage oder eine VoIP-Lösung.</div>
+                        <div class="setup-choice-actions">
+                          <button class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'landline')">Mit Festnetz einrichten</button>
+                        </div>
+                      </div>
                     </div>
-                    <h4>Was Sie erwarten können</h4>
-                    <ol>
-                      <li>Voxera meldet sich mit einer freundlichen Begrüssung</li>
-                      <li>Nennen Sie einen Testnamen und ein Anliegen</li>
-                      <li>Nach dem Gespräch erscheint der Anruf im Dashboard</li>
-                    </ol>
-                    <p>Tipp: Wechseln Sie danach zum <strong>Dashboard</strong>-Tab und prüfen Sie, ob der Testanruf erscheint.</p>
-                    <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'testcall')">❓ Anleitung anzeigen</a>
+
+                    <div class="setup-device-panel active" id="setup-device-panel-mobile">
+                      <h4>Rufumleitung auf dem Smartphone aktivieren</h4>
+                      <p>Öffnen Sie Ihre Telefon-App und aktivieren Sie die Rufumleitung auf Ihre Voxera-Nummer.</p>
+                      <div class="setup-helper-note">Diese Nummer ist das Ziel Ihrer Rufumleitung.</div>
+                      <div class="setup-number-box">
+                        <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
+                        <div class="setup-choice-actions" style="margin-top:0;">
+                          <button class="setup-btn setup-btn-primary" id="setup-forwarding-mobile-btn" onclick="openSetupHelpOverlay(event,'forwarding')">Jetzt Rufumleitung aktivieren</button>
+                          <button class="setup-btn setup-btn-secondary" id="setup-forwarding-copy-btn" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="setup-device-panel" id="setup-device-panel-landline">
+                      <h4>Rufumleitung beim Anbieter einrichten</h4>
+                      <p>Richten Sie die Rufumleitung direkt bei Ihrem Telefonanbieter oder in Ihrer Telefonanlage auf Ihre Voxera-Nummer ein.</p>
+                      <div class="setup-helper-note">Diese Nummer tragen Sie bei der Rufumleitung als Ziel ein.</div>
+                      <div class="setup-number-box">
+                        <span class="setup-number-val" id="setup-voxera-number-3">Wird geladen...</span>
+                        <div class="setup-choice-actions" style="margin-top:0;">
+                          <button class="setup-btn setup-btn-secondary" id="setup-forwarding-landline-btn" onclick="openHelpSection('forwarding');event.stopPropagation();">Anleitung anzeigen</button>
+                        </div>
+                      </div>
+                      <div class="setup-info-note">Hinweis: Bei Festnetz oder Telefonanlagen funktionieren GSM-Codes oft nicht direkt.</div>
+                    </div>
+
+                    <p>Sobald die Rufumleitung eingerichtet ist, testen Sie im nächsten Schritt, ob alles korrekt funktioniert.</p>
+                    <button class="setup-btn setup-btn-primary" onclick="continueToSetupTest(event)">Weiter zum Test</button>
+
+                    <div id="setup-test-block" style="margin-top:14px;display:none;">
+                      <h4>Testanruf durchführen</h4>
+                      <p>Prüfen Sie jetzt, ob Ihre Rufumleitung korrekt eingerichtet ist.</p>
+                      <div class="setup-helper-note">Rufen Sie Ihre Voxera-Nummer an.</div>
+                      <div class="setup-number-box">
+                        <span class="setup-number-val" id="setup-voxera-number-test">Wird geladen...</span>
+                        <a class="setup-btn setup-btn-primary" id="setup-call-btn" href="tel:">☎ Jetzt anrufen</a>
+                      </div>
+                      <h4>Was Sie erwarten können</h4>
+                      <ul>
+                        <li>Voxera meldet sich automatisch</li>
+                        <li>Sie nennen ein Anliegen</li>
+                        <li>Der Anruf erscheint im Dashboard</li>
+                      </ul>
+                      <p>Tipp: Sagen Sie z. B. „Ich hätte gerne einen Termin.“</p>
+                    </div>
                   </div>
                   <div class="setup-actions">
                     <button class="setup-btn setup-btn-success" onclick="completeSetupStep('s2');event.stopPropagation();">Testanruf erfolgreich ✓</button>
@@ -3827,7 +3887,7 @@ var setupDone = {};
 var setupSkipped = {};
 var setupStateCustomerId = '';
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
-var SETUP_LABELS = {s1:'Einführung lesen',s2:'Testanruf durchführen',s3:'Benachrichtigungen einrichten',s4:'Passwort ändern',s5:'Hilfe & Support ansehen'};
+var SETUP_LABELS = {s1:'Einführung lesen',s2:'Rufumleitung einrichten & testen',s3:'Benachrichtigungen einrichten',s4:'Passwort ändern',s5:'Hilfe & Support ansehen'};
 function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
 function getSetupCount(){ return SETUP_STEPS.filter(function(k){return setupDone[k];}).length; }
 function getOpenSteps(){ return SETUP_STEPS.filter(function(k){return !setupDone[k];}); }
@@ -3885,6 +3945,27 @@ function toggleSetupStep(id){
   var wasActive = step.classList.contains('active');
   document.querySelectorAll('.setup-step').forEach(function(s){s.classList.remove('active');});
   if(!wasActive) step.classList.add('active');
+}
+
+function selectSetupDevice(event, type){
+  if(event) event.stopPropagation();
+  var isMobile = type === 'mobile';
+  var cardMobile = document.getElementById('setup-device-card-mobile');
+  var cardLandline = document.getElementById('setup-device-card-landline');
+  var panelMobile = document.getElementById('setup-device-panel-mobile');
+  var panelLandline = document.getElementById('setup-device-panel-landline');
+  if (cardMobile) cardMobile.classList.toggle('active', isMobile);
+  if (cardLandline) cardLandline.classList.toggle('active', !isMobile);
+  if (panelMobile) panelMobile.classList.toggle('active', isMobile);
+  if (panelLandline) panelLandline.classList.toggle('active', !isMobile);
+}
+
+function continueToSetupTest(event){
+  if(event) event.stopPropagation();
+  var block = document.getElementById('setup-test-block');
+  if (!block) return;
+  block.style.display = 'block';
+  block.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function completeSetupStep(id){
@@ -3981,9 +4062,16 @@ function initSetupWizard(){
   var num = customerMeta.voxeraNumber || '';
   var el1 = document.getElementById('setup-voxera-number');
   var el2 = document.getElementById('setup-voxera-number-2');
+  var el3 = document.getElementById('setup-voxera-number-3');
+  var elTest = document.getElementById('setup-voxera-number-test');
   var callBtn = document.getElementById('setup-call-btn');
+  var mobileSetupBtn = document.getElementById('setup-forwarding-mobile-btn');
+  var landlineSetupBtn = document.getElementById('setup-forwarding-landline-btn');
+  var copyBtn = document.getElementById('setup-forwarding-copy-btn');
   if(el1) el1.textContent = num || 'Nicht verfügbar';
   if(el2) el2.textContent = num || 'Nicht verfügbar';
+  if(el3) el3.textContent = num || 'Nicht verfügbar';
+  if(elTest) elTest.textContent = num || 'Nicht verfügbar';
   if(callBtn) {
     if (num) {
       callBtn.href = 'tel:' + num.replace(/\s/g,'');
@@ -3993,6 +4081,12 @@ function initSetupWizard(){
       callBtn.style.display = 'none';
     }
   }
+  [mobileSetupBtn, landlineSetupBtn, copyBtn].forEach(function(btn){
+    if(!btn) return;
+    btn.disabled = !num;
+    btn.style.opacity = num ? '' : '.55';
+    btn.style.cursor = num ? '' : 'not-allowed';
+  });
   renderForwardingCodes();
   routeDashboardFirstSessionExperience();
 }
