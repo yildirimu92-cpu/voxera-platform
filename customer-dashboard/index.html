@@ -1833,7 +1833,17 @@ function toDashboardRecord(row) {
  */
 function getRecordTimestamp(record) {
   const f = (record && record.fields) || {};
-  return f.created_date_raw || f.created_at || null;
+  const raw = f.created_date_raw || f.created_at || null;
+  if (!raw) return null;
+  // Webhook timestamps in created_date_raw arrive as bare UTC strings without a 'Z' suffix
+  // (e.g. "2024-12-20T12:30:00"). parseLocalDateTimeParts() matches any no-suffix string,
+  // so they bypass the Intl Europe/Zurich conversion and display UTC time directly.
+  // Appending 'Z' makes the UTC intent explicit and routes through the correct formatting path.
+  const s = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/.test(s)) {
+    return s.replace(' ', 'T') + 'Z';
+  }
+  return raw;
 }
 
 function resolveFollowUpAt(fields) {
