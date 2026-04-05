@@ -297,19 +297,11 @@ body{
 .topbar{
   padding:20px 32px;background:var(--white);
   border-bottom:1px solid var(--gray200);
-  display:flex;align-items:center;justify-content:space-between;
+  display:flex;align-items:flex-start;justify-content:space-between;
   position:sticky;top:0;z-index:30;
 }
-.greeting-sub{
-  font-size:13px;
-  font-weight:400;
-  letter-spacing:0;
-  text-transform:none;
-  color:#6B7280;
-  margin-bottom:4px;
-}
 .greeting-main{
-  font-size:20px;
+  font-size:22px;
   font-weight:600;
   letter-spacing:-.25px;
   color:#111827;
@@ -317,8 +309,20 @@ body{
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
+.greeting-sub{
+  font-size:12.5px;
+  font-weight:500;
+  letter-spacing:0;
+  text-transform:none;
+  color:#6B7280;
+  margin-top:4px;
+  line-height:1.55;
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+}
 .page-title{font-family:var(--headline-font);font-weight:600;letter-spacing:-.25px;color:#111827;}
-.topbar-right{display:flex;align-items:center;gap:16px;}
+.topbar-right{display:none;}
 .status-pill{
   display:flex;align-items:center;gap:6px;
   background:var(--green-light);border:1px solid var(--green-mid);
@@ -764,13 +768,14 @@ body{
   .main{margin-left:0;}
   .mobile-nav{display:block;}
   .topbar{padding:14px 16px;}
-  .topbar-right{gap:8px;}
+  .topbar-right{display:none;}
   .content{padding:16px;padding-bottom:100px;}
   .kpi-grid{grid-template-columns:1fr;gap:10px;}
   .kpi{padding:14px;}
   .kpi-val{font-size:28px;}
   .status-pill{display:none;}
-  .greeting-main{font-size:18px;}
+  .greeting-main{font-size:20px;}
+  .greeting-sub{font-size:12px;}
   .section-title{font-size:18px;}
   /* Mobile call-actions: primary full-width, secondary in 2-column grid */
   .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
@@ -921,8 +926,8 @@ body{
     <main class="main">
       <div class="topbar">
         <div>
+          <div class="greeting-main page-title" id="greeting-main">–</div>
           <div class="greeting-sub" id="greeting-sub">–</div>
-          <div class="greeting-main page-title">Anrufe & Rückrufe auf einen Blick.</div>
         </div>
         <div class="topbar-right">
           <span id="last-updated-label" style="font-size:11px;color:var(--gray400);"></span>
@@ -1453,7 +1458,7 @@ body{
                     <div class="help-code-row">
                       <code>##002#</code>
                       <div class="help-code-actions">
-                        <button class="settings-btn-primary" onclick="copyForwardingCode(event,'##002#')">Code kopieren</button>
+                        <button class="settings-btn-primary" data-fixed-code="##002#" onclick="copyForwardingCode(event,'##002#')">Code kopieren</button>
                         <a class="settings-btn-secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a>
                       </div>
                     </div>
@@ -2186,6 +2191,17 @@ function updateLastUpdatedLabel() {
   const timeStr = formatTimeCH(now);
   const dateStr = formatDateShortCH(now);
   label.textContent = 'Zuletzt aktualisiert: ' + dateStr + ', ' + timeStr;
+  updateDashboardHeaderMeta();
+}
+
+function updateDashboardHeaderMeta() {
+  const sub = document.getElementById('greeting-sub');
+  if (!sub) return;
+  var openCalls = allRecords.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); }).length;
+  var openCallbacks = allRecords.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); }).length;
+  const now = new Date();
+  const timeStr = formatTimeCH(now);
+  sub.textContent = openCalls + ' Anrufe · ' + openCallbacks + ' Rückrufe · Aktualisiert ' + timeStr;
 }
 
 function isToday(raw) {
@@ -2291,11 +2307,6 @@ async function loadCustomerMeta() {
     voxeraNumber: customerMeta.voxeraNumber || null,
     telNr: customerMeta.telNr || null
   });
-  const sub = document.getElementById('greeting-sub');
-  if (sub && customerMeta.customerName) {
-    sub.textContent = `${customerMeta.customerName} · ${customerMeta.plan}`;
-    sub.dataset.custom = '1';
-  }
   return customerMeta;
 }
 
@@ -2514,15 +2525,11 @@ async function loadData() {
 
     const h = new Date().getHours();
     const greet = h<12 ? 'Guten Morgen' : h<18 ? 'Guten Tag' : 'Guten Abend';
-    const sub = document.getElementById('greeting-sub');
-    if (sub) {
+    const titleEl = document.getElementById('greeting-main');
+    if (titleEl) {
       var displayName = customerMeta.customerName || '';
-      if (displayName) {
-        sub.textContent = greet + ', ' + displayName + '.';
-      } else if (!sub.dataset.custom) {
-        sub.textContent = greet + '.';
-      }
-      sub.dataset.custom = '1';
+      titleEl.textContent = displayName ? (greet + ', ' + displayName) : greet;
+      titleEl.dataset.custom = '1';
     }
 
     renderDashboard(records);
@@ -3418,18 +3425,21 @@ function renderForwardingCodes() {
     codeEl.textContent = resolved || 'Nicht verfügbar';
   });
 
-  document.querySelectorAll('button[data-code-template]').forEach(function(btn) {
-    btn.style.display = hasNumber ? '' : 'none';
+  document.querySelectorAll('button[data-code-template], button[data-fixed-code]').forEach(function(btn) {
+    btn.disabled = !hasNumber;
+    btn.style.opacity = hasNumber ? '' : '.55';
+    btn.style.cursor = hasNumber ? '' : 'not-allowed';
   });
 
   document.querySelectorAll('.help-direct-btn').forEach(function(linkEl) {
     var fixedCode = linkEl.getAttribute('data-fixed-code') || '';
     var template = linkEl.getAttribute('data-code-template') || '';
     var resolved = fixedCode || resolveForwardingCode(template);
-    var canUseDirect = !!resolved && isMobile;
-    linkEl.style.display = hasNumber ? '' : 'none';
-    linkEl.setAttribute('href', canUseDirect ? ('tel:' + resolved) : 'javascript:void(0)');
+    var canUseDirect = !!resolved && isMobile && hasNumber;
+    linkEl.style.display = '';
+    linkEl.setAttribute('href', canUseDirect ? ('tel:' + encodeURIComponent(resolved)) : 'javascript:void(0)');
     linkEl.setAttribute('aria-disabled', canUseDirect ? 'false' : 'true');
+    linkEl.setAttribute('data-code', resolved || '');
     var noteEl = linkEl.closest('.help-forwarding-card');
     noteEl = noteEl ? noteEl.querySelector('.help-dialer-note') : null;
     if (noteEl) noteEl.style.display = (!isMobile && resolved) ? 'block' : 'none';
@@ -3460,16 +3470,16 @@ function openSetupHelpOverlay(event, sectionId) {
       html: '' +
         '<div class="setup-help-grid">' +
           '<div class="setup-help-card"><div class="setup-help-card-title">1) Empfohlen: Bei Nichterreichbarkeit</div><div class="setup-help-card-text">Ideal, wenn Sie selbst erreichbar bleiben möchten und Voxera nur bei verpassten Anrufen übernimmt.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**62*{voxera_number}#\">Wird geladen...</code><button class="settings-btn-secondary" data-code-template=\"**62*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Kopieren</button></div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**62*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**62*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**62*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
           '<div class="setup-help-card"><div class="setup-help-card-title">2) Bei Besetzt</div><div class="setup-help-card-text">Nützlich, wenn Ihre Leitung bereits belegt ist.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**67*{voxera_number}#\">Wird geladen...</code><button class="settings-btn-secondary" data-code-template=\"**67*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Kopieren</button></div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**67*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**67*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**67*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
           '<div class="setup-help-card"><div class="setup-help-card-title">3) Alle Anrufe weiterleiten</div><div class="setup-help-card-text">Wenn Voxera vorübergehend alle Anrufe übernehmen soll.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**21*{voxera_number}#\">Wird geladen...</code><button class="settings-btn-secondary" data-code-template=\"**21*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Kopieren</button></div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**21*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**21*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**21*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
           '<div class="setup-help-card"><div class="setup-help-card-title">Weiterleitung ausschalten</div><div class="setup-help-card-text">Setzt aktive Umleitungen zurück.</div>' +
-            '<div class="setup-help-code-row"><code>##002#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,\'##002#\')">Kopieren</button></div>' +
+            '<div class="setup-help-code-row"><code>##002#</code><div class="help-code-actions"><button class="settings-btn-secondary" data-fixed-code="##002#" onclick="copyForwardingCode(event,\'##002#\')">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
         '</div>' +
         '<div class="help-chip" id="setup-forwarding-fallback" style="display:none;background:var(--amber-light);border-color:var(--amber-mid);color:#92400E;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>',
@@ -3555,17 +3565,25 @@ async function copyForwardingCode(event, code) {
   }
 }
 
+function applyForwarding(code) {
+  if (!code) return false;
+  var encodedCode = encodeURIComponent(code);
+  window.location.href = 'tel:' + encodedCode;
+  return true;
+}
+
 function applyForwardingCode(event, linkEl) {
   if (event) event.stopPropagation();
   if (!linkEl) return;
-  var href = linkEl.getAttribute('href') || '';
+  var code = linkEl.getAttribute('data-code') || '';
   var disabled = linkEl.getAttribute('aria-disabled') === 'true';
-  if (disabled || !href || href.indexOf('tel:') !== 0) {
+  if (disabled || !code) {
     if (event) event.preventDefault();
-    toast('Direktes Anwenden nur auf dem Smartphone verfügbar');
+    var missingNumber = !getDialableVoxeraNumber();
+    toast(missingNumber ? 'Ihre Voxera-Nummer ist noch nicht verfügbar.' : 'Direktes Anwenden nur auf dem Smartphone verfügbar');
     return;
   }
-  window.location.href = href;
+  applyForwarding(code);
 }
 
 async function changePassword() {
@@ -4000,16 +4018,18 @@ function showApp(user) {
 
   // Initial greeting, will be updated with customer_name after loadData
   const fallbackName = meta.full_name ? meta.full_name.split(' ')[0] : (user.email||'').split('@')[0];
-  const greetingSub = document.getElementById('greeting-sub');
+  const greetingMain = document.getElementById('greeting-main');
   const greetWord = new Date().getHours()<12?'Morgen':new Date().getHours()<18?'Tag':'Abend';
-  greetingSub.textContent = 'Guten ' + greetWord + ', ' + fallbackName + '.';
+  if (greetingMain) greetingMain.textContent = 'Guten ' + greetWord + ', ' + fallbackName;
   document.getElementById('sidebar-user').textContent = user.email;
 
   loadData().then(() => {
     // Update greeting with customer_name from metadata if available
     var displayName = customerMeta.customerName || fallbackName;
-    greetingSub.textContent = 'Guten ' + greetWord + ', ' + displayName + '.';
-    greetingSub.dataset.custom = '1';
+    if (greetingMain) {
+      greetingMain.textContent = 'Guten ' + greetWord + ', ' + displayName;
+      greetingMain.dataset.custom = '1';
+    }
     initSetupWizard();
     if(shouldShowSetupOnLogin(customerContext)){
       var navEl = document.getElementById('nav-einrichtung');
