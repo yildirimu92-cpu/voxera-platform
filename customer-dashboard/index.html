@@ -1571,9 +1571,30 @@ function resolveFollowUpAt(fields) {
   if (!fields) return '';
   return fields.follow_up_at || fields.followup_at || fields.followUpAt || fields.follow_up || '';
 }
+
+function fmtFollowUpDateTime(raw) {
+  if (!raw) return '';
+  const localValue = normalizeFollowUpLocalValue(raw);
+  if (!localValue) return '';
+  const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
+  const time = localValue.slice(11,16);
+  return date + ', ' + time;
+}
+
+function buildFollowUpMetaText(nextAction, followUpAt) {
+  const action = (nextAction || '').trim();
+  const formattedFollowUp = fmtFollowUpDateTime(followUpAt);
+  if (action && formattedFollowUp) return '→ ' + action + ' · 🗓 ' + formattedFollowUp;
+  if (action) return '→ ' + action;
+  if (formattedFollowUp) return '🗓 ' + formattedFollowUp;
+  return '';
+}
+
 if (typeof window !== 'undefined') {
   window.resolveFollowUpAt = resolveFollowUpAt;
-  console.log('[VOXERA FOLLOWUP BOOT]', typeof resolveFollowUpAt, typeof window.resolveFollowUpAt);
+  window.fmtFollowUpDateTime = fmtFollowUpDateTime;
+  window.buildFollowUpMetaText = buildFollowUpMetaText;
+  console.log('[VOXERA FOLLOWUP BOOT]', typeof window.resolveFollowUpAt, typeof window.buildFollowUpMetaText);
 }
 
 function extractCustomerHint(authUser) {
@@ -1888,15 +1909,6 @@ function fmtExactDateTime(raw) {
     if (Number.isNaN(d.getTime())) return '';
     return formatDateLongCH(d) + ', ' + formatTimeCH(d);
   } catch(e) { return ''; }
-}
-
-function fmtFollowUpDisplay(raw) {
-  if (!raw) return '';
-  const localValue = normalizeFollowUpLocalValue(raw);
-  if (!localValue) return '';
-  const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
-  const time = localValue.slice(11,16);
-  return 'Geplant für ' + date + ', ' + time;
 }
 
 function parseFollowUpDate(raw) {
@@ -2421,8 +2433,8 @@ function renderDashboard(records) {
         var qual = qualChip(f.lead_quality);
         var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
         var callbackChip = (f.callback_requested && !isClosedStatus(f.dashboard_status)) ? '<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>' : '';
-        var followUpMeta = f.follow_up_at ? '<div style="font-size:11.5px;color:#6B7280;margin-top:6px;">🗓 ' + escHtml(fmtFollowUpDisplay(f.follow_up_at)) + '</div>' : '';
-        var nextActionMeta = f.next_action ? '<div style="font-size:11.5px;color:#6B7280;margin-top:2px;">→ ' + escHtml(f.next_action) + '</div>' : '';
+        var followUpMetaText = buildFollowUpMetaText(f.next_action, resolveFollowUpAt(f));
+        var followUpMeta = followUpMetaText ? '<div style="font-size:11.5px;color:#6B7280;margin-top:6px;">' + escHtml(followUpMetaText) + '</div>' : '';
         return '<div class="cb-row">'
           + '<div class="cb-av">' + ini + '</div>'
           + '<div class="cb-body">'
@@ -2436,7 +2448,6 @@ function renderDashboard(records) {
           +   '</div>'
           +   (summary ? '<div style="font-size:12px;color:var(--gray600);margin-top:4px;">' + summary + '</div>' : '')
           +   followUpMeta
-          +   nextActionMeta
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Jetzt zurückrufen</button>' : '')
