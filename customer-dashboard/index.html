@@ -1144,7 +1144,7 @@ body{
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1');event.stopPropagation();">Verstanden &amp; weiter</button>
+                    <button type="button" class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1',event)">Verstanden &amp; weiter</button>
                   </div>
                 </div>
               </div>
@@ -1166,14 +1166,14 @@ body{
                         <div class="setup-choice-title">Smartphone</div>
                         <div class="setup-choice-text">Sie möchten Anrufe von Ihrem Smartphone direkt an Voxera weiterleiten.</div>
                         <div class="setup-choice-actions">
-                          <button class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Mit Smartphone einrichten</button>
+                          <button type="button" class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Mit Smartphone einrichten</button>
                         </div>
                       </div>
                       <div class="setup-choice-card" id="setup-device-card-landline">
                         <div class="setup-choice-title">Festnetz oder Büro-Telefon</div>
                         <div class="setup-choice-text">Sie nutzen ein Festnetz, eine Telefonanlage oder eine VoIP-Lösung.</div>
                         <div class="setup-choice-actions">
-                          <button class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'landline')">Mit Festnetz einrichten</button>
+                          <button type="button" class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'landline')">Mit Festnetz einrichten</button>
                         </div>
                       </div>
                     </div>
@@ -1185,8 +1185,8 @@ body{
                       <div class="setup-number-box">
                         <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
                         <div class="setup-choice-actions" style="margin-top:0;">
-                          <button class="setup-btn setup-btn-primary" id="setup-forwarding-mobile-btn" onclick="openSetupHelpOverlay(event,'forwarding')">Jetzt Rufumleitung aktivieren</button>
-                          <button class="setup-btn setup-btn-secondary" id="setup-forwarding-copy-btn" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
+                          <button type="button" class="setup-btn setup-btn-primary" id="setup-forwarding-mobile-btn" onclick="openSetupHelpOverlay(event,'forwarding')">Jetzt Rufumleitung aktivieren</button>
+                          <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-copy-btn" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
                         </div>
                       </div>
                     </div>
@@ -1198,14 +1198,14 @@ body{
                       <div class="setup-number-box">
                         <span class="setup-number-val" id="setup-voxera-number-3">Wird geladen...</span>
                         <div class="setup-choice-actions" style="margin-top:0;">
-                          <button class="setup-btn setup-btn-secondary" id="setup-forwarding-landline-btn" onclick="openHelpSection('forwarding');event.stopPropagation();">Anleitung anzeigen</button>
+                          <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-landline-btn" onclick="openHelpSection('forwarding');event.stopPropagation();">Anleitung anzeigen</button>
                         </div>
                       </div>
                       <div class="setup-info-note">Hinweis: Bei Festnetz oder Telefonanlagen funktionieren GSM-Codes oft nicht direkt.</div>
                     </div>
 
                     <p>Sobald die Rufumleitung eingerichtet ist, testen Sie im nächsten Schritt, ob alles korrekt funktioniert.</p>
-                    <button class="setup-btn setup-btn-primary" onclick="continueToSetupTest(event)">Weiter zum Test</button>
+                    <button type="button" class="setup-btn setup-btn-primary" onclick="continueToSetupTest(event)">Weiter zum Test</button>
 
                     <div id="setup-test-block" style="margin-top:14px;display:none;">
                       <h4>Testanruf durchführen</h4>
@@ -1225,8 +1225,8 @@ body{
                     </div>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-success" onclick="completeSetupStep('s2');event.stopPropagation();">Testanruf erfolgreich ✓</button>
-                    <button class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s2');event.stopPropagation();">Später testen</button>
+                    <button type="button" class="setup-btn setup-btn-success" onclick="completeSetupStep('s2',event)">Testanruf erfolgreich ✓</button>
+                    <button type="button" class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s2',event)">Später testen</button>
                   </div>
                 </div>
               </div>
@@ -1244,24 +1244,24 @@ body{
                 <div class="setup-step-body">
                   <div class="setup-step-content">
                     <p>Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet.</p>
-                    <div style="margin:14px 0;display:grid;gap:10px;">
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-none" value="none" checked style="accent-color:var(--blue);width:16px;height:16px;">
+                    <div style="margin:14px 0;display:grid;gap:10px;" onclick="event.stopPropagation();">
+                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);" onclick="event.stopPropagation();">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-none" value="none" checked onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Keine Benachrichtigungen</span>
                       </label>
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-callback-only" value="callback_only" style="accent-color:var(--blue);width:16px;height:16px;">
+                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);" onclick="event.stopPropagation();">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-callback-only" value="callback_only" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Nur bei Rückruf-Anfragen</span>
                       </label>
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-all-calls" value="all_calls" style="accent-color:var(--blue);width:16px;height:16px;">
+                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;" onclick="event.stopPropagation();">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-all-calls" value="all_calls" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Bei jedem Anruf</span>
                       </label>
                     </div>
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'notifications')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-primary" onclick="saveSetupNotifications();event.stopPropagation();">Speichern & weiter</button>
+                    <button type="button" class="setup-btn setup-btn-primary" id="setup-notification-continue-btn" onclick="saveNotificationAndContinue(event)">Speichern & weiter</button>
                   </div>
                 </div>
               </div>
@@ -1284,7 +1284,7 @@ body{
                     </div>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s4');event.stopPropagation();">Überspringen</button>
+                    <button type="button" class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s4',event)">Überspringen</button>
                   </div>
                 </div>
               </div>
@@ -1311,7 +1311,7 @@ body{
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'support')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-success" onclick="completeSetupStep('s5');event.stopPropagation();">Einrichtung abschliessen ✓</button>
+                    <button type="button" class="setup-btn setup-btn-success" onclick="completeSetupStep('s5',event)">Einrichtung abschliessen ✓</button>
                   </div>
                 </div>
               </div>
@@ -1332,7 +1332,7 @@ body{
                 <div class="setup-complete-icon">🎉</div>
                 <div class="setup-complete-title">Alles eingerichtet!</div>
                 <div class="setup-complete-sub">Voxera ist bereit. Alle eingehenden Anrufe erscheinen automatisch in Ihrem Dashboard.</div>
-                <button class="setup-btn setup-btn-primary" onclick="finishSetup()" style="font-size:15px;padding:12px 28px;">Zum Dashboard →</button>
+                <button type="button" class="setup-btn setup-btn-primary" onclick="finishSetup()" style="font-size:15px;padding:12px 28px;">Zum Dashboard →</button>
               </div>
             </div>
           </div>
@@ -3886,6 +3886,7 @@ function handleSetupExperienceWizardCta(event) {
 var setupDone = {};
 var setupSkipped = {};
 var setupStateCustomerId = '';
+var selectedSetupNotificationOption = null;
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
 var SETUP_LABELS = {s1:'Einführung lesen',s2:'Rufumleitung einrichten & testen',s3:'Benachrichtigungen einrichten',s4:'Passwort ändern',s5:'Hilfe & Support ansehen'};
 function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
@@ -3940,11 +3941,33 @@ function updateDashboardReminder(){
 }
 
 function toggleSetupStep(id){
+  window.activeSetupStep = id;
   var step = document.getElementById('setup-'+id);
   if(!step) return;
   var wasActive = step.classList.contains('active');
   document.querySelectorAll('.setup-step').forEach(function(s){s.classList.remove('active');});
   if(!wasActive) step.classList.add('active');
+}
+
+function setActiveSetupStep(stepId){
+  window.activeSetupStep = stepId || null;
+  document.querySelectorAll('.setup-step').forEach(function(s){s.classList.remove('active');});
+  if (!stepId) return;
+  var step = document.getElementById('setup-'+stepId);
+  if (step) step.classList.add('active');
+}
+
+function goToNextSetupStep(currentStepId){
+  var idx = SETUP_STEPS.indexOf(currentStepId);
+  if (idx < 0) return;
+  for (var i = idx + 1; i < SETUP_STEPS.length; i++) {
+    var sid = SETUP_STEPS[i];
+    if (!setupDone[sid] && !setupSkipped[sid]) {
+      setActiveSetupStep(sid);
+      return;
+    }
+  }
+  setActiveSetupStep(null);
 }
 
 function selectSetupDevice(event, type){
@@ -3968,7 +3991,23 @@ function continueToSetupTest(event){
   block.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function completeSetupStep(id){
+function selectSetupNotification(option, event){
+  if (event) event.stopPropagation();
+  selectedSetupNotificationOption = option || null;
+}
+
+function saveNotificationAndContinue(event){
+  if (event) event.stopPropagation();
+  var selected = selectedSetupNotificationOption || getSelectedNotificationMode('setup-notification-mode');
+  if (!selected) {
+    toast('Bitte wählen Sie eine Benachrichtigungsoption.');
+    return;
+  }
+  saveSetupNotifications();
+}
+
+function completeSetupStep(id, event){
+  if(event) event.stopPropagation();
   var wasForwardingSetupCompleted = isForwardingSetupCompleted();
   setupDone[id] = true;
   delete setupSkipped[id];
@@ -4000,15 +4039,11 @@ function completeSetupStep(id){
     return;
   }
   // Open next incomplete step
-  for(var i=0;i<SETUP_STEPS.length;i++){
-    if(!setupDone[SETUP_STEPS[i]]){
-      setTimeout(function(sid){toggleSetupStep(sid);},200,SETUP_STEPS[i]);
-      break;
-    }
-  }
+  goToNextSetupStep(id);
 }
 
-function skipSetupStep(id){
+function skipSetupStep(id, event){
+  if(event) event.stopPropagation();
   if (id === 's4') {
     completeSetupStep(id);
     return;
@@ -4018,12 +4053,8 @@ function skipSetupStep(id){
   if(step){ step.classList.remove('active'); step.classList.add('skipped','step-skipped'); }
   updateSetupProgress();
   // Open next step
-  for(var i=0;i<SETUP_STEPS.length;i++){
-    if(!setupDone[SETUP_STEPS[i]] && !setupSkipped[SETUP_STEPS[i]]){
-      setTimeout(function(sid){toggleSetupStep(sid);},200,SETUP_STEPS[i]);
-      return;
-    }
-  }
+  goToNextSetupStep(id);
+  if (window.activeSetupStep) return;
   // All remaining are skipped or done - show summary
   updateOpenSummary();
 }
@@ -4087,6 +4118,11 @@ function initSetupWizard(){
     btn.style.opacity = num ? '' : '.55';
     btn.style.cursor = num ? '' : 'not-allowed';
   });
+  if (!isSetupComplete()) {
+    var firstOpen = getOpenSteps()[0] || 's1';
+    setActiveSetupStep(firstOpen);
+  }
+  selectedSetupNotificationOption = getSelectedNotificationMode('setup-notification-mode');
   renderForwardingCodes();
   routeDashboardFirstSessionExperience();
 }
@@ -4107,7 +4143,11 @@ async function saveSetupNotifications(){
       if(context.customerRecord && context.customerRecord.id) recordId = context.customerRecord.id;
     }catch(e){}
   }
-  var notificationMode = getSelectedNotificationMode('setup-notification-mode') || 'none';
+  var notificationMode = selectedSetupNotificationOption || getSelectedNotificationMode('setup-notification-mode');
+  if(!notificationMode){
+    toast('Bitte wählen Sie eine Benachrichtigungsoption.');
+    return;
+  }
   if(recordId){
     try{
       await patchCustomerRecord(recordId, {notification_mode:notificationMode});
