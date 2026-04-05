@@ -814,6 +814,18 @@ body{
 .dash-btn-primary:hover{background:var(--blue-dark);border-color:var(--blue-dark);}
 .dash-btn-secondary{display:inline-flex;align-items:center;justify-content:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;}
 .dash-btn-secondary:hover{background:var(--gray50);}
+.fse-card{display:none;background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:24px;margin-bottom:16px;}
+.fse-card.show{display:block;}
+.fse-title{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:var(--gray900);margin-bottom:8px;}
+.fse-sub{font-size:14px;color:var(--gray600);line-height:1.6;margin-bottom:18px;max-width:640px;}
+.fse-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.fse-progress{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:14px;}
+.fse-progress-title{font-size:12.5px;font-weight:700;color:var(--gray700);margin-bottom:8px;}
+.fse-progress ul{margin:0;padding:0;list-style:none;display:grid;gap:6px;}
+.fse-progress li{font-size:13px;color:var(--gray600);}
+.fse-progress li.done{color:var(--green);font-weight:600;}
+.fse-note{font-size:12.5px;color:#92400E;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:none;}
+.fse-note.show{display:block;}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:20px;}
 .dash-kpi{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:18px 20px;}
 .dash-kpi-label{font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0;color:#6B7280;margin-bottom:10px;}
@@ -847,6 +859,8 @@ body{
   .dash-kpi-row{grid-template-columns:1fr;gap:10px;}
   .dash-activation-actions{flex-direction:column;}
   .dash-btn-primary,.dash-btn-secondary{width:100%;}
+  .fse-actions{flex-direction:column;}
+  .fse-title{font-size:24px;}
   /* Mobile legacy cb-actions alignment */
   .cb-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:8px;}
   .cb-actions .btn-call,.btn-done-small,.btn-note{width:100%;justify-content:center;height:40px;padding:0 12px;font-size:12px;}
@@ -952,6 +966,23 @@ body{
 
         <!-- DASHBOARD TAB -->
         <div class="tab-page active" id="tab-dashboard">
+          <div class="fse-card" id="dashboard-fse">
+            <div class="fse-title">Willkommen bei Voxera</div>
+            <div class="fse-sub">Verpassen Sie keine Anrufe mehr. In 2 Minuten sind Sie startbereit.</div>
+            <div class="fse-note" id="dashboard-fse-note">Ihre Voxera-Nummer ist noch nicht verfügbar. Bitte kontaktieren Sie den Support, um die Einrichtung abzuschließen.</div>
+            <div class="fse-actions">
+              <button class="dash-btn-primary" id="dashboard-fse-primary" onclick="handleSetupExperiencePrimaryCta(event)">Jetzt einrichten</button>
+              <button class="dash-btn-secondary" id="dashboard-fse-secondary" onclick="handleSetupExperienceWizardCta(event)">Einrichtungsassistent öffnen</button>
+            </div>
+            <div class="fse-progress">
+              <div class="fse-progress-title">Fortschritt</div>
+              <ul>
+                <li id="fse-progress-forwarding">☐ Rufumleitung aktivieren</li>
+                <li id="fse-progress-testcall">☐ Testanruf durchführen</li>
+                <li id="fse-progress-ready">☐ Bereit</li>
+              </ul>
+            </div>
+          </div>
           <div id="dash-loading" class="loading-wrap"><div class="spinner"></div><span>Laden...</span></div>
           <div id="dash-content" style="display:none">
 
@@ -2593,7 +2624,7 @@ async function loadData() {
     updateLastUpdatedLabel();
 
     document.getElementById('dash-loading').style.display = 'none';
-    document.getElementById('dash-content').style.display = 'block';
+    routeDashboardFirstSessionExperience();
 
   } catch(e) {
     const rawMsg = String((e && e.message) || 'Unbekannter Fehler');
@@ -3659,6 +3690,85 @@ function openSetupWizardFromCta(event, stepId) {
   if (stepId) toggleSetupStep(stepId);
 }
 
+function isForwardingActivated() {
+  try {
+    if (localStorage.getItem('voxera_forwarding_activated') === '1') return true;
+  } catch(e) {}
+  return !!setupDone.s2;
+}
+
+function showDashboard() {
+  var fseEl = document.getElementById('dashboard-fse');
+  var dashEl = document.getElementById('dash-content');
+  if (fseEl) fseEl.classList.remove('show');
+  if (dashEl) dashEl.style.display = 'block';
+}
+
+function showSetupExperience() {
+  var fseEl = document.getElementById('dashboard-fse');
+  var dashEl = document.getElementById('dash-content');
+  if (fseEl) fseEl.classList.add('show');
+  if (dashEl) dashEl.style.display = 'none';
+}
+
+function syncSetupExperienceButtons() {
+  var hasNumber = !!getDialableVoxeraNumber();
+  var primaryBtn = document.getElementById('dashboard-fse-primary');
+  var secondaryBtn = document.getElementById('dashboard-fse-secondary');
+  var noteEl = document.getElementById('dashboard-fse-note');
+  [primaryBtn, secondaryBtn].forEach(function(btn){
+    if (!btn) return;
+    btn.disabled = !hasNumber;
+    btn.style.opacity = hasNumber ? '' : '.55';
+    btn.style.cursor = hasNumber ? '' : 'not-allowed';
+  });
+  if (noteEl) noteEl.classList.toggle('show', !hasNumber);
+}
+
+function updateSetupExperienceProgress() {
+  var forwardingDone = !!setupDone.s1;
+  var testCallDone = !!setupDone.s2;
+  var readyDone = isForwardingActivated();
+  var map = [
+    { id: 'fse-progress-forwarding', done: forwardingDone, label: 'Rufumleitung aktivieren' },
+    { id: 'fse-progress-testcall', done: testCallDone, label: 'Testanruf durchführen' },
+    { id: 'fse-progress-ready', done: readyDone, label: 'Bereit' }
+  ];
+  map.forEach(function(entry){
+    var el = document.getElementById(entry.id);
+    if (!el) return;
+    el.textContent = (entry.done ? '☑ ' : '☐ ') + entry.label;
+    el.classList.toggle('done', !!entry.done);
+  });
+}
+
+function routeDashboardFirstSessionExperience() {
+  updateSetupExperienceProgress();
+  syncSetupExperienceButtons();
+  if (!isForwardingActivated()) {
+    showSetupExperience();
+    return;
+  }
+  showDashboard();
+}
+
+function handleSetupExperiencePrimaryCta(event) {
+  if (event) event.preventDefault();
+  if (!getDialableVoxeraNumber()) return;
+  var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+  if (isMobile) {
+    openSetupHelpOverlay(event, 'forwarding');
+    return;
+  }
+  openSetupWizardFromCta(event, 's1');
+}
+
+function handleSetupExperienceWizardCta(event) {
+  if (event) event.preventDefault();
+  if (!getDialableVoxeraNumber()) return;
+  openSetupWizardFromCta(event, 's1');
+}
+
 // ═══════════════════════════════════════════
 //  SETUP WIZARD
 // ═══════════════════════════════════════════
@@ -3716,12 +3826,22 @@ function toggleSetupStep(id){
 }
 
 function completeSetupStep(id){
+  var wasForwardingActive = isForwardingActivated();
   setupDone[id] = true;
   delete setupSkipped[id];
   var step = document.getElementById('setup-'+id);
   if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
   updateSetupProgress();
   try{localStorage.setItem('voxera_setup',JSON.stringify(setupDone));}catch(e){}
+  if(id === 's2'){
+    try{localStorage.setItem('voxera_forwarding_activated','1');}catch(e){}
+    routeDashboardFirstSessionExperience();
+    if(!wasForwardingActive && isForwardingActivated()){
+      toast('✔ Voxera ist aktiv – alle Anrufe werden jetzt erfasst');
+    }
+  } else {
+    updateSetupExperienceProgress();
+  }
 
   if(isSetupComplete()){
     document.getElementById('setup-wizard').querySelector('.setup-welcome').style.display='none';
@@ -3778,6 +3898,9 @@ function finishSetup(){
 
 function initSetupWizard(){
   try{var saved=localStorage.getItem('voxera_setup');if(saved)setupDone=JSON.parse(saved);}catch(e){}
+  if(setupDone.s2){
+    try{localStorage.setItem('voxera_forwarding_activated','1');}catch(e){}
+  }
   SETUP_STEPS.forEach(function(id){
     if(setupDone[id]){
       var step=document.getElementById('setup-'+id);
@@ -3801,6 +3924,7 @@ function initSetupWizard(){
     }
   }
   renderForwardingCodes();
+  routeDashboardFirstSessionExperience();
 }
 
 function copyVoxeraNumber(e){
@@ -3988,7 +4112,10 @@ function showApp(user) {
       greetingMain.dataset.custom = '1';
     }
     initSetupWizard();
-    if(shouldShowSetupOnLogin(customerContext)){
+    if(!isForwardingActivated()){
+      var dashboardNav = document.querySelector('.nav-item[onclick*="dashboard"]') || document.getElementById('mnav-dashboard');
+      if(dashboardNav) showTab('dashboard',dashboardNav);
+    } else if(shouldShowSetupOnLogin(customerContext)){
       var navEl = document.getElementById('nav-einrichtung');
       if(navEl) showTab('einrichtung',navEl);
     } else {
