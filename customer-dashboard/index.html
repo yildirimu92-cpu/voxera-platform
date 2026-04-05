@@ -1857,10 +1857,15 @@ function getOpenCallbackSortTime(record) {
 
 function sortOpenCallbacksOldestFirst(records) {
   return [...records].sort(function(a, b) {
-    var aTime = new Date(getOpenCallbackSortTime(a) || 0).getTime();
-    var bTime = new Date(getOpenCallbackSortTime(b) || 0).getTime();
+    var aTime = toSafeTimestamp(getOpenCallbackSortTime(a));
+    var bTime = toSafeTimestamp(getOpenCallbackSortTime(b));
     return aTime - bTime;
   });
+}
+
+function toSafeTimestamp(raw) {
+  var ts = new Date(raw || 0).getTime();
+  return Number.isFinite(ts) ? ts : 0;
 }
 
 function fmtFollowUpDateTime(raw) {
@@ -2103,7 +2108,8 @@ function statusChip(s) {
 function getPriority(record) {
   const f = (record && record.fields) || {};
   const now = new Date();
-  const followUp = parseFollowUpDate(f.follow_up_at);
+  const followUpRaw = resolveFollowUpAt(f);
+  const followUp = parseFollowUpDate(followUpRaw);
   const isClosed = isClosedStatus(f.dashboard_status);
   const isCallback = !!f.callback_requested;
   const isHot = qualKey(f.lead_quality) === 'hot';
@@ -2112,7 +2118,7 @@ function getPriority(record) {
   if (isClosed) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
   if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
   if (isCallback) return { key: 'callback', label: 'Rückruf gewünscht', icon: '📞' };
-  if (followUp && !Number.isNaN(followUp.getTime()) && isToday(f.follow_up_at)) return { key: 'today', label: 'Heute fällig', icon: '🗓' };
+  if (followUp && !Number.isNaN(followUp.getTime()) && isToday(followUpRaw)) return { key: 'today', label: 'Heute fällig', icon: '🗓' };
   if (isHot) return { key: 'hot', label: 'Hot Lead', icon: '🔥' };
   if (inProgress) return { key: 'working', label: 'In Arbeit', icon: '⏳' };
   return { key: 'normal', label: 'Offen', icon: '•' };
@@ -2629,7 +2635,7 @@ function renderDashboard(records) {
     return !isClosedStatus(r.fields.dashboard_status) && !!resolveFollowUpAt(r.fields || {});
   });
   var activationCard = document.getElementById('dash-activation-card');
-  if (activationCard) activationCard.classList.toggle('show', getOpenSteps().length > 0);
+  if (activationCard) activationCard.classList.toggle('show', !isForwardingActivated());
 
   // ── KPI: Anrufe heute / Rückrufe / Follow-ups ────────────────────────────────
   var kpiHeute    = document.getElementById('kpi-heute');
@@ -2706,14 +2712,19 @@ function renderFollowups(records) {
   var upcoming = records.filter(function(r) {
     var f = r.fields || {};
     if (isClosedStatus(f.dashboard_status)) return false;
-    if (!f.follow_up_at) return false;
-    var d = parseFollowUpDate(f.follow_up_at);
+    var followUpAt = resolveFollowUpAt(f);
+    if (!followUpAt) return false;
+    var d = parseFollowUpDate(followUpAt);
     if (!d) return false;
     // Show overdue + next 7 days
     var diff = (d - now) / (1000*60*60*24);
     return diff < 7;
   });
-  upcoming.sort(function(a,b) { return parseFollowUpDate(a.fields.follow_up_at) - parseFollowUpDate(b.fields.follow_up_at); });
+  upcoming.sort(function(a,b) {
+    var aFollow = resolveFollowUpAt(a.fields || {});
+    var bFollow = resolveFollowUpAt(b.fields || {});
+    return toSafeTimestamp(aFollow) - toSafeTimestamp(bFollow);
+  });
   var section = document.getElementById('followups-section');
   var list = document.getElementById('followups-list');
   if (!section || !list) return;
@@ -2987,7 +2998,7 @@ function maybeOpenFollowup() {
   }
   const rec = allRecords.find(r => r.id === pendingFollowupRecordId);
   if (!rec) return;
-  openFollowup(rec.id, (rec.fields.caller_name || '').trim(), (rec.fields.notes_customer_voxera || '').trim(), rec.fields.dashboard_status || '', rec.fields.next_action || '', rec.fields.follow_up_at || '');
+  openFollowup(rec.id, (rec.fields.caller_name || '').trim(), (rec.fields.notes_customer_voxera || '').trim(), rec.fields.dashboard_status || '', rec.fields.next_action || '', resolveFollowUpAt(rec.fields || {}));
   pendingFollowupRecordId = null;
 }
 
@@ -2995,7 +3006,7 @@ function openFollowupDirect(recordId) {
   var rec = allRecords.find(function(r){ return r.id === recordId; });
   if (!rec) return;
   var f = rec.fields || {};
-  openFollowup(recordId, (f.caller_name||'').trim(), (f.notes_customer_voxera||'').trim(), f.dashboard_status||'', f.next_action||'', f.follow_up_at||'');
+  openFollowup(recordId, (f.caller_name||'').trim(), (f.notes_customer_voxera||'').trim(), f.dashboard_status||'', f.next_action||'', resolveFollowUpAt(f));
 }
 
 function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt) {
@@ -3157,7 +3168,7 @@ function openDetail(recordId) {
           <div class="detail-line"><span>Status</span><span>${escHtml(normalizeStatus(f.dashboard_status))}</span></div>
           <div class="detail-line"><span>Rückruf</span><span>${f.callback_requested ? 'Ja' : 'Nein'}</span></div>
           <div class="detail-line"><span>Nächste Aktion</span><span>${escHtml(f.next_action || '–')}</span></div>
-          <div class="detail-line"><span>Follow-up</span><span>${f.follow_up_at ? (fmtDate(f.follow_up_at) + ' ' + (fmtTime(f.follow_up_at)||'')) : '–'}</span></div>
+          <div class="detail-line"><span>Follow-up</span><span>${resolveFollowUpAt(f) ? (fmtDate(resolveFollowUpAt(f)) + ' ' + (fmtTime(resolveFollowUpAt(f))||'')) : '–'}</span></div>
           <div class="detail-line"><span>Erfasst</span><span>${fmtDate(getRecordTimestamp(rec))}</span></div>
         </div>
       </div>
@@ -3358,6 +3369,16 @@ function closeAccount() {
   restoreMobileActiveTab();
 }
 
+function restoreMobileActiveTab() {
+  var activeTab = null;
+  try { activeTab = sessionStorage.getItem('voxera_tab') || ''; } catch(e) {}
+  if (!activeTab) return;
+  var mobileBtn = document.getElementById('mnav-' + activeTab);
+  if (!mobileBtn) return;
+  document.querySelectorAll('.mobile-nav-btn').forEach(function(n){ n.classList.remove('active'); });
+  mobileBtn.classList.add('active');
+}
+
 function openHelpSection(anchorId) {
   var navEl = document.getElementById('nav-hilfe') || document.getElementById('mnav-hilfe');
   if (navEl) showTab('hilfe', navEl);
@@ -3535,6 +3556,7 @@ async function copyForwardingCode(event, code) {
 
 function applyForwarding(code) {
   if (!code) return false;
+  try { localStorage.setItem('voxera_forwarding_active', '1'); } catch(e) {}
   var encodedCode = encodeURIComponent(code);
   window.location.href = 'tel:' + encodedCode;
   return true;
@@ -3774,6 +3796,23 @@ function finishSetup(){
   updateDashboardReminder();
   var navEl = document.querySelector('.nav-item[onclick*="dashboard"]') || document.getElementById('mnav-dashboard');
   if(navEl) showTab('dashboard',navEl);
+}
+
+function isForwardingActivated() {
+  var rec = customerContext && customerContext.customerRecord ? customerContext.customerRecord : null;
+  var dbFlag = null;
+  if (rec) {
+    if (typeof rec.forwarding_active === 'boolean') dbFlag = rec.forwarding_active;
+    else if (typeof rec.call_forwarding_active === 'boolean') dbFlag = rec.call_forwarding_active;
+    else if (typeof rec.forwarding_enabled === 'boolean') dbFlag = rec.forwarding_enabled;
+    else if (typeof rec.forwarding_status === 'string') {
+      var status = rec.forwarding_status.trim().toLowerCase();
+      if (['active','aktiv','enabled','on','configured','eingerichtet'].includes(status)) dbFlag = true;
+      else if (['inactive','inaktiv','disabled','off','pending','not_configured','nicht_eingerichtet'].includes(status)) dbFlag = false;
+    }
+  }
+  if (dbFlag !== null) return dbFlag;
+  try { return localStorage.getItem('voxera_forwarding_active') === '1'; } catch(e) { return false; }
 }
 
 function initSetupWizard(){

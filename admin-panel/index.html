@@ -682,6 +682,9 @@ function showSection(name, btn) {
 
 // HELPERS
 function ini(name) { return (name||'?').trim().split(/\s+/).map(n=>n[0]||'').join('').toUpperCase().slice(0,2); }
+function escHtml(v){ return String(v==null?'':v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+function getRecordTimestamp(record) { return (record && (record.created_date_raw || record.created_at)) || null; }
+function toSafeTimestamp(raw) { const ts = new Date(raw || 0).getTime(); return Number.isFinite(ts) ? ts : 0; }
 function fmtDate(r) {
   if (!r) return '–';
   try { const d=new Date(r); return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}); }
@@ -711,7 +714,9 @@ async function sbCalls(opts = {}) {
   if (opts.limit) q = q.limit(opts.limit);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return data || [];
+  const rows = data || [];
+  rows.sort((a,b) => toSafeTimestamp(getRecordTimestamp(b)) - toSafeTimestamp(getRecordTimestamp(a)));
+  return rows;
 }
 
 // Hilfsfunktion: Supabase-Row → einheitliches Customer-Objekt
@@ -813,10 +818,24 @@ async function createCustomer() {
 
 function resetForm() {
   ['f-vorname','f-nachname','f-email','f-firma','f-nummer','f-notiz'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('f-password').value='Voxera2026!';
+  document.getElementById('f-password').value = generateCustomerPassword();
   document.getElementById('f-startdatum').value=new Date().toISOString().split('T')[0];
   document.getElementById('create-status').className='status-box';
   document.getElementById('create-steps').innerHTML='';
+}
+
+function generateCustomerPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const specials = '!@#$%';
+  const rnd = new Uint8Array(8);
+  crypto.getRandomValues(rnd);
+  let pw = 'Vx';
+  for (let i = 0; i < 4; i++) pw += chars[rnd[i] % chars.length];
+  pw += specials[rnd[4] % specials.length];
+  pw += String(10 + (rnd[5] % 90));
+  pw += chars[rnd[6] % chars.length].toLowerCase();
+  pw += chars[rnd[7] % chars.length].toUpperCase();
+  return pw;
 }
 
 // LOAD CUSTOMERS
@@ -872,11 +891,11 @@ function renderCustomers() {
       <div class="customer-main">
         <div class="customer-top">
           <div class="customer-info">
-            <div class="customer-name">${name}</div>
-            <div class="customer-meta">${c.email||'–'} · ID ${c.id||'–'} · ${c.voxera_number||'–'}</div>
+            <div class="customer-name">${escHtml(name)}</div>
+            <div class="customer-meta">${escHtml(c.email||'–')} · ID ${escHtml(c.id||'–')} · ${escHtml(c.voxera_number||'–')}</div>
           </div>
           <div class="customer-tags">
-            <span class="badge badge-plan">${plan}</span>
+            <span class="badge badge-plan">${escHtml(plan)}</span>
             <span class="badge ${active?'badge-active':'badge-pending'}">${active?'Aktiv':'Ausstehend'}</span>
             <span class="badge ${c.welcome_sent?'badge-mail-sent':'badge-mail-pending'}">${c.welcome_sent?'✉️ Mail gesendet':'✉️ Mail offen'}</span>
           </div>
@@ -1133,7 +1152,7 @@ async function openCustomerProfile(id) {
     const open = calls.filter(r => !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
     const callbacks = calls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
     const hot = calls.filter(r => (r.lead_quality||'').toLowerCase().includes('hot')).length;
-    const lastCall = calls[0]?.created_date_raw || '';
+    const lastCall = getRecordTimestamp(calls[0]) || '';
     document.getElementById('profile-content').innerHTML = `
       <div class="profile-shell">
         <div class="profile-kpis">
@@ -1143,9 +1162,9 @@ async function openCustomerProfile(id) {
         </div>
         <div class="card" style="margin:0">
           <div class="profile-block-title">Kunde & Abo</div>
-          <div class="detail-item"><span class="detail-key">Kunde</span><span class="detail-val">${rec.customer_name||'–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Kunde</span><span class="detail-val">${escHtml(rec.customer_name||'–')}</span></div>
           <div class="detail-item"><span class="detail-key">Kunde seit</span><span class="detail-val">${rec.start_date ? fmtDateOnly(rec.start_date) + ' · ' + monthsSince(rec.start_date) + ' Mt' : '–'}</span></div>
-          <div class="detail-item"><span class="detail-key">Aktuelles Abo</span><span class="detail-val">${rec.plan||'Pilot'} · ${rec.status||'pending'}</span></div>
+          <div class="detail-item"><span class="detail-key">Aktuelles Abo</span><span class="detail-val">${escHtml(rec.plan||'Pilot')} · ${escHtml(rec.status||'pending')}</span></div>
           <div class="detail-item"><span class="detail-key">Abo im Einsatz seit</span><span class="detail-val">${rec.start_date ? fmtDateOnly(rec.start_date) : '–'}</span></div>
           <div class="detail-item"><span class="detail-key">Jahresumsatz</span><span class="detail-val">${(((PLANS[rec.plan||'Pilot']||PLANS.Pilot).monthlyPrice || 0) * 12)} CHF / Jahr</span></div>
           <div class="detail-item"><span class="detail-key">Umsatz seit Start</span><span class="detail-val">${(((PLANS[rec.plan||'Pilot']||PLANS.Pilot).monthlyPrice || 0) * Math.max(1, monthsSince(rec.start_date||new Date().toISOString())))} CHF</span></div>
@@ -1164,18 +1183,18 @@ async function openCustomerProfile(id) {
             <span class="info-chip ${(rec.new_log_email_active !== false) ? 'on' : 'off'}">✉️ Mail bei jedem Anruf ${(rec.new_log_email_active !== false) ? 'aktiv' : 'aus'}</span>
             <span class="info-chip ${(rec.notification_active !== false) ? 'on' : 'off'}">☎ Rückruf-Mail ${(rec.notification_active !== false) ? 'aktiv' : 'aus'}</span>
           </div>
-          <div class="detail-item"><span class="detail-key">Voxera-Nummer</span><span class="detail-val">${rec.voxera_number||'–'}</span></div>
-          <div class="detail-item"><span class="detail-key">E-Mail</span><span class="detail-val">${rec.email||'–'}</span></div>
-          <div class="detail-item"><span class="detail-key">Customer ID</span><span class="detail-val">${rec.id||'–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Voxera-Nummer</span><span class="detail-val">${escHtml(rec.voxera_number||'–')}</span></div>
+          <div class="detail-item"><span class="detail-key">E-Mail</span><span class="detail-val">${escHtml(rec.email||'–')}</span></div>
+          <div class="detail-item"><span class="detail-key">Customer ID</span><span class="detail-val">${escHtml(rec.id||'–')}</span></div>
           <div class="detail-item"><span class="detail-key">Letzter Call</span><span class="detail-val">${lastCall ? fmtDate(lastCall) : '–'}</span></div>
-          <div class="detail-item"><span class="detail-key">Dashboard ID</span><span class="detail-val">${rec.dashboard_id||'–'}</span></div>
+          <div class="detail-item"><span class="detail-key">Dashboard ID</span><span class="detail-val">${escHtml(rec.dashboard_id||'–')}</span></div>
           <div class="detail-item"><span class="detail-key">Upsell-Hinweis</span><span class="detail-val">${callbacks > 3 ? 'Reminder / SMS Upgrade' : hot > 4 ? 'Mehr Inklusivminuten' : 'Aktuell stabil'}</span></div>
           <div class="detail-item"><span class="detail-key">Interne Notiz</span><span class="detail-val">–</span></div>
         </div>
         ${renderContracts(rec)}
         <div class="card" style="margin:0">
           <div class="profile-block-title">Letzte Calls</div>
-          <div class="detail-list">${calls.length ? calls.slice(0,3).map(r => { return `<div class="detail-call"><div class="detail-call-top"><div class="detail-call-name">${r.caller_name||'Unbekannt'}</div><div class="detail-call-meta">${fmtDate(r.created_date_raw)}</div></div><div class="detail-call-meta">${r.category||'–'} · ${r.lead_quality||'Neu'}${r.callback_requested ? ' · Rückruf' : ''}</div><div class="detail-call-summary">${r.call_summary||'Keine Zusammenfassung vorhanden.'}</div></div>`; }).join('') : '<div class="empty" style="padding:14px 0">Noch keine Anrufe</div>'}</div>
+          <div class="detail-list">${calls.length ? calls.slice(0,3).map(r => { return `<div class="detail-call"><div class="detail-call-top"><div class="detail-call-name">${escHtml(r.caller_name||'Unbekannt')}</div><div class="detail-call-meta">${fmtDate(getRecordTimestamp(r))}</div></div><div class="detail-call-meta">${escHtml(r.category||'–')} · ${escHtml(r.lead_quality||'Neu')}${r.callback_requested ? ' · Rückruf' : ''}</div><div class="detail-call-summary">${escHtml(r.call_summary||'Keine Zusammenfassung vorhanden.')}</div></div>`; }).join('') : '<div class="empty" style="padding:14px 0">Noch keine Anrufe</div>'}</div>
         </div>
       </div>`;
   } catch(e) { document.getElementById('profile-content').innerHTML = `<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`; }
@@ -1260,14 +1279,14 @@ async function loadCallLog() {
       const qc=q.includes('hot')?'var(--red)':q.includes('warm')?'var(--amber)':'var(--blue)';
       return `<div class="call-log-item">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <div class="call-log-name">${r.caller_name||'Unbekannt'}</div>
+          <div class="call-log-name">${escHtml(r.caller_name||'Unbekannt')}</div>
           <div style="display:flex;gap:6px">
-            ${r.lead_quality?`<span style="font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;background:${qc}20;color:${qc}">${r.lead_quality}</span>`:''}
-            ${r.dashboard_status?`<span style="font-size:10.5px;color:var(--gray400)">${r.dashboard_status}</span>`:''}
+            ${r.lead_quality?`<span style="font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;background:${qc}20;color:${qc}">${escHtml(r.lead_quality)}</span>`:''}
+            ${r.dashboard_status?`<span style="font-size:10.5px;color:var(--gray400)">${escHtml(r.dashboard_status)}</span>`:''}
           </div>
         </div>
-        <div class="call-log-meta">${r.caller_phone||'–'} · ${fmtDate(r.created_date_raw)} · ${r.called_number||'–'}</div>
-        ${r.call_summary?`<div class="call-log-summary">${r.call_summary}</div>`:''}
+        <div class="call-log-meta">${escHtml(r.caller_phone||'–')} · ${fmtDate(getRecordTimestamp(r))} · ${escHtml(r.called_number||'–')}</div>
+        ${r.call_summary?`<div class="call-log-summary">${escHtml(r.call_summary)}</div>`:''}
       </div>`;
     }).join('');
   } catch(e) { document.getElementById('call-log-list').innerHTML=`<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`; }
@@ -1360,16 +1379,16 @@ async function loadStats() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const total = records.length;
-    const thisWeek = records.filter(r => new Date(r.created_date_raw||0) >= startOfWeek).length;
-    const thisMonth = records.filter(r => new Date(r.created_date_raw||0) >= startOfMonth).length;
+    const thisWeek = records.filter(r => new Date(getRecordTimestamp(r)||0) >= startOfWeek).length;
+    const thisMonth = records.filter(r => new Date(getRecordTimestamp(r)||0) >= startOfMonth).length;
     const hot = records.filter(r => (r.lead_quality||'').toLowerCase().includes('hot')).length;
     const warm = records.filter(r => (r.lead_quality||'').toLowerCase().includes('warm')).length;
     const offen = records.filter(r => r.callback_requested && r.dashboard_status !== 'Erledigt').length;
     const erledigt = records.filter(r => r.dashboard_status === 'Erledigt').length;
-    const lastCall = records.length ? records[0].created_date_raw : null;
+    const lastCall = records.length ? getRecordTimestamp(records[0]) : null;
 
     const estMinutesMonth = Math.round(
-      records.filter(r => new Date(r.created_date_raw||0) >= startOfMonth)
+      records.filter(r => new Date(getRecordTimestamp(r)||0) >= startOfMonth)
         .reduce((sum, r) => sum + (r.duration_seconds ? r.duration_seconds / 60 : AVG_CALL_DURATION), 0)
     );
     const inclMinutes = planCfg.minutes;
@@ -1383,7 +1402,7 @@ async function loadStats() {
 
     document.getElementById('stats-content').innerHTML = `
       <div style="margin-bottom:22px">
-        <div style="font-size:17px;font-weight:700;margin-bottom:4px">${name}</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:4px">${escHtml(name)}</div>
         <div style="font-size:12.5px;color:var(--gray400)">Plan: ${plan} · ${inclMinutes} inkl. Minuten/Mt · ${planCfg.extraRate} CHF/Zusatzmin</div>
       </div>
 
@@ -1423,7 +1442,7 @@ async function loadStats() {
         <div style="font-size:12.5px;color:var(--gray400);margin-bottom:14px">Klick auf ein Paket um eine Rechnung zu erstellen</div>
         <div class="min-packages">
           ${MIN_PACKAGES.map(p => `
-            <div class="min-pkg" onclick="orderPackage('${name}','${p.min}','${p.price}')">
+            <div class="min-pkg" onclick="orderPackage('${encodeURIComponent(name)}','${p.min}','${p.price}')">
               <div class="min-pkg-min">${p.min} Min</div>
               <div class="min-pkg-price">${p.price} CHF</div>
               <div class="min-pkg-rate">${(p.price/p.min).toFixed(2)} CHF/Min</div>
@@ -1439,9 +1458,9 @@ async function loadStats() {
             const q = (r.lead_quality||'').toLowerCase();
             const qc = q.includes('hot') ? 'var(--red)' : q.includes('warm') ? 'var(--amber)' : 'var(--blue)';
             return `<div class="recent-call-item">
-              <div class="recent-call-name">${r.caller_name||'Unbekannt'}</div>
-              ${r.lead_quality ? `<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:${qc}20;color:${qc}">${r.lead_quality}</span>` : ''}
-              <div class="recent-call-time">${fmtDate(r.created_date_raw)}</div>
+              <div class="recent-call-name">${escHtml(r.caller_name||'Unbekannt')}</div>
+              ${r.lead_quality ? `<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:${qc}20;color:${qc}">${escHtml(r.lead_quality)}</span>` : ''}
+              <div class="recent-call-time">${fmtDate(getRecordTimestamp(r))}</div>
             </div>`;
           }).join('')}
         </div>
@@ -1453,16 +1472,17 @@ async function loadStats() {
 }
 
 function orderPackage(customerName, minutes, price) {
-  showConfirm('📦', `${minutes} Min Paket für ${customerName}?`,
+  const safeName = decodeURIComponent(customerName || '');
+  showConfirm('📦', `${minutes} Min Paket für ${safeName}?`,
     `Preis: ${price} CHF · Rechnung wird via Payrexx erstellt.`, 'btn-primary',
     () => {
-      alert(`Rechnung erstellen:\n\nKunde: ${customerName}\nPaket: ${minutes} Minuten\nPreis: ${price} CHF\n\nBitte via Payrexx manuell erstellen.`);
+      alert(`Rechnung erstellen:\n\nKunde: ${safeName}\nPaket: ${minutes} Minuten\nPreis: ${price} CHF\n\nBitte via Payrexx manuell erstellen.`);
     }
   );
 }
 
 // INIT
-document.getElementById('f-password').value='Voxera2026!';
+document.getElementById('f-password').value = generateCustomerPassword();
 document.getElementById('f-startdatum').value=new Date().toISOString().split('T')[0];
 
 initAll();
