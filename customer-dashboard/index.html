@@ -160,21 +160,29 @@ body{
 .setup-step{background:var(--white);border:1.5px solid var(--gray200);border-radius:14px;padding:20px 22px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
 .setup-step:hover{border-color:var(--blue-mid);box-shadow:0 2px 12px rgba(26,86,219,.06);}
 .setup-step.done{border-color:var(--green-mid);background:#FAFFF8;}
+.setup-step.step-done{border-color:var(--green-mid);background:#FAFFF8;}
 .setup-step.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.08);}
 .setup-step-head{display:flex;align-items:center;gap:14px;}
 .setup-step-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;border:2px solid var(--gray200);color:var(--gray400);transition:all .2s;}
 .setup-step.done .setup-step-num{background:var(--green);border-color:var(--green);color:white;}
+.setup-step.step-done .setup-step-num{background:var(--green);border-color:var(--green);color:white;}
 .setup-step.active .setup-step-num{background:var(--blue);border-color:var(--blue);color:white;}
 .setup-step-info{flex:1;min-width:0;}
 .setup-step-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:2px;}
 .setup-step-desc{font-size:12.5px;color:var(--gray400);line-height:1.5;}
 .setup-step.done .setup-step-title{color:var(--green);}
+.setup-step.step-done .setup-step-title{color:var(--green);}
 .setup-step-check{font-size:16px;flex-shrink:0;opacity:0;transition:opacity .2s;}
 .setup-step.done .setup-step-check{opacity:1;}
+.setup-step.step-done .setup-step-check{opacity:1;}
 .setup-step.skipped{border-color:var(--amber-mid);background:#FFFDF5;}
+.setup-step.step-skipped{border-color:var(--amber-mid);background:#FFFDF5;}
 .setup-step.skipped .setup-step-num{border-color:var(--amber);color:var(--amber);}
+.setup-step.step-skipped .setup-step-num{border-color:var(--amber);color:var(--amber);}
 .setup-step.skipped .setup-step-title{color:var(--amber);}
+.setup-step.step-skipped .setup-step-title{color:var(--amber);}
 .setup-step.skipped .setup-step-desc::after{content:' – übersprungen';color:var(--amber);font-weight:600;}
+.setup-step.step-skipped .setup-step-desc::after{content:' – übersprungen';color:var(--amber);font-weight:600;}
 .setup-open-summary{max-width:600px;margin:20px auto 0;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:12px;padding:16px 20px;display:none;}
 .setup-open-summary.show{display:block;}
 .setup-open-summary-title{font-size:13px;font-weight:700;color:#92400E;margin-bottom:8px;}
@@ -264,9 +272,11 @@ body{
 .nav-badge{
   margin-left:auto;font-size:10px;font-weight:700;
   padding:2px 7px;border-radius:10px;min-width:18px;text-align:center;
-  background:var(--gray200);color:var(--gray600);
+  background:rgba(26,86,219,.1);color:#1A56DB;
 }
-.nav-badge.blue{background:var(--gray200);color:var(--gray600);}
+.nav-badge.blue{background:rgba(26,86,219,.1);color:#1A56DB;}
+.nav-badge.red{background:rgba(220,38,38,.1);color:#DC2626;}
+.nav-badge.orange{background:rgba(245,158,11,.1);color:#F59E0B;}
 .sidebar-footer{
   padding:16px 20px;border-top:1px solid var(--gray200);
   font-size:12px;color:var(--gray400);
@@ -484,7 +494,7 @@ body{
 .chip-kalt{background:var(--gray100);color:var(--gray600);}
 .chip-neu{background:var(--blue-light);color:var(--blue);}
 .chip-done{background:var(--green-light);color:var(--green);}
-.chip-working{background:#FEF3C7;color:#B45309;}
+.chip-working{background:rgba(245,158,11,.1);color:#F59E0B;}
 .chip-rueckruf{background:#FEE2E2;color:#B91C1C;font-size:10px;}
 
 /* ═══════════════════════════════════════════
@@ -719,9 +729,12 @@ body{
 .mobile-nav-btn.active{color:var(--blue);}
 .mobile-nav-btn svg{width:20px;height:20px;}
 .mobile-nav-badge{
-  position:absolute;top:0;right:4px;background:var(--gray200);color:var(--gray600);
+  position:absolute;top:0;right:4px;background:rgba(26,86,219,.1);color:#1A56DB;
   font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;min-width:16px;text-align:center;
 }
+.mobile-nav-badge.blue{background:rgba(26,86,219,.1);color:#1A56DB;}
+.mobile-nav-badge.red{background:rgba(220,38,38,.1);color:#DC2626;}
+.mobile-nav-badge.orange{background:rgba(245,158,11,.1);color:#F59E0B;}
 
 
 .detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);z-index:220;align-items:center;justify-content:center;padding:16px;}
@@ -879,7 +892,7 @@ body{
         <div class="nav-item" id="nav-rueckrufe" onclick="showTab('rueckrufe',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3.5l2 1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
           Rückrufe
-          <span class="nav-badge" id="badge-rueckrufe">–</span>
+          <span class="nav-badge red" id="badge-rueckrufe">–</span>
         </div>
         <div class="nav-item" id="nav-archiv" onclick="showTab('archiv',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M2 5v8a1 1 0 001 1h10a1 1 0 001-1V5" stroke="currentColor" stroke-width="1.3"/><path d="M6 8.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -1065,7 +1078,7 @@ body{
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1');event.stopPropagation();">Verstanden – weiter</button>
+                    <button class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1');event.stopPropagation();">Verstanden &amp; weiter</button>
                   </div>
                 </div>
               </div>
@@ -1156,7 +1169,7 @@ body{
                     </div>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s4');event.stopPropagation();">Verstanden – weiter</button>
+                    <button class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s4');event.stopPropagation();">Überspringen</button>
                   </div>
                 </div>
               </div>
@@ -1238,15 +1251,6 @@ body{
             </div>
 
             <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Anrufe & Erreichbarkeit</div>
-
-            <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
-              <div class="settings-card-title" style="color:var(--blue);">Rufumleitung einrichten</div>
-              <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
-                Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
-              </div>
-              <button class="settings-btn-primary" onclick="openSetupHelpOverlay(null,'forwarding')">Jetzt einrichten</button>
-            </div>
-
             <div class="settings-card">
               <div class="settings-card-title">Ihre Voxera-Nummer</div>
               <div class="settings-row">
@@ -1257,6 +1261,13 @@ body{
                 <div class="settings-row-label">Status</div>
                 <div class="settings-row-value" id="settings-system-status">–</div>
               </div>
+            </div>
+            <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
+              <div class="settings-card-title" style="color:var(--blue);">Rufumleitung einrichten</div>
+              <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
+                Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
+              </div>
+              <button class="settings-btn-primary" onclick="openSetupHelpOverlay(null,'forwarding')">Jetzt einrichten</button>
             </div>
 
             <!-- Benachrichtigungen -->
@@ -1286,6 +1297,13 @@ body{
                 Erfahren Sie, wie Voxera funktioniert und wie Sie alle Funktionen optimal nutzen.
               </div>
               <button class="settings-btn-primary" onclick="openHelpSection()">Öffnen</button>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-title">Support kontaktieren</div>
+              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
+                Haben Sie Fragen oder benötigen Unterstützung?
+              </div>
+              <button class="settings-btn-secondary" onclick="requestSupport()">E-Mail senden</button>
             </div>
 
             <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Abo & Nutzung</div>
@@ -1327,15 +1345,6 @@ body{
               <span class="chip chip-neu" id="usage-status-chip" style="margin-top:10px;display:inline-block;">Plan aktiv</span>
             </div>
 
-            <!-- Support -->
-            <div class="settings-card">
-              <div class="settings-card-title">Support kontaktieren</div>
-              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
-                Haben Sie Fragen oder benötigen Unterstützung?
-              </div>
-              <button class="settings-btn-secondary" onclick="requestSupport()">E-Mail senden</button>
-            </div>
-
             <!-- Abmelden -->
             <div class="settings-card" style="border-color:var(--red-light);">
               <button class="btn-danger" onclick="doLogout()" style="width:100%;">↩ Von diesem Gerät abmelden</button>
@@ -1349,11 +1358,11 @@ body{
           <div class="help-page">
             <div style="margin-bottom:20px">
               <div class="section-title" style="font-size:16px;font-weight:700;">Hilfe & Anleitung</div>
-              <div class="help-lead">Ihr kompakter Produkt-Guide für Einrichtung, Nutzung und tägliche Abläufe.</div>
+              <div class="help-lead">Kurzer Produkt-Guide für Einrichtung und Alltag.</div>
             </div>
 
             <div class="help-section">
-              <div class="help-section-title">Was ist Voxera?</div>
+              <div class="help-section-title">Was ist Voxera</div>
               <div class="help-card-grid">
                 <div class="help-info-card"><div class="help-info-title">Ihr KI-Telefonassistent</div><div class="help-info-text">Voxera nimmt eingehende Anrufe zuverlässig an – auch wenn Ihr Team ausgelastet ist.</div></div>
                 <div class="help-info-card"><div class="help-info-title">Strukturiert im Dashboard</div><div class="help-info-text">Anliegen, Kontaktdaten und Dringlichkeit werden übersichtlich erfasst und bereitgestellt.</div></div>
@@ -1368,7 +1377,7 @@ body{
             </div>
 
             <div class="help-section">
-              <div class="help-section-title">Dashboard im Überblick</div>
+              <div class="help-section-title">Dashboard Überblick</div>
               <div class="help-card-grid">
                 <div class="help-info-card"><div class="help-info-title">Anrufe</div><div class="help-info-text">Alle eingehenden Anfragen mit den wichtigsten Details.</div></div>
                 <div class="help-info-card"><div class="help-info-title">Rückrufe</div><div class="help-info-text">Offene Rückruf-Anfragen klar gebündelt.</div></div>
@@ -1378,8 +1387,8 @@ body{
             </div>
 
             <div class="help-section" id="forwarding">
-              <div class="help-section-title">Anrufe auf Voxera weiterleiten</div>
-              <p style="margin-bottom:10px;">Wählen Sie Ihre Situation und übernehmen Sie den passenden Code.</p>
+              <div class="help-section-title">Weiterleitung</div>
+              <div class="help-info-text" style="margin-bottom:10px;">Wählen Sie Ihre Situation und übernehmen Sie den passenden Code.</div>
               <div class="help-mini-cards">
                 <a class="help-mini-card" href="#smartphone">
                   <div class="help-mini-title">Mit dem Smartphone weiterleiten</div>
@@ -1401,7 +1410,7 @@ body{
                       <div class="help-forwarding-title">Bei Nichterreichbarkeit</div>
                       <span class="help-forwarding-reco">Empfohlen</span>
                     </div>
-                    <div class="help-forwarding-desc">Ideal, wenn Sie Anrufe selbst annehmen möchten, aber nicht immer erreichbar sind.</div>
+                    <div class="help-forwarding-desc">Ideal, wenn Sie nicht immer erreichbar sind.</div>
                     <div class="help-code-row">
                       <code data-code-template="**62*{voxera_number}#">Wird geladen...</code>
                       <div class="help-code-actions">
@@ -1410,7 +1419,7 @@ body{
                       </div>
                     </div>
                     <div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>
-                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe nur dann an Voxera weiter, wenn Sie nicht abnehmen können.</div>
+                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe weiter, wenn Sie nicht abnehmen.</div>
                   </div>
                   <div class="help-forwarding-card">
                     <div class="help-forwarding-head"><div class="help-forwarding-title">Bei Besetzt</div></div>
@@ -1423,10 +1432,10 @@ body{
                       </div>
                     </div>
                     <div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>
-                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe an Voxera weiter, wenn Ihre Leitung gerade besetzt ist.</div>
+                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet weiter, wenn Sie telefonieren.</div>
                   </div>
                   <div class="help-forwarding-card">
-                    <div class="help-forwarding-head"><div class="help-forwarding-title">Alle Anrufe weiterleiten</div></div>
+                    <div class="help-forwarding-head"><div class="help-forwarding-title">Alle Anrufe</div></div>
                     <div class="help-forwarding-desc">Ideal, wenn Voxera alle Anrufe vollständig übernehmen soll.</div>
                     <div class="help-code-row">
                       <code data-code-template="**21*{voxera_number}#">Wird geladen...</code>
@@ -1436,7 +1445,7 @@ body{
                       </div>
                     </div>
                     <div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>
-                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet jeden eingehenden Anruf direkt an Voxera weiter.</div>
+                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Alle Anrufe gehen direkt an Voxera.</div>
                   </div>
                   <div class="help-forwarding-card">
                     <div class="help-forwarding-head"><div class="help-forwarding-title">Weiterleitung ausschalten</div></div>
@@ -1449,7 +1458,7 @@ body{
                       </div>
                     </div>
                     <div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>
-                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Deaktiviert alle aktiven Rufumleitungen.</div>
+                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Deaktiviert alle Weiterleitungen.</div>
                   </div>
                 </div>
                 <ul class="help-list">
@@ -1478,7 +1487,7 @@ body{
             </div>
 
             <div class="help-section">
-              <div class="help-section-title">Häufige Fragen</div>
+              <div class="help-section-title">FAQ</div>
               <div class="help-faq-item"><div class="help-faq-q">Wo sehe ich neue Anrufe?</div><div class="help-faq-a">Im Dashboard und im Bereich „Anrufe“ sehen Sie alle neuen Einträge sofort.</div></div>
               <div class="help-faq-item"><div class="help-faq-q">Wie erkenne ich Rückrufbedarf?</div><div class="help-faq-a">Im Tab „Rückrufe“ erscheinen alle offenen Rückruf-Anfragen gebündelt.</div></div>
               <div class="help-faq-item"><div class="help-faq-q">Kann ich Anrufe später nachverfolgen?</div><div class="help-faq-a">Ja, erledigte Vorgänge bleiben im Archiv dokumentiert.</div></div>
@@ -1513,12 +1522,12 @@ body{
       <button class="mobile-nav-btn" id="mnav-anrufe" onclick="showTab('anrufe',this)">
         <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 2.5h2l1 2.5-1.5 1c.8 1.5 2 2.7 3.5 3.5l1-1.5 2.5 1v2c0 .8-.7 1.5-1.5 1.5C5.2 13 3 7.5 3 4.5c0-.8.7-1 .5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
         Anrufe
-        <span class="mobile-nav-badge" id="mnav-badge-anrufe" style="display:none"></span>
+        <span class="mobile-nav-badge blue" id="mnav-badge-anrufe" style="display:none"></span>
       </button>
       <button class="mobile-nav-btn" id="mnav-rueckrufe" onclick="showTab('rueckrufe',this)">
         <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3.5l2 1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         Rückrufe
-        <span class="mobile-nav-badge" id="mnav-badge-rueckrufe" style="display:none"></span>
+        <span class="mobile-nav-badge red" id="mnav-badge-rueckrufe" style="display:none"></span>
       </button>
       <button class="mobile-nav-btn" id="mnav-archiv" onclick="showTab('archiv',this)">
         <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M2 5v8a1 1 0 001 1h10a1 1 0 001-1V5" stroke="currentColor" stroke-width="1.3"/><path d="M6 8.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -2416,7 +2425,8 @@ function sendMinutesRequest() {
 }
 
 function requestSupport() {
-  window.location.href = 'mailto:info@voxera.ch';
+  var subject = encodeURIComponent('Voxera Support Anfrage - ' + (customerMeta.customerName || 'Kunde'));
+  window.location.href = 'mailto:info@voxera.ch?subject=' + subject;
 }
 
 async function apiPatch(recordId, fields) {
@@ -3409,9 +3419,7 @@ function renderForwardingCodes() {
   });
 
   document.querySelectorAll('button[data-code-template]').forEach(function(btn) {
-    btn.disabled = !hasNumber;
-    btn.style.opacity = hasNumber ? '' : '.55';
-    btn.style.cursor = hasNumber ? '' : 'not-allowed';
+    btn.style.display = hasNumber ? '' : 'none';
   });
 
   document.querySelectorAll('.help-direct-btn').forEach(function(linkEl) {
@@ -3419,7 +3427,8 @@ function renderForwardingCodes() {
     var template = linkEl.getAttribute('data-code-template') || '';
     var resolved = fixedCode || resolveForwardingCode(template);
     var canUseDirect = !!resolved && isMobile;
-    linkEl.setAttribute('href', canUseDirect ? ('tel:' + encodeURIComponent(resolved)) : 'javascript:void(0)');
+    linkEl.style.display = hasNumber ? '' : 'none';
+    linkEl.setAttribute('href', canUseDirect ? ('tel:' + resolved) : 'javascript:void(0)');
     linkEl.setAttribute('aria-disabled', canUseDirect ? 'false' : 'true');
     var noteEl = linkEl.closest('.help-forwarding-card');
     noteEl = noteEl ? noteEl.querySelector('.help-dialer-note') : null;
@@ -3721,7 +3730,7 @@ function completeSetupStep(id){
   setupDone[id] = true;
   delete setupSkipped[id];
   var step = document.getElementById('setup-'+id);
-  if(step){ step.classList.remove('active','skipped'); step.classList.add('done'); }
+  if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
   updateSetupProgress();
   try{localStorage.setItem('voxera_setup',JSON.stringify(setupDone));}catch(e){}
 
@@ -3747,7 +3756,7 @@ function completeSetupStep(id){
 function skipSetupStep(id){
   setupSkipped[id] = true;
   var step = document.getElementById('setup-'+id);
-  if(step){ step.classList.remove('active'); step.classList.add('skipped'); }
+  if(step){ step.classList.remove('active'); step.classList.add('skipped','step-skipped'); }
   updateSetupProgress();
   // Open next step
   for(var i=0;i<SETUP_STEPS.length;i++){
@@ -3779,23 +3788,31 @@ function initSetupWizard(){
   SETUP_STEPS.forEach(function(id){
     if(setupDone[id]){
       var step=document.getElementById('setup-'+id);
-      if(step){step.classList.remove('active');step.classList.add('done');}
+      if(step){step.classList.remove('active');step.classList.add('done','step-done');}
     }
   });
   updateSetupProgress();
-  var num = customerMeta.voxeraNumber || customerMeta.customerId || '';
+  var num = customerMeta.voxeraNumber || '';
   var el1 = document.getElementById('setup-voxera-number');
   var el2 = document.getElementById('setup-voxera-number-2');
   var callBtn = document.getElementById('setup-call-btn');
   if(el1) el1.textContent = num || 'Nicht verfügbar';
   if(el2) el2.textContent = num || 'Nicht verfügbar';
-  if(callBtn && num) callBtn.href = 'tel:'+num.replace(/\s/g,'');
+  if(callBtn) {
+    if (num) {
+      callBtn.href = 'tel:' + num.replace(/\s/g,'');
+      callBtn.style.display = '';
+    } else {
+      callBtn.removeAttribute('href');
+      callBtn.style.display = 'none';
+    }
+  }
   renderForwardingCodes();
 }
 
 function copyVoxeraNumber(e){
   if(e)e.stopPropagation();
-  var num = customerMeta.voxeraNumber || customerMeta.customerId || '';
+  var num = customerMeta.voxeraNumber || '';
   if(!num){toast('Keine Nummer vorhanden');return;}
   navigator.clipboard.writeText(num).then(function(){toast('Nummer kopiert: '+num);}).catch(function(){toast(num);});
 }
