@@ -1851,7 +1851,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Business', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv'};
+let customerMeta = {plan:'Business', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -2405,7 +2405,8 @@ async function loadCustomerMeta() {
     status: f.status || 'aktiv',
     customerId: context.customerId || f.id || '',
     voxeraNumber: f.voxera_number || '',
-    telNr: f.tel_nr || ''
+    telNr: f.tel_nr || '',
+    forwardingSetupCompleted: f.forwarding_setup_completed === true
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   console.info('[voxera-dashboard] customerMeta numbers', {
@@ -2732,10 +2733,6 @@ function renderDashboard(records) {
   updateSystemStatus(records);
 }
 
-function hasConfirmedVoxeraCall(records) {
-  return Array.isArray(records) && records.length > 0;
-}
-
 function updateActivationStatusCard(records) {
   var card = document.getElementById('dash-activation-card');
   var titleEl = document.getElementById('dash-activation-title');
@@ -2744,8 +2741,6 @@ function updateActivationStatusCard(records) {
   if (!card || !titleEl || !textEl) return;
 
   var setupCompleted = isForwardingSetupCompleted();
-  var confirmedCall = hasConfirmedVoxeraCall(records);
-
   card.classList.remove('info', 'success');
   if (!setupCompleted) {
     titleEl.textContent = '⚠️ Rufumleitung noch nicht eingerichtet';
@@ -2755,18 +2750,10 @@ function updateActivationStatusCard(records) {
     return;
   }
 
-  if (!confirmedCall) {
-    titleEl.textContent = 'Rufumleitung eingerichtet';
-    textEl.textContent = 'Testen Sie jetzt, ob Voxera Ihre Anrufe übernimmt.';
-    if (primaryBtn) primaryBtn.textContent = 'Jetzt testen';
-    card.classList.add('show', 'info');
-    return;
-  }
-
-  titleEl.textContent = 'Voxera ist aktiv';
-  textEl.textContent = 'Erste Anrufe wurden bereits erfolgreich erfasst.';
-  if (primaryBtn) primaryBtn.textContent = 'Einrichtung öffnen';
-  card.classList.add('show', 'success');
+  titleEl.textContent = 'Rufumleitung eingerichtet';
+  textEl.textContent = 'Testen Sie jetzt, ob alles funktioniert.';
+  if (primaryBtn) primaryBtn.textContent = 'Jetzt testen';
+  card.classList.add('show', 'info');
 }
 
 function markCbDone(recordId) {
@@ -3732,24 +3719,29 @@ function openSetupWizardFromCta(event, stepId) {
   if (stepId) toggleSetupStep(stepId);
 }
 
-function getForwardingSetupStorageKey() {
-  var customerId = (customerMeta && customerMeta.customerId) ? String(customerMeta.customerId).trim() : '';
-  return 'voxera_forwarding_setup_completed' + (customerId ? ('_' + customerId) : '');
-}
-
 function isForwardingSetupCompleted() {
-  try {
-    if (localStorage.getItem(getForwardingSetupStorageKey()) === '1') return true;
-    if (localStorage.getItem('voxera_forwarding_activated') === '1') return true; // legacy compatibility
-  } catch(e) {}
-  return !!setupDone.s1;
+  return !!(customerMeta && customerMeta.forwardingSetupCompleted);
 }
 
-function persistForwardingSetupCompleted() {
+async function persistForwardingSetupCompleted() {
+  customerMeta.forwardingSetupCompleted = true;
+  updateSetupExperienceProgress();
+  updateActivationStatusCard(allRecords || []);
   try {
-    localStorage.setItem(getForwardingSetupStorageKey(), '1');
-    localStorage.setItem('voxera_forwarding_activated', '1'); // keep legacy key aligned
-  } catch(e) {}
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) return false;
+    await patchCustomerRecord(recId, { forwarding_setup_completed: true });
+    if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
+    return true;
+  } catch(e) {
+    customerMeta.forwardingSetupCompleted = false;
+    updateSetupExperienceProgress();
+    updateActivationStatusCard(allRecords || []);
+    console.error('forwarding_setup_completed save failed', e);
+    toast('Status konnte nicht gespeichert werden');
+    return false;
+  }
 }
 
 function isForwardingActivated() {
@@ -3893,11 +3885,12 @@ function completeSetupStep(id){
   updateSetupProgress();
   try{localStorage.setItem('voxera_setup',JSON.stringify(setupDone));}catch(e){}
   if(id === 's1'){
-    persistForwardingSetupCompleted();
-    routeDashboardFirstSessionExperience();
-    if(!wasForwardingSetupCompleted && isForwardingSetupCompleted()){
-      toast('Rufumleitung eingerichtet');
-    }
+    persistForwardingSetupCompleted().then(function(saved){
+      routeDashboardFirstSessionExperience();
+      if(!wasForwardingSetupCompleted && saved){
+        toast('Rufumleitung eingerichtet');
+      }
+    });
   } else if(id === 's2'){
     routeDashboardFirstSessionExperience();
   } else {
@@ -3959,9 +3952,6 @@ function finishSetup(){
 
 function initSetupWizard(){
   try{var saved=localStorage.getItem('voxera_setup');if(saved)setupDone=JSON.parse(saved);}catch(e){}
-  if(setupDone.s1){
-    persistForwardingSetupCompleted();
-  }
   SETUP_STEPS.forEach(function(id){
     if(setupDone[id]){
       var step=document.getElementById('setup-'+id);
