@@ -807,8 +807,14 @@ body{
 .dash-hero-cta.green:hover{background:#15803D;}
 .dash-activation-card{background:#FFF9F2;border:1px solid #FDE68A;border-radius:12px;padding:16px 18px;margin-bottom:16px;display:none;}
 .dash-activation-card.show{display:block;}
+.dash-activation-card.info{background:#F8FAFF;border-color:#BFDBFE;}
+.dash-activation-card.success{background:#F0FDF4;border-color:#86EFAC;}
 .dash-activation-title{font-size:14px;font-weight:700;color:#92400E;margin-bottom:6px;}
+.dash-activation-card.info .dash-activation-title{color:#1E3A8A;}
+.dash-activation-card.success .dash-activation-title{color:#166534;}
 .dash-activation-text{font-size:12.5px;color:#B45309;line-height:1.55;margin-bottom:12px;}
+.dash-activation-card.info .dash-activation-text{color:#1E40AF;}
+.dash-activation-card.success .dash-activation-text{color:#166534;}
 .dash-activation-actions{display:flex;gap:8px;flex-wrap:wrap;}
 .dash-btn-primary{display:inline-flex;align-items:center;justify-content:center;background:var(--blue);color:var(--white);border:1px solid var(--blue);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;}
 .dash-btn-primary:hover{background:var(--blue-dark);border-color:var(--blue-dark);}
@@ -987,10 +993,10 @@ body{
           <div id="dash-content" style="display:none">
 
             <div class="dash-activation-card" id="dash-activation-card">
-              <div class="dash-activation-title">⚠️ Rufumleitung noch nicht eingerichtet</div>
-              <div class="dash-activation-text">Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.</div>
+              <div class="dash-activation-title" id="dash-activation-title">⚠️ Rufumleitung noch nicht eingerichtet</div>
+              <div class="dash-activation-text" id="dash-activation-text">Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.</div>
               <div class="dash-activation-actions">
-                <a href="javascript:void(0)" class="dash-btn-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</a>
+                <a href="javascript:void(0)" class="dash-btn-primary" id="dash-activation-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</a>
                 <a href="javascript:void(0)" class="dash-btn-secondary" onclick="var n=document.getElementById('nav-hilfe');if(n)showTab('hilfe',n);">Mehr erfahren</a>
               </div>
             </div>
@@ -2659,8 +2665,7 @@ function renderDashboard(records) {
   var followupsOpen = records.filter(function(r) {
     return !isClosedStatus(r.fields.dashboard_status) && !!resolveFollowUpAt(r.fields || {});
   });
-  var activationCard = document.getElementById('dash-activation-card');
-  if (activationCard) activationCard.classList.toggle('show', getOpenSteps().length > 0);
+  updateActivationStatusCard(records);
 
   // ── KPI: Anrufe heute / Rückrufe / Follow-ups ────────────────────────────────
   var kpiHeute    = document.getElementById('kpi-heute');
@@ -2725,6 +2730,43 @@ function renderDashboard(records) {
   // Kompatibilität: renderUsage und updateSystemStatus bleiben unverändert
   renderUsage(records);
   updateSystemStatus(records);
+}
+
+function hasConfirmedVoxeraCall(records) {
+  return Array.isArray(records) && records.length > 0;
+}
+
+function updateActivationStatusCard(records) {
+  var card = document.getElementById('dash-activation-card');
+  var titleEl = document.getElementById('dash-activation-title');
+  var textEl = document.getElementById('dash-activation-text');
+  var primaryBtn = document.getElementById('dash-activation-primary');
+  if (!card || !titleEl || !textEl) return;
+
+  var setupCompleted = isForwardingSetupCompleted();
+  var confirmedCall = hasConfirmedVoxeraCall(records);
+
+  card.classList.remove('info', 'success');
+  if (!setupCompleted) {
+    titleEl.textContent = '⚠️ Rufumleitung noch nicht eingerichtet';
+    textEl.textContent = 'Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.';
+    if (primaryBtn) primaryBtn.textContent = 'Jetzt einrichten';
+    card.classList.add('show');
+    return;
+  }
+
+  if (!confirmedCall) {
+    titleEl.textContent = 'Rufumleitung eingerichtet';
+    textEl.textContent = 'Testen Sie jetzt, ob Voxera Ihre Anrufe übernimmt.';
+    if (primaryBtn) primaryBtn.textContent = 'Jetzt testen';
+    card.classList.add('show', 'info');
+    return;
+  }
+
+  titleEl.textContent = 'Voxera ist aktiv';
+  textEl.textContent = 'Erste Anrufe wurden bereits erfolgreich erfasst.';
+  if (primaryBtn) primaryBtn.textContent = 'Einrichtung öffnen';
+  card.classList.add('show', 'success');
 }
 
 function markCbDone(recordId) {
@@ -3690,11 +3732,28 @@ function openSetupWizardFromCta(event, stepId) {
   if (stepId) toggleSetupStep(stepId);
 }
 
-function isForwardingActivated() {
+function getForwardingSetupStorageKey() {
+  var customerId = (customerMeta && customerMeta.customerId) ? String(customerMeta.customerId).trim() : '';
+  return 'voxera_forwarding_setup_completed' + (customerId ? ('_' + customerId) : '');
+}
+
+function isForwardingSetupCompleted() {
   try {
-    if (localStorage.getItem('voxera_forwarding_activated') === '1') return true;
+    if (localStorage.getItem(getForwardingSetupStorageKey()) === '1') return true;
+    if (localStorage.getItem('voxera_forwarding_activated') === '1') return true; // legacy compatibility
   } catch(e) {}
-  return !!setupDone.s2;
+  return !!setupDone.s1;
+}
+
+function persistForwardingSetupCompleted() {
+  try {
+    localStorage.setItem(getForwardingSetupStorageKey(), '1');
+    localStorage.setItem('voxera_forwarding_activated', '1'); // keep legacy key aligned
+  } catch(e) {}
+}
+
+function isForwardingActivated() {
+  return isForwardingSetupCompleted();
 }
 
 function showDashboard() {
@@ -3726,9 +3785,9 @@ function syncSetupExperienceButtons() {
 }
 
 function updateSetupExperienceProgress() {
-  var forwardingDone = !!setupDone.s1;
+  var forwardingDone = isForwardingSetupCompleted();
   var testCallDone = !!setupDone.s2;
-  var readyDone = isForwardingActivated();
+  var readyDone = isForwardingSetupCompleted();
   var map = [
     { id: 'fse-progress-forwarding', done: forwardingDone, label: 'Rufumleitung aktivieren' },
     { id: 'fse-progress-testcall', done: testCallDone, label: 'Testanruf durchführen' },
@@ -3826,19 +3885,21 @@ function toggleSetupStep(id){
 }
 
 function completeSetupStep(id){
-  var wasForwardingActive = isForwardingActivated();
+  var wasForwardingSetupCompleted = isForwardingSetupCompleted();
   setupDone[id] = true;
   delete setupSkipped[id];
   var step = document.getElementById('setup-'+id);
   if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
   updateSetupProgress();
   try{localStorage.setItem('voxera_setup',JSON.stringify(setupDone));}catch(e){}
-  if(id === 's2'){
-    try{localStorage.setItem('voxera_forwarding_activated','1');}catch(e){}
+  if(id === 's1'){
+    persistForwardingSetupCompleted();
     routeDashboardFirstSessionExperience();
-    if(!wasForwardingActive && isForwardingActivated()){
-      toast('✔ Voxera ist aktiv – alle Anrufe werden jetzt erfasst');
+    if(!wasForwardingSetupCompleted && isForwardingSetupCompleted()){
+      toast('Rufumleitung eingerichtet');
     }
+  } else if(id === 's2'){
+    routeDashboardFirstSessionExperience();
   } else {
     updateSetupExperienceProgress();
   }
@@ -3898,8 +3959,8 @@ function finishSetup(){
 
 function initSetupWizard(){
   try{var saved=localStorage.getItem('voxera_setup');if(saved)setupDone=JSON.parse(saved);}catch(e){}
-  if(setupDone.s2){
-    try{localStorage.setItem('voxera_forwarding_activated','1');}catch(e){}
+  if(setupDone.s1){
+    persistForwardingSetupCompleted();
   }
   SETUP_STEPS.forEach(function(id){
     if(setupDone[id]){
