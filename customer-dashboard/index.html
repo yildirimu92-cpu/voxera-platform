@@ -1567,6 +1567,15 @@ function getRecordTimestamp(record) {
   return f.created_date_raw || f.created_at || null;
 }
 
+function resolveFollowUpAt(fields) {
+  if (!fields) return '';
+  return fields.follow_up_at || fields.followup_at || fields.followUpAt || fields.follow_up || '';
+}
+if (typeof window !== 'undefined') {
+  window.resolveFollowUpAt = resolveFollowUpAt;
+  console.log('[VOXERA FOLLOWUP BOOT]', typeof resolveFollowUpAt, typeof window.resolveFollowUpAt);
+}
+
 function extractCustomerHint(authUser) {
   const metadata = authUser && authUser.user_metadata ? authUser.user_metadata : {};
   const metadataCustomerId = metadata && metadata.customer_id ? String(metadata.customer_id).trim() : '';
