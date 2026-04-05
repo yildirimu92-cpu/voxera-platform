@@ -1326,14 +1326,11 @@ body{
 
             <!-- Support -->
             <div class="settings-card">
-              <div class="settings-card-title">Support</div>
-              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 8px;">
-                Bei Fragen oder Problemen sind wir für Sie da. Schreiben Sie uns – wir melden uns innert 24 Stunden.
+              <div class="settings-card-title">Support kontaktieren</div>
+              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
+                Haben Sie Fragen oder benötigen Unterstützung?
               </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <a class="settings-btn-secondary" href="https://voxera.ch" target="_blank">Hilfe & Dokumentation</a>
-                <button class="settings-btn-secondary" onclick="requestSupport()">Support kontaktieren</button>
-              </div>
+              <button class="settings-btn-secondary" onclick="requestSupport()">E-Mail senden</button>
             </div>
 
             <!-- Abmelden -->
@@ -2388,9 +2385,7 @@ function sendMinutesRequest() {
 }
 
 function requestSupport() {
-  var subject = encodeURIComponent('Voxera Support - ' + (customerMeta.customerName || customerMeta.customerId || 'Kunde'));
-  var body = encodeURIComponent('Hallo Voxera-Team,\r\n\r\nich habe eine Frage zu meinem Voxera-Zugang.\r\n\r\nKunde: ' + (customerMeta.customerName || '-') + '\r\nCustomer ID: ' + (customerMeta.customerId || '-') + '\r\n\r\nMein Anliegen:\r\n');
-  window.location.href = 'mailto:' + _vxMail() + '?subject=' + subject + '&body=' + body;
+  window.location.href = 'mailto:info@voxera.ch';
 }
 
 async function apiPatch(recordId, fields) {
