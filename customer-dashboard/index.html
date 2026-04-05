@@ -190,10 +190,6 @@ body{
 .setup-open-summary-list li{font-size:12.5px;color:#92400E;display:flex;align-items:center;gap:8px;}
 .setup-open-summary-list li::before{content:'○';font-size:10px;color:var(--amber);}
 .setup-open-summary-list li a{color:#92400E;font-weight:600;text-decoration:underline;cursor:pointer;}
-.dash-setup-reminder{background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:12px;padding:14px 18px;margin-bottom:18px;display:none;font-size:13px;color:#92400E;}
-.dash-setup-reminder.show{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-.dash-setup-reminder-text{display:flex;align-items:center;gap:8px;flex:1;}
-.dash-setup-reminder a{color:#92400E;font-weight:700;text-decoration:underline;white-space:nowrap;}
 .setup-step-body{display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--gray200);}
 .setup-step.active .setup-step-body{display:block;}
 .setup-step-content{font-size:13px;color:var(--gray600);line-height:1.7;}
@@ -959,15 +955,6 @@ body{
           <div id="dash-loading" class="loading-wrap"><div class="spinner"></div><span>Laden...</span></div>
           <div id="dash-content" style="display:none">
 
-            <!-- Setup-Reminder -->
-            <div class="dash-setup-reminder" id="dash-setup-reminder">
-              <div class="dash-setup-reminder-text">⚙ Einrichtung noch nicht abgeschlossen – einige Schritte sind offen.</div>
-              <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-                <a href="javascript:void(0)" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten →</a>
-                <button onclick="dismissSetupReminder()" style="background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;" title="Nicht mehr anzeigen">✕</button>
-              </div>
-            </div>
-
             <div class="dash-activation-card" id="dash-activation-card">
               <div class="dash-activation-title">⚠️ Rufumleitung noch nicht eingerichtet</div>
               <div class="dash-activation-text">Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.</div>
@@ -999,6 +986,7 @@ body{
             <div class="dash-cb-section" id="dash-callback-section">
               <div class="dash-cb-header">
                 <div class="dash-cb-title">Offene Rückrufe</div>
+                <a class="dash-cb-link" href="javascript:void(0)" onclick="activateTab('rueckrufe')">Alle anzeigen →</a>
               </div>
               <div id="dash-callback-list"></div>
             </div>
@@ -1006,6 +994,7 @@ body{
             <div class="dash-cb-section" id="dash-recent-section">
               <div class="dash-cb-header">
                 <div class="dash-cb-title secondary">Letzte Anrufe</div>
+                <a class="dash-cb-link" href="javascript:void(0)" onclick="activateTab('anrufe')">Alle anzeigen →</a>
               </div>
               <div id="dash-recent-list"></div>
             </div>
@@ -1292,11 +1281,14 @@ body{
               </div>
             </div>
             <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
-              <div class="settings-card-title" style="color:var(--blue);">Rufumleitung einrichten</div>
+              <div class="settings-card-title" style="color:var(--blue);">Rufumleitung & Einrichtung</div>
               <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
                 Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
               </div>
-              <button class="settings-btn-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</button>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="settings-btn-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</button>
+                <button class="settings-btn-secondary" onclick="activateTab('einrichtung')">Einrichtung ansehen</button>
+              </div>
             </div>
 
             <!-- Benachrichtigungen -->
@@ -3646,16 +3638,6 @@ function manualRefresh() {
   loadData();
 }
 
-function dismissSetupReminder() {
-  try { localStorage.setItem('voxera_setup_reminder_dismissed', '1'); } catch(e) {}
-  var el = document.getElementById('dash-setup-reminder');
-  if (el) el.classList.remove('show');
-  const saved = sessionStorage.getItem('voxera_tab') || 'dashboard';
-  document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
-  const btn = document.getElementById('mnav-' + saved);
-  if (btn) btn.classList.add('active');
-}
-
 function openSetupWizardFromCta(event, stepId) {
   if (event) event.preventDefault();
   var navEl = document.getElementById('nav-einrichtung') || document.getElementById('mnav-einrichtung');
@@ -3826,25 +3808,6 @@ async function saveSetupNotifications(){
   }
   toast('Benachrichtigungen gespeichert');
   completeSetupStep('s3');
-}
-
-async function saveSetupPassword(){
-  const sb = getSupabaseAuthClient();
-  if (!sb) return;
-  var pw = document.getElementById('setup-pw-new').value;
-  var pw2 = document.getElementById('setup-pw-confirm').value;
-  var errEl = document.getElementById('setup-pw-error');
-  var succEl = document.getElementById('setup-pw-success');
-  errEl.style.display='none'; succEl.style.display='none';
-  if(!pw||pw.length<8){errEl.textContent='Mindestens 8 Zeichen.';errEl.style.display='block';return;}
-  if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein.';errEl.style.display='block';return;}
-  var result = await sb.auth.updateUser({password:pw});
-  if(result.error){errEl.textContent=result.error.message||'Fehler.';errEl.style.display='block';return;}
-  succEl.textContent='✓ Passwort erfolgreich geändert!';succEl.style.display='block';
-  document.getElementById('setup-pw-new').value='';
-  document.getElementById('setup-pw-confirm').value='';
-  toast('Passwort geändert');
-  completeSetupStep('s4');
 }
 
 function shouldShowSetupOnLogin(context){
