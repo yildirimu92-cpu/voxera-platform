@@ -1986,6 +1986,20 @@ function validateAccessGuard(context) {
   return { valid: true, reason: '' };
 }
 
+// Returns true if customer context is valid and active; otherwise triggers logout and returns false.
+async function ensureActiveCustomerOrLogout(context) {
+  const check = validateAccessGuard(context);
+  if (check.valid) return true;
+  console.warn('[voxera-dashboard] Customer invalid, forcing logout:', check.reason);
+  try { await doLogout(); } catch (e) { console.error('[voxera-dashboard] Logout error:', e); }
+  const errEl = document.getElementById('login-error');
+  if (errEl) {
+    errEl.textContent = 'Ihr Zugriff ist nicht mehr gültig. Bitte wenden Sie sich an den Support.';
+    errEl.style.display = 'block';
+  }
+  return false;
+}
+
 async function loadCallRecords(customerIdRaw) {
   let query = _sb.from(CALLS_TABLE).select('*').order('created_at', { ascending: false }).limit(500);
   const customerId = (customerIdRaw || '').trim();
@@ -2538,24 +2552,10 @@ async function loadData() {
 
   try {
     await loadCustomerMeta().catch(()=>{});
-    const context = await resolveCustomerContext();
+    const context = await resolveCustomerContext(true);
 
     // ─── ACCESS GUARD ───────────────────────────────────────────────────
-    const accessCheck = validateAccessGuard(context);
-    if (!accessCheck.valid) {
-      console.warn('[voxera-dashboard] Access denied:', accessCheck.reason);
-      try {
-        await doLogout();
-      } catch (logoutErr) {
-        console.error('[voxera-dashboard] Logout error:', logoutErr);
-      }
-      const errEl = document.getElementById('login-error');
-      if (errEl) {
-        errEl.textContent = 'Ihr Zugriff ist nicht mehr gültig. Bitte wenden Sie sich an den Support.';
-        errEl.style.display = 'block';
-      }
-      return;
-    }
+    if (!(await ensureActiveCustomerOrLogout(context))) return;
     // ─── END ACCESS GUARD ────────────────────────────────────────────────
 
     const records = await loadCallRecords(context.customerId || '');
@@ -3960,6 +3960,7 @@ function showApp(user) {
   document.getElementById('sidebar-user').textContent = user.email;
 
   loadData().then(() => {
+    if (document.getElementById('app').style.display === 'none') return;
     // Update greeting with customer_name from metadata if available
     var displayName = customerMeta.customerName || fallbackName;
     if (greetingMain) {
