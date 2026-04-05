@@ -1007,7 +1007,7 @@ body{
               <div class="dash-activation-title" id="dash-activation-title">⚠️ Rufumleitung noch nicht eingerichtet</div>
               <div class="dash-activation-text" id="dash-activation-text">Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.</div>
               <div class="dash-activation-actions">
-                <a href="javascript:void(0)" class="dash-btn-primary" id="dash-activation-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</a>
+                <a href="javascript:void(0)" class="dash-btn-primary" id="dash-activation-primary" onclick="handleDashboardActivationPrimaryCta(event)">Jetzt einrichten</a>
                 <a href="javascript:void(0)" class="dash-btn-secondary" onclick="var n=document.getElementById('nav-hilfe');if(n)showTab('hilfe',n);">Mehr erfahren</a>
               </div>
             </div>
@@ -1144,7 +1144,7 @@ body{
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
-                    <button type="button" class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1',event)">Verstanden &amp; weiter</button>
+                    <button type="button" class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1',event)">Weiter zur Einrichtung</button>
                   </div>
                 </div>
               </div>
@@ -1208,7 +1208,7 @@ body{
                     <button type="button" class="setup-btn setup-btn-primary" onclick="continueToSetupTest(event)">Weiter zum Test</button>
 
                     <div id="setup-test-block" style="margin-top:14px;display:none;">
-                      <h4>Testanruf durchführen</h4>
+                      <h4>Schritt 3: Testanruf durchführen</h4>
                       <p>Prüfen Sie jetzt, ob Ihre Rufumleitung korrekt eingerichtet ist.</p>
                       <div class="setup-helper-note">Rufen Sie Ihre Voxera-Nummer an.</div>
                       <div class="setup-number-box">
@@ -2805,15 +2805,46 @@ function updateActivationStatusCard(records) {
   if (!setupCompleted) {
     titleEl.textContent = '⚠️ Rufumleitung noch nicht eingerichtet';
     textEl.textContent = 'Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.';
-    if (primaryBtn) primaryBtn.textContent = 'Jetzt einrichten';
+    if (primaryBtn) {
+      primaryBtn.textContent = 'Weiter zur Einrichtung';
+      primaryBtn.removeAttribute('aria-disabled');
+      primaryBtn.style.opacity = '';
+      primaryBtn.style.pointerEvents = '';
+    }
     card.classList.add('show');
     return;
   }
 
   titleEl.textContent = 'Rufumleitung eingerichtet';
   textEl.textContent = 'Testen Sie jetzt, ob alles funktioniert.';
-  if (primaryBtn) primaryBtn.textContent = 'Jetzt testen';
+  if (primaryBtn) {
+    var hasNumber = !!getDialableVoxeraNumber();
+    primaryBtn.textContent = 'Testanruf starten';
+    primaryBtn.setAttribute('aria-disabled', hasNumber ? 'false' : 'true');
+    primaryBtn.style.opacity = hasNumber ? '' : '.55';
+    primaryBtn.style.pointerEvents = hasNumber ? '' : 'none';
+  }
   card.classList.add('show', 'info');
+}
+
+function startVoxeraTestCall(event){
+  if(event) event.preventDefault();
+  var target = getDialableVoxeraNumber();
+  if (!target) {
+    toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
+    return;
+  }
+  toast('Telefon wird geöffnet…');
+  window.location.href = 'tel:' + String(target).replace(/\s+/g, '');
+}
+
+function handleDashboardActivationPrimaryCta(event){
+  if(event) event.preventDefault();
+  if (!isForwardingSetupCompleted()) {
+    openSetupWizardFromCta(event, 's1');
+    return;
+  }
+  startVoxeraTestCall(event);
 }
 
 function markCbDone(recordId) {
