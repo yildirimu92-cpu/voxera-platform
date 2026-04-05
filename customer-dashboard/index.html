@@ -2438,14 +2438,6 @@ function renderDashboard(records) {
         var callbackChip = (f.callback_requested && !isClosedStatus(f.dashboard_status)) ? '<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>' : '';
         var followUpAt = resolveFollowUpAt(f);
         var followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
-        console.log('[VOXERA FOLLOWUP DEBUG][cb-row]', {
-          id: r.id,
-          caller: f.caller_name || '',
-          next_action: f.next_action || '',
-          raw_follow_up_at: f.follow_up_at,
-          resolved_follow_up_at: followUpAt,
-          rendered_followup_text: followUpMetaText
-        });
         var followUpMeta = followUpMetaText ? '<div class="followup-meta-line">' + escHtml(followUpMetaText) + '</div>' : '';
         return '<div class="cb-row">'
           + '<div class="cb-av">' + ini + '</div>'
@@ -2596,14 +2588,6 @@ function renderList(containerId, records, opts) {
     // Follow-up meta line (action/date/time) in short unified format
     const followUpAt = resolveFollowUpAt(f);
     const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
-    console.log('[VOXERA FOLLOWUP DEBUG][call-row]', {
-      id: r.id,
-      caller: f.caller_name || '',
-      next_action: f.next_action || '',
-      raw_follow_up_at: f.follow_up_at,
-      resolved_follow_up_at: followUpAt,
-      rendered_followup_text: followUpMetaText
-    });
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
