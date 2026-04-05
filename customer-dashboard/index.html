@@ -139,12 +139,15 @@ body{
 .help-forwarding-effect strong{color:var(--gray900);}
 .help-code-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--white);border:1px solid var(--gray200);border-radius:10px;padding:8px 10px;margin:8px 0;}
 .help-code-row code{font-size:12.5px;font-weight:700;color:var(--gray900);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+.help-code-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.help-direct-btn[aria-disabled="true"]{opacity:.55;pointer-events:none;cursor:not-allowed;}
+.help-dialer-note{display:none;font-size:11px;color:var(--gray500);margin:-2px 0 6px;text-align:right;}
 .help-chip{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:var(--green-light);border:1px solid var(--green-mid);color:#166534;font-size:11px;font-weight:700;margin-bottom:10px;}
 .help-faq-item{padding:10px 0;border-bottom:1px solid var(--gray100);}
 .help-faq-item:last-child{border-bottom:none;padding-bottom:0;}
 .help-faq-q{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .help-faq-a{font-size:13px;color:var(--gray600);line-height:1.6;}
-@media(max-width:768px){.help-mini-cards,.help-card-grid{grid-template-columns:1fr;}}
+@media(max-width:768px){.help-mini-cards,.help-card-grid{grid-template-columns:1fr;}.help-code-row{flex-direction:column;align-items:flex-start;}.help-code-actions{width:100%;justify-content:flex-start;}}
 
 /* ═══════════════════════════════════════════
    SETUP WIZARD
@@ -1326,14 +1329,11 @@ body{
 
             <!-- Support -->
             <div class="settings-card">
-              <div class="settings-card-title">Support</div>
-              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 8px;">
-                Bei Fragen oder Problemen sind wir für Sie da. Schreiben Sie uns – wir melden uns innert 24 Stunden.
+              <div class="settings-card-title">Support kontaktieren</div>
+              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
+                Haben Sie Fragen oder benötigen Unterstützung?
               </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <a class="settings-btn-secondary" href="https://voxera.ch" target="_blank">Hilfe & Dokumentation</a>
-                <button class="settings-btn-secondary" onclick="requestSupport()">Support kontaktieren</button>
-              </div>
+              <button class="settings-btn-secondary" onclick="requestSupport()">E-Mail senden</button>
             </div>
 
             <!-- Abmelden -->
@@ -1402,25 +1402,53 @@ body{
                       <span class="help-forwarding-reco">Empfohlen</span>
                     </div>
                     <div class="help-forwarding-desc">Ideal, wenn Sie Anrufe selbst annehmen möchten, aber nicht immer erreichbar sind.</div>
-                    <div class="help-code-row"><code data-code-template="**62*{voxera_number}#">Wird geladen...</code><button class="settings-btn-secondary" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Kopieren</button></div>
+                    <div class="help-code-row">
+                      <code data-code-template="**62*{voxera_number}#">Wird geladen...</code>
+                      <div class="help-code-actions">
+                        <button class="settings-btn-primary" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
+                        <a class="settings-btn-secondary help-direct-btn" data-code-template="**62*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a>
+                      </div>
+                    </div>
+                    <div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>
                     <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe nur dann an Voxera weiter, wenn Sie nicht abnehmen können.</div>
                   </div>
                   <div class="help-forwarding-card">
                     <div class="help-forwarding-head"><div class="help-forwarding-title">Bei Besetzt</div></div>
                     <div class="help-forwarding-desc">Ideal, wenn Sie bereits telefonieren und kein weiterer Anruf verloren gehen soll.</div>
-                    <div class="help-code-row"><code data-code-template="**67*{voxera_number}#">Wird geladen...</code><button class="settings-btn-secondary" data-code-template="**67*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Kopieren</button></div>
+                    <div class="help-code-row">
+                      <code data-code-template="**67*{voxera_number}#">Wird geladen...</code>
+                      <div class="help-code-actions">
+                        <button class="settings-btn-primary" data-code-template="**67*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
+                        <a class="settings-btn-secondary help-direct-btn" data-code-template="**67*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a>
+                      </div>
+                    </div>
+                    <div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>
                     <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe an Voxera weiter, wenn Ihre Leitung gerade besetzt ist.</div>
                   </div>
                   <div class="help-forwarding-card">
                     <div class="help-forwarding-head"><div class="help-forwarding-title">Alle Anrufe weiterleiten</div></div>
                     <div class="help-forwarding-desc">Ideal, wenn Voxera alle Anrufe vollständig übernehmen soll.</div>
-                    <div class="help-code-row"><code data-code-template="**21*{voxera_number}#">Wird geladen...</code><button class="settings-btn-secondary" data-code-template="**21*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Kopieren</button></div>
+                    <div class="help-code-row">
+                      <code data-code-template="**21*{voxera_number}#">Wird geladen...</code>
+                      <div class="help-code-actions">
+                        <button class="settings-btn-primary" data-code-template="**21*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
+                        <a class="settings-btn-secondary help-direct-btn" data-code-template="**21*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a>
+                      </div>
+                    </div>
+                    <div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>
                     <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet jeden eingehenden Anruf direkt an Voxera weiter.</div>
                   </div>
                   <div class="help-forwarding-card">
                     <div class="help-forwarding-head"><div class="help-forwarding-title">Weiterleitung ausschalten</div></div>
                     <div class="help-forwarding-desc">Wenn Sie wieder direkt selbst erreichbar sein möchten.</div>
-                    <div class="help-code-row"><code>##002#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'##002#')">Kopieren</button></div>
+                    <div class="help-code-row">
+                      <code>##002#</code>
+                      <div class="help-code-actions">
+                        <button class="settings-btn-primary" onclick="copyForwardingCode(event,'##002#')">Code kopieren</button>
+                        <a class="settings-btn-secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a>
+                      </div>
+                    </div>
+                    <div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>
                     <div class="help-forwarding-effect"><strong>Wirkung:</strong> Deaktiviert alle aktiven Rufumleitungen.</div>
                   </div>
                 </div>
@@ -2388,9 +2416,7 @@ function sendMinutesRequest() {
 }
 
 function requestSupport() {
-  var subject = encodeURIComponent('Voxera Support - ' + (customerMeta.customerName || customerMeta.customerId || 'Kunde'));
-  var body = encodeURIComponent('Hallo Voxera-Team,\r\n\r\nich habe eine Frage zu meinem Voxera-Zugang.\r\n\r\nKunde: ' + (customerMeta.customerName || '-') + '\r\nCustomer ID: ' + (customerMeta.customerId || '-') + '\r\n\r\nMein Anliegen:\r\n');
-  window.location.href = 'mailto:' + _vxMail() + '?subject=' + subject + '&body=' + body;
+  window.location.href = 'mailto:info@voxera.ch';
 }
 
 async function apiPatch(recordId, fields) {
@@ -3372,6 +3398,7 @@ function resolveForwardingCode(template) {
 function renderForwardingCodes() {
   var num = getDialableVoxeraNumber();
   var hasNumber = !!num;
+  var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
   var fallbackEl = document.getElementById('forwarding-code-fallback');
   if (fallbackEl) fallbackEl.style.display = hasNumber ? 'none' : 'inline-flex';
 
@@ -3385,6 +3412,18 @@ function renderForwardingCodes() {
     btn.disabled = !hasNumber;
     btn.style.opacity = hasNumber ? '' : '.55';
     btn.style.cursor = hasNumber ? '' : 'not-allowed';
+  });
+
+  document.querySelectorAll('.help-direct-btn').forEach(function(linkEl) {
+    var fixedCode = linkEl.getAttribute('data-fixed-code') || '';
+    var template = linkEl.getAttribute('data-code-template') || '';
+    var resolved = fixedCode || resolveForwardingCode(template);
+    var canUseDirect = !!resolved && isMobile;
+    linkEl.setAttribute('href', canUseDirect ? ('tel:' + encodeURIComponent(resolved)) : 'javascript:void(0)');
+    linkEl.setAttribute('aria-disabled', canUseDirect ? 'false' : 'true');
+    var noteEl = linkEl.closest('.help-forwarding-card');
+    noteEl = noteEl ? noteEl.querySelector('.help-dialer-note') : null;
+    if (noteEl) noteEl.style.display = (!isMobile && resolved) ? 'block' : 'none';
   });
 }
 
@@ -3477,8 +3516,26 @@ function openFullHelpFromWizard(anchorId) {
 async function copyForwardingCode(event, code) {
   if (event) event.stopPropagation();
   var btn = event && event.currentTarget;
+  if (!code) {
+    toast('Code nicht verfügbar');
+    return;
+  }
   try {
-    await navigator.clipboard.writeText(code);
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(code);
+    } else {
+      var temp = document.createElement('textarea');
+      temp.value = code;
+      temp.setAttribute('readonly', '');
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.focus();
+      temp.select();
+      var copied = document.execCommand('copy');
+      document.body.removeChild(temp);
+      if (!copied) throw new Error('Clipboard API unavailable');
+    }
     if (btn) {
       var prev = btn.textContent;
       btn.textContent = 'Kopiert ✓';
@@ -3487,6 +3544,19 @@ async function copyForwardingCode(event, code) {
   } catch (e) {
     toast('Kopieren nicht möglich');
   }
+}
+
+function applyForwardingCode(event, linkEl) {
+  if (event) event.stopPropagation();
+  if (!linkEl) return;
+  var href = linkEl.getAttribute('href') || '';
+  var disabled = linkEl.getAttribute('aria-disabled') === 'true';
+  if (disabled || !href || href.indexOf('tel:') !== 0) {
+    if (event) event.preventDefault();
+    toast('Direktes Anwenden nur auf dem Smartphone verfügbar');
+    return;
+  }
+  window.location.href = href;
 }
 
 async function changePassword() {
