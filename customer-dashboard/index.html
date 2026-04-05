@@ -476,16 +476,16 @@ body{
 .call-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;}
 .call-name{font-size:13.5px;font-weight:600;color:var(--gray900);}
 .call-company{font-size:12px;color:var(--gray400);}
-.call-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray400);margin-bottom:5px;flex-wrap:wrap;}
+.call-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray400);margin-bottom:6px;flex-wrap:wrap;}
 .call-phone{display:inline-block;font-weight:600;color:var(--gray700, #374151);background:var(--gray100);padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums;}
 .call-summary{font-size:12px;color:var(--gray600);line-height:1.5;margin-bottom:8px;}
-.followup-meta-line{font-size:11.5px;color:#6B7280;line-height:1.45;margin-bottom:10px;}
+.followup-meta-line{font-size:11.5px;color:#6B7280;line-height:1.45;margin-top:6px;margin-bottom:12px;}
 .call-notiz{
   font-size:11px;color:var(--gray600);background:var(--gray50);
   padding:5px 10px;border-radius:6px;border-left:2px solid var(--gray200);
   margin-bottom:6px;line-height:1.5;
 }
-.call-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.call-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
 .dashboard-call{background:var(--white);border-color:var(--gray200);}
 .dashboard-call[data-priority="callback"]{border-color:#FECACA;background:#FFF9F9;}
 .call-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;}
@@ -527,10 +527,10 @@ body{
    ACTION BUTTONS – PREMIUM CALM HIERARCHY
 ═══════════════════════════════════════════ */
 .btn-a{
-  font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;
+  font-size:12.5px;font-weight:600;padding:0 14px;border-radius:8px;
   cursor:pointer;border:1px solid var(--gray200);font-family:inherit;
-  transition:all .15s;display:inline-flex;align-items:center;gap:5px;
-  text-decoration:none;white-space:nowrap;height:36px;
+  transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  text-decoration:none;white-space:nowrap;height:40px;
 }
 /* PRIMARY FILLED ACTIONS */
 .btn-call{background:var(--blue);color:var(--white);border:none;}
@@ -781,8 +781,8 @@ body{
   .section-title{font-size:18px;}
   /* Mobile call-actions: consistent equal-size touch targets */
   .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
-  .call-actions .btn-a,.call-actions .btn-call,.call-actions .btn-callback{width:100%;justify-content:center;height:40px;padding:0 12px;font-size:12px;}
-  .btn,.btn-a{padding:8px 12px;font-size:11px;}
+  .call-actions .btn-a,.call-actions .btn-call,.call-actions .btn-callback{width:100%;justify-content:center;height:40px;padding:0 12px;font-size:12.5px;}
+  .btn{padding:8px 12px;font-size:11px;}
   .modal{padding:24px 20px;}
   .charts-row{display:none;}
   .toast{bottom:80px;font-size:12px;padding:8px 16px;}
@@ -1848,8 +1848,12 @@ function getOpenCallbackSortTime(record) {
 
 function sortOpenCallbacksOldestFirst(records) {
   return [...records].sort(function(a, b) {
-    var aTime = new Date(getOpenCallbackSortTime(a) || 0).getTime();
-    var bTime = new Date(getOpenCallbackSortTime(b) || 0).getTime();
+    var aRaw = getOpenCallbackSortTime(a);
+    var bRaw = getOpenCallbackSortTime(b);
+    var aTime = Date.parse(aRaw || '');
+    var bTime = Date.parse(bRaw || '');
+    if (Number.isNaN(aTime)) aTime = Number.MAX_SAFE_INTEGER;
+    if (Number.isNaN(bTime)) bTime = Number.MAX_SAFE_INTEGER;
     return aTime - bTime;
   });
 }
@@ -2814,19 +2818,20 @@ function renderList(containerId, records, opts) {
           ${statusChip(f.dashboard_status)}
           ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>':''}
         </div>
+        ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
         <div class="call-meta">
           ${displayPhone?`<span class="call-phone">${displayPhone}</span>`:''}
-          ${f.category?`<span style="background:var(--gray100);padding:1px 7px;border-radius:4px;font-size:11px;">${f.category}</span>`:''}
           <span>${callDateTime}</span>
+          ${f.category?`<span style="background:var(--gray100);padding:1px 7px;border-radius:4px;font-size:11px;">${f.category}</span>`:''}
+          ${f.dashboard_status?`<span style="background:var(--gray100);padding:1px 7px;border-radius:4px;font-size:11px;">${statusLabel(f.dashboard_status)}</span>`:''}
         </div>
-        ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
         ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
         ${notizText && !opts.dashboardView?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="btn-a ${opts.primaryCallback?'btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Anrufen</button>`:''}
           ${!done?`<button class="btn-a btn-done" onclick="confirmClose('${r.id}','Abgeschlossen',this.closest('.call-row, .cb-row'))">Erledigt</button>`:''}
-          ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}
-          <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button>${!opts.dashboardView?`<button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>`:''}
+          <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button>
+          ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}${!opts.dashboardView?`<button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>`:''}
         </div>`:''}
       </div>
     </div>`;
