@@ -1571,20 +1571,9 @@ function resolveFollowUpAt(fields) {
   if (!fields) return '';
   return fields.follow_up_at || fields.followup_at || fields.followUpAt || fields.follow_up || '';
 }
-
-function buildFollowUpMetaText(nextAction, followUpAt) {
-  const action = (nextAction || '').trim();
-  const dateTime = fmtFollowUpDateTime(followUpAt);
-  if (action && dateTime) return `${action} · ${dateTime}`;
-  if (action) return action;
-  if (dateTime) return `Geplant · ${dateTime}`;
-  return '';
-}
-
 if (typeof window !== 'undefined') {
   window.resolveFollowUpAt = resolveFollowUpAt;
-  window.buildFollowUpMetaText = buildFollowUpMetaText;
-  console.log('[VOXERA FOLLOWUP BOOT]', typeof resolveFollowUpAt, typeof window.resolveFollowUpAt, typeof buildFollowUpMetaText, typeof window.buildFollowUpMetaText);
+  console.log('[VOXERA FOLLOWUP BOOT]', typeof resolveFollowUpAt, typeof window.resolveFollowUpAt);
 }
 
 function extractCustomerHint(authUser) {
@@ -1903,20 +1892,11 @@ function fmtExactDateTime(raw) {
 
 function fmtFollowUpDisplay(raw) {
   if (!raw) return '';
-  const exact = fmtFollowUpDateTime(raw);
-  return exact ? 'Geplant · ' + exact : '';
-}
-
-function fmtFollowUpDateTime(raw) {
   const localValue = normalizeFollowUpLocalValue(raw);
-  if (localValue) {
-    const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
-    const time = localValue.slice(11,16);
-    return `${date}, ${time}`;
-  }
-  const parsed = parseFollowUpDate(raw);
-  if (!parsed || Number.isNaN(parsed.getTime())) return '';
-  return `${pad2(parsed.getDate())}.${pad2(parsed.getMonth()+1)}.${parsed.getFullYear()}, ${pad2(parsed.getHours())}:${pad2(parsed.getMinutes())}`;
+  if (!localValue) return '';
+  const date = `${localValue.slice(8,10)}.${localValue.slice(5,7)}.${localValue.slice(0,4)}`;
+  const time = localValue.slice(11,16);
+  return 'Geplant für ' + date + ', ' + time;
 }
 
 function parseFollowUpDate(raw) {
@@ -2441,9 +2421,8 @@ function renderDashboard(records) {
         var qual = qualChip(f.lead_quality);
         var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
         var callbackChip = (f.callback_requested && !isClosedStatus(f.dashboard_status)) ? '<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>' : '';
-        var followUpAt = resolveFollowUpAt(f);
-        var followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
-        var followUpMeta = followUpMetaText ? '<div class="followup-meta-line">' + escHtml(followUpMetaText) + '</div>' : '';
+        var followUpMeta = f.follow_up_at ? '<div style="font-size:11.5px;color:#6B7280;margin-top:6px;">🗓 ' + escHtml(fmtFollowUpDisplay(f.follow_up_at)) + '</div>' : '';
+        var nextActionMeta = f.next_action ? '<div style="font-size:11.5px;color:#6B7280;margin-top:2px;">→ ' + escHtml(f.next_action) + '</div>' : '';
         return '<div class="cb-row">'
           + '<div class="cb-av">' + ini + '</div>'
           + '<div class="cb-body">'
@@ -2457,6 +2436,7 @@ function renderDashboard(records) {
           +   '</div>'
           +   (summary ? '<div style="font-size:12px;color:var(--gray600);margin-top:4px;">' + summary + '</div>' : '')
           +   followUpMeta
+          +   nextActionMeta
           + '</div>'
           + '<div class="cb-actions">'
           +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Jetzt zurückrufen</button>' : '')
@@ -2593,6 +2573,14 @@ function renderList(containerId, records, opts) {
     // Follow-up meta line (action/date/time) in short unified format
     const followUpAt = resolveFollowUpAt(f);
     const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
+    console.log('[VOXERA FOLLOWUP DEBUG][call-row]', {
+      id: r.id,
+      caller: f.caller_name || '',
+      next_action: f.next_action || '',
+      raw_follow_up_at: f.follow_up_at,
+      resolved_follow_up_at: followUpAt,
+      rendered_followup_text: followUpMetaText
+    });
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
