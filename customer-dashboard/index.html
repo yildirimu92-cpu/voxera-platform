@@ -1298,6 +1298,13 @@ body{
               </div>
               <button class="settings-btn-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</button>
             </div>
+            <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
+              <div class="settings-card-title" style="color:var(--blue);">Einrichtungsassistent</div>
+              <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
+                Führen Sie die Einrichtung Schritt für Schritt durch oder öffnen Sie sie erneut.
+              </div>
+              <button class="settings-btn-primary" id="settings-wizard-btn" onclick="openSetupWizardFromCta(event,'s1')">Einrichtungsassistent öffnen</button>
+            </div>
 
             <!-- Benachrichtigungen -->
             <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Benachrichtigungen</div>
@@ -3675,6 +3682,11 @@ var SETUP_LABELS = {s1:'Einführung lesen',s2:'Testanruf durchführen',s3:'Benac
 function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
 function getSetupCount(){ return SETUP_STEPS.filter(function(k){return setupDone[k];}).length; }
 function getOpenSteps(){ return SETUP_STEPS.filter(function(k){return !setupDone[k];}); }
+function updateSettingsWizardEntryLabel(){
+  var btn = document.getElementById('settings-wizard-btn');
+  if(!btn) return;
+  btn.textContent = isSetupComplete() ? 'Erneut öffnen' : 'Einrichtungsassistent öffnen';
+}
 
 function updateSetupProgress(){
   var count = getSetupCount();
@@ -3682,6 +3694,7 @@ function updateSetupProgress(){
   var txt = document.getElementById('setup-progress-text');
   if(el) el.style.width = (count/5*100)+'%';
   if(txt) txt.textContent = count+' / 5';
+  updateSettingsWizardEntryLabel();
   updateOpenSummary();
   updateDashboardReminder();
 }
