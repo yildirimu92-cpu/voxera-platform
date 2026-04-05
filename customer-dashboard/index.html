@@ -120,20 +120,31 @@ body{
 .help-section p:last-child{margin-bottom:0;}
 .help-list{margin:0;padding-left:18px;color:var(--gray600);}
 .help-list li{font-size:13px;line-height:1.65;margin-bottom:6px;}
+.help-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.help-info-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px;}
+.help-info-title{font-size:12px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.help-info-text{font-size:12px;color:var(--gray600);line-height:1.55;}
 .help-mini-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .help-mini-card{display:block;background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:10px;padding:12px 14px;text-decoration:none;transition:all .15s;}
 .help-mini-card:hover{background:#E3ECFF;transform:translateY(-1px);}
 .help-mini-title{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:2px;}
 .help-mini-sub{font-size:12px;color:var(--gray600);}
-.help-code-list{display:grid;gap:8px;margin:12px 0;}
-.help-code-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;}
-.help-code-row code{font-size:13px;font-weight:700;color:var(--gray900);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+.help-forwarding-grid{display:grid;gap:10px;margin:10px 0 14px;}
+.help-forwarding-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:12px;}
+.help-forwarding-card.recommended{background:var(--green-light);border-color:var(--green-mid);}
+.help-forwarding-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.help-forwarding-title{font-size:13px;font-weight:700;color:var(--gray900);}
+.help-forwarding-reco{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;background:var(--white);border:1px solid var(--green-mid);color:#166534;font-size:10.5px;font-weight:700;}
+.help-forwarding-desc,.help-forwarding-effect{font-size:12px;color:var(--gray600);line-height:1.55;}
+.help-forwarding-effect strong{color:var(--gray900);}
+.help-code-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--white);border:1px solid var(--gray200);border-radius:10px;padding:8px 10px;margin:8px 0;}
+.help-code-row code{font-size:12.5px;font-weight:700;color:var(--gray900);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
 .help-chip{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:var(--green-light);border:1px solid var(--green-mid);color:#166534;font-size:11px;font-weight:700;margin-bottom:10px;}
 .help-faq-item{padding:10px 0;border-bottom:1px solid var(--gray100);}
 .help-faq-item:last-child{border-bottom:none;padding-bottom:0;}
 .help-faq-q{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .help-faq-a{font-size:13px;color:var(--gray600);line-height:1.6;}
-@media(max-width:768px){.help-mini-cards{grid-template-columns:1fr;}}
+@media(max-width:768px){.help-mini-cards,.help-card-grid{grid-template-columns:1fr;}}
 
 /* ═══════════════════════════════════════════
    SETUP WIZARD
@@ -1284,6 +1295,14 @@ body{
               <button class="settings-btn-primary" onclick="openHelpSection('smartphone')">Anleitung anzeigen</button>
             </div>
 
+            <div class="settings-card">
+              <div class="settings-card-title">Hilfe & Anleitung</div>
+              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
+                Erfahren Sie, wie Voxera funktioniert und wie Sie alle Funktionen optimal nutzen.
+              </div>
+              <button class="settings-btn-primary" onclick="openHelpSection()">Öffnen</button>
+            </div>
+
             <!-- Support -->
             <div class="settings-card">
               <div class="settings-card-title">Support</div>
@@ -1309,34 +1328,37 @@ body{
           <div class="help-page">
             <div style="margin-bottom:20px">
               <div class="section-title" style="font-size:16px;font-weight:700;">Hilfe & Anleitung</div>
-              <div class="help-lead">Alle wichtigen Informationen, damit Sie Voxera schnell verstehen und im Alltag effizient nutzen können.</div>
+              <div class="help-lead">Ihr kompakter Produkt-Guide für Einrichtung, Nutzung und tägliche Abläufe.</div>
             </div>
 
             <div class="help-section">
               <div class="help-section-title">Was ist Voxera?</div>
-              <p>Voxera ist Ihr KI-Telefonassistent für Schweizer KMU. Eingehende Anrufe werden zuverlässig entgegengenommen, auch wenn Ihr Team gerade ausgelastet ist.</p>
-              <p>Die KI führt ein natürliches Gespräch, erfasst Anliegen, Kontaktdaten und Dringlichkeit und übergibt alles strukturiert an Ihr Dashboard.</p>
-              <p>So bleiben Sie erreichbar, gewinnen Zeit und reagieren schneller auf wichtige Anfragen.</p>
+              <div class="help-card-grid">
+                <div class="help-info-card"><div class="help-info-title">Ihr KI-Telefonassistent</div><div class="help-info-text">Voxera nimmt eingehende Anrufe zuverlässig an – auch wenn Ihr Team ausgelastet ist.</div></div>
+                <div class="help-info-card"><div class="help-info-title">Strukturiert im Dashboard</div><div class="help-info-text">Anliegen, Kontaktdaten und Dringlichkeit werden übersichtlich erfasst und bereitgestellt.</div></div>
+              </div>
             </div>
 
             <div class="help-section">
               <div class="help-section-title">So funktioniert Voxera</div>
-              <p><strong>Anruf</strong> → <strong>Voxera nimmt ab</strong> → <strong>Informationen werden erfasst</strong> → <strong>Dashboard</strong> → <strong>Rückruf / Follow-up</strong></p>
-              <p>Sie sehen sofort, wer angerufen hat, worum es geht und was als nächster Schritt sinnvoll ist.</p>
+              <div class="help-info-card">
+                <div class="help-info-text"><strong>Anruf</strong> → <strong>Voxera nimmt ab</strong> → <strong>Informationen werden erfasst</strong> → <strong>Dashboard</strong> → <strong>Rückruf / Follow-up</strong></div>
+              </div>
             </div>
 
             <div class="help-section">
               <div class="help-section-title">Dashboard im Überblick</div>
-              <ul class="help-list">
-                <li><strong>Anrufe:</strong> Alle eingegangenen Anfragen mit Details und Priorisierung.</li>
-                <li><strong>Rückrufe:</strong> Offene Rückrufwünsche, damit nichts liegen bleibt.</li>
-                <li><strong>Archiv:</strong> Erledigte Vorgänge für Nachvollziehbarkeit und Verlauf.</li>
-                <li><strong>Einstellungen:</strong> Konto, Benachrichtigungen, Plan und Systeminfos.</li>
-              </ul>
+              <div class="help-card-grid">
+                <div class="help-info-card"><div class="help-info-title">Anrufe</div><div class="help-info-text">Alle eingehenden Anfragen mit den wichtigsten Details.</div></div>
+                <div class="help-info-card"><div class="help-info-title">Rückrufe</div><div class="help-info-text">Offene Rückruf-Anfragen klar gebündelt.</div></div>
+                <div class="help-info-card"><div class="help-info-title">Archiv</div><div class="help-info-text">Erledigte Vorgänge für Verlauf und Nachvollziehbarkeit.</div></div>
+                <div class="help-info-card"><div class="help-info-title">Einstellungen</div><div class="help-info-text">Benachrichtigungen, Konto und Systeminformationen.</div></div>
+              </div>
             </div>
 
             <div class="help-section" id="forwarding">
               <div class="help-section-title">Anrufe auf Voxera weiterleiten</div>
+              <p style="margin-bottom:10px;">Wählen Sie Ihre Situation und übernehmen Sie den passenden Code.</p>
               <div class="help-mini-cards">
                 <a class="help-mini-card" href="#smartphone">
                   <div class="help-mini-title">Mit dem Smartphone weiterleiten</div>
@@ -1350,13 +1372,35 @@ body{
 
               <div id="smartphone" style="padding-top:4px;">
                 <div class="help-section-title" style="font-size:15px;">Weiterleitung auf dem Smartphone einrichten</div>
-                <div class="help-chip">Empfohlen: Bei Nichterreichbarkeit weiterleiten</div>
-                <p>Nutzen Sie die folgenden GSM-Codes direkt in der Telefon-App. Ersetzen Sie <strong>VOXERA_NUMMER</strong> mit Ihrer Voxera-Nummer.</p>
-                <div class="help-code-list">
-                  <div class="help-code-row"><code>**62*VOXERA_NUMMER#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'**62*VOXERA_NUMMER#')">Kopieren</button></div>
-                  <div class="help-code-row"><code>**67*VOXERA_NUMMER#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'**67*VOXERA_NUMMER#')">Kopieren</button></div>
-                  <div class="help-code-row"><code>**21*VOXERA_NUMMER#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'**21*VOXERA_NUMMER#')">Kopieren</button></div>
-                  <div class="help-code-row"><code>##002#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'##002#')">Kopieren</button></div>
+                <p style="margin-bottom:4px;">Ersetzen Sie <strong>VOXERA_NUMMER</strong> mit Ihrer Voxera-Nummer.</p>
+                <div class="help-forwarding-grid">
+                  <div class="help-forwarding-card recommended">
+                    <div class="help-forwarding-head">
+                      <div class="help-forwarding-title">Bei Nichterreichbarkeit</div>
+                      <span class="help-forwarding-reco">Empfohlen</span>
+                    </div>
+                    <div class="help-forwarding-desc">Ideal, wenn Sie Anrufe selbst annehmen möchten, aber nicht immer erreichbar sind.</div>
+                    <div class="help-code-row"><code>**62*VOXERA_NUMMER#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'**62*VOXERA_NUMMER#')">Kopieren</button></div>
+                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe nur dann an Voxera weiter, wenn Sie nicht abnehmen können.</div>
+                  </div>
+                  <div class="help-forwarding-card">
+                    <div class="help-forwarding-head"><div class="help-forwarding-title">Bei Besetzt</div></div>
+                    <div class="help-forwarding-desc">Ideal, wenn Sie bereits telefonieren und kein weiterer Anruf verloren gehen soll.</div>
+                    <div class="help-code-row"><code>**67*VOXERA_NUMMER#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'**67*VOXERA_NUMMER#')">Kopieren</button></div>
+                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe an Voxera weiter, wenn Ihre Leitung gerade besetzt ist.</div>
+                  </div>
+                  <div class="help-forwarding-card">
+                    <div class="help-forwarding-head"><div class="help-forwarding-title">Alle Anrufe weiterleiten</div></div>
+                    <div class="help-forwarding-desc">Ideal, wenn Voxera alle Anrufe vollständig übernehmen soll.</div>
+                    <div class="help-code-row"><code>**21*VOXERA_NUMMER#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'**21*VOXERA_NUMMER#')">Kopieren</button></div>
+                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet jeden eingehenden Anruf direkt an Voxera weiter.</div>
+                  </div>
+                  <div class="help-forwarding-card">
+                    <div class="help-forwarding-head"><div class="help-forwarding-title">Weiterleitung ausschalten</div></div>
+                    <div class="help-forwarding-desc">Wenn Sie wieder direkt selbst erreichbar sein möchten.</div>
+                    <div class="help-code-row"><code>##002#</code><button class="settings-btn-secondary" onclick="copyForwardingCode(event,'##002#')">Kopieren</button></div>
+                    <div class="help-forwarding-effect"><strong>Wirkung:</strong> Deaktiviert alle aktiven Rufumleitungen.</div>
+                  </div>
                 </div>
                 <ul class="help-list">
                   <li><strong>iPhone:</strong> Einstellungen &gt; Telefon &gt; Rufumleitung</li>
@@ -1366,23 +1410,21 @@ body{
 
               <div id="festnetz" style="margin-top:16px;">
                 <div class="help-section-title" style="font-size:15px;">Weiterleitung auf Festnetz einrichten</div>
-                <p>Für Festnetz gibt es meist drei einfache Wege:</p>
-                <ul class="help-list">
-                  <li><strong>Direkt am Telefon:</strong> Weiterleitung im Menü des Geräts aktivieren.</li>
-                  <li><strong>Über Ihren Anbieter:</strong> Weiterleitung via Kundenportal oder Service-Code einrichten.</li>
-                  <li><strong>Über Ihre Telefonanlage:</strong> Routing-Regel auf die Voxera-Nummer setzen.</li>
-                </ul>
-                <p>Als Orientierung: Viele Unternehmen nutzen dafür z. B. Swisscom, Sunrise oder Salt.</p>
+                <div class="help-card-grid">
+                  <div class="help-info-card"><div class="help-info-title">Direkt am Telefon</div><div class="help-info-text">Richten Sie die Umleitung im Gerätemenü ein.</div></div>
+                  <div class="help-info-card"><div class="help-info-title">Über Ihren Anbieter</div><div class="help-info-text">Nutzen Sie Kundenportal oder Service-Code (z. B. Swisscom, Sunrise, Salt).</div></div>
+                  <div class="help-info-card" style="grid-column:1/-1;"><div class="help-info-title">Über Ihre Telefonanlage</div><div class="help-info-text">Setzen Sie eine Routing-Regel auf Ihre Voxera-Nummer.</div></div>
+                </div>
               </div>
             </div>
 
             <div class="help-section">
               <div class="help-section-title">Benachrichtigungen</div>
-              <ul class="help-list">
-                <li><strong>Keine Benachrichtigungen:</strong> Alle Informationen nur im Dashboard.</li>
-                <li><strong>Nur bei Rückruf-Anfragen:</strong> Fokus auf Anrufe mit konkretem Handlungsbedarf.</li>
-                <li><strong>Bei jedem Anruf:</strong> Vollständige Transparenz in Echtzeit.</li>
-              </ul>
+              <div class="help-card-grid">
+                <div class="help-info-card"><div class="help-info-title">Keine Benachrichtigungen</div><div class="help-info-text">Alle Informationen nur im Dashboard.</div></div>
+                <div class="help-info-card"><div class="help-info-title">Nur bei Rückruf-Anfragen</div><div class="help-info-text">Fokus auf Anrufe mit direktem Handlungsbedarf.</div></div>
+                <div class="help-info-card" style="grid-column:1/-1;"><div class="help-info-title">Bei jedem Anruf</div><div class="help-info-text">Vollständige Transparenz in Echtzeit.</div></div>
+              </div>
             </div>
 
             <div class="help-section">
@@ -1397,12 +1439,12 @@ body{
 
             <div class="help-section">
               <div class="help-section-title">Tipps für den Alltag</div>
-              <ul class="help-list">
-                <li>Rückrufe möglichst zeitnah erledigen, solange das Anliegen noch aktuell ist.</li>
-                <li>Follow-ups konsequent planen, um offene Punkte strukturiert nachzuverfolgen.</li>
-                <li>Dringende oder umsatzrelevante Anfragen zuerst priorisieren.</li>
-                <li>Archivierte Anrufe regelmässig prüfen, um wiederkehrende Muster zu erkennen.</li>
-              </ul>
+              <div class="help-card-grid">
+                <div class="help-info-card"><div class="help-info-text">Rückrufe zeitnah bearbeiten, solange Anliegen noch aktuell sind.</div></div>
+                <div class="help-info-card"><div class="help-info-text">Follow-ups konsequent nutzen, damit nichts offen bleibt.</div></div>
+                <div class="help-info-card"><div class="help-info-text">Wichtige Anfragen priorisieren und schnell reagieren.</div></div>
+                <div class="help-info-card"><div class="help-info-text">Archiv regelmässig prüfen, um Muster zu erkennen.</div></div>
+              </div>
             </div>
           </div>
         </div>
@@ -1434,11 +1476,7 @@ body{
       </button>
       <button class="mobile-nav-btn" id="mnav-konto" onclick="showTab('einstellungen',this);openAccount()">
         <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M3.5 13c.8-2.1 2.5-3.2 4.5-3.2s3.7 1.1 4.5 3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Konto
-      </button>
-      <button class="mobile-nav-btn" id="mnav-hilfe" onclick="showTab('hilfe',this)">
-        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M6.9 6a1.2 1.2 0 112.1.8c-.3.5-.8.8-1.1 1.1-.3.2-.5.5-.5.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.3" r=".8" fill="currentColor"/></svg>
-        Hilfe
+        Einstellungen
       </button>
     </div>
   </div>
