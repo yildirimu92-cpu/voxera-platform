@@ -1886,7 +1886,6 @@ if (typeof window !== 'undefined') {
   window.resolveFollowUpAt = resolveFollowUpAt;
   window.fmtFollowUpDateTime = fmtFollowUpDateTime;
   window.buildFollowUpMetaText = buildFollowUpMetaText;
-  console.log('[VOXERA FOLLOWUP BOOT]', typeof window.resolveFollowUpAt, typeof window.buildFollowUpMetaText);
 }
 
 function extractCustomerHint(authUser) {
@@ -2246,15 +2245,16 @@ function updateDashboardHeaderMeta() {
   if (!sub) return;
   var openCalls = allRecords.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); }).length;
   var openCallbacks = allRecords.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); }).length;
-  const timeStr = fmtDate(new Date().toISOString());
-  sub.textContent = openCalls + ' Anrufe · ' + openCallbacks + ' Rückrufe · Aktualisiert vor ' + timeStr;
+  sub.textContent = openCalls + ' Anrufe · ' + openCallbacks + ' Rückrufe · Gerade aktualisiert';
 }
 
 function isToday(raw) {
   if (!raw) return false;
-  const d = parseFollowUpDate(raw) || new Date(raw), t = new Date();
+  const d = parseFollowUpDate(raw) || new Date(raw);
   if (Number.isNaN(d.getTime())) return false;
-  return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
+  // Use Europe/Zurich to avoid UTC midnight boundary producing the wrong calendar day
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+  return fmt.format(d) === fmt.format(new Date());
 }
 
 function isThisWeek(raw) {
@@ -2262,7 +2262,9 @@ function isThisWeek(raw) {
   const d = parseFollowUpDate(raw) || new Date(raw), now = new Date();
   if (Number.isNaN(d.getTime())) return false;
   const start = new Date(now);
-  start.setDate(now.getDate()-now.getDay());
+  // Monday-first week (Swiss / ISO 8601): Sun=0 → offset 6, Mon=1 → offset 0, …, Sat=6 → offset 5
+  const dayOffset = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  start.setDate(now.getDate() - dayOffset);
   start.setHours(0,0,0,0);
   return d >= start;
 }
@@ -2449,7 +2451,7 @@ function sendUpgradeRequest() {
   if (!selectedUpgradePlan) { toast('Bitte Plan auswählen'); return; }
   var subject = encodeURIComponent('Voxera Upgrade auf ' + selectedUpgradePlan + ' - ' + (customerMeta.customerName || 'Kunde'));
   var body = encodeURIComponent('Hallo Voxera-Team,\r\n\r\nich möchte auf den Plan "' + selectedUpgradePlan + '" upgraden.\r\n\r\nKunde: ' + (customerMeta.customerName || '-') + '\r\nCustomer ID: ' + (customerMeta.customerId || '-') + '\r\nAktueller Plan: ' + (customerMeta.plan || '-') + '\r\nGewünschter Plan: ' + selectedUpgradePlan + '\r\n\r\nBitte kontaktiert mich.\r\n');
-  window.location.href = 'mailto:' + _vxMail() + '?subject=' + subject + '&body=' + body;
+  window.location.href = 'mailto:info@voxera.ch?subject=' + subject + '&body=' + body;
   document.getElementById('upgrade-overlay').classList.remove('open');
   toast('Upgrade-Anfrage gesendet');
 }
@@ -2476,7 +2478,7 @@ function sendMinutesRequest() {
   if (!selectedMinutesPkg) { toast('Bitte Paket auswählen'); return; }
   var subject = encodeURIComponent('Voxera Zusatzminuten ' + selectedMinutesPkg + ' Min - ' + (customerMeta.customerName || 'Kunde'));
   var body = encodeURIComponent('Hallo Voxera-Team,\r\n\r\nich möchte ' + selectedMinutesPkg + ' Zusatzminuten buchen.\r\n\r\nKunde: ' + (customerMeta.customerName || '-') + '\r\nCustomer ID: ' + (customerMeta.customerId || '-') + '\r\nPlan: ' + (customerMeta.plan || '-') + '\r\nGewünschtes Paket: ' + selectedMinutesPkg + ' Minuten\r\n\r\nBitte kontaktiert mich.\r\n');
-  window.location.href = 'mailto:' + _vxMail() + '?subject=' + subject + '&body=' + body;
+  window.location.href = 'mailto:info@voxera.ch?subject=' + subject + '&body=' + body;
   document.getElementById('minutes-overlay').classList.remove('open');
   toast('Anfrage gesendet');
 }
@@ -2659,9 +2661,6 @@ function renderDashboard(records) {
     if (sortedOpenCallbacks.length === 0) {
       callbackList.innerHTML = '<div class="dash-empty">Keine offenen Rückrufe</div>';
     } else {
-      console.log('[VOXERA CALLBACK SORT][dashboard]', sortedOpenCallbacks.map(function(r){
-        return { id: r.id, sortTime: getOpenCallbackSortTime(r) || null };
-      }));
       renderList('dash-callback-list', sortedOpenCallbacks, {showActions:true, primaryCallback:true, skipSort:true, limit:4, dashboardView:true});
     }
   }
@@ -2802,36 +2801,28 @@ function renderList(containerId, records, opts) {
     // Follow-up meta line (action/date/time) in short unified format
     const followUpAt = resolveFollowUpAt(f);
     const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
-    console.log('[VOXERA FOLLOWUP DEBUG][call-row]', {
-      id: r.id,
-      caller: f.caller_name || '',
-      next_action: f.next_action || '',
-      raw_follow_up_at: f.follow_up_at,
-      resolved_follow_up_at: followUpAt,
-      rendered_followup_text: followUpMetaText
-    });
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
-    return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${(f.dashboard_status||'').toLowerCase()}">
+    return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${escHtml((f.dashboard_status||'').toLowerCase())}">
       <div class="av ${avClass(f.lead_quality, done)}">${initials(f.caller_name)}</div>
       <div class="call-body">
         <div class="call-top">
-          <span class="call-name linklike" onclick="openDetail('${r.id}')">${f.caller_name||'–'}</span>
-          ${f.company_name?`<span class="call-company">· ${f.company_name}</span>`:''}
+          <span class="call-name linklike" onclick="openDetail('${r.id}')">${escHtml(f.caller_name||'–')}</span>
+          ${f.company_name?`<span class="call-company">· ${escHtml(f.company_name)}</span>`:''}
           ${priorityChip(r)}
           ${qualChip(f.lead_quality)}
           ${statusChip(f.dashboard_status)}
           ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>':''}
         </div>
         <div class="call-meta">
-          ${displayPhone?`<span class="call-phone">${displayPhone}</span>`:''}
-          ${f.category?`<span style="background:var(--gray100);padding:1px 7px;border-radius:4px;font-size:11px;">${f.category}</span>`:''}
+          ${displayPhone?`<span class="call-phone">${escHtml(displayPhone)}</span>`:''}
+          ${f.category?`<span style="background:var(--gray100);padding:1px 7px;border-radius:4px;font-size:11px;">${escHtml(f.category)}</span>`:''}
           <span>${callDateTime}</span>
         </div>
         ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
         ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
-        ${notizText && !opts.dashboardView?`<div class="call-notiz">📝 ${notizText}</div>`:''}
+        ${notizText && !opts.dashboardView?`<div class="call-notiz">📝 ${escHtml(notizText)}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="btn-a ${opts.primaryCallback?'btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Anrufen</button>`:''}
           ${!done?`<button class="btn-a btn-done" onclick="confirmClose('${r.id}','Abgeschlossen',this.closest('.call-row, .cb-row'))">Erledigt</button>`:''}
@@ -2851,9 +2842,6 @@ function renderAnrufe(records) {
 function renderRueckrufe(records) {
   const offen = records.filter(r => r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status));
   const sortedOpenCallbacks = sortOpenCallbacksOldestFirst(offen);
-  console.log('[VOXERA CALLBACK SORT][rueckrufe]', sortedOpenCallbacks.map(function(r){
-    return { id: r.id, sortTime: getOpenCallbackSortTime(r) || null };
-  }));
   renderList('rueckrufe-list', sortedOpenCallbacks, {showActions:true, primaryCallback:true, skipSort:true});
 }
 
