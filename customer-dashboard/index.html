@@ -1210,15 +1210,17 @@ body{
                     <div id="setup-test-block" style="margin-top:14px;display:none;">
                       <h4>Schritt 3: Testanruf durchführen</h4>
                       <p>Prüfen Sie jetzt, ob Ihre Rufumleitung korrekt eingerichtet ist.</p>
-                      <div class="setup-helper-note">Rufen Sie Ihre Voxera-Nummer an.</div>
+                      <div class="setup-helper-note">Rufen Sie Ihre Geschäftsnummer von einem anderen Telefon aus an.</div>
                       <div class="setup-number-box">
-                        <span class="setup-number-val" id="setup-voxera-number-test">Wird geladen...</span>
-                        <a class="setup-btn setup-btn-primary" id="setup-call-btn" href="tel:">☎ Jetzt anrufen</a>
+                        <span class="setup-number-val" id="setup-business-number-test">Wird geladen...</span>
+                        <button type="button" class="setup-btn setup-btn-primary" id="setup-forwarding-test-guide-btn" onclick="openSetupHelpOverlay(event,'testcall')">So testen Sie es</button>
                       </div>
+                      <div class="setup-helper-note" id="setup-business-number-note" style="display:none;">Ihre Geschäftsnummer fehlt. Hinterlegen Sie sie in den Einstellungen, um den Weiterleitungs-Test sauber durchzuführen.</div>
                       <h4>Was Sie erwarten können</h4>
                       <ul>
-                        <li>Voxera meldet sich automatisch</li>
-                        <li>Sie nennen ein Anliegen</li>
+                        <li>Sie rufen Ihre eigene Geschäftsnummer von einem anderen Telefon aus an</li>
+                        <li>Die Rufumleitung leitet den Anruf an Voxera weiter</li>
+                        <li>Voxera meldet sich automatisch und beantwortet den Anruf</li>
                         <li>Der Anruf erscheint im Dashboard</li>
                       </ul>
                       <p>Tipp: Sagen Sie z. B. „Ich hätte gerne einen Termin.“</p>
@@ -2818,24 +2820,13 @@ function updateActivationStatusCard(records) {
   titleEl.textContent = 'Rufumleitung eingerichtet';
   textEl.textContent = 'Testen Sie jetzt, ob alles funktioniert.';
   if (primaryBtn) {
-    var hasNumber = !!getDialableVoxeraNumber();
-    primaryBtn.textContent = 'Testanruf starten';
-    primaryBtn.setAttribute('aria-disabled', hasNumber ? 'false' : 'true');
-    primaryBtn.style.opacity = hasNumber ? '' : '.55';
-    primaryBtn.style.pointerEvents = hasNumber ? '' : 'none';
+    var hasBusinessNumber = !!((customerMeta && customerMeta.telNr) ? String(customerMeta.telNr).trim() : '');
+    primaryBtn.textContent = 'So testen Sie es';
+    primaryBtn.setAttribute('aria-disabled', hasBusinessNumber ? 'false' : 'true');
+    primaryBtn.style.opacity = hasBusinessNumber ? '' : '.55';
+    primaryBtn.style.pointerEvents = hasBusinessNumber ? '' : 'none';
   }
   card.classList.add('show', 'info');
-}
-
-function startVoxeraTestCall(event){
-  if(event) event.preventDefault();
-  var target = getDialableVoxeraNumber();
-  if (!target) {
-    toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
-    return;
-  }
-  toast('Telefon wird geöffnet…');
-  window.location.href = 'tel:' + String(target).replace(/\s+/g, '');
 }
 
 function handleDashboardActivationPrimaryCta(event){
@@ -2844,7 +2835,12 @@ function handleDashboardActivationPrimaryCta(event){
     openSetupWizardFromCta(event, 's1');
     return;
   }
-  startVoxeraTestCall(event);
+  var hasBusinessNumber = !!((customerMeta && customerMeta.telNr) ? String(customerMeta.telNr).trim() : '');
+  if (!hasBusinessNumber) {
+    toast('Ihre Geschäftsnummer ist noch nicht hinterlegt.');
+    return;
+  }
+  openSetupHelpOverlay(event, 'testcall');
 }
 
 function markCbDone(recordId) {
@@ -3607,7 +3603,7 @@ function openSetupHelpOverlay(event, sectionId) {
     testcall: {
       title: 'Testanruf Hilfe',
       sub: 'So prüfen Sie den Ablauf in unter 1 Minute',
-      html: '<div class="setup-help-grid"><div class="setup-help-card"><div class="setup-help-card-title">Ablauf</div><div class="setup-help-card-text">Rufen Sie Ihre Voxera-Nummer an, nennen Sie Name + Anliegen und prüfen Sie danach den Eintrag im Dashboard.</div></div></div>',
+      html: '<div class="setup-help-grid"><div class="setup-help-card"><div class="setup-help-card-title">Ablauf</div><div class="setup-help-card-text">Rufen Sie Ihre Geschäftsnummer von einem anderen Telefon aus an. Die Rufumleitung sollte an Voxera übergeben. Prüfen Sie danach den Eintrag im Dashboard.</div></div></div>',
       anchor: 'forwarding'
     },
     notifications: {
@@ -4122,33 +4118,32 @@ function initSetupWizard(){
   });
   updateSetupProgress();
   var num = customerMeta.voxeraNumber || '';
+  var businessNum = (customerMeta && customerMeta.telNr) ? String(customerMeta.telNr) : '';
   var el1 = document.getElementById('setup-voxera-number');
   var el2 = document.getElementById('setup-voxera-number-2');
   var el3 = document.getElementById('setup-voxera-number-3');
-  var elTest = document.getElementById('setup-voxera-number-test');
-  var callBtn = document.getElementById('setup-call-btn');
+  var elTest = document.getElementById('setup-business-number-test');
+  var businessNumNote = document.getElementById('setup-business-number-note');
+  var testGuideBtn = document.getElementById('setup-forwarding-test-guide-btn');
   var mobileSetupBtn = document.getElementById('setup-forwarding-mobile-btn');
   var landlineSetupBtn = document.getElementById('setup-forwarding-landline-btn');
   var copyBtn = document.getElementById('setup-forwarding-copy-btn');
   if(el1) el1.textContent = num || 'Nicht verfügbar';
   if(el2) el2.textContent = num || 'Nicht verfügbar';
   if(el3) el3.textContent = num || 'Nicht verfügbar';
-  if(elTest) elTest.textContent = num || 'Nicht verfügbar';
-  if(callBtn) {
-    if (num) {
-      callBtn.href = 'tel:' + num.replace(/\s/g,'');
-      callBtn.style.display = '';
-    } else {
-      callBtn.removeAttribute('href');
-      callBtn.style.display = 'none';
-    }
-  }
+  if(elTest) elTest.textContent = businessNum || 'Geschäftsnummer fehlt';
+  if(businessNumNote) businessNumNote.style.display = businessNum ? 'none' : 'block';
   [mobileSetupBtn, landlineSetupBtn, copyBtn].forEach(function(btn){
     if(!btn) return;
     btn.disabled = !num;
     btn.style.opacity = num ? '' : '.55';
     btn.style.cursor = num ? '' : 'not-allowed';
   });
+  if (testGuideBtn) {
+    testGuideBtn.disabled = !businessNum;
+    testGuideBtn.style.opacity = businessNum ? '' : '.55';
+    testGuideBtn.style.cursor = businessNum ? '' : 'not-allowed';
+  }
   if (!isSetupComplete()) {
     var firstOpen = getOpenSteps()[0] || 's1';
     setActiveSetupStep(firstOpen);
