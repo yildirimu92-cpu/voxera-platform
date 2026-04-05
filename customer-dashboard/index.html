@@ -198,6 +198,16 @@ body{
 .setup-step-content ol{padding-left:20px;margin:8px 0;}
 .setup-step-content ol li{margin-bottom:6px;}
 .setup-step-content code{background:var(--gray100);padding:2px 7px;border-radius:4px;font-size:12px;font-weight:600;color:var(--blue);}
+.setup-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;}
+.setup-choice-card{background:var(--white);border:1px solid var(--gray200);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;}
+.setup-choice-card.active{border-color:var(--blue);box-shadow:0 0 0 2px rgba(26,86,219,.08);}
+.setup-choice-title{font-size:13px;font-weight:700;color:var(--gray900);}
+.setup-choice-text{font-size:12px;color:var(--gray600);line-height:1.5;}
+.setup-choice-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.setup-device-panel{display:none;background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px;margin:8px 0;}
+.setup-device-panel.active{display:block;}
+.setup-helper-note{font-size:12px;color:var(--gray500);margin-top:6px;}
+.setup-info-note{margin-top:8px;font-size:12px;color:#92400E;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:8px;padding:8px 10px;}
 .setup-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;border:none;transition:all .15s;}
 .setup-btn-primary{background:var(--blue);color:white;box-shadow:0 2px 8px rgba(26,86,219,.18);}
 .setup-btn-primary:hover{background:var(--blue-dark);}
@@ -224,6 +234,7 @@ body{
 .setup-skip a{font-size:13px;color:var(--gray400);text-decoration:none;font-weight:500;}
 .setup-skip a:hover{color:var(--blue);text-decoration:underline;}
 @media(max-width:768px){.setup-step{padding:16px;}.setup-welcome-title{font-size:20px;}.setup-number-box{flex-direction:column;align-items:flex-start;}}
+@media(max-width:768px){.setup-choice-grid{grid-template-columns:1fr;}}
 
 .setup-help-modal{width:100%;max-width:640px;max-height:90vh;overflow:auto;}
 .setup-help-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
@@ -807,13 +818,31 @@ body{
 .dash-hero-cta.green:hover{background:#15803D;}
 .dash-activation-card{background:#FFF9F2;border:1px solid #FDE68A;border-radius:12px;padding:16px 18px;margin-bottom:16px;display:none;}
 .dash-activation-card.show{display:block;}
+.dash-activation-card.info{background:#F8FAFF;border-color:#BFDBFE;}
+.dash-activation-card.success{background:#F0FDF4;border-color:#86EFAC;}
 .dash-activation-title{font-size:14px;font-weight:700;color:#92400E;margin-bottom:6px;}
+.dash-activation-card.info .dash-activation-title{color:#1E3A8A;}
+.dash-activation-card.success .dash-activation-title{color:#166534;}
 .dash-activation-text{font-size:12.5px;color:#B45309;line-height:1.55;margin-bottom:12px;}
+.dash-activation-card.info .dash-activation-text{color:#1E40AF;}
+.dash-activation-card.success .dash-activation-text{color:#166534;}
 .dash-activation-actions{display:flex;gap:8px;flex-wrap:wrap;}
 .dash-btn-primary{display:inline-flex;align-items:center;justify-content:center;background:var(--blue);color:var(--white);border:1px solid var(--blue);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;}
 .dash-btn-primary:hover{background:var(--blue-dark);border-color:var(--blue-dark);}
 .dash-btn-secondary{display:inline-flex;align-items:center;justify-content:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;}
 .dash-btn-secondary:hover{background:var(--gray50);}
+.fse-card{display:none;background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:24px;margin-bottom:16px;}
+.fse-card.show{display:block;}
+.fse-title{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:var(--gray900);margin-bottom:8px;}
+.fse-sub{font-size:14px;color:var(--gray600);line-height:1.6;margin-bottom:18px;max-width:640px;}
+.fse-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.fse-progress{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:14px;}
+.fse-progress-title{font-size:12.5px;font-weight:700;color:var(--gray700);margin-bottom:8px;}
+.fse-progress ul{margin:0;padding:0;list-style:none;display:grid;gap:6px;}
+.fse-progress li{font-size:13px;color:var(--gray600);}
+.fse-progress li.done{color:var(--green);font-weight:600;}
+.fse-note{font-size:12.5px;color:#92400E;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:none;}
+.fse-note.show{display:block;}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:20px;}
 .dash-kpi{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:18px 20px;}
 .dash-kpi-label{font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0;color:#6B7280;margin-bottom:10px;}
@@ -847,6 +876,8 @@ body{
   .dash-kpi-row{grid-template-columns:1fr;gap:10px;}
   .dash-activation-actions{flex-direction:column;}
   .dash-btn-primary,.dash-btn-secondary{width:100%;}
+  .fse-actions{flex-direction:column;}
+  .fse-title{font-size:24px;}
   /* Mobile legacy cb-actions alignment */
   .cb-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:8px;}
   .cb-actions .btn-call,.btn-done-small,.btn-note{width:100%;justify-content:center;height:40px;padding:0 12px;font-size:12px;}
@@ -952,14 +983,31 @@ body{
 
         <!-- DASHBOARD TAB -->
         <div class="tab-page active" id="tab-dashboard">
+          <div class="fse-card" id="dashboard-fse">
+            <div class="fse-title">Willkommen bei Voxera</div>
+            <div class="fse-sub">Verpassen Sie keine Anrufe mehr. In 2 Minuten sind Sie startbereit.</div>
+            <div class="fse-note" id="dashboard-fse-note">Ihre Voxera-Nummer ist noch nicht verfügbar. Bitte kontaktieren Sie den Support, um die Einrichtung abzuschließen.</div>
+            <div class="fse-actions">
+              <button class="dash-btn-primary" id="dashboard-fse-primary" onclick="handleSetupExperiencePrimaryCta(event)">Jetzt einrichten</button>
+              <button class="dash-btn-secondary" id="dashboard-fse-secondary" onclick="handleSetupExperienceWizardCta(event)">Einrichtungsassistent öffnen</button>
+            </div>
+            <div class="fse-progress">
+              <div class="fse-progress-title">Fortschritt</div>
+              <ul>
+                <li id="fse-progress-forwarding">☐ Rufumleitung aktivieren</li>
+                <li id="fse-progress-testcall">☐ Testanruf durchführen</li>
+                <li id="fse-progress-ready">☐ Bereit</li>
+              </ul>
+            </div>
+          </div>
           <div id="dash-loading" class="loading-wrap"><div class="spinner"></div><span>Laden...</span></div>
           <div id="dash-content" style="display:none">
 
             <div class="dash-activation-card" id="dash-activation-card">
-              <div class="dash-activation-title">⚠️ Rufumleitung noch nicht eingerichtet</div>
-              <div class="dash-activation-text">Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.</div>
+              <div class="dash-activation-title" id="dash-activation-title">⚠️ Rufumleitung noch nicht eingerichtet</div>
+              <div class="dash-activation-text" id="dash-activation-text">Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.</div>
               <div class="dash-activation-actions">
-                <a href="javascript:void(0)" class="dash-btn-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</a>
+                <a href="javascript:void(0)" class="dash-btn-primary" id="dash-activation-primary" onclick="handleDashboardActivationPrimaryCta(event)">Jetzt einrichten</a>
                 <a href="javascript:void(0)" class="dash-btn-secondary" onclick="var n=document.getElementById('nav-hilfe');if(n)showTab('hilfe',n);">Mehr erfahren</a>
               </div>
             </div>
@@ -1092,44 +1140,95 @@ body{
                       <span class="setup-number-val" id="setup-voxera-number">Wird geladen...</span>
                       <button class="setup-number-copy" onclick="copyVoxeraNumber(event)">Kopieren</button>
                     </div>
-                    <p>Diese Nummer leiten Sie im nächsten Schritt auf Ihr Telefon um.</p>
+                    <p>Diese Nummer übernimmt Ihre eingehenden Anrufe.<br>Im nächsten Schritt richten Sie die Rufumleitung auf diese Nummer ein.</p>
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1');event.stopPropagation();">Verstanden &amp; weiter</button>
+                    <button type="button" class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1',event)">Weiter zur Einrichtung</button>
                   </div>
                 </div>
               </div>
 
-              <!-- Step 2: Testanruf -->
+              <!-- Step 2: Rufumleitung einrichten -->
               <div class="setup-step" id="setup-s2" onclick="toggleSetupStep('s2')">
                 <div class="setup-step-head">
                   <div class="setup-step-num">2</div>
                   <div class="setup-step-info">
-                    <div class="setup-step-title">Testanruf durchführen</div>
-                    <div class="setup-step-desc">Prüfen Sie, ob alles korrekt funktioniert</div>
+                    <div class="setup-step-title">Rufumleitung einrichten</div>
+                    <div class="setup-step-desc">Wählen Sie Ihr Gerät und richten Sie die Weiterleitung ein</div>
                   </div>
                   <div class="setup-step-check">✓</div>
                 </div>
                 <div class="setup-step-body">
                   <div class="setup-step-content">
-                    <p>Rufen Sie jetzt Ihre Voxera-Nummer an, um zu testen ob der Assistent korrekt antwortet.</p>
-                    <div class="setup-number-box">
-                      <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
-                      <a class="setup-btn setup-btn-primary" id="setup-call-btn" href="tel:">☎ Jetzt anrufen</a>
+                    <div class="setup-choice-grid">
+                      <div class="setup-choice-card active" id="setup-device-card-mobile">
+                        <div class="setup-choice-title">Smartphone</div>
+                        <div class="setup-choice-text">Sie möchten Anrufe von Ihrem Smartphone direkt an Voxera weiterleiten.</div>
+                        <div class="setup-choice-actions">
+                          <button type="button" class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Mit Smartphone einrichten</button>
+                        </div>
+                      </div>
+                      <div class="setup-choice-card" id="setup-device-card-landline">
+                        <div class="setup-choice-title">Festnetz oder Büro-Telefon</div>
+                        <div class="setup-choice-text">Sie nutzen ein Festnetz, eine Telefonanlage oder eine VoIP-Lösung.</div>
+                        <div class="setup-choice-actions">
+                          <button type="button" class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'landline')">Mit Festnetz einrichten</button>
+                        </div>
+                      </div>
                     </div>
-                    <h4>Was Sie erwarten können</h4>
-                    <ol>
-                      <li>Voxera meldet sich mit einer freundlichen Begrüssung</li>
-                      <li>Nennen Sie einen Testnamen und ein Anliegen</li>
-                      <li>Nach dem Gespräch erscheint der Anruf im Dashboard</li>
-                    </ol>
-                    <p>Tipp: Wechseln Sie danach zum <strong>Dashboard</strong>-Tab und prüfen Sie, ob der Testanruf erscheint.</p>
-                    <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'testcall')">❓ Anleitung anzeigen</a>
+
+                    <div class="setup-device-panel active" id="setup-device-panel-mobile">
+                      <h4>Rufumleitung auf dem Smartphone aktivieren</h4>
+                      <p>Öffnen Sie Ihre Telefon-App und aktivieren Sie die Rufumleitung auf Ihre Voxera-Nummer.</p>
+                      <div class="setup-helper-note">Diese Nummer ist das Ziel Ihrer Rufumleitung.</div>
+                      <div class="setup-number-box">
+                        <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
+                        <div class="setup-choice-actions" style="margin-top:0;">
+                          <button type="button" class="setup-btn setup-btn-primary" id="setup-forwarding-mobile-btn" onclick="openSetupHelpOverlay(event,'forwarding')">Jetzt Rufumleitung aktivieren</button>
+                          <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-copy-btn" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="setup-device-panel" id="setup-device-panel-landline">
+                      <h4>Rufumleitung beim Anbieter einrichten</h4>
+                      <p>Richten Sie die Rufumleitung direkt bei Ihrem Telefonanbieter oder in Ihrer Telefonanlage auf Ihre Voxera-Nummer ein.</p>
+                      <div class="setup-helper-note">Diese Nummer tragen Sie bei der Rufumleitung als Ziel ein.</div>
+                      <div class="setup-number-box">
+                        <span class="setup-number-val" id="setup-voxera-number-3">Wird geladen...</span>
+                        <div class="setup-choice-actions" style="margin-top:0;">
+                          <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-landline-btn" onclick="openHelpSection('forwarding');event.stopPropagation();">Anleitung anzeigen</button>
+                        </div>
+                      </div>
+                      <div class="setup-info-note">Hinweis: Bei Festnetz oder Telefonanlagen funktionieren GSM-Codes oft nicht direkt.</div>
+                    </div>
+
+                    <p>Sobald die Rufumleitung eingerichtet ist, testen Sie im nächsten Schritt, ob alles korrekt funktioniert.</p>
+                    <button type="button" class="setup-btn setup-btn-primary" onclick="continueToSetupTest(event)">Weiter zum Test</button>
+
+                    <div id="setup-test-block" style="margin-top:14px;display:none;">
+                      <h4>Schritt 3: Testanruf durchführen</h4>
+                      <p>Prüfen Sie jetzt, ob Ihre Rufumleitung korrekt eingerichtet ist.</p>
+                      <div class="setup-helper-note">Rufen Sie Ihre Geschäftsnummer von einem anderen Telefon aus an.</div>
+                      <div class="setup-number-box">
+                        <span class="setup-number-val" id="setup-business-number-test">Wird geladen...</span>
+                        <button type="button" class="setup-btn setup-btn-primary" id="setup-forwarding-test-guide-btn" onclick="openSetupHelpOverlay(event,'testcall')">So testen Sie es</button>
+                      </div>
+                      <div class="setup-helper-note" id="setup-business-number-note" style="display:none;">Ihre Geschäftsnummer fehlt. Hinterlegen Sie sie in den Einstellungen, um den Weiterleitungs-Test sauber durchzuführen.</div>
+                      <h4>Was Sie erwarten können</h4>
+                      <ul>
+                        <li>Sie rufen Ihre eigene Geschäftsnummer von einem anderen Telefon aus an</li>
+                        <li>Die Rufumleitung leitet den Anruf an Voxera weiter</li>
+                        <li>Voxera meldet sich automatisch und beantwortet den Anruf</li>
+                        <li>Der Anruf erscheint im Dashboard</li>
+                      </ul>
+                      <p>Tipp: Sagen Sie z. B. „Ich hätte gerne einen Termin.“</p>
+                    </div>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-success" onclick="completeSetupStep('s2');event.stopPropagation();">Testanruf erfolgreich ✓</button>
-                    <button class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s2');event.stopPropagation();">Später testen</button>
+                    <button type="button" class="setup-btn setup-btn-success" onclick="completeSetupStep('s2',event)">Testanruf erfolgreich ✓</button>
+                    <button type="button" class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s2',event)">Später testen</button>
                   </div>
                 </div>
               </div>
@@ -1147,24 +1246,24 @@ body{
                 <div class="setup-step-body">
                   <div class="setup-step-content">
                     <p>Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet.</p>
-                    <div style="margin:14px 0;display:grid;gap:10px;">
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-none" value="none" checked style="accent-color:var(--blue);width:16px;height:16px;">
+                    <div style="margin:14px 0;display:grid;gap:10px;" onclick="event.stopPropagation();">
+                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);" onclick="event.stopPropagation();">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-none" value="none" checked onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Keine Benachrichtigungen</span>
                       </label>
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-callback-only" value="callback_only" style="accent-color:var(--blue);width:16px;height:16px;">
+                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);" onclick="event.stopPropagation();">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-callback-only" value="callback_only" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Nur bei Rückruf-Anfragen</span>
                       </label>
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-all-calls" value="all_calls" style="accent-color:var(--blue);width:16px;height:16px;">
+                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;" onclick="event.stopPropagation();">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-all-calls" value="all_calls" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Bei jedem Anruf</span>
                       </label>
                     </div>
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'notifications')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-primary" onclick="saveSetupNotifications();event.stopPropagation();">Speichern & weiter</button>
+                    <button type="button" class="setup-btn setup-btn-primary" id="setup-notification-continue-btn" onclick="saveNotificationAndContinue(event)">Speichern & weiter</button>
                   </div>
                 </div>
               </div>
@@ -1187,7 +1286,7 @@ body{
                     </div>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s4');event.stopPropagation();">Überspringen</button>
+                    <button type="button" class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s4',event)">Überspringen</button>
                   </div>
                 </div>
               </div>
@@ -1214,7 +1313,7 @@ body{
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'support')">❓ Anleitung anzeigen</a>
                   </div>
                   <div class="setup-actions">
-                    <button class="setup-btn setup-btn-success" onclick="completeSetupStep('s5');event.stopPropagation();">Einrichtung abschliessen ✓</button>
+                    <button type="button" class="setup-btn setup-btn-success" onclick="completeSetupStep('s5',event)">Einrichtung abschliessen ✓</button>
                   </div>
                 </div>
               </div>
@@ -1235,7 +1334,7 @@ body{
                 <div class="setup-complete-icon">🎉</div>
                 <div class="setup-complete-title">Alles eingerichtet!</div>
                 <div class="setup-complete-sub">Voxera ist bereit. Alle eingehenden Anrufe erscheinen automatisch in Ihrem Dashboard.</div>
-                <button class="setup-btn setup-btn-primary" onclick="finishSetup()" style="font-size:15px;padding:12px 28px;">Zum Dashboard →</button>
+                <button type="button" class="setup-btn setup-btn-primary" onclick="finishSetup()" style="font-size:15px;padding:12px 28px;">Zum Dashboard →</button>
               </div>
             </div>
           </div>
@@ -1814,7 +1913,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Business', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv'};
+let customerMeta = {plan:'Business', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -2368,7 +2467,8 @@ async function loadCustomerMeta() {
     status: f.status || 'aktiv',
     customerId: context.customerId || f.id || '',
     voxeraNumber: f.voxera_number || '',
-    telNr: f.tel_nr || ''
+    telNr: f.tel_nr || '',
+    forwardingSetupCompleted: f.forwarding_setup_completed === true
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   console.info('[voxera-dashboard] customerMeta numbers', {
@@ -2593,7 +2693,7 @@ async function loadData() {
     updateLastUpdatedLabel();
 
     document.getElementById('dash-loading').style.display = 'none';
-    document.getElementById('dash-content').style.display = 'block';
+    routeDashboardFirstSessionExperience();
 
   } catch(e) {
     const rawMsg = String((e && e.message) || 'Unbekannter Fehler');
@@ -2628,8 +2728,7 @@ function renderDashboard(records) {
   var followupsOpen = records.filter(function(r) {
     return !isClosedStatus(r.fields.dashboard_status) && !!resolveFollowUpAt(r.fields || {});
   });
-  var activationCard = document.getElementById('dash-activation-card');
-  if (activationCard) activationCard.classList.toggle('show', getOpenSteps().length > 0);
+  updateActivationStatusCard(records);
 
   // ── KPI: Anrufe heute / Rückrufe / Follow-ups ────────────────────────────────
   var kpiHeute    = document.getElementById('kpi-heute');
@@ -2694,6 +2793,54 @@ function renderDashboard(records) {
   // Kompatibilität: renderUsage und updateSystemStatus bleiben unverändert
   renderUsage(records);
   updateSystemStatus(records);
+}
+
+function updateActivationStatusCard(records) {
+  var card = document.getElementById('dash-activation-card');
+  var titleEl = document.getElementById('dash-activation-title');
+  var textEl = document.getElementById('dash-activation-text');
+  var primaryBtn = document.getElementById('dash-activation-primary');
+  if (!card || !titleEl || !textEl) return;
+
+  var setupCompleted = isForwardingSetupCompleted();
+  card.classList.remove('info', 'success');
+  if (!setupCompleted) {
+    titleEl.textContent = '⚠️ Rufumleitung noch nicht eingerichtet';
+    textEl.textContent = 'Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.';
+    if (primaryBtn) {
+      primaryBtn.textContent = 'Weiter zur Einrichtung';
+      primaryBtn.removeAttribute('aria-disabled');
+      primaryBtn.style.opacity = '';
+      primaryBtn.style.pointerEvents = '';
+    }
+    card.classList.add('show');
+    return;
+  }
+
+  titleEl.textContent = 'Rufumleitung eingerichtet';
+  textEl.textContent = 'Testen Sie jetzt, ob alles funktioniert.';
+  if (primaryBtn) {
+    var hasBusinessNumber = !!((customerMeta && customerMeta.telNr) ? String(customerMeta.telNr).trim() : '');
+    primaryBtn.textContent = 'So testen Sie es';
+    primaryBtn.setAttribute('aria-disabled', hasBusinessNumber ? 'false' : 'true');
+    primaryBtn.style.opacity = hasBusinessNumber ? '' : '.55';
+    primaryBtn.style.pointerEvents = hasBusinessNumber ? '' : 'none';
+  }
+  card.classList.add('show', 'info');
+}
+
+function handleDashboardActivationPrimaryCta(event){
+  if(event) event.preventDefault();
+  if (!isForwardingSetupCompleted()) {
+    openSetupWizardFromCta(event, 's1');
+    return;
+  }
+  var hasBusinessNumber = !!((customerMeta && customerMeta.telNr) ? String(customerMeta.telNr).trim() : '');
+  if (!hasBusinessNumber) {
+    toast('Ihre Geschäftsnummer ist noch nicht hinterlegt.');
+    return;
+  }
+  openSetupHelpOverlay(event, 'testcall');
 }
 
 function markCbDone(recordId) {
@@ -3456,7 +3603,7 @@ function openSetupHelpOverlay(event, sectionId) {
     testcall: {
       title: 'Testanruf Hilfe',
       sub: 'So prüfen Sie den Ablauf in unter 1 Minute',
-      html: '<div class="setup-help-grid"><div class="setup-help-card"><div class="setup-help-card-title">Ablauf</div><div class="setup-help-card-text">Rufen Sie Ihre Voxera-Nummer an, nennen Sie Name + Anliegen und prüfen Sie danach den Eintrag im Dashboard.</div></div></div>',
+      html: '<div class="setup-help-grid"><div class="setup-help-card"><div class="setup-help-card-title">Ablauf</div><div class="setup-help-card-text">Rufen Sie Ihre Geschäftsnummer von einem anderen Telefon aus an. Die Rufumleitung sollte an Voxera übergeben. Prüfen Sie danach den Eintrag im Dashboard.</div></div></div>',
       anchor: 'forwarding'
     },
     notifications: {
@@ -3659,16 +3806,129 @@ function openSetupWizardFromCta(event, stepId) {
   if (stepId) toggleSetupStep(stepId);
 }
 
+function isForwardingSetupCompleted() {
+  return !!(customerMeta && customerMeta.forwardingSetupCompleted);
+}
+
+async function persistForwardingSetupCompleted() {
+  customerMeta.forwardingSetupCompleted = true;
+  updateSetupExperienceProgress();
+  updateActivationStatusCard(allRecords || []);
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) return false;
+    await patchCustomerRecord(recId, { forwarding_setup_completed: true });
+    if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
+    return true;
+  } catch(e) {
+    customerMeta.forwardingSetupCompleted = false;
+    updateSetupExperienceProgress();
+    updateActivationStatusCard(allRecords || []);
+    console.error('forwarding_setup_completed save failed', e);
+    toast('Status konnte nicht gespeichert werden');
+    return false;
+  }
+}
+
+function isForwardingActivated() {
+  return isForwardingSetupCompleted();
+}
+
+function showDashboard() {
+  var fseEl = document.getElementById('dashboard-fse');
+  var dashEl = document.getElementById('dash-content');
+  if (fseEl) fseEl.classList.remove('show');
+  if (dashEl) dashEl.style.display = 'block';
+}
+
+function showSetupExperience() {
+  var fseEl = document.getElementById('dashboard-fse');
+  var dashEl = document.getElementById('dash-content');
+  if (fseEl) fseEl.classList.add('show');
+  if (dashEl) dashEl.style.display = 'none';
+}
+
+function syncSetupExperienceButtons() {
+  var hasNumber = !!getDialableVoxeraNumber();
+  var primaryBtn = document.getElementById('dashboard-fse-primary');
+  var secondaryBtn = document.getElementById('dashboard-fse-secondary');
+  var noteEl = document.getElementById('dashboard-fse-note');
+  [primaryBtn, secondaryBtn].forEach(function(btn){
+    if (!btn) return;
+    btn.disabled = !hasNumber;
+    btn.style.opacity = hasNumber ? '' : '.55';
+    btn.style.cursor = hasNumber ? '' : 'not-allowed';
+  });
+  if (noteEl) noteEl.classList.toggle('show', !hasNumber);
+}
+
+function updateSetupExperienceProgress() {
+  var forwardingDone = isForwardingSetupCompleted();
+  var testCallDone = !!setupDone.s2;
+  var readyDone = isForwardingSetupCompleted();
+  var map = [
+    { id: 'fse-progress-forwarding', done: forwardingDone, label: 'Rufumleitung aktivieren' },
+    { id: 'fse-progress-testcall', done: testCallDone, label: 'Testanruf durchführen' },
+    { id: 'fse-progress-ready', done: readyDone, label: 'Bereit' }
+  ];
+  map.forEach(function(entry){
+    var el = document.getElementById(entry.id);
+    if (!el) return;
+    el.textContent = (entry.done ? '☑ ' : '☐ ') + entry.label;
+    el.classList.toggle('done', !!entry.done);
+  });
+}
+
+function routeDashboardFirstSessionExperience() {
+  updateSetupExperienceProgress();
+  syncSetupExperienceButtons();
+  if (!isForwardingActivated()) {
+    showSetupExperience();
+    return;
+  }
+  showDashboard();
+}
+
+function handleSetupExperiencePrimaryCta(event) {
+  if (event) event.preventDefault();
+  if (!getDialableVoxeraNumber()) return;
+  var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+  if (isMobile) {
+    openSetupHelpOverlay(event, 'forwarding');
+    return;
+  }
+  openSetupWizardFromCta(event, 's1');
+}
+
+function handleSetupExperienceWizardCta(event) {
+  if (event) event.preventDefault();
+  if (!getDialableVoxeraNumber()) return;
+  openSetupWizardFromCta(event, 's1');
+}
+
 // ═══════════════════════════════════════════
 //  SETUP WIZARD
 // ═══════════════════════════════════════════
 var setupDone = {};
 var setupSkipped = {};
+var setupStateCustomerId = '';
+var selectedSetupNotificationOption = null;
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
-var SETUP_LABELS = {s1:'Einführung lesen',s2:'Testanruf durchführen',s3:'Benachrichtigungen einrichten',s4:'Passwort ändern',s5:'Hilfe & Support ansehen'};
+var SETUP_LABELS = {s1:'Einführung lesen',s2:'Rufumleitung einrichten & testen',s3:'Benachrichtigungen einrichten',s4:'Passwort ändern',s5:'Hilfe & Support ansehen'};
 function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
 function getSetupCount(){ return SETUP_STEPS.filter(function(k){return setupDone[k];}).length; }
 function getOpenSteps(){ return SETUP_STEPS.filter(function(k){return !setupDone[k];}); }
+function getSetupStorageCustomerId(){
+  return (customerMeta && customerMeta.customerId) || (customerContext && customerContext.customerId) || (currentUser && currentUser.id) || 'anonymous';
+}
+function getSetupStorageKey(prefix){
+  return prefix + '_' + getSetupStorageCustomerId();
+}
+function resetSetupSessionState(){
+  setupDone = {};
+  setupSkipped = {};
+}
 function updateSettingsWizardEntryLabel(){
   var btn = document.getElementById('settings-wizard-btn');
   if(!btn) return;
@@ -3701,13 +3961,14 @@ function updateDashboardReminder(){
   if(!el) return;
   var open = getOpenSteps();
   var finished = false;
-  try{finished=!!localStorage.getItem('voxera_setup_finished');}catch(e){}
+  try{finished=!!localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));}catch(e){}
   var dismissed = false;
-  try{dismissed=!!localStorage.getItem('voxera_setup_reminder_dismissed');}catch(e){}
+  try{dismissed=!!localStorage.getItem(getSetupStorageKey('voxera_setup_reminder_dismissed'));}catch(e){}
   el.classList.toggle('show', finished && open.length > 0 && !dismissed);
 }
 
 function toggleSetupStep(id){
+  window.activeSetupStep = id;
   var step = document.getElementById('setup-'+id);
   if(!step) return;
   var wasActive = step.classList.contains('active');
@@ -3715,13 +3976,84 @@ function toggleSetupStep(id){
   if(!wasActive) step.classList.add('active');
 }
 
-function completeSetupStep(id){
+function setActiveSetupStep(stepId){
+  window.activeSetupStep = stepId || null;
+  document.querySelectorAll('.setup-step').forEach(function(s){s.classList.remove('active');});
+  if (!stepId) return;
+  var step = document.getElementById('setup-'+stepId);
+  if (step) step.classList.add('active');
+}
+
+function goToNextSetupStep(currentStepId){
+  var idx = SETUP_STEPS.indexOf(currentStepId);
+  if (idx < 0) return;
+  for (var i = idx + 1; i < SETUP_STEPS.length; i++) {
+    var sid = SETUP_STEPS[i];
+    if (!setupDone[sid] && !setupSkipped[sid]) {
+      setActiveSetupStep(sid);
+      return;
+    }
+  }
+  setActiveSetupStep(null);
+}
+
+function selectSetupDevice(event, type){
+  if(event) event.stopPropagation();
+  var isMobile = type === 'mobile';
+  var cardMobile = document.getElementById('setup-device-card-mobile');
+  var cardLandline = document.getElementById('setup-device-card-landline');
+  var panelMobile = document.getElementById('setup-device-panel-mobile');
+  var panelLandline = document.getElementById('setup-device-panel-landline');
+  if (cardMobile) cardMobile.classList.toggle('active', isMobile);
+  if (cardLandline) cardLandline.classList.toggle('active', !isMobile);
+  if (panelMobile) panelMobile.classList.toggle('active', isMobile);
+  if (panelLandline) panelLandline.classList.toggle('active', !isMobile);
+}
+
+function continueToSetupTest(event){
+  if(event) event.stopPropagation();
+  var block = document.getElementById('setup-test-block');
+  if (!block) return;
+  block.style.display = 'block';
+  block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function selectSetupNotification(option, event){
+  if (event) event.stopPropagation();
+  selectedSetupNotificationOption = option || null;
+}
+
+function saveNotificationAndContinue(event){
+  if (event) event.stopPropagation();
+  var selected = selectedSetupNotificationOption || getSelectedNotificationMode('setup-notification-mode');
+  if (!selected) {
+    toast('Bitte wählen Sie eine Benachrichtigungsoption.');
+    return;
+  }
+  saveSetupNotifications();
+}
+
+function completeSetupStep(id, event){
+  if(event) event.stopPropagation();
+  var wasForwardingSetupCompleted = isForwardingSetupCompleted();
   setupDone[id] = true;
   delete setupSkipped[id];
   var step = document.getElementById('setup-'+id);
   if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
   updateSetupProgress();
-  try{localStorage.setItem('voxera_setup',JSON.stringify(setupDone));}catch(e){}
+  try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
+  if(id === 's1'){
+    persistForwardingSetupCompleted().then(function(saved){
+      routeDashboardFirstSessionExperience();
+      if(!wasForwardingSetupCompleted && saved){
+        toast('Rufumleitung eingerichtet');
+      }
+    });
+  } else if(id === 's2'){
+    routeDashboardFirstSessionExperience();
+  } else {
+    updateSetupExperienceProgress();
+  }
 
   if(isSetupComplete()){
     document.getElementById('setup-wizard').querySelector('.setup-welcome').style.display='none';
@@ -3730,19 +4062,15 @@ function completeSetupStep(id){
     document.getElementById('setup-wizard').querySelector('.setup-skip').style.display='none';
     document.getElementById('setup-open-summary').style.display='none';
     document.getElementById('setup-complete').style.display='block';
-    try{localStorage.setItem('voxera_setup_finished','1');}catch(e){}
+    try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
     return;
   }
   // Open next incomplete step
-  for(var i=0;i<SETUP_STEPS.length;i++){
-    if(!setupDone[SETUP_STEPS[i]]){
-      setTimeout(function(sid){toggleSetupStep(sid);},200,SETUP_STEPS[i]);
-      break;
-    }
-  }
+  goToNextSetupStep(id);
 }
 
-function skipSetupStep(id){
+function skipSetupStep(id, event){
+  if(event) event.stopPropagation();
   if (id === 's4') {
     completeSetupStep(id);
     return;
@@ -3752,32 +4080,36 @@ function skipSetupStep(id){
   if(step){ step.classList.remove('active'); step.classList.add('skipped','step-skipped'); }
   updateSetupProgress();
   // Open next step
-  for(var i=0;i<SETUP_STEPS.length;i++){
-    if(!setupDone[SETUP_STEPS[i]] && !setupSkipped[SETUP_STEPS[i]]){
-      setTimeout(function(sid){toggleSetupStep(sid);},200,SETUP_STEPS[i]);
-      return;
-    }
-  }
+  goToNextSetupStep(id);
+  if (window.activeSetupStep) return;
   // All remaining are skipped or done - show summary
   updateOpenSummary();
 }
 
 function skipSetup(){
-  try{localStorage.setItem('voxera_setup_finished','1');}catch(e){}
+  try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
   updateDashboardReminder();
   var navEl = document.querySelector('.nav-item[onclick*="dashboard"]') || document.getElementById('mnav-dashboard');
   if(navEl) showTab('dashboard',navEl);
 }
 
 function finishSetup(){
-  try{localStorage.setItem('voxera_setup_finished','1');}catch(e){}
+  try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
   updateDashboardReminder();
   var navEl = document.querySelector('.nav-item[onclick*="dashboard"]') || document.getElementById('mnav-dashboard');
   if(navEl) showTab('dashboard',navEl);
 }
 
 function initSetupWizard(){
-  try{var saved=localStorage.getItem('voxera_setup');if(saved)setupDone=JSON.parse(saved);}catch(e){}
+  var cid = String(getSetupStorageCustomerId() || '');
+  if (setupStateCustomerId !== cid) {
+    resetSetupSessionState();
+    setupStateCustomerId = cid;
+  }
+  try{
+    var saved=localStorage.getItem(getSetupStorageKey('voxera_setup_steps'));
+    if(saved) setupDone=JSON.parse(saved);
+  }catch(e){}
   SETUP_STEPS.forEach(function(id){
     if(setupDone[id]){
       var step=document.getElementById('setup-'+id);
@@ -3786,21 +4118,39 @@ function initSetupWizard(){
   });
   updateSetupProgress();
   var num = customerMeta.voxeraNumber || '';
+  var businessNum = (customerMeta && customerMeta.telNr) ? String(customerMeta.telNr) : '';
   var el1 = document.getElementById('setup-voxera-number');
   var el2 = document.getElementById('setup-voxera-number-2');
-  var callBtn = document.getElementById('setup-call-btn');
+  var el3 = document.getElementById('setup-voxera-number-3');
+  var elTest = document.getElementById('setup-business-number-test');
+  var businessNumNote = document.getElementById('setup-business-number-note');
+  var testGuideBtn = document.getElementById('setup-forwarding-test-guide-btn');
+  var mobileSetupBtn = document.getElementById('setup-forwarding-mobile-btn');
+  var landlineSetupBtn = document.getElementById('setup-forwarding-landline-btn');
+  var copyBtn = document.getElementById('setup-forwarding-copy-btn');
   if(el1) el1.textContent = num || 'Nicht verfügbar';
   if(el2) el2.textContent = num || 'Nicht verfügbar';
-  if(callBtn) {
-    if (num) {
-      callBtn.href = 'tel:' + num.replace(/\s/g,'');
-      callBtn.style.display = '';
-    } else {
-      callBtn.removeAttribute('href');
-      callBtn.style.display = 'none';
-    }
+  if(el3) el3.textContent = num || 'Nicht verfügbar';
+  if(elTest) elTest.textContent = businessNum || 'Geschäftsnummer fehlt';
+  if(businessNumNote) businessNumNote.style.display = businessNum ? 'none' : 'block';
+  [mobileSetupBtn, landlineSetupBtn, copyBtn].forEach(function(btn){
+    if(!btn) return;
+    btn.disabled = !num;
+    btn.style.opacity = num ? '' : '.55';
+    btn.style.cursor = num ? '' : 'not-allowed';
+  });
+  if (testGuideBtn) {
+    testGuideBtn.disabled = !businessNum;
+    testGuideBtn.style.opacity = businessNum ? '' : '.55';
+    testGuideBtn.style.cursor = businessNum ? '' : 'not-allowed';
   }
+  if (!isSetupComplete()) {
+    var firstOpen = getOpenSteps()[0] || 's1';
+    setActiveSetupStep(firstOpen);
+  }
+  selectedSetupNotificationOption = getSelectedNotificationMode('setup-notification-mode');
   renderForwardingCodes();
+  routeDashboardFirstSessionExperience();
 }
 
 function copyVoxeraNumber(e){
@@ -3819,7 +4169,11 @@ async function saveSetupNotifications(){
       if(context.customerRecord && context.customerRecord.id) recordId = context.customerRecord.id;
     }catch(e){}
   }
-  var notificationMode = getSelectedNotificationMode('setup-notification-mode') || 'none';
+  var notificationMode = selectedSetupNotificationOption || getSelectedNotificationMode('setup-notification-mode');
+  if(!notificationMode){
+    toast('Bitte wählen Sie eine Benachrichtigungsoption.');
+    return;
+  }
   if(recordId){
     try{
       await patchCustomerRecord(recordId, {notification_mode:notificationMode});
@@ -3835,7 +4189,7 @@ function shouldShowSetupOnLogin(context){
   // active/configured customer and should not be auto-redirected to setup,
   // regardless of whether the localStorage flag happens to be present.
   if(context && context.customerId && context.customerRecord) return false;
-  try{return !localStorage.getItem('voxera_setup_finished');}catch(e){return true;}
+  try{return !localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));}catch(e){return true;}
 }
 
 // ═══════════════════════════════════════════
@@ -3958,6 +4312,9 @@ async function doLogout() {
   if (!sb) return;
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   await sb.auth.signOut();
+  resetSetupSessionState();
+  setupStateCustomerId = '';
+  customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-password').value = '';
@@ -3966,6 +4323,8 @@ async function doLogout() {
 
 function showApp(user) {
   currentUser = user || null;
+  resetSetupSessionState();
+  setupStateCustomerId = '';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
@@ -3988,7 +4347,10 @@ function showApp(user) {
       greetingMain.dataset.custom = '1';
     }
     initSetupWizard();
-    if(shouldShowSetupOnLogin(customerContext)){
+    if(!isForwardingActivated()){
+      var dashboardNav = document.querySelector('.nav-item[onclick*="dashboard"]') || document.getElementById('mnav-dashboard');
+      if(dashboardNav) showTab('dashboard',dashboardNav);
+    } else if(shouldShowSetupOnLogin(customerContext)){
       var navEl = document.getElementById('nav-einrichtung');
       if(navEl) showTab('einrichtung',navEl);
     } else {
