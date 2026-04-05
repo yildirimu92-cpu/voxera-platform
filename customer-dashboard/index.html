@@ -1212,7 +1212,7 @@ body{
           <div style="max-width:640px">
             <div style="margin-bottom:20px">
               <div class="section-title" style="font-size:16px;font-weight:700;">Einstellungen</div>
-              <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Konto, Benachrichtigungen, Plan und Support verwalten.</div>
+            <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Konto, Benachrichtigungen, Erreichbarkeit, Plan und Support verwalten.</div>
             </div>
 
             <!-- Konto -->
@@ -1235,6 +1235,7 @@ body{
             </div>
 
             <!-- Benachrichtigungen -->
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Benachrichtigungen</div>
             <div class="settings-card">
               <div class="settings-card-title">Benachrichtigungen</div>
               <div style="font-size:12.5px;color:var(--gray500);margin-bottom:10px;">Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet.</div>
@@ -1253,7 +1254,29 @@ body{
               <div class="account-success" id="notif-success" style="margin-top:6px"></div>
             </div>
 
-            <!-- Plan & Nutzung -->
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Anrufe & Erreichbarkeit</div>
+
+            <div class="settings-card">
+              <div class="settings-card-title">Ihre Voxera-Nummer</div>
+              <div class="settings-row">
+                <div class="settings-row-label">Voxera-Nummer</div>
+                <div class="settings-row-value" id="settings-voxera-nr">–</div>
+              </div>
+              <div class="settings-row" style="border-bottom:none;">
+                <div class="settings-row-label">Status</div>
+                <div class="settings-row-value" id="settings-system-status">–</div>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-card-title">Rufumleitung einrichten</div>
+              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
+                Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
+              </div>
+              <button class="settings-btn-primary" onclick="openHelpSection('smartphone')">Jetzt einrichten</button>
+            </div>
+
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Abo & Nutzung</div>
             <div class="settings-card">
               <div class="settings-card-title">Abo & Nutzung</div>
               <div class="settings-row">
@@ -1292,27 +1315,7 @@ body{
               <span class="chip chip-neu" id="usage-status-chip" style="margin-top:10px;display:inline-block;">Plan aktiv</span>
             </div>
 
-            <!-- System -->
-            <div class="settings-card">
-              <div class="settings-card-title">System & Voxera</div>
-              <div class="settings-row">
-                <div class="settings-row-label">Voxera-Nummer</div>
-                <div class="settings-row-value" id="settings-voxera-nr">–</div>
-              </div>
-              <div class="settings-row" style="border-bottom:none;">
-                <div class="settings-row-label">Status</div>
-                <div class="settings-row-value" id="settings-system-status">–</div>
-              </div>
-            </div>
-
-            <div class="settings-card">
-              <div class="settings-card-title">Rufumleitung einrichten</div>
-              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
-                Leiten Sie Anrufe auf Ihre Voxera-Nummer weiter, damit keine Anfrage verloren geht.
-              </div>
-              <button class="settings-btn-primary" onclick="openHelpSection('smartphone')">Anleitung anzeigen</button>
-            </div>
-
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Hilfe & Anleitung</div>
             <div class="settings-card">
               <div class="settings-card-title">Hilfe & Anleitung</div>
               <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
