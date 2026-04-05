@@ -1234,6 +1234,28 @@ body{
               </div>
             </div>
 
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Anrufe & Erreichbarkeit</div>
+
+            <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
+              <div class="settings-card-title" style="color:var(--blue);">Rufumleitung einrichten</div>
+              <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
+                Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
+              </div>
+              <button class="settings-btn-primary" onclick="openSetupHelpOverlay(null,'forwarding')">Jetzt einrichten</button>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-card-title">Ihre Voxera-Nummer</div>
+              <div class="settings-row">
+                <div class="settings-row-label">Voxera-Nummer</div>
+                <div class="settings-row-value" id="settings-voxera-nr">–</div>
+              </div>
+              <div class="settings-row" style="border-bottom:none;">
+                <div class="settings-row-label">Status</div>
+                <div class="settings-row-value" id="settings-system-status">–</div>
+              </div>
+            </div>
+
             <!-- Benachrichtigungen -->
             <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Benachrichtigungen</div>
             <div class="settings-card">
@@ -1254,26 +1276,13 @@ body{
               <div class="account-success" id="notif-success" style="margin-top:6px"></div>
             </div>
 
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Anrufe & Erreichbarkeit</div>
-
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Hilfe & Anleitung</div>
             <div class="settings-card">
-              <div class="settings-card-title">Ihre Voxera-Nummer</div>
-              <div class="settings-row">
-                <div class="settings-row-label">Voxera-Nummer</div>
-                <div class="settings-row-value" id="settings-voxera-nr">–</div>
-              </div>
-              <div class="settings-row" style="border-bottom:none;">
-                <div class="settings-row-label">Status</div>
-                <div class="settings-row-value" id="settings-system-status">–</div>
-              </div>
-            </div>
-
-            <div class="settings-card">
-              <div class="settings-card-title">Rufumleitung einrichten</div>
+              <div class="settings-card-title">Hilfe & Anleitung</div>
               <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
-                Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
+                Erfahren Sie, wie Voxera funktioniert und wie Sie alle Funktionen optimal nutzen.
               </div>
-              <button class="settings-btn-primary" onclick="openHelpSection('smartphone')">Jetzt einrichten</button>
+              <button class="settings-btn-primary" onclick="openHelpSection()">Öffnen</button>
             </div>
 
             <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Abo & Nutzung</div>
@@ -1313,15 +1322,6 @@ body{
                 </div>
               </div>
               <span class="chip chip-neu" id="usage-status-chip" style="margin-top:10px;display:inline-block;">Plan aktiv</span>
-            </div>
-
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Hilfe & Anleitung</div>
-            <div class="settings-card">
-              <div class="settings-card-title">Hilfe & Anleitung</div>
-              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
-                Erfahren Sie, wie Voxera funktioniert und wie Sie alle Funktionen optimal nutzen.
-              </div>
-              <button class="settings-btn-primary" onclick="openHelpSection()">Öffnen</button>
             </div>
 
             <!-- Support -->
