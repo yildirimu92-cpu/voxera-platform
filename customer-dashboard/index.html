@@ -808,31 +808,47 @@ body{
 .dash-hero-cta:hover{background:#B91C1C;transform:translateY(-1px);}
 .dash-hero-cta.green{background:var(--green);}
 .dash-hero-cta.green:hover{background:#15803D;}
-.dash-kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;}
+.dash-activation-card{background:#FFF9F2;border:1px solid #FDE68A;border-radius:12px;padding:16px 18px;margin-bottom:16px;display:none;}
+.dash-activation-card.show{display:block;}
+.dash-activation-title{font-size:14px;font-weight:700;color:#92400E;margin-bottom:6px;}
+.dash-activation-text{font-size:12.5px;color:#B45309;line-height:1.55;margin-bottom:12px;}
+.dash-activation-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.dash-btn-primary{display:inline-flex;align-items:center;justify-content:center;background:var(--blue);color:var(--white);border:1px solid var(--blue);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;}
+.dash-btn-primary:hover{background:var(--blue-dark);border-color:var(--blue-dark);}
+.dash-btn-secondary{display:inline-flex;align-items:center;justify-content:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;}
+.dash-btn-secondary:hover{background:var(--gray50);}
+.dash-kpi-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:20px;}
 .dash-kpi{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:18px 20px;}
 .dash-kpi-label{font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0;color:#6B7280;margin-bottom:10px;}
-.dash-kpi-val{font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;line-height:1;color:var(--blue);margin-bottom:5px;}
+.dash-kpi-val{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;line-height:1;color:var(--blue);margin-bottom:5px;}
 .dash-kpi-sub{font-size:12px;color:var(--gray400);}
-.dash-cb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
-.dash-cb-title{font-size:14px;font-weight:700;color:var(--gray900);}
+.dash-cb-section{margin-bottom:18px;}
+.dash-cb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
+.dash-cb-title{font-size:16px;font-weight:700;color:var(--gray900);}
+.dash-cb-title.secondary{font-size:15px;color:var(--gray700);}
 .dash-cb-link{font-size:12px;color:var(--blue);text-decoration:none;font-weight:500;cursor:pointer;}
 .dash-cb-link:hover{text-decoration:underline;}
-.cb-row{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;transition:border-color .15s,box-shadow .15s;}
-.cb-row:hover{border-color:#FECACA;box-shadow:0 2px 8px rgba(220,38,38,.06);}
+.cb-row{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;transition:border-color .15s,box-shadow .15s;}
+.cb-row.priority{border-color:#FECACA;background:#FFF9F9;}
+.cb-row.priority:hover{border-color:#FCA5A5;box-shadow:0 2px 8px rgba(220,38,38,.08);}
+.cb-row.secondary:hover{border-color:var(--blue-mid);box-shadow:0 2px 8px rgba(26,86,219,.08);}
 .cb-av{width:38px;height:38px;border-radius:50%;background:var(--red-light);color:#991B1B;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
 .cb-body{flex:1;min-width:0;}
 .cb-name{font-size:13.5px;font-weight:600;color:var(--gray900);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.cb-meta{font-size:12px;color:var(--gray400);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.cb-summary{font-size:12px;color:var(--gray600);margin-bottom:6px;line-height:1.5;}
+.cb-meta{font-size:11.5px;color:var(--gray400);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .cb-phone{font-weight:600;color:var(--gray600);background:var(--gray100);padding:2px 7px;border-radius:5px;font-variant-numeric:tabular-nums;}
-.cb-actions{display:flex;gap:6px;flex-shrink:0;}
+.cb-followup{font-size:11.5px;color:var(--amber);margin-top:6px;font-weight:600;}
+.cb-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;align-self:flex-end;}
 .btn-call{display:inline-flex;align-items:center;gap:5px;background:var(--blue);color:var(--white);border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s;white-space:nowrap;}
 .btn-call:hover{background:var(--blue-dark);}
 .btn-done-small{display:inline-flex;align-items:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;height:36px;}
 .btn-done-small:hover{border-color:var(--gray400);color:var(--gray700);background:var(--white);}
+.dash-empty{background:var(--white);border:1px dashed var(--gray200);border-radius:12px;padding:18px 14px;color:var(--gray400);font-size:12.5px;text-align:center;}
 @media(max-width:768px){
-  .dash-hero{flex-direction:column;align-items:flex-start;}
-  .dash-hero-cta{width:100%;justify-content:center;padding:14px;font-size:15px;}
-  .dash-hero-number{font-size:52px;}
+  .dash-kpi-row{grid-template-columns:1fr;gap:10px;}
+  .dash-activation-actions{flex-direction:column;}
+  .dash-btn-primary,.dash-btn-secondary{width:100%;}
   /* Mobile cb-actions: primary full-width, secondary in 2-column grid */
   .cb-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:8px;}
   .cb-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
@@ -951,20 +967,16 @@ body{
               </div>
             </div>
 
-            <!-- HERO: Nächste Aktion (Dynamic) -->
-            <div class="dash-hero" id="dash-hero">
-              <div class="dash-hero-left">
-                <div class="dash-hero-label">Nächste Aktion</div>
-                <div class="dash-hero-number red" id="hero-count">–</div>
-                <div class="dash-hero-sub" id="hero-sub">Wird geladen...</div>
+            <div class="dash-activation-card" id="dash-activation-card">
+              <div class="dash-activation-title">⚠️ Rufumleitung noch nicht eingerichtet</div>
+              <div class="dash-activation-text">Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.</div>
+              <div class="dash-activation-actions">
+                <a href="javascript:void(0)" class="dash-btn-primary" onclick="var n=document.getElementById('nav-einrichtung');if(n)showTab('einrichtung',n);">Jetzt einrichten</a>
+                <a href="javascript:void(0)" class="dash-btn-secondary" onclick="var n=document.getElementById('nav-hilfe');if(n)showTab('hilfe',n);">Mehr erfahren</a>
               </div>
-              <a href="javascript:void(0)" class="dash-hero-cta" id="hero-cta"
-                 onclick="var n=document.getElementById('nav-rueckrufe');if(n)showTab('rueckrufe',n);">
-                Alle ansehen →
-              </a>
             </div>
 
-            <!-- 2 KPI KACHELN -->
+            <!-- KPI KACHELN -->
             <div class="dash-kpi-row">
               <div class="dash-kpi">
                 <div class="dash-kpi-label">Anrufe heute</div>
@@ -972,16 +984,27 @@ body{
                 <div class="dash-kpi-sub" id="kpi-heute-sub">Eingegangene Anrufe</div>
               </div>
               <div class="dash-kpi">
-                <div class="dash-kpi-label">System</div>
-                <div class="dash-kpi-val" id="kpi-system" style="font-size:18px;margin-top:4px;">–</div>
-                <div class="dash-kpi-sub" id="kpi-system-sub">Status</div>
+                <div class="dash-kpi-label">Offene Rückrufe</div>
+                <div class="dash-kpi-val" id="kpi-callbacks">–</div>
+                <div class="dash-kpi-sub" id="kpi-callbacks-sub">Rückrufe mit Priorität</div>
+              </div>
+              <div class="dash-kpi">
+                <div class="dash-kpi-label">Geplante Follow-ups</div>
+                <div class="dash-kpi-val" id="kpi-followups">–</div>
+                <div class="dash-kpi-sub" id="kpi-followups-sub">Mit Termin hinterlegt</div>
               </div>
             </div>
 
-            <!-- LETZTE ANRUFE (Latest 2, newest first) -->
-            <div id="dash-recent-section">
+            <div class="dash-cb-section" id="dash-callback-section">
               <div class="dash-cb-header">
-                <div class="dash-cb-title">Letzte Anrufe</div>
+                <div class="dash-cb-title">Offene Rückrufe</div>
+              </div>
+              <div id="dash-callback-list"></div>
+            </div>
+
+            <div class="dash-cb-section" id="dash-recent-section">
+              <div class="dash-cb-header">
+                <div class="dash-cb-title secondary">Letzte Anrufe</div>
               </div>
               <div id="dash-recent-list"></div>
             </div>
@@ -2199,9 +2222,8 @@ function updateDashboardHeaderMeta() {
   if (!sub) return;
   var openCalls = allRecords.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); }).length;
   var openCallbacks = allRecords.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); }).length;
-  const now = new Date();
-  const timeStr = formatTimeCH(now);
-  sub.textContent = openCalls + ' Anrufe · ' + openCallbacks + ' Rückrufe · Aktualisiert ' + timeStr;
+  const timeStr = fmtDate(new Date().toISOString());
+  sub.textContent = openCalls + ' Anrufe · ' + openCallbacks + ' Rückrufe · Aktualisiert vor ' + timeStr;
 }
 
 function isToday(raw) {
@@ -2570,64 +2592,13 @@ function renderDashboard(records) {
   var today = records.filter(function(r) { return isToday(getRecordTimestamp(r)); });
   var offen = records.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); });
   var allOpen = records.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); });
+  var followupsOpen = records.filter(function(r) {
+    return !isClosedStatus(r.fields.dashboard_status) && !!resolveFollowUpAt(r.fields || {});
+  });
+  var activationCard = document.getElementById('dash-activation-card');
+  if (activationCard) activationCard.classList.toggle('show', getOpenSteps().length > 0);
 
-  // ── Hero: Nächste Aktion (Dynamic) ──────────────────────
-  var hero    = document.getElementById('dash-hero');
-  var heroNum = document.getElementById('hero-count');
-  var heroSub = document.getElementById('hero-sub');
-  var heroCta = document.getElementById('hero-cta');
-
-  // CASE A: Open callback requests exist
-  if (offen.length > 0) {
-    if (heroNum) heroNum.textContent = offen.length;
-    if (heroNum) heroNum.className = 'dash-hero-number red';
-    if (hero)    hero.className    = 'dash-hero has-callbacks';
-    var oldest = offen[offen.length - 1];
-    var oldestTime = fmtDate(oldest && getRecordTimestamp(oldest));
-    if (heroSub) {
-      heroSub.className = 'dash-hero-sub warn';
-      heroSub.textContent = offen.length === 1
-        ? '1 Anrufer wartet auf Ihren Rückruf – bitte zeitnah zurückrufen.'
-        : offen.length + ' Anrufer warten auf Ihren Rückruf. Ältester: ' + oldestTime;
-    }
-    if (heroCta) {
-      heroCta.className = 'dash-hero-cta';
-      heroCta.textContent = 'Rückrufe ansehen →';
-      heroCta.onclick = function() { activateTab('rueckrufe'); };
-    }
-  }
-  // CASE B: No callbacks, but open calls exist
-  else if (allOpen.length > 0) {
-    if (heroNum) heroNum.textContent = allOpen.length;
-    if (heroNum) heroNum.className = 'dash-hero-number green';
-    if (hero)    hero.className    = 'dash-hero no-callbacks';
-    if (heroSub) {
-      heroSub.className = 'dash-hero-sub';
-      heroSub.textContent = 'Keine offenen Rückrufe – ' + allOpen.length + ' Anruf' + (allOpen.length === 1 ? '' : 'e') + ' zur Verfügung.';
-    }
-    if (heroCta) {
-      heroCta.className = 'dash-hero-cta green';
-      heroCta.textContent = 'Alle Anrufe ansehen →';
-      heroCta.onclick = function() { activateTab('anrufe'); };
-    }
-  }
-  // CASE C: No calls, no callbacks
-  else {
-    if (heroNum) heroNum.textContent = '0';
-    if (heroNum) heroNum.className = 'dash-hero-number green';
-    if (hero)    hero.className    = 'dash-hero no-callbacks';
-    if (heroSub) {
-      heroSub.className = 'dash-hero-sub';
-      heroSub.textContent = 'Alle Anrufe abgeschlossen.';
-    }
-    if (heroCta) {
-      heroCta.className = 'dash-hero-cta green';
-      heroCta.textContent = 'Archiv ansehen →';
-      heroCta.onclick = function() { activateTab('archiv'); };
-    }
-  }
-
-  // ── KPI: Anrufe heute ────────────────────────────────
+  // ── KPI: Anrufe heute / Rückrufe / Follow-ups ────────────────────────────────
   var kpiHeute    = document.getElementById('kpi-heute');
   var kpiHeuteSub = document.getElementById('kpi-heute-sub');
   if (kpiHeute) kpiHeute.textContent = today.length;
@@ -2640,16 +2611,14 @@ function renderDashboard(records) {
       ? 'Cold: ' + cold + ' · Warm: ' + warm + ' · Hot: ' + hot + (unqualified > 0 ? ' · Neu/Unbekannt: ' + unqualified : '')
       : 'Noch keine Anrufe heute';
   }
-
-  // ── KPI: System-Status ───────────────────────────────
-  var kpiSys    = document.getElementById('kpi-system');
-  var kpiSysSub = document.getElementById('kpi-system-sub');
-  if (kpiSys) {
-    kpiSys.textContent  = '● Aktiv';
-    kpiSys.style.color  = 'var(--green)';
-    kpiSys.style.fontSize = '18px';
-  }
-  if (kpiSysSub) kpiSysSub.textContent = 'Assistent nimmt Anrufe entgegen';
+  var kpiCallbacks = document.getElementById('kpi-callbacks');
+  var kpiCallbacksSub = document.getElementById('kpi-callbacks-sub');
+  if (kpiCallbacks) kpiCallbacks.textContent = offen.length;
+  if (kpiCallbacksSub) kpiCallbacksSub.textContent = offen.length > 0 ? 'Priorisieren Sie Rückrufe zuerst' : 'Keine offenen Rückrufe';
+  var kpiFollowups = document.getElementById('kpi-followups');
+  var kpiFollowupsSub = document.getElementById('kpi-followups-sub');
+  if (kpiFollowups) kpiFollowups.textContent = followupsOpen.length;
+  if (kpiFollowupsSub) kpiFollowupsSub.textContent = followupsOpen.length > 0 ? 'Mit hinterlegtem Termin' : 'Keine geplanten Follow-ups';
 
   // ── Recent Calls (max 2, latest by created_at) ──────────────────────
   var allOpenCalls = records.filter(function(r) {
@@ -2660,48 +2629,21 @@ function renderDashboard(records) {
     var bDate = new Date(getRecordTimestamp(b) || 0);
     return bDate.getTime() - aDate.getTime();
   });
+  var callbackList = document.getElementById('dash-callback-list');
+  if (callbackList) {
+    if (offen.length === 0) {
+      callbackList.innerHTML = '<div class="dash-empty">Keine offenen Rückrufe</div>';
+    } else {
+      callbackList.innerHTML = offen.slice(0, 4).map(function(r) { return buildDashboardListItem(r, {priority:true, callbackOnly:true}); }).join('');
+    }
+  }
   var recentList = document.getElementById('dash-recent-list');
   if (recentList) {
     if (allOpenCalls.length === 0) {
-      recentList.innerHTML = '<div class="empty" style="padding:24px 20px;"><div class="empty-icon">–</div><div>Keine offenen Anrufe</div></div>';
+      recentList.innerHTML = '<div class="dash-empty"><div>Noch keine Anrufe</div><div style="margin-top:4px;">Sobald ein Anruf eingeht, erscheint er hier.</div></div>';
     } else {
-      var toShowRecent = allOpenCalls.slice(0, 2);
-      recentList.innerHTML = toShowRecent.map(function(r) {
-        var f    = r.fields || {};
-        var ini  = initials(escHtml(f.caller_name || f.name || '?'));
-        var name = escHtml(f.caller_name || f.name || 'Unbekannt');
-        var phone = escHtml(f.caller_phone || f.phone || '');
-        var summaryRaw = (f.call_summary_short || f.call_summary || '').substring(0, 80);
-        var summary = escHtml(summaryRaw);
-        var callDate = fmtDateOnly(getRecordTimestamp(r));
-        var callTime = fmtTime(getRecordTimestamp(r));
-        var durationStr = formatDurationForDisplay(f.duration_seconds);
-        var qual = qualChip(f.lead_quality);
-        var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
-        var callbackChip = (f.callback_requested && !isClosedStatus(f.dashboard_status)) ? '<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>' : '';
-        var followUpMetaText = buildFollowUpMetaText(f.next_action, resolveFollowUpAt(f));
-        var followUpMeta = followUpMetaText ? '<div style="font-size:11.5px;color:#6B7280;margin-top:6px;">' + escHtml(followUpMetaText) + '</div>' : '';
-        return '<div class="cb-row">'
-          + '<div class="cb-av">' + ini + '</div>'
-          + '<div class="cb-body">'
-          +   '<div class="cb-name">' + name + '</div>'
-          +   '<div class="cb-meta">'
-          +     (phone ? '<span class="cb-phone">' + phone + '</span>' : '')
-          +     '<span>' + callDate + ', ' + callTime + '</span>'
-          +     '<span>' + durationStr + '</span>'
-          +     qual
-          +     callbackChip
-          +   '</div>'
-          +   (summary ? '<div style="font-size:12px;color:var(--gray600);margin-top:4px;">' + summary + '</div>' : '')
-          +   followUpMeta
-          + '</div>'
-          + '<div class="cb-actions">'
-          +   (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + r.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Jetzt zurückrufen</button>' : '')
-          +   '<button class="btn-a btn-done" onclick="confirmClose(\'' + r.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">Erledigt</button>'
-          +   '<button class="btn-a btn-note" onclick="openDetail(\'' + r.id + '\')">Details</button>'
-          + '</div>'
-          + '</div>';
-      }).join('');
+      var toShowRecent = allOpenCalls.slice(0, 3);
+      recentList.innerHTML = toShowRecent.map(function(r) { return buildDashboardListItem(r, {secondary:true}); }).join('');
     }
   }
 
@@ -2720,6 +2662,38 @@ function renderDashboard(records) {
   // Kompatibilität: renderUsage und updateSystemStatus bleiben unverändert
   renderUsage(records);
   updateSystemStatus(records);
+}
+
+function buildDashboardListItem(record, opts) {
+  opts = opts || {};
+  var f = record.fields || {};
+  var ini  = initials(escHtml(f.caller_name || f.name || '?'));
+  var name = escHtml(f.caller_name || f.name || 'Unbekannt');
+  var phone = escHtml(f.caller_phone || f.phone || '');
+  var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
+  var summaryRaw = (f.call_summary_short || f.call_summary || '').substring(0, 100);
+  var summary = escHtml(summaryRaw);
+  var callMetaTime = fmtExactDateTime(getRecordTimestamp(record));
+  var followUpMetaText = buildFollowUpMetaText(f.next_action, resolveFollowUpAt(f));
+  return '<div class="cb-row ' + (opts.priority ? 'priority' : 'secondary') + '">'
+    + '<div class="cb-av">' + ini + '</div>'
+    + '<div class="cb-body">'
+    +   '<div class="cb-name">' + name + '</div>'
+    +   (summary ? '<div class="cb-summary">' + summary + '</div>' : '')
+    +   '<div class="cb-meta">'
+    +     (phone ? '<span class="cb-phone">' + phone + '</span>' : '')
+    +     '<span>' + callMetaTime + '</span>'
+    +     (f.category ? '<span>' + escHtml(f.category) + '</span>' : '')
+    +     qualChip(f.lead_quality)
+    +   '</div>'
+    +   (followUpMetaText ? '<div class="cb-followup">' + escHtml(followUpMetaText) + '</div>' : '')
+    +   '<div class="cb-actions">'
+    +     (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + record.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Anrufen</button>' : '')
+    +     '<button class="btn-a btn-done" onclick="confirmClose(\'' + record.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">Erledigt</button>'
+    +     (opts.callbackOnly ? '' : '<button class="btn-a btn-note" onclick="openDetail(\'' + record.id + '\')">Details</button>')
+    +   '</div>'
+    + '</div>'
+    + '</div>';
 }
 
 function markCbDone(recordId) {
