@@ -3825,11 +3825,22 @@ function handleSetupExperienceWizardCta(event) {
 // ═══════════════════════════════════════════
 var setupDone = {};
 var setupSkipped = {};
+var setupStateCustomerId = '';
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
 var SETUP_LABELS = {s1:'Einführung lesen',s2:'Testanruf durchführen',s3:'Benachrichtigungen einrichten',s4:'Passwort ändern',s5:'Hilfe & Support ansehen'};
 function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
 function getSetupCount(){ return SETUP_STEPS.filter(function(k){return setupDone[k];}).length; }
 function getOpenSteps(){ return SETUP_STEPS.filter(function(k){return !setupDone[k];}); }
+function getSetupStorageCustomerId(){
+  return (customerMeta && customerMeta.customerId) || (customerContext && customerContext.customerId) || (currentUser && currentUser.id) || 'anonymous';
+}
+function getSetupStorageKey(prefix){
+  return prefix + '_' + getSetupStorageCustomerId();
+}
+function resetSetupSessionState(){
+  setupDone = {};
+  setupSkipped = {};
+}
 function updateSettingsWizardEntryLabel(){
   var btn = document.getElementById('settings-wizard-btn');
   if(!btn) return;
@@ -3862,9 +3873,9 @@ function updateDashboardReminder(){
   if(!el) return;
   var open = getOpenSteps();
   var finished = false;
-  try{finished=!!localStorage.getItem('voxera_setup_finished');}catch(e){}
+  try{finished=!!localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));}catch(e){}
   var dismissed = false;
-  try{dismissed=!!localStorage.getItem('voxera_setup_reminder_dismissed');}catch(e){}
+  try{dismissed=!!localStorage.getItem(getSetupStorageKey('voxera_setup_reminder_dismissed'));}catch(e){}
   el.classList.toggle('show', finished && open.length > 0 && !dismissed);
 }
 
@@ -3883,7 +3894,7 @@ function completeSetupStep(id){
   var step = document.getElementById('setup-'+id);
   if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
   updateSetupProgress();
-  try{localStorage.setItem('voxera_setup',JSON.stringify(setupDone));}catch(e){}
+  try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
   if(id === 's1'){
     persistForwardingSetupCompleted().then(function(saved){
       routeDashboardFirstSessionExperience();
@@ -3904,7 +3915,7 @@ function completeSetupStep(id){
     document.getElementById('setup-wizard').querySelector('.setup-skip').style.display='none';
     document.getElementById('setup-open-summary').style.display='none';
     document.getElementById('setup-complete').style.display='block';
-    try{localStorage.setItem('voxera_setup_finished','1');}catch(e){}
+    try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
     return;
   }
   // Open next incomplete step
@@ -3937,21 +3948,29 @@ function skipSetupStep(id){
 }
 
 function skipSetup(){
-  try{localStorage.setItem('voxera_setup_finished','1');}catch(e){}
+  try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
   updateDashboardReminder();
   var navEl = document.querySelector('.nav-item[onclick*="dashboard"]') || document.getElementById('mnav-dashboard');
   if(navEl) showTab('dashboard',navEl);
 }
 
 function finishSetup(){
-  try{localStorage.setItem('voxera_setup_finished','1');}catch(e){}
+  try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
   updateDashboardReminder();
   var navEl = document.querySelector('.nav-item[onclick*="dashboard"]') || document.getElementById('mnav-dashboard');
   if(navEl) showTab('dashboard',navEl);
 }
 
 function initSetupWizard(){
-  try{var saved=localStorage.getItem('voxera_setup');if(saved)setupDone=JSON.parse(saved);}catch(e){}
+  var cid = String(getSetupStorageCustomerId() || '');
+  if (setupStateCustomerId !== cid) {
+    resetSetupSessionState();
+    setupStateCustomerId = cid;
+  }
+  try{
+    var saved=localStorage.getItem(getSetupStorageKey('voxera_setup_steps'));
+    if(saved) setupDone=JSON.parse(saved);
+  }catch(e){}
   SETUP_STEPS.forEach(function(id){
     if(setupDone[id]){
       var step=document.getElementById('setup-'+id);
@@ -4010,7 +4029,7 @@ function shouldShowSetupOnLogin(context){
   // active/configured customer and should not be auto-redirected to setup,
   // regardless of whether the localStorage flag happens to be present.
   if(context && context.customerId && context.customerRecord) return false;
-  try{return !localStorage.getItem('voxera_setup_finished');}catch(e){return true;}
+  try{return !localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));}catch(e){return true;}
 }
 
 // ═══════════════════════════════════════════
@@ -4133,6 +4152,9 @@ async function doLogout() {
   if (!sb) return;
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   await sb.auth.signOut();
+  resetSetupSessionState();
+  setupStateCustomerId = '';
+  customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-password').value = '';
@@ -4141,6 +4163,8 @@ async function doLogout() {
 
 function showApp(user) {
   currentUser = user || null;
+  resetSetupSessionState();
+  setupStateCustomerId = '';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
