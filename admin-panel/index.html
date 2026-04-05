@@ -27,6 +27,29 @@
 }
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
 body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900);min-height:100vh;line-height:1.5;}
+.app-shell{display:flex;min-height:100vh;}
+.sidebar{width:230px;background:var(--white);border-right:1px solid var(--gray200);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+.sidebar-logo{padding:20px;border-bottom:1px solid var(--gray200);}
+.sidebar-logo-text{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--blue);}
+.sidebar-nav{padding:10px 0;display:flex;flex-direction:column;gap:2px;flex:1;}
+.sidebar-item{padding:11px 18px;border-left:3px solid transparent;color:var(--gray600);font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.sidebar-item:hover{background:var(--gray50);color:var(--gray900);}
+.sidebar-item.active{color:var(--blue);background:var(--blue-light);border-left-color:var(--blue);}
+.sidebar-badge{font-size:10px;padding:2px 7px;border-radius:999px;background:var(--gray100);color:var(--gray600);}
+.main-wrap{flex:1;min-width:0;}
+.section-page{display:none;}
+.section-page.active{display:block;}
+.table-wrap{overflow:auto;border:1px solid var(--gray200);border-radius:12px;}
+.data-table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--white);}
+.data-table th,.data-table td{padding:10px 12px;border-bottom:1px solid var(--gray200);text-align:left;vertical-align:top;white-space:nowrap;}
+.data-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);font-weight:700;background:var(--gray50);position:sticky;top:0;}
+.data-table td.wrap{white-space:normal;min-width:220px;}
+.toolbar-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px;}
+.toolbar-grid .toolbar-input,.toolbar-grid .toolbar-select{width:100%;}
+.quick-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;}
+.quick-kpi{border:1px solid var(--gray200);background:var(--gray50);border-radius:12px;padding:12px;}
+.quick-kpi-label{font-size:11px;color:var(--gray400);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.quick-kpi-value{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:800;line-height:1.1;margin-top:6px;}
 
 /* ─── TOPBAR ─── */
 .topbar{background:var(--white);border-bottom:1px solid var(--gray200);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-sm);}
@@ -278,7 +301,13 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
 
 /* ─── RESPONSIVE ─── */
 @media(max-width:900px){
+  .app-shell{display:block;}
+  .sidebar{position:static;height:auto;width:100%;}
+  .sidebar-nav{flex-direction:row;overflow:auto;padding:8px;}
+  .sidebar-item{border-left:none;border-bottom:2px solid transparent;white-space:nowrap;border-radius:8px;}
+  .sidebar-item.active{border-bottom-color:var(--blue);}
   .overview-grid{grid-template-columns:repeat(2,1fr);}
+  .toolbar-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .detail-grid{grid-template-columns:1fr;}
   .customer-row{grid-template-columns:1fr;gap:12px;}
   .customer-av{display:none;}
@@ -289,6 +318,7 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   .contract-preview-grid{grid-template-columns:1fr;}
 }
 @media(max-width:600px){
+  .toolbar-grid{grid-template-columns:1fr;}
   .form-grid{grid-template-columns:1fr;}
   .page{padding:16px 16px 32px;}
   .topbar{padding:14px 16px;}
@@ -303,153 +333,117 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-logo">Voxera</div>
-  <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:12px;color:var(--gray400);font-weight:500" id="topbar-stats"></span>
-    <div id="topbar-admin-info" style="display:none;align-items:center;gap:8px">
-      <span style="font-size:13px;font-weight:600;color:var(--gray600)" id="topbar-admin-name"></span>
-      <span class="role-badge" id="topbar-role-badge"></span>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">Voxera</div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-item active" data-section="uebersicht" onclick="showSection('uebersicht',this)">Übersicht <span class="sidebar-badge" id="side-open-work">–</span></div>
+      <div class="sidebar-item" data-section="kunden" onclick="showSection('kunden',this)">Kunden <span class="sidebar-badge" id="side-customer-count">–</span></div>
+      <div class="sidebar-item" data-section="anrufe" onclick="showSection('anrufe',this)">Anrufe</div>
+      <div class="sidebar-item" data-section="rueckrufe" onclick="showSection('rueckrufe',this)">Rückrufe</div>
+      <div class="sidebar-item" data-section="followups" onclick="showSection('followups',this)">Follow-ups</div>
+      <div class="sidebar-item" data-section="stats" onclick="showSection('stats',this)">Stats</div>
+      <div class="sidebar-item" data-section="einstellungen" onclick="showSection('einstellungen',this)">Einstellungen</div>
+    </nav>
+    <div class="sidebar-footer" style="padding:14px 16px;border-top:1px solid var(--gray200)">
+      <div style="font-size:12px;color:var(--gray400);font-weight:500" id="topbar-stats"></div>
+      <div id="topbar-admin-info" style="display:none;align-items:center;gap:8px;margin-top:6px">
+        <span style="font-size:13px;font-weight:600;color:var(--gray600)" id="topbar-admin-name"></span>
+        <span class="role-badge" id="topbar-role-badge"></span>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="logout-btn" onclick="logoutAdmin()" style="display:none;margin-top:10px">Abmelden</button>
     </div>
-    <button class="btn btn-secondary btn-sm" id="logout-btn" onclick="logoutAdmin()" style="display:none">Abmelden</button>
-  </div>
-</div>
+  </aside>
 
-<div class="page">
-  <div class="page-title">Kundenverwaltung</div>
-  <div class="page-sub">Kunden anlegen, verwalten und überwachen</div>
+  <main class="main-wrap">
+    <div class="topbar"><div class="topbar-logo">Admin Control Center</div><div class="topbar-badge">Operations</div></div>
+    <div class="page">
+      <div class="page-title" id="page-title">Übersicht</div>
+      <div class="page-sub" id="page-sub">Operative Lage in Echtzeit für Kunden, Anrufe und Follow-ups.</div>
 
-  <div class="overview-grid" style="grid-template-columns:repeat(5,1fr)">
-    <div class="overview-card"><div class="overview-label">Kunden aktiv</div><div class="overview-value" id="ov-active">–</div><div class="overview-sub" id="ov-active-sub">–</div></div>
-    <div class="overview-card"><div class="overview-label">Monatlicher Umsatz</div><div class="overview-value" id="ov-mrr">–</div><div class="overview-sub" id="ov-mrr-sub">geschätzt nach Plan</div></div>
-    <div class="overview-card"><div class="overview-label">Business / Pro</div><div class="overview-value" id="ov-pro">–</div><div class="overview-sub">Upmarket Accounts</div></div>
-    <div class="overview-card"><div class="overview-label">Offene Rückrufe</div><div class="overview-value" id="ov-callbacks">–</div><div class="overview-sub" id="ov-callbacks-sub">über alle Kunden</div></div>
-    <div class="overview-card"><div class="overview-label">Welcome-Mail offen</div><div class="overview-value" id="ov-welcome">–</div><div class="overview-sub" id="ov-welcome-sub">noch nicht gesendet</div></div>
-  </div>
-
-  <div class="tabs">
-    <button class="tab-btn active role-guard-write" onclick="showSection('neuer-kunde',this)">➕ Neuer Kunde</button>
-    <button class="tab-btn" onclick="showSection('kunden-liste',this)">👥 Kunden</button>
-    <button class="tab-btn" onclick="showSection('anruf-log',this)">📞 Anruf-Log</button>
-    <button class="tab-btn" onclick="showSection('statistik',this)">📊 Statistik</button>
-    <button class="tab-btn role-guard-super" id="admin-tab-btn" onclick="showSection('admin-verwaltung',this)" style="display:none">👤 Admins</button>
-  </div>
-
-  <!-- NEUER KUNDE -->
-  <div id="section-neuer-kunde">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><div class="card-icon" style="background:var(--blue-light)">➕</div>Neuen Kunden anlegen</div>
+      <div id="section-uebersicht" class="section-page active">
+        <div class="overview-grid">
+          <div class="overview-card"><div class="overview-label">Aktive Kunden</div><div class="overview-value" id="ov-active">–</div><div class="overview-sub" id="ov-active-sub">–</div></div>
+          <div class="overview-card"><div class="overview-label">Kunden in Einrichtung</div><div class="overview-value" id="ov-setup">–</div><div class="overview-sub">Setup noch offen</div></div>
+          <div class="overview-card"><div class="overview-label">Calls heute</div><div class="overview-value" id="ov-calls-today">–</div><div class="overview-sub">über alle Kunden</div></div>
+          <div class="overview-card"><div class="overview-label">Offene Rückrufe</div><div class="overview-value" id="ov-callbacks">–</div><div class="overview-sub" id="ov-callbacks-sub">über alle Kunden</div></div>
+          <div class="overview-card"><div class="overview-label">Geplante Follow-ups</div><div class="overview-value" id="ov-followups">–</div><div class="overview-sub">offen & terminiert</div></div>
+          <div class="overview-card"><div class="overview-label">Kunden ohne Aktivität</div><div class="overview-value" id="ov-no-activity">–</div><div class="overview-sub">keine Calls in 14 Tagen</div></div>
+          <div class="overview-card"><div class="overview-label">Handlungsbedarf</div><div class="overview-value" id="ov-needs-action">–</div><div class="overview-sub">kritische Fälle</div></div>
+          <div class="overview-card"><div class="overview-label">Welcome-Mail offen</div><div class="overview-value" id="ov-welcome">–</div><div class="overview-sub" id="ov-welcome-sub">noch nicht gesendet</div></div>
+        </div>
+        <div class="card"><div class="card-title">Priorisierte Fälle</div><div id="overview-focus-list" class="detail-list"></div></div>
       </div>
-      <div class="form-grid">
-        <div class="form-group"><label class="form-label">Vorname *</label><input class="form-input" id="f-vorname" placeholder="Patrick" type="text"></div>
-        <div class="form-group"><label class="form-label">Nachname *</label><input class="form-input" id="f-nachname" placeholder="Vogel" type="text"></div>
-        <div class="form-group"><label class="form-label">E-Mail *</label><input class="form-input" id="f-email" placeholder="kunde@email.ch" type="email"></div>
-        <div class="form-group">
-          <label class="form-label">Temporäres Passwort *</label>
-          <input class="form-input" id="f-password" type="text">
-          <span class="form-hint">Kunde kann Passwort später ändern</span>
-        </div>
-        <div class="form-group"><label class="form-label">Firma</label><input class="form-input" id="f-firma" placeholder="Allianz AG" type="text"></div>
-        <div class="form-group">
-          <label class="form-label">Voxera-Nummer *</label>
-          <input class="form-input" id="f-nummer" placeholder="+41445053662" type="tel">
-          <span class="form-hint">Twilio-Nummer mit + und Ländervorwahl</span>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Plan</label>
-          <select class="form-input" id="f-plan">
-            <option value="Pilot">Pilot (49 CHF/Mt)</option>
-            <option value="Starter">Starter (199 CHF/Mt)</option>
-            <option value="Business" selected>Business (349 CHF/Mt)</option>
-            <option value="Professional">Professional (549 CHF/Mt)</option>
-          </select>
-        </div>
-        <div class="form-group"><label class="form-label">Startdatum</label><input class="form-input" id="f-startdatum" type="date"></div>
-        <div class="form-group full"><label class="form-label">Interne Notiz</label><input class="form-input" id="f-notiz" placeholder="z.B. Versicherungsberater, Allianz Stans, Pilot 3 Monate" type="text"></div>
-      </div>
-      <div class="status-box" id="create-status">
-        <div class="status-icon" id="create-icon"></div>
-        <div class="status-text">
-          <strong id="create-title"></strong>
-          <div id="create-detail"></div>
-          <div class="steps" id="create-steps"></div>
+
+      <div id="section-kunden" class="section-page">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title"><div class="card-icon" style="background:var(--green-light)">👥</div>Kunden</div><div class="section-note">Filterbar nach Status, Plan, Setup, Aktivität und Erstellung.</div></div><button class="btn btn-secondary btn-sm" onclick="loadCustomers()">↻ Aktualisieren</button></div>
+          <div class="toolbar-grid">
+            <input class="toolbar-input" id="customer-search" placeholder="Customer ID, Kundenname, E-Mail, Telefonnummer..." oninput="renderCustomers()">
+            <select class="toolbar-select" id="customer-plan-filter" onchange="renderCustomers()"><option value="">Alle Pläne</option><option value="Pilot">Pilot</option><option value="Starter">Starter</option><option value="Business">Business</option><option value="Professional">Professional</option></select>
+            <select class="toolbar-select" id="customer-status-filter" onchange="renderCustomers()"><option value="">Alle Status</option><option value="active">Aktiv</option><option value="pending">Ausstehend</option></select>
+            <select class="toolbar-select" id="customer-setup-filter" onchange="renderCustomers()"><option value="">Einrichtung alle</option><option value="yes">Setup komplett</option><option value="no">Setup offen</option></select>
+          </div>
+          <div id="customer-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
         </div>
       </div>
-      <div style="display:flex;gap:10px;margin-top:22px">
-        <button class="btn btn-primary" id="create-btn" onclick="createCustomer()"><span id="create-btn-text">➕ Kunden anlegen</span></button>
-        <button class="btn btn-secondary" onclick="resetForm()">Zurücksetzen</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- KUNDEN LISTE -->
-  <div id="section-kunden-liste" style="display:none">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title"><div class="card-icon" style="background:var(--green-light)">👥</div>Alle Kunden</div>
-          <div class="section-note">Kompakter Überblick über Status, Plan, Umsatz und letzte Aktivität.</div>
+      <div id="section-anrufe" class="section-page">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--amber-light)">📞</div>Anrufe</div><button class="btn btn-secondary btn-sm" onclick="loadCallsData()">↻ Aktualisieren</button></div>
+          <div class="toolbar-grid">
+            <input class="toolbar-input" id="call-search" placeholder="Customer ID, Kundenname, Caller Phone, Voxera-Nummer…" oninput="renderCallsTable()">
+            <input class="toolbar-input" id="call-date-from" type="date" onchange="renderCallsTable()">
+            <input class="toolbar-input" id="call-date-to" type="date" onchange="renderCallsTable()">
+            <select class="toolbar-select" id="call-status-filter" onchange="renderCallsTable()"><option value="">Status alle</option><option>Offen</option><option>In Bearbeitung</option><option>Erledigt</option><option>Abgeschlossen</option></select>
+            <select class="toolbar-select" id="call-lead-filter" onchange="renderCallsTable()"><option value="">Lead Quality alle</option><option value="hot">Hot</option><option value="warm">Warm</option><option value="cold">Cold</option></select>
+            <select class="toolbar-select" id="call-callback-filter" onchange="renderCallsTable()"><option value="">Rückruf alle</option><option value="yes">Rückruf gewünscht</option><option value="no">Kein Rückruf</option></select>
+            <select class="toolbar-select" id="call-followup-filter" onchange="renderCallsTable()"><option value="">Follow-up alle</option><option value="yes">Follow-up gesetzt</option><option value="no">Kein Follow-up</option></select>
+            <select class="toolbar-select" id="call-sort" onchange="renderCallsTable()"><option value="newest">Neueste zuerst</option><option value="oldest">Älteste zuerst</option><option value="longest">Längste Dauer</option><option value="priority">Höchste Priorität</option><option value="callback">Rückruf zuerst</option></select>
+          </div>
+          <div id="calls-table-root"></div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadCustomers()">↻ Aktualisieren</button>
       </div>
-      <div class="customer-toolbar">
-        <input class="toolbar-input" id="customer-search" placeholder="Kunde, E-Mail, Nummer oder Customer ID suchen..." oninput="renderCustomers()">
-        <select class="toolbar-select" id="customer-plan-filter" onchange="renderCustomers()">
-          <option value="">Alle Pläne</option>
-          <option value="Pilot">Pilot</option>
-          <option value="Starter">Starter</option>
-          <option value="Business">Business</option>
-          <option value="Professional">Professional</option>
-        </select>
-        <select class="toolbar-select" id="customer-status-filter" onchange="renderCustomers()">
-          <option value="">Alle Status</option>
-          <option value="active">Aktiv</option>
-          <option value="pending">Ausstehend</option>
-        </select>
-      </div>
-      <div id="customer-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
-    </div>
-  </div>
 
-  <!-- ANRUF LOG -->
-  <div id="section-anruf-log" style="display:none">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><div class="card-icon" style="background:var(--amber-light)">📞</div>Anruf-Log (letzte 20)</div>
-        <button class="btn btn-secondary btn-sm" onclick="loadCallLog()">↻ Aktualisieren</button>
-      </div>
-      <div id="call-log-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
-    </div>
-  </div>
+      <div id="section-rueckrufe" class="section-page"><div class="card"><div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--red-light)">☎</div>Rückrufe</div></div><div id="callbacks-table-root"></div></div></div>
+      <div id="section-followups" class="section-page"><div class="card"><div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--blue-light)">🗓</div>Follow-ups</div></div><div id="followups-table-root"></div></div></div>
 
-  <!-- STATISTIK -->
-  <div id="section-statistik" style="display:none">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><div class="card-icon" style="background:var(--blue-light)">📊</div>Kunden-Statistik</div>
-        <select class="form-input" id="stats-customer-select" onchange="loadStats()" style="width:auto;padding:8px 14px;font-size:13px">
-          <option value="">Kunden wählen...</option>
-        </select>
-      </div>
-      <div id="stats-content"><div class="empty"><div class="empty-icon">📊</div>Bitte einen Kunden auswählen</div></div>
-    </div>
-  </div>
-
-  <!-- ADMIN VERWALTUNG (nur Super-Admin) -->
-  <div id="section-admin-verwaltung" style="display:none">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title"><div class="card-icon" style="background:var(--red-light)">👤</div>Admin-Verwaltung</div>
-          <div class="section-note">Adminkonten erstellen, Rollen vergeben und verwalten</div>
+      <div id="section-stats" class="section-page">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--blue-light)">📊</div>Stats</div><select class="form-input" id="stats-customer-select" onchange="loadStats()" style="width:auto;padding:8px 14px;font-size:13px"><option value="">Kunden wählen...</option></select></div>
+          <div class="quick-kpis">
+            <div class="quick-kpi"><div class="quick-kpi-label">Calls heute</div><div class="quick-kpi-value" id="global-calls-today">–</div></div>
+            <div class="quick-kpi"><div class="quick-kpi-label">Aktive Kunden</div><div class="quick-kpi-value" id="global-active-customers">–</div></div>
+            <div class="quick-kpi"><div class="quick-kpi-label">Ø Dauer</div><div class="quick-kpi-value" id="global-avg-duration">–</div></div>
+          </div>
+          <div id="stats-content" style="margin-top:16px"><div class="empty"><div class="empty-icon">📊</div>Bitte einen Kunden auswählen</div></div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openCreateAdminModal()">➕ Admin anlegen</button>
       </div>
-      <div id="admin-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
-    </div>
-  </div>
 
+      <div id="section-einstellungen" class="section-page">
+        <div class="card role-guard-write">
+          <div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--blue-light)">➕</div>Neuen Kunden anlegen</div></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Vorname *</label><input class="form-input" id="f-vorname" placeholder="Patrick" type="text"></div>
+            <div class="form-group"><label class="form-label">Nachname *</label><input class="form-input" id="f-nachname" placeholder="Vogel" type="text"></div>
+            <div class="form-group"><label class="form-label">E-Mail *</label><input class="form-input" id="f-email" placeholder="kunde@email.ch" type="email"></div>
+            <div class="form-group"><label class="form-label">Temporäres Passwort *</label><input class="form-input" id="f-password" type="text"><span class="form-hint">Kunde kann Passwort später ändern</span></div>
+            <div class="form-group"><label class="form-label">Firma</label><input class="form-input" id="f-firma" placeholder="Allianz AG" type="text"></div>
+            <div class="form-group"><label class="form-label">Voxera-Nummer *</label><input class="form-input" id="f-nummer" placeholder="+41445053662" type="tel"></div>
+            <div class="form-group"><label class="form-label">Plan</label><select class="form-input" id="f-plan"><option value="Pilot">Pilot (49 CHF/Mt)</option><option value="Starter">Starter (199 CHF/Mt)</option><option value="Business" selected>Business (349 CHF/Mt)</option><option value="Professional">Professional (549 CHF/Mt)</option></select></div>
+            <div class="form-group"><label class="form-label">Startdatum</label><input class="form-input" id="f-startdatum" type="date"></div>
+            <div class="form-group full"><label class="form-label">Interne Notiz</label><input class="form-input" id="f-notiz" placeholder="Notiz" type="text"></div>
+          </div>
+          <div class="status-box" id="create-status"><div class="status-icon" id="create-icon"></div><div class="status-text"><strong id="create-title"></strong><div id="create-detail"></div><div class="steps" id="create-steps"></div></div></div>
+          <div style="display:flex;gap:10px;margin-top:22px"><button class="btn btn-primary" id="create-btn" onclick="createCustomer()">➕ Kunden anlegen</button><button class="btn btn-secondary" onclick="resetForm()">Zurücksetzen</button></div>
+        </div>
+        <div class="card role-guard-super" id="section-admin-verwaltung" style="display:none">
+          <div class="card-header"><div><div class="card-title"><div class="card-icon" style="background:var(--red-light)">👤</div>Admin-Verwaltung</div><div class="section-note">Adminkonten erstellen, Rollen vergeben und verwalten</div></div><button class="btn btn-primary btn-sm" onclick="openCreateAdminModal()">➕ Admin anlegen</button></div>
+          <div id="admin-list"><div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
 </div>
 
 <!-- EDIT MODAL -->
@@ -654,7 +648,7 @@ const _sbAuth = supabaseReady ? supabaseLib.createClient(SB_URL, SB_ANON_KEY) : 
 // Data client – identisch mit Auth client, da wir anon key + RLS nutzen
 const _sb = _sbAuth;
 
-let editId = null, confirmCb = null, customers = [], profileId = null, currentAdmin = null;
+let editId = null, confirmCb = null, customers = [], profileId = null, currentAdmin = null, allCalls = [];
 
 function ensureAdminAuthClient() {
   if (_sbAuth && _sbAuth.auth) return _sbAuth;
@@ -670,14 +664,30 @@ function blockPrivilegedAction(actionLabel) {
 
 // TABS
 function showSection(name, btn) {
-  ['neuer-kunde','kunden-liste','anruf-log','statistik','admin-verwaltung'].forEach(s =>
-    document.getElementById('section-'+s).style.display = s===name?'block':'none');
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  if (name==='kunden-liste') loadCustomers();
-  if (name==='anruf-log') loadCallLog();
-  if (name==='statistik') { initStats(); }
-  if (name==='admin-verwaltung') { loadAdmins(); }
+  ['uebersicht','kunden','anrufe','rueckrufe','followups','stats','einstellungen'].forEach(s => {
+    const el = document.getElementById('section-'+s);
+    if (el) el.classList.toggle('active', s === name);
+  });
+  document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const titles = {
+    uebersicht: ['Übersicht', 'Was braucht jetzt Aufmerksamkeit?'],
+    kunden: ['Kunden', 'Kundenstamm mit Setup-, Aktivitäts- und Statuskontrolle.'],
+    anrufe: ['Anrufe', 'Globale Anrufsteuerung mit Filtern, Prioritäten und Aktionen.'],
+    rueckrufe: ['Rückrufe', 'Alle rückrufkritischen Fälle auf einen Blick.'],
+    followups: ['Follow-ups', 'Termine und Nachfassaktionen nach Fälligkeit.'],
+    stats: ['Stats', 'Management-Kennzahlen und Kundenauswertung.'],
+    einstellungen: ['Einstellungen', 'Kundenanlage und Administration.']
+  };
+  const [title, sub] = titles[name] || ['Admin', ''];
+  const t = document.getElementById('page-title'); if (t) t.textContent = title;
+  const s = document.getElementById('page-sub'); if (s) s.textContent = sub;
+  if (name==='kunden') loadCustomers();
+  if (name==='anrufe') renderCallsTable();
+  if (name==='rueckrufe') renderCallbacksTable();
+  if (name==='followups') renderFollowupsTable();
+  if (name==='stats') initStats();
+  if (name==='einstellungen' && currentAdmin?.role === 'super-admin') loadAdmins();
 }
 
 // HELPERS
@@ -825,10 +835,7 @@ async function loadCustomersData() {
   // Normalisiere auf einheitliches Format: customers[] = Array von Supabase-Rows
   customers = rows;
   document.getElementById('topbar-stats').textContent = customers.length + ' Kunden';
-  try {
-    const calls = await sbCalls({ limit: 200 });
-    updateOverview(customers, calls);
-  } catch(e) { updateOverview(customers, []); }
+  updateOverview(customers, allCalls);
   return customers;
 }
 
@@ -848,6 +855,7 @@ function renderCustomers() {
   const q = (document.getElementById('customer-search')?.value || '').trim().toLowerCase();
   const planFilter = document.getElementById('customer-plan-filter')?.value || '';
   const statusFilter = document.getElementById('customer-status-filter')?.value || '';
+  const setupFilter = document.getElementById('customer-setup-filter')?.value || '';
   const filtered = customers.filter(c => {
     const status = (c.status || '').toLowerCase();
     const hay = [c.customer_name, c.email, c.voxera_number, c.id, c.plan].join(' ').toLowerCase();
@@ -856,50 +864,37 @@ function renderCustomers() {
     // Normalize legacy 'aktiv'/'inaktiv' values to 'active'/'pending' for filter comparison
     const normStatus = status === 'aktiv' ? 'active' : (status === 'inaktiv' ? 'pending' : status);
     if (statusFilter && normStatus !== statusFilter) return false;
+    const setupDone = !!c.forwarding_setup_completed;
+    if (setupFilter === 'yes' && !setupDone) return false;
+    if (setupFilter === 'no' && setupDone) return false;
     return true;
   });
   if (!filtered.length) { root.innerHTML='<div class="empty"><div class="empty-icon">🔎</div>Keine Kunden für diese Filter</div>'; return; }
-  root.innerHTML = `<div class="customer-list">${filtered.map(c => {
+  root.innerHTML = `<div class="table-wrap"><table class="data-table"><thead><tr>
+      <th>Kundenname</th><th>Customer ID</th><th>Plan</th><th>Status</th><th>E-Mail</th><th>Telefon</th><th>Voxera-Nummer</th><th>Einrichtung</th><th>Letzter Call</th><th>Offene Rückrufe</th><th>Erstellt am</th><th>Aktionen</th>
+    </tr></thead><tbody>${filtered.map(c => {
     const name = c.customer_name || '–';
     const active = (c.status || '').toLowerCase() === 'active' || (c.status || '').toLowerCase() === 'aktiv';
-    const plan = c.plan || 'Pilot';
-    const monthly = (PLANS[plan] || PLANS.Pilot).monthlyPrice || 0;
-    const since = c.start_date ? fmtDateOnly(c.start_date) : '–';
-    const months = c.start_date ? monthsSince(c.start_date) : 0;
+    const relatedCalls = allCalls.filter(call => String(call.customer_id) === String(c.id));
+    const lastCall = relatedCalls[0]?.created_date_raw;
+    const openCallbacks = relatedCalls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
     const canWrite = currentAdmin && ['admin','super-admin'].includes(currentAdmin.role);
-    return `<div class="customer-row ${!active?'inactive':''}">
-      <div class="customer-av">${ini(name)}</div>
-      <div class="customer-main">
-        <div class="customer-top">
-          <div class="customer-info">
-            <div class="customer-name">${name}</div>
-            <div class="customer-meta">${c.email||'–'} · ID ${c.id||'–'} · ${c.voxera_number||'–'}</div>
-          </div>
-          <div class="customer-tags">
-            <span class="badge badge-plan">${plan}</span>
-            <span class="badge ${active?'badge-active':'badge-pending'}">${active?'Aktiv':'Ausstehend'}</span>
-            <span class="badge ${c.welcome_sent?'badge-mail-sent':'badge-mail-pending'}">${c.welcome_sent?'✉️ Mail gesendet':'✉️ Mail offen'}</span>
-          </div>
-        </div>
-        <div class="metric-pills">
-          <span class="metric-pill"><strong>${monthly} CHF</strong> / Mt</span>
-          <span class="metric-pill">Kunde seit <strong>${since}</strong></span>
-          <span class="metric-pill">Abo seit <strong>${months ? months + ' Mt' : '–'}</strong></span>
-        </div>
-      </div>
-      <div class="customer-actions">
-        <div class="action-cluster">
-          <button class="btn btn-primary btn-sm" onclick="openCustomerProfile('${c.id}')">Details</button>
-          ${canWrite && !active?`<button class="btn btn-activate btn-sm" onclick="openActivateModal('${c.id}')">✅ Abo aktivieren</button>`:''}
-          ${canWrite?`<button class="btn btn-welcome btn-sm ${c.welcome_sent?'sent':''}" onclick="sendWelcomeMail('${c.id}','${(name).replace(/'/g,"\\'")}')">${c.welcome_sent?'✉️ Erneut senden':'✉️ Welcome Mail'}</button>`:''}
-          ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="openEdit('${c.id}')">Bearbeiten</button>`:''}
-          ${canWrite && active?`<button class="btn btn-warning btn-sm" onclick="toggleStatus('${c.id}','${name}',${active})">Pausieren</button>`:''}
-          ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="pwReset('${c.email||''}')">Passwort</button>`:''}
-          ${canWrite?`<button class="btn btn-danger btn-sm" onclick="delCustomer('${c.id}','${name}')">Löschen</button>`:''}
-        </div>
-      </div>
-    </div>`;
-  }).join('')}</div>`;
+    return `<tr>
+      <td>${name}</td><td>${c.id||'–'}</td><td><span class="badge badge-plan">${c.plan||'Pilot'}</span></td>
+      <td><span class="badge ${active?'badge-active':'badge-pending'}">${active?'Aktiv':'Ausstehend'}</span></td>
+      <td>${c.email||'–'}</td><td>${c.phone_number||'–'}</td><td>${c.voxera_number||'–'}</td>
+      <td><span class="badge ${c.forwarding_setup_completed?'badge-active':'badge-pending'}">${c.forwarding_setup_completed?'Komplett':'Offen'}</span></td>
+      <td>${lastCall?fmtDate(lastCall):'–'}</td><td>${openCallbacks}</td><td>${fmtDateOnly(c.created_at)}</td>
+      <td class="wrap">
+        <button class="btn btn-primary btn-sm" onclick="openCustomerProfile('${c.id}')">Öffnen</button>
+        ${canWrite?`<button class="btn btn-quiet btn-sm" onclick="openEdit('${c.id}')">Bearbeiten</button>`:''}
+        ${canWrite && !active?`<button class="btn btn-activate btn-sm" onclick="openActivateModal('${c.id}')">Aktivieren</button>`:''}
+        ${canWrite && active?`<button class="btn btn-warning btn-sm" onclick="toggleStatus('${c.id}','${name}',${active})">Pausieren</button>`:''}
+        ${canWrite?`<button class="btn btn-welcome btn-sm ${c.welcome_sent?'sent':''}" onclick="sendWelcomeMail('${c.id}','${(name).replace(/'/g,"\\'")}')">Aktivierungslink</button>`:''}
+        ${canWrite?`<button class="btn btn-danger btn-sm" onclick="delCustomer('${c.id}','${name}')">Archivieren/Löschen</button>`:''}
+      </td>
+    </tr>`;
+  }).join('')}</tbody></table></div>`;
 }
 
 // CONTRACT FUNCTIONS
@@ -1107,19 +1102,60 @@ function removeContract(idx){
 
 function updateOverview(cards, calls=[]) {
   const active = cards.filter(c => (c.status||'').toLowerCase() === 'aktiv' || (c.status||'').toLowerCase() === 'active').length;
-  const pro = cards.filter(c => ['business','professional'].includes((c.plan||'').toLowerCase())).length;
+  const setup = cards.filter(c => !c.forwarding_setup_completed).length;
   const callbacks = calls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+  const callsToday = calls.filter(r => {
+    const d = new Date(r.created_date_raw || 0);
+    const n = new Date();
+    return d.toDateString() === n.toDateString();
+  }).length;
+  const followups = calls.filter(r => !!(r.follow_up_at || r.followup_date || r.follow_up_date) && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+  const activityByCustomer = new Map();
+  calls.forEach(r => {
+    const id = String(r.customer_id || '');
+    const t = new Date(r.created_date_raw || 0).getTime();
+    if (!activityByCustomer.has(id) || activityByCustomer.get(id) < t) activityByCustomer.set(id, t);
+  });
+  const noActivity = cards.filter(c => {
+    const ts = activityByCustomer.get(String(c.id));
+    if (!ts) return true;
+    return (Date.now() - ts) > 14 * 24 * 60 * 60 * 1000;
+  }).length;
+  const needsAction = cards.filter(c => {
+    const customerCalls = calls.filter(r => String(r.customer_id) === String(c.id));
+    const openCb = customerCalls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+    return openCb >= 2 || !c.forwarding_setup_completed || !c.welcome_sent;
+  }).length;
   const welcomeOpen = cards.filter(c => !c.welcome_sent).length;
   document.getElementById('ov-active').textContent = active;
   document.getElementById('ov-active-sub').textContent = cards.length ? cards.length + ' Kunden total' : 'Noch keine Kunden';
-  const mrr = cards.reduce((sum, c) => sum + ((PLANS[c.plan||'Pilot']||PLANS.Pilot).monthlyPrice||0), 0);
-  document.getElementById('ov-mrr').textContent = mrr ? mrr + ' CHF' : '–';
-  document.getElementById('ov-mrr-sub').textContent = cards.length ? 'Plan-basierter MRR' : 'Noch keine Kunden';
-  document.getElementById('ov-pro').textContent = pro;
+  document.getElementById('ov-setup').textContent = setup;
+  document.getElementById('ov-calls-today').textContent = callsToday;
   document.getElementById('ov-callbacks').textContent = callbacks;
   document.getElementById('ov-callbacks-sub').textContent = callbacks ? 'offen über alle Kunden' : 'aktuell keine offenen Rückrufe';
+  document.getElementById('ov-followups').textContent = followups;
+  document.getElementById('ov-no-activity').textContent = noActivity;
+  document.getElementById('ov-needs-action').textContent = needsAction;
   document.getElementById('ov-welcome').textContent = welcomeOpen;
   document.getElementById('ov-welcome-sub').textContent = welcomeOpen ? welcomeOpen + ' Kunden warten' : 'alle gesendet';
+  const openWork = callbacks + followups + setup;
+  const sideOpen = document.getElementById('side-open-work'); if (sideOpen) sideOpen.textContent = openWork;
+  const sideCustomers = document.getElementById('side-customer-count'); if (sideCustomers) sideCustomers.textContent = cards.length;
+  const focusRoot = document.getElementById('overview-focus-list');
+  if (focusRoot) {
+    const focusRows = cards.map(c => {
+      const customerCalls = calls.filter(r => String(r.customer_id) === String(c.id));
+      const openCb = customerCalls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+      const followCount = customerCalls.filter(r => !!(r.follow_up_at || r.followup_date || r.follow_up_date) && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||'')).length;
+      const score = openCb * 5 + followCount * 3 + (!c.forwarding_setup_completed ? 4 : 0) + (!c.welcome_sent ? 2 : 0);
+      return { c, score, openCb, followCount };
+    }).filter(x => x.score > 0).sort((a,b) => b.score - a.score).slice(0,6);
+    focusRoot.innerHTML = focusRows.length ? focusRows.map(x => `<div class="detail-call"><div class="detail-call-top"><div class="detail-call-name">${x.c.customer_name||x.c.id}</div><span class="badge badge-pending">Priority ${x.score}</span></div><div class="detail-call-meta">Rückrufe offen: ${x.openCb} · Follow-ups: ${x.followCount} · Setup: ${x.c.forwarding_setup_completed?'OK':'Offen'}</div></div>`).join('') : '<div class="empty" style="padding:12px 0">Keine kritischen Fälle.</div>';
+  }
+  const avgDuration = calls.length ? Math.round(calls.reduce((s,r)=>s+(r.duration_seconds||0),0) / calls.length / 60) : 0;
+  const gToday = document.getElementById('global-calls-today'); if (gToday) gToday.textContent = callsToday;
+  const gActive = document.getElementById('global-active-customers'); if (gActive) gActive.textContent = active;
+  const gAvg = document.getElementById('global-avg-duration'); if (gAvg) gAvg.textContent = avgDuration ? `${avgDuration} min` : '–';
 }
 
 async function openCustomerProfile(id) {
@@ -1273,6 +1309,116 @@ async function loadCallLog() {
   } catch(e) { document.getElementById('call-log-list').innerHTML=`<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`; }
 }
 
+async function loadCallsData() {
+  try {
+    allCalls = await sbCalls({ limit: 600 });
+    renderCallsTable();
+    renderCallbacksTable();
+    renderFollowupsTable();
+    updateOverview(customers, allCalls);
+  } catch (e) {
+    const err = `<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`;
+    const root = document.getElementById('calls-table-root'); if (root) root.innerHTML = err;
+  }
+}
+
+function getCallPriorityScore(r) {
+  const lead = (r.lead_quality || '').toLowerCase();
+  return (r.callback_requested ? 30 : 0) + (lead.includes('hot') ? 20 : lead.includes('warm') ? 10 : 0) + ((r.dashboard_status || '').toLowerCase().includes('offen') ? 5 : 0);
+}
+
+function renderCallsTable() {
+  const root = document.getElementById('calls-table-root');
+  if (!root) return;
+  if (!allCalls.length) { root.innerHTML = '<div class="empty"><div class="empty-icon">📞</div>Keine Anrufe vorhanden</div>'; return; }
+  const q = (document.getElementById('call-search')?.value || '').toLowerCase();
+  const from = document.getElementById('call-date-from')?.value;
+  const to = document.getElementById('call-date-to')?.value;
+  const status = document.getElementById('call-status-filter')?.value || '';
+  const lead = (document.getElementById('call-lead-filter')?.value || '').toLowerCase();
+  const cb = document.getElementById('call-callback-filter')?.value || '';
+  const follow = document.getElementById('call-followup-filter')?.value || '';
+  const sort = document.getElementById('call-sort')?.value || 'newest';
+  let rows = allCalls.filter(r => {
+    const customer = customers.find(c => String(c.id) === String(r.customer_id));
+    const hay = [r.customer_id, customer?.customer_name, r.caller_phone, r.called_number, r.caller_name].join(' ').toLowerCase();
+    if (q && !hay.includes(q)) return false;
+    const d = new Date(r.created_date_raw || 0);
+    if (from && d < new Date(from + 'T00:00:00')) return false;
+    if (to && d > new Date(to + 'T23:59:59')) return false;
+    if (status && (r.dashboard_status || '') !== status) return false;
+    if (lead && !(r.lead_quality || '').toLowerCase().includes(lead)) return false;
+    if (cb === 'yes' && !r.callback_requested) return false;
+    if (cb === 'no' && r.callback_requested) return false;
+    const hasFollow = !!(r.follow_up_at || r.followup_date || r.follow_up_date);
+    if (follow === 'yes' && !hasFollow) return false;
+    if (follow === 'no' && hasFollow) return false;
+    return true;
+  });
+  rows.sort((a,b) => {
+    if (sort === 'oldest') return new Date(a.created_date_raw||0) - new Date(b.created_date_raw||0);
+    if (sort === 'longest') return (b.duration_seconds||0) - (a.duration_seconds||0);
+    if (sort === 'priority') return getCallPriorityScore(b) - getCallPriorityScore(a);
+    if (sort === 'callback') return Number(!!b.callback_requested) - Number(!!a.callback_requested);
+    return new Date(b.created_date_raw||0) - new Date(a.created_date_raw||0);
+  });
+  root.innerHTML = `<div class="table-wrap"><table class="data-table"><thead><tr><th>Caller</th><th>Telefon</th><th>Kunde</th><th>Zeit</th><th>Dauer</th><th>Kategorie</th><th>Lead</th><th>Rückruf</th><th>Follow-up</th><th class="wrap">Summary</th><th>Aktion</th></tr></thead>
+    <tbody>${rows.slice(0,250).map(r => {
+      const customer = customers.find(c => String(c.id) === String(r.customer_id));
+      const followInfo = r.follow_up_at || r.followup_date || r.follow_up_date;
+      return `<tr><td>${r.caller_name||'Unbekannt'}</td><td>${r.caller_phone||'–'}</td><td>${customer?.customer_name || r.customer_id || '–'}</td><td>${fmtDate(r.created_date_raw)}</td>
+      <td>${r.duration_seconds ? Math.round(r.duration_seconds/60)+' min' : '–'}</td><td>${r.category||'–'}</td><td>${r.lead_quality||'–'}</td>
+      <td>${r.callback_requested?'Ja':'Nein'}</td><td>${followInfo?fmtDate(followInfo):'–'}</td><td class="wrap">${(r.call_summary||'–').slice(0,110)}</td>
+      <td class="wrap"><button class="btn btn-secondary btn-sm" onclick="openCallDetails('${r.id||''}','${r.customer_id||''}')">Details</button> <button class="btn btn-quiet btn-sm" onclick="markCallDone('${r.id||''}')">Mark done</button></td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+function renderCallbacksTable() {
+  const root = document.getElementById('callbacks-table-root');
+  if (!root) return;
+  const rows = allCalls.filter(r => r.callback_requested && !['Erledigt','Abgeschlossen'].includes(r.dashboard_status||''));
+  if (!rows.length) { root.innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Keine offenen Rückrufe</div>'; return; }
+  root.innerHTML = `<div class="table-wrap"><table class="data-table"><thead><tr><th>Kunde</th><th>Caller</th><th>Telefon</th><th>Dringlichkeit</th><th>Eingang</th><th>Status</th><th>Aktion</th></tr></thead><tbody>
+  ${rows.map(r => {
+    const customer = customers.find(c => String(c.id) === String(r.customer_id));
+    return `<tr><td>${customer?.customer_name||r.customer_id||'–'}</td><td>${r.caller_name||'Unbekannt'}</td><td>${r.caller_phone||'–'}</td><td>${r.lead_quality||'–'}</td><td>${fmtDate(r.created_date_raw)}</td><td>${r.dashboard_status||'Offen'}</td><td><button class="btn btn-primary btn-sm" onclick="markCallDone('${r.id||''}')">Als erledigt markieren</button></td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+function renderFollowupsTable() {
+  const root = document.getElementById('followups-table-root');
+  if (!root) return;
+  const now = new Date();
+  const rows = allCalls.filter(r => (r.follow_up_at || r.followup_date || r.follow_up_date)).map(r => {
+    const follow = new Date(r.follow_up_at || r.followup_date || r.follow_up_date);
+    const done = ['Erledigt','Abgeschlossen'].includes(r.dashboard_status || '');
+    const bucket = done ? 'done' : (follow < new Date(now.toDateString()) ? 'overdue' : (follow.toDateString() === now.toDateString() ? 'today' : 'upcoming'));
+    return { ...r, followBucket: bucket, followDate: follow };
+  }).sort((a,b) => a.followDate - b.followDate);
+  if (!rows.length) { root.innerHTML = '<div class="empty"><div class="empty-icon">🗓</div>Keine Follow-ups geplant</div>'; return; }
+  root.innerHTML = `<div class="table-wrap"><table class="data-table"><thead><tr><th>Statusgruppe</th><th>Kunde</th><th>Caller</th><th>Follow-up Termin</th><th>Lead</th><th>Status</th></tr></thead><tbody>
+  ${rows.map(r => {
+    const customer = customers.find(c => String(c.id) === String(r.customer_id));
+    const bucketLabel = r.followBucket==='overdue'?'Überfällig':r.followBucket==='today'?'Heute':r.followBucket==='upcoming'?'Geplant':'Done';
+    return `<tr><td>${bucketLabel}</td><td>${customer?.customer_name||r.customer_id||'–'}</td><td>${r.caller_name||'Unbekannt'}</td><td>${fmtDate(r.followDate)}</td><td>${r.lead_quality||'–'}</td><td>${r.dashboard_status||'Offen'}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+function openCallDetails(callId, customerId) {
+  if (customerId) openCustomerProfile(String(customerId));
+}
+
+async function markCallDone(callId) {
+  if (!callId) return;
+  try {
+    const { error } = await _sb.from('calls').update({ dashboard_status: 'Erledigt' }).eq('id', callId);
+    if (error) throw new Error(error.message);
+    await loadCallsData();
+  } catch (e) {
+    alert('Fehler beim Aktualisieren: ' + e.message);
+  }
+}
+
 // CONFIRM
 function showConfirm(icon,title,text,btnClass,cb) {
   document.getElementById('confirm-icon').textContent=icon;
@@ -1322,8 +1468,8 @@ async function initStats() {
 }
 
 function openCustomerStats(nummer, name, plan) {
-  const statsBtn = document.querySelector('.tab-btn[onclick*="statistik"]');
-  showSection('statistik', statsBtn);
+  const statsBtn = document.querySelector('.sidebar-item[data-section="stats"]');
+  showSection('stats', statsBtn);
   setTimeout(() => {
     const sel = document.getElementById('stats-customer-select');
     if (sel) {
@@ -1470,6 +1616,7 @@ async function initAll() {
   const authed = await initAuth();
   if (!authed) return;
   await loadCustomersData();
+  await loadCallsData();
   renderCustomers();
   initStats();
 }
@@ -1511,20 +1658,14 @@ function updateTopbarAdmin() {
 function applyRoleRestrictions() {
   const role = currentAdmin?.role || 'support';
   if (role === 'support') {
-    // Hide write-only elements (create tab, action buttons rendered later)
     document.querySelectorAll('.role-guard-write').forEach(el => el.style.display = 'none');
-    // Default to Kunden tab for Support users
-    ['neuer-kunde','anruf-log','statistik','admin-verwaltung'].forEach(s => {
-      const el = document.getElementById('section-'+s);
-      if (el) el.style.display = 'none';
-    });
-    document.getElementById('section-kunden-liste').style.display = 'block';
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    const kundenBtn = document.querySelector('.tab-btn[onclick*="kunden-liste"]');
-    if (kundenBtn) kundenBtn.classList.add('active');
+    showSection('kunden', document.querySelector('.sidebar-item[data-section="kunden"]'));
   }
   if (role !== 'super-admin') {
     document.querySelectorAll('.role-guard-super').forEach(el => el.style.display = 'none');
+  } else {
+    const adminCard = document.getElementById('section-admin-verwaltung');
+    if (adminCard) adminCard.style.display = 'block';
   }
 }
 
