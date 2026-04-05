@@ -334,6 +334,15 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
 <body>
 
 <div class="app-shell">
+
+  <!-- ═══ NAVIGATION SHELL: SIDEBAR ═══
+       Sticky left-side navigation. Each item calls showSection(name, el) which:
+       - Toggles .active on section pages and sidebar items
+       - Updates page title/subtitle
+       - Triggers lazy data loads for the active section
+       Badges (#side-open-work, #side-customer-count) are kept in sync by updateOverview().
+       The footer shows the logged-in admin name, role badge and logout button.
+  ═══ -->
   <aside class="sidebar">
     <div class="sidebar-logo"><div class="sidebar-logo-text">Voxera</div></div>
     <nav class="sidebar-nav">
@@ -355,12 +364,24 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
     </div>
   </aside>
 
+  <!-- ═══ NAVIGATION SHELL: TOPBAR + MAIN CONTENT ═══
+       Sticky topbar shows the panel name and an "Operations" badge.
+       Below it, all section pages (.section-page) are rendered in DOM;
+       only the one with class .active is visible (display:block via CSS).
+       Page title (#page-title) and subtitle (#page-sub) are swapped by showSection().
+  ═══ -->
   <main class="main-wrap">
     <div class="topbar"><div class="topbar-logo">Admin Control Center</div><div class="topbar-badge">Operations</div></div>
     <div class="page">
       <div class="page-title" id="page-title">Übersicht</div>
       <div class="page-sub" id="page-sub">Operative Lage in Echtzeit für Kunden, Anrufe und Follow-ups.</div>
 
+      <!-- ═══ SECTION: ÜBERSICHT (Overview) ═══
+           KPI grid populated by updateOverview(customers, allCalls).
+           Data is loaded on initAll() startup; no lazy reload on tab switch.
+           #overview-focus-list shows top 6 priority customers ranked by a score
+           (open callbacks × 5 + followups × 3 + setup missing + welcome missing).
+      ═══ -->
       <div id="section-uebersicht" class="section-page active">
         <div class="overview-grid">
           <div class="overview-card"><div class="overview-label">Aktive Kunden</div><div class="overview-value" id="ov-active">–</div><div class="overview-sub" id="ov-active-sub">–</div></div>
@@ -375,6 +396,12 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
         <div class="card"><div class="card-title">Priorisierte Fälle</div><div id="overview-focus-list" class="detail-list"></div></div>
       </div>
 
+      <!-- ═══ SECTION: KUNDEN (Customers) ═══
+           Customer list rendered by renderCustomers() into #customer-list.
+           Data fetched by loadCustomers() → sbCustomers() → Supabase customers table.
+           Toolbar filters (search, plan, status, setup) are applied client-side by renderCustomers().
+           Action buttons per row are role-gated (canWrite check for admin/super-admin).
+      ═══ -->
       <div id="section-kunden" class="section-page">
         <div class="card">
           <div class="card-header"><div><div class="card-title"><div class="card-icon" style="background:var(--green-light)">👥</div>Kunden</div><div class="section-note">Filterbar nach Status, Plan, Setup, Aktivität und Erstellung.</div></div><button class="btn btn-secondary btn-sm" onclick="loadCustomers()">↻ Aktualisieren</button></div>
@@ -388,6 +415,13 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
         </div>
       </div>
 
+      <!-- ═══ SECTION: ANRUFE (Calls Log) ═══
+           Global call log rendered by renderCallsTable() into #calls-table-root.
+           Data fetched by loadCallsData() → sbCalls() → Supabase calls table (limit 600).
+           Filters: free-text search, date range, status, lead quality, callback, follow-up.
+           Sorting: newest / oldest / longest / priority score / callback-first.
+           Row actions: openCallDetails() (opens customer profile) and markCallDone().
+      ═══ -->
       <div id="section-anrufe" class="section-page">
         <div class="card">
           <div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--amber-light)">📞</div>Anrufe</div><button class="btn btn-secondary btn-sm" onclick="loadCallsData()">↻ Aktualisieren</button></div>
@@ -405,9 +439,27 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
         </div>
       </div>
 
+      <!-- ═══ SECTION: RÜCKRUFE (Callbacks) ═══
+           Filtered view of allCalls where callback_requested=true and status not done.
+           Rendered by renderCallbacksTable() into #callbacks-table-root.
+           No separate data fetch – uses the allCalls array already loaded by loadCallsData().
+      ═══ -->
       <div id="section-rueckrufe" class="section-page"><div class="card"><div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--red-light)">☎</div>Rückrufe</div></div><div id="callbacks-table-root"></div></div></div>
+
+      <!-- ═══ SECTION: FOLLOW-UPS ═══
+           Filtered view of allCalls where a follow-up date is set.
+           Rendered by renderFollowupsTable() into #followups-table-root.
+           Rows are bucketed: overdue / today / upcoming / done (sorted by follow-up date).
+           No separate data fetch – uses the allCalls array already loaded by loadCallsData().
+      ═══ -->
       <div id="section-followups" class="section-page"><div class="card"><div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--blue-light)">🗓</div>Follow-ups</div></div><div id="followups-table-root"></div></div></div>
 
+      <!-- ═══ SECTION: STATS (Analytics per Customer) ═══
+           Per-customer analytics: call totals, lead breakdown, minute usage vs. plan quota.
+           Customer dropdown populated by initStats() from the in-memory customers[] array.
+           Call data fetched on selection by loadStats() → sbCalls({filter:{customer_id}}).
+           Also includes an upsell panel for extra-minute packages (orderPackage()).
+      ═══ -->
       <div id="section-stats" class="section-page">
         <div class="card">
           <div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--blue-light)">📊</div>Stats</div><select class="form-input" id="stats-customer-select" onchange="loadStats()" style="width:auto;padding:8px 14px;font-size:13px"><option value="">Kunden wählen...</option></select></div>
@@ -420,6 +472,13 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
         </div>
       </div>
 
+      <!-- ═══ SECTION: EINSTELLUNGEN (Settings / Customer Creation) ═══
+           🔐 ADMIN-ONLY (write): "Neuen Kunden anlegen" card has .role-guard-write and is
+           hidden for Support-role admins by applyRoleRestrictions().
+           🔐 ADMIN-ONLY (super): "Admin-Verwaltung" card has .role-guard-super and is
+           shown only for super-admin role by applyRoleRestrictions().
+           Customer creation calls /.netlify/functions/create-customer (POST).
+      ═══ -->
       <div id="section-einstellungen" class="section-page">
         <div class="card role-guard-write">
           <div class="card-header"><div class="card-title"><div class="card-icon" style="background:var(--blue-light)">➕</div>Neuen Kunden anlegen</div></div>
@@ -446,6 +505,11 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   </main>
 </div>
 
+<!-- ═══ MODAL: CUSTOMER EDIT ═══
+     Opened by openEdit(id) – pre-fills name, email, voxera_number, plan from customers[].
+     saveEdit() updates Supabase customers table directly (client-side update with anon key + RLS).
+     Closed by closeEdit() or clicking the overlay.
+═══ -->
 <!-- EDIT MODAL -->
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeEdit()">
   <div class="modal">
@@ -476,6 +540,13 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   </div>
 </div>
 
+<!-- ═══ MODAL: CUSTOMER PROFILE ═══
+     Opened by openCustomerProfile(id) – fetches calls for this customer from Supabase
+     (📊 DATA SOURCE: calls table, filtered by customer_id).
+     Displays KPIs, subscription info, contact details, contracts (localStorage), and last 3 calls.
+     Also contains the welcome-mail send button and contract creation/upload controls.
+     Closed by closeProfile() or clicking the overlay.
+═══ -->
 <!-- CUSTOMER PROFILE MODAL -->
 <div class="modal-overlay" id="profile-modal" onclick="if(event.target===this)closeProfile()">
   <div class="modal" style="max-width:680px;max-height:82vh;overflow:auto;padding:22px 22px 20px">
@@ -488,6 +559,13 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   </div>
 </div>
 
+<!-- ═══ MODAL: CONTRACT GENERATION ═══
+     Opened by openContractModal() from within the customer profile.
+     Uses jsPDF (CDN) to generate a PDF contract client-side via buildContractPdf().
+     Contract records are stored in localStorage (key: voxera_contracts_<customerId>).
+     confirmGenerateContract() generates the PDF, stores metadata, and refreshes the profile.
+     Signed contracts can be uploaded via promptSignedContractUpload() / handleSignedContractUpload().
+═══ -->
 <input type="file" id="contract-upload-input" class="hidden-file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="handleSignedContractUpload(event)">
 
 <div class="modal-overlay" id="contract-modal" onclick="if(event.target===this)closeContractModal()">
@@ -541,6 +619,12 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   </div>
 </div>
 
+<!-- ═══ MODAL: CONFIRM DIALOG ═══
+     Generic reusable confirmation overlay.
+     showConfirm(icon, title, text, btnClass, callback) arms it; doConfirm() executes the callback.
+     Used for: status toggle, customer delete, password reset, order package, welcome mail.
+     closeConfirm() clears the pending callback and hides the overlay.
+═══ -->
 <!-- CONFIRM MODAL -->
 <div class="confirm-overlay" id="confirm-modal">
   <div class="confirm-box">
@@ -554,6 +638,13 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   </div>
 </div>
 
+<!-- ═══ MODAL: SUBSCRIPTION ACTIVATION ═══
+     🔐 ADMIN-ONLY (write): visible only for admin/super-admin roles.
+     Opened by openActivateModal(id) for customers not yet active.
+     confirmActivateSubscription() POSTs to /.netlify/functions/activate-subscription
+     with { customer_id, plan, billing_cycle, start_date }.
+     On success, reloads the customer list.
+═══ -->
 <!-- ACTIVATE SUBSCRIPTION MODAL -->
 <div class="modal-overlay" id="activate-modal" onclick="if(event.target===this)closeActivateModal()">
   <div class="modal">
@@ -592,6 +683,12 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
   </div>
 </div>
 
+<!-- ═══ MODAL: CREATE ADMIN (🔐 SUPER-ADMIN ONLY) ═══
+     Opened by openCreateAdminModal() which is only reachable when role === 'super-admin'.
+     createAdminAccount() is intentionally blocked (blockPrivilegedAction) – Phase 2 placeholder.
+     generateAdminPassword() creates a random password using crypto.getRandomValues.
+     Roles: support (read-only), admin (customer mgmt), super-admin (full access).
+═══ -->
 <!-- CREATE ADMIN MODAL -->
 <div class="modal-overlay" id="create-admin-modal" onclick="if(event.target===this)closeCreateAdminModal()">
   <div class="modal">
@@ -631,6 +728,11 @@ body{font-family:'Inter',sans-serif;background:var(--gray50);color:var(--gray900
 <script>
 'use strict';
 
+/* ═══ SUPABASE CONFIGURATION ═══
+   Single Supabase project used for all data (customers, calls, admins, subscriptions).
+   Both _sbAuth and _sb point to the same client – anon key + Row Level Security (RLS).
+   The anon key is safe to expose in the browser; RLS policies enforce data access rules.
+═══ */
 const SB_URL  = 'https://ulcofbgrovgcvowdjrge.supabase.co';
 const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk'; // TODO: Ersetzen, falls weiterhin "Unregistered API key" erscheint
 // ─── AIRTABLE REMOVED ─── Alle Daten kommen jetzt aus Supabase ───
@@ -662,6 +764,14 @@ function blockPrivilegedAction(actionLabel) {
 }
 
 
+/* ═══ NAVIGATION SHELL: SECTION SWITCHING ═══
+   showSection(name, btn) is the single entry point for all section navigation.
+   It hides all .section-page divs, shows the target, updates sidebar active state,
+   updates page title/subtitle, and triggers a lazy data load for the activated section.
+   Parameters:
+     name – string matching a section ID suffix (e.g. 'kunden' → #section-kunden)
+     btn  – the sidebar DOM element that was clicked (receives .active class)
+═══ */
 // TABS
 function showSection(name, btn) {
   ['uebersicht','kunden','anrufe','rueckrufe','followups','stats','einstellungen'].forEach(s => {
@@ -699,8 +809,13 @@ function fmtDate(r) {
 }
 function fmtDateOnly(r){ if(!r) return '–'; try{ const d=new Date(r); return d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return r;} }
 function monthsSince(r){ if(!r) return 0; try{ const d=new Date(r); const now=new Date(); let m=(now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth()); if(now.getDate() < d.getDate()) m -= 1; return Math.max(0,m); }catch(e){ return 0; } }
+/* ═══ DATA SOURCES: SUPABASE QUERY HELPERS ═══
+   Low-level wrappers around Supabase table queries.
+   All higher-level load* functions call these to keep data fetching in one place.
+═══ */
 // ─── SUPABASE HELPERS (ersetzt atReq) ───
 async function sbCustomers(opts = {}) {
+  // 📊 DATA SOURCE: Supabase — customers table (all rows, ordered by id by default)
   let q = _sb.from('customers').select('*');
   if (opts.order) q = q.order(opts.order, { ascending: opts.ascending !== false });
   else q = q.order('id');
@@ -710,6 +825,10 @@ async function sbCustomers(opts = {}) {
 }
 
 async function sbCalls(opts = {}) {
+  // 📊 DATA SOURCE: Supabase — calls table
+  // opts.filter: object of {column: value} equality filters (e.g. { customer_id: '001' })
+  // opts.order:  column name to order by (default: created_date_raw DESC)
+  // opts.limit:  max rows to return
   let q = _sb.from('calls').select('*');
   if (opts.filter) {
     for (const [col, val] of Object.entries(opts.filter)) {
@@ -742,7 +861,9 @@ function renderSteps(steps, active) {
 }
 
 // GET NEXT CUSTOMER ID
+// Queries the customers table to find the highest numeric ID and returns the next one (padded to 3 digits).
 async function getNextId() {
+  // 📊 DATA SOURCE: Supabase — customers table (select id only, ordered DESC, limit 1)
   const { data, error } = await _sb.from('customers').select('id').order('id', { ascending: false }).limit(1);
   if (error) throw new Error(error.message);
   let max = 0;
@@ -750,6 +871,13 @@ async function getNextId() {
   return String(max + 1).padStart(3, '0');
 }
 
+/* ═══ CUSTOMER ACTIONS: CREATE CUSTOMER ═══
+   createCustomer() collects the form in #section-einstellungen, validates required fields,
+   then calls the Netlify Function to create a Supabase Auth user + customers row + users row.
+   Progress is shown via a 4-step indicator (renderSteps / setStatus).
+   After success the customer list reloads automatically.
+   resetForm() clears the form back to defaults.
+═══ */
 // CREATE CUSTOMER
 const STEPS = ['Kunden-ID ermitteln','Auth User erstellen','Kunde & User anlegen','Fertig'];
 async function createCustomer() {
@@ -785,6 +913,9 @@ async function createCustomer() {
     setStatus('create','loading','Kunde wird erstellt...','Schritt 2/4: Auth User erstellen');
 
     const res = await fetch('/.netlify/functions/create-customer', {
+      // 🔗 ENDPOINT: /.netlify/functions/create-customer (POST)
+      // Payload: { customer_id, customer_name, email, password, voxera_number, plan, start_date }
+      // Effect:  creates Supabase Auth user, inserts row in customers table, inserts row in users table
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -829,8 +960,17 @@ function resetForm() {
   document.getElementById('create-steps').innerHTML='';
 }
 
+/* ═══ SECTION RENDERING: CUSTOMERS ═══
+   loadCustomersData() fetches all customers from Supabase and stores them in customers[].
+   loadCustomers() wraps it with a loading state and calls renderCustomers() after.
+   renderCustomers() applies client-side filters (search, plan, status, setup) and
+   renders the result into #customer-list as a data table.
+   Per-row action buttons are conditionally rendered based on canWrite (admin/super-admin role)
+   and the customer's current active state.
+═══ */
 // LOAD CUSTOMERS
 async function loadCustomersData() {
+  // 📊 DATA SOURCE: Supabase — customers table (all rows via sbCustomers())
   const rows = await sbCustomers();
   // Normalisiere auf einheitliches Format: customers[] = Array von Supabase-Rows
   customers = rows;
@@ -1100,6 +1240,12 @@ function removeContract(idx){
   const contracts=readContracts(customerId); contracts.splice(idx,1); writeContracts(customerId, contracts); openCustomerProfile(profileId);
 }
 
+/* ═══ SECTION RENDERING: OVERVIEW / KPI CARDS ═══
+   updateOverview(customers, calls) computes all dashboard KPIs purely from in-memory data.
+   No additional network requests are made here.
+   Also re-renders the "Priorisierte Fälle" focus list (top 6 customers by priority score).
+   Called on startup (initAll) and after any data reload.
+═══ */
 function updateOverview(cards, calls=[]) {
   const active = cards.filter(c => (c.status||'').toLowerCase() === 'aktiv' || (c.status||'').toLowerCase() === 'active').length;
   const setup = cards.filter(c => !c.forwarding_setup_completed).length;
@@ -1158,7 +1304,14 @@ function updateOverview(cards, calls=[]) {
   const gAvg = document.getElementById('global-avg-duration'); if (gAvg) gAvg.textContent = avgDuration ? `${avgDuration} min` : '–';
 }
 
+/* ═══ CUSTOMER PROFILE MODAL ═══
+   openCustomerProfile(id) shows the profile overlay and fetches calls for that customer.
+   The profile displays KPI chips, subscription details, contact info, contracts (localStorage)
+   and the last 3 calls. The welcome-mail button and contract buttons are also rendered here.
+   Parameter: id – customer.id (string, e.g. '001')
+═══ */
 async function openCustomerProfile(id) {
+  // 📊 DATA SOURCE: Supabase — calls table, filtered by customer_id
   profileId = id;
   document.getElementById('profile-modal').classList.add('open');
   document.getElementById('profile-content').innerHTML = '<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div>';
@@ -1219,6 +1372,9 @@ async function openCustomerProfile(id) {
 function closeProfile(){ document.getElementById('profile-modal').classList.remove('open'); profileId = null; }
 
 // EDIT
+// openEdit(id) – pre-populates the edit modal from the in-memory customers[] array.
+// saveEdit()   – 📊 DATA SOURCE: Supabase customers table; updates customer_name, email,
+//                voxera_number, plan, updated_at directly using the anon client + RLS.
 function openEdit(id) {
   const c = customers.find(r => r.id === id); if (!c) return;
   editId = id;
@@ -1236,6 +1392,7 @@ async function saveEdit() {
   const btn = document.getElementById('edit-save-btn');
   btn.disabled = true; btn.textContent = 'Speichern...';
   try {
+    // 📊 DATA SOURCE: Supabase — customers table (UPDATE)
     const { error } = await _sb.from('customers').update({
       customer_name: document.getElementById('edit-name').value.trim(),
       email: document.getElementById('edit-email').value.trim(),
@@ -1250,23 +1407,34 @@ async function saveEdit() {
   btn.disabled = false; btn.textContent = 'Speichern';
 }
 
+// toggleStatus(id, name, active)
+// 🔐 ADMIN-ONLY (write): only rendered for admin/super-admin roles.
+// 📊 DATA SOURCE: Supabase — customers table (UPDATE status field).
+// Pauses (active→pending) or unpauses (pending→active) a customer after confirmation.
 function toggleStatus(id, name, active) {
   const newS = active ? 'pending' : 'active';
   const label = active ? 'Ausstehend' : 'Aktiv';
   showConfirm(active?'⏸':'▶️', `Kunde ${active?'deaktivieren':'aktivieren'}?`,
     `${name} wird auf "${label}" gesetzt.`, active?'btn-warning':'btn-primary',
     async ()=>{
+      // 📊 DATA SOURCE: Supabase — customers table (UPDATE status, updated_at)
       const { error } = await _sb.from('customers').update({ status: newS, updated_at: new Date().toISOString() }).eq('id', id);
       if (error) throw new Error(error.message);
       loadCustomers();
     });
 }
 
+// delCustomer(id, name)
+// 🔐 ADMIN-ONLY (write): only rendered for admin/super-admin roles.
+// Shows a confirmation dialog; on confirm calls the Netlify Function.
 // DELETE
 function delCustomer(id, name) {
   showConfirm('🗑','Kunde löschen?',`"${name}" wird vollständig gelöscht – inklusive Login, Calls und alle Daten.`,'btn-danger',
     async ()=>{
       const res = await fetch('/.netlify/functions/delete-customer', {
+        // 🔗 ENDPOINT: /.netlify/functions/delete-customer (POST)
+        // Payload: { customer_id }
+        // Effect:  deletes Supabase Auth user, removes customers row and all related data
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customer_id: id })
@@ -1286,6 +1454,9 @@ function pwReset(email) {
 }
 
 // CALL LOG
+// loadCallLog() – legacy compact call log renderer (renders into #call-log-list if present).
+// 📊 DATA SOURCE: Supabase — calls table (via sbCalls, limit 20, most recent first)
+// Note: The main calls view uses renderCallsTable() / loadCallsData() instead.
 async function loadCallLog() {
   document.getElementById('call-log-list').innerHTML='<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div>';
   try {
@@ -1309,8 +1480,19 @@ async function loadCallLog() {
   } catch(e) { document.getElementById('call-log-list').innerHTML=`<div class="empty" style="color:var(--red)">❌ ${e.message}</div>`; }
 }
 
+/* ═══ CALLS LOGIC: DATA LOADING AND RENDERING ═══
+   loadCallsData()        – fetches all calls (limit 600) from Supabase, stores in allCalls[],
+                            then triggers renderCallsTable, renderCallbacksTable, renderFollowupsTable,
+                            and updateOverview to refresh all call-dependent UI.
+   renderCallsTable()     – applies 7 filter controls + sorting; renders into #calls-table-root.
+   renderCallbacksTable() – filters allCalls for open callback requests; renders into #callbacks-table-root.
+   renderFollowupsTable() – filters allCalls with a follow-up date; buckets as overdue/today/upcoming/done.
+   markCallDone(callId)   – 📊 DATA SOURCE: Supabase calls table (UPDATE dashboard_status → 'Erledigt').
+   getCallPriorityScore() – pure function; returns a numeric score used for "priority" sort.
+═══ */
 async function loadCallsData() {
   try {
+    // 📊 DATA SOURCE: Supabase — calls table (via sbCalls, limit 600)
     allCalls = await sbCalls({ limit: 600 });
     renderCallsTable();
     renderCallbacksTable();
@@ -1411,6 +1593,7 @@ function openCallDetails(callId, customerId) {
 async function markCallDone(callId) {
   if (!callId) return;
   try {
+    // 📊 DATA SOURCE: Supabase — calls table (UPDATE dashboard_status = 'Erledigt')
     const { error } = await _sb.from('calls').update({ dashboard_status: 'Erledigt' }).eq('id', callId);
     if (error) throw new Error(error.message);
     await loadCallsData();
@@ -1450,6 +1633,14 @@ const MIN_PACKAGES = [
 ];
 const AVG_CALL_DURATION = 2.5;
 
+/* ═══ SECTION RENDERING: STATS / ANALYTICS ═══
+   initStats() populates the customer dropdown from the in-memory customers[] array.
+   loadStats()  fetches per-customer calls from Supabase, computes KPIs (totals, lead breakdown,
+                minute usage, extra-cost estimate) and renders them into #stats-content.
+   openCustomerStats(nummer, name, plan) navigates to the Stats section and pre-selects
+                a customer by Voxera number (used from legacy onclick attributes).
+   orderPackage(name, minutes, price) shows a confirmation for a manual Payrexx invoice.
+═══ */
 async function initStats() {
   const sel = document.getElementById('stats-customer-select');
   if (!sel) return;
@@ -1499,6 +1690,7 @@ async function loadStats() {
   document.getElementById('stats-content').innerHTML = '<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Statistik wird geladen...</div>';
 
   try {
+    // 📊 DATA SOURCE: Supabase — calls table, filtered by customer_id
     const records = await sbCalls({ filter: { customer_id: customerId } });
 
     const now = new Date();
@@ -1607,6 +1799,11 @@ function orderPackage(customerName, minutes, price) {
   );
 }
 
+/* ═══ INITIALIZATION ═══
+   initAll() is the application entry point called on page load.
+   Order: initAuth() → loadCustomersData() → loadCallsData() → renderCustomers() → initStats().
+   If authentication fails, the user is redirected to login.html and initAll() returns early.
+═══ */
 // INIT
 document.getElementById('f-password').value='Voxera2026!';
 document.getElementById('f-startdatum').value=new Date().toISOString().split('T')[0];
@@ -1621,6 +1818,14 @@ async function initAll() {
   initStats();
 }
 
+/* ═══ AUTH: LOGIN CHECK AND SESSION MANAGEMENT ═══
+   initAuth() checks for an active Supabase session on page load.
+   If no session → redirects to login.html.
+   If session exists → looks up the admin record in the admins table.
+   If no admin record → signs out and redirects to login.html (prevents non-admin auth users).
+   On success → sets currentAdmin, updates topbar, applies role restrictions.
+═══ */
+
 // ─── AUTH ──────────────────────────────────────────────────────────
 
 async function initAuth() {
@@ -1631,6 +1836,7 @@ async function initAuth() {
     window.location.href = 'login.html';
     return false;
   }
+  // 📊 DATA SOURCE: Supabase — admins table (lookup by auth user id)
   const { data: adminData } = await _sbAuth.from('admins').select('*').eq('id', session.user.id).single();
   if (!adminData) {
     await _sbAuth.auth.signOut();
@@ -1655,6 +1861,11 @@ function updateTopbarAdmin() {
   document.getElementById('logout-btn').style.display = '';
 }
 
+// applyRoleRestrictions()
+// 🔐 ADMIN-ONLY: enforces UI-level role gating after login.
+// support role   → hides all .role-guard-write elements; redirects default view to Kunden section.
+// non-super-admin → hides all .role-guard-super elements (admin management card).
+// super-admin    → reveals the #section-admin-verwaltung card.
 function applyRoleRestrictions() {
   const role = currentAdmin?.role || 'support';
   if (role === 'support') {
@@ -1676,11 +1887,22 @@ async function logoutAdmin() {
   window.location.href = 'login.html';
 }
 
+/* ═══ ADMIN MANAGEMENT (🔐 SUPER-ADMIN ONLY) ═══
+   All functions in this section are only reachable when currentAdmin.role === 'super-admin'.
+   loadAdmins()        – 📊 DATA SOURCE: Supabase admins table (all rows, ordered by created_at).
+   renderAdmins(list)  – renders the admin list with role badges and delete buttons.
+   openCreateAdminModal() / closeCreateAdminModal() – modal lifecycle.
+   createAdminAccount()  – intentionally blocked (Phase 2 placeholder via blockPrivilegedAction).
+   deleteAdmin(id, name) – intentionally blocked (Phase 2 placeholder via blockPrivilegedAction).
+   generateAdminPassword() – generates a random password using crypto.getRandomValues.
+═══ */
+
 // ─── ADMIN MANAGEMENT (Super-Admin only) ──────────────────────────
 
 async function loadAdmins() {
   document.getElementById('admin-list').innerHTML = '<div class="empty"><div class="spinner spinner-blue" style="margin:0 auto 12px"></div>Lädt...</div>';
   try {
+    // 📊 DATA SOURCE: Supabase — admins table (all rows, ordered by created_at)
     const { data, error } = await _sbAuth.from('admins').select('*').order('created_at');
     if (error) throw new Error(error.message);
     renderAdmins(data || []);
@@ -1751,6 +1973,14 @@ function deleteAdmin(id, name) {
   blockPrivilegedAction(`Admin "${name}" löschen`);
 }
 
+/* ═══ CUSTOMER ACTIONS: SUBSCRIPTION ACTIVATION ═══
+   openActivateModal(id)           – opens the activation modal for a pending customer.
+   closeActivateModal()            – closes the modal and clears activateCustomerId.
+   confirmActivateSubscription()   – validates form, then POSTs to Netlify Function.
+   🔐 ADMIN-ONLY (write): the "Aktivieren" button in renderCustomers() is only shown for
+                           admin and super-admin roles (canWrite check).
+═══ */
+
 // ─── SUBSCRIPTION ACTIVATION ─────────────────────────────────────
 
 let activateCustomerId = null;
@@ -1808,6 +2038,9 @@ async function confirmActivateSubscription() {
   try {
     console.log('[ActivateModal] Sending fetch to /.netlify/functions/activate-subscription …');
     const res = await fetch('/.netlify/functions/activate-subscription', {
+      // 🔗 ENDPOINT: /.netlify/functions/activate-subscription (POST)
+      // Payload: { customer_id, plan, billing_cycle, start_date }
+      // Effect:  updates customers.status → 'active', sets plan/start_date, creates subscription row
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ customer_id: activateCustomerId, plan, billing_cycle, start_date })
@@ -1836,6 +2069,13 @@ async function confirmActivateSubscription() {
 
 
 
+/* ═══ CUSTOMER ACTIONS: WELCOME MAIL ═══
+   sendWelcomeMail(customerId, customerName)
+   🔐 ADMIN-ONLY (write): button only rendered for admin/super-admin roles.
+   Shows a confirmation dialog. On confirm, POSTs to /.netlify/functions/send-welcome.
+   After success: updates rec.welcome_sent in-memory and re-renders customers + overview.
+   Can be re-sent (alreadySent flag adjusts dialog copy and button label).
+═══ */
 async function sendWelcomeMail(customerId, customerName) {
   const rec = customers.find(c => c.id === customerId);
   const alreadySent = rec && rec.welcome_sent;
@@ -1847,6 +2087,9 @@ async function sendWelcomeMail(customerId, customerName) {
     async () => {
       try {
         const res = await fetch('/.netlify/functions/send-welcome', {
+          // 🔗 ENDPOINT: /.netlify/functions/send-welcome (POST)
+          // Payload: { customer_id }
+          // Effect:  sends activation email, sets customers.welcome_sent = true and welcome_sent_at
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ customer_id: customerId })
