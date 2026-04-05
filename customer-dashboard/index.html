@@ -478,14 +478,16 @@ body{
 .call-company{font-size:12px;color:var(--gray400);}
 .call-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray400);margin-bottom:5px;flex-wrap:wrap;}
 .call-phone{display:inline-block;font-weight:600;color:var(--gray700, #374151);background:var(--gray100);padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums;}
-.call-summary{font-size:12px;color:var(--gray600);line-height:1.5;margin-bottom:6px;}
-.followup-meta-line{font-size:11.5px;color:#6B7280;line-height:1.45;margin-bottom:6px;}
+.call-summary{font-size:12px;color:var(--gray600);line-height:1.5;margin-bottom:8px;}
+.followup-meta-line{font-size:11.5px;color:#6B7280;line-height:1.45;margin-bottom:10px;}
 .call-notiz{
   font-size:11px;color:var(--gray600);background:var(--gray50);
   padding:5px 10px;border-radius:6px;border-left:2px solid var(--gray200);
   margin-bottom:6px;line-height:1.5;
 }
-.call-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+.call-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.dashboard-call{background:var(--white);border-color:var(--gray200);}
+.dashboard-call[data-priority="callback"]{border-color:#FECACA;background:#FFF9F9;}
 .call-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;}
 .call-time{font-size:11px;color:var(--gray400);white-space:nowrap;}
 
@@ -777,10 +779,9 @@ body{
   .greeting-main{font-size:20px;}
   .greeting-sub{font-size:12px;}
   .section-title{font-size:18px;}
-  /* Mobile call-actions: primary full-width, secondary in 2-column grid */
+  /* Mobile call-actions: consistent equal-size touch targets */
   .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
-  .call-actions .btn-callback.primary,.call-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
-  .call-actions .btn-a{width:100%;justify-content:center;}
+  .call-actions .btn-a,.call-actions .btn-call,.call-actions .btn-callback{width:100%;justify-content:center;height:40px;padding:0 12px;font-size:12px;}
   .btn,.btn-a{padding:8px 12px;font-size:11px;}
   .modal{padding:24px 20px;}
   .charts-row{display:none;}
@@ -845,14 +846,14 @@ body{
 .btn-done-small{display:inline-flex;align-items:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;height:36px;}
 .btn-done-small:hover{border-color:var(--gray400);color:var(--gray700);background:var(--white);}
 .dash-empty{background:var(--white);border:1px dashed var(--gray200);border-radius:12px;padding:18px 14px;color:var(--gray400);font-size:12.5px;text-align:center;}
+#dash-callback-list .call-row,#dash-recent-list .call-row{margin-bottom:8px;}
 @media(max-width:768px){
   .dash-kpi-row{grid-template-columns:1fr;gap:10px;}
   .dash-activation-actions{flex-direction:column;}
   .dash-btn-primary,.dash-btn-secondary{width:100%;}
-  /* Mobile cb-actions: primary full-width, secondary in 2-column grid */
+  /* Mobile legacy cb-actions alignment */
   .cb-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:8px;}
-  .cb-actions .btn-call{grid-column:1/-1;width:100%;justify-content:center;padding:12px 16px;font-size:13px;font-weight:700;}
-  .btn-done-small,.btn-note{width:100%;justify-content:center;padding:11px 12px;font-size:12px;}
+  .cb-actions .btn-call,.btn-done-small,.btn-note{width:100%;justify-content:center;height:40px;padding:0 12px;font-size:12px;}
   .cb-row{flex-wrap:wrap;}
 }
 @media(max-width:380px){
@@ -962,7 +963,7 @@ body{
             <div class="dash-setup-reminder" id="dash-setup-reminder">
               <div class="dash-setup-reminder-text">⚙ Einrichtung noch nicht abgeschlossen – einige Schritte sind offen.</div>
               <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-                <a href="javascript:void(0)" onclick="var n=document.getElementById('nav-einrichtung');if(n)showTab('einrichtung',n);">Jetzt einrichten →</a>
+                <a href="javascript:void(0)" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten →</a>
                 <button onclick="dismissSetupReminder()" style="background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;" title="Nicht mehr anzeigen">✕</button>
               </div>
             </div>
@@ -971,7 +972,7 @@ body{
               <div class="dash-activation-title">⚠️ Rufumleitung noch nicht eingerichtet</div>
               <div class="dash-activation-text">Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.</div>
               <div class="dash-activation-actions">
-                <a href="javascript:void(0)" class="dash-btn-primary" onclick="var n=document.getElementById('nav-einrichtung');if(n)showTab('einrichtung',n);">Jetzt einrichten</a>
+                <a href="javascript:void(0)" class="dash-btn-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</a>
                 <a href="javascript:void(0)" class="dash-btn-secondary" onclick="var n=document.getElementById('nav-hilfe');if(n)showTab('hilfe',n);">Mehr erfahren</a>
               </div>
             </div>
@@ -1295,7 +1296,7 @@ body{
               <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
                 Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
               </div>
-              <button class="settings-btn-primary" onclick="openSetupHelpOverlay(null,'forwarding')">Jetzt einrichten</button>
+              <button class="settings-btn-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</button>
             </div>
 
             <!-- Benachrichtigungen -->
@@ -1838,6 +1839,19 @@ function getRecordTimestamp(record) {
 function resolveFollowUpAt(fields) {
   if (!fields) return '';
   return fields.follow_up_at || fields.followup_at || fields.followUpAt || fields.follow_up || '';
+}
+
+function getOpenCallbackSortTime(record) {
+  const f = (record && record.fields) || {};
+  return resolveFollowUpAt(f) || getRecordTimestamp(record) || '';
+}
+
+function sortOpenCallbacksOldestFirst(records) {
+  return [...records].sort(function(a, b) {
+    var aTime = new Date(getOpenCallbackSortTime(a) || 0).getTime();
+    var bTime = new Date(getOpenCallbackSortTime(b) || 0).getTime();
+    return aTime - bTime;
+  });
 }
 
 function fmtFollowUpDateTime(raw) {
@@ -2591,6 +2605,7 @@ async function loadData() {
 function renderDashboard(records) {
   var today = records.filter(function(r) { return isToday(getRecordTimestamp(r)); });
   var offen = records.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); });
+  var sortedOpenCallbacks = sortOpenCallbacksOldestFirst(offen);
   var allOpen = records.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); });
   var followupsOpen = records.filter(function(r) {
     return !isClosedStatus(r.fields.dashboard_status) && !!resolveFollowUpAt(r.fields || {});
@@ -2631,10 +2646,13 @@ function renderDashboard(records) {
   });
   var callbackList = document.getElementById('dash-callback-list');
   if (callbackList) {
-    if (offen.length === 0) {
+    if (sortedOpenCallbacks.length === 0) {
       callbackList.innerHTML = '<div class="dash-empty">Keine offenen Rückrufe</div>';
     } else {
-      callbackList.innerHTML = offen.slice(0, 4).map(function(r) { return buildDashboardListItem(r, {priority:true, callbackOnly:true}); }).join('');
+      console.log('[VOXERA CALLBACK SORT][dashboard]', sortedOpenCallbacks.map(function(r){
+        return { id: r.id, sortTime: getOpenCallbackSortTime(r) || null };
+      }));
+      renderList('dash-callback-list', sortedOpenCallbacks, {showActions:true, primaryCallback:true, skipSort:true, limit:4, dashboardView:true});
     }
   }
   var recentList = document.getElementById('dash-recent-list');
@@ -2642,8 +2660,7 @@ function renderDashboard(records) {
     if (allOpenCalls.length === 0) {
       recentList.innerHTML = '<div class="dash-empty"><div>Noch keine Anrufe</div><div style="margin-top:4px;">Sobald ein Anruf eingeht, erscheint er hier.</div></div>';
     } else {
-      var toShowRecent = allOpenCalls.slice(0, 3);
-      recentList.innerHTML = toShowRecent.map(function(r) { return buildDashboardListItem(r, {secondary:true}); }).join('');
+      renderList('dash-recent-list', allOpenCalls, {showActions:true, skipSort:true, limit:3, dashboardView:true});
     }
   }
 
@@ -2662,38 +2679,6 @@ function renderDashboard(records) {
   // Kompatibilität: renderUsage und updateSystemStatus bleiben unverändert
   renderUsage(records);
   updateSystemStatus(records);
-}
-
-function buildDashboardListItem(record, opts) {
-  opts = opts || {};
-  var f = record.fields || {};
-  var ini  = initials(escHtml(f.caller_name || f.name || '?'));
-  var name = escHtml(f.caller_name || f.name || 'Unbekannt');
-  var phone = escHtml(f.caller_phone || f.phone || '');
-  var phoneClean = (f.caller_phone || f.phone || '').replace(/\s/g, '');
-  var summaryRaw = (f.call_summary_short || f.call_summary || '').substring(0, 100);
-  var summary = escHtml(summaryRaw);
-  var callMetaTime = fmtExactDateTime(getRecordTimestamp(record));
-  var followUpMetaText = buildFollowUpMetaText(f.next_action, resolveFollowUpAt(f));
-  return '<div class="cb-row ' + (opts.priority ? 'priority' : 'secondary') + '">'
-    + '<div class="cb-av">' + ini + '</div>'
-    + '<div class="cb-body">'
-    +   '<div class="cb-name">' + name + '</div>'
-    +   (summary ? '<div class="cb-summary">' + summary + '</div>' : '')
-    +   '<div class="cb-meta">'
-    +     (phone ? '<span class="cb-phone">' + phone + '</span>' : '')
-    +     '<span>' + callMetaTime + '</span>'
-    +     (f.category ? '<span>' + escHtml(f.category) + '</span>' : '')
-    +     qualChip(f.lead_quality)
-    +   '</div>'
-    +   (followUpMetaText ? '<div class="cb-followup">' + escHtml(followUpMetaText) + '</div>' : '')
-    +   '<div class="cb-actions">'
-    +     (phoneClean ? '<button class="btn-call" onclick="directCall(\'' + record.id + '\',\'' + encodeURIComponent(phoneClean) + '\')">Anrufen</button>' : '')
-    +     '<button class="btn-a btn-done" onclick="confirmClose(\'' + record.id + '\',\'Abgeschlossen\',this.closest(\'.cb-row\'))">Erledigt</button>'
-    +     (opts.callbackOnly ? '' : '<button class="btn-a btn-note" onclick="openDetail(\'' + record.id + '\')">Details</button>')
-    +   '</div>'
-    + '</div>'
-    + '</div>';
 }
 
 function markCbDone(recordId) {
@@ -2787,8 +2772,9 @@ function renderList(containerId, records, opts) {
     el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>Keine Einträge gefunden.</div>';
     return;
   }
-  const ordered = sortRecordsOpenFirst(records);
-  el.innerHTML = ordered.map(r => {
+  const ordered = opts.skipSort ? [...records] : sortRecordsOpenFirst(records);
+  const limited = typeof opts.limit === 'number' ? ordered.slice(0, opts.limit) : ordered;
+  el.innerHTML = limited.map(r => {
     const f = r.fields;
     const q = qualKey(f.lead_quality);
     const done = isClosedStatus(f.dashboard_status);
@@ -2798,6 +2784,8 @@ function renderList(containerId, records, opts) {
     const callTarget = phoneLink || phoneRaw.replace(/\s/g,'');
     const notizText = (f.notes_customer_voxera || '').trim();
     const showActions = opts.showActions !== false;
+    const summary = (f.call_summary || '').trim();
+    const callSummary = opts.dashboardView ? summary.substring(0, 140) : summary;
 
     const incoming = recentIncomingIds.has(r.id);
     const priority = getPriority(r);
@@ -2815,7 +2803,7 @@ function renderList(containerId, records, opts) {
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
-    return `<div class="call-row${done?' done':''}${incoming?' incoming':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${(f.dashboard_status||'').toLowerCase()}">
+    return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${(f.dashboard_status||'').toLowerCase()}">
       <div class="av ${avClass(f.lead_quality, done)}">${initials(f.caller_name)}</div>
       <div class="call-body">
         <div class="call-top">
@@ -2831,14 +2819,14 @@ function renderList(containerId, records, opts) {
           ${f.category?`<span style="background:var(--gray100);padding:1px 7px;border-radius:4px;font-size:11px;">${f.category}</span>`:''}
           <span>${callDateTime}</span>
         </div>
-        ${f.call_summary?`<div class="call-summary">${f.call_summary}</div>`:''}
+        ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
         ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
-        ${notizText?`<div class="call-notiz">📝 ${notizText}</div>`:''}
+        ${notizText && !opts.dashboardView?`<div class="call-notiz">📝 ${notizText}</div>`:''}
         ${showActions?`<div class="call-actions">
-          ${callTarget&&!done?`<button class="${opts.primaryCallback?'btn-a btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Jetzt zurückrufen</button>`:''}
-          ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}
+          ${callTarget&&!done?`<button class="btn-a ${opts.primaryCallback?'btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Anrufen</button>`:''}
           ${!done?`<button class="btn-a btn-done" onclick="confirmClose('${r.id}','Abgeschlossen',this.closest('.call-row, .cb-row'))">Erledigt</button>`:''}
-          <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button><button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>
+          ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}
+          <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button>${!opts.dashboardView?`<button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>`:''}
         </div>`:''}
       </div>
     </div>`;
@@ -2852,9 +2840,11 @@ function renderAnrufe(records) {
 
 function renderRueckrufe(records) {
   const offen = records.filter(r => r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status));
-  const order = {hot:0,warm:1,kalt:2,neu:2};
-  offen.sort((a,b) => (order[qualKey(a.fields.lead_quality)]||2) - (order[qualKey(b.fields.lead_quality)]||2));
-  renderList('rueckrufe-list', offen, {showActions:true, primaryCallback:true});
+  const sortedOpenCallbacks = sortOpenCallbacksOldestFirst(offen);
+  console.log('[VOXERA CALLBACK SORT][rueckrufe]', sortedOpenCallbacks.map(function(r){
+    return { id: r.id, sortTime: getOpenCallbackSortTime(r) || null };
+  }));
+  renderList('rueckrufe-list', sortedOpenCallbacks, {showActions:true, primaryCallback:true, skipSort:true});
 }
 
 function renderArchiv(records) {
@@ -3668,6 +3658,13 @@ function dismissSetupReminder() {
   if (btn) btn.classList.add('active');
 }
 
+function openSetupWizardFromCta(event, stepId) {
+  if (event) event.preventDefault();
+  var navEl = document.getElementById('nav-einrichtung') || document.getElementById('mnav-einrichtung');
+  if (navEl) showTab('einrichtung', navEl);
+  if (stepId) toggleSetupStep(stepId);
+}
+
 // ═══════════════════════════════════════════
 //  SETUP WIZARD
 // ═══════════════════════════════════════════
@@ -3746,6 +3743,10 @@ function completeSetupStep(id){
 }
 
 function skipSetupStep(id){
+  if (id === 's4') {
+    completeSetupStep(id);
+    return;
+  }
   setupSkipped[id] = true;
   var step = document.getElementById('setup-'+id);
   if(step){ step.classList.remove('active'); step.classList.add('skipped','step-skipped'); }
