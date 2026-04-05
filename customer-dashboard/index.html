@@ -2850,10 +2850,18 @@ function renderAnrufe(records) {
   renderList('anrufe-list', openOnly, {showActions:true});
 }
 
+function getOpenCallbackSortTime(record) {
+  const fields = (record && record.fields) || {};
+  const followUpAt = resolveFollowUpAt(fields);
+  const followUpDate = parseFollowUpDate(followUpAt);
+  if (followUpDate && !Number.isNaN(followUpDate.getTime())) return followUpDate.getTime();
+  const createdDate = parseFollowUpDate(getRecordTimestamp(record));
+  return (createdDate && !Number.isNaN(createdDate.getTime())) ? createdDate.getTime() : 0;
+}
+
 function renderRueckrufe(records) {
   const offen = records.filter(r => r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status));
-  const order = {hot:0,warm:1,kalt:2,neu:2};
-  offen.sort((a,b) => (order[qualKey(a.fields.lead_quality)]||2) - (order[qualKey(b.fields.lead_quality)]||2));
+  offen.sort((a, b) => getOpenCallbackSortTime(a) - getOpenCallbackSortTime(b));
   renderList('rueckrufe-list', offen, {showActions:true, primaryCallback:true});
 }
 
