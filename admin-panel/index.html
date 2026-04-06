@@ -134,7 +134,7 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
 /* ─── Content ─────────────────────────────────────────────────── */
-.content{padding:20px 24px;flex:1;max-width:1200px;width:100%;margin:0 auto;}
+.content{padding:24px 28px;flex:1;max-width:1200px;}
 
 /* ─── Sections ─────────────────────────────────────────────────── */
 .section{display:none;animation:fadeIn .15s var(--ease);}
@@ -282,11 +282,11 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
 .customers-board{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:16px;
+  gap:12px;
 }
 .customer-card{
   border:1px solid var(--line);background:var(--surface);border-radius:var(--r-lg);
-  padding:16px;display:flex;flex-direction:column;gap:10px;
+  padding:12px;display:flex;flex-direction:column;gap:10px;
   box-shadow:var(--shadow-xs);
 }
 .customer-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
@@ -1233,6 +1233,40 @@ function renderCustomers(){
     const setupProgress=getCustomerSetupProgress(c,onboarding);
     const setupLabel=getCustomerSetupReadinessLabel(c,onboarding);
     const nextStep=onboarding?.next||'—';
+    const actionState=getCustomerQuickActionState(c,onboarding);
+    const sendAccessDisabledAttr=actionState.sendAccessDisabled?'disabled':'';
+    const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
+    const primaryAccessAction=actionState.showSendAccess
+      ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
+      :'';
+    return `<tr>
+    <td class="wrap"><strong>${esc(c.name)}</strong><div class="muted" style="margin-top:2px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
+    <td>${getCustomerLifecycleBadge(c,onboarding)}</td>
+    <td>${esc(setupColumnLabel)}<div class="progress-bar"><div class="progress-fill" style="width:${setupProgress}%"></div></div></td>
+    <td>${esc(c.latest)}</td>
+    <td>
+      <div class="customer-actions-primary">
+        <button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
+        ${primaryAccessAction}
+        <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button>
+        <details class="actions-menu">
+          <summary class="btn btn-secondary btn-sm actions-menu-btn">⋯</summary>
+          <div class="actions-menu-list">
+            <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case erstellen</button>
+            <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button>
+            <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button>
+          </div>
+        </details>
+      </div>
+    </td>
+  </tr>`;
+  }).join('')||'<tr><td colspan="5"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+  document.getElementById('customers-table-body').innerHTML=tableHtml;
+
+  const cardsHtml=rows.map(c=>{
+    const onboarding=onboardingForCustomer(c.id);
+    const setupProgress=getCustomerSetupProgress(c,onboarding);
+    const setupLabel=getCustomerSetupReadinessLabel(c,onboarding);
     const actionState=getCustomerQuickActionState(c,onboarding);
     const sendAccessDisabledAttr=actionState.sendAccessDisabled?'disabled':'';
     const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
