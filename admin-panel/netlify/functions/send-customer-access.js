@@ -105,6 +105,7 @@ exports.handler = async (event) => {
     console.error('Validation failed: customer_id missing');
     return response(400, { error: 'customer_id fehlt' });
   }
+  const action = String(body.action || '').trim().toLowerCase();
 
   try {
     const { data: customer, error: customerError } = await sbAdmin
@@ -116,6 +117,33 @@ exports.handler = async (event) => {
     if (customerError || !customer) {
       console.error('Customer lookup failed', customerError);
       return response(400, { error: 'Kunde nicht gefunden' });
+    }
+
+    if (action === 'mark_activated') {
+      const nowIso = new Date().toISOString();
+      const { data: activatedCustomer, error: activatedUpdateError } = await sbAdmin
+        .from('customers')
+        .update({
+          status: 'activated',
+          updated_at: nowIso
+        })
+        .eq('id', customerId)
+        .select('*')
+        .single();
+
+      if (activatedUpdateError) {
+        console.error('Customer activation hook failed', activatedUpdateError);
+        return response(500, {
+          error: 'Kundenstatus konnte nicht auf aktiviert gesetzt werden.',
+          details: activatedUpdateError.message
+        });
+      }
+
+      return response(200, {
+        success: true,
+        message: 'Customer lifecycle status auf aktiviert gesetzt.',
+        customer: activatedCustomer
+      });
     }
 
     const missingFields = REQUIRED_FIELDS.filter((field) => !String(customer[field] || '').trim());
@@ -141,14 +169,38 @@ exports.handler = async (event) => {
       });
     }
 
-    if (!onboardingRow || String(onboardingRow.status || '').toLowerCase() !== 'ready') {
-      console.error('Onboarding not ready – access send blocked', {
+    if (
+      onboardingRow &&
+      String(onboardingRow.status || '').toLowerCase() === 'ready' &&
+      missingFields.length === 0 &&
+      String(customer.status || '').toLowerCase() !== 'ready'
+    ) {
+      const nowIso = new Date().toISOString();
+      const { data: readyCustomer, error: readyUpdateError } = await sbAdmin
+        .from('customers')
+        .update({
+          status: 'ready',
+          updated_at: nowIso
+        })
+        .eq('id', customerId)
+        .select('*')
+        .single();
+
+      if (readyUpdateError) {
+        console.error('Customer readiness lifecycle sync failed', readyUpdateError);
+      } else if (readyCustomer) {
+        customer.status = readyCustomer.status;
+      }
+    }
+
+    if (String(customer.status || '').toLowerCase() !== 'ready') {
+      console.error('Customer lifecycle status not ready – access send blocked', {
         customerId,
-        onboarding_status: onboardingRow?.status || null
+        customer_status: customer.status || null
       });
       return response(409, {
-        error: 'Zugang kann erst gesendet werden, wenn die Einrichtung im Admin-Panel vollständig abgeschlossen ist.',
-        onboarding_status: onboardingRow?.status || null
+        error: 'Zugang kann erst gesendet werden, wenn der Kundenstatus auf ready steht.',
+        customer_status: customer.status || null
       });
     }
 
@@ -185,6 +237,7 @@ exports.handler = async (event) => {
         invite_status: 'sent',
         welcome_sent: true,
         welcome_sent_at: nowIso,
+        status: 'invited',
         updated_at: nowIso
       })
       .eq('id', customerId)
