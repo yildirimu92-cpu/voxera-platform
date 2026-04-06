@@ -138,16 +138,106 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   .toolbar{grid-template-columns:1fr 1fr;}
   .grid-2,.grid-3,.detail-grid{grid-template-columns:1fr;}
 }
+/* Desktop sidebar default state */
+.sidebar{display:flex;}
 @media (max-width:920px){
-  .sidebar{display:none;}
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);}
+  .sidebar.open{transform:translateX(0);}
   .main{margin-left:0;}
-  .topbar,.content{padding-left:18px;padding-right:18px;}
+  .topbar{padding-left:16px;padding-right:16px;padding-top:14px;padding-bottom:12px;}
+  .content{padding-left:14px;padding-right:14px;padding-bottom:84px;}
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .toolbar{grid-template-columns:1fr;}
+  .contracts-toolbar{flex-direction:column;align-items:stretch;}
+  .contracts-toolbar .input,.contracts-toolbar .select{min-width:0;width:100%;}
+  .section-head{flex-direction:column;align-items:flex-start;}
+  .plan-cards{grid-template-columns:1fr 1fr;}
+  .detail-grid{grid-template-columns:1fr;}
+  .data-table th,.data-table td{padding:8px 10px;}
 }
+@media (max-width:480px){
+  .kpi-grid{grid-template-columns:1fr;}
+  .plan-cards{grid-template-columns:1fr;}
+}
+
+/* Sidebar backdrop (mobile drawer close area) */
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.3);z-index:39;}
+.sidebar-backdrop.open{display:block;}
+
+/* Hamburger menu toggle (mobile only) */
+.menu-toggle{display:none;background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:8px;color:var(--gray600);align-items:center;justify-content:center;flex-shrink:0;}
+.menu-toggle:hover{background:var(--gray100);}
+.menu-toggle svg{width:22px;height:22px;}
+@media (max-width:920px){.menu-toggle{display:flex;}}
+
+/* Mobile bottom nav */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--gray200);z-index:50;}
+.mobile-nav-inner{display:flex;justify-content:space-around;align-items:stretch;padding-bottom:env(safe-area-inset-bottom,0px);}
+.mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px 8px;font-size:9.5px;font-weight:600;color:var(--gray400);cursor:pointer;border:none;background:transparent;font-family:inherit;text-transform:uppercase;letter-spacing:.04em;transition:color var(--transition-fast);position:relative;}
+.mobile-nav-item.active{color:var(--blue);}
+.mobile-nav-item svg{width:20px;height:20px;flex-shrink:0;}
+.mobile-nav-badge{position:absolute;top:7px;right:calc(50% - 14px);background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid #fff;}
+@media (max-width:920px){.mobile-nav{display:block;}}
+
+/* Contract wizard */
+.wizard-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(6px);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.wizard-overlay.open{display:flex;}
+.wizard-modal{background:var(--white);border-radius:20px;padding:30px;width:min(720px,100%);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.14);animation:fadeUp .25s cubic-bezier(.16,1,.3,1) both;}
+.wizard-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;}
+.wizard-title{font-family:var(--headline-font);font-size:20px;font-weight:800;letter-spacing:-.3px;}
+.wizard-subtitle{font-size:12.5px;color:var(--gray400);margin-top:4px;}
+.wizard-steps-track{display:flex;align-items:center;gap:0;margin-bottom:28px;}
+.wizard-step-node{display:flex;align-items:center;gap:0;flex:1;}
+.wizard-step-node:last-child{flex:none;}
+.wizard-step-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;transition:all var(--transition-fast);}
+.wizard-step-dot.done{background:var(--green);color:#fff;}
+.wizard-step-dot.active{background:var(--blue);color:#fff;box-shadow:0 0 0 4px rgba(26,86,219,.15);}
+.wizard-step-dot.pending{background:var(--gray100);color:var(--gray400);border:1.5px solid var(--gray200);}
+.wizard-step-line{flex:1;height:2px;background:var(--gray200);margin:0 2px;transition:background var(--transition-fast);}
+.wizard-step-line.done{background:var(--green);}
+.wizard-step-label{font-size:10px;color:var(--gray400);font-weight:600;text-align:center;margin-top:4px;white-space:nowrap;}
+.wizard-step-label.active{color:var(--blue);}
+.wizard-step-label.done{color:var(--green);}
+.wizard-step-wrap{display:flex;flex-direction:column;align-items:center;}
+.wizard-body{min-height:240px;}
+.wizard-panel{display:none;}
+.wizard-panel.active{display:block;}
+.wizard-footer{display:flex;justify-content:space-between;align-items:center;margin-top:24px;gap:10px;border-top:1px solid var(--gray100);padding-top:20px;}
+.wizard-footer-right{display:flex;gap:8px;}
+
+/* Plan selection cards */
+.plan-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+.plan-card{border:2px solid var(--gray200);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all var(--transition-fast);background:var(--white);}
+.plan-card:hover{border-color:var(--blue-mid);background:var(--blue-light);}
+.plan-card.selected{border-color:var(--blue);background:var(--blue-light);}
+.plan-card-name{font-weight:700;font-size:14px;margin-bottom:2px;}
+.plan-card-price{font-size:18px;font-weight:800;font-family:var(--headline-font);color:var(--blue);margin-bottom:4px;}
+.plan-card-desc{font-size:11px;color:var(--gray400);}
+
+/* Duration toggle */
+.duration-pills{display:flex;gap:6px;flex-wrap:wrap;}
+.duration-pill{padding:7px 16px;border-radius:999px;border:1.5px solid var(--gray200);background:var(--white);font-size:12px;font-weight:600;color:var(--gray600);cursor:pointer;transition:all var(--transition-fast);}
+.duration-pill:hover{border-color:var(--blue-mid);}
+.duration-pill.selected{background:var(--blue);color:#fff;border-color:var(--blue);}
+
+/* Summary card in wizard */
+.summary-row{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--gray100);font-size:12.5px;}
+.summary-row:last-child{border-bottom:none;}
+.summary-label{color:var(--gray400);font-weight:600;}
+.summary-value{color:var(--gray900);font-weight:700;text-align:right;}
+
+/* Contracts section toolbar */
+.contracts-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.contracts-toolbar .input,.contracts-toolbar .select{flex:1;min-width:140px;}
+
+/* Status badge variants */
+.badge-purple{background:#F3E8FF;color:#7C3AED;}
+.badge-teal{background:#ECFDF5;color:#0F766E;}
 </style>
 </head>
 <body>
 <div class="app">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div class="sidebar-logo-text">Voxera</div>
       <div class="sidebar-logo-sub">Admin Portal v2</div>
@@ -159,6 +249,7 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
       <a href="#ai-setup" class="nav-item" data-route="ai-setup">AI Setup</a>
       <a href="#cases" class="nav-item" data-route="cases">Cases <span class="nav-badge" id="badge-cases">0</span></a>
       <a href="#activity" class="nav-item" data-route="activity">Aktivität</a>
+      <a href="#contracts" class="nav-item" data-route="contracts">Verträge <span class="nav-badge" id="badge-contracts">0</span></a>
       <a href="#insights" class="nav-item" data-route="insights">Insights</a>
       <a href="#settings" class="nav-item" data-route="settings">Einstellungen</a>
     </nav>
@@ -171,12 +262,18 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 
   <main class="main">
     <header class="topbar">
-      <div>
-        <div class="page-title" id="page-title">Übersicht</div>
-        <div class="page-sub" id="page-sub">Operatives Cockpit für den täglichen Betrieb.</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Menü öffnen" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <div class="page-title" id="page-title">Übersicht</div>
+          <div class="page-sub" id="page-sub">Operatives Cockpit für den täglichen Betrieb.</div>
+        </div>
       </div>
       <div class="status-pill"><span class="status-dot"></span>System live</div>
     </header>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
     <div class="content">
       <section id="section-overview" class="section active">
@@ -392,8 +489,74 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
           </div>
         </div>
       </section>
+
+      <section id="section-contracts" class="section">
+        <div class="section-head">
+          <div>
+            <h3 style="font-family:var(--headline-font);font-size:18px">Vertragsverwaltung</h3>
+            <div class="muted" style="margin-top:3px;">Geführter Vertragsprozess · von Entwurf bis Abschluss</div>
+          </div>
+          <button class="btn btn-primary" id="contract-create-btn">+ Vertrag erstellen</button>
+        </div>
+        <div class="contracts-toolbar">
+          <input class="input" id="contract-search" placeholder="Suche nach Kunde oder Vertragsnummer …" style="max-width:320px;">
+          <select class="select" id="contract-status-filter" style="max-width:200px;">
+            <option value="all">Status: Alle</option>
+            <option value="Entwurf">Entwurf</option>
+            <option value="In Vorbereitung">In Vorbereitung</option>
+            <option value="Unterschriftsbereit">Unterschriftsbereit</option>
+            <option value="Unterschrieben">Unterschrieben</option>
+            <option value="Abgeschlossen">Abgeschlossen</option>
+            <option value="Storniert">Storniert</option>
+          </select>
+          <select class="select" id="contract-plan-filter" style="max-width:160px;">
+            <option value="all">Plan: Alle</option>
+          </select>
+          <button class="btn btn-quiet btn-sm" id="contract-reset">Zurücksetzen</button>
+        </div>
+        <div class="grid-3" style="margin-bottom:20px;">
+          <div class="kpi" id="contract-kpi-total"><div class="kpi-label">Verträge gesamt</div><div class="kpi-value" id="kpi-contracts-total">0</div><div class="kpi-sub">inkl. alle Status</div></div>
+          <div class="kpi" id="contract-kpi-active"><div class="kpi-label">Aktive Verträge</div><div class="kpi-value" id="kpi-contracts-active">0</div><div class="kpi-sub">Unterschrieben + Abgeschlossen</div></div>
+          <div class="kpi" id="contract-kpi-pending"><div class="kpi-label">Ausstehend</div><div class="kpi-value" id="kpi-contracts-pending">0</div><div class="kpi-sub">Entwurf + In Vorbereitung + Bereit</div></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Vertrag #</th><th>Kunde</th><th>Plan</th><th>Status</th><th>Laufzeit</th><th>Monatl. Preis</th><th>Zahlungsweise</th><th>Erstellt</th><th>Aktionen</th></tr></thead>
+            <tbody id="contracts-table-body"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </main>
+
+  <nav class="mobile-nav" id="mobile-nav">
+    <div class="mobile-nav-inner">
+      <button class="mobile-nav-item" data-route="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Übersicht
+      </button>
+      <button class="mobile-nav-item" data-route="customers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4"/><circle cx="17" cy="17" r="4"/></svg>
+        Kunden
+        <span class="mobile-nav-badge" id="mob-badge-customers"></span>
+      </button>
+      <button class="mobile-nav-item" data-route="contracts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        Verträge
+        <span class="mobile-nav-badge" id="mob-badge-contracts"></span>
+      </button>
+      <button class="mobile-nav-item" data-route="cases">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.55 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Cases
+        <span class="mobile-nav-badge" id="mob-badge-cases"></span>
+      </button>
+      <button class="mobile-nav-item" data-route="onboarding">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Onboarding
+        <span class="mobile-nav-badge" id="mob-badge-onboarding"></span>
+      </button>
+    </div>
+  </nav>
 </div>
 
 <div class="modal-overlay" id="customer-profile-modal" onclick="if(event.target===this)closeCustomerProfile()">
@@ -437,6 +600,156 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   </div>
 </div>
 
+<div class="wizard-overlay" id="contract-wizard-overlay" onclick="if(event.target===this)closeContractWizard()">
+  <div class="wizard-modal" id="contract-wizard-modal">
+    <div class="wizard-header">
+      <div>
+        <div class="wizard-title">Neuer Vertrag</div>
+        <div class="wizard-subtitle" id="wizard-subtitle">Schritt 1 von 4 · Kundenwahl</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="closeContractWizard()">Abbrechen</button>
+    </div>
+
+    <!-- Step track -->
+    <div class="wizard-steps-track" id="wizard-steps-track">
+      <div class="wizard-step-wrap">
+        <div class="wizard-step-dot active" id="wdot-0">1</div>
+        <div class="wizard-step-label active" id="wlabel-0">Kunde</div>
+      </div>
+      <div class="wizard-step-line" id="wline-0"></div>
+      <div class="wizard-step-wrap">
+        <div class="wizard-step-dot pending" id="wdot-1">2</div>
+        <div class="wizard-step-label" id="wlabel-1">Plan</div>
+      </div>
+      <div class="wizard-step-line" id="wline-1"></div>
+      <div class="wizard-step-wrap">
+        <div class="wizard-step-dot pending" id="wdot-2">3</div>
+        <div class="wizard-step-label" id="wlabel-2">Konditionen</div>
+      </div>
+      <div class="wizard-step-line" id="wline-2"></div>
+      <div class="wizard-step-wrap">
+        <div class="wizard-step-dot pending" id="wdot-3">4</div>
+        <div class="wizard-step-label" id="wlabel-3">Zusammenfassung</div>
+      </div>
+    </div>
+
+    <div class="wizard-body">
+      <!-- Step 1: Kundenwahl -->
+      <div class="wizard-panel active" id="wstep-0">
+        <div style="margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:6px;">Kunde auswählen *</label>
+          <select class="select" id="wiz-customer" style="max-width:360px;">
+            <option value="">Kunde wählen …</option>
+          </select>
+        </div>
+        <div class="card" id="wiz-customer-card" style="display:none;padding:16px 18px;background:var(--blue-light);border-color:var(--blue-mid);">
+          <div style="font-size:12px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Kundeninfo</div>
+          <div class="detail-item"><span class="detail-k">Name</span><span class="detail-v" id="wcard-name">—</span></div>
+          <div class="detail-item"><span class="detail-k">Plan (aktuell)</span><span class="detail-v" id="wcard-plan">—</span></div>
+          <div class="detail-item"><span class="detail-k">Status</span><span class="detail-v" id="wcard-status">—</span></div>
+          <div class="detail-item"><span class="detail-k">Setup Progress</span><span class="detail-v" id="wcard-progress">—</span></div>
+          <div class="detail-item"><span class="detail-k">Voxera Nummer</span><span class="detail-v" id="wcard-voxera">—</span></div>
+        </div>
+        <div class="empty" id="wiz-customer-empty" style="margin-top:12px;">Wähle einen Kunden aus, um seine Details zu sehen.</div>
+      </div>
+
+      <!-- Step 2: Plan & Produkt -->
+      <div class="wizard-panel" id="wstep-1">
+        <div style="margin-bottom:16px;">
+          <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:10px;">Plan wählen *</label>
+          <div class="plan-cards" id="wiz-plan-cards">
+            <div class="plan-card" data-plan="Starter" onclick="selectWizardPlan('Starter')">
+              <div class="plan-card-name">Starter</div>
+              <div class="plan-card-price">CHF 149 <span style="font-size:13px;font-weight:500;color:var(--gray400)">/Monat</span></div>
+              <div class="plan-card-desc">Bis 60 Min · Ideal für kleine KMU</div>
+            </div>
+            <div class="plan-card" data-plan="Pro" onclick="selectWizardPlan('Pro')">
+              <div class="plan-card-name">Pro</div>
+              <div class="plan-card-price">CHF 299 <span style="font-size:13px;font-weight:500;color:var(--gray400)">/Monat</span></div>
+              <div class="plan-card-desc">Bis 150 Min · Für wachsende Unternehmen</div>
+            </div>
+            <div class="plan-card" data-plan="Growth" onclick="selectWizardPlan('Growth')">
+              <div class="plan-card-name">Growth</div>
+              <div class="plan-card-price">CHF 499 <span style="font-size:13px;font-weight:500;color:var(--gray400)">/Monat</span></div>
+              <div class="plan-card-desc">Bis 300 Min · Für aktive Betriebe</div>
+            </div>
+            <div class="plan-card" data-plan="Enterprise" onclick="selectWizardPlan('Enterprise')">
+              <div class="plan-card-name">Enterprise</div>
+              <div class="plan-card-price">CHF 899 <span style="font-size:13px;font-weight:500;color:var(--gray400)">/Monat</span></div>
+              <div class="plan-card-desc">Bis 600 Min · Für Enterprise-Kunden</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:10px;">Vertragslaufzeit *</label>
+          <div class="duration-pills" id="wiz-duration-pills">
+            <button class="duration-pill" data-months="12" onclick="selectWizardDuration(12)">12 Monate</button>
+            <button class="duration-pill" data-months="24" onclick="selectWizardDuration(24)">24 Monate <span class="chip" style="background:var(--green-light);color:var(--green);margin-left:4px;">–5%</span></button>
+            <button class="duration-pill" data-months="36" onclick="selectWizardDuration(36)">36 Monate <span class="chip" style="background:var(--green-light);color:var(--green);margin-left:4px;">–10%</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Konditionen -->
+      <div class="wizard-panel" id="wstep-2">
+        <div class="detail-grid">
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:6px;">Monatlicher Preis (CHF) *</label>
+            <input class="input" type="number" id="wiz-price" min="0" step="1" placeholder="149">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:6px;">Setup Fee (CHF)</label>
+            <input class="input" type="number" id="wiz-setup-fee" min="0" step="1" placeholder="490">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:6px;">Startdatum *</label>
+            <input class="input" type="date" id="wiz-start-date">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:6px;">Zahlungsweise</label>
+            <select class="select" id="wiz-payment">
+              <option value="Monatlich">Monatlich</option>
+              <option value="Quartalsweise">Quartalsweise</option>
+              <option value="Jährlich">Jährlich</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:6px;">Interne Notizen</label>
+          <textarea class="textarea" id="wiz-notes" placeholder="Besondere Konditionen, Rabatte, Bemerkungen …" style="min-height:80px;"></textarea>
+        </div>
+      </div>
+
+      <!-- Step 4: Zusammenfassung -->
+      <div class="wizard-panel" id="wstep-3">
+        <div class="card" style="padding:18px 20px;margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:12px;">Vertragsübersicht</div>
+          <div id="wizard-summary-rows"></div>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--gray600);display:block;margin-bottom:8px;">Anfangsstatus</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="wiz-status-pills">
+            <button class="duration-pill selected" data-status="Entwurf" onclick="selectWizardStatus('Entwurf')">Entwurf</button>
+            <button class="duration-pill" data-status="In Vorbereitung" onclick="selectWizardStatus('In Vorbereitung')">In Vorbereitung</button>
+            <button class="duration-pill" data-status="Unterschriftsbereit" onclick="selectWizardStatus('Unterschriftsbereit')">Unterschriftsbereit</button>
+          </div>
+        </div>
+        <div class="card" style="background:var(--green-light);border-color:var(--green-mid);padding:14px 16px;margin-top:16px;">
+          <div style="font-size:12.5px;font-weight:600;color:var(--green);">✓ Vertrag kann nach dem Speichern direkt an den Kunden weitergegeben werden.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wizard-footer">
+      <button class="btn btn-quiet" id="wizard-back-btn" onclick="wizardBack()" style="display:none;">← Zurück</button>
+      <div class="wizard-footer-right">
+        <button class="btn btn-secondary" onclick="closeContractWizard()">Abbrechen</button>
+        <button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Weiter →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -444,6 +757,8 @@ const SB_URL='https://ulcofbgrovgcvowdjrge.supabase.co';
 const SB_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
 const supabaseLib=window.supabase;
 const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SB_URL,SB_ANON_KEY):null;
+
+const DEFAULT_SETUP_FEE=490;
 
 const state={
   route:'overview',
@@ -551,10 +866,19 @@ const state={
     '09:10 · AI Setup Änderung für Berg Apotheke veröffentlicht',
     '08:14 · Keller Dental: Callback erstellt'
   ],
-  checklist:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured','test call completed','ready for go-live','fully completed']
+  checklist:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured','test call completed','ready for go-live','fully completed'],
+  contracts:[
+    {id:'CON-0001',customerId:1,plan:'Growth',status:'Unterschrieben',monthly:499,setupFee:0,duration:24,startDate:'2025-01-01',payment:'Monatlich',notes:'Langjähriger Kunde, Sonderkonditionen vereinbart.',createdAt:'2025-01-01',signedBy:'Lukas Meyer'},
+    {id:'CON-0002',customerId:3,plan:'Starter',status:'Abgeschlossen',monthly:149,setupFee:0,duration:12,startDate:'2025-03-01',payment:'Monatlich',notes:'',createdAt:'2025-03-01',signedBy:'Marco Frei'},
+    {id:'CON-0003',customerId:4,plan:'Enterprise',status:'Unterschriftsbereit',monthly:899,setupFee:490,duration:36,startDate:'2026-05-01',payment:'Jährlich',notes:'Grosshotel, jährliche Abrechnung gewünscht.',createdAt:'2026-03-20',signedBy:''},
+    {id:'CON-0004',customerId:2,plan:'Pro',status:'In Vorbereitung',monthly:299,setupFee:490,duration:12,startDate:'2026-05-01',payment:'Monatlich',notes:'Onboarding läuft noch, Datum vorläufig.',createdAt:'2026-04-02',signedBy:''},
+    {id:'CON-0005',customerId:5,plan:'Growth',status:'Entwurf',monthly:499,setupFee:490,duration:24,startDate:'',payment:'Monatlich',notes:'Temporär pausiert, Vertrag auf Eis.',createdAt:'2026-04-05',signedBy:''}
+  ],
+  wizardStep:0,
+  wizardData:{customerId:null,plan:'',duration:12,monthly:0,setupFee:DEFAULT_SETUP_FEE,startDate:'',payment:'Monatlich',notes:'',status:'Entwurf'}
 };
 
-const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','settings'];
+const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','contracts','settings'];
 const routeMeta={
   'overview':['Übersicht','Operatives Cockpit für den täglichen Betrieb.'],
   'customers':['Kunden','Kundenstamm mit Setup-, Aktivitäts- und Case-Kontrolle.'],
@@ -563,6 +887,7 @@ const routeMeta={
   'cases':['Cases','Rückrufe, Follow-ups und Workflow-Verantwortung.'],
   'activity':['Aktivität','Cross-Customer Echtzeit-Transparenz.'],
   'insights':['Insights','Planverteilung, Trends und Pattern.'],
+  'contracts':['Verträge','Geführter Vertragsprozess · von Entwurf bis Abschluss.'],
   'settings':['Einstellungen','Adminverwaltung, Flags und Systemdefaults.']
 };
 
@@ -572,6 +897,22 @@ function toneBadge(val){
   const v=(val||'').toLowerCase();
   const cls=v.includes('krit')||v.includes('offen')?'badge-red':v.includes('hoch')||v.includes('arbeit')?'badge-amber':v.includes('aktiv')||v.includes('ready')||v.includes('live')?'badge-green':v.includes('growth')||v.includes('pro')||v.includes('enterprise')?'badge-blue':'badge-gray';
   return `<span class="badge ${cls}">${esc(val)}</span>`;
+}
+
+function contractStatusBadge(status){
+  const map={
+    'Entwurf':'badge-gray',
+    'In Vorbereitung':'badge-blue',
+    'Unterschriftsbereit':'badge-amber',
+    'Unterschrieben':'badge-green',
+    'Abgeschlossen':'badge-teal',
+    'Storniert':'badge-red'
+  };
+  return `<span class="badge ${map[status]||'badge-gray'}">${esc(status)}</span>`;
+}
+
+function planPrice(plan){
+  return {Starter:149,Pro:299,Growth:499,Enterprise:899}[plan]||0;
 }
 function nowStamp(){
   return new Date().toLocaleString('de-CH',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
@@ -595,13 +936,14 @@ function renderOverview(){
   const recent=state.events.length;
   const attention=customers.filter(c=>c.openCases>0||c.progress<80).length;
   const criticalCases=state.cases.filter(c=>c.priority==='Kritisch').length;
+  const pendingContracts=state.contracts.filter(r=>r.status==='Entwurf'||r.status==='In Vorbereitung'||r.status==='Unterschriftsbereit').length;
   const kpis=[
     ['Active Customers',active,'live Mandanten'],
     ['Open Onboardings',openOnboarding,'mit offenen Tasks'],
     ['Open/Critical Cases',`${openCases} / ${criticalCases}`,'offen / kritisch'],
     ['Calls Today',callsToday,'global eingegangen'],
     ['Callback Requests Today',callbacks,'SLA-relevant'],
-    ['Recent Activity Items',recent,'letzte 2 Stunden'],
+    ['Verträge ausstehend',pendingContracts,'Entwurf / Bereit'],
     ['Customers Needing Attention',attention,'Priorisierung nötig'],
     ['Setup Readiness Ø',`${Math.round(customers.reduce((a,c)=>a+c.progress,0)/customers.length)}%`,'durch alle Kunden']
   ];
@@ -966,12 +1308,286 @@ function hydrateFilters(){
   document.getElementById('customer-plan-filter').innerHTML='<option value="all">Plan: Alle</option>'+plans.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   document.getElementById('customer-status-filter').innerHTML='<option value="all">Status: Alle</option>'+statuses.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   document.getElementById('cases-customer-select').innerHTML='<option value="">Kunde wählen …</option>'+state.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.getElementById('contract-plan-filter').innerHTML='<option value="all">Plan: Alle</option>'+plans.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+}
+
+function renderContracts(){
+  const search=(document.getElementById('contract-search')?.value||'').toLowerCase().trim();
+  const statusFilter=document.getElementById('contract-status-filter')?.value||'all';
+  const planFilter=document.getElementById('contract-plan-filter')?.value||'all';
+  let rows=state.contracts.slice();
+  if(search){
+    rows=rows.filter(r=>{
+      const c=customerById(r.customerId);
+      return `${r.id} ${c?.name||''} ${r.plan}`.toLowerCase().includes(search);
+    });
+  }
+  if(statusFilter!=='all') rows=rows.filter(r=>r.status===statusFilter);
+  if(planFilter!=='all') rows=rows.filter(r=>r.plan===planFilter);
+  rows.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+
+  const active=state.contracts.filter(r=>r.status==='Unterschrieben'||r.status==='Abgeschlossen').length;
+  const pending=state.contracts.filter(r=>r.status==='Entwurf'||r.status==='In Vorbereitung'||r.status==='Unterschriftsbereit').length;
+  document.getElementById('kpi-contracts-total').textContent=state.contracts.length;
+  document.getElementById('kpi-contracts-active').textContent=active;
+  document.getElementById('kpi-contracts-pending').textContent=pending;
+
+  document.getElementById('contracts-table-body').innerHTML=rows.map(r=>{
+    const c=customerById(r.customerId);
+    const endDate=r.startDate&&r.duration?calcEndDate(r.startDate,r.duration):'—';
+    const laufzeit=r.startDate?`${r.startDate} – ${endDate}`:'Startdatum offen';
+    return `<tr>
+      <td><strong>${esc(r.id)}</strong></td>
+      <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile(${r.customerId})" style="font-size:11.5px;">${esc(c?.name||'—')}</button></td>
+      <td>${toneBadge(r.plan)}</td>
+      <td>${contractStatusBadge(r.status)}</td>
+      <td class="wrap" style="font-size:11.5px;color:var(--gray600);">${esc(laufzeit)}<div class="muted">${esc(r.duration)} Monate</div></td>
+      <td><strong>CHF ${r.monthly}</strong></td>
+      <td>${esc(r.payment)}</td>
+      <td style="font-size:11.5px;color:var(--gray400);">${esc(r.createdAt)}</td>
+      <td>
+        <div class="inline-actions">
+          <select class="select" style="height:28px;padding:3px 8px;font-size:11px;" onchange="updateContractStatus('${esc(r.id)}',this.value)">
+            ${['Entwurf','In Vorbereitung','Unterschriftsbereit','Unterschrieben','Abgeschlossen','Storniert'].map(s=>`<option ${s===r.status?'selected':''}>${s}</option>`).join('')}
+          </select>
+          <button class="btn btn-quiet btn-sm" onclick="openContractWizardEdit('${esc(r.id)}')">Bearbeiten</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="9"><div class="empty">Keine Verträge für die aktuelle Filterauswahl.</div></td></tr>';
+}
+
+function calcEndDate(startDate,months){
+  if(!startDate) return '—';
+  try{
+    const d=new Date(startDate);
+    d.setMonth(d.getMonth()+Number(months));
+    return d.toISOString().slice(0,10);
+  }catch(e){return '—';}
+}
+
+function updateContractStatus(contractId,newStatus){
+  const c=state.contracts.find(r=>r.id===contractId); if(!c) return;
+  c.status=newStatus;
+  state.events.unshift(`${nowStamp()} · Vertrag ${contractId}: Status → ${newStatus}`);
+  renderContracts(); renderOverview(); renderActivity(); updateBadges();
+}
+
+// ── Contract Wizard ───────────────────────────────────────────────────────────
+const WIZARD_STEPS=['Kundenwahl','Plan & Produkt','Konditionen','Zusammenfassung'];
+
+function openContractWizard(){
+  state.wizardStep=0;
+  state.wizardData={customerId:null,plan:'',duration:12,monthly:0,setupFee:DEFAULT_SETUP_FEE,startDate:todayStr(),payment:'Monatlich',notes:'',status:'Entwurf'};
+  // Populate customer dropdown
+  document.getElementById('wiz-customer').innerHTML='<option value="">Kunde wählen …</option>'+state.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  wizardRender();
+  document.getElementById('contract-wizard-overlay').classList.add('open');
+}
+
+function openContractWizardEdit(contractId){
+  const con=state.contracts.find(c=>c.id===contractId); if(!con) return;
+  state.wizardStep=0;
+  state.wizardData={...con};
+  document.getElementById('wiz-customer').innerHTML='<option value="">Kunde wählen …</option>'+state.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.getElementById('wiz-customer').value=String(con.customerId);
+  wizardUpdateCustomerCard(con.customerId);
+  wizardRender();
+  document.getElementById('contract-wizard-overlay').classList.add('open');
+}
+
+function closeContractWizard(){
+  document.getElementById('contract-wizard-overlay').classList.remove('open');
+}
+
+function wizardRender(){
+  const step=state.wizardStep;
+  document.querySelectorAll('.wizard-panel').forEach((p,i)=>p.classList.toggle('active',i===step));
+  document.getElementById('wizard-subtitle').textContent=`Schritt ${step+1} von ${WIZARD_STEPS.length} · ${WIZARD_STEPS[step]}`;
+  document.getElementById('wizard-back-btn').style.display=step>0?'inline-flex':'none';
+  const nextBtn=document.getElementById('wizard-next-btn');
+  nextBtn.textContent=step===WIZARD_STEPS.length-1?'Vertrag speichern ✓':'Weiter →';
+
+  // Update step dots
+  for(let i=0;i<WIZARD_STEPS.length;i++){
+    const dot=document.getElementById(`wdot-${i}`);
+    const label=document.getElementById(`wlabel-${i}`);
+    dot.className='wizard-step-dot '+(i<step?'done':i===step?'active':'pending');
+    dot.textContent=i<step?'✓':String(i+1);
+    label.className='wizard-step-label'+(i<step?' done':i===step?' active':'');
+    if(i<WIZARD_STEPS.length-1){
+      const line=document.getElementById(`wline-${i}`);
+      line.className='wizard-step-line'+(i<step?' done':'');
+    }
+  }
+
+  if(step===1) wizardHydratePlanStep();
+  if(step===2) wizardHydrateConditionsStep();
+  if(step===3) wizardHydrateSummary();
+}
+
+function wizardHydratePlanStep(){
+  // Highlight selected plan card
+  document.querySelectorAll('.plan-card').forEach(card=>{
+    card.classList.toggle('selected',card.dataset.plan===state.wizardData.plan);
+  });
+  // Highlight selected duration
+  document.querySelectorAll('.duration-pill[data-months]').forEach(pill=>{
+    pill.classList.toggle('selected',Number(pill.dataset.months)===state.wizardData.duration);
+  });
+}
+
+function wizardHydrateConditionsStep(){
+  const price=document.getElementById('wiz-price');
+  const setupFee=document.getElementById('wiz-setup-fee');
+  const startDate=document.getElementById('wiz-start-date');
+  const payment=document.getElementById('wiz-payment');
+  const notes=document.getElementById('wiz-notes');
+  if(!price.value||price.value==='0') price.value=state.wizardData.monthly||planPrice(state.wizardData.plan);
+  if(!setupFee.value) setupFee.value=state.wizardData.setupFee??DEFAULT_SETUP_FEE;
+  if(!startDate.value) startDate.value=state.wizardData.startDate||todayStr();
+  payment.value=state.wizardData.payment||'Monatlich';
+  notes.value=state.wizardData.notes||'';
+}
+
+function wizardHydrateSummary(){
+  const d=state.wizardData;
+  const c=customerById(d.customerId);
+  const discount=d.duration===24?5:d.duration===36?10:0;
+  const endDate=d.startDate&&d.duration?calcEndDate(d.startDate,d.duration):'Offen';
+  const rows=[
+    ['Kunde',c?.name||'—'],
+    ['Plan',d.plan||'—'],
+    ['Vertragslaufzeit',`${d.duration} Monate`],
+    ['Startdatum',d.startDate||'Offen'],
+    ['Enddatum',endDate],
+    ['Monatlicher Preis',`CHF ${d.monthly}`],
+    ['Setup Fee',`CHF ${d.setupFee}`],
+    ['Rabatt',discount?`${discount}% Laufzeitrabatt`:'—'],
+    ['Zahlungsweise',d.payment||'—'],
+    ['Notizen',d.notes||'—']
+  ];
+  document.getElementById('wizard-summary-rows').innerHTML=rows.map(([k,v])=>`<div class="summary-row"><span class="summary-label">${esc(k)}</span><span class="summary-value">${esc(v)}</span></div>`).join('');
+  // Highlight status pills
+  document.querySelectorAll('#wiz-status-pills .duration-pill').forEach(p=>{
+    p.classList.toggle('selected',p.dataset.status===d.status);
+  });
+}
+
+function selectWizardPlan(plan){
+  state.wizardData.plan=plan;
+  state.wizardData.monthly=planPrice(plan);
+  wizardHydratePlanStep();
+  // Reset conditions input so it recalculates on step 3
+  const priceInput=document.getElementById('wiz-price');
+  if(priceInput) priceInput.value='';
+}
+
+function selectWizardDuration(months){
+  state.wizardData.duration=months;
+  wizardHydratePlanStep();
+}
+
+function selectWizardStatus(status){
+  state.wizardData.status=status;
+  document.querySelectorAll('#wiz-status-pills .duration-pill').forEach(p=>{
+    p.classList.toggle('selected',p.dataset.status===status);
+  });
+}
+
+function wizardUpdateCustomerCard(customerId){
+  const id=Number(customerId);
+  const card=document.getElementById('wiz-customer-card');
+  const empty=document.getElementById('wiz-customer-empty');
+  const c=customerById(id);
+  if(!c){
+    card.style.display='none';
+    empty.style.display='block';
+    return;
+  }
+  document.getElementById('wcard-name').textContent=c.name;
+  document.getElementById('wcard-plan').textContent=c.plan;
+  document.getElementById('wcard-status').textContent=c.status;
+  document.getElementById('wcard-progress').textContent=`${c.progress}%`;
+  document.getElementById('wcard-voxera').textContent=c.voxera;
+  card.style.display='block';
+  empty.style.display='none';
+  state.wizardData.customerId=id;
+  state.wizardData.plan=state.wizardData.plan||c.plan;
+  state.wizardData.monthly=state.wizardData.monthly||planPrice(c.plan);
+  state.wizardData.setupFee=c.progress<100?DEFAULT_SETUP_FEE:0;
+}
+
+function wizardNext(){
+  const step=state.wizardStep;
+  // Validate current step
+  if(step===0){
+    const cid=Number(document.getElementById('wiz-customer').value);
+    if(!cid){alert('Bitte einen Kunden wählen.');return;}
+    wizardUpdateCustomerCard(cid);
+  }
+  if(step===1){
+    if(!state.wizardData.plan){alert('Bitte einen Plan wählen.');return;}
+    if(!state.wizardData.duration){alert('Bitte eine Laufzeit wählen.');return;}
+  }
+  if(step===2){
+    const price=Number(document.getElementById('wiz-price').value);
+    const fee=Number(document.getElementById('wiz-setup-fee').value||0);
+    const startDate=document.getElementById('wiz-start-date').value;
+    if(!price||price<=0){alert('Bitte einen gültigen monatlichen Preis eingeben.');return;}
+    if(!startDate){alert('Bitte ein Startdatum wählen.');return;}
+    state.wizardData.monthly=price;
+    state.wizardData.setupFee=fee;
+    state.wizardData.startDate=startDate;
+    state.wizardData.payment=document.getElementById('wiz-payment').value;
+    state.wizardData.notes=document.getElementById('wiz-notes').value.trim();
+  }
+  if(step===WIZARD_STEPS.length-1){
+    submitContractWizard();
+    return;
+  }
+  state.wizardStep++;
+  wizardRender();
+}
+
+function wizardBack(){
+  if(state.wizardStep>0){state.wizardStep--;wizardRender();}
+}
+
+function submitContractWizard(){
+  const d=state.wizardData;
+  // Check if editing existing
+  const existing=state.contracts.find(c=>c.id===d.id);
+  if(existing){
+    Object.assign(existing,d);
+    state.events.unshift(`${nowStamp()} · Vertrag ${existing.id} aktualisiert`);
+  }else{
+    const maxNum=state.contracts.reduce((m,c)=>Math.max(m,Number(c.id.replace('CON-',''))||0),0);
+    const newId=`CON-${String(maxNum+1).padStart(4,'0')}`;
+    state.contracts.unshift({id:newId,...d,createdAt:todayStr(),signedBy:''});
+    state.events.unshift(`${nowStamp()} · Neuer Vertrag ${newId} erstellt (${d.plan}, ${customerById(d.customerId)?.name||''})`);
+  }
+  closeContractWizard();
+  renderContracts(); renderOverview(); renderActivity(); updateBadges();
+  setRoute('contracts');
+}
+
+function todayStr(){
+  return new Date().toISOString().slice(0,10);
 }
 
 function updateBadges(){
   document.getElementById('badge-customers').textContent=state.customers.length;
   document.getElementById('badge-onboarding').textContent=state.onboarding.filter(o=>o.progress<100).length;
   document.getElementById('badge-cases').textContent=state.cases.filter(c=>c.status!=='Geschlossen').length;
+  const pendingContracts=state.contracts.filter(r=>r.status==='Entwurf'||r.status==='In Vorbereitung'||r.status==='Unterschriftsbereit').length;
+  document.getElementById('badge-contracts').textContent=pendingContracts;
+  // Mobile nav badges
+  const setMobBadge=(id,count)=>{const el=document.getElementById(id);if(el){el.textContent=count>0?count:'';el.style.display=count>0?'flex':'none';}};
+  setMobBadge('mob-badge-customers',state.customers.length);
+  setMobBadge('mob-badge-contracts',pendingContracts);
+  setMobBadge('mob-badge-cases',state.cases.filter(c=>c.status!=='Geschlossen').length);
+  setMobBadge('mob-badge-onboarding',state.onboarding.filter(o=>o.progress<100).length);
 }
 
 function setRoute(route,replaceHash=false){
@@ -979,6 +1595,7 @@ function setRoute(route,replaceHash=false){
   state.route=route;
   routes.forEach(r=>document.getElementById('section-'+r)?.classList.toggle('active',r===route));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.route===route));
+  document.querySelectorAll('.mobile-nav-item').forEach(n=>n.classList.toggle('active',n.dataset.route===route));
   const [title,sub]=routeMeta[route];
   document.getElementById('page-title').textContent=title;
   document.getElementById('page-sub').textContent=sub;
@@ -1012,7 +1629,29 @@ function openCustomerProfile(id){
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
   document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>x.customerId===id).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer(${id},'Rückruf','Aus Call: ${i+1}')">Case</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed(${id},${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
   document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>x.customerId===id).map(ca=>`<tr><td>${esc(ca.id)}</td><td>${toneBadge(ca.status)}</td><td>${toneBadge(ca.priority)}</td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','Geschlossen')">Close</button><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','priority','Hoch')">Prio hoch</button></div></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
-  document.getElementById('profile-billing').innerHTML=[['Plan',c.plan],['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],['Setup Fee','CHF '+(c.progress<100?'490':'0')],['Contract','Placeholder · Vertragslaufzeit'],['Billing Metadata','Placeholder · Debitorenreferenz']].map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v">${v}</span></div></div>`).join('');
+  const contracts=state.contracts.filter(x=>x.customerId===id);
+  const activeContract=contracts.find(x=>x.status==='Unterschrieben'||x.status==='Abgeschlossen')||contracts[0];
+  const billingDetails=activeContract?[
+    ['Plan',activeContract.plan],
+    ['Monatlicher Preis',`CHF ${activeContract.monthly}/Monat`],
+    ['Setup Fee',`CHF ${activeContract.setupFee}`],
+    ['Zahlungsweise',activeContract.payment],
+    ['Vertragsstatus',activeContract.status],
+    ['Laufzeit',`${activeContract.duration} Monate`],
+    ['Start',activeContract.startDate||'—'],
+    ['Ende',activeContract.startDate&&activeContract.duration?calcEndDate(activeContract.startDate,activeContract.duration):'—'],
+    ['Vertrag #',activeContract.id]
+  ]:[
+    ['Plan',c.plan],
+    ['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],
+    ['Setup Fee','CHF '+(c.progress<100?String(DEFAULT_SETUP_FEE):'0')],
+    ['Vertrag','Kein Vertrag angelegt'],
+    ['Billing Metadata','—']
+  ];
+  const contractActions=activeContract
+    ?`<div style="margin-top:10px;"><button class="btn btn-secondary btn-sm" onclick="setRoute('contracts')">Alle Verträge</button><button class="btn btn-primary btn-sm" style="margin-left:6px;" onclick="openContractWizardEdit('${esc(activeContract.id)}')">Vertrag bearbeiten</button></div>`
+    :`<div style="margin-top:10px;"><button class="btn btn-primary btn-sm" onclick="openContractWizard()">Vertrag erstellen</button></div>`;
+  document.getElementById('profile-billing').innerHTML=billingDetails.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('')+`<div class="card" style="padding:14px 16px;grid-column:1/-1;">${contractActions}${contracts.length>1?`<div class="muted" style="margin-top:6px;">${contracts.length} Verträge für diesen Kunden vorhanden.</div>`:''}</div>`;
   document.getElementById('profile-notes').innerHTML=c.notes.map(n=>`<div class="list-item"><div><div class="list-main">${esc(n)}</div><div class="list-sub">Internal operational note</div></div></div>`).join('')||'<div class="empty">Noch keine Notizen.</div>';
   document.getElementById('profile-new-note').value='';
 
@@ -1111,12 +1750,38 @@ function toggleFlag(flagIdx){
   renderSettings();
 }
 
+function toggleMobileMenu(forceClose){
+  const sidebar=document.getElementById('sidebar');
+  const backdrop=document.getElementById('sidebar-backdrop');
+  const isOpen=sidebar.classList.contains('open');
+  const shouldClose=forceClose===true||isOpen;
+  sidebar.classList.toggle('open',!shouldClose);
+  backdrop.classList.toggle('open',!shouldClose);
+  const btn=document.getElementById('menu-toggle-btn');
+  if(btn){
+    btn.setAttribute('aria-expanded',String(!shouldClose));
+    btn.setAttribute('aria-label',shouldClose?'Menü öffnen':'Menü schließen');
+  }
+}
+
 function wireUi(){
+  // Hamburger menu toggle
+  document.getElementById('menu-toggle-btn').addEventListener('click',()=>toggleMobileMenu());
+  document.getElementById('sidebar-backdrop').addEventListener('click',()=>toggleMobileMenu(true));
+
   document.getElementById('main-nav').addEventListener('click',e=>{
     const link=e.target.closest('.nav-item');
     if(!link) return;
     e.preventDefault();
+    // Close mobile drawer when a nav item is tapped
+    if(window.innerWidth<=920) toggleMobileMenu(true);
     setRoute(link.dataset.route);
+  });
+  // Mobile bottom nav
+  document.getElementById('mobile-nav').addEventListener('click',e=>{
+    const btn=e.target.closest('.mobile-nav-item');
+    if(!btn) return;
+    setRoute(btn.dataset.route);
   });
   ['customer-search','customer-plan-filter','customer-status-filter','customer-progress-filter','customer-case-filter'].forEach(id=>{
     document.getElementById(id).addEventListener('input',renderCustomers);
@@ -1129,6 +1794,10 @@ function wireUi(){
   ['ai-search','ai-status-filter','ai-custom-filter'].forEach(id=>{
     document.getElementById(id).addEventListener('input',renderAiSetup);
     document.getElementById(id).addEventListener('change',renderAiSetup);
+  });
+  ['contract-search','contract-status-filter','contract-plan-filter'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',renderContracts);
+    document.getElementById(id).addEventListener('change',renderContracts);
   });
   document.getElementById('customer-reset').addEventListener('click',()=>{
     document.getElementById('customer-search').value='';
@@ -1149,6 +1818,16 @@ function wireUi(){
     document.getElementById('ai-status-filter').value='all';
     document.getElementById('ai-custom-filter').value='all';
     renderAiSetup();
+  });
+  document.getElementById('contract-reset').addEventListener('click',()=>{
+    document.getElementById('contract-search').value='';
+    document.getElementById('contract-status-filter').value='all';
+    document.getElementById('contract-plan-filter').value='all';
+    renderContracts();
+  });
+  document.getElementById('contract-create-btn').addEventListener('click',openContractWizard);
+  document.getElementById('wiz-customer').addEventListener('change',e=>{
+    wizardUpdateCustomerCard(Number(e.target.value));
   });
   document.getElementById('ai-save-global').addEventListener('click',saveGlobalAiConfig);
   document.getElementById('ai-save-customer').addEventListener('click',saveCustomerAiConfig);
@@ -1214,6 +1893,7 @@ function init(){
   renderActivity();
   renderInsights();
   renderSettings();
+  renderContracts();
   wireUi();
   onHashRoute();
   hydrateAdminInfo();
