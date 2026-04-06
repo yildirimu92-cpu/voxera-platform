@@ -180,6 +180,91 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   .main{margin-left:0;}
   .topbar,.content{padding-left:18px;padding-right:18px;}
 }
+
+/* ── Onboarding Workspace panel ── */
+.ob-overlay{display:none;position:fixed;inset:0;z-index:49;background:rgba(15,23,42,.25);backdrop-filter:blur(2px);}
+.ob-overlay.open{display:block;}
+.ob-workspace{position:fixed;top:0;right:-520px;height:100vh;width:min(520px,100vw);background:var(--white);border-left:1px solid var(--gray200);box-shadow:-6px 0 32px rgba(0,0,0,.1);z-index:50;display:flex;flex-direction:column;transition:right .28s cubic-bezier(.16,1,.3,1);overflow:hidden;}
+.ob-workspace.open{right:0;}
+.ob-workspace-inner{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+.ob-ws-header{padding:20px 20px 16px;border-bottom:1px solid var(--gray100);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-shrink:0;}
+.ob-ws-title{font-family:var(--headline-font);font-size:17px;font-weight:700;letter-spacing:-.2px;}
+.ob-ws-sub{font-size:12px;color:var(--gray400);margin-top:3px;}
+.ob-ws-close{background:var(--gray100);border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:15px;color:var(--gray600);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all var(--transition-fast);line-height:1;}
+.ob-ws-close:hover{background:var(--gray200);}
+.ob-ws-body{flex:1;overflow-y:auto;padding:18px 20px 24px;}
+
+/* Context grid */
+.ob-context{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;}
+.ob-field{padding:10px 12px;border:1px solid var(--gray200);border-radius:10px;background:var(--gray50);}
+.ob-field-label{font-size:10px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.ob-field-value{font-size:13px;font-weight:600;color:var(--gray900);}
+
+/* Next action banner */
+.ob-next{background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:12px;padding:13px 14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.ob-next-label{font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.ob-next-action{font-size:13px;font-weight:600;color:var(--gray900);}
+.ob-blocked-banner{background:var(--red-light);border:1px solid #FECACA;border-radius:12px;padding:13px 14px;margin-bottom:18px;}
+.ob-blocked-label{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.ob-blocked-text{font-size:12.5px;color:var(--red);font-weight:600;}
+
+/* Step list */
+.ob-section-title{font-size:10.5px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;}
+.ob-step-list{display:flex;flex-direction:column;gap:7px;margin-bottom:20px;}
+.ob-step{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:10px;border:1px solid var(--gray200);background:var(--white);}
+.ob-step.done{border-color:var(--green-mid);background:var(--green-light);}
+.ob-step.blocked{border-color:#FECACA;background:var(--red-light);opacity:.75;}
+.ob-step.available{border-color:var(--blue-mid);background:var(--blue-light);}
+.ob-step-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px;}
+.ob-step.done .ob-step-icon{background:var(--green);color:var(--white);}
+.ob-step.blocked .ob-step-icon{background:#FCA5A5;color:var(--red);}
+.ob-step.available .ob-step-icon{background:var(--blue);color:var(--white);}
+.ob-step:not(.done):not(.blocked):not(.available) .ob-step-icon{background:var(--gray200);color:var(--gray400);}
+.ob-step-info{flex:1;min-width:0;}
+.ob-step-label{font-size:13px;font-weight:600;color:var(--gray900);}
+.ob-step.done .ob-step-label{color:var(--green);}
+.ob-step.blocked .ob-step-label{color:var(--red);}
+.ob-step-dep{font-size:11px;color:var(--gray400);margin-top:3px;line-height:1.4;}
+.ob-step.blocked .ob-step-dep{color:#DC2626;}
+.ob-step-actions{display:flex;gap:6px;margin-top:8px;}
+
+/* Readiness block */
+.ob-readiness{border-radius:12px;padding:14px 16px;border:1px solid var(--gray200);}
+.ob-readiness.ready{background:var(--green-light);border-color:var(--green-mid);}
+.ob-readiness.partial{background:var(--amber-light);border-color:var(--amber-mid);}
+.ob-readiness.blocked-state{background:var(--red-light);border-color:#FECACA;}
+.ob-readiness-title{font-size:13px;font-weight:700;margin-bottom:4px;}
+.ob-readiness.ready .ob-readiness-title{color:var(--green);}
+.ob-readiness.partial .ob-readiness-title{color:var(--amber);}
+.ob-readiness.blocked-state .ob-readiness-title{color:var(--red);}
+.ob-readiness-sub{font-size:12px;color:var(--gray600);}
+
+/* Onboarding queue toolbar */
+.ob-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.ob-toolbar .input{flex:1;min-width:180px;}
+
+/* Mobile: onboarding table → stacked cards */
+@media (max-width:768px){
+  .ob-table-wrap{overflow:visible!important;border:none!important;background:transparent!important;}
+  .ob-data-table{display:block;border:none;}
+  .ob-data-table thead{display:none;}
+  .ob-data-table tbody{display:flex;flex-direction:column;gap:10px;}
+  .ob-data-table tr{display:flex;flex-direction:column;gap:7px;padding:14px 16px;border:1px solid var(--gray200);border-radius:12px;background:var(--white);box-shadow:var(--shadow-card);}
+  .ob-data-table td{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0;border:none!important;font-size:12.5px;white-space:normal;}
+  .ob-data-table td[data-label]::before{content:attr(data-label);font-size:10px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;min-width:88px;}
+  .ob-data-table td.ob-td-full{flex-direction:column;align-items:flex-start;}
+  .ob-data-table td.ob-td-full[data-label]::before{margin-bottom:5px;}
+  .ob-workspace{width:100vw;right:-100vw;}
+  .ob-context{grid-template-columns:1fr 1fr;}
+  .ob-ws-header{padding:16px;}
+  .ob-ws-body{padding:14px 16px 20px;}
+}
+@media (max-width:480px){
+  .ob-context{grid-template-columns:1fr;}
+  .ob-toolbar{gap:8px;}
+  .ob-toolbar .input,.ob-toolbar .select{min-width:0;}
+  .ob-data-table td{flex-wrap:wrap;}
+}
 </style>
 </head>
 <body>
@@ -254,24 +339,38 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
       <section id="section-onboarding" class="section">
         <div class="section-head">
           <h3 style="font-family:var(--headline-font);font-size:18px">Onboarding Pipeline</h3>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <select class="select" id="onboarding-sort" style="width:auto;">
-              <option value="incomplete">Sortierung: Unvollständig zuerst</option>
-              <option value="progress-asc">Sortierung: Progress aufsteigend</option>
-              <option value="progress-desc">Sortierung: Progress absteigend</option>
-            </select>
-            <span class="badge badge-amber">Readiness Tracking</span>
-          </div>
+          <span class="badge badge-amber">End-to-End Workflow</span>
         </div>
-        <div class="table-wrap" style="margin-bottom:16px;">
-          <table class="data-table">
-            <thead><tr><th>Kunde</th><th>Status</th><th>Progress</th><th>Missing Steps</th><th>Direktaktionen</th><th>Owner</th></tr></thead>
+        <div class="ob-toolbar">
+          <input class="input" id="ob-search" placeholder="Suche nach Kundenname …">
+          <select class="select" id="ob-filter" style="width:auto;">
+            <option value="all">Filter: Alle</option>
+            <option value="in-progress">In Arbeit</option>
+            <option value="blocked">Blockiert</option>
+            <option value="launch-ready">Launch Ready</option>
+            <option value="completed">Completed</option>
+          </select>
+          <select class="select" id="onboarding-sort" style="width:auto;">
+            <option value="incomplete">Unvollständig zuerst</option>
+            <option value="progress-asc">Progress aufsteigend</option>
+            <option value="progress-desc">Progress absteigend</option>
+          </select>
+        </div>
+        <div class="table-wrap ob-table-wrap">
+          <table class="data-table ob-data-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Current Stage</th>
+                <th>Readiness</th>
+                <th>Blocker</th>
+                <th>Next Action</th>
+                <th>Launch Ready</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
             <tbody id="onboarding-table-body"></tbody>
           </table>
-        </div>
-        <div class="card">
-          <div class="card-title">Standard-Checkliste</div>
-          <div id="onboarding-checklist"></div>
         </div>
       </section>
 
@@ -374,6 +473,30 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   </main>
 </div>
 
+<!-- Onboarding Workspace -->
+<div class="ob-overlay" id="ob-overlay" onclick="closeOnboardingWorkspace()"></div>
+<div class="ob-workspace" id="ob-workspace">
+  <div class="ob-workspace-inner">
+    <div class="ob-ws-header">
+      <div>
+        <div class="ob-ws-title" id="ob-ws-title"></div>
+        <div class="ob-ws-sub" id="ob-ws-sub"></div>
+      </div>
+      <button class="ob-ws-close" onclick="closeOnboardingWorkspace()">✕</button>
+    </div>
+    <div class="ob-ws-body">
+      <div id="ob-ws-context"></div>
+      <div id="ob-ws-banner"></div>
+      <div id="ob-ws-steps"></div>
+      <div id="ob-ws-readiness"></div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--gray100);display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="openCustomerProfile(state.activeOnboardingId)">Full Profile öffnen</button>
+        <button class="btn btn-quiet btn-sm" onclick="closeOnboardingWorkspace()">Schließen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="customer-profile-modal" onclick="if(event.target===this)closeCustomerProfile()">
   <div class="modal">
     <div class="modal-top">
@@ -456,9 +579,9 @@ const state={
     {id:'C-105',type:'Rückruf',priority:'Mittel',status:'new',owner:'Noah',customerId:5,latest:'Heute 07:59',notes:'Produktberatung intern klären.'}
   ],
   onboarding:[
-    {customerId:2,status:'In Arbeit',owner:'Noah',steps:{customerCreated:true,activationSent:false,numberAssigned:false,forwardingDone:false,businessInfoDone:true,testCallComplete:false,dashboardReady:false}},
-    {customerId:5,status:'Blockiert',owner:'Lea',steps:{customerCreated:true,activationSent:true,numberAssigned:true,forwardingDone:false,businessInfoDone:false,testCallComplete:false,dashboardReady:false}},
-    {customerId:4,status:'In Arbeit',owner:'Mia',steps:{customerCreated:true,activationSent:true,numberAssigned:true,forwardingDone:true,businessInfoDone:true,testCallComplete:false,dashboardReady:true}}
+    {customerId:2,status:'In Arbeit',owner:'Noah',latest:'Heute · 08:14',steps:{customerCreated:true,activationSent:false,dashboardActive:false,numberAssigned:false,agentConnected:false,forwardingConfigured:false,businessInfoDone:true,openingHoursAdded:false,greetingReviewed:false,aiBasicsConfigured:false,testCallCompleted:false,readyForGoLive:false,fullyCompleted:false}},
+    {customerId:5,status:'In Arbeit',owner:'Lea',latest:'Heute · 07:55',steps:{customerCreated:true,activationSent:true,dashboardActive:true,numberAssigned:true,agentConnected:true,forwardingConfigured:false,businessInfoDone:false,openingHoursAdded:false,greetingReviewed:false,aiBasicsConfigured:false,testCallCompleted:false,readyForGoLive:false,fullyCompleted:false}},
+    {customerId:4,status:'In Arbeit',owner:'Mia',latest:'Heute · 10:18',steps:{customerCreated:true,activationSent:true,dashboardActive:true,numberAssigned:true,agentConnected:true,forwardingConfigured:true,businessInfoDone:true,openingHoursAdded:true,greetingReviewed:false,aiBasicsConfigured:false,testCallCompleted:false,readyForGoLive:false,fullyCompleted:false}}
   ],
   events:[
     '10:25 · Case C-101 auf Kritisch gesetzt',
@@ -477,11 +600,28 @@ const state={
     {time:'09:30',type:'onboarding',title:'Hotel Seeblick · Test-Call erledigt',detail:'Audioqualität bestätigt, Routing stabil.'},
     {time:'09:14',type:'customers',title:'Alpin Treuhand · Planreview markiert',detail:'Upsell-Potenzial für Growth erfasst.'}
   ],
-  checklist:['customer created','activation sent','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours set','greeting reviewed','test call completed','dashboard ready','onboarding completed'],
-  customerNotes:{}
+  checklist:['Customer created','Activation sent','Dashboard active','Voxera number assigned','Agent connected','Forwarding configured','Business info completed','Opening hours added','Greeting reviewed','AI basics configured','Test call completed','Ready for go-live','Fully completed'],
+  customerNotes:{},
+  activeOnboardingId:null
 };
 
 const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','settings'];
+
+const ONBOARDING_STEPS=[
+  {key:'customerCreated',      label:'Customer created',          required:true,  deps:[]},
+  {key:'activationSent',       label:'Activation sent',           required:true,  deps:['customerCreated']},
+  {key:'dashboardActive',      label:'Dashboard / access active', required:false, deps:['activationSent']},
+  {key:'numberAssigned',       label:'Voxera number assigned',    required:true,  deps:['customerCreated']},
+  {key:'agentConnected',       label:'Agent connected',           required:true,  deps:['numberAssigned']},
+  {key:'forwardingConfigured', label:'Forwarding configured',     required:true,  deps:['numberAssigned']},
+  {key:'businessInfoDone',     label:'Business info completed',   required:true,  deps:[]},
+  {key:'openingHoursAdded',    label:'Opening hours added',       required:true,  deps:['businessInfoDone']},
+  {key:'greetingReviewed',     label:'Greeting reviewed',         required:true,  deps:['businessInfoDone']},
+  {key:'aiBasicsConfigured',   label:'AI basics configured',      required:true,  deps:['businessInfoDone']},
+  {key:'testCallCompleted',    label:'Test call completed',       required:true,  deps:['numberAssigned','forwardingConfigured','agentConnected']},
+  {key:'readyForGoLive',       label:'Ready for go-live',         required:true,  deps:['activationSent','numberAssigned','agentConnected','forwardingConfigured','businessInfoDone','openingHoursAdded','greetingReviewed','aiBasicsConfigured','testCallCompleted']},
+  {key:'fullyCompleted',       label:'Fully completed',           required:true,  deps:['readyForGoLive','dashboardActive']}
+];
 const routeMeta={
   'overview':['Übersicht','Operatives Cockpit für den täglichen Betrieb.'],
   'customers':['Kunden','Kundenstamm mit Setup-, Aktivitäts- und Case-Kontrolle.'],
@@ -512,29 +652,53 @@ function statusBadge(status){
   return `<span class="badge ${map[status]||'badge-gray'}">${esc(status)}</span>`;
 }
 
+function computeOnboardingState(entry){
+  const steps=entry.steps||{};
+  const completed=[];
+  const available=[];
+  const blocked=[];
+  ONBOARDING_STEPS.forEach(step=>{
+    const done=!!steps[step.key];
+    if(done){ completed.push(step.key); return; }
+    const unmetDeps=step.deps.filter(dep=>!steps[dep]);
+    if(unmetDeps.length>0){
+      blocked.push({key:step.key,label:step.label,blockedBy:unmetDeps});
+    } else {
+      available.push({key:step.key,label:step.label});
+    }
+  });
+  const progress=Math.round((completed.length/ONBOARDING_STEPS.length)*100);
+  const isFullyCompleted=!!steps['fullyCompleted'];
+  const isLaunchReady=!!steps['readyForGoLive'];
+  const actionable=available.filter(s=>s.key!=='readyForGoLive'&&s.key!=='fullyCompleted');
+  const nextAction=actionable[0]||available[0]||null;
+  const allBlockers=[...new Set(blocked.flatMap(b=>b.blockedBy))];
+  let currentStage='Not started';
+  if(isFullyCompleted) currentStage='Fully Completed';
+  else if(isLaunchReady) currentStage='Launch Ready';
+  else if(completed.length>0){
+    const last=[...ONBOARDING_STEPS].reverse().find(s=>completed.includes(s.key));
+    currentStage=last?last.label:'Customer created';
+  }
+  const isOperationallyBlocked=available.length===0&&blocked.length>0&&!isLaunchReady&&!isFullyCompleted;
+  return {completed,available,blocked,progress,isFullyCompleted,isLaunchReady,nextAction,allBlockers,currentStage,isOperationallyBlocked};
+}
+
 function onboardingProgress(entry){
-  const vals=Object.values(entry.steps||{});
-  if(!vals.length) return 0;
-  return Math.round((vals.filter(Boolean).length/vals.length)*100);
+  return computeOnboardingState(entry).progress;
 }
 
 function onboardingStatus(entry){
-  const progress=onboardingProgress(entry);
-  if(progress===100) return 'Completed';
-  if(entry.status==='Blockiert') return 'Blocked';
+  const cs=computeOnboardingState(entry);
+  if(cs.isFullyCompleted) return 'Completed';
+  if(cs.isLaunchReady) return 'Launch Ready';
+  if(cs.isOperationallyBlocked) return 'Blocked';
   return 'In Progress';
 }
 
 function onboardingMissingSteps(entry){
-  const labels={
-    activationSent:'Activation',
-    numberAssigned:'Number',
-    forwardingDone:'Forwarding',
-    businessInfoDone:'Business Info',
-    testCallComplete:'Test Call',
-    dashboardReady:'Dashboard'
-  };
-  return Object.entries(entry.steps||{}).filter(([,done])=>!done).map(([k])=>labels[k]||k);
+  const cs=computeOnboardingState(entry);
+  return ONBOARDING_STEPS.filter(s=>s.required&&!entry.steps[s.key]).map(s=>s.label);
 }
 
 function logActivity(type,title,detail){
@@ -601,45 +765,48 @@ function renderCustomers(){
 }
 
 function renderOnboarding(){
+  const search=(document.getElementById('ob-search')?.value||'').toLowerCase().trim();
+  const filter=document.getElementById('ob-filter')?.value||'all';
   const mode=document.getElementById('onboarding-sort')?.value||'incomplete';
-  const rows=[...state.onboarding];
+
+  let rows=[...state.onboarding];
+
+  if(search) rows=rows.filter(o=>{
+    const c=customerById(o.customerId);
+    return c&&(c.name+' '+c.contact).toLowerCase().includes(search);
+  });
+
+  if(filter==='blocked') rows=rows.filter(o=>computeOnboardingState(o).isOperationallyBlocked);
+  if(filter==='in-progress') rows=rows.filter(o=>{const cs=computeOnboardingState(o);return cs.progress>0&&!cs.isFullyCompleted;});
+  if(filter==='completed') rows=rows.filter(o=>computeOnboardingState(o).isFullyCompleted);
+  if(filter==='launch-ready') rows=rows.filter(o=>{const cs=computeOnboardingState(o);return cs.isLaunchReady&&!cs.isFullyCompleted;});
+
   rows.sort((a,b)=>{
-    const pa=onboardingProgress(a), pb=onboardingProgress(b);
+    const pa=computeOnboardingState(a).progress,pb=computeOnboardingState(b).progress;
     if(mode==='progress-asc') return pa-pb;
     if(mode==='progress-desc') return pb-pa;
-    const ia=pa<100?0:1, ib=pb<100?0:1;
+    const ia=pa<100?0:1,ib=pb<100?0:1;
     if(ia!==ib) return ia-ib;
     return pa-pb;
   });
 
   document.getElementById('onboarding-table-body').innerHTML=rows.map(o=>{
     const c=customerById(o.customerId);
-    const progress=onboardingProgress(o);
-    const status=onboardingStatus(o);
-    const missing=onboardingMissingSteps(o);
-    const statusBadge=status==='Completed'?'badge-green':status==='Blocked'?'badge-red':'badge-amber';
-    return `<tr>
-      <td>${esc(c.name)}</td>
-      <td><span class="badge ${statusBadge}">${status}</span></td>
-      <td>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
-          <strong>${progress}%</strong>
-        </div>
-      </td>
-      <td><div class="missing-steps">${missing.map(step=>`<span class="step-chip">${step}</span>`).join('')||'<span class="badge badge-green">Keine</span>'}</div></td>
-      <td>
-        <div class="table-action">
-          <button class="btn btn-secondary btn-sm" onclick="runOnboardingAction(${o.customerId},'numberAssigned')">Nummer zuweisen</button>
-          <button class="btn btn-secondary btn-sm" onclick="runOnboardingAction(${o.customerId},'forwardingDone')">Forwarding done</button>
-          <button class="btn btn-secondary btn-sm" onclick="runOnboardingAction(${o.customerId},'activationSent')">Activation triggern</button>
-          <button class="btn btn-secondary btn-sm" onclick="runOnboardingAction(${o.customerId},'testCallComplete')">Test-Call erledigt</button>
-        </div>
-      </td>
-      <td>${esc(o.owner)}</td>
+    const cs=computeOnboardingState(o);
+    const progressColor=cs.progress>=80?'var(--green)':cs.progress>=50?'var(--amber)':'var(--blue)';
+    const launchBadge=cs.isFullyCompleted?'<span class="badge badge-green">✓ Completed</span>':cs.isLaunchReady?'<span class="badge badge-blue">✓ Launch Ready</span>':'<span class="badge badge-gray">Pending</span>';
+    const blockerHtml=cs.isOperationallyBlocked&&cs.blocked.length>0&&cs.blocked[0].key!=='fullyCompleted'?`<span class="step-chip">${esc(cs.blocked[0].label)}</span>`:'<span class="badge badge-green">None</span>';
+    const nextHtml=cs.nextAction?`<span style="font-size:12px;color:var(--blue);font-weight:600">${esc(cs.nextAction.label)}</span>`:'<span class="badge badge-green">All done</span>';
+    return `<tr style="cursor:pointer;" onclick="openOnboardingWorkspace(${o.customerId})">
+      <td data-label="Customer" class="ob-td-full"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11px;margin-top:3px">${esc(c.contact)}</div></td>
+      <td data-label="Stage">${esc(cs.currentStage)}</td>
+      <td data-label="Readiness"><div style="display:flex;align-items:center;gap:8px;min-width:100px;"><div class="progress-track" style="flex:1;min-width:56px"><div class="progress-fill" style="background:${progressColor};width:${cs.progress}%"></div></div><strong>${cs.progress}%</strong></div></td>
+      <td data-label="Blocker">${blockerHtml}</td>
+      <td data-label="Next Action">${nextHtml}</td>
+      <td data-label="Launch Ready">${launchBadge}</td>
+      <td data-label="Actions" class="ob-td-full"><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openOnboardingWorkspace(${o.customerId})">Öffnen</button><button class="btn btn-quiet btn-sm" onclick="event.stopPropagation();openCustomerProfile(${c.id})">Profil</button></div></td>
     </tr>`;
-  }).join('');
-  document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(item=>`<div class="detail-item"><span class="detail-k">${esc(item)}</span><span class="detail-v">Standard</span></div>`).join('');
+  }).join('')||'<tr><td colspan="7"><div class="empty">Keine Einträge für aktuelle Filter.</div></td></tr>';
 }
 
 function renderAiSetup(){
@@ -694,6 +861,133 @@ function renderActivity(){
     </div>`;
   }).join('');
   document.getElementById('activity-timeline').innerHTML=groupedHtml;
+}
+
+function openOnboardingWorkspace(customerId){
+  const entry=state.onboarding.find(o=>o.customerId===customerId);
+  const c=customerById(customerId);
+  if(!entry||!c) return;
+  state.activeOnboardingId=customerId;
+  renderOnboardingWorkspace();
+  document.getElementById('ob-workspace').classList.add('open');
+  document.getElementById('ob-overlay').classList.add('open');
+}
+
+function closeOnboardingWorkspace(){
+  document.getElementById('ob-workspace').classList.remove('open');
+  document.getElementById('ob-overlay').classList.remove('open');
+  state.activeOnboardingId=null;
+}
+
+function renderOnboardingWorkspace(){
+  const customerId=state.activeOnboardingId;
+  const entry=state.onboarding.find(o=>o.customerId===customerId);
+  const c=customerById(customerId);
+  if(!entry||!c) return;
+  const cs=computeOnboardingState(entry);
+
+  document.getElementById('ob-ws-title').textContent=c.name;
+  document.getElementById('ob-ws-sub').textContent=`${c.plan} · ${c.contact}`;
+
+  document.getElementById('ob-ws-context').innerHTML=`
+    <div class="ob-context">
+      <div class="ob-field"><div class="ob-field-label">Status</div><div class="ob-field-value">${esc(c.status)}</div></div>
+      <div class="ob-field"><div class="ob-field-label">Plan</div><div class="ob-field-value">${esc(c.plan)}</div></div>
+      <div class="ob-field"><div class="ob-field-label">Voxera Number</div><div class="ob-field-value">${esc(c.voxera)}</div></div>
+      <div class="ob-field"><div class="ob-field-label">Progress</div><div class="ob-field-value">${cs.progress}% &nbsp;(${cs.completed.length}/${ONBOARDING_STEPS.length})</div></div>
+      <div class="ob-field"><div class="ob-field-label">Owner</div><div class="ob-field-value">${esc(entry.owner)}</div></div>
+      <div class="ob-field"><div class="ob-field-label">Last Update</div><div class="ob-field-value">${esc(entry.latest||c.latest)}</div></div>
+    </div>`;
+
+  const progressColor=cs.progress>=80?'var(--green)':cs.progress>=50?'var(--amber)':'var(--blue)';
+  let bannerHtml='';
+  if(cs.isFullyCompleted){
+    bannerHtml=`<div class="ob-readiness ready" style="margin-bottom:18px;"><div class="ob-readiness-title">🎉 Fully Completed</div><div class="ob-readiness-sub">This customer is fully onboarded and operationally live.</div></div>`;
+  } else if(cs.isLaunchReady){
+    bannerHtml=`<div class="ob-next" style="margin-bottom:18px;"><div><div class="ob-next-label">Ready for Go-Live</div><div class="ob-next-action">All critical steps done. Confirm full completion.</div></div><button class="btn btn-primary btn-sm" onclick="runOnboardingStep(${customerId},'fullyCompleted')">Mark Fully Completed</button></div>`;
+  } else if(cs.isOperationallyBlocked){
+    const blockerLabel=cs.blocked[0]?.label||'Unknown step';
+    bannerHtml=`<div class="ob-blocked-banner"><div class="ob-blocked-label">⚠ Blocked</div><div class="ob-blocked-text">Waiting on: ${esc(blockerLabel)}</div></div>`;
+  } else if(cs.nextAction){
+    bannerHtml=`<div class="ob-next"><div><div class="ob-next-label">Next Recommended Action</div><div class="ob-next-action">${esc(cs.nextAction.label)}</div></div><button class="btn btn-primary btn-sm" onclick="runOnboardingStep(${customerId},'${cs.nextAction.key}')">Als erledigt markieren</button></div>`;
+  }
+  document.getElementById('ob-ws-banner').innerHTML=bannerHtml;
+
+  const stepsHtml=ONBOARDING_STEPS.map((step,idx)=>{
+    const done=!!entry.steps[step.key];
+    const unmetDeps=step.deps.filter(dep=>!entry.steps[dep]);
+    const isBlocked=!done&&unmetDeps.length>0;
+    const isAvailable=!done&&!isBlocked;
+    const cls=done?'done':isBlocked?'blocked':isAvailable?'available':'';
+    const icon=done?'✓':isBlocked?'⊘':(idx+1).toString();
+    const depText=isBlocked
+      ?`Needs: ${unmetDeps.map(k=>ONBOARDING_STEPS.find(s=>s.key===k)?.label||k).join(', ')}`
+      :(step.deps.length>0&&done)?'':'';
+    const actionBtn=isAvailable?`<button class="btn btn-primary btn-sm" onclick="runOnboardingStep(${customerId},'${step.key}')">Als erledigt markieren</button>`:'';
+    return `<div class="ob-step ${cls}">
+      <div class="ob-step-icon">${icon}</div>
+      <div class="ob-step-info">
+        <div class="ob-step-label">${esc(step.label)}${step.required?'':' <span style="font-size:10px;color:var(--gray400);font-weight:400">(optional)</span>'}</div>
+        ${depText?`<div class="ob-step-dep">${esc(depText)}</div>`:''}
+        ${actionBtn?`<div class="ob-step-actions">${actionBtn}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('ob-ws-steps').innerHTML=`
+    <div class="ob-section-title">Onboarding Steps &nbsp;(${cs.completed.length}/${ONBOARDING_STEPS.length})</div>
+    <div style="margin-bottom:14px"><div class="progress-track"><div class="progress-fill" style="background:${progressColor};width:${cs.progress}%"></div></div></div>
+    <div class="ob-step-list">${stepsHtml}</div>`;
+
+  let readinessHtml='';
+  if(cs.isFullyCompleted){
+    readinessHtml=`<div class="ob-readiness ready"><div class="ob-readiness-title">✓ Onboarding Complete</div><div class="ob-readiness-sub">Customer is fully operational.</div></div>`;
+  } else if(cs.isLaunchReady){
+    readinessHtml=`<div class="ob-readiness ready"><div class="ob-readiness-title">✓ Launch Ready</div><div class="ob-readiness-sub">All critical steps complete. Mark "Fully completed" to finalise.</div></div>`;
+  } else if(cs.isOperationallyBlocked){
+    readinessHtml=`<div class="ob-readiness blocked-state"><div class="ob-readiness-title">Blocked</div><div class="ob-readiness-sub">Unblock required steps to continue onboarding.</div></div>`;
+  } else {
+    const remaining=ONBOARDING_STEPS.filter(s=>s.required&&!entry.steps[s.key]).length;
+    readinessHtml=`<div class="ob-readiness partial"><div class="ob-readiness-title">In Progress · ${cs.progress}%</div><div class="ob-readiness-sub">${remaining} required step${remaining!==1?'s':''} remaining before launch-ready.</div></div>`;
+  }
+  document.getElementById('ob-ws-readiness').innerHTML=readinessHtml;
+}
+
+function runOnboardingStep(customerId,stepKey){
+  const entry=state.onboarding.find(o=>o.customerId===customerId);
+  if(!entry) return;
+  const stepDef=ONBOARDING_STEPS.find(s=>s.key===stepKey);
+  if(stepDef){
+    const unmet=stepDef.deps.filter(dep=>!entry.steps[dep]);
+    if(unmet.length>0){
+      const labels=unmet.map(k=>ONBOARDING_STEPS.find(s=>s.key===k)?.label||k).join(', ');
+      alert(`"${stepDef.label}" kann noch nicht abgeschlossen werden.\n\nFehlende Voraussetzungen: ${labels}`);
+      return;
+    }
+  }
+  entry.steps[stepKey]=true;
+  entry.latest='Gerade aktualisiert';
+  const cs=computeOnboardingState(entry);
+  if(cs.isFullyCompleted) entry.status='Completed';
+  else if(cs.isLaunchReady) entry.status='Launch Ready';
+  else entry.status='In Arbeit';
+  const customer=customerById(customerId);
+  if(customer){
+    customer.progress=cs.progress;
+    customer.latest='Onboarding aktualisiert';
+    if(stepKey==='numberAssigned'&&String(customer.voxera).toLowerCase().includes('offen')){
+      customer.voxera='+41 58 100 20 '+String(customerId).padStart(2,'0');
+    }
+    if(cs.isLaunchReady) customer.readiness='Launch Ready';
+    if(cs.isFullyCompleted){customer.status='Aktiv';customer.readiness='Live';}
+  }
+  logActivity('onboarding',`${customer?.name||'Customer'} · ${stepDef?.label||stepKey}`,'Onboarding-Schritt abgeschlossen');
+  updateBadges();
+  renderOverview();
+  renderCustomers();
+  renderOnboarding();
+  renderActivity();
+  if(state.activeOnboardingId===customerId) renderOnboardingWorkspace();
 }
 
 function renderInsights(){
@@ -897,27 +1191,8 @@ function saveEditedNote(index){
 }
 
 function runOnboardingAction(customerId,stepKey){
-  const entry=state.onboarding.find(o=>o.customerId===customerId);
-  if(!entry) return;
-  entry.steps[stepKey]=true;
-  const progress=onboardingProgress(entry);
-  if(progress===100) entry.status='Completed';
-  else if(entry.status!=='Blockiert') entry.status='In Arbeit';
-
-  const customer=customerById(customerId);
-  if(customer){
-    customer.progress=Math.max(customer.progress,progress);
-    if(stepKey==='numberAssigned' && String(customer.voxera).toLowerCase().includes('offen')){
-      customer.voxera='+41 58 100 20 '+String(customerId).padStart(2,'0');
-    }
-    customer.latest='Onboarding aktualisiert';
-    logActivity('onboarding',`${customer.name} · Onboarding Schritt abgeschlossen`,stepKey);
-  }
-  updateBadges();
-  renderOverview();
-  renderCustomers();
-  renderOnboarding();
-  renderActivity();
+  const keyMap={forwardingDone:'forwardingConfigured',testCallComplete:'testCallCompleted',dashboardReady:'dashboardActive'};
+  runOnboardingStep(customerId,keyMap[stepKey]||stepKey);
 }
 
 function wireUi(){
@@ -948,6 +1223,8 @@ function wireUi(){
   });
   window.addEventListener('hashchange',onHashRoute);
   document.getElementById('onboarding-sort').addEventListener('change',renderOnboarding);
+  document.getElementById('ob-search').addEventListener('input',renderOnboarding);
+  document.getElementById('ob-filter').addEventListener('change',renderOnboarding);
 
   document.getElementById('logout-btn').addEventListener('click',async()=>{
     if(authClient&&authClient.auth){
