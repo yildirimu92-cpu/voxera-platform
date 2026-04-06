@@ -1239,6 +1239,40 @@ function renderCustomers(){
     const primaryAccessAction=actionState.showSendAccess
       ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
       :'';
+    return `<tr>
+    <td class="wrap"><strong>${esc(c.name)}</strong><div class="muted" style="margin-top:2px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
+    <td>${getCustomerLifecycleBadge(c,onboarding)}</td>
+    <td>${esc(setupColumnLabel)}<div class="progress-bar"><div class="progress-fill" style="width:${setupProgress}%"></div></div></td>
+    <td>${esc(c.latest)}</td>
+    <td>
+      <div class="customer-actions-primary">
+        <button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
+        ${primaryAccessAction}
+        <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button>
+        <details class="actions-menu">
+          <summary class="btn btn-secondary btn-sm actions-menu-btn">⋯</summary>
+          <div class="actions-menu-list">
+            <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case erstellen</button>
+            <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button>
+            <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button>
+          </div>
+        </details>
+      </div>
+    </td>
+  </tr>`;
+  }).join('')||'<tr><td colspan="5"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+  document.getElementById('customers-table-body').innerHTML=tableHtml;
+
+  const cardsHtml=rows.map(c=>{
+    const onboarding=onboardingForCustomer(c.id);
+    const setupProgress=getCustomerSetupProgress(c,onboarding);
+    const setupLabel=getCustomerSetupReadinessLabel(c,onboarding);
+    const actionState=getCustomerQuickActionState(c,onboarding);
+    const sendAccessDisabledAttr=actionState.sendAccessDisabled?'disabled':'';
+    const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
+    const primaryAccessAction=actionState.showSendAccess
+      ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
+      :'';
     return `<div class="customer-card">
       <div class="customer-card-head">
         <div>
