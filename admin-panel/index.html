@@ -134,7 +134,7 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
 /* ─── Content ─────────────────────────────────────────────────── */
-.content{padding:24px 28px;flex:1;max-width:1400px;}
+.content{padding:24px 28px;flex:1;max-width:1200px;}
 
 /* ─── Sections ─────────────────────────────────────────────────── */
 .section{display:none;animation:fadeIn .15s var(--ease);}
@@ -169,7 +169,7 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
 /* ─── Tables ─────────────────────────────────────────────────── */
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);}
 .data-table{width:100%;border-collapse:collapse;font-size:12.5px;}
-.data-table th,.data-table td{padding:10px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:nowrap;}
+.data-table th,.data-table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:nowrap;}
 .data-table th{
   font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
   color:var(--slate2);font-weight:700;background:var(--bg);
@@ -201,7 +201,7 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
   padding:7px 14px;border-radius:var(--r);
   font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;
   transition:all var(--fast);display:inline-flex;align-items:center;gap:6px;
-  border:none;white-space:nowrap;height:34px;letter-spacing:-.01em;
+  border:none;white-space:nowrap;height:32px;letter-spacing:-.01em;
 }
 .btn-primary{
   background:var(--blue);color:#fff;
@@ -267,6 +267,29 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
 
 /* ─── Inline actions ─────────────────────────────────────────── */
 .inline-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.customer-actions-primary{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.actions-menu{position:relative;}
+.actions-menu-btn{width:32px;min-width:32px;justify-content:center;padding:0;}
+.actions-menu > summary{list-style:none;}
+.actions-menu > summary::-webkit-details-marker{display:none;}
+.actions-menu-list{
+  position:absolute;right:0;top:36px;z-index:4;min-width:170px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow-md);padding:6px;display:none;flex-direction:column;gap:4px;
+}
+.actions-menu[open] .actions-menu-list{display:flex;}
+.actions-menu-list .btn{width:100%;justify-content:flex-start;}
+.customer-cards{display:none;gap:10px;flex-direction:column;}
+.customer-card{
+  border:1px solid var(--line);background:var(--surface);border-radius:var(--r-lg);
+  padding:12px;display:flex;flex-direction:column;gap:10px;
+}
+.customer-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+.customer-card-name{font-size:13px;font-weight:700;color:var(--ink);}
+.customer-card-sub{font-size:11.5px;color:var(--slate2);margin-top:2px;}
+.customer-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.customer-card-meta-item{font-size:11.5px;color:var(--slate2);}
+.customer-card-meta-item strong{display:block;color:var(--ink);font-size:12px;font-weight:600;}
 .muted{font-size:11.5px;color:var(--slate2);}
 .chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;background:var(--line2);color:var(--slate);}
 
@@ -314,6 +337,10 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .sidebar{display:none;}
   .main{margin-left:0;}
   .topbar,.content{padding-left:16px;padding-right:16px;}
+}
+@media (max-width:768px){
+  #customers-table-wrap{display:none;}
+  .customer-cards{display:flex;}
 }
 </style>
 </head>
@@ -433,12 +460,13 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           <select class="select" id="customer-case-filter"><option value="all">Cases: Alle</option><option value="0">Keine offenen</option><option value="1+">Mind. 1 offen</option></select>
           <button class="btn btn-quiet" id="customer-reset">Zurücksetzen</button>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" id="customers-table-wrap">
           <table class="data-table">
-            <thead><tr><th>Kunde / Kontakt</th><th>Voxera Nummer</th><th>Plan</th><th>Status</th><th>Setup-Fortschritt</th><th>Letzte Aktivität</th><th>Cases</th><th>Aktionen</th></tr></thead>
+            <thead><tr><th>Kunde</th><th>Status</th><th>Setup</th><th>Letzte Aktivität</th><th>Aktionen</th></tr></thead>
             <tbody id="customers-table-body"></tbody>
           </table>
         </div>
+        <div class="customer-cards" id="customers-card-list"></div>
       </section>
 
       <!-- ONBOARDING -->
@@ -1196,7 +1224,7 @@ function renderCustomers(){
   if(cfilter==='0') rows=rows.filter(c=>c.openCases===0);
   if(cfilter==='1+') rows=rows.filter(c=>c.openCases>0);
 
-  document.getElementById('customers-table-body').innerHTML=rows.map(c=>{
+  const tableHtml=rows.map(c=>{
     const onboarding=onboardingForCustomer(c.id);
     const setupProgress=getCustomerSetupProgress(c,onboarding);
     const setupLabel=getCustomerSetupReadinessLabel(c,onboarding);
@@ -1204,25 +1232,71 @@ function renderCustomers(){
     const actionState=getCustomerQuickActionState(c,onboarding);
     const sendAccessDisabledAttr=actionState.sendAccessDisabled?'disabled':'';
     const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
-    const lifecycleBadge=actionState.showInvitationSent?toneBadge('Zugang gesendet'):
-      actionState.showActivated?toneBadge('Aktiviert'):
-      actionState.showLiveState?toneBadge('Live'):
-      actionState.showPausedState?toneBadge('Pausiert'):'';
-    const primaryAction=actionState.showSendAccess
+    const primaryAccessAction=actionState.showSendAccess
       ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
-      :lifecycleBadge;
+      :'';
     return `<tr>
-    <td class="wrap"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11.5px;margin-top:4px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
-    <td>${esc(c.voxera)}</td>
-    <td>${toneBadge(c.plan)}</td>
+    <td class="wrap"><strong>${esc(c.name)}</strong><div class="muted" style="margin-top:2px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
     <td>${getCustomerLifecycleBadge(c,onboarding)}</td>
-    <td>${esc(setupColumnLabel)}</td>
+    <td>${esc(setupColumnLabel)}<div class="progress-bar"><div class="progress-fill" style="width:${setupProgress}%"></div></div></td>
     <td>${esc(c.latest)}</td>
-    <td>${c.openCases}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(c.id)}')">Anliegen</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button><button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button><button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button></div></td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button><button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button><button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button></div></td>
+    <td>
+      <div class="customer-actions-primary">
+        <button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
+        ${primaryAccessAction}
+        <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button>
+        <details class="actions-menu">
+          <summary class="btn btn-secondary btn-sm actions-menu-btn">⋯</summary>
+          <div class="actions-menu-list">
+            <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case erstellen</button>
+            <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button>
+            <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button>
+          </div>
+        </details>
+      </div>
+    </td>
   </tr>`;
-  }).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+  }).join('')||'<tr><td colspan="5"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+  document.getElementById('customers-table-body').innerHTML=tableHtml;
+
+  const cardsHtml=rows.map(c=>{
+    const onboarding=onboardingForCustomer(c.id);
+    const setupProgress=getCustomerSetupProgress(c,onboarding);
+    const setupLabel=getCustomerSetupReadinessLabel(c,onboarding);
+    const actionState=getCustomerQuickActionState(c,onboarding);
+    const sendAccessDisabledAttr=actionState.sendAccessDisabled?'disabled':'';
+    const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
+    const primaryAccessAction=actionState.showSendAccess
+      ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
+      :'';
+    return `<div class="customer-card">
+      <div class="customer-card-head">
+        <div>
+          <div class="customer-card-name">${esc(c.name)}</div>
+          <div class="customer-card-sub">${esc(contactDisplay(c))} · ${esc(c.email)}</div>
+        </div>
+        <div>${getCustomerLifecycleBadge(c,onboarding)}</div>
+      </div>
+      <div class="customer-card-meta">
+        <div class="customer-card-meta-item"><strong>Setup</strong>${setupProgress}% · ${esc(setupLabel)}</div>
+        <div class="customer-card-meta-item"><strong>Aktivität</strong>${esc(c.latest)}</div>
+      </div>
+      <div class="customer-actions-primary">
+        <button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
+        ${primaryAccessAction}
+        <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button>
+        <details class="actions-menu">
+          <summary class="btn btn-secondary btn-sm actions-menu-btn">⋯</summary>
+          <div class="actions-menu-list">
+            <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case erstellen</button>
+            <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button>
+            <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button>
+          </div>
+        </details>
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty">Keine Kunden für aktuelle Filter.</div>';
+  document.getElementById('customers-card-list').innerHTML=cardsHtml;
 }
 
 function renderOnboarding(){
