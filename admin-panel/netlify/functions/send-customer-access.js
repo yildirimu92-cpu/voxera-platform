@@ -17,31 +17,32 @@ function response(statusCode, payload) {
   };
 }
 
-async function deliverCustomerAccess({ sbAdmin, customer, activationLink }) {
+async function deliverCustomerAccess({ customer, activateUrl }) {
   const webhookUrl = process.env.MAKE_WELCOME_WEBHOOK;
   if (!webhookUrl) {
+    console.error('Missing MAKE_WELCOME_WEBHOOK environment variable');
     return {
       ok: false,
       statusCode: 500,
-      error: 'Versand-Infrastruktur fehlt: MAKE_WELCOME_WEBHOOK ist nicht gesetzt.',
-      limitation: 'Aktivierungslink wurde erstellt, aber kein E-Mail-Versand ausgelöst.'
+      error: 'MAKE_WELCOME_WEBHOOK ist nicht gesetzt.'
     };
   }
+
+  const payload = {
+    customer_id: customer.id,
+    customer_name: customer.customer_name,
+    email: customer.email,
+    plan: customer.plan,
+    contact_name: String(customer.contact_name || '').trim() || null,
+    activate_url: activateUrl
+  };
 
   let webhookResponse;
   try {
     webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customer_name: customer.customer_name,
-        email: customer.email,
-        activation_link: activationLink,
-        plan: customer.plan,
-        voxera_number: customer.voxera_number,
-        customer_id: customer.id,
-        dashboard_url: process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch'
-      })
+      body: JSON.stringify(payload)
     });
   } catch (error) {
     console.error('Webhook call failed', error);
@@ -74,10 +75,16 @@ exports.handler = async (event) => {
     return response(405, { error: 'Method not allowed' });
   }
 
-  console.log('ENV:', process.env.SUPABASE_URL ? 'OK' : 'MISSING');
-
   const sbUrl = process.env.SUPABASE_URL;
   const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const webhookUrl = process.env.MAKE_WELCOME_WEBHOOK;
+  console.log('ENV presence', {
+    SUPABASE_URL: !!sbUrl,
+    SUPABASE_SERVICE_ROLE_KEY: !!sbServiceKey,
+    MAKE_WELCOME_WEBHOOK: !!webhookUrl,
+    ACTIVATE_URL: !!process.env.ACTIVATE_URL
+  });
+
   if (!sbUrl || !sbServiceKey) {
     console.error('Missing Supabase environment variables', {
       SUPABASE_URL: !!sbUrl,
@@ -110,9 +117,9 @@ exports.handler = async (event) => {
   try {
     const { data: customer, error: customerError } = await sbAdmin
       .from('customers')
-      .select('*')
-      .eq('id', customerId)
-      .single();
+        .select('*')
+        .eq('id', customerId)
+        .single();
 
     if (customerError || !customer) {
       console.error('Customer lookup failed', customerError);
@@ -169,58 +176,28 @@ exports.handler = async (event) => {
       });
     }
 
-    if (
-      onboardingRow &&
-      String(onboardingRow.status || '').toLowerCase() === 'ready' &&
-      missingFields.length === 0 &&
-      String(customer.status || '').toLowerCase() !== 'ready'
-    ) {
-      const nowIso = new Date().toISOString();
-      const { data: readyCustomer, error: readyUpdateError } = await sbAdmin
-        .from('customers')
-        .update({
-          status: 'ready',
-          updated_at: nowIso
-        })
-        .eq('id', customerId)
-        .select('*')
-        .single();
-
-      if (readyUpdateError) {
-        console.error('Customer readiness lifecycle sync failed', readyUpdateError);
-      } else if (readyCustomer) {
-        customer.status = readyCustomer.status;
-      }
-    }
-
-    if (String(customer.status || '').toLowerCase() !== 'ready') {
-      console.error('Customer lifecycle status not ready – access send blocked', {
+    const onboardingStatus = String(onboardingRow?.status || '').trim().toLowerCase();
+    if (!onboardingRow || onboardingStatus !== 'ready') {
+      console.error('Onboarding status not ready – access send blocked', {
         customerId,
-        customer_status: customer.status || null
+        onboarding_status: onboardingRow?.status || null
       });
       return response(409, {
-        error: 'Zugang kann erst gesendet werden, wenn der Kundenstatus auf ready steht.',
-        customer_status: customer.status || null
+        error: 'Zugang kann erst gesendet werden, wenn onboarding.status auf ready steht.',
+        onboarding_status: onboardingRow?.status || null
       });
     }
 
-    const activateUrl = process.env.ACTIVATE_URL || 'https://dashboard.voxera.ch/activate';
-    const { data: linkData, error: linkError } = await sbAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: customer.email,
-      options: { redirectTo: activateUrl }
-    });
-
-    const activationLink = linkData?.properties?.action_link;
-    if (linkError || !activationLink) {
-      console.error('Activation link generation failed', linkError);
+    if (!webhookUrl) {
+      console.error('MAKE_WELCOME_WEBHOOK missing - cannot send access');
       return response(500, {
-        error: 'Aktivierungslink konnte nicht erstellt werden.',
-        details: linkError?.message || 'Kein action_link von Supabase erhalten.'
+        error: 'MAKE_WELCOME_WEBHOOK ist nicht gesetzt.'
       });
     }
 
-    const deliveryResult = await deliverCustomerAccess({ sbAdmin, customer, activationLink });
+    const activateUrlBase = process.env.ACTIVATE_URL || 'https://dashboard.voxera.ch/activate';
+    const activateUrl = `${activateUrlBase}${activateUrlBase.includes('?') ? '&' : '?'}customer_id=${encodeURIComponent(customer.id)}`;
+    const deliveryResult = await deliverCustomerAccess({ customer, activateUrl });
     if (!deliveryResult.ok) {
       console.error('Access delivery failed', deliveryResult);
       return response(deliveryResult.statusCode || 500, {
@@ -237,7 +214,6 @@ exports.handler = async (event) => {
         invite_status: 'sent',
         welcome_sent: true,
         welcome_sent_at: nowIso,
-        status: 'invited',
         updated_at: nowIso
       })
       .eq('id', customerId)
@@ -276,6 +252,14 @@ exports.handler = async (event) => {
       success: true,
       message: 'Zugangsdaten wurden versendet.',
       customer: updatedCustomer,
+      onboarding: onboardingUpdated
+        ? {
+            id: onboardingRow.id,
+            next_step: 'Kunde aktiviert Zugang',
+            progress: Math.min(90, Math.max(Number(onboardingRow.progress || 0), Number(onboardingRow.progress || 0) + 10)),
+            updated_at: nowIso
+          }
+        : null,
       onboarding_updated: onboardingUpdated,
       next_step: onboardingUpdated ? 'Kunde aktiviert Zugang' : null
     });
