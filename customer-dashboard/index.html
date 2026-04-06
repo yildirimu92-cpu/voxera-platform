@@ -902,6 +902,11 @@ body{
 @media(max-width:380px){
   .dash-kpi-row{grid-template-columns:1fr;}
 }
+/* Callback Queue Mode Banner */
+#cb-queue-banner{background:var(--blue-light);border:1.5px solid var(--blue-mid);border-radius:14px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.cb-queue-info{font-size:13.5px;font-weight:600;color:#1E3A8A;line-height:1.5;}
+.cb-queue-next{font-size:12px;color:#1E40AF;margin-top:2px;font-weight:400;}
+@media(max-width:600px){#cb-queue-banner{flex-direction:column;align-items:stretch;}.cb-queue-banner-btn{width:100%;justify-content:center;}}
 </style>
 </head>
 <body>
@@ -1095,6 +1100,14 @@ body{
             </div>
           </div>
           <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Anrufer, die um einen Rückruf gebeten haben – bitte zeitnah zurückrufen.</div>
+          <!-- CALLBACK QUEUE BANNER -->
+          <div id="cb-queue-banner" style="display:none">
+            <div>
+              <div class="cb-queue-info" id="cb-queue-count-label"></div>
+              <div class="cb-queue-next" id="cb-queue-next-label"></div>
+            </div>
+            <button class="dash-btn-primary cb-queue-banner-btn" onclick="jumpToNextCallback()">📞 Nächsten Rückruf bearbeiten</button>
+          </div>
           <div class="search-wrap">
             <svg class="search-icon" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
             <input class="search-input" placeholder="Anrufer suchen..." oninput="searchList('rueckrufe-list',this.value)">
@@ -3009,9 +3022,49 @@ function renderAnrufe(records) {
 }
 
 function renderRueckrufe(records) {
+  renderCallbackQueue(records);
   const offen = records.filter(r => r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status));
   const sortedOpenCallbacks = sortOpenCallbacksOldestFirst(offen);
   renderList('rueckrufe-list', sortedOpenCallbacks, {showActions:true, primaryCallback:true, skipSort:true});
+}
+
+function renderCallbackQueue(records) {
+  const banner = document.getElementById('cb-queue-banner');
+  const countLabel = document.getElementById('cb-queue-count-label');
+  const nextLabel = document.getElementById('cb-queue-next-label');
+  if (!banner) return;
+  const sorted = getOpenCallbacksSorted(records);
+  if (sorted.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+  const next = sorted[0];
+  const phone = (next.fields.phone_number || next.fields.caller_phone || '').trim();
+  if (countLabel) {
+    countLabel.textContent = sorted.length === 1
+      ? '1 offener Rückruf in der Warteschlange'
+      : sorted.length + ' offene Rückrufe in der Warteschlange';
+  }
+  if (nextLabel) {
+    nextLabel.textContent = 'Nächster: ' + (next.fields.caller_name || 'Unbekannt').trim() + (phone ? ' · ' + phone : '');
+  }
+  banner.style.display = 'flex';
+}
+
+function getOpenCallbacksSorted(records) {
+  const offen = (records || []).filter(function(r) {
+    return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status);
+  });
+  return sortOpenCallbacksOldestFirst(offen);
+}
+
+function jumpToNextCallback() {
+  const sorted = getOpenCallbacksSorted(allRecords);
+  if (!sorted.length) {
+    toast('Keine offenen Rückrufe vorhanden');
+    return;
+  }
+  openDetail(sorted[0].id);
 }
 
 function renderArchiv(records) {
