@@ -566,24 +566,16 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <!-- CASES -->
       <section id="section-cases" class="section">
         <div class="section-head">
-          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Case Workflow</h3>
+          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Anliegen</h3>
           <div class="inline-actions">
             <select class="select" id="cases-customer-select" style="width:220px;"></select>
-            <select class="select" id="cases-type-select" style="width:130px;"><option>Rückruf</option><option>Follow-up</option></select>
             <button class="btn btn-primary" id="cases-create-btn">
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
-              Neuer Case
+              Anliegen erfassen
             </button>
           </div>
         </div>
-        <div class="tabs" id="cases-tabs">
-          <button class="tab-btn active" data-tab="callbacks">Rückrufe</button>
-          <button class="tab-btn" data-tab="followups">Follow-ups</button>
-          <button class="tab-btn" data-tab="all">Alle Cases</button>
-        </div>
-        <div class="tab-panel active" data-panel="callbacks"><div class="table-wrap"><table class="data-table"><thead><tr><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th></tr></thead><tbody id="cases-callbacks"></tbody></table></div></div>
-        <div class="tab-panel" data-panel="followups"><div class="table-wrap"><table class="data-table"><thead><tr><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>History</th></tr></thead><tbody id="cases-followups"></tbody></table></div></div>
-        <div class="tab-panel" data-panel="all"><div class="table-wrap"><table class="data-table"><thead><tr><th>Typ</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th></tr></thead><tbody id="cases-all"></tbody></table></div></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Kunde</th><th>Titel</th><th>Notiz</th><th>Status</th><th>Aktion</th></tr></thead><tbody id="cases-all"></tbody></table></div>
       </section>
 
       <!-- ACTIVITY -->
@@ -633,6 +625,34 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       </section>
     </div>
   </main>
+</div>
+
+<!-- CASE CAPTURE MODAL -->
+<div class="modal-overlay" id="case-capture-modal" onclick="if(event.target===this)closeCaseCaptureModal()">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title">Anliegen erfassen</div>
+        <div class="modal-sub">Schnell ein internes Kundenanliegen dokumentieren.</div>
+      </div>
+      <button class="btn btn-quiet" type="button" onclick="closeCaseCaptureModal()">Schließen</button>
+    </div>
+    <div id="case-capture-feedback" class="modal-feedback"></div>
+    <form id="case-capture-form">
+      <div style="margin-bottom:10px;">
+        <label class="muted" for="case-capture-title">Titel *</label>
+        <input class="input" id="case-capture-title" required>
+      </div>
+      <div>
+        <label class="muted" for="case-capture-note">Notiz</label>
+        <textarea class="textarea" id="case-capture-note" style="min-height:90px;"></textarea>
+      </div>
+      <div class="inline-actions" style="justify-content:flex-end;margin-top:12px;">
+        <button class="btn btn-quiet" type="button" onclick="closeCaseCaptureModal()">Abbrechen</button>
+        <button class="btn btn-primary" id="case-capture-submit-btn" type="submit">Speichern</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- CREATE CUSTOMER MODAL -->
@@ -743,7 +763,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       </div>
     </div>
     <div class="profile-panel" data-profile-panel="calls"><div class="table-wrap"><table class="data-table"><thead><tr><th>Zeit</th><th>Kategorie / Qualität</th><th>Callback</th><th>Summary</th><th>Aktionen</th></tr></thead><tbody id="profile-calls"></tbody></table></div></div>
-    <div class="profile-panel" data-profile-panel="cases"><div class="table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>Status</th><th>Priorität</th><th>Owner</th><th>Latest Update</th><th>Notizen</th><th>Aktionen</th></tr></thead><tbody id="profile-cases"></tbody></table></div></div>
+    <div class="profile-panel" data-profile-panel="cases"><div class="table-wrap"><table class="data-table"><thead><tr><th>Titel</th><th>Notiz</th><th>Status</th><th>Aktion</th></tr></thead><tbody id="profile-cases"></tbody></table></div></div>
     <div class="profile-panel" data-profile-panel="billing"><div class="detail-grid" id="profile-billing"></div></div>
     <div class="profile-panel" data-profile-panel="notes">
       <div style="margin-bottom:10px;">
@@ -824,6 +844,8 @@ const state={
   createCustomerPending:false,
   sendAccessPending:false,
   sendAccessTargetId:null,
+  caseCapturePending:false,
+  caseCaptureCustomerId:null,
   customerDangerPending:false,
   customerDangerTargetId:null,
   customerDangerMode:null,
@@ -1136,11 +1158,10 @@ function renderOverview(){
   const callbacks=state.calls.filter(c=>c.callback).length;
   const recent=state.events.length;
   const attention=customers.filter(c=>c.openCases>0||getCustomerSetupProgress(c,onboardingForCustomer(c.id))<80).length;
-  const criticalCases=state.cases.filter(c=>c.priority==='Kritisch').length;
   const kpis=[
     ['Active Customers',active,'live Mandanten'],
     ['Open Onboardings',openOnboarding,'mit offenen Tasks'],
-    ['Open/Critical Cases',`${openCases} / ${criticalCases}`,'offen / kritisch'],
+    ['Open Anliegen',`${openCases}`,'offene interne Anliegen'],
     ['Calls Today',callsToday,'global eingegangen'],
     ['Callback Requests Today',callbacks,'SLA-relevant'],
     ['Recent Activity Items',recent,'letzte 2 Stunden'],
@@ -1198,6 +1219,7 @@ function renderCustomers(){
     <td>${esc(setupColumnLabel)}</td>
     <td>${esc(c.latest)}</td>
     <td>${c.openCases}</td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(c.id)}')">Anliegen</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button><button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button><button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button></div></td>
     <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button><button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button><button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button></div></td>
   </tr>`;
   }).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
@@ -1581,6 +1603,7 @@ function openCustomerProfile(id){
     ${sendAccessButton}
     <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding')">Onboarding öffnen</button>
     <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus('${jsStr(id)}')">${lifecycleStatus==='paused'?'Aktivieren':'Pausieren'}</button>
+    <button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(id)}')">Anliegen erfassen</button>
     <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
     <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>
     <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(id)}','archive')">Archivieren</button>
@@ -2310,10 +2333,23 @@ function wireUi(){
     }
     createCaseForCustomer(cid,type,'Direkt aus Cases erstellt');
   });
-  document.getElementById('cases-tabs').addEventListener('click',e=>{
-    const btn=e.target.closest('.tab-btn'); if(!btn) return;
-    document.querySelectorAll('#cases-tabs .tab-btn').forEach(b=>b.classList.toggle('active',b===btn));
-    document.querySelectorAll('#section-cases .tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===btn.dataset.tab));
+  document.getElementById('case-capture-form').addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(state.caseCapturePending) return;
+    const customerId=state.caseCaptureCustomerId||document.getElementById('cases-customer-select').value;
+    const title=document.getElementById('case-capture-title').value.trim();
+    const note=document.getElementById('case-capture-note').value.trim();
+    if(!customerId){
+      setCaseCaptureFeedback('error','Bitte zuerst einen Kunden wählen.');
+      return;
+    }
+    if(!title){
+      setCaseCaptureFeedback('error','Titel ist erforderlich.');
+      return;
+    }
+    setCaseCaptureSubmitting(true);
+    await createCaseForCustomer(customerId,title,note);
+    setCaseCaptureSubmitting(false);
   });
   document.getElementById('profile-tabs').addEventListener('click',e=>{
     const btn=e.target.closest('.profile-tab'); if(!btn) return;
@@ -2525,7 +2561,7 @@ function mapDbCallToUi(dbRow) {
 }
 
 function mapDbCaseToUi(dbRow) {
-  // cases table columns: id, customer_id, type, priority, status, owner, created_at, updated_at, notes, history
+  // cases table columns: id, customer_id, type(title), status, notes(note), created_at, updated_at
   const ts = dbRow.updated_at
     ? new Date(dbRow.updated_at).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
     : '—';
@@ -2538,7 +2574,7 @@ function mapDbCaseToUi(dbRow) {
     customerId: String(dbRow.customer_id),
     latest:     ts,
     notes:      dbRow.notes      || '',
-    history:    dbRow.history    || '',
+    note:       dbRow.notes      || '',
   };
 }
 
@@ -2624,7 +2660,7 @@ async function loadDataFromSupabase() {
     });
     state.cases.filter(c => normalizeCaseStatus(c.status)!==CASE_STATUS.DONE).slice(0, 5).forEach(c => {
       const cust = customerById(c.customerId);
-      if (cust) recentEvents.push(`${c.latest} · ${cust.name}: Case ${c.id} (${c.priority})`);
+      if (cust) recentEvents.push(`${c.latest} · ${cust.name}: Anliegen ${c.id}`);
     });
     state.events = recentEvents;
 

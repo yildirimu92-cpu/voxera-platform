@@ -42,10 +42,10 @@ exports.handler = async (event) => {
   const now = new Date().toISOString();
   const payload = {
     customer_id: customerId,
-    type,
+    type: title,
     status: normalizeCaseStatus('open'),
-    priority,
-    owner: 'Ops Queue',
+    priority: null,
+    owner: null,
     notes: note || null,
     history: null,
     created_at: now,

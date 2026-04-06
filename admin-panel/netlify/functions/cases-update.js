@@ -13,7 +13,7 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
-const ALLOWED_FIELDS = new Set(['status', 'priority', 'owner', 'notes', 'history']);
+const ALLOWED_FIELDS = new Set(['status', 'title', 'note']);
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
@@ -56,14 +56,12 @@ exports.handler = async (event) => {
       return response(409, { error: e.message, from_status: fromStatus, to_status: toStatus });
     }
     updatePayload.status = toStatus;
-  } else if (field === 'priority') {
-    updatePayload.priority = String(value || '').trim() || current.priority;
-  } else if (field === 'owner') {
-    updatePayload.owner = String(value || '').trim() || null;
-  } else if (field === 'notes') {
+  } else if (field === 'title') {
+    const title = String(value || '').trim();
+    if (!title) return response(400, { error: 'title darf nicht leer sein' });
+    updatePayload.type = title;
+  } else if (field === 'note') {
     updatePayload.notes = String(value || '').trim() || null;
-  } else if (field === 'history') {
-    updatePayload.history = String(value || '').trim() || null;
   }
 
   const { data, error } = await sbAdmin

@@ -3377,10 +3377,6 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   };
   try {
     await applyStatusTransition(recordId, currentStatus, normalizedStatus);
-    // TODO: move to server-side function
-    const fields = {dashboard_status: normalizedStatus};
-    if (isClosedStatus(normalizedStatus)) fields.follow_up_at = null;
-    await apiPatchOptional(recordId, fields, {dashboard_status: normalizedStatus});
     if (cached && cached.fields) {
       cached.fields.dashboard_status = normalizedStatus;
       if (isClosedStatus(normalizedStatus)) cached.fields.follow_up_at = null;
