@@ -698,7 +698,7 @@ const CUSTOMER_LIFECYCLE_LABELS={
   onboarding:'Einrichtung läuft',
   ready:'Bereit',
   invited:'Zugang gesendet',
-  activated:'Kunde aktiviert',
+  activated:'Aktiviert',
   live:'Live',
   paused:'Pausiert'
 };
@@ -712,10 +712,15 @@ const CUSTOMER_LIFECYCLE_BADGE_CLASS={
 };
 function normalizeCustomerLifecycleStatus(status){
   const raw=String(status||'').trim().toLowerCase();
-  if(!raw) return 'onboarding';
+  if(!raw) return '';
   const aliases={
     aktiv:'live',
     active:'live',
+    aktiviert:'activated',
+    'customer activated':'activated',
+    'go-live':'live',
+    golive:'live',
+    completed:'live',
     pending:'onboarding',
     invited:'invited',
     onboarding:'onboarding',
@@ -724,19 +729,70 @@ function normalizeCustomerLifecycleStatus(status){
     activated:'activated',
     live:'live'
   };
-  return aliases[raw]||'onboarding';
+  return aliases[raw]||'';
 }
-function getCustomerLifecycleStatus(customer){
-  return normalizeCustomerLifecycleStatus(customer?.status)||'onboarding';
+function getCanonicalCustomerStatus(customer,onboarding){
+  const statusFromCustomer=normalizeCustomerLifecycleStatus(customer?.status);
+  if(CUSTOMER_LIFECYCLE_STATUS_ORDER.includes(statusFromCustomer)) return statusFromCustomer;
+
+  const inviteStatus=String(customer?.invite_status||'').trim().toLowerCase();
+  if(inviteStatus==='sent') return 'invited';
+  if(isCustomerAccessReady(customer,onboarding)) return 'ready';
+  return 'onboarding';
 }
-function getCustomerLifecycleStatusLabel(customer){
-  return CUSTOMER_LIFECYCLE_LABELS[getCustomerLifecycleStatus(customer)]||'Einrichtung läuft';
+function getCustomerLifecycleStatus(customer,onboarding){
+  return getCanonicalCustomerStatus(customer,onboarding);
 }
-function getCustomerLifecycleBadge(customer){
-  const lifecycleStatus=getCustomerLifecycleStatus(customer);
-  const label=getCustomerLifecycleStatusLabel(customer);
+function getCustomerLifecycleLabel(customer,onboarding){
+  return CUSTOMER_LIFECYCLE_LABELS[getCanonicalCustomerStatus(customer,onboarding)]||'Einrichtung läuft';
+}
+function getCustomerLifecycleStatusLabel(customer,onboarding){
+  return getCustomerLifecycleLabel(customer,onboarding);
+}
+function getCustomerLifecycleBadge(customer,onboarding){
+  const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
+  const label=getCustomerLifecycleLabel(customer,onboarding);
   const cls=CUSTOMER_LIFECYCLE_BADGE_CLASS[lifecycleStatus]||'badge-gray';
   return `<span class="badge ${cls}">${esc(label)}</span>`;
+}
+function getCustomerQuickActionState(customer,onboarding){
+  const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
+  const accessReady=isCustomerAccessReady(customer,onboarding);
+  const base={
+    lifecycleStatus,
+    canSendAccess:false,
+    sendAccessLabel:'Zugang senden',
+    sendAccessDisabled:true,
+    sendAccessTooltip:'',
+    showSendAccess:false,
+    showInvitationSent:false,
+    showActivated:false,
+    showLiveState:false,
+    showPausedState:false
+  };
+  if(lifecycleStatus==='onboarding'){
+    return {
+      ...base,
+      showSendAccess:true,
+      canSendAccess:accessReady,
+      sendAccessDisabled:!accessReady,
+      sendAccessTooltip:accessReady?'':'Einrichtung noch nicht abgeschlossen'
+    };
+  }
+  if(lifecycleStatus==='ready'){
+    return {
+      ...base,
+      showSendAccess:true,
+      canSendAccess:accessReady,
+      sendAccessDisabled:!accessReady,
+      sendAccessTooltip:accessReady?'':'Einrichtung noch nicht abgeschlossen'
+    };
+  }
+  if(lifecycleStatus==='invited') return {...base,showInvitationSent:true};
+  if(lifecycleStatus==='activated') return {...base,showActivated:true};
+  if(lifecycleStatus==='live') return {...base,showLiveState:true};
+  if(lifecycleStatus==='paused') return {...base,showPausedState:true};
+  return base;
 }
 function contactDisplay(customer){
   const first=String(customer?.contact_first_name||'').trim();
@@ -769,7 +825,7 @@ function renderOverview(){
   const customers=state.customers;
   const setupProgressValues=customers.map(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id)));
   const openCases=state.cases.filter(c=>c.status!=='Geschlossen').length;
-  const active=customers.filter(c=>getCustomerLifecycleStatus(c)==='live').length;
+  const active=customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))==='live').length;
   const openOnboarding=state.onboarding.filter(o=>o.progress<100).length;
   const callsToday=state.calls.length;
   const callbacks=state.calls.filter(c=>c.callback).length;
@@ -804,7 +860,7 @@ function renderCustomers(){
   let rows=[...state.customers];
   if(search) rows=rows.filter(c=>[c.name,contactDisplay(c),c.email,c.voxera].join(' ').toLowerCase().includes(search));
   if(p!=='all') rows=rows.filter(c=>c.plan===p);
-  if(s!=='all') rows=rows.filter(c=>getCustomerLifecycleStatus(c)===s);
+  if(s!=='all') rows=rows.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))===s);
   if(prog!=='all'){
     if(prog==='0-39') rows=rows.filter(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id))<40);
     if(prog==='40-79') rows=rows.filter(c=>{const p=getCustomerSetupProgress(c,onboardingForCustomer(c.id));return p>=40&&p<80;});
@@ -815,20 +871,28 @@ function renderCustomers(){
 
   document.getElementById('customers-table-body').innerHTML=rows.map(c=>{
     const onboarding=onboardingForCustomer(c.id);
-    const accessReady=isCustomerAccessReady(c,onboarding);
     const setupProgress=getCustomerSetupProgress(c,onboarding);
     const setupLabel=getCustomerSetupReadinessLabel(c,onboarding);
     const setupColumnLabel=`${setupProgress}% · ${setupLabel}`;
-    const sendAccessDisabled=accessReady?'':`disabled title="Einrichtung noch nicht abgeschlossen"`;
+    const actionState=getCustomerQuickActionState(c,onboarding);
+    const sendAccessDisabledAttr=actionState.sendAccessDisabled?'disabled':'';
+    const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
+    const lifecycleBadge=actionState.showInvitationSent?toneBadge('Zugang gesendet'):
+      actionState.showActivated?toneBadge('Aktiviert'):
+      actionState.showLiveState?toneBadge('Live'):
+      actionState.showPausedState?toneBadge('Pausiert'):'';
+    const primaryAction=actionState.showSendAccess
+      ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
+      :lifecycleBadge;
     return `<tr>
     <td class="wrap"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11.5px;margin-top:4px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
     <td>${esc(c.voxera)}</td>
     <td>${toneBadge(c.plan)}</td>
-    <td>${getCustomerLifecycleBadge(c)}</td>
+    <td>${getCustomerLifecycleBadge(c,onboarding)}</td>
     <td>${esc(setupColumnLabel)}</td>
     <td>${esc(c.latest)}</td>
     <td>${c.openCases}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button><button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabled}>Zugang senden</button><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
   </tr>`;
   }).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 }
@@ -1050,7 +1114,7 @@ function renderAiWorkspace(){
   empty.style.display='none';
   document.getElementById('ai-workspace-badge').outerHTML=toneBadge(cfg.status||'Unbekannt').replace('<span','<span id="ai-workspace-badge"');
   document.getElementById('ai-customer-context').innerHTML=[
-    ['Customer',c.name],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c)],['Voxera',c.voxera],['Setup',`${setupProgress}% · ${setupReadinessLabel}`],['AI Setup',cfg.status||'Unbekannt']
+    ['Customer',c.name],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c,onboardingForCustomer(id))],['Voxera',c.voxera],['Setup',`${setupProgress}% · ${setupReadinessLabel}`],['AI Setup',cfg.status||'Unbekannt']
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('ai-business-description').value=cfg.businessDescription||'';
   document.getElementById('ai-services').value=cfg.services||'';
@@ -1128,7 +1192,7 @@ function renderActivity(){
   mapList('activity-calls',state.calls.slice().sort((a,b)=>b.time.localeCompare(a.time)).slice(0,6).map(c=>[`${customerById(c.customerId).name} · ${c.time}`,`${c.cat}${c.callback?' · Callback angefragt':''}`,'Call']));
   mapList('activity-onboarding',state.onboarding.map(o=>[`${customerById(o.customerId).name} · ${o.status}`,`Progress ${o.progress}% · Next: ${o.next}`,'Onboarding']));
   mapList('activity-customer-changes',[
-    ...state.customers.slice(0,4).map(c=>[`${c.name} · ${getCustomerLifecycleStatusLabel(c)}`,`Plan ${c.plan} · Setup ${getCustomerSetupProgress(c,onboardingForCustomer(c.id))}%`,'Customer'])
+    ...state.customers.slice(0,4).map(c=>[`${c.name} · ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(c.id))}`,`Plan ${c.plan} · Setup ${getCustomerSetupProgress(c,onboardingForCustomer(c.id))}%`,'Customer'])
   ]);
   mapList('activity-support',state.cases.slice(0,6).map(cs=>[`${cs.id} · ${customerById(cs.customerId).name}`,`${cs.type} · ${cs.status} · ${cs.priority} · Owner ${cs.owner}`,'Case']));
   mapList('activity-events',state.events.map(e=>[e,'System event','Ops']));
@@ -1155,7 +1219,7 @@ function renderInsights(){
 
 function hydrateFilters(){
   const plans=[...new Set(state.customers.map(c=>c.plan))];
-  const statuses=[...new Set(state.customers.map(c=>getCustomerLifecycleStatus(c)))];
+  const statuses=[...new Set(state.customers.map(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))))];
   const onboardingStatuses=[...new Set(state.onboarding.map(o=>o.status))];
   document.getElementById('customer-plan-filter').innerHTML='<option value="all">Plan: Alle</option>'+plans.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   const orderedStatuses=CUSTOMER_LIFECYCLE_STATUS_ORDER.filter(status=>statuses.includes(status));
@@ -1194,20 +1258,25 @@ function openCustomerProfile(id){
   document.getElementById('profile-title').textContent=c.name;
   document.getElementById('profile-sub').textContent=`${contactDisplay(c)} · ${c.email}`;
   const onboard=onboardingForCustomer(id);
-  const accessReady=isCustomerAccessReady(c,onboard);
   const setupProgress=getCustomerSetupProgress(c,onboard);
   const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboard);
-  const lifecycleStatus=getCustomerLifecycleStatus(c);
-  const sendAccessDisabled=accessReady?'':`disabled title="Einrichtung noch nicht abgeschlossen"`;
+  const lifecycleStatus=getCustomerLifecycleStatus(c,onboard);
+  const actionState=getCustomerQuickActionState(c,onboard);
+  const sendAccessButton=actionState.showSendAccess
+    ?`<button class="btn btn-primary btn-sm" onclick="openSendAccessModal('${jsStr(id)}')" ${actionState.sendAccessDisabled?'disabled':''} ${actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:''}>${esc(actionState.sendAccessLabel)}</button>`
+    :actionState.showInvitationSent?`<span class="badge badge-amber">Zugang gesendet</span>`
+    :actionState.showActivated?`<span class="badge badge-purple">Aktiviert</span>`
+    :actionState.showLiveState?`<span class="badge badge-green">Live</span>`
+    :`<span class="badge badge-gray">Pausiert</span>`;
   const missingSteps=state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
   document.getElementById('profile-overview-actions').innerHTML=`
-    <button class="btn btn-primary btn-sm" onclick="openSendAccessModal('${jsStr(id)}')" ${sendAccessDisabled}>Zugang senden</button>
+    ${sendAccessButton}
     <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding')">Onboarding öffnen</button>
     <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus('${jsStr(id)}')">${lifecycleStatus==='paused'?'Aktivieren':'Pausieren'}</button>
     <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
     <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>`;
   const details=[
-    ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c)],['Voxera Nummer',c.voxera],['Onboarding Progress',`${setupProgress}%`],['Setup Readiness',setupReadinessLabel],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
+    ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c,onboard)],['Voxera Nummer',c.voxera],['Onboarding Progress',`${setupProgress}%`],['Setup Readiness',setupReadinessLabel],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
   ];
   document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
@@ -1282,7 +1351,7 @@ function hasRequiredAccessData(customer){
 
 function syncCustomerLifecycleStatus(customer,onboarding){
   if(!customer) return;
-  const lifecycleStatus=getCustomerLifecycleStatus(customer);
+  const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
   if(lifecycleStatus==='paused'||lifecycleStatus==='invited'||lifecycleStatus==='activated'||lifecycleStatus==='live') return;
   if(isCustomerAccessReady(customer,onboarding)){
     customer.status='ready';
@@ -1324,6 +1393,11 @@ function getCustomerAccessReadiness(customer,onboarding){
 }
 
 function getCustomerSetupReadinessLabel(customer,onboarding){
+  const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
+  if(lifecycleStatus==='invited') return 'Zugang gesendet';
+  if(lifecycleStatus==='activated') return 'Aktiviert';
+  if(lifecycleStatus==='live') return 'Live';
+  if(lifecycleStatus==='paused') return 'Pausiert';
   if(isCustomerAccessReady(customer,onboarding)) return 'Bereit';
   const progress=getCustomerSetupProgress(customer,onboarding);
   if(progress>=90) return 'Fast bereit';
@@ -1348,13 +1422,15 @@ function openSendAccessModal(customerId){
   if(state.sendAccessPending) return;
   const customer=customerById(customerId);
   if(!customer) return;
+  const onboarding=onboardingForCustomer(customerId);
+  const actionState=getCustomerQuickActionState(customer,onboarding);
+  if(!actionState.showSendAccess) return;
   state.sendAccessTargetId=customerId;
   setSendAccessFeedback(null,'');
   document.getElementById('send-access-customer-name').textContent=customer.name||'—';
   document.getElementById('send-access-customer-email').textContent=customer.email||'—';
   document.getElementById('send-access-invite-status').textContent=customer.invite_status==='sent'?'Bereits gesendet':'Noch nicht gesendet';
 
-  const onboarding=onboardingForCustomer(customerId);
   const readiness=getCustomerAccessReadiness(customer,onboarding);
   const obStatusEl=document.getElementById('send-access-onboarding-status');
   if(obStatusEl) obStatusEl.textContent=`${readiness.setupProgress}% · ${readiness.setupLabel}`;
@@ -1366,7 +1442,7 @@ function openSendAccessModal(customerId){
 
   renderSendAccessValidation(customer);
   const submitBtn=document.getElementById('send-access-submit-btn');
-  submitBtn.disabled=!readiness.isReady;
+  submitBtn.disabled=actionState.sendAccessDisabled||!readiness.isReady;
   document.getElementById('send-access-modal').classList.add('open');
 }
 
@@ -1403,6 +1479,11 @@ async function submitSendAccess(){
   if(!customerId||!customer) return;
 
   const onboarding=onboardingForCustomer(customerId);
+  const actionState=getCustomerQuickActionState(customer,onboarding);
+  if(!actionState.showSendAccess){
+    setSendAccessFeedback('error',`Zugang kann im Lifecycle-Status „${getCustomerLifecycleLabel(customer,onboarding)}“ nicht gesendet werden.`);
+    return;
+  }
   const readiness=getCustomerAccessReadiness(customer,onboarding);
   renderSendAccessValidation(customer);
   if(!readiness.isReady){
@@ -1647,9 +1728,9 @@ function markCallReviewed(customerId,callIdx){
 
 function toggleCustomerStatus(customerId){
   const c=customerById(customerId); if(!c) return;
-  c.status=getCustomerLifecycleStatus(c)==='paused'?'onboarding':'paused';
+  c.status=getCustomerLifecycleStatus(c,onboardingForCustomer(customerId))==='paused'?'onboarding':'paused';
   c.latest=`${nowStamp()} · Status geändert`;
-  state.events.unshift(`${nowStamp()} · ${c.name}: Status ${getCustomerLifecycleStatusLabel(c)}`);
+  state.events.unshift(`${nowStamp()} · ${c.name}: Status ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(customerId))}`);
   renderCustomers(); renderOverview(); renderActivity(); hydrateFilters(); openCustomerProfile(customerId);
 }
 
