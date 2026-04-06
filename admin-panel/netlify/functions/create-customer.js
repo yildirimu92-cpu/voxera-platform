@@ -39,8 +39,12 @@ exports.handler = async (event) => {
 
   try {
     const nowIso = new Date().toISOString();
-    const customerId = String(body.customer_id || `cust_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+    const customerId = `cust_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const onboardingId = randomUUID();
+    const contactFirstName = body.contact_first_name ? String(body.contact_first_name).trim() : null;
+    const contactLastName = body.contact_last_name ? String(body.contact_last_name).trim() : null;
+    const contactNameParts = [contactFirstName, contactLastName].filter((value) => value);
+    const contactName = contactNameParts.length > 0 ? contactNameParts.join(' ') : null;
 
     const customerPayload = {
       id: customerId,
@@ -61,7 +65,9 @@ exports.handler = async (event) => {
       zip: String(body.zip).trim(),
       city: String(body.city).trim(),
       country: String(body.country).trim(),
-      contact_name: body.contact_name ? String(body.contact_name).trim() : null,
+      contact_first_name: contactFirstName,
+      contact_last_name: contactLastName,
+      contact_name: contactName,
       notes: body.notes ? String(body.notes).trim() : null
     };
 
@@ -112,12 +118,20 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({
         success: true,
+        message: 'Customer and onboarding created',
         customer: createdCustomer,
         onboarding: createdOnboarding,
         transactional: false
       })
     };
   } catch (e) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: e.message }) };
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        error: 'Failed to create customer',
+        details: e.message
+      })
+    };
   }
 };
