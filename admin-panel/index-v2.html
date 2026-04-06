@@ -138,8 +138,10 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   .toolbar{grid-template-columns:1fr 1fr;}
   .grid-2,.grid-3,.detail-grid{grid-template-columns:1fr;}
 }
+/* Desktop sidebar default state */
+.sidebar{display:flex;}
 @media (max-width:920px){
-  .sidebar{transform:translateX(-100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);display:flex !important;}
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);}
   .sidebar.open{transform:translateX(0);}
   .main{margin-left:0;}
   .topbar{padding-left:16px;padding-right:16px;padding-top:14px;padding-bottom:12px;}
@@ -169,7 +171,7 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 @media (max-width:920px){.menu-toggle{display:flex;}}
 
 /* Mobile bottom nav */
-.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--gray200);z-index:50;padding:0;safe-area-inset-bottom:env(safe-area-inset-bottom);}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--gray200);z-index:50;}
 .mobile-nav-inner{display:flex;justify-content:space-around;align-items:stretch;padding-bottom:env(safe-area-inset-bottom,0px);}
 .mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px 8px;font-size:9.5px;font-weight:600;color:var(--gray400);cursor:pointer;border:none;background:transparent;font-family:inherit;text-transform:uppercase;letter-spacing:.04em;transition:color var(--transition-fast);position:relative;}
 .mobile-nav-item.active{color:var(--blue);}
@@ -261,7 +263,7 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   <main class="main">
     <header class="topbar">
       <div style="display:flex;align-items:center;gap:10px;">
-        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Menü öffnen">
+        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Menü öffnen" aria-expanded="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <div>
@@ -1755,7 +1757,11 @@ function toggleMobileMenu(forceClose){
   const shouldClose=forceClose===true||isOpen;
   sidebar.classList.toggle('open',!shouldClose);
   backdrop.classList.toggle('open',!shouldClose);
-  document.body.style.overflow=shouldClose?'':'hidden';
+  const btn=document.getElementById('menu-toggle-btn');
+  if(btn){
+    btn.setAttribute('aria-expanded',String(!shouldClose));
+    btn.setAttribute('aria-label',shouldClose?'Menü öffnen':'Menü schließen');
+  }
 }
 
 function wireUi(){
