@@ -788,6 +788,28 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   </div>
 </div>
 
+<!-- CUSTOMER DANGER MODAL -->
+<div class="modal-overlay" id="customer-danger-modal" onclick="if(event.target===this)closeCustomerDangerModal()">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title" id="customer-danger-title">Aktion bestätigen</div>
+        <div class="modal-sub" id="customer-danger-sub">Diese Aktion wird serverseitig ausgeführt.</div>
+      </div>
+      <button class="btn btn-quiet" type="button" onclick="closeCustomerDangerModal()">Schließen</button>
+    </div>
+    <div id="customer-danger-feedback" class="modal-feedback"></div>
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;background:var(--bg);">
+      <div class="detail-item"><span class="detail-k">Kunde</span><span class="detail-v" id="customer-danger-name">—</span></div>
+      <div class="detail-item"><span class="detail-k">Hinweis</span><span class="detail-v" id="customer-danger-warning">—</span></div>
+    </div>
+    <div class="inline-actions" style="justify-content:flex-end;">
+      <button class="btn btn-quiet" type="button" onclick="closeCustomerDangerModal()">Abbrechen</button>
+      <button class="btn btn-primary" type="button" id="customer-danger-confirm-btn">Bestätigen</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -802,6 +824,9 @@ const state={
   createCustomerPending:false,
   sendAccessPending:false,
   sendAccessTargetId:null,
+  customerDangerPending:false,
+  customerDangerTargetId:null,
+  customerDangerMode:null,
   customers:[],  // populated by loadDataFromSupabase()
   calls:[],  // populated by loadDataFromSupabase()
   cases:[],  // populated by loadDataFromSupabase()
@@ -1102,7 +1127,7 @@ function syncAllCustomerLifecycleStatuses(){
 }
 
 function renderOverview(){
-  const customers=state.customers;
+  const customers=state.customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted');
   const setupProgressValues=customers.map(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id)));
   const openCases=state.cases.filter(c=>normalizeCaseStatus(c.status)!==CASE_STATUS.DONE).length;
   const active=customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))==='live').length;
@@ -1141,6 +1166,7 @@ function renderCustomers(){
   if(search) rows=rows.filter(c=>[c.name,contactDisplay(c),c.email,c.voxera].join(' ').toLowerCase().includes(search));
   if(p!=='all') rows=rows.filter(c=>c.plan===p);
   if(s!=='all') rows=rows.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))===s);
+  else rows=rows.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted');
   if(prog!=='all'){
     if(prog==='0-39') rows=rows.filter(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id))<40);
     if(prog==='40-79') rows=rows.filter(c=>{const p=getCustomerSetupProgress(c,onboardingForCustomer(c.id));return p>=40&&p<80;});
@@ -1172,7 +1198,7 @@ function renderCustomers(){
     <td>${esc(setupColumnLabel)}</td>
     <td>${esc(c.latest)}</td>
     <td>${c.openCases}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button><button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button><button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button></div></td>
   </tr>`;
   }).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 }
@@ -1181,7 +1207,9 @@ function renderOnboarding(){
   const search=(document.getElementById('onboarding-search')?.value||'').toLowerCase().trim();
   const filter=(document.getElementById('onboarding-status-filter')?.value||'all');
   const sort=(document.getElementById('onboarding-sort')?.value||'blocked-first');
-  const queue=state.customers.map(c=>buildOnboardingQueueItem(c.id));
+  const queue=state.customers
+    .filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted')
+    .map(c=>buildOnboardingQueueItem(c.id));
   const blockedCount=queue.filter(q=>q.status===ONBOARDING_STATUS.BLOCKED).length;
   const inProgressCount=queue.filter(q=>q.status===ONBOARDING_STATUS.IN_PROGRESS).length;
   const readyCount=queue.filter(q=>q.status===ONBOARDING_STATUS.READY).length;
@@ -1554,7 +1582,9 @@ function openCustomerProfile(id){
     <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding')">Onboarding öffnen</button>
     <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus('${jsStr(id)}')">${lifecycleStatus==='paused'?'Aktivieren':'Pausieren'}</button>
     <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
-    <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>`;
+    <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>
+    <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(id)}','archive')">Archivieren</button>
+    <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(id)}','delete')">Löschen</button>`;
   const details=[
     ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c,onboard)],['Voxera Nummer',c.voxera],['Onboarding Progress',`${setupProgress}%`],['Setup Readiness',setupReadinessLabel],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
   ];
@@ -1824,6 +1854,105 @@ function setCreateCustomerSubmitting(isSubmitting){
   if(!submitBtn) return;
   submitBtn.disabled=!!isSubmitting;
   submitBtn.textContent=isSubmitting?'Erstelle…':'Kunde erstellen';
+}
+
+function setCustomerDangerFeedback(type,message){
+  const feedback=document.getElementById('customer-danger-feedback');
+  if(!feedback) return;
+  feedback.className='modal-feedback';
+  feedback.textContent=message||'';
+  if(type==='error') feedback.classList.add('error');
+  if(type==='success') feedback.classList.add('success');
+}
+
+function setCustomerDangerSubmitting(isSubmitting){
+  state.customerDangerPending=!!isSubmitting;
+  const btn=document.getElementById('customer-danger-confirm-btn');
+  if(!btn) return;
+  btn.disabled=!!isSubmitting;
+  const mode=state.customerDangerMode||'';
+  if(mode==='archive') btn.textContent=isSubmitting?'Archivieren…':'Archivieren';
+  else if(mode==='delete') btn.textContent=isSubmitting?'Löschen…':'Endgültig löschen';
+  else btn.textContent=isSubmitting?'Speichert…':'Bestätigen';
+}
+
+function openCustomerDangerModal(customerId,mode){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  state.customerDangerTargetId=customerId;
+  state.customerDangerMode=mode;
+  setCustomerDangerFeedback(null,'');
+  setCustomerDangerSubmitting(false);
+  const isDelete=mode==='delete';
+  document.getElementById('customer-danger-title').textContent=isDelete?'Kunde endgültig löschen':'Kunde archivieren';
+  document.getElementById('customer-danger-sub').textContent=isDelete
+    ?'Diese Aktion entfernt den Kundendatensatz und den zugehörigen Zugang.'
+    :'Archivierte Kunden werden aus aktiven Listen ausgeblendet.';
+  document.getElementById('customer-danger-name').textContent=customer.name||customer.customer_name||'—';
+  document.getElementById('customer-danger-warning').textContent=isDelete
+    ?'Achtung: Der Supabase Auth User wird ebenfalls gelöscht, damit die E-Mail wiederverwendbar ist.'
+    :'Historie bleibt erhalten. Kunde erscheint im Status „Gelöscht/Archiviert“.';
+  const btn=document.getElementById('customer-danger-confirm-btn');
+  btn.className=isDelete?'btn btn-danger':'btn btn-primary';
+  btn.textContent=isDelete?'Endgültig löschen':'Archivieren';
+  document.getElementById('customer-danger-modal').classList.add('open');
+}
+
+function closeCustomerDangerModal(){
+  document.getElementById('customer-danger-modal').classList.remove('open');
+  state.customerDangerTargetId=null;
+  state.customerDangerMode=null;
+  state.customerDangerPending=false;
+}
+
+async function submitCustomerDangerAction(){
+  if(state.customerDangerPending) return;
+  const customerId=state.customerDangerTargetId;
+  const mode=state.customerDangerMode;
+  const customer=customerById(customerId);
+  if(!customerId||!mode||!customer){
+    setCustomerDangerFeedback('error','Aktion konnte nicht vorbereitet werden.');
+    return;
+  }
+  setCustomerDangerSubmitting(true);
+  setCustomerDangerFeedback(null,'');
+  try{
+    if(mode==='archive'){
+      const json=await callAdminFunction('customer-archive',{customer_id:customerId});
+      if(!json?.success||!json?.customer) throw new Error(json?.error||'Archivieren fehlgeschlagen.');
+      customer.status=normalizeCustomerStatus(json.customer.status);
+      customer.latest=`${nowStamp()} · Archiviert`;
+      state.events.unshift(`${nowStamp()} · ${customer.name}: archiviert`);
+      hydrateFilters();
+      renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+      if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+      setCustomerDangerFeedback('success','Kunde wurde archiviert.');
+      setTimeout(()=>closeCustomerDangerModal(),700);
+      return;
+    }
+    if(mode==='delete'){
+      const json=await callAdminFunction('customer-delete-permanently',{customer_id:customerId});
+      if(!json?.success) throw new Error(json?.error||'Endgültiges Löschen fehlgeschlagen.');
+      state.customers=state.customers.filter(c=>!idsEq(c.id,customerId));
+      state.onboarding=state.onboarding.filter(o=>!idsEq(o.customerId,customerId));
+      state.calls=state.calls.filter(call=>!idsEq(call.customerId,customerId));
+      state.cases=state.cases.filter(ca=>!idsEq(ca.customerId,customerId));
+      if(idsEq(state.selectedCustomer,customerId)) closeCustomerProfile();
+      state.events.unshift(`${nowStamp()} · ${customer.name}: endgültig gelöscht`);
+      hydrateFilters();
+      refreshCustomerCaseCounts();
+      renderCustomers(); renderOverview(); renderOnboarding(); renderCases(); renderActivity(); updateBadges();
+      setCustomerDangerFeedback('success','Kunde und Zugang wurden endgültig gelöscht.');
+      setTimeout(()=>closeCustomerDangerModal(),900);
+      return;
+    }
+    throw new Error('Unbekannter Aktionsmodus');
+  }catch(error){
+    const payload=error?.payload||{};
+    setCustomerDangerFeedback('error',payload?.error||error?.message||'Aktion fehlgeschlagen.');
+  }finally{
+    setCustomerDangerSubmitting(false);
+  }
 }
 
 function clearCreateCustomerErrors(){
@@ -2193,6 +2322,7 @@ function wireUi(){
   });
   document.getElementById('profile-add-note-btn').addEventListener('click',addProfileNote);
   document.getElementById('send-access-submit-btn').addEventListener('click',submitSendAccess);
+  document.getElementById('customer-danger-confirm-btn').addEventListener('click',submitCustomerDangerAction);
   document.getElementById('open-create-customer-btn').addEventListener('click',openCreateCustomerModal);
   document.getElementById('create-customer-form').addEventListener('submit',submitCreateCustomer);
   document.getElementById('settings-add-admin').addEventListener('click',()=>{
