@@ -2172,30 +2172,53 @@ async function loadCallRecords(customerIdRaw) {
   return (data || []).map(toDashboardRecord);
 }
 
+async function callDashboardFunction(name, payload) {
+  const sb = getSupabaseAuthClient();
+  if (!sb) throw new Error('Supabase auth client missing');
+  const { data: { session }, error } = await sb.auth.getSession();
+  if (error || !session || !session.access_token) {
+    throw new Error('Auth session missing');
+  }
+  const res = await fetch(`/.netlify/functions/${name}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify(payload || {})
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.payload = json;
+    throw err;
+  }
+  return json;
+}
+
 async function patchCallRecord(recordId, fields) {
   // frontend-only risk: direct browser mutation of calls
-  // should move to function
+  // moved to function: call-save-followup
   // requires RLS policy (customer can only mutate own call rows)
-  // Fires UPDATE only; return value is not used by any caller.
-  const { error } = await _sb
-    .from(CALLS_TABLE)
-    .update(fields)
-    .eq('id', recordId);
-  if (error) throw error;
+  const json = await callDashboardFunction('call-save-followup', {
+    call_id: recordId,
+    notes_customer_voxera: fields.notes_customer_voxera,
+    next_action: fields.next_action,
+    follow_up_at: fields.follow_up_at
+  });
+  return json.call || null;
 }
 
 async function patchCustomerRecord(recordId, fields) {
   // frontend-only risk: direct browser mutation of customers
-  // should move to function
+  // moved to function: customer-update-settings
   // requires RLS policy (customer can only mutate own allowed fields)
-  const { data, error } = await _sb
-    .from(CUSTOMERS_TABLE)
-    .update(fields)
-    .eq('id', recordId)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return toDashboardRecord(data);
+  const json = await callDashboardFunction('customer-update-settings', {
+    notification_mode: fields.notification_mode,
+    forwarding_setup_completed: fields.forwarding_setup_completed
+  });
+  return toDashboardRecord(json.customer);
 }
 
 

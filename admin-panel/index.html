@@ -856,6 +856,27 @@ function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function idsEq(a,b){return String(a)===String(b);}
 function customerById(id){return state.customers.find(c=>idsEq(c.id,id));}
+async function callAdminFunction(name,payload){
+  if(!(authClient&&authClient.auth)) throw new Error('Admin-Auth nicht verfügbar.');
+  const {data:{session},error}=await authClient.auth.getSession();
+  if(error||!session?.access_token) throw new Error('Admin-Session fehlt.');
+  const res=await fetch(`/.netlify/functions/${name}`,{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${session.access_token}`
+    },
+    body:JSON.stringify(payload||{})
+  });
+  const json=await res.json().catch(()=>({}));
+  if(!res.ok){
+    const err=new Error(json?.error||`HTTP ${res.status}`);
+    err.status=res.status;
+    err.payload=json;
+    throw err;
+  }
+  return json;
+}
 const CUSTOMER_LIFECYCLE_STATUS_ORDER=['onboarding','ready','invited','activated','live','paused','deleted'];
 const CUSTOMER_LIFECYCLE_LABELS={
   onboarding:'Einrichtung läuft',
@@ -1753,15 +1774,9 @@ async function submitSendAccess(){
   setSendAccessSubmitting(true);
   setSendAccessFeedback(null,'');
   try{
-    // admin-only action (server-side authorization required)
-    const res=await fetch('/.netlify/functions/send-customer-access',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({customer_id:customerId})
-    });
-    const json=await res.json().catch(()=>({}));
-    if(!res.ok||!json?.success){
-      if(res.status===409){
+    const json=await callAdminFunction('send-customer-access',{customer_id:customerId});
+    if(!json?.success){
+      if(json?.customer_status){
         setSendAccessFeedback('error',json?.error||'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.');
         return;
       }
@@ -1784,7 +1799,12 @@ async function submitSendAccess(){
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
     setTimeout(()=>closeSendAccessModal(),900);
   }catch(error){
-    setSendAccessFeedback('error',error?.message||'Fehler beim Versand des Zugangs.');
+    const payload=error?.payload||{};
+    if(Array.isArray(payload?.missing_fields)&&payload.missing_fields.length){
+      const labels=payload.missing_fields.map(validationLabelForField);
+      document.getElementById('send-access-validation').innerHTML=`<span style="color:var(--red);font-weight:600;">Fehlend: ${esc(labels.join(', '))}</span>`;
+    }
+    setSendAccessFeedback('error',payload?.error||error?.message||'Fehler beim Versand des Zugangs.');
   }finally{
     setSendAccessSubmitting(false);
   }
@@ -1880,14 +1900,8 @@ async function submitCreateCustomer(event){
 
   setCreateCustomerSubmitting(true);
   try{
-    // admin-only action (server-side authorization required)
-    const res=await fetch('/.netlify/functions/create-customer',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    const json=await res.json().catch(()=>({}));
-    if(!res.ok || !json?.success){
+    const json=await callAdminFunction('create-customer',payload);
+    if(!json?.success){
       if(Array.isArray(json?.missing_fields)){
         json.missing_fields.forEach(field=>showCreateCustomerError(field,'Pflichtfeld.'));
       }
@@ -1951,7 +1965,11 @@ async function submitCreateCustomer(event){
     renderActivity();
     setTimeout(()=>closeCreateCustomerModal(),700);
   }catch(err){
-    setCreateCustomerFeedback('error',err?.message||'Unbekannter Fehler bei Kundenerstellung.');
+    const payload=err?.payload||{};
+    if(Array.isArray(payload?.missing_fields)){
+      payload.missing_fields.forEach(field=>showCreateCustomerError(field,'Pflichtfeld.'));
+    }
+    setCreateCustomerFeedback('error',payload?.error||err?.message||'Unbekannter Fehler bei Kundenerstellung.');
   }finally{
     setCreateCustomerSubmitting(false);
   }
