@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { requireAdminCaller } = require('./_lib/require-admin');
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -41,6 +42,20 @@ exports.handler = async (event) => {
       process.env.SUPABASE_SERVICE_ROLE_KEY,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    const caller = await requireAdminCaller({
+      event,
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      sbAdmin
+    });
+    if (!caller.ok) {
+      return {
+        statusCode: caller.statusCode,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: false, ...caller.body }),
+      };
+    }
 
     // ──────────────────────────────────────────────
     // 1. authUserId aus public.users laden
