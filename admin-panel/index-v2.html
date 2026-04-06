@@ -497,10 +497,10 @@ function renderAiSetup(){
 function renderCases(){
   const callbacks=state.cases.filter(c=>c.type==='Rückruf');
   const followups=state.cases.filter(c=>c.type==='Follow-up');
-  const row=(c,withType=false)=>`<tr>${withType?`<td>${esc(c.type)}</td>`:''}<td>${toneBadge(c.priority)}</td><td>${toneBadge(c.status)}</td><td>${esc(c.owner)}</td><td>${esc(customerById(c.customerId).name)}</td><td>${esc(c.latest)}</td><td class="wrap">${esc(c.notes)}</td></tr>`;
-  document.getElementById('cases-callbacks').innerHTML=callbacks.map(c=>row(c)).join('');
-  document.getElementById('cases-followups').innerHTML=followups.map(c=>row(c)).join('');
-  document.getElementById('cases-all').innerHTML=state.cases.map(c=>row(c,true)).join('');
+  const row=c=>`<tr><td>${toneBadge(c.priority)}</td><td>${toneBadge(c.status)}</td><td>${esc(c.owner)}</td><td>${esc(customerById(c.customerId).name)}</td><td>${esc(c.latest)}</td><td class="wrap">${esc(c.notes)}</td></tr>`;
+  document.getElementById('cases-callbacks').innerHTML=callbacks.map(row).join('');
+  document.getElementById('cases-followups').innerHTML=followups.map(row).join('');
+  document.getElementById('cases-all').innerHTML=state.cases.map(c=>`<tr><td>${esc(c.type)}</td>${row(c).replace('<tr>','').replace('</tr>','')}</tr>`).join('');
 }
 
 function renderActivity(){
