@@ -3083,8 +3083,10 @@ function renderCallbackQueueMiniList(rows) {
     const qualMap = {hot:'chip-hot',warm:'chip-warm',kalt:'chip-kalt',neu:'chip-neu'};
     const qualLbl = {hot:'🔥 Hot',warm:'Warm',kalt:'Kalt',neu:'Neu'};
     const prio = getPriority(r);
+    const prioClassMap = {overdue:'chip-hot', today:'chip-working', hot:'chip-hot'};
+    const prioClass = prioClassMap[prio.key] || 'chip-hot';
     const prioChipHtml = (prio.key !== 'normal' && prio.key !== 'done' && prio.key !== 'callback')
-      ? `<span class="chip ${prio.key==='overdue'?'chip-hot':prio.key==='today'?'chip-working':'chip-hot'}">${prio.icon} ${escHtml(prio.label)}</span>` : '';
+      ? `<span class="chip ${prioClass}">${prio.icon} ${escHtml(prio.label)}</span>` : '';
     const qualChipHtml = (qualK !== 'neu') ? `<span class="chip ${qualMap[qualK]}">${qualLbl[qualK]}</span>` : '';
     const anrufenBtn = phone
       ? `<button class="btn-a btn-call" style="font-size:11.5px;height:30px;padding:0 10px;" onclick="directCall('${r.id}','${callTarget}')">📞 Anrufen</button>`
