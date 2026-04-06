@@ -1,252 +1,296 @@
-# Voxera Umsetzungsplan (3 Ebenen)
+# Voxera – Technischer Umsetzungsplan (Execution Mode)
 
-Basierend auf dem Audit wird hier ein konkreter Umsetzungsplan in 3 Ebenen definiert.
-
----
-
-## 1) Sofortmaßnahmen (heute / diese Woche)
-
-### 1.1 Service-Role aus Frontend entfernen
-- **Ziel:** Kein privilegierter Supabase-Zugriff mehr aus Browser-Code.
-- **Root Cause:** Service-Key wird im Admin-Frontend initialisiert.
-- **Betroffene Bereiche:** `admin-panel/index.html`, Supabase Auth Admin APIs, Admin-Management-Flows.
-- **Konkrete technische Schritte:**
-  1. Neue Netlify Functions (oder Supabase Edge Functions) anlegen für:
-     - `POST /admin/create-user`
-     - `POST /admin/create-admin`
-     - `DELETE /admin/delete-admin`
-  2. Service-Key ausschließlich als Server-Secret hinterlegen.
-  3. Frontend-Aufrufe auf die neuen serverseitigen Endpunkte umstellen.
-  4. Supabase Service Key rotieren.
-  5. Incident-Check: Logs auf missbräuchliche Nutzung der alten Keys prüfen.
-- **Priorität:** **P1**
-- **Abhängigkeiten:** Deploy-Pipeline für Functions, Secret-Management.
-- **Definition of Done:**
-  - Kein `service_role`/`SB_SVC` mehr im Client-Bundle.
-  - Alle privilegierten Admin-Aktionen laufen serverseitig.
-  - Rotierter Key produktiv, alter Key deaktiviert.
-
-### 1.2 Single Source of Truth festlegen
-- **Ziel:** Eine einzige verlässliche Datenquelle für Customers/Calls/Leads.
-- **Root Cause:** Dashboard liest Supabase, Admin liest Airtable.
-- **Betroffene Bereiche:** Customer Dashboard, Admin Portal, Datenkonsistenz, Reporting.
-- **Konkrete technische Schritte:**
-  1. Architekturentscheidung dokumentieren: **Supabase = SSOT**.
-  2. Airtable als „read-only legacy source“ markieren (kurzfristig) oder direkt ablösen.
-  3. Datenflüsse inventarisieren (Calls, Kunden, Statusupdates).
-  4. Reconciliation-Skript bauen (Airtable ↔ Supabase Delta Check).
-- **Priorität:** **P1**
-- **Abhängigkeiten:** Stakeholder-Entscheid, Datenmodell-Freigabe.
-- **Definition of Done:**
-  - Dokumentierter SSOT-Entscheid.
-  - Keine neuen Features mehr gegen Airtable.
-  - Reconciliation-Report ohne kritische Deltas.
-
-### 1.3 Admin von Airtable auf Supabase-Migrationspfad starten
-- **Ziel:** Admin liest/schreibt Kernobjekte direkt in Supabase.
-- **Root Cause:** Airtable API ist primärer Datenpfad im Admin.
-- **Betroffene Bereiche:** Kundenliste, Call-Log, Stats, Customer CRUD im Admin.
-- **Konkrete technische Schritte:**
-  1. Supabase Views/RPCs für Admin-Listen anlegen (`admin_customers_v`, `admin_calls_v`).
-  2. Admin-Frontend Query-Layer abstrahieren (`dataProvider`), Airtable-Implementierung ersetzen.
-  3. Schrittweise Umschaltung per Feature Toggle (intern).
-  4. Gleichlauf-Validierung über Stichproben (Top 100 Kunden, letzte 30 Tage Calls).
-- **Priorität:** **P1**
-- **Abhängigkeiten:** SSOT-Entscheid, Tabellen-/Index-Design.
-- **Definition of Done:**
-  - Admin-Listen/CRUD laufen auf Supabase.
-  - Airtable-Token nicht mehr nötig für operative Kernflows.
-
-### 1.4 ID-/Customer-Modell vereinheitlichen
-- **Ziel:** Eindeutige, stabile Kundenzuordnung ohne Feld-Mismatch.
-- **Root Cause:** Gemischte IDs (`id`, `customer_id`, `dashboard_id`, Telefonnummer).
-- **Betroffene Bereiche:** Auth-Mapping, Calls-Zuordnung, Admin-Kundenanlage.
-- **Konkrete technische Schritte:**
-  1. Canonical Modell: `customers.id` (UUID) als primärer Schlüssel.
-  2. `users.customer_id` als FK auf `customers.id`.
-  3. Telefonnummer als normales Attribut (`voxera_number_e164`) statt Identifier.
-  4. DB Constraints ergänzen (FK + unique index + not null wo sinnvoll).
-  5. Migrationsskript + Backfill für Bestandsdaten.
-- **Priorität:** **P1**
-- **Abhängigkeiten:** SSOT, Migration-Window, QA-Testdaten.
-- **Definition of Done:**
-  - Alle produktiven Zuordnungen laufen über UUID-FK.
-  - Keine Geschäftslogik mehr auf Basis von Telefonnummer als Schlüssel.
-
-### 1.5 Make-Ingest auf robusten Supabase-Write standardisieren (v1)
-- **Ziel:** Calls gehen zuverlässig und idempotent in Supabase ein.
-- **Root Cause:** Kein versionierter Ingest-Contract/Retry/DLQ im Repo.
-- **Betroffene Bereiche:** Make, Supabase `calls`, Dashboard/Admin Sichtbarkeit.
-- **Konkrete technische Schritte:**
-  1. Ingest-Endpoint definieren (signed webhook).
-  2. Schema-Vertrag versionieren (`ingest_version`, required fields).
-  3. Idempotency Key (`provider_call_id`) + unique constraint.
-  4. Fehlerstrategie: Retry + Dead Letter Queue + Alerting.
-  5. Ingest-Log-Tabelle (`call_ingest_events`) für Forensik.
-- **Priorität:** **P1**
-- **Abhängigkeiten:** Telefonie-Provider Felder, Make-Szenario-Anpassung.
-- **Definition of Done:**
-  - Duplicate Events erzeugen keine Duplikate.
-  - Fehlgeschlagene Writes sind im DLQ sichtbar und replaybar.
-
-### 1.6 `public.users` Provisionierung automatisieren
-- **Ziel:** Jeder Auth-User hat deterministisch einen `public.users` Datensatz.
-- **Root Cause:** Dashboard hängt von `users.customer_id` ab; fehlender Datensatz bricht Kontextauflösung.
-- **Betroffene Bereiche:** Login, Customer-Kontext, Onboarding.
-- **Konkrete technische Schritte:**
-  1. DB Trigger auf `auth.users` (after insert) für `public.users` Upsert.
-  2. Optional Queue/Job für Retry bei transienten Fehlern.
-  3. Backfill-Skript für bestehende Auth-User ohne `public.users`.
-  4. Monitoring-Metrik: `auth_users_without_public_users`.
-- **Priorität:** **P1**
-- **Abhängigkeiten:** Supabase DB Migration-Rechte.
-- **Definition of Done:**
-  - 0 fehlende `public.users` Datensätze für aktive Auth-User.
-  - Neuer User erscheint automatisch korrekt verknüpft.
-
-### 1.7 Admin Login UX/UI professionalisieren (Quick Wins)
-- **Ziel:** Vertrauenswürdiges, konsistentes Login-Erlebnis.
-- **Root Cause:** `admin-panel/login.html` ist visuell/strukturell abweichend und referenziert nicht vorhandene `styles.css`.
-- **Betroffene Bereiche:** Admin Login, Markenwahrnehmung, Conversion.
-- **Konkrete technische Schritte:**
-  1. Login-Page auf denselben UI-Standard wie Dashboard/Admin bringen.
-  2. Inline Validation, klare Error-Copy, Loading State, Passwort-Reset-Link.
-  3. Konsistente Favicon/Branding/Typografie.
-  4. A11y-Basics (Label-For, Fokus, Kontrast).
-- **Priorität:** **P2**
-- **Abhängigkeiten:** Design-System-Entscheid, Copy-Freigabe.
-- **Definition of Done:**
-  - Professionelles, markenkonsistentes Login.
-  - Keine 404-Referenzen auf fehlende CSS-Dateien.
+Stand: 2026-04-06  
+Fokus: Launch-Stabilität, Security, belastbare Operations.
 
 ---
 
-## 2) Beta-Readiness
+## 1) Top 10 Maßnahmen in exakter Reihenfolge
 
-### 2.1 Vollständige Admin-Migration (Airtable-off für Core-Flows)
-- **Ziel:** Core-Bereiche im Admin vollständig auf Supabase.
-- **Root Cause:** Historisch gewachsene Airtable-Kopplung.
-- **Betroffene Bereiche:** Kundenverwaltung, Call-Log, Statistik, Statusupdates.
-- **Konkrete technische Schritte:**
-  1. Alle verbleibenden Airtable-Endpunkte entfernen.
-  2. Supabase Indizes/Materialized Views für Reporting-Performance.
-  3. RLS Policies für Admin-Rollen (`super-admin`, `admin`, `support`) finalisieren.
-- **Priorität:** **P1**
-- **Abhängigkeiten:** Abschluss Sofortmaßnahmen 1.2/1.3.
-- **Definition of Done:**
-  - Airtable wird für Core-Produktpfade nicht mehr aufgerufen.
-  - Admin und Dashboard zeigen dieselbe Datenrealität.
+> Marker-Legende je Maßnahme:  
+> **[SOFORT]** sofort umsetzbar  
+> **[UMBAU]** braucht strukturellen Umbau  
+> **[FUNCTION]** braucht/ändert Netlify Function  
+> **[DB]** braucht Supabase DB/RLS/Migration
 
-### 2.2 End-to-End Sync & Realtime verbessern
-- **Ziel:** Änderungen sind zeitnah und konsistent in beiden Oberflächen sichtbar.
-- **Root Cause:** Polling-only und fehlende explizite Sync-Layer.
-- **Betroffene Bereiche:** Dashboard Call-Liste, Admin Stats, Statuspropagation.
-- **Konkrete technische Schritte:**
-  1. Supabase Realtime Channels für Calls/Status nutzen.
-  2. Polling als Fallback, nicht als Primärpfad.
-  3. Last-Sync Indicator + stale-data warning in UI.
-- **Priorität:** **P2**
-- **Abhängigkeiten:** SSOT & stabile Tabellen.
-- **Definition of Done:**
-  - Neuer Call erscheint in definierter SLA (z. B. <10s) in beiden Flächen.
-  - UI zeigt letzte erfolgreiche Aktualisierung.
+### 1. Lifecycle-Statusmodell vereinheitlichen (Code + DB + Flows)
+**Marker:** [SOFORT] [UMBAU] [FUNCTION] [DB]
 
-### 2.3 Vertragsdaten von localStorage in Supabase
-- **Ziel:** Teamfähig, revisionssicher, geräteunabhängig.
-- **Root Cause:** Vertragsobjekte liegen nur lokal im Browser.
-- **Betroffene Bereiche:** Admin Customer Profile / Verträge.
-- **Konkrete technische Schritte:**
-  1. Tabellen `contracts`, `contract_files`, `contract_audit_logs`.
-  2. File Upload in Supabase Storage + Signed URLs.
-  3. Migration bestehender lokaler Verträge (optional manueller Import).
-- **Priorität:** **P2**
-- **Abhängigkeiten:** Security/Storage Policies.
-- **Definition of Done:**
-  - Vertragsliste ist user-/device-übergreifend identisch.
-  - Audit-Log pro Vertragsänderung vorhanden.
-
-### 2.4 QA & Observability-Fundament
-- **Ziel:** Verlässliche Releases ohne Regressionen.
-- **Root Cause:** Fehlende automatisierte E2E-/Smoke-Absicherung.
-- **Betroffene Bereiche:** Gesamtes Produkt.
-- **Konkrete technische Schritte:**
-  1. E2E-Test-Suite (Login, Call ingest, Statuswechsel, Role gating).
-  2. Error tracking (Sentry o.ä.) + strukturierte Logs.
-  3. Betriebsmetriken: ingest success rate, lag, failed writes, auth failures.
-- **Priorität:** **P2**
-- **Abhängigkeiten:** Stabile Endpunkte und Testdaten.
-- **Definition of Done:**
-  - CI blockiert bei kritischen E2E-Fehlern.
-  - Dashboards/Alerts für Kernmetriken aktiv.
+- **Ziel:** Ein einziges kanonisches Statusmodell in allen Schichten.
+- **Warum jetzt:** Aktuell kollidieren `pending/active` mit `onboarding/ready/invited/activated/live/paused`; das blockiert Aktivierung/Zugriff.
+- **Betroffene Dateien:**
+  - `supabase/sql/2026-04-06_customer_lifecycle_status.sql`
+  - `admin-panel/netlify/functions/activate-subscription.js`
+  - `admin-panel/netlify/functions/send-customer-access.js`
+  - `customer-dashboard/index.html`
+  - `admin-panel/index.html`
+- **Konkrete Änderung:**
+  1. Canonical Customer-Lifecycle final festlegen (siehe Abschnitt Statusmodell unten).
+  2. `activate-subscription` auf canonical Transitionen umbauen (kein `pending/active` mehr).
+  3. Dashboard Access Guard von `status === 'active'` auf erlaubte Live-Status umstellen.
+  4. Admin-UI Labels/Filter ausschließlich aus canonical Enum ableiten.
+- **Risiko wenn nicht gemacht:** Aktivierungsfehler, Kunden-Lockout, inkonsistente Betriebszustände.
 
 ---
 
-## 3) Public-Launch-Readiness
+### 2. Harter Admin-Access-Gate im Admin-Portal
+**Marker:** [SOFORT] [UMBAU]
 
-### 3.1 Security Hardening & Compliance
-- **Ziel:** Produktionsreife Sicherheitsbasis für externen Launch.
-- **Root Cause:** Historische MVP-Trade-offs in Key/Role/Data-Handling.
-- **Betroffene Bereiche:** Auth, Datenzugriff, Admin-Aktionen, Secrets.
-- **Konkrete technische Schritte:**
-  1. Finales Secret-Management + regelmäßige Key-Rotation-Policy.
-  2. Security Review aller RLS Policies.
-  3. Audit-Logging für privilegierte Aktionen.
-  4. Incident Runbook + Access Review Prozess.
-- **Priorität:** **P1**
-- **Abhängigkeiten:** Abschluss serverseitiger Admin-APIs.
-- **Definition of Done:**
-  - Security-Review ohne kritische Findings.
-  - Vollständige Nachvollziehbarkeit privilegierter Aktionen.
-
-### 3.2 Produktqualität & Vertrauen (UX, Copy, IA)
-- **Ziel:** Professioneller Marktauftritt und hohe Nutzerakzeptanz.
-- **Root Cause:** Uneinheitliche UX zwischen Admin und Dashboard.
-- **Betroffene Bereiche:** Login, Navigation, States, Copy, CTA.
-- **Konkrete technische Schritte:**
-  1. Design-System konsolidieren (Tokens, Komponenten, State Patterns).
-  2. Einheitliche Terminologie für Calls/Leads/Status.
-  3. Error/Empty/Loading States standardisieren.
-- **Priorität:** **P2**
-- **Abhängigkeiten:** UX-Review, Content-Freigabe.
-- **Definition of Done:**
-  - Konsistente UI/UX über beide Portale.
-  - Weniger Support-Tickets durch bessere Verständlichkeit.
-
-### 3.3 Skalierungs- und Betriebsreife
-- **Ziel:** Stabiler Betrieb bei wachsender Kundenbasis.
-- **Root Cause:** Aktuell begrenzte Skalierungs-/Operability-Mechaniken.
-- **Betroffene Bereiche:** Query-Performance, Ingest-Pipeline, On-Call.
-- **Konkrete technische Schritte:**
-  1. Query-Profiling + Indexing + Pagination überall.
-  2. Replay-Tool für fehlgeschlagene Ingest Events.
-  3. SLO/SLA Definition (z. B. ingest freshness, uptime).
-- **Priorität:** **P2**
-- **Abhängigkeiten:** Metrics/Observability stack.
-- **Definition of Done:**
-  - Lasttests innerhalb SLA.
-  - Betriebsprozesse für Störungen dokumentiert und geübt.
+- **Ziel:** `admin-panel/index.html` nur mit valider Session + Admin-Rolle nutzbar machen.
+- **Warum jetzt:** Login prüft Admin-Rolle, aber Dashboard-Seite selbst erzwingt das aktuell nicht hart.
+- **Betroffene Dateien:**
+  - `admin-panel/index.html`
+  - `admin-panel/login.html`
+- **Konkrete Änderung:**
+  1. In `init()` vor jedem Datenladen: Session holen, Rolle aus `admins` prüfen, sonst redirect `login.html`.
+  2. Preview-/Fallback-Pfade entfernen, die ohne Session weiterlaufen.
+  3. Logout erzwingen bei Role-Mismatch.
+- **Risiko wenn nicht gemacht:** Unerlaubte Einsicht/Bedienung über direkte URL-Navigation.
 
 ---
 
-## Fokus-Tracking (explizit angefragte Themen)
+### 3. Privilegierte Functions mit Caller-Auth absichern
+**Marker:** [SOFORT] [FUNCTION] [DB]
 
-| Fokuspunkt | Ebene | Zielstatus |
-|---|---|---|
-| Service-Role aus Frontend entfernen | Sofortmaßnahmen | P1 / Muss vor Beta abgeschlossen |
-| Single Source of Truth festlegen | Sofortmaßnahmen | P1 / Architekturentscheidung + Umsetzungspfad |
-| Admin von Airtable auf Supabase migrieren | Sofortmaßnahmen + Beta | P1 / Core-Flows komplett auf Supabase |
-| ID-/Customer-Modell vereinheitlichen | Sofortmaßnahmen | P1 / UUID-FK Modell produktiv |
-| Make-Ingest robust auf Supabase standardisieren | Sofortmaßnahmen + Beta | P1 / idempotent, retry, DLQ |
-| `public.users` Provisionierung automatisieren | Sofortmaßnahmen | P1 / 0 fehlende User-Zuordnungen |
-| Admin Login UX/UI professionalisieren | Sofortmaßnahmen | P2 / visuell + funktional konsistent |
+- **Ziel:** Kritische Mutationen nur von authentifizierten Admins erlauben.
+- **Warum jetzt:** Functions arbeiten mit Service Role, prüfen aber aktuell keinen Caller-Admin-Kontext.
+- **Betroffene Dateien:**
+  - `admin-panel/netlify/functions/create-customer.js`
+  - `admin-panel/netlify/functions/send-customer-access.js`
+  - `admin-panel/netlify/functions/activate-subscription.js`
+  - `admin-panel/netlify/functions/delete-customer.js`
+- **Konkrete Änderung:**
+  1. Gemeinsames Guard-Modul bauen (`_lib/require-admin.js`):
+     - Bearer JWT prüfen (`auth.getUser(jwt)`),
+     - in `admins`-Tabelle Mitgliedschaft validieren,
+     - bei Fail `401/403`.
+  2. Guard in alle 4 Functions als erster Schritt integrieren.
+  3. Optional: allowlist Origins statt `*` für CORS.
+- **Risiko wenn nicht gemacht:** Kritische Aktionen (Delete/Invite/Create) sind potentiell missbrauchbar.
 
 ---
 
-## Empfohlene Reihenfolge (konkret)
-1. **Security Freeze:** Service-Key raus + Rotation (1.1)
-2. **Data Governance:** SSOT-Entscheid + ID-Modell fixieren (1.2 + 1.4)
-3. **Ingest Reliability:** Make→Supabase robust machen (1.5)
-4. **Provisioning Safety:** `public.users` Automatisierung (1.6)
-5. **Admin Data Migration:** Airtable Core-Flows ablösen (1.3, dann 2.1)
-6. **UX Professionalisierung:** Admin Login & konsistente States (1.7, 3.2)
-7. **Operational Excellence:** Tests, Monitoring, Realtime, SLA (2.2, 2.4, 3.3)
+### 4. Cases-Flow serverseitig machen (kein UI-only Zustand)
+**Marker:** [SOFORT] [UMBAU] [FUNCTION] [DB]
+
+- **Ziel:** Case-Erstellung/-Updates robust in DB persistieren.
+- **Warum jetzt:** Admin-Case-Aktionen mutieren aktuell primär Frontend-State.
+- **Betroffene Dateien:**
+  - `admin-panel/index.html`
+  - **neu:** `admin-panel/netlify/functions/cases-create.js`
+  - **neu:** `admin-panel/netlify/functions/cases-update.js`
+- **Konkrete Änderung:**
+  1. `createCaseForCustomer` auf Function-Call umstellen.
+  2. `updateCase` auf Function-Call umstellen.
+  3. Ergebnis danach aus DB reloaden, nicht lokal „vortäuschen“.
+- **Risiko wenn nicht gemacht:** Ops arbeitet mit Phantom-Cases, Follow-up bricht im Betrieb.
+
+---
+
+### 5. Onboarding-Progress als Server-Source-of-Truth definieren
+**Marker:** [SOFORT] [UMBAU] [FUNCTION] [DB]
+
+- **Ziel:** Setup-/Onboarding-Zustand verlässlich in DB, nicht überwiegend localStorage/synthetisch.
+- **Warum jetzt:** Support/Ops und Kunde sehen sonst unterschiedliche Realitäten.
+- **Betroffene Dateien:**
+  - `customer-dashboard/index.html`
+  - `admin-panel/index.html`
+  - **neu:** `supabase/sql/2026-04-06_onboarding_events.sql`
+  - **neu:** `admin-panel/netlify/functions/onboarding-update.js`
+- **Konkrete Änderung:**
+  1. Tabelle `onboarding_events` einführen (step, action, actor, timestamp).
+  2. `onboarding.progress/status/next_step` nur serverseitig berechnen/setzen.
+  3. Dashboard Wizard-Completion in DB schreiben; localStorage nur als UI-Cache.
+- **Risiko wenn nicht gemacht:** Unzuverlässige Go-Live-Freigaben und hoher Support-Aufwand.
+
+---
+
+### 6. Customer-Activation-Flow sauber trennen (Invite vs Activated vs Live)
+**Marker:** [SOFORT] [FUNCTION] [DB]
+
+- **Ziel:** Klarer, testbarer Ablauf von Zugang senden bis produktiv live.
+- **Warum jetzt:** Derzeit vermischen sich Invite-, Passwort-, und Betriebsstatus.
+- **Betroffene Dateien:**
+  - `admin-panel/netlify/functions/send-customer-access.js`
+  - `customer-dashboard/activate.html`
+  - `customer-dashboard/index.html`
+  - **neu:** `admin-panel/netlify/functions/customer-mark-live.js`
+- **Konkrete Änderung:**
+  1. `send-customer-access`: nur Invite erzeugen + `status='invited'`.
+  2. Nach Passwort-Setzen Hook (`mark_activated`) robust idempotent lassen.
+  3. `live` nur über explizite Freigabe (Onboarding complete + forwarding ready + optional test call).
+- **Risiko wenn nicht gemacht:** Kunde hat Zugang, ist aber operativ nicht sauber „live“ (oder umgekehrt).
+
+---
+
+### 7. Delete-Flow transaktional härten + Soft-Delete-Fallback
+**Marker:** [SOFORT] [FUNCTION] [DB]
+
+- **Ziel:** Löschvorgang sicher, nachvollziehbar, rückverfolgbar.
+- **Warum jetzt:** Hard Delete in vielen Schritten kann bei Teilfehlern inkonsistent bleiben.
+- **Betroffene Dateien:**
+  - `admin-panel/netlify/functions/delete-customer.js`
+  - `supabase/sql/2026-04-03_delete_auth_user_data.sql`
+  - **neu:** `supabase/sql/2026-04-06_customer_soft_delete.sql`
+- **Konkrete Änderung:**
+  1. Erst Soft-Delete (`customers.deleted_at`, `status='paused'`) als Standard.
+  2. Hard-Delete nur Admin-Superrolle + explizites `confirm=true`.
+  3. Audit-Event pro Löschschritt speichern.
+- **Risiko wenn nicht gemacht:** Datenverlust ohne Recovery, inkonsistente Referenzen.
+
+---
+
+### 8. RLS- und Rollenmodell explizit fertigziehen
+**Marker:** [SOFORT] [DB]
+
+- **Ziel:** Zugriff sauber per Rolle und Beziehung kontrollieren.
+- **Warum jetzt:** Frontends arbeiten direkt mit Anon-Key + RLS-Annahme.
+- **Betroffene Dateien:**
+  - **neu:** `supabase/sql/2026-04-06_rls_hardening.sql`
+  - `supabase/sql/2026-04-02_user_profile_provisioning.sql`
+- **Konkrete Änderung:**
+  1. Policies für `customers`, `calls`, `cases`, `onboarding`, `users`, `admins` finalisieren.
+  2. Customer darf nur eigenes `customer_id` sehen/schreiben (erlaubte Felder eingeschränkt).
+  3. Admin-Rollen dürfen über Functions mutieren; direkte Table-Writes minimieren.
+- **Risiko wenn nicht gemacht:** Datenzugriff hängt an impliziten Annahmen, Security-Risiko bleibt.
+
+---
+
+### 9. Dead Code/Artefakte entfernen und Verantwortlichkeiten klären
+**Marker:** [SOFORT]
+
+- **Ziel:** Verwirrung und Fehlbedienung im Team reduzieren.
+- **Warum jetzt:** Root-Snippets (`activate-subscription.js`, `delete-customer.js`) sind keine produktive Laufzeit.
+- **Betroffene Dateien:**
+  - `activate-subscription.js`
+  - `delete-customer.js`
+  - `INTERNAL_SYSTEM_DOCUMENTATION_2026-04-06.md` (Doku ergänzen)
+- **Konkrete Änderung:**
+  1. Root-Snippets löschen oder in `docs/archive/` verschieben.
+  2. „Source of runtime truth“ dokumentieren: nur `admin-panel/netlify/functions/*`.
+- **Risiko wenn nicht gemacht:** Falsche Annahmen bei Hotfixes/Onboarding.
+
+---
+
+### 10. Minimaler Release-Gate mit technischen Checks
+**Marker:** [SOFORT] [UMBAU]
+
+- **Ziel:** Go-Live nur bei erfüllten Muss-Kriterien.
+- **Warum jetzt:** Es fehlt eine harte technische „Ready/Not Ready“-Linie.
+- **Betroffene Dateien:**
+  - **neu:** `RELEASE_GATE_VOXERA.md`
+  - **neu:** `scripts/release-smoke.sh`
+- **Konkrete Änderung:**
+  1. Smoke Checks: login admin/customer, invite flow, case create/update, delete dry-run.
+  2. Stage/Prod-Konfigcheck (`SUPABASE_URL`, keys, webhook URLs).
+  3. Abbruchkriterien definieren (z. B. Lifecycle mismatch, auth bypass, function auth fail).
+- **Risiko wenn nicht gemacht:** Launch trotz bekannter Defekte.
+
+---
+
+## 2) Fehlende / unzureichende Netlify Functions (exakt)
+
+### Muss neu bauen
+1. **`cases-create`**
+   - **Zweck:** Persistente Anlage von Cases (Rückruf/Follow-up).
+   - **Verantwortlichkeit:** Validierung + Insert + Audit Event.
+2. **`cases-update`**
+   - **Zweck:** Status/Priority/Owner/Notes Updates.
+   - **Verantwortlichkeit:** Transition-Checks + Update + Audit Event.
+3. **`onboarding-update`**
+   - **Zweck:** Step-Status & Onboarding next_step/progress serverseitig.
+   - **Verantwortlichkeit:** Step-Input normalisieren, Aggregat aktualisieren.
+4. **`customer-mark-live`**
+   - **Zweck:** finaler Übergang `activated -> live`.
+   - **Verantwortlichkeit:** Preconditions prüfen (Onboarding vollständig, notwendige Felder gesetzt).
+
+### Muss nachschärfen (bestehende Functions)
+1. `create-customer` → Caller-Admin-Auth + strictere Feldvalidierung + idempotency bei Retry.
+2. `send-customer-access` → Caller-Admin-Auth + idempotent bei bereits `invited/activated`.
+3. `activate-subscription` → auf canonical Statusmodell korrigieren.
+4. `delete-customer` → Soft-delete default + audit + role gate.
+
+---
+
+## 3) Ziel-Statusmodell (klar und verbindlich)
+
+## 3.1 Customer Lifecycle
+`onboarding -> ready -> invited -> activated -> live -> paused`
+
+- **onboarding:** Daten/Setup unvollständig
+- **ready:** alle Voraussetzungen für Invite erfüllt
+- **invited:** Zugang versendet
+- **activated:** Passwort gesetzt, Zugang nutzbar
+- **live:** operativ freigeschaltet
+- **paused:** Betrieb pausiert
+
+Verboten: direkte Sprünge ohne Preconditions (z. B. `onboarding -> live`).
+
+## 3.2 Onboarding Lifecycle
+`not_started -> in_progress -> blocked -> ready -> completed`
+
+- `ready`: alle Pflichtschritte für Invite/Activation erfüllt
+- `completed`: Go-Live-Voraussetzungen erfüllt
+
+## 3.3 Access Lifecycle
+`not_sent -> sent -> activated`
+
+- Ableitung aus Invite + Auth-Status; muss mit Customer-Status synchron bleiben.
+
+## 3.4 Case Lifecycle
+`open -> in_progress -> waiting -> done`
+
+- `done` ist terminal.
+- Jede Änderung erzeugt `case_events` Eintrag.
+
+## 3.5 Call Lifecycle
+`new -> in_progress -> follow_up_scheduled -> closed`
+
+- Mapping auf Dashboard-Labels bleibt möglich, DB-seitig aber canonical speichern.
+
+---
+
+## 4) Go-Live-Plan in 3 Stufen
+
+## Stage 1 – Launch-kritisch (vor Go-Live, ohne Ausnahme)
+
+**Enthaltene Maßnahmen:** 1, 2, 3, 4, 6, 8, 10  
+**Dauer:** realistisch 7–10 Arbeitstage bei fokussierter Umsetzung.
+
+- Lifecycle harmonisieren und produktive Guards reparieren.
+- Admin-/Function-Auth hart machen.
+- Cases serverseitig persistieren.
+- RLS + Release-Gate finalisieren.
+
+**Go/No-Go Kriterien:**
+- Kein `pending/active` mehr in produktiver Laufzeitlogik.
+- Alle privilegierten Functions verweigern ohne validen Admin.
+- Case create/update in DB nachvollziehbar.
+
+## Stage 2 – Kurz nach Launch (Stabilisierung)
+
+**Enthaltene Maßnahmen:** 5, 7, 9  
+**Dauer:** 1–2 Wochen nach Launch.
+
+- Onboarding-SSOT und Event-Historie abschließen.
+- Delete-Flow robust + recoverable machen.
+- Artefakt-/Dokubereinigung.
+
+## Stage 3 – Skalierung / Optimierung
+
+**Enthaltene Maßnahmen:** Erweiterte Observability, Performance, Modularisierung.
+
+- JS-Monolithen schrittweise in Module aufteilen.
+- Realtime-/Ops-Metriken und SLOs ergänzen.
+- Optional: weitere Domain-APIs bündeln (billing/reporting).
+
+---
+
+## 5) Direkt umsetzbare Arbeitspakete (Sprint-Start heute)
+
+1. `customer-dashboard/index.html`: Access Guard auf canonical Status korrigieren.
+2. `admin-panel/index.html`: harter Session/Admin Redirect vor `loadDataFromSupabase()`.
+3. Shared Function-Guard (`require-admin`) erstellen und in 4 Functions integrieren.
+4. `cases-create` + `cases-update` Functions scaffolden und Admin-UI umstellen.
+5. SQL-Migration `rls_hardening` + Policy Tests gegen Stage-DB fahren.
+

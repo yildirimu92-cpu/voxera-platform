@@ -1,6 +1,7 @@
 // netlify/functions/activate-subscription.js
 //
-// Activates a subscription for an existing customer.
+// Activates a subscription for an existing customer and transitions
+// customer lifecycle status to 'live' (if transition is legal).
 //
 // NOTE: subscriptions.customer_id is currently UNIQUE (PR 1), meaning one
 // subscription per customer. This is intentional for the initial release.
@@ -18,6 +19,8 @@
 // Returns:
 //   { success, subscription_id, customer_id }
 const { createClient } = require('@supabase/supabase-js');
+const { STATUS, normalizeCustomerStatus, assertCustomerTransition } = require('./_lib/status-model');
+const { requireAdminCaller } = require('./_lib/require-admin');
 
 exports.handler = async (event) => {
   const headers = {
@@ -32,11 +35,22 @@ exports.handler = async (event) => {
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!sbUrl || !sbServiceKey) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.' }) };
+  const sbAnonKey = process.env.SUPABASE_ANON_KEY;
+  if (!sbUrl || !sbServiceKey || !sbAnonKey) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.' }) };
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  // admin-only action
+  const caller = await requireAdminCaller({
+    event,
+    supabaseUrl: sbUrl,
+    supabaseAnonKey: sbAnonKey,
+    sbAdmin
+  });
+  if (!caller.ok) {
+    return { statusCode: caller.statusCode, headers, body: JSON.stringify(caller.body) };
+  }
 
   let body;
   try { body = JSON.parse(event.body); }
@@ -48,7 +62,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    // 1. Verify customer exists and is in 'pending' status
+    // 1. Verify customer exists and transition to live is allowed
     const { data: customer, error: custErr } = await sbAdmin
       .from('customers')
       .select('id, status')
@@ -56,9 +70,9 @@ exports.handler = async (event) => {
       .single();
     if (custErr || !customer) throw new Error('Kunde nicht gefunden');
 
-    // Only 'pending' customers can be activated
-    if (customer.status !== 'pending') {
-      throw new Error(`Kunde kann nicht aktiviert werden. Status ist '${customer.status}', erwartet wird 'pending'.`);
+    const currentStatus = normalizeCustomerStatus(customer.status);
+    if (currentStatus !== STATUS.customer.LIVE) {
+      assertCustomerTransition(currentStatus, STATUS.customer.LIVE);
     }
 
     // 2. Upsert subscription record (status always 'active' on activation).
@@ -84,12 +98,12 @@ exports.handler = async (event) => {
     if (subErr) throw new Error('Subscription erstellen: ' + subErr.message);
     const subscriptionId = subscription.id;
 
-    // 3. Update customer: status → 'active', link subscription, set activated_at
+    // 3. Update customer: status → 'live', link subscription, set activated_at
     const now = new Date().toISOString();
     const { error: updateErr } = await sbAdmin
       .from('customers')
       .update({
-        status: 'active',
+        status: STATUS.customer.LIVE,
         subscription_id: subscriptionId,
         activated_at: now,
         updated_at: now

@@ -856,14 +856,15 @@ function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function idsEq(a,b){return String(a)===String(b);}
 function customerById(id){return state.customers.find(c=>idsEq(c.id,id));}
-const CUSTOMER_LIFECYCLE_STATUS_ORDER=['onboarding','ready','invited','activated','live','paused'];
+const CUSTOMER_LIFECYCLE_STATUS_ORDER=['onboarding','ready','invited','activated','live','paused','deleted'];
 const CUSTOMER_LIFECYCLE_LABELS={
   onboarding:'Einrichtung läuft',
   ready:'Bereit',
   invited:'Zugang gesendet',
   activated:'Aktiviert',
   live:'Live',
-  paused:'Pausiert'
+  paused:'Pausiert',
+  deleted:'Gelöscht'
 };
 const CUSTOMER_LIFECYCLE_BADGE_CLASS={
   onboarding:'badge-gray',
@@ -871,7 +872,47 @@ const CUSTOMER_LIFECYCLE_BADGE_CLASS={
   invited:'badge-amber',
   activated:'badge-purple',
   live:'badge-green',
-  paused:'badge-gray'
+  paused:'badge-gray',
+  deleted:'badge-red'
+};
+const ONBOARDING_STATUS={
+  NOT_STARTED:'not_started',
+  IN_PROGRESS:'in_progress',
+  BLOCKED:'blocked',
+  READY:'ready',
+  COMPLETED:'completed'
+};
+const ONBOARDING_STATUS_LABELS={
+  [ONBOARDING_STATUS.NOT_STARTED]:'Nicht gestartet',
+  [ONBOARDING_STATUS.IN_PROGRESS]:'In Progress',
+  [ONBOARDING_STATUS.BLOCKED]:'Blockiert',
+  [ONBOARDING_STATUS.READY]:'Ready',
+  [ONBOARDING_STATUS.COMPLETED]:'Completed'
+};
+const ONBOARDING_STATUS_TRANSITIONS={
+  [ONBOARDING_STATUS.NOT_STARTED]:new Set([ONBOARDING_STATUS.IN_PROGRESS]),
+  [ONBOARDING_STATUS.IN_PROGRESS]:new Set([ONBOARDING_STATUS.BLOCKED,ONBOARDING_STATUS.READY]),
+  [ONBOARDING_STATUS.BLOCKED]:new Set([ONBOARDING_STATUS.IN_PROGRESS]),
+  [ONBOARDING_STATUS.READY]:new Set([ONBOARDING_STATUS.COMPLETED]),
+  [ONBOARDING_STATUS.COMPLETED]:new Set([])
+};
+const CASE_STATUS={
+  OPEN:'open',
+  IN_PROGRESS:'in_progress',
+  WAITING:'waiting',
+  DONE:'done'
+};
+const CASE_STATUS_LABELS={
+  [CASE_STATUS.OPEN]:'Offen',
+  [CASE_STATUS.IN_PROGRESS]:'In Bearbeitung',
+  [CASE_STATUS.WAITING]:'Wartend',
+  [CASE_STATUS.DONE]:'Erledigt'
+};
+const CASE_STATUS_TRANSITIONS={
+  [CASE_STATUS.OPEN]:new Set([CASE_STATUS.IN_PROGRESS]),
+  [CASE_STATUS.IN_PROGRESS]:new Set([CASE_STATUS.WAITING,CASE_STATUS.DONE]),
+  [CASE_STATUS.WAITING]:new Set([CASE_STATUS.IN_PROGRESS]),
+  [CASE_STATUS.DONE]:new Set([])
 };
 function normalizeCustomerLifecycleStatus(status){
   const raw=String(status||'').trim().toLowerCase();
@@ -888,11 +929,66 @@ function normalizeCustomerLifecycleStatus(status){
     invited:'invited',
     onboarding:'onboarding',
     paused:'paused',
+    deleted:'deleted',
+    geloescht:'deleted',
+    gelöscht:'deleted',
     ready:'ready',
     activated:'activated',
     live:'live'
   };
   return aliases[raw]||'';
+}
+function normalizeOnboardingStatus(status){
+  const raw=String(status||'').trim().toLowerCase();
+  const aliases={
+    'not started':ONBOARDING_STATUS.NOT_STARTED,
+    not_started:ONBOARDING_STATUS.NOT_STARTED,
+    inprogress:ONBOARDING_STATUS.IN_PROGRESS,
+    'in progress':ONBOARDING_STATUS.IN_PROGRESS,
+    in_progress:ONBOARDING_STATUS.IN_PROGRESS,
+    blocked:ONBOARDING_STATUS.BLOCKED,
+    ready:ONBOARDING_STATUS.READY,
+    completed:ONBOARDING_STATUS.COMPLETED
+  };
+  return aliases[raw]||ONBOARDING_STATUS.NOT_STARTED;
+}
+function assertOnboardingTransition(from,to){
+  const src=normalizeOnboardingStatus(from);
+  const dst=normalizeOnboardingStatus(to);
+  if(src===dst) return;
+  const allowed=ONBOARDING_STATUS_TRANSITIONS[src];
+  if(!allowed||!allowed.has(dst)){
+    throw new Error(`Illegal onboarding transition: ${src} -> ${dst}`);
+  }
+}
+function normalizeCaseStatus(status){
+  const raw=String(status||'').trim().toLowerCase();
+  const aliases={
+    offen:CASE_STATUS.OPEN,
+    open:CASE_STATUS.OPEN,
+    'in bearbeitung':CASE_STATUS.IN_PROGRESS,
+    'in progress':CASE_STATUS.IN_PROGRESS,
+    in_progress:CASE_STATUS.IN_PROGRESS,
+    wartend:CASE_STATUS.WAITING,
+    waiting:CASE_STATUS.WAITING,
+    geschlossen:CASE_STATUS.DONE,
+    erledigt:CASE_STATUS.DONE,
+    closed:CASE_STATUS.DONE,
+    done:CASE_STATUS.DONE
+  };
+  return aliases[raw]||CASE_STATUS.OPEN;
+}
+function caseStatusLabel(status){
+  return CASE_STATUS_LABELS[normalizeCaseStatus(status)]||'Offen';
+}
+function assertCaseTransition(from,to){
+  const src=normalizeCaseStatus(from);
+  const dst=normalizeCaseStatus(to);
+  if(src===dst) return;
+  const allowed=CASE_STATUS_TRANSITIONS[src];
+  if(!allowed||!allowed.has(dst)){
+    throw new Error(`Illegal case transition: ${src} -> ${dst}`);
+  }
 }
 function getCanonicalCustomerStatus(customer,onboarding){
   const statusFromCustomer=normalizeCustomerLifecycleStatus(customer?.status);
@@ -974,7 +1070,7 @@ function nowStamp(){
 }
 function refreshCustomerCaseCounts(){
   state.customers.forEach(c=>{
-    c.openCases=state.cases.filter(cs=>idsEq(cs.customerId,c.id) && cs.status!=='Geschlossen').length;
+    c.openCases=state.cases.filter(cs=>idsEq(cs.customerId,c.id) && normalizeCaseStatus(cs.status)!==CASE_STATUS.DONE).length;
   });
 }
 function onboardingForCustomer(id){
@@ -987,7 +1083,7 @@ function syncAllCustomerLifecycleStatuses(){
 function renderOverview(){
   const customers=state.customers;
   const setupProgressValues=customers.map(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id)));
-  const openCases=state.cases.filter(c=>c.status!=='Geschlossen').length;
+  const openCases=state.cases.filter(c=>normalizeCaseStatus(c.status)!==CASE_STATUS.DONE).length;
   const active=customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))==='live').length;
   const openOnboarding=state.onboarding.filter(o=>o.progress<100).length;
   const callsToday=state.calls.length;
@@ -1065,10 +1161,10 @@ function renderOnboarding(){
   const filter=(document.getElementById('onboarding-status-filter')?.value||'all');
   const sort=(document.getElementById('onboarding-sort')?.value||'blocked-first');
   const queue=state.customers.map(c=>buildOnboardingQueueItem(c.id));
-  const blockedCount=queue.filter(q=>q.status==='Blocked').length;
-  const inProgressCount=queue.filter(q=>q.status==='In Progress').length;
-  const readyCount=queue.filter(q=>q.status==='Ready').length;
-  const completedCount=queue.filter(q=>q.status==='Completed').length;
+  const blockedCount=queue.filter(q=>q.status===ONBOARDING_STATUS.BLOCKED).length;
+  const inProgressCount=queue.filter(q=>q.status===ONBOARDING_STATUS.IN_PROGRESS).length;
+  const readyCount=queue.filter(q=>q.status===ONBOARDING_STATUS.READY).length;
+  const completedCount=queue.filter(q=>q.status===ONBOARDING_STATUS.COMPLETED).length;
   const missingForwarding=queue.filter(q=>q.missingSteps.includes('forwarding configured')).length;
   const missingNumber=queue.filter(q=>q.missingSteps.includes('Voxera number assigned')).length;
   const missingTestCall=queue.filter(q=>q.missingSteps.includes('test call completed')).length;
@@ -1088,10 +1184,10 @@ function renderOnboarding(){
     return `${q.customer.name} ${q.currentStep} ${q.nextStep} ${q.blocker}`.toLowerCase().includes(search);
   }).filter(q=>{
     if(filter==='all') return true;
-    if(filter==='blocked') return q.status==='Blocked';
-    if(filter==='in-progress') return q.status==='In Progress';
-    if(filter==='ready') return q.status==='Ready';
-    if(filter==='completed') return q.status==='Completed';
+    if(filter==='blocked') return q.status===ONBOARDING_STATUS.BLOCKED;
+    if(filter==='in-progress') return q.status===ONBOARDING_STATUS.IN_PROGRESS;
+    if(filter==='ready') return q.status===ONBOARDING_STATUS.READY;
+    if(filter==='completed') return q.status===ONBOARDING_STATUS.COMPLETED;
     if(filter==='missing-forwarding') return q.missingSteps.includes('forwarding configured');
     if(filter==='missing-number') return q.missingSteps.includes('Voxera number assigned');
     if(filter==='missing-test-call') return q.missingSteps.includes('test call completed');
@@ -1102,13 +1198,13 @@ function renderOnboarding(){
     if(sort==='name-asc') return a.customer.name.localeCompare(b.customer.name);
     if(sort==='nearest-complete') return b.progress-a.progress;
     if(sort==='updated-desc') return (b.latestUpdate||'').localeCompare(a.latestUpdate||'');
-    return (b.status==='Blocked')-(a.status==='Blocked') || b.missingSteps.length-a.missingSteps.length || b.progress-a.progress;
+    return (b.status===ONBOARDING_STATUS.BLOCKED)-(a.status===ONBOARDING_STATUS.BLOCKED) || b.missingSteps.length-a.missingSteps.length || b.progress-a.progress;
   });
 
   document.getElementById('onboarding-table-body').innerHTML=rows.map(q=>`<tr>
     <td><strong>${esc(q.customer.name)}</strong><div class="muted">${esc(contactDisplay(q.customer))} · Owner ${esc(q.owner)}</div></td>
     <td>${toneBadge(q.customer.plan)}</td>
-    <td>${toneBadge(q.status)}</td>
+    <td>${toneBadge(ONBOARDING_STATUS_LABELS[q.status]||q.status)}</td>
     <td>${q.progress}%</td>
     <td>${esc(q.currentStep)}</td>
     <td>${esc(q.nextStep)}</td>
@@ -1133,10 +1229,10 @@ function buildOnboardingQueueItem(customerId){
   const progress=Math.round((done.length/state.checklist.length)*100);
   const hardBlockers=['activation sent','Voxera number assigned','forwarding configured','AI basics configured','test call completed'];
   const blockerStep=hardBlockers.find(s=>missing.includes(s));
-  let status='In Progress';
-  if(missing.length===0||done.includes('fully completed')) status='Completed';
-  else if(done.includes('ready for go-live')&&missing.length<=1) status='Ready';
-  else if(blockerStep) status='Blocked';
+  let status=ONBOARDING_STATUS.IN_PROGRESS;
+  if(missing.length===0||done.includes('fully completed')) status=ONBOARDING_STATUS.COMPLETED;
+  else if(done.includes('ready for go-live')&&missing.length<=1) status=ONBOARDING_STATUS.READY;
+  else if(blockerStep) status=ONBOARDING_STATUS.BLOCKED;
   const blocker=blockerStep?`Missing: ${blockerStep}`:(o.blocker||'');
   return {customer,owner:o.owner||'Ops',status,progress,currentStep,nextStep,missingSteps:missing,blocker,latestUpdate:o.latest||customer.latest};
 }
@@ -1159,7 +1255,7 @@ function renderOnboardingDetail(){
   const q=buildOnboardingQueueItem(id);
   empty.style.display='none';
   detail.style.display='block';
-  document.getElementById('onboarding-detail-badge').outerHTML=toneBadge(q.status).replace('<span','<span id="onboarding-detail-badge"');
+  document.getElementById('onboarding-detail-badge').outerHTML=toneBadge(ONBOARDING_STATUS_LABELS[q.status]||q.status).replace('<span','<span id="onboarding-detail-badge"');
   document.getElementById('onboarding-detail-context').innerHTML=[
     ['Customer',q.customer.name],['Plan',q.customer.plan],['Readiness',`${q.progress}%`],['Current Step',q.currentStep],['Next Step',q.nextStep],['Missing Steps',String(q.missingSteps.length)]
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
@@ -1337,7 +1433,7 @@ function renderCases(){
     </td>
     <td>
       <select class="select" style="height:30px;padding:4px 8px;" onchange="updateCase('${c.id}','status',this.value)">
-        ${['Offen','In Bearbeitung','Wartend','Geschlossen'].map(s=>`<option ${s===c.status?'selected':''}>${s}</option>`).join('')}
+        ${[CASE_STATUS.OPEN,CASE_STATUS.IN_PROGRESS,CASE_STATUS.WAITING,CASE_STATUS.DONE].map(s=>`<option value="${s}" ${s===normalizeCaseStatus(c.status)?'selected':''}>${caseStatusLabel(s)}</option>`).join('')}
       </select>
     </td>
     <td>${esc(c.owner)}</td>
@@ -1353,11 +1449,11 @@ function renderCases(){
 function renderActivity(){
   const mapList=(id,arr)=>document.getElementById(id).innerHTML=arr.map(x=>`<div class="list-item"><div><div class="list-main">${esc(x[0])}</div><div class="list-sub">${esc(x[1])}</div></div><span class="chip">${esc(x[2]||'Event')}</span></div>`).join('')||'<div class="empty">Keine Einträge.</div>';
   mapList('activity-calls',state.calls.slice().sort((a,b)=>b.time.localeCompare(a.time)).slice(0,6).map(c=>[`${customerById(c.customerId).name} · ${c.time}`,`${c.cat}${c.callback?' · Callback angefragt':''}`,'Call']));
-  mapList('activity-onboarding',state.onboarding.map(o=>[`${customerById(o.customerId).name} · ${o.status}`,`Progress ${o.progress}% · Next: ${o.next}`,'Onboarding']));
+  mapList('activity-onboarding',state.onboarding.map(o=>[`${customerById(o.customerId).name} · ${ONBOARDING_STATUS_LABELS[normalizeOnboardingStatus(o.status)]||o.status}`,`Progress ${o.progress}% · Next: ${o.next}`,'Onboarding']));
   mapList('activity-customer-changes',[
     ...state.customers.slice(0,4).map(c=>[`${c.name} · ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(c.id))}`,`Plan ${c.plan} · Setup ${getCustomerSetupProgress(c,onboardingForCustomer(c.id))}%`,'Customer'])
   ]);
-  mapList('activity-support',state.cases.slice(0,6).map(cs=>[`${cs.id} · ${customerById(cs.customerId).name}`,`${cs.type} · ${cs.status} · ${cs.priority} · Owner ${cs.owner}`,'Case']));
+  mapList('activity-support',state.cases.slice(0,6).map(cs=>[`${cs.id} · ${customerById(cs.customerId).name}`,`${cs.type} · ${caseStatusLabel(cs.status)} · ${cs.priority} · Owner ${cs.owner}`,'Case']));
   mapList('activity-events',state.events.map(e=>[e,'System event','Ops']));
 }
 
@@ -1393,7 +1489,7 @@ function hydrateFilters(){
 function updateBadges(){
   document.getElementById('badge-customers').textContent=state.customers.length;
   document.getElementById('badge-onboarding').textContent=state.onboarding.filter(o=>o.progress<100).length;
-  document.getElementById('badge-cases').textContent=state.cases.filter(c=>c.status!=='Geschlossen').length;
+  document.getElementById('badge-cases').textContent=state.cases.filter(c=>normalizeCaseStatus(c.status)!==CASE_STATUS.DONE).length;
 }
 
 function setRoute(route,replaceHash=false){
@@ -1444,7 +1540,7 @@ function openCustomerProfile(id){
   document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
   document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>idsEq(x.customerId,id)).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Rückruf','Aus Call: ${i+1}')">Case</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed('${jsStr(id)}',${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
-  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>idsEq(x.customerId,id)).map(ca=>`<tr><td>${esc(ca.id)}</td><td>${toneBadge(ca.status)}</td><td>${toneBadge(ca.priority)}</td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','Geschlossen')">Close</button><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','priority','Hoch')">Prio hoch</button></div></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
+  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>idsEq(x.customerId,id)).map(ca=>`<tr><td>${esc(ca.id)}</td><td>${toneBadge(caseStatusLabel(ca.status))}</td><td>${toneBadge(ca.priority)}</td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','${CASE_STATUS.DONE}')">Close</button><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','priority','Hoch')">Prio hoch</button></div></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
   document.getElementById('profile-billing').innerHTML=[['Plan',c.plan],['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],['Setup Fee','CHF '+(setupProgress<100?'490':'0')],['Contract','Placeholder · Vertragslaufzeit'],['Billing Metadata','Placeholder · Debitorenreferenz']].map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v">${v}</span></div></div>`).join('');
   document.getElementById('profile-notes').innerHTML=c.notes.map(n=>`<div class="list-item"><div><div class="list-main">${esc(n)}</div><div class="list-sub">Internal operational note</div></div></div>`).join('')||'<div class="empty">Noch keine Notizen.</div>';
   document.getElementById('profile-new-note').value='';
@@ -1487,7 +1583,7 @@ function validationLabelForField(field){
 const ACCESS_REQUIRED_FIELDS=['customer_name','email','street','zip','city','country','plan'];
 
 function isOnboardingStatusReady(status){
-  return String(status||'').trim().toLowerCase()==='ready';
+  return normalizeOnboardingStatus(status)===ONBOARDING_STATUS.READY;
 }
 
 function getRawCustomerSetupProgress(customer,onboarding){
@@ -1657,6 +1753,7 @@ async function submitSendAccess(){
   setSendAccessSubmitting(true);
   setSendAccessFeedback(null,'');
   try{
+    // admin-only action (server-side authorization required)
     const res=await fetch('/.netlify/functions/send-customer-access',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1783,6 +1880,7 @@ async function submitCreateCustomer(event){
 
   setCreateCustomerSubmitting(true);
   try{
+    // admin-only action (server-side authorization required)
     const res=await fetch('/.netlify/functions/create-customer',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1835,7 +1933,7 @@ async function submitCreateCustomer(event){
     createdId && state.customers.unshift(customerForUi);
     createdId && state.onboarding.unshift({
       customerId:createdId,
-      status:'In Arbeit',
+      status:ONBOARDING_STATUS.NOT_STARTED,
       progress:Number(dbOnboarding.progress??0),
       next:dbOnboarding.next_step||'Zugang senden',
       owner:'Ops',
@@ -1860,9 +1958,10 @@ async function submitCreateCustomer(event){
 }
 
 function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt'){
+  // TODO: move to server-side function
   const c=customerById(customerId); if(!c) return;
   const num=state.cases.reduce((m,x)=>Math.max(m,Number(String(x.id).replace('C-',''))||100),100)+1;
-  state.cases.unshift({id:`C-${num}`,type,priority:type==='Rückruf'?'Hoch':'Mittel',status:'Offen',owner:'Ops Queue',customerId,latest:`${nowStamp()}`,notes:note});
+  state.cases.unshift({id:`C-${num}`,type,priority:type==='Rückruf'?'Hoch':'Mittel',status:CASE_STATUS.OPEN,owner:'Ops Queue',customerId,latest:`${nowStamp()}`,notes:note});
   state.events.unshift(`${nowStamp()} · ${c.name}: ${type} Case erstellt`);
   refreshCustomerCaseCounts();
   renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
@@ -1870,8 +1969,14 @@ function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstell
 }
 
 function updateCase(caseId,field,value){
+  // TODO: move to server-side function
   const target=state.cases.find(c=>c.id===caseId); if(!target) return;
-  target[field]=value;
+  if(field==='status'){
+    assertCaseTransition(target.status,value);
+    target.status=normalizeCaseStatus(value);
+  }else{
+    target[field]=value;
+  }
   target.latest=`${nowStamp()}`;
   refreshCustomerCaseCounts();
   state.events.unshift(`${nowStamp()} · ${caseId} ${field} → ${value}`);
@@ -1891,13 +1996,17 @@ function markCallReviewed(customerId,callIdx){
 
 function toggleCustomerStatus(customerId){
   const c=customerById(customerId); if(!c) return;
-  c.status=getCustomerLifecycleStatus(c,onboardingForCustomer(customerId))==='paused'?'onboarding':'paused';
+  const current=getCustomerLifecycleStatus(c,onboardingForCustomer(customerId));
+  if(current==='paused') c.status='live';
+  else if(current==='live') c.status='paused';
+  else throw new Error(`Illegal customer transition via toggle: ${current} -> paused/live`);
   c.latest=`${nowStamp()} · Status geändert`;
   state.events.unshift(`${nowStamp()} · ${c.name}: Status ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(customerId))}`);
   renderCustomers(); renderOverview(); renderActivity(); hydrateFilters(); openCustomerProfile(customerId);
 }
 
 function toggleOnboardingStep(customerId,step){
+  // TODO: move to server-side function
   const c=customerById(customerId); const o=onboardingForCustomer(customerId);
   if(!c) return;
   c.onboardingSteps=c.onboardingSteps||[];
@@ -1908,6 +2017,7 @@ function toggleOnboardingStep(customerId,step){
   c.onboardingSteps=ordered;
   const queue=buildOnboardingQueueItem(customerId);
   if(o){
+    assertOnboardingTransition(o.status,queue.status);
     o.progress=queue.progress;
     o.next=queue.nextStep;
     o.status=queue.status;
@@ -2027,20 +2137,58 @@ function wireUi(){
 
 async function hydrateAdminInfo(){
   if(!(authClient&&authClient.auth)){
-    document.getElementById('sidebar-user').textContent='Admin (local mode)';
+    window.location.href='login.html';
     return;
   }
   try{
     const {data:{session}}=await authClient.auth.getSession();
     const email=session?.user?.email||'admin@voxera.ch';
     document.getElementById('sidebar-user').textContent=email;
-    if(!session){
-      // Keep accessible in local preview; login redirect can be enabled later.
-      console.info('No live session found, continuing in preview mode.');
-    }
+    if(!session) window.location.href='login.html';
   }catch(_e){
-    document.getElementById('sidebar-user').textContent='Admin';
+    window.location.href='login.html';
   }
+}
+
+async function requireAdminSessionOrRedirect(){
+  if(!(authClient&&authClient.auth)){
+    window.location.href='login.html';
+    throw new Error('Admin auth client missing');
+  }
+  const {data:{session},error:sessionError}=await authClient.auth.getSession();
+  if(sessionError||!session||!session.user?.id){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin session missing');
+  }
+  const {data:admin,error:adminError}=await authClient
+    .from('admins')
+    .select('id,role')
+    .eq('id',session.user.id)
+    .maybeSingle();
+  const normalizeRole=(r)=>{
+    const raw=String(r||'').trim().toLowerCase().replace(/_/g,'-');
+    if(!raw) return '';
+    if(raw==='superadmin') return 'super-admin';
+    return raw;
+  };
+  const role=normalizeRole(admin?.role);
+  const allowed=new Set(['super-admin','admin','support','owner','ops']);
+  if(adminError){
+    window.location.href='login.html';
+    throw new Error('Admin lookup failed');
+  }
+  if(!admin){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin row missing');
+  }
+  if(role && !allowed.has(role)){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin role not allowed');
+  }
+  return admin;
 }
 
 // ─── Supabase → state mappers ──────────────────────────────────────────────
@@ -2142,7 +2290,7 @@ function synthesizeOnboardingSteps(progress, customerStatus, inviteStatus, onboa
 function mapDbOnboardingToState(dbRow) {
   return {
     customerId: String(dbRow.customer_id),
-    status:     dbRow.status   || 'not_started',
+    status:     normalizeOnboardingStatus(dbRow.status),
     progress:   Number(dbRow.progress ?? 0),
     next:       dbRow.next_step || '',
     owner:      dbRow.owner    || 'Ops',
@@ -2180,7 +2328,7 @@ function mapDbCaseToUi(dbRow) {
     id:         String(dbRow.id),
     type:       dbRow.type       || 'Rückruf',
     priority:   dbRow.priority   || 'Mittel',
-    status:     dbRow.status     || 'Offen',
+    status:     normalizeCaseStatus(dbRow.status),
     owner:      dbRow.owner      || '—',
     customerId: String(dbRow.customer_id),
     latest:     ts,
@@ -2205,6 +2353,7 @@ function showLoadError(msg) {
 }
 
 async function loadDataFromSupabase() {
+  // requires RLS policy: authenticated admin role can read operational tables
   if (!authClient) {
     console.warn('[DB] No Supabase client — running in offline/demo mode.');
     return false;
@@ -2258,7 +2407,7 @@ async function loadDataFromSupabase() {
     // 7. Populate openCases count on each customer from real cases data
     state.customers.forEach(c => {
       c.openCases = state.cases.filter(cs =>
-        idsEq(cs.customerId, c.id) && cs.status !== 'Geschlossen' && cs.status !== 'closed'
+        idsEq(cs.customerId, c.id) && normalizeCaseStatus(cs.status)!==CASE_STATUS.DONE
       ).length;
     });
 
@@ -2268,7 +2417,7 @@ async function loadDataFromSupabase() {
       const cust = customerById(call.customerId);
       if (cust) recentEvents.push(`${call.time} · ${cust.name}: ${call.cat}`);
     });
-    state.cases.filter(c => c.status !== 'Geschlossen').slice(0, 5).forEach(c => {
+    state.cases.filter(c => normalizeCaseStatus(c.status)!==CASE_STATUS.DONE).slice(0, 5).forEach(c => {
       const cust = customerById(c.customerId);
       if (cust) recentEvents.push(`${c.latest} · ${cust.name}: Case ${c.id} (${c.priority})`);
     });
@@ -2288,6 +2437,7 @@ async function loadDataFromSupabase() {
 // ─── init ──────────────────────────────────────────────────────────────────
 
 async function init() {
+  await requireAdminSessionOrRedirect();
   // Wire UI immediately so the shell is interactive
   wireUi();
   onHashRoute();
