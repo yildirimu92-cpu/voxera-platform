@@ -1,0 +1,59 @@
+const { createClient } = require('@supabase/supabase-js');
+const { requireCustomerCaller } = require('./_lib/require-customer');
+
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json'
+};
+
+function response(statusCode, payload) {
+  return { statusCode, headers, body: JSON.stringify(payload) };
+}
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
+
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbAnonKey = process.env.SUPABASE_ANON_KEY;
+  const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!sbUrl || !sbAnonKey || !sbServiceKey) {
+    return response(500, { error: 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.' });
+  }
+
+  const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const caller = await requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin });
+  if (!caller.ok) return response(caller.statusCode, caller.body);
+
+  let body;
+  try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungueltiger Request Body' }); }
+
+  const allowed = {};
+  if (body.notification_mode != null) {
+    const mode = String(body.notification_mode).trim();
+    if (!['none', 'callback_only', 'all_calls'].includes(mode)) {
+      return response(400, { error: 'notification_mode ungueltig' });
+    }
+    allowed.notification_mode = mode;
+  }
+  if (body.forwarding_setup_completed != null) {
+    allowed.forwarding_setup_completed = body.forwarding_setup_completed === true;
+  }
+
+  if (Object.keys(allowed).length === 0) {
+    return response(400, { error: 'Keine erlaubten Felder uebergeben' });
+  }
+
+  allowed.updated_at = new Date().toISOString();
+  const { data, error } = await sbAdmin
+    .from('customers')
+    .update(allowed)
+    .eq('id', caller.customerId)
+    .select('*')
+    .single();
+
+  if (error) return response(500, { error: 'Customer settings konnten nicht gespeichert werden.', details: error.message });
+  return response(200, { success: true, customer: data });
+};
