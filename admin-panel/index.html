@@ -1183,6 +1183,10 @@ function validationLabelForField(field){
   return labels[field]||field;
 }
 
+function isOnboardingStatusReady(status){
+  return !!status&&String(status).toLowerCase()==='ready';
+}
+
 function validateCustomerAccessData(customer){
   const required=['customer_name','email','street','zip','city','country','plan'];
   const missing=required.filter(field=>{
@@ -1218,15 +1222,15 @@ function openSendAccessModal(customerId){
 
   const onboarding=onboardingForCustomer(customerId);
   const obStatus=onboarding?onboarding.status:null;
-  const isOnboardingReady=obStatus&&(obStatus==='Ready'||obStatus.toLowerCase()==='ready');
+  const isReady=isOnboardingStatusReady(obStatus);
   const obStatusEl=document.getElementById('send-access-onboarding-status');
-  if(obStatusEl) obStatusEl.textContent=obStatus||'—';
+  if(obStatusEl) obStatusEl.textContent=obStatus?obStatus.charAt(0).toUpperCase()+obStatus.slice(1):'—';
   const readinessWarning=document.getElementById('send-access-readiness-warning');
-  if(readinessWarning) readinessWarning.style.display=isOnboardingReady?'none':'';
+  if(readinessWarning) readinessWarning.style.display=isReady?'none':'';
 
   const validation=renderSendAccessValidation(customer);
   const submitBtn=document.getElementById('send-access-submit-btn');
-  submitBtn.disabled=!validation.ok||!isOnboardingReady;
+  submitBtn.disabled=!validation.ok||!isReady;
   document.getElementById('send-access-modal').classList.add('open');
 }
 
@@ -1270,8 +1274,7 @@ async function submitSendAccess(){
 
   const onboarding=onboardingForCustomer(customerId);
   const obStatus=onboarding?onboarding.status:null;
-  const isOnboardingReady=obStatus&&(obStatus==='Ready'||obStatus.toLowerCase()==='ready');
-  if(!isOnboardingReady){
+  if(!isOnboardingStatusReady(obStatus)){
     setSendAccessFeedback('error','Zugang kann erst gesendet werden, wenn die Einrichtung im Admin-Panel vollständig abgeschlossen ist.');
     return;
   }
