@@ -526,6 +526,32 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   </div>
 </div>
 
+<div class="modal-overlay" id="send-access-modal" onclick="if(event.target===this)closeSendAccessModal()">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title">Zugang senden</div>
+        <div class="modal-sub" id="send-access-sub">Manueller Versand der Zugangsdaten.</div>
+      </div>
+      <button class="btn btn-secondary" type="button" onclick="closeSendAccessModal()">Schließen</button>
+    </div>
+    <div id="send-access-feedback" class="modal-feedback"></div>
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;">
+      <div class="detail-item"><span class="detail-k">Kunde</span><span class="detail-v" id="send-access-customer-name">—</span></div>
+      <div class="detail-item"><span class="detail-k">E-Mail</span><span class="detail-v" id="send-access-customer-email">—</span></div>
+      <div class="detail-item"><span class="detail-k">Status Einladung</span><span class="detail-v" id="send-access-invite-status">—</span></div>
+    </div>
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;">
+      <div class="card-title">Prüfung Pflichtdaten vor Versand</div>
+      <div id="send-access-validation" class="muted">Keine offenen Pflichtfelder.</div>
+    </div>
+    <div class="inline-actions" style="justify-content:flex-end;">
+      <button class="btn btn-secondary" type="button" onclick="closeSendAccessModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="send-access-submit-btn" type="button">Zugang jetzt senden</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -538,6 +564,8 @@ const state={
   route:'overview',
   selectedCustomer:null,
   createCustomerPending:false,
+  sendAccessPending:false,
+  sendAccessTargetId:null,
   customers:[
     {id:1,name:'Meyer Sanitär AG',contact:'Lukas Meyer',email:'info@meyer-sanitaer.ch',phone:'+41 44 500 10 10',plan:'Growth',status:'Aktiv',voxera:'+41 44 520 00 10',progress:95,readiness:'Ready',latest:'Heute · 09:42',openCases:1,summary:'Sehr stabiler Betrieb, hoher Anrufdurchsatz am Morgen, Callback SLA im grünen Bereich.',notes:['Q2 Ziel: Terminbuchung tiefer integrieren.','Hohe Qualität bei Notfallklassifizierung.'],onboardingSteps:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured','test call completed','ready for go-live']},
     {id:2,name:'Keller Dentalpraxis',contact:'Dr. Anna Keller',email:'praxis@kellerdental.ch',phone:'+41 31 200 22 11',plan:'Pro',status:'Onboarding',voxera:'Zuweisung offen',progress:68,readiness:'Konfiguration offen',latest:'Heute · 08:14',openCases:2,summary:'Onboarding läuft, Nummernzuweisung in Klärung, Greeting-Review steht aus.',notes:['Test-Call für Dienstag geplant.','Business-Öffnungszeiten prüfen.'],onboardingSteps:['customer created','activation sent','dashboard access active','agent connected','business info completed','opening hours added']},
@@ -736,7 +764,7 @@ function renderCustomers(){
     <td>${c.progress}% <span class="muted">· ${esc(c.readiness)}</span></td>
     <td>${esc(c.latest)}</td>
     <td>${c.openCases}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button><button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')">Zugang senden</button><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
   </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 }
 
@@ -1100,6 +1128,7 @@ function openCustomerProfile(id){
   const onboard=onboardingForCustomer(id);
   const missingSteps=state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
   document.getElementById('profile-overview-actions').innerHTML=`
+    <button class="btn btn-primary btn-sm" onclick="openSendAccessModal('${jsStr(id)}')">Zugang senden</button>
     <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding')">Onboarding öffnen</button>
     <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus('${jsStr(id)}')">${c.status==='Paused'?'Aktivieren':'Pausieren'}</button>
     <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
@@ -1120,6 +1149,146 @@ function openCustomerProfile(id){
   document.getElementById('customer-profile-modal').classList.add('open');
 }
 function closeCustomerProfile(){document.getElementById('customer-profile-modal').classList.remove('open');}
+
+function setSendAccessFeedback(type,message){
+  const feedback=document.getElementById('send-access-feedback');
+  feedback.className='modal-feedback';
+  feedback.textContent=message||'';
+  if(type==='error') feedback.classList.add('error');
+  if(type==='success') feedback.classList.add('success');
+}
+
+function setSendAccessSubmitting(isSubmitting){
+  state.sendAccessPending=!!isSubmitting;
+  const btn=document.getElementById('send-access-submit-btn');
+  if(!btn) return;
+  btn.disabled=!!isSubmitting;
+  btn.textContent=isSubmitting?'Sende Zugang…':'Zugang jetzt senden';
+}
+
+function validationLabelForField(field){
+  const labels={
+    customer_name:'Firmenname',
+    email:'E-Mail',
+    street:'Straße',
+    zip:'PLZ',
+    city:'Ort',
+    country:'Land',
+    plan:'Plan'
+  };
+  return labels[field]||field;
+}
+
+function validateCustomerAccessData(customer){
+  const required=['customer_name','email','street','zip','city','country','plan'];
+  const missing=required.filter(field=>{
+    if(field==='customer_name'){
+      return !String(customer?.customer_name||customer?.name||'').trim();
+    }
+    return !String(customer?.[field]||'').trim();
+  });
+  return {ok:missing.length===0,missing};
+}
+
+function renderSendAccessValidation(customer){
+  const target=document.getElementById('send-access-validation');
+  const validation=validateCustomerAccessData(customer);
+  if(validation.ok){
+    target.innerHTML='<span style="color:var(--green);font-weight:600;">Alle Pflichtdaten sind vorhanden.</span>';
+    return validation;
+  }
+  const labels=validation.missing.map(validationLabelForField);
+  target.innerHTML=`<span style="color:var(--red);font-weight:600;">Fehlend: ${esc(labels.join(', '))}</span>`;
+  return validation;
+}
+
+function openSendAccessModal(customerId){
+  if(state.sendAccessPending) return;
+  const customer=customerById(customerId);
+  if(!customer) return;
+  state.sendAccessTargetId=customerId;
+  setSendAccessFeedback(null,'');
+  document.getElementById('send-access-customer-name').textContent=customer.name||'—';
+  document.getElementById('send-access-customer-email').textContent=customer.email||'—';
+  document.getElementById('send-access-invite-status').textContent=customer.invite_status==='sent'?'Bereits gesendet':'Noch nicht gesendet';
+  const validation=renderSendAccessValidation(customer);
+  const submitBtn=document.getElementById('send-access-submit-btn');
+  submitBtn.disabled=!validation.ok;
+  document.getElementById('send-access-modal').classList.add('open');
+}
+
+function closeSendAccessModal(){
+  if(state.sendAccessPending) return;
+  state.sendAccessTargetId=null;
+  setSendAccessFeedback(null,'');
+  document.getElementById('send-access-modal').classList.remove('open');
+}
+
+function applyAccessSendResult(customerId,customerPatch,nextStep){
+  const c=customerById(customerId);
+  if(!c) return;
+  c.invite_status='sent';
+  c.welcome_sent=true;
+  c.welcome_sent_at=customerPatch?.welcome_sent_at||new Date().toISOString();
+  c.latest=`${nowStamp()} · Zugang versendet`;
+  c.status='Onboarding';
+  c.onboardingSteps=c.onboardingSteps||[];
+  if(!c.onboardingSteps.includes('activation sent')) c.onboardingSteps.push('activation sent');
+
+  const queue=onboardingForCustomer(customerId);
+  if(queue){
+    queue.next=nextStep||'Kunde aktiviert Zugang';
+    queue.latest=new Date().toISOString().slice(0,16).replace('T',' ');
+    queue.progress=Math.min(90,Math.max(Number(queue.progress||0),Number(queue.progress||0)+10));
+  }
+}
+
+async function submitSendAccess(){
+  if(state.sendAccessPending) return;
+  const customerId=state.sendAccessTargetId;
+  const customer=customerById(customerId);
+  if(!customerId||!customer) return;
+
+  const validation=renderSendAccessValidation(customer);
+  if(!validation.ok){
+    setSendAccessFeedback('error',`Versand blockiert: Es fehlen Pflichtdaten (${validation.missing.map(validationLabelForField).join(', ')}).`);
+    return;
+  }
+
+  setSendAccessSubmitting(true);
+  setSendAccessFeedback(null,'');
+  try{
+    const res=await fetch('/.netlify/functions/send-customer-access',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({customer_id:customerId})
+    });
+    const json=await res.json().catch(()=>({}));
+    if(!res.ok||!json?.success){
+      if(Array.isArray(json?.missing_fields)&&json.missing_fields.length){
+        const labels=json.missing_fields.map(validationLabelForField);
+        document.getElementById('send-access-validation').innerHTML=`<span style="color:var(--red);font-weight:600;">Fehlend: ${esc(labels.join(', '))}</span>`;
+      }
+      throw new Error(json?.error||'Zugang konnte nicht gesendet werden.');
+    }
+
+    applyAccessSendResult(customerId,json.customer,json.next_step);
+    state.events.unshift(`${nowStamp()} · ${customer.name}: Zugang manuell versendet`);
+    state.onboardingActivity.unshift(`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${customer.name}: Zugang versendet, warte auf Aktivierung`);
+    setSendAccessFeedback('success','Zugang wurde versendet. Der nächste Schritt ist die Aktivierung durch den Kunden.');
+    renderCustomers();
+    renderOnboarding();
+    renderOverview();
+    renderActivity();
+    updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    setTimeout(()=>closeSendAccessModal(),900);
+  }catch(error){
+    setSendAccessFeedback('error',error?.message||'Fehler beim Versand des Zugangs.');
+  }finally{
+    setSendAccessSubmitting(false);
+  }
+}
 
 function setCreateCustomerFeedback(type,message){
   const feedback=document.getElementById('create-customer-feedback');
@@ -1234,13 +1403,22 @@ async function submitCreateCustomer(event){
     const customerForUi={
       id:createdId,
       name:dbCustomer.customer_name||payload.customer_name,
+      customer_name:dbCustomer.customer_name||payload.customer_name,
       contact_first_name:contactFirstName||null,
       contact_last_name:contactLastName||null,
       contact_name:fallbackContactName||null,
       contact:fallbackContactName||'—',
       email:dbCustomer.email||payload.email,
+      tel_nr:dbCustomer.tel_nr||payload.tel_nr,
       phone:dbCustomer.tel_nr||payload.tel_nr,
       plan:dbCustomer.plan||payload.plan,
+      street:dbCustomer.street||payload.street,
+      zip:dbCustomer.zip||payload.zip,
+      city:dbCustomer.city||payload.city,
+      country:dbCustomer.country||payload.country,
+      invite_status:dbCustomer.invite_status||'not_sent',
+      welcome_sent:Boolean(dbCustomer.welcome_sent),
+      welcome_sent_at:dbCustomer.welcome_sent_at||null,
       status:'Onboarding',
       voxera:dbCustomer.voxera_number||'Zuweisung offen',
       progress:Number(dbOnboarding.progress??0),
@@ -1425,6 +1603,7 @@ function wireUi(){
     document.querySelectorAll('.profile-panel').forEach(p=>p.classList.toggle('active',p.dataset.profilePanel===btn.dataset.profileTab));
   });
   document.getElementById('profile-add-note-btn').addEventListener('click',addProfileNote);
+  document.getElementById('send-access-submit-btn').addEventListener('click',submitSendAccess);
   document.getElementById('open-create-customer-btn').addEventListener('click',openCreateCustomerModal);
   document.getElementById('create-customer-form').addEventListener('submit',submitCreateCustomer);
   document.getElementById('settings-add-admin').addEventListener('click',()=>{

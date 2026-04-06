@@ -1,0 +1,221 @@
+const { createClient } = require('@supabase/supabase-js');
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json'
+};
+
+const REQUIRED_FIELDS = ['customer_name', 'email', 'street', 'zip', 'city', 'country', 'plan'];
+
+function response(statusCode, payload) {
+  return {
+    statusCode,
+    headers: corsHeaders,
+    body: JSON.stringify(payload)
+  };
+}
+
+async function deliverCustomerAccess({ sbAdmin, customer, activationLink }) {
+  const webhookUrl = process.env.MAKE_WELCOME_WEBHOOK;
+  if (!webhookUrl) {
+    return {
+      ok: false,
+      statusCode: 500,
+      error: 'Versand-Infrastruktur fehlt: MAKE_WELCOME_WEBHOOK ist nicht gesetzt.',
+      limitation: 'Aktivierungslink wurde erstellt, aber kein E-Mail-Versand ausgelöst.'
+    };
+  }
+
+  let webhookResponse;
+  try {
+    webhookResponse = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_name: customer.customer_name,
+        email: customer.email,
+        activation_link: activationLink,
+        plan: customer.plan,
+        voxera_number: customer.voxera_number,
+        customer_id: customer.id,
+        dashboard_url: process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch'
+      })
+    });
+  } catch (error) {
+    console.error('Webhook call failed', error);
+    return {
+      ok: false,
+      statusCode: 500,
+      error: 'Versand der Zugangsdaten ist fehlgeschlagen.',
+      details: error.message
+    };
+  }
+
+  if (!webhookResponse.ok) {
+    console.error('Webhook returned non-OK status', webhookResponse.status);
+    return {
+      ok: false,
+      statusCode: 500,
+      error: `Versand der Zugangsdaten ist fehlgeschlagen (HTTP ${webhookResponse.status}).`
+    };
+  }
+
+  return { ok: true };
+}
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: corsHeaders, body: '' };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return response(405, { error: 'Method not allowed' });
+  }
+
+  console.log('ENV:', process.env.SUPABASE_URL ? 'OK' : 'MISSING');
+
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!sbUrl || !sbServiceKey) {
+    console.error('Missing Supabase environment variables', {
+      SUPABASE_URL: !!sbUrl,
+      SUPABASE_SERVICE_ROLE_KEY: !!sbServiceKey
+    });
+    return response(500, {
+      error: 'SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.'
+    });
+  }
+
+  const sbAdmin = createClient(sbUrl, sbServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+
+  let body;
+  try {
+    body = JSON.parse(event.body || '{}');
+  } catch (error) {
+    console.error('Invalid JSON request body', error);
+    return response(400, { error: 'Ungueltiger Request Body' });
+  }
+
+  const customerId = String(body.customer_id || '').trim();
+  if (!customerId) {
+    console.error('Validation failed: customer_id missing');
+    return response(400, { error: 'customer_id fehlt' });
+  }
+
+  try {
+    const { data: customer, error: customerError } = await sbAdmin
+      .from('customers')
+      .select('*')
+      .eq('id', customerId)
+      .single();
+
+    if (customerError || !customer) {
+      console.error('Customer lookup failed', customerError);
+      return response(400, { error: 'Kunde nicht gefunden' });
+    }
+
+    const missingFields = REQUIRED_FIELDS.filter((field) => !String(customer[field] || '').trim());
+    if (missingFields.length > 0) {
+      console.error('Validation failed: required customer fields missing', { customerId, missingFields });
+      return response(400, {
+        error: 'Pflichtdaten fehlen. Zugang kann nicht gesendet werden.',
+        missing_fields: missingFields
+      });
+    }
+
+    const activateUrl = process.env.ACTIVATE_URL || 'https://dashboard.voxera.ch/activate';
+    const { data: linkData, error: linkError } = await sbAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email: customer.email,
+      options: { redirectTo: activateUrl }
+    });
+
+    const activationLink = linkData?.properties?.action_link;
+    if (linkError || !activationLink) {
+      console.error('Activation link generation failed', linkError);
+      return response(500, {
+        error: 'Aktivierungslink konnte nicht erstellt werden.',
+        details: linkError?.message || 'Kein action_link von Supabase erhalten.'
+      });
+    }
+
+    const deliveryResult = await deliverCustomerAccess({ sbAdmin, customer, activationLink });
+    if (!deliveryResult.ok) {
+      console.error('Access delivery failed', deliveryResult);
+      return response(deliveryResult.statusCode || 500, {
+        error: deliveryResult.error,
+        details: deliveryResult.details || null,
+        limitation: deliveryResult.limitation || null
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: updatedCustomer, error: updateError } = await sbAdmin
+      .from('customers')
+      .update({
+        invite_status: 'sent',
+        welcome_sent: true,
+        welcome_sent_at: nowIso,
+        updated_at: nowIso
+      })
+      .eq('id', customerId)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Customer update after access send failed', updateError);
+      return response(500, {
+        error: 'Kundenstatus konnte nach Versand nicht aktualisiert werden.',
+        details: updateError.message
+      });
+    }
+
+    const { data: onboardingRow, error: onboardingLookupError } = await sbAdmin
+      .from('onboarding')
+      .select('id, progress')
+      .eq('customer_id', customerId)
+      .maybeSingle();
+
+    if (onboardingLookupError) {
+      console.error('Onboarding lookup failed', onboardingLookupError);
+    }
+
+    let onboardingUpdated = false;
+    if (onboardingRow?.id) {
+      const currentProgress = Number(onboardingRow.progress || 0);
+      const nextProgress = Math.min(90, Math.max(currentProgress, currentProgress + 10));
+      const { error: onboardingUpdateError } = await sbAdmin
+        .from('onboarding')
+        .update({
+          next_step: 'Kunde aktiviert Zugang',
+          progress: nextProgress,
+          updated_at: nowIso
+        })
+        .eq('id', onboardingRow.id);
+
+      if (onboardingUpdateError) {
+        console.error('Onboarding update failed', onboardingUpdateError);
+      } else {
+        onboardingUpdated = true;
+      }
+    }
+
+    return response(200, {
+      success: true,
+      message: 'Zugangsdaten wurden versendet.',
+      customer: updatedCustomer,
+      onboarding_updated: onboardingUpdated,
+      next_step: onboardingUpdated ? 'Kunde aktiviert Zugang' : null
+    });
+  } catch (error) {
+    console.error('Unhandled error in send-customer-access', error);
+    return response(500, {
+      error: 'Fehler beim Senden des Zugangs',
+      details: error.message
+    });
+  }
+};
