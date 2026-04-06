@@ -1043,12 +1043,6 @@ function toggleOnboardingStep(customerId,step){
   if(state.selectedCustomer===customerId) openCustomerProfile(customerId);
 }
 
-function markNextOnboardingStep(customerId){
-  const c=customerById(customerId); if(!c) return;
-  const nextMissing=state.checklist.find(step=>!(c.onboardingSteps||[]).includes(step));
-  if(nextMissing) toggleOnboardingStep(customerId,nextMissing);
-}
-
 function addProfileNote(){
   const id=state.selectedCustomer; const c=customerById(id); if(!c) return;
   const note=(document.getElementById('profile-new-note').value||'').trim();
