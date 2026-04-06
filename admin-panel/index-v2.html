@@ -237,30 +237,70 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
       <section id="section-ai-setup" class="section">
         <div class="grid-2">
           <div class="card">
-            <div class="card-head"><h3>Global Master Prompt</h3><span class="badge badge-blue">Policy-Layer</span></div>
-            <textarea class="textarea" rows="10">Du bist Voxera, ein professioneller Voice Assistant für Schweizer KMU. Priorisiere Präzision, Datenschutz, höfliche Gesprächsführung, und klare Übergaben in kritischen Fällen.</textarea>
+            <div class="card-head"><h3>Global Assistant Configuration</h3><span class="badge badge-blue">Default Policy</span></div>
+            <div class="detail-item"><span class="detail-k">Global Prompt</span><span class="detail-v"><button class="btn btn-secondary btn-sm" id="ai-save-global">Speichern</button></span></div>
+            <textarea class="textarea" id="ai-global-prompt" rows="6"></textarea>
+            <div class="grid-2" style="margin-top:10px;">
+              <div>
+                <div class="card-title">Behavior Rules</div>
+                <div class="detail-item"><span class="detail-k">Greeting Tone</span><span class="detail-v"><input class="input" id="ai-global-tone"></span></div>
+                <div class="detail-item"><span class="detail-k">Voice Behavior</span><span class="detail-v"><input class="input" id="ai-global-voice"></span></div>
+                <div class="detail-item"><span class="detail-k">Call Handling Defaults</span><span class="detail-v"><input class="input" id="ai-global-call-defaults"></span></div>
+              </div>
+              <div>
+                <div class="card-title">Fallback & Escalation</div>
+                <div class="detail-item"><span class="detail-k">Fallback</span><span class="detail-v"><input class="input" id="ai-global-fallback"></span></div>
+                <div class="detail-item"><span class="detail-k">Escalation</span><span class="detail-v"><input class="input" id="ai-global-escalation"></span></div>
+                <div class="detail-item"><span class="detail-k">Response Constraints</span><span class="detail-v"><input class="input" id="ai-global-constraints"></span></div>
+              </div>
+            </div>
           </div>
           <div class="card">
-            <div class="card-head"><h3>Response Constraints</h3><span class="badge badge-gray">Runtime Guardrails</span></div>
-            <div class="list">
-              <div class="list-item"><div class="list-main">Keine rechtliche/medizinische Beratung</div><span class="badge badge-red">Hart</span></div>
-              <div class="list-item"><div class="list-main">Tonality: professionell, ruhig, lösungsorientiert</div><span class="badge badge-blue">Standard</span></div>
-              <div class="list-item"><div class="list-main">Antwortlänge auf 40 Sek. Speech begrenzen</div><span class="badge badge-amber">Wichtig</span></div>
-            </div>
+            <div class="card-head"><h3>AI Setup Readiness</h3><span class="badge badge-amber">Missing Data</span></div>
+            <div class="list" id="ai-missing-list"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head"><h3>Customer AI Configuration</h3><span class="badge badge-green">Tenant Overrides</span></div>
+          <div class="toolbar" style="grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(0,1fr)) auto;">
+            <input class="input" id="ai-search" placeholder="Suche Kunde / AI-Kontext">
+            <select class="select" id="ai-status-filter"><option value="all">AI Status: Alle</option></select>
+            <select class="select" id="ai-custom-filter"><option value="all">Custom: Alle</option><option value="yes">Mit Overrides</option><option value="no">Nur Defaults</option></select>
+            <button class="btn btn-secondary" id="ai-filter-reset">Zurücksetzen</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Kunde</th><th>Plan</th><th>AI Setup</th><th>Custom Instr.</th><th>Business Knowledge</th><th>Fallback/Esc.</th><th>Latest AI Update</th><th>Aktion</th></tr></thead>
+              <tbody id="ai-customer-body"></tbody>
+            </table>
           </div>
         </div>
         <div class="grid-2" style="margin-top:16px;">
           <div class="card">
-            <div class="card-head"><h3>Customer Instructions</h3><span class="badge badge-green">Tenant Overrides</span></div>
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead><tr><th>Kunde</th><th>Business Knowledge</th><th>Fallback Logik</th><th>Escalation Rules</th></tr></thead>
-                <tbody id="ai-customer-body"></tbody>
-              </table>
+            <div class="card-head"><h3>Customer AI Workspace</h3><span class="badge badge-gray" id="ai-workspace-badge">Kein Kunde gewählt</span></div>
+            <div id="ai-workspace-empty" class="empty">Wähle einen Kunden aus der AI-Konfigurationsliste, um Business Knowledge, Instructions und Escalation-Logik zu bearbeiten.</div>
+            <div id="ai-workspace" style="display:none;">
+              <div class="detail-grid" id="ai-customer-context"></div>
+              <div class="card-title" style="margin-top:12px;">Business Knowledge</div>
+              <textarea class="textarea" id="ai-business-description" placeholder="Business description"></textarea>
+              <textarea class="textarea" id="ai-services" placeholder="Services / products" style="margin-top:8px;"></textarea>
+              <textarea class="textarea" id="ai-location-hours" placeholder="Location + opening hours summary" style="margin-top:8px;"></textarea>
+              <textarea class="textarea" id="ai-booking-faq" placeholder="Booking/contact preferences + FAQs" style="margin-top:8px;"></textarea>
+              <div class="card-title" style="margin-top:12px;">Customer-Specific Instructions</div>
+              <textarea class="textarea" id="ai-customer-instructions" placeholder="Greeting / tone / do-do-not / lead qual / callback specifics"></textarea>
+              <div class="card-title" style="margin-top:12px;">Fallback & Escalation Logic</div>
+              <textarea class="textarea" id="ai-fallback-escalation" placeholder="Escalation triggers, missing info behavior, frustrated caller handling"></textarea>
+              <div class="card-title" style="margin-top:12px;">Response Constraints</div>
+              <textarea class="textarea" id="ai-response-constraints" placeholder="Compliance boundaries / prohibited claims / concise response expectations"></textarea>
+              <div class="card-title" style="margin-top:12px;">AI Notes</div>
+              <textarea class="textarea" id="ai-internal-notes" placeholder="Implementation/support notes"></textarea>
+              <div class="inline-actions" style="margin-top:10px;">
+                <button class="btn btn-primary" id="ai-save-customer">AI Konfiguration speichern</button>
+              </div>
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><h3>Recent Changes / Version Notes</h3><span class="badge badge-gray">Audit</span></div>
+            <div class="card-head"><h3>Recent AI Changes / Version Notes</h3><span class="badge badge-gray">Audit</span></div>
             <div class="list" id="ai-changes-list"></div>
           </div>
         </div>
@@ -419,6 +459,28 @@ const state={
     {key:'Automatisierte Billing Mails',desc:'Geplant für Q2',state:'OFF'},
     {key:'Live Call Quality Scoring',desc:'Interner Canary',state:'PARTIAL'}
   ],
+  aiGlobal:{
+    prompt:'Du bist Voxera, ein professioneller Voice Assistant für Schweizer KMU. Priorisiere Präzision, Datenschutz, höfliche Gesprächsführung und klare Übergaben in kritischen Fällen.',
+    tone:'Professionell, lösungsorientiert, ruhig',
+    voiceBehavior:'Kurz, klar, verbindlich',
+    callDefaults:'Erst Anliegen qualifizieren, dann Lösung/Weiterleitung',
+    fallback:'Bei fehlender Information Rückrufslot + Ticket anbieten',
+    escalation:'Kritisch sofort an Bereitschaft; unzufriedene Caller an Human Queue',
+    constraints:'Keine rechtliche/medizinische Beratung; keine falschen Zusagen; maximal 40s Antwortblöcke'
+  },
+  aiConfigs:{
+    1:{status:'AI Ready',custom:true,businessDescription:'Sanitär- und Notfallservice im Raum Zürich.',services:'Rohrbruch, Reparaturen, Wartung, Offerten.',locationHours:'Zürich + Umgebung, 24/7 Notfall, regulär 07:30-18:00.',bookingFaq:'Notfall sofort verbinden; Termine via Telefon bestätigen.',instructions:'Bei Wasserschäden ruhig führen, Priorität auf Sicherheit und Sofortmaßnahmen.',fallbackEscalation:'Wenn Ersatzteile unklar → Rückruf in 30 Min durch Dispo.',responseConstraints:'Keine Preiszusage ohne Sichtung; keine Rechtsberatung.',internalNotes:'Notfall-Flow am 2026-04-02 geschärft.',lastUpdate:'2026-04-06 09:10'},
+    2:{status:'Needs Review',custom:true,businessDescription:'Moderne Zahnarztpraxis mit Fokus auf Neupatienten.',services:'Kontrolle, Dentalhygiene, Bleaching, Notfallslots.',locationHours:'Bern Innenstadt, Mo-Fr 08:00-17:30.',bookingFaq:'Versicherung immer verifizieren; Notfälle priorisieren.',instructions:'Ton warm und vertrauensbildend, Terminfenster aktiv vorschlagen.',fallbackEscalation:'Wenn Versicherung unklar → Rückruf durch Empfang noch am selben Tag.',responseConstraints:'Keine medizinischen Diagnosen.',internalNotes:'FAQ zu Versicherungen unvollständig.',lastUpdate:'2026-04-05 16:20'},
+    3:{status:'Default Only',custom:false,businessDescription:'',services:'',locationHours:'',bookingFaq:'',instructions:'',fallbackEscalation:'',responseConstraints:'',internalNotes:'Keine individuellen Overrides aktiviert.',lastUpdate:'2026-03-30 11:05'},
+    4:{status:'Partial',custom:true,businessDescription:'Business- und Leisure-Hotel in Luzern.',services:'Zimmer, Gruppenbuchungen, Restaurant-Infos.',locationHours:'24/7 Frontdesk, Restaurant 06:30-23:00.',bookingFaq:'Gruppen >6 Personen an Front Office eskalieren.',instructions:'Mehrsprachig DE/EN; VIP-Caller priorisieren.',fallbackEscalation:'Unklare Verfügbarkeiten an Night Desk eskalieren.',responseConstraints:'Keine Garantie auf Upgrades.',internalNotes:'Französisch-Snippets fehlen.',lastUpdate:'2026-04-06 08:40'},
+    5:{status:'Blocked',custom:true,businessDescription:'',services:'Apothekenberatung, Rezeptabholung, OTC-Produkte.',locationHours:'Winterthur, Mo-Sa 08:00-20:00.',bookingFaq:'Telefonische Reservierung erlaubt, Abholung in 2h.',instructions:'',fallbackEscalation:'',responseConstraints:'Keine pharmazeutische Dosierungsempfehlung.',internalNotes:'Sortimentswechsel noch nicht eingepflegt.',lastUpdate:'2026-04-04 14:55'}
+  },
+  aiSelectedCustomerId:null,
+  aiChanges:[
+    '2026-04-06 09:10 · Global prompt aktualisiert (Notfall-Eskalation präzisiert)',
+    '2026-04-06 08:40 · Hotel Seeblick: VIP-Eskalation ergänzt',
+    '2026-04-05 16:20 · Keller Dental: Versicherungs-FAQ überarbeitet'
+  ],
   events:[
     '10:25 · Case C-101 auf Kritisch gesetzt',
     '10:18 · Hotel Seeblick: neue Reservierungsanfrage',
@@ -543,13 +605,142 @@ function renderOnboarding(){
   document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(item=>`<div class="detail-item"><span class="detail-k">${esc(item)}</span><span class="detail-v">Standard</span></div>`).join('');
 }
 
+function aiMissingFields(cfg){
+  const checks=[
+    ['businessDescription','Business Description'],
+    ['services','Services'],
+    ['locationHours','Location/Hours'],
+    ['bookingFaq','FAQ/Contact Prefs'],
+    ['fallbackEscalation','Fallback/Escalation'],
+    ['responseConstraints','Constraints'],
+    ['lastUpdate','Review Timestamp']
+  ];
+  return checks.filter(([k])=>!String(cfg?.[k]||'').trim()).map(([,label])=>label);
+}
+
 function renderAiSetup(){
-  document.getElementById('ai-customer-body').innerHTML=state.customers.map(c=>`<tr><td>${esc(c.name)}</td><td class="wrap">Öffnungszeiten, Services, regionale Hinweise</td><td class="wrap">Bei Unsicherheit: Rückrufslot anbieten + Ticket erstellen</td><td class="wrap">Kritisch: direkt an Owner · Hoch: Callback Queue</td></tr>`).join('');
-  document.getElementById('ai-changes-list').innerHTML=[
-    'v2.14 · Eskalation für Notfallanfragen verschärft',
-    'v2.13 · Mehrsprachige Begrüßung für Hospitality verbessert',
-    'v2.12 · Fallback-Intent für fehlende Kundendaten ergänzt'
-  ].map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">Dokumentiert im operativen Changelog</div></div></div>`).join('');
+  const g=state.aiGlobal;
+  document.getElementById('ai-global-prompt').value=g.prompt;
+  document.getElementById('ai-global-tone').value=g.tone;
+  document.getElementById('ai-global-voice').value=g.voiceBehavior;
+  document.getElementById('ai-global-call-defaults').value=g.callDefaults;
+  document.getElementById('ai-global-fallback').value=g.fallback;
+  document.getElementById('ai-global-escalation').value=g.escalation;
+  document.getElementById('ai-global-constraints').value=g.constraints;
+
+  const search=(document.getElementById('ai-search')?.value||'').toLowerCase().trim();
+  const statusFilter=(document.getElementById('ai-status-filter')?.value||'all');
+  const customFilter=(document.getElementById('ai-custom-filter')?.value||'all');
+  let rows=state.customers.map(c=>{
+    const cfg=state.aiConfigs[c.id]||{};
+    const missing=aiMissingFields(cfg);
+    return {customer:c,cfg,missing};
+  });
+  if(search){
+    rows=rows.filter(r=>`${r.customer.name} ${r.cfg.businessDescription||''} ${r.cfg.instructions||''}`.toLowerCase().includes(search));
+  }
+  if(statusFilter!=='all') rows=rows.filter(r=>r.cfg.status===statusFilter);
+  if(customFilter==='yes') rows=rows.filter(r=>!!r.cfg.custom);
+  if(customFilter==='no') rows=rows.filter(r=>!r.cfg.custom);
+  rows.sort((a,b)=>a.missing.length-b.missing.length||a.customer.name.localeCompare(b.customer.name));
+
+  document.getElementById('ai-customer-body').innerHTML=rows.map(r=>`<tr>
+    <td><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(r.customer.contact)}</div></td>
+    <td>${toneBadge(r.customer.plan)}</td>
+    <td>${toneBadge(r.cfg.status||'Unbekannt')}</td>
+    <td>${r.cfg.custom?toneBadge('Ja'):toneBadge('Nein')}</td>
+    <td>${r.missing.includes('Business Description')||r.missing.includes('Services')?'⚠️ Unvollständig':'Vollständig'}</td>
+    <td>${r.missing.includes('Fallback/Escalation')?'⚠️ Offen':'Ready'}</td>
+    <td>${esc(r.cfg.lastUpdate||'—')}</td>
+    <td><button class="btn btn-quiet btn-sm" onclick="openAiWorkspace(${r.customer.id})">AI Config</button></td>
+  </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+
+  const missingCustomers=state.customers.map(c=>{
+    const cfg=state.aiConfigs[c.id]||{};
+    return {name:c.name,id:c.id,missing:aiMissingFields(cfg)};
+  }).filter(x=>x.missing.length>0).sort((a,b)=>b.missing.length-a.missing.length);
+  document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">${m.missing.length} fehlend: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace(${m.id})">Fixen</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
+  document.getElementById('ai-changes-list').innerHTML=state.aiChanges.slice(0,8).map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">AI Configuration change log</div></div></div>`).join('');
+  hydrateAiStatusFilter();
+  renderAiWorkspace();
+}
+
+function hydrateAiStatusFilter(){
+  const select=document.getElementById('ai-status-filter');
+  if(!select) return;
+  const current=select.value||'all';
+  const statuses=[...new Set(Object.values(state.aiConfigs).map(x=>x.status).filter(Boolean))];
+  select.innerHTML='<option value="all">AI Status: Alle</option>'+statuses.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  if([...select.options].some(o=>o.value===current)) select.value=current;
+}
+
+function openAiWorkspace(customerId){
+  state.aiSelectedCustomerId=customerId;
+  renderAiWorkspace();
+}
+
+function renderAiWorkspace(){
+  const id=state.aiSelectedCustomerId;
+  const workspace=document.getElementById('ai-workspace');
+  const empty=document.getElementById('ai-workspace-empty');
+  if(!id){
+    workspace.style.display='none';
+    empty.style.display='block';
+    document.getElementById('ai-workspace-badge').textContent='Kein Kunde gewählt';
+    return;
+  }
+  const c=customerById(id); const cfg=state.aiConfigs[id]||{};
+  workspace.style.display='block';
+  empty.style.display='none';
+  document.getElementById('ai-workspace-badge').outerHTML=toneBadge(cfg.status||'Unbekannt').replace('<span','<span id="ai-workspace-badge"');
+  document.getElementById('ai-customer-context').innerHTML=[
+    ['Customer',c.name],['Plan',c.plan],['Status',c.status],['Voxera',c.voxera],['Setup',`${c.progress}% · ${c.readiness}`],['AI Setup',cfg.status||'Unbekannt']
+  ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
+  document.getElementById('ai-business-description').value=cfg.businessDescription||'';
+  document.getElementById('ai-services').value=cfg.services||'';
+  document.getElementById('ai-location-hours').value=cfg.locationHours||'';
+  document.getElementById('ai-booking-faq').value=cfg.bookingFaq||'';
+  document.getElementById('ai-customer-instructions').value=cfg.instructions||'';
+  document.getElementById('ai-fallback-escalation').value=cfg.fallbackEscalation||'';
+  document.getElementById('ai-response-constraints').value=cfg.responseConstraints||'';
+  document.getElementById('ai-internal-notes').value=cfg.internalNotes||'';
+}
+
+function saveGlobalAiConfig(){
+  state.aiGlobal.prompt=document.getElementById('ai-global-prompt').value.trim();
+  state.aiGlobal.tone=document.getElementById('ai-global-tone').value.trim();
+  state.aiGlobal.voiceBehavior=document.getElementById('ai-global-voice').value.trim();
+  state.aiGlobal.callDefaults=document.getElementById('ai-global-call-defaults').value.trim();
+  state.aiGlobal.fallback=document.getElementById('ai-global-fallback').value.trim();
+  state.aiGlobal.escalation=document.getElementById('ai-global-escalation').value.trim();
+  state.aiGlobal.constraints=document.getElementById('ai-global-constraints').value.trim();
+  const stamp=nowStamp();
+  state.aiChanges.unshift(`${stamp} · Global assistant defaults aktualisiert`);
+  state.events.unshift(`${stamp} · AI Setup: globale Defaults geändert`);
+  renderAiSetup(); renderActivity(); renderOverview();
+}
+
+function saveCustomerAiConfig(){
+  const id=state.aiSelectedCustomerId; if(!id) return;
+  const cfg=state.aiConfigs[id]||{};
+  cfg.businessDescription=document.getElementById('ai-business-description').value.trim();
+  cfg.services=document.getElementById('ai-services').value.trim();
+  cfg.locationHours=document.getElementById('ai-location-hours').value.trim();
+  cfg.bookingFaq=document.getElementById('ai-booking-faq').value.trim();
+  cfg.instructions=document.getElementById('ai-customer-instructions').value.trim();
+  cfg.fallbackEscalation=document.getElementById('ai-fallback-escalation').value.trim();
+  cfg.responseConstraints=document.getElementById('ai-response-constraints').value.trim();
+  cfg.internalNotes=document.getElementById('ai-internal-notes').value.trim();
+  cfg.custom=!!cfg.instructions;
+  const missing=aiMissingFields(cfg);
+  cfg.status=missing.length===0?'AI Ready':missing.length<=2?'Needs Review':'Blocked';
+  cfg.lastUpdate=new Date().toISOString().slice(0,16).replace('T',' ');
+  state.aiConfigs[id]=cfg;
+  const cname=customerById(id)?.name||`Kunde ${id}`;
+  const stamp=nowStamp();
+  state.aiChanges.unshift(`${stamp} · ${cname}: AI-Konfiguration gespeichert (${cfg.status})`);
+  state.events.unshift(`${stamp} · AI Setup: ${cname} aktualisiert`);
+  renderAiSetup(); renderActivity(); renderOverview();
 }
 
 function renderCases(){
@@ -763,6 +954,10 @@ function wireUi(){
     document.getElementById(id).addEventListener('input',renderOnboarding);
     document.getElementById(id).addEventListener('change',renderOnboarding);
   });
+  ['ai-search','ai-status-filter','ai-custom-filter'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',renderAiSetup);
+    document.getElementById(id).addEventListener('change',renderAiSetup);
+  });
   document.getElementById('customer-reset').addEventListener('click',()=>{
     document.getElementById('customer-search').value='';
     document.getElementById('customer-plan-filter').value='all';
@@ -777,6 +972,14 @@ function wireUi(){
     document.getElementById('onboarding-sort').value='progress-asc';
     renderOnboarding();
   });
+  document.getElementById('ai-filter-reset').addEventListener('click',()=>{
+    document.getElementById('ai-search').value='';
+    document.getElementById('ai-status-filter').value='all';
+    document.getElementById('ai-custom-filter').value='all';
+    renderAiSetup();
+  });
+  document.getElementById('ai-save-global').addEventListener('click',saveGlobalAiConfig);
+  document.getElementById('ai-save-customer').addEventListener('click',saveCustomerAiConfig);
   document.getElementById('cases-create-btn').addEventListener('click',()=>{
     const cid=Number(document.getElementById('cases-customer-select').value);
     const type=document.getElementById('cases-type-select').value;
