@@ -132,6 +132,14 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 .inline-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
 .muted{font-size:11.5px;color:var(--gray400);}
 .chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;background:var(--gray100);color:var(--gray600);}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.form-full{grid-column:1/-1;}
+.form-error{font-size:12px;color:var(--red);margin-top:4px;display:none;}
+.form-error.show{display:block;}
+.modal-feedback{font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:12px;display:none;}
+.modal-feedback.error{display:block;background:var(--red-light);color:var(--red);border:1px solid #fecaca;}
+.modal-feedback.success{display:block;background:var(--green-light);color:var(--green);border:1px solid var(--green-mid);}
+.btn[disabled]{opacity:.7;cursor:not-allowed;transform:none;}
 
 @media (max-width:1100px){
   .kpi-grid{grid-template-columns:repeat(2,1fr);}
@@ -196,7 +204,7 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
       <section id="section-customers" class="section">
         <div class="section-head">
           <h3 style="font-family:var(--headline-font);font-size:18px">Kundenverwaltung</h3>
-          <button class="btn btn-primary">+ Kunde anlegen</button>
+          <button class="btn btn-primary" id="open-create-customer-btn">+ Kunde anlegen</button>
         </div>
         <div class="toolbar">
           <input class="input" id="customer-search" placeholder="Suche nach Firmenname, Kontakt, Nummer …">
@@ -396,6 +404,79 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   </main>
 </div>
 
+<div class="modal-overlay" id="create-customer-modal" onclick="if(event.target===this)closeCreateCustomerModal()">
+  <div class="modal">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title">Kunde anlegen</div>
+        <div class="modal-sub">Erstellt Customer + Onboarding (kein automatischer Zugang).</div>
+      </div>
+      <button class="btn btn-secondary" type="button" onclick="closeCreateCustomerModal()">Schließen</button>
+    </div>
+    <div id="create-customer-feedback" class="modal-feedback"></div>
+    <form id="create-customer-form">
+      <div class="form-grid">
+        <div>
+          <label for="create-customer-name" class="muted">customer_name *</label>
+          <input id="create-customer-name" class="input" required>
+          <div class="form-error" data-error-for="customer_name"></div>
+        </div>
+        <div>
+          <label for="create-customer-contact-name" class="muted">contact_name</label>
+          <input id="create-customer-contact-name" class="input">
+        </div>
+        <div>
+          <label for="create-customer-email" class="muted">email *</label>
+          <input id="create-customer-email" class="input" type="email" required>
+          <div class="form-error" data-error-for="email"></div>
+        </div>
+        <div>
+          <label for="create-customer-phone" class="muted">tel_nr *</label>
+          <input id="create-customer-phone" class="input" required>
+          <div class="form-error" data-error-for="tel_nr"></div>
+        </div>
+        <div>
+          <label for="create-customer-plan" class="muted">plan *</label>
+          <input id="create-customer-plan" class="input" required placeholder="Starter / Pro / Growth / Enterprise">
+          <div class="form-error" data-error-for="plan"></div>
+        </div>
+        <div>
+          <label for="create-customer-voxera-number" class="muted">voxera_number</label>
+          <input id="create-customer-voxera-number" class="input" placeholder="+41 ...">
+        </div>
+        <div>
+          <label for="create-customer-street" class="muted">street *</label>
+          <input id="create-customer-street" class="input" required>
+          <div class="form-error" data-error-for="street"></div>
+        </div>
+        <div>
+          <label for="create-customer-zip" class="muted">zip *</label>
+          <input id="create-customer-zip" class="input" required>
+          <div class="form-error" data-error-for="zip"></div>
+        </div>
+        <div>
+          <label for="create-customer-city" class="muted">city *</label>
+          <input id="create-customer-city" class="input" required>
+          <div class="form-error" data-error-for="city"></div>
+        </div>
+        <div>
+          <label for="create-customer-country" class="muted">country *</label>
+          <input id="create-customer-country" class="input" required value="Switzerland">
+          <div class="form-error" data-error-for="country"></div>
+        </div>
+        <div class="form-full">
+          <label for="create-customer-notes" class="muted">notes</label>
+          <textarea id="create-customer-notes" class="textarea" style="min-height:72px;"></textarea>
+        </div>
+      </div>
+      <div class="inline-actions" style="margin-top:14px;justify-content:flex-end;">
+        <button class="btn btn-secondary" type="button" onclick="closeCreateCustomerModal()">Abbrechen</button>
+        <button class="btn btn-primary" id="create-customer-submit-btn" type="submit">Kunde erstellen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="modal-overlay" id="customer-profile-modal" onclick="if(event.target===this)closeCustomerProfile()">
   <div class="modal">
     <div class="modal-top">
@@ -448,6 +529,7 @@ const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClien
 const state={
   route:'overview',
   selectedCustomer:null,
+  createCustomerPending:false,
   customers:[
     {id:1,name:'Meyer Sanitär AG',contact:'Lukas Meyer',email:'info@meyer-sanitaer.ch',phone:'+41 44 500 10 10',plan:'Growth',status:'Aktiv',voxera:'+41 44 520 00 10',progress:95,readiness:'Ready',latest:'Heute · 09:42',openCases:1,summary:'Sehr stabiler Betrieb, hoher Anrufdurchsatz am Morgen, Callback SLA im grünen Bereich.',notes:['Q2 Ziel: Terminbuchung tiefer integrieren.','Hohe Qualität bei Notfallklassifizierung.'],onboardingSteps:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured','test call completed','ready for go-live']},
     {id:2,name:'Keller Dentalpraxis',contact:'Dr. Anna Keller',email:'praxis@kellerdental.ch',phone:'+41 31 200 22 11',plan:'Pro',status:'Onboarding',voxera:'Zuweisung offen',progress:68,readiness:'Konfiguration offen',latest:'Heute · 08:14',openCases:2,summary:'Onboarding läuft, Nummernzuweisung in Klärung, Greeting-Review steht aus.',notes:['Test-Call für Dienstag geplant.','Business-Öffnungszeiten prüfen.'],onboardingSteps:['customer created','activation sent','dashboard access active','agent connected','business info completed','opening hours added']},
@@ -567,7 +649,9 @@ const routeMeta={
 };
 
 function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
-function customerById(id){return state.customers.find(c=>c.id===id);}
+function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function idsEq(a,b){return String(a)===String(b);}
+function customerById(id){return state.customers.find(c=>idsEq(c.id,id));}
 function toneBadge(val){
   const v=(val||'').toLowerCase();
   const cls=v.includes('krit')||v.includes('offen')?'badge-red':v.includes('hoch')||v.includes('arbeit')?'badge-amber':v.includes('aktiv')||v.includes('ready')||v.includes('live')?'badge-green':v.includes('growth')||v.includes('pro')||v.includes('enterprise')?'badge-blue':'badge-gray';
@@ -578,11 +662,11 @@ function nowStamp(){
 }
 function refreshCustomerCaseCounts(){
   state.customers.forEach(c=>{
-    c.openCases=state.cases.filter(cs=>cs.customerId===c.id && cs.status!=='Geschlossen').length;
+    c.openCases=state.cases.filter(cs=>idsEq(cs.customerId,c.id) && cs.status!=='Geschlossen').length;
   });
 }
 function onboardingForCustomer(id){
-  return state.onboarding.find(o=>o.customerId===id)||null;
+  return state.onboarding.find(o=>idsEq(o.customerId,id))||null;
 }
 
 function renderOverview(){
@@ -607,7 +691,7 @@ function renderOverview(){
   ];
   document.getElementById('overview-kpis').innerHTML=kpis.map(([l,v,s])=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
   document.getElementById('overview-activity-list').innerHTML=state.events.slice(0,6).map(e=>`<div class="list-item"><div><div class="list-main">${esc(e)}</div><div class="list-sub">Auto-aggregated operational event</div></div></div>`).join('');
-  document.getElementById('overview-attention-list').innerHTML=customers.filter(c=>c.openCases>0||c.progress<80).map(c=>`<div class="list-item"><div><div class="list-main">${esc(c.name)}</div><div class="list-sub">${c.openCases} offene Cases · Setup ${c.progress}%</div></div><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile(${c.id})">Profil</button></div>`).join('')||'<div class="empty">Keine Kunden mit Handlungsbedarf.</div>';
+  document.getElementById('overview-attention-list').innerHTML=customers.filter(c=>c.openCases>0||c.progress<80).map(c=>`<div class="list-item"><div><div class="list-main">${esc(c.name)}</div><div class="list-sub">${c.openCases} offene Cases · Setup ${c.progress}%</div></div><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button></div>`).join('')||'<div class="empty">Keine Kunden mit Handlungsbedarf.</div>';
 }
 
 function renderCustomers(){
@@ -637,7 +721,7 @@ function renderCustomers(){
     <td>${c.progress}% <span class="muted">· ${esc(c.readiness)}</span></td>
     <td>${esc(c.latest)}</td>
     <td>${c.openCases}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile(${c.id})">Profil</button><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer(${c.id},'Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile(${c.id})">Onboarding</button></div></td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
   </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 }
 
@@ -696,10 +780,10 @@ function renderOnboarding(){
     <td>${q.missingSteps.length}</td>
     <td>${q.blocker?`<span class="badge badge-red">${esc(q.blocker)}</span>`:'—'}</td>
     <td>${esc(q.latestUpdate||'—')}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openOnboardingDetail(${q.customer.id})">Detail</button><button class="btn btn-secondary btn-sm" onclick="openCustomerProfile(${q.customer.id})">Profil</button></div></td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openOnboardingDetail('${jsStr(q.customer.id)}')">Detail</button><button class="btn btn-secondary btn-sm" onclick="openCustomerProfile('${jsStr(q.customer.id)}')">Profil</button></div></td>
   </tr>`).join('')||'<tr><td colspan="10"><div class="empty">Keine Onboarding-Einträge für die aktuelle Auswahl.</div></td></tr>';
 
-  document.getElementById('onboarding-blockers-list').innerHTML=queue.filter(q=>q.missingSteps.length>0).sort((a,b)=>b.missingSteps.length-a.missingSteps.length).slice(0,8).map(q=>`<div class="list-item"><div><div class="list-main">${esc(q.customer.name)}</div><div class="list-sub">${esc(q.missingSteps.slice(0,3).join(', '))}${q.missingSteps.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openOnboardingDetail(${q.customer.id})">Bearbeiten</button></div>`).join('')||'<div class="empty">Keine offenen Blocker.</div>';
+  document.getElementById('onboarding-blockers-list').innerHTML=queue.filter(q=>q.missingSteps.length>0).sort((a,b)=>b.missingSteps.length-a.missingSteps.length).slice(0,8).map(q=>`<div class="list-item"><div><div class="list-main">${esc(q.customer.name)}</div><div class="list-sub">${esc(q.missingSteps.slice(0,3).join(', '))}${q.missingSteps.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openOnboardingDetail('${jsStr(q.customer.id)}')">Bearbeiten</button></div>`).join('')||'<div class="empty">Keine offenen Blocker.</div>';
   document.getElementById('onboarding-activity-list').innerHTML=state.onboardingActivity.slice(0,10).map(x=>`<div class="list-item"><div><div class="list-main">${esc(x)}</div><div class="list-sub">Onboarding event</div></div></div>`).join('')||'<div class="empty">Noch keine Aktivitäten.</div>';
   renderOnboardingDetail();
 }
@@ -747,7 +831,7 @@ function renderOnboardingDetail(){
   document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(step=>{
     const done=(q.customer.onboardingSteps||[]).includes(step);
     const blocking=['activation sent','Voxera number assigned','forwarding configured','AI basics configured','test call completed'].includes(step)&&!done;
-    return `<div class="detail-item"><span class="detail-k">${esc(step)} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep(${q.customer.id},'${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
+    return `<div class="detail-item"><span class="detail-k">${esc(step)} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep('${jsStr(q.customer.id)}','${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
   }).join('');
   document.getElementById('onboarding-next-action').textContent=q.nextStep;
   document.getElementById('onboarding-blocker').textContent=q.blocker||'Kein blocker aktiv';
@@ -814,14 +898,14 @@ function renderAiSetup(){
     <td>${r.missing.includes('Business Description')||r.missing.includes('Services')?'⚠️ Unvollständig':'Vollständig'}</td>
     <td>${r.missing.includes('Fallback/Escalation')?'⚠️ Offen':'Ready'}</td>
     <td>${esc(r.cfg.lastUpdate||'—')}</td>
-    <td><button class="btn btn-quiet btn-sm" onclick="openAiWorkspace(${r.customer.id})">AI Config</button></td>
+    <td><button class="btn btn-quiet btn-sm" onclick="openAiWorkspace('${jsStr(r.customer.id)}')">AI Config</button></td>
   </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 
   const missingCustomers=state.customers.map(c=>{
     const cfg=state.aiConfigs[c.id]||{};
     return {name:c.name,id:c.id,missing:aiMissingFields(cfg)};
   }).filter(x=>x.missing.length>0).sort((a,b)=>b.missing.length-a.missing.length);
-  document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">${m.missing.length} fehlend: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace(${m.id})">Fixen</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
+  document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">${m.missing.length} fehlend: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace('${jsStr(m.id)}')">Fixen</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
   document.getElementById('ai-changes-list').innerHTML=state.aiChanges.slice(0,8).map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">AI Configuration change log</div></div></div>`).join('');
   hydrateAiStatusFilter();
   renderAiWorkspace();
@@ -920,7 +1004,7 @@ function renderCases(){
       </select>
     </td>
     <td>${esc(c.owner)}</td>
-    <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile(${c.customerId})">${esc(customerById(c.customerId).name)}</button></td>
+    <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.customerId)}')">${esc(customerById(c.customerId).name)}</button></td>
     <td>${esc(c.latest)}</td>
     <td class="wrap">${esc(c.notes)}<div class="muted">${esc(c.id)}</div></td>
   </tr>`;
@@ -1002,16 +1086,16 @@ function openCustomerProfile(id){
   const missingSteps=state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
   document.getElementById('profile-overview-actions').innerHTML=`
     <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding')">Onboarding öffnen</button>
-    <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus(${id})">${c.status==='Paused'?'Aktivieren':'Pausieren'}</button>
-    <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer(${id},'Follow-up')">Case erstellen</button>
+    <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus('${jsStr(id)}')">${c.status==='Paused'?'Aktivieren':'Pausieren'}</button>
+    <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
     <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>`;
   const details=[
     ['Company',c.name],['Kontakt',`${c.contact} · ${c.phone}`],['Plan',c.plan],['Status',c.status],['Voxera Nummer',c.voxera],['Onboarding Progress',`${c.progress}%`],['Setup Readiness',c.readiness],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id).padStart(4,'0')}`]
   ];
   document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
-  document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>x.customerId===id).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer(${id},'Rückruf','Aus Call: ${i+1}')">Case</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed(${id},${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
-  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>x.customerId===id).map(ca=>`<tr><td>${esc(ca.id)}</td><td>${toneBadge(ca.status)}</td><td>${toneBadge(ca.priority)}</td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','Geschlossen')">Close</button><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','priority','Hoch')">Prio hoch</button></div></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
+  document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>idsEq(x.customerId,id)).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Rückruf','Aus Call: ${i+1}')">Case</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed('${jsStr(id)}',${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
+  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>idsEq(x.customerId,id)).map(ca=>`<tr><td>${esc(ca.id)}</td><td>${toneBadge(ca.status)}</td><td>${toneBadge(ca.priority)}</td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','Geschlossen')">Close</button><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','priority','Hoch')">Prio hoch</button></div></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
   document.getElementById('profile-billing').innerHTML=[['Plan',c.plan],['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],['Setup Fee','CHF '+(c.progress<100?'490':'0')],['Contract','Placeholder · Vertragslaufzeit'],['Billing Metadata','Placeholder · Debitorenreferenz']].map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v">${v}</span></div></div>`).join('');
   document.getElementById('profile-notes').innerHTML=c.notes.map(n=>`<div class="list-item"><div><div class="list-main">${esc(n)}</div><div class="list-sub">Internal operational note</div></div></div>`).join('')||'<div class="empty">Noch keine Notizen.</div>';
   document.getElementById('profile-new-note').value='';
@@ -1022,6 +1106,155 @@ function openCustomerProfile(id){
 }
 function closeCustomerProfile(){document.getElementById('customer-profile-modal').classList.remove('open');}
 
+function setCreateCustomerFeedback(type,message){
+  const feedback=document.getElementById('create-customer-feedback');
+  feedback.className='modal-feedback';
+  feedback.textContent=message||'';
+  if(type==='error') feedback.classList.add('error');
+  if(type==='success') feedback.classList.add('success');
+}
+
+function setCreateCustomerSubmitting(isSubmitting){
+  state.createCustomerPending=!!isSubmitting;
+  const submitBtn=document.getElementById('create-customer-submit-btn');
+  if(!submitBtn) return;
+  submitBtn.disabled=!!isSubmitting;
+  submitBtn.textContent=isSubmitting?'Erstelle…':'Kunde erstellen';
+}
+
+function clearCreateCustomerErrors(){
+  document.querySelectorAll('#create-customer-form .form-error').forEach(el=>{
+    el.textContent='';
+    el.classList.remove('show');
+  });
+}
+
+function showCreateCustomerError(field,message){
+  const target=document.querySelector(`#create-customer-form .form-error[data-error-for="${field}"]`);
+  if(!target) return;
+  target.textContent=message;
+  target.classList.add('show');
+}
+
+function resetCreateCustomerForm(){
+  const form=document.getElementById('create-customer-form');
+  form.reset();
+  document.getElementById('create-customer-country').value='Switzerland';
+  clearCreateCustomerErrors();
+  setCreateCustomerFeedback(null,'');
+}
+
+function openCreateCustomerModal(){
+  if(state.createCustomerPending) return;
+  resetCreateCustomerForm();
+  document.getElementById('create-customer-modal').classList.add('open');
+}
+
+function closeCreateCustomerModal(){
+  if(state.createCustomerPending) return;
+  document.getElementById('create-customer-modal').classList.remove('open');
+}
+
+function collectCreateCustomerPayload(){
+  return {
+    customer_name:document.getElementById('create-customer-name').value.trim(),
+    contact_name:document.getElementById('create-customer-contact-name').value.trim(),
+    email:document.getElementById('create-customer-email').value.trim(),
+    tel_nr:document.getElementById('create-customer-phone').value.trim(),
+    plan:document.getElementById('create-customer-plan').value.trim(),
+    voxera_number:document.getElementById('create-customer-voxera-number').value.trim(),
+    street:document.getElementById('create-customer-street').value.trim(),
+    zip:document.getElementById('create-customer-zip').value.trim(),
+    city:document.getElementById('create-customer-city').value.trim(),
+    country:document.getElementById('create-customer-country').value.trim(),
+    notes:document.getElementById('create-customer-notes').value.trim()
+  };
+}
+
+function validateCreateCustomerPayload(payload){
+  const required=['customer_name','email','tel_nr','street','zip','city','country','plan'];
+  const missing=required.filter(key=>!payload[key]);
+  if(missing.length===0) return {ok:true,missing:[]};
+  missing.forEach(field=>showCreateCustomerError(field,'Pflichtfeld.'));
+  return {ok:false,missing};
+}
+
+async function submitCreateCustomer(event){
+  event.preventDefault();
+  if(state.createCustomerPending) return;
+  clearCreateCustomerErrors();
+  setCreateCustomerFeedback(null,'');
+
+  const payload=collectCreateCustomerPayload();
+  const validation=validateCreateCustomerPayload(payload);
+  if(!validation.ok){
+    setCreateCustomerFeedback('error','Bitte fülle alle Pflichtfelder aus.');
+    return;
+  }
+
+  setCreateCustomerSubmitting(true);
+  try{
+    const res=await fetch('/.netlify/functions/create-customer',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const json=await res.json().catch(()=>({}));
+    if(!res.ok || !json?.success){
+      if(Array.isArray(json?.missing_fields)){
+        json.missing_fields.forEach(field=>showCreateCustomerError(field,'Pflichtfeld.'));
+      }
+      const details=json?.rollback_applied===false?' (Rollback fehlgeschlagen – manuelle Prüfung nötig).':'';
+      throw new Error((json?.error||'Kunde konnte nicht erstellt werden.')+details);
+    }
+
+    const dbCustomer=json.customer||{};
+    const dbOnboarding=json.onboarding||{};
+    const createdId=String(dbCustomer.id||'');
+    const customerForUi={
+      id:createdId,
+      name:dbCustomer.customer_name||payload.customer_name,
+      contact:dbCustomer.contact_name||payload.contact_name||'—',
+      email:dbCustomer.email||payload.email,
+      phone:dbCustomer.tel_nr||payload.tel_nr,
+      plan:dbCustomer.plan||payload.plan,
+      status:'Onboarding',
+      voxera:dbCustomer.voxera_number||'Zuweisung offen',
+      progress:Number(dbOnboarding.progress??0),
+      readiness:'Konfiguration offen',
+      latest:`${nowStamp()} · Kunde erstellt`,
+      openCases:0,
+      summary:'Neu angelegter Kunde. Zugang wird separat versendet.',
+      notes:[payload.notes].filter(Boolean),
+      onboardingSteps:['customer created']
+    };
+    createdId && state.customers.unshift(customerForUi);
+    createdId && state.onboarding.unshift({
+      customerId:createdId,
+      status:'In Arbeit',
+      progress:Number(dbOnboarding.progress??0),
+      next:dbOnboarding.next_step||'Zugang senden',
+      owner:'Ops',
+      latest:new Date().toISOString().slice(0,16).replace('T',' '),
+      blocker:''
+    });
+    state.events.unshift(`${nowStamp()} · ${customerForUi.name}: Kunde erstellt`);
+    state.onboardingActivity.unshift(`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${customerForUi.name}: Onboarding angelegt`);
+    setCreateCustomerFeedback('success','Kunde und Onboarding wurden erstellt.');
+    hydrateFilters();
+    updateBadges();
+    renderCustomers();
+    renderOverview();
+    renderOnboarding();
+    renderActivity();
+    setTimeout(()=>closeCreateCustomerModal(),700);
+  }catch(err){
+    setCreateCustomerFeedback('error',err?.message||'Unbekannter Fehler bei Kundenerstellung.');
+  }finally{
+    setCreateCustomerSubmitting(false);
+  }
+}
+
 function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt'){
   const c=customerById(customerId); if(!c) return;
   const num=state.cases.reduce((m,x)=>Math.max(m,Number(String(x.id).replace('C-',''))||100),100)+1;
@@ -1029,7 +1262,7 @@ function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstell
   state.events.unshift(`${nowStamp()} · ${c.name}: ${type} Case erstellt`);
   refreshCustomerCaseCounts();
   renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(state.selectedCustomer===customerId) openCustomerProfile(customerId);
+  if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
 }
 
 function updateCase(caseId,field,value){
@@ -1039,11 +1272,11 @@ function updateCase(caseId,field,value){
   refreshCustomerCaseCounts();
   state.events.unshift(`${nowStamp()} · ${caseId} ${field} → ${value}`);
   renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(state.selectedCustomer===target.customerId) openCustomerProfile(target.customerId);
+  if(idsEq(state.selectedCustomer,target.customerId)) openCustomerProfile(target.customerId);
 }
 
 function markCallReviewed(customerId,callIdx){
-  const call=state.calls.filter(c=>c.customerId===customerId)[callIdx];
+  const call=state.calls.filter(c=>idsEq(c.customerId,customerId))[callIdx];
   if(!call) return;
   call.summary=`${call.summary} (reviewed)`;
   call.callback=false;
@@ -1086,7 +1319,7 @@ function toggleOnboardingStep(customerId,step){
   state.onboardingActivity.unshift(activity);
   state.events.unshift(`${nowStamp()} · ${c.name}: Onboarding-Schritt ${has?'reopened':'completed'} (${step})`);
   renderOnboarding(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(state.selectedCustomer===customerId) openCustomerProfile(customerId);
+  if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
 }
 
 function addProfileNote(){
@@ -1153,7 +1386,7 @@ function wireUi(){
   document.getElementById('ai-save-global').addEventListener('click',saveGlobalAiConfig);
   document.getElementById('ai-save-customer').addEventListener('click',saveCustomerAiConfig);
   document.getElementById('cases-create-btn').addEventListener('click',()=>{
-    const cid=Number(document.getElementById('cases-customer-select').value);
+    const cid=document.getElementById('cases-customer-select').value;
     const type=document.getElementById('cases-type-select').value;
     if(!cid) return;
     createCaseForCustomer(cid,type,'Direkt aus Cases erstellt');
@@ -1169,6 +1402,8 @@ function wireUi(){
     document.querySelectorAll('.profile-panel').forEach(p=>p.classList.toggle('active',p.dataset.profilePanel===btn.dataset.profileTab));
   });
   document.getElementById('profile-add-note-btn').addEventListener('click',addProfileNote);
+  document.getElementById('open-create-customer-btn').addEventListener('click',openCreateCustomerModal);
+  document.getElementById('create-customer-form').addEventListener('submit',submitCreateCustomer);
   document.getElementById('settings-add-admin').addEventListener('click',()=>{
     const count=state.admins.length+1;
     state.admins.push({id:`A-${count}`,name:`Neuer Admin ${count}`,role:'admin',email:`admin${count}@voxera.ch`,status:'Aktiv'});
