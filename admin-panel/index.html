@@ -566,24 +566,16 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <!-- CASES -->
       <section id="section-cases" class="section">
         <div class="section-head">
-          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Case Workflow</h3>
+          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Anliegen</h3>
           <div class="inline-actions">
             <select class="select" id="cases-customer-select" style="width:220px;"></select>
-            <select class="select" id="cases-type-select" style="width:130px;"><option>Rückruf</option><option>Follow-up</option></select>
             <button class="btn btn-primary" id="cases-create-btn">
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
-              Neuer Case
+              Anliegen erfassen
             </button>
           </div>
         </div>
-        <div class="tabs" id="cases-tabs">
-          <button class="tab-btn active" data-tab="callbacks">Rückrufe</button>
-          <button class="tab-btn" data-tab="followups">Follow-ups</button>
-          <button class="tab-btn" data-tab="all">Alle Cases</button>
-        </div>
-        <div class="tab-panel active" data-panel="callbacks"><div class="table-wrap"><table class="data-table"><thead><tr><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th></tr></thead><tbody id="cases-callbacks"></tbody></table></div></div>
-        <div class="tab-panel" data-panel="followups"><div class="table-wrap"><table class="data-table"><thead><tr><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>History</th></tr></thead><tbody id="cases-followups"></tbody></table></div></div>
-        <div class="tab-panel" data-panel="all"><div class="table-wrap"><table class="data-table"><thead><tr><th>Typ</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th></tr></thead><tbody id="cases-all"></tbody></table></div></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Kunde</th><th>Titel</th><th>Notiz</th><th>Status</th><th>Aktion</th></tr></thead><tbody id="cases-all"></tbody></table></div>
       </section>
 
       <!-- ACTIVITY -->
@@ -633,6 +625,34 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       </section>
     </div>
   </main>
+</div>
+
+<!-- CASE CAPTURE MODAL -->
+<div class="modal-overlay" id="case-capture-modal" onclick="if(event.target===this)closeCaseCaptureModal()">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title">Anliegen erfassen</div>
+        <div class="modal-sub">Schnell ein internes Kundenanliegen dokumentieren.</div>
+      </div>
+      <button class="btn btn-quiet" type="button" onclick="closeCaseCaptureModal()">Schließen</button>
+    </div>
+    <div id="case-capture-feedback" class="modal-feedback"></div>
+    <form id="case-capture-form">
+      <div style="margin-bottom:10px;">
+        <label class="muted" for="case-capture-title">Titel *</label>
+        <input class="input" id="case-capture-title" required>
+      </div>
+      <div>
+        <label class="muted" for="case-capture-note">Notiz</label>
+        <textarea class="textarea" id="case-capture-note" style="min-height:90px;"></textarea>
+      </div>
+      <div class="inline-actions" style="justify-content:flex-end;margin-top:12px;">
+        <button class="btn btn-quiet" type="button" onclick="closeCaseCaptureModal()">Abbrechen</button>
+        <button class="btn btn-primary" id="case-capture-submit-btn" type="submit">Speichern</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- CREATE CUSTOMER MODAL -->
@@ -743,7 +763,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       </div>
     </div>
     <div class="profile-panel" data-profile-panel="calls"><div class="table-wrap"><table class="data-table"><thead><tr><th>Zeit</th><th>Kategorie / Qualität</th><th>Callback</th><th>Summary</th><th>Aktionen</th></tr></thead><tbody id="profile-calls"></tbody></table></div></div>
-    <div class="profile-panel" data-profile-panel="cases"><div class="table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>Status</th><th>Priorität</th><th>Owner</th><th>Latest Update</th><th>Notizen</th><th>Aktionen</th></tr></thead><tbody id="profile-cases"></tbody></table></div></div>
+    <div class="profile-panel" data-profile-panel="cases"><div class="table-wrap"><table class="data-table"><thead><tr><th>Titel</th><th>Notiz</th><th>Status</th><th>Aktion</th></tr></thead><tbody id="profile-cases"></tbody></table></div></div>
     <div class="profile-panel" data-profile-panel="billing"><div class="detail-grid" id="profile-billing"></div></div>
     <div class="profile-panel" data-profile-panel="notes">
       <div style="margin-bottom:10px;">
@@ -788,6 +808,28 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   </div>
 </div>
 
+<!-- CUSTOMER DANGER MODAL -->
+<div class="modal-overlay" id="customer-danger-modal" onclick="if(event.target===this)closeCustomerDangerModal()">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title" id="customer-danger-title">Aktion bestätigen</div>
+        <div class="modal-sub" id="customer-danger-sub">Diese Aktion wird serverseitig ausgeführt.</div>
+      </div>
+      <button class="btn btn-quiet" type="button" onclick="closeCustomerDangerModal()">Schließen</button>
+    </div>
+    <div id="customer-danger-feedback" class="modal-feedback"></div>
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;background:var(--bg);">
+      <div class="detail-item"><span class="detail-k">Kunde</span><span class="detail-v" id="customer-danger-name">—</span></div>
+      <div class="detail-item"><span class="detail-k">Hinweis</span><span class="detail-v" id="customer-danger-warning">—</span></div>
+    </div>
+    <div class="inline-actions" style="justify-content:flex-end;">
+      <button class="btn btn-quiet" type="button" onclick="closeCustomerDangerModal()">Abbrechen</button>
+      <button class="btn btn-primary" type="button" id="customer-danger-confirm-btn">Bestätigen</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -802,6 +844,11 @@ const state={
   createCustomerPending:false,
   sendAccessPending:false,
   sendAccessTargetId:null,
+  caseCapturePending:false,
+  caseCaptureCustomerId:null,
+  customerDangerPending:false,
+  customerDangerTargetId:null,
+  customerDangerMode:null,
   customers:[],  // populated by loadDataFromSupabase()
   calls:[],  // populated by loadDataFromSupabase()
   cases:[],  // populated by loadDataFromSupabase()
@@ -856,14 +903,36 @@ function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function idsEq(a,b){return String(a)===String(b);}
 function customerById(id){return state.customers.find(c=>idsEq(c.id,id));}
-const CUSTOMER_LIFECYCLE_STATUS_ORDER=['onboarding','ready','invited','activated','live','paused'];
+async function callAdminFunction(name,payload){
+  if(!(authClient&&authClient.auth)) throw new Error('Admin-Auth nicht verfügbar.');
+  const {data:{session},error}=await authClient.auth.getSession();
+  if(error||!session?.access_token) throw new Error('Admin-Session fehlt.');
+  const res=await fetch(`/.netlify/functions/${name}`,{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${session.access_token}`
+    },
+    body:JSON.stringify(payload||{})
+  });
+  const json=await res.json().catch(()=>({}));
+  if(!res.ok){
+    const err=new Error(json?.error||`HTTP ${res.status}`);
+    err.status=res.status;
+    err.payload=json;
+    throw err;
+  }
+  return json;
+}
+const CUSTOMER_LIFECYCLE_STATUS_ORDER=['onboarding','ready','invited','activated','live','paused','deleted'];
 const CUSTOMER_LIFECYCLE_LABELS={
   onboarding:'Einrichtung läuft',
   ready:'Bereit',
   invited:'Zugang gesendet',
   activated:'Aktiviert',
   live:'Live',
-  paused:'Pausiert'
+  paused:'Pausiert',
+  deleted:'Gelöscht'
 };
 const CUSTOMER_LIFECYCLE_BADGE_CLASS={
   onboarding:'badge-gray',
@@ -871,7 +940,41 @@ const CUSTOMER_LIFECYCLE_BADGE_CLASS={
   invited:'badge-amber',
   activated:'badge-purple',
   live:'badge-green',
-  paused:'badge-gray'
+  paused:'badge-gray',
+  deleted:'badge-red'
+};
+const ONBOARDING_STATUS={
+  NOT_STARTED:'not_started',
+  IN_PROGRESS:'in_progress',
+  BLOCKED:'blocked',
+  READY:'ready',
+  COMPLETED:'completed'
+};
+const ONBOARDING_STATUS_LABELS={
+  [ONBOARDING_STATUS.NOT_STARTED]:'Nicht gestartet',
+  [ONBOARDING_STATUS.IN_PROGRESS]:'In Progress',
+  [ONBOARDING_STATUS.BLOCKED]:'Blockiert',
+  [ONBOARDING_STATUS.READY]:'Ready',
+  [ONBOARDING_STATUS.COMPLETED]:'Completed'
+};
+const ONBOARDING_STATUS_TRANSITIONS={
+  [ONBOARDING_STATUS.NOT_STARTED]:new Set([ONBOARDING_STATUS.IN_PROGRESS]),
+  [ONBOARDING_STATUS.IN_PROGRESS]:new Set([ONBOARDING_STATUS.BLOCKED,ONBOARDING_STATUS.READY]),
+  [ONBOARDING_STATUS.BLOCKED]:new Set([ONBOARDING_STATUS.IN_PROGRESS]),
+  [ONBOARDING_STATUS.READY]:new Set([ONBOARDING_STATUS.COMPLETED]),
+  [ONBOARDING_STATUS.COMPLETED]:new Set([])
+};
+const CASE_STATUS={
+  OPEN:'open',
+  DONE:'done'
+};
+const CASE_STATUS_LABELS={
+  [CASE_STATUS.OPEN]:'Offen',
+  [CASE_STATUS.DONE]:'Erledigt'
+};
+const CASE_STATUS_TRANSITIONS={
+  [CASE_STATUS.OPEN]:new Set([CASE_STATUS.DONE]),
+  [CASE_STATUS.DONE]:new Set([])
 };
 function normalizeCustomerLifecycleStatus(status){
   const raw=String(status||'').trim().toLowerCase();
@@ -888,11 +991,66 @@ function normalizeCustomerLifecycleStatus(status){
     invited:'invited',
     onboarding:'onboarding',
     paused:'paused',
+    deleted:'deleted',
+    geloescht:'deleted',
+    gelöscht:'deleted',
     ready:'ready',
     activated:'activated',
     live:'live'
   };
   return aliases[raw]||'';
+}
+function normalizeOnboardingStatus(status){
+  const raw=String(status||'').trim().toLowerCase();
+  const aliases={
+    'not started':ONBOARDING_STATUS.NOT_STARTED,
+    not_started:ONBOARDING_STATUS.NOT_STARTED,
+    inprogress:ONBOARDING_STATUS.IN_PROGRESS,
+    'in progress':ONBOARDING_STATUS.IN_PROGRESS,
+    in_progress:ONBOARDING_STATUS.IN_PROGRESS,
+    blocked:ONBOARDING_STATUS.BLOCKED,
+    ready:ONBOARDING_STATUS.READY,
+    completed:ONBOARDING_STATUS.COMPLETED
+  };
+  return aliases[raw]||ONBOARDING_STATUS.NOT_STARTED;
+}
+function assertOnboardingTransition(from,to){
+  const src=normalizeOnboardingStatus(from);
+  const dst=normalizeOnboardingStatus(to);
+  if(src===dst) return;
+  const allowed=ONBOARDING_STATUS_TRANSITIONS[src];
+  if(!allowed||!allowed.has(dst)){
+    throw new Error(`Illegal onboarding transition: ${src} -> ${dst}`);
+  }
+}
+function normalizeCaseStatus(status){
+  const raw=String(status||'').trim().toLowerCase();
+  const aliases={
+    offen:CASE_STATUS.OPEN,
+    open:CASE_STATUS.OPEN,
+    'in bearbeitung':CASE_STATUS.OPEN,
+    'in progress':CASE_STATUS.OPEN,
+    in_progress:CASE_STATUS.OPEN,
+    wartend:CASE_STATUS.OPEN,
+    waiting:CASE_STATUS.OPEN,
+    geschlossen:CASE_STATUS.DONE,
+    erledigt:CASE_STATUS.DONE,
+    closed:CASE_STATUS.DONE,
+    done:CASE_STATUS.DONE
+  };
+  return aliases[raw]||CASE_STATUS.OPEN;
+}
+function caseStatusLabel(status){
+  return CASE_STATUS_LABELS[normalizeCaseStatus(status)]||'Offen';
+}
+function assertCaseTransition(from,to){
+  const src=normalizeCaseStatus(from);
+  const dst=normalizeCaseStatus(to);
+  if(src===dst) return;
+  const allowed=CASE_STATUS_TRANSITIONS[src];
+  if(!allowed||!allowed.has(dst)){
+    throw new Error(`Illegal case transition: ${src} -> ${dst}`);
+  }
 }
 function getCanonicalCustomerStatus(customer,onboarding){
   const statusFromCustomer=normalizeCustomerLifecycleStatus(customer?.status);
@@ -974,7 +1132,7 @@ function nowStamp(){
 }
 function refreshCustomerCaseCounts(){
   state.customers.forEach(c=>{
-    c.openCases=state.cases.filter(cs=>idsEq(cs.customerId,c.id) && cs.status!=='Geschlossen').length;
+    c.openCases=state.cases.filter(cs=>idsEq(cs.customerId,c.id) && normalizeCaseStatus(cs.status)!==CASE_STATUS.DONE).length;
   });
 }
 function onboardingForCustomer(id){
@@ -985,20 +1143,19 @@ function syncAllCustomerLifecycleStatuses(){
 }
 
 function renderOverview(){
-  const customers=state.customers;
+  const customers=state.customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted');
   const setupProgressValues=customers.map(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id)));
-  const openCases=state.cases.filter(c=>c.status!=='Geschlossen').length;
+  const openCases=state.cases.filter(c=>normalizeCaseStatus(c.status)!==CASE_STATUS.DONE).length;
   const active=customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))==='live').length;
   const openOnboarding=state.onboarding.filter(o=>o.progress<100).length;
   const callsToday=state.calls.length;
   const callbacks=state.calls.filter(c=>c.callback).length;
   const recent=state.events.length;
   const attention=customers.filter(c=>c.openCases>0||getCustomerSetupProgress(c,onboardingForCustomer(c.id))<80).length;
-  const criticalCases=state.cases.filter(c=>c.priority==='Kritisch').length;
   const kpis=[
     ['Active Customers',active,'live Mandanten'],
     ['Open Onboardings',openOnboarding,'mit offenen Tasks'],
-    ['Open/Critical Cases',`${openCases} / ${criticalCases}`,'offen / kritisch'],
+    ['Open Anliegen',`${openCases}`,'offene interne Anliegen'],
     ['Calls Today',callsToday,'global eingegangen'],
     ['Callback Requests Today',callbacks,'SLA-relevant'],
     ['Recent Activity Items',recent,'letzte 2 Stunden'],
@@ -1024,6 +1181,7 @@ function renderCustomers(){
   if(search) rows=rows.filter(c=>[c.name,contactDisplay(c),c.email,c.voxera].join(' ').toLowerCase().includes(search));
   if(p!=='all') rows=rows.filter(c=>c.plan===p);
   if(s!=='all') rows=rows.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))===s);
+  else rows=rows.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted');
   if(prog!=='all'){
     if(prog==='0-39') rows=rows.filter(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id))<40);
     if(prog==='40-79') rows=rows.filter(c=>{const p=getCustomerSetupProgress(c,onboardingForCustomer(c.id));return p>=40&&p<80;});
@@ -1055,7 +1213,7 @@ function renderCustomers(){
     <td>${esc(setupColumnLabel)}</td>
     <td>${esc(c.latest)}</td>
     <td>${c.openCases}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(c.id)}')">Anliegen</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button><button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button><button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button></div></td>
   </tr>`;
   }).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 }
@@ -1064,11 +1222,13 @@ function renderOnboarding(){
   const search=(document.getElementById('onboarding-search')?.value||'').toLowerCase().trim();
   const filter=(document.getElementById('onboarding-status-filter')?.value||'all');
   const sort=(document.getElementById('onboarding-sort')?.value||'blocked-first');
-  const queue=state.customers.map(c=>buildOnboardingQueueItem(c.id));
-  const blockedCount=queue.filter(q=>q.status==='Blocked').length;
-  const inProgressCount=queue.filter(q=>q.status==='In Progress').length;
-  const readyCount=queue.filter(q=>q.status==='Ready').length;
-  const completedCount=queue.filter(q=>q.status==='Completed').length;
+  const queue=state.customers
+    .filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted')
+    .map(c=>buildOnboardingQueueItem(c.id));
+  const blockedCount=queue.filter(q=>q.status===ONBOARDING_STATUS.BLOCKED).length;
+  const inProgressCount=queue.filter(q=>q.status===ONBOARDING_STATUS.IN_PROGRESS).length;
+  const readyCount=queue.filter(q=>q.status===ONBOARDING_STATUS.READY).length;
+  const completedCount=queue.filter(q=>q.status===ONBOARDING_STATUS.COMPLETED).length;
   const missingForwarding=queue.filter(q=>q.missingSteps.includes('forwarding configured')).length;
   const missingNumber=queue.filter(q=>q.missingSteps.includes('Voxera number assigned')).length;
   const missingTestCall=queue.filter(q=>q.missingSteps.includes('test call completed')).length;
@@ -1088,10 +1248,10 @@ function renderOnboarding(){
     return `${q.customer.name} ${q.currentStep} ${q.nextStep} ${q.blocker}`.toLowerCase().includes(search);
   }).filter(q=>{
     if(filter==='all') return true;
-    if(filter==='blocked') return q.status==='Blocked';
-    if(filter==='in-progress') return q.status==='In Progress';
-    if(filter==='ready') return q.status==='Ready';
-    if(filter==='completed') return q.status==='Completed';
+    if(filter==='blocked') return q.status===ONBOARDING_STATUS.BLOCKED;
+    if(filter==='in-progress') return q.status===ONBOARDING_STATUS.IN_PROGRESS;
+    if(filter==='ready') return q.status===ONBOARDING_STATUS.READY;
+    if(filter==='completed') return q.status===ONBOARDING_STATUS.COMPLETED;
     if(filter==='missing-forwarding') return q.missingSteps.includes('forwarding configured');
     if(filter==='missing-number') return q.missingSteps.includes('Voxera number assigned');
     if(filter==='missing-test-call') return q.missingSteps.includes('test call completed');
@@ -1102,13 +1262,13 @@ function renderOnboarding(){
     if(sort==='name-asc') return a.customer.name.localeCompare(b.customer.name);
     if(sort==='nearest-complete') return b.progress-a.progress;
     if(sort==='updated-desc') return (b.latestUpdate||'').localeCompare(a.latestUpdate||'');
-    return (b.status==='Blocked')-(a.status==='Blocked') || b.missingSteps.length-a.missingSteps.length || b.progress-a.progress;
+    return (b.status===ONBOARDING_STATUS.BLOCKED)-(a.status===ONBOARDING_STATUS.BLOCKED) || b.missingSteps.length-a.missingSteps.length || b.progress-a.progress;
   });
 
   document.getElementById('onboarding-table-body').innerHTML=rows.map(q=>`<tr>
     <td><strong>${esc(q.customer.name)}</strong><div class="muted">${esc(contactDisplay(q.customer))} · Owner ${esc(q.owner)}</div></td>
     <td>${toneBadge(q.customer.plan)}</td>
-    <td>${toneBadge(q.status)}</td>
+    <td>${toneBadge(ONBOARDING_STATUS_LABELS[q.status]||q.status)}</td>
     <td>${q.progress}%</td>
     <td>${esc(q.currentStep)}</td>
     <td>${esc(q.nextStep)}</td>
@@ -1133,10 +1293,10 @@ function buildOnboardingQueueItem(customerId){
   const progress=Math.round((done.length/state.checklist.length)*100);
   const hardBlockers=['activation sent','Voxera number assigned','forwarding configured','AI basics configured','test call completed'];
   const blockerStep=hardBlockers.find(s=>missing.includes(s));
-  let status='In Progress';
-  if(missing.length===0||done.includes('fully completed')) status='Completed';
-  else if(done.includes('ready for go-live')&&missing.length<=1) status='Ready';
-  else if(blockerStep) status='Blocked';
+  let status=ONBOARDING_STATUS.IN_PROGRESS;
+  if(missing.length===0||done.includes('fully completed')) status=ONBOARDING_STATUS.COMPLETED;
+  else if(done.includes('ready for go-live')&&missing.length<=1) status=ONBOARDING_STATUS.READY;
+  else if(blockerStep) status=ONBOARDING_STATUS.BLOCKED;
   const blocker=blockerStep?`Missing: ${blockerStep}`:(o.blocker||'');
   return {customer,owner:o.owner||'Ops',status,progress,currentStep,nextStep,missingSteps:missing,blocker,latestUpdate:o.latest||customer.latest};
 }
@@ -1159,7 +1319,7 @@ function renderOnboardingDetail(){
   const q=buildOnboardingQueueItem(id);
   empty.style.display='none';
   detail.style.display='block';
-  document.getElementById('onboarding-detail-badge').outerHTML=toneBadge(q.status).replace('<span','<span id="onboarding-detail-badge"');
+  document.getElementById('onboarding-detail-badge').outerHTML=toneBadge(ONBOARDING_STATUS_LABELS[q.status]||q.status).replace('<span','<span id="onboarding-detail-badge"');
   document.getElementById('onboarding-detail-context').innerHTML=[
     ['Customer',q.customer.name],['Plan',q.customer.plan],['Readiness',`${q.progress}%`],['Current Step',q.currentStep],['Next Step',q.nextStep],['Missing Steps',String(q.missingSteps.length)]
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
@@ -1327,37 +1487,23 @@ function saveCustomerAiConfig(){
 }
 
 function renderCases(){
-  const callbacks=state.cases.filter(c=>c.type==='Rückruf');
-  const followups=state.cases.filter(c=>c.type==='Follow-up');
-  const row=c=>`<tr>
-    <td>
-      <select class="select" style="height:30px;padding:4px 8px;" onchange="updateCase('${c.id}','priority',this.value)">
-        ${['Kritisch','Hoch','Mittel','Niedrig'].map(p=>`<option ${p===c.priority?'selected':''}>${p}</option>`).join('')}
-      </select>
-    </td>
-    <td>
-      <select class="select" style="height:30px;padding:4px 8px;" onchange="updateCase('${c.id}','status',this.value)">
-        ${['Offen','In Bearbeitung','Wartend','Geschlossen'].map(s=>`<option ${s===c.status?'selected':''}>${s}</option>`).join('')}
-      </select>
-    </td>
-    <td>${esc(c.owner)}</td>
-    <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.customerId)}')">${esc(customerById(c.customerId).name)}</button></td>
-    <td>${esc(c.latest)}</td>
-    <td class="wrap">${esc(c.notes)}<div class="muted">${esc(c.id)}</div></td>
-  </tr>`;
-  document.getElementById('cases-callbacks').innerHTML=callbacks.map(row).join('');
-  document.getElementById('cases-followups').innerHTML=followups.map(row).join('');
-  document.getElementById('cases-all').innerHTML=state.cases.map(c=>`<tr><td>${esc(c.type)}</td>${row(c).replace('<tr>','').replace('</tr>','')}</tr>`).join('');
+  document.getElementById('cases-all').innerHTML=state.cases.map(c=>`<tr>
+    <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.customerId)}')">${esc(customerById(c.customerId)?.name||'—')}</button></td>
+    <td class="wrap">${esc(c.title||c.type||'Anliegen')}</td>
+    <td class="wrap">${esc(c.note||c.notes||'')}</td>
+    <td>${toneBadge(caseStatusLabel(c.status))}</td>
+    <td>${normalizeCaseStatus(c.status)!==CASE_STATUS.DONE?`<button class="btn btn-secondary btn-sm" onclick="updateCase('${c.id}','status','${CASE_STATUS.DONE}')">Erledigt</button>`:'—'}</td>
+  </tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anliegen vorhanden.</div></td></tr>';
 }
 
 function renderActivity(){
   const mapList=(id,arr)=>document.getElementById(id).innerHTML=arr.map(x=>`<div class="list-item"><div><div class="list-main">${esc(x[0])}</div><div class="list-sub">${esc(x[1])}</div></div><span class="chip">${esc(x[2]||'Event')}</span></div>`).join('')||'<div class="empty">Keine Einträge.</div>';
   mapList('activity-calls',state.calls.slice().sort((a,b)=>b.time.localeCompare(a.time)).slice(0,6).map(c=>[`${customerById(c.customerId).name} · ${c.time}`,`${c.cat}${c.callback?' · Callback angefragt':''}`,'Call']));
-  mapList('activity-onboarding',state.onboarding.map(o=>[`${customerById(o.customerId).name} · ${o.status}`,`Progress ${o.progress}% · Next: ${o.next}`,'Onboarding']));
+  mapList('activity-onboarding',state.onboarding.map(o=>[`${customerById(o.customerId).name} · ${ONBOARDING_STATUS_LABELS[normalizeOnboardingStatus(o.status)]||o.status}`,`Progress ${o.progress}% · Next: ${o.next}`,'Onboarding']));
   mapList('activity-customer-changes',[
     ...state.customers.slice(0,4).map(c=>[`${c.name} · ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(c.id))}`,`Plan ${c.plan} · Setup ${getCustomerSetupProgress(c,onboardingForCustomer(c.id))}%`,'Customer'])
   ]);
-  mapList('activity-support',state.cases.slice(0,6).map(cs=>[`${cs.id} · ${customerById(cs.customerId).name}`,`${cs.type} · ${cs.status} · ${cs.priority} · Owner ${cs.owner}`,'Case']));
+  mapList('activity-support',state.cases.slice(0,6).map(cs=>[`${cs.id} · ${customerById(cs.customerId).name}`,`${cs.title||cs.type} · ${caseStatusLabel(cs.status)}`,'Case']));
   mapList('activity-events',state.events.map(e=>[e,'System event','Ops']));
 }
 
@@ -1393,7 +1539,7 @@ function hydrateFilters(){
 function updateBadges(){
   document.getElementById('badge-customers').textContent=state.customers.length;
   document.getElementById('badge-onboarding').textContent=state.onboarding.filter(o=>o.progress<100).length;
-  document.getElementById('badge-cases').textContent=state.cases.filter(c=>c.status!=='Geschlossen').length;
+  document.getElementById('badge-cases').textContent=state.cases.filter(c=>normalizeCaseStatus(c.status)!==CASE_STATUS.DONE).length;
 }
 
 function setRoute(route,replaceHash=false){
@@ -1436,15 +1582,17 @@ function openCustomerProfile(id){
     ${sendAccessButton}
     <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding')">Onboarding öffnen</button>
     <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus('${jsStr(id)}')">${lifecycleStatus==='paused'?'Aktivieren':'Pausieren'}</button>
-    <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
-    <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>`;
+    <button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(id)}')">Anliegen erfassen</button>
+    <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>
+    <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(id)}','archive')">Archivieren</button>
+    <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(id)}','delete')">Löschen</button>`;
   const details=[
     ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c,onboard)],['Voxera Nummer',c.voxera],['Onboarding Progress',`${setupProgress}%`],['Setup Readiness',setupReadinessLabel],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
   ];
   document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
-  document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>idsEq(x.customerId,id)).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Rückruf','Aus Call: ${i+1}')">Case</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed('${jsStr(id)}',${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
-  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>idsEq(x.customerId,id)).map(ca=>`<tr><td>${esc(ca.id)}</td><td>${toneBadge(ca.status)}</td><td>${toneBadge(ca.priority)}</td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','Geschlossen')">Close</button><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','priority','Hoch')">Prio hoch</button></div></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
+  document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>idsEq(x.customerId,id)).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(id)}','Call: ${jsStr(call.cat)}','${jsStr(`Aus Call ${i+1}: ${call.summary||''}`)}')">Anliegen</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed('${jsStr(id)}',${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
+  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>idsEq(x.customerId,id)).map(ca=>`<tr><td>${esc(ca.title||ca.type||ca.id)}</td><td>${esc(ca.note||ca.notes||'—')}</td><td>${toneBadge(caseStatusLabel(ca.status))}</td><td><div class="inline-actions">${normalizeCaseStatus(ca.status)!==CASE_STATUS.DONE?`<button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','${CASE_STATUS.DONE}')">Erledigt</button>`:'—'}</div></td></tr>`).join('')||'<tr><td colspan="4"><div class="empty">Keine Anliegen vorhanden.</div></td></tr>';
   document.getElementById('profile-billing').innerHTML=[['Plan',c.plan],['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],['Setup Fee','CHF '+(setupProgress<100?'490':'0')],['Contract','Placeholder · Vertragslaufzeit'],['Billing Metadata','Placeholder · Debitorenreferenz']].map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v">${v}</span></div></div>`).join('');
   document.getElementById('profile-notes').innerHTML=c.notes.map(n=>`<div class="list-item"><div><div class="list-main">${esc(n)}</div><div class="list-sub">Internal operational note</div></div></div>`).join('')||'<div class="empty">Noch keine Notizen.</div>';
   document.getElementById('profile-new-note').value='';
@@ -1487,7 +1635,7 @@ function validationLabelForField(field){
 const ACCESS_REQUIRED_FIELDS=['customer_name','email','street','zip','city','country','plan'];
 
 function isOnboardingStatusReady(status){
-  return String(status||'').trim().toLowerCase()==='ready';
+  return normalizeOnboardingStatus(status)===ONBOARDING_STATUS.READY;
 }
 
 function getRawCustomerSetupProgress(customer,onboarding){
@@ -1657,14 +1805,9 @@ async function submitSendAccess(){
   setSendAccessSubmitting(true);
   setSendAccessFeedback(null,'');
   try{
-    const res=await fetch('/.netlify/functions/send-customer-access',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({customer_id:customerId})
-    });
-    const json=await res.json().catch(()=>({}));
-    if(!res.ok||!json?.success){
-      if(res.status===409){
+    const json=await callAdminFunction('send-customer-access',{customer_id:customerId});
+    if(!json?.success){
+      if(json?.customer_status){
         setSendAccessFeedback('error',json?.error||'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.');
         return;
       }
@@ -1687,7 +1830,12 @@ async function submitSendAccess(){
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
     setTimeout(()=>closeSendAccessModal(),900);
   }catch(error){
-    setSendAccessFeedback('error',error?.message||'Fehler beim Versand des Zugangs.');
+    const payload=error?.payload||{};
+    if(Array.isArray(payload?.missing_fields)&&payload.missing_fields.length){
+      const labels=payload.missing_fields.map(validationLabelForField);
+      document.getElementById('send-access-validation').innerHTML=`<span style="color:var(--red);font-weight:600;">Fehlend: ${esc(labels.join(', '))}</span>`;
+    }
+    setSendAccessFeedback('error',payload?.error||error?.message||'Fehler beim Versand des Zugangs.');
   }finally{
     setSendAccessSubmitting(false);
   }
@@ -1707,6 +1855,105 @@ function setCreateCustomerSubmitting(isSubmitting){
   if(!submitBtn) return;
   submitBtn.disabled=!!isSubmitting;
   submitBtn.textContent=isSubmitting?'Erstelle…':'Kunde erstellen';
+}
+
+function setCustomerDangerFeedback(type,message){
+  const feedback=document.getElementById('customer-danger-feedback');
+  if(!feedback) return;
+  feedback.className='modal-feedback';
+  feedback.textContent=message||'';
+  if(type==='error') feedback.classList.add('error');
+  if(type==='success') feedback.classList.add('success');
+}
+
+function setCustomerDangerSubmitting(isSubmitting){
+  state.customerDangerPending=!!isSubmitting;
+  const btn=document.getElementById('customer-danger-confirm-btn');
+  if(!btn) return;
+  btn.disabled=!!isSubmitting;
+  const mode=state.customerDangerMode||'';
+  if(mode==='archive') btn.textContent=isSubmitting?'Archivieren…':'Archivieren';
+  else if(mode==='delete') btn.textContent=isSubmitting?'Löschen…':'Endgültig löschen';
+  else btn.textContent=isSubmitting?'Speichert…':'Bestätigen';
+}
+
+function openCustomerDangerModal(customerId,mode){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  state.customerDangerTargetId=customerId;
+  state.customerDangerMode=mode;
+  setCustomerDangerFeedback(null,'');
+  setCustomerDangerSubmitting(false);
+  const isDelete=mode==='delete';
+  document.getElementById('customer-danger-title').textContent=isDelete?'Kunde endgültig löschen':'Kunde archivieren';
+  document.getElementById('customer-danger-sub').textContent=isDelete
+    ?'Diese Aktion entfernt den Kundendatensatz und den zugehörigen Zugang.'
+    :'Archivierte Kunden werden aus aktiven Listen ausgeblendet.';
+  document.getElementById('customer-danger-name').textContent=customer.name||customer.customer_name||'—';
+  document.getElementById('customer-danger-warning').textContent=isDelete
+    ?'Achtung: Der Supabase Auth User wird ebenfalls gelöscht, damit die E-Mail wiederverwendbar ist.'
+    :'Historie bleibt erhalten. Kunde erscheint im Status „Gelöscht/Archiviert“.';
+  const btn=document.getElementById('customer-danger-confirm-btn');
+  btn.className=isDelete?'btn btn-danger':'btn btn-primary';
+  btn.textContent=isDelete?'Endgültig löschen':'Archivieren';
+  document.getElementById('customer-danger-modal').classList.add('open');
+}
+
+function closeCustomerDangerModal(){
+  document.getElementById('customer-danger-modal').classList.remove('open');
+  state.customerDangerTargetId=null;
+  state.customerDangerMode=null;
+  state.customerDangerPending=false;
+}
+
+async function submitCustomerDangerAction(){
+  if(state.customerDangerPending) return;
+  const customerId=state.customerDangerTargetId;
+  const mode=state.customerDangerMode;
+  const customer=customerById(customerId);
+  if(!customerId||!mode||!customer){
+    setCustomerDangerFeedback('error','Aktion konnte nicht vorbereitet werden.');
+    return;
+  }
+  setCustomerDangerSubmitting(true);
+  setCustomerDangerFeedback(null,'');
+  try{
+    if(mode==='archive'){
+      const json=await callAdminFunction('customer-archive',{customer_id:customerId});
+      if(!json?.success||!json?.customer) throw new Error(json?.error||'Archivieren fehlgeschlagen.');
+      customer.status=normalizeCustomerStatus(json.customer.status);
+      customer.latest=`${nowStamp()} · Archiviert`;
+      state.events.unshift(`${nowStamp()} · ${customer.name}: archiviert`);
+      hydrateFilters();
+      renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+      if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+      setCustomerDangerFeedback('success','Kunde wurde archiviert.');
+      setTimeout(()=>closeCustomerDangerModal(),700);
+      return;
+    }
+    if(mode==='delete'){
+      const json=await callAdminFunction('customer-delete-permanently',{customer_id:customerId});
+      if(!json?.success) throw new Error(json?.error||'Endgültiges Löschen fehlgeschlagen.');
+      state.customers=state.customers.filter(c=>!idsEq(c.id,customerId));
+      state.onboarding=state.onboarding.filter(o=>!idsEq(o.customerId,customerId));
+      state.calls=state.calls.filter(call=>!idsEq(call.customerId,customerId));
+      state.cases=state.cases.filter(ca=>!idsEq(ca.customerId,customerId));
+      if(idsEq(state.selectedCustomer,customerId)) closeCustomerProfile();
+      state.events.unshift(`${nowStamp()} · ${customer.name}: endgültig gelöscht`);
+      hydrateFilters();
+      refreshCustomerCaseCounts();
+      renderCustomers(); renderOverview(); renderOnboarding(); renderCases(); renderActivity(); updateBadges();
+      setCustomerDangerFeedback('success','Kunde und Zugang wurden endgültig gelöscht.');
+      setTimeout(()=>closeCustomerDangerModal(),900);
+      return;
+    }
+    throw new Error('Unbekannter Aktionsmodus');
+  }catch(error){
+    const payload=error?.payload||{};
+    setCustomerDangerFeedback('error',payload?.error||error?.message||'Aktion fehlgeschlagen.');
+  }finally{
+    setCustomerDangerSubmitting(false);
+  }
 }
 
 function clearCreateCustomerErrors(){
@@ -1783,13 +2030,8 @@ async function submitCreateCustomer(event){
 
   setCreateCustomerSubmitting(true);
   try{
-    const res=await fetch('/.netlify/functions/create-customer',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    const json=await res.json().catch(()=>({}));
-    if(!res.ok || !json?.success){
+    const json=await callAdminFunction('create-customer',payload);
+    if(!json?.success){
       if(Array.isArray(json?.missing_fields)){
         json.missing_fields.forEach(field=>showCreateCustomerError(field,'Pflichtfeld.'));
       }
@@ -1835,7 +2077,7 @@ async function submitCreateCustomer(event){
     createdId && state.customers.unshift(customerForUi);
     createdId && state.onboarding.unshift({
       customerId:createdId,
-      status:'In Arbeit',
+      status:ONBOARDING_STATUS.NOT_STARTED,
       progress:Number(dbOnboarding.progress??0),
       next:dbOnboarding.next_step||'Zugang senden',
       owner:'Ops',
@@ -1853,30 +2095,96 @@ async function submitCreateCustomer(event){
     renderActivity();
     setTimeout(()=>closeCreateCustomerModal(),700);
   }catch(err){
-    setCreateCustomerFeedback('error',err?.message||'Unbekannter Fehler bei Kundenerstellung.');
+    const payload=err?.payload||{};
+    if(Array.isArray(payload?.missing_fields)){
+      payload.missing_fields.forEach(field=>showCreateCustomerError(field,'Pflichtfeld.'));
+    }
+    setCreateCustomerFeedback('error',payload?.error||err?.message||'Unbekannter Fehler bei Kundenerstellung.');
   }finally{
     setCreateCustomerSubmitting(false);
   }
 }
 
-function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt'){
-  const c=customerById(customerId); if(!c) return;
-  const num=state.cases.reduce((m,x)=>Math.max(m,Number(String(x.id).replace('C-',''))||100),100)+1;
-  state.cases.unshift({id:`C-${num}`,type,priority:type==='Rückruf'?'Hoch':'Mittel',status:'Offen',owner:'Ops Queue',customerId,latest:`${nowStamp()}`,notes:note});
-  state.events.unshift(`${nowStamp()} · ${c.name}: ${type} Case erstellt`);
-  refreshCustomerCaseCounts();
-  renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+function setCaseCaptureFeedback(type,message){
+  const feedback=document.getElementById('case-capture-feedback');
+  if(!feedback) return;
+  feedback.className='modal-feedback';
+  feedback.textContent=message||'';
+  if(type==='error') feedback.classList.add('error');
+  if(type==='success') feedback.classList.add('success');
 }
 
-function updateCase(caseId,field,value){
-  const target=state.cases.find(c=>c.id===caseId); if(!target) return;
-  target[field]=value;
-  target.latest=`${nowStamp()}`;
-  refreshCustomerCaseCounts();
-  state.events.unshift(`${nowStamp()} · ${caseId} ${field} → ${value}`);
-  renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(idsEq(state.selectedCustomer,target.customerId)) openCustomerProfile(target.customerId);
+function setCaseCaptureSubmitting(isSubmitting){
+  state.caseCapturePending=!!isSubmitting;
+  const btn=document.getElementById('case-capture-submit-btn');
+  if(!btn) return;
+  btn.disabled=!!isSubmitting;
+  btn.textContent=isSubmitting?'Speichert…':'Speichern';
+}
+
+function openCaseCaptureModal(customerId,titlePrefill='',notePrefill=''){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  state.caseCaptureCustomerId=customerId;
+  setCaseCaptureFeedback(null,'');
+  setCaseCaptureSubmitting(false);
+  document.getElementById('case-capture-title').value=titlePrefill||'';
+  document.getElementById('case-capture-note').value=notePrefill||'';
+  document.getElementById('case-capture-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('case-capture-title').focus(),80);
+}
+
+function closeCaseCaptureModal(){
+  document.getElementById('case-capture-modal').classList.remove('open');
+  state.caseCaptureCustomerId=null;
+  state.caseCapturePending=false;
+}
+
+async function createCaseForCustomer(customerId,title='Anliegen',note=''){
+  const c=customerById(customerId);
+  if(!c){
+    setCaseCaptureFeedback('error','Kunde nicht gefunden.');
+    return;
+  }
+  try{
+    const json=await callAdminFunction('cases-create',{customer_id:customerId,title,note});
+    if(!json?.success||!json?.case) throw new Error(json?.error||'Case konnte nicht erstellt werden.');
+    const mapped=mapDbCaseToUi(json.case);
+    state.cases=state.cases.filter(existing=>!idsEq(existing.id,mapped.id));
+    state.cases.unshift(mapped);
+    state.events.unshift(`${nowStamp()} · ${c.name}: Anliegen erfasst (${title})`);
+    refreshCustomerCaseCounts();
+    renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    setCaseCaptureFeedback('success','Anliegen erfasst.');
+    setTimeout(()=>closeCaseCaptureModal(),500);
+  }catch(error){
+    const payload=error?.payload||{};
+    setCaseCaptureFeedback('error',payload?.error||error?.message||'Anliegen konnte nicht gespeichert werden.');
+  }
+}
+
+async function updateCase(caseId,field,value){
+  const target=state.cases.find(c=>c.id===caseId);
+  if(!target){
+    showLoadError('Anliegen konnte nicht aktualisiert werden: nicht gefunden.');
+    return;
+  }
+  try{
+    const json=await callAdminFunction('cases-update',{case_id:caseId,field,value});
+    if(!json?.success||!json?.case) throw new Error(json?.error||'Case konnte nicht aktualisiert werden.');
+    const mapped=mapDbCaseToUi(json.case);
+    const idx=state.cases.findIndex(c=>idsEq(c.id,mapped.id));
+    if(idx>=0) state.cases[idx]=mapped;
+    else state.cases.unshift(mapped);
+    refreshCustomerCaseCounts();
+    state.events.unshift(`${nowStamp()} · ${caseId} ${field} → ${value}`);
+    renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,mapped.customerId)) openCustomerProfile(mapped.customerId);
+  }catch(error){
+    const payload=error?.payload||{};
+    showLoadError(payload?.error||error?.message||'Anliegen konnte nicht aktualisiert werden.');
+  }
 }
 
 function markCallReviewed(customerId,callIdx){
@@ -1889,17 +2197,34 @@ function markCallReviewed(customerId,callIdx){
   openCustomerProfile(customerId);
 }
 
-function toggleCustomerStatus(customerId){
+async function toggleCustomerStatus(customerId){
   const c=customerById(customerId); if(!c) return;
-  c.status=getCustomerLifecycleStatus(c,onboardingForCustomer(customerId))==='paused'?'onboarding':'paused';
-  c.latest=`${nowStamp()} · Status geändert`;
-  state.events.unshift(`${nowStamp()} · ${c.name}: Status ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(customerId))}`);
-  renderCustomers(); renderOverview(); renderActivity(); hydrateFilters(); openCustomerProfile(customerId);
+  const current=getCustomerLifecycleStatus(c,onboardingForCustomer(customerId));
+  let targetStatus='';
+  if(current==='paused') targetStatus='live';
+  else if(current==='live') targetStatus='paused';
+  else{
+    alert(`Lifecycle-Update fehlgeschlagen: ${current} kann nicht auf live/paused gewechselt werden.`);
+    return;
+  }
+  try{
+    const json=await callAdminFunction('customer-status-update',{customer_id:customerId,status:targetStatus});
+    if(!json?.success||!json?.customer) throw new Error(json?.error||'Lifecycle-Update fehlgeschlagen.');
+    c.status=normalizeCustomerStatus(json.customer.status);
+    c.latest=`${nowStamp()} · Status geändert`;
+    state.events.unshift(`${nowStamp()} · ${c.name}: Status ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(customerId))}`);
+    renderCustomers(); renderOverview(); renderActivity(); hydrateFilters(); openCustomerProfile(customerId);
+  }catch(error){
+    const payload=error?.payload||{};
+    alert(payload?.error||error?.message||'Lifecycle-Update fehlgeschlagen.');
+  }
 }
 
-function toggleOnboardingStep(customerId,step){
+async function toggleOnboardingStep(customerId,step){
   const c=customerById(customerId); const o=onboardingForCustomer(customerId);
   if(!c) return;
+  const prevSteps=[...(c.onboardingSteps||[])];
+  const prevOnboarding=o?{status:o.status,progress:o.progress,next:o.next,latest:o.latest,blocker:o.blocker}:null;
   c.onboardingSteps=c.onboardingSteps||[];
   const has=c.onboardingSteps.includes(step);
   if(has) c.onboardingSteps=c.onboardingSteps.filter(s=>s!==step);
@@ -1907,24 +2232,48 @@ function toggleOnboardingStep(customerId,step){
   const ordered=state.checklist.filter(s=>c.onboardingSteps.includes(s));
   c.onboardingSteps=ordered;
   const queue=buildOnboardingQueueItem(customerId);
-  if(o){
-    o.progress=queue.progress;
-    o.next=queue.nextStep;
-    o.status=queue.status;
-    o.latest=new Date().toISOString().slice(0,16).replace('T',' ');
-    o.blocker=queue.blocker;
-  }else{
-    state.onboarding.push({customerId,status:queue.status,progress:queue.progress,next:queue.nextStep,owner:'Ops',latest:new Date().toISOString().slice(0,16).replace('T',' '),blocker:queue.blocker});
+  try{
+    if(o) assertOnboardingTransition(o.status,queue.status);
+    const json=await callAdminFunction('onboarding-update',{
+      customer_id:customerId,
+      status:queue.status,
+      progress:queue.progress,
+      next_step:queue.nextStep,
+      blocker:queue.blocker
+    });
+    if(!json?.success||!json?.onboarding) throw new Error(json?.error||'Onboarding-Update fehlgeschlagen.');
+    const dbOnboarding=mapDbOnboardingToState(json.onboarding);
+    const existing=state.onboarding.find(entry=>idsEq(entry.customerId,customerId));
+    if(existing){
+      existing.status=dbOnboarding.status;
+      existing.progress=dbOnboarding.progress;
+      existing.next=dbOnboarding.next;
+      existing.latest=dbOnboarding.latest;
+      existing.blocker=dbOnboarding.blocker;
+    }else{
+      state.onboarding.push(dbOnboarding);
+    }
+    c.progress=dbOnboarding.progress;
+    syncCustomerLifecycleStatus(c,onboardingForCustomer(customerId));
+    c.readiness=getCustomerSetupReadinessLabel(c,onboardingForCustomer(customerId));
+    c.latest=`${nowStamp()} · Onboarding ${has?'zurückgesetzt':'aktualisiert'}`;
+    const activity=`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${c.name}: ${step} ${has?'zurückgesetzt':'abgeschlossen'}`;
+    state.onboardingActivity.unshift(activity);
+    state.events.unshift(`${nowStamp()} · ${c.name}: Onboarding-Schritt ${has?'reopened':'completed'} (${step})`);
+    renderOnboarding(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+  }catch(error){
+    c.onboardingSteps=prevSteps;
+    if(o&&prevOnboarding){
+      o.status=prevOnboarding.status;
+      o.progress=prevOnboarding.progress;
+      o.next=prevOnboarding.next;
+      o.latest=prevOnboarding.latest;
+      o.blocker=prevOnboarding.blocker;
+    }
+    const payload=error?.payload||{};
+    alert(payload?.error||error?.message||'Onboarding-Update fehlgeschlagen.');
   }
-  c.progress=queue.progress;
-  syncCustomerLifecycleStatus(c,onboardingForCustomer(customerId));
-  c.readiness=getCustomerSetupReadinessLabel(c,onboardingForCustomer(customerId));
-  c.latest=`${nowStamp()} · Onboarding ${has?'zurückgesetzt':'aktualisiert'}`;
-  const activity=`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${c.name}: ${step} ${has?'zurückgesetzt':'abgeschlossen'}`;
-  state.onboardingActivity.unshift(activity);
-  state.events.unshift(`${nowStamp()} · ${c.name}: Onboarding-Schritt ${has?'reopened':'completed'} (${step})`);
-  renderOnboarding(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
 }
 
 function addProfileNote(){
@@ -1992,14 +2341,29 @@ function wireUi(){
   document.getElementById('ai-save-customer').addEventListener('click',saveCustomerAiConfig);
   document.getElementById('cases-create-btn').addEventListener('click',()=>{
     const cid=document.getElementById('cases-customer-select').value;
-    const type=document.getElementById('cases-type-select').value;
-    if(!cid) return;
-    createCaseForCustomer(cid,type,'Direkt aus Cases erstellt');
+    if(!cid){
+      showLoadError('Bitte zuerst einen Kunden wählen.');
+      return;
+    }
+    openCaseCaptureModal(cid);
   });
-  document.getElementById('cases-tabs').addEventListener('click',e=>{
-    const btn=e.target.closest('.tab-btn'); if(!btn) return;
-    document.querySelectorAll('#cases-tabs .tab-btn').forEach(b=>b.classList.toggle('active',b===btn));
-    document.querySelectorAll('#section-cases .tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===btn.dataset.tab));
+  document.getElementById('case-capture-form').addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(state.caseCapturePending) return;
+    const customerId=state.caseCaptureCustomerId||document.getElementById('cases-customer-select').value;
+    const title=document.getElementById('case-capture-title').value.trim();
+    const note=document.getElementById('case-capture-note').value.trim();
+    if(!customerId){
+      setCaseCaptureFeedback('error','Bitte zuerst einen Kunden wählen.');
+      return;
+    }
+    if(!title){
+      setCaseCaptureFeedback('error','Titel ist erforderlich.');
+      return;
+    }
+    setCaseCaptureSubmitting(true);
+    await createCaseForCustomer(customerId,title,note);
+    setCaseCaptureSubmitting(false);
   });
   document.getElementById('profile-tabs').addEventListener('click',e=>{
     const btn=e.target.closest('.profile-tab'); if(!btn) return;
@@ -2008,6 +2372,7 @@ function wireUi(){
   });
   document.getElementById('profile-add-note-btn').addEventListener('click',addProfileNote);
   document.getElementById('send-access-submit-btn').addEventListener('click',submitSendAccess);
+  document.getElementById('customer-danger-confirm-btn').addEventListener('click',submitCustomerDangerAction);
   document.getElementById('open-create-customer-btn').addEventListener('click',openCreateCustomerModal);
   document.getElementById('create-customer-form').addEventListener('submit',submitCreateCustomer);
   document.getElementById('settings-add-admin').addEventListener('click',()=>{
@@ -2027,20 +2392,58 @@ function wireUi(){
 
 async function hydrateAdminInfo(){
   if(!(authClient&&authClient.auth)){
-    document.getElementById('sidebar-user').textContent='Admin (local mode)';
+    window.location.href='login.html';
     return;
   }
   try{
     const {data:{session}}=await authClient.auth.getSession();
     const email=session?.user?.email||'admin@voxera.ch';
     document.getElementById('sidebar-user').textContent=email;
-    if(!session){
-      // Keep accessible in local preview; login redirect can be enabled later.
-      console.info('No live session found, continuing in preview mode.');
-    }
+    if(!session) window.location.href='login.html';
   }catch(_e){
-    document.getElementById('sidebar-user').textContent='Admin';
+    window.location.href='login.html';
   }
+}
+
+async function requireAdminSessionOrRedirect(){
+  if(!(authClient&&authClient.auth)){
+    window.location.href='login.html';
+    throw new Error('Admin auth client missing');
+  }
+  const {data:{session},error:sessionError}=await authClient.auth.getSession();
+  if(sessionError||!session||!session.user?.id){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin session missing');
+  }
+  const {data:admin,error:adminError}=await authClient
+    .from('admins')
+    .select('id,role')
+    .eq('id',session.user.id)
+    .maybeSingle();
+  const normalizeRole=(r)=>{
+    const raw=String(r||'').trim().toLowerCase().replace(/_/g,'-');
+    if(!raw) return '';
+    if(raw==='superadmin') return 'super-admin';
+    return raw;
+  };
+  const role=normalizeRole(admin?.role);
+  const allowed=new Set(['super-admin','admin','support','owner','ops']);
+  if(adminError){
+    window.location.href='login.html';
+    throw new Error('Admin lookup failed');
+  }
+  if(!admin){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin row missing');
+  }
+  if(role && !allowed.has(role)){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin role not allowed');
+  }
+  return admin;
 }
 
 // ─── Supabase → state mappers ──────────────────────────────────────────────
@@ -2142,7 +2545,7 @@ function synthesizeOnboardingSteps(progress, customerStatus, inviteStatus, onboa
 function mapDbOnboardingToState(dbRow) {
   return {
     customerId: String(dbRow.customer_id),
-    status:     dbRow.status   || 'not_started',
+    status:     normalizeOnboardingStatus(dbRow.status),
     progress:   Number(dbRow.progress ?? 0),
     next:       dbRow.next_step || '',
     owner:      dbRow.owner    || 'Ops',
@@ -2172,20 +2575,19 @@ function mapDbCallToUi(dbRow) {
 }
 
 function mapDbCaseToUi(dbRow) {
-  // cases table columns: id, customer_id, type, priority, status, owner, created_at, updated_at, notes, history
+  // cases table columns: id, customer_id, type(title), status, notes(note), created_at, updated_at
   const ts = dbRow.updated_at
     ? new Date(dbRow.updated_at).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
     : '—';
   return {
     id:         String(dbRow.id),
-    type:       dbRow.type       || 'Rückruf',
-    priority:   dbRow.priority   || 'Mittel',
-    status:     dbRow.status     || 'Offen',
-    owner:      dbRow.owner      || '—',
+    type:       dbRow.type       || 'Anliegen',
+    title:      dbRow.type       || 'Anliegen',
+    status:     normalizeCaseStatus(dbRow.status),
     customerId: String(dbRow.customer_id),
     latest:     ts,
     notes:      dbRow.notes      || '',
-    history:    dbRow.history    || '',
+    note:       dbRow.notes      || '',
   };
 }
 
@@ -2205,6 +2607,7 @@ function showLoadError(msg) {
 }
 
 async function loadDataFromSupabase() {
+  // requires RLS policy: authenticated admin role can read operational tables
   if (!authClient) {
     console.warn('[DB] No Supabase client — running in offline/demo mode.');
     return false;
@@ -2258,7 +2661,7 @@ async function loadDataFromSupabase() {
     // 7. Populate openCases count on each customer from real cases data
     state.customers.forEach(c => {
       c.openCases = state.cases.filter(cs =>
-        idsEq(cs.customerId, c.id) && cs.status !== 'Geschlossen' && cs.status !== 'closed'
+        idsEq(cs.customerId, c.id) && normalizeCaseStatus(cs.status)!==CASE_STATUS.DONE
       ).length;
     });
 
@@ -2268,9 +2671,9 @@ async function loadDataFromSupabase() {
       const cust = customerById(call.customerId);
       if (cust) recentEvents.push(`${call.time} · ${cust.name}: ${call.cat}`);
     });
-    state.cases.filter(c => c.status !== 'Geschlossen').slice(0, 5).forEach(c => {
+    state.cases.filter(c => normalizeCaseStatus(c.status)!==CASE_STATUS.DONE).slice(0, 5).forEach(c => {
       const cust = customerById(c.customerId);
-      if (cust) recentEvents.push(`${c.latest} · ${cust.name}: Case ${c.id} (${c.priority})`);
+      if (cust) recentEvents.push(`${c.latest} · ${cust.name}: Anliegen ${c.id}`);
     });
     state.events = recentEvents;
 
@@ -2288,6 +2691,7 @@ async function loadDataFromSupabase() {
 // ─── init ──────────────────────────────────────────────────────────────────
 
 async function init() {
+  await requireAdminSessionOrRedirect();
   // Wire UI immediately so the shell is interactive
   wireUi();
   onHashRoute();

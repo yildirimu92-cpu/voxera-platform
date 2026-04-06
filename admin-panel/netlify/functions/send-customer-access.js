@@ -1,4 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
+const { STATUS, normalizeCustomerStatus, assertCustomerTransition } = require('./_lib/status-model');
+const { requireAdminCaller } = require('./_lib/require-admin');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,19 +80,32 @@ exports.handler = async (event) => {
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!sbUrl || !sbServiceKey) {
+  const sbAnonKey = process.env.SUPABASE_ANON_KEY;
+  if (!sbUrl || !sbServiceKey || !sbAnonKey) {
     console.error('Missing Supabase environment variables', {
       SUPABASE_URL: !!sbUrl,
-      SUPABASE_SERVICE_ROLE_KEY: !!sbServiceKey
+      SUPABASE_SERVICE_ROLE_KEY: !!sbServiceKey,
+      SUPABASE_ANON_KEY: !!sbAnonKey
     });
     return response(500, {
-      error: 'SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.'
+      error: 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.'
     });
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
+
+  // admin-only action
+  const caller = await requireAdminCaller({
+    event,
+    supabaseUrl: sbUrl,
+    supabaseAnonKey: sbAnonKey,
+    sbAdmin
+  });
+  if (!caller.ok) {
+    return response(caller.statusCode, caller.body);
+  }
 
   let body;
   try {
@@ -120,11 +135,16 @@ exports.handler = async (event) => {
     }
 
     if (action === 'mark_activated') {
+      const currentStatus = normalizeCustomerStatus(customer.status);
+      if (currentStatus !== STATUS.customer.ACTIVATED) {
+        assertCustomerTransition(currentStatus, STATUS.customer.ACTIVATED);
+      }
       const nowIso = new Date().toISOString();
       const { data: activatedCustomer, error: activatedUpdateError } = await sbAdmin
         .from('customers')
         .update({
-          status: 'activated',
+          status: STATUS.customer.ACTIVATED,
+          invite_status: STATUS.access.ACTIVATED,
           updated_at: nowIso
         })
         .eq('id', customerId)
@@ -173,7 +193,7 @@ exports.handler = async (event) => {
       onboardingRow &&
       String(onboardingRow.status || '').toLowerCase() === 'ready' &&
       missingFields.length === 0 &&
-      String(customer.status || '').toLowerCase() !== 'ready'
+      normalizeCustomerStatus(customer.status) !== STATUS.customer.READY
     ) {
       const nowIso = new Date().toISOString();
       const { data: readyCustomer, error: readyUpdateError } = await sbAdmin
@@ -193,7 +213,8 @@ exports.handler = async (event) => {
       }
     }
 
-    if (String(customer.status || '').toLowerCase() !== 'ready') {
+    const currentStatus = normalizeCustomerStatus(customer.status);
+    if (currentStatus !== STATUS.customer.READY) {
       console.error('Customer lifecycle status not ready – access send blocked', {
         customerId,
         customer_status: customer.status || null
@@ -230,14 +251,16 @@ exports.handler = async (event) => {
       });
     }
 
+    assertCustomerTransition(currentStatus, STATUS.customer.INVITED);
+
     const nowIso = new Date().toISOString();
     const { data: updatedCustomer, error: updateError } = await sbAdmin
       .from('customers')
       .update({
-        invite_status: 'sent',
+        invite_status: STATUS.access.SENT,
         welcome_sent: true,
         welcome_sent_at: nowIso,
-        status: 'invited',
+        status: STATUS.customer.INVITED,
         updated_at: nowIso
       })
       .eq('id', customerId)
