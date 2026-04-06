@@ -725,6 +725,8 @@ const SB_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const supabaseLib=window.supabase;
 const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SB_URL,SB_ANON_KEY):null;
 
+const DEFAULT_SETUP_FEE=490;
+
 const state={
   route:'overview',
   selectedCustomer:null,
@@ -840,7 +842,7 @@ const state={
     {id:'CON-0005',customerId:5,plan:'Growth',status:'Entwurf',monthly:499,setupFee:490,duration:24,startDate:'',payment:'Monatlich',notes:'Temporär pausiert, Vertrag auf Eis.',createdAt:'2026-04-05',signedBy:''}
   ],
   wizardStep:0,
-  wizardData:{customerId:null,plan:'',duration:12,monthly:0,setupFee:490,startDate:'',payment:'Monatlich',notes:'',status:'Entwurf'}
+  wizardData:{customerId:null,plan:'',duration:12,monthly:0,setupFee:DEFAULT_SETUP_FEE,startDate:'',payment:'Monatlich',notes:'',status:'Entwurf'}
 };
 
 const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','contracts','settings'];
@@ -1343,7 +1345,7 @@ const WIZARD_STEPS=['Kundenwahl','Plan & Produkt','Konditionen','Zusammenfassung
 
 function openContractWizard(){
   state.wizardStep=0;
-  state.wizardData={customerId:null,plan:'',duration:12,monthly:0,setupFee:490,startDate:todayStr(),payment:'Monatlich',notes:'',status:'Entwurf'};
+  state.wizardData={customerId:null,plan:'',duration:12,monthly:0,setupFee:DEFAULT_SETUP_FEE,startDate:todayStr(),payment:'Monatlich',notes:'',status:'Entwurf'};
   // Populate customer dropdown
   document.getElementById('wiz-customer').innerHTML='<option value="">Kunde wählen …</option>'+state.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   wizardRender();
@@ -1409,7 +1411,7 @@ function wizardHydrateConditionsStep(){
   const payment=document.getElementById('wiz-payment');
   const notes=document.getElementById('wiz-notes');
   if(!price.value||price.value==='0') price.value=state.wizardData.monthly||planPrice(state.wizardData.plan);
-  if(!setupFee.value) setupFee.value=state.wizardData.setupFee??490;
+  if(!setupFee.value) setupFee.value=state.wizardData.setupFee??DEFAULT_SETUP_FEE;
   if(!startDate.value) startDate.value=state.wizardData.startDate||todayStr();
   payment.value=state.wizardData.payment||'Monatlich';
   notes.value=state.wizardData.notes||'';
@@ -1480,7 +1482,7 @@ function wizardUpdateCustomerCard(customerId){
   state.wizardData.customerId=id;
   state.wizardData.plan=state.wizardData.plan||c.plan;
   state.wizardData.monthly=state.wizardData.monthly||planPrice(c.plan);
-  state.wizardData.setupFee=c.progress<100?490:0;
+  state.wizardData.setupFee=c.progress<100?DEFAULT_SETUP_FEE:0;
 }
 
 function wizardNext(){
@@ -1609,7 +1611,7 @@ function openCustomerProfile(id){
   ]:[
     ['Plan',c.plan],
     ['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],
-    ['Setup Fee','CHF '+(c.progress<100?'490':'0')],
+    ['Setup Fee','CHF '+(c.progress<100?String(DEFAULT_SETUP_FEE):'0')],
     ['Vertrag','Kein Vertrag angelegt'],
     ['Billing Metadata','—']
   ];
