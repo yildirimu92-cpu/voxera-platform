@@ -297,7 +297,7 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
 .customer-card-meta-item{font-size:11.5px;color:var(--slate2);}
 .customer-card-meta-item strong{display:block;color:var(--ink);font-size:12px;font-weight:600;}
 .customer-card-actions{display:flex;justify-content:space-between;gap:8px;align-items:center;}
-.customer-card-actions-primary{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.customer-card-actions-primary{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;}
 .muted{font-size:11.5px;color:var(--slate2);}
 .chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;background:var(--line2);color:var(--slate);}
 
@@ -1238,7 +1238,7 @@ function renderCustomers(){
     const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
     const primaryAccessAction=actionState.showSendAccess
       ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
-      :`<button class="btn btn-quiet btn-sm" disabled>${actionState.showLiveState||actionState.showActivated?'Live':'Zugang gesendet'}</button>`;
+      :'';
     return `<div class="customer-card">
       <div class="customer-card-head">
         <div>
