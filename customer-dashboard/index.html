@@ -918,6 +918,8 @@ body{
 .cbq-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;}
 .cbq-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
 @media(max-width:520px){.cbq-row{flex-direction:column;}.cbq-actions{width:100%;justify-content:flex-start;}}
+.cbq-row--active{border-color:#2563EB;background:#EFF6FF;box-shadow:0 0 0 2px rgba(37,99,235,.15);}
+.cb-queue-progress{font-size:11.5px;color:#1E40AF;margin-top:4px;font-weight:500;}
 </style>
 </head>
 <body>
@@ -1116,6 +1118,7 @@ body{
             <div>
               <div class="cb-queue-info" id="cb-queue-count-label"></div>
               <div class="cb-queue-next" id="cb-queue-next-label"></div>
+              <div class="cb-queue-progress" id="cb-queue-progress-label"></div>
             </div>
             <button class="dash-btn-primary cb-queue-banner-btn" onclick="jumpToNextCallback()">📞 Nächsten Rückruf bearbeiten</button>
           </div>
@@ -3041,16 +3044,32 @@ function renderRueckrufe(records) {
   renderList('rueckrufe-list', sortedOpenCallbacks, {showActions:true, primaryCallback:true, skipSort:true});
 }
 
+// ── Callback Queue local state ────────────────────────────────────────────────
+var _cbqState = { activeId: null, activePos: -1 };
+
+function _cbqSetActive(id, sorted) {
+  _cbqState.activeId = id || null;
+  _cbqState.activePos = id ? (sorted || []).findIndex(function(r) { return r.id === id; }) : -1;
+}
+
+function _cbqApply(id, sorted) {
+  _cbqSetActive(id, sorted);
+  renderCallbackQueue(allRecords);
+}
+
 function renderCallbackQueue(records) {
   const banner = document.getElementById('cb-queue-banner');
   const countLabel = document.getElementById('cb-queue-count-label');
   const nextLabel = document.getElementById('cb-queue-next-label');
+  const progressLabel = document.getElementById('cb-queue-progress-label');
   if (!banner) return;
   const sorted = getOpenCallbacksSorted(records);
   if (sorted.length === 0) {
     banner.style.display = 'none';
     const miniList = document.getElementById('cb-queue-mini-list');
     if (miniList) { miniList.style.display = 'none'; miniList.innerHTML = ''; }
+    _cbqSetActive(null, []);
+    if (progressLabel) progressLabel.textContent = '';
     return;
   }
   const next = sorted[0];
@@ -3062,6 +3081,11 @@ function renderCallbackQueue(records) {
   }
   if (nextLabel) {
     nextLabel.textContent = 'Nächster: ' + (next.fields.caller_name || 'Unbekannt').trim() + (phone ? ' · ' + phone : '');
+  }
+  if (progressLabel) {
+    progressLabel.textContent = _cbqState.activePos >= 0
+      ? 'Aktiv: ' + (_cbqState.activePos + 1) + ' von ' + sorted.length
+      : sorted.length + ' offen';
   }
   banner.style.display = 'flex';
   renderCallbackQueueMiniList(sorted.slice(0, 3));
@@ -3091,7 +3115,8 @@ function renderCallbackQueueMiniList(rows) {
     const anrufenBtn = phone
       ? `<button class="btn-a btn-call" style="font-size:11.5px;height:30px;padding:0 10px;" onclick="directCall('${r.id}','${callTarget}')">📞 Anrufen</button>`
       : '';
-    return `<div class="cbq-row">
+    const isActive = _cbqState.activeId && r.id === _cbqState.activeId;
+    return `<div class="cbq-row${isActive ? ' cbq-row--active' : ''}">
       <div class="cbq-info">
         <div class="cbq-name">${name}</div>
         ${phone ? `<div class="cbq-phone">${escHtml(phone)}</div>` : ''}
@@ -3143,6 +3168,7 @@ function jumpToNextCallback() {
     toast('Keine offenen Rückrufe vorhanden');
     return;
   }
+  _cbqApply(sorted[0].id, sorted);
   openDetail(sorted[0].id);
 }
 
@@ -3251,6 +3277,12 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     renderAnrufe(allRecords);
     renderRueckrufe(allRecords);
     renderArchiv(allRecords);
+    // auto-advance queue active state when the active callback is closed
+    if (isClosedStatus(normalizedStatus) && _cbqState.activeId && _cbqState.activeId === recordId) {
+      const remaining = getOpenCallbacksSorted(allRecords);
+      const next = remaining.find(function(r) { return r.id !== recordId; });
+      _cbqApply(next ? next.id : null, remaining);
+    }
     toast(icons[normalizedStatus] || 'Status aktualisiert');
   } catch(e) {
     toast('❌ Fehler – bitte nochmal');
