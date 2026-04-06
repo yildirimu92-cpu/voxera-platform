@@ -767,13 +767,14 @@ function syncAllCustomerLifecycleStatuses(){
 
 function renderOverview(){
   const customers=state.customers;
+  const setupProgressValues=customers.map(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id)));
   const openCases=state.cases.filter(c=>c.status!=='Geschlossen').length;
   const active=customers.filter(c=>getCustomerLifecycleStatus(c)==='live').length;
   const openOnboarding=state.onboarding.filter(o=>o.progress<100).length;
   const callsToday=state.calls.length;
   const callbacks=state.calls.filter(c=>c.callback).length;
   const recent=state.events.length;
-  const attention=customers.filter(c=>c.openCases>0||c.progress<80).length;
+  const attention=customers.filter(c=>c.openCases>0||getCustomerSetupProgress(c,onboardingForCustomer(c.id))<80).length;
   const criticalCases=state.cases.filter(c=>c.priority==='Kritisch').length;
   const kpis=[
     ['Active Customers',active,'live Mandanten'],
@@ -783,11 +784,14 @@ function renderOverview(){
     ['Callback Requests Today',callbacks,'SLA-relevant'],
     ['Recent Activity Items',recent,'letzte 2 Stunden'],
     ['Customers Needing Attention',attention,'Priorisierung nötig'],
-    ['Setup Readiness Ø',`${Math.round(customers.reduce((a,c)=>a+c.progress,0)/customers.length)}%`,'durch alle Kunden']
+    ['Setup Readiness Ø',`${Math.round(setupProgressValues.reduce((a,p)=>a+p,0)/Math.max(1,setupProgressValues.length))}%`,'durch alle Kunden']
   ];
   document.getElementById('overview-kpis').innerHTML=kpis.map(([l,v,s])=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
   document.getElementById('overview-activity-list').innerHTML=state.events.slice(0,6).map(e=>`<div class="list-item"><div><div class="list-main">${esc(e)}</div><div class="list-sub">Auto-aggregated operational event</div></div></div>`).join('');
-  document.getElementById('overview-attention-list').innerHTML=customers.filter(c=>c.openCases>0||c.progress<80).map(c=>`<div class="list-item"><div><div class="list-main">${esc(c.name)}</div><div class="list-sub">${c.openCases} offene Cases · Setup ${c.progress}%</div></div><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button></div>`).join('')||'<div class="empty">Keine Kunden mit Handlungsbedarf.</div>';
+  document.getElementById('overview-attention-list').innerHTML=customers.filter(c=>c.openCases>0||getCustomerSetupProgress(c,onboardingForCustomer(c.id))<80).map(c=>{
+    const setupProgress=getCustomerSetupProgress(c,onboardingForCustomer(c.id));
+    return `<div class="list-item"><div><div class="list-main">${esc(c.name)}</div><div class="list-sub">${c.openCases} offene Cases · Setup ${setupProgress}%</div></div><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button></div>`;
+  }).join('')||'<div class="empty">Keine Kunden mit Handlungsbedarf.</div>';
 }
 
 function renderCustomers(){
@@ -802,9 +806,9 @@ function renderCustomers(){
   if(p!=='all') rows=rows.filter(c=>c.plan===p);
   if(s!=='all') rows=rows.filter(c=>getCustomerLifecycleStatus(c)===s);
   if(prog!=='all'){
-    if(prog==='0-39') rows=rows.filter(c=>c.progress<40);
-    if(prog==='40-79') rows=rows.filter(c=>c.progress>=40&&c.progress<80);
-    if(prog==='80-100') rows=rows.filter(c=>c.progress>=80);
+    if(prog==='0-39') rows=rows.filter(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id))<40);
+    if(prog==='40-79') rows=rows.filter(c=>{const p=getCustomerSetupProgress(c,onboardingForCustomer(c.id));return p>=40&&p<80;});
+    if(prog==='80-100') rows=rows.filter(c=>getCustomerSetupProgress(c,onboardingForCustomer(c.id))>=80);
   }
   if(cfilter==='0') rows=rows.filter(c=>c.openCases===0);
   if(cfilter==='1+') rows=rows.filter(c=>c.openCases>0);
@@ -812,12 +816,10 @@ function renderCustomers(){
   document.getElementById('customers-table-body').innerHTML=rows.map(c=>{
     const onboarding=onboardingForCustomer(c.id);
     const accessReady=isCustomerAccessReady(c,onboarding);
+    const setupProgress=getCustomerSetupProgress(c,onboarding);
     const setupLabel=getCustomerSetupReadinessLabel(c,onboarding);
-    const lifecycleStatus=getCustomerLifecycleStatus(c);
-    const setupColumnLabel=lifecycleStatus==='ready'
-      ? `${c.progress>=95?'Bereit':'Fast bereit'} (${c.progress}%)`
-      : `${c.progress}% · ${setupLabel}`;
-    const sendAccessDisabled=accessReady?'':`disabled title="Kunde ist nicht im Status Bereit"`;
+    const setupColumnLabel=`${setupProgress}% · ${setupLabel}`;
+    const sendAccessDisabled=accessReady?'':`disabled title="Einrichtung noch nicht abgeschlossen"`;
     return `<tr>
     <td class="wrap"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11.5px;margin-top:4px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
     <td>${esc(c.voxera)}</td>
@@ -1042,12 +1044,13 @@ function renderAiWorkspace(){
     return;
   }
   const c=customerById(id); const cfg=state.aiConfigs[id]||{};
+  const setupProgress=getCustomerSetupProgress(c,onboardingForCustomer(id));
   const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboardingForCustomer(id));
   workspace.style.display='block';
   empty.style.display='none';
   document.getElementById('ai-workspace-badge').outerHTML=toneBadge(cfg.status||'Unbekannt').replace('<span','<span id="ai-workspace-badge"');
   document.getElementById('ai-customer-context').innerHTML=[
-    ['Customer',c.name],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c)],['Voxera',c.voxera],['Setup',`${c.progress}% · ${setupReadinessLabel}`],['AI Setup',cfg.status||'Unbekannt']
+    ['Customer',c.name],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c)],['Voxera',c.voxera],['Setup',`${setupProgress}% · ${setupReadinessLabel}`],['AI Setup',cfg.status||'Unbekannt']
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('ai-business-description').value=cfg.businessDescription||'';
   document.getElementById('ai-services').value=cfg.services||'';
@@ -1125,7 +1128,7 @@ function renderActivity(){
   mapList('activity-calls',state.calls.slice().sort((a,b)=>b.time.localeCompare(a.time)).slice(0,6).map(c=>[`${customerById(c.customerId).name} · ${c.time}`,`${c.cat}${c.callback?' · Callback angefragt':''}`,'Call']));
   mapList('activity-onboarding',state.onboarding.map(o=>[`${customerById(o.customerId).name} · ${o.status}`,`Progress ${o.progress}% · Next: ${o.next}`,'Onboarding']));
   mapList('activity-customer-changes',[
-    ...state.customers.slice(0,4).map(c=>[`${c.name} · ${getCustomerLifecycleStatusLabel(c)}`,`Plan ${c.plan} · Setup ${c.progress}%`,'Customer'])
+    ...state.customers.slice(0,4).map(c=>[`${c.name} · ${getCustomerLifecycleStatusLabel(c)}`,`Plan ${c.plan} · Setup ${getCustomerSetupProgress(c,onboardingForCustomer(c.id))}%`,'Customer'])
   ]);
   mapList('activity-support',state.cases.slice(0,6).map(cs=>[`${cs.id} · ${customerById(cs.customerId).name}`,`${cs.type} · ${cs.status} · ${cs.priority} · Owner ${cs.owner}`,'Case']));
   mapList('activity-events',state.events.map(e=>[e,'System event','Ops']));
@@ -1192,9 +1195,10 @@ function openCustomerProfile(id){
   document.getElementById('profile-sub').textContent=`${contactDisplay(c)} · ${c.email}`;
   const onboard=onboardingForCustomer(id);
   const accessReady=isCustomerAccessReady(c,onboard);
+  const setupProgress=getCustomerSetupProgress(c,onboard);
   const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboard);
   const lifecycleStatus=getCustomerLifecycleStatus(c);
-  const sendAccessDisabled=accessReady?'':`disabled title="Kunde ist nicht im Status Bereit"`;
+  const sendAccessDisabled=accessReady?'':`disabled title="Einrichtung noch nicht abgeschlossen"`;
   const missingSteps=state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
   document.getElementById('profile-overview-actions').innerHTML=`
     <button class="btn btn-primary btn-sm" onclick="openSendAccessModal('${jsStr(id)}')" ${sendAccessDisabled}>Zugang senden</button>
@@ -1203,13 +1207,13 @@ function openCustomerProfile(id){
     <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
     <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>`;
   const details=[
-    ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c)],['Voxera Nummer',c.voxera],['Onboarding Progress',`${c.progress}%`],['Setup Readiness',setupReadinessLabel],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
+    ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c)],['Voxera Nummer',c.voxera],['Onboarding Progress',`${setupProgress}%`],['Setup Readiness',setupReadinessLabel],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
   ];
   document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
   document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>idsEq(x.customerId,id)).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Rückruf','Aus Call: ${i+1}')">Case</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed('${jsStr(id)}',${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
   document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>idsEq(x.customerId,id)).map(ca=>`<tr><td>${esc(ca.id)}</td><td>${toneBadge(ca.status)}</td><td>${toneBadge(ca.priority)}</td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','Geschlossen')">Close</button><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','priority','Hoch')">Prio hoch</button></div></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
-  document.getElementById('profile-billing').innerHTML=[['Plan',c.plan],['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],['Setup Fee','CHF '+(c.progress<100?'490':'0')],['Contract','Placeholder · Vertragslaufzeit'],['Billing Metadata','Placeholder · Debitorenreferenz']].map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v">${v}</span></div></div>`).join('');
+  document.getElementById('profile-billing').innerHTML=[['Plan',c.plan],['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],['Setup Fee','CHF '+(setupProgress<100?'490':'0')],['Contract','Placeholder · Vertragslaufzeit'],['Billing Metadata','Placeholder · Debitorenreferenz']].map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v">${v}</span></div></div>`).join('');
   document.getElementById('profile-notes').innerHTML=c.notes.map(n=>`<div class="list-item"><div><div class="list-main">${esc(n)}</div><div class="list-sub">Internal operational note</div></div></div>`).join('')||'<div class="empty">Noch keine Notizen.</div>';
   document.getElementById('profile-new-note').value='';
 
@@ -1254,6 +1258,14 @@ function isOnboardingStatusReady(status){
   return String(status||'').trim().toLowerCase()==='ready';
 }
 
+function getRawCustomerSetupProgress(customer,onboarding){
+  const customerProgress=Number(customer?.progress);
+  const onboardingProgress=Number(onboarding?.progress);
+  const raw=Number.isFinite(onboardingProgress)?onboardingProgress:customerProgress;
+  if(!Number.isFinite(raw)) return 0;
+  return Math.max(0,Math.min(100,Math.round(raw)));
+}
+
 function validateCustomerAccessData(customer){
   const missing=ACCESS_REQUIRED_FIELDS.filter(field=>{
     if(field==='customer_name'){
@@ -1272,7 +1284,7 @@ function syncCustomerLifecycleStatus(customer,onboarding){
   if(!customer) return;
   const lifecycleStatus=getCustomerLifecycleStatus(customer);
   if(lifecycleStatus==='paused'||lifecycleStatus==='invited'||lifecycleStatus==='activated'||lifecycleStatus==='live') return;
-  if(String(onboarding?.status||'').trim().toLowerCase()==='ready'&&hasRequiredAccessData(customer)){
+  if(isCustomerAccessReady(customer,onboarding)){
     customer.status='ready';
     return;
   }
@@ -1280,23 +1292,44 @@ function syncCustomerLifecycleStatus(customer,onboarding){
 }
 
 function isCustomerAccessReady(customer,onboarding){
-  return getCustomerLifecycleStatus(customer)==='ready';
+  return hasRequiredAccessData(customer)&&isOnboardingStatusReady(onboarding?.status);
+}
+
+function getCustomerAccessBlockReasons(customer,onboarding){
+  const reasons=[];
+  if(!isOnboardingStatusReady(onboarding?.status)) reasons.push('Onboarding-Status ist nicht Ready');
+  const validation=validateCustomerAccessData(customer);
+  if(validation.missing.length) reasons.push(`Pflichtdaten fehlen (${validation.missing.map(validationLabelForField).join(', ')})`);
+  return reasons;
+}
+
+function getCustomerSetupProgress(customer,onboarding){
+  const rawProgress=getRawCustomerSetupProgress(customer,onboarding);
+  return isCustomerAccessReady(customer,onboarding)?rawProgress:Math.min(rawProgress,99);
 }
 
 function getCustomerAccessReadiness(customer,onboarding){
   const validation=validateCustomerAccessData(customer);
-  const lifecycleReady=getCustomerLifecycleStatus(customer)==='ready';
+  const onboardingReady=isOnboardingStatusReady(onboarding?.status);
+  const isReady=hasRequiredAccessData(customer)&&onboardingReady;
   return {
-    isReady:lifecycleReady,
-    onboardingReady:lifecycleReady,
+    isReady,
+    onboardingReady,
     hasRequiredData:validation.ok,
-    missingFields:validation.missing
+    missingFields:validation.missing,
+    setupProgress:getCustomerSetupProgress(customer,onboarding),
+    setupLabel:getCustomerSetupReadinessLabel(customer,onboarding),
+    reasons:getCustomerAccessBlockReasons(customer,onboarding)
   };
 }
 
 function getCustomerSetupReadinessLabel(customer,onboarding){
-  const lifecycleStatus=getCustomerLifecycleStatus(customer);
-  return CUSTOMER_LIFECYCLE_LABELS[lifecycleStatus]||'Einrichtung läuft';
+  if(isCustomerAccessReady(customer,onboarding)) return 'Bereit';
+  const progress=getCustomerSetupProgress(customer,onboarding);
+  if(progress>=90) return 'Fast bereit';
+  if(progress>=60) return 'Konfiguration offen';
+  if(progress>0) return 'Einrichtung läuft';
+  return 'Nicht gestartet';
 }
 
 function renderSendAccessValidation(customer){
@@ -1322,17 +1355,13 @@ function openSendAccessModal(customerId){
   document.getElementById('send-access-invite-status').textContent=customer.invite_status==='sent'?'Bereits gesendet':'Noch nicht gesendet';
 
   const onboarding=onboardingForCustomer(customerId);
-  const obStatus=onboarding?onboarding.status:null;
   const readiness=getCustomerAccessReadiness(customer,onboarding);
   const obStatusEl=document.getElementById('send-access-onboarding-status');
-  if(obStatusEl) obStatusEl.textContent=obStatus?obStatus.charAt(0).toUpperCase()+obStatus.slice(1):'—';
+  if(obStatusEl) obStatusEl.textContent=`${readiness.setupProgress}% · ${readiness.setupLabel}`;
   const readinessWarning=document.getElementById('send-access-readiness-warning');
   if(readinessWarning){
     readinessWarning.style.display=readiness.isReady?'none':'';
-    const warningReasons=[];
-    if(!readiness.onboardingReady) warningReasons.push('Kundenstatus ist nicht Bereit');
-    if(readiness.missingFields.length) warningReasons.push(`Pflichtdaten fehlen (${readiness.missingFields.map(validationLabelForField).join(', ')})`);
-    readinessWarning.textContent=warningReasons.length?`Zugang blockiert: ${warningReasons.join(' · ')}.`:'Zugang kann erst gesendet werden, wenn der Kundenstatus Bereit ist.';
+    readinessWarning.textContent=readiness.reasons.length?`Zugang blockiert: ${readiness.reasons.join(' · ')}.`:'Zugang kann erst gesendet werden, wenn der Kundenstatus Ready ist.';
   }
 
   renderSendAccessValidation(customer);
@@ -1377,10 +1406,7 @@ async function submitSendAccess(){
   const readiness=getCustomerAccessReadiness(customer,onboarding);
   renderSendAccessValidation(customer);
   if(!readiness.isReady){
-    const reasons=[];
-    if(!readiness.onboardingReady) reasons.push('Kundenstatus ist nicht Bereit');
-    if(readiness.missingFields.length) reasons.push(`Pflichtdaten fehlen (${readiness.missingFields.map(validationLabelForField).join(', ')})`);
-    setSendAccessFeedback('error',`Versand blockiert: ${reasons.join(' · ')||'Einrichtung noch nicht abgeschlossen'}.`);
+    setSendAccessFeedback('error',`Versand blockiert: ${readiness.reasons.join(' · ')||'Einrichtung noch nicht abgeschlossen'}.`);
     return;
   }
 
