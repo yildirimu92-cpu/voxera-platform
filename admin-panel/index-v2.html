@@ -155,6 +155,20 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 .priority-medium .priority-dot{background:var(--blue);}
 .priority-low{background:var(--gray100);color:var(--gray600);}
 .priority-low .priority-dot{background:var(--gray400);}
+.timeline-wrap{display:flex;flex-direction:column;gap:14px;}
+.timeline-group{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:14px 16px;}
+.timeline-group-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.timeline-group-title{font-size:12px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;}
+.timeline-item{display:grid;grid-template-columns:84px 110px minmax(0,1fr);gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--gray100);}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-time{font-size:11.5px;color:var(--gray400);font-weight:600;}
+.timeline-label{font-size:10.5px;padding:3px 8px;border-radius:999px;font-weight:700;justify-self:start;}
+.label-calls{background:var(--blue-light);color:var(--blue);}
+.label-onboarding{background:var(--amber-light);color:#92400E;}
+.label-cases{background:var(--red-light);color:var(--red);}
+.label-customers{background:var(--green-light);color:var(--green);}
+.timeline-main{font-size:13px;font-weight:600;color:var(--gray900);}
+.timeline-sub{font-size:11.5px;color:var(--gray400);margin-top:3px;line-height:1.5;}
 
 @media (max-width:1100px){
   .kpi-grid{grid-template-columns:repeat(2,1fr);}
@@ -309,14 +323,12 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
       </section>
 
       <section id="section-activity" class="section">
-        <div class="grid-2">
-          <div class="card"><div class="card-head"><h3>Recent Calls</h3></div><div class="list" id="activity-calls"></div></div>
-          <div class="card"><div class="card-head"><h3>Recent Onboarding Actions</h3></div><div class="list" id="activity-onboarding"></div></div>
-        </div>
-        <div class="grid-3" style="margin-top:16px;">
-          <div class="card"><div class="card-head"><h3>Customer Changes</h3></div><div class="list" id="activity-customer-changes"></div></div>
-          <div class="card"><div class="card-head"><h3>Support Activity</h3></div><div class="list" id="activity-support"></div></div>
-          <div class="card"><div class="card-head"><h3>Operational Events</h3></div><div class="list" id="activity-events"></div></div>
+        <div class="card">
+          <div class="card-head">
+            <h3>System Timeline</h3>
+            <span class="badge badge-blue">Calls · Onboarding · Cases · Customer Changes</span>
+          </div>
+          <div class="timeline-wrap" id="activity-timeline"></div>
         </div>
       </section>
 
@@ -455,6 +467,16 @@ const state={
     '09:10 · AI Setup Änderung für Berg Apotheke veröffentlicht',
     '08:14 · Keller Dental: Callback erstellt'
   ],
+  activityTimeline:[
+    {time:'10:32',type:'calls',title:'Meyer Sanitär · Notfallanruf klassifiziert',detail:'Callback angefordert, Priorität hoch, SLA gestartet.'},
+    {time:'10:28',type:'cases',title:'Case C-101 auf in progress gesetzt',detail:'Owner Lea hat Rückruf übernommen.'},
+    {time:'10:21',type:'onboarding',title:'Keller Dental · Activation triggern',detail:'Aktivierungslink versendet und verifiziert.'},
+    {time:'10:12',type:'customers',title:'Hotel Seeblick · Kundenstammdaten aktualisiert',detail:'Neue Kontaktperson + Eskalationsnummer gespeichert.'},
+    {time:'09:58',type:'cases',title:'Case C-104 auf waiting gesetzt',detail:'Wartet auf Kundenrückmeldung zu Mehrsprachigkeit.'},
+    {time:'09:45',type:'calls',title:'Berg Apotheke · Produktanfrage protokolliert',detail:'Kein Callback nötig, Notiz ergänzt.'},
+    {time:'09:30',type:'onboarding',title:'Hotel Seeblick · Test-Call erledigt',detail:'Audioqualität bestätigt, Routing stabil.'},
+    {time:'09:14',type:'customers',title:'Alpin Treuhand · Planreview markiert',detail:'Upsell-Potenzial für Growth erfasst.'}
+  ],
   checklist:['customer created','activation sent','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours set','greeting reviewed','test call completed','dashboard ready','onboarding completed'],
   customerNotes:{}
 };
@@ -513,6 +535,14 @@ function onboardingMissingSteps(entry){
     dashboardReady:'Dashboard'
   };
   return Object.entries(entry.steps||{}).filter(([,done])=>!done).map(([k])=>labels[k]||k);
+}
+
+function logActivity(type,title,detail){
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mm=String(now.getMinutes()).padStart(2,'0');
+  state.activityTimeline.unshift({time:`${hh}:${mm}`,type,title,detail});
+  state.activityTimeline=state.activityTimeline.slice(0,40);
 }
 
 function renderOverview(){
@@ -640,18 +670,30 @@ function renderCases(){
 }
 
 function renderActivity(){
-  const mapList=(id,arr)=>document.getElementById(id).innerHTML=arr.map(x=>`<div class="list-item"><div><div class="list-main">${esc(x[0])}</div><div class="list-sub">${esc(x[1])}</div></div></div>`).join('');
-  mapList('activity-calls',state.calls.slice(0,5).map(c=>[`${customerById(c.customerId).name} · ${c.time}`,`${c.cat}${c.callback?' · Callback angefragt':''}`]));
-  mapList('activity-onboarding',state.onboarding.map(o=>[`${customerById(o.customerId).name} · ${onboardingStatus(o)}`,`Progress ${onboardingProgress(o)}% · Missing: ${onboardingMissingSteps(o).slice(0,2).join(', ')||'keine'}`]));
-  mapList('activity-customer-changes',[
-    ['Hotel Seeblick · Plan bestätigt','Enterprise Vertrag verlängert'],
-    ['Meyer Sanitär · Nummer validiert','Forwarding Monitoring aktiv']
-  ]);
-  mapList('activity-support',[
-    ['Case C-102 bearbeitet','Owner Noah · Eskalation reduziert'],
-    ['Case C-101 kommentiert','Lea hat Rückruf priorisiert']
-  ]);
-  mapList('activity-events',state.events.map(e=>[e,'System event']));
+  const groups=[
+    {key:'calls',label:'Calls',css:'label-calls'},
+    {key:'onboarding',label:'Onboarding',css:'label-onboarding'},
+    {key:'cases',label:'Cases',css:'label-cases'},
+    {key:'customers',label:'Customer Changes',css:'label-customers'}
+  ];
+  const groupedHtml=groups.map(group=>{
+    const items=state.activityTimeline.filter(i=>i.type===group.key);
+    return `<div class="timeline-group">
+      <div class="timeline-group-head">
+        <div class="timeline-group-title">${group.label}</div>
+        <span class="badge badge-gray">${items.length} Einträge</span>
+      </div>
+      ${items.map(item=>`<div class="timeline-item">
+        <div class="timeline-time">${esc(item.time)}</div>
+        <div class="timeline-label ${group.css}">${group.label}</div>
+        <div>
+          <div class="timeline-main">${esc(item.title)}</div>
+          <div class="timeline-sub">${esc(item.detail)}</div>
+        </div>
+      </div>`).join('')||'<div class="empty">Keine Einträge in dieser Gruppe.</div>'}
+    </div>`;
+  }).join('');
+  document.getElementById('activity-timeline').innerHTML=groupedHtml;
 }
 
 function renderInsights(){
@@ -770,7 +812,9 @@ function setCustomerStatus(nextStatus){
   const customer=getCurrentCustomer(); if(!customer) return;
   customer.status=nextStatus;
   customer.latest='Gerade eben';
+  logActivity('customers',`${customer.name} · Status geändert`,`Neuer Status: ${nextStatus}`);
   renderCustomers();
+  renderActivity();
   openCustomerProfile(customer.id);
 }
 
@@ -779,6 +823,8 @@ function markCallDone(callId){
   if(call.done) return;
   call.done=true;
   call.summary=`${call.summary} (erledigt)`;
+  logActivity('calls',`${customerById(call.customerId).name} · Call als done markiert`,call.cat);
+  renderActivity();
   openCustomerProfile(call.customerId);
 }
 
@@ -788,8 +834,10 @@ function createCaseFromCall(callId){
   state.cases.unshift({id:newId,type:'Follow-up',priority:call.callback?'Hoch':'Mittel',status:'new',owner:'Ops Queue',customerId:call.customerId,latest:'Gerade erstellt',notes:`Auto-case aus ${call.id}: ${call.summary}`});
   const customer=customerById(call.customerId);
   if(customer) customer.openCases+=1;
+  logActivity('cases',`Case ${newId} aus Call ${call.id} erstellt`,customer?customer.name:'Unbekannter Kunde');
   renderCustomers();
   renderCases();
+  renderActivity();
   openCustomerProfile(call.customerId);
 }
 
@@ -808,8 +856,10 @@ function createCaseForCurrentCustomer(){
   const newId='C-'+String(100+state.cases.length+1);
   state.cases.unshift({id:newId,type:'Follow-up',priority:'Mittel',status:'new',owner:'Ops Queue',customerId:customer.id,latest:'Gerade erstellt',notes:note});
   customer.openCases+=1;
+  logActivity('cases',`Case ${newId} für ${customer.name} erstellt`,note);
   renderCases();
   renderCustomers();
+  renderActivity();
   openCustomerProfile(customer.id);
 }
 
@@ -820,8 +870,10 @@ function updateCaseField(caseId,field,value){
   state.customers.forEach(c=>{
     c.openCases=state.cases.filter(s=>s.customerId===c.id&&s.status!=='done').length;
   });
+  logActivity('cases',`Case ${item.id} aktualisiert`,`${field}: ${value}`);
   renderCustomers();
   renderCases();
+  renderActivity();
 }
 
 function addProfileNote(){
@@ -859,11 +911,13 @@ function runOnboardingAction(customerId,stepKey){
       customer.voxera='+41 58 100 20 '+String(customerId).padStart(2,'0');
     }
     customer.latest='Onboarding aktualisiert';
+    logActivity('onboarding',`${customer.name} · Onboarding Schritt abgeschlossen`,stepKey);
   }
   updateBadges();
   renderOverview();
   renderCustomers();
   renderOnboarding();
+  renderActivity();
 }
 
 function wireUi(){
