@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import { randomUUID } from 'node:crypto';
+const { createClient } = require('@supabase/supabase-js');
+const { randomUUID } = require('node:crypto');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -8,7 +8,7 @@ const headers = {
   'Content-Type': 'application/json'
 };
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
@@ -62,8 +62,21 @@ export const handler = async (event) => {
     };
   }
 
-  const requiredFields = ['customer_name', 'email', 'tel_nr', 'street', 'zip', 'city', 'country', 'plan'];
-  const missingFields = requiredFields.filter((field) => !String(body[field] || '').trim());
+  const requiredFields = [
+    'customer_name',
+    'email',
+    'tel_nr',
+    'street',
+    'zip',
+    'city',
+    'country',
+    'plan'
+  ];
+
+  const missingFields = requiredFields.filter(
+    (field) => !String(body[field] || '').trim()
+  );
+
   if (missingFields.length > 0) {
     console.error('Validation failed: missing required fields', { missingFields });
     return {
@@ -80,9 +93,16 @@ export const handler = async (event) => {
     const nowIso = new Date().toISOString();
     const customerId = `cust_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const onboardingId = randomUUID();
-    const contactFirstName = body.contact_first_name ? String(body.contact_first_name).trim() : null;
-    const contactLastName = body.contact_last_name ? String(body.contact_last_name).trim() : null;
-    const contactNameParts = [contactFirstName, contactLastName].filter((value) => value);
+
+    const contactFirstName = body.contact_first_name
+      ? String(body.contact_first_name).trim()
+      : null;
+
+    const contactLastName = body.contact_last_name
+      ? String(body.contact_last_name).trim()
+      : null;
+
+    const contactNameParts = [contactFirstName, contactLastName].filter(Boolean);
     const contactName = contactNameParts.length > 0 ? contactNameParts.join(' ') : null;
 
     const customerPayload = {
@@ -104,8 +124,14 @@ export const handler = async (event) => {
       contact_name: contactName,
       notes: body.notes ? String(body.notes).trim() : null,
       contact_first_name: contactFirstName,
-      contact_last_name: contactLastName
+      contact_last_name: contactLastName,
+      created_at: nowIso,
+      updated_at: nowIso
     };
+
+    if (body.start_date) {
+      customerPayload.start_date = body.start_date;
+    }
 
     const { data: createdCustomer, error: customerError } = await sbAdmin
       .from('customers')
@@ -136,8 +162,13 @@ export const handler = async (event) => {
       .single();
 
     if (onboardingError) {
-      const { error: rollbackError } = await sbAdmin.from('customers').delete().eq('id', customerId);
+      const { error: rollbackError } = await sbAdmin
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
+
       console.error('Onboarding insert failed', onboardingError);
+
       if (rollbackError) {
         console.error('Rollback failed', rollbackError);
       }
@@ -150,16 +181,14 @@ export const handler = async (event) => {
           rollback_applied: !rollbackError,
           rollback_error: rollbackError ? rollbackError.message : null,
           limitation: 'No transaction is used in this function. Rollback is best-effort only.'
-        }),
-        {
-          status: 500,
-          headers
-        }
-      );
+        })
+      };
     }
 
-    return new Response(
-      JSON.stringify({
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
         success: true,
         message: 'Customer and onboarding created',
         customer: createdCustomer,
