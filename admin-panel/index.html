@@ -760,16 +760,22 @@ function renderCustomers(){
   if(cfilter==='0') rows=rows.filter(c=>c.openCases===0);
   if(cfilter==='1+') rows=rows.filter(c=>c.openCases>0);
 
-  document.getElementById('customers-table-body').innerHTML=rows.map(c=>`<tr>
+  document.getElementById('customers-table-body').innerHTML=rows.map(c=>{
+    const onboarding=onboardingForCustomer(c.id);
+    const accessReady=isCustomerAccessReady(c,onboarding);
+    const setupLabel=getCustomerSetupReadinessLabel(c,onboarding);
+    const sendAccessDisabled=accessReady?'':`disabled title="Einrichtung noch nicht abgeschlossen"`;
+    return `<tr>
     <td class="wrap"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11.5px;margin-top:4px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
     <td>${esc(c.voxera)}</td>
     <td>${toneBadge(c.plan)}</td>
     <td>${toneBadge(c.status)}</td>
-    <td>${c.progress}% <span class="muted">· ${esc(c.readiness)}</span></td>
+    <td>${c.progress}% <span class="muted">· ${esc(setupLabel)}</span></td>
     <td>${esc(c.latest)}</td>
     <td>${c.openCases}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button><button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')">Zugang senden</button><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
-  </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button><button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabled}>Zugang senden</button><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button></div></td>
+  </tr>`;
+  }).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 }
 
 function renderOnboarding(){
@@ -983,11 +989,12 @@ function renderAiWorkspace(){
     return;
   }
   const c=customerById(id); const cfg=state.aiConfigs[id]||{};
+  const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboardingForCustomer(id));
   workspace.style.display='block';
   empty.style.display='none';
   document.getElementById('ai-workspace-badge').outerHTML=toneBadge(cfg.status||'Unbekannt').replace('<span','<span id="ai-workspace-badge"');
   document.getElementById('ai-customer-context').innerHTML=[
-    ['Customer',c.name],['Plan',c.plan],['Status',c.status],['Voxera',c.voxera],['Setup',`${c.progress}% · ${c.readiness}`],['AI Setup',cfg.status||'Unbekannt']
+    ['Customer',c.name],['Plan',c.plan],['Status',c.status],['Voxera',c.voxera],['Setup',`${c.progress}% · ${setupReadinessLabel}`],['AI Setup',cfg.status||'Unbekannt']
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('ai-business-description').value=cfg.businessDescription||'';
   document.getElementById('ai-services').value=cfg.services||'';
@@ -1130,15 +1137,18 @@ function openCustomerProfile(id){
   document.getElementById('profile-title').textContent=c.name;
   document.getElementById('profile-sub').textContent=`${contactDisplay(c)} · ${c.email}`;
   const onboard=onboardingForCustomer(id);
+  const accessReady=isCustomerAccessReady(c,onboard);
+  const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboard);
+  const sendAccessDisabled=accessReady?'':`disabled title="Einrichtung noch nicht abgeschlossen"`;
   const missingSteps=state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
   document.getElementById('profile-overview-actions').innerHTML=`
-    <button class="btn btn-primary btn-sm" onclick="openSendAccessModal('${jsStr(id)}')">Zugang senden</button>
+    <button class="btn btn-primary btn-sm" onclick="openSendAccessModal('${jsStr(id)}')" ${sendAccessDisabled}>Zugang senden</button>
     <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding')">Onboarding öffnen</button>
     <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus('${jsStr(id)}')">${c.status==='Paused'?'Aktivieren':'Pausieren'}</button>
     <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
     <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>`;
   const details=[
-    ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',c.status],['Voxera Nummer',c.voxera],['Onboarding Progress',`${c.progress}%`],['Setup Readiness',c.readiness],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
+    ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',c.status],['Voxera Nummer',c.voxera],['Onboarding Progress',`${c.progress}%`],['Setup Readiness',setupReadinessLabel],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
   ];
   document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
@@ -1183,19 +1193,47 @@ function validationLabelForField(field){
   return labels[field]||field;
 }
 
+const ACCESS_REQUIRED_FIELDS=['customer_name','email','street','zip','city','country','plan'];
+
 function isOnboardingStatusReady(status){
-  return !!status&&String(status).toLowerCase()==='ready';
+  return String(status||'').trim().toLowerCase()==='ready';
 }
 
 function validateCustomerAccessData(customer){
-  const required=['customer_name','email','street','zip','city','country','plan'];
-  const missing=required.filter(field=>{
+  const missing=ACCESS_REQUIRED_FIELDS.filter(field=>{
     if(field==='customer_name'){
       return !String(customer?.customer_name||customer?.name||'').trim();
     }
     return !String(customer?.[field]||'').trim();
   });
   return {ok:missing.length===0,missing};
+}
+
+function hasRequiredAccessData(customer){
+  return validateCustomerAccessData(customer).ok;
+}
+
+function isCustomerAccessReady(customer,onboarding){
+  return hasRequiredAccessData(customer)&&isOnboardingStatusReady(onboarding?.status);
+}
+
+function getCustomerAccessReadiness(customer,onboarding){
+  const validation=validateCustomerAccessData(customer);
+  const onboardingReady=isOnboardingStatusReady(onboarding?.status);
+  return {
+    isReady:validation.ok&&onboardingReady,
+    onboardingReady,
+    hasRequiredData:validation.ok,
+    missingFields:validation.missing
+  };
+}
+
+function getCustomerSetupReadinessLabel(customer,onboarding){
+  const progress=Math.max(0,Math.min(100,Number(customer?.progress||0)));
+  if(isCustomerAccessReady(customer,onboarding)) return 'Ready';
+  if(progress>=80) return 'Fast bereit';
+  if(progress>=40) return 'Konfiguration offen';
+  return 'Einrichtung offen';
 }
 
 function renderSendAccessValidation(customer){
@@ -1222,15 +1260,21 @@ function openSendAccessModal(customerId){
 
   const onboarding=onboardingForCustomer(customerId);
   const obStatus=onboarding?onboarding.status:null;
-  const isReady=isOnboardingStatusReady(obStatus);
+  const readiness=getCustomerAccessReadiness(customer,onboarding);
   const obStatusEl=document.getElementById('send-access-onboarding-status');
   if(obStatusEl) obStatusEl.textContent=obStatus?obStatus.charAt(0).toUpperCase()+obStatus.slice(1):'—';
   const readinessWarning=document.getElementById('send-access-readiness-warning');
-  if(readinessWarning) readinessWarning.style.display=isReady?'none':'';
+  if(readinessWarning){
+    readinessWarning.style.display=readiness.isReady?'none':'';
+    const warningReasons=[];
+    if(!readiness.onboardingReady) warningReasons.push('Onboarding-Status ist nicht Ready');
+    if(readiness.missingFields.length) warningReasons.push(`Pflichtdaten fehlen (${readiness.missingFields.map(validationLabelForField).join(', ')})`);
+    readinessWarning.textContent=warningReasons.length?`Zugang blockiert: ${warningReasons.join(' · ')}.`:'Zugang kann erst gesendet werden, wenn die Einrichtung vollständig abgeschlossen ist.';
+  }
 
-  const validation=renderSendAccessValidation(customer);
+  renderSendAccessValidation(customer);
   const submitBtn=document.getElementById('send-access-submit-btn');
-  submitBtn.disabled=!validation.ok||!isReady;
+  submitBtn.disabled=!readiness.isReady;
   document.getElementById('send-access-modal').classList.add('open');
 }
 
@@ -1266,16 +1310,14 @@ async function submitSendAccess(){
   const customer=customerById(customerId);
   if(!customerId||!customer) return;
 
-  const validation=renderSendAccessValidation(customer);
-  if(!validation.ok){
-    setSendAccessFeedback('error',`Versand blockiert: Es fehlen Pflichtdaten (${validation.missing.map(validationLabelForField).join(', ')}).`);
-    return;
-  }
-
   const onboarding=onboardingForCustomer(customerId);
-  const obStatus=onboarding?onboarding.status:null;
-  if(!isOnboardingStatusReady(obStatus)){
-    setSendAccessFeedback('error','Zugang kann erst gesendet werden, wenn die Einrichtung im Admin-Panel vollständig abgeschlossen ist.');
+  const readiness=getCustomerAccessReadiness(customer,onboarding);
+  renderSendAccessValidation(customer);
+  if(!readiness.isReady){
+    const reasons=[];
+    if(!readiness.onboardingReady) reasons.push('Onboarding-Status ist nicht Ready');
+    if(readiness.missingFields.length) reasons.push(`Pflichtdaten fehlen (${readiness.missingFields.map(validationLabelForField).join(', ')})`);
+    setSendAccessFeedback('error',`Versand blockiert: ${reasons.join(' · ')||'Einrichtung noch nicht abgeschlossen'}.`);
     return;
   }
 
@@ -1542,7 +1584,7 @@ function toggleOnboardingStep(customerId,step){
     state.onboarding.push({customerId,status:queue.status,progress:queue.progress,next:queue.nextStep,owner:'Ops',latest:new Date().toISOString().slice(0,16).replace('T',' '),blocker:queue.blocker});
   }
   c.progress=queue.progress;
-  c.readiness=queue.status==='Completed'?'Live':queue.status==='Ready'?'Ready':queue.status==='Blocked'?'Blocked':'Konfiguration offen';
+  c.readiness=getCustomerSetupReadinessLabel(c,onboardingForCustomer(customerId));
   c.latest=`${nowStamp()} · Onboarding ${has?'zurückgesetzt':'aktualisiert'}`;
   const activity=`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${c.name}: ${step} ${has?'zurückgesetzt':'abgeschlossen'}`;
   state.onboardingActivity.unshift(activity);
