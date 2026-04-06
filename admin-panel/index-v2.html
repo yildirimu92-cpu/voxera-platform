@@ -145,6 +145,16 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 .progress-fill{height:100%;background:var(--blue);border-radius:999px;transition:width .2s ease;}
 .missing-steps{display:flex;gap:6px;flex-wrap:wrap;}
 .step-chip{font-size:10.5px;padding:3px 8px;border-radius:999px;background:var(--amber-light);border:1px solid var(--amber-mid);color:#92400E;font-weight:600;}
+.priority-flag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:700;}
+.priority-dot{width:7px;height:7px;border-radius:50%;}
+.priority-critical{background:var(--red-light);color:var(--red);}
+.priority-critical .priority-dot{background:var(--red);}
+.priority-high{background:var(--amber-light);color:#92400E;}
+.priority-high .priority-dot{background:var(--amber);}
+.priority-medium{background:var(--blue-light);color:var(--blue);}
+.priority-medium .priority-dot{background:var(--blue);}
+.priority-low{background:var(--gray100);color:var(--gray600);}
+.priority-low .priority-dot{background:var(--gray400);}
 
 @media (max-width:1100px){
   .kpi-grid{grid-template-columns:repeat(2,1fr);}
@@ -284,14 +294,18 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
       </section>
 
       <section id="section-cases" class="section">
+        <div class="section-head" style="margin-bottom:10px;">
+          <h3 style="font-family:var(--headline-font);font-size:18px">Cases Workflow</h3>
+          <span class="badge badge-blue">Statusfluss: new → in progress → waiting → done</span>
+        </div>
         <div class="tabs" id="cases-tabs">
           <button class="tab-btn active" data-tab="callbacks">Rückrufe</button>
           <button class="tab-btn" data-tab="followups">Follow-ups</button>
           <button class="tab-btn" data-tab="all">Alle Cases</button>
         </div>
-        <div class="tab-panel active" data-panel="callbacks"><div class="table-wrap"><table class="data-table"><thead><tr><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th></tr></thead><tbody id="cases-callbacks"></tbody></table></div></div>
-        <div class="tab-panel" data-panel="followups"><div class="table-wrap"><table class="data-table"><thead><tr><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>History</th></tr></thead><tbody id="cases-followups"></tbody></table></div></div>
-        <div class="tab-panel" data-panel="all"><div class="table-wrap"><table class="data-table"><thead><tr><th>Typ</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th></tr></thead><tbody id="cases-all"></tbody></table></div></div>
+        <div class="tab-panel active" data-panel="callbacks"><div class="table-wrap"><table class="data-table"><thead><tr><th>Case</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th><th>Aktionen</th></tr></thead><tbody id="cases-callbacks"></tbody></table></div></div>
+        <div class="tab-panel" data-panel="followups"><div class="table-wrap"><table class="data-table"><thead><tr><th>Case</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>History</th><th>Aktionen</th></tr></thead><tbody id="cases-followups"></tbody></table></div></div>
+        <div class="tab-panel" data-panel="all"><div class="table-wrap"><table class="data-table"><thead><tr><th>Typ</th><th>Case</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th><th>Aktionen</th></tr></thead><tbody id="cases-all"></tbody></table></div></div>
       </section>
 
       <section id="section-activity" class="section">
@@ -423,11 +437,11 @@ const state={
     {id:'CL-205',customerId:5,time:'2026-04-06 07:55',cat:'Produktfrage · Qualität B',callback:false,summary:'Öffnungszeiten und Verfügbarkeit mitgeteilt.',done:false,note:''}
   ],
   cases:[
-    {id:'C-101',type:'Rückruf',priority:'Kritisch',status:'Offen',owner:'Lea',customerId:4,latest:'Vor 18 Min',notes:'VIP Anfrage ohne Finalisierung.'},
-    {id:'C-102',type:'Follow-up',priority:'Hoch',status:'In Bearbeitung',owner:'Noah',customerId:2,latest:'Vor 42 Min',notes:'Aktivierungslink erneut senden.'},
-    {id:'C-103',type:'Rückruf',priority:'Mittel',status:'Offen',owner:'Mia',customerId:1,latest:'Vor 65 Min',notes:'Notfallrückruf bestätigen.'},
-    {id:'C-104',type:'Follow-up',priority:'Niedrig',status:'Wartend',owner:'Lea',customerId:4,latest:'Heute 07:50',notes:'Mehrsprachigkeit prüfen.'},
-    {id:'C-105',type:'Rückruf',priority:'Mittel',status:'Offen',owner:'Noah',customerId:5,latest:'Heute 07:59',notes:'Produktberatung intern klären.'}
+    {id:'C-101',type:'Rückruf',priority:'Kritisch',status:'new',owner:'Lea',customerId:4,latest:'Vor 18 Min',notes:'VIP Anfrage ohne Finalisierung.'},
+    {id:'C-102',type:'Follow-up',priority:'Hoch',status:'in progress',owner:'Noah',customerId:2,latest:'Vor 42 Min',notes:'Aktivierungslink erneut senden.'},
+    {id:'C-103',type:'Rückruf',priority:'Mittel',status:'new',owner:'Mia',customerId:1,latest:'Vor 65 Min',notes:'Notfallrückruf bestätigen.'},
+    {id:'C-104',type:'Follow-up',priority:'Niedrig',status:'waiting',owner:'Lea',customerId:4,latest:'Heute 07:50',notes:'Mehrsprachigkeit prüfen.'},
+    {id:'C-105',type:'Rückruf',priority:'Mittel',status:'new',owner:'Noah',customerId:5,latest:'Heute 07:59',notes:'Produktberatung intern klären.'}
   ],
   onboarding:[
     {customerId:2,status:'In Arbeit',owner:'Noah',steps:{customerCreated:true,activationSent:false,numberAssigned:false,forwardingDone:false,businessInfoDone:true,testCallComplete:false,dashboardReady:false}},
@@ -465,6 +479,17 @@ function toneBadge(val){
   return `<span class="badge ${cls}">${esc(val)}</span>`;
 }
 
+function priorityIndicator(priority){
+  const p=(priority||'').toLowerCase();
+  const cls=p==='kritisch'?'priority-critical':p==='hoch'?'priority-high':p==='mittel'?'priority-medium':'priority-low';
+  return `<span class="priority-flag ${cls}"><span class="priority-dot"></span>${esc(priority)}</span>`;
+}
+
+function statusBadge(status){
+  const map={new:'badge-blue','in progress':'badge-amber',waiting:'badge-gray',done:'badge-green'};
+  return `<span class="badge ${map[status]||'badge-gray'}">${esc(status)}</span>`;
+}
+
 function onboardingProgress(entry){
   const vals=Object.values(entry.steps||{});
   if(!vals.length) return 0;
@@ -492,7 +517,7 @@ function onboardingMissingSteps(entry){
 
 function renderOverview(){
   const customers=state.customers;
-  const openCases=state.cases.filter(c=>c.status!=='Geschlossen').length;
+  const openCases=state.cases.filter(c=>c.status!=='done').length;
   const active=customers.filter(c=>c.status==='Aktiv').length;
   const openOnboarding=state.onboarding.filter(o=>onboardingProgress(o)<100).length;
   const callsToday=state.calls.length;
@@ -599,7 +624,16 @@ function renderAiSetup(){
 function renderCases(){
   const callbacks=state.cases.filter(c=>c.type==='Rückruf');
   const followups=state.cases.filter(c=>c.type==='Follow-up');
-  const row=c=>`<tr><td>${toneBadge(c.priority)}</td><td>${toneBadge(c.status)}</td><td>${esc(c.owner)}</td><td>${esc(customerById(c.customerId).name)}</td><td>${esc(c.latest)}</td><td class="wrap">${esc(c.notes)}</td></tr>`;
+  const row=c=>`<tr>
+    <td>${esc(c.id)}</td>
+    <td>${priorityIndicator(c.priority)}<div style="margin-top:6px"><select class="select" onchange="updateCaseField('${c.id}','priority',this.value)"><option ${c.priority==='Kritisch'?'selected':''}>Kritisch</option><option ${c.priority==='Hoch'?'selected':''}>Hoch</option><option ${c.priority==='Mittel'?'selected':''}>Mittel</option><option ${c.priority==='Niedrig'?'selected':''}>Niedrig</option></select></div></td>
+    <td>${statusBadge(c.status)}<div style="margin-top:6px"><select class="select" onchange="updateCaseField('${c.id}','status',this.value)"><option value="new" ${c.status==='new'?'selected':''}>new</option><option value="in progress" ${c.status==='in progress'?'selected':''}>in progress</option><option value="waiting" ${c.status==='waiting'?'selected':''}>waiting</option><option value="done" ${c.status==='done'?'selected':''}>done</option></select></div></td>
+    <td><select class="select" onchange="updateCaseField('${c.id}','owner',this.value)"><option ${c.owner==='Lea'?'selected':''}>Lea</option><option ${c.owner==='Noah'?'selected':''}>Noah</option><option ${c.owner==='Mia'?'selected':''}>Mia</option><option ${c.owner==='Ops Queue'?'selected':''}>Ops Queue</option></select></td>
+    <td>${esc(customerById(c.customerId).name)}</td>
+    <td>${esc(c.latest)}</td>
+    <td class="wrap">${esc(c.notes)}</td>
+    <td><button class="btn btn-quiet btn-sm" onclick="updateCaseField('${c.id}','status','done')">Als done</button></td>
+  </tr>`;
   document.getElementById('cases-callbacks').innerHTML=callbacks.map(row).join('');
   document.getElementById('cases-followups').innerHTML=followups.map(row).join('');
   document.getElementById('cases-all').innerHTML=state.cases.map(c=>`<tr><td>${esc(c.type)}</td>${row(c).replace('<tr>','').replace('</tr>','')}</tr>`).join('');
@@ -644,7 +678,7 @@ function hydrateFilters(){
 function updateBadges(){
   document.getElementById('badge-customers').textContent=state.customers.length;
   document.getElementById('badge-onboarding').textContent=state.onboarding.filter(o=>onboardingProgress(o)<100).length;
-  document.getElementById('badge-cases').textContent=state.cases.filter(c=>c.status!=='Geschlossen').length;
+  document.getElementById('badge-cases').textContent=state.cases.filter(c=>c.status!=='done').length;
 }
 
 function setRoute(route,replaceHash=false){
@@ -703,7 +737,7 @@ function openCustomerProfile(id){
   document.getElementById('profile-summary').textContent=c.summary;
   renderProfileSetupAndAlerts(c);
   document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>x.customerId===id).map(call=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}${call.note?`<div class=\"list-sub\" style=\"margin-top:6px\">📝 ${esc(call.note)}</div>`:''}</td><td><div class="table-action"><button class="btn btn-quiet btn-sm" onclick="markCallDone('${call.id}')">${call.done?'Erledigt':'Als erledigt'}</button><button class="btn btn-secondary btn-sm" onclick="createCaseFromCall('${call.id}')">Case erstellen</button><button class="btn btn-secondary btn-sm" onclick="addCallNote('${call.id}')">Notiz</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
-  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>x.customerId===id).map(ca=>`<tr><td>${esc(ca.id)}</td><td><select class="select" onchange="updateCaseField('${ca.id}','status',this.value)"><option ${ca.status==='Offen'?'selected':''}>Offen</option><option ${ca.status==='In Bearbeitung'?'selected':''}>In Bearbeitung</option><option ${ca.status==='Wartend'?'selected':''}>Wartend</option><option ${ca.status==='Geschlossen'?'selected':''}>Geschlossen</option></select></td><td><select class="select" onchange="updateCaseField('${ca.id}','priority',this.value)"><option ${ca.priority==='Kritisch'?'selected':''}>Kritisch</option><option ${ca.priority==='Hoch'?'selected':''}>Hoch</option><option ${ca.priority==='Mittel'?'selected':''}>Mittel</option><option ${ca.priority==='Niedrig'?'selected':''}>Niedrig</option></select></td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td></tr>`).join('')||'<tr><td colspan="6"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
+  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>x.customerId===id).map(ca=>`<tr><td>${statusBadge(ca.status)}<div style="margin-top:6px"><select class="select" onchange="updateCaseField('${ca.id}','status',this.value)"><option value="new" ${ca.status==='new'?'selected':''}>new</option><option value="in progress" ${ca.status==='in progress'?'selected':''}>in progress</option><option value="waiting" ${ca.status==='waiting'?'selected':''}>waiting</option><option value="done" ${ca.status==='done'?'selected':''}>done</option></select></div></td><td>${priorityIndicator(ca.priority)}<div style="margin-top:6px"><select class="select" onchange="updateCaseField('${ca.id}','priority',this.value)"><option ${ca.priority==='Kritisch'?'selected':''}>Kritisch</option><option ${ca.priority==='Hoch'?'selected':''}>Hoch</option><option ${ca.priority==='Mittel'?'selected':''}>Mittel</option><option ${ca.priority==='Niedrig'?'selected':''}>Niedrig</option></select></div></td><td><select class="select" onchange="updateCaseField('${ca.id}','owner',this.value)"><option ${ca.owner==='Lea'?'selected':''}>Lea</option><option ${ca.owner==='Noah'?'selected':''}>Noah</option><option ${ca.owner==='Mia'?'selected':''}>Mia</option><option ${ca.owner==='Ops Queue'?'selected':''}>Ops Queue</option></select></td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
   document.getElementById('profile-billing').innerHTML=`
     <div class="card" style="padding:14px 16px;">
       <div class="card-title">Plan & Pricing</div>
@@ -751,7 +785,7 @@ function markCallDone(callId){
 function createCaseFromCall(callId){
   const call=state.calls.find(c=>c.id===callId); if(!call) return;
   const newId='C-'+String(100+state.cases.length+1);
-  state.cases.unshift({id:newId,type:'Follow-up',priority:call.callback?'Hoch':'Mittel',status:'Offen',owner:'Ops Queue',customerId:call.customerId,latest:'Gerade erstellt',notes:`Auto-case aus ${call.id}: ${call.summary}`});
+  state.cases.unshift({id:newId,type:'Follow-up',priority:call.callback?'Hoch':'Mittel',status:'new',owner:'Ops Queue',customerId:call.customerId,latest:'Gerade erstellt',notes:`Auto-case aus ${call.id}: ${call.summary}`});
   const customer=customerById(call.customerId);
   if(customer) customer.openCases+=1;
   renderCustomers();
@@ -772,7 +806,7 @@ function createCaseForCurrentCustomer(){
   const note=window.prompt('Kurze Case-Beschreibung:','Neuer operativer Case');
   if(!note) return;
   const newId='C-'+String(100+state.cases.length+1);
-  state.cases.unshift({id:newId,type:'Follow-up',priority:'Mittel',status:'Offen',owner:'Ops Queue',customerId:customer.id,latest:'Gerade erstellt',notes:note});
+  state.cases.unshift({id:newId,type:'Follow-up',priority:'Mittel',status:'new',owner:'Ops Queue',customerId:customer.id,latest:'Gerade erstellt',notes:note});
   customer.openCases+=1;
   renderCases();
   renderCustomers();
@@ -784,7 +818,7 @@ function updateCaseField(caseId,field,value){
   item[field]=value;
   item.latest='Gerade aktualisiert';
   state.customers.forEach(c=>{
-    c.openCases=state.cases.filter(s=>s.customerId===c.id&&s.status!=='Geschlossen').length;
+    c.openCases=state.cases.filter(s=>s.customerId===c.id&&s.status!=='done').length;
   });
   renderCustomers();
   renderCases();
