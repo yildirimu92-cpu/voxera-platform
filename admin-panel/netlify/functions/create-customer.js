@@ -1,7 +1,7 @@
-const { createClient } = require('@supabase/supabase-js');
-const { randomUUID } = require('crypto');
+import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'node:crypto';
 
-exports.handler = async (event) => {
+export default async (request) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -9,32 +9,64 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json'
   };
 
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+  if (request.method === 'OPTIONS') {
+    return new Response('', { status: 204, headers });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers
+    });
+  }
+
+  console.log('ENV:', process.env.SUPABASE_URL ? 'OK' : 'MISSING');
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!sbUrl || !sbServiceKey) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.' }) };
+    console.error('Missing Supabase environment variables', {
+      SUPABASE_URL: !!sbUrl,
+      SUPABASE_SERVICE_ROLE_KEY: !!sbServiceKey
+    });
+
+    return new Response(
+      JSON.stringify({
+        error: 'SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.'
+      }),
+      {
+        status: 500,
+        headers
+      }
+    );
   }
 
-  const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const sbAdmin = createClient(sbUrl, sbServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
 
   let body;
   try {
-    body = JSON.parse(event.body);
-  } catch (_e) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ungueltiger Request Body' }) };
+    body = await request.json();
+  } catch (error) {
+    console.error('Invalid JSON request body', error);
+    return new Response(JSON.stringify({ error: 'Ungueltiger Request Body' }), {
+      status: 400,
+      headers
+    });
   }
 
   const requiredFields = ['customer_name', 'email', 'tel_nr', 'street', 'zip', 'city', 'country', 'plan'];
   const missingFields = requiredFields.filter((field) => !String(body[field] || '').trim());
   if (missingFields.length > 0) {
-    return {
-      statusCode: 400,
-      headers,
-      body: JSON.stringify({ error: 'Pflichtfelder fehlen', missing_fields: missingFields })
-    };
+    console.error('Validation failed: missing required fields', { missingFields });
+    return new Response(
+      JSON.stringify({ error: 'Pflichtfelder fehlen', missing_fields: missingFields }),
+      {
+        status: 400,
+        headers
+      }
+    );
   }
 
   try {
@@ -101,37 +133,49 @@ exports.handler = async (event) => {
 
     if (onboardingError) {
       const { error: rollbackError } = await sbAdmin.from('customers').delete().eq('id', customerId);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({
+      console.error('Onboarding insert failed', onboardingError);
+      if (rollbackError) {
+        console.error('Rollback failed', rollbackError);
+      }
+
+      return new Response(
+        JSON.stringify({
           error: `Onboarding insert failed: ${onboardingError.message}`,
           rollback_applied: !rollbackError,
           rollback_error: rollbackError ? rollbackError.message : null,
           limitation: 'No transaction is used in this function. Rollback is best-effort only.'
-        })
-      };
+        }),
+        {
+          status: 500,
+          headers
+        }
+      );
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
+    return new Response(
+      JSON.stringify({
         success: true,
         message: 'Customer and onboarding created',
         customer: createdCustomer,
         onboarding: createdOnboarding,
         transactional: false
-      })
-    };
-  } catch (e) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
+      }),
+      {
+        status: 200,
+        headers
+      }
+    );
+  } catch (error) {
+    console.error('Failed to create customer', error);
+    return new Response(
+      JSON.stringify({
         error: 'Failed to create customer',
-        details: e.message
-      })
-    };
+        details: error.message
+      }),
+      {
+        status: 500,
+        headers
+      }
+    );
   }
 };
