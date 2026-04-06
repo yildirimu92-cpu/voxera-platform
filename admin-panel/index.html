@@ -1753,6 +1753,7 @@ async function submitSendAccess(){
   setSendAccessSubmitting(true);
   setSendAccessFeedback(null,'');
   try{
+    // admin-only action (server-side authorization required)
     const res=await fetch('/.netlify/functions/send-customer-access',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1879,6 +1880,7 @@ async function submitCreateCustomer(event){
 
   setCreateCustomerSubmitting(true);
   try{
+    // admin-only action (server-side authorization required)
     const res=await fetch('/.netlify/functions/create-customer',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -2135,20 +2137,43 @@ function wireUi(){
 
 async function hydrateAdminInfo(){
   if(!(authClient&&authClient.auth)){
-    document.getElementById('sidebar-user').textContent='Admin (local mode)';
+    window.location.href='login.html';
     return;
   }
   try{
     const {data:{session}}=await authClient.auth.getSession();
     const email=session?.user?.email||'admin@voxera.ch';
     document.getElementById('sidebar-user').textContent=email;
-    if(!session){
-      // Keep accessible in local preview; login redirect can be enabled later.
-      console.info('No live session found, continuing in preview mode.');
-    }
+    if(!session) window.location.href='login.html';
   }catch(_e){
-    document.getElementById('sidebar-user').textContent='Admin';
+    window.location.href='login.html';
   }
+}
+
+async function requireAdminSessionOrRedirect(){
+  if(!(authClient&&authClient.auth)){
+    window.location.href='login.html';
+    throw new Error('Admin auth client missing');
+  }
+  const {data:{session},error:sessionError}=await authClient.auth.getSession();
+  if(sessionError||!session||!session.user?.id){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin session missing');
+  }
+  const {data:admin,error:adminError}=await authClient
+    .from('admins')
+    .select('id,role')
+    .eq('id',session.user.id)
+    .maybeSingle();
+  const role=String(admin?.role||'').trim().toLowerCase();
+  const allowed=new Set(['super-admin','admin','support']);
+  if(adminError||!admin||!allowed.has(role)){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin role missing');
+  }
+  return admin;
 }
 
 // ─── Supabase → state mappers ──────────────────────────────────────────────
@@ -2313,6 +2338,7 @@ function showLoadError(msg) {
 }
 
 async function loadDataFromSupabase() {
+  // requires RLS policy: authenticated admin role can read operational tables
   if (!authClient) {
     console.warn('[DB] No Supabase client — running in offline/demo mode.');
     return false;
@@ -2396,6 +2422,7 @@ async function loadDataFromSupabase() {
 // ─── init ──────────────────────────────────────────────────────────────────
 
 async function init() {
+  await requireAdminSessionOrRedirect();
   // Wire UI immediately so the shell is interactive
   wireUi();
   onHashRoute();

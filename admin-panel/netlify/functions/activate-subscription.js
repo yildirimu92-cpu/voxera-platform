@@ -20,6 +20,7 @@
 //   { success, subscription_id, customer_id }
 const { createClient } = require('@supabase/supabase-js');
 const { STATUS, normalizeCustomerStatus, assertCustomerTransition } = require('./_lib/status-model');
+const { requireAdminCaller } = require('./_lib/require-admin');
 
 exports.handler = async (event) => {
   const headers = {
@@ -34,11 +35,22 @@ exports.handler = async (event) => {
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!sbUrl || !sbServiceKey) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.' }) };
+  const sbAnonKey = process.env.SUPABASE_ANON_KEY;
+  if (!sbUrl || !sbServiceKey || !sbAnonKey) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.' }) };
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  // admin-only action
+  const caller = await requireAdminCaller({
+    event,
+    supabaseUrl: sbUrl,
+    supabaseAnonKey: sbAnonKey,
+    sbAdmin
+  });
+  if (!caller.ok) {
+    return { statusCode: caller.statusCode, headers, body: JSON.stringify(caller.body) };
+  }
 
   let body;
   try { body = JSON.parse(event.body); }

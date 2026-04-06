@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { randomUUID } = require('node:crypto');
 const { STATUS } = require('./_lib/status-model');
+const { requireAdminCaller } = require('./_lib/require-admin');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -28,18 +29,20 @@ exports.handler = async (event) => {
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const sbAnonKey = process.env.SUPABASE_ANON_KEY;
 
-  if (!sbUrl || !sbServiceKey) {
+  if (!sbUrl || !sbServiceKey || !sbAnonKey) {
     console.error('Missing Supabase environment variables', {
       SUPABASE_URL: !!sbUrl,
-      SUPABASE_SERVICE_ROLE_KEY: !!sbServiceKey
+      SUPABASE_SERVICE_ROLE_KEY: !!sbServiceKey,
+      SUPABASE_ANON_KEY: !!sbAnonKey
     });
 
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: 'SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.'
+        error: 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.'
       })
     };
   }
@@ -47,6 +50,21 @@ exports.handler = async (event) => {
   const sbAdmin = createClient(sbUrl, sbServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
+
+  // admin-only action
+  const caller = await requireAdminCaller({
+    event,
+    supabaseUrl: sbUrl,
+    supabaseAnonKey: sbAnonKey,
+    sbAdmin
+  });
+  if (!caller.ok) {
+    return {
+      statusCode: caller.statusCode,
+      headers,
+      body: JSON.stringify(caller.body)
+    };
+  }
 
   let body;
   try {

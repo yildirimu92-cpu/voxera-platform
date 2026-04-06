@@ -2076,6 +2076,8 @@ async function resolveCustomerContext(forceReload) {
   if (userError) throw userError;
 
   const usersCustomerId = userRow && userRow.customer_id ? String(userRow.customer_id).trim() : '';
+  // frontend-only risk: URL fallback must never bypass RLS ownership checks.
+  // requires RLS policy on customers/users to guarantee strict tenant isolation.
   const urlFallbackCustomerId = (new URLSearchParams(location.search).get('customer') || '').trim();
   const resolvedCustomerId = usersCustomerId || urlFallbackCustomerId || '';
   console.info('[voxera-dashboard] users.customer_id', usersCustomerId || null);
@@ -2171,6 +2173,9 @@ async function loadCallRecords(customerIdRaw) {
 }
 
 async function patchCallRecord(recordId, fields) {
+  // frontend-only risk: direct browser mutation of calls
+  // should move to function
+  // requires RLS policy (customer can only mutate own call rows)
   // Fires UPDATE only; return value is not used by any caller.
   const { error } = await _sb
     .from(CALLS_TABLE)
@@ -2180,6 +2185,9 @@ async function patchCallRecord(recordId, fields) {
 }
 
 async function patchCustomerRecord(recordId, fields) {
+  // frontend-only risk: direct browser mutation of customers
+  // should move to function
+  // requires RLS policy (customer can only mutate own allowed fields)
   const { data, error } = await _sb
     .from(CUSTOMERS_TABLE)
     .update(fields)
