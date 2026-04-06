@@ -554,6 +554,8 @@ const SB_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const supabaseLib=window.supabase;
 const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SB_URL,SB_ANON_KEY):null;
 
+const VOXERA_NUMBER_PREFIX='+41 58 100 20 ';
+
 const state={
   route:'overview',
   selectedCustomer:null,
@@ -620,7 +622,7 @@ const ONBOARDING_STEPS=[
   {key:'aiBasicsConfigured',   label:'AI basics configured',      required:true,  deps:['businessInfoDone']},
   {key:'testCallCompleted',    label:'Test call completed',       required:true,  deps:['numberAssigned','forwardingConfigured','agentConnected']},
   {key:'readyForGoLive',       label:'Ready for go-live',         required:true,  deps:['activationSent','numberAssigned','agentConnected','forwardingConfigured','businessInfoDone','openingHoursAdded','greetingReviewed','aiBasicsConfigured','testCallCompleted']},
-  {key:'fullyCompleted',       label:'Fully completed',           required:true,  deps:['readyForGoLive','dashboardActive']}
+  {key:'fullyCompleted',       label:'Fully Completed',           required:true,  deps:['readyForGoLive','dashboardActive']}
 ];
 const routeMeta={
   'overview':['Übersicht','Operatives Cockpit für den täglichen Betrieb.'],
@@ -795,9 +797,10 @@ function renderOnboarding(){
     const cs=computeOnboardingState(o);
     const progressColor=cs.progress>=80?'var(--green)':cs.progress>=50?'var(--amber)':'var(--blue)';
     const launchBadge=cs.isFullyCompleted?'<span class="badge badge-green">✓ Completed</span>':cs.isLaunchReady?'<span class="badge badge-blue">✓ Launch Ready</span>':'<span class="badge badge-gray">Pending</span>';
-    const blockerHtml=cs.isOperationallyBlocked&&cs.blocked.length>0&&cs.blocked[0].key!=='fullyCompleted'?`<span class="step-chip">${esc(cs.blocked[0].label)}</span>`:'<span class="badge badge-green">None</span>';
+    const lastStepKey=ONBOARDING_STEPS[ONBOARDING_STEPS.length-1].key;
+    const blockerHtml=cs.isOperationallyBlocked&&cs.blocked.length>0&&cs.blocked[0].key!==lastStepKey?`<span class="step-chip">${esc(cs.blocked[0].label)}</span>`:'<span class="badge badge-green">None</span>';
     const nextHtml=cs.nextAction?`<span style="font-size:12px;color:var(--blue);font-weight:600">${esc(cs.nextAction.label)}</span>`:'<span class="badge badge-green">All done</span>';
-    return `<tr style="cursor:pointer;" onclick="openOnboardingWorkspace(${o.customerId})">
+    return `<tr style="cursor:pointer;" tabindex="0" onclick="openOnboardingWorkspace(${o.customerId})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openOnboardingWorkspace(${o.customerId});}">
       <td data-label="Customer" class="ob-td-full"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11px;margin-top:3px">${esc(c.contact)}</div></td>
       <td data-label="Stage">${esc(cs.currentStage)}</td>
       <td data-label="Readiness"><div style="display:flex;align-items:center;gap:8px;min-width:100px;"><div class="progress-track" style="flex:1;min-width:56px"><div class="progress-fill" style="background:${progressColor};width:${cs.progress}%"></div></div><strong>${cs.progress}%</strong></div></td>
@@ -976,7 +979,7 @@ function runOnboardingStep(customerId,stepKey){
     customer.progress=cs.progress;
     customer.latest='Onboarding aktualisiert';
     if(stepKey==='numberAssigned'&&String(customer.voxera).toLowerCase().includes('offen')){
-      customer.voxera='+41 58 100 20 '+String(customerId).padStart(2,'0');
+      customer.voxera=VOXERA_NUMBER_PREFIX+String(customerId).padStart(2,'0');
     }
     if(cs.isLaunchReady) customer.readiness='Launch Ready';
     if(cs.isFullyCompleted){customer.status='Aktiv';customer.readiness='Live';}
@@ -1225,6 +1228,7 @@ function wireUi(){
   document.getElementById('onboarding-sort').addEventListener('change',renderOnboarding);
   document.getElementById('ob-search').addEventListener('input',renderOnboarding);
   document.getElementById('ob-filter').addEventListener('change',renderOnboarding);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.activeOnboardingId!=null)closeOnboardingWorkspace();});
 
   document.getElementById('logout-btn').addEventListener('click',async()=>{
     if(authClient&&authClient.auth){
