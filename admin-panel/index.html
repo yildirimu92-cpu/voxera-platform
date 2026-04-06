@@ -1377,22 +1377,23 @@ function closeSendAccessModal(){
   document.getElementById('send-access-modal').classList.remove('open');
 }
 
-function applyAccessSendResult(customerId,customerPatch,nextStep){
+function applyAccessSendResult(customerId,customerPatch,onboardingPatch,nextStep){
   const c=customerById(customerId);
   if(!c) return;
   c.invite_status='sent';
   c.welcome_sent=true;
   c.welcome_sent_at=customerPatch?.welcome_sent_at||new Date().toISOString();
   c.latest=`${nowStamp()} · Zugang versendet`;
-  c.status='invited';
   c.onboardingSteps=c.onboardingSteps||[];
   if(!c.onboardingSteps.includes('activation sent')) c.onboardingSteps.push('activation sent');
 
   const queue=onboardingForCustomer(customerId);
   if(queue){
-    queue.next=nextStep||'Kunde aktiviert Zugang';
+    queue.next=onboardingPatch?.next_step||nextStep||'Kunde aktiviert Zugang';
     queue.latest=new Date().toISOString().slice(0,16).replace('T',' ');
-    queue.progress=Math.min(90,Math.max(Number(queue.progress||0),Number(queue.progress||0)+10));
+    const existingProgress=Number(queue.progress||0);
+    const responseProgress=Number(onboardingPatch?.progress);
+    queue.progress=Number.isFinite(responseProgress)?Math.min(90,Math.max(0,responseProgress)):Math.min(90,Math.max(existingProgress,existingProgress+10));
   }
 }
 
@@ -1421,7 +1422,8 @@ async function submitSendAccess(){
     const json=await res.json().catch(()=>({}));
     if(!res.ok||!json?.success){
       if(res.status===409){
-        setSendAccessFeedback('error',json?.error||'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.');
+        const onboardingStatus=json?.onboarding_status?` (aktuell: ${json.onboarding_status})`:'';
+        setSendAccessFeedback('error',(json?.error||'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.')+onboardingStatus);
         return;
       }
       if(Array.isArray(json?.missing_fields)&&json.missing_fields.length){
@@ -1431,7 +1433,7 @@ async function submitSendAccess(){
       throw new Error(json?.error||'Zugang konnte nicht gesendet werden.');
     }
 
-    applyAccessSendResult(customerId,json.customer,json.next_step);
+    applyAccessSendResult(customerId,json.customer,json.onboarding,json.next_step);
     state.events.unshift(`${nowStamp()} · ${customer.name}: Zugang manuell versendet`);
     state.onboardingActivity.unshift(`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${customer.name}: Zugang versendet, warte auf Aktivierung`);
     setSendAccessFeedback('success','Zugang wurde versendet. Der nächste Schritt ist die Aktivierung durch den Kunden.');
