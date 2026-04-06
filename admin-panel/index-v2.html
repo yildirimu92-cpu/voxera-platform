@@ -139,11 +139,34 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
   .grid-2,.grid-3,.detail-grid{grid-template-columns:1fr;}
 }
 @media (max-width:920px){
-  .sidebar{display:none;}
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);display:flex !important;}
+  .sidebar.open{transform:translateX(0);}
   .main{margin-left:0;}
-  .topbar,.content{padding-left:18px;padding-right:18px;}
-  .content{padding-bottom:80px;}
+  .topbar{padding-left:16px;padding-right:16px;padding-top:14px;padding-bottom:12px;}
+  .content{padding-left:14px;padding-right:14px;padding-bottom:84px;}
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .toolbar{grid-template-columns:1fr;}
+  .contracts-toolbar{flex-direction:column;align-items:stretch;}
+  .contracts-toolbar .input,.contracts-toolbar .select{min-width:0;width:100%;}
+  .section-head{flex-direction:column;align-items:flex-start;}
+  .plan-cards{grid-template-columns:1fr 1fr;}
+  .detail-grid{grid-template-columns:1fr;}
+  .data-table th,.data-table td{padding:8px 10px;}
 }
+@media (max-width:480px){
+  .kpi-grid{grid-template-columns:1fr;}
+  .plan-cards{grid-template-columns:1fr;}
+}
+
+/* Sidebar backdrop (mobile drawer close area) */
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.3);z-index:39;}
+.sidebar-backdrop.open{display:block;}
+
+/* Hamburger menu toggle (mobile only) */
+.menu-toggle{display:none;background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:8px;color:var(--gray600);align-items:center;justify-content:center;flex-shrink:0;}
+.menu-toggle:hover{background:var(--gray100);}
+.menu-toggle svg{width:22px;height:22px;}
+@media (max-width:920px){.menu-toggle{display:flex;}}
 
 /* Mobile bottom nav */
 .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--gray200);z-index:50;padding:0;safe-area-inset-bottom:env(safe-area-inset-bottom);}
@@ -212,7 +235,7 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 </head>
 <body>
 <div class="app">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div class="sidebar-logo-text">Voxera</div>
       <div class="sidebar-logo-sub">Admin Portal v2</div>
@@ -237,12 +260,18 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 
   <main class="main">
     <header class="topbar">
-      <div>
-        <div class="page-title" id="page-title">Übersicht</div>
-        <div class="page-sub" id="page-sub">Operatives Cockpit für den täglichen Betrieb.</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Menü öffnen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <div class="page-title" id="page-title">Übersicht</div>
+          <div class="page-sub" id="page-sub">Operatives Cockpit für den täglichen Betrieb.</div>
+        </div>
       </div>
       <div class="status-pill"><span class="status-dot"></span>System live</div>
     </header>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
     <div class="content">
       <section id="section-overview" class="section active">
@@ -718,6 +747,8 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
     </div>
   </div>
 </div>
+
+<script>
 'use strict';
 
 const SB_URL='https://ulcofbgrovgcvowdjrge.supabase.co';
@@ -1717,11 +1748,27 @@ function toggleFlag(flagIdx){
   renderSettings();
 }
 
+function toggleMobileMenu(forceClose){
+  const sidebar=document.getElementById('sidebar');
+  const backdrop=document.getElementById('sidebar-backdrop');
+  const isOpen=sidebar.classList.contains('open');
+  const shouldClose=forceClose===true||isOpen;
+  sidebar.classList.toggle('open',!shouldClose);
+  backdrop.classList.toggle('open',!shouldClose);
+  document.body.style.overflow=shouldClose?'':'hidden';
+}
+
 function wireUi(){
+  // Hamburger menu toggle
+  document.getElementById('menu-toggle-btn').addEventListener('click',()=>toggleMobileMenu());
+  document.getElementById('sidebar-backdrop').addEventListener('click',()=>toggleMobileMenu(true));
+
   document.getElementById('main-nav').addEventListener('click',e=>{
     const link=e.target.closest('.nav-item');
     if(!link) return;
     e.preventDefault();
+    // Close mobile drawer when a nav item is tapped
+    if(window.innerWidth<=920) toggleMobileMenu(true);
     setRoute(link.dataset.route);
   });
   // Mobile bottom nav
