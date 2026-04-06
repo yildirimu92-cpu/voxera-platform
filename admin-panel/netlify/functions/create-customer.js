@@ -150,14 +150,16 @@ export const handler = async (event) => {
           rollback_applied: !rollbackError,
           rollback_error: rollbackError ? rollbackError.message : null,
           limitation: 'No transaction is used in this function. Rollback is best-effort only.'
-        })
-      };
+        }),
+        {
+          status: 500,
+          headers
+        }
+      );
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
+    return new Response(
+      JSON.stringify({
         success: true,
         message: 'Customer and onboarding created',
         customer: createdCustomer,
