@@ -907,6 +907,17 @@ body{
 .cb-queue-info{font-size:13.5px;font-weight:600;color:#1E3A8A;line-height:1.5;}
 .cb-queue-next{font-size:12px;color:#1E40AF;margin-top:2px;font-weight:400;}
 @media(max-width:600px){#cb-queue-banner{flex-direction:column;align-items:stretch;}.cb-queue-banner-btn{width:100%;justify-content:center;}}
+/* Callback Queue Mini List */
+#cb-queue-mini-list{display:none;margin-bottom:16px;}
+.cbq-row{background:var(--white);border:1px solid var(--gray200);border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.cbq-row:last-child{margin-bottom:0;}
+.cbq-info{flex:1;min-width:0;}
+.cbq-name{font-size:13px;font-weight:600;color:var(--gray900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cbq-phone{font-size:12px;color:var(--gray500);margin-top:1px;}
+.cbq-meta{font-size:11.5px;color:var(--gray400);margin-top:3px;line-height:1.4;}
+.cbq-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;}
+.cbq-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+@media(max-width:520px){.cbq-row{flex-direction:column;}.cbq-actions{width:100%;justify-content:flex-start;}}
 </style>
 </head>
 <body>
@@ -1108,6 +1119,8 @@ body{
             </div>
             <button class="dash-btn-primary cb-queue-banner-btn" onclick="jumpToNextCallback()">📞 Nächsten Rückruf bearbeiten</button>
           </div>
+          <!-- CALLBACK QUEUE MINI LIST (top 3) -->
+          <div id="cb-queue-mini-list"></div>
           <div class="search-wrap">
             <svg class="search-icon" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
             <input class="search-input" placeholder="Anrufer suchen..." oninput="searchList('rueckrufe-list',this.value)">
@@ -3036,6 +3049,8 @@ function renderCallbackQueue(records) {
   const sorted = getOpenCallbacksSorted(records);
   if (sorted.length === 0) {
     banner.style.display = 'none';
+    const miniList = document.getElementById('cb-queue-mini-list');
+    if (miniList) { miniList.style.display = 'none'; miniList.innerHTML = ''; }
     return;
   }
   const next = sorted[0];
@@ -3049,13 +3064,77 @@ function renderCallbackQueue(records) {
     nextLabel.textContent = 'Nächster: ' + (next.fields.caller_name || 'Unbekannt').trim() + (phone ? ' · ' + phone : '');
   }
   banner.style.display = 'flex';
+  renderCallbackQueueMiniList(sorted.slice(0, 3));
+}
+
+function renderCallbackQueueMiniList(rows) {
+  const container = document.getElementById('cb-queue-mini-list');
+  if (!container) return;
+  if (!rows || rows.length === 0) { container.style.display = 'none'; container.innerHTML = ''; return; }
+  const html = rows.map(function(r) {
+    const f = r.fields || {};
+    const name = escHtml((f.caller_name || 'Unbekannt').trim());
+    const phone = (f.phone_number || f.caller_phone || '').trim();
+    const callTarget = encodeURIComponent(phone || '');
+    const summary = escHtml((f.notes_customer_voxera || f.next_action || f.kategorie || '').trim().slice(0, 60));
+    const followUpAt = resolveFollowUpAt(f);
+    const followUpMeta = buildFollowUpMetaText(f.next_action, followUpAt);
+    const qualK = qualKey(f.lead_quality);
+    const qualMap = {hot:'chip-hot',warm:'chip-warm',kalt:'chip-kalt',neu:'chip-neu'};
+    const qualLbl = {hot:'🔥 Hot',warm:'Warm',kalt:'Kalt',neu:'Neu'};
+    const prio = getPriority(r);
+    const prioClassMap = {overdue:'chip-hot', today:'chip-working', hot:'chip-hot'};
+    const prioClass = prioClassMap[prio.key] || 'chip-hot';
+    const prioChipHtml = (prio.key !== 'normal' && prio.key !== 'done' && prio.key !== 'callback')
+      ? `<span class="chip ${prioClass}">${prio.icon} ${escHtml(prio.label)}</span>` : '';
+    const qualChipHtml = (qualK !== 'neu') ? `<span class="chip ${qualMap[qualK]}">${qualLbl[qualK]}</span>` : '';
+    const anrufenBtn = phone
+      ? `<button class="btn-a btn-call" style="font-size:11.5px;height:30px;padding:0 10px;" onclick="directCall('${r.id}','${callTarget}')">📞 Anrufen</button>`
+      : '';
+    return `<div class="cbq-row">
+      <div class="cbq-info">
+        <div class="cbq-name">${name}</div>
+        ${phone ? `<div class="cbq-phone">${escHtml(phone)}</div>` : ''}
+        ${summary ? `<div class="cbq-meta">${summary}</div>` : ''}
+        ${followUpMeta && !summary ? `<div class="cbq-meta">${escHtml(followUpMeta)}</div>` : ''}
+        ${(prioChipHtml || qualChipHtml) ? `<div class="cbq-chips">${prioChipHtml}${qualChipHtml}</div>` : ''}
+      </div>
+      <div class="cbq-actions">
+        <button class="btn-a btn-secondary" style="font-size:11.5px;height:30px;padding:0 10px;" onclick="openDetail('${r.id}')">Details</button>
+        ${anrufenBtn}
+      </div>
+    </div>`;
+  }).join('');
+  container.innerHTML = html;
+  container.style.display = 'block';
 }
 
 function getOpenCallbacksSorted(records) {
   const offen = (records || []).filter(function(r) {
     return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status);
   });
-  return sortOpenCallbacksOldestFirst(offen);
+  return sortCallbackQueueByPriority(offen);
+}
+
+function sortCallbackQueueByPriority(records) {
+  function priorityRank(r) {
+    const f = (r && r.fields) || {};
+    const followUpAt = resolveFollowUpAt(f);
+    const followUp = parseFollowUpDate(followUpAt);
+    const now = new Date();
+    if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return 0; // overdue
+    if (followUp && !Number.isNaN(followUp.getTime()) && isToday(followUpAt)) return 1;  // today
+    if (qualKey(f.lead_quality) === 'hot') return 2; // hot lead
+    return 3; // oldest open
+  }
+  return [...records].sort(function(a, b) {
+    const ra = priorityRank(a), rb = priorityRank(b);
+    if (ra !== rb) return ra - rb;
+    // within same rank: oldest first
+    const aTime = new Date(getOpenCallbackSortTime(a) || 0).getTime();
+    const bTime = new Date(getOpenCallbackSortTime(b) || 0).getTime();
+    return aTime - bTime;
+  });
 }
 
 function jumpToNextCallback() {
