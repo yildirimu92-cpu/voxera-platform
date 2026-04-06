@@ -216,21 +216,46 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 
       <section id="section-onboarding" class="section">
         <div class="section-head"><h3 style="font-family:var(--headline-font);font-size:18px">Onboarding Pipeline</h3><span class="badge badge-amber">Readiness Tracking</span></div>
+        <div class="kpi-grid" id="onboarding-kpis"></div>
         <div class="toolbar" style="grid-template-columns:minmax(0,1.2fr) repeat(2,minmax(0,1fr)) auto;">
           <input class="input" id="onboarding-search" placeholder="Suche Kunde / nächster Schritt">
-          <select class="select" id="onboarding-status-filter"><option value="all">Status: Alle</option></select>
-          <select class="select" id="onboarding-sort"><option value="progress-asc">Sortierung: Progress ↑</option><option value="progress-desc">Progress ↓</option><option value="name-asc">Kunde A→Z</option></select>
+          <select class="select" id="onboarding-status-filter"><option value="all">Status: Alle</option><option value="blocked">Blockiert</option><option value="in-progress">In Progress</option><option value="ready">Ready</option><option value="completed">Completed</option><option value="missing-forwarding">Missing Forwarding</option><option value="missing-number">Missing Number</option><option value="missing-test-call">Missing Test Call</option></select>
+          <select class="select" id="onboarding-sort"><option value="blocked-first">Sortierung: Blocker zuerst</option><option value="nearest-complete">Fast fertig zuerst</option><option value="updated-desc">Zuletzt aktualisiert</option><option value="name-asc">Kunde A→Z</option></select>
           <button class="btn btn-secondary" id="onboarding-reset">Zurücksetzen</button>
         </div>
         <div class="table-wrap" style="margin-bottom:16px;">
           <table class="data-table">
-            <thead><tr><th>Kunde</th><th>Status</th><th>Progress</th><th>Nächster Schritt</th><th>Checkliste</th><th>Owner</th><th>Aktionen</th></tr></thead>
+            <thead><tr><th>Kunde</th><th>Plan</th><th>Status</th><th>Readiness</th><th>Current Step</th><th>Next Step</th><th>Missing</th><th>Blocker</th><th>Latest Update</th><th>Aktionen</th></tr></thead>
             <tbody id="onboarding-table-body"></tbody>
           </table>
         </div>
-        <div class="card">
-          <div class="card-title">Standard-Checkliste</div>
-          <div id="onboarding-checklist"></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h3>Onboarding Detail Workspace</h3><span class="badge badge-blue" id="onboarding-detail-badge">Kein Kunde ausgewählt</span></div>
+            <div id="onboarding-detail-empty" class="empty">Öffne einen Kunden aus der Queue, um Schrittstatus, Blocker und Next Action zu bearbeiten.</div>
+            <div id="onboarding-detail" style="display:none;">
+              <div class="detail-grid" id="onboarding-detail-context"></div>
+              <div class="card-title" style="margin-top:12px;">Operational Checklist</div>
+              <div id="onboarding-checklist"></div>
+              <div class="card" style="margin-top:10px;padding:12px;">
+                <div class="detail-item"><span class="detail-k">Next recommended action</span><span class="detail-v" id="onboarding-next-action">—</span></div>
+                <div class="detail-item"><span class="detail-k">Blocker explanation</span><span class="detail-v" id="onboarding-blocker">—</span></div>
+                <div class="inline-actions" style="margin-top:8px;">
+                  <button class="btn btn-secondary btn-sm" id="onboarding-open-profile">Kundenprofil öffnen</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:12px;">
+              <div class="card-head"><h3>Blockers / Missing Steps</h3><span class="badge badge-red">Priorität</span></div>
+              <div class="list" id="onboarding-blockers-list"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Recent Onboarding Activity</h3><span class="badge badge-gray">Audit</span></div>
+              <div class="list" id="onboarding-activity-list"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -424,11 +449,11 @@ const state={
   route:'overview',
   selectedCustomer:null,
   customers:[
-    {id:1,name:'Meyer Sanitär AG',contact:'Lukas Meyer',email:'info@meyer-sanitaer.ch',phone:'+41 44 500 10 10',plan:'Growth',status:'Aktiv',voxera:'+41 44 520 00 10',progress:95,readiness:'Ready',latest:'Heute · 09:42',openCases:1,summary:'Sehr stabiler Betrieb, hoher Anrufdurchsatz am Morgen, Callback SLA im grünen Bereich.',notes:['Q2 Ziel: Terminbuchung tiefer integrieren.','Hohe Qualität bei Notfallklassifizierung.'],onboardingSteps:['customer created','activation sent','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours set','greeting reviewed','test call completed']},
-    {id:2,name:'Keller Dentalpraxis',contact:'Dr. Anna Keller',email:'praxis@kellerdental.ch',phone:'+41 31 200 22 11',plan:'Pro',status:'Onboarding',voxera:'Zuweisung offen',progress:68,readiness:'Konfiguration offen',latest:'Heute · 08:14',openCases:2,summary:'Onboarding läuft, Nummernzuweisung in Klärung, Greeting-Review steht aus.',notes:['Test-Call für Dienstag geplant.','Business-Öffnungszeiten prüfen.'],onboardingSteps:['customer created','activation sent','agent connected','business info completed','opening hours set']},
-    {id:3,name:'Alpin Treuhand GmbH',contact:'Marco Frei',email:'kontakt@alpin-treuhand.ch',phone:'+41 61 777 55 40',plan:'Starter',status:'Aktiv',voxera:'+41 61 600 00 44',progress:100,readiness:'Live',latest:'Gestern · 17:50',openCases:0,summary:'Ruhiger Betrieb, kaum Eskalationen, Updates nur monatlich notwendig.',notes:['Upsell auf Growth bei steigendem Volumen prüfen.'],onboardingSteps:['customer created','activation sent','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours set','greeting reviewed','test call completed','dashboard ready','onboarding completed']},
-    {id:4,name:'Hotel Seeblick Luzern',contact:'Sina Widmer',email:'frontdesk@seeblick.ch',phone:'+41 41 300 11 88',plan:'Enterprise',status:'Aktiv',voxera:'+41 41 770 88 11',progress:88,readiness:'Fast ready',latest:'Heute · 10:18',openCases:3,summary:'Hohe Last am Wochenende, mehrere Follow-ups zu Gruppenbuchungen.',notes:['Mehrsprachige Begrüßung finalisieren.','Escalation to night desk sauber.'],onboardingSteps:['customer created','activation sent','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours set','greeting reviewed']},
-    {id:5,name:'Berg Apotheke AG',contact:'Reto Schmid',email:'team@bergapo.ch',phone:'+41 52 900 44 66',plan:'Growth',status:'Paused',voxera:'+41 52 640 12 19',progress:54,readiness:'Training nötig',latest:'Heute · 07:55',openCases:1,summary:'Temporär pausiert wegen interner Umstellung, Wissensdaten müssen aktualisiert werden.',notes:['Prompt-Review nach Sortimentwechsel.'],onboardingSteps:['customer created','activation sent','Voxera number assigned','business info completed','opening hours set']}
+    {id:1,name:'Meyer Sanitär AG',contact:'Lukas Meyer',email:'info@meyer-sanitaer.ch',phone:'+41 44 500 10 10',plan:'Growth',status:'Aktiv',voxera:'+41 44 520 00 10',progress:95,readiness:'Ready',latest:'Heute · 09:42',openCases:1,summary:'Sehr stabiler Betrieb, hoher Anrufdurchsatz am Morgen, Callback SLA im grünen Bereich.',notes:['Q2 Ziel: Terminbuchung tiefer integrieren.','Hohe Qualität bei Notfallklassifizierung.'],onboardingSteps:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured','test call completed','ready for go-live']},
+    {id:2,name:'Keller Dentalpraxis',contact:'Dr. Anna Keller',email:'praxis@kellerdental.ch',phone:'+41 31 200 22 11',plan:'Pro',status:'Onboarding',voxera:'Zuweisung offen',progress:68,readiness:'Konfiguration offen',latest:'Heute · 08:14',openCases:2,summary:'Onboarding läuft, Nummernzuweisung in Klärung, Greeting-Review steht aus.',notes:['Test-Call für Dienstag geplant.','Business-Öffnungszeiten prüfen.'],onboardingSteps:['customer created','activation sent','dashboard access active','agent connected','business info completed','opening hours added']},
+    {id:3,name:'Alpin Treuhand GmbH',contact:'Marco Frei',email:'kontakt@alpin-treuhand.ch',phone:'+41 61 777 55 40',plan:'Starter',status:'Aktiv',voxera:'+41 61 600 00 44',progress:100,readiness:'Live',latest:'Gestern · 17:50',openCases:0,summary:'Ruhiger Betrieb, kaum Eskalationen, Updates nur monatlich notwendig.',notes:['Upsell auf Growth bei steigendem Volumen prüfen.'],onboardingSteps:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured','test call completed','ready for go-live','fully completed']},
+    {id:4,name:'Hotel Seeblick Luzern',contact:'Sina Widmer',email:'frontdesk@seeblick.ch',phone:'+41 41 300 11 88',plan:'Enterprise',status:'Aktiv',voxera:'+41 41 770 88 11',progress:88,readiness:'Fast ready',latest:'Heute · 10:18',openCases:3,summary:'Hohe Last am Wochenende, mehrere Follow-ups zu Gruppenbuchungen.',notes:['Mehrsprachige Begrüßung finalisieren.','Escalation to night desk sauber.'],onboardingSteps:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured']},
+    {id:5,name:'Berg Apotheke AG',contact:'Reto Schmid',email:'team@bergapo.ch',phone:'+41 52 900 44 66',plan:'Growth',status:'Paused',voxera:'+41 52 640 12 19',progress:54,readiness:'Training nötig',latest:'Heute · 07:55',openCases:1,summary:'Temporär pausiert wegen interner Umstellung, Wissensdaten müssen aktualisiert werden.',notes:['Prompt-Review nach Sortimentwechsel.'],onboardingSteps:['customer created','activation sent','Voxera number assigned','business info completed','opening hours added']}
   ],
   calls:[
     {customerId:1,time:'2026-04-06 09:42',cat:'Termin · Qualität A',callback:false,summary:'Termin für Serviceeinsatz automatisch erfasst.'},
@@ -445,9 +470,47 @@ const state={
     {id:'C-105',type:'Rückruf',priority:'Mittel',status:'Offen',owner:'Noah',customerId:5,latest:'Heute 07:59',notes:'Produktberatung intern klären.'}
   ],
   onboarding:[
-    {customerId:2,status:'In Arbeit',progress:68,next:'Greeting Review',owner:'Noah'},
-    {customerId:5,status:'Blockiert',progress:54,next:'Business-Info aktualisieren',owner:'Lea'},
-    {customerId:4,status:'Fast ready',progress:88,next:'Test-Call finalisieren',owner:'Mia'}
+    {customerId:2,status:'In Arbeit',progress:68,next:'Greeting Review',owner:'Noah',latest:'2026-04-06 08:32',blocker:'Versicherungs-FAQ unklar'},
+    {customerId:5,status:'Blockiert',progress:54,next:'Business-Info aktualisieren',owner:'Lea',latest:'2026-04-06 07:58',blocker:'Fallback & AI basics fehlen'},
+    {customerId:4,status:'Fast ready',progress:88,next:'Test-Call finalisieren',owner:'Mia',latest:'2026-04-06 10:05',blocker:''}
+  ],
+  onboardingSelectedCustomerId:null,
+  onboardingActivity:[
+    '2026-04-06 10:05 · Hotel Seeblick: Greeting reviewed',
+    '2026-04-06 08:32 · Keller Dental: Activation sent bestätigt',
+    '2026-04-06 07:58 · Berg Apotheke: Blocker dokumentiert'
+  ],
+  admins:[
+    {id:'A-1',name:'Lea Baumann',role:'super-admin',email:'lea@voxera.ch',status:'Aktiv'},
+    {id:'A-2',name:'Noah Keller',role:'admin',email:'noah@voxera.ch',status:'Aktiv'},
+    {id:'A-3',name:'Mia Vogel',role:'support',email:'mia@voxera.ch',status:'MFA offen'}
+  ],
+  featureFlags:[
+    {key:'AI Escalation v2',desc:'Pilot bei 3 Kunden',state:'ON'},
+    {key:'Automatisierte Billing Mails',desc:'Geplant für Q2',state:'OFF'},
+    {key:'Live Call Quality Scoring',desc:'Interner Canary',state:'PARTIAL'}
+  ],
+  aiGlobal:{
+    prompt:'Du bist Voxera, ein professioneller Voice Assistant für Schweizer KMU. Priorisiere Präzision, Datenschutz, höfliche Gesprächsführung und klare Übergaben in kritischen Fällen.',
+    tone:'Professionell, lösungsorientiert, ruhig',
+    voiceBehavior:'Kurz, klar, verbindlich',
+    callDefaults:'Erst Anliegen qualifizieren, dann Lösung/Weiterleitung',
+    fallback:'Bei fehlender Information Rückrufslot + Ticket anbieten',
+    escalation:'Kritisch sofort an Bereitschaft; unzufriedene Caller an Human Queue',
+    constraints:'Keine rechtliche/medizinische Beratung; keine falschen Zusagen; maximal 40s Antwortblöcke'
+  },
+  aiConfigs:{
+    1:{status:'AI Ready',custom:true,businessDescription:'Sanitär- und Notfallservice im Raum Zürich.',services:'Rohrbruch, Reparaturen, Wartung, Offerten.',locationHours:'Zürich + Umgebung, 24/7 Notfall, regulär 07:30-18:00.',bookingFaq:'Notfall sofort verbinden; Termine via Telefon bestätigen.',instructions:'Bei Wasserschäden ruhig führen, Priorität auf Sicherheit und Sofortmaßnahmen.',fallbackEscalation:'Wenn Ersatzteile unklar → Rückruf in 30 Min durch Dispo.',responseConstraints:'Keine Preiszusage ohne Sichtung; keine Rechtsberatung.',internalNotes:'Notfall-Flow am 2026-04-02 geschärft.',lastUpdate:'2026-04-06 09:10'},
+    2:{status:'Needs Review',custom:true,businessDescription:'Moderne Zahnarztpraxis mit Fokus auf Neupatienten.',services:'Kontrolle, Dentalhygiene, Bleaching, Notfallslots.',locationHours:'Bern Innenstadt, Mo-Fr 08:00-17:30.',bookingFaq:'Versicherung immer verifizieren; Notfälle priorisieren.',instructions:'Ton warm und vertrauensbildend, Terminfenster aktiv vorschlagen.',fallbackEscalation:'Wenn Versicherung unklar → Rückruf durch Empfang noch am selben Tag.',responseConstraints:'Keine medizinischen Diagnosen.',internalNotes:'FAQ zu Versicherungen unvollständig.',lastUpdate:'2026-04-05 16:20'},
+    3:{status:'Default Only',custom:false,businessDescription:'',services:'',locationHours:'',bookingFaq:'',instructions:'',fallbackEscalation:'',responseConstraints:'',internalNotes:'Keine individuellen Overrides aktiviert.',lastUpdate:'2026-03-30 11:05'},
+    4:{status:'Partial',custom:true,businessDescription:'Business- und Leisure-Hotel in Luzern.',services:'Zimmer, Gruppenbuchungen, Restaurant-Infos.',locationHours:'24/7 Frontdesk, Restaurant 06:30-23:00.',bookingFaq:'Gruppen >6 Personen an Front Office eskalieren.',instructions:'Mehrsprachig DE/EN; VIP-Caller priorisieren.',fallbackEscalation:'Unklare Verfügbarkeiten an Night Desk eskalieren.',responseConstraints:'Keine Garantie auf Upgrades.',internalNotes:'Französisch-Snippets fehlen.',lastUpdate:'2026-04-06 08:40'},
+    5:{status:'Blocked',custom:true,businessDescription:'',services:'Apothekenberatung, Rezeptabholung, OTC-Produkte.',locationHours:'Winterthur, Mo-Sa 08:00-20:00.',bookingFaq:'Telefonische Reservierung erlaubt, Abholung in 2h.',instructions:'',fallbackEscalation:'',responseConstraints:'Keine pharmazeutische Dosierungsempfehlung.',internalNotes:'Sortimentswechsel noch nicht eingepflegt.',lastUpdate:'2026-04-04 14:55'}
+  },
+  aiSelectedCustomerId:null,
+  aiChanges:[
+    '2026-04-06 09:10 · Global prompt aktualisiert (Notfall-Eskalation präzisiert)',
+    '2026-04-06 08:40 · Hotel Seeblick: VIP-Eskalation ergänzt',
+    '2026-04-05 16:20 · Keller Dental: Versicherungs-FAQ überarbeitet'
   ],
   admins:[
     {id:'A-1',name:'Lea Baumann',role:'super-admin',email:'lea@voxera.ch',status:'Aktiv'},
@@ -488,7 +551,7 @@ const state={
     '09:10 · AI Setup Änderung für Berg Apotheke veröffentlicht',
     '08:14 · Keller Dental: Callback erstellt'
   ],
-  checklist:['customer created','activation sent','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours set','greeting reviewed','test call completed','dashboard ready','onboarding completed']
+  checklist:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured','test call completed','ready for go-live','fully completed']
 };
 
 const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','settings'];
@@ -580,29 +643,128 @@ function renderCustomers(){
 
 function renderOnboarding(){
   const search=(document.getElementById('onboarding-search')?.value||'').toLowerCase().trim();
-  const status=(document.getElementById('onboarding-status-filter')?.value||'all');
-  const sort=(document.getElementById('onboarding-sort')?.value||'progress-asc');
-  let rows=[...state.onboarding];
-  if(search){
-    rows=rows.filter(o=>{
-      const c=customerById(o.customerId);
-      return `${c?.name||''} ${o.next}`.toLowerCase().includes(search);
-    });
-  }
-  if(status!=='all') rows=rows.filter(o=>o.status===status);
-  rows.sort((a,b)=>{
-    if(sort==='progress-desc') return b.progress-a.progress;
-    if(sort==='name-asc') return (customerById(a.customerId)?.name||'').localeCompare(customerById(b.customerId)?.name||'');
-    return a.progress-b.progress;
+  const filter=(document.getElementById('onboarding-status-filter')?.value||'all');
+  const sort=(document.getElementById('onboarding-sort')?.value||'blocked-first');
+  const queue=state.customers.map(c=>buildOnboardingQueueItem(c.id));
+  const blockedCount=queue.filter(q=>q.status==='Blocked').length;
+  const inProgressCount=queue.filter(q=>q.status==='In Progress').length;
+  const readyCount=queue.filter(q=>q.status==='Ready').length;
+  const completedCount=queue.filter(q=>q.status==='Completed').length;
+  const missingForwarding=queue.filter(q=>q.missingSteps.includes('forwarding configured')).length;
+  const missingNumber=queue.filter(q=>q.missingSteps.includes('Voxera number assigned')).length;
+  const missingTestCall=queue.filter(q=>q.missingSteps.includes('test call completed')).length;
+  document.getElementById('onboarding-kpis').innerHTML=[
+    ['In Onboarding',inProgressCount+blockedCount,'aktive Workqueue'],
+    ['Blocked',blockedCount,'erfordert Eskalation'],
+    ['Ready for Go-live',readyCount,'aktivierbar'],
+    ['Completed',completedCount,'vollständig abgeschlossen'],
+    ['Missing Forwarding',missingForwarding,'Telephony Blocker'],
+    ['Missing Number',missingNumber,'Provisioning offen'],
+    ['Missing Test Call',missingTestCall,'Qualitätscheck offen'],
+    ['Readiness Ø',`${Math.round(queue.reduce((a,q)=>a+q.progress,0)/Math.max(1,queue.length))}%`,'über alle Kunden']
+  ].map(([l,v,s])=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
+
+  let rows=queue.filter(q=>{
+    if(!search) return true;
+    return `${q.customer.name} ${q.currentStep} ${q.nextStep} ${q.blocker}`.toLowerCase().includes(search);
+  }).filter(q=>{
+    if(filter==='all') return true;
+    if(filter==='blocked') return q.status==='Blocked';
+    if(filter==='in-progress') return q.status==='In Progress';
+    if(filter==='ready') return q.status==='Ready';
+    if(filter==='completed') return q.status==='Completed';
+    if(filter==='missing-forwarding') return q.missingSteps.includes('forwarding configured');
+    if(filter==='missing-number') return q.missingSteps.includes('Voxera number assigned');
+    if(filter==='missing-test-call') return q.missingSteps.includes('test call completed');
+    return true;
   });
-  document.getElementById('onboarding-table-body').innerHTML=rows.map(o=>{
-    const c=customerById(o.customerId);
-    const doneSteps=c?.onboardingSteps?.length||0;
-    const check=`${doneSteps}/${state.checklist.length}`;
-    const missing=state.checklist.find(step=>!(c?.onboardingSteps||[]).includes(step))||'onboarding completed';
-    return `<tr><td><strong>${esc(c.name)}</strong><div class="muted">${esc(c.contact)}</div></td><td>${toneBadge(o.status)}</td><td>${o.progress}%</td><td>${esc(o.next)}<div class="muted">Fehlt: ${esc(missing)}</div></td><td>${check}</td><td>${esc(o.owner)}</td><td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile(${c.id})">Kunde</button><button class="btn btn-secondary btn-sm" onclick="markNextOnboardingStep(${c.id})">Schritt +</button></div></td></tr>`;
-  }).join('')||'<tr><td colspan="7"><div class="empty">Keine Onboarding-Einträge für die aktuelle Auswahl.</div></td></tr>';
-  document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(item=>`<div class="detail-item"><span class="detail-k">${esc(item)}</span><span class="detail-v">Standard</span></div>`).join('');
+
+  rows.sort((a,b)=>{
+    if(sort==='name-asc') return a.customer.name.localeCompare(b.customer.name);
+    if(sort==='nearest-complete') return b.progress-a.progress;
+    if(sort==='updated-desc') return (b.latestUpdate||'').localeCompare(a.latestUpdate||'');
+    return (b.status==='Blocked')-(a.status==='Blocked') || b.missingSteps.length-a.missingSteps.length || b.progress-a.progress;
+  });
+
+  document.getElementById('onboarding-table-body').innerHTML=rows.map(q=>`<tr>
+    <td><strong>${esc(q.customer.name)}</strong><div class="muted">${esc(q.customer.contact)} · Owner ${esc(q.owner)}</div></td>
+    <td>${toneBadge(q.customer.plan)}</td>
+    <td>${toneBadge(q.status)}</td>
+    <td>${q.progress}%</td>
+    <td>${esc(q.currentStep)}</td>
+    <td>${esc(q.nextStep)}</td>
+    <td>${q.missingSteps.length}</td>
+    <td>${q.blocker?`<span class="badge badge-red">${esc(q.blocker)}</span>`:'—'}</td>
+    <td>${esc(q.latestUpdate||'—')}</td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openOnboardingDetail(${q.customer.id})">Detail</button><button class="btn btn-secondary btn-sm" onclick="openCustomerProfile(${q.customer.id})">Profil</button></div></td>
+  </tr>`).join('')||'<tr><td colspan="10"><div class="empty">Keine Onboarding-Einträge für die aktuelle Auswahl.</div></td></tr>';
+
+  document.getElementById('onboarding-blockers-list').innerHTML=queue.filter(q=>q.missingSteps.length>0).sort((a,b)=>b.missingSteps.length-a.missingSteps.length).slice(0,8).map(q=>`<div class="list-item"><div><div class="list-main">${esc(q.customer.name)}</div><div class="list-sub">${esc(q.missingSteps.slice(0,3).join(', '))}${q.missingSteps.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openOnboardingDetail(${q.customer.id})">Bearbeiten</button></div>`).join('')||'<div class="empty">Keine offenen Blocker.</div>';
+  document.getElementById('onboarding-activity-list').innerHTML=state.onboardingActivity.slice(0,10).map(x=>`<div class="list-item"><div><div class="list-main">${esc(x)}</div><div class="list-sub">Onboarding event</div></div></div>`).join('')||'<div class="empty">Noch keine Aktivitäten.</div>';
+  renderOnboardingDetail();
+}
+
+function buildOnboardingQueueItem(customerId){
+  const customer=customerById(customerId);
+  const o=onboardingForCustomer(customerId)||{owner:'Ops',latest:''};
+  const done=customer.onboardingSteps||[];
+  const missing=state.checklist.filter(step=>!done.includes(step));
+  const currentStep=done.length?done[done.length-1]:'Noch nicht gestartet';
+  const nextStep=missing[0]||'fully completed';
+  const progress=Math.round((done.length/state.checklist.length)*100);
+  const hardBlockers=['activation sent','Voxera number assigned','forwarding configured','AI basics configured','test call completed'];
+  const blockerStep=hardBlockers.find(s=>missing.includes(s));
+  let status='In Progress';
+  if(missing.length===0||done.includes('fully completed')) status='Completed';
+  else if(done.includes('ready for go-live')&&missing.length<=1) status='Ready';
+  else if(blockerStep) status='Blocked';
+  const blocker=blockerStep?`Missing: ${blockerStep}`:(o.blocker||'');
+  return {customer,owner:o.owner||'Ops',status,progress,currentStep,nextStep,missingSteps:missing,blocker,latestUpdate:o.latest||customer.latest};
+}
+
+function openOnboardingDetail(customerId){
+  state.onboardingSelectedCustomerId=customerId;
+  renderOnboardingDetail();
+}
+
+function renderOnboardingDetail(){
+  const id=state.onboardingSelectedCustomerId;
+  const empty=document.getElementById('onboarding-detail-empty');
+  const detail=document.getElementById('onboarding-detail');
+  if(!id){
+    empty.style.display='block';
+    detail.style.display='none';
+    document.getElementById('onboarding-detail-badge').textContent='Kein Kunde ausgewählt';
+    return;
+  }
+  const q=buildOnboardingQueueItem(id);
+  empty.style.display='none';
+  detail.style.display='block';
+  document.getElementById('onboarding-detail-badge').outerHTML=toneBadge(q.status).replace('<span','<span id="onboarding-detail-badge"');
+  document.getElementById('onboarding-detail-context').innerHTML=[
+    ['Customer',q.customer.name],['Plan',q.customer.plan],['Readiness',`${q.progress}%`],['Current Step',q.currentStep],['Next Step',q.nextStep],['Missing Steps',String(q.missingSteps.length)]
+  ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
+  document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(step=>{
+    const done=(q.customer.onboardingSteps||[]).includes(step);
+    const blocking=['activation sent','Voxera number assigned','forwarding configured','AI basics configured','test call completed'].includes(step)&&!done;
+    return `<div class="detail-item"><span class="detail-k">${esc(step)} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep(${q.customer.id},'${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
+  }).join('');
+  document.getElementById('onboarding-next-action').textContent=q.nextStep;
+  document.getElementById('onboarding-blocker').textContent=q.blocker||'Kein blocker aktiv';
+  document.getElementById('onboarding-open-profile').onclick=()=>openCustomerProfile(q.customer.id);
+}
+
+function aiMissingFields(cfg){
+  const checks=[
+    ['businessDescription','Business Description'],
+    ['services','Services'],
+    ['locationHours','Location/Hours'],
+    ['bookingFaq','FAQ/Contact Prefs'],
+    ['fallbackEscalation','Fallback/Escalation'],
+    ['responseConstraints','Constraints'],
+    ['lastUpdate','Review Timestamp']
+  ];
+  return checks.filter(([k])=>!String(cfg?.[k]||'').trim()).map(([,label])=>label);
 }
 
 function aiMissingFields(cfg){
@@ -803,7 +965,6 @@ function hydrateFilters(){
   const onboardingStatuses=[...new Set(state.onboarding.map(o=>o.status))];
   document.getElementById('customer-plan-filter').innerHTML='<option value="all">Plan: Alle</option>'+plans.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   document.getElementById('customer-status-filter').innerHTML='<option value="all">Status: Alle</option>'+statuses.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
-  document.getElementById('onboarding-status-filter').innerHTML='<option value="all">Status: Alle</option>'+onboardingStatuses.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   document.getElementById('cases-customer-select').innerHTML='<option value="">Kunde wählen …</option>'+state.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
 }
 
@@ -899,21 +1060,32 @@ function toggleCustomerStatus(customerId){
   renderCustomers(); renderOverview(); renderActivity(); hydrateFilters(); openCustomerProfile(customerId);
 }
 
-function markNextOnboardingStep(customerId){
+function toggleOnboardingStep(customerId,step){
   const c=customerById(customerId); const o=onboardingForCustomer(customerId);
-  if(!c||!o) return;
-  const nextMissing=state.checklist.find(step=>!(c.onboardingSteps||[]).includes(step));
-  if(nextMissing){
-    c.onboardingSteps.push(nextMissing);
+  if(!c) return;
+  c.onboardingSteps=c.onboardingSteps||[];
+  const has=c.onboardingSteps.includes(step);
+  if(has) c.onboardingSteps=c.onboardingSteps.filter(s=>s!==step);
+  else c.onboardingSteps.push(step);
+  const ordered=state.checklist.filter(s=>c.onboardingSteps.includes(s));
+  c.onboardingSteps=ordered;
+  const queue=buildOnboardingQueueItem(customerId);
+  if(o){
+    o.progress=queue.progress;
+    o.next=queue.nextStep;
+    o.status=queue.status;
+    o.latest=new Date().toISOString().slice(0,16).replace('T',' ');
+    o.blocker=queue.blocker;
+  }else{
+    state.onboarding.push({customerId,status:queue.status,progress:queue.progress,next:queue.nextStep,owner:'Ops',latest:new Date().toISOString().slice(0,16).replace('T',' '),blocker:queue.blocker});
   }
-  o.progress=Math.min(100,Math.round((c.onboardingSteps.length/state.checklist.length)*100));
-  o.next=state.checklist.find(step=>!c.onboardingSteps.includes(step))||'Onboarding abgeschlossen';
-  o.status=o.progress>=100?'Abgeschlossen':o.progress>80?'Fast ready':'In Arbeit';
-  c.progress=o.progress;
-  c.readiness=o.progress>=100?'Live':o.progress>80?'Fast ready':'Konfiguration offen';
-  c.latest=`${nowStamp()} · Onboarding Update`;
-  state.events.unshift(`${nowStamp()} · ${c.name}: Onboarding-Schritt abgeschlossen`);
-  renderOnboarding(); renderCustomers(); renderOverview(); renderActivity();
+  c.progress=queue.progress;
+  c.readiness=queue.status==='Completed'?'Live':queue.status==='Ready'?'Ready':queue.status==='Blocked'?'Blocked':'Konfiguration offen';
+  c.latest=`${nowStamp()} · Onboarding ${has?'zurückgesetzt':'aktualisiert'}`;
+  const activity=`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${c.name}: ${step} ${has?'zurückgesetzt':'abgeschlossen'}`;
+  state.onboardingActivity.unshift(activity);
+  state.events.unshift(`${nowStamp()} · ${c.name}: Onboarding-Schritt ${has?'reopened':'completed'} (${step})`);
+  renderOnboarding(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
   if(state.selectedCustomer===customerId) openCustomerProfile(customerId);
 }
 
@@ -969,7 +1141,7 @@ function wireUi(){
   document.getElementById('onboarding-reset').addEventListener('click',()=>{
     document.getElementById('onboarding-search').value='';
     document.getElementById('onboarding-status-filter').value='all';
-    document.getElementById('onboarding-sort').value='progress-asc';
+    document.getElementById('onboarding-sort').value='blocked-first';
     renderOnboarding();
   });
   document.getElementById('ai-filter-reset').addEventListener('click',()=>{
