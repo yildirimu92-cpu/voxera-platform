@@ -474,15 +474,15 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
 </div>
 
 <!-- Onboarding Workspace -->
-<div class="ob-overlay" id="ob-overlay" onclick="closeOnboardingWorkspace()"></div>
-<div class="ob-workspace" id="ob-workspace">
+<div class="ob-overlay" id="ob-overlay" role="button" tabindex="0" aria-label="Close onboarding workspace" onclick="closeOnboardingWorkspace()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();closeOnboardingWorkspace();}"></div>
+<div class="ob-workspace" id="ob-workspace" role="dialog" aria-modal="true" aria-labelledby="ob-ws-title">
   <div class="ob-workspace-inner">
     <div class="ob-ws-header">
       <div>
         <div class="ob-ws-title" id="ob-ws-title"></div>
         <div class="ob-ws-sub" id="ob-ws-sub"></div>
       </div>
-      <button class="ob-ws-close" onclick="closeOnboardingWorkspace()">✕</button>
+      <button class="ob-ws-close" aria-label="Close workspace" onclick="closeOnboardingWorkspace()">✕</button>
     </div>
     <div class="ob-ws-body">
       <div id="ob-ws-context"></div>
@@ -554,7 +554,8 @@ const SB_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const supabaseLib=window.supabase;
 const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SB_URL,SB_ANON_KEY):null;
 
-const VOXERA_NUMBER_PREFIX='+41 58 100 20 ';
+const VOXERA_NUMBER_PREFIX='+41 58 100 20';
+const VOXERA_ID_PAD=2;
 
 const state={
   route:'overview',
@@ -622,7 +623,7 @@ const ONBOARDING_STEPS=[
   {key:'aiBasicsConfigured',   label:'AI basics configured',      required:true,  deps:['businessInfoDone']},
   {key:'testCallCompleted',    label:'Test call completed',       required:true,  deps:['numberAssigned','forwardingConfigured','agentConnected']},
   {key:'readyForGoLive',       label:'Ready for go-live',         required:true,  deps:['activationSent','numberAssigned','agentConnected','forwardingConfigured','businessInfoDone','openingHoursAdded','greetingReviewed','aiBasicsConfigured','testCallCompleted']},
-  {key:'fullyCompleted',       label:'Fully Completed',           required:true,  deps:['readyForGoLive','dashboardActive']}
+  {key:'fullyCompleted',       label:'Fully completed',           required:true,  deps:['readyForGoLive','dashboardActive']}
 ];
 const routeMeta={
   'overview':['Übersicht','Operatives Cockpit für den täglichen Betrieb.'],
@@ -800,7 +801,7 @@ function renderOnboarding(){
     const lastStepKey=ONBOARDING_STEPS[ONBOARDING_STEPS.length-1].key;
     const blockerHtml=cs.isOperationallyBlocked&&cs.blocked.length>0&&cs.blocked[0].key!==lastStepKey?`<span class="step-chip">${esc(cs.blocked[0].label)}</span>`:'<span class="badge badge-green">None</span>';
     const nextHtml=cs.nextAction?`<span style="font-size:12px;color:var(--blue);font-weight:600">${esc(cs.nextAction.label)}</span>`:'<span class="badge badge-green">All done</span>';
-    return `<tr style="cursor:pointer;" tabindex="0" onclick="openOnboardingWorkspace(${o.customerId})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openOnboardingWorkspace(${o.customerId});}">
+    return `<tr style="cursor:pointer;" tabindex="0" role="row" aria-label="${esc(c.name)} onboarding workspace" onclick="openOnboardingWorkspace(${o.customerId})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openOnboardingWorkspace(${o.customerId});}">
       <td data-label="Customer" class="ob-td-full"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11px;margin-top:3px">${esc(c.contact)}</div></td>
       <td data-label="Stage">${esc(cs.currentStage)}</td>
       <td data-label="Readiness"><div style="display:flex;align-items:center;gap:8px;min-width:100px;"><div class="progress-track" style="flex:1;min-width:56px"><div class="progress-fill" style="background:${progressColor};width:${cs.progress}%"></div></div><strong>${cs.progress}%</strong></div></td>
@@ -979,7 +980,7 @@ function runOnboardingStep(customerId,stepKey){
     customer.progress=cs.progress;
     customer.latest='Onboarding aktualisiert';
     if(stepKey==='numberAssigned'&&String(customer.voxera).toLowerCase().includes('offen')){
-      customer.voxera=VOXERA_NUMBER_PREFIX+String(customerId).padStart(2,'0');
+      customer.voxera=VOXERA_NUMBER_PREFIX+' '+String(customerId).padStart(VOXERA_ID_PAD,'0');
     }
     if(cs.isLaunchReady) customer.readiness='Launch Ready';
     if(cs.isFullyCompleted){customer.status='Aktiv';customer.readiness='Live';}
