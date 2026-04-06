@@ -193,7 +193,8 @@ exports.handler = async (event) => {
       onboardingRow &&
       String(onboardingRow.status || '').toLowerCase() === 'ready' &&
       missingFields.length === 0 &&
-      normalizeCustomerStatus(customer.status) !== STATUS.customer.READY
+      normalizeCustomerStatus(customer.status) !== STATUS.customer.READY &&
+      normalizeCustomerStatus(customer.status) !== STATUS.customer.LIVE
     ) {
       const nowIso = new Date().toISOString();
       const { data: readyCustomer, error: readyUpdateError } = await sbAdmin
@@ -214,13 +215,13 @@ exports.handler = async (event) => {
     }
 
     const currentStatus = normalizeCustomerStatus(customer.status);
-    if (currentStatus !== STATUS.customer.READY) {
-      console.error('Customer lifecycle status not ready – access send blocked', {
+    if (currentStatus !== STATUS.customer.READY && currentStatus !== STATUS.customer.LIVE) {
+      console.error('Customer lifecycle status not ready/live – access send blocked', {
         customerId,
         customer_status: customer.status || null
       });
       return response(409, {
-        error: 'Zugang kann erst gesendet werden, wenn der Kundenstatus auf ready steht.',
+        error: 'Zugang kann erst gesendet werden, wenn der Kundenstatus auf ready oder live steht.',
         customer_status: customer.status || null
       });
     }
@@ -251,18 +252,21 @@ exports.handler = async (event) => {
       });
     }
 
-    assertCustomerTransition(currentStatus, STATUS.customer.INVITED);
-
     const nowIso = new Date().toISOString();
+    const customerUpdatePayload = {
+      invite_status: STATUS.access.SENT,
+      welcome_sent: true,
+      welcome_sent_at: nowIso,
+      updated_at: nowIso
+    };
+    if (currentStatus === STATUS.customer.READY) {
+      assertCustomerTransition(currentStatus, STATUS.customer.INVITED);
+      customerUpdatePayload.status = STATUS.customer.INVITED;
+    }
+
     const { data: updatedCustomer, error: updateError } = await sbAdmin
       .from('customers')
-      .update({
-        invite_status: STATUS.access.SENT,
-        welcome_sent: true,
-        welcome_sent_at: nowIso,
-        status: STATUS.customer.INVITED,
-        updated_at: nowIso
-      })
+      .update(customerUpdatePayload)
       .eq('id', customerId)
       .select('*')
       .single();
