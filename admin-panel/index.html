@@ -417,55 +417,63 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
     <form id="create-customer-form">
       <div class="form-grid">
         <div>
-          <label for="create-customer-name" class="muted">customer_name *</label>
+          <label for="create-customer-name" class="muted">Firmenname *</label>
           <input id="create-customer-name" class="input" required>
           <div class="form-error" data-error-for="customer_name"></div>
         </div>
         <div>
-          <label for="create-customer-contact-name" class="muted">contact_name</label>
-          <input id="create-customer-contact-name" class="input">
+          <label for="create-customer-contact-first-name" class="muted">Vorname</label>
+          <input id="create-customer-contact-first-name" class="input">
         </div>
         <div>
-          <label for="create-customer-email" class="muted">email *</label>
+          <label for="create-customer-contact-last-name" class="muted">Nachname</label>
+          <input id="create-customer-contact-last-name" class="input">
+        </div>
+        <div>
+          <label for="create-customer-email" class="muted">E-Mail *</label>
           <input id="create-customer-email" class="input" type="email" required>
           <div class="form-error" data-error-for="email"></div>
         </div>
         <div>
-          <label for="create-customer-phone" class="muted">tel_nr *</label>
+          <label for="create-customer-phone" class="muted">Telefon *</label>
           <input id="create-customer-phone" class="input" required>
           <div class="form-error" data-error-for="tel_nr"></div>
         </div>
         <div>
-          <label for="create-customer-plan" class="muted">plan *</label>
+          <label for="create-customer-plan" class="muted">Plan *</label>
           <input id="create-customer-plan" class="input" required placeholder="Starter / Pro / Growth / Enterprise">
           <div class="form-error" data-error-for="plan"></div>
         </div>
         <div>
-          <label for="create-customer-voxera-number" class="muted">voxera_number</label>
+          <label for="create-customer-voxera-number" class="muted">Voxera Nummer</label>
           <input id="create-customer-voxera-number" class="input" placeholder="+41 ...">
         </div>
         <div>
-          <label for="create-customer-street" class="muted">street *</label>
+          <label for="create-customer-street" class="muted">Straße *</label>
           <input id="create-customer-street" class="input" required>
           <div class="form-error" data-error-for="street"></div>
         </div>
         <div>
-          <label for="create-customer-zip" class="muted">zip *</label>
+          <label for="create-customer-zip" class="muted">PLZ *</label>
           <input id="create-customer-zip" class="input" required>
           <div class="form-error" data-error-for="zip"></div>
         </div>
         <div>
-          <label for="create-customer-city" class="muted">city *</label>
+          <label for="create-customer-city" class="muted">Ort *</label>
           <input id="create-customer-city" class="input" required>
           <div class="form-error" data-error-for="city"></div>
         </div>
         <div>
-          <label for="create-customer-country" class="muted">country *</label>
+          <label for="create-customer-country" class="muted">Land *</label>
           <input id="create-customer-country" class="input" required value="Switzerland">
           <div class="form-error" data-error-for="country"></div>
         </div>
+        <div>
+          <label for="create-customer-start-date" class="muted">Startdatum</label>
+          <input id="create-customer-start-date" class="input" type="date">
+        </div>
         <div class="form-full">
-          <label for="create-customer-notes" class="muted">notes</label>
+          <label for="create-customer-notes" class="muted">Notizen</label>
           <textarea id="create-customer-notes" class="textarea" style="min-height:72px;"></textarea>
         </div>
       </div>
@@ -652,6 +660,13 @@ function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function idsEq(a,b){return String(a)===String(b);}
 function customerById(id){return state.customers.find(c=>idsEq(c.id,id));}
+function contactDisplay(customer){
+  const first=String(customer?.contact_first_name||'').trim();
+  const last=String(customer?.contact_last_name||'').trim();
+  if(first||last) return [first,last].filter(Boolean).join(' ');
+  const legacy=String(customer?.contact_name||customer?.contact||'').trim();
+  return legacy||'—';
+}
 function toneBadge(val){
   const v=(val||'').toLowerCase();
   const cls=v.includes('krit')||v.includes('offen')?'badge-red':v.includes('hoch')||v.includes('arbeit')?'badge-amber':v.includes('aktiv')||v.includes('ready')||v.includes('live')?'badge-green':v.includes('growth')||v.includes('pro')||v.includes('enterprise')?'badge-blue':'badge-gray';
@@ -702,7 +717,7 @@ function renderCustomers(){
   const cfilter=document.getElementById('customer-case-filter').value;
 
   let rows=[...state.customers];
-  if(search) rows=rows.filter(c=>[c.name,c.contact,c.email,c.voxera].join(' ').toLowerCase().includes(search));
+  if(search) rows=rows.filter(c=>[c.name,contactDisplay(c),c.email,c.voxera].join(' ').toLowerCase().includes(search));
   if(p!=='all') rows=rows.filter(c=>c.plan===p);
   if(s!=='all') rows=rows.filter(c=>c.status===s);
   if(prog!=='all'){
@@ -714,7 +729,7 @@ function renderCustomers(){
   if(cfilter==='1+') rows=rows.filter(c=>c.openCases>0);
 
   document.getElementById('customers-table-body').innerHTML=rows.map(c=>`<tr>
-    <td class="wrap"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11.5px;margin-top:4px">${esc(c.contact)} · ${esc(c.email)}</div></td>
+    <td class="wrap"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11.5px;margin-top:4px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
     <td>${esc(c.voxera)}</td>
     <td>${toneBadge(c.plan)}</td>
     <td>${toneBadge(c.status)}</td>
@@ -771,7 +786,7 @@ function renderOnboarding(){
   });
 
   document.getElementById('onboarding-table-body').innerHTML=rows.map(q=>`<tr>
-    <td><strong>${esc(q.customer.name)}</strong><div class="muted">${esc(q.customer.contact)} · Owner ${esc(q.owner)}</div></td>
+    <td><strong>${esc(q.customer.name)}</strong><div class="muted">${esc(contactDisplay(q.customer))} · Owner ${esc(q.owner)}</div></td>
     <td>${toneBadge(q.customer.plan)}</td>
     <td>${toneBadge(q.status)}</td>
     <td>${q.progress}%</td>
@@ -891,7 +906,7 @@ function renderAiSetup(){
   rows.sort((a,b)=>a.missing.length-b.missing.length||a.customer.name.localeCompare(b.customer.name));
 
   document.getElementById('ai-customer-body').innerHTML=rows.map(r=>`<tr>
-    <td><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(r.customer.contact)}</div></td>
+    <td><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(contactDisplay(r.customer))}</div></td>
     <td>${toneBadge(r.customer.plan)}</td>
     <td>${toneBadge(r.cfg.status||'Unbekannt')}</td>
     <td>${r.cfg.custom?toneBadge('Ja'):toneBadge('Nein')}</td>
@@ -1081,7 +1096,7 @@ function openCustomerProfile(id){
   const c=customerById(id); if(!c) return;
   state.selectedCustomer=id;
   document.getElementById('profile-title').textContent=c.name;
-  document.getElementById('profile-sub').textContent=`${c.contact} · ${c.email}`;
+  document.getElementById('profile-sub').textContent=`${contactDisplay(c)} · ${c.email}`;
   const onboard=onboardingForCustomer(id);
   const missingSteps=state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
   document.getElementById('profile-overview-actions').innerHTML=`
@@ -1090,7 +1105,7 @@ function openCustomerProfile(id){
     <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
     <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>`;
   const details=[
-    ['Company',c.name],['Kontakt',`${c.contact} · ${c.phone}`],['Plan',c.plan],['Status',c.status],['Voxera Nummer',c.voxera],['Onboarding Progress',`${c.progress}%`],['Setup Readiness',c.readiness],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id).padStart(4,'0')}`]
+    ['Company',c.name],['Kontakt',`${contactDisplay(c)} · ${c.phone}`],['Plan',c.plan],['Status',c.status],['Voxera Nummer',c.voxera],['Onboarding Progress',`${c.progress}%`],['Setup Readiness',c.readiness],['Latest Activity',c.latest],['Open Cases',String(c.openCases)],['Operational Flags',missingSteps.length?`${missingSteps.length} Setup-Lücken`:'Keine'],['Next Onboarding Step',onboard?.next||'—'],['Account ID',`CUST-${String(c.id)}`]
   ];
   document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
@@ -1158,7 +1173,8 @@ function closeCreateCustomerModal(){
 function collectCreateCustomerPayload(){
   return {
     customer_name:document.getElementById('create-customer-name').value.trim(),
-    contact_name:document.getElementById('create-customer-contact-name').value.trim(),
+    contact_first_name:document.getElementById('create-customer-contact-first-name').value.trim(),
+    contact_last_name:document.getElementById('create-customer-contact-last-name').value.trim(),
     email:document.getElementById('create-customer-email').value.trim(),
     tel_nr:document.getElementById('create-customer-phone').value.trim(),
     plan:document.getElementById('create-customer-plan').value.trim(),
@@ -1167,6 +1183,7 @@ function collectCreateCustomerPayload(){
     zip:document.getElementById('create-customer-zip').value.trim(),
     city:document.getElementById('create-customer-city').value.trim(),
     country:document.getElementById('create-customer-country').value.trim(),
+    start_date:document.getElementById('create-customer-start-date').value.trim(),
     notes:document.getElementById('create-customer-notes').value.trim()
   };
 }
@@ -1211,10 +1228,16 @@ async function submitCreateCustomer(event){
     const dbCustomer=json.customer||{};
     const dbOnboarding=json.onboarding||{};
     const createdId=String(dbCustomer.id||'');
+    const contactFirstName=dbCustomer.contact_first_name||payload.contact_first_name||'';
+    const contactLastName=dbCustomer.contact_last_name||payload.contact_last_name||'';
+    const fallbackContactName=[contactFirstName,contactLastName].filter(Boolean).join(' ').trim()||(dbCustomer.contact_name||'');
     const customerForUi={
       id:createdId,
       name:dbCustomer.customer_name||payload.customer_name,
-      contact:dbCustomer.contact_name||payload.contact_name||'—',
+      contact_first_name:contactFirstName||null,
+      contact_last_name:contactLastName||null,
+      contact_name:fallbackContactName||null,
+      contact:fallbackContactName||'—',
       email:dbCustomer.email||payload.email,
       phone:dbCustomer.tel_nr||payload.tel_nr,
       plan:dbCustomer.plan||payload.plan,
