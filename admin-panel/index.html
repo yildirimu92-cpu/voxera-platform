@@ -540,6 +540,10 @@ body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background
       <div class="detail-item"><span class="detail-k">Kunde</span><span class="detail-v" id="send-access-customer-name">—</span></div>
       <div class="detail-item"><span class="detail-k">E-Mail</span><span class="detail-v" id="send-access-customer-email">—</span></div>
       <div class="detail-item"><span class="detail-k">Status Einladung</span><span class="detail-v" id="send-access-invite-status">—</span></div>
+      <div class="detail-item"><span class="detail-k">Einrichtungsstatus</span><span class="detail-v" id="send-access-onboarding-status">—</span></div>
+    </div>
+    <div id="send-access-readiness-warning" style="display:none;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--amber);font-weight:600;">
+      Zugang kann erst gesendet werden, wenn die Einrichtung im Admin-Panel vollständig abgeschlossen ist.
     </div>
     <div class="card" style="padding:14px 16px;margin-bottom:12px;">
       <div class="card-title">Prüfung Pflichtdaten vor Versand</div>
@@ -1211,9 +1215,18 @@ function openSendAccessModal(customerId){
   document.getElementById('send-access-customer-name').textContent=customer.name||'—';
   document.getElementById('send-access-customer-email').textContent=customer.email||'—';
   document.getElementById('send-access-invite-status').textContent=customer.invite_status==='sent'?'Bereits gesendet':'Noch nicht gesendet';
+
+  const onboarding=onboardingForCustomer(customerId);
+  const obStatus=onboarding?onboarding.status:null;
+  const isOnboardingReady=obStatus&&(obStatus==='Ready'||obStatus.toLowerCase()==='ready');
+  const obStatusEl=document.getElementById('send-access-onboarding-status');
+  if(obStatusEl) obStatusEl.textContent=obStatus||'—';
+  const readinessWarning=document.getElementById('send-access-readiness-warning');
+  if(readinessWarning) readinessWarning.style.display=isOnboardingReady?'none':'';
+
   const validation=renderSendAccessValidation(customer);
   const submitBtn=document.getElementById('send-access-submit-btn');
-  submitBtn.disabled=!validation.ok;
+  submitBtn.disabled=!validation.ok||!isOnboardingReady;
   document.getElementById('send-access-modal').classList.add('open');
 }
 
@@ -1255,6 +1268,14 @@ async function submitSendAccess(){
     return;
   }
 
+  const onboarding=onboardingForCustomer(customerId);
+  const obStatus=onboarding?onboarding.status:null;
+  const isOnboardingReady=obStatus&&(obStatus==='Ready'||obStatus.toLowerCase()==='ready');
+  if(!isOnboardingReady){
+    setSendAccessFeedback('error','Zugang kann erst gesendet werden, wenn die Einrichtung im Admin-Panel vollständig abgeschlossen ist.');
+    return;
+  }
+
   setSendAccessSubmitting(true);
   setSendAccessFeedback(null,'');
   try{
@@ -1265,6 +1286,10 @@ async function submitSendAccess(){
     });
     const json=await res.json().catch(()=>({}));
     if(!res.ok||!json?.success){
+      if(res.status===409){
+        setSendAccessFeedback('error',json?.error||'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.');
+        return;
+      }
       if(Array.isArray(json?.missing_fields)&&json.missing_fields.length){
         const labels=json.missing_fields.map(validationLabelForField);
         document.getElementById('send-access-validation').innerHTML=`<span style="color:var(--red);font-weight:600;">Fehlend: ${esc(labels.join(', '))}</span>`;
