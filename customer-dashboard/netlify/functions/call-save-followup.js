@@ -1,6 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
-const { normalizeCallStatus, assertCallTransition, CALL_STATUS } = require('./_lib/status-model');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -36,7 +35,7 @@ exports.handler = async (event) => {
 
   const { data: callRow, error: callError } = await sbAdmin
     .from('calls')
-    .select('id, customer_id, dashboard_status')
+    .select('id, customer_id')
     .eq('id', callId)
     .maybeSingle();
   if (callError) return response(500, { error: 'Call lookup failed', details: callError.message });

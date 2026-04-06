@@ -1975,31 +1975,49 @@ async function submitCreateCustomer(event){
   }
 }
 
-function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt'){
-  // TODO: move to server-side function
-  const c=customerById(customerId); if(!c) return;
-  const num=state.cases.reduce((m,x)=>Math.max(m,Number(String(x.id).replace('C-',''))||100),100)+1;
-  state.cases.unshift({id:`C-${num}`,type,priority:type==='Rückruf'?'Hoch':'Mittel',status:CASE_STATUS.OPEN,owner:'Ops Queue',customerId,latest:`${nowStamp()}`,notes:note});
-  state.events.unshift(`${nowStamp()} · ${c.name}: ${type} Case erstellt`);
-  refreshCustomerCaseCounts();
-  renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+async function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt'){
+  const c=customerById(customerId);
+  if(!c){
+    alert('Case konnte nicht erstellt werden: Kunde nicht gefunden.');
+    return;
+  }
+  try{
+    const json=await callAdminFunction('cases-create',{customer_id:customerId,type,note});
+    if(!json?.success||!json?.case) throw new Error(json?.error||'Case konnte nicht erstellt werden.');
+    const mapped=mapDbCaseToUi(json.case);
+    state.cases=state.cases.filter(existing=>!idsEq(existing.id,mapped.id));
+    state.cases.unshift(mapped);
+    state.events.unshift(`${nowStamp()} · ${c.name}: ${type} Case erstellt`);
+    refreshCustomerCaseCounts();
+    renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+  }catch(error){
+    const payload=error?.payload||{};
+    alert(payload?.error||error?.message||'Case konnte nicht erstellt werden.');
+  }
 }
 
-function updateCase(caseId,field,value){
-  // TODO: move to server-side function
-  const target=state.cases.find(c=>c.id===caseId); if(!target) return;
-  if(field==='status'){
-    assertCaseTransition(target.status,value);
-    target.status=normalizeCaseStatus(value);
-  }else{
-    target[field]=value;
+async function updateCase(caseId,field,value){
+  const target=state.cases.find(c=>c.id===caseId);
+  if(!target){
+    alert('Case konnte nicht aktualisiert werden: Case nicht gefunden.');
+    return;
   }
-  target.latest=`${nowStamp()}`;
-  refreshCustomerCaseCounts();
-  state.events.unshift(`${nowStamp()} · ${caseId} ${field} → ${value}`);
-  renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(idsEq(state.selectedCustomer,target.customerId)) openCustomerProfile(target.customerId);
+  try{
+    const json=await callAdminFunction('cases-update',{case_id:caseId,field,value});
+    if(!json?.success||!json?.case) throw new Error(json?.error||'Case konnte nicht aktualisiert werden.');
+    const mapped=mapDbCaseToUi(json.case);
+    const idx=state.cases.findIndex(c=>idsEq(c.id,mapped.id));
+    if(idx>=0) state.cases[idx]=mapped;
+    else state.cases.unshift(mapped);
+    refreshCustomerCaseCounts();
+    state.events.unshift(`${nowStamp()} · ${caseId} ${field} → ${value}`);
+    renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,mapped.customerId)) openCustomerProfile(mapped.customerId);
+  }catch(error){
+    const payload=error?.payload||{};
+    alert(payload?.error||error?.message||'Case konnte nicht aktualisiert werden.');
+  }
 }
 
 function markCallReviewed(customerId,callIdx){
@@ -2012,21 +2030,34 @@ function markCallReviewed(customerId,callIdx){
   openCustomerProfile(customerId);
 }
 
-function toggleCustomerStatus(customerId){
+async function toggleCustomerStatus(customerId){
   const c=customerById(customerId); if(!c) return;
   const current=getCustomerLifecycleStatus(c,onboardingForCustomer(customerId));
-  if(current==='paused') c.status='live';
-  else if(current==='live') c.status='paused';
-  else throw new Error(`Illegal customer transition via toggle: ${current} -> paused/live`);
-  c.latest=`${nowStamp()} · Status geändert`;
-  state.events.unshift(`${nowStamp()} · ${c.name}: Status ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(customerId))}`);
-  renderCustomers(); renderOverview(); renderActivity(); hydrateFilters(); openCustomerProfile(customerId);
+  let targetStatus='';
+  if(current==='paused') targetStatus='live';
+  else if(current==='live') targetStatus='paused';
+  else{
+    alert(`Lifecycle-Update fehlgeschlagen: ${current} kann nicht auf live/paused gewechselt werden.`);
+    return;
+  }
+  try{
+    const json=await callAdminFunction('customer-status-update',{customer_id:customerId,status:targetStatus});
+    if(!json?.success||!json?.customer) throw new Error(json?.error||'Lifecycle-Update fehlgeschlagen.');
+    c.status=normalizeCustomerStatus(json.customer.status);
+    c.latest=`${nowStamp()} · Status geändert`;
+    state.events.unshift(`${nowStamp()} · ${c.name}: Status ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(customerId))}`);
+    renderCustomers(); renderOverview(); renderActivity(); hydrateFilters(); openCustomerProfile(customerId);
+  }catch(error){
+    const payload=error?.payload||{};
+    alert(payload?.error||error?.message||'Lifecycle-Update fehlgeschlagen.');
+  }
 }
 
-function toggleOnboardingStep(customerId,step){
-  // TODO: move to server-side function
+async function toggleOnboardingStep(customerId,step){
   const c=customerById(customerId); const o=onboardingForCustomer(customerId);
   if(!c) return;
+  const prevSteps=[...(c.onboardingSteps||[])];
+  const prevOnboarding=o?{status:o.status,progress:o.progress,next:o.next,latest:o.latest,blocker:o.blocker}:null;
   c.onboardingSteps=c.onboardingSteps||[];
   const has=c.onboardingSteps.includes(step);
   if(has) c.onboardingSteps=c.onboardingSteps.filter(s=>s!==step);
@@ -2034,25 +2065,48 @@ function toggleOnboardingStep(customerId,step){
   const ordered=state.checklist.filter(s=>c.onboardingSteps.includes(s));
   c.onboardingSteps=ordered;
   const queue=buildOnboardingQueueItem(customerId);
-  if(o){
-    assertOnboardingTransition(o.status,queue.status);
-    o.progress=queue.progress;
-    o.next=queue.nextStep;
-    o.status=queue.status;
-    o.latest=new Date().toISOString().slice(0,16).replace('T',' ');
-    o.blocker=queue.blocker;
-  }else{
-    state.onboarding.push({customerId,status:queue.status,progress:queue.progress,next:queue.nextStep,owner:'Ops',latest:new Date().toISOString().slice(0,16).replace('T',' '),blocker:queue.blocker});
+  try{
+    if(o) assertOnboardingTransition(o.status,queue.status);
+    const json=await callAdminFunction('onboarding-update',{
+      customer_id:customerId,
+      status:queue.status,
+      progress:queue.progress,
+      next_step:queue.nextStep,
+      blocker:queue.blocker
+    });
+    if(!json?.success||!json?.onboarding) throw new Error(json?.error||'Onboarding-Update fehlgeschlagen.');
+    const dbOnboarding=mapDbOnboardingToState(json.onboarding);
+    const existing=state.onboarding.find(entry=>idsEq(entry.customerId,customerId));
+    if(existing){
+      existing.status=dbOnboarding.status;
+      existing.progress=dbOnboarding.progress;
+      existing.next=dbOnboarding.next;
+      existing.latest=dbOnboarding.latest;
+      existing.blocker=dbOnboarding.blocker;
+    }else{
+      state.onboarding.push(dbOnboarding);
+    }
+    c.progress=dbOnboarding.progress;
+    syncCustomerLifecycleStatus(c,onboardingForCustomer(customerId));
+    c.readiness=getCustomerSetupReadinessLabel(c,onboardingForCustomer(customerId));
+    c.latest=`${nowStamp()} · Onboarding ${has?'zurückgesetzt':'aktualisiert'}`;
+    const activity=`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${c.name}: ${step} ${has?'zurückgesetzt':'abgeschlossen'}`;
+    state.onboardingActivity.unshift(activity);
+    state.events.unshift(`${nowStamp()} · ${c.name}: Onboarding-Schritt ${has?'reopened':'completed'} (${step})`);
+    renderOnboarding(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+  }catch(error){
+    c.onboardingSteps=prevSteps;
+    if(o&&prevOnboarding){
+      o.status=prevOnboarding.status;
+      o.progress=prevOnboarding.progress;
+      o.next=prevOnboarding.next;
+      o.latest=prevOnboarding.latest;
+      o.blocker=prevOnboarding.blocker;
+    }
+    const payload=error?.payload||{};
+    alert(payload?.error||error?.message||'Onboarding-Update fehlgeschlagen.');
   }
-  c.progress=queue.progress;
-  syncCustomerLifecycleStatus(c,onboardingForCustomer(customerId));
-  c.readiness=getCustomerSetupReadinessLabel(c,onboardingForCustomer(customerId));
-  c.latest=`${nowStamp()} · Onboarding ${has?'zurückgesetzt':'aktualisiert'}`;
-  const activity=`${new Date().toISOString().slice(0,16).replace('T',' ')} · ${c.name}: ${step} ${has?'zurückgesetzt':'abgeschlossen'}`;
-  state.onboardingActivity.unshift(activity);
-  state.events.unshift(`${nowStamp()} · ${c.name}: Onboarding-Schritt ${has?'reopened':'completed'} (${step})`);
-  renderOnboarding(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-  if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
 }
 
 function addProfileNote(){
@@ -2121,7 +2175,10 @@ function wireUi(){
   document.getElementById('cases-create-btn').addEventListener('click',()=>{
     const cid=document.getElementById('cases-customer-select').value;
     const type=document.getElementById('cases-type-select').value;
-    if(!cid) return;
+    if(!cid){
+      alert('Bitte zuerst einen Kunden wählen.');
+      return;
+    }
     createCaseForCustomer(cid,type,'Direkt aus Cases erstellt');
   });
   document.getElementById('cases-tabs').addEventListener('click',e=>{

@@ -2133,10 +2133,18 @@ function validateAccessGuard(context) {
   if (!context.customerRecord) {
     return { valid: false, reason: 'Kundendaten nicht gefunden' };
   }
-  if (context.customerRecord.status !== 'active') {
-    return { valid: false, reason: 'Konto ist nicht aktiv (Status: ' + context.customerRecord.status + ')' };
+  const rawStatus = String(context.customerRecord.status || '').trim().toLowerCase();
+  const normalizedStatus = rawStatus === 'active' ? 'live' : rawStatus;
+  if (normalizedStatus === 'live') {
+    return { valid: true, reason: '' };
   }
-  return { valid: true, reason: '' };
+  if (normalizedStatus === 'paused') {
+    return { valid: false, reason: 'Konto ist pausiert. Bitte Support kontaktieren.' };
+  }
+  if (normalizedStatus === 'deleted') {
+    return { valid: false, reason: 'Konto ist deaktiviert.' };
+  }
+  return { valid: false, reason: 'Konto ist nicht freigeschaltet (Status: ' + (context.customerRecord.status || 'unbekannt') + ')' };
 }
 
 // Returns true if customer context is valid and active; otherwise triggers logout and returns false.
@@ -2724,6 +2732,32 @@ function requestSupport() {
 
 async function apiPatch(recordId, fields) {
   return await patchCallRecord(recordId, fields);
+}
+
+async function apiUpdateCallStatus(recordId, status) {
+  return await callDashboardFunction('call-update-status', {
+    call_id: recordId,
+    status
+  });
+}
+
+async function applyStatusTransition(recordId, fromStatus, toStatus) {
+  const current = normalizeStatus(fromStatus);
+  const target = normalizeStatus(toStatus);
+  if (current === target) return;
+  const sequence = [];
+  if (current === CALL_STATUS.NEW && target === CALL_STATUS.FOLLOW_UP_SCHEDULED) {
+    sequence.push(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
+  } else if (current === CALL_STATUS.NEW && target === CALL_STATUS.CLOSED) {
+    sequence.push(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED);
+  } else if (current === CALL_STATUS.IN_PROGRESS && target === CALL_STATUS.CLOSED) {
+    sequence.push(CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED);
+  } else {
+    sequence.push(target);
+  }
+  for (const status of sequence) {
+    await apiUpdateCallStatus(recordId, status);
+  }
 }
 
 async function apiPatchOptional(recordId, preferredFields, fallbackFields) {
@@ -3342,6 +3376,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     [CALL_STATUS.CLOSED]:'✓ Abgeschlossen'
   };
   try {
+    await applyStatusTransition(recordId, currentStatus, normalizedStatus);
     // TODO: move to server-side function
     const fields = {dashboard_status: normalizedStatus};
     if (isClosedStatus(normalizedStatus)) fields.follow_up_at = null;
@@ -3362,7 +3397,8 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     }
     toast(icons[normalizedStatus] || 'Status aktualisiert');
   } catch(e) {
-    toast('❌ Fehler – bitte nochmal');
+    const msg = (e && (e.payload && e.payload.error || e.message)) || 'Fehler beim Status-Update';
+    toast('❌ ' + msg);
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
   } finally {
     setTimeout(loadData, 900);
@@ -3499,10 +3535,12 @@ async function saveFollowup() {
   if (newStatus) fields.dashboard_status = newStatus;
   if (newStatus === CALL_STATUS.CLOSED) fields.follow_up_at = null; // Completed calls have no pending follow-up
   const fallbackFields = { notes_customer_voxera: text };
-  if (newStatus) fallbackFields.dashboard_status = newStatus;
   try {
     // TODO: move to server-side function
     await apiPatchOptional(notizRecordId, fields, fallbackFields);
+    if (newStatus) {
+      await applyStatusTransition(notizRecordId, currentStatus, newStatus);
+    }
     toast(newStatus === CALL_STATUS.CLOSED ? '✓ Abgeschlossen' : followUpAt ? '✓ Follow-up gespeichert' : '✓ Gespeichert');
     closeFollowup();
     notizRecordId = null;
@@ -3640,7 +3678,10 @@ async function saveNotiz() {
   const fields = {notes_customer_voxera: text};
   if (!isClosedStatus(currentStatus)) fields.dashboard_status = CALL_STATUS.IN_PROGRESS;
   try {
-    await apiPatchOptional(notizRecordId, fields, {notes_customer_voxera: text});
+    await apiPatchOptional(notizRecordId, {notes_customer_voxera: text}, {notes_customer_voxera: text});
+    if (!isClosedStatus(currentStatus)) {
+      await applyStatusTransition(notizRecordId, currentStatus, CALL_STATUS.IN_PROGRESS);
+    }
     toast('📝 Notiz gespeichert');
     closeNotiz();
     setTimeout(loadData, 600);
