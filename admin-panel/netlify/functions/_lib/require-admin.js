@@ -2,7 +2,14 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-const ALLOWED_ADMIN_ROLES = new Set(['super-admin', 'admin', 'support']);
+const ALLOWED_ADMIN_ROLES = new Set(['super-admin', 'admin', 'support', 'owner', 'ops']);
+
+function normalizeAdminRole(role) {
+  const raw = String(role || '').trim().toLowerCase().replace(/_/g, '-');
+  if (!raw) return '';
+  if (raw === 'superadmin') return 'super-admin';
+  return raw;
+}
 
 function getBearerToken(headers) {
   const authHeader = headers.authorization || headers.Authorization || '';
@@ -67,8 +74,10 @@ async function requireAdminCaller({ event, supabaseUrl, supabaseAnonKey, sbAdmin
     return forbidden('Admin access required');
   }
 
-  const role = String(adminRow.role || '').trim().toLowerCase();
-  if (!ALLOWED_ADMIN_ROLES.has(role)) {
+  const role = normalizeAdminRole(adminRow.role);
+  // Backward-compatible gate:
+  // if an admins row exists but role is currently empty, keep access.
+  if (role && !ALLOWED_ADMIN_ROLES.has(role)) {
     return forbidden('Admin role not allowed for this action');
   }
 

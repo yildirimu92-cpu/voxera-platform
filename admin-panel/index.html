@@ -2166,12 +2166,27 @@ async function requireAdminSessionOrRedirect(){
     .select('id,role')
     .eq('id',session.user.id)
     .maybeSingle();
-  const role=String(admin?.role||'').trim().toLowerCase();
-  const allowed=new Set(['super-admin','admin','support']);
-  if(adminError||!admin||!allowed.has(role)){
+  const normalizeRole=(r)=>{
+    const raw=String(r||'').trim().toLowerCase().replace(/_/g,'-');
+    if(!raw) return '';
+    if(raw==='superadmin') return 'super-admin';
+    return raw;
+  };
+  const role=normalizeRole(admin?.role);
+  const allowed=new Set(['super-admin','admin','support','owner','ops']);
+  if(adminError){
+    window.location.href='login.html';
+    throw new Error('Admin lookup failed');
+  }
+  if(!admin){
     try{await authClient.auth.signOut();}catch(_e){}
     window.location.href='login.html';
-    throw new Error('Admin role missing');
+    throw new Error('Admin row missing');
+  }
+  if(role && !allowed.has(role)){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.href='login.html';
+    throw new Error('Admin role not allowed');
   }
   return admin;
 }

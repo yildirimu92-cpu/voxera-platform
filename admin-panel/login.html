@@ -117,6 +117,17 @@ const supabaseLib = window.supabase;
 const sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
   ? supabaseLib.createClient(SB_URL, SB_ANON_KEY)
   : null;
+const ALLOWED_ADMIN_ROLES = new Set(['super-admin','admin','support','owner','ops']);
+function normalizeAdminRole(role){
+  const raw = String(role || '').trim().toLowerCase().replace(/_/g, '-');
+  if (!raw) return '';
+  if (raw === 'superadmin') return 'super-admin';
+  return raw;
+}
+function isAllowedAdminRole(role){
+  const normalized = normalizeAdminRole(role);
+  return !normalized || ALLOWED_ADMIN_ROLES.has(normalized);
+}
 
 // Session-Check: Wenn bereits eingeloggt, direkt weiterleiten
 (async () => {
@@ -124,8 +135,8 @@ const sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     // Prüfe ob User ein Admin ist
-    const { data: admin } = await sb.from('admins').select('id').eq('id', session.user.id).single();
-    if (admin) {
+    const { data: admin } = await sb.from('admins').select('id,role').eq('id', session.user.id).single();
+    if (admin && isAllowedAdminRole(admin.role)) {
       window.location.href = 'index.html';
     } else {
       // Kein Admin → Session löschen
@@ -162,7 +173,7 @@ async function doLogin() {
 
     // Admin-Check: User muss in admins-Tabelle sein
     const { data: admin, error: adminError } = await sb.from('admins').select('id,role').eq('id', data.user.id).single();
-    if (adminError || !admin) {
+    if (adminError || !admin || !isAllowedAdminRole(admin.role)) {
       await sb.auth.signOut();
       showError('Kein Admin-Zugang. Dieser Account hat keine Berechtigung für das Admin Portal.');
       btn.disabled = false;
