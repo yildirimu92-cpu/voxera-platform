@@ -111,38 +111,42 @@ exports.handler = async (event) => {
       .eq('id', customer_id);
     if (updateErr) throw new Error('Customer update: ' + updateErr.message);
 
-    // 4. Trigger welcome email via send-welcome function
+    // 4. Trigger access email via send-customer-access function
     const baseUrl = process.env.URL || process.env.DEPLOY_URL || '';
-    const welcomeUrl = baseUrl
-      ? `${baseUrl.replace(/\/$/, '')}/.netlify/functions/send-welcome`
-      : '/.netlify/functions/send-welcome';
+    const accessUrl = baseUrl
+      ? `${baseUrl.replace(/\/$/, '')}/.netlify/functions/send-customer-access`
+      : '/.netlify/functions/send-customer-access';
 
-    let welcome_email_sent = false;
-    let welcome_email_error = null;
+    let access_email_sent = false;
+    let access_email_error = null;
 
     try {
-      const welcomeRes = await fetch(welcomeUrl, {
+      const authHeader = event.headers?.authorization || event.headers?.Authorization;
+      const accessRes = await fetch(accessUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authHeader ? { Authorization: authHeader } : {})
+        },
         body: JSON.stringify({ customer_id })
       });
-      if (!welcomeRes.ok) {
-        const err = await welcomeRes.json().catch(() => ({}));
-        welcome_email_error = err.error || `HTTP ${welcomeRes.status}`;
-        console.error('send-welcome fehlgeschlagen:', welcome_email_error);
+      if (!accessRes.ok) {
+        const err = await accessRes.json().catch(() => ({}));
+        access_email_error = err.error || `HTTP ${accessRes.status}`;
+        console.error('send-customer-access fehlgeschlagen:', access_email_error);
       } else {
-        welcome_email_sent = true;
+        access_email_sent = true;
       }
-    } catch (welcomeErr) {
-      // Log but do not fail activation if welcome email encounters a transient error
-      welcome_email_error = welcomeErr.message;
-      console.error('send-welcome Ausnahme:', welcomeErr.message);
+    } catch (accessErr) {
+      // Log but do not fail activation if access email encounters a transient error
+      access_email_error = accessErr.message;
+      console.error('send-customer-access Ausnahme:', accessErr.message);
     }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ success: true, subscription_id: subscriptionId, customer_id, welcome_email_sent, welcome_email_error })
+      body: JSON.stringify({ success: true, subscription_id: subscriptionId, customer_id, access_email_sent, access_email_error })
     };
 
   } catch (e) {
