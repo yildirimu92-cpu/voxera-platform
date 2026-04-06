@@ -2216,15 +2216,53 @@ function qualChip(q) {
   return `<span class="chip ${map[k]}">${lbl[k]}</span>`;
 }
 
+const CALL_STATUS = Object.freeze({
+  NEW: 'new',
+  IN_PROGRESS: 'in_progress',
+  FOLLOW_UP_SCHEDULED: 'follow_up_scheduled',
+  CLOSED: 'closed'
+});
+const CALL_STATUS_LABELS = Object.freeze({
+  [CALL_STATUS.NEW]: 'Neu',
+  [CALL_STATUS.IN_PROGRESS]: 'In Bearbeitung',
+  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: 'Follow-up geplant',
+  [CALL_STATUS.CLOSED]: 'Abgeschlossen'
+});
+const CALL_STATUS_TRANSITIONS = Object.freeze({
+  [CALL_STATUS.NEW]: new Set([CALL_STATUS.IN_PROGRESS]),
+  [CALL_STATUS.IN_PROGRESS]: new Set([CALL_STATUS.FOLLOW_UP_SCHEDULED]),
+  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: new Set([CALL_STATUS.CLOSED]),
+  [CALL_STATUS.CLOSED]: new Set([])
+});
 function normalizeStatus(s) {
-  if (!s) return 'Neu';
-  if (s === 'Erledigt') return 'Abgeschlossen';
-  if (s === 'Follow-up geplant') return 'In Bearbeitung';
-  return s;
+  const raw = String(s || '').trim().toLowerCase();
+  const aliases = {
+    neu: CALL_STATUS.NEW,
+    new: CALL_STATUS.NEW,
+    'in bearbeitung': CALL_STATUS.IN_PROGRESS,
+    in_progress: CALL_STATUS.IN_PROGRESS,
+    'follow-up geplant': CALL_STATUS.FOLLOW_UP_SCHEDULED,
+    follow_up_scheduled: CALL_STATUS.FOLLOW_UP_SCHEDULED,
+    abgeschlossen: CALL_STATUS.CLOSED,
+    erledigt: CALL_STATUS.CLOSED,
+    closed: CALL_STATUS.CLOSED
+  };
+  return aliases[raw] || CALL_STATUS.NEW;
 }
-
+function statusLabel(s) {
+  return CALL_STATUS_LABELS[normalizeStatus(s)] || CALL_STATUS_LABELS[CALL_STATUS.NEW];
+}
+function assertCallTransition(fromStatus, toStatus) {
+  const from = normalizeStatus(fromStatus);
+  const to = normalizeStatus(toStatus);
+  if (from === to) return;
+  const allowed = CALL_STATUS_TRANSITIONS[from];
+  if (!allowed || !allowed.has(to)) {
+    throw new Error(`Illegal call transition: ${from} -> ${to}`);
+  }
+}
 function isClosedStatus(s) {
-  return normalizeStatus(s) === 'Abgeschlossen';
+  return normalizeStatus(s) === CALL_STATUS.CLOSED;
 }
 
 function sortRecordsOpenFirst(records) {
@@ -2239,8 +2277,8 @@ function sortRecordsOpenFirst(records) {
 
 function statusChip(s) {
   const n = normalizeStatus(s);
-  if (n === 'Abgeschlossen') return '<span class="chip chip-done">✓ Abgeschlossen</span>';
-  if (n === 'In Bearbeitung') return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
+  if (n === CALL_STATUS.CLOSED) return '<span class="chip chip-done">✓ Abgeschlossen</span>';
+  if (n === CALL_STATUS.IN_PROGRESS || n === CALL_STATUS.FOLLOW_UP_SCHEDULED) return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
   return '<span class="chip chip-neu">Neu</span>';
 }
 
@@ -2251,7 +2289,7 @@ function getPriority(record) {
   const isClosed = isClosedStatus(f.dashboard_status);
   const isCallback = !!f.callback_requested;
   const isHot = qualKey(f.lead_quality) === 'hot';
-  const inProgress = normalizeStatus(f.dashboard_status) === 'In Bearbeitung';
+  const inProgress = [CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizeStatus(f.dashboard_status));
 
   if (isClosed) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
   if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
@@ -2890,7 +2928,7 @@ function handleDashboardActivationPrimaryCta(event){
 
 function markCbDone(recordId) {
   const row = document.getElementById('cb-row-' + recordId);
-  confirmClose(recordId, 'Abgeschlossen', row);
+  confirmClose(recordId, CALL_STATUS.CLOSED, row);
 }
 
 function renderFollowups(records) {
@@ -3002,7 +3040,7 @@ function renderList(containerId, records, opts) {
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
-    return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${escHtml((f.dashboard_status||'').toLowerCase())}">
+    return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${escHtml(normalizeStatus(f.dashboard_status))}">
       <div class="av ${avClass(f.lead_quality, done)}">${initials(f.caller_name)}</div>
       <div class="call-body">
         <div class="call-top">
@@ -3023,7 +3061,7 @@ function renderList(containerId, records, opts) {
         ${notizText && !opts.dashboardView?`<div class="call-notiz">📝 ${escHtml(notizText)}</div>`:''}
         ${showActions?`<div class="call-actions">
           ${callTarget&&!done?`<button class="btn-a ${opts.primaryCallback?'btn-callback primary':'btn-call'}" onclick="directCall('${r.id}','${encodeURIComponent(callTarget)}')">Anrufen</button>`:''}
-          ${!done?`<button class="btn-a btn-done" onclick="confirmClose('${r.id}','Abgeschlossen',this.closest('.call-row, .cb-row'))">Erledigt</button>`:''}
+          ${!done?`<button class="btn-a btn-done" onclick="confirmClose('${r.id}','${CALL_STATUS.CLOSED}',this.closest('.call-row, .cb-row'))">Erledigt</button>`:''}
           ${!done?`<button class="btn-a btn-note" onclick="openFollowupDirect('${r.id}')">Follow-up</button>`:''}
           <button class="btn-a btn-note" onclick="openDetail('${r.id}')">Details</button>${!opts.dashboardView?`<button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="openNotizFromBtn(this)">Notiz</button>`:''}
         </div>`:''}
@@ -3232,6 +3270,9 @@ function confirmCloseWithDropdownPreservation(recordId, newStatus, rowElement) {
 async function doStatusChange(recordId, newStatus, rowElement) {
   const normalizedStatus = normalizeStatus(newStatus);
   const row = rowElement || null;
+  const cached = allRecords.find(r => r.id === recordId);
+  const currentStatus = normalizeStatus(cached && cached.fields ? cached.fields.dashboard_status : CALL_STATUS.NEW);
+  assertCallTransition(currentStatus, normalizedStatus);
 
   if (row) {
     row.style.transition = 'all .3s ease';
@@ -3239,7 +3280,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
       row.style.opacity = '.5';
       row.style.background = '#F0FDF4';
       row.style.borderColor = '#BBF7D0';
-    } else if (normalizedStatus === 'In Bearbeitung') {
+    } else if ([CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizedStatus)) {
       row.style.background = '#FFFBEB';
       row.style.borderColor = '#FDE68A';
     } else {
@@ -3252,7 +3293,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
       topRow.querySelectorAll('.chip-done,.chip-working,.chip-rueckruf,.chip-neu').forEach(c => c.remove());
       if (isClosedStatus(normalizedStatus)) {
         const c = document.createElement('span'); c.className='chip chip-done'; c.textContent='✓ Abgeschlossen'; topRow.appendChild(c);
-      } else if (normalizedStatus === 'In Bearbeitung') {
+      } else if ([CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizedStatus)) {
         const c = document.createElement('span'); c.className='chip chip-working'; c.textContent='⏳ In Bearbeitung'; topRow.appendChild(c);
       } else {
         const original = allRecords.find(r => r.id === recordId);
@@ -3263,12 +3304,17 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     }
   }
 
-  const icons = {'Neu':'● Neu', 'In Bearbeitung':'⏳ In Bearbeitung', 'Abgeschlossen':'✓ Abgeschlossen'};
+  const icons = {
+    [CALL_STATUS.NEW]:'● Neu',
+    [CALL_STATUS.IN_PROGRESS]:'⏳ In Bearbeitung',
+    [CALL_STATUS.FOLLOW_UP_SCHEDULED]:'⏳ In Bearbeitung',
+    [CALL_STATUS.CLOSED]:'✓ Abgeschlossen'
+  };
   try {
+    // TODO: move to server-side function
     const fields = {dashboard_status: normalizedStatus};
     if (isClosedStatus(normalizedStatus)) fields.follow_up_at = null;
     await apiPatchOptional(recordId, fields, {dashboard_status: normalizedStatus});
-    const cached = allRecords.find(r => r.id === recordId);
     if (cached && cached.fields) {
       cached.fields.dashboard_status = normalizedStatus;
       if (isClosedStatus(normalizedStatus)) cached.fields.follow_up_at = null;
@@ -3390,24 +3436,43 @@ async function saveFollowup() {
   btn.disabled = true; btn.textContent = 'Speichern...';
 
   // Auto-determine status:
-  // - "Abgeschlossen" if mark-complete is checked
-  // - "In Bearbeitung" if follow-up date is set (but no completion)
+  // - "closed" if mark-complete is checked
+  // - "follow_up_scheduled" if follow-up date is set (but no completion)
   // - Otherwise keep existing (no status change)
   let newStatus = null;
+  const currentRecord = allRecords.find(function(r){ return r.id === notizRecordId; });
+  const currentStatus = normalizeStatus(currentRecord && currentRecord.fields ? currentRecord.fields.dashboard_status : CALL_STATUS.NEW);
   if (markComplete && markComplete.checked) {
-    newStatus = 'Abgeschlossen';
+    if (currentStatus === CALL_STATUS.NEW) {
+      assertCallTransition(CALL_STATUS.NEW, CALL_STATUS.IN_PROGRESS);
+      assertCallTransition(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
+      assertCallTransition(CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED);
+    } else if (currentStatus === CALL_STATUS.IN_PROGRESS) {
+      assertCallTransition(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
+      assertCallTransition(CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED);
+    } else {
+      assertCallTransition(currentStatus, CALL_STATUS.CLOSED);
+    }
+    newStatus = CALL_STATUS.CLOSED;
   } else if (followUpAt) {
-    newStatus = 'In Bearbeitung';
+    if (currentStatus === CALL_STATUS.NEW) {
+      assertCallTransition(CALL_STATUS.NEW, CALL_STATUS.IN_PROGRESS);
+      assertCallTransition(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
+    } else {
+      assertCallTransition(currentStatus, CALL_STATUS.FOLLOW_UP_SCHEDULED);
+    }
+    newStatus = CALL_STATUS.FOLLOW_UP_SCHEDULED;
   }
 
   const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: serializeFollowUpLocal(followUpAt) };
   if (newStatus) fields.dashboard_status = newStatus;
-  if (newStatus === 'Abgeschlossen') fields.follow_up_at = null; // Completed calls have no pending follow-up
+  if (newStatus === CALL_STATUS.CLOSED) fields.follow_up_at = null; // Completed calls have no pending follow-up
   const fallbackFields = { notes_customer_voxera: text };
   if (newStatus) fallbackFields.dashboard_status = newStatus;
   try {
+    // TODO: move to server-side function
     await apiPatchOptional(notizRecordId, fields, fallbackFields);
-    toast(newStatus === 'Abgeschlossen' ? '✓ Abgeschlossen' : followUpAt ? '✓ Follow-up gespeichert' : '✓ Gespeichert');
+    toast(newStatus === CALL_STATUS.CLOSED ? '✓ Abgeschlossen' : followUpAt ? '✓ Follow-up gespeichert' : '✓ Gespeichert');
     closeFollowup();
     notizRecordId = null;
     setTimeout(loadData, 500);
@@ -3481,7 +3546,7 @@ function openDetail(recordId) {
           <div class="detail-line"><span>Telefon</span><span>${escHtml(phone || '–')}</span></div>
           <div class="detail-line"><span>Kategorie</span><span>${escHtml(f.category || '–')}</span></div>
           <div class="detail-line"><span>Lead-Qualität</span><span>${escHtml(f.lead_quality || 'Neu')}</span></div>
-          <div class="detail-line"><span>Status</span><span>${escHtml(normalizeStatus(f.dashboard_status))}</span></div>
+          <div class="detail-line"><span>Status</span><span>${escHtml(statusLabel(f.dashboard_status))}</span></div>
           <div class="detail-line"><span>Rückruf</span><span>${f.callback_requested ? 'Ja' : 'Nein'}</span></div>
           <div class="detail-line"><span>Nächste Aktion</span><span>${escHtml(f.next_action || '–')}</span></div>
           <div class="detail-line"><span>Follow-up</span><span>${f.follow_up_at ? (fmtDate(f.follow_up_at) + ' ' + (fmtTime(f.follow_up_at)||'')) : '–'}</span></div>
@@ -3540,9 +3605,9 @@ async function saveNotiz() {
   const btn = document.getElementById('notiz-save-btn');
   btn.disabled = true; btn.textContent = 'Speichern...';
   const rec = allRecords.find(r => r.id === notizRecordId);
-  const currentStatus = rec && rec.fields ? normalizeStatus(rec.fields.dashboard_status) : 'Neu';
+  const currentStatus = rec && rec.fields ? normalizeStatus(rec.fields.dashboard_status) : CALL_STATUS.NEW;
   const fields = {notes_customer_voxera: text};
-  if (!isClosedStatus(currentStatus)) fields.dashboard_status = 'In Bearbeitung';
+  if (!isClosedStatus(currentStatus)) fields.dashboard_status = CALL_STATUS.IN_PROGRESS;
   try {
     await apiPatchOptional(notizRecordId, fields, {notes_customer_voxera: text});
     toast('📝 Notiz gespeichert');
@@ -3957,7 +4022,7 @@ function filterList(listId, type, btn) {
     if (type === 'alle') { row.classList.remove('hidden'); return; }
     if (type === 'offen') { row.classList.toggle('hidden', row.dataset.open !== '1'); return; }
     if (type === 'dringend') { row.classList.toggle('hidden', !['overdue','callback','today','hot'].includes(row.dataset.priority)); return; }
-    if (type === 'inbearbeitung') { row.classList.toggle('hidden', row.dataset.status !== 'in bearbeitung'); return; }
+    if (type === 'inbearbeitung') { row.classList.toggle('hidden', !['in_progress','follow_up_scheduled'].includes(row.dataset.status)); return; }
     row.classList.toggle('hidden', row.dataset.qual !== type);
   });
 }

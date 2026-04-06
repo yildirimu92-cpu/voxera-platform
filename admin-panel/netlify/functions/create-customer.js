@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { randomUUID } = require('node:crypto');
+const { STATUS } = require('./_lib/status-model');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -142,9 +143,9 @@ exports.handler = async (event) => {
       zip: String(body.zip).trim(),
       city: String(body.city).trim(),
       country: String(body.country).trim(),
-      invite_status: 'not_sent',
+      invite_status: STATUS.access.NOT_SENT,
       welcome_sent: false,
-      status: 'onboarding',
+      status: STATUS.customer.ONBOARDING,
       forwarding_setup_completed: false,
       voxera_number: body.voxera_number ? String(body.voxera_number).trim() : null,
       dashboard_id: body.dashboard_id ? String(body.dashboard_id).trim() : null,

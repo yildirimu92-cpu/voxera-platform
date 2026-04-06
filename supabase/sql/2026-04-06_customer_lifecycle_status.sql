@@ -19,6 +19,7 @@ SET status = CASE lower(trim(coalesce(status, '')))
   WHEN 'activated' THEN 'activated'
   WHEN 'live' THEN 'live'
   WHEN 'paused' THEN 'paused'
+  WHEN 'deleted' THEN 'deleted'
   ELSE 'onboarding'
 END;
 
@@ -27,4 +28,4 @@ ALTER TABLE public.customers
 
 ALTER TABLE public.customers
   ADD CONSTRAINT customers_status_check
-  CHECK (status IN ('onboarding', 'ready', 'invited', 'activated', 'live', 'paused'));
+  CHECK (status IN ('onboarding', 'ready', 'invited', 'activated', 'live', 'paused', 'deleted'));

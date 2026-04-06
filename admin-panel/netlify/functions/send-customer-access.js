@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { STATUS, normalizeCustomerStatus, assertCustomerTransition } = require('./_lib/status-model');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -120,11 +121,16 @@ exports.handler = async (event) => {
     }
 
     if (action === 'mark_activated') {
+      const currentStatus = normalizeCustomerStatus(customer.status);
+      if (currentStatus !== STATUS.customer.ACTIVATED) {
+        assertCustomerTransition(currentStatus, STATUS.customer.ACTIVATED);
+      }
       const nowIso = new Date().toISOString();
       const { data: activatedCustomer, error: activatedUpdateError } = await sbAdmin
         .from('customers')
         .update({
-          status: 'activated',
+          status: STATUS.customer.ACTIVATED,
+          invite_status: STATUS.access.ACTIVATED,
           updated_at: nowIso
         })
         .eq('id', customerId)
@@ -173,7 +179,7 @@ exports.handler = async (event) => {
       onboardingRow &&
       String(onboardingRow.status || '').toLowerCase() === 'ready' &&
       missingFields.length === 0 &&
-      String(customer.status || '').toLowerCase() !== 'ready'
+      normalizeCustomerStatus(customer.status) !== STATUS.customer.READY
     ) {
       const nowIso = new Date().toISOString();
       const { data: readyCustomer, error: readyUpdateError } = await sbAdmin
@@ -193,7 +199,8 @@ exports.handler = async (event) => {
       }
     }
 
-    if (String(customer.status || '').toLowerCase() !== 'ready') {
+    const currentStatus = normalizeCustomerStatus(customer.status);
+    if (currentStatus !== STATUS.customer.READY) {
       console.error('Customer lifecycle status not ready – access send blocked', {
         customerId,
         customer_status: customer.status || null
@@ -230,14 +237,16 @@ exports.handler = async (event) => {
       });
     }
 
+    assertCustomerTransition(currentStatus, STATUS.customer.INVITED);
+
     const nowIso = new Date().toISOString();
     const { data: updatedCustomer, error: updateError } = await sbAdmin
       .from('customers')
       .update({
-        invite_status: 'sent',
+        invite_status: STATUS.access.SENT,
         welcome_sent: true,
         welcome_sent_at: nowIso,
-        status: 'invited',
+        status: STATUS.customer.INVITED,
         updated_at: nowIso
       })
       .eq('id', customerId)
