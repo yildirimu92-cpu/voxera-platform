@@ -512,6 +512,38 @@ const state={
     '2026-04-06 08:40 · Hotel Seeblick: VIP-Eskalation ergänzt',
     '2026-04-05 16:20 · Keller Dental: Versicherungs-FAQ überarbeitet'
   ],
+  admins:[
+    {id:'A-1',name:'Lea Baumann',role:'super-admin',email:'lea@voxera.ch',status:'Aktiv'},
+    {id:'A-2',name:'Noah Keller',role:'admin',email:'noah@voxera.ch',status:'Aktiv'},
+    {id:'A-3',name:'Mia Vogel',role:'support',email:'mia@voxera.ch',status:'MFA offen'}
+  ],
+  featureFlags:[
+    {key:'AI Escalation v2',desc:'Pilot bei 3 Kunden',state:'ON'},
+    {key:'Automatisierte Billing Mails',desc:'Geplant für Q2',state:'OFF'},
+    {key:'Live Call Quality Scoring',desc:'Interner Canary',state:'PARTIAL'}
+  ],
+  aiGlobal:{
+    prompt:'Du bist Voxera, ein professioneller Voice Assistant für Schweizer KMU. Priorisiere Präzision, Datenschutz, höfliche Gesprächsführung und klare Übergaben in kritischen Fällen.',
+    tone:'Professionell, lösungsorientiert, ruhig',
+    voiceBehavior:'Kurz, klar, verbindlich',
+    callDefaults:'Erst Anliegen qualifizieren, dann Lösung/Weiterleitung',
+    fallback:'Bei fehlender Information Rückrufslot + Ticket anbieten',
+    escalation:'Kritisch sofort an Bereitschaft; unzufriedene Caller an Human Queue',
+    constraints:'Keine rechtliche/medizinische Beratung; keine falschen Zusagen; maximal 40s Antwortblöcke'
+  },
+  aiConfigs:{
+    1:{status:'AI Ready',custom:true,businessDescription:'Sanitär- und Notfallservice im Raum Zürich.',services:'Rohrbruch, Reparaturen, Wartung, Offerten.',locationHours:'Zürich + Umgebung, 24/7 Notfall, regulär 07:30-18:00.',bookingFaq:'Notfall sofort verbinden; Termine via Telefon bestätigen.',instructions:'Bei Wasserschäden ruhig führen, Priorität auf Sicherheit und Sofortmaßnahmen.',fallbackEscalation:'Wenn Ersatzteile unklar → Rückruf in 30 Min durch Dispo.',responseConstraints:'Keine Preiszusage ohne Sichtung; keine Rechtsberatung.',internalNotes:'Notfall-Flow am 2026-04-02 geschärft.',lastUpdate:'2026-04-06 09:10'},
+    2:{status:'Needs Review',custom:true,businessDescription:'Moderne Zahnarztpraxis mit Fokus auf Neupatienten.',services:'Kontrolle, Dentalhygiene, Bleaching, Notfallslots.',locationHours:'Bern Innenstadt, Mo-Fr 08:00-17:30.',bookingFaq:'Versicherung immer verifizieren; Notfälle priorisieren.',instructions:'Ton warm und vertrauensbildend, Terminfenster aktiv vorschlagen.',fallbackEscalation:'Wenn Versicherung unklar → Rückruf durch Empfang noch am selben Tag.',responseConstraints:'Keine medizinischen Diagnosen.',internalNotes:'FAQ zu Versicherungen unvollständig.',lastUpdate:'2026-04-05 16:20'},
+    3:{status:'Default Only',custom:false,businessDescription:'',services:'',locationHours:'',bookingFaq:'',instructions:'',fallbackEscalation:'',responseConstraints:'',internalNotes:'Keine individuellen Overrides aktiviert.',lastUpdate:'2026-03-30 11:05'},
+    4:{status:'Partial',custom:true,businessDescription:'Business- und Leisure-Hotel in Luzern.',services:'Zimmer, Gruppenbuchungen, Restaurant-Infos.',locationHours:'24/7 Frontdesk, Restaurant 06:30-23:00.',bookingFaq:'Gruppen >6 Personen an Front Office eskalieren.',instructions:'Mehrsprachig DE/EN; VIP-Caller priorisieren.',fallbackEscalation:'Unklare Verfügbarkeiten an Night Desk eskalieren.',responseConstraints:'Keine Garantie auf Upgrades.',internalNotes:'Französisch-Snippets fehlen.',lastUpdate:'2026-04-06 08:40'},
+    5:{status:'Blocked',custom:true,businessDescription:'',services:'Apothekenberatung, Rezeptabholung, OTC-Produkte.',locationHours:'Winterthur, Mo-Sa 08:00-20:00.',bookingFaq:'Telefonische Reservierung erlaubt, Abholung in 2h.',instructions:'',fallbackEscalation:'',responseConstraints:'Keine pharmazeutische Dosierungsempfehlung.',internalNotes:'Sortimentswechsel noch nicht eingepflegt.',lastUpdate:'2026-04-04 14:55'}
+  },
+  aiSelectedCustomerId:null,
+  aiChanges:[
+    '2026-04-06 09:10 · Global prompt aktualisiert (Notfall-Eskalation präzisiert)',
+    '2026-04-06 08:40 · Hotel Seeblick: VIP-Eskalation ergänzt',
+    '2026-04-05 16:20 · Keller Dental: Versicherungs-FAQ überarbeitet'
+  ],
   events:[
     '10:25 · Case C-101 auf Kritisch gesetzt',
     '10:18 · Hotel Seeblick: neue Reservierungsanfrage',
@@ -735,6 +767,19 @@ function aiMissingFields(cfg){
   return checks.filter(([k])=>!String(cfg?.[k]||'').trim()).map(([,label])=>label);
 }
 
+function aiMissingFields(cfg){
+  const checks=[
+    ['businessDescription','Business Description'],
+    ['services','Services'],
+    ['locationHours','Location/Hours'],
+    ['bookingFaq','FAQ/Contact Prefs'],
+    ['fallbackEscalation','Fallback/Escalation'],
+    ['responseConstraints','Constraints'],
+    ['lastUpdate','Review Timestamp']
+  ];
+  return checks.filter(([k])=>!String(cfg?.[k]||'').trim()).map(([,label])=>label);
+}
+
 function renderAiSetup(){
   const g=state.aiGlobal;
   document.getElementById('ai-global-prompt').value=g.prompt;
@@ -917,6 +962,7 @@ function renderInsights(){
 function hydrateFilters(){
   const plans=[...new Set(state.customers.map(c=>c.plan))];
   const statuses=[...new Set(state.customers.map(c=>c.status))];
+  const onboardingStatuses=[...new Set(state.onboarding.map(o=>o.status))];
   document.getElementById('customer-plan-filter').innerHTML='<option value="all">Plan: Alle</option>'+plans.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   document.getElementById('customer-status-filter').innerHTML='<option value="all">Status: Alle</option>'+statuses.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   document.getElementById('cases-customer-select').innerHTML='<option value="">Kunde wählen …</option>'+state.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
