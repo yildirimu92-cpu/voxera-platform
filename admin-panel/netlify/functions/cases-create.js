@@ -32,10 +32,12 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungueltiger Request Body' }); }
 
   const customerId = String(body.customer_id || '').trim();
-  const title = String(body.title || '').trim();
+  const type = String(body.type || '').trim();
   const note = String(body.note || '').trim();
+  const priority = String(body.priority || (type === 'Rückruf' ? 'Hoch' : 'Mittel')).trim();
 
-  if (!customerId || !title) return response(400, { error: 'Pflichtfelder fehlen: customer_id, title' });
+  if (!customerId || !type) return response(400, { error: 'Pflichtfelder fehlen: customer_id, type' });
+  if (!['Rückruf', 'Follow-up'].includes(type)) return response(400, { error: 'Ungueltiger Case-Typ' });
 
   const now = new Date().toISOString();
   const payload = {

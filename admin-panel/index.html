@@ -966,14 +966,20 @@ const ONBOARDING_STATUS_TRANSITIONS={
 };
 const CASE_STATUS={
   OPEN:'open',
+  IN_PROGRESS:'in_progress',
+  WAITING:'waiting',
   DONE:'done'
 };
 const CASE_STATUS_LABELS={
   [CASE_STATUS.OPEN]:'Offen',
+  [CASE_STATUS.IN_PROGRESS]:'In Bearbeitung',
+  [CASE_STATUS.WAITING]:'Wartend',
   [CASE_STATUS.DONE]:'Erledigt'
 };
 const CASE_STATUS_TRANSITIONS={
-  [CASE_STATUS.OPEN]:new Set([CASE_STATUS.DONE]),
+  [CASE_STATUS.OPEN]:new Set([CASE_STATUS.IN_PROGRESS]),
+  [CASE_STATUS.IN_PROGRESS]:new Set([CASE_STATUS.WAITING,CASE_STATUS.DONE]),
+  [CASE_STATUS.WAITING]:new Set([CASE_STATUS.IN_PROGRESS]),
   [CASE_STATUS.DONE]:new Set([])
 };
 function normalizeCustomerLifecycleStatus(status){
@@ -1028,11 +1034,11 @@ function normalizeCaseStatus(status){
   const aliases={
     offen:CASE_STATUS.OPEN,
     open:CASE_STATUS.OPEN,
-    'in bearbeitung':CASE_STATUS.OPEN,
-    'in progress':CASE_STATUS.OPEN,
-    in_progress:CASE_STATUS.OPEN,
-    wartend:CASE_STATUS.OPEN,
-    waiting:CASE_STATUS.OPEN,
+    'in bearbeitung':CASE_STATUS.IN_PROGRESS,
+    'in progress':CASE_STATUS.IN_PROGRESS,
+    in_progress:CASE_STATUS.IN_PROGRESS,
+    wartend:CASE_STATUS.WAITING,
+    waiting:CASE_STATUS.WAITING,
     geschlossen:CASE_STATUS.DONE,
     erledigt:CASE_STATUS.DONE,
     closed:CASE_STATUS.DONE,
@@ -1214,6 +1220,7 @@ function renderCustomers(){
     <td>${esc(c.latest)}</td>
     <td>${c.openCases}</td>
     <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(c.id)}')">Anliegen</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button><button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button><button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button></div></td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>${primaryAction}<button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case</button><button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding');openCustomerProfile('${jsStr(c.id)}')">Onboarding</button><button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button><button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button></div></td>
   </tr>`;
   }).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 }
@@ -1487,13 +1494,27 @@ function saveCustomerAiConfig(){
 }
 
 function renderCases(){
-  document.getElementById('cases-all').innerHTML=state.cases.map(c=>`<tr>
-    <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.customerId)}')">${esc(customerById(c.customerId)?.name||'—')}</button></td>
-    <td class="wrap">${esc(c.title||c.type||'Anliegen')}</td>
-    <td class="wrap">${esc(c.note||c.notes||'')}</td>
-    <td>${toneBadge(caseStatusLabel(c.status))}</td>
-    <td>${normalizeCaseStatus(c.status)!==CASE_STATUS.DONE?`<button class="btn btn-secondary btn-sm" onclick="updateCase('${c.id}','status','${CASE_STATUS.DONE}')">Erledigt</button>`:'—'}</td>
-  </tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anliegen vorhanden.</div></td></tr>';
+  const callbacks=state.cases.filter(c=>c.type==='Rückruf');
+  const followups=state.cases.filter(c=>c.type==='Follow-up');
+  const row=c=>`<tr>
+    <td>
+      <select class="select" style="height:30px;padding:4px 8px;" onchange="updateCase('${c.id}','priority',this.value)">
+        ${['Kritisch','Hoch','Mittel','Niedrig'].map(p=>`<option ${p===c.priority?'selected':''}>${p}</option>`).join('')}
+      </select>
+    </td>
+    <td>
+      <select class="select" style="height:30px;padding:4px 8px;" onchange="updateCase('${c.id}','status',this.value)">
+        ${[CASE_STATUS.OPEN,CASE_STATUS.IN_PROGRESS,CASE_STATUS.WAITING,CASE_STATUS.DONE].map(s=>`<option value="${s}" ${s===normalizeCaseStatus(c.status)?'selected':''}>${caseStatusLabel(s)}</option>`).join('')}
+      </select>
+    </td>
+    <td>${esc(c.owner)}</td>
+    <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.customerId)}')">${esc(customerById(c.customerId).name)}</button></td>
+    <td>${esc(c.latest)}</td>
+    <td class="wrap">${esc(c.notes)}<div class="muted">${esc(c.id)}</div></td>
+  </tr>`;
+  document.getElementById('cases-callbacks').innerHTML=callbacks.map(row).join('');
+  document.getElementById('cases-followups').innerHTML=followups.map(row).join('');
+  document.getElementById('cases-all').innerHTML=state.cases.map(c=>`<tr><td>${esc(c.type)}</td>${row(c).replace('<tr>','').replace('</tr>','')}</tr>`).join('');
 }
 
 function renderActivity(){
@@ -1503,7 +1524,7 @@ function renderActivity(){
   mapList('activity-customer-changes',[
     ...state.customers.slice(0,4).map(c=>[`${c.name} · ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(c.id))}`,`Plan ${c.plan} · Setup ${getCustomerSetupProgress(c,onboardingForCustomer(c.id))}%`,'Customer'])
   ]);
-  mapList('activity-support',state.cases.slice(0,6).map(cs=>[`${cs.id} · ${customerById(cs.customerId).name}`,`${cs.title||cs.type} · ${caseStatusLabel(cs.status)}`,'Case']));
+  mapList('activity-support',state.cases.slice(0,6).map(cs=>[`${cs.id} · ${customerById(cs.customerId).name}`,`${cs.type} · ${caseStatusLabel(cs.status)} · ${cs.priority} · Owner ${cs.owner}`,'Case']));
   mapList('activity-events',state.events.map(e=>[e,'System event','Ops']));
 }
 
@@ -1583,6 +1604,7 @@ function openCustomerProfile(id){
     <button class="btn btn-secondary btn-sm" onclick="setRoute('onboarding')">Onboarding öffnen</button>
     <button class="btn btn-secondary btn-sm" onclick="toggleCustomerStatus('${jsStr(id)}')">${lifecycleStatus==='paused'?'Aktivieren':'Pausieren'}</button>
     <button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(id)}')">Anliegen erfassen</button>
+    <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Follow-up')">Case erstellen</button>
     <button class="btn btn-secondary btn-sm" onclick="document.querySelector('[data-profile-tab=notes]').click()">Notiz hinzufügen</button>
     <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(id)}','archive')">Archivieren</button>
     <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(id)}','delete')">Löschen</button>`;
@@ -1591,8 +1613,8 @@ function openCustomerProfile(id){
   ];
   document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('profile-summary').innerHTML=`${esc(c.summary)}<div class="muted" style="margin-top:8px;">Fehlende Setup-Schritte: ${missingSteps.length?esc(missingSteps.join(', ')):'keine'}</div>`;
-  document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>idsEq(x.customerId,id)).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="openCaseCaptureModal('${jsStr(id)}','Call: ${jsStr(call.cat)}','${jsStr(`Aus Call ${i+1}: ${call.summary||''}`)}')">Anliegen</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed('${jsStr(id)}',${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
-  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>idsEq(x.customerId,id)).map(ca=>`<tr><td>${esc(ca.title||ca.type||ca.id)}</td><td>${esc(ca.note||ca.notes||'—')}</td><td>${toneBadge(caseStatusLabel(ca.status))}</td><td><div class="inline-actions">${normalizeCaseStatus(ca.status)!==CASE_STATUS.DONE?`<button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','${CASE_STATUS.DONE}')">Erledigt</button>`:'—'}</div></td></tr>`).join('')||'<tr><td colspan="4"><div class="empty">Keine Anliegen vorhanden.</div></td></tr>';
+  document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>idsEq(x.customerId,id)).map((call,i)=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(id)}','Rückruf','Aus Call: ${i+1}')">Case</button><button class="btn btn-quiet btn-sm" onclick="markCallReviewed('${jsStr(id)}',${i})">Reviewed</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
+  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>idsEq(x.customerId,id)).map(ca=>`<tr><td>${esc(ca.id)}</td><td>${toneBadge(caseStatusLabel(ca.status))}</td><td>${toneBadge(ca.priority)}</td><td>${esc(ca.owner)}</td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td><td><div class="inline-actions"><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','status','${CASE_STATUS.DONE}')">Close</button><button class="btn btn-secondary btn-sm" onclick="updateCase('${ca.id}','priority','Hoch')">Prio hoch</button></div></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
   document.getElementById('profile-billing').innerHTML=[['Plan',c.plan],['Preis','CHF '+(c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899')+'/Monat'],['Setup Fee','CHF '+(setupProgress<100?'490':'0')],['Contract','Placeholder · Vertragslaufzeit'],['Billing Metadata','Placeholder · Debitorenreferenz']].map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v">${v}</span></div></div>`).join('');
   document.getElementById('profile-notes').innerHTML=c.notes.map(n=>`<div class="list-item"><div><div class="list-main">${esc(n)}</div><div class="list-sub">Internal operational note</div></div></div>`).join('')||'<div class="empty">Noch keine Notizen.</div>';
   document.getElementById('profile-new-note').value='';
@@ -2105,69 +2127,32 @@ async function submitCreateCustomer(event){
   }
 }
 
-function setCaseCaptureFeedback(type,message){
-  const feedback=document.getElementById('case-capture-feedback');
-  if(!feedback) return;
-  feedback.className='modal-feedback';
-  feedback.textContent=message||'';
-  if(type==='error') feedback.classList.add('error');
-  if(type==='success') feedback.classList.add('success');
-}
-
-function setCaseCaptureSubmitting(isSubmitting){
-  state.caseCapturePending=!!isSubmitting;
-  const btn=document.getElementById('case-capture-submit-btn');
-  if(!btn) return;
-  btn.disabled=!!isSubmitting;
-  btn.textContent=isSubmitting?'Speichert…':'Speichern';
-}
-
-function openCaseCaptureModal(customerId,titlePrefill='',notePrefill=''){
-  const customer=customerById(customerId);
-  if(!customer) return;
-  state.caseCaptureCustomerId=customerId;
-  setCaseCaptureFeedback(null,'');
-  setCaseCaptureSubmitting(false);
-  document.getElementById('case-capture-title').value=titlePrefill||'';
-  document.getElementById('case-capture-note').value=notePrefill||'';
-  document.getElementById('case-capture-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('case-capture-title').focus(),80);
-}
-
-function closeCaseCaptureModal(){
-  document.getElementById('case-capture-modal').classList.remove('open');
-  state.caseCaptureCustomerId=null;
-  state.caseCapturePending=false;
-}
-
-async function createCaseForCustomer(customerId,title='Anliegen',note=''){
+async function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt'){
   const c=customerById(customerId);
   if(!c){
-    setCaseCaptureFeedback('error','Kunde nicht gefunden.');
+    alert('Case konnte nicht erstellt werden: Kunde nicht gefunden.');
     return;
   }
   try{
-    const json=await callAdminFunction('cases-create',{customer_id:customerId,title,note});
+    const json=await callAdminFunction('cases-create',{customer_id:customerId,type,note});
     if(!json?.success||!json?.case) throw new Error(json?.error||'Case konnte nicht erstellt werden.');
     const mapped=mapDbCaseToUi(json.case);
     state.cases=state.cases.filter(existing=>!idsEq(existing.id,mapped.id));
     state.cases.unshift(mapped);
-    state.events.unshift(`${nowStamp()} · ${c.name}: Anliegen erfasst (${title})`);
+    state.events.unshift(`${nowStamp()} · ${c.name}: ${type} Case erstellt`);
     refreshCustomerCaseCounts();
     renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    setCaseCaptureFeedback('success','Anliegen erfasst.');
-    setTimeout(()=>closeCaseCaptureModal(),500);
   }catch(error){
     const payload=error?.payload||{};
-    setCaseCaptureFeedback('error',payload?.error||error?.message||'Anliegen konnte nicht gespeichert werden.');
+    alert(payload?.error||error?.message||'Case konnte nicht erstellt werden.');
   }
 }
 
 async function updateCase(caseId,field,value){
   const target=state.cases.find(c=>c.id===caseId);
   if(!target){
-    showLoadError('Anliegen konnte nicht aktualisiert werden: nicht gefunden.');
+    alert('Case konnte nicht aktualisiert werden: Case nicht gefunden.');
     return;
   }
   try{
@@ -2183,7 +2168,7 @@ async function updateCase(caseId,field,value){
     if(idsEq(state.selectedCustomer,mapped.customerId)) openCustomerProfile(mapped.customerId);
   }catch(error){
     const payload=error?.payload||{};
-    showLoadError(payload?.error||error?.message||'Anliegen konnte nicht aktualisiert werden.');
+    alert(payload?.error||error?.message||'Case konnte nicht aktualisiert werden.');
   }
 }
 
@@ -2341,11 +2326,12 @@ function wireUi(){
   document.getElementById('ai-save-customer').addEventListener('click',saveCustomerAiConfig);
   document.getElementById('cases-create-btn').addEventListener('click',()=>{
     const cid=document.getElementById('cases-customer-select').value;
+    const type=document.getElementById('cases-type-select').value;
     if(!cid){
-      showLoadError('Bitte zuerst einen Kunden wählen.');
+      alert('Bitte zuerst einen Kunden wählen.');
       return;
     }
-    openCaseCaptureModal(cid);
+    createCaseForCustomer(cid,type,'Direkt aus Cases erstellt');
   });
   document.getElementById('case-capture-form').addEventListener('submit',async e=>{
     e.preventDefault();
@@ -2581,9 +2567,10 @@ function mapDbCaseToUi(dbRow) {
     : '—';
   return {
     id:         String(dbRow.id),
-    type:       dbRow.type       || 'Anliegen',
-    title:      dbRow.type       || 'Anliegen',
+    type:       dbRow.type       || 'Rückruf',
+    priority:   dbRow.priority   || 'Mittel',
     status:     normalizeCaseStatus(dbRow.status),
+    owner:      dbRow.owner      || '—',
     customerId: String(dbRow.customer_id),
     latest:     ts,
     notes:      dbRow.notes      || '',

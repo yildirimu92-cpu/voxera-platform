@@ -49,6 +49,32 @@ exports.handler = async (event) => {
     follow_up_at: body.follow_up_at != null ? (String(body.follow_up_at).trim() || null) : undefined
   };
 
+  const currentStatus = normalizeCallStatus(callRow.dashboard_status || CALL_STATUS.NEW);
+  let targetStatus = null;
+  const markComplete = body.mark_complete === true;
+  const followUpSet = !!(patch.follow_up_at);
+
+  if (markComplete) {
+    targetStatus = CALL_STATUS.CLOSED;
+  } else if (followUpSet) {
+    targetStatus = CALL_STATUS.FOLLOW_UP_SCHEDULED;
+  }
+
+  if (targetStatus) {
+    try {
+      if (currentStatus === CALL_STATUS.NEW && targetStatus === CALL_STATUS.FOLLOW_UP_SCHEDULED) {
+        assertCallTransition(CALL_STATUS.NEW, CALL_STATUS.IN_PROGRESS);
+        assertCallTransition(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
+      } else {
+        assertCallTransition(currentStatus, targetStatus);
+      }
+    } catch (e) {
+      return response(409, { error: e.message, from_status: currentStatus, to_status: targetStatus });
+    }
+    patch.dashboard_status = targetStatus;
+    if (targetStatus === CALL_STATUS.CLOSED) patch.follow_up_at = null;
+  }
+
   Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
   if (Object.keys(patch).length === 1 && patch.updated_at) return response(400, { error: 'Keine erlaubten Aenderungen uebergeben' });
 

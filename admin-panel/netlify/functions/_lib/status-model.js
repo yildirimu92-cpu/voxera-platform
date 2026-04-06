@@ -60,9 +60,9 @@ const ONBOARDING_TRANSITIONS = Object.freeze({
   [STATUS.onboarding.COMPLETED]: new Set([])
 });
 const CASE_TRANSITIONS = Object.freeze({
-  [STATUS.case.OPEN]: new Set([STATUS.case.DONE]),
-  [STATUS.case.IN_PROGRESS]: new Set([STATUS.case.DONE]),
-  [STATUS.case.WAITING]: new Set([STATUS.case.DONE]),
+  [STATUS.case.OPEN]: new Set([STATUS.case.IN_PROGRESS]),
+  [STATUS.case.IN_PROGRESS]: new Set([STATUS.case.WAITING, STATUS.case.DONE]),
+  [STATUS.case.WAITING]: new Set([STATUS.case.IN_PROGRESS]),
   [STATUS.case.DONE]: new Set([])
 });
 const CALL_TRANSITIONS = Object.freeze({
@@ -115,10 +115,10 @@ function normalizeCaseStatus(status) {
   const aliases = {
     offen: STATUS.case.OPEN,
     open: STATUS.case.OPEN,
-    in_bearbeitung: STATUS.case.OPEN,
-    in_progress: STATUS.case.OPEN,
-    wartend: STATUS.case.OPEN,
-    waiting: STATUS.case.OPEN,
+    in_bearbeitung: STATUS.case.IN_PROGRESS,
+    in_progress: STATUS.case.IN_PROGRESS,
+    wartend: STATUS.case.WAITING,
+    waiting: STATUS.case.WAITING,
     geschlossen: STATUS.case.DONE,
     erledigt: STATUS.case.DONE,
     done: STATUS.case.DONE,
