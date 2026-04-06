@@ -127,6 +127,31 @@ exports.handler = async (event) => {
       });
     }
 
+    const { data: onboardingRow, error: onboardingLookupError } = await sbAdmin
+      .from('onboarding')
+      .select('id, status, progress')
+      .eq('customer_id', customerId)
+      .maybeSingle();
+
+    if (onboardingLookupError) {
+      console.error('Onboarding lookup failed', onboardingLookupError);
+      return response(500, {
+        error: 'Onboarding-Daten konnten nicht geladen werden.',
+        details: onboardingLookupError.message
+      });
+    }
+
+    if (!onboardingRow || String(onboardingRow.status || '').toLowerCase() !== 'ready') {
+      console.error('Onboarding not ready – access send blocked', {
+        customerId,
+        onboarding_status: onboardingRow?.status || null
+      });
+      return response(409, {
+        error: 'Zugang kann erst gesendet werden, wenn die Einrichtung im Admin-Panel vollständig abgeschlossen ist.',
+        onboarding_status: onboardingRow?.status || null
+      });
+    }
+
     const activateUrl = process.env.ACTIVATE_URL || 'https://dashboard.voxera.ch/activate';
     const { data: linkData, error: linkError } = await sbAdmin.auth.admin.generateLink({
       type: 'recovery',
@@ -172,16 +197,6 @@ exports.handler = async (event) => {
         error: 'Kundenstatus konnte nach Versand nicht aktualisiert werden.',
         details: updateError.message
       });
-    }
-
-    const { data: onboardingRow, error: onboardingLookupError } = await sbAdmin
-      .from('onboarding')
-      .select('id, progress')
-      .eq('customer_id', customerId)
-      .maybeSingle();
-
-    if (onboardingLookupError) {
-      console.error('Onboarding lookup failed', onboardingLookupError);
     }
 
     let onboardingUpdated = false;
