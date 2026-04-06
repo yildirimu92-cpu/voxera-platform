@@ -3377,6 +3377,10 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   };
   try {
     await applyStatusTransition(recordId, currentStatus, normalizedStatus);
+    // TODO: move to server-side function
+    const fields = {dashboard_status: normalizedStatus};
+    if (isClosedStatus(normalizedStatus)) fields.follow_up_at = null;
+    await apiPatchOptional(recordId, fields, {dashboard_status: normalizedStatus});
     if (cached && cached.fields) {
       cached.fields.dashboard_status = normalizedStatus;
       if (isClosedStatus(normalizedStatus)) cached.fields.follow_up_at = null;
@@ -3528,9 +3532,11 @@ async function saveFollowup() {
   }
 
   const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: serializeFollowUpLocal(followUpAt) };
+  if (newStatus) fields.dashboard_status = newStatus;
   if (newStatus === CALL_STATUS.CLOSED) fields.follow_up_at = null; // Completed calls have no pending follow-up
   const fallbackFields = { notes_customer_voxera: text };
   try {
+    // TODO: move to server-side function
     await apiPatchOptional(notizRecordId, fields, fallbackFields);
     if (newStatus) {
       await applyStatusTransition(notizRecordId, currentStatus, newStatus);
@@ -3669,6 +3675,8 @@ async function saveNotiz() {
   btn.disabled = true; btn.textContent = 'Speichern...';
   const rec = allRecords.find(r => r.id === notizRecordId);
   const currentStatus = rec && rec.fields ? normalizeStatus(rec.fields.dashboard_status) : CALL_STATUS.NEW;
+  const fields = {notes_customer_voxera: text};
+  if (!isClosedStatus(currentStatus)) fields.dashboard_status = CALL_STATUS.IN_PROGRESS;
   try {
     await apiPatchOptional(notizRecordId, {notes_customer_voxera: text}, {notes_customer_voxera: text});
     if (!isClosedStatus(currentStatus)) {
