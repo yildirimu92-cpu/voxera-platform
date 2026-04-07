@@ -36,7 +36,29 @@ exports.handler = async (event) => {
     if (!['none', 'callback_only', 'all_calls'].includes(mode)) {
       return response(400, { error: 'notification_mode ungueltig' });
     }
+
+    // Single source of truth: notification_mode.
+    // Legacy booleans are kept in sync for backward compatibility only.
+    const legacyByMode = {
+      none: {
+        notification_active: false,
+        new_log_email_active: false,
+        missed_call_email_active: false
+      },
+      callback_only: {
+        notification_active: true,
+        new_log_email_active: false,
+        missed_call_email_active: true
+      },
+      all_calls: {
+        notification_active: true,
+        new_log_email_active: true,
+        missed_call_email_active: true
+      }
+    };
+
     allowed.notification_mode = mode;
+    Object.assign(allowed, legacyByMode[mode]);
   }
   if (body.forwarding_setup_completed != null) {
     allowed.forwarding_setup_completed = body.forwarding_setup_completed === true;
