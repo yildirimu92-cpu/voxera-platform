@@ -1096,13 +1096,28 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 const SB_URL='https://ulcofbgrovgcvowdjrge.supabase.co';
 const SB_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
 const supabaseLib=window.supabase;
+const ADMIN_AUTH_STORAGE_KEY='voxera-admin-session';
+function getPreferredAuthStorage(){
+  const candidates=[window.sessionStorage,window.localStorage];
+  for(const storage of candidates){
+    if(!storage) continue;
+    try{
+      const probe='__voxera_auth_probe__';
+      storage.setItem(probe,'1');
+      storage.removeItem(probe);
+      return storage;
+    }catch(_e){}
+  }
+  return undefined;
+}
+const authStorage=getPreferredAuthStorage();
 const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SB_URL,SB_ANON_KEY,{
   auth:{
     persistSession:true,
     autoRefreshToken:true,
     detectSessionInUrl:false,
-    storageKey:'voxera-admin-session',
-    storage:window.sessionStorage
+    storageKey:ADMIN_AUTH_STORAGE_KEY,
+    storage:authStorage
   }
 }):null;
 
@@ -3073,28 +3088,32 @@ function wireUi(){
 
 async function hydrateAdminInfo(){
   if(!(authClient&&authClient.auth)){
-    window.location.href='login.html';
+    window.location.replace('login.html');
     return;
   }
   try{
     const {data:{session}}=await authClient.auth.getSession();
     const email=session?.user?.email||'admin@voxera.ch';
     document.getElementById('sidebar-user').textContent=email;
-    if(!session) window.location.href='login.html';
+    if(!session){
+      try{await authClient.auth.signOut();}catch(_e){}
+      window.location.replace('login.html');
+    }
   }catch(_e){
-    window.location.href='login.html';
+    try{await authClient.auth.signOut();}catch(__e){}
+    window.location.replace('login.html');
   }
 }
 
 async function requireAdminSessionOrRedirect(){
   if(!(authClient&&authClient.auth)){
-    window.location.href='login.html';
+    window.location.replace('login.html');
     throw new Error('Admin auth client missing');
   }
   const {data:{session},error:sessionError}=await authClient.auth.getSession();
   if(sessionError||!session||!session.user?.id){
     try{await authClient.auth.signOut();}catch(_e){}
-    window.location.href='login.html';
+    window.location.replace('login.html');
     throw new Error('Admin session missing');
   }
   const {data:admin,error:adminError}=await authClient
@@ -3111,17 +3130,18 @@ async function requireAdminSessionOrRedirect(){
   const role=normalizeRole(admin?.role);
   const allowed=new Set(['super-admin','admin','support','owner','ops']);
   if(adminError){
-    window.location.href='login.html';
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.replace('login.html');
     throw new Error('Admin lookup failed');
   }
   if(!admin){
     try{await authClient.auth.signOut();}catch(_e){}
-    window.location.href='login.html';
+    window.location.replace('login.html');
     throw new Error('Admin row missing');
   }
   if(role && !allowed.has(role)){
     try{await authClient.auth.signOut();}catch(_e){}
-    window.location.href='login.html';
+    window.location.replace('login.html');
     throw new Error('Admin role not allowed');
   }
   return admin;

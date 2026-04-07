@@ -114,8 +114,31 @@ const SB_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
 const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
 
 const supabaseLib = window.supabase;
+const ADMIN_AUTH_STORAGE_KEY = 'voxera-admin-session';
+function getPreferredAuthStorage() {
+  const candidates = [window.sessionStorage, window.localStorage];
+  for (const storage of candidates) {
+    if (!storage) continue;
+    try {
+      const probe = '__voxera_auth_probe__';
+      storage.setItem(probe, '1');
+      storage.removeItem(probe);
+      return storage;
+    } catch (_e) {}
+  }
+  return undefined;
+}
+const authStorage = getPreferredAuthStorage();
 const sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
-  ? supabaseLib.createClient(SB_URL, SB_ANON_KEY)
+  ? supabaseLib.createClient(SB_URL, SB_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        storageKey: ADMIN_AUTH_STORAGE_KEY,
+        storage: authStorage
+      }
+    })
   : null;
 const ALLOWED_ADMIN_ROLES = new Set(['super-admin','admin','support','owner','ops']);
 function normalizeAdminRole(role){
@@ -132,16 +155,20 @@ function isAllowedAdminRole(role){
 // Session-Check: Wenn bereits eingeloggt, direkt weiterleiten
 (async () => {
   if (!sb) return;
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    // Prüfe ob User ein Admin ist
-    const { data: admin } = await sb.from('admins').select('id,role').eq('id', session.user.id).single();
-    if (admin && isAllowedAdminRole(admin.role)) {
-      window.location.href = 'index.html';
-    } else {
-      // Kein Admin → Session löschen
-      await sb.auth.signOut();
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      // Prüfe ob User ein Admin ist
+      const { data: admin } = await sb.from('admins').select('id,role').eq('id', session.user.id).single();
+      if (admin && isAllowedAdminRole(admin.role)) {
+        window.location.replace('index.html');
+      } else {
+        // Kein Admin → Session löschen
+        await sb.auth.signOut();
+      }
     }
+  } catch (_e) {
+    try { await sb.auth.signOut(); } catch (__e) {}
   }
 })();
 
@@ -181,7 +208,7 @@ async function doLogin() {
       return;
     }
 
-    window.location.href = 'index.html';
+    window.location.replace('index.html');
   } catch (e) {
     showError(e.message === 'Invalid login credentials'
       ? 'E-Mail oder Passwort ist falsch.'

@@ -1855,6 +1855,21 @@ console.info('[voxera-dashboard] SUPABASE_URL gesetzt:', !!supabaseUrlValue);
 console.info('[voxera-dashboard] SUPABASE_ANON_KEY gesetzt:', !!supabaseAnonKeyValue);
 
 var _sb = null;
+const CUSTOMER_AUTH_STORAGE_KEY = 'voxera-auth';
+function getPreferredAuthStorage() {
+  const candidates = [window.sessionStorage, window.localStorage];
+  for (const storage of candidates) {
+    if (!storage) continue;
+    try {
+      const probe = '__voxera_customer_auth_probe__';
+      storage.setItem(probe, '1');
+      storage.removeItem(probe);
+      return storage;
+    } catch (_e) {}
+  }
+  return undefined;
+}
+const customerAuthStorage = getPreferredAuthStorage();
 if (supabaseLib && typeof supabaseLib.createClient === 'function' && supabaseUrlValue && supabaseAnonKeyValue) {
   try {
     _sb = supabaseLib.createClient(supabaseUrlValue, supabaseAnonKeyValue, {
@@ -1862,8 +1877,8 @@ if (supabaseLib && typeof supabaseLib.createClient === 'function' && supabaseUrl
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        storage: window.localStorage,
-        storageKey: 'voxera-auth'
+        storage: customerAuthStorage,
+        storageKey: CUSTOMER_AUTH_STORAGE_KEY
       }
     });
     console.info('[voxera-dashboard] Client erfolgreich erstellt');
@@ -2195,7 +2210,12 @@ async function loadCallRecords(customerIdRaw) {
 async function callDashboardFunction(name, payload) {
   const sb = getSupabaseAuthClient();
   if (!sb) throw new Error('Supabase auth client missing');
-  const { data: { session }, error } = await sb.auth.getSession();
+  let { data: { session }, error } = await sb.auth.getSession();
+  if (!error && (!session || !session.access_token)) {
+    const refreshed = await sb.auth.refreshSession();
+    session = refreshed?.data?.session || null;
+    error = refreshed?.error || null;
+  }
   if (error || !session || !session.access_token) {
     throw new Error('Auth session missing');
   }
