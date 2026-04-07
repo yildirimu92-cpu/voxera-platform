@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
+const { STATUS, normalizeCustomerStatus, normalizeOnboardingStatus } = require('./_lib/status-model');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -129,6 +130,8 @@ exports.handler = async (event) => {
   // action: 'send_access' (Standard) | 'reset_password' | 'mark_activated'
   const action = String(body.action || 'send_access').trim().toLowerCase();
 
+  const idempotencyScope = `customer:${customerId}:action:${action}`;
+
   // Kunden laden
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
@@ -139,6 +142,12 @@ exports.handler = async (event) => {
   if (customerError || !customer) {
     return response(400, { error: 'Kunde nicht gefunden.' });
   }
+
+  const { data: onboardingRow } = await sbAdmin
+    .from('onboarding')
+    .select('id, status, progress')
+    .eq('customer_id', customerId)
+    .maybeSingle();
 
   // ─── ACTION: mark_activated ───────────────────────────────────────────────
   if (action === 'mark_activated') {
@@ -197,7 +206,98 @@ exports.handler = async (event) => {
   }
 
   // ─── ACTION: send_access (Standard-Welcome-Mail) ──────────────────────────
-  // KEIN Status-Gate mehr – Admin entscheidet manuell wann der Zugang gesendet wird.
+  const normalizedCustomerStatus = normalizeCustomerStatus(customer.status);
+  const normalizedOnboardingStatus = normalizeOnboardingStatus(onboardingRow?.status);
+  const assistantReady =
+    normalizedCustomerStatus === STATUS.customer.READY
+    && (!onboardingRow || normalizedOnboardingStatus === STATUS.onboarding.READY || normalizedOnboardingStatus === STATUS.onboarding.COMPLETED);
+
+  if (!assistantReady) {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      event: 'send_customer_access_blocked',
+      reason: 'assistant_not_ready',
+      idempotency_scope: idempotencyScope,
+      customer_id: customerId,
+      customer_status: normalizedCustomerStatus,
+      onboarding_status: onboardingRow ? normalizedOnboardingStatus : null
+    }));
+    return response(409, {
+      error: 'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.',
+      customer_status: normalizedCustomerStatus,
+      onboarding_status: onboardingRow ? normalizedOnboardingStatus : null
+    });
+  }
+
+  if (customer.welcome_sent || customer.invite_status === STATUS.access.SENT || customer.invite_status === STATUS.access.ACTIVATED) {
+    console.info(JSON.stringify({
+      level: 'info',
+      event: 'send_customer_access_duplicate_ignored',
+      reason: 'already_sent',
+      idempotency_scope: idempotencyScope,
+      customer_id: customerId,
+      invite_status: customer.invite_status
+    }));
+    return response(200, {
+      success: true,
+      duplicate: true,
+      reason: 'already_sent',
+      message: 'Zugang wurde bereits versendet. Kein weiterer Versand ausgelöst.',
+      customer
+    });
+  }
+
+  // Idempotenz-Claim: Nur ein Request darf gleichzeitig den Versand auslösen.
+  const claimTs = new Date().toISOString();
+  const { data: claimRows, error: claimError } = await sbAdmin
+    .from('customers')
+    .update({ invite_status: 'sending', updated_at: claimTs })
+    .eq('id', customerId)
+    .eq('status', STATUS.customer.READY)
+    .or('invite_status.eq.not_sent,invite_status.is.null')
+    .select('id');
+
+  if (claimError) {
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'send_customer_access_claim_failed',
+      reason: 'claim_update_error',
+      idempotency_scope: idempotencyScope,
+      customer_id: customerId,
+      error_message: claimError.message || 'unknown error',
+      error_code: claimError.code || null
+    }));
+    return response(500, { error: 'Idempotenz-Claim fehlgeschlagen.', details: claimError.message });
+  }
+
+  if (!Array.isArray(claimRows) || claimRows.length === 0) {
+    const { data: latestCustomer } = await sbAdmin
+      .from('customers')
+      .select('id, status, invite_status, welcome_sent, welcome_sent_at')
+      .eq('id', customerId)
+      .single();
+
+    const duplicateReason = latestCustomer?.invite_status === 'sending' ? 'in_progress' : 'already_processed';
+    console.info(JSON.stringify({
+      level: 'info',
+      event: 'send_customer_access_duplicate_ignored',
+      reason: duplicateReason,
+      idempotency_scope: idempotencyScope,
+      customer_id: customerId,
+      invite_status: latestCustomer?.invite_status || null,
+      welcome_sent: Boolean(latestCustomer?.welcome_sent)
+    }));
+    return response(200, {
+      success: true,
+      duplicate: true,
+      reason: duplicateReason,
+      message: duplicateReason === 'in_progress'
+        ? 'Zugang wird bereits versendet. Kein zweiter Versand ausgelöst.'
+        : 'Zugang wurde bereits verarbeitet. Kein weiterer Versand ausgelöst.',
+      customer: latestCustomer || customer
+    });
+  }
+
   const activateUrl = process.env.ACTIVATE_URL || 'https://dashboard.voxera.ch';
   const { data: linkData, error: linkErr } = await sbAdmin.auth.admin.generateLink({
     type: 'recovery',
@@ -212,12 +312,20 @@ exports.handler = async (event) => {
   }
 
   const delivery = await sendViaWebhook({ sbAdmin, customer, activationLink });
-  if (!delivery.ok) return response(delivery.statusCode || 500, {
-    error: delivery.error,
-    details: delivery.details || null,
-    limitation: delivery.limitation || null,
-    outbox_id: delivery.outbox_id || null
-  });
+  if (!delivery.ok) {
+    await sbAdmin
+      .from('customers')
+      .update({ invite_status: 'not_sent', updated_at: new Date().toISOString() })
+      .eq('id', customerId)
+      .eq('invite_status', 'sending');
+
+    return response(delivery.statusCode || 500, {
+      error: delivery.error,
+      details: delivery.details || null,
+      limitation: delivery.limitation || null,
+      outbox_id: delivery.outbox_id || null
+    });
+  }
 
   // Kundenstatus nach Versand aktualisieren
   const nowIso = new Date().toISOString();
@@ -231,6 +339,7 @@ exports.handler = async (event) => {
       updated_at: nowIso
     })
     .eq('id', customerId)
+    .eq('invite_status', 'sending')
     .select('*')
     .single();
 
@@ -240,18 +349,18 @@ exports.handler = async (event) => {
   }
 
   // Onboarding-Progress aktualisieren falls vorhanden
-  const { data: onboardingRow } = await sbAdmin
+  const { data: onboardingProgressRow } = await sbAdmin
     .from('onboarding')
     .select('id, progress')
     .eq('customer_id', customerId)
     .maybeSingle();
 
-  if (onboardingRow?.id) {
-    const nextProgress = Math.min(90, Math.max(Number(onboardingRow.progress || 0), Number(onboardingRow.progress || 0) + 10));
+  if (onboardingProgressRow?.id) {
+    const nextProgress = Math.min(90, Math.max(Number(onboardingProgressRow.progress || 0), Number(onboardingProgressRow.progress || 0) + 10));
     await sbAdmin
       .from('onboarding')
       .update({ next_step: 'Kunde aktiviert Zugang', progress: nextProgress, updated_at: nowIso })
-      .eq('id', onboardingRow.id);
+      .eq('id', onboardingProgressRow.id);
   }
 
   return response(200, {
