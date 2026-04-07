@@ -35,7 +35,7 @@ exports.handler = async (event) => {
   const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const sbAnonKey = process.env.SUPABASE_ANON_KEY;
   if (!sbUrl || !sbServiceKey || !sbAnonKey) {
-    return response(500, { error: 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.' });
+    return response(500, { error: 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY müssen gesetzt sein.' });
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
@@ -48,7 +48,7 @@ exports.handler = async (event) => {
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }
-  catch (e) { return response(400, { error: 'Ungueltiger Request Body' }); }
+  catch (e) { return response(400, { error: 'Ungültiger Request Body' }); }
 
   const { contract_id, customer_id, customer_email, customer_name, plan, contract_text, signed_at } = body;
 
