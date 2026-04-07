@@ -14,6 +14,62 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function logEvent(level, eventName, payload = {}) {
+  const base = { level, event: eventName, ts: new Date().toISOString() };
+  if (level === 'error') {
+    console.error(JSON.stringify({ ...base, ...payload }));
+    return;
+  }
+  console.log(JSON.stringify({ ...base, ...payload }));
+}
+
+async function rollbackCreateCustomer({ sbAdmin, authUserId, customerId, onboardingId }) {
+  const rollbackState = {
+    onboarding_deleted: onboardingId ? false : null,
+    customer_deleted: customerId ? false : null,
+    auth_user_deleted: authUserId ? false : null
+  };
+
+  if (onboardingId) {
+    const { error } = await sbAdmin.from('onboarding').delete().eq('id', onboardingId);
+    rollbackState.onboarding_deleted = !error;
+    if (error) {
+      logEvent('error', 'create_customer_rollback_onboarding_failed', {
+        onboarding_id: onboardingId,
+        error_code: error.code || null,
+        error_message: error.message || 'unknown error'
+      });
+    }
+  }
+
+  if (customerId) {
+    const { error } = await sbAdmin.from('customers').delete().eq('id', customerId);
+    rollbackState.customer_deleted = !error;
+    if (error) {
+      logEvent('error', 'create_customer_rollback_customer_failed', {
+        customer_id: customerId,
+        error_code: error.code || null,
+        error_message: error.message || 'unknown error'
+      });
+    }
+  }
+
+  if (authUserId) {
+    const { error } = await sbAdmin.auth.admin.deleteUser(authUserId);
+    rollbackState.auth_user_deleted = !error;
+    if (error) {
+      logEvent('error', 'create_customer_rollback_auth_failed', {
+        auth_user_id: authUserId,
+        error_code: error.code || null,
+        error_message: error.message || 'unknown error'
+      });
+    }
+  }
+
+  const rollbackApplied = Object.values(rollbackState).every(v => v === null || v === true);
+  return { rollbackApplied, rollbackState };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -89,12 +145,17 @@ exports.handler = async (event) => {
         details: authError.message
       });
     }
-    console.error('Auth user creation failed', authError);
+    logEvent('error', 'create_customer_auth_user_create_failed', {
+      email,
+      error_code: authError.code || null,
+      error_message: authError.message || 'unknown error',
+      error_status: authError.status || null
+    });
     return response(500, { error: 'Auth-Konto konnte nicht angelegt werden.', details: authError.message });
   }
 
   const authUserId = authData.user.id;
-  console.log('Auth user created', { authUserId, email });
+  logEvent('info', 'create_customer_auth_user_created', { auth_user_id: authUserId, email });
 
   // ─── Customer-Tabellen-Eintrag ────────────────────────────────────────────
   const contactFirstName = body.contact_first_name ? String(body.contact_first_name).trim() : null;
@@ -134,14 +195,28 @@ exports.handler = async (event) => {
     .single();
 
   if (customerError) {
-    // Rollback: Auth-User löschen damit E-Mail wiederverwendbar bleibt
-    console.error('Customer insert failed – rolling back auth user', customerError);
-    await sbAdmin.auth.admin.deleteUser(authUserId);
+    logEvent('error', 'create_customer_customer_insert_failed', {
+      customer_id: customerId,
+      auth_user_id: authUserId,
+      email,
+      error_code: customerError.code || null,
+      error_message: customerError.message || 'unknown error'
+    });
+    const rollback = await rollbackCreateCustomer({ sbAdmin, authUserId });
 
     if (customerError.code === '23505') {
-      return response(409, { error: 'Ein Kunde mit dieser E-Mail existiert bereits.' });
+      return response(409, {
+        error: 'Ein Kunde mit dieser E-Mail existiert bereits.',
+        rollback_applied: rollback.rollbackApplied,
+        rollback_state: rollback.rollbackState
+      });
     }
-    return response(500, { error: 'Kunden-Datensatz konnte nicht angelegt werden.', details: customerError.message });
+    return response(500, {
+      error: 'Kunden-Datensatz konnte nicht angelegt werden.',
+      details: customerError.message,
+      rollback_applied: rollback.rollbackApplied,
+      rollback_state: rollback.rollbackState
+    });
   }
 
   // ─── Onboarding-Eintrag ───────────────────────────────────────────────────
@@ -162,14 +237,20 @@ exports.handler = async (event) => {
     .single();
 
   if (onboardingError) {
-    // Rollback: Customer + Auth-User löschen
-    console.error('Onboarding insert failed – rolling back', onboardingError);
-    await sbAdmin.from('customers').delete().eq('id', customerId);
-    await sbAdmin.auth.admin.deleteUser(authUserId);
+    logEvent('error', 'create_customer_onboarding_insert_failed', {
+      onboarding_id: onboardingId,
+      customer_id: customerId,
+      auth_user_id: authUserId,
+      error_code: onboardingError.code || null,
+      error_message: onboardingError.message || 'unknown error'
+    });
+    const rollback = await rollbackCreateCustomer({ sbAdmin, authUserId, customerId });
 
     return response(500, {
       error: 'Onboarding-Eintrag konnte nicht angelegt werden.',
-      details: onboardingError.message
+      details: onboardingError.message,
+      rollback_applied: rollback.rollbackApplied,
+      rollback_state: rollback.rollbackState
     });
   }
 
@@ -188,13 +269,26 @@ exports.handler = async (event) => {
     });
 
   if (usersError) {
-    // Nicht fatal – Dashboard kann Fallback nutzen, aber loggen
-    console.error('users insert failed (non-fatal)', usersError.message);
+    logEvent('error', 'create_customer_users_insert_failed', {
+      customer_id: customerId,
+      onboarding_id: onboardingId,
+      auth_user_id: authUserId,
+      email,
+      error_code: usersError.code || null,
+      error_message: usersError.message || 'unknown error'
+    });
+    const rollback = await rollbackCreateCustomer({ sbAdmin, authUserId, customerId, onboardingId });
+    return response(500, {
+      error: 'users-Profil konnte nicht angelegt werden. Kunde wurde nicht erstellt.',
+      details: usersError.message,
+      rollback_applied: rollback.rollbackApplied,
+      rollback_state: rollback.rollbackState
+    });
   } else {
-    console.log('users entry created', { authUserId, customerId });
+    logEvent('info', 'create_customer_users_insert_created', { auth_user_id: authUserId, customer_id: customerId });
   }
 
-  console.log('Customer created successfully', { customerId, authUserId, email });
+  logEvent('info', 'create_customer_succeeded', { customer_id: customerId, auth_user_id: authUserId, email });
 
   return response(200, {
     success: true,
