@@ -115,7 +115,15 @@ const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const supabaseLib = window.supabase;
 const sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
-  ? supabaseLib.createClient(SB_URL, SB_ANON_KEY)
+  ? supabaseLib.createClient(SB_URL, SB_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        storageKey: 'voxera-admin-session',
+        storage: window.sessionStorage
+      }
+    })
   : null;
 const ALLOWED_ADMIN_ROLES = new Set(['super-admin','admin','support','owner','ops']);
 function normalizeAdminRole(role){
