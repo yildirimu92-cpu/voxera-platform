@@ -553,8 +553,8 @@ body{
 /* PRIMARY FILLED ACTIONS */
 .btn-call{background:var(--blue);color:var(--white);border:none;box-shadow:0 1px 3px rgba(26,86,219,.12);}
 .btn-call:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
-.btn-callback.primary{background:var(--red);color:var(--white);border:none;box-shadow:0 1px 3px rgba(220,38,38,.12);}
-.btn-callback.primary:hover{background:#B91C1C;}
+.btn-callback.primary{background:var(--blue);color:var(--white);border:none;box-shadow:0 1px 3px rgba(26,86,219,.12);}
+.btn-callback.primary:hover{background:var(--blue-dark);}
 /* SECONDARY OUTLINED ACTIONS */
 .btn-done,.btn-note,.btn-callback:not(.primary){background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
 .btn-done:hover,.btn-note:hover,.btn-callback:not(.primary):hover{border-color:var(--gray400);color:var(--gray700);background:var(--gray50);}
@@ -2309,7 +2309,8 @@ function normalizeStatus(s) {
     follow_up_scheduled: CALL_STATUS.FOLLOW_UP_SCHEDULED,
     abgeschlossen: CALL_STATUS.CLOSED,
     erledigt: CALL_STATUS.CLOSED,
-    closed: CALL_STATUS.CLOSED
+    closed: CALL_STATUS.CLOSED,
+    done: CALL_STATUS.CLOSED
   };
   return aliases[raw] || CALL_STATUS.NEW;
 }
@@ -2766,22 +2767,8 @@ async function apiUpdateCallStatus(recordId, status) {
 }
 
 async function applyStatusTransition(recordId, fromStatus, toStatus) {
-  const current = normalizeStatus(fromStatus);
   const target = normalizeStatus(toStatus);
-  if (current === target) return;
-  const sequence = [];
-  if (current === CALL_STATUS.NEW && target === CALL_STATUS.FOLLOW_UP_SCHEDULED) {
-    sequence.push(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
-  } else if (current === CALL_STATUS.NEW && target === CALL_STATUS.CLOSED) {
-    sequence.push(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED);
-  } else if (current === CALL_STATUS.IN_PROGRESS && target === CALL_STATUS.CLOSED) {
-    sequence.push(CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED);
-  } else {
-    sequence.push(target);
-  }
-  for (const status of sequence) {
-    await apiUpdateCallStatus(recordId, status);
-  }
+  await apiUpdateCallStatus(recordId, target);
 }
 
 async function apiPatchOptional(recordId, preferredFields, fallbackFields) {
@@ -3315,6 +3302,7 @@ function activateTab(name) {
 //  ACTIONS
 // ═══════════════════════════════════════════
 var confirmModalAction = null;
+var confirmModalBusy = false;
 
 function openConfirmModal(config) {
   const titleEl = document.getElementById('confirm-title');
@@ -3331,13 +3319,37 @@ function openConfirmModal(config) {
 function closeConfirmModal() {
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.remove('open');
+  confirmModalBusy = false;
   confirmModalAction = null;
 }
 
-function runConfirmModalAction() {
+async function runConfirmModalAction() {
+  if (confirmModalBusy) return;
   const fn = confirmModalAction;
-  closeConfirmModal();
-  if (typeof fn === 'function') fn();
+  if (typeof fn !== 'function') {
+    closeConfirmModal();
+    return;
+  }
+  const okBtn = document.getElementById('confirm-ok-btn');
+  const originalLabel = okBtn ? okBtn.textContent : '';
+  if (okBtn) {
+    okBtn.disabled = true;
+    okBtn.textContent = 'Speichere...';
+  }
+  confirmModalBusy = true;
+  try {
+    const result = await fn();
+    if (result !== false) closeConfirmModal();
+  } catch (e) {
+    const msg = (e && (e.payload && e.payload.error || e.message)) || 'Fehler beim Speichern';
+    toast('❌ ' + msg);
+  } finally {
+    confirmModalBusy = false;
+    if (okBtn) {
+      okBtn.disabled = false;
+      okBtn.textContent = originalLabel || 'Bestätigen';
+    }
+  }
 }
 
 function confirmClose(recordId, newStatus, rowElement) {
@@ -3345,8 +3357,8 @@ function confirmClose(recordId, newStatus, rowElement) {
     title: 'Anruf als erledigt markieren?',
     text: 'Dieser Eintrag wird aus den offenen Listen entfernt und ins Archiv verschoben.',
     confirmLabel: 'Ja, erledigen',
-    onConfirm: function() {
-      doStatusChange(recordId, newStatus, rowElement || null);
+    onConfirm: async function() {
+      return await doStatusChange(recordId, newStatus, rowElement || null);
     }
   });
 }
@@ -3359,12 +3371,17 @@ function confirmCloseWithDropdownPreservation(recordId, newStatus, rowElement) {
 async function doStatusChange(recordId, newStatus, rowElement) {
   const normalizedStatus = normalizeStatus(newStatus);
   const row = rowElement || null;
-  const cached = allRecords.find(r => r.id === recordId);
+  const cached = allRecords.find(r => String(r.id) === String(recordId));
   const currentStatus = normalizeStatus(cached && cached.fields ? cached.fields.dashboard_status : CALL_STATUS.NEW);
 
   if (currentStatus === normalizedStatus) {
+    if (cached && cached.fields) cached.fields.dashboard_status = normalizedStatus;
+    renderDashboard(allRecords);
+    renderAnrufe(allRecords);
+    renderRueckrufe(allRecords);
+    renderArchiv(allRecords);
     toast('Status bereits gesetzt');
-    return;
+    return true;
   }
 
   if (row) {
@@ -3420,10 +3437,12 @@ async function doStatusChange(recordId, newStatus, rowElement) {
       _cbqApply(next ? next.id : null, remaining);
     }
     toast(icons[normalizedStatus] || 'Status aktualisiert');
+    return true;
   } catch(e) {
     const msg = (e && (e.payload && e.payload.error || e.message)) || 'Fehler beim Status-Update';
     toast('❌ ' + msg);
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
+    return false;
   } finally {
     setTimeout(loadData, 900);
   }
