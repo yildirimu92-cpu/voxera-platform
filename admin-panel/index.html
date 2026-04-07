@@ -1096,13 +1096,28 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 const SB_URL='https://ulcofbgrovgcvowdjrge.supabase.co';
 const SB_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
 const supabaseLib=window.supabase;
+const ADMIN_AUTH_STORAGE_KEY='voxera-admin-session';
+function getPreferredAuthStorage(){
+  const candidates=[window.sessionStorage,window.localStorage];
+  for(const storage of candidates){
+    if(!storage) continue;
+    try{
+      const probe='__voxera_auth_probe__';
+      storage.setItem(probe,'1');
+      storage.removeItem(probe);
+      return storage;
+    }catch(_e){}
+  }
+  return undefined;
+}
+const authStorage=getPreferredAuthStorage();
 const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SB_URL,SB_ANON_KEY,{
   auth:{
     persistSession:true,
     autoRefreshToken:true,
     detectSessionInUrl:false,
-    storageKey:'voxera-admin-session',
-    storage:window.sessionStorage
+    storageKey:ADMIN_AUTH_STORAGE_KEY,
+    storage:authStorage
   }
 }):null;
 
