@@ -1376,8 +1376,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 <script>
 'use strict';
 
-const SB_URL='https://ulcofbgrovgcvowdjrge.supabase.co';
-const SB_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
+const SUPABASE_URL='https://ulcofbgrovgcvowdjrge.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
 const supabaseLib=window.supabase;
 const ADMIN_AUTH_STORAGE_KEY='voxera-admin-session';
 function getPreferredAuthStorage(){
@@ -1394,7 +1394,7 @@ function getPreferredAuthStorage(){
   return undefined;
 }
 const authStorage=getPreferredAuthStorage();
-const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SB_URL,SB_ANON_KEY,{
+const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{
   auth:{
     persistSession:true,
     autoRefreshToken:true,
@@ -3709,19 +3709,19 @@ async function submitCreateCustomer(event){
   }
 }
 
-async function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt'){
+async function createCaseForCustomer(customerId,title='Follow-up',note='Manuell erstellt'){
   const c=customerById(customerId);
   if(!c){
     alert('Case konnte nicht erstellt werden: Kunde nicht gefunden.');
     return;
   }
   try{
-    const json=await callAdminFunction('cases-create',{customer_id:customerId,type,note});
+    const json=await callAdminFunction('cases-create',{customer_id:customerId,title,note});
     if(!json?.success||!json?.case) throw new Error(json?.error||'Case konnte nicht erstellt werden.');
     const mapped=mapDbCaseToUi(json.case);
     state.cases=state.cases.filter(existing=>!idsEq(existing.id,mapped.id));
     state.cases.unshift(mapped);
-    state.events.unshift(`${nowStamp()} · ${c.name}: ${type} Case erstellt`);
+    state.events.unshift(`${nowStamp()} · ${c.name}: ${title} Case erstellt`);
     refreshCustomerCaseCounts();
     renderCases(); renderCustomers(); renderOverview(); renderActivity(); updateBadges();
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
@@ -4145,20 +4145,21 @@ function mapDbCallToUi(dbRow) {
 }
 
 function mapDbCaseToUi(dbRow) {
-  // cases table columns: id, customer_id, type(title), status, notes(note), created_at, updated_at
+  // cases table columns: id, customer_id, title, note, status, created_at, updated_at (legacy fallback: type/notes)
   const ts = dbRow.updated_at
     ? new Date(dbRow.updated_at).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
     : '—';
   return {
     id:         String(dbRow.id),
-    type:       dbRow.type       || 'Rückruf',
+    title:      dbRow.title      || dbRow.type || 'Rückruf',
+    type:       dbRow.title      || dbRow.type || 'Rückruf',
     priority:   dbRow.priority   || 'Mittel',
     status:     normalizeCaseStatus(dbRow.status),
     owner:      dbRow.owner      || '—',
     customerId: String(dbRow.customer_id),
     latest:     ts,
-    notes:      dbRow.notes      || '',
-    note:       dbRow.notes      || '',
+    note:       dbRow.note       || dbRow.notes || '',
+    notes:      dbRow.note       || dbRow.notes || '',
   };
 }
 

@@ -59,9 +59,9 @@ exports.handler = async (event) => {
   } else if (field === 'title') {
     const title = String(value || '').trim();
     if (!title) return response(400, { error: 'title darf nicht leer sein' });
-    updatePayload.type = title;
+    updatePayload.title = title;
   } else if (field === 'note') {
-    updatePayload.notes = String(value || '').trim() || null;
+    updatePayload.note = String(value || '').trim() || null;
   }
 
   const { data, error } = await sbAdmin
