@@ -2275,6 +2275,10 @@ function mapDbContractToUi(dbRow) {
   };
 }
 
+function resolveNoticeLabel(val) {
+  return (String(val) === '3' || String(val) === '3 Monate') ? '3 Monate' : '1 Monat';
+}
+
 function generateContractText(data) {
   const plan = data.plan || 'Kein Plan';
   const planKey = ['Starter','Business','Pro'].includes(plan) ? plan : 'Kein Plan';
@@ -2283,7 +2287,7 @@ function generateContractText(data) {
   const discount = Number(data.discount) || 0;
   const discountAmt = basePrice > 0 ? (Math.round(basePrice * (discount / 100) * 100) / 100) : 0;
   const finalPrice = Math.round((basePrice - discountAmt) * 100) / 100;
-  const noticeLbl = (String(data.cancellationNotice) === '3' || String(data.cancellationNotice) === '3 Monate') ? '3 Monate' : '1 Monat';
+  const noticeLbl = resolveNoticeLabel(data.cancellationNotice);
   const today = new Date().toLocaleDateString('de-CH');
   return 'DIENSTLEISTUNGSVERTRAG\n'
     + 'Voxera, Umut Yildirim, Meggen/Luzern (\u00abVoxera\u00bb) und ' + (data.customerName||'') + ', ' + (data.customerAddress||'') + ' (\u00abAuftraggeber\u00bb)\n\n'
@@ -2471,8 +2475,8 @@ function wizardGetData() {
   var discount  = Math.max(0, Math.min(50, parseInt((document.getElementById('wiz-discount') || {}).value || '0', 10)));
   var noticeVal = (document.getElementById('wiz-notice') || {}).value || '1';
   var notes     = (document.getElementById('wiz-notes') || {}).value || '';
-  var noticeMonths = (noticeVal === '3' || noticeVal === '3 Monate') ? 3 : 1;
-  var noticeLbl    = noticeMonths === 3 ? '3 Monate' : '1 Monat';
+  var noticeLbl    = resolveNoticeLabel(noticeVal);
+  var noticeMonths = (noticeLbl === '3 Monate') ? 3 : 1;
   var endDate          = addMonthsToDateStr(startDate, months);
   var cancellationDate = addMonthsToDateStr(endDate, -noticeMonths);
   var custName = cust ? cust.name : '';
@@ -2545,11 +2549,12 @@ async function submitContractWizard() {
     if (authClient) {
       var res = await authClient.from('contracts').insert(payload).select().single();
       if (res.error) throw res.error;
-      newId = res.data ? String(res.data.id) : (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString());
-      state.contracts.unshift(mapDbContractToUi(res.data || Object.assign({id: newId}, payload)));
+      if (!res.data) throw new Error('Kein Datensatz zurückgegeben.');
+      newId = String(res.data.id);
+      state.contracts.unshift(mapDbContractToUi(res.data));
     } else {
       newId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
-      state.contracts.unshift(Object.assign({id: newId}, mapDbContractToUi(Object.assign({id: newId}, payload))));
+      state.contracts.unshift(mapDbContractToUi(Object.assign({id: newId}, payload)));
     }
     renderContracts();
     updateBadges();
