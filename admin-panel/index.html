@@ -589,7 +589,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <div id="onboarding-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
             <div class="inline-actions" style="margin-top:12px;">
               <button class="btn btn-primary btn-sm" id="onboarding-open-profile">Kundenprofil öffnen</button>
-              <button class="btn btn-secondary btn-sm" onclick="openSendAccessModal(document.getElementById('onboarding-detail-wrap').dataset.customerId)">Zugang senden</button>
+              <button class="btn btn-secondary btn-sm" id="onboarding-next-step-btn">Nächster Schritt</button>
             </div>
           </div>
         </div>
@@ -1915,6 +1915,13 @@ function openOnboardingDetail(customerId){
   }
   const profileBtn=document.getElementById('onboarding-open-profile');
   if(profileBtn) profileBtn.onclick=()=>openCustomerProfile(customerId);
+  const nextStepBtn=document.getElementById('onboarding-next-step-btn');
+  if(nextStepBtn){
+    const isCompleted=q.status===ONBOARDING_STATUS.COMPLETED||!q.nextStep||q.nextStep==='fully completed';
+    nextStepBtn.textContent=isCompleted?'Abgeschlossen':`→ ${q.nextStep}`;
+    nextStepBtn.disabled=isCompleted;
+    nextStepBtn.onclick=()=>goToOnboardingNextStep(customerId);
+  }
   wrap.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -1943,6 +1950,19 @@ function renderOnboardingDetail(){
   document.getElementById('onboarding-next-action').textContent=q.nextStep;
   document.getElementById('onboarding-blocker').textContent=q.blocker||'Kein blocker aktiv';
   document.getElementById('onboarding-open-profile').onclick=()=>openCustomerProfile(q.customer.id);
+}
+
+function goToOnboardingNextStep(customerId){
+  const q=buildOnboardingQueueItem(customerId);
+  const nextStep=q.nextStep;
+  const aiSteps=['agent connected','AI basics configured','greeting reviewed','business info completed','opening hours added'];
+  if(aiSteps.includes(nextStep)){
+    setRoute('ai-setup');
+  } else if(nextStep==='activation sent'){
+    openCustomerProfile(customerId,'aktionen');
+  } else {
+    openCustomerProfile(customerId,'onboarding');
+  }
 }
 
 function aiMissingFields(cfg){
@@ -2853,7 +2873,7 @@ function onHashRoute(){
   setRoute(route,true);
 }
 
-function openCustomerProfile(id){
+function openCustomerProfile(id,initialTab){
   const c=customerById(id); if(!c) return;
   state.selectedCustomer=id;
   const onboard=onboardingForCustomer(id);
@@ -3025,9 +3045,9 @@ function openCustomerProfile(id){
     };
   });
 
-  // Ersten Tab aktivieren
-  document.querySelectorAll('#customer-profile-modal .profile-tab').forEach((tab,i)=>tab.classList.toggle('active',i===0));
-  document.querySelectorAll('#customer-profile-modal .profile-panel').forEach((p,i)=>p.classList.toggle('active',i===0));
+  // Ersten Tab aktivieren (oder initialTab, falls angegeben)
+  document.querySelectorAll('#customer-profile-modal .profile-tab').forEach((tab,i)=>tab.classList.toggle('active',initialTab?tab.dataset.profileTab===initialTab:i===0));
+  document.querySelectorAll('#customer-profile-modal .profile-panel').forEach((p,i)=>p.classList.toggle('active',initialTab?p.dataset.profilePanel===initialTab:i===0));
   document.getElementById('customer-profile-modal').classList.add('open');
 }
 function closeCustomerProfile(){document.getElementById('customer-profile-modal').classList.remove('open');}
