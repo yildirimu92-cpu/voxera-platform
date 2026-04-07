@@ -1071,6 +1071,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <button class="profile-tab" data-profile-tab="onboarding">Onboarding</button>
       <button class="profile-tab" data-profile-tab="cases">Cases</button>
       <button class="profile-tab" data-profile-tab="notizen">Notizen</button>
+      <button class="profile-tab" data-profile-tab="vertraege">Verträge</button>
     </div>
 
     <!-- TAB: ÜBERSICHT -->
@@ -1110,6 +1111,19 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         <button class="btn btn-primary btn-sm" id="profile-add-note-btn">Notiz speichern</button>
       </div>
       <div class="list" id="profile-notes"></div>
+    </div>
+
+    <!-- TAB: VERTRÄGE -->
+    <div class="profile-panel" data-profile-panel="vertraege">
+      <div class="inline-actions" style="margin-bottom:12px;">
+        <button class="btn btn-primary btn-sm" id="profile-contract-create-btn">+ Neuer Vertrag</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Vertrag-ID</th><th>Status</th><th>Unterzeichnet am</th><th>Plan</th><th>Aktionen</th></tr></thead>
+          <tbody id="profile-contracts"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -1242,7 +1256,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
     <!-- Step 2: Preview -->
     <div id="wizard-panel-2" style="display:none;">
       <label class="muted" style="margin-bottom:6px;display:block;">Vertragsvorschau (schreibgeschützt)</label>
-      <textarea class="textarea" id="wiz-contract-text" readonly style="min-height:320px;font-family:var(--mono);font-size:11.5px;line-height:1.7;background:var(--bg);"></textarea>
+      <textarea class="textarea" id="wiz-contract-text" readonly style="min-height:400px;font-family:monospace;font-size:12px;line-height:1.7;background:var(--bg);"></textarea>
       <div class="inline-actions" style="margin-top:16px;justify-content:flex-end;">
         <button class="btn btn-quiet" type="button" onclick="wizardStep(1)">← Zurück</button>
         <button class="btn btn-primary" type="button" onclick="wizardStep(3)">Weiter →</button>
@@ -1251,6 +1265,17 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
     <!-- Step 3: Signature -->
     <div id="wizard-panel-3" style="display:none;">
+      <div style="background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;font-size:12px;line-height:1.6;color:var(--amber);">
+        <div style="font-weight:700;margin-bottom:8px;">⚠️ Rechtlicher Hinweis</div>
+        <div>Mit Ihrer digitalen Signatur bestätigen Sie:</div>
+        <ul style="margin:6px 0 0 20px;padding:0;">
+          <li>Den Dienstleistungsvertrag gelesen und verstanden zu haben</li>
+          <li>Die AGB und den AVV von Voxera zu akzeptieren (<a href="https://voxera.ch/agb" target="_blank" style="color:var(--amber);font-weight:600;text-decoration:underline;">voxera.ch/agb</a>)</li>
+          <li>Die Laufzeit und Kündigungsbedingungen zu akzeptieren</li>
+          <li>Dass diese digitale Signatur rechtlich bindend ist (OR Art. 14)</li>
+        </ul>
+        <div style="margin-top:10px;font-weight:600;">Vertragsdetails: <span id="contract-detail-plan">Plan</span> · CHF <span id="contract-detail-price">0</span>/Mt · <span id="contract-detail-months">0</span> Monate · Kündigung bis <span id="contract-detail-cancellation">—</span></div>
+      </div>
       <div style="margin-bottom:12px;">
         <label class="muted" style="margin-bottom:8px;display:block;">Digitale Signatur – Auftraggeber</label>
         <canvas id="sig-canvas-wizard" class="sig-canvas" width="480" height="120"></canvas>
@@ -2416,7 +2441,7 @@ function isSigCanvasEmpty(canvasId) {
 
 var _wizardContractTargetId = null; // used by standalone sign modal
 
-function openContractWizard() {
+function openContractWizard(preselectedCustomerId) {
   // Populate customer dropdown
   var sel = document.getElementById('wiz-customer');
   if (sel) {
@@ -2424,6 +2449,7 @@ function openContractWizard() {
       + state.customers.map(function(c) {
           return '<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>';
         }).join('');
+    if (preselectedCustomerId) sel.value = preselectedCustomerId;
   }
   // Set today as default start date
   var today = new Date().toISOString().slice(0, 10);
@@ -2502,6 +2528,20 @@ function wizardStep(step) {
     if (ta) ta.value = text;
   }
   if (step === 3) {
+    // Populate legal notice spans
+    var d3 = wizardGetData();
+    var planKey3 = ['Starter','Business','Pro'].includes(d3.plan) ? d3.plan : 'Kein Plan';
+    var basePrice3 = PLAN_PRICES[planKey3] || 0;
+    var discount3 = Number(d3.discount) || 0;
+    var finalPrice3 = Math.round((basePrice3 - basePrice3 * discount3 / 100) * 100) / 100;
+    var detailPlan = document.getElementById('contract-detail-plan');
+    var detailPrice = document.getElementById('contract-detail-price');
+    var detailMonths = document.getElementById('contract-detail-months');
+    var detailCancel = document.getElementById('contract-detail-cancellation');
+    if (detailPlan) detailPlan.textContent = d3.plan || '—';
+    if (detailPrice) detailPrice.textContent = finalPrice3;
+    if (detailMonths) detailMonths.textContent = d3.months || '—';
+    if (detailCancel) detailCancel.textContent = d3.cancellationDate ? formatDateDE(d3.cancellationDate) : '—';
     // Init signature canvas
     setTimeout(function() { initSigCanvas('sig-canvas-wizard'); }, 50);
   }
@@ -2559,6 +2599,17 @@ async function submitContractWizard() {
     renderContracts();
     updateBadges();
     showToast('\u2713 Vertrag gespeichert.');
+    // FIX 4: Notify via webhook
+    var cust4 = customerById(d.customerId);
+    callAdminFunction('contract-signed', {
+      contract_id: newId,
+      customer_id: d.customerId,
+      customer_email: cust4 ? (cust4.email || '') : '',
+      customer_name: d.customerName,
+      plan: d.plan,
+      contract_text: contractText,
+      signed_at: new Date().toISOString()
+    }).catch(function(e) { console.warn('[contract-signed]', e.message); });
     closeContractWizard();
   } catch(err) {
     fb.className = 'modal-feedback error'; fb.style.display = 'block';
@@ -2659,6 +2710,17 @@ async function saveSignature() {
     renderContracts();
     updateBadges();
     showToast('\u2713 Vertrag unterzeichnet.');
+    // FIX 4: Notify via webhook
+    var cust4s = customerById(ct.customerId);
+    callAdminFunction('contract-signed', {
+      contract_id: String(id),
+      customer_id: ct.customerId,
+      customer_email: cust4s ? (cust4s.email || '') : '',
+      customer_name: ct.customerName,
+      plan: ct.plan,
+      contract_text: ct.contractText || '',
+      signed_at: new Date().toISOString()
+    }).catch(function(e) { console.warn('[contract-signed]', e.message); });
     closeSignatureModal();
   } catch(err) {
     if (fb) { fb.className = 'modal-feedback error'; fb.style.display = 'block'; fb.textContent = 'Fehler: ' + (err.message || err); }
@@ -2928,6 +2990,29 @@ function openCustomerProfile(id){
     if(noteInput) noteInput.value='';
     if(profileNotes) profileNotes.innerHTML=c.notes.map(n=>`<div class="list-item"><div class="list-main">${esc(n)}</div></div>`).join('');
   };
+
+  // ─── TAB: VERTRÄGE ───────────────────────────────────────
+  const profileContracts=document.getElementById('profile-contracts');
+  if(profileContracts){
+    const statusLabels={draft:'Entwurf',active:'Aktiv',signed:'Unterzeichnet',cancelled:'Gekündigt'};
+    const customerContracts=state.contracts.filter(ct=>idsEq(ct.customerId,id));
+    profileContracts.innerHTML=customerContracts.map(ct=>{
+      const signedAt=ct.signedAt?new Date(ct.signedAt).toLocaleDateString('de-CH'):(ct.status==='signed'?'—':'');
+      const canSign=ct.status!=='signed'&&ct.status!=='cancelled';
+      return `<tr>
+        <td style="font-family:monospace;font-size:11px;">${esc(String(ct.id).slice(0,8)+'…')}</td>
+        <td>${toneBadge(statusLabels[ct.status]||ct.status)}</td>
+        <td>${esc(signedAt||'—')}</td>
+        <td>${esc(ct.plan||'—')}</td>
+        <td>
+          <button class="btn btn-quiet btn-sm" onclick="viewContract('${jsStr(ct.id)}')">Ansehen</button>
+          ${canSign?`<button class="btn btn-quiet btn-sm" onclick="openSignatureModal('${jsStr(ct.id)}')">Unterschreiben</button>`:''}
+        </td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="5"><div class="empty">Keine Verträge.</div></td></tr>';
+  }
+  const contractCreateBtn=document.getElementById('profile-contract-create-btn');
+  if(contractCreateBtn) contractCreateBtn.onclick=()=>{ closeCustomerProfile(); openContractWizard(id); };
 
   // Tab-Switching aktivieren
   document.querySelectorAll('#customer-profile-modal .profile-tab').forEach(tab=>{
