@@ -34,30 +34,51 @@ exports.handler = async (event) => {
   const customerId = String(body.customer_id || '').trim();
   const type = String(body.type || '').trim();
   const note = String(body.note || '').trim();
+  const mailTemplate = String(body.mail_template || 'none').trim() || 'none';
   const priority = String(body.priority || (type === 'Rückruf' ? 'Hoch' : 'Mittel')).trim();
 
   if (!customerId || !type) return response(400, { error: 'Pflichtfelder fehlen: customer_id, type' });
   if (!['Rückruf', 'Follow-up'].includes(type)) return response(400, { error: 'Ungueltiger Case-Typ' });
+  if (![
+    'none',
+    'onboarding_started',
+    'voxera_number_assigned',
+    'forwarding_setup',
+    'setup_completed',
+    'callback_planned',
+    'case_resolved'
+  ].includes(mailTemplate)) return response(400, { error: 'Ungueltige mail_template Option' });
 
   const now = new Date().toISOString();
   const payload = {
     customer_id: customerId,
-    type: title,
+    type,
     status: normalizeCaseStatus('open'),
-    priority: null,
+    priority,
     owner: null,
     notes: note || null,
     history: null,
     created_at: now,
     updated_at: now
   };
+  if (mailTemplate !== 'none') payload.mail_template = mailTemplate;
 
-  const { data, error } = await sbAdmin
+  let { data, error } = await sbAdmin
     .from('cases')
     .insert(payload)
     .select('*')
     .single();
 
+  if (error && payload.mail_template && /mail_template/i.test(String(error.message || ''))) {
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.mail_template;
+    ({ data, error } = await sbAdmin
+      .from('cases')
+      .insert(fallbackPayload)
+      .select('*')
+      .single());
+  }
+
   if (error) return response(500, { error: 'Case konnte nicht erstellt werden.', details: error.message });
-  return response(200, { success: true, case: data });
+  return response(200, { success: true, case: data, mail_template: mailTemplate });
 };

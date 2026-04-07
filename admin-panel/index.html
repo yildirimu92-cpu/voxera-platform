@@ -168,6 +168,11 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
 
 /* ─── Tables ─────────────────────────────────────────────────── */
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);}
+
+#section-ai-setup .table-wrap{overflow-x:auto;}
+#section-ai-setup .data-table{table-layout:fixed;}
+#section-ai-setup .data-table th,#section-ai-setup .data-table td{white-space:normal;word-break:break-word;}
+#section-ai-setup .workspace-textarea{width:100%;box-sizing:border-box;}
 .data-table{width:100%;border-collapse:collapse;font-size:12.5px;}
 .data-table th,.data-table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:nowrap;}
 .data-table th{
@@ -603,18 +608,18 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <div id="ai-workspace" style="display:none;">
               <div class="detail-grid" id="ai-customer-context"></div>
               <div class="card-title" style="margin-top:12px;">Business Knowledge</div>
-              <textarea class="textarea" id="ai-business-description" placeholder="Business description"></textarea>
-              <textarea class="textarea" id="ai-services" placeholder="Services / products" style="margin-top:8px;"></textarea>
-              <textarea class="textarea" id="ai-location-hours" placeholder="Location + opening hours summary" style="margin-top:8px;"></textarea>
-              <textarea class="textarea" id="ai-booking-faq" placeholder="Booking/contact preferences + FAQs" style="margin-top:8px;"></textarea>
+              <textarea class="textarea workspace-textarea" id="ai-business-description" placeholder="Business description"></textarea>
+              <textarea class="textarea workspace-textarea" id="ai-services" placeholder="Services / products" style="margin-top:8px;"></textarea>
+              <textarea class="textarea workspace-textarea" id="ai-location-hours" placeholder="Location + opening hours summary" style="margin-top:8px;"></textarea>
+              <textarea class="textarea workspace-textarea" id="ai-booking-faq" placeholder="Booking/contact preferences + FAQs" style="margin-top:8px;"></textarea>
               <div class="card-title" style="margin-top:12px;">Customer-Specific Instructions</div>
-              <textarea class="textarea" id="ai-customer-instructions" placeholder="Greeting / tone / do-do-not / lead qual / callback specifics"></textarea>
+              <textarea class="textarea workspace-textarea" id="ai-customer-instructions" placeholder="Greeting / tone / do-do-not / lead qual / callback specifics"></textarea>
               <div class="card-title" style="margin-top:12px;">Fallback & Escalation Logic</div>
-              <textarea class="textarea" id="ai-fallback-escalation" placeholder="Escalation triggers, missing info behavior, frustrated caller handling"></textarea>
+              <textarea class="textarea workspace-textarea" id="ai-fallback-escalation" placeholder="Escalation triggers, missing info behavior, frustrated caller handling"></textarea>
               <div class="card-title" style="margin-top:12px;">Response Constraints</div>
-              <textarea class="textarea" id="ai-response-constraints" placeholder="Compliance boundaries / prohibited claims"></textarea>
+              <textarea class="textarea workspace-textarea" id="ai-response-constraints" placeholder="Compliance boundaries / prohibited claims"></textarea>
               <div class="card-title" style="margin-top:12px;">AI Notes</div>
-              <textarea class="textarea" id="ai-internal-notes" placeholder="Implementation/support notes"></textarea>
+              <textarea class="textarea workspace-textarea" id="ai-internal-notes" placeholder="Implementation/support notes"></textarea>
               <div class="inline-actions" style="margin-top:10px;">
                 <button class="btn btn-secondary" id="ai-preview-btn" onclick="openAiPreview()">Prompt-Vorschau</button>
                 <button class="btn btn-primary" id="ai-save-customer">AI Konfiguration speichern</button>
@@ -633,7 +638,6 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         <div class="section-head">
           <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Anliegen</h3>
           <div class="inline-actions">
-            <select class="select" id="cases-customer-select" style="width:220px;"></select>
             <button class="btn btn-primary" id="cases-create-btn">
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
               Anliegen erfassen
@@ -775,6 +779,18 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <div style="margin-bottom:10px;">
         <label class="muted" style="font-size:11px;font-weight:600;">Notiz</label>
         <textarea class="textarea" id="case-capture-note" style="min-height:80px;" placeholder="Optionale Details…"></textarea>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label class="muted" style="font-size:11px;font-weight:600;">Kundenbenachrichtigung (optional)</label>
+        <select class="select" id="case-capture-mail-template" style="width:100%;height:38px;">
+          <option value="none">Keine Mail senden</option>
+          <option value="onboarding_started">Onboarding gestartet</option>
+          <option value="voxera_number_assigned">Voxera-Nummer zugewiesen</option>
+          <option value="forwarding_setup">Rufweiterleitung einrichten</option>
+          <option value="setup_completed">Setup abgeschlossen – Sie sind live</option>
+          <option value="callback_planned">Rückruf geplant</option>
+          <option value="case_resolved">Case erledigt</option>
+        </select>
       </div>
       <div class="inline-actions" style="justify-content:flex-end;margin-top:12px;">
         <button class="btn btn-quiet" type="button" onclick="closeCaseCaptureModal()">Abbrechen</button>
@@ -1090,6 +1106,28 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   </div>
 </div>
 
+
+<div class="modal-overlay" id="vx-modal" onclick="if(event.target===this)closeVxModal()">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title" id="vx-modal-title">Hinweis</div>
+        <div class="modal-sub" id="vx-modal-sub">&nbsp;</div>
+      </div>
+      <button class="btn btn-quiet" type="button" onclick="closeVxModal()">Schließen</button>
+    </div>
+    <div id="vx-modal-body" style="font-size:13px;color:var(--ink);margin-bottom:12px;white-space:pre-wrap;"></div>
+    <div id="vx-modal-input-wrap" style="display:none;margin-bottom:12px;">
+      <label id="vx-modal-input-label" class="muted" style="font-size:11px;font-weight:600;"></label>
+      <input id="vx-modal-input" class="input" style="margin-top:6px;">
+    </div>
+    <div class="inline-actions" style="justify-content:flex-end;">
+      <button class="btn btn-quiet" id="vx-modal-cancel" type="button" onclick="closeVxModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="vx-modal-confirm" type="button">Bestätigen</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -1134,13 +1172,8 @@ const state={
     escalation:'Kritisch sofort an Bereitschaft; unzufriedene Caller an Human Queue',
     constraints:'Keine rechtliche/medizinische Beratung; keine falschen Zusagen; maximal 40s Antwortblöcke'
   },
-  aiConfigs:{
-    1:{status:'AI Ready',custom:true,businessDescription:'Sanitär- und Notfallservice im Raum Zürich.',services:'Rohrbruch, Reparaturen, Wartung, Offerten.',locationHours:'Zürich + Umgebung, 24/7 Notfall, regulär 07:30-18:00.',bookingFaq:'Notfall sofort verbinden; Termine via Telefon bestätigen.',instructions:'Bei Wasserschäden ruhig führen, Priorität auf Sicherheit und Sofortmaßnahmen.',fallbackEscalation:'Wenn Ersatzteile unklar → Rückruf in 30 Min durch Dispo.',responseConstraints:'Keine Preiszusage ohne Sichtung; keine Rechtsberatung.',internalNotes:'Notfall-Flow am 2026-04-02 geschärft.',lastUpdate:'2026-04-06 09:10'},
-    2:{status:'Needs Review',custom:true,businessDescription:'Moderne Zahnarztpraxis mit Fokus auf Neupatienten.',services:'Kontrolle, Dentalhygiene, Bleaching, Notfallslots.',locationHours:'Bern Innenstadt, Mo-Fr 08:00-17:30.',bookingFaq:'Versicherung immer verifizieren; Notfälle priorisieren.',instructions:'Ton warm und vertrauensbildend, Terminfenster aktiv vorschlagen.',fallbackEscalation:'Wenn Versicherung unklar → Rückruf durch Empfang noch am selben Tag.',responseConstraints:'Keine medizinischen Diagnosen.',internalNotes:'FAQ zu Versicherungen unvollständig.',lastUpdate:'2026-04-05 16:20'},
-    3:{status:'Default Only',custom:false,businessDescription:'',services:'',locationHours:'',bookingFaq:'',instructions:'',fallbackEscalation:'',responseConstraints:'',internalNotes:'Keine individuellen Overrides aktiviert.',lastUpdate:'2026-03-30 11:05'},
-    4:{status:'Partial',custom:true,businessDescription:'Business- und Leisure-Hotel in Luzern.',services:'Zimmer, Gruppenbuchungen, Restaurant-Infos.',locationHours:'24/7 Frontdesk, Restaurant 06:30-23:00.',bookingFaq:'Gruppen >6 Personen an Front Office eskalieren.',instructions:'Mehrsprachig DE/EN; VIP-Caller priorisieren.',fallbackEscalation:'Unklare Verfügbarkeiten an Night Desk eskalieren.',responseConstraints:'Keine Garantie auf Upgrades.',internalNotes:'Französisch-Snippets fehlen.',lastUpdate:'2026-04-06 08:40'},
-    5:{status:'Blocked',custom:true,businessDescription:'',services:'Apothekenberatung, Rezeptabholung, OTC-Produkte.',locationHours:'Winterthur, Mo-Sa 08:00-20:00.',bookingFaq:'Telefonische Reservierung erlaubt, Abholung in 2h.',instructions:'',fallbackEscalation:'',responseConstraints:'Keine pharmazeutische Dosierungsempfehlung.',internalNotes:'Sortimentswechsel noch nicht eingepflegt.',lastUpdate:'2026-04-04 14:55'}
-  },
+  aiConfigs:{},  // populated by loadDataFromSupabase() if ai_configs table exists
+
   aiSelectedCustomerId:null,
   aiChanges:[],  // populated by loadDataFromSupabase() in future
   events:[],  // populated by loadDataFromSupabase()
@@ -1178,6 +1211,19 @@ function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function idsEq(a,b){return String(a)===String(b);}
 function customerById(id){return state.customers.find(c=>idsEq(c.id,id));}
+function customerOnboardingDoneSteps(customer){
+  const done=new Set(customer?.onboardingSteps||[]);
+  if(String(customer?.voxera_number||customer?.voxera||'').trim()) done.add('Voxera number assigned');
+  if(customer?.forwarding_setup_completed===true) done.add('forwarding configured');
+  return state.checklist.filter(step=>done.has(step));
+}
+function deriveAiStatus(customer,cfg){
+  const businessDescription=String(cfg?.businessDescription||customer?.ai_business_description||'').trim();
+  const instructions=String(cfg?.instructions||customer?.ai_instructions||'').trim();
+  if(businessDescription&&instructions) return 'AI Ready';
+  if(businessDescription||instructions) return 'Needs Review';
+  return 'Default Only';
+}
 async function callAdminFunction(name,payload){
   if(!(authClient&&authClient.auth)) throw new Error('Admin-Auth nicht verfügbar.');
   const {data:{session},error}=await authClient.auth.getSession();
@@ -1596,8 +1642,11 @@ function renderOnboarding(){
 
 function buildOnboardingQueueItem(customerId){
   const customer=customerById(customerId);
+  if(!customer){
+    return {customer:{id:customerId,name:'Unbekannt',email:'',plan:''},owner:'Ops',status:ONBOARDING_STATUS.NOT_STARTED,progress:0,currentStep:'Noch nicht gestartet',nextStep:'customer created',missingSteps:[...state.checklist],blocker:'',latestUpdate:''};
+  }
   const o=onboardingForCustomer(customerId)||{owner:'Ops',latest:''};
-  const done=customer.onboardingSteps||[];
+  const done=customerOnboardingDoneSteps(customer);
   const missing=state.checklist.filter(step=>!done.includes(step));
   const currentStep=done.length?done[done.length-1]:'Noch nicht gestartet';
   const nextStep=missing[0]||'fully completed';
@@ -1623,7 +1672,7 @@ function openOnboardingDetail(customerId){
   if(nameEl) nameEl.textContent=q.customer.name||'Kunde';
   const checklistEl=document.getElementById('onboarding-checklist');
   if(checklistEl){
-    const done=q.customer.onboardingSteps||[];
+    const done=customerOnboardingDoneSteps(q.customer);
     checklistEl.innerHTML=state.checklist.map(step=>{
       const isDone=done.includes(step);
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line2);">
@@ -1655,7 +1704,7 @@ function renderOnboardingDetail(){
     ['Customer',q.customer.name],['Plan',q.customer.plan],['Readiness',`${q.progress}%`],['Current Step',q.currentStep],['Next Step',q.nextStep],['Missing Steps',String(q.missingSteps.length)]
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(step=>{
-    const done=(q.customer.onboardingSteps||[]).includes(step);
+    const done=customerOnboardingDoneSteps(q.customer).includes(step);
     const blocking=['activation sent','Voxera number assigned','forwarding configured','AI basics configured','test call completed'].includes(step)&&!done;
     return `<div class="detail-item"><span class="detail-k">${esc(step)} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep('${jsStr(q.customer.id)}','${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
   }).join('');
@@ -1705,6 +1754,8 @@ function renderAiSetup(){
   const customFilter=(document.getElementById('ai-custom-filter')?.value||'all');
   let rows=state.customers.map(c=>{
     const cfg=state.aiConfigs[c.id]||{};
+    cfg.status=deriveAiStatus(c,cfg);
+    cfg.custom=!!String(cfg.instructions||c.ai_instructions||'').trim();
     const missing=aiMissingFields(cfg);
     return {customer:c,cfg,missing};
   });
@@ -1729,6 +1780,7 @@ function renderAiSetup(){
 
   const missingCustomers=state.customers.map(c=>{
     const cfg=state.aiConfigs[c.id]||{};
+    cfg.status=deriveAiStatus(c,cfg);
     return {name:c.name,id:c.id,missing:aiMissingFields(cfg)};
   }).filter(x=>x.missing.length>0).sort((a,b)=>b.missing.length-a.missing.length);
   document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">${m.missing.length} fehlend: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace('${jsStr(m.id)}')">Fixen</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
@@ -1741,7 +1793,7 @@ function hydrateAiStatusFilter(){
   const select=document.getElementById('ai-status-filter');
   if(!select) return;
   const current=select.value||'all';
-  const statuses=[...new Set(Object.values(state.aiConfigs).map(x=>x.status).filter(Boolean))];
+  const statuses=[...new Set(state.customers.map(c=>deriveAiStatus(c,state.aiConfigs[c.id]||{})).filter(Boolean))];
   select.innerHTML='<option value="all">AI Status: Alle</option>'+statuses.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
@@ -1762,6 +1814,7 @@ function renderAiWorkspace(){
     return;
   }
   const c=customerById(id); const cfg=state.aiConfigs[id]||{};
+  cfg.status=deriveAiStatus(c,cfg);
   const setupProgress=getCustomerSetupProgress(c,onboardingForCustomer(id));
   const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboardingForCustomer(id));
   workspace.style.display='block';
@@ -1770,11 +1823,11 @@ function renderAiWorkspace(){
   document.getElementById('ai-customer-context').innerHTML=[
     ['Customer',c.name],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c,onboardingForCustomer(id))],['Voxera',c.voxera],['Setup',`${setupProgress}% · ${setupReadinessLabel}`],['AI Setup',cfg.status||'Unbekannt']
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
-  document.getElementById('ai-business-description').value=cfg.businessDescription||'';
+  document.getElementById('ai-business-description').value=cfg.businessDescription||c.ai_business_description||'';
   document.getElementById('ai-services').value=cfg.services||'';
   document.getElementById('ai-location-hours').value=cfg.locationHours||'';
   document.getElementById('ai-booking-faq').value=cfg.bookingFaq||'';
-  document.getElementById('ai-customer-instructions').value=cfg.instructions||'';
+  document.getElementById('ai-customer-instructions').value=cfg.instructions||c.ai_instructions||'';
   document.getElementById('ai-fallback-escalation').value=cfg.fallbackEscalation||'';
   document.getElementById('ai-response-constraints').value=cfg.responseConstraints||'';
   document.getElementById('ai-internal-notes').value=cfg.internalNotes||'';
@@ -1806,8 +1859,7 @@ function saveCustomerAiConfig(){
   cfg.responseConstraints=document.getElementById('ai-response-constraints').value.trim();
   cfg.internalNotes=document.getElementById('ai-internal-notes').value.trim();
   cfg.custom=!!cfg.instructions;
-  const missing=aiMissingFields(cfg);
-  cfg.status=missing.length===0?'AI Ready':missing.length<=2?'Needs Review':'Blocked';
+  cfg.status=deriveAiStatus(customerById(id),cfg);
   cfg.lastUpdate=new Date().toISOString().slice(0,16).replace('T',' ');
   state.aiConfigs[id]=cfg;
   const cname=customerById(id)?.name||`Kunde ${id}`;
@@ -1879,47 +1931,136 @@ function renderSettings(){
   }
 }
 
+function closeVxModal(){
+  const modal=document.getElementById('vx-modal');
+  if(modal) modal.classList.remove('open');
+}
+
+function vxConfirm(title,message,onConfirm,confirmLabel='Bestätigen',danger=false){
+  const modal=document.getElementById('vx-modal');
+  const titleEl=document.getElementById('vx-modal-title');
+  const subEl=document.getElementById('vx-modal-sub');
+  const bodyEl=document.getElementById('vx-modal-body');
+  const inputWrap=document.getElementById('vx-modal-input-wrap');
+  const cancelBtn=document.getElementById('vx-modal-cancel');
+  const confirmBtn=document.getElementById('vx-modal-confirm');
+  if(!(modal&&titleEl&&subEl&&bodyEl&&inputWrap&&cancelBtn&&confirmBtn)) return;
+  titleEl.textContent=title||'Bestätigung';
+  subEl.textContent='';
+  bodyEl.textContent=message||'';
+  inputWrap.style.display='none';
+  cancelBtn.style.display='inline-flex';
+  confirmBtn.className=danger?'btn btn-danger':'btn btn-primary';
+  confirmBtn.textContent=confirmLabel||'Bestätigen';
+  confirmBtn.onclick=()=>{
+    closeVxModal();
+    if(typeof onConfirm==='function') onConfirm();
+  };
+  modal.classList.add('open');
+}
+
+function vxAlert(title,message,type='info'){
+  const modal=document.getElementById('vx-modal');
+  const titleEl=document.getElementById('vx-modal-title');
+  const subEl=document.getElementById('vx-modal-sub');
+  const bodyEl=document.getElementById('vx-modal-body');
+  const inputWrap=document.getElementById('vx-modal-input-wrap');
+  const cancelBtn=document.getElementById('vx-modal-cancel');
+  const confirmBtn=document.getElementById('vx-modal-confirm');
+  if(!(modal&&titleEl&&subEl&&bodyEl&&inputWrap&&cancelBtn&&confirmBtn)) return;
+  titleEl.textContent=title||'Hinweis';
+  subEl.textContent='';
+  bodyEl.textContent=message||'';
+  inputWrap.style.display='none';
+  cancelBtn.style.display='none';
+  confirmBtn.className=type==='error'?'btn btn-danger':'btn btn-primary';
+  confirmBtn.textContent='OK';
+  confirmBtn.onclick=()=>closeVxModal();
+  modal.classList.add('open');
+}
+
+function vxPrompt(title,label,placeholder,onSubmit){
+  const modal=document.getElementById('vx-modal');
+  const titleEl=document.getElementById('vx-modal-title');
+  const subEl=document.getElementById('vx-modal-sub');
+  const bodyEl=document.getElementById('vx-modal-body');
+  const inputWrap=document.getElementById('vx-modal-input-wrap');
+  const inputLabel=document.getElementById('vx-modal-input-label');
+  const inputEl=document.getElementById('vx-modal-input');
+  const cancelBtn=document.getElementById('vx-modal-cancel');
+  const confirmBtn=document.getElementById('vx-modal-confirm');
+  if(!(modal&&titleEl&&subEl&&bodyEl&&inputWrap&&inputLabel&&inputEl&&cancelBtn&&confirmBtn)) return;
+  titleEl.textContent=title||'Eingabe';
+  subEl.textContent='';
+  bodyEl.textContent='';
+  inputLabel.textContent=label||'Wert';
+  inputEl.value='';
+  inputEl.placeholder=placeholder||'';
+  inputWrap.style.display='block';
+  cancelBtn.style.display='inline-flex';
+  confirmBtn.className='btn btn-primary';
+  confirmBtn.textContent='Übernehmen';
+  confirmBtn.onclick=()=>{
+    const value=inputEl.value;
+    closeVxModal();
+    if(typeof onSubmit==='function') onSubmit(value);
+  };
+  modal.classList.add('open');
+  setTimeout(()=>inputEl.focus(),30);
+}
+
 function openAddAdminModal(){
-  const email=prompt('E-Mail des neuen Admins:');
-  if(!email||!email.includes('@')) return;
-  const role=prompt('Rolle (admin / support / super-admin / owner / ops):','admin');
-  if(!role) return;
-  if(!authClient) return;
-  // Create auth user + admins row
-  authClient.auth.admin?.createUser({email,email_confirm:true}).then(({data,error})=>{
-    if(error&&!error.message?.includes('already')){alert('Fehler: '+error.message);return;}
-    const userId=data?.user?.id;
-    if(!userId){alert('Auth-User konnte nicht erstellt werden.');return;}
-    authClient.from('admins').insert({id:userId,email,role,created_at:new Date().toISOString()}).then(({error:e})=>{
-      if(e){alert('Fehler beim Eintragen: '+e.message);return;}
-      showToast('✓ Admin '+email+' hinzugefügt.');
-      renderSettings();
+  vxPrompt('Admin hinzufügen','E-Mail des neuen Admins','admin@voxera.ch',(emailValue)=>{
+    const email=(emailValue||'').trim();
+    if(!email||!email.includes('@')){
+      vxAlert('Ungültige Eingabe','Bitte eine gültige E-Mail-Adresse eingeben.','error');
+      return;
+    }
+    vxPrompt('Admin-Rolle','Rolle (admin / support / super-admin / owner / ops)','admin',(roleValue)=>{
+      const role=(roleValue||'').trim();
+      if(!role) return;
+      if(!authClient) return;
+      authClient.auth.admin?.createUser({email,email_confirm:true}).then(({data,error})=>{
+        if(error&&!error.message?.includes('already')){vxAlert('Fehler','Fehler: '+error.message,'error');return;}
+        const userId=data?.user?.id;
+        if(!userId){vxAlert('Fehler','Auth-User konnte nicht erstellt werden.','error');return;}
+        authClient.from('admins').insert({id:userId,email,role,created_at:new Date().toISOString()}).then(({error:e})=>{
+          if(e){vxAlert('Fehler','Fehler beim Eintragen: '+e.message,'error');return;}
+          showToast('✓ Admin '+email+' hinzugefügt.');
+          renderSettings();
+        });
+      }).catch(err=>vxAlert('Fehler','Fehler: '+err.message,'error'));
     });
-  }).catch(err=>alert('Fehler: '+err.message));
+  });
 }
 
 async function updateAdminRole(adminId,newRole){
   if(!authClient) return;
   const {error}=await authClient.from('admins').update({role:newRole}).eq('id',adminId);
-  if(error){alert('Fehler: '+error.message);renderSettings();return;}
+  if(error){vxAlert('Fehler','Fehler: '+error.message,'error');renderSettings();return;}
   showToast('✓ Rolle aktualisiert.');
 }
 
 async function removeAdmin(adminId,email){
-  if(!confirm('Admin '+email+' wirklich entfernen?')) return;
+  vxConfirm('Admin entfernen','Admin '+email+' wirklich entfernen?',async()=>{
   if(!authClient) return;
   const {error}=await authClient.from('admins').delete().eq('id',adminId);
-  if(error){alert('Fehler: '+error.message);return;}
+  if(error){vxAlert('Fehler','Fehler: '+error.message,'error');return;}
   showToast('✓ Admin entfernt.');
   renderSettings();
+  },'Entfernen',true);
 }
 
 function renderInsights(){
   // ─ Minuten-Verbrauch pro Kunde ─
   const minutesBody=document.getElementById('insight-minutes-body');
   if(minutesBody){
+    if(!state.calls.length){
+      minutesBody.innerHTML='<tr><td colspan="6"><div class="empty">Noch keine Anrufe.</div></td></tr>';
+    }else{
     const rows=state.customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted').map(c=>{
       const customerCalls=state.calls.filter(call=>idsEq(call.customerId,c.id));
+      console.log(`[Insights] ${c.name}: ${customerCalls.length} calls matched`);
       const totalSecs=customerCalls.reduce((sum,call)=>sum+(Number(call.duration_seconds)||0),0);
       const usedMins=secsToMins(totalSecs);
       const inclMins=getPlanMinutes(c.plan);
@@ -1931,18 +2072,19 @@ function renderInsights(){
         <td>${esc(c.plan||'—')}</td>
         <td>${inclMins?inclMins+' Min.':'—'}</td>
         <td style="color:${overUsed?'var(--red)':'inherit'};font-weight:${overUsed?'600':'400'}">${usedMins} Min.</td>
-        <td style="min-width:140px;">
+        <td>
           <div style="display:flex;align-items:center;gap:8px;">
             <div style="flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden;">
               <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .3s;"></div>
             </div>
-            <span style="font-size:12px;color:var(--slate);min-width:35px;">${inclMins?pct+'%':'—'}</span>
+            <span style="font-size:12px;color:var(--slate);">${inclMins?pct+'%':'—'}</span>
           </div>
         </td>
         <td>${customerCalls.length}</td>
       </tr>`;
     });
     minutesBody.innerHTML=rows.join('')||'<tr><td colspan="6"><div class="empty">Keine Kundendaten.</div></td></tr>';
+    }
   }
 
   // ─ Kunden nach Plan ─
@@ -1987,7 +2129,6 @@ function hydrateFilters(){
   document.getElementById('customer-plan-filter').innerHTML='<option value="all">Plan: Alle</option>'+plans.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   const orderedStatuses=CUSTOMER_LIFECYCLE_STATUS_ORDER.filter(status=>statuses.includes(status));
   document.getElementById('customer-status-filter').innerHTML='<option value="all">Status: Alle</option>'+orderedStatuses.map(status=>`<option value="${esc(status)}">${esc(CUSTOMER_LIFECYCLE_LABELS[status]||status)}</option>`).join('');
-  document.getElementById('cases-customer-select').innerHTML='<option value="">Kunde wählen …</option>'+state.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
 }
 
 function updateBadges(){
@@ -2410,15 +2551,16 @@ async function submitSendAccess(){
 
 async function sendPasswordReset(customerId){
   const customer=customerById(customerId);
-  if(!customer){alert('Kunde nicht gefunden.');return;}
-  if(!confirm(`Passwort-Reset-Link an ${customer.email} senden?`)) return;
-  try{
-    const json=await callAdminFunction('send-customer-access',{customer_id:customerId,action:'reset_password'});
-    if(!json?.success) throw new Error(json?.error||'Versand fehlgeschlagen.');
-    showToast(`✓ Passwort-Reset an ${customer.email} gesendet.`);
-  }catch(err){
-    alert(`Fehler beim PW-Reset: ${err.message}`);
-  }
+  if(!customer){vxAlert('Fehler','Kunde nicht gefunden.','error');return;}
+  vxConfirm('Passwort-Reset',`Passwort-Reset-Link an ${customer.email} senden?`,async()=>{
+    try{
+      const json=await callAdminFunction('send-customer-access',{customer_id:customerId,action:'reset_password'});
+      if(!json?.success) throw new Error(json?.error||'Versand fehlgeschlagen.');
+      showToast(`✓ Passwort-Reset an ${customer.email} gesendet.`);
+    }catch(err){
+      vxAlert('Fehler',`Fehler beim PW-Reset: ${err.message}`,'error');
+    }
+  },'Senden');
 }
 
 
@@ -2432,14 +2574,18 @@ function openCaseCaptureModal(customerId){
   // Clear form
   const titleEl=document.getElementById('case-capture-title');
   const noteEl=document.getElementById('case-capture-note');
+  const mailTemplateEl=document.getElementById('case-capture-mail-template');
   if(titleEl) titleEl.value='';
   if(noteEl) noteEl.value='';
+  if(mailTemplateEl) mailTemplateEl.value='none';
   setCaseCaptureFeedback(null,'');
-  document.getElementById('case-capture-modal').classList.add('open');
+  const modal=document.getElementById('case-capture-modal');
+  if(modal) modal.classList.add('open');
 }
 function closeCaseCaptureModal(){
   state.caseCaptureCustomerId=null;
-  document.getElementById('case-capture-modal').classList.remove('open');
+  const modal=document.getElementById('case-capture-modal');
+  if(modal) modal.classList.remove('open');
 }
 function setCaseCaptureFeedback(type,message){
   const fb=document.getElementById('case-capture-feedback');
@@ -2540,7 +2686,7 @@ async function submitEditCustomer(e){
 
 function showToast(msg,duration=3000){
   const t=document.getElementById('toast');
-  if(!t){alert(msg);return;}
+  if(!t){vxAlert('Hinweis',msg,'info');return;}
   t.textContent=msg;t.style.opacity='1';
   clearTimeout(t._timer);
   t._timer=setTimeout(()=>{t.style.opacity='0';},duration);
@@ -2815,14 +2961,14 @@ async function submitCreateCustomer(event){
   }
 }
 
-async function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt'){
+async function createCaseForCustomer(customerId,type='Follow-up',note='Manuell erstellt',mailTemplate='none'){
   const c=customerById(customerId);
   if(!c){
-    alert('Case konnte nicht erstellt werden: Kunde nicht gefunden.');
+    vxAlert('Fehler','Case konnte nicht erstellt werden: Kunde nicht gefunden.','error');
     return;
   }
   try{
-    const json=await callAdminFunction('cases-create',{customer_id:customerId,type,note});
+    const json=await callAdminFunction('cases-create',{customer_id:customerId,type,note,mail_template:mailTemplate});
     if(!json?.success||!json?.case) throw new Error(json?.error||'Case konnte nicht erstellt werden.');
     const mapped=mapDbCaseToUi(json.case);
     state.cases=state.cases.filter(existing=>!idsEq(existing.id,mapped.id));
@@ -2833,14 +2979,14 @@ async function createCaseForCustomer(customerId,type='Follow-up',note='Manuell e
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
   }catch(error){
     const payload=error?.payload||{};
-    alert(payload?.error||error?.message||'Case konnte nicht erstellt werden.');
+    vxAlert('Fehler',payload?.error||error?.message||'Case konnte nicht erstellt werden.','error');
   }
 }
 
 async function updateCase(caseId,field,value){
   const target=state.cases.find(c=>c.id===caseId);
   if(!target){
-    alert('Case konnte nicht aktualisiert werden: Case nicht gefunden.');
+    vxAlert('Fehler','Case konnte nicht aktualisiert werden: Case nicht gefunden.','error');
     return;
   }
   try{
@@ -2856,7 +3002,7 @@ async function updateCase(caseId,field,value){
     if(idsEq(state.selectedCustomer,mapped.customerId)) openCustomerProfile(mapped.customerId);
   }catch(error){
     const payload=error?.payload||{};
-    alert(payload?.error||error?.message||'Case konnte nicht aktualisiert werden.');
+    vxAlert('Fehler',payload?.error||error?.message||'Case konnte nicht aktualisiert werden.','error');
   }
 }
 
@@ -2877,7 +3023,7 @@ async function toggleCustomerStatus(customerId){
   if(current==='paused') targetStatus='live';
   else if(current==='live') targetStatus='paused';
   else{
-    alert(`Lifecycle-Update fehlgeschlagen: ${current} kann nicht auf live/paused gewechselt werden.`);
+    vxAlert('Fehler',`Lifecycle-Update fehlgeschlagen: ${current} kann nicht auf live/paused gewechselt werden.`,'error');
     return;
   }
   try{
@@ -2889,7 +3035,7 @@ async function toggleCustomerStatus(customerId){
     renderCustomers(); renderOverview(); renderActivity(); hydrateFilters(); openCustomerProfile(customerId);
   }catch(error){
     const payload=error?.payload||{};
-    alert(payload?.error||error?.message||'Lifecycle-Update fehlgeschlagen.');
+    vxAlert('Fehler',payload?.error||error?.message||'Lifecycle-Update fehlgeschlagen.','error');
   }
 }
 
@@ -2945,7 +3091,7 @@ async function toggleOnboardingStep(customerId,step){
       o.blocker=prevOnboarding.blocker;
     }
     const payload=error?.payload||{};
-    alert(payload?.error||error?.message||'Onboarding-Update fehlgeschlagen.');
+    vxAlert('Fehler',payload?.error||error?.message||'Onboarding-Update fehlgeschlagen.','error');
   }
 }
 
@@ -3019,9 +3165,10 @@ function wireUi(){
   document.getElementById('case-capture-form').addEventListener('submit',async e=>{
     e.preventDefault();
     if(state.caseCapturePending) return;
-    const customerId=state.caseCaptureCustomerId||document.getElementById('case-capture-customer-select')?.value||document.getElementById('cases-customer-select').value;
-    const title=document.getElementById('case-capture-title').value.trim();
-    const note=document.getElementById('case-capture-note').value.trim();
+    const customerId=state.caseCaptureCustomerId||document.getElementById('case-capture-customer-select')?.value;
+    const title=document.getElementById('case-capture-title')?.value.trim()||'';
+    const note=document.getElementById('case-capture-note')?.value.trim()||'';
+    const mailTemplate=document.getElementById('case-capture-mail-template')?.value||'none';
     if(!customerId){
       setCaseCaptureFeedback('error','Bitte zuerst einen Kunden wählen.');
       return;
@@ -3031,7 +3178,7 @@ function wireUi(){
       return;
     }
     setCaseCaptureSubmitting(true);
-    await createCaseForCustomer(customerId,title,note);
+    await createCaseForCustomer(customerId,title,note,mailTemplate);
     setCaseCaptureSubmitting(false);
   });
   document.getElementById('profile-tabs').addEventListener('click',e=>{
@@ -3149,7 +3296,11 @@ function mapDbCustomerToUi(dbRow, dbOnboarding) {
     welcome_sent:   Boolean(dbRow.welcome_sent),
     welcome_sent_at: dbRow.welcome_sent_at || null,
     // Voxera
+    voxera_number: dbRow.voxera_number || '',
     voxera:        dbRow.voxera_number || 'Zuweisung offen',
+    forwarding_setup_completed: dbRow.forwarding_setup_completed === true,
+    ai_business_description: dbRow.ai_business_description || '',
+    ai_instructions: dbRow.ai_instructions || '',
     dashboard_id:  dbRow.dashboard_id  || null,
     // Onboarding progress (from joined onboarding row)
     progress:      obProgress,
@@ -3235,10 +3386,11 @@ function mapDbCallToUi(dbRow) {
   const cat = [dbRow.category, quality].filter(Boolean).join('') || dbRow.direction || 'Eingehend';
   return {
     customerId: String(dbRow.customer_id),
+    created_at: dbRow.created_at || null,
     time:       ts,
     cat:        cat,
     callback:   Boolean(dbRow.callback_requested),
-    summary:    dbRow.summary || '',
+    summary:    dbRow.call_summary || dbRow.summary || '',
     duration_seconds: Number(dbRow.duration_seconds || 0),
     id:         dbRow.id,
     raw:        dbRow,
@@ -3318,6 +3470,17 @@ async function loadDataFromSupabase() {
       .limit(500);
     if (caseErr) console.warn('[DB] cases load failed:', caseErr.message);
 
+    // 4b. Optional AI config table (if not present, keep empty)
+    let aiConfigRows = [];
+    const { data: aiRows, error: aiErr } = await authClient
+      .from('ai_configs')
+      .select('*');
+    if (aiErr) {
+      console.warn('[DB] ai_configs load skipped:', aiErr.message);
+    } else {
+      aiConfigRows = aiRows || [];
+    }
+
     // 5. Build a map from customer_id → onboarding row for O(1) joins
     const obMap = {};
     (onboardingRows || []).forEach(o => { obMap[String(o.customer_id)] = o; });
@@ -3329,6 +3492,22 @@ async function loadDataFromSupabase() {
     state.onboarding = (onboardingRows || []).map(mapDbOnboardingToState);
     state.calls      = (callRows  || []).map(mapDbCallToUi);
     state.cases      = (caseRows  || []).map(mapDbCaseToUi);
+    state.aiConfigs  = {};
+    aiConfigRows.forEach(row=>{
+      const key=String(row.customer_id||'');
+      if(!key) return;
+      state.aiConfigs[key]={
+        businessDescription: row.business_description || row.ai_business_description || '',
+        services: row.services || '',
+        locationHours: row.location_hours || '',
+        bookingFaq: row.booking_faq || '',
+        instructions: row.instructions || row.ai_instructions || '',
+        fallbackEscalation: row.fallback_escalation || '',
+        responseConstraints: row.response_constraints || '',
+        internalNotes: row.internal_notes || '',
+        lastUpdate: row.updated_at ? row.updated_at.slice(0,16).replace('T',' ') : ''
+      };
+    });
 
     // 7. Populate openCases count on each customer from real cases data
     state.customers.forEach(c => {
