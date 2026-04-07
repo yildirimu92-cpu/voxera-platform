@@ -1520,6 +1520,7 @@ const ONBOARDING_STATUS_TRANSITIONS={
   [ONBOARDING_STATUS.READY]:new Set([ONBOARDING_STATUS.COMPLETED]),
   [ONBOARDING_STATUS.COMPLETED]:new Set([])
 };
+const ONBOARDING_AI_STEPS=new Set(['agent connected','AI basics configured','greeting reviewed','business info completed','opening hours added']);
 const CASE_STATUS={
   OPEN:'open',
   IN_PROGRESS:'in_progress',
@@ -1955,8 +1956,7 @@ function renderOnboardingDetail(){
 function goToOnboardingNextStep(customerId){
   const q=buildOnboardingQueueItem(customerId);
   const nextStep=q.nextStep;
-  const aiSteps=['agent connected','AI basics configured','greeting reviewed','business info completed','opening hours added'];
-  if(aiSteps.includes(nextStep)){
+  if(ONBOARDING_AI_STEPS.has(nextStep)){
     setRoute('ai-setup');
   } else if(nextStep==='activation sent'){
     openCustomerProfile(customerId,'aktionen');
@@ -3046,8 +3046,9 @@ function openCustomerProfile(id,initialTab){
   });
 
   // Ersten Tab aktivieren (oder initialTab, falls angegeben)
-  document.querySelectorAll('#customer-profile-modal .profile-tab').forEach((tab,i)=>tab.classList.toggle('active',initialTab?tab.dataset.profileTab===initialTab:i===0));
-  document.querySelectorAll('#customer-profile-modal .profile-panel').forEach((p,i)=>p.classList.toggle('active',initialTab?p.dataset.profilePanel===initialTab:i===0));
+  const matchedTab=initialTab?document.querySelector(`#customer-profile-modal [data-profile-tab="${initialTab}"]`):null;
+  document.querySelectorAll('#customer-profile-modal .profile-tab').forEach((tab,i)=>tab.classList.toggle('active',matchedTab?tab===matchedTab:i===0));
+  document.querySelectorAll('#customer-profile-modal .profile-panel').forEach((p,i)=>p.classList.toggle('active',matchedTab?p.dataset.profilePanel===initialTab:i===0));
   document.getElementById('customer-profile-modal').classList.add('open');
 }
 function closeCustomerProfile(){document.getElementById('customer-profile-modal').classList.remove('open');}
