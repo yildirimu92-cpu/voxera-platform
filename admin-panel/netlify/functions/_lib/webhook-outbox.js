@@ -3,7 +3,12 @@
 function isMissingColumnError(error) {
   const code = String(error && error.code || '');
   const message = String(error && error.message || '').toLowerCase();
-  return code === '42703' || (message.includes('column') && message.includes('does not exist'));
+  return (
+    code === '42703'
+    || code === 'PGRST204'
+    || (message.includes('column') && message.includes('does not exist'))
+    || message.includes('schema cache')
+  );
 }
 
 function formatSupabaseError(error) {
