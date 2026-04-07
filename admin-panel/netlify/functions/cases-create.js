@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
+const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -97,8 +98,10 @@ exports.handler = async (event) => {
     return response(500, { error: 'Case konnte nicht erstellt werden.', details: error.message });
   }
 
+  let mailDelivery = null;
   // Trigger Make webhook for mail if template selected
   if (validTemplate !== 'none' && process.env.MAKE_CASE_WEBHOOK) {
+    let outboxId = null;
     try {
       const { data: customer } = await sbAdmin
         .from('customers')
@@ -106,25 +109,65 @@ exports.handler = async (event) => {
         .eq('id', customerId)
         .single();
 
-      await fetch(process.env.MAKE_CASE_WEBHOOK, {
+      const payload = {
+        mail_template: validTemplate,
+        customer_email: customer?.email,
+        customer_name: customer?.customer_name,
+        case_title: title,
+        case_note: note
+      };
+      const outbox = await createOutboxEvent(sbAdmin, {
+        eventType: 'case_mail_notification',
+        payload,
+        payloadSummary: `case_mail:${validTemplate} -> ${customer?.email || 'unknown'}`
+      });
+      outboxId = outbox.id;
+      console.log(JSON.stringify({ level: 'info', event: 'webhook_send_attempt', event_type: 'case_mail_notification', outbox_id: outboxId, customer_id: customerId }));
+
+      const webhookRes = await fetch(process.env.MAKE_CASE_WEBHOOK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mail_template: validTemplate,
-          customer_email: customer?.email,
-          customer_name: customer?.customer_name,
-          case_title: title,
-          case_note: note
-        })
+        body: JSON.stringify(payload)
       });
+      if (!webhookRes.ok) {
+        const errMsg = `Case webhook failed: HTTP ${webhookRes.status}`;
+        await markOutboxFailed(sbAdmin, outboxId, errMsg);
+        console.error(JSON.stringify({ level: 'error', event: 'webhook_send_failed', event_type: 'case_mail_notification', outbox_id: outboxId, status: webhookRes.status }));
+        mailDelivery = { sent: false, outbox_id: outboxId, error: errMsg };
+      } else {
+        await markOutboxSent(sbAdmin, outboxId);
+        console.log(JSON.stringify({ level: 'info', event: 'webhook_send_succeeded', event_type: 'case_mail_notification', outbox_id: outboxId }));
+        mailDelivery = { sent: true, outbox_id: outboxId };
+      }
     } catch (webhookErr) {
-      console.warn('Case webhook failed (non-fatal):', webhookErr.message);
+      const errMsg = webhookErr && webhookErr.message ? webhookErr.message : 'Case webhook failed';
+      if (outboxId) {
+        await markOutboxFailed(sbAdmin, outboxId, errMsg);
+      }
+      console.warn('Case webhook failed (non-fatal):', errMsg);
+      mailDelivery = { sent: false, outbox_id: outboxId, error: errMsg };
+    }
+  } else if (validTemplate !== 'none') {
+    try {
+      const outbox = await createOutboxEvent(sbAdmin, {
+        eventType: 'case_mail_notification',
+        payload: { customer_id: customerId, mail_template: validTemplate, case_title: title },
+        payloadSummary: `case_mail:${validTemplate} -> webhook missing`
+      });
+      await markOutboxFailed(sbAdmin, outbox.id, 'MAKE_CASE_WEBHOOK not configured');
+      console.error(JSON.stringify({ level: 'error', event: 'webhook_send_failed', event_type: 'case_mail_notification', outbox_id: outbox.id, reason: 'missing_webhook_env' }));
+      mailDelivery = { sent: false, outbox_id: outbox.id, error: 'MAKE_CASE_WEBHOOK not configured' };
+    } catch (outboxErr) {
+      const msg = outboxErr && outboxErr.message ? outboxErr.message : 'outbox insert failed';
+      console.error(JSON.stringify({ level: 'error', event: 'outbox_insert_failed', event_type: 'case_mail_notification', customer_id: customerId, error: msg }));
+      mailDelivery = { sent: false, outbox_id: null, error: `Webhook-Outbox Fehler: ${msg}` };
     }
   }
 
   return response(200, {
     success: true,
     case: data,
-    mail_template: validTemplate
+    mail_template: validTemplate,
+    mail_delivery: mailDelivery
   });
 };

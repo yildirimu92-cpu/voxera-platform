@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
+const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,14 +15,42 @@ function response(statusCode, payload) {
   return { statusCode, headers: corsHeaders, body: JSON.stringify(payload) };
 }
 
-async function sendViaWebhook({ customer, activationLink, isPasswordReset = false }) {
+async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordReset = false }) {
+  const eventType = isPasswordReset ? 'customer_password_reset_email' : 'customer_welcome_access_email';
+  const payload = {
+    customer_id: customer.id,
+    customer_name: customer.customer_name,
+    customer_email: customer.email,
+    plan: customer.plan || null,
+    voxera_number: customer.voxera_number || null,
+    dashboard_url: process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch',
+    activation_link_present: Boolean(activationLink),
+    mail_type: isPasswordReset ? 'password_reset' : 'welcome'
+  };
+  let outbox;
+  try {
+    outbox = await createOutboxEvent(sbAdmin, {
+      eventType,
+      payload,
+      payloadSummary: `${eventType} -> ${customer.email}`
+    });
+  } catch (outboxErr) {
+    const msg = outboxErr && outboxErr.message ? outboxErr.message : 'outbox insert failed';
+    console.error(JSON.stringify({ level: 'error', event: 'outbox_insert_failed', event_type: eventType, customer_id: customer.id, error: msg }));
+    return { ok: false, statusCode: 500, error: 'Webhook-Outbox konnte nicht gespeichert werden.', details: msg };
+  }
+  console.log(JSON.stringify({ level: 'info', event: 'webhook_send_attempt', event_type: eventType, outbox_id: outbox.id, customer_id: customer.id }));
+
   const webhookUrl = process.env.MAKE_WELCOME_WEBHOOK;
   if (!webhookUrl) {
+    await markOutboxFailed(sbAdmin, outbox.id, 'MAKE_WELCOME_WEBHOOK ist nicht gesetzt.');
+    console.error(JSON.stringify({ level: 'error', event: 'webhook_send_failed', event_type: eventType, outbox_id: outbox.id, reason: 'missing_webhook_env' }));
     return {
       ok: false,
       statusCode: 500,
       error: 'MAKE_WELCOME_WEBHOOK ist nicht gesetzt.',
-      limitation: 'Link wurde erstellt, aber kein E-Mail ausgelöst.'
+      limitation: 'Link wurde erstellt, aber kein E-Mail ausgelöst.',
+      outbox_id: outbox.id
     };
   }
   try {
@@ -41,12 +70,19 @@ async function sendViaWebhook({ customer, activationLink, isPasswordReset = fals
       })
     });
     if (!res.ok) {
-      return { ok: false, statusCode: 500, error: `Webhook fehlgeschlagen (HTTP ${res.status}).` };
+      const errMsg = `Webhook fehlgeschlagen (HTTP ${res.status}).`;
+      await markOutboxFailed(sbAdmin, outbox.id, errMsg);
+      console.error(JSON.stringify({ level: 'error', event: 'webhook_send_failed', event_type: eventType, outbox_id: outbox.id, status: res.status }));
+      return { ok: false, statusCode: 500, error: errMsg, outbox_id: outbox.id };
     }
+    await markOutboxSent(sbAdmin, outbox.id);
+    console.log(JSON.stringify({ level: 'info', event: 'webhook_send_succeeded', event_type: eventType, outbox_id: outbox.id }));
     return { ok: true };
   } catch (err) {
-    console.error('Webhook call failed', err);
-    return { ok: false, statusCode: 500, error: 'Webhook konnte nicht erreicht werden.', details: err.message };
+    const msg = err && err.message ? err.message : 'Webhook konnte nicht erreicht werden.';
+    await markOutboxFailed(sbAdmin, outbox.id, msg);
+    console.error(JSON.stringify({ level: 'error', event: 'webhook_send_failed', event_type: eventType, outbox_id: outbox.id, error: msg }));
+    return { ok: false, statusCode: 500, error: 'Webhook konnte nicht erreicht werden.', details: msg, outbox_id: outbox.id };
   }
 }
 
@@ -138,8 +174,12 @@ exports.handler = async (event) => {
       return response(500, { error: 'Passwort-Reset-Link konnte nicht erstellt werden.', details: linkErr?.message });
     }
 
-    const delivery = await sendViaWebhook({ customer, activationLink: resetLink, isPasswordReset: true });
-    if (!delivery.ok) return response(delivery.statusCode || 500, { error: delivery.error, details: delivery.details });
+    const delivery = await sendViaWebhook({ sbAdmin, customer, activationLink: resetLink, isPasswordReset: true });
+    if (!delivery.ok) return response(delivery.statusCode || 500, {
+      error: delivery.error,
+      details: delivery.details || null,
+      outbox_id: delivery.outbox_id || null
+    });
 
     return response(200, {
       success: true,
@@ -162,11 +202,12 @@ exports.handler = async (event) => {
     return response(500, { error: 'Aktivierungslink konnte nicht erstellt werden.', details: linkErr?.message });
   }
 
-  const delivery = await sendViaWebhook({ customer, activationLink });
+  const delivery = await sendViaWebhook({ sbAdmin, customer, activationLink });
   if (!delivery.ok) return response(delivery.statusCode || 500, {
     error: delivery.error,
     details: delivery.details || null,
-    limitation: delivery.limitation || null
+    limitation: delivery.limitation || null,
+    outbox_id: delivery.outbox_id || null
   });
 
   // Kundenstatus nach Versand aktualisieren
