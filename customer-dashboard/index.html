@@ -1150,119 +1150,105 @@ body{
 
             <div class="setup-steps" id="setup-steps-container">
 
-              <!-- Step 1: Intro -->
+              <!-- Step 1: Setup-Pfad wählen -->
               <div class="setup-step active" id="setup-s1" onclick="toggleSetupStep('s1')">
                 <div class="setup-step-head">
                   <div class="setup-step-num">1</div>
                   <div class="setup-step-info">
-                    <div class="setup-step-title">So funktioniert Voxera</div>
-                    <div class="setup-step-desc">Kurze Einführung in Ihren KI-Assistenten</div>
+                    <div class="setup-step-title">So richten Sie Voxera ein</div>
+                    <div class="setup-step-desc">Wählen Sie den passenden Aktivierungsweg</div>
                   </div>
                   <div class="setup-step-check">✓</div>
                 </div>
                 <div class="setup-step-body">
                   <div class="setup-step-content">
-                    <p>Voxera nimmt Ihre eingehenden Anrufe entgegen, führt ein natürliches Gespräch und erfasst alle wichtigen Informationen automatisch.</p>
-                    <h4>Was Voxera für Sie tut</h4>
-                    <ol>
-                      <li><strong>Anrufe annehmen</strong> – 24/7, auch wenn Sie beschäftigt sind</li>
-                      <li><strong>Gespräch führen</strong> – Name, Anliegen und Dringlichkeit werden erfasst</li>
-                      <li><strong>Dashboard aktualisieren</strong> – Alle Anrufe erscheinen sofort hier</li>
-                      <li><strong>Rückrufe markieren</strong> – Sie sehen auf einen Blick, wer zurückgerufen werden möchte</li>
-                    </ol>
+                    <p><strong>Wie möchten Sie Voxera einrichten?</strong></p>
+                    <div class="setup-choice-grid" onclick="event.stopPropagation();">
+                      <div class="setup-choice-card active" id="setup-device-card-mobile">
+                        <div class="setup-choice-title">📱 Smartphone</div>
+                        <div class="setup-choice-text">Ideal, wenn Sie die Weiterleitung direkt auf dem Handy aktivieren möchten.</div>
+                        <div class="setup-choice-actions">
+                          <button type="button" class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Smartphone wählen</button>
+                        </div>
+                      </div>
+                      <div class="setup-choice-card" id="setup-device-card-landline">
+                        <div class="setup-choice-title">☎️ Festnetz / Telefonanlage</div>
+                        <div class="setup-choice-text">Für Büro-Telefon, Telefonanlage oder VoIP beim Anbieter.</div>
+                        <div class="setup-choice-actions">
+                          <button type="button" class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'landline')">Festnetz wählen</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="setup-info-note" style="margin-top:10px;">💡 Keine Sorge: Sie können den Pfad jederzeit wechseln.</div>
                     <h4>Ihre Voxera-Nummer</h4>
                     <div class="setup-number-box">
                       <span class="setup-number-val" id="setup-voxera-number">Wird geladen...</span>
                       <button class="setup-number-copy" onclick="copyVoxeraNumber(event)">Kopieren</button>
                     </div>
-                    <p>Diese Nummer übernimmt Ihre eingehenden Anrufe.<br>Im nächsten Schritt richten Sie die Rufumleitung auf diese Nummer ein.</p>
-                    <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">❓ Anleitung anzeigen</a>
+                    <p class="setup-helper-note">Dauert nur wenige Sekunden. Im nächsten Schritt führen wir Sie genau durch die Aktivierung.</p>
                   </div>
                   <div class="setup-actions">
-                    <button type="button" class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1',event)">Weiter zur Einrichtung</button>
+                    <button type="button" class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1',event)">Weiter zur Aktivierung</button>
                   </div>
                 </div>
               </div>
 
-              <!-- Step 2: Rufumleitung einrichten -->
+              <!-- Step 2: Aktivierung & Test -->
               <div class="setup-step" id="setup-s2" onclick="toggleSetupStep('s2')">
                 <div class="setup-step-head">
                   <div class="setup-step-num">2</div>
                   <div class="setup-step-info">
-                    <div class="setup-step-title">Rufumleitung einrichten</div>
-                    <div class="setup-step-desc">Wählen Sie Ihr Gerät und richten Sie die Weiterleitung ein</div>
+                    <div class="setup-step-title">Weiterleitung aktivieren</div>
+                    <div class="setup-step-desc">Voxera führt Sie Schritt für Schritt durch die Aktivierung</div>
                   </div>
                   <div class="setup-step-check">✓</div>
                 </div>
                 <div class="setup-step-body">
                   <div class="setup-step-content">
-                    <div class="setup-choice-grid">
-                      <div class="setup-choice-card active" id="setup-device-card-mobile">
-                        <div class="setup-choice-title">Smartphone</div>
-                        <div class="setup-choice-text">Sie möchten Anrufe von Ihrem Smartphone direkt an Voxera weiterleiten.</div>
-                        <div class="setup-choice-actions">
-                          <button type="button" class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Mit Smartphone einrichten</button>
-                        </div>
-                      </div>
-                      <div class="setup-choice-card" id="setup-device-card-landline">
-                        <div class="setup-choice-title">Festnetz oder Büro-Telefon</div>
-                        <div class="setup-choice-text">Sie nutzen ein Festnetz, eine Telefonanlage oder eine VoIP-Lösung.</div>
-                        <div class="setup-choice-actions">
-                          <button type="button" class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'landline')">Mit Festnetz einrichten</button>
-                        </div>
-                      </div>
-                    </div>
-
                     <div class="setup-device-panel active" id="setup-device-panel-mobile">
-                      <h4>Rufumleitung auf dem Smartphone aktivieren</h4>
-                      <p>Öffnen Sie Ihre Telefon-App und aktivieren Sie die Rufumleitung auf Ihre Voxera-Nummer.</p>
-                      <div class="setup-helper-note">Diese Nummer ist das Ziel Ihrer Rufumleitung.</div>
+                      <h4>Smartphone-Aktivierung</h4>
+                      <p>Tippen Sie auf <strong>Jetzt aktivieren</strong>. Ihr Handy öffnet den Dialer mit dem Code – Sie bestätigen nur noch den Anruf.</p>
+                      <div class="setup-helper-note">Dauert nur wenige Sekunden.</div>
                       <div class="setup-number-box">
                         <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
                         <div class="setup-choice-actions" style="margin-top:0;">
-                          <button type="button" class="setup-btn setup-btn-primary" id="setup-forwarding-mobile-btn" onclick="openSetupHelpOverlay(event,'forwarding')">Jetzt Rufumleitung aktivieren</button>
+                          <a class="setup-btn setup-btn-primary help-direct-btn" id="setup-forwarding-mobile-btn" data-code-template="**62*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Jetzt aktivieren</a>
                           <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-copy-btn" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
                         </div>
                       </div>
+                      <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">Alternative Weiterleitungsarten anzeigen</a>
                     </div>
 
                     <div class="setup-device-panel" id="setup-device-panel-landline">
-                      <h4>Rufumleitung beim Anbieter einrichten</h4>
-                      <p>Richten Sie die Rufumleitung direkt bei Ihrem Telefonanbieter oder in Ihrer Telefonanlage auf Ihre Voxera-Nummer ein.</p>
-                      <div class="setup-helper-note">Diese Nummer tragen Sie bei der Rufumleitung als Ziel ein.</div>
+                      <h4>Festnetz / Telefonanlage aktivieren</h4>
+                      <p>Öffnen Sie das Admin-Portal Ihres Anbieters oder Ihrer Telefonanlage und setzen Sie dort die Rufumleitung auf die Voxera-Nummer.</p>
+                      <div class="setup-helper-note">Diese Nummer tragen Sie als Zielnummer ein.</div>
                       <div class="setup-number-box">
                         <span class="setup-number-val" id="setup-voxera-number-3">Wird geladen...</span>
                         <div class="setup-choice-actions" style="margin-top:0;">
-                          <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-landline-btn" onclick="openHelpSection('forwarding');event.stopPropagation();">Anleitung anzeigen</button>
+                          <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-landline-btn" onclick="openHelpSection('forwarding');event.stopPropagation();">Anleitung öffnen</button>
                         </div>
                       </div>
-                      <div class="setup-info-note">Hinweis: Bei Festnetz oder Telefonanlagen funktionieren GSM-Codes oft nicht direkt.</div>
+                      <div class="setup-info-note">Hinweis: GSM-Codes wie <code>**62*</code> funktionieren meist nur auf Smartphones.</div>
                     </div>
 
-                    <p>Sobald die Rufumleitung eingerichtet ist, testen Sie im nächsten Schritt, ob alles korrekt funktioniert.</p>
-                    <button type="button" class="setup-btn setup-btn-primary" onclick="continueToSetupTest(event)">Weiter zum Test</button>
+                    <div class="setup-actions" style="margin-top:8px;">
+                      <button type="button" class="setup-btn setup-btn-primary" onclick="continueToSetupTest(event)">Weiter: Aktivierung testen</button>
+                    </div>
 
                     <div id="setup-test-block" style="margin-top:14px;display:none;">
-                      <h4>Schritt 3: Testanruf durchführen</h4>
-                      <p>Prüfen Sie jetzt, ob Ihre Rufumleitung korrekt eingerichtet ist.</p>
-                      <div class="setup-helper-note">Rufen Sie Ihre Geschäftsnummer von einem anderen Telefon aus an.</div>
+                      <h4>Testen, ob alles funktioniert</h4>
+                      <p>Rufen Sie Ihre Geschäftsnummer von einem zweiten Telefon aus an. So sehen Sie sofort, ob Voxera aktiv ist.</p>
+                      <div class="setup-helper-note">Nach dem Test sollte ein neuer Anruf im Dashboard erscheinen.</div>
                       <div class="setup-number-box">
                         <span class="setup-number-val" id="setup-business-number-test">Wird geladen...</span>
                         <button type="button" class="setup-btn setup-btn-primary" id="setup-forwarding-test-guide-btn" onclick="openSetupHelpOverlay(event,'testcall')">So testen Sie es</button>
                       </div>
-                      <div class="setup-helper-note" id="setup-business-number-note" style="display:none;">Ihre Geschäftsnummer fehlt. Hinterlegen Sie sie in den Einstellungen, um den Weiterleitungs-Test sauber durchzuführen.</div>
-                      <h4>Was Sie erwarten können</h4>
-                      <ul>
-                        <li>Sie rufen Ihre eigene Geschäftsnummer von einem anderen Telefon aus an</li>
-                        <li>Die Rufumleitung leitet den Anruf an Voxera weiter</li>
-                        <li>Voxera meldet sich automatisch und beantwortet den Anruf</li>
-                        <li>Der Anruf erscheint im Dashboard</li>
-                      </ul>
-                      <p>Tipp: Sagen Sie z. B. „Ich hätte gerne einen Termin.“</p>
+                      <div class="setup-helper-note" id="setup-business-number-note" style="display:none;">Ihre Geschäftsnummer fehlt. Hinterlegen Sie sie in den Einstellungen, um den Test sauber durchzuführen.</div>
                     </div>
                   </div>
                   <div class="setup-actions">
-                    <button type="button" class="setup-btn setup-btn-success" onclick="completeSetupStep('s2',event)">Testanruf erfolgreich ✓</button>
+                    <button type="button" class="setup-btn setup-btn-success" onclick="completeSetupStep('s2',event)">Aktivierung erfolgreich ✓</button>
                     <button type="button" class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s2',event)">Später testen</button>
                   </div>
                 </div>
@@ -4271,8 +4257,9 @@ var setupDone = {};
 var setupSkipped = {};
 var setupStateCustomerId = '';
 var selectedSetupNotificationOption = null;
+var selectedSetupDevice = 'mobile';
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
-var SETUP_LABELS = {s1:'Einführung lesen',s2:'Rufumleitung einrichten & testen',s3:'Benachrichtigungen einrichten',s4:'Passwort ändern',s5:'Hilfe & Support ansehen'};
+var SETUP_LABELS = {s1:'Setup-Pfad wählen',s2:'Weiterleitung aktivieren & testen',s3:'Benachrichtigungen auswählen',s4:'Passwort prüfen',s5:'Hilfe & Support ansehen'};
 function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
 function getSetupCount(){ return SETUP_STEPS.filter(function(k){return setupDone[k];}).length; }
 function getOpenSteps(){ return SETUP_STEPS.filter(function(k){return !setupDone[k];}); }
@@ -4357,6 +4344,7 @@ function goToNextSetupStep(currentStepId){
 function selectSetupDevice(event, type){
   if(event) event.stopPropagation();
   var isMobile = type === 'mobile';
+  selectedSetupDevice = isMobile ? 'mobile' : 'landline';
   var cardMobile = document.getElementById('setup-device-card-mobile');
   var cardLandline = document.getElementById('setup-device-card-landline');
   var panelMobile = document.getElementById('setup-device-panel-mobile');
@@ -4524,12 +4512,17 @@ function initSetupWizard(){
   if(el3) el3.textContent = num || 'Nicht verfügbar';
   if(elTest) elTest.textContent = businessNum || 'Geschäftsnummer fehlt';
   if(businessNumNote) businessNumNote.style.display = businessNum ? 'none' : 'block';
-  [mobileSetupBtn, landlineSetupBtn, copyBtn].forEach(function(btn){
+  [landlineSetupBtn, copyBtn].forEach(function(btn){
     if(!btn) return;
     btn.disabled = !num;
     btn.style.opacity = num ? '' : '.55';
     btn.style.cursor = num ? '' : 'not-allowed';
   });
+  if (mobileSetupBtn) {
+    mobileSetupBtn.style.opacity = num ? '' : '.55';
+    mobileSetupBtn.style.cursor = num ? '' : 'not-allowed';
+    mobileSetupBtn.setAttribute('aria-disabled', num ? 'false' : 'true');
+  }
   if (testGuideBtn) {
     testGuideBtn.disabled = !businessNum;
     testGuideBtn.style.opacity = businessNum ? '' : '.55';
@@ -4539,6 +4532,7 @@ function initSetupWizard(){
     var firstOpen = getOpenSteps()[0] || 's1';
     setActiveSetupStep(firstOpen);
   }
+  selectSetupDevice(null, selectedSetupDevice);
   selectedSetupNotificationOption = getSelectedNotificationMode('setup-notification-mode');
   renderForwardingCodes();
   routeDashboardFirstSessionExperience();
