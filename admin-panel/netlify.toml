@@ -2,6 +2,9 @@
   publish = "."
   functions = "netlify/functions"
 
+[functions."outbox-retry-worker"]
+  schedule = "*/5 * * * *"
+
 [[headers]]
   for = "/*"
   [headers.values]

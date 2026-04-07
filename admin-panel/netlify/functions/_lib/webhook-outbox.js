@@ -93,32 +93,54 @@ async function createOutboxEvent(sbAdmin, { eventType, payload, payloadSummary, 
 
 async function markOutboxSent(sbAdmin, outboxId) {
   const now = new Date().toISOString();
+  const { data: modernRow, error: modernReadError } = await sbAdmin
+    .from('outbox_events')
+    .select('retry_count')
+    .eq('id', outboxId)
+    .maybeSingle();
+
+  if (modernReadError && !isMissingColumnError(modernReadError)) {
+    throw new Error(`outbox read retry_count failed: ${formatSupabaseError(modernReadError)}`);
+  }
+
+  if (!modernReadError) {
+    const nextRetryCount = Number(modernRow && modernRow.retry_count || 0) + 1;
+    const { error } = await sbAdmin
+      .from('outbox_events')
+      .update({
+        status: 'sent',
+        retry_count: nextRetryCount,
+        last_error: null,
+        last_attempt_at: now
+      })
+      .eq('id', outboxId);
+
+    if (error) throw new Error(`outbox mark sent failed: ${formatSupabaseError(error)}`);
+    return;
+  }
+
+  const { data: legacyRow, error: legacyReadError } = await sbAdmin
+    .from('outbox_events')
+    .select('attempts')
+    .eq('id', outboxId)
+    .maybeSingle();
+
+  if (legacyReadError) {
+    throw new Error(`outbox read attempts failed (legacy fallback): ${formatSupabaseError(legacyReadError)}`);
+  }
+
+  const nextAttempts = Number(legacyRow && legacyRow.attempts || 0) + 1;
   const modern = await sbAdmin
     .from('outbox_events')
     .update({
       status: 'sent',
-      retry_count: 1,
-      last_error: null,
-      last_attempt_at: now
-    })
-    .eq('id', outboxId);
-
-  if (!modern.error) return;
-  if (!isMissingColumnError(modern.error)) {
-    throw new Error(`outbox mark sent failed: ${formatSupabaseError(modern.error)}`);
-  }
-
-  const legacy = await sbAdmin
-    .from('outbox_events')
-    .update({
-      status: 'sent',
-      attempts: 1,
+      attempts: nextAttempts,
       processed_at: now
     })
     .eq('id', outboxId);
 
-  if (legacy.error) {
-    throw new Error(`outbox mark sent failed (legacy fallback): ${formatSupabaseError(legacy.error)}`);
+  if (modern.error) {
+    throw new Error(`outbox mark sent failed (legacy fallback): ${formatSupabaseError(modern.error)}`);
   }
 }
 
@@ -177,8 +199,53 @@ async function markOutboxFailed(sbAdmin, outboxId, errMsg) {
   }
 }
 
+async function markOutboxTerminal(sbAdmin, outboxId, errMsg) {
+  const now = new Date().toISOString();
+  const currentError = String(errMsg || 'retry limit reached').slice(0, 3000);
+
+  let { error: modernError } = await sbAdmin
+    .from('outbox_events')
+    .update({
+      status: 'dead',
+      dead_lettered_at: now,
+      last_error: currentError,
+      last_attempt_at: now
+    })
+    .eq('id', outboxId);
+
+  if (modernError && isMissingColumnError(modernError)) {
+    const retryWithoutDeadLetterColumn = await sbAdmin
+      .from('outbox_events')
+      .update({
+        status: 'dead',
+        last_error: currentError,
+        last_attempt_at: now
+      })
+      .eq('id', outboxId);
+    modernError = retryWithoutDeadLetterColumn.error || null;
+  }
+
+  if (!modernError) return;
+  if (!isMissingColumnError(modernError)) {
+    throw new Error(`outbox mark terminal failed: ${formatSupabaseError(modernError)}`);
+  }
+
+  const { error: legacyError } = await sbAdmin
+    .from('outbox_events')
+    .update({
+      status: 'failed',
+      processed_at: now
+    })
+    .eq('id', outboxId);
+
+  if (legacyError) {
+    throw new Error(`outbox mark terminal failed (legacy fallback): ${formatSupabaseError(legacyError)}`);
+  }
+}
+
 module.exports = {
   createOutboxEvent,
   markOutboxSent,
-  markOutboxFailed
+  markOutboxFailed,
+  markOutboxTerminal
 };
