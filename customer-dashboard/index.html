@@ -3301,18 +3301,23 @@ var confirmModalAction = null;
 var confirmModalBusy = false;
 
 function openConfirmModal(config) {
+  confirmModalBusy = false;
   const titleEl = document.getElementById('confirm-title');
   const subEl = document.getElementById('confirm-sub');
   const okBtn = document.getElementById('confirm-ok-btn');
   if (titleEl) titleEl.textContent = (config && config.title) || 'Bitte bestätigen';
   if (subEl) subEl.textContent = (config && config.text) || 'Sind Sie sicher?';
-  if (okBtn) okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+  if (okBtn) {
+    okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+    okBtn.disabled = false;
+  }
   confirmModalAction = (config && typeof config.onConfirm === 'function') ? config.onConfirm : null;
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.add('open');
 }
 
 function closeConfirmModal() {
+  if (confirmModalBusy) return;
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.remove('open');
   confirmModalBusy = false;
@@ -3402,7 +3407,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
       } else if ([CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizedStatus)) {
         const c = document.createElement('span'); c.className='chip chip-working'; c.textContent='⏳ In Bearbeitung'; topRow.appendChild(c);
       } else {
-        const original = allRecords.find(r => r.id === recordId);
+        const original = allRecords.find(r => String(r.id) === String(recordId));
         if (original && original.fields && original.fields.callback_requested) {
           const c = document.createElement('span'); c.className='chip chip-rueckruf'; c.textContent='📞 Rückruf'; topRow.appendChild(c);
         }
