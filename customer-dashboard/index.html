@@ -3794,8 +3794,6 @@ function resolveNotificationMode(customer) {
   if (customer.notification_mode === 'none' || customer.notification_mode === 'callback_only' || customer.notification_mode === 'all_calls') {
     return customer.notification_mode;
   }
-  if (customer.new_log_email_active === true) return 'all_calls';
-  if (customer.notification_active === true) return 'callback_only';
   return 'none';
 }
 
