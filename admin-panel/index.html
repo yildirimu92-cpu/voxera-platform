@@ -277,9 +277,21 @@ body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--
   background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
   box-shadow:var(--shadow-lg);padding:6px;display:none;flex-direction:column;gap:4px;
   overflow:visible;
+  max-width:min(280px,calc(100vw - 20px));
 }
 .actions-menu[open] .actions-menu-list{display:flex;}
 .actions-menu-list .btn{width:100%;justify-content:flex-start;}
+.actions-menu-list.mobile-sheet{
+  left:12px !important;
+  right:12px !important;
+  top:auto !important;
+  bottom:calc(env(safe-area-inset-bottom) + 12px) !important;
+  min-width:0;
+  max-width:none;
+  border-radius:var(--r-xl);
+  padding:10px;
+}
+.actions-menu-list.mobile-sheet .btn{height:40px;}
 .customer-cards{display:none;gap:10px;flex-direction:column;}
 .customer-card{
   border:1px solid var(--line);background:var(--surface);border-radius:var(--r-lg);
@@ -422,6 +434,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .customer-card{padding:12px;}
   .customer-actions-primary{flex-wrap:wrap;gap:6px;}
   .customer-actions-primary .btn{flex:1;min-width:80px;justify-content:center;}
+  .actions-menu{position:static;}
+  .actions-menu-list.mobile-sheet .btn{justify-content:flex-start;}
 
   /* ─── Onboarding cards ─── */
   #onboarding-cards .card>div{flex-direction:column;align-items:flex-start!important;gap:8px;}
@@ -4285,6 +4299,63 @@ init();
 </script>
 <div id="toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;font-weight:500;padding:10px 22px;border-radius:10px;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.15);" class=""></div>
 <style>.toast-show{opacity:1!important;}</style>
+
+<script>
+function closeAllActionMenus(exceptMenu){
+  document.querySelectorAll('.actions-menu[open]').forEach(menu=>{
+    if(exceptMenu && menu===exceptMenu) return;
+    menu.removeAttribute('open');
+  });
+}
+function positionActionMenu(menu){
+  if(!menu) return;
+  const list=menu.querySelector('.actions-menu-list');
+  const trigger=menu.querySelector('summary');
+  if(!list||!trigger||!menu.hasAttribute('open')) return;
+  const mobileMode=window.innerWidth<=768;
+  if(mobileMode){
+    list.classList.add('mobile-sheet');
+    list.style.left='';
+    list.style.right='';
+    list.style.top='';
+    list.style.bottom='';
+    return;
+  }
+  list.classList.remove('mobile-sheet');
+  const pad=8;
+  const rect=trigger.getBoundingClientRect();
+  const menuWidth=list.offsetWidth||180;
+  const menuHeight=list.offsetHeight||140;
+  const vw=window.innerWidth;
+  const vh=window.innerHeight;
+  let left=Math.round(rect.right-menuWidth);
+  left=Math.max(pad,Math.min(left,vw-menuWidth-pad));
+  let top=Math.round(rect.bottom+6);
+  if(top+menuHeight>vh-pad) top=Math.max(pad,Math.round(rect.top-menuHeight-6));
+  list.style.left=`${left}px`;
+  list.style.top=`${top}px`;
+  list.style.right='auto';
+  list.style.bottom='auto';
+}
+document.addEventListener('toggle',event=>{
+  const menu=event.target;
+  if(!menu?.matches?.('.actions-menu')) return;
+  if(menu.open){
+    closeAllActionMenus(menu);
+    requestAnimationFrame(()=>positionActionMenu(menu));
+  }
+},true);
+document.addEventListener('click',event=>{
+  if(event.target.closest('.actions-menu')) return;
+  closeAllActionMenus();
+});
+window.addEventListener('resize',()=>{
+  document.querySelectorAll('.actions-menu[open]').forEach(positionActionMenu);
+});
+window.addEventListener('scroll',()=>{
+  document.querySelectorAll('.actions-menu[open]').forEach(positionActionMenu);
+},{passive:true});
+</script>
 
 <script>
 // ─── OpenStreetMap Adress-Autocomplete ───────────────────────────────────────
