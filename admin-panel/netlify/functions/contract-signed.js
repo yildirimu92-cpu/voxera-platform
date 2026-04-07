@@ -28,6 +28,12 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function isDuplicateKeyError(error) {
+  const code = String(error && error.code || '');
+  const msg = String(error && error.message || '').toLowerCase();
+  return code === '23505' || msg.includes('duplicate key value');
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -68,14 +74,68 @@ exports.handler = async (event) => {
     signed_at: signed_at || new Date().toISOString(),
     action: 'contract_signed'
   };
+  const dedupeKey = `contract_signed:${String(contract_id)}`;
   let outbox;
   try {
     outbox = await createOutboxEvent(sbAdmin, {
       eventType: 'contract_signed_notification',
       payload,
-      payloadSummary: `contract_signed -> ${customer_email}`
+      payloadSummary: `contract_signed -> ${customer_email}`,
+      dedupeKey
     });
+    console.log(JSON.stringify({
+      level: 'info',
+      event: 'contract_signed_processed',
+      event_type: 'contract_signed_notification',
+      contract_id,
+      customer_id,
+      dedupe_key: dedupeKey,
+      outbox_id: outbox.id
+    }));
   } catch (outboxErr) {
+    if (isDuplicateKeyError(outboxErr)) {
+      const { data: existingOutbox, error: readErr } = await sbAdmin
+        .from('outbox_events')
+        .select('id, status, created_at, last_attempt_at')
+        .eq('event_type', 'contract_signed_notification')
+        .eq('dedupe_key', dedupeKey)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (readErr) {
+        const readMsg = readErr && readErr.message ? readErr.message : 'duplicate read failed';
+        console.error(JSON.stringify({
+          level: 'error',
+          event: 'outbox_duplicate_read_failed',
+          event_type: 'contract_signed_notification',
+          contract_id,
+          customer_id,
+          dedupe_key: dedupeKey,
+          error: readMsg
+        }));
+        return response(500, { error: 'Doppeltes Event erkannt, aber bestehender Outbox-Eintrag konnte nicht geladen werden.', details: readMsg });
+      }
+
+      console.log(JSON.stringify({
+        level: 'info',
+        event: 'contract_signed_duplicate_skipped',
+        event_type: 'contract_signed_notification',
+        contract_id,
+        customer_id,
+        dedupe_key: dedupeKey,
+        outbox_id: existingOutbox ? existingOutbox.id : null,
+        existing_status: existingOutbox ? existingOutbox.status : 'unknown'
+      }));
+      return response(200, {
+        success: true,
+        duplicate: true,
+        message: 'Duplicate contract_signed request skipped',
+        outbox_id: existingOutbox ? existingOutbox.id : null,
+        outbox_status: existingOutbox ? existingOutbox.status : 'unknown'
+      });
+    }
+
     const msg = outboxErr && outboxErr.message ? outboxErr.message : 'outbox insert failed';
     console.error(JSON.stringify({ level: 'error', event: 'outbox_insert_failed', event_type: 'contract_signed_notification', customer_id, error: msg }));
     return response(500, { error: 'Webhook-Outbox konnte nicht gespeichert werden.', details: msg });

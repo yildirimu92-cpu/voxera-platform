@@ -26,7 +26,7 @@ async function insertOutboxModern(sbAdmin, row) {
   return sbAdmin
     .from('outbox_events')
     .insert(row)
-    .select('id, event_type, status, retry_count, created_at')
+    .select('id, event_type, status, retry_count, created_at, dedupe_key')
     .single();
 }
 
@@ -46,12 +46,13 @@ async function insertOutboxLegacy(sbAdmin, row) {
     .single();
 }
 
-async function createOutboxEvent(sbAdmin, { eventType, payload, payloadSummary }) {
+async function createOutboxEvent(sbAdmin, { eventType, payload, payloadSummary, dedupeKey }) {
   const now = new Date().toISOString();
   const row = {
     event_type: String(eventType || '').trim(),
     payload: payload || {},
     payload_summary: payloadSummary || null,
+    dedupe_key: dedupeKey || null,
     status: 'pending',
     retry_count: 0,
     last_error: null,
