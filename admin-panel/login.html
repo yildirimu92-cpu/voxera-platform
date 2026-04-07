@@ -155,16 +155,20 @@ function isAllowedAdminRole(role){
 // Session-Check: Wenn bereits eingeloggt, direkt weiterleiten
 (async () => {
   if (!sb) return;
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    // Prüfe ob User ein Admin ist
-    const { data: admin } = await sb.from('admins').select('id,role').eq('id', session.user.id).single();
-    if (admin && isAllowedAdminRole(admin.role)) {
-      window.location.href = 'index.html';
-    } else {
-      // Kein Admin → Session löschen
-      await sb.auth.signOut();
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      // Prüfe ob User ein Admin ist
+      const { data: admin } = await sb.from('admins').select('id,role').eq('id', session.user.id).single();
+      if (admin && isAllowedAdminRole(admin.role)) {
+        window.location.replace('index.html');
+      } else {
+        // Kein Admin → Session löschen
+        await sb.auth.signOut();
+      }
     }
+  } catch (_e) {
+    try { await sb.auth.signOut(); } catch (__e) {}
   }
 })();
 
@@ -204,7 +208,7 @@ async function doLogin() {
       return;
     }
 
-    window.location.href = 'index.html';
+    window.location.replace('index.html');
   } catch (e) {
     showError(e.message === 'Invalid login credentials'
       ? 'E-Mail oder Passwort ist falsch.'
