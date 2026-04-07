@@ -205,8 +205,10 @@ body{
 .setup-step-content ol li{margin-bottom:6px;}
 .setup-step-content code{background:var(--gray100);padding:2px 8px;border-radius:5px;font-size:12px;font-weight:600;color:var(--blue);}
 .setup-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0;}
-.setup-choice-card{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;transition:all var(--transition-fast);}
-.setup-choice-card.active{border-color:var(--blue);box-shadow:0 0 0 2px rgba(26,86,219,.06);}
+.setup-choice-card{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;transition:all var(--transition-fast);cursor:pointer;}
+.setup-choice-card.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.12);background:var(--blue-light);}
+.setup-choice-card.active .setup-choice-title{color:var(--blue);}
+.setup-choice-card.active::after{content:'✓ Ausgewählt';display:block;font-size:11px;font-weight:700;color:var(--blue);margin-top:4px;}
 .setup-choice-title{font-size:13px;font-weight:700;color:var(--gray900);}
 .setup-choice-text{font-size:12px;color:var(--gray600);line-height:1.5;}
 .setup-choice-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
@@ -1163,15 +1165,15 @@ body{
                 <div class="setup-step-body">
                   <div class="setup-step-content">
                     <p><strong>Wie möchten Sie Voxera einrichten?</strong></p>
-                    <div class="setup-choice-grid" onclick="event.stopPropagation();">
-                      <div class="setup-choice-card active" id="setup-device-card-mobile">
+                    <div class="setup-choice-grid" onclick="event.stopPropagation();" role="listbox" aria-label="Einrichtungsweg wählen">
+                      <div class="setup-choice-card active" id="setup-device-card-mobile" role="option" aria-selected="true">
                         <div class="setup-choice-title">📱 Smartphone</div>
                         <div class="setup-choice-text">Ideal, wenn Sie die Weiterleitung direkt auf dem Handy aktivieren möchten.</div>
                         <div class="setup-choice-actions">
                           <button type="button" class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Smartphone wählen</button>
                         </div>
                       </div>
-                      <div class="setup-choice-card" id="setup-device-card-landline">
+                      <div class="setup-choice-card" id="setup-device-card-landline" role="option" aria-selected="false">
                         <div class="setup-choice-title">☎️ Festnetz / Telefonanlage</div>
                         <div class="setup-choice-text">Für Büro-Telefon, Telefonanlage oder VoIP beim Anbieter.</div>
                         <div class="setup-choice-actions">
@@ -1404,22 +1406,14 @@ body{
               </div>
             </div>
             <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
-              <div class="settings-card-title" style="color:var(--blue);">Rufumleitung & Einrichtung</div>
+              <div class="settings-card-title" style="color:var(--blue);">Einrichtung & Rufumleitung</div>
               <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
-                Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
+                Führen Sie die Einrichtung Schritt für Schritt durch. Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="settings-btn-primary" onclick="openSetupWizardFromCta(event,'s1')">Jetzt einrichten</button>
-                <button class="settings-btn-secondary" onclick="activateTab('einrichtung')">Einrichtung ansehen</button>
-                <button class="settings-btn-secondary" onclick="activateTab('einrichtung');setTimeout(resetSetupWizard,100)">Einrichtung neu starten</button>
+                <button class="settings-btn-primary" id="settings-wizard-btn" onclick="openSetupWizardFromCta(event,'s1')">Einrichtungsassistent öffnen</button>
+                <button class="settings-btn-secondary" onclick="activateTab('einrichtung');setTimeout(resetSetupWizard,100)">Neu starten</button>
               </div>
-            </div>
-            <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
-              <div class="settings-card-title" style="color:var(--blue);">Einrichtungsassistent</div>
-              <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
-                Führen Sie die Einrichtung Schritt für Schritt durch oder öffnen Sie sie erneut.
-              </div>
-              <button class="settings-btn-primary" id="settings-wizard-btn" onclick="openSetupWizardFromCta(event,'s1')">Einrichtungsassistent öffnen</button>
             </div>
 
             <!-- Benachrichtigungen -->
@@ -4349,10 +4343,12 @@ function selectSetupDevice(event, type){
   var cardLandline = document.getElementById('setup-device-card-landline');
   var panelMobile = document.getElementById('setup-device-panel-mobile');
   var panelLandline = document.getElementById('setup-device-panel-landline');
-  if (cardMobile) cardMobile.classList.toggle('active', isMobile);
-  if (cardLandline) cardLandline.classList.toggle('active', !isMobile);
+  if (cardMobile) { cardMobile.classList.toggle('active', isMobile); cardMobile.setAttribute('aria-selected', String(isMobile)); }
+  if (cardLandline) { cardLandline.classList.toggle('active', !isMobile); cardLandline.setAttribute('aria-selected', String(!isMobile)); }
   if (panelMobile) panelMobile.classList.toggle('active', isMobile);
   if (panelLandline) panelLandline.classList.toggle('active', !isMobile);
+  // Auto-advance to next step after a short pause so user sees the selection
+  setTimeout(function(){ completeSetupStep('s1', null); }, 1000);
 }
 
 function continueToSetupTest(event){
@@ -4366,6 +4362,8 @@ function continueToSetupTest(event){
 function selectSetupNotification(option, event){
   if (event) event.stopPropagation();
   selectedSetupNotificationOption = option || null;
+  // Auto-save and advance after a short pause so user sees the selection
+  setTimeout(function(){ saveNotificationAndContinue(null); }, 1000);
 }
 
 function saveNotificationAndContinue(event){
@@ -4733,8 +4731,10 @@ function showApp(user) {
     }
     initSetupWizard();
     // Einrichtung nicht abgeschlossen → immer auf Einrichtungs-Tab
-    // Einrichtung abgeschlossen → normaler Tab-Restore
-    if(!isForwardingActivated()){
+    // Einrichtung abgeschlossen (alle Schritte oder explizit beendet) → normaler Tab-Restore
+    var _setupFinished = false;
+    try { _setupFinished = !!localStorage.getItem(getSetupStorageKey('voxera_setup_finished')); } catch(e) {}
+    if(!isSetupComplete() && !_setupFinished){
       var navEl = document.getElementById('nav-einrichtung');
       if(navEl) showTab('einrichtung', navEl);
       else activateTab('einrichtung');
