@@ -36,7 +36,16 @@ async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordRes
     });
   } catch (outboxErr) {
     const msg = outboxErr && outboxErr.message ? outboxErr.message : 'outbox insert failed';
-    console.error(JSON.stringify({ level: 'error', event: 'outbox_insert_failed', event_type: eventType, customer_id: customer.id, error: msg }));
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'outbox_insert_failed',
+      event_type: eventType,
+      customer_id: customer.id,
+      error_code: outboxErr && outboxErr.code ? outboxErr.code : null,
+      error_message: outboxErr && outboxErr.message ? outboxErr.message : msg,
+      error_details: outboxErr && outboxErr.details ? outboxErr.details : null,
+      error_hint: outboxErr && outboxErr.hint ? outboxErr.hint : null
+    }));
     return { ok: false, statusCode: 500, error: 'Webhook-Outbox konnte nicht gespeichert werden.', details: msg };
   }
   console.log(JSON.stringify({ level: 'info', event: 'webhook_send_attempt', event_type: eventType, outbox_id: outbox.id, customer_id: customer.id }));
