@@ -110,8 +110,8 @@ body{
 <script>
 'use strict';
 
-const SB_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
-const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
+const SUPABASE_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
 
 const supabaseLib = window.supabase;
 const ADMIN_AUTH_STORAGE_KEY = 'voxera-admin-session';
@@ -130,7 +130,7 @@ function getPreferredAuthStorage() {
 }
 const authStorage = getPreferredAuthStorage();
 const sb = (supabaseLib && typeof supabaseLib.createClient === 'function')
-  ? supabaseLib.createClient(SB_URL, SB_ANON_KEY, {
+  ? supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
