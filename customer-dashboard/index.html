@@ -3361,7 +3361,11 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   const row = rowElement || null;
   const cached = allRecords.find(r => r.id === recordId);
   const currentStatus = normalizeStatus(cached && cached.fields ? cached.fields.dashboard_status : CALL_STATUS.NEW);
-  assertCallTransition(currentStatus, normalizedStatus);
+
+  if (currentStatus === normalizedStatus) {
+    toast('Status bereits gesetzt');
+    return;
+  }
 
   if (row) {
     row.style.transition = 'all .3s ease';
