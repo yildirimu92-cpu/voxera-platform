@@ -3,6 +3,7 @@
 
 create or replace function public.ensure_user_profile(
   p_customer_id text default null,
+  -- Deprecated: retained only for RPC signature compatibility (no-op).
   p_dashboard_id text default null,
   p_email text default null
 )
@@ -16,7 +17,6 @@ declare
   v_row public.users%rowtype;
   v_meta jsonb := '{}'::jsonb;
   v_customer_hint text := null;
-  v_dashboard_hint text := null;
   v_resolved_customer_id text := null;
 begin
   if v_auth_user_id is null then
@@ -32,19 +32,14 @@ begin
   where au.id = v_auth_user_id;
 
   v_customer_hint := nullif(trim(coalesce(p_customer_id, v_meta->>'customer_id', '')), '');
-  v_dashboard_hint := nullif(trim(coalesce(p_dashboard_id, v_meta->>'dashboard_id', '')), '');
+  -- Hardening: p_dashboard_id and auth metadata dashboard_id are intentionally ignored.
+  -- Productive tenant mapping must only happen through users.customer_id -> customers.id.
+  perform nullif(trim(coalesce(p_dashboard_id, '')), '');
 
   if v_customer_hint is not null then
     select c.id into v_resolved_customer_id
     from public.customers c
     where c.id = v_customer_hint
-    limit 1;
-  end if;
-
-  if v_resolved_customer_id is null and v_dashboard_hint is not null then
-    select c.id into v_resolved_customer_id
-    from public.customers c
-    where c.dashboard_id = v_dashboard_hint
     limit 1;
   end if;
 
