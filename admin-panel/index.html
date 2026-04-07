@@ -1462,7 +1462,7 @@ const state={
   aiSelectedCustomerId:null,
   aiChanges:[],  // populated by loadDataFromSupabase() in future
   events:[],  // populated by loadDataFromSupabase()
-  checklist:['customer created','activation sent','dashboard access active','Voxera number assigned','agent connected','forwarding configured','business info completed','opening hours added','greeting reviewed','AI basics configured','test call completed','ready for go-live','fully completed']
+  checklist:['customer created','Voxera number assigned','AI basics configured','activation sent','forwarding configured','test call completed','dashboard access active','ready for go-live','fully completed']
 };
 
 
@@ -1927,7 +1927,7 @@ function buildOnboardingQueueItem(customerId){
   const currentStep=done.length?done[done.length-1]:'Noch nicht gestartet';
   const nextStep=missing[0]||'fully completed';
   const progress=Math.round((done.length/state.checklist.length)*100);
-  const hardBlockers=['activation sent','Voxera number assigned','forwarding configured','AI basics configured','test call completed'];
+  const hardBlockers=['Voxera number assigned','AI basics configured','forwarding configured','test call completed'];
   const blockerStep=hardBlockers.find(s=>missing.includes(s));
   let status=ONBOARDING_STATUS.IN_PROGRESS;
   if(missing.length===0||done.includes('fully completed')) status=ONBOARDING_STATUS.COMPLETED;
@@ -1981,7 +1981,7 @@ function renderOnboardingDetail(){
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(step=>{
     const done=(q.customer.onboardingSteps||[]).includes(step);
-    const blocking=['activation sent','Voxera number assigned','forwarding configured','AI basics configured','test call completed'].includes(step)&&!done;
+    const blocking=['Voxera number assigned','AI basics configured','forwarding configured','test call completed'].includes(step)&&!done;
     return `<div class="detail-item"><span class="detail-k">${esc(step)} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep('${jsStr(q.customer.id)}','${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
   }).join('');
   document.getElementById('onboarding-next-action').textContent=q.nextStep;
@@ -4700,6 +4700,10 @@ function closeAiPreview(){
 function copyAiPrompt(){
   const text=document.getElementById('ai-preview-content')?.textContent||'';
   navigator.clipboard.writeText(text).then(()=>showToast('✓ Prompt kopiert.')).catch(()=>{});
+}
+
+function doLogout(){
+  document.getElementById('logout-btn')?.click();
 }
 
 </script>
