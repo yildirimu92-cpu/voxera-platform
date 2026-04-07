@@ -3334,10 +3334,27 @@ function closeConfirmModal() {
   confirmModalAction = null;
 }
 
-function runConfirmModalAction() {
+async function runConfirmModalAction() {
   const fn = confirmModalAction;
-  closeConfirmModal();
-  if (typeof fn === 'function') fn();
+  if (typeof fn !== 'function') {
+    closeConfirmModal();
+    return;
+  }
+  const okBtn = document.getElementById('confirm-ok-btn');
+  const originalLabel = okBtn ? okBtn.textContent : '';
+  if (okBtn) {
+    okBtn.disabled = true;
+    okBtn.textContent = 'Speichere...';
+  }
+  try {
+    const result = await fn();
+    if (result !== false) closeConfirmModal();
+  } finally {
+    if (okBtn) {
+      okBtn.disabled = false;
+      okBtn.textContent = originalLabel || 'Bestätigen';
+    }
+  }
 }
 
 function confirmClose(recordId, newStatus, rowElement) {
@@ -3345,8 +3362,8 @@ function confirmClose(recordId, newStatus, rowElement) {
     title: 'Anruf als erledigt markieren?',
     text: 'Dieser Eintrag wird aus den offenen Listen entfernt und ins Archiv verschoben.',
     confirmLabel: 'Ja, erledigen',
-    onConfirm: function() {
-      doStatusChange(recordId, newStatus, rowElement || null);
+    onConfirm: async function() {
+      return await doStatusChange(recordId, newStatus, rowElement || null);
     }
   });
 }
@@ -3361,7 +3378,11 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   const row = rowElement || null;
   const cached = allRecords.find(r => r.id === recordId);
   const currentStatus = normalizeStatus(cached && cached.fields ? cached.fields.dashboard_status : CALL_STATUS.NEW);
-  assertCallTransition(currentStatus, normalizedStatus);
+
+  if (currentStatus === normalizedStatus) {
+    toast('Status bereits gesetzt');
+    return true;
+  }
 
   if (row) {
     row.style.transition = 'all .3s ease';
@@ -3416,10 +3437,12 @@ async function doStatusChange(recordId, newStatus, rowElement) {
       _cbqApply(next ? next.id : null, remaining);
     }
     toast(icons[normalizedStatus] || 'Status aktualisiert');
+    return true;
   } catch(e) {
     const msg = (e && (e.payload && e.payload.error || e.message)) || 'Fehler beim Status-Update';
     toast('❌ ' + msg);
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
+    return false;
   } finally {
     setTimeout(loadData, 900);
   }
