@@ -2050,10 +2050,8 @@ if (typeof window !== 'undefined') {
 function extractCustomerHint(authUser) {
   const metadata = authUser && authUser.user_metadata ? authUser.user_metadata : {};
   const metadataCustomerId = metadata && metadata.customer_id ? String(metadata.customer_id).trim() : '';
-  const metadataDashboardId = metadata && metadata.dashboard_id ? String(metadata.dashboard_id).trim() : '';
   return {
-    customerId: metadataCustomerId || '',
-    dashboardId: metadataDashboardId || ''
+    customerId: metadataCustomerId || ''
   };
 }
 
@@ -2064,7 +2062,8 @@ async function ensurePublicUserProvisioning(authUser) {
   try {
     const { error } = await _sb.rpc('ensure_user_profile', {
       p_customer_id: hint.customerId || null,
-      p_dashboard_id: hint.dashboardId || null,
+      // Hardening: disable productive dashboard_id fallback for customer context provisioning.
+      p_dashboard_id: null,
       p_email: email || null
     });
     if (error) {
@@ -2097,13 +2096,10 @@ async function resolveCustomerContext(forceReload) {
   if (userError) throw userError;
 
   const usersCustomerId = userRow && userRow.customer_id ? String(userRow.customer_id).trim() : '';
-  // frontend-only risk: URL fallback must never bypass RLS ownership checks.
-  // requires RLS policy on customers/users to guarantee strict tenant isolation.
-  const urlFallbackCustomerId = (new URLSearchParams(location.search).get('customer') || '').trim();
-  const resolvedCustomerId = usersCustomerId || urlFallbackCustomerId || '';
+  const resolvedCustomerId = usersCustomerId || '';
   console.info('[voxera-dashboard] users.customer_id', usersCustomerId || null);
-  if (!usersCustomerId && urlFallbackCustomerId) {
-    console.warn('[voxera-dashboard] using debug URL fallback customer id', urlFallbackCustomerId);
+  if (!usersCustomerId) {
+    console.error('[voxera-dashboard] tenant context missing: users.customer_id is empty for auth user', authUserId);
   }
 
   let customerRecord = null;
@@ -2116,16 +2112,7 @@ async function resolveCustomerContext(forceReload) {
     if (customerErrorById) throw customerErrorById;
     customerRecord = customerRowById || null;
     if (!customerRecord) {
-      const { data: customerRowByDashboardId, error: customerErrorByDashboardId } = await _sb
-        .from(CUSTOMERS_TABLE)
-        .select('*')
-        .eq('dashboard_id', resolvedCustomerId)
-        .maybeSingle();
-      if (customerErrorByDashboardId) throw customerErrorByDashboardId;
-      customerRecord = customerRowByDashboardId || null;
-      if (customerRecord) {
-        console.info('[voxera-dashboard] customers lookup matched by dashboard_id', resolvedCustomerId);
-      }
+      console.error('[voxera-dashboard] tenant context invalid: customers row missing for users.customer_id', resolvedCustomerId);
     }
     console.info('[voxera-dashboard] customers record', customerRecord || null);
   } else {
