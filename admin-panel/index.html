@@ -1768,7 +1768,21 @@ function renderOverview(){
     ['Customers Needing Attention',attention,'Priorisierung nötig'],
     ['Setup Readiness Ø',`${Math.round(setupProgressValues.reduce((a,p)=>a+p,0)/Math.max(1,setupProgressValues.length))}%`,'durch alle Kunden']
   ];
-  document.getElementById('overview-kpis').innerHTML=kpis.map(([l,v,s])=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
+  const kpiRoutes={
+  'Active Customers':'customers',
+  'Open Onboardings':'onboarding',
+  'Open Anliegen':'cases',
+  'Calls Today':'activity',
+  'Callback Requests Today':'activity',
+  'Recent Activity Items':'activity',
+  'Customers Needing Attention':'customers',
+  'Setup Readiness Ø':'onboarding'
+};
+document.getElementById('overview-kpis').innerHTML=kpis.map(([l,v,s])=>{
+  const route=kpiRoutes[l];
+  const clickable=route?`onclick="setRoute('${route}')" style="cursor:pointer;"` :'';
+  return `<div class="kpi" ${clickable}><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`;
+}).join('');
   document.getElementById('overview-activity-list').innerHTML=state.events.slice(0,6).map(e=>`<div class="list-item"><div><div class="list-main">${esc(e)}</div><div class="list-sub">Auto-aggregated operational event</div></div></div>`).join('');
   document.getElementById('overview-attention-list').innerHTML=customers.filter(c=>c.openCases>0||getCustomerSetupProgress(c,onboardingForCustomer(c.id))<80).map(c=>{
     const setupProgress=getCustomerSetupProgress(c,onboardingForCustomer(c.id));
@@ -1913,7 +1927,7 @@ function renderOnboarding(){
           <button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(q.customer.id)}')">Profil</button>
         </div>
       </div>
-      ${q.blocker?`<div style="margin-top:8px;font-size:12px;color:var(--red);font-weight:500;">⚠ ${esc(q.blocker)}</div>`:''}
+      ${q.blocker?`<div style="margin-top:8px;font-size:12px;color:var(--red);font-weight:500;">! ${esc(q.blocker)}</div>`:''}
       ${q.nextStep&&q.status!==ONBOARDING_STATUS.COMPLETED?`<div style="margin-top:4px;font-size:12px;color:var(--slate);">Nächster Schritt: ${esc(q.nextStep)}</div>`:''}
     </div>`;
   }).join('')||'<div class="empty">Keine Kunden vorhanden.</div>';
@@ -1952,7 +1966,10 @@ function openOnboardingDetail(customerId){
     checklistEl.innerHTML=state.checklist.map(step=>{
       const isDone=done.includes(step);
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line2);">
-        <span style="font-size:15px;">${isDone?'':'⬜'}</span>
+        ${isDone
+  ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  : '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="#9CA3AF" stroke-width="1"/></svg>'
+}
         <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(step)}</span>
       </div>`;
     }).join('');
@@ -3075,7 +3092,7 @@ function openCustomerProfile(id){
           <div class="card-title" style="margin-bottom:10px;">Stammdaten</div>
           <div class="inline-actions">
             <button class="btn btn-primary" onclick="closeCustomerProfile();openEditCustomerModal('${jsStr(id)}')">
-              ✏️ Kunde bearbeiten
+              Bearbeiten
             </button>
           </div>
         </div>
@@ -3083,10 +3100,10 @@ function openCustomerProfile(id){
           <div class="card-title" style="margin-bottom:10px;">Zugang & Kommunikation</div>
           <div class="inline-actions" style="flex-wrap:wrap;">
             <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':'Pflichtdaten fehlen'}">
-              📧 Zugang senden
+              Zugang senden
             </button>
             <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">
-              🔑 PW-Reset senden
+              PW-Reset senden
             </button>
           </div>
           ${!canSend?`<div class="muted" style="margin-top:8px;font-size:12px;">Zugang senden: ${esc(actionState.sendAccessTooltip||'Pflichtdaten prüfen')}</div>`:''}
@@ -3106,10 +3123,10 @@ function openCustomerProfile(id){
           <div class="card-title" style="margin-bottom:10px;color:var(--red);">Gefahrenzone</div>
           <div class="inline-actions" style="flex-wrap:wrap;">
             <button class="btn btn-secondary" onclick="openCustomerDangerModal('${jsStr(id)}','archive');closeCustomerProfile()">
-              📦 Archivieren
+              Archivieren
             </button>
             <button class="btn btn-danger" onclick="openCustomerDangerModal('${jsStr(id)}','delete');closeCustomerProfile()">
-              🗑 Endgültig löschen
+              Endgültig löschen
             </button>
           </div>
         </div>
