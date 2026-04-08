@@ -1037,6 +1037,10 @@ body{
 .act-pending-no-call-helper{border-top:1px solid var(--gray100);padding-top:14px;margin-top:4px;}
 .act-pending-no-call-title{font-size:12px;font-weight:700;color:var(--gray500);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;}
 .act-pending-no-call-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.act-pending-test-steps{margin:0 0 14px 0;padding-left:20px;}
+.act-pending-test-steps li{font-size:13px;color:var(--gray700);line-height:1.6;margin-bottom:4px;}
+.act-pending-test-expect{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#1D4ED8;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.act-pending-test-expect-icon{font-weight:800;font-size:14px;flex-shrink:0;margin-top:1px;}
 @media(max-width:600px){
   .act-pending-test-number{font-size:22px;}
   .act-test-detect-btns,.act-pending-no-call-actions{flex-direction:column;}
@@ -3026,6 +3030,20 @@ async function loadData() {
     renderRueckrufe(records);
     renderArchiv(records);
     updateLastUpdatedLabel();
+
+    // Candidate-call detection: run after every refresh while in pending_test
+    if (customerMeta.forwardingStatus === 'pending_test' && customerMeta.activationStartedAt && !candidateCall) {
+      var found = findActivationCandidateCall(records, customerMeta.activationStartedAt);
+      if (found) {
+        candidateCall = found;
+        stopActivationPolling();
+      }
+    }
+    // Stop polling if we left pending_test (e.g. externally)
+    if (customerMeta.forwardingStatus !== 'pending_test') {
+      stopActivationPolling();
+    }
+
     renderActivationModule();
 
     document.getElementById('dash-loading').style.display = 'none';
@@ -4359,6 +4377,21 @@ function isForwardingActivated() {
   return isForwardingSetupCompleted();
 }
 
+// Resets the activation test state when the user changes setup during pending_test.
+async function resetActivationTestContext(recId, context) {
+  stopActivationPolling();
+  candidateCall = null;
+  await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null });
+  customerMeta.forwardingStatus = 'not_started';
+  customerMeta.activationStartedAt = null;
+  if (context && context.customerRecord) {
+    context.customerRecord.forwarding_status = 'not_started';
+    context.customerRecord.activation_started_at = null;
+  }
+  toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.');
+  renderActivationModule();
+}
+
 async function persistSetupDeviceType(type) {
   var normalized = type === 'mobile' ? 'mobile' : type === 'landline' ? 'landline' : null;
   if (!normalized) {
@@ -4369,6 +4402,10 @@ async function persistSetupDeviceType(type) {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return null; }
+    // Reset activation test context if currently in pending_test
+    if (customerMeta.forwardingStatus === 'pending_test') {
+      await resetActivationTestContext(recId, context);
+    }
     await patchCustomerRecord(recId, { setup_device_type: normalized });
     customerMeta.setupDeviceType = normalized;
     if (context && context.customerRecord) context.customerRecord.setup_device_type = normalized;
@@ -4407,6 +4444,10 @@ async function persistForwardingMode(mode) {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    // Reset activation test context if currently in pending_test
+    if (customerMeta.forwardingStatus === 'pending_test') {
+      await resetActivationTestContext(recId, context);
+    }
     await patchCustomerRecord(recId, { forwarding_mode: mode });
     customerMeta.forwardingMode = mode;
     if (context && context.customerRecord) context.customerRecord.forwarding_mode = mode;
@@ -4631,7 +4672,7 @@ function renderActivationActionCard(meta) {
   if (subEl) {
     subEl.textContent = isMobile
       ? 'Tippen Sie auf "Jetzt aktivieren". Ihr Smartphone öffnet den Dialer – bestätigen Sie den Anruf.'
-      : 'Öffnen Sie das Admin-Portal Ihres Anbieters und richten Sie die Rufumleitung ein.';
+      : 'Konfigurieren Sie die Rufumleitung manuell im Anbieter-Portal oder an Ihrer Telefonanlage.';
   }
 
   if (codeBox && codeEl) {
@@ -4681,7 +4722,7 @@ function renderActivationActionCard(meta) {
 
   if (hintEl) {
     if (!isMobile) {
-      hintEl.textContent = 'Die Aktivierung kann je nach Anbieter oder Telefonanlage variieren.';
+      hintEl.textContent = 'Hinweis: Die Einrichtung erfolgt manuell über Ihren Anbieter oder Ihre Telefonanlage. GSM-Codes funktionieren in der Regel nur auf Smartphones.';
       hintEl.style.display = 'block';
     } else {
       hintEl.style.display = 'none';
@@ -4754,6 +4795,42 @@ async function persistForwardingStatus(status) {
 
 // Placeholder for backend-detected candidate call (integration point for call-detection automation)
 var candidateCall = null;
+var activationPollingInterval = null;
+
+// Returns the first call whose created_at is strictly after activationStartedAt.
+function findActivationCandidateCall(calls, activationStartedAt) {
+  if (!activationStartedAt) return null;
+  var best = null;
+  for (var i = 0; i < calls.length; i++) {
+    var ts = calls[i].fields && calls[i].fields.created_at;
+    if (!ts) continue;
+    if (ts > activationStartedAt) {
+      if (!best || ts < best.fields.created_at) {
+        best = calls[i];
+      }
+    }
+  }
+  return best || null;
+}
+
+function startActivationPolling() {
+  if (activationPollingInterval) return; // already running
+  activationPollingInterval = setInterval(function() {
+    var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
+    if (!isPendingTest || candidateCall) {
+      stopActivationPolling();
+      return;
+    }
+    loadData().catch(function(err){ console.error('[activation-polling] loadData failed:', err); });
+  }, 5000);
+}
+
+function stopActivationPolling() {
+  if (activationPollingInterval) {
+    clearInterval(activationPollingInterval);
+    activationPollingInterval = null;
+  }
+}
 
 async function activationStartSmartphone(event, code) {
   if (event) event.stopPropagation();
@@ -4774,7 +4851,9 @@ async function activationStartSmartphone(event, code) {
     }
     // Step 2: rerender UI (pending_test card is now shown)
     renderActivationModule();
-    // Step 3: only after state is safely persisted, open the dialer
+    // Step 3: start lightweight polling to detect the candidate call
+    startActivationPolling();
+    // Step 4: only after state is safely persisted, open the dialer
     if (code) window.location.href = 'tel:' + code;
   } catch(e) {
     console.error('activationStartSmartphone failed', e);
@@ -4799,6 +4878,7 @@ async function confirmActivationTestCall(event) {
       context.customerRecord.forwarding_setup_completed = true;
     }
     candidateCall = null;
+    stopActivationPolling();
     toast('Rufumleitung erfolgreich aktiviert!');
     renderActivationModule();
   } catch(e) {
@@ -4811,6 +4891,7 @@ async function confirmActivationTestCall(event) {
 function rejectActivationTestCall(event) {
   if (event) event.stopPropagation();
   candidateCall = null;
+  // Keep polling – user wants to retry the test call
   renderActivationModule();
 }
 
@@ -4826,12 +4907,15 @@ function renderPendingTestCard(meta) {
   if (!el) return;
   var telNr = escapeHtml(meta.telNr || '–');
   var voxeraNum = escapeHtml(meta.voxeraNumber || '–');
+  var mode = meta.forwardingMode || '';
+
+  // Device+mode-specific guidance (pass raw telNr; getDeviceModeTestGuidance escapes it internally)
+  var modeGuide = getDeviceModeTestGuidance(meta.setupDeviceType || '', mode, meta.telNr || '\u2013');
 
   var detectHtml;
   if (candidateCall) {
-    // Integration point: backend attaches candidateCall when a call is detected after activation_started_at
     detectHtml = '<div class="act-test-detect-area act-test-detect-found">'
-      + '<div class="act-test-detect-title">Testanruf erkannt</div>'
+      + '<div class="act-test-detect-title">\u2705 Testanruf erkannt</div>'
       + '<div class="act-test-detect-sub">War das Ihr Testanruf?</div>'
       + '<div class="act-test-detect-btns">'
       + '<button type="button" class="act-action-btn-primary" onclick="confirmActivationTestCall(event)">Test erfolgreich \u2013 aktivieren</button>'
@@ -4848,8 +4932,8 @@ function renderPendingTestCard(meta) {
 
   var html = '<div class="act-pending-test-card">'
     + '<div class="act-pending-test-header">'
-    + '<div class="act-pending-test-title">Testanruf durchf\u00FChren</div>'
-    + '<div class="act-pending-test-sub">Rufen Sie jetzt Ihre eigene Nummer mit einem zweiten Telefon an:</div>'
+    + '<div class="act-pending-test-title">' + escapeHtml(modeGuide.title) + '</div>'
+    + '<div class="act-pending-test-sub">' + escapeHtml(modeGuide.subtitle) + '</div>'
     + '</div>'
     + '<div class="act-pending-test-number-block">'
     + '<div class="act-pending-test-number-label">Ihre Nummer</div>'
@@ -4859,6 +4943,13 @@ function renderPendingTestCard(meta) {
     + '<div class="act-pending-test-warning">'
     + '\u26A0\uFE0F\u00A0 Nicht die Voxera-Nummer anrufen.'
     + '</div>'
+    + '<ol class="act-pending-test-steps">'
+    + modeGuide.steps.map(function(s){ return '<li>' + s + '</li>'; }).join('')
+    + '</ol>'
+    + '<div class="act-pending-test-expect">'
+    + '<span class="act-pending-test-expect-icon">\u2713</span>'
+    + '<span>' + modeGuide.expect + '</span>'
+    + '</div>'
     + '<div class="act-pending-voxera-note">'
     + 'Weiterleitungsziel (nicht anrufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
     + '</div>'
@@ -4866,7 +4957,7 @@ function renderPendingTestCard(meta) {
     + '<div class="act-pending-no-call-helper">'
     + '<div class="act-pending-no-call-title">Kein Anruf erkannt?</div>'
     + '<div class="act-pending-no-call-actions">'
-    + '<button type="button" class="act-action-btn-secondary" onclick="renderActivationModule()">Erneut testen</button>'
+    + '<button type="button" class="act-action-btn-secondary" onclick="renderActivationModule()">Erneut pr\u00FCfen</button>'
     + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'forwarding\')">Anleitung pr\u00FCfen</button>'
     + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'support\')">Support kontaktieren</button>'
     + '</div>'
@@ -4875,6 +4966,118 @@ function renderPendingTestCard(meta) {
 
   el.innerHTML = html;
   el.style.display = 'block';
+}
+
+function getDeviceModeTestGuidance(deviceType, mode, telNr) {
+  var safeTelNr = escapeHtml(telNr || '\u2013');
+  var isMobile = deviceType === 'mobile';
+
+  var guides = {
+    mobile: {
+      always: {
+        title: 'Testanruf \u2013 Sofortweiterleitung (Smartphone)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer von einem zweiten Ger\u00E4t aus an.',
+        steps: [
+          'Nehmen Sie ein zweites Telefon (z.\u00A0B. Handy eines Freundes oder Festnetz).',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden \u2013 ohne zu klingeln.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+      },
+      no_answer: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Smartphone)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer an und nehmen Sie NICHT ab.',
+        steps: [
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Lassen Sie Ihr Smartphone klingeln \u2013 nehmen Sie NICHT ab.',
+          'Nach kurzer Klingelzeit wird der Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
+      },
+      unreachable: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Smartphone)',
+        subtitle: 'Schalten Sie Ihr Smartphone auf Flugmodus oder aus, dann rufen Sie an.',
+        steps: [
+          'Schalten Sie Ihr Smartphone in den Flugmodus oder schalten Sie es aus.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Da Ihr Smartphone nicht erreichbar ist, wird der Anruf sofort weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Bei nicht erreichbarem Smartphone meldet sich sofort der KI-Assistent.'
+      },
+      busy: {
+        title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Smartphone)',
+        subtitle: 'Halten Sie Ihr Smartphone mit einem aktiven Anruf besch\u00E4ftigt.',
+        steps: [
+          'Starten Sie auf Ihrem Smartphone einen aktiven Anruf (z.\u00A0B. eine beliebige Nummer anrufen).',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Da Ihr Smartphone besetzt ist, wird der zweite Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Anruf bei besetztem Smartphone wird sofort an den KI-Assistenten weitergeleitet.'
+      }
+    },
+    landline: {
+      always: {
+        title: 'Testanruf \u2013 Sofortweiterleitung (Festnetz / Anlage)',
+        subtitle: 'Rufen Sie nach der manuellen Einrichtung Ihre eigene Nummer von einem anderen Telefon an.',
+        steps: [
+          'Stellen Sie sicher, dass die Rufumleitung in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage eingerichtet ist.',
+          'Nehmen Sie ein zweites Telefon (z.\u00A0B. Mobiltelefon).',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+      },
+      no_answer: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Festnetz / Anlage)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer an und lassen Sie es klingeln ohne abzunehmen.',
+        steps: [
+          'Stellen Sie sicher, dass die Rufumleitung bei Nichtannahme in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage konfiguriert ist.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Lassen Sie das Hauptger\u00E4t klingeln \u2013 nehmen Sie NICHT ab.',
+          'Nach der konfigurierten Klingelzeit wird der Anruf weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
+      },
+      unreachable: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Festnetz / Anlage)',
+        subtitle: 'Simulieren Sie Nicht-Erreichbarkeit gem\u00E4\u00DF den Vorgaben Ihres Anbieters.',
+        steps: [
+          'Nicht-Erreichbarkeit bei Festnetz oder Telefonanlagen ist anbieter- und ger\u00E4teabh\u00E4ngig.',
+          'Folgen Sie den Anweisungen Ihres Anbieters, um das Ger\u00E4t in einen nicht erreichbaren Zustand zu versetzen (z.\u00A0B. Leitung belegt, Ger\u00E4t ausgesteckt oder Anlage in DND-Modus).',
+          'Rufen Sie dann Ihre eigene Festnetznummer an: <strong>' + safeTelNr + '</strong>',
+          'Bei korrekter Konfiguration wird der Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird weitergeleitet, wenn das Festnetzger\u00E4t gem\u00E4\u00DF Anbieter-Einstellungen als nicht erreichbar gilt.'
+      },
+      busy: {
+        title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Festnetz / Anlage)',
+        subtitle: 'Stellen Sie sicher, dass die Hauptleitung tats\u00E4chlich belegt ist.',
+        steps: [
+          'Halten Sie die Hauptleitung mit einem aktiven Gespr\u00E4ch besetzt.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Ob und wie schnell der zweite Anruf weitergeleitet wird, h\u00E4ngt von Ihrem Anbieter oder Ihrer Telefonanlage ab.'
+        ],
+        expect: 'Erwartetes Ergebnis: Eingehender Anruf bei besetzter Leitung wird an den KI-Assistenten weitergeleitet (abh\u00E4ngig von Anbieter-Einstellungen).'
+      }
+    }
+  };
+
+  var deviceKey = isMobile ? 'mobile' : 'landline';
+  var guide = guides[deviceKey] && guides[deviceKey][mode];
+  return guide || {
+    title: 'Testanruf durchf\u00FChren',
+    subtitle: 'Rufen Sie jetzt Ihre eigene Nummer mit einem zweiten Telefon an.',
+    steps: [
+      'Nehmen Sie ein zweites Telefon.',
+      'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>'
+    ],
+    expect: 'Erwartetes Ergebnis: Der Anruf wird an den KI-Assistenten weitergeleitet.'
+  };
 }
 
 // ═══════════════════════════════════════════
