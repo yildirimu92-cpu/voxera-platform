@@ -992,6 +992,33 @@ body{
   .activation-numbers{flex-direction:column;gap:10px;}
   .activation-choice-grid{grid-template-columns:1fr;}
 }
+.act-mode-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-mode-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.act-mode-sub{font-size:12.5px;color:var(--gray600);margin-bottom:14px;}
+.act-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.act-mode-card{border:2px solid var(--gray200);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all var(--transition-fast);background:var(--white);min-height:44px;position:relative;}
+.act-mode-card:hover{border-color:var(--blue-mid);background:var(--blue-light);}
+.act-mode-card.selected{border-color:var(--blue);background:var(--blue-light);}
+.act-mode-card.secondary{border-style:dashed;}
+.act-mode-card-label{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:3px;}
+.act-mode-card-desc{font-size:11.5px;color:var(--gray600);line-height:1.5;}
+.act-mode-card.selected .act-mode-card-label{color:var(--blue-dark);}
+.act-action-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-action-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.act-action-sub{font-size:12.5px;color:var(--gray600);margin-bottom:16px;}
+.act-action-code-box{background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.act-action-code{font-family:monospace;font-size:15px;font-weight:700;color:var(--gray900);letter-spacing:.04em;}
+.act-action-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.act-action-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:var(--blue);color:var(--white);border:none;border-radius:10px;padding:11px 20px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;box-shadow:var(--shadow-blue);}
+.act-action-btn-primary:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
+.act-action-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:var(--white);color:var(--gray600);border:1.5px solid var(--gray200);border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;}
+.act-action-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
+.act-action-hint{font-size:12px;color:var(--gray400);font-style:italic;margin-top:10px;line-height:1.55;}
+@media(max-width:600px){
+  .act-mode-grid{grid-template-columns:1fr;}
+  .act-action-btns{flex-direction:column;}
+  .act-action-btn-primary,.act-action-btn-secondary{width:100%;justify-content:center;}
+}
 </style>
 </head>
 <body>
@@ -1230,7 +1257,7 @@ body{
               <div class="activation-state-desc" id="act-state-desc"></div>
             </div>
 
-            <!-- Device Selection Section (instructional only) -->
+            <!-- Device Selection Section -->
             <div class="activation-device-section" id="act-device-section">
               <div class="activation-device-title">Wie möchten Sie die Rufumleitung einrichten?</div>
               <div class="activation-device-sub">Wählen Sie Ihren Gerätetyp, um die passenden Anweisungen zu erhalten.</div>
@@ -1244,7 +1271,41 @@ body{
                   <div class="activation-choice-card-text">Für Büro-Telefon, Telefonanlage oder VoIP.</div>
                 </div>
               </div>
-              <div id="act-instructions" style="display:none;"></div>
+            </div>
+
+            <!-- Forwarding Mode Selection Card -->
+            <div class="act-mode-section" id="act-mode-section" style="display:none;">
+              <div class="act-mode-title">Wann soll weitergeleitet werden?</div>
+              <div class="act-mode-sub">Wählen Sie, unter welchen Umständen Anrufe an Voxera weitergeleitet werden.</div>
+              <div class="act-mode-grid">
+                <div class="act-mode-card" id="act-mode-card-no_answer" onclick="activationSelectMode(event,'no_answer')">
+                  <div class="act-mode-card-label">Wenn ich nicht antworte</div>
+                  <div class="act-mode-card-desc">Nach einigen Klingeltönen ohne Annahme</div>
+                </div>
+                <div class="act-mode-card" id="act-mode-card-unreachable" onclick="activationSelectMode(event,'unreachable')">
+                  <div class="act-mode-card-label">Wenn ich nicht erreichbar bin</div>
+                  <div class="act-mode-card-desc">Ausgeschaltet, kein Netz oder Flugmodus</div>
+                </div>
+                <div class="act-mode-card" id="act-mode-card-always" onclick="activationSelectMode(event,'always')">
+                  <div class="act-mode-card-label">Immer weiterleiten</div>
+                  <div class="act-mode-card-desc">Jeder Anruf wird sofort weitergeleitet</div>
+                </div>
+                <div class="act-mode-card secondary" id="act-mode-card-busy" onclick="activationSelectMode(event,'busy')">
+                  <div class="act-mode-card-label">Wenn besetzt</div>
+                  <div class="act-mode-card-desc">Wenn Sie gerade in einem Gespräch sind</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Card -->
+            <div class="act-action-section" id="act-action-section" style="display:none;">
+              <div class="act-action-title" id="act-action-title">Aktivierung</div>
+              <div class="act-action-sub" id="act-action-sub"></div>
+              <div class="act-action-code-box" id="act-action-code-box" style="display:none;">
+                <span class="act-action-code" id="act-action-code"></span>
+              </div>
+              <div class="act-action-btns" id="act-action-btns"></div>
+              <div class="act-action-hint" id="act-action-hint" style="display:none;"></div>
             </div>
 
             <!-- Deactivation Section (only shown when forwarding_status === 'active') -->
@@ -2701,7 +2762,8 @@ async function loadCustomerMeta() {
     telNr: f.tel_nr || '',
     forwardingSetupCompleted: f.forwarding_setup_completed === true,
     setupDeviceType: f.setup_device_type || null,
-    forwardingStatus: f.forwarding_status || null
+    forwardingStatus: f.forwarding_status || null,
+    forwardingMode: f.forwarding_mode || null
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   console.info('[voxera-dashboard] customerMeta numbers', {
@@ -4305,6 +4367,36 @@ async function persistForwardingSetupCompleted() {
   }
 }
 
+async function persistForwardingMode(mode) {
+  var validModes = ['no_answer', 'unreachable', 'always', 'busy'];
+  if (!validModes.includes(mode)) {
+    console.error('persistForwardingMode: ungültiger Modus', mode);
+    toast('Ungültiger Weiterleitungsmodus.');
+    return false;
+  }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    await patchCustomerRecord(recId, { forwarding_mode: mode });
+    customerMeta.forwardingMode = mode;
+    if (context && context.customerRecord) context.customerRecord.forwarding_mode = mode;
+    return true;
+  } catch(e) {
+    console.error('forwarding_mode save failed', e);
+    toast('Weiterleitungsmodus konnte nicht gespeichert werden.');
+    return false;
+  }
+}
+
+function getForwardingCode(mode, voxeraNumber) {
+  var num = voxeraNumber || '';
+  var codes = { always: '*21*', no_answer: '*61*', unreachable: '*62*', busy: '*67*' };
+  var prefix = codes[mode];
+  if (!prefix || !num) return '';
+  return prefix + num + '#';
+}
+
 function showDashboard() {
   var dashEl = document.getElementById('dash-content');
   if (dashEl) dashEl.style.display = 'block';
@@ -4444,11 +4536,29 @@ function renderActivationModule() {
   if (badgeEl) badgeEl.innerHTML = '<span class="activation-badge ' + badgeClass + '">' + badgeLabel + '</span>';
   if (stateDescEl) stateDescEl.textContent = stateDesc;
 
+  // Device selection
   var mobileCard = document.getElementById('act-device-card-mobile');
   var landlineCard = document.getElementById('act-device-card-landline');
   if (mobileCard) mobileCard.classList.toggle('selected', meta.setupDeviceType === 'mobile');
   if (landlineCard) landlineCard.classList.toggle('selected', meta.setupDeviceType === 'landline');
-  renderActivationInstructions(meta.setupDeviceType);
+
+  // Forwarding mode section: show only when device type is selected
+  var modeSect = document.getElementById('act-mode-section');
+  var hasDeviceType = meta.setupDeviceType === 'mobile' || meta.setupDeviceType === 'landline';
+  if (modeSect) modeSect.style.display = hasDeviceType ? 'block' : 'none';
+
+  // Mode card selected states
+  var modes = ['no_answer', 'unreachable', 'always', 'busy'];
+  modes.forEach(function(m) {
+    var card = document.getElementById('act-mode-card-' + m);
+    if (card) card.classList.toggle('selected', meta.forwardingMode === m);
+  });
+
+  // Action card: show only when both device type and mode are selected
+  var actionSect = document.getElementById('act-action-section');
+  var hasMode = !!meta.forwardingMode;
+  if (actionSect) actionSect.style.display = (hasDeviceType && hasMode) ? 'block' : 'none';
+  if (hasDeviceType && hasMode) renderActivationActionCard(meta);
 
   // Deactivation section only shown when active
   var deactSection = document.getElementById('act-deactivation-section');
@@ -4460,10 +4570,94 @@ function renderActivationModule() {
   if (deactBtn) { deactBtn.disabled = true; deactBtn.textContent = 'Verknüpfung deaktivieren'; }
 }
 
+function renderActivationActionCard(meta) {
+  var code = getForwardingCode(meta.forwardingMode, meta.voxeraNumber);
+  var isMobile = meta.setupDeviceType === 'mobile';
+
+  var titleEl = document.getElementById('act-action-title');
+  var subEl = document.getElementById('act-action-sub');
+  var codeBox = document.getElementById('act-action-code-box');
+  var codeEl = document.getElementById('act-action-code');
+  var btnsEl = document.getElementById('act-action-btns');
+  var hintEl = document.getElementById('act-action-hint');
+
+  if (titleEl) titleEl.textContent = isMobile ? 'Smartphone aktivieren' : 'Festnetz / Telefonanlage aktivieren';
+
+  if (subEl) {
+    subEl.textContent = isMobile
+      ? 'Tippen Sie auf "Jetzt aktivieren". Ihr Smartphone öffnet den Dialer – bestätigen Sie den Anruf.'
+      : 'Öffnen Sie das Admin-Portal Ihres Anbieters und richten Sie die Rufumleitung ein.';
+  }
+
+  if (codeBox && codeEl) {
+    if (code) {
+      codeEl.textContent = code;
+      codeBox.style.display = 'flex';
+    } else {
+      codeBox.style.display = 'none';
+    }
+  }
+
+  if (btnsEl) {
+    btnsEl.innerHTML = '';
+    if (isMobile) {
+      if (code) {
+        var telLink = document.createElement('a');
+        telLink.className = 'act-action-btn-primary';
+        telLink.href = 'tel:' + code;
+        telLink.textContent = 'Jetzt aktivieren';
+        btnsEl.appendChild(telLink);
+      }
+      var copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'act-action-btn-secondary';
+      copyBtn.textContent = 'Code kopieren';
+      copyBtn.dataset.forwardingCode = code || '';
+      copyBtn.addEventListener('click', function(e) { activationCopyCode(e, this.dataset.forwardingCode); });
+      btnsEl.appendChild(copyBtn);
+    } else {
+      var helpBtn = document.createElement('button');
+      helpBtn.type = 'button';
+      helpBtn.className = 'act-action-btn-primary';
+      helpBtn.textContent = 'Anleitung anzeigen';
+      helpBtn.addEventListener('click', function(e) { e.stopPropagation(); openHelpSection('forwarding'); });
+      btnsEl.appendChild(helpBtn);
+      var copyBtn2 = document.createElement('button');
+      copyBtn2.type = 'button';
+      copyBtn2.className = 'act-action-btn-secondary';
+      copyBtn2.textContent = 'Code kopieren';
+      copyBtn2.dataset.forwardingCode = code || '';
+      copyBtn2.addEventListener('click', function(e) { activationCopyCode(e, this.dataset.forwardingCode); });
+      btnsEl.appendChild(copyBtn2);
+    }
+  }
+
+  if (hintEl) {
+    if (!isMobile) {
+      hintEl.textContent = 'Die Aktivierung kann je nach Anbieter oder Telefonanlage variieren.';
+      hintEl.style.display = 'block';
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
+}
+
+async function activationCopyCode(event, code) {
+  if (event) event.stopPropagation();
+  if (!code) { toast('Kein Code verfügbar.'); return; }
+  await copyForwardingCode(event, code);
+}
+
 async function activationSelectDevice(event, type) {
   if (event) event.stopPropagation();
   var result = await persistSetupDeviceType(type);
   if (result) renderActivationModule();
+}
+
+async function activationSelectMode(event, mode) {
+  if (event) event.stopPropagation();
+  var ok = await persistForwardingMode(mode);
+  if (ok) renderActivationModule();
 }
 
 function activationDeactivationCheckboxChanged() {

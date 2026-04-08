@@ -77,6 +77,13 @@ exports.handler = async (event) => {
     }
     allowed.forwarding_status = forwardingStatus;
   }
+  if (body.forwarding_mode != null) {
+    const forwardingMode = String(body.forwarding_mode).trim().toLowerCase();
+    if (!['no_answer', 'unreachable', 'always', 'busy'].includes(forwardingMode)) {
+      return response(400, { error: 'forwarding_mode ungueltig. Erlaubte Werte: no_answer, unreachable, always, busy' });
+    }
+    allowed.forwarding_mode = forwardingMode;
+  }
 
   if (Object.keys(allowed).length === 0) {
     return response(400, { error: 'Keine erlaubten Felder uebergeben' });
