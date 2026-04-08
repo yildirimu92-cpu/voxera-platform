@@ -1039,6 +1039,11 @@ body{
 .act-skip-shortcut-title{font-size:13px;font-weight:700;color:#15803D;margin-bottom:4px;}
 .act-skip-shortcut-desc{font-size:12px;color:#166534;line-height:1.55;margin-bottom:12px;}
 .act-skip-shortcut-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.act-test-required-info{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:12px 16px;margin-top:14px;}
+.act-test-required-info-title{font-size:13px;font-weight:700;color:#1D4ED8;margin-bottom:4px;}
+.act-test-required-info-body{font-size:12px;color:#1E40AF;line-height:1.55;}
+.activation-status-card--success-highlight{box-shadow:0 0 0 2px #52dd7a,0 0 14px #52dd7a60!important;transition:box-shadow .2s;}
+.activation-status-card--neutral-highlight{box-shadow:0 0 0 2px #f2b5b5,0 0 14px #de434360!important;transition:box-shadow .2s;}
 .activation-badge.pending-test{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;}
 .act-pending-test-card{background:var(--white);border:2px solid #FCD34D;border-radius:16px;padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-pending-test-header{margin-bottom:18px;}
@@ -1300,7 +1305,7 @@ body{
             <div class="activation-module-sub">Verknüpfung Ihrer Telefonnummer mit der Voxera Rufumleitung</div>
 
             <!-- Status Card -->
-            <div class="activation-status-card">
+            <div class="activation-status-card" id="activation-status-card">
               <div class="activation-numbers">
                 <div class="activation-number-item">
                   <div class="activation-number-label">Ihre Nummer</div>
@@ -1372,6 +1377,11 @@ body{
                   <button type="button" class="act-action-btn-primary" onclick="activationSkipTest(event)">Ohne Test fortfahren</button>
                   <button type="button" class="act-action-btn-secondary" onclick="activationSkipToTest(event)">Testanruf durchführen</button>
                 </div>
+              </div>
+              <!-- Test required info block: shown when forwarding_setup_completed but canSkipActivationTest is false -->
+              <div class="act-test-required-info" id="act-test-required-info" style="display:none;" aria-live="polite">
+                <div class="act-test-required-info-title">Testanruf erforderlich</div>
+                <div class="act-test-required-info-body">Sie haben den Gerätetyp oder die Weiterleitungsart geändert. Bitte bestätigen Sie diese Konfiguration einmal mit einem Testanruf.</div>
               </div>
             </div>
 
@@ -2746,6 +2756,19 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function scrollToStatusCard() {
+  var card = document.getElementById('activation-status-card');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function triggerStatusHighlight(type) {
+  var card = document.getElementById('activation-status-card');
+  if (!card) return;
+  var cls = type === 'success' ? 'activation-status-card--success-highlight' : 'activation-status-card--neutral-highlight';
+  card.classList.add(cls);
+  setTimeout(function() { card.classList.remove(cls); }, 1750);
 }
 
 
@@ -4639,10 +4662,10 @@ function renderActivationModule() {
   var badgeClass, badgeLabel, stateDesc;
   if (uiState === 'active') {
     badgeClass = 'active'; badgeLabel = '● Aktiv';
-    stateDesc = 'Die Rufumleitung ist aktiv. Anrufe werden an Voxera weitergeleitet.';
+    stateDesc = 'Voxera ist aktiv und empfängt Anrufe gemäss Ihrer Einstellung.';
   } else if (uiState === 'inactive') {
     badgeClass = 'inactive'; badgeLabel = '● Deaktiviert';
-    stateDesc = 'Die Rufumleitung wurde deaktiviert.';
+    stateDesc = 'Die Rufumleitung wurde entfernt. Voxera empfängt aktuell keine Anrufe.';
   } else if (uiState === 'pending_test') {
     badgeClass = 'pending-test'; badgeLabel = '● Testanruf ausstehend';
     stateDesc = 'Führen Sie einen Testanruf durch, um die Aktivierung zu bestätigen.';
@@ -4791,6 +4814,13 @@ function renderActivationActionCard(meta) {
       skipBlockEl.style.display = 'none';
     }
   }
+
+  // Test required info block: show when setup completed but skip is not available
+  var testRequiredEl = document.getElementById('act-test-required-info');
+  if (testRequiredEl) {
+    var showTestRequired = meta.forwardingSetupCompleted === true && !canSkipActivationTest(meta);
+    testRequiredEl.style.display = showTestRequired ? 'block' : 'none';
+  }
 }
 
 async function activationCopyCode(event, code) {
@@ -4836,8 +4866,10 @@ async function activationSkipTest(event) {
       context.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
       context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
     }
-    toast('Rufumleitung erfolgreich aktiviert!');
+    toast('Rufumleitung erfolgreich aktiviert.');
     renderActivationModule();
+    scrollToStatusCard();
+    triggerStatusHighlight('success');
   } catch(e) {
     console.error('activationSkipTest failed', e);
     toast('Aktivierung konnte nicht abgeschlossen werden.');
@@ -4973,8 +5005,10 @@ async function activationConfirmDeactivation(event) {
   if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert...'; }
   var ok = await persistForwardingStatus('inactive');
   if (ok) {
-    toast('Rufumleitung deaktiviert.');
+    toast('Rufumleitung erfolgreich deaktiviert.');
     renderActivationModule();
+    scrollToStatusCard();
+    triggerStatusHighlight('neutral');
   } else {
     if (btn) { btn.disabled = false; btn.textContent = 'Verknüpfung deaktivieren'; }
   }
@@ -5099,8 +5133,10 @@ async function confirmActivationTestCall(event) {
     }
     candidateCall = null;
     stopActivationPolling();
-    toast('Rufumleitung erfolgreich aktiviert!');
+    toast('Rufumleitung erfolgreich aktiviert.');
     renderActivationModule();
+    scrollToStatusCard();
+    triggerStatusHighlight('success');
   } catch(e) {
     console.error('confirmActivationTestCall failed', e);
     toast('Aktivierung konnte nicht abgeschlossen werden.');
