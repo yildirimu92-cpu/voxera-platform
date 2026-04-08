@@ -70,6 +70,13 @@ exports.handler = async (event) => {
     }
     allowed.setup_device_type = deviceType;
   }
+  if (body.forwarding_status != null) {
+    const forwardingStatus = String(body.forwarding_status).trim().toLowerCase();
+    if (!['not_started', 'active', 'inactive'].includes(forwardingStatus)) {
+      return response(400, { error: 'forwarding_status ungueltig. Erlaubte Werte: not_started, active, inactive' });
+    }
+    allowed.forwarding_status = forwardingStatus;
+  }
 
   if (Object.keys(allowed).length === 0) {
     return response(400, { error: 'Keine erlaubten Felder uebergeben' });
