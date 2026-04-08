@@ -263,7 +263,7 @@ exports.handler = async (event) => {
     .from('customers')
     .update({ invite_status: 'sending', updated_at: claimTs })
     .eq('id', customerId)
-    .eq('status', STATUS.customer.READY)
+    .eq('status', STATUS.customer.ONBOARDING)
     .or('invite_status.eq.not_sent,invite_status.is.null')
     .select('id');
 
