@@ -178,6 +178,47 @@ Key gaps: no transactional integrity in multi-step function flows, admin UI rema
 - `send-welcome` generates Supabase recovery link and posts payload to Make webhook.
 - `customer-dashboard/activate.html` consumes recovery session and sets password via `sb.auth.updateUser`.
 
+### 3a) Forwarding activation – state machine
+
+The forwarding activation state is tracked via customer record fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `forwarding_status` | string | Always one of: `not_started`, `pending_test`, `active`, `inactive` |
+| `activation_started_at` | ISO-8601 timestamp | Set when `pending_test` begins |
+| `activation_confirmation_mode` | string \| null | `null` (not started), `'test'` (explicit test call), `'live'` (auto on first real call) |
+| `forwarding_setup_completed` | boolean | True once setup has been completed at least once |
+| `last_confirmed_setup_device_type` | string \| null | Device type at last confirmed activation |
+| `last_confirmed_forwarding_mode` | string \| null | Forwarding mode at last confirmed activation |
+
+**Activation flows:**
+
+1. **Standard test flow** (`activation_confirmation_mode = 'test'`):
+   - Triggered by "Jetzt aktivieren" (smartphone) or "Testanruf starten" (landline).
+   - Sets `forwarding_status = 'pending_test'`, `activation_confirmation_mode = 'test'`, `activation_started_at = now()`.
+   - First matching call after `activation_started_at` is surfaced as `candidateCall`; user manually confirms.
+   - On confirmation: `forwarding_status = 'active'`, `forwarding_setup_completed = true`, `last_confirmed_*` fields set.
+
+2. **Skip flow** (`canSkipActivationTest`):
+   - Available only when current config matches last confirmed config.
+   - Sets `forwarding_status = 'active'` directly (no `pending_test` phase).
+
+3. **"Ohne Test starten" / live-confirmation flow** (`activation_confirmation_mode = 'live'`):
+   - Available when `forwarding_setup_completed === true` and `forwarding_status !== 'active'`.
+   - Does NOT require `canSkipActivationTest`.
+   - Sets `forwarding_status = 'pending_test'`, `activation_confirmation_mode = 'live'`, `activation_started_at = now()`.
+   - First matching call after `activation_started_at` **auto-activates** without user interaction:
+     `forwarding_status = 'active'`, `forwarding_setup_completed = true`, `last_confirmed_*` set.
+   - User can switch to explicit test mode via "Jetzt doch testen" (sets `activation_confirmation_mode = 'test'`).
+
+**Reset logic:**
+- If `setup_device_type` or `forwarding_mode` changes while `forwarding_status === 'pending_test'`:
+  - `forwarding_status` → `not_started`, `activation_started_at` → `null`, `activation_confirmation_mode` → `null`.
+  - `candidateCall` cleared, polling stopped.
+
+**Validation (backend `customer-update-settings.js`):**
+- `activation_confirmation_mode`: `null | 'test' | 'live'` (null accepted to reset field).
+
 ### 4) Calls ingestion
 - Dashboard reads calls from `calls` table filtered by `customer_id`.
 - Comments indicate webhook-origin timestamp in `created_date_raw`, but actual ingest endpoint/webhook handler for call creation is **not verifiable from repo**.
