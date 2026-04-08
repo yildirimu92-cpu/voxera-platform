@@ -2211,7 +2211,8 @@ async function saveCustomerAiConfig(){
   const stamp=nowStamp();
   state.aiChanges.unshift(`${stamp} · ${cname}: AI-Konfiguration gespeichert (${cfg.status})`);
   state.events.unshift(`${stamp} · AI Setup: ${cname} aktualisiert`);
-  renderAiSetup(); renderActivity(); renderOverview();
+  reconcileCustomerLifecycleStatuses();
+  renderAiSetup(); renderOnboarding(); renderCustomers(); renderActivity(); renderOverview(); updateBadges();
 }
 
 function renderCases(){
@@ -3343,14 +3344,10 @@ function hasRequiredAccessData(customer){
 
 function hasCustomerAiBasicsConfigured(customer){
   const aiConfig=state.aiConfigs&&(state.aiConfigs[customer?.id]||state.aiConfigs[customer?.customer_id]);
-  return !!(
+  const businessDescription=
     String(customer?.ai_business_description||'').trim()||
-    String(customer?.ai_instructions||'').trim()||
-    (aiConfig&&(
-      String(aiConfig.businessDescription||aiConfig.business_description||'').trim()||
-      String(aiConfig.instructions||'').trim()
-    ))
-  );
+    String(aiConfig?.businessDescription||aiConfig?.business_description||'').trim();
+  return !!businessDescription;
 }
 
 function deriveOnboardingSnapshot(customerId){
@@ -3387,7 +3384,7 @@ function deriveOnboardingSnapshot(customerId){
   const accessReasons=[];
   if(validation.missing.length) accessReasons.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
   if(!voxeraNum||voxeraNum==='Zuweisung offen') accessReasons.push('Voxera-Nummer nicht zugewiesen');
-  if(!doneSet.has('AI basics configured')) accessReasons.push('AI-Konfiguration fehlt (Geschäftsbeschreibung oder Anweisungen)');
+  if(!doneSet.has('AI basics configured')) accessReasons.push('AI-Konfiguration fehlt (Geschäftsbeschreibung)');
 
   return {
     customer,
