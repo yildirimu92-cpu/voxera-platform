@@ -2546,6 +2546,16 @@ function isClosedStatus(s) {
   return normalizeStatus(s) === CALL_STATUS.CLOSED;
 }
 
+/**
+ * Returns true if the call has an active follow-up.
+ * Derived from follow_up_at (primary source); dashboard_status is not consulted.
+ */
+function isActiveFollowUp(call) {
+  const f = (call && call.fields) || {};
+  const followUpAt = resolveFollowUpAt(f);
+  return !!followUpAt;
+}
+
 function sortRecordsOpenFirst(records) {
   return [...records].sort((a,b) => {
     const ad = isClosedStatus(a.fields.dashboard_status) ? 1 : 0;
@@ -2572,7 +2582,7 @@ function getPriority(record) {
   const isHot = qualKey(f.lead_quality) === 'hot';
   const inProgress = [CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizeStatus(f.dashboard_status));
 
-  if (isClosed) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
+  if (isClosed && !isActiveFollowUp(record)) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
   if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
   if (isCallback) return { key: 'callback', label: 'Rückruf gewünscht', icon: '' };
   if (followUp && !Number.isNaN(followUp.getTime()) && isToday(f.follow_up_at)) return { key: 'today', label: 'Heute fällig', icon: '🗓' };
@@ -2625,6 +2635,35 @@ function parseLocalDateTimeParts(raw) {
   };
 }
 
+/**
+ * Parses a raw timestamp string into a Date object.
+ * Timestamps without timezone info (created_at) are treated as local time
+ * to avoid browser-timezone double-shifting.
+ * Timestamps with timezone info (follow_up_at) are passed to new Date() directly.
+ */
+function parseCallTimestamp(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  // Detect local timestamp: looks like YYYY-MM-DD HH:MM or YYYY-MM-DDTHH:MM
+  // with no timezone suffix (no Z, no +HH:MM, no -HH:MM at end)
+  const isLocalFormat = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s) &&
+                        !/[Zz]$/.test(s) &&
+                        !/[+-]\d{2}:?\d{2}$/.test(s);
+  if (isLocalFormat) {
+    const parts = parseLocalDateTimeParts(raw);
+    if (parts) {
+      return new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+    }
+    // Handle fractional seconds (e.g. "2024-07-15 22:00:00.123456"): strip and re-parse
+    const stripped = s.replace(/(\d{2}:\d{2}:\d{2})\.\d+/, '$1');
+    const parts2 = parseLocalDateTimeParts(stripped);
+    if (parts2) {
+      return new Date(parts2.year, parts2.month - 1, parts2.day, parts2.hour, parts2.minute, parts2.second);
+    }
+  }
+  return new Date(raw);
+}
+
 function normalizeFollowUpLocalValue(raw) {
   if (!raw) return '';
   const value = String(raw).trim().replace(' ', 'T');
@@ -2664,7 +2703,7 @@ function fmtDate(raw) {
       if (diffLocal < 172800) return 'Gestern ' + formatPartsTime(localParts);
       return formatPartsDate(localParts) + ' ' + formatPartsTime(localParts);
     }
-    const d = new Date(raw), now = new Date();
+    const d = parseCallTimestamp(raw), now = new Date();
     const diff = Math.floor((now - d) / 1000);
     if (diff < 60) return 'Gerade eben';
     if (diff < 3600) return 'vor ' + Math.floor(diff/60) + ' Min';
@@ -2679,8 +2718,8 @@ function fmtExactDateTime(raw) {
   try {
     const localParts = parseLocalDateTimeParts(raw);
     if (localParts) return formatPartsDate(localParts) + ', ' + formatPartsTime(localParts);
-    const d = parseFollowUpDate(raw) || new Date(raw);
-    if (Number.isNaN(d.getTime())) return '';
+    const d = parseFollowUpDate(raw) || parseCallTimestamp(raw);
+    if (!d || Number.isNaN(d.getTime())) return '';
     return formatDateLongCH(d) + ', ' + formatTimeCH(d);
   } catch(e) { return ''; }
 }
@@ -2706,8 +2745,8 @@ function fmtTime(raw) {
   try {
     const localParts = parseLocalDateTimeParts(raw);
     if (localParts) return formatPartsTime(localParts);
-    const d = parseFollowUpDate(raw) || new Date(raw);
-    if (Number.isNaN(d.getTime())) return '';
+    const d = parseFollowUpDate(raw) || parseCallTimestamp(raw);
+    if (!d || Number.isNaN(d.getTime())) return '';
     return formatTimeCH(d);
   }
   catch(e) { return ''; }
@@ -2726,8 +2765,12 @@ function updateLastUpdatedLabel() {
 function updateDashboardHeaderMeta() {
   const sub = document.getElementById('greeting-sub');
   if (!sub) return;
-  var openCalls = allRecords.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); }).length;
-  var openCallbacks = allRecords.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); }).length;
+  var openCalls = allRecords.filter(function(r) {
+    return isActiveFollowUp(r) || !isClosedStatus(r.fields.dashboard_status);
+  }).length;
+  var openCallbacks = allRecords.filter(function(r) {
+    return r.fields.callback_requested && (isActiveFollowUp(r) || !isClosedStatus(r.fields.dashboard_status));
+  }).length;
   sub.textContent = openCalls + ' Anrufe · ' + openCallbacks + ' Rückrufe · Gerade aktualisiert';
 }
 
