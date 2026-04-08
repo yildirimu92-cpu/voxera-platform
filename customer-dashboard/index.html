@@ -2393,6 +2393,7 @@ async function patchCustomerRecord(recordId, fields) {
   if (fields.forwarding_setup_completed !== undefined) payload.forwarding_setup_completed = fields.forwarding_setup_completed;
   if (fields.setup_device_type !== undefined) payload.setup_device_type = fields.setup_device_type;
   if (fields.forwarding_status !== undefined) payload.forwarding_status = fields.forwarding_status;
+  if (fields.forwarding_mode !== undefined) payload.forwarding_mode = fields.forwarding_mode; 
   const json = await callDashboardFunction('customer-update-settings', payload);
   if (!json || !json.customer) throw new Error(json?.error || 'Update fehlgeschlagen.');
   return toDashboardRecord(json.customer);
