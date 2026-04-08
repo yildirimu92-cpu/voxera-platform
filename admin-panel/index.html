@@ -3470,16 +3470,23 @@ function getCustomerSetupReadinessLabel(customer,onboarding){
 
 function renderSendAccessValidation(customer){
   const target=document.getElementById('send-access-validation');
+  const readinessWarning=document.getElementById('send-access-readiness-warning');
   if(!target) return;
   const onboarding=onboardingForCustomer(customer?.id);
   const blockReasons=getCustomerAccessBlockReasons(customer,onboarding);
-  if(blockReasons.length===0){
-    target.innerHTML='<span style="color:var(--green);font-weight:500;">Alle Voraussetzungen erfüllt – Zugang kann gesendet werden.</span>';
-    return;
+  const isBlocked=blockReasons.length>0;
+
+  if(readinessWarning){
+    readinessWarning.style.display=isBlocked?'':'none';
+    readinessWarning.textContent=isBlocked?'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.':'';
   }
-  target.innerHTML='<ul style="margin:4px 0 0 16px;padding:0;">'
-    +blockReasons.map(r=>'<li style="color:var(--red);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
-    +'</ul>';
+
+  target.innerHTML=isBlocked
+    ? '<div style="color:var(--red);font-size:12px;font-weight:600;margin-bottom:4px;">Einrichtung noch nicht abgeschlossen:</div>'
+      + '<ul style="margin:4px 0 0 16px;padding:0;">'
+      + blockReasons.map(r=>'<li style="color:var(--red);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
+      + '</ul>'
+    : '<span style="color:var(--green);font-weight:500;">Alle Voraussetzungen erfüllt – Zugang kann gesendet werden.</span>';
 }
 
 function openSendAccessModal(customerId){
@@ -3498,11 +3505,6 @@ function openSendAccessModal(customerId){
   const readiness=getCustomerAccessReadiness(customer,onboarding);
   const obStatusEl=document.getElementById('send-access-onboarding-status');
   if(obStatusEl) obStatusEl.textContent=`${readiness.setupProgress}% · ${readiness.setupLabel}`;
-  const readinessWarning=document.getElementById('send-access-readiness-warning');
-  if(readinessWarning){
-    readinessWarning.style.display=readiness.isReady?'none':'';
-    readinessWarning.textContent=readiness.reasons.length?`Zugang blockiert: ${readiness.reasons.join(' · ')}.`:'Zugang kann erst gesendet werden, wenn der Kundenstatus Ready ist.';
-  }
 
   renderSendAccessValidation(customer);
   const submitBtn=document.getElementById('send-access-submit-btn');
