@@ -41,6 +41,7 @@
 }
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth;}
 body{font-family:var(--font);font-size:13px;color:var(--ink);background:var(--bg);min-height:100vh;overflow-x:hidden;line-height:1.5;letter-spacing:-0.01em;}
+body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{visibility:hidden;}
 
 /* ─── Layout ─────────────────────────────────────────────────── */
 .app{display:flex;min-height:100vh;}
@@ -472,11 +473,11 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 }
 </style>
 </head>
-<body>
+<body class="app-booting">
 <!-- DB loading overlay -->
-<div id="db-loading-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(247,249,252,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+<div id="db-loading-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:rgba(247,249,252,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;flex-direction:column;gap:12px;">
   <div style="width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;"></div>
-  <div style="font-size:13px;font-weight:600;color:var(--slate);">Daten werden geladen …</div>
+  <div style="font-size:13px;font-weight:600;color:var(--slate);">Admin Panel wird gestartet …</div>
 </div>
 <div id="db-load-error" style="display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--red-light);color:var(--red);border:1px solid var(--red-mid);border-radius:var(--r-lg);padding:10px 18px;font-size:13px;font-weight:600;box-shadow:var(--shadow-md);"></div>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
@@ -4618,6 +4619,7 @@ async function init() {
   renderInsights();
   renderSettings();
   renderContracts();
+  document.body.classList.remove('app-booting');
 }
 
 init();
