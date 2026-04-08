@@ -4758,11 +4758,11 @@ var candidateCall = null;
 async function activationStartSmartphone(event, code) {
   if (event) event.stopPropagation();
   var btn = event && event.currentTarget;
-  if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Jetzt aktivieren'; } return; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
     var now = new Date().toISOString();
     // Step 1: persist state before opening dialer
     await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now });
@@ -4857,7 +4857,7 @@ function renderPendingTestCard(meta) {
     + '<button type="button" class="act-action-btn-secondary act-pending-copy-btn" onclick="activationCopyOwnNumber(event)">Nummer kopieren</button>'
     + '</div>'
     + '<div class="act-pending-test-warning">'
-    + '\u26A0\uFE0F Nicht die Voxera-Nummer anrufen.'
+    + '\u26A0\uFE0F\u00A0 Nicht die Voxera-Nummer anrufen.'
     + '</div>'
     + '<div class="act-pending-voxera-note">'
     + 'Weiterleitungsziel (nicht anrufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
