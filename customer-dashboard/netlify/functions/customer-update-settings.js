@@ -105,6 +105,18 @@ exports.handler = async (event) => {
     }
     allowed.last_confirmed_forwarding_mode = confirmedMode;
   }
+  // activation_confirmation_mode: null resets the field; 'test' or 'live' are the active values.
+  if (Object.prototype.hasOwnProperty.call(body, 'activation_confirmation_mode')) {
+    if (body.activation_confirmation_mode === null) {
+      allowed.activation_confirmation_mode = null;
+    } else {
+      const confirmMode = String(body.activation_confirmation_mode).trim().toLowerCase();
+      if (!['test', 'live'].includes(confirmMode)) {
+        return response(400, { error: 'activation_confirmation_mode ungueltig. Erlaubte Werte: test, live' });
+      }
+      allowed.activation_confirmation_mode = confirmMode;
+    }
+  }
 
   if (Object.keys(allowed).length === 0) {
     return response(400, { error: 'Keine erlaubten Felder uebergeben' });

@@ -1042,6 +1042,20 @@ body{
 .act-test-required-info{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:12px 16px;margin-top:14px;}
 .act-test-required-info-title{font-size:13px;font-weight:700;color:#1D4ED8;margin-bottom:4px;}
 .act-test-required-info-body{font-size:12px;color:#1E40AF;line-height:1.55;}
+/* "Ohne Test starten" block */
+.act-ohne-test-block{background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:12px;padding:16px 18px;margin-top:16px;}
+.act-ohne-test-title{font-size:13px;font-weight:700;color:#15803D;margin-bottom:4px;}
+.act-ohne-test-desc{font-size:12px;color:#166534;line-height:1.55;margin-bottom:12px;}
+.act-ohne-test-btns{display:flex;gap:8px;flex-wrap:wrap;}
+/* Live-confirmation pending card */
+.act-pending-live-card{background:var(--white);border:2px solid #BFDBFE;border-radius:16px;padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-pending-live-header{margin-bottom:18px;}
+.act-pending-live-title{font-size:15px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.01em;}
+.act-pending-live-sub{font-size:12.5px;color:var(--gray600);line-height:1.55;}
+.act-pending-live-body{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;padding:16px 18px;margin-bottom:16px;}
+.act-pending-live-body-title{font-size:13px;font-weight:700;color:#1D4ED8;margin-bottom:6px;}
+.act-pending-live-body-text{font-size:12.5px;color:#1E40AF;line-height:1.6;}
+.act-pending-live-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
 .activation-status-card--success-highlight{box-shadow:0 0 0 2px #52dd7a,0 0 14px #52dd7a60!important;transition:box-shadow .2s;}
 .activation-status-card--neutral-highlight{box-shadow:0 0 0 2px #f2b5b5,0 0 14px #de434360!important;transition:box-shadow .2s;}
 .activation-badge.pending-test{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;}
@@ -1382,6 +1396,14 @@ body{
               <div class="act-test-required-info" id="act-test-required-info" style="display:none;" aria-live="polite">
                 <div class="act-test-required-info-title">Testanruf erforderlich</div>
                 <div class="act-test-required-info-body">Sie haben den Gerätetyp oder die Weiterleitungsart geändert. Bitte bestätigen Sie diese Konfiguration einmal mit einem Testanruf.</div>
+              </div>
+              <!-- "Ohne Test starten" block: shown when setup completed and not yet active -->
+              <div class="act-ohne-test-block" id="act-ohne-test-block" style="display:none;">
+                <div class="act-ohne-test-title">Ohne Test starten</div>
+                <div class="act-ohne-test-desc">Aktivierung starten, ohne einen Testanruf durchzuführen. Voxera wird automatisch aktiviert, sobald der nächste Anruf eingeht.</div>
+                <div class="act-ohne-test-btns">
+                  <button type="button" class="act-action-btn-secondary" onclick="activationStartWithoutTest(event)">Ohne Test starten</button>
+                </div>
               </div>
             </div>
 
@@ -2204,7 +2226,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, customerId:'', forwardingMode:null, lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activationConfirmationMode:null, customerId:'', forwardingMode:null, lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -2461,6 +2483,7 @@ async function patchCustomerRecord(recordId, fields) {
   if (fields.setup_device_type !== undefined) payload.setup_device_type = fields.setup_device_type;
   if (fields.forwarding_status !== undefined) payload.forwarding_status = fields.forwarding_status;
   if (fields.activation_started_at !== undefined) payload.activation_started_at = fields.activation_started_at;
+  if (fields.activation_confirmation_mode !== undefined) payload.activation_confirmation_mode = fields.activation_confirmation_mode;
   if (fields.forwarding_mode !== undefined) payload.forwarding_mode = fields.forwarding_mode;
   if (fields.last_confirmed_setup_device_type !== undefined) payload.last_confirmed_setup_device_type = fields.last_confirmed_setup_device_type;
   if (fields.last_confirmed_forwarding_mode !== undefined) payload.last_confirmed_forwarding_mode = fields.last_confirmed_forwarding_mode;
@@ -2848,6 +2871,7 @@ async function loadCustomerMeta() {
     setupDeviceType: f.setup_device_type || null,
     forwardingStatus: f.forwarding_status || null,
     activationStartedAt: f.activation_started_at || null,
+    activationConfirmationMode: f.activation_confirmation_mode || null,
     forwardingMode: f.forwarding_mode || null,
     lastConfirmedSetupDeviceType: f.last_confirmed_setup_device_type || null,
     lastConfirmedForwardingMode: f.last_confirmed_forwarding_mode || null
@@ -3086,11 +3110,57 @@ async function loadData() {
     updateLastUpdatedLabel();
 
     // Candidate-call detection: run after every refresh while in pending_test
-    if (customerMeta.forwardingStatus === 'pending_test' && customerMeta.activationStartedAt && !candidateCall) {
-      var found = findActivationCandidateCall(records, customerMeta.activationStartedAt);
-      if (found) {
-        candidateCall = found;
-        stopActivationPolling();
+    if (customerMeta.forwardingStatus === 'pending_test' && customerMeta.activationStartedAt) {
+      if (customerMeta.activationConfirmationMode === 'live') {
+        // Live-confirmation flow: auto-activate on first matching call after activation_started_at
+        if (!candidateCall) {
+          var found = findActivationCandidateCall(records, customerMeta.activationStartedAt);
+          if (found) {
+            // Auto-activate without user interaction
+            (async function autoActivateLive() {
+              try {
+                const ctx = await resolveCustomerContext();
+                var rid = (ctx && ctx.customerRecord && ctx.customerRecord.id) ? ctx.customerRecord.id : '';
+                if (!rid) return;
+                await patchCustomerRecord(rid, {
+                  forwarding_status: 'active',
+                  forwarding_setup_completed: true,
+                  last_confirmed_setup_device_type: customerMeta.setupDeviceType,
+                  last_confirmed_forwarding_mode: customerMeta.forwardingMode
+                });
+                customerMeta.forwardingStatus = 'active';
+                customerMeta.forwardingSetupCompleted = true;
+                customerMeta.lastConfirmedSetupDeviceType = customerMeta.setupDeviceType;
+                customerMeta.lastConfirmedForwardingMode = customerMeta.forwardingMode;
+                customerMeta.activationConfirmationMode = null;
+                if (ctx && ctx.customerRecord) {
+                  ctx.customerRecord.forwarding_status = 'active';
+                  ctx.customerRecord.forwarding_setup_completed = true;
+                  ctx.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
+                  ctx.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
+                  ctx.customerRecord.activation_confirmation_mode = null;
+                }
+                candidateCall = null;
+                stopActivationPolling();
+                toast('Rufumleitung erfolgreich aktiviert.');
+                renderActivationModule();
+                scrollToStatusCard();
+                triggerStatusHighlight('success');
+              } catch(e) {
+                console.error('[live-auto-activation] failed', e);
+              }
+            })();
+          }
+        }
+      } else {
+        // Test flow: set candidateCall for manual confirmation
+        if (!candidateCall) {
+          var found = findActivationCandidateCall(records, customerMeta.activationStartedAt);
+          if (found) {
+            candidateCall = found;
+            stopActivationPolling();
+          }
+        }
       }
     }
     // Stop polling if we left pending_test (e.g. externally)
@@ -4435,12 +4505,14 @@ function isForwardingActivated() {
 async function resetActivationTestContext(recId, context) {
   stopActivationPolling();
   candidateCall = null;
-  await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null });
+  await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null, activation_confirmation_mode: null });
   customerMeta.forwardingStatus = 'not_started';
   customerMeta.activationStartedAt = null;
+  customerMeta.activationConfirmationMode = null;
   if (context && context.customerRecord) {
     context.customerRecord.forwarding_status = 'not_started';
     context.customerRecord.activation_started_at = null;
+    context.customerRecord.activation_confirmation_mode = null;
   }
   toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.');
   renderActivationModule();
@@ -4667,8 +4739,14 @@ function renderActivationModule() {
     badgeClass = 'inactive'; badgeLabel = '● Deaktiviert';
     stateDesc = 'Die Rufumleitung wurde entfernt. Voxera empfängt aktuell keine Anrufe.';
   } else if (uiState === 'pending_test') {
-    badgeClass = 'pending-test'; badgeLabel = '● Testanruf ausstehend';
-    stateDesc = 'Führen Sie einen Testanruf durch, um die Aktivierung zu bestätigen.';
+    // Distinguish between explicit test flow and live-confirmation flow
+    if (meta.activationConfirmationMode === 'live') {
+      badgeClass = 'pending-test'; badgeLabel = '● Wartet auf nächsten Anruf';
+      stateDesc = 'Die Aktivierung wird automatisch bestätigt, sobald der nächste Anruf eingeht.';
+    } else {
+      badgeClass = 'pending-test'; badgeLabel = '● Testanruf ausstehend';
+      stateDesc = 'Führen Sie einen Testanruf durch, um die Aktivierung zu bestätigen.';
+    }
   } else if (uiState === 'in_progress') {
     badgeClass = 'in-progress'; badgeLabel = '● In Aktivierung';
     stateDesc = 'Einrichtung gestartet. Aktivierung erfolgt durch den ersten eingehenden Anruf.';
@@ -4704,11 +4782,15 @@ function renderActivationModule() {
   if (actionSect) actionSect.style.display = showAction ? 'block' : 'none';
   if (showAction) renderActivationActionCard(meta);
 
-  // Pending-test card: shown only in pending_test state
+  // Pending-test card: shown only in pending_test state; branches between test and live-confirmation UI
   var pendingTestSect = document.getElementById('act-pending-test-section');
   if (pendingTestSect) {
     if (uiState === 'pending_test') {
-      renderPendingTestCard(meta);
+      if (meta.activationConfirmationMode === 'live') {
+        renderPendingLiveCard(meta);
+      } else {
+        renderPendingTestCard(meta);
+      }
     } else {
       pendingTestSect.style.display = 'none';
       pendingTestSect.innerHTML = '';
@@ -4786,6 +4868,13 @@ function renderActivationActionCard(meta) {
       helpBtn.textContent = 'Anleitung anzeigen';
       helpBtn.addEventListener('click', function(e) { e.stopPropagation(); openHelpSection('forwarding'); });
       btnsEl.appendChild(helpBtn);
+      // Landline test-start: enters pending_test with activation_confirmation_mode = 'test'
+      var startTestBtn = document.createElement('button');
+      startTestBtn.type = 'button';
+      startTestBtn.className = 'act-action-btn-secondary';
+      startTestBtn.textContent = 'Testanruf starten';
+      startTestBtn.addEventListener('click', function(e) { activationStartLandlineTest(e); });
+      btnsEl.appendChild(startTestBtn);
       var copyBtn2 = document.createElement('button');
       copyBtn2.type = 'button';
       copyBtn2.className = 'act-action-btn-secondary';
@@ -4820,6 +4909,14 @@ function renderActivationActionCard(meta) {
   if (testRequiredEl) {
     var showTestRequired = meta.forwardingSetupCompleted === true && !canSkipActivationTest(meta);
     testRequiredEl.style.display = showTestRequired ? 'block' : 'none';
+  }
+
+  // "Ohne Test starten" block: show when setup is completed and not yet active.
+  // Does NOT require canSkipActivationTest – available to all users who completed setup.
+  var ohneTestBlockEl = document.getElementById('act-ohne-test-block');
+  if (ohneTestBlockEl) {
+    var showOhneTest = meta.forwardingSetupCompleted === true && meta.forwardingStatus !== 'active';
+    ohneTestBlockEl.style.display = showOhneTest ? 'block' : 'none';
   }
 }
 
@@ -4887,6 +4984,111 @@ function activationSkipToTest(event) {
   var actionSect = document.getElementById('act-action-section');
   if (actionSect) {
     actionSect.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// ── "Ohne Test starten" ────────────────────────────────────────────────────────
+// Starts the live-confirmation flow: forwarding_status = 'pending_test',
+// activation_confirmation_mode = 'live'. The first real call after
+// activation_started_at will auto-activate Voxera.
+async function activationStartWithoutTest(event) {
+  if (event) event.stopPropagation();
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird gestartet…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test starten'; } return; }
+    var now = new Date().toISOString();
+    // Persist live-confirmation flow state
+    await patchCustomerRecord(recId, {
+      forwarding_status: 'pending_test',
+      activation_confirmation_mode: 'live',
+      activation_started_at: now
+    });
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationConfirmationMode = 'live';
+    customerMeta.activationStartedAt = now;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'pending_test';
+      context.customerRecord.activation_confirmation_mode = 'live';
+      context.customerRecord.activation_started_at = now;
+    }
+    candidateCall = null;
+    startActivationPolling();
+    renderActivationModule();
+    scrollToStatusCard();
+    toast('Aktivierung gestartet.');
+  } catch(e) {
+    console.error('activationStartWithoutTest failed', e);
+    toast('Aktivierung konnte nicht gestartet werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test starten'; }
+  }
+}
+
+// ── "Jetzt doch testen" ────────────────────────────────────────────────────────
+// Switches from live-confirmation flow back to explicit test flow.
+// forwarding_status stays 'pending_test'; only activation_confirmation_mode changes.
+async function switchActivationToTestMode(event) {
+  if (event) event.stopPropagation();
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird gewechselt…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Jetzt doch testen'; } return; }
+    // Switch mode to 'test'; keep forwarding_status and activation_started_at intact
+    await patchCustomerRecord(recId, { activation_confirmation_mode: 'test' });
+    customerMeta.activationConfirmationMode = 'test';
+    if (context && context.customerRecord) {
+      context.customerRecord.activation_confirmation_mode = 'test';
+    }
+    candidateCall = null;
+    renderActivationModule();
+  } catch(e) {
+    console.error('switchActivationToTestMode failed', e);
+    toast('Modus konnte nicht gewechselt werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Jetzt doch testen'; }
+  }
+}
+
+// ── Live-confirmation pending card ─────────────────────────────────────────────
+// Rendered when forwarding_status === 'pending_test' AND activation_confirmation_mode === 'live'.
+function renderPendingLiveCard(meta) {
+  var el = document.getElementById('act-pending-test-section');
+  if (!el) return;
+
+  var html = '<div class="act-pending-live-card">'
+    + '<div class="act-pending-live-header">'
+    + '<div class="act-pending-live-title">Aktivierung ohne Test gestartet</div>'
+    + '<div class="act-pending-live-sub">Sie müssen jetzt keinen Testanruf durchführen. Sobald der nächste Anruf eingeht, wird Voxera automatisch aktiviert.</div>'
+    + '</div>'
+    + '<div class="act-pending-live-body">'
+    + '<div class="act-pending-live-body-title">Was passiert als nächstes?</div>'
+    + '<div class="act-pending-live-body-text">Die Aktivierung wird automatisch bestätigt, sobald der nächste Anruf eingeht. Sie müssen nichts weiter tun.</div>'
+    + '</div>'
+    + '<div class="act-pending-live-actions">'
+    + '<button type="button" class="act-action-btn-secondary" onclick="switchActivationToTestMode(event)">Jetzt doch testen</button>'
+    + '<button type="button" class="act-action-btn-secondary" onclick="activationChangeConfig(event)">Konfiguration ändern</button>'
+    + '</div>'
+    + '</div>';
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+// ── "Konfiguration ändern" from pending-live card ──────────────────────────────
+// Resets the activation state and returns to device/mode selection.
+async function activationChangeConfig(event) {
+  if (event) event.stopPropagation();
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
+    await resetActivationTestContext(recId, context);
+  } catch(e) {
+    console.error('activationChangeConfig failed', e);
+    toast('Zurücksetzen fehlgeschlagen.');
   }
 }
 
@@ -5064,7 +5266,10 @@ function startActivationPolling() {
   if (activationPollingInterval) return; // already running
   activationPollingInterval = setInterval(function() {
     var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
-    if (!isPendingTest || candidateCall) {
+    var isLiveConfirmationMode = customerMeta && customerMeta.activationConfirmationMode === 'live';
+    // In test mode stop when a candidate call is found (user must confirm manually).
+    // In live mode keep polling until auto-activation fires and status changes.
+    if (!isPendingTest || (candidateCall && !isLiveConfirmationMode)) {
       stopActivationPolling();
       return;
     }
@@ -5088,13 +5293,15 @@ async function activationStartSmartphone(event, code) {
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
     var now = new Date().toISOString();
-    // Step 1: persist state before opening dialer
-    await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now });
+    // Step 1: persist state before opening dialer; set mode to 'test' (explicit test flow)
+    await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now, activation_confirmation_mode: 'test' });
     customerMeta.forwardingStatus = 'pending_test';
     customerMeta.activationStartedAt = now;
+    customerMeta.activationConfirmationMode = 'test';
     if (context && context.customerRecord) {
       context.customerRecord.forwarding_status = 'pending_test';
       context.customerRecord.activation_started_at = now;
+      context.customerRecord.activation_confirmation_mode = 'test';
     }
     // Step 2: rerender UI (pending_test card is now shown)
     renderActivationModule();
@@ -5106,6 +5313,36 @@ async function activationStartSmartphone(event, code) {
     console.error('activationStartSmartphone failed', e);
     toast('Aktivierung konnte nicht gestartet werden.');
     if (btn) { btn.disabled = false; btn.textContent = 'Jetzt aktivieren'; }
+  }
+}
+
+// Landline test-start flow: enters pending_test with activation_confirmation_mode = 'test'.
+// The user has already configured forwarding manually; this starts the test-call detection.
+async function activationStartLandlineTest(event) {
+  if (event) event.stopPropagation();
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird gestartet…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
+    var now = new Date().toISOString();
+    // Persist explicit test flow state
+    await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now, activation_confirmation_mode: 'test' });
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationStartedAt = now;
+    customerMeta.activationConfirmationMode = 'test';
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'pending_test';
+      context.customerRecord.activation_started_at = now;
+      context.customerRecord.activation_confirmation_mode = 'test';
+    }
+    renderActivationModule();
+    startActivationPolling();
+  } catch(e) {
+    console.error('activationStartLandlineTest failed', e);
+    toast('Aktivierung konnte nicht gestartet werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; }
   }
 }
 
