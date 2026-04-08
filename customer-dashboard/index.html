@@ -4805,7 +4805,7 @@ function findActivationCandidateCall(calls, activationStartedAt) {
     var ts = calls[i].fields && calls[i].fields.created_at;
     if (!ts) continue;
     if (ts > activationStartedAt) {
-      if (!best || ts < (best.fields && best.fields.created_at)) {
+      if (!best || ts < best.fields.created_at) {
         best = calls[i];
       }
     }
@@ -4821,7 +4821,7 @@ function startActivationPolling() {
       stopActivationPolling();
       return;
     }
-    loadData().catch(function(){});
+    loadData().catch(function(err){ console.error('[activation-polling] loadData failed:', err); });
   }, 5000);
 }
 
@@ -4909,8 +4909,8 @@ function renderPendingTestCard(meta) {
   var voxeraNum = escapeHtml(meta.voxeraNumber || '–');
   var mode = meta.forwardingMode || '';
 
-  // Mode-specific guidance
-  var modeGuide = getModeTestGuidance(mode, telNr);
+  // Mode-specific guidance (pass raw telNr; getModeTestGuidance escapes it internally)
+  var modeGuide = getModeTestGuidance(mode, meta.telNr || '\u2013');
 
   var detectHtml;
   if (candidateCall) {
@@ -4944,11 +4944,11 @@ function renderPendingTestCard(meta) {
     + '\u26A0\uFE0F\u00A0 Nicht die Voxera-Nummer anrufen.'
     + '</div>'
     + '<ol class="act-pending-test-steps">'
-    + modeGuide.steps.map(function(s){ return '<li>' + escapeHtml(s) + '</li>'; }).join('')
+    + modeGuide.steps.map(function(s){ return '<li>' + s + '</li>'; }).join('')
     + '</ol>'
     + '<div class="act-pending-test-expect">'
     + '<span class="act-pending-test-expect-icon">\u2713</span>'
-    + '<span>' + escapeHtml(modeGuide.expect) + '</span>'
+    + '<span>' + modeGuide.expect + '</span>'
     + '</div>'
     + '<div class="act-pending-voxera-note">'
     + 'Weiterleitungsziel (nicht anrufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
@@ -4969,14 +4969,15 @@ function renderPendingTestCard(meta) {
 }
 
 function getModeTestGuidance(mode, telNr) {
+  var safeTelNr = escapeHtml(telNr || '\u2013');
   var guides = {
     always: {
       title: 'Testanruf durchf\u00FChren \u2013 Sofortweiterleitung',
       subtitle: 'Rufen Sie Ihre eigene Nummer von einem zweiten Ger\u00E4t aus an.',
       steps: [
         'Nehmen Sie ein zweites Telefon (z.\u00A0B. Handy eines Freundes oder Festnetz).',
-        'W\u00E4hlen Sie Ihre eigene Nummer: ' + (telNr || '\u2013'),
-        'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden – ohne zu klingeln.'
+        'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+        'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden \u2013 ohne zu klingeln.'
       ],
       expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
     },
@@ -4985,7 +4986,7 @@ function getModeTestGuidance(mode, telNr) {
       subtitle: 'Rufen Sie Ihre eigene Nummer an und nehmen Sie NICHT ab.',
       steps: [
         'Nehmen Sie ein zweites Telefon.',
-        'W\u00E4hlen Sie Ihre eigene Nummer: ' + (telNr || '\u2013'),
+        'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
         'Lassen Sie Ihr Haupttelefon klingeln \u2013 nehmen Sie NICHT ab.',
         'Nach kurzer Klingelzeit wird der Anruf an den KI-Assistenten weitergeleitet.'
       ],
@@ -4997,7 +4998,7 @@ function getModeTestGuidance(mode, telNr) {
       steps: [
         'Schalten Sie Ihr Haupttelefon in den Flugmodus oder schalten Sie es aus.',
         'Nehmen Sie ein zweites Telefon.',
-        'W\u00E4hlen Sie Ihre eigene Nummer: ' + (telNr || '\u2013'),
+        'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
         'Da Ihr Telefon nicht erreichbar ist, wird der Anruf direkt weitergeleitet.'
       ],
       expect: 'Erwartetes Ergebnis: Bei nicht erreichbarem Telefon meldet sich sofort der KI-Assistent.'
@@ -5008,7 +5009,7 @@ function getModeTestGuidance(mode, telNr) {
       steps: [
         'Starten Sie auf Ihrem Haupttelefon einen aktiven Anruf (z.\u00A0B. eine beliebige Nummer anrufen).',
         'Nehmen Sie ein zweites Telefon.',
-        'W\u00E4hlen Sie Ihre eigene Nummer: ' + (telNr || '\u2013'),
+        'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
         'Da Ihr Telefon besetzt ist, wird der zweite Anruf an den KI-Assistenten weitergeleitet.'
       ],
       expect: 'Erwartetes Ergebnis: Anruf bei besetzter Leitung wird sofort an den KI-Assistenten weitergeleitet.'
@@ -5019,7 +5020,7 @@ function getModeTestGuidance(mode, telNr) {
     subtitle: 'Rufen Sie jetzt Ihre eigene Nummer mit einem zweiten Telefon an.',
     steps: [
       'Nehmen Sie ein zweites Telefon.',
-      'W\u00E4hlen Sie Ihre eigene Nummer: ' + (telNr || '\u2013')
+      'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>'
     ],
     expect: 'Erwartetes Ergebnis: Der Anruf wird an den KI-Assistenten weitergeleitet.'
   };
