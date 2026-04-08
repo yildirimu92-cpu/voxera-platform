@@ -1190,7 +1190,7 @@ body{
                   <div class="setup-step-content">
                     <p><strong>Wie möchten Sie Voxera einrichten?</strong></p>
                     <div class="setup-choice-grid" onclick="event.stopPropagation();" role="listbox" aria-label="Einrichtungsweg wählen">
-                      <div class="setup-choice-card active" id="setup-device-card-mobile" role="option" aria-selected="true">
+                      <div class="setup-choice-card" id="setup-device-card-mobile" role="option" aria-selected="false">
                         <div class="setup-choice-title"> Smartphone</div>
                         <div class="setup-choice-text">Ideal, wenn Sie die Weiterleitung direkt auf dem Handy aktivieren möchten.</div>
                         <div class="setup-choice-actions">
@@ -1974,7 +1974,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, customerId:''};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, activationPathSelected:false, forwardingActive:false, customerId:''};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -2240,6 +2240,8 @@ async function patchCustomerRecord(recordId, fields) {
   const payload = {};
   if (fields.notification_mode !== undefined) payload.notification_mode = fields.notification_mode;
   if (fields.forwarding_setup_completed !== undefined) payload.forwarding_setup_completed = fields.forwarding_setup_completed;
+  if (fields.activation_path_selected !== undefined) payload.activation_path_selected = fields.activation_path_selected;
+  if (fields.forwarding_active !== undefined) payload.forwarding_active = fields.forwarding_active;
   const json = await callDashboardFunction('customer-update-settings', payload);
   if (!json || !json.customer) throw new Error(json?.error || 'Update fehlgeschlagen.');
   return toDashboardRecord(json.customer);
@@ -2607,7 +2609,9 @@ async function loadCustomerMeta() {
     customerId: context.customerId || f.id || '',
     voxeraNumber: f.voxera_number || '',
     telNr: f.tel_nr || '',
-    forwardingSetupCompleted: f.forwarding_setup_completed === true
+    forwardingSetupCompleted: f.forwarding_setup_completed === true,
+    activationPathSelected: f.activation_path_selected === true,
+    forwardingActive: f.forwarding_active === true
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   console.info('[voxera-dashboard] customerMeta numbers', {
@@ -4160,11 +4164,37 @@ function openSetupWizardFromCta(event, stepId) {
   if (stepId) toggleSetupStep(stepId);
 }
 
-function isForwardingSetupCompleted() {
-  return !!(customerMeta && customerMeta.forwardingSetupCompleted);
+function isActivationPathSelected() {
+  return !!(customerMeta && customerMeta.activationPathSelected === true);
 }
 
-async function persistForwardingSetupCompleted() {
+function isForwardingSetupCompleted() {
+  return !!(customerMeta && customerMeta.forwardingActive === true);
+}
+
+async function persistActivationPathSelected() {
+  customerMeta.activationPathSelected = true;
+  updateSetupExperienceProgress();
+  updateActivationStatusCard(allRecords || []);
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) return false;
+    await patchCustomerRecord(recId, { activation_path_selected: true });
+    if (context && context.customerRecord) context.customerRecord.activation_path_selected = true;
+    return true;
+  } catch(e) {
+    customerMeta.activationPathSelected = false;
+    updateSetupExperienceProgress();
+    updateActivationStatusCard(allRecords || []);
+    console.error('activation_path_selected save failed', e);
+    toast('Aktivierungsweg lokal gespeichert. Synchronisation folgt beim nächsten Laden.');
+    return false;
+  }
+}
+
+async function persistForwardingActive() {
+  customerMeta.forwardingActive = true;
   customerMeta.forwardingSetupCompleted = true;
   updateSetupExperienceProgress();
   updateActivationStatusCard(allRecords || []);
@@ -4172,15 +4202,19 @@ async function persistForwardingSetupCompleted() {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) return false;
-    await patchCustomerRecord(recId, { forwarding_setup_completed: true });
-    if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
+    await patchCustomerRecord(recId, { forwarding_active: true, forwarding_setup_completed: true });
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_active = true;
+      context.customerRecord.forwarding_setup_completed = true;
+    }
     return true;
   } catch(e) {
+    customerMeta.forwardingActive = false;
     customerMeta.forwardingSetupCompleted = false;
     updateSetupExperienceProgress();
     updateActivationStatusCard(allRecords || []);
-    console.error('forwarding_setup_completed save failed', e);
-    toast('Einrichtung lokal gespeichert. Synchronisation folgt beim nächsten Laden.');
+    console.error('forwarding_active save failed', e);
+    toast('Aktivierungsstatus lokal gespeichert. Synchronisation folgt beim nächsten Laden.');
     return false;
   }
 }
@@ -4265,7 +4299,7 @@ var setupDone = {};
 var setupSkipped = {};
 var setupStateCustomerId = '';
 var selectedSetupNotificationOption = null;
-var selectedSetupDevice = 'mobile';
+var selectedSetupDevice = null;
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
 var SETUP_LABELS = {s1:'Setup-Pfad wählen',s2:'Weiterleitung aktivieren & testen',s3:'Benachrichtigungen auswählen',s4:'Passwort prüfen',s5:'Hilfe & Support ansehen'};
 function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
@@ -4280,6 +4314,7 @@ function getSetupStorageKey(prefix){
 function resetSetupSessionState(){
   setupDone = {};
   setupSkipped = {};
+  selectedSetupDevice = null;
 }
 function updateSettingsWizardEntryLabel(){
   var btn = document.getElementById('settings-wizard-btn');
@@ -4349,20 +4384,22 @@ function goToNextSetupStep(currentStepId){
   setActiveSetupStep(null);
 }
 
-function selectSetupDevice(event, type){
-  if(event) event.stopPropagation();
+function applySetupDeviceSelection(type){
   var isMobile = type === 'mobile';
-  selectedSetupDevice = isMobile ? 'mobile' : 'landline';
   var cardMobile = document.getElementById('setup-device-card-mobile');
   var cardLandline = document.getElementById('setup-device-card-landline');
   var panelMobile = document.getElementById('setup-device-panel-mobile');
   var panelLandline = document.getElementById('setup-device-panel-landline');
-  if (cardMobile) { cardMobile.classList.toggle('active', isMobile); cardMobile.setAttribute('aria-selected', String(isMobile)); }
-  if (cardLandline) { cardLandline.classList.toggle('active', !isMobile); cardLandline.setAttribute('aria-selected', String(!isMobile)); }
-  if (panelMobile) panelMobile.classList.toggle('active', isMobile);
-  if (panelLandline) panelLandline.classList.toggle('active', !isMobile);
-  // Auto-advance to next step after a short pause so user sees the selection
-  setTimeout(function(){ completeSetupStep('s1', null); }, 1000);
+  if (cardMobile) { cardMobile.classList.toggle('active', !!type && isMobile); cardMobile.setAttribute('aria-selected', String(!!type && isMobile)); }
+  if (cardLandline) { cardLandline.classList.toggle('active', !!type && !isMobile); cardLandline.setAttribute('aria-selected', String(!!type && !isMobile)); }
+  if (panelMobile) panelMobile.classList.toggle('active', !type || isMobile);
+  if (panelLandline) panelLandline.classList.toggle('active', !!type && !isMobile);
+}
+
+function selectSetupDevice(event, type){
+  if(event) event.stopPropagation();
+  selectedSetupDevice = type === 'landline' ? 'landline' : 'mobile';
+  applySetupDeviceSelection(selectedSetupDevice);
 }
 
 function continueToSetupTest(event){
@@ -4392,6 +4429,10 @@ function saveNotificationAndContinue(event){
 
 function completeSetupStep(id, event){
   if(event) event.stopPropagation();
+  if (id === 's1' && !selectedSetupDevice) {
+    toast('Bitte wählen Sie zuerst einen Aktivierungsweg.');
+    return;
+  }
   var wasForwardingSetupCompleted = isForwardingSetupCompleted();
   setupDone[id] = true;
   delete setupSkipped[id];
@@ -4400,14 +4441,16 @@ function completeSetupStep(id, event){
   updateSetupProgress();
   try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
   if(id === 's1'){
-    persistForwardingSetupCompleted().then(function(saved){
+    persistActivationPathSelected().then(function(){
+      routeDashboardFirstSessionExperience();
+    });
+  } else if(id === 's2'){
+    persistForwardingActive().then(function(saved){
       routeDashboardFirstSessionExperience();
       if(!wasForwardingSetupCompleted && saved){
         toast('Rufumleitung eingerichtet');
       }
     });
-  } else if(id === 's2'){
-    routeDashboardFirstSessionExperience();
   } else {
     updateSetupExperienceProgress();
   }
@@ -4501,6 +4544,15 @@ function initSetupWizard(){
     var saved=localStorage.getItem(getSetupStorageKey('voxera_setup_steps'));
     if(saved) setupDone=JSON.parse(saved);
   }catch(e){}
+  if (!isActivationPathSelected() && setupDone.s1) delete setupDone.s1;
+  if (!isForwardingSetupCompleted() && setupDone.s2) delete setupDone.s2;
+  if (isActivationPathSelected() && !selectedSetupDevice) selectedSetupDevice = 'mobile';
+  console.info('[voxera-dashboard] wizard state derived', {
+    activation_path_selected: isActivationPathSelected(),
+    forwarding_active: isForwardingSetupCompleted(),
+    selected_setup_device: selectedSetupDevice || null,
+    restored_steps: Object.keys(setupDone).filter(function(key){ return setupDone[key]; })
+  });
   SETUP_STEPS.forEach(function(id){
     if(setupDone[id]){
       var step=document.getElementById('setup-'+id);
@@ -4544,7 +4596,7 @@ function initSetupWizard(){
     var firstOpen = getOpenSteps()[0] || 's1';
     setActiveSetupStep(firstOpen);
   }
-  selectSetupDevice(null, selectedSetupDevice);
+  applySetupDeviceSelection(selectedSetupDevice);
   selectedSetupNotificationOption = getSelectedNotificationMode('setup-notification-mode');
   renderForwardingCodes();
   routeDashboardFirstSessionExperience();
