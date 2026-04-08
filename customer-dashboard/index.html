@@ -3114,8 +3114,8 @@ async function loadData() {
       if (customerMeta.activationConfirmationMode === 'live') {
         // Live-confirmation flow: auto-activate on first matching call after activation_started_at
         if (!candidateCall) {
-          var liveFound = findActivationCandidateCall(records, customerMeta.activationStartedAt);
-          if (liveFound) {
+          var found = findActivationCandidateCall(records, customerMeta.activationStartedAt);
+          if (found) {
             // Auto-activate without user interaction
             (async function autoActivateLive() {
               try {
@@ -5266,10 +5266,10 @@ function startActivationPolling() {
   if (activationPollingInterval) return; // already running
   activationPollingInterval = setInterval(function() {
     var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
-    var isLiveMode = customerMeta && customerMeta.activationConfirmationMode === 'live';
+    var isLiveConfirmationMode = customerMeta && customerMeta.activationConfirmationMode === 'live';
     // In test mode stop when a candidate call is found (user must confirm manually).
     // In live mode keep polling until auto-activation fires and status changes.
-    if (!isPendingTest || (candidateCall && !isLiveMode)) {
+    if (!isPendingTest || (candidateCall && !isLiveConfirmationMode)) {
       stopActivationPolling();
       return;
     }
