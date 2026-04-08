@@ -258,12 +258,23 @@ exports.handler = async (event) => {
   }
 
   // Idempotenz-Claim: Nur ein Request darf gleichzeitig den Versand auslösen.
+  console.info(JSON.stringify({
+    level: 'info',
+    event: 'send_customer_access_claim_attempt',
+    idempotency_scope: idempotencyScope,
+    customer_id: customerId,
+    customer_status_raw: customer.status ?? null,
+    customer_status_normalized: normalizeCustomerStatus(customer.status),
+    invite_status_raw: customer.invite_status ?? null,
+    welcome_sent: Boolean(customer.welcome_sent)
+  }));
+
   const claimTs = new Date().toISOString();
   const { data: claimRows, error: claimError } = await sbAdmin
     .from('customers')
     .update({ invite_status: 'sending', updated_at: claimTs })
     .eq('id', customerId)
-    .eq('status', STATUS.customer.ONBOARDING)
+    .in('status', [STATUS.customer.ONBOARDING, 'pending'])
     .or('invite_status.eq.not_sent,invite_status.is.null')
     .select('id');
 
@@ -286,6 +297,17 @@ exports.handler = async (event) => {
       .select('id, status, invite_status, welcome_sent, welcome_sent_at')
       .eq('id', customerId)
       .single();
+
+    console.warn(JSON.stringify({
+      level: 'warn',
+      event: 'send_customer_access_claim_miss_state',
+      idempotency_scope: idempotencyScope,
+      customer_id: customerId,
+      latest_customer_status_raw: latestCustomer?.status ?? null,
+      latest_customer_status_normalized: normalizeCustomerStatus(latestCustomer?.status),
+      latest_invite_status_raw: latestCustomer?.invite_status ?? null,
+      latest_welcome_sent: Boolean(latestCustomer?.welcome_sent)
+    }));
 
     const duplicateReason = resolveDuplicateReason(latestCustomer || customer);
     if (duplicateReason === 'retry_allowed') {
