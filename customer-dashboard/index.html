@@ -3644,7 +3644,10 @@ async function runConfirmModalAction() {
   confirmModalBusy = true;
   try {
     const result = await fn();
-    if (result !== false) closeConfirmModal();
+    if (result !== false) {
+      confirmModalBusy = false;
+      closeConfirmModal();
+    }
   } catch (e) {
     const msg = (e && (e.payload && e.payload.error || e.message)) || 'Fehler beim Speichern';
     toast(' ' + msg);
