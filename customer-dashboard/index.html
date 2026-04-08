@@ -3096,6 +3096,10 @@ async function loadData() {
           stopActivationPolling();
         }
       }
+      // Restart 5s polling if it was lost (e.g. after page reload)
+      if (!candidateCall && !activationPollingInterval) {
+        startActivationPolling();
+      }
     }
     // Stop polling if we left pending_test (e.g. externally)
     if (customerMeta.forwardingStatus !== 'pending_test') {
@@ -4675,7 +4679,7 @@ function renderActivationModule() {
     stateDesc = 'Führen Sie einen Testanruf durch, um die Aktivierung zu bestätigen.';
   } else if (uiState === 'in_progress') {
     badgeClass = 'in-progress'; badgeLabel = '● In Aktivierung';
-    stateDesc = 'Einrichtung gestartet. Aktivierung erfolgt durch den ersten eingehenden Anruf.';
+    stateDesc = 'Gerätetyp gewählt. Starten Sie den Testanruf, um die Aktivierung abzuschliessen.';
   } else {
     badgeClass = 'not-started'; badgeLabel = '● Nicht gestartet';
     stateDesc = 'Wählen Sie unten Ihren Gerätetyp und folgen Sie den Anweisungen.';
@@ -4723,17 +4727,21 @@ function renderActivationModule() {
   var deactSection = document.getElementById('act-deactivation-section');
   if (deactSection) {
     if (uiState === 'active') {
+      // Preserve checkbox state across re-renders (e.g. from auto-refresh)
+      var existingCheckbox = document.getElementById('act-deact-checkbox');
+      var preserveChecked = existingCheckbox ? existingCheckbox.checked : false;
       renderDeactivationSection(meta);
+      var newCheckbox = document.getElementById('act-deact-checkbox');
+      var newDeactBtn = document.getElementById('act-deact-btn');
+      if (newCheckbox && preserveChecked) {
+        newCheckbox.checked = true;
+        if (newDeactBtn) newDeactBtn.disabled = false;
+      }
     } else {
       deactSection.style.display = 'none';
       deactSection.innerHTML = '';
     }
   }
-
-  var checkbox = document.getElementById('act-deact-checkbox');
-  var deactBtn = document.getElementById('act-deact-btn');
-  if (checkbox) checkbox.checked = false;
-  if (deactBtn) { deactBtn.disabled = true; deactBtn.textContent = 'Verknüpfung deaktivieren'; }
 }
 
 function renderActivationActionCard(meta) {
@@ -4756,7 +4764,7 @@ function renderActivationActionCard(meta) {
   }
 
   if (codeBox && codeEl) {
-    if (code) {
+    if (code && isMobile) {
       codeEl.textContent = code;
       codeBox.style.display = 'flex';
     } else {
@@ -4796,13 +4804,6 @@ function renderActivationActionCard(meta) {
       startTestBtn.textContent = 'Testanruf starten';
       startTestBtn.addEventListener('click', function(e) { activationStartLandlineTest(e); });
       btnsEl.appendChild(startTestBtn);
-      var copyBtn2 = document.createElement('button');
-      copyBtn2.type = 'button';
-      copyBtn2.className = 'act-action-btn-secondary';
-      copyBtn2.textContent = 'Code kopieren';
-      copyBtn2.dataset.forwardingCode = code || '';
-      copyBtn2.addEventListener('click', function(e) { activationCopyCode(e, this.dataset.forwardingCode); });
-      btnsEl.appendChild(copyBtn2);
     }
   }
 
@@ -5027,8 +5028,6 @@ async function activationConfirmDeactivation(event) {
 }
 
 async function persistForwardingStatus(status) {
-  // TODO: Backend hook needed
-  // When new call detected: set forwarding_status = 'active' and forwarding_setup_completed = true
   var validStatuses = ['not_started', 'pending_test', 'active', 'inactive'];
   if (!validStatuses.includes(status)) {
     console.error('persistForwardingStatus: ungültiger Status', status);

@@ -77,12 +77,16 @@ exports.handler = async (event) => {
     }
     allowed.forwarding_status = forwardingStatus;
   }
-  if (body.activation_started_at != null) {
-    const ts = String(body.activation_started_at).trim();
-    if (!ts || isNaN(Date.parse(ts))) {
-      return response(400, { error: 'activation_started_at ungueltig. Erwartet: ISO 8601 Zeitstempel' });
+  if ('activation_started_at' in body) {
+    if (body.activation_started_at === null) {
+      allowed.activation_started_at = null;
+    } else {
+      const ts = String(body.activation_started_at).trim();
+      if (!ts || isNaN(Date.parse(ts))) {
+        return response(400, { error: 'activation_started_at ungueltig. Erwartet: ISO 8601 Zeitstempel oder null' });
+      }
+      allowed.activation_started_at = ts;
     }
-    allowed.activation_started_at = ts;
   }
   if (body.forwarding_mode != null) {
     const forwardingMode = String(body.forwarding_mode).trim().toLowerCase();
