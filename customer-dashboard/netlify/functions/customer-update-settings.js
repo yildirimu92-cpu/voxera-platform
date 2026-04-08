@@ -63,6 +63,15 @@ exports.handler = async (event) => {
   if (body.forwarding_setup_completed != null) {
     allowed.forwarding_setup_completed = body.forwarding_setup_completed === true;
   }
+  if (body.activation_path_selected != null) {
+    allowed.activation_path_selected = body.activation_path_selected === true;
+  }
+  if (body.forwarding_active != null) {
+    const forwardingActive = body.forwarding_active === true;
+    allowed.forwarding_active = forwardingActive;
+    // Keep legacy status in sync until all consumers read forwarding_active.
+    allowed.forwarding_setup_completed = forwardingActive;
+  }
 
   if (Object.keys(allowed).length === 0) {
     return response(400, { error: 'Keine erlaubten Felder uebergeben' });
