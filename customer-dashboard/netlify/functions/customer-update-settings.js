@@ -63,14 +63,12 @@ exports.handler = async (event) => {
   if (body.forwarding_setup_completed != null) {
     allowed.forwarding_setup_completed = body.forwarding_setup_completed === true;
   }
-  if (body.activation_path_selected != null) {
-    allowed.activation_path_selected = body.activation_path_selected === true;
-  }
-  if (body.forwarding_active != null) {
-    const forwardingActive = body.forwarding_active === true;
-    allowed.forwarding_active = forwardingActive;
-    // Keep legacy status in sync until all consumers read forwarding_active.
-    allowed.forwarding_setup_completed = forwardingActive;
+  if (body.setup_device_type != null) {
+    const deviceType = String(body.setup_device_type).trim().toLowerCase();
+    if (!['mobile', 'landline'].includes(deviceType)) {
+      return response(400, { error: 'setup_device_type ungueltig' });
+    }
+    allowed.setup_device_type = deviceType;
   }
 
   if (Object.keys(allowed).length === 0) {
