@@ -2211,7 +2211,7 @@ async function saveCustomerAiConfig(){
   const stamp=nowStamp();
   state.aiChanges.unshift(`${stamp} · ${cname}: AI-Konfiguration gespeichert (${cfg.status})`);
   state.events.unshift(`${stamp} · AI Setup: ${cname} aktualisiert`);
-  reconcileCustomerLifecycleStatuses();
+  syncAllCustomerLifecycleStatuses();
   renderAiSetup(); renderOnboarding(); renderCustomers(); renderActivity(); renderOverview(); updateBadges();
 }
 
