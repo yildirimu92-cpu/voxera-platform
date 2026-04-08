@@ -16,6 +16,17 @@ function response(statusCode, payload) {
   return { statusCode, headers: corsHeaders, body: JSON.stringify(payload) };
 }
 
+function resolveDuplicateReason(customerRow) {
+  const inviteStatus = String(customerRow?.invite_status || '').trim().toLowerCase();
+  const welcomeSent = Boolean(customerRow?.welcome_sent);
+  const customerStatus = normalizeCustomerStatus(customerRow?.status);
+
+  if (inviteStatus === 'sending') return 'in_progress';
+  if (welcomeSent || inviteStatus === STATUS.access.SENT || inviteStatus === STATUS.access.ACTIVATED) return 'already_sent';
+  if (customerStatus === STATUS.customer.ACTIVATED || customerStatus === STATUS.customer.LIVE) return 'already_processed';
+  return 'retry_allowed';
+}
+
 async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordReset = false }) {
   const eventType = isPasswordReset ? 'customer_password_reset_email' : 'customer_welcome_access_email';
   const payload = {
@@ -276,7 +287,27 @@ exports.handler = async (event) => {
       .eq('id', customerId)
       .single();
 
-    const duplicateReason = latestCustomer?.invite_status === 'sending' ? 'in_progress' : 'already_processed';
+    const duplicateReason = resolveDuplicateReason(latestCustomer || customer);
+    if (duplicateReason === 'retry_allowed') {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'send_customer_access_claim_retry',
+        reason: 'claim_lost_without_final_state',
+        idempotency_scope: idempotencyScope,
+        customer_id: customerId,
+        invite_status: latestCustomer?.invite_status || null,
+        welcome_sent: Boolean(latestCustomer?.welcome_sent),
+        customer_status: normalizeCustomerStatus(latestCustomer?.status)
+      }));
+
+      return response(409, {
+        error: 'Versand konnte nicht exklusiv gestartet werden. Bitte erneut versuchen.',
+        duplicate: false,
+        reason: 'claim_retry_required',
+        customer: latestCustomer || customer
+      });
+    }
+
     console.info(JSON.stringify({
       level: 'info',
       event: 'send_customer_access_duplicate_ignored',
@@ -292,7 +323,9 @@ exports.handler = async (event) => {
       reason: duplicateReason,
       message: duplicateReason === 'in_progress'
         ? 'Zugang wird bereits versendet. Kein zweiter Versand ausgelöst.'
-        : 'Zugang wurde bereits verarbeitet. Kein weiterer Versand ausgelöst.',
+        : duplicateReason === 'already_sent'
+          ? 'Zugang wurde bereits versendet. Kein weiterer Versand ausgelöst.'
+          : 'Zugang wurde bereits verarbeitet. Kein weiterer Versand ausgelöst.',
       customer: latestCustomer || customer
     });
   }
