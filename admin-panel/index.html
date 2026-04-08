@@ -1948,54 +1948,31 @@ function getOnboardingStepAction(step, customerId){
 }
 
 function buildOnboardingQueueItem(customerId){
-  const customer=customerById(customerId);
-  const o=onboardingForCustomer(customerId)||{owner:'Ops',latest:''};
-
-  // Auto-derive done steps from real customer data
-  const explicitDone=customer.onboardingSteps||[];
-  const autoDone=new Set(explicitDone);
-
-  // 'customer created' – always done if customer exists
-  autoDone.add('customer created');
-
-  // 'Voxera number assigned' – done wenn voxera_number gesetzt
-  const vn=String(customer.voxera_number||customer.voxera||'').trim();
-  if(vn && vn!=='Zuweisung offen') autoDone.add('Voxera number assigned');
-
-  // 'AI basics configured' – done wenn AI-Felder gesetzt oder aiConfigs vorhanden
-  const aiCfg=state.aiConfigs&&(state.aiConfigs[customer.id]||state.aiConfigs[customer.customer_id]);
-  const hasAi=!!(
-    String(customer.ai_business_description||'').trim()||
-    String(customer.ai_instructions||'').trim()||
-    (aiCfg&&(String(aiCfg.businessDescription||aiCfg.business_description||'').trim()||
-              String(aiCfg.instructions||'').trim()))
-  );
-  if(hasAi) autoDone.add('AI basics configured');
-
-  // 'forwarding configured' – done wenn forwarding_setup_completed = true
-  if(customer.forwarding_setup_completed===true) autoDone.add('forwarding configured');
-
-  // 'activation sent' – done wenn invite_status = sent/invited/activated/live
-  const invSt=String(customer.invite_status||'').toLowerCase();
-  if(['sent','invited','activated','live'].includes(invSt)) autoDone.add('activation sent');
-
-  // 'dashboard access active' – done wenn status activated/live
-  const custSt=String(customer.status||'').toLowerCase();
-  if(['activated','live'].includes(custSt)) autoDone.add('dashboard access active');
-
-  const done=[...autoDone];
-  const missing=state.checklist.filter(step=>!autoDone.has(step));
-  const currentStep=done.length?done[done.length-1]:'Noch nicht gestartet';
-  const nextStep=missing[0]||'fully completed';
-  const progress=Math.round((done.length/state.checklist.length)*100);
-  const hardBlockers=['Voxera number assigned','AI basics configured','forwarding configured','test call completed'];
-  const blockerStep=hardBlockers.find(s=>missing.includes(s));
-  let status=ONBOARDING_STATUS.IN_PROGRESS;
-  if(missing.length===0||autoDone.has('fully completed')) status=ONBOARDING_STATUS.COMPLETED;
-  else if(autoDone.has('ready for go-live')&&missing.length<=1) status=ONBOARDING_STATUS.READY;
-  else if(blockerStep) status=ONBOARDING_STATUS.BLOCKED;
-  const blocker=blockerStep?`Missing: ${blockerStep}`:(o.blocker||'');
-  return {customer,owner:o.owner||'Ops',status,progress,currentStep,nextStep,missingSteps:missing,blocker,latestUpdate:o.latest||customer.latest};
+  const snapshot=deriveOnboardingSnapshot(customerId);
+  if(!snapshot){
+    return {
+      customer:{id:customerId,name:'Unbekannt',email:'',plan:''},
+      owner:'Ops',
+      status:ONBOARDING_STATUS.NOT_STARTED,
+      progress:0,
+      currentStep:'Noch nicht gestartet',
+      nextStep:'customer created',
+      missingSteps:[...state.checklist],
+      blocker:'',
+      latestUpdate:''
+    };
+  }
+  return {
+    customer:snapshot.customer,
+    owner:snapshot.owner,
+    status:snapshot.status,
+    progress:snapshot.progress,
+    currentStep:snapshot.currentStep,
+    nextStep:snapshot.nextStep,
+    missingSteps:snapshot.missingSteps,
+    blocker:snapshot.blocker,
+    latestUpdate:snapshot.latestUpdate
+  };
 }
 
 function openOnboardingDetail(customerId){
@@ -2048,7 +2025,7 @@ function renderOnboardingDetail(){
   const missingSet2=new Set(q.missingSteps||[]);
   document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(step=>{
     const done=!missingSet2.has(step);
-    const blocking=['Voxera number assigned','AI basics configured','forwarding configured','test call completed'].includes(step)&&!done;
+    const blocking=ONBOARDING_BLOCKER_STEPS.includes(step)&&!done;
     const action=done?'':getOnboardingStepAction(step,id);
     return `<div class="detail-item"><span class="detail-k">${esc(step)} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep('${jsStr(q.customer.id)}','${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
   }).join('');
@@ -3344,17 +3321,10 @@ function validationLabelForField(field){
 }
 
 const ACCESS_REQUIRED_FIELDS=['customer_name','email','street','zip','city','country','plan'];
+const ONBOARDING_BLOCKER_STEPS=['Voxera number assigned','AI basics configured','forwarding configured','test call completed'];
 
 function isOnboardingStatusReady(status){
   return normalizeOnboardingStatus(status)===ONBOARDING_STATUS.READY;
-}
-
-function getRawCustomerSetupProgress(customer,onboarding){
-  const customerProgress=Number(customer?.progress);
-  const onboardingProgress=Number(onboarding?.progress);
-  const raw=Number.isFinite(onboardingProgress)?onboardingProgress:customerProgress;
-  if(!Number.isFinite(raw)) return 0;
-  return Math.max(0,Math.min(100,Math.round(raw)));
 }
 
 function validateCustomerAccessData(customer){
@@ -3371,6 +3341,75 @@ function hasRequiredAccessData(customer){
   return validateCustomerAccessData(customer).ok;
 }
 
+function hasCustomerAiBasicsConfigured(customer){
+  const aiConfig=state.aiConfigs&&(state.aiConfigs[customer?.id]||state.aiConfigs[customer?.customer_id]);
+  return !!(
+    String(customer?.ai_business_description||'').trim()||
+    String(customer?.ai_instructions||'').trim()||
+    (aiConfig&&(
+      String(aiConfig.businessDescription||aiConfig.business_description||'').trim()||
+      String(aiConfig.instructions||'').trim()
+    ))
+  );
+}
+
+function deriveOnboardingSnapshot(customerId){
+  const customer=customerById(customerId);
+  if(!customer) return null;
+  const onboarding=onboardingForCustomer(customerId)||{owner:'Ops',latest:''};
+  const explicitDone=Array.isArray(customer.onboardingSteps)?customer.onboardingSteps:[];
+  const doneSet=new Set(explicitDone);
+
+  doneSet.add('customer created');
+  const voxeraNum=String(customer.voxera_number||customer.voxera||'').trim();
+  if(voxeraNum&&voxeraNum!=='Zuweisung offen') doneSet.add('Voxera number assigned');
+  if(hasCustomerAiBasicsConfigured(customer)) doneSet.add('AI basics configured');
+  if(customer.forwarding_setup_completed===true) doneSet.add('forwarding configured');
+
+  const inviteStatus=String(customer.invite_status||'').toLowerCase();
+  if(['sent','invited','activated','live'].includes(inviteStatus)) doneSet.add('activation sent');
+  const customerStatus=String(customer.status||'').toLowerCase();
+  if(['activated','live'].includes(customerStatus)) doneSet.add('dashboard access active');
+
+  const checklist=Array.isArray(state.checklist)?state.checklist:[];
+  const missingSteps=checklist.filter(step=>!doneSet.has(step));
+  const missingSet=new Set(missingSteps);
+  const doneSteps=checklist.filter(step=>doneSet.has(step));
+  const progress=checklist.length?Math.round((doneSteps.length/checklist.length)*100):0;
+  const blockerStep=ONBOARDING_BLOCKER_STEPS.find(step=>missingSet.has(step));
+
+  let status=ONBOARDING_STATUS.IN_PROGRESS;
+  if(missingSteps.length===0||doneSet.has('fully completed')) status=ONBOARDING_STATUS.COMPLETED;
+  else if(doneSet.has('ready for go-live')&&missingSteps.length<=1) status=ONBOARDING_STATUS.READY;
+  else if(blockerStep) status=ONBOARDING_STATUS.BLOCKED;
+
+  const validation=validateCustomerAccessData(customer);
+  const accessReasons=[];
+  if(validation.missing.length) accessReasons.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
+  if(!voxeraNum||voxeraNum==='Zuweisung offen') accessReasons.push('Voxera-Nummer nicht zugewiesen');
+  if(!doneSet.has('AI basics configured')) accessReasons.push('AI-Konfiguration fehlt (Geschäftsbeschreibung oder Anweisungen)');
+
+  return {
+    customer,
+    onboarding,
+    owner:onboarding.owner||'Ops',
+    latestUpdate:onboarding.latest||customer.latest,
+    doneSet,
+    missingSet,
+    missingSteps,
+    progress,
+    currentStep:doneSteps.length?doneSteps[doneSteps.length-1]:'Noch nicht gestartet',
+    nextStep:missingSteps[0]||'fully completed',
+    blockerStep,
+    blocker:blockerStep?`Missing: ${blockerStep}`:(onboarding.blocker||''),
+    status,
+    accessReasons,
+    isAccessReady:accessReasons.length===0,
+    hasRequiredAccessData:validation.ok,
+    missingFields:validation.missing
+  };
+}
+
 function syncCustomerLifecycleStatus(customer,onboarding){
   if(!customer) return;
   const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
@@ -3383,52 +3422,32 @@ function syncCustomerLifecycleStatus(customer,onboarding){
 }
 
 function isCustomerAccessReady(customer,onboarding){
-  // Pflichtfelder müssen vorhanden sein
-  if(!hasRequiredAccessData(customer)) return false;
-  // Voxera-Nummer muss zugewiesen sein (Kunde braucht sie für Rufweiterleitung)
-  const voxeraNum = String(customer?.voxera_number||customer?.voxera||'').trim();
-  if(!voxeraNum || voxeraNum === 'Zuweisung offen') return false;
-  // AI-Konfiguration muss gemacht sein (mind. Geschäftsbeschreibung ODER Anweisungen)
-  const aiConfig = state.aiConfigs && (state.aiConfigs[customer?.id] || state.aiConfigs[customer?.customer_id]);
-  const hasAiConfig = !!(
-    String(customer?.ai_business_description||'').trim() ||
-    String(customer?.ai_instructions||'').trim() ||
-    (aiConfig && (String(aiConfig.business_description||'').trim() || String(aiConfig.instructions||'').trim()))
-  );
-  if(!hasAiConfig) return false;
-  return true;
+  if(!customer) return false;
+  const snapshot=deriveOnboardingSnapshot(customer.id);
+  return !!snapshot?.isAccessReady;
 }
 
 function getCustomerAccessBlockReasons(customer,onboarding){
-  const reasons=[];
-  const validation=validateCustomerAccessData(customer);
-  if(validation.missing.length) reasons.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
-  const voxeraNum=String(customer?.voxera_number||customer?.voxera||'').trim();
-  if(!voxeraNum||voxeraNum==='Zuweisung offen') reasons.push('Voxera-Nummer nicht zugewiesen');
-  const aiConfig=state.aiConfigs&&(state.aiConfigs[customer?.id]||state.aiConfigs[customer?.customer_id]);
-  const hasAiConfig=!!(
-    String(customer?.ai_business_description||'').trim()||
-    String(customer?.ai_instructions||'').trim()||
-    (aiConfig&&(String(aiConfig.business_description||'').trim()||String(aiConfig.instructions||'').trim()))
-  );
-  if(!hasAiConfig) reasons.push('AI-Konfiguration fehlt (Geschäftsbeschreibung oder Anweisungen)');
-  return reasons;
+  if(!customer) return [];
+  const snapshot=deriveOnboardingSnapshot(customer.id);
+  return snapshot?.accessReasons||[];
 }
 
 function getCustomerSetupProgress(customer,onboarding){
-  const rawProgress=getRawCustomerSetupProgress(customer,onboarding);
-  return isCustomerAccessReady(customer,onboarding)?rawProgress:Math.min(rawProgress,99);
+  if(!customer) return 0;
+  const snapshot=deriveOnboardingSnapshot(customer.id);
+  return snapshot?.progress||0;
 }
 
 function getCustomerAccessReadiness(customer,onboarding){
-  const validation=validateCustomerAccessData(customer);
-  const blockReasons=getCustomerAccessBlockReasons(customer,onboarding);
+  const snapshot=customer?deriveOnboardingSnapshot(customer.id):null;
+  const blockReasons=snapshot?.accessReasons||[];
   const isReady=blockReasons.length===0;
   return {
     isReady,
     onboardingReady:isReady,
-    hasRequiredData:validation.ok,
-    missingFields:validation.missing,
+    hasRequiredData:snapshot?.hasRequiredAccessData||false,
+    missingFields:snapshot?.missingFields||[],
     setupProgress:getCustomerSetupProgress(customer,onboarding),
     setupLabel:getCustomerSetupReadinessLabel(customer,onboarding),
     reasons:blockReasons
@@ -3461,14 +3480,6 @@ function renderSendAccessValidation(customer){
   target.innerHTML='<ul style="margin:4px 0 0 16px;padding:0;">'
     +blockReasons.map(r=>'<li style="color:var(--red);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
     +'</ul>';
-  const validation=validateCustomerAccessData(customer);
-  if(validation.ok){
-    target.innerHTML='<span style="color:var(--green);font-weight:600;">Alle Pflichtdaten sind vorhanden.</span>';
-    return validation;
-  }
-  const labels=validation.missing.map(validationLabelForField);
-  target.innerHTML=`<span style="color:var(--red);font-weight:600;">Fehlend: ${esc(labels.join(', '))}</span>`;
-  return validation;
 }
 
 function openSendAccessModal(customerId){
