@@ -4788,11 +4788,11 @@ function renderDeactivationSection(meta) {
   if (isMobile) {
     var encodedCode = disableCode ? encodeURIComponent(disableCode) : '';
     var removeBtn = disableCode
-      ? '<a class="act-action-btn-primary" id="act-deact-mobile-remove-btn" href="tel:' + encodedCode + '" onclick="activationMobileDeactivate(event)">'
+      ? '<a class="act-action-btn-primary" id="act-deact-mobile-remove-btn" href="tel:' + encodedCode + '" role="button" aria-label="Weiterleitung per Dialer entfernen" onclick="activationMobileDeactivate(event)">'
         + 'Weiterleitung entfernen'
         + '</a>'
       : '';
-    var copyBtn = disableCode
+    var copyBtnHtml = disableCode
       ? '<button type="button" class="act-action-btn-secondary" onclick="activationCopyCode(event,' + JSON.stringify(disableCode) + ')">Code kopieren</button>'
       : '';
 
@@ -4802,13 +4802,13 @@ function renderDeactivationSection(meta) {
       + '<div class="act-deact-mobile-title">Weiterleitung deaktivieren</div>'
       + '<div class="act-deact-mobile-btns" style="margin-top:12px;">'
       + removeBtn
-      + copyBtn
+      + copyBtnHtml
       + '</div>'
       + '<div class="act-deact-mobile-note">'
       + 'Führen Sie danach einen Testanruf auf Ihre Nummer durch. Wenn kein neuer Anruf im Dashboard erscheint, können Sie die Deaktivierung bestätigen.'
       + '</div>'
       + '<div class="act-deact-mobile-nextstep" id="act-deact-mobile-nextstep" style="display:none;">'
-      + '<div class="act-deact-mobile-nextstep-title">⏱ Nächster Schritt: Testanruf</div>'
+      + '<div class="act-deact-mobile-nextstep-title">Nächster Schritt: Testanruf</div>'
       + '<div class="act-deact-mobile-nextstep-text">Rufen Sie jetzt Ihre eigene Nummer an. Wenn kein neuer Anruf im Dashboard erscheint, ist die Weiterleitung erfolgreich entfernt.</div>'
       + '</div>'
       + '</div>'
@@ -4818,7 +4818,7 @@ function renderDeactivationSection(meta) {
       + confirmHtml
       + '</div>';
   } else {
-    var copyBtn2 = disableCode
+    var copyBtnHtml = disableCode
       ? '<button type="button" class="act-action-btn-secondary" onclick="activationCopyCode(event,' + JSON.stringify(disableCode) + ')">Code kopieren</button>'
       : '';
 
@@ -4828,7 +4828,7 @@ function renderDeactivationSection(meta) {
       + '<div class="act-deact-landline-title">Weiterleitung deaktivieren</div>'
       + '<div class="act-deact-landline-btns" style="margin-top:12px;">'
       + '<button type="button" class="act-action-btn-primary" onclick="openHelpSection(\'forwarding\')">Anleitung anzeigen</button>'
-      + copyBtn2
+      + copyBtnHtml
       + '</div>'
       + '<div class="act-deact-landline-hint">'
       + 'Die Deaktivierung erfolgt je nach Anbieter oder Telefonanlage manuell.'
