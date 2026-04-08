@@ -3879,7 +3879,7 @@ async function saveFollowup() {
     newStatus = CALL_STATUS.FOLLOW_UP_SCHEDULED;
   }
 
-  const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: serializeFollowUpLocal(followUpAt) };
+  const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: serializeFollowUpLocal(followUpAt) || null };
   if (newStatus) fields.dashboard_status = newStatus;
   if (newStatus === CALL_STATUS.CLOSED) fields.follow_up_at = null; // Completed calls have no pending follow-up
   const fallbackFields = { notes_customer_voxera: text };
@@ -5932,6 +5932,14 @@ function showApp(user) {
   setupStateCustomerId = '';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+
+  // Restore last active tab from sessionStorage (before async load)
+  // Skip if setup is incomplete - that will be handled after loadData
+  var _setupFinishedEarly = false;
+  try { _setupFinishedEarly = !!localStorage.getItem(getSetupStorageKey('voxera_setup_finished')); } catch(e) {}
+  if (_setupFinishedEarly || isSetupComplete()) {
+    restoreTab();
+  }
 
   // User display fallback from auth profile
   const meta = user.user_metadata || {};
