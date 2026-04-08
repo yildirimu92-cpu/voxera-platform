@@ -4667,8 +4667,8 @@ function renderActivationModule() {
     badgeClass = 'inactive'; badgeLabel = '● Deaktiviert';
     stateDesc = 'Die Rufumleitung wurde entfernt. Voxera empfängt aktuell keine Anrufe.';
   } else if (uiState === 'pending_test') {
-    badgeClass = 'pending-test'; badgeLabel = '● Aktivierung gestartet';
-    stateDesc = 'Die Verbindung wird automatisch bestätigt, sobald ein Anruf eingeht.';
+    badgeClass = 'pending-test'; badgeLabel = '● Testanruf ausstehend';
+    stateDesc = 'Führen Sie einen Testanruf durch, um die Aktivierung zu bestätigen.';
   } else if (uiState === 'in_progress') {
     badgeClass = 'in-progress'; badgeLabel = '● In Aktivierung';
     stateDesc = 'Einrichtung gestartet. Aktivierung erfolgt durch den ersten eingehenden Anruf.';
@@ -4845,41 +4845,36 @@ function canSkipActivationTest(meta) {
 async function activationSkipTest(event) {
   if (event) event.stopPropagation();
   var btn = event && event.currentTarget;
-  if (btn) { btn.disabled = true; btn.textContent = 'Wird gestartet…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird aktiviert…'; }
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; } return; }
-    var now = new Date().toISOString();
-    // Set pending_test (not active): verification only happens when the first real call arrives.
     await patchCustomerRecord(recId, {
-      forwarding_status: 'pending_test',
-      activation_started_at: now,
+      forwarding_status: 'active',
+      forwarding_setup_completed: true,
       last_confirmed_setup_device_type: customerMeta.setupDeviceType,
       last_confirmed_forwarding_mode: customerMeta.forwardingMode
     });
-    customerMeta.forwardingStatus = 'pending_test';
-    customerMeta.activationStartedAt = now;
+    customerMeta.forwardingStatus = 'active';
+    customerMeta.forwardingSetupCompleted = true;
     customerMeta.lastConfirmedSetupDeviceType = customerMeta.setupDeviceType;
     customerMeta.lastConfirmedForwardingMode = customerMeta.forwardingMode;
     if (context && context.customerRecord) {
-      context.customerRecord.forwarding_status = 'pending_test';
-      context.customerRecord.activation_started_at = now;
+      context.customerRecord.forwarding_status = 'active';
+      context.customerRecord.forwarding_setup_completed = true;
       context.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
       context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
     }
-    // Mark that the user skipped the test so the pending_test UI can show the appropriate copy.
-    skipTestActivated = true;
     candidateCall = null;
     stopActivationPolling();
-    startActivationPolling();
-    toast('Aktivierung gestartet.');
+    toast('Rufumleitung erfolgreich aktiviert.');
     renderActivationModule();
     scrollToStatusCard();
     triggerStatusHighlight('success');
   } catch(e) {
     console.error('activationSkipTest failed', e);
-    toast('Aktivierung konnte nicht gestartet werden.');
+    toast('Aktivierung konnte nicht abgeschlossen werden.');
     if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; }
   }
 }
@@ -5023,9 +5018,7 @@ async function activationConfirmDeactivation(event) {
 
 async function persistForwardingStatus(status) {
   // TODO: Backend hook needed
-  // When a real incoming call is detected after activation_started_at, set forwarding_status = 'active'
-  // and forwarding_setup_completed = true. This applies whether pending_test was entered via an
-  // explicit test call or via the skip-test shortcut ("Ohne Test fortfahren").
+  // When new call detected: set forwarding_status = 'active' and forwarding_setup_completed = true
   var validStatuses = ['not_started', 'pending_test', 'active', 'inactive'];
   if (!validStatuses.includes(status)) {
     console.error('persistForwardingStatus: ungültiger Status', status);
@@ -5048,14 +5041,8 @@ async function persistForwardingStatus(status) {
 }
 
 // Placeholder for backend-detected candidate call (integration point for call-detection automation)
-// Note: pending_test can now also originate from the skip-test action (activationSkipTest).
-// In both cases, forwarding_status = 'pending_test' and the first real call after
-// activation_started_at should confirm the setup (move pending_test → active).
 var candidateCall = null;
 var activationPollingInterval = null;
-// UI-only flag: true when the user entered pending_test via "Ohne Test fortfahren".
-// Resets on page reload (intentional – the distinction is only needed for immediate UX feedback).
-var skipTestActivated = false;
 
 // Returns the first call whose created_at is strictly after activationStartedAt.
 function findActivationCandidateCall(calls, activationStartedAt) {
@@ -5109,8 +5096,6 @@ async function activationStartSmartphone(event, code) {
       context.customerRecord.forwarding_status = 'pending_test';
       context.customerRecord.activation_started_at = now;
     }
-    // Explicit test flow: clear the skip-test flag so pending_test shows test guidance.
-    skipTestActivated = false;
     // Step 2: rerender UI (pending_test card is now shown)
     renderActivationModule();
     // Step 3: start lightweight polling to detect the candidate call
@@ -5191,33 +5176,21 @@ function renderPendingTestCard(meta) {
   var telNr = escapeHtml(meta.telNr || '–');
   var voxeraNum = escapeHtml(meta.voxeraNumber || '–');
   var mode = meta.forwardingMode || '';
-  var isSkipMode = skipTestActivated;
 
-  // Candidate-call detection area: wording differs by context.
+  // Device+mode-specific guidance (pass raw telNr; getDeviceModeTestGuidance escapes it internally)
+  var modeGuide = getDeviceModeTestGuidance(meta.setupDeviceType || '', mode, meta.telNr || '\u2013');
+
   var detectHtml;
   if (candidateCall) {
-    // Use generic "Anruf erkannt" when coming from skip-test (real call expected),
-    // or "Testanruf erkannt" when the user ran an explicit test.
-    var foundTitle = skipTestActivated
-      ? '\u2705 Anruf erkannt'
-      : '\u2705 Testanruf erkannt';
     detectHtml = '<div class="act-test-detect-area act-test-detect-found">'
-      + '<div class="act-test-detect-title">' + foundTitle + '</div>'
-      + '<div class="act-test-detect-sub">War das ein eingehender Anruf?</div>'
+      + '<div class="act-test-detect-title">\u2705 Testanruf erkannt</div>'
+      + '<div class="act-test-detect-sub">War das Ihr Testanruf?</div>'
       + '<div class="act-test-detect-btns">'
-      + '<button type="button" class="act-action-btn-primary" onclick="confirmActivationTestCall(event)">Best\u00E4tigen \u2013 Voxera aktivieren</button>'
+      + '<button type="button" class="act-action-btn-primary" onclick="confirmActivationTestCall(event)">Test erfolgreich \u2013 aktivieren</button>'
       + '<button type="button" class="act-action-btn-secondary" onclick="rejectActivationTestCall(event)">Erneut testen</button>'
       + '</div>'
       + '</div>';
-  } else if (isSkipMode) {
-    // Skip-test mode, waiting for the first real call.
-    detectHtml = '<div class="act-test-detect-area">'
-      + '<div class="act-test-detect-icon">\u23F3</div>'
-      + '<div class="act-test-detect-label">Warten auf eingehenden Anruf\u2026</div>'
-      + '<div class="act-test-detect-hint">Sobald ein Anruf im Dashboard erscheint, wird die Aktivierung automatisch best\u00E4tigt.</div>'
-      + '</div>';
   } else {
-    // Explicit test mode, waiting for the test call.
     detectHtml = '<div class="act-test-detect-area">'
       + '<div class="act-test-detect-icon">\u23F3</div>'
       + '<div class="act-test-detect-label">Warten auf Testanruf\u2026</div>'
@@ -5225,82 +5198,51 @@ function renderPendingTestCard(meta) {
       + '</div>';
   }
 
-  var html;
-  if (isSkipMode) {
-    // Sub-scenario B: user activated without a test call.
-    // Show a compact confirmation that activation is started and a real call will verify it.
-    html = '<div class="act-pending-test-card">'
-      + '<div class="act-pending-test-header">'
-      + '<div class="act-pending-test-title">Aktivierung gestartet</div>'
-      + '<div class="act-pending-test-sub">Sie haben Voxera ohne Testanruf aktiviert. Die Verbindung wird automatisch best\u00E4tigt, sobald ein neuer Anruf eingeht.</div>'
-      + '</div>'
-      + detectHtml
-      + (!candidateCall ? '<div class="act-pending-no-call-helper">'
-      + '<div class="act-pending-no-call-title">Optional: Testanruf durchf\u00FChren</div>'
-      + '<div class="act-pending-no-call-actions">'
-      + '<button type="button" class="act-action-btn-secondary" onclick="activationStartTestFromPending(event)">Testanruf durchf\u00FChren</button>'
-      + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'support\')">Support kontaktieren</button>'
-      + '</div>'
-      + '</div>' : '')
-      + '</div>';
-  } else {
-    // Sub-scenario A: user is in explicit test-call mode (or page was reloaded mid-pending_test).
-    // Device+mode-specific guidance (pass raw telNr; getDeviceModeTestGuidance escapes it internally)
-    var modeGuide = getDeviceModeTestGuidance(meta.setupDeviceType || '', mode, meta.telNr || '\u2013');
-    html = '<div class="act-pending-test-card">'
-      + '<div class="act-pending-test-header">'
-      + '<div class="act-pending-test-title">' + escapeHtml(modeGuide.title) + '</div>'
-      + '<div class="act-pending-test-sub">' + escapeHtml(modeGuide.subtitle) + '</div>'
-      + '</div>'
-      + '<div class="act-pending-test-number-block">'
-      + '<div class="act-pending-test-number-label">Ihre Nummer</div>'
-      + '<div class="act-pending-test-number">' + telNr + '</div>'
-      + '<button type="button" class="act-action-btn-secondary act-pending-copy-btn" onclick="activationCopyOwnNumber(event)">Nummer kopieren</button>'
-      + '</div>'
-      + '<div class="act-pending-test-warning">'
-      + '\u26A0\uFE0F\u00A0 Nicht die Voxera-Nummer anrufen.'
-      + '</div>'
-      + '<ol class="act-pending-test-steps">'
-      + modeGuide.steps.map(function(s){ return '<li>' + s + '</li>'; }).join('')
-      + '</ol>'
-      + '<div class="act-pending-test-expect">'
-      + '<span class="act-pending-test-expect-icon">\u2713</span>'
-      + '<span>' + modeGuide.expect + '</span>'
-      + '</div>'
-      + '<div class="act-pending-voxera-note">'
-      + 'Weiterleitungsziel (nicht anrufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
-      + '</div>'
-      + '<div class="act-pending-spoken-guide">'
-      + '<div class="act-pending-spoken-guide-title">Was Sie beim Test sagen k\u00F6nnen</div>'
-      + '<div class="act-pending-spoken-guide-items">'
-      + '<div class="act-pending-spoken-guide-item">\u201EDas ist ein Testanruf.\u201C</div>'
-      + '<div class="act-pending-spoken-guide-item">\u201EIch teste gerade die Weiterleitung.\u201C</div>'
-      + '</div>'
-      + '<div class="act-pending-spoken-guide-tip">Beenden Sie den Anruf nach wenigen Sekunden.</div>'
-      + '<div class="act-pending-spoken-guide-note">Der Testanruf erscheint aktuell erst im Dashboard, nachdem der Anruf beendet wurde.</div>'
-      + '</div>'
-      + detectHtml
-      + '<div class="act-pending-no-call-helper">'
-      + '<div class="act-pending-no-call-title">Kein Anruf erkannt?</div>'
-      + '<div class="act-pending-no-call-actions">'
-      + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Erneut pr\u00FCfen</button>'
-      + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'forwarding\')">Anleitung pr\u00FCfen</button>'
-      + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'support\')">Support kontaktieren</button>'
-      + '</div>'
-      + '</div>'
-      + '</div>';
-  }
+  var html = '<div class="act-pending-test-card">'
+    + '<div class="act-pending-test-header">'
+    + '<div class="act-pending-test-title">' + escapeHtml(modeGuide.title) + '</div>'
+    + '<div class="act-pending-test-sub">' + escapeHtml(modeGuide.subtitle) + '</div>'
+    + '</div>'
+    + '<div class="act-pending-test-number-block">'
+    + '<div class="act-pending-test-number-label">Ihre Nummer</div>'
+    + '<div class="act-pending-test-number">' + telNr + '</div>'
+    + '<button type="button" class="act-action-btn-secondary act-pending-copy-btn" onclick="activationCopyOwnNumber(event)">Nummer kopieren</button>'
+    + '</div>'
+    + '<div class="act-pending-test-warning">'
+    + '\u26A0\uFE0F\u00A0 Nicht die Voxera-Nummer anrufen.'
+    + '</div>'
+    + '<ol class="act-pending-test-steps">'
+    + modeGuide.steps.map(function(s){ return '<li>' + s + '</li>'; }).join('')
+    + '</ol>'
+    + '<div class="act-pending-test-expect">'
+    + '<span class="act-pending-test-expect-icon">\u2713</span>'
+    + '<span>' + modeGuide.expect + '</span>'
+    + '</div>'
+    + '<div class="act-pending-voxera-note">'
+    + 'Weiterleitungsziel (nicht anrufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
+    + '</div>'
+    + '<div class="act-pending-spoken-guide">'
+    + '<div class="act-pending-spoken-guide-title">Was Sie beim Test sagen k\u00F6nnen</div>'
+    + '<div class="act-pending-spoken-guide-items">'
+    + '<div class="act-pending-spoken-guide-item">\u201EDas ist ein Testanruf.\u201C</div>'
+    + '<div class="act-pending-spoken-guide-item">\u201EIch teste gerade die Weiterleitung.\u201C</div>'
+    + '</div>'
+    + '<div class="act-pending-spoken-guide-tip">Beenden Sie den Anruf nach wenigen Sekunden.</div>'
+    + '<div class="act-pending-spoken-guide-note">Der Testanruf erscheint aktuell erst im Dashboard, nachdem der Anruf beendet wurde.</div>'
+    + '</div>'
+    + detectHtml
+    + '<div class="act-pending-no-call-helper">'
+    + '<div class="act-pending-no-call-title">Kein Anruf erkannt?</div>'
+    + '<div class="act-pending-no-call-actions">'
+    + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Erneut pr\u00FCfen</button>'
+    + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'forwarding\')">Anleitung pr\u00FCfen</button>'
+    + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'support\')">Support kontaktieren</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
 
   el.innerHTML = html;
   el.style.display = 'block';
-}
-
-// Transitions from the skip-activated pending_test view into explicit test-call mode.
-function activationStartTestFromPending(event) {
-  if (event) event.stopPropagation();
-  // Clear the skip flag so renderPendingTestCard shows full test guidance.
-  skipTestActivated = false;
-  renderActivationModule();
 }
 
 function getDeviceModeTestGuidance(deviceType, mode, telNr) {
