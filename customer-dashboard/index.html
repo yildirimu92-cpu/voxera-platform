@@ -1401,7 +1401,7 @@ body{
                         <div class="setup-choice-title"> Smartphone</div>
                         <div class="setup-choice-text">Ideal, wenn Sie die Weiterleitung direkt auf dem Handy aktivieren möchten.</div>
                         <div class="setup-choice-actions">
-                          <button type="button" class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Smartphone wählen</button>
+                          <button type="button" class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'mobile')">Smartphone wählen</button>
                         </div>
                       </div>
                       <div class="setup-choice-card" id="setup-device-card-landline" role="option" aria-selected="false">
@@ -1440,7 +1440,7 @@ body{
                   <div class="setup-step-content">
                     <div class="setup-device-panel active" id="setup-device-panel-mobile">
                       <h4>Smartphone-Aktivierung</h4>
-                      <p>Tippen Sie auf <strong>Jetzt aktivieren</strong>. Ihr Handy öffnet den Dialer mit dem Code – Sie bestätigen nur noch den Anruf.</p>
+                      <p>Die empfohlene Einstellung leitet Anrufe <strong>bei Nichterreichbarkeit</strong> an Voxera weiter – Sie bleiben weiterhin direkt erreichbar. Tippen Sie auf <strong>Jetzt aktivieren</strong>. Ihr Handy öffnet dann den Dialer und Sie bestätigen nur noch den Anruf.</p>
                       <div class="setup-helper-note">Dauert nur wenige Sekunden.</div>
                       <div class="setup-number-box">
                         <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
@@ -1449,7 +1449,8 @@ body{
                           <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-copy-btn" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
                         </div>
                       </div>
-                      <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">Alternative Weiterleitungsarten anzeigen</a>
+                      <div class="setup-info-note" style="margin-top:6px;">ℹ️ <strong>Bei Nichterreichbarkeit (empfohlen):</strong> Voxera übernimmt den Anruf nur, wenn Sie nicht abnehmen oder nicht erreichbar sind.</div>
+                      <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">Andere Weiterleitungsart wählen →</a>
                     </div>
 
                     <div class="setup-device-panel" id="setup-device-panel-landline">
@@ -4152,21 +4153,37 @@ function openSetupHelpOverlay(event, sectionId) {
 
   var sections = {
     forwarding: {
-      title: 'Rufumleitung einrichten',
-      sub: 'Kurz-Anleitung für Smartphone-Weiterleitung',
+      title: 'Weiterleitungsart wählen',
+      sub: 'Wählen Sie die passende Einstellung für Ihr Smartphone',
       html: '' +
-        '<div class="setup-help-grid">' +
-          '<div class="setup-help-card"><div class="setup-help-card-title">1) Empfohlen: Bei Nichterreichbarkeit</div><div class="setup-help-card-text">Ideal, wenn Sie selbst erreichbar bleiben möchten und Voxera nur bei verpassten Anrufen übernimmt.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**62*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**62*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**62*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+        '<div class="help-forwarding-grid">' +
+          '<div class="help-forwarding-card recommended">' +
+            '<div class="help-forwarding-head"><div class="help-forwarding-title">Bei Nichterreichbarkeit</div><span class="help-forwarding-reco">Empfohlen</span></div>' +
+            '<div class="help-forwarding-desc">Ideal, wenn Sie selbst erreichbar bleiben möchten – Voxera übernimmt nur bei verpassten Anrufen.</div>' +
+            '<div class="help-code-row"><code data-code-template="**62*{voxera_number}#">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-primary" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template="**62*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div>' +
+            '<div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+            '<div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe weiter, wenn Sie nicht abnehmen.</div>' +
           '</div>' +
-          '<div class="setup-help-card"><div class="setup-help-card-title">2) Bei Besetzt</div><div class="setup-help-card-text">Nützlich, wenn Ihre Leitung bereits belegt ist.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**67*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**67*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**67*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+          '<div class="help-forwarding-card">' +
+            '<div class="help-forwarding-head"><div class="help-forwarding-title">Bei Besetzt</div></div>' +
+            '<div class="help-forwarding-desc">Nützlich, wenn Ihre Leitung bereits belegt ist.</div>' +
+            '<div class="help-code-row"><code data-code-template="**67*{voxera_number}#">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-primary" data-code-template="**67*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template="**67*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div>' +
+            '<div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+            '<div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet weiter, wenn Sie telefonieren.</div>' +
           '</div>' +
-          '<div class="setup-help-card"><div class="setup-help-card-title">3) Alle Anrufe weiterleiten</div><div class="setup-help-card-text">Wenn Voxera vorübergehend alle Anrufe übernehmen soll.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**21*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**21*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**21*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+          '<div class="help-forwarding-card">' +
+            '<div class="help-forwarding-head"><div class="help-forwarding-title">Alle Anrufe</div></div>' +
+            '<div class="help-forwarding-desc">Wenn Voxera vorübergehend alle Anrufe vollständig übernehmen soll.</div>' +
+            '<div class="help-code-row"><code data-code-template="**21*{voxera_number}#">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-primary" data-code-template="**21*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template="**21*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div>' +
+            '<div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+            '<div class="help-forwarding-effect"><strong>Wirkung:</strong> Alle Anrufe gehen direkt an Voxera.</div>' +
           '</div>' +
-          '<div class="setup-help-card"><div class="setup-help-card-title">Weiterleitung ausschalten</div><div class="setup-help-card-text">Setzt aktive Umleitungen zurück.</div>' +
-            '<div class="setup-help-code-row"><code>##002#</code><div class="help-code-actions"><button class="settings-btn-secondary" data-fixed-code="##002#" onclick="copyForwardingCode(event,\'##002#\')">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+          '<div class="help-forwarding-card">' +
+            '<div class="help-forwarding-head"><div class="help-forwarding-title">Weiterleitung ausschalten</div></div>' +
+            '<div class="help-forwarding-desc">Setzt aktive Umleitungen zurück.</div>' +
+            '<div class="help-code-row"><code>##002#</code><div class="help-code-actions"><button class="settings-btn-primary" data-fixed-code="##002#" onclick="copyForwardingCode(event,\'##002#\')">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div>' +
+            '<div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+            '<div class="help-forwarding-effect"><strong>Wirkung:</strong> Deaktiviert alle Weiterleitungen.</div>' +
           '</div>' +
         '</div>' +
         '<div class="help-chip" id="setup-forwarding-fallback" style="display:none;background:var(--amber-light);border-color:var(--amber-mid);color:#92400E;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>',
