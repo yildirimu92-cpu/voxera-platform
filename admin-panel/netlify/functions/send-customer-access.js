@@ -208,9 +208,7 @@ exports.handler = async (event) => {
   // ─── ACTION: send_access (Standard-Welcome-Mail) ──────────────────────────
   const normalizedCustomerStatus = normalizeCustomerStatus(customer.status);
   const normalizedOnboardingStatus = normalizeOnboardingStatus(onboardingRow?.status);
-  const assistantReady =
-    normalizedCustomerStatus === STATUS.customer.READY
-    && (!onboardingRow || normalizedOnboardingStatus === STATUS.onboarding.READY || normalizedOnboardingStatus === STATUS.onboarding.COMPLETED);
+  const assistantReady = Boolean(String(customer.ai_business_description || '').trim());
 
   if (!assistantReady) {
     console.warn(JSON.stringify({
@@ -220,7 +218,8 @@ exports.handler = async (event) => {
       idempotency_scope: idempotencyScope,
       customer_id: customerId,
       customer_status: normalizedCustomerStatus,
-      onboarding_status: onboardingRow ? normalizedOnboardingStatus : null
+      onboarding_status: onboardingRow ? normalizedOnboardingStatus : null,
+      ai_business_description_present: assistantReady
     }));
     return response(409, {
       error: 'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.',
