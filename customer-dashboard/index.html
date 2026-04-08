@@ -4672,7 +4672,7 @@ function renderActivationActionCard(meta) {
   if (subEl) {
     subEl.textContent = isMobile
       ? 'Tippen Sie auf "Jetzt aktivieren". Ihr Smartphone öffnet den Dialer – bestätigen Sie den Anruf.'
-      : 'Öffnen Sie das Admin-Portal Ihres Anbieters und richten Sie die Rufumleitung ein.';
+      : 'Konfigurieren Sie die Rufumleitung manuell im Anbieter-Portal oder an Ihrer Telefonanlage.';
   }
 
   if (codeBox && codeEl) {
@@ -4722,7 +4722,7 @@ function renderActivationActionCard(meta) {
 
   if (hintEl) {
     if (!isMobile) {
-      hintEl.textContent = 'Die Aktivierung kann je nach Anbieter oder Telefonanlage variieren.';
+      hintEl.textContent = 'Hinweis: Die Einrichtung erfolgt manuell über Ihren Anbieter oder Ihre Telefonanlage. GSM-Codes funktionieren in der Regel nur auf Smartphones.';
       hintEl.style.display = 'block';
     } else {
       hintEl.style.display = 'none';
@@ -4909,8 +4909,8 @@ function renderPendingTestCard(meta) {
   var voxeraNum = escapeHtml(meta.voxeraNumber || '–');
   var mode = meta.forwardingMode || '';
 
-  // Mode-specific guidance (pass raw telNr; getModeTestGuidance escapes it internally)
-  var modeGuide = getModeTestGuidance(mode, meta.telNr || '\u2013');
+  // Device+mode-specific guidance (pass raw telNr; getDeviceModeTestGuidance escapes it internally)
+  var modeGuide = getDeviceModeTestGuidance(meta.setupDeviceType || '', mode, meta.telNr || '\u2013');
 
   var detectHtml;
   if (candidateCall) {
@@ -4968,54 +4968,108 @@ function renderPendingTestCard(meta) {
   el.style.display = 'block';
 }
 
-function getModeTestGuidance(mode, telNr) {
+function getDeviceModeTestGuidance(deviceType, mode, telNr) {
   var safeTelNr = escapeHtml(telNr || '\u2013');
+  var isMobile = deviceType === 'mobile';
+
   var guides = {
-    always: {
-      title: 'Testanruf durchf\u00FChren \u2013 Sofortweiterleitung',
-      subtitle: 'Rufen Sie Ihre eigene Nummer von einem zweiten Ger\u00E4t aus an.',
-      steps: [
-        'Nehmen Sie ein zweites Telefon (z.\u00A0B. Handy eines Freundes oder Festnetz).',
-        'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
-        'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden \u2013 ohne zu klingeln.'
-      ],
-      expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+    mobile: {
+      always: {
+        title: 'Testanruf \u2013 Sofortweiterleitung (Smartphone)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer von einem zweiten Ger\u00E4t aus an.',
+        steps: [
+          'Nehmen Sie ein zweites Telefon (z.\u00A0B. Handy eines Freundes oder Festnetz).',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden \u2013 ohne zu klingeln.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+      },
+      no_answer: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Smartphone)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer an und nehmen Sie NICHT ab.',
+        steps: [
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Lassen Sie Ihr Smartphone klingeln \u2013 nehmen Sie NICHT ab.',
+          'Nach kurzer Klingelzeit wird der Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
+      },
+      unreachable: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Smartphone)',
+        subtitle: 'Schalten Sie Ihr Smartphone auf Flugmodus oder aus, dann rufen Sie an.',
+        steps: [
+          'Schalten Sie Ihr Smartphone in den Flugmodus oder schalten Sie es aus.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Da Ihr Smartphone nicht erreichbar ist, wird der Anruf sofort weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Bei nicht erreichbarem Smartphone meldet sich sofort der KI-Assistent.'
+      },
+      busy: {
+        title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Smartphone)',
+        subtitle: 'Halten Sie Ihr Smartphone mit einem aktiven Anruf besch\u00E4ftigt.',
+        steps: [
+          'Starten Sie auf Ihrem Smartphone einen aktiven Anruf (z.\u00A0B. eine beliebige Nummer anrufen).',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Da Ihr Smartphone besetzt ist, wird der zweite Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Anruf bei besetztem Smartphone wird sofort an den KI-Assistenten weitergeleitet.'
+      }
     },
-    no_answer: {
-      title: 'Testanruf durchf\u00FChren \u2013 Weiterleitung bei Nichtannahme',
-      subtitle: 'Rufen Sie Ihre eigene Nummer an und nehmen Sie NICHT ab.',
-      steps: [
-        'Nehmen Sie ein zweites Telefon.',
-        'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
-        'Lassen Sie Ihr Haupttelefon klingeln \u2013 nehmen Sie NICHT ab.',
-        'Nach kurzer Klingelzeit wird der Anruf an den KI-Assistenten weitergeleitet.'
-      ],
-      expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
-    },
-    unreachable: {
-      title: 'Testanruf durchf\u00FChren \u2013 Weiterleitung bei Nicht-Erreichbarkeit',
-      subtitle: 'Schalten Sie Ihr Haupttelefon auf Flugmodus oder aus, dann rufen Sie an.',
-      steps: [
-        'Schalten Sie Ihr Haupttelefon in den Flugmodus oder schalten Sie es aus.',
-        'Nehmen Sie ein zweites Telefon.',
-        'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
-        'Da Ihr Telefon nicht erreichbar ist, wird der Anruf direkt weitergeleitet.'
-      ],
-      expect: 'Erwartetes Ergebnis: Bei nicht erreichbarem Telefon meldet sich sofort der KI-Assistent.'
-    },
-    busy: {
-      title: 'Testanruf durchf\u00FChren \u2013 Weiterleitung bei Besetzt',
-      subtitle: 'Halten Sie Ihr Haupttelefon mit einem aktiven Anruf besch\u00E4ftigt.',
-      steps: [
-        'Starten Sie auf Ihrem Haupttelefon einen aktiven Anruf (z.\u00A0B. eine beliebige Nummer anrufen).',
-        'Nehmen Sie ein zweites Telefon.',
-        'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
-        'Da Ihr Telefon besetzt ist, wird der zweite Anruf an den KI-Assistenten weitergeleitet.'
-      ],
-      expect: 'Erwartetes Ergebnis: Anruf bei besetzter Leitung wird sofort an den KI-Assistenten weitergeleitet.'
+    landline: {
+      always: {
+        title: 'Testanruf \u2013 Sofortweiterleitung (Festnetz / Anlage)',
+        subtitle: 'Rufen Sie nach der manuellen Einrichtung Ihre eigene Nummer von einem anderen Telefon an.',
+        steps: [
+          'Stellen Sie sicher, dass die Rufumleitung in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage eingerichtet ist.',
+          'Nehmen Sie ein zweites Telefon (z.\u00A0B. Mobiltelefon).',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+      },
+      no_answer: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Festnetz / Anlage)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer an und lassen Sie es klingeln ohne abzunehmen.',
+        steps: [
+          'Stellen Sie sicher, dass die Rufumleitung bei Nichtannahme in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage konfiguriert ist.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Lassen Sie das Hauptger\u00E4t klingeln \u2013 nehmen Sie NICHT ab.',
+          'Nach der konfigurierten Klingelzeit wird der Anruf weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
+      },
+      unreachable: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Festnetz / Anlage)',
+        subtitle: 'Simulieren Sie Nicht-Erreichbarkeit gem\u00E4\u00DF den Vorgaben Ihres Anbieters.',
+        steps: [
+          'Nicht-Erreichbarkeit bei Festnetz oder Telefonanlagen ist anbieter- und ger\u00E4teabh\u00E4ngig.',
+          'Folgen Sie den Anweisungen Ihres Anbieters, um das Ger\u00E4t in einen nicht erreichbaren Zustand zu versetzen (z.\u00A0B. Leitung belegt, Ger\u00E4t ausgesteckt oder Anlage in DND-Modus).',
+          'Rufen Sie dann Ihre eigene Festnetznummer an: <strong>' + safeTelNr + '</strong>',
+          'Bei korrekter Konfiguration wird der Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird weitergeleitet, wenn das Festnetzger\u00E4t gem\u00E4\u00DF Anbieter-Einstellungen als nicht erreichbar gilt.'
+      },
+      busy: {
+        title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Festnetz / Anlage)',
+        subtitle: 'Stellen Sie sicher, dass die Hauptleitung tats\u00E4chlich belegt ist.',
+        steps: [
+          'Halten Sie die Hauptleitung mit einem aktiven Gespr\u00E4ch besetzt.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Ob und wie schnell der zweite Anruf weitergeleitet wird, h\u00E4ngt von Ihrem Anbieter oder Ihrer Telefonanlage ab.'
+        ],
+        expect: 'Erwartetes Ergebnis: Eingehender Anruf bei besetzter Leitung wird an den KI-Assistenten weitergeleitet (abh\u00E4ngig von Anbieter-Einstellungen).'
+      }
     }
   };
-  return guides[mode] || {
+
+  var deviceKey = isMobile ? 'mobile' : 'landline';
+  var guide = guides[deviceKey] && guides[deviceKey][mode];
+  return guide || {
     title: 'Testanruf durchf\u00FChren',
     subtitle: 'Rufen Sie jetzt Ihre eigene Nummer mit einem zweiten Telefon an.',
     steps: [
