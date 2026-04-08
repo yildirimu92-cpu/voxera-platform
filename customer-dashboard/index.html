@@ -4866,6 +4866,8 @@ async function activationSkipTest(event) {
       context.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
       context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
     }
+    candidateCall = null;
+    stopActivationPolling();
     toast('Rufumleitung erfolgreich aktiviert.');
     renderActivationModule();
     scrollToStatusCard();
