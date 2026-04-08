@@ -1058,6 +1058,12 @@ body{
 .act-pending-no-call-helper{border-top:1px solid var(--gray100);padding-top:14px;margin-top:4px;}
 .act-pending-no-call-title{font-size:12px;font-weight:700;color:var(--gray500);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;}
 .act-pending-no-call-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.act-pending-spoken-guide{background:#F8FAFF;border:1.5px solid #BFDBFE;border-radius:12px;padding:14px 16px;margin-bottom:16px;}
+.act-pending-spoken-guide-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1D4ED8;margin-bottom:10px;}
+.act-pending-spoken-guide-items{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.act-pending-spoken-guide-item{font-size:13px;font-weight:600;color:var(--gray900);background:var(--white);border:1px solid #BFDBFE;border-radius:8px;padding:7px 12px;line-height:1.4;}
+.act-pending-spoken-guide-tip{font-size:12px;color:var(--gray600);line-height:1.55;margin-bottom:6px;}
+.act-pending-spoken-guide-note{font-size:11.5px;color:var(--gray400);line-height:1.55;font-style:italic;}
 .act-pending-test-steps{margin:0 0 14px 0;padding-left:20px;}
 .act-pending-test-steps li{font-size:13px;color:var(--gray700);line-height:1.6;margin-bottom:4px;}
 .act-pending-test-expect{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#1D4ED8;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
@@ -4854,6 +4860,7 @@ function activationMobileDeactivate(event) {
   // Just show the next-step helper box and allow the dialer to open.
   var nextStep = document.getElementById('act-deact-mobile-nextstep');
   if (nextStep) nextStep.style.display = 'block';
+  toast('Deaktivierung gestartet. Bitte testen Sie jetzt Ihre Nummer.');
 }
 
 async function activationSelectDevice(event, type) {
@@ -5015,6 +5022,16 @@ function rejectActivationTestCall(event) {
   renderActivationModule();
 }
 
+function retryActivationCheck(event) {
+  if (event) event.stopPropagation();
+  candidateCall = null;
+  stopActivationPolling();
+  startActivationPolling();
+  loadData().catch(function(err){ console.error('[retry-check] loadData failed:', err); });
+  toast('Prüfung erneut gestartet. Wir warten auf Ihren Testanruf.');
+  renderActivationModule();
+}
+
 async function activationCopyOwnNumber(event) {
   if (event) event.stopPropagation();
   var nr = customerMeta && customerMeta.telNr;
@@ -5073,11 +5090,20 @@ function renderPendingTestCard(meta) {
     + '<div class="act-pending-voxera-note">'
     + 'Weiterleitungsziel (nicht anrufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
     + '</div>'
+    + '<div class="act-pending-spoken-guide">'
+    + '<div class="act-pending-spoken-guide-title">Was Sie beim Test sagen k\u00F6nnen</div>'
+    + '<div class="act-pending-spoken-guide-items">'
+    + '<div class="act-pending-spoken-guide-item">\u201EDas ist ein Testanruf.\u201C</div>'
+    + '<div class="act-pending-spoken-guide-item">\u201EIch teste gerade die Weiterleitung.\u201C</div>'
+    + '</div>'
+    + '<div class="act-pending-spoken-guide-tip">Beenden Sie den Anruf nach wenigen Sekunden.</div>'
+    + '<div class="act-pending-spoken-guide-note">Der Testanruf erscheint aktuell erst im Dashboard, nachdem der Anruf beendet wurde.</div>'
+    + '</div>'
     + detectHtml
     + '<div class="act-pending-no-call-helper">'
     + '<div class="act-pending-no-call-title">Kein Anruf erkannt?</div>'
     + '<div class="act-pending-no-call-actions">'
-    + '<button type="button" class="act-action-btn-secondary" onclick="renderActivationModule()">Erneut pr\u00FCfen</button>'
+    + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Erneut pr\u00FCfen</button>'
     + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'forwarding\')">Anleitung pr\u00FCfen</button>'
     + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'support\')">Support kontaktieren</button>'
     + '</div>'
