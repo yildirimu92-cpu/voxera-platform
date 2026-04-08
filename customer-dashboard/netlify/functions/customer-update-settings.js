@@ -72,10 +72,17 @@ exports.handler = async (event) => {
   }
   if (body.forwarding_status != null) {
     const forwardingStatus = String(body.forwarding_status).trim().toLowerCase();
-    if (!['not_started', 'active', 'inactive'].includes(forwardingStatus)) {
-      return response(400, { error: 'forwarding_status ungueltig. Erlaubte Werte: not_started, active, inactive' });
+    if (!['not_started', 'pending_test', 'active', 'inactive'].includes(forwardingStatus)) {
+      return response(400, { error: 'forwarding_status ungueltig. Erlaubte Werte: not_started, pending_test, active, inactive' });
     }
     allowed.forwarding_status = forwardingStatus;
+  }
+  if (body.activation_started_at != null) {
+    const ts = String(body.activation_started_at).trim();
+    if (!ts || isNaN(Date.parse(ts))) {
+      return response(400, { error: 'activation_started_at ungueltig. Erwartet: ISO 8601 Zeitstempel' });
+    }
+    allowed.activation_started_at = ts;
   }
   if (body.forwarding_mode != null) {
     const forwardingMode = String(body.forwarding_mode).trim().toLowerCase();
