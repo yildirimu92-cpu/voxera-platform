@@ -4418,7 +4418,16 @@ function showTab(name, el) {
   el.classList.add('active');
   const mnav = document.getElementById('mnav-'+name);
   if (mnav) mnav.classList.add('active');
-  try { sessionStorage.setItem('voxera_tab', name); } catch(e){}
+  try {
+    // PRODUKTREGEL: Nach First-Login darf 'einrichtung' nicht mehr persistent gespeichert werden
+    const setupFinished = localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));
+    if (!setupFinished || name !== 'einrichtung') {
+      sessionStorage.setItem('voxera_tab', name);
+      if (name !== 'einrichtung') {
+        sessionStorage.setItem('voxera_last_non_setup_tab', name);
+      }
+    }
+  } catch(e){}
   if (name === 'einstellungen') {
     syncSystemVoxeraSettings();
     openAccount();
@@ -4428,11 +4437,25 @@ function showTab(name, el) {
 function restoreTab() {
   try {
     const saved = sessionStorage.getItem('voxera_tab');
-    if (saved && saved !== 'dashboard') {
-      const navEl = document.querySelector(`.nav-item[onclick*="'${saved}'"]`) ||
-                    document.getElementById('mnav-'+saved);
-      if (navEl) showTab(saved, navEl);
+    if (!saved || saved === 'dashboard') return;
+
+    // PRODUKTREGEL: Nach First-Login darf 'einrichtung' niemals mehr automatisch restored werden
+    if (saved === 'einrichtung') {
+      const setupFinished = localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));
+      if (setupFinished) {
+        const fallbackTab = sessionStorage.getItem('voxera_last_non_setup_tab') || 'dashboard';
+        if (fallbackTab !== 'dashboard') {
+          const navEl = document.querySelector(`.nav-item[onclick*="'${fallbackTab}'"]`) ||
+                        document.getElementById('mnav-'+fallbackTab);
+          if (navEl) showTab(fallbackTab, navEl);
+        }
+        return;
+      }
     }
+
+    const navEl = document.querySelector(`.nav-item[onclick*="'${saved}'"]`) ||
+                  document.getElementById('mnav-'+saved);
+    if (navEl) showTab(saved, navEl);
   } catch(e){}
 }
 
