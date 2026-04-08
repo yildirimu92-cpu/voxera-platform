@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="/favicon-180.png">
 <meta name="theme-color" content="#1A56DB">
 
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 /* ═══════════════════════════════════════════
@@ -21,27 +21,27 @@
 ═══════════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
-  --blue:#1A56DB;--blue-dark:#1340B0;--blue-light:#EFF3FE;--blue-mid:#C7D9F8;
-  --green:#16A34A;--green-light:#ECFDF5;--green-mid:#BBF7D0;
+  --blue:#1D4ED8;--blue-dark:#1E40AF;--blue-light:#EFF6FF;--blue-mid:#BFDBFE;
+  --green:#059669;--green-light:#ECFDF5;--green-mid:#A7F3D0;
   --red:#DC2626;--red-light:#FEF2F2;
   --amber:#D97706;--amber-light:#FFFBEB;--amber-mid:#FDE68A;
-  --gray50:#F8FAFC;--gray100:#F1F5F9;--gray200:#E2E8F0;
-  --gray400:#94A3B8;--gray600:#475569;--gray700:#334155;--gray900:#0F172A;
+  --gray50:#F9FAFB;--gray100:#F3F4F6;--gray200:#E5E7EB;
+  --gray400:#9CA3AF;--gray600:#4B5563;--gray700:#374151;--gray900:#111827;
   --white:#FFFFFF;
-  --headline-font:'Manrope','DM Sans','Helvetica Neue',sans-serif;
-  --body-font:'DM Sans','Helvetica Neue',sans-serif;
-  --radius:10px;--radius-lg:14px;
+  --headline-font:'Inter',-apple-system,sans-serif;
+  --body-font:'Inter',-apple-system,sans-serif;
+  --radius:8px;--radius-lg:12px;
   --shadow-sm:0 1px 2px rgba(0,0,0,0.04),0 1px 3px rgba(0,0,0,0.04);
-  --shadow-md:0 2px 8px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.06);
-  --shadow-blue:0 4px 14px rgba(26,86,219,0.18);
-  --shadow-card:0 1px 3px rgba(0,0,0,0.03),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 6px rgba(0,0,0,0.04),0 10px 20px rgba(0,0,0,0.06);
+  --shadow-blue:0 4px 14px rgba(29,78,216,0.18);
+  --shadow-card:0 1px 3px rgba(0,0,0,0.05),0 1px 2px rgba(0,0,0,0.04);
   --transition-fast:0.15s cubic-bezier(0.4,0,0.2,1);
   --transition-md:0.25s cubic-bezier(0.4,0,0.2,1);
 }
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
 body{
-  font-family:var(--body-font);font-size:14px;
-  color:var(--gray900);background:#F4F6FA;
+  font-family:'Inter',sans-serif;font-size:14px;
+  color:var(--gray900);background:#F9FAFB;
   min-height:100vh;overflow-x:hidden;
   letter-spacing:-0.01em;line-height:1.5;
 }
@@ -51,7 +51,7 @@ body{
 ═══════════════════════════════════════════ */
 #login-screen{
   display:flex;position:fixed;inset:0;z-index:999;
-  background:linear-gradient(160deg,#EFF3FE 0%,#F4F6FA 35%,#F8FAFC 100%);
+  background:linear-gradient(135deg,#F0F9FF 0%,#F9FAFB 50%,#EFF6FF 100%);
   align-items:center;justify-content:center;padding:24px;overflow:hidden;
 }
 #network-canvas{display:none;}
@@ -64,7 +64,7 @@ body{
   animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both;
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-.login-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;color:var(--blue);letter-spacing:-.03em;margin-bottom:4px;}
+.login-logo{font-family:'Inter',sans-serif;font-size:32px;font-weight:800;color:#1D4ED8;letter-spacing:-.03em;margin-bottom:4px;}
 .login-tag{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray400);margin-bottom:28px;}
 .login-sub{font-size:14px;color:var(--gray600);margin-bottom:32px;line-height:1.65;}
 .login-form{display:flex;flex-direction:column;gap:16px;margin-bottom:20px;text-align:left;}
@@ -76,7 +76,7 @@ body{
   color:var(--gray900);outline:none;transition:all var(--transition-fast);
 }
 .login-field input::placeholder{color:var(--gray400);}
-.login-field input:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.08);}
+.login-field input:focus{border-color:#1D4ED8;background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.08);}
 .login-btn{
   display:block;width:100%;padding:13px;
   background:var(--blue);color:var(--white);border:none;border-radius:10px;
@@ -87,7 +87,7 @@ body{
 .login-btn:active{transform:translateY(0);}
 .login-btn:disabled{opacity:.55;cursor:default;transform:none;box-shadow:none;}
 .login-note{font-size:12px;color:var(--gray400);line-height:1.6;margin-top:6px;}
-.login-note a{color:var(--blue);text-decoration:none;font-weight:600;}
+.login-note a{color:#1D4ED8;text-decoration:none;font-weight:600;}
 .login-note a:hover{text-decoration:underline;}
 .login-links{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
 .login-divider{height:1px;background:var(--gray200);margin:12px 0;}
@@ -107,7 +107,7 @@ body{
 .settings-row-label{color:var(--gray400);font-weight:600;min-width:100px;flex-shrink:0;padding-top:2px;}
 .settings-row-value{color:var(--gray900);font-weight:600;text-align:right;flex:1;}
 .settings-input{width:100%;padding:10px 14px;border:1.5px solid var(--gray200);border-radius:10px;font-size:13px;font-family:inherit;color:var(--gray900);outline:none;background:var(--gray50);transition:all var(--transition-fast);}
-.settings-input:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
+.settings-input:focus{border-color:#1D4ED8;background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
 .settings-btn-primary{background:var(--blue);color:var(--white);border:none;border-radius:10px;padding:9px 18px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;display:inline-flex;align-items:center;box-shadow:0 1px 3px rgba(26,86,219,.15);}
 .settings-btn-primary:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
 .settings-btn-secondary{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;display:inline-flex;align-items:center;}
@@ -120,7 +120,7 @@ body{
 .help-page{max-width:900px;}
 .help-lead{font-size:13px;color:var(--gray600);line-height:1.7;margin-bottom:20px;}
 .help-section{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
-.help-section-title{font-size:16px;font-weight:700;color:var(--gray900);margin-bottom:12px;font-family:var(--headline-font);letter-spacing:-.25px;}
+.help-section-title{font-size:16px;font-weight:700;color:var(--gray900);margin-bottom:12px;font-family:'Inter',sans-serif;letter-spacing:-.25px;}
 .help-section p{font-size:13px;color:var(--gray600);line-height:1.7;margin-bottom:8px;}
 .help-section p:last-child{margin-bottom:0;}
 .help-list{margin:0;padding-left:18px;color:var(--gray600);}
@@ -133,7 +133,7 @@ body{
 .help-mini-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
 .help-mini-card{display:block;background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:12px;padding:14px 16px;text-decoration:none;transition:all var(--transition-fast);}
 .help-mini-card:hover{background:#E3ECFF;transform:translateY(-1px);box-shadow:var(--shadow-sm);}
-.help-mini-title{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:3px;}
+.help-mini-title{font-size:13px;font-weight:700;color:#1D4ED8;margin-bottom:3px;}
 .help-mini-sub{font-size:12px;color:var(--gray600);}
 .help-forwarding-grid{display:grid;gap:12px;margin:12px 0 16px;}
 .help-forwarding-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:14px;padding:14px 16px;}
@@ -160,19 +160,19 @@ body{
 ═══════════════════════════════════════════ */
 .setup-welcome{text-align:center;padding:24px 0 8px;}
 .setup-welcome-icon{font-size:48px;margin-bottom:14px;}
-.setup-welcome-title{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:800;color:var(--gray900);margin-bottom:8px;letter-spacing:-.02em;}
+.setup-welcome-title{font-family:'Inter',sans-serif;font-size:24px;font-weight:800;color:var(--gray900);margin-bottom:8px;letter-spacing:-.02em;}
 .setup-welcome-sub{font-size:14px;color:var(--gray600);line-height:1.65;max-width:480px;margin:0 auto 28px;}
 .setup-steps{display:flex;flex-direction:column;gap:14px;max-width:600px;margin:0 auto;}
 .setup-step{background:var(--white);border:1.5px solid var(--gray200);border-radius:16px;padding:22px 24px;cursor:pointer;transition:all var(--transition-md);position:relative;overflow:hidden;box-shadow:var(--shadow-card);}
 .setup-step:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);}
 .setup-step.done{border-color:var(--green-mid);background:#FAFFF8;}
 .setup-step.step-done{border-color:var(--green-mid);background:#FAFFF8;}
-.setup-step.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.06),var(--shadow-md);}
+.setup-step.active{border-color:#1D4ED8;box-shadow:0 0 0 3px rgba(26,86,219,.06),var(--shadow-md);}
 .setup-step-head{display:flex;align-items:center;gap:14px;}
 .setup-step-num{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;border:2px solid var(--gray200);color:var(--gray400);transition:all var(--transition-fast);}
 .setup-step.done .setup-step-num{background:var(--green);border-color:var(--green);color:white;}
 .setup-step.step-done .setup-step-num{background:var(--green);border-color:var(--green);color:white;}
-.setup-step.active .setup-step-num{background:var(--blue);border-color:var(--blue);color:white;}
+.setup-step.active .setup-step-num{background:var(--blue);border-color:#1D4ED8;color:white;}
 .setup-step-info{flex:1;min-width:0;}
 .setup-step-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:3px;}
 .setup-step-desc{font-size:12.5px;color:var(--gray400);line-height:1.5;}
@@ -203,12 +203,12 @@ body{
 .setup-step-content h4:first-child{margin-top:0;}
 .setup-step-content ol{padding-left:20px;margin:8px 0;}
 .setup-step-content ol li{margin-bottom:6px;}
-.setup-step-content code{background:var(--gray100);padding:2px 8px;border-radius:5px;font-size:12px;font-weight:600;color:var(--blue);}
+.setup-step-content code{background:var(--gray100);padding:2px 8px;border-radius:5px;font-size:12px;font-weight:600;color:#1D4ED8;}
 .setup-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0;}
 .setup-choice-card{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;transition:all var(--transition-fast);cursor:pointer;}
-.setup-choice-card.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.12);background:var(--blue-light);}
-.setup-choice-card.active .setup-choice-title{color:var(--blue);}
-.setup-choice-card.active::after{content:'✓ Ausgewählt';display:block;font-size:11px;font-weight:700;color:var(--blue);margin-top:4px;}
+.setup-choice-card.active{border-color:#1D4ED8;box-shadow:0 0 0 3px rgba(26,86,219,.12);background:var(--blue-light);}
+.setup-choice-card.active .setup-choice-title{color:#1D4ED8;}
+.setup-choice-card.active::after{content:'✓ Ausgewählt';display:block;font-size:11px;font-weight:700;color:#1D4ED8;margin-top:4px;}
 .setup-choice-title{font-size:13px;font-weight:700;color:var(--gray900);}
 .setup-choice-text{font-size:12px;color:var(--gray600);line-height:1.5;}
 .setup-choice-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
@@ -224,7 +224,7 @@ body{
 .setup-btn-success{background:var(--green);color:white;}
 .setup-btn-success:hover{background:#15803D;}
 .setup-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
-.setup-help-trigger{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;font-weight:600;color:var(--blue);text-decoration:none;cursor:pointer;}
+.setup-help-trigger{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;font-weight:600;color:#1D4ED8;text-decoration:none;cursor:pointer;}
 .setup-help-trigger:hover{text-decoration:underline;}
 .setup-progress{max-width:600px;margin:0 auto 28px;display:flex;align-items:center;gap:10px;}
 .setup-progress-bar{flex:1;height:6px;background:var(--gray100);border-radius:3px;overflow:hidden;}
@@ -232,21 +232,21 @@ body{
 .setup-progress-text{font-size:12px;color:var(--gray400);font-weight:600;white-space:nowrap;}
 .setup-complete{text-align:center;padding:48px 20px;}
 .setup-complete-icon{font-size:56px;margin-bottom:18px;}
-.setup-complete-title{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--gray900);margin-bottom:10px;}
+.setup-complete-title{font-family:'Inter',sans-serif;font-size:22px;font-weight:800;color:var(--gray900);margin-bottom:10px;}
 .setup-complete-sub{font-size:14px;color:var(--gray600);line-height:1.65;margin-bottom:28px;}
 .setup-number-box{background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:12px;padding:14px 18px;margin:12px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.setup-number-val{font-size:18px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;color:var(--blue);letter-spacing:.02em;}
-.setup-number-copy{font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;padding:5px 12px;border-radius:8px;border:1px solid var(--blue-mid);background:white;font-family:inherit;transition:all var(--transition-fast);}
+.setup-number-val{font-size:18px;font-weight:800;font-family:'Inter',sans-serif;color:#1D4ED8;letter-spacing:.02em;}
+.setup-number-copy{font-size:12px;font-weight:600;color:#1D4ED8;cursor:pointer;padding:5px 12px;border-radius:8px;border:1px solid var(--blue-mid);background:white;font-family:inherit;transition:all var(--transition-fast);}
 .setup-number-copy:hover{background:var(--blue-light);}
 .setup-skip{display:flex;justify-content:center;margin-top:24px;}
 .setup-skip a{font-size:13px;color:var(--gray400);text-decoration:none;font-weight:500;}
-.setup-skip a:hover{color:var(--blue);text-decoration:underline;}
+.setup-skip a:hover{color:#1D4ED8;text-decoration:underline;}
 @media(max-width:768px){.setup-step{padding:18px;}.setup-welcome-title{font-size:20px;}.setup-number-box{flex-direction:column;align-items:flex-start;}}
 @media(max-width:768px){.setup-choice-grid{grid-template-columns:1fr;}}
 
 .setup-help-modal{width:100%;max-width:640px;max-height:90vh;overflow:auto;}
 .setup-help-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;}
-.setup-help-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:var(--headline-font);}
+.setup-help-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:'Inter',sans-serif;}
 .setup-help-sub{font-size:12.5px;color:var(--gray600);line-height:1.6;}
 .setup-help-grid{display:grid;gap:10px;margin:10px 0 14px;}
 .setup-help-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:12px 14px;}
@@ -272,7 +272,7 @@ body{
   position:fixed;top:0;left:0;height:100vh;z-index:40;
 }
 .sidebar-logo{padding:24px 24px 20px;border-bottom:1px solid var(--gray100);}
-.sidebar-logo-text{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--blue);letter-spacing:-.02em;}
+.sidebar-logo-text{font-family:'Inter',sans-serif;font-size:22px;font-weight:800;color:#1D4ED8;letter-spacing:-.02em;}
 .nav{padding:12px 0;flex:1;}
 .nav-item{
   display:flex;align-items:center;gap:10px;
@@ -283,7 +283,7 @@ body{
   margin:1px 0;
 }
 .nav-item:hover{color:var(--gray900);background:var(--gray50);}
-.nav-item.active{color:var(--blue);background:var(--blue-light);border-left-color:var(--blue);font-weight:600;}
+.nav-item.active{color:#1D4ED8;background:var(--blue-light);border-left-color:#1D4ED8;font-weight:600;}
 .nav-icon{width:16px;height:16px;flex-shrink:0;opacity:.7;}
 .nav-item.active .nav-icon{opacity:1;}
 .nav-badge{
@@ -322,7 +322,7 @@ body{
   font-weight:700;
   letter-spacing:-.35px;
   color:var(--gray900);
-  font-family:var(--headline-font);
+  font-family:'Inter',sans-serif;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
@@ -338,7 +338,7 @@ body{
   flex-wrap:wrap;
   gap:4px;
 }
-.page-title{font-family:var(--headline-font);font-weight:700;letter-spacing:-.35px;color:var(--gray900);}
+.page-title{font-family:'Inter',sans-serif;font-weight:700;letter-spacing:-.35px;color:var(--gray900);}
 .topbar-right{display:none;}
 .status-pill{
   display:flex;align-items:center;gap:6px;
@@ -352,7 +352,7 @@ body{
   padding:8px 16px;font-size:12px;font-weight:500;color:var(--gray600);
   cursor:pointer;font-family:inherit;transition:all var(--transition-fast);
 }
-.btn-refresh:hover{border-color:var(--blue);color:var(--blue);}
+.btn-refresh:hover{border-color:#1D4ED8;color:#1D4ED8;}
 .content{padding:28px 32px;flex:1;}
 
 /* ═══════════════════════════════════════════
@@ -364,7 +364,7 @@ body{
    LOADING / EMPTY / ERROR — V1
 ═══════════════════════════════════════════ */
 .loading-wrap{display:flex;align-items:center;justify-content:center;padding:72px;flex-direction:column;gap:14px;color:var(--gray400);}
-.spinner{width:28px;height:28px;border:2.5px solid var(--gray200);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+.spinner{width:28px;height:28px;border:2.5px solid var(--gray200);border-top-color:#1D4ED8;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty{text-align:center;padding:56px 20px;color:var(--gray400);font-size:13px;}
 .empty-icon{font-size:36px;margin-bottom:12px;}
@@ -373,7 +373,7 @@ body{
 .live-pill{
   display:flex;align-items:center;gap:6px;
   background:var(--blue-light);border:1px solid var(--blue-mid);
-  padding:5px 14px;border-radius:20px;font-size:11.5px;color:var(--blue);font-weight:600;
+  padding:5px 14px;border-radius:20px;font-size:11.5px;color:#1D4ED8;font-weight:600;
 }
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 2s infinite;}
 .incoming-banner{
@@ -409,8 +409,8 @@ body{
 }
 .kpi:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);}
 .kpi-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;}
-.kpi-val{font-size:34px;font-weight:800;line-height:1;font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.02em;}
-.kpi-val.blue{color:var(--blue);}
+.kpi-val{font-size:34px;font-weight:800;line-height:1;font-family:'Inter',sans-serif;letter-spacing:-.02em;}
+.kpi-val.blue{color:#1D4ED8;}
 .kpi-val.green{color:var(--green);}
 .kpi-val.red{color:var(--red);}
 .kpi-sub{font-size:11px;color:var(--gray400);margin-top:8px;}
@@ -447,7 +447,7 @@ body{
   font-weight:700;
   letter-spacing:-.35px;
   color:var(--gray900);
-  font-family:var(--headline-font);
+  font-family:'Inter',sans-serif;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
@@ -457,7 +457,7 @@ body{
   cursor:pointer;border:1px solid var(--gray200);color:var(--gray600);
   background:var(--white);font-family:inherit;transition:all var(--transition-fast);
 }
-.ftab.active{background:var(--blue);color:var(--white);border-color:var(--blue);box-shadow:0 1px 3px rgba(26,86,219,.15);}
+.ftab.active{background:var(--blue);color:var(--white);border-color:#1D4ED8;box-shadow:0 1px 3px rgba(26,86,219,.15);}
 .ftab:hover:not(.active){background:var(--gray50);border-color:var(--gray400);}
 
 /* ═══════════════════════════════════════════
@@ -472,7 +472,7 @@ body{
   color:var(--gray900);transition:all var(--transition-fast);background:var(--white);
   box-shadow:var(--shadow-card);
 }
-.search-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
+.search-input:focus{border-color:#1D4ED8;box-shadow:0 0 0 3px rgba(26,86,219,.06);}
 
 /* ═══════════════════════════════════════════
    CALL ROWS — V1
@@ -490,7 +490,7 @@ body{
 .av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
 .av-hot{background:var(--red-light);color:#991B1B;}
 .av-warm{background:var(--amber-light);color:#92400E;}
-.av-default{background:var(--blue-light);color:var(--blue);}
+.av-default{background:var(--blue-light);color:#1D4ED8;}
 .av-done{background:var(--green-light);color:var(--green);}
 .call-body{flex:1;min-width:0;}
 .call-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;}
@@ -518,7 +518,7 @@ body{
 .chip-hot{background:#FEE2E2;color:#B91C1C;}
 .chip-warm{background:#FEF3C7;color:#B45309;}
 .chip-kalt{background:var(--gray100);color:var(--gray600);}
-.chip-neu{background:var(--blue-light);color:var(--blue);}
+.chip-neu{background:var(--blue-light);color:#1D4ED8;}
 .chip-done{background:var(--green-light);color:var(--green);}
 .chip-working{background:rgba(245,158,11,.08);color:#D97706;}
 .chip-rueckruf{background:#FEE2E2;color:#B91C1C;font-size:10px;}
@@ -562,7 +562,7 @@ body{
 .btn-done:hover,.btn-note:hover,.btn-callback:not(.primary):hover{border-color:var(--gray400);color:var(--gray700);background:var(--gray50);}
 .followup-choices{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px;}
 .followup-choice{flex:1;min-width:120px;padding:11px 14px;border:1px solid var(--gray200);border-radius:12px;background:var(--white);color:var(--gray600);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);}
-.followup-choice.active{border-color:var(--blue);background:var(--blue-light);color:var(--blue);}
+.followup-choice.active{border-color:#1D4ED8;background:var(--blue-light);color:#1D4ED8;}
 .btn-a:disabled{opacity:.45;cursor:default;}
 
 /* ═══════════════════════════════════════════
@@ -577,11 +577,13 @@ body{
 .modal{
   background:var(--white);border-radius:20px;padding:32px;
   width:100%;max-width:460px;
+  max-height:min(88vh,calc(100dvh - 24px));overflow:auto;
   box-shadow:0 16px 48px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.06);
   animation:fadeUp .3s cubic-bezier(.16,1,.3,1) both;
+  -webkit-overflow-scrolling:touch;
 }
 .modal h3{
-  font-family:var(--headline-font);
+  font-family:'Inter',sans-serif;
   font-size:17px;
   font-weight:700;
   letter-spacing:-.3px;
@@ -601,7 +603,7 @@ body{
   padding:12px 16px;font-size:13px;font-family:inherit;resize:vertical;outline:none;
   color:var(--gray900);transition:border-color var(--transition-fast);
 }
-.modal textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
+.modal textarea:focus{border-color:#1D4ED8;box-shadow:0 0 0 3px rgba(26,86,219,.06);}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
 .btn-modal-save{
   background:var(--blue);color:var(--white);border:none;border-radius:10px;
@@ -648,7 +650,7 @@ body{
   -webkit-overflow-scrolling:touch;
 }
 .account-modal h3{
-  font-family:var(--headline-font);
+  font-family:'Inter',sans-serif;
   font-size:16px;
   font-weight:700;
   letter-spacing:-.2px;
@@ -667,7 +669,7 @@ body{
   border-radius:10px;font-size:13px;font-family:inherit;
   color:var(--gray900);outline:none;transition:all var(--transition-fast);margin-bottom:6px;
 }
-.account-field input:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
+.account-field input:focus{border-color:#1D4ED8;background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
 .account-error{font-size:11.5px;color:var(--red);margin-bottom:6px;display:none;}
 .account-success{font-size:11.5px;color:var(--green);margin-bottom:6px;display:none;}
 .btn-account-save{
@@ -706,7 +708,7 @@ body{
 
 .account-plan-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:16px;padding:18px;}
 .account-plan-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;}
-.account-plan-title{font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;color:var(--gray900);line-height:1.2;}
+.account-plan-title{font-size:16px;font-weight:800;font-family:'Inter',sans-serif;color:var(--gray900);line-height:1.2;}
 .account-plan-sub{font-size:12px;color:var(--gray400);margin-top:4px;}
 .account-usage-meter{height:10px;background:var(--gray200);border-radius:999px;overflow:hidden;margin-bottom:10px;}
 .account-usage-meter-fill{height:100%;background:var(--blue);border-radius:999px;transition:width .3s ease;}
@@ -714,7 +716,7 @@ body{
 .account-usage-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px;}
 .account-usage-mini{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:14px;}
 .account-usage-mini-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
-.account-usage-mini-val{font-size:18px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;color:var(--gray900);line-height:1.1;}
+.account-usage-mini-val{font-size:18px;font-weight:800;font-family:'Inter',sans-serif;color:var(--gray900);line-height:1.1;}
 .account-upgrade-box{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:16px;}
 .account-upgrade-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:5px;}
 .account-upgrade-copy{font-size:12px;color:var(--gray600);line-height:1.6;margin-bottom:14px;}
@@ -727,16 +729,16 @@ body{
 .priority-chip{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
 .priority-critical{background:var(--red-light);color:#991B1B;}
 .priority-high{background:var(--amber-light);color:#92400E;}
-.priority-normal{background:var(--blue-light);color:var(--blue);}
+.priority-normal{background:var(--blue-light);color:#1D4ED8;}
 .focus-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:-6px 0 28px;}
 .focus-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:14px;padding:18px;}
 .focus-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
-.focus-value{font-size:24px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;line-height:1.1;}
+.focus-value{font-size:24px;font-weight:800;font-family:'Inter',sans-serif;line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
 .followup-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 14px;}
 .followup-field label{display:block;font-size:11.5px;font-weight:600;color:var(--gray600);margin-bottom:6px;}
 .followup-field select,.followup-field input{width:100%;padding:10px 14px;border:1.5px solid var(--gray200);border-radius:12px;background:var(--gray50);font-size:13px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
-.followup-field select:focus,.followup-field input:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
+.followup-field select:focus,.followup-field input:focus{border-color:#1D4ED8;background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
 .meta-pill{display:inline-flex;align-items:center;gap:4px;background:var(--gray100);border-radius:999px;padding:3px 9px;font-size:11px;color:var(--gray600);margin-right:6px;margin-top:2px;}
 @media(max-width:768px){.followup-grid{grid-template-columns:1fr;}}
 
@@ -756,7 +758,7 @@ body{
   font-weight:500;position:relative;border:none;background:none;font-family:inherit;
   transition:color var(--transition-fast);
 }
-.mobile-nav-btn.active{color:var(--blue);font-weight:600;}
+.mobile-nav-btn.active{color:#1D4ED8;font-weight:600;}
 .mobile-nav-btn svg{width:20px;height:20px;}
 .mobile-nav-badge{
   position:absolute;top:0;right:4px;background:rgba(26,86,219,.08);color:#1A56DB;
@@ -779,7 +781,7 @@ body{
 .detail-line span:last-child{text-align:right;font-weight:600;}
 .detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
 .call-name.linklike{cursor:pointer;}
-.call-name.linklike:hover{text-decoration:underline;color:var(--blue);}
+.call-name.linklike:hover{text-decoration:underline;color:#1D4ED8;}
 @media(max-width:768px){.detail-layout{grid-template-columns:1fr;}.detail-modal{padding:24px 20px;}}
 
 /* ═══════════════════════════════════════════
@@ -807,7 +809,19 @@ body{
   .call-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
   .call-actions .btn-a,.call-actions .btn-call,.call-actions .btn-callback{width:100%;justify-content:center;height:42px;padding:0 12px;font-size:12px;}
   .btn,.btn-a{padding:8px 14px;font-size:11px;}
-  .modal{padding:28px 22px;}
+  .overlay,.account-overlay,.detail-overlay{padding:0;align-items:flex-end;}
+  .modal,
+  .account-modal,
+  .detail-modal{
+    width:100%;
+    max-width:100%;
+    max-height:calc(100dvh - 6px);
+    border-radius:16px 16px 0 0;
+    padding:18px 14px max(18px,env(safe-area-inset-bottom));
+  }
+  .modal-actions{flex-wrap:wrap;}
+  .modal-actions .btn-modal-cancel,
+  .modal-actions .btn-modal-save{flex:1;min-width:120px;justify-content:center;text-align:center;}
   .charts-row{display:none;}
   .toast{bottom:80px;font-size:12px;padding:8px 18px;}
   .focus-strip{grid-template-columns:1fr;gap:10px;margin-bottom:20px;}
@@ -816,6 +830,8 @@ body{
 @media(max-width:380px){
   .kpi-val{font-size:24px;}
   .call-name{font-size:13px;}
+  .modal-actions .btn-modal-cancel,
+  .modal-actions .btn-modal-save{width:100%;flex:unset;}
 }
 
 /* ── DASHBOARD V1 PREMIUM ─────────────────────────────── */
@@ -824,7 +840,7 @@ body{
 .dash-hero.no-callbacks{border-color:var(--green-mid);background:var(--green-light);}
 .dash-hero-left{flex:1;min-width:0;}
 .dash-hero-label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);margin-bottom:10px;}
-.dash-hero-number{font-family:'Bricolage Grotesque',sans-serif;font-size:64px;font-weight:800;line-height:1;letter-spacing:-.03em;margin-bottom:10px;}
+.dash-hero-number{font-family:'Inter',sans-serif;font-size:64px;font-weight:800;line-height:1;letter-spacing:-.03em;margin-bottom:10px;}
 .dash-hero-number.red{color:var(--red);}
 .dash-hero-number.green{color:var(--green);}
 .dash-hero-sub{font-size:13px;color:var(--gray600);line-height:1.55;}
@@ -850,7 +866,7 @@ body{
 .dash-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
 .fse-card{display:none;background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow-card);}
 .fse-card.show{display:block;}
-.fse-title{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:var(--gray900);margin-bottom:10px;letter-spacing:-.02em;}
+.fse-title{font-family:'Inter',sans-serif;font-size:28px;font-weight:800;color:var(--gray900);margin-bottom:10px;letter-spacing:-.02em;}
 .fse-sub{font-size:14px;color:var(--gray600);line-height:1.65;margin-bottom:20px;max-width:640px;}
 .fse-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
 .fse-progress{background:var(--gray50);border:1px solid var(--gray200);border-radius:14px;padding:16px;}
@@ -864,13 +880,13 @@ body{
 .dash-kpi{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow-card);transition:all var(--transition-fast);}
 .dash-kpi:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);}
 .dash-kpi-label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);margin-bottom:12px;}
-.dash-kpi-val{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;line-height:1;color:var(--blue);margin-bottom:6px;letter-spacing:-.02em;}
+.dash-kpi-val{font-family:'Inter',sans-serif;font-size:32px;font-weight:800;line-height:1;color:#1D4ED8;margin-bottom:6px;letter-spacing:-.02em;}
 .dash-kpi-sub{font-size:12px;color:var(--gray400);}
 .dash-cb-section{margin-bottom:22px;}
 .dash-cb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
-.dash-cb-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:var(--headline-font);letter-spacing:-.2px;}
+.dash-cb-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:'Inter',sans-serif;letter-spacing:-.2px;}
 .dash-cb-title.secondary{font-size:15px;color:var(--gray700);}
-.dash-cb-link{font-size:12px;color:var(--blue);text-decoration:none;font-weight:600;cursor:pointer;}
+.dash-cb-link{font-size:12px;color:#1D4ED8;text-decoration:none;font-weight:600;cursor:pointer;}
 .dash-cb-link:hover{text-decoration:underline;}
 .cb-row{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:16px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:10px;transition:all var(--transition-fast);box-shadow:var(--shadow-card);}
 .cb-row.priority{border-color:#FECACA;background:#FFFBFB;}
@@ -922,6 +938,145 @@ body{
 @media(max-width:520px){.cbq-row{flex-direction:column;}.cbq-actions{width:100%;justify-content:flex-start;}}
 .cbq-row--active{border-color:#2563EB;background:#EFF6FF;box-shadow:0 0 0 2px rgba(37,99,235,.15);}
 .cb-queue-progress{font-size:11.5px;color:#1E40AF;margin-top:4px;font-weight:500;}
+
+@media(max-width:640px){
+  .overlay-card,.modal-sheet{
+    position:fixed!important;bottom:0!important;top:auto!important;
+    left:0!important;right:0!important;width:100%!important;max-width:100%!important;
+    border-radius:16px 16px 0 0!important;max-height:90vh!important;overflow-y:auto!important;
+  }
+}
+/* ═══════════════════════════════════════════
+   ACTIVATION MODULE
+═══════════════════════════════════════════ */
+.activation-module{margin-bottom:24px;}
+.activation-module-title{font-family:'Inter',sans-serif;font-size:18px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.02em;}
+.activation-module-sub{font-size:13px;color:var(--gray600);margin-bottom:16px;line-height:1.55;}
+.activation-status-card{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-numbers{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;}
+.activation-number-item{flex:1;min-width:120px;}
+.activation-number-label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);margin-bottom:4px;}
+.activation-number-val{font-size:15px;font-weight:700;color:var(--gray900);font-variant-numeric:tabular-nums;}
+.activation-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;}
+.activation-badge.not-started{background:var(--gray100);color:var(--gray600);}
+.activation-badge.in-progress{background:var(--amber-light);color:#92400E;border:1px solid var(--amber-mid);}
+.activation-badge.active{background:var(--green-light);color:#166534;border:1px solid var(--green-mid);}
+.activation-badge.inactive{background:var(--red-light);color:#991B1B;border:1px solid #FECACA;}
+.activation-state-desc{font-size:12.5px;color:var(--gray600);margin-top:8px;line-height:1.55;}
+.activation-device-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-device-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.activation-device-sub{font-size:12.5px;color:var(--gray600);margin-bottom:14px;}
+.activation-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.activation-choice-card{border:2px solid var(--gray200);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all var(--transition-fast);background:var(--white);}
+.activation-choice-card:hover{border-color:var(--blue-mid);background:var(--blue-light);}
+.activation-choice-card.selected{border-color:var(--blue);background:var(--blue-light);}
+.activation-choice-card-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.activation-choice-card-text{font-size:12px;color:var(--gray600);line-height:1.5;}
+.activation-instructions{margin-top:14px;padding:14px 16px;background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;}
+.activation-instructions h4{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:8px;}
+.activation-instructions p{font-size:12.5px;color:var(--gray600);line-height:1.6;margin-bottom:8px;}
+.activation-instructions p:last-child{margin-bottom:0;}
+.activation-instructions-note{font-size:12px;color:var(--gray400);font-style:italic;}
+.activation-deactivation-section{background:var(--white);border:1px solid #FECACA;border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-deactivation-title{font-size:14px;font-weight:700;color:#991B1B;margin-bottom:4px;}
+.activation-deactivation-sub{font-size:12.5px;color:var(--gray600);margin-bottom:14px;}
+.activation-deactivation-steps{margin:0 0 14px 18px;}
+.activation-deactivation-steps li{font-size:12.5px;color:var(--gray700);margin-bottom:6px;line-height:1.55;}
+.activation-confirm-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;padding:12px 14px;background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;}
+.activation-confirm-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--blue);flex-shrink:0;margin-top:2px;}
+.activation-confirm-row label{font-size:12.5px;color:var(--gray700);line-height:1.55;cursor:pointer;}
+.activation-deactivate-btn{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:var(--white);border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);}
+.activation-deactivate-btn:hover:not(:disabled){background:#B91C1C;transform:translateY(-0.5px);}
+.activation-deactivate-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+/* Mobile deactivation action area */
+.act-deact-mobile-area{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-deact-mobile-mode-badge{display:inline-flex;align-items:center;gap:6px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#1D4ED8;margin-bottom:14px;}
+.act-deact-mobile-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.act-deact-mobile-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.act-deact-mobile-note{font-size:12px;color:var(--gray500);line-height:1.6;padding:10px 13px;background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;}
+/* Post-click next-step helper box */
+.act-deact-mobile-nextstep{background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:12px;padding:14px 16px;margin-top:12px;}
+.act-deact-mobile-nextstep-title{font-size:13px;font-weight:700;color:#92400E;margin-bottom:6px;}
+.act-deact-mobile-nextstep-text{font-size:12.5px;color:var(--gray700);line-height:1.6;}
+/* Landline manual guidance */
+.act-deact-landline-area{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-deact-landline-mode-badge{display:inline-flex;align-items:center;gap:6px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#1D4ED8;margin-bottom:14px;}
+.act-deact-landline-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.act-deact-landline-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.act-deact-landline-hint{font-size:12px;color:var(--gray500);font-style:italic;padding:10px 13px;background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;line-height:1.55;}
+@media(max-width:600px){
+  .act-deact-mobile-btns,.act-deact-landline-btns{flex-direction:column;}
+  .act-deact-mobile-btns .act-action-btn-primary,.act-deact-mobile-btns .act-action-btn-secondary,
+  .act-deact-landline-btns .act-action-btn-primary,.act-deact-landline-btns .act-action-btn-secondary{width:100%;justify-content:center;}
+}
+@media(max-width:600px){
+  .activation-numbers{flex-direction:column;gap:10px;}
+  .activation-choice-grid{grid-template-columns:1fr;}
+}
+.act-mode-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-mode-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.act-mode-sub{font-size:12.5px;color:var(--gray600);margin-bottom:14px;}
+.act-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.act-mode-card{border:2px solid var(--gray200);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all var(--transition-fast);background:var(--white);min-height:44px;position:relative;}
+.act-mode-card:hover{border-color:var(--blue-mid);background:var(--blue-light);}
+.act-mode-card.selected{border-color:var(--blue);background:var(--blue-light);}
+.act-mode-card.secondary{border-style:dashed;}
+.act-mode-card-label{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:3px;}
+.act-mode-card-desc{font-size:11.5px;color:var(--gray600);line-height:1.5;}
+.act-mode-card.selected .act-mode-card-label{color:var(--blue-dark);}
+.act-action-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-action-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
+.act-action-sub{font-size:12.5px;color:var(--gray600);margin-bottom:16px;}
+.act-action-code-box{background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.act-action-code{font-family:monospace;font-size:15px;font-weight:700;color:var(--gray900);letter-spacing:.04em;}
+.act-action-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.act-action-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:var(--blue);color:var(--white);border:none;border-radius:10px;padding:11px 20px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;box-shadow:var(--shadow-blue);}
+.act-action-btn-primary:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
+.act-action-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:var(--white);color:var(--gray600);border:1.5px solid var(--gray200);border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;}
+.act-action-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
+.act-action-hint{font-size:12px;color:var(--gray400);font-style:italic;margin-top:10px;line-height:1.55;}
+.act-skip-shortcut{background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:12px;padding:14px 16px;margin-top:14px;}
+.act-skip-shortcut-title{font-size:12.5px;font-weight:700;color:var(--blue);margin-bottom:4px;}
+.act-skip-shortcut-sub{font-size:12px;color:var(--gray600);line-height:1.55;margin-bottom:10px;}
+.act-skip-shortcut-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.activation-badge.pending-test{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;}
+.act-pending-test-card{background:var(--white);border:2px solid #FCD34D;border-radius:16px;padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-pending-test-header{margin-bottom:18px;}
+.act-pending-test-title{font-size:15px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.01em;}
+.act-pending-test-sub{font-size:12.5px;color:var(--gray600);line-height:1.55;}
+.act-pending-test-number-block{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:16px 18px;margin-bottom:14px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
+.act-pending-test-number-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gray400);}
+.act-pending-test-number{font-size:26px;font-weight:800;color:var(--gray900);font-variant-numeric:tabular-nums;letter-spacing:.01em;line-height:1.2;}
+.act-pending-copy-btn{margin-top:2px;}
+.act-pending-test-warning{background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;color:#991B1B;margin-bottom:10px;line-height:1.4;}
+.act-pending-voxera-note{font-size:11.5px;color:var(--gray400);margin-bottom:18px;line-height:1.5;}
+.act-pending-voxera-num{font-family:monospace;font-weight:600;color:var(--gray500);}
+.act-test-detect-area{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:16px 18px;margin-bottom:14px;text-align:center;}
+.act-test-detect-area.act-test-detect-found{background:#F0FDF4;border-color:#86EFAC;}
+.act-test-detect-icon{font-size:22px;margin-bottom:6px;}
+.act-test-detect-label{font-size:13px;font-weight:700;color:var(--gray700);margin-bottom:4px;}
+.act-test-detect-hint{font-size:12px;color:var(--gray500);line-height:1.55;}
+.act-test-detect-title{font-size:14px;font-weight:800;color:#166534;margin-bottom:4px;}
+.act-test-detect-sub{font-size:12.5px;color:var(--gray600);margin-bottom:14px;}
+.act-test-detect-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+.act-pending-no-call-helper{border-top:1px solid var(--gray100);padding-top:14px;margin-top:4px;}
+.act-pending-no-call-title{font-size:12px;font-weight:700;color:var(--gray500);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;}
+.act-pending-no-call-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.act-pending-spoken-guide{background:#F8FAFF;border:1.5px solid #BFDBFE;border-radius:12px;padding:14px 16px;margin-bottom:16px;}
+.act-pending-spoken-guide-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1D4ED8;margin-bottom:10px;}
+.act-pending-spoken-guide-items{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.act-pending-spoken-guide-item{font-size:13px;font-weight:600;color:var(--gray900);background:var(--white);border:1px solid #BFDBFE;border-radius:8px;padding:7px 12px;line-height:1.4;}
+.act-pending-spoken-guide-tip{font-size:12px;color:var(--gray600);line-height:1.55;margin-bottom:6px;}
+.act-pending-spoken-guide-note{font-size:11.5px;color:var(--gray400);line-height:1.55;font-style:italic;}
+.act-pending-test-steps{margin:0 0 14px 0;padding-left:20px;}
+.act-pending-test-steps li{font-size:13px;color:var(--gray700);line-height:1.6;margin-bottom:4px;}
+.act-pending-test-expect{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#1D4ED8;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.act-pending-test-expect-icon{font-weight:800;font-size:14px;flex-shrink:0;margin-top:1px;}
+@media(max-width:600px){
+  .act-pending-test-number{font-size:22px;}
+  .act-test-detect-btns,.act-pending-no-call-actions{flex-direction:column;}
+  .act-test-detect-btns .act-action-btn-primary,.act-test-detect-btns .act-action-btn-secondary,.act-pending-no-call-actions .act-action-btn-secondary{width:100%;justify-content:center;}
+}
 </style>
 </head>
 <body>
@@ -1015,7 +1170,7 @@ body{
       </div>
 
       <div class="content">
-        <div class="incoming-banner" id="incoming-banner">📞 Neuer Anruf eingegangen</div>
+        <div class="incoming-banner" id="incoming-banner"> Neuer Anruf eingegangen</div>
 
         <!-- DASHBOARD TAB -->
         <div class="tab-page active" id="tab-dashboard">
@@ -1112,7 +1267,7 @@ body{
               <div class="cb-queue-next" id="cb-queue-next-label"></div>
               <div class="cb-queue-progress" id="cb-queue-progress-label"></div>
             </div>
-            <button class="dash-btn-primary cb-queue-banner-btn" onclick="jumpToNextCallback()">📞 Nächsten Rückruf bearbeiten</button>
+            <button class="dash-btn-primary cb-queue-banner-btn" onclick="jumpToNextCallback()"> Nächsten Rückruf bearbeiten</button>
           </div>
           <!-- CALLBACK QUEUE MINI LIST (top 3) -->
           <div id="cb-queue-mini-list"></div>
@@ -1138,9 +1293,91 @@ body{
 
         <!-- EINRICHTUNG TAB -->
         <div class="tab-page" id="tab-einrichtung">
-          <div id="setup-wizard">
+
+          <!-- ACTIVATION MODULE -->
+          <div id="activation-module" class="activation-module">
+            <div class="activation-module-title">Aktivierung</div>
+            <div class="activation-module-sub">Verknüpfung Ihrer Telefonnummer mit der Voxera Rufumleitung</div>
+
+            <!-- Status Card -->
+            <div class="activation-status-card">
+              <div class="activation-numbers">
+                <div class="activation-number-item">
+                  <div class="activation-number-label">Ihre Nummer</div>
+                  <div class="activation-number-val" id="act-tel-nr">–</div>
+                </div>
+                <div class="activation-number-item">
+                  <div class="activation-number-label">Weiterleitung an</div>
+                  <div class="activation-number-val" id="act-voxera-number">–</div>
+                </div>
+              </div>
+              <div id="act-badge"></div>
+              <div class="activation-state-desc" id="act-state-desc"></div>
+            </div>
+
+            <!-- Device Selection Section -->
+            <div class="activation-device-section" id="act-device-section">
+              <div class="activation-device-title">Wie möchten Sie die Rufumleitung einrichten?</div>
+              <div class="activation-device-sub">Wählen Sie Ihren Gerätetyp, um die passenden Anweisungen zu erhalten.</div>
+              <div class="activation-choice-grid">
+                <div class="activation-choice-card" id="act-device-card-mobile" onclick="activationSelectDevice(event,'mobile')">
+                  <div class="activation-choice-card-title"> Smartphone</div>
+                  <div class="activation-choice-card-text">Rufumleitung direkt auf dem Handy aktivieren.</div>
+                </div>
+                <div class="activation-choice-card" id="act-device-card-landline" onclick="activationSelectDevice(event,'landline')">
+                  <div class="activation-choice-card-title">☎️ Festnetz / Telefonanlage</div>
+                  <div class="activation-choice-card-text">Für Büro-Telefon, Telefonanlage oder VoIP.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Forwarding Mode Selection Card -->
+            <div class="act-mode-section" id="act-mode-section" style="display:none;">
+              <div class="act-mode-title">Wann soll weitergeleitet werden?</div>
+              <div class="act-mode-sub">Wählen Sie, unter welchen Umständen Anrufe an Voxera weitergeleitet werden.</div>
+              <div class="act-mode-grid">
+                <div class="act-mode-card" id="act-mode-card-no_answer" onclick="activationSelectMode(event,'no_answer')">
+                  <div class="act-mode-card-label">Wenn ich nicht antworte</div>
+                  <div class="act-mode-card-desc">Nach einigen Klingeltönen ohne Annahme</div>
+                </div>
+                <div class="act-mode-card" id="act-mode-card-unreachable" onclick="activationSelectMode(event,'unreachable')">
+                  <div class="act-mode-card-label">Wenn ich nicht erreichbar bin</div>
+                  <div class="act-mode-card-desc">Ausgeschaltet, kein Netz oder Flugmodus</div>
+                </div>
+                <div class="act-mode-card" id="act-mode-card-always" onclick="activationSelectMode(event,'always')">
+                  <div class="act-mode-card-label">Immer weiterleiten</div>
+                  <div class="act-mode-card-desc">Jeder Anruf wird sofort weitergeleitet</div>
+                </div>
+                <div class="act-mode-card secondary" id="act-mode-card-busy" onclick="activationSelectMode(event,'busy')">
+                  <div class="act-mode-card-label">Wenn besetzt</div>
+                  <div class="act-mode-card-desc">Wenn Sie gerade in einem Gespräch sind</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Card -->
+            <div class="act-action-section" id="act-action-section" style="display:none;">
+              <div class="act-action-title" id="act-action-title">Aktivierung</div>
+              <div class="act-action-sub" id="act-action-sub"></div>
+              <div class="act-action-code-box" id="act-action-code-box" style="display:none;">
+                <span class="act-action-code" id="act-action-code"></span>
+              </div>
+              <div class="act-action-btns" id="act-action-btns"></div>
+              <div class="act-action-hint" id="act-action-hint" style="display:none;"></div>
+              <!-- Skip shortcut: rendered dynamically by renderActivationActionCard() -->
+              <div id="act-skip-shortcut-block" style="display:none;"></div>
+            </div>
+
+            <!-- Pending-Test Card (shown when forwarding_status === 'pending_test') -->
+            <div id="act-pending-test-section" style="display:none;"></div>
+
+            <!-- Deactivation Section (only shown when forwarding_status === 'active', rendered dynamically) -->
+            <div id="act-deactivation-section" style="display:none;"></div>
+          </div>
+
+          <div id="setup-wizard" style="display:none">
             <div class="setup-welcome" id="setup-welcome-block">
-              <div class="setup-welcome-icon">🚀</div>
+              <div class="setup-welcome-icon"></div>
               <div class="setup-welcome-title">Willkommen bei Voxera</div>
               <div class="setup-welcome-sub">Ihr KI-Telefonassistent ist bereit. In wenigen Schritten richten Sie alles ein, damit kein Anruf mehr verloren geht.</div>
             </div>
@@ -1166,11 +1403,11 @@ body{
                   <div class="setup-step-content">
                     <p><strong>Wie möchten Sie Voxera einrichten?</strong></p>
                     <div class="setup-choice-grid" onclick="event.stopPropagation();" role="listbox" aria-label="Einrichtungsweg wählen">
-                      <div class="setup-choice-card active" id="setup-device-card-mobile" role="option" aria-selected="true">
-                        <div class="setup-choice-title">📱 Smartphone</div>
+                      <div class="setup-choice-card" id="setup-device-card-mobile" role="option" aria-selected="false">
+                        <div class="setup-choice-title"> Smartphone</div>
                         <div class="setup-choice-text">Ideal, wenn Sie die Weiterleitung direkt auf dem Handy aktivieren möchten.</div>
                         <div class="setup-choice-actions">
-                          <button type="button" class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'mobile')">Smartphone wählen</button>
+                          <button type="button" class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Smartphone wählen</button>
                         </div>
                       </div>
                       <div class="setup-choice-card" id="setup-device-card-landline" role="option" aria-selected="false">
@@ -1181,7 +1418,7 @@ body{
                         </div>
                       </div>
                     </div>
-                    <div class="setup-info-note" style="margin-top:10px;">💡 Keine Sorge: Sie können den Pfad jederzeit wechseln.</div>
+                    <div class="setup-info-note" style="margin-top:10px;"> Keine Sorge: Sie können den Pfad jederzeit wechseln.</div>
                     <h4>Ihre Voxera-Nummer</h4>
                     <div class="setup-number-box">
                       <span class="setup-number-val" id="setup-voxera-number">Wird geladen...</span>
@@ -1209,7 +1446,7 @@ body{
                   <div class="setup-step-content">
                     <div class="setup-device-panel active" id="setup-device-panel-mobile">
                       <h4>Smartphone-Aktivierung</h4>
-                      <p>Die empfohlene Einstellung leitet Anrufe <strong>bei Nichterreichbarkeit</strong> an Voxera weiter – Sie bleiben weiterhin direkt erreichbar. Tippen Sie auf <strong>Jetzt aktivieren</strong>. Ihr Handy öffnet dann den Dialer und Sie bestätigen nur noch den Anruf.</p>
+                      <p>Tippen Sie auf <strong>Jetzt aktivieren</strong>. Ihr Handy öffnet den Dialer mit dem Code – Sie bestätigen nur noch den Anruf.</p>
                       <div class="setup-helper-note">Dauert nur wenige Sekunden.</div>
                       <div class="setup-number-box">
                         <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
@@ -1218,8 +1455,7 @@ body{
                           <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-copy-btn" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
                         </div>
                       </div>
-                      <div class="setup-info-note" style="margin-top:6px;">ℹ️ <strong>Bei Nichterreichbarkeit (empfohlen):</strong> Voxera übernimmt den Anruf nur, wenn Sie nicht abnehmen oder nicht erreichbar sind.</div>
-                      <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">Andere Weiterleitungsart wählen →</a>
+                      <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">Alternative Weiterleitungsarten anzeigen</a>
                     </div>
 
                     <div class="setup-device-panel" id="setup-device-panel-landline">
@@ -1272,15 +1508,15 @@ body{
                     <p>Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet.</p>
                     <div style="margin:14px 0;display:grid;gap:10px;" onclick="event.stopPropagation();">
                       <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);" onclick="event.stopPropagation();">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-none" value="none" checked onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-none" value="none" checked onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:#1D4ED8;width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Keine Benachrichtigungen</span>
                       </label>
                       <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);" onclick="event.stopPropagation();">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-callback-only" value="callback_only" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-callback-only" value="callback_only" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:#1D4ED8;width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Nur bei Rückruf-Anfragen</span>
                       </label>
                       <label style="display:flex;align-items:center;gap:10px;padding:8px 0;" onclick="event.stopPropagation();">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-all-calls" value="all_calls" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:var(--blue);width:16px;height:16px;">
+                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-all-calls" value="all_calls" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:#1D4ED8;width:16px;height:16px;">
                         <span style="font-size:13px;color:var(--gray700);font-weight:500;">Bei jedem Anruf</span>
                       </label>
                     </div>
@@ -1305,7 +1541,7 @@ body{
                 <div class="setup-step-body">
                   <div class="setup-step-content">
                     <div style="background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:10px;padding:14px 16px;margin-bottom:8px;">
-                      <p style="margin:0;color:var(--blue);font-weight:600;font-size:13px;">🔒 Aus Sicherheitsgründen empfehlen wir, Ihr temporäres Passwort zu ändern.</p>
+                      <p style="margin:0;color:#1D4ED8;font-weight:600;font-size:13px;"> Aus Sicherheitsgründen empfehlen wir, Ihr temporäres Passwort zu ändern.</p>
                       <p style="margin:6px 0 0;color:var(--gray600);font-size:12.5px;">Sie können Ihr Passwort jederzeit unter <strong>⚙ Einstellungen → Passwort ändern</strong> aktualisieren.</p>
                     </div>
                   </div>
@@ -1332,7 +1568,7 @@ body{
                     <ol>
                       <li><strong>E-Mail:</strong> Schreiben Sie uns jederzeit – wir antworten innert 24h</li>
                       <li><strong>Dashboard:</strong> Unter ⚙ Einstellungen finden Sie Konto- und Plan-Optionen</li>
-                      <li><strong>Wissensbasis:</strong> Auf <a href="https://voxera.ch" target="_blank" style="color:var(--blue);font-weight:600;">voxera.ch</a> finden Sie weitere Informationen</li>
+                      <li><strong>Wissensbasis:</strong> Auf <a href="https://voxera.ch" target="_blank" style="color:#1D4ED8;font-weight:600;">voxera.ch</a> finden Sie weitere Informationen</li>
                     </ol>
                     <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'support')">❓ Anleitung anzeigen</a>
                   </div>
@@ -1344,7 +1580,7 @@ body{
             </div>
 
             <div class="setup-open-summary" id="setup-open-summary">
-              <div class="setup-open-summary-title">📋 Noch offen</div>
+              <div class="setup-open-summary-title"> Noch offen</div>
               <ul class="setup-open-summary-list" id="setup-open-list"></ul>
             </div>
 
@@ -1355,7 +1591,7 @@ body{
             <!-- Complete screen (hidden initially) -->
             <div id="setup-complete" style="display:none">
               <div class="setup-complete">
-                <div class="setup-complete-icon">🎉</div>
+                <div class="setup-complete-icon"></div>
                 <div class="setup-complete-title">Alles eingerichtet!</div>
                 <div class="setup-complete-sub">Voxera ist bereit. Alle eingehenden Anrufe erscheinen automatisch in Ihrem Dashboard.</div>
                 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
@@ -1407,7 +1643,7 @@ body{
               </div>
             </div>
             <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
-              <div class="settings-card-title" style="color:var(--blue);">Einrichtung & Rufumleitung</div>
+              <div class="settings-card-title" style="color:#1D4ED8;">Einrichtung & Rufumleitung</div>
               <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
                 Führen Sie die Einrichtung Schritt für Schritt durch. Leiten Sie Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.
               </div>
@@ -1423,15 +1659,15 @@ body{
               <div class="settings-card-title">Benachrichtigungen</div>
               <div style="font-size:12.5px;color:var(--gray500);margin-bottom:10px;">Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet.</div>
               <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray200);">
-                <input type="radio" name="notification-mode" value="none" checked onchange="saveNotifSettings()" style="accent-color:var(--blue);width:16px;height:16px;">
+                <input type="radio" name="notification-mode" value="none" checked onchange="saveNotifSettings()" style="accent-color:#1D4ED8;width:16px;height:16px;">
                 <span style="font-size:13px;color:var(--gray700);font-weight:500;">Keine Benachrichtigungen</span>
               </label>
               <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray200);">
-                <input type="radio" name="notification-mode" value="callback_only" onchange="saveNotifSettings()" style="accent-color:var(--blue);width:16px;height:16px;">
+                <input type="radio" name="notification-mode" value="callback_only" onchange="saveNotifSettings()" style="accent-color:#1D4ED8;width:16px;height:16px;">
                 <span style="font-size:13px;color:var(--gray700);font-weight:500;">Nur bei Rückruf-Anfragen</span>
               </label>
               <label style="display:flex;align-items:center;gap:10px;padding:10px 0;">
-                <input type="radio" name="notification-mode" value="all_calls" onchange="saveNotifSettings()" style="accent-color:var(--blue);width:16px;height:16px;">
+                <input type="radio" name="notification-mode" value="all_calls" onchange="saveNotifSettings()" style="accent-color:#1D4ED8;width:16px;height:16px;">
                 <span style="font-size:13px;color:var(--gray700);font-weight:500;">Bei jedem Anruf</span>
               </label>
               <div class="account-success" id="notif-success" style="margin-top:6px"></div>
@@ -1474,11 +1710,11 @@ body{
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
                 <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
                   <div style="font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;">Diesen Monat</div>
-                  <div style="font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;" id="usage-month-minutes">–</div>
+                  <div style="font-size:16px;font-weight:800;font-family:'Inter',sans-serif;" id="usage-month-minutes">–</div>
                 </div>
                 <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
                   <div style="font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;">Inklusive</div>
-                  <div style="font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;" id="usage-included">–</div>
+                  <div style="font-size:16px;font-weight:800;font-family:'Inter',sans-serif;" id="usage-included">–</div>
                 </div>
               </div>
               <div id="settings-upgrade-box" style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px;margin-top:6px;">
@@ -1951,7 +2187,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, customerId:''};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, forwardingMode:null, lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, customerId:''};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -1959,27 +2195,15 @@ function toDashboardRecord(row) {
   return { id: String(row.id), fields: row };
 }
 
-// Canonical timestamp helper: prefer actual call time (created_date_raw from webhook),
-// fall back to Supabase insertion time (created_at) for records where created_date_raw is absent.
+// Canonical timestamp helper: returns the Supabase insertion time (created_at).
 /**
  * Returns the best available timestamp for a dashboard record.
  * @param {Object} record - Dashboard record ({ id, fields })
- * @returns {string|null} ISO-8601 string: created_date_raw (webhook call time) if present,
- *   otherwise created_at (Supabase insertion time), or null if neither exists.
+ * @returns {string|null} ISO-8601 string from created_at, or null if absent.
  */
 function getRecordTimestamp(record) {
   const f = (record && record.fields) || {};
-  const raw = f.created_date_raw || f.created_at || null;
-  if (!raw) return null;
-  // Webhook timestamps in created_date_raw arrive as bare UTC strings without a 'Z' suffix
-  // (e.g. "2024-12-20T12:30:00"). parseLocalDateTimeParts() matches any no-suffix string,
-  // so they bypass the Intl Europe/Zurich conversion and display UTC time directly.
-  // Appending 'Z' makes the UTC intent explicit and routes through the correct formatting path.
-  const s = String(raw).trim();
-  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/.test(s)) {
-    return s.replace(' ', 'T') + 'Z';
-  }
-  return raw;
+  return f.created_at || null;
 }
 
 function resolveFollowUpAt(fields) {
@@ -2027,10 +2251,8 @@ if (typeof window !== 'undefined') {
 function extractCustomerHint(authUser) {
   const metadata = authUser && authUser.user_metadata ? authUser.user_metadata : {};
   const metadataCustomerId = metadata && metadata.customer_id ? String(metadata.customer_id).trim() : '';
-  const metadataDashboardId = metadata && metadata.dashboard_id ? String(metadata.dashboard_id).trim() : '';
   return {
-    customerId: metadataCustomerId || '',
-    dashboardId: metadataDashboardId || ''
+    customerId: metadataCustomerId || ''
   };
 }
 
@@ -2041,7 +2263,8 @@ async function ensurePublicUserProvisioning(authUser) {
   try {
     const { error } = await _sb.rpc('ensure_user_profile', {
       p_customer_id: hint.customerId || null,
-      p_dashboard_id: hint.dashboardId || null,
+      // Hardening: disable productive dashboard_id fallback for customer context provisioning.
+      p_dashboard_id: null,
       p_email: email || null
     });
     if (error) {
@@ -2074,13 +2297,10 @@ async function resolveCustomerContext(forceReload) {
   if (userError) throw userError;
 
   const usersCustomerId = userRow && userRow.customer_id ? String(userRow.customer_id).trim() : '';
-  // frontend-only risk: URL fallback must never bypass RLS ownership checks.
-  // requires RLS policy on customers/users to guarantee strict tenant isolation.
-  const urlFallbackCustomerId = (new URLSearchParams(location.search).get('customer') || '').trim();
-  const resolvedCustomerId = usersCustomerId || urlFallbackCustomerId || '';
+  const resolvedCustomerId = usersCustomerId || '';
   console.info('[voxera-dashboard] users.customer_id', usersCustomerId || null);
-  if (!usersCustomerId && urlFallbackCustomerId) {
-    console.warn('[voxera-dashboard] using debug URL fallback customer id', urlFallbackCustomerId);
+  if (!usersCustomerId) {
+    console.error('[voxera-dashboard] tenant context missing: users.customer_id is empty for auth user', authUserId);
   }
 
   let customerRecord = null;
@@ -2093,16 +2313,7 @@ async function resolveCustomerContext(forceReload) {
     if (customerErrorById) throw customerErrorById;
     customerRecord = customerRowById || null;
     if (!customerRecord) {
-      const { data: customerRowByDashboardId, error: customerErrorByDashboardId } = await _sb
-        .from(CUSTOMERS_TABLE)
-        .select('*')
-        .eq('dashboard_id', resolvedCustomerId)
-        .maybeSingle();
-      if (customerErrorByDashboardId) throw customerErrorByDashboardId;
-      customerRecord = customerRowByDashboardId || null;
-      if (customerRecord) {
-        console.info('[voxera-dashboard] customers lookup matched by dashboard_id', resolvedCustomerId);
-      }
+      console.error('[voxera-dashboard] tenant context invalid: customers row missing for users.customer_id', resolvedCustomerId);
     }
     console.info('[voxera-dashboard] customers record', customerRecord || null);
   } else {
@@ -2230,6 +2441,12 @@ async function patchCustomerRecord(recordId, fields) {
   const payload = {};
   if (fields.notification_mode !== undefined) payload.notification_mode = fields.notification_mode;
   if (fields.forwarding_setup_completed !== undefined) payload.forwarding_setup_completed = fields.forwarding_setup_completed;
+  if (fields.setup_device_type !== undefined) payload.setup_device_type = fields.setup_device_type;
+  if (fields.forwarding_status !== undefined) payload.forwarding_status = fields.forwarding_status;
+  if (fields.activation_started_at !== undefined) payload.activation_started_at = fields.activation_started_at;
+  if (fields.forwarding_mode !== undefined) payload.forwarding_mode = fields.forwarding_mode;
+  if (fields.last_confirmed_setup_device_type !== undefined) payload.last_confirmed_setup_device_type = fields.last_confirmed_setup_device_type;
+  if (fields.last_confirmed_forwarding_mode !== undefined) payload.last_confirmed_forwarding_mode = fields.last_confirmed_forwarding_mode;
   const json = await callDashboardFunction('customer-update-settings', payload);
   if (!json || !json.customer) throw new Error(json?.error || 'Update fehlgeschlagen.');
   return toDashboardRecord(json.customer);
@@ -2339,7 +2556,7 @@ function getPriority(record) {
 
   if (isClosed) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
   if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
-  if (isCallback) return { key: 'callback', label: 'Rückruf gewünscht', icon: '📞' };
+  if (isCallback) return { key: 'callback', label: 'Rückruf gewünscht', icon: '' };
   if (followUp && !Number.isNaN(followUp.getTime()) && isToday(f.follow_up_at)) return { key: 'today', label: 'Heute fällig', icon: '🗓' };
   if (isHot) return { key: 'hot', label: 'Hot Lead', icon: '🔥' };
   if (inProgress) return { key: 'working', label: 'In Arbeit', icon: '⏳' };
@@ -2597,7 +2814,13 @@ async function loadCustomerMeta() {
     customerId: context.customerId || f.id || '',
     voxeraNumber: f.voxera_number || '',
     telNr: f.tel_nr || '',
-    forwardingSetupCompleted: f.forwarding_setup_completed === true
+    forwardingSetupCompleted: f.forwarding_setup_completed === true,
+    setupDeviceType: f.setup_device_type || null,
+    forwardingStatus: f.forwarding_status || null,
+    activationStartedAt: f.activation_started_at || null,
+    forwardingMode: f.forwarding_mode || null,
+    lastConfirmedSetupDeviceType: f.last_confirmed_setup_device_type || null,
+    lastConfirmedForwardingMode: f.last_confirmed_forwarding_mode || null
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   console.info('[voxera-dashboard] customerMeta numbers', {
@@ -2687,7 +2910,7 @@ function requestUpgrade() {
   ];
   var html = plans.filter(function(p){ return p.key !== current; }).map(function(p){
     return '<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--gray200);border-radius:10px;cursor:pointer;transition:all .15s;" onclick="this.querySelector(\'input\').checked=true;selectedUpgradePlan=\''+p.key+'\';document.querySelectorAll(\'#upgrade-options label\').forEach(function(l){l.style.borderColor=\'var(--gray200)\';l.style.background=\'\'});this.style.borderColor=\'var(--blue)\';this.style.background=\'var(--blue-light)\'">'
-      +'<input type="radio" name="upgrade-plan" value="'+p.key+'" style="accent-color:var(--blue);width:16px;height:16px;">'
+      +'<input type="radio" name="upgrade-plan" value="'+p.key+'" style="accent-color:#1D4ED8;width:16px;height:16px;">'
       +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+p.label+'</div><div style="font-size:12px;color:var(--gray400);">'+p.price+' · '+p.min+' inkl.</div></div>'
       +'</label>';
   }).join('');
@@ -2714,7 +2937,7 @@ function requestExtraMinutes() {
   ];
   var html = packages.map(function(p){
     return '<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--gray200);border-radius:10px;cursor:pointer;transition:all .15s;" onclick="this.querySelector(\'input\').checked=true;selectedMinutesPkg=\''+p.key+'\';document.querySelectorAll(\'#minutes-options label\').forEach(function(l){l.style.borderColor=\'var(--gray200)\';l.style.background=\'\'});this.style.borderColor=\'var(--blue)\';this.style.background=\'var(--blue-light)\'">'
-      +'<input type="radio" name="minutes-pkg" value="'+p.key+'" style="accent-color:var(--blue);width:16px;height:16px;">'
+      +'<input type="radio" name="minutes-pkg" value="'+p.key+'" style="accent-color:#1D4ED8;width:16px;height:16px;">'
       +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+p.label+'</div><div style="font-size:12px;color:var(--gray400);">'+p.price+'</div></div>'
       +'</label>';
   }).join('');
@@ -2791,7 +3014,7 @@ function flagIncomingRecords(records) {
 function showIncomingBanner(count) {
   const el = document.getElementById('incoming-banner');
   if (!el) return;
-  el.textContent = count === 1 ? '📞 Neuer Anruf eingegangen' : `📞 ${count} neue Anrufe eingegangen`;
+  el.textContent = count === 1 ? ' Neuer Anruf eingegangen' : ` ${count} neue Anrufe eingegangen`;
   el.classList.add('show');
   if (incomingBannerTimer) clearTimeout(incomingBannerTimer);
   incomingBannerTimer = setTimeout(() => el.classList.remove('show'), 6000);
@@ -2831,6 +3054,21 @@ async function loadData() {
     renderRueckrufe(records);
     renderArchiv(records);
     updateLastUpdatedLabel();
+
+    // Candidate-call detection: run after every refresh while in pending_test
+    if (customerMeta.forwardingStatus === 'pending_test' && customerMeta.activationStartedAt && !candidateCall) {
+      var found = findActivationCandidateCall(records, customerMeta.activationStartedAt);
+      if (found) {
+        candidateCall = found;
+        stopActivationPolling();
+      }
+    }
+    // Stop polling if we left pending_test (e.g. externally)
+    if (customerMeta.forwardingStatus !== 'pending_test') {
+      stopActivationPolling();
+    }
+
+    renderActivationModule();
 
     document.getElementById('dash-loading').style.display = 'none';
     routeDashboardFirstSessionExperience();
@@ -2945,7 +3183,7 @@ function updateActivationStatusCard(records) {
   var setupCompleted = isForwardingSetupCompleted();
   card.classList.remove('info', 'success');
   if (!setupCompleted) {
-    titleEl.textContent = '⚠️ Rufumleitung noch nicht eingerichtet';
+    titleEl.textContent = '! Rufumleitung noch nicht eingerichtet';
     textEl.textContent = 'Leiten Sie Ihre Anrufe auf Voxera weiter, damit keine Anfrage verloren geht.';
     if (primaryBtn) {
       primaryBtn.textContent = 'Weiter zur Einrichtung';
@@ -3106,7 +3344,7 @@ function renderList(containerId, records, opts) {
           ${priorityChip(r)}
           ${qualChip(f.lead_quality)}
           ${statusChip(f.dashboard_status)}
-          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">📞 Rückruf gewünscht</span>':''}
+          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf"> Rückruf gewünscht</span>':''}
         </div>
         ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
         <div class="call-meta">
@@ -3208,7 +3446,7 @@ function renderCallbackQueueMiniList(rows) {
       ? `<span class="chip ${prioClass}">${prio.icon} ${escHtml(prio.label)}</span>` : '';
     const qualChipHtml = (qualK !== 'neu') ? `<span class="chip ${qualMap[qualK]}">${qualLbl[qualK]}</span>` : '';
     const anrufenBtn = phone
-      ? `<button class="btn-a btn-call" style="font-size:11.5px;height:30px;padding:0 10px;" onclick="directCall('${r.id}','${callTarget}')">📞 Anrufen</button>`
+      ? `<button class="btn-a btn-call" style="font-size:11.5px;height:30px;padding:0 10px;" onclick="directCall('${r.id}','${callTarget}')"> Anrufen</button>`
       : '';
     const isActive = _cbqState.activeId && r.id === _cbqState.activeId;
     return `<div class="cbq-row${isActive ? ' cbq-row--active' : ''}">
@@ -3286,18 +3524,23 @@ var confirmModalAction = null;
 var confirmModalBusy = false;
 
 function openConfirmModal(config) {
+  confirmModalBusy = false;
   const titleEl = document.getElementById('confirm-title');
   const subEl = document.getElementById('confirm-sub');
   const okBtn = document.getElementById('confirm-ok-btn');
   if (titleEl) titleEl.textContent = (config && config.title) || 'Bitte bestätigen';
   if (subEl) subEl.textContent = (config && config.text) || 'Sind Sie sicher?';
-  if (okBtn) okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+  if (okBtn) {
+    okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+    okBtn.disabled = false;
+  }
   confirmModalAction = (config && typeof config.onConfirm === 'function') ? config.onConfirm : null;
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.add('open');
 }
 
 function closeConfirmModal() {
+  if (confirmModalBusy) return;
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.remove('open');
   confirmModalBusy = false;
@@ -3323,7 +3566,7 @@ async function runConfirmModalAction() {
     if (result !== false) closeConfirmModal();
   } catch (e) {
     const msg = (e && (e.payload && e.payload.error || e.message)) || 'Fehler beim Speichern';
-    toast('❌ ' + msg);
+    toast(' ' + msg);
   } finally {
     confirmModalBusy = false;
     if (okBtn) {
@@ -3387,9 +3630,9 @@ async function doStatusChange(recordId, newStatus, rowElement) {
       } else if ([CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizedStatus)) {
         const c = document.createElement('span'); c.className='chip chip-working'; c.textContent='⏳ In Bearbeitung'; topRow.appendChild(c);
       } else {
-        const original = allRecords.find(r => r.id === recordId);
+        const original = allRecords.find(r => String(r.id) === String(recordId));
         if (original && original.fields && original.fields.callback_requested) {
-          const c = document.createElement('span'); c.className='chip chip-rueckruf'; c.textContent='📞 Rückruf'; topRow.appendChild(c);
+          const c = document.createElement('span'); c.className='chip chip-rueckruf'; c.textContent=' Rückruf'; topRow.appendChild(c);
         }
       }
     }
@@ -3421,7 +3664,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     return true;
   } catch(e) {
     const msg = (e && (e.payload && e.payload.error || e.message)) || 'Fehler beim Status-Update';
-    toast('❌ ' + msg);
+    toast(' ' + msg);
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
     return false;
   } finally {
@@ -3570,7 +3813,7 @@ async function saveFollowup() {
     notizRecordId = null;
     setTimeout(loadData, 500);
   } catch(e) {
-    toast('❌ Fehler beim Speichern');
+    toast(' Fehler beim Speichern');
     btn.disabled = false; btn.textContent = 'Speichern';
   }
 }
@@ -3625,7 +3868,7 @@ function openDetail(recordId) {
         </div>
         <div class="detail-card">
           <div class="detail-title">Nächste Schritte</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">${priorityChip(rec)}${qualChip(f.lead_quality)}${statusChip(f.dashboard_status)}${f.callback_requested && !isClosedStatus(f.dashboard_status) && getPriority(rec).key !== 'callback' ? '<span class="chip chip-rueckruf">📞 Rückruf</span>' : ''}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">${priorityChip(rec)}${qualChip(f.lead_quality)}${statusChip(f.dashboard_status)}${f.callback_requested && !isClosedStatus(f.dashboard_status) && getPriority(rec).key !== 'callback' ? '<span class="chip chip-rueckruf"> Rückruf</span>' : ''}</div>
           <div class="detail-actions">
             ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')">Jetzt zurückrufen</a>` : ''}
             <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up</button>
@@ -3710,7 +3953,7 @@ async function saveNotiz() {
     closeNotiz();
     setTimeout(loadData, 600);
   } catch(e) {
-    toast('❌ Fehler beim Speichern');
+    toast(' Fehler beim Speichern');
     btn.disabled = false; btn.textContent = 'Speichern';
   }
 }
@@ -3779,8 +4022,6 @@ function resolveNotificationMode(customer) {
   if (customer.notification_mode === 'none' || customer.notification_mode === 'callback_only' || customer.notification_mode === 'all_calls') {
     return customer.notification_mode;
   }
-  if (customer.new_log_email_active === true) return 'all_calls';
-  if (customer.notification_active === true) return 'callback_only';
   return 'none';
 }
 
@@ -3921,37 +4162,21 @@ function openSetupHelpOverlay(event, sectionId) {
 
   var sections = {
     forwarding: {
-      title: 'Weiterleitungsart wählen',
-      sub: 'Wählen Sie die passende Einstellung für Ihr Smartphone',
+      title: 'Rufumleitung einrichten',
+      sub: 'Kurz-Anleitung für Smartphone-Weiterleitung',
       html: '' +
-        '<div class="help-forwarding-grid">' +
-          '<div class="help-forwarding-card recommended">' +
-            '<div class="help-forwarding-head"><div class="help-forwarding-title">Bei Nichterreichbarkeit</div><span class="help-forwarding-reco">Empfohlen</span></div>' +
-            '<div class="help-forwarding-desc">Ideal, wenn Sie selbst erreichbar bleiben möchten – Voxera übernimmt nur bei verpassten Anrufen.</div>' +
-            '<div class="help-code-row"><code data-code-template="**62*{voxera_number}#">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-primary" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template="**62*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div>' +
-            '<div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
-            '<div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet Anrufe weiter, wenn Sie nicht abnehmen.</div>' +
+        '<div class="setup-help-grid">' +
+          '<div class="setup-help-card"><div class="setup-help-card-title">1) Empfohlen: Bei Nichterreichbarkeit</div><div class="setup-help-card-text">Ideal, wenn Sie selbst erreichbar bleiben möchten und Voxera nur bei verpassten Anrufen übernimmt.</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**62*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**62*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**62*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
-          '<div class="help-forwarding-card">' +
-            '<div class="help-forwarding-head"><div class="help-forwarding-title">Bei Besetzt</div></div>' +
-            '<div class="help-forwarding-desc">Nützlich, wenn Ihre Leitung bereits belegt ist.</div>' +
-            '<div class="help-code-row"><code data-code-template="**67*{voxera_number}#">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-primary" data-code-template="**67*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template="**67*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div>' +
-            '<div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
-            '<div class="help-forwarding-effect"><strong>Wirkung:</strong> Leitet weiter, wenn Sie telefonieren.</div>' +
+          '<div class="setup-help-card"><div class="setup-help-card-title">2) Bei Besetzt</div><div class="setup-help-card-text">Nützlich, wenn Ihre Leitung bereits belegt ist.</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**67*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**67*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**67*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
-          '<div class="help-forwarding-card">' +
-            '<div class="help-forwarding-head"><div class="help-forwarding-title">Alle Anrufe</div></div>' +
-            '<div class="help-forwarding-desc">Wenn Voxera vorübergehend alle Anrufe vollständig übernehmen soll.</div>' +
-            '<div class="help-code-row"><code data-code-template="**21*{voxera_number}#">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-primary" data-code-template="**21*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template="**21*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div>' +
-            '<div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
-            '<div class="help-forwarding-effect"><strong>Wirkung:</strong> Alle Anrufe gehen direkt an Voxera.</div>' +
+          '<div class="setup-help-card"><div class="setup-help-card-title">3) Alle Anrufe weiterleiten</div><div class="setup-help-card-text">Wenn Voxera vorübergehend alle Anrufe übernehmen soll.</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**21*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="settings-btn-secondary" data-code-template=\"**21*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-code-template=\"**21*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
-          '<div class="help-forwarding-card">' +
-            '<div class="help-forwarding-head"><div class="help-forwarding-title">Weiterleitung ausschalten</div></div>' +
-            '<div class="help-forwarding-desc">Setzt aktive Umleitungen zurück.</div>' +
-            '<div class="help-code-row"><code>##002#</code><div class="help-code-actions"><button class="settings-btn-primary" data-fixed-code="##002#" onclick="copyForwardingCode(event,\'##002#\')">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div>' +
-            '<div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
-            '<div class="help-forwarding-effect"><strong>Wirkung:</strong> Deaktiviert alle Weiterleitungen.</div>' +
+          '<div class="setup-help-card"><div class="setup-help-card-title">Weiterleitung ausschalten</div><div class="setup-help-card-text">Setzt aktive Umleitungen zurück.</div>' +
+            '<div class="setup-help-code-row"><code>##002#</code><div class="help-code-actions"><button class="settings-btn-secondary" data-fixed-code="##002#" onclick="copyForwardingCode(event,\'##002#\')">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
         '</div>' +
         '<div class="help-chip" id="setup-forwarding-fallback" style="display:none;background:var(--amber-light);border-color:var(--amber-mid);color:#92400E;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>',
@@ -4164,32 +4389,121 @@ function openSetupWizardFromCta(event, stepId) {
 }
 
 function isForwardingSetupCompleted() {
-  return !!(customerMeta && customerMeta.forwardingSetupCompleted);
+  return !!(customerMeta && customerMeta.forwardingSetupCompleted === true);
 }
 
-async function persistForwardingSetupCompleted() {
-  customerMeta.forwardingSetupCompleted = true;
-  updateSetupExperienceProgress();
-  updateActivationStatusCard(allRecords || []);
-  try {
-    const context = await resolveCustomerContext();
-    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) return false;
-    await patchCustomerRecord(recId, { forwarding_setup_completed: true });
-    if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
-    return true;
-  } catch(e) {
-    customerMeta.forwardingSetupCompleted = false;
-    updateSetupExperienceProgress();
-    updateActivationStatusCard(allRecords || []);
-    console.error('forwarding_setup_completed save failed', e);
-    toast('Einrichtung lokal gespeichert. Synchronisation folgt beim nächsten Laden.');
-    return false;
-  }
+function isActivationPathSelectedByDeviceType() {
+  var dt = customerMeta && customerMeta.setupDeviceType;
+  return dt === 'mobile' || dt === 'landline';
 }
 
 function isForwardingActivated() {
   return isForwardingSetupCompleted();
+}
+
+// Resets the activation test state when the user changes setup during pending_test.
+async function resetActivationTestContext(recId, context) {
+  stopActivationPolling();
+  candidateCall = null;
+  await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null });
+  customerMeta.forwardingStatus = 'not_started';
+  customerMeta.activationStartedAt = null;
+  if (context && context.customerRecord) {
+    context.customerRecord.forwarding_status = 'not_started';
+    context.customerRecord.activation_started_at = null;
+  }
+  toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.');
+  renderActivationModule();
+}
+
+async function persistSetupDeviceType(type) {
+  var normalized = type === 'mobile' ? 'mobile' : type === 'landline' ? 'landline' : null;
+  if (!normalized) {
+    toast('Ungültiger Aktivierungsweg.');
+    return null;
+  }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return null; }
+    // Reset activation test context if currently in pending_test
+    if (customerMeta.forwardingStatus === 'pending_test') {
+      await resetActivationTestContext(recId, context);
+    }
+    await patchCustomerRecord(recId, { setup_device_type: normalized });
+    customerMeta.setupDeviceType = normalized;
+    if (context && context.customerRecord) context.customerRecord.setup_device_type = normalized;
+    return normalized;
+  } catch(e) {
+    console.error('setup_device_type save failed', e);
+    toast('Aktivierungsweg konnte nicht gespeichert werden.');
+    return null;
+  }
+}
+
+async function persistForwardingSetupCompleted() {
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    await patchCustomerRecord(recId, { forwarding_setup_completed: true });
+    customerMeta.forwardingSetupCompleted = true;
+    if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
+    return true;
+  } catch(e) {
+    console.error('forwarding_setup_completed save failed', e);
+    toast('Rufumleitungsstatus konnte nicht gespeichert werden.');
+    return false;
+  }
+}
+
+async function persistForwardingMode(mode) {
+  var validModes = ['no_answer', 'unreachable', 'always', 'busy'];
+  if (!validModes.includes(mode)) {
+    console.error('persistForwardingMode: ungültiger Modus', mode);
+    toast('Ungültiger Weiterleitungsmodus.');
+    return false;
+  }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    // Reset activation test context if currently in pending_test
+    if (customerMeta.forwardingStatus === 'pending_test') {
+      await resetActivationTestContext(recId, context);
+    }
+    await patchCustomerRecord(recId, { forwarding_mode: mode });
+    customerMeta.forwardingMode = mode;
+    if (context && context.customerRecord) context.customerRecord.forwarding_mode = mode;
+    return true;
+  } catch(e) {
+    console.error('forwarding_mode save failed', e);
+    toast('Weiterleitungsmodus konnte nicht gespeichert werden.');
+    return false;
+  }
+}
+
+function getForwardingCode(mode, voxeraNumber) {
+  var num = voxeraNumber || '';
+  var codes = { always: '*21*', no_answer: '*61*', unreachable: '*62*', busy: '*67*' };
+  var prefix = codes[mode];
+  if (!prefix || !num) return '';
+  return prefix + num + '#';
+}
+
+function getForwardingDisableCode(mode) {
+  var codes = { always: '#21#', no_answer: '#61#', unreachable: '#62#', busy: '#67#' };
+  return codes[mode] || '';
+}
+
+function getForwardingModeLabel(mode) {
+  var labels = {
+    always: 'Immer weiterleiten',
+    no_answer: 'Wenn ich nicht antworte',
+    unreachable: 'Wenn ich nicht erreichbar bin',
+    busy: 'Wenn besetzt'
+  };
+  return labels[mode] || mode || '';
 }
 
 function showDashboard() {
@@ -4229,7 +4543,7 @@ function updateSetupExperienceProgress() {
   map.forEach(function(entry){
     var el = document.getElementById(entry.id);
     if (!el) return;
-    el.textContent = (entry.done ? '☑ ' : '☐ ') + entry.label;
+    el.textContent = (entry.done ? ' ' : ' ') + entry.label;
     el.classList.toggle('done', !!entry.done);
   });
 }
@@ -4262,13 +4576,747 @@ function handleSetupExperienceWizardCta(event) {
 }
 
 // ═══════════════════════════════════════════
+//  ACTIVATION MODULE
+// ═══════════════════════════════════════════
+
+function getActivationUiState(meta) {
+  var status = meta && meta.forwardingStatus;
+  var deviceType = meta && meta.setupDeviceType;
+  if (status === 'active') return 'active';
+  if (status === 'inactive') return 'inactive';
+  if (status === 'pending_test') return 'pending_test';
+  if (deviceType && status !== 'active' && status !== 'inactive') return 'in_progress';
+  return 'not_started';
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderActivationInstructions(deviceType) {
+  var el = document.getElementById('act-instructions');
+  if (!el) return;
+  if (!deviceType) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  var voxeraNum = (customerMeta && customerMeta.voxeraNumber) ? customerMeta.voxeraNumber : '(Wird geladen...)';
+  var html = '';
+  if (deviceType === 'mobile') {
+    html = '<div class="activation-instructions">'
+      + '<h4>Smartphone-Aktivierung</h4>'
+      + '<p>Wählen Sie auf Ihrem Smartphone den Weiterleitungscode: <strong>**62*' + escapeHtml(voxeraNum) + '#</strong></p>'
+      + '<p>Oder tippen Sie den Code manuell in den Dialer ein und bestätigen Sie den Anruf.</p>'
+      + '<p class="activation-instructions-note">Nach erfolgreicher Aktivierung erscheint beim nächsten eingehenden Anruf der Status "Aktiv".</p>'
+      + '</div>';
+  } else if (deviceType === 'landline') {
+    html = '<div class="activation-instructions">'
+      + '<h4>Festnetz / Telefonanlage</h4>'
+      + '<p>Öffnen Sie das Admin-Portal Ihres Anbieters und setzen Sie dort die Rufumleitung auf: <strong>' + escapeHtml(voxeraNum) + '</strong></p>'
+      + '<p class="activation-instructions-note">Hinweis: GSM-Codes funktionieren in der Regel nur auf Smartphones.</p>'
+      + '</div>';
+  }
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function renderActivationModule() {
+  var meta = customerMeta || {};
+  var uiState = getActivationUiState(meta);
+
+  var telNrEl = document.getElementById('act-tel-nr');
+  var voxeraNumEl = document.getElementById('act-voxera-number');
+  var badgeEl = document.getElementById('act-badge');
+  var stateDescEl = document.getElementById('act-state-desc');
+
+  if (telNrEl) telNrEl.textContent = meta.telNr || '–';
+  if (voxeraNumEl) voxeraNumEl.textContent = meta.voxeraNumber || '–';
+
+  var badgeClass, badgeLabel, stateDesc;
+  if (uiState === 'active') {
+    badgeClass = 'active'; badgeLabel = '● Aktiv';
+    stateDesc = 'Die Rufumleitung ist aktiv. Anrufe werden an Voxera weitergeleitet.';
+  } else if (uiState === 'inactive') {
+    badgeClass = 'inactive'; badgeLabel = '● Deaktiviert';
+    stateDesc = 'Die Rufumleitung wurde deaktiviert.';
+  } else if (uiState === 'pending_test') {
+    badgeClass = 'pending-test'; badgeLabel = '● Testanruf ausstehend';
+    stateDesc = 'Führen Sie einen Testanruf durch, um die Aktivierung zu bestätigen.';
+  } else if (uiState === 'in_progress') {
+    badgeClass = 'in-progress'; badgeLabel = '● In Aktivierung';
+    stateDesc = 'Einrichtung gestartet. Aktivierung erfolgt durch den ersten eingehenden Anruf.';
+  } else {
+    badgeClass = 'not-started'; badgeLabel = '● Nicht gestartet';
+    stateDesc = 'Wählen Sie unten Ihren Gerätetyp und folgen Sie den Anweisungen.';
+  }
+  if (badgeEl) badgeEl.innerHTML = '<span class="activation-badge ' + badgeClass + '">' + badgeLabel + '</span>';
+  if (stateDescEl) stateDescEl.textContent = stateDesc;
+
+  // Device selection
+  var mobileCard = document.getElementById('act-device-card-mobile');
+  var landlineCard = document.getElementById('act-device-card-landline');
+  if (mobileCard) mobileCard.classList.toggle('selected', meta.setupDeviceType === 'mobile');
+  if (landlineCard) landlineCard.classList.toggle('selected', meta.setupDeviceType === 'landline');
+
+  // Forwarding mode section: show only when device type is selected
+  var modeSect = document.getElementById('act-mode-section');
+  var hasDeviceType = meta.setupDeviceType === 'mobile' || meta.setupDeviceType === 'landline';
+  if (modeSect) modeSect.style.display = hasDeviceType ? 'block' : 'none';
+
+  // Mode card selected states
+  var modes = ['no_answer', 'unreachable', 'always', 'busy'];
+  modes.forEach(function(m) {
+    var card = document.getElementById('act-mode-card-' + m);
+    if (card) card.classList.toggle('selected', meta.forwardingMode === m);
+  });
+
+  // Action card: show only when both device type and mode are selected, and not in pending_test
+  var actionSect = document.getElementById('act-action-section');
+  var hasMode = !!meta.forwardingMode;
+  var showAction = hasDeviceType && hasMode && uiState !== 'pending_test';
+  if (actionSect) actionSect.style.display = showAction ? 'block' : 'none';
+  if (showAction) renderActivationActionCard(meta);
+
+  // Pending-test card: shown only in pending_test state
+  var pendingTestSect = document.getElementById('act-pending-test-section');
+  if (pendingTestSect) {
+    if (uiState === 'pending_test') {
+      renderPendingTestCard(meta);
+    } else {
+      pendingTestSect.style.display = 'none';
+      pendingTestSect.innerHTML = '';
+    }
+  }
+
+  // Deactivation section only shown when active
+  var deactSection = document.getElementById('act-deactivation-section');
+  if (deactSection) {
+    if (uiState === 'active') {
+      renderDeactivationSection(meta);
+    } else {
+      deactSection.style.display = 'none';
+      deactSection.innerHTML = '';
+    }
+  }
+
+  var checkbox = document.getElementById('act-deact-checkbox');
+  var deactBtn = document.getElementById('act-deact-btn');
+  if (checkbox) checkbox.checked = false;
+  if (deactBtn) { deactBtn.disabled = true; deactBtn.textContent = 'Verknüpfung deaktivieren'; }
+}
+
+function renderActivationActionCard(meta) {
+  var code = getForwardingCode(meta.forwardingMode, meta.voxeraNumber);
+  var isMobile = meta.setupDeviceType === 'mobile';
+
+  var titleEl = document.getElementById('act-action-title');
+  var subEl = document.getElementById('act-action-sub');
+  var codeBox = document.getElementById('act-action-code-box');
+  var codeEl = document.getElementById('act-action-code');
+  var btnsEl = document.getElementById('act-action-btns');
+  var hintEl = document.getElementById('act-action-hint');
+
+  if (titleEl) titleEl.textContent = isMobile ? 'Smartphone aktivieren' : 'Festnetz / Telefonanlage aktivieren';
+
+  if (subEl) {
+    subEl.textContent = isMobile
+      ? 'Tippen Sie auf "Jetzt aktivieren". Ihr Smartphone öffnet den Dialer – bestätigen Sie den Anruf.'
+      : 'Konfigurieren Sie die Rufumleitung manuell im Anbieter-Portal oder an Ihrer Telefonanlage.';
+  }
+
+  if (codeBox && codeEl) {
+    if (code) {
+      codeEl.textContent = code;
+      codeBox.style.display = 'flex';
+    } else {
+      codeBox.style.display = 'none';
+    }
+  }
+
+  if (btnsEl) {
+    btnsEl.innerHTML = '';
+    if (isMobile) {
+      if (code) {
+        var activateBtn = document.createElement('button');
+        activateBtn.type = 'button';
+        activateBtn.className = 'act-action-btn-primary';
+        activateBtn.textContent = 'Jetzt aktivieren';
+        activateBtn.dataset.forwardingCode = code;
+        activateBtn.addEventListener('click', function(e) { activationStartSmartphone(e, this.dataset.forwardingCode); });
+        btnsEl.appendChild(activateBtn);
+      }
+      var copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'act-action-btn-secondary';
+      copyBtn.textContent = 'Code kopieren';
+      copyBtn.dataset.forwardingCode = code || '';
+      copyBtn.addEventListener('click', function(e) { activationCopyCode(e, this.dataset.forwardingCode); });
+      btnsEl.appendChild(copyBtn);
+    } else {
+      var helpBtn = document.createElement('button');
+      helpBtn.type = 'button';
+      helpBtn.className = 'act-action-btn-primary';
+      helpBtn.textContent = 'Anleitung anzeigen';
+      helpBtn.addEventListener('click', function(e) { e.stopPropagation(); openHelpSection('forwarding'); });
+      btnsEl.appendChild(helpBtn);
+      var copyBtn2 = document.createElement('button');
+      copyBtn2.type = 'button';
+      copyBtn2.className = 'act-action-btn-secondary';
+      copyBtn2.textContent = 'Code kopieren';
+      copyBtn2.dataset.forwardingCode = code || '';
+      copyBtn2.addEventListener('click', function(e) { activationCopyCode(e, this.dataset.forwardingCode); });
+      btnsEl.appendChild(copyBtn2);
+    }
+  }
+
+  if (hintEl) {
+    if (!isMobile) {
+      hintEl.textContent = 'Hinweis: Die Einrichtung erfolgt manuell über Ihren Anbieter oder Ihre Telefonanlage. GSM-Codes funktionieren in der Regel nur auf Smartphones.';
+      hintEl.style.display = 'block';
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
+
+  // Skip shortcut block: shown only when canSkipActivationTest() returns true
+  var skipBlock = document.getElementById('act-skip-shortcut-block');
+  if (skipBlock) {
+    if (canSkipActivationTest(meta)) {
+      skipBlock.innerHTML = ''
+        + '<div class="act-skip-shortcut">'
+        + '<div class="act-skip-shortcut-title">Erneute Aktivierung – gleiches Setup erkannt</div>'
+        + '<div class="act-skip-shortcut-sub">Sie haben diese Konfiguration bereits erfolgreich getestet. Sie können die Aktivierung direkt bestätigen oder einen neuen Testanruf durchführen.</div>'
+        + '<div class="act-skip-shortcut-btns">'
+        + '<button type="button" class="act-action-btn-primary" onclick="activationSkipTest(event)">Ohne Test fortfahren</button>'
+        + '<button type="button" class="act-action-btn-secondary" onclick="activationShowTestFlow(event)">Testanruf durchführen</button>'
+        + '</div>'
+        + '</div>';
+      skipBlock.style.display = 'block';
+    } else {
+      skipBlock.innerHTML = '';
+      skipBlock.style.display = 'none';
+    }
+  }
+}
+
+async function activationCopyCode(event, code) {
+  if (event) event.stopPropagation();
+  if (!code) { toast('Kein Code verfügbar.'); return; }
+  await copyForwardingCode(event, code);
+}
+
+function renderDeactivationSection(meta) {
+  var el = document.getElementById('act-deactivation-section');
+  if (!el) return;
+  var isMobile = meta.setupDeviceType === 'mobile';
+  var mode = meta.forwardingMode || '';
+  var modeLabel = getForwardingModeLabel(mode);
+  var disableCode = getForwardingDisableCode(mode);
+
+  var modeBadgeHtml = modeLabel
+    ? '<div class="' + (isMobile ? 'act-deact-mobile-mode-badge' : 'act-deact-landline-mode-badge') + '">Aktiver Modus: ' + escapeHtml(modeLabel) + '</div>'
+    : '';
+
+  var confirmHtml = ''
+    + '<div class="activation-confirm-row">'
+    + '<input type="checkbox" id="act-deact-checkbox" onchange="activationDeactivationCheckboxChanged()">'
+    + '<label for="act-deact-checkbox">Ich bestätige, dass kein neuer Anruf im Dashboard erschienen ist</label>'
+    + '</div>'
+    + '<button type="button" class="activation-deactivate-btn" id="act-deact-btn" disabled onclick="activationConfirmDeactivation(event)">Verknüpfung deaktivieren</button>';
+
+  if (isMobile) {
+    var encodedCode = disableCode ? encodeURIComponent(disableCode) : '';
+    var removeBtn = disableCode
+      ? '<a class="act-action-btn-primary" id="act-deact-mobile-remove-btn" href="tel:' + encodedCode + '" role="button" aria-label="Weiterleitung per Dialer entfernen" onclick="activationMobileDeactivate(event)">'
+        + 'Weiterleitung entfernen'
+        + '</a>'
+      : '';
+    var copyBtnHtml = disableCode
+      ? '<button type="button" class="act-action-btn-secondary" onclick="activationCopyCode(event,' + JSON.stringify(disableCode) + ')">Code kopieren</button>'
+      : '';
+
+    el.innerHTML = ''
+      + '<div class="act-deact-mobile-area">'
+      + modeBadgeHtml
+      + '<div class="act-deact-mobile-title">Weiterleitung deaktivieren</div>'
+      + '<div class="act-deact-mobile-btns" style="margin-top:12px;">'
+      + removeBtn
+      + copyBtnHtml
+      + '</div>'
+      + '<div class="act-deact-mobile-note">'
+      + 'Führen Sie danach einen Testanruf auf Ihre Nummer durch. Wenn kein neuer Anruf im Dashboard erscheint, können Sie die Deaktivierung bestätigen.'
+      + '</div>'
+      + '<div class="act-deact-mobile-nextstep" id="act-deact-mobile-nextstep" style="display:none;">'
+      + '<div class="act-deact-mobile-nextstep-title">Nächster Schritt: Testanruf</div>'
+      + '<div class="act-deact-mobile-nextstep-text">Rufen Sie jetzt Ihre eigene Nummer an. Wenn kein neuer Anruf im Dashboard erscheint, ist die Weiterleitung erfolgreich entfernt.</div>'
+      + '</div>'
+      + '</div>'
+      + '<div class="activation-deactivation-section" style="margin-top:14px;">'
+      + '<div class="activation-deactivation-title">Deaktivierung bestätigen</div>'
+      + '<div class="activation-deactivation-sub">Sobald Sie den Testanruf durchgeführt haben, bestätigen Sie das Ergebnis.</div>'
+      + confirmHtml
+      + '</div>';
+  } else {
+    var copyBtnHtml = disableCode
+      ? '<button type="button" class="act-action-btn-secondary" onclick="activationCopyCode(event,' + JSON.stringify(disableCode) + ')">Code kopieren</button>'
+      : '';
+
+    el.innerHTML = ''
+      + '<div class="act-deact-landline-area">'
+      + modeBadgeHtml
+      + '<div class="act-deact-landline-title">Weiterleitung deaktivieren</div>'
+      + '<div class="act-deact-landline-btns" style="margin-top:12px;">'
+      + '<button type="button" class="act-action-btn-primary" onclick="openHelpSection(\'forwarding\')">Anleitung anzeigen</button>'
+      + copyBtnHtml
+      + '</div>'
+      + '<div class="act-deact-landline-hint">'
+      + 'Die Deaktivierung erfolgt je nach Anbieter oder Telefonanlage manuell.'
+      + '</div>'
+      + '</div>'
+      + '<div class="activation-deactivation-section" style="margin-top:14px;">'
+      + '<div class="activation-deactivation-title">Deaktivierung bestätigen</div>'
+      + '<div class="activation-deactivation-sub">Entfernen Sie die Rufumleitung und bestätigen Sie anschließend unten.</div>'
+      + '<ol class="activation-deactivation-steps">'
+      + '<li>Entfernen Sie die Rufumleitung in Ihrem Telefon oder bei Ihrem Anbieter.</li>'
+      + '<li>Führen Sie einen Testanruf durch – rufen Sie Ihre Nummer testweise an.</li>'
+      + '<li>Prüfen Sie, ob ein neuer Anruf im Dashboard erscheint.</li>'
+      + '</ol>'
+      + confirmHtml
+      + '</div>';
+  }
+
+  el.style.display = 'block';
+}
+
+function activationMobileDeactivate(event) {
+  // Do NOT set forwarding_status = 'inactive' here.
+  // Just show the next-step helper box and allow the dialer to open.
+  var nextStep = document.getElementById('act-deact-mobile-nextstep');
+  if (nextStep) nextStep.style.display = 'block';
+  toast('Deaktivierung gestartet. Bitte testen Sie jetzt Ihre Nummer.');
+}
+
+async function activationSelectDevice(event, type) {
+  if (event) event.stopPropagation();
+  var result = await persistSetupDeviceType(type);
+  if (result) renderActivationModule();
+}
+
+async function activationSelectMode(event, mode) {
+  if (event) event.stopPropagation();
+  var ok = await persistForwardingMode(mode);
+  if (ok) renderActivationModule();
+}
+
+function activationDeactivationCheckboxChanged() {
+  var checkbox = document.getElementById('act-deact-checkbox');
+  var btn = document.getElementById('act-deact-btn');
+  if (btn) btn.disabled = !(checkbox && checkbox.checked);
+}
+
+async function activationConfirmDeactivation(event) {
+  if (event) event.preventDefault();
+  var checkbox = document.getElementById('act-deact-checkbox');
+  if (!checkbox || !checkbox.checked) { toast('Bitte bestätigen Sie das Ergebnis.'); return; }
+  var btn = document.getElementById('act-deact-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert...'; }
+  var ok = await persistForwardingStatus('inactive');
+  if (ok) {
+    toast('Rufumleitung deaktiviert.');
+    renderActivationModule();
+  } else {
+    if (btn) { btn.disabled = false; btn.textContent = 'Verknüpfung deaktivieren'; }
+  }
+}
+
+async function persistForwardingStatus(status) {
+  // TODO: Backend hook needed
+  // When new call detected: set forwarding_status = 'active' and forwarding_setup_completed = true
+  var validStatuses = ['not_started', 'pending_test', 'active', 'inactive'];
+  if (!validStatuses.includes(status)) {
+    console.error('persistForwardingStatus: ungültiger Status', status);
+    toast('Ungültiger Weiterleitungsstatus.');
+    return false;
+  }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    await patchCustomerRecord(recId, { forwarding_status: status });
+    customerMeta.forwardingStatus = status;
+    if (context && context.customerRecord) context.customerRecord.forwarding_status = status;
+    return true;
+  } catch(e) {
+    console.error('persistForwardingStatus failed', e);
+    toast('Weiterleitungsstatus konnte nicht gespeichert werden.');
+    return false;
+  }
+}
+
+// Placeholder for backend-detected candidate call (integration point for call-detection automation)
+var candidateCall = null;
+var activationPollingInterval = null;
+
+// Returns the first call whose created_at is strictly after activationStartedAt.
+function findActivationCandidateCall(calls, activationStartedAt) {
+  if (!activationStartedAt) return null;
+  var best = null;
+  for (var i = 0; i < calls.length; i++) {
+    var ts = calls[i].fields && calls[i].fields.created_at;
+    if (!ts) continue;
+    if (ts > activationStartedAt) {
+      if (!best || ts < best.fields.created_at) {
+        best = calls[i];
+      }
+    }
+  }
+  return best || null;
+}
+
+function startActivationPolling() {
+  if (activationPollingInterval) return; // already running
+  activationPollingInterval = setInterval(function() {
+    var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
+    if (!isPendingTest || candidateCall) {
+      stopActivationPolling();
+      return;
+    }
+    loadData().catch(function(err){ console.error('[activation-polling] loadData failed:', err); });
+  }, 5000);
+}
+
+function stopActivationPolling() {
+  if (activationPollingInterval) {
+    clearInterval(activationPollingInterval);
+    activationPollingInterval = null;
+  }
+}
+
+async function activationStartSmartphone(event, code) {
+  if (event) event.stopPropagation();
+  var btn = event && event.currentTarget;
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
+    var now = new Date().toISOString();
+    // Step 1: persist state before opening dialer
+    await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now });
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationStartedAt = now;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'pending_test';
+      context.customerRecord.activation_started_at = now;
+    }
+    // Step 2: rerender UI (pending_test card is now shown)
+    renderActivationModule();
+    // Step 3: start lightweight polling to detect the candidate call
+    startActivationPolling();
+    // Step 4: only after state is safely persisted, open the dialer
+    if (code) window.location.href = 'tel:' + code;
+  } catch(e) {
+    console.error('activationStartSmartphone failed', e);
+    toast('Aktivierung konnte nicht gestartet werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Jetzt aktivieren'; }
+  }
+}
+
+async function persistActivationConfirmed(recId, context) {
+  var confirmedDevice = customerMeta.setupDeviceType || null;
+  var confirmedMode = customerMeta.forwardingMode || null;
+  await patchCustomerRecord(recId, {
+    forwarding_status: 'active',
+    forwarding_setup_completed: true,
+    last_confirmed_setup_device_type: confirmedDevice,
+    last_confirmed_forwarding_mode: confirmedMode
+  });
+  customerMeta.forwardingStatus = 'active';
+  customerMeta.forwardingSetupCompleted = true;
+  customerMeta.lastConfirmedSetupDeviceType = confirmedDevice;
+  customerMeta.lastConfirmedForwardingMode = confirmedMode;
+  if (context && context.customerRecord) {
+    context.customerRecord.forwarding_status = 'active';
+    context.customerRecord.forwarding_setup_completed = true;
+    context.customerRecord.last_confirmed_setup_device_type = confirmedDevice;
+    context.customerRecord.last_confirmed_forwarding_mode = confirmedMode;
+  }
+}
+
+async function confirmActivationTestCall(event) {
+  if (event) event.stopPropagation();
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird aktiviert…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Test erfolgreich \u2013 aktivieren'; } return; }
+    await persistActivationConfirmed(recId, context);
+    candidateCall = null;
+    stopActivationPolling();
+    toast('Rufumleitung erfolgreich aktiviert!');
+    renderActivationModule();
+  } catch(e) {
+    console.error('confirmActivationTestCall failed', e);
+    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Test erfolgreich \u2013 aktivieren'; }
+  }
+}
+
+function rejectActivationTestCall(event) {
+  if (event) event.stopPropagation();
+  candidateCall = null;
+  // Keep polling – user wants to retry the test call
+  renderActivationModule();
+}
+
+function canSkipActivationTest(meta) {
+  if (!meta) return false;
+  var fsc = meta.forwardingSetupCompleted === true;
+  var hasDevice = !!meta.setupDeviceType;
+  var hasMode = !!meta.forwardingMode;
+  var hasLastDevice = !!meta.lastConfirmedSetupDeviceType;
+  var hasLastMode = !!meta.lastConfirmedForwardingMode;
+  var configMatches = meta.setupDeviceType === meta.lastConfirmedSetupDeviceType
+    && meta.forwardingMode === meta.lastConfirmedForwardingMode;
+  var notAlreadyActive = meta.forwardingStatus !== 'active';
+  return fsc && hasDevice && hasMode && hasLastDevice && hasLastMode && configMatches && notAlreadyActive;
+}
+
+async function activationSkipTest(event) {
+  if (event) event.stopPropagation();
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird aktiviert…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; } return; }
+    await persistActivationConfirmed(recId, context);
+    toast('Rufumleitung aktiviert (ohne Testanruf).');
+    renderActivationModule();
+  } catch(e) {
+    console.error('activationSkipTest failed', e);
+    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; }
+  }
+}
+
+function activationShowTestFlow(event) {
+  if (event) event.stopPropagation();
+  // Hide the skip shortcut block and let the user proceed with the normal test-based flow.
+  var skipBlock = document.getElementById('act-skip-shortcut-block');
+  if (skipBlock) skipBlock.style.display = 'none';
+}
+
+function retryActivationCheck(event) {
+  if (event) event.stopPropagation();
+  candidateCall = null;
+  stopActivationPolling();
+  startActivationPolling();
+  loadData().catch(function(err){ console.error('[retry-check] loadData failed:', err); });
+  toast('Prüfung erneut gestartet. Wir warten auf Ihren Testanruf.');
+  renderActivationModule();
+}
+
+async function activationCopyOwnNumber(event) {
+  if (event) event.stopPropagation();
+  var nr = customerMeta && customerMeta.telNr;
+  if (!nr) { toast('Keine Nummer verfügbar.'); return; }
+  await copyForwardingCode(event, nr);
+}
+
+function renderPendingTestCard(meta) {
+  var el = document.getElementById('act-pending-test-section');
+  if (!el) return;
+  var telNr = escapeHtml(meta.telNr || '–');
+  var voxeraNum = escapeHtml(meta.voxeraNumber || '–');
+  var mode = meta.forwardingMode || '';
+
+  // Device+mode-specific guidance (pass raw telNr; getDeviceModeTestGuidance escapes it internally)
+  var modeGuide = getDeviceModeTestGuidance(meta.setupDeviceType || '', mode, meta.telNr || '\u2013');
+
+  var detectHtml;
+  if (candidateCall) {
+    detectHtml = '<div class="act-test-detect-area act-test-detect-found">'
+      + '<div class="act-test-detect-title">\u2705 Testanruf erkannt</div>'
+      + '<div class="act-test-detect-sub">War das Ihr Testanruf?</div>'
+      + '<div class="act-test-detect-btns">'
+      + '<button type="button" class="act-action-btn-primary" onclick="confirmActivationTestCall(event)">Test erfolgreich \u2013 aktivieren</button>'
+      + '<button type="button" class="act-action-btn-secondary" onclick="rejectActivationTestCall(event)">Erneut testen</button>'
+      + '</div>'
+      + '</div>';
+  } else {
+    detectHtml = '<div class="act-test-detect-area">'
+      + '<div class="act-test-detect-icon">\u23F3</div>'
+      + '<div class="act-test-detect-label">Warten auf Testanruf\u2026</div>'
+      + '<div class="act-test-detect-hint">Sobald Ihr Testanruf im Dashboard erscheint, k\u00F6nnen Sie die Aktivierung best\u00E4tigen.</div>'
+      + '</div>';
+  }
+
+  var html = '<div class="act-pending-test-card">'
+    + '<div class="act-pending-test-header">'
+    + '<div class="act-pending-test-title">' + escapeHtml(modeGuide.title) + '</div>'
+    + '<div class="act-pending-test-sub">' + escapeHtml(modeGuide.subtitle) + '</div>'
+    + '</div>'
+    + '<div class="act-pending-test-number-block">'
+    + '<div class="act-pending-test-number-label">Ihre Nummer</div>'
+    + '<div class="act-pending-test-number">' + telNr + '</div>'
+    + '<button type="button" class="act-action-btn-secondary act-pending-copy-btn" onclick="activationCopyOwnNumber(event)">Nummer kopieren</button>'
+    + '</div>'
+    + '<div class="act-pending-test-warning">'
+    + '\u26A0\uFE0F\u00A0 Nicht die Voxera-Nummer anrufen.'
+    + '</div>'
+    + '<ol class="act-pending-test-steps">'
+    + modeGuide.steps.map(function(s){ return '<li>' + s + '</li>'; }).join('')
+    + '</ol>'
+    + '<div class="act-pending-test-expect">'
+    + '<span class="act-pending-test-expect-icon">\u2713</span>'
+    + '<span>' + modeGuide.expect + '</span>'
+    + '</div>'
+    + '<div class="act-pending-voxera-note">'
+    + 'Weiterleitungsziel (nicht anrufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
+    + '</div>'
+    + '<div class="act-pending-spoken-guide">'
+    + '<div class="act-pending-spoken-guide-title">Was Sie beim Test sagen k\u00F6nnen</div>'
+    + '<div class="act-pending-spoken-guide-items">'
+    + '<div class="act-pending-spoken-guide-item">\u201EDas ist ein Testanruf.\u201C</div>'
+    + '<div class="act-pending-spoken-guide-item">\u201EIch teste gerade die Weiterleitung.\u201C</div>'
+    + '</div>'
+    + '<div class="act-pending-spoken-guide-tip">Beenden Sie den Anruf nach wenigen Sekunden.</div>'
+    + '<div class="act-pending-spoken-guide-note">Der Testanruf erscheint aktuell erst im Dashboard, nachdem der Anruf beendet wurde.</div>'
+    + '</div>'
+    + detectHtml
+    + '<div class="act-pending-no-call-helper">'
+    + '<div class="act-pending-no-call-title">Kein Anruf erkannt?</div>'
+    + '<div class="act-pending-no-call-actions">'
+    + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Erneut pr\u00FCfen</button>'
+    + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'forwarding\')">Anleitung pr\u00FCfen</button>'
+    + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'support\')">Support kontaktieren</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function getDeviceModeTestGuidance(deviceType, mode, telNr) {
+  var safeTelNr = escapeHtml(telNr || '\u2013');
+  var isMobile = deviceType === 'mobile';
+
+  var guides = {
+    mobile: {
+      always: {
+        title: 'Testanruf \u2013 Sofortweiterleitung (Smartphone)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer von einem zweiten Ger\u00E4t aus an.',
+        steps: [
+          'Nehmen Sie ein zweites Telefon (z.\u00A0B. Handy eines Freundes oder Festnetz).',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden \u2013 ohne zu klingeln.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+      },
+      no_answer: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Smartphone)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer an und nehmen Sie NICHT ab.',
+        steps: [
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Lassen Sie Ihr Smartphone klingeln \u2013 nehmen Sie NICHT ab.',
+          'Nach kurzer Klingelzeit wird der Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
+      },
+      unreachable: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Smartphone)',
+        subtitle: 'Schalten Sie Ihr Smartphone auf Flugmodus oder aus, dann rufen Sie an.',
+        steps: [
+          'Schalten Sie Ihr Smartphone in den Flugmodus oder schalten Sie es aus.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Da Ihr Smartphone nicht erreichbar ist, wird der Anruf sofort weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Bei nicht erreichbarem Smartphone meldet sich sofort der KI-Assistent.'
+      },
+      busy: {
+        title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Smartphone)',
+        subtitle: 'Halten Sie Ihr Smartphone mit einem aktiven Anruf besch\u00E4ftigt.',
+        steps: [
+          'Starten Sie auf Ihrem Smartphone einen aktiven Anruf (z.\u00A0B. eine beliebige Nummer anrufen).',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
+          'Da Ihr Smartphone besetzt ist, wird der zweite Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Anruf bei besetztem Smartphone wird sofort an den KI-Assistenten weitergeleitet.'
+      }
+    },
+    landline: {
+      always: {
+        title: 'Testanruf \u2013 Sofortweiterleitung (Festnetz / Anlage)',
+        subtitle: 'Rufen Sie nach der manuellen Einrichtung Ihre eigene Nummer von einem anderen Telefon an.',
+        steps: [
+          'Stellen Sie sicher, dass die Rufumleitung in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage eingerichtet ist.',
+          'Nehmen Sie ein zweites Telefon (z.\u00A0B. Mobiltelefon).',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+      },
+      no_answer: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Festnetz / Anlage)',
+        subtitle: 'Rufen Sie Ihre eigene Nummer an und lassen Sie es klingeln ohne abzunehmen.',
+        steps: [
+          'Stellen Sie sicher, dass die Rufumleitung bei Nichtannahme in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage konfiguriert ist.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Lassen Sie das Hauptger\u00E4t klingeln \u2013 nehmen Sie NICHT ab.',
+          'Nach der konfigurierten Klingelzeit wird der Anruf weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
+      },
+      unreachable: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Festnetz / Anlage)',
+        subtitle: 'Simulieren Sie Nicht-Erreichbarkeit gem\u00E4\u00DF den Vorgaben Ihres Anbieters.',
+        steps: [
+          'Nicht-Erreichbarkeit bei Festnetz oder Telefonanlagen ist anbieter- und ger\u00E4teabh\u00E4ngig.',
+          'Folgen Sie den Anweisungen Ihres Anbieters, um das Ger\u00E4t in einen nicht erreichbaren Zustand zu versetzen (z.\u00A0B. Leitung belegt, Ger\u00E4t ausgesteckt oder Anlage in DND-Modus).',
+          'Rufen Sie dann Ihre eigene Festnetznummer an: <strong>' + safeTelNr + '</strong>',
+          'Bei korrekter Konfiguration wird der Anruf an den KI-Assistenten weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Anruf wird weitergeleitet, wenn das Festnetzger\u00E4t gem\u00E4\u00DF Anbieter-Einstellungen als nicht erreichbar gilt.'
+      },
+      busy: {
+        title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Festnetz / Anlage)',
+        subtitle: 'Stellen Sie sicher, dass die Hauptleitung tats\u00E4chlich belegt ist.',
+        steps: [
+          'Halten Sie die Hauptleitung mit einem aktiven Gespr\u00E4ch besetzt.',
+          'Nehmen Sie ein zweites Telefon.',
+          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
+          'Ob und wie schnell der zweite Anruf weitergeleitet wird, h\u00E4ngt von Ihrem Anbieter oder Ihrer Telefonanlage ab.'
+        ],
+        expect: 'Erwartetes Ergebnis: Eingehender Anruf bei besetzter Leitung wird an den KI-Assistenten weitergeleitet (abh\u00E4ngig von Anbieter-Einstellungen).'
+      }
+    }
+  };
+
+  var deviceKey = isMobile ? 'mobile' : 'landline';
+  var guide = guides[deviceKey] && guides[deviceKey][mode];
+  return guide || {
+    title: 'Testanruf durchf\u00FChren',
+    subtitle: 'Rufen Sie jetzt Ihre eigene Nummer mit einem zweiten Telefon an.',
+    steps: [
+      'Nehmen Sie ein zweites Telefon.',
+      'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>'
+    ],
+    expect: 'Erwartetes Ergebnis: Der Anruf wird an den KI-Assistenten weitergeleitet.'
+  };
+}
+
+// ═══════════════════════════════════════════
 //  SETUP WIZARD
 // ═══════════════════════════════════════════
 var setupDone = {};
 var setupSkipped = {};
 var setupStateCustomerId = '';
 var selectedSetupNotificationOption = null;
-var selectedSetupDevice = 'mobile';
+var selectedSetupDevice = null;
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
 var SETUP_LABELS = {s1:'Setup-Pfad wählen',s2:'Weiterleitung aktivieren & testen',s3:'Benachrichtigungen auswählen',s4:'Passwort prüfen',s5:'Hilfe & Support ansehen'};
 function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
@@ -4283,6 +5331,7 @@ function getSetupStorageKey(prefix){
 function resetSetupSessionState(){
   setupDone = {};
   setupSkipped = {};
+  selectedSetupDevice = null;
 }
 function updateSettingsWizardEntryLabel(){
   var btn = document.getElementById('settings-wizard-btn');
@@ -4352,20 +5401,22 @@ function goToNextSetupStep(currentStepId){
   setActiveSetupStep(null);
 }
 
-function selectSetupDevice(event, type){
-  if(event) event.stopPropagation();
+function applySetupDeviceSelection(type){
   var isMobile = type === 'mobile';
-  selectedSetupDevice = isMobile ? 'mobile' : 'landline';
   var cardMobile = document.getElementById('setup-device-card-mobile');
   var cardLandline = document.getElementById('setup-device-card-landline');
   var panelMobile = document.getElementById('setup-device-panel-mobile');
   var panelLandline = document.getElementById('setup-device-panel-landline');
-  if (cardMobile) { cardMobile.classList.toggle('active', isMobile); cardMobile.setAttribute('aria-selected', String(isMobile)); }
-  if (cardLandline) { cardLandline.classList.toggle('active', !isMobile); cardLandline.setAttribute('aria-selected', String(!isMobile)); }
-  if (panelMobile) panelMobile.classList.toggle('active', isMobile);
-  if (panelLandline) panelLandline.classList.toggle('active', !isMobile);
-  // Auto-advance to next step after a short pause so user sees the selection
-  setTimeout(function(){ completeSetupStep('s1', null); }, 1000);
+  if (cardMobile) { cardMobile.classList.toggle('active', !!type && isMobile); cardMobile.setAttribute('aria-selected', String(!!type && isMobile)); }
+  if (cardLandline) { cardLandline.classList.toggle('active', !!type && !isMobile); cardLandline.setAttribute('aria-selected', String(!!type && !isMobile)); }
+  if (panelMobile) panelMobile.classList.toggle('active', !type || isMobile);
+  if (panelLandline) panelLandline.classList.toggle('active', !!type && !isMobile);
+}
+
+function selectSetupDevice(event, type){
+  if(event) event.stopPropagation();
+  selectedSetupDevice = type === 'landline' ? 'landline' : 'mobile';
+  applySetupDeviceSelection(selectedSetupDevice);
 }
 
 function continueToSetupTest(event){
@@ -4395,38 +5446,56 @@ function saveNotificationAndContinue(event){
 
 function completeSetupStep(id, event){
   if(event) event.stopPropagation();
-  var wasForwardingSetupCompleted = isForwardingSetupCompleted();
+  if (id === 's1') {
+    if (!selectedSetupDevice) {
+      toast('Bitte wählen Sie zuerst einen Aktivierungsweg.');
+      return;
+    }
+    persistSetupDeviceType(selectedSetupDevice).then(function(saved){
+      if (!saved) {
+        toast('Schritt konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.');
+        return;
+      }
+      setupDone['s1'] = true;
+      delete setupSkipped['s1'];
+      var step = document.getElementById('setup-s1');
+      if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
+      updateSetupProgress();
+      try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
+      routeDashboardFirstSessionExperience();
+      if(isSetupComplete()){ _showSetupComplete(); return; }
+      goToNextSetupStep('s1');
+    });
+    return;
+  }
   setupDone[id] = true;
   delete setupSkipped[id];
   var step = document.getElementById('setup-'+id);
   if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
   updateSetupProgress();
   try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
-  if(id === 's1'){
-    persistForwardingSetupCompleted().then(function(saved){
-      routeDashboardFirstSessionExperience();
-      if(!wasForwardingSetupCompleted && saved){
-        toast('Rufumleitung eingerichtet');
-      }
-    });
-  } else if(id === 's2'){
+  if(id === 's2'){
     routeDashboardFirstSessionExperience();
   } else {
     updateSetupExperienceProgress();
   }
 
   if(isSetupComplete()){
-    document.getElementById('setup-wizard').querySelector('.setup-welcome').style.display='none';
-    document.getElementById('setup-wizard').querySelector('.setup-progress').style.display='none';
-    document.getElementById('setup-steps-container').style.display='none';
-    document.getElementById('setup-wizard').querySelector('.setup-skip').style.display='none';
-    document.getElementById('setup-open-summary').style.display='none';
-    document.getElementById('setup-complete').style.display='block';
-    try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
+    _showSetupComplete();
     return;
   }
   // Open next incomplete step
   goToNextSetupStep(id);
+}
+
+function _showSetupComplete(){
+  document.getElementById('setup-wizard').querySelector('.setup-welcome').style.display='none';
+  document.getElementById('setup-wizard').querySelector('.setup-progress').style.display='none';
+  document.getElementById('setup-steps-container').style.display='none';
+  document.getElementById('setup-wizard').querySelector('.setup-skip').style.display='none';
+  document.getElementById('setup-open-summary').style.display='none';
+  document.getElementById('setup-complete').style.display='block';
+  try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
 }
 
 function skipSetupStep(id, event){
@@ -4504,6 +5573,15 @@ function initSetupWizard(){
     var saved=localStorage.getItem(getSetupStorageKey('voxera_setup_steps'));
     if(saved) setupDone=JSON.parse(saved);
   }catch(e){}
+  if (!isActivationPathSelectedByDeviceType() && setupDone.s1) delete setupDone.s1;
+  if (!isForwardingSetupCompleted() && setupDone.s2) delete setupDone.s2;
+  if (isActivationPathSelectedByDeviceType() && !selectedSetupDevice) selectedSetupDevice = customerMeta.setupDeviceType;
+  console.info('[voxera-dashboard] wizard state derived', {
+    setup_device_type: customerMeta.setupDeviceType || null,
+    forwarding_setup_completed: customerMeta.forwardingSetupCompleted || false,
+    selected_setup_device: selectedSetupDevice || null,
+    restored_steps: Object.keys(setupDone).filter(function(key){ return setupDone[key]; })
+  });
   SETUP_STEPS.forEach(function(id){
     if(setupDone[id]){
       var step=document.getElementById('setup-'+id);
@@ -4547,7 +5625,7 @@ function initSetupWizard(){
     var firstOpen = getOpenSteps()[0] || 's1';
     setActiveSetupStep(firstOpen);
   }
-  selectSetupDevice(null, selectedSetupDevice);
+  applySetupDeviceSelection(selectedSetupDevice);
   selectedSetupNotificationOption = getSelectedNotificationMode('setup-notification-mode');
   renderForwardingCodes();
   routeDashboardFirstSessionExperience();

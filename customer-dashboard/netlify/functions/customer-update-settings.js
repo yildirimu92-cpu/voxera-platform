@@ -36,10 +36,74 @@ exports.handler = async (event) => {
     if (!['none', 'callback_only', 'all_calls'].includes(mode)) {
       return response(400, { error: 'notification_mode ungueltig' });
     }
+
+    // Single source of truth: notification_mode.
+    // Legacy booleans are kept in sync for backward compatibility only.
+    const legacyByMode = {
+      none: {
+        notification_active: false,
+        new_log_email_active: false,
+        missed_call_email_active: false
+      },
+      callback_only: {
+        notification_active: true,
+        new_log_email_active: false,
+        missed_call_email_active: true
+      },
+      all_calls: {
+        notification_active: true,
+        new_log_email_active: true,
+        missed_call_email_active: true
+      }
+    };
+
     allowed.notification_mode = mode;
+    Object.assign(allowed, legacyByMode[mode]);
   }
   if (body.forwarding_setup_completed != null) {
     allowed.forwarding_setup_completed = body.forwarding_setup_completed === true;
+  }
+  if (body.setup_device_type != null) {
+    const deviceType = String(body.setup_device_type).trim().toLowerCase();
+    if (!['mobile', 'landline'].includes(deviceType)) {
+      return response(400, { error: 'setup_device_type ungueltig' });
+    }
+    allowed.setup_device_type = deviceType;
+  }
+  if (body.forwarding_status != null) {
+    const forwardingStatus = String(body.forwarding_status).trim().toLowerCase();
+    if (!['not_started', 'pending_test', 'active', 'inactive'].includes(forwardingStatus)) {
+      return response(400, { error: 'forwarding_status ungueltig. Erlaubte Werte: not_started, pending_test, active, inactive' });
+    }
+    allowed.forwarding_status = forwardingStatus;
+  }
+  if (body.activation_started_at != null) {
+    const ts = String(body.activation_started_at).trim();
+    if (!ts || isNaN(Date.parse(ts))) {
+      return response(400, { error: 'activation_started_at ungueltig. Erwartet: ISO 8601 Zeitstempel' });
+    }
+    allowed.activation_started_at = ts;
+  }
+  if (body.forwarding_mode != null) {
+    const forwardingMode = String(body.forwarding_mode).trim().toLowerCase();
+    if (!['no_answer', 'unreachable', 'always', 'busy'].includes(forwardingMode)) {
+      return response(400, { error: 'forwarding_mode ungueltig. Erlaubte Werte: no_answer, unreachable, always, busy' });
+    }
+    allowed.forwarding_mode = forwardingMode;
+  }
+  if (body.last_confirmed_setup_device_type != null) {
+    const confirmedDeviceType = String(body.last_confirmed_setup_device_type).trim().toLowerCase();
+    if (!['mobile', 'landline'].includes(confirmedDeviceType)) {
+      return response(400, { error: 'last_confirmed_setup_device_type ungueltig. Erlaubte Werte: mobile, landline' });
+    }
+    allowed.last_confirmed_setup_device_type = confirmedDeviceType;
+  }
+  if (body.last_confirmed_forwarding_mode != null) {
+    const confirmedMode = String(body.last_confirmed_forwarding_mode).trim().toLowerCase();
+    if (!['no_answer', 'unreachable', 'always', 'busy'].includes(confirmedMode)) {
+      return response(400, { error: 'last_confirmed_forwarding_mode ungueltig. Erlaubte Werte: no_answer, unreachable, always, busy' });
+    }
+    allowed.last_confirmed_forwarding_mode = confirmedMode;
   }
 
   if (Object.keys(allowed).length === 0) {
