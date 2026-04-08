@@ -1974,7 +1974,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, activationPathSelected:false, forwardingActive:false, customerId:''};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, customerId:''};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -1982,27 +1982,15 @@ function toDashboardRecord(row) {
   return { id: String(row.id), fields: row };
 }
 
-// Canonical timestamp helper: prefer actual call time (created_date_raw from webhook),
-// fall back to Supabase insertion time (created_at) for records where created_date_raw is absent.
+// Canonical timestamp helper: returns the Supabase insertion time (created_at).
 /**
  * Returns the best available timestamp for a dashboard record.
  * @param {Object} record - Dashboard record ({ id, fields })
- * @returns {string|null} ISO-8601 string: created_date_raw (webhook call time) if present,
- *   otherwise created_at (Supabase insertion time), or null if neither exists.
+ * @returns {string|null} ISO-8601 string from created_at, or null if absent.
  */
 function getRecordTimestamp(record) {
   const f = (record && record.fields) || {};
-  const raw = f.created_date_raw || f.created_at || null;
-  if (!raw) return null;
-  // Webhook timestamps in created_date_raw arrive as bare UTC strings without a 'Z' suffix
-  // (e.g. "2024-12-20T12:30:00"). parseLocalDateTimeParts() matches any no-suffix string,
-  // so they bypass the Intl Europe/Zurich conversion and display UTC time directly.
-  // Appending 'Z' makes the UTC intent explicit and routes through the correct formatting path.
-  const s = String(raw).trim();
-  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/.test(s)) {
-    return s.replace(' ', 'T') + 'Z';
-  }
-  return raw;
+  return f.created_at || null;
 }
 
 function resolveFollowUpAt(fields) {
@@ -2240,8 +2228,7 @@ async function patchCustomerRecord(recordId, fields) {
   const payload = {};
   if (fields.notification_mode !== undefined) payload.notification_mode = fields.notification_mode;
   if (fields.forwarding_setup_completed !== undefined) payload.forwarding_setup_completed = fields.forwarding_setup_completed;
-  if (fields.activation_path_selected !== undefined) payload.activation_path_selected = fields.activation_path_selected;
-  if (fields.forwarding_active !== undefined) payload.forwarding_active = fields.forwarding_active;
+  if (fields.setup_device_type !== undefined) payload.setup_device_type = fields.setup_device_type;
   const json = await callDashboardFunction('customer-update-settings', payload);
   if (!json || !json.customer) throw new Error(json?.error || 'Update fehlgeschlagen.');
   return toDashboardRecord(json.customer);
@@ -2610,8 +2597,7 @@ async function loadCustomerMeta() {
     voxeraNumber: f.voxera_number || '',
     telNr: f.tel_nr || '',
     forwardingSetupCompleted: f.forwarding_setup_completed === true,
-    activationPathSelected: f.activation_path_selected === true,
-    forwardingActive: f.forwarding_active === true
+    setupDeviceType: f.setup_device_type || null
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   console.info('[voxera-dashboard] customerMeta numbers', {
@@ -4164,63 +4150,54 @@ function openSetupWizardFromCta(event, stepId) {
   if (stepId) toggleSetupStep(stepId);
 }
 
-function isActivationPathSelected() {
-  return !!(customerMeta && customerMeta.activationPathSelected === true);
-}
-
 function isForwardingSetupCompleted() {
-  return !!(customerMeta && customerMeta.forwardingActive === true);
+  return !!(customerMeta && customerMeta.forwardingSetupCompleted === true);
 }
 
-async function persistActivationPathSelected() {
-  customerMeta.activationPathSelected = true;
-  updateSetupExperienceProgress();
-  updateActivationStatusCard(allRecords || []);
-  try {
-    const context = await resolveCustomerContext();
-    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) return false;
-    await patchCustomerRecord(recId, { activation_path_selected: true });
-    if (context && context.customerRecord) context.customerRecord.activation_path_selected = true;
-    return true;
-  } catch(e) {
-    customerMeta.activationPathSelected = false;
-    updateSetupExperienceProgress();
-    updateActivationStatusCard(allRecords || []);
-    console.error('activation_path_selected save failed', e);
-    toast('Aktivierungsweg lokal gespeichert. Synchronisation folgt beim nächsten Laden.');
-    return false;
-  }
-}
-
-async function persistForwardingActive() {
-  customerMeta.forwardingActive = true;
-  customerMeta.forwardingSetupCompleted = true;
-  updateSetupExperienceProgress();
-  updateActivationStatusCard(allRecords || []);
-  try {
-    const context = await resolveCustomerContext();
-    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) return false;
-    await patchCustomerRecord(recId, { forwarding_active: true, forwarding_setup_completed: true });
-    if (context && context.customerRecord) {
-      context.customerRecord.forwarding_active = true;
-      context.customerRecord.forwarding_setup_completed = true;
-    }
-    return true;
-  } catch(e) {
-    customerMeta.forwardingActive = false;
-    customerMeta.forwardingSetupCompleted = false;
-    updateSetupExperienceProgress();
-    updateActivationStatusCard(allRecords || []);
-    console.error('forwarding_active save failed', e);
-    toast('Aktivierungsstatus lokal gespeichert. Synchronisation folgt beim nächsten Laden.');
-    return false;
-  }
+function isActivationPathSelectedByDeviceType() {
+  var dt = customerMeta && customerMeta.setupDeviceType;
+  return dt === 'mobile' || dt === 'landline';
 }
 
 function isForwardingActivated() {
   return isForwardingSetupCompleted();
+}
+
+async function persistSetupDeviceType(type) {
+  var normalized = type === 'mobile' ? 'mobile' : type === 'landline' ? 'landline' : null;
+  if (!normalized) {
+    toast('Ungültiger Aktivierungsweg.');
+    return null;
+  }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return null; }
+    await patchCustomerRecord(recId, { setup_device_type: normalized });
+    customerMeta.setupDeviceType = normalized;
+    if (context && context.customerRecord) context.customerRecord.setup_device_type = normalized;
+    return normalized;
+  } catch(e) {
+    console.error('setup_device_type save failed', e);
+    toast('Aktivierungsweg konnte nicht gespeichert werden.');
+    return null;
+  }
+}
+
+async function persistForwardingSetupCompleted() {
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    await patchCustomerRecord(recId, { forwarding_setup_completed: true });
+    customerMeta.forwardingSetupCompleted = true;
+    if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
+    return true;
+  } catch(e) {
+    console.error('forwarding_setup_completed save failed', e);
+    toast('Rufumleitungsstatus konnte nicht gespeichert werden.');
+    return false;
+  }
 }
 
 function showDashboard() {
@@ -4429,8 +4406,26 @@ function saveNotificationAndContinue(event){
 
 function completeSetupStep(id, event){
   if(event) event.stopPropagation();
-  if (id === 's1' && !selectedSetupDevice) {
-    toast('Bitte wählen Sie zuerst einen Aktivierungsweg.');
+  if (id === 's1') {
+    if (!selectedSetupDevice) {
+      toast('Bitte wählen Sie zuerst einen Aktivierungsweg.');
+      return;
+    }
+    persistSetupDeviceType(selectedSetupDevice).then(function(saved){
+      if (!saved) {
+        toast('Schritt konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.');
+        return;
+      }
+      setupDone['s1'] = true;
+      delete setupSkipped['s1'];
+      var step = document.getElementById('setup-s1');
+      if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
+      updateSetupProgress();
+      try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
+      routeDashboardFirstSessionExperience();
+      if(isSetupComplete()){ _showSetupComplete(); return; }
+      goToNextSetupStep('s1');
+    });
     return;
   }
   var wasForwardingSetupCompleted = isForwardingSetupCompleted();
@@ -4440,12 +4435,8 @@ function completeSetupStep(id, event){
   if(step){ step.classList.remove('active','skipped','step-skipped'); step.classList.add('done','step-done'); }
   updateSetupProgress();
   try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
-  if(id === 's1'){
-    persistActivationPathSelected().then(function(){
-      routeDashboardFirstSessionExperience();
-    });
-  } else if(id === 's2'){
-    persistForwardingActive().then(function(saved){
+  if(id === 's2'){
+    persistForwardingSetupCompleted().then(function(saved){
       routeDashboardFirstSessionExperience();
       if(!wasForwardingSetupCompleted && saved){
         toast('Rufumleitung eingerichtet');
@@ -4456,17 +4447,21 @@ function completeSetupStep(id, event){
   }
 
   if(isSetupComplete()){
-    document.getElementById('setup-wizard').querySelector('.setup-welcome').style.display='none';
-    document.getElementById('setup-wizard').querySelector('.setup-progress').style.display='none';
-    document.getElementById('setup-steps-container').style.display='none';
-    document.getElementById('setup-wizard').querySelector('.setup-skip').style.display='none';
-    document.getElementById('setup-open-summary').style.display='none';
-    document.getElementById('setup-complete').style.display='block';
-    try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
+    _showSetupComplete();
     return;
   }
   // Open next incomplete step
   goToNextSetupStep(id);
+}
+
+function _showSetupComplete(){
+  document.getElementById('setup-wizard').querySelector('.setup-welcome').style.display='none';
+  document.getElementById('setup-wizard').querySelector('.setup-progress').style.display='none';
+  document.getElementById('setup-steps-container').style.display='none';
+  document.getElementById('setup-wizard').querySelector('.setup-skip').style.display='none';
+  document.getElementById('setup-open-summary').style.display='none';
+  document.getElementById('setup-complete').style.display='block';
+  try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
 }
 
 function skipSetupStep(id, event){
@@ -4544,12 +4539,12 @@ function initSetupWizard(){
     var saved=localStorage.getItem(getSetupStorageKey('voxera_setup_steps'));
     if(saved) setupDone=JSON.parse(saved);
   }catch(e){}
-  if (!isActivationPathSelected() && setupDone.s1) delete setupDone.s1;
+  if (!isActivationPathSelectedByDeviceType() && setupDone.s1) delete setupDone.s1;
   if (!isForwardingSetupCompleted() && setupDone.s2) delete setupDone.s2;
-  if (isActivationPathSelected() && !selectedSetupDevice) selectedSetupDevice = 'mobile';
+  if (isActivationPathSelectedByDeviceType() && !selectedSetupDevice) selectedSetupDevice = customerMeta.setupDeviceType;
   console.info('[voxera-dashboard] wizard state derived', {
-    activation_path_selected: isActivationPathSelected(),
-    forwarding_active: isForwardingSetupCompleted(),
+    setup_device_type: customerMeta.setupDeviceType || null,
+    forwarding_setup_completed: customerMeta.forwardingSetupCompleted || false,
     selected_setup_device: selectedSetupDevice || null,
     restored_steps: Object.keys(setupDone).filter(function(key){ return setupDone[key]; })
   });
