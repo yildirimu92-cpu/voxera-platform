@@ -5959,14 +5959,6 @@ function showApp(user) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
-  // Restore last active tab from sessionStorage (before async load)
-  // Skip if setup is incomplete - that will be handled after loadData
-  var _setupFinishedEarly = false;
-  try { _setupFinishedEarly = !!localStorage.getItem(getSetupStorageKey('voxera_setup_finished')); } catch(e) {}
-  if (_setupFinishedEarly || isSetupComplete()) {
-    restoreTab();
-  }
-
   // User display fallback from auth profile
   const meta = user.user_metadata || {};
 
