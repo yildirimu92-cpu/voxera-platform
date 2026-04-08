@@ -1264,7 +1264,7 @@ body{
             </div>
           </div>
 
-          <div id="setup-wizard">
+          <div id="setup-wizard" style="display:none">
             <div class="setup-welcome" id="setup-welcome-block">
               <div class="setup-welcome-icon"></div>
               <div class="setup-welcome-title">Willkommen bei Voxera</div>
@@ -4670,7 +4670,6 @@ function completeSetupStep(id, event){
     });
     return;
   }
-  var wasForwardingSetupCompleted = isForwardingSetupCompleted();
   setupDone[id] = true;
   delete setupSkipped[id];
   var step = document.getElementById('setup-'+id);
@@ -4678,12 +4677,7 @@ function completeSetupStep(id, event){
   updateSetupProgress();
   try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
   if(id === 's2'){
-    persistForwardingSetupCompleted().then(function(saved){
-      routeDashboardFirstSessionExperience();
-      if(!wasForwardingSetupCompleted && saved){
-        toast('Rufumleitung eingerichtet');
-      }
-    });
+    routeDashboardFirstSessionExperience();
   } else {
     updateSetupExperienceProgress();
   }
