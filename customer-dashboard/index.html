@@ -1035,6 +1035,10 @@ body{
 .act-action-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:var(--white);color:var(--gray600);border:1.5px solid var(--gray200);border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;}
 .act-action-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
 .act-action-hint{font-size:12px;color:var(--gray400);font-style:italic;margin-top:10px;line-height:1.55;}
+.act-skip-shortcut-block{background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:12px;padding:16px 18px;margin-top:16px;}
+.act-skip-shortcut-title{font-size:13px;font-weight:700;color:#15803D;margin-bottom:4px;}
+.act-skip-shortcut-desc{font-size:12px;color:#166534;line-height:1.55;margin-bottom:12px;}
+.act-skip-shortcut-btns{display:flex;gap:8px;flex-wrap:wrap;}
 .activation-badge.pending-test{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;}
 .act-pending-test-card{background:var(--white);border:2px solid #FCD34D;border-radius:16px;padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-pending-test-header{margin-bottom:18px;}
@@ -1360,6 +1364,15 @@ body{
               </div>
               <div class="act-action-btns" id="act-action-btns"></div>
               <div class="act-action-hint" id="act-action-hint" style="display:none;"></div>
+              <!-- Skip shortcut block: only shown when current config matches last confirmed config -->
+              <div class="act-skip-shortcut-block" id="act-skip-shortcut-block" style="display:none;">
+                <div class="act-skip-shortcut-title">Konfiguration bereits bestätigt</div>
+                <div class="act-skip-shortcut-desc">Ihre aktuelle Einrichtung (Gerätetyp und Weiterleitungsmodus) entspricht der zuletzt erfolgreich bestätigten Konfiguration.</div>
+                <div class="act-skip-shortcut-btns">
+                  <button type="button" class="act-action-btn-primary" onclick="activationSkipTest(event)">Ohne Test fortfahren</button>
+                  <button type="button" class="act-action-btn-secondary" onclick="activationSkipToTest(event)">Testanruf durchführen</button>
+                </div>
+              </div>
             </div>
 
             <!-- Pending-Test Card (shown when forwarding_status === 'pending_test') -->
@@ -2181,7 +2194,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, customerId:''};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, customerId:'', forwardingMode:null, lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -2438,7 +2451,9 @@ async function patchCustomerRecord(recordId, fields) {
   if (fields.setup_device_type !== undefined) payload.setup_device_type = fields.setup_device_type;
   if (fields.forwarding_status !== undefined) payload.forwarding_status = fields.forwarding_status;
   if (fields.activation_started_at !== undefined) payload.activation_started_at = fields.activation_started_at;
-  if (fields.forwarding_mode !== undefined) payload.forwarding_mode = fields.forwarding_mode; 
+  if (fields.forwarding_mode !== undefined) payload.forwarding_mode = fields.forwarding_mode;
+  if (fields.last_confirmed_setup_device_type !== undefined) payload.last_confirmed_setup_device_type = fields.last_confirmed_setup_device_type;
+  if (fields.last_confirmed_forwarding_mode !== undefined) payload.last_confirmed_forwarding_mode = fields.last_confirmed_forwarding_mode;
   const json = await callDashboardFunction('customer-update-settings', payload);
   if (!json || !json.customer) throw new Error(json?.error || 'Update fehlgeschlagen.');
   return toDashboardRecord(json.customer);
@@ -2810,7 +2825,9 @@ async function loadCustomerMeta() {
     setupDeviceType: f.setup_device_type || null,
     forwardingStatus: f.forwarding_status || null,
     activationStartedAt: f.activation_started_at || null,
-    forwardingMode: f.forwarding_mode || null
+    forwardingMode: f.forwarding_mode || null,
+    lastConfirmedSetupDeviceType: f.last_confirmed_setup_device_type || null,
+    lastConfirmedForwardingMode: f.last_confirmed_forwarding_mode || null
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   console.info('[voxera-dashboard] customerMeta numbers', {
@@ -4764,12 +4781,79 @@ function renderActivationActionCard(meta) {
       hintEl.style.display = 'none';
     }
   }
+
+  // Skip shortcut block: show only when configuration matches last confirmed configuration
+  var skipBlockEl = document.getElementById('act-skip-shortcut-block');
+  if (skipBlockEl) {
+    if (canSkipActivationTest(meta)) {
+      skipBlockEl.style.display = 'block';
+    } else {
+      skipBlockEl.style.display = 'none';
+    }
+  }
 }
 
 async function activationCopyCode(event, code) {
   if (event) event.stopPropagation();
   if (!code) { toast('Kein Code verfügbar.'); return; }
   await copyForwardingCode(event, code);
+}
+
+function canSkipActivationTest(meta) {
+  if (!meta) return false;
+  if (meta.forwardingSetupCompleted !== true) return false;
+  if (!meta.setupDeviceType) return false;
+  if (!meta.forwardingMode) return false;
+  if (!meta.lastConfirmedSetupDeviceType) return false;
+  if (!meta.lastConfirmedForwardingMode) return false;
+  if (meta.setupDeviceType !== meta.lastConfirmedSetupDeviceType) return false;
+  if (meta.forwardingMode !== meta.lastConfirmedForwardingMode) return false;
+  if (meta.forwardingStatus === 'active') return false;
+  return true;
+}
+
+async function activationSkipTest(event) {
+  if (event) event.stopPropagation();
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird aktiviert…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; } return; }
+    await patchCustomerRecord(recId, {
+      forwarding_status: 'active',
+      forwarding_setup_completed: true,
+      last_confirmed_setup_device_type: customerMeta.setupDeviceType,
+      last_confirmed_forwarding_mode: customerMeta.forwardingMode
+    });
+    customerMeta.forwardingStatus = 'active';
+    customerMeta.forwardingSetupCompleted = true;
+    customerMeta.lastConfirmedSetupDeviceType = customerMeta.setupDeviceType;
+    customerMeta.lastConfirmedForwardingMode = customerMeta.forwardingMode;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'active';
+      context.customerRecord.forwarding_setup_completed = true;
+      context.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
+      context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
+    }
+    toast('Rufumleitung erfolgreich aktiviert!');
+    renderActivationModule();
+  } catch(e) {
+    console.error('activationSkipTest failed', e);
+    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; }
+  }
+}
+
+function activationSkipToTest(event) {
+  if (event) event.stopPropagation();
+  // Hide the skip shortcut block and scroll to the normal test section
+  var skipBlockEl = document.getElementById('act-skip-shortcut-block');
+  if (skipBlockEl) skipBlockEl.style.display = 'none';
+  var actionSect = document.getElementById('act-action-section');
+  if (actionSect) {
+    actionSect.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 function renderDeactivationSection(meta) {
@@ -4997,12 +5081,21 @@ async function confirmActivationTestCall(event) {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Test erfolgreich \u2013 aktivieren'; } return; }
-    await patchCustomerRecord(recId, { forwarding_status: 'active', forwarding_setup_completed: true });
+    await patchCustomerRecord(recId, {
+      forwarding_status: 'active',
+      forwarding_setup_completed: true,
+      last_confirmed_setup_device_type: customerMeta.setupDeviceType,
+      last_confirmed_forwarding_mode: customerMeta.forwardingMode
+    });
     customerMeta.forwardingStatus = 'active';
     customerMeta.forwardingSetupCompleted = true;
+    customerMeta.lastConfirmedSetupDeviceType = customerMeta.setupDeviceType;
+    customerMeta.lastConfirmedForwardingMode = customerMeta.forwardingMode;
     if (context && context.customerRecord) {
       context.customerRecord.forwarding_status = 'active';
       context.customerRecord.forwarding_setup_completed = true;
+      context.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
+      context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
     }
     candidateCall = null;
     stopActivationPolling();

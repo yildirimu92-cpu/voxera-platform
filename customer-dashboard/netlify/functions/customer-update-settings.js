@@ -91,6 +91,20 @@ exports.handler = async (event) => {
     }
     allowed.forwarding_mode = forwardingMode;
   }
+  if (body.last_confirmed_setup_device_type != null) {
+    const deviceType = String(body.last_confirmed_setup_device_type).trim().toLowerCase();
+    if (!['mobile', 'landline'].includes(deviceType)) {
+      return response(400, { error: 'last_confirmed_setup_device_type ungueltig. Erlaubte Werte: mobile, landline' });
+    }
+    allowed.last_confirmed_setup_device_type = deviceType;
+  }
+  if (body.last_confirmed_forwarding_mode != null) {
+    const confirmedMode = String(body.last_confirmed_forwarding_mode).trim().toLowerCase();
+    if (!['no_answer', 'unreachable', 'always', 'busy'].includes(confirmedMode)) {
+      return response(400, { error: 'last_confirmed_forwarding_mode ungueltig. Erlaubte Werte: no_answer, unreachable, always, busy' });
+    }
+    allowed.last_confirmed_forwarding_mode = confirmedMode;
+  }
 
   if (Object.keys(allowed).length === 0) {
     return response(400, { error: 'Keine erlaubten Felder uebergeben' });
