@@ -1102,6 +1102,7 @@ body{
 .activation-choice-card{border:2px solid var(--gray200);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all var(--transition-fast);background:var(--white);}
 .activation-choice-card:hover{border-color:var(--blue-mid);background:var(--blue-light);}
 .activation-choice-card.selected{border-color:var(--blue);background:var(--blue-light);}
+.activation-choice-card.locked{opacity:.55;cursor:not-allowed;pointer-events:none;}
 .activation-choice-card-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .activation-choice-card-text{font-size:12px;color:var(--gray600);line-height:1.5;}
 .activation-instructions{margin-top:14px;padding:14px 16px;background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;}
@@ -1156,6 +1157,7 @@ body{
 .act-mode-card-label{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:3px;}
 .act-mode-card-desc{font-size:11.5px;color:var(--gray600);line-height:1.5;}
 .act-mode-card.selected .act-mode-card-label{color:var(--blue-dark);}
+.act-mode-card.locked{opacity:.55;cursor:not-allowed;pointer-events:none;}
 .act-action-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-action-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .act-action-sub{font-size:12.5px;color:var(--gray600);margin-bottom:16px;}
@@ -5506,8 +5508,15 @@ function renderActivationModule() {
   // Device selection
   var mobileCard = document.getElementById('act-device-card-mobile');
   var landlineCard = document.getElementById('act-device-card-landline');
-  if (mobileCard) mobileCard.classList.toggle('selected', meta.setupDeviceType === 'mobile');
-  if (landlineCard) landlineCard.classList.toggle('selected', meta.setupDeviceType === 'landline');
+  var cardsLocked = uiState === 'active';
+  if (mobileCard) {
+    mobileCard.classList.toggle('selected', meta.setupDeviceType === 'mobile');
+    mobileCard.classList.toggle('locked', cardsLocked);
+  }
+  if (landlineCard) {
+    landlineCard.classList.toggle('selected', meta.setupDeviceType === 'landline');
+    landlineCard.classList.toggle('locked', cardsLocked);
+  }
 
   // Forwarding mode section: show only when device type is selected
   var modeSect = document.getElementById('act-mode-section');
@@ -5518,7 +5527,10 @@ function renderActivationModule() {
   var modes = ['no_answer', 'unreachable', 'always', 'busy'];
   modes.forEach(function(m) {
     var card = document.getElementById('act-mode-card-' + m);
-    if (card) card.classList.toggle('selected', meta.forwardingMode === m);
+    if (card) {
+      card.classList.toggle('selected', meta.forwardingMode === m);
+      card.classList.toggle('locked', cardsLocked);
+    }
   });
 
   // Action card: show only when both device type and mode are selected, and not in pending_test
@@ -5810,12 +5822,20 @@ function activationMobileDeactivate(event) {
 
 async function activationSelectDevice(event, type) {
   if (event) event.stopPropagation();
+  if (getActivationUiState(customerMeta || {}) === 'active') {
+    toast('Bitte deaktivieren Sie zuerst die Rufumleitung, bevor Sie den Gerätetyp ändern.');
+    return;
+  }
   var result = await persistSetupDeviceType(type);
   if (result) renderActivationModule();
 }
 
 async function activationSelectMode(event, mode) {
   if (event) event.stopPropagation();
+  if (getActivationUiState(customerMeta || {}) === 'active') {
+    toast('Bitte deaktivieren Sie zuerst die Rufumleitung, bevor Sie den Weiterleitungsmodus ändern.');
+    return;
+  }
   var ok = await persistForwardingMode(mode);
   if (ok) renderActivationModule();
 }
