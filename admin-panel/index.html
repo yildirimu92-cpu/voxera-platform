@@ -475,6 +475,22 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .wizard-step.done{background:var(--green-light);color:var(--green-dark);}
 /* ─── Signature Canvas ──────────────────────────────────────── */
 .sig-canvas{border:2px solid var(--line);border-radius:var(--r);cursor:crosshair;display:block;touch-action:none;background:#fff;max-width:100%;}
+/* ─── Onboarding Master-Detail ───────────────────────────── */
+.onboarding-layout{display:grid;grid-template-columns:minmax(280px,1fr) minmax(340px,1.25fr);gap:14px;align-items:start;}
+.onboarding-queue{display:flex;flex-direction:column;gap:10px;}
+.onboarding-queue-item{width:100%;border:1px solid var(--line);border-radius:var(--r-lg);background:#fff;padding:12px 14px;cursor:pointer;text-align:left;transition:border-color var(--fast),box-shadow var(--fast),transform var(--fast);}
+.onboarding-queue-item:hover{border-color:var(--line-strong);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
+.onboarding-queue-item.is-active{border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.12);}
+.onboarding-queue-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.onboarding-queue-item-name{font-weight:600;font-size:14px;color:var(--ink);}
+.onboarding-queue-item-meta{font-size:12px;color:var(--slate);margin-top:2px;}
+.onboarding-detail-shell{position:sticky;top:8px;}
+.onboarding-active-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;}
+.onboarding-checklist-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line2);}
+@media (max-width:980px){
+  .onboarding-layout{grid-template-columns:1fr;}
+  .onboarding-detail-shell{position:static;}
+}
 
 </style>
 </head>
@@ -627,14 +643,16 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Onboarding</h3>
         </div>
         <div class="kpi-grid" id="onboarding-kpis" style="margin-bottom:16px;"></div>
-        <!-- Einfache Kundenliste mit Fortschritt -->
-        <div id="onboarding-cards" style="display:flex;flex-direction:column;gap:10px;"></div>
-        <!-- Detail-Bereich (öffnet sich wenn Kunde angeklickt) -->
-        <div id="onboarding-detail-wrap" style="display:none;margin-top:16px;">
-          <div class="card">
-            <div class="card-head">
-              <h3 id="onboarding-detail-name">Kunde</h3>
-              <button class="btn btn-quiet btn-sm" onclick="document.getElementById('onboarding-detail-wrap').style.display='none'">Schließen</button>
+        <div class="onboarding-layout">
+          <!-- Queue/Liste bleibt sichtbar -->
+          <div id="onboarding-cards" class="onboarding-queue"></div>
+          <!-- Detail-Workspace bleibt klar dem aktiven Kunden zugeordnet -->
+          <div id="onboarding-detail-wrap" class="onboarding-detail-shell card" style="display:block;" data-customer-id="">
+            <div class="card-head" style="align-items:flex-start;">
+              <div>
+                <div class="onboarding-active-chip">Aktiver Kunde</div>
+                <h3 id="onboarding-detail-name" style="margin-top:8px;">Kunde wählen</h3>
+              </div>
             </div>
             <div id="onboarding-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
             <div class="inline-actions" style="margin-top:12px;">
@@ -1487,7 +1505,7 @@ const state={
   aiSelectedCustomerId:null,
   aiChanges:[],  // populated by loadDataFromSupabase() in future
   events:[],  // populated by loadDataFromSupabase()
-  checklist:['customer created','Voxera number assigned','AI basics configured','activation sent','forwarding configured','test call completed','dashboard access active','ready for go-live','fully completed']
+  checklist:['customer created','Voxera number assigned','AI basics configured','activation sent','dashboard access active','forwarding configured','test call completed','ready for go-live','fully completed']
 };
 
 
@@ -1933,29 +1951,47 @@ function renderOnboarding(){
     return b.missingSteps.length-a.missingSteps.length;
   });
 
+  // Master-Detail: Wenn kein aktiver Kunde gewählt ist, automatisch den ersten selektieren.
+  if(sorted.length&&!sorted.some(q=>idsEq(q.customer.id,state.onboardingSelectedCustomerId))){
+    state.onboardingSelectedCustomerId=sorted[0].customer.id;
+  }
+  if(!sorted.length){
+    state.onboardingSelectedCustomerId=null;
+  }
+
   cardsEl.innerHTML=sorted.map(q=>{
     const statusColor=q.status===ONBOARDING_STATUS.COMPLETED?'var(--green)':q.status===ONBOARDING_STATUS.BLOCKED?'var(--red)':'var(--blue)';
     const statusLabel=ONBOARDING_STATUS_LABELS[q.status]||q.status;
-    return `<div class="card" style="padding:14px 16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    const isActive=idsEq(state.onboardingSelectedCustomerId,q.customer.id);
+    return `<button class="onboarding-queue-item ${isActive?'is-active':''}" onclick="openOnboardingDetail('${jsStr(q.customer.id)}')">
+      <div class="onboarding-queue-item-head">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:14px;">${esc(q.customer.name)}</div>
-          <div class="muted" style="font-size:12px;margin-top:2px;">${esc(q.customer.email||'')} · ${esc(q.customer.plan||'')}</div>
+          <div class="onboarding-queue-item-name">${esc(q.customer.name)}</div>
+          <div class="onboarding-queue-item-meta">${esc(q.customer.email||'')} · ${esc(q.customer.plan||'')}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-          <span style="font-size:12px;font-weight:600;color:${statusColor};">${esc(statusLabel)}</span>
-          <span style="font-size:12px;color:var(--slate2);">${q.progress}%</span>
-          <div style="width:80px;height:6px;background:var(--line);border-radius:3px;overflow:hidden;">
-            <div style="height:100%;width:${q.progress}%;background:${statusColor};border-radius:3px;"></div>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="openOnboardingDetail('${jsStr(q.customer.id)}')">Details</button>
-          <button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(q.customer.id)}')">Profil</button>
+        <span style="font-size:12px;font-weight:600;color:${statusColor};">${esc(statusLabel)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        <span style="font-size:12px;color:var(--slate2);">${q.progress}%</span>
+        <div style="flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${q.progress}%;background:${statusColor};border-radius:3px;"></div>
         </div>
       </div>
       ${q.blocker?`<div style="margin-top:8px;font-size:12px;color:var(--red);font-weight:500;">! ${esc(q.blocker)}</div>`:''}
       ${q.nextStep&&q.status!==ONBOARDING_STATUS.COMPLETED?`<div style="margin-top:4px;font-size:12px;color:var(--slate);">Nächster Schritt: ${esc(q.nextStep)}</div>`:''}
-    </div>`;
+    </button>`;
   }).join('')||'<div class="empty">Keine Kunden vorhanden.</div>';
+
+  if(state.onboardingSelectedCustomerId){
+    openOnboardingDetail(state.onboardingSelectedCustomerId,{skipScroll:true});
+  }else{
+    const wrap=document.getElementById('onboarding-detail-wrap');
+    if(wrap) wrap.dataset.customerId='';
+    const nameEl=document.getElementById('onboarding-detail-name');
+    if(nameEl) nameEl.textContent='Kunde wählen';
+    const checklistEl=document.getElementById('onboarding-checklist');
+    if(checklistEl) checklistEl.innerHTML='<div class="empty">Wähle links einen Kunden aus der Queue.</div>';
+  }
 }
 
 
@@ -2000,7 +2036,8 @@ function buildOnboardingQueueItem(customerId){
   };
 }
 
-function openOnboardingDetail(customerId){
+function openOnboardingDetail(customerId,options={}){
+  const skipScroll=!!options.skipScroll;
   state.onboardingSelectedCustomerId=customerId;
   const q=buildOnboardingQueueItem(customerId);
   const wrap=document.getElementById('onboarding-detail-wrap');
@@ -2018,7 +2055,7 @@ function openOnboardingDetail(customerId){
       const svgDone='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const svgOpen='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="#9CA3AF" stroke-width="1"/></svg>';
       const action=isDone?'':getOnboardingStepAction(step,customerId);
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line2);">
+      return `<div class="onboarding-checklist-item">
         ${isDone?svgDone:svgOpen}
         <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(step)}</span>
         ${action}
@@ -2027,7 +2064,7 @@ function openOnboardingDetail(customerId){
   }
   const profileBtn=document.getElementById('onboarding-open-profile');
   if(profileBtn) profileBtn.onclick=()=>openCustomerProfile(customerId);
-  wrap.scrollIntoView({behavior:'smooth',block:'start'});
+  if(!skipScroll) wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function renderOnboardingDetail(){
@@ -4422,10 +4459,10 @@ function mapDbCustomerToUi(dbRow, dbOnboarding) {
 // checklist / progress helpers continue to work without a separate steps table.
 function synthesizeOnboardingSteps(progress, customerStatus, inviteStatus, onboardingStatus, nextStep) {
   const ALL = [
-    'customer created','activation sent','dashboard access active',
-    'Voxera number assigned','agent connected','forwarding configured',
-    'business info completed','opening hours added','greeting reviewed',
-    'AI basics configured','test call completed','ready for go-live','fully completed'
+    'customer created','Voxera number assigned','AI basics configured',
+    'activation sent','dashboard access active','forwarding configured',
+    'test call completed','ready for go-live','fully completed',
+    'agent connected','business info completed','opening hours added','greeting reviewed'
   ];
   // Always include the first step — customer exists in DB
   const done = new Set(['customer created']);
