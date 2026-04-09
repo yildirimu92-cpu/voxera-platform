@@ -410,6 +410,34 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   /* ─── Grids ─── */
   .grid-2,.grid-3,.grid-4{grid-template-columns:1fr!important;}
   .kpi-grid{grid-template-columns:1fr!important;}
+  #section-overview #overview-kpis{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:12px;
+  }
+  #section-overview #overview-kpis .kpi{
+    padding:13px 14px;
+    min-width:0;
+  }
+  #section-overview #overview-kpis .kpi-label{
+    font-size:10.5px;
+    margin-bottom:8px;
+    opacity:.82;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  #section-overview #overview-kpis .kpi-value{
+    font-size:22px;
+    line-height:1.05;
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+  #section-overview #overview-kpis .kpi-sub{
+    font-size:10px;
+    margin-top:6px;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
   .overview-focus-card{margin-bottom:12px;}
   .overview-task-item{padding:12px;}
   .overview-task-item .btn{width:100%;min-height:40px;justify-content:center;}
