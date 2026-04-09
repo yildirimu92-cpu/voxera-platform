@@ -487,6 +487,19 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .onboarding-detail-shell{position:sticky;top:8px;}
 .onboarding-active-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;}
 .onboarding-checklist-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line2);}
+.onboarding-focus-card{border:1px solid var(--blue-mid);background:var(--blue-light);border-radius:var(--r-lg);padding:12px 14px;margin-top:10px;}
+.onboarding-focus-title{font-size:11px;font-weight:700;color:var(--blue);letter-spacing:.04em;text-transform:uppercase;}
+.onboarding-focus-step{font-size:15px;font-weight:700;color:var(--ink);margin-top:4px;}
+.onboarding-focus-desc{font-size:12px;color:var(--ink2);margin-top:4px;}
+.onboarding-section-title{font-size:11px;font-weight:700;color:var(--slate2);letter-spacing:.04em;text-transform:uppercase;margin-top:14px;}
+.onboarding-step-card{border:1px solid var(--line);border-radius:var(--r-lg);padding:10px 12px;background:var(--surface);margin-top:8px;}
+.onboarding-step-card.is-active{border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.12);}
+.onboarding-step-card.is-done{padding:8px 10px;background:var(--line2);}
+.onboarding-step-row{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;}
+.onboarding-step-title{font-size:13px;font-weight:600;color:var(--ink);}
+.onboarding-step-desc{font-size:11.5px;color:var(--slate);margin-top:2px;}
+.onboarding-customer-status-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2);}
+.onboarding-customer-status-row:last-child{border-bottom:none;}
 @media (max-width:980px){
   .onboarding-layout{grid-template-columns:1fr;}
   .onboarding-detail-shell{position:static;}
@@ -657,7 +670,6 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <div id="onboarding-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
             <div class="inline-actions" style="margin-top:12px;">
               <button class="btn btn-primary btn-sm" id="onboarding-open-profile">Kundenprofil öffnen</button>
-              <button class="btn btn-secondary btn-sm" onclick="openSendAccessModal(document.getElementById('onboarding-detail-wrap').dataset.customerId)">Zugang senden</button>
             </div>
           </div>
         </div>
@@ -2008,6 +2020,46 @@ function getOnboardingStepAction(step, customerId){
   }
 }
 
+function getOnboardingFocusState(snapshot){
+  const aiReady=snapshot.doneSet.has('AI basics configured');
+  const activationSent=snapshot.doneSet.has('activation sent');
+  if(!aiReady){
+    return {
+      title:'Empfohlene Aktion',
+      step:'AI basics configured',
+      description:'AI-Basics fehlen noch. Danach kann der Zugang sicher versendet werden.',
+      ctaLabel:'AI Setup öffnen',
+      ctaClass:'btn-primary',
+      ctaAction:`event.stopPropagation();setRoute('ai-setup');state.aiSelectedCustomerId='${jsStr(snapshot.customer.id)}';renderAiSetup&&renderAiSetup();`
+    };
+  }
+  if(!activationSent){
+    return {
+      title:'Nächster Schritt',
+      step:'activation sent',
+      description:'AI ist bereit. Jetzt den Dashboard-Zugang an den Kunden senden.',
+      ctaLabel:'Zugang senden',
+      ctaClass:'btn-primary',
+      ctaAction:`event.stopPropagation();openSendAccessModal('${jsStr(snapshot.customer.id)}')`
+    };
+  }
+  return {
+    title:'Status',
+    step:'Wartet auf Kunde',
+    description:'Internes Ops-Onboarding abgeschlossen. Nächster Fortschritt liegt beim Kunden.',
+    ctaLabel:'Kundenprofil öffnen',
+    ctaClass:'btn-secondary',
+    ctaAction:`event.stopPropagation();openCustomerProfile('${jsStr(snapshot.customer.id)}')`
+  };
+}
+
+function statusBadgeHtml(status){
+  if(status==='done') return '<span class="badge badge-green">Erledigt</span>';
+  if(status==='active') return '<span class="badge badge-blue">Aktiv</span>';
+  if(status==='waiting') return '<span class="badge badge-gray">Wartet auf Kunde</span>';
+  return '<span class="badge badge-gray">Ausstehend</span>';
+}
+
 function buildOnboardingQueueItem(customerId){
   const snapshot=deriveOnboardingSnapshot(customerId);
   if(!snapshot){
@@ -2017,7 +2069,7 @@ function buildOnboardingQueueItem(customerId){
       status:ONBOARDING_STATUS.NOT_STARTED,
       progress:0,
       currentStep:'Noch nicht gestartet',
-      nextStep:'customer created',
+      nextStep:ONBOARDING_INTERNAL_STEPS[0].key,
       missingSteps:[...state.checklist],
       blocker:'',
       latestUpdate:''
@@ -2039,7 +2091,9 @@ function buildOnboardingQueueItem(customerId){
 function openOnboardingDetail(customerId,options={}){
   const skipScroll=!!options.skipScroll;
   state.onboardingSelectedCustomerId=customerId;
+  const snapshot=deriveOnboardingSnapshot(customerId);
   const q=buildOnboardingQueueItem(customerId);
+  if(!snapshot) return;
   const wrap=document.getElementById('onboarding-detail-wrap');
   if(!wrap) return;
   wrap.style.display='block';
@@ -2048,19 +2102,54 @@ function openOnboardingDetail(customerId,options={}){
   if(nameEl) nameEl.textContent=q.customer.name||'Kunde';
   const checklistEl=document.getElementById('onboarding-checklist');
   if(checklistEl){
-    // Use computed missingSteps from buildOnboardingQueueItem (includes auto-detected steps)
-    const missingSet=new Set(q.missingSteps||[]);
-    checklistEl.innerHTML=state.checklist.map(step=>{
-      const isDone=!missingSet.has(step);
-      const svgDone='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      const svgOpen='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="#9CA3AF" stroke-width="1"/></svg>';
-      const action=isDone?'':getOnboardingStepAction(step,customerId);
-      return `<div class="onboarding-checklist-item">
-        ${isDone?svgDone:svgOpen}
-        <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(step)}</span>
-        ${action}
+    const missingSet=snapshot.missingSet||new Set();
+    const focusState=getOnboardingFocusState(snapshot);
+    const internalSteps=ONBOARDING_INTERNAL_STEPS.map(step=>{
+      const isDone=!missingSet.has(step.key);
+      const nextInternal=ONBOARDING_INTERNAL_STEPS.find(s=>missingSet.has(s.key));
+      const isActive=!isDone&&nextInternal&&nextInternal.key===step.key;
+      const status=isDone?'done':(isActive?'active':'open');
+      const action=isDone?'':getOnboardingStepAction(step.key,customerId);
+      return `<div class="onboarding-step-card ${isDone?'is-done':''} ${isActive?'is-active':''}">
+        <div class="onboarding-step-row">
+          <div style="min-width:0;">
+            <div class="onboarding-step-title">${esc(step.title)}</div>
+            ${isDone?'':`<div class="onboarding-step-desc">${esc(step.description)}</div>`}
+          </div>
+          ${statusBadgeHtml(status)}
+        </div>
+        ${action?`<div style="margin-top:8px;">${action}</div>`:''}
       </div>`;
     }).join('');
+    const customerSteps=ONBOARDING_CUSTOMER_PROGRESS_STEPS.map(step=>{
+      const isDone=snapshot.doneSet.has(step.key);
+      const activationSent=snapshot.doneSet.has('activation sent');
+      const waitingCustomer=!isDone&&activationSent;
+      const status=isDone?'done':(waitingCustomer?'waiting':'open');
+      return `<div class="onboarding-customer-status-row">
+        <div>
+          <div class="onboarding-step-title">${esc(step.title)}</div>
+          <div class="onboarding-step-desc">${esc(step.description)}</div>
+        </div>
+        ${statusBadgeHtml(status)}
+      </div>`;
+    }).join('');
+    checklistEl.innerHTML=`
+      <div class="onboarding-focus-card">
+        <div class="onboarding-focus-title">${esc(focusState.title)}</div>
+        <div class="onboarding-focus-step">${esc(focusState.step)}</div>
+        <div class="onboarding-focus-desc">${esc(focusState.description)}</div>
+        <div style="margin-top:10px;">
+          <button class="btn ${focusState.ctaClass} btn-sm" onclick="${focusState.ctaAction}">${esc(focusState.ctaLabel)}</button>
+        </div>
+      </div>
+      <div class="onboarding-section-title">Interne Vorbereitung</div>
+      ${internalSteps}
+      <div class="onboarding-section-title">Kundenfortschritt</div>
+      <div class="onboarding-step-card" style="padding-top:4px;padding-bottom:4px;">
+        ${customerSteps}
+      </div>
+    `;
   }
   const profileBtn=document.getElementById('onboarding-open-profile');
   if(profileBtn) profileBtn.onclick=()=>openCustomerProfile(customerId);
@@ -3384,7 +3473,19 @@ function validationLabelForField(field){
 }
 
 const ACCESS_REQUIRED_FIELDS=['customer_name','email','street','zip','city','country','plan'];
-const ONBOARDING_BLOCKER_STEPS=['Voxera number assigned','AI basics configured','forwarding configured','test call completed'];
+// Nur interne Ops-Schritte blockieren im Admin-Onboarding.
+const ONBOARDING_INTERNAL_STEPS=[
+  {key:'Voxera number assigned',title:'Voxera number assigned',description:'Nummer intern zuweisen, damit Routing und Setup eindeutig sind.'},
+  {key:'AI basics configured',title:'AI basics configured',description:'AI-Grundkonfiguration (insb. Geschäftsbeschreibung) vervollständigen.'},
+  {key:'activation sent',title:'activation sent',description:'Dashboard-Zugang versenden, sobald AI-Basics bereit sind.'}
+];
+const ONBOARDING_CUSTOMER_PROGRESS_STEPS=[
+  {key:'activation sent',title:'Kunde hat Zugang erhalten',description:'Einladungslink wurde versendet.'},
+  {key:'dashboard access active',title:'Kunde hat sich eingeloggt',description:'Zugang wurde vom Kunden aktiviert.'},
+  {key:'forwarding configured',title:'Weiterleitung eingerichtet',description:'Weiterleitung wurde im Customer Dashboard gesetzt.'},
+  {key:'test call completed',title:'Testanruf durchgeführt',description:'Optionaler Qualitäts-Check nach Einrichtung.'}
+];
+const ONBOARDING_BLOCKER_STEPS=['Voxera number assigned','AI basics configured','activation sent'];
 
 function isOnboardingStatusReady(status){
   return normalizeOnboardingStatus(status)===ONBOARDING_STATUS.READY;
@@ -3458,7 +3559,7 @@ function deriveOnboardingSnapshot(customerId){
     missingSteps,
     progress,
     currentStep:doneSteps.length?doneSteps[doneSteps.length-1]:'Noch nicht gestartet',
-    nextStep:missingSteps[0]||'fully completed',
+    nextStep:ONBOARDING_INTERNAL_STEPS.map(step=>step.key).find(step=>missingSet.has(step))||'wartet auf Kunde',
     blockerStep,
     blocker:blockerStep?`Missing: ${blockerStep}`:(onboarding.blocker||''),
     status,
