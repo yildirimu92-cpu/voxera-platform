@@ -3195,6 +3195,55 @@ function isActiveFollowUp(call) {
   return !!followUpAt;
 }
 
+function getDashboardBucketForCall(record) {
+  const f = (record && record.fields) || {};
+  if (isClosedStatus(f.dashboard_status)) return null;
+
+  const hasFollowUp = !!resolveFollowUpAt(f);
+  if (hasFollowUp) return 'followup';
+
+  const wantsCallback = !!f.callback_requested;
+  if (wantsCallback) return 'callback';
+
+  return 'recent';
+}
+
+function deriveDashboardCallBuckets(records) {
+  const uniqueById = new Map();
+  (records || []).forEach(function(r) {
+    if (!r || !r.id || uniqueById.has(r.id)) return;
+    uniqueById.set(r.id, r);
+  });
+
+  const buckets = {
+    followups: [],
+    callbacks: [],
+    recent: [],
+    open: []
+  };
+
+  uniqueById.forEach(function(record) {
+    const f = (record && record.fields) || {};
+    if (!isClosedStatus(f.dashboard_status)) buckets.open.push(record);
+
+    const bucket = getDashboardBucketForCall(record);
+    if (bucket === 'followup') buckets.followups.push(record);
+    else if (bucket === 'callback') buckets.callbacks.push(record);
+    else if (bucket === 'recent') buckets.recent.push(record);
+  });
+
+  buckets.callbacks = sortOpenCallbacksOldestFirst(buckets.callbacks);
+  buckets.followups.sort(function(a, b) {
+    return new Date(resolveFollowUpAt((a && a.fields) || {}) || 0).getTime() -
+           new Date(resolveFollowUpAt((b && b.fields) || {}) || 0).getTime();
+  });
+  buckets.recent.sort(function(a, b) {
+    return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
+  });
+
+  return buckets;
+}
+
 function sortRecordsOpenFirst(records) {
   return [...records].sort((a,b) => {
     const ad = isClosedStatus(a.fields.dashboard_status) ? 1 : 0;
@@ -3407,12 +3456,9 @@ function updateLastUpdatedLabel() {
 function updateDashboardHeaderMeta() {
   const sub = document.getElementById('greeting-sub');
   if (!sub) return;
-  var openCalls = allRecords.filter(function(r) {
-    return isActiveFollowUp(r) || !isClosedStatus(r.fields.dashboard_status);
-  }).length;
-  var openCallbacks = allRecords.filter(function(r) {
-    return r.fields.callback_requested && (isActiveFollowUp(r) || !isClosedStatus(r.fields.dashboard_status));
-  }).length;
+  var buckets = deriveDashboardCallBuckets(allRecords || []);
+  var openCalls = buckets.open.length;
+  var openCallbacks = buckets.callbacks.length;
   sub.textContent = openCalls + ' Anrufe · ' + openCallbacks + ' Rückrufe · Gerade aktualisiert';
 }
 
@@ -3911,13 +3957,12 @@ function updateSoundToggleUI(isOff) {
 //  RENDER DASHBOARD
 // ═══════════════════════════════════════════
 function renderDashboard(records) {
-  var today = records.filter(function(r) { return isToday(getRecordTimestamp(r)); });
-  var offen = records.filter(function(r) { return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status); });
-  var sortedOpenCallbacks = sortOpenCallbacksOldestFirst(offen);
-  var allOpen = records.filter(function(r) { return !isClosedStatus(r.fields.dashboard_status); });
-  var followupsOpen = records.filter(function(r) {
-    return !isClosedStatus(r.fields.dashboard_status) && !!resolveFollowUpAt(r.fields || {});
-  });
+  var buckets = deriveDashboardCallBuckets(records || []);
+  var today = (records || []).filter(function(r) { return isToday(getRecordTimestamp(r)); });
+  var offen = buckets.callbacks;
+  var sortedOpenCallbacks = buckets.callbacks;
+  var allOpen = buckets.open;
+  var followupsOpen = buckets.followups;
   updateActivationStatusCard(records);
 
   // ── KPI: Anrufe heute / Rückrufe / Follow-ups / Leads ───────────────────────
@@ -3953,15 +3998,8 @@ function renderDashboard(records) {
     leadsDotsEl.innerHTML = dotsHtml;
   }
 
-  // ── Recent Calls (max 2, latest by created_at) ──────────────────────
-  var allOpenCalls = records.filter(function(r) {
-    return !isClosedStatus(r.fields.dashboard_status);
-  });
-  allOpenCalls.sort(function(a, b) {
-    var aDate = new Date(getRecordTimestamp(a) || 0);
-    var bDate = new Date(getRecordTimestamp(b) || 0);
-    return bDate.getTime() - aDate.getTime();
-  });
+  // ── Recent Calls (dedupliziert, nur primärer Arbeitskorb) ────────────
+  var allOpenCalls = buckets.recent;
   var callbackList = document.getElementById('dash-callback-list');
   if (callbackList) {
     if (sortedOpenCallbacks.length === 0) {
@@ -3973,11 +4011,7 @@ function renderDashboard(records) {
   // ── Follow-ups section ──────────────────────────────────────────────────────
   var followupList = document.getElementById('dash-followup-list');
   if (followupList) {
-    var followupsWithDate = records.filter(function(r) {
-      return !isClosedStatus(r.fields.dashboard_status) && !!resolveFollowUpAt(r.fields || {});
-    }).sort(function(a, b) {
-      return new Date(resolveFollowUpAt(a.fields||{})).getTime() - new Date(resolveFollowUpAt(b.fields||{})).getTime();
-    });
+    var followupsWithDate = buckets.followups;
     if (followupsWithDate.length === 0) {
       followupList.innerHTML = '<div class="dash-side-empty">Keine geplanten Follow-ups</div>';
     } else {
