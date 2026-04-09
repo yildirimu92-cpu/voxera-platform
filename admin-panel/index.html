@@ -513,6 +513,34 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .ai-setup-layout{grid-template-columns:1fr;}
   .ai-workspace-card{position:static;}
 }
+@media (max-width:768px){
+  .ai-setup-layout{gap:12px;}
+  .ai-summary-grid{grid-template-columns:1fr;}
+  .ai-queue-table-wrap{border:none;background:transparent;box-shadow:none;overflow:visible;}
+  .ai-queue-table{min-width:0;}
+  .ai-queue-table thead{display:none;}
+  .ai-queue-table tbody{display:flex;flex-direction:column;gap:10px;}
+  .ai-queue-table tr{display:block;border:1px solid var(--line);border-radius:var(--r-lg);background:#fff;padding:10px;}
+  .ai-queue-table td{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:6px 2px;border-bottom:1px solid var(--line2);white-space:normal;}
+  .ai-queue-table td:last-child{border-bottom:none;padding-top:10px;}
+  .ai-queue-table td::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--slate2);flex:0 0 112px;}
+  .ai-queue-table td>strong{display:block;line-height:1.35;}
+  .ai-queue-table td .muted{margin-top:4px;line-height:1.35;}
+  .ai-queue-table .ai-priority-pill{font-size:10.5px;}
+  .ai-queue-table td[data-label="Aktion"]{display:block;padding-top:10px;}
+  .ai-queue-table td[data-label="Aktion"]::before{display:none;}
+  .ai-queue-table td[data-label="Aktion"] .btn{width:100%;min-height:40px;justify-content:center;}
+  .ai-workspace-card{width:100%;}
+  .ai-workspace-card .card-head{align-items:flex-start;gap:10px;}
+  .ai-workspace-card .badge{max-width:100%;white-space:normal;}
+  #ai-workspace-customer{margin-top:6px!important;line-height:1.35;word-break:break-word;}
+  #ai-customer-context{gap:8px;}
+  #ai-workspace .ai-workspace-block{margin-top:10px;}
+  #ai-workspace .card-title{line-height:1.35;}
+  #ai-workspace .textarea{width:100%;min-height:120px;padding:12px;}
+  #ai-workspace .inline-actions{display:grid;grid-template-columns:1fr;gap:8px;}
+  #ai-workspace .inline-actions .btn{width:100%;min-height:42px;justify-content:center;}
+}
 
 </style>
 </head>
@@ -721,15 +749,15 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
               <select class="select" id="ai-custom-filter"><option value="all">Custom Config: Alle</option><option value="yes">Nur Custom</option><option value="no">Nur Default</option></select>
               <button class="btn btn-quiet" id="ai-filter-reset">Zurücksetzen</button>
             </div>
-            <div class="table-wrap">
-              <table class="data-table">
+            <div class="table-wrap ai-queue-table-wrap">
+              <table class="data-table ai-queue-table">
                 <thead><tr><th>Kunde</th><th>Plan</th><th>AI-Readiness</th><th>Offene Punkte</th><th>Latest AI Update</th><th>Aktion</th></tr></thead>
                 <tbody id="ai-customer-body"></tbody>
               </table>
             </div>
           </div>
 
-          <div class="card ai-workspace-card">
+          <div class="card ai-workspace-card" id="ai-workspace-card">
             <div class="card-head" style="align-items:flex-start;">
               <div>
                 <div class="onboarding-active-chip">Aktiver AI Workspace</div>
@@ -2200,12 +2228,12 @@ function renderAiSetup(){
     const missingLabel=r.missing.length===0?'Vollständig':`${r.missing.length} offen`;
     const updateLabel=r.cfg.lastUpdate||'—';
     return `<tr class="${selectedId===r.customer.id?'ai-row-active':''}" onclick="openAiWorkspace('${jsStr(r.customer.id)}')">
-      <td><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(contactDisplay(r.customer))}</div></td>
-      <td>${toneBadge(r.customer.plan)}</td>
-      <td>${toneBadge(r.cfg.status||'Unbekannt')}</td>
-      <td><span class="ai-priority-pill ${r.priority}">${r.priority==='high'?'Hoch':r.priority==='medium'?'Mittel':'Niedrig'}</span><div class="muted" style="margin-top:3px;">${esc(missingLabel)}</div></td>
-      <td>${esc(updateLabel)}</td>
-      <td><button class="btn btn-quiet btn-sm" onclick="event.stopPropagation();openAiWorkspace('${jsStr(r.customer.id)}')">Öffnen</button></td>
+      <td data-label="Kunde"><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(contactDisplay(r.customer))}</div></td>
+      <td data-label="Plan">${toneBadge(r.customer.plan)}</td>
+      <td data-label="AI-Readiness">${toneBadge(r.cfg.status||'Unbekannt')}</td>
+      <td data-label="Offene Punkte"><span class="ai-priority-pill ${r.priority}">${r.priority==='high'?'Hoch':r.priority==='medium'?'Mittel':'Niedrig'}</span><div class="muted" style="margin-top:3px;">${esc(missingLabel)}</div></td>
+      <td data-label="Latest Update">${esc(updateLabel)}</td>
+      <td data-label="Aktion"><button class="btn btn-quiet btn-sm" onclick="event.stopPropagation();openAiWorkspace('${jsStr(r.customer.id)}')">Öffnen</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="6"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 
@@ -2248,6 +2276,12 @@ function hydrateAiStatusFilter(){
 function openAiWorkspace(customerId){
   state.aiSelectedCustomerId=customerId;
   renderAiWorkspace();
+  if(window.matchMedia('(max-width: 1100px)').matches){
+    requestAnimationFrame(()=>{
+      const workspaceCard=document.getElementById('ai-workspace-card');
+      if(workspaceCard) workspaceCard.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
 }
 
 function renderAiWorkspace(){
