@@ -491,6 +491,28 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .onboarding-layout{grid-template-columns:1fr;}
   .onboarding-detail-shell{position:static;}
 }
+/* ─── AI Setup Workspace ───────────────────────────── */
+.ai-summary-card{padding-bottom:16px;}
+.ai-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.ai-summary-kpi{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;}
+.ai-summary-k{font-size:11px;color:var(--slate2);text-transform:uppercase;letter-spacing:.04em;font-weight:600;}
+.ai-summary-v{font-size:20px;font-weight:700;color:var(--ink);line-height:1.2;margin-top:4px;}
+.ai-summary-sub{font-size:11px;color:var(--slate);margin-top:2px;}
+.ai-setup-layout{display:grid;grid-template-columns:minmax(340px,1fr) minmax(380px,1.25fr);gap:16px;align-items:start;}
+.ai-workspace-card{position:sticky;top:8px;}
+#ai-customer-body tr{cursor:pointer;}
+#ai-customer-body tr.ai-row-active td{background:#EFF6FF;border-bottom-color:#BFDBFE;}
+.ai-priority-pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}
+.ai-priority-pill.high{background:var(--red-light);color:var(--red);}
+.ai-priority-pill.medium{background:var(--amber-light);color:var(--amber);}
+.ai-priority-pill.low{background:var(--green-light);color:var(--green-dark);}
+.ai-workspace-block .textarea{font-size:13px;}
+.ai-global-secondary,.ai-audit-secondary{padding:18px;}
+@media (max-width:1100px){
+  .ai-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .ai-setup-layout{grid-template-columns:1fr;}
+  .ai-workspace-card{position:static;}
+}
 
 </style>
 </head>
@@ -681,11 +703,76 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
       <!-- AI SETUP -->
       <section id="section-ai-setup" class="section">
-        <div class="grid-2">
+        <div class="card ai-summary-card">
+          <div class="card-head"><h3>AI Operations Summary</h3><span class="badge badge-blue">Workspace</span></div>
+          <div class="ai-summary-grid" id="ai-summary-grid"></div>
+          <div style="margin-top:14px;">
+            <div class="card-title" style="margin-bottom:10px;">Readiness Queue (Top Prioritäten)</div>
+            <div class="list" id="ai-missing-list"></div>
+          </div>
+        </div>
+
+        <div class="ai-setup-layout" style="margin-top:16px;">
           <div class="card">
-            <div class="card-head"><h3>Global Assistant Configuration</h3><span class="badge badge-blue">Default Policy</span></div>
+            <div class="card-head"><h3>Customer AI Queue</h3><span class="badge badge-amber">Action Required</span></div>
+            <div class="toolbar" style="grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(0,1fr)) auto;">
+              <input class="input" id="ai-search" placeholder="Suche Kunde / AI-Kontext">
+              <select class="select" id="ai-status-filter"><option value="all">AI Status: Alle</option></select>
+              <select class="select" id="ai-custom-filter"><option value="all">Custom Config: Alle</option><option value="yes">Nur Custom</option><option value="no">Nur Default</option></select>
+              <button class="btn btn-quiet" id="ai-filter-reset">Zurücksetzen</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Kunde</th><th>Plan</th><th>AI-Readiness</th><th>Offene Punkte</th><th>Latest AI Update</th><th>Aktion</th></tr></thead>
+                <tbody id="ai-customer-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card ai-workspace-card">
+            <div class="card-head" style="align-items:flex-start;">
+              <div>
+                <div class="onboarding-active-chip">Aktiver AI Workspace</div>
+                <h3 id="ai-workspace-customer" style="margin-top:8px;">Kunde wählen</h3>
+              </div>
+              <span class="badge badge-gray" id="ai-workspace-badge">Kein Kunde gewählt</span>
+            </div>
+            <div id="ai-workspace-empty" class="empty">Wähle einen Kunden aus der AI-Queue, um die Konfiguration zu bearbeiten.</div>
+            <div id="ai-workspace" style="display:none;">
+              <div class="detail-grid" id="ai-customer-context"></div>
+              <div class="ai-workspace-block">
+                <div class="card-title" style="margin-top:12px;">Business Description & Knowledge</div>
+                <textarea class="textarea" id="ai-business-description" placeholder="Business description"></textarea>
+                <textarea class="textarea" id="ai-services" placeholder="Services / products" style="margin-top:8px;"></textarea>
+                <textarea class="textarea" id="ai-location-hours" placeholder="Location + opening hours summary" style="margin-top:8px;"></textarea>
+                <textarea class="textarea" id="ai-booking-faq" placeholder="Booking/contact preferences + FAQs" style="margin-top:8px;"></textarea>
+              </div>
+              <div class="ai-workspace-block">
+                <div class="card-title" style="margin-top:12px;">Custom Instructions</div>
+                <textarea class="textarea" id="ai-customer-instructions" placeholder="Greeting / tone / do-do-not / lead qual / callback specifics"></textarea>
+              </div>
+              <div class="ai-workspace-block">
+                <div class="card-title" style="margin-top:12px;">Fallback & Escalation</div>
+                <textarea class="textarea" id="ai-fallback-escalation" placeholder="Escalation triggers, missing info behavior, frustrated caller handling"></textarea>
+              </div>
+              <div class="ai-workspace-block">
+                <div class="card-title" style="margin-top:12px;">Response Constraints & Notes</div>
+                <textarea class="textarea" id="ai-response-constraints" placeholder="Compliance boundaries / prohibited claims"></textarea>
+                <textarea class="textarea" id="ai-internal-notes" placeholder="Implementation/support notes" style="margin-top:8px;"></textarea>
+              </div>
+              <div class="inline-actions" style="margin-top:10px;">
+                <button class="btn btn-secondary" id="ai-preview-btn" onclick="openAiPreview()">Prompt-Vorschau</button>
+                <button class="btn btn-primary" id="ai-save-customer">AI Konfiguration speichern</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px;grid-template-columns:1.25fr .75fr;">
+          <div class="card ai-global-secondary">
+            <div class="card-head"><h3>Global Assistant Configuration</h3><span class="badge badge-gray">Secondary</span></div>
             <div class="detail-item"><span class="detail-k">Global Prompt</span><span class="detail-v"><button class="btn btn-secondary btn-sm" id="ai-save-global">Speichern</button></span></div>
-            <textarea class="textarea" id="ai-global-prompt" rows="6" style="margin-top:8px;"></textarea>
+            <textarea class="textarea" id="ai-global-prompt" rows="4" style="margin-top:8px;"></textarea>
             <div class="grid-2" style="margin-top:12px;">
               <div>
                 <div class="card-title">Behavior Rules</div>
@@ -701,52 +788,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
               </div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-head"><h3>AI Setup Readiness</h3><span class="badge badge-amber">Missing Data</span></div>
-            <div class="list" id="ai-missing-list"></div>
-          </div>
-        </div>
-        <div class="card" style="margin-top:16px;">
-          <div class="card-head"><h3>Customer AI Configuration</h3><span class="badge badge-green">Tenant Overrides</span></div>
-          <div class="toolbar" style="grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(0,1fr)) auto;">
-            <input class="input" id="ai-search" placeholder="Suche Kunde / AI-Kontext">
-            <select class="select" id="ai-status-filter"><option value="all">AI Status: Alle</option></select>
-            <select class="select" id="ai-custom-filter"><option value="all">Custom Config: Alle</option><option value="yes">Nur Custom</option><option value="no">Nur Default</option></select>
-            <button class="btn btn-quiet" id="ai-filter-reset">Zurücksetzen</button>
-          </div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>Kunde</th><th>Plan</th><th>AI Setup</th><th>Custom Instr.</th><th>Business Knowledge</th><th>Fallback/Esc.</th><th>Latest AI Update</th><th>Aktion</th></tr></thead>
-              <tbody id="ai-customer-body"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="grid-2" style="margin-top:16px;">
-          <div class="card">
-            <div class="card-head"><h3>Customer AI Workspace</h3><span class="badge badge-gray" id="ai-workspace-badge">Kein Kunde gewählt</span></div>
-            <div id="ai-workspace-empty" class="empty">Wähle einen Kunden aus der AI-Konfigurationsliste.</div>
-            <div id="ai-workspace" style="display:none;">
-              <div class="detail-grid" id="ai-customer-context"></div>
-              <div class="card-title" style="margin-top:12px;">Business Knowledge</div>
-              <textarea class="textarea" id="ai-business-description" placeholder="Business description"></textarea>
-              <textarea class="textarea" id="ai-services" placeholder="Services / products" style="margin-top:8px;"></textarea>
-              <textarea class="textarea" id="ai-location-hours" placeholder="Location + opening hours summary" style="margin-top:8px;"></textarea>
-              <textarea class="textarea" id="ai-booking-faq" placeholder="Booking/contact preferences + FAQs" style="margin-top:8px;"></textarea>
-              <div class="card-title" style="margin-top:12px;">Customer-Specific Instructions</div>
-              <textarea class="textarea" id="ai-customer-instructions" placeholder="Greeting / tone / do-do-not / lead qual / callback specifics"></textarea>
-              <div class="card-title" style="margin-top:12px;">Fallback & Escalation Logic</div>
-              <textarea class="textarea" id="ai-fallback-escalation" placeholder="Escalation triggers, missing info behavior, frustrated caller handling"></textarea>
-              <div class="card-title" style="margin-top:12px;">Response Constraints</div>
-              <textarea class="textarea" id="ai-response-constraints" placeholder="Compliance boundaries / prohibited claims"></textarea>
-              <div class="card-title" style="margin-top:12px;">AI Notes</div>
-              <textarea class="textarea" id="ai-internal-notes" placeholder="Implementation/support notes"></textarea>
-              <div class="inline-actions" style="margin-top:10px;">
-                <button class="btn btn-secondary" id="ai-preview-btn" onclick="openAiPreview()">Prompt-Vorschau</button>
-                <button class="btn btn-primary" id="ai-save-customer">AI Konfiguration speichern</button>
-              </div>
-            </div>
-          </div>
-          <div class="card">
+          <div class="card ai-audit-secondary">
             <div class="card-head"><h3>Recent AI Changes</h3><span class="badge badge-gray">Audit</span></div>
             <div class="list" id="ai-changes-list"></div>
           </div>
@@ -2135,36 +2177,61 @@ function renderAiSetup(){
   const search=(document.getElementById('ai-search')?.value||'').toLowerCase().trim();
   const statusFilter=(document.getElementById('ai-status-filter')?.value||'all');
   const customFilter=(document.getElementById('ai-custom-filter')?.value||'all');
+
   let rows=state.customers.map(c=>{
     const cfg=state.aiConfigs[c.id]||{};
     const missing=aiMissingFields(cfg);
-    return {customer:c,cfg,missing};
+    // Critical: Keep existing readiness/save logic untouched; only derive UI priority for the new queue view.
+    const priorityScore=(missing.length*10)+(cfg.status==='Blocked'?20:cfg.status==='Needs Review'?10:0);
+    const priority=priorityScore>=30?'high':priorityScore>=15?'medium':'low';
+    return {customer:c,cfg,missing,priorityScore,priority};
   });
+
   if(search){
     rows=rows.filter(r=>`${r.customer.name} ${r.cfg.businessDescription||''} ${r.cfg.instructions||''}`.toLowerCase().includes(search));
   }
   if(statusFilter!=='all') rows=rows.filter(r=>r.cfg.status===statusFilter);
   if(customFilter==='yes') rows=rows.filter(r=>!!r.cfg.custom);
   if(customFilter==='no') rows=rows.filter(r=>!r.cfg.custom);
-  rows.sort((a,b)=>a.missing.length-b.missing.length||a.customer.name.localeCompare(b.customer.name));
+  rows.sort((a,b)=>b.priorityScore-a.priorityScore||b.missing.length-a.missing.length||a.customer.name.localeCompare(b.customer.name));
 
-  document.getElementById('ai-customer-body').innerHTML=rows.map(r=>`<tr>
-    <td><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(contactDisplay(r.customer))}</div></td>
-    <td>${toneBadge(r.customer.plan)}</td>
-    <td>${toneBadge(r.cfg.status||'Unbekannt')}</td>
-    <td>${r.cfg.custom?toneBadge('Ja'):toneBadge('Nein')}</td>
-    <td>${r.missing.includes('Business Description')||r.missing.includes('Services')?'! Unvollständig':'Vollständig'}</td>
-    <td>${r.missing.includes('Fallback/Escalation')?'! Offen':'Ready'}</td>
-    <td>${esc(r.cfg.lastUpdate||'—')}</td>
-    <td><button class="btn btn-quiet btn-sm" onclick="openAiWorkspace('${jsStr(r.customer.id)}')">AI Config</button></td>
-  </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+  const selectedId=state.aiSelectedCustomerId;
+  document.getElementById('ai-customer-body').innerHTML=rows.map(r=>{
+    const missingLabel=r.missing.length===0?'Vollständig':`${r.missing.length} offen`;
+    const updateLabel=r.cfg.lastUpdate||'—';
+    return `<tr class="${selectedId===r.customer.id?'ai-row-active':''}" onclick="openAiWorkspace('${jsStr(r.customer.id)}')">
+      <td><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(contactDisplay(r.customer))}</div></td>
+      <td>${toneBadge(r.customer.plan)}</td>
+      <td>${toneBadge(r.cfg.status||'Unbekannt')}</td>
+      <td><span class="ai-priority-pill ${r.priority}">${r.priority==='high'?'Hoch':r.priority==='medium'?'Mittel':'Niedrig'}</span><div class="muted" style="margin-top:3px;">${esc(missingLabel)}</div></td>
+      <td>${esc(updateLabel)}</td>
+      <td><button class="btn btn-quiet btn-sm" onclick="event.stopPropagation();openAiWorkspace('${jsStr(r.customer.id)}')">Öffnen</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="6"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 
-  const missingCustomers=state.customers.map(c=>{
+  const allRows=state.customers.map(c=>{
     const cfg=state.aiConfigs[c.id]||{};
-    return {name:c.name,id:c.id,missing:aiMissingFields(cfg)};
-  }).filter(x=>x.missing.length>0).sort((a,b)=>b.missing.length-a.missing.length);
-  document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">${m.missing.length} fehlend: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace('${jsStr(m.id)}')">Fixen</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
-  document.getElementById('ai-changes-list').innerHTML=state.aiChanges.slice(0,8).map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">AI Configuration change log</div></div></div>`).join('');
+    const missing=aiMissingFields(cfg);
+    const score=(missing.length*10)+(cfg.status==='Blocked'?20:cfg.status==='Needs Review'?10:0);
+    return {name:c.name,id:c.id,cfg,missing,score};
+  });
+  const blocked=allRows.filter(x=>x.cfg.status==='Blocked').length;
+  const needsReview=allRows.filter(x=>x.cfg.status==='Needs Review').length;
+  const ready=allRows.filter(x=>x.cfg.status==='AI Ready').length;
+  const unresolved=allRows.filter(x=>x.missing.length>0).length;
+  const summary=document.getElementById('ai-summary-grid');
+  if(summary){
+    summary.innerHTML=[
+      ['Kunden gesamt',String(allRows.length),'AI Setup Scope'],
+      ['Blocked',String(blocked),'akut priorisieren'],
+      ['Needs Review',String(needsReview),'offene AI Felder'],
+      ['AI Ready',String(ready),`${unresolved} mit offenen Daten`]
+    ].map(([k,v,sub])=>`<div class="ai-summary-kpi"><div class="ai-summary-k">${esc(k)}</div><div class="ai-summary-v">${esc(v)}</div><div class="ai-summary-sub">${esc(sub)}</div></div>`).join('');
+  }
+
+  const missingCustomers=allRows.filter(x=>x.missing.length>0).sort((a,b)=>b.score-a.score||b.missing.length-a.missing.length).slice(0,6);
+  document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">${m.missing.length} fehlend: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace('${jsStr(m.id)}')">Bearbeiten</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
+  document.getElementById('ai-changes-list').innerHTML=state.aiChanges.slice(0,6).map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">AI Configuration change log</div></div></div>`).join('')||'<div class="empty">Noch keine Änderungen protokolliert.</div>';
   hydrateAiStatusFilter();
   renderAiWorkspace();
 }
@@ -2187,20 +2254,30 @@ function renderAiWorkspace(){
   const id=state.aiSelectedCustomerId;
   const workspace=document.getElementById('ai-workspace');
   const empty=document.getElementById('ai-workspace-empty');
+  const title=document.getElementById('ai-workspace-customer');
   if(!id){
     workspace.style.display='none';
     empty.style.display='block';
+    if(title) title.textContent='Kunde wählen';
     document.getElementById('ai-workspace-badge').textContent='Kein Kunde gewählt';
     return;
   }
   const c=customerById(id); const cfg=state.aiConfigs[id]||{};
   const setupProgress=getCustomerSetupProgress(c,onboardingForCustomer(id));
   const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboardingForCustomer(id));
+  const missing=aiMissingFields(cfg);
   workspace.style.display='block';
   empty.style.display='none';
+  if(title) title.textContent=`${c.name} · ${c.plan}`;
   document.getElementById('ai-workspace-badge').outerHTML=toneBadge(cfg.status||'Unbekannt').replace('<span','<span id="ai-workspace-badge"');
   document.getElementById('ai-customer-context').innerHTML=[
-    ['Customer',c.name],['Plan',c.plan],['Status',getCustomerLifecycleStatusLabel(c,onboardingForCustomer(id))],['Voxera',c.voxera],['Setup',`${setupProgress}% · ${setupReadinessLabel}`],['AI Setup',cfg.status||'Unbekannt']
+    ['Customer',c.name],
+    ['Plan',c.plan],
+    ['AI-Readiness',cfg.status||'Unbekannt'],
+    ['Setup',`${setupProgress}% · ${setupReadinessLabel}`],
+    ['Fallback/Esc.',String(cfg.fallbackEscalation||'').trim()? 'Vorhanden':'Fehlt'],
+    ['Letzte AI-Aktualisierung',cfg.lastUpdate||'—'],
+    ['Offene Punkte',missing.length?String(missing.length):'0']
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('ai-business-description').value=cfg.businessDescription||'';
   document.getElementById('ai-services').value=cfg.services||'';
