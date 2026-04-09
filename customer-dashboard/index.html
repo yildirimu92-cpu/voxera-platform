@@ -4392,38 +4392,59 @@ function renderCallbackQueue(records) {
 }
 
 async function cbQueueMarkDone(recordId) {
-  try {
-    await doStatusChange(recordId, CALL_STATUS.CLOSED, null);
-    const rec = allRecords.find(function(r) { return String(r.id) === String(recordId); });
-    if (rec && rec.fields) {
-      rec.fields.callback_requested = false;
-      rec.fields.dashboard_status = CALL_STATUS.CLOSED;
-      rec.fields.status = 'done';
-      rec.fields.follow_up_at = null;
-    }
-    _cbqShowSuccess();
-    renderRueckrufe(allRecords);
-  } catch (e) {
-    toast('Fehler beim Abschließen');
+  const ok = await doStatusChange(recordId, CALL_STATUS.CLOSED, null);
+  if (!ok) return;
+  const rec = allRecords.find(function(r) { return String(r.id) === String(recordId); });
+  if (rec && rec.fields) {
+    rec.fields.callback_requested = false;
+    rec.fields.follow_up_at = null;
   }
+  _cbqShowSuccess();
+  renderDashboard(allRecords);
+  renderAnrufe(allRecords);
+  renderRueckrufe(allRecords);
+  renderArchiv(allRecords);
 }
 
 async function cbQueueSnooze(recordId) {
+  const rec = allRecords.find(function(r) { return String(r.id) === String(recordId); });
+  if (!rec || !rec.fields) {
+    toast('Eintrag nicht gefunden');
+    return;
+  }
   const in90m = new Date(Date.now() + (90 * 60 * 1000));
   const val = in90m.getFullYear() + '-' + pad2(in90m.getMonth()+1) + '-' + pad2(in90m.getDate()) + 'T' + pad2(in90m.getHours()) + ':' + pad2(in90m.getMinutes());
+  const followUpAt = serializeFollowUpLocal(val);
+  const currentStatus = normalizeStatus(rec.fields.dashboard_status || CALL_STATUS.NEW);
+  const currentNotes = (rec.fields.notes_customer_voxera || '').trim();
+  const nextAction = (rec.fields.next_action || 'Rückruf später').trim();
   try {
-    await apiPatchOptional(recordId, { follow_up_at: serializeFollowUpLocal(val), next_action: 'Rückruf später', notes_customer_voxera: null }, { follow_up_at: serializeFollowUpLocal(val) });
-    const rec = allRecords.find(function(r) { return String(r.id) === String(recordId); });
-    if (rec && rec.fields) {
-      rec.fields.follow_up_at = serializeFollowUpLocal(val);
-      rec.fields.callback_requested = false;
-      rec.fields.dashboard_status = CALL_STATUS.FOLLOW_UP_SCHEDULED;
+    if (currentStatus === CALL_STATUS.NEW) {
+      assertCallTransition(CALL_STATUS.NEW, CALL_STATUS.IN_PROGRESS);
+      assertCallTransition(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
+    } else {
+      assertCallTransition(currentStatus, CALL_STATUS.FOLLOW_UP_SCHEDULED);
     }
+
+    await apiPatchOptional(
+      recordId,
+      { notes_customer_voxera: currentNotes, next_action: nextAction, follow_up_at: followUpAt || null },
+      { notes_customer_voxera: currentNotes }
+    );
+    await applyStatusTransition(recordId, currentStatus, CALL_STATUS.FOLLOW_UP_SCHEDULED);
+
+    rec.fields.notes_customer_voxera = currentNotes;
+    rec.fields.next_action = nextAction;
+    rec.fields.follow_up_at = followUpAt || null;
+    rec.fields.dashboard_status = CALL_STATUS.FOLLOW_UP_SCHEDULED;
+    rec.fields.callback_requested = false;
+
     toast('Auf später verschoben');
     renderDashboard(allRecords);
     renderAnrufe(allRecords);
     renderRueckrufe(allRecords);
     renderArchiv(allRecords);
+    setTimeout(loadData, 500);
   } catch (e) {
     toast('Fehler beim Verschieben');
   }
