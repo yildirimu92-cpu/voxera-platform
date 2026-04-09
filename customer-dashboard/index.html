@@ -1081,24 +1081,24 @@ body{
 @media(max-width:380px){
   .dash-kpi-row{grid-template-columns:1fr 1fr;}
 }
-/* Callback Queue Mode Banner */
-#cb-queue-banner{background:var(--blue-light);border:1.5px solid var(--blue-mid);border-radius:14px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-.cb-queue-info{font-size:13.5px;font-weight:600;color:#1E3A8A;line-height:1.5;}
-.cb-queue-next{font-size:12px;color:#1E40AF;margin-top:2px;font-weight:400;}
-@media(max-width:600px){#cb-queue-banner{flex-direction:column;align-items:stretch;}.cb-queue-banner-btn{width:100%;justify-content:center;}}
-/* Callback Queue Mini List */
-#cb-queue-mini-list{display:none;margin-bottom:16px;}
-.cbq-row{background:var(--white);border:1px solid var(--gray200);border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;}
-.cbq-row:last-child{margin-bottom:0;}
-.cbq-info{flex:1;min-width:0;}
-.cbq-name{font-size:13px;font-weight:600;color:var(--gray900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.cbq-phone{font-size:12px;color:var(--gray500);margin-top:1px;}
-.cbq-meta{font-size:11.5px;color:var(--gray400);margin-top:3px;line-height:1.4;}
-.cbq-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;}
-.cbq-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
-@media(max-width:520px){.cbq-row{flex-direction:column;}.cbq-actions{width:100%;justify-content:flex-start;}}
-.cbq-row--active{border-color:#2563EB;background:#EFF6FF;box-shadow:0 0 0 2px rgba(37,99,235,.15);}
-.cb-queue-progress{font-size:11.5px;color:#1E40AF;margin-top:4px;font-weight:500;}
+/* Callback Queue Mode */
+#cb-queue-mode{background:linear-gradient(180deg,#EFF6FF 0%,#FFFFFF 100%);border:1.5px solid var(--blue-mid);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.cb-queue-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px;}
+.cb-queue-title{font-size:18px;font-weight:800;color:#1E3A8A;letter-spacing:-.02em;}
+.cb-queue-open{font-size:12px;color:#1E40AF;margin-top:2px;font-weight:600;}
+.cb-queue-progress{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.cb-progress-pill{background:#fff;border:1px solid var(--blue-mid);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:700;color:#1E40AF;}
+.cb-queue-current{background:#fff;border:1px solid var(--gray200);border-radius:14px;padding:14px;}
+.cb-queue-current.empty{text-align:center;color:var(--gray500);font-size:12.5px;padding:18px 14px;}
+.cb-current-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:5px;}
+.cb-current-name{font-size:15px;font-weight:700;color:var(--gray900);}
+.cb-current-time{font-size:12px;color:var(--gray500);margin-top:2px;}
+.cb-current-phone{display:inline-flex;align-items:center;background:var(--gray100);color:var(--gray700);font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;margin:4px 0 8px;}
+.cb-current-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:4px;}
+.cb-current-actions .btn-a{width:100%;justify-content:center;min-height:42px;font-size:12px;}
+.cb-success-msg{display:none;margin-top:8px;background:var(--green-light);border:1px solid var(--green-mid);border-radius:10px;color:#166534;padding:8px 10px;font-size:11.5px;font-weight:600;}
+#rueckrufe-list{opacity:.76;}
+@media(max-width:768px){.cb-queue-progress{justify-content:flex-start;}.cb-current-actions{grid-template-columns:1fr;}.cb-current-actions .btn-a{min-height:46px;font-size:13px;}}
 
 @media(max-width:640px){
   .overlay-card,.modal-sheet{
@@ -1782,17 +1782,21 @@ body{
             <button class="ftab" onclick="filterList('rueckrufe-list','dringend',this)">Dringend</button>
             <button class="ftab" onclick="filterList('rueckrufe-list','inbearbeitung',this)">In Bearbeitung</button>
           </div>
-          <!-- CALLBACK QUEUE BANNER -->
-          <div id="cb-queue-banner" style="display:none">
-            <div>
-              <div class="cb-queue-info" id="cb-queue-count-label"></div>
-              <div class="cb-queue-next" id="cb-queue-next-label"></div>
-              <div class="cb-queue-progress" id="cb-queue-progress-label"></div>
+          <!-- CALLBACK QUEUE MODE -->
+          <div id="cb-queue-mode" style="display:none">
+            <div class="cb-queue-head">
+              <div>
+                <div class="cb-queue-title">Rückruf-Queue</div>
+                <div class="cb-queue-open" id="cb-queue-count-label"></div>
+              </div>
+              <div class="cb-queue-progress">
+                <div class="cb-progress-pill" id="cb-queue-done-today">Heute erledigt: 0</div>
+                <div class="cb-progress-pill" id="cb-queue-open-left">Noch offen: 0</div>
+              </div>
             </div>
-            <button class="dash-btn-primary cb-queue-banner-btn" onclick="jumpToNextCallback()"> Nächsten Rückruf bearbeiten</button>
+            <div class="cb-queue-current" id="cb-queue-current"></div>
+            <div class="cb-success-msg" id="cb-queue-success">✓ Rückruf erledigt. Nächster Eintrag geladen.</div>
           </div>
-          <!-- CALLBACK QUEUE MINI LIST (top 3) -->
-          <div id="cb-queue-mini-list"></div>
           <div class="search-wrap">
             <svg class="search-icon" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
             <input class="search-input" placeholder="Anrufer suchen..." oninput="searchList('rueckrufe-list',this.value)">
@@ -4285,131 +4289,153 @@ function renderRueckrufe(records) {
 }
 
 // ── Callback Queue local state ────────────────────────────────────────────────
-var _cbqState = { activeId: null, activePos: -1 };
+var _cbqState = { activeId: null, activePos: -1, successTimer: null };
+
+function getNextCallback(calls) {
+  const filtered = (calls || []).filter(function(r) {
+    const f = (r && r.fields) || {};
+    const status = f.status || f.dashboard_status;
+    return !!f.callback_requested && !isClosedStatus(status);
+  });
+  return [...filtered].sort(function(a, b) {
+    const ah = qualKey((a.fields || {}).lead_quality) === 'hot' ? 0 : 1;
+    const bh = qualKey((b.fields || {}).lead_quality) === 'hot' ? 0 : 1;
+    if (ah !== bh) return ah - bh;
+    const at = new Date(getOpenCallbackSortTime(a) || 0).getTime();
+    const bt = new Date(getOpenCallbackSortTime(b) || 0).getTime();
+    return at - bt;
+  })[0] || null;
+}
+
+function getOpenCallbacksSorted(records) {
+  const offen = (records || []).filter(function(r) {
+    const f = (r && r.fields) || {};
+    const status = f.status || f.dashboard_status;
+    return !!f.callback_requested && !isClosedStatus(status);
+  });
+  return [...offen].sort(function(a, b) {
+    const ah = qualKey((a.fields || {}).lead_quality) === 'hot' ? 0 : 1;
+    const bh = qualKey((b.fields || {}).lead_quality) === 'hot' ? 0 : 1;
+    if (ah !== bh) return ah - bh;
+    const at = new Date(getOpenCallbackSortTime(a) || 0).getTime();
+    const bt = new Date(getOpenCallbackSortTime(b) || 0).getTime();
+    return at - bt;
+  });
+}
 
 function _cbqSetActive(id, sorted) {
   _cbqState.activeId = id || null;
   _cbqState.activePos = id ? (sorted || []).findIndex(function(r) { return r.id === id; }) : -1;
 }
 
-function _cbqApply(id, sorted) {
-  _cbqSetActive(id, sorted);
-  renderCallbackQueue(allRecords);
+function _cbqShowSuccess() {
+  const el = document.getElementById('cb-queue-success');
+  if (!el) return;
+  el.style.display = 'block';
+  clearTimeout(_cbqState.successTimer);
+  _cbqState.successTimer = setTimeout(function() { el.style.display = 'none'; }, 2200);
 }
 
 function renderCallbackQueue(records) {
-  const banner = document.getElementById('cb-queue-banner');
+  const queueCard = document.getElementById('cb-queue-mode');
   const countLabel = document.getElementById('cb-queue-count-label');
-  const nextLabel = document.getElementById('cb-queue-next-label');
-  const progressLabel = document.getElementById('cb-queue-progress-label');
-  if (!banner) return;
+  const doneTodayLabel = document.getElementById('cb-queue-done-today');
+  const openLeftLabel = document.getElementById('cb-queue-open-left');
+  const current = document.getElementById('cb-queue-current');
+  if (!queueCard || !current) return;
+
   const sorted = getOpenCallbacksSorted(records);
-  if (sorted.length === 0) {
-    banner.style.display = 'none';
-    const miniList = document.getElementById('cb-queue-mini-list');
-    if (miniList) { miniList.style.display = 'none'; miniList.innerHTML = ''; }
+  const next = getNextCallback(records);
+  const doneToday = (records || []).filter(function(r) {
+    const f = (r && r.fields) || {};
+    const status = f.status || f.dashboard_status;
+    return isClosedStatus(status) && isToday(getRecordTimestamp(r));
+  }).length;
+
+  if (countLabel) countLabel.textContent = sorted.length === 1 ? '1 offener Rückruf' : sorted.length + ' offene Rückrufe';
+  if (doneTodayLabel) doneTodayLabel.textContent = 'Heute erledigt: ' + doneToday;
+  if (openLeftLabel) openLeftLabel.textContent = 'Noch offen: ' + sorted.length;
+
+  if (!next) {
+    queueCard.style.display = 'block';
+    current.className = 'cb-queue-current empty';
+    current.innerHTML = 'Keine offenen Rückrufe in der Queue.';
     _cbqSetActive(null, []);
-    if (progressLabel) progressLabel.textContent = '';
     return;
   }
-  const next = sorted[0];
-  const phone = (next.fields.phone_number || next.fields.caller_phone || '').trim();
-  if (countLabel) {
-    countLabel.textContent = sorted.length === 1
-      ? '1 offener Rückruf in der Warteschlange'
-      : sorted.length + ' offene Rückrufe in der Warteschlange';
-  }
-  if (nextLabel) {
-    nextLabel.textContent = 'Nächster: ' + (next.fields.caller_name || 'Unbekannt').trim() + (phone ? ' · ' + phone : '');
-  }
-  if (progressLabel) {
-    progressLabel.textContent = _cbqState.activePos >= 0
-      ? 'Aktiv: ' + (_cbqState.activePos + 1) + ' von ' + sorted.length
-      : sorted.length + ' offen';
-  }
-  banner.style.display = 'flex';
-  renderCallbackQueueMiniList(sorted.slice(0, 3));
+
+  queueCard.style.display = 'block';
+  _cbqSetActive(next.id, sorted);
+
+  const f = next.fields || {};
+  const phoneRaw = (f.tel_link || f.phone_number || f.caller_phone || '').trim();
+  const callTarget = phoneRaw ? (phoneRaw.startsWith('tel:') ? phoneRaw : ('tel:' + phoneRaw.replace(/\s/g, ''))) : '';
+  const followUpAt = resolveFollowUpAt(f);
+  const when = followUpAt ? fmtFollowUpDateTime(followUpAt) : fmtExactDateTime(getRecordTimestamp(next));
+  const isHot = qualKey(f.lead_quality) === 'hot';
+  const labelChip = isHot ? '<span class="chip chip-hot">Hot</span>' : '';
+
+  current.className = 'cb-queue-current';
+  current.innerHTML = `
+    <div class="cb-current-top">
+      <div class="cb-current-name">${escHtml((f.caller_name || 'Unbekannt').trim())}</div>
+      ${labelChip}
+    </div>
+    ${phoneRaw ? `<div class="cb-current-phone">${escHtml(phoneRaw.replace(/^tel:/i,''))}</div>` : ''}
+    <div class="cb-current-time">Nächster Rückruf: ${escHtml(when || 'ohne Zeitangabe')}</div>
+    <div class="cb-current-actions">
+      <a class="btn-a btn-call" href="${callTarget || '#'}" onclick="if(!'${callTarget}') { event.preventDefault(); toast('Keine Telefonnummer vorhanden'); }">Anrufen</a>
+      <button class="btn-a btn-done" onclick="event.stopPropagation();cbQueueMarkDone('${next.id}')">Erledigt</button>
+      <button class="btn-a btn-note" onclick="event.stopPropagation();cbQueueSnooze('${next.id}')">Später</button>
+    </div>
+  `;
 }
 
-function renderCallbackQueueMiniList(rows) {
-  const container = document.getElementById('cb-queue-mini-list');
-  if (!container) return;
-  if (!rows || rows.length === 0) { container.style.display = 'none'; container.innerHTML = ''; return; }
-  const html = rows.map(function(r) {
-    const f = r.fields || {};
-    const name = escHtml((f.caller_name || 'Unbekannt').trim());
-    const phone = (f.phone_number || f.caller_phone || '').trim();
-    const callTarget = encodeURIComponent(phone || '');
-    const summary = escHtml((f.notes_customer_voxera || f.next_action || f.kategorie || '').trim().slice(0, 60));
-    const followUpAt = resolveFollowUpAt(f);
-    const followUpMeta = buildFollowUpMetaText(f.next_action, followUpAt);
-    const qualK = qualKey(f.lead_quality);
-    const qualMap = {hot:'chip-hot',warm:'chip-warm',kalt:'chip-kalt',neu:'chip-neu'};
-    const qualLbl = {hot:'Hot',warm:'Warm',kalt:'Kalt',neu:'Neu'};
-    const prio = getPriority(r);
-    const prioClassMap = {overdue:'chip-hot', today:'chip-working', hot:'chip-hot'};
-    const prioClass = prioClassMap[prio.key] || 'chip-hot';
-    const prioChipHtml = (prio.key !== 'normal' && prio.key !== 'done' && prio.key !== 'callback')
-      ? `<span class="chip ${prioClass}">${prio.icon} ${escHtml(prio.label)}</span>` : '';
-    const qualChipHtml = (qualK !== 'neu') ? `<span class="chip ${qualMap[qualK]}">${qualLbl[qualK]}</span>` : '';
-    const anrufenBtn = phone
-      ? `<button class="btn-a btn-call" style="font-size:11.5px;height:30px;padding:0 10px;" onclick="directCall('${r.id}','${callTarget}')"> Anrufen</button>`
-      : '';
-    const isActive = _cbqState.activeId && r.id === _cbqState.activeId;
-    return `<div class="cbq-row${isActive ? ' cbq-row--active' : ''}">
-      <div class="cbq-info">
-        <div class="cbq-name">${name}</div>
-        ${phone ? `<div class="cbq-phone">${escHtml(phone)}</div>` : ''}
-        ${summary ? `<div class="cbq-meta">${summary}</div>` : ''}
-        ${followUpMeta && !summary ? `<div class="cbq-meta">${escHtml(followUpMeta)}</div>` : ''}
-        ${(prioChipHtml || qualChipHtml) ? `<div class="cbq-chips">${prioChipHtml}${qualChipHtml}</div>` : ''}
-      </div>
-      <div class="cbq-actions">
-        <button class="btn-a btn-secondary" style="font-size:11.5px;height:30px;padding:0 10px;" onclick="openDetail('${r.id}')">Details</button>
-        ${anrufenBtn}
-      </div>
-    </div>`;
-  }).join('');
-  container.innerHTML = html;
-  container.style.display = 'block';
-}
-
-function getOpenCallbacksSorted(records) {
-  const offen = (records || []).filter(function(r) {
-    return r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status);
-  });
-  return sortCallbackQueueByPriority(offen);
-}
-
-function sortCallbackQueueByPriority(records) {
-  function priorityRank(r) {
-    const f = (r && r.fields) || {};
-    const followUpAt = resolveFollowUpAt(f);
-    const followUp = parseFollowUpDate(followUpAt);
-    const now = new Date();
-    if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return 0; // overdue
-    if (followUp && !Number.isNaN(followUp.getTime()) && isToday(followUpAt)) return 1;  // today
-    if (qualKey(f.lead_quality) === 'hot') return 2; // hot lead
-    return 3; // oldest open
+async function cbQueueMarkDone(recordId) {
+  try {
+    await doStatusChange(recordId, CALL_STATUS.CLOSED, null);
+    const rec = allRecords.find(function(r) { return String(r.id) === String(recordId); });
+    if (rec && rec.fields) {
+      rec.fields.callback_requested = false;
+      rec.fields.dashboard_status = CALL_STATUS.CLOSED;
+      rec.fields.status = 'done';
+      rec.fields.follow_up_at = null;
+    }
+    _cbqShowSuccess();
+    renderRueckrufe(allRecords);
+  } catch (e) {
+    toast('Fehler beim Abschließen');
   }
-  return [...records].sort(function(a, b) {
-    const ra = priorityRank(a), rb = priorityRank(b);
-    if (ra !== rb) return ra - rb;
-    // within same rank: oldest first
-    const aTime = new Date(getOpenCallbackSortTime(a) || 0).getTime();
-    const bTime = new Date(getOpenCallbackSortTime(b) || 0).getTime();
-    return aTime - bTime;
-  });
+}
+
+async function cbQueueSnooze(recordId) {
+  const in90m = new Date(Date.now() + (90 * 60 * 1000));
+  const val = in90m.getFullYear() + '-' + pad2(in90m.getMonth()+1) + '-' + pad2(in90m.getDate()) + 'T' + pad2(in90m.getHours()) + ':' + pad2(in90m.getMinutes());
+  try {
+    await apiPatchOptional(recordId, { follow_up_at: serializeFollowUpLocal(val), next_action: 'Rückruf später', notes_customer_voxera: null }, { follow_up_at: serializeFollowUpLocal(val) });
+    const rec = allRecords.find(function(r) { return String(r.id) === String(recordId); });
+    if (rec && rec.fields) {
+      rec.fields.follow_up_at = serializeFollowUpLocal(val);
+      rec.fields.callback_requested = false;
+      rec.fields.dashboard_status = CALL_STATUS.FOLLOW_UP_SCHEDULED;
+    }
+    toast('Auf später verschoben');
+    renderDashboard(allRecords);
+    renderAnrufe(allRecords);
+    renderRueckrufe(allRecords);
+    renderArchiv(allRecords);
+  } catch (e) {
+    toast('Fehler beim Verschieben');
+  }
 }
 
 function jumpToNextCallback() {
-  const sorted = getOpenCallbacksSorted(allRecords);
-  if (!sorted.length) {
+  const next = getNextCallback(allRecords);
+  if (!next) {
     toast('Keine offenen Rückrufe vorhanden');
     return;
   }
-  _cbqApply(sorted[0].id, sorted);
-  openDetail(sorted[0].id);
+  openDetail(next.id);
 }
 
 var _archivFilter = 'all';
