@@ -750,6 +750,25 @@ body{
 }
 .btn-modal-cancel:hover{background:var(--gray50);border-color:var(--gray400);}
 
+.activation-flow-modal{max-width:520px;}
+.activation-flow-step{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--blue);background:var(--blue-light);border:1px solid rgba(37,99,235,.22);
+  border-radius:999px;padding:5px 10px;margin-bottom:10px;
+}
+.activation-flow-lead{font-size:13px;color:var(--gray700);line-height:1.6;margin-bottom:14px;}
+.activation-flow-list{margin:0;padding:0;display:flex;flex-direction:column;gap:9px;}
+.activation-flow-list li{
+  list-style:none;background:var(--gray50);border:1px solid var(--gray200);
+  border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--gray700);line-height:1.45;
+}
+.activation-flow-list li strong{display:block;color:var(--gray900);font-size:12.5px;margin-bottom:2px;}
+.activation-flow-success{
+  background:var(--green-light);border:1px solid var(--green-mid);
+  border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--green-dark);margin-top:12px;
+}
+
 /* ═══════════════════════════════════════════
    TOAST — V1
 ═══════════════════════════════════════════ */
@@ -2650,6 +2669,13 @@ body{
   </div>
 </div>
 
+<!-- ACTIVATION FLOW MODAL -->
+<div class="overlay" id="activation-flow-overlay" onclick="if(event.target===this)closeActivationFlowModal()">
+  <div class="modal activation-flow-modal">
+    <div id="activation-flow-content"></div>
+  </div>
+</div>
+
 <!-- NOTIZ MODAL -->
 <div class="overlay" id="notiz-overlay" onclick="if(event.target===this)closeNotiz()">
   <div class="modal">
@@ -3931,6 +3957,7 @@ async function loadData() {
         if (found) {
           candidateCall = found;
           stopActivationPolling();
+          maybeOpenActivationSuccessModal();
         }
       }
       // Restart 5s polling if it was lost (e.g. after page reload)
@@ -5462,6 +5489,7 @@ function isForwardingActivated() {
 async function resetActivationTestContext(recId, context) {
   stopActivationPolling();
   candidateCall = null;
+  activationFlowSuccessToken = '';
   await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null });
   customerMeta.forwardingStatus = 'not_started';
   customerMeta.activationStartedAt = null;
@@ -5897,6 +5925,7 @@ async function activationSkipTest(event) {
       context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
     }
     candidateCall = null;
+    activationFlowSuccessToken = '';
     stopActivationPolling();
     toast('Rufumleitung erfolgreich aktiviert.');
     renderActivationModule();
@@ -6071,6 +6100,74 @@ async function persistForwardingStatus(status) {
 // Placeholder for backend-detected candidate call (integration point for call-detection automation)
 var candidateCall = null;
 var activationPollingInterval = null;
+var activationFlowGuideToken = '';
+var activationFlowSuccessToken = '';
+
+function getCandidateCallToken(call) {
+  if (!call) return '';
+  if (call.id) return String(call.id);
+  if (call.fields && call.fields.id) return String(call.fields.id);
+  if (call.fields && call.fields.created_at) return 'ts:' + String(call.fields.created_at);
+  return '';
+}
+
+function closeActivationFlowModal() {
+  var overlay = document.getElementById('activation-flow-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function openActivationFlowModal(type) {
+  var overlay = document.getElementById('activation-flow-overlay');
+  var content = document.getElementById('activation-flow-content');
+  if (!overlay || !content) return;
+  var modeLabel = getForwardingModeLabel(customerMeta && customerMeta.forwardingMode);
+  if (type === 'success') {
+    content.innerHTML = ''
+      + '<div class="activation-flow-step">Schritt 2 von 2 · Testanruf erkannt</div>'
+      + '<h3>✅ Testanruf erfolgreich erkannt</h3>'
+      + '<div class="activation-flow-lead">Der Testanruf wurde im Dashboard gefunden. Bestätigen Sie jetzt den Erfolg, damit Voxera aktiv geschaltet wird.</div>'
+      + '<ul class="activation-flow-list">'
+      + '<li><strong>Was passiert gerade?</strong>Ihr Testanruf ist eingegangen und wurde dem Aktivierungsprozess zugeordnet.</li>'
+      + '<li><strong>Was ist jetzt zu tun?</strong>Klicken Sie auf <strong>„Test erfolgreich – aktivieren“</strong>.</li>'
+      + '<li><strong>Nächster Schritt</strong>Danach wechselt der Status auf <strong>Aktiv</strong>.</li>'
+      + '</ul>'
+      + '<div class="modal-actions">'
+      + '<button class="btn-modal-cancel" type="button" onclick="closeActivationFlowModal()">Später</button>'
+      + '<button class="btn-modal-save" type="button" onclick="closeActivationFlowModal();confirmActivationTestCall(event);">Test erfolgreich – aktivieren</button>'
+      + '</div>';
+  } else {
+    var isMobile = customerMeta && customerMeta.setupDeviceType === 'mobile';
+    content.innerHTML = ''
+      + '<div class="activation-flow-step">Schritt 1 von 2 · Testanruf starten</div>'
+      + '<h3>Weiterleitung aktiviert – jetzt Testanruf durchführen</h3>'
+      + '<div class="activation-flow-lead">Die Aktivierung wurde gestartet' + (modeLabel ? ' (<strong>' + escapeHtml(modeLabel) + '</strong>)' : '') + '. Wir warten jetzt auf Ihren Testanruf.</div>'
+      + '<ul class="activation-flow-list">'
+      + '<li><strong>Was passiert gerade?</strong>Voxera ist im Prüfmodus und erkennt den nächsten passenden Anruf automatisch.</li>'
+      + '<li><strong>Was ist jetzt zu tun?</strong>Rufen Sie Ihre eigene Nummer testweise an und beenden Sie den Anruf nach wenigen Sekunden.</li>'
+      + '<li><strong>Nächster Schritt</strong>Sobald der Testanruf erkannt wird, zeigen wir Ihnen die Bestätigung sofort prominent an.</li>'
+      + '</ul>'
+      + '<div class="activation-flow-success">Hinweis: Der Testanruf erscheint erst nach Gesprächsende im Dashboard.</div>'
+      + '<div class="modal-actions">'
+      + '<button class="btn-modal-cancel" type="button" onclick="closeActivationFlowModal()">Später</button>'
+      + '<button class="btn-modal-save" type="button" onclick="closeActivationFlowModal();scrollToStatusCard();">' + (isMobile ? 'Dialer öffnen & Test starten' : 'Verstanden – Testanruf starten') + '</button>'
+      + '</div>';
+  }
+  overlay.classList.add('open');
+}
+
+function maybeOpenActivationGuideModal() {
+  var token = [customerMeta && customerMeta.setupDeviceType, customerMeta && customerMeta.forwardingMode, customerMeta && customerMeta.activationStartedAt].join('|');
+  if (!token || token === activationFlowGuideToken) return;
+  activationFlowGuideToken = token;
+  openActivationFlowModal('guide');
+}
+
+function maybeOpenActivationSuccessModal() {
+  var token = getCandidateCallToken(candidateCall);
+  if (!token || token === activationFlowSuccessToken) return;
+  activationFlowSuccessToken = token;
+  openActivationFlowModal('success');
+}
 
 // Returns the first call whose created_at is strictly after activationStartedAt.
 function findActivationCandidateCall(calls, activationStartedAt) {
@@ -6128,6 +6225,7 @@ async function activationStartSmartphone(event, code) {
     renderActivationModule();
     // Step 3: start lightweight polling to detect the candidate call
     startActivationPolling();
+    maybeOpenActivationGuideModal();
     // Step 4: only after state is safely persisted, open the dialer
     if (code) window.location.href = 'tel:' + code;
   } catch(e) {
@@ -6157,6 +6255,7 @@ async function activationStartLandlineTest(event) {
     }
     renderActivationModule();
     startActivationPolling();
+    maybeOpenActivationGuideModal();
   } catch(e) {
     console.error('activationStartLandlineTest failed', e);
     toast('Aktivierung konnte nicht gestartet werden.');
@@ -6189,6 +6288,7 @@ async function confirmActivationTestCall(event) {
       context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
     }
     candidateCall = null;
+    activationFlowSuccessToken = '';
     stopActivationPolling();
     toast('Rufumleitung erfolgreich aktiviert.');
     renderActivationModule();
@@ -6204,6 +6304,7 @@ async function confirmActivationTestCall(event) {
 function rejectActivationTestCall(event) {
   if (event) event.stopPropagation();
   candidateCall = null;
+  activationFlowSuccessToken = '';
   // Keep polling – user wants to retry the test call
   renderActivationModule();
 }
@@ -6211,6 +6312,7 @@ function rejectActivationTestCall(event) {
 function retryActivationCheck(event) {
   if (event) event.stopPropagation();
   candidateCall = null;
+  activationFlowSuccessToken = '';
   stopActivationPolling();
   startActivationPolling();
   loadData().catch(function(err){ console.error('[retry-check] loadData failed:', err); });
@@ -6257,6 +6359,10 @@ function renderPendingTestCard(meta) {
     + '<div class="act-pending-test-header">'
     + '<div class="act-pending-test-title">' + escapeHtml(modeGuide.title) + '</div>'
     + '<div class="act-pending-test-sub">' + escapeHtml(modeGuide.subtitle) + '</div>'
+    + '</div>'
+    + '<div class="activation-flow-success" style="margin:0 0 12px 0;">'
+    + '<strong style="display:block;margin-bottom:4px;">Jetzt Testanruf durchführen</strong>'
+    + 'Rufen Sie Ihre eigene Nummer an. Sobald der Anruf erkannt wurde, können Sie direkt abschließen.'
     + '</div>'
     + '<div class="act-pending-test-number-block">'
     + '<div class="act-pending-test-number-label">Ihre Nummer</div>'
