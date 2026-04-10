@@ -1137,26 +1137,20 @@ body{
 .activation-live-eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#166534;margin-bottom:6px;}
 .activation-live-title{font-size:22px;font-weight:800;letter-spacing:-.02em;color:#14532D;margin-bottom:4px;}
 .activation-live-sub{font-size:13px;color:#166534;line-height:1.55;}
+.activation-live-meta{margin-top:8px;font-size:12px;color:#166534;font-weight:600;opacity:.9;}
 .activation-status-card{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .activation-numbers{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;}
 .activation-number-item{flex:1;min-width:120px;}
 .activation-number-label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);margin-bottom:4px;}
 .activation-number-val{font-size:15px;font-weight:700;color:var(--gray900);font-variant-numeric:tabular-nums;}
-.activation-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;}
-.activation-badge.not-started{background:var(--gray100);color:var(--gray600);}
-.activation-badge.in-progress{background:var(--amber-light);color:#92400E;border:1px solid var(--amber-mid);}
-.activation-badge.active{background:var(--green-light);color:#166534;border:1px solid var(--green-mid);}
-.activation-badge.inactive{background:var(--red-light);color:#991B1B;border:1px solid #FECACA;}
 .activation-state-desc{font-size:12.5px;color:var(--gray600);margin-top:8px;line-height:1.55;}
-.activation-device-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-device-section{background:transparent;border:0;border-radius:0;padding:0;margin-bottom:0;box-shadow:none;}
 .activation-device-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
-.activation-device-sub{font-size:12.5px;color:var(--gray600);margin-bottom:14px;}
-.activation-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.activation-choice-card{border:2px solid var(--gray200);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all var(--transition-fast);background:var(--white);}
-.activation-choice-card:hover{border-color:var(--blue-mid);background:var(--blue-light);}
-.activation-choice-card.selected{border-color:var(--blue);background:var(--blue-light);}
-.activation-choice-card-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
-.activation-choice-card-text{font-size:12px;color:var(--gray600);line-height:1.5;}
+.activation-device-sub{font-size:12.5px;color:var(--gray600);margin-bottom:10px;}
+.activation-segmented-control{display:inline-flex;gap:4px;padding:4px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:12px;}
+.activation-segmented-option{border:none;border-radius:9px;background:transparent;color:var(--gray600);font-size:12.5px;font-weight:600;padding:8px 12px;cursor:pointer;transition:all var(--transition-fast);font-family:inherit;}
+.activation-segmented-option:hover{color:var(--gray900);}
+.activation-segmented-option.selected{background:var(--white);color:var(--gray900);box-shadow:0 1px 4px rgba(15,23,42,.08);}
 .activation-instructions{margin-top:14px;padding:14px 16px;background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;}
 .activation-instructions h4{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:8px;}
 .activation-instructions p{font-size:12.5px;color:var(--gray600);line-height:1.6;margin-bottom:8px;}
@@ -1196,22 +1190,27 @@ body{
 }
 @media(max-width:600px){
   .activation-numbers{flex-direction:column;gap:10px;}
-  .activation-choice-grid{grid-template-columns:1fr;}
 }
-.act-mode-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-mode-section{background:transparent;border:0;border-radius:0;padding:0;margin-bottom:0;box-shadow:none;}
 .act-mode-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
-.act-mode-sub{font-size:12.5px;color:var(--gray600);margin-bottom:14px;}
-.act-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.act-mode-card{border:2px solid var(--gray200);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all var(--transition-fast);background:var(--white);min-height:44px;position:relative;}
-.act-mode-card:hover{border-color:var(--blue-mid);background:var(--blue-light);}
-.act-mode-card.selected{border-color:var(--blue);background:var(--blue-light);}
-.act-mode-card.secondary{border-style:dashed;}
-.act-mode-card-label{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:3px;}
-.act-mode-card-desc{font-size:11.5px;color:var(--gray600);line-height:1.5;}
-.act-mode-card.selected .act-mode-card-label{color:var(--blue-dark);}
-.activation-settings-section{background:#FAFBFD;border:1px solid #E5E7EB;border-radius:16px;padding:16px 16px 2px 16px;margin-bottom:14px;}
+.act-mode-sub{font-size:12.5px;color:var(--gray600);margin-bottom:10px;}
+.act-mode-radio-group{display:grid;gap:8px;}
+.act-mode-radio{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--gray200);border-radius:10px;background:var(--white);cursor:pointer;transition:all var(--transition-fast);}
+.act-mode-radio input{accent-color:var(--blue);width:15px;height:15px;flex-shrink:0;}
+.act-mode-radio span{font-size:12.5px;color:var(--gray700);font-weight:500;}
+.act-mode-radio.selected{border-color:#93C5FD;background:#EFF6FF;}
+.activation-settings-section{background:#FAFBFD;border:1px solid #E5E7EB;border-radius:16px;padding:14px 14px 4px;margin-bottom:14px;}
 .activation-settings-title{font-size:12px;font-weight:700;color:var(--gray500);letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}
 .activation-settings-sub{font-size:12px;color:var(--gray500);margin-bottom:12px;}
+.activation-settings-lock-note{font-size:12px;color:#1E40AF;background:#EFF6FF;border:1px solid #BFDBFE;padding:8px 10px;border-radius:10px;margin-bottom:10px;}
+.activation-step-card{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:12px 13px;margin-bottom:10px;transition:all var(--transition-fast);}
+.activation-step-card.is-muted{opacity:.6;}
+.activation-step-card.is-active{border-color:#BFDBFE;box-shadow:0 0 0 1px #DBEAFE inset;}
+.activation-step-kicker{font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--gray400);text-transform:uppercase;margin-bottom:8px;}
+.activation-settings-section.ui-locked .activation-step-card{opacity:.52;}
+.activation-settings-section.ui-locked .activation-step-card.is-active{opacity:.72;}
+.activation-settings-section.ui-locked .activation-segmented-control,
+.activation-settings-section.ui-locked .act-mode-radio-group{pointer-events:none;}
 .activation-testfocus-section{background:#FFFBEB;border:1px solid #FDE68A;border-radius:16px;padding:16px 16px 2px 16px;margin-bottom:14px;}
 .activation-testfocus-title{font-size:12px;font-weight:700;color:#92400E;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}
 .activation-testfocus-sub{font-size:12px;color:#92400E;margin-bottom:12px;}
@@ -1242,7 +1241,6 @@ body{
 
 .activation-status-card--success-highlight{box-shadow:0 0 0 2px #52dd7a,0 0 14px #52dd7a60!important;transition:box-shadow .2s;}
 .activation-status-card--neutral-highlight{box-shadow:0 0 0 2px #f2b5b5,0 0 14px #de434360!important;transition:box-shadow .2s;}
-.activation-badge.pending-test{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;}
 .act-pending-test-card{background:var(--white);border:2px solid #FCD34D;border-radius:16px;padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-pending-test-header{margin-bottom:18px;}
 .act-pending-test-title{font-size:15px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.01em;}
@@ -1879,10 +1877,11 @@ body{
               <div class="activation-live-eyebrow">VOXERA LIVE</div>
               <div class="activation-live-title">VOXERA ist aktiv</div>
               <div class="activation-live-sub">Ihre Anrufe werden automatisch verarbeitet.</div>
+              <div class="activation-live-meta" id="activation-live-last-call">Letzter Anruf: –</div>
             </div>
 
-            <div class="activation-module-title">Status & Übersicht</div>
-            <div class="activation-module-sub">Ihr aktueller Leitungsstatus und die verknüpfte Rufumleitung.</div>
+            <div class="activation-module-title">Aktivierung & Übersicht</div>
+            <div class="activation-module-sub">Schrittweise Einrichtung mit Fokus auf den nächsten sinnvollen Schritt.</div>
 
             <!-- Status Card -->
             <div class="activation-status-card" id="activation-status-card">
@@ -1896,7 +1895,6 @@ body{
                   <div class="activation-number-val" id="act-voxera-number">–</div>
                 </div>
               </div>
-              <div id="act-badge"></div>
               <div class="activation-state-desc" id="act-state-desc"></div>
             </div>
 
@@ -1935,44 +1933,45 @@ body{
 
             <div class="activation-settings-section">
               <div class="activation-settings-title">Einstellungen</div>
-              <div class="activation-settings-sub">Konfiguration anpassen, falls sich Ihre Telefonie-Einstellungen ändern.</div>
+              <div class="activation-settings-sub">Nur der aktuell relevante Schritt ist prominent sichtbar.</div>
+              <div class="activation-settings-lock-note" id="activation-lock-note" style="display:none;">Ihre Einstellungen sind aktiv. Zum Ändern bitte zuerst deaktivieren.</div>
 
               <!-- Device Selection Section -->
-              <div class="activation-device-section" id="act-device-section">
-                <div class="activation-device-title">Gerätetyp</div>
-                <div class="activation-device-sub">Wählen Sie den Kanal, für den Sie die Hinweise anzeigen möchten.</div>
-                <div class="activation-choice-grid">
-                  <div class="activation-choice-card" id="act-device-card-mobile" onclick="activationSelectDevice(event,'mobile')">
-                    <div class="activation-choice-card-title"> Smartphone</div>
-                    <div class="activation-choice-card-text">Rufumleitung direkt auf dem Handy aktivieren.</div>
-                  </div>
-                  <div class="activation-choice-card" id="act-device-card-landline" onclick="activationSelectDevice(event,'landline')">
-                    <div class="activation-choice-card-title">Festnetz / Telefonanlage</div>
-                    <div class="activation-choice-card-text">Für Büro-Telefon, Telefonanlage oder VoIP.</div>
+              <div class="activation-step-card" id="act-step-device">
+                <div class="activation-step-kicker">Schritt 1</div>
+                <div class="activation-device-section" id="act-device-section">
+                  <div class="activation-device-title">Gerät wählen</div>
+                  <div class="activation-device-sub">Wählen Sie den Kanal für die Einrichtung.</div>
+                  <div class="activation-segmented-control">
+                    <button type="button" class="activation-segmented-option" id="act-device-card-mobile" onclick="activationSelectDevice(event,'mobile')">Smartphone</button>
+                    <button type="button" class="activation-segmented-option" id="act-device-card-landline" onclick="activationSelectDevice(event,'landline')">Festnetz / Anlage</button>
                   </div>
                 </div>
               </div>
 
               <!-- Forwarding Mode Selection Card -->
-              <div class="act-mode-section" id="act-mode-section" style="display:none;">
-                <div class="act-mode-title">Weiterleitungsmodus</div>
-                <div class="act-mode-sub">Bestimmen Sie, in welcher Situation Anrufe an Voxera weitergeleitet werden.</div>
-                <div class="act-mode-grid">
-                  <div class="act-mode-card" id="act-mode-card-no_answer" onclick="activationSelectMode(event,'no_answer')">
-                    <div class="act-mode-card-label">Wenn ich nicht antworte</div>
-                    <div class="act-mode-card-desc">Nach einigen Klingeltönen ohne Annahme</div>
-                  </div>
-                  <div class="act-mode-card" id="act-mode-card-unreachable" onclick="activationSelectMode(event,'unreachable')">
-                    <div class="act-mode-card-label">Wenn ich nicht erreichbar bin</div>
-                    <div class="act-mode-card-desc">Ausgeschaltet, kein Netz oder Flugmodus</div>
-                  </div>
-                  <div class="act-mode-card" id="act-mode-card-always" onclick="activationSelectMode(event,'always')">
-                    <div class="act-mode-card-label">Immer weiterleiten</div>
-                    <div class="act-mode-card-desc">Jeder Anruf wird sofort weitergeleitet</div>
-                  </div>
-                  <div class="act-mode-card secondary" id="act-mode-card-busy" onclick="activationSelectMode(event,'busy')">
-                    <div class="act-mode-card-label">Wenn besetzt</div>
-                    <div class="act-mode-card-desc">Wenn Sie gerade in einem Gespräch sind</div>
+              <div class="activation-step-card" id="act-step-mode">
+                <div class="activation-step-kicker">Schritt 2</div>
+                <div class="act-mode-section" id="act-mode-section" style="display:none;">
+                  <div class="act-mode-title">Weiterleitungsmodus wählen</div>
+                  <div class="act-mode-sub">Wann soll ein Anruf an Voxera gehen?</div>
+                  <div class="act-mode-radio-group">
+                    <label class="act-mode-radio" id="act-mode-card-no_answer" onclick="activationSelectMode(event,'no_answer')">
+                      <input type="radio" name="activation-forwarding-mode" value="no_answer">
+                      <span>Wenn ich nicht antworte</span>
+                    </label>
+                    <label class="act-mode-radio" id="act-mode-card-unreachable" onclick="activationSelectMode(event,'unreachable')">
+                      <input type="radio" name="activation-forwarding-mode" value="unreachable">
+                      <span>Wenn ich nicht erreichbar bin</span>
+                    </label>
+                    <label class="act-mode-radio" id="act-mode-card-always" onclick="activationSelectMode(event,'always')">
+                      <input type="radio" name="activation-forwarding-mode" value="always">
+                      <span>Immer weiterleiten</span>
+                    </label>
+                    <label class="act-mode-radio" id="act-mode-card-busy" onclick="activationSelectMode(event,'busy')">
+                      <input type="radio" name="activation-forwarding-mode" value="busy">
+                      <span>Wenn besetzt</span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -5745,31 +5744,49 @@ function renderActivationModule() {
 
   var telNrEl = document.getElementById('act-tel-nr');
   var voxeraNumEl = document.getElementById('act-voxera-number');
-  var badgeEl = document.getElementById('act-badge');
   var stateDescEl = document.getElementById('act-state-desc');
+  var liveEyebrowEl = document.querySelector('.activation-live-eyebrow');
+  var liveTitleEl = document.querySelector('.activation-live-title');
+  var liveSubEl = document.querySelector('.activation-live-sub');
+  var liveLastCallEl = document.getElementById('activation-live-last-call');
 
   if (telNrEl) telNrEl.textContent = meta.telNr || '–';
   if (voxeraNumEl) voxeraNumEl.textContent = meta.voxeraNumber || '–';
 
-  var badgeClass, badgeLabel, stateDesc;
+  var stateDesc;
   if (uiState === 'active') {
-    badgeClass = 'active'; badgeLabel = '● Aktiv';
     stateDesc = 'Voxera ist aktiv und empfängt Anrufe gemäss Ihrer Einstellung.';
+    if (liveEyebrowEl) liveEyebrowEl.textContent = 'VOXERA LIVE';
+    if (liveTitleEl) liveTitleEl.textContent = 'VOXERA ist aktiv';
+    if (liveSubEl) liveSubEl.textContent = 'Ihre Anrufe werden automatisch verarbeitet.';
   } else if (uiState === 'inactive') {
-    badgeClass = 'inactive'; badgeLabel = '● Deaktiviert';
     stateDesc = 'Die Rufumleitung wurde entfernt. Voxera empfängt aktuell keine Anrufe.';
+    if (liveEyebrowEl) liveEyebrowEl.textContent = 'STATUS';
+    if (liveTitleEl) liveTitleEl.textContent = 'VOXERA ist deaktiviert';
+    if (liveSubEl) liveSubEl.textContent = 'Sie können die Konfiguration jetzt wieder anpassen.';
   } else if (uiState === 'pending_test') {
-    badgeClass = 'pending-test'; badgeLabel = '● Testanruf ausstehend';
     stateDesc = 'Führen Sie einen Testanruf durch, um die Aktivierung zu bestätigen.';
+    if (liveEyebrowEl) liveEyebrowEl.textContent = 'STATUS';
+    if (liveTitleEl) liveTitleEl.textContent = 'Testanruf ausstehend';
+    if (liveSubEl) liveSubEl.textContent = 'Sobald der Test erkannt wurde, kann VOXERA aktiviert werden.';
   } else if (uiState === 'in_progress') {
-    badgeClass = 'in-progress'; badgeLabel = '● In Aktivierung';
     stateDesc = 'Gerätetyp gewählt. Starten Sie den Testanruf, um die Aktivierung abzuschliessen.';
+    if (liveEyebrowEl) liveEyebrowEl.textContent = 'STATUS';
+    if (liveTitleEl) liveTitleEl.textContent = 'Einrichtung läuft';
+    if (liveSubEl) liveSubEl.textContent = 'Folgen Sie den nächsten Schritten, um die Aktivierung abzuschliessen.';
   } else {
-    badgeClass = 'not-started'; badgeLabel = '● Nicht gestartet';
     stateDesc = 'Wählen Sie unten Ihren Gerätetyp und folgen Sie den Anweisungen.';
+    if (liveEyebrowEl) liveEyebrowEl.textContent = 'STATUS';
+    if (liveTitleEl) liveTitleEl.textContent = 'Einrichtung starten';
+    if (liveSubEl) liveSubEl.textContent = 'Beginnen Sie mit der Auswahl Ihres Gerätetyps.';
   }
-  if (badgeEl) badgeEl.innerHTML = '<span class="activation-badge ' + badgeClass + '">' + badgeLabel + '</span>';
   if (stateDescEl) stateDescEl.textContent = stateDesc;
+  if (liveLastCallEl) {
+    var latestCallDate = getLatestCallDate(allRecords || []);
+    liveLastCallEl.textContent = latestCallDate
+      ? ('Letzter Anruf: ' + formatDateShortCH(latestCallDate) + ' · ' + formatTimeCH(latestCallDate))
+      : 'Letzter Anruf: –';
+  }
 
   // Device selection
   var mobileCard = document.getElementById('act-device-card-mobile');
@@ -5780,6 +5797,7 @@ function renderActivationModule() {
   // Forwarding mode section: show only when device type is selected
   var modeSect = document.getElementById('act-mode-section');
   var hasDeviceType = meta.setupDeviceType === 'mobile' || meta.setupDeviceType === 'landline';
+  var hasMode = !!meta.forwardingMode;
   if (modeSect) modeSect.style.display = hasDeviceType ? 'block' : 'none';
 
   // Mode card selected states
@@ -5787,11 +5805,29 @@ function renderActivationModule() {
   modes.forEach(function(m) {
     var card = document.getElementById('act-mode-card-' + m);
     if (card) card.classList.toggle('selected', meta.forwardingMode === m);
+    var radio = card ? card.querySelector('input[type="radio"]') : null;
+    if (radio) radio.checked = meta.forwardingMode === m;
   });
+
+  var settingsSection = document.querySelector('.activation-settings-section');
+  var lockNote = document.getElementById('activation-lock-note');
+  var isLocked = uiState === 'active';
+  if (settingsSection) settingsSection.classList.toggle('ui-locked', isLocked);
+  if (lockNote) lockNote.style.display = isLocked ? 'block' : 'none';
+
+  var stepDevice = document.getElementById('act-step-device');
+  var stepMode = document.getElementById('act-step-mode');
+  if (stepDevice) {
+    stepDevice.classList.toggle('is-active', !hasDeviceType);
+    stepDevice.classList.toggle('is-muted', hasDeviceType);
+  }
+  if (stepMode) {
+    stepMode.classList.toggle('is-active', hasDeviceType && !hasMode);
+    stepMode.classList.toggle('is-muted', !hasDeviceType || hasMode);
+  }
 
   // Action card: show only when both device type and mode are selected, and not in pending_test
   var actionSect = document.getElementById('act-action-section');
-  var hasMode = !!meta.forwardingMode;
   var showAction = hasDeviceType && hasMode && uiState !== 'pending_test';
   if (actionSect) actionSect.style.display = showAction ? 'block' : 'none';
   if (showAction) renderActivationActionCard(meta);
