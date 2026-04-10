@@ -203,6 +203,33 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   box-shadow:0 0 0 3px rgba(26,86,219,.08);
 }
 
+/* ─── Plan Config Cards ─────────────────────────────────────────────── */
+.plan-config-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;}
+.plan-card{
+  border:1px solid var(--line);border-radius:var(--radius-lg);background:linear-gradient(180deg,#fff 0%,#FCFCFD 100%);
+  box-shadow:var(--shadow-card);padding:16px;display:flex;flex-direction:column;gap:14px;
+}
+.plan-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line2);}
+.plan-card-title{font-size:15px;font-weight:700;color:var(--ink);line-height:1.2;}
+.plan-sort-wrap{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.plan-sort-wrap .muted{font-size:11px;}
+.plan-sort-input{max-width:84px;height:38px !important;}
+.plan-toggle{display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:600;color:var(--ink3);}
+.plan-toggle input{width:16px;height:16px;accent-color:var(--blue);}
+.plan-card-section{display:grid;gap:8px;}
+.plan-card-section-title{font-size:11px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.06em;}
+.plan-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.plan-field{display:grid;gap:6px;}
+.plan-field label{font-size:11px;color:var(--slate);font-weight:600;}
+.input-with-prefix{position:relative;}
+.input-with-prefix .input{padding-left:46px;height:40px;font-size:14px;}
+.input-prefix{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--slate2);pointer-events:none;
+}
+.plan-input-lg{height:40px !important;font-size:14px;}
+.plan-card .textarea{min-height:92px;}
+
 /* ─── Buttons ─────────────────────────────────────────────────── */
 .btn{
   padding:7px 14px;border-radius:10px;
@@ -1100,18 +1127,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <button class="btn btn-primary btn-sm" onclick="savePlanConfig()">Speichern</button>
           </div>
           <div style="font-size:12px;color:var(--slate);margin-bottom:14px;">Preise und Inklusivminuten werden sofort im Kunden-Dashboard übernommen.</div>
-          <div id="plan-config-table" style="display:flex;flex-direction:column;gap:0;">
-            <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1.3fr 1.4fr 1.4fr;gap:8px;padding:8px 12px;background:var(--line2);border-radius:var(--r) var(--r) 0 0;align-items:center;">
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Plan</span>
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Preis Mt.</span>
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Preis Jahr</span>
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Setup Fee</span>
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Min. inkl.</span>
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Zusatz/Min.</span>
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Setup-Link</span>
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Headline / Features</span>
-            </div>
-            <div id="plan-config-rows"></div>
+          <div id="plan-config-table">
+            <div id="plan-config-rows" class="plan-config-list"></div>
           </div>
           <div id="plan-config-feedback" style="margin-top:10px;font-size:12px;"></div>
         </div>
@@ -5896,24 +5913,88 @@ function renderPlanConfigRows() {
   const rows=_planConfigData.filter(p=>normalizePlanCode(p.id)!=='pro');
   el.innerHTML = rows.map(function(p) {
     const features=Array.isArray(p.features)?p.features:(typeof p.features==='string'?(()=>{try{return JSON.parse(p.features);}catch(_){return [];}})():[]);
-    return `<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1.3fr 1.4fr 1.4fr;gap:8px;padding:10px 12px;border-bottom:0.5px solid var(--line);align-items:start;" data-plan-id="${esc(p.id)}">
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--ink);">${esc(planLabel(p.id))}</div>
-        <div style="margin-top:6px;"><label style="font-size:11px;color:var(--slate);display:flex;gap:6px;align-items:center;"><input type="checkbox" data-field="active" ${p.active?'checked':''}> Aktiv</label></div>
-        <div style="margin-top:6px;"><input type="number" class="input" style="height:30px;max-width:80px;" value="${Number(p.sort_order||0)}" data-field="sort_order" step="1"></div>
+    const monthlyPaymentLink=p.monthly_payment_link??p.payment_link_monthly??'';
+    const yearlyPaymentLink=p.yearly_payment_link??p.payment_link_yearly??'';
+    return `<div class="plan-card" data-plan-id="${esc(p.id)}">
+      <div class="plan-card-header">
+        <div>
+          <div class="plan-card-title">${esc(planLabel(p.id))}</div>
+          <div class="plan-sort-wrap">
+            <span class="muted">Sortierung</span>
+            <input type="number" class="input plan-sort-input" value="${Number(p.sort_order||0)}" data-field="sort_order" step="1">
+          </div>
+        </div>
+        <label class="plan-toggle"><input type="checkbox" data-field="active" ${p.active?'checked':''}> Aktiv</label>
       </div>
-      <input type="number" class="input" style="height:32px;" value="${Number(p.monthly_price||0)}" data-field="monthly_price" min="0" step="1">
-      <input type="number" class="input" style="height:32px;" value="${Number(p.yearly_price||0)}" data-field="yearly_price" min="0" step="1">
-      <input type="number" class="input" style="height:32px;" value="${Number(p.setup_fee_amount||0)}" data-field="setup_fee_amount" min="0" step="1">
-      <input type="number" class="input" style="height:32px;" value="${Number(p.minutes||0)}" data-field="minutes" min="0" step="10">
-      <div>
-        <input type="number" class="input" style="height:32px;" value="${Number(p.extra_rate||0)}" data-field="extra_rate" min="0" step="0.05">
-        <input class="input" style="margin-top:6px;height:32px;" value="${esc(p.short_description||'')}" data-field="short_description" placeholder="Kurzbeschreibung">
+
+      <div class="plan-card-section">
+        <div class="plan-card-section-title">Pricing</div>
+        <div class="plan-card-grid">
+          <div class="plan-field">
+            <label>Monatlich</label>
+            <div class="input-with-prefix"><span class="input-prefix">CHF</span><input type="number" class="input" value="${Number(p.monthly_price||0)}" data-field="monthly_price" min="0" step="1"></div>
+          </div>
+          <div class="plan-field">
+            <label>Jährlich</label>
+            <div class="input-with-prefix"><span class="input-prefix">CHF</span><input type="number" class="input" value="${Number(p.yearly_price||0)}" data-field="yearly_price" min="0" step="1"></div>
+          </div>
+        </div>
       </div>
-      <input class="input" style="height:32px;" value="${esc(p.setup_fee_payment_link||'')}" data-field="setup_fee_payment_link" placeholder="https://...">
-      <div>
-        <input class="input" style="height:32px;" value="${esc(p.headline||'')}" data-field="headline" placeholder="Headline">
-        <textarea class="textarea" style="margin-top:6px;min-height:70px;" data-field="features" placeholder="Ein Feature pro Zeile">${esc(features.join('\n'))}</textarea>
+
+      <div class="plan-card-section">
+        <div class="plan-card-section-title">Setup</div>
+        <div class="plan-field">
+          <label>Setup Fee</label>
+          <div class="input-with-prefix"><span class="input-prefix">CHF</span><input type="number" class="input" value="${Number(p.setup_fee_amount||0)}" data-field="setup_fee_amount" min="0" step="1"></div>
+        </div>
+        <div class="plan-field">
+          <label>Setup Link</label>
+          <input class="input plan-input-lg" value="${esc(p.setup_fee_payment_link||'')}" data-field="setup_fee_payment_link" placeholder="https://...">
+        </div>
+      </div>
+
+      <div class="plan-card-section">
+        <div class="plan-card-section-title">Usage</div>
+        <div class="plan-card-grid">
+          <div class="plan-field">
+            <label>Inklusive Minuten</label>
+            <input type="number" class="input plan-input-lg" value="${Number(p.minutes||0)}" data-field="minutes" min="0" step="10">
+          </div>
+          <div class="plan-field">
+            <label>Zusatz pro Minute</label>
+            <div class="input-with-prefix"><span class="input-prefix">CHF</span><input type="number" class="input" value="${Number(p.extra_rate||0)}" data-field="extra_rate" min="0" step="0.05"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-card-section">
+        <div class="plan-card-section-title">Payment links</div>
+        <div class="plan-card-grid">
+          <div class="plan-field">
+            <label>Monatlich</label>
+            <input class="input plan-input-lg" value="${esc(monthlyPaymentLink)}" data-field="monthly_payment_link" placeholder="https://...">
+          </div>
+          <div class="plan-field">
+            <label>Jährlich</label>
+            <input class="input plan-input-lg" value="${esc(yearlyPaymentLink)}" data-field="yearly_payment_link" placeholder="https://...">
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-card-section">
+        <div class="plan-card-section-title">Plan Text</div>
+        <div class="plan-field">
+          <label>Kurzbeschreibung</label>
+          <input class="input plan-input-lg" value="${esc(p.short_description||'')}" data-field="short_description" placeholder="Kurzbeschreibung">
+        </div>
+        <div class="plan-field">
+          <label>Headline</label>
+          <input class="input plan-input-lg" value="${esc(p.headline||'')}" data-field="headline" placeholder="Headline">
+        </div>
+        <div class="plan-field">
+          <label>Features</label>
+          <textarea class="textarea" data-field="features" placeholder="Ein Feature pro Zeile">${esc(features.join('\n'))}</textarea>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -5926,6 +6007,7 @@ async function savePlanConfig() {
   try {
     for (const row of rows) {
       const id = normalizePlanCode(row.dataset.planId);
+      const local=_planConfigData.find(x=>normalizePlanCode(x.id)===id);
       const patch={
         monthly_price: Number(row.querySelector('[data-field="monthly_price"]').value||0),
         yearly_price: Number(row.querySelector('[data-field="yearly_price"]').value||0),
@@ -5940,9 +6022,18 @@ async function savePlanConfig() {
         sort_order: Number(row.querySelector('[data-field="sort_order"]').value||0),
         updated_at: new Date().toISOString()
       };
+      if(local && ('monthly_payment_link' in local || 'payment_link_monthly' in local)){
+        const monthlyLink=String(row.querySelector('[data-field="monthly_payment_link"]').value||'').trim()||null;
+        if('monthly_payment_link' in local) patch.monthly_payment_link=monthlyLink;
+        if('payment_link_monthly' in local) patch.payment_link_monthly=monthlyLink;
+      }
+      if(local && ('yearly_payment_link' in local || 'payment_link_yearly' in local)){
+        const yearlyLink=String(row.querySelector('[data-field="yearly_payment_link"]').value||'').trim()||null;
+        if('yearly_payment_link' in local) patch.yearly_payment_link=yearlyLink;
+        if('payment_link_yearly' in local) patch.payment_link_yearly=yearlyLink;
+      }
       const { error } = await authClient.from('plan_config').update(patch).eq('id',id);
       if (error) throw error;
-      const local=_planConfigData.find(x=>normalizePlanCode(x.id)===id);
       if(local) Object.assign(local,patch);
     }
     if (fb) { fb.style.color='var(--green)'; fb.textContent='Gespeichert.'; setTimeout(()=>fb.textContent='',3000); }
