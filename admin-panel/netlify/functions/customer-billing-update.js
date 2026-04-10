@@ -34,11 +34,18 @@ exports.handler = async (event) => {
   const customerId = String(body.customer_id || '').trim();
   const action = String(body.action || '').trim().toLowerCase();
   if (!customerId) return response(400, { error: 'customer_id fehlt' });
-  if (!['send_payment_link', 'mark_paid'].includes(action)) {
-    return response(400, { error: 'Unbekannte action. Erlaubt: send_payment_link, mark_paid' });
+  if (!['send_payment_link', 'mark_paid', 'send_monthly_payment_link', 'send_yearly_payment_link', 'mark_subscription_paid'].includes(action)) {
+    return response(400, { error: 'Unbekannte action.' });
   }
 
   const nowIso = new Date().toISOString();
+  const plusMonthsIso = (baseIso, months) => {
+    const start = baseIso ? new Date(baseIso) : new Date();
+    if (Number.isNaN(start.getTime())) return null;
+    const next = new Date(start);
+    next.setMonth(next.getMonth() + months);
+    return next.toISOString();
+  };
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
@@ -91,6 +98,63 @@ exports.handler = async (event) => {
     nextPatch.payment_status = 'paid';
     nextPatch.payment_received_at = nowIso;
     if (!customer.payment_sent_at) nextPatch.payment_sent_at = nowIso;
+  }
+
+  if (action === 'send_monthly_payment_link' || action === 'send_yearly_payment_link' || action === 'mark_subscription_paid') {
+    const { data: subscription, error: subscriptionError } = await sbAdmin
+      .from('subscriptions')
+      .select('*')
+      .eq('customer_id', customerId)
+      .maybeSingle();
+
+    if (subscriptionError) return response(500, { error: 'Subscription lookup failed', details: subscriptionError.message });
+    if (!subscription) return response(404, { error: 'Subscription nicht gefunden' });
+
+    const planCode = normalizePlanCode(subscription.plan_code || customer.plan_code || customer.plan);
+    const { plan: planConfig, error: planConfigError } = await loadPlanByCode(sbAdmin, planCode);
+    if (planConfigError) return response(500, { error: 'Plan-Konfiguration konnte nicht geladen werden.', details: planConfigError.message });
+    if (!planConfig) return response(400, { error: `plan_config für ${planCode} fehlt.` });
+
+    const subscriptionPatch = { updated_at: nowIso };
+    if (action === 'send_monthly_payment_link' || action === 'send_yearly_payment_link') {
+      const billingCycle = action === 'send_yearly_payment_link' ? 'yearly' : 'monthly';
+      const linkField = billingCycle === 'yearly' ? 'yearly_payment_link' : 'monthly_payment_link';
+      const paymentLink = String(planConfig[linkField] || '').trim();
+      if (!paymentLink) return response(400, { error: `${linkField} fehlt in plan_config.` });
+      if (!/^https?:\/\//i.test(paymentLink)) return response(400, { error: `${linkField} muss mit http:// oder https:// beginnen.` });
+      subscriptionPatch.billing_cycle = billingCycle;
+      subscriptionPatch.subscription_status = 'active';
+      subscriptionPatch.starts_at = subscription.starts_at || nowIso;
+      subscriptionPatch.last_billing_sent_at = nowIso;
+      subscriptionPatch.last_billing_link = paymentLink;
+      const monthsToAdd = billingCycle === 'yearly' ? 12 : 1;
+      subscriptionPatch.renews_at = subscription.renews_at || plusMonthsIso(nowIso, monthsToAdd);
+    }
+    if (action === 'mark_subscription_paid') {
+      const billingCycle = String(subscription.billing_cycle || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+      const monthsToAdd = billingCycle === 'yearly' ? 12 : 1;
+      subscriptionPatch.subscription_status = 'active';
+      subscriptionPatch.last_paid_at = nowIso;
+      subscriptionPatch.renews_at = plusMonthsIso(nowIso, monthsToAdd);
+    }
+
+    const { data: updatedSubscription, error: updateSubscriptionError } = await sbAdmin
+      .from('subscriptions')
+      .update(subscriptionPatch)
+      .eq('id', subscription.id)
+      .select('*')
+      .single();
+
+    if (updateSubscriptionError) {
+      return response(500, { error: 'Subscription konnte nicht aktualisiert werden.', details: updateSubscriptionError.message });
+    }
+
+    return response(200, {
+      success: true,
+      action,
+      customer,
+      subscription: updatedSubscription
+    });
   }
 
   const { data: updated, error: updateErr } = await sbAdmin
