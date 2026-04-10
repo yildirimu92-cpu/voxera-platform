@@ -3,6 +3,7 @@ const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 const { STATUS, normalizeCustomerStatus, normalizeOnboardingStatus } = require('./_lib/status-model');
 const { normalizePlanCode } = require('./_lib/plan-config');
+const { evaluateCustomerEntitlement } = require('./_lib/customer-entitlement');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -174,11 +175,12 @@ exports.handler = async (event) => {
 
   // ─── ACTION: mark_activated ───────────────────────────────────────────────
   if (action === 'mark_activated') {
-    const paymentStatus = String(customer.payment_status || 'none').trim().toLowerCase();
-    if (paymentStatus !== 'paid') {
+    const entitlement = evaluateCustomerEntitlement(customer);
+    if (!entitlement.entitled && entitlement.code === 'payment_required') {
       return response(409, {
         error: 'Aktivierung blockiert: Setup Fee ist nicht als bezahlt markiert.',
-        payment_status: paymentStatus
+        payment_status: entitlement.payment_status,
+        customer_status: entitlement.customer_status
       });
     }
 
@@ -285,7 +287,7 @@ exports.handler = async (event) => {
   // ─── ACTION: send_access (Standard-Welcome-Mail) ──────────────────────────
   const normalizedCustomerStatus = normalizeCustomerStatus(customer.status);
   const normalizedOnboardingStatus = normalizeOnboardingStatus(onboardingRow?.status);
-  const paymentStatus = String(customer.payment_status || 'none').trim().toLowerCase();
+  const entitlement = evaluateCustomerEntitlement(customer);
   const assistantReady = Boolean(
     String(customer.ai_business_description || '').trim() ||
     String(customer.ai_instructions || '').trim()
@@ -319,11 +321,12 @@ exports.handler = async (event) => {
     });
   }
 
-  if (paymentStatus !== 'paid') {
+  if (!entitlement.entitled) {
     return response(409, {
-      error: 'Setup Fee ist noch nicht als bezahlt markiert. Zugang darf erst nach Zahlung versendet werden.',
-      payment_status: paymentStatus,
-      customer_status: normalizedCustomerStatus
+      error: entitlement.message,
+      entitlement_code: entitlement.code,
+      payment_status: entitlement.payment_status,
+      customer_status: entitlement.customer_status
     });
   }
 
