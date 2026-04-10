@@ -1785,6 +1785,16 @@ function normalizeSwissPhone(raw){
   const isValid=/^\+41\d{9}$/.test(value);
   return {normalized:value,valid:isValid,empty:false};
 }
+function normalizePhoneE164(raw){
+  const input=String(raw||'').trim();
+  if(!input) return {normalized:'',valid:false,empty:true};
+  let value=input.replace(/[^\d+]/g,'');
+  if(value.startsWith('00')) value=`+${value.slice(2)}`;
+  if(value.startsWith('+')) value=`+${value.slice(1).replace(/\D/g,'')}`;
+  else value=`+${value.replace(/\D/g,'')}`;
+  const valid=/^\+\d+$/.test(value)&&value.length>1;
+  return {normalized:valid?value:'',valid,empty:false};
+}
 function isSalesPlanCode(code){ return SALES_PLAN_CODES.includes(normalizePlanCode(code)); }
 function planConfigByCode(code){
   const normalized=normalizePlanCode(code);
@@ -4605,7 +4615,7 @@ async function submitEditCustomer(e){
     payment_status:planChanged?'none':normalizePaymentStatus(c.payment_status),
     payment_sent_at:planChanged?null:(c.payment_sent_at||null),
     payment_received_at:planChanged?null:(c.payment_received_at||null),
-    voxera_number:document.getElementById('edit-customer-voxera').value.trim()||null,
+    voxera_number:normalizePhoneE164(document.getElementById('edit-customer-voxera').value).normalized||null,
     status:document.getElementById('edit-customer-status').value,
     street:document.getElementById('edit-customer-street').value.trim(),
     zip:document.getElementById('edit-customer-zip').value.trim(),
@@ -4840,7 +4850,7 @@ function collectCreateCustomerPayload(){
     tel_nr:normalizedPhone.normalized,
     plan:normalizePlanCode(document.getElementById('create-customer-plan').value.trim()),
     billing_cycle:String(document.getElementById('create-customer-billing-cycle').value||'monthly').trim().toLowerCase(),
-    voxera_number:rawVoxera||null,
+    voxera_number:normalizePhoneE164(rawVoxera).normalized||null,
     street:document.getElementById('create-customer-street').value.trim(),
     zip:document.getElementById('create-customer-zip').value.trim(),
     city:document.getElementById('create-customer-city').value.trim(),
@@ -5783,6 +5793,16 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
   bindPhoneNormalization(document.getElementById('create-customer-phone'),'.form-error[data-error-for="tel_nr"]');
   bindPhoneNormalization(document.getElementById('edit-customer-phone'));
+
+  const bindVoxeraNormalization=(input)=>{
+    if(!input) return;
+    input.addEventListener('blur',()=>{
+      const result=normalizePhoneE164(input.value);
+      if(!result.empty) input.value=result.normalized;
+    });
+  };
+  bindVoxeraNormalization(document.getElementById('create-customer-voxera-number'));
+  bindVoxeraNormalization(document.getElementById('edit-customer-voxera'));
 });
 </script>
 

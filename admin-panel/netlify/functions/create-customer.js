@@ -3,6 +3,7 @@ const { randomUUID } = require('node:crypto');
 const { STATUS } = require('./_lib/status-model');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
+const { normalizePhoneE164 } = require('./_lib/phone-normalize');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -251,7 +252,7 @@ exports.handler = async (event) => {
     welcome_sent: false,
     status: STATUS.customer.ONBOARDING,
     forwarding_setup_completed: false,
-    voxera_number: String(body.voxera_number || '').trim() || null,
+    voxera_number: normalizePhoneE164(body.voxera_number).normalized || null,
     dashboard_id: body.dashboard_id  ? String(body.dashboard_id).trim()  : null,
     notes: body.notes ? String(body.notes).trim() : null,
     setup_fee_amount: planConfig.setup_fee_amount ?? null,
