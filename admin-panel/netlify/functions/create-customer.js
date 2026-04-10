@@ -24,6 +24,50 @@ function logEvent(level, eventName, payload = {}) {
   console.log(JSON.stringify({ ...base, ...payload }));
 }
 
+function extractMissingColumn(error) {
+  if (!error || error.code !== 'PGRST204') return null;
+  const message = String(error.message || '');
+  const match = message.match(/Could not find the '([^']+)' column/i);
+  return match?.[1] || null;
+}
+
+async function insertWithSchemaFallback({ sbAdmin, table, payload, select = '*' }) {
+  const dynamicPayload = { ...payload };
+  const removedColumns = [];
+  const maxAttempts = Object.keys(dynamicPayload).length + 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const { data, error } = await sbAdmin
+      .from(table)
+      .insert(dynamicPayload)
+      .select(select)
+      .single();
+
+    if (!error) {
+      return { data, error: null, removedColumns };
+    }
+
+    const missingColumn = extractMissingColumn(error);
+    if (!missingColumn || !(missingColumn in dynamicPayload)) {
+      return { data: null, error, removedColumns };
+    }
+
+    delete dynamicPayload[missingColumn];
+    removedColumns.push(missingColumn);
+    logEvent('info', 'create_customer_schema_cache_missing_column_ignored', {
+      table,
+      missing_column: missingColumn,
+      attempt
+    });
+  }
+
+  return {
+    data: null,
+    error: { code: 'CREATE_CUSTOMER_SCHEMA_FALLBACK_EXHAUSTED', message: `Schema fallback exhausted for table ${table}.` },
+    removedColumns
+  };
+}
+
 async function rollbackCreateCustomer({ sbAdmin, authUserId, customerId, onboardingId }) {
   const rollbackState = {
     onboarding_deleted: onboardingId ? false : null,
@@ -262,11 +306,16 @@ exports.handler = async (event) => {
     updated_at: nowIso
   };
 
-  const { data: createdSubscription, error: subscriptionError } = await sbAdmin
-    .from('subscriptions')
-    .insert(subscriptionPayload)
-    .select('*')
-    .single();
+  const {
+    data: createdSubscription,
+    error: subscriptionError,
+    removedColumns: removedSubscriptionColumns
+  } = await insertWithSchemaFallback({
+    sbAdmin,
+    table: 'subscriptions',
+    payload: subscriptionPayload,
+    select: '*'
+  });
 
   if (subscriptionError) {
     logEvent('error', 'create_customer_subscription_insert_failed', {
@@ -281,6 +330,12 @@ exports.handler = async (event) => {
       details: subscriptionError.message,
       rollback_applied: rollback.rollbackApplied,
       rollback_state: rollback.rollbackState
+    });
+  }
+  if (removedSubscriptionColumns.length > 0) {
+    logEvent('info', 'create_customer_subscription_inserted_with_legacy_columns', {
+      customer_id: customerId,
+      removed_columns: removedSubscriptionColumns
     });
   }
 
