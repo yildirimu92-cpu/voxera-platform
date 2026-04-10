@@ -3760,18 +3760,17 @@ function openCustomerProfile(id){
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Telefon</span><span class="detail-v">${esc(c.tel_nr||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Plan</span><span class="detail-v">${esc(planLabel(c.plan_code||c.plan))}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Billing Cycle</span><span class="detail-v">${esc(c.subscription_billing_cycle_label||'—')}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Subscription Status</span><span class="detail-v">${esc(c.subscription_status||'inactive')}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Subscription Start</span><span class="detail-v">${esc(formatDateTime(c.subscription_starts_at))}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Renewal Date</span><span class="detail-v">${esc(formatDateTime(c.subscription_renews_at))}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Status</span><span class="detail-v">${getCustomerLifecycleBadge(c,onboard)}</span></div></div>
+      <div class="card" style="padding:14px 16px;">
+        <div class="detail-item" style="border:none;align-items:flex-start;">
+          <span class="detail-k">Summary</span>
+          <span class="detail-v" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <span>Onboarding: ${getCustomerLifecycleBadge(c,onboard)}</span>
+            <span>Billing: ${paymentStatusBadge(c.payment_status)}</span>
+          </span>
+        </div>
+      </div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Voxera Nummer</span><span class="detail-v">${esc(c.voxera_number||c.voxera||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Adresse</span><span class="detail-v">${esc([c.street,c.zip,c.city,c.country].filter(Boolean).join(', ')||'—')}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Setup</span><span class="detail-v">${setupProgress}% · ${esc(getCustomerSetupReadinessLabel(c,onboard))}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Billing</span><span class="detail-v">${paymentStatusBadge(c.payment_status)}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Setup Fee</span><span class="detail-v">${c.setup_fee_amount!=null?`${esc(String(c.setup_fee_amount))} CHF`:'—'}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Payment Link</span><span class="detail-v">${c.payment_link?'<span style="color:var(--green)">Vorhanden</span>':'<span style=\"color:var(--red)\">Nicht hinterlegt</span>'}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Zahlung gesendet am</span><span class="detail-v">${esc(formatDateTime(c.payment_sent_at))}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Zahlung erhalten am</span><span class="detail-v">${esc(formatDateTime(c.payment_received_at))}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Kunde seit</span><span class="detail-v">${c.created_at?new Date(c.created_at).toLocaleDateString('de-CH'):'—'}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Kunden-ID</span><span class="detail-v" style="font-family:monospace;font-size:11px;">${esc(c.id||'—')}</span></div></div>
     </div>
@@ -4902,6 +4901,7 @@ async function toggleOnboardingStep(customerId,step){
       state.onboarding.push(dbOnboarding);
     }
     c.progress=dbOnboarding.progress;
+    if(json.customer?.status) c.status=normalizeCustomerLifecycleStatus(json.customer.status);
     syncCustomerLifecycleStatus(c,onboardingForCustomer(customerId));
     c.readiness=getCustomerSetupReadinessLabel(c,onboardingForCustomer(customerId));
     c.latest=`${nowStamp()} · Onboarding ${has?'zurückgesetzt':'aktualisiert'}`;
