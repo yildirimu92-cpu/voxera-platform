@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
+const { normalizePhoneE164 } = require('./_lib/phone-normalize');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -95,7 +96,9 @@ exports.handler = async (event) => {
     return response(500, { error: 'Supabase configuration missing' });
   }
 
-  const incomingNumber = extractIncomingNumber(payload);
+  const incomingNumberRaw = extractIncomingNumber(payload);
+  const normalizedIncoming = normalizePhoneE164(incomingNumberRaw);
+  const incomingNumber = normalizedIncoming.normalized;
   if (!incomingNumber) {
     return response(400, {
       error: 'incoming number missing',
@@ -115,7 +118,8 @@ exports.handler = async (event) => {
     auth: { autoRefreshToken: false, persistSession: false }
   });
 
-  const { data: customer, error: customerError } = await sbAdmin
+  let customer = null;
+  const { data: exactMatch, error: customerError } = await sbAdmin
     .from('customers')
     .select('id, voxera_number')
     .eq('voxera_number', incomingNumber)
@@ -125,10 +129,27 @@ exports.handler = async (event) => {
     return response(500, { error: 'customer lookup failed', details: customerError.message });
   }
 
+  customer = exactMatch;
+
+  if (!customer) {
+    const { data: candidates, error: candidateError } = await sbAdmin
+      .from('customers')
+      .select('id, voxera_number')
+      .not('voxera_number', 'is', null)
+      .limit(5000);
+
+    if (candidateError) {
+      return response(500, { error: 'customer candidate lookup failed', details: candidateError.message });
+    }
+
+    customer = (candidates || []).find((row) => normalizePhoneE164(row.voxera_number).normalized === incomingNumber) || null;
+  }
+
   if (!customer || !customer.id) {
     return response(422, {
       error: 'customer not found for incoming number',
-      incoming_number: incomingNumber
+      incoming_number: incomingNumber,
+      incoming_number_raw: incomingNumberRaw || null
     });
   }
 
@@ -142,8 +163,8 @@ exports.handler = async (event) => {
     customer_id: customer.id,
     caller_name: pickString(payload.caller_name, payload.contact_name, payload.call?.caller_name) || null,
     caller_phone: pickString(payload.caller_phone, payload.from, payload.from_number, payload.call?.from) || null,
-    called_number: pickString(payload.called_number, payload.to, payload.to_number, payload.call?.to, incomingNumber) || null,
-    voxera_number: pickString(payload.voxera_number, payload.call?.voxera_number, incomingNumber) || null,
+    called_number: normalizePhoneE164(pickString(payload.called_number, payload.to, payload.to_number, payload.call?.to, incomingNumber)).normalized || null,
+    voxera_number: normalizePhoneE164(pickString(payload.voxera_number, payload.call?.voxera_number, incomingNumber)).normalized || null,
     date: callDate,
     created_date_raw: callDate,
     duration_seconds: Number.isFinite(Number(payload.duration_seconds)) ? Number(payload.duration_seconds) : null,
