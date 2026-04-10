@@ -678,7 +678,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 2h6l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M9 2v4h4M5 8h6M5 10.5h4"/></svg>
         Verträge
       </a>
-      <div class="nav-section">Finance</div>
+      <div class="nav-section">Finanzen</div>
       <a href="#billing" class="nav-item" data-route="billing">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="4" width="14" height="9" rx="1.5"/><path d="M1 7h14M5 10.5h2M10 10.5h1"/></svg>
         Billing &amp; Finance
@@ -3044,8 +3044,9 @@ function generateContractText(data) {
 
 // ─── Billing & Finance ────────────────────────────────────────────────────
 
-// V1 conservative cost rate: 62% of monthly plan price used as cost estimate.
-// Clearly marked as V1 approximation throughout the UI.
+// V1 conservative cost rate: 62% of monthly plan price is treated as estimated cost.
+// This means 38% gross margin assumed for V1 planning. No real cost data is available;
+// adjust this value once actual infrastructure/provider costs are known.
 const BILLING_V1_COST_RATE = 0.62;
 
 function formatChf(amount) {
