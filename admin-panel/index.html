@@ -840,7 +840,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <!-- AI SETUP -->
       <section id="section-ai-setup" class="section">
         <div class="card ai-summary-card">
-          <div class="card-head"><h3>AI Operations Summary</h3><span class="badge badge-blue">Workspace</span></div>
+          <div class="card-head"><h3>AI-Übersicht</h3><span class="badge badge-blue">Arbeitsbereich</span></div>
           <div class="ai-summary-grid" id="ai-summary-grid"></div>
           <div style="margin-top:14px;">
             <div class="card-title" style="margin-bottom:10px;">Readiness Queue (Top Prioritäten)</div>
@@ -850,7 +850,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
         <div class="ai-setup-layout" style="margin-top:16px;">
           <div class="card">
-            <div class="card-head"><h3>Customer AI Queue</h3><span class="badge badge-amber">Action Required</span></div>
+            <div class="card-head"><h3>Kunden-AI-Liste</h3><span class="badge badge-amber">Aktion erforderlich</span></div>
             <div class="toolbar" style="grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(0,1fr)) auto;">
               <input class="input" id="ai-search" placeholder="Suche Kunde / AI-Kontext">
               <select class="select" id="ai-status-filter"><option value="all">AI Status: Alle</option></select>
@@ -859,7 +859,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             </div>
             <div class="table-wrap ai-queue-table-wrap">
               <table class="data-table ai-queue-table">
-                <thead><tr><th>Kunde</th><th>Plan</th><th>AI-Readiness</th><th>Offene Punkte</th><th>Latest AI Update</th><th>Aktion</th></tr></thead>
+                <thead><tr><th>Kunde</th><th>Plan</th><th>AI-Bereitschaft</th><th>Offene Punkte</th><th>Letzte AI-Aktualisierung</th></tr></thead>
                 <tbody id="ai-customer-body"></tbody>
               </table>
             </div>
@@ -868,7 +868,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           <div class="card ai-workspace-card" id="ai-workspace-card">
             <div class="card-head" style="align-items:flex-start;">
               <div>
-                <div class="onboarding-active-chip">Aktiver AI Workspace</div>
+                <div class="onboarding-active-chip">Aktiver AI-Arbeitsbereich</div>
                 <h3 id="ai-workspace-customer" style="margin-top:8px;">Kunde wählen</h3>
               </div>
               <span class="badge badge-gray" id="ai-workspace-badge">Kein Kunde gewählt</span>
@@ -877,7 +877,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <div id="ai-workspace" style="display:none;">
               <div class="detail-grid" id="ai-customer-context"></div>
               <div class="ai-workspace-block">
-                <div class="card-title" style="margin-top:12px;">Business Description & Knowledge</div>
+                <div class="card-title" style="margin-top:12px;">Geschäftsprofil & Wissen</div>
                 <div class="field-head"><label class="muted" for="ai-business-description">Geschäftsprofil</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Branche, Zielgruppe, Leistungsversprechen und typische Anliegen.<br><strong>Warum wichtig?</strong>Die AI kann nur professionell antworten, wenn sie den Kontext des Betriebs kennt.<br><strong>Best Practice</strong>3–6 präzise Sätze, keine Marketingfloskeln.<br><strong>Beispiel</strong>«Treuhandbüro in Zürich, Fokus KMU bis 20 Mitarbeitende, spezialisiert auf Lohn & Abschluss.»</span></span></div>
                 <textarea class="textarea" id="ai-business-description" placeholder="Business description"></textarea>
                 <div class="field-head" style="margin-top:8px;"><label class="muted" for="ai-services">Angebot / Leistungen</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Kernleistungen inkl. Grenzen (was nicht angeboten wird).<br><strong>Warum wichtig?</strong>Verbessert Trefferquote bei Kundenanfragen und reduziert Rückfragen.<br><strong>Best Practice</strong>Als Liste mit klaren Keywords und Prioritäten erfassen.<br><strong>Beispiel</strong>«Steuererklärung, Monatsabschluss, Lohnadministration; keine Rechtsberatung.»</span></span></div>
@@ -888,17 +888,17 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                 <textarea class="textarea" id="ai-booking-faq" placeholder="Booking/contact preferences + FAQs"></textarea>
               </div>
               <div class="ai-workspace-block">
-                <div class="card-title" style="margin-top:12px;">Custom Instructions</div>
+                <div class="card-title" style="margin-top:12px;">Kundenspezifische Regeln</div>
                 <div class="field-head"><label class="muted" for="ai-customer-instructions">Gesprächsregeln pro Kunde</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Tonalität, Begrüssung, Tabus, Lead-Qualifizierung, Abschluss-Satz.<br><strong>Warum wichtig?</strong>Steuert Vertrauen, Markenwirkung und Abschlussqualität.<br><strong>Best Practice</strong>Kurze, imperative Regeln («Frage zuerst ...», «sage nie ...»).<br><strong>Beispiel</strong>«Immer mit Firmenname begrüssen, bei Preisfragen nie schätzen – Rückruf anbieten.»</span></span></div>
                 <textarea class="textarea" id="ai-customer-instructions" placeholder="Greeting / tone / do-do-not / lead qual / callback specifics"></textarea>
               </div>
               <div class="ai-workspace-block">
-                <div class="card-title" style="margin-top:12px;">Fallback & Escalation</div>
+                <div class="card-title" style="margin-top:12px;">Fallback & Eskalation</div>
                 <div class="field-head"><label class="muted" for="ai-fallback-escalation">Eskalationsregeln</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Trigger für Übergabe an Mensch, Notfälle, unklare Fälle, verärgerte Anrufer.<br><strong>Warum wichtig?</strong>Minimiert Risiko und schützt Servicequalität.<br><strong>Best Practice</strong>Mit klaren «Wenn X, dann Y»-Regeln arbeiten.<br><strong>Beispiel</strong>«Bei Datenschutz- oder Beschwerdeanliegen sofort Ticket ‘High’ und Rückruf innert 30 Min.»</span></span></div>
                 <textarea class="textarea" id="ai-fallback-escalation" placeholder="Escalation triggers, missing info behavior, frustrated caller handling"></textarea>
               </div>
               <div class="ai-workspace-block">
-                <div class="card-title" style="margin-top:12px;">Response Constraints & Notes</div>
+                <div class="card-title" style="margin-top:12px;">Antwortgrenzen & Hinweise</div>
                 <div class="field-head"><label class="muted" for="ai-response-constraints">Antwortgrenzen / Compliance</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Rechtliche Grenzen, verbotene Aussagen, zugesicherte Leistungen.<br><strong>Warum wichtig?</strong>Verhindert Fehlaussagen, die Vertrauen oder Umsatz gefährden.<br><strong>Best Practice</strong>Klare Negativliste plus erlaubte Alternative notieren.<br><strong>Beispiel</strong>«Keine medizinischen Empfehlungen; stattdessen auf Fachperson verweisen.»</span></span></div>
                 <textarea class="textarea" id="ai-response-constraints" placeholder="Compliance boundaries / prohibited claims"></textarea>
                 <div class="field-head" style="margin-top:8px;"><label class="muted" for="ai-internal-notes">Interne Umsetzungsnotizen</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Nur interne Hinweise für Ops/Support, nicht für Endnutzertexte.<br><strong>Warum wichtig?</strong>Sichert saubere Übergaben zwischen Sales, Setup und Support.<br><strong>Best Practice</strong>Eintrag mit Datum + Verantwortlicher starten.<br><strong>Beispiel</strong>«2026-04-10 / LN: Callback-Flow mit CRM-Feld ‘Lead Source’ abgestimmt.»</span></span></div>
@@ -918,26 +918,27 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
         <div class="grid-2" style="margin-top:16px;grid-template-columns:1.25fr .75fr;">
           <div class="card ai-global-secondary">
-            <div class="card-head"><h3>Global Assistant Configuration</h3><span class="badge badge-gray">Secondary</span></div>
-            <div class="detail-item"><span class="detail-k">Global Prompt</span><span class="detail-v"><button class="btn btn-secondary btn-sm" id="ai-save-global">Speichern</button></span></div>
+            <div class="card-head"><h3>Globale Assistenten-Basis</h3><span class="badge badge-gray">Global</span></div>
+            <div class="muted" style="margin-bottom:8px;">Diese Basis gilt für alle Kunden. Kundenspezifische Inhalte (Geschäftsprofil, Leistungen, Öffnungszeiten, FAQ und individuelle Eskalationen) bleiben ausschliesslich im Customer-AI-Setup.</div>
+            <div class="detail-item"><span class="detail-k">Globaler Voxera Prompt</span><span class="detail-v"><button class="btn btn-secondary btn-sm" id="ai-save-global">Speichern</button></span></div>
             <textarea class="textarea" id="ai-global-prompt" rows="4" style="margin-top:8px;"></textarea>
             <div class="grid-2" style="margin-top:12px;">
               <div>
-                <div class="card-title">Behavior Rules</div>
-                <div class="detail-item"><span class="detail-k">Greeting Tone</span><span class="detail-v"><input class="input" id="ai-global-tone" style="width:160px;"></span></div>
-                <div class="detail-item"><span class="detail-k">Voice Behavior</span><span class="detail-v"><input class="input" id="ai-global-voice" style="width:160px;"></span></div>
-                <div class="detail-item"><span class="detail-k">Call Handling</span><span class="detail-v"><input class="input" id="ai-global-call-defaults" style="width:160px;"></span></div>
+                <div class="card-title">Verhaltensregeln</div>
+                <div class="detail-item"><span class="detail-k">Gesprächston</span><span class="detail-v"><input class="input" id="ai-global-tone" style="width:160px;"></span></div>
+                <div class="detail-item"><span class="detail-k">Sprachstil</span><span class="detail-v"><input class="input" id="ai-global-voice" style="width:160px;"></span></div>
+                <div class="detail-item"><span class="detail-k">Gesprächsführung</span><span class="detail-v"><input class="input" id="ai-global-call-defaults" style="width:160px;"></span></div>
               </div>
               <div>
-                <div class="card-title">Fallback & Escalation</div>
-                <div class="detail-item"><span class="detail-k">Fallback</span><span class="detail-v"><input class="input" id="ai-global-fallback" style="width:160px;"></span></div>
-                <div class="detail-item"><span class="detail-k">Escalation</span><span class="detail-v"><input class="input" id="ai-global-escalation" style="width:160px;"></span></div>
-                <div class="detail-item"><span class="detail-k">Constraints</span><span class="detail-v"><input class="input" id="ai-global-constraints" style="width:160px;"></span></div>
+                <div class="card-title">Fallback & Eskalation</div>
+                <div class="detail-item"><span class="detail-k">Fallback-Regel</span><span class="detail-v"><input class="input" id="ai-global-fallback" style="width:160px;"></span></div>
+                <div class="detail-item"><span class="detail-k">Eskalationsregel</span><span class="detail-v"><input class="input" id="ai-global-escalation" style="width:160px;"></span></div>
+                <div class="detail-item"><span class="detail-k">Antwortgrenzen</span><span class="detail-v"><input class="input" id="ai-global-constraints" style="width:160px;"></span></div>
               </div>
             </div>
           </div>
           <div class="card ai-audit-secondary">
-            <div class="card-head"><h3>Recent AI Changes</h3><span class="badge badge-gray">Audit</span></div>
+            <div class="card-head"><h3>Letzte AI-Änderungen</h3><span class="badge badge-gray">Audit</span></div>
             <div class="list" id="ai-changes-list"></div>
           </div>
         </div>
@@ -1739,13 +1740,13 @@ const state={
     {key:'Live Call Quality Scoring',desc:'Interner Canary',state:'PARTIAL'}
   ],
   aiGlobal:{
-    prompt:'Du bist Voxera, ein professioneller Voice Assistant für Schweizer KMU. Priorisiere Präzision, Datenschutz, höfliche Gesprächsführung und klare Übergaben in kritischen Fällen.',
-    tone:'Professionell, lösungsorientiert, ruhig',
+    prompt:'Du bist ein professioneller Voice Assistant für Schweizer KMU. Du kommunizierst freundlich, klar, strukturiert und lösungsorientiert. Du nimmst Anrufe zuverlässig entgegen, erfasst Anliegen sauber und leitest relevante Informationen korrekt weiter. Du erfindest keine Informationen und machst keine verbindlichen Zusagen, wenn diese nicht ausdrücklich im Kundenkontext hinterlegt sind. Bei kritischen oder dringenden Anliegen handelst du ruhig, professionell und priorisierst eine saubere Eskalation.',
+    tone:'Professionell, freundlich, ruhig',
     voiceBehavior:'Kurz, klar, verbindlich',
-    callDefaults:'Erst Anliegen qualifizieren, dann Lösung/Weiterleitung',
-    fallback:'Bei fehlender Information Rückrufslot + Ticket anbieten',
-    escalation:'Kritisch sofort an Bereitschaft; unzufriedene Caller an Human Queue',
-    constraints:'Keine rechtliche/medizinische Beratung; keine falschen Zusagen; maximal 40s Antwortblöcke'
+    callDefaults:'Anliegen verstehen, Informationen erfassen, gezielt nachfragen, sauber weiterleiten',
+    fallback:'Wenn Informationen fehlen, nichts erfinden. Transparent bleiben und Rückruf oder Weiterleitung anbieten.',
+    escalation:'Dringende, kritische oder emotional eskalierte Anliegen priorisieren und für rasche Bearbeitung markieren.',
+    constraints:'Keine verbindlichen Zusagen zu Preisen, Terminen, Diagnosen, Haftung oder rechtlichen Aussagen machen.'
   },
   aiConfigs:{
     1:{status:'AI Ready',custom:true,businessDescription:'Sanitär- und Notfallservice im Raum Zürich.',services:'Rohrbruch, Reparaturen, Wartung, Offerten.',locationHours:'Zürich + Umgebung, 24/7 Notfall, regulär 07:30-18:00.',bookingFaq:'Notfall sofort verbinden; Termine via Telefon bestätigen.',instructions:'Bei Wasserschäden ruhig führen, Priorität auf Sicherheit und Sofortmaßnahmen.',fallbackEscalation:'Wenn Ersatzteile unklar → Rückruf in 30 Min durch Dispo.',responseConstraints:'Keine Preiszusage ohne Sichtung; keine Rechtsberatung.',internalNotes:'Notfall-Flow am 2026-04-02 geschärft.',lastUpdate:'2026-04-06 09:10'},
@@ -1825,6 +1826,17 @@ function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function idsEq(a,b){return String(a)===String(b);}
 function customerById(id){return state.customers.find(c=>idsEq(c.id,id));}
+function customerNumberLabel(customer){
+  if(!customer) return '—';
+  return String(
+    customer.customer_number ||
+    customer.customer_no ||
+    customer.kundennummer ||
+    customer.dashboard_id ||
+    customer.id ||
+    '—'
+  ).trim() || '—';
+}
 async function callAdminFunction(name,payload){
   if(!(authClient&&authClient.auth)) throw new Error('Admin-Auth nicht verfügbar.');
   const {data:{session},error}=await authClient.auth.getSession();
@@ -2812,15 +2824,15 @@ function renderAiSetup(){
   document.getElementById('ai-customer-body').innerHTML=rows.map(r=>{
     const missingLabel=r.missing.length===0?'Keine fehlenden Pflichtfelder':r.missing.join(', ');
     const updateLabel=r.cfg.lastUpdate||'—';
+    const customerNumber=customerNumberLabel(r.customer);
     return `<tr class="${selectedId===r.customer.id?'ai-row-active':''}" onclick="openAiWorkspace('${jsStr(r.customer.id)}')">
-      <td data-label="Kunde"><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(contactDisplay(r.customer))}</div></td>
+      <td data-label="Kunde"><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(contactDisplay(r.customer))}</div><div class="muted">Kundennummer: ${esc(customerNumber)}</div></td>
       <td data-label="Plan">${toneBadge(r.customer.plan)}</td>
-      <td data-label="AI-Readiness">${toneBadge(getAIStatusLabel(r.cfg.status))}</td>
+      <td data-label="AI-Bereitschaft">${toneBadge(getAIStatusLabel(r.cfg.status))}</td>
       <td data-label="Offene Punkte"><span class="ai-priority-pill ${r.priority}">${r.missing.length}</span><div class="muted" style="margin-top:3px;">${esc(missingLabel)}</div></td>
-      <td data-label="Latest Update">${esc(updateLabel)}</td>
-      <td data-label="Aktion"><button class="btn btn-quiet btn-sm" onclick="event.stopPropagation();openAiWorkspace('${jsStr(r.customer.id)}')">Öffnen</button></td>
+      <td data-label="Letzte AI-Aktualisierung">${esc(updateLabel)}</td>
     </tr>`;
-  }).join('')||'<tr><td colspan="6"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+  }).join('')||'<tr><td colspan="5"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
 
   const allRows=state.customers.map(c=>{
     const cfg=state.aiConfigs[c.id]||{};
@@ -2844,7 +2856,7 @@ function renderAiSetup(){
 
   const missingCustomers=allRows.filter(x=>x.missing.length>0).sort((a,b)=>b.score-a.score||b.missing.length-a.missing.length).slice(0,6);
   document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">Fehlt: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace('${jsStr(m.id)}')">Bearbeiten</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
-  document.getElementById('ai-changes-list').innerHTML=state.aiChanges.slice(0,6).map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">AI Configuration change log</div></div></div>`).join('')||'<div class="empty">Noch keine Änderungen protokolliert.</div>';
+  document.getElementById('ai-changes-list').innerHTML=state.aiChanges.slice(0,6).map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">Änderungsprotokoll der AI-Konfiguration</div></div></div>`).join('')||'<div class="empty">Noch keine Änderungen protokolliert.</div>';
   hydrateAiStatusFilter();
   renderAiWorkspace();
 }
@@ -2888,16 +2900,18 @@ function renderAiWorkspace(){
   const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboardingForCustomer(id));
   const readiness=getAIReadiness(cfg);
   const missing=readiness.missingLabels;
+  const customerNumber=customerNumberLabel(c);
   workspace.style.display='block';
   empty.style.display='none';
   if(title) title.textContent=`${c.name} · ${c.plan}`;
   document.getElementById('ai-workspace-badge').outerHTML=toneBadge(getAIStatusLabel(cfg.status)).replace('<span','<span id="ai-workspace-badge"');
   document.getElementById('ai-customer-context').innerHTML=[
-    ['Customer',c.name],
+    ['Kunde',c.name],
+    ['Kundennummer',customerNumber],
     ['Plan',c.plan],
-    ['AI-Readiness',getAIStatusLabel(cfg.status)],
+    ['AI-Bereitschaft',getAIStatusLabel(cfg.status)],
     ['Setup',`${setupProgress}% · ${setupReadinessLabel}`],
-    ['Fallback/Esc.',String(cfg.fallbackEscalation||'').trim()? 'Vorhanden':'Fehlt'],
+    ['Fallback/Eskalation',String(cfg.fallbackEscalation||'').trim()? 'Vorhanden':'Fehlt'],
     ['Letzte AI-Aktualisierung',cfg.lastUpdate||'—'],
     ['Offene Punkte',missing.length?`Fehlt: ${missing.join(', ')}`:'0']
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
