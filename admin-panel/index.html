@@ -1048,6 +1048,15 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           </div>
         </div>
         <div class="card" style="margin-bottom:16px;">
+          <div class="card-head"><h3>Subscription Ops (V1)</h3><span class="badge badge-blue">Manuell</span></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Kunde</th><th>Plan</th><th>Billing Cycle</th><th>Status</th><th>Start</th><th>Erneuerung</th><th>Fällig</th><th>Aktionen</th></tr></thead>
+              <tbody id="finance-subscription-ops-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
           <div class="card-head"><h3>Rechnungsübersicht</h3><span class="badge badge-gray">Read-only</span></div>
           <div class="toolbar finance-toolbar">
             <input class="input" id="finance-invoice-search" placeholder="Kunde / Rechnungsnummer / Typ">
@@ -1819,7 +1828,7 @@ function planConfigByCode(code){
 }
 function planLabel(code){
   const pc=planConfigByCode(code);
-  if(pc) return pc.name||pc.id;
+  if(pc) return pc.plan_label||pc.name||pc.id;
   const normalized=normalizePlanCode(code);
   if(normalized==='kein_plan') return 'Kein Plan';
   if(normalized==='professional') return 'Professional';
@@ -2343,13 +2352,28 @@ function formatDate(dateStr){
   if(Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('de-CH');
 }
+function isSubscriptionDueForRenewal(customer, now=new Date()){
+  if(String(customer?.subscription_status||'').toLowerCase()!=='active') return false;
+  if(!customer?.subscription_renews_at) return false;
+  const renewDate=new Date(customer.subscription_renews_at);
+  if(Number.isNaN(renewDate.getTime())) return false;
+  const endOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999);
+  return renewDate.getTime()<=endOfToday.getTime();
+}
+function subscriptionStatusBadge(status){
+  const raw=String(status||'').toLowerCase();
+  if(raw==='active') return '<span class="badge badge-green">Active</span>';
+  if(raw==='cancelled') return '<span class="badge badge-red">Cancelled</span>';
+  return '<span class="badge badge-gray">Inactive</span>';
+}
 function renderBillingFinance(){
   const rootKpi=document.getElementById('finance-kpis');
   const rootWorklist=document.getElementById('finance-worklist');
   const rootBreakdown=document.getElementById('finance-breakdown');
   const rootInvoiceBody=document.getElementById('finance-invoice-body');
   const rootMarginBody=document.getElementById('finance-margin-body');
-  if(!rootKpi||!rootWorklist||!rootBreakdown||!rootInvoiceBody||!rootMarginBody) return;
+  const rootSubscriptionOpsBody=document.getElementById('finance-subscription-ops-body');
+  if(!rootKpi||!rootWorklist||!rootBreakdown||!rootInvoiceBody||!rootMarginBody||!rootSubscriptionOpsBody) return;
   const search=(document.getElementById('finance-invoice-search')?.value||'').trim().toLowerCase();
   const typeFilter=document.getElementById('finance-type-filter')?.value||'all';
   const statusFilter=document.getElementById('finance-status-filter')?.value||'all';
@@ -2450,6 +2474,36 @@ function renderBillingFinance(){
     ['Kunden mit Billing-Handlungsbedarf',[...new Set(openRows.map(i=>i.customerId).filter(Boolean))].length,'mind. 1 offene Rechnung']
   ];
   rootWorklist.innerHTML=workItems.map(([label,val,sub])=>`<div class="list-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div>${toneBadge(String(val))}</div></div>`).join('')||'<div class="empty">Keine offenen Billing-Aufgaben.</div>';
+
+  const subscriptionOpsRows=state.customers
+    .filter(c=>String(c.subscription_billing_cycle||'').trim())
+    .sort((a,b)=>{
+      const aDue=isSubscriptionDueForRenewal(a)?0:1;
+      const bDue=isSubscriptionDueForRenewal(b)?0:1;
+      if(aDue!==bDue) return aDue-bDue;
+      return String(a.name||'').localeCompare(String(b.name||''));
+    });
+  rootSubscriptionOpsBody.innerHTML=subscriptionOpsRows.map(c=>{
+    const due=isSubscriptionDueForRenewal(c,now);
+    const cycle=String(c.subscription_billing_cycle||'').toLowerCase();
+    const actionLabel=cycle==='yearly'?'Jahreszahlung senden':'Monatszahlung senden';
+    const actionFn=cycle==='yearly'?'sendYearlyBillingPaymentLink':'sendMonthlyBillingPaymentLink';
+    return `<tr>
+      <td>${esc(c.name||'—')}</td>
+      <td>${esc(planLabel(c.subscription_plan_code||c.plan_code||c.plan))}</td>
+      <td>${esc(c.subscription_billing_cycle_label||'—')}</td>
+      <td>${subscriptionStatusBadge(c.subscription_status)}</td>
+      <td>${esc(formatDate(c.subscription_starts_at))}</td>
+      <td>${esc(formatDate(c.subscription_renews_at))}</td>
+      <td>${due?'<span class="badge badge-red">Ja</span>':'<span class="badge badge-gray">Nein</span>'}</td>
+      <td>
+        <div class="inline-actions">
+          <button class="btn btn-secondary btn-sm" onclick="${actionFn}('${jsStr(c.id)}')" ${cycle==='monthly'||cycle==='yearly'?'':'disabled'}>${actionLabel}</button>
+          <button class="btn btn-primary btn-sm" onclick="markSubscriptionPaid('${jsStr(c.id)}')">Als bezahlt markieren</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="8"><div class="empty">Keine Subscription-Daten verfügbar.</div></td></tr>';
 
   const paidAmount=invoiceRows.filter(i=>i.status==='paid').reduce((sum,i)=>sum+i.amount,0);
   const setupAmount=invoiceRows.filter(i=>i.type==='setup_fee').reduce((sum,i)=>sum+i.amount,0);
@@ -4010,10 +4064,13 @@ function openCustomerProfile(id){
           <div class="muted" style="font-size:12px;margin-bottom:10px;">Status: ${esc(paymentStatusLabel(c.payment_status))}</div>
           <div class="inline-actions" style="flex-wrap:wrap;">
             <button class="btn btn-secondary" onclick="closeCustomerProfile();sendBillingPaymentLink('${jsStr(id)}')">
-              Zahlungslink senden
+              Setup Fee Link senden
             </button>
-            <button class="btn btn-primary" onclick="closeCustomerProfile();markBillingPaid('${jsStr(id)}')">
-              Zahlung als erhalten markieren
+            <button class="btn btn-secondary" onclick="closeCustomerProfile();${c.subscription_billing_cycle==='yearly'?'sendYearlyBillingPaymentLink':'sendMonthlyBillingPaymentLink'}('${jsStr(id)}')" ${['monthly','yearly'].includes(String(c.subscription_billing_cycle||''))?'':'disabled'}>
+              ${c.subscription_billing_cycle==='yearly'?'Jahreszahlung senden':'Monatszahlung senden'}
+            </button>
+            <button class="btn btn-primary" onclick="closeCustomerProfile();markSubscriptionPaid('${jsStr(id)}')">
+              Als bezahlt markieren
             </button>
           </div>
         </div>
@@ -4533,6 +4590,64 @@ async function markBillingPaid(customerId){
     renderCustomers(); renderOverview(); renderActivity(); updateBadges();
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
     showToast('✓ Zahlung als erhalten markiert.');
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
+  }
+}
+
+async function sendMonthlyBillingPaymentLink(customerId){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  try{
+    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_monthly_payment_link'});
+    if(!json?.success||!json?.subscription) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
+    customer.subscription_status=json.subscription.subscription_status||customer.subscription_status;
+    customer.subscription_renews_at=json.subscription.renews_at||customer.subscription_renews_at;
+    customer.latest=`${nowStamp()} · Monatszahlung gesendet`;
+    state.events.unshift(`${nowStamp()} · ${customer.name}: Monatszahlung aus plan_config gesendet`);
+    renderCustomers(); renderOverview(); renderActivity(); renderBillingFinance(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    showToast('✓ Monatszahlung gesendet.');
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
+  }
+}
+
+async function sendYearlyBillingPaymentLink(customerId){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  try{
+    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_yearly_payment_link'});
+    if(!json?.success||!json?.subscription) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
+    customer.subscription_status=json.subscription.subscription_status||customer.subscription_status;
+    customer.subscription_renews_at=json.subscription.renews_at||customer.subscription_renews_at;
+    customer.latest=`${nowStamp()} · Jahreszahlung gesendet`;
+    state.events.unshift(`${nowStamp()} · ${customer.name}: Jahreszahlung aus plan_config gesendet`);
+    renderCustomers(); renderOverview(); renderActivity(); renderBillingFinance(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    showToast('✓ Jahreszahlung gesendet.');
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
+  }
+}
+
+async function markSubscriptionPaid(customerId){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  if(!confirm(`Subscription-Zahlung für ${customer.name} als bezahlt markieren?`)) return;
+  try{
+    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'mark_subscription_paid'});
+    if(!json?.success||!json?.subscription) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
+    customer.subscription_status=json.subscription.subscription_status||customer.subscription_status;
+    customer.subscription_renews_at=json.subscription.renews_at||customer.subscription_renews_at;
+    customer.latest=`${nowStamp()} · Subscription als bezahlt markiert`;
+    state.events.unshift(`${nowStamp()} · ${customer.name}: Subscription als bezahlt markiert`);
+    renderCustomers(); renderOverview(); renderActivity(); renderBillingFinance(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    showToast('✓ Subscription als bezahlt markiert.');
   }catch(err){
     const payload=err?.payload||{};
     alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
@@ -5875,7 +5990,7 @@ function renderPlanSelects(){
     if(includePlaceholder) html+='<option value="">Bitte wählen …</option>';
     plans.forEach(plan=>{
       const code=normalizePlanCode(plan.id);
-      const label=plan.name||plan.id;
+      const label=plan.plan_label||plan.name||plan.id;
       html+=`<option value="${esc(code)}">${esc(label)}</option>`;
     });
     sel.innerHTML=html;
@@ -5892,7 +6007,12 @@ async function loadPlanConfig() {
       .select('*')
       .order('sort_order', { ascending: true });
     if (error || !data) return;
-    _planConfigData = data.map(p=>({ ...p, id: normalizePlanCode(p.id) }));
+    _planConfigData = data.map(p=>({
+      ...p,
+      id: normalizePlanCode(p.id),
+      plan_key: normalizePlanCode(p.id),
+      plan_label: String(p.plan_label || p.name || p.id || '').trim() || normalizePlanCode(p.id)
+    }));
 
     Object.keys(PLAN_PRICES).forEach(k=>delete PLAN_PRICES[k]);
     Object.keys(PLAN_MINUTES).forEach(k=>delete PLAN_MINUTES[k]);
@@ -5918,7 +6038,11 @@ function renderPlanConfigRows() {
     return `<div class="plan-card" data-plan-id="${esc(p.id)}">
       <div class="plan-card-header">
         <div>
-          <div class="plan-card-title">${esc(planLabel(p.id))}</div>
+          <div class="plan-card-title">${esc(p.id)}</div>
+          <div class="plan-field" style="margin-top:8px;max-width:320px;">
+            <label>Plan Label (Anzeige)</label>
+            <input class="input plan-input-lg" value="${esc(p.plan_label||p.name||p.id)}" data-field="plan_label" placeholder="z. B. Pilot">
+          </div>
           <div class="plan-sort-wrap">
             <span class="muted">Sortierung</span>
             <input type="number" class="input plan-sort-input" value="${Number(p.sort_order||0)}" data-field="sort_order" step="1">
@@ -6009,6 +6133,7 @@ async function savePlanConfig() {
       const id = normalizePlanCode(row.dataset.planId);
       const local=_planConfigData.find(x=>normalizePlanCode(x.id)===id);
       const patch={
+        plan_label: String(row.querySelector('[data-field="plan_label"]').value||'').trim()||id,
         monthly_price: Number(row.querySelector('[data-field="monthly_price"]').value||0),
         yearly_price: Number(row.querySelector('[data-field="yearly_price"]').value||0),
         setup_fee_amount: Number(row.querySelector('[data-field="setup_fee_amount"]').value||0),
