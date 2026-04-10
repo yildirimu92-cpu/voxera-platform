@@ -1622,7 +1622,7 @@ const state={
   aiSelectedCustomerId:null,
   aiChanges:[],  // populated by loadDataFromSupabase() in future
   events:[],  // populated by loadDataFromSupabase()
-  checklist:['customer created','Voxera number assigned','AI basics configured','activation sent','dashboard access active','forwarding configured','test call completed','ready for go-live','fully completed']
+  checklist:['customer created','Voxera number assigned','AI basics configured','forwarding configured','activation sent','test call completed','ready for go-live','fully completed']
 };
 
 
@@ -1941,12 +1941,12 @@ const CHECKLIST_TO_BUSINESS_STEP={
   'customer created':'Kunde angelegt',
   'Voxera number assigned':'Rufnummer hinterlegen',
   'AI basics configured':'AI-Basis konfigurieren',
+  'forwarding configured':'Weiterleitung einrichten',
   'activation sent':'Zugang senden',
   'dashboard access active':'Zugang aktiviert',
-  'forwarding configured':'Weiterleitung einrichten',
-  'test call completed':'Ersten Anruf durchführen',
-  'ready for go-live':'Freigabe vorbereiten',
-  'fully completed':'Live setzen'
+  'test call completed':'Testanruf abschließen',
+  'ready for go-live':'Go-live vorbereiten',
+  'fully completed':'Go-live abgeschlossen'
 };
 function deriveOperationalSetupStatus(snapshot){
   if(!snapshot) return {label:'offen',tone:'open'};
@@ -1975,10 +1975,11 @@ function deriveOperationalNextStep(snapshot){
   if(String(snapshot.customer?.status||'').toLowerCase()==='live') return 'Live-Betrieb begleiten';
   if(!isPaymentPaid(snapshot.customer)) return 'Setup-Gebühr bestätigen';
   if(snapshot.isAccessReady) return 'Zugang senden';
-  if(snapshot.missingSet?.has('test call completed')) return 'Ersten Anruf durchführen';
+  if(snapshot.missingSet?.has('Voxera number assigned')) return 'Rufnummer zuweisen';
   if(snapshot.missingSet?.has('AI basics configured')) return 'AI fertig einrichten';
   if(snapshot.missingSet?.has('forwarding configured')) return 'Weiterleitung konfigurieren';
-  if(snapshot.missingSet?.has('Voxera number assigned')) return 'Rufnummer zuweisen';
+  if(snapshot.missingSet?.has('activation sent')) return 'Zugang senden';
+  if(snapshot.missingSet?.has('test call completed')) return 'Testanruf abschließen';
   const fallback=snapshot.nextStep||'Kundenfreigabe vorbereiten';
   return CHECKLIST_TO_BUSINESS_STEP[fallback]||fallback;
 }
@@ -3698,7 +3699,7 @@ function validationLabelForField(field){
 }
 
 const ACCESS_REQUIRED_FIELDS=['customer_name','email','street','zip','city','country','plan'];
-const ONBOARDING_BLOCKER_STEPS=['Voxera number assigned','AI basics configured','forwarding configured','test call completed'];
+const ONBOARDING_BLOCKER_STEPS=['Voxera number assigned','AI basics configured','forwarding configured'];
 
 function isOnboardingStatusReady(status){
   return normalizeOnboardingStatus(status)===ONBOARDING_STATUS.READY;
@@ -3754,6 +3755,7 @@ function deriveOnboardingSnapshot(customerId){
   const inviteStatus=String(customer.invite_status||'').toLowerCase();
   if(['sent','invited','activated','live'].includes(inviteStatus)) doneSet.add('activation sent');
   const customerStatus=String(customer.status||'').toLowerCase();
+  // Internal signal only: dashboard activation remains tracked, but is not part of the primary checklist order.
   if(['activated','live'].includes(customerStatus)) doneSet.add('dashboard access active');
 
   const checklist=Array.isArray(state.checklist)?state.checklist:[];
@@ -4879,8 +4881,9 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
 function synthesizeOnboardingSteps(progress, customerStatus, inviteStatus, onboardingStatus, nextStep) {
   const ALL = [
     'customer created','Voxera number assigned','AI basics configured',
-    'activation sent','dashboard access active','forwarding configured',
-    'test call completed','ready for go-live','fully completed',
+    'forwarding configured','activation sent','test call completed',
+    'ready for go-live','fully completed',
+    'dashboard access active',
     'agent connected','business info completed','opening hours added','greeting reviewed'
   ];
   // Always include the first step — customer exists in DB
