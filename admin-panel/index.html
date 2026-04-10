@@ -358,8 +358,18 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 /* ─── Label ─────────────────────────────────────────────────── */
 label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);margin-bottom:5px;letter-spacing:.01em;}
 
-/* ─── Responsive ─────────────────────────────────────────────── */
-@media (max-width:1100px){
+/* ─── Billing KPI cards ─────────────────────────────────────── */
+.billing-kpi{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);
+  padding:18px 20px;box-shadow:var(--shadow-card);cursor:default;
+  transition:border-color var(--transition-fast),box-shadow var(--transition-fast);
+}
+.billing-kpi:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);}
+.billing-kpi-label{font-size:11px;color:var(--slate2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
+.billing-kpi-value{font-size:28px;font-weight:800;line-height:1;letter-spacing:-.02em;}
+.billing-kpi-value-text{font-size:20px;font-weight:800;line-height:1;letter-spacing:-.02em;}
+.billing-kpi-sub{font-size:11px;color:var(--slate2);margin-top:8px;}
+
   .kpi-grid{grid-template-columns:repeat(2,1fr);}
   .toolbar{grid-template-columns:1fr 1fr;}
   .grid-2,.grid-3,.detail-grid{grid-template-columns:1fr;}
@@ -500,7 +510,6 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   #ai-workspace .textarea{font-size:13px;}
 
   /* ─── Billing ─── */
-  .billing-kpi-grid{grid-template-columns:repeat(2,1fr)!important;}
   #section-billing [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
   #billing-kpi-grid [style*="grid-template-columns"]{grid-template-columns:repeat(2,1fr)!important;}
 }
@@ -3035,6 +3044,10 @@ function generateContractText(data) {
 
 // ─── Billing & Finance ────────────────────────────────────────────────────
 
+// V1 conservative cost rate: 62% of monthly plan price used as cost estimate.
+// Clearly marked as V1 approximation throughout the UI.
+const BILLING_V1_COST_RATE = 0.62;
+
 function formatChf(amount) {
   const num = Number(amount) || 0;
   return 'CHF ' + num.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -3101,10 +3114,10 @@ function renderBillingKpis() {
     { label: 'Kunden gesamt', value: kpi.total, sub: 'in Billing-Übersicht', accent: 'var(--ink)' }
   ];
   el.innerHTML = items.map(item => `
-    <div class="kpi" style="background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow-card);cursor:default;transition:all var(--transition-fast);" onmouseover="this.style.borderColor='var(--blue-mid)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.borderColor='var(--line)';this.style.boxShadow='var(--shadow-card)'">
-      <div class="kpi-label" style="font-size:11px;color:var(--slate2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">${esc(item.label)}</div>
-      <div style="font-size:${item.isText ? '20px' : '28px'};font-weight:800;line-height:1;letter-spacing:-.02em;color:${item.accent};">${item.isText ? item.value : esc(String(item.value))}</div>
-      <div style="font-size:11px;color:var(--slate2);margin-top:8px;">${esc(item.sub)}</div>
+    <div class="billing-kpi">
+      <div class="billing-kpi-label">${esc(item.label)}</div>
+      <div class="${item.isText ? 'billing-kpi-value-text' : 'billing-kpi-value'}" style="color:${item.accent};">${item.isText ? item.value : esc(String(item.value))}</div>
+      <div class="billing-kpi-sub">${esc(item.sub)}</div>
     </div>`).join('');
 }
 
@@ -3191,8 +3204,8 @@ function renderBillingTable() {
       <td>${esc(billingCycleLabel)}</td>
       <td style="font-weight:600;">${fee > 0 ? formatChf(fee) : '—'}</td>
       <td>${paymentStatusBadge(c.payment_status)}</td>
-      <td style="font-size:11.5px;color:var(--slate2);">${c.payment_sent_at ? formatDateDE(String(c.payment_sent_at).slice(0, 10)) : '—'}</td>
-      <td style="font-size:11.5px;color:${pStatus === 'paid' ? 'var(--green)' : 'var(--slate2)'};">${c.payment_received_at ? formatDateDE(String(c.payment_received_at).slice(0, 10)) : '—'}</td>
+      <td style="font-size:11.5px;color:var(--slate2);">${formatDateDE(c.payment_sent_at)}</td>
+      <td style="font-size:11.5px;color:${pStatus === 'paid' ? 'var(--green)' : 'var(--slate2)'};">${formatDateDE(c.payment_received_at)}</td>
       <td>${subBadge}</td>
       <td>
         <button class="btn btn-quiet btn-sm" onclick="${openProfile}">Profil</button>
@@ -3234,8 +3247,6 @@ function renderBillingMarginSummary() {
   const el = document.getElementById('billing-margin-summary');
   if (!el) return;
   const customers = billingCustomers();
-  // V1: conservative cost rate = 62% of monthly price
-  const COST_RATE_V1 = 0.62;
   let totalRevenue = 0, totalCostV1 = 0;
   customers.forEach(c => {
     const planPrice = Number(PLAN_PRICES[normalizePlanCode(c.plan_code || c.plan)] || 0);
@@ -3243,16 +3254,17 @@ function renderBillingMarginSummary() {
     const subStatus = String(c.subscription_status || '').toLowerCase();
     if (custStatus === 'live' || custStatus === 'activated' || subStatus === 'active') {
       totalRevenue += planPrice;
-      totalCostV1 += planPrice * COST_RATE_V1;
+      totalCostV1 += planPrice * BILLING_V1_COST_RATE;
     }
   });
   const marginChf = totalRevenue - totalCostV1;
   const marginPct = totalRevenue > 0 ? Math.round((marginChf / totalRevenue) * 100) : 0;
   const marginColor = marginPct >= 30 ? 'var(--green)' : marginPct >= 15 ? 'var(--amber)' : 'var(--red)';
+  const costPct = Math.round(BILLING_V1_COST_RATE * 100);
 
   const rows = [
     ['MRR-Umsatz', formatChf(totalRevenue), 'var(--ink)'],
-    ['Kosten V1 (62%)', formatChf(totalCostV1), 'var(--slate)'],
+    [`Kosten V1 (${costPct}%)`, formatChf(totalCostV1), 'var(--slate)'],
     ['Deckungsbeitrag V1', formatChf(marginChf), marginColor],
     ['Marge V1', marginPct + '%', marginColor]
   ];
@@ -3264,7 +3276,6 @@ function renderBillingPlanBreakdown() {
   if (!tbody) return;
   const customers = billingCustomers();
   const planCodes = [...new Set(customers.map(c => normalizePlanCode(c.plan_code || c.plan)).filter(Boolean))];
-  const COST_RATE_V1 = 0.62;
 
   if (!planCodes.length) {
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty">Keine Plandaten.</div></td></tr>';
@@ -3280,7 +3291,7 @@ function renderBillingPlanBreakdown() {
     const planPrice = Number(PLAN_PRICES[code] || 0);
     const activeCount = group.filter(c => { const s = String(c.status || '').toLowerCase(); return s === 'live' || s === 'activated'; }).length;
     const mrr = activeCount * planPrice;
-    const marginChf = mrr - mrr * COST_RATE_V1;
+    const marginChf = mrr - mrr * BILLING_V1_COST_RATE;
     const marginPct = mrr > 0 ? Math.round((marginChf / mrr) * 100) : 0;
     const marginColor = marginPct >= 30 ? 'var(--green)' : marginPct >= 15 ? 'var(--amber)' : 'var(--red)';
     return `<tr>
