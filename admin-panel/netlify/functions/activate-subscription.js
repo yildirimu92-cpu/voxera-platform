@@ -22,6 +22,14 @@ const { createClient } = require('@supabase/supabase-js');
 const { STATUS, normalizeCustomerStatus, assertCustomerTransition } = require('./_lib/status-model');
 const { requireAdminCaller } = require('./_lib/require-admin');
 
+function addMonths(date, months) {
+  const d = new Date(date);
+  const day = d.getUTCDate();
+  d.setUTCMonth(d.getUTCMonth() + months);
+  if (d.getUTCDate() < day) d.setUTCDate(0);
+  return d;
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -83,13 +91,19 @@ exports.handler = async (event) => {
     // rather than inserting a new one, so the UNIQUE constraint is respected.
     // Future PRs will replace this upsert with a plain INSERT once the UNIQUE
     // constraint is removed and subscription history is supported.
+    const startsAt = new Date().toISOString();
+    const renewsAt = addMonths(new Date(startsAt), billing_cycle === 'yearly' ? 12 : 1).toISOString();
     const { data: subscription, error: subErr } = await sbAdmin
       .from('subscriptions')
       .upsert({
         customer_id,
+        plan_code: plan,
         plan,
         billing_cycle,
+        subscription_status: 'active',
         start_date,
+        starts_at: startsAt,
+        renews_at: renewsAt,
         status: 'active',
         updated_at: new Date().toISOString()
       }, { onConflict: 'customer_id' })

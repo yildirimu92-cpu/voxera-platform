@@ -219,6 +219,53 @@ exports.handler = async (event) => {
     });
   }
 
+  // ─── Subscription V1 (initially inactive) ────────────────────────────────
+  const billingCycle = String(body.billing_cycle || 'monthly').trim().toLowerCase();
+  if (!['monthly', 'yearly'].includes(billingCycle)) {
+    const rollback = await rollbackCreateCustomer({ sbAdmin, authUserId, customerId });
+    return response(400, {
+      error: 'Ungültiger billing_cycle. Erlaubt: monthly, yearly.',
+      rollback_applied: rollback.rollbackApplied,
+      rollback_state: rollback.rollbackState
+    });
+  }
+
+  const subscriptionPayload = {
+    customer_id: customerId,
+    plan_code: String(body.plan).trim(),
+    plan: String(body.plan).trim(),
+    billing_cycle: billingCycle,
+    subscription_status: 'inactive',
+    status: 'paused',
+    start_date: (body.start_date ? String(body.start_date) : nowIso.slice(0, 10)),
+    starts_at: null,
+    renews_at: null,
+    created_at: nowIso,
+    updated_at: nowIso
+  };
+
+  const { data: createdSubscription, error: subscriptionError } = await sbAdmin
+    .from('subscriptions')
+    .insert(subscriptionPayload)
+    .select('*')
+    .single();
+
+  if (subscriptionError) {
+    logEvent('error', 'create_customer_subscription_insert_failed', {
+      customer_id: customerId,
+      auth_user_id: authUserId,
+      error_code: subscriptionError.code || null,
+      error_message: subscriptionError.message || 'unknown error'
+    });
+    const rollback = await rollbackCreateCustomer({ sbAdmin, authUserId, customerId });
+    return response(500, {
+      error: 'Subscription konnte nicht angelegt werden.',
+      details: subscriptionError.message,
+      rollback_applied: rollback.rollbackApplied,
+      rollback_state: rollback.rollbackState
+    });
+  }
+
   // ─── Onboarding-Eintrag ───────────────────────────────────────────────────
   const { data: createdOnboarding, error: onboardingError } = await sbAdmin
     .from('onboarding')
@@ -293,6 +340,7 @@ exports.handler = async (event) => {
   return response(200, {
     success: true,
     customer: createdCustomer,
+    subscription: createdSubscription,
     onboarding: createdOnboarding,
     auth_user_id: authUserId
   });
