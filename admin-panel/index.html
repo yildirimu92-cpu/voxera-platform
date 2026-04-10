@@ -1009,7 +1009,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           <div class="card-head"><h3>Minuten-Verbrauch pro Kunde</h3><span class="badge badge-blue">Live aus calls</span></div>
           <div class="table-wrap">
             <table class="data-table">
-              <thead><tr><th>Kunde</th><th>Plan</th><th>Inklusive</th><th>Verbraucht</th><th>Auslastung</th><th>Anrufe</th></tr></thead>
+              <thead><tr><th>Kunde</th><th>Plan</th><th>Verbraucht</th><th>Inklusive</th><th>Überzug</th><th>Überzugskosten</th><th>Auslastung</th><th>Anrufe</th></tr></thead>
               <tbody id="insight-minutes-body"></tbody>
             </table>
           </div>
@@ -1755,6 +1755,7 @@ const state={
   contracts:[],  // populated by loadDataFromSupabase()
   invoices:[],  // populated by loadDataFromSupabase()
   invoiceItems:[],  // populated by loadDataFromSupabase()
+  usageByCustomerMonthly:{}, // populated by loadDataFromSupabase()
   admins:[
     {id:'A-1',name:'Lea Baumann',role:'super-admin',email:'lea@voxera.ch',status:'Aktiv'},
     {id:'A-2',name:'Noah Keller',role:'admin',email:'noah@voxera.ch',status:'Aktiv'},
@@ -1841,7 +1842,7 @@ function getPlanMinutes(planCode) {
   return Number(PLAN_MINUTES[normalized]||0);
 }
 function secsToMins(secs) {
-  return Math.round((secs || 0) / 60);
+  return Math.ceil((Number(secs) || 0) / 60);
 }
 
 const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','billing-finance','settings','contracts'];
@@ -3210,18 +3211,20 @@ function renderInsights(){
   const minutesBody=document.getElementById('insight-minutes-body');
   if(minutesBody){
     const rows=state.customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted').map(c=>{
-      const customerCalls=state.calls.filter(call=>idsEq(call.customerId,c.id));
-      const totalSecs=customerCalls.reduce((sum,call)=>sum+(Number(call.duration_seconds)||0),0);
-      const usedMins=secsToMins(totalSecs);
-      const inclMins=getPlanMinutes(c.plan);
+      const customerCalls=state.calls.filter(call=>idsEq(call.customerId,c.id) && isCurrentMonthDate(call?.raw?.created_at));
+      const usage=getCustomerUsageMetrics(c);
+      const usedMins=usage.used_minutes;
+      const inclMins=usage.included_minutes;
       const pct=inclMins>0?Math.min(100,Math.round((usedMins/inclMins)*100)):0;
       const barColor=pct>=90?'var(--red)':pct>=70?'var(--amber)':'var(--green)';
-      const overUsed=inclMins>0&&usedMins>inclMins;
+      const overUsed=usage.overage_minutes>0;
       return `<tr>
         <td><strong>${esc(c.name)}</strong></td>
         <td>${esc(c.plan||'—')}</td>
-        <td>${inclMins?inclMins+' Min.':'—'}</td>
         <td style="color:${overUsed?'var(--red)':'inherit'};font-weight:${overUsed?'600':'400'}">${usedMins} Min.</td>
+        <td>${inclMins?inclMins+' Min.':'—'}</td>
+        <td style="color:${overUsed?'var(--red)':'inherit'};font-weight:${overUsed?'600':'400'}">${usage.overage_minutes} Min.</td>
+        <td style="color:${overUsed?'var(--red)':'inherit'};font-weight:${overUsed?'600':'400'}">${moneyChf(usage.overage_amount)}</td>
         <td style="min-width:140px;">
           <div style="display:flex;align-items:center;gap:8px;">
             <div style="flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden;">
@@ -3233,7 +3236,7 @@ function renderInsights(){
         <td>${customerCalls.length}</td>
       </tr>`;
     });
-    minutesBody.innerHTML=rows.join('')||'<tr><td colspan="6"><div class="empty">Keine Kundendaten.</div></td></tr>';
+    minutesBody.innerHTML=rows.join('')||'<tr><td colspan="8"><div class="empty">Keine Kundendaten.</div></td></tr>';
   }
 
   // ─ Kunden nach Plan ─
@@ -4024,22 +4027,23 @@ function openCustomerProfile(id){
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Kunden-ID</span><span class="detail-v" style="font-family:monospace;font-size:11px;">${esc(c.id||'—')}</span></div></div>
     </div>
     ${(()=>{
-      const calls=state.calls.filter(call=>idsEq(call.customerId,c.id));
-      const totalSecs=calls.reduce((sum,call)=>sum+(Number(call.duration_seconds)||0),0);
-      const used=Math.round(totalSecs/60);
-      const incl=getPlanMinutes(c.plan_code||c.plan)||0;
+      const calls=state.calls.filter(call=>idsEq(call.customerId,c.id) && isCurrentMonthDate(call?.raw?.created_at));
+      const usage=getCustomerUsageMetrics(c);
+      const used=usage.used_minutes;
+      const incl=usage.included_minutes;
       const pct=incl>0?Math.min(100,Math.round((used/incl)*100)):0;
       const barColor=pct>=90?'#DC2626':pct>=70?'#D97706':'#059669';
-      const over=incl>0&&used>incl;
+      const over=usage.overage_minutes>0;
       return `<div class="card" style="padding:14px 16px;">
-        <div class="card-head" style="margin-bottom:8px;"><h3 style="font-size:13px;">Minuten-Verbrauch</h3><span class="badge ${over?'badge-red':pct>=70?'badge-amber':'badge-green'}">${pct}%</span></div>
+        <div class="card-head" style="margin-bottom:8px;"><h3 style="font-size:13px;">Minuten-Verbrauch (aktueller Monat)</h3><span id="profile-minutes-badge" class="badge ${over?'badge-red':pct>=70?'badge-amber':'badge-green'}">${pct}%</span></div>
         <div style="height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:6px;">
-          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .4s;"></div>
+          <div id="profile-minutes-bar" style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .4s;"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);">
-          <span style="color:${over?'var(--red)':'inherit'};font-weight:${over?'600':'400'}">${used} Min. verbraucht</span>
-          <span>${incl} Min. inklusive (${esc(planLabel(c.plan_code||c.plan))})</span>
+          <span id="profile-minutes-used" style="color:${over?'var(--red)':'inherit'};font-weight:${over?'600':'400'}">${used} Min. verbraucht (Monat)</span>
+          <span id="profile-minutes-included">${incl} Min. inklusive (${esc(planLabel(c.plan_code||c.plan))})</span>
         </div>
+        <div id="profile-minutes-overage" style="font-size:11px;color:${over?'var(--red)':'var(--slate2)'};margin-top:4px;">Überzug: ${usage.overage_minutes} Min · ${moneyChf(usage.overage_amount)}</div>
         <div style="font-size:11px;color:var(--slate2);margin-top:4px;">${calls.length} Anruf${calls.length!==1?'e':''} erfasst</div>
       </div>`;
     })()}`;
@@ -4792,26 +4796,79 @@ async function submitEditCustomer(e){
 
 // ─── Plan minutes helper ──────────────────────────────────────────────────────
 function getPlanMins(plan){ return getPlanMinutes(plan); }
-function secsToMins(s){ return Math.round((Number(s)||0)/60); }
+
+function getCurrentMonthStartIso(nowDate=new Date()){
+  return new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), 1)).toISOString();
+}
+
+function isCurrentMonthDate(value, nowDate=new Date()){
+  if(!value) return false;
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())) return false;
+  return d.getUTCFullYear()===nowDate.getUTCFullYear() && d.getUTCMonth()===nowDate.getUTCMonth();
+}
+
+function resolvePlanUsageConfig(planCode){
+  const normalized=normalizePlanCode(planCode);
+  const row=_planConfigData.find(p=>normalizePlanCode(p.id)===normalized)||null;
+  const includedMinutes=Number(
+    row?.included_minutes ??
+    row?.minutes ??
+    0
+  );
+  const extraPerMinute=Number(
+    row?.extra_per_minute ??
+    row?.extra_rate ??
+    0
+  );
+  return {
+    included_minutes: Number.isFinite(includedMinutes)?includedMinutes:0,
+    extra_per_minute: Number.isFinite(extraPerMinute)?extraPerMinute:0
+  };
+}
+
+function buildCurrentMonthUsageByCustomer(callRows, nowDate=new Date()){
+  return (callRows||[]).reduce((acc, call)=>{
+    const customerId=String(call.customerId||call.customer_id||'');
+    if(!customerId || !isCurrentMonthDate(call?.raw?.created_at||call?.created_at, nowDate)) return acc;
+    const secs=Math.max(0, Number(call.duration_seconds||0));
+    acc[customerId]=(acc[customerId]||0)+secs;
+    return acc;
+  }, {});
+}
+
+function getCustomerUsageMetrics(customer){
+  const customerId=String(customer?.id||'');
+  const used_seconds=Math.max(0, Number(state.usageByCustomerMonthly[customerId]||0));
+  const used_minutes=secsToMins(used_seconds);
+  const planConfig=resolvePlanUsageConfig(customer?.plan_code||customer?.plan);
+  const included_minutes=Math.max(0, Number(planConfig.included_minutes||0));
+  const extra_per_minute=Math.max(0, Number(planConfig.extra_per_minute||0));
+  const overage_minutes=Math.max(0, used_minutes-included_minutes);
+  const overage_amount=overage_minutes*extra_per_minute;
+  return { used_seconds, used_minutes, included_minutes, extra_per_minute, overage_minutes, overage_amount };
+}
 
 function renderProfileMinutes(customerId){
   const c = customerById(customerId);
   if(!c) return;
-  const calls = state.calls.filter(call => idsEq(call.customerId, customerId));
-  const totalSecs = calls.reduce((sum,call) => sum + (Number(call.duration_seconds)||0), 0);
-  const used = secsToMins(totalSecs);
-  const incl = getPlanMins(c.plan);
+  const calls = state.calls.filter(call => idsEq(call.customerId, customerId) && isCurrentMonthDate(call?.raw?.created_at));
+  const usage=getCustomerUsageMetrics(c);
+  const used = usage.used_minutes;
+  const incl = usage.included_minutes;
   const pct = incl > 0 ? Math.min(100, Math.round((used/incl)*100)) : 0;
-  const over = incl > 0 && used > incl;
+  const over = usage.overage_minutes>0;
   const barColor = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--amber)' : 'var(--green)';
   const badge = document.getElementById('profile-minutes-badge');
   const bar = document.getElementById('profile-minutes-bar');
   const usedEl = document.getElementById('profile-minutes-used');
   const inclEl = document.getElementById('profile-minutes-included');
+  const overageEl = document.getElementById('profile-minutes-overage');
   if(badge) badge.textContent = `${pct}% ausgelastet`;
   if(bar){ bar.style.width = pct+'%'; bar.style.background = barColor; }
-  if(usedEl) usedEl.textContent = `${used} Min. verbraucht${over?' (ÜBERZUG)':''}`;
+  if(usedEl) usedEl.textContent = `${used} Min. verbraucht (Monat)${over?' (ÜBERZUG)':''}`;
   if(inclEl) inclEl.textContent = `${incl} Min. inklusive (${planLabel(c.plan_code||c.plan)})`;
+  if(overageEl) overageEl.textContent = `Überzug: ${usage.overage_minutes} Min · ${moneyChf(usage.overage_amount)}`;
 }
 
 function showToast(msg,duration=3000){
@@ -5645,12 +5702,13 @@ async function loadDataFromSupabase() {
 
     if (obErr) throw obErr;
 
-    // 3. Load calls (most recent 200, ordered newest first)
+    // 3. Load calls (current month only, source of truth for usage)
+    const monthStartIso=getCurrentMonthStartIso();
     const { data: callRows, error: callErr } = await authClient
       .from('calls')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(200);
+      .gte('created_at', monthStartIso);
     // calls are non-critical — log but don't throw
     if (callErr) console.warn('[DB] calls load failed:', callErr.message);
 
@@ -5721,6 +5779,7 @@ async function loadDataFromSupabase() {
     );
     state.onboarding = (onboardingRows || []).map(mapDbOnboardingToState);
     state.calls      = (callRows  || []).map(mapDbCallToUi);
+    state.usageByCustomerMonthly = buildCurrentMonthUsageByCustomer(state.calls);
     state.cases      = (caseRows  || []).map(mapDbCaseToUi);
     state.invoices   = invoiceRows || [];
     state.invoiceItems = invoiceItemRows || [];
@@ -6022,6 +6081,9 @@ async function loadPlanConfig() {
     });
     renderPlanConfigRows();
     renderPlanSelects();
+    renderInsights();
+    renderOverview();
+    if(state.selectedCustomer) renderProfileMinutes(state.selectedCustomer);
   } catch(e) {
     console.warn('[plan-config] load failed', e);
   }
