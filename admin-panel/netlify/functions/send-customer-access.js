@@ -221,6 +221,7 @@ exports.handler = async (event) => {
   // ─── ACTION: send_access (Standard-Welcome-Mail) ──────────────────────────
   const normalizedCustomerStatus = normalizeCustomerStatus(customer.status);
   const normalizedOnboardingStatus = normalizeOnboardingStatus(onboardingRow?.status);
+  const paymentStatus = String(customer.payment_status || 'none').trim().toLowerCase();
   const assistantReady = Boolean(
     String(customer.ai_business_description || '').trim() ||
     String(customer.ai_instructions || '').trim()
@@ -251,6 +252,14 @@ exports.handler = async (event) => {
       reason: 'already_sent',
       message: 'Zugang wurde bereits versendet. Kein weiterer Versand ausgelöst.',
       customer
+    });
+  }
+
+  if (paymentStatus !== 'paid') {
+    return response(409, {
+      error: 'Setup Fee ist noch nicht als bezahlt markiert. Zugang darf erst nach Zahlung versendet werden.',
+      payment_status: paymentStatus,
+      customer_status: normalizedCustomerStatus
     });
   }
 

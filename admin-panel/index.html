@@ -1840,7 +1840,9 @@ function getCustomerLifecycleBadge(customer,onboarding){
 }
 function getCustomerQuickActionState(customer,onboarding){
   const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
-  const accessReady=isCustomerAccessReady(customer,onboarding);
+  const accessReasons=getCustomerAccessBlockReasons(customer,onboarding);
+  const accessReady=accessReasons.length===0;
+  const blockedReason=accessReasons[0]||'Einrichtung noch nicht abgeschlossen';
   const base={
     lifecycleStatus,
     canSendAccess:false,
@@ -1859,7 +1861,7 @@ function getCustomerQuickActionState(customer,onboarding){
       showSendAccess:true,
       canSendAccess:accessReady,
       sendAccessDisabled:!accessReady,
-      sendAccessTooltip:accessReady?'':'Einrichtung noch nicht abgeschlossen'
+      sendAccessTooltip:accessReady?'':blockedReason
     };
   }
   if(lifecycleStatus==='ready'){
@@ -1868,7 +1870,7 @@ function getCustomerQuickActionState(customer,onboarding){
       showSendAccess:true,
       canSendAccess:accessReady,
       sendAccessDisabled:!accessReady,
-      sendAccessTooltip:accessReady?'':'Einrichtung noch nicht abgeschlossen'
+      sendAccessTooltip:accessReady?'':blockedReason
     };
   }
   if(lifecycleStatus==='invited') return {...base,showInvitationSent:true};
@@ -1888,6 +1890,37 @@ function toneBadge(val){
   const v=(val||'').toLowerCase();
   const cls=v.includes('krit')||v.includes('offen')?'badge-red':v.includes('hoch')||v.includes('arbeit')?'badge-amber':v.includes('aktiv')||v.includes('ready')||v.includes('live')?'badge-green':v.includes('growth')||v.includes('pro')||v.includes('enterprise')?'badge-blue':'badge-gray';
   return `<span class="badge ${cls}">${esc(val)}</span>`;
+}
+const PAYMENT_STATUS_LABELS={
+  none:'Zahlung offen',
+  pending:'Zahlungslink gesendet',
+  paid:'Bezahlt'
+};
+const PAYMENT_STATUS_BADGE_CLASS={
+  none:'badge-red',
+  pending:'badge-amber',
+  paid:'badge-green'
+};
+function normalizePaymentStatus(status){
+  const raw=String(status||'').trim().toLowerCase();
+  if(raw==='pending'||raw==='paid') return raw;
+  return 'none';
+}
+function paymentStatusLabel(status){
+  return PAYMENT_STATUS_LABELS[normalizePaymentStatus(status)]||PAYMENT_STATUS_LABELS.none;
+}
+function paymentStatusBadge(status){
+  const normalized=normalizePaymentStatus(status);
+  const cls=PAYMENT_STATUS_BADGE_CLASS[normalized]||'badge-gray';
+  return `<span class="badge ${cls}">${esc(paymentStatusLabel(normalized))}</span>`;
+}
+function isPaymentPaid(customer){
+  return normalizePaymentStatus(customer?.payment_status)==='paid';
+}
+function formatDateTime(value){
+  if(!value) return '—';
+  const d=new Date(value);
+  return Number.isNaN(d.getTime())?'—':d.toLocaleString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
 function nowStamp(){
   return new Date().toLocaleString('de-CH',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
@@ -3355,7 +3388,11 @@ function openCustomerProfile(id){
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Voxera Nummer</span><span class="detail-v">${esc(c.voxera_number||c.voxera||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Adresse</span><span class="detail-v">${esc([c.street,c.zip,c.city,c.country].filter(Boolean).join(', ')||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Setup</span><span class="detail-v">${setupProgress}% · ${esc(getCustomerSetupReadinessLabel(c,onboard))}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Einladung</span><span class="detail-v">${esc(c.invite_status||'—')}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Billing</span><span class="detail-v">${paymentStatusBadge(c.payment_status)}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Setup Fee</span><span class="detail-v">${c.setup_fee_amount!=null?`${esc(String(c.setup_fee_amount))} CHF`:'—'}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Payment Link</span><span class="detail-v">${c.payment_link?'<span style="color:var(--green)">Vorhanden</span>':'<span style=\"color:var(--red)\">Nicht hinterlegt</span>'}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Zahlung gesendet am</span><span class="detail-v">${esc(formatDateTime(c.payment_sent_at))}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Zahlung erhalten am</span><span class="detail-v">${esc(formatDateTime(c.payment_received_at))}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Kunde seit</span><span class="detail-v">${c.created_at?new Date(c.created_at).toLocaleDateString('de-CH'):'—'}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Kunden-ID</span><span class="detail-v" style="font-family:monospace;font-size:11px;">${esc(c.id||'—')}</span></div></div>
     </div>
@@ -3384,6 +3421,7 @@ function openCustomerProfile(id){
   const aktionen=document.getElementById('profile-aktionen-content');
   if(aktionen){
     const canSend=actionState.showSendAccess&&!actionState.sendAccessDisabled;
+    const paymentPaid=isPaymentPaid(c);
     aktionen.innerHTML=`
       <div style="display:flex;flex-direction:column;gap:10px;">
         <div class="card" style="padding:16px 18px;margin-bottom:10px;">
@@ -3395,16 +3433,29 @@ function openCustomerProfile(id){
           </div>
         </div>
         <div class="card" style="padding:16px 18px;">
+          <div class="card-title" style="margin-bottom:10px;">Billing (V1)</div>
+          <div class="muted" style="font-size:12px;margin-bottom:10px;">Status: ${esc(paymentStatusLabel(c.payment_status))}</div>
+          <div class="inline-actions" style="flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="closeCustomerProfile();sendBillingPaymentLink('${jsStr(id)}')">
+              Zahlungslink senden
+            </button>
+            <button class="btn btn-primary" onclick="closeCustomerProfile();markBillingPaid('${jsStr(id)}')">
+              Zahlung als erhalten markieren
+            </button>
+          </div>
+        </div>
+        <div class="card" style="padding:16px 18px;">
           <div class="card-title" style="margin-bottom:10px;">Zugang & Kommunikation</div>
           <div class="inline-actions" style="flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':'Pflichtdaten fehlen'}">
+            <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">
               Zugang senden
             </button>
             <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">
               PW-Reset senden
             </button>
           </div>
-          ${!canSend?`<div class="muted" style="margin-top:8px;font-size:12px;">Zugang senden: ${esc(actionState.sendAccessTooltip||'Pflichtdaten prüfen')}</div>`:''}
+          ${!canSend?`<div class="muted" style="margin-top:8px;font-size:12px;">Zugang senden blockiert: ${esc(actionState.sendAccessTooltip||'Pflichtdaten prüfen')}</div>`:''}
+          ${paymentPaid?'<div class="muted" style="margin-top:8px;font-size:12px;color:var(--green);">Bezahlt – Zugang kann gesendet werden, sobald Setup vollständig ist.</div>':'<div class="muted" style="margin-top:8px;font-size:12px;color:var(--red);">Setup Fee offen – Zugang wird bis Zahlung blockiert.</div>'}
         </div>
         <div class="card" style="padding:16px 18px;">
           <div class="card-title" style="margin-bottom:10px;">Status & Lifecycle</div>
@@ -3627,6 +3678,7 @@ function deriveOnboardingSnapshot(customerId){
   if(validation.missing.length) accessReasons.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
   if(!voxeraNum||voxeraNum==='Zuweisung offen') accessReasons.push('Voxera-Nummer nicht zugewiesen');
   if(!doneSet.has('AI basics configured')) accessReasons.push('AI-Konfiguration fehlt (Geschäftsbeschreibung)');
+  if(!isPaymentPaid(customer)) accessReasons.push(`Setup Fee noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)})`);
 
   return {
     customer,
@@ -3845,6 +3897,70 @@ async function sendPasswordReset(customerId){
     showToast(`✓ Passwort-Reset an ${customer.email} gesendet.`);
   }catch(err){
     alert(`Fehler beim PW-Reset: ${err.message}`);
+  }
+}
+
+async function sendBillingPaymentLink(customerId){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  const existingLink=String(customer.payment_link||'').trim();
+  const paymentLink=window.prompt('Payment-Link einfügen (http/https):',existingLink||'');
+  if(paymentLink===null) return;
+  const cleanLink=String(paymentLink||'').trim();
+  if(!cleanLink){
+    alert('Payment-Link ist erforderlich.');
+    return;
+  }
+
+  const existingAmount=customer.setup_fee_amount!=null?String(customer.setup_fee_amount):'';
+  const amountInput=window.prompt('Setup Fee Betrag (optional, nur Zahl):',existingAmount);
+  if(amountInput===null) return;
+  const amountRaw=String(amountInput||'').trim();
+
+  const payload={ customer_id:customerId, action:'send_payment_link', payment_link:cleanLink };
+  if(amountRaw!=='') payload.setup_fee_amount=amountRaw;
+
+  try{
+    const json=await callAdminFunction('customer-billing-update',payload);
+    if(!json?.success||!json?.customer) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
+    const updated=json.customer;
+    customer.payment_status=normalizePaymentStatus(updated.payment_status);
+    customer.payment_link=updated.payment_link||null;
+    customer.setup_fee_amount=updated.setup_fee_amount??null;
+    customer.payment_sent_at=updated.payment_sent_at||null;
+    customer.payment_received_at=updated.payment_received_at||null;
+    customer.latest=`${nowStamp()} · Zahlungslink gesendet`;
+    state.events.unshift(`${nowStamp()} · ${customer.name}: Zahlungslink hinterlegt/gesendet`);
+    renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    showToast('✓ Zahlungslink gespeichert und auf „pending“ gesetzt.');
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
+  }
+}
+
+async function markBillingPaid(customerId){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  if(!confirm(`Zahlung für ${customer.name} als erhalten markieren?`)) return;
+  try{
+    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'mark_paid'});
+    if(!json?.success||!json?.customer) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
+    const updated=json.customer;
+    customer.payment_status=normalizePaymentStatus(updated.payment_status);
+    customer.payment_link=updated.payment_link||null;
+    customer.setup_fee_amount=updated.setup_fee_amount??null;
+    customer.payment_sent_at=updated.payment_sent_at||null;
+    customer.payment_received_at=updated.payment_received_at||null;
+    customer.latest=`${nowStamp()} · Zahlung als erhalten markiert`;
+    state.events.unshift(`${nowStamp()} · ${customer.name}: Zahlung als bezahlt markiert`);
+    renderCustomers(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    showToast('✓ Zahlung als erhalten markiert.');
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
   }
 }
 
@@ -4227,6 +4343,11 @@ async function submitCreateCustomer(event){
       invite_status:dbCustomer.invite_status||'not_sent',
       welcome_sent:Boolean(dbCustomer.welcome_sent),
       welcome_sent_at:dbCustomer.welcome_sent_at||null,
+      payment_status:normalizePaymentStatus(dbCustomer.payment_status),
+      setup_fee_amount:dbCustomer.setup_fee_amount??null,
+      payment_link:dbCustomer.payment_link||null,
+      payment_sent_at:dbCustomer.payment_sent_at||null,
+      payment_received_at:dbCustomer.payment_received_at||null,
       status:dbCustomer.status||'onboarding',
       voxera:dbCustomer.voxera_number||'Zuweisung offen',
       progress:Number(dbOnboarding.progress??0),
@@ -4606,6 +4727,11 @@ function mapDbCustomerToUi(dbRow, dbOnboarding) {
     invite_status:  dbRow.invite_status || 'not_sent',
     welcome_sent:   Boolean(dbRow.welcome_sent),
     welcome_sent_at: dbRow.welcome_sent_at || null,
+    payment_status: normalizePaymentStatus(dbRow.payment_status),
+    setup_fee_amount: dbRow.setup_fee_amount ?? null,
+    payment_link: dbRow.payment_link || null,
+    payment_sent_at: dbRow.payment_sent_at || null,
+    payment_received_at: dbRow.payment_received_at || null,
     // Voxera
     voxera:        dbRow.voxera_number || 'Zuweisung offen',
     dashboard_id:  dbRow.dashboard_id  || null,
