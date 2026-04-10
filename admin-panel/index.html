@@ -904,6 +904,10 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                 <div class="field-head" style="margin-top:8px;"><label class="muted" for="ai-internal-notes">Interne Umsetzungsnotizen</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Nur interne Hinweise für Ops/Support, nicht für Endnutzertexte.<br><strong>Warum wichtig?</strong>Sichert saubere Übergaben zwischen Sales, Setup und Support.<br><strong>Best Practice</strong>Eintrag mit Datum + Verantwortlicher starten.<br><strong>Beispiel</strong>«2026-04-10 / LN: Callback-Flow mit CRM-Feld ‘Lead Source’ abgestimmt.»</span></span></div>
                 <textarea class="textarea" id="ai-internal-notes" placeholder="Implementation/support notes" style="margin-top:8px;"></textarea>
               </div>
+              <div class="ai-workspace-block">
+                <div class="card-title" style="margin-top:12px;">Generierte AI Summary (customers.ai_summary)</div>
+                <textarea class="textarea" id="ai-generated-summary" readonly placeholder="Wird aus den operativen AI-Feldern erzeugt"></textarea>
+              </div>
               <div class="inline-actions" style="margin-top:10px;">
                 <button class="btn btn-secondary" id="ai-preview-btn" onclick="openAiPreview()">Prompt-Vorschau</button>
                 <button class="btn btn-primary" id="ai-save-customer">AI Konfiguration speichern</button>
@@ -2769,7 +2773,7 @@ function renderAiSetup(){
   });
 
   if(search){
-    rows=rows.filter(r=>`${r.customer.name} ${r.cfg.businessDescription||''} ${r.cfg.instructions||''}`.toLowerCase().includes(search));
+    rows=rows.filter(r=>`${r.customer.name} ${r.cfg.businessDescription||''} ${r.cfg.services||''} ${r.cfg.locationHours||''} ${r.cfg.bookingFaq||''} ${r.cfg.instructions||''} ${r.cfg.fallbackEscalation||''} ${r.cfg.responseConstraints||''}`.toLowerCase().includes(search));
   }
   if(statusFilter!=='all') rows=rows.filter(r=>r.cfg.status===statusFilter);
   if(customFilter==='yes') rows=rows.filter(r=>!!r.cfg.custom);
@@ -2847,6 +2851,8 @@ function renderAiWorkspace(){
     empty.style.display='block';
     if(title) title.textContent='Kunde wählen';
     document.getElementById('ai-workspace-badge').textContent='Kein Kunde gewählt';
+    const generatedSummary=document.getElementById('ai-generated-summary');
+    if(generatedSummary) generatedSummary.value='';
     return;
   }
   const c=customerById(id); const cfg=state.aiConfigs[id]||{};
@@ -2874,6 +2880,8 @@ function renderAiWorkspace(){
   document.getElementById('ai-fallback-escalation').value=cfg.fallbackEscalation||'';
   document.getElementById('ai-response-constraints').value=cfg.responseConstraints||'';
   document.getElementById('ai-internal-notes').value=cfg.internalNotes||'';
+  const generatedSummary=document.getElementById('ai-generated-summary');
+  if(generatedSummary) generatedSummary.value=cfg.summary||buildCustomerAiSummary(cfg)||'';
 }
 
 function saveGlobalAiConfig(){
@@ -2903,7 +2911,16 @@ async function saveCustomerAiConfig(){
   cfg.responseConstraints=document.getElementById('ai-response-constraints').value.trim();
   cfg.internalNotes=document.getElementById('ai-internal-notes').value.trim();
   cfg.summary=buildCustomerAiSummary(cfg);
-  cfg.custom=!!cfg.instructions;
+  cfg.custom=Boolean(
+    cfg.businessDescription||
+    cfg.services||
+    cfg.locationHours||
+    cfg.bookingFaq||
+    cfg.instructions||
+    cfg.fallbackEscalation||
+    cfg.responseConstraints||
+    cfg.internalNotes
+  );
   const missing=aiMissingFields(cfg);
   cfg.status=missing.length===0?'AI Ready':missing.length<=2?'Needs Review':'Blocked';
   cfg.lastUpdate=new Date().toISOString().slice(0,16).replace('T',' ');
@@ -5503,6 +5520,7 @@ async function loadDataFromSupabase() {
           internalNotes: String(customer.ai_internal_notes || existing.internalNotes || '').trim(),
           summary: String(customer.ai_summary || existing.summary || '').trim() || null
         };
+        if(!cfg.summary) cfg.summary=buildCustomerAiSummary(cfg);
         cfg.custom = Boolean(cfg.businessDescription || cfg.services || cfg.locationHours || cfg.bookingFaq || cfg.instructions || cfg.fallbackEscalation || cfg.responseConstraints || cfg.internalNotes);
         cfg.status = aiMissingFields(cfg).length===0 ? 'AI Ready' : aiMissingFields(cfg).length<=2 ? 'Needs Review' : 'Blocked';
         cfg.lastUpdate = existing.lastUpdate || customer.latest || '';
