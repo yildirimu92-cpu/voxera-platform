@@ -1133,6 +1133,10 @@ body{
 .activation-module{margin-bottom:24px;}
 .activation-module-title{font-family:'Inter',sans-serif;font-size:18px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.02em;}
 .activation-module-sub{font-size:13px;color:var(--gray600);margin-bottom:16px;line-height:1.55;}
+.activation-live-header{background:linear-gradient(135deg,#ECFDF3 0%,#F0F9FF 100%);border:1px solid #BBF7D0;border-radius:16px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-live-eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#166534;margin-bottom:6px;}
+.activation-live-title{font-size:22px;font-weight:800;letter-spacing:-.02em;color:#14532D;margin-bottom:4px;}
+.activation-live-sub{font-size:13px;color:#166534;line-height:1.55;}
 .activation-status-card{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .activation-numbers{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;}
 .activation-number-item{flex:1;min-width:120px;}
@@ -1205,15 +1209,21 @@ body{
 .act-mode-card-label{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:3px;}
 .act-mode-card-desc{font-size:11.5px;color:var(--gray600);line-height:1.5;}
 .act-mode-card.selected .act-mode-card-label{color:var(--blue-dark);}
+.activation-settings-section{background:#FAFBFD;border:1px solid #E5E7EB;border-radius:16px;padding:16px 16px 2px 16px;margin-bottom:14px;}
+.activation-settings-title{font-size:12px;font-weight:700;color:var(--gray500);letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}
+.activation-settings-sub{font-size:12px;color:var(--gray500);margin-bottom:12px;}
+.activation-testfocus-section{background:#FFFBEB;border:1px solid #FDE68A;border-radius:16px;padding:16px 16px 2px 16px;margin-bottom:14px;}
+.activation-testfocus-title{font-size:12px;font-weight:700;color:#92400E;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}
+.activation-testfocus-sub{font-size:12px;color:#92400E;margin-bottom:12px;}
 .act-action-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-action-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .act-action-sub{font-size:12.5px;color:var(--gray600);margin-bottom:16px;}
 .act-action-code-box{background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
 .act-action-code{font-family:monospace;font-size:15px;font-weight:700;color:var(--gray900);letter-spacing:.04em;}
 .act-action-btns{display:flex;gap:8px;flex-wrap:wrap;}
-.act-action-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:var(--blue);color:var(--white);border:none;border-radius:10px;padding:11px 20px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;box-shadow:var(--shadow-blue);}
+.act-action-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:var(--blue);color:var(--white);border:none;border-radius:10px;padding:11px 20px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;box-shadow:0 6px 18px rgba(29,78,216,.3);}
 .act-action-btn-primary:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
-.act-action-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:var(--white);color:var(--gray600);border:1.5px solid var(--gray200);border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;}
+.act-action-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;background:#F8FAFC;color:var(--gray500);border:1.5px solid #E2E8F0;border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;}
 .act-action-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
 .act-action-hint{font-size:12px;color:var(--gray400);font-style:italic;margin-top:10px;line-height:1.55;}
 .act-skip-shortcut-block{background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:12px;padding:16px 18px;margin-top:16px;}
@@ -1223,6 +1233,12 @@ body{
 .act-test-required-info{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:12px 16px;margin-top:14px;}
 .act-test-required-info-title{font-size:13px;font-weight:700;color:#1D4ED8;margin-bottom:4px;}
 .act-test-required-info-body{font-size:12px;color:#1E40AF;line-height:1.55;}
+.activation-more-options{margin-bottom:14px;border:1px solid var(--gray200);border-radius:14px;background:var(--white);box-shadow:var(--shadow-card);}
+.activation-more-options summary{cursor:pointer;list-style:none;padding:14px 16px;font-size:13px;font-weight:700;color:var(--gray700);display:flex;align-items:center;justify-content:space-between;}
+.activation-more-options summary::-webkit-details-marker{display:none;}
+.activation-more-options summary::after{content:'▾';font-size:14px;color:var(--gray500);transition:transform var(--transition-fast);}
+.activation-more-options[open] summary::after{transform:rotate(180deg);}
+.activation-more-options-body{padding:0 12px 12px 12px;}
 
 .activation-status-card--success-highlight{box-shadow:0 0 0 2px #52dd7a,0 0 14px #52dd7a60!important;transition:box-shadow .2s;}
 .activation-status-card--neutral-highlight{box-shadow:0 0 0 2px #f2b5b5,0 0 14px #de434360!important;transition:box-shadow .2s;}
@@ -1859,8 +1875,14 @@ body{
 
           <!-- ACTIVATION MODULE -->
           <div id="activation-module" class="activation-module">
-            <div class="activation-module-title">Aktivierung</div>
-            <div class="activation-module-sub">Verknüpfung Ihrer Telefonnummer mit der Voxera Rufumleitung</div>
+            <div class="activation-live-header">
+              <div class="activation-live-eyebrow">VOXERA LIVE</div>
+              <div class="activation-live-title">VOXERA ist aktiv</div>
+              <div class="activation-live-sub">Ihre Anrufe werden automatisch verarbeitet.</div>
+            </div>
+
+            <div class="activation-module-title">Status & Übersicht</div>
+            <div class="activation-module-sub">Ihr aktueller Leitungsstatus und die verknüpfte Rufumleitung.</div>
 
             <!-- Status Card -->
             <div class="activation-status-card" id="activation-status-card">
@@ -1878,76 +1900,91 @@ body{
               <div class="activation-state-desc" id="act-state-desc"></div>
             </div>
 
-            <!-- Device Selection Section -->
-            <div class="activation-device-section" id="act-device-section">
-              <div class="activation-device-title">Wie möchten Sie die Rufumleitung einrichten?</div>
-              <div class="activation-device-sub">Wählen Sie Ihren Gerätetyp, um die passenden Anweisungen zu erhalten.</div>
-              <div class="activation-choice-grid">
-                <div class="activation-choice-card" id="act-device-card-mobile" onclick="activationSelectDevice(event,'mobile')">
-                  <div class="activation-choice-card-title"> Smartphone</div>
-                  <div class="activation-choice-card-text">Rufumleitung direkt auf dem Handy aktivieren.</div>
-                </div>
-                <div class="activation-choice-card" id="act-device-card-landline" onclick="activationSelectDevice(event,'landline')">
-                  <div class="activation-choice-card-title">Festnetz / Telefonanlage</div>
-                  <div class="activation-choice-card-text">Für Büro-Telefon, Telefonanlage oder VoIP.</div>
-                </div>
-              </div>
-            </div>
+            <div class="activation-testfocus-section">
+              <div class="activation-testfocus-title">Testanruf & Aktivierungsprüfung</div>
+              <div class="activation-testfocus-sub">Hier sehen Sie den aktuellen Teststatus und können die Aktivierung direkt bestätigen.</div>
 
-            <!-- Forwarding Mode Selection Card -->
-            <div class="act-mode-section" id="act-mode-section" style="display:none;">
-              <div class="act-mode-title">Wann soll weitergeleitet werden?</div>
-              <div class="act-mode-sub">Wählen Sie, unter welchen Umständen Anrufe an Voxera weitergeleitet werden.</div>
-              <div class="act-mode-grid">
-                <div class="act-mode-card" id="act-mode-card-no_answer" onclick="activationSelectMode(event,'no_answer')">
-                  <div class="act-mode-card-label">Wenn ich nicht antworte</div>
-                  <div class="act-mode-card-desc">Nach einigen Klingeltönen ohne Annahme</div>
+              <!-- Action Card -->
+              <div class="act-action-section" id="act-action-section" style="display:none;">
+                <div class="act-action-title" id="act-action-title">Aktivierung</div>
+                <div class="act-action-sub" id="act-action-sub"></div>
+                <div class="act-action-code-box" id="act-action-code-box" style="display:none;">
+                  <span class="act-action-code" id="act-action-code"></span>
                 </div>
-                <div class="act-mode-card" id="act-mode-card-unreachable" onclick="activationSelectMode(event,'unreachable')">
-                  <div class="act-mode-card-label">Wenn ich nicht erreichbar bin</div>
-                  <div class="act-mode-card-desc">Ausgeschaltet, kein Netz oder Flugmodus</div>
+                <div class="act-action-btns" id="act-action-btns"></div>
+                <div class="act-action-hint" id="act-action-hint" style="display:none;"></div>
+                <!-- Skip shortcut block: only shown when current config matches last confirmed config -->
+                <div class="act-skip-shortcut-block" id="act-skip-shortcut-block" style="display:none;">
+                  <div class="act-skip-shortcut-title">Konfiguration bereits bestätigt</div>
+                  <div class="act-skip-shortcut-desc">Diese Konfiguration wurde bereits erfolgreich bestätigt. Sie können Voxera direkt wieder aktivieren oder optional erneut testen.</div>
+                  <div class="act-skip-shortcut-btns">
+                    <button type="button" class="act-action-btn-primary" onclick="activationSkipTest(event)">Ohne Test fortfahren</button>
+                    <button type="button" class="act-action-btn-secondary" onclick="activationSkipToTest(event)">Testanruf durchführen</button>
+                  </div>
                 </div>
-                <div class="act-mode-card" id="act-mode-card-always" onclick="activationSelectMode(event,'always')">
-                  <div class="act-mode-card-label">Immer weiterleiten</div>
-                  <div class="act-mode-card-desc">Jeder Anruf wird sofort weitergeleitet</div>
-                </div>
-                <div class="act-mode-card secondary" id="act-mode-card-busy" onclick="activationSelectMode(event,'busy')">
-                  <div class="act-mode-card-label">Wenn besetzt</div>
-                  <div class="act-mode-card-desc">Wenn Sie gerade in einem Gespräch sind</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action Card -->
-            <div class="act-action-section" id="act-action-section" style="display:none;">
-              <div class="act-action-title" id="act-action-title">Aktivierung</div>
-              <div class="act-action-sub" id="act-action-sub"></div>
-              <div class="act-action-code-box" id="act-action-code-box" style="display:none;">
-                <span class="act-action-code" id="act-action-code"></span>
-              </div>
-              <div class="act-action-btns" id="act-action-btns"></div>
-              <div class="act-action-hint" id="act-action-hint" style="display:none;"></div>
-              <!-- Skip shortcut block: only shown when current config matches last confirmed config -->
-              <div class="act-skip-shortcut-block" id="act-skip-shortcut-block" style="display:none;">
-                <div class="act-skip-shortcut-title">Konfiguration bereits bestätigt</div>
-                <div class="act-skip-shortcut-desc">Diese Konfiguration wurde bereits erfolgreich bestätigt. Sie können Voxera direkt wieder aktivieren oder optional erneut testen.</div>
-                <div class="act-skip-shortcut-btns">
-                  <button type="button" class="act-action-btn-primary" onclick="activationSkipTest(event)">Ohne Test fortfahren</button>
-                  <button type="button" class="act-action-btn-secondary" onclick="activationSkipToTest(event)">Testanruf durchführen</button>
+                <!-- Test required info block: shown when forwarding_setup_completed but canSkipActivationTest is false -->
+                <div class="act-test-required-info" id="act-test-required-info" style="display:none;" aria-live="polite">
+                  <div class="act-test-required-info-title">Testanruf erforderlich</div>
+                  <div class="act-test-required-info-body">Sie haben den Gerätetyp oder die Weiterleitungsart geändert. Bitte bestätigen Sie diese Konfiguration einmal mit einem Testanruf.</div>
                 </div>
               </div>
-              <!-- Test required info block: shown when forwarding_setup_completed but canSkipActivationTest is false -->
-              <div class="act-test-required-info" id="act-test-required-info" style="display:none;" aria-live="polite">
-                <div class="act-test-required-info-title">Testanruf erforderlich</div>
-                <div class="act-test-required-info-body">Sie haben den Gerätetyp oder die Weiterleitungsart geändert. Bitte bestätigen Sie diese Konfiguration einmal mit einem Testanruf.</div>
-              </div>
-            </div>
 
             <!-- Pending-Test Card (shown when forwarding_status === 'pending_test') -->
             <div id="act-pending-test-section" style="display:none;"></div>
+            </div>
 
-            <!-- Deactivation Section (only shown when forwarding_status === 'active', rendered dynamically) -->
-            <div id="act-deactivation-section" style="display:none;"></div>
+            <div class="activation-settings-section">
+              <div class="activation-settings-title">Einstellungen</div>
+              <div class="activation-settings-sub">Konfiguration anpassen, falls sich Ihre Telefonie-Einstellungen ändern.</div>
+
+              <!-- Device Selection Section -->
+              <div class="activation-device-section" id="act-device-section">
+                <div class="activation-device-title">Gerätetyp</div>
+                <div class="activation-device-sub">Wählen Sie den Kanal, für den Sie die Hinweise anzeigen möchten.</div>
+                <div class="activation-choice-grid">
+                  <div class="activation-choice-card" id="act-device-card-mobile" onclick="activationSelectDevice(event,'mobile')">
+                    <div class="activation-choice-card-title"> Smartphone</div>
+                    <div class="activation-choice-card-text">Rufumleitung direkt auf dem Handy aktivieren.</div>
+                  </div>
+                  <div class="activation-choice-card" id="act-device-card-landline" onclick="activationSelectDevice(event,'landline')">
+                    <div class="activation-choice-card-title">Festnetz / Telefonanlage</div>
+                    <div class="activation-choice-card-text">Für Büro-Telefon, Telefonanlage oder VoIP.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Forwarding Mode Selection Card -->
+              <div class="act-mode-section" id="act-mode-section" style="display:none;">
+                <div class="act-mode-title">Weiterleitungsmodus</div>
+                <div class="act-mode-sub">Bestimmen Sie, in welcher Situation Anrufe an Voxera weitergeleitet werden.</div>
+                <div class="act-mode-grid">
+                  <div class="act-mode-card" id="act-mode-card-no_answer" onclick="activationSelectMode(event,'no_answer')">
+                    <div class="act-mode-card-label">Wenn ich nicht antworte</div>
+                    <div class="act-mode-card-desc">Nach einigen Klingeltönen ohne Annahme</div>
+                  </div>
+                  <div class="act-mode-card" id="act-mode-card-unreachable" onclick="activationSelectMode(event,'unreachable')">
+                    <div class="act-mode-card-label">Wenn ich nicht erreichbar bin</div>
+                    <div class="act-mode-card-desc">Ausgeschaltet, kein Netz oder Flugmodus</div>
+                  </div>
+                  <div class="act-mode-card" id="act-mode-card-always" onclick="activationSelectMode(event,'always')">
+                    <div class="act-mode-card-label">Immer weiterleiten</div>
+                    <div class="act-mode-card-desc">Jeder Anruf wird sofort weitergeleitet</div>
+                  </div>
+                  <div class="act-mode-card secondary" id="act-mode-card-busy" onclick="activationSelectMode(event,'busy')">
+                    <div class="act-mode-card-label">Wenn besetzt</div>
+                    <div class="act-mode-card-desc">Wenn Sie gerade in einem Gespräch sind</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <details class="activation-more-options">
+              <summary>Weitere Optionen</summary>
+              <div class="activation-more-options-body">
+                <!-- Deactivation Section (only shown when forwarding_status === 'active', rendered dynamically) -->
+                <div id="act-deactivation-section" style="display:none;"></div>
+              </div>
+            </details>
           </div>
 
           <div id="setup-wizard" style="display:none">
