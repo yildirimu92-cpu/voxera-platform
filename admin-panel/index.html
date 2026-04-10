@@ -2052,6 +2052,51 @@ function contactDisplay(customer){
   const legacy=String(customer?.contact_name||customer?.contact||'').trim();
   return legacy||'—';
 }
+const AI_READINESS_FIELD_LABELS={
+  ai_business_description:'Unternehmensbeschreibung',
+  ai_services:'Angebot / Leistungen',
+  ai_instructions:'AI-Anweisungen',
+  ai_fallback_escalation:'Eskalationsregeln',
+  ai_location_hours:'Standort & Öffnungszeiten',
+  ai_booking_faq:'Buchung / FAQ',
+  ai_response_constraints:'Antwortgrenzen'
+};
+const AI_READINESS_REQUIRED_FIELDS=[
+  'ai_business_description',
+  'ai_services',
+  'ai_instructions',
+  'ai_fallback_escalation'
+];
+const AI_READINESS_FIELD_KEYS={
+  ai_business_description:['ai_business_description','businessDescription'],
+  ai_services:['ai_services','services'],
+  ai_instructions:['ai_instructions','instructions'],
+  ai_fallback_escalation:['ai_fallback_escalation','fallbackEscalation'],
+  ai_location_hours:['ai_location_hours','locationHours'],
+  ai_booking_faq:['ai_booking_faq','bookingFaq'],
+  ai_response_constraints:['ai_response_constraints','responseConstraints']
+};
+function getAIReadiness(customer){
+  const getValue=(dbField)=>{
+    const aliases=AI_READINESS_FIELD_KEYS[dbField]||[dbField];
+    for(const key of aliases){
+      const value=String(customer?.[key]||'').trim();
+      if(value) return value;
+    }
+    return '';
+  };
+  const missing=AI_READINESS_REQUIRED_FIELDS.filter(field=>!getValue(field));
+  return {
+    ready:missing.length===0,
+    missing,
+    missingLabels:missing.map(field=>AI_READINESS_FIELD_LABELS[field]||field)
+  };
+}
+function getAIStatusLabel(status){
+  if(status==='Blocked') return 'AI nicht bereit';
+  if(status==='Needs Review') return 'Review nötig';
+  return status||'Unbekannt';
+}
 function toneBadge(val){
   const v=(val||'').toLowerCase();
   const cls=v.includes('krit')||v.includes('offen')?'badge-red':v.includes('hoch')||v.includes('arbeit')?'badge-amber':v.includes('aktiv')||v.includes('ready')||v.includes('live')?'badge-green':v.includes('growth')||v.includes('pro')||v.includes('enterprise')?'badge-blue':'badge-gray';
@@ -2701,29 +2746,7 @@ function renderOnboardingDetail(){
 }
 
 function aiMissingFields(cfg){
-  const checks=[
-    ['businessDescription','Business Description'],
-    ['services','Services'],
-    ['locationHours','Location/Hours'],
-    ['bookingFaq','FAQ/Contact Prefs'],
-    ['fallbackEscalation','Fallback/Escalation'],
-    ['responseConstraints','Constraints'],
-    ['lastUpdate','Review Timestamp']
-  ];
-  return checks.filter(([k])=>!String(cfg?.[k]||'').trim()).map(([,label])=>label);
-}
-
-function aiMissingFields(cfg){
-  const checks=[
-    ['businessDescription','Business Description'],
-    ['services','Services'],
-    ['locationHours','Location/Hours'],
-    ['bookingFaq','FAQ/Contact Prefs'],
-    ['fallbackEscalation','Fallback/Escalation'],
-    ['responseConstraints','Constraints'],
-    ['lastUpdate','Review Timestamp']
-  ];
-  return checks.filter(([k])=>!String(cfg?.[k]||'').trim()).map(([,label])=>label);
+  return getAIReadiness(cfg).missingLabels;
 }
 
 function buildCustomerAiSummary(cfg){
@@ -2765,7 +2788,8 @@ function renderAiSetup(){
 
   let rows=state.customers.map(c=>{
     const cfg=state.aiConfigs[c.id]||{};
-    const missing=aiMissingFields(cfg);
+    const readiness=getAIReadiness(cfg);
+    const missing=readiness.missingLabels;
     // Critical: Keep existing readiness/save logic untouched; only derive UI priority for the new queue view.
     const priorityScore=(missing.length*10)+(cfg.status==='Blocked'?20:cfg.status==='Needs Review'?10:0);
     const priority=priorityScore>=30?'high':priorityScore>=15?'medium':'low';
@@ -2782,13 +2806,13 @@ function renderAiSetup(){
 
   const selectedId=state.aiSelectedCustomerId;
   document.getElementById('ai-customer-body').innerHTML=rows.map(r=>{
-    const missingLabel=r.missing.length===0?'Vollständig':`${r.missing.length} offen`;
+    const missingLabel=r.missing.length===0?'Keine fehlenden Pflichtfelder':r.missing.join(', ');
     const updateLabel=r.cfg.lastUpdate||'—';
     return `<tr class="${selectedId===r.customer.id?'ai-row-active':''}" onclick="openAiWorkspace('${jsStr(r.customer.id)}')">
       <td data-label="Kunde"><strong>${esc(r.customer.name)}</strong><div class="muted">${esc(contactDisplay(r.customer))}</div></td>
       <td data-label="Plan">${toneBadge(r.customer.plan)}</td>
-      <td data-label="AI-Readiness">${toneBadge(r.cfg.status||'Unbekannt')}</td>
-      <td data-label="Offene Punkte"><span class="ai-priority-pill ${r.priority}">${r.priority==='high'?'Hoch':r.priority==='medium'?'Mittel':'Niedrig'}</span><div class="muted" style="margin-top:3px;">${esc(missingLabel)}</div></td>
+      <td data-label="AI-Readiness">${toneBadge(getAIStatusLabel(r.cfg.status))}</td>
+      <td data-label="Offene Punkte"><span class="ai-priority-pill ${r.priority}">${r.missing.length}</span><div class="muted" style="margin-top:3px;">${esc(missingLabel)}</div></td>
       <td data-label="Latest Update">${esc(updateLabel)}</td>
       <td data-label="Aktion"><button class="btn btn-quiet btn-sm" onclick="event.stopPropagation();openAiWorkspace('${jsStr(r.customer.id)}')">Öffnen</button></td>
     </tr>`;
@@ -2796,7 +2820,7 @@ function renderAiSetup(){
 
   const allRows=state.customers.map(c=>{
     const cfg=state.aiConfigs[c.id]||{};
-    const missing=aiMissingFields(cfg);
+    const missing=getAIReadiness(cfg).missingLabels;
     const score=(missing.length*10)+(cfg.status==='Blocked'?20:cfg.status==='Needs Review'?10:0);
     return {name:c.name,id:c.id,cfg,missing,score};
   });
@@ -2808,14 +2832,14 @@ function renderAiSetup(){
   if(summary){
     summary.innerHTML=[
       ['Kunden gesamt',String(allRows.length),'AI Setup Scope'],
-      ['Blocked',String(blocked),'akut priorisieren'],
-      ['Needs Review',String(needsReview),'offene AI Felder'],
+      ['AI nicht bereit',String(blocked),'akut priorisieren'],
+      ['Review nötig',String(needsReview),'offene AI Felder'],
       ['AI Ready',String(ready),`${unresolved} mit offenen Daten`]
     ].map(([k,v,sub])=>`<div class="ai-summary-kpi"><div class="ai-summary-k">${esc(k)}</div><div class="ai-summary-v">${esc(v)}</div><div class="ai-summary-sub">${esc(sub)}</div></div>`).join('');
   }
 
   const missingCustomers=allRows.filter(x=>x.missing.length>0).sort((a,b)=>b.score-a.score||b.missing.length-a.missing.length).slice(0,6);
-  document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">${m.missing.length} fehlend: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace('${jsStr(m.id)}')">Bearbeiten</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
+  document.getElementById('ai-missing-list').innerHTML=missingCustomers.map(m=>`<div class="list-item"><div><div class="list-main">${esc(m.name)}</div><div class="list-sub">Fehlt: ${esc(m.missing.slice(0,3).join(', '))}${m.missing.length>3?' …':''}</div></div><button class="btn btn-secondary btn-sm" onclick="openAiWorkspace('${jsStr(m.id)}')">Bearbeiten</button></div>`).join('')||'<div class="empty">Alle Kunden AI-ready.</div>';
   document.getElementById('ai-changes-list').innerHTML=state.aiChanges.slice(0,6).map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">AI Configuration change log</div></div></div>`).join('')||'<div class="empty">Noch keine Änderungen protokolliert.</div>';
   hydrateAiStatusFilter();
   renderAiWorkspace();
@@ -2826,7 +2850,7 @@ function hydrateAiStatusFilter(){
   if(!select) return;
   const current=select.value||'all';
   const statuses=[...new Set(Object.values(state.aiConfigs).map(x=>x.status).filter(Boolean))];
-  select.innerHTML='<option value="all">AI Status: Alle</option>'+statuses.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  select.innerHTML='<option value="all">AI Status: Alle</option>'+statuses.map(s=>`<option value="${esc(s)}">${esc(getAIStatusLabel(s))}</option>`).join('');
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
 
@@ -2858,19 +2882,20 @@ function renderAiWorkspace(){
   const c=customerById(id); const cfg=state.aiConfigs[id]||{};
   const setupProgress=getCustomerSetupProgress(c,onboardingForCustomer(id));
   const setupReadinessLabel=getCustomerSetupReadinessLabel(c,onboardingForCustomer(id));
-  const missing=aiMissingFields(cfg);
+  const readiness=getAIReadiness(cfg);
+  const missing=readiness.missingLabels;
   workspace.style.display='block';
   empty.style.display='none';
   if(title) title.textContent=`${c.name} · ${c.plan}`;
-  document.getElementById('ai-workspace-badge').outerHTML=toneBadge(cfg.status||'Unbekannt').replace('<span','<span id="ai-workspace-badge"');
+  document.getElementById('ai-workspace-badge').outerHTML=toneBadge(getAIStatusLabel(cfg.status)).replace('<span','<span id="ai-workspace-badge"');
   document.getElementById('ai-customer-context').innerHTML=[
     ['Customer',c.name],
     ['Plan',c.plan],
-    ['AI-Readiness',cfg.status||'Unbekannt'],
+    ['AI-Readiness',getAIStatusLabel(cfg.status)],
     ['Setup',`${setupProgress}% · ${setupReadinessLabel}`],
     ['Fallback/Esc.',String(cfg.fallbackEscalation||'').trim()? 'Vorhanden':'Fehlt'],
     ['Letzte AI-Aktualisierung',cfg.lastUpdate||'—'],
-    ['Offene Punkte',missing.length?String(missing.length):'0']
+    ['Offene Punkte',missing.length?`Fehlt: ${missing.join(', ')}`:'0']
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   document.getElementById('ai-business-description').value=cfg.businessDescription||'';
   document.getElementById('ai-services').value=cfg.services||'';
@@ -2921,7 +2946,7 @@ async function saveCustomerAiConfig(){
     cfg.responseConstraints||
     cfg.internalNotes
   );
-  const missing=aiMissingFields(cfg);
+  const missing=getAIReadiness(cfg).missing;
   cfg.status=missing.length===0?'AI Ready':missing.length<=2?'Needs Review':'Blocked';
   cfg.lastUpdate=new Date().toISOString().slice(0,16).replace('T',' ');
   state.aiConfigs[id]=cfg;
@@ -5522,7 +5547,8 @@ async function loadDataFromSupabase() {
         };
         if(!cfg.summary) cfg.summary=buildCustomerAiSummary(cfg);
         cfg.custom = Boolean(cfg.businessDescription || cfg.services || cfg.locationHours || cfg.bookingFaq || cfg.instructions || cfg.fallbackEscalation || cfg.responseConstraints || cfg.internalNotes);
-        cfg.status = aiMissingFields(cfg).length===0 ? 'AI Ready' : aiMissingFields(cfg).length<=2 ? 'Needs Review' : 'Blocked';
+        const readiness=getAIReadiness(cfg);
+        cfg.status = readiness.ready ? 'AI Ready' : readiness.missing.length<=2 ? 'Needs Review' : 'Blocked';
         cfg.lastUpdate = existing.lastUpdate || customer.latest || '';
         return [customer.id, cfg];
       })
