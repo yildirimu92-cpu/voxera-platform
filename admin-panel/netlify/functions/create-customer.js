@@ -31,6 +31,17 @@ function extractMissingColumn(error) {
   return match?.[1] || null;
 }
 
+function normalizeSwissPhone(raw) {
+  let value = String(raw || '').trim();
+  if (!value) return { normalized: '', valid: false, empty: true };
+  value = value.replace(/[^\d+]/g, '');
+  if (value.startsWith('00')) value = `+${value.slice(2)}`;
+  if (value.startsWith('0')) value = `+41${value.slice(1)}`;
+  if (/^\d+$/.test(value) && value.startsWith('41')) value = `+${value}`;
+  const valid = /^\+41\d{9}$/.test(value);
+  return { normalized: value, valid, empty: false };
+}
+
 async function insertWithSchemaFallback({ sbAdmin, table, payload, select = '*' }) {
   const dynamicPayload = { ...payload };
   const removedColumns = [];
@@ -162,6 +173,10 @@ exports.handler = async (event) => {
   }
 
   const email = String(body.email).trim().toLowerCase();
+  const normalizedPhone = normalizeSwissPhone(body.tel_nr);
+  if (!normalizedPhone.valid) {
+    return response(400, { error: 'Ungültige CH-Telefonnummer. Erlaubtes Zielformat: +41791234567.' });
+  }
 
   // ─── Duplikat-Check in customers-Tabelle ─────────────────────────────────
   const { data: existingCustomer, error: existingErr } = await sbAdmin
@@ -225,7 +240,7 @@ exports.handler = async (event) => {
     auth_user_id: authUserId,       // ← Verknüpfung zum Auth-User
     customer_name: String(body.customer_name).trim(),
     email,
-    tel_nr: String(body.tel_nr).trim(),
+    tel_nr: normalizedPhone.normalized,
     plan: planCode,
     plan_code: planCode,
     street: String(body.street).trim(),
@@ -236,7 +251,7 @@ exports.handler = async (event) => {
     welcome_sent: false,
     status: STATUS.customer.ONBOARDING,
     forwarding_setup_completed: false,
-    voxera_number: body.voxera_number ? String(body.voxera_number).trim() : null,
+    voxera_number: String(body.voxera_number || '').trim() || null,
     dashboard_id: body.dashboard_id  ? String(body.dashboard_id).trim()  : null,
     notes: body.notes ? String(body.notes).trim() : null,
     setup_fee_amount: planConfig.setup_fee_amount ?? null,

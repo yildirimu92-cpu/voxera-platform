@@ -220,8 +220,10 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   border:1px solid var(--line);box-shadow:var(--shadow-card);
 }
 .btn-secondary:hover{background:var(--line2);border-color:var(--slate2);}
-.btn-quiet{background:var(--line2);color:var(--slate);border:1px solid transparent;}
-.btn-quiet:hover{background:var(--line);color:var(--ink);}
+.btn-quiet{background:#EEF2FF;color:var(--blue-dark);border:1px solid #C7D2FE;}
+.btn-quiet:hover{background:#DBEAFE;color:var(--blue-dark);border-color:#93C5FD;}
+.btn-danger{background:var(--red-light);color:var(--red);border:1px solid var(--red-mid);}
+.btn-danger:hover{background:#FEE2E2;border-color:#FCA5A5;}
 .btn-sm{height:28px;padding:4px 10px;font-size:11.5px;}
 .btn[disabled]{opacity:.5;cursor:not-allowed;transform:none !important;}
 
@@ -284,9 +286,17 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 
 /* ─── Inline actions ─────────────────────────────────────────── */
 .inline-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
-.customer-actions-primary{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.customer-actions-primary{
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  padding:4px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0;
+}
 .actions-menu{position:relative;}
-.actions-menu-btn{width:32px;min-width:32px;justify-content:center;padding:0;}
+.actions-menu-btn{
+  width:36px;min-width:36px;height:32px;justify-content:center;padding:0;
+  font-size:18px;line-height:1;color:var(--ink2);
+}
+.actions-menu-btn:hover{background:#E2E8F0;color:var(--ink);}
+.actions-menu-btn:focus-visible{outline:2px solid #93C5FD;outline-offset:2px;}
 .actions-menu > summary{list-style:none;}
 .actions-menu > summary::-webkit-details-marker{display:none;}
 .actions-menu-list{
@@ -295,9 +305,13 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   box-shadow:var(--shadow-lg);padding:6px;display:none;flex-direction:column;gap:4px;
   overflow:visible;
   max-width:min(280px,calc(100vw - 20px));
+  transform-origin:top right;
+  animation:menuIn 0.14s var(--ease);
 }
 .actions-menu[open] .actions-menu-list{display:flex;}
+.actions-menu-list .btn{height:34px;border-radius:8px;}
 .actions-menu-list .btn{width:100%;justify-content:flex-start;}
+@keyframes menuIn{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .actions-menu-list.mobile-sheet{
   left:12px !important;
   right:12px !important;
@@ -322,6 +336,23 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .customer-card-meta-item strong{display:block;color:var(--ink);font-size:12px;font-weight:600;}
 .muted{font-size:11.5px;color:var(--slate2);}
 .chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;background:var(--line2);color:var(--slate);}
+.field-head{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.field-help{
+  width:18px;height:18px;border-radius:999px;border:1px solid #BFDBFE;background:#EFF6FF;color:var(--blue-dark);
+  font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;cursor:help;position:relative;
+}
+.field-help:hover,.field-help:focus-visible{background:#DBEAFE;border-color:#93C5FD;outline:none;}
+.field-help .field-help-pop{
+  position:absolute;left:22px;top:-6px;z-index:15;display:none;width:min(340px,70vw);
+  background:#0F172A;color:#F8FAFC;border-radius:10px;padding:10px 12px;
+  box-shadow:0 10px 24px rgba(15,23,42,.28);font-size:11.5px;line-height:1.45;font-weight:500;
+  white-space:normal;
+}
+.field-help:hover .field-help-pop,.field-help:focus-visible .field-help-pop{display:block;}
+.field-help .field-help-pop strong{display:block;color:#DBEAFE;margin-bottom:4px;font-size:11px;letter-spacing:.01em;}
+.customer-section-shell .toolbar{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:10px;box-shadow:var(--shadow-card);}
+#section-customers .section-head{margin-bottom:10px;}
+#section-customers .data-table tbody tr td{padding-top:12px;padding-bottom:12px;}
 
 /* ─── Modal ─────────────────────────────────────────────────── */
 .modal-overlay{
@@ -738,28 +769,30 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
       <!-- CUSTOMERS -->
       <section id="section-customers" class="section">
-        <div class="section-head">
-          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Kundenverwaltung</h3>
-          <button class="btn btn-primary" id="open-create-customer-btn">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
-            Kunde anlegen
-          </button>
+        <div class="customer-section-shell card">
+          <div class="section-head">
+            <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Kundenverwaltung</h3>
+            <button class="btn btn-primary" id="open-create-customer-btn">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
+              Kunde anlegen
+            </button>
+          </div>
+          <div class="toolbar">
+            <input class="input" id="customer-search" placeholder="Suche Firmenname, Kontakt, Nummer …">
+            <select class="select" id="customer-plan-filter"><option value="all">Plan: Alle</option></select>
+            <select class="select" id="customer-status-filter"><option value="all">Status: Alle</option></select>
+            <select class="select" id="customer-progress-filter"><option value="all">Setup: Alle</option><option value="0-39">0–39%</option><option value="40-79">40–79%</option><option value="80-100">80–100%</option></select>
+            <select class="select" id="customer-case-filter"><option value="all">Cases: Alle</option><option value="0">Keine offenen</option><option value="1+">Mind. 1 offen</option></select>
+            <button class="btn btn-quiet" id="customer-reset">Zurücksetzen</button>
+          </div>
+          <div class="table-wrap" id="customers-table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Kunde</th><th>Status</th><th>Setup</th><th>Letzte Aktivität</th><th>Aktionen</th></tr></thead>
+              <tbody id="customers-table-body"></tbody>
+            </table>
+          </div>
+          <div class="customer-cards" id="customers-card-list"></div>
         </div>
-        <div class="toolbar">
-          <input class="input" id="customer-search" placeholder="Suche Firmenname, Kontakt, Nummer …">
-          <select class="select" id="customer-plan-filter"><option value="all">Plan: Alle</option></select>
-          <select class="select" id="customer-status-filter"><option value="all">Status: Alle</option></select>
-          <select class="select" id="customer-progress-filter"><option value="all">Setup: Alle</option><option value="0-39">0–39%</option><option value="40-79">40–79%</option><option value="80-100">80–100%</option></select>
-          <select class="select" id="customer-case-filter"><option value="all">Cases: Alle</option><option value="0">Keine offenen</option><option value="1+">Mind. 1 offen</option></select>
-          <button class="btn btn-quiet" id="customer-reset">Zurücksetzen</button>
-        </div>
-        <div class="table-wrap" id="customers-table-wrap">
-          <table class="data-table">
-            <thead><tr><th>Kunde</th><th>Status</th><th>Setup</th><th>Letzte Aktivität</th><th>Aktionen</th></tr></thead>
-            <tbody id="customers-table-body"></tbody>
-          </table>
-        </div>
-        <div class="customer-cards" id="customers-card-list"></div>
       </section>
 
       <!-- ONBOARDING -->
@@ -845,22 +878,30 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
               <div class="detail-grid" id="ai-customer-context"></div>
               <div class="ai-workspace-block">
                 <div class="card-title" style="margin-top:12px;">Business Description & Knowledge</div>
+                <div class="field-head"><label class="muted" for="ai-business-description">Geschäftsprofil</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Branche, Zielgruppe, Leistungsversprechen und typische Anliegen.<br><strong>Warum wichtig?</strong>Die AI kann nur professionell antworten, wenn sie den Kontext des Betriebs kennt.<br><strong>Best Practice</strong>3–6 präzise Sätze, keine Marketingfloskeln.<br><strong>Beispiel</strong>«Treuhandbüro in Zürich, Fokus KMU bis 20 Mitarbeitende, spezialisiert auf Lohn & Abschluss.»</span></span></div>
                 <textarea class="textarea" id="ai-business-description" placeholder="Business description"></textarea>
-                <textarea class="textarea" id="ai-services" placeholder="Services / products" style="margin-top:8px;"></textarea>
-                <textarea class="textarea" id="ai-location-hours" placeholder="Location + opening hours summary" style="margin-top:8px;"></textarea>
-                <textarea class="textarea" id="ai-booking-faq" placeholder="Booking/contact preferences + FAQs" style="margin-top:8px;"></textarea>
+                <div class="field-head" style="margin-top:8px;"><label class="muted" for="ai-services">Angebot / Leistungen</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Kernleistungen inkl. Grenzen (was nicht angeboten wird).<br><strong>Warum wichtig?</strong>Verbessert Trefferquote bei Kundenanfragen und reduziert Rückfragen.<br><strong>Best Practice</strong>Als Liste mit klaren Keywords und Prioritäten erfassen.<br><strong>Beispiel</strong>«Steuererklärung, Monatsabschluss, Lohnadministration; keine Rechtsberatung.»</span></span></div>
+                <textarea class="textarea" id="ai-services" placeholder="Services / products"></textarea>
+                <div class="field-head" style="margin-top:8px;"><label class="muted" for="ai-location-hours">Standort & Erreichbarkeit</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Standort, Servicegebiet, Öffnungszeiten, Ferien-/Ausnahmen.<br><strong>Warum wichtig?</strong>Verhindert falsche Zusagen zu Verfügbarkeit oder Rückrufen.<br><strong>Best Practice</strong>Mit Zeitfenstern und Zeitzone klar formulieren.<br><strong>Beispiel</strong>«Mo–Fr 08:30–12:00 & 13:30–17:30, Rückruf innerhalb 2h im Kanton ZH.»</span></span></div>
+                <textarea class="textarea" id="ai-location-hours" placeholder="Location + opening hours summary"></textarea>
+                <div class="field-head" style="margin-top:8px;"><label class="muted" for="ai-booking-faq">Terminlogik & FAQ</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Welche Daten bei Anfrage zwingend erfasst werden müssen, plus häufige Fragen.<br><strong>Warum wichtig?</strong>Sichert vollständige Leads und kürzere Bearbeitungszeit im Sales-Team.<br><strong>Best Practice</strong>Pflichtdaten zuerst nennen (Name, Nummer, Anliegen, gewünschter Termin).<br><strong>Beispiel</strong>«Bei Offertanfrage immer Budgetrahmen und gewünschtes Startdatum erfassen.»</span></span></div>
+                <textarea class="textarea" id="ai-booking-faq" placeholder="Booking/contact preferences + FAQs"></textarea>
               </div>
               <div class="ai-workspace-block">
                 <div class="card-title" style="margin-top:12px;">Custom Instructions</div>
+                <div class="field-head"><label class="muted" for="ai-customer-instructions">Gesprächsregeln pro Kunde</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Tonalität, Begrüssung, Tabus, Lead-Qualifizierung, Abschluss-Satz.<br><strong>Warum wichtig?</strong>Steuert Vertrauen, Markenwirkung und Abschlussqualität.<br><strong>Best Practice</strong>Kurze, imperative Regeln («Frage zuerst ...», «sage nie ...»).<br><strong>Beispiel</strong>«Immer mit Firmenname begrüssen, bei Preisfragen nie schätzen – Rückruf anbieten.»</span></span></div>
                 <textarea class="textarea" id="ai-customer-instructions" placeholder="Greeting / tone / do-do-not / lead qual / callback specifics"></textarea>
               </div>
               <div class="ai-workspace-block">
                 <div class="card-title" style="margin-top:12px;">Fallback & Escalation</div>
+                <div class="field-head"><label class="muted" for="ai-fallback-escalation">Eskalationsregeln</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Trigger für Übergabe an Mensch, Notfälle, unklare Fälle, verärgerte Anrufer.<br><strong>Warum wichtig?</strong>Minimiert Risiko und schützt Servicequalität.<br><strong>Best Practice</strong>Mit klaren «Wenn X, dann Y»-Regeln arbeiten.<br><strong>Beispiel</strong>«Bei Datenschutz- oder Beschwerdeanliegen sofort Ticket ‘High’ und Rückruf innert 30 Min.»</span></span></div>
                 <textarea class="textarea" id="ai-fallback-escalation" placeholder="Escalation triggers, missing info behavior, frustrated caller handling"></textarea>
               </div>
               <div class="ai-workspace-block">
                 <div class="card-title" style="margin-top:12px;">Response Constraints & Notes</div>
+                <div class="field-head"><label class="muted" for="ai-response-constraints">Antwortgrenzen / Compliance</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Rechtliche Grenzen, verbotene Aussagen, zugesicherte Leistungen.<br><strong>Warum wichtig?</strong>Verhindert Fehlaussagen, die Vertrauen oder Umsatz gefährden.<br><strong>Best Practice</strong>Klare Negativliste plus erlaubte Alternative notieren.<br><strong>Beispiel</strong>«Keine medizinischen Empfehlungen; stattdessen auf Fachperson verweisen.»</span></span></div>
                 <textarea class="textarea" id="ai-response-constraints" placeholder="Compliance boundaries / prohibited claims"></textarea>
+                <div class="field-head" style="margin-top:8px;"><label class="muted" for="ai-internal-notes">Interne Umsetzungsnotizen</label><span class="field-help" tabindex="0">i<span class="field-help-pop"><strong>Was eingeben?</strong>Nur interne Hinweise für Ops/Support, nicht für Endnutzertexte.<br><strong>Warum wichtig?</strong>Sichert saubere Übergaben zwischen Sales, Setup und Support.<br><strong>Best Practice</strong>Eintrag mit Datum + Verantwortlicher starten.<br><strong>Beispiel</strong>«2026-04-10 / LN: Callback-Flow mit CRM-Feld ‘Lead Source’ abgestimmt.»</span></span></div>
                 <textarea class="textarea" id="ai-internal-notes" placeholder="Implementation/support notes" style="margin-top:8px;"></textarea>
               </div>
               <div class="inline-actions" style="margin-top:10px;">
@@ -1282,8 +1323,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         <!-- Zeile 3: Telefon + Plan -->
         <div>
           <label class="muted" style="font-size:11px;font-weight:600;">Telefon * <span style="font-weight:400;color:var(--slate2);">(+41791234567)</span></label>
-          <input id="create-customer-phone" class="input" required placeholder="+41791234567"
-            pattern="^\+[1-9]\d{6,14}$" title="Format: +41791234567 (kein Leerzeichen)">
+          <input id="create-customer-phone" class="input" required placeholder="+41791234567">
           <div class="form-error" data-error-for="tel_nr"></div>
         </div>
         <div>
@@ -1293,6 +1333,17 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           </select>
           <div class="form-error" data-error-for="plan"></div>
         </div>
+
+        <!-- Zeile 3b: Billing Cycle -->
+        <div>
+          <label class="muted" style="font-size:11px;font-weight:600;">Billing Cycle *</label>
+          <select id="create-customer-billing-cycle" class="select" required style="height:38px;">
+            <option value="monthly">monthly</option>
+            <option value="yearly">yearly</option>
+          </select>
+          <div class="form-error" data-error-for="billing_cycle"></div>
+        </div>
+        <div></div>
 
         <!-- Zeile 4: Adresse (OpenStreetMap Autocomplete, volle Breite) -->
         <div style="grid-column:1/-1;position:relative;">
@@ -1324,6 +1375,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         <div>
           <label class="muted" style="font-size:11px;font-weight:600;">Voxera Nummer</label>
           <input id="create-customer-voxera-number" class="input" placeholder="+41 …">
+          <div class="muted" style="margin-top:4px;">Optional – kann später zugewiesen werden.</div>
         </div>
 
       </div>
@@ -1717,6 +1769,16 @@ function normalizePlanCode(raw){
   if(key==='kein_plan'||key==='kein-plan'||key==='kein_plan') return 'kein_plan';
   if(key==='kein'||key==='no_plan'||key==='noplan') return 'kein_plan';
   return key;
+}
+function normalizeSwissPhone(raw){
+  let value=String(raw||'').trim();
+  if(!value) return {normalized:'',valid:false,empty:true};
+  value=value.replace(/[^\d+]/g,'');
+  if(value.startsWith('00')) value=`+${value.slice(2)}`;
+  if(value.startsWith('0')) value=`+41${value.slice(1)}`;
+  if(/^\d+$/.test(value) && value.startsWith('41')) value=`+${value}`;
+  const isValid=/^\+41\d{9}$/.test(value);
+  return {normalized:value,valid:isValid,empty:false};
 }
 function isSalesPlanCode(code){ return SALES_PLAN_CODES.includes(normalizePlanCode(code)); }
 function planConfigByCode(code){
@@ -2394,11 +2456,11 @@ function renderCustomers(){
     <td>${esc(c.latest)}</td>
     <td>
       <div class="customer-actions-primary">
-        <button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
+        <button class="btn btn-secondary btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
         ${primaryAccessAction}
         <button class="btn btn-secondary btn-sm" onclick="openCustomerOnboarding('${jsStr(c.id)}')">Onboarding</button>
         <details class="actions-menu">
-          <summary class="btn btn-secondary btn-sm actions-menu-btn">⋯</summary>
+          <summary class="btn btn-secondary btn-sm actions-menu-btn" title="Weitere Aktionen" aria-label="Weitere Aktionen">⋯</summary>
           <div class="actions-menu-list">
             <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case erstellen</button>
             <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button>
@@ -2437,11 +2499,11 @@ function renderCustomers(){
         <div class="customer-card-meta-item"><strong>Aktivität</strong>${esc(c.latest)}</div>
       </div>
       <div class="customer-actions-primary">
-        <button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
+        <button class="btn btn-secondary btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
         ${primaryAccessAction}
         <button class="btn btn-secondary btn-sm" onclick="openCustomerOnboarding('${jsStr(c.id)}')">Onboarding</button>
         <details class="actions-menu">
-          <summary class="btn btn-secondary btn-sm actions-menu-btn">⋯</summary>
+          <summary class="btn btn-secondary btn-sm actions-menu-btn" title="Weitere Aktionen" aria-label="Weitere Aktionen">⋯</summary>
           <div class="actions-menu-list">
             <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case erstellen</button>
             <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button>
@@ -4431,7 +4493,7 @@ async function submitEditCustomer(e){
     email:document.getElementById('edit-customer-email').value.trim(),
     contact_first_name:document.getElementById('edit-customer-first-name').value.trim()||null,
     contact_last_name:document.getElementById('edit-customer-last-name').value.trim()||null,
-    tel_nr:document.getElementById('edit-customer-phone').value.trim(),
+    tel_nr:normalizeSwissPhone(document.getElementById('edit-customer-phone').value).normalized,
     plan:selectedPlanCode,
     plan_code:selectedPlanCode,
     setup_fee_amount:planCfg?.setup_fee_amount??null,
@@ -4647,6 +4709,7 @@ function resetCreateCustomerForm(){
   const form=document.getElementById('create-customer-form');
   form.reset();
   document.getElementById('create-customer-country').value='Switzerland';
+  document.getElementById('create-customer-billing-cycle').value='monthly';
   clearCreateCustomerErrors();
   setCreateCustomerFeedback(null,'');
 }
@@ -4663,14 +4726,17 @@ function closeCreateCustomerModal(){
 }
 
 function collectCreateCustomerPayload(){
+  const normalizedPhone=normalizeSwissPhone(document.getElementById('create-customer-phone').value);
+  const rawVoxera=document.getElementById('create-customer-voxera-number').value.trim();
   return {
     customer_name:document.getElementById('create-customer-name').value.trim(),
     contact_first_name:document.getElementById('create-customer-contact-first-name').value.trim(),
     contact_last_name:document.getElementById('create-customer-contact-last-name').value.trim(),
     email:document.getElementById('create-customer-email').value.trim(),
-    tel_nr:document.getElementById('create-customer-phone').value.trim(),
+    tel_nr:normalizedPhone.normalized,
     plan:normalizePlanCode(document.getElementById('create-customer-plan').value.trim()),
-    voxera_number:document.getElementById('create-customer-voxera-number').value.trim(),
+    billing_cycle:String(document.getElementById('create-customer-billing-cycle').value||'monthly').trim().toLowerCase(),
+    voxera_number:rawVoxera||null,
     street:document.getElementById('create-customer-street').value.trim(),
     zip:document.getElementById('create-customer-zip').value.trim(),
     city:document.getElementById('create-customer-city').value.trim(),
@@ -4681,13 +4747,18 @@ function collectCreateCustomerPayload(){
 }
 
 function validateCreateCustomerPayload(payload){
-  const required=['customer_name','email','tel_nr','street','zip','city','country','plan'];
+  const required=['customer_name','email','tel_nr','street','zip','city','country','plan','billing_cycle'];
   const missing=required.filter(key=>!payload[key]);
   missing.forEach(field=>showCreateCustomerError(field,'Pflichtfeld.'));
-  // Telefon-Format prüfen: muss mit + beginnen
-  if(payload.tel_nr&&!/^\+[1-9]\d{6,14}$/.test(payload.tel_nr)){
+  const phoneValidation=normalizeSwissPhone(payload.tel_nr);
+  if(payload.tel_nr&&!phoneValidation.valid){
     showCreateCustomerError('tel_nr','Format: +41791234567 (mit +, ohne Leerzeichen)');
     return {ok:false,missing:[...missing,'tel_nr']};
+  }
+  if(payload.tel_nr) payload.tel_nr=phoneValidation.normalized;
+  if(payload.billing_cycle && !['monthly','yearly'].includes(payload.billing_cycle)){
+    showCreateCustomerError('billing_cycle','Bitte monthly oder yearly wählen.');
+    return {ok:false,missing:[...missing,'billing_cycle']};
   }
   if(missing.length>0) return {ok:false,missing};
   return {ok:true,missing:[]};
@@ -4718,6 +4789,7 @@ async function submitCreateCustomer(event){
     }
 
     const dbCustomer=json.customer||{};
+    const dbSubscription=json.subscription||{};
     const dbOnboarding=json.onboarding||{};
     const createdId=String(dbCustomer.id||'');
     const contactFirstName=dbCustomer.contact_first_name||payload.contact_first_name||'';
@@ -4744,6 +4816,8 @@ async function submitCreateCustomer(event){
       welcome_sent:Boolean(dbCustomer.welcome_sent),
       welcome_sent_at:dbCustomer.welcome_sent_at||null,
       payment_status:normalizePaymentStatus(dbCustomer.payment_status),
+      subscription_billing_cycle:dbSubscription.billing_cycle||payload.billing_cycle||'monthly',
+      subscription_billing_cycle_label:(dbSubscription.billing_cycle||payload.billing_cycle||'monthly')==='yearly'?'Yearly':'Monthly',
       setup_fee_amount:dbCustomer.setup_fee_amount??null,
       payment_link:dbCustomer.payment_link||null,
       payment_sent_at:dbCustomer.payment_sent_at||null,
@@ -5550,27 +5624,31 @@ document.addEventListener('click',e=>{
   if(box&&!box.contains(e.target)&&e.target.id!=='create-customer-street') box.style.display='none';
 });
 
-// ─── Telefon-Validierung: nur +41... Format ──────────────────────────────────
+// ─── Telefon-Normalisierung (CH V1) ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
-  const phoneInput=document.getElementById('create-customer-phone');
-  if(phoneInput){
-    phoneInput.addEventListener('blur',()=>{
-      const val=phoneInput.value.trim();
-      const errEl=document.querySelector('.form-error[data-error-for="tel_nr"]');
-      if(val&&!/^\+[1-9]\d{6,14}$/.test(val)){
-        phoneInput.style.borderColor='var(--red)';
-        if(errEl){errEl.textContent='Format: +41791234567 (mit +, ohne Leerzeichen)';errEl.classList.add('show');}
-      } else {
-        phoneInput.style.borderColor='';
+  const bindPhoneNormalization=(input,errSelector=null)=>{
+    if(!input) return;
+    input.addEventListener('blur',()=>{
+      const result=normalizeSwissPhone(input.value);
+      if(!result.empty) input.value=result.normalized;
+      const errEl=errSelector?document.querySelector(errSelector):null;
+      if(result.empty || result.valid){
+        input.style.borderColor='';
         if(errEl){errEl.textContent='';errEl.classList.remove('show');}
+        return;
       }
+      input.style.borderColor='var(--red)';
+      if(errEl){errEl.textContent='Ungültige CH-Nummer. Beispiel: +41791234567';errEl.classList.add('show');}
     });
-    phoneInput.addEventListener('input',()=>{
-      phoneInput.style.borderColor='';
-      const errEl=document.querySelector('.form-error[data-error-for="tel_nr"]');
+    input.addEventListener('input',()=>{
+      input.style.borderColor='';
+      if(!errSelector) return;
+      const errEl=document.querySelector(errSelector);
       if(errEl){errEl.textContent='';errEl.classList.remove('show');}
     });
-  }
+  };
+  bindPhoneNormalization(document.getElementById('create-customer-phone'),'.form-error[data-error-for="tel_nr"]');
+  bindPhoneNormalization(document.getElementById('edit-customer-phone'));
 });
 </script>
 
