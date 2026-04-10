@@ -27,6 +27,14 @@ function resolveDuplicateReason(customerRow) {
   return 'retry_allowed';
 }
 
+function addMonths(date, months) {
+  const d = new Date(date);
+  const day = d.getUTCDate();
+  d.setUTCMonth(d.getUTCMonth() + months);
+  if (d.getUTCDate() < day) d.setUTCDate(0);
+  return d;
+}
+
 async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordReset = false }) {
   const eventType = isPasswordReset ? 'customer_password_reset_email' : 'customer_welcome_access_email';
   const payload = {
@@ -165,7 +173,7 @@ exports.handler = async (event) => {
   // ─── ACTION: mark_activated ───────────────────────────────────────────────
   if (action === 'mark_activated') {
     const nowIso = new Date().toISOString();
-    const { data: updated, error: updateErr } = await sbAdmin
+    const { data: updatedCustomer, error: updateErr } = await sbAdmin
       .from('customers')
       .update({ status: 'activated', invite_status: 'activated', updated_at: nowIso })
       .eq('id', customerId)
@@ -173,7 +181,52 @@ exports.handler = async (event) => {
       .single();
 
     if (updateErr) return response(500, { error: 'Status konnte nicht gesetzt werden.', details: updateErr.message });
-    return response(200, { success: true, message: 'Kunde auf aktiviert gesetzt.', customer: updated });
+
+    const { data: existingSubscription, error: subscriptionLookupError } = await sbAdmin
+      .from('subscriptions')
+      .select('*')
+      .eq('customer_id', customerId)
+      .maybeSingle();
+
+    if (subscriptionLookupError) {
+      return response(500, {
+        error: 'Subscription konnte nicht geladen werden.',
+        details: subscriptionLookupError.message
+      });
+    }
+
+    let updatedSubscription = existingSubscription || null;
+    if (existingSubscription) {
+      const billingCycle = String(existingSubscription.billing_cycle || 'monthly').trim().toLowerCase();
+      const renewsAt = addMonths(new Date(nowIso), billingCycle === 'yearly' ? 12 : 1).toISOString();
+      const subscriptionPatch = {
+        subscription_status: 'active',
+        status: 'active',
+        starts_at: nowIso,
+        renews_at: renewsAt,
+        updated_at: nowIso
+      };
+      const { data: subUpdated, error: subUpdateErr } = await sbAdmin
+        .from('subscriptions')
+        .update(subscriptionPatch)
+        .eq('id', existingSubscription.id)
+        .select('*')
+        .single();
+      if (subUpdateErr) {
+        return response(500, {
+          error: 'Subscription konnte nicht aktiviert werden.',
+          details: subUpdateErr.message
+        });
+      }
+      updatedSubscription = subUpdated;
+    }
+
+    return response(200, {
+      success: true,
+      message: 'Kunde auf aktiviert gesetzt.',
+      customer: updatedCustomer,
+      subscription: updatedSubscription
+    });
   }
 
   // ─── Pflichtfelder prüfen (für send_access + reset_password) ─────────────

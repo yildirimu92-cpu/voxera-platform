@@ -3384,6 +3384,10 @@ function openCustomerProfile(id){
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">E-Mail</span><span class="detail-v">${esc(c.email||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Telefon</span><span class="detail-v">${esc(c.tel_nr||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Plan</span><span class="detail-v">${esc(c.plan||'—')}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Billing Cycle</span><span class="detail-v">${esc(c.subscription_billing_cycle_label||'—')}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Subscription Status</span><span class="detail-v">${esc(c.subscription_status||'inactive')}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Subscription Start</span><span class="detail-v">${esc(formatDateTime(c.subscription_starts_at))}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Renewal Date</span><span class="detail-v">${esc(formatDateTime(c.subscription_renews_at))}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Status</span><span class="detail-v">${getCustomerLifecycleBadge(c,onboard)}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Voxera Nummer</span><span class="detail-v">${esc(c.voxera_number||c.voxera||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Adresse</span><span class="detail-v">${esc([c.street,c.zip,c.city,c.country].filter(Boolean).join(', ')||'—')}</span></div></div>
@@ -4697,13 +4701,15 @@ async function requireAdminSessionOrRedirect(){
 
 // ─── Supabase → state mappers ──────────────────────────────────────────────
 
-function mapDbCustomerToUi(dbRow, dbOnboarding) {
+function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
   // dbOnboarding is the joined row from the onboarding table (may be null)
   const contactFirstName = String(dbRow.contact_first_name || '').trim();
   const contactLastName  = String(dbRow.contact_last_name  || '').trim();
   const contactName      = [contactFirstName, contactLastName].filter(Boolean).join(' ')
                            || String(dbRow.contact_name || '').trim();
   const obProgress = dbOnboarding ? Number(dbOnboarding.progress ?? 0) : 0;
+  const billingCycle = String(dbSubscription?.billing_cycle || '').trim().toLowerCase();
+  const billingCycleLabel = billingCycle === 'yearly' ? 'Jährlich' : billingCycle === 'monthly' ? 'Monatlich' : '—';
   return {
     // Core identity (DB column names kept so existing helpers work)
     id:               String(dbRow.id),
@@ -4758,6 +4764,12 @@ function mapDbCustomerToUi(dbRow, dbOnboarding) {
     // AI config fields (needed for AI basics configured auto-detection)
     ai_business_description: dbRow.ai_business_description || null,
     ai_instructions: dbRow.ai_instructions || null,
+    subscription_plan_code: dbSubscription?.plan_code || dbRow.plan || null,
+    subscription_billing_cycle: billingCycle || null,
+    subscription_billing_cycle_label: billingCycleLabel,
+    subscription_status: dbSubscription?.subscription_status || 'inactive',
+    subscription_starts_at: dbSubscription?.starts_at || null,
+    subscription_renews_at: dbSubscription?.renews_at || null
   };
 }
 
@@ -4910,26 +4922,38 @@ async function loadDataFromSupabase() {
       .limit(500);
     if (caseErr) console.warn('[DB] cases load failed:', caseErr.message);
 
-    // 5. Build a map from customer_id → onboarding row for O(1) joins
+    // 5. Load subscriptions and build customer_id → subscription map
+    const { data: subscriptionRows, error: subscriptionErr } = await authClient
+      .from('subscriptions')
+      .select('*');
+    if (subscriptionErr) console.warn('[DB] subscriptions load failed:', subscriptionErr.message);
+    const subscriptionMap = {};
+    (subscriptionRows || []).forEach(s => { subscriptionMap[String(s.customer_id)] = s; });
+
+    // 6. Build a map from customer_id → onboarding row for O(1) joins
     const obMap = {};
     (onboardingRows || []).forEach(o => { obMap[String(o.customer_id)] = o; });
 
-    // 6. Map DB rows → UI-compatible objects and write into state
+    // 7. Map DB rows → UI-compatible objects and write into state
     state.customers = (customers || []).map(dbC =>
-      mapDbCustomerToUi(dbC, obMap[String(dbC.id)] || null)
+      mapDbCustomerToUi(
+        dbC,
+        obMap[String(dbC.id)] || null,
+        subscriptionMap[String(dbC.id)] || null
+      )
     );
     state.onboarding = (onboardingRows || []).map(mapDbOnboardingToState);
     state.calls      = (callRows  || []).map(mapDbCallToUi);
     state.cases      = (caseRows  || []).map(mapDbCaseToUi);
 
-    // 7. Populate openCases count on each customer from real cases data
+    // 8. Populate openCases count on each customer from real cases data
     state.customers.forEach(c => {
       c.openCases = state.cases.filter(cs =>
         idsEq(cs.customerId, c.id) && normalizeCaseStatus(cs.status)!==CASE_STATUS.DONE
       ).length;
     });
 
-    // 8. Load contracts
+    // 9. Load contracts
     const { data: contractRows, error: contractErr } = await authClient
       .from('contracts')
       .select('*')
@@ -4937,7 +4961,7 @@ async function loadDataFromSupabase() {
     if (contractErr) console.warn('[DB] contracts load failed:', contractErr.message);
     state.contracts = (contractRows || []).map(mapDbContractToUi);
 
-    // 9. Seed events from recent calls + cases for activity feed
+    // 10. Seed events from recent calls + cases for activity feed
     const recentEvents = [];
     state.calls.slice(0, 10).forEach(call => {
       const cust = customerById(call.customerId);
