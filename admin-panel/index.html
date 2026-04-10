@@ -3444,10 +3444,11 @@ function openCustomerProfile(id){
   state.selectedCustomer=id;
   setTimeout(()=>renderProfileMinutes(id), 50);
   const onboard=onboardingForCustomer(id);
+  const snapshot=deriveOnboardingSnapshot(id);
   const setupProgress=getCustomerSetupProgress(c,onboard);
   const lifecycleStatus=getCustomerLifecycleStatus(c,onboard);
   const actionState=getCustomerQuickActionState(c,onboard);
-  const missingSteps=state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
+  const missingSteps=snapshot?.missingSteps||state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
 
   // Header
   document.getElementById('profile-title').textContent=c.name||c.customer_name||'Kunde';
@@ -3725,6 +3726,17 @@ function hasCustomerAiBasicsConfigured(customer){
   return !!businessDescription;
 }
 
+function hasCustomerCalls(customer){
+  if(!customer) return false;
+  const customerIdCandidates=[customer.id,customer.customer_id]
+    .map(v=>String(v||'').trim())
+    .filter(Boolean);
+  if(!customerIdCandidates.length) return false;
+  return state.calls.some(call=>
+    customerIdCandidates.some(candidate=>idsEq(call.customerId,candidate))
+  );
+}
+
 function deriveOnboardingSnapshot(customerId){
   const customer=customerById(customerId);
   if(!customer) return null;
@@ -3737,6 +3749,7 @@ function deriveOnboardingSnapshot(customerId){
   if(voxeraNum&&voxeraNum!=='Zuweisung offen') doneSet.add('Voxera number assigned');
   if(hasCustomerAiBasicsConfigured(customer)) doneSet.add('AI basics configured');
   if(customer.forwarding_setup_completed===true) doneSet.add('forwarding configured');
+  if(hasCustomerCalls(customer)) doneSet.add('test call completed');
 
   const inviteStatus=String(customer.invite_status||'').toLowerCase();
   if(['sent','invited','activated','live'].includes(inviteStatus)) doneSet.add('activation sent');
