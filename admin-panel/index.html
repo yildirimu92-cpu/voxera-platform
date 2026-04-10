@@ -2769,7 +2769,11 @@ function buildCustomerAiSummary(cfg){
   ].filter(Boolean).join('\n');
   addSection('Eskalation und Grenzen', escalationAndLimits);
 
-  return sections.join('\n\n').trim() || null;
+  if(sections.length===0){
+    return '## AI Summary\nKeine AI-Konfigurationsdetails hinterlegt.';
+  }
+
+  return sections.join('\n\n').trim();
 }
 
 function renderAiSetup(){
@@ -2935,8 +2939,9 @@ async function saveCustomerAiConfig(){
   cfg.fallbackEscalation=document.getElementById('ai-fallback-escalation').value.trim();
   cfg.responseConstraints=document.getElementById('ai-response-constraints').value.trim();
   cfg.internalNotes=document.getElementById('ai-internal-notes').value.trim();
+  console.log('[AI Summary] building...');
   cfg.summary=buildCustomerAiSummary(cfg);
-  console.log('[AI Summary] generated for customer', id, ':', cfg.summary);
+  console.log('[AI Summary] result:', cfg.summary);
   cfg.custom=Boolean(
     cfg.businessDescription||
     cfg.services||
@@ -2956,6 +2961,7 @@ async function saveCustomerAiConfig(){
   if(authClient){
     if(btn){btn.disabled=true;btn.textContent='Speichern…';}
     try{
+      console.log('[AI Summary] saving to DB...');
       const patch={
         ai_business_description: cfg.businessDescription||null,
         ai_services: cfg.services||null,
@@ -2970,7 +2976,7 @@ async function saveCustomerAiConfig(){
       };
       const {error}=await authClient.from('customers').update(patch).eq('id',id);
       if(error) throw error;
-      console.log('[AI Summary] saved to DB for customer', id, ':', cfg.summary);
+      console.log('[AI Summary] saved successfully');
       // Update local state
       const c=customerById(id);
       if(c){
