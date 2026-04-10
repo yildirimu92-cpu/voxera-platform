@@ -363,6 +363,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .kpi-grid{grid-template-columns:repeat(2,1fr);}
   .toolbar{grid-template-columns:1fr 1fr;}
   .grid-2,.grid-3,.detail-grid{grid-template-columns:1fr;}
+  .billing-kpi-grid{grid-template-columns:repeat(2,1fr)!important;}
 }
 @media (max-width:920px){
   .sidebar{
@@ -497,6 +498,11 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
   /* ─── AI workspace ─── */
   #ai-workspace .textarea{font-size:13px;}
+
+  /* ─── Billing ─── */
+  .billing-kpi-grid{grid-template-columns:repeat(2,1fr)!important;}
+  #section-billing [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+  #billing-kpi-grid [style*="grid-template-columns"]{grid-template-columns:repeat(2,1fr)!important;}
 }
 @media (max-width:480px){
   .topbar{padding:10px 12px;}
@@ -662,6 +668,11 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <a href="#contracts" class="nav-item" data-route="contracts">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 2h6l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M9 2v4h4M5 8h6M5 10.5h4"/></svg>
         Verträge
+      </a>
+      <div class="nav-section">Finance</div>
+      <a href="#billing" class="nav-item" data-route="billing">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="4" width="14" height="9" rx="1.5"/><path d="M1 7h14M5 10.5h2M10 10.5h1"/></svg>
+        Billing &amp; Finance
       </a>
     </nav>
     <div class="sidebar-footer">
@@ -1019,6 +1030,113 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             </thead>
             <tbody id="contracts-table-body"></tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- BILLING & FINANCE -->
+      <section id="section-billing" class="section">
+        <!-- A. Header -->
+        <div class="section-head" style="margin-bottom:20px;">
+          <div>
+            <h2 style="font-size:20px;font-weight:800;letter-spacing:-.04em;color:var(--ink);">Billing &amp; Finance</h2>
+            <p style="font-size:12.5px;color:var(--slate2);margin-top:4px;font-weight:400;">Finanzübersicht, Setup-Gebühren und Zahlungsstatus aller Kunden.</p>
+          </div>
+          <button class="btn btn-quiet btn-sm" onclick="renderBilling()" title="Daten aktualisieren">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 8a6 6 0 1 0 1-3.5"/><path d="M2 2v4h4"/></svg>
+            Aktualisieren
+          </button>
+        </div>
+
+        <!-- B. KPI Grid -->
+        <div class="billing-kpi-grid" id="billing-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;"></div>
+
+        <!-- C. Handlungsbedarf / Arbeitsliste -->
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head">
+            <h3>Handlungsbedarf Billing</h3>
+            <span class="badge badge-red" id="billing-action-badge" style="display:none;">0</span>
+          </div>
+          <div id="billing-action-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
+        <!-- D. Rechnungsübersicht -->
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head">
+            <h3>Billing-Übersicht</h3>
+            <span class="badge badge-gray">Setup Fees &amp; Subscriptions</span>
+          </div>
+          <!-- Filter row -->
+          <div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-bottom:12px;align-items:center;">
+            <input class="input" id="billing-search" placeholder="Kunde suchen …" style="height:34px;font-size:12.5px;" oninput="renderBillingTable()">
+            <select class="select" id="billing-status-filter" style="height:34px;font-size:12.5px;" onchange="renderBillingTable()">
+              <option value="all">Alle Status</option>
+              <option value="none">Zahlung offen</option>
+              <option value="pending">Link gesendet</option>
+              <option value="paid">Bezahlt</option>
+            </select>
+            <select class="select" id="billing-plan-filter" style="height:34px;font-size:12.5px;" onchange="renderBillingTable()">
+              <option value="all">Alle Pläne</option>
+            </select>
+            <button class="btn btn-quiet btn-sm" onclick="resetBillingFilters()">Reset</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Kunde</th>
+                  <th>Plan</th>
+                  <th>Billing Cycle</th>
+                  <th>Setup Fee</th>
+                  <th>Zahlungsstatus</th>
+                  <th>Link gesendet</th>
+                  <th>Bezahlt am</th>
+                  <th>Abo-Status</th>
+                  <th>Aktionen</th>
+                </tr>
+              </thead>
+              <tbody id="billing-table-body"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:8px;font-size:11.5px;color:var(--slate2);padding:0 2px;" id="billing-table-footer"></div>
+        </div>
+
+        <!-- E. Umsatz & Marge -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+          <!-- Revenue summary -->
+          <div class="card">
+            <div class="card-head">
+              <h3>Umsatz-Übersicht</h3>
+              <span class="badge badge-blue">Aus Kundendaten</span>
+            </div>
+            <div id="billing-revenue-summary"></div>
+          </div>
+          <!-- Margin V1 estimate -->
+          <div class="card">
+            <div class="card-head">
+              <h3>Marge V1</h3>
+              <span class="badge badge-amber">V1-Schätzung</span>
+            </div>
+            <div style="font-size:11px;color:var(--amber);background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:6px;padding:8px 10px;margin-bottom:12px;">
+              ⚠ V1-Näherung: Kosten basieren auf hinterlegten Planpreisen × 62% als konservativer Kostensatz. Keine echten Einkaufspreise.
+            </div>
+            <div id="billing-margin-summary"></div>
+          </div>
+        </div>
+
+        <!-- Plan-Aufschlüsselung -->
+        <div class="card">
+          <div class="card-head">
+            <h3>Plan-Aufschlüsselung</h3>
+            <span class="badge badge-gray">Aktive Kunden</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Plan</th><th>Kunden</th><th>Setup Fees offen</th><th>Setup Fees bezahlt</th><th>MRR (Schätzung)</th><th>Margin V1</th></tr>
+              </thead>
+              <tbody id="billing-plan-breakdown"></tbody>
+            </table>
+          </div>
         </div>
       </section>
     </div>
@@ -1662,7 +1780,7 @@ function secsToMins(secs) {
   return Math.round((secs || 0) / 60);
 }
 
-const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','settings','contracts'];
+const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','settings','contracts','billing'];
 const routeMeta={
   'overview':['Übersicht','Operatives Cockpit für den täglichen Betrieb.'],
   'customers':['Kunden','Kundenstamm mit Setup-, Aktivitäts- und Case-Kontrolle.'],
@@ -1672,7 +1790,8 @@ const routeMeta={
   'activity':['Aktivität','Cross-Customer Echtzeit-Transparenz.'],
   'insights':['Insights','Planverteilung, Trends und Pattern.'],
   'settings':['Einstellungen','Adminverwaltung, Flags und Systemdefaults.'],
-  'contracts':['Verträge','Serviceverträge mit Kunden verwalten.']
+  'contracts':['Verträge','Serviceverträge mit Kunden verwalten.'],
+  'billing':['Billing & Finance','Zahlungsstatus, Setup-Gebühren, MRR und Margen-Übersicht.']
 };
 
 function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
@@ -2912,6 +3031,293 @@ function generateContractText(data) {
     '',
     '═══════════════════════════════════════════════════════════',
   ].join('\n');
+}
+
+// ─── Billing & Finance ────────────────────────────────────────────────────
+
+function formatChf(amount) {
+  const num = Number(amount) || 0;
+  return 'CHF ' + num.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function billingCustomers() {
+  return state.customers.filter(c => getCustomerLifecycleStatus(c, onboardingForCustomer(c.id)) !== 'deleted');
+}
+
+function computeBillingKpis() {
+  const customers = billingCustomers();
+  let setupOpen = 0, setupOpenChf = 0;
+  let setupPaid = 0, setupPaidChf = 0;
+  let setupPending = 0, setupPendingChf = 0;
+  let activeSubs = 0, mrrChf = 0;
+  let accessBlocked = 0;
+
+  customers.forEach(c => {
+    const pStatus = normalizePaymentStatus(c.payment_status);
+    const fee = Number(c.setup_fee_amount) || 0;
+    const planPrice = Number(PLAN_PRICES[normalizePlanCode(c.plan_code || c.plan)] || 0);
+    const subStatus = String(c.subscription_status || '').toLowerCase();
+    const custStatus = String(c.status || '').toLowerCase();
+    const isActive = custStatus === 'live' || custStatus === 'activated' || subStatus === 'active';
+
+    if (pStatus === 'paid') {
+      setupPaid++;
+      if (fee > 0) setupPaidChf += fee;
+    } else if (pStatus === 'pending') {
+      setupPending++;
+      if (fee > 0) setupPendingChf += fee;
+      setupOpen++;
+      setupOpenChf += fee;
+    } else {
+      setupOpen++;
+      setupOpenChf += fee;
+    }
+
+    if (isActive) {
+      activeSubs++;
+      mrrChf += planPrice;
+    }
+
+    if (pStatus !== 'paid' && (custStatus === 'onboarding' || custStatus === 'ready' || custStatus === 'invited')) {
+      accessBlocked++;
+    }
+  });
+
+  return { setupOpen, setupOpenChf, setupPaid, setupPaidChf, setupPending, setupPendingChf, activeSubs, mrrChf, accessBlocked, total: customers.length };
+}
+
+function renderBillingKpis() {
+  const el = document.getElementById('billing-kpi-grid');
+  if (!el) return;
+  const kpi = computeBillingKpis();
+  const items = [
+    { label: 'Setup Fees offen', value: kpi.setupOpen, sub: formatChf(kpi.setupOpenChf), accent: kpi.setupOpen > 0 ? 'var(--red)' : 'var(--ink)' },
+    { label: 'Link gesendet', value: kpi.setupPending, sub: formatChf(kpi.setupPendingChf), accent: kpi.setupPending > 0 ? 'var(--amber)' : 'var(--ink)' },
+    { label: 'Setup Fees bezahlt', value: kpi.setupPaid, sub: formatChf(kpi.setupPaidChf), accent: 'var(--green)' },
+    { label: 'Aktive Subscriptions', value: kpi.activeSubs, sub: 'MRR ' + formatChf(kpi.mrrChf), accent: 'var(--blue)' },
+    { label: 'MRR (gesamt)', value: formatChf(kpi.mrrChf), sub: kpi.activeSubs + ' aktive Kunden', accent: 'var(--blue)', isText: true },
+    { label: 'Zugang blockiert', value: kpi.accessBlocked, sub: 'wegen offener Zahlung', accent: kpi.accessBlocked > 0 ? 'var(--red)' : 'var(--ink)' },
+    { label: 'Offener Betrag', value: formatChf(kpi.setupOpenChf), sub: kpi.setupOpen + ' Kunden', accent: kpi.setupOpenChf > 0 ? 'var(--red)' : 'var(--ink)', isText: true },
+    { label: 'Kunden gesamt', value: kpi.total, sub: 'in Billing-Übersicht', accent: 'var(--ink)' }
+  ];
+  el.innerHTML = items.map(item => `
+    <div class="kpi" style="background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow-card);cursor:default;transition:all var(--transition-fast);" onmouseover="this.style.borderColor='var(--blue-mid)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.borderColor='var(--line)';this.style.boxShadow='var(--shadow-card)'">
+      <div class="kpi-label" style="font-size:11px;color:var(--slate2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">${esc(item.label)}</div>
+      <div style="font-size:${item.isText ? '20px' : '28px'};font-weight:800;line-height:1;letter-spacing:-.02em;color:${item.accent};">${item.isText ? item.value : esc(String(item.value))}</div>
+      <div style="font-size:11px;color:var(--slate2);margin-top:8px;">${esc(item.sub)}</div>
+    </div>`).join('');
+}
+
+function renderBillingActionList() {
+  const el = document.getElementById('billing-action-list');
+  const badge = document.getElementById('billing-action-badge');
+  if (!el) return;
+  const customers = billingCustomers();
+  const items = [];
+
+  customers.forEach(c => {
+    const pStatus = normalizePaymentStatus(c.payment_status);
+    const fee = Number(c.setup_fee_amount) || 0;
+    const custStatus = String(c.status || '').toLowerCase();
+
+    if (pStatus === 'none' && fee > 0) {
+      items.push({ customer: c, type: 'fee_open', label: `Setup Fee offen – ${formatChf(fee)}`, action: 'Zahlungslink senden', tone: 'red' });
+    } else if (pStatus === 'pending') {
+      items.push({ customer: c, type: 'fee_pending', label: `Zahlungslink gesendet – ${formatChf(fee || 0)} – Eingang ausstehend`, action: 'Zahlung bestätigen', tone: 'amber' });
+    }
+
+    if (pStatus !== 'paid' && (custStatus === 'invited' || custStatus === 'ready')) {
+      items.push({ customer: c, type: 'blocked', label: 'Zugang blockiert – Setup Fee nicht bezahlt', action: 'Profil öffnen', tone: 'red' });
+    }
+  });
+
+  if (badge) {
+    if (items.length > 0) { badge.textContent = items.length; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+  }
+
+  if (!items.length) {
+    el.innerHTML = '<div style="padding:24px;text-align:center;font-size:13px;color:var(--slate2);">Kein Handlungsbedarf – alles aktuell.</div>';
+    return;
+  }
+
+  el.innerHTML = items.map(item => {
+    const badgeCls = item.tone === 'red' ? 'badge-red' : item.tone === 'amber' ? 'badge-amber' : 'badge-gray';
+    const actionFn = `closeCustomerProfile();setRoute('customers');openCustomerProfile('${jsStr(item.customer.id)}')`;
+    return `<div class="list-item" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;">
+      <div>
+        <div class="list-main" style="font-size:13px;">${esc(item.customer.name || item.customer.customer_name || '—')}</div>
+        <div class="list-sub" style="margin-top:3px;">${esc(item.label)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span class="badge ${badgeCls}">${esc(item.tone === 'red' ? 'Dringend' : 'Ausstehend')}</span>
+        <button class="btn btn-secondary btn-sm" onclick="${actionFn}">${esc(item.action)}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderBillingTable() {
+  const tbody = document.getElementById('billing-table-body');
+  const footer = document.getElementById('billing-table-footer');
+  if (!tbody) return;
+
+  const search = (document.getElementById('billing-search')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('billing-status-filter')?.value || 'all';
+  const planFilter = document.getElementById('billing-plan-filter')?.value || 'all';
+
+  let customers = billingCustomers();
+
+  if (search) customers = customers.filter(c => (c.name || c.customer_name || '').toLowerCase().includes(search) || (c.email || '').toLowerCase().includes(search));
+  if (statusFilter !== 'all') customers = customers.filter(c => normalizePaymentStatus(c.payment_status) === statusFilter);
+  if (planFilter !== 'all') customers = customers.filter(c => normalizePlanCode(c.plan_code || c.plan) === planFilter);
+
+  if (!customers.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty">Keine Kunden gefunden.</div></td></tr>';
+    if (footer) footer.textContent = '';
+    return;
+  }
+
+  tbody.innerHTML = customers.map(c => {
+    const pStatus = normalizePaymentStatus(c.payment_status);
+    const fee = Number(c.setup_fee_amount) || 0;
+    const billingCycleLabel = c.subscription_billing_cycle_label || '—';
+    const subStatus = String(c.subscription_status || 'inactive');
+    const subBadge = subStatus === 'active' ? '<span class="badge badge-green">Aktiv</span>' : subStatus === 'inactive' ? '<span class="badge badge-gray">Inaktiv</span>' : `<span class="badge badge-gray">${esc(subStatus)}</span>`;
+    const openProfile = `setRoute('customers');openCustomerProfile('${jsStr(c.id)}')`;
+    return `<tr>
+      <td><strong style="cursor:pointer;color:var(--blue);" onclick="${openProfile}">${esc(c.name || c.customer_name || '—')}</strong><div style="font-size:11px;color:var(--slate2);">${esc(c.email || '')}</div></td>
+      <td>${esc(planLabel(c.plan_code || c.plan))}</td>
+      <td>${esc(billingCycleLabel)}</td>
+      <td style="font-weight:600;">${fee > 0 ? formatChf(fee) : '—'}</td>
+      <td>${paymentStatusBadge(c.payment_status)}</td>
+      <td style="font-size:11.5px;color:var(--slate2);">${c.payment_sent_at ? formatDateDE(String(c.payment_sent_at).slice(0, 10)) : '—'}</td>
+      <td style="font-size:11.5px;color:${pStatus === 'paid' ? 'var(--green)' : 'var(--slate2)'};">${c.payment_received_at ? formatDateDE(String(c.payment_received_at).slice(0, 10)) : '—'}</td>
+      <td>${subBadge}</td>
+      <td>
+        <button class="btn btn-quiet btn-sm" onclick="${openProfile}">Profil</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  if (footer) footer.textContent = `${customers.length} Eintrag${customers.length !== 1 ? 'e' : ''} angezeigt`;
+}
+
+function renderBillingRevenueSummary() {
+  const el = document.getElementById('billing-revenue-summary');
+  if (!el) return;
+  const customers = billingCustomers();
+  let totalSetupFeeOpen = 0, totalSetupFeePaid = 0, totalMrr = 0, totalCustomers = customers.length;
+
+  customers.forEach(c => {
+    const pStatus = normalizePaymentStatus(c.payment_status);
+    const fee = Number(c.setup_fee_amount) || 0;
+    const planPrice = Number(PLAN_PRICES[normalizePlanCode(c.plan_code || c.plan)] || 0);
+    const custStatus = String(c.status || '').toLowerCase();
+    const subStatus = String(c.subscription_status || '').toLowerCase();
+    if (pStatus === 'paid') totalSetupFeePaid += fee;
+    else totalSetupFeeOpen += fee;
+    if (custStatus === 'live' || custStatus === 'activated' || subStatus === 'active') totalMrr += planPrice;
+  });
+
+  const rows = [
+    ['Setup Fees bezahlt', formatChf(totalSetupFeePaid), 'var(--green)'],
+    ['Setup Fees offen', formatChf(totalSetupFeeOpen), totalSetupFeeOpen > 0 ? 'var(--red)' : 'var(--ink)'],
+    ['MRR (Schätzung aktive Subs)', formatChf(totalMrr), 'var(--blue)'],
+    ['ARR (Schätzung)', formatChf(totalMrr * 12), 'var(--ink)'],
+    ['Kunden mit Abo', customers.filter(c => { const s = String(c.status || '').toLowerCase(); return s === 'live' || s === 'activated'; }).length + ' von ' + totalCustomers, 'var(--ink)']
+  ];
+  el.innerHTML = rows.map(([k, v, col]) => `<div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v" style="color:${col};font-weight:700;">${v}</span></div>`).join('');
+}
+
+function renderBillingMarginSummary() {
+  const el = document.getElementById('billing-margin-summary');
+  if (!el) return;
+  const customers = billingCustomers();
+  // V1: conservative cost rate = 62% of monthly price
+  const COST_RATE_V1 = 0.62;
+  let totalRevenue = 0, totalCostV1 = 0;
+  customers.forEach(c => {
+    const planPrice = Number(PLAN_PRICES[normalizePlanCode(c.plan_code || c.plan)] || 0);
+    const custStatus = String(c.status || '').toLowerCase();
+    const subStatus = String(c.subscription_status || '').toLowerCase();
+    if (custStatus === 'live' || custStatus === 'activated' || subStatus === 'active') {
+      totalRevenue += planPrice;
+      totalCostV1 += planPrice * COST_RATE_V1;
+    }
+  });
+  const marginChf = totalRevenue - totalCostV1;
+  const marginPct = totalRevenue > 0 ? Math.round((marginChf / totalRevenue) * 100) : 0;
+  const marginColor = marginPct >= 30 ? 'var(--green)' : marginPct >= 15 ? 'var(--amber)' : 'var(--red)';
+
+  const rows = [
+    ['MRR-Umsatz', formatChf(totalRevenue), 'var(--ink)'],
+    ['Kosten V1 (62%)', formatChf(totalCostV1), 'var(--slate)'],
+    ['Deckungsbeitrag V1', formatChf(marginChf), marginColor],
+    ['Marge V1', marginPct + '%', marginColor]
+  ];
+  el.innerHTML = rows.map(([k, v, col]) => `<div class="detail-item"><span class="detail-k">${k}</span><span class="detail-v" style="color:${col};font-weight:700;">${v}</span></div>`).join('');
+}
+
+function renderBillingPlanBreakdown() {
+  const tbody = document.getElementById('billing-plan-breakdown');
+  if (!tbody) return;
+  const customers = billingCustomers();
+  const planCodes = [...new Set(customers.map(c => normalizePlanCode(c.plan_code || c.plan)).filter(Boolean))];
+  const COST_RATE_V1 = 0.62;
+
+  if (!planCodes.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty">Keine Plandaten.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = planCodes.map(code => {
+    const group = customers.filter(c => normalizePlanCode(c.plan_code || c.plan) === code);
+    const openFees = group.filter(c => normalizePaymentStatus(c.payment_status) !== 'paid');
+    const paidFees = group.filter(c => normalizePaymentStatus(c.payment_status) === 'paid');
+    const openChf = openFees.reduce((s, c) => s + (Number(c.setup_fee_amount) || 0), 0);
+    const paidChf = paidFees.reduce((s, c) => s + (Number(c.setup_fee_amount) || 0), 0);
+    const planPrice = Number(PLAN_PRICES[code] || 0);
+    const activeCount = group.filter(c => { const s = String(c.status || '').toLowerCase(); return s === 'live' || s === 'activated'; }).length;
+    const mrr = activeCount * planPrice;
+    const marginChf = mrr - mrr * COST_RATE_V1;
+    const marginPct = mrr > 0 ? Math.round((marginChf / mrr) * 100) : 0;
+    const marginColor = marginPct >= 30 ? 'var(--green)' : marginPct >= 15 ? 'var(--amber)' : 'var(--red)';
+    return `<tr>
+      <td><strong>${esc(planLabel(code))}</strong></td>
+      <td>${group.length}</td>
+      <td style="color:${openChf > 0 ? 'var(--red)' : 'var(--ink)'};">${openFees.length} (${formatChf(openChf)})</td>
+      <td style="color:var(--green);">${paidFees.length} (${formatChf(paidChf)})</td>
+      <td style="font-weight:600;color:var(--blue);">${formatChf(mrr)}</td>
+      <td style="font-weight:600;color:${marginColor};">${formatChf(marginChf)} (${marginPct}%) <span style="font-size:10px;font-weight:400;color:var(--amber);">V1</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderBillingPlanFilter() {
+  const sel = document.getElementById('billing-plan-filter');
+  if (!sel) return;
+  const plans = [...new Set(billingCustomers().map(c => normalizePlanCode(c.plan_code || c.plan)).filter(Boolean))];
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">Alle Pläne</option>' + plans.map(code => `<option value="${esc(code)}">${esc(planLabel(code))}</option>`).join('');
+  if (current && plans.includes(current)) sel.value = current;
+}
+
+function resetBillingFilters() {
+  const s = document.getElementById('billing-search'); if (s) s.value = '';
+  const sf = document.getElementById('billing-status-filter'); if (sf) sf.value = 'all';
+  const pf = document.getElementById('billing-plan-filter'); if (pf) pf.value = 'all';
+  renderBillingTable();
+}
+
+function renderBilling() {
+  renderBillingKpis();
+  renderBillingActionList();
+  renderBillingPlanFilter();
+  renderBillingTable();
+  renderBillingRevenueSummary();
+  renderBillingMarginSummary();
+  renderBillingPlanBreakdown();
 }
 
 function renderContracts() {
@@ -5115,6 +5521,7 @@ async function init() {
   renderInsights();
   renderSettings();
   renderContracts();
+  renderBilling();
   document.body.classList.remove('app-booting');
 }
 
