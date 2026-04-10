@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS public.customers (
   invite_status text NOT NULL DEFAULT 'not_sent',
   welcome_sent boolean NOT NULL DEFAULT false,
   welcome_sent_at timestamptz,
+  payment_status text NOT NULL DEFAULT 'none',
+  setup_fee_amount numeric(10,2),
+  payment_link text,
+  payment_sent_at timestamptz,
+  payment_received_at timestamptz,
   forwarding_setup_completed boolean NOT NULL DEFAULT false,
   start_date date,
 
@@ -64,6 +69,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
   -- ✅ sicher: check values are set by existing migrations
   CONSTRAINT customers_status_check CHECK (status IN ('onboarding', 'ready', 'invited', 'activated', 'live', 'paused', 'deleted')),
   CONSTRAINT customers_invite_status_check CHECK (invite_status IN ('not_sent', 'sent', 'activated')),
+  CONSTRAINT customers_payment_status_check CHECK (payment_status IN ('none', 'pending', 'paid')),
   CONSTRAINT customers_notification_mode_check CHECK (notification_mode IN ('none', 'callback_only', 'all_calls'))
 );
 
