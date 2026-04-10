@@ -3141,6 +3141,11 @@ function validateAccessGuard(context) {
   }
   const rawStatus = String(context.customerRecord.status || '').trim().toLowerCase();
   const normalizedStatus = rawStatus === 'active' ? 'live' : rawStatus;
+  const paymentStatus = String(context.customerRecord.payment_status || 'none').trim().toLowerCase();
+
+  if (paymentStatus !== 'paid') {
+    return { valid: false, reason: 'Zahlungsstatus nicht freigeschaltet (payment_status: ' + (paymentStatus || 'none') + ')' };
+  }
 
   // Erlaubte Status: live, activated, invited, ready, onboarding
   // (Kunden können sich einloggen sobald sie Zugang erhalten haben)

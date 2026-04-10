@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { evaluateCustomerEntitlement } = require('./customer-entitlement');
 
 function parseBearerToken(headers) {
   const authHeader = headers.authorization || headers.Authorization || '';
@@ -29,10 +30,30 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin }) {
   if (userError) return fail(500, 'User lookup failed', userError.message);
   if (!userRow || !userRow.customer_id) return fail(403, 'Customer context missing');
 
+  const customerId = String(userRow.customer_id);
+  const { data: customerRow, error: customerError } = await sbAdmin
+    .from('customers')
+    .select('id, status, payment_status')
+    .eq('id', customerId)
+    .maybeSingle();
+
+  if (customerError) return fail(500, 'Customer lookup failed', customerError.message);
+  if (!customerRow) return fail(403, 'Customer record missing');
+
+  const entitlement = evaluateCustomerEntitlement(customerRow);
+  if (!entitlement.entitled) {
+    return fail(403, 'Customer entitlement denied', {
+      reason: entitlement.code,
+      message: entitlement.message,
+      customer_status: entitlement.customer_status,
+      payment_status: entitlement.payment_status
+    });
+  }
+
   return {
     ok: true,
     userId,
-    customerId: String(userRow.customer_id)
+    customerId
   };
 }
 
