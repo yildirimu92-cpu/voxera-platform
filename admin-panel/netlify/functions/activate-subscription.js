@@ -66,9 +66,8 @@ exports.handler = async (event) => {
   catch (e) { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ungueltiger Request Body' }) }; }
 
   const { customer_id, plan, billing_cycle, start_date } = body;
-  const planCode = normalizePlanCode(plan);
-  if (!customer_id || !planCode || !billing_cycle || !start_date) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Pflichtfelder fehlen: customer_id, plan, billing_cycle, start_date' }) };
+  if (!customer_id || !billing_cycle || !start_date) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Pflichtfelder fehlen: customer_id, billing_cycle, start_date' }) };
   }
 
   try {
@@ -81,6 +80,10 @@ exports.handler = async (event) => {
     if (custErr || !customer) throw new Error('Kunde nicht gefunden');
 
     const currentStatus = normalizeCustomerStatus(customer.status);
+    const planCode = normalizePlanCode(plan || customer.plan_code || customer.plan);
+    if (!planCode) {
+      throw new Error('Aktivierung blockiert: Kein gültiger Plan (plan_code/plan) vorhanden.');
+    }
     const paymentStatus = String(customer.payment_status || 'none').trim().toLowerCase();
     if (paymentStatus !== 'paid') throw new Error('Aktivierung blockiert: Setup Fee ist nicht als bezahlt markiert.');
 

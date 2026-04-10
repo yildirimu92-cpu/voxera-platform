@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 const { STATUS, normalizeCustomerStatus, normalizeOnboardingStatus } = require('./_lib/status-model');
+const { normalizePlanCode } = require('./_lib/plan-config');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,12 +37,13 @@ function addMonths(date, months) {
 }
 
 async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordReset = false }) {
+  const customerPlanCode = normalizePlanCode(customer.plan_code || customer.plan || '');
   const eventType = isPasswordReset ? 'customer_password_reset_email' : 'customer_welcome_access_email';
   const payload = {
     customer_id: customer.id,
     customer_name: customer.customer_name,
     customer_email: customer.email,
-    plan: customer.plan || null,
+    plan: customerPlanCode || null,
     voxera_number: customer.voxera_number || null,
     dashboard_url: process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch',
     activation_link_present: Boolean(activationLink),
@@ -90,7 +92,7 @@ async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordRes
         customer_name: customer.customer_name,
         email: customer.email,
         activation_link: activationLink,
-        plan: customer.plan,
+        plan: customerPlanCode || null,
         voxera_number: customer.voxera_number || null,
         customer_id: customer.id,
         dashboard_url: process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch',
@@ -240,6 +242,7 @@ exports.handler = async (event) => {
   // ─── Pflichtfelder prüfen (für send_access + reset_password) ─────────────
   const missingFields = REQUIRED_FIELDS.filter(f => {
     if (f === 'customer_name') return !String(customer.customer_name || customer.name || '').trim();
+    if (f === 'plan') return !normalizePlanCode(customer.plan_code || customer.plan || '');
     return !String(customer[f] || '').trim();
   });
 
