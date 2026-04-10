@@ -966,11 +966,15 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           </div>
           <div style="font-size:12px;color:var(--slate);margin-bottom:14px;">Preise und Inklusivminuten werden sofort im Kunden-Dashboard übernommen.</div>
           <div id="plan-config-table" style="display:flex;flex-direction:column;gap:0;">
-            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:0;padding:8px 12px;background:var(--line2);border-radius:var(--r) var(--r) 0 0;">
+            <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1.3fr 1.4fr 1.4fr;gap:8px;padding:8px 12px;background:var(--line2);border-radius:var(--r) var(--r) 0 0;align-items:center;">
               <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Plan</span>
-              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Preis (CHF/Mt)</span>
+              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Preis Mt.</span>
+              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Preis Jahr</span>
+              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Setup Fee</span>
               <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Min. inkl.</span>
               <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Zusatz/Min.</span>
+              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Setup-Link</span>
+              <span style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;">Headline / Features</span>
             </div>
             <div id="plan-config-rows"></div>
           </div>
@@ -1099,11 +1103,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         </div>
         <div>
           <label class="muted" style="font-size:11px;font-weight:600;">Plan *</label>
-          <select id="edit-customer-plan" class="select" required style="height:38px;">
-            <option value="Kein Plan">Kein Plan</option>
-            <option value="Starter">Starter</option>
-            <option value="Business">Business</option>
-            <option value="Pro">Pro</option>
+          <select id="edit-customer-plan" class="select" required style="height:38px;" data-plan-select="all">
           </select>
         </div>
         <div>
@@ -1199,12 +1199,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         </div>
         <div>
           <label class="muted" style="font-size:11px;font-weight:600;">Plan *</label>
-          <select id="create-customer-plan" class="select" required style="height:38px;">
+          <select id="create-customer-plan" class="select" required style="height:38px;" data-plan-select="sales">
             <option value="">Bitte wählen …</option>
-            <option value="Kein Plan">Kein Plan</option>
-            <option value="Starter">Starter</option>
-            <option value="Business">Business</option>
-            <option value="Pro">Pro</option>
           </select>
           <div class="form-error" data-error-for="plan"></div>
         </div>
@@ -1410,11 +1406,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         </div>
         <div>
           <label class="muted">Plan</label>
-          <select class="select" id="wiz-plan" style="height:38px;" onchange="wizardUpdatePreview()">
-            <option value="Kein Plan">Kein Plan</option>
-            <option value="Starter">Starter (CHF 149 / 120 Min)</option>
-            <option value="Business">Business (CHF 379 / 300 Min)</option>
-            <option value="Pro">Pro (CHF 579 / 600 Min)</option>
+          <select class="select" id="wiz-plan" style="height:38px;" onchange="wizardUpdatePreview()" data-plan-select="all">
           </select>
         </div>
         <div>
@@ -1622,21 +1614,37 @@ const state={
 };
 
 
-// Inklusivminuten pro Plan (monatlich)
-const PLAN_MINUTES = {
-  'Kein Plan': 0,
-  'Starter': 120,
-  'Business': 300,
-  'Pro': 600
-};
-const PLAN_PRICES = {
-  'Kein Plan': 0,
-  'Starter': 149,
-  'Business': 379,
-  'Pro': 579
-};
-function getPlanMinutes(plan) {
-  return PLAN_MINUTES[plan] || 0;
+// Plandaten werden aus public.plan_config geladen.
+const PLAN_MINUTES = {};
+const PLAN_PRICES = {};
+const SALES_PLAN_CODES = ['starter','business','professional'];
+
+function normalizePlanCode(raw){
+  const key=String(raw||'').trim().toLowerCase().replace(/\s+/g,'_');
+  if(!key) return '';
+  if(key==='pro') return 'professional';
+  if(key==='kein_plan'||key==='kein-plan'||key==='kein_plan') return 'kein_plan';
+  if(key==='kein'||key==='no_plan'||key==='noplan') return 'kein_plan';
+  return key;
+}
+function isSalesPlanCode(code){ return SALES_PLAN_CODES.includes(normalizePlanCode(code)); }
+function planConfigByCode(code){
+  const normalized=normalizePlanCode(code);
+  return _planConfigData.find(p=>normalizePlanCode(p.id)===normalized)||null;
+}
+function planLabel(code){
+  const pc=planConfigByCode(code);
+  if(pc) return pc.name||pc.id;
+  const normalized=normalizePlanCode(code);
+  if(normalized==='kein_plan') return 'Kein Plan';
+  if(normalized==='professional') return 'Professional';
+  if(normalized==='starter') return 'Starter';
+  if(normalized==='business') return 'Business';
+  return code||'—';
+}
+function getPlanMinutes(planCode) {
+  const normalized=normalizePlanCode(planCode);
+  return Number(PLAN_MINUTES[normalized]||0);
 }
 function secsToMins(secs) {
   return Math.round((secs || 0) / 60);
@@ -2676,7 +2684,7 @@ function mapDbContractToUi(dbRow) {
     id:               String(dbRow.id),
     customerId:       String(dbRow.customer_id || ''),
     customerName:     dbRow.customer_name || '',
-    plan:             dbRow.plan || 'Kein Plan',
+    plan:             normalizePlanCode(dbRow.plan || 'kein_plan'),
     months:           Number(dbRow.months || 0),
     startDate:        dbRow.start_date || '',
     endDate:          dbRow.end_date || '',
@@ -2697,8 +2705,8 @@ function resolveNoticeLabel(val) {
 }
 
 function generateContractText(data) {
-  const plan = data.plan || 'Kein Plan';
-  const planKey = ['Starter','Business','Pro'].includes(plan) ? plan : 'Kein Plan';
+  const plan = normalizePlanCode(data.plan||'kein_plan');
+  const planKey = plan || 'kein_plan';
   const basePrice = PLAN_PRICES[planKey] || 0;
   const planMinutes = PLAN_MINUTES[planKey] || 0;
   const discount = Number(data.discount) || 0;
@@ -2726,7 +2734,7 @@ function generateContractText(data) {
     'Voxera stellt dem Auftraggeber einen KI-Telefonassistenten',
     'zur Verfügung gemäss folgendem Abonnementplan:',
     '',
-    '  Plan:              ' + (planKey === 'Kein Plan' ? 'Kein Plan' : planKey),
+    '  Plan:              ' + planLabel(planKey),
     '  Inklusivminuten:   ' + planMinutes + ' Min./Monat',
     '  Zusatzminuten:     CHF 0.75 / Minute',
     '',
@@ -2996,7 +3004,7 @@ function wizardUpdatePreview() {
 function wizardGetData() {
   var custId = (document.getElementById('wiz-customer') || {}).value || '';
   var cust   = customerById(custId);
-  var plan   = (document.getElementById('wiz-plan')   || {}).value || 'Kein Plan';
+  var plan   = normalizePlanCode((document.getElementById('wiz-plan')   || {}).value || 'kein_plan');
   var months = parseInt((document.getElementById('wiz-months') || {}).value || '12', 10);
   var startDate = (document.getElementById('wiz-start-date') || {}).value || '';
   var discount  = Math.max(0, Math.min(50, parseInt((document.getElementById('wiz-discount') || {}).value || '0', 10)));
@@ -3031,7 +3039,7 @@ function wizardStep(step) {
   if (step === 3) {
     // Populate legal notice spans
     var d3 = wizardGetData();
-    var planKey3 = ['Starter','Business','Pro'].includes(d3.plan) ? d3.plan : 'Kein Plan';
+    var planKey3 = normalizePlanCode(d3.plan||'kein_plan');
     var basePrice3 = PLAN_PRICES[planKey3] || 0;
     var discount3 = Number(d3.discount) || 0;
     var finalPrice3 = Math.round((basePrice3 - basePrice3 * discount3 / 100) * 100) / 100;
@@ -3373,7 +3381,7 @@ function openCustomerProfile(id){
 
   // Header
   document.getElementById('profile-title').textContent=c.name||c.customer_name||'Kunde';
-  document.getElementById('profile-sub').textContent=`${c.plan||'—'} · ${getCustomerLifecycleStatusLabel(c,onboard)}`;
+  document.getElementById('profile-sub').textContent=`${planLabel(c.plan_code||c.plan)} · ${getCustomerLifecycleStatusLabel(c,onboard)}`;
 
   // ─── TAB: ÜBERSICHT ──────────────────────────────────────
   const uebersicht=document.getElementById('profile-uebersicht-content');
@@ -3383,7 +3391,7 @@ function openCustomerProfile(id){
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Kontakt</span><span class="detail-v">${esc(contactDisplay(c))}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">E-Mail</span><span class="detail-v">${esc(c.email||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Telefon</span><span class="detail-v">${esc(c.tel_nr||'—')}</span></div></div>
-      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Plan</span><span class="detail-v">${esc(c.plan||'—')}</span></div></div>
+      <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Plan</span><span class="detail-v">${esc(planLabel(c.plan_code||c.plan))}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Billing Cycle</span><span class="detail-v">${esc(c.subscription_billing_cycle_label||'—')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Subscription Status</span><span class="detail-v">${esc(c.subscription_status||'inactive')}</span></div></div>
       <div class="card" style="padding:14px 16px;"><div class="detail-item" style="border:none;"><span class="detail-k">Subscription Start</span><span class="detail-v">${esc(formatDateTime(c.subscription_starts_at))}</span></div></div>
@@ -3404,7 +3412,7 @@ function openCustomerProfile(id){
       const calls=state.calls.filter(call=>idsEq(call.customerId,c.id));
       const totalSecs=calls.reduce((sum,call)=>sum+(Number(call.duration_seconds)||0),0);
       const used=Math.round(totalSecs/60);
-      const incl=({'Kein Plan':0,'Starter':120,'Business':300,'Pro':600})[c.plan]||0;
+      const incl=getPlanMinutes(c.plan_code||c.plan)||0;
       const pct=incl>0?Math.min(100,Math.round((used/incl)*100)):0;
       const barColor=pct>=90?'#DC2626':pct>=70?'#D97706':'#059669';
       const over=incl>0&&used>incl;
@@ -3415,7 +3423,7 @@ function openCustomerProfile(id){
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);">
           <span style="color:${over?'var(--red)':'inherit'};font-weight:${over?'600':'400'}">${used} Min. verbraucht</span>
-          <span>${incl} Min. inklusive (${esc(c.plan||'—')})</span>
+          <span>${incl} Min. inklusive (${esc(planLabel(c.plan_code||c.plan))})</span>
         </div>
         <div style="font-size:11px;color:var(--slate2);margin-top:4px;">${calls.length} Anruf${calls.length!==1?'e':''} erfasst</div>
       </div>`;
@@ -3907,37 +3915,28 @@ async function sendPasswordReset(customerId){
 async function sendBillingPaymentLink(customerId){
   const customer=customerById(customerId);
   if(!customer) return;
-  const existingLink=String(customer.payment_link||'').trim();
-  const paymentLink=window.prompt('Payment-Link einfügen (http/https):',existingLink||'');
-  if(paymentLink===null) return;
-  const cleanLink=String(paymentLink||'').trim();
-  if(!cleanLink){
-    alert('Payment-Link ist erforderlich.');
+  const planCode=normalizePlanCode(customer.plan_code||customer.plan);
+  if(!isSalesPlanCode(planCode)){
+    alert('Für diesen internen Plan wird kein Setup-Fee-Link gesendet.');
     return;
   }
 
-  const existingAmount=customer.setup_fee_amount!=null?String(customer.setup_fee_amount):'';
-  const amountInput=window.prompt('Setup Fee Betrag (optional, nur Zahl):',existingAmount);
-  if(amountInput===null) return;
-  const amountRaw=String(amountInput||'').trim();
-
-  const payload={ customer_id:customerId, action:'send_payment_link', payment_link:cleanLink };
-  if(amountRaw!=='') payload.setup_fee_amount=amountRaw;
-
   try{
-    const json=await callAdminFunction('customer-billing-update',payload);
+    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_payment_link'});
     if(!json?.success||!json?.customer) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
     const updated=json.customer;
+    customer.plan_code=normalizePlanCode(updated.plan_code||updated.plan||customer.plan_code);
+    customer.plan=normalizePlanCode(updated.plan||updated.plan_code||customer.plan);
     customer.payment_status=normalizePaymentStatus(updated.payment_status);
     customer.payment_link=updated.payment_link||null;
     customer.setup_fee_amount=updated.setup_fee_amount??null;
     customer.payment_sent_at=updated.payment_sent_at||null;
     customer.payment_received_at=updated.payment_received_at||null;
-    customer.latest=`${nowStamp()} · Zahlungslink gesendet`;
-    state.events.unshift(`${nowStamp()} · ${customer.name}: Zahlungslink hinterlegt/gesendet`);
+    customer.latest=`${nowStamp()} · Setup Fee Link gesendet`;
+    state.events.unshift(`${nowStamp()} · ${customer.name}: Setup Fee Link aus plan_config gesendet`);
     renderCustomers(); renderOverview(); renderActivity(); updateBadges();
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    showToast('✓ Zahlungslink gespeichert und auf „pending“ gesetzt.');
+    showToast('✓ Setup Fee Link gesendet (Status: pending).');
   }catch(err){
     const payload=err?.payload||{};
     alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
@@ -4013,7 +4012,7 @@ function openEditCustomerModal(id){
   document.getElementById('edit-customer-first-name').value=c.contact_first_name||'';
   document.getElementById('edit-customer-last-name').value=c.contact_last_name||'';
   document.getElementById('edit-customer-phone').value=c.tel_nr||'';
-  document.getElementById('edit-customer-plan').value=c.plan||'Kein Plan';
+  document.getElementById('edit-customer-plan').value=normalizePlanCode(c.plan_code||c.plan)||'kein_plan';
   document.getElementById('edit-customer-voxera').value=c.voxera_number||c.voxera||'';
   document.getElementById('edit-customer-status').value=c.status||'onboarding';
   document.getElementById('edit-customer-street').value=c.street||'';
@@ -4038,13 +4037,29 @@ async function submitEditCustomer(e){
   btn.disabled=true; btn.textContent='Speichern…';
   fb.className='modal-feedback'; fb.textContent='';
 
+  const selectedPlanCode=normalizePlanCode(document.getElementById('edit-customer-plan').value);
+  const currentPlanCode=normalizePlanCode(c.plan_code||c.plan);
+  const planChanged=selectedPlanCode!==currentPlanCode;
+  const planCfg=planConfigByCode(selectedPlanCode);
+  if(!selectedPlanCode){
+    fb.className='modal-feedback error'; fb.style.display='block';
+    fb.textContent='Ungültiger Plan.';
+    btn.disabled=false; btn.textContent='Speichern';
+    return;
+  }
   const payload={
     customer_name:document.getElementById('edit-customer-name').value.trim(),
     email:document.getElementById('edit-customer-email').value.trim(),
     contact_first_name:document.getElementById('edit-customer-first-name').value.trim()||null,
     contact_last_name:document.getElementById('edit-customer-last-name').value.trim()||null,
     tel_nr:document.getElementById('edit-customer-phone').value.trim(),
-    plan:document.getElementById('edit-customer-plan').value,
+    plan:selectedPlanCode,
+    plan_code:selectedPlanCode,
+    setup_fee_amount:planCfg?.setup_fee_amount??null,
+    payment_link:planCfg?.setup_fee_payment_link||null,
+    payment_status:planChanged?'none':normalizePaymentStatus(c.payment_status),
+    payment_sent_at:planChanged?null:(c.payment_sent_at||null),
+    payment_received_at:planChanged?null:(c.payment_received_at||null),
     voxera_number:document.getElementById('edit-customer-voxera').value.trim()||null,
     status:document.getElementById('edit-customer-status').value,
     street:document.getElementById('edit-customer-street').value.trim(),
@@ -4066,8 +4081,10 @@ async function submitEditCustomer(e){
       name:payload.customer_name, customer_name:payload.customer_name,
       email:payload.email, tel_nr:payload.tel_nr,
       contact_first_name:payload.contact_first_name, contact_last_name:payload.contact_last_name,
-      plan:payload.plan, voxera_number:payload.voxera_number, voxera:payload.voxera_number,
+      plan_code:payload.plan_code, plan:payload.plan, voxera_number:payload.voxera_number, voxera:payload.voxera_number,
       status:payload.status, street:payload.street, zip:payload.zip,
+      setup_fee_amount:payload.setup_fee_amount, payment_link:payload.payment_link,
+      payment_status:payload.payment_status, payment_sent_at:payload.payment_sent_at, payment_received_at:payload.payment_received_at,
       city:payload.city, country:payload.country, start_date:payload.start_date
     });
 
@@ -4087,8 +4104,7 @@ async function submitEditCustomer(e){
 
 
 // ─── Plan minutes helper ──────────────────────────────────────────────────────
-const ADMIN_PLAN_MINUTES = {'Kein Plan':0,'Starter':120,'Business':300,'Pro':600};
-function getPlanMins(plan){ return ADMIN_PLAN_MINUTES[plan]||0; }
+function getPlanMins(plan){ return getPlanMinutes(plan); }
 function secsToMins(s){ return Math.round((Number(s)||0)/60); }
 
 function renderProfileMinutes(customerId){
@@ -4108,7 +4124,7 @@ function renderProfileMinutes(customerId){
   if(badge) badge.textContent = `${pct}% ausgelastet`;
   if(bar){ bar.style.width = pct+'%'; bar.style.background = barColor; }
   if(usedEl) usedEl.textContent = `${used} Min. verbraucht${over?' (ÜBERZUG)':''}`;
-  if(inclEl) inclEl.textContent = `${incl} Min. inklusive (${c.plan||'—'})`;
+  if(inclEl) inclEl.textContent = `${incl} Min. inklusive (${planLabel(c.plan_code||c.plan)})`;
 }
 
 function showToast(msg,duration=3000){
@@ -4274,7 +4290,7 @@ function collectCreateCustomerPayload(){
     contact_last_name:document.getElementById('create-customer-contact-last-name').value.trim(),
     email:document.getElementById('create-customer-email').value.trim(),
     tel_nr:document.getElementById('create-customer-phone').value.trim(),
-    plan:document.getElementById('create-customer-plan').value.trim(),
+    plan:normalizePlanCode(document.getElementById('create-customer-plan').value.trim()),
     voxera_number:document.getElementById('create-customer-voxera-number').value.trim(),
     street:document.getElementById('create-customer-street').value.trim(),
     zip:document.getElementById('create-customer-zip').value.trim(),
@@ -4339,7 +4355,8 @@ async function submitCreateCustomer(event){
       email:dbCustomer.email||payload.email,
       tel_nr:dbCustomer.tel_nr||payload.tel_nr,
       phone:dbCustomer.tel_nr||payload.tel_nr,
-      plan:dbCustomer.plan||payload.plan,
+      plan_code:normalizePlanCode(dbCustomer.plan_code||dbCustomer.plan||payload.plan),
+      plan:normalizePlanCode(dbCustomer.plan||dbCustomer.plan_code||payload.plan),
       street:dbCustomer.street||payload.street,
       zip:dbCustomer.zip||payload.zip,
       city:dbCustomer.city||payload.city,
@@ -4718,7 +4735,8 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
     email:            dbRow.email,
     tel_nr:           dbRow.tel_nr,
     phone:            dbRow.tel_nr,
-    plan:             dbRow.plan,
+    plan_code:        normalizePlanCode(dbRow.plan_code || dbSubscription?.plan_code || dbRow.plan),
+    plan:             normalizePlanCode(dbRow.plan_code || dbSubscription?.plan_code || dbRow.plan),
     street:           dbRow.street,
     zip:              dbRow.zip,
     city:             dbRow.city,
@@ -4764,7 +4782,7 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
     // AI config fields (needed for AI basics configured auto-detection)
     ai_business_description: dbRow.ai_business_description || null,
     ai_instructions: dbRow.ai_instructions || null,
-    subscription_plan_code: dbSubscription?.plan_code || dbRow.plan || null,
+    subscription_plan_code: normalizePlanCode(dbSubscription?.plan_code || dbRow.plan_code || dbRow.plan || null),
     subscription_billing_cycle: billingCycle || null,
     subscription_billing_cycle_label: billingCycleLabel,
     subscription_status: dbSubscription?.subscription_status || 'inactive',
@@ -5175,22 +5193,54 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ─── Plan Configuration ───────────────────────────────────────────────────────
 var _planConfigData = [];
 
+function parseFeaturesInput(raw){
+  const lines=String(raw||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  return lines;
+}
+
+function planConfigRows(mode='all'){
+  if(mode==='sales') return _planConfigData.filter(p=>isSalesPlanCode(p.id));
+  return _planConfigData;
+}
+
+function renderPlanSelects(){
+  const selects=document.querySelectorAll('select[data-plan-select]');
+  selects.forEach(sel=>{
+    const mode=sel.dataset.planSelect||'all';
+    const current=normalizePlanCode(sel.value||sel.dataset.currentValue||'');
+    const includePlaceholder=sel.id==='create-customer-plan';
+    const plans=planConfigRows(mode);
+    let html='';
+    if(includePlaceholder) html+='<option value="">Bitte wählen …</option>';
+    plans.forEach(plan=>{
+      const code=normalizePlanCode(plan.id);
+      const label=plan.name||plan.id;
+      html+=`<option value="${esc(code)}">${esc(label)}</option>`;
+    });
+    sel.innerHTML=html;
+    if(current && plans.some(p=>normalizePlanCode(p.id)===current)) sel.value=current;
+    else if(!includePlaceholder && plans[0]) sel.value=normalizePlanCode(plans[0].id);
+  });
+}
+
 async function loadPlanConfig() {
   if (!authClient) return;
   try {
     const { data, error } = await authClient
       .from('plan_config')
       .select('*')
-      .eq('active', true)
-      .order('sort_order');
+      .order('sort_order', { ascending: true });
     if (error || !data) return;
-    _planConfigData = data;
-    // Update local PLAN_PRICES and PLAN_MINUTES
-    data.forEach(function(p) {
-      PLAN_PRICES[p.name] = p.monthly_price;
-      PLAN_MINUTES[p.name] = p.minutes;
+    _planConfigData = data.map(p=>({ ...p, id: normalizePlanCode(p.id) }));
+
+    Object.keys(PLAN_PRICES).forEach(k=>delete PLAN_PRICES[k]);
+    Object.keys(PLAN_MINUTES).forEach(k=>delete PLAN_MINUTES[k]);
+    _planConfigData.forEach(function(p) {
+      PLAN_PRICES[normalizePlanCode(p.id)] = Number(p.monthly_price || 0);
+      PLAN_MINUTES[normalizePlanCode(p.id)] = Number(p.minutes || 0);
     });
     renderPlanConfigRows();
+    renderPlanSelects();
   } catch(e) {
     console.warn('[plan-config] load failed', e);
   }
@@ -5199,12 +5249,28 @@ async function loadPlanConfig() {
 function renderPlanConfigRows() {
   const el = document.getElementById('plan-config-rows');
   if (!el) return;
-  el.innerHTML = _planConfigData.map(function(p, i) {
-    return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:0;padding:10px 12px;border-bottom:0.5px solid var(--line);align-items:center;" data-plan-id="${esc(p.id)}">
-      <span style="font-size:13px;font-weight:600;color:var(--ink);">${esc(p.name)}</span>
-      <input type="number" class="input" style="height:32px;max-width:100px;" value="${p.monthly_price}" data-field="monthly_price" min="0" step="1">
-      <input type="number" class="input" style="height:32px;max-width:100px;" value="${p.minutes}" data-field="minutes" min="0" step="10">
-      <input type="number" class="input" style="height:32px;max-width:100px;" value="${p.extra_rate}" data-field="extra_rate" min="0" step="0.05">
+  const rows=_planConfigData.filter(p=>normalizePlanCode(p.id)!=='pro');
+  el.innerHTML = rows.map(function(p) {
+    const features=Array.isArray(p.features)?p.features:(typeof p.features==='string'?(()=>{try{return JSON.parse(p.features);}catch(_){return [];}})():[]);
+    return `<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1.3fr 1.4fr 1.4fr;gap:8px;padding:10px 12px;border-bottom:0.5px solid var(--line);align-items:start;" data-plan-id="${esc(p.id)}">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink);">${esc(planLabel(p.id))}</div>
+        <div style="margin-top:6px;"><label style="font-size:11px;color:var(--slate);display:flex;gap:6px;align-items:center;"><input type="checkbox" data-field="active" ${p.active?'checked':''}> Aktiv</label></div>
+        <div style="margin-top:6px;"><input type="number" class="input" style="height:30px;max-width:80px;" value="${Number(p.sort_order||0)}" data-field="sort_order" step="1"></div>
+      </div>
+      <input type="number" class="input" style="height:32px;" value="${Number(p.monthly_price||0)}" data-field="monthly_price" min="0" step="1">
+      <input type="number" class="input" style="height:32px;" value="${Number(p.yearly_price||0)}" data-field="yearly_price" min="0" step="1">
+      <input type="number" class="input" style="height:32px;" value="${Number(p.setup_fee_amount||0)}" data-field="setup_fee_amount" min="0" step="1">
+      <input type="number" class="input" style="height:32px;" value="${Number(p.minutes||0)}" data-field="minutes" min="0" step="10">
+      <div>
+        <input type="number" class="input" style="height:32px;" value="${Number(p.extra_rate||0)}" data-field="extra_rate" min="0" step="0.05">
+        <input class="input" style="margin-top:6px;height:32px;" value="${esc(p.short_description||'')}" data-field="short_description" placeholder="Kurzbeschreibung">
+      </div>
+      <input class="input" style="height:32px;" value="${esc(p.setup_fee_payment_link||'')}" data-field="setup_fee_payment_link" placeholder="https://...">
+      <div>
+        <input class="input" style="height:32px;" value="${esc(p.headline||'')}" data-field="headline" placeholder="Headline">
+        <textarea class="textarea" style="margin-top:6px;min-height:70px;" data-field="features" placeholder="Ein Feature pro Zeile">${esc(features.join('\n'))}</textarea>
+      </div>
     </div>`;
   }).join('');
 }
@@ -5213,31 +5279,31 @@ async function savePlanConfig() {
   const rows = document.querySelectorAll('#plan-config-rows [data-plan-id]');
   const fb = document.getElementById('plan-config-feedback');
   if (!rows.length) return;
-  const updates = [];
-  rows.forEach(function(row) {
-    const id = row.dataset.planId;
-    const price = Number(row.querySelector('[data-field="monthly_price"]').value);
-    const mins = Number(row.querySelector('[data-field="minutes"]').value);
-    const rate = Number(row.querySelector('[data-field="extra_rate"]').value);
-    updates.push({ id, monthly_price: price, minutes: mins, extra_rate: rate, updated_at: new Date().toISOString() });
-  });
   try {
-    for (const u of updates) {
-      const { error } = await authClient.from('plan_config').update({
-        monthly_price: u.monthly_price,
-        minutes: u.minutes,
-        extra_rate: u.extra_rate,
-        updated_at: u.updated_at
-      }).eq('id', u.id);
+    for (const row of rows) {
+      const id = normalizePlanCode(row.dataset.planId);
+      const patch={
+        monthly_price: Number(row.querySelector('[data-field="monthly_price"]').value||0),
+        yearly_price: Number(row.querySelector('[data-field="yearly_price"]').value||0),
+        setup_fee_amount: Number(row.querySelector('[data-field="setup_fee_amount"]').value||0),
+        setup_fee_payment_link: String(row.querySelector('[data-field="setup_fee_payment_link"]').value||'').trim()||null,
+        headline: String(row.querySelector('[data-field="headline"]').value||'').trim()||null,
+        short_description: String(row.querySelector('[data-field="short_description"]').value||'').trim()||null,
+        features: parseFeaturesInput(row.querySelector('[data-field="features"]').value),
+        minutes: Number(row.querySelector('[data-field="minutes"]').value||0),
+        extra_rate: Number(row.querySelector('[data-field="extra_rate"]').value||0),
+        active: row.querySelector('[data-field="active"]').checked,
+        sort_order: Number(row.querySelector('[data-field="sort_order"]').value||0),
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await authClient.from('plan_config').update(patch).eq('id',id);
       if (error) throw error;
-      // Update local state
-      const p = _planConfigData.find(x => x.id === u.id);
-      if (p) { p.monthly_price = u.monthly_price; p.minutes = u.minutes; p.extra_rate = u.extra_rate; }
-      PLAN_PRICES[u.id] = u.monthly_price;
-      PLAN_MINUTES[u.id] = u.minutes;
+      const local=_planConfigData.find(x=>normalizePlanCode(x.id)===id);
+      if(local) Object.assign(local,patch);
     }
     if (fb) { fb.style.color='var(--green)'; fb.textContent='Gespeichert.'; setTimeout(()=>fb.textContent='',3000); }
     showToast('Plan-Konfiguration gespeichert.');
+    renderPlanSelects();
   } catch(e) {
     if (fb) { fb.style.color='var(--red)'; fb.textContent='Fehler: '+(e.message||e); }
   }

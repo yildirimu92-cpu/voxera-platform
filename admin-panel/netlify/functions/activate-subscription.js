@@ -21,6 +21,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { STATUS, normalizeCustomerStatus, assertCustomerTransition } = require('./_lib/status-model');
 const { requireAdminCaller } = require('./_lib/require-admin');
+const { normalizePlanCode } = require('./_lib/plan-config');
 
 function addMonths(date, months) {
   const d = new Date(date);
@@ -65,7 +66,8 @@ exports.handler = async (event) => {
   catch (e) { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ungueltiger Request Body' }) }; }
 
   const { customer_id, plan, billing_cycle, start_date } = body;
-  if (!customer_id || !plan || !billing_cycle || !start_date) {
+  const planCode = normalizePlanCode(plan);
+  if (!customer_id || !planCode || !billing_cycle || !start_date) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Pflichtfelder fehlen: customer_id, plan, billing_cycle, start_date' }) };
   }
 
@@ -73,12 +75,15 @@ exports.handler = async (event) => {
     // 1. Verify customer exists and transition to live is allowed
     const { data: customer, error: custErr } = await sbAdmin
       .from('customers')
-      .select('id, status')
+.select('id, status, payment_status, plan_code, plan')
       .eq('id', customer_id)
       .single();
     if (custErr || !customer) throw new Error('Kunde nicht gefunden');
 
     const currentStatus = normalizeCustomerStatus(customer.status);
+    const paymentStatus = String(customer.payment_status || 'none').trim().toLowerCase();
+    if (paymentStatus !== 'paid') throw new Error('Aktivierung blockiert: Setup Fee ist nicht als bezahlt markiert.');
+
     if (currentStatus !== STATUS.customer.LIVE) {
       assertCustomerTransition(currentStatus, STATUS.customer.LIVE);
     }
@@ -97,8 +102,8 @@ exports.handler = async (event) => {
       .from('subscriptions')
       .upsert({
         customer_id,
-        plan_code: plan,
-        plan,
+        plan_code: planCode,
+        plan: planCode,
         billing_cycle,
         subscription_status: 'active',
         start_date,
