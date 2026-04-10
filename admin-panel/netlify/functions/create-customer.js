@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { randomUUID } = require('node:crypto');
 const { STATUS } = require('./_lib/status-model');
 const { requireAdminCaller } = require('./_lib/require-admin');
+const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -103,6 +104,19 @@ exports.handler = async (event) => {
     return response(400, { error: 'Pflichtfelder fehlen', missing_fields: missingFields });
   }
 
+  const planCode = normalizePlanCode(body.plan);
+  if (!planCode) {
+    return response(400, { error: 'plan ist ungültig.' });
+  }
+
+  const { plan: planConfig, error: planConfigError } = await loadPlanByCode(sbAdmin, planCode);
+  if (planConfigError) {
+    return response(500, { error: 'Plan-Konfiguration konnte nicht geladen werden.', details: planConfigError.message });
+  }
+  if (!planConfig) {
+    return response(400, { error: `Unbekannter plan_code: ${planCode}` });
+  }
+
   const email = String(body.email).trim().toLowerCase();
 
   // ─── Duplikat-Check in customers-Tabelle ─────────────────────────────────
@@ -168,7 +182,8 @@ exports.handler = async (event) => {
     customer_name: String(body.customer_name).trim(),
     email,
     tel_nr: String(body.tel_nr).trim(),
-    plan: String(body.plan).trim(),
+    plan: planCode,
+    plan_code: planCode,
     street: String(body.street).trim(),
     zip: String(body.zip).trim(),
     city: String(body.city).trim(),
@@ -180,6 +195,9 @@ exports.handler = async (event) => {
     voxera_number: body.voxera_number ? String(body.voxera_number).trim() : null,
     dashboard_id: body.dashboard_id  ? String(body.dashboard_id).trim()  : null,
     notes: body.notes ? String(body.notes).trim() : null,
+    setup_fee_amount: planConfig.setup_fee_amount ?? null,
+    payment_link: planConfig.setup_fee_payment_link || null,
+    payment_status: 'none',
     contact_first_name: contactFirstName,
     contact_last_name:  contactLastName,
     contact_name: contactName,
@@ -232,8 +250,8 @@ exports.handler = async (event) => {
 
   const subscriptionPayload = {
     customer_id: customerId,
-    plan_code: String(body.plan).trim(),
-    plan: String(body.plan).trim(),
+    plan: planCode,
+    plan_code: planCode,
     billing_cycle: billingCycle,
     subscription_status: 'inactive',
     status: 'paused',

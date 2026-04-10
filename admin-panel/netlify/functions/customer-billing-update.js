@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
+const { normalizePlanCode, loadPlanByCode, isSalesPlanCode } = require('./_lib/plan-config');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -51,27 +52,39 @@ exports.handler = async (event) => {
   const nextPatch = { updated_at: nowIso };
 
   if (action === 'send_payment_link') {
-    const paymentLink = String(body.payment_link || customer.payment_link || '').trim();
+    const planCode = normalizePlanCode(customer.plan_code || customer.plan);
+    if (!isSalesPlanCode(planCode)) {
+      return response(409, { error: 'Für diesen Plan kann kein Setup-Fee-Link gesendet werden.' });
+    }
+
+    const { plan: planConfig, error: planConfigError } = await loadPlanByCode(sbAdmin, planCode);
+    if (planConfigError) {
+      return response(500, { error: 'Plan-Konfiguration konnte nicht geladen werden.', details: planConfigError.message });
+    }
+    if (!planConfig) {
+      return response(400, { error: `plan_config für ${planCode} fehlt.` });
+    }
+
+    const paymentLink = String(planConfig.setup_fee_payment_link || '').trim();
     if (!paymentLink) {
-      return response(400, { error: 'payment_link fehlt. Bitte zuerst einen Zahlungslink hinterlegen.' });
+      return response(400, { error: 'setup_fee_payment_link fehlt in plan_config.' });
     }
-
     if (!/^https?:\/\//i.test(paymentLink)) {
-      return response(400, { error: 'payment_link muss mit http:// oder https:// beginnen.' });
+      return response(400, { error: 'setup_fee_payment_link muss mit http:// oder https:// beginnen.' });
     }
 
+    const setupFeeAmount = Number(planConfig.setup_fee_amount);
+    if (!Number.isFinite(setupFeeAmount) || setupFeeAmount < 0) {
+      return response(400, { error: 'setup_fee_amount in plan_config ist ungültig.' });
+    }
+
+    nextPatch.plan = planCode;
+    nextPatch.plan_code = planCode;
+    nextPatch.setup_fee_amount = setupFeeAmount;
     nextPatch.payment_link = paymentLink;
     nextPatch.payment_status = 'pending';
     nextPatch.payment_sent_at = nowIso;
     nextPatch.payment_received_at = null;
-
-    if (body.setup_fee_amount !== undefined && body.setup_fee_amount !== null && String(body.setup_fee_amount).trim() !== '') {
-      const amount = Number(body.setup_fee_amount);
-      if (!Number.isFinite(amount) || amount < 0) {
-        return response(400, { error: 'setup_fee_amount muss eine nicht-negative Zahl sein.' });
-      }
-      nextPatch.setup_fee_amount = amount;
-    }
   }
 
   if (action === 'mark_paid') {

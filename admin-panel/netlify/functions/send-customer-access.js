@@ -172,6 +172,14 @@ exports.handler = async (event) => {
 
   // ─── ACTION: mark_activated ───────────────────────────────────────────────
   if (action === 'mark_activated') {
+    const paymentStatus = String(customer.payment_status || 'none').trim().toLowerCase();
+    if (paymentStatus !== 'paid') {
+      return response(409, {
+        error: 'Aktivierung blockiert: Setup Fee ist nicht als bezahlt markiert.',
+        payment_status: paymentStatus
+      });
+    }
+
     const nowIso = new Date().toISOString();
     const { data: updatedCustomer, error: updateErr } = await sbAdmin
       .from('customers')
