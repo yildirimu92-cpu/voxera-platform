@@ -1758,7 +1758,7 @@ const state={
   aiSelectedCustomerId:null,
   aiChanges:[],  // populated by loadDataFromSupabase() in future
   events:[],  // populated by loadDataFromSupabase()
-  checklist:['customer created','Voxera number assigned','AI basics configured','activation sent','test call completed','live']
+  checklist:['customer created','Voxera number assigned','AI basics configured','activation sent','test call completed']
 };
 
 
@@ -2146,9 +2146,14 @@ const CHECKLIST_TO_BUSINESS_STEP={
   'AI basics configured':'AI-Basis konfigurieren',
   'activation sent':'Zugang senden',
   'dashboard access active':'Zugang aktiviert',
-  'test call completed':'Testanruf abschließen',
-  live:'Live-Betrieb freigeben'
+  'test call completed':'Testanruf abschließen'
 };
+const CHECKLIST_DISPLAY_LABELS={
+  'test call completed':'Voxera Live'
+};
+function checklistDisplayLabel(step){
+  return CHECKLIST_DISPLAY_LABELS[step]||step;
+}
 function deriveOperationalSetupStatus(snapshot){
   if(!snapshot) return {label:'offen',tone:'open'};
   if(snapshot.status===ONBOARDING_STATUS.COMPLETED) return {label:'erledigt',tone:'ready'};
@@ -2177,12 +2182,11 @@ function deriveOperationalNextStep(snapshot){
   if(!snapshot) return 'Kundendaten prüfen';
   if(String(snapshot.customer?.status||'').toLowerCase()==='live') return 'Live-Betrieb begleiten';
   if(!isPaymentPaid(snapshot.customer)) return 'Setup-Gebühr bestätigen';
-  if(snapshot.missingSet?.has('live')) return 'Live schalten';
   if(snapshot.isAccessReady) return 'Zugang senden';
   if(snapshot.missingSet?.has('Voxera number assigned')) return 'Rufnummer zuweisen';
   if(snapshot.missingSet?.has('AI basics configured')) return 'AI fertig einrichten';
   if(snapshot.missingSet?.has('activation sent')) return 'Zugang senden';
-  if(snapshot.missingSet?.has('test call completed')) return 'Testanruf abschließen';
+  if(snapshot.missingSet?.has('test call completed')) return 'Testanruf durchführen';
   const fallback=snapshot.nextStep||'Kundenfreigabe vorbereiten';
   return CHECKLIST_TO_BUSINESS_STEP[fallback]||fallback;
 }
@@ -2718,7 +2722,7 @@ function openOnboardingDetail(customerId,options={}){
       const action=isDone?'':getOnboardingStepAction(step,customerId);
       return `<div class="onboarding-checklist-item">
         <span aria-hidden="true" style="font-size:15px;line-height:1;color:${isDone?'#059669':'#9CA3AF'};">${isDone?'✔':'○'}</span>
-        <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(step)}</span>
+        <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(checklistDisplayLabel(step))}</span>
         ${action}
       </div>`;
     }).join('')}</div>`;
@@ -2743,16 +2747,16 @@ function renderOnboardingDetail(){
   detail.style.display='block';
   document.getElementById('onboarding-detail-badge').outerHTML=toneBadge(ONBOARDING_STATUS_LABELS[q.status]||q.status).replace('<span','<span id="onboarding-detail-badge"');
   document.getElementById('onboarding-detail-context').innerHTML=[
-    ['Customer',q.customer.name],['Plan',q.customer.plan],['Readiness',`${q.progress}%`],['Current Step',q.currentStep],['Next Step',q.nextStep],['Missing Steps',String(q.missingSteps.length)]
+    ['Customer',q.customer.name],['Plan',q.customer.plan],['Readiness',`${q.progress}%`],['Current Step',checklistDisplayLabel(q.currentStep)],['Next Step',checklistDisplayLabel(q.nextStep)],['Missing Steps',String(q.missingSteps.length)]
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
   const missingSet2=new Set(q.missingSteps||[]);
   document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(step=>{
     const done=!missingSet2.has(step);
     const blocking=ONBOARDING_BLOCKER_STEPS.includes(step)&&!done;
     const action=done?'':getOnboardingStepAction(step,id);
-    return `<div class="detail-item"><span class="detail-k">${esc(step)} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep('${jsStr(q.customer.id)}','${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
+    return `<div class="detail-item"><span class="detail-k">${esc(checklistDisplayLabel(step))} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep('${jsStr(q.customer.id)}','${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
   }).join('');
-  document.getElementById('onboarding-next-action').textContent=q.nextStep;
+  document.getElementById('onboarding-next-action').textContent=checklistDisplayLabel(q.nextStep);
   document.getElementById('onboarding-blocker').textContent=q.blocker||'Kein blocker aktiv';
   document.getElementById('onboarding-open-profile').onclick=()=>openCustomerProfile(q.customer.id);
 }
@@ -4037,7 +4041,7 @@ function openCustomerProfile(id){
       const stepAction=isDone?'':getOnboardingStepAction(step,id);
       return `<div class="list-item" style="opacity:${isDone?1:0.6};">
         <span style="margin-right:8px;">${isDone?svgDone:svgOpen}</span>
-        <div><div class="list-main" style="text-decoration:${isDone?'line-through':'none'}">${esc(step)}</div></div>
+        <div><div class="list-main" style="text-decoration:${isDone?'line-through':'none'}">${esc(checklistDisplayLabel(step))}</div></div>
         ${stepAction}
       </div>`;
     }).join('');
@@ -4047,7 +4051,7 @@ function openCustomerProfile(id){
         <div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0;">
           <div style="height:100%;width:${setupProgress}%;background:var(--blue);border-radius:4px;transition:width .3s;"></div>
         </div>
-        <div class="detail-item" style="border:none;margin-top:4px;"><span class="detail-k">Nächster Schritt</span><span class="detail-v">${esc(onboard?.next_step||onboard?.next||missingSteps[0]||'Abgeschlossen')}</span></div>
+        <div class="detail-item" style="border:none;margin-top:4px;"><span class="detail-k">Nächster Schritt</span><span class="detail-v">${esc(q.operationalNextStep||deriveOperationalNextStep(q.snapshot))}</span></div>
         ${onboard?.blocker?`<div class="detail-item" style="border:none;"><span class="detail-k">Blocker</span><span class="detail-v" style="color:var(--red);">${esc(onboard.blocker)}</span></div>`:''}
       </div>
       <div class="list">${checklistHtml}</div>`;
@@ -4214,8 +4218,6 @@ function deriveOnboardingSnapshot(customerId){
   const customerStatus=String(customer.status||'').toLowerCase();
   // Internal signal only: dashboard activation remains tracked, but is not part of the primary checklist order.
   if(['activated','live'].includes(customerStatus)) doneSet.add('dashboard access active');
-  if(customerStatus==='live') doneSet.add('live');
-
   const checklist=Array.isArray(state.checklist)?state.checklist:[];
   const missingSteps=checklist.filter(step=>!doneSet.has(step));
   const missingSet=new Set(missingSteps);
@@ -4224,8 +4226,8 @@ function deriveOnboardingSnapshot(customerId){
   const blockerStep=ONBOARDING_BLOCKER_STEPS.find(step=>missingSet.has(step));
 
   let status=ONBOARDING_STATUS.IN_PROGRESS;
-  if(missingSteps.length===0||doneSet.has('live')) status=ONBOARDING_STATUS.COMPLETED;
-  else if(doneSet.has('test call completed')&&doneSet.has('activation sent')&&missingSet.size===1&&missingSet.has('live')) status=ONBOARDING_STATUS.READY;
+  if(missingSteps.length===0) status=ONBOARDING_STATUS.COMPLETED;
+  else if(doneSet.has('activation sent')&&missingSet.size===1&&missingSet.has('test call completed')) status=ONBOARDING_STATUS.READY;
   else if(blockerStep) status=ONBOARDING_STATUS.BLOCKED;
 
   const validation=validateCustomerAccessData(customer);
@@ -4245,7 +4247,7 @@ function deriveOnboardingSnapshot(customerId){
     missingSteps,
     progress,
     currentStep:doneSteps.length?doneSteps[doneSteps.length-1]:'Noch nicht gestartet',
-    nextStep:missingSteps[0]||'live',
+    nextStep:missingSteps[0]||'completed',
     blockerStep,
     blocker:blockerStep?`Blockiert: ${CHECKLIST_TO_BUSINESS_STEP[blockerStep]||blockerStep}`:(onboarding.blocker||''),
     status,
@@ -5369,7 +5371,7 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
 function synthesizeOnboardingSteps(progress, customerStatus, inviteStatus, onboardingStatus, nextStep) {
   const ALL = [
     'customer created','Voxera number assigned','AI basics configured',
-    'activation sent','test call completed','live',
+    'activation sent','test call completed',
     'dashboard access active',
     'agent connected','business info completed','opening hours added','greeting reviewed'
   ];
