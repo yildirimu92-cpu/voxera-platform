@@ -523,9 +523,21 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .onboarding-queue-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
 .onboarding-queue-item-name{font-weight:600;font-size:14px;color:var(--ink);}
 .onboarding-queue-item-meta{font-size:12px;color:var(--slate);margin-top:2px;}
+.onboarding-queue-item-status-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.onboarding-substatus{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:600;}
+.onboarding-substatus-pay-open{background:var(--red-light);color:var(--red);}
+.onboarding-substatus-pay-pending{background:var(--amber-light);color:var(--amber);}
+.onboarding-substatus-pay-paid{background:var(--green-light);color:var(--green-dark);}
+.onboarding-substatus-setup-open{background:#F3F4F6;color:var(--slate2);}
+.onboarding-substatus-setup-active{background:var(--blue-soft);color:var(--blue);}
+.onboarding-substatus-setup-ready{background:var(--green-light);color:var(--green-dark);}
+.onboarding-queue-item-next{margin-top:6px;font-size:12px;color:var(--ink);font-weight:500;}
+.onboarding-queue-item-tech-hint{margin-top:8px;font-size:11px;color:var(--slate2);}
 .onboarding-detail-shell{position:sticky;top:8px;}
 .onboarding-active-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;}
 .onboarding-checklist-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line2);}
+.onboarding-checklist-wrap{border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 12px;margin-top:10px;}
+.onboarding-checklist-title{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--slate2);margin-bottom:6px;}
 @media (max-width:980px){
   .onboarding-layout{grid-template-columns:1fr;}
   .onboarding-detail-shell{position:static;}
@@ -1925,6 +1937,51 @@ function paymentStatusBadge(status){
 function isPaymentPaid(customer){
   return normalizePaymentStatus(customer?.payment_status)==='paid';
 }
+const CHECKLIST_TO_BUSINESS_STEP={
+  'customer created':'Kunde angelegt',
+  'Voxera number assigned':'Rufnummer hinterlegen',
+  'AI basics configured':'AI-Basis konfigurieren',
+  'activation sent':'Zugang senden',
+  'dashboard access active':'Zugang aktiviert',
+  'forwarding configured':'Weiterleitung einrichten',
+  'test call completed':'Ersten Anruf durchführen',
+  'ready for go-live':'Freigabe vorbereiten',
+  'fully completed':'Live setzen'
+};
+function deriveOperationalSetupStatus(snapshot){
+  if(!snapshot) return {label:'offen',tone:'open'};
+  if(snapshot.isAccessReady||snapshot.status===ONBOARDING_STATUS.READY||snapshot.status===ONBOARDING_STATUS.COMPLETED) return {label:'bereit',tone:'ready'};
+  if(snapshot.progress>0) return {label:'in Arbeit',tone:'active'};
+  return {label:'offen',tone:'open'};
+}
+function deriveOperationalPaymentStatus(customer){
+  const normalized=normalizePaymentStatus(customer?.payment_status);
+  if(normalized==='paid') return 'bezahlt';
+  if(normalized==='pending') return 'gesendet';
+  return 'offen';
+}
+function deriveOperationalStatus(snapshot){
+  if(!snapshot) return 'Neu';
+  const customerStatus=String(snapshot.customer?.status||'').toLowerCase();
+  if(customerStatus==='live') return 'Live';
+  if(snapshot.status===ONBOARDING_STATUS.BLOCKED) return 'Blockiert';
+  if(!isPaymentPaid(snapshot.customer)) return 'Wartet auf Zahlung';
+  if(snapshot.isAccessReady||snapshot.status===ONBOARDING_STATUS.READY) return 'Bereit für Freigabe';
+  if(snapshot.progress<=15) return 'Neu';
+  return 'Einrichtung läuft';
+}
+function deriveOperationalNextStep(snapshot){
+  if(!snapshot) return 'Kundendaten prüfen';
+  if(String(snapshot.customer?.status||'').toLowerCase()==='live') return 'Live-Betrieb begleiten';
+  if(!isPaymentPaid(snapshot.customer)) return 'Setup-Gebühr bestätigen';
+  if(snapshot.isAccessReady) return 'Zugang senden';
+  if(snapshot.missingSet?.has('test call completed')) return 'Ersten Anruf durchführen';
+  if(snapshot.missingSet?.has('AI basics configured')) return 'AI fertig einrichten';
+  if(snapshot.missingSet?.has('forwarding configured')) return 'Weiterleitung konfigurieren';
+  if(snapshot.missingSet?.has('Voxera number assigned')) return 'Rufnummer zuweisen';
+  const fallback=snapshot.nextStep||'Kundenfreigabe vorbereiten';
+  return CHECKLIST_TO_BUSINESS_STEP[fallback]||fallback;
+}
 function formatDateTime(value){
   if(!value) return '—';
   const d=new Date(value);
@@ -2141,8 +2198,11 @@ function renderOnboarding(){
 
   cardsEl.innerHTML=sorted.map(q=>{
     const statusColor=q.status===ONBOARDING_STATUS.COMPLETED?'var(--green)':q.status===ONBOARDING_STATUS.BLOCKED?'var(--red)':'var(--blue)';
-    const statusLabel=ONBOARDING_STATUS_LABELS[q.status]||q.status;
+    const statusLabel=q.operationalStatus||deriveOperationalStatus(q.snapshot);
+    const nextStepLabel=q.operationalNextStep||deriveOperationalNextStep(q.snapshot);
     const isActive=idsEq(state.onboardingSelectedCustomerId,q.customer.id);
+    const paymentTone=q.paymentStatus==='bezahlt'?'onboarding-substatus-pay-paid':q.paymentStatus==='gesendet'?'onboarding-substatus-pay-pending':'onboarding-substatus-pay-open';
+    const setupTone=q.setupStatus==='bereit'?'onboarding-substatus-setup-ready':q.setupStatus==='in Arbeit'?'onboarding-substatus-setup-active':'onboarding-substatus-setup-open';
     return `<button class="onboarding-queue-item ${isActive?'is-active':''}" onclick="openOnboardingDetail('${jsStr(q.customer.id)}')">
       <div class="onboarding-queue-item-head">
         <div style="flex:1;min-width:0;">
@@ -2151,6 +2211,11 @@ function renderOnboarding(){
         </div>
         <span style="font-size:12px;font-weight:600;color:${statusColor};">${esc(statusLabel)}</span>
       </div>
+      <div class="onboarding-queue-item-next">Nächster Schritt: ${esc(nextStepLabel)}</div>
+      <div class="onboarding-queue-item-status-row">
+        <span class="onboarding-substatus ${paymentTone}">Zahlung: ${esc(q.paymentStatus)}</span>
+        <span class="onboarding-substatus ${setupTone}">Einrichtung: ${esc(q.setupStatus)}</span>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
         <span style="font-size:12px;color:var(--slate2);">${q.progress}%</span>
         <div style="flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden;">
@@ -2158,7 +2223,7 @@ function renderOnboarding(){
         </div>
       </div>
       ${q.blocker?`<div style="margin-top:8px;font-size:12px;color:var(--red);font-weight:500;">! ${esc(q.blocker)}</div>`:''}
-      ${q.nextStep&&q.status!==ONBOARDING_STATUS.COMPLETED?`<div style="margin-top:4px;font-size:12px;color:var(--slate);">Nächster Schritt: ${esc(q.nextStep)}</div>`:''}
+      <div class="onboarding-queue-item-tech-hint">Technische Checks: ${Math.max(0,state.checklist.length-q.missingSteps.length)}/${state.checklist.length} erledigt</div>
     </button>`;
   }).join('')||'<div class="empty">Keine Kunden vorhanden.</div>';
 
@@ -2205,6 +2270,7 @@ function buildOnboardingQueueItem(customerId){
   }
   return {
     customer:snapshot.customer,
+    snapshot,
     owner:snapshot.owner,
     status:snapshot.status,
     progress:snapshot.progress,
@@ -2212,7 +2278,11 @@ function buildOnboardingQueueItem(customerId){
     nextStep:snapshot.nextStep,
     missingSteps:snapshot.missingSteps,
     blocker:snapshot.blocker,
-    latestUpdate:snapshot.latestUpdate
+    latestUpdate:snapshot.latestUpdate,
+    operationalStatus:deriveOperationalStatus(snapshot),
+    operationalNextStep:deriveOperationalNextStep(snapshot),
+    paymentStatus:deriveOperationalPaymentStatus(snapshot.customer),
+    setupStatus:deriveOperationalSetupStatus(snapshot).label
   };
 }
 
@@ -2230,7 +2300,7 @@ function openOnboardingDetail(customerId,options={}){
   if(checklistEl){
     // Use computed missingSteps from buildOnboardingQueueItem (includes auto-detected steps)
     const missingSet=new Set(q.missingSteps||[]);
-    checklistEl.innerHTML=state.checklist.map(step=>{
+    checklistEl.innerHTML=`<div class="onboarding-checklist-wrap"><div class="onboarding-checklist-title">Technische Details / interne Setup-Checks</div>${state.checklist.map(step=>{
       const isDone=!missingSet.has(step);
       const svgDone='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const svgOpen='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="#9CA3AF" stroke-width="1"/></svg>';
@@ -2240,7 +2310,7 @@ function openOnboardingDetail(customerId,options={}){
         <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(step)}</span>
         ${action}
       </div>`;
-    }).join('');
+    }).join('')}</div>`;
   }
   const profileBtn=document.getElementById('onboarding-open-profile');
   if(profileBtn) profileBtn.onclick=()=>openCustomerProfile(customerId);
@@ -3704,7 +3774,7 @@ function deriveOnboardingSnapshot(customerId){
     currentStep:doneSteps.length?doneSteps[doneSteps.length-1]:'Noch nicht gestartet',
     nextStep:missingSteps[0]||'fully completed',
     blockerStep,
-    blocker:blockerStep?`Missing: ${blockerStep}`:(onboarding.blocker||''),
+    blocker:blockerStep?`Blockiert: ${CHECKLIST_TO_BUSINESS_STEP[blockerStep]||blockerStep}`:(onboarding.blocker||''),
     status,
     accessReasons,
     isAccessReady:accessReasons.length===0,
