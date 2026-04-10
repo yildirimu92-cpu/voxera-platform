@@ -559,10 +559,18 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .ai-priority-pill.low{background:var(--green-light);color:var(--green-dark);}
 .ai-workspace-block .textarea{font-size:13px;}
 .ai-global-secondary,.ai-audit-secondary{padding:18px;}
+/* ─── Billing & Finance ───────────────────────────── */
+.finance-main-grid{grid-template-columns:1.1fr .9fr;}
+.finance-breakdown-row{margin-bottom:10px;}
+.finance-breakdown-label{font-size:11.5px;color:var(--slate2);font-weight:600;margin-bottom:5px;}
+.finance-breakdown-track{height:8px;background:var(--line2);border-radius:999px;overflow:hidden;}
+.finance-breakdown-fill{height:100%;border-radius:999px;}
+.finance-toolbar{grid-template-columns:minmax(0,1.5fr) repeat(2,minmax(0,1fr)) auto;}
 @media (max-width:1100px){
   .ai-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .ai-setup-layout{grid-template-columns:1fr;}
   .ai-workspace-card{position:static;}
+  .finance-main-grid{grid-template-columns:1fr;}
 }
 @media (max-width:768px){
   .ai-setup-layout{gap:12px;}
@@ -653,6 +661,10 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <a href="#insights" class="nav-item" data-route="insights">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 13l3-5 3 2 4-6"/></svg>
         Insights
+      </a>
+      <a href="#billing-finance" class="nav-item" data-route="billing-finance">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 7.5h12M5 11h2.5"/></svg>
+        Billing &amp; Finance
       </a>
       <a href="#settings" class="nav-item" data-route="settings">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42"/></svg>
@@ -933,6 +945,63 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         </div>
         <!-- Hidden stubs -->
         <div style="display:none;"><div id="insight-calls-time"></div><div id="insight-trends"></div></div>
+      </section>
+
+      <!-- BILLING & FINANCE -->
+      <section id="section-billing-finance" class="section">
+        <div class="section-head">
+          <div>
+            <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Billing &amp; Finance</h3>
+            <div class="muted" style="margin-top:4px;">V1 Übersicht mit operativer Worklist, Rechnungen, Umsatz- und Margen-Schätzung.</div>
+          </div>
+        </div>
+        <div class="kpi-grid" id="finance-kpis"></div>
+        <div class="grid-2 finance-main-grid" style="margin-bottom:16px;">
+          <div class="card">
+            <div class="card-head"><h3>Arbeitsliste / Handlungsbedarf</h3><span class="badge badge-amber">Ops</span></div>
+            <div class="list" id="finance-worklist"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Umsatz &amp; Zahlung</h3><span class="badge badge-blue">V1</span></div>
+            <div id="finance-breakdown"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head"><h3>Rechnungsübersicht</h3><span class="badge badge-gray">Read-only</span></div>
+          <div class="toolbar finance-toolbar">
+            <input class="input" id="finance-invoice-search" placeholder="Kunde / Rechnungsnummer / Typ">
+            <select class="select" id="finance-type-filter">
+              <option value="all">Typ: Alle</option>
+              <option value="setup_fee">Setup Fee</option>
+              <option value="subscription">Subscription</option>
+              <option value="extra_minutes">Extra Minutes</option>
+              <option value="manual">Manual / Sonstige</option>
+            </select>
+            <select class="select" id="finance-status-filter">
+              <option value="all">Status: Alle</option>
+              <option value="open">Offen</option>
+              <option value="overdue">Überfällig</option>
+              <option value="paid">Bezahlt</option>
+            </select>
+            <button class="btn btn-quiet" id="finance-reset">Zurücksetzen</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Kunde</th><th>Typ</th><th>Status</th><th>Betrag</th><th>Fällig</th><th>Bezahlt am</th><th>Rechnung</th><th>Aktion</th></tr></thead>
+              <tbody id="finance-invoice-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Deckungsbeitrag / Marge (V1-Schätzung)</h3><span class="badge badge-purple">V1-Schätzung</span></div>
+          <div class="muted" style="margin-bottom:10px;">Schätzung auf Basis von Planpreis, Calls/Minuten und konservativen Kostenannahmen.</div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Kunde</th><th>Plan</th><th>Umsatz mtl. (geschätzt)</th><th>Kosten mtl. (geschätzt)</th><th>Marge</th><th>Hinweis</th></tr></thead>
+              <tbody id="finance-margin-body"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- SETTINGS -->
@@ -1593,6 +1662,8 @@ const state={
   onboardingSelectedCustomerId:null,
   onboardingActivity:[],  // populated by loadDataFromSupabase()
   contracts:[],  // populated by loadDataFromSupabase()
+  invoices:[],  // populated by loadDataFromSupabase()
+  invoiceItems:[],  // populated by loadDataFromSupabase()
   admins:[
     {id:'A-1',name:'Lea Baumann',role:'super-admin',email:'lea@voxera.ch',status:'Aktiv'},
     {id:'A-2',name:'Noah Keller',role:'admin',email:'noah@voxera.ch',status:'Aktiv'},
@@ -1662,7 +1733,7 @@ function secsToMins(secs) {
   return Math.round((secs || 0) / 60);
 }
 
-const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','settings','contracts'];
+const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','billing-finance','settings','contracts'];
 const routeMeta={
   'overview':['Übersicht','Operatives Cockpit für den täglichen Betrieb.'],
   'customers':['Kunden','Kundenstamm mit Setup-, Aktivitäts- und Case-Kontrolle.'],
@@ -1671,6 +1742,7 @@ const routeMeta={
   'cases':['Cases','Rückrufe, Follow-ups und Workflow-Verantwortung.'],
   'activity':['Aktivität','Cross-Customer Echtzeit-Transparenz.'],
   'insights':['Insights','Planverteilung, Trends und Pattern.'],
+  'billing-finance':['Billing & Finance','Operative Billing-Arbeit, Rechnungen und Finanzüberblick.'],
   'settings':['Einstellungen','Adminverwaltung, Flags und Systemdefaults.'],
   'contracts':['Verträge','Serviceverträge mit Kunden verwalten.']
 };
@@ -2069,6 +2141,207 @@ function renderOverview(){
     ['Live',liveCustomers,'laufender Betrieb']
   ].map(([label,value,sub])=>`<div class="list-item"><div class="overview-process-row"><div><div class="list-main">${label}</div><div class="overview-process-meta">${sub}</div></div>${toneBadge(String(value))}</div></div>`).join('');
   document.getElementById('overview-activity-list').innerHTML=state.events.slice(0,4).map(e=>`<div class="list-item"><div><div class="list-main">${esc(e)}</div><div class="list-sub">Letztes relevantes Ereignis</div></div></div>`).join('')||'<div class="empty">Keine Aktivität vorhanden.</div>';
+}
+
+function classifyInvoiceType(rawType){
+  const raw=String(rawType||'').trim().toLowerCase();
+  if(raw.includes('setup')) return 'setup_fee';
+  if(raw.includes('subscription')||raw.includes('abo')||raw.includes('plan')) return 'subscription';
+  if(raw.includes('extra')||raw.includes('minute')) return 'extra_minutes';
+  return 'manual';
+}
+function invoiceTypeLabel(type){
+  return type==='setup_fee'?'Setup Fee':type==='subscription'?'Subscription':type==='extra_minutes'?'Extra Minutes':'Manual / Sonstige';
+}
+function normalizeInvoiceStatus(rawStatus,dueDate,paidAt){
+  if(paidAt) return 'paid';
+  const raw=String(rawStatus||'').trim().toLowerCase();
+  if(raw==='paid' || raw==='bezahlt') return 'paid';
+  if(raw==='cancelled' || raw==='void' || raw==='draft') return 'open';
+  if(raw==='overdue' || raw==='ueberfaellig' || raw==='überfällig') return 'overdue';
+  const dueTs=dueDate?new Date(dueDate).getTime():null;
+  if(dueTs){
+    const now=new Date();
+    const startOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+    if(dueTs<startOfToday) return 'overdue';
+  }
+  return 'open';
+}
+function invoiceStatusBadge(status){
+  if(status==='paid') return '<span class="badge badge-green">Bezahlt</span>';
+  if(status==='overdue') return '<span class="badge badge-red">Überfällig</span>';
+  return '<span class="badge badge-amber">Offen</span>';
+}
+function moneyChf(value){
+  return `${Number(value||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})} CHF`;
+}
+function formatDate(dateStr){
+  if(!dateStr) return '—';
+  const d=new Date(dateStr);
+  if(Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('de-CH');
+}
+function renderBillingFinance(){
+  const rootKpi=document.getElementById('finance-kpis');
+  const rootWorklist=document.getElementById('finance-worklist');
+  const rootBreakdown=document.getElementById('finance-breakdown');
+  const rootInvoiceBody=document.getElementById('finance-invoice-body');
+  const rootMarginBody=document.getElementById('finance-margin-body');
+  if(!rootKpi||!rootWorklist||!rootBreakdown||!rootInvoiceBody||!rootMarginBody) return;
+  const search=(document.getElementById('finance-invoice-search')?.value||'').trim().toLowerCase();
+  const typeFilter=document.getElementById('finance-type-filter')?.value||'all';
+  const statusFilter=document.getElementById('finance-status-filter')?.value||'all';
+  const safeNumber=(value)=>{
+    const n=Number(value);
+    return Number.isFinite(n)?n:0;
+  };
+  const parseDate=(value)=>{
+    if(!value) return null;
+    const d=new Date(value);
+    return Number.isNaN(d.getTime())?null:d;
+  };
+  const invoiceItemMap={};
+  (state.invoiceItems||[]).forEach(item=>{
+    const key=String(item.invoice_id||item.invoiceId||'');
+    if(!key) return;
+    if(!invoiceItemMap[key]) invoiceItemMap[key]=[];
+    invoiceItemMap[key].push(item);
+  });
+  const invoiceRows=(state.invoices||[]).map(inv=>{
+    const invItems=invoiceItemMap[String(inv.id||'')]||[];
+    const inferredType=(invItems[0]?.type || invItems[0]?.item_type || invItems[0]?.category || null);
+    const itemTotal=invItems.reduce((sum,item)=>sum+safeNumber(item.total_amount ?? item.amount_total ?? item.amount ?? (safeNumber(item.quantity||1)*safeNumber(item.unit_price))),0);
+    const amount=safeNumber(inv.total_amount ?? inv.amount_total ?? inv.amount_due ?? inv.amount ?? itemTotal);
+    const dueDate=inv.due_date || inv.due_at || inv.invoice_due_date || null;
+    const paidAt=inv.paid_at || inv.payment_date || inv.paid_date || null;
+    const status=normalizeInvoiceStatus(inv.status || inv.payment_status,dueDate,paidAt);
+    const type=classifyInvoiceType(inv.invoice_type || inv.type || inv.category || inferredType);
+    const customerId=String(inv.customer_id || inv.customerId || '');
+    const customer=customerById(customerId);
+    return {
+      id:String(inv.id||''),
+      customerId,
+      customerName:customer?.name || inv.customer_name || '—',
+      type,
+      status,
+      amount,
+      dueDate,
+      paidAt,
+      invoiceNo:inv.invoice_number || inv.number || inv.external_invoice_no || '—'
+    };
+  });
+
+  const now=new Date();
+  const startOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const startOfMonth=new Date(now.getFullYear(),now.getMonth(),1);
+  const paidThisMonth=invoiceRows
+    .filter(i=>i.status==='paid')
+    .filter(i=>{ const paid=parseDate(i.paidAt); return paid && paid>=startOfMonth; })
+    .reduce((sum,i)=>sum+i.amount,0);
+  const openRows=invoiceRows.filter(i=>i.status!=='paid');
+  const overdueRows=invoiceRows.filter(i=>{
+    if(i.status==='paid') return false;
+    const due=parseDate(i.dueDate);
+    return !!(due && due<startOfToday);
+  });
+  const setupOpen=invoiceRows.filter(i=>i.type==='setup_fee' && i.status!=='paid');
+  const setupPaid=invoiceRows.filter(i=>i.type==='setup_fee' && i.status==='paid');
+  const openAmount=openRows.reduce((sum,i)=>sum+i.amount,0);
+  const activeSubscriptions=state.customers.filter(c=>String(c.subscription_status||'').toLowerCase()==='active').length;
+  const mrrEstimate=state.customers.reduce((sum,c)=>sum+Number(PLAN_PRICES[normalizePlanCode(c.subscription_plan_code || c.plan_code || c.plan)]||0),0);
+  const marginEstimatePct=(()=>{
+    const rev=mrrEstimate;
+    if(rev<=0) return '—';
+    const estCost=state.customers.reduce((sum,c)=>{
+      const calls=state.calls.filter(call=>idsEq(call.customerId,c.id));
+      const usedMin=Math.round(calls.reduce((acc,call)=>acc+(Number(call.duration_seconds)||0),0)/60);
+      return sum + (5 + (usedMin*0.018));
+    },0);
+    return `${Math.round(((rev-estCost)/rev)*100)}%`;
+  })();
+
+  const kpis=[
+    ['Offene Rechnungen',openRows.length,'Aktuell nicht bezahlt'],
+    ['Überfällige Rechnungen',overdueRows.length,'Sofortiger Follow-up nötig'],
+    ['Bezahlt diesen Monat',moneyChf(paidThisMonth),'Cash-In im laufenden Monat'],
+    ['Offener Betrag gesamt',moneyChf(openAmount),'inkl. überfällige Positionen'],
+    ['Setup Fees offen',setupOpen.length,'Offene Einrichtungsgebühren'],
+    ['Setup Fees bezahlt',setupPaid.length,'Bereits bezahlt'],
+    ['Aktive Subscriptions',activeSubscriptions,`MRR grob ${moneyChf(mrrEstimate)}`],
+    ['Ø Marge (V1)',marginEstimatePct,'Schätzung aus Planpreis/Kostenannahme']
+  ];
+  rootKpi.innerHTML=kpis.map(([l,v,s])=>`<div class="kpi"><div class="kpi-label">${esc(String(l))}</div><div class="kpi-value" style="font-size:24px;">${esc(String(v))}</div><div class="kpi-sub">${esc(String(s))}</div></div>`).join('');
+
+  const endOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999);
+  const dueToday=invoiceRows.filter(i=>{
+    if(i.status==='paid') return false;
+    const due=parseDate(i.dueDate);
+    return !!(due && due>=startOfToday && due<=endOfToday);
+  });
+  const blockedCustomers=state.customers.filter(c=>!isPaymentPaid(c));
+  const workItems=[
+    ['Heute fällig',dueToday.length,'Zahlung heute erwartet'],
+    ['Überfällig',overdueRows.length,'Sofort nachfassen'],
+    ['Zahlung offen',openRows.length,'offene Rechnungen gesamt'],
+    ['Setup Fee offen',setupOpen.length,'Einrichtungsgebühr ausstehend'],
+    ['Zugang blockiert wegen Zahlung',blockedCustomers.length,'aus customer.payment_status abgeleitet'],
+    ['Kunden mit Billing-Handlungsbedarf',[...new Set(openRows.map(i=>i.customerId).filter(Boolean))].length,'mind. 1 offene Rechnung']
+  ];
+  rootWorklist.innerHTML=workItems.map(([label,val,sub])=>`<div class="list-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div>${toneBadge(String(val))}</div></div>`).join('')||'<div class="empty">Keine offenen Billing-Aufgaben.</div>';
+
+  const paidAmount=invoiceRows.filter(i=>i.status==='paid').reduce((sum,i)=>sum+i.amount,0);
+  const setupAmount=invoiceRows.filter(i=>i.type==='setup_fee').reduce((sum,i)=>sum+i.amount,0);
+  const subscriptionAmount=invoiceRows.filter(i=>i.type==='subscription').reduce((sum,i)=>sum+i.amount,0);
+  const totalAmount=Math.max(1,invoiceRows.reduce((sum,i)=>sum+i.amount,0));
+  const pct=(v)=>Math.min(100,Math.round((v/totalAmount)*100));
+  rootBreakdown.innerHTML=`
+    <div class="finance-breakdown-row"><div class="finance-breakdown-label">Bezahlt vs. offen · ${moneyChf(paidAmount)} bezahlt / ${moneyChf(openAmount)} offen</div><div class="finance-breakdown-track"><div class="finance-breakdown-fill" style="width:${pct(paidAmount)}%;background:var(--green);"></div></div></div>
+    <div class="finance-breakdown-row"><div class="finance-breakdown-label">Setup Fee Anteil · ${moneyChf(setupAmount)}</div><div class="finance-breakdown-track"><div class="finance-breakdown-fill" style="width:${pct(setupAmount)}%;background:var(--purple);"></div></div></div>
+    <div class="finance-breakdown-row"><div class="finance-breakdown-label">Subscription Anteil · ${moneyChf(subscriptionAmount)}</div><div class="finance-breakdown-track"><div class="finance-breakdown-fill" style="width:${pct(subscriptionAmount)}%;background:var(--blue);"></div></div></div>
+  `;
+
+  let filtered=[...invoiceRows];
+  if(search) filtered=filtered.filter(i=>`${i.customerName} ${i.invoiceNo} ${i.type}`.toLowerCase().includes(search));
+  if(typeFilter!=='all') filtered=filtered.filter(i=>i.type===typeFilter);
+  if(statusFilter!=='all') filtered=filtered.filter(i=>i.status===statusFilter);
+  filtered.sort((a,b)=>(new Date(b.dueDate||0)).getTime()-(new Date(a.dueDate||0)).getTime());
+  rootInvoiceBody.innerHTML=filtered.map(i=>`<tr>
+    <td>${esc(i.customerName||'—')}</td>
+    <td>${esc(invoiceTypeLabel(i.type))}</td>
+    <td>${invoiceStatusBadge(i.status)}</td>
+    <td>${esc(moneyChf(i.amount))}</td>
+    <td>${esc(formatDate(i.dueDate))}</td>
+    <td>${esc(formatDate(i.paidAt))}</td>
+    <td>${esc(i.invoiceNo||'—')}</td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openCustomerProfile('${jsStr(i.customerId)}')"`:'disabled'}>Profil</button><button class="btn btn-secondary btn-sm" disabled>Rechnung</button></div></td>
+  </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Rechnungen für aktuelle Filter.</div></td></tr>';
+
+  const usedMinutesByCustomer={};
+  state.calls.forEach(call=>{
+    const key=String(call.customerId||'');
+    if(!key) return;
+    usedMinutesByCustomer[key]=(usedMinutesByCustomer[key]||0)+(safeNumber(call.duration_seconds)/60);
+  });
+  const marginRows=state.customers.filter(c=>getCustomerLifecycleStatus(c,onboardingForCustomer(c.id))!=='deleted').map(c=>{
+    const planCode=normalizePlanCode(c.subscription_plan_code || c.plan_code || c.plan);
+    const revenue=Number(PLAN_PRICES[planCode]||0);
+    const usedMin=Math.round(usedMinutesByCustomer[String(c.id)]||0);
+    const baseOpsCost=5;
+    const variableCostPerMinute=0.018;
+    const extraMinuteCost=Math.max(0,usedMin-(getPlanMinutes(planCode)||0))*0.01;
+    const cost=baseOpsCost + (usedMin*variableCostPerMinute) + extraMinuteCost;
+    const margin=revenue-cost;
+    const marginPct=revenue>0?`${Math.round((margin/revenue)*100)}%`:'—';
+    return {customerName:c.name||'Unbekannt',plan:planLabel(planCode),revenue,cost,margin,marginPct};
+  }).sort((a,b)=>b.margin-a.margin).slice(0,20);
+  rootMarginBody.innerHTML=marginRows.map(r=>`<tr>
+    <td>${esc(r.customerName)}</td>
+    <td>${esc(r.plan)}</td>
+    <td>${esc(moneyChf(r.revenue))}</td>
+    <td>${esc(moneyChf(r.cost))}</td>
+    <td>${toneBadge(`${moneyChf(r.margin)} · ${r.marginPct}`)}</td>
+    <td class="wrap">V1-Schätzung: Basis 5 CHF + 0.018 CHF/Minute + ggf. Extra-Minutenkosten.</td>
+  </tr>`).join('')||'<tr><td colspan="6"><div class="empty">Noch keine Margen-Daten verfügbar.</div></td></tr>';
 }
 
 function renderCustomers(){
@@ -3429,6 +3702,7 @@ function setRoute(route,replaceHash=false){
   const [title,sub]=routeMeta[route];
   document.getElementById('page-title').textContent=title;
   document.getElementById('page-sub').textContent=sub;
+  if(route==='billing-finance') renderBillingFinance();
   if(location.hash!==`#${route}`){
     if(replaceHash) history.replaceState(null,'',`#${route}`);
     else location.hash=route;
@@ -4670,6 +4944,10 @@ function wireUi(){
     document.getElementById(id).addEventListener('input',renderAiSetup);
     document.getElementById(id).addEventListener('change',renderAiSetup);
   });
+  ['finance-invoice-search','finance-type-filter','finance-status-filter'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',renderBillingFinance);
+    document.getElementById(id).addEventListener('change',renderBillingFinance);
+  });
   document.getElementById('customer-reset').addEventListener('click',()=>{
     document.getElementById('customer-search').value='';
     document.getElementById('customer-plan-filter').value='all';
@@ -4689,6 +4967,12 @@ function wireUi(){
     document.getElementById('ai-status-filter').value='all';
     document.getElementById('ai-custom-filter').value='all';
     renderAiSetup();
+  });
+  document.getElementById('finance-reset').addEventListener('click',()=>{
+    document.getElementById('finance-invoice-search').value='';
+    document.getElementById('finance-type-filter').value='all';
+    document.getElementById('finance-status-filter').value='all';
+    renderBillingFinance();
   });
   document.getElementById('ai-save-global').addEventListener('click',saveGlobalAiConfig);
   document.getElementById('ai-save-customer').addEventListener('click',saveCustomerAiConfig);
@@ -5034,6 +5318,20 @@ async function loadDataFromSupabase() {
     const subscriptionMap = {};
     (subscriptionRows || []).forEach(s => { subscriptionMap[String(s.customer_id)] = s; });
 
+    // 5b. Load invoices + invoice_items (finance view; non-critical for admin core flows)
+    const { data: invoiceRows, error: invoiceErr } = await authClient
+      .from('invoices')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1000);
+    if (invoiceErr) console.warn('[DB] invoices load failed:', invoiceErr.message);
+
+    const { data: invoiceItemRows, error: invoiceItemErr } = await authClient
+      .from('invoice_items')
+      .select('*')
+      .limit(2500);
+    if (invoiceItemErr) console.warn('[DB] invoice_items load failed:', invoiceItemErr.message);
+
     // 6. Build a map from customer_id → onboarding row for O(1) joins
     const obMap = {};
     (onboardingRows || []).forEach(o => { obMap[String(o.customer_id)] = o; });
@@ -5049,6 +5347,8 @@ async function loadDataFromSupabase() {
     state.onboarding = (onboardingRows || []).map(mapDbOnboardingToState);
     state.calls      = (callRows  || []).map(mapDbCallToUi);
     state.cases      = (caseRows  || []).map(mapDbCaseToUi);
+    state.invoices   = invoiceRows || [];
+    state.invoiceItems = invoiceItemRows || [];
 
     // 8. Populate openCases count on each customer from real cases data
     state.customers.forEach(c => {
@@ -5077,7 +5377,7 @@ async function loadDataFromSupabase() {
     });
     state.events = recentEvents;
 
-    console.log(`[DB] Loaded ${state.customers.length} customers, ${state.onboarding.length} onboarding, ${state.calls.length} calls, ${state.cases.length} cases, ${state.contracts.length} contracts.`);
+    console.log(`[DB] Loaded ${state.customers.length} customers, ${state.onboarding.length} onboarding, ${state.calls.length} calls, ${state.cases.length} cases, ${state.contracts.length} contracts, ${state.invoices.length} invoices.`);
     loadPlanConfig();
     return true;
   } catch(err) {
@@ -5113,6 +5413,7 @@ async function init() {
   renderCases();
   renderActivity();
   renderInsights();
+  renderBillingFinance();
   renderSettings();
   renderContracts();
   document.body.classList.remove('app-booting');
