@@ -2722,6 +2722,29 @@ function aiMissingFields(cfg){
   return checks.filter(([k])=>!String(cfg?.[k]||'').trim()).map(([,label])=>label);
 }
 
+function buildCustomerAiSummary(cfg){
+  const sections=[];
+  const addSection=(title, content)=>{
+    const text=String(content||'').trim();
+    if(!text) return;
+    sections.push(`## ${title}\n${text}`);
+  };
+
+  addSection('Über das Unternehmen', cfg.businessDescription);
+  addSection('Angebot und Leistungen', cfg.services);
+  addSection('Standort und Erreichbarkeit', cfg.locationHours);
+  addSection('Terminlogik', cfg.bookingFaq);
+  addSection('Wichtige Gesprächsregeln', cfg.instructions);
+
+  const escalationAndLimits=[
+    String(cfg.fallbackEscalation||'').trim(),
+    String(cfg.responseConstraints||'').trim()
+  ].filter(Boolean).join('\n');
+  addSection('Eskalation und Grenzen', escalationAndLimits);
+
+  return sections.join('\n\n').trim() || null;
+}
+
 function renderAiSetup(){
   const g=state.aiGlobal;
   document.getElementById('ai-global-prompt').value=g.prompt;
@@ -2879,6 +2902,7 @@ async function saveCustomerAiConfig(){
   cfg.fallbackEscalation=document.getElementById('ai-fallback-escalation').value.trim();
   cfg.responseConstraints=document.getElementById('ai-response-constraints').value.trim();
   cfg.internalNotes=document.getElementById('ai-internal-notes').value.trim();
+  cfg.summary=buildCustomerAiSummary(cfg);
   cfg.custom=!!cfg.instructions;
   const missing=aiMissingFields(cfg);
   cfg.status=missing.length===0?'AI Ready':missing.length<=2?'Needs Review':'Blocked';
@@ -2891,7 +2915,14 @@ async function saveCustomerAiConfig(){
     try{
       const patch={
         ai_business_description: cfg.businessDescription||null,
+        ai_services: cfg.services||null,
+        ai_location_hours: cfg.locationHours||null,
+        ai_booking_faq: cfg.bookingFaq||null,
         ai_instructions: cfg.instructions||null,
+        ai_fallback_escalation: cfg.fallbackEscalation||null,
+        ai_response_constraints: cfg.responseConstraints||null,
+        ai_internal_notes: cfg.internalNotes||null,
+        ai_summary: cfg.summary||null,
         updated_at: new Date().toISOString()
       };
       const {error}=await authClient.from('customers').update(patch).eq('id',id);
@@ -2900,7 +2931,14 @@ async function saveCustomerAiConfig(){
       const c=customerById(id);
       if(c){
         c.ai_business_description=cfg.businessDescription||null;
+        c.ai_services=cfg.services||null;
+        c.ai_location_hours=cfg.locationHours||null;
+        c.ai_booking_faq=cfg.bookingFaq||null;
         c.ai_instructions=cfg.instructions||null;
+        c.ai_fallback_escalation=cfg.fallbackEscalation||null;
+        c.ai_response_constraints=cfg.responseConstraints||null;
+        c.ai_internal_notes=cfg.internalNotes||null;
+        c.ai_summary=cfg.summary||null;
       }
       showToast('AI Konfiguration gespeichert.');
     }catch(err){
@@ -5245,7 +5283,14 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
     forwarding_setup_completed: dbRow.forwarding_setup_completed === true,
     // AI config fields (needed for AI basics configured auto-detection)
     ai_business_description: dbRow.ai_business_description || null,
+    ai_services: dbRow.ai_services || null,
+    ai_location_hours: dbRow.ai_location_hours || null,
+    ai_booking_faq: dbRow.ai_booking_faq || null,
     ai_instructions: dbRow.ai_instructions || null,
+    ai_fallback_escalation: dbRow.ai_fallback_escalation || null,
+    ai_response_constraints: dbRow.ai_response_constraints || null,
+    ai_internal_notes: dbRow.ai_internal_notes || null,
+    ai_summary: dbRow.ai_summary || null,
     subscription_plan_code: normalizePlanCode(dbSubscription?.plan_code || dbRow.plan_code || dbRow.plan || null),
     subscription_billing_cycle: billingCycle || null,
     subscription_billing_cycle_label: billingCycleLabel,
@@ -5442,6 +5487,27 @@ async function loadDataFromSupabase() {
         obMap[String(dbC.id)] || null,
         subscriptionMap[String(dbC.id)] || null
       )
+    );
+    state.aiConfigs = Object.fromEntries(
+      state.customers.map(customer => {
+        const existing = state.aiConfigs[customer.id] || {};
+        const cfg = {
+          ...existing,
+          businessDescription: String(customer.ai_business_description || existing.businessDescription || '').trim(),
+          services: String(customer.ai_services || existing.services || '').trim(),
+          locationHours: String(customer.ai_location_hours || existing.locationHours || '').trim(),
+          bookingFaq: String(customer.ai_booking_faq || existing.bookingFaq || '').trim(),
+          instructions: String(customer.ai_instructions || existing.instructions || '').trim(),
+          fallbackEscalation: String(customer.ai_fallback_escalation || existing.fallbackEscalation || '').trim(),
+          responseConstraints: String(customer.ai_response_constraints || existing.responseConstraints || '').trim(),
+          internalNotes: String(customer.ai_internal_notes || existing.internalNotes || '').trim(),
+          summary: String(customer.ai_summary || existing.summary || '').trim() || null
+        };
+        cfg.custom = Boolean(cfg.businessDescription || cfg.services || cfg.locationHours || cfg.bookingFaq || cfg.instructions || cfg.fallbackEscalation || cfg.responseConstraints || cfg.internalNotes);
+        cfg.status = aiMissingFields(cfg).length===0 ? 'AI Ready' : aiMissingFields(cfg).length<=2 ? 'Needs Review' : 'Blocked';
+        cfg.lastUpdate = existing.lastUpdate || customer.latest || '';
+        return [customer.id, cfg];
+      })
     );
     state.onboarding = (onboardingRows || []).map(mapDbOnboardingToState);
     state.calls      = (callRows  || []).map(mapDbCallToUi);
