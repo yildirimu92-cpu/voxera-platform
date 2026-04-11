@@ -18,6 +18,9 @@
     button{background:var(--brand);color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
     button:disabled{opacity:.5;cursor:not-allowed}
     .feedback{margin-top:10px;font-size:14px}
+    .signature-wrap{margin-top:8px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    #signaturePad{width:100%;height:180px;display:block;touch-action:none;border-radius:10px}
+    .signature-actions{display:flex;justify-content:flex-end;padding:8px}
     .ok{color:var(--ok)} .err{color:var(--danger)}
     @media(max-width:760px){.grid{grid-template-columns:1fr}}
   </style>
@@ -52,6 +55,11 @@
           <input id="signerName" type="text" placeholder="Max Muster" />
           <label for="signerEmail">Ihre E-Mail (optional)</label>
           <input id="signerEmail" type="email" placeholder="max@firma.ch" />
+          <label>Unterschrift</label>
+          <div class="signature-wrap">
+            <canvas id="signaturePad"></canvas>
+            <div class="signature-actions"><button type="button" onclick="clearSignature()" style="background:#e2e8f0;color:#0f172a;">Signatur löschen</button></div>
+          </div>
           <label><input id="confirm" type="checkbox" /> Ich bestätige diese Offerte verbindlich.</label>
           <button id="acceptBtn" onclick="submitAcceptance()">Jetzt bestätigen</button>
           <div class="feedback" id="feedback"></div>
@@ -62,8 +70,55 @@
 <script>
   const token = new URLSearchParams(location.search).get('token') || '';
   let offer = null;
+  let signatureDirty = false;
+  let signatureCtx = null;
+  let signatureCanvas = null;
+  let isDrawing = false;
+  let lastPoint = null;
   const money = v => `CHF ${Number(v || 0).toFixed(2)}`;
   const d = v => v ? new Date(v).toLocaleDateString('de-CH') : '—';
+  const px = (event) => {
+    const rect = signatureCanvas.getBoundingClientRect();
+    const source = event.touches?.[0] || event;
+    return { x: source.clientX - rect.left, y: source.clientY - rect.top };
+  };
+
+  function resizeSignaturePad(){
+    if(!signatureCanvas || !signatureCtx) return;
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const bounds = signatureCanvas.getBoundingClientRect();
+    signatureCanvas.width = Math.floor(bounds.width * ratio);
+    signatureCanvas.height = Math.floor(180 * ratio);
+    signatureCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    signatureCtx.lineWidth = 2;
+    signatureCtx.lineCap = 'round';
+    signatureCtx.lineJoin = 'round';
+    signatureCtx.strokeStyle = '#0f172a';
+  }
+
+  function startDraw(event){
+    event.preventDefault();
+    isDrawing = true;
+    lastPoint = px(event);
+  }
+  function moveDraw(event){
+    if(!isDrawing || !signatureCtx) return;
+    event.preventDefault();
+    const point = px(event);
+    signatureCtx.beginPath();
+    signatureCtx.moveTo(lastPoint.x, lastPoint.y);
+    signatureCtx.lineTo(point.x, point.y);
+    signatureCtx.stroke();
+    lastPoint = point;
+    signatureDirty = true;
+  }
+  function endDraw(){ isDrawing = false; lastPoint = null; }
+  function clearSignature(){
+    if(!signatureCtx || !signatureCanvas) return;
+    signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+    signatureDirty = false;
+  }
+  window.clearSignature = clearSignature;
 
   async function loadOffer(){
     if(!token){document.getElementById('state').textContent='Ungültiger Link (Token fehlt).';return;}
@@ -96,14 +151,20 @@
     const signer_name = document.getElementById('signerName').value.trim();
     const signer_email = document.getElementById('signerEmail').value.trim();
     const confirm_accepted = document.getElementById('confirm').checked;
-    const btn = document.getElementById('acceptBtn');
     const fb = document.getElementById('feedback');
+    if(!signatureDirty){
+      fb.className='feedback err';
+      fb.textContent='Bitte unterschreiben Sie im Signaturfeld.';
+      return;
+    }
+    const signature_data = signatureCanvas.toDataURL('image/png');
+    const btn = document.getElementById('acceptBtn');
     fb.className='feedback';
     fb.textContent='';
     btn.disabled=true;
     const res = await fetch('/.netlify/functions/offer-public-accept',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({token,signer_name,signer_email,confirm_accepted})
+      body:JSON.stringify({token,signer_name,signer_email,confirm_accepted,signature_data})
     });
     const json = await res.json();
     if(!res.ok){fb.className='feedback err';fb.textContent=json.error||'Bestätigung fehlgeschlagen.';btn.disabled=false;return;}
@@ -112,6 +173,18 @@
     btn.disabled=true;
   }
 
+  function initSignaturePad(){
+    signatureCanvas = document.getElementById('signaturePad');
+    if(!signatureCanvas) return;
+    signatureCtx = signatureCanvas.getContext('2d');
+    resizeSignaturePad();
+    ['mousedown','touchstart'].forEach(type => signatureCanvas.addEventListener(type, startDraw, { passive:false }));
+    ['mousemove','touchmove'].forEach(type => signatureCanvas.addEventListener(type, moveDraw, { passive:false }));
+    ['mouseup','mouseleave','touchend','touchcancel'].forEach(type => signatureCanvas.addEventListener(type, endDraw, { passive:false }));
+    window.addEventListener('resize', resizeSignaturePad);
+  }
+
+  initSignaturePad();
   loadOffer().catch(()=>{document.getElementById('state').textContent='Fehler beim Laden der Offerte.';});
 </script>
 </body>

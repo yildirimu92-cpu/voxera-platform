@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voxera Offerte PDF</title>
+  <style>
+    :root{--ink:#0f172a;--slate:#475569;--line:#dbe4f0;--brand:#1d4ed8;--bg:#f3f6fb}
+    body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+    .topbar{max-width:960px;margin:18px auto 0;padding:0 16px;display:flex;justify-content:flex-end;gap:8px}
+    .btn{border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+    .btn-primary{background:var(--brand);color:#fff}
+    .btn-muted{background:#e2e8f0;color:#0f172a}
+    .sheet{max-width:960px;margin:12px auto 28px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.07);padding:28px}
+    .header{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+    .muted{color:var(--slate)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .block{border:1px solid var(--line);border-radius:12px;padding:14px}
+    .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #d6deeb}
+    .row:last-child{border-bottom:none}
+    .title{font-size:22px;margin:0}
+    .section-title{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate);margin:0 0 8px}
+    #state{max-width:960px;margin:44px auto;padding:0 16px;color:var(--slate)}
+    @media print{.topbar{display:none}body{background:#fff}.sheet{margin:0;box-shadow:none;border:none;border-radius:0;max-width:none}}
+  </style>
+</head>
+<body>
+  <div id="state">Offerte wird geladen…</div>
+  <div id="doc" style="display:none">
+    <div class="topbar">
+      <button class="btn btn-muted" onclick="window.location.reload()">Neu laden</button>
+      <button class="btn btn-primary" onclick="window.print()">Als PDF speichern</button>
+    </div>
+    <div class="sheet">
+      <div class="header">
+        <div>
+          <div class="muted" style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Voxera</div>
+          <h1 class="title">Offerte</h1>
+          <div id="intro" class="muted"></div>
+        </div>
+        <div style="text-align:right">
+          <div><strong id="offerNo">—</strong></div>
+          <div class="muted">Gültig bis <span id="validUntil">—</span></div>
+        </div>
+      </div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="block">
+          <p class="section-title">Empfänger</p>
+          <div id="recipient"></div>
+        </div>
+        <div class="block">
+          <p class="section-title">Leistung</p>
+          <div id="plan"></div>
+          <div id="summary" class="muted" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <div class="block">
+        <p class="section-title">Preisübersicht</p>
+        <div class="row"><span>Einmalige Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
+        <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
+        <div class="row"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
+        <div class="row"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+      </div>
+    </div>
+  </div>
+<script>
+  const token = new URLSearchParams(location.search).get('token') || '';
+  const money = v => `CHF ${Number(v || 0).toFixed(2)}`;
+  const d = v => v ? new Date(v).toLocaleDateString('de-CH') : '—';
+  const esc = v => String(v ?? '').replace(/[&<>'\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',\"'\":'&#39;','\"':'&quot;'}[ch]));
+
+  async function load(){
+    const stateEl = document.getElementById('state');
+    if(!token){ stateEl.textContent='Token fehlt.'; return; }
+    const res = await fetch(`/.netlify/functions/offer-public-get?token=${encodeURIComponent(token)}`);
+    const json = await res.json();
+    if(!res.ok){ stateEl.textContent = json.error || 'Offerte konnte nicht geladen werden.'; return; }
+    const offer = json.offer || {};
+    const recurring = offer.billing_cycle === 'yearly' ? Number(offer.yearly_price||0) : Number(offer.monthly_price||0);
+    const discount = Number(offer.discount_amount||0) + (recurring * (Number(offer.discount_percent||0)/100));
+    document.getElementById('offerNo').textContent = offer.offer_number || '—';
+    document.getElementById('validUntil').textContent = d(offer.valid_until);
+    document.getElementById('intro').textContent = offer.offer_text?.introduction || 'Individuelle Offerte für Ihre Voxera-Lösung.';
+    document.getElementById('recipient').innerHTML = [offer.company_name, offer.contact_name, [offer.street, offer.postal_code, offer.city, offer.country].filter(Boolean).join(', '), offer.email, offer.phone].filter(Boolean).map(v=>`<div>${esc(v)}</div>`).join('');
+    document.getElementById('plan').textContent = `${offer.plan || ''} · ${offer.billing_cycle === 'yearly' ? 'jährlich' : 'monatlich'} · ${offer.duration_months || 0} Monate`;
+    document.getElementById('summary').textContent = offer.offer_text?.summary || '';
+    document.getElementById('setupFee').textContent = money(offer.setup_fee);
+    document.getElementById('recurringLabel').textContent = offer.billing_cycle === 'yearly' ? 'Jährlich' : 'Monatlich';
+    document.getElementById('recurring').textContent = money(recurring);
+    document.getElementById('discount').textContent = `- ${money(discount)}`;
+    document.getElementById('total').textContent = money(offer.total);
+    stateEl.style.display='none';
+    document.getElementById('doc').style.display='block';
+  }
+
+  load().catch(() => { document.getElementById('state').textContent = 'Fehler beim Laden der Offerte.'; });
+</script>
+</body>
+</html>

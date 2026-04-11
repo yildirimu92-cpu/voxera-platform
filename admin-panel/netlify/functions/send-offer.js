@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const nodemailer = require('nodemailer');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxFailed, markOutboxSent } = require('./_lib/webhook-outbox');
-const { ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
+const { ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, derivePublicOfferPdfUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +18,7 @@ const formatDate = (value) => {
   try { return new Date(value).toLocaleDateString('de-CH'); } catch (_) { return String(value); }
 };
 
-function buildOfferEmail({ offer, subject, acceptanceUrl }) {
+function buildOfferEmail({ offer, subject, acceptanceUrl, pdfUrl }) {
   const recurring = String(offer.billing_cycle || 'monthly') === 'yearly' ? Number(offer.yearly_price || 0) : Number(offer.monthly_price || 0);
   const addOns = offer.add_ons || {};
   const addOnsTotal = Number(addOns.additional_numbers || 0) + Number(addOns.sms_alerts || 0) + Number(addOns.custom_ai_setup || 0);
@@ -46,7 +46,10 @@ function buildOfferEmail({ offer, subject, acceptanceUrl }) {
           </table>
         </div>
         <p style="margin:0;font-size:13px;line-height:1.6;color:#334155;">Für Rückfragen oder gewünschte Anpassungen antworten Sie bitte direkt auf diese E-Mail.</p>
-        ${acceptanceUrl ? `<div style="margin-top:8px;"><a href="${acceptanceUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700;">Offerte bestätigen</a></div>` : ''}
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+          ${acceptanceUrl ? `<a href="${acceptanceUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700;">Offerte bestätigen</a>` : ''}
+          ${pdfUrl ? `<a href="${pdfUrl}" style="display:inline-block;background:#e2e8f0;color:#0f172a;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700;">PDF ansehen</a>` : ''}
+        </div>
       </div>
     </div>
   </div>`;
@@ -54,7 +57,7 @@ function buildOfferEmail({ offer, subject, acceptanceUrl }) {
   return { subject: subject || `Ihre Voxera Offerte ${offer.offer_number || ''}`.trim(), html };
 }
 
-async function sendOfferEmail({ to, offer, subject, acceptanceUrl }) {
+async function sendOfferEmail({ to, offer, subject, acceptanceUrl, pdfUrl }) {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
@@ -69,7 +72,7 @@ async function sendOfferEmail({ to, offer, subject, acceptanceUrl }) {
     auth: { user, pass }
   });
 
-  const built = buildOfferEmail({ offer, subject, acceptanceUrl });
+  const built = buildOfferEmail({ offer, subject, acceptanceUrl, pdfUrl });
   await transporter.sendMail({ from, to, subject: built.subject, html: built.html });
   return built.subject;
 }
@@ -108,6 +111,7 @@ exports.handler = async (event) => {
     if (patched) offer = patched;
   }
   const acceptanceUrl = derivePublicOfferAcceptanceUrl(offer.public_token);
+  const pdfUrl = derivePublicOfferPdfUrl(offer.public_token);
 
   const sentToEmail = String(body.sent_to_email || offer.sent_to_email || offer.email || '').trim();
   if (!sentToEmail) return response(400, { error: 'Offerte hat keine Empfänger-E-Mail.' });
@@ -133,7 +137,7 @@ exports.handler = async (event) => {
   });
 
   try {
-    const deliveredSubject = await sendOfferEmail({ to: sentToEmail, offer, subject, acceptanceUrl });
+    const deliveredSubject = await sendOfferEmail({ to: sentToEmail, offer, subject, acceptanceUrl, pdfUrl });
     const nowIso = new Date().toISOString();
     await markOutboxSent(sbAdmin, outbox.id);
     const { error: updErr } = await sbAdmin

@@ -39,10 +39,12 @@ exports.handler = async (event) => {
   const signerName = String(body.signer_name || '').trim();
   const signerEmail = String(body.signer_email || '').trim();
   const confirmAccepted = body.confirm_accepted === true;
+  const signatureData = String(body.signature_data || '').trim();
 
   if (!token) return response(400, { error: 'token fehlt.' });
   if (!signerName) return response(400, { error: 'signer_name fehlt.' });
   if (!confirmAccepted) return response(400, { error: 'Bestätigung ist erforderlich.' });
+  if (!signatureData) return response(400, { error: 'signature_data fehlt.' });
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
@@ -56,11 +58,35 @@ exports.handler = async (event) => {
   if (!offer) return response(404, { error: 'Offerte nicht gefunden.' });
 
   if (isOfferExpired(offer)) return response(409, { error: 'Offerte ist abgelaufen.' });
+  if (String(offer.status || '').toLowerCase() === 'accepted' || offer.accepted_at) {
+    return response(409, { error: 'Diese Offerte wurde bereits akzeptiert.' });
+  }
 
   const nowIso = new Date().toISOString();
   const ip = String(event.headers['x-nf-client-connection-ip'] || event.headers['x-forwarded-for'] || '').split(',')[0].trim() || null;
+  const userAgent = String(event.headers['user-agent'] || '').trim() || null;
 
+  const acceptanceRow = {
+    offer_id: offer.id,
+    accepted_by_name: signerName,
+    accepted_by_email: signerEmail || null,
+    accepted_ip: ip,
+    user_agent: userAgent,
+    checkbox_confirmed: true,
+    signature_data: signatureData,
+    created_at: nowIso
+  };
+
+  let acceptanceId = null;
   try {
+    const acceptanceInsert = await sbAdmin
+      .from('offer_acceptances')
+      .insert(acceptanceRow)
+      .select('id')
+      .single();
+    if (acceptanceInsert.error) return response(500, { error: 'Annahme konnte nicht protokolliert werden.', details: acceptanceInsert.error.message });
+    acceptanceId = acceptanceInsert.data?.id || null;
+
     const accepted = await acceptOfferAndEnsureContract({
       sbAdmin,
       offer,
@@ -77,9 +103,13 @@ exports.handler = async (event) => {
       duplicate: Boolean(accepted.duplicate),
       offer_id: accepted.offerId,
       contract_id: accepted.contractId,
-      accepted_at: accepted.acceptedAt
+      accepted_at: accepted.acceptedAt,
+      acceptance_id: acceptanceId
     });
   } catch (err) {
+    if (acceptanceId) {
+      await sbAdmin.from('offer_acceptances').delete().eq('id', acceptanceId);
+    }
     if (err instanceof OfferAcceptanceError) {
       return response(err.statusCode, { error: err.message, details: err.details || undefined });
     }

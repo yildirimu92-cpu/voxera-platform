@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 const { normalizePlanCode, loadPlanByCode, isSalesPlanCode } = require('./_lib/plan-config');
-const { trimOrNull, ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
+const { trimOrNull, ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, derivePublicOfferPdfUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -33,18 +33,10 @@ function pickOfferRecipientEmail(offer, overrides) {
   return trimOrNull(overrides?.to_email) || trimOrNull(offer?.sent_to_email) || trimOrNull(offer?.email);
 }
 
-function deriveOfferPdfUrl(body) {
+function deriveOfferPdfUrl(body, offer) {
   const explicitPdfUrl = trimOrNull(body?.overrides?.pdf_url);
   if (explicitPdfUrl) return explicitPdfUrl;
-
-  const appBaseUrl = trimOrNull(process.env.ADMIN_PANEL_BASE_URL)
-    || trimOrNull(process.env.APP_BASE_URL)
-    || trimOrNull(process.env.URL);
-
-  if (!appBaseUrl) return null;
-
-  const normalizedBase = appBaseUrl.replace(/\/+$/, '');
-  return `${normalizedBase}/#offers`;
+  return derivePublicOfferPdfUrl(offer?.public_token);
 }
 
 async function loadOfferPayload(sbAdmin, body) {
@@ -106,7 +98,7 @@ async function loadOfferPayload(sbAdmin, body) {
       discount_percent: Number(offer.discount_percent || 0),
       total: Number(offer.total || 0),
       add_ons: offer.add_ons || {},
-      pdf_url: deriveOfferPdfUrl(body),
+      pdf_url: deriveOfferPdfUrl(body, offer),
       acceptance_url: derivePublicOfferAcceptanceUrl(offer.public_token),
       public_expires_at: offer.public_expires_at || null
     },
