@@ -95,6 +95,7 @@ exports.handler = async (event) => {
       sbAdmin,
       offer,
       nowIso,
+      allowContractFailure: true,
       acceptanceMeta: {
         accepted_by_name: signerName,
         accepted_by_email: signerEmail || null,
@@ -107,6 +108,7 @@ exports.handler = async (event) => {
       duplicate: Boolean(accepted.duplicate),
       offer_id: accepted.offerId,
       contract_id: accepted.contractId,
+      contract_pending: !accepted.contractId,
       accepted_at: accepted.acceptedAt,
       acceptance_id: acceptanceId
     });

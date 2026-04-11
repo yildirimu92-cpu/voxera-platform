@@ -208,7 +208,7 @@ async function syncPostAcceptanceLifecycle({ sbAdmin, offer, nowIso }) {
   }).eq('id', onboarding.id);
 }
 
-async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptanceMeta = null }) {
+async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptanceMeta = null, allowContractFailure = false }) {
   const status = String(offer.status || '').toLowerCase();
   if (status === 'rejected') throw new OfferAcceptanceError(409, 'Offerte wurde bereits abgelehnt.');
   if (status === 'expired') throw new OfferAcceptanceError(409, 'Offerte ist abgelaufen.');
@@ -226,14 +226,26 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
     };
   }
 
-  const contractId = await ensureContractForOffer({ sbAdmin, offer, nowIso });
+  let contractId = null;
+  let contractError = null;
+  try {
+    contractId = await ensureContractForOffer({ sbAdmin, offer, nowIso });
+  } catch (err) {
+    if (!allowContractFailure) throw err;
+    contractError = err;
+    console.error('acceptOfferAndEnsureContract: contract creation/sync failed after acceptance intent', {
+      offer_id: offer.id,
+      error: err?.message || String(err),
+      details: err?.details || null
+    });
+  }
 
   const offerPatch = {
     status: 'accepted',
-    contract_id: contractId,
     accepted_at: offer.accepted_at || nowIso,
     updated_at: nowIso
   };
+  if (contractId) offerPatch.contract_id = contractId;
   if (acceptanceMeta && typeof acceptanceMeta === 'object') {
     if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'accepted_by_name')) offerPatch.accepted_by_name = acceptanceMeta.accepted_by_name;
     if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'accepted_by_email')) offerPatch.accepted_by_email = acceptanceMeta.accepted_by_email;
@@ -255,6 +267,12 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
     duplicate: false,
     offerId: String(offer.id),
     contractId,
+    contractError: contractError
+      ? {
+        message: contractError.message || 'Contract creation failed.',
+        details: contractError.details || null
+      }
+      : null,
     acceptedAt: offerRes.data.accepted_at || nowIso,
     offer: offerRes.data
   };
