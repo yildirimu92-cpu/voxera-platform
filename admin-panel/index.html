@@ -1241,7 +1241,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                   <div><label class="muted">Land</label><input class="input" id="offer-country" oninput="offerFieldChanged()"></div>
                 </div></div>
                 <div class="card offer-card"><div class="card-head"><h3>Commercial Setup</h3></div><div class="offer-grid-2">
-                  <div><label class="muted">Plan</label><select class="select" id="offer-plan" onchange="offerFieldChanged()"></select></div>
+                  <div><label class="muted">Plan</label><select class="select" id="offer-plan" onchange="offerPlanChanged()"></select></div>
                   <div><label class="muted">Billing cycle</label><select class="select" id="offer-billing-cycle" onchange="offerFieldChanged()"><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></div>
                   <div><label class="muted">Setup fee (CHF)</label><input class="input" id="offer-setup-fee" type="number" step="0.01" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">Monatspreis (CHF)</label><input class="input" id="offer-monthly" type="number" step="0.01" oninput="offerFieldChanged()"></div>
@@ -3573,6 +3573,48 @@ function hydrateOfferPlanSelect(selected){
   el.innerHTML=plans.map(p=>`<option value="${esc(p)}">${esc(planLabel(p))}</option>`).join('');
   el.value=selected||'professional';
 }
+function resolveOfferDefaultsFromPlanConfig(planCode){
+  const row=planConfigByCode(planCode);
+  if(!row) return null;
+  const setupFee=Number(row.setup_fee ?? row.setup_fee_amount ?? 0);
+  const monthlyPrice=Number(row.monthly_price ?? 0);
+  const yearlyPrice=Number(row.yearly_price ?? 0);
+  const includedMinutes=Number(row.included_minutes ?? row.minutes ?? 0);
+  const extraPerMinute=Number(row.extra_per_minute ?? row.extra_rate ?? 0);
+  const numberCountRaw=row.number_count ?? row.numbers_count ?? row.included_numbers ?? row.number_included;
+  const numberCount=Number(numberCountRaw);
+  return {
+    setupFee:Number.isFinite(setupFee)?setupFee:0,
+    monthlyPrice:Number.isFinite(monthlyPrice)?monthlyPrice:0,
+    yearlyPrice:Number.isFinite(yearlyPrice)?yearlyPrice:0,
+    includedMinutes:Number.isFinite(includedMinutes)?includedMinutes:0,
+    extraPerMinute:Number.isFinite(extraPerMinute)?extraPerMinute:0,
+    hasNumberCount:Number.isFinite(numberCount),
+    numberCount:Number.isFinite(numberCount)?numberCount:0,
+    summaryText:String(row.short_description||row.headline||'').trim()
+  };
+}
+function applyPlanDefaultsToOffer(offer){
+  if(!offer) return;
+  const defaults=resolveOfferDefaultsFromPlanConfig(offer.plan);
+  if(!defaults) return;
+  offer.setupFee=defaults.setupFee;
+  offer.monthlyPrice=defaults.monthlyPrice;
+  offer.yearlyPrice=defaults.yearlyPrice;
+  offer.includedMinutes=defaults.includedMinutes;
+  offer.extraPerMinute=defaults.extraPerMinute;
+  if(defaults.hasNumberCount) offer.numberCount=defaults.numberCount;
+  if(!String(offer.summaryText||'').trim() && defaults.summaryText) offer.summaryText=defaults.summaryText;
+  offer.total=getOfferTotal(offer);
+}
+function offerPlanChanged(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer) return;
+  offerFieldChanged();
+  applyPlanDefaultsToOffer(offer);
+  openOfferDetail(offer.id,true);
+  renderOfferPreview(offer);
+}
 function offerFieldChanged(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
@@ -3604,10 +3646,11 @@ function offerFieldChanged(){
 }
 function renderOfferPreview(offer){
   const el=document.getElementById('offer-preview'); if(!el) return;
-  const base=offer.billingCycle==='yearly'?offer.yearlyPrice:offer.monthlyPrice;
+  const isYearly=offer.billingCycle==='yearly';
+  const base=isYearly?offer.yearlyPrice:offer.monthlyPrice;
   const addons=offer.addOnNumbers+offer.addOnSms+offer.addOnAi;
   const total=getOfferTotal(offer);
-  el.innerHTML=`<div class="offer-doc"><div class="offer-doc-head"><strong>Voxera</strong><span>Offerte</span></div><h2>Offerte ${esc(offer.offerNumber)}</h2><div class="muted">Datum ${formatDateDE(offer.createdAt||new Date().toISOString())} · Gültig bis ${formatDateDE(offer.validUntil)}</div><div class="offer-preview-block"><strong>Empfänger</strong><div>${esc(offer.companyName||'—')}</div><div>${esc(offerContactName(offer)||'')}</div><div>${esc(offerAddressLine(offer)||'')}</div><div>${esc(offer.email||'')}</div><div>${esc(offer.phone||'')}</div></div><p>${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera.')}</p><div class="offer-preview-block"><strong>${esc(planLabel(offer.plan))}</strong><div>${esc(offer.summaryText||'Professionelle AI-Assistenz für Ihr Team.')}</div><ul><li>${offer.includedMinutes} inklusive Minuten</li><li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li><li>${offer.numberCount} Rufnummer(n)</li></ul></div><div class="offer-preview-block"><strong>Pricing Summary</strong><div>Setup Fee: ${moneyChf(offer.setupFee)}</div><div>${offer.billingCycle==='yearly'?'Jahrespreis':'Monatspreis'}: ${moneyChf(base)}</div><div>Add-ons: ${moneyChf(addons)}</div><div>Rabatt: ${moneyChf(offer.discountAmount)} + ${offer.discountPercent}%</div><div style="margin-top:6px;font-weight:700;">Total: ${moneyChf(total)}</div></div><div class="offer-preview-block"><strong>Nächste Schritte</strong><div>Bitte Offerte freigeben, damit wir den Vertrag direkt erstellen können.</div></div></div>`;
+  el.innerHTML=`<div class="offer-doc"><div class="offer-doc-head"><strong>Voxera</strong><span>Offerte</span></div><h2>Offerte ${esc(offer.offerNumber)}</h2><div class="muted">Datum ${formatDateDE(offer.createdAt||new Date().toISOString())} · Gültig bis ${formatDateDE(offer.validUntil)}</div><div class="offer-preview-block"><strong>Empfänger</strong><div>${esc(offer.companyName||'—')}</div><div>${esc(offerContactName(offer)||'')}</div><div>${esc(offerAddressLine(offer)||'')}</div><div>${esc(offer.email||'')}</div><div>${esc(offer.phone||'')}</div></div><p>${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera.')}</p><div class="offer-preview-block"><strong>${esc(planLabel(offer.plan))}</strong><div>${esc(offer.summaryText||'Professionelle AI-Assistenz für Ihr Team.')}</div><ul><li>${offer.includedMinutes} inklusive Minuten</li><li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li><li>${offer.numberCount} Rufnummer(n)</li></ul></div><div class="offer-preview-block"><strong>Pricing Summary</strong><div>Setup Fee: ${moneyChf(offer.setupFee)}</div><div style="font-weight:${isYearly?'500':'700'};">Monatspreis: ${moneyChf(offer.monthlyPrice)}</div><div style="font-weight:${isYearly?'700':'500'};">Jahrespreis: ${moneyChf(offer.yearlyPrice)}</div><div><span class="badge badge-blue" style="margin-right:6px;">${isYearly?'Yearly':'Monthly'} aktiv</span> Hauptpreis: ${moneyChf(base)}</div><div>Add-ons: ${moneyChf(addons)}</div><div>Rabatt: ${moneyChf(offer.discountAmount)} + ${offer.discountPercent}%</div><div style="margin-top:6px;font-weight:700;">Total: ${moneyChf(total)}</div></div><div class="offer-preview-block"><strong>Nächste Schritte</strong><div>Bitte Offerte freigeben, damit wir den Vertrag direkt erstellen können.</div></div></div>`;
 }
 async function createOffer(){
   const now=new Date();
@@ -3620,6 +3663,7 @@ async function createOffer(){
     if(error){alert('Offerte konnte nicht erstellt werden: '+error.message); return;}
     fallback.id=String(data.id); Object.assign(fallback,mapDbOfferToUi(data));
   }
+  applyPlanDefaultsToOffer(fallback);
   state.offers.unshift(fallback);
   state.selectedOfferId=fallback.id;
   renderOffers();
