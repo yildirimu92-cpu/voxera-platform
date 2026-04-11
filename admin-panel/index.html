@@ -194,6 +194,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   font-size:13px;font-family:inherit;color:var(--ink);
   background:var(--surface);outline:none;
   transition:all var(--transition-fast);width:100%;
+  min-width:0;max-width:100%;
   box-shadow:var(--shadow-card);
 }
 .input::placeholder{color:var(--slate2);}
@@ -236,6 +237,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;
   transition:all var(--fast);display:inline-flex;align-items:center;gap:6px;
   border:none;white-space:nowrap;height:32px;letter-spacing:-.01em;
+  min-width:0;max-width:100%;
 }
 .btn-primary{
   background:var(--blue);color:#fff;
@@ -300,7 +302,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .detail-item{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line2);padding:8px 0;font-size:12.5px;}
 .detail-k{color:var(--slate2);font-weight:500;}
-.detail-v{color:var(--ink);font-weight:600;text-align:right;}
+.detail-v{color:var(--ink);font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere;word-break:break-word;}
 
 /* ─── Empty ─────────────────────────────────────────────────── */
 .empty{
@@ -380,6 +382,8 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .customer-section-shell .toolbar{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:10px;box-shadow:var(--shadow-card);}
 #section-customers .section-head{margin-bottom:10px;}
 #section-customers .data-table tbody tr td{padding-top:12px;padding-bottom:12px;}
+.card,.plan-card,.plan-card-header,.plan-card-section,.plan-field,.inline-actions,.detail-item,.modal,.profile-panel{min-width:0;max-width:100%;}
+.muted,.card-title,.modal-sub,.plan-card-title{overflow-wrap:anywhere;word-break:break-word;}
 
 /* ─── Modal ─────────────────────────────────────────────────── */
 .modal-overlay{
@@ -523,10 +527,19 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .modal-top{flex-wrap:wrap;gap:10px;}
   .modal .form-grid{grid-template-columns:1fr;}
   .modal .inline-actions{width:100%;}
-  .modal .inline-actions .btn{flex:1;justify-content:center;}
+  .modal .inline-actions .btn{flex:1;justify-content:center;min-width:0;}
+  #customer-profile-modal .modal{overflow-x:hidden;}
 
   /* ─── Forms 1 Spalte ─── */
   form [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+  .plan-config-list{grid-template-columns:1fr!important;}
+  .plan-card-grid{grid-template-columns:1fr;}
+  .tabs,.profile-tabs{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tab-btn,.profile-tab{flex-shrink:0;min-width:0;}
+  .card,.plan-card,.modal,.section,.toolbar,.toolbar>*{min-width:0;max-width:100%;}
+  .inline-actions,.inline-actions>*{min-width:0;max-width:100%;}
+  .detail-item{align-items:flex-start;flex-wrap:wrap;}
+  .detail-v{text-align:left;}
 
   /* ─── Toolbar ─── */
   .toolbar{grid-template-columns:1fr!important;gap:8px;}
