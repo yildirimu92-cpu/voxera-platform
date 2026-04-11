@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voxera Offerte bestätigen</title>
+  <style>
+    :root{--ink:#0f172a;--slate:#475569;--line:#e2e8f0;--bg:#f8fafc;--brand:#2563eb;--ok:#166534;--danger:#b91c1c}
+    body{margin:0;background:var(--bg);font-family:Inter,system-ui,Arial,sans-serif;color:var(--ink)}
+    .wrap{max-width:880px;margin:36px auto;padding:0 16px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 4px 18px rgba(15,23,42,.05)}
+    h1{margin:0 0 12px;font-size:28px}
+    .muted{color:var(--slate)} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line)}
+    .row:last-child{border-bottom:none}
+    label{display:block;font-size:13px;color:var(--slate);margin:8px 0 4px}
+    input[type=text],input[type=email]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px}
+    button{background:var(--brand);color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .feedback{margin-top:10px;font-size:14px}
+    .ok{color:var(--ok)} .err{color:var(--danger)}
+    @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Offerte bestätigen</h1>
+      <p class="muted" id="state">Lade Offerte…</p>
+      <div id="content" style="display:none;">
+        <div class="grid" style="margin-bottom:14px;">
+          <div><strong id="company">—</strong><div class="muted" id="contact"></div></div>
+          <div><strong id="offerNo">—</strong><div class="muted">Gültig bis <span id="validUntil">—</span></div></div>
+        </div>
+        <div class="grid">
+          <div class="card" style="padding:12px;">
+            <strong>Paket</strong>
+            <div id="plan" class="muted" style="margin-top:6px"></div>
+            <div id="summary" class="muted" style="margin-top:8px"></div>
+          </div>
+          <div class="card" style="padding:12px;">
+            <strong>Preisübersicht</strong>
+            <div class="row"><span>Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
+            <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
+            <div class="row"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
+            <div class="row"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <label for="signerName">Ihr Name (Signatur)</label>
+          <input id="signerName" type="text" placeholder="Max Muster" />
+          <label for="signerEmail">Ihre E-Mail (optional)</label>
+          <input id="signerEmail" type="email" placeholder="max@firma.ch" />
+          <label><input id="confirm" type="checkbox" /> Ich bestätige diese Offerte verbindlich.</label>
+          <button id="acceptBtn" onclick="submitAcceptance()">Jetzt bestätigen</button>
+          <div class="feedback" id="feedback"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+  const token = new URLSearchParams(location.search).get('token') || '';
+  let offer = null;
+  const money = v => `CHF ${Number(v || 0).toFixed(2)}`;
+  const d = v => v ? new Date(v).toLocaleDateString('de-CH') : '—';
+
+  async function loadOffer(){
+    if(!token){document.getElementById('state').textContent='Ungültiger Link (Token fehlt).';return;}
+    const res = await fetch(`/.netlify/functions/offer-public-get?token=${encodeURIComponent(token)}`);
+    const json = await res.json();
+    if(!res.ok){document.getElementById('state').textContent=json.error||'Offerte konnte nicht geladen werden.';return;}
+    offer = json.offer;
+    document.getElementById('company').textContent = offer.company_name || 'Voxera Kunde';
+    document.getElementById('contact').textContent = offer.contact_name || offer.email || '';
+    document.getElementById('offerNo').textContent = `Offerte ${offer.offer_number || ''}`;
+    document.getElementById('validUntil').textContent = d(offer.valid_until);
+    document.getElementById('plan').textContent = `${offer.plan || ''} · ${offer.billing_cycle === 'yearly' ? 'jährlich' : 'monatlich'}`;
+    document.getElementById('summary').textContent = offer.offer_text?.summary || 'Ihre individuelle Voxera Offerte.';
+    document.getElementById('setupFee').textContent = money(offer.setup_fee);
+    const recurring = offer.billing_cycle === 'yearly' ? offer.yearly_price : offer.monthly_price;
+    document.getElementById('recurringLabel').textContent = offer.billing_cycle === 'yearly' ? 'Jährlich' : 'Monatlich';
+    document.getElementById('recurring').textContent = money(recurring);
+    document.getElementById('discount').textContent = `- ${money((offer.discount_amount||0) + (recurring * ((offer.discount_percent||0)/100)))}`;
+    document.getElementById('total').textContent = money(offer.total);
+    if(offer.accepted_at){
+      document.getElementById('feedback').className='feedback ok';
+      document.getElementById('feedback').textContent='Diese Offerte wurde bereits bestätigt.';
+      document.getElementById('acceptBtn').disabled=true;
+    }
+    document.getElementById('state').style.display='none';
+    document.getElementById('content').style.display='block';
+  }
+
+  async function submitAcceptance(){
+    const signer_name = document.getElementById('signerName').value.trim();
+    const signer_email = document.getElementById('signerEmail').value.trim();
+    const confirm_accepted = document.getElementById('confirm').checked;
+    const btn = document.getElementById('acceptBtn');
+    const fb = document.getElementById('feedback');
+    fb.className='feedback';
+    fb.textContent='';
+    btn.disabled=true;
+    const res = await fetch('/.netlify/functions/offer-public-accept',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token,signer_name,signer_email,confirm_accepted})
+    });
+    const json = await res.json();
+    if(!res.ok){fb.className='feedback err';fb.textContent=json.error||'Bestätigung fehlgeschlagen.';btn.disabled=false;return;}
+    fb.className='feedback ok';
+    fb.textContent='Vielen Dank. Ihre Offerte wurde erfolgreich bestätigt.';
+    btn.disabled=true;
+  }
+
+  loadOffer().catch(()=>{document.getElementById('state').textContent='Fehler beim Laden der Offerte.';});
+</script>
+</body>
+</html>
