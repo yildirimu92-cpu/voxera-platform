@@ -1229,11 +1229,16 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <div class="offer-columns">
               <div class="offer-editor">
                 <div class="card offer-card"><div class="card-head"><h3>Customer / Prospect Info</h3></div><div class="offer-grid-2">
+                  <div style="grid-column:1/-1;"><label class="muted">Verknüpfter Kunde</label><select class="select" id="offer-customer-id" onchange="offerCustomerChanged()"></select></div>
                   <div><label class="muted">Company</label><input class="input" id="offer-company" oninput="offerFieldChanged()"></div>
-                  <div><label class="muted">Kontaktname</label><input class="input" id="offer-contact" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Kontakt Vorname</label><input class="input" id="offer-contact-first" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Kontakt Nachname</label><input class="input" id="offer-contact-last" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">E-Mail</label><input class="input" id="offer-email" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">Telefon</label><input class="input" id="offer-phone" oninput="offerFieldChanged()"></div>
-                  <div style="grid-column:1/-1;"><label class="muted">Adresse</label><input class="input" id="offer-address" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Strasse</label><input class="input" id="offer-street" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">PLZ</label><input class="input" id="offer-postal-code" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Stadt</label><input class="input" id="offer-city" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Land</label><input class="input" id="offer-country" oninput="offerFieldChanged()"></div>
                 </div></div>
                 <div class="card offer-card"><div class="card-head"><h3>Commercial Setup</h3></div><div class="offer-grid-2">
                   <div><label class="muted">Plan</label><select class="select" id="offer-plan" onchange="offerFieldChanged()"></select></div>
@@ -3424,6 +3429,9 @@ function offerStatusBadge(status){
 function mapDbOfferToUi(row){
   const addOns=row.add_ons||{};
   const texts=row.offer_text||{};
+  const contactFirst=String(row.contact_first_name||'').trim();
+  const contactLast=String(row.contact_last_name||'').trim();
+  const contactStructured=[contactFirst,contactLast].filter(Boolean).join(' ');
   return {
     id:String(row.id),
     offerNumber:row.offer_number||'—',
@@ -3432,9 +3440,15 @@ function mapDbOfferToUi(row){
     contractId:row.contract_id?String(row.contract_id):'',
     invoiceId:row.invoice_id?String(row.invoice_id):'',
     companyName:row.company_name||'',
-    contactName:row.contact_name||'',
+    contactName:row.contact_name||contactStructured||'',
+    contactFirstName:contactFirst,
+    contactLastName:contactLast,
     email:row.email||'',
     phone:row.phone||'',
+    street:row.street||'',
+    postalCode:row.postal_code||'',
+    city:row.city||'',
+    country:row.country||'',
     address:row.address||'',
     plan:normalizePlanCode(row.plan||'kein_plan'),
     billingCycle:row.billing_cycle||'monthly',
@@ -3469,6 +3483,50 @@ function getOfferTotal(offer){
   const discount=Number(offer.discountAmount||0)+(base*(Number(offer.discountPercent||0)/100));
   return Math.max(0,Math.round((base+add-discount)*100)/100);
 }
+function offerContactName(offer){
+  const first=String(offer.contactFirstName||'').trim();
+  const last=String(offer.contactLastName||'').trim();
+  if(first||last) return [first,last].filter(Boolean).join(' ');
+  return String(offer.contactName||'').trim();
+}
+function offerAddressLine(offer){
+  const structured=[offer.street,offer.postalCode,offer.city,offer.country].map(v=>String(v||'').trim()).filter(Boolean).join(', ');
+  if(structured) return structured;
+  return String(offer.address||'').trim();
+}
+function hydrateOfferCustomerSelect(selectedCustomerId){
+  const el=document.getElementById('offer-customer-id');
+  if(!el) return;
+  el.innerHTML='<option value="">Nicht verknüpft (Prospect)</option>'+state.customers.map(c=>`<option value="${esc(c.id)}">${esc(c.name||c.customer_name||c.id)}</option>`).join('');
+  el.value=selectedCustomerId||'';
+}
+function applyCustomerSnapshotToOffer(offer, customer){
+  if(!offer||!customer) return;
+  offer.customerId=String(customer.id||'');
+  offer.companyName=String(customer.customer_name||customer.name||'').trim();
+  offer.contactFirstName=String(customer.contact_first_name||'').trim();
+  offer.contactLastName=String(customer.contact_last_name||'').trim();
+  offer.contactName=offerContactName(offer) || String(customer.contact_name||'').trim();
+  offer.email=String(customer.email||'').trim();
+  offer.phone=String(customer.tel_nr||customer.phone||'').trim();
+  offer.street=String(customer.street||'').trim();
+  offer.postalCode=String(customer.zip||'').trim();
+  offer.city=String(customer.city||'').trim();
+  offer.country=String(customer.country||'').trim();
+  offer.address=offerAddressLine(offer);
+}
+function offerCustomerChanged(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer) return;
+  const customerId=String(document.getElementById('offer-customer-id')?.value||'').trim();
+  offer.customerId=customerId;
+  if(customerId){
+    const customer=customerById(customerId);
+    if(customer) applyCustomerSnapshotToOffer(offer,customer);
+  }
+  openOfferDetail(offer.id,true);
+  renderOfferPreview(offer);
+}
 function renderOffers(){
   const table=document.getElementById('offers-table-body');
   if(!table) return;
@@ -3495,7 +3553,7 @@ function openOfferDetail(id,silent=false){
   const meta=document.getElementById('offer-header-meta');
   meta.innerHTML=`<span><strong>${esc(offer.companyName||'Prospect')}</strong></span><span>Gültig bis ${formatDateDE(offer.validUntil)}</span><span>Customer: ${offer.customerId?`<a href="#" onclick="event.preventDefault();openCustomerProfile('${jsStr(offer.customerId)}')">linked</a>`:'none'}</span><span>Contract: ${offer.contractId?`<a href="#contracts" onclick="setRoute('contracts')">linked</a>`:'none'}</span><span>Invoice: ${offer.invoiceId?`<a href="#billing-finance" onclick="setRoute('billing-finance')">linked</a>`:'none'}</span>`;
   const fields={
-    'offer-company':offer.companyName,'offer-contact':offer.contactName,'offer-email':offer.email,'offer-phone':offer.phone,'offer-address':offer.address,
+    'offer-customer-id':offer.customerId,'offer-company':offer.companyName,'offer-contact-first':offer.contactFirstName,'offer-contact-last':offer.contactLastName,'offer-email':offer.email,'offer-phone':offer.phone,'offer-street':offer.street,'offer-postal-code':offer.postalCode,'offer-city':offer.city,'offer-country':offer.country,
     'offer-billing-cycle':offer.billingCycle,'offer-setup-fee':offer.setupFee,'offer-monthly':offer.monthlyPrice,'offer-yearly':offer.yearlyPrice,
     'offer-included-minutes':offer.includedMinutes,'offer-extra-minute':offer.extraPerMinute,'offer-number-count':offer.numberCount,
     'offer-discount-amount':offer.discountAmount,'offer-discount-percent':offer.discountPercent,'offer-valid-until':offer.validUntil,
@@ -3504,6 +3562,7 @@ function openOfferDetail(id,silent=false){
   };
   Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id); if(el) el.value=val??'';});
   hydrateOfferPlanSelect(offer.plan);
+  hydrateOfferCustomerSelect(offer.customerId);
   renderOfferPreview(offer);
   if(!silent) renderOffers();
 }
@@ -3519,10 +3578,17 @@ function offerFieldChanged(){
   if(!offer) return;
   const num=id=>Number((document.getElementById(id)?.value)||0);
   offer.companyName=document.getElementById('offer-company').value.trim();
-  offer.contactName=document.getElementById('offer-contact').value.trim();
+  offer.customerId=String(document.getElementById('offer-customer-id')?.value||'').trim();
+  offer.contactFirstName=document.getElementById('offer-contact-first').value.trim();
+  offer.contactLastName=document.getElementById('offer-contact-last').value.trim();
+  offer.contactName=offerContactName(offer);
   offer.email=document.getElementById('offer-email').value.trim();
   offer.phone=document.getElementById('offer-phone').value.trim();
-  offer.address=document.getElementById('offer-address').value.trim();
+  offer.street=document.getElementById('offer-street').value.trim();
+  offer.postalCode=document.getElementById('offer-postal-code').value.trim();
+  offer.city=document.getElementById('offer-city').value.trim();
+  offer.country=document.getElementById('offer-country').value.trim();
+  offer.address=offerAddressLine(offer);
   offer.plan=normalizePlanCode(document.getElementById('offer-plan').value);
   offer.billingCycle=document.getElementById('offer-billing-cycle').value;
   offer.setupFee=num('offer-setup-fee'); offer.monthlyPrice=num('offer-monthly'); offer.yearlyPrice=num('offer-yearly');
@@ -3541,12 +3607,12 @@ function renderOfferPreview(offer){
   const base=offer.billingCycle==='yearly'?offer.yearlyPrice:offer.monthlyPrice;
   const addons=offer.addOnNumbers+offer.addOnSms+offer.addOnAi;
   const total=getOfferTotal(offer);
-  el.innerHTML=`<div class="offer-doc"><div class="offer-doc-head"><strong>Voxera</strong><span>Offerte</span></div><h2>Offerte ${esc(offer.offerNumber)}</h2><div class="muted">Datum ${formatDateDE(offer.createdAt||new Date().toISOString())} · Gültig bis ${formatDateDE(offer.validUntil)}</div><div class="offer-preview-block"><strong>Kunde</strong><div>${esc(offer.companyName||'—')}</div><div>${esc(offer.contactName||'')}</div><div>${esc(offer.email||'')}</div></div><p>${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera.')}</p><div class="offer-preview-block"><strong>${esc(planLabel(offer.plan))}</strong><div>${esc(offer.summaryText||'Professionelle AI-Assistenz für Ihr Team.')}</div><ul><li>${offer.includedMinutes} inklusive Minuten</li><li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li><li>${offer.numberCount} Rufnummer(n)</li></ul></div><div class="offer-preview-block"><strong>Pricing Summary</strong><div>Setup Fee: ${moneyChf(offer.setupFee)}</div><div>${offer.billingCycle==='yearly'?'Jahrespreis':'Monatspreis'}: ${moneyChf(base)}</div><div>Add-ons: ${moneyChf(addons)}</div><div>Rabatt: ${moneyChf(offer.discountAmount)} + ${offer.discountPercent}%</div><div style="margin-top:6px;font-weight:700;">Total: ${moneyChf(total)}</div></div><div class="offer-preview-block"><strong>Nächste Schritte</strong><div>Bitte Offerte freigeben, damit wir den Vertrag direkt erstellen können.</div></div></div>`;
+  el.innerHTML=`<div class="offer-doc"><div class="offer-doc-head"><strong>Voxera</strong><span>Offerte</span></div><h2>Offerte ${esc(offer.offerNumber)}</h2><div class="muted">Datum ${formatDateDE(offer.createdAt||new Date().toISOString())} · Gültig bis ${formatDateDE(offer.validUntil)}</div><div class="offer-preview-block"><strong>Empfänger</strong><div>${esc(offer.companyName||'—')}</div><div>${esc(offerContactName(offer)||'')}</div><div>${esc(offerAddressLine(offer)||'')}</div><div>${esc(offer.email||'')}</div><div>${esc(offer.phone||'')}</div></div><p>${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera.')}</p><div class="offer-preview-block"><strong>${esc(planLabel(offer.plan))}</strong><div>${esc(offer.summaryText||'Professionelle AI-Assistenz für Ihr Team.')}</div><ul><li>${offer.includedMinutes} inklusive Minuten</li><li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li><li>${offer.numberCount} Rufnummer(n)</li></ul></div><div class="offer-preview-block"><strong>Pricing Summary</strong><div>Setup Fee: ${moneyChf(offer.setupFee)}</div><div>${offer.billingCycle==='yearly'?'Jahrespreis':'Monatspreis'}: ${moneyChf(base)}</div><div>Add-ons: ${moneyChf(addons)}</div><div>Rabatt: ${moneyChf(offer.discountAmount)} + ${offer.discountPercent}%</div><div style="margin-top:6px;font-weight:700;">Total: ${moneyChf(total)}</div></div><div class="offer-preview-block"><strong>Nächste Schritte</strong><div>Bitte Offerte freigeben, damit wir den Vertrag direkt erstellen können.</div></div></div>`;
 }
 async function createOffer(){
   const now=new Date();
   const fallback={
-    id:crypto.randomUUID?crypto.randomUUID():String(Date.now()), offerNumber:'OFF-DRAFT', status:'draft', customerId:'', contractId:'', invoiceId:'', companyName:'', contactName:'', email:'', phone:'', address:'', plan:'professional', billingCycle:'monthly', setupFee:0, monthlyPrice:0, yearlyPrice:0, includedMinutes:0, extraPerMinute:0.75, numberCount:1, discountAmount:0, discountPercent:0, validUntil:new Date(now.getTime()+14*86400000).toISOString().slice(0,10), addOnNumbers:0, addOnSms:0, addOnAi:0, addOnNotes:'', introText:'', summaryText:'', customerNote:'', internalNotes:'', total:0, createdAt:now.toISOString(), updatedAt:now.toISOString()
+    id:crypto.randomUUID?crypto.randomUUID():String(Date.now()), offerNumber:'OFF-DRAFT', status:'draft', customerId:'', contractId:'', invoiceId:'', companyName:'', contactName:'', contactFirstName:'', contactLastName:'', email:'', phone:'', street:'', postalCode:'', city:'', country:'', address:'', plan:'professional', billingCycle:'monthly', setupFee:0, monthlyPrice:0, yearlyPrice:0, includedMinutes:0, extraPerMinute:0.75, numberCount:1, discountAmount:0, discountPercent:0, validUntil:new Date(now.getTime()+14*86400000).toISOString().slice(0,10), addOnNumbers:0, addOnSms:0, addOnAi:0, addOnNotes:'', introText:'', summaryText:'', customerNote:'', internalNotes:'', total:0, createdAt:now.toISOString(), updatedAt:now.toISOString()
   };
   if(authClient){
     const payload={status:'draft',valid_until:fallback.validUntil,billing_cycle:'monthly',plan:'professional'};
@@ -3562,7 +3628,7 @@ async function saveOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
   offerFieldChanged();
   const payload={
-    status:offer.status,customer_id:offer.customerId||null,company_name:offer.companyName||null,contact_name:offer.contactName||null,email:offer.email||null,phone:offer.phone||null,address:offer.address||null,
+    status:offer.status,customer_id:offer.customerId||null,company_name:offer.companyName||null,contact_name:offerContactName(offer)||null,contact_first_name:offer.contactFirstName||null,contact_last_name:offer.contactLastName||null,email:offer.email||null,phone:offer.phone||null,street:offer.street||null,postal_code:offer.postalCode||null,city:offer.city||null,country:offer.country||null,address:offerAddressLine(offer)||null,
     plan:offer.plan,billing_cycle:offer.billingCycle,setup_fee:offer.setupFee,monthly_price:offer.monthlyPrice,yearly_price:offer.yearlyPrice,included_minutes:offer.includedMinutes,extra_per_minute:offer.extraPerMinute,
     number_count:offer.numberCount,discount_amount:offer.discountAmount,discount_percent:offer.discountPercent,valid_until:offer.validUntil||null,total:getOfferTotal(offer),
     add_ons:{additional_numbers:offer.addOnNumbers,sms_alerts:offer.addOnSms,custom_ai_setup:offer.addOnAi,notes:offer.addOnNotes},
@@ -3588,7 +3654,7 @@ async function sendOffer(){
 async function duplicateOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
   const payload={
-    status:'draft',customer_id:offer.customerId||null,company_name:offer.companyName||null,contact_name:offer.contactName||null,email:offer.email||null,phone:offer.phone||null,address:offer.address||null,
+    status:'draft',customer_id:offer.customerId||null,company_name:offer.companyName||null,contact_name:offerContactName(offer)||null,contact_first_name:offer.contactFirstName||null,contact_last_name:offer.contactLastName||null,email:offer.email||null,phone:offer.phone||null,street:offer.street||null,postal_code:offer.postalCode||null,city:offer.city||null,country:offer.country||null,address:offerAddressLine(offer)||null,
     plan:offer.plan,billing_cycle:offer.billingCycle,setup_fee:offer.setupFee,monthly_price:offer.monthlyPrice,yearly_price:offer.yearlyPrice,included_minutes:offer.includedMinutes,extra_per_minute:offer.extraPerMinute,
     number_count:offer.numberCount,discount_amount:offer.discountAmount,discount_percent:offer.discountPercent,valid_until:offer.validUntil||null,total:getOfferTotal(offer),
     add_ons:{additional_numbers:offer.addOnNumbers,sms_alerts:offer.addOnSms,custom_ai_setup:offer.addOnAi,notes:offer.addOnNotes},
@@ -3610,7 +3676,7 @@ async function createContractFromOffer(){
   const payload={
     customer_id:offer.customerId||null,customer_name:offer.companyName||'',offer_id:offer.id,plan:offer.plan,months:12,start_date:new Date().toISOString().slice(0,10),end_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),12),
     cancellation_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellation_notice:'1 Monat',notes:`Created from offer ${offer.offerNumber}`,
-    status:'draft',contract_text:generateContractText({customerName:offer.companyName,customerAddress:offer.address,plan:offer.plan,months:12,startDate:new Date().toISOString().slice(0,10),cancellationDate:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellationNotice:'1 Monat'})
+    status:'draft',contract_text:generateContractText({customerName:offer.companyName,customerAddress:offerAddressLine(offer),plan:offer.plan,months:12,startDate:new Date().toISOString().slice(0,10),cancellationDate:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellationNotice:'1 Monat'})
   };
   if(authClient){
     const {data,error}=await authClient.from('contracts').insert(payload).select('*').single();
