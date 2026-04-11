@@ -1360,7 +1360,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                   <div><label class="muted">Individuelles KI-Setup (CHF)</label><input class="input" id="offer-addon-ai" type="number" step="0.01" oninput="offerFieldChanged()"></div>
                   <div style="grid-column:1/-1;"><label class="muted">Add-on Notizen</label><textarea class="textarea" id="offer-addon-notes" oninput="offerFieldChanged()"></textarea></div>
                 </div></div>
-                <div class="card offer-card"><div class="card-head"><h3>Offertentext</h3></div>
+                <div class="card offer-card"><div class="card-head"><h3>Offertentext</h3><button class="btn btn-quiet btn-sm" id="offer-load-plan-texts-btn" onclick="loadPlanTextsIntoOffer()">Pakettexte laden</button></div>
                   <div><label class="muted">Einleitung</label><textarea class="textarea" id="offer-intro" oninput="offerFieldChanged()"></textarea></div>
                   <div><label class="muted">Leistungsbeschreibung</label><textarea class="textarea" id="offer-summary" oninput="offerFieldChanged()"></textarea></div>
                   <div><label class="muted">Customer-spezifische Notiz</label><textarea class="textarea" id="offer-customer-note" oninput="offerFieldChanged()"></textarea></div>
@@ -3624,7 +3624,7 @@ function mapDbOfferToUi(row){
   const companyValue=row[read('company_name','company')]||'';
   const streetValue=row[read('street')]||'';
   const postalCodeValue=row[read('zip','postal_code')]||'';
-  return {
+  const mapped={
     id:String(row.id),
     offerNumber:row.offer_number||'—',
     status:String(row.status||'draft').toLowerCase(),
@@ -3679,6 +3679,8 @@ function mapDbOfferToUi(row){
       hasAddress:Object.prototype.hasOwnProperty.call(row,'address')
     }
   };
+  applyPlanTextDefaultsToOffer(mapped,{force:false});
+  return mapped;
 }
 function buildOfferDbPayload(offer){
   const map=offer.__dbFieldMap||{};
@@ -3952,6 +3954,20 @@ function resolveOfferDefaultsFromPlanConfig(planCode){
     summaryText:String(row.short_description||row.headline||'').trim()
   };
 }
+function resolveOfferTextDefaultsFromPlanConfig(planCode){
+  const row=planConfigByCode(planCode);
+  if(!row) return null;
+  const introText=String(row.headline||'').trim();
+  const summaryText=String(row.short_description||row.headline||'').trim();
+  return {introText,summaryText};
+}
+function applyPlanTextDefaultsToOffer(offer,{force=false}={}){
+  if(!offer) return;
+  const defaults=resolveOfferTextDefaultsFromPlanConfig(offer.plan);
+  if(!defaults) return;
+  if(force || !String(offer.introText||'').trim()) offer.introText=defaults.introText;
+  if(force || !String(offer.summaryText||'').trim()) offer.summaryText=defaults.summaryText;
+}
 function applyPlanDefaultsToOffer(offer){
   if(!offer) return;
   const defaults=resolveOfferDefaultsFromPlanConfig(offer.plan);
@@ -3962,8 +3978,21 @@ function applyPlanDefaultsToOffer(offer){
   offer.includedMinutes=defaults.includedMinutes;
   offer.extraPerMinute=defaults.extraPerMinute;
   if(defaults.hasNumberCount) offer.numberCount=defaults.numberCount;
-  if(!String(offer.summaryText||'').trim() && defaults.summaryText) offer.summaryText=defaults.summaryText;
+  applyPlanTextDefaultsToOffer(offer,{force:false});
   offer.total=getOfferTotal(offer);
+}
+function loadPlanTextsIntoOffer(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer) return;
+  if(isFinalOfferStatus(offer.status)){
+    showToast('Finale Offerten sind schreibgeschützt.');
+    return;
+  }
+  offerFieldChanged();
+  applyPlanTextDefaultsToOffer(offer,{force:true});
+  openOfferDetail(offer.id,true);
+  renderOfferPreview(offer);
+  showToast('✓ Pakettexte übernommen.');
 }
 function offerPlanChanged(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
