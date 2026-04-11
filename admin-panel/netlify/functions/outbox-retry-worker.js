@@ -111,6 +111,12 @@ async function dispatchOutboxEvent(sbAdmin, outboxRow) {
     return postJson(webhookUrl, payload);
   }
 
+  if (outboxRow.event_type === 'offer_email' || outboxRow.event_type === 'subscription_payment_email') {
+    const webhookUrl = process.env.MAKE_MAIL_WEBHOOK;
+    if (!webhookUrl) return { ok: false, error: 'MAKE_MAIL_WEBHOOK not configured' };
+    return postJson(webhookUrl, payload);
+  }
+
 
   if (outboxRow.event_type === 'customer_welcome_access_email' || outboxRow.event_type === 'customer_password_reset_email') {
     const webhookUrl = process.env.MAKE_WELCOME_WEBHOOK;
