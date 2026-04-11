@@ -2116,7 +2116,13 @@ async function callAdminFunction(name,payload){
   });
   const json=await res.json().catch(()=>({}));
   if(!res.ok){
-    const err=new Error(json?.error||`HTTP ${res.status}`);
+    const message=(
+      json?.error?.message||
+      json?.message||
+      (typeof json?.error==='string'?json.error:'')||
+      `HTTP ${res.status}`
+    );
+    const err=new Error(message);
     err.status=res.status;
     err.payload=json;
     throw err;
