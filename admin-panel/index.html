@@ -2758,7 +2758,7 @@ function renderBillingFinance(){
     <td>${esc(formatDate(i.dueDate))}</td>
     <td>${esc(formatDate(i.paidAt))}</td>
     <td>${esc(i.invoiceNo||'—')}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openCustomerProfile('${jsStr(i.customerId)}')"`:'disabled'}>Profil</button><button class="btn btn-secondary btn-sm" disabled>Rechnung</button></div></td>
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openCustomerProfile('${jsStr(i.customerId)}')"`:'disabled'}>Profil</button><button class="btn btn-secondary btn-sm" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button></div></td>
   </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Rechnungen für aktuelle Filter.</div></td></tr>';
 
   const usedMinutesByCustomer={};
@@ -4906,7 +4906,12 @@ function openCustomerProfile(id){
                 <td>${esc(invoiceProviderLabel(inv.billing_provider))}</td>
                 <td>${esc(formatDate(inv.issued_at))}</td>
                 <td>${esc(formatDate(inv.paid_at))}</td>
-                <td><button class="btn btn-primary btn-sm" onclick="markInvoicePaid('${jsStr(id)}','${jsStr(inv.id)}')" ${(String(inv.status||'').toLowerCase()==='paid'||String(inv.billing_provider||'').toLowerCase()==='stripe')?'disabled':''}>Als bezahlt</button></td>
+                <td>
+                  <div class="inline-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="sendInvoiceEmail('${jsStr(inv.id)}')">Rechnung senden</button>
+                    <button class="btn btn-primary btn-sm" onclick="markInvoicePaid('${jsStr(id)}','${jsStr(inv.id)}')" ${(String(inv.status||'').toLowerCase()==='paid'||String(inv.billing_provider||'').toLowerCase()==='stripe')?'disabled':''}>Als bezahlt</button>
+                  </div>
+                </td>
               </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Rechnungen vorhanden.</div></td></tr>'}
           </tbody>
         </table>
@@ -5325,6 +5330,8 @@ async function sendBillingPaymentLink(customerId){
   try{
     const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_payment_link'});
     if(!json?.success||!json?.customer) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
+    const dispatch=await callAdminFunction('mail-dispatch',{event_type:'setup_fee_email',customer_id:customerId});
+    if(!dispatch?.success) throw new Error(dispatch?.error||'Mailversand fehlgeschlagen.');
     const updated=json.customer;
     customer.plan_code=normalizePlanCode(updated.plan_code||updated.plan||customer.plan_code);
     customer.plan=normalizePlanCode(updated.plan||updated.plan_code||customer.plan);
@@ -5337,10 +5344,22 @@ async function sendBillingPaymentLink(customerId){
     state.events.unshift(`${nowStamp()} · ${customer.name}: Setup Fee Link aus plan_config gesendet`);
     renderCustomers(); renderOverview(); renderActivity(); updateBadges();
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    showToast('✓ Setup Fee Link gesendet (Status: pending).');
+    showToast('✓ Setup Fee Link gesendet.');
   }catch(err){
     const payload=err?.payload||{};
     alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
+  }
+}
+
+async function sendInvoiceEmail(invoiceId){
+  if(!invoiceId) return;
+  try{
+    const json=await callAdminFunction('mail-dispatch',{event_type:'invoice_email',invoice_id:invoiceId});
+    if(!json?.success) throw new Error(json?.error||'Mailversand fehlgeschlagen.');
+    showToast('✓ Rechnung gesendet.');
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Rechnung konnte nicht gesendet werden.');
   }
 }
 

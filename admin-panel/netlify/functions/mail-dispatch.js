@@ -3,7 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
-const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
+const { normalizePlanCode, loadPlanByCode, isSalesPlanCode } = require('./_lib/plan-config');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -231,6 +231,190 @@ async function loadSubscriptionPaymentPayload(sbAdmin, body) {
   };
 }
 
+function customerRecipientName(customer) {
+  return trimOrNull(customer?.contact_name)
+    || trimOrNull(customer?.customer_name)
+    || trimOrNull(customer?.company_name)
+    || null;
+}
+
+async function loadSetupFeePayload(sbAdmin, body) {
+  const customerId = trimOrNull(body.customer_id);
+  if (!customerId) return { ok: false, statusCode: 400, error: 'Für setup_fee_email ist customer_id erforderlich.' };
+
+  const { data: customer, error: customerError } = await sbAdmin
+    .from('customers')
+    .select('*')
+    .eq('id', customerId)
+    .maybeSingle();
+  if (customerError) return { ok: false, statusCode: 500, error: 'Customer lookup failed.', details: customerError.message };
+  if (!customer) return { ok: false, statusCode: 404, error: 'Kunde nicht gefunden.' };
+
+  const recipientEmail = trimOrNull(body?.overrides?.to_email) || trimOrNull(customer.email);
+  if (!recipientEmail) {
+    return { ok: false, statusCode: 400, error: 'Kunde hat keine Empfänger-E-Mail.' };
+  }
+
+  const planCode = normalizePlanCode(customer.plan_code || customer.plan);
+  if (!isSalesPlanCode(planCode)) {
+    return { ok: false, statusCode: 409, error: 'Für diesen Plan kann kein Setup-Fee-Link versendet werden.' };
+  }
+
+  const { plan: planConfig, error: planConfigError } = await loadPlanByCode(sbAdmin, planCode);
+  if (planConfigError) {
+    return { ok: false, statusCode: 500, error: 'Plan-Konfiguration konnte nicht geladen werden.', details: planConfigError.message };
+  }
+  if (!planConfig) {
+    return { ok: false, statusCode: 400, error: `plan_config für ${planCode} fehlt.` };
+  }
+
+  const paymentLink = trimOrNull(customer.payment_link) || trimOrNull(planConfig.setup_fee_payment_link);
+  if (!paymentLink) {
+    return { ok: false, statusCode: 400, error: 'setup_fee_payment_link fehlt in plan_config.' };
+  }
+  if (!/^https?:\/\//i.test(paymentLink)) {
+    return { ok: false, statusCode: 400, error: 'setup_fee_payment_link muss mit http:// oder https:// beginnen.' };
+  }
+
+  const setupFeeAmount = Number(
+    customer.setup_fee_amount != null ? customer.setup_fee_amount : planConfig.setup_fee_amount
+  );
+  if (!Number.isFinite(setupFeeAmount) || setupFeeAmount < 0) {
+    return { ok: false, statusCode: 400, error: 'setup_fee_amount ist ungültig.' };
+  }
+
+  const payload = {
+    event_type: 'setup_fee_email',
+    mail_type: 'setup_fee_email',
+    recipient: {
+      email: recipientEmail,
+      name: customerRecipientName(customer)
+    },
+    customer: {
+      id: customer.id,
+      customer_name: customer.customer_name || null,
+      contact_name: customer.contact_name || null,
+      email: customer.email || null,
+      plan_code: planCode,
+      payment_status: customer.payment_status || null
+    },
+    setup_fee: {
+      amount: Number(setupFeeAmount.toFixed(2)),
+      currency: 'CHF',
+      payment_link: paymentLink
+    },
+    plan: {
+      id: planConfig.id || planCode,
+      plan_label: planConfig.plan_label || planConfig.name || planCode
+    },
+    meta: {
+      source: 'admin_panel',
+      requested_at: new Date().toISOString()
+    }
+  };
+
+  return {
+    ok: true,
+    eventType: 'setup_fee_email',
+    payload,
+    payloadSummary: `setup_fee_email -> ${recipientEmail}`,
+    dedupeKey: `setup_fee_email:${customer.id}:${Date.now()}`,
+    responseData: {
+      customer_id: customer.id,
+      sent_to_email: recipientEmail,
+      plan_code: planCode
+    }
+  };
+}
+
+async function loadInvoicePayload(sbAdmin, body) {
+  const invoiceId = trimOrNull(body.invoice_id);
+  if (!invoiceId) return { ok: false, statusCode: 400, error: 'Für invoice_email ist invoice_id erforderlich.' };
+
+  const { data: invoice, error: invoiceError } = await sbAdmin
+    .from('invoices')
+    .select('*')
+    .eq('id', invoiceId)
+    .maybeSingle();
+  if (invoiceError) return { ok: false, statusCode: 500, error: 'Invoice lookup failed.', details: invoiceError.message };
+  if (!invoice) return { ok: false, statusCode: 404, error: 'Rechnung nicht gefunden.' };
+
+  const { data: customer, error: customerError } = await sbAdmin
+    .from('customers')
+    .select('*')
+    .eq('id', String(invoice.customer_id))
+    .maybeSingle();
+  if (customerError) return { ok: false, statusCode: 500, error: 'Customer lookup failed.', details: customerError.message };
+  if (!customer) return { ok: false, statusCode: 404, error: 'Kunde für Rechnung nicht gefunden.' };
+
+  const recipientEmail = trimOrNull(body?.overrides?.to_email) || trimOrNull(customer.email);
+  if (!recipientEmail) {
+    return { ok: false, statusCode: 400, error: 'Kunde hat keine Empfänger-E-Mail.' };
+  }
+
+  let subscription = null;
+  if (invoice.subscription_id) {
+    const { data: subData, error: subError } = await sbAdmin
+      .from('subscriptions')
+      .select('*')
+      .eq('id', invoice.subscription_id)
+      .maybeSingle();
+    if (subError) return { ok: false, statusCode: 500, error: 'Subscription lookup failed.', details: subError.message };
+    subscription = subData || null;
+  }
+
+  const payload = {
+    event_type: 'invoice_email',
+    mail_type: 'invoice_email',
+    recipient: {
+      email: recipientEmail,
+      name: customerRecipientName(customer)
+    },
+    customer: {
+      id: customer.id,
+      customer_name: customer.customer_name || null,
+      contact_name: customer.contact_name || null,
+      email: customer.email || null
+    },
+    invoice: {
+      id: invoice.id,
+      invoice_number: invoice.invoice_number || null,
+      invoice_type: invoice.invoice_type || null,
+      status: invoice.status || null,
+      amount: Number(invoice.total_amount || 0),
+      due_at: invoice.due_at || null,
+      currency: invoice.currency || 'CHF',
+      pdf_url: trimOrNull(invoice.pdf_url),
+      payment_link: trimOrNull(invoice.external_reference),
+      issued_at: invoice.issued_at || null,
+      paid_at: invoice.paid_at || null
+    },
+    subscription: subscription ? {
+      id: subscription.id,
+      billing_cycle: subscription.billing_cycle || null,
+      plan_code: normalizePlanCode(subscription.plan_code || customer.plan_code || customer.plan)
+    } : null,
+    meta: {
+      source: 'admin_panel',
+      requested_at: new Date().toISOString()
+    }
+  };
+
+  return {
+    ok: true,
+    eventType: 'invoice_email',
+    payload,
+    payloadSummary: `invoice_email -> ${recipientEmail}`,
+    dedupeKey: `invoice_email:${invoice.id}:${Date.now()}`,
+    responseData: {
+      invoice_id: invoice.id,
+      customer_id: customer.id,
+      sent_to_email: recipientEmail,
+      invoice_number: invoice.invoice_number || null
+    }
+  };
+}
+
 async function buildDispatchPayload(sbAdmin, body) {
   const eventType = trimOrNull(body.event_type);
   if (!eventType) return { ok: false, statusCode: 400, error: 'event_type fehlt.' };
@@ -243,8 +427,12 @@ async function buildDispatchPayload(sbAdmin, body) {
     return loadSubscriptionPaymentPayload(sbAdmin, body);
   }
 
-  if (eventType === 'setup_fee_email' || eventType === 'invoice_email') {
-    return { ok: false, statusCode: 501, error: `${eventType} ist noch nicht implementiert.` };
+  if (eventType === 'setup_fee_email') {
+    return loadSetupFeePayload(sbAdmin, body);
+  }
+
+  if (eventType === 'invoice_email') {
+    return loadInvoicePayload(sbAdmin, body);
   }
 
   return { ok: false, statusCode: 400, error: `Unbekannter event_type: ${eventType}` };
