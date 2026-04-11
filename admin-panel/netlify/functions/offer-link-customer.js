@@ -139,7 +139,7 @@ function validateCustomerPayload(payload) {
   return { ok: true };
 }
 
-async function ensureOnboarding(sbAdmin, customerId) {
+async function ensurePassiveOnboarding(sbAdmin, customerId) {
   const { data: onboarding, error: onboardingErr } = await sbAdmin
     .from('onboarding')
     .select('id,status,progress')
@@ -155,7 +155,7 @@ async function ensureOnboarding(sbAdmin, customerId) {
       customer_id: customerId,
       status: STATUS.onboarding.NOT_STARTED,
       progress: 0,
-      next_step: 'Offerte in Kunde überführt',
+      next_step: null,
       created_at: nowIso,
       updated_at: nowIso
     })
@@ -355,7 +355,7 @@ exports.handler = async (event) => {
       return errorResponse(500, 'offer_link_failed', 'Offerte konnte nicht verknüpft werden.', linkErr.message);
     }
 
-    const onboarding = await ensureOnboarding(sbAdmin, customer.id);
+    const onboarding = await ensurePassiveOnboarding(sbAdmin, customer.id);
 
     return response(200, {
       success: true,

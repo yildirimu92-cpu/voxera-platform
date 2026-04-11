@@ -1340,6 +1340,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                 <div class="card offer-card"><div class="card-head"><h3>Kommerzielle Konditionen</h3></div><div class="offer-grid-2">
                   <div><label class="muted">Plan</label><select class="select" id="offer-plan" onchange="offerPlanChanged()"></select></div>
                   <div><label class="muted">Abrechnungszyklus</label><select class="select" id="offer-billing-cycle" onchange="offerFieldChanged()"><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></div>
+                  <div><label class="muted">Vertragslaufzeit (Monate)</label><input class="input" id="offer-duration-months" type="number" min="1" step="1" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">Einmalige Einrichtung (CHF)</label><input class="input" id="offer-setup-fee" type="number" step="0.01" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">Monatspreis (CHF)</label><input class="input" id="offer-monthly" type="number" step="0.01" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">Jahrespreis (CHF)</label><input class="input" id="offer-yearly" type="number" step="0.01" oninput="offerFieldChanged()"></div>
@@ -3587,6 +3588,7 @@ function mapDbOfferToUi(row){
     address:row.address||'',
     plan:normalizePlanCode(row.plan||'kein_plan'),
     billingCycle:row.billing_cycle||'monthly',
+    durationMonths:Number(row.duration_months||12),
     setupFee:Number(row.setup_fee||0),
     monthlyPrice:Number(row.monthly_price||0),
     yearlyPrice:Number(row.yearly_price||0),
@@ -3642,6 +3644,7 @@ function buildOfferDbPayload(offer){
   put('country',offer.country||null);
   put('plan',offer.plan);
   put('billing_cycle',offer.billingCycle);
+  put('duration_months',offer.durationMonths);
   put('setup_fee',offer.setupFee);
   put('monthly_price',offer.monthlyPrice);
   put('yearly_price',offer.yearlyPrice);
@@ -3746,7 +3749,7 @@ function openOfferDetail(id,silent=false){
   hydrateOfferStatusSelect(offer.status);
   const fields={
     'offer-customer-id':offer.customerId,'offer-company':offer.companyName,'offer-contact-first':offer.contactFirstName,'offer-contact-last':offer.contactLastName,'offer-email':offer.email,'offer-phone':offer.phone,'offer-street':offer.street,'offer-postal-code':offer.postalCode,'offer-city':offer.city,'offer-country':offer.country,
-    'offer-billing-cycle':offer.billingCycle,'offer-setup-fee':offer.setupFee,'offer-monthly':offer.monthlyPrice,'offer-yearly':offer.yearlyPrice,
+    'offer-billing-cycle':offer.billingCycle,'offer-duration-months':offer.durationMonths,'offer-setup-fee':offer.setupFee,'offer-monthly':offer.monthlyPrice,'offer-yearly':offer.yearlyPrice,
     'offer-included-minutes':offer.includedMinutes,'offer-extra-minute':offer.extraPerMinute,'offer-number-count':offer.numberCount,
     'offer-discount-amount':offer.discountAmount,'offer-discount-percent':offer.discountPercent,'offer-valid-until':offer.validUntil,
     'offer-addon-numbers':offer.addOnNumbers,'offer-addon-sms':offer.addOnSms,'offer-addon-ai':offer.addOnAi,'offer-addon-notes':offer.addOnNotes,
@@ -3894,6 +3897,7 @@ function offerFieldChanged(){
   offer.address=offerAddressLine(offer);
   offer.plan=normalizePlanCode(document.getElementById('offer-plan').value);
   offer.billingCycle=document.getElementById('offer-billing-cycle').value;
+  offer.durationMonths=Math.max(1,Math.trunc(num('offer-duration-months')||0)||12);
   offer.setupFee=num('offer-setup-fee'); offer.monthlyPrice=num('offer-monthly'); offer.yearlyPrice=num('offer-yearly');
   offer.includedMinutes=num('offer-included-minutes'); offer.extraPerMinute=num('offer-extra-minute'); offer.numberCount=num('offer-number-count');
   offer.discountAmount=num('offer-discount-amount'); offer.discountPercent=num('offer-discount-percent');
@@ -3955,6 +3959,7 @@ function renderOfferPreview(offer){
           <li>${offer.includedMinutes} inklusive Minuten</li>
           <li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li>
           <li>${offer.numberCount} Rufnummer(n)</li>
+          <li>${Math.max(1,Math.trunc(Number(offer.durationMonths||0)||12))} Monate Laufzeit</li>
         </ul>
       </div>
     </div>
@@ -3980,10 +3985,13 @@ function renderOfferPreview(offer){
 async function createOffer(){
   const now=new Date();
   const fallback={
-    id:crypto.randomUUID?crypto.randomUUID():String(Date.now()), offerNumber:'OFF-DRAFT', status:'draft', customerId:'', contractId:'', invoiceId:'', companyName:'', contactName:'', contactFirstName:'', contactLastName:'', email:'', phone:'', street:'', postalCode:'', city:'', country:'', address:'', plan:'professional', billingCycle:'monthly', setupFee:0, monthlyPrice:0, yearlyPrice:0, includedMinutes:0, extraPerMinute:0.75, numberCount:1, discountAmount:0, discountPercent:0, validUntil:new Date(now.getTime()+14*86400000).toISOString().slice(0,10), addOnNumbers:0, addOnSms:0, addOnAi:0, addOnNotes:'', introText:'', summaryText:'', customerNote:'', internalNotes:'', total:0, sentToEmail:'', sendSubject:'', createdAt:now.toISOString(), updatedAt:now.toISOString()
+    id:crypto.randomUUID?crypto.randomUUID():String(Date.now()), offerNumber:'OFF-DRAFT', status:'draft', customerId:'', contractId:'', invoiceId:'', companyName:'', contactName:'', contactFirstName:'', contactLastName:'', email:'', phone:'', street:'', postalCode:'', city:'', country:'', address:'', plan:'professional', billingCycle:'monthly', durationMonths:12, setupFee:0, monthlyPrice:0, yearlyPrice:0, includedMinutes:0, extraPerMinute:0.75, numberCount:1, discountAmount:0, discountPercent:0, validUntil:new Date(now.getTime()+14*86400000).toISOString().slice(0,10), addOnNumbers:0, addOnSms:0, addOnAi:0, addOnNotes:'', introText:'', summaryText:'', customerNote:'', internalNotes:'', total:0, sentToEmail:'', sendSubject:'', createdAt:now.toISOString(), updatedAt:now.toISOString()
   };
   if(authClient){
     const payload={status:'draft',valid_until:fallback.validUntil,billing_cycle:'monthly',plan:'professional'};
+    if(!(state.offerDbColumns instanceof Set) || state.offerDbColumns.size===0 || state.offerDbColumns.has('duration_months')){
+      payload.duration_months=fallback.durationMonths;
+    }
     const {data,error}=await authClient.from('offers').insert(payload).select('*').single();
     if(error){alert('Offerte konnte nicht erstellt werden: '+error.message); return;}
     fallback.id=String(data.id); Object.assign(fallback,mapDbOfferToUi(data));
@@ -4058,10 +4066,15 @@ async function createContractFromOffer(){
     return;
   }
   await saveOffer();
+  const durationMonths=Math.max(1,Math.trunc(Number(offer.durationMonths||0)||0));
+  if(!durationMonths){
+    alert('Vertragslaufzeit fehlt auf der Offerte. Bitte Laufzeit in Monaten setzen.');
+    return;
+  }
   const payload={
-    customer_id:offer.customerId||null,customer_name:offer.companyName||'',offer_id:offer.id,plan:offer.plan,months:12,start_date:new Date().toISOString().slice(0,10),end_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),12),
-    cancellation_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellation_notice:'1 Monat',notes:`Erstellt aus Offerte ${offer.offerNumber}`,
-    status:'draft',contract_text:generateContractText({customerName:offer.companyName,customerAddress:offerAddressLine(offer),plan:offer.plan,months:12,startDate:new Date().toISOString().slice(0,10),cancellationDate:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellationNotice:'1 Monat'})
+    customer_id:offer.customerId||null,customer_name:offer.companyName||'',offer_id:offer.id,plan:offer.plan,billing_cycle:offer.billingCycle,duration_months:durationMonths,months:durationMonths,start_date:new Date().toISOString().slice(0,10),end_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),durationMonths),
+    cancellation_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),Math.max(durationMonths-1,0)),discount:Math.round(offer.discountPercent||0),cancellation_notice:'1 Monat',notes:`Erstellt aus Offerte ${offer.offerNumber}`,
+    status:'draft',contract_text:generateContractText({customerName:offer.companyName,customerAddress:offerAddressLine(offer),plan:offer.plan,months:durationMonths,startDate:new Date().toISOString().slice(0,10),cancellationDate:addMonthsToDateStr(new Date().toISOString().slice(0,10),Math.max(durationMonths-1,0)),discount:Math.round(offer.discountPercent||0),cancellationNotice:'1 Monat'})
   };
   if(authClient){
     const {data,error}=await authClient.from('contracts').insert(payload).select('*').single();
