@@ -67,6 +67,35 @@ function normalizePhone(raw) {
   return String(raw || '').trim() || null;
 }
 
+function normalizeText(raw) {
+  const value = String(raw || '').trim();
+  return value || null;
+}
+
+function pickFirstNonEmpty(offer, candidates) {
+  for (const key of candidates) {
+    const value = normalizeText(offer?.[key]);
+    if (value) return { key, value };
+  }
+  return { key: null, value: null };
+}
+
+function resolveAddressFields(offer) {
+  const street = pickFirstNonEmpty(offer, ['street', 'street_address']);
+  const zip = pickFirstNonEmpty(offer, ['postal_code', 'zip', 'postalCode']);
+  const city = pickFirstNonEmpty(offer, ['city', 'town']);
+  const country = pickFirstNonEmpty(offer, ['country']);
+  return { street, zip, city, country };
+}
+
+function requiredFieldMissing(fieldValue) {
+  return !String(fieldValue || '').trim();
+}
+
+function missingFieldError(messages, details) {
+  return errorResponse(409, 'missing_required_offer_field', messages.join(' '), details);
+}
+
 function generateCustomerId() {
   return `cust_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -224,17 +253,20 @@ exports.handler = async (event) => {
       linkedExisting = true;
       duplicateMatch = existing.via;
     } else {
+      const address = resolveAddressFields(offer);
+      const email = normalizeEmail(offer.email) || null;
+      const phone = normalizePhone(offer.phone);
       const customerId = generateCustomerId();
       const customerPayload = {
         id: customerId,
         customer_name: prospectNameFromOffer(offer),
-        email: normalizeEmail(offer.email) || null,
-        tel_nr: normalizePhone(offer.phone),
+        email,
+        tel_nr: phone,
         plan: String(offer.plan || 'professional').trim() || 'professional',
-        street: String(offer.street || '').trim() || null,
-        zip: String(offer.postal_code || '').trim() || null,
-        city: String(offer.city || '').trim() || null,
-        country: String(offer.country || '').trim() || null,
+        street: address.street.value,
+        zip: address.zip.value,
+        city: address.city.value,
+        country: address.country.value,
         contact_first_name: String(offer.contact_first_name || '').trim() || null,
         contact_last_name: String(offer.contact_last_name || '').trim() || null,
         contact_name: String(offer.contact_name || '').trim() || null,
@@ -244,6 +276,35 @@ exports.handler = async (event) => {
         created_at: nowIso,
         updated_at: nowIso
       };
+
+      const requiredErrors = [];
+      const requiredFieldDetails = [];
+      if (requiredFieldMissing(customerPayload.customer_name)) {
+        requiredErrors.push('Kunde kann nicht erstellt werden: Firmen-/Kundenname fehlt in der Offerte.');
+        requiredFieldDetails.push({ customer_field: 'customer_name', offer_field: 'company_name|contact_first_name|contact_last_name|contact_name' });
+      }
+      if (requiredFieldMissing(customerPayload.street)) {
+        requiredErrors.push('Kunde kann nicht erstellt werden: Straße fehlt in der Offerte.');
+        requiredFieldDetails.push({ customer_field: 'street', offer_field: address.street.key || 'street' });
+      }
+      if (requiredFieldMissing(customerPayload.zip)) {
+        requiredErrors.push('Kunde kann nicht erstellt werden: PLZ fehlt in der Offerte (erwartet: postal_code, Fallback: zip/postalCode).');
+        requiredFieldDetails.push({ customer_field: 'zip', offer_field: address.zip.key || 'postal_code|zip|postalCode' });
+      }
+      if (requiredFieldMissing(customerPayload.city)) {
+        requiredErrors.push('Kunde kann nicht erstellt werden: Ort fehlt in der Offerte.');
+        requiredFieldDetails.push({ customer_field: 'city', offer_field: address.city.key || 'city' });
+      }
+      if (requiredFieldMissing(customerPayload.country)) {
+        requiredErrors.push('Kunde kann nicht erstellt werden: Land fehlt in der Offerte.');
+        requiredFieldDetails.push({ customer_field: 'country', offer_field: address.country.key || 'country' });
+      }
+      if (requiredErrors.length) {
+        return missingFieldError(requiredErrors, {
+          offer_id: offer.id,
+          missing_fields: requiredFieldDetails
+        });
+      }
 
       const payloadValidation = validateCustomerPayload(customerPayload);
       if (!payloadValidation.ok) {
