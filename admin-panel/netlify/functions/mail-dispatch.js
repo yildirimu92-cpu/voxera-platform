@@ -37,6 +37,20 @@ function pickOfferRecipientEmail(offer, overrides) {
   return trimOrNull(overrides?.to_email) || trimOrNull(offer?.sent_to_email) || trimOrNull(offer?.email);
 }
 
+function deriveOfferPdfUrl(body) {
+  const explicitPdfUrl = trimOrNull(body?.overrides?.pdf_url);
+  if (explicitPdfUrl) return explicitPdfUrl;
+
+  const appBaseUrl = trimOrNull(process.env.ADMIN_PANEL_BASE_URL)
+    || trimOrNull(process.env.APP_BASE_URL)
+    || trimOrNull(process.env.URL);
+
+  if (!appBaseUrl) return null;
+
+  const normalizedBase = appBaseUrl.replace(/\/+$/, '');
+  return `${normalizedBase}/#offers`;
+}
+
 async function loadOfferPayload(sbAdmin, body) {
   const offerId = trimOrNull(body.offer_id);
   if (!offerId) return { ok: false, statusCode: 400, error: 'offer_id fehlt.' };
@@ -75,7 +89,8 @@ async function loadOfferPayload(sbAdmin, body) {
       discount_amount: Number(offer.discount_amount || 0),
       discount_percent: Number(offer.discount_percent || 0),
       total: Number(offer.total || 0),
-      add_ons: offer.add_ons || {}
+      add_ons: offer.add_ons || {},
+      pdf_url: deriveOfferPdfUrl(body)
     },
     customer: {
       id: offer.customer_id || null,
