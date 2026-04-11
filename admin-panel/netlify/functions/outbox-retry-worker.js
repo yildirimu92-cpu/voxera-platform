@@ -105,6 +105,13 @@ async function dispatchOutboxEvent(sbAdmin, outboxRow) {
     return postJson(webhookUrl, payload);
   }
 
+  if (outboxRow.event_type === 'billing_payment_link_email') {
+    const webhookUrl = process.env.MAKE_BILLING_WEBHOOK;
+    if (!webhookUrl) return { ok: false, error: 'MAKE_BILLING_WEBHOOK not configured' };
+    return postJson(webhookUrl, payload);
+  }
+
+
   if (outboxRow.event_type === 'customer_welcome_access_email' || outboxRow.event_type === 'customer_password_reset_email') {
     const webhookUrl = process.env.MAKE_WELCOME_WEBHOOK;
     if (!webhookUrl) return { ok: false, error: 'MAKE_WELCOME_WEBHOOK not configured' };
