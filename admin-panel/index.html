@@ -694,6 +694,44 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .offer-card{padding:14px;}
 .offer-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .offer-preview{padding:0;position:sticky;top:10px;border:none;background:transparent;box-shadow:none;}
+.contracts-cards{display:none;gap:10px;flex-direction:column;margin-top:10px;}
+.contract-list-card{
+  border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);
+  box-shadow:var(--shadow-card);padding:12px;display:grid;gap:10px;
+}
+.contract-list-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+.contract-list-id{font-size:11px;color:var(--slate2);font-family:var(--mono);}
+.contract-list-customer{font-size:14px;font-weight:700;color:var(--ink);}
+.contract-list-plan{font-size:12px;color:var(--ink3);}
+.contract-list-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.contract-list-meta-item{font-size:11.5px;color:var(--slate2);}
+.contract-list-meta-item strong{display:block;font-size:12px;color:var(--ink);font-weight:600;margin-top:2px;}
+.contract-list-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.contract-list-actions .btn{justify-content:center;}
+.contract-detail-head{
+  border:1px solid var(--line);border-radius:var(--radius-lg);background:linear-gradient(180deg,#fff 0%,#FBFCFF 100%);
+  box-shadow:var(--shadow-card);padding:14px;display:grid;gap:10px;margin-bottom:12px;
+}
+.contract-head-main{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;}
+.contract-head-id{font-size:11px;color:var(--slate2);font-family:var(--mono);}
+.contract-head-title{font-size:17px;font-weight:700;color:var(--ink);letter-spacing:-.02em;}
+.contract-head-sub{font-size:12px;color:var(--slate);}
+.contract-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.contract-detail-stat{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:10px 11px;}
+.contract-detail-stat-k{font-size:10.5px;color:var(--slate2);text-transform:uppercase;letter-spacing:.05em;font-weight:700;}
+.contract-detail-stat-v{margin-top:5px;font-size:12.5px;color:var(--ink);font-weight:600;overflow-wrap:anywhere;}
+.contract-doc{
+  border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:14px;
+  box-shadow:var(--shadow-card);margin-bottom:12px;
+}
+.contract-doc-text{
+  margin:0;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);
+  font-size:11.5px;line-height:1.72;color:var(--ink);max-height:42vh;overflow:auto;
+}
+.contract-signature-block{
+  border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:14px;
+  box-shadow:var(--shadow-card);margin-bottom:10px;
+}
 .offer-doc{
   display:grid;gap:20px;font-size:13px;line-height:1.52;padding:28px;
   border:1px solid rgba(29,78,216,0.12);border-radius:22px;background:#fff;
@@ -757,6 +795,12 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .offer-doc h2{font-size:24px;}
   .offer-preview-grid{grid-template-columns:1fr;gap:10px;}
   .offer-preview-block{padding:14px;}
+}
+@media (max-width: 768px){
+  #section-contracts .table-wrap{display:none;}
+  .contracts-cards{display:flex;}
+  .contract-list-meta,.contract-detail-grid{grid-template-columns:1fr;}
+  .contract-list-actions{grid-template-columns:1fr;}
 }
 @media print{
   @page{size:A4;margin:12mm;}
@@ -1385,13 +1429,14 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           <table class="data-table">
             <thead>
               <tr>
-                <th>Kunde</th><th>Plan</th><th>Laufzeit</th><th>Startdatum</th>
-                <th>Kündigungsdatum</th><th>Rabatt</th><th>Status</th><th>Aktionen</th>
+                <th>Vertrag</th><th>Kunde</th><th>Plan</th><th>Laufzeit</th><th>Start / Ende</th>
+                <th>Offerte</th><th>Status</th><th>Aktionen</th>
               </tr>
             </thead>
             <tbody id="contracts-table-body"></tbody>
           </table>
         </div>
+        <div id="contracts-cards" class="contracts-cards"></div>
       </section>
     </div>
   </main>
@@ -1893,11 +1938,15 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       </div>
       <button class="btn btn-quiet" onclick="closeViewContractModal()">Schließen</button>
     </div>
-    <div id="view-contract-meta" class="detail-grid" style="margin-bottom:14px;"></div>
-    <label class="muted" style="margin-bottom:6px;display:block;">Vertragstext</label>
-    <textarea id="view-contract-text" class="textarea" readonly style="min-height:300px;font-family:var(--mono);font-size:11.5px;line-height:1.7;background:var(--bg);"></textarea>
-    <div id="view-contract-signature" style="margin-top:14px;display:none;">
-      <label class="muted" style="margin-bottom:6px;display:block;">Signatur</label>
+    <div id="view-contract-head" class="contract-detail-head"></div>
+    <div id="view-contract-meta" class="contract-detail-grid"></div>
+    <div class="contract-doc">
+      <div class="card-title" style="margin-bottom:10px;">Vertragstext</div>
+      <pre id="view-contract-text" class="contract-doc-text"></pre>
+    </div>
+    <div id="view-contract-signature" class="contract-signature-block" style="display:none;">
+      <div class="card-title" style="margin-bottom:10px;">Signatur & Verifizierung</div>
+      <div id="view-contract-signature-meta" class="contract-detail-grid" style="margin-bottom:10px;"></div>
       <img id="view-contract-sig-img" style="border:1px solid var(--line);border-radius:var(--r);max-width:100%;" alt="Signatur">
     </div>
     <div class="inline-actions" style="margin-top:14px;justify-content:flex-end;">
@@ -1981,6 +2030,7 @@ const state={
   onboardingSelectedCustomerId:null,
   onboardingActivity:[],  // populated by loadDataFromSupabase()
   contracts:[],  // populated by loadDataFromSupabase()
+  offerAcceptancesByOfferId:{}, // populated by loadDataFromSupabase()
   offers:[], // populated by loadDataFromSupabase()
   offerDbColumns:new Set(),
   selectedOfferId:null,
@@ -4236,8 +4286,10 @@ function mapDbContractToUi(dbRow) {
     id:               String(dbRow.id),
     customerId:       String(dbRow.customer_id || ''),
     customerName:     dbRow.customer_name || '',
+    offerId:          dbRow.offer_id ? String(dbRow.offer_id) : '',
+    subscriptionId:   dbRow.subscription_id ? String(dbRow.subscription_id) : '',
     plan:             normalizePlanCode(dbRow.plan || 'kein_plan'),
-    months:           Number(dbRow.months || 0),
+    months:           Number(dbRow.months || dbRow.duration_months || 0),
     startDate:        dbRow.start_date || '',
     endDate:          dbRow.end_date || '',
     cancellationDate: dbRow.cancellation_date || '',
@@ -4248,8 +4300,32 @@ function mapDbContractToUi(dbRow) {
     signatureData:    dbRow.signature_data || null,
     contractText:     dbRow.contract_text || '',
     contractDocument: dbRow.contract_document || null,
-    createdAt:        dbRow.created_at || ''
+    createdAt:        dbRow.created_at || '',
+    updatedAt:        dbRow.updated_at || ''
   };
+}
+
+function mapDbOfferAcceptanceToUi(dbRow) {
+  return {
+    id: dbRow.id ? String(dbRow.id) : '',
+    offerId: dbRow.offer_id ? String(dbRow.offer_id) : '',
+    acceptedByName: dbRow.accepted_by_name || '',
+    acceptedByEmail: dbRow.accepted_by_email || '',
+    acceptedIp: dbRow.accepted_ip || '',
+    userAgent: dbRow.user_agent || '',
+    checkboxConfirmed: Boolean(dbRow.checkbox_confirmed),
+    signatureData: dbRow.signature_data || null,
+    createdAt: dbRow.created_at || ''
+  };
+}
+
+function contractAcceptanceData(contract) {
+  if (!contract || !contract.offerId) return null;
+  return state.offerAcceptancesByOfferId[String(contract.offerId)] || null;
+}
+
+function renderContractDetailStat(key, value) {
+  return '<div class="contract-detail-stat"><div class="contract-detail-stat-k">' + esc(key) + '</div><div class="contract-detail-stat-v">' + esc(value || '—') + '</div></div>';
 }
 
 function resolveNoticeLabel(val) {
@@ -4397,39 +4473,68 @@ function generateContractText(data) {
 
 function renderContracts() {
   const tbody = document.getElementById('contracts-table-body');
+  const cards = document.getElementById('contracts-cards');
   if (!tbody) return;
   if (!state.contracts.length) {
     tbody.innerHTML = '<tr><td colspan="8"><div class="empty">Keine Vertr\u00e4ge vorhanden.</div></td></tr>';
+    if (cards) cards.innerHTML = '<div class="empty">Keine Vertr\u00e4ge vorhanden.</div>';
     return;
   }
   const statusClasses = {draft:'badge-gray', active:'badge-green', signed:'badge-blue', cancelled:'badge-red'};
   const statusLabels  = {draft:'Entwurf', active:'Aktiv', signed:'Unterzeichnet', cancelled:'Gek\u00fcndigt'};
-  tbody.innerHTML = state.contracts.map(function(ct) {
+  const rowsHtml = state.contracts.map(function(ct) {
     var cls   = statusClasses[ct.status] || 'badge-gray';
     var label = statusLabels[ct.status]  || ct.status;
     var canSign   = ct.status !== 'signed' && ct.status !== 'cancelled';
     var canCancel = ct.status !== 'cancelled';
+    var offerLabel = ct.offerId ? ('#' + ct.offerId.slice(0, 8)) : '—';
     var signBtn   = canSign ? '<button class="btn btn-secondary btn-sm" onclick="openSignatureModal(\''+jsStr(ct.id)+'\')">Unterschreiben</button>' : '';
-    var cancelBtn = canCancel ? '<button class="btn btn-quiet btn-sm" onclick="cancelContract(\''+jsStr(ct.id)+'\')">K\u00fcndigen</button>' : '';
+    var ordinaryCancelBtn = canCancel ? '<button class="btn btn-quiet btn-sm" onclick="cancelContractOrdinary(\''+jsStr(ct.id)+'\')">Ordentliche K\u00fcndigung</button>' : '';
+    var extraordinaryCancelBtn = canCancel ? '<button class="btn btn-danger btn-sm" onclick="cancelContractExtraordinary(\''+jsStr(ct.id)+'\')">Ausserordentliche K\u00fcndigung</button>' : '';
     var wordDlBtn = ct.contractDocument ? '<button class="btn btn-quiet btn-sm" onclick="downloadContractWord(\''+jsStr(ct.id)+'\')">Word laden</button>' : '';
     return '<tr>'
+      + '<td><div><strong>#'+esc(ct.id.slice(0,8))+'</strong><div class="muted">'+formatDateDE(ct.createdAt)+'</div></div></td>'
       + '<td>'+esc(ct.customerName||'—')+'</td>'
       + '<td>'+esc(ct.plan||'—')+'</td>'
       + '<td>'+(ct.months ? ct.months+' Mt.' : '—')+'</td>'
-      + '<td>'+formatDateDE(ct.startDate)+'</td>'
-      + '<td>'+formatDateDE(ct.cancellationDate)+'</td>'
-      + '<td>'+(ct.discount ? ct.discount+'%' : '0%')+'</td>'
+      + '<td>'+formatDateDE(ct.startDate)+'<br><span class="muted">bis '+formatDateDE(ct.endDate)+'</span></td>'
+      + '<td>'+esc(offerLabel)+'</td>'
       + '<td><span class="badge '+cls+'">'+label+'</span></td>'
       + '<td><div class="inline-actions">'
       + '<button class="btn btn-quiet btn-sm" onclick="viewContract(\''+jsStr(ct.id)+'\')">Ansehen</button>'
       + signBtn
-      + '<button class="btn btn-quiet btn-sm" onclick="printContract(\''+jsStr(ct.id)+'\')">Drucken</button>'
-      + cancelBtn
+      + ordinaryCancelBtn
+      + extraordinaryCancelBtn
       + '<button class="btn btn-quiet btn-sm" onclick="uploadContractWord(\''+jsStr(ct.id)+'\')">Word hochladen</button>'
       + wordDlBtn
       + '</div></td>'
       + '</tr>';
   }).join('');
+  tbody.innerHTML = rowsHtml;
+  if (cards) {
+    cards.innerHTML = state.contracts.map(function(ct) {
+      var cls   = statusClasses[ct.status] || 'badge-gray';
+      var label = statusLabels[ct.status]  || ct.status;
+      var canSign = ct.status !== 'signed' && ct.status !== 'cancelled';
+      var canCancel = ct.status !== 'cancelled';
+      return '<article class="contract-list-card">'
+        + '<div class="contract-list-head"><div>'
+        + '<div class="contract-list-id">#'+esc(ct.id.slice(0,8))+'</div>'
+        + '<div class="contract-list-customer">'+esc(ct.customerName||'—')+'</div>'
+        + '<div class="contract-list-plan">'+esc(ct.plan||'—')+' · '+(ct.months?ct.months+' Monate':'—')+'</div>'
+        + '</div><span class="badge '+cls+'">'+label+'</span></div>'
+        + '<div class="contract-list-meta">'
+        + '<div class="contract-list-meta-item">Start / Ende<strong>'+formatDateDE(ct.startDate)+' → '+formatDateDE(ct.endDate)+'</strong></div>'
+        + '<div class="contract-list-meta-item">Offerte<strong>'+(ct.offerId?('#'+esc(ct.offerId.slice(0,8))):'—')+'</strong></div>'
+        + '</div>'
+        + '<div class="contract-list-actions">'
+        + '<button class="btn btn-quiet btn-sm" onclick="viewContract(\''+jsStr(ct.id)+'\')">Details</button>'
+        + (canSign?'<button class="btn btn-secondary btn-sm" onclick="openSignatureModal(\''+jsStr(ct.id)+'\')">Unterschreiben</button>':'')
+        + (canCancel?'<button class="btn btn-quiet btn-sm" onclick="cancelContractOrdinary(\''+jsStr(ct.id)+'\')">Ordentlich kündigen</button>':'')
+        + (canCancel?'<button class="btn btn-danger btn-sm" onclick="cancelContractExtraordinary(\''+jsStr(ct.id)+'\')">Ausserordentlich</button>':'')
+        + '</div></article>';
+    }).join('');
+  }
 }
 
 // ─── Wizard canvas drawing ─────────────────────────────────────────────────
@@ -4685,34 +4790,53 @@ async function submitContractWizard() {
 function viewContract(id) {
   var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
   if (!ct) return;
+  var acc = contractAcceptanceData(ct);
   var statusLabels = {draft:'Entwurf', active:'Aktiv', signed:'Unterzeichnet', cancelled:'Gek\u00fcndigt'};
   document.getElementById('view-contract-title').textContent = 'Vertrag \u2013 ' + (ct.customerName || '—');
   document.getElementById('view-contract-sub').textContent   = (ct.plan || '—') + ' \u00b7 ' + (statusLabels[ct.status] || ct.status);
+  var head = document.getElementById('view-contract-head');
+  if (head) {
+    head.innerHTML = '<div class="contract-head-main"><div>'
+      + '<div class="contract-head-id">Vertrag #'+esc(ct.id.slice(0,8))+'</div>'
+      + '<div class="contract-head-title">'+esc(ct.customerName || 'Unbekannter Kunde')+'</div>'
+      + '<div class="contract-head-sub">Offerte: '+(ct.offerId ? '#'+esc(ct.offerId.slice(0,8)) : '—')+'</div>'
+      + '</div><span class="badge '+({draft:'badge-gray',active:'badge-green',signed:'badge-blue',cancelled:'badge-red'}[ct.status]||'badge-gray')+'">'+esc(statusLabels[ct.status] || ct.status)+'</span></div>';
+  }
   var meta = document.getElementById('view-contract-meta');
   if (meta) {
-    var pairs = [
-      ['Kunde', ct.customerName || '—'],
-      ['Plan',  ct.plan || '—'],
-      ['Laufzeit', ct.months ? ct.months + ' Monate' : '—'],
-      ['Startdatum', formatDateDE(ct.startDate)],
-      ['Enddatum', formatDateDE(ct.endDate)],
-      ['K\u00fcndigungsdatum', formatDateDE(ct.cancellationDate)],
-      ['Rabatt', ct.discount ? ct.discount + '%' : '0%'],
-      ['K\u00fcndigungsfrist', ct.cancellationNotice || '—']
-    ];
-    meta.innerHTML = pairs.map(function(p) {
-      return '<div class="card" style="padding:10px 12px;"><div class="detail-item" style="border:none;">'
-        + '<span class="detail-k">'+esc(p[0])+'</span>'
-        + '<span class="detail-v">'+esc(p[1])+'</span>'
-        + '</div></div>';
-    }).join('');
+    meta.innerHTML = [
+      renderContractDetailStat('Vertrags-ID', '#' + (ct.id || '—')),
+      renderContractDetailStat('Status', statusLabels[ct.status] || ct.status),
+      renderContractDetailStat('Kunde', ct.customerName || '—'),
+      renderContractDetailStat('Verknüpfte Offerte', ct.offerId ? '#' + ct.offerId : '—'),
+      renderContractDetailStat('Startdatum', formatDateDE(ct.startDate)),
+      renderContractDetailStat('Enddatum', formatDateDE(ct.endDate)),
+      renderContractDetailStat('Laufzeit', ct.months ? (ct.months + ' Monate') : '—'),
+      renderContractDetailStat('Plan', ct.plan || '—'),
+      renderContractDetailStat('Rabatt', (ct.discount ? ct.discount + '%' : '0%')),
+      renderContractDetailStat('Kündigungsdatum', formatDateDE(ct.cancellationDate)),
+      renderContractDetailStat('Kündigungsfrist', ct.cancellationNotice || '—'),
+      renderContractDetailStat('Notizen', ct.notes || '—')
+    ].join('');
   }
   var ta = document.getElementById('view-contract-text');
-  if (ta) ta.value = ct.contractText || '';
+  if (ta) ta.textContent = ct.contractText || 'Kein Vertragstext vorhanden.';
   var sigWrap = document.getElementById('view-contract-signature');
   var sigImg  = document.getElementById('view-contract-sig-img');
-  if (ct.signatureData && sigWrap && sigImg) {
-    sigImg.src = ct.signatureData;
+  var sigMeta = document.getElementById('view-contract-signature-meta');
+  var mergedSignature = ct.signatureData || (acc ? acc.signatureData : null);
+  if (sigWrap && sigMeta) {
+    sigMeta.innerHTML = [
+      renderContractDetailStat('Unterschriftsdatum', acc ? formatDateDE(acc.createdAt) : formatDateDE(ct.updatedAt || ct.createdAt)),
+      renderContractDetailStat('Unterschrieben von', acc ? (acc.acceptedByName || '—') : (ct.customerName || '—')),
+      renderContractDetailStat('E-Mail', acc ? (acc.acceptedByEmail || '—') : '—'),
+      renderContractDetailStat('IP-Adresse', acc ? (acc.acceptedIp || '—') : '—'),
+      renderContractDetailStat('User-Agent / Gerät', acc ? (acc.userAgent || '—') : '—'),
+      renderContractDetailStat('Checkbox bestätigt', acc ? (acc.checkboxConfirmed ? 'Ja' : 'Nein') : '—')
+    ].join('');
+  }
+  if (mergedSignature && sigWrap && sigImg) {
+    sigImg.src = mergedSignature;
     sigWrap.style.display = '';
   } else if (sigWrap) {
     sigWrap.style.display = 'none';
@@ -4792,22 +4916,62 @@ async function saveSignature() {
 
 // ─── Cancel contract ───────────────────────────────────────────────────────
 
-async function cancelContract(id) {
+async function cancelContractOrdinary(id) {
   var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
   if (!ct) return;
-  if (!confirm('Vertrag f\u00fcr ' + ct.customerName + ' wirklich k\u00fcndigen?')) return;
+  if (!confirm('Ordentliche Kündigung für Vertrag von ' + ct.customerName + ' erfassen?')) return;
+  var today = new Date().toISOString().slice(0, 10);
   try {
     if (authClient) {
-      var res = await authClient.from('contracts').update({status: 'cancelled'}).eq('id', id);
+      var res = await authClient.from('contracts').update({
+        status: 'cancelled',
+        cancellation_date: ct.cancellationDate || today,
+        notes: ((ct.notes || '') + '\n[Ordentliche Kündigung erfasst am ' + today + ']').trim()
+      }).eq('id', id);
       if (res.error) throw res.error;
     }
     ct.status = 'cancelled';
+    if (!ct.cancellationDate) ct.cancellationDate = today;
+    ct.notes = ((ct.notes || '') + '\n[Ordentliche Kündigung erfasst am ' + today + ']').trim();
     renderContracts();
     updateBadges();
-    showToast('\u2713 Vertrag gek\u00fcndigt.');
+    showToast('\u2713 Ordentliche Kündigung erfasst.');
   } catch(err) {
     alert('Fehler: ' + (err.message || err));
   }
+}
+
+async function cancelContractExtraordinary(id) {
+  var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
+  if (!ct) return;
+  var reason = prompt('Bitte Grund für ausserordentliche Kündigung erfassen (wird in Notizen gespeichert):');
+  if (reason === null) return;
+  reason = String(reason || '').trim();
+  if (!reason) { alert('Grund erforderlich.'); return; }
+  var today = new Date().toISOString().slice(0, 10);
+  var noteLine = '[Ausserordentliche Kündigung am ' + today + '] ' + reason;
+  try {
+    if (authClient) {
+      var res = await authClient.from('contracts').update({
+        status: 'cancelled',
+        cancellation_date: today,
+        notes: ((ct.notes || '') + '\n' + noteLine).trim()
+      }).eq('id', id);
+      if (res.error) throw res.error;
+    }
+    ct.status = 'cancelled';
+    ct.cancellationDate = today;
+    ct.notes = ((ct.notes || '') + '\n' + noteLine).trim();
+    renderContracts();
+    updateBadges();
+    showToast('\u2713 Ausserordentliche Kündigung erfasst.');
+  } catch(err) {
+    alert('Fehler: ' + (err.message || err));
+  }
+}
+
+async function cancelContract(id) {
+  return cancelContractOrdinary(id);
 }
 
 // ─── Print contract ────────────────────────────────────────────────────────
@@ -6874,6 +7038,18 @@ async function loadDataFromSupabase() {
       .order('created_at', { ascending: false });
     if (offerErr) console.warn('[DB] offers load failed:', offerErr.message);
     state.offers = (offerRows || []).map(mapDbOfferToUi);
+
+    const { data: acceptanceRows, error: acceptanceErr } = await authClient
+      .from('offer_acceptances')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (acceptanceErr) console.warn('[DB] offer_acceptances load failed:', acceptanceErr.message);
+    const acceptanceMapped = (acceptanceRows || []).map(mapDbOfferAcceptanceToUi);
+    state.offerAcceptancesByOfferId = acceptanceMapped.reduce(function(acc, row) {
+      if (!row.offerId || acc[row.offerId]) return acc;
+      acc[row.offerId] = row;
+      return acc;
+    }, {});
 
     // 9. Load contracts
     const { data: contractRows, error: contractErr } = await authClient
