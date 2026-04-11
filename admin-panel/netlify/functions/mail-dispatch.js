@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 const { normalizePlanCode, loadPlanByCode, isSalesPlanCode } = require('./_lib/plan-config');
+const { trimOrNull, ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -28,11 +29,6 @@ function parseBody(event) {
   }
 }
 
-function trimOrNull(value) {
-  const v = String(value || '').trim();
-  return v || null;
-}
-
 function pickOfferRecipientEmail(offer, overrides) {
   return trimOrNull(overrides?.to_email) || trimOrNull(offer?.sent_to_email) || trimOrNull(offer?.email);
 }
@@ -55,14 +51,34 @@ async function loadOfferPayload(sbAdmin, body) {
   const offerId = trimOrNull(body.offer_id);
   if (!offerId) return { ok: false, statusCode: 400, error: 'offer_id fehlt.' };
 
-  const { data: offer, error } = await sbAdmin
+  const { data: loadedOffer, error } = await sbAdmin
     .from('offers')
     .select('*')
     .eq('id', offerId)
     .maybeSingle();
 
   if (error) return { ok: false, statusCode: 500, error: 'Offer lookup failed.', details: error.message };
-  if (!offer) return { ok: false, statusCode: 404, error: 'Offerte nicht gefunden.' };
+  if (!loadedOffer) return { ok: false, statusCode: 404, error: 'Offerte nicht gefunden.' };
+
+  let offer = loadedOffer;
+
+  const publicToken = ensureOfferPublicToken(offer);
+  const publicExpiresAt = resolvePublicExpiryFromOffer(offer);
+  const needsPublicPatch = publicToken !== trimOrNull(offer.public_token)
+    || (publicExpiresAt && publicExpiresAt !== offer.public_expires_at);
+
+  if (needsPublicPatch) {
+    const patch = { public_token: publicToken, updated_at: new Date().toISOString() };
+    if (publicExpiresAt) patch.public_expires_at = publicExpiresAt;
+    const { data: patchedOffer, error: patchError } = await sbAdmin
+      .from('offers')
+      .update(patch)
+      .eq('id', offer.id)
+      .select('*')
+      .single();
+    if (patchError) return { ok: false, statusCode: 500, error: 'Offer token update failed.', details: patchError.message };
+    if (patchedOffer) offer = patchedOffer;
+  }
 
   const recipientEmail = pickOfferRecipientEmail(offer, body.overrides || {});
   if (!recipientEmail) {
@@ -90,7 +106,9 @@ async function loadOfferPayload(sbAdmin, body) {
       discount_percent: Number(offer.discount_percent || 0),
       total: Number(offer.total || 0),
       add_ons: offer.add_ons || {},
-      pdf_url: deriveOfferPdfUrl(body)
+      pdf_url: deriveOfferPdfUrl(body),
+      acceptance_url: derivePublicOfferAcceptanceUrl(offer.public_token),
+      public_expires_at: offer.public_expires_at || null
     },
     customer: {
       id: offer.customer_id || null,

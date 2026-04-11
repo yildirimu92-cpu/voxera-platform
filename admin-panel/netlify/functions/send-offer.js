@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const nodemailer = require('nodemailer');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxFailed, markOutboxSent } = require('./_lib/webhook-outbox');
+const { ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +18,7 @@ const formatDate = (value) => {
   try { return new Date(value).toLocaleDateString('de-CH'); } catch (_) { return String(value); }
 };
 
-function buildOfferEmail({ offer, subject }) {
+function buildOfferEmail({ offer, subject, acceptanceUrl }) {
   const recurring = String(offer.billing_cycle || 'monthly') === 'yearly' ? Number(offer.yearly_price || 0) : Number(offer.monthly_price || 0);
   const addOns = offer.add_ons || {};
   const addOnsTotal = Number(addOns.additional_numbers || 0) + Number(addOns.sms_alerts || 0) + Number(addOns.custom_ai_setup || 0);
@@ -45,6 +46,7 @@ function buildOfferEmail({ offer, subject }) {
           </table>
         </div>
         <p style="margin:0;font-size:13px;line-height:1.6;color:#334155;">Für Rückfragen oder gewünschte Anpassungen antworten Sie bitte direkt auf diese E-Mail.</p>
+        ${acceptanceUrl ? `<div style="margin-top:8px;"><a href="${acceptanceUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700;">Offerte bestätigen</a></div>` : ''}
       </div>
     </div>
   </div>`;
@@ -52,7 +54,7 @@ function buildOfferEmail({ offer, subject }) {
   return { subject: subject || `Ihre Voxera Offerte ${offer.offer_number || ''}`.trim(), html };
 }
 
-async function sendOfferEmail({ to, offer, subject }) {
+async function sendOfferEmail({ to, offer, subject, acceptanceUrl }) {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
@@ -67,7 +69,7 @@ async function sendOfferEmail({ to, offer, subject }) {
     auth: { user, pass }
   });
 
-  const built = buildOfferEmail({ offer, subject });
+  const built = buildOfferEmail({ offer, subject, acceptanceUrl });
   await transporter.sendMail({ from, to, subject: built.subject, html: built.html });
   return built.subject;
 }
@@ -90,8 +92,22 @@ exports.handler = async (event) => {
   const offerId = String(body.offer_id || '').trim();
   if (!offerId) return response(400, { error: 'offer_id fehlt.' });
 
-  const { data: offer, error: loadErr } = await sbAdmin.from('offers').select('*').eq('id', offerId).single();
-  if (loadErr || !offer) return response(404, { error: 'Offerte nicht gefunden.' });
+  const { data: loadedOffer, error: loadErr } = await sbAdmin.from('offers').select('*').eq('id', offerId).single();
+  if (loadErr || !loadedOffer) return response(404, { error: 'Offerte nicht gefunden.' });
+
+  let offer = loadedOffer;
+  const token = ensureOfferPublicToken(offer);
+  const publicExpiresAt = resolvePublicExpiryFromOffer(offer);
+  const tokenPatch = {};
+  if (!offer.public_token || offer.public_token !== token) tokenPatch.public_token = token;
+  if (publicExpiresAt && offer.public_expires_at !== publicExpiresAt) tokenPatch.public_expires_at = publicExpiresAt;
+  if (Object.keys(tokenPatch).length) {
+    tokenPatch.updated_at = new Date().toISOString();
+    const { data: patched, error: patchErr } = await sbAdmin.from('offers').update(tokenPatch).eq('id', offer.id).select('*').single();
+    if (patchErr) return response(500, { error: 'Offer token update failed.', details: patchErr.message });
+    if (patched) offer = patched;
+  }
+  const acceptanceUrl = derivePublicOfferAcceptanceUrl(offer.public_token);
 
   const sentToEmail = String(body.sent_to_email || offer.sent_to_email || offer.email || '').trim();
   if (!sentToEmail) return response(400, { error: 'Offerte hat keine Empfänger-E-Mail.' });
@@ -117,7 +133,7 @@ exports.handler = async (event) => {
   });
 
   try {
-    const deliveredSubject = await sendOfferEmail({ to: sentToEmail, offer, subject });
+    const deliveredSubject = await sendOfferEmail({ to: sentToEmail, offer, subject, acceptanceUrl });
     const nowIso = new Date().toISOString();
     await markOutboxSent(sbAdmin, outbox.id);
     const { error: updErr } = await sbAdmin
