@@ -693,14 +693,67 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .offer-editor{display:grid;gap:12px;}
 .offer-card{padding:14px;}
 .offer-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.offer-preview{padding:18px;position:sticky;top:10px;}
-.offer-doc{display:grid;gap:12px;font-size:13px;line-height:1.45;}
-.offer-doc-head{display:flex;justify-content:space-between;color:var(--slate2);font-size:12px;}
-.offer-doc h2{margin:2px 0 0;font-size:22px;letter-spacing:-.02em;}
-.offer-preview-block{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface-subtle);} 
-.offer-preview ul{margin:6px 0 0 18px;padding:0;}
+.offer-preview{padding:0;position:sticky;top:10px;border:none;background:transparent;box-shadow:none;}
+.offer-doc{
+  display:grid;gap:20px;font-size:13px;line-height:1.52;padding:28px;
+  border:1px solid rgba(29,78,216,0.12);border-radius:22px;background:#fff;
+  box-shadow:0 16px 45px rgba(15,23,42,0.08),0 2px 8px rgba(15,23,42,0.04);
+}
+.offer-doc-header{
+  display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line2);
+}
+.offer-doc-brand{display:flex;align-items:center;gap:12px;}
+.offer-doc-logo{
+  width:44px;height:44px;background:linear-gradient(135deg,var(--blue) 0%,var(--blue-dark) 100%);
+  border-radius:13px;display:flex;align-items:center;justify-content:center;color:#fff;
+  box-shadow:0 8px 20px rgba(29,78,216,0.28);flex-shrink:0;
+}
+.offer-doc-logo svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;}
+.offer-doc-brand-title{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.03em;line-height:1;}
+.offer-doc-brand-sub{font-size:11px;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-top:5px;}
+.offer-doc-meta{text-align:right;min-width:180px;display:grid;gap:4px;font-size:12px;color:var(--slate);}
+.offer-doc-meta strong{font-size:13px;color:var(--ink);}
+.offer-doc h2{margin:0;font-size:30px;letter-spacing:-.03em;line-height:1.08;color:var(--ink);}
+.offer-doc-subtitle{font-size:14px;color:var(--ink3);line-height:1.6;}
+.offer-preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.offer-preview-block{
+  border:1px solid var(--line2);border-radius:14px;padding:16px;background:#fff;
+  box-shadow:0 1px 2px rgba(15,23,42,0.04);
+}
+.offer-preview-block h4{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate2);}
+.offer-recipient-lines{display:grid;gap:4px;color:var(--ink2);font-size:13px;}
+.offer-plan-title{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.offer-plan-copy{color:var(--ink3);}
+.offer-plan-specs{margin:10px 0 0;padding-left:18px;color:var(--ink2);display:grid;gap:4px;}
+.offer-pricing{display:grid;gap:8px;}
+.offer-price-row{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:14px;
+  font-size:13px;color:var(--ink2);padding:6px 0;border-bottom:1px dashed var(--line2);
+}
+.offer-price-row:last-child{border-bottom:none;}
+.offer-price-row span:first-child{color:var(--slate);font-weight:500;}
+.offer-price-row strong{color:var(--ink);font-weight:700;}
+.offer-price-row.discount strong{color:var(--green-dark);}
+.offer-price-row.total{
+  margin-top:4px;padding-top:12px;border-top:1.5px solid var(--line);border-bottom:none;
+  font-size:15px;font-weight:700;
+}
+.offer-price-row.total span:first-child{color:var(--ink);}
+.offer-price-note{font-size:11px;color:var(--slate2);margin-top:3px;line-height:1.35;}
+.offer-next-steps{padding:16px;border-radius:14px;background:linear-gradient(135deg,#f8fbff 0%,#ffffff 100%);border:1px solid var(--line2);}
+.offer-next-steps h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate2);}
+.offer-next-steps p{margin:0;font-size:13px;color:var(--ink2);line-height:1.6;}
 @media (max-width: 1100px){.offer-columns{grid-template-columns:1fr;}.offer-preview{position:static;}.offer-actions .btn{flex:1;min-width:120px;}}
-@media (max-width: 720px){.offer-grid-2{grid-template-columns:1fr;} .offer-meta-row span{word-break:break-word;} .offer-actions{width:100%;}}
+@media (max-width: 720px){
+  .offer-grid-2{grid-template-columns:1fr;} .offer-meta-row span{word-break:break-word;} .offer-actions{width:100%;}
+  .offer-doc{padding:18px;gap:16px;border-radius:16px;}
+  .offer-doc-header{gap:12px;padding-bottom:12px;}
+  .offer-doc-meta{min-width:0;text-align:left;}
+  .offer-doc h2{font-size:24px;}
+  .offer-preview-grid{grid-template-columns:1fr;gap:10px;}
+  .offer-preview-block{padding:14px;}
+}
 </style>
 </head>
 <body class="app-booting">
@@ -3646,11 +3699,70 @@ function offerFieldChanged(){
 }
 function renderOfferPreview(offer){
   const el=document.getElementById('offer-preview'); if(!el) return;
-  const isYearly=offer.billingCycle==='yearly';
-  const base=isYearly?offer.yearlyPrice:offer.monthlyPrice;
+  const recurringPrice=offer.billingCycle==='yearly'?offer.yearlyPrice:offer.monthlyPrice;
   const addons=offer.addOnNumbers+offer.addOnSms+offer.addOnAi;
+  const discountAbsolute=Number(offer.discountAmount||0)+(recurringPrice*(Number(offer.discountPercent||0)/100));
   const total=getOfferTotal(offer);
-  el.innerHTML=`<div class="offer-doc"><div class="offer-doc-head"><strong>Voxera</strong><span>Offerte</span></div><h2>Offerte ${esc(offer.offerNumber)}</h2><div class="muted">Datum ${formatDateDE(offer.createdAt||new Date().toISOString())} · Gültig bis ${formatDateDE(offer.validUntil)}</div><div class="offer-preview-block"><strong>Empfänger</strong><div>${esc(offer.companyName||'—')}</div><div>${esc(offerContactName(offer)||'')}</div><div>${esc(offerAddressLine(offer)||'')}</div><div>${esc(offer.email||'')}</div><div>${esc(offer.phone||'')}</div></div><p>${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera.')}</p><div class="offer-preview-block"><strong>${esc(planLabel(offer.plan))}</strong><div>${esc(offer.summaryText||'Professionelle AI-Assistenz für Ihr Team.')}</div><ul><li>${offer.includedMinutes} inklusive Minuten</li><li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li><li>${offer.numberCount} Rufnummer(n)</li></ul></div><div class="offer-preview-block"><strong>Pricing Summary</strong><div>Setup Fee: ${moneyChf(offer.setupFee)}</div><div style="font-weight:${isYearly?'500':'700'};">Monatspreis: ${moneyChf(offer.monthlyPrice)}</div><div style="font-weight:${isYearly?'700':'500'};">Jahrespreis: ${moneyChf(offer.yearlyPrice)}</div><div><span class="badge badge-blue" style="margin-right:6px;">${isYearly?'Yearly':'Monthly'} aktiv</span> Hauptpreis: ${moneyChf(base)}</div><div>Add-ons: ${moneyChf(addons)}</div><div>Rabatt: ${moneyChf(offer.discountAmount)} + ${offer.discountPercent}%</div><div style="margin-top:6px;font-weight:700;">Total: ${moneyChf(total)}</div></div><div class="offer-preview-block"><strong>Nächste Schritte</strong><div>Bitte Offerte freigeben, damit wir den Vertrag direkt erstellen können.</div></div></div>`;
+  const recurringLabel=offer.billingCycle==='yearly'?'Recurring Price (Jährlich)':'Recurring Price (Monatlich)';
+  const discountDetail=[
+    Number(offer.discountAmount||0)>0?moneyChf(offer.discountAmount):'',
+    Number(offer.discountPercent||0)>0?`${Number(offer.discountPercent||0)}%`:''
+  ].filter(Boolean).join(' + ');
+  el.innerHTML=`<div class="offer-doc">
+    <div class="offer-doc-header">
+      <div class="offer-doc-brand">
+        <div class="offer-doc-logo"><svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z"/><path d="M6 8h4M8 6v4"/></svg></div>
+        <div>
+          <div class="offer-doc-brand-title">Voxera</div>
+          <div class="offer-doc-brand-sub">Client Quotation</div>
+        </div>
+      </div>
+      <div class="offer-doc-meta">
+        <strong>Offerte ${esc(offer.offerNumber)}</strong>
+        <div>Datum: ${formatDateDE(offer.createdAt||new Date().toISOString())}</div>
+        <div>Gültig bis: ${formatDateDE(offer.validUntil)}</div>
+      </div>
+    </div>
+    <h2>Ihr individuelles Angebot</h2>
+    <div class="offer-doc-subtitle">${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera. Nachfolgend finden Sie Ihr individuelles Angebot mit allen Preisbestandteilen.')}</div>
+    <div class="offer-preview-grid">
+      <div class="offer-preview-block">
+        <h4>Empfänger</h4>
+        <div class="offer-recipient-lines">
+          <div>${esc(offer.companyName||'—')}</div>
+          <div>${esc(offerContactName(offer)||'')}</div>
+          <div>${esc(offerAddressLine(offer)||'')}</div>
+          <div>${esc(offer.email||'')}</div>
+          <div>${esc(offer.phone||'')}</div>
+        </div>
+      </div>
+      <div class="offer-preview-block">
+        <h4>Leistungspaket</h4>
+        <div class="offer-plan-title">${esc(planLabel(offer.plan))}</div>
+        <div class="offer-plan-copy">${esc(offer.summaryText||'Professionelle AI-Assistenz für Ihr Team.')}</div>
+        <ul class="offer-plan-specs">
+          <li>${offer.includedMinutes} inklusive Minuten</li>
+          <li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li>
+          <li>${offer.numberCount} Rufnummer(n)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="offer-preview-block">
+      <h4>Kostenübersicht</h4>
+      <div class="offer-pricing">
+        <div class="offer-price-row"><span>Setup Fee</span><strong>${moneyChf(offer.setupFee)}</strong></div>
+        <div class="offer-price-row"><span>${recurringLabel}</span><strong>${moneyChf(recurringPrice)}</strong></div>
+        <div class="offer-price-row"><span>Add-ons</span><strong>${moneyChf(addons)}</strong></div>
+        <div class="offer-price-row discount"><span>Discount${discountDetail?` (${esc(discountDetail)})`:''}</span><strong>− ${moneyChf(discountAbsolute)}</strong></div>
+        <div class="offer-price-row total"><span>Total</span><strong>${moneyChf(total)}</strong></div>
+      </div>
+      <div class="offer-price-note">Alle Preise in CHF exkl. MwSt., sofern nicht anders ausgewiesen.</div>
+    </div>
+    <div class="offer-next-steps">
+      <h4>Nächste Schritte</h4>
+      <p>Bitte prüfen Sie diese Offerte und geben Sie sie frei. Anschliessend erstellen wir den Vertrag und starten die Umsetzung ohne Verzögerung.</p>
+    </div>
+  </div>`;
 }
 async function createOffer(){
   const now=new Date();
