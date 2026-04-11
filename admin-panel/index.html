@@ -1310,8 +1310,11 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                   <button class="btn btn-quiet btn-sm" onclick="printOfferPdf()">Print / PDF</button>
                   <button class="btn btn-quiet btn-sm" onclick="duplicateOffer()">Duplizieren</button>
                   <button class="btn btn-quiet btn-sm" onclick="createContractFromOffer()">Vertrag erstellen</button>
+                  <button class="btn btn-quiet btn-sm" id="offer-open-contract-btn" onclick="openOfferContract()" style="display:none;">Vertrag öffnen</button>
+                  <button class="btn btn-secondary btn-sm" id="offer-recover-contract-btn" onclick="recoverAcceptedOfferContract()" style="display:none;">Vertrag wiederherstellen</button>
                 </div>
               </div>
+              <div id="offer-final-state-hint" class="muted" style="margin-top:8px;"></div>
               <div class="offer-grid-2" style="margin-top:12px;">
                 <div><label class="muted">Empfänger E-Mail</label><input class="input" id="offer-send-to-email" type="email" oninput="offerFieldChanged()" placeholder="kunde@beispiel.ch"></div>
                 <div><label class="muted">E-Mail Betreff (optional)</label><input class="input" id="offer-send-subject" oninput="offerFieldChanged()" placeholder="Ihre Voxera Offerte"></div>
@@ -3528,6 +3531,11 @@ const OFFER_STATUS_META={
   expired:['Abgelaufen','badge-amber']
 };
 const OFFER_STATUS_OPTIONS=['draft','sent','in_review','revision_requested','accepted','rejected','expired'];
+const OFFER_FINAL_STATUSES=new Set(['accepted','rejected']);
+
+function isFinalOfferStatus(status){
+  return OFFER_FINAL_STATUSES.has(String(status||'').toLowerCase());
+}
 
 function offerStatusBadge(status){
   const key=String(status||'draft').toLowerCase();
@@ -3545,13 +3553,61 @@ async function offerStatusChanged(){
   if(!offer) return;
   const next=String(document.getElementById('offer-status-select')?.value||'draft').toLowerCase();
   if(!OFFER_STATUS_OPTIONS.includes(next)) return;
-  offer.status=next;
-  if(authClient){
-    const {error}=await authClient.from('offers').update({status:next,updated_at:new Date().toISOString()}).eq('id',offer.id);
-    if(error){ alert('Status konnte nicht gespeichert werden: '+error.message); return; }
+  if(isFinalOfferStatus(offer.status)&&next!==offer.status){
+    alert('Finale Offerten können nicht mehr umgestellt werden. Bitte Offerte duplizieren für einen neuen Zyklus.');
+    hydrateOfferStatusSelect(offer.status);
+    return;
+  }
+  try{
+    const json=await callAdminFunction('offer-status-update',{offer_id:offer.id,status:next});
+    if(json?.offer) Object.assign(offer,mapDbOfferToUi(json.offer));
+    else offer.status=next;
+    if(next==='accepted') showToast(json?.duplicate?'✓ Offerte war bereits akzeptiert. Vertrag bleibt verknüpft.':'✓ Offerte akzeptiert und Vertrag verknüpft.');
+    else if(next==='rejected') showToast('✓ Offerte als final abgelehnt markiert.');
+    else showToast('✓ Offer-Status aktualisiert.');
+  }catch(e){
+    hydrateOfferStatusSelect(offer.status);
+    alert('Status konnte nicht gespeichert werden: '+(e?.message||e));
+    return;
   }
   openOfferDetail(offer.id,true);
-  showToast('✓ Offer-Status aktualisiert.');
+}
+function applyOfferReadonlyState(offer){
+  const locked=isFinalOfferStatus(offer?.status);
+  const accepted=String(offer?.status||'').toLowerCase()==='accepted';
+  const hasContract=Boolean(offer?.contractId);
+  const controls=[...document.querySelectorAll('#offer-detail-shell input, #offer-detail-shell select, #offer-detail-shell textarea')];
+  controls.forEach(el=>{
+    if(el.id==='offer-status-select') return;
+    if(locked) el.setAttribute('disabled','disabled');
+    else el.removeAttribute('disabled');
+  });
+  const statusSelect=document.getElementById('offer-status-select');
+  if(statusSelect){
+    statusSelect.disabled=locked;
+    statusSelect.title=locked?'Finaler Status ist gesperrt.':'';
+  }
+  const saveBtn=[...document.querySelectorAll('#offer-header-actions button')].find(btn=>btn.textContent.includes('Speichern'));
+  const sendBtn=[...document.querySelectorAll('#offer-header-actions button')].find(btn=>btn.textContent.includes('Offerte senden'));
+  const contractBtn=[...document.querySelectorAll('#offer-header-actions button')].find(btn=>btn.textContent.includes('Vertrag erstellen'));
+  if(saveBtn) saveBtn.disabled=locked;
+  if(sendBtn) sendBtn.disabled=locked;
+  if(contractBtn) contractBtn.disabled=!accepted||hasContract;
+  const meta=document.getElementById('offer-final-state-hint');
+  if(meta){
+    if(accepted&&hasContract) meta.innerHTML='🔒 Final: Akzeptiert. <strong>Vertrag verknüpft.</strong>';
+    else if(accepted&&!hasContract) meta.innerHTML='⚠️ Final: Akzeptiert, aber kein Vertrag verknüpft. Bitte <strong>Wiederherstellen</strong> ausführen.';
+    else if(String(offer?.status||'').toLowerCase()==='rejected') meta.innerHTML='🔒 Final: Abgelehnt. Für neuen Zyklus bitte Offerte duplizieren.';
+    else meta.innerHTML='';
+  }
+  const openContractBtn=document.getElementById('offer-open-contract-btn');
+  if(openContractBtn) openContractBtn.style.display=(accepted&&hasContract)?'inline-flex':'none';
+  const recoverBtn=document.getElementById('offer-recover-contract-btn');
+  if(recoverBtn){
+    recoverBtn.style.display=(accepted&&!hasContract)?'inline-flex':'none';
+    recoverBtn.disabled=Boolean(offer?.__recoverPending);
+    recoverBtn.textContent=offer?.__recoverPending?'Wiederherstellen...':'Vertrag wiederherstellen';
+  }
 }
 function mapDbOfferToUi(row){
   const columnSet=state.offerDbColumns||new Set();
@@ -3709,6 +3765,7 @@ function applyCustomerSnapshotToOffer(offer, customer){
 function offerCustomerChanged(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
+  if(isFinalOfferStatus(offer.status)) return;
   const customerId=String(document.getElementById('offer-customer-id')?.value||'').trim();
   offer.customerId=customerId;
   if(customerId){
@@ -3760,8 +3817,7 @@ function openOfferDetail(id,silent=false){
   hydrateOfferPlanSelect(offer.plan);
   hydrateOfferCustomerSelect(offer.customerId);
   hydrateOfferLinkActions(offer);
-  const contractBtn=[...document.querySelectorAll('#offer-header-actions button')].find(btn=>btn.textContent.includes('Vertrag erstellen'));
-  if(contractBtn) contractBtn.disabled=offer.status!=='accepted';
+  applyOfferReadonlyState(offer);
   renderOfferPreview(offer);
   if(!silent) renderOffers();
 }
@@ -3786,9 +3842,43 @@ function openLinkedCustomerFromOffer(){
   if(!offer?.customerId) return;
   openCustomerProfile(offer.customerId);
 }
+function openOfferContract(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer?.contractId){
+    showToast('Kein Vertrag verknüpft.');
+    return;
+  }
+  setRoute('contracts');
+  renderContracts();
+}
+async function recoverAcceptedOfferContract(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer) return;
+  if(String(offer.status||'').toLowerCase()!=='accepted'){
+    alert('Wiederherstellung ist nur für akzeptierte Offerten verfügbar.');
+    return;
+  }
+  offer.__recoverPending=true;
+  applyOfferReadonlyState(offer);
+  try{
+    const json=await callAdminFunction('offer-status-update',{offer_id:offer.id,status:'accepted'});
+    if(json?.offer) Object.assign(offer,mapDbOfferToUi(json.offer));
+    openOfferDetail(offer.id,true);
+    showToast('✓ Vertrag erfolgreich verknüpft.');
+  }catch(e){
+    alert('Vertrag konnte nicht wiederhergestellt werden: '+(e?.message||e));
+  }finally{
+    offer.__recoverPending=false;
+    applyOfferReadonlyState(offer);
+  }
+}
 function unlinkOfferCustomer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
+  if(isFinalOfferStatus(offer.status)){
+    alert('Finale Offerten sind gesperrt. Bitte duplizieren, um Änderungen vorzunehmen.');
+    return;
+  }
   offer.customerId='';
   hydrateOfferCustomerSelect('');
   const select=document.getElementById('offer-customer-id');
@@ -3800,6 +3890,10 @@ function unlinkOfferCustomer(){
 async function createCustomerFromOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
+  if(isFinalOfferStatus(offer.status)){
+    alert('Finale Offerten sind gesperrt. Bitte Offerte duplizieren.');
+    return;
+  }
   if(offer.customerId){
     showToast('Offerte ist bereits verknüpft.');
     return;
@@ -3874,6 +3968,7 @@ function applyPlanDefaultsToOffer(offer){
 function offerPlanChanged(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
+  if(isFinalOfferStatus(offer.status)) return;
   offerFieldChanged();
   applyPlanDefaultsToOffer(offer);
   openOfferDetail(offer.id,true);
@@ -3882,6 +3977,7 @@ function offerPlanChanged(){
 function offerFieldChanged(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
+  if(isFinalOfferStatus(offer.status)) return;
   const num=id=>Number((document.getElementById(id)?.value)||0);
   offer.companyName=document.getElementById('offer-company').value.trim();
   offer.customerId=String(document.getElementById('offer-customer-id')?.value||'').trim();
@@ -4003,6 +4099,10 @@ async function createOffer(){
 }
 async function saveOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
+  if(isFinalOfferStatus(offer.status)){
+    showToast('Finale Offerten sind schreibgeschützt.');
+    return;
+  }
   offerFieldChanged();
   const payload=buildOfferDbPayload(offer);
   if(authClient){
@@ -4014,6 +4114,10 @@ async function saveOffer(){
 }
 async function sendOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
+  if(isFinalOfferStatus(offer.status)){
+    alert('Finale Offerten können nicht versendet werden. Bitte Offerte duplizieren.');
+    return;
+  }
   await saveOffer();
   try{
     const overrides={};
@@ -4065,27 +4169,15 @@ async function createContractFromOffer(){
     alert('Vertragserstellung erst nach Status "Akzeptiert".');
     return;
   }
-  await saveOffer();
-  const durationMonths=Math.max(1,Math.trunc(Number(offer.durationMonths||0)||0));
-  if(!durationMonths){
-    alert('Vertragslaufzeit fehlt auf der Offerte. Bitte Laufzeit in Monaten setzen.');
+  if(offer.contractId){
+    showToast('Vertrag ist bereits verknüpft.');
+    openOfferContract();
     return;
   }
-  const payload={
-    customer_id:offer.customerId||null,customer_name:offer.companyName||'',offer_id:offer.id,plan:offer.plan,billing_cycle:offer.billingCycle,duration_months:durationMonths,months:durationMonths,start_date:new Date().toISOString().slice(0,10),end_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),durationMonths),
-    cancellation_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),Math.max(durationMonths-1,0)),discount:Math.round(offer.discountPercent||0),cancellation_notice:'1 Monat',notes:`Erstellt aus Offerte ${offer.offerNumber}`,
-    status:'draft',contract_text:generateContractText({customerName:offer.companyName,customerAddress:offerAddressLine(offer),plan:offer.plan,months:durationMonths,startDate:new Date().toISOString().slice(0,10),cancellationDate:addMonthsToDateStr(new Date().toISOString().slice(0,10),Math.max(durationMonths-1,0)),discount:Math.round(offer.discountPercent||0),cancellationNotice:'1 Monat'})
-  };
-  if(authClient){
-    const {data,error}=await authClient.from('contracts').insert(payload).select('*').single();
-    if(error){alert('Vertrag konnte nicht erstellt werden: '+error.message); return;}
-    state.contracts.unshift(mapDbContractToUi(data));
-    offer.contractId=String(data.id); offer.status='accepted';
-    await authClient.from('offers').update({contract_id:data.id,status:'accepted',accepted_at:new Date().toISOString()}).eq('id',offer.id);
-  }
-  showToast('✓ Vertrag aus Offerte erstellt.');
-  setRoute('contracts');
-  renderContracts();
+  await recoverAcceptedOfferContract();
+  if(!offer.contractId) return;
+  openOfferContract();
+  return;
 }
 function printOfferPdf(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
