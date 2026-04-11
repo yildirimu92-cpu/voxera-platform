@@ -3594,7 +3594,7 @@ function mapDbOfferToUi(row){
     createdAt:row.created_at||'',
     updatedAt:row.updated_at||'',
     __dbFieldMap:{
-      company:read('company','company_name')||'company',
+      company:read('company_name','company')||'company_name',
       firstName:read('first_name','contact_first_name')||'first_name',
       lastName:read('last_name','contact_last_name')||'last_name',
       zip:read('zip','postal_code')||'zip',
@@ -3630,7 +3630,8 @@ function buildOfferDbPayload(offer){
     sent_to_email:offer.sentToEmail||null,
     email_subject:offer.sendSubject||null
   };
-  payload[map.company||'company']=offer.companyName||null;
+  payload.company_name=offer.companyName||null;
+  if((map.company||'company_name')==='company') payload.company=offer.companyName||null;
   payload[map.firstName||'first_name']=offer.contactFirstName||null;
   payload[map.lastName||'last_name']=offer.contactLastName||null;
   payload[map.zip||'zip']=offer.postalCode||null;
@@ -3658,13 +3659,13 @@ function offerAddressLine(offer){
 function hydrateOfferCustomerSelect(selectedCustomerId){
   const el=document.getElementById('offer-customer-id');
   if(!el) return;
-  el.innerHTML='<option value="">Nicht verknüpft (Prospect)</option>'+state.customers.map(c=>`<option value="${esc(c.id)}">${esc(c.name||c.customer_name||c.id)}</option>`).join('');
+  el.innerHTML='<option value="">Nicht verknüpft (Prospect)</option>'+state.customers.map(c=>`<option value="${esc(c.id)}">${esc(c.customer_name||c.name||c.id)}</option>`).join('');
   el.value=selectedCustomerId||'';
 }
 function applyCustomerSnapshotToOffer(offer, customer){
   if(!offer||!customer) return;
   offer.customerId=String(customer.id||'');
-  offer.companyName=String(customer.customer_name||customer.name||'').trim();
+  offer.companyName=String(customer.customer_name||'').trim();
   offer.contactFirstName=String(customer.contact_first_name||'').trim();
   offer.contactLastName=String(customer.contact_last_name||'').trim();
   offer.contactName=offerContactName(offer) || String(customer.contact_name||'').trim();
