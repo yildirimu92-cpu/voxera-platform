@@ -3927,8 +3927,32 @@ async function sendOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
   await saveOffer();
   try{
-    const resp=await callAdminFunction('send-offer',{offer_id:offer.id,sent_to_email:offer.sentToEmail,subject:offer.sendSubject});
-    offer.status='sent'; offer.sentAt=resp.sent_at||new Date().toISOString(); offer.sentToEmail=resp.sent_to_email||offer.email; offer.deliveryStatus=resp.delivery_status||'sent';
+    const overrides={};
+    if(String(offer.sentToEmail||'').trim()) overrides.to_email=String(offer.sentToEmail).trim();
+    if(String(offer.sendSubject||'').trim()) overrides.subject=String(offer.sendSubject).trim();
+    const payload={event_type:'offer_email',offer_id:offer.id};
+    if(Object.keys(overrides).length) payload.overrides=overrides;
+    const resp=await callAdminFunction('mail-dispatch',payload);
+    const nowIso=new Date().toISOString();
+    const sentTo=(resp?.data?.sent_to_email)||offer.sentToEmail||offer.email||'';
+    offer.status='sent';
+    offer.sentAt=nowIso;
+    offer.sentToEmail=sentTo;
+    offer.deliveryStatus='sent';
+    if(authClient){
+      const {error:updateErr}=await authClient
+        .from('offers')
+        .update({
+          status:'sent',
+          sent_at:nowIso,
+          sent_to_email:sentTo||null,
+          delivery_status:'sent',
+          email_subject:String(offer.sendSubject||'').trim()||null,
+          updated_at:nowIso
+        })
+        .eq('id',offer.id);
+      if(updateErr) throw new Error(updateErr.message||'Offerte-Status konnte nicht gespeichert werden.');
+    }
     showToast('✓ Offerte gesendet.');
     renderOffers();
   }catch(e){ alert('Senden fehlgeschlagen: '+(e.message||e)); }
@@ -5350,6 +5374,8 @@ async function sendMonthlyBillingPaymentLink(customerId){
   try{
     const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_monthly_payment_link'});
     if(!json?.success||!json?.subscription) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
+    const dispatch=await callAdminFunction('mail-dispatch',{event_type:'subscription_payment_email',customer_id:customerId});
+    if(!dispatch?.success) throw new Error(dispatch?.error||'Mailversand fehlgeschlagen.');
     customer.subscription_status=json.subscription.subscription_status||customer.subscription_status;
     customer.subscription_renews_at=json.subscription.renews_at||customer.subscription_renews_at;
     customer.latest=`${nowStamp()} · Monatszahlung gesendet`;
@@ -5369,6 +5395,8 @@ async function sendYearlyBillingPaymentLink(customerId){
   try{
     const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_yearly_payment_link'});
     if(!json?.success||!json?.subscription) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
+    const dispatch=await callAdminFunction('mail-dispatch',{event_type:'subscription_payment_email',customer_id:customerId});
+    if(!dispatch?.success) throw new Error(dispatch?.error||'Mailversand fehlgeschlagen.');
     customer.subscription_status=json.subscription.subscription_status||customer.subscription_status;
     customer.subscription_renews_at=json.subscription.renews_at||customer.subscription_renews_at;
     customer.latest=`${nowStamp()} · Jahreszahlung gesendet`;
