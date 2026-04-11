@@ -11,12 +11,42 @@ const headers = {
   'Content-Type': 'application/json'
 };
 
+const CUSTOMER_INSERTABLE_FIELDS = new Set([
+  'id',
+  'customer_name',
+  'email',
+  'tel_nr',
+  'plan',
+  'street',
+  'zip',
+  'city',
+  'country',
+  'contact_first_name',
+  'contact_last_name',
+  'contact_name',
+  'status',
+  'invite_status',
+  'welcome_sent',
+  'created_at',
+  'updated_at'
+]);
+
 function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function errorResponse(statusCode, code, message, details) {
+  const payload = { error: { code, message } };
+  if (details) payload.error.details = details;
+  return response(statusCode, payload);
+}
+
 function parseBody(event) {
-  try { return JSON.parse(event.body || '{}'); } catch (_e) { return null; }
+  try {
+    return JSON.parse(event.body || '{}');
+  } catch (_e) {
+    return null;
+  }
 }
 
 function prospectNameFromOffer(offer) {
@@ -39,6 +69,45 @@ function normalizePhone(raw) {
 
 function generateCustomerId() {
   return `cust_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function serializeError(err) {
+  if (!err) return { message: 'Unknown error' };
+  if (typeof err === 'string') return { message: err };
+  return {
+    name: err.name,
+    message: err.message,
+    code: err.code,
+    details: err.details,
+    hint: err.hint,
+    status: err.status,
+    stack: err.stack
+  };
+}
+
+function logError(stage, err, meta) {
+  console.error(JSON.stringify({
+    level: 'error',
+    function: 'offer-link-customer',
+    stage,
+    meta: meta || null,
+    error: serializeError(err)
+  }));
+}
+
+function validateCustomerPayload(payload) {
+  for (const key of Object.keys(payload)) {
+    if (!CUSTOMER_INSERTABLE_FIELDS.has(key)) {
+      return { ok: false, reason: `Unsupported customer field: ${key}` };
+    }
+  }
+  if (!payload.id || !payload.customer_name) {
+    return { ok: false, reason: 'Required customer fields missing (id/customer_name).' };
+  }
+  if (payload.email !== null && typeof payload.email !== 'string') {
+    return { ok: false, reason: 'email must be string or null.' };
+  }
+  return { ok: true };
 }
 
 async function ensureOnboarding(sbAdmin, customerId) {
@@ -73,10 +142,13 @@ async function findExistingCustomer(sbAdmin, offer) {
     const { data, error } = await sbAdmin
       .from('customers')
       .select('*')
-      .eq('email', email)
-      .maybeSingle();
+      .ilike('email', email)
+      .limit(2);
     if (error) throw error;
-    if (data) return { customer: data, via: 'email' };
+    if (Array.isArray(data) && data.length > 1) {
+      return { customer: null, via: 'email', ambiguous: true, count: data.length };
+    }
+    if (Array.isArray(data) && data[0]) return { customer: data[0], via: 'email', ambiguous: false };
   }
 
   const company = String(offer.company_name || '').trim();
@@ -85,55 +157,68 @@ async function findExistingCustomer(sbAdmin, offer) {
       .from('customers')
       .select('*')
       .ilike('customer_name', company)
-      .limit(1);
+      .limit(2);
     if (error) throw error;
-    if (Array.isArray(data) && data[0]) return { customer: data[0], via: 'company' };
+    if (Array.isArray(data) && data.length > 1) {
+      return { customer: null, via: 'company', ambiguous: true, count: data.length };
+    }
+    if (Array.isArray(data) && data[0]) return { customer: data[0], via: 'company', ambiguous: false };
   }
 
-  return { customer: null, via: null };
+  return { customer: null, via: null, ambiguous: false };
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
-  if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
-
-  const sbUrl = process.env.SUPABASE_URL;
-  const sbAnonKey = process.env.SUPABASE_ANON_KEY;
-  const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!sbUrl || !sbAnonKey || !sbServiceKey) {
-    return response(500, { error: 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.' });
-  }
-
-  const body = parseBody(event);
-  if (!body) return response(400, { error: 'Ungültiger Request Body.' });
-
-  const offerId = String(body.offer_id || '').trim();
-  if (!offerId) return response(400, { error: 'offer_id fehlt.' });
-
-  const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const caller = await requireAdminCaller({ event, supabaseUrl: sbUrl, supabaseAnonKey: sbAnonKey, sbAdmin });
-  if (!caller.ok) return response(caller.statusCode, caller.body);
-
-  const { data: offer, error: offerErr } = await sbAdmin
-    .from('offers')
-    .select('*')
-    .eq('id', offerId)
-    .maybeSingle();
-  if (offerErr) return response(500, { error: 'Offer lookup failed.', details: offerErr.message });
-  if (!offer) return response(404, { error: 'Offerte nicht gefunden.' });
-
-  if (offer.customer_id) {
-    const { data: linkedCustomer } = await sbAdmin.from('customers').select('*').eq('id', offer.customer_id).maybeSingle();
-    return response(200, { success: true, already_linked: true, customer: linkedCustomer || { id: offer.customer_id } });
-  }
-
-  const nowIso = new Date().toISOString();
-  let customer;
-  let linkedExisting = false;
-  let duplicateMatch = null;
-
   try {
+    if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+    if (event.httpMethod !== 'POST') return errorResponse(405, 'method_not_allowed', 'Method not allowed');
+
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbAnonKey = process.env.SUPABASE_ANON_KEY;
+    const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!sbUrl || !sbAnonKey || !sbServiceKey) {
+      return errorResponse(500, 'config_missing', 'SUPABASE_URL, SUPABASE_ANON_KEY und SUPABASE_SERVICE_ROLE_KEY muessen gesetzt sein.');
+    }
+
+    const body = parseBody(event);
+    if (!body) return errorResponse(400, 'invalid_json', 'Ungültiger Request Body.');
+
+    const offerId = String(body.offer_id || '').trim();
+    if (!offerId) return errorResponse(400, 'validation_error', 'offer_id fehlt.');
+
+    const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const caller = await requireAdminCaller({ event, supabaseUrl: sbUrl, supabaseAnonKey: sbAnonKey, sbAdmin });
+    if (!caller.ok) return response(caller.statusCode, caller.body);
+
+    const { data: offer, error: offerErr } = await sbAdmin
+      .from('offers')
+      .select('*')
+      .eq('id', offerId)
+      .maybeSingle();
+    if (offerErr) {
+      logError('offer_lookup', offerErr, { offerId });
+      return errorResponse(500, 'offer_lookup_failed', 'Offer lookup failed.', offerErr.message);
+    }
+    if (!offer) return errorResponse(404, 'offer_not_found', 'Offerte nicht gefunden.');
+
+    if (offer.customer_id) {
+      const { data: linkedCustomer } = await sbAdmin.from('customers').select('*').eq('id', offer.customer_id).maybeSingle();
+      return response(200, { success: true, already_linked: true, customer: linkedCustomer || { id: offer.customer_id } });
+    }
+
+    const nowIso = new Date().toISOString();
+    let customer;
+    let linkedExisting = false;
+    let duplicateMatch = null;
+
     const existing = await findExistingCustomer(sbAdmin, offer);
+    if (existing.ambiguous) {
+      return errorResponse(409, 'duplicate_ambiguous', 'Mehrdeutiger Duplikat-Treffer. Bitte Kunde manuell zuordnen.', {
+        via: existing.via,
+        matches: existing.count
+      });
+    }
+
     if (existing.customer) {
       customer = existing.customer;
       linkedExisting = true;
@@ -160,6 +245,11 @@ exports.handler = async (event) => {
         updated_at: nowIso
       };
 
+      const payloadValidation = validateCustomerPayload(customerPayload);
+      if (!payloadValidation.ok) {
+        return errorResponse(400, 'invalid_customer_payload', payloadValidation.reason);
+      }
+
       const { data: created, error: createErr } = await sbAdmin
         .from('customers')
         .insert(customerPayload)
@@ -168,22 +258,30 @@ exports.handler = async (event) => {
       if (createErr) {
         if (String(createErr.code || '') === '23505' && normalizeEmail(offer.email)) {
           const retry = await findExistingCustomer(sbAdmin, offer);
+          if (retry.ambiguous) {
+            return errorResponse(409, 'duplicate_ambiguous', 'Mehrdeutiger Duplikat-Treffer nach Retry. Bitte Kunde manuell zuordnen.', {
+              via: retry.via,
+              matches: retry.count
+            });
+          }
           if (retry.customer) {
             customer = retry.customer;
             linkedExisting = true;
             duplicateMatch = retry.via;
           } else {
-            return response(409, { error: 'Kunde existiert bereits, konnte aber nicht eindeutig aufgelöst werden.', details: createErr.message });
+            logError('customer_insert_duplicate_unresolved', createErr, { offerId });
+            return errorResponse(409, 'duplicate_unresolved', 'Kunde existiert bereits, konnte aber nicht eindeutig aufgelöst werden.', createErr.message);
           }
         } else {
-          return response(500, { error: 'Kunde konnte nicht erstellt werden.', details: createErr.message });
+          logError('customer_insert', createErr, { offerId });
+          return errorResponse(500, 'customer_create_failed', 'Kunde konnte nicht erstellt werden.', createErr.message);
         }
       } else {
         customer = created;
       }
     }
 
-    if (!customer?.id) return response(500, { error: 'Kein Kunde verfügbar nach Konvertierung.' });
+    if (!customer?.id) return errorResponse(500, 'customer_missing', 'Kein Kunde verfügbar nach Konvertierung.');
 
     const { data: updatedOffer, error: linkErr } = await sbAdmin
       .from('offers')
@@ -191,7 +289,10 @@ exports.handler = async (event) => {
       .eq('id', offer.id)
       .select('*')
       .single();
-    if (linkErr) return response(500, { error: 'Offerte konnte nicht verknüpft werden.', details: linkErr.message });
+    if (linkErr) {
+      logError('offer_link', linkErr, { offerId, customerId: customer.id });
+      return errorResponse(500, 'offer_link_failed', 'Offerte konnte nicht verknüpft werden.', linkErr.message);
+    }
 
     const onboarding = await ensureOnboarding(sbAdmin, customer.id);
 
@@ -204,6 +305,7 @@ exports.handler = async (event) => {
       onboarding
     });
   } catch (e) {
-    return response(500, { error: 'Konvertierung fehlgeschlagen.', details: e.message || String(e) });
+    logError('unhandled', e);
+    return errorResponse(500, 'conversion_failed', 'Konvertierung fehlgeschlagen.', e?.message || String(e));
   }
 };
