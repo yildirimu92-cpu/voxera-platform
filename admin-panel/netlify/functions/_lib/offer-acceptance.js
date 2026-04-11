@@ -152,7 +152,28 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
     contract_text: generateContractText({ offer, startDate, cancellationDate })
   };
   const createRes = await sbAdmin.from('contracts').insert(contractPayload).select('*').single();
-  if (createRes.error) throw new OfferAcceptanceError(500, 'Contract create failed.', createRes.error.message);
+  if (createRes.error) {
+    console.error('ensureContractForOffer: contract insert failed', {
+      offer_id: offer.id,
+      contract_payload: contractPayload,
+      db_error: {
+        message: createRes.error.message || null,
+        code: createRes.error.code || null,
+        details: createRes.error.details || null,
+        hint: createRes.error.hint || null
+      }
+    });
+    throw new OfferAcceptanceError(
+      500,
+      `Contract create failed: ${createRes.error.message || 'unknown database error'}`,
+      {
+        message: createRes.error.message || null,
+        code: createRes.error.code || null,
+        details: createRes.error.details || null,
+        hint: createRes.error.hint || null
+      }
+    );
+  }
   return String(createRes.data.id);
 }
 
