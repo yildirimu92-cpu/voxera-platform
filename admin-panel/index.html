@@ -693,14 +693,34 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .offer-editor{display:grid;gap:12px;}
 .offer-card{padding:14px;}
 .offer-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.offer-preview{padding:18px;position:sticky;top:10px;}
-.offer-doc{display:grid;gap:12px;font-size:13px;line-height:1.45;}
-.offer-doc-head{display:flex;justify-content:space-between;color:var(--slate2);font-size:12px;}
-.offer-doc h2{margin:2px 0 0;font-size:22px;letter-spacing:-.02em;}
-.offer-preview-block{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface-subtle);} 
-.offer-preview ul{margin:6px 0 0 18px;padding:0;}
+.offer-preview{padding:18px;position:sticky;top:10px;background:#f8fafc;}
+.offer-doc-shell{border:1px solid #dbe7ff;border-radius:16px;background:#fff;box-shadow:0 10px 28px rgba(15,23,42,.08);padding:24px;display:grid;gap:18px;}
+.offer-doc{display:grid;gap:14px;font-size:13px;line-height:1.5;color:#0f172a;}
+.offer-doc-header{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid #e2e8f0;}
+.offer-brand{display:flex;align-items:center;gap:10px;}
+.offer-brand-mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(140deg,#2563eb,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;}
+.offer-brand-text{font-size:15px;font-weight:700;letter-spacing:.01em;color:#0f172a;}
+.offer-brand-sub{font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;}
+.offer-doc h2{margin:4px 0 0;font-size:28px;letter-spacing:-.03em;}
+.offer-doc-meta{display:grid;gap:4px;text-align:right;font-size:12px;color:#334155;}
+.offer-doc-meta strong{color:#0f172a;}
+.offer-preview-block{border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#fff;}
+.offer-preview-block h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#1d4ed8;}
+.offer-customer-grid,.offer-plan-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;}
+.offer-kv .k{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;}
+.offer-kv .v{font-size:13px;color:#0f172a;}
+.offer-service-list{margin:8px 0 0;padding-left:18px;display:grid;gap:4px;}
+.offer-pricing-grid{display:grid;gap:8px;}
+.offer-price-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;}
+.offer-price-row.total{margin-top:4px;padding-top:8px;border-top:1px solid #cbd5e1;font-size:18px;font-weight:700;color:#1e3a8a;}
+.offer-next-steps{margin:0;padding-left:18px;display:grid;gap:4px;}
+.offer-footer{border-top:1px solid #e2e8f0;padding-top:10px;font-size:11px;color:#64748b;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.offer-linking-notice{font-size:12px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:10px 12px;}
+.offer-linking-notice strong{color:#1e3a8a;}
+.offer-linking-warning{font-size:12px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;border-radius:10px;padding:10px 12px;}
+.offer-linking-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
 @media (max-width: 1100px){.offer-columns{grid-template-columns:1fr;}.offer-preview{position:static;}.offer-actions .btn{flex:1;min-width:120px;}}
-@media (max-width: 720px){.offer-grid-2{grid-template-columns:1fr;} .offer-meta-row span{word-break:break-word;} .offer-actions{width:100%;}}
+@media (max-width: 720px){.offer-grid-2,.offer-customer-grid,.offer-plan-grid{grid-template-columns:1fr;} .offer-meta-row span{word-break:break-word;} .offer-actions{width:100%;}.offer-doc-header{flex-direction:column;}.offer-doc-meta{text-align:left;}}
 </style>
 </head>
 <body class="app-booting">
@@ -1222,13 +1242,16 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                   <button class="btn btn-secondary btn-sm" onclick="sendOffer()">Als gesendet markieren</button>
                   <button class="btn btn-quiet btn-sm" onclick="printOfferPdf()">Print / PDF</button>
                   <button class="btn btn-quiet btn-sm" onclick="duplicateOffer()">Duplizieren</button>
-                  <button class="btn btn-quiet btn-sm" onclick="createContractFromOffer()">Vertrag erstellen</button>
+                  <button class="btn btn-quiet btn-sm" id="offer-create-contract-btn" onclick="createContractFromOffer()">Vertrag erstellen</button>
                 </div>
               </div>
+              <div id="offer-contract-warning" class="offer-linking-warning" style="display:none;margin-top:12px;">Bitte zuerst Kunde zuweisen.</div>
             </div>
             <div class="offer-columns">
               <div class="offer-editor">
                 <div class="card offer-card"><div class="card-head"><h3>Customer / Prospect Info</h3></div><div class="offer-grid-2">
+                  <div style="grid-column:1/-1;"><label class="muted">Zugewiesener Kunde</label><select class="select" id="offer-customer-select" onchange="handleOfferCustomerSelection()"></select><div class="muted" style="margin-top:6px;font-size:11px;">Prospect-Offerten ohne Kundenzuordnung sind erlaubt. Für die Vertragserstellung ist eine Kundenzuordnung erforderlich.</div></div>
+                  <div id="offer-customer-suggestion" style="grid-column:1/-1;"></div>
                   <div><label class="muted">Company</label><input class="input" id="offer-company" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">Kontaktname</label><input class="input" id="offer-contact" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">E-Mail</label><input class="input" id="offer-email" oninput="offerFieldChanged()"></div>
@@ -3469,6 +3492,48 @@ function getOfferTotal(offer){
   const discount=Number(offer.discountAmount||0)+(base*(Number(offer.discountPercent||0)/100));
   return Math.max(0,Math.round((base+add-discount)*100)/100);
 }
+function normalizeOfferMatchText(raw){
+  return String(raw||'').toLowerCase().replace(/[^a-z0-9äöüàéèêçß\s]/gi,' ').replace(/\s+/g,' ').trim();
+}
+function findSuggestedOfferCustomer(offer){
+  if(!offer || offer.customerId) return null;
+  const companyKey=normalizeOfferMatchText(offer.companyName);
+  if(!companyKey) return null;
+  return state.customers.find(c=>normalizeOfferMatchText(c?.name)===companyKey)||null;
+}
+function hydrateOfferCustomerSelect(selectedCustomerId){
+  const sel=document.getElementById('offer-customer-select');
+  if(!sel) return;
+  sel.innerHTML='<option value="">Prospect (noch nicht verknüpft)</option>'+state.customers.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.email?` · ${esc(c.email)}`:''}</option>`).join('');
+  sel.value=selectedCustomerId||'';
+}
+function updateOfferContractActionState(offer){
+  const btn=document.getElementById('offer-create-contract-btn');
+  const warning=document.getElementById('offer-contract-warning');
+  const hasCustomer=Boolean(String(offer?.customerId||'').trim());
+  if(btn){ btn.disabled=!hasCustomer; btn.title=hasCustomer?'':'Bitte zuerst Kunde zuweisen.'; }
+  if(warning) warning.style.display=hasCustomer?'none':'block';
+}
+function renderOfferCustomerSuggestion(offer){
+  const container=document.getElementById('offer-customer-suggestion');
+  if(!container) return;
+  const suggested=findSuggestedOfferCustomer(offer);
+  if(!suggested){ container.innerHTML=''; return; }
+  container.innerHTML=`<div class="offer-linking-notice"><strong>Passender Kunde gefunden:</strong> ${esc(suggested.name)}${suggested.email?` · ${esc(suggested.email)}`:''}<div class="offer-linking-actions"><button class="btn btn-secondary btn-sm" onclick="linkSuggestedCustomerFromOffer('${jsStr(suggested.id)}')">Kunde zuweisen</button></div></div>`;
+}
+function handleOfferCustomerSelection(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer) return;
+  offer.customerId=String(document.getElementById('offer-customer-select')?.value||'').trim();
+  updateOfferContractActionState(offer);
+  renderOfferCustomerSuggestion(offer);
+}
+function linkSuggestedCustomerFromOffer(customerId){
+  const sel=document.getElementById('offer-customer-select');
+  if(!sel) return;
+  sel.value=String(customerId||'');
+  handleOfferCustomerSelection();
+}
 function renderOffers(){
   const table=document.getElementById('offers-table-body');
   if(!table) return;
@@ -3504,6 +3569,9 @@ function openOfferDetail(id,silent=false){
   };
   Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id); if(el) el.value=val??'';});
   hydrateOfferPlanSelect(offer.plan);
+  hydrateOfferCustomerSelect(offer.customerId);
+  updateOfferContractActionState(offer);
+  renderOfferCustomerSuggestion(offer);
   renderOfferPreview(offer);
   if(!silent) renderOffers();
 }
@@ -3523,6 +3591,7 @@ function offerFieldChanged(){
   offer.email=document.getElementById('offer-email').value.trim();
   offer.phone=document.getElementById('offer-phone').value.trim();
   offer.address=document.getElementById('offer-address').value.trim();
+  offer.customerId=String(document.getElementById('offer-customer-select')?.value||offer.customerId||'').trim();
   offer.plan=normalizePlanCode(document.getElementById('offer-plan').value);
   offer.billingCycle=document.getElementById('offer-billing-cycle').value;
   offer.setupFee=num('offer-setup-fee'); offer.monthlyPrice=num('offer-monthly'); offer.yearlyPrice=num('offer-yearly');
@@ -3534,14 +3603,18 @@ function offerFieldChanged(){
   offer.introText=document.getElementById('offer-intro').value.trim(); offer.summaryText=document.getElementById('offer-summary').value.trim();
   offer.customerNote=document.getElementById('offer-customer-note').value.trim(); offer.internalNotes=document.getElementById('offer-internal-notes').value.trim();
   offer.total=getOfferTotal(offer);
+  updateOfferContractActionState(offer);
+  renderOfferCustomerSuggestion(offer);
   renderOfferPreview(offer);
 }
 function renderOfferPreview(offer){
   const el=document.getElementById('offer-preview'); if(!el) return;
-  const base=offer.billingCycle==='yearly'?offer.yearlyPrice:offer.monthlyPrice;
-  const addons=offer.addOnNumbers+offer.addOnSms+offer.addOnAi;
+  const customer=customerById(offer.customerId);
+  const base=offer.billingCycle==='yearly'?Number(offer.yearlyPrice||0):Number(offer.monthlyPrice||0);
+  const recurringLabel=offer.billingCycle==='yearly'?'Wiederkehrend (jährlich)':'Wiederkehrend (monatlich)';
+  const addons=Number(offer.addOnNumbers||0)+Number(offer.addOnSms||0)+Number(offer.addOnAi||0);
   const total=getOfferTotal(offer);
-  el.innerHTML=`<div class="offer-doc"><div class="offer-doc-head"><strong>Voxera</strong><span>Offerte</span></div><h2>Offerte ${esc(offer.offerNumber)}</h2><div class="muted">Datum ${formatDateDE(offer.createdAt||new Date().toISOString())} · Gültig bis ${formatDateDE(offer.validUntil)}</div><div class="offer-preview-block"><strong>Kunde</strong><div>${esc(offer.companyName||'—')}</div><div>${esc(offer.contactName||'')}</div><div>${esc(offer.email||'')}</div></div><p>${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera.')}</p><div class="offer-preview-block"><strong>${esc(planLabel(offer.plan))}</strong><div>${esc(offer.summaryText||'Professionelle AI-Assistenz für Ihr Team.')}</div><ul><li>${offer.includedMinutes} inklusive Minuten</li><li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li><li>${offer.numberCount} Rufnummer(n)</li></ul></div><div class="offer-preview-block"><strong>Pricing Summary</strong><div>Setup Fee: ${moneyChf(offer.setupFee)}</div><div>${offer.billingCycle==='yearly'?'Jahrespreis':'Monatspreis'}: ${moneyChf(base)}</div><div>Add-ons: ${moneyChf(addons)}</div><div>Rabatt: ${moneyChf(offer.discountAmount)} + ${offer.discountPercent}%</div><div style="margin-top:6px;font-weight:700;">Total: ${moneyChf(total)}</div></div><div class="offer-preview-block"><strong>Nächste Schritte</strong><div>Bitte Offerte freigeben, damit wir den Vertrag direkt erstellen können.</div></div></div>`;
+  el.innerHTML=`<div class="offer-doc-shell"><div class="offer-doc"><div class="offer-doc-header"><div><div class="offer-brand"><span class="offer-brand-mark">V</span><div><div class="offer-brand-text">Voxera</div><div class="offer-brand-sub">Business Communication AI</div></div></div><h2>Offerte</h2></div><div class="offer-doc-meta"><div><strong>Offert-Nr.</strong> ${esc(offer.offerNumber||'—')}</div><div><strong>Ausgestellt am</strong> ${formatDateDE(offer.createdAt||new Date().toISOString())}</div><div><strong>Gültig bis</strong> ${formatDateDE(offer.validUntil)}</div></div></div><div class="offer-preview-block"><h4>Kunde</h4><div class="offer-customer-grid"><div class="offer-kv"><div class="k">Firma</div><div class="v">${esc(offer.companyName||customer?.name||'—')}</div></div><div class="offer-kv"><div class="k">Kontakt</div><div class="v">${esc(offer.contactName||'—')}</div></div><div class="offer-kv"><div class="k">E-Mail</div><div class="v">${esc(offer.email||customer?.email||'—')}</div></div><div class="offer-kv"><div class="k">Telefon</div><div class="v">${esc(offer.phone||customer?.phone||'—')}</div></div><div class="offer-kv" style="grid-column:1/-1;"><div class="k">Adresse</div><div class="v">${esc(offer.address||customer?.address||'—')}</div></div></div></div><div class="offer-preview-block"><h4>Einleitung</h4><div>${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera. Nachfolgend erhalten Sie unser passendes Angebot für eine professionelle, zuverlässige und skalierbare AI-Telefonlösung.')}</div></div><div class="offer-preview-block"><h4>Lösung & Plan</h4><div class="offer-plan-grid"><div class="offer-kv"><div class="k">Plan</div><div class="v">${esc(planLabel(offer.plan))}</div></div><div class="offer-kv"><div class="k">Wertbeitrag</div><div class="v">${esc(offer.summaryText||'Effiziente Erreichbarkeit, weniger manuelle Last und ein konsistentes Kundenerlebnis für Ihr Team.')}</div></div></div><ul class="offer-service-list"><li>${Number(offer.includedMinutes||0)} inklusive Gesprächsminuten</li><li>Zusätzliche Minute: ${moneyChf(Number(offer.extraPerMinute||0))}</li><li>${Number(offer.numberCount||0)} Rufnummer(n) enthalten</li><li>Add-ons gemäss Konfiguration und Bedarf</li>${offer.addOnNotes?`<li>${esc(offer.addOnNotes)}</li>`:''}</ul></div><div class="offer-preview-block"><h4>Preisübersicht</h4><div class="offer-pricing-grid"><div class="offer-price-row"><span>Einmalkosten (Setup)</span><strong>${moneyChf(Number(offer.setupFee||0))}</strong></div><div class="offer-price-row"><span>${recurringLabel}</span><strong>${moneyChf(base)}</strong></div><div class="offer-price-row"><span>Add-ons</span><strong>${moneyChf(addons)}</strong></div><div class="offer-price-row"><span>Rabatt</span><strong>− ${moneyChf(Number(offer.discountAmount||0)+(base*(Number(offer.discountPercent||0)/100)))}</strong></div><div class="offer-price-row total"><span>Total</span><span>${moneyChf(total)}</span></div></div></div><div class="offer-preview-block"><h4>Nächste Schritte</h4><ul class="offer-next-steps"><li>Nach Ihrer Freigabe erstellen wir den Vertrag auf Basis dieser Offerte.</li><li>Direkt danach startet unser Setup- und Onboarding-Prozess mit Ihrem Team.</li><li>Ihr Go-live wird gemeinsam geplant und sauber begleitet.</li></ul></div><div class="offer-footer"><span>Voxera · www.voxera.ch · hello@voxera.ch</span><span>Diese Offerte ist gültig bis ${formatDateDE(offer.validUntil)}.</span></div></div></div>`;
 }
 async function createOffer(){
   const now=new Date();
@@ -3606,9 +3679,14 @@ async function duplicateOffer(){
 }
 async function createContractFromOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
+  if(!offer.customerId){
+    updateOfferContractActionState(offer);
+    alert('Bitte zuerst Kunde zuweisen.');
+    return;
+  }
   await saveOffer();
   const payload={
-    customer_id:offer.customerId||null,customer_name:offer.companyName||'',offer_id:offer.id,plan:offer.plan,months:12,start_date:new Date().toISOString().slice(0,10),end_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),12),
+    customer_id:offer.customerId,customer_name:offer.companyName||'',offer_id:offer.id,plan:offer.plan,months:12,start_date:new Date().toISOString().slice(0,10),end_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),12),
     cancellation_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellation_notice:'1 Monat',notes:`Created from offer ${offer.offerNumber}`,
     status:'draft',contract_text:generateContractText({customerName:offer.companyName,customerAddress:offer.address,plan:offer.plan,months:12,startDate:new Date().toISOString().slice(0,10),cancellationDate:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellationNotice:'1 Monat'})
   };
@@ -3626,7 +3704,7 @@ async function createContractFromOffer(){
 function printOfferPdf(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
   const w=window.open('','_blank'); if(!w) return;
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(offer.offerNumber)}</title><style>body{font-family:Arial,sans-serif;padding:32px;} .muted{color:#475569;} .box{border:1px solid #cbd5e1;padding:12px;border-radius:8px;margin:12px 0;}</style></head><body>${document.getElementById('offer-preview').innerHTML}<script>window.print()<\/script></body></html>`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(offer.offerNumber)}</title><style>body{font-family:Inter,Arial,sans-serif;padding:24px;background:#fff;color:#0f172a;} .offer-doc-shell{border:1px solid #dbe7ff;border-radius:12px;padding:20px;} .offer-doc{display:grid;gap:12px;font-size:13px;line-height:1.45;} .offer-doc-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid #e2e8f0;} .offer-brand{display:flex;align-items:center;gap:10px;} .offer-brand-mark{width:24px;height:24px;border-radius:7px;background:#1d4ed8;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;} .offer-brand-text{font-size:14px;font-weight:700;} .offer-brand-sub{font-size:10px;color:#64748b;text-transform:uppercase;} .offer-doc h2{margin:4px 0 0;font-size:24px;} .offer-doc-meta{display:grid;gap:4px;text-align:right;font-size:12px;} .offer-preview-block{border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fff;} .offer-preview-block h4{margin:0 0 7px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#1d4ed8;} .offer-customer-grid,.offer-plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;} .offer-kv .k{font-size:10px;color:#64748b;text-transform:uppercase;} .offer-service-list,.offer-next-steps{margin:8px 0 0;padding-left:18px;display:grid;gap:3px;} .offer-price-row{display:flex;justify-content:space-between;gap:8px;font-size:13px;} .offer-price-row.total{margin-top:4px;padding-top:8px;border-top:1px solid #cbd5e1;font-size:17px;font-weight:700;color:#1e3a8a;} .offer-footer{border-top:1px solid #e2e8f0;padding-top:10px;font-size:10px;color:#64748b;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;} @media print{body{padding:0;} .offer-doc-shell{border:none;border-radius:0;padding:0;box-shadow:none;}}</style></head><body>${document.getElementById('offer-preview').innerHTML}<script>window.print()<\/script></body></html>`);
   w.document.close();
 }
 
