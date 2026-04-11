@@ -5,6 +5,9 @@
 [functions."outbox-retry-worker"]
   schedule = "*/5 * * * *"
 
+[functions."daily-billing-runner"]
+  schedule = "0 6 * * *"
+
 [[headers]]
   for = "/*"
   [headers.values]
