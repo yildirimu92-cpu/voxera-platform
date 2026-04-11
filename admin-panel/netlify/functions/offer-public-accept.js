@@ -59,6 +59,14 @@ function addMonths(date, months) {
   return d.toISOString().slice(0, 10);
 }
 
+function parseDurationMonths(raw) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return null;
+  const rounded = Math.trunc(parsed);
+  if (rounded <= 0) return null;
+  return rounded;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -128,9 +136,16 @@ exports.handler = async (event) => {
 
   let contractId = acceptedOffer.contract_id || null;
   if (!contractId) {
+    const durationMonths = parseDurationMonths(offer.duration_months);
+    if (!durationMonths) {
+      return response(409, {
+        error: 'Offerte kann nicht akzeptiert werden: duration_months fehlt oder ist ungültig.'
+      });
+    }
+
     const startDate = nowIso.slice(0, 10);
-    const endDate = addMonths(startDate, 12);
-    const cancellationDate = addMonths(startDate, 11);
+    const endDate = addMonths(startDate, durationMonths);
+    const cancellationDate = addMonths(startDate, Math.max(durationMonths - 1, 0));
 
     const existingContractRes = await sbAdmin
       .from('contracts')
@@ -146,13 +161,42 @@ exports.handler = async (event) => {
 
     if (existingContractRes.data) {
       contractId = existingContractRes.data.id;
+      const existing = existingContractRes.data;
+      const existingDuration = parseDurationMonths(existing.duration_months ?? existing.months);
+      const patch = {
+        customer_id: offer.customer_id || null,
+        customer_name: offer.company_name || '',
+        plan: offer.plan,
+        billing_cycle: offer.billing_cycle,
+        duration_months: durationMonths,
+        months: durationMonths,
+        start_date: existing.start_date || startDate,
+        end_date: existing.end_date || endDate,
+        cancellation_date: existing.cancellation_date || cancellationDate,
+        updated_at: nowIso
+      };
+      const needsPatch = (
+        String(existing.plan || '') !== String(offer.plan || '')
+        || String(existing.billing_cycle || '') !== String(offer.billing_cycle || '')
+        || existingDuration !== durationMonths
+        || String(existing.customer_id || '') !== String(offer.customer_id || '')
+      );
+      if (needsPatch) {
+        const { error: patchErr } = await sbAdmin
+          .from('contracts')
+          .update(patch)
+          .eq('id', contractId);
+        if (patchErr) return response(500, { error: 'Contract sync failed.', details: patchErr.message });
+      }
     } else {
       const contractPayload = {
         customer_id: offer.customer_id || null,
         customer_name: offer.company_name || '',
         offer_id: offer.id,
         plan: offer.plan,
-        months: 12,
+        billing_cycle: offer.billing_cycle,
+        duration_months: durationMonths,
+        months: durationMonths,
         start_date: startDate,
         end_date: endDate,
         cancellation_date: cancellationDate,

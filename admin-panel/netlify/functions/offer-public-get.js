@@ -72,6 +72,7 @@ exports.handler = async (event) => {
       country: offer.country,
       plan: offer.plan,
       billing_cycle: offer.billing_cycle,
+      duration_months: Number(offer.duration_months || 0),
       setup_fee: Number(offer.setup_fee || 0),
       monthly_price: Number(offer.monthly_price || 0),
       yearly_price: Number(offer.yearly_price || 0),
