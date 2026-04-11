@@ -680,6 +680,27 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   #ai-workspace .inline-actions .btn{width:100%;min-height:42px;justify-content:center;}
 }
 
+
+.offers-layout{display:grid;gap:14px;}
+.offer-workspace{display:grid;gap:12px;}
+.offer-header-card{padding:14px 16px;}
+.offer-header-main{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;}
+.offer-title-row{display:flex;align-items:center;gap:8px;}
+.offer-title-row h3{margin:0;font-size:20px;}
+.offer-meta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--slate);}
+.offer-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.offer-columns{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:14px;align-items:start;}
+.offer-editor{display:grid;gap:12px;}
+.offer-card{padding:14px;}
+.offer-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.offer-preview{padding:18px;position:sticky;top:10px;}
+.offer-doc{display:grid;gap:12px;font-size:13px;line-height:1.45;}
+.offer-doc-head{display:flex;justify-content:space-between;color:var(--slate2);font-size:12px;}
+.offer-doc h2{margin:2px 0 0;font-size:22px;letter-spacing:-.02em;}
+.offer-preview-block{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface-subtle);} 
+.offer-preview ul{margin:6px 0 0 18px;padding:0;}
+@media (max-width: 1100px){.offer-columns{grid-template-columns:1fr;}.offer-preview{position:static;}.offer-actions .btn{flex:1;min-width:120px;}}
+@media (max-width: 720px){.offer-grid-2{grid-template-columns:1fr;} .offer-meta-row span{word-break:break-word;} .offer-actions{width:100%;}}
 </style>
 </head>
 <body class="app-booting">
@@ -748,6 +769,11 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <a href="#settings" class="nav-item" data-route="settings">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42"/></svg>
         Einstellungen
+      </a>
+      <div class="nav-section">Sales</div>
+      <a href="#offers" class="nav-item" data-route="offers">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 2.5h8.5L14 5v8.5A1.5 1.5 0 0112.5 15h-9A1.5 1.5 0 012 13.5v-9A1.5 1.5 0 013.5 3"/><path d="M11.5 2.5V5H14"/><path d="M5 8h6M5 10.5h6"/></svg>
+        Offerten
       </a>
       <div class="nav-section">Verträge</div>
       <a href="#contracts" class="nav-item" data-route="contracts">
@@ -1160,6 +1186,84 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           <div id="settings-admin-list"></div>
           <div id="settings-feature-list"></div>
           <button id="settings-add-admin"></button>
+        </div>
+      </section>
+      <!-- OFFERS -->
+      <section id="section-offers" class="section">
+        <div class="section-head">
+          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Offerten</h3>
+          <button class="btn btn-primary" onclick="createOffer()">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
+            Neue Offerte
+          </button>
+        </div>
+        <div class="offers-layout" id="offers-workspace" style="display:none;">
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="table-wrap" style="max-height:250px;overflow:auto;">
+              <table class="data-table">
+                <thead><tr><th>Nr.</th><th>Kunde</th><th>Status</th><th>Gültig bis</th><th>Total</th></tr></thead>
+                <tbody id="offers-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="offer-workspace card" id="offer-detail-empty" style="padding:22px;">
+            <div class="empty">Offerte auswählen oder neue Offerte erstellen.</div>
+          </div>
+          <div class="offer-workspace" id="offer-detail-shell" style="display:none;">
+            <div class="card offer-header-card">
+              <div class="offer-header-main">
+                <div>
+                  <div class="muted" style="font-size:11px;">Offerte</div>
+                  <div class="offer-title-row"><h3 id="offer-number-title">OFF-—</h3><span id="offer-status-badge" class="badge badge-gray">Draft</span></div>
+                  <div class="offer-meta-row" id="offer-header-meta"></div>
+                </div>
+                <div class="offer-actions" id="offer-header-actions">
+                  <button class="btn btn-primary btn-sm" onclick="saveOffer()">Speichern</button>
+                  <button class="btn btn-secondary btn-sm" onclick="sendOffer()">Als gesendet markieren</button>
+                  <button class="btn btn-quiet btn-sm" onclick="printOfferPdf()">Print / PDF</button>
+                  <button class="btn btn-quiet btn-sm" onclick="duplicateOffer()">Duplizieren</button>
+                  <button class="btn btn-quiet btn-sm" onclick="createContractFromOffer()">Vertrag erstellen</button>
+                </div>
+              </div>
+            </div>
+            <div class="offer-columns">
+              <div class="offer-editor">
+                <div class="card offer-card"><div class="card-head"><h3>Customer / Prospect Info</h3></div><div class="offer-grid-2">
+                  <div><label class="muted">Company</label><input class="input" id="offer-company" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Kontaktname</label><input class="input" id="offer-contact" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">E-Mail</label><input class="input" id="offer-email" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Telefon</label><input class="input" id="offer-phone" oninput="offerFieldChanged()"></div>
+                  <div style="grid-column:1/-1;"><label class="muted">Adresse</label><input class="input" id="offer-address" oninput="offerFieldChanged()"></div>
+                </div></div>
+                <div class="card offer-card"><div class="card-head"><h3>Commercial Setup</h3></div><div class="offer-grid-2">
+                  <div><label class="muted">Plan</label><select class="select" id="offer-plan" onchange="offerFieldChanged()"></select></div>
+                  <div><label class="muted">Billing cycle</label><select class="select" id="offer-billing-cycle" onchange="offerFieldChanged()"><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></div>
+                  <div><label class="muted">Setup fee (CHF)</label><input class="input" id="offer-setup-fee" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Monatspreis (CHF)</label><input class="input" id="offer-monthly" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Jahrespreis (CHF)</label><input class="input" id="offer-yearly" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Inklusive Minuten</label><input class="input" id="offer-included-minutes" type="number" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Extra / Minute (CHF)</label><input class="input" id="offer-extra-minute" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Nummern (Anzahl)</label><input class="input" id="offer-number-count" type="number" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Rabatt Betrag (CHF)</label><input class="input" id="offer-discount-amount" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Rabatt %</label><input class="input" id="offer-discount-percent" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Gültig bis</label><input class="input" id="offer-valid-until" type="date" onchange="offerFieldChanged()"></div>
+                </div></div>
+                <div class="card offer-card"><div class="card-head"><h3>Add-ons / Commercial Extras</h3></div><div class="offer-grid-2">
+                  <div><label class="muted">Additional numbers (CHF)</label><input class="input" id="offer-addon-numbers" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">SMS alerts (CHF)</label><input class="input" id="offer-addon-sms" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div><label class="muted">Custom AI setup (CHF)</label><input class="input" id="offer-addon-ai" type="number" step="0.01" oninput="offerFieldChanged()"></div>
+                  <div style="grid-column:1/-1;"><label class="muted">Add-on Notizen</label><textarea class="textarea" id="offer-addon-notes" oninput="offerFieldChanged()"></textarea></div>
+                </div></div>
+                <div class="card offer-card"><div class="card-head"><h3>Offer Text / Message</h3></div>
+                  <div><label class="muted">Einleitung</label><textarea class="textarea" id="offer-intro" oninput="offerFieldChanged()"></textarea></div>
+                  <div><label class="muted">Commercial positioning</label><textarea class="textarea" id="offer-summary" oninput="offerFieldChanged()"></textarea></div>
+                  <div><label class="muted">Customer-spezifische Notiz</label><textarea class="textarea" id="offer-customer-note" oninput="offerFieldChanged()"></textarea></div>
+                  <div><label class="muted">Interne Notizen</label><textarea class="textarea" id="offer-internal-notes" oninput="offerFieldChanged()"></textarea></div>
+                </div>
+              </div>
+              <div class="offer-preview card" id="offer-preview"></div>
+            </div>
+          </div>
         </div>
       </section>
       <!-- CONTRACTS -->
@@ -1771,6 +1875,8 @@ const state={
   onboardingSelectedCustomerId:null,
   onboardingActivity:[],  // populated by loadDataFromSupabase()
   contracts:[],  // populated by loadDataFromSupabase()
+  offers:[], // populated by loadDataFromSupabase()
+  selectedOfferId:null,
   invoices:[],  // populated by loadDataFromSupabase()
   invoiceItems:[],  // populated by loadDataFromSupabase()
   usageByCustomerMonthly:{}, // populated by loadDataFromSupabase()
@@ -1863,7 +1969,7 @@ function secsToMins(secs) {
   return Math.ceil((Number(secs) || 0) / 60);
 }
 
-const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','billing-finance','settings','contracts'];
+const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','billing-finance','settings','offers','contracts'];
 const routeMeta={
   'overview':['Übersicht','Operatives Cockpit für den täglichen Betrieb.'],
   'customers':['Kunden','Kundenstamm mit Setup-, Aktivitäts- und Case-Kontrolle.'],
@@ -1874,6 +1980,7 @@ const routeMeta={
   'insights':['Insights','Planverteilung, Trends und Pattern.'],
   'billing-finance':['Billing & Finance','Operative Billing-Arbeit, Rechnungen und Finanzüberblick.'],
   'settings':['Einstellungen','Adminverwaltung, Flags und Systemdefaults.'],
+  'offers':['Offerten','Sales Workspace für Angebote und Übergabe in Verträge.'],
   'contracts':['Verträge','Serviceverträge mit Kunden verwalten.']
 };
 
@@ -3299,6 +3406,230 @@ function renderInsights(){
 }
 
 
+// ─── Offer workspace helpers ─────────────────────────────────────────────────
+
+const OFFER_STATUS_META={
+  draft:['Entwurf','badge-gray'],
+  sent:['Gesendet','badge-blue'],
+  accepted:['Akzeptiert','badge-green'],
+  rejected:['Abgelehnt','badge-red'],
+  expired:['Abgelaufen','badge-amber']
+};
+
+function offerStatusBadge(status){
+  const key=String(status||'draft').toLowerCase();
+  const meta=OFFER_STATUS_META[key]||OFFER_STATUS_META.draft;
+  return `<span class="badge ${meta[1]}">${esc(meta[0])}</span>`;
+}
+function mapDbOfferToUi(row){
+  const addOns=row.add_ons||{};
+  const texts=row.offer_text||{};
+  return {
+    id:String(row.id),
+    offerNumber:row.offer_number||'—',
+    status:String(row.status||'draft').toLowerCase(),
+    customerId:row.customer_id?String(row.customer_id):'',
+    contractId:row.contract_id?String(row.contract_id):'',
+    invoiceId:row.invoice_id?String(row.invoice_id):'',
+    companyName:row.company_name||'',
+    contactName:row.contact_name||'',
+    email:row.email||'',
+    phone:row.phone||'',
+    address:row.address||'',
+    plan:normalizePlanCode(row.plan||'kein_plan'),
+    billingCycle:row.billing_cycle||'monthly',
+    setupFee:Number(row.setup_fee||0),
+    monthlyPrice:Number(row.monthly_price||0),
+    yearlyPrice:Number(row.yearly_price||0),
+    includedMinutes:Number(row.included_minutes||0),
+    extraPerMinute:Number(row.extra_per_minute||0),
+    numberCount:Number(row.number_count||1),
+    discountAmount:Number(row.discount_amount||0),
+    discountPercent:Number(row.discount_percent||0),
+    validUntil:(row.valid_until||'').slice(0,10),
+    addOnNumbers:Number(addOns.additional_numbers||0),
+    addOnSms:Number(addOns.sms_alerts||0),
+    addOnAi:Number(addOns.custom_ai_setup||0),
+    addOnNotes:String(addOns.notes||''),
+    introText:String(texts.introduction||''),
+    summaryText:String(texts.summary||''),
+    customerNote:String(texts.customer_note||''),
+    internalNotes:String(texts.internal_notes||''),
+    total:Number(row.total||0),
+    sentToEmail:row.sent_to_email||'',
+    sentAt:row.sent_at||'',
+    deliveryStatus:row.delivery_status||'',
+    createdAt:row.created_at||'',
+    updatedAt:row.updated_at||''
+  };
+}
+function getOfferTotal(offer){
+  const base=offer.billingCycle==='yearly'?Number(offer.yearlyPrice||0):Number(offer.monthlyPrice||0);
+  const add=Number(offer.addOnNumbers||0)+Number(offer.addOnSms||0)+Number(offer.addOnAi||0)+Number(offer.setupFee||0);
+  const discount=Number(offer.discountAmount||0)+(base*(Number(offer.discountPercent||0)/100));
+  return Math.max(0,Math.round((base+add-discount)*100)/100);
+}
+function renderOffers(){
+  const table=document.getElementById('offers-table-body');
+  if(!table) return;
+  const shell=document.getElementById('offers-workspace');
+  if(shell) shell.style.display='grid';
+  if(!state.offers.length){
+    table.innerHTML='<tr><td colspan="5"><div class="empty">Noch keine Offerten vorhanden.</div></td></tr>';
+    document.getElementById('offer-detail-shell').style.display='none';
+    document.getElementById('offer-detail-empty').style.display='block';
+    return;
+  }
+  table.innerHTML=state.offers.map(of=>`<tr onclick="openOfferDetail('${jsStr(of.id)}')" style="cursor:pointer;${idsEq(state.selectedOfferId,of.id)?'background:#F8FAFC;':''}"><td>${esc(of.offerNumber)}</td><td>${esc(of.companyName||'—')}</td><td>${offerStatusBadge(of.status)}</td><td>${formatDateDE(of.validUntil)}</td><td>${moneyChf(getOfferTotal(of))}</td></tr>`).join('');
+  if(!state.selectedOfferId) state.selectedOfferId=state.offers[0].id;
+  openOfferDetail(state.selectedOfferId,true);
+}
+function openOfferDetail(id,silent=false){
+  const offer=state.offers.find(o=>idsEq(o.id,id));
+  if(!offer) return;
+  state.selectedOfferId=offer.id;
+  document.getElementById('offer-detail-empty').style.display='none';
+  document.getElementById('offer-detail-shell').style.display='grid';
+  document.getElementById('offer-number-title').textContent=offer.offerNumber;
+  document.getElementById('offer-status-badge').outerHTML=offerStatusBadge(offer.status).replace('<span','<span id="offer-status-badge"');
+  const meta=document.getElementById('offer-header-meta');
+  meta.innerHTML=`<span><strong>${esc(offer.companyName||'Prospect')}</strong></span><span>Gültig bis ${formatDateDE(offer.validUntil)}</span><span>Customer: ${offer.customerId?`<a href="#" onclick="event.preventDefault();openCustomerProfile('${jsStr(offer.customerId)}')">linked</a>`:'none'}</span><span>Contract: ${offer.contractId?`<a href="#contracts" onclick="setRoute('contracts')">linked</a>`:'none'}</span><span>Invoice: ${offer.invoiceId?`<a href="#billing-finance" onclick="setRoute('billing-finance')">linked</a>`:'none'}</span>`;
+  const fields={
+    'offer-company':offer.companyName,'offer-contact':offer.contactName,'offer-email':offer.email,'offer-phone':offer.phone,'offer-address':offer.address,
+    'offer-billing-cycle':offer.billingCycle,'offer-setup-fee':offer.setupFee,'offer-monthly':offer.monthlyPrice,'offer-yearly':offer.yearlyPrice,
+    'offer-included-minutes':offer.includedMinutes,'offer-extra-minute':offer.extraPerMinute,'offer-number-count':offer.numberCount,
+    'offer-discount-amount':offer.discountAmount,'offer-discount-percent':offer.discountPercent,'offer-valid-until':offer.validUntil,
+    'offer-addon-numbers':offer.addOnNumbers,'offer-addon-sms':offer.addOnSms,'offer-addon-ai':offer.addOnAi,'offer-addon-notes':offer.addOnNotes,
+    'offer-intro':offer.introText,'offer-summary':offer.summaryText,'offer-customer-note':offer.customerNote,'offer-internal-notes':offer.internalNotes
+  };
+  Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id); if(el) el.value=val??'';});
+  hydrateOfferPlanSelect(offer.plan);
+  renderOfferPreview(offer);
+  if(!silent) renderOffers();
+}
+function hydrateOfferPlanSelect(selected){
+  const el=document.getElementById('offer-plan');
+  if(!el) return;
+  const plans=[...new Set(['starter','business','professional',...state.customers.map(c=>normalizePlanCode(c.plan_code||c.plan)).filter(Boolean)])];
+  el.innerHTML=plans.map(p=>`<option value="${esc(p)}">${esc(planLabel(p))}</option>`).join('');
+  el.value=selected||'professional';
+}
+function offerFieldChanged(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer) return;
+  const num=id=>Number((document.getElementById(id)?.value)||0);
+  offer.companyName=document.getElementById('offer-company').value.trim();
+  offer.contactName=document.getElementById('offer-contact').value.trim();
+  offer.email=document.getElementById('offer-email').value.trim();
+  offer.phone=document.getElementById('offer-phone').value.trim();
+  offer.address=document.getElementById('offer-address').value.trim();
+  offer.plan=normalizePlanCode(document.getElementById('offer-plan').value);
+  offer.billingCycle=document.getElementById('offer-billing-cycle').value;
+  offer.setupFee=num('offer-setup-fee'); offer.monthlyPrice=num('offer-monthly'); offer.yearlyPrice=num('offer-yearly');
+  offer.includedMinutes=num('offer-included-minutes'); offer.extraPerMinute=num('offer-extra-minute'); offer.numberCount=num('offer-number-count');
+  offer.discountAmount=num('offer-discount-amount'); offer.discountPercent=num('offer-discount-percent');
+  offer.validUntil=document.getElementById('offer-valid-until').value;
+  offer.addOnNumbers=num('offer-addon-numbers'); offer.addOnSms=num('offer-addon-sms'); offer.addOnAi=num('offer-addon-ai');
+  offer.addOnNotes=document.getElementById('offer-addon-notes').value.trim();
+  offer.introText=document.getElementById('offer-intro').value.trim(); offer.summaryText=document.getElementById('offer-summary').value.trim();
+  offer.customerNote=document.getElementById('offer-customer-note').value.trim(); offer.internalNotes=document.getElementById('offer-internal-notes').value.trim();
+  offer.total=getOfferTotal(offer);
+  renderOfferPreview(offer);
+}
+function renderOfferPreview(offer){
+  const el=document.getElementById('offer-preview'); if(!el) return;
+  const base=offer.billingCycle==='yearly'?offer.yearlyPrice:offer.monthlyPrice;
+  const addons=offer.addOnNumbers+offer.addOnSms+offer.addOnAi;
+  const total=getOfferTotal(offer);
+  el.innerHTML=`<div class="offer-doc"><div class="offer-doc-head"><strong>Voxera</strong><span>Offerte</span></div><h2>Offerte ${esc(offer.offerNumber)}</h2><div class="muted">Datum ${formatDateDE(offer.createdAt||new Date().toISOString())} · Gültig bis ${formatDateDE(offer.validUntil)}</div><div class="offer-preview-block"><strong>Kunde</strong><div>${esc(offer.companyName||'—')}</div><div>${esc(offer.contactName||'')}</div><div>${esc(offer.email||'')}</div></div><p>${esc(offer.introText||'Vielen Dank für Ihr Interesse an Voxera.')}</p><div class="offer-preview-block"><strong>${esc(planLabel(offer.plan))}</strong><div>${esc(offer.summaryText||'Professionelle AI-Assistenz für Ihr Team.')}</div><ul><li>${offer.includedMinutes} inklusive Minuten</li><li>Extra Minute CHF ${offer.extraPerMinute.toFixed(2)}</li><li>${offer.numberCount} Rufnummer(n)</li></ul></div><div class="offer-preview-block"><strong>Pricing Summary</strong><div>Setup Fee: ${moneyChf(offer.setupFee)}</div><div>${offer.billingCycle==='yearly'?'Jahrespreis':'Monatspreis'}: ${moneyChf(base)}</div><div>Add-ons: ${moneyChf(addons)}</div><div>Rabatt: ${moneyChf(offer.discountAmount)} + ${offer.discountPercent}%</div><div style="margin-top:6px;font-weight:700;">Total: ${moneyChf(total)}</div></div><div class="offer-preview-block"><strong>Nächste Schritte</strong><div>Bitte Offerte freigeben, damit wir den Vertrag direkt erstellen können.</div></div></div>`;
+}
+async function createOffer(){
+  const now=new Date();
+  const fallback={
+    id:crypto.randomUUID?crypto.randomUUID():String(Date.now()), offerNumber:'OFF-DRAFT', status:'draft', customerId:'', contractId:'', invoiceId:'', companyName:'', contactName:'', email:'', phone:'', address:'', plan:'professional', billingCycle:'monthly', setupFee:0, monthlyPrice:0, yearlyPrice:0, includedMinutes:0, extraPerMinute:0.75, numberCount:1, discountAmount:0, discountPercent:0, validUntil:new Date(now.getTime()+14*86400000).toISOString().slice(0,10), addOnNumbers:0, addOnSms:0, addOnAi:0, addOnNotes:'', introText:'', summaryText:'', customerNote:'', internalNotes:'', total:0, createdAt:now.toISOString(), updatedAt:now.toISOString()
+  };
+  if(authClient){
+    const payload={status:'draft',valid_until:fallback.validUntil,billing_cycle:'monthly',plan:'professional'};
+    const {data,error}=await authClient.from('offers').insert(payload).select('*').single();
+    if(error){alert('Offerte konnte nicht erstellt werden: '+error.message); return;}
+    fallback.id=String(data.id); Object.assign(fallback,mapDbOfferToUi(data));
+  }
+  state.offers.unshift(fallback);
+  state.selectedOfferId=fallback.id;
+  renderOffers();
+}
+async function saveOffer(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
+  offerFieldChanged();
+  const payload={
+    status:offer.status,customer_id:offer.customerId||null,company_name:offer.companyName||null,contact_name:offer.contactName||null,email:offer.email||null,phone:offer.phone||null,address:offer.address||null,
+    plan:offer.plan,billing_cycle:offer.billingCycle,setup_fee:offer.setupFee,monthly_price:offer.monthlyPrice,yearly_price:offer.yearlyPrice,included_minutes:offer.includedMinutes,extra_per_minute:offer.extraPerMinute,
+    number_count:offer.numberCount,discount_amount:offer.discountAmount,discount_percent:offer.discountPercent,valid_until:offer.validUntil||null,total:getOfferTotal(offer),
+    add_ons:{additional_numbers:offer.addOnNumbers,sms_alerts:offer.addOnSms,custom_ai_setup:offer.addOnAi,notes:offer.addOnNotes},
+    offer_text:{introduction:offer.introText,summary:offer.summaryText,customer_note:offer.customerNote,internal_notes:offer.internalNotes}
+  };
+  if(authClient){
+    const {error}=await authClient.from('offers').update(payload).eq('id',offer.id);
+    if(error){alert('Speichern fehlgeschlagen: '+error.message);return;}
+  }
+  showToast('✓ Offerte gespeichert.');
+  renderOffers();
+}
+async function sendOffer(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
+  await saveOffer();
+  try{
+    const resp=await callAdminFunction('send-offer',{offer_id:offer.id});
+    offer.status='sent'; offer.sentAt=resp.sent_at||new Date().toISOString(); offer.sentToEmail=resp.sent_to_email||offer.email; offer.deliveryStatus=resp.delivery_status||'sent';
+    showToast('✓ Offerte gesendet.');
+    renderOffers();
+  }catch(e){ alert('Senden fehlgeschlagen: '+(e.message||e)); }
+}
+async function duplicateOffer(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
+  const payload={
+    status:'draft',customer_id:offer.customerId||null,company_name:offer.companyName||null,contact_name:offer.contactName||null,email:offer.email||null,phone:offer.phone||null,address:offer.address||null,
+    plan:offer.plan,billing_cycle:offer.billingCycle,setup_fee:offer.setupFee,monthly_price:offer.monthlyPrice,yearly_price:offer.yearlyPrice,included_minutes:offer.includedMinutes,extra_per_minute:offer.extraPerMinute,
+    number_count:offer.numberCount,discount_amount:offer.discountAmount,discount_percent:offer.discountPercent,valid_until:offer.validUntil||null,total:getOfferTotal(offer),
+    add_ons:{additional_numbers:offer.addOnNumbers,sms_alerts:offer.addOnSms,custom_ai_setup:offer.addOnAi,notes:offer.addOnNotes},
+    offer_text:{introduction:offer.introText,summary:offer.summaryText,customer_note:offer.customerNote,internal_notes:offer.internalNotes}
+  };
+  let dup;
+  if(authClient){
+    const {data,error}=await authClient.from('offers').insert(payload).select('*').single();
+    if(error){alert('Duplizieren fehlgeschlagen: '+error.message); return;}
+    dup=mapDbOfferToUi(data);
+  }else{
+    dup={...offer,id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),offerNumber:'OFF-DRAFT',status:'draft',contractId:'',invoiceId:'',sentAt:'',sentToEmail:'',deliveryStatus:''};
+  }
+  state.offers.unshift(dup); state.selectedOfferId=dup.id; renderOffers();
+}
+async function createContractFromOffer(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
+  await saveOffer();
+  const payload={
+    customer_id:offer.customerId||null,customer_name:offer.companyName||'',offer_id:offer.id,plan:offer.plan,months:12,start_date:new Date().toISOString().slice(0,10),end_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),12),
+    cancellation_date:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellation_notice:'1 Monat',notes:`Created from offer ${offer.offerNumber}`,
+    status:'draft',contract_text:generateContractText({customerName:offer.companyName,customerAddress:offer.address,plan:offer.plan,months:12,startDate:new Date().toISOString().slice(0,10),cancellationDate:addMonthsToDateStr(new Date().toISOString().slice(0,10),11),discount:Math.round(offer.discountPercent||0),cancellationNotice:'1 Monat'})
+  };
+  if(authClient){
+    const {data,error}=await authClient.from('contracts').insert(payload).select('*').single();
+    if(error){alert('Vertrag konnte nicht erstellt werden: '+error.message); return;}
+    state.contracts.unshift(mapDbContractToUi(data));
+    offer.contractId=String(data.id); offer.status='accepted';
+    await authClient.from('offers').update({contract_id:data.id,status:'accepted',accepted_at:new Date().toISOString()}).eq('id',offer.id);
+  }
+  showToast('✓ Vertrag aus Offerte erstellt.');
+  setRoute('contracts');
+  renderContracts();
+}
+function printOfferPdf(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
+  const w=window.open('','_blank'); if(!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(offer.offerNumber)}</title><style>body{font-family:Arial,sans-serif;padding:32px;} .muted{color:#475569;} .box{border:1px solid #cbd5e1;padding:12px;border-radius:8px;margin:12px 0;}</style></head><body>${document.getElementById('offer-preview').innerHTML}<script>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+
 // ─── Contract helpers ──────────────────────────────────────────────────────
 
 function addMonthsToDateStr(dateStr, months) {
@@ -3993,6 +4324,7 @@ function setRoute(route,replaceHash=false){
   document.getElementById('page-title').textContent=title;
   document.getElementById('page-sub').textContent=sub;
   if(route==='billing-finance') renderBillingFinance();
+  if(route==='offers') renderOffers();
   if(location.hash!==`#${route}`){
     if(replaceHash) history.replaceState(null,'',`#${route}`);
     else location.hash=route;
@@ -5924,6 +6256,15 @@ async function loadDataFromSupabase() {
       ).length;
     });
 
+
+    // 9.5 Load offers
+    const { data: offerRows, error: offerErr } = await authClient
+      .from('offers')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (offerErr) console.warn('[DB] offers load failed:', offerErr.message);
+    state.offers = (offerRows || []).map(mapDbOfferToUi);
+
     // 9. Load contracts
     const { data: contractRows, error: contractErr } = await authClient
       .from('contracts')
@@ -5944,7 +6285,7 @@ async function loadDataFromSupabase() {
     });
     state.events = recentEvents;
 
-    console.log(`[DB] Loaded ${state.customers.length} customers, ${state.onboarding.length} onboarding, ${state.calls.length} calls, ${state.cases.length} cases, ${state.contracts.length} contracts, ${state.invoices.length} invoices.`);
+    console.log(`[DB] Loaded ${state.customers.length} customers, ${state.onboarding.length} onboarding, ${state.calls.length} calls, ${state.cases.length} cases, ${state.offers.length} offers, ${state.contracts.length} contracts, ${state.invoices.length} invoices.`);
     loadPlanConfig();
     return true;
   } catch(err) {
@@ -5982,6 +6323,7 @@ async function init() {
   renderInsights();
   renderBillingFinance();
   renderSettings();
+  renderOffers();
   renderContracts();
   document.body.classList.remove('app-booting');
 }
