@@ -1437,6 +1437,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <button class="profile-tab active" data-profile-tab="uebersicht">Übersicht</button>
       <button class="profile-tab" data-profile-tab="aktionen">Aktionen</button>
       <button class="profile-tab" data-profile-tab="onboarding">Onboarding</button>
+      <button class="profile-tab" data-profile-tab="rechnungen">Rechnungen</button>
       <button class="profile-tab" data-profile-tab="cases">Cases</button>
       <button class="profile-tab" data-profile-tab="notizen">Notizen</button>
       <button class="profile-tab" data-profile-tab="vertraege">Verträge</button>
@@ -1455,6 +1456,10 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
     <!-- TAB: ONBOARDING -->
     <div class="profile-panel" data-profile-panel="onboarding">
       <div id="profile-onboarding-content"></div>
+    </div>
+
+    <div class="profile-panel" data-profile-panel="rechnungen">
+      <div id="profile-invoices-content"></div>
     </div>
 
     <!-- TAB: CASES -->
@@ -2352,6 +2357,12 @@ function formatDate(dateStr){
   const d=new Date(dateStr);
   if(Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('de-CH');
+}
+function invoiceProviderLabel(provider){
+  const raw=String(provider||'').toLowerCase();
+  if(raw==='stripe') return 'Stripe';
+  if(raw==='invoice') return 'Invoice/Bank';
+  return raw||'—';
 }
 function isSubscriptionDueForRenewal(customer, now=new Date()){
   if(String(customer?.subscription_status||'').toLowerCase()!=='active') return false;
@@ -4070,8 +4081,14 @@ function openCustomerProfile(id){
             <button class="btn btn-secondary" onclick="closeCustomerProfile();sendBillingPaymentLink('${jsStr(id)}')">
               Setup Fee Link senden
             </button>
+            <button class="btn btn-secondary" onclick="closeCustomerProfile();createManualSetupInvoice('${jsStr(id)}')">
+              Setup-Rechnung erstellen
+            </button>
             <button class="btn btn-secondary" onclick="closeCustomerProfile();${c.subscription_billing_cycle==='yearly'?'sendYearlyBillingPaymentLink':'sendMonthlyBillingPaymentLink'}('${jsStr(id)}')" ${['monthly','yearly'].includes(String(c.subscription_billing_cycle||''))?'':'disabled'}>
               ${c.subscription_billing_cycle==='yearly'?'Jahreszahlung senden':'Monatszahlung senden'}
+            </button>
+            <button class="btn btn-secondary" onclick="closeCustomerProfile();createManualSubscriptionInvoice('${jsStr(id)}')">
+              Abo-Rechnung erstellen
             </button>
             <button class="btn btn-primary" onclick="closeCustomerProfile();markSubscriptionPaid('${jsStr(id)}')">
               Als bezahlt markieren
@@ -4143,6 +4160,40 @@ function openCustomerProfile(id){
         ${onboard?.blocker?`<div class="detail-item" style="border:none;"><span class="detail-k">Blocker</span><span class="detail-v" style="color:var(--red);">${esc(onboard.blocker)}</span></div>`:''}
       </div>
       <div class="list">${checklistHtml}</div>`;
+  }
+
+  // ─── TAB: RECHNUNGEN ────────────────────────────────────
+  const profileInvoices=document.getElementById('profile-invoices-content');
+  if(profileInvoices){
+    const customerInvoices=(state.invoices||[])
+      .filter(inv=>idsEq(inv.customer_id||inv.customerId,id))
+      .sort((a,b)=>(new Date(b.issued_at||b.created_at||0)).getTime()-(new Date(a.issued_at||a.created_at||0)).getTime());
+
+    profileInvoices.innerHTML=`
+      <div class="card" style="padding:12px 14px;margin-bottom:10px;">
+        <div class="inline-actions" style="flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="createManualSetupInvoice('${jsStr(id)}')">Manual Setup-Invoice</button>
+          <button class="btn btn-secondary btn-sm" onclick="createManualSubscriptionInvoice('${jsStr(id)}')">Manual Subscription-Invoice</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Rechnung</th><th>Typ</th><th>Total</th><th>Status</th><th>Provider</th><th>Issued</th><th>Paid</th><th>Aktion</th></tr></thead>
+          <tbody>
+            ${customerInvoices.map(inv=>`
+              <tr>
+                <td>${esc(inv.invoice_number||'—')}</td>
+                <td>${esc(invoiceTypeLabel(classifyInvoiceType(inv.invoice_type||inv.type)))}</td>
+                <td>${esc(moneyChf(inv.total_amount||0))}</td>
+                <td>${invoiceStatusBadge(normalizeInvoiceStatus(inv.status,inv.due_at,inv.paid_at))}</td>
+                <td>${esc(invoiceProviderLabel(inv.billing_provider))}</td>
+                <td>${esc(formatDate(inv.issued_at))}</td>
+                <td>${esc(formatDate(inv.paid_at))}</td>
+                <td><button class="btn btn-primary btn-sm" onclick="markInvoicePaid('${jsStr(id)}','${jsStr(inv.id)}')" ${(String(inv.status||'').toLowerCase()==='paid'||String(inv.billing_provider||'').toLowerCase()==='stripe')?'disabled':''}>Als bezahlt</button></td>
+              </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Rechnungen vorhanden.</div></td></tr>'}
+          </tbody>
+        </table>
+      </div>`;
   }
 
   // ─── TAB: CASES ──────────────────────────────────────────
@@ -4655,6 +4706,75 @@ async function markSubscriptionPaid(customerId){
   }catch(err){
     const payload=err?.payload||{};
     alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
+  }
+}
+
+async function createManualSetupInvoice(customerId){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  const amountRaw=prompt('Setup-Rechnungsbetrag in CHF', String(Number(customer.setup_fee_amount||0).toFixed(2)));
+  if(amountRaw===null) return;
+  const amount=Number(amountRaw);
+  if(!Number.isFinite(amount)||amount<=0){ alert('Ungültiger Betrag.'); return; }
+  try{
+    const json=await callAdminFunction('customer-billing-update',{
+      customer_id:customerId,
+      action:'create_manual_setup_invoice',
+      amount,
+      billing_provider:'invoice',
+      notes:'Manual setup invoice via admin'
+    });
+    if(!json?.success||!json?.invoice) throw new Error(json?.error||'Invoice-Erstellung fehlgeschlagen.');
+    state.invoices.unshift(json.invoice);
+    customer.payment_status='pending';
+    showToast('✓ Setup-Rechnung erstellt.');
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    renderBillingFinance();
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Invoice-Erstellung fehlgeschlagen.');
+  }
+}
+
+async function createManualSubscriptionInvoice(customerId){
+  const customer=customerById(customerId);
+  if(!customer) return;
+  try{
+    const json=await callAdminFunction('customer-billing-update',{
+      customer_id:customerId,
+      action:'create_manual_subscription_invoice',
+      billing_provider:'invoice',
+      notes:'Manual subscription invoice via admin'
+    });
+    if(!json?.success||!json?.invoice) throw new Error(json?.error||'Invoice-Erstellung fehlgeschlagen.');
+    state.invoices.unshift(json.invoice);
+    showToast('✓ Subscription-Rechnung erstellt.');
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    renderBillingFinance();
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Invoice-Erstellung fehlgeschlagen.');
+  }
+}
+
+async function markInvoicePaid(customerId,invoiceId){
+  if(!confirm('Rechnung als bezahlt markieren?')) return;
+  try{
+    const json=await callAdminFunction('customer-billing-update',{
+      customer_id:customerId,
+      action:'mark_invoice_paid',
+      invoice_id:invoiceId,
+      paid_source:'bank_transfer'
+    });
+    if(!json?.success||!json?.invoice) throw new Error(json?.error||'Invoice-Update fehlgeschlagen.');
+    const idx=state.invoices.findIndex(inv=>idsEq(inv.id,invoiceId));
+    if(idx>=0) state.invoices[idx]=json.invoice;
+    showToast('✓ Rechnung als bezahlt markiert.');
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+    renderBillingFinance();
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Invoice-Update fehlgeschlagen.');
   }
 }
 
