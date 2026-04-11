@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const nodemailer = require('nodemailer');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxFailed, markOutboxSent } = require('./_lib/webhook-outbox');
 
@@ -9,6 +10,67 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 const response = (statusCode, payload) => ({ statusCode, headers: corsHeaders, body: JSON.stringify(payload) });
+
+const moneyChf = (value) => `CHF ${Number(value || 0).toFixed(2)}`;
+const formatDate = (value) => {
+  if (!value) return '—';
+  try { return new Date(value).toLocaleDateString('de-CH'); } catch (_) { return String(value); }
+};
+
+function buildOfferEmail({ offer, subject }) {
+  const recurring = String(offer.billing_cycle || 'monthly') === 'yearly' ? Number(offer.yearly_price || 0) : Number(offer.monthly_price || 0);
+  const addOns = offer.add_ons || {};
+  const addOnsTotal = Number(addOns.additional_numbers || 0) + Number(addOns.sms_alerts || 0) + Number(addOns.custom_ai_setup || 0);
+  const discount = Number(offer.discount_amount || 0) + (recurring * (Number(offer.discount_percent || 0) / 100));
+  const total = Math.max(0, Number(offer.total || 0));
+  const intro = String(offer?.offer_text?.introduction || 'Vielen Dank für Ihr Interesse an Voxera. Nachfolgend erhalten Sie Ihre Offerte.').trim();
+  const html = `
+  <div style="background:#f3f6fb;padding:24px 12px;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;">
+    <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #dde5f1;border-radius:16px;overflow:hidden;">
+      <div style="padding:20px 24px;background:linear-gradient(120deg,#eff6ff,#ffffff);border-bottom:1px solid #e5edf8;">
+        <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;font-weight:700;">Voxera Offerte</div>
+        <h1 style="margin:8px 0 4px;font-size:24px;line-height:1.2;">${offer.offer_number || 'Offerte'}</h1>
+        <div style="font-size:13px;color:#334155;">Gültig bis: ${formatDate(offer.valid_until)}</div>
+      </div>
+      <div style="padding:24px;display:grid;gap:16px;">
+        <p style="margin:0;font-size:14px;line-height:1.6;">${intro}</p>
+        <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+          <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:8px;">Preisübersicht</div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <tr><td style="padding:6px 0;color:#475569;">Einmalige Einrichtung</td><td style="padding:6px 0;text-align:right;font-weight:700;">${moneyChf(offer.setup_fee)}</td></tr>
+            <tr><td style="padding:6px 0;color:#475569;">Laufende Kosten</td><td style="padding:6px 0;text-align:right;font-weight:700;">${moneyChf(recurring)}</td></tr>
+            <tr><td style="padding:6px 0;color:#475569;">Zusatzoptionen</td><td style="padding:6px 0;text-align:right;font-weight:700;">${moneyChf(addOnsTotal)}</td></tr>
+            <tr><td style="padding:6px 0;color:#475569;">Rabatt</td><td style="padding:6px 0;text-align:right;font-weight:700;color:#166534;">− ${moneyChf(discount)}</td></tr>
+            <tr><td style="padding:8px 0;border-top:1px solid #e2e8f0;font-weight:700;">Gesamt</td><td style="padding:8px 0;border-top:1px solid #e2e8f0;text-align:right;font-size:16px;font-weight:800;">${moneyChf(total)}</td></tr>
+          </table>
+        </div>
+        <p style="margin:0;font-size:13px;line-height:1.6;color:#334155;">Für Rückfragen oder gewünschte Anpassungen antworten Sie bitte direkt auf diese E-Mail.</p>
+      </div>
+    </div>
+  </div>`;
+
+  return { subject: subject || `Ihre Voxera Offerte ${offer.offer_number || ''}`.trim(), html };
+}
+
+async function sendOfferEmail({ to, offer, subject }) {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.MAIL_FROM || 'Voxera <offerten@voxera.ai>';
+  if (!host || !user || !pass) throw new Error('SMTP Konfiguration fehlt (SMTP_HOST/SMTP_USER/SMTP_PASS).');
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass }
+  });
+
+  const built = buildOfferEmail({ offer, subject });
+  await transporter.sendMail({ from, to, subject: built.subject, html: built.html });
+  return built.subject;
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: corsHeaders, body: '' };
@@ -31,8 +93,9 @@ exports.handler = async (event) => {
   const { data: offer, error: loadErr } = await sbAdmin.from('offers').select('*').eq('id', offerId).single();
   if (loadErr || !offer) return response(404, { error: 'Offerte nicht gefunden.' });
 
-  const sentToEmail = String(offer.email || body.sent_to_email || '').trim();
+  const sentToEmail = String(body.sent_to_email || offer.sent_to_email || offer.email || '').trim();
   if (!sentToEmail) return response(400, { error: 'Offerte hat keine Empfänger-E-Mail.' });
+  const subject = String(body.subject || offer.email_subject || '').trim();
 
   const outbox = await createOutboxEvent(sbAdmin, {
     eventType: 'offer_sent_email',
@@ -41,65 +104,33 @@ exports.handler = async (event) => {
       offer_number: offer.offer_number,
       company_name: offer.company_name,
       contact_name: offer.contact_name,
-      contact_first_name: offer.contact_first_name || null,
-      contact_last_name: offer.contact_last_name || null,
-      street: offer.street || null,
-      postal_code: offer.postal_code || null,
-      city: offer.city || null,
-      country: offer.country || null,
       sent_to_email: sentToEmail,
       valid_until: offer.valid_until,
       total: offer.total,
-      plan: offer.plan
+      plan: offer.plan,
+      email_subject: subject || null
     },
     payloadSummary: `offer_sent_email -> ${sentToEmail}`,
-    dedupeKey: `offer:${offer.id}:send`
+    dedupeKey: `offer:${offer.id}:send:${Date.now()}`
   }).catch((err) => {
     throw new Error(`Outbox insert failed: ${err.message}`);
   });
 
-  const webhookUrl = process.env.MAKE_OFFER_WEBHOOK || process.env.MAKE_WELCOME_WEBHOOK;
-  if (!webhookUrl) {
-    await markOutboxFailed(sbAdmin, outbox.id, 'MAKE_OFFER_WEBHOOK nicht gesetzt');
-    return response(500, { error: 'MAKE_OFFER_WEBHOOK nicht gesetzt.' });
-  }
-
   try {
-    const hookRes = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_type: 'offer_sent_email',
-        offer_id: offer.id,
-        offer_number: offer.offer_number,
-        company_name: offer.company_name,
-        contact_name: offer.contact_name,
-        contact_first_name: offer.contact_first_name || null,
-        contact_last_name: offer.contact_last_name || null,
-        street: offer.street || null,
-        postal_code: offer.postal_code || null,
-        city: offer.city || null,
-        country: offer.country || null,
-        email: sentToEmail,
-        valid_until: offer.valid_until,
-        total: offer.total,
-        plan: offer.plan,
-        offer_payload: offer
-      })
-    });
-    if (!hookRes.ok) throw new Error(`Webhook failed (HTTP ${hookRes.status})`);
+    const deliveredSubject = await sendOfferEmail({ to: sentToEmail, offer, subject });
+    const nowIso = new Date().toISOString();
     await markOutboxSent(sbAdmin, outbox.id);
+    const { error: updErr } = await sbAdmin
+      .from('offers')
+      .update({ status: 'sent', sent_to_email: sentToEmail, sent_at: nowIso, sent_by: caller.userId || null, delivery_status: 'sent', email_subject: deliveredSubject, updated_at: nowIso })
+      .eq('id', offer.id);
+    if (updErr) return response(500, { error: 'Offerte konnte nicht aktualisiert werden.', details: updErr.message });
+
+    return response(200, { success: true, offer_id: offer.id, sent_to_email: sentToEmail, sent_at: nowIso, delivery_status: 'sent', email_subject: deliveredSubject });
   } catch (err) {
-    await markOutboxFailed(sbAdmin, outbox.id, err.message || 'Webhook request failed');
+    const nowIso = new Date().toISOString();
+    await markOutboxFailed(sbAdmin, outbox.id, err.message || 'Mailversand fehlgeschlagen');
+    await sbAdmin.from('offers').update({ sent_to_email: sentToEmail, sent_by: caller.userId || null, delivery_status: 'failed', email_subject: subject || null, updated_at: nowIso }).eq('id', offer.id);
     return response(500, { error: 'Offer E-Mail konnte nicht gesendet werden.', details: err.message || err });
   }
-
-  const nowIso = new Date().toISOString();
-  const { error: updErr } = await sbAdmin
-    .from('offers')
-    .update({ status: 'sent', sent_to_email: sentToEmail, sent_at: nowIso, sent_by: caller.userId || null, delivery_status: 'sent', updated_at: nowIso })
-    .eq('id', offer.id);
-  if (updErr) return response(500, { error: 'Offerte konnte nicht aktualisiert werden.', details: updErr.message });
-
-  return response(200, { success: true, offer_id: offer.id, sent_to_email: sentToEmail, sent_at: nowIso, delivery_status: 'sent' });
 };
