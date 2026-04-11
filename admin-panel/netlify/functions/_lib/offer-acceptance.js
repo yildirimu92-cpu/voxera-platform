@@ -108,7 +108,6 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
       customer_id: offer.customer_id || null,
       customer_name: offer.company_name || '',
       plan: offer.plan,
-      billing_cycle: offer.billing_cycle,
       duration_months: durationMonths,
       months: durationMonths,
       start_date: existing.start_date || startDate,
@@ -118,7 +117,6 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
     };
     const needsPatch = (
       String(existing.plan || '') !== String(offer.plan || '')
-      || String(existing.billing_cycle || '') !== String(offer.billing_cycle || '')
       || existingDuration !== durationMonths
       || String(existing.customer_id || '') !== String(offer.customer_id || '')
       || String(existing.offer_id || '') !== String(offer.id || '')
@@ -139,7 +137,6 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
     customer_name: offer.company_name || '',
     offer_id: offer.id,
     plan: offer.plan,
-    billing_cycle: offer.billing_cycle,
     duration_months: durationMonths,
     months: durationMonths,
     start_date: startDate,
