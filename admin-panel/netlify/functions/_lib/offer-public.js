@@ -28,6 +28,12 @@ function derivePublicOfferAcceptanceUrl(publicToken) {
   return `${base}/offer-accept.html?token=${encodeURIComponent(publicToken)}`;
 }
 
+function derivePublicOfferPdfUrl(publicToken) {
+  const base = normalizeBaseUrl();
+  if (!base || !publicToken) return null;
+  return `${base}/offer-pdf.html?token=${encodeURIComponent(publicToken)}`;
+}
+
 function resolvePublicExpiryFromOffer(offer) {
   if (offer?.public_expires_at) return offer.public_expires_at;
   if (!offer?.valid_until) return null;
@@ -40,5 +46,6 @@ module.exports = {
   trimOrNull,
   ensureOfferPublicToken,
   derivePublicOfferAcceptanceUrl,
+  derivePublicOfferPdfUrl,
   resolvePublicExpiryFromOffer
 };
