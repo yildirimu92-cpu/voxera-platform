@@ -3,68 +3,139 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Voxera Offerte bestätigen</title>
+  <title>Voxera Offerte annehmen</title>
   <style>
-    :root{--ink:#0f172a;--slate:#475569;--line:#e2e8f0;--bg:#f8fafc;--brand:#2563eb;--ok:#166534;--danger:#b91c1c}
-    body{margin:0;background:var(--bg);font-family:Inter,system-ui,Arial,sans-serif;color:var(--ink)}
-    .wrap{max-width:880px;margin:36px auto;padding:0 16px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 4px 18px rgba(15,23,42,.05)}
-    h1{margin:0 0 12px;font-size:28px}
-    .muted{color:var(--slate)} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line)}
-    .row:last-child{border-bottom:none}
-    label{display:block;font-size:13px;color:var(--slate);margin:8px 0 4px}
-    input[type=text],input[type=email]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px}
-    button{background:var(--brand);color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
-    button:disabled{opacity:.5;cursor:not-allowed}
-    .feedback{margin-top:10px;font-size:14px}
-    .signature-wrap{margin-top:8px;border:1px solid var(--line);border-radius:10px;background:#fff}
-    #signaturePad{width:100%;height:180px;display:block;touch-action:none;border-radius:10px}
-    .signature-actions{display:flex;justify-content:flex-end;padding:8px}
-    .ok{color:var(--ok)} .err{color:var(--danger)}
-    @media(max-width:760px){.grid{grid-template-columns:1fr}}
+    :root{
+      --ink:#0f172a;
+      --slate:#475569;
+      --line:#dbe4f0;
+      --bg:#f1f5f9;
+      --brand:#2563eb;
+      --brand-dark:#1d4ed8;
+      --ok:#166534;
+      --danger:#b91c1c;
+      --card:#ffffff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#eff6ff 0,#f8fafc 240px,var(--bg) 100%);font-family:Inter,system-ui,Arial,sans-serif;color:var(--ink)}
+    .shell{max-width:1120px;margin:0 auto;padding:16px 14px 44px}
+    .hero{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 12px 32px rgba(15,23,42,.06);margin-top:14px}
+    .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:700}
+    h1{font-size:30px;line-height:1.15;margin:8px 0 6px}
+    .muted{color:var(--slate)}
+    .hero-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;align-items:center}
+    .cta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .btn{appearance:none;border:none;border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .btn-primary{background:var(--brand);color:#fff}
+    .btn-primary:hover{background:var(--brand-dark)}
+    .btn-secondary{background:#e2e8f0;color:#0f172a}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .stats{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px}
+    .stats .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #d6deeb}
+    .stats .row:last-child{border-bottom:none}
+    .content{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;margin-top:14px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(15,23,42,.04)}
+    .section-title{margin:0 0 12px;font-size:16px}
+    .offer-overview{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .mini{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px}
+    .mini .label{font-size:12px;color:#64748b}
+    .mini .value{font-weight:600;margin-top:2px;word-break:break-word}
+    label{display:block;font-size:13px;color:var(--slate);margin:8px 0 4px;font-weight:600}
+    input[type=text],input[type=email]{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px}
+    input[type=text]:focus,input[type=email]:focus{outline:none;border-color:#93c5fd;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+    .checkbox{display:flex;gap:10px;align-items:flex-start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-top:8px}
+    .checkbox input{margin-top:2px}
+    .signature-wrap{margin-top:8px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;overflow:hidden}
+    #signaturePad{width:100%;height:180px;display:block;touch-action:none;background:#fff}
+    .signature-actions{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b}
+    .feedback{margin-top:10px;font-size:14px;font-weight:600}
+    .ok{color:var(--ok)}
+    .err{color:var(--danger)}
+    .state{padding:16px 0 8px}
+    .pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    .pill-sent{background:#dbeafe;color:#1d4ed8}
+    .pill-other{background:#fee2e2;color:#991b1b}
+
+    @media(max-width:900px){
+      h1{font-size:26px}
+      .hero-grid,.content{grid-template-columns:1fr}
+    }
+    @media(max-width:640px){
+      .shell{padding:10px 10px 32px}
+      .hero,.card{padding:14px}
+      h1{font-size:23px}
+      .offer-overview{grid-template-columns:1fr}
+      .btn{width:100%}
+      .cta-row{flex-direction:column}
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Offerte bestätigen</h1>
-      <p class="muted" id="state">Lade Offerte…</p>
-      <div id="content" style="display:none;">
-        <div class="grid" style="margin-bottom:14px;">
-          <div><strong id="company">—</strong><div class="muted" id="contact"></div></div>
-          <div><strong id="offerNo">—</strong><div class="muted">Gültig bis <span id="validUntil">—</span></div></div>
-        </div>
-        <div class="grid">
-          <div class="card" style="padding:12px;">
-            <strong>Paket</strong>
-            <div id="plan" class="muted" style="margin-top:6px"></div>
-            <div id="summary" class="muted" style="margin-top:8px"></div>
+  <div class="shell">
+    <div class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Voxera Offerte</div>
+          <h1>Ihre Offerte online annehmen</h1>
+          <p class="muted" id="state">Offerte wird geladen…</p>
+          <div id="ctaRow" class="cta-row" style="display:none;">
+            <button id="jumpToAcceptBtn" class="btn btn-primary" type="button">Offerte annehmen</button>
+            <a id="pdfBtn" class="btn btn-secondary" href="#" target="_blank" rel="noopener">Als PDF ansehen</a>
           </div>
-          <div class="card" style="padding:12px;">
-            <strong>Preisübersicht</strong>
-            <div class="row"><span>Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
-            <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
-            <div class="row"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
-            <div class="row"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+        </div>
+        <div class="stats" id="quickStats" style="display:none;">
+          <div class="row"><span id="statusLabel">Status</span><strong id="statusText">—</strong></div>
+          <div class="row"><span>Offerte</span><strong id="offerNo">—</strong></div>
+          <div class="row"><span>Gültig bis</span><strong id="validUntil">—</strong></div>
+          <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
+          <div class="row"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="content" class="content" style="display:none;">
+      <section class="card">
+        <h2 class="section-title">Offertedetails</h2>
+        <div class="offer-overview" style="margin-bottom:12px;">
+          <div class="mini"><div class="label">Firma</div><div class="value" id="company">—</div></div>
+          <div class="mini"><div class="label">Ansprechperson</div><div class="value" id="contact">—</div></div>
+          <div class="mini"><div class="label">Paket</div><div class="value" id="plan">—</div></div>
+          <div class="mini"><div class="label">Laufzeit</div><div class="value" id="duration">—</div></div>
+        </div>
+        <div class="mini" style="margin-bottom:12px;">
+          <div class="label">Zusammenfassung</div>
+          <div class="value muted" id="summary" style="font-weight:500;">—</div>
+        </div>
+        <div class="stats">
+          <div class="row"><span>Einmalige Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
+          <div class="row"><span id="pricingRecurringLabel">Monatlich</span><strong id="pricingRecurring">CHF 0.00</strong></div>
+          <div class="row"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
+          <div class="row"><span>Gesamtpreis</span><strong id="pricingTotal">CHF 0.00</strong></div>
+        </div>
+      </section>
+
+      <section class="card" id="acceptSection">
+        <h2 class="section-title">Annahme & Signatur</h2>
+        <p class="muted" style="margin-top:0;">Bitte füllen Sie das Formular aus und unterschreiben Sie im Feld unten.</p>
+        <div id="statusPillWrap" style="margin-bottom:8px;"></div>
+        <label for="signerName">Ihr Name</label>
+        <input id="signerName" type="text" placeholder="Max Muster" autocomplete="name" />
+        <label for="signerEmail">Ihre E-Mail</label>
+        <input id="signerEmail" type="email" placeholder="max@firma.ch" autocomplete="email" />
+
+        <label>Unterschrift</label>
+        <div class="signature-wrap">
+          <canvas id="signaturePad"></canvas>
+          <div class="signature-actions">
+            <span>Mit Maus oder Finger unterschreiben</span>
+            <button type="button" class="btn btn-secondary" onclick="clearSignature()" style="padding:7px 12px;border-radius:9px;">Signatur löschen</button>
           </div>
         </div>
 
-        <div style="margin-top:16px;">
-          <label for="signerName">Ihr Name (Signatur)</label>
-          <input id="signerName" type="text" placeholder="Max Muster" />
-          <label for="signerEmail">Ihre E-Mail (optional)</label>
-          <input id="signerEmail" type="email" placeholder="max@firma.ch" />
-          <label>Unterschrift</label>
-          <div class="signature-wrap">
-            <canvas id="signaturePad"></canvas>
-            <div class="signature-actions"><button type="button" onclick="clearSignature()" style="background:#e2e8f0;color:#0f172a;">Signatur löschen</button></div>
-          </div>
-          <label><input id="confirm" type="checkbox" /> Ich bestätige diese Offerte verbindlich.</label>
-          <button id="acceptBtn" onclick="submitAcceptance()">Jetzt bestätigen</button>
-          <div class="feedback" id="feedback"></div>
-        </div>
-      </div>
+        <label class="checkbox"><input id="confirm" type="checkbox" /> <span>Ich bestätige diese Offerte verbindlich und akzeptiere die aufgeführten Konditionen.</span></label>
+        <button id="acceptBtn" class="btn btn-primary" onclick="submitAcceptance()">Offerte annehmen</button>
+        <div class="feedback" id="feedback"></div>
+      </section>
     </div>
   </div>
 <script>
@@ -83,6 +154,27 @@
     return { x: source.clientX - rect.left, y: source.clientY - rect.top };
   };
 
+  function setAcceptabilityState(status, accepted){
+    const normalized = String(status || '').toLowerCase();
+    const canAccept = normalized === 'sent' && !accepted;
+    const pillWrap = document.getElementById('statusPillWrap');
+    const statusClass = canAccept ? 'pill pill-sent' : 'pill pill-other';
+    pillWrap.innerHTML = `<span class="${statusClass}">Status: ${normalized || 'unbekannt'}</span>`;
+
+    const btn = document.getElementById('acceptBtn');
+    btn.disabled = !canAccept;
+    if(!canAccept){
+      const fb = document.getElementById('feedback');
+      fb.className = 'feedback err';
+      if (accepted) {
+        fb.textContent = 'Diese Offerte wurde bereits angenommen.';
+      } else {
+        fb.textContent = 'Eine Annahme ist nur möglich, wenn die Offerte den Status "sent" hat.';
+      }
+    }
+    return canAccept;
+  }
+
   function resizeSignaturePad(){
     if(!signatureCanvas || !signatureCtx) return;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
@@ -96,11 +188,7 @@
     signatureCtx.strokeStyle = '#0f172a';
   }
 
-  function startDraw(event){
-    event.preventDefault();
-    isDrawing = true;
-    lastPoint = px(event);
-  }
+  function startDraw(event){ event.preventDefault(); isDrawing = true; lastPoint = px(event); }
   function moveDraw(event){
     if(!isDrawing || !signatureCtx) return;
     event.preventDefault();
@@ -121,30 +209,54 @@
   window.clearSignature = clearSignature;
 
   async function loadOffer(){
-    if(!token){document.getElementById('state').textContent='Ungültiger Link (Token fehlt).';return;}
+    const stateEl = document.getElementById('state');
+    if(!token){ stateEl.textContent='Ungültiger Link (Token fehlt).'; return; }
+
     const res = await fetch(`/.netlify/functions/offer-public-get?token=${encodeURIComponent(token)}`);
     const json = await res.json();
-    if(!res.ok){document.getElementById('state').textContent=json.error||'Offerte konnte nicht geladen werden.';return;}
+    if(!res.ok){ stateEl.textContent=json.error||'Offerte konnte nicht geladen werden.'; return; }
+
     offer = json.offer;
+    const recurring = offer.billing_cycle === 'yearly' ? Number(offer.yearly_price || 0) : Number(offer.monthly_price || 0);
+    const discount = Number(offer.discount_amount || 0) + (recurring * (Number(offer.discount_percent || 0) / 100));
+    const accepted = Boolean(offer.accepted_at);
+
     document.getElementById('company').textContent = offer.company_name || 'Voxera Kunde';
-    document.getElementById('contact').textContent = offer.contact_name || offer.email || '';
-    document.getElementById('offerNo').textContent = `Offerte ${offer.offer_number || ''}`;
+    document.getElementById('contact').textContent = offer.contact_name || offer.email || '—';
+    document.getElementById('offerNo').textContent = offer.offer_number || '—';
     document.getElementById('validUntil').textContent = d(offer.valid_until);
-    document.getElementById('plan').textContent = `${offer.plan || ''} · ${offer.billing_cycle === 'yearly' ? 'jährlich' : 'monatlich'}`;
+    document.getElementById('plan').textContent = `${offer.plan || 'Voxera Plan'} · ${offer.billing_cycle === 'yearly' ? 'jährlich' : 'monatlich'}`;
+    document.getElementById('duration').textContent = `${offer.duration_months || 0} Monate`;
     document.getElementById('summary').textContent = offer.offer_text?.summary || 'Ihre individuelle Voxera Offerte.';
     document.getElementById('setupFee').textContent = money(offer.setup_fee);
-    const recurring = offer.billing_cycle === 'yearly' ? offer.yearly_price : offer.monthly_price;
+    document.getElementById('pricingRecurringLabel').textContent = offer.billing_cycle === 'yearly' ? 'Jährlich' : 'Monatlich';
+    document.getElementById('pricingRecurring').textContent = money(recurring);
+    document.getElementById('discount').textContent = `- ${money(discount)}`;
+    document.getElementById('pricingTotal').textContent = money(offer.total);
+
+    document.getElementById('statusText').textContent = String(offer.status || 'unbekannt').toUpperCase();
+    document.getElementById('statusLabel').textContent = 'Status';
     document.getElementById('recurringLabel').textContent = offer.billing_cycle === 'yearly' ? 'Jährlich' : 'Monatlich';
     document.getElementById('recurring').textContent = money(recurring);
-    document.getElementById('discount').textContent = `- ${money((offer.discount_amount||0) + (recurring * ((offer.discount_percent||0)/100)))}`;
     document.getElementById('total').textContent = money(offer.total);
-    if(offer.accepted_at){
-      document.getElementById('feedback').className='feedback ok';
-      document.getElementById('feedback').textContent='Diese Offerte wurde bereits bestätigt.';
-      document.getElementById('acceptBtn').disabled=true;
+
+    const pdfBtn = document.getElementById('pdfBtn');
+    pdfBtn.href = `/offer-pdf.html?token=${encodeURIComponent(token)}`;
+
+    const canAccept = setAcceptabilityState(offer.status, accepted);
+    if (canAccept && offer.email) {
+      document.getElementById('signerEmail').value = offer.email;
     }
-    document.getElementById('state').style.display='none';
-    document.getElementById('content').style.display='block';
+
+    document.getElementById('jumpToAcceptBtn').addEventListener('click', () => {
+      document.getElementById('acceptSection').scrollIntoView({ behavior:'smooth', block:'start' });
+      document.getElementById('signerName').focus();
+    });
+
+    stateEl.style.display='none';
+    document.getElementById('ctaRow').style.display='flex';
+    document.getElementById('quickStats').style.display='block';
+    document.getElementById('content').style.display='grid';
   }
 
   async function submitAcceptance(){
@@ -152,24 +264,38 @@
     const signer_email = document.getElementById('signerEmail').value.trim();
     const confirm_accepted = document.getElementById('confirm').checked;
     const fb = document.getElementById('feedback');
-    if(!signatureDirty){
-      fb.className='feedback err';
-      fb.textContent='Bitte unterschreiben Sie im Signaturfeld.';
+
+    if (!offer || String(offer.status || '').toLowerCase() !== 'sent') {
+      fb.className = 'feedback err';
+      fb.textContent = 'Diese Offerte kann aktuell nicht angenommen werden.';
       return;
     }
+    if(!signer_name){ fb.className='feedback err'; fb.textContent='Bitte geben Sie Ihren Namen ein.'; return; }
+    if(!signatureDirty){ fb.className='feedback err'; fb.textContent='Bitte unterschreiben Sie im Signaturfeld.'; return; }
+    if(!confirm_accepted){ fb.className='feedback err'; fb.textContent='Bitte bestätigen Sie die Annahme mit der Checkbox.'; return; }
+
     const signature_data = signatureCanvas.toDataURL('image/png');
     const btn = document.getElementById('acceptBtn');
+    btn.disabled = true;
     fb.className='feedback';
     fb.textContent='';
-    btn.disabled=true;
-    const res = await fetch('/.netlify/functions/offer-public-accept',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({token,signer_name,signer_email,confirm_accepted,signature_data})
+
+    const res = await fetch('/.netlify/functions/offer-public-accept', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ token, signer_name, signer_email, confirm_accepted, signature_data })
     });
     const json = await res.json();
-    if(!res.ok){fb.className='feedback err';fb.textContent=json.error||'Bestätigung fehlgeschlagen.';btn.disabled=false;return;}
+
+    if(!res.ok){
+      fb.className='feedback err';
+      fb.textContent=json.error||'Bestätigung fehlgeschlagen.';
+      btn.disabled=false;
+      return;
+    }
+
     fb.className='feedback ok';
-    fb.textContent='Vielen Dank. Ihre Offerte wurde erfolgreich bestätigt.';
+    fb.textContent='Vielen Dank. Ihre Offerte wurde erfolgreich angenommen.';
     btn.disabled=true;
   }
 
@@ -185,7 +311,7 @@
   }
 
   initSignaturePad();
-  loadOffer().catch(()=>{document.getElementById('state').textContent='Fehler beim Laden der Offerte.';});
+  loadOffer().catch(() => { document.getElementById('state').textContent='Fehler beim Laden der Offerte.'; });
 </script>
 </body>
 </html>

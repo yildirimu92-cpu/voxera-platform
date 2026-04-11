@@ -58,8 +58,12 @@ exports.handler = async (event) => {
   if (!offer) return response(404, { error: 'Offerte nicht gefunden.' });
 
   if (isOfferExpired(offer)) return response(409, { error: 'Offerte ist abgelaufen.' });
-  if (String(offer.status || '').toLowerCase() === 'accepted' || offer.accepted_at) {
+  const offerStatus = String(offer.status || '').toLowerCase();
+  if (offerStatus === 'accepted' || offer.accepted_at) {
     return response(409, { error: 'Diese Offerte wurde bereits akzeptiert.' });
+  }
+  if (offerStatus !== 'sent') {
+    return response(409, { error: 'Offerte kann nur im Status sent akzeptiert werden.' });
   }
 
   const nowIso = new Date().toISOString();
