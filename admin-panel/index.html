@@ -1321,6 +1321,12 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
               <div class="offer-editor">
                 <div class="card offer-card"><div class="card-head"><h3>Kunde / Interessent</h3></div><div class="offer-grid-2">
                   <div style="grid-column:1/-1;"><label class="muted">Verknüpfter Kunde</label><select class="select" id="offer-customer-id" onchange="offerCustomerChanged()"></select></div>
+                  <div style="grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <span class="badge badge-gray" id="offer-link-state-badge">Prospect</span>
+                    <button class="btn btn-secondary btn-sm" id="offer-create-customer-btn" onclick="createCustomerFromOffer()">Kunde erstellen</button>
+                    <button class="btn btn-quiet btn-sm" id="offer-open-customer-btn" onclick="openLinkedCustomerFromOffer()" style="display:none;">Kunde öffnen</button>
+                    <button class="btn btn-quiet btn-sm" id="offer-unlink-customer-btn" onclick="unlinkOfferCustomer()" style="display:none;">Verknüpfung ändern</button>
+                  </div>
                   <div><label class="muted">Firma</label><input class="input" id="offer-company" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">Kontakt Vorname</label><input class="input" id="offer-contact-first" oninput="offerFieldChanged()"></div>
                   <div><label class="muted">Kontakt Nachname</label><input class="input" id="offer-contact-last" oninput="offerFieldChanged()"></div>
@@ -3727,7 +3733,10 @@ function openOfferDetail(id,silent=false){
   document.getElementById('offer-number-title').textContent=offer.offerNumber;
   document.getElementById('offer-status-badge').outerHTML=offerStatusBadge(offer.status).replace('<span','<span id="offer-status-badge"');
   const meta=document.getElementById('offer-header-meta');
-  meta.innerHTML=`<span><strong>${esc(offer.companyName||'Interessent')}</strong></span><span>Gültig bis ${formatDateDE(offer.validUntil)}</span><span>Kunde: ${offer.customerId?`<a href="#" onclick="event.preventDefault();openCustomerProfile('${jsStr(offer.customerId)}')">verknüpft</a>`:'nicht verknüpft'}</span><span>Vertrag: ${offer.contractId?`<a href="#contracts" onclick="setRoute('contracts')">verknüpft</a>`:'nicht verknüpft'}</span><span>Rechnung: ${offer.invoiceId?`<a href="#billing-finance" onclick="setRoute('billing-finance')">verknüpft</a>`:'nicht verknüpft'}</span>`;
+  const customerMetaLabel=offer.customerId
+    ? `<a href="#" onclick="event.preventDefault();openCustomerProfile('${jsStr(offer.customerId)}')">Kunde verknüpft</a>`
+    : 'Prospect';
+  meta.innerHTML=`<span><strong>${esc(offer.companyName||'Interessent')}</strong></span><span>Gültig bis ${formatDateDE(offer.validUntil)}</span><span>Kunde: ${customerMetaLabel}</span><span>Vertrag: ${offer.contractId?`<a href="#contracts" onclick="setRoute('contracts')">verknüpft</a>`:'nicht verknüpft'}</span><span>Rechnung: ${offer.invoiceId?`<a href="#billing-finance" onclick="setRoute('billing-finance')">verknüpft</a>`:'nicht verknüpft'}</span>`;
   hydrateOfferStatusSelect(offer.status);
   const fields={
     'offer-customer-id':offer.customerId,'offer-company':offer.companyName,'offer-contact-first':offer.contactFirstName,'offer-contact-last':offer.contactLastName,'offer-email':offer.email,'offer-phone':offer.phone,'offer-street':offer.street,'offer-postal-code':offer.postalCode,'offer-city':offer.city,'offer-country':offer.country,
@@ -3741,10 +3750,76 @@ function openOfferDetail(id,silent=false){
   Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id); if(el) el.value=val??'';});
   hydrateOfferPlanSelect(offer.plan);
   hydrateOfferCustomerSelect(offer.customerId);
+  hydrateOfferLinkActions(offer);
   const contractBtn=[...document.querySelectorAll('#offer-header-actions button')].find(btn=>btn.textContent.includes('Vertrag erstellen'));
   if(contractBtn) contractBtn.disabled=offer.status!=='accepted';
   renderOfferPreview(offer);
   if(!silent) renderOffers();
+}
+function hydrateOfferLinkActions(offer){
+  const badge=document.getElementById('offer-link-state-badge');
+  const createBtn=document.getElementById('offer-create-customer-btn');
+  const openBtn=document.getElementById('offer-open-customer-btn');
+  const unlinkBtn=document.getElementById('offer-unlink-customer-btn');
+  if(!badge||!createBtn||!openBtn||!unlinkBtn) return;
+  const linked=Boolean(offer&&offer.customerId);
+  const canCreate=Boolean(offer)&&!linked;
+  badge.className=linked?'badge badge-green':'badge badge-gray';
+  badge.textContent=linked?'Kunde verknüpft':'Prospect';
+  createBtn.style.display=canCreate?'inline-flex':'none';
+  createBtn.disabled=Boolean(offer?.__createCustomerPending);
+  createBtn.textContent=offer?.__createCustomerPending?'Erstelle...':'Kunde erstellen';
+  openBtn.style.display=linked?'inline-flex':'none';
+  unlinkBtn.style.display=linked?'inline-flex':'none';
+}
+function openLinkedCustomerFromOffer(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer?.customerId) return;
+  openCustomerProfile(offer.customerId);
+}
+function unlinkOfferCustomer(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer) return;
+  offer.customerId='';
+  hydrateOfferCustomerSelect('');
+  const select=document.getElementById('offer-customer-id');
+  if(select) select.value='';
+  openOfferDetail(offer.id,true);
+  renderOfferPreview(offer);
+  showToast('Verknüpfung gelöst. Zum Speichern bitte "Speichern" klicken.');
+}
+async function createCustomerFromOffer(){
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(!offer) return;
+  if(offer.customerId){
+    showToast('Offerte ist bereits verknüpft.');
+    return;
+  }
+  offerFieldChanged();
+  offer.__createCustomerPending=true;
+  hydrateOfferLinkActions(offer);
+  try{
+    const json=await callAdminFunction('offer-link-customer',{offer_id:offer.id});
+    const customer=json?.customer||null;
+    if(!customer?.id) throw new Error('Kein Kunde zurückgegeben.');
+    offer.customerId=String(customer.id);
+    applyCustomerSnapshotToOffer(offer,customer);
+    const existingIdx=state.customers.findIndex(c=>idsEq(c.id,customer.id));
+    if(existingIdx>=0) state.customers[existingIdx]={...state.customers[existingIdx],...customer};
+    else state.customers.unshift(customer);
+    if(authClient){
+      const payload=buildOfferDbPayload(offer);
+      const {error:updateErr}=await authClient.from('offers').update(payload).eq('id',offer.id);
+      if(updateErr) throw new Error(updateErr.message||'Offer konnte nicht gespeichert werden.');
+    }
+    openOfferDetail(offer.id,true);
+    showToast(json?.linked_existing?'✓ Bestehender Kunde verknüpft.':'✓ Kunde erstellt und verknüpft.');
+  }catch(e){
+    alert('Kunde konnte nicht verknüpft/erstellt werden: '+(e?.message||e));
+  }finally{
+    offer.__createCustomerPending=false;
+    hydrateOfferLinkActions(offer);
+  }
 }
 function hydrateOfferPlanSelect(selected){
   const el=document.getElementById('offer-plan');
