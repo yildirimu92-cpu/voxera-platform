@@ -67,7 +67,7 @@
   const token = new URLSearchParams(location.search).get('token') || '';
   const money = v => `CHF ${Number(v || 0).toFixed(2)}`;
   const d = v => v ? new Date(v).toLocaleDateString('de-CH') : '—';
-  const esc = v => String(v ?? '').replace(/[&<>'\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',\"'\":'&#39;','\"':'&quot;'}[ch]));
+  const esc = v => String(v ?? '').replace(/[&<>'\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 
   async function load(){
     const stateEl = document.getElementById('state');
