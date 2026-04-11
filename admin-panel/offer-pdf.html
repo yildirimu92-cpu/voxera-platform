@@ -5,61 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Voxera Offerte PDF</title>
   <style>
-    :root{--ink:#0f172a;--slate:#475569;--line:#dbe4f0;--brand:#1d4ed8;--bg:#f3f6fb}
+    :root{
+      --ink:#0f172a;
+      --slate:#475569;
+      --line:#dbe4f0;
+      --line-strong:#c7d4e6;
+      --brand:#1d4ed8;
+      --bg:#edf2f8;
+      --paper:#ffffff;
+    }
+    *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-    .topbar{max-width:960px;margin:18px auto 0;padding:0 16px;display:flex;justify-content:flex-end;gap:8px}
-    .btn{border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
-    .btn-primary{background:var(--brand);color:#fff}
-    .btn-muted{background:#e2e8f0;color:#0f172a}
-    .sheet{max-width:960px;margin:12px auto 28px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.07);padding:28px}
-    .header{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+    .viewer{max-width:1040px;margin:12px auto 24px;padding:0 14px}
+    .topbar{display:flex;justify-content:flex-end;gap:6px;margin:0 0 10px}
+    .topbtn{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.9);color:#334155;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+    .topbtn:hover{border-color:var(--line-strong);color:var(--ink)}
+    .sheet{background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 30px rgba(15,23,42,.08);padding:24px}
+    .header{display:flex;justify-content:space-between;gap:24px;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+    .brand-logo{height:28px;width:28px;border-radius:8px;display:block}
+    .brand-name{font-weight:700;letter-spacing:.02em}
+    .title{font-size:30px;line-height:1.1;margin:0 0 4px;font-weight:750}
+    .subtitle{margin:0;color:var(--slate);font-size:14px}
+    .meta{min-width:230px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;align-self:flex-start}
+    .meta-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed #d6deeb;font-size:13px}
+    .meta-row:last-child{border-bottom:none}
+    .meta-label{color:var(--slate)}
+    .meta-value{font-weight:700}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .block{border:1px solid var(--line);border-radius:10px;padding:12px}
+    .section-title{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate);font-weight:700;margin:0 0 8px}
     .muted{color:var(--slate)}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .block{border:1px solid var(--line);border-radius:12px;padding:14px}
-    .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #d6deeb}
+    .recipient{line-height:1.45}
+    .plan{font-weight:600;margin-bottom:6px}
+    .price{border:1px solid var(--line);border-radius:10px;padding:12px;background:linear-gradient(180deg,#ffffff 0,#f8fbff 100%)}
+    .row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed #d6deeb;font-size:14px}
     .row:last-child{border-bottom:none}
-    .title{font-size:22px;margin:0}
-    .section-title{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate);margin:0 0 8px}
+    .row-total{margin-top:4px;padding-top:12px;border-top:1px solid var(--line-strong);font-size:18px;font-weight:800}
     #state{max-width:960px;margin:44px auto;padding:0 16px;color:var(--slate)}
-    @media print{.topbar{display:none}body{background:#fff}.sheet{margin:0;box-shadow:none;border:none;border-radius:0;max-width:none}}
+
+    @media (max-width:760px){
+      .header{flex-direction:column;gap:12px}
+      .meta{width:100%}
+      .grid{grid-template-columns:1fr}
+      .title{font-size:26px}
+    }
+
+    @media print{
+      body{background:#fff}
+      .viewer{max-width:none;margin:0;padding:0}
+      .topbar{display:none}
+      .sheet{box-shadow:none;border:none;border-radius:0;padding:0}
+    }
   </style>
 </head>
 <body>
   <div id="state">Offerte wird geladen…</div>
   <div id="doc" style="display:none">
-    <div class="topbar">
-      <button class="btn btn-muted" onclick="window.location.reload()">Neu laden</button>
-      <button class="btn btn-primary" onclick="window.print()">Als PDF speichern</button>
-    </div>
-    <div class="sheet">
-      <div class="header">
-        <div>
-          <div class="muted" style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Voxera</div>
-          <h1 class="title">Offerte</h1>
-          <div id="intro" class="muted"></div>
-        </div>
-        <div style="text-align:right">
-          <div><strong id="offerNo">—</strong></div>
-          <div class="muted">Gültig bis <span id="validUntil">—</span></div>
-        </div>
+    <div class="viewer">
+      <div class="topbar">
+        <button class="topbtn" type="button" onclick="window.location.reload()">↻ Neu laden</button>
+        <button class="topbtn" type="button" onclick="window.print()">⤓ Drucken / PDF</button>
       </div>
-      <div class="grid" style="margin-bottom:14px">
-        <div class="block">
-          <p class="section-title">Empfänger</p>
-          <div id="recipient"></div>
+      <div class="sheet">
+        <header class="header">
+          <div>
+            <div class="brand">
+              <img class="brand-logo" src="/favicon-180.png" alt="Voxera Logo" />
+              <span class="brand-name">Voxera</span>
+            </div>
+            <h1 class="title">Offerte</h1>
+            <p class="subtitle">Individuelle Offerte für Ihre Voxera-Lösung</p>
+          </div>
+          <div class="meta">
+            <div class="meta-row"><span class="meta-label">Offertennummer</span><span id="offerNo" class="meta-value">—</span></div>
+            <div class="meta-row"><span class="meta-label">Gültig bis</span><span id="validUntil" class="meta-value">—</span></div>
+          </div>
+        </header>
+
+        <div class="grid">
+          <section class="block">
+            <p class="section-title">Empfänger</p>
+            <div id="recipient" class="recipient"></div>
+          </section>
+          <section class="block">
+            <p class="section-title">Leistung</p>
+            <div id="plan" class="plan"></div>
+            <div id="summary" class="muted"></div>
+          </section>
         </div>
-        <div class="block">
-          <p class="section-title">Leistung</p>
-          <div id="plan"></div>
-          <div id="summary" class="muted" style="margin-top:8px"></div>
-        </div>
-      </div>
-      <div class="block">
-        <p class="section-title">Preisübersicht</p>
-        <div class="row"><span>Einmalige Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
-        <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
-        <div class="row"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
-        <div class="row"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+
+        <section class="price">
+          <p class="section-title">Preisübersicht</p>
+          <div class="row"><span>Einmalige Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
+          <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
+          <div class="row"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
+          <div class="row row-total"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+        </section>
       </div>
     </div>
   </div>
@@ -80,7 +122,6 @@
     const discount = Number(offer.discount_amount||0) + (recurring * (Number(offer.discount_percent||0)/100));
     document.getElementById('offerNo').textContent = offer.offer_number || '—';
     document.getElementById('validUntil').textContent = d(offer.valid_until);
-    document.getElementById('intro').textContent = offer.offer_text?.introduction || 'Individuelle Offerte für Ihre Voxera-Lösung.';
     document.getElementById('recipient').innerHTML = [offer.company_name, offer.contact_name, [offer.street, offer.postal_code, offer.city, offer.country].filter(Boolean).join(', '), offer.email, offer.phone].filter(Boolean).map(v=>`<div>${esc(v)}</div>`).join('');
     document.getElementById('plan').textContent = `${offer.plan || ''} · ${offer.billing_cycle === 'yearly' ? 'jährlich' : 'monatlich'} · ${offer.duration_months || 0} Monate`;
     document.getElementById('summary').textContent = offer.offer_text?.summary || '';
