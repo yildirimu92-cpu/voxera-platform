@@ -4287,7 +4287,10 @@ function formatDateDE(dateStr) {
 }
 
 function getContractStatusMeta(ct) {
-  var isExtraordinary = (ct.status === 'cancelled') && /ausserordentliche kündigung/i.test(String(ct.notes || ''));
+  var isExtraordinary = (ct.status === 'cancelled') && (
+    String(ct.terminationType || '').toLowerCase() === 'extraordinary' ||
+    /ausserordentliche kündigung/i.test(String(ct.notes || ''))
+  );
   var statusKey = ct.status === 'cancelled'
     ? (isExtraordinary ? 'extraordinary_terminated' : 'ordinary_terminated')
     : (ct.status || 'draft');
@@ -4302,6 +4305,7 @@ function getContractStatusMeta(ct) {
 }
 
 function getContractTerminatedAt(ct) {
+  if (ct && ct.terminatedAt) return String(ct.terminatedAt).slice(0, 10);
   var notes = String(ct.notes || '');
   var match = notes.match(/(?:am|erfasst am)\s+(\d{4}-\d{2}-\d{2})/i);
   return (match && match[1]) ? match[1] : '';
@@ -4321,6 +4325,10 @@ function mapDbContractToUi(dbRow) {
     cancellationDate: dbRow.cancellation_date || '',
     discount:         Number(dbRow.discount || 0),
     cancellationNotice: dbRow.cancellation_notice || '1 Monat',
+    terminationType:   dbRow.termination_type || '',
+    terminationReason: dbRow.termination_reason || '',
+    terminatedAt:      dbRow.terminated_at || '',
+    terminatedBy:      dbRow.terminated_by || '',
     notes:            dbRow.notes || '',
     status:           dbRow.status || 'draft',
     signatureData:    dbRow.signature_data || null,
@@ -4981,18 +4989,47 @@ async function cancelContractExtraordinary(id) {
   reason = String(reason || '').trim();
   if (!reason) { alert('Grund erforderlich.'); return; }
   var today = new Date().toISOString().slice(0, 10);
-  var noteLine = '[Ausserordentliche Kündigung am ' + today + '] ' + reason;
+  var immediate = confirm('Per sofort kündigen?\nOK = per sofort (heute), Abbrechen = Enddatum manuell eingeben.');
+  var endDate = today;
+  if (!immediate) {
+    var enteredDate = prompt('Bitte Enddatum / Wirksamkeitsdatum eingeben (YYYY-MM-DD):', today);
+    if (enteredDate === null) return;
+    endDate = String(enteredDate || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || Number.isNaN(new Date(endDate + 'T00:00:00Z').getTime())) {
+      alert('Ungültiges Datum. Bitte Format YYYY-MM-DD verwenden.');
+      return;
+    }
+  }
+  var noteLine = '[Ausserordentliche Kündigung erfasst am ' + today + ', wirksam per ' + endDate + '] ' + reason;
+  var terminatedAtIso = new Date().toISOString();
+  var terminatedBy = 'unknown';
+  if (authClient && authClient.auth) {
+    try {
+      var sessionRes = await authClient.auth.getSession();
+      terminatedBy = (((sessionRes || {}).data || {}).session || {}).user?.email || 'unknown';
+    } catch (_e) {}
+  }
   try {
     if (authClient) {
       var res = await authClient.from('contracts').update({
         status: 'cancelled',
-        cancellation_date: today,
+        termination_type: 'extraordinary',
+        termination_reason: reason,
+        terminated_at: terminatedAtIso,
+        terminated_by: terminatedBy,
+        cancellation_date: endDate,
+        end_date: endDate,
         notes: ((ct.notes || '') + '\n' + noteLine).trim()
       }).eq('id', id);
       if (res.error) throw res.error;
     }
     ct.status = 'cancelled';
-    ct.cancellationDate = today;
+    ct.terminationType = 'extraordinary';
+    ct.terminationReason = reason;
+    ct.terminatedAt = terminatedAtIso;
+    ct.terminatedBy = terminatedBy;
+    ct.cancellationDate = endDate;
+    ct.endDate = endDate;
     ct.notes = ((ct.notes || '') + '\n' + noteLine).trim();
     renderContracts();
     updateBadges();
