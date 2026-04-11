@@ -3542,9 +3542,13 @@ async function offerStatusChanged(){
 function mapDbOfferToUi(row){
   const addOns=row.add_ons||{};
   const texts=row.offer_text||{};
-  const contactFirst=String(row.contact_first_name||'').trim();
-  const contactLast=String(row.contact_last_name||'').trim();
+  const read=(...keys)=>keys.find(key=>Object.prototype.hasOwnProperty.call(row,key) && row[key]!=null && row[key]!== '')||'';
+  const contactFirst=String(row[read('first_name','contact_first_name')]||'').trim();
+  const contactLast=String(row[read('last_name','contact_last_name')]||'').trim();
   const contactStructured=[contactFirst,contactLast].filter(Boolean).join(' ');
+  const companyValue=row[read('company_name','company')]||'';
+  const streetValue=row[read('street')]||'';
+  const postalCodeValue=row[read('zip','postal_code')]||'';
   return {
     id:String(row.id),
     offerNumber:row.offer_number||'—',
@@ -3552,14 +3556,14 @@ function mapDbOfferToUi(row){
     customerId:row.customer_id?String(row.customer_id):'',
     contractId:row.contract_id?String(row.contract_id):'',
     invoiceId:row.invoice_id?String(row.invoice_id):'',
-    companyName:row.company_name||'',
+    companyName:companyValue,
     contactName:row.contact_name||contactStructured||'',
     contactFirstName:contactFirst,
     contactLastName:contactLast,
     email:row.email||'',
     phone:row.phone||'',
-    street:row.street||'',
-    postalCode:row.postal_code||'',
+    street:streetValue,
+    postalCode:postalCodeValue,
     city:row.city||'',
     country:row.country||'',
     address:row.address||'',
@@ -3588,8 +3592,51 @@ function mapDbOfferToUi(row){
     sentAt:row.sent_at||'',
     deliveryStatus:row.delivery_status||'',
     createdAt:row.created_at||'',
-    updatedAt:row.updated_at||''
+    updatedAt:row.updated_at||'',
+    __dbFieldMap:{
+      company:read('company','company_name')||'company',
+      firstName:read('first_name','contact_first_name')||'first_name',
+      lastName:read('last_name','contact_last_name')||'last_name',
+      zip:read('zip','postal_code')||'zip',
+      hasStreet:Object.prototype.hasOwnProperty.call(row,'street'),
+      hasAddress:Object.prototype.hasOwnProperty.call(row,'address')
+    }
   };
+}
+function buildOfferDbPayload(offer){
+  const map=offer.__dbFieldMap||{};
+  const payload={
+    status:offer.status,
+    customer_id:offer.customerId||null,
+    contact_name:offerContactName(offer)||null,
+    email:offer.email||null,
+    phone:offer.phone||null,
+    city:offer.city||null,
+    country:offer.country||null,
+    plan:offer.plan,
+    billing_cycle:offer.billingCycle,
+    setup_fee:offer.setupFee,
+    monthly_price:offer.monthlyPrice,
+    yearly_price:offer.yearlyPrice,
+    included_minutes:offer.includedMinutes,
+    extra_per_minute:offer.extraPerMinute,
+    number_count:offer.numberCount,
+    discount_amount:offer.discountAmount,
+    discount_percent:offer.discountPercent,
+    valid_until:offer.validUntil||null,
+    total:getOfferTotal(offer),
+    add_ons:{additional_numbers:offer.addOnNumbers,sms_alerts:offer.addOnSms,custom_ai_setup:offer.addOnAi,notes:offer.addOnNotes},
+    offer_text:{introduction:offer.introText,summary:offer.summaryText,customer_note:offer.customerNote,internal_notes:offer.internalNotes},
+    sent_to_email:offer.sentToEmail||null,
+    email_subject:offer.sendSubject||null
+  };
+  payload[map.company||'company']=offer.companyName||null;
+  payload[map.firstName||'first_name']=offer.contactFirstName||null;
+  payload[map.lastName||'last_name']=offer.contactLastName||null;
+  payload[map.zip||'zip']=offer.postalCode||null;
+  if(map.hasStreet!==false) payload.street=offer.street||null;
+  if(map.hasAddress!==false) payload.address=offerAddressLine(offer)||null;
+  return payload;
 }
 function getOfferTotal(offer){
   const base=offer.billingCycle==='yearly'?Number(offer.yearlyPrice||0):Number(offer.monthlyPrice||0);
@@ -3853,14 +3900,7 @@ async function createOffer(){
 async function saveOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
   offerFieldChanged();
-  const payload={
-    status:offer.status,customer_id:offer.customerId||null,company_name:offer.companyName||null,contact_name:offerContactName(offer)||null,contact_first_name:offer.contactFirstName||null,contact_last_name:offer.contactLastName||null,email:offer.email||null,phone:offer.phone||null,street:offer.street||null,postal_code:offer.postalCode||null,city:offer.city||null,country:offer.country||null,address:offerAddressLine(offer)||null,
-    plan:offer.plan,billing_cycle:offer.billingCycle,setup_fee:offer.setupFee,monthly_price:offer.monthlyPrice,yearly_price:offer.yearlyPrice,included_minutes:offer.includedMinutes,extra_per_minute:offer.extraPerMinute,
-    number_count:offer.numberCount,discount_amount:offer.discountAmount,discount_percent:offer.discountPercent,valid_until:offer.validUntil||null,total:getOfferTotal(offer),
-    add_ons:{additional_numbers:offer.addOnNumbers,sms_alerts:offer.addOnSms,custom_ai_setup:offer.addOnAi,notes:offer.addOnNotes},
-    offer_text:{introduction:offer.introText,summary:offer.summaryText,customer_note:offer.customerNote,internal_notes:offer.internalNotes},
-    sent_to_email:offer.sentToEmail||null,email_subject:offer.sendSubject||null
-  };
+  const payload=buildOfferDbPayload(offer);
   if(authClient){
     const {error}=await authClient.from('offers').update(payload).eq('id',offer.id);
     if(error){alert('Speichern fehlgeschlagen: '+error.message);return;}
@@ -3880,14 +3920,7 @@ async function sendOffer(){
 }
 async function duplicateOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
-  const payload={
-    status:'draft',customer_id:offer.customerId||null,company_name:offer.companyName||null,contact_name:offerContactName(offer)||null,contact_first_name:offer.contactFirstName||null,contact_last_name:offer.contactLastName||null,email:offer.email||null,phone:offer.phone||null,street:offer.street||null,postal_code:offer.postalCode||null,city:offer.city||null,country:offer.country||null,address:offerAddressLine(offer)||null,
-    plan:offer.plan,billing_cycle:offer.billingCycle,setup_fee:offer.setupFee,monthly_price:offer.monthlyPrice,yearly_price:offer.yearlyPrice,included_minutes:offer.includedMinutes,extra_per_minute:offer.extraPerMinute,
-    number_count:offer.numberCount,discount_amount:offer.discountAmount,discount_percent:offer.discountPercent,valid_until:offer.validUntil||null,total:getOfferTotal(offer),
-    add_ons:{additional_numbers:offer.addOnNumbers,sms_alerts:offer.addOnSms,custom_ai_setup:offer.addOnAi,notes:offer.addOnNotes},
-    offer_text:{introduction:offer.introText,summary:offer.summaryText,customer_note:offer.customerNote,internal_notes:offer.internalNotes},
-    sent_to_email:offer.sentToEmail||null,email_subject:offer.sendSubject||null
-  };
+  const payload={...buildOfferDbPayload(offer),status:'draft'};
   let dup;
   if(authClient){
     const {data,error}=await authClient.from('offers').insert(payload).select('*').single();
