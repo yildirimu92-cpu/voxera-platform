@@ -306,6 +306,9 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .profile-tab.active{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow-xs);}
 .profile-panel{display:none;}
 .profile-panel.active{display:block;}
+.profile-action-stack{display:flex;flex-direction:column;gap:10px;}
+.profile-action-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.profile-action-buttons .btn{width:100%;justify-content:center;min-height:34px;height:auto;white-space:normal;line-height:1.25;padding-top:8px;padding-bottom:8px;}
 
 /* ─── Detail items ─────────────────────────────────────────────── */
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -565,6 +568,11 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   /* ─── Profile tabs scrollbar ─── */
   .profile-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;}
   .profile-tab{flex-shrink:0;}
+  #customer-profile-modal .modal{padding-bottom:calc(max(18px,var(--safe-bottom)) + 2px);}
+  #customer-profile-modal .modal-top .btn{width:auto;}
+  #customer-profile-modal .profile-panel{padding-bottom:4px;}
+  #customer-profile-modal .profile-action-buttons{grid-template-columns:1fr;}
+  #customer-profile-modal .profile-action-buttons .btn{min-height:40px;}
 
   /* ─── Section head ─── */
   .section-head{flex-wrap:wrap;gap:8px;}
@@ -3346,12 +3354,22 @@ function getOnboardingStepAction(step, customerId){
     case 'Voxera number assigned':
       return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" onclick="event.stopPropagation();closeCustomerProfile&&closeCustomerProfile();openEditCustomerModal('${customerId}')">Nummer eintragen</button>`;
     case 'AI basics configured':
-      return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" onclick="event.stopPropagation();setRoute('ai-setup');state.aiSelectedCustomerId='${customerId}';renderAiSetup&&renderAiSetup()">AI konfigurieren</button>`;
+      return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" onclick="openCustomerAiSetup('${customerId}',event)">AI konfigurieren</button>`;
     case 'activation sent':
       return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" onclick="event.stopPropagation();openSendAccessModal('${customerId}')">Zugang senden</button>`;
     default:
       return '';
   }
+}
+
+function openCustomerAiSetup(customerId,event){
+  if(event?.stopPropagation) event.stopPropagation();
+  if(!customerId) return;
+  closeCustomerProfile&&closeCustomerProfile();
+  setRoute('ai-setup');
+  state.aiSelectedCustomerId=String(customerId);
+  if(typeof renderAiSetup==='function') renderAiSetup();
+  if(typeof openAiWorkspace==='function') openAiWorkspace(String(customerId));
 }
 
 function buildOnboardingQueueItem(customerId){
@@ -5560,10 +5578,10 @@ function openCustomerProfile(id){
     const canSend=actionState.showSendAccess&&!actionState.sendAccessDisabled;
     const paymentPaid=isPaymentPaid(c);
     aktionen.innerHTML=`
-      <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="profile-action-stack">
         <div class="card" style="padding:16px 18px;margin-bottom:10px;">
           <div class="card-title" style="margin-bottom:10px;">Stammdaten</div>
-          <div class="inline-actions">
+          <div class="profile-action-buttons">
             <button class="btn btn-primary" onclick="closeCustomerProfile();openEditCustomerModal('${jsStr(id)}')">
               Bearbeiten
             </button>
@@ -5572,7 +5590,7 @@ function openCustomerProfile(id){
         <div class="card" style="padding:16px 18px;">
           <div class="card-title" style="margin-bottom:10px;">Billing (V1)</div>
           <div class="muted" style="font-size:12px;margin-bottom:10px;">Status: ${esc(paymentStatusLabel(c.payment_status))}</div>
-          <div class="inline-actions" style="flex-wrap:wrap;">
+          <div class="profile-action-buttons">
             <button class="btn btn-secondary" onclick="closeCustomerProfile();sendBillingPaymentLink('${jsStr(id)}')">
               Setup Fee Link senden
             </button>
@@ -5592,7 +5610,7 @@ function openCustomerProfile(id){
         </div>
         <div class="card" style="padding:16px 18px;">
           <div class="card-title" style="margin-bottom:10px;">Zugang & Kommunikation</div>
-          <div class="inline-actions" style="flex-wrap:wrap;">
+          <div class="profile-action-buttons">
             <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">
               Zugang senden
             </button>
@@ -5605,18 +5623,21 @@ function openCustomerProfile(id){
         </div>
         <div class="card" style="padding:16px 18px;">
           <div class="card-title" style="margin-bottom:10px;">Status & Lifecycle</div>
-          <div class="inline-actions" style="flex-wrap:wrap;">
+          <div class="profile-action-buttons">
             <button class="btn btn-secondary" onclick="toggleCustomerStatus('${jsStr(id)}');closeCustomerProfile()">
               ${lifecycleStatus==='paused'?'▶ Reaktivieren':'⏸ Pausieren'}
             </button>
             <button class="btn btn-secondary" onclick="openCaseCaptureModal('${jsStr(id)}')">
                Anliegen erfassen
             </button>
+            <button class="btn btn-quiet" onclick="openCustomerAiSetup('${jsStr(id)}')">
+               AI konfigurieren
+            </button>
           </div>
         </div>
         <div class="card" style="padding:16px 18px;border-color:var(--red-mid);">
           <div class="card-title" style="margin-bottom:10px;color:var(--red);">Gefahrenzone</div>
-          <div class="inline-actions" style="flex-wrap:wrap;">
+          <div class="profile-action-buttons">
             <button class="btn btn-secondary" onclick="openCustomerDangerModal('${jsStr(id)}','archive');closeCustomerProfile()">
               Archivieren
             </button>
