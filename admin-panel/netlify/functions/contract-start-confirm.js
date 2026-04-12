@@ -2,7 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
-const { createInitialContractInvoice } = require('./_lib/invoice-service');
+const { ensureContractStartInvoices, generateInvoicePdfPreview } = require('./_lib/invoice-service');
 const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
 const { syncPostAcceptanceLifecycle } = require('./_lib/offer-acceptance');
 
@@ -137,7 +137,7 @@ exports.handler = async (event) => {
 
   const contractId = String(body.contract_id || '').trim();
   const startDate = String(body.start_date || '').trim();
-  const durationMonths = Math.max(1, Math.trunc(Number(body.duration_months || 0) || 0));
+  const durationMonths = Math.max(1, Math.trunc(Number(body.term_months || body.duration_months || 0) || 0));
   const computedEndDate = addMonthsDateIsoUtc(startDate, durationMonths);
   const endDate = String(body.end_date || computedEndDate || '').trim();
   if (!contractId) return response(400, { error: 'contract_id fehlt.' });
@@ -145,6 +145,7 @@ exports.handler = async (event) => {
   if (endDate !== computedEndDate) return response(409, { error: 'end_date ist inkonsistent zur Kombination aus start_date und duration_months.' });
 
   const nowIso = new Date().toISOString();
+  const requestedCustomerId = String(body.customer_id || '').trim();
 
   const { data: contract, error: contractError } = await sbAdmin
     .from('contracts')
@@ -154,7 +155,11 @@ exports.handler = async (event) => {
   if (contractError) return response(500, { error: 'Contract lookup failed.', details: contractError.message });
   if (!contract) return response(404, { error: 'Contract nicht gefunden.' });
 
-  const customerId = String(contract.customer_id || '').trim();
+  if (requestedCustomerId && String(contract.customer_id || '') && requestedCustomerId !== String(contract.customer_id)) {
+    return response(409, { error: 'customer_id passt nicht zum Vertrag.' });
+  }
+  const resolvedCustomerId = String(body.customer_id || contract.customer_id || '').trim();
+  const customerId = resolvedCustomerId;
   if (!customerId) return response(409, { error: 'Contract hat keine customer_id.' });
 
   const { data: customer, error: customerError } = await sbAdmin
@@ -176,6 +181,9 @@ exports.handler = async (event) => {
     notes: String(body.notes || contract.notes || '').trim() || null,
     updated_at: nowIso
   };
+  if (Object.prototype.hasOwnProperty.call(contract, 'activated_at')) {
+    patch.activated_at = contract.activated_at || nowIso;
+  }
 
   const { data: updatedContract, error: updateError } = await sbAdmin
     .from('contracts')
@@ -185,7 +193,8 @@ exports.handler = async (event) => {
     .single();
   if (updateError) return response(500, { error: 'Contract update failed.', details: updateError.message });
 
-  const planCode = normalizePlanCode(contract.plan || customer.plan_code || customer.plan || '');
+  const planCode = normalizePlanCode(body.plan || contract.plan || customer.plan_code || customer.plan || '');
+  if (!planCode) return response(409, { error: 'plan fehlt.' });
   const billingCycle = String(customer.billing_cycle || contract.billing_cycle || 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
 
   const startsAt = `${startDate}T00:00:00.000Z`;
@@ -195,10 +204,10 @@ exports.handler = async (event) => {
     plan: planCode || 'professional',
     plan_code: planCode || 'professional',
     billing_cycle: billingCycle,
-    subscription_status: 'inactive',
-    status: 'paused',
-    payment_status: 'none',
-    billing_state: 'awaiting_setup_fee',
+    subscription_status: 'active',
+    status: 'active',
+    payment_status: 'pending',
+    billing_state: 'awaiting_invoices',
     start_date: startDate,
     starts_at: startsAt,
     renews_at: renewsAt ? `${renewsAt}T00:00:00.000Z` : null,
@@ -376,22 +385,38 @@ exports.handler = async (event) => {
   const { plan: planConfig, error: planError } = await loadPlanByCode(sbAdmin, planCode || 'professional');
   if (planError) return response(500, { error: 'Plan-Konfiguration konnte nicht geladen werden.', details: planError.message });
   const setupFeeAmount = money(customer.setup_fee_amount ?? planConfig?.setup_fee_amount ?? 0);
-  const initialInvoiceResult = await createInitialContractInvoice({
+  const monthlyAmount = money(planConfig?.price_monthly ?? 0);
+  const invoiceResults = await ensureContractStartInvoices({
     sbAdmin,
     customer,
-    contractId,
+    contract: updatedContract,
     subscription,
     setupFeeAmount,
-    dueAt: null,
-    notes: `Initial setup-fee draft invoice for contract ${contractId}`
+    monthlyAmount,
+    startDate
   });
-  const initialInvoice = initialInvoiceResult.invoice || null;
 
-  if (initialInvoice && contract.offer_id) {
-    await sbAdmin
-      .from('offers')
-      .update({ invoice_id: initialInvoice.id, updated_at: nowIso })
-      .eq('id', contract.offer_id);
+  const setupInvoice = invoiceResults.setupInvoice?.invoice || null;
+  const recurringInvoice = invoiceResults.recurringInvoice?.invoice || null;
+
+  let pdfsGenerated = false;
+  if (setupInvoice && recurringInvoice) {
+    try {
+      const setupPdf = await generateInvoicePdfPreview({ sbAdmin, invoice: setupInvoice, customer });
+      const recurringPdf = await generateInvoicePdfPreview({ sbAdmin, invoice: recurringInvoice, customer });
+      pdfsGenerated = Boolean(setupPdf.ok && recurringPdf.ok);
+    } catch (pdfErr) {
+      console.error('[contract-start-confirm] pdf generation failed', {
+        contract_id: contractId,
+        setup_invoice_id: setupInvoice.id,
+        recurring_invoice_id: recurringInvoice.id,
+        error: pdfErr?.message || String(pdfErr)
+      });
+    }
+  }
+
+  if (setupInvoice && contract.offer_id) {
+    await sbAdmin.from('offers').update({ invoice_id: setupInvoice.id, updated_at: nowIso }).eq('id', contract.offer_id);
   }
 
   await syncPostAcceptanceLifecycle({
@@ -402,11 +427,14 @@ exports.handler = async (event) => {
 
   return response(200, {
     success: true,
+    contract_updated: true,
+    subscription_ready: true,
+    setup_fee_invoice_created: Boolean(invoiceResults.setupInvoice?.created),
+    recurring_invoice_created: Boolean(invoiceResults.recurringInvoice?.created),
+    pdfs_generated: pdfsGenerated,
     contract: updatedContract,
     subscription,
-    subscription_ensured: true,
-    invoice: initialInvoice,
-    initial_invoice_id: initialInvoice ? initialInvoice.id : null,
-    initial_invoice_duplicate: Boolean(initialInvoiceResult.duplicate)
+    setup_fee_invoice: setupInvoice,
+    recurring_invoice: recurringInvoice
   });
 };

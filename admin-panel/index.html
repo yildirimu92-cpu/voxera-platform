@@ -1448,7 +1448,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
               <select class="select" id="finance-type-filter">
                 <option value="all">Typ: Alle</option>
                 <option value="setup_fee">Setup Fee</option>
-                <option value="subscription">Subscription</option>
+                <option value="recurring">Recurring</option>
+                <option value="credit_note">Credit Note</option>
                 <option value="extra_minutes">Extra Minutes</option>
                 <option value="manual">Manual / Sonstige</option>
               </select>
@@ -2308,6 +2309,7 @@ const state={
   onboardingSelectedCustomerId:null,
   onboardingActivity:[],  // populated by loadDataFromSupabase()
   contracts:[],  // populated by loadDataFromSupabase()
+  subscriptions:[], // populated by loadDataFromSupabase()
   offerAcceptancesByOfferId:{}, // populated by loadDataFromSupabase()
   offers:[], // populated by loadDataFromSupabase()
   offerDbColumns:new Set(),
@@ -2900,18 +2902,20 @@ function renderOverview(){
 function classifyInvoiceType(rawType){
   const raw=String(rawType||'').trim().toLowerCase();
   if(raw.includes('setup')) return 'setup_fee';
-  if(raw.includes('subscription')||raw.includes('abo')||raw.includes('plan')) return 'subscription';
+  if(raw.includes('recurring')||raw.includes('subscription')||raw.includes('abo')||raw.includes('plan')) return 'recurring';
+  if(raw.includes('credit')) return 'credit_note';
   if(raw.includes('extra')||raw.includes('minute')) return 'extra_minutes';
   return 'manual';
 }
 function invoiceTypeLabel(type){
-  return type==='setup_fee'?'Setup Fee':type==='subscription'?'Subscription':type==='extra_minutes'?'Extra Minutes':'Manual / Sonstige';
+  return type==='setup_fee'?'Setup Fee':type==='recurring'?'Recurring':type==='credit_note'?'Credit Note':type==='extra_minutes'?'Extra Minutes':'Manual / Sonstige';
 }
 function normalizeInvoiceStatus(rawStatus,dueDate,paidAt){
   if(paidAt) return 'paid';
   const raw=String(rawStatus||'').trim().toLowerCase();
   if(raw==='paid' || raw==='bezahlt') return 'paid';
-  if(raw==='cancelled' || raw==='void' || raw==='draft') return 'open';
+  if(raw==='draft') return 'draft';
+  if(raw==='cancelled' || raw==='void') return 'cancelled';
   if(raw==='overdue' || raw==='ueberfaellig' || raw==='überfällig') return 'overdue';
   const dueTs=dueDate?new Date(dueDate).getTime():null;
   if(dueTs){
@@ -2924,6 +2928,8 @@ function normalizeInvoiceStatus(rawStatus,dueDate,paidAt){
 function invoiceStatusBadge(status){
   if(status==='paid') return '<span class="badge badge-green">Bezahlt</span>';
   if(status==='overdue') return '<span class="badge badge-red">Überfällig</span>';
+  if(status==='draft') return '<span class="badge badge-gray">Entwurf</span>';
+  if(status==='cancelled') return '<span class="badge badge-red">Storniert</span>';
   return '<span class="badge badge-yellow">Offen</span>';
 }
 function computeOverdueDays(dueDate){
@@ -3049,13 +3055,13 @@ function renderBillingFinance(){
     .filter(i=>i.status==='paid')
     .filter(i=>{ const paid=parseDate(i.paidAt); return paid && paid>=startOfMonth; })
     .reduce((sum,i)=>sum+i.amount,0);
-  const openRows=invoiceRows.filter(i=>i.status!=='paid');
+  const openRows=invoiceRows.filter(i=>i.status==='open' || i.status==='sent' || i.status==='overdue');
   const overdueRows=invoiceRows.filter(i=>{
     if(i.status==='paid') return false;
     const due=parseDate(i.dueDate);
     return !!(due && due<startOfToday);
   });
-  const setupOpen=invoiceRows.filter(i=>i.type==='setup_fee' && i.status!=='paid');
+  const setupOpen=invoiceRows.filter(i=>i.type==='setup_fee' && i.status!=='paid' && i.status!=='cancelled');
   const setupPaid=invoiceRows.filter(i=>i.type==='setup_fee' && i.status==='paid');
   const openAmount=openRows.reduce((sum,i)=>sum+i.amount,0);
   const endOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999);
@@ -3065,8 +3071,13 @@ function renderBillingFinance(){
     return !!(due && due>=startOfToday && due<=endOfToday);
   });
   const blockedCustomers=state.customers.filter(c=>!isPaymentPaid(c));
-  const activeSubscriptions=state.customers.filter(c=>String(c.subscription_status||'').toLowerCase()==='active').length;
-  const mrrEstimate=state.customers.reduce((sum,c)=>sum+Number(PLAN_PRICES[normalizePlanCode(c.subscription_plan_code || c.plan_code || c.plan)]||0),0);
+  const activeSubscriptions=(state.subscriptions||[]).filter(s=>String(s.subscription_status||'').toLowerCase()==='active');
+  const activeMonthlySubscriptions=activeSubscriptions.filter(s=>String(s.billing_cycle||'').toLowerCase()==='monthly');
+  const activeSubscriptionsCount=activeSubscriptions.length;
+  const mrrEstimate=activeMonthlySubscriptions.reduce((sum,s)=>{
+    const planCode=normalizePlanCode(s.plan_code||s.plan);
+    return sum + Number(PLAN_PRICES[planCode]||0);
+  },0);
   const marginEstimatePct=(()=>{
     const rev=mrrEstimate;
     if(rev<=0) return '—';
@@ -3085,7 +3096,7 @@ function renderBillingFinance(){
     {label:'Blockierte Kunden',value:blockedCustomers.length,sub:'Zugang blockiert wegen Zahlung',filterKey:null,interactive:false},
     {label:'Cash-In Monat',value:moneyChf(paidThisMonth),sub:'Bezahlt im laufenden Monat',filterKey:null,interactive:false},
     {label:'Offener Betrag',value:moneyChf(openAmount),sub:'inkl. überfällige Positionen',filterKey:'open',interactive:true},
-    {label:'MRR',value:moneyChf(mrrEstimate),sub:`${activeSubscriptions} aktive Subscriptions`,filterKey:null,interactive:false},
+    {label:'MRR',value:moneyChf(mrrEstimate),sub:`${activeSubscriptionsCount} aktive Subscriptions`,filterKey:null,interactive:false},
     {label:'Marge',value:marginEstimatePct,sub:'V1 Schätzung aus Planpreis/Kosten',filterKey:null,interactive:false}
   ];
   rootKpi.innerHTML=kpis.map(kpi=>kpi.interactive
@@ -3143,7 +3154,7 @@ function renderBillingFinance(){
 
   const paidAmount=invoiceRows.filter(i=>i.status==='paid').reduce((sum,i)=>sum+i.amount,0);
   const setupAmount=invoiceRows.filter(i=>i.type==='setup_fee').reduce((sum,i)=>sum+i.amount,0);
-  const subscriptionAmount=invoiceRows.filter(i=>i.type==='subscription').reduce((sum,i)=>sum+i.amount,0);
+  const subscriptionAmount=invoiceRows.filter(i=>i.type==='recurring').reduce((sum,i)=>sum+i.amount,0);
   const totalAmount=Math.max(1,invoiceRows.reduce((sum,i)=>sum+i.amount,0));
   const pct=(v)=>Math.min(100,Math.round((v/totalAmount)*100));
   rootBreakdown.innerHTML=invoiceRows.length?`
@@ -3172,7 +3183,7 @@ function renderBillingFinance(){
     <td data-label="Betrag"><span class="finance-amount">${esc(moneyChf(i.amount))}</span></td>
     <td data-label="Fällig"><div class="finance-date-wrap"><div class="finance-date-main">${esc(formatDate(i.dueDate))}</div><div class="finance-date-sub">Due Date</div></div></td>
     <td data-label="Bezahlt am"><div class="finance-date-wrap"><div class="finance-date-main">${esc(formatDate(i.paidAt))}</div><div class="finance-date-sub">Paid At</div></div></td>
-    <td data-label="Aktionen"><div class="finance-actions-group"><div class="inline-actions"><button class="btn btn-quiet btn-sm finance-action-btn" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button><button class="btn btn-secondary btn-sm finance-action-btn" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button></div><div class="inline-actions"><button class="btn btn-primary btn-sm finance-action-btn" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"`:'disabled'}>Als bezahlt</button><button class="btn btn-quiet btn-sm finance-action-btn" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.reminderLevel||0})"`:'disabled'}>Reminder</button></div></div></td>
+    <td data-label="Aktionen"><div class="finance-actions-group"><div class="inline-actions"><button class="btn btn-quiet btn-sm finance-action-btn" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button><button class="btn btn-secondary btn-sm finance-action-btn" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button><button class="btn btn-quiet btn-sm finance-action-btn" ${(i.raw && i.raw.pdf_url)?`onclick="window.open('${jsStr(i.raw.pdf_url)}','_blank','noopener')"`:'disabled'}>PDF Vorschau</button></div><div class="inline-actions"><button class="btn btn-primary btn-sm finance-action-btn" ${(i.id&&i.customerId&&i.status!=='paid'&&i.status!=='cancelled')?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"`:'disabled'}>Als bezahlt</button><button class="btn btn-quiet btn-sm finance-action-btn" ${(i.id&&i.customerId&&i.status!=='paid'&&i.status!=='cancelled')?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.reminderLevel||0})"`:'disabled'}>Reminder</button></div></div></td>
   </tr>`).join('')||'<tr><td colspan="9"><div class="empty finance-empty"><div>Keine Rechnungen für aktuelle Filter.</div><div class="finance-empty-hint">Filter anpassen oder über „Zurücksetzen“ wieder alle Rechnungen laden.</div></div></td></tr>';
 
   const usedMinutesByCustomer={};
@@ -5337,22 +5348,35 @@ async function saveContractStartCheckpoint() {
     if (authClient) {
       var result = await callAdminFunction('contract-start-confirm', {
         contract_id: String(id),
+        customer_id: String(ct.customerId || ''),
+        plan: String(ct.plan || ''),
         start_date: startDate,
-        duration_months: months,
+        term_months: months,
         end_date: endDate,
         notes: mergedNotes
       });
       if (result && result.contract) ct = Object.assign(ct, mapDbContractToUi(result.contract));
       var ensuredText = '';
-      if (result && result.subscription_ensured) {
+      if (result && result.subscription_ready) {
         ensuredText += ' Subscription sichergestellt.';
       }
-      if (result && result.initial_invoice_id) {
-        ensuredText += result.initial_invoice_duplicate
-          ? ' Setup-Fee-Rechnungsentwurf bereits vorhanden.'
-          : ' Setup-Fee-Rechnungsentwurf erstellt.';
+      if(result && result.setup_fee_invoice){
+        ensuredText += result.setup_fee_invoice_created
+          ? ' Setup-Fee-Rechnungsentwurf erstellt.'
+          : ' Setup-Fee-Rechnungsentwurf bereits vorhanden.';
+        state.invoices=[result.setup_fee_invoice].concat((state.invoices||[]).filter(inv=>!idsEq(inv.id,result.setup_fee_invoice.id)));
+      }
+      if(result && result.recurring_invoice){
+        ensuredText += result.recurring_invoice_created
+          ? ' Monatsrechnung (Entwurf) erstellt.'
+          : ' Monatsrechnung (Entwurf) bereits vorhanden.';
+        state.invoices=[result.recurring_invoice].concat((state.invoices||[]).filter(inv=>!idsEq(inv.id,result.recurring_invoice.id)));
+      }
+      if(result && result.pdfs_generated){
+        ensuredText += ' PDF-Vorschauen erstellt.';
       }
       renderContracts();
+      renderBillingFinance();
       viewContract(id);
       setContractOpsFeedback('success', 'Vertragsstart gespeichert.' + ensuredText);
       return;
@@ -7668,6 +7692,7 @@ async function loadDataFromSupabase() {
     state.calls      = (callRows  || []).map(mapDbCallToUi);
     state.usageByCustomerMonthly = buildCurrentMonthUsageByCustomer(state.calls);
     state.cases      = (caseRows  || []).map(mapDbCaseToUi);
+    state.subscriptions = subscriptionRows || [];
     state.invoices   = invoiceRows || [];
     state.invoiceItems = invoiceItemRows || [];
 
