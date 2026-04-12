@@ -141,7 +141,7 @@ async function mutateWithSchemaFallback({ sbAdmin, table, mode, payload, matchCo
 }
 
 async function ensureSubscriptionForContract({ sbAdmin, customer, contract, planCode, startDate, nowIso, forceActive = false }) {
-  const billingCycle = String(customer.billing_cycle || contract.billing_cycle || 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+  const billingCycle = String(contract.billing_cycle || customer.billing_cycle || 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
   const startsAt = `${startDate}T00:00:00.000Z`;
   const renewsAt = addMonthsDateIsoUtc(startDate, billingCycle === 'yearly' ? 12 : 1);
   const subscriptionStatus = forceActive || String(contract.status || '').trim().toLowerCase() === 'active' ? 'active' : 'inactive';
@@ -260,9 +260,7 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
   if (!subscription?.id) throw new Error('subscription ensure failed: no row returned');
 
   if (String(customer.subscription_id || '') !== String(subscription.id || '')) {
-    await sbAdmin.from('customers').update({ subscription_id: subscription.id, start_date: startDate, updated_at: nowIso }).eq('id', customer.id);
-  } else {
-    await sbAdmin.from('customers').update({ start_date: startDate, updated_at: nowIso }).eq('id', customer.id);
+    await sbAdmin.from('customers').update({ subscription_id: subscription.id, updated_at: nowIso }).eq('id', customer.id);
   }
 
   if (String(contract.subscription_id || '') !== String(subscription.id || '')) {
@@ -290,7 +288,7 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
 
 async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso, startDate, setupFeeAmount = null, monthlyAmount = null, forceActiveSubscription = false }) {
   const safeStartDate = String(startDate || contract.start_date || nowIso.slice(0, 10)).slice(0, 10);
-  const planCode = normalizePlanCode(customer.plan_code || contract.plan || customer.plan || '');
+  const planCode = normalizePlanCode(contract.plan || customer.plan_code || customer.plan || '');
   if (!planCode) throw new Error('plan code missing for billing orchestration');
 
   const { plan: planConfig, error: planError } = await loadPlanByCode(sbAdmin, planCode);

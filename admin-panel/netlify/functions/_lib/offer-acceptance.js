@@ -76,6 +76,13 @@ function isInvalidContractStatusError(error) {
 }
 
 async function updateContractWithPreferredPendingStatus({ sbAdmin, contractId, patchBase }) {
+  const pendingReviewPatch = { ...patchBase, status: 'pending_review' };
+  const pendingReviewRes = await sbAdmin.from('contracts').update(pendingReviewPatch).eq('id', contractId);
+  if (!pendingReviewRes.error) return 'pending_review';
+  if (!isInvalidContractStatusError(pendingReviewRes.error)) {
+    throw new OfferAcceptanceError(500, 'Contract sync failed.', pendingReviewRes.error.message);
+  }
+
   const pendingPatch = { ...patchBase, status: 'pending' };
   const pendingRes = await sbAdmin.from('contracts').update(pendingPatch).eq('id', contractId);
   if (!pendingRes.error) return 'pending';
@@ -92,6 +99,31 @@ async function updateContractWithPreferredPendingStatus({ sbAdmin, contractId, p
 }
 
 async function insertContractWithPreferredPendingStatus({ sbAdmin, contractPayload }) {
+  const pendingReviewRes = await sbAdmin.from('contracts').insert({ ...contractPayload, status: 'pending_review' }).select('*').single();
+  if (!pendingReviewRes.error) return pendingReviewRes.data;
+  if (!isInvalidContractStatusError(pendingReviewRes.error)) {
+    console.error('ensureContractForOffer: contract insert failed', {
+      offer_id: contractPayload.offer_id || null,
+      contract_payload: { ...contractPayload, status: 'pending_review' },
+      db_error: {
+        message: pendingReviewRes.error.message || null,
+        code: pendingReviewRes.error.code || null,
+        details: pendingReviewRes.error.details || null,
+        hint: pendingReviewRes.error.hint || null
+      }
+    });
+    throw new OfferAcceptanceError(
+      500,
+      `Contract create failed: ${pendingReviewRes.error.message || 'unknown database error'}`,
+      {
+        message: pendingReviewRes.error.message || null,
+        code: pendingReviewRes.error.code || null,
+        details: pendingReviewRes.error.details || null,
+        hint: pendingReviewRes.error.hint || null
+      }
+    );
+  }
+
   const pendingRes = await sbAdmin.from('contracts').insert({ ...contractPayload, status: 'pending' }).select('*').single();
   if (!pendingRes.error) return pendingRes.data;
   if (!isInvalidContractStatusError(pendingRes.error)) {
@@ -423,22 +455,6 @@ async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso
       .eq('id', offer.id);
   }
 
-  if (String(customer.payment_status || '').trim().toLowerCase() !== 'paid') {
-    const customerInviteStatus = String(customer.invite_status || '').trim().toLowerCase();
-    const shouldResetInvite = customerInviteStatus !== 'activated' && customerInviteStatus !== 'sent';
-    await sbAdmin
-      .from('customers')
-      .update({
-        payment_status: 'pending',
-        invite_status: shouldResetInvite ? STATUS.access.NOT_SENT : customer.invite_status,
-        welcome_sent: shouldResetInvite ? false : customer.welcome_sent,
-        welcome_sent_at: shouldResetInvite ? null : customer.welcome_sent_at,
-        payment_received_at: null,
-        updated_at: nowIso
-      })
-      .eq('id', customer.id);
-  }
-
   return {
     invoiceId: setupInvoice?.id ? String(setupInvoice.id) : null,
     recurringInvoiceId: recurringInvoice?.id ? String(recurringInvoice.id) : null,
@@ -452,6 +468,35 @@ async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso
       month_1_invoice_id: recurringInvoice?.id || null
     }
   };
+}
+
+async function ensureOpsReviewTask({ sbAdmin, customerId, contractId, offerId, nowIso }) {
+  if (!customerId || !contractId) return null;
+  const key = `ops_contract_review:${contractId}`;
+  const { data: existing } = await sbAdmin
+    .from('cases')
+    .select('id, status, note, notes')
+    .eq('customer_id', customerId)
+    .or(`note.ilike.%${key}%,notes.ilike.%${key}%`)
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return { id: existing.id, duplicate: true };
+
+  const note = `[${key}] Angebot akzeptiert – Vertrag operativ prüfen, Start bestätigen, Rechnungen freigeben. Offer=${offerId || 'n/a'} Contract=${contractId}`;
+  const { data: created, error } = await sbAdmin
+    .from('cases')
+    .insert({
+      customer_id: customerId,
+      title: 'Contract review required',
+      note,
+      status: 'open',
+      created_at: nowIso,
+      updated_at: nowIso
+    })
+    .select('id')
+    .single();
+  if (error) throw new OfferAcceptanceError(500, 'Ops task creation failed.', error.message);
+  return { id: created?.id || null, duplicate: false };
 }
 
 async function syncPostAcceptanceLifecycle({ sbAdmin, offer, nowIso }) {
@@ -636,6 +681,27 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
     });
   }
 
+  let opsTask = null;
+  if (contractId) {
+    try {
+      opsTask = await ensureOpsReviewTask({
+        sbAdmin,
+        customerId: offerRes.data?.customer_id || offerWithCustomer?.customer_id || null,
+        contractId,
+        offerId: offerRes.data?.id || offerWithCustomer?.id || null,
+        nowIso
+      });
+    } catch (err) {
+      lifecycleError = lifecycleError || err;
+      console.error('acceptOfferAndEnsureContract: ops task create failed', {
+        offer_id: offer.id,
+        customer_id: offerRes.data?.customer_id || null,
+        contract_id: contractId,
+        error: err?.message || String(err)
+      });
+    }
+  }
+
   return {
     duplicate: false,
     offerId: String(offerWithCustomer.id),
@@ -665,7 +731,8 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
     invoiceId: initialInvoice.invoiceId,
     recurringInvoiceId: initialInvoice.recurringInvoiceId || null,
     billingDiagnostics: initialInvoice.diagnostics || null,
-    invoiceDuplicate: initialInvoice.duplicate
+    invoiceDuplicate: initialInvoice.duplicate,
+    opsTask
   };
 }
 

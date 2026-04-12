@@ -108,8 +108,14 @@ exports.handler = async (event) => {
   }
 
   const nowIso = new Date().toISOString();
+  const idempotencyKey = String(event.headers['x-idempotency-key'] || '').trim() || `offer_accept:${offer.id}:${token}`;
   const ip = String(event.headers['x-nf-client-connection-ip'] || event.headers['x-forwarded-for'] || '').split(',')[0].trim() || null;
   const userAgent = String(event.headers['user-agent'] || '').trim() || null;
+  console.log('[offer_public_accept] start', JSON.stringify({
+    idempotency_key: idempotencyKey,
+    offer_id: offer.id,
+    customer_id: offer.customer_id || null
+  }));
 
   const acceptanceRow = {
     offer_id: offer.id,
@@ -188,6 +194,7 @@ exports.handler = async (event) => {
     return response(500, {
       error: 'Offerte konnte nicht akzeptiert werden.',
       ...errorDiagnostic('offer_public_accept', err, {
+        idempotency_key: idempotencyKey,
         contract_id: offer?.contract_id || null,
         customer_id: offer?.customer_id || null,
         subscription_id: null,

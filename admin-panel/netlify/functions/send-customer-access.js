@@ -176,13 +176,9 @@ exports.handler = async (event) => {
   // ─── ACTION: mark_activated ───────────────────────────────────────────────
   if (action === 'mark_activated') {
     const entitlement = evaluateCustomerEntitlement(customer);
-    if (!entitlement.entitled && entitlement.code === 'payment_required') {
-      return response(409, {
-        error: 'Aktivierung blockiert: Setup Fee ist nicht als bezahlt markiert.',
-        payment_status: entitlement.payment_status,
-        customer_status: entitlement.customer_status
-      });
-    }
+    const paymentWarning = (!entitlement.entitled && entitlement.code === 'payment_required')
+      ? 'Warnung: Setup-Fee-Rechnung ist noch offen. Aktivierung wurde dennoch erlaubt.'
+      : null;
 
     const nowIso = new Date().toISOString();
     const { data: updatedCustomer, error: updateErr } = await sbAdmin
@@ -236,6 +232,7 @@ exports.handler = async (event) => {
     return response(200, {
       success: true,
       message: 'Kunde auf aktiviert gesetzt.',
+      warning: paymentWarning,
       customer: updatedCustomer,
       subscription: updatedSubscription
     });
