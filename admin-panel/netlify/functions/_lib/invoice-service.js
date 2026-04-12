@@ -1,5 +1,7 @@
 'use strict';
 
+const PDF_BUCKET = 'invoice-pdfs';
+
 function toIso(value, fallback = null) {
   if (!value) return fallback;
   const d = value instanceof Date ? value : new Date(value);
@@ -14,6 +16,13 @@ function numberOr(value, fallback = 0) {
 
 function money(value) {
   return Number(numberOr(value, 0).toFixed(2));
+}
+
+function addMonthsIsoDate(dateStr, months) {
+  const base = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) return null;
+  base.setUTCMonth(base.getUTCMonth() + Number(months || 0));
+  return base.toISOString().slice(0, 10);
 }
 
 function toDateOnlyIso(value) {
@@ -157,6 +166,18 @@ async function createInvoiceWithItems(sbAdmin, payload) {
   return insertedInvoice;
 }
 
+async function createInvoiceWithFallbackType(sbAdmin, payload) {
+  try {
+    return await createInvoiceWithItems(sbAdmin, payload);
+  } catch (error) {
+    const msg = String(error && error.message || '').toLowerCase();
+    const unsupportedRecurring = payload.invoiceType === 'recurring'
+      && (msg.includes('invoices_invoice_type_check') || msg.includes('check constraint'));
+    if (!unsupportedRecurring) throw error;
+    return createInvoiceWithItems(sbAdmin, { ...payload, invoiceType: 'subscription' });
+  }
+}
+
 function isDuplicateInvoiceReferenceError(error) {
   const code = String(error && error.code || '');
   const msg = String(error && error.message || '').toLowerCase();
@@ -167,7 +188,7 @@ async function createSetupFeeInvoice({ sbAdmin, customer, setupFeeAmount, billin
   const amount = money(setupFeeAmount);
   if (amount <= 0) throw new Error('setup fee amount must be > 0');
 
-  return createInvoiceWithItems(sbAdmin, {
+  return createInvoiceWithFallbackType(sbAdmin, {
     customerId: customer.id,
     subscriptionId: customer.subscription_id || null,
     invoiceType: 'setup_fee',
@@ -244,7 +265,7 @@ async function createSubscriptionInvoice({ sbAdmin, customer, subscription, plan
   return createInvoiceWithItems(sbAdmin, {
     customerId: customer.id,
     subscriptionId: subscription.id,
-    invoiceType: 'subscription',
+    invoiceType: 'recurring',
     billingProvider,
     status,
     subtotalAmount: subtotal,
@@ -288,7 +309,7 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
   const subtotal = money(setupAmount);
   let createdInvoice;
   try {
-    createdInvoice = await createInvoiceWithItems(sbAdmin, {
+    createdInvoice = await createInvoiceWithFallbackType(sbAdmin, {
       customerId: customer.id,
       subscriptionId: subscription && subscription.id ? subscription.id : (customer.subscription_id || null),
       contractId: normalizedContractId,
@@ -333,6 +354,267 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
   return { invoice: createdInvoice, duplicate: false };
 }
 
+async function updateInvoiceWithSchemaFallback(sbAdmin, invoiceId, patch) {
+  const mutablePatch = { ...patch };
+  const maxAttempts = Object.keys(mutablePatch).length + 1;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const { data, error } = await sbAdmin
+      .from('invoices')
+      .update(mutablePatch)
+      .eq('id', invoiceId)
+      .select('*')
+      .single();
+    if (!error) return { data, removed: [] };
+    const isMissingColumn = String(error.code || '') === 'PGRST204';
+    if (!isMissingColumn) throw new Error(`invoice update failed: ${error.message}`);
+    const message = String(error.message || '');
+    const match = message.match(/Could not find the '([^']+)' column/i);
+    const missing = match && match[1];
+    if (!missing || !Object.prototype.hasOwnProperty.call(mutablePatch, missing)) {
+      throw new Error(`invoice update failed: ${error.message}`);
+    }
+    delete mutablePatch[missing];
+    if (attempt === maxAttempts) throw new Error(`invoice update failed: ${error.message}`);
+  }
+  return { data: null, removed: [] };
+}
+
+function escapePdfText(raw) {
+  return String(raw == null ? '' : raw)
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)')
+    .replace(/\r?\n/g, ' ');
+}
+
+function buildSimplePdf(lines) {
+  const fontSize = 11;
+  const lineGap = 14;
+  let y = 800;
+  const textOps = ['BT', `/F1 ${fontSize} Tf`, '50 0 0 50 40 0 cm'];
+  for (const line of lines) {
+    textOps.push(`1 0 0 1 0 ${y} Tm (${escapePdfText(line)}) Tj`);
+    y -= lineGap;
+  }
+  textOps.push('ET');
+  const stream = textOps.join('\n');
+  const objects = [];
+  objects.push('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj');
+  objects.push('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj');
+  objects.push('3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj');
+  objects.push('4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj');
+  objects.push(`5 0 obj << /Length ${Buffer.byteLength(stream, 'utf8')} >> stream\n${stream}\nendstream endobj`);
+
+  let offset = '%PDF-1.4\n'.length;
+  const parts = ['%PDF-1.4\n'];
+  const xref = ['0000000000 65535 f '];
+  objects.forEach((obj) => {
+    xref.push(`${String(offset).padStart(10, '0')} 00000 n `);
+    parts.push(`${obj}\n`);
+    offset += Buffer.byteLength(`${obj}\n`, 'utf8');
+  });
+  const xrefOffset = offset;
+  const xrefText = `xref\n0 ${objects.length + 1}\n${xref.join('\n')}\n`;
+  const trailer = `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  parts.push(xrefText);
+  parts.push(trailer);
+  return Buffer.from(parts.join(''), 'utf8');
+}
+
+async function ensurePdfBucket(sbAdmin) {
+  const list = await sbAdmin.storage.listBuckets();
+  if (list.error) throw new Error(`bucket list failed: ${list.error.message}`);
+  const exists = (list.data || []).some((b) => b.name === PDF_BUCKET || b.id === PDF_BUCKET);
+  if (exists) return;
+  const created = await sbAdmin.storage.createBucket(PDF_BUCKET, { public: true, fileSizeLimit: 5 * 1024 * 1024 });
+  if (created.error && !String(created.error.message || '').toLowerCase().includes('already exists')) {
+    throw new Error(`bucket create failed: ${created.error.message}`);
+  }
+}
+
+function moneyFmt(value) {
+  return `${money(value).toFixed(2)} CHF`;
+}
+
+async function generateInvoicePdfPreview({ sbAdmin, invoice, customer }) {
+  if (!invoice || !invoice.id) return { ok: false, reason: 'invoice_missing' };
+  const { data: items, error: itemsError } = await sbAdmin
+    .from('invoice_items')
+    .select('*')
+    .eq('invoice_id', invoice.id)
+    .order('sort_order', { ascending: true });
+  if (itemsError) throw new Error(`invoice items load failed: ${itemsError.message}`);
+  const itemRows = Array.isArray(items) ? items : [];
+
+  const issuedDate = (invoice.issued_at || new Date().toISOString()).slice(0, 10);
+  const lines = [
+    'VOXERA RECHNUNG (ENTWURF / NOCH NICHT VERENDET)',
+    `Rechnungsnummer: ${invoice.invoice_number || invoice.id}`,
+    `Datum: ${issuedDate}`,
+    `Kunde: ${customer?.customer_name || customer?.name || 'Unbekannt'}`,
+    `Adresse: ${[customer?.street, customer?.zip, customer?.city, customer?.country].filter(Boolean).join(', ') || '-'}`,
+    '--- Positionen ---'
+  ];
+  itemRows.forEach((item, idx) => {
+    lines.push(`${idx + 1}. ${item.title || 'Position'} | Menge ${numberOr(item.quantity, 1)} | Einzel ${moneyFmt(item.unit_price)} | Total ${moneyFmt(item.line_total)}`);
+  });
+  lines.push('--- Summe ---');
+  lines.push(`Zwischensumme: ${moneyFmt(invoice.subtotal_amount)}`);
+  lines.push(`MwSt: ${moneyFmt(invoice.tax_amount)}`);
+  lines.push(`Total: ${moneyFmt(invoice.total_amount)}`);
+  lines.push('Zahlungsinformationen: Banküberweisung gemäss Kundenvereinbarung.');
+  lines.push('Kontakt: billing@voxera.ai');
+
+  const pdfBuffer = buildSimplePdf(lines);
+  await ensurePdfBucket(sbAdmin);
+  const path = `invoices/${invoice.id}/v1-${Date.now()}.pdf`;
+  const upload = await sbAdmin.storage.from(PDF_BUCKET).upload(path, pdfBuffer, {
+    contentType: 'application/pdf',
+    upsert: true
+  });
+  if (upload.error) throw new Error(`pdf upload failed: ${upload.error.message}`);
+  const pub = sbAdmin.storage.from(PDF_BUCKET).getPublicUrl(path);
+  const pdfUrl = pub?.data?.publicUrl || null;
+  const patch = {
+    pdf_url: pdfUrl,
+    pdf_path: path,
+    pdf_generated_at: new Date().toISOString(),
+    pdf_version: 1,
+    updated_at: new Date().toISOString()
+  };
+  const updated = await updateInvoiceWithSchemaFallback(sbAdmin, invoice.id, patch);
+  return { ok: true, invoice: updated.data || invoice, pdf_url: pdfUrl, pdf_path: path };
+}
+
+async function ensureDraftInvoiceWithItems({
+  sbAdmin,
+  customer,
+  contractId = null,
+  subscriptionId = null,
+  invoiceType,
+  externalReference,
+  dueAt,
+  periodStart,
+  periodEnd,
+  notes,
+  lineItem
+}) {
+  const { data: existing, error: existingError } = await sbAdmin
+    .from('invoices')
+    .select('*')
+    .eq('external_reference', externalReference)
+    .maybeSingle();
+  if (existingError) throw new Error(`invoice lookup failed: ${existingError.message}`);
+  if (existing) return { invoice: existing, created: false };
+
+  const qty = numberOr(lineItem.quantity, 1);
+  const unit = money(lineItem.unitPrice);
+  const total = money(lineItem.lineTotal ?? (qty * unit));
+  let created;
+  try {
+    created = await createInvoiceWithFallbackType(sbAdmin, {
+      customerId: customer.id,
+      subscriptionId,
+      contractId,
+      invoiceType,
+      billingProvider: 'invoice',
+      status: 'draft',
+      currency: 'CHF',
+      subtotalAmount: total,
+      taxAmount: 0,
+      totalAmount: total,
+      issuedAt: new Date(),
+      dueAt,
+      periodStart,
+      periodEnd,
+      notes,
+      externalReference,
+      items: [{
+        itemType: lineItem.itemType || 'manual',
+        title: lineItem.title,
+        description: lineItem.description || null,
+        quantity: qty,
+        unitPrice: unit,
+        lineTotal: total,
+        metadata: lineItem.metadata || {}
+      }]
+    });
+  } catch (error) {
+    const duplicate = String(error.message || '').toLowerCase().includes('duplicate');
+    if (!duplicate) throw error;
+    const raced = await sbAdmin
+      .from('invoices')
+      .select('*')
+      .eq('external_reference', externalReference)
+      .maybeSingle();
+    if (raced.error) throw new Error(`invoice duplicate recovery failed: ${raced.error.message}`);
+    if (raced.data) return { invoice: raced.data, created: false };
+    throw error;
+  }
+  return { invoice: created, created: true };
+}
+
+async function ensureContractStartInvoices({
+  sbAdmin,
+  customer,
+  contract,
+  subscription,
+  setupFeeAmount,
+  monthlyAmount,
+  startDate
+}) {
+  const setupReference = `setup_fee:${contract.id}`;
+  const periodStart = `${startDate}T00:00:00.000Z`;
+  const nextMonth = addMonthsIsoDate(startDate, 1);
+  const periodEnd = nextMonth ? `${nextMonth}T00:00:00.000Z` : null;
+  const monthReference = `month_1:${subscription.id}:${startDate}`;
+  const dueAt = periodStart;
+
+  const setupInvoice = await ensureDraftInvoiceWithItems({
+    sbAdmin,
+    customer,
+    contractId: contract.id,
+    subscriptionId: subscription.id,
+    invoiceType: 'setup_fee',
+    externalReference: setupReference,
+    dueAt,
+    notes: `Draft setup-fee invoice for contract ${contract.id}`,
+    lineItem: {
+      itemType: 'setup_fee',
+      title: 'Setup Fee Voxera',
+      description: 'Einrichtungsgebühr Voxera',
+      quantity: 1,
+      unitPrice: setupFeeAmount,
+      lineTotal: setupFeeAmount,
+      metadata: { contract_id: contract.id }
+    }
+  });
+
+  const recurringInvoice = await ensureDraftInvoiceWithItems({
+    sbAdmin,
+    customer,
+    contractId: contract.id,
+    subscriptionId: subscription.id,
+    invoiceType: 'recurring',
+    externalReference: monthReference,
+    dueAt,
+    periodStart,
+    periodEnd,
+    notes: `Draft recurring invoice (month 1) for subscription ${subscription.id}`,
+    lineItem: {
+      itemType: 'subscription_base',
+      title: `Voxera Monatsabo ${String(subscription.plan_code || subscription.plan || '').trim() ? `[${String(subscription.plan_code || subscription.plan)}]` : ''}`.trim(),
+      description: 'Monatliche Subscription (Monat 1)',
+      quantity: 1,
+      unitPrice: monthlyAmount,
+      lineTotal: monthlyAmount,
+      metadata: { billing_cycle: 'monthly', period_start: startDate }
+    }
+  });
+
+  return { setupInvoice, recurringInvoice };
+}
+
 async function markInvoicePaid(sbAdmin, invoiceId, { paidAt, paidSource, stripePaymentIntentId, stripeCheckoutSessionId, stripeInvoiceId, notes }) {
   const patch = {
     status: 'paid',
@@ -360,5 +642,7 @@ module.exports = {
   createSetupFeeInvoice,
   createSubscriptionInvoice,
   createInitialContractInvoice,
-  markInvoicePaid
+  markInvoicePaid,
+  ensureContractStartInvoices,
+  generateInvoicePdfPreview
 };
