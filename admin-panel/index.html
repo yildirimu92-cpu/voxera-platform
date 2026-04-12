@@ -3053,7 +3053,7 @@ function classifyInvoiceType(rawType){
   return 'manual';
 }
 function invoiceTypeLabel(type){
-  return type==='setup_fee'?'Setup Fee':type==='recurring'?'Subscription / Monat 1':type==='credit_note'?'Credit Note':type==='extra_minutes'?'Extra Minutes':'Manual / Sonstige';
+  return type==='setup_fee'?'Setup Fee':type==='recurring'?'Recurring Subscription':type==='credit_note'?'Credit Note':type==='extra_minutes'?'Extra Minutes':'Manual / Sonstige';
 }
 function normalizeInvoiceStatus(rawStatus,dueDate,paidAt){
   if(paidAt) return 'paid';
@@ -6579,7 +6579,8 @@ async function createManualSubscriptionInvoice(customerId,contractId=''){
     });
     if(!json?.success||!json?.invoice) throw new Error(json?.error||'Invoice-Erstellung fehlgeschlagen.');
     state.invoices.unshift(json.invoice);
-    showToast('✓ Subscription-Rechnung erstellt.');
+    const created=json?.created!==false;
+    showToast(created?'✓ Nächste Vertragsrechnung erstellt.':'✓ Vertragsperiode bereits fakturiert.');
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
     renderBillingFinance();
   }catch(err){
