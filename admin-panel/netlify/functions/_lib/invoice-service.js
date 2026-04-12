@@ -276,7 +276,7 @@ async function createSubscriptionInvoice({ sbAdmin, customer, subscription, plan
 
   const subtotal = money(baseAmount + overageAmount);
 
-  return createInvoiceWithItems(sbAdmin, {
+  return createInvoiceWithFallbackType(sbAdmin, {
     customerId: customer.id,
     subscriptionId: subscription.id,
     invoiceType: 'recurring',
