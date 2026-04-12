@@ -294,7 +294,7 @@ async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso,
   const { plan: planConfig, error: planError } = await loadPlanByCode(sbAdmin, planCode);
   if (planError) throw new Error(`plan lookup failed: ${planError.message}`);
 
-  const resolvedSetupFee = money(setupFeeAmount ?? customer.setup_fee_amount ?? planConfig?.setup_fee_amount ?? 0);
+  const resolvedSetupFee = money(setupFeeAmount ?? planConfig?.setup_fee_amount ?? 0);
   const resolvedMonthly = money(monthlyAmount ?? planConfig?.price_monthly ?? 0);
   billingDiag('orchestration_start', {
     contract_id: contract?.id || null,
@@ -490,6 +490,8 @@ async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso,
       if (validateSetupError || !validateSetup) {
         throw Object.assign(new Error(`validate setup fee row failed: ${validateSetupError?.message || 'missing row'}`), validateSetupError || {});
       }
+      if (!validateSetup.contract_id) throw new Error('validate setup fee row failed: missing contract_id');
+      if (!validateSetup.customer_id) throw new Error('validate setup fee row failed: missing customer_id');
       const { data: validateMonth1, error: validateMonth1Error } = await sbAdmin
         .from('invoices')
         .select('id, contract_id, customer_id, subscription_id, external_reference')
@@ -498,6 +500,9 @@ async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso,
       if (validateMonth1Error || !validateMonth1) {
         throw Object.assign(new Error(`validate month 1 row failed: ${validateMonth1Error?.message || 'missing row'}`), validateMonth1Error || {});
       }
+      if (!validateMonth1.contract_id) throw new Error('validate month 1 row failed: missing contract_id');
+      if (!validateMonth1.customer_id) throw new Error('validate month 1 row failed: missing customer_id');
+      if (!validateMonth1.subscription_id) throw new Error('validate month 1 row failed: missing subscription_id');
       return { setup_fee_invoice_id: validateSetup.id, month_1_invoice_id: validateMonth1.id };
     }
   });

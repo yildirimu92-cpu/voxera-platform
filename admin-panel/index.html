@@ -2486,6 +2486,11 @@ function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function idsEq(a,b){return String(a)===String(b);}
 function customerById(id){return state.customers.find(c=>idsEq(c.id,id));}
+function latestContractForCustomer(customerId){
+  return (state.contracts||[])
+    .filter(ct=>idsEq(ct.customerId,customerId))
+    .sort((a,b)=>(new Date(b.createdAt||0)).getTime()-(new Date(a.createdAt||0)).getTime())[0]||null;
+}
 function customerNumberLabel(customer){
   if(!customer) return '—';
   return String(
@@ -3292,6 +3297,7 @@ function renderBillingFinance(){
     const cycle=String(c.subscription_billing_cycle||'').toLowerCase();
     const actionLabel='Rechnung erstellen';
     const actionFn='createManualSubscriptionInvoice';
+    const contract=latestContractForCustomer(c.id);
     return `<tr>
       <td data-label="Kunde">${esc(c.name||'—')}</td>
       <td data-label="Plan">${esc(planLabel(c.subscription_plan_code||c.plan_code||c.plan))}</td>
@@ -3302,7 +3308,7 @@ function renderBillingFinance(){
       <td data-label="Fällig">${due?'<span class="badge badge-red">Ja</span>':'<span class="badge badge-gray">Nein</span>'}</td>
       <td data-label="Aktionen">
         <div class="inline-actions">
-          <button class="btn btn-secondary btn-sm finance-action-btn" onclick="${actionFn}('${jsStr(c.id)}')" ${cycle==='monthly'||cycle==='yearly'?'':'disabled'}>${actionLabel}</button>
+          <button class="btn btn-secondary btn-sm finance-action-btn" onclick="${actionFn}('${jsStr(c.id)}','${jsStr(contract?.id||'')}')" ${(cycle==='monthly'||cycle==='yearly')&&contract?.id?'':'disabled'} title="${contract?.id?'':'Vertrag fehlt'}">${actionLabel}</button>
           <button class="btn btn-primary btn-sm finance-action-btn" onclick="openCustomerInvoicesInFinance('${jsStr(c.id)}')">Offene Rechnungen</button>
         </div>
       </td>
@@ -6058,13 +6064,13 @@ function openCustomerProfile(id){
     profileInvoices.innerHTML=`
       <div class="card" style="padding:12px 14px;margin-bottom:10px;">
         <div class="inline-actions" style="flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-sm" onclick="createManualSetupInvoice('${jsStr(id)}')">Manual Setup-Invoice</button>
-          <button class="btn btn-secondary btn-sm" onclick="createManualSubscriptionInvoice('${jsStr(id)}')">Manual Subscription-Invoice</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">Finance öffnen</button>
+          <button class="btn btn-quiet btn-sm" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Rechnungen im Finance filtern</button>
         </div>
       </div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>Rechnung</th><th>Typ</th><th>Total</th><th>Status</th><th>Provider</th><th>Issued</th><th>Paid</th><th>Aktion</th></tr></thead>
+          <thead><tr><th>Rechnung</th><th>Typ</th><th>Total</th><th>Status</th><th>Provider</th><th>Issued</th><th>Paid</th><th>Finance</th></tr></thead>
           <tbody>
             ${customerInvoices.map(inv=>`
               <tr>
@@ -6077,8 +6083,7 @@ function openCustomerProfile(id){
                 <td>${esc(formatDate(inv.paid_at))}</td>
                 <td>
                   <div class="inline-actions">
-                    <button class="btn btn-secondary btn-sm" onclick="sendInvoiceEmail('${jsStr(inv.id)}')">Rechnung senden</button>
-                    <button class="btn btn-primary btn-sm" onclick="markInvoicePaid('${jsStr(id)}','${jsStr(inv.id)}')" ${(String(inv.status||'').toLowerCase()==='paid'||String(inv.billing_provider||'').toLowerCase()==='stripe')?'disabled':''}>Als bezahlt</button>
+                    <button class="btn btn-quiet btn-sm" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Im Finance bearbeiten</button>
                   </div>
                 </td>
               </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Rechnungen vorhanden.</div></td></tr>'}
@@ -6500,7 +6505,8 @@ async function sendPasswordReset(customerId){
 }
 
 async function sendBillingPaymentLink(customerId){
-  return createManualSetupInvoice(customerId);
+  const contractId=latestContractForCustomer(customerId)?.id||'';
+  return createManualSetupInvoice(customerId,contractId);
 }
 
 async function sendInvoiceEmail(invoiceId){
@@ -6520,29 +6526,29 @@ async function markBillingPaid(customerId){
 }
 
 async function sendMonthlyBillingPaymentLink(customerId){
-  return createManualSubscriptionInvoice(customerId);
+  const contractId=latestContractForCustomer(customerId)?.id||'';
+  return createManualSubscriptionInvoice(customerId,contractId);
 }
 
 async function sendYearlyBillingPaymentLink(customerId){
-  return createManualSubscriptionInvoice(customerId);
+  const contractId=latestContractForCustomer(customerId)?.id||'';
+  return createManualSubscriptionInvoice(customerId,contractId);
 }
 
 async function markSubscriptionPaid(customerId){
   alert('Subscription-Payment wird nur noch über konkrete Rechnungen gebucht. Bitte im Finance-Board die Rechnung als bezahlt markieren.');
 }
 
-async function createManualSetupInvoice(customerId){
+async function createManualSetupInvoice(customerId,contractId=''){
   const customer=customerById(customerId);
   if(!customer) return;
-  const amountRaw=prompt('Setup-Rechnungsbetrag in CHF', String(Number(customer.setup_fee_amount||0).toFixed(2)));
-  if(amountRaw===null) return;
-  const amount=Number(amountRaw);
-  if(!Number.isFinite(amount)||amount<=0){ alert('Ungültiger Betrag.'); return; }
+  const resolvedContractId=String(contractId||latestContractForCustomer(customerId)?.id||'').trim();
+  if(!resolvedContractId){ alert('Kein Vertrag verfügbar. Bitte zuerst Vertrag prüfen/aktivieren.'); return; }
   try{
     const json=await callCustomerBillingUpdate({
       customer_id:customerId,
+      contract_id:resolvedContractId,
       action:'create_manual_setup_invoice',
-      amount,
       billing_provider:'invoice',
       notes:'Manual setup invoice via admin'
     });
@@ -6557,12 +6563,15 @@ async function createManualSetupInvoice(customerId){
   }
 }
 
-async function createManualSubscriptionInvoice(customerId){
+async function createManualSubscriptionInvoice(customerId,contractId=''){
   const customer=customerById(customerId);
   if(!customer) return;
+  const resolvedContractId=String(contractId||latestContractForCustomer(customerId)?.id||'').trim();
+  if(!resolvedContractId){ alert('Kein Vertrag verfügbar. Bitte zuerst Vertrag prüfen/aktivieren.'); return; }
   try{
     const json=await callCustomerBillingUpdate({
       customer_id:customerId,
+      contract_id:resolvedContractId,
       action:'create_manual_subscription_invoice',
       billing_provider:'invoice',
       notes:'Manual subscription invoice via admin'

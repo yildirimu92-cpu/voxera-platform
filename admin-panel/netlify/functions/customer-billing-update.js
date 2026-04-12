@@ -52,6 +52,24 @@ function legacyActionBlocked(action) {
   };
 }
 
+async function loadContractForBilling({ sbAdmin, customerId, requestedContractId = '' }) {
+  const normalizedContractId = String(requestedContractId || '').trim();
+  if (!normalizedContractId) {
+    return { contract: null, error: 'contract_id ist erforderlich. Rechnungen müssen mit Vertragskontext erstellt werden.' };
+  }
+  const { data: contract, error } = await sbAdmin
+    .from('contracts')
+    .select('*')
+    .eq('id', normalizedContractId)
+    .maybeSingle();
+  if (error) return { contract: null, error: `Contract lookup failed: ${error.message}` };
+  if (!contract) return { contract: null, error: 'Contract nicht gefunden.' };
+  if (String(contract.customer_id || '') !== String(customerId)) {
+    return { contract: null, error: 'Contract gehört nicht zu diesem Kunden.' };
+  }
+  return { contract, error: null };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -182,22 +200,33 @@ exports.handler = async (event) => {
   }
 
   if (action === 'create_manual_setup_invoice') {
-    const { data: contract } = await sbAdmin
-      .from('contracts')
-      .select('id')
-      .eq('customer_id', customerId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!contract?.id) {
-      return response(409, { error: 'Keine Vertragsbasis gefunden. Setup-Rechnung muss aus Vertrag/Offerte orchestriert werden.' });
+    const { contract, error: contractError } = await loadContractForBilling({
+      sbAdmin,
+      customerId,
+      requestedContractId: body.contract_id
+    });
+    if (contractError || !contract) {
+      return response(409, {
+        error: contractError || 'Keine Vertragsbasis gefunden. Setup-Rechnung muss aus Vertrag/Offerte orchestriert werden.'
+      });
     }
-    const amount = Number(body.amount ?? customer.setup_fee_amount ?? 0);
-    if (!Number.isFinite(amount) || amount <= 0) return response(400, { error: 'Gültiger setup fee Betrag fehlt.' });
+    const { data: offer, error: offerError } = contract.offer_id
+      ? await sbAdmin.from('offers').select('id, setup_fee').eq('id', contract.offer_id).maybeSingle()
+      : { data: null, error: null };
+    if (offerError) return response(500, { error: 'Offer lookup failed', details: offerError.message });
+    const amount = Number(offer?.setup_fee ?? null);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return response(409, {
+        error: 'Setup-Fee-Preisquelle fehlt im Vertrag/Angebot. Rechnung wurde nicht erstellt.',
+        contract_id: contract.id
+      });
+    }
     try {
       const invoice = await createSetupFeeInvoice({
         sbAdmin,
         customer,
+        contractId: contract.id,
+        offerId: contract.offer_id || null,
         setupFeeAmount: amount,
         billingProvider: 'invoice',
         status: 'sent',
@@ -220,6 +249,15 @@ exports.handler = async (event) => {
       notes: body.notes || null,
       debug_tag: 'manual_monthly_invoice'
     };
+    const { contract, error: contractError } = await loadContractForBilling({
+      sbAdmin,
+      customerId,
+      requestedContractId: body.contract_id
+    });
+    if (contractError || !contract) {
+      return response(409, { error: contractError || 'Keine Vertragsbasis gefunden.' });
+    }
+
     const { data: subscription, error: subscriptionError } = await sbAdmin
       .from('subscriptions')
       .select('*')
@@ -229,16 +267,24 @@ exports.handler = async (event) => {
     if (subscriptionError) return response(500, { error: 'Subscription lookup failed', details: subscriptionError.message });
     if (!subscription) return response(404, { error: 'Subscription nicht gefunden' });
 
-    const planCode = normalizePlanCode(subscription.plan_code || customer.plan_code || customer.plan);
+    const planCode = normalizePlanCode(contract.plan || subscription.plan_code || customer.plan_code || customer.plan);
     const { plan: planConfig, error: planConfigError } = await loadPlanByCode(sbAdmin, planCode);
     if (planConfigError) return response(500, { error: 'Plan-Konfiguration konnte nicht geladen werden.', details: planConfigError.message });
     if (!planConfig) return response(400, { error: `plan_config für ${planCode} fehlt.` });
+    const { data: offer, error: offerError } = contract.offer_id
+      ? await sbAdmin.from('offers').select('id, monthly_price, yearly_price, billing_cycle').eq('id', contract.offer_id).maybeSingle()
+      : { data: null, error: null };
+    if (offerError) return response(500, { error: 'Offer lookup failed', details: offerError.message });
     try {
       const invoice = await createSubscriptionInvoice({
         sbAdmin,
         customer,
+        contractId: contract.id,
+        offerId: contract.offer_id || null,
         subscription,
         planConfig,
+        contract,
+        offer,
         billingProvider: 'invoice',
         status: 'sent',
         dueAt: body.due_at || null,
@@ -247,8 +293,16 @@ exports.handler = async (event) => {
       });
       return response(200, { success: true, action, customer, subscription, invoice });
     } catch (err) {
+      const msg = err?.db_message || err?.message || 'Subscription-Invoice konnte nicht erstellt werden.';
+      if (String(msg).toLowerCase().includes('price source missing')) {
+        return response(409, {
+          error: 'Preisquelle im Vertrag/Angebot fehlt. Subscription-Rechnung wurde nicht erstellt.',
+          contract_id: contract.id,
+          step_failed: err?.step_failed || 'create_manual_subscription_invoice'
+        });
+      }
       return response(500, {
-        error: err?.db_message || err?.message || 'Subscription-Invoice konnte nicht erstellt werden.',
+        error: msg,
         db_message: err?.db_message || null,
         db_code: err?.db_code || null,
         db_details: err?.db_details || null,

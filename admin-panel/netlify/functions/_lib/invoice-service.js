@@ -109,6 +109,8 @@ async function nextInvoiceNumber(sbAdmin) {
 }
 
 async function createInvoiceWithItems(sbAdmin, payload) {
+  const normalizedContractId = String(payload.contractId || '').trim();
+  if (!normalizedContractId) throw new Error('contractId is required for invoice creation');
   const invoiceNumber = await nextInvoiceNumber(sbAdmin);
   const issuedAt = toIso(payload.issuedAt, new Date().toISOString());
   const dueAt = toIso(payload.dueAt, null);
@@ -142,7 +144,7 @@ async function createInvoiceWithItems(sbAdmin, payload) {
     stripe_invoice_id: payload.stripeInvoiceId || null,
     external_reference: payload.externalReference || null,
     offer_id: payload.offerId || null,
-    contract_id: payload.contractId || null,
+    contract_id: normalizedContractId,
     notes: payload.notes || null,
     pdf_url: payload.pdfUrl || null
   };
@@ -251,13 +253,33 @@ function isDuplicateInvoiceReferenceError(error) {
   return code === '23505' || msg.includes('duplicate key value');
 }
 
-async function createSetupFeeInvoice({ sbAdmin, customer, setupFeeAmount, billingProvider, status, dueAt, paidAt, paidSource, notes, externalReference, stripePaymentIntentId, stripeCheckoutSessionId, stripeInvoiceId }) {
+async function createSetupFeeInvoice({
+  sbAdmin,
+  customer,
+  contractId,
+  offerId = null,
+  setupFeeAmount,
+  billingProvider,
+  status,
+  dueAt,
+  paidAt,
+  paidSource,
+  notes,
+  externalReference,
+  stripePaymentIntentId,
+  stripeCheckoutSessionId,
+  stripeInvoiceId
+}) {
+  const normalizedContractId = String(contractId || '').trim();
+  if (!normalizedContractId) throw new Error('contractId is required');
   const amount = money(setupFeeAmount);
   if (amount <= 0) throw new Error('setup fee amount must be > 0');
 
   return createInvoiceWithFallbackType(sbAdmin, {
     customerId: customer.id,
-    subscriptionId: customer.subscription_id || null,
+    contractId: normalizedContractId,
+    offerId,
+    subscriptionId: null,
     invoiceType: 'setup_fee',
     billingProvider,
     status,
@@ -285,12 +307,38 @@ async function createSetupFeeInvoice({ sbAdmin, customer, setupFeeAmount, billin
   });
 }
 
-async function createSubscriptionInvoice({ sbAdmin, customer, subscription, planConfig, billingProvider, status, dueAt, paidAt, paidSource, notes, externalReference, stripePaymentIntentId, stripeCheckoutSessionId, stripeInvoiceId, debugTag = null }) {
+async function createSubscriptionInvoice({
+  sbAdmin,
+  customer,
+  contractId,
+  offerId = null,
+  subscription,
+  planConfig,
+  contract = null,
+  offer = null,
+  billingProvider,
+  status,
+  dueAt,
+  paidAt,
+  paidSource,
+  notes,
+  externalReference,
+  stripePaymentIntentId,
+  stripeCheckoutSessionId,
+  stripeInvoiceId,
+  debugTag = null
+}) {
+  const normalizedContractId = String(contractId || '').trim();
+  if (!normalizedContractId) throw new Error('contractId is required');
+  const resolvedOfferId = offerId || contract?.offer_id || null;
   const logManual = debugTag === 'manual_monthly_invoice';
   if (logManual) manualMonthlyLog('start', { customer_id: customer && customer.id ? customer.id : null });
-  const cycle = String(subscription.billing_cycle || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
-  const baseAmountRaw = cycle === 'yearly' ? planConfig.price_yearly : planConfig.price_monthly;
+  const cycle = String(contract?.billing_cycle || offer?.billing_cycle || subscription.billing_cycle || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+  const baseAmountRaw = cycle === 'yearly'
+    ? (offer?.yearly_price ?? planConfig.price_yearly)
+    : (offer?.monthly_price ?? planConfig.price_monthly);
   const baseAmount = money(baseAmountRaw);
+  if (baseAmount <= 0) throw new Error('subscription price source missing or <= 0');
 
   const now = new Date();
   const periodStartDate = computePeriodStart(subscription, now);
@@ -333,6 +381,8 @@ async function createSubscriptionInvoice({ sbAdmin, customer, subscription, plan
 
   const invoicePayload = {
     customerId: customer.id,
+    contractId: normalizedContractId,
+    offerId: resolvedOfferId,
     subscriptionId: subscription.id,
     invoiceType: 'recurring',
     billingProvider,
@@ -380,7 +430,7 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
   if (!normalizedContractId) throw new Error('contractId is required');
 
   const setupAmount = money(setupFeeAmount);
-  if (setupAmount < 0) throw new Error('setup fee amount must be >= 0');
+  if (setupAmount <= 0) throw new Error('setup fee amount must be > 0');
 
   const externalReference = `initial_contract_invoice:${normalizedContractId}`;
   const { data: existingInvoice, error: existingError } = await sbAdmin
@@ -401,7 +451,7 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
       customerId: customer.id,
       subscriptionId: subscription && subscription.id ? subscription.id : (customer.subscription_id || null),
       contractId: normalizedContractId,
-      invoiceType: 'manual',
+      invoiceType: 'setup_fee',
       billingProvider: 'invoice',
       status: 'draft',
       subtotalAmount: subtotal,
@@ -588,6 +638,8 @@ async function ensureDraftInvoiceWithItems({
   notes,
   lineItem
 }) {
+  const normalizedContractId = String(contractId || '').trim();
+  if (!normalizedContractId) throw new Error('contract_id is required for draft invoice ensure');
   invoiceDiag('invoice_ensure_start', {
     invoice_type: invoiceType,
     external_reference: externalReference,
@@ -638,13 +690,16 @@ async function ensureDraftInvoiceWithItems({
   const qty = numberOr(lineItem.quantity, 1);
   const unit = money(lineItem.unitPrice);
   const total = money(lineItem.lineTotal ?? (qty * unit));
+  if (total <= 0) {
+    throw new Error(`invoice amount must be > 0 for ${invoiceType}`);
+  }
   let created;
   try {
     created = await createInvoiceWithFallbackType(sbAdmin, {
       customerId: customer.id,
       offerId,
       subscriptionId,
-      contractId,
+      contractId: normalizedContractId,
       invoiceType,
       billingProvider: 'invoice',
       status: 'draft',
@@ -729,6 +784,10 @@ async function ensureContractStartInvoices({
   monthlyAmount,
   startDate
 }) {
+  const setupAmount = money(setupFeeAmount);
+  const month1Amount = money(monthlyAmount);
+  if (setupAmount <= 0) throw new Error('setup fee amount missing or <= 0 from contract/offer pricing');
+  if (month1Amount <= 0) throw new Error('month 1 amount missing or <= 0 from contract/subscription pricing');
   const setupReference = `setup_fee:${contract.id}`;
   const periodStart = `${startDate}T00:00:00.000Z`;
   const nextMonth = addMonthsIsoDate(startDate, 1);
@@ -741,7 +800,7 @@ async function ensureContractStartInvoices({
     customer,
     offerId: contract.offer_id || null,
     contractId: contract.id,
-    subscriptionId: subscription.id,
+    subscriptionId: null,
     invoiceType: 'setup_fee',
     externalReference: setupReference,
     dueAt,
@@ -751,8 +810,8 @@ async function ensureContractStartInvoices({
       title: 'Setup Fee Voxera',
       description: 'Einrichtungsgebühr Voxera',
       quantity: 1,
-      unitPrice: setupFeeAmount,
-      lineTotal: setupFeeAmount,
+      unitPrice: setupAmount,
+      lineTotal: setupAmount,
       metadata: { contract_id: contract.id }
     }
   });
@@ -774,8 +833,8 @@ async function ensureContractStartInvoices({
       title: `Voxera Monatsabo ${String(subscription.plan_code || subscription.plan || '').trim() ? `[${String(subscription.plan_code || subscription.plan)}]` : ''}`.trim(),
       description: 'Monatliche Subscription (Monat 1)',
       quantity: 1,
-      unitPrice: monthlyAmount,
-      lineTotal: monthlyAmount,
+      unitPrice: month1Amount,
+      lineTotal: month1Amount,
       metadata: { billing_cycle: 'monthly', period_start: startDate }
     }
   });
