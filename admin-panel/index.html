@@ -44,6 +44,7 @@
 }
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth;}
 body{font-family:var(--font);font-size:13px;color:var(--ink);background:#F5F5F7;min-height:100vh;overflow-x:hidden;line-height:1.5;letter-spacing:-0.01em;}
+body.mobile-nav-lock{overflow:hidden;touch-action:none;}
 body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{visibility:hidden;}
 
 /* ─── Layout ─────────────────────────────────────────────────── */
@@ -413,6 +414,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .modal-feedback{font-size:12px;padding:10px 12px;border-radius:var(--r);margin-bottom:12px;display:none;}
 .modal-feedback.error{display:block;background:var(--red-light);color:var(--red);border:1px solid var(--red-mid);}
 .modal-feedback.success{display:block;background:var(--green-light);color:var(--green-dark);border:1px solid var(--green-mid);}
+.mobile-bottom-nav,.mobile-more-overlay,.mobile-more-sheet{display:none;}
 
 /* ─── Progress bar ──────────────────────────────────────────── */
 .progress-bar{height:6px;background:#E8ECF4;border-radius:999px;overflow:hidden;margin-top:6px;}
@@ -447,7 +449,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .customer-cards{display:flex;}
 
   /* ─── Sidebar: versteckt, slide-in ─── */
-  .sidebar{transform:translateX(-100%);z-index:200;}
+  .sidebar{transform:translateX(-100%);z-index:320;}
   .sidebar.open{transform:translateX(0);}
 
   /* ─── Main: kein margin-left, kein Overflow ─── */
@@ -459,7 +461,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .mobile-close-btn{display:flex!important;}
 
   /* ─── Overlay ─── */
-  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(10,15,30,.45);z-index:150;backdrop-filter:blur(4px);}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(10,15,30,.45);z-index:300;backdrop-filter:blur(4px);}
   .sidebar-overlay.open{display:block;}
 
   /* ─── Topbar ─── */
@@ -469,8 +471,9 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .page-sub{display:none;}
 
   /* ─── Content ─── */
-  .content{padding:12px;overflow-x:hidden;width:100%;}
+  .content{padding:12px 12px calc(88px + env(safe-area-inset-bottom));overflow-x:hidden;width:100%;}
   .section{padding:12px;overflow-x:hidden;}
+  .main{padding-bottom:calc(78px + env(safe-area-inset-bottom));}
 
   /* ─── Grids ─── */
   .grid-2,.grid-3,.grid-4{grid-template-columns:1fr!important;}
@@ -571,6 +574,42 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
   /* ─── AI workspace ─── */
   #ai-workspace .textarea{font-size:13px;}
+
+  .mobile-bottom-nav{
+    position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.92);
+    border-top:1px solid rgba(17,24,39,.08);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:260;
+  }
+  .mobile-tab{
+    border:none;background:transparent;border-radius:12px;min-height:52px;padding:6px 4px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    font-size:10.5px;font-weight:600;color:var(--slate);font-family:inherit;position:relative;
+  }
+  .mobile-tab svg{width:18px;height:18px;opacity:.75;}
+  .mobile-tab.active{color:var(--blue);background:rgba(37,99,235,.1);}
+  .mobile-tab.active svg{opacity:1;}
+  .mobile-tab-badge{
+    position:absolute;top:4px;right:8px;min-width:17px;height:17px;padding:0 5px;border-radius:999px;
+    background:var(--blue);color:#fff;font-size:10px;line-height:17px;font-weight:700;
+  }
+  .mobile-more-overlay{position:fixed;inset:0;background:rgba(10,15,30,.42);backdrop-filter:blur(2px);z-index:330;}
+  .mobile-more-overlay.open{display:block;}
+  .mobile-more-sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:340;background:#fff;border-radius:18px 18px 0 0;
+    border:1px solid rgba(0,0,0,.06);border-bottom:none;box-shadow:0 -10px 36px rgba(0,0,0,.2);
+    padding:10px 14px calc(14px + env(safe-area-inset-bottom));transform:translateY(100%);opacity:0;
+    transition:transform .2s var(--ease),opacity .2s var(--ease);
+  }
+  .mobile-more-sheet.open{display:block;transform:translateY(0);opacity:1;}
+  .mobile-more-handle{width:42px;height:4px;background:#d1d5db;border-radius:999px;margin:0 auto 10px;}
+  .mobile-more-title{font-size:12px;font-weight:700;color:var(--slate);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;}
+  .mobile-more-list{display:grid;grid-template-columns:1fr;gap:6px;}
+  .mobile-more-item{
+    width:100%;border:none;border-radius:10px;background:#f8fafc;padding:12px 13px;text-align:left;cursor:pointer;
+    font-size:13px;font-weight:600;color:var(--ink2);font-family:inherit;display:flex;align-items:center;justify-content:space-between;
+  }
+  .mobile-more-item.active{background:#eff6ff;color:var(--blue);}
+  .mobile-more-item:active{transform:scale(.99);}
 }
 @media (max-width:480px){
   .topbar{padding:10px 12px;}
@@ -1590,6 +1629,42 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
     </div>
   </main>
 </div>
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Mobile Hauptnavigation">
+  <button class="mobile-tab" data-route="overview" type="button">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+    <span>Übersicht</span>
+  </button>
+  <button class="mobile-tab" data-route="customers" type="button">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/><path d="M11 7c1.66 0 3 1.34 3 3v2"/></svg>
+    <span>Kunden</span>
+  </button>
+  <button class="mobile-tab" data-route="onboarding" type="button">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8h10M8 3l5 5-5 5"/></svg>
+    <span>Onboarding</span><span class="mobile-tab-badge" id="mobile-badge-onboarding">0</span>
+  </button>
+  <button class="mobile-tab" data-route="billing-finance" type="button">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 7.5h12M5 11h2.5"/></svg>
+    <span>Finance</span>
+  </button>
+  <button class="mobile-tab" id="mobile-more-trigger" data-route="more" type="button" aria-expanded="false">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="3.2" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="12.8" cy="8" r="1.1"/></svg>
+    <span>Mehr</span>
+  </button>
+</nav>
+<div class="mobile-more-overlay" id="mobile-more-overlay" onclick="closeMobileMoreMenu()"></div>
+<aside class="mobile-more-sheet" id="mobile-more-sheet" aria-label="Mehr Navigation">
+  <div class="mobile-more-handle"></div>
+  <div class="mobile-more-title">Mehr Bereiche</div>
+  <div class="mobile-more-list" id="mobile-more-list">
+    <button class="mobile-more-item" data-route="ai-setup" type="button">AI Setup <span>→</span></button>
+    <button class="mobile-more-item" data-route="cases" type="button">Cases <span>→</span></button>
+    <button class="mobile-more-item" data-route="contracts" type="button">Verträge <span>→</span></button>
+    <button class="mobile-more-item" data-route="offers" type="button">Offerten <span>→</span></button>
+    <button class="mobile-more-item" data-route="insights" type="button">Insights <span>→</span></button>
+    <button class="mobile-more-item" data-route="activity" type="button">Aktivität <span>→</span></button>
+    <button class="mobile-more-item" data-route="settings" type="button">Einstellungen <span>→</span></button>
+  </div>
+</aside>
 
 
 <!-- AI PROMPT PREVIEW MODAL -->
@@ -2291,6 +2366,21 @@ const routeMeta={
   'offers':['Offerten','Sales Workspace für Angebote und Übergabe in Verträge.'],
   'contracts':['Verträge','Serviceverträge mit Kunden verwalten.']
 };
+const mobileMoreRoutes=new Set(['ai-setup','cases','contracts','offers','insights','activity','settings']);
+
+function syncMobileNavActive(route){
+  const normalized=routes.includes(route)?route:'overview';
+  document.querySelectorAll('#mobile-bottom-nav .mobile-tab').forEach(tab=>{
+    const tabRoute=tab.dataset.route;
+    const isMore=tabRoute==='more';
+    const active=isMore?mobileMoreRoutes.has(normalized):tabRoute===normalized;
+    tab.classList.toggle('active',active);
+    if(isMore) tab.setAttribute('aria-expanded',String(active && document.getElementById('mobile-more-sheet')?.classList.contains('open')));
+  });
+  document.querySelectorAll('#mobile-more-list .mobile-more-item').forEach(item=>{
+    item.classList.toggle('active',item.dataset.route===normalized);
+  });
+}
 
 function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function jsStr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
@@ -5342,10 +5432,15 @@ function hydrateFilters(){
 function updateBadges(){
   // Only show badge for Onboarding (not yet completed)
   const badgeOnboarding=document.getElementById('badge-onboarding');
+  const mobileBadgeOnboarding=document.getElementById('mobile-badge-onboarding');
   if(badgeOnboarding){
     const open=state.onboarding.filter(o=>o.progress<100).length;
     badgeOnboarding.textContent=open;
     badgeOnboarding.style.display=open>0?'':'none';
+    if(mobileBadgeOnboarding){
+      mobileBadgeOnboarding.textContent=open;
+      mobileBadgeOnboarding.style.display=open>0?'':'none';
+    }
   }
   // Keep hidden stubs so no JS errors
   const _bc=document.getElementById('badge-customers');
@@ -5359,6 +5454,9 @@ function setRoute(route,replaceHash=false){
   state.route=route;
   routes.forEach(r=>document.getElementById('section-'+r)?.classList.toggle('active',r===route));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.route===route));
+  syncMobileNavActive(route);
+  closeMobileMenu();
+  closeMobileMoreMenu();
   const [title,sub]=routeMeta[route];
   document.getElementById('page-title').textContent=title;
   document.getElementById('page-sub').textContent=sub;
@@ -6899,6 +6997,27 @@ function wireUi(){
     e.preventDefault();
     setRoute(link.dataset.route);
   });
+  const mobileBottomNav=document.getElementById('mobile-bottom-nav');
+  if(mobileBottomNav){
+    mobileBottomNav.addEventListener('click',e=>{
+      const btn=e.target.closest('.mobile-tab');
+      if(!btn) return;
+      const targetRoute=btn.dataset.route;
+      if(targetRoute==='more'){
+        toggleMobileMoreMenu();
+        return;
+      }
+      setRoute(targetRoute);
+    });
+  }
+  const mobileMoreList=document.getElementById('mobile-more-list');
+  if(mobileMoreList){
+    mobileMoreList.addEventListener('click',e=>{
+      const btn=e.target.closest('.mobile-more-item');
+      if(!btn) return;
+      setRoute(btn.dataset.route);
+    });
+  }
   ['customer-search','customer-plan-filter','customer-status-filter','customer-progress-filter','customer-case-filter'].forEach(id=>{
     document.getElementById(id).addEventListener('input',renderCustomers);
     document.getElementById(id).addEventListener('change',renderCustomers);
@@ -7589,30 +7708,67 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 
 <script>
+function isMobileViewport(){
+  return window.innerWidth<=768;
+}
+function applyMobileScrollLock(){
+  const sidebarOpen=document.querySelector('.sidebar')?.classList.contains('open');
+  const moreOpen=document.getElementById('mobile-more-sheet')?.classList.contains('open');
+  document.body.classList.toggle('mobile-nav-lock',Boolean(isMobileViewport()&&(sidebarOpen||moreOpen)));
+}
 function openMobileMenu(){
+  if(!isMobileViewport()) return;
   document.querySelector('.sidebar').classList.add('open');
   document.getElementById('sidebar-overlay').classList.add('open');
-  document.body.style.overflow='hidden';
+  closeMobileMoreMenu();
+  applyMobileScrollLock();
 }
 function closeMobileMenu(){
   const s=document.querySelector('.sidebar');
   const o=document.getElementById('sidebar-overlay');
   if(s) s.classList.remove('open');
   if(o) o.classList.remove('open');
-  document.body.style.overflow='';
+  applyMobileScrollLock();
 }
 function toggleMobileMenu(){
   const s=document.querySelector('.sidebar');
   if(s && s.classList.contains('open')) closeMobileMenu();
   else openMobileMenu();
 }
-// Nav-Links schliessen Menü auf Mobile
-document.addEventListener('DOMContentLoaded',()=>{
-  document.querySelectorAll('.nav-item').forEach(item=>{
-    item.addEventListener('click',()=>{
-      if(window.innerWidth<=768) closeMobileMenu();
-    });
-  });
+function openMobileMoreMenu(){
+  if(!isMobileViewport()) return;
+  closeMobileMenu();
+  document.getElementById('mobile-more-overlay')?.classList.add('open');
+  document.getElementById('mobile-more-sheet')?.classList.add('open');
+  document.getElementById('mobile-more-trigger')?.setAttribute('aria-expanded','true');
+  syncMobileNavActive(state.route);
+  applyMobileScrollLock();
+}
+function closeMobileMoreMenu(){
+  document.getElementById('mobile-more-overlay')?.classList.remove('open');
+  document.getElementById('mobile-more-sheet')?.classList.remove('open');
+  document.getElementById('mobile-more-trigger')?.setAttribute('aria-expanded','false');
+  applyMobileScrollLock();
+}
+function toggleMobileMoreMenu(){
+  const sheet=document.getElementById('mobile-more-sheet');
+  if(sheet&&sheet.classList.contains('open')) closeMobileMoreMenu();
+  else openMobileMoreMenu();
+}
+window.addEventListener('resize',()=>{
+  if(!isMobileViewport()){
+    closeMobileMenu();
+    closeMobileMoreMenu();
+  }else{
+    applyMobileScrollLock();
+  }
+  syncMobileNavActive(state.route);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    closeMobileMenu();
+    closeMobileMoreMenu();
+  }
 });
 
 
