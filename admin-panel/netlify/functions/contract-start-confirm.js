@@ -129,15 +129,18 @@ exports.handler = async (event) => {
       forceActiveSubscription: true
     });
   } catch (billingError) {
+    const structured = billingError && billingError.error === 'Contract billing orchestration failed'
+      ? billingError
+      : null;
     return response(500, {
-      error: 'Contract billing orchestration failed.',
-      step_failed: 'contract_billing_orchestration',
-      contract_id: contractId,
-      customer_id: customerId,
-      subscription_id: null,
-      setup_fee_invoice_id: null,
-      month_1_invoice_id: null,
-      ...dbDiag(billingError)
+      error: 'Contract billing orchestration failed',
+      step_failed: structured?.step_failed || 'contract_billing_orchestration',
+      contract_id: structured?.contract_id || contractId,
+      customer_id: structured?.customer_id || customerId,
+      subscription_id: structured?.subscription_id || null,
+      setup_fee_invoice_id: structured?.setup_fee_invoice_id || null,
+      month_1_invoice_id: structured?.month_1_invoice_id || null,
+      ...(structured || dbDiag(billingError))
     });
   }
 

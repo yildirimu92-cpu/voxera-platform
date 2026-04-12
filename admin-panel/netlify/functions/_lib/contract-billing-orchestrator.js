@@ -38,6 +38,77 @@ function billingDiag(step, payload) {
   console.log(`[billing_orchestrator] ${step}`, JSON.stringify(payload || {}));
 }
 
+function orchestrationError({
+  stepName,
+  error,
+  contractId,
+  customerId,
+  subscriptionId = null,
+  setupFeeInvoiceId = null,
+  month1InvoiceId = null
+}) {
+  return {
+    error: 'Contract billing orchestration failed',
+    step_failed: stepName,
+    db_message: error?.message || null,
+    db_code: error?.code || null,
+    db_details: error?.details || null,
+    db_hint: error?.hint || null,
+    contract_id: contractId || null,
+    customer_id: customerId || null,
+    subscription_id: subscriptionId || null,
+    setup_fee_invoice_id: setupFeeInvoiceId || null,
+    month_1_invoice_id: month1InvoiceId || null
+  };
+}
+
+function normalizeThrownError(err) {
+  if (!err) return null;
+  if (err?.error === 'Contract billing orchestration failed' && err?.step_failed) return err;
+  return null;
+}
+
+async function runOrchestrationStep({
+  stepName,
+  contractId,
+  customerId,
+  subscriptionId = null,
+  setupFeeInvoiceId = null,
+  month1InvoiceId = null,
+  fn
+}) {
+  billingDiag(`${stepName}_START`, {
+    step_name: stepName,
+    contract_id: contractId || null,
+    customer_id: customerId || null,
+    subscription_id: subscriptionId || null
+  });
+  try {
+    const result = await fn();
+    billingDiag(`${stepName}_SUCCESS`, {
+      step_name: stepName,
+      contract_id: contractId || null,
+      customer_id: customerId || null,
+      subscription_id: result?.subscription_id ?? subscriptionId ?? null,
+      setup_fee_invoice_id: result?.setup_fee_invoice_id ?? setupFeeInvoiceId ?? null,
+      month_1_invoice_id: result?.month_1_invoice_id ?? month1InvoiceId ?? null
+    });
+    return result;
+  } catch (error) {
+    const normalized = normalizeThrownError(error);
+    if (normalized) throw normalized;
+    throw orchestrationError({
+      stepName,
+      error,
+      contractId,
+      customerId,
+      subscriptionId,
+      setupFeeInvoiceId,
+      month1InvoiceId
+    });
+  }
+}
+
 async function mutateWithSchemaFallback({ sbAdmin, table, mode, payload, matchColumn, matchValue }) {
   const dynamicPayload = { ...payload };
   const removedColumns = [];
@@ -236,44 +307,216 @@ async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso,
     monthly_amount: resolvedMonthly
   });
 
-  const subscription = await ensureSubscriptionForContract({
-    sbAdmin,
-    customer,
-    contract,
-    planCode,
-    startDate: safeStartDate,
-    nowIso,
-    forceActive: forceActiveSubscription
+  const contractId = contract?.id || null;
+  const customerId = customer?.id || null;
+
+  const subscriptionStep = await runOrchestrationStep({
+    stepName: 'ensure_subscription',
+    contractId,
+    customerId,
+    subscriptionId: customer?.subscription_id || contract?.subscription_id || null,
+    fn: async () => {
+      const subscription = await ensureSubscriptionForContract({
+        sbAdmin,
+        customer,
+        contract,
+        planCode,
+        startDate: safeStartDate,
+        nowIso,
+        forceActive: forceActiveSubscription
+      });
+      return { subscription, subscription_id: subscription?.id || null };
+    }
+  });
+  const subscription = subscriptionStep.subscription;
+
+  const setupStep = await runOrchestrationStep({
+    stepName: 'ensure_setup_fee_invoice',
+    contractId,
+    customerId,
+    subscriptionId: subscription?.id || null,
+    fn: async () => {
+      const results = await ensureContractStartInvoices({
+        sbAdmin,
+        customer,
+        contract,
+        subscription,
+        setupFeeAmount: resolvedSetupFee,
+        monthlyAmount: resolvedMonthly,
+        startDate: safeStartDate
+      });
+      const setupInvoice = results?.setupInvoice?.invoice || null;
+      if (!setupInvoice?.id) throw new Error('setup fee invoice missing after ensure');
+      const { data: setupVerify, error: setupVerifyError } = await sbAdmin
+        .from('invoices')
+        .select('*')
+        .eq('id', setupInvoice.id)
+        .maybeSingle();
+      if (setupVerifyError || !setupVerify) {
+        throw Object.assign(new Error(`setup fee invoice readback failed: ${setupVerifyError?.message || 'missing row'}`), setupVerifyError || {});
+      }
+      return { invoiceResults: results, setup_fee_invoice_id: setupVerify.id };
+    }
   });
 
-  const invoiceResults = await ensureContractStartInvoices({
-    sbAdmin,
-    customer,
-    contract,
-    subscription,
-    setupFeeAmount: resolvedSetupFee,
-    monthlyAmount: resolvedMonthly,
-    startDate: safeStartDate
+  const month1Step = await runOrchestrationStep({
+    stepName: 'ensure_month_1_invoice',
+    contractId,
+    customerId,
+    subscriptionId: subscription?.id || null,
+    setupFeeInvoiceId: setupStep?.invoiceResults?.setupInvoice?.invoice?.id || null,
+    fn: async () => {
+      const recurringInvoice = setupStep?.invoiceResults?.recurringInvoice?.invoice || null;
+      if (!recurringInvoice?.id) throw new Error('month 1 invoice missing after ensure');
+      const { data: recurringVerify, error: recurringVerifyError } = await sbAdmin
+        .from('invoices')
+        .select('*')
+        .eq('id', recurringInvoice.id)
+        .maybeSingle();
+      if (recurringVerifyError || !recurringVerify) {
+        throw Object.assign(new Error(`month 1 invoice readback failed: ${recurringVerifyError?.message || 'missing row'}`), recurringVerifyError || {});
+      }
+      return { month_1_invoice_id: recurringVerify.id };
+    }
   });
 
+  const invoiceResults = setupStep.invoiceResults;
   const setupInvoice = invoiceResults.setupInvoice?.invoice || null;
   const recurringInvoice = invoiceResults.recurringInvoice?.invoice || null;
 
+  await runOrchestrationStep({
+    stepName: 'sync_contract_linkage',
+    contractId,
+    customerId,
+    subscriptionId: subscription?.id || null,
+    setupFeeInvoiceId: setupInvoice?.id || null,
+    month1InvoiceId: recurringInvoice?.id || null,
+    fn: async () => {
+      const linkagePatch = { updated_at: nowIso };
+      if (String(contract?.subscription_id || '') !== String(subscription?.id || '')) {
+        linkagePatch.subscription_id = subscription.id;
+      }
+      const { error: contractLinkError } = await sbAdmin
+        .from('contracts')
+        .update(linkagePatch)
+        .eq('id', contract.id);
+      if (contractLinkError) {
+        throw Object.assign(new Error(`contract linkage sync failed: ${contractLinkError.message}`), contractLinkError);
+      }
+      const { data: contractVerify, error: contractVerifyError } = await sbAdmin
+        .from('contracts')
+        .select('id, customer_id, subscription_id')
+        .eq('id', contract.id)
+        .maybeSingle();
+      if (contractVerifyError || !contractVerify) {
+        throw Object.assign(new Error(`contract linkage verify failed: ${contractVerifyError?.message || 'missing contract row'}`), contractVerifyError || {});
+      }
+      if (String(contractVerify.subscription_id || '') !== String(subscription.id || '')) {
+        throw new Error('contract linkage verify failed: subscription_id mismatch');
+      }
+      return { subscription_id: subscription.id };
+    }
+  });
+
   const pdf = { setup_fee: null, month_1: null, errors: [] };
   if (setupInvoice) {
-    try {
-      pdf.setup_fee = await generateInvoicePdfPreview({ sbAdmin, invoice: setupInvoice, customer });
-    } catch (err) {
-      pdf.errors.push({ invoice_id: setupInvoice.id, message: err?.message || String(err) });
-    }
+    await runOrchestrationStep({
+      stepName: 'generate_setup_fee_pdf',
+      contractId,
+      customerId,
+      subscriptionId: subscription?.id || null,
+      setupFeeInvoiceId: setupInvoice?.id || null,
+      month1InvoiceId: recurringInvoice?.id || null,
+      fn: async () => {
+        try {
+          pdf.setup_fee = await generateInvoicePdfPreview({ sbAdmin, invoice: setupInvoice, customer });
+          return { setup_fee_invoice_id: setupInvoice.id, month_1_invoice_id: recurringInvoice?.id || null };
+        } catch (err) {
+          pdf.errors.push({ invoice_id: setupInvoice.id, message: err?.message || String(err) });
+          billingDiag('generate_setup_fee_pdf_WARNING', {
+            step_name: 'generate_setup_fee_pdf',
+            contract_id: contractId,
+            customer_id: customerId,
+            subscription_id: subscription?.id || null,
+            setup_fee_invoice_id: setupInvoice?.id || null,
+            month_1_invoice_id: recurringInvoice?.id || null,
+            warning_message: err?.message || String(err)
+          });
+          return { setup_fee_invoice_id: setupInvoice.id, month_1_invoice_id: recurringInvoice?.id || null };
+        }
+      }
+    });
   }
   if (recurringInvoice) {
-    try {
-      pdf.month_1 = await generateInvoicePdfPreview({ sbAdmin, invoice: recurringInvoice, customer });
-    } catch (err) {
-      pdf.errors.push({ invoice_id: recurringInvoice.id, message: err?.message || String(err) });
-    }
+    await runOrchestrationStep({
+      stepName: 'generate_month_1_pdf',
+      contractId,
+      customerId,
+      subscriptionId: subscription?.id || null,
+      setupFeeInvoiceId: setupInvoice?.id || null,
+      month1InvoiceId: recurringInvoice?.id || null,
+      fn: async () => {
+        try {
+          pdf.month_1 = await generateInvoicePdfPreview({ sbAdmin, invoice: recurringInvoice, customer });
+          return { setup_fee_invoice_id: setupInvoice?.id || null, month_1_invoice_id: recurringInvoice.id };
+        } catch (err) {
+          pdf.errors.push({ invoice_id: recurringInvoice.id, message: err?.message || String(err) });
+          billingDiag('generate_month_1_pdf_WARNING', {
+            step_name: 'generate_month_1_pdf',
+            contract_id: contractId,
+            customer_id: customerId,
+            subscription_id: subscription?.id || null,
+            setup_fee_invoice_id: setupInvoice?.id || null,
+            month_1_invoice_id: recurringInvoice?.id || null,
+            warning_message: err?.message || String(err)
+          });
+          return { setup_fee_invoice_id: setupInvoice?.id || null, month_1_invoice_id: recurringInvoice.id };
+        }
+      }
+    });
   }
+
+  await runOrchestrationStep({
+    stepName: 'validate_created_rows',
+    contractId,
+    customerId,
+    subscriptionId: subscription?.id || null,
+    setupFeeInvoiceId: setupInvoice?.id || null,
+    month1InvoiceId: recurringInvoice?.id || null,
+    fn: async () => {
+      const { data: validateSetup, error: validateSetupError } = await sbAdmin
+        .from('invoices')
+        .select('id, contract_id, customer_id, subscription_id, external_reference')
+        .eq('id', setupInvoice.id)
+        .maybeSingle();
+      if (validateSetupError || !validateSetup) {
+        throw Object.assign(new Error(`validate setup fee row failed: ${validateSetupError?.message || 'missing row'}`), validateSetupError || {});
+      }
+      const { data: validateMonth1, error: validateMonth1Error } = await sbAdmin
+        .from('invoices')
+        .select('id, contract_id, customer_id, subscription_id, external_reference')
+        .eq('id', recurringInvoice.id)
+        .maybeSingle();
+      if (validateMonth1Error || !validateMonth1) {
+        throw Object.assign(new Error(`validate month 1 row failed: ${validateMonth1Error?.message || 'missing row'}`), validateMonth1Error || {});
+      }
+      return { setup_fee_invoice_id: validateSetup.id, month_1_invoice_id: validateMonth1.id };
+    }
+  });
+
+  await runOrchestrationStep({
+    stepName: 'final_response_build',
+    contractId,
+    customerId,
+    subscriptionId: subscription?.id || null,
+    setupFeeInvoiceId: setupInvoice?.id || null,
+    month1InvoiceId: recurringInvoice?.id || null,
+    fn: async () => ({
+      subscription_id: subscription?.id || null,
+      setup_fee_invoice_id: setupInvoice?.id || null,
+      month_1_invoice_id: recurringInvoice?.id || null
+    })
+  });
 
   billingDiag('orchestration_end', {
     contract_id: contract?.id || null,
@@ -284,7 +527,8 @@ async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso,
     setup_fee_invoice_created: Boolean(invoiceResults.setupInvoice?.created),
     month_1_invoice_created: Boolean(invoiceResults.recurringInvoice?.created),
     setup_fee_verification: invoiceResults.setupInvoice?.verification || null,
-    month_1_verification: invoiceResults.recurringInvoice?.verification || null
+    month_1_verification: invoiceResults.recurringInvoice?.verification || null,
+    month_1_invoice_verified_in_step: month1Step?.month_1_invoice_id || null
   });
 
   return {
