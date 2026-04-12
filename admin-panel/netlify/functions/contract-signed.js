@@ -16,6 +16,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
+const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
+const { createInitialContractInvoice } = require('./_lib/invoice-service');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +34,12 @@ function isDuplicateKeyError(error) {
   const code = String(error && error.code || '');
   const msg = String(error && error.message || '').toLowerCase();
   return code === '23505' || msg.includes('duplicate key value');
+}
+
+function money(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Number(n.toFixed(2));
 }
 
 exports.handler = async (event) => {
@@ -62,6 +70,57 @@ exports.handler = async (event) => {
   // Guard: Validate required fields
   if (!contract_id || !customer_id || !customer_email || !customer_name) {
     return response(400, { error: 'Missing required fields: contract_id, customer_id, customer_email, customer_name' });
+  }
+
+  let initialInvoice = null;
+  let initialInvoiceDuplicate = false;
+  try {
+    const { data: customer, error: customerError } = await sbAdmin
+      .from('customers')
+      .select('*')
+      .eq('id', customer_id)
+      .maybeSingle();
+    if (customerError) throw new Error(`customer lookup failed: ${customerError.message}`);
+    if (!customer) throw new Error('customer not found');
+
+    const { data: subscription, error: subscriptionError } = await sbAdmin
+      .from('subscriptions')
+      .select('*')
+      .eq('customer_id', customer_id)
+      .maybeSingle();
+    if (subscriptionError) throw new Error(`subscription lookup failed: ${subscriptionError.message}`);
+
+    const planCode = normalizePlanCode(plan || customer.plan_code || customer.plan || (subscription && subscription.plan_code) || '');
+    const { plan: planConfig, error: planError } = await loadPlanByCode(sbAdmin, planCode);
+    if (planError) throw new Error(`plan_config lookup failed: ${planError.message}`);
+    if (!planConfig) throw new Error(`plan_config missing for ${planCode || 'unknown plan'}`);
+
+    const setupFeeAmount = money(customer.setup_fee_amount ?? planConfig.setup_fee_amount ?? 0);
+    const firstMonthAmount = money(planConfig.price_monthly);
+    if (firstMonthAmount <= 0) throw new Error(`price_monthly invalid for ${planCode || 'plan'}`);
+
+    const initialInvoiceResult = await createInitialContractInvoice({
+      sbAdmin,
+      customer,
+      contractId: contract_id,
+      subscription,
+      setupFeeAmount,
+      firstMonthAmount,
+      dueAt: null,
+      notes: `Initial charge for contract ${contract_id}`
+    });
+    initialInvoice = initialInvoiceResult.invoice;
+    initialInvoiceDuplicate = !!initialInvoiceResult.duplicate;
+  } catch (initialInvoiceError) {
+    const msg = initialInvoiceError && initialInvoiceError.message ? initialInvoiceError.message : 'initial invoice creation failed';
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'initial_contract_invoice_failed',
+      contract_id,
+      customer_id,
+      error: msg
+    }));
+    return response(500, { error: 'Initial invoice creation failed.', details: msg });
   }
 
   const payload = {
@@ -132,7 +191,9 @@ exports.handler = async (event) => {
         duplicate: true,
         message: 'Duplicate contract_signed request skipped',
         outbox_id: existingOutbox ? existingOutbox.id : null,
-        outbox_status: existingOutbox ? existingOutbox.status : 'unknown'
+        outbox_status: existingOutbox ? existingOutbox.status : 'unknown',
+        initial_invoice_id: initialInvoice ? initialInvoice.id : null,
+        initial_invoice_duplicate: initialInvoiceDuplicate
       });
     }
 
@@ -168,7 +229,13 @@ exports.handler = async (event) => {
 
     await markOutboxSent(sbAdmin, outbox.id);
     console.log(JSON.stringify({ level: 'info', event: 'webhook_send_succeeded', event_type: 'contract_signed_notification', outbox_id: outbox.id }));
-    return response(200, { success: true, message: 'Contract signed and webhook triggered', outbox_id: outbox.id });
+    return response(200, {
+      success: true,
+      message: 'Contract signed and webhook triggered',
+      outbox_id: outbox.id,
+      initial_invoice_id: initialInvoice ? initialInvoice.id : null,
+      initial_invoice_duplicate: initialInvoiceDuplicate
+    });
   } catch (err) {
     const msg = err && err.message ? err.message : 'Internal server error';
     if (!failureAlreadyMarked) {
