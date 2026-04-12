@@ -31,6 +31,27 @@ function money(value) {
   return Number(n.toFixed(2));
 }
 
+function dbErrorShape(err) {
+  if (!err) return null;
+  return {
+    message: err.message || null,
+    code: err.code || null,
+    details: err.details || null,
+    hint: err.hint || null
+  };
+}
+
+function adminSafeDbError(err) {
+  const shaped = dbErrorShape(err);
+  if (!shaped) return null;
+  return {
+    db_message: shaped.message,
+    db_code: shaped.code,
+    db_details: shaped.details,
+    db_hint: shaped.hint
+  };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -119,12 +140,121 @@ exports.handler = async (event) => {
     updated_at: nowIso
   };
 
-  const { data: subscription, error: subscriptionError } = await sbAdmin
+  let subscription = null;
+  const { data: existingSubscription, error: existingSubscriptionError } = await sbAdmin
     .from('subscriptions')
-    .upsert(subscriptionPayload, { onConflict: 'customer_id' })
     .select('*')
-    .single();
-  if (subscriptionError) return response(500, { error: 'Subscription ensure failed.', details: subscriptionError.message });
+    .eq('customer_id', customerId)
+    .maybeSingle();
+
+  if (existingSubscriptionError) {
+    const errPayload = dbErrorShape(existingSubscriptionError);
+    console.error('[contract-start-confirm] subscription lookup failed', {
+      contract_id: contractId,
+      customer_id: customerId,
+      error: errPayload
+    });
+    return response(500, {
+      error: 'Subscription ensure failed during lookup.',
+      ...adminSafeDbError(existingSubscriptionError)
+    });
+  }
+
+  if (existingSubscription) {
+    const { data: updatedSubscription, error: updateSubscriptionError } = await sbAdmin
+      .from('subscriptions')
+      .update(subscriptionPayload)
+      .eq('id', existingSubscription.id)
+      .select('*')
+      .single();
+    if (updateSubscriptionError) {
+      const errPayload = dbErrorShape(updateSubscriptionError);
+      console.error('[contract-start-confirm] subscription update failed', {
+        contract_id: contractId,
+        customer_id: customerId,
+        subscription_id: existingSubscription.id,
+        error: errPayload,
+        payload_keys: Object.keys(subscriptionPayload)
+      });
+      return response(500, {
+        error: 'Subscription ensure failed during update.',
+        ...adminSafeDbError(updateSubscriptionError)
+      });
+    }
+    subscription = updatedSubscription;
+  } else {
+    const { data: insertedSubscription, error: insertSubscriptionError } = await sbAdmin
+      .from('subscriptions')
+      .insert(subscriptionPayload)
+      .select('*')
+      .single();
+
+    if (insertSubscriptionError) {
+      const duplicateKey = String(insertSubscriptionError.code || '') === '23505';
+      if (duplicateKey) {
+        const { data: duplicateExisting, error: duplicateLookupError } = await sbAdmin
+          .from('subscriptions')
+          .select('*')
+          .eq('customer_id', customerId)
+          .maybeSingle();
+        if (!duplicateLookupError && duplicateExisting) {
+          const { data: healedSubscription, error: healError } = await sbAdmin
+            .from('subscriptions')
+            .update(subscriptionPayload)
+            .eq('id', duplicateExisting.id)
+            .select('*')
+            .single();
+          if (!healError && healedSubscription) {
+            subscription = healedSubscription;
+          } else {
+            const healErrPayload = dbErrorShape(healError);
+            console.error('[contract-start-confirm] subscription heal after duplicate failed', {
+              contract_id: contractId,
+              customer_id: customerId,
+              subscription_id: duplicateExisting.id,
+              duplicate_error: dbErrorShape(insertSubscriptionError),
+              heal_error: healErrPayload
+            });
+            return response(500, {
+              error: 'Subscription ensure failed after duplicate conflict.',
+              ...adminSafeDbError(healError || insertSubscriptionError)
+            });
+          }
+        } else {
+          console.error('[contract-start-confirm] duplicate conflict and fallback lookup failed', {
+            contract_id: contractId,
+            customer_id: customerId,
+            duplicate_error: dbErrorShape(insertSubscriptionError),
+            lookup_error: dbErrorShape(duplicateLookupError)
+          });
+          return response(500, {
+            error: 'Subscription ensure failed after duplicate conflict lookup.',
+            ...adminSafeDbError(duplicateLookupError || insertSubscriptionError)
+          });
+        }
+      } else {
+        console.error('[contract-start-confirm] subscription insert failed', {
+          contract_id: contractId,
+          customer_id: customerId,
+          error: dbErrorShape(insertSubscriptionError),
+          payload_keys: Object.keys(subscriptionPayload)
+        });
+        return response(500, {
+          error: 'Subscription ensure failed during insert.',
+          ...adminSafeDbError(insertSubscriptionError)
+        });
+      }
+    } else {
+      subscription = insertedSubscription;
+    }
+  }
+  if (!subscription || !subscription.id) {
+    console.error('[contract-start-confirm] subscription ensure produced no row', {
+      contract_id: contractId,
+      customer_id: customerId
+    });
+    return response(500, { error: 'Subscription ensure failed: no row returned.' });
+  }
 
   if (String(customer.subscription_id || '') !== String(subscription.id || '')) {
     await sbAdmin
