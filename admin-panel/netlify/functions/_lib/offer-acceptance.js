@@ -415,12 +415,56 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
 
   const offerWithCustomer = await resolveOrCreateCustomerForOffer({ sbAdmin, offer, nowIso });
 
+  let initialInvoice = { invoiceId: null, duplicate: false };
+  let invoiceError = null;
+  let lifecycleError = null;
+
   if (offerWithCustomer.accepted_at && offerWithCustomer.contract_id) {
+    try {
+      initialInvoice = await ensureInitialInvoiceForOffer({
+        sbAdmin,
+        offer: offerWithCustomer,
+        contractId: String(offerWithCustomer.contract_id),
+        nowIso
+      });
+    } catch (err) {
+      invoiceError = err;
+      console.error('acceptOfferAndEnsureContract: initial invoice ensure failed for already accepted offer', {
+        offer_id: offer.id,
+        contract_id: offerWithCustomer.contract_id,
+        error: err?.message || String(err),
+        details: err?.details || null
+      });
+    }
+
+    try {
+      await syncPostAcceptanceLifecycle({ sbAdmin, offer: offerWithCustomer, nowIso });
+    } catch (err) {
+      lifecycleError = err;
+      console.error('acceptOfferAndEnsureContract: lifecycle sync failed for already accepted offer', {
+        offer_id: offer.id,
+        customer_id: offerWithCustomer?.customer_id || null,
+        error: err?.message || String(err)
+      });
+    }
+
     return {
       duplicate: true,
       offerId: String(offerWithCustomer.id),
       contractId: String(offerWithCustomer.contract_id),
-      acceptedAt: offerWithCustomer.accepted_at
+      acceptedAt: offerWithCustomer.accepted_at,
+      invoiceError: invoiceError
+        ? {
+          message: invoiceError.message || 'Initial invoice creation failed.'
+        }
+        : null,
+      lifecycleError: lifecycleError
+        ? {
+          message: lifecycleError.message || 'Post-acceptance lifecycle sync failed.'
+        }
+        : null,
+      invoiceId: initialInvoice.invoiceId,
+      invoiceDuplicate: initialInvoice.duplicate
     };
   }
 
@@ -459,8 +503,6 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
 
   if (offerRes.error) throw new OfferAcceptanceError(500, 'Offerte konnte nicht akzeptiert werden.', offerRes.error.message);
 
-  let initialInvoice = { invoiceId: null, duplicate: false };
-  let invoiceError = null;
   if (contractId) {
     try {
       initialInvoice = await ensureInitialInvoiceForOffer({
@@ -480,7 +522,6 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
     }
   }
 
-  let lifecycleError = null;
   try {
     await syncPostAcceptanceLifecycle({ sbAdmin, offer: offerRes.data, nowIso });
   } catch (err) {
