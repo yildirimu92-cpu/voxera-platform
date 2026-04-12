@@ -18,6 +18,125 @@ function response(statusCode, payload) {
   return { statusCode, headers: corsHeaders, body: JSON.stringify(payload) };
 }
 
+async function findAuthUserByEmail(sbAdmin, email) {
+  const target = String(email || '').trim().toLowerCase();
+  if (!target) return null;
+
+  let page = 1;
+  const perPage = 200;
+  while (page <= 50) {
+    const { data, error } = await sbAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const users = Array.isArray(data?.users) ? data.users : [];
+    const match = users.find((u) => String(u?.email || '').trim().toLowerCase() === target);
+    if (match) return match;
+    if (users.length < perPage) break;
+    page += 1;
+  }
+  return null;
+}
+
+async function ensureAuthAndUserMapping({ sbAdmin, customer }) {
+  const email = String(customer?.email || '').trim().toLowerCase();
+  if (!email) {
+    return { ok: false, statusCode: 400, error: 'Kunden-E-Mail fehlt.' };
+  }
+
+  let authUser = null;
+  const customerAuthUserId = String(customer?.auth_user_id || '').trim();
+
+  if (customerAuthUserId) {
+    const { data: authById, error: authByIdErr } = await sbAdmin.auth.admin.getUserById(customerAuthUserId);
+    if (!authByIdErr && authById?.user) {
+      authUser = authById.user;
+    } else {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'send_customer_access_auth_user_id_not_found',
+        customer_id: customer.id,
+        auth_user_id: customerAuthUserId,
+        error_message: authByIdErr?.message || null
+      }));
+    }
+  }
+
+  if (!authUser) {
+    authUser = await findAuthUserByEmail(sbAdmin, email);
+  }
+
+  let authResolution = 'existing';
+  if (!authUser) {
+    const { data: createdAuth, error: createAuthErr } = await sbAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: {
+        customer_id: customer.id,
+        customer_name: customer.customer_name || null,
+        role: 'customer'
+      }
+    });
+    if (createAuthErr) {
+      return {
+        ok: false,
+        statusCode: 500,
+        error: 'Auth-Konto konnte nicht erstellt werden.',
+        details: createAuthErr.message
+      };
+    }
+    authUser = createdAuth?.user || null;
+    authResolution = 'created';
+  }
+
+  if (!authUser?.id) {
+    return { ok: false, statusCode: 500, error: 'Auth-User konnte nicht aufgelöst werden.' };
+  }
+
+  const authUserId = authUser.id;
+  const nowIso = new Date().toISOString();
+
+  if (customerAuthUserId !== authUserId) {
+    const { error: customerLinkErr } = await sbAdmin
+      .from('customers')
+      .update({ auth_user_id: authUserId, updated_at: nowIso })
+      .eq('id', customer.id);
+    if (customerLinkErr) {
+      return {
+        ok: false,
+        statusCode: 500,
+        error: 'Kunden-Auth-Verknüpfung konnte nicht aktualisiert werden.',
+        details: customerLinkErr.message
+      };
+    }
+  }
+
+  const normalizedEmail = String(authUser.email || email).trim().toLowerCase();
+  const usersPayload = {
+    id: authUserId,
+    email: normalizedEmail,
+    customer_id: customer.id,
+    role: 'customer',
+    is_admin: false,
+    created_at: nowIso
+  };
+  const { error: usersUpsertErr } = await sbAdmin
+    .from('users')
+    .upsert(usersPayload, { onConflict: 'id' });
+  if (usersUpsertErr) {
+    return {
+      ok: false,
+      statusCode: 500,
+      error: 'users-Profil konnte nicht sichergestellt werden.',
+      details: usersUpsertErr.message
+    };
+  }
+
+  return {
+    ok: true,
+    authUserId,
+    authResolution
+  };
+}
+
 function resolveDuplicateReason(customerRow) {
   const inviteStatus = String(customerRow?.invite_status || '').trim().toLowerCase();
   const welcomeSent = Boolean(customerRow?.welcome_sent);
@@ -284,6 +403,14 @@ exports.handler = async (event) => {
   // ─── ACTION: reset_password ───────────────────────────────────────────────
   // Schickt einen Passwort-Reset-Link an den Kunden (manuell ausgelöst durch Admin)
   if (action === 'reset_password') {
+    const authProvision = await ensureAuthAndUserMapping({ sbAdmin, customer });
+    if (!authProvision.ok) {
+      return response(authProvision.statusCode || 500, {
+        error: authProvision.error,
+        details: authProvision.details || null
+      });
+    }
+
     const redirectUrl = process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch';
     const { data: linkData, error: linkErr } = await sbAdmin.auth.admin.generateLink({
       type: 'recovery',
@@ -306,7 +433,9 @@ exports.handler = async (event) => {
 
     return response(200, {
       success: true,
-      message: `Passwort-Reset-Link wurde an ${customer.email} gesendet.`
+      message: `Passwort-Reset-Link wurde an ${customer.email} gesendet.`,
+      auth_user_id: authProvision.authUserId,
+      auth_resolution: authProvision.authResolution
     });
   }
 
@@ -498,6 +627,19 @@ exports.handler = async (event) => {
   }
 
   const activateUrl = process.env.ACTIVATE_URL || 'https://dashboard.voxera.ch';
+  const authProvision = await ensureAuthAndUserMapping({ sbAdmin, customer });
+  if (!authProvision.ok) {
+    await sbAdmin
+      .from('customers')
+      .update({ invite_status: 'not_sent', updated_at: new Date().toISOString() })
+      .eq('id', customerId)
+      .eq('invite_status', 'sending');
+    return response(authProvision.statusCode || 500, {
+      error: authProvision.error,
+      details: authProvision.details || null
+    });
+  }
+
   const { data: linkData, error: linkErr } = await sbAdmin.auth.admin.generateLink({
     type: 'recovery',
     email: customer.email,
@@ -567,6 +709,8 @@ exports.handler = async (event) => {
     message: 'Zugangsdaten wurden versendet.',
     warning: setupFeeState.message || null,
     setup_fee_state: setupFeeState,
+    auth_user_id: authProvision.authUserId,
+    auth_resolution: authProvision.authResolution,
     customer: updatedCustomer || customer
   });
 };
