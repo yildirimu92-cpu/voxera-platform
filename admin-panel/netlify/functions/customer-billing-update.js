@@ -26,6 +26,20 @@ function parsePaidSource(raw, fallback) {
   return fallback;
 }
 
+function isInvoicePaymentRelevantForAccess(invoice) {
+  const type = String(invoice?.invoice_type || '').trim().toLowerCase();
+  return type === 'setup_fee' || type === 'manual';
+}
+
+function deriveAccessInviteState(customerRow) {
+  const inviteStatus = String(customerRow?.invite_status || '').trim().toLowerCase();
+  if (inviteStatus === 'activated') return 'activated';
+  if (inviteStatus === 'sent') return 'sent';
+  const paymentStatus = String(customerRow?.payment_status || '').trim().toLowerCase();
+  if (paymentStatus === 'paid') return 'ready_to_send';
+  return 'pending_payment';
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -85,6 +99,15 @@ exports.handler = async (event) => {
     const invoiceId = String(body.invoice_id || '').trim();
     if (!invoiceId) return response(400, { error: 'invoice_id fehlt' });
     try {
+      const { data: invoice, error: invoiceLookupError } = await sbAdmin
+        .from('invoices')
+        .select('*')
+        .eq('id', invoiceId)
+        .maybeSingle();
+      if (invoiceLookupError) return response(500, { error: 'Invoice lookup failed', details: invoiceLookupError.message });
+      if (!invoice) return response(404, { error: 'Rechnung nicht gefunden.' });
+      if (String(invoice.customer_id) !== customerId) return response(409, { error: 'Rechnung gehört nicht zu diesem Kunden.' });
+
       const updatedInvoice = await markInvoicePaid(sbAdmin, invoiceId, {
         paidAt: nowIso,
         paidSource,
@@ -93,7 +116,67 @@ exports.handler = async (event) => {
         stripeInvoiceId: body.stripe_invoice_id,
         notes: body.notes
       });
-      return response(200, { success: true, action, invoice: updatedInvoice });
+
+      let updatedCustomer = customer;
+      let onboardingHint = null;
+      if (isInvoicePaymentRelevantForAccess(updatedInvoice)) {
+        const currentInviteStatus = String(customer.invite_status || '').trim().toLowerCase();
+        const normalizeToNotSent = currentInviteStatus !== 'sent' && currentInviteStatus !== 'activated';
+        const customerPatch = {
+          payment_status: 'paid',
+          invite_status: normalizeToNotSent ? 'not_sent' : customer.invite_status,
+          welcome_sent: normalizeToNotSent ? false : customer.welcome_sent,
+          welcome_sent_at: normalizeToNotSent ? null : customer.welcome_sent_at,
+          payment_received_at: updatedInvoice.paid_at || nowIso,
+          updated_at: nowIso
+        };
+        if (!customer.payment_sent_at) customerPatch.payment_sent_at = nowIso;
+        const customerRes = await sbAdmin
+          .from('customers')
+          .update(customerPatch)
+          .eq('id', customerId)
+          .select('*')
+          .single();
+        if (customerRes.error) {
+          return response(500, { error: 'Customer payment status konnte nicht aktualisiert werden.', details: customerRes.error.message });
+        }
+        updatedCustomer = customerRes.data;
+
+        const { data: onboarding } = await sbAdmin
+          .from('onboarding')
+          .select('*')
+          .eq('customer_id', customerId)
+          .maybeSingle();
+        if (onboarding) {
+          const onboardingPatch = {
+            status: onboarding.status === 'blocked' ? 'in_progress' : onboarding.status,
+            next_step: 'Zahlung bestätigt – Zugangsdaten können jetzt manuell gesendet werden',
+            updated_at: nowIso
+          };
+          const { data: updatedOnboarding } = await sbAdmin
+            .from('onboarding')
+            .update(onboardingPatch)
+            .eq('id', onboarding.id)
+            .select('*')
+            .single();
+          onboardingHint = updatedOnboarding || onboarding;
+        }
+      }
+
+      return response(200, {
+        success: true,
+        action,
+        invoice: updatedInvoice,
+        customer: updatedCustomer,
+        onboarding: onboardingHint,
+        access_readiness: {
+          state: deriveAccessInviteState(updatedCustomer),
+          can_send_access: deriveAccessInviteState(updatedCustomer) === 'ready_to_send',
+          hint: deriveAccessInviteState(updatedCustomer) === 'ready_to_send'
+            ? 'Zahlung bestätigt – Zugangsdaten können jetzt manuell gesendet werden.'
+            : 'Rechnung bezahlt markiert.'
+        }
+      });
     } catch (err) {
       return response(500, { error: 'Invoice konnte nicht als bezahlt markiert werden.', details: err.message });
     }

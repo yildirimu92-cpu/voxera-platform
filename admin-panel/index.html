@@ -6274,9 +6274,16 @@ async function markInvoicePaid(customerId,invoiceId){
     if(!json?.success||!json?.invoice) throw new Error(json?.error||'Invoice-Update fehlgeschlagen.');
     const idx=state.invoices.findIndex(inv=>idsEq(inv.id,invoiceId));
     if(idx>=0) state.invoices[idx]=json.invoice;
-    showToast('✓ Rechnung als bezahlt markiert.');
+    const customer=customerById(customerId);
+    if(customer&&json?.customer){
+      customer.payment_status=normalizePaymentStatus(json.customer.payment_status);
+      customer.payment_sent_at=json.customer.payment_sent_at||customer.payment_sent_at||null;
+      customer.payment_received_at=json.customer.payment_received_at||customer.payment_received_at||null;
+    }
+    const readinessHint=String(json?.access_readiness?.hint||'').trim();
+    showToast(readinessHint?`✓ ${readinessHint}`:'✓ Rechnung als bezahlt markiert.');
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    renderBillingFinance();
+    renderCustomers(); renderOverview(); renderActivity(); renderBillingFinance();
   }catch(err){
     const payload=err?.payload||{};
     alert(payload?.error||err?.message||'Invoice-Update fehlgeschlagen.');
