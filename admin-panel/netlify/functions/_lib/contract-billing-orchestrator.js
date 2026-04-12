@@ -24,6 +24,20 @@ function extractMissingColumn(err) {
   return match?.[1] || null;
 }
 
+function dbErrorMeta(error) {
+  if (!error) return null;
+  return {
+    message: error.message || null,
+    code: error.code || null,
+    details: error.details || null,
+    hint: error.hint || null
+  };
+}
+
+function billingDiag(step, payload) {
+  console.log(`[billing_orchestrator] ${step}`, JSON.stringify(payload || {}));
+}
+
 async function mutateWithSchemaFallback({ sbAdmin, table, mode, payload, matchColumn, matchValue }) {
   const dynamicPayload = { ...payload };
   const removedColumns = [];
@@ -75,6 +89,13 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
     renews_at: renewsAt ? `${renewsAt}T00:00:00.000Z` : null,
     updated_at: nowIso
   };
+  billingDiag('subscription_ensure_start', {
+    contract_id: contract?.id || null,
+    customer_id: customer?.id || null,
+    subscription_id: contract?.subscription_id || customer?.subscription_id || null,
+    payload_keys: Object.keys(payload),
+    force_active: Boolean(forceActive)
+  });
 
   const { data: existing, error: lookupError } = await sbAdmin
     .from('subscriptions')
@@ -82,7 +103,14 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
     .eq('customer_id', customer.id)
     .maybeSingle();
 
-  if (lookupError) throw new Error(`subscription lookup failed: ${lookupError.message}`);
+  if (lookupError) {
+    billingDiag('subscription_ensure_lookup_error', {
+      contract_id: contract?.id || null,
+      customer_id: customer?.id || null,
+      db_error: dbErrorMeta(lookupError)
+    });
+    throw new Error(`subscription lookup failed: ${lookupError.message}`);
+  }
 
   let subscription = null;
   if (existing) {
@@ -94,7 +122,15 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
       matchColumn: 'id',
       matchValue: existing.id
     });
-    if (updated.error) throw new Error(`subscription update failed: ${updated.error.message}`);
+    if (updated.error) {
+      billingDiag('subscription_ensure_update_error', {
+        contract_id: contract?.id || null,
+        customer_id: customer?.id || null,
+        existing_subscription_id: existing?.id || null,
+        db_error: dbErrorMeta(updated.error)
+      });
+      throw new Error(`subscription update failed: ${updated.error.message}`);
+    }
     subscription = updated.data || existing;
   } else {
     const inserted = await mutateWithSchemaFallback({
@@ -105,13 +141,26 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
     });
     if (inserted.error) {
       const duplicateKey = String(inserted.error.code || '') === '23505';
-      if (!duplicateKey) throw new Error(`subscription insert failed: ${inserted.error.message}`);
+      if (!duplicateKey) {
+        billingDiag('subscription_ensure_insert_error', {
+          contract_id: contract?.id || null,
+          customer_id: customer?.id || null,
+          db_error: dbErrorMeta(inserted.error)
+        });
+        throw new Error(`subscription insert failed: ${inserted.error.message}`);
+      }
       const { data: duplicateExisting, error: duplicateLookupError } = await sbAdmin
         .from('subscriptions')
         .select('*')
         .eq('customer_id', customer.id)
         .maybeSingle();
       if (duplicateLookupError || !duplicateExisting) {
+        billingDiag('subscription_ensure_duplicate_lookup_error', {
+          contract_id: contract?.id || null,
+          customer_id: customer?.id || null,
+          db_error: dbErrorMeta(duplicateLookupError),
+          duplicate_found: Boolean(duplicateExisting)
+        });
         throw new Error(`subscription duplicate lookup failed: ${duplicateLookupError?.message || 'missing duplicate row'}`);
       }
       const healed = await mutateWithSchemaFallback({
@@ -122,7 +171,15 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
         matchColumn: 'id',
         matchValue: duplicateExisting.id
       });
-      if (healed.error) throw new Error(`subscription heal failed: ${healed.error.message}`);
+      if (healed.error) {
+        billingDiag('subscription_ensure_heal_error', {
+          contract_id: contract?.id || null,
+          customer_id: customer?.id || null,
+          subscription_id: duplicateExisting?.id || null,
+          db_error: dbErrorMeta(healed.error)
+        });
+        throw new Error(`subscription heal failed: ${healed.error.message}`);
+      }
       subscription = healed.data || duplicateExisting;
     } else {
       subscription = inserted.data;
@@ -141,6 +198,22 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
     await sbAdmin.from('contracts').update({ subscription_id: subscription.id, updated_at: nowIso }).eq('id', contract.id);
   }
 
+  const { data: verified, error: verifyError } = await sbAdmin
+    .from('subscriptions')
+    .select('*')
+    .eq('id', subscription.id)
+    .maybeSingle();
+  billingDiag('subscription_ensure_end', {
+    contract_id: contract?.id || null,
+    customer_id: customer?.id || null,
+    subscription_id: subscription?.id || null,
+    verify_found: Boolean(verified),
+    verify_error: dbErrorMeta(verifyError)
+  });
+  if (verifyError || !verified) {
+    throw new Error(`subscription verify failed: ${verifyError?.message || 'subscription not found after ensure'}`);
+  }
+
   return subscription;
 }
 
@@ -154,6 +227,14 @@ async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso,
 
   const resolvedSetupFee = money(setupFeeAmount ?? customer.setup_fee_amount ?? planConfig?.setup_fee_amount ?? 0);
   const resolvedMonthly = money(monthlyAmount ?? planConfig?.price_monthly ?? 0);
+  billingDiag('orchestration_start', {
+    contract_id: contract?.id || null,
+    customer_id: customer?.id || null,
+    subscription_id: customer?.subscription_id || contract?.subscription_id || null,
+    start_date: safeStartDate,
+    setup_fee_amount: resolvedSetupFee,
+    monthly_amount: resolvedMonthly
+  });
 
   const subscription = await ensureSubscriptionForContract({
     sbAdmin,
@@ -193,6 +274,18 @@ async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso,
       pdf.errors.push({ invoice_id: recurringInvoice.id, message: err?.message || String(err) });
     }
   }
+
+  billingDiag('orchestration_end', {
+    contract_id: contract?.id || null,
+    customer_id: customer?.id || null,
+    subscription_id: subscription?.id || null,
+    setup_fee_invoice_id: setupInvoice?.id || null,
+    month_1_invoice_id: recurringInvoice?.id || null,
+    setup_fee_invoice_created: Boolean(invoiceResults.setupInvoice?.created),
+    month_1_invoice_created: Boolean(invoiceResults.recurringInvoice?.created),
+    setup_fee_verification: invoiceResults.setupInvoice?.verification || null,
+    month_1_verification: invoiceResults.recurringInvoice?.verification || null
+  });
 
   return {
     subscription,

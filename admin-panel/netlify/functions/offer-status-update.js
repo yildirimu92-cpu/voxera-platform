@@ -15,6 +15,17 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function errorDiagnostic(step, error, context = {}) {
+  return {
+    step_failed: step,
+    db_message: error?.message || null,
+    db_code: error?.code || null,
+    db_details: error?.details || null,
+    db_hint: error?.hint || null,
+    ...context
+  };
+}
+
 const ALLOWED = new Set(['draft', 'sent', 'in_review', 'revision_requested', 'accepted', 'rejected', 'expired']);
 const FINAL = new Set(['accepted', 'rejected']);
 
@@ -79,13 +90,29 @@ exports.handler = async (event) => {
         success: true,
         duplicate: Boolean(accepted.duplicate),
         offer: refreshedOffer,
-        contract_id: accepted.contractId
+        contract_id: accepted.contractId,
+        diagnostics: {
+          contract_error: accepted.contractError || null,
+          invoice_error: accepted.invoiceError || null,
+          lifecycle_error: accepted.lifecycleError || null,
+          customer_id: refreshedOffer?.customer_id || offer?.customer_id || null,
+          subscription_id: accepted.billingDiagnostics?.subscription_id || null,
+          setup_fee_invoice_id: accepted.invoiceId || null,
+          month_1_invoice_id: accepted.recurringInvoiceId || null
+        }
       });
     } catch (err) {
       if (err instanceof OfferAcceptanceError) {
         return response(err.statusCode, { error: err.message, details: err.details || undefined });
       }
-      return response(500, { error: 'Offerte konnte nicht akzeptiert werden.', details: err.message || String(err) });
+      return response(500, {
+        error: 'Offerte konnte nicht akzeptiert werden.',
+        ...errorDiagnostic('offer_admin_accept', err, {
+          contract_id: offer?.contract_id || null,
+          customer_id: offer?.customer_id || null,
+          subscription_id: null
+        })
+      });
     }
   }
 

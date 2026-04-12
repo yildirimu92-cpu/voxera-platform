@@ -2,6 +2,20 @@
 
 const PDF_BUCKET = 'invoice-pdfs';
 
+function dbErrorMeta(error) {
+  if (!error) return null;
+  return {
+    message: error.message || null,
+    code: error.code || null,
+    details: error.details || null,
+    hint: error.hint || null
+  };
+}
+
+function invoiceDiag(step, payload) {
+  console.log(`[invoice_service] ${step}`, JSON.stringify(payload || {}));
+}
+
 function toIso(value, fallback = null) {
   if (!value) return fallback;
   const d = value instanceof Date ? value : new Date(value);
@@ -499,13 +513,35 @@ async function ensureDraftInvoiceWithItems({
   notes,
   lineItem
 }) {
+  invoiceDiag('invoice_ensure_start', {
+    invoice_type: invoiceType,
+    external_reference: externalReference,
+    contract_id: contractId || null,
+    customer_id: customer?.id || null,
+    subscription_id: subscriptionId || null,
+    payload_keys: ['invoiceType', 'externalReference', 'dueAt', 'periodStart', 'periodEnd', 'lineItem']
+  });
   const { data: existing, error: existingError } = await sbAdmin
     .from('invoices')
     .select('*')
     .eq('external_reference', externalReference)
     .maybeSingle();
-  if (existingError) throw new Error(`invoice lookup failed: ${existingError.message}`);
-  if (existing) return { invoice: existing, created: false };
+  if (existingError) {
+    invoiceDiag('invoice_ensure_lookup_error', {
+      invoice_type: invoiceType,
+      external_reference: externalReference,
+      db_error: dbErrorMeta(existingError)
+    });
+    throw new Error(`invoice lookup failed: ${existingError.message}`);
+  }
+  if (existing) {
+    invoiceDiag('invoice_ensure_existing', {
+      invoice_type: invoiceType,
+      external_reference: externalReference,
+      invoice_id: existing.id || null
+    });
+    return { invoice: existing, created: false, verification: { found: true, matched_by: 'external_reference' } };
+  }
 
   const qty = numberOr(lineItem.quantity, 1);
   const unit = money(lineItem.unitPrice);
@@ -541,17 +577,54 @@ async function ensureDraftInvoiceWithItems({
     });
   } catch (error) {
     const duplicate = String(error.message || '').toLowerCase().includes('duplicate');
-    if (!duplicate) throw error;
+    if (!duplicate) {
+      invoiceDiag('invoice_ensure_insert_error', {
+        invoice_type: invoiceType,
+        external_reference: externalReference,
+        db_error: dbErrorMeta(error)
+      });
+      throw error;
+    }
     const raced = await sbAdmin
       .from('invoices')
       .select('*')
       .eq('external_reference', externalReference)
       .maybeSingle();
-    if (raced.error) throw new Error(`invoice duplicate recovery failed: ${raced.error.message}`);
-    if (raced.data) return { invoice: raced.data, created: false };
+    if (raced.error) {
+      invoiceDiag('invoice_ensure_duplicate_recovery_error', {
+        invoice_type: invoiceType,
+        external_reference: externalReference,
+        db_error: dbErrorMeta(raced.error)
+      });
+      throw new Error(`invoice duplicate recovery failed: ${raced.error.message}`);
+    }
+    if (raced.data) {
+      invoiceDiag('invoice_ensure_duplicate_recovered', {
+        invoice_type: invoiceType,
+        external_reference: externalReference,
+        invoice_id: raced.data.id || null
+      });
+      return { invoice: raced.data, created: false, verification: { found: true, matched_by: 'external_reference_duplicate' } };
+    }
     throw error;
   }
-  return { invoice: created, created: true };
+  const { data: verified, error: verifyError } = await sbAdmin
+    .from('invoices')
+    .select('*')
+    .eq('external_reference', externalReference)
+    .maybeSingle();
+  invoiceDiag('invoice_ensure_end', {
+    invoice_type: invoiceType,
+    external_reference: externalReference,
+    invoice_id: created?.id || null,
+    created: true,
+    verify_found: Boolean(verified),
+    verify_error: dbErrorMeta(verifyError)
+  });
+  if (verifyError || !verified) {
+    throw new Error(`invoice verify failed for ${externalReference}: ${verifyError?.message || 'invoice missing after create'}`);
+  }
+  return { invoice: created, created: true, verification: { found: true, matched_by: 'external_reference' } };
 }
 
 async function ensureContractStartInvoices({
@@ -612,7 +685,48 @@ async function ensureContractStartInvoices({
     }
   });
 
-  return { setupInvoice, recurringInvoice };
+  const { data: setupVerify, error: setupVerifyError } = await sbAdmin
+    .from('invoices')
+    .select('id, external_reference, customer_id, contract_id, subscription_id, invoice_type, status')
+    .eq('external_reference', setupReference)
+    .maybeSingle();
+  invoiceDiag('setup_fee_invoice_verify', {
+    contract_id: contract?.id || null,
+    customer_id: customer?.id || null,
+    subscription_id: subscription?.id || null,
+    invoice_type: 'setup_fee',
+    external_reference: setupReference,
+    invoice_id: setupVerify?.id || null,
+    found: Boolean(setupVerify),
+    db_error: dbErrorMeta(setupVerifyError)
+  });
+  if (setupVerifyError || !setupVerify) {
+    throw new Error(`setup fee invoice verify failed: ${setupVerifyError?.message || `missing ${setupReference}`}`);
+  }
+
+  const { data: recurringVerify, error: recurringVerifyError } = await sbAdmin
+    .from('invoices')
+    .select('id, external_reference, customer_id, contract_id, subscription_id, invoice_type, status, period_start')
+    .eq('external_reference', monthReference)
+    .maybeSingle();
+  invoiceDiag('month_1_invoice_verify', {
+    contract_id: contract?.id || null,
+    customer_id: customer?.id || null,
+    subscription_id: subscription?.id || null,
+    invoice_type: 'month_1',
+    external_reference: monthReference,
+    invoice_id: recurringVerify?.id || null,
+    found: Boolean(recurringVerify),
+    db_error: dbErrorMeta(recurringVerifyError)
+  });
+  if (recurringVerifyError || !recurringVerify) {
+    throw new Error(`month 1 invoice verify failed: ${recurringVerifyError?.message || `missing ${monthReference}`}`);
+  }
+
+  return {
+    setupInvoice: { ...setupInvoice, verification: { found: true, invoice_id: setupVerify.id } },
+    recurringInvoice: { ...recurringInvoice, verification: { found: true, invoice_id: recurringVerify.id } }
+  };
 }
 
 async function markInvoicePaid(sbAdmin, invoiceId, { paidAt, paidSource, stripePaymentIntentId, stripeCheckoutSessionId, stripeInvoiceId, notes }) {

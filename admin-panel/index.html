@@ -3048,6 +3048,21 @@ function renderBillingFinance(){
       followupNeeded:status!=='paid' && (overdueDays>0 || reminderLevel>0)
     };
   });
+  console.log('[finance_debug] load_start', {
+    raw_invoice_rows_count: (state.invoices||[]).length,
+    raw_invoice_item_rows_count: (state.invoiceItems||[]).length,
+    filter: { search, typeFilter, statusFilter }
+  });
+  console.log('[finance_debug] raw_invoice_rows', invoiceRows.map(row=>({
+    id: row.id || null,
+    invoice_type: row.raw?.invoice_type || null,
+    type: row.type || null,
+    status: row.status || null,
+    customer_id: row.customerId || null,
+    contract_id: row.raw?.contract_id || null,
+    subscription_id: row.raw?.subscription_id || null,
+    external_reference: row.raw?.external_reference || null
+  })));
 
   const now=new Date();
   const startOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate());
@@ -3165,16 +3180,44 @@ function renderBillingFinance(){
   `:'<div class="empty finance-empty"><div>Noch keine Umsatz-/Zahlungsdaten verfügbar.</div><div class="finance-empty-hint">Die Visualisierung füllt sich automatisch, sobald Rechnungen vorhanden sind.</div></div>';
 
   let filtered=[...invoiceRows];
-  if(search) filtered=filtered.filter(i=>`${i.customerName} ${i.invoiceNo} ${i.type}`.toLowerCase().includes(search));
-  if(typeFilter!=='all') filtered=filtered.filter(i=>i.type===typeFilter);
-  if(statusFilter==='followup') filtered=filtered.filter(i=>i.followupNeeded);
+  const filteredOutReasons={ search:0, type:0, status:0 };
+  if(search) {
+    filtered=filtered.filter(i=>{
+      const keep=`${i.customerName} ${i.invoiceNo} ${i.type}`.toLowerCase().includes(search);
+      if(!keep) filteredOutReasons.search+=1;
+      return keep;
+    });
+  }
+  if(typeFilter!=='all') {
+    filtered=filtered.filter(i=>{
+      const keep=i.type===typeFilter;
+      if(!keep) filteredOutReasons.type+=1;
+      return keep;
+    });
+  }
+  if(statusFilter==='followup') filtered=filtered.filter(i=>{
+    const keep=i.followupNeeded;
+    if(!keep) filteredOutReasons.status+=1;
+    return keep;
+  });
   else if(statusFilter==='due_today') filtered=filtered.filter(i=>{
     if(i.status==='paid') return false;
     const due=parseDate(i.dueDate);
-    return !!(due && due>=startOfToday && due<=endOfToday);
+    const keep=!!(due && due>=startOfToday && due<=endOfToday);
+    if(!keep) filteredOutReasons.status+=1;
+    return keep;
   });
-  else if(statusFilter!=='all') filtered=filtered.filter(i=>i.status===statusFilter);
+  else if(statusFilter!=='all') filtered=filtered.filter(i=>{
+    const keep=i.status===statusFilter;
+    if(!keep) filteredOutReasons.status+=1;
+    return keep;
+  });
   filtered.sort((a,b)=>(new Date(b.dueDate||0)).getTime()-(new Date(a.dueDate||0)).getTime());
+  console.log('[finance_debug] load_end', {
+    invoices_found_count: invoiceRows.length,
+    invoices_rendered_count: filtered.length,
+    filtered_out_reasons: filteredOutReasons
+  });
   rootInvoiceBody.innerHTML=filtered.map(i=>`<tr>
     <td data-label="Rechnung"><div class="finance-invoice-id">${esc(i.invoiceNo||'—')}</div><div class="finance-invoice-sub">Invoice-ID ${esc(i.id||'—')}</div></td>
     <td data-label="Kunde"><div class="finance-invoice-customer">${esc(i.customerName||'—')}</div><div class="finance-invoice-sub">${esc(invoiceTypeLabel(i.type))}</div></td>
@@ -7660,18 +7703,23 @@ async function loadDataFromSupabase() {
     (subscriptionRows || []).forEach(s => { subscriptionMap[String(s.customer_id)] = s; });
 
     // 5b. Load invoices + invoice_items (finance view; non-critical for admin core flows)
+    console.log('[finance_debug] db_load_start');
     const { data: invoiceRows, error: invoiceErr } = await authClient
       .from('invoices')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(1000);
-    if (invoiceErr) console.warn('[DB] invoices load failed:', invoiceErr.message);
+    if (invoiceErr) console.warn('[DB] invoices load failed:', { message: invoiceErr.message, code: invoiceErr.code, details: invoiceErr.details, hint: invoiceErr.hint });
 
     const { data: invoiceItemRows, error: invoiceItemErr } = await authClient
       .from('invoice_items')
       .select('*')
       .limit(2500);
-    if (invoiceItemErr) console.warn('[DB] invoice_items load failed:', invoiceItemErr.message);
+    if (invoiceItemErr) console.warn('[DB] invoice_items load failed:', { message: invoiceItemErr.message, code: invoiceItemErr.code, details: invoiceItemErr.details, hint: invoiceItemErr.hint });
+    console.log('[finance_debug] db_load_end', {
+      raw_invoice_rows_count: (invoiceRows || []).length,
+      raw_invoice_item_rows_count: (invoiceItemRows || []).length
+    });
 
     // 6. Build a map from customer_id → onboarding row for O(1) joins
     const obMap = {};
