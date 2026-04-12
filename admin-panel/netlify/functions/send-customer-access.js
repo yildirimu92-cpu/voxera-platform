@@ -321,13 +321,23 @@ exports.handler = async (event) => {
     });
   }
 
-  if (!entitlement.entitled) {
+  if (!entitlement.entitled && entitlement.code !== 'payment_required') {
     return response(409, {
       error: entitlement.message,
       entitlement_code: entitlement.code,
       payment_status: entitlement.payment_status,
       customer_status: entitlement.customer_status
     });
+  }
+  if (!entitlement.entitled && entitlement.code === 'payment_required') {
+    console.info(JSON.stringify({
+      level: 'warn',
+      event: 'send_customer_access_payment_warning_only',
+      idempotency_scope: idempotencyScope,
+      customer_id: customerId,
+      payment_status: entitlement.payment_status,
+      customer_status: entitlement.customer_status
+    }));
   }
 
   // Idempotenz-Claim: Nur ein Request darf gleichzeitig den Versand auslösen.

@@ -2045,6 +2045,9 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
     <div id="send-access-readiness-warning" style="display:none;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--amber);font-weight:600;">
       Zugang kann erst gesendet werden, wenn die Einrichtung im Admin-Panel vollständig abgeschlossen ist.
     </div>
+    <div id="send-access-setup-fee-warning" style="display:none;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--amber);font-weight:600;">
+      Setup-Gebühr ist noch nicht bezahlt. Zugang kann trotzdem gesendet werden.
+    </div>
     <div class="card" style="padding:14px 16px;margin-bottom:12px;background:var(--bg);">
       <div class="card-title">Voraussetzungen für Zugangssendung</div>
       <div id="send-access-validation" class="muted">Alle Voraussetzungen erfüllt.</div>
@@ -5837,7 +5840,7 @@ function openCustomerProfile(id){
             </button>
           </div>
           ${!canSend?`<div class="muted" style="margin-top:8px;font-size:12px;">Zugang senden blockiert: ${esc(actionState.sendAccessTooltip||'Pflichtdaten prüfen')}</div>`:''}
-          ${paymentPaid?'<div class="muted" style="margin-top:8px;font-size:12px;color:var(--green);">Bezahlt – Zugang kann gesendet werden, sobald Setup vollständig ist.</div>':'<div class="muted" style="margin-top:8px;font-size:12px;color:var(--red);">Setup Fee offen – Zugang wird bis Zahlung blockiert.</div>'}
+          ${paymentPaid?'<div class="muted" style="margin-top:8px;font-size:12px;color:var(--green);">Bezahlt – Zugang kann gesendet werden, sobald Setup vollständig ist.</div>':'<div class="muted" style="margin-top:8px;font-size:12px;color:var(--amber);">Setup-Gebühr ist noch nicht bezahlt. Zugang kann trotzdem gesendet werden.</div>'}
         </div>
         <div class="card" style="padding:16px 18px;">
           <div class="card-title" style="margin-bottom:10px;">Status & Lifecycle</div>
@@ -6113,7 +6116,8 @@ function deriveOnboardingSnapshot(customerId){
   if(validation.missing.length) accessReasons.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
   if(!voxeraNum||voxeraNum==='Zuweisung offen') accessReasons.push('Voxera-Nummer nicht zugewiesen');
   if(!doneSet.has('AI basics configured')) accessReasons.push('AI-Konfiguration fehlt (Geschäftsbeschreibung)');
-  if(!isPaymentPaid(customer)) accessReasons.push(`Setup Fee noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)})`);
+  const accessWarnings=[];
+  if(!isPaymentPaid(customer)) accessWarnings.push(`Setup-Gebühr ist noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)}). Zugang kann trotzdem gesendet werden.`);
 
   return {
     customer,
@@ -6130,6 +6134,7 @@ function deriveOnboardingSnapshot(customerId){
     blocker:blockerStep?`Blockiert: ${CHECKLIST_TO_BUSINESS_STEP[blockerStep]||blockerStep}`:(onboarding.blocker||''),
     status,
     accessReasons,
+    accessWarnings,
     isAccessReady:accessReasons.length===0,
     hasRequiredAccessData:validation.ok,
     missingFields:validation.missing
@@ -6168,6 +6173,7 @@ function getCustomerSetupProgress(customer,onboarding){
 function getCustomerAccessReadiness(customer,onboarding){
   const snapshot=customer?deriveOnboardingSnapshot(customer.id):null;
   const blockReasons=snapshot?.accessReasons||[];
+  const warningReasons=snapshot?.accessWarnings||[];
   const isReady=blockReasons.length===0;
   return {
     isReady,
@@ -6176,7 +6182,8 @@ function getCustomerAccessReadiness(customer,onboarding){
     missingFields:snapshot?.missingFields||[],
     setupProgress:getCustomerSetupProgress(customer,onboarding),
     setupLabel:getCustomerSetupReadinessLabel(customer,onboarding),
-    reasons:blockReasons
+    reasons:blockReasons,
+    warnings:warningReasons
   };
 }
 
@@ -6197,14 +6204,22 @@ function getCustomerSetupReadinessLabel(customer,onboarding){
 function renderSendAccessValidation(customer){
   const target=document.getElementById('send-access-validation');
   const readinessWarning=document.getElementById('send-access-readiness-warning');
+  const setupFeeWarning=document.getElementById('send-access-setup-fee-warning');
   if(!target) return;
   const onboarding=onboardingForCustomer(customer?.id);
-  const blockReasons=getCustomerAccessBlockReasons(customer,onboarding);
+  const readiness=getCustomerAccessReadiness(customer,onboarding);
+  const blockReasons=readiness.reasons||[];
+  const warningReasons=readiness.warnings||[];
   const isBlocked=blockReasons.length>0;
+  const hasWarnings=warningReasons.length>0;
 
   if(readinessWarning){
     readinessWarning.style.display=isBlocked?'':'none';
     readinessWarning.textContent=isBlocked?'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.':'';
+  }
+  if(setupFeeWarning){
+    setupFeeWarning.style.display=hasWarnings?'':'none';
+    setupFeeWarning.textContent=hasWarnings?'Setup-Gebühr ist noch nicht bezahlt. Zugang kann trotzdem gesendet werden.':'';
   }
 
   target.innerHTML=isBlocked
@@ -6234,6 +6249,7 @@ function openSendAccessModal(customerId){
 
   renderSendAccessValidation(customer);
   const submitBtn=document.getElementById('send-access-submit-btn');
+  submitBtn.textContent=readiness.warnings?.length?'Trotzdem Zugang senden':'Zugang jetzt senden';
   submitBtn.disabled=actionState.sendAccessDisabled||!readiness.isReady;
   document.getElementById('send-access-modal').classList.add('open');
 }
