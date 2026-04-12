@@ -289,14 +289,6 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
   return String(createRes.data.id);
 }
 
-function resolveFirstMonthAmount(offer) {
-  const monthly = Number(offer.monthly_price || 0);
-  if (Number.isFinite(monthly) && monthly > 0) return Number(monthly.toFixed(2));
-  const yearly = Number(offer.yearly_price || 0);
-  if (Number.isFinite(yearly) && yearly > 0) return Number((yearly / 12).toFixed(2));
-  return 0;
-}
-
 async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso }) {
   if (!offer?.customer_id || !contractId) return { invoiceId: null, duplicate: false };
 
@@ -309,16 +301,14 @@ async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso
   if (!customer) throw new OfferAcceptanceError(409, 'Kunde für Offerte konnte nicht geladen werden.');
 
   const setupFeeAmount = Number(offer.setup_fee || 0);
-  const firstMonthAmount = resolveFirstMonthAmount(offer);
   const initial = await createInitialContractInvoice({
     sbAdmin,
     customer,
     contractId,
     subscription: null,
     setupFeeAmount,
-    firstMonthAmount,
     dueAt: null,
-    notes: `Initial invoice (setup fee + first month) for accepted offer ${offer.offer_number || offer.id}`
+    notes: `Initial invoice (setup fee only) for accepted offer ${offer.offer_number || offer.id}`
   });
   const invoice = initial.invoice || null;
   if (!invoice?.id) return { invoiceId: null, duplicate: Boolean(initial.duplicate) };

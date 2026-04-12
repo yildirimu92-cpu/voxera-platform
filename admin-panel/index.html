@@ -2194,6 +2194,28 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <div id="view-contract-signature-meta" class="contract-detail-grid" style="margin-bottom:10px;"></div>
       <img id="view-contract-sig-img" style="border:1px solid var(--line);border-radius:var(--r);max-width:100%;" alt="Signatur">
     </div>
+    <div class="card" style="margin-top:12px;">
+      <div class="card-title">Ops · Vertragsstart bestätigen</div>
+      <div class="muted" style="margin-top:6px;font-size:12px;">accepted_at bleibt rechtliche Annahme. start_date ist der operative Service-Start für Billing/Go-Live.</div>
+      <div class="grid-3" style="margin-top:12px;">
+        <div>
+          <label class="muted">Startdatum (operativ)</label>
+          <input id="view-contract-start-date-input" class="input" type="date">
+        </div>
+        <div>
+          <label class="muted">Laufzeit (Monate)</label>
+          <input id="view-contract-duration-input" class="input" type="number" min="1" step="1">
+        </div>
+        <div>
+          <label class="muted">Enddatum (auto berechnet)</label>
+          <input id="view-contract-end-date-input" class="input" type="date" readonly>
+        </div>
+      </div>
+      <div id="view-contract-ops-feedback" class="modal-feedback" style="margin-top:10px;"></div>
+      <div class="inline-actions" style="margin-top:10px;justify-content:flex-end;">
+        <button class="btn btn-primary" id="view-contract-ops-save-btn" onclick="saveContractStartCheckpoint()">Vertragsstart bestätigen</button>
+      </div>
+    </div>
     <div class="inline-actions" style="margin-top:14px;justify-content:flex-end;">
       <button class="btn btn-secondary" onclick="printCurrentContractFromDetail()">Druckbare Version</button>
       <button class="btn btn-quiet" onclick="closeViewContractModal()">Schließen</button>
@@ -4602,6 +4624,40 @@ function addMonthsToDateStr(dateStr, months) {
   return d.toISOString().slice(0, 10);
 }
 
+function addMonthsDateIsoUtc(dateStr, months) {
+  if (!dateStr) return '';
+  var base = new Date(dateStr + 'T00:00:00Z');
+  if (Number.isNaN(base.getTime())) return '';
+  var day = base.getUTCDate();
+  base.setUTCMonth(base.getUTCMonth() + Number(months || 0));
+  if (base.getUTCDate() < day) base.setUTCDate(0);
+  return base.toISOString().slice(0, 10);
+}
+
+function contractOpsRecomputeDates() {
+  var startInput = document.getElementById('view-contract-start-date-input');
+  var durationInput = document.getElementById('view-contract-duration-input');
+  var endInput = document.getElementById('view-contract-end-date-input');
+  if (!startInput || !durationInput || !endInput) return;
+  var months = Math.max(1, parseInt(durationInput.value || '0', 10) || 0);
+  if (months) durationInput.value = String(months);
+  endInput.value = addMonthsDateIsoUtc(startInput.value || '', months);
+}
+
+function setContractOpsFeedback(type, message) {
+  var el = document.getElementById('view-contract-ops-feedback');
+  if (!el) return;
+  if (!message) {
+    el.className = 'modal-feedback';
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.className = 'modal-feedback ' + (type || '');
+  el.style.display = 'block';
+  el.textContent = message;
+}
+
 function formatDateDE(dateStr) {
   if (!dateStr) return '—';
   try { return new Date(dateStr).toLocaleDateString('de-CH'); } catch (_) { return dateStr; }
@@ -5207,6 +5263,17 @@ function viewContract(id) {
   } else if (sigWrap) {
     sigWrap.style.display = 'none';
   }
+  var startInput = document.getElementById('view-contract-start-date-input');
+  var durationInput = document.getElementById('view-contract-duration-input');
+  var endInput = document.getElementById('view-contract-end-date-input');
+  if (startInput && durationInput && endInput) {
+    startInput.value = ct.startDate || '';
+    durationInput.value = String(ct.months || 12);
+    contractOpsRecomputeDates();
+    startInput.oninput = contractOpsRecomputeDates;
+    durationInput.oninput = contractOpsRecomputeDates;
+  }
+  setContractOpsFeedback('', '');
   var modal = document.getElementById('view-contract-modal');
   if (modal) modal.dataset.contractId = ct.id;
   document.getElementById('view-contract-modal').classList.add('open');
@@ -5214,6 +5281,74 @@ function viewContract(id) {
 
 function closeViewContractModal() {
   document.getElementById('view-contract-modal').classList.remove('open');
+}
+
+async function saveContractStartCheckpoint() {
+  var modal = document.getElementById('view-contract-modal');
+  var id = modal ? modal.dataset.contractId : '';
+  var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
+  if (!ct) return;
+
+  var startInput = document.getElementById('view-contract-start-date-input');
+  var durationInput = document.getElementById('view-contract-duration-input');
+  var endInput = document.getElementById('view-contract-end-date-input');
+  var saveBtn = document.getElementById('view-contract-ops-save-btn');
+  var startDate = (startInput && startInput.value ? String(startInput.value) : '').trim();
+  var months = Math.max(1, parseInt((durationInput && durationInput.value) || '0', 10) || 0);
+  if (!startDate) {
+    setContractOpsFeedback('error', 'Bitte ein gültiges operatives Startdatum setzen.');
+    return;
+  }
+  var endDate = addMonthsDateIsoUtc(startDate, months);
+  if (!endDate) {
+    setContractOpsFeedback('error', 'Enddatum konnte nicht berechnet werden.');
+    return;
+  }
+  if (endInput) endInput.value = endDate;
+  setContractOpsFeedback('', '');
+
+  var noticeMonths = String(ct.cancellationNotice || '') === '3 Monate' ? 3 : 1;
+  var cancellationDate = addMonthsDateIsoUtc(endDate, -noticeMonths);
+  var nowIso = new Date().toISOString();
+  var noteLine = '[OPS Start bestätigt am ' + nowIso.slice(0, 10) + '] start_date=' + startDate + ', duration_months=' + months + ', end_date=' + endDate;
+  var mergedNotes = [String(ct.notes || '').trim(), noteLine].filter(Boolean).join('\n');
+  var patch = {
+    start_date: startDate,
+    duration_months: months,
+    months: months,
+    end_date: endDate,
+    cancellation_date: cancellationDate || null,
+    notes: mergedNotes,
+    updated_at: nowIso
+  };
+
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Speichern…'; }
+  try {
+    if (authClient) {
+      var res = await authClient
+        .from('contracts')
+        .update(patch)
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (res.error) throw res.error;
+      if (res.data) ct = Object.assign(ct, mapDbContractToUi(res.data));
+    } else {
+      ct.startDate = startDate;
+      ct.months = months;
+      ct.endDate = endDate;
+      ct.cancellationDate = cancellationDate || '';
+      ct.notes = mergedNotes;
+      ct.updatedAt = nowIso;
+    }
+    renderContracts();
+    viewContract(id);
+    setContractOpsFeedback('success', 'Vertragsstart gespeichert. Billing kann jetzt manuell weitergeführt werden.');
+  } catch (err) {
+    setContractOpsFeedback('error', 'Speichern fehlgeschlagen: ' + (err.message || err));
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Vertragsstart bestätigen'; }
+  }
 }
 
 // ─── Standalone signature modal ────────────────────────────────────────────
