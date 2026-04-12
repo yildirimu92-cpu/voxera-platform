@@ -2,9 +2,8 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
-const { ensureContractStartInvoices, generateInvoicePdfPreview } = require('./_lib/invoice-service');
-const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
 const { syncPostAcceptanceLifecycle } = require('./_lib/offer-acceptance');
+const { orchestrateContractBilling } = require('./_lib/contract-billing-orchestrator');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -23,98 +22,6 @@ function addMonthsDateIsoUtc(dateStr, months) {
   const next = new Date(base.getTime());
   next.setUTCMonth(next.getUTCMonth() + Number(months || 0));
   return next.toISOString().slice(0, 10);
-}
-
-function money(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
-  return Number(n.toFixed(2));
-}
-
-function dbErrorShape(err) {
-  if (!err) return null;
-  return {
-    message: err.message || null,
-    code: err.code || null,
-    details: err.details || null,
-    hint: err.hint || null
-  };
-}
-
-function adminSafeDbError(err) {
-  const shaped = dbErrorShape(err);
-  if (!shaped) return null;
-  return {
-    db_message: shaped.message,
-    db_code: shaped.code,
-    db_details: shaped.details,
-    db_hint: shaped.hint
-  };
-}
-
-function extractMissingColumn(err) {
-  if (!err || String(err.code || '') !== 'PGRST204') return null;
-  const message = String(err.message || '');
-  const match = message.match(/Could not find the '([^']+)' column/i);
-  return match?.[1] || null;
-}
-
-function isIsoDate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
-}
-
-function validateSubscriptionPayload(payload) {
-  const issues = [];
-  if (!String(payload.customer_id || '').trim()) issues.push('customer_id missing (NOT NULL / FK customers.id)');
-  if (!String(payload.plan || '').trim()) issues.push('plan missing (NOT NULL)');
-  if (!String(payload.plan_code || '').trim()) issues.push('plan_code missing (NOT NULL)');
-  if (!isIsoDate(payload.start_date)) issues.push('start_date invalid (NOT NULL date)');
-  if (!['monthly', 'yearly'].includes(String(payload.billing_cycle || '').trim().toLowerCase())) {
-    issues.push("billing_cycle invalid (CHECK monthly|yearly)");
-  }
-  if (!['inactive', 'active', 'cancelled'].includes(String(payload.subscription_status || '').trim().toLowerCase())) {
-    issues.push("subscription_status invalid (CHECK inactive|active|cancelled)");
-  }
-  if (!['none', 'pending', 'paid'].includes(String(payload.payment_status || '').trim().toLowerCase())) {
-    issues.push("payment_status invalid (CHECK none|pending|paid)");
-  }
-  return issues;
-}
-
-async function insertWithSchemaFallback({ sbAdmin, table, payload }) {
-  const dynamicPayload = { ...payload };
-  const removedColumns = [];
-  const maxAttempts = Object.keys(dynamicPayload).length + 1;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const { data, error } = await sbAdmin
-      .from(table)
-      .insert(dynamicPayload)
-      .select('*')
-      .single();
-
-    if (!error) return { data, error: null, removedColumns, finalPayload: dynamicPayload };
-
-    const missingColumn = extractMissingColumn(error);
-    if (!missingColumn || !(missingColumn in dynamicPayload)) {
-      return { data: null, error, removedColumns, finalPayload: dynamicPayload };
-    }
-
-    delete dynamicPayload[missingColumn];
-    removedColumns.push(missingColumn);
-    console.warn('[contract-start-confirm] subscriptions schema fallback removed missing column', {
-      table,
-      missing_column: missingColumn,
-      attempt
-    });
-  }
-
-  return {
-    data: null,
-    error: { code: 'CONTRACT_START_CONFIRM_SCHEMA_FALLBACK_EXHAUSTED', message: `Schema fallback exhausted for table ${table}.` },
-    removedColumns,
-    finalPayload: dynamicPayload
-  };
 }
 
 exports.handler = async (event) => {
@@ -158,8 +65,7 @@ exports.handler = async (event) => {
   if (requestedCustomerId && String(contract.customer_id || '') && requestedCustomerId !== String(contract.customer_id)) {
     return response(409, { error: 'customer_id passt nicht zum Vertrag.' });
   }
-  const resolvedCustomerId = String(body.customer_id || contract.customer_id || '').trim();
-  const customerId = resolvedCustomerId;
+  const customerId = String(body.customer_id || contract.customer_id || '').trim();
   if (!customerId) return response(409, { error: 'Contract hat keine customer_id.' });
 
   const { data: customer, error: customerError } = await sbAdmin
@@ -193,230 +99,24 @@ exports.handler = async (event) => {
     .single();
   if (updateError) return response(500, { error: 'Contract update failed.', details: updateError.message });
 
-  const planCode = normalizePlanCode(body.plan || contract.plan || customer.plan_code || customer.plan || '');
-  if (!planCode) return response(409, { error: 'plan fehlt.' });
-  const billingCycle = String(customer.billing_cycle || contract.billing_cycle || 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
-
-  const startsAt = `${startDate}T00:00:00.000Z`;
-  const renewsAt = addMonthsDateIsoUtc(startDate, billingCycle === 'yearly' ? 12 : 1);
-  const subscriptionPayload = {
-    customer_id: customerId,
-    plan: planCode || 'professional',
-    plan_code: planCode || 'professional',
-    billing_cycle: billingCycle,
-    subscription_status: 'active',
-    status: 'active',
-    payment_status: 'pending',
-    billing_state: 'awaiting_invoices',
-    start_date: startDate,
-    starts_at: startsAt,
-    renews_at: renewsAt ? `${renewsAt}T00:00:00.000Z` : null,
-    updated_at: nowIso
-  };
-  const payloadValidationIssues = validateSubscriptionPayload(subscriptionPayload);
-  if (payloadValidationIssues.length > 0) {
-    console.error('[contract-start-confirm] invalid subscription payload before persistence', {
-      contract_id: contractId,
-      customer_id: customerId,
-      payload: subscriptionPayload,
-      validation_issues: payloadValidationIssues
-    });
-    return response(409, {
-      error: 'Subscription payload invalid before insert/update.',
-      validation_issues: payloadValidationIssues
-    });
-  }
-
-  let subscription = null;
-  const { data: existingSubscription, error: existingSubscriptionError } = await sbAdmin
-    .from('subscriptions')
-    .select('*')
-    .eq('customer_id', customerId)
-    .maybeSingle();
-
-  if (existingSubscriptionError) {
-    const errPayload = dbErrorShape(existingSubscriptionError);
-    console.error('[contract-start-confirm] subscription lookup failed', {
-      contract_id: contractId,
-      customer_id: customerId,
-      error: errPayload
-    });
-    return response(500, {
-      error: 'Subscription ensure failed during lookup.',
-      ...adminSafeDbError(existingSubscriptionError)
-    });
-  }
-
-  if (existingSubscription) {
-    const { data: updatedSubscription, error: updateSubscriptionError } = await sbAdmin
-      .from('subscriptions')
-      .update(subscriptionPayload)
-      .eq('id', existingSubscription.id)
-      .select('*')
-      .single();
-    if (updateSubscriptionError) {
-      const errPayload = dbErrorShape(updateSubscriptionError);
-      console.error('[contract-start-confirm] subscription update failed', {
-        contract_id: contractId,
-        customer_id: customerId,
-        subscription_id: existingSubscription.id,
-        error: errPayload,
-        payload_keys: Object.keys(subscriptionPayload)
-      });
-      return response(500, {
-        error: 'Subscription ensure failed during update.',
-        ...adminSafeDbError(updateSubscriptionError)
-      });
-    }
-    subscription = updatedSubscription;
-  } else {
-    const {
-      data: insertedSubscription,
-      error: insertSubscriptionError,
-      removedColumns: insertRemovedColumns,
-      finalPayload: insertFinalPayload
-    } = await insertWithSchemaFallback({
+  let billing;
+  try {
+    billing = await orchestrateContractBilling({
       sbAdmin,
-      table: 'subscriptions',
-      payload: subscriptionPayload
+      customer,
+      contract: updatedContract,
+      nowIso,
+      startDate,
+      setupFeeAmount: customer.setup_fee_amount,
+      monthlyAmount: null,
+      forceActiveSubscription: true
     });
-
-    if (insertSubscriptionError) {
-      const duplicateKey = String(insertSubscriptionError.code || '') === '23505';
-      if (duplicateKey) {
-        const { data: duplicateExisting, error: duplicateLookupError } = await sbAdmin
-          .from('subscriptions')
-          .select('*')
-          .eq('customer_id', customerId)
-          .maybeSingle();
-        if (!duplicateLookupError && duplicateExisting) {
-          const { data: healedSubscription, error: healError } = await sbAdmin
-            .from('subscriptions')
-            .update(subscriptionPayload)
-            .eq('id', duplicateExisting.id)
-            .select('*')
-            .single();
-          if (!healError && healedSubscription) {
-            subscription = healedSubscription;
-          } else {
-            const healErrPayload = dbErrorShape(healError);
-            console.error('[contract-start-confirm] subscription heal after duplicate failed', {
-              contract_id: contractId,
-              customer_id: customerId,
-              subscription_id: duplicateExisting.id,
-              duplicate_error: dbErrorShape(insertSubscriptionError),
-              heal_error: healErrPayload
-            });
-            return response(500, {
-              error: 'Subscription ensure failed after duplicate conflict.',
-              ...adminSafeDbError(healError || insertSubscriptionError)
-            });
-          }
-        } else {
-          console.error('[contract-start-confirm] duplicate conflict and fallback lookup failed', {
-            contract_id: contractId,
-            customer_id: customerId,
-            duplicate_error: dbErrorShape(insertSubscriptionError),
-            lookup_error: dbErrorShape(duplicateLookupError)
-          });
-          return response(500, {
-            error: 'Subscription ensure failed after duplicate conflict lookup.',
-            ...adminSafeDbError(duplicateLookupError || insertSubscriptionError)
-          });
-        }
-      } else {
-        console.error('[contract-start-confirm] subscription insert failed', {
-          contract_id: contractId,
-          customer_id: customerId,
-          error: dbErrorShape(insertSubscriptionError),
-          payload_keys: Object.keys(subscriptionPayload),
-          payload: subscriptionPayload,
-          effective_payload_keys: Object.keys(insertFinalPayload || {}),
-          effective_payload: insertFinalPayload || null,
-          removed_columns: insertRemovedColumns || []
-        });
-        return response(500, {
-          error: 'Subscription ensure failed during insert.',
-          ...adminSafeDbError(insertSubscriptionError),
-          insert_payload: insertFinalPayload || subscriptionPayload,
-          insert_payload_keys: Object.keys(insertFinalPayload || subscriptionPayload),
-          removed_columns: insertRemovedColumns || []
-        });
-      }
-    } else {
-      if (Array.isArray(insertRemovedColumns) && insertRemovedColumns.length > 0) {
-        console.warn('[contract-start-confirm] subscription inserted with legacy schema fallback', {
-          contract_id: contractId,
-          customer_id: customerId,
-          removed_columns: insertRemovedColumns,
-          payload_keys: Object.keys(subscriptionPayload),
-          effective_payload_keys: Object.keys(insertFinalPayload || {})
-        });
-      }
-      subscription = insertedSubscription;
-    }
-  }
-  if (!subscription || !subscription.id) {
-    console.error('[contract-start-confirm] subscription ensure produced no row', {
-      contract_id: contractId,
-      customer_id: customerId
-    });
-    return response(500, { error: 'Subscription ensure failed: no row returned.' });
+  } catch (billingError) {
+    return response(500, { error: 'Contract billing orchestration failed.', details: billingError.message });
   }
 
-  if (String(customer.subscription_id || '') !== String(subscription.id || '')) {
-    await sbAdmin
-      .from('customers')
-      .update({ subscription_id: subscription.id, start_date: startDate, updated_at: nowIso })
-      .eq('id', customerId);
-  } else {
-    await sbAdmin
-      .from('customers')
-      .update({ start_date: startDate, updated_at: nowIso })
-      .eq('id', customerId);
-  }
-  if (String(updatedContract.subscription_id || '') !== String(subscription.id || '')) {
-    await sbAdmin
-      .from('contracts')
-      .update({ subscription_id: subscription.id, updated_at: nowIso })
-      .eq('id', contractId);
-  }
-
-  const { plan: planConfig, error: planError } = await loadPlanByCode(sbAdmin, planCode || 'professional');
-  if (planError) return response(500, { error: 'Plan-Konfiguration konnte nicht geladen werden.', details: planError.message });
-  const setupFeeAmount = money(customer.setup_fee_amount ?? planConfig?.setup_fee_amount ?? 0);
-  const monthlyAmount = money(planConfig?.price_monthly ?? 0);
-  const invoiceResults = await ensureContractStartInvoices({
-    sbAdmin,
-    customer,
-    contract: updatedContract,
-    subscription,
-    setupFeeAmount,
-    monthlyAmount,
-    startDate
-  });
-
-  const setupInvoice = invoiceResults.setupInvoice?.invoice || null;
-  const recurringInvoice = invoiceResults.recurringInvoice?.invoice || null;
-
-  let pdfsGenerated = false;
-  if (setupInvoice && recurringInvoice) {
-    try {
-      const setupPdf = await generateInvoicePdfPreview({ sbAdmin, invoice: setupInvoice, customer });
-      const recurringPdf = await generateInvoicePdfPreview({ sbAdmin, invoice: recurringInvoice, customer });
-      pdfsGenerated = Boolean(setupPdf.ok && recurringPdf.ok);
-    } catch (pdfErr) {
-      console.error('[contract-start-confirm] pdf generation failed', {
-        contract_id: contractId,
-        setup_invoice_id: setupInvoice.id,
-        recurring_invoice_id: recurringInvoice.id,
-        error: pdfErr?.message || String(pdfErr)
-      });
-    }
-  }
-
-  if (setupInvoice && contract.offer_id) {
-    await sbAdmin.from('offers').update({ invoice_id: setupInvoice.id, updated_at: nowIso }).eq('id', contract.offer_id);
+  if (billing.setupInvoice?.id && contract.offer_id) {
+    await sbAdmin.from('offers').update({ invoice_id: billing.setupInvoice.id, updated_at: nowIso }).eq('id', contract.offer_id);
   }
 
   await syncPostAcceptanceLifecycle({
@@ -428,13 +128,14 @@ exports.handler = async (event) => {
   return response(200, {
     success: true,
     contract_updated: true,
-    subscription_ready: true,
-    setup_fee_invoice_created: Boolean(invoiceResults.setupInvoice?.created),
-    recurring_invoice_created: Boolean(invoiceResults.recurringInvoice?.created),
-    pdfs_generated: pdfsGenerated,
+    subscription_ready: Boolean(billing.subscription?.id),
+    setup_fee_invoice_created: Boolean(billing.setup_fee_invoice_created),
+    recurring_invoice_created: Boolean(billing.recurring_invoice_created),
+    pdfs_generated: (billing.pdf?.errors || []).length === 0,
+    pdf_generation_errors: billing.pdf?.errors || [],
     contract: updatedContract,
-    subscription,
-    setup_fee_invoice: setupInvoice,
-    recurring_invoice: recurringInvoice
+    subscription: billing.subscription,
+    setup_fee_invoice: billing.setupInvoice,
+    recurring_invoice: billing.recurringInvoice
   });
 };

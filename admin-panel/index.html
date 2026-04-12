@@ -2902,13 +2902,14 @@ function renderOverview(){
 function classifyInvoiceType(rawType){
   const raw=String(rawType||'').trim().toLowerCase();
   if(raw.includes('setup')) return 'setup_fee';
+  if(raw.includes('month_1')||raw.includes('subscription_initial')) return 'recurring';
   if(raw.includes('recurring')||raw.includes('subscription')||raw.includes('abo')||raw.includes('plan')) return 'recurring';
   if(raw.includes('credit')) return 'credit_note';
   if(raw.includes('extra')||raw.includes('minute')) return 'extra_minutes';
   return 'manual';
 }
 function invoiceTypeLabel(type){
-  return type==='setup_fee'?'Setup Fee':type==='recurring'?'Recurring':type==='credit_note'?'Credit Note':type==='extra_minutes'?'Extra Minutes':'Manual / Sonstige';
+  return type==='setup_fee'?'Setup Fee':type==='recurring'?'Subscription / Monat 1':type==='credit_note'?'Credit Note':type==='extra_minutes'?'Extra Minutes':'Manual / Sonstige';
 }
 function normalizeInvoiceStatus(rawStatus,dueDate,paidAt){
   if(paidAt) return 'paid';
@@ -5770,23 +5771,15 @@ function openCustomerProfile(id){
           </div>
         </div>
         <div class="card" style="padding:16px 18px;">
-          <div class="card-title" style="margin-bottom:10px;">Billing (V1)</div>
+          <div class="card-title" style="margin-bottom:10px;">Billing (Invoice-driven)</div>
           <div class="muted" style="font-size:12px;margin-bottom:10px;">Status: ${esc(paymentStatusLabel(c.payment_status))}</div>
+          <div class="muted" style="font-size:12px;margin-bottom:10px;">Operative Billing-Aktionen laufen über Rechnungen im Finance-Bereich.</div>
           <div class="profile-action-buttons">
-            <button class="btn btn-secondary" onclick="closeCustomerProfile();sendBillingPaymentLink('${jsStr(id)}')">
-              Setup Fee Link senden
+            <button class="btn btn-secondary" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">
+              Finance öffnen
             </button>
-            <button class="btn btn-secondary" onclick="closeCustomerProfile();createManualSetupInvoice('${jsStr(id)}')">
-              Setup-Rechnung erstellen
-            </button>
-            <button class="btn btn-secondary" onclick="closeCustomerProfile();${c.subscription_billing_cycle==='yearly'?'sendYearlyBillingPaymentLink':'sendMonthlyBillingPaymentLink'}('${jsStr(id)}')" ${['monthly','yearly'].includes(String(c.subscription_billing_cycle||''))?'':'disabled'}>
-              ${c.subscription_billing_cycle==='yearly'?'Jahreszahlung senden':'Monatszahlung senden'}
-            </button>
-            <button class="btn btn-secondary" onclick="closeCustomerProfile();createManualSubscriptionInvoice('${jsStr(id)}')">
-              Abo-Rechnung erstellen
-            </button>
-            <button class="btn btn-primary" onclick="closeCustomerProfile();markSubscriptionPaid('${jsStr(id)}')">
-              Als bezahlt markieren
+            <button class="btn btn-quiet" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">
+              Offene Rechnungen anzeigen
             </button>
           </div>
         </div>
@@ -6509,6 +6502,33 @@ async function markInvoicePaid(customerId,invoiceId){
 function setFinanceInvoiceStatusFilter(status){
   const statusEl=document.getElementById('finance-status-filter');
   if(statusEl) statusEl.value=status||'all';
+  renderBillingFinance();
+}
+
+function openFinanceForCustomer(customerId){
+  setRoute('billing-finance');
+  const searchEl=document.getElementById('finance-invoice-search');
+  if(searchEl){
+    searchEl.value='';
+  }
+  const typeEl=document.getElementById('finance-type-filter');
+  if(typeEl) typeEl.value='all';
+  const statusEl=document.getElementById('finance-status-filter');
+  if(statusEl) statusEl.value='all';
+  renderBillingFinance();
+  if(customerId){
+    openCustomerInvoicesInFinance(customerId);
+  }
+}
+
+function openCustomerInvoicesInFinance(customerId){
+  setRoute('billing-finance');
+  const customer=state.customers.find(c=>idsEq(c.id,customerId));
+  const searchTerms=[customer?.name||'',customerId||''].filter(Boolean).join(' ').trim();
+  const searchEl=document.getElementById('finance-invoice-search');
+  if(searchEl){
+    searchEl.value=searchTerms;
+  }
   renderBillingFinance();
 }
 
