@@ -135,6 +135,9 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
 }
 .topbar-left{}
+.topbar-brand{display:none;align-items:center;gap:8px;}
+.topbar-brand .logo-icon{width:24px;height:24px;border-radius:7px;box-shadow:none;}
+.topbar-brand .logo-wordmark{font-size:14px;}
 .page-title{font-size:17px;font-weight:700;letter-spacing:-.03em;color:var(--ink);}
 .page-sub{font-size:12px;color:var(--slate2);margin-top:2px;font-weight:400;}
 .topbar-right{display:flex;align-items:center;gap:10px;}
@@ -469,6 +472,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   /* ─── Hamburger + Close ─── */
   .mobile-menu-btn{display:flex!important;}
   .mobile-close-btn{display:flex!important;}
+  .topbar-brand{display:flex;}
 
   /* ─── Overlay ─── */
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(10,15,30,.45);z-index:300;backdrop-filter:blur(4px);}
@@ -1139,6 +1143,12 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()" style="display:none;background:none;border:1px solid var(--line);border-radius:var(--r);padding:6px 8px;cursor:pointer;color:var(--ink);flex-shrink:0;">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 4h14M2 9h14M2 14h14"/></svg>
         </button>
+        <div class="topbar-brand" aria-label="Voxera Admin Portal">
+          <div class="logo-icon">
+            <svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke-width="1.5"/><path d="M6 8h4M8 6v4" stroke-width="1.8"/></svg>
+          </div>
+          <div class="logo-wordmark">Voxera</div>
+        </div>
         <div>
           <div class="page-title" id="page-title">Übersicht</div>
           <div class="page-sub" id="page-sub">Operatives Cockpit für den täglichen Betrieb.</div>
