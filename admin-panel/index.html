@@ -659,9 +659,24 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   min-height:72px;
   box-shadow:0 6px 14px rgba(15,23,42,.05);
 }
+.finance-kpi-card.interactive{cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;}
+.finance-kpi-card.interactive:hover{transform:translateY(-1px);border-color:#BFDBFE;box-shadow:0 10px 22px rgba(29,78,216,.16);}
+.finance-kpi-card.interactive:focus-visible{outline:2px solid #93C5FD;outline-offset:2px;}
+.finance-kpi-card-info{display:inline-flex;align-items:center;gap:5px;margin-top:5px;font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.03em;text-transform:uppercase;}
+.finance-kpi-card-info.is-static{color:var(--slate2);}
 .finance-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);}
 .finance-kpi-value{margin-top:4px;font-size:20px;line-height:1.1;font-weight:800;letter-spacing:-.02em;color:var(--ink);}
 .finance-kpi-sub{margin-top:2px;font-size:10.5px;line-height:1.35;color:var(--slate);}
+.finance-quick-actions{
+  display:flex;flex-wrap:wrap;gap:8px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:linear-gradient(180deg,#fff 0%,#F8FAFF 100%);
+  box-shadow:0 8px 18px rgba(15,23,42,.06);
+  padding:9px 10px;
+}
+.finance-quick-action{display:inline-flex;align-items:center;gap:6px;border-radius:999px;}
+.finance-quick-action .badge{font-size:10px;padding:3px 7px;}
 .finance-main-grid{grid-template-columns:1.15fr .85fr;gap:12px;}
 .finance-premium-card{
   border:1px solid var(--line);
@@ -697,6 +712,18 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .finance-table-wrap .data-table thead th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--slate2);}
 .finance-table-wrap .data-table td{vertical-align:middle;}
 .finance-table-wrap .inline-actions{gap:8px;flex-wrap:wrap;}
+.finance-invoice-customer{font-size:13px;font-weight:700;color:var(--ink);line-height:1.35;}
+.finance-invoice-sub{margin-top:2px;font-size:11px;color:var(--slate2);line-height:1.35;}
+.finance-invoice-id{font-size:12px;font-weight:700;color:var(--ink);line-height:1.35;}
+.finance-badge-stack{display:flex;align-items:center;flex-wrap:wrap;gap:6px;}
+.finance-amount{font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--ink);}
+.finance-date-wrap{display:grid;gap:3px;}
+.finance-date-main{font-size:12.5px;font-weight:700;color:var(--ink);}
+.finance-date-sub{font-size:10.5px;color:var(--slate2);text-transform:uppercase;letter-spacing:.03em;}
+.finance-actions-group{display:grid;gap:6px;}
+.finance-actions-group .inline-actions{gap:6px;}
+.finance-empty{display:grid;gap:8px;padding:2px 0;}
+.finance-empty-hint{font-size:12px;color:var(--slate);}
 .finance-section .inline-actions .btn{
   border-radius:10px;
   min-height:30px;
@@ -723,6 +750,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .ai-workspace-card{position:static;}
   .finance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .finance-main-grid{grid-template-columns:1fr;}
+  .finance-quick-actions{padding:8px;}
 }
 @media (max-width:768px){
   .ai-setup-layout{gap:12px;}
@@ -755,6 +783,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .finance-hero-title{font-size:20px;}
   .finance-hero-sub{font-size:12px;}
   .finance-kpi-grid{grid-template-columns:1fr;}
+  .finance-quick-action .btn{width:100%;justify-content:center;}
   .finance-toolbar{grid-template-columns:1fr;}
   .finance-toolbar .btn{width:100%;justify-content:center;}
   .finance-table-wrap{border:none;background:transparent;box-shadow:none;overflow:visible;}
@@ -1301,6 +1330,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <div class="finance-hero-sub">Operative Billing-Steuerung mit Worklist, Rechnungs-Operations, Subscription-Management sowie Umsatz- und Margen-Schätzung.</div>
           </div>
           <div class="finance-kpi-grid" id="finance-kpis"></div>
+          <div class="finance-quick-actions" id="finance-quick-actions"></div>
           <div class="grid-2 finance-main-grid" style="margin-bottom:0;">
             <div class="card finance-premium-card">
               <div class="finance-card-head"><h3>Arbeitsliste / Handlungsbedarf</h3><span class="badge badge-amber">Ops</span></div>
@@ -1335,6 +1365,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                 <option value="all">Status: Alle</option>
                 <option value="open">Offen</option>
                 <option value="overdue">Überfällig</option>
+                <option value="due_today">Heute fällig</option>
                 <option value="paid">Bezahlt</option>
                 <option value="followup">Follow-up nötig</option>
               </select>
@@ -2791,12 +2822,13 @@ function subscriptionStatusBadge(status){
 }
 function renderBillingFinance(){
   const rootKpi=document.getElementById('finance-kpis');
+  const rootQuickActions=document.getElementById('finance-quick-actions');
   const rootWorklist=document.getElementById('finance-worklist');
   const rootBreakdown=document.getElementById('finance-breakdown');
   const rootInvoiceBody=document.getElementById('finance-invoice-body');
   const rootMarginBody=document.getElementById('finance-margin-body');
   const rootSubscriptionOpsBody=document.getElementById('finance-subscription-ops-body');
-  if(!rootKpi||!rootWorklist||!rootBreakdown||!rootInvoiceBody||!rootMarginBody||!rootSubscriptionOpsBody) return;
+  if(!rootKpi||!rootQuickActions||!rootWorklist||!rootBreakdown||!rootInvoiceBody||!rootMarginBody||!rootSubscriptionOpsBody) return;
   const search=(document.getElementById('finance-invoice-search')?.value||'').trim().toLowerCase();
   const typeFilter=document.getElementById('finance-type-filter')?.value||'all';
   const statusFilter=document.getElementById('finance-status-filter')?.value||'all';
@@ -2883,26 +2915,37 @@ function renderBillingFinance(){
   })();
 
   const kpis=[
-    ['Überfällige Rechnungen',overdueRows.length,'Sofortiger Follow-up nötig'],
-    ['Heute fällig',dueToday.length,'Zahlung heute erwartet'],
-    ['Zahlung offen',openRows.length,'Aktuell nicht bezahlt'],
-    ['Blockierte Kunden',blockedCustomers.length,'Zugang blockiert wegen Zahlung'],
-    ['Cash-In Monat',moneyChf(paidThisMonth),'Bezahlt im laufenden Monat'],
-    ['Offener Betrag',moneyChf(openAmount),'inkl. überfällige Positionen'],
-    ['MRR',moneyChf(mrrEstimate),`${activeSubscriptions} aktive Subscriptions`],
-    ['Marge',marginEstimatePct,'V1 Schätzung aus Planpreis/Kosten']
+    {label:'Überfällige Rechnungen',value:overdueRows.length,sub:'Sofortiger Follow-up nötig',filterKey:'overdue',interactive:true},
+    {label:'Heute fällig',value:dueToday.length,sub:'Zahlung heute erwartet',filterKey:'due_today',interactive:true},
+    {label:'Zahlung offen',value:openRows.length,sub:'Aktuell nicht bezahlt',filterKey:'open',interactive:true},
+    {label:'Blockierte Kunden',value:blockedCustomers.length,sub:'Zugang blockiert wegen Zahlung',filterKey:null,interactive:false},
+    {label:'Cash-In Monat',value:moneyChf(paidThisMonth),sub:'Bezahlt im laufenden Monat',filterKey:null,interactive:false},
+    {label:'Offener Betrag',value:moneyChf(openAmount),sub:'inkl. überfällige Positionen',filterKey:'open',interactive:true},
+    {label:'MRR',value:moneyChf(mrrEstimate),sub:`${activeSubscriptions} aktive Subscriptions`,filterKey:null,interactive:false},
+    {label:'Marge',value:marginEstimatePct,sub:'V1 Schätzung aus Planpreis/Kosten',filterKey:null,interactive:false}
   ];
-  rootKpi.innerHTML=kpis.map(([l,v,s])=>`<div class="finance-kpi-card"><div class="finance-kpi-label">${esc(String(l))}</div><div class="finance-kpi-value">${esc(String(v))}</div><div class="finance-kpi-sub">${esc(String(s))}</div></div>`).join('');
+  rootKpi.innerHTML=kpis.map(kpi=>kpi.interactive
+    ?`<button type="button" class="finance-kpi-card interactive" onclick="setFinanceInvoiceStatusFilter('${jsStr(kpi.filterKey)}')"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info">Filter öffnen →</div></button>`
+    :`<div class="finance-kpi-card"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info is-static">Info-KPI</div></div>`
+  ).join('');
+
+  const quickActions=[
+    {label:'Offene Rechnungen',filter:'open',count:openRows.length,tone:'badge-yellow'},
+    {label:'Überfällig',filter:'overdue',count:overdueRows.length,tone:'badge-red'},
+    {label:'Mahn-Worklist',filter:'followup',count:invoiceRows.filter(i=>i.followupNeeded).length,tone:'badge-amber'},
+    {label:'Heute fällig',filter:'due_today',count:dueToday.length,tone:'badge-blue'}
+  ];
+  rootQuickActions.innerHTML=quickActions.map(action=>`<div class="finance-quick-action"><button class="btn btn-quiet btn-sm finance-action-btn" onclick="setFinanceInvoiceStatusFilter('${jsStr(action.filter)}')">${esc(action.label)}</button><span class="badge ${esc(action.tone)}">${esc(String(action.count))}</span></div>`).join('');
 
   const workItems=[
-    ['Heute fällig',dueToday.length,'Zahlung heute erwartet','open','Heute fällige Rechnungen anzeigen'],
+    ['Heute fällig',dueToday.length,'Zahlung heute erwartet','due_today','Heute fällige Rechnungen anzeigen'],
     ['Überfällig',overdueRows.length,'Sofort nachfassen','overdue','Überfällige Rechnungen filtern'],
     ['Follow-up nötig',invoiceRows.filter(i=>i.followupNeeded).length,'Mahnwesen / Reminder aktiv','followup','Mahn-Worklist anzeigen'],
     ['Zahlung offen',openRows.length,'offene Rechnungen gesamt','open','Offene Rechnungen anzeigen'],
     ['Setup Fee offen',setupOpen.length,'Einrichtungsgebühr ausstehend','open','Setup-Fee-Fälle priorisieren'],
     ['Zugang blockiert wegen Zahlung',blockedCustomers.length,'aus customer.payment_status abgeleitet',null,'In Kundenprofil prüfen']
   ];
-  rootWorklist.innerHTML=workItems.map(([label,val,sub,filterKey,actionLabel])=>`<div class="list-item finance-work-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div class="inline-actions">${toneBadge(String(val))}${filterKey?`<button class="btn btn-quiet btn-sm finance-action-btn" onclick="setFinanceInvoiceStatusFilter('${jsStr(filterKey)}')">${esc(String(actionLabel))}</button>`:''}</div></div>`).join('')||'<div class="empty">Keine offenen Billing-Aufgaben.</div>';
+  rootWorklist.innerHTML=workItems.map(([label,val,sub,filterKey,actionLabel])=>`<div class="list-item finance-work-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div class="inline-actions">${toneBadge(String(val))}${filterKey?`<button class="btn btn-quiet btn-sm finance-action-btn" onclick="setFinanceInvoiceStatusFilter('${jsStr(filterKey)}')">${esc(String(actionLabel))}</button>`:''}</div></div>`).join('')||'<div class="empty finance-empty"><div>Keine offenen Billing-Aufgaben.</div><div class="finance-empty-hint">Sobald Rechnungen fällig werden oder Follow-ups offen sind, erscheinen sie hier.</div></div>';
 
   const subscriptionOpsRows=state.customers
     .filter(c=>String(c.subscription_billing_cycle||'').trim())
@@ -2939,29 +2982,34 @@ function renderBillingFinance(){
   const subscriptionAmount=invoiceRows.filter(i=>i.type==='subscription').reduce((sum,i)=>sum+i.amount,0);
   const totalAmount=Math.max(1,invoiceRows.reduce((sum,i)=>sum+i.amount,0));
   const pct=(v)=>Math.min(100,Math.round((v/totalAmount)*100));
-  rootBreakdown.innerHTML=`
+  rootBreakdown.innerHTML=invoiceRows.length?`
     <div class="finance-breakdown-row"><div class="finance-breakdown-label">Bezahlt vs. offen · ${moneyChf(paidAmount)} bezahlt / ${moneyChf(openAmount)} offen</div><div class="finance-breakdown-track"><div class="finance-breakdown-fill" style="width:${pct(paidAmount)}%;background:var(--green);"></div></div></div>
     <div class="finance-breakdown-row"><div class="finance-breakdown-label">Setup Fee Anteil · ${moneyChf(setupAmount)}</div><div class="finance-breakdown-track"><div class="finance-breakdown-fill" style="width:${pct(setupAmount)}%;background:var(--purple);"></div></div></div>
     <div class="finance-breakdown-row"><div class="finance-breakdown-label">Subscription Anteil · ${moneyChf(subscriptionAmount)}</div><div class="finance-breakdown-track"><div class="finance-breakdown-fill" style="width:${pct(subscriptionAmount)}%;background:var(--blue);"></div></div></div>
-  `;
+  `:'<div class="empty finance-empty"><div>Noch keine Umsatz-/Zahlungsdaten verfügbar.</div><div class="finance-empty-hint">Die Visualisierung füllt sich automatisch, sobald Rechnungen vorhanden sind.</div></div>';
 
   let filtered=[...invoiceRows];
   if(search) filtered=filtered.filter(i=>`${i.customerName} ${i.invoiceNo} ${i.type}`.toLowerCase().includes(search));
   if(typeFilter!=='all') filtered=filtered.filter(i=>i.type===typeFilter);
   if(statusFilter==='followup') filtered=filtered.filter(i=>i.followupNeeded);
+  else if(statusFilter==='due_today') filtered=filtered.filter(i=>{
+    if(i.status==='paid') return false;
+    const due=parseDate(i.dueDate);
+    return !!(due && due>=startOfToday && due<=endOfToday);
+  });
   else if(statusFilter!=='all') filtered=filtered.filter(i=>i.status===statusFilter);
   filtered.sort((a,b)=>(new Date(b.dueDate||0)).getTime()-(new Date(a.dueDate||0)).getTime());
   rootInvoiceBody.innerHTML=filtered.map(i=>`<tr>
-    <td data-label="Rechnung">${esc(i.invoiceNo||'—')}</td>
-    <td data-label="Kunde">${esc(i.customerName||'—')}</td>
+    <td data-label="Rechnung"><div class="finance-invoice-id">${esc(i.invoiceNo||'—')}</div><div class="finance-invoice-sub">Invoice-ID ${esc(i.id||'—')}</div></td>
+    <td data-label="Kunde"><div class="finance-invoice-customer">${esc(i.customerName||'—')}</div><div class="finance-invoice-sub">${esc(invoiceTypeLabel(i.type))}</div></td>
     <td data-label="Typ">${esc(invoiceTypeLabel(i.type))}</td>
-    <td data-label="Status">${invoiceStatusBadge(i.status)}</td>
-    <td data-label="Mahnwesen">${reminderBadge(i.reminderLevel,i.overdueDays)}</td>
-    <td data-label="Betrag">${esc(moneyChf(i.amount))}</td>
-    <td data-label="Fällig">${esc(formatDate(i.dueDate))}</td>
-    <td data-label="Bezahlt am">${esc(formatDate(i.paidAt))}</td>
-    <td data-label="Aktionen"><div class="inline-actions"><button class="btn btn-quiet btn-sm finance-action-btn" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button><button class="btn btn-secondary btn-sm finance-action-btn" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button><button class="btn btn-primary btn-sm finance-action-btn" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"`:'disabled'}>Als bezahlt</button><button class="btn btn-quiet btn-sm finance-action-btn" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.reminderLevel||0})"`:'disabled'}>Reminder</button></div></td>
-  </tr>`).join('')||'<tr><td colspan="9"><div class="empty">Keine Rechnungen für aktuelle Filter.</div></td></tr>';
+    <td data-label="Status"><div class="finance-badge-stack">${invoiceStatusBadge(i.status)}</div></td>
+    <td data-label="Mahnwesen"><div class="finance-badge-stack">${reminderBadge(i.reminderLevel,i.overdueDays)}</div></td>
+    <td data-label="Betrag"><span class="finance-amount">${esc(moneyChf(i.amount))}</span></td>
+    <td data-label="Fällig"><div class="finance-date-wrap"><div class="finance-date-main">${esc(formatDate(i.dueDate))}</div><div class="finance-date-sub">Due Date</div></div></td>
+    <td data-label="Bezahlt am"><div class="finance-date-wrap"><div class="finance-date-main">${esc(formatDate(i.paidAt))}</div><div class="finance-date-sub">Paid At</div></div></td>
+    <td data-label="Aktionen"><div class="finance-actions-group"><div class="inline-actions"><button class="btn btn-quiet btn-sm finance-action-btn" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button><button class="btn btn-secondary btn-sm finance-action-btn" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button></div><div class="inline-actions"><button class="btn btn-primary btn-sm finance-action-btn" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"`:'disabled'}>Als bezahlt</button><button class="btn btn-quiet btn-sm finance-action-btn" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.reminderLevel||0})"`:'disabled'}>Reminder</button></div></div></td>
+  </tr>`).join('')||'<tr><td colspan="9"><div class="empty finance-empty"><div>Keine Rechnungen für aktuelle Filter.</div><div class="finance-empty-hint">Filter anpassen oder über „Zurücksetzen“ wieder alle Rechnungen laden.</div></div></td></tr>';
 
   const usedMinutesByCustomer={};
   state.calls.forEach(call=>{
@@ -2988,7 +3036,7 @@ function renderBillingFinance(){
     <td data-label="Kosten">${esc(moneyChf(r.cost))}</td>
     <td data-label="Marge">${toneBadge(`${moneyChf(r.margin)} · ${r.marginPct}`)}</td>
     <td data-label="Hinweis" class="wrap">V1-Schätzung: Basis 5 CHF + 0.018 CHF/Minute + ggf. Extra-Minutenkosten.</td>
-  </tr>`).join('')||'<tr><td colspan="6"><div class="empty">Noch keine Margen-Daten verfügbar.</div></td></tr>';
+  </tr>`).join('')||'<tr><td colspan="6"><div class="empty finance-empty"><div>Noch keine Margen-Daten verfügbar.</div><div class="finance-empty-hint">Sobald Kunden-, Plan- und Call-Daten vorhanden sind, wird die Schätzung automatisch berechnet.</div></div></td></tr>';
 }
 
 function renderCustomers(){
