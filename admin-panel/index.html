@@ -5325,14 +5325,27 @@ async function saveContractStartCheckpoint() {
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Speichern…'; }
   try {
     if (authClient) {
-      var res = await authClient
-        .from('contracts')
-        .update(patch)
-        .eq('id', id)
-        .select('*')
-        .single();
-      if (res.error) throw res.error;
-      if (res.data) ct = Object.assign(ct, mapDbContractToUi(res.data));
+      var result = await callAdminFunction('contract-start-confirm', {
+        contract_id: String(id),
+        start_date: startDate,
+        duration_months: months,
+        end_date: endDate,
+        notes: mergedNotes
+      });
+      if (result && result.contract) ct = Object.assign(ct, mapDbContractToUi(result.contract));
+      var ensuredText = '';
+      if (result && result.subscription_ensured) {
+        ensuredText += ' Subscription sichergestellt.';
+      }
+      if (result && result.initial_invoice_id) {
+        ensuredText += result.initial_invoice_duplicate
+          ? ' Setup-Fee-Rechnungsentwurf bereits vorhanden.'
+          : ' Setup-Fee-Rechnungsentwurf erstellt.';
+      }
+      renderContracts();
+      viewContract(id);
+      setContractOpsFeedback('success', 'Vertragsstart gespeichert.' + ensuredText);
+      return;
     } else {
       ct.startDate = startDate;
       ct.months = months;
@@ -5343,7 +5356,7 @@ async function saveContractStartCheckpoint() {
     }
     renderContracts();
     viewContract(id);
-    setContractOpsFeedback('success', 'Vertragsstart gespeichert. Billing kann jetzt manuell weitergeführt werden.');
+    setContractOpsFeedback('success', 'Vertragsstart gespeichert.');
   } catch (err) {
     setContractOpsFeedback('error', 'Speichern fehlgeschlagen: ' + (err.message || err));
   } finally {
