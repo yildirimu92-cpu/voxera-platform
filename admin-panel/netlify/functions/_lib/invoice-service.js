@@ -43,6 +43,57 @@ function addMonthsIsoDate(dateStr, months) {
   return base.toISOString().slice(0, 10);
 }
 
+function addCycleToDate(dateStr, billingCycle) {
+  const cycle = String(billingCycle || '').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+  return addMonthsIsoDate(dateStr, cycle === 'yearly' ? 12 : 1);
+}
+
+function dateOnly(value) {
+  if (!value) return null;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return value.trim();
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function normalizeBillingCycle(raw) {
+  return String(raw || '').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+}
+
+function normalizeInvoiceType(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  if (value === 'subscription') return 'recurring';
+  if (value === 'setup_fee' || value === 'recurring' || value === 'manual' || value === 'credit_note') return value;
+  return value || 'manual';
+}
+
+function isActivePrimaryInvoiceStatus(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  return !['cancelled', 'canceled', 'void', 'voided'].includes(normalized);
+}
+
+function contractAllowsBilling(contract) {
+  const normalized = String(contract?.status || '').trim().toLowerCase();
+  return ['active', 'signed', 'pending_review', 'pending'].includes(normalized);
+}
+
+function resolveContractRecurringAmount({ contract, offer, planConfig }) {
+  const cycle = normalizeBillingCycle(contract?.billing_cycle || offer?.billing_cycle);
+  const fromContract = cycle === 'yearly'
+    ? (contract?.recurring_amount_yearly ?? contract?.yearly_amount ?? contract?.recurring_amount)
+    : (contract?.recurring_amount_monthly ?? contract?.monthly_amount ?? contract?.recurring_amount);
+  const fromOffer = cycle === 'yearly' ? offer?.yearly_price : offer?.monthly_price;
+  const fromPlan = cycle === 'yearly' ? planConfig?.price_yearly : planConfig?.price_monthly;
+  return {
+    cycle,
+    amount: money(fromContract ?? fromOffer ?? fromPlan ?? 0)
+  };
+}
+
+function resolveContractSetupFeeAmount({ contract, offer, planConfig }) {
+  return money(contract?.setup_fee_amount ?? offer?.setup_fee ?? planConfig?.setup_fee_amount ?? 0);
+}
+
 function toDateOnlyIso(value) {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return null;
@@ -253,11 +304,53 @@ function isDuplicateInvoiceReferenceError(error) {
   return code === '23505' || msg.includes('duplicate key value');
 }
 
+async function findExistingRecurringInvoiceForPeriod({ sbAdmin, contractId, periodStart }) {
+  const normalizedContractId = String(contractId || '').trim();
+  const normalizedStart = dateOnly(periodStart);
+  if (!normalizedContractId || !normalizedStart) return null;
+  const periodStartIso = `${normalizedStart}T00:00:00.000Z`;
+  const { data, error } = await sbAdmin
+    .from('invoices')
+    .select('*')
+    .eq('contract_id', normalizedContractId)
+    .eq('period_start', periodStartIso)
+    .in('invoice_type', ['recurring', 'subscription'])
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`recurring period lookup failed: ${error.message}`);
+  const rows = Array.isArray(data) ? data : [];
+  return rows.find((row) => isActivePrimaryInvoiceStatus(row.status)) || rows[0] || null;
+}
+
+async function applyContractBillingPatch(sbAdmin, contractId, patch) {
+  if (!contractId || !patch || !Object.keys(patch).length) return { data: null, skipped: true };
+  const mutablePatch = { ...patch };
+  const maxAttempts = Object.keys(mutablePatch).length + 1;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const { data, error } = await sbAdmin
+      .from('contracts')
+      .update(mutablePatch)
+      .eq('id', contractId)
+      .select('*')
+      .maybeSingle();
+    if (!error) return { data, skipped: false };
+    const missingColumn = String(error.code || '') === 'PGRST204'
+      ? (String(error.message || '').match(/Could not find the '([^']+)' column/i)?.[1] || null)
+      : null;
+    if (!missingColumn || !Object.prototype.hasOwnProperty.call(mutablePatch, missingColumn)) {
+      throw new Error(`contract update failed: ${error.message}`);
+    }
+    delete mutablePatch[missingColumn];
+  }
+  return { data: null, skipped: true };
+}
+
 async function createSetupFeeInvoice({
   sbAdmin,
   customer,
   contractId,
+  contract = null,
   offerId = null,
+  planConfig = null,
   setupFeeAmount,
   billingProvider,
   status,
@@ -272,8 +365,33 @@ async function createSetupFeeInvoice({
 }) {
   const normalizedContractId = String(contractId || '').trim();
   if (!normalizedContractId) throw new Error('contractId is required');
-  const amount = money(setupFeeAmount);
+  const resolvedContract = contract || null;
+  if (resolvedContract) {
+    if (String(resolvedContract.customer_id || '') !== String(customer.id || '')) {
+      throw new Error('contract does not belong to customer');
+    }
+    if (!contractAllowsBilling(resolvedContract)) {
+      throw new Error(`contract status ${resolvedContract.status || 'unknown'} does not allow billing`);
+    }
+  }
+  const amount = resolveContractSetupFeeAmount({
+    contract: resolvedContract,
+    offer: null,
+    planConfig
+  }) || money(setupFeeAmount);
   if (amount <= 0) throw new Error('setup fee amount must be > 0');
+  const setupReference = externalReference || `setup_fee:${normalizedContractId}`;
+
+  const { data: existingByReference } = await sbAdmin
+    .from('invoices')
+    .select('*')
+    .eq('external_reference', setupReference)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingByReference && isActivePrimaryInvoiceStatus(existingByReference.status)) {
+    return existingByReference;
+  }
 
   return createInvoiceWithFallbackType(sbAdmin, {
     customerId: customer.id,
@@ -292,7 +410,7 @@ async function createSetupFeeInvoice({
     paidAt: status === 'paid' ? paidAt || new Date() : null,
     paidSource: status === 'paid' ? (paidSource || 'manual') : null,
     notes,
-    externalReference,
+    externalReference: setupReference,
     stripePaymentIntentId,
     stripeCheckoutSessionId,
     stripeInvoiceId,
@@ -311,10 +429,10 @@ async function createSubscriptionInvoice({
   sbAdmin,
   customer,
   contractId,
+  contract = null,
   offerId = null,
   subscription,
   planConfig,
-  contract = null,
   offer = null,
   billingProvider,
   status,
@@ -326,28 +444,53 @@ async function createSubscriptionInvoice({
   stripePaymentIntentId,
   stripeCheckoutSessionId,
   stripeInvoiceId,
+  periodStartDate = null,
+  periodEndDate = null,
+  advanceContractNextInvoiceDate = true,
   debugTag = null
 }) {
   const normalizedContractId = String(contractId || '').trim();
   if (!normalizedContractId) throw new Error('contractId is required');
+  if (!contract) throw new Error('contract is required for recurring invoice creation');
+  if (String(contract.customer_id || '') !== String(customer.id || '')) {
+    throw new Error('contract does not belong to customer');
+  }
+  if (!contractAllowsBilling(contract)) {
+    throw new Error(`contract status ${contract.status || 'unknown'} does not allow billing`);
+  }
   const resolvedOfferId = offerId || contract?.offer_id || null;
   const logManual = debugTag === 'manual_monthly_invoice';
   if (logManual) manualMonthlyLog('start', { customer_id: customer && customer.id ? customer.id : null });
-  const cycle = String(contract?.billing_cycle || offer?.billing_cycle || subscription.billing_cycle || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
-  const baseAmountRaw = cycle === 'yearly'
-    ? (offer?.yearly_price ?? planConfig.price_yearly)
-    : (offer?.monthly_price ?? planConfig.price_monthly);
-  const baseAmount = money(baseAmountRaw);
+  const recurringPricing = resolveContractRecurringAmount({ contract, offer, planConfig });
+  const cycle = recurringPricing.cycle;
+  const baseAmount = recurringPricing.amount;
   if (baseAmount <= 0) throw new Error('subscription price source missing or <= 0');
 
   const now = new Date();
-  const periodStartDate = computePeriodStart(subscription, now);
-  const periodEndDate = new Date(periodStartDate.getTime());
-  periodEndDate.setUTCMonth(periodEndDate.getUTCMonth() + (cycle === 'yearly' ? 12 : 1));
+  const computedStart = dateOnly(periodStartDate)
+    ? new Date(`${dateOnly(periodStartDate)}T00:00:00.000Z`)
+    : computePeriodStart(subscription, now);
+  const computedEnd = dateOnly(periodEndDate)
+    ? new Date(`${dateOnly(periodEndDate)}T00:00:00.000Z`)
+    : new Date(computedStart.getTime());
+  if (!dateOnly(periodEndDate)) {
+    computedEnd.setUTCMonth(computedEnd.getUTCMonth() + (cycle === 'yearly' ? 12 : 1));
+  }
+  const periodStartDay = dateOnly(computedStart);
+  const recurringReference = externalReference || `recurring:${normalizedContractId}:${periodStartDay}`;
+
+  const existingForPeriod = await findExistingRecurringInvoiceForPeriod({
+    sbAdmin,
+    contractId: normalizedContractId,
+    periodStart: periodStartDay
+  });
+  if (existingForPeriod && isActivePrimaryInvoiceStatus(existingForPeriod.status)) {
+    return existingForPeriod;
+  }
 
   const usageResult = await loadUsageSummary(sbAdmin, {
     customerId: customer.id,
-    periodStartIso: periodStartDate.toISOString(),
+    periodStartIso: computedStart.toISOString(),
     includedMinutes: Number(planConfig.minutes || 0),
     extraRate: Number(planConfig.extra_rate || 0)
   });
@@ -390,15 +533,15 @@ async function createSubscriptionInvoice({
     subtotalAmount: subtotal,
     taxAmount: 0,
     totalAmount: subtotal,
-    periodStart: toDateOnlyIso(periodStartDate),
-    periodEnd: toDateOnlyIso(periodEndDate),
+    periodStart: toDateOnlyIso(computedStart),
+    periodEnd: toDateOnlyIso(computedEnd),
     issuedAt: now,
     dueAt,
     sentAt: status === 'sent' ? now : null,
     paidAt: status === 'paid' ? paidAt || now : null,
     paidSource: status === 'paid' ? (paidSource || 'manual') : null,
     notes,
-    externalReference,
+    externalReference: recurringReference,
     stripePaymentIntentId,
     stripeCheckoutSessionId,
     stripeInvoiceId,
@@ -416,6 +559,15 @@ async function createSubscriptionInvoice({
   }
 
   const invoice = await createInvoiceWithFallbackType(sbAdmin, invoicePayload, { debugTag });
+  if (advanceContractNextInvoiceDate) {
+    const nextInvoiceDate = addCycleToDate(periodStartDay, cycle);
+    if (nextInvoiceDate) {
+      await applyContractBillingPatch(sbAdmin, normalizedContractId, {
+        next_invoice_date: nextInvoiceDate,
+        updated_at: new Date().toISOString()
+      });
+    }
+  }
   if (logManual) {
     manualMonthlyLog('success', {
       invoice_id: invoice && invoice.id ? invoice.id : null,
@@ -632,6 +784,7 @@ async function ensureDraftInvoiceWithItems({
   subscriptionId = null,
   invoiceType,
   externalReference,
+  compatibilityReferences = [],
   dueAt,
   periodStart,
   periodEnd,
@@ -648,11 +801,19 @@ async function ensureDraftInvoiceWithItems({
     subscription_id: subscriptionId || null,
     payload_keys: ['invoiceType', 'externalReference', 'dueAt', 'periodStart', 'periodEnd', 'lineItem']
   });
-  const { data: existing, error: existingError } = await sbAdmin
+  const referenceCandidates = [externalReference, ...(Array.isArray(compatibilityReferences) ? compatibilityReferences : [])]
+    .map((v) => String(v || '').trim())
+    .filter(Boolean);
+  const existingRefQuery = sbAdmin
     .from('invoices')
-    .select('*')
-    .eq('external_reference', externalReference)
-    .maybeSingle();
+    .select('*');
+  if (referenceCandidates.length === 1) {
+    existingRefQuery.eq('external_reference', referenceCandidates[0]);
+  } else {
+    existingRefQuery.in('external_reference', referenceCandidates);
+  }
+  const { data: existingRefRows, error: existingError } = await existingRefQuery
+    .order('created_at', { ascending: false });
   if (existingError) {
     invoiceDiag('invoice_ensure_lookup_error', {
       invoice_type: invoiceType,
@@ -660,6 +821,24 @@ async function ensureDraftInvoiceWithItems({
       db_error: dbErrorMeta(existingError)
     });
     throw new Error(`invoice lookup failed: ${existingError.message}`);
+  }
+  const existingRows = Array.isArray(existingRefRows) ? existingRefRows : [];
+  const existing = existingRows.find((row) => isActivePrimaryInvoiceStatus(row.status)) || existingRows[0] || null;
+
+  if (!existing && normalizeInvoiceType(invoiceType) === 'recurring') {
+    const recurringPeriodExisting = await findExistingRecurringInvoiceForPeriod({
+      sbAdmin,
+      contractId: normalizedContractId,
+      periodStart
+    });
+    if (recurringPeriodExisting && isActivePrimaryInvoiceStatus(recurringPeriodExisting.status)) {
+      invoiceDiag('invoice_ensure_existing_period', {
+        invoice_type: invoiceType,
+        external_reference: externalReference,
+        invoice_id: recurringPeriodExisting.id || null
+      });
+      return { invoice: recurringPeriodExisting, created: false, verification: { found: true, matched_by: 'contract_period' } };
+    }
   }
   if (existing) {
     const healPatch = {
@@ -784,15 +963,17 @@ async function ensureContractStartInvoices({
   monthlyAmount,
   startDate
 }) {
+  const cycle = normalizeBillingCycle(contract?.billing_cycle || subscription?.billing_cycle);
   const setupAmount = money(setupFeeAmount);
   const month1Amount = money(monthlyAmount);
   if (setupAmount <= 0) throw new Error('setup fee amount missing or <= 0 from contract/offer pricing');
   if (month1Amount <= 0) throw new Error('month 1 amount missing or <= 0 from contract/subscription pricing');
   const setupReference = `setup_fee:${contract.id}`;
   const periodStart = `${startDate}T00:00:00.000Z`;
-  const nextMonth = addMonthsIsoDate(startDate, 1);
+  const nextMonth = addCycleToDate(startDate, cycle);
   const periodEnd = nextMonth ? `${nextMonth}T00:00:00.000Z` : null;
-  const monthReference = `month_1:${subscription.id}:${startDate}`;
+  const monthReference = `recurring:${contract.id}:${startDate}`;
+  const legacyMonthReference = `month_1:${subscription.id}:${startDate}`;
   const dueAt = periodStart;
 
   const setupInvoice = await ensureDraftInvoiceWithItems({
@@ -824,6 +1005,7 @@ async function ensureContractStartInvoices({
     subscriptionId: subscription.id,
     invoiceType: 'recurring',
     externalReference: monthReference,
+    compatibilityReferences: [legacyMonthReference],
     dueAt,
     periodStart,
     periodEnd,
@@ -835,7 +1017,7 @@ async function ensureContractStartInvoices({
       quantity: 1,
       unitPrice: month1Amount,
       lineTotal: month1Amount,
-      metadata: { billing_cycle: 'monthly', period_start: startDate }
+      metadata: { billing_cycle: cycle, period_start: startDate }
     }
   });
 
@@ -867,7 +1049,7 @@ async function ensureContractStartInvoices({
     contract_id: contract?.id || null,
     customer_id: customer?.id || null,
     subscription_id: subscription?.id || null,
-    invoice_type: 'month_1',
+    invoice_type: 'recurring',
     external_reference: monthReference,
     invoice_id: recurringVerify?.id || null,
     found: Boolean(recurringVerify),
@@ -920,11 +1102,132 @@ async function markInvoicePaid(sbAdmin, invoiceId, {
   return updated.data;
 }
 
+function resolveNextContractInvoiceDate(contract) {
+  const fromNext = dateOnly(contract?.next_invoice_date);
+  if (fromNext) return fromNext;
+  const fromStart = dateOnly(contract?.start_date);
+  if (fromStart) return fromStart;
+  return null;
+}
+
+async function ensureRecurringInvoiceForContract({
+  sbAdmin,
+  customer,
+  contract,
+  subscription,
+  planConfig,
+  offer = null,
+  force = false,
+  status = 'draft',
+  billingProvider = 'invoice',
+  notes = null
+}) {
+  if (!contract?.id) throw new Error('contract is required');
+  if (!subscription?.id) throw new Error('subscription is required');
+  if (!contractAllowsBilling(contract)) return { invoice: null, created: false, skipped: 'contract_status_not_billable' };
+  const autoInvoiceEnabled = contract.auto_invoice_enabled == null ? true : Boolean(contract.auto_invoice_enabled);
+  if (!force && !autoInvoiceEnabled) return { invoice: null, created: false, skipped: 'auto_invoice_disabled' };
+
+  const cycle = normalizeBillingCycle(contract.billing_cycle || subscription.billing_cycle);
+  const today = dateOnly(new Date());
+  const periodStart = resolveNextContractInvoiceDate(contract);
+  if (!periodStart) return { invoice: null, created: false, skipped: 'next_invoice_date_missing' };
+  if (!force && periodStart > today) return { invoice: null, created: false, skipped: 'not_due' };
+  const periodEnd = addCycleToDate(periodStart, cycle);
+  const recurringReference = `recurring:${contract.id}:${periodStart}`;
+  const existing = await findExistingRecurringInvoiceForPeriod({
+    sbAdmin,
+    contractId: contract.id,
+    periodStart
+  });
+  if (existing && isActivePrimaryInvoiceStatus(existing.status)) {
+    const nextDate = addCycleToDate(periodStart, cycle);
+    if (nextDate) {
+      await applyContractBillingPatch(sbAdmin, contract.id, { next_invoice_date: nextDate, updated_at: new Date().toISOString() });
+    }
+    return { invoice: existing, created: false, skipped: 'already_exists_for_period' };
+  }
+
+  const invoice = await createSubscriptionInvoice({
+    sbAdmin,
+    customer,
+    contractId: contract.id,
+    contract,
+    offerId: contract.offer_id || null,
+    subscription,
+    planConfig,
+    offer,
+    billingProvider,
+    status,
+    dueAt: `${periodStart}T00:00:00.000Z`,
+    notes: notes || `Recurring contract invoice for ${periodStart}`,
+    externalReference: recurringReference,
+    periodStartDate: periodStart,
+    periodEndDate: periodEnd,
+    advanceContractNextInvoiceDate: true
+  });
+  return { invoice, created: true, skipped: null };
+}
+
+async function runRecurringBillingSweep({ sbAdmin, limit = 200, now = new Date() }) {
+  const today = dateOnly(now);
+  const { data: contracts, error } = await sbAdmin
+    .from('contracts')
+    .select('*')
+    .eq('status', 'active')
+    .lte('next_invoice_date', today)
+    .order('next_invoice_date', { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(`due contracts query failed: ${error.message}`);
+
+  const results = [];
+  for (const contract of (contracts || [])) {
+    const customerId = String(contract.customer_id || '').trim();
+    if (!customerId) {
+      results.push({ contract_id: contract.id, created: false, skipped: 'missing_customer_id' });
+      continue;
+    }
+    const { data: customer } = await sbAdmin.from('customers').select('*').eq('id', customerId).maybeSingle();
+    if (!customer) {
+      results.push({ contract_id: contract.id, created: false, skipped: 'customer_not_found' });
+      continue;
+    }
+    const { data: subscription } = await sbAdmin.from('subscriptions').select('*').eq('customer_id', customerId).maybeSingle();
+    if (!subscription) {
+      results.push({ contract_id: contract.id, created: false, skipped: 'subscription_not_found' });
+      continue;
+    }
+    const offer = contract.offer_id
+      ? (await sbAdmin.from('offers').select('id, monthly_price, yearly_price, billing_cycle').eq('id', contract.offer_id).maybeSingle()).data
+      : null;
+    const planCode = String(contract.plan || subscription.plan_code || customer.plan_code || customer.plan || '').trim();
+    const planConfig = {
+      plan_label: planCode || 'Plan',
+      price_monthly: contract.recurring_amount ?? offer?.monthly_price ?? 0,
+      price_yearly: contract.recurring_amount ?? offer?.yearly_price ?? 0,
+      minutes: 0,
+      extra_rate: 0
+    };
+    try {
+      const ensured = await ensureRecurringInvoiceForContract({
+        sbAdmin, customer, contract, subscription, planConfig, offer
+      });
+      results.push({ contract_id: contract.id, invoice_id: ensured.invoice?.id || null, created: Boolean(ensured.created), skipped: ensured.skipped || null });
+    } catch (sweepError) {
+      results.push({ contract_id: contract.id, created: false, skipped: 'error', error: sweepError.message });
+    }
+  }
+
+  return { processed: (contracts || []).length, results };
+}
+
 module.exports = {
   createSetupFeeInvoice,
   createSubscriptionInvoice,
   createInitialContractInvoice,
   markInvoicePaid,
   ensureContractStartInvoices,
-  generateInvoicePdfPreview
+  generateInvoicePdfPreview,
+  ensureRecurringInvoiceForContract,
+  runRecurringBillingSweep
 };

@@ -1,7 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
-const { createSetupFeeInvoice, createSubscriptionInvoice, markInvoicePaid } = require('./_lib/invoice-service');
+const {
+  createSetupFeeInvoice,
+  markInvoicePaid,
+  ensureRecurringInvoiceForContract
+} = require('./_lib/invoice-service');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -52,6 +56,11 @@ function legacyActionBlocked(action) {
   };
 }
 
+function invoiceIsCancelledLike(invoice) {
+  const status = String(invoice?.status || '').trim().toLowerCase();
+  return ['cancelled', 'canceled', 'void', 'voided'].includes(status);
+}
+
 async function loadContractForBilling({ sbAdmin, customerId, requestedContractId = '' }) {
   const normalizedContractId = String(requestedContractId || '').trim();
   if (!normalizedContractId) {
@@ -99,6 +108,10 @@ exports.handler = async (event) => {
     'mark_subscription_paid',
     'create_manual_setup_invoice',
     'create_manual_subscription_invoice',
+    'create_manual_invoice',
+    'cancel_invoice',
+    'create_replacement_invoice',
+    'create_credit_note',
     'mark_invoice_paid',
     'record_invoice_reminder'
   ].includes(action)) {
@@ -226,6 +239,7 @@ exports.handler = async (event) => {
         sbAdmin,
         customer,
         contractId: contract.id,
+        contract,
         offerId: contract.offer_id || null,
         setupFeeAmount: amount,
         billingProvider: 'invoice',
@@ -276,22 +290,34 @@ exports.handler = async (event) => {
       : { data: null, error: null };
     if (offerError) return response(500, { error: 'Offer lookup failed', details: offerError.message });
     try {
-      const invoice = await createSubscriptionInvoice({
+      const ensured = await ensureRecurringInvoiceForContract({
         sbAdmin,
         customer,
-        contractId: contract.id,
-        offerId: contract.offer_id || null,
+        contract,
         subscription,
         planConfig,
-        contract,
         offer,
-        billingProvider: 'invoice',
+        force: false,
         status: 'sent',
-        dueAt: body.due_at || null,
-        notes: body.notes || null,
-        debugTag: 'manual_monthly_invoice'
+        billingProvider: 'invoice',
+        notes: body.notes || 'Manual recurring trigger via admin'
       });
-      return response(200, { success: true, action, customer, subscription, invoice });
+      if (ensured.skipped === 'not_due') {
+        return response(409, {
+          error: `Nächste Vertragsperiode (${contract.next_invoice_date || 'nicht gesetzt'}) ist noch nicht fällig. Für Sonderfälle bitte "create_manual_invoice" nutzen.`,
+          contract_id: contract.id,
+          step_failed: 'create_manual_subscription_invoice_not_due'
+        });
+      }
+      return response(200, {
+        success: true,
+        action,
+        customer,
+        subscription,
+        invoice: ensured.invoice,
+        created: Boolean(ensured.created),
+        skipped: ensured.skipped || null
+      });
     } catch (err) {
       const msg = err?.db_message || err?.message || 'Subscription-Invoice konnte nicht erstellt werden.';
       if (String(msg).toLowerCase().includes('price source missing')) {
@@ -312,6 +338,154 @@ exports.handler = async (event) => {
         payload_sent: err?.payload_sent || helperPayload
       });
     }
+  }
+
+  if (action === 'create_manual_invoice') {
+    const contractId = String(body.contract_id || '').trim() || null;
+    const amount = Number(body.amount || body.total_amount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) return response(400, { error: 'amount muss > 0 sein.' });
+    const title = String(body.title || 'Manual invoice').trim();
+    const invoiceTypeRaw = String(body.invoice_type || 'manual').trim().toLowerCase();
+    const invoiceType = invoiceTypeRaw === 'credit_note' ? 'credit_note' : 'manual';
+    const dueAt = body.due_at || null;
+    const nowIso = new Date().toISOString();
+    const externalReference = `manual:${customerId}:${Date.now()}`;
+    const payload = {
+      invoice_number: await sbAdmin.rpc('next_invoice_number_v1').then((r) => r.data),
+      customer_id: customerId,
+      contract_id: contractId,
+      subscription_id: null,
+      invoice_type: invoiceType,
+      billing_provider: 'invoice',
+      status: 'draft',
+      currency: 'CHF',
+      subtotal_amount: Number(amount.toFixed(2)),
+      tax_amount: 0,
+      total_amount: Number(amount.toFixed(2)),
+      issued_at: nowIso,
+      due_at: dueAt,
+      external_reference: externalReference,
+      notes: body.notes || null
+    };
+    const { data: invoice, error: invoiceError } = await sbAdmin.from('invoices').insert(payload).select('*').single();
+    if (invoiceError) return response(500, { error: 'Manual invoice create failed', details: invoiceError.message });
+    const item = {
+      invoice_id: invoice.id,
+      sort_order: 1,
+      item_type: 'manual',
+      title,
+      description: body.description || null,
+      quantity: 1,
+      unit_price: Number(amount.toFixed(2)),
+      line_total: Number(amount.toFixed(2)),
+      metadata: { source: 'manual_admin', invoice_type: invoiceType }
+    };
+    const { error: itemError } = await sbAdmin.from('invoice_items').insert(item);
+    if (itemError) return response(500, { error: 'Manual invoice item create failed', details: itemError.message, invoice_id: invoice.id });
+    return response(200, { success: true, action, invoice });
+  }
+
+  if (action === 'cancel_invoice') {
+    const invoiceId = String(body.invoice_id || '').trim();
+    if (!invoiceId) return response(400, { error: 'invoice_id fehlt' });
+    const { data: invoice, error: lookupError } = await sbAdmin.from('invoices').select('*').eq('id', invoiceId).maybeSingle();
+    if (lookupError) return response(500, { error: 'Invoice lookup failed', details: lookupError.message });
+    if (!invoice) return response(404, { error: 'Rechnung nicht gefunden.' });
+    if (String(invoice.customer_id || '') !== customerId) return response(409, { error: 'Rechnung gehört nicht zu diesem Kunden.' });
+    if (invoiceIsCancelledLike(invoice)) return response(200, { success: true, action, invoice, already_cancelled: true });
+    const patch = { status: 'cancelled', updated_at: new Date().toISOString() };
+    const { data: cancelled, error: cancelError } = await sbAdmin.from('invoices').update(patch).eq('id', invoiceId).select('*').single();
+    if (cancelError) return response(500, { error: 'Invoice cancel failed', details: cancelError.message });
+    return response(200, { success: true, action, invoice: cancelled });
+  }
+
+  if (action === 'create_replacement_invoice') {
+    const invoiceId = String(body.invoice_id || '').trim();
+    if (!invoiceId) return response(400, { error: 'invoice_id fehlt' });
+    const { data: original, error: lookupError } = await sbAdmin.from('invoices').select('*').eq('id', invoiceId).maybeSingle();
+    if (lookupError) return response(500, { error: 'Invoice lookup failed', details: lookupError.message });
+    if (!original) return response(404, { error: 'Originalrechnung nicht gefunden.' });
+    if (!invoiceIsCancelledLike(original)) return response(409, { error: 'Replacement nur nach storniert/voided erlaubt.' });
+    const amount = Number(body.amount || original.total_amount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) return response(400, { error: 'amount muss > 0 sein.' });
+    const nowIso = new Date().toISOString();
+    const replacementRef = `replacement:${original.id}:${Date.now()}`;
+    const { data: numData } = await sbAdmin.rpc('next_invoice_number_v1');
+    const insertPayload = {
+      invoice_number: String(numData || ''),
+      customer_id: original.customer_id,
+      contract_id: original.contract_id || null,
+      subscription_id: original.subscription_id || null,
+      invoice_type: original.invoice_type || 'manual',
+      billing_provider: 'invoice',
+      status: 'draft',
+      currency: original.currency || 'CHF',
+      subtotal_amount: Number(amount.toFixed(2)),
+      tax_amount: 0,
+      total_amount: Number(amount.toFixed(2)),
+      issued_at: nowIso,
+      due_at: body.due_at || original.due_at || null,
+      period_start: original.period_start || null,
+      period_end: original.period_end || null,
+      external_reference: replacementRef,
+      replacement_for_invoice_id: original.id,
+      notes: body.notes || `Replacement for ${original.invoice_number || original.id}`
+    };
+    const { data: replacement, error: replError } = await sbAdmin.from('invoices').insert(insertPayload).select('*').single();
+    if (replError) return response(500, { error: 'Replacement invoice create failed', details: replError.message });
+    const { data: origItems } = await sbAdmin.from('invoice_items').select('*').eq('invoice_id', original.id).order('sort_order', { ascending: true });
+    if (Array.isArray(origItems) && origItems.length) {
+      const mapped = origItems.map((it) => ({ ...it, id: undefined, invoice_id: replacement.id }));
+      await sbAdmin.from('invoice_items').insert(mapped.map((it) => ({
+        invoice_id: it.invoice_id, sort_order: it.sort_order, item_type: it.item_type, title: it.title, description: it.description,
+        quantity: it.quantity, unit_price: it.unit_price, line_total: it.line_total, metadata: it.metadata || {}
+      })));
+    }
+    return response(200, { success: true, action, invoice: replacement, original_invoice_id: original.id });
+  }
+
+  if (action === 'create_credit_note') {
+    const originalInvoiceId = String(body.invoice_id || '').trim();
+    if (!originalInvoiceId) return response(400, { error: 'invoice_id fehlt' });
+    const { data: original, error: lookupError } = await sbAdmin.from('invoices').select('*').eq('id', originalInvoiceId).maybeSingle();
+    if (lookupError) return response(500, { error: 'Invoice lookup failed', details: lookupError.message });
+    if (!original) return response(404, { error: 'Originalrechnung nicht gefunden.' });
+    const amountRaw = Number(body.amount || original.total_amount || 0);
+    if (!Number.isFinite(amountRaw) || amountRaw <= 0) return response(400, { error: 'amount muss > 0 sein.' });
+    const amount = Number((-Math.abs(amountRaw)).toFixed(2));
+    const { data: numData } = await sbAdmin.rpc('next_invoice_number_v1');
+    const payload = {
+      invoice_number: String(numData || ''),
+      customer_id: original.customer_id,
+      contract_id: original.contract_id || null,
+      subscription_id: original.subscription_id || null,
+      invoice_type: 'credit_note',
+      billing_provider: 'invoice',
+      status: 'draft',
+      currency: original.currency || 'CHF',
+      subtotal_amount: amount,
+      tax_amount: 0,
+      total_amount: amount,
+      issued_at: new Date().toISOString(),
+      due_at: body.due_at || null,
+      external_reference: `credit_note:${original.id}:${Date.now()}`,
+      replacement_for_invoice_id: original.id,
+      notes: body.notes || `Credit note for ${original.invoice_number || original.id}`
+    };
+    const { data: credit, error: creditError } = await sbAdmin.from('invoices').insert(payload).select('*').single();
+    if (creditError) return response(500, { error: 'Credit note create failed', details: creditError.message });
+    await sbAdmin.from('invoice_items').insert({
+      invoice_id: credit.id,
+      sort_order: 1,
+      item_type: 'credit_note',
+      title: 'Credit Note',
+      description: body.description || `Gutschrift zu Rechnung ${original.invoice_number || original.id}`,
+      quantity: 1,
+      unit_price: amount,
+      line_total: amount,
+      metadata: { original_invoice_id: original.id }
+    });
+    return response(200, { success: true, action, invoice: credit, original_invoice_id: original.id });
   }
 
   if ([

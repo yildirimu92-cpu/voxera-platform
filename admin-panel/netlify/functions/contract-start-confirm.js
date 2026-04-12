@@ -99,7 +99,7 @@ exports.handler = async (event) => {
   if (contract.offer_id) {
     const { data: offer, error: offerErr } = await sbAdmin
       .from('offers')
-      .select('id, setup_fee, monthly_price, billing_cycle')
+      .select('id, setup_fee, monthly_price, yearly_price, billing_cycle')
       .eq('id', contract.offer_id)
       .maybeSingle();
     if (offerErr) {
@@ -134,6 +134,10 @@ exports.handler = async (event) => {
   let billing;
   let billingErrorPayload = null;
   try {
+    const billingCycle = String(updatedContract.billing_cycle || offerForBilling?.billing_cycle || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+    const recurringAmount = billingCycle === 'yearly'
+      ? (offerForBilling?.yearly_price ?? null)
+      : (offerForBilling?.monthly_price ?? null);
     billing = await orchestrateContractBilling({
       sbAdmin,
       customer,
@@ -141,7 +145,7 @@ exports.handler = async (event) => {
       nowIso,
       startDate,
       setupFeeAmount: offerForBilling?.setup_fee ?? null,
-      monthlyAmount: offerForBilling?.monthly_price ?? null,
+      monthlyAmount: recurringAmount,
       forceActiveSubscription: true
     });
   } catch (billingError) {
