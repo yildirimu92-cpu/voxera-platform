@@ -2804,7 +2804,18 @@ function paymentStatusBadge(status){
   return `<span class="badge ${cls}">${esc(paymentStatusLabel(normalized))}</span>`;
 }
 function isPaymentPaid(customer){
-  return normalizePaymentStatus(customer?.payment_status)==='paid';
+  const customerId=String(customer?.id||customer?.customer_id||'').trim();
+  if(!customerId) return false;
+  return (state.invoices||[]).some(inv=>{
+    const sameCustomer=idsEq(inv.customer_id||inv.customerId,customerId);
+    if(!sameCustomer) return false;
+    const type=classifyInvoiceType(inv.invoice_type||inv.type||inv.category||'');
+    if(type!=='setup_fee') return false;
+    const dueDate=inv.due_date||inv.due_at||inv.invoice_due_date||null;
+    const paidAt=inv.paid_at||inv.payment_date||inv.paid_date||null;
+    const status=normalizeInvoiceStatus(inv.status||inv.payment_status,dueDate,paidAt);
+    return status==='paid';
+  });
 }
 const CHECKLIST_TO_BUSINESS_STEP={
   'customer created':'Kunde angelegt',
@@ -3226,8 +3237,8 @@ function renderBillingFinance(){
   rootSubscriptionOpsBody.innerHTML=subscriptionOpsRows.map(c=>{
     const due=isSubscriptionDueForRenewal(c,now);
     const cycle=String(c.subscription_billing_cycle||'').toLowerCase();
-    const actionLabel=cycle==='yearly'?'Jahreszahlung senden':'Monatszahlung senden';
-    const actionFn=cycle==='yearly'?'sendYearlyBillingPaymentLink':'sendMonthlyBillingPaymentLink';
+    const actionLabel='Rechnung erstellen';
+    const actionFn='createManualSubscriptionInvoice';
     return `<tr>
       <td data-label="Kunde">${esc(c.name||'—')}</td>
       <td data-label="Plan">${esc(planLabel(c.subscription_plan_code||c.plan_code||c.plan))}</td>
@@ -3239,7 +3250,7 @@ function renderBillingFinance(){
       <td data-label="Aktionen">
         <div class="inline-actions">
           <button class="btn btn-secondary btn-sm finance-action-btn" onclick="${actionFn}('${jsStr(c.id)}')" ${cycle==='monthly'||cycle==='yearly'?'':'disabled'}>${actionLabel}</button>
-          <button class="btn btn-primary btn-sm finance-action-btn" onclick="markSubscriptionPaid('${jsStr(c.id)}')">Als bezahlt markieren</button>
+          <button class="btn btn-primary btn-sm finance-action-btn" onclick="openCustomerInvoicesInFinance('${jsStr(c.id)}')">Offene Rechnungen</button>
         </div>
       </td>
     </tr>`;
@@ -6436,36 +6447,7 @@ async function sendPasswordReset(customerId){
 }
 
 async function sendBillingPaymentLink(customerId){
-  const customer=customerById(customerId);
-  if(!customer) return;
-  const planCode=normalizePlanCode(customer.plan_code||customer.plan);
-  if(!isSalesPlanCode(planCode)){
-    alert('Für diesen internen Plan wird kein Setup-Fee-Link gesendet.');
-    return;
-  }
-
-  try{
-    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_payment_link'});
-    if(!json?.success||!json?.customer) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
-    const dispatch=await callAdminFunction('mail-dispatch',{event_type:'setup_fee_email',customer_id:customerId});
-    if(!dispatch?.success) throw new Error(dispatch?.error||'Mailversand fehlgeschlagen.');
-    const updated=json.customer;
-    customer.plan_code=normalizePlanCode(updated.plan_code||updated.plan||customer.plan_code);
-    customer.plan=normalizePlanCode(updated.plan||updated.plan_code||customer.plan);
-    customer.payment_status=normalizePaymentStatus(updated.payment_status);
-    customer.payment_link=updated.payment_link||null;
-    customer.setup_fee_amount=updated.setup_fee_amount??null;
-    customer.payment_sent_at=updated.payment_sent_at||null;
-    customer.payment_received_at=updated.payment_received_at||null;
-    customer.latest=`${nowStamp()} · Setup Fee Link gesendet`;
-    state.events.unshift(`${nowStamp()} · ${customer.name}: Setup Fee Link aus plan_config gesendet`);
-    renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    showToast('✓ Setup Fee Link gesendet.');
-  }catch(err){
-    const payload=err?.payload||{};
-    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
-  }
+  return createManualSetupInvoice(customerId);
 }
 
 async function sendInvoiceEmail(invoiceId){
@@ -6481,89 +6463,19 @@ async function sendInvoiceEmail(invoiceId){
 }
 
 async function markBillingPaid(customerId){
-  const customer=customerById(customerId);
-  if(!customer) return;
-  if(!confirm(`Zahlung für ${customer.name} als erhalten markieren?`)) return;
-  try{
-    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'mark_paid'});
-    if(!json?.success||!json?.customer) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
-    const updated=json.customer;
-    customer.payment_status=normalizePaymentStatus(updated.payment_status);
-    customer.payment_link=updated.payment_link||null;
-    customer.setup_fee_amount=updated.setup_fee_amount??null;
-    customer.payment_sent_at=updated.payment_sent_at||null;
-    customer.payment_received_at=updated.payment_received_at||null;
-    customer.latest=`${nowStamp()} · Zahlung als erhalten markiert`;
-    state.events.unshift(`${nowStamp()} · ${customer.name}: Zahlung als bezahlt markiert`);
-    renderCustomers(); renderOverview(); renderActivity(); updateBadges();
-    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    showToast('✓ Zahlung als erhalten markiert.');
-  }catch(err){
-    const payload=err?.payload||{};
-    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
-  }
+  alert('Direktes Kunden-Payment-Markieren ist deaktiviert. Bitte die konkrete Rechnung im Finance-Board als bezahlt markieren.');
 }
 
 async function sendMonthlyBillingPaymentLink(customerId){
-  const customer=customerById(customerId);
-  if(!customer) return;
-  try{
-    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_monthly_payment_link'});
-    if(!json?.success||!json?.subscription) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
-    const dispatch=await callAdminFunction('mail-dispatch',{event_type:'subscription_payment_email',customer_id:customerId});
-    if(!dispatch?.success) throw new Error(dispatch?.error||'Mailversand fehlgeschlagen.');
-    customer.subscription_status=json.subscription.subscription_status||customer.subscription_status;
-    customer.subscription_renews_at=json.subscription.renews_at||customer.subscription_renews_at;
-    customer.latest=`${nowStamp()} · Monatszahlung gesendet`;
-    state.events.unshift(`${nowStamp()} · ${customer.name}: Monatszahlung aus plan_config gesendet`);
-    renderCustomers(); renderOverview(); renderActivity(); renderBillingFinance(); updateBadges();
-    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    showToast('✓ Monatszahlung gesendet.');
-  }catch(err){
-    const payload=err?.payload||{};
-    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
-  }
+  return createManualSubscriptionInvoice(customerId);
 }
 
 async function sendYearlyBillingPaymentLink(customerId){
-  const customer=customerById(customerId);
-  if(!customer) return;
-  try{
-    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'send_yearly_payment_link'});
-    if(!json?.success||!json?.subscription) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
-    const dispatch=await callAdminFunction('mail-dispatch',{event_type:'subscription_payment_email',customer_id:customerId});
-    if(!dispatch?.success) throw new Error(dispatch?.error||'Mailversand fehlgeschlagen.');
-    customer.subscription_status=json.subscription.subscription_status||customer.subscription_status;
-    customer.subscription_renews_at=json.subscription.renews_at||customer.subscription_renews_at;
-    customer.latest=`${nowStamp()} · Jahreszahlung gesendet`;
-    state.events.unshift(`${nowStamp()} · ${customer.name}: Jahreszahlung aus plan_config gesendet`);
-    renderCustomers(); renderOverview(); renderActivity(); renderBillingFinance(); updateBadges();
-    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    showToast('✓ Jahreszahlung gesendet.');
-  }catch(err){
-    const payload=err?.payload||{};
-    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
-  }
+  return createManualSubscriptionInvoice(customerId);
 }
 
 async function markSubscriptionPaid(customerId){
-  const customer=customerById(customerId);
-  if(!customer) return;
-  if(!confirm(`Subscription-Zahlung für ${customer.name} als bezahlt markieren?`)) return;
-  try{
-    const json=await callAdminFunction('customer-billing-update',{customer_id:customerId,action:'mark_subscription_paid'});
-    if(!json?.success||!json?.subscription) throw new Error(json?.error||'Billing-Update fehlgeschlagen.');
-    customer.subscription_status=json.subscription.subscription_status||customer.subscription_status;
-    customer.subscription_renews_at=json.subscription.renews_at||customer.subscription_renews_at;
-    customer.latest=`${nowStamp()} · Subscription als bezahlt markiert`;
-    state.events.unshift(`${nowStamp()} · ${customer.name}: Subscription als bezahlt markiert`);
-    renderCustomers(); renderOverview(); renderActivity(); renderBillingFinance(); updateBadges();
-    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
-    showToast('✓ Subscription als bezahlt markiert.');
-  }catch(err){
-    const payload=err?.payload||{};
-    alert(payload?.error||err?.message||'Billing-Update fehlgeschlagen.');
-  }
+  alert('Subscription-Payment wird nur noch über konkrete Rechnungen gebucht. Bitte im Finance-Board die Rechnung als bezahlt markieren.');
 }
 
 async function createManualSetupInvoice(customerId){
@@ -6693,11 +6605,6 @@ async function submitInvoicePaidModal(){
     const idx=state.invoices.findIndex(inv=>idsEq(inv.id,invoiceId));
     if(idx>=0) state.invoices[idx]=json.invoice;
     const customer=customerById(customerId);
-    if(customer&&json?.customer){
-      customer.payment_status=normalizePaymentStatus(json.customer.payment_status);
-      customer.payment_sent_at=json.customer.payment_sent_at||customer.payment_sent_at||null;
-      customer.payment_received_at=json.customer.payment_received_at||customer.payment_received_at||null;
-    }
     const readinessHint=String(json?.access_readiness?.hint||'').trim();
     showToast(readinessHint?`✓ ${readinessHint}`:'✓ Rechnung als bezahlt markiert.');
     setInvoicePaidFeedback('success','Rechnung wurde als bezahlt markiert.');

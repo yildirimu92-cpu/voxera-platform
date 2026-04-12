@@ -62,8 +62,10 @@ exports.handler = async (event) => {
   if (endDate !== computedEndDate) return response(409, { error: 'end_date ist inkonsistent zur Kombination aus start_date und duration_months.' });
 
   const nowIso = new Date().toISOString();
+  const idempotencyKey = String(event.headers['x-idempotency-key'] || '').trim() || `contract_start_confirm:${contractId}:${startDate}:${durationMonths}`;
   const requestedCustomerId = String(body.customer_id || '').trim();
   console.log('[contract_start_confirm] start', JSON.stringify({
+    idempotency_key: idempotencyKey,
     contract_id: contractId || null,
     customer_id: requestedCustomerId || null,
     start_date: startDate,
@@ -92,6 +94,19 @@ exports.handler = async (event) => {
     .maybeSingle();
   if (customerError) return response(500, { error: 'Customer lookup failed.', step_failed: 'customer_lookup', contract_id: contractId, customer_id: customerId, ...dbDiag(customerError) });
   if (!customer) return response(404, { error: 'Customer nicht gefunden.' });
+
+  let offerForBilling = null;
+  if (contract.offer_id) {
+    const { data: offer, error: offerErr } = await sbAdmin
+      .from('offers')
+      .select('id, setup_fee, monthly_price, billing_cycle')
+      .eq('id', contract.offer_id)
+      .maybeSingle();
+    if (offerErr) {
+      return response(500, { error: 'Offer lookup failed.', step_failed: 'offer_lookup', contract_id: contractId, customer_id: customerId, ...dbDiag(offerErr) });
+    }
+    offerForBilling = offer || null;
+  }
 
   const noticeMonths = String(contract.cancellation_notice || '') === '3 Monate' ? 3 : 1;
   const patch = {
@@ -124,8 +139,8 @@ exports.handler = async (event) => {
       contract: updatedContract,
       nowIso,
       startDate,
-      setupFeeAmount: customer.setup_fee_amount,
-      monthlyAmount: null,
+      setupFeeAmount: offerForBilling?.setup_fee ?? null,
+      monthlyAmount: offerForBilling?.monthly_price ?? null,
       forceActiveSubscription: true
     });
   } catch (billingError) {
@@ -155,6 +170,7 @@ exports.handler = async (event) => {
   });
 
   console.log('[contract_start_confirm] end', JSON.stringify({
+    idempotency_key: idempotencyKey,
     contract_id: updatedContract?.id || contractId,
     customer_id: customer?.id || customerId,
     subscription_id: billing?.subscription?.id || null,
