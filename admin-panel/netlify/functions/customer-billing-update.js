@@ -109,8 +109,10 @@ exports.handler = async (event) => {
       if (String(invoice.customer_id) !== customerId) return response(409, { error: 'Rechnung gehört nicht zu diesem Kunden.' });
 
       const updatedInvoice = await markInvoicePaid(sbAdmin, invoiceId, {
-        paidAt: nowIso,
+        paidAt: body.paid_at || nowIso,
         paidSource,
+        paidAmount: body.amount_paid,
+        paymentReference: body.payment_reference || body.reference || null,
         stripePaymentIntentId: body.stripe_payment_intent_id,
         stripeCheckoutSessionId: body.stripe_checkout_session_id,
         stripeInvoiceId: body.stripe_invoice_id,

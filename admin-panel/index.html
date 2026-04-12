@@ -1164,7 +1164,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <section id="section-overview" class="section active">
         <div class="kpi-grid" id="overview-kpis"></div>
         <div class="card overview-focus-card">
-          <div class="card-head"><h3>Jetzt bearbeiten</h3><span class="badge badge-red">Priorität</span></div>
+          <div class="card-head"><h3>Ops-To-dos / Zu erledigen</h3><span class="badge badge-red">Priorität</span></div>
           <div class="list" id="overview-now-list"></div>
         </div>
         <div class="grid-2 overview-secondary-grid">
@@ -2060,6 +2060,47 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   </div>
 </div>
 
+<div class="modal-overlay" id="invoice-paid-modal" onclick="if(event.target===this)closeInvoicePaidModal()">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Rechnung als bezahlt markieren</div>
+        <div class="modal-sub" id="invoice-paid-sub">Manuelle Zahlungsbestätigung inkl. Betrag, Datum und Referenz/Notiz.</div>
+      </div>
+      <button class="btn btn-quiet" onclick="closeInvoicePaidModal()">✕</button>
+    </div>
+    <div id="invoice-paid-feedback" class="modal-feedback"></div>
+    <div class="grid-2" style="margin-bottom:12px;">
+      <div class="detail-item"><span class="detail-k">Invoice-ID</span><span class="detail-v" id="invoice-paid-invoice-id">—</span></div>
+      <div class="detail-item"><span class="detail-k">Kunde</span><span class="detail-v" id="invoice-paid-customer-name">—</span></div>
+      <div class="detail-item"><span class="detail-k">Rechnungstyp</span><span class="detail-v" id="invoice-paid-invoice-type">—</span></div>
+      <div class="detail-item"><span class="detail-k">Status</span><span class="detail-v" id="invoice-paid-current-status">—</span></div>
+    </div>
+    <div class="grid-2" style="margin-bottom:10px;">
+      <div>
+        <label class="muted" for="invoice-paid-amount-input">Betrag (CHF)</label>
+        <input id="invoice-paid-amount-input" class="input" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div>
+        <label class="muted" for="invoice-paid-date-input">Zahlungsdatum</label>
+        <input id="invoice-paid-date-input" class="input" type="date">
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label class="muted" for="invoice-paid-reference-input">Referenz (optional)</label>
+      <input id="invoice-paid-reference-input" class="input" type="text" placeholder="Transaktions-ID / Kontoauszug">
+    </div>
+    <div style="margin-bottom:8px;">
+      <label class="muted" for="invoice-paid-note-input">Notiz (optional)</label>
+      <textarea id="invoice-paid-note-input" class="input" rows="3" placeholder="Interner Hinweis"></textarea>
+    </div>
+    <div class="inline-actions">
+      <button class="btn btn-quiet" type="button" onclick="closeInvoicePaidModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="invoice-paid-submit-btn" type="button">Als bezahlt speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- CUSTOMER DANGER MODAL -->
 <div class="modal-overlay" id="customer-danger-modal" onclick="if(event.target===this)closeCustomerDangerModal()">
   <div class="modal" style="max-width:620px;">
@@ -2300,6 +2341,7 @@ const state={
   createCustomerPending:false,
   sendAccessPending:false,
   sendAccessTargetId:null,
+  invoicePaidModal:{customerId:null,invoiceId:null,pending:false},
   caseCapturePending:false,
   caseCaptureCustomerId:null,
   customerDangerPending:false,
@@ -2876,21 +2918,50 @@ function renderOverview(){
     const diffDays=(Date.now()-latest.getTime())/(1000*60*60*24);
     return diffDays>=3;
   });
-  // Overview-spezifische Task-Aggregation: nur vorhandene Kunden-/Case-Daten lokal clustern.
+  const invoiceRows=(state.invoices||[]).map(inv=>{
+    const type=classifyInvoiceType(inv.invoice_type||inv.type||inv.category||'');
+    const dueDate=inv.due_date||inv.due_at||inv.invoice_due_date||null;
+    const status=normalizeInvoiceStatus(inv.status||inv.payment_status,dueDate,inv.paid_at||inv.payment_date||null);
+    return {
+      id:String(inv.id||''),
+      customerId:String(inv.customer_id||''),
+      type,
+      status
+    };
+  });
+  const todo = {
+    acceptedOffers: state.offers.filter(o=>String(o.status||'').toLowerCase()==='accepted').length,
+    contractReview: state.contracts.filter(c=>['pending','review_required','ops_review','in_review'].includes(String(c.status||'').toLowerCase())).length,
+    setupToSend: invoiceRows.filter(i=>i.type==='setup_fee' && i.status==='draft').length,
+    setupToCheckPayment: invoiceRows.filter(i=>i.type==='setup_fee' && !['paid','cancelled'].includes(i.status)).length,
+    monthToSend: invoiceRows.filter(i=>i.type==='recurring' && i.status==='draft').length,
+    monthToCheckPayment: invoiceRows.filter(i=>i.type==='recurring' && !['paid','cancelled'].includes(i.status)).length,
+    accessToSend: opsReadyCustomers.length,
+    aiOpen: aiSetupOpenCustomers.length
+  };
   const nowWorkItems=[
-    ...aiSetupOpenCustomers.slice(0,4).map(c=>{
-      const setupProgress=getCustomerSetupProgress(c,onboardingForCustomer(c.id));
-      return `<div class="list-item overview-task-item"><div><div class="list-main">${esc(c.name)} · AI Setup offen</div><div class="list-sub">Setup-Fortschritt ${setupProgress}% · fehlende Basisdaten prüfen</div></div><button class="btn btn-secondary btn-sm" onclick="setRoute('ai-setup')">AI Setup</button></div>`;
-    }),
-    ...opsReadyCustomers.slice(0,4).map(c=>`<div class="list-item overview-task-item"><div><div class="list-main">${esc(c.name)} · Zugang kann gesendet werden</div><div class="list-sub">Interne Vorbereitung abgeschlossen · Übergabe an Kunde ausstehend</div></div><button class="btn btn-primary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')">Zugang senden</button></div>`),
-    ...state.cases.filter(cs=>normalizeCaseStatus(cs.status)!==CASE_STATUS.DONE).slice(0,4).map(cs=>`<div class="list-item overview-task-item"><div><div class="list-main">${esc(custName(cs.customerId))} · Case offen</div><div class="list-sub">${esc(cs.title||'Anliegen prüfen')} · Status ${esc(normalizeCaseStatus(cs.status))}</div></div><button class="btn btn-quiet btn-sm" onclick="setRoute('cases')">Cases öffnen</button></div>`),
-    ...waitingLong.slice(0,3).map(c=>{
-      const latest=parseOnboardingLatest(c.id);
-      const diffDays=latest?Math.floor((Date.now()-latest.getTime())/(1000*60*60*24)):null;
-      const sub=diffDays===null?'Wartet auf Kundenschritt · Follow-up prüfen':`Wartet seit ${diffDays} Tagen auf Kundenschritt`;
-      return `<div class="list-item overview-task-item"><div><div class="list-main">${esc(c.name)} · Follow-up sinnvoll</div><div class="list-sub">${esc(sub)}</div></div><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button></div>`;
-    })
-  ].slice(0,9);
+    ['Offerten akzeptiert / nachfassen',todo.acceptedOffers,'Akzeptierte Offerten auf Vollständigkeit prüfen','offers',"setRoute('offers')"],
+    ['Verträge prüfen',todo.contractReview,'Operative Vertragsprüfung ausstehend','contracts',"setRoute('contracts')"],
+    ['Setup Fee senden',todo.setupToSend,'Setup-Fee-Entwürfe im Finance versenden','billing-finance',"setRoute('billing-finance');setFinanceInvoiceStatusFilter('draft')"],
+    ['Setup Fee Zahlung prüfen',todo.setupToCheckPayment,'Offene Setup-Fee-Rechnungen nachverfolgen','billing-finance',"setRoute('billing-finance');setFinanceInvoiceStatusFilter('open')"],
+    ['Monatsrechnung senden',todo.monthToSend,'Monat-1-Entwürfe im Finance versenden','billing-finance',"setRoute('billing-finance');setFinanceInvoiceStatusFilter('draft')"],
+    ['Monatsrechnung Zahlung prüfen',todo.monthToCheckPayment,'Offene Monatsrechnungen nachverfolgen','billing-finance',"setRoute('billing-finance');setFinanceInvoiceStatusFilter('open')"],
+    ['Zugang senden',todo.accessToSend,'Kunden sind intern bereit, Übergabe steht aus','customers',"setRoute('customers')"],
+    ['AI-Konfiguration offen',todo.aiOpen,'Mindestens ein Pflichtfeld für AI fehlt','ai-setup',"setRoute('ai-setup')"]
+  ]
+    .filter(([,count])=>count>0)
+    .slice(0,10)
+    .map(([title,count,sub,_route,action])=>`<div class="list-item overview-task-item"><div><div class="list-main">${esc(title)}</div><div class="list-sub">${esc(sub)}</div></div><div class="inline-actions">${toneBadge(String(count))}<button class="btn btn-quiet btn-sm" onclick="${action}">Öffnen</button></div></div>`);
+  if(!nowWorkItems.length){
+    if(waitingLong.length){
+      nowWorkItems.push(...waitingLong.slice(0,3).map(c=>{
+        const latest=parseOnboardingLatest(c.id);
+        const diffDays=latest?Math.floor((Date.now()-latest.getTime())/(1000*60*60*24)):null;
+        const sub=diffDays===null?'Wartet auf Kundenschritt · Follow-up prüfen':`Wartet seit ${diffDays} Tagen auf Kundenschritt`;
+        return `<div class="list-item overview-task-item"><div><div class="list-main">${esc(c.name)} · Follow-up sinnvoll</div><div class="list-sub">${esc(sub)}</div></div><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button></div>`;
+      }));
+    }
+  }
   document.getElementById('overview-now-list').innerHTML=nowWorkItems.join('')||'<div class="empty">Aktuell keine priorisierten Aufgaben.</div>';
 
   document.getElementById('overview-process-list').innerHTML=[
@@ -3089,7 +3160,9 @@ function renderBillingFinance(){
     const due=parseDate(i.dueDate);
     return !!(due && due>=startOfToday && due<=endOfToday);
   });
-  const blockedCustomers=state.customers.filter(c=>!isPaymentPaid(c));
+  const draftRows=invoiceRows.filter(i=>i.status==='draft');
+  const setupDraftRows=invoiceRows.filter(i=>i.type==='setup_fee' && i.status==='draft');
+  const monthDraftRows=invoiceRows.filter(i=>i.type==='recurring' && i.status==='draft');
   const activeSubscriptions=(state.subscriptions||[]).filter(s=>String(s.subscription_status||'').toLowerCase()==='active');
   const activeMonthlySubscriptions=activeSubscriptions.filter(s=>String(s.billing_cycle||'').toLowerCase()==='monthly');
   const activeSubscriptionsCount=activeSubscriptions.length;
@@ -3112,7 +3185,7 @@ function renderBillingFinance(){
     {label:'Überfällige Rechnungen',value:overdueRows.length,sub:'Sofortiger Follow-up nötig',filterKey:'overdue',interactive:true},
     {label:'Heute fällig',value:dueToday.length,sub:'Zahlung heute erwartet',filterKey:'due_today',interactive:true},
     {label:'Zahlung offen',value:openRows.length,sub:'Aktuell nicht bezahlt',filterKey:'open',interactive:true},
-    {label:'Blockierte Kunden',value:blockedCustomers.length,sub:'Zugang blockiert wegen Zahlung',filterKey:null,interactive:false},
+    {label:'Rechnungsentwürfe',value:draftRows.length,sub:'Versand im Finance ausstehend',filterKey:'draft',interactive:true},
     {label:'Cash-In Monat',value:moneyChf(paidThisMonth),sub:'Bezahlt im laufenden Monat',filterKey:null,interactive:false},
     {label:'Offener Betrag',value:moneyChf(openAmount),sub:'inkl. überfällige Positionen',filterKey:'open',interactive:true},
     {label:'MRR',value:moneyChf(mrrEstimate),sub:`${activeSubscriptionsCount} aktive Subscriptions`,filterKey:null,interactive:false},
@@ -3136,8 +3209,9 @@ function renderBillingFinance(){
     ['Überfällig',overdueRows.length,'Sofort nachfassen','overdue','Überfällige Rechnungen filtern'],
     ['Follow-up nötig',invoiceRows.filter(i=>i.followupNeeded).length,'Mahnwesen / Reminder aktiv','followup','Mahn-Worklist anzeigen'],
     ['Zahlung offen',openRows.length,'offene Rechnungen gesamt','open','Offene Rechnungen anzeigen'],
-    ['Setup Fee offen',setupOpen.length,'Einrichtungsgebühr ausstehend','open','Setup-Fee-Fälle priorisieren'],
-    ['Zugang blockiert wegen Zahlung',blockedCustomers.length,'aus customer.payment_status abgeleitet',null,'In Kundenprofil prüfen']
+    ['Setup Fee senden',setupDraftRows.length,'Setup-Fee-Entwürfe versenden','draft','Setup-Fee-Entwürfe anzeigen'],
+    ['Monatsrechnung senden',monthDraftRows.length,'Monat-1-Entwürfe versenden','draft','Monatsrechnungs-Entwürfe anzeigen'],
+    ['Setup Fee offen',setupOpen.length,'Einrichtungsgebühr ausstehend','open','Setup-Fee-Fälle priorisieren']
   ];
   rootWorklist.innerHTML=workItems.map(([label,val,sub,filterKey,actionLabel])=>`<div class="list-item finance-work-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div class="inline-actions">${toneBadge(String(val))}${filterKey?`<button class="btn btn-quiet btn-sm finance-action-btn" onclick="setFinanceInvoiceStatusFilter('${jsStr(filterKey)}')">${esc(String(actionLabel))}</button>`:''}</div></div>`).join('')||'<div class="empty finance-empty"><div>Keine offenen Billing-Aufgaben.</div><div class="finance-empty-hint">Sobald Rechnungen fällig werden oder Follow-ups offen sind, erscheinen sie hier.</div></div>';
 
@@ -4732,13 +4806,18 @@ function formatDateDE(dateStr) {
 }
 
 function getContractStatusMeta(ct) {
-  var isExtraordinary = (ct.status === 'cancelled') && (
+  var normalizedStatus = String(ct.status || '').trim().toLowerCase();
+  var isReviewRequired = ['pending','review_required','ops_review','in_review'].includes(normalizedStatus);
+  if (isReviewRequired) {
+    return { label: 'Prüfung ausstehend', badge: 'badge-amber' };
+  }
+  var isExtraordinary = (normalizedStatus === 'cancelled') && (
     String(ct.terminationType || '').toLowerCase() === 'extraordinary' ||
     /ausserordentliche kündigung/i.test(String(ct.notes || ''))
   );
-  var statusKey = ct.status === 'cancelled'
+  var statusKey = normalizedStatus === 'cancelled'
     ? (isExtraordinary ? 'extraordinary_terminated' : 'ordinary_terminated')
-    : (ct.status || 'draft');
+    : (normalizedStatus || 'draft');
   var statusMap = {
     draft: { label: 'Draft', badge: 'badge-gray' },
     active: { label: 'Active', badge: 'badge-green' },
@@ -4747,6 +4826,14 @@ function getContractStatusMeta(ct) {
     extraordinary_terminated: { label: 'Extraordinary terminated', badge: 'badge-red' }
   };
   return statusMap[statusKey] || { label: ct.status || 'Unknown', badge: 'badge-gray' };
+}
+
+function contractStatusLabel(status) {
+  return getContractStatusMeta({ status: status || '' }).label;
+}
+
+function contractStatusBadgeClass(status) {
+  return getContractStatusMeta({ status: status || '' }).badge;
 }
 
 function getContractTerminatedAt(ct) {
@@ -5279,22 +5366,21 @@ function viewContract(id) {
   var displayPlan = planLabel(ct.plan || '—');
   var signedAt = acc ? formatDateDE(acc.createdAt) : formatDateDE(ct.updatedAt || ct.createdAt);
   var signedBy = acc ? (acc.acceptedByName || '—') : (ct.customerName || '—');
-  var statusLabels = {draft:'Entwurf', active:'Aktiv', signed:'Unterzeichnet', cancelled:'Gek\u00fcndigt'};
   document.getElementById('view-contract-title').textContent = 'Vertrag \u2013 ' + (ct.customerName || '—');
-  document.getElementById('view-contract-sub').textContent   = displayPlan + ' \u00b7 ' + (statusLabels[ct.status] || ct.status);
+  document.getElementById('view-contract-sub').textContent   = displayPlan + ' \u00b7 ' + contractStatusLabel(ct.status);
   var head = document.getElementById('view-contract-head');
   if (head) {
     head.innerHTML = '<div class="contract-head-main"><div>'
       + '<div class="contract-head-id">Vertrag #'+esc(ct.id.slice(0,8))+'</div>'
       + '<div class="contract-head-title">'+esc(ct.customerName || 'Unbekannter Kunde')+'</div>'
       + '<div class="contract-head-sub">Offerte: '+(ct.offerId ? '#'+esc(ct.offerId.slice(0,8)) : '—')+'</div>'
-      + '</div><span class="badge '+({draft:'badge-gray',active:'badge-green',signed:'badge-blue',cancelled:'badge-red'}[ct.status]||'badge-gray')+'">'+esc(statusLabels[ct.status] || ct.status)+'</span></div>';
+      + '</div><span class="badge '+contractStatusBadgeClass(ct.status)+'">'+esc(contractStatusLabel(ct.status))+'</span></div>';
   }
   var meta = document.getElementById('view-contract-meta');
   if (meta) {
     meta.innerHTML = [
       renderContractDetailStat('Vertrags-ID', '#' + (ct.id || '—')),
-      renderContractDetailStat('Status', statusLabels[ct.status] || ct.status),
+      renderContractDetailStat('Status', contractStatusLabel(ct.status)),
       renderContractDetailStat('Kunde', ct.customerName || '—'),
       renderContractDetailStat('Verknüpfte Offerte', ct.offerId ? '#' + ct.offerId : '—'),
       renderContractDetailStat('Startdatum', formatDateDE(ct.startDate)),
@@ -5608,7 +5694,6 @@ function printContract(id) {
   var acc = contractAcceptanceData(ct);
   var w = window.open('', '_blank');
   if (!w) { alert('Bitte Pop-ups erlauben.'); return; }
-  var statusLabels = {draft:'Entwurf', active:'Aktiv', signed:'Unterzeichnet', cancelled:'Gek\u00fcndigt'};
   var displayPlan = planLabel(ct.plan || '—');
   var signedAt = acc ? formatDateDE(acc.createdAt) : formatDateDE(ct.updatedAt || ct.createdAt);
   var signedBy = acc ? (acc.acceptedByName || '—') : (ct.customerName || '—');
@@ -5621,7 +5706,7 @@ function printContract(id) {
     + 'h3{margin-top:24px;} @media print{button{display:none}}</style>'
     + '</head><body>'
     + '<h2>Vertrag \u2013 '+esc(ct.customerName)+'</h2>'
-    + '<p><strong>Plan:</strong> '+esc(displayPlan)+'&nbsp;&nbsp;<strong>Status:</strong> '+(statusLabels[ct.status]||ct.status)+'</p>'
+    + '<p><strong>Plan:</strong> '+esc(displayPlan)+'&nbsp;&nbsp;<strong>Status:</strong> '+esc(contractStatusLabel(ct.status))+'</p>'
     + '<p><strong>Unterschrieben am:</strong> '+esc(signedAt)+'&nbsp;&nbsp;<strong>Unterschrieben von:</strong> '+esc(signedBy)+'</p>'
     + '<pre>'+esc(ct.contractText||'')+'</pre>'
     + sigHtml
@@ -5974,14 +6059,13 @@ function openCustomerProfile(id){
   // ─── TAB: VERTRÄGE ───────────────────────────────────────
   const profileContracts=document.getElementById('profile-contracts');
   if(profileContracts){
-    const statusLabels={draft:'Entwurf',active:'Aktiv',signed:'Unterzeichnet',cancelled:'Gekündigt'};
     const customerContracts=state.contracts.filter(ct=>idsEq(ct.customerId,id));
     profileContracts.innerHTML=customerContracts.map(ct=>{
       const signedAt=ct.signedAt?new Date(ct.signedAt).toLocaleDateString('de-CH'):(ct.status==='signed'?'—':'');
       const canSign=ct.status!=='signed'&&ct.status!=='cancelled';
       return `<tr>
         <td style="font-family:monospace;font-size:11px;">${esc(String(ct.id).slice(0,8)+'…')}</td>
-        <td>${toneBadge(statusLabels[ct.status]||ct.status)}</td>
+        <td>${toneBadge(contractStatusLabel(ct.status))}</td>
         <td>${esc(signedAt||'—')}</td>
         <td>${esc(planLabel(ct.plan||'—'))}</td>
         <td>
@@ -6530,14 +6614,80 @@ async function createManualSubscriptionInvoice(customerId){
   }
 }
 
-async function markInvoicePaid(customerId,invoiceId){
-  if(!confirm('Rechnung als bezahlt markieren?')) return;
+function setInvoicePaidFeedback(type,message){
+  const feedback=document.getElementById('invoice-paid-feedback');
+  if(!feedback) return;
+  feedback.className='modal-feedback';
+  feedback.textContent=message||'';
+  if(type==='error') feedback.classList.add('error');
+  if(type==='success') feedback.classList.add('success');
+}
+
+function setInvoicePaidSubmitting(isSubmitting){
+  state.invoicePaidModal.pending=!!isSubmitting;
+  const btn=document.getElementById('invoice-paid-submit-btn');
+  if(!btn) return;
+  btn.disabled=!!isSubmitting;
+  btn.textContent=isSubmitting?'Speichere…':'Als bezahlt speichern';
+}
+
+function openInvoicePaidModal(customerId,invoiceId){
+  const invoice=(state.invoices||[]).find(inv=>idsEq(inv.id,invoiceId));
+  const customer=customerById(customerId);
+  if(!invoice||!customer) return;
+  state.invoicePaidModal={customerId,invoiceId,pending:false};
+  setInvoicePaidFeedback(null,'');
+  document.getElementById('invoice-paid-invoice-id').textContent=String(invoice.id||'—');
+  document.getElementById('invoice-paid-customer-name').textContent=customer.name||'—';
+  document.getElementById('invoice-paid-invoice-type').textContent=invoiceTypeLabel(classifyInvoiceType(invoice.invoice_type||invoice.type||invoice.category||''));
+  document.getElementById('invoice-paid-current-status').textContent=String(invoice.status||'draft');
+  const total=Number(invoice.total_amount ?? invoice.amount_total ?? invoice.amount_due ?? invoice.amount ?? 0);
+  document.getElementById('invoice-paid-amount-input').value=Number.isFinite(total)&&total>0?total.toFixed(2):'';
+  document.getElementById('invoice-paid-date-input').value=new Date().toISOString().slice(0,10);
+  document.getElementById('invoice-paid-reference-input').value='';
+  document.getElementById('invoice-paid-note-input').value='';
+  document.getElementById('invoice-paid-modal').classList.add('open');
+}
+
+function closeInvoicePaidModal(){
+  if(state.invoicePaidModal?.pending) return;
+  state.invoicePaidModal={customerId:null,invoiceId:null,pending:false};
+  setInvoicePaidFeedback(null,'');
+  document.getElementById('invoice-paid-modal').classList.remove('open');
+}
+
+async function submitInvoicePaidModal(){
+  if(state.invoicePaidModal?.pending) return;
+  const customerId=state.invoicePaidModal?.customerId;
+  const invoiceId=state.invoicePaidModal?.invoiceId;
+  if(!customerId||!invoiceId) return;
+  const amountRaw=String(document.getElementById('invoice-paid-amount-input')?.value||'').trim();
+  const amount=amountRaw===''?null:Number(amountRaw);
+  if(amountRaw!=='' && (!Number.isFinite(amount)||amount<0)){
+    setInvoicePaidFeedback('error','Bitte einen gültigen Betrag eingeben.');
+    return;
+  }
+  const paidDate=String(document.getElementById('invoice-paid-date-input')?.value||'').trim();
+  if(!paidDate){
+    setInvoicePaidFeedback('error','Bitte ein Zahlungsdatum wählen.');
+    return;
+  }
+  const paymentReference=String(document.getElementById('invoice-paid-reference-input')?.value||'').trim();
+  const note=String(document.getElementById('invoice-paid-note-input')?.value||'').trim();
+  const noteParts=[note,paymentReference?`Ref: ${paymentReference}`:''].filter(Boolean);
+  const noteCombined=noteParts.join(' · ');
+  setInvoicePaidSubmitting(true);
+  setInvoicePaidFeedback(null,'');
   try{
     const json=await callAdminFunction('customer-billing-update',{
       customer_id:customerId,
       action:'mark_invoice_paid',
       invoice_id:invoiceId,
-      paid_source:'bank_transfer'
+      paid_source:'bank_transfer',
+      paid_at:`${paidDate}T12:00:00.000Z`,
+      amount_paid:amount,
+      payment_reference:paymentReference||null,
+      notes:noteCombined||null
     });
     if(!json?.success||!json?.invoice) throw new Error(json?.error||'Invoice-Update fehlgeschlagen.');
     const idx=state.invoices.findIndex(inv=>idsEq(inv.id,invoiceId));
@@ -6550,12 +6700,20 @@ async function markInvoicePaid(customerId,invoiceId){
     }
     const readinessHint=String(json?.access_readiness?.hint||'').trim();
     showToast(readinessHint?`✓ ${readinessHint}`:'✓ Rechnung als bezahlt markiert.');
+    setInvoicePaidFeedback('success','Rechnung wurde als bezahlt markiert.');
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
     renderCustomers(); renderOverview(); renderActivity(); renderBillingFinance();
+    setTimeout(()=>closeInvoicePaidModal(),700);
   }catch(err){
     const payload=err?.payload||{};
-    alert(payload?.error||err?.message||'Invoice-Update fehlgeschlagen.');
+    setInvoicePaidFeedback('error',payload?.error||err?.message||'Invoice-Update fehlgeschlagen.');
+  }finally{
+    setInvoicePaidSubmitting(false);
   }
+}
+
+async function markInvoicePaid(customerId,invoiceId){
+  openInvoicePaidModal(customerId,invoiceId);
 }
 
 function setFinanceInvoiceStatusFilter(status){
@@ -7393,6 +7551,7 @@ function wireUi(){
   });
   document.getElementById('profile-add-note-btn').addEventListener('click',addProfileNote);
   document.getElementById('send-access-submit-btn').addEventListener('click',submitSendAccess);
+  document.getElementById('invoice-paid-submit-btn').addEventListener('click',submitInvoicePaidModal);
   document.getElementById('customer-danger-confirm-btn').addEventListener('click',submitCustomerDangerAction);
   document.getElementById('open-create-customer-btn').addEventListener('click',openCreateCustomerModal);
   document.getElementById('create-customer-form').addEventListener('submit',submitCreateCustomer);

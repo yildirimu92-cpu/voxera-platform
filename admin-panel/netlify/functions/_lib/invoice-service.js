@@ -729,27 +729,41 @@ async function ensureContractStartInvoices({
   };
 }
 
-async function markInvoicePaid(sbAdmin, invoiceId, { paidAt, paidSource, stripePaymentIntentId, stripeCheckoutSessionId, stripeInvoiceId, notes }) {
+async function markInvoicePaid(sbAdmin, invoiceId, {
+  paidAt,
+  paidSource,
+  paidAmount = null,
+  paymentReference = null,
+  stripePaymentIntentId,
+  stripeCheckoutSessionId,
+  stripeInvoiceId,
+  notes
+}) {
+  const referenceText = String(paymentReference || '').trim();
+  const normalizedNotes = [String(notes || '').trim(), referenceText ? `Ref: ${referenceText}` : ''].filter(Boolean).join('\n');
   const patch = {
     status: 'paid',
     paid_at: toIso(paidAt, new Date().toISOString()),
     paid_source: paidSource || 'manual',
     updated_at: new Date().toISOString()
   };
+  const normalizedPaidAmount = Number(paidAmount);
+  if (Number.isFinite(normalizedPaidAmount) && normalizedPaidAmount >= 0) {
+    patch.amount_paid = money(normalizedPaidAmount);
+    patch.paid_amount = money(normalizedPaidAmount);
+  }
+  if (referenceText) {
+    patch.payment_reference = referenceText;
+    patch.reference = referenceText;
+  }
   if (stripePaymentIntentId) patch.stripe_payment_intent_id = stripePaymentIntentId;
   if (stripeCheckoutSessionId) patch.stripe_checkout_session_id = stripeCheckoutSessionId;
   if (stripeInvoiceId) patch.stripe_invoice_id = stripeInvoiceId;
-  if (notes) patch.notes = notes;
+  if (normalizedNotes) patch.notes = normalizedNotes;
 
-  const { data, error } = await sbAdmin
-    .from('invoices')
-    .update(patch)
-    .eq('id', invoiceId)
-    .select('*')
-    .single();
-
-  if (error) throw new Error(`invoice update failed: ${error.message}`);
-  return data;
+  const updated = await updateInvoiceWithSchemaFallback(sbAdmin, invoiceId, patch);
+  if (!updated?.data) throw new Error('invoice update failed: empty result');
+  return updated.data;
 }
 
 module.exports = {
