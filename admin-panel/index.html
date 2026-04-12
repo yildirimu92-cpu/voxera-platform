@@ -661,6 +661,13 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   text-align:left;
   transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease,background-color .14s ease;
 }
+.finance-kpi-card.finance-kpi-button{
+  width:100%;
+  font:inherit;
+  color:inherit;
+  appearance:none;
+  -webkit-appearance:none;
+}
 .finance-kpi-card.interactive{cursor:pointer;-webkit-tap-highlight-color:rgba(37,99,235,.16);touch-action:manipulation;}
 .finance-kpi-card.interactive:hover{transform:translateY(-1px);border-color:#BFDBFE;box-shadow:0 12px 24px rgba(29,78,216,.17);}
 .finance-kpi-card.interactive:active{transform:translateY(0);box-shadow:0 8px 18px rgba(29,78,216,.14);}
@@ -2939,7 +2946,7 @@ function renderBillingFinance(){
     {label:'Marge',value:marginEstimatePct,sub:'V1 Schätzung aus Planpreis/Kosten',filterKey:null,interactive:false}
   ];
   rootKpi.innerHTML=kpis.map(kpi=>kpi.interactive
-    ?`<div class="finance-kpi-card interactive" role="button" tabindex="0" data-finance-kpi-filter="${jsStr(kpi.filterKey)}" aria-label="${esc(`${String(kpi.label)} · Filter öffnen`)}"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info">Filter öffnen →</div></div>`
+    ?`<button type="button" class="finance-kpi-card finance-kpi-button interactive" data-finance-kpi-filter="${jsStr(kpi.filterKey)}" aria-label="${esc(`${String(kpi.label)} · Filter öffnen`)}" onclick="setFinanceInvoiceStatusFilter('${jsStr(kpi.filterKey)}')"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info">Filter öffnen →</div></button>`
     :`<div class="finance-kpi-card passive"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info is-static">Info-KPI</div></div>`
   ).join('');
 
@@ -6908,24 +6915,6 @@ function wireUi(){
     document.getElementById(id).addEventListener('input',renderBillingFinance);
     document.getElementById(id).addEventListener('change',renderBillingFinance);
   });
-  const financeKpiGrid=document.getElementById('finance-kpis');
-  if(financeKpiGrid && !financeKpiGrid.dataset.kpiTapBound){
-    financeKpiGrid.dataset.kpiTapBound='1';
-    financeKpiGrid.addEventListener('click',e=>{
-      const card=e.target.closest('[data-finance-kpi-filter]');
-      if(!card||!financeKpiGrid.contains(card)) return;
-      const filter=card.getAttribute('data-finance-kpi-filter')||'all';
-      setFinanceInvoiceStatusFilter(filter);
-    });
-    financeKpiGrid.addEventListener('keydown',e=>{
-      if(e.key!=='Enter'&&e.key!==' ') return;
-      const card=e.target.closest('[data-finance-kpi-filter]');
-      if(!card||!financeKpiGrid.contains(card)) return;
-      e.preventDefault();
-      const filter=card.getAttribute('data-finance-kpi-filter')||'all';
-      setFinanceInvoiceStatusFilter(filter);
-    });
-  }
   document.getElementById('customer-reset').addEventListener('click',()=>{
     document.getElementById('customer-search').value='';
     document.getElementById('customer-plan-filter').value='all';
