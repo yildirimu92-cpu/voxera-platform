@@ -83,6 +83,19 @@ exports.handler = async (event) => {
     if (customerError) throw new Error(`customer lookup failed: ${customerError.message}`);
     if (!customer) throw new Error('customer not found');
 
+    const { data: contract, error: contractError } = await sbAdmin
+      .from('contracts')
+      .select('id, offer_id, plan')
+      .eq('id', contract_id)
+      .maybeSingle();
+    if (contractError) throw new Error(`contract lookup failed: ${contractError.message}`);
+    if (!contract) throw new Error('contract not found');
+
+    const { data: offer, error: offerError } = contract.offer_id
+      ? await sbAdmin.from('offers').select('id, setup_fee').eq('id', contract.offer_id).maybeSingle()
+      : { data: null, error: null };
+    if (offerError) throw new Error(`offer lookup failed: ${offerError.message}`);
+
     const { data: subscription, error: subscriptionError } = await sbAdmin
       .from('subscriptions')
       .select('*')
@@ -90,12 +103,12 @@ exports.handler = async (event) => {
       .maybeSingle();
     if (subscriptionError) throw new Error(`subscription lookup failed: ${subscriptionError.message}`);
 
-    const planCode = normalizePlanCode(plan || customer.plan_code || customer.plan || (subscription && subscription.plan_code) || '');
+    const planCode = normalizePlanCode(plan || contract.plan || customer.plan_code || customer.plan || (subscription && subscription.plan_code) || '');
     const { plan: planConfig, error: planError } = await loadPlanByCode(sbAdmin, planCode);
     if (planError) throw new Error(`plan_config lookup failed: ${planError.message}`);
     if (!planConfig) throw new Error(`plan_config missing for ${planCode || 'unknown plan'}`);
 
-    const setupFeeAmount = money(customer.setup_fee_amount ?? planConfig.setup_fee_amount ?? 0);
+    const setupFeeAmount = money(offer?.setup_fee ?? planConfig.setup_fee_amount ?? 0);
     const initialInvoiceResult = await createInitialContractInvoice({
       sbAdmin,
       customer,
