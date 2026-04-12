@@ -16,6 +16,10 @@ function invoiceDiag(step, payload) {
   console.log(`[invoice_service] ${step}`, JSON.stringify(payload || {}));
 }
 
+function manualMonthlyLog(step, payload) {
+  console.log(`[manual_monthly_invoice] ${step}`, JSON.stringify(payload || {}));
+}
+
 function toIso(value, fallback = null) {
   if (!value) return fallback;
   const d = value instanceof Date ? value : new Date(value);
@@ -149,7 +153,17 @@ async function createInvoiceWithItems(sbAdmin, payload) {
     .select('*')
     .single();
 
-  if (invoiceError) throw new Error(`invoice insert failed: ${invoiceError.message}`);
+  if (invoiceError) {
+    const wrapped = new Error(`invoice insert failed: ${invoiceError.message}`);
+    wrapped.db_message = invoiceError.message || null;
+    wrapped.db_code = invoiceError.code || null;
+    wrapped.db_details = invoiceError.details || null;
+    wrapped.db_hint = invoiceError.hint || null;
+    wrapped.step_failed = 'insert_invoice';
+    wrapped.helper_name = 'createInvoiceWithItems';
+    wrapped.payload_sent = invoiceRow;
+    throw wrapped;
+  }
 
   const items = Array.isArray(payload.items) ? payload.items : [];
   if (items.length > 0) {
@@ -174,21 +188,60 @@ async function createInvoiceWithItems(sbAdmin, payload) {
       .from('invoice_items')
       .insert(rows);
 
-    if (itemError) throw new Error(`invoice items insert failed: ${itemError.message}`);
+    if (itemError) {
+      const wrapped = new Error(`invoice items insert failed: ${itemError.message}`);
+      wrapped.db_message = itemError.message || null;
+      wrapped.db_code = itemError.code || null;
+      wrapped.db_details = itemError.details || null;
+      wrapped.db_hint = itemError.hint || null;
+      wrapped.step_failed = 'insert_invoice_items';
+      wrapped.helper_name = 'createInvoiceWithItems';
+      wrapped.payload_sent = rows;
+      throw wrapped;
+    }
   }
 
   return insertedInvoice;
 }
 
-async function createInvoiceWithFallbackType(sbAdmin, payload) {
+async function createInvoiceWithFallbackType(sbAdmin, payload, options = {}) {
+  const logManual = options && options.debugTag === 'manual_monthly_invoice';
   try {
+    if (logManual) {
+      manualMonthlyLog('insert_attempt', { invoice_type: payload.invoiceType, payload_sent: payload });
+    }
     return await createInvoiceWithItems(sbAdmin, payload);
   } catch (error) {
+    if (logManual) {
+      manualMonthlyLog('insert_failed', {
+        db_message: error && error.db_message ? error.db_message : (error && error.message) || null,
+        db_code: error && error.db_code ? error.db_code : null,
+        db_details: error && error.db_details ? error.db_details : null,
+        db_hint: error && error.db_hint ? error.db_hint : null,
+        step_failed: error && error.step_failed ? error.step_failed : 'insert_invoice'
+      });
+    }
     const msg = String(error && error.message || '').toLowerCase();
     const unsupportedRecurring = payload.invoiceType === 'recurring'
       && (msg.includes('invoices_invoice_type_check') || msg.includes('check constraint'));
     if (!unsupportedRecurring) throw error;
-    return createInvoiceWithItems(sbAdmin, { ...payload, invoiceType: 'subscription' });
+    if (logManual) {
+      manualMonthlyLog('fallback_attempt', { from: 'recurring', to: 'subscription' });
+    }
+    try {
+      return await createInvoiceWithItems(sbAdmin, { ...payload, invoiceType: 'subscription' });
+    } catch (fallbackError) {
+      if (logManual) {
+        manualMonthlyLog('fallback_failed', {
+          db_message: fallbackError && fallbackError.db_message ? fallbackError.db_message : (fallbackError && fallbackError.message) || null,
+          db_code: fallbackError && fallbackError.db_code ? fallbackError.db_code : null,
+          db_details: fallbackError && fallbackError.db_details ? fallbackError.db_details : null,
+          db_hint: fallbackError && fallbackError.db_hint ? fallbackError.db_hint : null,
+          step_failed: fallbackError && fallbackError.step_failed ? fallbackError.step_failed : 'insert_invoice'
+        });
+      }
+      throw fallbackError;
+    }
   }
 }
 
@@ -232,7 +285,9 @@ async function createSetupFeeInvoice({ sbAdmin, customer, setupFeeAmount, billin
   });
 }
 
-async function createSubscriptionInvoice({ sbAdmin, customer, subscription, planConfig, billingProvider, status, dueAt, paidAt, paidSource, notes, externalReference, stripePaymentIntentId, stripeCheckoutSessionId, stripeInvoiceId }) {
+async function createSubscriptionInvoice({ sbAdmin, customer, subscription, planConfig, billingProvider, status, dueAt, paidAt, paidSource, notes, externalReference, stripePaymentIntentId, stripeCheckoutSessionId, stripeInvoiceId, debugTag = null }) {
+  const logManual = debugTag === 'manual_monthly_invoice';
+  if (logManual) manualMonthlyLog('start', { customer_id: customer && customer.id ? customer.id : null });
   const cycle = String(subscription.billing_cycle || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
   const baseAmountRaw = cycle === 'yearly' ? planConfig.price_yearly : planConfig.price_monthly;
   const baseAmount = money(baseAmountRaw);
@@ -276,7 +331,7 @@ async function createSubscriptionInvoice({ sbAdmin, customer, subscription, plan
 
   const subtotal = money(baseAmount + overageAmount);
 
-  return createInvoiceWithFallbackType(sbAdmin, {
+  const invoicePayload = {
     customerId: customer.id,
     subscriptionId: subscription.id,
     invoiceType: 'recurring',
@@ -298,7 +353,26 @@ async function createSubscriptionInvoice({ sbAdmin, customer, subscription, plan
     stripeCheckoutSessionId,
     stripeInvoiceId,
     items
-  });
+  };
+
+  if (logManual) {
+    manualMonthlyLog('payload', {
+      customer_id: customer.id,
+      subscription_id: subscription.id,
+      billing_cycle: cycle,
+      invoice_type: invoicePayload.invoiceType,
+      subtotal_amount: invoicePayload.subtotalAmount
+    });
+  }
+
+  const invoice = await createInvoiceWithFallbackType(sbAdmin, invoicePayload, { debugTag });
+  if (logManual) {
+    manualMonthlyLog('success', {
+      invoice_id: invoice && invoice.id ? invoice.id : null,
+      invoice_type: invoice && invoice.invoice_type ? invoice.invoice_type : null
+    });
+  }
+  return invoice;
 }
 
 async function createInitialContractInvoice({ sbAdmin, customer, contractId, subscription, setupFeeAmount, dueAt, notes }) {

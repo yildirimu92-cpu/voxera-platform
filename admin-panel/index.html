@@ -6574,7 +6574,13 @@ async function createManualSubscriptionInvoice(customerId){
     renderBillingFinance();
   }catch(err){
     const payload=err?.payload||{};
-    alert(payload?.error||err?.message||'Invoice-Erstellung fehlgeschlagen.');
+    const adminMessage=payload?.db_message||payload?.error||err?.message||'Invoice-Erstellung fehlgeschlagen.';
+    const debugBits=[
+      payload?.db_code?`DB Code: ${payload.db_code}`:'',
+      payload?.step_failed?`Step: ${payload.step_failed}`:'',
+      payload?.helper_name?`Helper: ${payload.helper_name}`:''
+    ].filter(Boolean);
+    alert([adminMessage,...debugBits].join('\n'));
   }
 }
 
