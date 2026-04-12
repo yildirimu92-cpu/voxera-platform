@@ -2524,6 +2524,59 @@ async function callAdminFunction(name,payload){
   }
   return json;
 }
+async function callCustomerBillingUpdate(payload){
+  const body=(payload&&typeof payload==='object')?payload:{};
+  const action=String(body.action||'').trim();
+  const customerId=String(body.customer_id||'').trim();
+  if(!action) throw new Error('Billing-Aktion fehlt.');
+  if(!customerId) throw new Error('Kunden-ID fehlt für Billing-Update.');
+  if(!(authClient&&authClient.auth)) throw new Error('Admin-Auth nicht verfügbar.');
+  const {data:{session},error}=await authClient.auth.getSession();
+  if(error||!session?.access_token) throw new Error('Admin-Session fehlt.');
+  let res;
+  try{
+    res=await fetch('/.netlify/functions/customer-billing-update',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':`Bearer ${session.access_token}`
+      },
+      body:JSON.stringify(body)
+    });
+  }catch(networkError){
+    const err=new Error('Netzwerkfehler beim Billing-Update. Bitte erneut versuchen.');
+    err.cause=networkError;
+    throw err;
+  }
+  const text=await res.text().catch(()=>'');
+  let json={};
+  if(text){
+    try{
+      json=JSON.parse(text);
+    }catch(parseError){
+      if(!res.ok){
+        const err=new Error(`Billing-Update fehlgeschlagen (HTTP ${res.status}).`);
+        err.status=res.status;
+        err.payload={raw:text};
+        err.cause=parseError;
+        throw err;
+      }
+    }
+  }
+  if(!res.ok){
+    const message=(
+      json?.error?.message||
+      json?.message||
+      (typeof json?.error==='string'?json.error:'')||
+      `HTTP ${res.status}`
+    );
+    const err=new Error(message);
+    err.status=res.status;
+    err.payload=json;
+    throw err;
+  }
+  return json;
+}
 const CUSTOMER_LIFECYCLE_STATUS_ORDER=['onboarding','ready','invited','activated','live','paused','deleted'];
 const CUSTOMER_LIFECYCLE_LABELS={
   onboarding:'Einrichtung läuft',
@@ -6486,7 +6539,7 @@ async function createManualSetupInvoice(customerId){
   const amount=Number(amountRaw);
   if(!Number.isFinite(amount)||amount<=0){ alert('Ungültiger Betrag.'); return; }
   try{
-    const json=await callAdminFunction('customer-billing-update',{
+    const json=await callCustomerBillingUpdate({
       customer_id:customerId,
       action:'create_manual_setup_invoice',
       amount,
@@ -6508,7 +6561,7 @@ async function createManualSubscriptionInvoice(customerId){
   const customer=customerById(customerId);
   if(!customer) return;
   try{
-    const json=await callAdminFunction('customer-billing-update',{
+    const json=await callCustomerBillingUpdate({
       customer_id:customerId,
       action:'create_manual_subscription_invoice',
       billing_provider:'invoice',
@@ -6590,7 +6643,7 @@ async function submitInvoicePaidModal(){
   setInvoicePaidSubmitting(true);
   setInvoicePaidFeedback(null,'');
   try{
-    const json=await callAdminFunction('customer-billing-update',{
+    const json=await callCustomerBillingUpdate({
       customer_id:customerId,
       action:'mark_invoice_paid',
       invoice_id:invoiceId,
@@ -6673,7 +6726,7 @@ async function recordInvoiceReminder(customerId,invoiceId,currentLevel){
   const reminderLevel=Math.max(1,Math.min(3,Number(input)||1));
   const note=prompt('Kurze Follow-up Notiz (optional)','Manueller Reminder im Billing-Board');
   try{
-    const json=await callAdminFunction('customer-billing-update',{
+    const json=await callCustomerBillingUpdate({
       customer_id:customerId,
       action:'record_invoice_reminder',
       invoice_id:invoiceId,
