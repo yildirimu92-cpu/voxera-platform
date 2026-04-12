@@ -639,16 +639,67 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .ai-workspace-block .textarea{font-size:13px;}
 .ai-global-secondary,.ai-audit-secondary{padding:18px;}
 /* ─── Billing & Finance ───────────────────────────── */
-.finance-main-grid{grid-template-columns:1.1fr .9fr;}
-.finance-breakdown-row{margin-bottom:10px;}
-.finance-breakdown-label{font-size:11.5px;color:var(--slate2);font-weight:600;margin-bottom:5px;}
-.finance-breakdown-track{height:8px;background:var(--line2);border-radius:999px;overflow:hidden;}
+.finance-section{display:grid;gap:16px;}
+.finance-hero{
+  border:1px solid rgba(29,78,216,.14);
+  border-radius:var(--radius-lg);
+  background:linear-gradient(165deg,#fff 0%,#F7FAFF 55%,#EFF4FF 100%);
+  box-shadow:0 14px 32px rgba(15,23,42,.06);
+  padding:18px 20px;
+}
+.finance-hero-title{margin:0;font-size:22px;font-weight:800;letter-spacing:-.03em;color:var(--ink);}
+.finance-hero-sub{margin-top:6px;font-size:13px;color:var(--slate);line-height:1.5;max-width:860px;}
+.finance-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+.finance-kpi-card{
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  padding:13px 14px;
+  box-shadow:0 9px 22px rgba(15,23,42,.055);
+}
+.finance-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);}
+.finance-kpi-value{margin-top:7px;font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--ink);}
+.finance-kpi-sub{margin-top:4px;font-size:11.5px;color:var(--slate);}
+.finance-main-grid{grid-template-columns:1.15fr .85fr;gap:12px;}
+.finance-premium-card{
+  border:1px solid var(--line);
+  border-radius:var(--radius-lg);
+  background:linear-gradient(180deg,#fff 0%,#FBFDFF 100%);
+  box-shadow:var(--shadow-card);
+}
+.finance-card-head{
+  display:flex;justify-content:space-between;gap:10px;align-items:center;
+  padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--line2);
+}
+.finance-card-head h3{font-size:15px;letter-spacing:-.02em;}
+.finance-worklist{display:grid;gap:10px;}
+.finance-work-item{
+  border:1px solid var(--line2);
+  border-radius:10px;
+  padding:10px 12px;
+  background:#fff;
+}
+.finance-work-item .list-main{font-size:13.5px;font-weight:700;color:var(--ink);}
+.finance-breakdown-wrap{display:grid;gap:11px;}
+.finance-breakdown-row{margin-bottom:0;}
+.finance-breakdown-label{font-size:11.5px;color:var(--slate2);font-weight:600;margin-bottom:6px;line-height:1.45;}
+.finance-breakdown-track{height:9px;background:var(--line2);border-radius:999px;overflow:hidden;}
 .finance-breakdown-fill{height:100%;border-radius:999px;}
-.finance-toolbar{grid-template-columns:minmax(0,1.5fr) repeat(2,minmax(0,1fr)) auto;}
+.finance-toolbar{grid-template-columns:minmax(0,1.55fr) repeat(2,minmax(0,1fr)) auto;gap:8px;}
+.finance-table-wrap{
+  border:1px solid var(--line2);
+  border-radius:12px;
+  background:#fff;
+  overflow:auto;
+}
+.finance-table-wrap .data-table thead th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--slate2);}
+.finance-table-wrap .data-table td{vertical-align:middle;}
+.finance-table-wrap .inline-actions{gap:6px;flex-wrap:wrap;}
 @media (max-width:1100px){
   .ai-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .ai-setup-layout{grid-template-columns:1fr;}
   .ai-workspace-card{position:static;}
+  .finance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .finance-main-grid{grid-template-columns:1fr;}
 }
 @media (max-width:768px){
@@ -678,6 +729,24 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   #ai-workspace .textarea{width:100%;min-height:120px;padding:12px;}
   #ai-workspace .inline-actions{display:grid;grid-template-columns:1fr;gap:8px;}
   #ai-workspace .inline-actions .btn{width:100%;min-height:42px;justify-content:center;}
+  .finance-hero{padding:15px;}
+  .finance-hero-title{font-size:20px;}
+  .finance-hero-sub{font-size:12px;}
+  .finance-kpi-grid{grid-template-columns:1fr;}
+  .finance-toolbar{grid-template-columns:1fr;}
+  .finance-toolbar .btn{width:100%;justify-content:center;}
+  .finance-table-wrap{border:none;background:transparent;box-shadow:none;overflow:visible;}
+  .finance-table-wrap .data-table{min-width:0;}
+  .finance-table-wrap .data-table thead{display:none;}
+  .finance-table-wrap .data-table tbody{display:flex;flex-direction:column;gap:10px;}
+  .finance-table-wrap .data-table tr{display:block;border:1px solid var(--line);border-radius:var(--r-lg);background:#fff;padding:10px;}
+  .finance-table-wrap .data-table td{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:6px 2px;border-bottom:1px solid var(--line2);white-space:normal;}
+  .finance-table-wrap .data-table td:last-child{border-bottom:none;padding-top:10px;}
+  .finance-table-wrap .data-table td::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--slate2);flex:0 0 110px;}
+  .finance-table-wrap .data-table td[data-label="Aktionen"]{display:block;padding-top:10px;}
+  .finance-table-wrap .data-table td[data-label="Aktionen"]::before{display:none;}
+  .finance-table-wrap .inline-actions{display:grid;grid-template-columns:1fr;gap:8px;}
+  .finance-table-wrap .inline-actions .btn{width:100%;min-height:40px;justify-content:center;}
 }
 
 
@@ -1204,67 +1273,67 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
       <!-- BILLING & FINANCE -->
       <section id="section-billing-finance" class="section">
-        <div class="section-head">
-          <div>
-            <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Billing &amp; Finance</h3>
-            <div class="muted" style="margin-top:4px;">V1 Übersicht mit operativer Worklist, Rechnungen, Umsatz- und Margen-Schätzung.</div>
+        <div class="finance-section">
+          <div class="finance-hero">
+            <h3 class="finance-hero-title">Billing &amp; Finance</h3>
+            <div class="finance-hero-sub">Operative Billing-Steuerung mit Worklist, Rechnungs-Operations, Subscription-Management sowie Umsatz- und Margen-Schätzung.</div>
           </div>
-        </div>
-        <div class="kpi-grid" id="finance-kpis"></div>
-        <div class="grid-2 finance-main-grid" style="margin-bottom:16px;">
-          <div class="card">
-            <div class="card-head"><h3>Arbeitsliste / Handlungsbedarf</h3><span class="badge badge-amber">Ops</span></div>
-            <div class="list" id="finance-worklist"></div>
+          <div class="finance-kpi-grid" id="finance-kpis"></div>
+          <div class="grid-2 finance-main-grid" style="margin-bottom:0;">
+            <div class="card finance-premium-card">
+              <div class="finance-card-head"><h3>Arbeitsliste / Handlungsbedarf</h3><span class="badge badge-amber">Ops</span></div>
+              <div class="list finance-worklist" id="finance-worklist"></div>
+            </div>
+            <div class="card finance-premium-card">
+              <div class="finance-card-head"><h3>Umsatz &amp; Zahlung</h3><span class="badge badge-blue">V1</span></div>
+              <div class="finance-breakdown-wrap" id="finance-breakdown"></div>
+            </div>
           </div>
-          <div class="card">
-            <div class="card-head"><h3>Umsatz &amp; Zahlung</h3><span class="badge badge-blue">V1</span></div>
-            <div id="finance-breakdown"></div>
+          <div class="card finance-premium-card" style="margin-bottom:0;">
+            <div class="finance-card-head"><h3>Subscription Ops (V1)</h3><span class="badge badge-blue">Manuell</span></div>
+            <div class="table-wrap finance-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Kunde</th><th>Plan</th><th>Billing Cycle</th><th>Status</th><th>Start</th><th>Erneuerung</th><th>Fällig</th><th>Aktionen</th></tr></thead>
+                <tbody id="finance-subscription-ops-body"></tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-head"><h3>Subscription Ops (V1)</h3><span class="badge badge-blue">Manuell</span></div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>Kunde</th><th>Plan</th><th>Billing Cycle</th><th>Status</th><th>Start</th><th>Erneuerung</th><th>Fällig</th><th>Aktionen</th></tr></thead>
-              <tbody id="finance-subscription-ops-body"></tbody>
-            </table>
+          <div class="card finance-premium-card" style="margin-bottom:0;">
+            <div class="finance-card-head"><h3>Rechnungsübersicht &amp; Mahnwesen Light</h3><span class="badge badge-green">Operational</span></div>
+            <div class="toolbar finance-toolbar">
+              <input class="input" id="finance-invoice-search" placeholder="Kunde / Rechnungsnummer / Typ">
+              <select class="select" id="finance-type-filter">
+                <option value="all">Typ: Alle</option>
+                <option value="setup_fee">Setup Fee</option>
+                <option value="subscription">Subscription</option>
+                <option value="extra_minutes">Extra Minutes</option>
+                <option value="manual">Manual / Sonstige</option>
+              </select>
+              <select class="select" id="finance-status-filter">
+                <option value="all">Status: Alle</option>
+                <option value="open">Offen</option>
+                <option value="overdue">Überfällig</option>
+                <option value="paid">Bezahlt</option>
+                <option value="followup">Follow-up nötig</option>
+              </select>
+              <button class="btn btn-quiet" id="finance-reset">Zurücksetzen</button>
+            </div>
+            <div class="table-wrap finance-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Rechnung</th><th>Kunde</th><th>Typ</th><th>Status</th><th>Mahnwesen</th><th>Betrag</th><th>Fällig</th><th>Bezahlt am</th><th>Aktionen</th></tr></thead>
+                <tbody id="finance-invoice-body"></tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-head"><h3>Rechnungsübersicht &amp; Mahnwesen Light</h3><span class="badge badge-green">Operational</span></div>
-          <div class="toolbar finance-toolbar">
-            <input class="input" id="finance-invoice-search" placeholder="Kunde / Rechnungsnummer / Typ">
-            <select class="select" id="finance-type-filter">
-              <option value="all">Typ: Alle</option>
-              <option value="setup_fee">Setup Fee</option>
-              <option value="subscription">Subscription</option>
-              <option value="extra_minutes">Extra Minutes</option>
-              <option value="manual">Manual / Sonstige</option>
-            </select>
-            <select class="select" id="finance-status-filter">
-              <option value="all">Status: Alle</option>
-              <option value="open">Offen</option>
-              <option value="overdue">Überfällig</option>
-              <option value="paid">Bezahlt</option>
-              <option value="followup">Follow-up nötig</option>
-            </select>
-            <button class="btn btn-quiet" id="finance-reset">Zurücksetzen</button>
-          </div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>Rechnung</th><th>Kunde</th><th>Typ</th><th>Status</th><th>Mahnwesen</th><th>Betrag</th><th>Fällig</th><th>Bezahlt am</th><th>Aktionen</th></tr></thead>
-              <tbody id="finance-invoice-body"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-head"><h3>Deckungsbeitrag / Marge (V1-Schätzung)</h3><span class="badge badge-purple">V1-Schätzung</span></div>
-          <div class="muted" style="margin-bottom:10px;">Schätzung auf Basis von Planpreis, Calls/Minuten und konservativen Kostenannahmen.</div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>Kunde</th><th>Plan</th><th>Umsatz mtl. (geschätzt)</th><th>Kosten mtl. (geschätzt)</th><th>Marge</th><th>Hinweis</th></tr></thead>
-              <tbody id="finance-margin-body"></tbody>
-            </table>
+          <div class="card finance-premium-card">
+            <div class="finance-card-head"><h3>Deckungsbeitrag / Marge (V1-Schätzung)</h3><span class="badge badge-purple">V1-Schätzung</span></div>
+            <div class="muted" style="margin-bottom:12px;">Schätzung auf Basis von Planpreis, Calls/Minuten und konservativen Kostenannahmen.</div>
+            <div class="table-wrap finance-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Kunde</th><th>Plan</th><th>Umsatz mtl. (geschätzt)</th><th>Kosten mtl. (geschätzt)</th><th>Marge</th><th>Hinweis</th></tr></thead>
+                <tbody id="finance-margin-body"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -2794,7 +2863,7 @@ function renderBillingFinance(){
     ['Aktive Subscriptions',activeSubscriptions,`MRR grob ${moneyChf(mrrEstimate)}`],
     ['Ø Marge (V1)',marginEstimatePct,'Schätzung aus Planpreis/Kostenannahme']
   ];
-  rootKpi.innerHTML=kpis.map(([l,v,s])=>`<div class="kpi"><div class="kpi-label">${esc(String(l))}</div><div class="kpi-value" style="font-size:24px;">${esc(String(v))}</div><div class="kpi-sub">${esc(String(s))}</div></div>`).join('');
+  rootKpi.innerHTML=kpis.map(([l,v,s])=>`<div class="finance-kpi-card"><div class="finance-kpi-label">${esc(String(l))}</div><div class="finance-kpi-value">${esc(String(v))}</div><div class="finance-kpi-sub">${esc(String(s))}</div></div>`).join('');
 
   const endOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999);
   const dueToday=invoiceRows.filter(i=>{
@@ -2811,7 +2880,7 @@ function renderBillingFinance(){
     ['Setup Fee offen',setupOpen.length,'Einrichtungsgebühr ausstehend','open','Setup-Fee-Fälle priorisieren'],
     ['Zugang blockiert wegen Zahlung',blockedCustomers.length,'aus customer.payment_status abgeleitet',null,'In Kundenprofil prüfen']
   ];
-  rootWorklist.innerHTML=workItems.map(([label,val,sub,filterKey,actionLabel])=>`<div class="list-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div class="inline-actions">${toneBadge(String(val))}${filterKey?`<button class="btn btn-quiet btn-sm" onclick="setFinanceInvoiceStatusFilter('${jsStr(filterKey)}')">${esc(String(actionLabel))}</button>`:''}</div></div>`).join('')||'<div class="empty">Keine offenen Billing-Aufgaben.</div>';
+  rootWorklist.innerHTML=workItems.map(([label,val,sub,filterKey,actionLabel])=>`<div class="list-item finance-work-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div class="inline-actions">${toneBadge(String(val))}${filterKey?`<button class="btn btn-quiet btn-sm" onclick="setFinanceInvoiceStatusFilter('${jsStr(filterKey)}')">${esc(String(actionLabel))}</button>`:''}</div></div>`).join('')||'<div class="empty">Keine offenen Billing-Aufgaben.</div>';
 
   const subscriptionOpsRows=state.customers
     .filter(c=>String(c.subscription_billing_cycle||'').trim())
@@ -2827,14 +2896,14 @@ function renderBillingFinance(){
     const actionLabel=cycle==='yearly'?'Jahreszahlung senden':'Monatszahlung senden';
     const actionFn=cycle==='yearly'?'sendYearlyBillingPaymentLink':'sendMonthlyBillingPaymentLink';
     return `<tr>
-      <td>${esc(c.name||'—')}</td>
-      <td>${esc(planLabel(c.subscription_plan_code||c.plan_code||c.plan))}</td>
-      <td>${esc(c.subscription_billing_cycle_label||'—')}</td>
-      <td>${subscriptionStatusBadge(c.subscription_status)}</td>
-      <td>${esc(formatDate(c.subscription_starts_at))}</td>
-      <td>${esc(formatDate(c.subscription_renews_at))}</td>
-      <td>${due?'<span class="badge badge-red">Ja</span>':'<span class="badge badge-gray">Nein</span>'}</td>
-      <td>
+      <td data-label="Kunde">${esc(c.name||'—')}</td>
+      <td data-label="Plan">${esc(planLabel(c.subscription_plan_code||c.plan_code||c.plan))}</td>
+      <td data-label="Billing Cycle">${esc(c.subscription_billing_cycle_label||'—')}</td>
+      <td data-label="Status">${subscriptionStatusBadge(c.subscription_status)}</td>
+      <td data-label="Start">${esc(formatDate(c.subscription_starts_at))}</td>
+      <td data-label="Erneuerung">${esc(formatDate(c.subscription_renews_at))}</td>
+      <td data-label="Fällig">${due?'<span class="badge badge-red">Ja</span>':'<span class="badge badge-gray">Nein</span>'}</td>
+      <td data-label="Aktionen">
         <div class="inline-actions">
           <button class="btn btn-secondary btn-sm" onclick="${actionFn}('${jsStr(c.id)}')" ${cycle==='monthly'||cycle==='yearly'?'':'disabled'}>${actionLabel}</button>
           <button class="btn btn-primary btn-sm" onclick="markSubscriptionPaid('${jsStr(c.id)}')">Als bezahlt markieren</button>
@@ -2861,15 +2930,15 @@ function renderBillingFinance(){
   else if(statusFilter!=='all') filtered=filtered.filter(i=>i.status===statusFilter);
   filtered.sort((a,b)=>(new Date(b.dueDate||0)).getTime()-(new Date(a.dueDate||0)).getTime());
   rootInvoiceBody.innerHTML=filtered.map(i=>`<tr>
-    <td>${esc(i.invoiceNo||'—')}</td>
-    <td>${esc(i.customerName||'—')}</td>
-    <td>${esc(invoiceTypeLabel(i.type))}</td>
-    <td>${invoiceStatusBadge(i.status)}</td>
-    <td>${reminderBadge(i.reminderLevel,i.overdueDays)}</td>
-    <td>${esc(moneyChf(i.amount))}</td>
-    <td>${esc(formatDate(i.dueDate))}</td>
-    <td>${esc(formatDate(i.paidAt))}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button><button class="btn btn-secondary btn-sm" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button><button class="btn btn-primary btn-sm" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"`:'disabled'}>Als bezahlt</button><button class="btn btn-quiet btn-sm" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.reminderLevel||0})"`:'disabled'}>Reminder</button></div></td>
+    <td data-label="Rechnung">${esc(i.invoiceNo||'—')}</td>
+    <td data-label="Kunde">${esc(i.customerName||'—')}</td>
+    <td data-label="Typ">${esc(invoiceTypeLabel(i.type))}</td>
+    <td data-label="Status">${invoiceStatusBadge(i.status)}</td>
+    <td data-label="Mahnwesen">${reminderBadge(i.reminderLevel,i.overdueDays)}</td>
+    <td data-label="Betrag">${esc(moneyChf(i.amount))}</td>
+    <td data-label="Fällig">${esc(formatDate(i.dueDate))}</td>
+    <td data-label="Bezahlt am">${esc(formatDate(i.paidAt))}</td>
+    <td data-label="Aktionen"><div class="inline-actions"><button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button><button class="btn btn-secondary btn-sm" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button><button class="btn btn-primary btn-sm" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"`:'disabled'}>Als bezahlt</button><button class="btn btn-quiet btn-sm" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.reminderLevel||0})"`:'disabled'}>Reminder</button></div></td>
   </tr>`).join('')||'<tr><td colspan="9"><div class="empty">Keine Rechnungen für aktuelle Filter.</div></td></tr>';
 
   const usedMinutesByCustomer={};
@@ -2891,12 +2960,12 @@ function renderBillingFinance(){
     return {customerName:c.name||'Unbekannt',plan:planLabel(planCode),revenue,cost,margin,marginPct};
   }).sort((a,b)=>b.margin-a.margin).slice(0,20);
   rootMarginBody.innerHTML=marginRows.map(r=>`<tr>
-    <td>${esc(r.customerName)}</td>
-    <td>${esc(r.plan)}</td>
-    <td>${esc(moneyChf(r.revenue))}</td>
-    <td>${esc(moneyChf(r.cost))}</td>
-    <td>${toneBadge(`${moneyChf(r.margin)} · ${r.marginPct}`)}</td>
-    <td class="wrap">V1-Schätzung: Basis 5 CHF + 0.018 CHF/Minute + ggf. Extra-Minutenkosten.</td>
+    <td data-label="Kunde">${esc(r.customerName)}</td>
+    <td data-label="Plan">${esc(r.plan)}</td>
+    <td data-label="Umsatz">${esc(moneyChf(r.revenue))}</td>
+    <td data-label="Kosten">${esc(moneyChf(r.cost))}</td>
+    <td data-label="Marge">${toneBadge(`${moneyChf(r.margin)} · ${r.marginPct}`)}</td>
+    <td data-label="Hinweis" class="wrap">V1-Schätzung: Basis 5 CHF + 0.018 CHF/Minute + ggf. Extra-Minutenkosten.</td>
   </tr>`).join('')||'<tr><td colspan="6"><div class="empty">Noch keine Margen-Daten verfügbar.</div></td></tr>';
 }
 
