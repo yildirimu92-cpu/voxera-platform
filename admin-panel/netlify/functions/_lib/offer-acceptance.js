@@ -12,6 +12,17 @@ class OfferAcceptanceError extends Error {
   }
 }
 
+function diagnosticFromError(step, error, context = {}) {
+  return {
+    step_failed: step,
+    db_message: error?.message || null,
+    db_code: error?.code || null,
+    db_details: error?.details || null,
+    db_hint: error?.hint || null,
+    ...context
+  };
+}
+
 function offerAddressLine(offer) {
   return [offer.street, offer.postal_code, offer.city, offer.country]
     .map((v) => String(v || '').trim())
@@ -431,7 +442,15 @@ async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso
   return {
     invoiceId: setupInvoice?.id ? String(setupInvoice.id) : null,
     recurringInvoiceId: recurringInvoice?.id ? String(recurringInvoice.id) : null,
-    duplicate: !billing.setup_fee_invoice_created
+    duplicate: !billing.setup_fee_invoice_created,
+    diagnostics: {
+      step_failed: null,
+      contract_id: contract?.id || contractId || null,
+      customer_id: customer?.id || offer?.customer_id || null,
+      subscription_id: billing.subscription?.id || null,
+      setup_fee_invoice_id: setupInvoice?.id || null,
+      month_1_invoice_id: recurringInvoice?.id || null
+    }
   };
 }
 
@@ -533,9 +552,13 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
       contractId: String(offerWithCustomer.contract_id),
       acceptedAt: offerWithCustomer.accepted_at,
       invoiceError: invoiceError
-        ? {
-          message: invoiceError.message || 'Initial invoice creation failed.'
-        }
+        ? diagnosticFromError('ensure_initial_invoice_for_offer', invoiceError, {
+          contract_id: offerWithCustomer?.contract_id || null,
+          customer_id: offerWithCustomer?.customer_id || null,
+          subscription_id: null,
+          setup_fee_invoice_id: initialInvoice?.invoiceId || null,
+          month_1_invoice_id: initialInvoice?.recurringInvoiceId || null
+        })
         : null,
       lifecycleError: lifecycleError
         ? {
@@ -543,6 +566,7 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
         }
         : null,
       invoiceId: initialInvoice.invoiceId,
+      recurringInvoiceId: initialInvoice.recurringInvoiceId || null,
       invoiceDuplicate: initialInvoice.duplicate
     };
   }
@@ -623,9 +647,13 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
       }
       : null,
     invoiceError: invoiceError
-      ? {
-        message: invoiceError.message || 'Initial invoice creation failed.'
-      }
+      ? diagnosticFromError('ensure_initial_invoice_for_offer', invoiceError, {
+        contract_id: contractId || null,
+        customer_id: offerRes?.data?.customer_id || offerWithCustomer?.customer_id || null,
+        subscription_id: null,
+        setup_fee_invoice_id: initialInvoice?.invoiceId || null,
+        month_1_invoice_id: initialInvoice?.recurringInvoiceId || null
+      })
       : null,
     lifecycleError: lifecycleError
       ? {
@@ -635,6 +663,8 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
     acceptedAt: offerRes.data.accepted_at || nowIso,
     offer: offerRes.data,
     invoiceId: initialInvoice.invoiceId,
+    recurringInvoiceId: initialInvoice.recurringInvoiceId || null,
+    billingDiagnostics: initialInvoice.diagnostics || null,
     invoiceDuplicate: initialInvoice.duplicate
   };
 }

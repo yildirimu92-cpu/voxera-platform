@@ -16,6 +16,16 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function dbDiag(error) {
+  if (!error) return { db_message: null, db_code: null, db_details: null, db_hint: null };
+  return {
+    db_message: error.message || null,
+    db_code: error.code || null,
+    db_details: error.details || null,
+    db_hint: error.hint || null
+  };
+}
+
 function addMonthsDateIsoUtc(dateStr, months) {
   const base = new Date(`${dateStr}T00:00:00Z`);
   if (Number.isNaN(base.getTime())) return null;
@@ -53,13 +63,20 @@ exports.handler = async (event) => {
 
   const nowIso = new Date().toISOString();
   const requestedCustomerId = String(body.customer_id || '').trim();
+  console.log('[contract_start_confirm] start', JSON.stringify({
+    contract_id: contractId || null,
+    customer_id: requestedCustomerId || null,
+    start_date: startDate,
+    end_date: endDate,
+    duration_months: durationMonths
+  }));
 
   const { data: contract, error: contractError } = await sbAdmin
     .from('contracts')
     .select('*')
     .eq('id', contractId)
     .maybeSingle();
-  if (contractError) return response(500, { error: 'Contract lookup failed.', details: contractError.message });
+  if (contractError) return response(500, { error: 'Contract lookup failed.', step_failed: 'contract_lookup', contract_id: contractId, ...dbDiag(contractError) });
   if (!contract) return response(404, { error: 'Contract nicht gefunden.' });
 
   if (requestedCustomerId && String(contract.customer_id || '') && requestedCustomerId !== String(contract.customer_id)) {
@@ -73,7 +90,7 @@ exports.handler = async (event) => {
     .select('*')
     .eq('id', customerId)
     .maybeSingle();
-  if (customerError) return response(500, { error: 'Customer lookup failed.', details: customerError.message });
+  if (customerError) return response(500, { error: 'Customer lookup failed.', step_failed: 'customer_lookup', contract_id: contractId, customer_id: customerId, ...dbDiag(customerError) });
   if (!customer) return response(404, { error: 'Customer nicht gefunden.' });
 
   const noticeMonths = String(contract.cancellation_notice || '') === '3 Monate' ? 3 : 1;
@@ -97,7 +114,7 @@ exports.handler = async (event) => {
     .eq('id', contractId)
     .select('*')
     .single();
-  if (updateError) return response(500, { error: 'Contract update failed.', details: updateError.message });
+  if (updateError) return response(500, { error: 'Contract update failed.', step_failed: 'contract_update', contract_id: contractId, customer_id: customerId, ...dbDiag(updateError) });
 
   let billing;
   try {
@@ -112,7 +129,16 @@ exports.handler = async (event) => {
       forceActiveSubscription: true
     });
   } catch (billingError) {
-    return response(500, { error: 'Contract billing orchestration failed.', details: billingError.message });
+    return response(500, {
+      error: 'Contract billing orchestration failed.',
+      step_failed: 'contract_billing_orchestration',
+      contract_id: contractId,
+      customer_id: customerId,
+      subscription_id: null,
+      setup_fee_invoice_id: null,
+      month_1_invoice_id: null,
+      ...dbDiag(billingError)
+    });
   }
 
   if (billing.setupInvoice?.id && contract.offer_id) {
@@ -124,6 +150,14 @@ exports.handler = async (event) => {
     offer: { customer_id: customerId },
     nowIso
   });
+
+  console.log('[contract_start_confirm] end', JSON.stringify({
+    contract_id: updatedContract?.id || contractId,
+    customer_id: customer?.id || customerId,
+    subscription_id: billing?.subscription?.id || null,
+    setup_fee_invoice_id: billing?.setupInvoice?.id || null,
+    month_1_invoice_id: billing?.recurringInvoice?.id || null
+  }));
 
   return response(200, {
     success: true,

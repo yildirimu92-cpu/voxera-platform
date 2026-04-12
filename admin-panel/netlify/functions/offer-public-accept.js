@@ -14,6 +14,17 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function errorDiagnostic(step, error, context = {}) {
+  return {
+    step_failed: step,
+    db_message: error?.message || null,
+    db_code: error?.code || null,
+    db_details: error?.details || null,
+    db_hint: error?.hint || null,
+    ...context
+  };
+}
+
 function parseBody(event) {
   try { return JSON.parse(event.body || '{}'); } catch (_e) { return null; }
 }
@@ -79,7 +90,17 @@ exports.handler = async (event) => {
       contract_pending: !accepted.contractId,
       accepted_at: accepted.acceptedAt,
       follow_up_required: followUpIssues.length > 0,
-      follow_up_issues: followUpIssues
+      follow_up_issues: followUpIssues,
+      diagnostics: {
+        contract_error: accepted.contractError || null,
+        invoice_error: accepted.invoiceError || null,
+        lifecycle_error: accepted.lifecycleError || null,
+        contract_id: accepted.contractId || null,
+        customer_id: offer?.customer_id || null,
+        subscription_id: accepted.billingDiagnostics?.subscription_id || null,
+        setup_fee_invoice_id: accepted.invoiceId || null,
+        month_1_invoice_id: accepted.recurringInvoiceId || null
+      }
     });
   }
   if (offerStatus !== 'sent') {
@@ -137,7 +158,17 @@ exports.handler = async (event) => {
       accepted_at: accepted.acceptedAt,
       acceptance_id: acceptanceId,
       follow_up_required: followUpIssues.length > 0,
-      follow_up_issues: followUpIssues
+      follow_up_issues: followUpIssues,
+      diagnostics: {
+        contract_error: accepted.contractError || null,
+        invoice_error: accepted.invoiceError || null,
+        lifecycle_error: accepted.lifecycleError || null,
+        contract_id: accepted.contractId || null,
+        customer_id: accepted.offer?.customer_id || offer?.customer_id || null,
+        subscription_id: accepted.billingDiagnostics?.subscription_id || null,
+        setup_fee_invoice_id: accepted.invoiceId || null,
+        month_1_invoice_id: accepted.recurringInvoiceId || null
+      }
     });
   } catch (err) {
     if (acceptanceId) {
@@ -154,6 +185,15 @@ exports.handler = async (event) => {
     if (err instanceof OfferAcceptanceError) {
       return response(err.statusCode, { error: err.message, details: err.details || undefined });
     }
-    return response(500, { error: 'Offerte konnte nicht akzeptiert werden.', details: err.message || String(err) });
+    return response(500, {
+      error: 'Offerte konnte nicht akzeptiert werden.',
+      ...errorDiagnostic('offer_public_accept', err, {
+        contract_id: offer?.contract_id || null,
+        customer_id: offer?.customer_id || null,
+        subscription_id: null,
+        setup_fee_invoice_id: null,
+        month_1_invoice_id: null
+      })
+    });
   }
 };
