@@ -58,6 +58,80 @@ function parseDurationMonths(raw) {
   return rounded;
 }
 
+function isInvalidContractStatusError(error) {
+  const code = String(error && error.code || '').trim();
+  const msg = String(error && error.message || '').toLowerCase();
+  return code === '23514' || msg.includes('contracts_status_check') || msg.includes('check constraint');
+}
+
+async function updateContractWithPreferredPendingStatus({ sbAdmin, contractId, patchBase }) {
+  const pendingPatch = { ...patchBase, status: 'pending' };
+  const pendingRes = await sbAdmin.from('contracts').update(pendingPatch).eq('id', contractId);
+  if (!pendingRes.error) return 'pending';
+  if (!isInvalidContractStatusError(pendingRes.error)) {
+    throw new OfferAcceptanceError(500, 'Contract sync failed.', pendingRes.error.message);
+  }
+
+  const draftRes = await sbAdmin
+    .from('contracts')
+    .update({ ...patchBase, status: 'draft' })
+    .eq('id', contractId);
+  if (draftRes.error) throw new OfferAcceptanceError(500, 'Contract sync failed.', draftRes.error.message);
+  return 'draft';
+}
+
+async function insertContractWithPreferredPendingStatus({ sbAdmin, contractPayload }) {
+  const pendingRes = await sbAdmin.from('contracts').insert({ ...contractPayload, status: 'pending' }).select('*').single();
+  if (!pendingRes.error) return pendingRes.data;
+  if (!isInvalidContractStatusError(pendingRes.error)) {
+    console.error('ensureContractForOffer: contract insert failed', {
+      offer_id: contractPayload.offer_id || null,
+      contract_payload: { ...contractPayload, status: 'pending' },
+      db_error: {
+        message: pendingRes.error.message || null,
+        code: pendingRes.error.code || null,
+        details: pendingRes.error.details || null,
+        hint: pendingRes.error.hint || null
+      }
+    });
+    throw new OfferAcceptanceError(
+      500,
+      `Contract create failed: ${pendingRes.error.message || 'unknown database error'}`,
+      {
+        message: pendingRes.error.message || null,
+        code: pendingRes.error.code || null,
+        details: pendingRes.error.details || null,
+        hint: pendingRes.error.hint || null
+      }
+    );
+  }
+
+  const draftRes = await sbAdmin.from('contracts').insert({ ...contractPayload, status: 'draft' }).select('*').single();
+  if (draftRes.error) {
+    console.error('ensureContractForOffer: contract insert fallback failed', {
+      offer_id: contractPayload.offer_id || null,
+      contract_payload: { ...contractPayload, status: 'draft' },
+      db_error: {
+        message: draftRes.error.message || null,
+        code: draftRes.error.code || null,
+        details: draftRes.error.details || null,
+        hint: draftRes.error.hint || null
+      }
+    });
+    throw new OfferAcceptanceError(
+      500,
+      `Contract create failed: ${draftRes.error.message || 'unknown database error'}`,
+      {
+        message: draftRes.error.message || null,
+        code: draftRes.error.code || null,
+        details: draftRes.error.details || null,
+        hint: draftRes.error.hint || null
+      }
+    );
+  }
+  return draftRes.data;
+}
+
 function normalizeText(raw) {
   const value = String(raw || '').trim();
   return value || null;
@@ -192,7 +266,7 @@ function validateOfferForAcceptance(offer) {
 
 async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
   const { durationMonths } = validateOfferForAcceptance(offer);
-  const startDate = nowIso.slice(0, 10);
+  const startDate = String(offer.start_date || nowIso.slice(0, 10)).slice(0, 10);
   const endDate = addMonths(startDate, durationMonths);
   const cancellationDate = addMonths(startDate, Math.max(durationMonths - 1, 0));
 
@@ -217,11 +291,11 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
 
   if (existing) {
     const existingDuration = parseDurationMonths(existing.duration_months ?? existing.months);
+    const existingStatus = String(existing.status || '').trim().toLowerCase();
     const patch = {
       customer_id: offer.customer_id || null,
       customer_name: offer.company_name || '',
       plan: offer.plan,
-      status: 'accepted',
       duration_months: durationMonths,
       months: durationMonths,
       start_date: existing.start_date || startDate,
@@ -234,11 +308,15 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
       || existingDuration !== durationMonths
       || String(existing.customer_id || '') !== String(offer.customer_id || '')
       || String(existing.offer_id || '') !== String(offer.id || '')
-      || String(existing.status || '') !== 'accepted'
+      || !existingStatus
+      || existingStatus === 'accepted'
     );
     if (needsPatch) {
-      const patchRes = await sbAdmin.from('contracts').update(patch).eq('id', existing.id);
-      if (patchRes.error) throw new OfferAcceptanceError(500, 'Contract sync failed.', patchRes.error.message);
+      await updateContractWithPreferredPendingStatus({
+        sbAdmin,
+        contractId: existing.id,
+        patchBase: patch
+      });
     }
     if (String(existing.offer_id || '') !== String(offer.id || '')) {
       const relinkRes = await sbAdmin.from('contracts').update({ offer_id: offer.id, updated_at: nowIso }).eq('id', existing.id);
@@ -260,33 +338,13 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
     discount: Math.round(Number(offer.discount_percent || 0)),
     cancellation_notice: '1 Monat',
     notes: `Automatisch erstellt aus Offerte ${offer.offer_number}`,
-    status: 'accepted',
     contract_text: generateContractText({ offer, startDate, cancellationDate })
   };
-  const createRes = await sbAdmin.from('contracts').insert(contractPayload).select('*').single();
-  if (createRes.error) {
-    console.error('ensureContractForOffer: contract insert failed', {
-      offer_id: offer.id,
-      contract_payload: contractPayload,
-      db_error: {
-        message: createRes.error.message || null,
-        code: createRes.error.code || null,
-        details: createRes.error.details || null,
-        hint: createRes.error.hint || null
-      }
-    });
-    throw new OfferAcceptanceError(
-      500,
-      `Contract create failed: ${createRes.error.message || 'unknown database error'}`,
-      {
-        message: createRes.error.message || null,
-        code: createRes.error.code || null,
-        details: createRes.error.details || null,
-        hint: createRes.error.hint || null
-      }
-    );
-  }
-  return String(createRes.data.id);
+  const contractRow = await insertContractWithPreferredPendingStatus({
+    sbAdmin,
+    contractPayload
+  });
+  return String(contractRow.id);
 }
 
 async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso }) {
