@@ -2942,7 +2942,7 @@ function renderOverview(){
   });
   const todo = {
     acceptedOffers: state.offers.filter(o=>String(o.status||'').toLowerCase()==='accepted').length,
-    contractReview: state.contracts.filter(c=>['pending','review_required','ops_review','in_review'].includes(String(c.status||'').toLowerCase())).length,
+    contractReview: state.contracts.filter(c=>['pending_review','pending','review_required','ops_review','in_review'].includes(String(c.status||'').toLowerCase())).length,
     setupToSend: invoiceRows.filter(i=>i.type==='setup_fee' && i.status==='draft').length,
     setupToCheckPayment: invoiceRows.filter(i=>i.type==='setup_fee' && !['paid','cancelled'].includes(i.status)).length,
     monthToSend: invoiceRows.filter(i=>i.type==='recurring' && i.status==='draft').length,
@@ -4818,7 +4818,7 @@ function formatDateDE(dateStr) {
 
 function getContractStatusMeta(ct) {
   var normalizedStatus = String(ct.status || '').trim().toLowerCase();
-  var isReviewRequired = ['pending','review_required','ops_review','in_review'].includes(normalizedStatus);
+  var isReviewRequired = ['pending_review','pending','review_required','ops_review','in_review'].includes(normalizedStatus);
   if (isReviewRequired) {
     return { label: 'Prüfung ausstehend', badge: 'badge-amber' };
   }
@@ -6495,7 +6495,6 @@ async function createManualSetupInvoice(customerId){
     });
     if(!json?.success||!json?.invoice) throw new Error(json?.error||'Invoice-Erstellung fehlgeschlagen.');
     state.invoices.unshift(json.invoice);
-    customer.payment_status='pending';
     showToast('✓ Setup-Rechnung erstellt.');
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
     renderBillingFinance();

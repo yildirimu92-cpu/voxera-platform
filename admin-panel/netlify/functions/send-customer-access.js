@@ -37,6 +37,35 @@ function addMonths(date, months) {
   return d;
 }
 
+async function loadSetupFeeState(sbAdmin, customerId) {
+  const { data, error } = await sbAdmin
+    .from('invoices')
+    .select('id, status, invoice_type, due_at, paid_at')
+    .eq('customer_id', customerId);
+  if (error) {
+    return {
+      warningOnly: true,
+      hasAnySetupFee: false,
+      hasUnpaidSetupFee: false,
+      message: 'Setup-Fee-Status konnte nicht geladen werden. Zugang ist trotzdem erlaubt.',
+      diagnostics: { db_message: error.message || null, db_code: error.code || null }
+    };
+  }
+  const rows = Array.isArray(data) ? data : [];
+  const setupRows = rows.filter((row) => String(row.invoice_type || '').toLowerCase().includes('setup'));
+  const hasAnySetupFee = setupRows.length > 0;
+  const hasUnpaidSetupFee = setupRows.some((row) => String(row.status || '').toLowerCase() !== 'paid');
+  return {
+    warningOnly: hasUnpaidSetupFee || !hasAnySetupFee,
+    hasAnySetupFee,
+    hasUnpaidSetupFee,
+    message: hasUnpaidSetupFee
+      ? 'Warnung: Setup-Fee-Rechnung ist noch offen. Aktivierung wurde dennoch erlaubt.'
+      : (!hasAnySetupFee ? 'Warnung: Keine Setup-Fee-Rechnung gefunden. Aktivierung wurde dennoch erlaubt.' : null),
+    diagnostics: null
+  };
+}
+
 async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordReset = false }) {
   const customerPlanCode = normalizePlanCode(customer.plan_code || customer.plan || '');
   const eventType = isPasswordReset ? 'customer_password_reset_email' : 'customer_welcome_access_email';
@@ -176,9 +205,8 @@ exports.handler = async (event) => {
   // ─── ACTION: mark_activated ───────────────────────────────────────────────
   if (action === 'mark_activated') {
     const entitlement = evaluateCustomerEntitlement(customer);
-    const paymentWarning = (!entitlement.entitled && entitlement.code === 'payment_required')
-      ? 'Warnung: Setup-Fee-Rechnung ist noch offen. Aktivierung wurde dennoch erlaubt.'
-      : null;
+    const setupFeeState = await loadSetupFeeState(sbAdmin, customerId);
+    const paymentWarning = setupFeeState.message || null;
 
     const nowIso = new Date().toISOString();
     const { data: updatedCustomer, error: updateErr } = await sbAdmin
@@ -233,6 +261,7 @@ exports.handler = async (event) => {
       success: true,
       message: 'Kunde auf aktiviert gesetzt.',
       warning: paymentWarning,
+      setup_fee_state: setupFeeState,
       customer: updatedCustomer,
       subscription: updatedSubscription
     });
@@ -322,18 +351,19 @@ exports.handler = async (event) => {
     return response(409, {
       error: entitlement.message,
       entitlement_code: entitlement.code,
-      payment_status: entitlement.payment_status,
       customer_status: entitlement.customer_status
     });
   }
-  if (!entitlement.entitled && entitlement.code === 'payment_required') {
+  const setupFeeState = await loadSetupFeeState(sbAdmin, customerId);
+  if (setupFeeState.warningOnly) {
     console.info(JSON.stringify({
       level: 'warn',
       event: 'send_customer_access_payment_warning_only',
       idempotency_scope: idempotencyScope,
       customer_id: customerId,
-      payment_status: entitlement.payment_status,
-      customer_status: entitlement.customer_status
+      has_any_setup_fee: setupFeeState.hasAnySetupFee,
+      has_unpaid_setup_fee: setupFeeState.hasUnpaidSetupFee,
+      setup_fee_diag: setupFeeState.diagnostics || null
     }));
   }
 
@@ -535,6 +565,8 @@ exports.handler = async (event) => {
   return response(200, {
     success: true,
     message: 'Zugangsdaten wurden versendet.',
+    warning: setupFeeState.message || null,
+    setup_fee_state: setupFeeState,
     customer: updatedCustomer || customer
   });
 };
