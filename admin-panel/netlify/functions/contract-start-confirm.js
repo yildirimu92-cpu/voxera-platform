@@ -52,6 +52,71 @@ function adminSafeDbError(err) {
   };
 }
 
+function extractMissingColumn(err) {
+  if (!err || String(err.code || '') !== 'PGRST204') return null;
+  const message = String(err.message || '');
+  const match = message.match(/Could not find the '([^']+)' column/i);
+  return match?.[1] || null;
+}
+
+function isIsoDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+}
+
+function validateSubscriptionPayload(payload) {
+  const issues = [];
+  if (!String(payload.customer_id || '').trim()) issues.push('customer_id missing (NOT NULL / FK customers.id)');
+  if (!String(payload.plan || '').trim()) issues.push('plan missing (NOT NULL)');
+  if (!String(payload.plan_code || '').trim()) issues.push('plan_code missing (NOT NULL)');
+  if (!isIsoDate(payload.start_date)) issues.push('start_date invalid (NOT NULL date)');
+  if (!['monthly', 'yearly'].includes(String(payload.billing_cycle || '').trim().toLowerCase())) {
+    issues.push("billing_cycle invalid (CHECK monthly|yearly)");
+  }
+  if (!['inactive', 'active', 'cancelled'].includes(String(payload.subscription_status || '').trim().toLowerCase())) {
+    issues.push("subscription_status invalid (CHECK inactive|active|cancelled)");
+  }
+  if (!['none', 'pending', 'paid'].includes(String(payload.payment_status || '').trim().toLowerCase())) {
+    issues.push("payment_status invalid (CHECK none|pending|paid)");
+  }
+  return issues;
+}
+
+async function insertWithSchemaFallback({ sbAdmin, table, payload }) {
+  const dynamicPayload = { ...payload };
+  const removedColumns = [];
+  const maxAttempts = Object.keys(dynamicPayload).length + 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const { data, error } = await sbAdmin
+      .from(table)
+      .insert(dynamicPayload)
+      .select('*')
+      .single();
+
+    if (!error) return { data, error: null, removedColumns, finalPayload: dynamicPayload };
+
+    const missingColumn = extractMissingColumn(error);
+    if (!missingColumn || !(missingColumn in dynamicPayload)) {
+      return { data: null, error, removedColumns, finalPayload: dynamicPayload };
+    }
+
+    delete dynamicPayload[missingColumn];
+    removedColumns.push(missingColumn);
+    console.warn('[contract-start-confirm] subscriptions schema fallback removed missing column', {
+      table,
+      missing_column: missingColumn,
+      attempt
+    });
+  }
+
+  return {
+    data: null,
+    error: { code: 'CONTRACT_START_CONFIRM_SCHEMA_FALLBACK_EXHAUSTED', message: `Schema fallback exhausted for table ${table}.` },
+    removedColumns,
+    finalPayload: dynamicPayload
+  };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -139,6 +204,19 @@ exports.handler = async (event) => {
     renews_at: renewsAt ? `${renewsAt}T00:00:00.000Z` : null,
     updated_at: nowIso
   };
+  const payloadValidationIssues = validateSubscriptionPayload(subscriptionPayload);
+  if (payloadValidationIssues.length > 0) {
+    console.error('[contract-start-confirm] invalid subscription payload before persistence', {
+      contract_id: contractId,
+      customer_id: customerId,
+      payload: subscriptionPayload,
+      validation_issues: payloadValidationIssues
+    });
+    return response(409, {
+      error: 'Subscription payload invalid before insert/update.',
+      validation_issues: payloadValidationIssues
+    });
+  }
 
   let subscription = null;
   const { data: existingSubscription, error: existingSubscriptionError } = await sbAdmin
@@ -183,11 +261,16 @@ exports.handler = async (event) => {
     }
     subscription = updatedSubscription;
   } else {
-    const { data: insertedSubscription, error: insertSubscriptionError } = await sbAdmin
-      .from('subscriptions')
-      .insert(subscriptionPayload)
-      .select('*')
-      .single();
+    const {
+      data: insertedSubscription,
+      error: insertSubscriptionError,
+      removedColumns: insertRemovedColumns,
+      finalPayload: insertFinalPayload
+    } = await insertWithSchemaFallback({
+      sbAdmin,
+      table: 'subscriptions',
+      payload: subscriptionPayload
+    });
 
     if (insertSubscriptionError) {
       const duplicateKey = String(insertSubscriptionError.code || '') === '23505';
@@ -237,14 +320,30 @@ exports.handler = async (event) => {
           contract_id: contractId,
           customer_id: customerId,
           error: dbErrorShape(insertSubscriptionError),
-          payload_keys: Object.keys(subscriptionPayload)
+          payload_keys: Object.keys(subscriptionPayload),
+          payload: subscriptionPayload,
+          effective_payload_keys: Object.keys(insertFinalPayload || {}),
+          effective_payload: insertFinalPayload || null,
+          removed_columns: insertRemovedColumns || []
         });
         return response(500, {
           error: 'Subscription ensure failed during insert.',
-          ...adminSafeDbError(insertSubscriptionError)
+          ...adminSafeDbError(insertSubscriptionError),
+          insert_payload: insertFinalPayload || subscriptionPayload,
+          insert_payload_keys: Object.keys(insertFinalPayload || subscriptionPayload),
+          removed_columns: insertRemovedColumns || []
         });
       }
     } else {
+      if (Array.isArray(insertRemovedColumns) && insertRemovedColumns.length > 0) {
+        console.warn('[contract-start-confirm] subscription inserted with legacy schema fallback', {
+          contract_id: contractId,
+          customer_id: customerId,
+          removed_columns: insertRemovedColumns,
+          payload_keys: Object.keys(subscriptionPayload),
+          effective_payload_keys: Object.keys(insertFinalPayload || {})
+        });
+      }
       subscription = insertedSubscription;
     }
   }
