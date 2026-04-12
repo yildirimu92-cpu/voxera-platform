@@ -57,9 +57,121 @@ function parseDurationMonths(raw) {
   return rounded;
 }
 
+function normalizeText(raw) {
+  const value = String(raw || '').trim();
+  return value || null;
+}
+
+function normalizeEmail(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  return value || null;
+}
+
+function prospectNameFromOffer(offer) {
+  const companyName = normalizeText(offer.company_name);
+  if (companyName) return companyName;
+  const contactName = normalizeText(offer.contact_name);
+  if (contactName) return contactName;
+  const firstName = normalizeText(offer.first_name || offer.contact_first_name);
+  const lastName = normalizeText(offer.last_name || offer.contact_last_name);
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+  if (fullName) return fullName;
+  return `Prospect ${String(offer.offer_number || offer.id || '').trim() || 'Offerte'}`;
+}
+
+function generateCustomerId() {
+  return `cust_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function findExistingCustomerForOffer({ sbAdmin, offer }) {
+  const email = normalizeEmail(offer.email);
+  if (email) {
+    const byEmail = await sbAdmin.from('customers').select('*').ilike('email', email).limit(2);
+    if (byEmail.error) throw new OfferAcceptanceError(500, 'Kunde konnte nicht aufgelöst werden (E-Mail Lookup).', byEmail.error.message);
+    if (Array.isArray(byEmail.data) && byEmail.data.length > 1) {
+      throw new OfferAcceptanceError(409, 'Mehrdeutiger Duplikat-Treffer per E-Mail. Bitte Kunde manuell zuordnen.');
+    }
+    if (Array.isArray(byEmail.data) && byEmail.data[0]) return byEmail.data[0];
+  }
+
+  const companyName = normalizeText(offer.company_name);
+  if (companyName) {
+    const byCompany = await sbAdmin.from('customers').select('*').ilike('customer_name', companyName).limit(2);
+    if (byCompany.error) throw new OfferAcceptanceError(500, 'Kunde konnte nicht aufgelöst werden (Firmenname Lookup).', byCompany.error.message);
+    if (Array.isArray(byCompany.data) && byCompany.data.length > 1) {
+      throw new OfferAcceptanceError(409, 'Mehrdeutiger Duplikat-Treffer per Firmenname. Bitte Kunde manuell zuordnen.');
+    }
+    if (Array.isArray(byCompany.data) && byCompany.data[0]) return byCompany.data[0];
+  }
+
+  return null;
+}
+
+async function resolveOrCreateCustomerForOffer({ sbAdmin, offer, nowIso }) {
+  if (offer.customer_id) return offer;
+
+  const existingCustomer = await findExistingCustomerForOffer({ sbAdmin, offer });
+  let customerId = existingCustomer?.id ? String(existingCustomer.id) : null;
+
+  if (!customerId) {
+    const customerName = prospectNameFromOffer(offer);
+    const street = normalizeText(offer.street);
+    const zip = normalizeText(offer.zip || offer.postal_code);
+    const city = normalizeText(offer.city);
+    const country = normalizeText(offer.country);
+    if (!street || !zip || !city || !country) {
+      throw new OfferAcceptanceError(409, 'Kunde kann nicht automatisch erstellt werden: Adressdaten in der Offerte unvollständig.');
+    }
+
+    const insertPayload = {
+      id: generateCustomerId(),
+      customer_name: customerName,
+      email: normalizeEmail(offer.email),
+      tel_nr: normalizeText(offer.phone),
+      plan: normalizeText(offer.plan) || 'professional',
+      street,
+      zip,
+      city,
+      country,
+      contact_first_name: normalizeText(offer.first_name || offer.contact_first_name),
+      contact_last_name: normalizeText(offer.last_name || offer.contact_last_name),
+      contact_name: normalizeText(offer.contact_name),
+      status: STATUS.customer.ONBOARDING,
+      invite_status: STATUS.access.NOT_SENT,
+      welcome_sent: false,
+      created_at: nowIso,
+      updated_at: nowIso
+    };
+    const created = await sbAdmin.from('customers').insert(insertPayload).select('id').single();
+    if (created.error) {
+      if (String(created.error.code || '') === '23505') {
+        const retry = await findExistingCustomerForOffer({ sbAdmin, offer });
+        customerId = retry?.id ? String(retry.id) : null;
+        if (!customerId) {
+          throw new OfferAcceptanceError(409, 'Kunde existiert bereits, konnte aber nicht eindeutig aufgelöst werden.', created.error.message);
+        }
+      } else {
+        throw new OfferAcceptanceError(500, 'Kunde konnte nicht automatisch erstellt werden.', created.error.message);
+      }
+    } else {
+      customerId = String(created.data.id);
+    }
+  }
+
+  const offerLink = await sbAdmin
+    .from('offers')
+    .update({ customer_id: customerId, updated_at: nowIso })
+    .eq('id', offer.id)
+    .select('*')
+    .single();
+  if (offerLink.error) {
+    throw new OfferAcceptanceError(500, 'Offerte konnte nicht mit Kunde verknüpft werden.', offerLink.error.message);
+  }
+  return offerLink.data;
+}
+
 function validateOfferForAcceptance(offer) {
   const required = [
-    ['customer_id', offer.customer_id],
     ['plan', offer.plan],
     ['billing_cycle', offer.billing_cycle],
     ['duration_months', offer.duration_months]
@@ -231,23 +343,21 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
   if (status === 'rejected') throw new OfferAcceptanceError(409, 'Offerte wurde bereits abgelehnt.');
   if (status === 'expired') throw new OfferAcceptanceError(409, 'Offerte ist abgelaufen.');
 
-  if (!offer.customer_id) {
-    throw new OfferAcceptanceError(409, 'Diese Offerte ist noch keinem Kunden zugeordnet und kann nicht automatisch verarbeitet werden.');
-  }
+  const offerWithCustomer = await resolveOrCreateCustomerForOffer({ sbAdmin, offer, nowIso });
 
-  if (offer.accepted_at && offer.contract_id) {
+  if (offerWithCustomer.accepted_at && offerWithCustomer.contract_id) {
     return {
       duplicate: true,
-      offerId: String(offer.id),
-      contractId: String(offer.contract_id),
-      acceptedAt: offer.accepted_at
+      offerId: String(offerWithCustomer.id),
+      contractId: String(offerWithCustomer.contract_id),
+      acceptedAt: offerWithCustomer.accepted_at
     };
   }
 
   let contractId = null;
   let contractError = null;
   try {
-    contractId = await ensureContractForOffer({ sbAdmin, offer, nowIso });
+    contractId = await ensureContractForOffer({ sbAdmin, offer: offerWithCustomer, nowIso });
   } catch (err) {
     if (!allowContractFailure) throw err;
     contractError = err;
@@ -273,7 +383,7 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
   const offerRes = await sbAdmin
     .from('offers')
     .update(offerPatch)
-    .eq('id', offer.id)
+    .eq('id', offerWithCustomer.id)
     .select('*')
     .single();
 
@@ -283,7 +393,7 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
 
   return {
     duplicate: false,
-    offerId: String(offer.id),
+    offerId: String(offerWithCustomer.id),
     contractId,
     contractError: contractError
       ? {
