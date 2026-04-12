@@ -114,6 +114,8 @@ async function createInvoiceWithItems(sbAdmin, payload) {
     stripe_checkout_session_id: payload.stripeCheckoutSessionId || null,
     stripe_invoice_id: payload.stripeInvoiceId || null,
     external_reference: payload.externalReference || null,
+    offer_id: payload.offerId || null,
+    contract_id: payload.contractId || null,
     notes: payload.notes || null,
     pdf_url: payload.pdfUrl || null
   };
@@ -153,6 +155,12 @@ async function createInvoiceWithItems(sbAdmin, payload) {
   }
 
   return insertedInvoice;
+}
+
+function isDuplicateInvoiceReferenceError(error) {
+  const code = String(error && error.code || '');
+  const msg = String(error && error.message || '').toLowerCase();
+  return code === '23505' || msg.includes('duplicate key value');
 }
 
 async function createSetupFeeInvoice({ sbAdmin, customer, setupFeeAmount, billingProvider, status, dueAt, paidAt, paidSource, notes, externalReference, stripePaymentIntentId, stripeCheckoutSessionId, stripeInvoiceId }) {
@@ -271,7 +279,6 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
   const { data: existingInvoice, error: existingError } = await sbAdmin
     .from('invoices')
     .select('*')
-    .eq('customer_id', customer.id)
     .eq('external_reference', externalReference)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -281,42 +288,58 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
   if (existingInvoice) return { invoice: existingInvoice, duplicate: true };
 
   const subtotal = money(setupAmount + monthlyAmount);
-  const createdInvoice = await createInvoiceWithItems(sbAdmin, {
-    customerId: customer.id,
-    subscriptionId: subscription && subscription.id ? subscription.id : (customer.subscription_id || null),
-    invoiceType: 'manual',
-    billingProvider: 'invoice',
-    status: 'draft',
-    subtotalAmount: subtotal,
-    taxAmount: 0,
-    totalAmount: subtotal,
-    issuedAt: new Date(),
-    dueAt,
-    sentAt: null,
-    paidAt: null,
-    notes: notes || 'Initial invoice (setup fee + first month) after contract creation',
-    externalReference,
-    items: [
-      {
-        itemType: 'setup_fee',
-        title: 'Setup Fee',
-        description: 'Einrichtungsgebühr',
-        quantity: 1,
-        unitPrice: setupAmount,
-        lineTotal: setupAmount,
-        metadata: { contract_id: normalizedContractId, source: 'contract_created' }
-      },
-      {
-        itemType: 'subscription_base',
-        title: 'Subscription (first month)',
-        description: 'Erste Monatsgebühr',
-        quantity: 1,
-        unitPrice: monthlyAmount,
-        lineTotal: monthlyAmount,
-        metadata: { contract_id: normalizedContractId, period: 'first_month', source: 'contract_created' }
-      }
-    ]
-  });
+  let createdInvoice;
+  try {
+    createdInvoice = await createInvoiceWithItems(sbAdmin, {
+      customerId: customer.id,
+      subscriptionId: subscription && subscription.id ? subscription.id : (customer.subscription_id || null),
+      contractId: normalizedContractId,
+      invoiceType: 'manual',
+      billingProvider: 'invoice',
+      status: 'draft',
+      subtotalAmount: subtotal,
+      taxAmount: 0,
+      totalAmount: subtotal,
+      issuedAt: new Date(),
+      dueAt,
+      sentAt: null,
+      paidAt: null,
+      notes: notes || 'Initial invoice (setup fee + first month) after contract creation',
+      externalReference,
+      items: [
+        {
+          itemType: 'setup_fee',
+          title: 'Setup Fee',
+          description: 'Einrichtungsgebühr',
+          quantity: 1,
+          unitPrice: setupAmount,
+          lineTotal: setupAmount,
+          metadata: { contract_id: normalizedContractId, source: 'contract_created' }
+        },
+        {
+          itemType: 'subscription_base',
+          title: 'Subscription (first month)',
+          description: 'Erste Monatsgebühr',
+          quantity: 1,
+          unitPrice: monthlyAmount,
+          lineTotal: monthlyAmount,
+          metadata: { contract_id: normalizedContractId, period: 'first_month', source: 'contract_created' }
+        }
+      ]
+    });
+  } catch (createErr) {
+    if (!isDuplicateInvoiceReferenceError(createErr)) throw createErr;
+    const { data: racedInvoice, error: racedLookupError } = await sbAdmin
+      .from('invoices')
+      .select('*')
+      .eq('external_reference', externalReference)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (racedLookupError) throw new Error(`initial invoice duplicate lookup failed: ${racedLookupError.message}`);
+    if (racedInvoice) return { invoice: racedInvoice, duplicate: true };
+    throw createErr;
+  }
 
   return { invoice: createdInvoice, duplicate: false };
 }
