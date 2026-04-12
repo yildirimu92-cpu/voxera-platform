@@ -640,7 +640,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .ai-workspace-block .textarea{font-size:13px;}
 .ai-global-secondary,.ai-audit-secondary{padding:18px;}
 /* ─── Billing & Finance ───────────────────────────── */
-.finance-section{display:grid;gap:16px;}
+.finance-section{display:grid;gap:18px;}
 .finance-hero{
   border:1px solid rgba(29,78,216,.14);
   border-radius:var(--radius-lg);
@@ -655,38 +655,46 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   border:1px solid var(--line);
   border-radius:12px;
   background:#fff;
-  padding:8px 10px;
-  min-height:72px;
-  box-shadow:0 6px 14px rgba(15,23,42,.05);
+  padding:11px 12px;
+  min-height:88px;
+  box-shadow:0 6px 16px rgba(15,23,42,.05);
+  text-align:left;
+  transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease,background-color .14s ease;
 }
-.finance-kpi-card.interactive{cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;}
-.finance-kpi-card.interactive:hover{transform:translateY(-1px);border-color:#BFDBFE;box-shadow:0 10px 22px rgba(29,78,216,.16);}
+.finance-kpi-card.interactive{cursor:pointer;-webkit-tap-highlight-color:rgba(37,99,235,.16);touch-action:manipulation;}
+.finance-kpi-card.interactive:hover{transform:translateY(-1px);border-color:#BFDBFE;box-shadow:0 12px 24px rgba(29,78,216,.17);}
+.finance-kpi-card.interactive:active{transform:translateY(0);box-shadow:0 8px 18px rgba(29,78,216,.14);}
 .finance-kpi-card.interactive:focus-visible{outline:2px solid #93C5FD;outline-offset:2px;}
+.finance-kpi-card.passive{background:linear-gradient(180deg,#fff 0%,#FAFBFD 100%);box-shadow:0 4px 11px rgba(15,23,42,.04);}
 .finance-kpi-card-info{display:inline-flex;align-items:center;gap:5px;margin-top:5px;font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.03em;text-transform:uppercase;}
 .finance-kpi-card-info.is-static{color:var(--slate2);}
 .finance-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);}
 .finance-kpi-value{margin-top:4px;font-size:20px;line-height:1.1;font-weight:800;letter-spacing:-.02em;color:var(--ink);}
 .finance-kpi-sub{margin-top:2px;font-size:10.5px;line-height:1.35;color:var(--slate);}
 .finance-quick-actions{
-  display:flex;flex-wrap:wrap;gap:8px;
+  display:flex;flex-wrap:wrap;gap:7px;
   border:1px solid var(--line);
   border-radius:12px;
   background:linear-gradient(180deg,#fff 0%,#F8FAFF 100%);
-  box-shadow:0 8px 18px rgba(15,23,42,.06);
-  padding:9px 10px;
+  box-shadow:0 8px 20px rgba(15,23,42,.06);
+  padding:10px 11px;
 }
-.finance-quick-action{display:inline-flex;align-items:center;gap:6px;border-radius:999px;}
-.finance-quick-action .badge{font-size:10px;padding:3px 7px;}
+.finance-quick-action{
+  display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+  padding:2px 2px 2px 6px;background:#fff;border:1px solid var(--line2);
+}
+.finance-quick-action .badge{font-size:10px;padding:3px 7px;min-width:26px;justify-content:center;}
 .finance-main-grid{grid-template-columns:1.15fr .85fr;gap:12px;}
 .finance-premium-card{
   border:1px solid var(--line);
   border-radius:var(--radius-lg);
   background:linear-gradient(180deg,#fff 0%,#FBFDFF 100%);
   box-shadow:var(--shadow-card);
+  padding:14px;
 }
 .finance-card-head{
   display:flex;justify-content:space-between;gap:10px;align-items:center;
-  padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--line2);
+  padding-bottom:11px;margin-bottom:11px;border-bottom:1px solid var(--line2);
 }
 .finance-card-head h3{font-size:15px;letter-spacing:-.02em;}
 .finance-worklist{display:grid;gap:10px;}
@@ -711,6 +719,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 }
 .finance-table-wrap .data-table thead th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--slate2);}
 .finance-table-wrap .data-table td{vertical-align:middle;}
+.finance-table-wrap .data-table tbody tr{transition:background-color .14s ease,box-shadow .14s ease;}
+.finance-table-wrap .data-table tbody tr:hover{background:#F8FBFF;}
 .finance-table-wrap .inline-actions{gap:8px;flex-wrap:wrap;}
 .finance-invoice-customer{font-size:13px;font-weight:700;color:var(--ink);line-height:1.35;}
 .finance-invoice-sub{margin-top:2px;font-size:11px;color:var(--slate2);line-height:1.35;}
@@ -720,9 +730,12 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 .finance-date-wrap{display:grid;gap:3px;}
 .finance-date-main{font-size:12.5px;font-weight:700;color:var(--ink);}
 .finance-date-sub{font-size:10.5px;color:var(--slate2);text-transform:uppercase;letter-spacing:.03em;}
-.finance-actions-group{display:grid;gap:6px;}
+.finance-actions-group{display:grid;gap:7px;}
 .finance-actions-group .inline-actions{gap:6px;}
-.finance-empty{display:grid;gap:8px;padding:2px 0;}
+.finance-empty{
+  display:grid;gap:8px;padding:10px 12px;border:1px dashed #CBD5E1;border-radius:10px;
+  background:linear-gradient(180deg,#fff 0%,#F8FAFC 100%);
+}
 .finance-empty-hint{font-size:12px;color:var(--slate);}
 .finance-section .inline-actions .btn{
   border-radius:10px;
@@ -783,6 +796,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .finance-hero-title{font-size:20px;}
   .finance-hero-sub{font-size:12px;}
   .finance-kpi-grid{grid-template-columns:1fr;}
+  .finance-section{gap:14px;}
   .finance-quick-action .btn{width:100%;justify-content:center;}
   .finance-toolbar{grid-template-columns:1fr;}
   .finance-toolbar .btn{width:100%;justify-content:center;}
@@ -2925,8 +2939,8 @@ function renderBillingFinance(){
     {label:'Marge',value:marginEstimatePct,sub:'V1 Schätzung aus Planpreis/Kosten',filterKey:null,interactive:false}
   ];
   rootKpi.innerHTML=kpis.map(kpi=>kpi.interactive
-    ?`<button type="button" class="finance-kpi-card interactive" onclick="setFinanceInvoiceStatusFilter('${jsStr(kpi.filterKey)}')"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info">Filter öffnen →</div></button>`
-    :`<div class="finance-kpi-card"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info is-static">Info-KPI</div></div>`
+    ?`<div class="finance-kpi-card interactive" role="button" tabindex="0" data-finance-kpi-filter="${jsStr(kpi.filterKey)}" aria-label="${esc(`${String(kpi.label)} · Filter öffnen`)}"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info">Filter öffnen →</div></div>`
+    :`<div class="finance-kpi-card passive"><div class="finance-kpi-label">${esc(String(kpi.label))}</div><div class="finance-kpi-value">${esc(String(kpi.value))}</div><div class="finance-kpi-sub">${esc(String(kpi.sub))}</div><div class="finance-kpi-card-info is-static">Info-KPI</div></div>`
   ).join('');
 
   const quickActions=[
@@ -6894,6 +6908,24 @@ function wireUi(){
     document.getElementById(id).addEventListener('input',renderBillingFinance);
     document.getElementById(id).addEventListener('change',renderBillingFinance);
   });
+  const financeKpiGrid=document.getElementById('finance-kpis');
+  if(financeKpiGrid && !financeKpiGrid.dataset.kpiTapBound){
+    financeKpiGrid.dataset.kpiTapBound='1';
+    financeKpiGrid.addEventListener('click',e=>{
+      const card=e.target.closest('[data-finance-kpi-filter]');
+      if(!card||!financeKpiGrid.contains(card)) return;
+      const filter=card.getAttribute('data-finance-kpi-filter')||'all';
+      setFinanceInvoiceStatusFilter(filter);
+    });
+    financeKpiGrid.addEventListener('keydown',e=>{
+      if(e.key!=='Enter'&&e.key!==' ') return;
+      const card=e.target.closest('[data-finance-kpi-filter]');
+      if(!card||!financeKpiGrid.contains(card)) return;
+      e.preventDefault();
+      const filter=card.getAttribute('data-finance-kpi-filter')||'all';
+      setFinanceInvoiceStatusFilter(filter);
+    });
+  }
   document.getElementById('customer-reset').addEventListener('click',()=>{
     document.getElementById('customer-search').value='';
     document.getElementById('customer-plan-filter').value='all';
