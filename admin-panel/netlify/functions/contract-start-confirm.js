@@ -81,6 +81,7 @@ exports.handler = async (event) => {
 
   const noticeMonths = String(contract.cancellation_notice || '') === '3 Monate' ? 3 : 1;
   const patch = {
+    status: 'active',
     start_date: startDate,
     duration_months: durationMonths,
     months: durationMonths,
@@ -128,7 +129,12 @@ exports.handler = async (event) => {
   if (String(customer.subscription_id || '') !== String(subscription.id || '')) {
     await sbAdmin
       .from('customers')
-      .update({ subscription_id: subscription.id, updated_at: nowIso })
+      .update({ subscription_id: subscription.id, start_date: startDate, updated_at: nowIso })
+      .eq('id', customerId);
+  } else {
+    await sbAdmin
+      .from('customers')
+      .update({ start_date: startDate, updated_at: nowIso })
       .eq('id', customerId);
   }
   if (String(updatedContract.subscription_id || '') !== String(subscription.id || '')) {

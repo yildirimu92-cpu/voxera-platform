@@ -99,7 +99,7 @@ exports.handler = async (event) => {
     // rather than inserting a new one, so the UNIQUE constraint is respected.
     // Future PRs will replace this upsert with a plain INSERT once the UNIQUE
     // constraint is removed and subscription history is supported.
-    const startsAt = new Date().toISOString();
+    const startsAt = new Date(`${start_date}T00:00:00.000Z`).toISOString();
     const renewsAt = addMonths(new Date(startsAt), billing_cycle === 'yearly' ? 12 : 1).toISOString();
     const { data: subscription, error: subErr } = await sbAdmin
       .from('subscriptions')
