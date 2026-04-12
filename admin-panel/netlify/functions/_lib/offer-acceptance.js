@@ -1,6 +1,7 @@
 'use strict';
 
 const { STATUS, normalizeCustomerStatus, normalizeOnboardingStatus, assertOnboardingTransition } = require('./status-model');
+const { createInitialContractInvoice } = require('./invoice-service');
 
 class OfferAcceptanceError extends Error {
   constructor(statusCode, message, details) {
@@ -220,6 +221,7 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
       customer_id: offer.customer_id || null,
       customer_name: offer.company_name || '',
       plan: offer.plan,
+      status: 'accepted',
       duration_months: durationMonths,
       months: durationMonths,
       start_date: existing.start_date || startDate,
@@ -232,6 +234,7 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
       || existingDuration !== durationMonths
       || String(existing.customer_id || '') !== String(offer.customer_id || '')
       || String(existing.offer_id || '') !== String(offer.id || '')
+      || String(existing.status || '') !== 'accepted'
     );
     if (needsPatch) {
       const patchRes = await sbAdmin.from('contracts').update(patch).eq('id', existing.id);
@@ -257,7 +260,7 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
     discount: Math.round(Number(offer.discount_percent || 0)),
     cancellation_notice: '1 Monat',
     notes: `Automatisch erstellt aus Offerte ${offer.offer_number}`,
-    status: 'draft',
+    status: 'accepted',
     contract_text: generateContractText({ offer, startDate, cancellationDate })
   };
   const createRes = await sbAdmin.from('contracts').insert(contractPayload).select('*').single();
@@ -284,6 +287,73 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
     );
   }
   return String(createRes.data.id);
+}
+
+function resolveFirstMonthAmount(offer) {
+  const monthly = Number(offer.monthly_price || 0);
+  if (Number.isFinite(monthly) && monthly > 0) return Number(monthly.toFixed(2));
+  const yearly = Number(offer.yearly_price || 0);
+  if (Number.isFinite(yearly) && yearly > 0) return Number((yearly / 12).toFixed(2));
+  return 0;
+}
+
+async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso }) {
+  if (!offer?.customer_id || !contractId) return { invoiceId: null, duplicate: false };
+
+  const { data: customer, error: customerError } = await sbAdmin
+    .from('customers')
+    .select('*')
+    .eq('id', offer.customer_id)
+    .maybeSingle();
+  if (customerError) throw new OfferAcceptanceError(500, 'Customer lookup for initial invoice failed.', customerError.message);
+  if (!customer) throw new OfferAcceptanceError(409, 'Kunde für Offerte konnte nicht geladen werden.');
+
+  const setupFeeAmount = Number(offer.setup_fee || 0);
+  const firstMonthAmount = resolveFirstMonthAmount(offer);
+  const initial = await createInitialContractInvoice({
+    sbAdmin,
+    customer,
+    contractId,
+    subscription: null,
+    setupFeeAmount,
+    firstMonthAmount,
+    dueAt: null,
+    notes: `Initial invoice (setup fee + first month) for accepted offer ${offer.offer_number || offer.id}`
+  });
+  const invoice = initial.invoice || null;
+  if (!invoice?.id) return { invoiceId: null, duplicate: Boolean(initial.duplicate) };
+
+  await sbAdmin
+    .from('invoices')
+    .update({
+      offer_id: offer.id,
+      contract_id: contractId,
+      updated_at: nowIso
+    })
+    .eq('id', invoice.id);
+
+  await sbAdmin
+    .from('offers')
+    .update({ invoice_id: invoice.id, updated_at: nowIso })
+    .eq('id', offer.id);
+
+  if (String(customer.payment_status || '').trim().toLowerCase() !== 'paid') {
+    const customerInviteStatus = String(customer.invite_status || '').trim().toLowerCase();
+    const shouldResetInvite = customerInviteStatus !== 'activated' && customerInviteStatus !== 'sent';
+    await sbAdmin
+      .from('customers')
+      .update({
+        payment_status: 'pending',
+        invite_status: shouldResetInvite ? STATUS.access.NOT_SENT : customer.invite_status,
+        welcome_sent: shouldResetInvite ? false : customer.welcome_sent,
+        welcome_sent_at: shouldResetInvite ? null : customer.welcome_sent_at,
+        payment_received_at: null,
+        updated_at: nowIso
+      })
+      .eq('id', customer.id);
+  }
+
+  return { invoiceId: String(invoice.id), duplicate: Boolean(initial.duplicate) };
 }
 
 async function syncPostAcceptanceLifecycle({ sbAdmin, offer, nowIso }) {
@@ -313,7 +383,7 @@ async function syncPostAcceptanceLifecycle({ sbAdmin, offer, nowIso }) {
       customer_id: offer.customer_id,
       status: STATUS.onboarding.IN_PROGRESS,
       progress: 10,
-      next_step: 'Vertrag prüfen und Zugang vorbereiten',
+      next_step: 'Rechnung manuell versenden und Zahlungseingang abwarten',
       owner: 'Ops',
       updated_at: nowIso
     });
@@ -333,7 +403,7 @@ async function syncPostAcceptanceLifecycle({ sbAdmin, offer, nowIso }) {
   await sbAdmin.from('onboarding').update({
     status: next,
     progress: Math.max(Number(onboarding.progress || 0), 10),
-    next_step: onboarding.next_step || 'Vertrag prüfen und Zugang vorbereiten',
+    next_step: onboarding.next_step || 'Rechnung manuell versenden und Zahlungseingang abwarten',
     updated_at: nowIso
   }).eq('id', onboarding.id);
 }
@@ -389,6 +459,16 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
 
   if (offerRes.error) throw new OfferAcceptanceError(500, 'Offerte konnte nicht akzeptiert werden.', offerRes.error.message);
 
+  let initialInvoice = { invoiceId: null, duplicate: false };
+  if (contractId) {
+    initialInvoice = await ensureInitialInvoiceForOffer({
+      sbAdmin,
+      offer: offerRes.data,
+      contractId,
+      nowIso
+    });
+  }
+
   await syncPostAcceptanceLifecycle({ sbAdmin, offer: offerRes.data, nowIso });
 
   return {
@@ -402,7 +482,9 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
       }
       : null,
     acceptedAt: offerRes.data.accepted_at || nowIso,
-    offer: offerRes.data
+    offer: offerRes.data,
+    invoiceId: initialInvoice.invoiceId,
+    invoiceDuplicate: initialInvoice.duplicate
   };
 }
 
