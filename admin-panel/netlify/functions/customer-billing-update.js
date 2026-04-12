@@ -55,7 +55,8 @@ exports.handler = async (event) => {
     'mark_subscription_paid',
     'create_manual_setup_invoice',
     'create_manual_subscription_invoice',
-    'mark_invoice_paid'
+    'mark_invoice_paid',
+    'record_invoice_reminder'
   ].includes(action)) {
     return response(400, { error: 'Unbekannte action.' });
   }
@@ -96,6 +97,37 @@ exports.handler = async (event) => {
     } catch (err) {
       return response(500, { error: 'Invoice konnte nicht als bezahlt markiert werden.', details: err.message });
     }
+  }
+
+  if (action === 'record_invoice_reminder') {
+    const invoiceId = String(body.invoice_id || '').trim();
+    if (!invoiceId) return response(400, { error: 'invoice_id fehlt' });
+    const reminderLevel = Math.max(1, Math.min(3, Number(body.reminder_level || 1) || 1));
+
+    const { data: invoice, error: invoiceLookupError } = await sbAdmin
+      .from('invoices')
+      .select('*')
+      .eq('id', invoiceId)
+      .maybeSingle();
+    if (invoiceLookupError) return response(500, { error: 'Invoice lookup failed', details: invoiceLookupError.message });
+    if (!invoice) return response(404, { error: 'Rechnung nicht gefunden.' });
+    if (String(invoice.customer_id) !== customerId) return response(409, { error: 'Rechnung gehört nicht zu diesem Kunden.' });
+
+    const notePrefix = `[REMINDER L${reminderLevel} ${nowIso}]`;
+    const userNote = String(body.notes || '').trim();
+    const mergedNotes = [notePrefix, userNote].filter(Boolean).join(' · ');
+    const patch = {
+      notes: [String(invoice.notes || '').trim(), mergedNotes].filter(Boolean).join('\n'),
+      updated_at: nowIso
+    };
+    const { data: updatedInvoice, error: updateErr } = await sbAdmin
+      .from('invoices')
+      .update(patch)
+      .eq('id', invoiceId)
+      .select('*')
+      .single();
+    if (updateErr) return response(500, { error: 'Reminder konnte nicht gespeichert werden.', details: updateErr.message });
+    return response(200, { success: true, action, invoice: updatedInvoice });
   }
 
   const nextPatch = { updated_at: nowIso };

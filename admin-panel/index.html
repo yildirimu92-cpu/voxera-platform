@@ -1231,7 +1231,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           </div>
         </div>
         <div class="card" style="margin-bottom:16px;">
-          <div class="card-head"><h3>Rechnungsübersicht</h3><span class="badge badge-gray">Read-only</span></div>
+          <div class="card-head"><h3>Rechnungsübersicht &amp; Mahnwesen Light</h3><span class="badge badge-green">Operational</span></div>
           <div class="toolbar finance-toolbar">
             <input class="input" id="finance-invoice-search" placeholder="Kunde / Rechnungsnummer / Typ">
             <select class="select" id="finance-type-filter">
@@ -1246,12 +1246,13 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
               <option value="open">Offen</option>
               <option value="overdue">Überfällig</option>
               <option value="paid">Bezahlt</option>
+              <option value="followup">Follow-up nötig</option>
             </select>
             <button class="btn btn-quiet" id="finance-reset">Zurücksetzen</button>
           </div>
           <div class="table-wrap">
             <table class="data-table">
-              <thead><tr><th>Kunde</th><th>Typ</th><th>Status</th><th>Betrag</th><th>Fällig</th><th>Bezahlt am</th><th>Rechnung</th><th>Aktion</th></tr></thead>
+              <thead><tr><th>Rechnung</th><th>Kunde</th><th>Typ</th><th>Status</th><th>Mahnwesen</th><th>Betrag</th><th>Fällig</th><th>Bezahlt am</th><th>Aktionen</th></tr></thead>
               <tbody id="finance-invoice-body"></tbody>
             </table>
           </div>
@@ -2639,6 +2640,35 @@ function invoiceStatusBadge(status){
   if(status==='overdue') return '<span class="badge badge-red">Überfällig</span>';
   return '<span class="badge badge-amber">Offen</span>';
 }
+function computeOverdueDays(dueDate){
+  if(!dueDate) return 0;
+  const due=new Date(dueDate);
+  if(Number.isNaN(due.getTime())) return 0;
+  const now=new Date();
+  const startOfToday=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  const dueStart=new Date(due.getFullYear(),due.getMonth(),due.getDate()).getTime();
+  if(dueStart>=startOfToday) return 0;
+  return Math.floor((startOfToday-dueStart)/86400000);
+}
+function detectReminderLevel(invoice,status,dueDate){
+  const directLevel=Number(invoice.reminder_level ?? invoice.dunning_level ?? invoice.mahnstufe ?? invoice.followup_level);
+  if(Number.isFinite(directLevel) && directLevel>0) return Math.min(3,Math.floor(directLevel));
+  const notes=String(invoice.notes||'');
+  const noteMatch=notes.match(/\b(?:REMINDER|MAHNUNG)\s*L(\d)\b/i);
+  if(noteMatch) return Math.min(3,Number(noteMatch[1])||1);
+  if(status==='paid') return 0;
+  const overdueDays=computeOverdueDays(dueDate);
+  if(overdueDays>=30) return 3;
+  if(overdueDays>=14) return 2;
+  if(overdueDays>=1) return 1;
+  return 0;
+}
+function reminderBadge(level,overdueDays){
+  if(level>=3) return `<span class="badge badge-red">L3 Eskalation${overdueDays?` · ${overdueDays}d`:''}</span>`;
+  if(level===2) return `<span class="badge badge-amber">L2 Mahnung${overdueDays?` · ${overdueDays}d`:''}</span>`;
+  if(level===1) return `<span class="badge badge-blue">L1 Reminder${overdueDays?` · ${overdueDays}d`:''}</span>`;
+  return overdueDays>0?`<span class="badge badge-red">Überfällig · ${overdueDays}d</span>`:'<span class="badge badge-gray">Kein Follow-up</span>';
+}
 function moneyChf(value){
   return `${Number(value||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})} CHF`;
 }
@@ -2703,11 +2733,14 @@ function renderBillingFinance(){
     const dueDate=inv.due_date || inv.due_at || inv.invoice_due_date || null;
     const paidAt=inv.paid_at || inv.payment_date || inv.paid_date || null;
     const status=normalizeInvoiceStatus(inv.status || inv.payment_status,dueDate,paidAt);
+    const overdueDays=computeOverdueDays(dueDate);
+    const reminderLevel=detectReminderLevel(inv,status,dueDate);
     const type=classifyInvoiceType(inv.invoice_type || inv.type || inv.category || inferredType);
     const customerId=String(inv.customer_id || inv.customerId || '');
     const customer=customerById(customerId);
     return {
       id:String(inv.id||''),
+      raw:inv,
       customerId,
       customerName:customer?.name || inv.customer_name || '—',
       type,
@@ -2715,7 +2748,10 @@ function renderBillingFinance(){
       amount,
       dueDate,
       paidAt,
-      invoiceNo:inv.invoice_number || inv.number || inv.external_invoice_no || '—'
+      invoiceNo:inv.invoice_number || inv.number || inv.external_invoice_no || '—',
+      reminderLevel,
+      overdueDays,
+      followupNeeded:status!=='paid' && (overdueDays>0 || reminderLevel>0)
     };
   });
 
@@ -2768,14 +2804,14 @@ function renderBillingFinance(){
   });
   const blockedCustomers=state.customers.filter(c=>!isPaymentPaid(c));
   const workItems=[
-    ['Heute fällig',dueToday.length,'Zahlung heute erwartet'],
-    ['Überfällig',overdueRows.length,'Sofort nachfassen'],
-    ['Zahlung offen',openRows.length,'offene Rechnungen gesamt'],
-    ['Setup Fee offen',setupOpen.length,'Einrichtungsgebühr ausstehend'],
-    ['Zugang blockiert wegen Zahlung',blockedCustomers.length,'aus customer.payment_status abgeleitet'],
-    ['Kunden mit Billing-Handlungsbedarf',[...new Set(openRows.map(i=>i.customerId).filter(Boolean))].length,'mind. 1 offene Rechnung']
+    ['Heute fällig',dueToday.length,'Zahlung heute erwartet','open','Heute fällige Rechnungen anzeigen'],
+    ['Überfällig',overdueRows.length,'Sofort nachfassen','overdue','Überfällige Rechnungen filtern'],
+    ['Follow-up nötig',invoiceRows.filter(i=>i.followupNeeded).length,'Mahnwesen / Reminder aktiv','followup','Mahn-Worklist anzeigen'],
+    ['Zahlung offen',openRows.length,'offene Rechnungen gesamt','open','Offene Rechnungen anzeigen'],
+    ['Setup Fee offen',setupOpen.length,'Einrichtungsgebühr ausstehend','open','Setup-Fee-Fälle priorisieren'],
+    ['Zugang blockiert wegen Zahlung',blockedCustomers.length,'aus customer.payment_status abgeleitet',null,'In Kundenprofil prüfen']
   ];
-  rootWorklist.innerHTML=workItems.map(([label,val,sub])=>`<div class="list-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div>${toneBadge(String(val))}</div></div>`).join('')||'<div class="empty">Keine offenen Billing-Aufgaben.</div>';
+  rootWorklist.innerHTML=workItems.map(([label,val,sub,filterKey,actionLabel])=>`<div class="list-item"><div><div class="list-main">${esc(String(label))}</div><div class="list-sub">${esc(String(sub))}</div></div><div class="inline-actions">${toneBadge(String(val))}${filterKey?`<button class="btn btn-quiet btn-sm" onclick="setFinanceInvoiceStatusFilter('${jsStr(filterKey)}')">${esc(String(actionLabel))}</button>`:''}</div></div>`).join('')||'<div class="empty">Keine offenen Billing-Aufgaben.</div>';
 
   const subscriptionOpsRows=state.customers
     .filter(c=>String(c.subscription_billing_cycle||'').trim())
@@ -2821,18 +2857,20 @@ function renderBillingFinance(){
   let filtered=[...invoiceRows];
   if(search) filtered=filtered.filter(i=>`${i.customerName} ${i.invoiceNo} ${i.type}`.toLowerCase().includes(search));
   if(typeFilter!=='all') filtered=filtered.filter(i=>i.type===typeFilter);
-  if(statusFilter!=='all') filtered=filtered.filter(i=>i.status===statusFilter);
+  if(statusFilter==='followup') filtered=filtered.filter(i=>i.followupNeeded);
+  else if(statusFilter!=='all') filtered=filtered.filter(i=>i.status===statusFilter);
   filtered.sort((a,b)=>(new Date(b.dueDate||0)).getTime()-(new Date(a.dueDate||0)).getTime());
   rootInvoiceBody.innerHTML=filtered.map(i=>`<tr>
+    <td>${esc(i.invoiceNo||'—')}</td>
     <td>${esc(i.customerName||'—')}</td>
     <td>${esc(invoiceTypeLabel(i.type))}</td>
     <td>${invoiceStatusBadge(i.status)}</td>
+    <td>${reminderBadge(i.reminderLevel,i.overdueDays)}</td>
     <td>${esc(moneyChf(i.amount))}</td>
     <td>${esc(formatDate(i.dueDate))}</td>
     <td>${esc(formatDate(i.paidAt))}</td>
-    <td>${esc(i.invoiceNo||'—')}</td>
-    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openCustomerProfile('${jsStr(i.customerId)}')"`:'disabled'}>Profil</button><button class="btn btn-secondary btn-sm" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button></div></td>
-  </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Rechnungen für aktuelle Filter.</div></td></tr>';
+    <td><div class="inline-actions"><button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button><button class="btn btn-secondary btn-sm" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}')"`:'disabled'}>Rechnung senden</button><button class="btn btn-primary btn-sm" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"`:'disabled'}>Als bezahlt</button><button class="btn btn-quiet btn-sm" ${(i.id&&i.customerId&&i.status!=='paid')?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.reminderLevel||0})"`:'disabled'}>Reminder</button></div></td>
+  </tr>`).join('')||'<tr><td colspan="9"><div class="empty">Keine Rechnungen für aktuelle Filter.</div></td></tr>';
 
   const usedMinutesByCustomer={};
   state.calls.forEach(call=>{
@@ -5984,6 +6022,48 @@ async function markInvoicePaid(customerId,invoiceId){
   }catch(err){
     const payload=err?.payload||{};
     alert(payload?.error||err?.message||'Invoice-Update fehlgeschlagen.');
+  }
+}
+
+function setFinanceInvoiceStatusFilter(status){
+  const statusEl=document.getElementById('finance-status-filter');
+  if(statusEl) statusEl.value=status||'all';
+  renderBillingFinance();
+}
+
+function openInvoiceOperational(invoiceId,customerId){
+  if(!customerId) return;
+  openCustomerProfile(customerId);
+  const activate=()=>{
+    const target=document.querySelector(`#customer-profile-modal .profile-tab[data-profile-tab="rechnungen"]`);
+    if(target) target.click();
+  };
+  setTimeout(activate,50);
+}
+
+async function recordInvoiceReminder(customerId,invoiceId,currentLevel){
+  if(!invoiceId||!customerId) return;
+  const suggestedLevel=Math.max(1,Math.min(3,Number(currentLevel||0)+1));
+  const input=prompt('Reminder-Level festlegen (1-3)', String(suggestedLevel));
+  if(input===null) return;
+  const reminderLevel=Math.max(1,Math.min(3,Number(input)||1));
+  const note=prompt('Kurze Follow-up Notiz (optional)','Manueller Reminder im Billing-Board');
+  try{
+    const json=await callAdminFunction('customer-billing-update',{
+      customer_id:customerId,
+      action:'record_invoice_reminder',
+      invoice_id:invoiceId,
+      reminder_level:reminderLevel,
+      notes:note||null
+    });
+    if(!json?.success||!json?.invoice) throw new Error(json?.error||'Reminder-Update fehlgeschlagen.');
+    const idx=state.invoices.findIndex(inv=>idsEq(inv.id,invoiceId));
+    if(idx>=0) state.invoices[idx]=json.invoice;
+    showToast(`✓ Reminder L${reminderLevel} protokolliert.`);
+    renderBillingFinance();
+  }catch(err){
+    const payload=err?.payload||{};
+    alert(payload?.error||err?.message||'Reminder-Update fehlgeschlagen.');
   }
 }
 
