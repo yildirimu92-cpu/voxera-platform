@@ -211,6 +211,15 @@ exports.handler = async (event) => {
   }
 
   if (action === 'create_manual_subscription_invoice') {
+    const helperName = 'createSubscriptionInvoice';
+    const helperPayload = {
+      customer_id: customerId,
+      billing_provider: 'invoice',
+      status: 'sent',
+      due_at: body.due_at || null,
+      notes: body.notes || null,
+      debug_tag: 'manual_monthly_invoice'
+    };
     const { data: subscription, error: subscriptionError } = await sbAdmin
       .from('subscriptions')
       .select('*')
@@ -233,11 +242,21 @@ exports.handler = async (event) => {
         billingProvider: 'invoice',
         status: 'sent',
         dueAt: body.due_at || null,
-        notes: body.notes || null
+        notes: body.notes || null,
+        debugTag: 'manual_monthly_invoice'
       });
       return response(200, { success: true, action, customer, subscription, invoice });
     } catch (err) {
-      return response(500, { error: 'Subscription-Invoice konnte nicht erstellt werden.', details: err.message });
+      return response(500, {
+        error: err?.db_message || err?.message || 'Subscription-Invoice konnte nicht erstellt werden.',
+        db_message: err?.db_message || null,
+        db_code: err?.db_code || null,
+        db_details: err?.db_details || null,
+        db_hint: err?.db_hint || null,
+        step_failed: err?.step_failed || 'create_manual_subscription_invoice',
+        helper_name: err?.helper_name || helperName,
+        payload_sent: err?.payload_sent || helperPayload
+      });
     }
   }
 
