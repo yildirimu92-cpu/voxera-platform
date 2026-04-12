@@ -132,6 +132,7 @@ exports.handler = async (event) => {
   if (updateError) return response(500, { error: 'Contract update failed.', step_failed: 'contract_update', contract_id: contractId, customer_id: customerId, ...dbDiag(updateError) });
 
   let billing;
+  let billingErrorPayload = null;
   try {
     billing = await orchestrateContractBilling({
       sbAdmin,
@@ -147,7 +148,7 @@ exports.handler = async (event) => {
     const structured = billingError && billingError.error === 'Contract billing orchestration failed'
       ? billingError
       : null;
-    return response(500, {
+    billingErrorPayload = {
       error: 'Contract billing orchestration failed',
       step_failed: structured?.step_failed || 'contract_billing_orchestration',
       contract_id: structured?.contract_id || contractId,
@@ -156,7 +157,16 @@ exports.handler = async (event) => {
       setup_fee_invoice_id: structured?.setup_fee_invoice_id || null,
       month_1_invoice_id: structured?.month_1_invoice_id || null,
       ...(structured || dbDiag(billingError))
-    });
+    };
+    console.error('[contract_start_confirm] billing_follow_up_required', JSON.stringify(billingErrorPayload));
+    billing = {
+      subscription: null,
+      setupInvoice: null,
+      recurringInvoice: null,
+      setup_fee_invoice_created: false,
+      recurring_invoice_created: false,
+      pdf: { errors: [] }
+    };
   }
 
   if (billing.setupInvoice?.id && contract.offer_id) {
@@ -182,6 +192,9 @@ exports.handler = async (event) => {
     success: true,
     contract_updated: true,
     subscription_ready: Boolean(billing.subscription?.id),
+    follow_up_required: Boolean(billingErrorPayload),
+    follow_up_issues: billingErrorPayload ? ['billing'] : [],
+    diagnostics: billingErrorPayload || null,
     setup_fee_invoice_created: Boolean(billing.setup_fee_invoice_created),
     recurring_invoice_created: Boolean(billing.recurring_invoice_created),
     pdfs_generated: (billing.pdf?.errors || []).length === 0,

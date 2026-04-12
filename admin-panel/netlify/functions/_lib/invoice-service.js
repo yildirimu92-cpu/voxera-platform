@@ -503,6 +503,7 @@ async function generateInvoicePdfPreview({ sbAdmin, invoice, customer }) {
 async function ensureDraftInvoiceWithItems({
   sbAdmin,
   customer,
+  offerId = null,
   contractId = null,
   subscriptionId = null,
   invoiceType,
@@ -535,6 +536,23 @@ async function ensureDraftInvoiceWithItems({
     throw new Error(`invoice lookup failed: ${existingError.message}`);
   }
   if (existing) {
+    const healPatch = {
+      customer_id: customer.id,
+      updated_at: new Date().toISOString()
+    };
+    if (offerId) healPatch.offer_id = offerId;
+    if (contractId) healPatch.contract_id = contractId;
+    if (subscriptionId) healPatch.subscription_id = subscriptionId;
+    if (String(existing.invoice_type || '').trim().toLowerCase() !== String(invoiceType || '').trim().toLowerCase()) {
+      healPatch.invoice_type = invoiceType;
+    }
+    if (String(existing.status || '').trim().toLowerCase() !== 'draft') {
+      healPatch.status = 'draft';
+    }
+    if (Object.keys(healPatch).length > 1) {
+      const { error: healError } = await sbAdmin.from('invoices').update(healPatch).eq('id', existing.id);
+      if (healError) throw new Error(`invoice heal failed: ${healError.message}`);
+    }
     invoiceDiag('invoice_ensure_existing', {
       invoice_type: invoiceType,
       external_reference: externalReference,
@@ -550,6 +568,7 @@ async function ensureDraftInvoiceWithItems({
   try {
     created = await createInvoiceWithFallbackType(sbAdmin, {
       customerId: customer.id,
+      offerId,
       subscriptionId,
       contractId,
       invoiceType,
@@ -646,6 +665,7 @@ async function ensureContractStartInvoices({
   const setupInvoice = await ensureDraftInvoiceWithItems({
     sbAdmin,
     customer,
+    offerId: contract.offer_id || null,
     contractId: contract.id,
     subscriptionId: subscription.id,
     invoiceType: 'setup_fee',
@@ -666,6 +686,7 @@ async function ensureContractStartInvoices({
   const recurringInvoice = await ensureDraftInvoiceWithItems({
     sbAdmin,
     customer,
+    offerId: contract.offer_id || null,
     contractId: contract.id,
     subscriptionId: subscription.id,
     invoiceType: 'recurring',

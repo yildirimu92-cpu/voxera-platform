@@ -79,30 +79,45 @@ async function updateContractWithPreferredPendingStatus({ sbAdmin, contractId, p
   const pendingReviewPatch = { ...patchBase, status: 'pending_review' };
   const pendingReviewRes = await sbAdmin.from('contracts').update(pendingReviewPatch).eq('id', contractId);
   if (!pendingReviewRes.error) return 'pending_review';
-  if (!isInvalidContractStatusError(pendingReviewRes.error)) {
-    throw new OfferAcceptanceError(500, 'Contract sync failed.', pendingReviewRes.error.message);
+  const err = pendingReviewRes.error;
+  if (isInvalidContractStatusError(err)) {
+    throw new OfferAcceptanceError(500, 'Contract sync failed: pending_review not allowed by DB constraint.', {
+      message: err.message || null,
+      code: err.code || null,
+      details: err.details || null,
+      hint: err.hint || null
+    });
   }
-
-  const pendingPatch = { ...patchBase, status: 'pending' };
-  const pendingRes = await sbAdmin.from('contracts').update(pendingPatch).eq('id', contractId);
-  if (!pendingRes.error) return 'pending';
-  if (!isInvalidContractStatusError(pendingRes.error)) {
-    throw new OfferAcceptanceError(500, 'Contract sync failed.', pendingRes.error.message);
-  }
-
-  const draftRes = await sbAdmin
-    .from('contracts')
-    .update({ ...patchBase, status: 'draft' })
-    .eq('id', contractId);
-  if (draftRes.error) throw new OfferAcceptanceError(500, 'Contract sync failed.', draftRes.error.message);
-  return 'draft';
+  throw new OfferAcceptanceError(500, 'Contract sync failed.', err.message);
 }
 
 async function insertContractWithPreferredPendingStatus({ sbAdmin, contractPayload }) {
   const pendingReviewRes = await sbAdmin.from('contracts').insert({ ...contractPayload, status: 'pending_review' }).select('*').single();
   if (!pendingReviewRes.error) return pendingReviewRes.data;
-  if (!isInvalidContractStatusError(pendingReviewRes.error)) {
-    console.error('ensureContractForOffer: contract insert failed', {
+  if (isInvalidContractStatusError(pendingReviewRes.error)) {
+    console.error('ensureContractForOffer: pending_review status rejected by DB', {
+      offer_id: contractPayload.offer_id || null,
+      contract_payload: { ...contractPayload, status: 'pending_review' },
+      db_error: {
+        message: pendingReviewRes.error.message || null,
+        code: pendingReviewRes.error.code || null,
+        details: pendingReviewRes.error.details || null,
+        hint: pendingReviewRes.error.hint || null
+      }
+    });
+    throw new OfferAcceptanceError(
+      500,
+      'Contract create failed: pending_review not allowed by DB constraint.',
+      {
+        message: pendingReviewRes.error.message || null,
+        code: pendingReviewRes.error.code || null,
+        details: pendingReviewRes.error.details || null,
+        hint: pendingReviewRes.error.hint || null
+      }
+    );
+  }
+  if (pendingReviewRes.error) {
+    console.error('ensureContractForOffer: contract insert fallback failed', {
       offer_id: contractPayload.offer_id || null,
       contract_payload: { ...contractPayload, status: 'pending_review' },
       db_error: {
@@ -123,56 +138,7 @@ async function insertContractWithPreferredPendingStatus({ sbAdmin, contractPaylo
       }
     );
   }
-
-  const pendingRes = await sbAdmin.from('contracts').insert({ ...contractPayload, status: 'pending' }).select('*').single();
-  if (!pendingRes.error) return pendingRes.data;
-  if (!isInvalidContractStatusError(pendingRes.error)) {
-    console.error('ensureContractForOffer: contract insert failed', {
-      offer_id: contractPayload.offer_id || null,
-      contract_payload: { ...contractPayload, status: 'pending' },
-      db_error: {
-        message: pendingRes.error.message || null,
-        code: pendingRes.error.code || null,
-        details: pendingRes.error.details || null,
-        hint: pendingRes.error.hint || null
-      }
-    });
-    throw new OfferAcceptanceError(
-      500,
-      `Contract create failed: ${pendingRes.error.message || 'unknown database error'}`,
-      {
-        message: pendingRes.error.message || null,
-        code: pendingRes.error.code || null,
-        details: pendingRes.error.details || null,
-        hint: pendingRes.error.hint || null
-      }
-    );
-  }
-
-  const draftRes = await sbAdmin.from('contracts').insert({ ...contractPayload, status: 'draft' }).select('*').single();
-  if (draftRes.error) {
-    console.error('ensureContractForOffer: contract insert fallback failed', {
-      offer_id: contractPayload.offer_id || null,
-      contract_payload: { ...contractPayload, status: 'draft' },
-      db_error: {
-        message: draftRes.error.message || null,
-        code: draftRes.error.code || null,
-        details: draftRes.error.details || null,
-        hint: draftRes.error.hint || null
-      }
-    });
-    throw new OfferAcceptanceError(
-      500,
-      `Contract create failed: ${draftRes.error.message || 'unknown database error'}`,
-      {
-        message: draftRes.error.message || null,
-        code: draftRes.error.code || null,
-        details: draftRes.error.details || null,
-        hint: draftRes.error.hint || null
-      }
-    );
-  }
-  return draftRes.data;
+  return pendingReviewRes.data;
 }
 
 function normalizeText(raw) {
