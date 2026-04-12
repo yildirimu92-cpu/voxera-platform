@@ -1565,6 +1565,47 @@ body{
   max-height:0!important;opacity:0!important;pointer-events:none!important;
 }
 
+
+
+/* ═══════════════════════════════════════════
+   ACTIVATION SYSTEM V2 — PREMIUM FLOW
+═══════════════════════════════════════════ */
+#activation-v2-shell{display:none;min-height:100vh;background:#F5F5F7;padding:24px 18px;align-items:center;justify-content:center;}
+#app.activation-v2-mode .layout{display:none;}
+#app.activation-v2-mode #activation-v2-shell{display:flex;}
+.activation-v2-frame{width:100%;max-width:740px;background:#FFF;border:1px solid #E5E7EB;border-radius:24px;box-shadow:0 24px 60px rgba(15,23,42,.08);padding:34px 30px;}
+.activation-v2-kicker{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6B7280;font-weight:600;margin-bottom:10px;}
+.activation-v2-title{font-size:32px;line-height:1.18;letter-spacing:-.03em;color:#111827;font-weight:700;margin-bottom:12px;}
+.activation-v2-sub{font-size:15px;line-height:1.65;color:#4B5563;max-width:620px;}
+.activation-v2-progress{margin:20px 0 26px;height:4px;background:#EEF1F4;border-radius:999px;overflow:hidden;}
+.activation-v2-progress>span{display:block;height:100%;background:#1D4ED8;transition:width .26s ease;}
+.activation-v2-grid{display:grid;gap:12px;margin-top:24px;}
+.activation-v2-card{background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:16px 18px;cursor:pointer;transition:all .16s ease;}
+.activation-v2-card:hover{border-color:#CBD5E1;box-shadow:0 8px 20px rgba(15,23,42,.06);}
+.activation-v2-card.active{border-color:#1D4ED8;box-shadow:0 0 0 3px rgba(29,78,216,.09);}
+.activation-v2-card h4{font-size:15px;color:#111827;margin-bottom:4px;}
+.activation-v2-card p{font-size:13px;color:#4B5563;line-height:1.6;}
+.activation-v2-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px;}
+.activation-v2-summary-item{background:#F8FAFC;border:1px solid #E5E7EB;border-radius:12px;padding:12px 14px;}
+.activation-v2-summary-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6B7280;margin-bottom:6px;}
+.activation-v2-summary-value{font-size:14px;color:#0F172A;font-weight:600;word-break:break-word;}
+.activation-v2-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px;}
+.activation-v2-btn{border:none;border-radius:10px;padding:11px 20px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;}
+.activation-v2-btn.primary{background:#1D4ED8;color:#fff;}
+.activation-v2-btn.secondary{background:#fff;border:1px solid #D1D5DB;color:#374151;}
+.activation-v2-note{margin-top:14px;font-size:12px;color:#6B7280;line-height:1.6;}
+.activation-v2-success{margin-top:18px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:14px;padding:16px 18px;}
+.activation-v2-success h4{font-size:18px;font-weight:650;color:#14532D;margin-bottom:6px;}
+.activation-v2-success p{font-size:14px;color:#166534;line-height:1.6;}
+@media(max-width:768px){
+  #activation-v2-shell{padding:14px;align-items:flex-start;}
+  .activation-v2-frame{padding:24px 18px;border-radius:18px;}
+  .activation-v2-title{font-size:27px;}
+  .activation-v2-summary{grid-template-columns:1fr;}
+  .activation-v2-actions{flex-direction:column;}
+  .activation-v2-btn{width:100%;}
+}
+
 </style>
 </head>
 <body>
@@ -1627,6 +1668,7 @@ body{
      APP
 ═══════════════════════════════════════ -->
 <div id="app">
+  <div id="activation-v2-shell"></div>
   <div class="layout">
 
     <!-- SIDEBAR -->
@@ -2984,7 +3026,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, customerId:'', forwardingMode:null, lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -3744,6 +3786,7 @@ async function loadCustomerMeta() {
     forwardingStatus: f.forwarding_status || null,
     activationStartedAt: f.activation_started_at || null,
     forwardingMode: f.forwarding_mode || null,
+    notificationMode: (f.notification_mode === 'none' || f.notification_mode === 'callback_only' || f.notification_mode === 'all_calls') ? f.notification_mode : 'none',
     lastConfirmedSetupDeviceType: f.last_confirmed_setup_device_type || null,
     lastConfirmedForwardingMode: f.last_confirmed_forwarding_mode || null,
     avatarUrl: f.avatar_url || null
@@ -4016,6 +4059,7 @@ async function loadData() {
 
     document.getElementById('dash-loading').style.display = 'none';
     routeDashboardFirstSessionExperience();
+    syncActivationV2Gate();
 
   } catch(e) {
     const rawMsg = String((e && e.message) || 'Unbekannter Fehler');
@@ -6714,6 +6758,7 @@ function completeSetupStep(id, event){
       updateSetupProgress();
       try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
       routeDashboardFirstSessionExperience();
+    syncActivationV2Gate();
       if(isSetupComplete()){ _showSetupComplete(); return; }
       goToNextSetupStep('s1');
     });
@@ -6727,6 +6772,7 @@ function completeSetupStep(id, event){
   try{localStorage.setItem(getSetupStorageKey('voxera_setup_steps'),JSON.stringify(setupDone));}catch(e){}
   if(id === 's2'){
     routeDashboardFirstSessionExperience();
+    syncActivationV2Gate();
   } else {
     updateSetupExperienceProgress();
   }
@@ -6919,6 +6965,211 @@ function shouldShowSetupOnLogin(context){
   // regardless of whether the localStorage flag happens to be present.
   if(context && context.customerId && context.customerRecord) return false;
   try{return !localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));}catch(e){return true;}
+}
+
+
+const ACTIVATION_V2_ENABLED = true;
+var activationV2StepState = { step: 1 };
+
+function getActivationV2StorageKey(suffix){
+  return getSetupStorageKey('voxera_activation_v2_' + suffix);
+}
+
+function isActivationV2Skipped(){
+  try { return !!localStorage.getItem(getSetupStorageKey('voxera_setup_finished')); } catch(e) { return false; }
+}
+
+function shouldGateToActivationV2(){
+  if (!ACTIVATION_V2_ENABLED) return false;
+  if (isForwardingActivated()) return false;
+  if (isActivationV2Skipped()) return false;
+  return true;
+}
+
+function inferActivationV2Step(){
+  if (isForwardingActivated()) return 8;
+  if (customerMeta.forwardingStatus === 'pending_test') return 6;
+  if (customerMeta.setupDeviceType && customerMeta.forwardingMode) return 5;
+  if (customerMeta.setupDeviceType && !customerMeta.forwardingMode) return 3;
+  if (!customerMeta.setupDeviceType && customerMeta.forwardingMode) return 4;
+  return 1;
+}
+
+function restoreActivationV2Step(){
+  var inferred = inferActivationV2Step();
+  var saved = 0;
+  try { saved = Number(localStorage.getItem(getActivationV2StorageKey('step')) || 0); } catch(e) {}
+  var step = Math.max(1, saved || 1);
+  if (step < inferred) step = inferred;
+  if (customerMeta.forwardingStatus === 'pending_test') step = 6;
+  if (isForwardingActivated()) step = 8;
+  activationV2StepState.step = step;
+}
+
+function persistActivationV2Step(step){
+  activationV2StepState.step = step;
+  try { localStorage.setItem(getActivationV2StorageKey('step'), String(step)); } catch(e) {}
+}
+
+function goToActivationV2Step(step){
+  persistActivationV2Step(step);
+  renderActivationV2();
+}
+
+function selectActivationV2Mode(mode){
+  activationSelectMode(null, mode).then(function(){
+    renderActivationV2();
+  });
+}
+
+function selectActivationV2Device(type){
+  activationSelectDevice(null, type).then(function(){
+    renderActivationV2();
+  });
+}
+
+async function saveActivationV2Notifications(mode){
+  var valid = ['none','callback_only','all_calls'];
+  if (!valid.includes(mode)) { toast('Ungültiger Benachrichtigungsmodus.'); return; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
+    await patchCustomerRecord(recId, { notification_mode: mode });
+    customerMeta.notificationMode = mode;
+    if (context && context.customerRecord) context.customerRecord.notification_mode = mode;
+    goToActivationV2Step(8);
+  } catch(e) {
+    console.error('saveActivationV2Notifications failed', e);
+    toast('Benachrichtigung konnte nicht gespeichert werden.');
+  }
+}
+
+function activationV2MarkFinishedAndOpenDashboard(){
+  try {
+    localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');
+    localStorage.removeItem(getActivationV2StorageKey('step'));
+  } catch(e) {}
+  var app = document.getElementById('app');
+  if (app) app.classList.remove('activation-v2-mode');
+  var navEl = document.getElementById('nav-dashboard') || document.querySelector('.nav-item[onclick*="dashboard"]');
+  if (navEl) showTab('dashboard', navEl);
+  else activateTab('dashboard');
+}
+
+function skipActivationV2(){
+  try {
+    localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');
+    localStorage.removeItem(getActivationV2StorageKey('step'));
+  } catch(e) {}
+  activationV2MarkFinishedAndOpenDashboard();
+}
+
+function renderActivationV2(){
+  var shell = document.getElementById('activation-v2-shell');
+  if (!shell) return;
+  restoreActivationV2Step();
+  var step = activationV2StepState.step;
+  var progress = Math.max(1, Math.min(8, step));
+  var progressPct = Math.round((progress / 8) * 100);
+  var company = customerMeta.customerName || '–';
+  var ownNumber = customerMeta.telNr || '–';
+  var voxeraNumber = customerMeta.voxeraNumber || '–';
+  var plan = customerMeta.plan || '–';
+  var mode = customerMeta.forwardingMode;
+  var modeLabel = getForwardingModeLabel(mode) || 'Bitte auswählen';
+  var device = customerMeta.setupDeviceType === 'mobile' ? 'Smartphone' : (customerMeta.setupDeviceType === 'landline' ? 'Festnetz' : 'Bitte auswählen');
+  var successCard = candidateCall ? '<div class="activation-v2-success"><h4>Test erfolgreich</h4><p>Ihr Anruf wurde von Voxera angenommen. Bestätigen Sie diesen Test, um die Aktivierung abzuschliessen.</p></div>' : '';
+  var html = '<div class="activation-v2-frame">'
+    + '<div class="activation-v2-kicker">Activation System V2</div>'
+    + '<div class="activation-v2-progress"><span style="width:' + progressPct + '%"></span></div>';
+
+  if (step === 1) {
+    html += '<h1 class="activation-v2-title">Willkommen bei Voxera</h1>'
+      + '<p class="activation-v2-sub">Wir führen Sie in wenigen klaren Schritten durch die Aktivierung. Danach ist Ihr Dashboard vollständig bereit.</p>'
+      + '<div class="activation-v2-actions"><button class="activation-v2-btn primary" onclick="goToActivationV2Step(2)">Setup starten</button></div>';
+  } else if (step === 2) {
+    html += '<h1 class="activation-v2-title">Bitte prüfen Sie Ihre Angaben</h1>'
+      + '<p class="activation-v2-sub">Bestätigen Sie die Basisdaten, bevor wir die Aktivierung starten.</p>'
+      + '<div class="activation-v2-summary">'
+      + '<div class="activation-v2-summary-item"><div class="activation-v2-summary-label">Unternehmen</div><div class="activation-v2-summary-value">' + escapeHtml(company) + '</div></div>'
+      + '<div class="activation-v2-summary-item"><div class="activation-v2-summary-label">Eigene Nummer</div><div class="activation-v2-summary-value">' + escapeHtml(ownNumber) + '</div></div>'
+      + '<div class="activation-v2-summary-item"><div class="activation-v2-summary-label">Voxera Nummer</div><div class="activation-v2-summary-value">' + escapeHtml(voxeraNumber) + '</div></div>'
+      + '<div class="activation-v2-summary-item"><div class="activation-v2-summary-label">Plan</div><div class="activation-v2-summary-value">' + escapeHtml(plan) + '</div></div>'
+      + '</div>'
+      + '<div class="activation-v2-actions"><button class="activation-v2-btn secondary" onclick="goToActivationV2Step(1)">Zurück</button><button class="activation-v2-btn primary" onclick="goToActivationV2Step(3)">Weiter</button></div>';
+  } else if (step === 3) {
+    html += '<h1 class="activation-v2-title">Wann sollen Anrufe an Voxera gehen?</h1>'
+      + '<p class="activation-v2-sub">Wählen Sie den Weiterleitungsmodus.</p>'
+      + '<div class="activation-v2-grid">'
+      + '<div class="activation-v2-card ' + (mode==='no_answer'?'active':'') + '" onclick="selectActivationV2Mode(\'no_answer\')"><h4>Keine Antwort</h4><p>Nach einigen Klingelzeichen ohne Annahme.</p></div>'
+      + '<div class="activation-v2-card ' + (mode==='busy'?'active':'') + '" onclick="selectActivationV2Mode(\'busy\')"><h4>Besetzt</h4><p>Wenn bereits ein Gespräch geführt wird.</p></div>'
+      + '<div class="activation-v2-card ' + (mode==='always'?'active':'') + '" onclick="selectActivationV2Mode(\'always\')"><h4>Immer</h4><p>Jeder Anruf wird direkt weitergeleitet.</p></div>'
+      + '<div class="activation-v2-card ' + (mode==='unreachable'?'active':'') + '" onclick="selectActivationV2Mode(\'unreachable\')"><h4>Nicht erreichbar</h4><p>Bei ausgeschaltetem Gerät oder fehlendem Netz.</p></div>'
+      + '</div>'
+      + '<div class="activation-v2-actions"><button class="activation-v2-btn secondary" onclick="goToActivationV2Step(2)">Zurück</button><button class="activation-v2-btn primary" onclick="goToActivationV2Step(4)" ' + (!mode ? 'disabled' : '') + '>Weiter</button></div>';
+  } else if (step === 4) {
+    html += '<h1 class="activation-v2-title">Welchen Gerätetyp nutzen Sie?</h1>'
+      + '<p class="activation-v2-sub">Wir zeigen danach die passende Aktivierung.</p>'
+      + '<div class="activation-v2-grid">'
+      + '<div class="activation-v2-card ' + (customerMeta.setupDeviceType==='mobile'?'active':'') + '" onclick="selectActivationV2Device(\'mobile\')"><h4>Smartphone</h4><p>Aktivierung per GSM-Code direkt im Dialer.</p></div>'
+      + '<div class="activation-v2-card ' + (customerMeta.setupDeviceType==='landline'?'active':'') + '" onclick="selectActivationV2Device(\'landline\')"><h4>Festnetz</h4><p>Manuelle Einrichtung bei Anbieter oder Telefonanlage.</p></div>'
+      + '</div>'
+      + '<div class="activation-v2-actions"><button class="activation-v2-btn secondary" onclick="goToActivationV2Step(3)">Zurück</button><button class="activation-v2-btn primary" onclick="goToActivationV2Step(5)" ' + (!customerMeta.setupDeviceType ? 'disabled' : '') + '>Weiter</button></div>';
+  } else if (step === 5) {
+    var code = getForwardingCode(customerMeta.forwardingMode, customerMeta.voxeraNumber || '');
+    var mobileActions = '<button class="activation-v2-btn primary" onclick="activationStartSmartphone(event, ' + JSON.stringify(code) + ');goToActivationV2Step(6);">Weiterleitung aktivieren</button>'
+      + '<button class="activation-v2-btn secondary" onclick="activationCopyCode(event, ' + JSON.stringify(code) + ')">Code kopieren</button>';
+    var landlineActions = '<button class="activation-v2-btn primary" onclick="activationStartLandlineTest(event);goToActivationV2Step(6);">Testmodus starten</button>'
+      + '<button class="activation-v2-btn secondary" onclick="openHelpSection(\'forwarding\')">Anleitung öffnen</button>';
+    html += '<h1 class="activation-v2-title">Aktivierung ausführen</h1>'
+      + '<p class="activation-v2-sub">Modus: <strong>' + escapeHtml(modeLabel) + '</strong> · Gerät: <strong>' + escapeHtml(device) + '</strong></p>'
+      + '<div class="activation-v2-summary">'
+      + '<div class="activation-v2-summary-item"><div class="activation-v2-summary-label">Voxera Nummer</div><div class="activation-v2-summary-value">' + escapeHtml(voxeraNumber) + '</div></div>'
+      + (customerMeta.setupDeviceType === 'mobile' && code ? '<div class="activation-v2-summary-item"><div class="activation-v2-summary-label">Wählcode</div><div class="activation-v2-summary-value">' + escapeHtml(code) + '</div></div>' : '<div class="activation-v2-summary-item"><div class="activation-v2-summary-label">Hinweis</div><div class="activation-v2-summary-value">Konfiguration über Anbieter oder Anlage.</div></div>')
+      + '</div>'
+      + '<div class="activation-v2-actions"><button class="activation-v2-btn secondary" onclick="goToActivationV2Step(4)">Zurück</button>' + (customerMeta.setupDeviceType === 'mobile' ? mobileActions : landlineActions) + '</div>';
+  } else if (step === 6) {
+    html += '<h1 class="activation-v2-title">Testanruf bestätigen</h1>'
+      + '<p class="activation-v2-sub">Sobald der Testanruf erkannt wird, bestätigen Sie ihn hier.</p>'
+      + successCard
+      + '<div class="activation-v2-actions"><button class="activation-v2-btn secondary" onclick="retryActivationCheck(event)">Erneut prüfen</button>'
+      + (candidateCall ? '<button class="activation-v2-btn primary" onclick="confirmActivationTestCall(event);goToActivationV2Step(7);">Test erfolgreich</button><button class="activation-v2-btn secondary" onclick="rejectActivationTestCall(event)">Noch nicht korrekt</button>' : '<button class="activation-v2-btn primary" onclick="goToActivationV2Step(5)">Zur Aktivierung</button>')
+      + '</div>';
+  } else if (step === 7) {
+    var nm = customerMeta.notificationMode || 'none';
+    html += '<h1 class="activation-v2-title">Benachrichtigungen wählen</h1>'
+      + '<p class="activation-v2-sub">Legen Sie fest, wann Sie von Voxera informiert werden.</p>'
+      + '<div class="activation-v2-grid">'
+      + '<div class="activation-v2-card ' + (nm==='all_calls'?'active':'') + '" onclick="saveActivationV2Notifications(\'all_calls\')"><h4>Jeder Anruf</h4><p>Sie erhalten bei jedem eingehenden Anruf eine Nachricht.</p></div>'
+      + '<div class="activation-v2-card ' + (nm==='callback_only'?'active':'') + '" onclick="saveActivationV2Notifications(\'callback_only\')"><h4>Nur Rückruf</h4><p>Benachrichtigung nur bei Rückrufanfragen.</p></div>'
+      + '<div class="activation-v2-card ' + (nm==='none'?'active':'') + '" onclick="saveActivationV2Notifications(\'none\')"><h4>Keine</h4><p>Keine Benachrichtigungs-E-Mails.</p></div>'
+      + '</div>'
+      + '<div class="activation-v2-actions"><button class="activation-v2-btn secondary" onclick="goToActivationV2Step(6)">Zurück</button></div>';
+  } else {
+    html += '<h1 class="activation-v2-title">Voxera ist bereit</h1>'
+      + '<p class="activation-v2-sub">Ihre Aktivierung ist abgeschlossen. Sie können jetzt mit dem normalen Dashboard arbeiten.</p>'
+      + '<div class="activation-v2-actions"><button class="activation-v2-btn primary" onclick="activationV2MarkFinishedAndOpenDashboard()">Dashboard öffnen</button></div>'
+      + '<div class="activation-v2-note">Falls Sie jetzt noch nicht fortfahren möchten, können Sie die Einrichtung jederzeit später im Bereich Einrichtung anpassen.</div>';
+  }
+
+  if (!isForwardingActivated() && step < 8) {
+    html += '<div class="activation-v2-actions"><button class="activation-v2-btn secondary" onclick="skipActivationV2()">Einrichtung jetzt überspringen</button></div>';
+  }
+
+  html += '</div>';
+  shell.innerHTML = html;
+}
+
+function syncActivationV2Gate(){
+  var app = document.getElementById('app');
+  if (!app) return;
+  if (shouldGateToActivationV2()) {
+    app.classList.add('activation-v2-mode');
+    renderActivationV2();
+  } else {
+    app.classList.remove('activation-v2-mode');
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -7117,19 +7368,11 @@ function showApp(user) {
       greetingMain.dataset.custom = '1';
     }
     initSetupWizard();
-    // Einrichtung nicht abgeschlossen → immer auf Einrichtungs-Tab
-    // Einrichtung abgeschlossen (alle Schritte oder explizit beendet) → normaler Tab-Restore
-    var _setupFinished = false;
-    try { _setupFinished = !!localStorage.getItem(getSetupStorageKey('voxera_setup_finished')); } catch(e) {}
-    // Only redirect to Einrichtung if forwarding is NOT yet activated.
-    // isSetupComplete() alone is unreliable on mobile after refresh (state lost).
-    if(!isForwardingActivated() && !_setupFinished){
-      var navEl = document.getElementById('nav-einrichtung');
-      if(navEl) showTab('einrichtung', navEl);
-      else activateTab('einrichtung');
-    } else {
-      restoreTab();
+    syncActivationV2Gate();
+    if (shouldGateToActivationV2()) {
+      return;
     }
+    restoreTab();
   });
   autoRefreshTimer = setInterval(safeLoadData, 12000);
 }
