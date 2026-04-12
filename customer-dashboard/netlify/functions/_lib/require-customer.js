@@ -33,7 +33,7 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin }) {
   const customerId = String(userRow.customer_id);
   const { data: customerRow, error: customerError } = await sbAdmin
     .from('customers')
-    .select('id, status, payment_status')
+    .select('id, status')
     .eq('id', customerId)
     .maybeSingle();
 
@@ -45,8 +45,7 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin }) {
     return fail(403, 'Customer entitlement denied', {
       reason: entitlement.code,
       message: entitlement.message,
-      customer_status: entitlement.customer_status,
-      payment_status: entitlement.payment_status
+      customer_status: entitlement.customer_status
     });
   }
 
