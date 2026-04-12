@@ -1,7 +1,7 @@
 'use strict';
 
 const { STATUS, normalizeCustomerStatus, normalizeOnboardingStatus, assertOnboardingTransition } = require('./status-model');
-const { createInitialContractInvoice } = require('./invoice-service');
+const { orchestrateContractBilling } = require('./contract-billing-orchestrator');
 
 class OfferAcceptanceError extends Error {
   constructor(statusCode, message, details) {
@@ -348,7 +348,7 @@ async function ensureContractForOffer({ sbAdmin, offer, nowIso }) {
 }
 
 async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso }) {
-  if (!offer?.customer_id || !contractId) return { invoiceId: null, duplicate: false };
+  if (!offer?.customer_id || !contractId) return { invoiceId: null, duplicate: false, recurringInvoiceId: null };
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
@@ -358,32 +358,59 @@ async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso
   if (customerError) throw new OfferAcceptanceError(500, 'Customer lookup for initial invoice failed.', customerError.message);
   if (!customer) throw new OfferAcceptanceError(409, 'Kunde für Offerte konnte nicht geladen werden.');
 
-  const setupFeeAmount = Number(offer.setup_fee || 0);
-  const initial = await createInitialContractInvoice({
+  const { data: contract, error: contractError } = await sbAdmin
+    .from('contracts')
+    .select('*')
+    .eq('id', contractId)
+    .maybeSingle();
+  if (contractError) throw new OfferAcceptanceError(500, 'Contract lookup for billing orchestration failed.', contractError.message);
+  if (!contract) throw new OfferAcceptanceError(404, 'Contract für Billing-Orchestrierung nicht gefunden.');
+
+  const billing = await orchestrateContractBilling({
     sbAdmin,
     customer,
-    contractId,
-    subscription: null,
-    setupFeeAmount,
-    dueAt: null,
-    notes: `Initial invoice (setup fee only) for accepted offer ${offer.offer_number || offer.id}`
+    contract,
+    nowIso,
+    startDate: String(offer.start_date || contract.start_date || nowIso.slice(0, 10)).slice(0, 10),
+    setupFeeAmount: Number(offer.setup_fee || customer.setup_fee_amount || 0),
+    monthlyAmount: Number(offer.monthly_price || 0),
+    forceActiveSubscription: false
   });
-  const invoice = initial.invoice || null;
-  if (!invoice?.id) return { invoiceId: null, duplicate: Boolean(initial.duplicate) };
 
-  await sbAdmin
-    .from('invoices')
-    .update({
-      offer_id: offer.id,
-      contract_id: contractId,
-      updated_at: nowIso
-    })
-    .eq('id', invoice.id);
+  const setupInvoice = billing.setupInvoice || null;
+  const recurringInvoice = billing.recurringInvoice || null;
 
-  await sbAdmin
-    .from('offers')
-    .update({ invoice_id: invoice.id, updated_at: nowIso })
-    .eq('id', offer.id);
+  if (setupInvoice?.id) {
+    await sbAdmin
+      .from('invoices')
+      .update({
+        offer_id: offer.id,
+        contract_id: contractId,
+        customer_id: customer.id,
+        updated_at: nowIso
+      })
+      .eq('id', setupInvoice.id);
+  }
+
+  if (recurringInvoice?.id) {
+    await sbAdmin
+      .from('invoices')
+      .update({
+        offer_id: offer.id,
+        contract_id: contractId,
+        customer_id: customer.id,
+        subscription_id: billing.subscription?.id || recurringInvoice.subscription_id || null,
+        updated_at: nowIso
+      })
+      .eq('id', recurringInvoice.id);
+  }
+
+  if (setupInvoice?.id) {
+    await sbAdmin
+      .from('offers')
+      .update({ invoice_id: setupInvoice.id, updated_at: nowIso })
+      .eq('id', offer.id);
+  }
 
   if (String(customer.payment_status || '').trim().toLowerCase() !== 'paid') {
     const customerInviteStatus = String(customer.invite_status || '').trim().toLowerCase();
@@ -401,7 +428,11 @@ async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso
       .eq('id', customer.id);
   }
 
-  return { invoiceId: String(invoice.id), duplicate: Boolean(initial.duplicate) };
+  return {
+    invoiceId: setupInvoice?.id ? String(setupInvoice.id) : null,
+    recurringInvoiceId: recurringInvoice?.id ? String(recurringInvoice.id) : null,
+    duplicate: !billing.setup_fee_invoice_created
+  };
 }
 
 async function syncPostAcceptanceLifecycle({ sbAdmin, offer, nowIso }) {
