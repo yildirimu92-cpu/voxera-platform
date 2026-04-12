@@ -460,16 +460,37 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
   if (offerRes.error) throw new OfferAcceptanceError(500, 'Offerte konnte nicht akzeptiert werden.', offerRes.error.message);
 
   let initialInvoice = { invoiceId: null, duplicate: false };
+  let invoiceError = null;
   if (contractId) {
-    initialInvoice = await ensureInitialInvoiceForOffer({
-      sbAdmin,
-      offer: offerRes.data,
-      contractId,
-      nowIso
-    });
+    try {
+      initialInvoice = await ensureInitialInvoiceForOffer({
+        sbAdmin,
+        offer: offerRes.data,
+        contractId,
+        nowIso
+      });
+    } catch (err) {
+      invoiceError = err;
+      console.error('acceptOfferAndEnsureContract: initial invoice creation failed after acceptance commit', {
+        offer_id: offer.id,
+        contract_id: contractId,
+        error: err?.message || String(err),
+        details: err?.details || null
+      });
+    }
   }
 
-  await syncPostAcceptanceLifecycle({ sbAdmin, offer: offerRes.data, nowIso });
+  let lifecycleError = null;
+  try {
+    await syncPostAcceptanceLifecycle({ sbAdmin, offer: offerRes.data, nowIso });
+  } catch (err) {
+    lifecycleError = err;
+    console.error('acceptOfferAndEnsureContract: lifecycle sync failed after acceptance commit', {
+      offer_id: offer.id,
+      customer_id: offerRes.data?.customer_id || null,
+      error: err?.message || String(err)
+    });
+  }
 
   return {
     duplicate: false,
@@ -479,6 +500,16 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
       ? {
         message: contractError.message || 'Contract creation failed.',
         details: contractError.details || null
+      }
+      : null,
+    invoiceError: invoiceError
+      ? {
+        message: invoiceError.message || 'Initial invoice creation failed.'
+      }
+      : null,
+    lifecycleError: lifecycleError
+      ? {
+        message: lifecycleError.message || 'Post-acceptance lifecycle sync failed.'
       }
       : null,
     acceptedAt: offerRes.data.accepted_at || nowIso,

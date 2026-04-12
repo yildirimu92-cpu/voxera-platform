@@ -60,7 +60,27 @@ exports.handler = async (event) => {
   if (isOfferExpired(offer)) return response(409, { error: 'Offerte ist abgelaufen.' });
   const offerStatus = String(offer.status || '').toLowerCase();
   if (offerStatus === 'accepted' || offer.accepted_at) {
-    return response(409, { error: 'Diese Offerte wurde bereits akzeptiert.' });
+    const accepted = await acceptOfferAndEnsureContract({
+      sbAdmin,
+      offer,
+      nowIso: new Date().toISOString(),
+      allowContractFailure: true
+    });
+    const followUpIssues = [];
+    if (accepted.contractError) followUpIssues.push('contract');
+    if (accepted.invoiceError) followUpIssues.push('invoice');
+    if (accepted.lifecycleError) followUpIssues.push('lifecycle');
+    return response(200, {
+      success: true,
+      already_accepted: true,
+      duplicate: true,
+      offer_id: accepted.offerId,
+      contract_id: accepted.contractId,
+      contract_pending: !accepted.contractId,
+      accepted_at: accepted.acceptedAt,
+      follow_up_required: followUpIssues.length > 0,
+      follow_up_issues: followUpIssues
+    });
   }
   if (offerStatus !== 'sent') {
     return response(409, { error: 'Offerte kann nur im Status sent akzeptiert werden.' });
@@ -103,6 +123,11 @@ exports.handler = async (event) => {
       }
     });
 
+    const followUpIssues = [];
+    if (accepted.contractError) followUpIssues.push('contract');
+    if (accepted.invoiceError) followUpIssues.push('invoice');
+    if (accepted.lifecycleError) followUpIssues.push('lifecycle');
+
     return response(200, {
       success: true,
       duplicate: Boolean(accepted.duplicate),
@@ -110,11 +135,21 @@ exports.handler = async (event) => {
       contract_id: accepted.contractId,
       contract_pending: !accepted.contractId,
       accepted_at: accepted.acceptedAt,
-      acceptance_id: acceptanceId
+      acceptance_id: acceptanceId,
+      follow_up_required: followUpIssues.length > 0,
+      follow_up_issues: followUpIssues
     });
   } catch (err) {
     if (acceptanceId) {
-      await sbAdmin.from('offer_acceptances').delete().eq('id', acceptanceId);
+      const { data: latestOffer } = await sbAdmin
+        .from('offers')
+        .select('status, accepted_at')
+        .eq('id', offer.id)
+        .maybeSingle();
+      const acceptanceCommitted = String(latestOffer?.status || '').toLowerCase() === 'accepted' || Boolean(latestOffer?.accepted_at);
+      if (!acceptanceCommitted) {
+        await sbAdmin.from('offer_acceptances').delete().eq('id', acceptanceId);
+      }
     }
     if (err instanceof OfferAcceptanceError) {
       return response(err.statusCode, { error: err.message, details: err.details || undefined });
