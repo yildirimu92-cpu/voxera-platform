@@ -552,5 +552,6 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
 
 module.exports = {
   OfferAcceptanceError,
-  acceptOfferAndEnsureContract
+  acceptOfferAndEnsureContract,
+  syncPostAcceptanceLifecycle
 };
