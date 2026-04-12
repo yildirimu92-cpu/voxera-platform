@@ -1955,6 +1955,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
       <img id="view-contract-sig-img" style="border:1px solid var(--line);border-radius:var(--r);max-width:100%;" alt="Signatur">
     </div>
     <div class="inline-actions" style="margin-top:14px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="printCurrentContractFromDetail()">Druckbare Version</button>
       <button class="btn btn-quiet" onclick="closeViewContractModal()">Schließen</button>
     </div>
   </div>
@@ -2121,6 +2122,7 @@ function planLabel(code){
   if(normalized==='professional') return 'Professional';
   if(normalized==='starter') return 'Starter';
   if(normalized==='business') return 'Business';
+  if(normalized==='premium') return 'Premium';
   return code||'—';
 }
 function getPlanMinutes(planCode) {
@@ -4528,7 +4530,7 @@ function renderContracts() {
     return '<tr>'
       + '<td><div><strong>#'+esc(ct.id.slice(0,8))+'</strong><div class="muted">'+formatDateDE(ct.createdAt)+'</div></div></td>'
       + '<td>'+esc(ct.customerName||'—')+'</td>'
-      + '<td>'+esc(ct.plan||'—')+'</td>'
+      + '<td>'+esc(planLabel(ct.plan||'—'))+'</td>'
       + '<td>'+(ct.months ? ct.months+' Mt.' : '—')+'</td>'
       + '<td>'+formatDateDE(ct.startDate)+'<br><span class="muted">bis '+formatDateDE(ct.endDate)+'</span></td>'
       + '<td>'+esc(offerLabel)+'</td>'
@@ -4558,7 +4560,7 @@ function renderContracts() {
         + '<div class="contract-list-head"><div>'
         + '<div class="contract-list-id">#'+esc(ct.id.slice(0,8))+'</div>'
         + '<div class="contract-list-customer">'+esc(ct.customerName||'—')+'</div>'
-        + '<div class="contract-list-plan">'+esc(ct.plan||'—')+' · '+(ct.months?ct.months+' Monate':'—')+'</div>'
+        + '<div class="contract-list-plan">'+esc(planLabel(ct.plan||'—'))+' · '+(ct.months?ct.months+' Monate':'—')+'</div>'
         + '</div><span class="badge '+cls+'">'+label+'</span></div>'
         + '<div class="contract-list-meta">'
         + '<div class="contract-list-meta-item">Start / Ende<strong>'+formatDateDE(ct.startDate)+' → '+formatDateDE(ct.endDate)+'</strong></div>'
@@ -4744,7 +4746,7 @@ function wizardStep(step) {
     var detailPrice = document.getElementById('contract-detail-price');
     var detailMonths = document.getElementById('contract-detail-months');
     var detailCancel = document.getElementById('contract-detail-cancellation');
-    if (detailPlan) detailPlan.textContent = d3.plan || '—';
+    if (detailPlan) detailPlan.textContent = planLabel(d3.plan || '—');
     if (detailPrice) detailPrice.textContent = finalPrice3;
     if (detailMonths) detailMonths.textContent = d3.months || '—';
     if (detailCancel) detailCancel.textContent = d3.cancellationDate ? formatDateDE(d3.cancellationDate) : '—';
@@ -4831,9 +4833,12 @@ function viewContract(id) {
   var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
   if (!ct) return;
   var acc = contractAcceptanceData(ct);
+  var displayPlan = planLabel(ct.plan || '—');
+  var signedAt = acc ? formatDateDE(acc.createdAt) : formatDateDE(ct.updatedAt || ct.createdAt);
+  var signedBy = acc ? (acc.acceptedByName || '—') : (ct.customerName || '—');
   var statusLabels = {draft:'Entwurf', active:'Aktiv', signed:'Unterzeichnet', cancelled:'Gek\u00fcndigt'};
   document.getElementById('view-contract-title').textContent = 'Vertrag \u2013 ' + (ct.customerName || '—');
-  document.getElementById('view-contract-sub').textContent   = (ct.plan || '—') + ' \u00b7 ' + (statusLabels[ct.status] || ct.status);
+  document.getElementById('view-contract-sub').textContent   = displayPlan + ' \u00b7 ' + (statusLabels[ct.status] || ct.status);
   var head = document.getElementById('view-contract-head');
   if (head) {
     head.innerHTML = '<div class="contract-head-main"><div>'
@@ -4852,7 +4857,9 @@ function viewContract(id) {
       renderContractDetailStat('Startdatum', formatDateDE(ct.startDate)),
       renderContractDetailStat('Enddatum', formatDateDE(ct.endDate)),
       renderContractDetailStat('Laufzeit', ct.months ? (ct.months + ' Monate') : '—'),
-      renderContractDetailStat('Plan', ct.plan || '—'),
+      renderContractDetailStat('Plan', displayPlan),
+      renderContractDetailStat('Unterschrieben am', signedAt),
+      renderContractDetailStat('Unterschrieben von', signedBy),
       renderContractDetailStat('Rabatt', (ct.discount ? ct.discount + '%' : '0%')),
       renderContractDetailStat('Kündigungsdatum', formatDateDE(ct.cancellationDate)),
       renderContractDetailStat('Kündigungsfrist', ct.cancellationNotice || '—'),
@@ -4867,7 +4874,7 @@ function viewContract(id) {
   var mergedSignature = ct.signatureData || (acc ? acc.signatureData : null);
   if (sigWrap && sigMeta) {
     sigMeta.innerHTML = [
-      renderContractDetailStat('Unterschriftsdatum', acc ? formatDateDE(acc.createdAt) : formatDateDE(ct.updatedAt || ct.createdAt)),
+      renderContractDetailStat('Unterschriftsdatum', signedAt),
       renderContractDetailStat('Unterschrieben von', acc ? (acc.acceptedByName || '—') : (ct.customerName || '—')),
       renderContractDetailStat('E-Mail', acc ? (acc.acceptedByEmail || '—') : '—'),
       renderContractDetailStat('IP-Adresse', acc ? (acc.acceptedIp || '—') : '—'),
@@ -4881,6 +4888,8 @@ function viewContract(id) {
   } else if (sigWrap) {
     sigWrap.style.display = 'none';
   }
+  var modal = document.getElementById('view-contract-modal');
+  if (modal) modal.dataset.contractId = ct.id;
   document.getElementById('view-contract-modal').classList.add('open');
 }
 
@@ -5048,9 +5057,13 @@ async function cancelContract(id) {
 function printContract(id) {
   var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
   if (!ct) return;
+  var acc = contractAcceptanceData(ct);
   var w = window.open('', '_blank');
   if (!w) { alert('Bitte Pop-ups erlauben.'); return; }
   var statusLabels = {draft:'Entwurf', active:'Aktiv', signed:'Unterzeichnet', cancelled:'Gek\u00fcndigt'};
+  var displayPlan = planLabel(ct.plan || '—');
+  var signedAt = acc ? formatDateDE(acc.createdAt) : formatDateDE(ct.updatedAt || ct.createdAt);
+  var signedBy = acc ? (acc.acceptedByName || '—') : (ct.customerName || '—');
   var sigHtml = ct.signatureData
     ? '<h3>Signatur</h3><img src="'+ct.signatureData+'" style="border:1px solid #ccc;border-radius:4px;max-width:480px;">'
     : '';
@@ -5060,12 +5073,20 @@ function printContract(id) {
     + 'h3{margin-top:24px;} @media print{button{display:none}}</style>'
     + '</head><body>'
     + '<h2>Vertrag \u2013 '+esc(ct.customerName)+'</h2>'
-    + '<p><strong>Plan:</strong> '+esc(ct.plan)+'&nbsp;&nbsp;<strong>Status:</strong> '+(statusLabels[ct.status]||ct.status)+'</p>'
+    + '<p><strong>Plan:</strong> '+esc(displayPlan)+'&nbsp;&nbsp;<strong>Status:</strong> '+(statusLabels[ct.status]||ct.status)+'</p>'
+    + '<p><strong>Unterschrieben am:</strong> '+esc(signedAt)+'&nbsp;&nbsp;<strong>Unterschrieben von:</strong> '+esc(signedBy)+'</p>'
     + '<pre>'+esc(ct.contractText||'')+'</pre>'
     + sigHtml
     + '<p style="margin-top:32px;"><button onclick="window.print()">Drucken</button></p>'
     + '</body></html>');
   w.document.close();
+}
+
+function printCurrentContractFromDetail() {
+  var modal = document.getElementById('view-contract-modal');
+  var id = modal ? modal.dataset.contractId : '';
+  if (!id) return;
+  printContract(id);
 }
 
 // ─── Word upload / download ────────────────────────────────────────────────
@@ -5411,7 +5432,7 @@ function openCustomerProfile(id){
         <td style="font-family:monospace;font-size:11px;">${esc(String(ct.id).slice(0,8)+'…')}</td>
         <td>${toneBadge(statusLabels[ct.status]||ct.status)}</td>
         <td>${esc(signedAt||'—')}</td>
-        <td>${esc(ct.plan||'—')}</td>
+        <td>${esc(planLabel(ct.plan||'—'))}</td>
         <td>
           <button class="btn btn-quiet btn-sm" onclick="viewContract('${jsStr(ct.id)}')">Ansehen</button>
           ${canSign?`<button class="btn btn-quiet btn-sm" onclick="openSignatureModal('${jsStr(ct.id)}')">Unterschreiben</button>`:''}
