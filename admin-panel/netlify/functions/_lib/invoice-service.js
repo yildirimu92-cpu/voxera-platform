@@ -266,13 +266,11 @@ async function createSubscriptionInvoice({ sbAdmin, customer, subscription, plan
   });
 }
 
-async function createInitialContractInvoice({ sbAdmin, customer, contractId, subscription, setupFeeAmount, firstMonthAmount, dueAt, notes }) {
+async function createInitialContractInvoice({ sbAdmin, customer, contractId, subscription, setupFeeAmount, dueAt, notes }) {
   const normalizedContractId = String(contractId || '').trim();
   if (!normalizedContractId) throw new Error('contractId is required');
 
   const setupAmount = money(setupFeeAmount);
-  const monthlyAmount = money(firstMonthAmount);
-  if (monthlyAmount < 0) throw new Error('first month amount must be >= 0');
   if (setupAmount < 0) throw new Error('setup fee amount must be >= 0');
 
   const externalReference = `initial_contract_invoice:${normalizedContractId}`;
@@ -287,7 +285,7 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
   if (existingError) throw new Error(`initial invoice lookup failed: ${existingError.message}`);
   if (existingInvoice) return { invoice: existingInvoice, duplicate: true };
 
-  const subtotal = money(setupAmount + monthlyAmount);
+  const subtotal = money(setupAmount);
   let createdInvoice;
   try {
     createdInvoice = await createInvoiceWithItems(sbAdmin, {
@@ -304,7 +302,7 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
       dueAt,
       sentAt: null,
       paidAt: null,
-      notes: notes || 'Initial invoice (setup fee + first month) after contract creation',
+      notes: notes || 'Initial invoice (setup fee only) after contract creation',
       externalReference,
       items: [
         {
@@ -315,15 +313,6 @@ async function createInitialContractInvoice({ sbAdmin, customer, contractId, sub
           unitPrice: setupAmount,
           lineTotal: setupAmount,
           metadata: { contract_id: normalizedContractId, source: 'contract_created' }
-        },
-        {
-          itemType: 'subscription_base',
-          title: 'Subscription (first month)',
-          description: 'Erste Monatsgebühr',
-          quantity: 1,
-          unitPrice: monthlyAmount,
-          lineTotal: monthlyAmount,
-          metadata: { contract_id: normalizedContractId, period: 'first_month', source: 'contract_created' }
         }
       ]
     });

@@ -96,18 +96,14 @@ exports.handler = async (event) => {
     if (!planConfig) throw new Error(`plan_config missing for ${planCode || 'unknown plan'}`);
 
     const setupFeeAmount = money(customer.setup_fee_amount ?? planConfig.setup_fee_amount ?? 0);
-    const firstMonthAmount = money(planConfig.price_monthly);
-    if (firstMonthAmount <= 0) throw new Error(`price_monthly invalid for ${planCode || 'plan'}`);
-
     const initialInvoiceResult = await createInitialContractInvoice({
       sbAdmin,
       customer,
       contractId: contract_id,
       subscription,
       setupFeeAmount,
-      firstMonthAmount,
       dueAt: null,
-      notes: `Initial charge for contract ${contract_id}`
+      notes: `Initial setup-fee draft invoice for contract ${contract_id}`
     });
     initialInvoice = initialInvoiceResult.invoice;
     initialInvoiceDuplicate = !!initialInvoiceResult.duplicate;
