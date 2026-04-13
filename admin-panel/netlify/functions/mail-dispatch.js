@@ -33,6 +33,12 @@ function pickOfferRecipientEmail(offer, overrides) {
   return trimOrNull(overrides?.to_email) || trimOrNull(offer?.sent_to_email) || trimOrNull(offer?.email);
 }
 
+function resolveOfferEmailSubject(offer, overrides) {
+  return trimOrNull(overrides?.subject)
+    || trimOrNull(offer?.email_subject)
+    || `Ihre Voxera Offerte ${String(offer?.offer_number || '').trim()}`.trim();
+}
+
 function deriveOfferPdfUrl(body, offer) {
   const explicitPdfUrl = trimOrNull(body?.overrides?.pdf_url);
   if (explicitPdfUrl) return explicitPdfUrl;
@@ -73,6 +79,7 @@ async function loadOfferPayload(sbAdmin, body) {
   }
 
   const recipientEmail = pickOfferRecipientEmail(offer, body.overrides || {});
+  const emailSubject = resolveOfferEmailSubject(offer, body.overrides || {});
   if (!recipientEmail) {
     return { ok: false, statusCode: 400, error: 'Offerte hat keine Empfänger-E-Mail.' };
   }
@@ -98,6 +105,7 @@ async function loadOfferPayload(sbAdmin, body) {
       discount_percent: Number(offer.discount_percent || 0),
       total: Number(offer.total || 0),
       add_ons: offer.add_ons || {},
+      email_subject: emailSubject,
       pdf_url: deriveOfferPdfUrl(body, offer),
       acceptance_url: derivePublicOfferAcceptanceUrl(offer.public_token),
       public_expires_at: offer.public_expires_at || null
@@ -117,7 +125,8 @@ async function loadOfferPayload(sbAdmin, body) {
     meta: {
       source: 'admin_panel',
       sent_to_email: recipientEmail,
-      requested_at: new Date().toISOString()
+      requested_at: new Date().toISOString(),
+      email_subject: emailSubject
     }
   };
 
@@ -130,7 +139,8 @@ async function loadOfferPayload(sbAdmin, body) {
     responseData: {
       offer_id: offer.id,
       sent_to_email: recipientEmail,
-      offer_number: offer.offer_number
+      offer_number: offer.offer_number,
+      email_subject: emailSubject
     }
   };
 }

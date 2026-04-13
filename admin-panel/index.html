@@ -1017,12 +1017,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   padding-bottom:16px;border-bottom:1px solid var(--line2);
 }
 .offer-doc-brand{display:flex;align-items:center;gap:12px;}
-.offer-doc-logo{
-  width:44px;height:44px;background:linear-gradient(135deg,var(--blue) 0%,var(--blue-dark) 100%);
-  border-radius:13px;display:flex;align-items:center;justify-content:center;color:#fff;
-  box-shadow:0 8px 20px rgba(26,111,232,0.28);flex-shrink:0;
-}
-.offer-doc-logo svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;}
+.offer-doc-logo{display:flex;align-items:center;flex-shrink:0;}
+.offer-doc-logo img{display:block;height:26px;width:auto;max-width:180px;object-fit:contain;}
 .offer-doc-brand-title{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.03em;line-height:1;}
 .offer-doc-brand-sub{font-size:11px;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-top:5px;}
 .offer-doc-meta{text-align:right;min-width:180px;display:grid;gap:4px;font-size:12px;color:var(--slate);}
@@ -1078,8 +1074,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .contract-list-actions{grid-template-columns:1fr;}
 }
 @media print{
-  @page{size:A4;margin:12mm;}
-  body{background:#fff!important;}
+  @page{size:A4;margin:14mm;}
+  body{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   body *{visibility:hidden!important;}
   #offer-print-template,#offer-print-template *{visibility:visible!important;}
   #offer-print-template{
@@ -1093,7 +1089,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
     box-shadow:none!important;
     border:1px solid #dbe3ef!important;
     border-radius:0!important;
-    padding:14mm!important;
+    padding:12mm!important;
     font-size:11pt!important;
     gap:12px!important;
     break-inside:avoid-page;
@@ -1652,7 +1648,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                   <select class="select" id="offer-status-select" onchange="offerStatusChanged()" style="min-width:180px;"></select>
                   <button class="btn btn-primary btn-sm" onclick="saveOffer()">Speichern</button>
                   <button class="btn btn-secondary btn-sm" onclick="sendOffer()">Offerte senden</button>
-                  <button class="btn btn-quiet btn-sm" onclick="printOfferPdf()">Print / PDF</button>
+                  <button class="btn btn-quiet btn-sm" onclick="printOfferPdf()">PDF</button>
                   <button class="btn btn-quiet btn-sm" onclick="duplicateOffer()">Duplizieren</button>
                   <button class="btn btn-quiet btn-sm" onclick="createContractFromOffer()">Vertrag erstellen</button>
                   <button class="btn btn-quiet btn-sm" id="offer-open-contract-btn" onclick="openOfferContract()" style="display:none;">Vertrag öffnen</button>
@@ -4551,8 +4547,18 @@ function hydrateOfferLinkActions(offer){
 }
 function openLinkedCustomerFromOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
-  if(!offer?.customerId) return;
-  openCustomerProfile(offer.customerId);
+  const customerId=String(offer?.customerId||'').trim();
+  if(!customerId){
+    showToast('Kein verknüpfter Kunde vorhanden.');
+    return;
+  }
+  const customer=customerById(customerId);
+  if(!customer){
+    showToast('Verknüpfter Kunde wurde nicht gefunden.');
+    return;
+  }
+  setRoute('customers');
+  openCustomerProfile(customer.id);
 }
 function openOfferContract(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
@@ -4687,7 +4693,7 @@ function offerFieldChanged(){
   offer.contactLastName=document.getElementById('offer-contact-last').value.trim();
   offer.contactName=offerContactName(offer);
   offer.email=document.getElementById('offer-email').value.trim();
-  offer.phone=document.getElementById('offer-phone').value.trim();
+  offer.phone=normalizeSwissPhone(document.getElementById('offer-phone').value).normalized;
   offer.street=document.getElementById('offer-street').value.trim();
   offer.postalCode=document.getElementById('offer-postal-code').value.trim();
   offer.city=document.getElementById('offer-city').value.trim();
@@ -4714,6 +4720,7 @@ function renderOfferPreview(offer){
   const recurringPrice=offer.billingCycle==='yearly'?offer.yearlyPrice:offer.monthlyPrice;
   const addons=offer.addOnNumbers+offer.addOnSms+offer.addOnAi;
   const discountAbsolute=Number(offer.discountAmount||0)+(recurringPrice*(Number(offer.discountPercent||0)/100));
+  const hasDiscount=discountAbsolute>0.000001;
   const total=getOfferTotal(offer);
   const recurringLabel=offer.billingCycle==='yearly'?'Laufende Kosten (jährlich)':'Laufende Kosten (monatlich)';
   const discountDetail=[
@@ -4723,11 +4730,10 @@ function renderOfferPreview(offer){
   el.innerHTML=`<div class="offer-doc">
     <div class="offer-doc-header">
       <div class="offer-doc-brand">
-        <div class="offer-doc-logo"><img src="voxera-logo-dark.svg" alt="Voxera" style="height:24px;width:auto;"/></div>
+        <div class="offer-doc-logo"><img src="voxera-logo-dark.svg" alt="Voxera"/></div>
         <div>
       <div class="offer-doc-brand-title">Voxera</div>
       <div class="offer-doc-brand-sub">Offerte</div>
-      <div class="offer-brand-logo-hook">Branding-Slot: logo_url / CI-Theme</div>
         </div>
       </div>
       <div class="offer-doc-meta">
@@ -4768,7 +4774,7 @@ function renderOfferPreview(offer){
           <div class="offer-price-row"><span>Einmalige Einrichtung</span><strong>${moneyChf(offer.setupFee)}</strong></div>
           <div class="offer-price-row"><span>${recurringLabel}</span><strong>${moneyChf(recurringPrice)}</strong></div>
           <div class="offer-price-row"><span>Zusatzoptionen</span><strong>${moneyChf(addons)}</strong></div>
-          <div class="offer-price-row discount"><span>Rabatt${discountDetail?` (${esc(discountDetail)})`:''}</span><strong>− ${moneyChf(discountAbsolute)}</strong></div>
+          ${hasDiscount?`<div class="offer-price-row discount"><span>Rabatt${discountDetail?` (${esc(discountDetail)})`:''}</span><strong>− ${moneyChf(discountAbsolute)}</strong></div>`:''}
         </div>
         <div class="offer-price-row total"><span>Gesamt</span><strong>${moneyChf(total)}</strong></div>
       </div>
@@ -4888,9 +4894,11 @@ function printOfferPdf(){
   if(!source||!printRoot) return;
   printRoot.innerHTML=source.innerHTML;
   printRoot.style.display='block';
-  window.print();
-  printRoot.style.display='none';
-  printRoot.innerHTML='';
+  requestAnimationFrame(()=>{
+    window.print();
+    printRoot.style.display='none';
+    printRoot.innerHTML='';
+  });
 }
 
 // ─── Contract helpers ──────────────────────────────────────────────────────
@@ -8320,6 +8328,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
   bindPhoneNormalization(document.getElementById('create-customer-phone'),'.form-error[data-error-for="tel_nr"]');
   bindPhoneNormalization(document.getElementById('edit-customer-phone'));
+  bindPhoneNormalization(document.getElementById('offer-phone'));
 
   const bindVoxeraNormalization=(input)=>{
     if(!input) return;
