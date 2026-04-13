@@ -54,6 +54,47 @@ body{font-family:var(--font);font-size:13px;color:var(--ink);background:#F5F5F7;
 body.mobile-nav-lock{overflow:hidden;touch-action:none;}
 body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{visibility:hidden;}
 
+/* ─── Startup Splash (customer pattern) ─────────────────────────────────── */
+#db-loading-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:#ffffff;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:16px;
+}
+.splash-logo-icon{
+  width:56px;height:56px;border-radius:16px;
+  background:#1A6FE8;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 28px rgba(26,111,232,0.30);
+  animation:splashPulse 1.8s ease-in-out infinite;
+}
+.splash-logo-icon svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;}
+.splash-wordmark{
+  font-size:28px;font-weight:800;color:#111827;
+  letter-spacing:-.05em;font-family:'Inter',sans-serif;
+}
+.splash-tagline{
+  font-size:13px;color:#9CA3AF;font-weight:400;
+  letter-spacing:.02em;font-family:'Inter',sans-serif;
+}
+.splash-bar-wrap{
+  width:48px;height:2px;background:#E5E7EB;border-radius:2px;
+  overflow:hidden;margin-top:8px;
+}
+.splash-bar{
+  height:100%;width:100%;background:#1A6FE8;border-radius:2px;
+  animation:splashBarFlow 1.3s cubic-bezier(0.4,0,0.2,1) infinite;
+}
+@keyframes splashPulse{
+  0%,100%{box-shadow:0 8px 28px rgba(26,111,232,0.25);}
+  50%{box-shadow:0 8px 40px rgba(26,111,232,0.45),0 0 0 8px rgba(26,111,232,0.06);}
+}
+@keyframes splashBarFlow{
+  0%{transform:translateX(-100%);}
+  100%{transform:translateX(100%);}
+}
+
 /* ─── Layout ─────────────────────────────────────────────────── */
 .app{display:flex;min-height:100vh;min-height:var(--app-dvh);}
 
@@ -1058,12 +1099,15 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 </head>
 <body class="app-booting">
 <!-- DB loading overlay -->
-<div id="db-loading-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:rgba(247,249,252,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;flex-direction:column;gap:12px;">
-  <div style="width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;"></div>
-  <div style="font-size:13px;font-weight:600;color:var(--slate);">Admin Panel wird gestartet …</div>
+<div id="db-loading-overlay" aria-live="polite" aria-label="Admin Panel wird gestartet">
+  <div class="splash-logo-icon">
+    <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <div class="splash-wordmark">Voxera</div>
+  <div class="splash-tagline">Ihr KI-Telefonassistent</div>
+  <div class="splash-bar-wrap"><div class="splash-bar" id="db-loading-bar"></div></div>
 </div>
 <div id="db-load-error" style="display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--red-light);color:var(--red);border:1px solid var(--red-mid);border-radius:var(--r-lg);padding:10px 18px;font-size:13px;font-weight:600;box-shadow:var(--shadow-md);"></div>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileMenu()"></div>
 <div class="app">
@@ -8048,39 +8092,45 @@ async function loadDataFromSupabase() {
     showLoadError(`Datenbankfehler: ${err.message || err}. Bitte Seite neu laden.`);
     return false;
   } finally {
-    hideLoadingState();
+    // loader lifecycle is controlled by init() to cover full bootstrap render
   }
 }
 
 // ─── init ──────────────────────────────────────────────────────────────────
 
 async function init() {
-  await requireAdminSessionOrRedirect();
-  // Wire UI immediately so the shell is interactive
-  wireUi();
-  onHashRoute();
-  hydrateAdminInfo();
+  showLoadingState();
+  try {
+    await requireAdminSessionOrRedirect();
+    // Wire UI immediately so the shell is interactive
+    wireUi();
+    onHashRoute();
+    hydrateAdminInfo();
 
-  // Attempt to load real data from Supabase
-  await loadDataFromSupabase();
+    // Attempt to load real data from Supabase
+    await loadDataFromSupabase();
 
-  // Now run all render functions with real (or empty-fallback) data
-  syncAllCustomerLifecycleStatuses();
-  refreshCustomerCaseCounts();
-  hydrateFilters();
-  updateBadges();
-  renderOverview();
-  renderCustomers();
-  renderOnboarding();
-  renderAiSetup();
-  renderCases();
-  renderActivity();
-  renderInsights();
-  renderBillingFinance();
-  renderSettings();
-  renderOffers();
-  renderContracts();
-  document.body.classList.remove('app-booting');
+    // Now run all render functions with real (or empty-fallback) data
+    syncAllCustomerLifecycleStatuses();
+    refreshCustomerCaseCounts();
+    hydrateFilters();
+    updateBadges();
+    renderOverview();
+    renderCustomers();
+    renderOnboarding();
+    renderAiSetup();
+    renderCases();
+    renderActivity();
+    renderInsights();
+    renderBillingFinance();
+    renderSettings();
+    renderOffers();
+    renderContracts();
+    document.body.classList.remove('app-booting');
+  } finally {
+    hideLoadingState();
+    document.body.classList.remove('app-booting');
+  }
 }
 
 init();
