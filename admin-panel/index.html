@@ -2519,16 +2519,10 @@ function planLabel(code){
   const pc=planConfigByCode(code);
   if(pc){
     const configured=String(pc.plan_label||'').trim();
-    if(configured) return configured;
-    const idx=Math.max(1,_planConfigData.findIndex(p=>normalizePlanCode(p.id)===normalizePlanCode(code))+1);
-    return `Paket ${idx}`;
+    return configured||'—';
   }
   const normalized=normalizePlanCode(code);
   if(normalized==='kein_plan') return 'Kein Plan';
-  if(normalized==='professional') return 'Professional';
-  if(normalized==='starter') return 'Starter';
-  if(normalized==='business') return 'Business';
-  if(normalized==='premium') return 'Premium';
   return code||'—';
 }
 function getPlanMinutes(planCode) {
@@ -8361,7 +8355,7 @@ function renderPlanSelects(){
     if(includePlaceholder) html+='<option value="">Bitte wählen …</option>';
     plans.forEach(plan=>{
       const code=normalizePlanCode(plan.id);
-      const label=String(plan.plan_label||'').trim() || `Paket ${Math.max(1,plans.findIndex(p=>normalizePlanCode(p.id)===code)+1)}`;
+      const label=String(plan.plan_label||'').trim() || '—';
       html+=`<option value="${esc(code)}">${esc(label)}</option>`;
     });
     sel.innerHTML=html;
@@ -8378,11 +8372,11 @@ async function loadPlanConfig() {
       .select('*')
       .order('sort_order', { ascending: true });
     if (error || !data) return;
-    _planConfigData = data.map((p,index)=>({
+    _planConfigData = data.map((p)=>({
       ...p,
       id: normalizePlanCode(p.id),
       plan_key: normalizePlanCode(p.id),
-      plan_label: String(p.plan_label || '').trim() || `Paket ${index+1}`
+      plan_label: String(p.plan_label || '').trim()
     }));
 
     Object.keys(PLAN_PRICES).forEach(k=>delete PLAN_PRICES[k]);
@@ -8507,7 +8501,7 @@ async function savePlanConfig() {
       const id = normalizePlanCode(row.dataset.planId);
       const local=_planConfigData.find(x=>normalizePlanCode(x.id)===id);
       const patch={
-        plan_label: String(row.querySelector('[data-field="plan_label"]').value||'').trim()||id,
+        plan_label: String(row.querySelector('[data-field="plan_label"]').value||'').trim()||null,
         monthly_price: Number(row.querySelector('[data-field="monthly_price"]').value||0),
         yearly_price: Number(row.querySelector('[data-field="yearly_price"]').value||0),
         setup_fee_amount: Number(row.querySelector('[data-field="setup_fee_amount"]').value||0),
