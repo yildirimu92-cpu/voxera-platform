@@ -26,6 +26,10 @@ function pickString(...values) {
   return '';
 }
 
+function hasOwn(obj, key) {
+  return Boolean(obj) && Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 function readJsonBody(event) {
   try {
     return JSON.parse(event.body || '{}');
@@ -65,6 +69,90 @@ function normalizeDateOnly(isoLike) {
   const date = new Date(isoLike);
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString().slice(0, 10);
+}
+
+function detectLifecyclePhase(payload) {
+  const marker = pickString(
+    payload.lifecycle_phase,
+    payload.phase,
+    payload.event_type,
+    payload.event,
+    payload.type,
+    payload.call?.event_type,
+    payload.call?.event,
+    payload.call_status,
+    payload.status,
+    payload.call?.status
+  ).toLowerCase();
+
+  if (!marker) return 'completed';
+  if (
+    marker.includes('start') ||
+    marker.includes('initiated') ||
+    marker.includes('ringing') ||
+    marker.includes('queued') ||
+    marker.includes('in-progress') ||
+    marker.includes('in_progress')
+  ) {
+    return 'started';
+  }
+  if (marker.includes('abandon') || marker.includes('no-answer') || marker.includes('no_answer')) {
+    return 'abandoned';
+  }
+  return 'completed';
+}
+
+function buildOptionalCallPatch(payload, lifecyclePhase) {
+  const patch = {};
+
+  const maybeSet = (column, ...values) => {
+    const value = pickString(...values);
+    if (value) patch[column] = value;
+  };
+
+  const maybeSetPhone = (column, ...values) => {
+    const normalized = normalizePhoneE164(pickString(...values)).normalized;
+    if (normalized) patch[column] = normalized;
+  };
+
+  maybeSet('caller_name', payload.caller_name, payload.contact_name, payload.call?.caller_name);
+  maybeSet('summary', payload.summary, payload.call_summary, payload.call?.summary);
+  maybeSet('call_summary', payload.call_summary, payload.summary, payload.call?.summary);
+  maybeSet('call_summary_short', payload.call_summary_short, payload.summary_short, payload.call?.summary_short);
+  maybeSet('category', payload.category, payload.call_category, payload.call?.category);
+  maybeSet('quality', payload.quality, payload.call_quality, payload.call?.quality);
+  maybeSet('lead_quality', payload.lead_quality, payload.call?.lead_quality);
+  maybeSet('next_action', payload.next_action, payload.call?.next_action);
+  maybeSet('follow_up_at', payload.follow_up_at, payload.call?.follow_up_at);
+  maybeSet('transcript', payload.transcript, payload.call?.transcript);
+  maybeSet('notes', payload.notes, payload.call?.notes);
+  maybeSet('direction', payload.direction, payload.call_direction, payload.call?.direction);
+  maybeSet('dashboard_status', payload.dashboard_status);
+  maybeSet('status', payload.status, payload.call_status, payload.call?.status);
+
+  maybeSetPhone('called_number', payload.called_number, payload.to, payload.to_number, payload.call?.to);
+  maybeSetPhone('voxera_number', payload.voxera_number, payload.call?.voxera_number);
+  maybeSetPhone('caller_phone', payload.caller_phone, payload.from, payload.from_number, payload.call?.from);
+
+  if (payload.transcript_json || payload.call?.transcript_json) {
+    patch.transcript_json = payload.transcript_json || payload.call?.transcript_json;
+  }
+  if (hasOwn(payload, 'callback_requested')) {
+    patch.callback_requested = payload.callback_requested === true;
+  }
+  if (hasOwn(payload, 'duration_seconds')) {
+    const parsedDuration = Number(payload.duration_seconds);
+    patch.duration_seconds = Number.isFinite(parsedDuration) ? parsedDuration : null;
+  }
+
+  if (!patch.dashboard_status) {
+    patch.dashboard_status = lifecyclePhase === 'completed' ? 'in_progress' : 'new';
+  }
+  if (!patch.status) {
+    patch.status = lifecyclePhase;
+  }
+
+  return patch;
 }
 
 function authorizeWebhook(event) {
@@ -154,38 +242,29 @@ exports.handler = async (event) => {
   }
 
   const createdAt = pickString(payload.created_at, payload.started_at, payload.call?.started_at) || new Date().toISOString();
+  const lifecyclePhase = detectLifecyclePhase(payload);
   const callDate = normalizeDateOnly(createdAt);
-  const rowId = pickString(payload.id, payload.record_id, externalCallId, `call_${crypto.randomUUID()}`);
+  const rowId = pickString(payload.id, payload.record_id, `call_${externalCallId}`, `call_${crypto.randomUUID()}`);
 
-  const callRow = {
+  const provisionalRow = {
     id: rowId,
     call_id: externalCallId,
     customer_id: customer.id,
-    caller_name: pickString(payload.caller_name, payload.contact_name, payload.call?.caller_name) || null,
-    caller_phone: pickString(payload.caller_phone, payload.from, payload.from_number, payload.call?.from) || null,
+    caller_phone: normalizePhoneE164(pickString(payload.caller_phone, payload.from, payload.from_number, payload.call?.from)).normalized || null,
     called_number: normalizePhoneE164(pickString(payload.called_number, payload.to, payload.to_number, payload.call?.to, incomingNumber)).normalized || null,
     voxera_number: normalizePhoneE164(pickString(payload.voxera_number, payload.call?.voxera_number, incomingNumber)).normalized || null,
     date: callDate,
     created_date_raw: callDate,
-    duration_seconds: Number.isFinite(Number(payload.duration_seconds)) ? Number(payload.duration_seconds) : null,
-    summary: pickString(payload.summary, payload.call_summary, payload.call?.summary) || null,
-    call_summary: pickString(payload.call_summary, payload.summary, payload.call?.summary) || null,
-    call_summary_short: pickString(payload.call_summary_short, payload.summary_short, payload.call?.summary_short) || null,
-    category: pickString(payload.category, payload.call_category, payload.call?.category) || null,
-    quality: pickString(payload.quality, payload.call_quality, payload.call?.quality) || null,
-    lead_quality: pickString(payload.lead_quality, payload.call?.lead_quality) || null,
     callback_requested: payload.callback_requested === true,
-    dashboard_status: pickString(payload.dashboard_status, 'new'),
-    next_action: pickString(payload.next_action, payload.call?.next_action) || null,
-    follow_up_at: pickString(payload.follow_up_at, payload.call?.follow_up_at) || null,
-    transcript: pickString(payload.transcript, payload.call?.transcript) || null,
-    transcript_json: payload.transcript_json || payload.call?.transcript_json || null,
-    status: pickString(payload.status, payload.call_status, payload.call?.status) || null,
-    notes: pickString(payload.notes, payload.call?.notes) || null,
+    dashboard_status: 'new',
+    status: lifecyclePhase,
     direction: pickString(payload.direction, payload.call_direction, payload.call?.direction, 'inbound'),
     created_at: createdAt,
     updated_at: new Date().toISOString()
   };
+
+  const finalPatch = buildOptionalCallPatch(payload, lifecyclePhase);
+  const callRow = { ...provisionalRow, ...finalPatch };
 
   const { data: inserted, error: insertError } = await sbAdmin
     .from('calls')
