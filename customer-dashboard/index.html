@@ -7035,7 +7035,6 @@ function inferActivationV2Step(){
   if (customerMeta.forwardingStatus === 'pending_test') return 6;
   if (customerMeta.setupDeviceType && customerMeta.forwardingMode) return 5;
   if (customerMeta.setupDeviceType && !customerMeta.forwardingMode) return 4;
-  if (!customerMeta.setupDeviceType) return 1;
   return 1;
 }
 
