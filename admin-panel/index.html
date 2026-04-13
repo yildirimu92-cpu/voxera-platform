@@ -1656,6 +1656,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
                 </div>
               </div>
               <div id="offer-final-state-hint" class="muted" style="margin-top:8px;"></div>
+              <div id="offer-send-feedback" class="muted" style="margin-top:8px;"></div>
               <div class="offer-grid-2" style="margin-top:12px;">
                 <div><label class="muted">Empfänger E-Mail</label><input class="input" id="offer-send-to-email" type="email" oninput="offerFieldChanged()" placeholder="kunde@beispiel.ch"></div>
                 <div><label class="muted">E-Mail Betreff (optional)</label><input class="input" id="offer-send-subject" oninput="offerFieldChanged()" placeholder="Ihre Voxera Offerte"></div>
@@ -2436,6 +2437,7 @@ const state={
   subscriptions:[], // populated by loadDataFromSupabase()
   offerAcceptancesByOfferId:{}, // populated by loadDataFromSupabase()
   offers:[], // populated by loadDataFromSupabase()
+  offerSendState:{status:'idle',message:''},
   offerDbColumns:new Set(),
   selectedOfferId:null,
   invoices:[],  // populated by loadDataFromSupabase()
@@ -2478,6 +2480,7 @@ const state={
 const PLAN_MINUTES = {};
 const PLAN_PRICES = {};
 const SALES_PLAN_CODES = ['starter','business','professional'];
+const BRAND_LOGO_PATH='/voxera-logo-dark.svg';
 
 function normalizePlanCode(raw){
   const key=String(raw||'').trim().toLowerCase().replace(/\s+/g,'_');
@@ -2486,6 +2489,16 @@ function normalizePlanCode(raw){
   if(key==='kein_plan'||key==='kein-plan'||key==='kein_plan') return 'kein_plan';
   if(key==='kein'||key==='no_plan'||key==='noplan') return 'kein_plan';
   return key;
+}
+function canonicalOfferPlanValue(raw){
+  const key=normalizePlanCode(raw);
+  if(key==='starter') return 'Starter';
+  if(key==='business') return 'Business';
+  return 'Professional';
+}
+function isValidEmailAddress(value){
+  const input=String(value||'').trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
 }
 function normalizeSwissPhone(raw){
   let value=String(raw||'').trim();
@@ -4231,14 +4244,14 @@ function renderInsights(){
 const OFFER_STATUS_META={
   draft:['Entwurf','badge-gray'],
   sent:['Gesendet','badge-blue'],
-  in_review:['In Prüfung','badge-blue'],
-  revision_requested:['Überarbeitung angefragt','badge-amber'],
+  viewed:['Gelesen','badge-blue'],
   accepted:['Akzeptiert','badge-green'],
-  rejected:['Abgelehnt','badge-red'],
+  declined:['Abgelehnt','badge-red'],
+  active:['Aktiv','badge-green'],
   expired:['Abgelaufen','badge-amber']
 };
-const OFFER_STATUS_OPTIONS=['draft','sent','in_review','revision_requested','accepted','rejected','expired'];
-const OFFER_FINAL_STATUSES=new Set(['accepted','rejected']);
+const OFFER_STATUS_OPTIONS=['draft','sent','viewed','accepted','declined','active','expired'];
+const OFFER_FINAL_STATUSES=new Set(['accepted','declined','active','expired']);
 
 function isFinalOfferStatus(status){
   return OFFER_FINAL_STATUSES.has(String(status||'').toLowerCase());
@@ -4270,7 +4283,7 @@ async function offerStatusChanged(){
     if(json?.offer) Object.assign(offer,mapDbOfferToUi(json.offer));
     else offer.status=next;
     if(next==='accepted') showToast(json?.duplicate?'✓ Offerte war bereits akzeptiert. Vertrag bleibt verknüpft.':'✓ Offerte akzeptiert und Vertrag verknüpft.');
-    else if(next==='rejected') showToast('✓ Offerte als final abgelehnt markiert.');
+    else if(next==='declined') showToast('✓ Offerte als final abgelehnt markiert.');
     else showToast('✓ Offer-Status aktualisiert.');
   }catch(e){
     hydrateOfferStatusSelect(offer.status);
@@ -4304,7 +4317,7 @@ function applyOfferReadonlyState(offer){
   if(meta){
     if(accepted&&hasContract) meta.innerHTML='🔒 Final: Akzeptiert. <strong>Vertrag verknüpft.</strong>';
     else if(accepted&&!hasContract) meta.innerHTML='⚠️ Final: Akzeptiert, aber kein Vertrag verknüpft. Bitte <strong>Wiederherstellen</strong> ausführen.';
-    else if(String(offer?.status||'').toLowerCase()==='rejected') meta.innerHTML='🔒 Final: Abgelehnt. Für neuen Zyklus bitte Offerte duplizieren.';
+    else if(String(offer?.status||'').toLowerCase()==='declined') meta.innerHTML='🔒 Final: Abgelehnt. Für neuen Zyklus bitte Offerte duplizieren.';
     else meta.innerHTML='';
   }
   const openContractBtn=document.getElementById('offer-open-contract-btn');
@@ -4373,6 +4386,7 @@ function mapDbOfferToUi(row){
     sentToEmail:row.sent_to_email||'',
     sendSubject:row.email_subject||'',
     sentAt:row.sent_at||'',
+    publicToken:row.public_token||'',
     deliveryStatus:row.delivery_status||'',
     createdAt:row.created_at||'',
     updatedAt:row.updated_at||'',
@@ -4532,7 +4546,21 @@ function openOfferDetail(id,silent=false){
   hydrateOfferLinkActions(offer);
   applyOfferReadonlyState(offer);
   renderOfferPreview(offer);
+  renderOfferSendFeedback();
   if(!silent) renderOffers();
+}
+function setOfferSendFeedback(status,message){
+  state.offerSendState={status:status||'idle',message:String(message||'')};
+  renderOfferSendFeedback();
+}
+function renderOfferSendFeedback(){
+  const el=document.getElementById('offer-send-feedback');
+  if(!el) return;
+  const status=String(state.offerSendState?.status||'idle');
+  const message=String(state.offerSendState?.message||'');
+  if(!message){ el.textContent=''; return; }
+  el.style.color=status==='success'?'var(--green)':status==='failed'?'var(--red)':'var(--slate)';
+  el.textContent=message;
 }
 function hydrateOfferLinkActions(offer){
   const badge=document.getElementById('offer-link-state-badge');
@@ -4730,9 +4758,8 @@ function renderOfferPreview(offer){
   el.innerHTML=`<div class="offer-doc">
     <div class="offer-doc-header">
       <div class="offer-doc-brand">
-        <div class="offer-doc-logo"><img src="voxera-logo-dark.svg" alt="Voxera"/></div>
+        <div class="offer-doc-logo"><img src="${BRAND_LOGO_PATH}" alt="Voxera Logo"/></div>
         <div>
-      <div class="offer-doc-brand-title">Voxera</div>
       <div class="offer-doc-brand-sub">Offerte</div>
         </div>
       </div>
@@ -4827,6 +4854,15 @@ async function sendOffer(){
     return;
   }
   await saveOffer();
+  const recipient=String(offer.sentToEmail||offer.email||'').trim();
+  if(!isValidEmailAddress(recipient)){
+    offer.deliveryStatus='failed';
+    setOfferSendFeedback('failed','Senden fehlgeschlagen: Ungültige Empfänger-E-Mail. Bitte korrigieren und erneut senden.');
+    showToast('Empfänger-E-Mail ungültig.');
+    return;
+  }
+  offer.deliveryStatus='sending';
+  setOfferSendFeedback('sending',`Sende Offerte an ${recipient} …`);
   try{
     const overrides={};
     if(String(offer.sentToEmail||'').trim()) overrides.to_email=String(offer.sentToEmail).trim();
@@ -4840,6 +4876,7 @@ async function sendOffer(){
     offer.sentAt=nowIso;
     offer.sentToEmail=sentTo;
     offer.deliveryStatus='sent';
+    offer.publicToken=resp?.data?.public_token||offer.publicToken||'';
     if(authClient){
       const {error:updateErr}=await authClient
         .from('offers')
@@ -4854,9 +4891,14 @@ async function sendOffer(){
         .eq('id',offer.id);
       if(updateErr) throw new Error(updateErr.message||'Offerte-Status konnte nicht gespeichert werden.');
     }
+    setOfferSendFeedback('success',`Erfolgreich versendet an ${sentTo}.`);
     showToast('✓ Offerte gesendet.');
     renderOffers();
-  }catch(e){ alert('Senden fehlgeschlagen: '+(e.message||e)); }
+  }catch(e){
+    offer.deliveryStatus='failed';
+    setOfferSendFeedback('failed',`Senden fehlgeschlagen (${e.message||e}). Erneut senden zum Retry.`);
+    alert('Senden fehlgeschlagen: '+(e.message||e));
+  }
 }
 async function duplicateOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
@@ -4889,16 +4931,12 @@ async function createContractFromOffer(){
 }
 function printOfferPdf(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
-  const source=document.getElementById('offer-preview');
-  const printRoot=document.getElementById('offer-print-template');
-  if(!source||!printRoot) return;
-  printRoot.innerHTML=source.innerHTML;
-  printRoot.style.display='block';
-  requestAnimationFrame(()=>{
-    window.print();
-    printRoot.style.display='none';
-    printRoot.innerHTML='';
-  });
+  const token=String(offer.publicToken||'').trim();
+  if(token){
+    window.open(`/offer-pdf.html?token=${encodeURIComponent(token)}`,'_blank','noopener');
+    return;
+  }
+  alert('PDF-Link ist noch nicht verfügbar. Bitte Offerte zuerst senden.');
 }
 
 // ─── Contract helpers ──────────────────────────────────────────────────────

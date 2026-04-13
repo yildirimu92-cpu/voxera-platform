@@ -13,6 +13,13 @@ const corsHeaders = {
 const response = (statusCode, payload) => ({ statusCode, headers: corsHeaders, body: JSON.stringify(payload) });
 
 const moneyChf = (value) => `CHF ${Number(value || 0).toFixed(2)}`;
+const isValidEmailAddress = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+const canonicalPlanValue = (value) => {
+  const key = String(value || '').trim().toLowerCase();
+  if (key === 'starter') return 'Starter';
+  if (key === 'business') return 'Business';
+  return 'Professional';
+};
 const formatDate = (value) => {
   if (!value) return '—';
   try { return new Date(value).toLocaleDateString('de-CH'); } catch (_) { return String(value); }
@@ -116,6 +123,7 @@ exports.handler = async (event) => {
 
   const sentToEmail = String(body.sent_to_email || offer.sent_to_email || offer.email || '').trim();
   if (!sentToEmail) return response(400, { error: 'Offerte hat keine Empfänger-E-Mail.' });
+  if (!isValidEmailAddress(sentToEmail)) return response(400, { error: 'Ungültige Empfänger-E-Mail.' });
   const subject = String(body.subject || offer.email_subject || '').trim();
 
   const outbox = await createOutboxEvent(sbAdmin, {
@@ -128,7 +136,7 @@ exports.handler = async (event) => {
       sent_to_email: sentToEmail,
       valid_until: offer.valid_until,
       total: offer.total,
-      plan: offer.plan,
+      plan: canonicalPlanValue(offer.plan),
       email_subject: subject || null
     },
     payloadSummary: `offer_sent_email -> ${sentToEmail}`,

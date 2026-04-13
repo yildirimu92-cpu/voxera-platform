@@ -26,8 +26,9 @@ function errorDiagnostic(step, error, context = {}) {
   };
 }
 
-const ALLOWED = new Set(['draft', 'sent', 'in_review', 'revision_requested', 'accepted', 'rejected', 'expired']);
-const FINAL = new Set(['accepted', 'rejected']);
+const LEGACY_TO_CANONICAL = { in_review: 'viewed', revision_requested: 'viewed', rejected: 'declined' };
+const ALLOWED = new Set(['draft', 'sent', 'viewed', 'accepted', 'declined', 'active', 'expired']);
+const FINAL = new Set(['accepted', 'declined', 'active', 'expired']);
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
@@ -48,7 +49,8 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungültiger Request Body' }); }
 
   const offerId = String(body.offer_id || '').trim();
-  const targetStatus = String(body.status || '').trim().toLowerCase();
+  const requestedStatus = String(body.status || '').trim().toLowerCase();
+  const targetStatus = LEGACY_TO_CANONICAL[requestedStatus] || requestedStatus;
   if (!offerId) return response(400, { error: 'offer_id fehlt' });
   if (!ALLOWED.has(targetStatus)) return response(400, { error: 'Ungültiger Offer-Status.' });
 
@@ -60,7 +62,7 @@ exports.handler = async (event) => {
   if (offerErr) return response(500, { error: 'Offer lookup failed', details: offerErr.message });
   if (!offer) return response(404, { error: 'Offerte nicht gefunden' });
 
-  const currentStatus = String(offer.status || '').toLowerCase() || 'draft';
+  const currentStatus = LEGACY_TO_CANONICAL[String(offer.status || '').toLowerCase()] || String(offer.status || '').toLowerCase() || 'draft';
   const nowIso = new Date().toISOString();
 
   if (FINAL.has(currentStatus) && targetStatus !== currentStatus) {
@@ -116,13 +118,13 @@ exports.handler = async (event) => {
     }
   }
 
-  if (targetStatus === 'rejected') {
+  if (targetStatus === 'declined') {
     if (currentStatus === 'accepted') {
       return response(409, { error: 'Akzeptierte Offerte ist final und kann nicht abgelehnt werden.' });
     }
     const { data, error } = await sbAdmin
       .from('offers')
-      .update({ status: 'rejected', rejected_at: offer.rejected_at || nowIso, updated_at: nowIso })
+      .update({ status: 'declined', rejected_at: offer.rejected_at || nowIso, updated_at: nowIso })
       .eq('id', offer.id)
       .select('*')
       .single();
@@ -135,7 +137,7 @@ exports.handler = async (event) => {
   }
 
   const patch = { status: targetStatus, updated_at: nowIso };
-  if (targetStatus !== 'rejected') patch.rejected_at = null;
+  if (targetStatus !== 'declined') patch.rejected_at = null;
   const { data, error } = await sbAdmin.from('offers').update(patch).eq('id', offer.id).select('*').single();
   if (error) return response(500, { error: 'Offer-Status konnte nicht gespeichert werden.', details: error.message });
 

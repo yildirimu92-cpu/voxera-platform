@@ -103,8 +103,8 @@ exports.handler = async (event) => {
       }
     });
   }
-  if (offerStatus !== 'sent') {
-    return response(409, { error: 'Offerte kann nur im Status sent akzeptiert werden.' });
+  if (!['sent', 'viewed'].includes(offerStatus)) {
+    return response(409, { error: 'Offerte kann nur im Status sent/viewed akzeptiert werden.' });
   }
 
   const nowIso = new Date().toISOString();

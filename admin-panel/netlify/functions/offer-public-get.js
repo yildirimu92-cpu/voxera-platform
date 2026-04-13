@@ -42,7 +42,15 @@ exports.handler = async (event) => {
 
   const status = String(offer.status || '').toLowerCase();
   const expired = isExpired(offer) || status === 'expired';
-  const blocked = ['rejected'].includes(status);
+  const nowIso = new Date().toISOString();
+  if (!expired && status === 'sent') {
+    await sbAdmin.from('offers').update({ status: 'viewed', viewed_at: nowIso, updated_at: nowIso }).eq('id', offer.id);
+    offer.status = 'viewed';
+  } else if (expired && status !== 'expired') {
+    await sbAdmin.from('offers').update({ status: 'expired', updated_at: nowIso }).eq('id', offer.id);
+    offer.status = 'expired';
+  }
+  const blocked = ['declined'].includes(String(offer.status || '').toLowerCase());
 
   if (expired || blocked) {
     return response(410, {
