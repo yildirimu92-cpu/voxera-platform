@@ -381,8 +381,6 @@ async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso
     contract,
     nowIso,
     startDate: String(offer.start_date || contract.start_date || nowIso.slice(0, 10)).slice(0, 10),
-    setupFeeAmount: Number(offer.setup_fee ?? null),
-    monthlyAmount: Number(offer.monthly_price ?? null),
     forceActiveSubscription: false
   });
 

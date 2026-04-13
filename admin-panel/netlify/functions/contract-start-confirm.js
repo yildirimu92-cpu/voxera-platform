@@ -95,19 +95,6 @@ exports.handler = async (event) => {
   if (customerError) return response(500, { error: 'Customer lookup failed.', step_failed: 'customer_lookup', contract_id: contractId, customer_id: customerId, ...dbDiag(customerError) });
   if (!customer) return response(404, { error: 'Customer nicht gefunden.' });
 
-  let offerForBilling = null;
-  if (contract.offer_id) {
-    const { data: offer, error: offerErr } = await sbAdmin
-      .from('offers')
-      .select('id, setup_fee, monthly_price, yearly_price, billing_cycle')
-      .eq('id', contract.offer_id)
-      .maybeSingle();
-    if (offerErr) {
-      return response(500, { error: 'Offer lookup failed.', step_failed: 'offer_lookup', contract_id: contractId, customer_id: customerId, ...dbDiag(offerErr) });
-    }
-    offerForBilling = offer || null;
-  }
-
   const noticeMonths = String(contract.cancellation_notice || '') === '3 Monate' ? 3 : 1;
   const patch = {
     status: 'active',
@@ -134,18 +121,12 @@ exports.handler = async (event) => {
   let billing;
   let billingErrorPayload = null;
   try {
-    const billingCycle = String(updatedContract.billing_cycle || offerForBilling?.billing_cycle || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
-    const recurringAmount = billingCycle === 'yearly'
-      ? (offerForBilling?.yearly_price ?? null)
-      : (offerForBilling?.monthly_price ?? null);
     billing = await orchestrateContractBilling({
       sbAdmin,
       customer,
       contract: updatedContract,
       nowIso,
       startDate,
-      setupFeeAmount: offerForBilling?.setup_fee ?? null,
-      monthlyAmount: recurringAmount,
       forceActiveSubscription: true
     });
   } catch (billingError) {
