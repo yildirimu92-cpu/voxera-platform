@@ -4604,43 +4604,6 @@ function unlinkOfferCustomer(){
   renderOfferPreview(offer);
   showToast('Verknüpfung gelöst. Zum Speichern bitte "Speichern" klicken.');
 }
-async function createCustomerFromOffer(){
-  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
-  if(!offer) return;
-  if(isFinalOfferStatus(offer.status)){
-    alert('Finale Offerten sind gesperrt. Bitte Offerte duplizieren.');
-    return;
-  }
-  if(offer.customerId){
-    showToast('Offerte ist bereits verknüpft.');
-    return;
-  }
-  offerFieldChanged();
-  offer.__createCustomerPending=true;
-  hydrateOfferLinkActions(offer);
-  try{
-    const json=await callAdminFunction('offer-link-customer',{offer_id:offer.id});
-    const customer=json?.customer||null;
-    if(!customer?.id) throw new Error('Kein Kunde zurückgegeben.');
-    offer.customerId=String(customer.id);
-    applyCustomerSnapshotToOffer(offer,customer);
-    const existingIdx=state.customers.findIndex(c=>idsEq(c.id,customer.id));
-    if(existingIdx>=0) state.customers[existingIdx]={...state.customers[existingIdx],...customer};
-    else state.customers.unshift(customer);
-    if(authClient){
-      const payload=buildOfferDbPayload(offer);
-      const {error:updateErr}=await authClient.from('offers').update(payload).eq('id',offer.id);
-      if(updateErr) throw new Error(updateErr.message||'Offer konnte nicht gespeichert werden.');
-    }
-    openOfferDetail(offer.id,true);
-    showToast(json?.linked_existing?'✓ Bestehender Kunde verknüpft.':'✓ Kunde erstellt und verknüpft.');
-  }catch(e){
-    alert('Kunde konnte nicht verknüpft/erstellt werden: '+(e?.message||e));
-  }finally{
-    offer.__createCustomerPending=false;
-    hydrateOfferLinkActions(offer);
-  }
-}
 function hydrateOfferPlanSelect(selected){
   const el=document.getElementById('offer-plan');
   if(!el) return;
@@ -7123,7 +7086,7 @@ function setCustomerDangerSubmitting(isSubmitting){
 }
 
 function closeProfileRelatedLayersForDanger(){
-  ['customer-profile-modal','case-capture-modal'].forEach(id=>{
+  ['customer-profile-modal','case-capture-modal','edit-customer-modal','send-access-modal'].forEach(id=>{
     const modal=document.getElementById(id);
     if(modal) modal.classList.remove('open');
   });
@@ -8415,11 +8378,11 @@ async function loadPlanConfig() {
       .select('*')
       .order('sort_order', { ascending: true });
     if (error || !data) return;
-    _planConfigData = data.map(p=>({
+    _planConfigData = data.map((p,index)=>({
       ...p,
       id: normalizePlanCode(p.id),
       plan_key: normalizePlanCode(p.id),
-      plan_label: String(p.plan_label || p.name || p.id || '').trim() || normalizePlanCode(p.id)
+      plan_label: String(p.plan_label || '').trim() || `Paket ${index+1}`
     }));
 
     Object.keys(PLAN_PRICES).forEach(k=>delete PLAN_PRICES[k]);
@@ -8452,7 +8415,7 @@ function renderPlanConfigRows() {
           <div class="plan-card-title">Paket ${index+1}</div>
           <div class="plan-field" style="margin-top:8px;max-width:320px;">
             <label>Finaler Paketname (Quelle für Anzeige)</label>
-            <input class="input plan-input-lg" value="${esc(p.plan_label||p.name||p.id)}" data-field="plan_label" placeholder="z. B. Pilot">
+            <input class="input plan-input-lg" value="${esc(p.plan_label||'')}" data-field="plan_label" placeholder="z. B. Pilot">
           </div>
           <div class="plan-sort-wrap">
             <span class="muted">Sortierung</span>
