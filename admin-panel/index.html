@@ -341,15 +341,24 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .tab-panel{display:none;}
 .tab-panel.active{display:block;}
 
-/* ─── Profile Tabs ─────────────────────────────────────────────── */
-.profile-tabs{display:flex;gap:2px;background:var(--line2);border:1px solid var(--line);padding:3px;border-radius:var(--r-lg);margin-bottom:14px;width:fit-content;}
+/* ─── Profile Experience ───────────────────────────────────────── */
+.profile-shell{display:flex;flex-direction:column;gap:14px;}
+.profile-header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-lg);background:linear-gradient(145deg,#FFFFFF 0%,#F8FBFF 100%);}
+.profile-header-title{margin:0;font-size:20px;line-height:1.15;color:var(--ink);}
+.profile-header-sub{margin-top:6px;font-size:12px;color:var(--slate2);}
+.profile-header-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.profile-meta-line{margin-top:8px;font-size:12px;color:var(--slate);}
+.profile-quick-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;}
+.profile-action-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);}
+.profile-health-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;}
+.profile-health-item{padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);}
+.profile-health-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);}
+.profile-health-value{margin-top:6px;font-size:12px;font-weight:600;color:var(--ink);}
+.profile-tabs{display:flex;gap:2px;background:var(--line2);border:1px solid var(--line);padding:3px;border-radius:var(--r-lg);margin-bottom:2px;width:fit-content;}
 .profile-tab{padding:6px 12px;border:none;border-radius:var(--r);background:transparent;font-size:12px;font-weight:500;color:var(--slate);cursor:pointer;transition:all var(--fast);}
 .profile-tab.active{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow-xs);}
 .profile-panel{display:none;}
 .profile-panel.active{display:block;}
-.profile-action-stack{display:flex;flex-direction:column;gap:10px;}
-.profile-action-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
-.profile-action-buttons .btn{width:100%;justify-content:center;min-height:34px;height:auto;white-space:normal;line-height:1.25;padding-top:8px;padding-bottom:8px;}
 .profile-overview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px;}
 .profile-info-card{padding:14px 16px;}
 .profile-info-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);}
@@ -358,8 +367,11 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .profile-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px;}
 .profile-section-head h4{margin:0;font-size:13px;font-weight:700;color:var(--ink);}
 .profile-section-copy{margin:0;font-size:12px;color:var(--slate);}
-.profile-danger-card{border-color:var(--red-mid);background:#fff;}
-.profile-danger-card .profile-section-head h4{color:var(--red);}
+.profile-action-cluster{display:flex;flex-direction:column;gap:10px;}
+.profile-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.profile-action-grid .btn,.profile-action-bar .btn{width:100%;justify-content:center;min-height:34px;height:auto;white-space:normal;line-height:1.25;padding-top:8px;padding-bottom:8px;}
+.profile-danger-zone{border-color:var(--red-mid);background:#fff;}
+.profile-danger-zone .profile-section-head h4{color:var(--red);}
 .list-toolbar{display:grid;grid-template-columns:minmax(0,1.25fr) auto;gap:8px;align-items:center;margin-bottom:10px;}
 
 /* ─── Detail items ─────────────────────────────────────────────── */
@@ -624,8 +636,10 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   #customer-profile-modal .modal{padding-bottom:calc(max(18px,var(--safe-bottom)) + 2px);}
   #customer-profile-modal .modal-top .btn{width:auto;}
   #customer-profile-modal .profile-panel{padding-bottom:4px;}
-  #customer-profile-modal .profile-action-buttons{grid-template-columns:1fr;}
-  #customer-profile-modal .profile-action-buttons .btn{min-height:40px;}
+  #customer-profile-modal .profile-action-bar{grid-template-columns:1fr 1fr;}
+  #customer-profile-modal .profile-health-strip{grid-template-columns:1fr 1fr;}
+  #customer-profile-modal .profile-action-grid{grid-template-columns:1fr;}
+  #customer-profile-modal .profile-action-grid .btn,#customer-profile-modal .profile-action-bar .btn{min-height:40px;}
   #customer-profile-modal .profile-overview-grid,.list-toolbar{grid-template-columns:1fr;}
 
   /* ─── Section head ─── */
@@ -2018,24 +2032,22 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 
 <!-- CUSTOMER PROFILE MODAL -->
 <div class="modal-overlay" id="customer-profile-modal" onclick="if(event.target===this)closeCustomerProfile()">
-  <div class="modal" style="max-width:680px;">
-    <div class="modal-top">
-      <div>
-        <div class="modal-title" id="profile-title">Kundendossier</div>
-        <div class="modal-sub" id="profile-sub"></div>
+  <div class="modal" style="max-width:820px;">
+    <div class="profile-shell">
+      <div class="profile-header" id="profile-header"></div>
+      <div class="profile-action-bar" id="profile-primary-actions"></div>
+      <div class="profile-health-strip" id="profile-health-strip"></div>
+
+      <!-- TABS -->
+      <div class="profile-tabs" id="profile-tabs">
+        <button class="profile-tab active" data-profile-tab="uebersicht">Übersicht</button>
+        <button class="profile-tab" data-profile-tab="aktionen">Aktionen</button>
+        <button class="profile-tab" data-profile-tab="onboarding">Onboarding</button>
+        <button class="profile-tab" data-profile-tab="rechnungen">Rechnungen</button>
+        <button class="profile-tab" data-profile-tab="cases">Cases</button>
+        <button class="profile-tab" data-profile-tab="notizen">Notizen</button>
+        <button class="profile-tab" data-profile-tab="vertraege">Verträge</button>
       </div>
-      <button class="btn btn-quiet" onclick="closeCustomerProfile()">Schließen</button>
-    </div>
-    <!-- TABS -->
-    <div class="profile-tabs" id="profile-tabs">
-      <button class="profile-tab active" data-profile-tab="uebersicht">Übersicht</button>
-      <button class="profile-tab" data-profile-tab="aktionen">Aktionen</button>
-      <button class="profile-tab" data-profile-tab="onboarding">Onboarding</button>
-      <button class="profile-tab" data-profile-tab="rechnungen">Rechnungen</button>
-      <button class="profile-tab" data-profile-tab="cases">Cases</button>
-      <button class="profile-tab" data-profile-tab="notizen">Notizen</button>
-      <button class="profile-tab" data-profile-tab="vertraege">Verträge</button>
-    </div>
 
     <!-- TAB: ÜBERSICHT -->
     <div class="profile-panel active" data-profile-panel="uebersicht">
@@ -6001,132 +6013,139 @@ function openCustomerProfile(id){
   state.selectedCustomer=id;
   setTimeout(()=>renderProfileMinutes(id), 50);
   const onboard=onboardingForCustomer(id);
-  const snapshot=deriveOnboardingSnapshot(id);
   const setupProgress=getCustomerSetupProgress(c,onboard);
   const lifecycleStatus=getCustomerLifecycleStatus(c,onboard);
+  const lifecycleLabel=getCustomerLifecycleStatusLabel(c,onboard);
   const actionState=getCustomerQuickActionState(c,onboard);
-  const missingSteps=snapshot?.missingSteps||state.checklist.filter(step=>!(c.onboardingSteps||[]).includes(step));
+  const q=buildOnboardingQueueItem(id);
+  const nextStep=q.operationalNextStep||deriveOperationalNextStep(q.snapshot);
+  const paymentPaid=isPaymentPaid(c);
+  const contractCount=state.contracts.filter(ct=>idsEq(ct.customerId,id)).length;
+  const activeContractCount=state.contracts.filter(ct=>idsEq(ct.customerId,id)&&(ct.status==='active'||ct.status==='signed')).length;
+  const customerCases=state.cases.filter(x=>idsEq(x.customerId,id));
+  const openCases=customerCases.filter(ca=>String(ca.status||'').toLowerCase()!==CASE_STATUS.DONE).length;
+  const canSend=actionState.showSendAccess&&!actionState.sendAccessDisabled;
 
-  // Header
-  document.getElementById('profile-title').textContent=c.name||c.customer_name||'Kunde';
-  document.getElementById('profile-sub').textContent=`${planLabel(c.plan_code||c.plan)} · ${getCustomerLifecycleStatusLabel(c,onboard)}`;
+  const header=document.getElementById('profile-header');
+  if(header) header.innerHTML=`
+    <div>
+      <h2 class="profile-header-title">${esc(c.name||c.customer_name||'Kunde')}</h2>
+      <div class="profile-header-sub">${esc(planLabel(c.plan_code||c.plan))} · ${esc(c.email||'Keine E-Mail hinterlegt')}</div>
+      <div class="profile-header-meta">
+        ${getCustomerLifecycleBadge(c,onboard)}
+        ${paymentStatusBadge(c.payment_status)}
+        ${toneBadge(inviteStatusLabel(c.invite_status||'not_sent'))}
+      </div>
+      <div class="profile-meta-line">${esc(contactDisplay(c)||'Kein Kontakt')} · ${esc(c.tel_nr||'Kein Telefon')} · ${esc(c.city||'—')}</div>
+    </div>
+    <div class="profile-quick-actions">
+      <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+      <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">PW-Reset</button>
+      <button class="btn btn-quiet" onclick="closeCustomerProfile()">Schließen</button>
+    </div>`;
 
-  // ─── TAB: ÜBERSICHT ──────────────────────────────────────
+  const primaryActions=document.getElementById('profile-primary-actions');
+  if(primaryActions) primaryActions.innerHTML=`
+    <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+    <button class="btn btn-secondary" onclick="openCustomerOnboarding('${jsStr(id)}');closeCustomerProfile()">Onboarding öffnen</button>
+    <button class="btn btn-secondary" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">Finance öffnen</button>
+    <button class="btn btn-quiet" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Vertrag / Rechnungen</button>`;
+
+  const healthStrip=document.getElementById('profile-health-strip');
+  if(healthStrip) healthStrip.innerHTML=`
+    <div class="profile-health-item"><div class="profile-health-label">Lifecycle</div><div class="profile-health-value">${esc(lifecycleLabel)}</div></div>
+    <div class="profile-health-item"><div class="profile-health-label">Zugang</div><div class="profile-health-value">${esc(inviteStatusLabel(c.invite_status||'not_sent'))}</div></div>
+    <div class="profile-health-item"><div class="profile-health-label">Onboarding</div><div class="profile-health-value">${setupProgress}% · ${esc(nextStep||'—')}</div></div>
+    <div class="profile-health-item"><div class="profile-health-label">Finance</div><div class="profile-health-value">${esc(paymentStatusLabel(c.payment_status))}</div></div>
+    <div class="profile-health-item"><div class="profile-health-label">Vertrag</div><div class="profile-health-value">${activeContractCount||0} aktiv · ${contractCount||0} total</div></div>`;
+
+  const calls=state.calls.filter(call=>idsEq(call.customerId,c.id) && isCurrentMonthDate(call?.raw?.created_at));
+  const usage=getCustomerUsageMetrics(c);
+  const used=usage.used_minutes;
+  const incl=usage.included_minutes;
+  const pct=incl>0?Math.min(100,Math.round((used/incl)*100)):0;
+  const barColor=pct>=90?'#DC2626':pct>=70?'#D97706':'#059669';
+  const over=usage.overage_minutes>0;
+
   const uebersicht=document.getElementById('profile-uebersicht-content');
   if(uebersicht) uebersicht.innerHTML=`
     <div class="profile-overview-grid">
-      <div class="card profile-info-card"><div class="profile-info-label">Firma</div><div class="profile-info-value">${esc(c.name||c.customer_name||'—')}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Kontakt</div><div class="profile-info-value">${esc(contactDisplay(c))}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">E-Mail</div><div class="profile-info-value">${esc(c.email||'—')}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Telefon</div><div class="profile-info-value">${esc(c.tel_nr||'—')}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Plan</div><div class="profile-info-value">${esc(planLabel(c.plan_code||c.plan))}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Billing Cycle</div><div class="profile-info-value">${esc(c.subscription_billing_cycle_label||'—')}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Onboarding</div><div class="profile-info-value">${getCustomerLifecycleBadge(c,onboard)}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Billing Status</div><div class="profile-info-value">${paymentStatusBadge(c.payment_status)}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Voxera Nummer</div><div class="profile-info-value">${esc(c.voxera_number||c.voxera||'—')}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Adresse</div><div class="profile-info-value">${esc([c.street,c.zip,c.city,c.country].filter(Boolean).join(', ')||'—')}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Kunde seit</div><div class="profile-info-value">${c.created_at?new Date(c.created_at).toLocaleDateString('de-CH'):'—'}</div></div>
-      <div class="card profile-info-card"><div class="profile-info-label">Kunden-ID</div><div class="profile-info-value" style="font-family:monospace;font-size:11px;">${esc(c.id||'—')}</div></div>
+      <div class="card profile-info-card"><div class="profile-info-label">Company & Kontakt</div><div class="profile-info-value">${esc(c.name||c.customer_name||'—')}<br><span class="muted">${esc(contactDisplay(c)||'—')}</span></div></div>
+      <div class="card profile-info-card"><div class="profile-info-label">Access & Auth</div><div class="profile-info-value">${esc(c.email||'—')}<br><span class="muted">Invite: ${esc(inviteStatusLabel(c.invite_status||'not_sent'))}</span></div></div>
+      <div class="card profile-info-card"><div class="profile-info-label">Contract / Subscription</div><div class="profile-info-value">${esc(planLabel(c.plan_code||c.plan))} · ${esc(c.subscription_billing_cycle_label||'—')}<br><span class="muted">Aktive Verträge: ${activeContractCount}</span></div></div>
+      <div class="card profile-info-card"><div class="profile-info-label">Onboarding Summary</div><div class="profile-info-value">${setupProgress}%<br><span class="muted">Nächster Schritt: ${esc(nextStep||'—')}</span>${onboard?.blocker?`<br><span style="color:var(--red);">Blocker: ${esc(onboard.blocker)}</span>`:''}</div></div>
+      <div class="card profile-info-card"><div class="profile-info-label">Finance Summary</div><div class="profile-info-value">${esc(paymentStatusLabel(c.payment_status))}<br><span class="muted">${paymentPaid?'Setup bezahlt':'Setup offen (Warnung)'}</span></div></div>
+      <div class="card profile-info-card"><div class="profile-info-label">Latest Events</div><div class="profile-info-value">${esc(c.latest||'—')}<br><span class="muted">Kunde seit ${c.created_at?new Date(c.created_at).toLocaleDateString('de-CH'):'—'}</span></div></div>
     </div>
-    ${(()=>{
-      const calls=state.calls.filter(call=>idsEq(call.customerId,c.id) && isCurrentMonthDate(call?.raw?.created_at));
-      const usage=getCustomerUsageMetrics(c);
-      const used=usage.used_minutes;
-      const incl=usage.included_minutes;
-      const pct=incl>0?Math.min(100,Math.round((used/incl)*100)):0;
-      const barColor=pct>=90?'#DC2626':pct>=70?'#D97706':'#059669';
-      const over=usage.overage_minutes>0;
-      return `<div class="card profile-section-card">
-        <div class="card-head" style="margin-bottom:8px;"><h3 style="font-size:13px;">Minuten-Verbrauch (aktueller Monat)</h3><span id="profile-minutes-badge" class="badge ${over?'badge-red':pct>=70?'badge-amber':'badge-green'}">${pct}%</span></div>
-        <div style="height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:6px;">
-          <div id="profile-minutes-bar" style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .4s;"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);">
-          <span id="profile-minutes-used" style="color:${over?'var(--red)':'inherit'};font-weight:${over?'600':'400'}">${used} Min. verbraucht (Monat)</span>
-          <span id="profile-minutes-included">${incl} Min. inklusive (${esc(planLabel(c.plan_code||c.plan))})</span>
-        </div>
-        <div id="profile-minutes-overage" style="font-size:11px;color:${over?'var(--red)':'var(--slate2)'};margin-top:4px;">Überzug: ${usage.overage_minutes} Min · ${moneyChf(usage.overage_amount)}</div>
-        <div style="font-size:11px;color:var(--slate2);margin-top:4px;">${calls.length} Anruf${calls.length!==1?'e':''} erfasst</div>
-      </div>`;
-    })()}`;
+    <div class="card profile-section-card">
+      <div class="card-head" style="margin-bottom:8px;"><h3 style="font-size:13px;">Minuten-Verbrauch (aktueller Monat)</h3><span id="profile-minutes-badge" class="badge ${over?'badge-red':pct>=70?'badge-amber':'badge-green'}">${pct}%</span></div>
+      <div style="height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:6px;">
+        <div id="profile-minutes-bar" style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .4s;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);">
+        <span id="profile-minutes-used" style="color:${over?'var(--red)':'inherit'};font-weight:${over?'600':'400'}">${used} Min. verbraucht (Monat)</span>
+        <span id="profile-minutes-included">${incl} Min. inklusive (${esc(planLabel(c.plan_code||c.plan))})</span>
+      </div>
+      <div id="profile-minutes-overage" style="font-size:11px;color:${over?'var(--red)':'var(--slate2)'};margin-top:4px;">Überzug: ${usage.overage_minutes} Min · ${moneyChf(usage.overage_amount)}</div>
+      <div style="font-size:11px;color:var(--slate2);margin-top:4px;">${calls.length} Anruf${calls.length!==1?'e':''} erfasst · Kunden-ID ${esc(c.id||'—')}</div>
+    </div>`;
 
-  // ─── TAB: AKTIONEN ───────────────────────────────────────
   const aktionen=document.getElementById('profile-aktionen-content');
   if(aktionen){
-    const canSend=actionState.showSendAccess&&!actionState.sendAccessDisabled;
-    const paymentPaid=isPaymentPaid(c);
     aktionen.innerHTML=`
-      <div class="profile-action-stack">
+      <div class="profile-action-cluster">
         <div class="card profile-section-card">
-          <div class="profile-section-head"><h4>Primäre Aktionen</h4><p class="profile-section-copy">Kernaktionen für tägliche Bedienung.</p></div>
-          <div class="profile-action-buttons">
-            <button class="btn btn-primary" onclick="closeCustomerProfile();openEditCustomerModal('${jsStr(id)}')">
-              Bearbeiten
-            </button>
-            <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">
-              Zugang senden
-            </button>
+          <div class="profile-section-head"><h4>Zugang & Login</h4><p class="profile-section-copy">Direkter Zugriff und Identitätsaktionen.</p></div>
+          <div class="profile-action-grid">
+            <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+            <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">PW-Reset senden</button>
           </div>
           ${!canSend?`<div class="muted" style="margin-top:8px;font-size:12px;">Zugang senden blockiert: ${esc(actionState.sendAccessTooltip||'Pflichtdaten prüfen')}</div>`:''}
-          ${paymentPaid?'<div class="muted" style="margin-top:8px;font-size:12px;color:var(--green);">Setup-Gebühr bezahlt.</div>':'<div class="muted" style="margin-top:8px;font-size:12px;color:var(--amber);">Setup-Gebühr noch offen.</div>'}
         </div>
         <div class="card profile-section-card">
-          <div class="profile-section-head"><h4>Sekundäre Aktionen</h4><p class="profile-section-copy">Finance, Lifecycle und Produktivitätsaktionen.</p></div>
-          <div class="card-title" style="margin-bottom:10px;">Billing (Invoice-driven)</div>
-          <div class="muted" style="font-size:12px;margin-bottom:10px;">Status: ${esc(paymentStatusLabel(c.payment_status))}</div>
-          <div class="muted" style="font-size:12px;margin-bottom:10px;">Operative Billing-Aktionen laufen über Rechnungen im Finance-Bereich.</div>
-          <div class="profile-action-buttons">
-            <button class="btn btn-secondary" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">
-              Finance öffnen
-            </button>
-            <button class="btn btn-quiet" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">
-              Offene Rechnungen anzeigen
-            </button>
+          <div class="profile-section-head"><h4>Kunde verwalten</h4><p class="profile-section-copy">Stammdaten, Lifecycle, operative Tasks.</p></div>
+          <div class="profile-action-grid">
+            <button class="btn btn-secondary" onclick="closeCustomerProfile();openEditCustomerModal('${jsStr(id)}')">Bearbeiten</button>
+            <button class="btn btn-secondary" onclick="toggleCustomerStatus('${jsStr(id)}');closeCustomerProfile()">${lifecycleStatus==='paused'?'▶ Reaktivieren':'⏸ Pausieren'}</button>
+            <button class="btn btn-secondary" onclick="openCaseCaptureModal('${jsStr(id)}')">Anliegen erfassen</button>
+            <button class="btn btn-quiet" onclick="openCustomerAiSetup('${jsStr(id)}')">AI konfigurieren</button>
           </div>
         </div>
         <div class="card profile-section-card">
-          <div class="card-title" style="margin-bottom:10px;">Kommunikation</div>
-          <div class="profile-action-buttons">
-            <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">
-              PW-Reset senden
-            </button>
-            <button class="btn btn-secondary" onclick="toggleCustomerStatus('${jsStr(id)}');closeCustomerProfile()">
-              ${lifecycleStatus==='paused'?'▶ Reaktivieren':'⏸ Pausieren'}
-            </button>
-            <button class="btn btn-secondary" onclick="openCaseCaptureModal('${jsStr(id)}')">
-               Anliegen erfassen
-            </button>
-            <button class="btn btn-quiet" onclick="openCustomerAiSetup('${jsStr(id)}')">
-               AI konfigurieren
-            </button>
+          <div class="profile-section-head"><h4>Vertrag & Billing</h4><p class="profile-section-copy">Finance-Navigation und Rechnungsflows.</p></div>
+          <div class="profile-action-grid">
+            <button class="btn btn-secondary" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">Finance öffnen</button>
+            <button class="btn btn-quiet" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Rechnungen filtern</button>
+            <button class="btn btn-quiet" onclick="closeCustomerProfile();openContractWizard('${jsStr(id)}')">Neuen Vertrag starten</button>
           </div>
         </div>
-        <div class="card profile-section-card profile-danger-card">
-          <div class="profile-section-head"><h4>Destruktive Aktionen</h4><p class="profile-section-copy">Nur bei klarer Entscheidung ausführen.</p></div>
-          <div class="profile-action-buttons">
-            <button class="btn btn-secondary" onclick="openCustomerDangerModal('${jsStr(id)}','archive')">
-              Archivieren
-            </button>
-            <button class="btn btn-danger" onclick="openCustomerDangerModal('${jsStr(id)}','delete')">
-              Endgültig löschen
-            </button>
+        <div class="card profile-section-card">
+          <div class="profile-section-head"><h4>Support / Eskalation</h4><p class="profile-section-copy">Offene Fälle priorisieren und operativ handeln.</p></div>
+          <div class="muted" style="font-size:12px;margin-bottom:10px;">${openCases} offene Cases · ${customerCases.length} total</div>
+          <div class="profile-action-grid">
+            <button class="btn btn-secondary" onclick="openCaseCaptureModal('${jsStr(id)}')">Case erfassen</button>
+            <button class="btn btn-quiet" onclick="document.querySelector('#customer-profile-modal .profile-tab[data-profile-tab=\'cases\']')?.click()">Zu Cases wechseln</button>
+          </div>
+        </div>
+        <div class="card profile-section-card profile-danger-zone">
+          <div class="profile-section-head"><h4>Destruktive Aktionen</h4><p class="profile-section-copy">Immer isoliert und eindeutig bestätigt.</p></div>
+          <div class="profile-action-grid">
+            <button class="btn btn-secondary" onclick="openCustomerDangerModal('${jsStr(id)}','archive')">Archivieren</button>
+            <button class="btn btn-danger" onclick="openCustomerDangerModal('${jsStr(id)}','delete')">Endgültig löschen</button>
           </div>
         </div>
       </div>`;
   }
 
-  // ─── TAB: ONBOARDING ─────────────────────────────────────
   const obContent=document.getElementById('profile-onboarding-content');
   if(obContent){
-    // Use buildOnboardingQueueItem for auto-detected steps
-    const q=buildOnboardingQueueItem(id);
     const missingSetProfile=new Set(q.missingSteps||[]);
     const checklistHtml=state.checklist.map(step=>{
       const isDone=!missingSetProfile.has(step);
       const svgDone='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const svgOpen='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="#9CA3AF" stroke-width="1"/></svg>';
       const stepAction=isDone?'':getOnboardingStepAction(step,id);
-      return `<div class="list-item" style="opacity:${isDone?1:0.6};">
+      return `<div class="list-item" style="opacity:${isDone?1:0.7};">
         <span style="margin-right:8px;">${isDone?svgDone:svgOpen}</span>
         <div><div class="list-main" style="text-decoration:${isDone?'line-through':'none'}">${esc(checklistDisplayLabel(step))}</div></div>
         ${stepAction}
@@ -6134,33 +6153,33 @@ function openCustomerProfile(id){
     }).join('');
     obContent.innerHTML=`
       <div class="card" style="padding:16px 18px;margin-bottom:12px;">
-        <div class="detail-item" style="border:none;"><span class="detail-k">Fortschritt</span><span class="detail-v">${setupProgress}%</span></div>
-        <div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0;">
-          <div style="height:100%;width:${setupProgress}%;background:var(--blue);border-radius:4px;transition:width .3s;"></div>
-        </div>
-        <div class="detail-item" style="border:none;margin-top:4px;"><span class="detail-k">Nächster Schritt</span><span class="detail-v">${esc(q.operationalNextStep||deriveOperationalNextStep(q.snapshot))}</span></div>
-        ${onboard?.blocker?`<div class="detail-item" style="border:none;"><span class="detail-k">Blocker</span><span class="detail-v" style="color:var(--red);">${esc(onboard.blocker)}</span></div>`:''}
+        <div class="detail-item"><span class="detail-k">Current Stage</span><span class="detail-v">${esc(normalizeOnboardingStatus(onboard?.status||'pending'))}</span></div>
+        <div class="detail-item" style="border:none;"><span class="detail-k">Readiness</span><span class="detail-v">${setupProgress}%</span></div>
+        <div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:${setupProgress}%;background:var(--blue);"></div></div>
+        <div class="detail-item"><span class="detail-k">Next Recommended Step</span><span class="detail-v">${esc(nextStep)}</span></div>
+        ${onboard?.blocker?`<div class="detail-item" style="border:none;"><span class="detail-k">Blockers</span><span class="detail-v" style="color:var(--red);">${esc(onboard.blocker)}</span></div>`:''}
       </div>
       <div class="list">${checklistHtml}</div>`;
   }
 
-  // ─── TAB: RECHNUNGEN ────────────────────────────────────
   const profileInvoices=document.getElementById('profile-invoices-content');
   if(profileInvoices){
     const customerInvoices=(state.invoices||[])
       .filter(inv=>idsEq(inv.customer_id||inv.customerId,id))
       .sort((a,b)=>(new Date(b.issued_at||b.created_at||0)).getTime()-(new Date(a.issued_at||a.created_at||0)).getTime());
-
     profileInvoices.innerHTML=`
       <div class="card" style="padding:12px 14px;margin-bottom:10px;">
-        <div class="inline-actions" style="flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-sm" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">Finance öffnen</button>
-          <button class="btn btn-quiet btn-sm" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Rechnungen im Finance filtern</button>
+        <div class="list-toolbar">
+          <div class="muted" style="font-size:12px;">${customerInvoices.length} Rechnung${customerInvoices.length!==1?'en':''} · Offene zuerst im Finance prüfen.</div>
+          <div class="inline-actions" style="justify-content:flex-end;">
+            <button class="btn btn-secondary btn-sm" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">Finance öffnen</button>
+            <button class="btn btn-quiet btn-sm" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Im Finance filtern</button>
+          </div>
         </div>
       </div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>Rechnung</th><th>Typ</th><th>Total</th><th>Status</th><th>Provider</th><th>Issued</th><th>Paid</th><th>Finance</th></tr></thead>
+          <thead><tr><th>Rechnung</th><th>Typ</th><th>Betrag</th><th>Status</th><th>Fällig</th><th>Aktion</th></tr></thead>
           <tbody>
             ${customerInvoices.map(inv=>`
               <tr>
@@ -6168,28 +6187,28 @@ function openCustomerProfile(id){
                 <td>${esc(invoiceTypeLabel(classifyInvoiceType(inv.invoice_type||inv.type)))}</td>
                 <td>${esc(moneyChf(inv.total_amount||0))}</td>
                 <td>${invoiceStatusBadge(normalizeInvoiceStatus(inv.status,inv.due_at,inv.paid_at))}</td>
-                <td>${esc(invoiceProviderLabel(inv.billing_provider))}</td>
-                <td>${esc(formatDate(inv.issued_at))}</td>
-                <td>${esc(formatDate(inv.paid_at))}</td>
-                <td>
-                  <div class="inline-actions">
-                    <button class="btn btn-quiet btn-sm" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Im Finance bearbeiten</button>
-                  </div>
-                </td>
-              </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Keine Rechnungen vorhanden.</div></td></tr>'}
+                <td>${esc(formatDate(inv.due_at||inv.issued_at))}</td>
+                <td><button class="btn btn-quiet btn-sm" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Im Finance bearbeiten</button></td>
+              </tr>`).join('')||'<tr><td colspan="6"><div class="empty">Keine Rechnungen vorhanden.</div></td></tr>'}
           </tbody>
         </table>
       </div>`;
   }
 
-  // ─── TAB: CASES ──────────────────────────────────────────
   const profileCases=document.getElementById('profile-cases');
   if(profileCases){
-    const customerCases=state.cases.filter(x=>idsEq(x.customerId,id));
-    profileCases.innerHTML=customerCases.map(ca=>`<tr>
-      <td><strong>${esc(ca.title||ca.type||'—')}</strong></td>
+    const sortedCases=[...customerCases].sort((a,b)=>{
+      const aOpen=String(a.status||'').toLowerCase()!==CASE_STATUS.DONE;
+      const bOpen=String(b.status||'').toLowerCase()!==CASE_STATUS.DONE;
+      if(aOpen!==bOpen) return aOpen?-1:1;
+      const at=new Date(a.updated_at||a.created_at||0).getTime();
+      const bt=new Date(b.updated_at||b.created_at||0).getTime();
+      return bt-at;
+    });
+    profileCases.innerHTML=sortedCases.map(ca=>`<tr>
+      <td><strong>${esc(ca.title||ca.type||'—')}</strong><div class="muted">${esc(ca.type||'Standard')}</div></td>
       <td class="wrap">${esc(ca.note||ca.notes||'')}</td>
-      <td>${toneBadge(caseStatusLabel(ca.status))}</td>
+      <td>${toneBadge(caseStatusLabel(ca.status))}<div class="muted">Update ${esc(formatDate(ca.updated_at||ca.created_at))}</div></td>
       <td><button class="btn btn-quiet btn-sm" onclick="updateCase('${jsStr(ca.id)}','status','${CASE_STATUS.DONE}')">Erledigen</button></td>
     </tr>`).join('')||'<tr><td colspan="4"><div class="empty">Keine Cases.</div></td></tr>';
 
@@ -6197,7 +6216,6 @@ function openCustomerProfile(id){
     if(caseBtn) caseBtn.onclick=()=>openCaseCaptureModal(id);
   }
 
-  // ─── TAB: NOTIZEN ────────────────────────────────────────
   const profileNotes=document.getElementById('profile-notes');
   if(profileNotes){
     const notes=Array.isArray(c.notes)?c.notes:(c.notes?[c.notes]:[]);
@@ -6215,7 +6233,6 @@ function openCustomerProfile(id){
     if(profileNotes) profileNotes.innerHTML=c.notes.map(n=>`<div class="list-item"><div class="list-main">${esc(n)}</div></div>`).join('');
   };
 
-  // ─── TAB: VERTRÄGE ───────────────────────────────────────
   const profileContracts=document.getElementById('profile-contracts');
   if(profileContracts){
     const customerContracts=state.contracts.filter(ct=>idsEq(ct.customerId,id));
@@ -6237,7 +6254,6 @@ function openCustomerProfile(id){
   const contractCreateBtn=document.getElementById('profile-contract-create-btn');
   if(contractCreateBtn) contractCreateBtn.onclick=()=>{ closeCustomerProfile(); openContractWizard(id); };
 
-  // Tab-Switching aktivieren
   document.querySelectorAll('#customer-profile-modal .profile-tab').forEach(tab=>{
     tab.onclick=()=>{
       document.querySelectorAll('#customer-profile-modal .profile-tab').forEach(t=>t.classList.remove('active'));
@@ -6248,7 +6264,6 @@ function openCustomerProfile(id){
     };
   });
 
-  // Ersten Tab aktivieren
   document.querySelectorAll('#customer-profile-modal .profile-tab').forEach((tab,i)=>tab.classList.toggle('active',i===0));
   document.querySelectorAll('#customer-profile-modal .profile-panel').forEach((p,i)=>p.classList.toggle('active',i===0));
   document.getElementById('customer-profile-modal').classList.add('open');
@@ -7107,14 +7122,18 @@ function setCustomerDangerSubmitting(isSubmitting){
   else btn.textContent=isSubmitting?'Speichert…':'Bestätigen';
 }
 
+function closeProfileRelatedLayersForDanger(){
+  ['customer-profile-modal','case-capture-modal'].forEach(id=>{
+    const modal=document.getElementById(id);
+    if(modal) modal.classList.remove('open');
+  });
+}
+
 function openCustomerDangerModal(customerId,mode){
   const customer=customerById(customerId);
   if(!customer) return;
   closeAllActionMenus();
-  document.querySelectorAll('.modal-overlay.open').forEach(modal=>{
-    if(modal.id==='customer-danger-modal') return;
-    if(modal.id==='customer-profile-modal' || modal.id==='case-capture-modal') modal.classList.remove('open');
-  });
+  closeProfileRelatedLayersForDanger();
   state.customerDangerTargetId=customerId;
   state.customerDangerMode=mode;
   setCustomerDangerFeedback(null,'');
