@@ -4,12 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Voxera Admin</title>
-<link rel="icon" href="favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
-<link rel="apple-touch-icon" href="favicon-180.png">
+<link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
+<link rel="apple-touch-icon" href="/brand/05-app-icon-512px.svg">
 <meta name="theme-color" content="#1A56DB">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<script src="/shared/offer-brand.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -111,6 +110,9 @@ body{
 
 <script>
 'use strict';
+
+const BRAND_LOGO_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_LOGO_PATH)||'/brand/05-app-icon-512px.svg';
+const BRAND_FAVICON_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_FAVICON_PATH)||BRAND_LOGO_PATH;
 
 const SUPABASE_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';

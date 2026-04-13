@@ -5,13 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Voxera – Zugang aktivieren</title>
 
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
-<link rel="apple-touch-icon" href="/favicon-180.png">
+<link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
+<link rel="apple-touch-icon" href="/brand/05-app-icon-512px.svg">
 <meta name="theme-color" content="#1A56DB">
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<script src="/shared/offer-brand.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <style>
@@ -135,6 +134,9 @@ body{
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 'use strict';
+
+const BRAND_LOGO_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_LOGO_PATH)||'/brand/05-app-icon-512px.svg';
+const BRAND_FAVICON_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_FAVICON_PATH)||BRAND_LOGO_PATH;
 
 // ── Supabase-Konfiguration (öffentliche Anon-Key, identisch mit Dashboard) ──
 const SUPABASE_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
