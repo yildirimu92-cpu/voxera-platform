@@ -16,7 +16,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
-const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
 const { createInitialContractInvoice } = require('./_lib/invoice-service');
 
 const headers = {
@@ -34,12 +33,6 @@ function isDuplicateKeyError(error) {
   const code = String(error && error.code || '');
   const msg = String(error && error.message || '').toLowerCase();
   return code === '23505' || msg.includes('duplicate key value');
-}
-
-function money(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
-  return Number(n.toFixed(2));
 }
 
 exports.handler = async (event) => {
@@ -85,16 +78,11 @@ exports.handler = async (event) => {
 
     const { data: contract, error: contractError } = await sbAdmin
       .from('contracts')
-      .select('id, offer_id, plan')
+      .select('*')
       .eq('id', contract_id)
       .maybeSingle();
     if (contractError) throw new Error(`contract lookup failed: ${contractError.message}`);
     if (!contract) throw new Error('contract not found');
-
-    const { data: offer, error: offerError } = contract.offer_id
-      ? await sbAdmin.from('offers').select('id, setup_fee').eq('id', contract.offer_id).maybeSingle()
-      : { data: null, error: null };
-    if (offerError) throw new Error(`offer lookup failed: ${offerError.message}`);
 
     const { data: subscription, error: subscriptionError } = await sbAdmin
       .from('subscriptions')
@@ -103,18 +91,12 @@ exports.handler = async (event) => {
       .maybeSingle();
     if (subscriptionError) throw new Error(`subscription lookup failed: ${subscriptionError.message}`);
 
-    const planCode = normalizePlanCode(plan || contract.plan || customer.plan_code || customer.plan || (subscription && subscription.plan_code) || '');
-    const { plan: planConfig, error: planError } = await loadPlanByCode(sbAdmin, planCode);
-    if (planError) throw new Error(`plan_config lookup failed: ${planError.message}`);
-    if (!planConfig) throw new Error(`plan_config missing for ${planCode || 'unknown plan'}`);
-
-    const setupFeeAmount = money(offer?.setup_fee ?? planConfig.setup_fee_amount ?? 0);
     const initialInvoiceResult = await createInitialContractInvoice({
       sbAdmin,
       customer,
       contractId: contract_id,
+      contract,
       subscription,
-      setupFeeAmount,
       dueAt: null,
       notes: `Initial setup-fee draft invoice for contract ${contract_id}`
     });

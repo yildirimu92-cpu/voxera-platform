@@ -77,21 +77,24 @@ function contractAllowsBilling(contract) {
   return ['active', 'signed', 'pending_review', 'pending'].includes(normalized);
 }
 
-function resolveContractRecurringAmount({ contract, offer, planConfig }) {
-  const cycle = normalizeBillingCycle(contract?.billing_cycle || offer?.billing_cycle);
-  const fromContract = cycle === 'yearly'
-    ? (contract?.recurring_amount_yearly ?? contract?.yearly_amount ?? contract?.recurring_amount)
-    : (contract?.recurring_amount_monthly ?? contract?.monthly_amount ?? contract?.recurring_amount);
-  const fromOffer = cycle === 'yearly' ? offer?.yearly_price : offer?.monthly_price;
-  const fromPlan = cycle === 'yearly' ? planConfig?.price_yearly : planConfig?.price_monthly;
-  return {
-    cycle,
-    amount: money(fromContract ?? fromOffer ?? fromPlan ?? 0)
-  };
+function resolveContractRecurringAmountStrict(contract) {
+  const cycle = normalizeBillingCycle(contract?.billing_cycle);
+  const recurringAmount = cycle === 'yearly'
+    ? contract?.recurring_amount_yearly
+    : contract?.recurring_amount_monthly;
+  const amount = money(recurringAmount);
+  if (!(amount > 0)) {
+    throw new Error(`contract recurring price missing: contracts.${cycle === 'yearly' ? 'recurring_amount_yearly' : 'recurring_amount_monthly'} must be > 0 for ${cycle} invoices`);
+  }
+  return { cycle, amount };
 }
 
-function resolveContractSetupFeeAmount({ contract, offer, planConfig }) {
-  return money(contract?.setup_fee_amount ?? offer?.setup_fee ?? planConfig?.setup_fee_amount ?? 0);
+function resolveContractSetupFeeAmountStrict(contract) {
+  const amount = money(contract?.setup_fee_amount);
+  if (!(amount > 0)) {
+    throw new Error('contract setup fee missing: contracts.setup_fee_amount must be > 0');
+  }
+  return amount;
 }
 
 function toDateOnlyIso(value) {
@@ -350,7 +353,6 @@ async function createSetupFeeInvoice({
   contractId,
   contract = null,
   offerId = null,
-  planConfig = null,
   setupFeeAmount,
   billingProvider,
   status,
@@ -374,12 +376,10 @@ async function createSetupFeeInvoice({
       throw new Error(`contract status ${resolvedContract.status || 'unknown'} does not allow billing`);
     }
   }
-  const amount = resolveContractSetupFeeAmount({
-    contract: resolvedContract,
-    offer: null,
-    planConfig
-  }) || money(setupFeeAmount);
-  if (amount <= 0) throw new Error('setup fee amount must be > 0');
+  const amount = resolvedContract
+    ? resolveContractSetupFeeAmountStrict(resolvedContract)
+    : money(setupFeeAmount);
+  if (amount <= 0) throw new Error('setup fee invoice requires contract.setup_fee_amount > 0');
   const setupReference = externalReference || `setup_fee:${normalizedContractId}`;
 
   const { data: existingByReference } = await sbAdmin
@@ -432,8 +432,6 @@ async function createSubscriptionInvoice({
   contract = null,
   offerId = null,
   subscription,
-  planConfig,
-  offer = null,
   billingProvider,
   status,
   dueAt,
@@ -461,10 +459,10 @@ async function createSubscriptionInvoice({
   const resolvedOfferId = offerId || contract?.offer_id || null;
   const logManual = debugTag === 'manual_monthly_invoice';
   if (logManual) manualMonthlyLog('start', { customer_id: customer && customer.id ? customer.id : null });
-  const recurringPricing = resolveContractRecurringAmount({ contract, offer, planConfig });
+  const recurringPricing = resolveContractRecurringAmountStrict(contract);
   const cycle = recurringPricing.cycle;
   const baseAmount = recurringPricing.amount;
-  if (baseAmount <= 0) throw new Error('subscription price source missing or <= 0');
+  if (baseAmount <= 0) throw new Error('recurring invoice requires contract recurring amount > 0');
 
   const now = new Date();
   const computedStart = dateOnly(periodStartDate)
@@ -491,8 +489,8 @@ async function createSubscriptionInvoice({
   const usageResult = await loadUsageSummary(sbAdmin, {
     customerId: customer.id,
     periodStartIso: computedStart.toISOString(),
-    includedMinutes: Number(planConfig.minutes || 0),
-    extraRate: Number(planConfig.extra_rate || 0)
+    includedMinutes: Number(contract.included_minutes || 0),
+    extraRate: Number(contract.extra_per_minute || 0)
   });
 
   const overageAmount = usageResult.ok ? money(usageResult.usage.overage_amount) : 0;
@@ -500,7 +498,7 @@ async function createSubscriptionInvoice({
     {
       itemType: 'subscription_base',
       title: cycle === 'yearly' ? 'Subscription (jährlich)' : 'Subscription (monatlich)',
-      description: `${planConfig.plan_label || planConfig.name || planConfig.id || 'Plan'} · ${cycle}`,
+      description: `${contract.plan || 'Plan'} · ${cycle}`,
       quantity: 1,
       unitPrice: baseAmount,
       lineTotal: baseAmount,
@@ -514,7 +512,7 @@ async function createSubscriptionInvoice({
       title: 'Overage Minuten',
       description: usageResult.ok ? `${usageResult.usage.overage_minutes} zusätzliche Minuten` : 'Zusatzverbrauch',
       quantity: usageResult.ok ? usageResult.usage.overage_minutes : 1,
-      unitPrice: usageResult.ok ? numberOr(planConfig.extra_rate, 0) : overageAmount,
+      unitPrice: usageResult.ok ? numberOr(contract.extra_per_minute, 0) : overageAmount,
       lineTotal: overageAmount,
       metadata: usageResult.ok ? usageResult.usage : {}
     });
@@ -577,11 +575,13 @@ async function createSubscriptionInvoice({
   return invoice;
 }
 
-async function createInitialContractInvoice({ sbAdmin, customer, contractId, subscription, setupFeeAmount, dueAt, notes }) {
+async function createInitialContractInvoice({ sbAdmin, customer, contractId, contract = null, subscription, setupFeeAmount, dueAt, notes }) {
   const normalizedContractId = String(contractId || '').trim();
   if (!normalizedContractId) throw new Error('contractId is required');
 
-  const setupAmount = money(setupFeeAmount);
+  const setupAmount = contract
+    ? resolveContractSetupFeeAmountStrict(contract)
+    : money(setupFeeAmount);
   if (setupAmount <= 0) throw new Error('setup fee amount must be > 0');
 
   const externalReference = `initial_contract_invoice:${normalizedContractId}`;
@@ -959,15 +959,12 @@ async function ensureContractStartInvoices({
   customer,
   contract,
   subscription,
-  setupFeeAmount,
-  monthlyAmount,
   startDate
 }) {
   const cycle = normalizeBillingCycle(contract?.billing_cycle || subscription?.billing_cycle);
-  const setupAmount = money(setupFeeAmount);
-  const month1Amount = money(monthlyAmount);
-  if (setupAmount <= 0) throw new Error('setup fee amount missing or <= 0 from contract/offer pricing');
-  if (month1Amount <= 0) throw new Error('month 1 amount missing or <= 0 from contract/subscription pricing');
+  const setupAmount = resolveContractSetupFeeAmountStrict(contract);
+  const recurringPricing = resolveContractRecurringAmountStrict(contract);
+  const month1Amount = recurringPricing.amount;
   const setupReference = `setup_fee:${contract.id}`;
   const periodStart = `${startDate}T00:00:00.000Z`;
   const nextMonth = addCycleToDate(startDate, cycle);
@@ -1115,8 +1112,6 @@ async function ensureRecurringInvoiceForContract({
   customer,
   contract,
   subscription,
-  planConfig,
-  offer = null,
   force = false,
   status = 'draft',
   billingProvider = 'invoice',
@@ -1155,8 +1150,6 @@ async function ensureRecurringInvoiceForContract({
     contract,
     offerId: contract.offer_id || null,
     subscription,
-    planConfig,
-    offer,
     billingProvider,
     status,
     dueAt: `${periodStart}T00:00:00.000Z`,
@@ -1197,20 +1190,9 @@ async function runRecurringBillingSweep({ sbAdmin, limit = 200, now = new Date()
       results.push({ contract_id: contract.id, created: false, skipped: 'subscription_not_found' });
       continue;
     }
-    const offer = contract.offer_id
-      ? (await sbAdmin.from('offers').select('id, monthly_price, yearly_price, billing_cycle').eq('id', contract.offer_id).maybeSingle()).data
-      : null;
-    const planCode = String(contract.plan || subscription.plan_code || customer.plan_code || customer.plan || '').trim();
-    const planConfig = {
-      plan_label: planCode || 'Plan',
-      price_monthly: contract.recurring_amount ?? offer?.monthly_price ?? 0,
-      price_yearly: contract.recurring_amount ?? offer?.yearly_price ?? 0,
-      minutes: 0,
-      extra_rate: 0
-    };
     try {
       const ensured = await ensureRecurringInvoiceForContract({
-        sbAdmin, customer, contract, subscription, planConfig, offer
+        sbAdmin, customer, contract, subscription
       });
       results.push({ contract_id: contract.id, invoice_id: ensured.invoice?.id || null, created: Boolean(ensured.created), skipped: ensured.skipped || null });
     } catch (sweepError) {

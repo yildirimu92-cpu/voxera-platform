@@ -1,13 +1,6 @@
 'use strict';
 
 const { ensureContractStartInvoices, generateInvoicePdfPreview } = require('./invoice-service');
-const { normalizePlanCode, loadPlanByCode } = require('./plan-config');
-
-function money(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
-  return Number(n.toFixed(2));
-}
 
 function addMonthsDateIsoUtc(dateStr, months) {
   const base = new Date(`${dateStr}T00:00:00Z`);
@@ -286,23 +279,14 @@ async function ensureSubscriptionForContract({ sbAdmin, customer, contract, plan
   return subscription;
 }
 
-async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso, startDate, setupFeeAmount = null, monthlyAmount = null, forceActiveSubscription = false }) {
+async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso, startDate, forceActiveSubscription = false }) {
   const safeStartDate = String(startDate || contract.start_date || nowIso.slice(0, 10)).slice(0, 10);
-  const planCode = normalizePlanCode(contract.plan || customer.plan_code || customer.plan || '');
-  if (!planCode) throw new Error('plan code missing for billing orchestration');
-
-  const { plan: planConfig, error: planError } = await loadPlanByCode(sbAdmin, planCode);
-  if (planError) throw new Error(`plan lookup failed: ${planError.message}`);
-
-  const resolvedSetupFee = money(setupFeeAmount ?? planConfig?.setup_fee_amount ?? 0);
-  const resolvedMonthly = money(monthlyAmount ?? planConfig?.price_monthly ?? 0);
+  const planCode = String(contract.plan || customer.plan_code || customer.plan || '').trim().toLowerCase() || 'professional';
   billingDiag('orchestration_start', {
     contract_id: contract?.id || null,
     customer_id: customer?.id || null,
     subscription_id: customer?.subscription_id || contract?.subscription_id || null,
-    start_date: safeStartDate,
-    setup_fee_amount: resolvedSetupFee,
-    monthly_amount: resolvedMonthly
+    start_date: safeStartDate
   });
 
   const contractId = contract?.id || null;
@@ -339,8 +323,6 @@ async function orchestrateContractBilling({ sbAdmin, customer, contract, nowIso,
         customer,
         contract,
         subscription,
-        setupFeeAmount: resolvedSetupFee,
-        monthlyAmount: resolvedMonthly,
         startDate: safeStartDate
       });
       const setupInvoice = results?.setupInvoice?.invoice || null;
