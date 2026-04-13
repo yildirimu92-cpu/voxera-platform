@@ -3074,6 +3074,14 @@ function buildFollowUpMetaText(nextAction, followUpAt) {
   return '';
 }
 
+function fallbackCallSummary(fields) {
+  if (!fields) return '';
+  const lifecycle = String(fields.status || '').trim().toLowerCase();
+  if (lifecycle === 'started') return 'Anruf gestartet – Gesprächsdaten werden verarbeitet.';
+  if (lifecycle === 'abandoned') return 'Anruf beendet, bevor Gesprächsdaten vorlagen.';
+  return '';
+}
+
 if (typeof window !== 'undefined') {
   window.resolveFollowUpAt = resolveFollowUpAt;
   window.fmtFollowUpDateTime = fmtFollowUpDateTime;
@@ -4396,7 +4404,7 @@ function renderList(containerId, records, opts) {
     const callTarget = phoneLink || phoneRaw.replace(/\s/g,'');
     const notizText = (f.notes_customer_voxera || '').trim();
     const showActions = opts.showActions !== false;
-    const summary = (f.call_summary || '').trim();
+    const summary = (f.call_summary || fallbackCallSummary(f) || '').trim();
     const callSummary = opts.dashboardView ? summary.substring(0, 140) : summary;
 
     const incoming = recentIncomingIds.has(r.id);
