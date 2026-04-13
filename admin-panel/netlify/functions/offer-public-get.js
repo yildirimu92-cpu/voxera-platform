@@ -1,6 +1,7 @@
 'use strict';
 
 const { createClient } = require('@supabase/supabase-js');
+const { recordOfferEvent } = require('./_lib/offer-events');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -43,11 +44,15 @@ exports.handler = async (event) => {
   const status = String(offer.status || '').toLowerCase();
   const expired = isExpired(offer) || status === 'expired';
   const nowIso = new Date().toISOString();
+  if (!expired) {
+    await recordOfferEvent(sbAdmin,{ offer_id: offer.id, event_type: 'opened', event_at: nowIso, actor_type: 'public', actor_id: null, recipient_email: offer.email || null });
+  }
   if (!expired && status === 'sent') {
     await sbAdmin.from('offers').update({ status: 'viewed', viewed_at: nowIso, updated_at: nowIso }).eq('id', offer.id);
     offer.status = 'viewed';
   } else if (expired && status !== 'expired') {
-    await sbAdmin.from('offers').update({ status: 'expired', updated_at: nowIso }).eq('id', offer.id);
+    await sbAdmin.from('offers').update({ status: 'expired', expired_at: nowIso, updated_at: nowIso }).eq('id', offer.id);
+    await recordOfferEvent(sbAdmin,{ offer_id: offer.id, event_type: 'expired', event_at: nowIso, actor_type: 'system', actor_id: null });
     offer.status = 'expired';
   }
   const blocked = ['declined'].includes(String(offer.status || '').toLowerCase());

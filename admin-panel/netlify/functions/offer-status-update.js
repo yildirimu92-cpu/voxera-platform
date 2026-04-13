@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { acceptOfferAndEnsureContract, OfferAcceptanceError } = require('./_lib/offer-acceptance');
+const { recordOfferEvent } = require('./_lib/offer-events');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -88,6 +89,7 @@ exports.handler = async (event) => {
         .eq('id', offerId)
         .maybeSingle();
 
+      await recordOfferEvent(sbAdmin,{ offer_id: offerId, event_type: 'accepted', event_at: nowIso, actor_type: 'admin', actor_id: caller.userId || null });
       return response(200, {
         success: true,
         duplicate: Boolean(accepted.duplicate),
@@ -129,6 +131,7 @@ exports.handler = async (event) => {
       .select('*')
       .single();
     if (error) return response(500, { error: 'Offer-Status konnte nicht gespeichert werden.', details: error.message });
+    await recordOfferEvent(sbAdmin,{ offer_id: offer.id, event_type: 'declined', event_at: nowIso, actor_type: 'admin', actor_id: caller.userId || null });
     return response(200, { success: true, offer: data });
   }
 
@@ -137,9 +140,13 @@ exports.handler = async (event) => {
   }
 
   const patch = { status: targetStatus, updated_at: nowIso };
+  if (targetStatus === 'expired') patch.expired_at = nowIso;
   if (targetStatus !== 'declined') patch.rejected_at = null;
   const { data, error } = await sbAdmin.from('offers').update(patch).eq('id', offer.id).select('*').single();
   if (error) return response(500, { error: 'Offer-Status konnte nicht gespeichert werden.', details: error.message });
+  if (targetStatus === 'expired') {
+    await recordOfferEvent(sbAdmin,{ offer_id: offer.id, event_type: 'expired', event_at: nowIso, actor_type: 'admin', actor_id: caller.userId || null });
+  }
 
   return response(200, { success: true, offer: data });
 };

@@ -5,6 +5,8 @@ const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 const { normalizePlanCode, loadPlanByCode, isSalesPlanCode } = require('./_lib/plan-config');
 const { trimOrNull, ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, derivePublicOfferPdfUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
+const { recordOfferEvent } = require('./_lib/offer-events');
+const { OFFER_BRAND_ASSET_PATH } = require('../../shared/offer-brand');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -120,7 +122,8 @@ async function loadOfferPayload(sbAdmin, body) {
       email_subject: emailSubject,
       pdf_url: deriveOfferPdfUrl(body, offer),
       acceptance_url: derivePublicOfferAcceptanceUrl(offer.public_token),
-      public_expires_at: offer.public_expires_at || null
+      public_expires_at: offer.public_expires_at || null,
+      brand_asset_path: OFFER_BRAND_ASSET_PATH
     },
     customer: {
       id: offer.customer_id || null,
@@ -546,6 +549,17 @@ exports.handler = async (event) => {
     if (!makeRes.ok) {
       const errMsg = `Make webhook failed: ${makeRes.status}`;
       await markOutboxFailed(sbAdmin, outbox.id, errMsg);
+      if (eventType === 'offer_email') {
+        await recordOfferEvent(sbAdmin,{
+          offer_id: dispatch.responseData.offer_id,
+          event_type: 'send_failed',
+          actor_type: 'admin',
+          actor_id: caller.userId || null,
+          recipient_email: dispatch.responseData.sent_to_email || null,
+          subject: dispatch.responseData.email_subject || null,
+          meta: { error: errMsg }
+        });
+      }
       failureAlreadyMarked = true;
       log('error', 'webhook_send_failed', { event_type: eventType, outbox_id: outbox.id, status: makeRes.status });
       return response(500, { error: errMsg, outbox_id: outbox.id });
@@ -553,6 +567,16 @@ exports.handler = async (event) => {
 
     await markOutboxSent(sbAdmin, outbox.id);
     log('info', 'webhook_send_succeeded', { event_type: eventType, outbox_id: outbox.id });
+    if (eventType === 'offer_email') {
+      await recordOfferEvent(sbAdmin,{
+        offer_id: dispatch.responseData.offer_id,
+        event_type: dispatch.payload.offer.status === 'sent' ? 'resend' : 'sent',
+        actor_type: 'admin',
+        actor_id: caller.userId || null,
+        recipient_email: dispatch.responseData.sent_to_email || null,
+        subject: dispatch.responseData.email_subject || null
+      });
+    }
 
     return response(200, {
       success: true,
@@ -564,6 +588,17 @@ exports.handler = async (event) => {
     const msg = err && err.message ? err.message : 'Webhook request failed';
     if (!failureAlreadyMarked) {
       await markOutboxFailed(sbAdmin, outbox.id, msg);
+      if (eventType === 'offer_email') {
+        await recordOfferEvent(sbAdmin,{
+          offer_id: dispatch.responseData.offer_id,
+          event_type: 'send_failed',
+          actor_type: 'admin',
+          actor_id: caller.userId || null,
+          recipient_email: dispatch.responseData.sent_to_email || null,
+          subject: dispatch.responseData.email_subject || null,
+          meta: { error: msg }
+        });
+      }
     }
     log('error', 'webhook_send_failed', { event_type: eventType, outbox_id: outbox.id, error: msg });
     return response(500, { error: 'Webhook konnte nicht erreicht werden.', details: msg, outbox_id: outbox.id });

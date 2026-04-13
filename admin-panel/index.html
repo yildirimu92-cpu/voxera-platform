@@ -1657,11 +1657,13 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
               </div>
               <div id="offer-final-state-hint" class="muted" style="margin-top:8px;"></div>
               <div id="offer-send-feedback" class="muted" style="margin-top:8px;"></div>
+              <div id="offer-resend-warning" style="display:none;margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--amber-mid);background:var(--amber-light);color:var(--amber);font-size:12px;font-weight:600;"></div>
               <div class="offer-grid-2" style="margin-top:12px;">
                 <div><label class="muted">Empfänger E-Mail</label><input class="input" id="offer-send-to-email" type="email" oninput="offerFieldChanged()" placeholder="kunde@beispiel.ch"></div>
                 <div><label class="muted">E-Mail Betreff (optional)</label><input class="input" id="offer-send-subject" oninput="offerFieldChanged()" placeholder="Ihre Voxera Offerte"></div>
               </div>
             </div>
+            <div class="card offer-card"><div class="card-head"><h3>Event-Verlauf</h3></div><div id="offer-events-timeline" class="muted" style="display:grid;gap:8px;font-size:12px;"></div></div>
             <div class="offer-columns">
               <div class="offer-editor">
                 <div class="card offer-card"><div class="card-head"><h3>Kunde / Interessent</h3></div><div class="offer-grid-2">
@@ -2384,6 +2386,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 <!-- Hidden file input for Word upload -->
 <input type="file" id="contract-word-upload-input" accept=".docx,.doc" style="display:none;" onchange="handleContractWordUpload(this)">
 
+<script src="/shared/offer-brand.js"></script>
 <script>
 'use strict';
 
@@ -2436,6 +2439,7 @@ const state={
   contracts:[],  // populated by loadDataFromSupabase()
   subscriptions:[], // populated by loadDataFromSupabase()
   offerAcceptancesByOfferId:{}, // populated by loadDataFromSupabase()
+  offerEventsByOfferId:{}, // populated by loadDataFromSupabase()
   offers:[], // populated by loadDataFromSupabase()
   offerSendState:{status:'idle',message:''},
   offerDbColumns:new Set(),
@@ -2480,7 +2484,7 @@ const state={
 const PLAN_MINUTES = {};
 const PLAN_PRICES = {};
 const SALES_PLAN_CODES = ['starter','business','professional'];
-const BRAND_LOGO_PATH='/voxera-logo-dark.svg';
+const BRAND_LOGO_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.OFFER_BRAND_ASSET_PATH)||'/brand/05-app-icon-512px.svg';
 
 function normalizePlanCode(raw){
   const key=String(raw||'').trim().toLowerCase().replace(/\s+/g,'_');
@@ -4253,6 +4257,79 @@ const OFFER_STATUS_META={
 const OFFER_STATUS_OPTIONS=['draft','sent','viewed','accepted','declined','active','expired'];
 const OFFER_FINAL_STATUSES=new Set(['accepted','declined','active','expired']);
 
+
+const OFFER_EVENT_LABELS={created:'Erstellt',saved:'Gespeichert',sent:'Gesendet',resend:'Erneut gesendet',send_failed:'Senden fehlgeschlagen',opened:'Geöffnet',accepted:'Akzeptiert / Signiert',declined:'Abgelehnt',expired:'Abgelaufen'};
+
+function mapDbOfferEventToUi(row){
+  return {
+    id: row.id ? String(row.id) : '',
+    offerId: row.offer_id ? String(row.offer_id) : '',
+    eventType: String(row.event_type||'').toLowerCase(),
+    eventAt: row.event_at || row.created_at || '',
+    actorType: row.actor_type || '',
+    actorId: row.actor_id || '',
+    recipientEmail: row.recipient_email || '',
+    subject: row.subject || '',
+    meta: row.meta || null
+  };
+}
+
+async function trackOfferEventClient(eventType, offer, extra={}){
+  if(!authClient||!offer?.id) return;
+  try{
+    const payload={
+      offer_id:offer.id,
+      event_type:String(eventType||'').toLowerCase(),
+      event_at:new Date().toISOString(),
+      actor_type:'admin',
+      actor_id:null,
+      recipient_email:extra.recipient_email||null,
+      subject:extra.subject||null,
+      meta:extra.meta||null
+    };
+    const {data:{session}}=await authClient.auth.getSession();
+    if(session?.user?.id) payload.actor_id=session.user.id;
+    const {error}=await authClient.from('offer_events').insert(payload);
+    if(error) throw error;
+    const mapped=mapDbOfferEventToUi(payload);
+    if(!state.offerEventsByOfferId[String(offer.id)]) state.offerEventsByOfferId[String(offer.id)]=[];
+    state.offerEventsByOfferId[String(offer.id)].unshift(mapped);
+  }catch(err){
+    console.warn('[offer_events] client insert failed',err?.message||err);
+  }
+}
+
+function getOfferEvents(offerId){
+  return (state.offerEventsByOfferId[String(offerId)]||[]).slice().sort((a,b)=>new Date(b.eventAt||0)-new Date(a.eventAt||0));
+}
+
+function getLastSuccessfulSendInfo(offerId){
+  const hit=getOfferEvents(offerId).find(ev=>ev.eventType==='sent'||ev.eventType==='resend');
+  if(hit) return hit;
+  const offer=state.offers.find(o=>idsEq(o.id,offerId));
+  if(offer&&offer.sentAt){
+    return {eventType:'sent',eventAt:offer.sentAt,recipientEmail:offer.sentToEmail||offer.email||'',subject:offer.sendSubject||''};
+  }
+  return null;
+}
+
+function renderOfferResendWarning(offer){
+  const el=document.getElementById('offer-resend-warning');
+  if(!el||!offer) return;
+  const last=getLastSuccessfulSendInfo(offer.id);
+  if(!last){ el.style.display='none'; el.textContent=''; return; }
+  const subjectPart=last.subject?` · Betreff: ${last.subject}`:'';
+  el.style.display='block';
+  el.textContent=`Hinweis: Offerte wurde bereits gesendet (${formatDateTime(last.eventAt)} an ${last.recipientEmail||'—'}${subjectPart}).`;
+}
+
+function renderOfferEventsTimeline(offer){
+  const el=document.getElementById('offer-events-timeline');
+  if(!el||!offer) return;
+  const rows=getOfferEvents(offer.id);
+  if(!rows.length){ el.innerHTML='<div class="muted">Noch keine Events vorhanden.</div>'; return; }
+  el.innerHTML=rows.slice(0,20).map(ev=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border:1px solid var(--line2);border-radius:10px;"><div><strong>${esc(OFFER_EVENT_LABELS[ev.eventType]||ev.eventType)}</strong><div class="muted" style="margin-top:2px;">${esc(ev.recipientEmail||'')} ${ev.subject?`· ${esc(ev.subject)}`:''}</div></div><div class="muted" style="white-space:nowrap;">${formatDateTime(ev.eventAt)}</div></div>`).join('');
+}
 function isFinalOfferStatus(status){
   return OFFER_FINAL_STATUSES.has(String(status||'').toLowerCase());
 }
@@ -4547,11 +4624,15 @@ function openOfferDetail(id,silent=false){
   applyOfferReadonlyState(offer);
   renderOfferPreview(offer);
   renderOfferSendFeedback();
+  renderOfferResendWarning(offer);
+  renderOfferEventsTimeline(offer);
   if(!silent) renderOffers();
 }
 function setOfferSendFeedback(status,message){
   state.offerSendState={status:status||'idle',message:String(message||'')};
   renderOfferSendFeedback();
+  renderOfferResendWarning(offer);
+  renderOfferEventsTimeline(offer);
 }
 function renderOfferSendFeedback(){
   const el=document.getElementById('offer-send-feedback');
@@ -4830,6 +4911,7 @@ async function createOffer(){
   applyPlanDefaultsToOffer(fallback);
   state.offers.unshift(fallback);
   state.selectedOfferId=fallback.id;
+  await trackOfferEventClient('created',fallback);
   renderOffers();
 }
 async function saveOffer(){
@@ -4844,6 +4926,7 @@ async function saveOffer(){
     const {error}=await authClient.from('offers').update(payload).eq('id',offer.id);
     if(error){alert('Speichern fehlgeschlagen: '+error.message);return;}
   }
+  await trackOfferEventClient('saved',offer);
   showToast('✓ Offerte gespeichert.');
   renderOffers();
 }
@@ -4852,6 +4935,11 @@ async function sendOffer(){
   if(isFinalOfferStatus(offer.status)){
     alert('Finale Offerten können nicht versendet werden. Bitte Offerte duplizieren.');
     return;
+  }
+  const lastSend=getLastSuccessfulSendInfo(offer.id);
+  if(lastSend){
+    const proceed=window.confirm('This offer was already sent successfully. Send again?');
+    if(!proceed) return;
   }
   await saveOffer();
   const recipient=String(offer.sentToEmail||offer.email||'').trim();
@@ -4893,6 +4981,7 @@ async function sendOffer(){
     }
     setOfferSendFeedback('success',`Erfolgreich versendet an ${sentTo}.`);
     showToast('✓ Offerte gesendet.');
+    await loadOfferEventsFromSupabase();
     renderOffers();
   }catch(e){
     offer.deliveryStatus='failed';
@@ -5051,6 +5140,23 @@ function mapDbContractToUi(dbRow) {
     createdAt:        dbRow.created_at || '',
     updatedAt:        dbRow.updated_at || ''
   };
+}
+
+async function loadOfferEventsFromSupabase(){
+  if(!authClient) return;
+  const { data: eventRows, error: eventErr } = await authClient
+    .from('offer_events')
+    .select('*')
+    .order('event_at', { ascending: false })
+    .limit(5000);
+  if (eventErr) { console.warn('[DB] offer_events load failed:', eventErr.message); return; }
+  const mapped=(eventRows||[]).map(mapDbOfferEventToUi);
+  state.offerEventsByOfferId = mapped.reduce((acc,row)=>{
+    if(!row.offerId) return acc;
+    if(!acc[row.offerId]) acc[row.offerId]=[];
+    acc[row.offerId].push(row);
+    return acc;
+  },{});
 }
 
 function mapDbOfferAcceptanceToUi(dbRow) {
@@ -8065,6 +8171,7 @@ async function loadDataFromSupabase() {
       .order('created_at', { ascending: false });
     if (offerErr) console.warn('[DB] offers load failed:', offerErr.message);
     state.offers = (offerRows || []).map(mapDbOfferToUi);
+    await loadOfferEventsFromSupabase();
 
     const { data: acceptanceRows, error: acceptanceErr } = await authClient
       .from('offer_acceptances')
