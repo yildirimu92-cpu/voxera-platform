@@ -3529,15 +3529,15 @@ function renderCustomers(){
     <td>${esc(c.latest)}</td>
     <td>
       <div class="customer-actions-primary">
-        <button class="btn btn-secondary btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
+        <button class="btn btn-secondary btn-sm" type="button" data-customer-action="profile" data-customer-id="${jsStr(c.id)}">Profil</button>
         ${primaryAccessAction}
-        <button class="btn btn-secondary btn-sm" onclick="openCustomerOnboarding('${jsStr(c.id)}')">Onboarding</button>
+        <button class="btn btn-secondary btn-sm" type="button" data-customer-action="onboarding" data-customer-id="${jsStr(c.id)}">Onboarding</button>
         <details class="actions-menu">
-          <summary class="btn btn-secondary btn-sm actions-menu-btn" title="Weitere Aktionen" aria-label="Weitere Aktionen">⋯</summary>
+          <button class="btn btn-secondary btn-sm actions-menu-btn" type="button" title="Weitere Aktionen" aria-label="Weitere Aktionen" data-customer-menu-toggle>⋯</button>
           <div class="actions-menu-list">
-            <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case erstellen</button>
-            <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button>
-            <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-customer-action="create-case" data-customer-id="${jsStr(c.id)}">Case erstellen</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-customer-action="archive" data-customer-id="${jsStr(c.id)}">Archivieren</button>
+            <button class="btn btn-danger btn-sm" type="button" data-customer-action="delete" data-customer-id="${jsStr(c.id)}">Löschen</button>
           </div>
         </details>
       </div>
@@ -3572,15 +3572,15 @@ function renderCustomers(){
         <div class="customer-card-meta-item"><strong>Aktivität</strong>${esc(c.latest)}</div>
       </div>
       <div class="customer-actions-primary">
-        <button class="btn btn-secondary btn-sm" onclick="openCustomerProfile('${jsStr(c.id)}')">Profil</button>
+        <button class="btn btn-secondary btn-sm" type="button" data-customer-action="profile" data-customer-id="${jsStr(c.id)}">Profil</button>
         ${primaryAccessAction}
-        <button class="btn btn-secondary btn-sm" onclick="openCustomerOnboarding('${jsStr(c.id)}')">Onboarding</button>
+        <button class="btn btn-secondary btn-sm" type="button" data-customer-action="onboarding" data-customer-id="${jsStr(c.id)}">Onboarding</button>
         <details class="actions-menu">
-          <summary class="btn btn-secondary btn-sm actions-menu-btn" title="Weitere Aktionen" aria-label="Weitere Aktionen">⋯</summary>
+          <button class="btn btn-secondary btn-sm actions-menu-btn" type="button" title="Weitere Aktionen" aria-label="Weitere Aktionen" data-customer-menu-toggle>⋯</button>
           <div class="actions-menu-list">
-            <button class="btn btn-secondary btn-sm" onclick="createCaseForCustomer('${jsStr(c.id)}','Follow-up')">Case erstellen</button>
-            <button class="btn btn-secondary btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','archive')">Archivieren</button>
-            <button class="btn btn-danger btn-sm" onclick="openCustomerDangerModal('${jsStr(c.id)}','delete')">Löschen</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-customer-action="create-case" data-customer-id="${jsStr(c.id)}">Case erstellen</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-customer-action="archive" data-customer-id="${jsStr(c.id)}">Archivieren</button>
+            <button class="btn btn-danger btn-sm" type="button" data-customer-action="delete" data-customer-id="${jsStr(c.id)}">Löschen</button>
           </div>
         </details>
       </div>
@@ -8125,7 +8125,7 @@ function closeAllActionMenus(exceptMenu){
 function positionActionMenu(menu){
   if(!menu) return;
   const list=menu.querySelector('.actions-menu-list');
-  const trigger=menu.querySelector('summary');
+  const trigger=menu.querySelector('.actions-menu-btn');
   if(!list||!trigger||!menu.hasAttribute('open')) return;
   const mobileMode=window.innerWidth<=768;
   if(mobileMode){
@@ -8152,6 +8152,40 @@ function positionActionMenu(menu){
   list.style.right='auto';
   list.style.bottom='auto';
 }
+function logCustomerActionDiagnostics(label,event,target){
+  const pointX=event?.clientX;
+  const pointY=event?.clientY;
+  const hit=(Number.isFinite(pointX)&&Number.isFinite(pointY))?document.elementFromPoint(pointX,pointY):null;
+  if(hit && target && !target.contains(hit) && !hit.contains(target)){
+    console.warn(`[Customer Actions] ${label} tap possibly intercepted`,{target,hit,pointX,pointY});
+  }else{
+    console.log(`[Customer Actions] ${label} handler fired`,{target,pointX,pointY});
+  }
+}
+function handleCustomerAction(action,customerId,event,target){
+  if(!action||!customerId) return;
+  if(action==='profile'){
+    logCustomerActionDiagnostics('profile',event,target);
+    openCustomerProfile(customerId);
+    return;
+  }
+  if(action==='onboarding'){
+    openCustomerOnboarding(customerId);
+    return;
+  }
+  if(action==='create-case'){
+    createCaseForCustomer(customerId,'Follow-up');
+    return;
+  }
+  if(action==='archive'){
+    openCustomerDangerModal(customerId,'archive');
+    return;
+  }
+  if(action==='delete'){
+    logCustomerActionDiagnostics('delete',event,target);
+    openCustomerDangerModal(customerId,'delete');
+  }
+}
 function closeCustomerInteractionLayers(keepModalId){
   closeAllActionMenus();
   ['customer-profile-modal','case-capture-modal','edit-customer-modal','send-access-modal','customer-danger-modal'].forEach(id=>{
@@ -8173,6 +8207,39 @@ document.addEventListener('toggle',event=>{
   resetActionMenuList(menu.querySelector('.actions-menu-list'));
 },true);
 document.addEventListener('click',event=>{
+  const toggleBtn=event.target.closest('[data-customer-menu-toggle]');
+  if(toggleBtn){
+    event.preventDefault();
+    event.stopPropagation();
+    const menu=toggleBtn.closest('.actions-menu');
+    if(!menu) return;
+    const nextOpen=!menu.hasAttribute('open');
+    closeAllActionMenus(nextOpen?menu:null);
+    if(nextOpen){
+      menu.setAttribute('open','');
+      logCustomerActionDiagnostics('menu',event,toggleBtn);
+      requestAnimationFrame(()=>positionActionMenu(menu));
+    }else{
+      menu.removeAttribute('open');
+      resetActionMenuList(menu.querySelector('.actions-menu-list'));
+    }
+    return;
+  }
+  const actionBtn=event.target.closest('[data-customer-action]');
+  if(actionBtn){
+    event.preventDefault();
+    event.stopPropagation();
+    const action=actionBtn.getAttribute('data-customer-action');
+    const customerId=actionBtn.getAttribute('data-customer-id');
+    if(action==='delete'){
+      console.log('[Customer Actions] delete click handler fired',{customerId});
+    }else if(action==='profile'){
+      console.log('[Customer Actions] profile click handler fired',{customerId});
+    }
+    handleCustomerAction(action,customerId,event,actionBtn);
+    closeAllActionMenus();
+    return;
+  }
   if(event.target.closest('.actions-menu')) return;
   closeAllActionMenus();
 });
