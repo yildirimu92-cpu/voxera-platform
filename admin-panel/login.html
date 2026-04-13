@@ -9,17 +9,19 @@
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" href="favicon-180.png">
 <meta name="theme-color" content="#1A56DB">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
-  --blue:#1A56DB;--blue-dark:#1340B0;--blue-light:#EBF0FC;--blue-mid:#C7D9F8;
+  --vx-night:#0D1F3C;--vx-blue:#1A6FE8;--vx-sky:#4B9FFF;--vx-gold:#E8C547;--vx-sand:#F5EDD0;
+  --vx-bg:#F7F8FA;--vx-surface:#FFFFFF;--vx-ink:#1A1A2E;--vx-muted:#7A8599;--vx-line:#E4E8F0;
+  --blue:var(--vx-blue);--blue-dark:#1558BA;--blue-light:#EAF2FF;--blue-mid:#B9D4FF;
   --green:#16A34A;--green-light:#DCFCE7;--green-mid:#BBF7D0;
   --red:#DC2626;--red-light:#FEE2E2;
   --amber:#D97706;--amber-light:#FEF3C7;--amber-mid:#FDE68A;
-  --gray50:#F9FAFB;--gray100:#F3F4F6;--gray200:#E5E7EB;
-  --gray400:#9CA3AF;--gray600:#4B5563;--gray900:#111827;
+  --gray50:var(--vx-bg);--gray100:#F1F4F9;--gray200:var(--vx-line);
+  --gray400:#98A2B3;--gray600:var(--vx-muted);--gray900:var(--vx-ink);
   --white:#FFFFFF;
   --radius:10px;--radius-lg:14px;
   --shadow-sm:0 1px 3px rgba(0,0,0,0.06);
@@ -28,7 +30,7 @@
 }
 html{scroll-behavior:smooth;}
 body{
-  font-family:'Inter',sans-serif;font-size:14px;
+  font-family:'DM Sans',sans-serif;font-size:14px;
   color:var(--gray900);background:var(--gray50);
   min-height:100vh;overflow-x:hidden;
 }
@@ -48,7 +50,7 @@ body{
   animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both;
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-.login-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;color:var(--blue);letter-spacing:-.03em;margin-bottom:4px;}
+.login-logo{font-family:'Plus Jakarta Sans','DM Sans',sans-serif;font-size:32px;font-weight:800;color:var(--vx-night);letter-spacing:-.03em;margin-bottom:4px;}
 .login-tag{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray400);margin-bottom:24px;}
 .login-sub{font-size:14px;color:var(--gray600);margin-bottom:32px;line-height:1.6;}
 .login-form{display:flex;flex-direction:column;gap:14px;margin-bottom:20px;text-align:left;}
@@ -86,7 +88,7 @@ body{
 
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo">Voxera</div>
+    <img src="voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;">
     <div class="login-tag">Admin Portal</div>
     <div class="login-sub">Melden Sie sich mit Ihrem Admin-Konto an</div>
     <div class="login-error" id="login-error"></div>
