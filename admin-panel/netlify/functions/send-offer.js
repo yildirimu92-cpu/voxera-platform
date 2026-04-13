@@ -23,6 +23,7 @@ function buildOfferEmail({ offer, subject, acceptanceUrl, pdfUrl }) {
   const addOns = offer.add_ons || {};
   const addOnsTotal = Number(addOns.additional_numbers || 0) + Number(addOns.sms_alerts || 0) + Number(addOns.custom_ai_setup || 0);
   const discount = Number(offer.discount_amount || 0) + (recurring * (Number(offer.discount_percent || 0) / 100));
+  const hasDiscount = discount > 0.000001;
   const total = Math.max(0, Number(offer.total || 0));
   const intro = String(offer?.offer_text?.introduction || 'Vielen Dank für Ihr Interesse an Voxera. Nachfolgend erhalten Sie Ihre Offerte.').trim();
   const html = `
@@ -41,7 +42,7 @@ function buildOfferEmail({ offer, subject, acceptanceUrl, pdfUrl }) {
             <tr><td style="padding:6px 0;color:#475569;">Einmalige Einrichtung</td><td style="padding:6px 0;text-align:right;font-weight:700;">${moneyChf(offer.setup_fee)}</td></tr>
             <tr><td style="padding:6px 0;color:#475569;">Laufende Kosten</td><td style="padding:6px 0;text-align:right;font-weight:700;">${moneyChf(recurring)}</td></tr>
             <tr><td style="padding:6px 0;color:#475569;">Zusatzoptionen</td><td style="padding:6px 0;text-align:right;font-weight:700;">${moneyChf(addOnsTotal)}</td></tr>
-            <tr><td style="padding:6px 0;color:#475569;">Rabatt</td><td style="padding:6px 0;text-align:right;font-weight:700;color:#166534;">− ${moneyChf(discount)}</td></tr>
+            ${hasDiscount ? `<tr><td style="padding:6px 0;color:#475569;">Rabatt</td><td style="padding:6px 0;text-align:right;font-weight:700;color:#166534;">− ${moneyChf(discount)}</td></tr>` : ''}
             <tr><td style="padding:8px 0;border-top:1px solid #e2e8f0;font-weight:700;">Gesamt</td><td style="padding:8px 0;border-top:1px solid #e2e8f0;text-align:right;font-size:16px;font-weight:800;">${moneyChf(total)}</td></tr>
           </table>
         </div>

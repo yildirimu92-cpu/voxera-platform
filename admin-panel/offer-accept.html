@@ -20,6 +20,8 @@
     body{margin:0;background:linear-gradient(180deg,#eff6ff 0,#f8fafc 240px,var(--bg) 100%);font-family:Inter,system-ui,Arial,sans-serif;color:var(--ink)}
     .shell{max-width:1120px;margin:0 auto;padding:16px 14px 44px}
     .hero{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 12px 32px rgba(15,23,42,.06);margin-top:14px}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+    .brand-logo{height:26px;width:auto;display:block}
     .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:700}
     h1{font-size:30px;line-height:1.15;margin:8px 0 6px}
     .muted{color:var(--slate)}
@@ -55,6 +57,7 @@
     .pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
     .pill-sent{background:#dbeafe;color:#1d4ed8}
     .pill-other{background:#fee2e2;color:#991b1b}
+    .hidden{display:none!important}
 
     @media(max-width:900px){
       h1{font-size:26px}
@@ -75,7 +78,7 @@
     <div class="hero">
       <div class="hero-grid">
         <div>
-          <div class="eyebrow">Voxera Offerte</div>
+          <div class="brand"><img class="brand-logo" src="/voxera-logo-dark.svg" alt="Voxera" /><div class="eyebrow">Voxera Offerte</div></div>
           <h1>Ihre Offerte online annehmen</h1>
           <p class="muted" id="state">Offerte wird geladen…</p>
           <div id="ctaRow" class="cta-row" style="display:none;">
@@ -109,7 +112,7 @@
         <div class="stats">
           <div class="row"><span>Einmalige Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
           <div class="row"><span id="pricingRecurringLabel">Monatlich</span><strong id="pricingRecurring">CHF 0.00</strong></div>
-          <div class="row"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
+          <div class="row" id="discountRow"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
           <div class="row"><span>Gesamtpreis</span><strong id="pricingTotal">CHF 0.00</strong></div>
         </div>
       </section>
@@ -219,6 +222,7 @@
     offer = json.offer;
     const recurring = offer.billing_cycle === 'yearly' ? Number(offer.yearly_price || 0) : Number(offer.monthly_price || 0);
     const discount = Number(offer.discount_amount || 0) + (recurring * (Number(offer.discount_percent || 0) / 100));
+    const hasDiscount = discount > 0.000001;
     const accepted = Boolean(offer.accepted_at);
 
     document.getElementById('company').textContent = offer.company_name || 'Voxera Kunde';
@@ -232,6 +236,7 @@
     document.getElementById('pricingRecurringLabel').textContent = offer.billing_cycle === 'yearly' ? 'Jährlich' : 'Monatlich';
     document.getElementById('pricingRecurring').textContent = money(recurring);
     document.getElementById('discount').textContent = `- ${money(discount)}`;
+    document.getElementById('discountRow').classList.toggle('hidden', !hasDiscount);
     document.getElementById('pricingTotal').textContent = money(offer.total);
 
     document.getElementById('statusText').textContent = String(offer.status || 'unbekannt').toUpperCase();
