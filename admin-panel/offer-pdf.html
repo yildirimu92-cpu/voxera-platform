@@ -74,7 +74,7 @@
         <header class="header">
           <div>
             <div class="brand">
-              <img class="brand-logo" src="/voxera-logo-dark.svg" alt="Voxera Logo" />
+              <img class="brand-logo" id="brandLogo" alt="Voxera Logo" />
             </div>
             <h1 class="title">Offerte</h1>
             <p class="subtitle">Individuelle Offerte für Ihre Voxera-Lösung</p>
@@ -119,8 +119,12 @@
       </div>
     </div>
   </div>
+<script src="/shared/offer-brand.js"></script>
 <script>
   const token = new URLSearchParams(location.search).get('token') || '';
+  const BRAND_LOGO_PATH = (window.VoxeraOfferBrand && window.VoxeraOfferBrand.OFFER_BRAND_ASSET_PATH) || '/brand/05-app-icon-512px.svg';
+const logoEl=document.getElementById('brandLogo');
+if(logoEl) logoEl.src=BRAND_LOGO_PATH;
   const money = v => `CHF ${Number(v || 0).toFixed(2)}`;
   const d = v => v ? new Date(v).toLocaleDateString('de-CH') : '—';
   const esc = v => String(v ?? '').replace(/[&<>'\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));

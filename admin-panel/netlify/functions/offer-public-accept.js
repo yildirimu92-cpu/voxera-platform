@@ -2,6 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { acceptOfferAndEnsureContract, OfferAcceptanceError } = require('./_lib/offer-acceptance');
+const { recordOfferEvent } = require('./_lib/offer-events');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -155,6 +156,7 @@ exports.handler = async (event) => {
     if (accepted.invoiceError) followUpIssues.push('invoice');
     if (accepted.lifecycleError) followUpIssues.push('lifecycle');
 
+    await recordOfferEvent(sbAdmin,{ offer_id: accepted.offerId || offer.id, event_type: 'accepted', event_at: nowIso, actor_type: 'public', actor_id: null, recipient_email: signerEmail || null, meta: { signer_name: signerName } });
     return response(200, {
       success: true,
       duplicate: Boolean(accepted.duplicate),

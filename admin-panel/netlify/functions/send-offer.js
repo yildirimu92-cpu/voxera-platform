@@ -3,6 +3,8 @@ const nodemailer = require('nodemailer');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxFailed, markOutboxSent } = require('./_lib/webhook-outbox');
 const { ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, derivePublicOfferPdfUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
+const { recordOfferEvent } = require('./_lib/offer-events');
+const { OFFER_BRAND_ASSET_PATH } = require('../../shared/offer-brand');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +39,7 @@ function buildOfferEmail({ offer, subject, acceptanceUrl, pdfUrl }) {
   <div style="background:#f3f6fb;padding:24px 12px;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;">
     <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #dde5f1;border-radius:16px;overflow:hidden;">
       <div style="padding:20px 24px;background:linear-gradient(120deg,#eff6ff,#ffffff);border-bottom:1px solid #e5edf8;">
+        <img src="${OFFER_BRAND_ASSET_PATH}" alt="Voxera" style="height:40px;width:40px;border-radius:10px;display:block;margin-bottom:10px;" />
         <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;font-weight:700;">Voxera Offerte</div>
         <h1 style="margin:8px 0 4px;font-size:24px;line-height:1.2;">${offer.offer_number || 'Offerte'}</h1>
         <div style="font-size:13px;color:#334155;">Gültig bis: ${formatDate(offer.valid_until)}</div>
@@ -148,18 +151,21 @@ exports.handler = async (event) => {
   try {
     const deliveredSubject = await sendOfferEmail({ to: sentToEmail, offer, subject, acceptanceUrl, pdfUrl });
     const nowIso = new Date().toISOString();
+    const eventType = offer.sent_at ? 'resend' : 'sent';
     await markOutboxSent(sbAdmin, outbox.id);
     const { error: updErr } = await sbAdmin
       .from('offers')
       .update({ status: 'sent', sent_to_email: sentToEmail, sent_at: nowIso, sent_by: caller.userId || null, delivery_status: 'sent', email_subject: deliveredSubject, updated_at: nowIso })
       .eq('id', offer.id);
     if (updErr) return response(500, { error: 'Offerte konnte nicht aktualisiert werden.', details: updErr.message });
+    await recordOfferEvent(sbAdmin,{ offer_id: offer.id, event_type: eventType, event_at: nowIso, actor_type: 'admin', actor_id: caller.userId || null, recipient_email: sentToEmail, subject: deliveredSubject });
 
     return response(200, { success: true, offer_id: offer.id, sent_to_email: sentToEmail, sent_at: nowIso, delivery_status: 'sent', email_subject: deliveredSubject });
   } catch (err) {
     const nowIso = new Date().toISOString();
     await markOutboxFailed(sbAdmin, outbox.id, err.message || 'Mailversand fehlgeschlagen');
     await sbAdmin.from('offers').update({ sent_to_email: sentToEmail, sent_by: caller.userId || null, delivery_status: 'failed', email_subject: subject || null, updated_at: nowIso }).eq('id', offer.id);
+    await recordOfferEvent(sbAdmin,{ offer_id: offer.id, event_type: 'send_failed', event_at: nowIso, actor_type: 'admin', actor_id: caller.userId || null, recipient_email: sentToEmail, subject: subject || null, meta: { error: err.message || String(err) } });
     return response(500, { error: 'Offer E-Mail konnte nicht gesendet werden.', details: err.message || err });
   }
 };

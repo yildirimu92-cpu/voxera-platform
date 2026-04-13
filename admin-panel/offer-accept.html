@@ -78,7 +78,7 @@
     <div class="hero">
       <div class="hero-grid">
         <div>
-          <div class="brand"><img class="brand-logo" src="/voxera-logo-dark.svg" alt="Voxera" /><div class="eyebrow">Voxera Offerte</div></div>
+          <div class="brand"><img class="brand-logo" id="brandLogo" alt="Voxera" /><div class="eyebrow">Voxera Offerte</div></div>
           <h1>Ihre Offerte online annehmen</h1>
           <p class="muted" id="state">Offerte wird geladen…</p>
           <div id="ctaRow" class="cta-row" style="display:none;">
@@ -141,9 +141,11 @@
       </section>
     </div>
   </div>
+<script src="/shared/offer-brand.js"></script>
 <script>
   const token = new URLSearchParams(location.search).get('token') || '';
   let offer = null;
+  const BRAND_LOGO_PATH = (window.VoxeraOfferBrand && window.VoxeraOfferBrand.OFFER_BRAND_ASSET_PATH) || '/brand/05-app-icon-512px.svg';
   let signatureDirty = false;
   let signatureCtx = null;
   let signatureCanvas = null;
