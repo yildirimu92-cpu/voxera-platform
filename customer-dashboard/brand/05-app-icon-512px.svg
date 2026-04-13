@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Voxera 05 App Icon 512px">
+  <rect width="512" height="512" rx="120" fill="#0D1F3C"/>
+  <path d="M256 136C193.6 136 147.2 179.2 147.2 240" stroke="#4B9FFF" stroke-width="28" stroke-linecap="round"/>
+  <path d="M256 136C318.4 136 364.8 179.2 364.8 240" stroke="#E8C547" stroke-width="28" stroke-linecap="round"/>
+  <path d="M147.2 240C147.2 304 193.6 355.2 256 355.2C318.4 355.2 364.8 304 364.8 240" stroke="white" stroke-width="28" stroke-linecap="round"/>
+  <path d="M214.4 204.8L256 288L297.6 204.8" stroke="white" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
