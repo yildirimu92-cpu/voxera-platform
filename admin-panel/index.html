@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Voxera Admin Portal</title>
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
+<link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
+<link rel="apple-touch-icon" href="/brand/05-app-icon-512px.svg">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
@@ -2485,7 +2485,7 @@ const state={
 const PLAN_MINUTES = {};
 const PLAN_PRICES = {};
 const SALES_PLAN_CODES = ['starter','business','professional'];
-const BRAND_LOGO_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.OFFER_BRAND_ASSET_PATH)||'/brand/05-app-icon-512px.svg';
+const BRAND_LOGO_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.OFFER_BRAND_ASSET_PATH)||(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_LOGO_PATH)||'/brand/05-app-icon-512px.svg';
 
 function normalizePlanCode(raw){
   const key=String(raw||'').trim().toLowerCase().replace(/\s+/g,'_');
