@@ -1419,8 +1419,9 @@ body{
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 8px 28px rgba(26,111,232,0.30);
   animation:splashPulse 1.8s ease-in-out infinite;
+  overflow:hidden;
 }
-.splash-logo-icon svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;}
+.splash-logo-image{width:100%;height:100%;object-fit:cover;display:block;}
 .splash-wordmark{
   font-size:28px;font-weight:800;color:#111827;
   letter-spacing:-.05em;font-family:var(--font-display);
@@ -1649,7 +1650,7 @@ body{
 <!-- SPLASH SCREEN -->
 <div id="splash-screen">
   <div class="splash-logo-icon">
-    <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <img class="splash-logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera Logo" />
   </div>
   <div class="splash-wordmark">Voxera</div>
   <div class="splash-tagline">Ihr KI-Telefonassistent</div>
@@ -1659,7 +1660,7 @@ body{
 <div id="login-screen">
   <canvas id="network-canvas"></canvas>
   <div class="login-card" id="login-card">
-    <img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
+    <img src="/brand/05-app-icon-512px.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">KI-Telefonassistent Dashboard</div>
     <div class="login-sub">Melden Sie sich an um Ihre Anrufe zu verwalten</div>
     <div class="login-error" id="login-error"></div>
@@ -1687,7 +1688,7 @@ body{
 ═══════════════════════════════════════ -->
 <div class="mobile-header" id="mobile-header">
   <div class="logo-mark" onclick="showTab('dashboard',document.getElementById('mnav-dashboard'))" style="cursor:pointer;">
-    <img class="logo-image" src="/voxera-logo-dark.svg" alt="Voxera" />
+    <img class="logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera" />
   </div>
   <div class="mobile-header-right">
     <div class="mobile-header-user" id="mobile-header-avatar" onclick="showTab('einstellungen',document.getElementById('mnav-konto'));window.scrollTo({top:0,behavior:'instant'});">–</div>
@@ -1706,7 +1707,7 @@ body{
       <div class="sidebar-logo">
         <div>
           <div class="logo-mark">
-            <img class="logo-image" src="/voxera-logo-dark.svg" alt="Voxera" />
+            <img class="logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera" />
           </div>
           <div class="logo-sub">Customer Portal</div>
         </div>
@@ -7269,7 +7270,7 @@ function syncActivationV2Gate(){
 // ═══════════════════════════════════════════
 function showForgotPassword() {
   document.getElementById('login-card').innerHTML = `
-    <img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
+    <img src="/brand/05-app-icon-512px.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">Passwort zurücksetzen</div>
     <div class="login-sub">Geben Sie Ihre E-Mail-Adresse ein. Sie erhalten einen Link zum Zurücksetzen.</div>
     <div class="login-error" id="forgot-error"></div>
@@ -7307,7 +7308,7 @@ async function doForgotPassword() {
     if (redirectUrl.includes('?')) redirectUrl = redirectUrl.split('?')[0];
     var result = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
     if (result.error) throw result.error;
-    document.getElementById('login-card').innerHTML = '<img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-sub" style="margin-top:8px;">Prüfen Sie auch Ihren Spam-Ordner. Der Link ist 24 Stunden gültig.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div></div>';
+    document.getElementById('login-card').innerHTML = '<img src="/brand/05-app-icon-512px.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-sub" style="margin-top:8px;">Prüfen Sie auch Ihren Spam-Ordner. Der Link ist 24 Stunden gültig.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div></div>';
   } catch(e) {
     // User-friendly error messages
     var msg = (e.message || '').toLowerCase();
@@ -7315,7 +7316,7 @@ async function doForgotPassword() {
       errEl.textContent = 'Zu viele Versuche. Bitte warten Sie einige Minuten.';
     } else if (msg.includes('not found') || msg.includes('no user')) {
       // Don't reveal if email exists - show success anyway
-      document.getElementById('login-card').innerHTML = '<img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div></div>';
+      document.getElementById('login-card').innerHTML = '<img src="/brand/05-app-icon-512px.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div></div>';
       return;
     } else if (msg.includes('redirect') || msg.includes('url')) {
       errEl.textContent = 'Passwort-Reset ist aktuell nicht verfügbar. Bitte kontaktieren Sie den Support.';
@@ -7493,7 +7494,7 @@ function showPasswordResetForm(accessToken, refreshToken) {
   }
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-card').innerHTML = `
-    <img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
+    <img src="/brand/05-app-icon-512px.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">Neues Passwort</div>
     <div class="login-sub">Wählen Sie ein neues Passwort für Ihr Dashboard.</div>
     <div class="login-error" id="reset-error"></div>
@@ -7533,7 +7534,7 @@ async function doReset() {
     const { error } = await sb.auth.updateUser({password: pw});
     if (error) throw error;
     document.getElementById('login-card').innerHTML = `
-      <img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
+      <img src="/brand/05-app-icon-512px.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
       <div class="login-sub" style="color:var(--green);font-weight:600;margin-top:20px;">Passwort erfolgreich gesetzt!</div>
       <div class="login-sub">Sie werden eingeloggt...</div>
     `;
