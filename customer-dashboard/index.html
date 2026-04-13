@@ -624,9 +624,12 @@ body{
 .call-body{flex:1;min-width:0;}
 .call-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;}
 .call-name{font-size:14px;font-weight:600;color:var(--gray900);}
-.call-company{font-size:12px;color:var(--gray400);}
-.call-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray400);margin-bottom:0;flex-wrap:wrap;}
-.call-phone{display:inline-block;font-weight:600;color:var(--gray700, #334155);background:var(--gray100);padding:3px 9px;border-radius:6px;font-variant-numeric:tabular-nums;font-size:11.5px;}
+.call-secondary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.call-company{font-size:11.5px;color:var(--gray400);}
+.call-meta{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray400);margin-bottom:0;flex-wrap:wrap;}
+.call-meta-item{display:inline-flex;align-items:center;gap:6px;}
+.call-meta-item + .call-meta-item::before{content:'•';color:var(--gray300);}
+.call-meta-phone{font-variant-numeric:tabular-nums;color:var(--gray600);}
 .call-summary{font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:10px;}
 .followup-meta-line{font-size:11.5px;color:var(--gray400);line-height:1.5;margin-bottom:12px;}
 .call-notiz{
@@ -3302,6 +3305,19 @@ function initials(name) {
   return ((p[0]||'')[0]||'').toUpperCase() + ((p[1]||'')[0]||'').toUpperCase();
 }
 
+function isDashLikePlaceholder(value) {
+  if (value == null) return false;
+  const s = String(value).trim();
+  if (!s) return false;
+  return /^[-‐‑‒–—―−﹘﹣－~]+$/.test(s);
+}
+
+function getCallerDisplayName(rawName) {
+  const normalized = String(rawName || '').trim();
+  if (!normalized || isDashLikePlaceholder(normalized)) return 'Unbekannter Anrufer';
+  return normalized;
+}
+
 function qualKey(q) {
   if (!q) return 'neu';
   const v = q.toLowerCase();
@@ -4398,6 +4414,7 @@ function renderList(containerId, records, opts) {
     const f = r.fields;
     const q = qualKey(f.lead_quality);
     const done = isClosedStatus(f.dashboard_status);
+    const callerDisplayName = getCallerDisplayName(f.caller_name);
     const phoneLink = (f.tel_link || '').trim();
     const phoneRaw = (f.phone_number || f.caller_phone || '').trim();
     const displayPhone = phoneRaw || phoneLink.replace(/^tel:/i,'');
@@ -4416,17 +4433,19 @@ function renderList(containerId, records, opts) {
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
     return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${escHtml(normalizeStatus(f.dashboard_status))}" onclick="toggleCallRow(event,this)">
-      <div class="av ${avClass(f.lead_quality, done)}">${initials(f.caller_name)}</div>
+      <div class="av ${avClass(f.lead_quality, done)}">${initials(callerDisplayName)}</div>
       <div class="call-body">
         <div class="call-top">
-          <span class="call-name">${escHtml(f.caller_name||'–')}</span>
-          ${f.company_name?`<span class="call-company">· ${escHtml(f.company_name)}</span>`:''}
+          <span class="call-name">${escHtml(callerDisplayName)}</span>
+        </div>
+        <div class="call-secondary">
           ${callCardBadgeHtml(r)}
+          ${f.company_name?`<span class="call-company">${escHtml(f.company_name)}</span>`:''}
         </div>
         <div class="call-meta">
-          ${displayPhone?`<span class="call-phone">${escHtml(displayPhone)}</span>`:''}
-          ${f.category?`<span style="background:var(--gray100);padding:1px 7px;border-radius:4px;font-size:11px;">${escHtml(f.category)}</span>`:''}
-          <span>${callDateTime}</span>
+          ${displayPhone?`<span class="call-meta-item call-meta-phone">${escHtml(displayPhone)}</span>`:''}
+          ${f.category?`<span class="call-meta-item">${escHtml(f.category)}</span>`:''}
+          <span class="call-meta-item">${callDateTime}</span>
         </div>
         ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
         ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
