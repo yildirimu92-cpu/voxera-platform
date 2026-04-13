@@ -412,8 +412,9 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   max-width:min(280px,calc(100vw - 20px));
   transform-origin:top right;
   animation:menuIn 0.14s var(--ease);
+  pointer-events:none;
 }
-.actions-menu[open] .actions-menu-list{display:flex;}
+.actions-menu[open] .actions-menu-list{display:flex;pointer-events:auto;}
 .actions-menu-list .btn{height:34px;border-radius:8px;}
 .actions-menu-list .btn{width:100%;justify-content:flex-start;}
 @keyframes menuIn{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -5967,6 +5968,7 @@ function openCustomerOnboarding(id){
 
 function openCustomerProfile(id){
   const c=customerById(id); if(!c) return;
+  closeCustomerInteractionLayers('customer-profile-modal');
   state.selectedCustomer=id;
   setTimeout(()=>renderProfileMinutes(id), 50);
   const onboard=onboardingForCustomer(id);
@@ -7089,7 +7091,7 @@ function closeProfileRelatedLayersForDanger(){
 function openCustomerDangerModal(customerId,mode){
   const customer=customerById(customerId);
   if(!customer) return;
-  closeAllActionMenus();
+  closeCustomerInteractionLayers('customer-danger-modal');
   closeProfileRelatedLayersForDanger();
   state.customerDangerTargetId=customerId;
   state.customerDangerMode=mode;
@@ -8105,10 +8107,19 @@ init();
 <style>.toast-show{opacity:1!important;}</style>
 
 <script>
+function resetActionMenuList(list){
+  if(!list) return;
+  list.classList.remove('mobile-sheet');
+  list.style.left='';
+  list.style.right='';
+  list.style.top='';
+  list.style.bottom='';
+}
 function closeAllActionMenus(exceptMenu){
   document.querySelectorAll('.actions-menu[open]').forEach(menu=>{
     if(exceptMenu && menu===exceptMenu) return;
     menu.removeAttribute('open');
+    resetActionMenuList(menu.querySelector('.actions-menu-list'));
   });
 }
 function positionActionMenu(menu){
@@ -8141,13 +8152,25 @@ function positionActionMenu(menu){
   list.style.right='auto';
   list.style.bottom='auto';
 }
+function closeCustomerInteractionLayers(keepModalId){
+  closeAllActionMenus();
+  ['customer-profile-modal','case-capture-modal','edit-customer-modal','send-access-modal','customer-danger-modal'].forEach(id=>{
+    if(keepModalId && id===keepModalId) return;
+    const modal=document.getElementById(id);
+    if(!modal) return;
+    modal.classList.remove('open');
+    modal.style.pointerEvents='';
+  });
+}
 document.addEventListener('toggle',event=>{
   const menu=event.target;
   if(!menu?.matches?.('.actions-menu')) return;
   if(menu.open){
     closeAllActionMenus(menu);
     requestAnimationFrame(()=>positionActionMenu(menu));
+    return;
   }
+  resetActionMenuList(menu.querySelector('.actions-menu-list'));
 },true);
 document.addEventListener('click',event=>{
   if(event.target.closest('.actions-menu')) return;
