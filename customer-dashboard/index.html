@@ -636,14 +636,20 @@ body{
 }
 .call-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
 .dashboard-call{background:var(--white);border-color:var(--gray200);}
-.dashboard-call[data-priority="callback"]{border-color:rgba(220,38,38,0.2);background:rgba(254,226,226,0.45);}
+.dashboard-call[data-priority="urgent"]{border-color:rgba(217,119,6,0.22);background:rgba(255,251,235,0.65);}
 .call-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;}
 .call-time{font-size:11px;color:var(--gray400);white-space:nowrap;}
 
 /* ═══════════════════════════════════════════
-   CHIPS — V1
+   CHIPS — V2 (Minimal Status System)
 ═══════════════════════════════════════════ */
-.chip{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap;letter-spacing:.01em;}
+.chip{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;letter-spacing:.01em;}
+.chip-callback{background:#FEE2E2;color:#B91C1C;border:1px solid #FECACA;}
+.chip-priority-urgent{background:var(--amber-light);color:#92400E;border:1px solid var(--amber-mid);}
+.chip-workflow-neu{background:var(--blue-light);color:#1A6FE8;border:1px solid var(--blue-mid);}
+.chip-workflow-progress{background:rgba(245,158,11,.08);color:#B45309;border:1px solid #FDE68A;}
+.chip-workflow-closed{background:var(--green-light);color:#166534;border:1px solid var(--green-mid);}
+.chip-meta{background:var(--gray100);color:var(--gray600);}
 .chip-hot{background:#FEE2E2;color:#B91C1C;}
 .chip-warm{background:#FEF3C7;color:#B45309;}
 .chip-kalt{background:var(--gray100);color:var(--gray600);}
@@ -3299,9 +3305,8 @@ function qualKey(q) {
 
 function qualChip(q) {
   const k = qualKey(q);
-  const map = {hot:'chip-hot',warm:'chip-warm',kalt:'chip-kalt',neu:'chip-neu'};
   const lbl = {hot:'Hot',warm:'Warm',kalt:'Kalt',neu:'Neu'};
-  return `<span class="chip ${map[k]}">${lbl[k]}</span>`;
+  return `<span class="chip chip-meta">${lbl[k]}</span>`;
 }
 
 const CALL_STATUS = Object.freeze({
@@ -3313,7 +3318,7 @@ const CALL_STATUS = Object.freeze({
 const CALL_STATUS_LABELS = Object.freeze({
   [CALL_STATUS.NEW]: 'Neu',
   [CALL_STATUS.IN_PROGRESS]: 'In Bearbeitung',
-  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: 'Follow-up geplant',
+  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: 'In Bearbeitung',
   [CALL_STATUS.CLOSED]: 'Abgeschlossen'
 });
 const CALL_STATUS_TRANSITIONS = Object.freeze({
@@ -3425,39 +3430,43 @@ function sortRecordsOpenFirst(records) {
 
 function statusChip(s) {
   const n = normalizeStatus(s);
-  if (n === CALL_STATUS.CLOSED) return '<span class="chip chip-done">✓ Abgeschlossen</span>';
-  if (n === CALL_STATUS.IN_PROGRESS || n === CALL_STATUS.FOLLOW_UP_SCHEDULED) return '<span class="chip chip-working">⏳ In Bearbeitung</span>';
-  return '<span class="chip chip-neu">Neu</span>';
+  if (n === CALL_STATUS.CLOSED) return '<span class="chip chip-workflow-closed">Abgeschlossen</span>';
+  if (n === CALL_STATUS.IN_PROGRESS || n === CALL_STATUS.FOLLOW_UP_SCHEDULED) return '<span class="chip chip-workflow-progress">In Bearbeitung</span>';
+  return '<span class="chip chip-workflow-neu">Neu</span>';
 }
 
 function getPriority(record) {
   const f = (record && record.fields) || {};
   const now = new Date();
   const followUp = parseFollowUpDate(f.follow_up_at);
-  const isClosed = isClosedStatus(f.dashboard_status);
-  const isCallback = !!f.callback_requested;
   const isHot = qualKey(f.lead_quality) === 'hot';
-  const inProgress = [CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizeStatus(f.dashboard_status));
-
-  if (isClosed && !isActiveFollowUp(record)) return { key: 'done', label: 'Abgeschlossen', icon: '✓' };
-  if (followUp && !Number.isNaN(followUp.getTime()) && followUp < now) return { key: 'overdue', label: 'Überfällig', icon: '⏰' };
-  if (isCallback) return { key: 'callback', label: 'Rückruf gewünscht', icon: '' };
-  if (followUp && !Number.isNaN(followUp.getTime()) && isToday(f.follow_up_at)) return { key: 'today', label: 'Heute fällig', icon: '🗓' };
-  if (isHot) return { key: 'hot', label: 'Hot Lead', icon: '' };
-  if (inProgress) return { key: 'working', label: 'In Arbeit', icon: '⏳' };
-  return { key: 'normal', label: 'Offen', icon: '•' };
+  const isUrgentFollowUp = followUp && !Number.isNaN(followUp.getTime()) && (followUp < now || isToday(f.follow_up_at));
+  const urgent = isHot || isUrgentFollowUp;
+  return { key: urgent ? 'urgent' : 'normal', label: urgent ? 'Dringend' : 'Normal' };
 }
 
 function priorityChip(record) {
   const p = getPriority(record);
-  if (p.key === 'working' || p.key === 'done' || p.key === 'normal') return '';
-  const map = {
-    overdue: 'chip-hot',
-    callback: 'chip-rueckruf',
-    today: 'chip-working',
-    hot: 'chip-hot'
-  };
-  return `<span class="chip ${map[p.key] || 'chip-neu'}">${p.icon} ${p.label}</span>`;
+  if (p.key !== 'urgent') return '';
+  return `<span class="chip chip-priority-urgent">${p.label}</span>`;
+}
+
+function callbackChip(record) {
+  const f = (record && record.fields) || {};
+  return f.callback_requested && !isClosedStatus(f.dashboard_status)
+    ? '<span class="chip chip-callback">Rückruf gewünscht</span>'
+    : '';
+}
+
+function callCardBadgeHtml(record, options) {
+  const opts = options || {};
+  const f = (record && record.fields) || {};
+  const chips = [];
+  chips.push(callbackChip(record));
+  chips.push(priorityChip(record));
+  chips.push(statusChip(f.dashboard_status));
+  if (opts.includeMetaQuality) chips.push(qualChip(f.lead_quality));
+  return chips.filter(Boolean).join('');
 }
 
 const DISPLAY_TIMEZONE = 'Europe/Zurich';
@@ -4404,10 +4413,7 @@ function renderList(containerId, records, opts) {
         <div class="call-top">
           <span class="call-name">${escHtml(f.caller_name||'–')}</span>
           ${f.company_name?`<span class="call-company">· ${escHtml(f.company_name)}</span>`:''}
-          ${priorityChip(r)}
-          ${qualChip(f.lead_quality)}
-          ${statusChip(f.dashboard_status)}
-          ${(f.callback_requested&&!done&&priority.key!=='callback')?'<span class="chip chip-rueckruf">Rückruf</span>':''}
+          ${callCardBadgeHtml(r)}
         </div>
         <div class="call-meta">
           ${displayPhone?`<span class="call-phone">${escHtml(displayPhone)}</span>`:''}
@@ -4683,24 +4689,19 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     }
     const topRow = row.querySelector('.call-top');
     if (topRow) {
-      topRow.querySelectorAll('.chip-done,.chip-working,.chip-rueckruf,.chip-neu').forEach(c => c.remove());
-      if (isClosedStatus(normalizedStatus)) {
-        const c = document.createElement('span'); c.className='chip chip-done'; c.textContent='Abgeschlossen'; topRow.appendChild(c);
-      } else if ([CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizedStatus)) {
-        const c = document.createElement('span'); c.className='chip chip-working'; c.textContent='⏳ In Bearbeitung'; topRow.appendChild(c);
-      } else {
-        const original = allRecords.find(r => String(r.id) === String(recordId));
-        if (original && original.fields && original.fields.callback_requested) {
-          const c = document.createElement('span'); c.className='chip chip-rueckruf'; c.textContent=' Rückruf'; topRow.appendChild(c);
-        }
+      topRow.querySelectorAll('.chip').forEach(c => c.remove());
+      const original = allRecords.find(r => String(r.id) === String(recordId));
+      if (original && original.fields) {
+        original.fields.dashboard_status = normalizedStatus;
+        topRow.insertAdjacentHTML('beforeend', callCardBadgeHtml(original));
       }
     }
   }
 
   const icons = {
-    [CALL_STATUS.NEW]:'● Neu',
-    [CALL_STATUS.IN_PROGRESS]:'⏳ In Bearbeitung',
-    [CALL_STATUS.FOLLOW_UP_SCHEDULED]:'⏳ In Bearbeitung',
+    [CALL_STATUS.NEW]:'Neu',
+    [CALL_STATUS.IN_PROGRESS]:'In Bearbeitung',
+    [CALL_STATUS.FOLLOW_UP_SCHEDULED]:'In Bearbeitung',
     [CALL_STATUS.CLOSED]:'Abgeschlossen'
   };
   try {
@@ -4921,7 +4922,7 @@ function openDetail(recordId) {
         </div>
         <div class="detail-card">
           <div class="detail-title">Nächste Schritte</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">${priorityChip(rec)}${qualChip(f.lead_quality)}${statusChip(f.dashboard_status)}${f.callback_requested && !isClosedStatus(f.dashboard_status) && getPriority(rec).key !== 'callback' ? '<span class="chip chip-rueckruf"> Rückruf</span>' : ''}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">${callCardBadgeHtml(rec, { includeMetaQuality: true })}</div>
           <div class="detail-actions">
             ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')">Jetzt zurückrufen</a>` : ''}
             <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up</button>
@@ -5510,7 +5511,7 @@ function filterList(listId, type, btn) {
   document.querySelectorAll('#'+listId+' .call-row').forEach(row => {
     if (type === 'alle') { row.classList.remove('hidden'); return; }
     if (type === 'offen') { row.classList.toggle('hidden', row.dataset.open !== '1'); return; }
-    if (type === 'dringend') { row.classList.toggle('hidden', !['overdue','callback','today','hot'].includes(row.dataset.priority)); return; }
+    if (type === 'dringend') { row.classList.toggle('hidden', row.dataset.priority !== 'urgent'); return; }
     if (type === 'inbearbeitung') { row.classList.toggle('hidden', !['in_progress','follow_up_scheduled'].includes(row.dataset.status)); return; }
     row.classList.toggle('hidden', row.dataset.qual !== type);
   });
