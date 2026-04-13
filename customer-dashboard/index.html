@@ -1572,9 +1572,7 @@ body{
 /* ═══════════════════════════════════════════
    ACTIVATION EXPERIENCE — STATE-DRIVEN SAAS
 ═══════════════════════════════════════════ */
-#activation-v2-shell{display:none;min-height:100vh;padding:20px 14px 34px;background:radial-gradient(circle at 0% 0%,#EFF6FF 0%,#F8FAFC 46%,#EEF2FF 100%);}
-#app.activation-v2-mode .layout{display:none;}
-#app.activation-v2-mode #activation-v2-shell{display:block;}
+#activation-v2-shell{display:block;padding:4px 0 24px;}
 .activation-shell{width:100%;max-width:760px;margin:0 auto;display:grid;gap:14px;}
 .activation-brand{display:flex;align-items:center;justify-content:center;gap:8px;padding-top:6px;color:#1E3A8A;font-weight:700;font-family:var(--font-display);letter-spacing:-.02em;}
 .activation-brand img{height:20px;width:auto;}
@@ -1586,10 +1584,13 @@ body{
 .activation-panel{background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:16px;box-shadow:var(--shadow-card);}
 .activation-panel h2{font-size:15px;font-weight:800;color:#0F172A;margin-bottom:4px;}
 .activation-panel-sub{font-size:12.5px;color:#64748B;line-height:1.6;margin-bottom:12px;}
-.activation-stepper{display:flex;gap:8px;margin-bottom:14px;}
-.activation-step-dot{flex:1;height:6px;border-radius:999px;background:#E2E8F0;}
-.activation-step-dot.done{background:#93C5FD;}
-.activation-step-dot.active{background:#2563EB;}
+.activation-stepper{display:grid;gap:8px;margin-bottom:14px;}
+.activation-step-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid #E2E8F0;border-radius:10px;background:#F8FAFC;}
+.activation-step-row.done{background:#EFF6FF;border-color:#BFDBFE;}
+.activation-step-row.active{background:#EEF4FF;border-color:#93C5FD;}
+.activation-step-index{width:22px;height:22px;border-radius:999px;background:#E2E8F0;color:#334155;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.activation-step-row.done .activation-step-index,.activation-step-row.active .activation-step-index{background:#1D4ED8;color:#fff;}
+.activation-step-label{font-size:12.5px;font-weight:600;color:#334155;}
 .activation-choice-grid{display:grid;gap:10px;}
 .activation-choice-card{border:1.5px solid #D8E0EC;border-radius:14px;padding:14px;background:#fff;cursor:pointer;transition:all .18s ease;}
 .activation-choice-card.active{border-color:#1D4ED8;background:#EEF4FF;box-shadow:0 0 0 3px rgba(29,78,216,.11);}
@@ -1684,7 +1685,6 @@ body{
      APP
 ═══════════════════════════════════════ -->
 <div id="app">
-  <div id="activation-v2-shell"></div>
   <div class="layout">
 
     <!-- SIDEBAR -->
@@ -1927,347 +1927,7 @@ body{
 
         <!-- EINRICHTUNG TAB -->
         <div class="tab-page" id="tab-einrichtung">
-
-          <!-- ACTIVATION MODULE -->
-          <div id="activation-module" class="activation-module">
-            <div class="activation-live-header">
-              <div class="activation-live-eyebrow">VOXERA LIVE</div>
-              <div class="activation-live-title">VOXERA ist aktiv</div>
-              <div class="activation-live-sub">Ihre Anrufe werden automatisch verarbeitet.</div>
-            </div>
-
-            <div class="activation-module-title">Status & Übersicht</div>
-            <div class="activation-module-sub">Ihr aktueller Leitungsstatus und die verknüpfte Rufumleitung.</div>
-
-            <!-- Status Card -->
-            <div class="activation-status-card" id="activation-status-card">
-              <div class="activation-numbers">
-                <div class="activation-number-item">
-                  <div class="activation-number-label">Ihre Nummer</div>
-                  <div class="activation-number-val" id="act-tel-nr">–</div>
-                </div>
-                <div class="activation-number-item">
-                  <div class="activation-number-label">Weiterleitung an</div>
-                  <div class="activation-number-val" id="act-voxera-number">–</div>
-                </div>
-              </div>
-              <div id="act-badge"></div>
-              <div class="activation-state-desc" id="act-state-desc"></div>
-            </div>
-
-            <div class="activation-testfocus-section">
-              <div class="activation-testfocus-title">Testanruf & Aktivierungsprüfung</div>
-              <div class="activation-testfocus-sub">Hier sehen Sie den aktuellen Teststatus und können die Aktivierung direkt bestätigen.</div>
-
-              <!-- Action Card -->
-              <div class="act-action-section" id="act-action-section" style="display:none;">
-                <div class="act-action-title" id="act-action-title">Aktivierung</div>
-                <div class="act-action-sub" id="act-action-sub"></div>
-                <div class="act-action-code-box" id="act-action-code-box" style="display:none;">
-                  <span class="act-action-code" id="act-action-code"></span>
-                </div>
-                <div class="act-action-btns" id="act-action-btns"></div>
-                <div class="act-action-hint" id="act-action-hint" style="display:none;"></div>
-                <!-- Skip shortcut block: only shown when current config matches last confirmed config -->
-                <div class="act-skip-shortcut-block" id="act-skip-shortcut-block" style="display:none;">
-                  <div class="act-skip-shortcut-title">Konfiguration bereits bestätigt</div>
-                  <div class="act-skip-shortcut-desc">Diese Konfiguration wurde bereits erfolgreich bestätigt. Sie können Voxera direkt wieder aktivieren oder optional erneut testen.</div>
-                  <div class="act-skip-shortcut-btns">
-                    <button type="button" class="act-action-btn-primary" onclick="activationSkipTest(event)">Ohne Test fortfahren</button>
-                    <button type="button" class="act-action-btn-secondary" onclick="activationSkipToTest(event)">Testanruf durchführen</button>
-                  </div>
-                </div>
-                <!-- Test required info block: shown when forwarding_setup_completed but canSkipActivationTest is false -->
-                <div class="act-test-required-info" id="act-test-required-info" style="display:none;" aria-live="polite">
-                  <div class="act-test-required-info-title">Testanruf erforderlich</div>
-                  <div class="act-test-required-info-body">Sie haben den Gerätetyp oder die Weiterleitungsart geändert. Bitte bestätigen Sie diese Konfiguration einmal mit einem Testanruf.</div>
-                </div>
-              </div>
-
-            <!-- Pending-Test Card (shown when forwarding_status === 'pending_test') -->
-            <div id="act-pending-test-section" style="display:none;"></div>
-            </div>
-
-            <div class="activation-settings-section">
-              <div class="activation-settings-title">Einstellungen</div>
-              <div class="activation-settings-sub">Konfiguration anpassen, falls sich Ihre Telefonie-Einstellungen ändern.</div>
-
-              <!-- Device Selection Section -->
-              <div class="activation-device-section" id="act-device-section">
-                <div class="activation-device-title">Gerätetyp</div>
-                <div class="activation-device-sub">Wählen Sie den Kanal, für den Sie die Hinweise anzeigen möchten.</div>
-                <div class="activation-choice-grid">
-                  <div class="activation-choice-card" id="act-device-card-mobile" onclick="activationSelectDevice(event,'mobile')">
-                    <div class="activation-choice-card-title"> Smartphone</div>
-                    <div class="activation-choice-card-text">Rufumleitung direkt auf dem Handy aktivieren.</div>
-                  </div>
-                  <div class="activation-choice-card" id="act-device-card-landline" onclick="activationSelectDevice(event,'landline')">
-                    <div class="activation-choice-card-title">Festnetz / Telefonanlage</div>
-                    <div class="activation-choice-card-text">Für Büro-Telefon, Telefonanlage oder VoIP.</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Forwarding Mode Selection Card -->
-              <div class="act-mode-section" id="act-mode-section" style="display:none;">
-                <div class="act-mode-title">Weiterleitungsmodus</div>
-                <div class="act-mode-sub">Bestimmen Sie, in welcher Situation Anrufe an Voxera weitergeleitet werden.</div>
-                <div class="act-mode-grid">
-                  <div class="act-mode-card" id="act-mode-card-no_answer" onclick="activationSelectMode(event,'no_answer')">
-                    <div class="act-mode-card-label">Wenn ich nicht antworte</div>
-                    <div class="act-mode-card-desc">Nach einigen Klingeltönen ohne Annahme</div>
-                  </div>
-                  <div class="act-mode-card" id="act-mode-card-unreachable" onclick="activationSelectMode(event,'unreachable')">
-                    <div class="act-mode-card-label">Wenn ich nicht erreichbar bin</div>
-                    <div class="act-mode-card-desc">Ausgeschaltet, kein Netz oder Flugmodus</div>
-                  </div>
-                  <div class="act-mode-card" id="act-mode-card-always" onclick="activationSelectMode(event,'always')">
-                    <div class="act-mode-card-label">Immer weiterleiten</div>
-                    <div class="act-mode-card-desc">Jeder Anruf wird sofort weitergeleitet</div>
-                  </div>
-                  <div class="act-mode-card secondary" id="act-mode-card-busy" onclick="activationSelectMode(event,'busy')">
-                    <div class="act-mode-card-label">Wenn besetzt</div>
-                    <div class="act-mode-card-desc">Wenn Sie gerade in einem Gespräch sind</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <details class="activation-more-options">
-              <summary>Weitere Optionen</summary>
-              <div class="activation-more-options-body">
-                <!-- Deactivation Section (only shown when forwarding_status === 'active', rendered dynamically) -->
-                <div id="act-deactivation-section" style="display:none;"></div>
-              </div>
-            </details>
-          </div>
-
-          <div id="setup-wizard" style="display:none">
-            <div class="setup-welcome" id="setup-welcome-block">
-              <div class="setup-welcome-icon"></div>
-              <div class="setup-welcome-title">Willkommen bei Voxera</div>
-              <div class="setup-welcome-sub">Ihr KI-Telefonassistent ist bereit. In wenigen Schritten richten Sie alles ein, damit kein Anruf mehr verloren geht.</div>
-            </div>
-
-            <div class="setup-progress">
-              <div class="setup-progress-bar"><div class="setup-progress-fill" id="setup-progress-fill" style="width:0%"></div></div>
-              <div class="setup-progress-text" id="setup-progress-text">0 / 5</div>
-            </div>
-
-            <div class="setup-steps" id="setup-steps-container">
-
-              <!-- Step 1: Setup-Pfad wählen -->
-              <div class="setup-step active" id="setup-s1" onclick="toggleSetupStep('s1')">
-                <div class="setup-step-head">
-                  <div class="setup-step-num">1</div>
-                  <div class="setup-step-info">
-                    <div class="setup-step-title">So richten Sie Voxera ein</div>
-                    <div class="setup-step-desc">Wählen Sie den passenden Aktivierungsweg</div>
-                  </div>
-                  <div class="setup-step-check"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                </div>
-                <div class="setup-step-body">
-                  <div class="setup-step-content">
-                    <p><strong>Wie möchten Sie Voxera einrichten?</strong></p>
-                    <div class="setup-choice-grid" onclick="event.stopPropagation();" role="listbox" aria-label="Einrichtungsweg wählen">
-                      <div class="setup-choice-card" id="setup-device-card-mobile" role="option" aria-selected="false">
-                        <div class="setup-choice-title"> Smartphone</div>
-                        <div class="setup-choice-text">Ideal, wenn Sie die Weiterleitung direkt auf dem Handy aktivieren möchten.</div>
-                        <div class="setup-choice-actions">
-                          <button type="button" class="setup-btn setup-btn-primary" onclick="selectSetupDevice(event,'mobile')">Smartphone wählen</button>
-                        </div>
-                      </div>
-                      <div class="setup-choice-card" id="setup-device-card-landline" role="option" aria-selected="false">
-                        <div class="setup-choice-title">Festnetz / Telefonanlage</div>
-                        <div class="setup-choice-text">Für Büro-Telefon, Telefonanlage oder VoIP beim Anbieter.</div>
-                        <div class="setup-choice-actions">
-                          <button type="button" class="setup-btn setup-btn-secondary" onclick="selectSetupDevice(event,'landline')">Festnetz wählen</button>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="setup-info-note" style="margin-top:10px;"> Keine Sorge: Sie können den Pfad jederzeit wechseln.</div>
-                    <h4>Ihre Voxera-Nummer</h4>
-                    <div class="setup-number-box">
-                      <span class="setup-number-val" id="setup-voxera-number">Wird geladen...</span>
-                      <button class="setup-number-copy" onclick="copyVoxeraNumber(event)">Kopieren</button>
-                    </div>
-                    <p class="setup-helper-note">Dauert nur wenige Sekunden. Im nächsten Schritt führen wir Sie genau durch die Aktivierung.</p>
-                  </div>
-                  <div class="setup-actions">
-                    <button type="button" class="setup-btn setup-btn-primary" onclick="completeSetupStep('s1',event)">Weiter zur Aktivierung</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Step 2: Aktivierung & Test -->
-              <div class="setup-step" id="setup-s2" onclick="toggleSetupStep('s2')">
-                <div class="setup-step-head">
-                  <div class="setup-step-num">2</div>
-                  <div class="setup-step-info">
-                    <div class="setup-step-title">Weiterleitung aktivieren</div>
-                    <div class="setup-step-desc">Voxera führt Sie Schritt für Schritt durch die Aktivierung</div>
-                  </div>
-                  <div class="setup-step-check"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                </div>
-                <div class="setup-step-body">
-                  <div class="setup-step-content">
-                    <div class="setup-device-panel active" id="setup-device-panel-mobile">
-                      <h4>Smartphone-Aktivierung</h4>
-                      <p>Tippen Sie auf <strong>Jetzt aktivieren</strong>. Ihr Handy öffnet den Dialer mit dem Code – Sie bestätigen nur noch den Anruf.</p>
-                      <div class="setup-helper-note">Dauert nur wenige Sekunden.</div>
-                      <div class="setup-number-box">
-                        <span class="setup-number-val" id="setup-voxera-number-2">Wird geladen...</span>
-                        <div class="setup-choice-actions" style="margin-top:0;">
-                          <a class="setup-btn setup-btn-primary help-direct-btn" id="setup-forwarding-mobile-btn" data-code-template="**62*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Jetzt aktivieren</a>
-                          <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-copy-btn" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Code kopieren</button>
-                        </div>
-                      </div>
-                      <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'forwarding')">Alternative Weiterleitungsarten anzeigen</a>
-                    </div>
-
-                    <div class="setup-device-panel" id="setup-device-panel-landline">
-                      <h4>Festnetz / Telefonanlage aktivieren</h4>
-                      <p>Öffnen Sie das Admin-Portal Ihres Anbieters oder Ihrer Telefonanlage und setzen Sie dort die Rufumleitung auf die Voxera-Nummer.</p>
-                      <div class="setup-helper-note">Diese Nummer tragen Sie als Zielnummer ein.</div>
-                      <div class="setup-number-box">
-                        <span class="setup-number-val" id="setup-voxera-number-3">Wird geladen...</span>
-                        <div class="setup-choice-actions" style="margin-top:0;">
-                          <button type="button" class="setup-btn setup-btn-secondary" id="setup-forwarding-landline-btn" onclick="openHelpSection('forwarding');event.stopPropagation();">Anleitung öffnen</button>
-                        </div>
-                      </div>
-                      <div class="setup-info-note">Hinweis: GSM-Codes wie <code>**62*</code> funktionieren meist nur auf Smartphones.</div>
-                    </div>
-
-                    <div class="setup-actions" style="margin-top:8px;">
-                      <button type="button" class="setup-btn setup-btn-primary" onclick="continueToSetupTest(event)">Weiter: Aktivierung testen</button>
-                    </div>
-
-                    <div id="setup-test-block" style="margin-top:14px;display:none;">
-                      <h4>Testen, ob alles funktioniert</h4>
-                      <p>Rufen Sie Ihre Geschäftsnummer von einem zweiten Telefon aus an. So sehen Sie sofort, ob Voxera aktiv ist.</p>
-                      <div class="setup-helper-note">Nach dem Test sollte ein neuer Anruf im Dashboard erscheinen.</div>
-                      <div class="setup-number-box">
-                        <span class="setup-number-val" id="setup-business-number-test">Wird geladen...</span>
-                        <button type="button" class="setup-btn setup-btn-primary" id="setup-forwarding-test-guide-btn" onclick="openSetupHelpOverlay(event,'testcall')">So testen Sie es</button>
-                      </div>
-                      <div class="setup-helper-note" id="setup-business-number-note" style="display:none;">Ihre Geschäftsnummer fehlt. Hinterlegen Sie sie in den Einstellungen, um den Test sauber durchzuführen.</div>
-                    </div>
-                  </div>
-                  <div class="setup-actions">
-                    <button type="button" class="setup-btn setup-btn-success" onclick="completeSetupStep('s2',event)">Aktivierung erfolgreich ✓</button>
-                    <button type="button" class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s2',event)">Später testen</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Step 3: Benachrichtigungen -->
-              <div class="setup-step" id="setup-s3" onclick="toggleSetupStep('s3')">
-                <div class="setup-step-head">
-                  <div class="setup-step-num">3</div>
-                  <div class="setup-step-info">
-                    <div class="setup-step-title">Benachrichtigungen einrichten</div>
-                    <div class="setup-step-desc">E-Mail-Alerts für neue Anrufe und Rückrufe</div>
-                  </div>
-                  <div class="setup-step-check"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                </div>
-                <div class="setup-step-body">
-                  <div class="setup-step-content">
-                    <p>Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet.</p>
-                    <div style="margin:14px 0;display:grid;gap:10px;" onclick="event.stopPropagation();">
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);" onclick="event.stopPropagation();">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-none" value="none" checked onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:#1A6FE8;width:16px;height:16px;">
-                        <span style="font-size:13px;color:var(--gray700);font-weight:500;">Keine Benachrichtigungen</span>
-                      </label>
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray200);" onclick="event.stopPropagation();">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-callback-only" value="callback_only" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:#1A6FE8;width:16px;height:16px;">
-                        <span style="font-size:13px;color:var(--gray700);font-weight:500;">Nur bei Rückruf-Anfragen</span>
-                      </label>
-                      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;" onclick="event.stopPropagation();">
-                        <input type="radio" name="setup-notification-mode" id="setup-notif-mode-all-calls" value="all_calls" onclick="event.stopPropagation();" onchange="selectSetupNotification(this.value,event)" style="accent-color:#1A6FE8;width:16px;height:16px;">
-                        <span style="font-size:13px;color:var(--gray700);font-weight:500;">Bei jedem Anruf</span>
-                      </label>
-                    </div>
-                    <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'notifications')">❓ Anleitung anzeigen</a>
-                  </div>
-                  <div class="setup-actions">
-                    <button type="button" class="setup-btn setup-btn-primary" id="setup-notification-continue-btn" onclick="saveNotificationAndContinue(event)">Speichern & weiter</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Step 4: Passwort (info only - not completable in wizard) -->
-              <div class="setup-step" id="setup-s4" onclick="toggleSetupStep('s4')">
-                <div class="setup-step-head">
-                  <div class="setup-step-num">4</div>
-                  <div class="setup-step-info">
-                    <div class="setup-step-title">Passwort ändern</div>
-                    <div class="setup-step-desc">Empfohlen – in den Einstellungen änderbar</div>
-                  </div>
-                  <div class="setup-step-check"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                </div>
-                <div class="setup-step-body">
-                  <div class="setup-step-content">
-                    <div style="background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:10px;padding:14px 16px;margin-bottom:8px;">
-                      <p style="margin:0;color:#1A6FE8;font-weight:600;font-size:13px;"> Aus Sicherheitsgründen empfehlen wir, Ihr temporäres Passwort zu ändern.</p>
-                      <p style="margin:6px 0 0;color:var(--gray600);font-size:12.5px;">Sie können Ihr Passwort jederzeit unter <strong>⚙ Einstellungen → Passwort ändern</strong> aktualisieren.</p>
-                    </div>
-                  </div>
-                  <div class="setup-actions">
-                    <button type="button" class="setup-btn setup-btn-secondary" onclick="skipSetupStep('s4',event)">Überspringen</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Step 5: Support -->
-              <div class="setup-step" id="setup-s5" onclick="toggleSetupStep('s5')">
-                <div class="setup-step-head">
-                  <div class="setup-step-num">5</div>
-                  <div class="setup-step-info">
-                    <div class="setup-step-title">Hilfe & Support</div>
-                    <div class="setup-step-desc">So erreichen Sie uns bei Fragen</div>
-                  </div>
-                  <div class="setup-step-check"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                </div>
-                <div class="setup-step-body">
-                  <div class="setup-step-content">
-                    <p>Bei Fragen oder Problemen sind wir gerne für Sie da:</p>
-                    <h4>Kontakt</h4>
-                    <ol>
-                      <li><strong>E-Mail:</strong> Schreiben Sie uns jederzeit – wir antworten innert 24h</li>
-                      <li><strong>Dashboard:</strong> Unter Einstellungen finden Sie Konto- und Plan-Optionen</li>
-                      <li><strong>Wissensbasis:</strong> Auf <a href="https://voxera.ch" target="_blank" style="color:#1A6FE8;font-weight:600;">voxera.ch</a> finden Sie weitere Informationen</li>
-                    </ol>
-                    <a class="setup-help-trigger" href="javascript:void(0)" onclick="openSetupHelpOverlay(event,'support')">❓ Anleitung anzeigen</a>
-                  </div>
-                  <div class="setup-actions">
-                    <button type="button" class="setup-btn setup-btn-success" onclick="completeSetupStep('s5',event)">Einrichtung abschliessen ✓</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="setup-open-summary" id="setup-open-summary">
-              <div class="setup-open-summary-title"> Noch offen</div>
-              <ul class="setup-open-summary-list" id="setup-open-list"></ul>
-            </div>
-
-            <div class="setup-skip">
-              <a href="javascript:void(0)" onclick="skipSetup()">Einrichtung überspringen</a>
-            </div>
-
-            <!-- Complete screen (hidden initially) -->
-            <div id="setup-complete" style="display:none">
-              <div class="setup-complete">
-                <div class="setup-complete-icon"></div>
-                <div class="setup-complete-title">Alles eingerichtet!</div>
-                <div class="setup-complete-sub">Voxera ist bereit. Alle eingehenden Anrufe erscheinen automatisch in Ihrem Dashboard.</div>
-                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                  <button type="button" class="setup-btn setup-btn-primary" onclick="finishSetup()" style="font-size:15px;padding:12px 28px;">Zum Dashboard →</button>
-                  <button type="button" class="setup-btn setup-btn-secondary" onclick="resetSetupWizard()" style="font-size:14px;padding:12px 20px;">Einrichtung wiederholen</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div id="activation-v2-shell"></div>
         </div>
 
         <!-- EINSTELLUNGEN TAB -->
@@ -7092,25 +6752,61 @@ function activationV2MarkFinishedAndOpenDashboard(){
 
 function activationUiContentByState(state){
   var map = {
-    not_started: { chip:'Bereit', title:'Voxera aktivieren', text:'Starten Sie in drei klaren Schritten. Wir zeigen nur das, was Sie jetzt brauchen.', cta:'Einrichtung starten', action:"goToActivationV2Step(1)" },
-    pending_activation: { chip:'In Einrichtung', title:'Weiterleitung wird vorbereitet', text:'Übernehmen Sie die ausgewählten Einstellungen und gehen Sie zum Test.', cta:'Zur Aktivierung', action:"goToActivationV2Step(3)" },
-    pending_test: { chip:'Fast geschafft', title:'Fast geschafft', text:'Ein kurzer Testanruf bestätigt, dass Voxera zuverlässig übernimmt.', cta:'Test jetzt prüfen', action:"goToActivationV2Step(3)" },
-    active: { chip:'Live', title:'Voxera ist aktiv', text:'Ihre Weiterleitung ist produktiv. Sie können Einstellungen bei Bedarf feinjustieren.', cta:'Zum Dashboard', action:'activationV2MarkFinishedAndOpenDashboard()' },
-    failed: { chip:'Aktion nötig', title:'Aktivierung fehlgeschlagen', text:'Der letzte Test konnte nicht bestätigt werden. Prüfen Sie Modus und Weiterleitung erneut.', cta:'Erneut versuchen', action:"goToActivationV2Step(3)" },
-    inactive: { chip:'Inaktiv', title:'Voxera ist derzeit inaktiv', text:'Aktivieren Sie die Weiterleitung erneut, um wieder Anrufe an Voxera zu übergeben.', cta:'Neu aktivieren', action:"goToActivationV2Step(1)" }
+    not_started: {
+      chip:'Bereit',
+      title:'Voxera aktivieren',
+      text:'In drei klaren Schritten richten Sie Ihre Weiterleitung ein.',
+      primaryLabel:'Einrichtung starten',
+      primaryAction:'goToActivationV2Step(1)'
+    },
+    pending_activation: {
+      chip:'In Arbeit',
+      title:'Aktivierung läuft',
+      text:'Ihre Einstellungen sind gespeichert. Aktivieren Sie jetzt die Weiterleitung.',
+      primaryLabel:'Zu Schritt 3',
+      primaryAction:'goToActivationV2Step(3)'
+    },
+    pending_test: {
+      chip:'Fast geschafft',
+      title:'Fast geschafft',
+      text:'Bitte führen Sie jetzt einen kurzen Test durch, damit Voxera live gehen kann.',
+      primaryLabel:'Test prüfen',
+      primaryAction:'goToActivationV2Step(3)'
+    },
+    active: {
+      chip:'Live',
+      title:'Voxera ist aktiv',
+      text:'Ihre Weiterleitung ist aktiv und kann jederzeit angepasst werden.',
+      primaryLabel:'Weiterleitung verwalten',
+      primaryAction:'goToActivationV2Step(2)'
+    },
+    inactive: {
+      chip:'Inaktiv',
+      title:'Voxera ist inaktiv',
+      text:'Aktivieren Sie die Weiterleitung erneut, um wieder erreichbar zu bleiben.',
+      primaryLabel:'Neu aktivieren',
+      primaryAction:'goToActivationV2Step(1)'
+    },
+    failed: {
+      chip:'Aktion nötig',
+      title:'Aktivierung fehlgeschlagen',
+      text:'Die letzte Prüfung war nicht erfolgreich. Bitte erneut aktivieren und testen.',
+      primaryLabel:'Erneut versuchen',
+      primaryAction:'goToActivationV2Step(3)'
+    }
   };
   return map[state] || map.not_started;
 }
 
 function renderStepProgress(step){
-  var out = '';
-  for (var i = 1; i <= ONBOARDING_TOTAL_STEPS; i++) {
-    var cls = 'activation-step-dot';
-    if (i < step) cls += ' done';
-    if (i === step) cls += ' active';
-    out += '<div class="' + cls + '"></div>';
-  }
-  return out;
+  var steps = ['Gerät wählen', 'Weiterleitungsart wählen', 'Aktivieren & testen'];
+  return steps.map(function(label, idx){
+    var nr = idx + 1;
+    var cls = 'activation-step-row';
+    if (nr < step) cls += ' done';
+    if (nr === step) cls += ' active';
+    return '<div class="' + cls + '"><span class="activation-step-index">' + nr + '</span><span class="activation-step-label">' + label + '</span></div>';
+  }).join('');
 }
 
 function renderActivationV2(){
@@ -7118,77 +6814,78 @@ function renderActivationV2(){
   if (!shell) return;
   restoreActivationV2Step();
   var step = activationV2StepState.step;
-  var mode = customerMeta.forwardingMode;
   var uiState = deriveActivationUiState();
   var hero = activationUiContentByState(uiState);
   var device = customerMeta.setupDeviceType === 'mobile' ? 'Smartphone' : (customerMeta.setupDeviceType === 'landline' ? 'Festnetz / Telefonanlage' : 'Nicht gewählt');
+  var mode = customerMeta.forwardingMode;
   var modeLabel = getForwardingModeLabel(mode) || 'Nicht gewählt';
   var voxeraNumber = customerMeta.voxeraNumber || '–';
   var activatedSince = customerMeta.activationStartedAt ? fmtDate(customerMeta.activationStartedAt) : '–';
   var lastCheck = candidateCall && candidateCall.created_at ? fmtDate(candidateCall.created_at) : 'Keine Prüfung';
-  var showGuide = uiState !== 'active';
+  var canProceedStep2 = !!customerMeta.setupDeviceType;
+  var canProceedStep3 = !!mode;
+  var code = getForwardingCode(mode, customerMeta.voxeraNumber || '');
+  var codeJson = JSON.stringify(code);
 
   var html = '<div class="activation-shell">'
-    + '<div class="activation-brand"><img src="' + BRAND_LOGO_PATH + '" alt="Voxera"/>Voxera Aktivierung</div>'
     + '<section class="activation-hero">'
     + '<div class="activation-state-chip">' + escapeHtml(hero.chip) + '</div>'
     + '<h1>' + escapeHtml(hero.title) + '</h1>'
     + '<p>' + escapeHtml(hero.text) + '</p>'
-    + '<button class="activation-btn primary activation-primary" onclick="' + hero.action + '">' + escapeHtml(hero.cta) + '</button>'
-    + '</section>';
+    + '<button class="activation-btn primary activation-primary" onclick="' + hero.primaryAction + '">' + escapeHtml(hero.primaryLabel) + '</button>'
+    + '</section>'
+    + '<section class="activation-panel">'
+    + '<h2>Geführte Aktivierung</h2>'
+    + '<div class="activation-panel-sub">Nur ein nächster Schritt, damit es schnell und klar bleibt.</div>'
+    + '<div class="activation-stepper">' + renderStepProgress(step) + '</div>';
 
-  if (showGuide) {
-    html += '<section class="activation-panel">'
-      + '<h2>Geführte Einrichtung</h2>'
-      + '<div class="activation-panel-sub">Ein klarer nächster Schritt – ohne technische Komplexität.</div>'
-      + '<div class="activation-stepper">' + renderStepProgress(step) + '</div>';
+  if (step === 1) {
+    html += '<div class="activation-choice-grid two">'
+      + '<button class="activation-choice-card ' + (customerMeta.setupDeviceType==='mobile'?'active':'') + '" onclick="selectActivationV2Device(\\'mobile\\')"><div class="activation-choice-title">Smartphone</div><div class="activation-choice-text">Aktivierung direkt am Handy.</div></button>'
+      + '<button class="activation-choice-card ' + (customerMeta.setupDeviceType==='landline'?'active':'') + '" onclick="selectActivationV2Device(\\'landline\\')"><div class="activation-choice-title">Festnetz / Telefonanlage</div><div class="activation-choice-text">Aktivierung über Anlage oder Anbieter.</div></button>'
+      + '</div>'
+      + '<div class="activation-actions"><button class="activation-btn primary" onclick="goToActivationV2Step(2)" ' + (!canProceedStep2 ? 'disabled' : '') + '>Weiter</button></div>';
+  } else if (step === 2) {
+    html += '<div class="activation-choice-grid">'
+      + '<button class="activation-choice-card ' + (mode==='no_answer'?'active':'') + '" onclick="selectActivationV2Mode(\\'no_answer\\')"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Bei Nichtannahme übernimmt Voxera.</div></button>'
+      + '<button class="activation-choice-card ' + (mode==='unreachable'?'active':'') + '" onclick="selectActivationV2Mode(\\'unreachable\\')"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder ohne Netz.</div></button>'
+      + '<button class="activation-choice-card ' + (mode==='busy'?'active':'') + '" onclick="selectActivationV2Mode(\\'busy\\')"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits telefonieren.</div></button>'
+      + '<button class="activation-choice-card ' + (mode==='always'?'active':'') + '" onclick="selectActivationV2Mode(\\'always\\')"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle Anrufe direkt an Voxera.</div></button>'
+      + '</div>'
+      + '<div class="activation-actions"><button class="activation-btn primary" onclick="goToActivationV2Step(3)" ' + (!canProceedStep3 ? 'disabled' : '') + '>Weiter</button></div>';
+  } else {
+    if (candidateCall) html += '<div class="activation-info-banner">✓ Test erkannt. Sie können jetzt final aktivieren.</div>';
+    if (uiState === 'failed') html += '<div class="activation-warning-banner">Letzter Test nicht bestätigt. Bitte erneut aktivieren und prüfen.</div>';
+    html += '<div class="activation-compact">'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Gerät</div><div class="activation-compact-val">' + escapeHtml(device) + '</div></div>'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Weiterleitungsart</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Zielnummer</div><div class="activation-compact-val">' + escapeHtml(voxeraNumber) + '</div></div>'
+      + '</div>'
+      + '<div class="activation-actions">';
 
-    if (step === 1) {
-      html += '<div class="activation-choice-grid two">'
-        + '<button class="activation-choice-card ' + (customerMeta.setupDeviceType==='mobile'?'active':'') + '" onclick="selectActivationV2Device(\'mobile\')"><div class="activation-choice-title">Smartphone</div><div class="activation-choice-text">Aktivierung über GSM-Code im Dialer.</div></button>'
-        + '<button class="activation-choice-card ' + (customerMeta.setupDeviceType==='landline'?'active':'') + '" onclick="selectActivationV2Device(\'landline\')"><div class="activation-choice-title">Festnetz / Telefonanlage</div><div class="activation-choice-text">Einrichtung über Anlage oder Provider-Portal.</div></button>'
-        + '</div>'
-        + '<div class="activation-actions"><button class="activation-btn primary" onclick="goToActivationV2Step(2)" ' + (!customerMeta.setupDeviceType ? 'disabled' : '') + '>Weiter zu Schritt 2</button></div>';
-    } else if (step === 2) {
-      html += '<div class="activation-choice-grid">'
-        + '<button class="activation-choice-card ' + (mode==='no_answer'?'active':'') + '" onclick="selectActivationV2Mode(\'no_answer\')"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Voxera übernimmt, wenn Sie nicht rechtzeitig abheben.</div></button>'
-        + '<button class="activation-choice-card ' + (mode==='unreachable'?'active':'') + '" onclick="selectActivationV2Mode(\'unreachable\')"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder fehlendem Netz.</div></button>'
-        + '<button class="activation-choice-card ' + (mode==='busy'?'active':'') + '" onclick="selectActivationV2Mode(\'busy\')"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits in einem Gespräch sind.</div></button>'
-        + '<button class="activation-choice-card ' + (mode==='always'?'active':'') + '" onclick="selectActivationV2Mode(\'always\')"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle eingehenden Anrufe werden direkt übernommen.</div></button>'
-        + '</div>'
-        + '<div class="activation-actions inline"><button class="activation-btn secondary" onclick="goToActivationV2Step(1)">Zurück</button><button class="activation-btn primary" onclick="goToActivationV2Step(3)" ' + (!mode ? 'disabled' : '') + '>Weiter zu Schritt 3</button></div>';
+    if (customerMeta.setupDeviceType === 'mobile') {
+      html += '<button class="activation-btn primary" onclick="activationStartSmartphone(event,' + codeJson + ')">Weiterleitung aktivieren</button>';
+      html += '<button class="activation-btn secondary" onclick="activationCopyCode(event,' + codeJson + ')">Code kopieren</button>';
     } else {
-      var code = getForwardingCode(customerMeta.forwardingMode, customerMeta.voxeraNumber || '');
-      var codeJson = JSON.stringify(code);
-      html += '<div class="activation-compact">'
-        + '<div class="activation-compact-card"><div class="activation-compact-label">Gerät</div><div class="activation-compact-val">' + escapeHtml(device) + '</div></div>'
-        + '<div class="activation-compact-card"><div class="activation-compact-label">Modus</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
-        + '<div class="activation-compact-card"><div class="activation-compact-label">Zielnummer</div><div class="activation-compact-val">' + escapeHtml(voxeraNumber) + '</div></div>'
-        + (code ? '<div class="activation-compact-card"><div class="activation-compact-label">Aktivierungscode</div><div class="activation-compact-val" style="font-family:monospace;">' + escapeHtml(code) + '</div></div>' : '')
-        + '</div>';
-      if (candidateCall) html += '<div class="activation-info-banner">✓ Testanruf erkannt. Sie können die Aktivierung jetzt final bestätigen.</div>';
-      if (uiState === 'failed') html += '<div class="activation-warning-banner">Keine erfolgreiche Prüfung erkannt. Bitte Weiterleitung erneut aktivieren und nochmals testen.</div>';
-      html += '<div class="activation-actions">';
-      if (customerMeta.setupDeviceType === 'mobile') {
-        html += '<button class="activation-btn primary" onclick="activationStartSmartphone(event,' + codeJson + ')">Weiterleitung aktivieren</button>'
-          + '<button class="activation-btn secondary" onclick="activationCopyCode(event,' + codeJson + ')">Code kopieren</button>';
-      } else {
-        html += '<button class="activation-btn primary" onclick="activationStartLandlineTest(event)">Weiterleitung aktivieren</button>'
-          + '<button class="activation-btn secondary" onclick="openHelpSection(\'forwarding\')">Anleitung öffnen</button>';
-      }
-      html += candidateCall
-        ? '<button class="activation-btn primary" onclick="confirmActivationTestCall(event)">Test erfolgreich – aktivieren</button><button class="activation-btn secondary" onclick="rejectActivationTestCall(event)">Test war nicht korrekt</button>'
-        : '<button class="activation-btn secondary" onclick="retryActivationCheck(event)">Test erneut prüfen</button>';
-      html += '<button class="activation-btn secondary" onclick="goToActivationV2Step(2)">Einstellungen ändern</button></div>';
+      html += '<button class="activation-btn primary" onclick="activationStartLandlineTest(event)">Weiterleitung aktivieren</button>';
+      html += '<button class="activation-btn secondary" onclick="openHelpSection(\\'forwarding\\')">Anleitung öffnen</button>';
     }
 
-    html += '</section>';
+    if (candidateCall) {
+      html += '<button class="activation-btn secondary" onclick="confirmActivationTestCall(event)">Test bestätigen</button>';
+    } else {
+      html += '<button class="activation-btn secondary" onclick="retryActivationCheck(event)">Test prüfen</button>';
+    }
+
+    html += '</div>';
   }
+
+  html += '</section>';
 
   if (uiState === 'active') {
     html += '<section class="activation-panel"><h2>Live-Details</h2><div class="activation-live-grid">'
       + '<div class="activation-compact-card"><div class="activation-compact-label">Aktiv seit</div><div class="activation-compact-val">' + escapeHtml(activatedSince) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Modus</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Weiterleitungsart</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
       + '<div class="activation-compact-card"><div class="activation-compact-label">Zielnummer</div><div class="activation-compact-val">' + escapeHtml(voxeraNumber) + '</div></div>'
       + '<div class="activation-compact-card"><div class="activation-compact-label">Letzte Prüfung</div><div class="activation-compact-val">' + escapeHtml(lastCheck) + '</div></div>'
       + '</div></section>';
@@ -7198,21 +6895,18 @@ function renderActivationV2(){
     + '<div class="activation-advanced-body">'
     + '<button class="activation-link-btn" onclick="goToActivationV2Step(2)">Weiterleitung ändern</button>'
     + '<button class="activation-link-btn" onclick="openActivationDeactivateSection()">Deaktivieren</button>'
-    + '<button class="activation-link-btn" onclick="openHelpSection(\'forwarding\')">Hilfe</button>'
-    + '</div></details>';
+    + '<button class="activation-link-btn" onclick="openHelpSection(\\'forwarding\\')">Hilfe</button>'
+    + '</div></details>'
+    + '</div>';
 
-  html += '</div>';
   shell.innerHTML = html;
 }
 
 function syncActivationV2Gate(){
-  var app = document.getElementById('app');
-  if (!app) return;
+  renderActivationV2();
   if (shouldGateToActivationV2()) {
-    app.classList.add('activation-v2-mode');
-    renderActivationV2();
-  } else {
-    app.classList.remove('activation-v2-mode');
+    var navEl = document.getElementById('nav-einrichtung') || document.querySelector('.nav-item[onclick*="einrichtung"]');
+    if (navEl) showTab('einrichtung', navEl);
   }
 }
 
@@ -7411,7 +7105,6 @@ function showApp(user) {
       greetingMain.textContent = 'Guten ' + greetWord + ', ' + displayName;
       greetingMain.dataset.custom = '1';
     }
-    initSetupWizard();
     syncActivationV2Gate();
     if (shouldGateToActivationV2()) {
       return;
