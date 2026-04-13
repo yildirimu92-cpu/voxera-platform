@@ -32,6 +32,15 @@ function parseBody(event) {
 function pickOfferRecipientEmail(offer, overrides) {
   return trimOrNull(overrides?.to_email) || trimOrNull(offer?.sent_to_email) || trimOrNull(offer?.email);
 }
+function isValidEmailAddress(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+function canonicalPlanValue(value) {
+  const key = String(value || '').trim().toLowerCase();
+  if (key === 'starter') return 'Starter';
+  if (key === 'business') return 'Business';
+  return 'Professional';
+}
 
 function resolveOfferEmailSubject(offer, overrides) {
   return trimOrNull(overrides?.subject)
@@ -83,6 +92,9 @@ async function loadOfferPayload(sbAdmin, body) {
   if (!recipientEmail) {
     return { ok: false, statusCode: 400, error: 'Offerte hat keine Empfänger-E-Mail.' };
   }
+  if (!isValidEmailAddress(recipientEmail)) {
+    return { ok: false, statusCode: 400, error: 'Ungültige Empfänger-E-Mail.' };
+  }
 
   const payload = {
     event_type: 'offer_email',
@@ -96,7 +108,7 @@ async function loadOfferPayload(sbAdmin, body) {
       offer_number: offer.offer_number,
       status: offer.status,
       valid_until: offer.valid_until,
-      plan: offer.plan,
+      plan: canonicalPlanValue(offer.plan),
       billing_cycle: offer.billing_cycle,
       setup_fee: Number(offer.setup_fee || 0),
       monthly_price: Number(offer.monthly_price || 0),
@@ -140,7 +152,8 @@ async function loadOfferPayload(sbAdmin, body) {
       offer_id: offer.id,
       sent_to_email: recipientEmail,
       offer_number: offer.offer_number,
-      email_subject: emailSubject
+      email_subject: emailSubject,
+      public_token: offer.public_token || null
     }
   };
 }

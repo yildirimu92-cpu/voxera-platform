@@ -68,14 +68,13 @@
     <div class="viewer">
       <div class="topbar">
         <button class="topbtn" type="button" onclick="window.location.reload()">↻ Neu laden</button>
-        <button class="topbtn" type="button" onclick="window.print()">⤓ PDF</button>
+        <a class="topbtn" id="pdfDownloadBtn" href="#" target="_blank" rel="noopener">⤓ PDF öffnen</a>
       </div>
       <div class="sheet">
         <header class="header">
           <div>
             <div class="brand">
               <img class="brand-logo" src="/voxera-logo-dark.svg" alt="Voxera Logo" />
-              <span class="brand-name">Voxera</span>
             </div>
             <h1 class="title">Offerte</h1>
             <p class="subtitle">Individuelle Offerte für Ihre Voxera-Lösung</p>
@@ -104,6 +103,18 @@
           <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
           <div class="row" id="discountRow"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
           <div class="row row-total"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+        </section>
+        <section class="block" style="margin-top:12px;">
+          <p class="section-title">Vertragsbedingungen (Schweiz, B2B)</p>
+          <div class="muted" style="font-size:13px;line-height:1.55;">
+            <p><strong>Scope:</strong> Voxera erbringt die in dieser Offerte beschriebenen Leistungen gemäss Paket und Add-ons.</p>
+            <p><strong>Pricing:</strong> Preise in CHF exkl. MwSt.; Rechnungsstellung gemäss gewähltem Zyklus.</p>
+            <p><strong>Dauer & Kündigung:</strong> Laufzeit gemäss Offerte; ordentliche Kündigung per Ende Laufzeit, ausserordentliche Kündigung aus wichtigem Grund vorbehalten.</p>
+            <p><strong>Datenschutz & AVV:</strong> Parteien schliessen bei Bedarf einen Auftragsverarbeitungsvertrag (AVV). Verarbeitung gemäss revDSG und anwendbarem Recht.</p>
+            <p><strong>Haftung:</strong> Haftung für leichte Fahrlässigkeit im gesetzlich zulässigen Umfang ausgeschlossen; zwingende Haftungstatbestände bleiben vorbehalten.</p>
+            <p><strong>Annahme:</strong> Mit digitaler Annahme wird diese Offerte zum verbindlichen Vertrag.</p>
+            <p><strong>Gerichtsstand:</strong> Soweit zulässig gilt Schweizer Recht; ausschliesslicher Gerichtsstand ist der Sitz der Voxera-Anbieterin.</p>
+          </div>
         </section>
       </div>
     </div>
@@ -135,6 +146,7 @@
     document.getElementById('discount').textContent = `- ${money(discount)}`;
     document.getElementById('discountRow').classList.toggle('hidden', !hasDiscount);
     document.getElementById('total').textContent = money(offer.total);
+    document.getElementById('pdfDownloadBtn').href=window.location.href;
     stateEl.style.display='none';
     document.getElementById('doc').style.display='block';
   }
