@@ -6731,11 +6731,17 @@ function goToActivationV2Step(step){
 }
 
 function selectActivationV2Mode(mode){
-  activationSelectMode(null, mode).then(function(){ renderActivationV2(); });
+  activationSelectMode(null, mode).then(function(ok){
+    if (ok) persistActivationV2Step(3);
+    renderActivationV2();
+  });
 }
 
 function selectActivationV2Device(type){
-  activationSelectDevice(null, type).then(function(){ renderActivationV2(); });
+  activationSelectDevice(null, type).then(function(result){
+    if (result) persistActivationV2Step(2);
+    renderActivationV2();
+  });
 }
 
 function activationV2MarkFinishedAndOpenDashboard(){
@@ -6757,42 +6763,46 @@ function activationUiContentByState(state){
       title:'Voxera aktivieren',
       text:'In drei klaren Schritten richten Sie Ihre Weiterleitung ein.',
       primaryLabel:'Einrichtung starten',
-      primaryAction:'goToActivationV2Step(1)'
+      primaryAction:'go-step',
+      primaryValue:'1'
     },
     pending_activation: {
       chip:'In Arbeit',
       title:'Aktivierung läuft',
       text:'Ihre Einstellungen sind gespeichert. Aktivieren Sie jetzt die Weiterleitung.',
       primaryLabel:'Zu Schritt 3',
-      primaryAction:'goToActivationV2Step(3)'
+      primaryAction:'go-step',
+      primaryValue:'3'
     },
     pending_test: {
       chip:'Fast geschafft',
       title:'Fast geschafft',
       text:'Bitte führen Sie jetzt einen kurzen Test durch, damit Voxera live gehen kann.',
       primaryLabel:'Test prüfen',
-      primaryAction:'goToActivationV2Step(3)'
+      primaryAction:'retry-test'
     },
     active: {
       chip:'Live',
       title:'Voxera ist aktiv',
       text:'Ihre Weiterleitung ist aktiv und kann jederzeit angepasst werden.',
       primaryLabel:'Weiterleitung verwalten',
-      primaryAction:'goToActivationV2Step(2)'
+      primaryAction:'go-step',
+      primaryValue:'2'
     },
     inactive: {
       chip:'Inaktiv',
       title:'Voxera ist inaktiv',
       text:'Aktivieren Sie die Weiterleitung erneut, um wieder erreichbar zu bleiben.',
       primaryLabel:'Neu aktivieren',
-      primaryAction:'goToActivationV2Step(1)'
+      primaryAction:'go-step',
+      primaryValue:'1'
     },
     failed: {
       chip:'Aktion nötig',
       title:'Aktivierung fehlgeschlagen',
       text:'Die letzte Prüfung war nicht erfolgreich. Bitte erneut aktivieren und testen.',
       primaryLabel:'Erneut versuchen',
-      primaryAction:'goToActivationV2Step(3)'
+      primaryAction:'retry-flow'
     }
   };
   return map[state] || map.not_started;
@@ -6811,13 +6821,55 @@ function renderStepProgress(step){
 
 var activationV2EventsBound = false;
 var activationV2SoftGateShown = false;
+var activationV2LastTouchTs = 0;
+
+function findActivationV2ActionTarget(rawTarget, shell) {
+  var el = rawTarget && rawTarget.nodeType === 1 ? rawTarget : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+  while (el && el !== shell) {
+    if (el.hasAttribute && el.hasAttribute('data-action')) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+async function activationV2RetryFlow(event) {
+  if (event) event.stopPropagation();
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
+    stopActivationPolling();
+    candidateCall = null;
+    activationFlowGuideToken = '';
+    activationFlowSuccessToken = '';
+    await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null });
+    customerMeta.forwardingStatus = 'not_started';
+    customerMeta.activationStartedAt = null;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'not_started';
+      context.customerRecord.activation_started_at = null;
+    }
+    persistActivationV2Step(customerMeta && customerMeta.forwardingMode ? 3 : 1);
+    renderActivationV2();
+    toast('Aktivierung zurückgesetzt. Bitte starten Sie die Weiterleitung erneut.');
+  } catch (e) {
+    console.error('activationV2RetryFlow failed', e);
+    toast('Aktivierung konnte nicht zurückgesetzt werden.');
+  }
+}
 
 function bindActivationV2Events(){
   if (activationV2EventsBound) return;
   var shell = document.getElementById('activation-v2-shell');
   if (!shell) return;
-  shell.addEventListener('click', function(event){
-    var target = event.target && event.target.closest ? event.target.closest('[data-action]') : null;
+
+  var handleActionEvent = function(event){
+    if (event.type === 'touchend') {
+      activationV2LastTouchTs = Date.now();
+    } else if (event.type === 'click' && (Date.now() - activationV2LastTouchTs) < 450) {
+      return;
+    }
+    var target = findActivationV2ActionTarget(event.target, shell);
     if (!target || !shell.contains(target)) return;
     var action = target.getAttribute('data-action');
     var value = target.getAttribute('data-value');
@@ -6851,13 +6903,18 @@ function bindActivationV2Events(){
       case 'retry-test':
         retryActivationCheck(event);
         break;
+      case 'retry-flow':
+        activationV2RetryFlow(event);
+        break;
       case 'open-deactivation':
         openActivationDeactivateSection();
         break;
       default:
         console.warn('[activation-v2] unknown action:', action);
     }
-  });
+  };
+  shell.addEventListener('click', handleActionEvent);
+  shell.addEventListener('touchend', handleActionEvent, { passive: false });
   activationV2EventsBound = true;
 }
 
@@ -6879,14 +6936,15 @@ function renderActivationV2(){
   var canProceedStep3 = !!mode;
   var code = getForwardingCode(mode, customerMeta.voxeraNumber || '');
   var codeJson = JSON.stringify(code || '');
-  var heroStep = hero.primaryAction === 'goToActivationV2Step(3)' ? 3 : (hero.primaryAction === 'goToActivationV2Step(2)' ? 2 : 1);
+  var heroAction = hero.primaryAction || 'go-step';
+  var heroValue = hero.primaryValue || '1';
 
   var html = '<div class="activation-shell">'
     + '<section class="activation-hero">'
     + '<div class="activation-state-chip">' + escapeHtml(hero.chip) + '</div>'
     + '<h1>' + escapeHtml(hero.title) + '</h1>'
     + '<p>' + escapeHtml(hero.text) + '</p>'
-    + '<button class="activation-btn primary activation-primary" data-action="go-step" data-value="' + heroStep + '">' + escapeHtml(hero.primaryLabel) + '</button>'
+    + '<button class="activation-btn primary activation-primary" data-action="' + escapeHtml(heroAction) + '" data-value="' + escapeHtml(heroValue) + '">' + escapeHtml(hero.primaryLabel) + '</button>'
     + '</section>'
     + '<section class="activation-panel">'
     + '<h2>Geführte Aktivierung</h2>'
