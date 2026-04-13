@@ -1,0 +1,8 @@
+<svg width="160" height="36" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Voxera">
+  <rect x="0" y="2" width="32" height="32" rx="9" fill="#0D1F3C"/>
+  <path d="M16 8.5C12.1 8.5 9.2 11.2 9.2 15" stroke="#4B9FFF" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M16 8.5C19.9 8.5 22.8 11.2 22.8 15" stroke="#E8C547" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M9.2 15C9.2 19 12.1 22.2 16 22.2C19.9 22.2 22.8 19 22.8 15" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M13.4 12.8L16 18L18.6 12.8" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="42" y="24" fill="#0D1F3C" font-size="20" font-weight="800" font-family="'Plus Jakarta Sans', 'DM Sans', Arial, sans-serif" letter-spacing="-0.03em">Voxera</text>
+</svg>

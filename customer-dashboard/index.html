@@ -21,16 +21,18 @@
 ═══════════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
-  /* Brand – identical to admin */
-  --blue:#1A6FE8;--blue-dark:#1340B0;--blue-light:#EBF4FF;--blue-mid:#BFDBFE;--blue-subtle:rgba(26,111,232,0.06);
+  /* Voxera brand tokens */
+  --vx-night:#0D1F3C;--vx-blue:#1A6FE8;--vx-sky:#4B9FFF;--vx-gold:#E8C547;--vx-sand:#F5EDD0;
+  --vx-bg:#F7F8FA;--vx-surface:#FFFFFF;--vx-ink:#1A1A2E;--vx-muted:#7A8599;--vx-line:#E4E8F0;
+  --blue:var(--vx-blue);--blue-dark:#1558BA;--blue-light:#EAF2FF;--blue-mid:#B9D4FF;--blue-subtle:rgba(26,111,232,0.08);
   --green:#059669;--green-light:#ECFDF5;--green-mid:#A7F3D0;--green-dark:#065F46;
   --red:#DC2626;--red-light:#FEF2F2;--red-mid:#FECACA;
   --amber:#D97706;--amber-light:#FFFBEB;--amber-mid:#FDE68A;
-  /* Neutrals – identical to admin */
-  --ink:#111827;--ink2:#374151;--ink3:#4B5563;
-  --slate:#6B7280;--slate2:#9CA3AF;
-  --line:#E5E7EB;--line2:#F3F4F6;
-  --bg:#F9FAFB;--surface:#FFFFFF;--surface2:#F3F4F6;
+  /* Neutrals mapped to Voxera tokens */
+  --ink:var(--vx-ink);--ink2:#27334D;--ink3:#37415A;
+  --slate:var(--vx-muted);--slate2:#98A2B3;
+  --line:var(--vx-line);--line2:#EEF2F7;
+  --bg:var(--vx-bg);--surface:var(--vx-surface);--surface2:#F1F4F9;
   /* Gray aliases (keep for existing code) */
   --gray50:#F9FAFB;--gray100:#F3F4F6;--gray200:#E5E7EB;
   --gray400:#9CA3AF;--gray600:#4B5563;--gray700:#374151;--gray900:#111827;
@@ -38,8 +40,8 @@
   /* Typography */
   --font:'DM Sans',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
   --font-display:'Plus Jakarta Sans','DM Sans',sans-serif;
-  --headline-font:'Inter',-apple-system,sans-serif;
-  --body-font:'Inter',-apple-system,sans-serif;
+  --headline-font:'Plus Jakarta Sans','DM Sans',sans-serif;
+  --body-font:'DM Sans',-apple-system,sans-serif;
   /* Geometry – identical to admin */
   --r:6px;--r-lg:10px;--r-xl:12px;--r-2xl:16px;
   --radius:8px;--radius-lg:12px;
@@ -60,7 +62,7 @@
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
 body{
   font-family:var(--font);font-size:13.5px;
-  color:var(--ink);background:#F5F5F7;
+  color:var(--ink);background:var(--vx-bg);
   min-height:100vh;overflow-x:hidden;
   letter-spacing:-0.01em;line-height:1.5;
 }
@@ -199,7 +201,7 @@ body{
 ═══════════════════════════════════════════ */
 .setup-welcome{text-align:center;padding:24px 0 8px;}
 .setup-welcome-icon{font-size:48px;margin-bottom:14px;}
-.setup-welcome-title{font-family:'Inter',sans-serif;font-size:24px;font-weight:800;color:var(--gray900);margin-bottom:8px;letter-spacing:-.02em;}
+.setup-welcome-title{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--gray900);margin-bottom:8px;letter-spacing:-.02em;}
 .setup-welcome-sub{font-size:14px;color:var(--gray600);line-height:1.65;max-width:480px;margin:0 auto 28px;}
 .setup-steps{display:flex;flex-direction:column;gap:14px;max-width:600px;margin:0 auto;}
 .setup-step{background:var(--white);border:1.5px solid var(--gray200);border-radius:16px;padding:22px 24px;cursor:pointer;transition:all var(--transition-md);position:relative;overflow:hidden;box-shadow:var(--shadow-card);}
@@ -271,10 +273,10 @@ body{
 .setup-progress-text{font-size:12px;color:var(--gray400);font-weight:600;white-space:nowrap;}
 .setup-complete{text-align:center;padding:48px 20px;}
 .setup-complete-icon{font-size:56px;margin-bottom:18px;}
-.setup-complete-title{font-family:'Inter',sans-serif;font-size:22px;font-weight:800;color:var(--gray900);margin-bottom:10px;}
+.setup-complete-title{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--gray900);margin-bottom:10px;}
 .setup-complete-sub{font-size:14px;color:var(--gray600);line-height:1.65;margin-bottom:28px;}
 .setup-number-box{background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:12px;padding:14px 18px;margin:12px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.setup-number-val{font-size:18px;font-weight:800;font-family:'Inter',sans-serif;color:#1A6FE8;letter-spacing:.02em;}
+.setup-number-val{font-size:18px;font-weight:800;font-family:var(--font-display);color:#1A6FE8;letter-spacing:.02em;}
 .setup-number-copy{font-size:12px;font-weight:600;color:#1A6FE8;cursor:pointer;padding:5px 12px;border-radius:8px;border:1px solid var(--blue-mid);background:white;font-family:inherit;transition:all var(--transition-fast);}
 .setup-number-copy:hover{background:var(--blue-light);}
 .setup-skip{display:flex;justify-content:center;margin-top:24px;}
@@ -285,7 +287,7 @@ body{
 
 .setup-help-modal{width:100%;max-width:640px;max-height:90vh;overflow:auto;}
 .setup-help-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;}
-.setup-help-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:'Inter',sans-serif;}
+.setup-help-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:var(--font-display);}
 .setup-help-sub{font-size:12.5px;color:var(--gray600);line-height:1.6;}
 .setup-help-grid{display:grid;gap:10px;margin:10px 0 14px;}
 .setup-help-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:12px;padding:12px 14px;}
@@ -316,13 +318,8 @@ body{
   display:flex;align-items:center;justify-content:space-between;
 }
 .logo-mark{display:flex;align-items:center;gap:9px;}
-.logo-icon{
-  width:30px;height:30px;background:#0D1F3C;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  box-shadow:0 2px 8px rgba(13,31,60,0.35);
-}
-.logo-icon svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;}
-.logo-wordmark{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.04em;font-family:var(--font-display,var(--font));}
+.logo-image{display:block;height:30px;width:auto;object-fit:contain;}
+.logo-wordmark{font-size:16px;font-weight:800;color:var(--vx-night);letter-spacing:-.04em;font-family:var(--font-display,var(--font));}
 .logo-sub{font-size:10px;font-weight:600;color:var(--slate2);text-transform:uppercase;letter-spacing:.1em;margin-top:2px;padding-left:39px;}
 .sidebar-logo-text{font-family:'Plus Jakarta Sans','DM Sans',sans-serif;font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.04em;}
 .nav{padding:10px 10px;flex:1;overflow:auto;}
@@ -375,7 +372,7 @@ body{
 /* ═══════════════════════════════════════════
    MAIN — V1
 ═══════════════════════════════════════════ */
-.main{flex:1;margin-left:216px;display:flex;flex-direction:column;min-height:100vh;background:#F5F5F7;}
+.main{flex:1;margin-left:216px;display:flex;flex-direction:column;min-height:100vh;background:var(--vx-bg);}
 .topbar{
   padding:16px 28px;
   background:rgba(245,245,247,0.85);
@@ -469,7 +466,7 @@ body{
 }
 .incoming-banner-text{
   font-size:13px;font-weight:600;color:#fff;
-  font-family:'Inter',sans-serif;
+  font-family:var(--font-display);
 }
 .incoming-banner-sub{
   font-size:11px;color:rgba(255,255,255,0.5);
@@ -515,7 +512,7 @@ body{
 }
 .kpi:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);}
 .kpi-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;}
-.kpi-val{font-size:34px;font-weight:800;line-height:1;font-family:'Inter',sans-serif;letter-spacing:-.02em;}
+.kpi-val{font-size:34px;font-weight:800;line-height:1;font-family:var(--font-display);letter-spacing:-.02em;}
 .kpi-val.blue{color:#1A6FE8;}
 .kpi-val.green{color:var(--green);}
 .kpi-val.red{color:var(--red);}
@@ -715,7 +712,7 @@ body{
   -webkit-overflow-scrolling:touch;
 }
 .modal h3{
-  font-family:'Inter',sans-serif;
+  font-family:var(--font-display);
   font-size:17px;
   font-weight:700;
   letter-spacing:-.3px;
@@ -820,7 +817,7 @@ body{
   -webkit-overflow-scrolling:touch;
 }
 .account-modal h3{
-  font-family:'Inter',sans-serif;
+  font-family:var(--font-display);
   font-size:16px;
   font-weight:700;
   letter-spacing:-.2px;
@@ -878,7 +875,7 @@ body{
 
 .account-plan-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:16px;padding:18px;}
 .account-plan-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;}
-.account-plan-title{font-size:16px;font-weight:800;font-family:'Inter',sans-serif;color:var(--gray900);line-height:1.2;}
+.account-plan-title{font-size:16px;font-weight:800;font-family:var(--font-display);color:var(--gray900);line-height:1.2;}
 .account-plan-sub{font-size:12px;color:var(--gray400);margin-top:4px;}
 .account-usage-meter{height:10px;background:var(--gray200);border-radius:999px;overflow:hidden;margin-bottom:10px;}
 .account-usage-meter-fill{height:100%;background:var(--blue);border-radius:999px;transition:width .3s ease;}
@@ -886,7 +883,7 @@ body{
 .account-usage-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px;}
 .account-usage-mini{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:14px;}
 .account-usage-mini-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
-.account-usage-mini-val{font-size:18px;font-weight:800;font-family:'Inter',sans-serif;color:var(--gray900);line-height:1.1;}
+.account-usage-mini-val{font-size:18px;font-weight:800;font-family:var(--font-display);color:var(--gray900);line-height:1.1;}
 .account-upgrade-box{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:16px;}
 .account-upgrade-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:5px;}
 .account-upgrade-copy{font-size:12px;color:var(--gray600);line-height:1.6;margin-bottom:14px;}
@@ -903,7 +900,7 @@ body{
 .focus-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:-6px 0 28px;}
 .focus-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:14px;padding:18px;}
 .focus-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
-.focus-value{font-size:24px;font-weight:800;font-family:'Inter',sans-serif;line-height:1.1;}
+.focus-value{font-size:24px;font-weight:800;font-family:var(--font-display);line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
 .followup-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 14px;}
 .followup-field label{display:block;font-size:11.5px;font-weight:600;color:var(--gray600);margin-bottom:6px;}
@@ -1017,7 +1014,7 @@ body{
 .dash-hero.no-callbacks{border-color:var(--green-mid);background:var(--green-light);}
 .dash-hero-left{flex:1;min-width:0;}
 .dash-hero-label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);margin-bottom:10px;}
-.dash-hero-number{font-family:'Inter',sans-serif;font-size:64px;font-weight:800;line-height:1;letter-spacing:-.03em;margin-bottom:10px;}
+.dash-hero-number{font-family:var(--font-display);font-size:64px;font-weight:800;line-height:1;letter-spacing:-.03em;margin-bottom:10px;}
 .dash-hero-number.red{color:var(--red);}
 .dash-hero-number.green{color:var(--green);}
 .dash-hero-sub{font-size:13px;color:var(--gray600);line-height:1.55;}
@@ -1043,7 +1040,7 @@ body{
 .dash-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
 .fse-card{display:none;background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow-card);}
 .fse-card.show{display:block;}
-.fse-title{font-family:'Inter',sans-serif;font-size:28px;font-weight:800;color:var(--gray900);margin-bottom:10px;letter-spacing:-.02em;}
+.fse-title{font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--gray900);margin-bottom:10px;letter-spacing:-.02em;}
 .fse-sub{font-size:14px;color:var(--gray600);line-height:1.65;margin-bottom:20px;max-width:640px;}
 .fse-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
 .fse-progress{background:var(--gray50);border:1px solid var(--gray200);border-radius:14px;padding:16px;}
@@ -1065,7 +1062,7 @@ body{
 .dash-kpi:hover{transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 6px 24px rgba(0,0,0,0.1);}
 .dash-kpi:active{transform:translateY(0);}
 .dash-kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:6px;}
-.dash-kpi-val{font-family:'Inter',sans-serif;font-size:24px;font-weight:800;line-height:1;color:#1A6FE8;margin-bottom:4px;letter-spacing:-.04em;}
+.dash-kpi-val{font-family:var(--font-display);font-size:24px;font-weight:800;line-height:1;color:#1A6FE8;margin-bottom:4px;letter-spacing:-.04em;}
 .dash-kpi-sub{font-size:10.5px;color:#9CA3AF;line-height:1.4;}
 .dash-kpi-trend{font-size:10px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:3px;}
 .dash-kpi-trend.up{color:#059669;}
@@ -1079,7 +1076,7 @@ body{
 .lead-dot-neu{background:#F3F4F6;color:#6B7280;}
 .dash-cb-section{margin-bottom:22px;}
 .dash-cb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
-.dash-cb-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:'Inter',sans-serif;letter-spacing:-.2px;}
+.dash-cb-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:var(--font-display);letter-spacing:-.2px;}
 .dash-cb-title.secondary{font-size:15px;color:var(--gray700);}
 .dash-cb-link{font-size:12px;color:#1A6FE8;text-decoration:none;font-weight:600;cursor:pointer;}
 .dash-cb-link:hover{text-decoration:underline;}
@@ -1132,7 +1129,7 @@ body{
    ACTIVATION MODULE
 ═══════════════════════════════════════════ */
 .activation-module{margin-bottom:24px;}
-.activation-module-title{font-family:'Inter',sans-serif;font-size:18px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.02em;}
+.activation-module-title{font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.02em;}
 .activation-module-sub{font-size:13px;color:var(--gray600);margin-bottom:16px;line-height:1.55;}
 .activation-live-header{background:linear-gradient(135deg,#ECFDF3 0%,#F0F9FF 100%);border:1px solid #BBF7D0;border-radius:16px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .activation-live-eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#166534;margin-bottom:6px;}
@@ -1302,13 +1299,8 @@ body{
   height:52px;
 }
 .mobile-header .logo-mark{display:flex;align-items:center;gap:8px;}
-.mobile-header .logo-icon{
-  width:26px;height:26px;background:#0D1F3C;border-radius:7px;
-  display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  box-shadow:0 2px 8px rgba(13,31,60,0.35);
-}
-.mobile-header .logo-icon svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;}
-.mobile-header .logo-wordmark{font-size:15px;font-weight:800;color:var(--blue);letter-spacing:-.04em;}
+.mobile-header .logo-image{height:24px;width:auto;}
+.mobile-header .logo-wordmark{font-size:15px;font-weight:800;color:var(--vx-night);letter-spacing:-.04em;}
 .mobile-header-right{display:flex;align-items:center;gap:8px;}
 .mobile-header-user{
   width:28px;height:28px;border-radius:8px;background:var(--blue-light);
@@ -1422,11 +1414,11 @@ body{
 .splash-logo-icon svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;}
 .splash-wordmark{
   font-size:28px;font-weight:800;color:#111827;
-  letter-spacing:-.05em;font-family:'Inter',sans-serif;
+  letter-spacing:-.05em;font-family:var(--font-display);
 }
 .splash-tagline{
   font-size:13px;color:#9CA3AF;font-weight:400;
-  letter-spacing:.02em;font-family:'Inter',sans-serif;
+  letter-spacing:.02em;font-family:var(--font-display);
 }
 .splash-bar-wrap{
   width:48px;height:2px;background:#E5E7EB;border-radius:2px;
@@ -1571,7 +1563,7 @@ body{
 /* ═══════════════════════════════════════════
    ACTIVATION SYSTEM V2 — PREMIUM FLOW
 ═══════════════════════════════════════════ */
-#activation-v2-shell{display:none;min-height:100vh;background:#F5F5F7;padding:24px 18px;align-items:center;justify-content:center;}
+#activation-v2-shell{display:none;min-height:100vh;background:var(--vx-bg);padding:24px 18px;align-items:center;justify-content:center;}
 #app.activation-v2-mode .layout{display:none;}
 #app.activation-v2-mode #activation-v2-shell{display:flex;}
 .activation-v2-frame{width:100%;max-width:740px;background:#FFF;border:1px solid #E5E7EB;border-radius:24px;box-shadow:0 24px 60px rgba(15,23,42,.08);padding:34px 30px;}
@@ -1619,7 +1611,7 @@ body{
   <div class="splash-logo-icon">
     <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </div>
-  <div class="splash-wordmark">Voxera</div>
+  <img class="logo-image" src="/voxera-logo-dark.svg" alt="Voxera" style="height:34px;"/>
   <div class="splash-tagline">Ihr KI-Telefonassistent</div>
   <div class="splash-bar-wrap"><div class="splash-bar" id="splash-bar"></div></div>
 </div>
@@ -1627,7 +1619,7 @@ body{
 <div id="login-screen">
   <canvas id="network-canvas"></canvas>
   <div class="login-card" id="login-card">
-    <div class="login-logo">Voxera</div>
+    <img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">KI-Telefonassistent Dashboard</div>
     <div class="login-sub">Melden Sie sich an um Ihre Anrufe zu verwalten</div>
     <div class="login-error" id="login-error"></div>
@@ -1655,10 +1647,7 @@ body{
 ═══════════════════════════════════════ -->
 <div class="mobile-header" id="mobile-header">
   <div class="logo-mark" onclick="showTab('dashboard',document.getElementById('mnav-dashboard'))" style="cursor:pointer;">
-    <div class="logo-icon">
-      <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <div class="logo-wordmark">Voxera</div>
+    <img class="logo-image" src="/voxera-logo-dark.svg" alt="Voxera" />
   </div>
   <div class="mobile-header-right">
     <div class="mobile-header-user" id="mobile-header-avatar" onclick="showTab('einstellungen',document.getElementById('mnav-konto'));window.scrollTo({top:0,behavior:'instant'});">–</div>
@@ -1677,10 +1666,7 @@ body{
       <div class="sidebar-logo">
         <div>
           <div class="logo-mark">
-            <div class="logo-icon">
-              <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <div class="logo-wordmark">Voxera</div>
+            <img class="logo-image" src="/voxera-logo-dark.svg" alt="Voxera" />
           </div>
           <div class="logo-sub">Customer Portal</div>
         </div>
@@ -2431,11 +2417,11 @@ body{
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
                 <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
                   <div style="font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;">Diesen Monat</div>
-                  <div style="font-size:16px;font-weight:800;font-family:'Inter',sans-serif;" id="usage-month-minutes">–</div>
+                  <div style="font-size:16px;font-weight:800;font-family:var(--font-display);" id="usage-month-minutes">–</div>
                 </div>
                 <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
                   <div style="font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;">Inklusive</div>
-                  <div style="font-size:16px;font-weight:800;font-family:'Inter',sans-serif;" id="usage-included">–</div>
+                  <div style="font-size:16px;font-weight:800;font-family:var(--font-display);" id="usage-included">–</div>
                 </div>
               </div>
               <div id="settings-upgrade-box" style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:12px;margin-top:6px;">
@@ -7173,7 +7159,7 @@ function syncActivationV2Gate(){
 // ═══════════════════════════════════════════
 function showForgotPassword() {
   document.getElementById('login-card').innerHTML = `
-    <div class="login-logo">Voxera</div>
+    <img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">Passwort zurücksetzen</div>
     <div class="login-sub">Geben Sie Ihre E-Mail-Adresse ein. Sie erhalten einen Link zum Zurücksetzen.</div>
     <div class="login-error" id="forgot-error"></div>
@@ -7211,7 +7197,7 @@ async function doForgotPassword() {
     if (redirectUrl.includes('?')) redirectUrl = redirectUrl.split('?')[0];
     var result = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
     if (result.error) throw result.error;
-    document.getElementById('login-card').innerHTML = '<div class="login-logo">Voxera</div><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-sub" style="margin-top:8px;">Prüfen Sie auch Ihren Spam-Ordner. Der Link ist 24 Stunden gültig.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div></div>';
+    document.getElementById('login-card').innerHTML = '<img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-sub" style="margin-top:8px;">Prüfen Sie auch Ihren Spam-Ordner. Der Link ist 24 Stunden gültig.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div></div>';
   } catch(e) {
     // User-friendly error messages
     var msg = (e.message || '').toLowerCase();
@@ -7219,7 +7205,7 @@ async function doForgotPassword() {
       errEl.textContent = 'Zu viele Versuche. Bitte warten Sie einige Minuten.';
     } else if (msg.includes('not found') || msg.includes('no user')) {
       // Don't reveal if email exists - show success anyway
-      document.getElementById('login-card').innerHTML = '<div class="login-logo">Voxera</div><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div></div>';
+      document.getElementById('login-card').innerHTML = '<img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/><div class="login-tag">E-Mail gesendet</div><div class="login-sub" style="color:var(--green);font-weight:600;">Falls ein Konto mit dieser Adresse existiert, erhalten Sie in Kürze eine E-Mail.</div><div class="login-links"><div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div></div>';
       return;
     } else if (msg.includes('redirect') || msg.includes('url')) {
       errEl.textContent = 'Passwort-Reset ist aktuell nicht verfügbar. Bitte kontaktieren Sie den Support.';
@@ -7397,7 +7383,7 @@ function showPasswordResetForm(accessToken, refreshToken) {
   }
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-card').innerHTML = `
-    <div class="login-logo">Voxera</div>
+    <img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">Neues Passwort</div>
     <div class="login-sub">Wählen Sie ein neues Passwort für Ihr Dashboard.</div>
     <div class="login-error" id="reset-error"></div>
@@ -7437,7 +7423,7 @@ async function doReset() {
     const { error } = await sb.auth.updateUser({password: pw});
     if (error) throw error;
     document.getElementById('login-card').innerHTML = `
-      <div class="login-logo">Voxera</div>
+      <img src="/voxera-logo-dark.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
       <div class="login-sub" style="color:var(--green);font-weight:600;margin-top:20px;">Passwort erfolgreich gesetzt!</div>
       <div class="login-sub">Sie werden eingeloggt...</div>
     `;

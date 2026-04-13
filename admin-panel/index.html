@@ -11,18 +11,20 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
-  /* Voxera Brand */
-  --blue:#1A6FE8;--blue-dark:#1340B0;--blue-light:#EBF4FF;--blue-mid:#BFDBFE;--blue-subtle:rgba(26,111,232,0.06);
+  /* Voxera brand tokens */
+  --vx-night:#0D1F3C;--vx-blue:#1A6FE8;--vx-sky:#4B9FFF;--vx-gold:#E8C547;--vx-sand:#F5EDD0;
+  --vx-bg:#F7F8FA;--vx-surface:#FFFFFF;--vx-ink:#1A1A2E;--vx-muted:#7A8599;--vx-line:#E4E8F0;
+  --blue:var(--vx-blue);--blue-dark:#1558BA;--blue-light:#EAF2FF;--blue-mid:#B9D4FF;--blue-subtle:rgba(26,111,232,0.08);
   /* Semantic */
   --green:#059669;--green-light:#ECFDF5;--green-mid:#A7F3D0;--green-dark:#065F46;
   --red:#DC2626;--red-light:#FEF2F2;--red-mid:#FECACA;
   --amber:#D97706;--amber-light:#FFFBEB;--amber-mid:#FDE68A;
   --purple:#4F46E5;--purple-light:#EEF2FF;--purple-mid:#C7D2FE;
-  /* Neutrals — warm off-white system */
-  --ink:#111827;--ink2:#374151;--ink3:#4B5563;
-  --slate:#6B7280;--slate2:#9CA3AF;
-  --line:#E5E7EB;--line2:#F3F4F6;
-  --bg:#F9FAFB;--surface:#FFFFFF;--surface2:#F3F4F6;
+  /* Neutrals mapped to brand */
+  --ink:var(--vx-ink);--ink2:#27334D;--ink3:#37415A;
+  --slate:var(--vx-muted);--slate2:#98A2B3;
+  --line:var(--vx-line);--line2:#EEF2F7;
+  --bg:var(--vx-bg);--surface:var(--vx-surface);--surface2:#F1F4F9;
   /* Typography */
   --font:'DM Sans',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
   --font-display:'Plus Jakarta Sans','DM Sans',sans-serif;
@@ -50,7 +52,7 @@
   --modal-max-height:calc(var(--app-dvh) - var(--safe-top) - var(--safe-bottom) - 32px);
 }
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth;height:100%;overflow-x:clip;}
-body{font-family:var(--font);font-size:13px;color:var(--ink);background:#F5F5F7;min-height:100vh;min-height:var(--app-dvh);overflow-x:clip;line-height:1.5;letter-spacing:-0.01em;}
+body{font-family:var(--font);font-size:13px;color:var(--ink);background:var(--vx-bg);min-height:100vh;min-height:var(--app-dvh);overflow-x:clip;line-height:1.5;letter-spacing:-0.01em;}
 body.mobile-nav-lock{overflow:hidden;touch-action:none;}
 body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{visibility:hidden;}
 
@@ -72,11 +74,11 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .splash-logo-icon svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;}
 .splash-wordmark{
   font-size:28px;font-weight:800;color:#111827;
-  letter-spacing:-.05em;font-family:'Inter',sans-serif;
+  letter-spacing:-.05em;font-family:var(--font-display);
 }
 .splash-tagline{
   font-size:13px;color:#9CA3AF;font-weight:400;
-  letter-spacing:.02em;font-family:'Inter',sans-serif;
+  letter-spacing:.02em;font-family:var(--font-display);
 }
 .splash-bar-wrap{
   width:48px;height:2px;background:#E5E7EB;border-radius:2px;
@@ -113,13 +115,8 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .logo-mark{
   display:flex;align-items:center;gap:9px;
 }
-.logo-icon{
-  width:30px;height:30px;background:#0D1F3C;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  box-shadow:var(--shadow-blue);
-}
-.logo-icon svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;}
-.logo-wordmark{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.04em;font-family:var(--font-display,var(--font));}
+.logo-image{display:block;height:30px;width:auto;object-fit:contain;}
+.logo-wordmark{font-size:16px;font-weight:800;color:var(--vx-night);letter-spacing:-.04em;font-family:var(--font-display,var(--font));}
 .logo-sub{font-size:10px;font-weight:600;color:var(--slate2);text-transform:uppercase;letter-spacing:.1em;margin-top:2px;padding-left:39px;}
 
 .nav{padding:10px 10px;flex:1;overflow:auto;}
@@ -166,7 +163,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .btn-logout:hover{background:var(--red-light);color:var(--red);border-color:var(--red-mid);}
 
 /* ─── Main ─────────────────────────────────────────────────── */
-.main{flex:1;margin-left:224px;display:flex;flex-direction:column;min-height:100vh;min-height:var(--app-dvh);background:#F5F5F7;}
+.main{flex:1;margin-left:224px;display:flex;flex-direction:column;min-height:100vh;min-height:var(--app-dvh);background:var(--vx-bg);}
 
 /* ─── Topbar ─────────────────────────────────────────────────── */
 .topbar{
@@ -178,8 +175,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 }
 .topbar-left{}
 .topbar-brand{display:none;align-items:center;gap:8px;}
-.topbar-brand .logo-icon{width:24px;height:24px;border-radius:7px;box-shadow:none;}
-.topbar-brand .logo-wordmark{font-size:14px;}
+.topbar-brand .logo-image{height:24px;width:auto;}
 .page-title{font-size:17px;font-weight:700;letter-spacing:-.03em;color:var(--ink);}
 .page-sub{font-size:12px;color:var(--slate2);margin-top:2px;font-weight:400;}
 .topbar-right{display:flex;align-items:center;gap:10px;}
@@ -1103,7 +1099,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   <div class="splash-logo-icon">
     <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </div>
-  <div class="splash-wordmark">Voxera</div>
+  <img class="logo-image" src="voxera-logo-dark.svg" alt="Voxera" style="height:34px;"/>
   <div class="splash-tagline">Ihr KI-Telefonassistent</div>
   <div class="splash-bar-wrap"><div class="splash-bar" id="db-loading-bar"></div></div>
 </div>
@@ -1115,10 +1111,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
     <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between;">
       <div>
         <div class="logo-mark">
-          <div class="logo-icon">
-            <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="logo-wordmark">Voxera</div>
+          <img class="logo-image" src="voxera-logo-dark.svg" alt="Voxera" />
         </div>
         <div class="logo-sub">Admin Portal</div>
       </div>
@@ -1201,10 +1194,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 4h14M2 9h14M2 14h14"/></svg>
         </button>
         <div class="topbar-brand" aria-label="Voxera Admin Portal">
-          <div class="logo-icon">
-            <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="logo-wordmark">Voxera</div>
+          <img class="logo-image" src="voxera-logo-dark.svg" alt="Voxera" style="height:24px;" />
         </div>
         <div>
           <div class="page-title" id="page-title">Übersicht</div>
@@ -4763,7 +4753,7 @@ function renderOfferPreview(offer){
   el.innerHTML=`<div class="offer-doc">
     <div class="offer-doc-header">
       <div class="offer-doc-brand">
-        <div class="offer-doc-logo"><svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2, 2 4.5, 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2, 14 4.5, 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5, 4.5 14, 8 14C11.5 14, 14 11.5, 14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="offer-doc-logo"><img src="voxera-logo-dark.svg" alt="Voxera" style="height:24px;width:auto;"/></div>
         <div>
       <div class="offer-doc-brand-title">Voxera</div>
       <div class="offer-doc-brand-sub">Offerte</div>
