@@ -12,34 +12,25 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+const CANONICAL_ALLOWED_FIELDS = new Set([
+  'notification_mode',
+  'forwarding_setup_completed',
+  'setup_device_type',
+  'forwarding_status',
+  'activation_started_at',
+  'activated_at',
+  'forwarding_mode',
+  'activation_test_mode',
+  'activation_test_candidate_call_id',
+  'last_confirmed_setup_device_type',
+  'last_confirmed_forwarding_mode',
+  'avatar_url'
+]);
+
 function extractMissingColumnName(message) {
   const text = String(message || '');
   const match = text.match(/column\s+"([^"]+)"\s+of relation\s+"customers"\s+does not exist/i);
   return match && match[1] ? match[1] : '';
-}
-
-async function updateCustomerWithSchemaFallback(sbAdmin, customerId, allowed) {
-  const payload = { ...allowed };
-  let lastError = null;
-
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const { data, error } = await sbAdmin
-      .from('customers')
-      .update(payload)
-      .eq('id', customerId)
-      .select('*')
-      .single();
-
-    if (!error) return { data, error: null, payload };
-
-    lastError = error;
-    const missingColumn = error && error.code === '42703' ? extractMissingColumnName(error.message) : '';
-    if (!missingColumn || !Object.prototype.hasOwnProperty.call(payload, missingColumn)) break;
-
-    delete payload[missingColumn];
-  }
-
-  return { data: null, error: lastError, payload };
 }
 
 exports.handler = async (event) => {
@@ -59,6 +50,19 @@ exports.handler = async (event) => {
 
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungueltiger Request Body' }); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return response(400, { error: 'Ungueltiger Request Body' });
+  }
+
+  const incomingKeys = Object.keys(body);
+  const invalidKeys = incomingKeys.filter((key) => !CANONICAL_ALLOWED_FIELDS.has(key));
+  if (invalidKeys.length) {
+    return response(400, {
+      error: 'Einstellungen konnten nicht gespeichert werden.',
+      code: 'INVALID_FIELDS',
+      invalid_fields: invalidKeys
+    });
+  }
 
   const allowed = {};
 
@@ -199,21 +203,34 @@ exports.handler = async (event) => {
   }
 
   allowed.updated_at = new Date().toISOString();
-  const { data, error, payload } = await updateCustomerWithSchemaFallback(sbAdmin, caller.customerId, allowed);
+  const { data, error } = await sbAdmin
+    .from('customers')
+    .update(allowed)
+    .eq('id', caller.customerId)
+    .select('*')
+    .single();
 
   if (error) {
+    const missingColumn = error && error.code === '42703' ? extractMissingColumnName(error.message) : '';
     console.error('[customer-update-settings] update failed', {
       customerId: caller.customerId,
-      payload,
+      payload: allowed,
       code: error.code,
       message: error.message,
       details: error.details,
-      hint: error.hint
+      hint: error.hint,
+      missingColumn: missingColumn || null
     });
+    if (missingColumn) {
+      return response(500, {
+        error: 'Einstellungen konnten nicht gespeichert werden. Bitte spaeter erneut versuchen.',
+        code: 'SCHEMA_MISMATCH',
+        field: missingColumn
+      });
+    }
     return response(500, {
-      error: 'Customer settings konnten nicht gespeichert werden.',
-      details: error.message,
-      code: error.code || null
+      error: 'Einstellungen konnten nicht gespeichert werden. Bitte spaeter erneut versuchen.',
+      code: 'SETTINGS_UPDATE_FAILED'
     });
   }
   return response(200, { success: true, customer: data });
