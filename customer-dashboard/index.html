@@ -6711,6 +6711,12 @@ function inferActivationV2Step(){
   return 1;
 }
 
+function getNextActivationStep(){
+  if (customerMeta && customerMeta.setupDeviceType && customerMeta.forwardingMode) return 3;
+  if (customerMeta && customerMeta.setupDeviceType) return 2;
+  return 1;
+}
+
 function restoreActivationV2Step(){
   var inferred = inferActivationV2Step();
   var saved = 0;
@@ -6730,17 +6736,34 @@ function goToActivationV2Step(step){
   renderActivationV2();
 }
 
+function activationV2ScrollActiveStepIntoView(){
+  var isMobileViewport = false;
+  try { isMobileViewport = window.matchMedia && window.matchMedia('(max-width: 900px)').matches; } catch(e) {}
+  if (!isMobileViewport) return;
+  var active = document.querySelector('#activation-v2-shell .activation-step-row.active');
+  if (!active || typeof active.scrollIntoView !== 'function') return;
+  try {
+    active.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  } catch(e) {
+    active.scrollIntoView();
+  }
+}
+
 function selectActivationV2Mode(mode){
+  activationV2DebugLog('mode selected', { mode: mode });
   activationSelectMode(null, mode).then(function(ok){
     if (ok) persistActivationV2Step(3);
     renderActivationV2();
+    activationV2ScrollActiveStepIntoView();
   });
 }
 
 function selectActivationV2Device(type){
+  activationV2DebugLog('device selected', { type: type });
   activationSelectDevice(null, type).then(function(result){
     if (result) persistActivationV2Step(2);
     renderActivationV2();
+    activationV2ScrollActiveStepIntoView();
   });
 }
 
@@ -6763,8 +6786,7 @@ function activationUiContentByState(state){
       title:'Voxera aktivieren',
       text:'In drei klaren Schritten richten Sie Ihre Weiterleitung ein.',
       primaryLabel:'Einrichtung starten',
-      primaryAction:'go-step',
-      primaryValue:'1'
+      primaryAction:'hero-continue'
     },
     pending_activation: {
       chip:'In Arbeit',
@@ -6794,8 +6816,7 @@ function activationUiContentByState(state){
       title:'Voxera ist inaktiv',
       text:'Aktivieren Sie die Weiterleitung erneut, um wieder erreichbar zu bleiben.',
       primaryLabel:'Neu aktivieren',
-      primaryAction:'go-step',
-      primaryValue:'1'
+      primaryAction:'hero-continue'
     },
     failed: {
       chip:'Aktion nötig',
@@ -6917,8 +6938,16 @@ function bindActivationV2Events(){
       activationV2LastHandledTouch = { ts: Date.now(), action: action, value: value || '', el: target };
     }
     switch (action) {
+      case 'hero-continue':
+        activationV2DebugLog('hero action resolved', { label: (target.textContent || '').trim() });
+        var nextStep = getNextActivationStep();
+        activationV2DebugLog('next step computed', { reason: 'hero-cta', nextStep: nextStep });
+        goToActivationV2Step(nextStep);
+        activationV2ScrollActiveStepIntoView();
+        break;
       case 'go-step':
         goToActivationV2Step(Number(value || '1'));
+        activationV2ScrollActiveStepIntoView();
         break;
       case 'select-device':
         if (value) selectActivationV2Device(value);
@@ -6963,6 +6992,7 @@ function bindActivationV2Events(){
 function renderActivationV2(){
   var shell = document.getElementById('activation-v2-shell');
   if (!shell) return;
+  activationV2DebugLog('state before render', activationV2StateSnapshot());
   bindActivationV2Events();
   restoreActivationV2Step();
   var step = activationV2StepState.step;
@@ -7054,6 +7084,7 @@ function renderActivationV2(){
     + '</div>';
 
   shell.innerHTML = html;
+  activationV2DebugLog('state after render', activationV2StateSnapshot());
 }
 
 function safeMountActivationV2(options){
