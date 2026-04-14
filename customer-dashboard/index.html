@@ -3739,6 +3739,15 @@ async function loadData() {
 
     // Candidate-call detection: run after every refresh while in pending_test
     if (customerMeta.forwardingStatus === 'pending_test' && customerMeta.activationStartedAt) {
+      var pendingStartedMs = new Date(customerMeta.activationStartedAt).getTime();
+      var pendingTimeoutDeadline = Number.isFinite(pendingStartedMs)
+        ? new Date(pendingStartedMs + ACTIVATION_TEST_TIMEOUT_MS).toISOString()
+        : null;
+      logActivationDetectionDiagnostics('pending_test_poll_cycle', {
+        activation_started_at: customerMeta.activationStartedAt,
+        timeout_deadline: pendingTimeoutDeadline,
+        has_existing_candidate: !!candidateCall
+      });
       // Test flow: set candidateCall for manual confirmation
       if (!candidateCall) {
         var found = findActivationCandidateCall(records, customerMeta.activationStartedAt);
@@ -5951,7 +5960,8 @@ var activationPollingInterval = null;
 var activationFlowGuideToken = '';
 var activationFlowSuccessToken = '';
 var ACTIVATION_TEST_POLL_MS = 4000;
-var ACTIVATION_TEST_TIMEOUT_MS = 3 * 60 * 1000;
+var ACTIVATION_TEST_TIMEOUT_MS = 8 * 60 * 1000;
+var ACTIVATION_OUTBOUND_START_GRACE_MS = 90 * 1000;
 var activationSystemCallPending = false;
 var activationSystemCallError = '';
 
@@ -6020,13 +6030,43 @@ function maybeOpenActivationSuccessModal() {
   openActivationFlowModal('success');
 }
 
-// Returns the first qualifying inbound forwarded call after a system-initiated outbound test call.
+function logActivationDetectionDiagnostics(label, payload){
+  try {
+    console.info('[activation-test-diagnostics]', label, payload || {});
+  } catch (e) {}
+}
+
+function resetActivationTestRunState(){
+  candidateCall = null;
+  activationFlowSuccessToken = '';
+  activationSystemCallError = '';
+  customerMeta.activationTestOutboundCallId = null;
+}
+
+// Returns the first qualifying outbound test marker for the current run.
 function findActivationOutboundTestCall(calls, activationStartedAt) {
-  if (!activationStartedAt || !Array.isArray(calls) || !calls.length) return null;
+  if (!activationStartedAt || !Array.isArray(calls) || !calls.length) {
+    logActivationDetectionDiagnostics('outbound_missing_inputs', {
+      activation_started_at: activationStartedAt || null,
+      calls_count: Array.isArray(calls) ? calls.length : 0
+    });
+    return null;
+  }
   var activationStartMs = new Date(activationStartedAt).getTime();
-  if (!Number.isFinite(activationStartMs)) return null;
+  if (!Number.isFinite(activationStartMs)) {
+    logActivationDetectionDiagnostics('outbound_invalid_activation_started_at', {
+      activation_started_at: activationStartedAt
+    });
+    return null;
+  }
   var currentCustomerId = String((customerMeta && customerMeta.customerId) || '').trim();
   var best = null;
+  var timeoutDeadlineMs = activationStartMs + ACTIVATION_TEST_TIMEOUT_MS;
+  logActivationDetectionDiagnostics('outbound_scan_started', {
+    activation_started_at: activationStartedAt,
+    timeout_deadline: new Date(timeoutDeadlineMs).toISOString(),
+    customer_id: currentCustomerId || null
+  });
   for (var i = 0; i < calls.length; i++) {
     var call = calls[i];
     var fields = (call && call.fields) || {};
@@ -6042,10 +6082,17 @@ function findActivationOutboundTestCall(calls, activationStartedAt) {
     var createdAtRaw = fields.created_at || '';
     if (!createdAtRaw) continue;
     var createdAtMs = new Date(createdAtRaw).getTime();
-    if (!Number.isFinite(createdAtMs) || createdAtMs <= activationStartMs) continue;
+    if (!Number.isFinite(createdAtMs)) continue;
+    if (createdAtMs < (activationStartMs - ACTIVATION_OUTBOUND_START_GRACE_MS)) continue;
+    if (createdAtMs > timeoutDeadlineMs) continue;
 
     if (!best || createdAtMs < new Date(best.fields.created_at || 0).getTime()) best = call;
   }
+  logActivationDetectionDiagnostics('outbound_marker_found', {
+    found: !!best,
+    outbound_call_id: best ? String(best.fields.call_id || best.id || '') : null,
+    outbound_created_at: best ? (best.fields.created_at || null) : null
+  });
   return best || null;
 }
 
@@ -6066,19 +6113,66 @@ function findActivationCandidateCall(calls, activationStartedAt) {
     var call = calls[i];
     var fields = (call && call.fields) || {};
     var callCustomerId = String(fields.customer_id || '').trim();
-    if (currentCustomerId && callCustomerId && callCustomerId !== currentCustomerId) continue;
+    if (currentCustomerId && callCustomerId && callCustomerId !== currentCustomerId) {
+      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
+        reason: 'customer_mismatch',
+        candidate_call_id: String(fields.call_id || call.id || ''),
+        candidate_customer_id: callCustomerId || null
+      });
+      continue;
+    }
 
     var direction = String(fields.direction || fields.call_direction || '').trim().toLowerCase();
-    if (direction !== 'inbound') continue;
+    if (direction !== 'inbound') {
+      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
+        reason: 'direction_mismatch',
+        candidate_call_id: String(fields.call_id || call.id || ''),
+        direction: direction || null
+      });
+      continue;
+    }
+
+    var category = String(fields.category || '').trim().toLowerCase();
+    if (category === 'activation_test_outbound') {
+      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
+        reason: 'category_mismatch_outbound_marker',
+        candidate_call_id: String(fields.call_id || call.id || ''),
+        category: category
+      });
+      continue;
+    }
 
     var createdAtRaw = fields.created_at || '';
     if (!createdAtRaw) continue;
     var createdAtMs = new Date(createdAtRaw).getTime();
-    if (!Number.isFinite(createdAtMs) || createdAtMs <= outboundCreatedMs) continue;
-    if ((createdAtMs - outboundCreatedMs) > ACTIVATION_TEST_TIMEOUT_MS) continue;
+    if (!Number.isFinite(createdAtMs)) continue;
+    if (createdAtMs <= outboundCreatedMs) {
+      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
+        reason: 'inbound_before_outbound',
+        candidate_call_id: String(fields.call_id || call.id || ''),
+        inbound_created_at: createdAtRaw,
+        outbound_created_at: outbound.fields.created_at || null
+      });
+      continue;
+    }
+    if ((createdAtMs - outboundCreatedMs) > ACTIVATION_TEST_TIMEOUT_MS) {
+      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
+        reason: 'inbound_after_timeout',
+        candidate_call_id: String(fields.call_id || call.id || ''),
+        inbound_created_at: createdAtRaw,
+        outbound_created_at: outbound.fields.created_at || null
+      });
+      continue;
+    }
 
     if (!bestInbound || createdAtMs < new Date(bestInbound.fields.created_at || 0).getTime()) bestInbound = call;
   }
+
+  logActivationDetectionDiagnostics('inbound_candidate_found', {
+    found: !!bestInbound,
+    inbound_call_id: bestInbound ? String(bestInbound.fields.call_id || bestInbound.id || '') : null,
+    inbound_created_at: bestInbound ? (bestInbound.fields.created_at || null) : null
+  });
 
   if (bestInbound) {
     customerMeta.activationTestMode = 'system_call';
@@ -6091,7 +6185,15 @@ function isActivationTestTimedOut() {
   if (!customerMeta || customerMeta.forwardingStatus !== 'pending_test' || !customerMeta.activationStartedAt) return false;
   var startedMs = new Date(customerMeta.activationStartedAt).getTime();
   if (!Number.isFinite(startedMs)) return false;
-  return (Date.now() - startedMs) >= ACTIVATION_TEST_TIMEOUT_MS;
+  var timeoutDeadlineMs = startedMs + ACTIVATION_TEST_TIMEOUT_MS;
+  var timedOut = Date.now() >= timeoutDeadlineMs;
+  if (timedOut) {
+    logActivationDetectionDiagnostics('activation_timeout_reached', {
+      activation_started_at: customerMeta.activationStartedAt,
+      timeout_deadline: new Date(timeoutDeadlineMs).toISOString()
+    });
+  }
+  return timedOut;
 }
 
 function startActivationPolling() {
@@ -6127,6 +6229,8 @@ async function activationStartSmartphone(event, code) {
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
     var now = new Date().toISOString();
+    resetActivationTestRunState();
+    stopActivationPolling();
     // Step 1: persist state before opening dialer
     await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now, activation_test_mode: 'system_call', activation_test_candidate_call_id: null });
     customerMeta.forwardingStatus = 'pending_test';
@@ -6163,6 +6267,8 @@ async function activationStartLandlineTest(event) {
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
     var now = new Date().toISOString();
+    resetActivationTestRunState();
+    stopActivationPolling();
     await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now, activation_test_mode: 'system_call', activation_test_candidate_call_id: null });
     customerMeta.forwardingStatus = 'pending_test';
     customerMeta.activationStartedAt = now;
@@ -6248,6 +6354,8 @@ function rejectActivationTestCall(event) {
 
 async function startSystemActivationTestCall(event) {
   if (event) event.stopPropagation();
+  candidateCall = null;
+  activationFlowSuccessToken = '';
   activationSystemCallError = '';
   activationSystemCallPending = true;
   renderActivationV2();
@@ -6275,8 +6383,7 @@ async function startSystemActivationTestCall(event) {
 
 async function retryActivationCheck(event) {
   if (event) event.stopPropagation();
-  candidateCall = null;
-  activationFlowSuccessToken = '';
+  resetActivationTestRunState();
   stopActivationPolling();
   var started = await startSystemActivationTestCall(event);
   if (!started) return;
@@ -6910,10 +7017,7 @@ function deriveActivationUiState(){
   if (status === 'active') return 'active';
   if (status === 'inactive') return 'inactive';
   if (status === 'pending_test') {
-    if (!candidateCall && customerMeta && customerMeta.activationStartedAt) {
-      var started = new Date(customerMeta.activationStartedAt).getTime();
-      if (Number.isFinite(started) && (Date.now() - started) > (45 * 60 * 1000)) return 'failed';
-    }
+    if (!candidateCall && isActivationTestTimedOut()) return 'failed';
     return 'pending_test';
   }
   if (status === 'not_started') {
@@ -7353,14 +7457,9 @@ function bindActivationV2Events(){
       case 'retry-test':
         retryActivationCheck(event);
         break;
-      case 'retry-flow':
-        activationV2RetryFlow(event);
-        break;
-      case 'restart-flow':
-        activationV2RestartFlow(event);
-        break;
-      case 'open-deactivation':
-        openActivationDeactivateSection();
+      case 'change-selection':
+        goToActivationV2Step(1);
+        activationV2ScrollActiveStepIntoView();
         break;
       case 'toggle-advanced-options':
         setActivationV2DisclosureOpen('advancedOptionsOpen', !activationV2DisclosureState.advancedOptionsOpen);
@@ -7497,17 +7596,14 @@ function renderActivationV2(){
   }
 
   var showActivationDiagnostics = isActivationV2DebugMode();
-  var advancedPanelClass = 'activation-advanced' + (activationV2DisclosureState.advancedOptionsOpen ? ' is-open' : '');
+  var advancedPanelClass = 'activation-advanced is-open';
   var diagnosticsPanelClass = 'activation-advanced' + (activationV2DisclosureState.diagnosticsOpen ? ' is-open' : '');
 
   html += '<section class="' + advancedPanelClass + '" data-panel="advancedOptionsOpen">'
-    + '<button type="button" class="activation-advanced-toggle" data-action="toggle-advanced-options" aria-expanded="' + (activationV2DisclosureState.advancedOptionsOpen ? 'true' : 'false') + '">Erweiterte Optionen</button>'
+    + '<div class="activation-advanced-toggle" aria-hidden="true">Optionen</div>'
     + '<div class="activation-advanced-body">'
-    + '<button type="button" class="activation-link-btn" data-action="go-step" data-value="2">Weiterleitung ändern</button>'
-    + '<button type="button" class="activation-link-btn" data-action="restart-flow">Einrichtung neu starten</button>'
-    + '<button type="button" class="activation-link-btn" data-action="retry-flow">Aktivierung erneut prüfen</button>'
-    + '<button type="button" class="activation-link-btn" data-action="open-deactivation">Deaktivieren</button>'
-    + '<button type="button" class="activation-link-btn" data-action="open-help-forwarding">Hilfe</button>'
+    + '<button type="button" class="activation-link-btn" data-action="change-selection">Auswahl ändern</button>'
+    + '<button type="button" class="activation-link-btn" data-action="open-help-forwarding">Hilfe zur Einrichtung</button>'
     + '</div></section>';
 
   if (showActivationDiagnostics) {
