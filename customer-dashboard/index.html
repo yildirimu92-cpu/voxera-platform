@@ -306,37 +306,69 @@ body{
    SIDEBAR — V1
 ═══════════════════════════════════════════ */
 .sidebar{
-  width:216px;flex-shrink:0;
-  background:rgba(255,255,255,0.8);border-right:0.5px solid rgba(0,0,0,0.06);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  width:232px;flex-shrink:0;
+  background:rgba(255,255,255,0.92);border-right:1px solid var(--vx-line);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   display:flex;flex-direction:column;
   position:fixed;top:0;left:0;height:100vh;z-index:40;
+  box-shadow:8px 0 24px rgba(13,31,60,0.05);
 }
 .sidebar-logo{
-  padding:22px 20px 18px;
-  border-bottom:1px solid var(--line2);
-  display:flex;align-items:center;justify-content:space-between;
+  padding:28px 20px 18px;
+  border-bottom:1px solid var(--vx-line);
+  display:flex;align-items:flex-start;justify-content:space-between;
 }
 .logo-mark{display:flex;align-items:center;gap:9px;}
 .logo-image{display:block;height:30px;width:auto;object-fit:contain;}
-.logo-wordmark{font-size:16px;font-weight:800;color:var(--vx-night);letter-spacing:-.04em;font-family:var(--font-display,var(--font));}
-.logo-sub{font-size:10px;font-weight:600;color:var(--slate2);text-transform:uppercase;letter-spacing:.1em;margin-top:2px;padding-left:39px;}
+.logo-wordmark{
+  font-size:25px;
+  font-weight:800;
+  color:var(--vx-night);
+  letter-spacing:-.04em;
+  line-height:1;
+  font-family:var(--font-display,var(--font));
+}
+.logo-sub{
+  font-size:10px;
+  font-weight:600;
+  color:var(--vx-muted);
+  text-transform:uppercase;
+  letter-spacing:.3em;
+  margin-top:8px;
+  line-height:1;
+}
 .sidebar-logo-text{font-family:'Plus Jakarta Sans','DM Sans',sans-serif;font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.04em;}
-.nav{padding:10px 10px;flex:1;overflow:auto;}
+.nav{padding:14px 12px 10px;flex:1;overflow:auto;}
 .nav-section{font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.1em;padding:14px 10px 6px;margin-top:4px;}
 .nav-section:first-child{padding-top:2px;}
 .nav-item{
-  display:flex;align-items:center;gap:9px;
-  padding:8px 10px;cursor:pointer;
-  font-size:13px;color:var(--slate);font-weight:500;
-  border-radius:var(--r);
-  transition:all var(--fast);user-select:none;
-  margin:1px 0;position:relative;
-  border-left:2px solid transparent;
+  display:flex;align-items:center;gap:10px;
+  min-height:40px;
+  padding:10px 12px;cursor:pointer;
+  font-size:13px;color:var(--vx-muted);font-weight:600;
+  border-radius:10px;
+  transition:background var(--mid),color var(--mid),box-shadow var(--mid),transform var(--mid);user-select:none;
+  margin:4px 0;position:relative;
+  border:1px solid transparent;
   text-decoration:none;
 }
-.nav-item:hover{color:var(--ink);background:var(--line2);}
-.nav-item.active{color:var(--blue);background:#F0F4FF;font-weight:700;border-left:2.5px solid var(--blue);}
-.nav-icon{width:15px;height:15px;flex-shrink:0;opacity:.65;}
+.nav-item:hover{
+  color:var(--vx-night);
+  background:rgba(75,159,255,0.08);
+  border-color:rgba(75,159,255,0.22);
+  transform:translateX(1px);
+}
+.nav-item.active{
+  color:var(--vx-blue);
+  background:linear-gradient(135deg,rgba(26,111,232,0.12) 0%,rgba(75,159,255,0.08) 100%);
+  font-weight:700;
+  border-color:rgba(26,111,232,0.28);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.8),0 4px 10px rgba(26,111,232,0.14);
+}
+.nav-item:focus-visible{
+  outline:2px solid rgba(26,111,232,0.45);
+  outline-offset:1px;
+}
+.nav-icon{width:16px;height:16px;flex-shrink:0;opacity:.7;}
 .nav-item.active .nav-icon{opacity:1;}
 .nav-badge{
   margin-left:auto;font-size:11px;font-weight:700;
@@ -349,7 +381,8 @@ body{
 .nav-badge.red{background:#DC2626;color:#fff;}
 .nav-badge.orange{background:#D97706;color:#fff;}
 .sidebar-footer{
-  padding:14px 16px;border-top:0.5px solid rgba(0,0,0,0.08);
+  padding:14px 16px 16px;border-top:1px solid var(--vx-line);
+  background:linear-gradient(180deg,rgba(255,255,255,0.72) 0%,rgba(255,255,255,0.96) 100%);
 }
 .sidebar-user-row{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
 .avatar-cust{
@@ -360,10 +393,10 @@ body{
 .sidebar-user{font-size:12px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sidebar-user-role{font-size:10.5px;color:var(--slate2);}
 .btn-logout{
-  width:100%;padding:7px 10px;
+  width:100%;padding:8px 10px;
   background:transparent;border:1px solid var(--line);border-radius:var(--r);
   font-size:12px;font-weight:500;color:var(--slate);
-  cursor:pointer;font-family:inherit;transition:all var(--fast);
+  cursor:pointer;font-family:inherit;transition:all var(--mid);
   text-align:left;display:flex;align-items:center;gap:6px;
 }
 .btn-logout:hover{background:var(--red-light);color:var(--red);border-color:var(--red-mid);}
@@ -371,7 +404,7 @@ body{
 /* ═══════════════════════════════════════════
    MAIN — V1
 ═══════════════════════════════════════════ */
-.main{flex:1;margin-left:216px;display:flex;flex-direction:column;min-height:100vh;background:var(--vx-bg);}
+.main{flex:1;margin-left:232px;display:flex;flex-direction:column;min-height:100vh;background:var(--vx-bg);}
 .topbar{
   padding:16px 28px;
   background:rgba(245,245,247,0.85);
@@ -1719,10 +1752,8 @@ body{
     <aside class="sidebar">
       <div class="sidebar-logo">
         <div>
-          <div class="logo-mark">
-            <img class="logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera" />
-          </div>
-          <div class="logo-sub">Customer Portal</div>
+          <div class="logo-wordmark">VOXERA</div>
+          <div class="logo-sub">PORTAL</div>
         </div>
       </div>
       <nav class="nav">
