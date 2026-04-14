@@ -6671,9 +6671,45 @@ function shouldShowSetupOnLogin(context){
 const ACTIVATION_V2_ENABLED = true;
 const ONBOARDING_TOTAL_STEPS = 3;
 var activationV2StepState = { step: 1 };
+var activationV2FlowState = {
+  confirmedDeviceType: null,
+  confirmedForwardingMode: null
+};
 
 function getActivationV2StorageKey(suffix){
   return getSetupStorageKey('voxera_activation_v2_' + suffix);
+}
+
+function restoreActivationV2FlowState(){
+  try {
+    activationV2FlowState.confirmedDeviceType = localStorage.getItem(getActivationV2StorageKey('confirmed_device')) || null;
+    activationV2FlowState.confirmedForwardingMode = localStorage.getItem(getActivationV2StorageKey('confirmed_mode')) || null;
+  } catch(e) {
+    activationV2FlowState.confirmedDeviceType = null;
+    activationV2FlowState.confirmedForwardingMode = null;
+  }
+}
+
+function persistActivationV2FlowState(){
+  try {
+    if (activationV2FlowState.confirmedDeviceType) localStorage.setItem(getActivationV2StorageKey('confirmed_device'), activationV2FlowState.confirmedDeviceType);
+    else localStorage.removeItem(getActivationV2StorageKey('confirmed_device'));
+    if (activationV2FlowState.confirmedForwardingMode) localStorage.setItem(getActivationV2StorageKey('confirmed_mode'), activationV2FlowState.confirmedForwardingMode);
+    else localStorage.removeItem(getActivationV2StorageKey('confirmed_mode'));
+  } catch(e) {}
+}
+
+function clearActivationV2ModeConfirmation(){
+  activationV2FlowState.confirmedForwardingMode = null;
+  persistActivationV2FlowState();
+}
+
+function getActivationV2EffectiveDevice(){
+  return activationV2FlowState.confirmedDeviceType || (customerMeta && customerMeta.setupDeviceType) || null;
+}
+
+function getActivationV2EffectiveMode(){
+  return activationV2FlowState.confirmedForwardingMode || (customerMeta && customerMeta.forwardingMode) || null;
 }
 
 function isActivationV2Skipped(){
@@ -6706,14 +6742,14 @@ function deriveActivationUiState(){
 
 function inferActivationV2Step(){
   if (isForwardingActivated()) return 3;
-  if (customerMeta.setupDeviceType && customerMeta.forwardingMode) return 3;
-  if (customerMeta.setupDeviceType) return 2;
+  if (activationV2FlowState.confirmedDeviceType && activationV2FlowState.confirmedForwardingMode) return 3;
+  if (activationV2FlowState.confirmedDeviceType) return 2;
   return 1;
 }
 
 function getNextActivationStep(){
-  if (customerMeta && customerMeta.setupDeviceType && customerMeta.forwardingMode) return 3;
-  if (customerMeta && customerMeta.setupDeviceType) return 2;
+  if (activationV2FlowState.confirmedDeviceType && activationV2FlowState.confirmedForwardingMode) return 3;
+  if (activationV2FlowState.confirmedDeviceType) return 2;
   return 1;
 }
 
@@ -6752,7 +6788,11 @@ function activationV2ScrollActiveStepIntoView(){
 function selectActivationV2Mode(mode){
   activationV2DebugLog('mode selected', { mode: mode });
   activationSelectMode(null, mode).then(function(ok){
-    if (ok) persistActivationV2Step(3);
+    if (ok) {
+      activationV2FlowState.confirmedForwardingMode = mode;
+      persistActivationV2FlowState();
+      persistActivationV2Step(3);
+    }
     renderActivationV2();
     activationV2ScrollActiveStepIntoView();
   });
@@ -6761,7 +6801,13 @@ function selectActivationV2Mode(mode){
 function selectActivationV2Device(type){
   activationV2DebugLog('device selected', { type: type });
   activationSelectDevice(null, type).then(function(result){
-    if (result) persistActivationV2Step(2);
+    if (result) {
+      var previousDevice = activationV2FlowState.confirmedDeviceType;
+      activationV2FlowState.confirmedDeviceType = type;
+      if (previousDevice !== type) clearActivationV2ModeConfirmation();
+      persistActivationV2FlowState();
+      persistActivationV2Step(2);
+    }
     renderActivationV2();
     activationV2ScrollActiveStepIntoView();
   });
@@ -6771,6 +6817,8 @@ function activationV2MarkFinishedAndOpenDashboard(){
   try {
     localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');
     localStorage.removeItem(getActivationV2StorageKey('step'));
+    localStorage.removeItem(getActivationV2StorageKey('confirmed_device'));
+    localStorage.removeItem(getActivationV2StorageKey('confirmed_mode'));
   } catch(e) {}
   var app = document.getElementById('app');
   if (app) app.classList.remove('activation-v2-mode');
@@ -6847,6 +6895,8 @@ var activationV2LastHandledTouch = { ts: 0, action: '', value: '', el: null };
 function activationV2StateSnapshot(){
   return {
     step: activationV2StepState.step,
+    confirmedDeviceType: activationV2FlowState.confirmedDeviceType,
+    confirmedForwardingMode: activationV2FlowState.confirmedForwardingMode,
     setupDeviceType: customerMeta && customerMeta.setupDeviceType,
     forwardingMode: customerMeta && customerMeta.forwardingMode,
     forwardingStatus: customerMeta && customerMeta.forwardingStatus,
@@ -6898,7 +6948,8 @@ async function activationV2RetryFlow(event) {
       context.customerRecord.forwarding_status = 'not_started';
       context.customerRecord.activation_started_at = null;
     }
-    persistActivationV2Step(customerMeta && customerMeta.forwardingMode ? 3 : 1);
+    clearActivationV2ModeConfirmation();
+    persistActivationV2Step(activationV2FlowState.confirmedDeviceType ? 2 : 1);
     renderActivationV2();
     toast('Aktivierung zurückgesetzt. Bitte starten Sie die Weiterleitung erneut.');
   } catch (e) {
@@ -6994,22 +7045,30 @@ function renderActivationV2(){
   if (!shell) return;
   activationV2DebugLog('state before render', activationV2StateSnapshot());
   bindActivationV2Events();
+  restoreActivationV2FlowState();
   restoreActivationV2Step();
   var step = activationV2StepState.step;
   var uiState = deriveActivationUiState();
   var hero = activationUiContentByState(uiState);
-  var device = customerMeta.setupDeviceType === 'mobile' ? 'Smartphone' : (customerMeta.setupDeviceType === 'landline' ? 'Festnetz / Telefonanlage' : 'Nicht gewählt');
-  var mode = customerMeta.forwardingMode;
+  var effectiveDevice = getActivationV2EffectiveDevice();
+  var effectiveMode = getActivationV2EffectiveMode();
+  var device = effectiveDevice === 'mobile' ? 'Smartphone' : (effectiveDevice === 'landline' ? 'Festnetz / Telefonanlage' : 'Nicht gewählt');
+  var mode = effectiveMode;
   var modeLabel = getForwardingModeLabel(mode) || 'Nicht gewählt';
   var voxeraNumber = customerMeta.voxeraNumber || '–';
   var activatedSince = customerMeta.activationStartedAt ? fmtDate(customerMeta.activationStartedAt) : '–';
   var lastCheck = candidateCall && candidateCall.created_at ? fmtDate(candidateCall.created_at) : 'Keine Prüfung';
-  var canProceedStep2 = !!customerMeta.setupDeviceType;
-  var canProceedStep3 = !!mode;
+  var canProceedStep2 = !!activationV2FlowState.confirmedDeviceType;
+  var canProceedStep3 = !!activationV2FlowState.confirmedForwardingMode;
   var code = getForwardingCode(mode, customerMeta.voxeraNumber || '');
   var codeJson = JSON.stringify(code || '');
   var heroAction = hero.primaryAction || 'go-step';
   var heroValue = hero.primaryValue || '1';
+
+  var renderBranch = step === 1 ? 'step_1_device_selection' : (step === 2 ? 'step_2_mode_selection' : 'step_3_activation_actions');
+  var deviceSource = activationV2FlowState.confirmedDeviceType ? 'current_flow' : (customerMeta && customerMeta.setupDeviceType ? 'persisted' : 'none');
+  var modeSource = activationV2FlowState.confirmedForwardingMode ? 'current_flow' : (customerMeta && customerMeta.forwardingMode ? 'persisted' : 'none');
+  var selectionButtonsRendered = step === 1 || step === 2;
 
   var html = '<div class="activation-shell">'
     + '<section class="activation-hero">'
@@ -7025,16 +7084,16 @@ function renderActivationV2(){
 
   if (step === 1) {
     html += '<div class="activation-choice-grid two">'
-      + '<button type="button" class="activation-choice-card ' + (customerMeta.setupDeviceType==='mobile'?'active':'') + '" data-action="select-device" data-value="mobile"><div class="activation-choice-title">Smartphone</div><div class="activation-choice-text">Aktivierung direkt am Handy.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (customerMeta.setupDeviceType==='landline'?'active':'') + '" data-action="select-device" data-value="landline"><div class="activation-choice-title">Festnetz / Telefonanlage</div><div class="activation-choice-text">Aktivierung über Anlage oder Anbieter.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedDeviceType==='mobile'?'active':'') + '" data-action="select-device" data-value="mobile" aria-pressed="' + (activationV2FlowState.confirmedDeviceType==='mobile'?'true':'false') + '"><div class="activation-choice-title">Smartphone</div><div class="activation-choice-text">Aktivierung direkt am Handy.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedDeviceType==='landline'?'active':'') + '" data-action="select-device" data-value="landline" aria-pressed="' + (activationV2FlowState.confirmedDeviceType==='landline'?'true':'false') + '"><div class="activation-choice-title">Festnetz / Telefonanlage</div><div class="activation-choice-text">Aktivierung über Anlage oder Anbieter.</div></button>'
       + '</div>'
       + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="2" ' + (!canProceedStep2 ? 'disabled' : '') + '>Weiter</button></div>';
   } else if (step === 2) {
     html += '<div class="activation-choice-grid">'
-      + '<button type="button" class="activation-choice-card ' + (mode==='no_answer'?'active':'') + '" data-action="select-mode" data-value="no_answer"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Bei Nichtannahme übernimmt Voxera.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (mode==='unreachable'?'active':'') + '" data-action="select-mode" data-value="unreachable"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder ohne Netz.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (mode==='busy'?'active':'') + '" data-action="select-mode" data-value="busy"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits telefonieren.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (mode==='always'?'active':'') + '" data-action="select-mode" data-value="always"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle Anrufe direkt an Voxera.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedForwardingMode==='no_answer'?'active':'') + '" data-action="select-mode" data-value="no_answer" aria-pressed="' + (activationV2FlowState.confirmedForwardingMode==='no_answer'?'true':'false') + '"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Bei Nichtannahme übernimmt Voxera.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedForwardingMode==='unreachable'?'active':'') + '" data-action="select-mode" data-value="unreachable" aria-pressed="' + (activationV2FlowState.confirmedForwardingMode==='unreachable'?'true':'false') + '"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder ohne Netz.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedForwardingMode==='busy'?'active':'') + '" data-action="select-mode" data-value="busy" aria-pressed="' + (activationV2FlowState.confirmedForwardingMode==='busy'?'true':'false') + '"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits telefonieren.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedForwardingMode==='always'?'active':'') + '" data-action="select-mode" data-value="always" aria-pressed="' + (activationV2FlowState.confirmedForwardingMode==='always'?'true':'false') + '"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle Anrufe direkt an Voxera.</div></button>'
       + '</div>'
       + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="3" ' + (!canProceedStep3 ? 'disabled' : '') + '>Weiter</button></div>';
   } else {
@@ -7047,7 +7106,7 @@ function renderActivationV2(){
       + '</div>'
       + '<div class="activation-actions">';
 
-    if (customerMeta.setupDeviceType === 'mobile') {
+    if (effectiveDevice === 'mobile') {
       html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung aktivieren</button>';
       html += '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>';
     } else {
@@ -7081,9 +7140,23 @@ function renderActivationV2(){
     + '<button type="button" class="activation-link-btn" data-action="open-deactivation">Deaktivieren</button>'
     + '<button type="button" class="activation-link-btn" data-action="open-help-forwarding">Hilfe</button>'
     + '</div></details>'
+    + '<details class="activation-advanced"><summary>Temporäre Aktivierungs-Diagnose</summary><div class="activation-advanced-body">'
+    + '<div class="activation-compact-card"><div class="activation-compact-label">Current Step</div><div class="activation-compact-val">' + escapeHtml(String(step)) + '</div></div>'
+    + '<div class="activation-compact-card"><div class="activation-compact-label">Render Branch</div><div class="activation-compact-val">' + escapeHtml(renderBranch) + '</div></div>'
+    + '<div class="activation-compact-card"><div class="activation-compact-label">Device Source</div><div class="activation-compact-val">' + escapeHtml(deviceSource) + '</div></div>'
+    + '<div class="activation-compact-card"><div class="activation-compact-label">Mode Source</div><div class="activation-compact-val">' + escapeHtml(modeSource) + '</div></div>'
+    + '<div class="activation-compact-card"><div class="activation-compact-label">Selectable Buttons</div><div class="activation-compact-val">' + (selectionButtonsRendered ? 'rendered' : 'not_rendered') + '</div></div>'
+    + '</div></details>'
     + '</div>';
 
   shell.innerHTML = html;
+  activationV2DebugLog('render diagnostics', {
+    currentStep: step,
+    renderBranch: renderBranch,
+    deviceSource: deviceSource,
+    modeSource: modeSource,
+    selectableButtonsRendered: selectionButtonsRendered
+  });
   activationV2DebugLog('state after render', activationV2StateSnapshot());
 }
 
