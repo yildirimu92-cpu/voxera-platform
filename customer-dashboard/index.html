@@ -527,19 +527,34 @@ body{
 /* ═══════════════════════════════════════════
    LOADING / EMPTY / ERROR — V1
 ═══════════════════════════════════════════ */
-.loading-wrap{display:flex;align-items:center;justify-content:center;padding:72px;flex-direction:column;gap:14px;color:var(--gray400);}
-.spinner{width:28px;height:28px;border:2.5px solid var(--gray200);border-top-color:#1A6FE8;border-radius:50%;animation:spin .7s linear infinite;}
+.loading-wrap{
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  gap:10px;padding:72px 24px;color:#475569;text-align:center;
+}
+.loading-card{
+  width:min(420px,100%);background:rgba(255,255,255,0.75);border:1px solid rgba(26,111,232,0.14);
+  border-radius:18px;padding:26px 20px;box-shadow:0 12px 34px rgba(13,31,60,0.08);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.loading-title{font-family:var(--font-display);font-size:18px;font-weight:800;color:#0F172A;letter-spacing:-.02em;}
+.loading-sub{font-size:13px;color:#64748B;line-height:1.6;margin-top:5px;}
+.spinner{width:30px;height:30px;border:2.5px solid var(--gray200);border-top-color:#1A6FE8;border-radius:50%;animation:spin .9s linear infinite;margin:0 auto 2px;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty{
-  text-align:center;padding:56px 20px;color:var(--slate);font-size:13px;
-  background:rgba(255,255,255,0.55);
-  border:1px dashed rgba(26,111,232,0.12);
-  border-radius:14px;margin:4px 0;
+  text-align:center;padding:20px;color:var(--slate);font-size:13px;
+  background:rgba(255,255,255,0.64);
+  border:1px dashed rgba(26,111,232,0.18);
+  border-radius:16px;margin:4px 0;
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
 }
 .empty-icon{font-size:36px;margin-bottom:12px;}
+.empty-title{font-size:14px;font-weight:700;color:#1E293B;}
+.empty-sub{font-size:12.5px;color:#64748B;line-height:1.58;margin-top:5px;}
 
-.error-banner{background:var(--red-light);border:1px solid #FECACA;border-radius:12px;padding:16px 20px;color:var(--red);font-size:13px;margin-bottom:18px;}
+.error-banner{
+  background:linear-gradient(180deg,#FFF7F7 0%,#FEEFEF 100%);border:1px solid #FBCACA;border-radius:14px;
+  padding:16px 18px;color:#B42318;font-size:13px;margin-bottom:18px;box-shadow:0 8px 22px rgba(220,38,38,.08);
+}
 .live-pill{
   display:flex;align-items:center;gap:6px;
   background:var(--blue-light);border:1px solid var(--blue-mid);
@@ -815,6 +830,20 @@ body{
   z-index:200;align-items:center;justify-content:center;padding:16px;
 }
 .overlay.open{display:flex;}
+.overlay.confirm-variant .modal{max-width:430px;padding:26px 24px;}
+.confirm-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;}
+.confirm-icon{
+  width:38px;height:38px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  background:#EAF2FF;color:#1A6FE8;border:1px solid #CFE0FF;
+}
+.confirm-tone-danger .confirm-icon{background:#FEF2F2;color:#DC2626;border-color:#FECACA;}
+.confirm-tone-neutral .confirm-icon{background:#F8FAFC;color:#475569;border-color:#E2E8F0;}
+.confirm-copy{flex:1;}
+.confirm-copy h3{margin-bottom:3px;}
+.btn-modal-save.danger{background:#DC2626;box-shadow:0 1px 3px rgba(220,38,38,.2);}
+.btn-modal-save.danger:hover{background:#B91C1C;}
+.btn-modal-save.neutral{background:#475569;box-shadow:0 1px 3px rgba(71,85,105,.2);}
+.btn-modal-save.neutral:hover{background:#334155;}
 .modal{
   background:var(--white);border-radius:20px;padding:32px;
   width:100%;max-width:460px;
@@ -885,12 +914,12 @@ body{
 .toast{
   position:fixed;bottom:100px;left:50%;
   transform:translateX(-50%) translateY(8px);
-  background:rgba(30,30,32,0.88);
-  border:0.5px solid rgba(255,255,255,0.12);
+  background:rgba(15,23,42,0.88);
+  border:1px solid rgba(255,255,255,0.16);
   color:#fff;
   font-size:13px;font-weight:500;
   padding:11px 20px;
-  border-radius:14px;
+  border-radius:16px;
   z-index:9000;
   opacity:0;
   transition:opacity 0.22s ease, transform 0.28s cubic-bezier(0.16,1,0.3,1);
@@ -910,6 +939,7 @@ body{
 .toast-icon.success{background:rgba(34,197,94,0.25);}
 .toast-icon.info{background:rgba(99,130,246,0.25);}
 .toast-icon.warning{background:rgba(251,191,36,0.25);}
+.toast-icon.error{background:rgba(248,113,113,0.28);}
 
 
 /* ═══════════════════════════════════════════
@@ -1575,8 +1605,12 @@ body{
   letter-spacing:-.05em;font-family:var(--font-display);
 }
 .splash-tagline{
-  font-size:13px;color:#64748B;font-weight:500;
+  font-size:13px;color:#64748B;font-weight:600;
   letter-spacing:.015em;font-family:var(--font-display);text-align:center;
+}
+.splash-subtagline{
+  font-size:12px;color:#94A3B8;font-weight:500;letter-spacing:.01em;
+  margin-top:-2px;text-align:center;
 }
 .splash-bar-wrap{
   width:min(120px,42vw);height:4px;background:#DDE6F5;border-radius:999px;
@@ -1792,8 +1826,9 @@ body{
   <div class="splash-logo-icon">
     <img class="splash-logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera Logo" />
   </div>
-  <div class="splash-wordmark">Voxera</div>
-  <div class="splash-tagline">Ihr KI-Telefonassistent</div>
+  <div class="splash-wordmark">Voxera Portal</div>
+  <div class="splash-tagline">Bitte einen Moment</div>
+  <div class="splash-subtagline">Wir bereiten Ihr Dashboard vor.</div>
   <div class="splash-bar-wrap"><div class="splash-bar" id="splash-bar"></div></div>
 </div>
 
@@ -1802,7 +1837,7 @@ body{
   <div class="login-card" id="login-card">
     <img src="/brand/05-app-icon-512px.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">Kundenportal</div>
-    <div class="login-sub"><strong style="display:block;font-size:22px;line-height:1.2;color:#0F172A;margin-bottom:8px;letter-spacing:-.03em;font-family:var(--font-display);">Willkommen im Voxera Portal</strong>Melden Sie sich an, um Anfragen und Aufgaben zu verwalten.</div>
+    <div class="login-sub"><strong style="display:block;font-size:22px;line-height:1.2;color:#0F172A;margin-bottom:8px;letter-spacing:-.03em;font-family:var(--font-display);">Voxera Portal</strong>Verwalten Sie Anfragen, Aufgaben und Erreichbarkeit an einem Ort.</div>
     <div class="login-error" id="login-error"></div>
     <div class="login-form">
       <div class="login-field">
@@ -1942,7 +1977,7 @@ body{
             <li id="fse-progress-testcall" style="display:none;"></li>
             <li id="fse-progress-ready" style="display:none;"></li>
           </div>
-          <div id="dash-loading" class="loading-wrap"><div class="spinner"></div><span>Laden...</span></div>
+          <div id="dash-loading" class="loading-wrap"><div class="loading-card"><div class="spinner"></div><div class="loading-title">Voxera Portal</div><div class="loading-sub">Bitte einen Moment</div></div></div>
           <div id="dash-content" style="display:none">
 
             <!-- activation card removed – handled in Einrichtung tab -->
@@ -2706,10 +2741,17 @@ body{
 </div>
 
 <!-- CONFIRM MODAL -->
-<div class="overlay" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal()">
-  <div class="modal" style="max-width:420px;">
-    <h3 id="confirm-title">Bitte bestätigen</h3>
-    <div class="modal-sub" id="confirm-sub">Sind Sie sicher?</div>
+<div class="overlay confirm-variant" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal()">
+  <div class="modal confirm-tone-primary" id="confirm-modal">
+    <div class="confirm-head">
+      <div class="confirm-icon" id="confirm-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><circle cx="12" cy="16" r="1"></circle></svg>
+      </div>
+      <div class="confirm-copy">
+        <h3 id="confirm-title">Bitte bestätigen</h3>
+        <div class="modal-sub" id="confirm-sub">Sind Sie sicher?</div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeConfirmModal()">Abbrechen</button>
       <button class="btn-modal-save" id="confirm-ok-btn" onclick="runConfirmModalAction()">Bestätigen</button>
@@ -3598,11 +3640,17 @@ function toast(msg, type) {
   if (textEl) textEl.textContent = msg;
   else el.textContent = msg;
   // Icon by type
-  var t = type || 'success';
+  var rawMsg = String(msg || '').trim();
+  var inferredType = 'success';
+  if (/fehler|nicht|ungültig|konnte nicht|fehlgeschlagen/i.test(rawMsg)) inferredType = 'error';
+  else if (/bitte|warn|achtung/i.test(rawMsg)) inferredType = 'warning';
+  else if (/info|hinweis/i.test(rawMsg)) inferredType = 'info';
+  var t = type || inferredType;
   var icons = {
     success: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg>',
     info:    '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#818CF8" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M5 4.5v3M5 3h.01"/></svg>',
-    warning: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FBBF24" stroke-width="1.8" stroke-linecap="round"><path d="M5 1L9 9H1L5 1z"/><path d="M5 5v2M5 7.5h.01"/></svg>'
+    warning: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FBBF24" stroke-width="1.8" stroke-linecap="round"><path d="M5 1L9 9H1L5 1z"/><path d="M5 5v2M5 7.5h.01"/></svg>',
+    error:   '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#F87171" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M3.7 3.7l2.6 2.6M6.3 3.7L3.7 6.3"/></svg>'
   };
   if (iconEl) {
     iconEl.className = 'toast-icon ' + t;
@@ -3613,6 +3661,10 @@ function toast(msg, type) {
   el.classList.add('show');
   clearTimeout(el._toastTimer);
   el._toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2800);
+}
+
+function renderEmptyState(title, subtitle) {
+  return '<div class="empty"><div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--slate2)"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg></div><div class="empty-title">' + escHtml(title || 'Keine Einträge vorhanden') + '</div><div class="empty-sub">' + escHtml(subtitle || 'Sobald neue Daten vorliegen, erscheinen sie hier automatisch.') + '</div></div>';
 }
 
 function scrollToStatusCard() {
@@ -4169,7 +4221,7 @@ function renderDashboard(records) {
   var callbackList = document.getElementById('dash-callback-list');
   if (callbackList) {
     if (sortedOpenCallbacks.length === 0) {
-      callbackList.innerHTML = '<div class="dash-side-empty">Keine offenen Aufgaben</div>';
+      callbackList.innerHTML = renderEmptyState('Keine offenen Aufgaben', 'Neue priorisierte Aufgaben erscheinen hier.');
     } else {
       renderList('dash-callback-list', sortedOpenCallbacks.slice(0,5), {showActions:true, skipSort:true, dashboardView:true});
     }
@@ -4179,7 +4231,7 @@ function renderDashboard(records) {
   if (followupList) {
     var followupsWithDate = buckets.followups;
     if (followupsWithDate.length === 0) {
-      followupList.innerHTML = '<div class="dash-side-empty">Keine geplanten Follow-ups</div>';
+      followupList.innerHTML = renderEmptyState('Keine geplanten Follow-ups', 'Sobald Termine gesetzt sind, werden sie hier angezeigt.');
     } else {
       renderList('dash-followup-list', followupsWithDate.slice(0,5), {showActions:true, skipSort:true, dashboardView:true});
     }
@@ -4188,7 +4240,7 @@ function renderDashboard(records) {
   var recentList = document.getElementById('dash-recent-list');
   if (recentList) {
     if (allOpenCalls.length === 0) {
-      recentList.innerHTML = '<div class="dash-empty"><div>Noch keine Kontakte</div><div style="margin-top:4px;">Sobald eine Anfrage eingeht, erscheint sie hier.</div></div>';
+      recentList.innerHTML = renderEmptyState('Noch keine Anfragen vorhanden', 'Sobald eine Anfrage eingeht, erscheint sie hier.');
     } else {
       renderList('dash-recent-list', allOpenCalls, {showActions:true, skipSort:true, limit:3, dashboardView:true});
       // Show "more" button if there are more
@@ -4366,7 +4418,7 @@ function renderList(containerId, records, opts) {
     });
   }
   if (!records.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--slate2)"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg></div>Keine Einträge gefunden.</div>';
+    el.innerHTML = renderEmptyState('Keine Einträge gefunden', 'Sobald neue Einträge vorhanden sind, erscheinen sie hier automatisch.');
     return;
   }
   const ordered = opts.skipSort ? [...records] : sortRecordsOpenFirst(records);
@@ -4579,10 +4631,19 @@ function openConfirmModal(config) {
   const titleEl = document.getElementById('confirm-title');
   const subEl = document.getElementById('confirm-sub');
   const okBtn = document.getElementById('confirm-ok-btn');
+  const modalEl = document.getElementById('confirm-modal');
   if (titleEl) titleEl.textContent = (config && config.title) || 'Bitte bestätigen';
   if (subEl) subEl.textContent = (config && config.text) || 'Sind Sie sicher?';
+  if (modalEl) {
+    modalEl.classList.remove('confirm-tone-danger', 'confirm-tone-neutral', 'confirm-tone-primary');
+    modalEl.classList.add('confirm-tone-' + ((config && config.tone) || 'primary'));
+  }
   if (okBtn) {
     okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+    okBtn.classList.remove('danger', 'neutral');
+    if (config && config.tone === 'danger') okBtn.classList.add('danger');
+    if (config && config.tone === 'neutral') okBtn.classList.add('neutral');
+    okBtn.dataset.loadingLabel = (config && config.loadingLabel) || 'Bitte warten...';
     okBtn.disabled = false;
   }
   confirmModalAction = (config && typeof config.onConfirm === 'function') ? config.onConfirm : null;
@@ -4609,7 +4670,7 @@ async function runConfirmModalAction() {
   const originalLabel = okBtn ? okBtn.textContent : '';
   if (okBtn) {
     okBtn.disabled = true;
-    okBtn.textContent = 'Speichere...';
+    okBtn.textContent = okBtn.dataset.loadingLabel || 'Bitte warten...';
   }
   confirmModalBusy = true;
   try {
@@ -4635,6 +4696,8 @@ function confirmClose(recordId, newStatus, rowElement) {
     title: 'Anruf als erledigt markieren?',
     text: 'Dieser Eintrag wird aus den offenen Listen entfernt und ins Archiv verschoben.',
     confirmLabel: 'Ja, erledigen',
+    loadingLabel: 'Speichere...',
+    tone: 'primary',
     onConfirm: async function() {
       return await doStatusChange(recordId, newStatus, rowElement || null);
     }
@@ -5243,7 +5306,17 @@ function closeMobileUserMenu() {
 
 function mobileLogoutAction() {
   closeMobileUserMenu();
-  if (window.confirm('Möchten Sie sich wirklich abmelden?')) doLogout();
+  openConfirmModal({
+    title: 'Wirklich abmelden?',
+    text: 'Sie werden aus dem Voxera Portal abgemeldet.',
+    confirmLabel: 'Abmelden',
+    loadingLabel: 'Melde ab...',
+    tone: 'danger',
+    onConfirm: function() {
+      doLogout();
+      return true;
+    }
+  });
 }
 
 document.addEventListener('click', function(event) {
@@ -8488,7 +8561,7 @@ function showPasswordResetForm(accessToken, refreshToken) {
   document.getElementById('login-card').innerHTML = `
     <img src="${BRAND_LOGO_PATH}" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">Neues Passwort</div>
-    <div class="login-sub">Wählen Sie ein neues Passwort für Ihr Dashboard.</div>
+    <div class="login-sub">Wählen Sie ein neues Passwort für Ihr Voxera Portal.</div>
     <div class="login-error" id="reset-error"></div>
     <div class="login-form">
       <div class="login-field"><label>Neues Passwort</label><input type="password" id="new-pw" placeholder="Mindestens 8 Zeichen"></div>
