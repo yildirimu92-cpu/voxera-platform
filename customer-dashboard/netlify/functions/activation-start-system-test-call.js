@@ -162,6 +162,19 @@ exports.handler = async (event) => {
   }
   const sessionGuardId = buildSessionGuard(customer.id, testSessionStartedAt);
   const existingCandidateCallId = toStr(customer.activation_test_candidate_call_id);
+  const lookupExistingSessionOutbound = async () => {
+    const { data: existingSessionOutbound, error: existingSessionOutboundError } = await sbAdmin
+      .from('calls')
+      .select('call_id, created_at')
+      .eq('customer_id', customer.id)
+      .eq('category', 'activation_test_outbound')
+      .eq('direction', 'outbound')
+      .ilike('notes', `%activation_test_session_guard:${sessionGuardId}%`)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return { existingSessionOutbound, existingSessionOutboundError };
+  };
   if (existingCandidateCallId && !existingCandidateCallId.startsWith('pending:')) {
     return response(200, {
       success: true,
@@ -176,6 +189,29 @@ exports.handler = async (event) => {
     });
   }
   if (existingCandidateCallId.startsWith('pending:')) {
+    const { existingSessionOutbound, existingSessionOutboundError } = await lookupExistingSessionOutbound();
+    if (existingSessionOutboundError) {
+      console.error('[activation-start-system-test-call] existing_session_outbound_lookup_failed', {
+        request_id: requestId || null,
+        customer_id: customer.id,
+        session_guard_id: sessionGuardId,
+        error_message: existingSessionOutboundError.message
+      });
+      return response(500, { error: 'Testanruf-Session konnte nicht geprüft werden. Bitte erneut versuchen.' });
+    }
+    if (existingSessionOutbound && toStr(existingSessionOutbound.call_id)) {
+      return response(200, {
+        success: true,
+        activation_test: {
+          mode: 'system_call',
+          outbound_started: true,
+          outbound_call_id: toStr(existingSessionOutbound.call_id),
+          idempotent_reuse: true,
+          started_at: testSessionStartedAt,
+          customer_main_number: customerMainNumber
+        }
+      });
+    }
     return response(202, {
       success: true,
       activation_test: {
@@ -190,16 +226,7 @@ exports.handler = async (event) => {
     });
   }
 
-  const { data: existingSessionOutbound, error: existingSessionOutboundError } = await sbAdmin
-    .from('calls')
-    .select('call_id, created_at')
-    .eq('customer_id', customer.id)
-    .eq('category', 'activation_test_outbound')
-    .eq('direction', 'outbound')
-    .ilike('notes', `%activation_test_session_guard:${sessionGuardId}%`)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { existingSessionOutbound, existingSessionOutboundError } = await lookupExistingSessionOutbound();
 
   if (existingSessionOutboundError) {
     console.error('[activation-start-system-test-call] existing_session_outbound_lookup_failed', {

@@ -6621,12 +6621,18 @@ var ACTIVATION_OUTBOUND_START_GRACE_MS = 90 * 1000;
 var activationSystemCallPending = false;
 var activationSystemCallError = '';
 var activationSystemCallTriggerInFlight = false;
+var activationSystemCallSessionLock = '';
 var activationStartTriggerInFlight = false;
 var activationRunStartLocalIso = '';
 var activationFreshRunState = {
   startedAt: '',
   awaitingPersistence: false
 };
+
+function getActivationSessionLockKey() {
+  if (!customerMeta || !customerMeta.activationStartedAt) return '';
+  return 'session:' + String(customerMeta.activationStartedAt);
+}
 
 function getCandidateCallToken(call) {
   if (!call) return '';
@@ -6733,6 +6739,7 @@ function clearActivationStateForRunStart(){
   clearActivationTransientState();
   clearActivationRunErrorStorage();
   clearActivationToastState();
+  activationSystemCallSessionLock = '';
   activationFreshRunState.startedAt = '';
   activationFreshRunState.awaitingPersistence = false;
 }
@@ -7111,10 +7118,19 @@ function rejectActivationTestCall(event) {
 
 async function startSystemActivationTestCall(event) {
   if (event) event.stopPropagation();
+  var sessionLockKey = getActivationSessionLockKey();
+  if (sessionLockKey && activationSystemCallSessionLock === sessionLockKey) {
+    activationSystemCallPending = true;
+    activationSystemCallError = '';
+    startActivationPolling();
+    renderActivationV2();
+    return true;
+  }
   if (activationSystemCallPending || activationSystemCallTriggerInFlight) return false;
   if (customerMeta && customerMeta.activationTestOutboundCallId) {
     activationSystemCallError = '';
     activationSystemCallPending = String(customerMeta.activationTestOutboundCallId).startsWith('pending:');
+    if (sessionLockKey) activationSystemCallSessionLock = sessionLockKey;
     startActivationPolling();
     renderActivationV2();
     return true;
@@ -7124,6 +7140,7 @@ async function startSystemActivationTestCall(event) {
   activationSystemCallError = '';
   activationSystemCallPending = true;
   activationSystemCallTriggerInFlight = true;
+  if (sessionLockKey) activationSystemCallSessionLock = sessionLockKey;
   renderActivationV2();
   try {
     const json = await callDashboardFunction('activation-start-system-test-call', {});
@@ -7144,6 +7161,7 @@ async function startSystemActivationTestCall(event) {
     console.error('startSystemActivationTestCall failed', e);
     activationSystemCallPending = false;
     activationSystemCallTriggerInFlight = false;
+    activationSystemCallSessionLock = '';
     activationSystemCallError = (e && e.message) ? String(e.message) : 'Testanruf konnte nicht gestartet werden.';
     renderActivationV2();
     return false;
@@ -7154,15 +7172,32 @@ async function startActivationTestFromManualCta(event) {
   if (event) event.stopPropagation();
   if (activationSystemCallPending || activationSystemCallTriggerInFlight) return;
   var btn = event && event.currentTarget;
-  if (btn && typeof btn.disabled !== 'undefined') btn.disabled = true;
-  if (customerMeta && customerMeta.activationTestOutboundCallId) {
+  if (btn && typeof btn.disabled !== 'undefined') {
+    btn.disabled = true;
+    btn.textContent = 'Testanruf wird vorbereitet…';
+    btn.setAttribute('aria-busy', 'true');
+  }
+  var sessionLockKey = getActivationSessionLockKey();
+  if (sessionLockKey && activationSystemCallSessionLock === sessionLockKey) {
+    activationSystemCallPending = true;
     activationSystemCallError = '';
     startActivationPolling();
     renderActivationV2();
     return;
   }
+  if (customerMeta && customerMeta.activationTestOutboundCallId) {
+    activationSystemCallError = '';
+    if (sessionLockKey) activationSystemCallSessionLock = sessionLockKey;
+    startActivationPolling();
+    renderActivationV2();
+    return;
+  }
   var started = await startSystemActivationTestCall(event);
-  if (!started && btn && typeof btn.disabled !== 'undefined') btn.disabled = false;
+  if (!started && btn && typeof btn.disabled !== 'undefined') {
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+    btn.textContent = 'Testanruf starten';
+  }
 }
 
 async function activationDeactivateFast(event) {
@@ -8498,7 +8533,7 @@ function renderActivationV2(){
         html += '<button type="button" class="activation-btn secondary" data-action="start-system-test">Testanruf starten</button>';
       } else {
         if (activationSystemCallPending || activationSystemCallTriggerInFlight) {
-          html += '<button type="button" class="activation-btn primary" data-action="start-system-test" disabled>Testanruf läuft</button>';
+          html += '<button type="button" class="activation-btn primary" data-action="start-system-test" disabled>Testanruf wird vorbereitet…</button>';
         } else if (customerMeta.activationTestOutboundCallId) {
           html += '<button type="button" class="activation-btn primary" data-action="start-system-test" disabled>Testanruf gestartet</button>';
         } else {
