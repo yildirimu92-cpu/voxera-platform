@@ -98,6 +98,30 @@ exports.handler = async (event) => {
     allowed.forwarding_mode = forwardingMode;
   }
 
+  if ('activation_test_mode' in body) {
+    if (body.activation_test_mode === null) {
+      allowed.activation_test_mode = null;
+    } else {
+      const activationTestMode = String(body.activation_test_mode).trim().toLowerCase();
+      if (!['system_call', 'manual_call'].includes(activationTestMode)) {
+        return response(400, { error: 'activation_test_mode ungueltig. Erlaubte Werte: system_call, manual_call' });
+      }
+      allowed.activation_test_mode = activationTestMode;
+    }
+  }
+
+  if ('activation_test_candidate_call_id' in body) {
+    if (body.activation_test_candidate_call_id === null) {
+      allowed.activation_test_candidate_call_id = null;
+    } else {
+      const candidateCallId = String(body.activation_test_candidate_call_id).trim();
+      if (!candidateCallId) {
+        return response(400, { error: 'activation_test_candidate_call_id ungueltig. Erwartet: String oder null' });
+      }
+      allowed.activation_test_candidate_call_id = candidateCallId;
+    }
+  }
+
   if (body.last_confirmed_setup_device_type != null) {
     const deviceType = String(body.last_confirmed_setup_device_type).trim().toLowerCase();
     if (!['mobile', 'landline'].includes(deviceType)) {
