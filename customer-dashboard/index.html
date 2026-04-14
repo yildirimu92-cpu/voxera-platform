@@ -1016,21 +1016,32 @@ body{
   .modal-actions .btn-modal-save{width:100%;flex:unset;}
 }
 
-/* ── DASHBOARD V1 PREMIUM ─────────────────────────────── */
-.dash-hero{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:28px 28px 24px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:var(--shadow-card);}
-.dash-hero.has-callbacks{border-color:#FECACA;background:#FFFBFB;}
-.dash-hero.no-callbacks{border-color:var(--green-mid);background:var(--green-light);}
-.dash-hero-left{flex:1;min-width:0;}
-.dash-hero-label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);margin-bottom:10px;}
-.dash-hero-number{font-family:var(--font-display);font-size:64px;font-weight:800;line-height:1;letter-spacing:-.03em;margin-bottom:10px;}
-.dash-hero-number.red{color:var(--red);}
-.dash-hero-number.green{color:var(--green);}
-.dash-hero-sub{font-size:13px;color:var(--gray600);line-height:1.55;}
-.dash-hero-sub.warn{color:#B45309;font-weight:500;}
-.dash-hero-cta{display:inline-flex;align-items:center;gap:6px;background:var(--red);color:var(--white);border:none;border-radius:var(--radius);padding:13px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);white-space:nowrap;text-decoration:none;flex-shrink:0;box-shadow:0 2px 8px rgba(220,38,38,.15);}
-.dash-hero-cta:hover{background:#B91C1C;transform:translateY(-1px);}
-.dash-hero-cta.green{background:var(--green);box-shadow:0 2px 8px rgba(22,163,74,.15);}
-.dash-hero-cta.green:hover{background:#15803D;}
+/* ── DASHBOARD V2 PREMIUM (UI-only refresh) ─────────────────────────────── */
+.dash-top{display:grid;gap:14px;margin-bottom:16px;}
+.dash-status-hero{
+  position:relative;overflow:hidden;
+  background:linear-gradient(140deg,#0D1F3C 0%,#103162 58%,#1A6FE8 122%);
+  border-radius:20px;padding:20px 18px;border:1px solid rgba(255,255,255,0.16);
+  box-shadow:0 22px 44px rgba(13,31,60,0.24),inset 0 1px 0 rgba(255,255,255,0.18);
+  color:#fff;
+}
+.dash-status-hero::after{
+  content:'';position:absolute;right:-40px;top:-46px;width:180px;height:180px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,rgba(255,255,255,0.28) 0%,rgba(255,255,255,0) 62%);
+  pointer-events:none;
+}
+.dash-status-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.76);margin-bottom:10px;}
+.dash-status-title{font-family:var(--font-display);font-size:24px;font-weight:800;line-height:1.15;letter-spacing:-.03em;margin-bottom:6px;position:relative;z-index:1;}
+.dash-status-sub{font-size:13px;line-height:1.58;color:rgba(255,255,255,0.88);max-width:460px;position:relative;z-index:1;}
+.dash-status-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1;}
+.dash-status-chip{
+  display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;
+  border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);
+  font-size:11px;font-weight:700;line-height:1.2;
+}
+.dash-status-chip.alert{background:rgba(220,38,38,0.22);border-color:rgba(254,202,202,0.55);}
+.dash-status-chip.ok{background:rgba(5,150,105,0.24);border-color:rgba(167,243,208,0.55);}
+.dash-status-chip.note{background:rgba(255,255,255,0.12);}
 .dash-activation-card{background:#FFF9F2;border:1px solid #FDE68A;border-radius:14px;padding:18px 20px;margin-bottom:18px;display:none;box-shadow:var(--shadow-card);}
 .dash-activation-card.show{display:block;}
 .dash-activation-card.info{background:#F8FAFF;border-color:#BFDBFE;}
@@ -1058,16 +1069,15 @@ body{
 .fse-progress li.done{color:var(--green);font-weight:600;}
 .fse-note{font-size:12.5px;color:#92400E;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:none;}
 .fse-note.show{display:block;}
-.dash-kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px;}
+.dash-kpi-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 .dash-kpi{
-  background:rgba(255,255,255,0.7);
-  border:0.5px solid rgba(255,255,255,0.95);
-  border-radius:16px;padding:12px 14px;cursor:pointer;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 2px 12px rgba(0,0,0,0.06);
-  backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
+  background:var(--white);
+  border:1px solid #E8EEF8;
+  border-radius:16px;padding:14px 14px;cursor:pointer;
+  box-shadow:0 4px 16px rgba(13,31,60,0.08);
   transition:all 0.22s cubic-bezier(0.16,1,0.3,1);
 }
-.dash-kpi:hover{transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 6px 24px rgba(0,0,0,0.1);}
+.dash-kpi:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(13,31,60,0.12);border-color:#D7E3F7;}
 .dash-kpi:active{transform:translateY(0);}
 .dash-kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:6px;}
 .dash-kpi-val{font-family:var(--font-display);font-size:24px;font-weight:800;line-height:1;color:#1A6FE8;margin-bottom:4px;letter-spacing:-.04em;}
@@ -1082,6 +1092,22 @@ body{
 .lead-dot-warm{background:#FFFBEB;color:#D97706;}
 .lead-dot-kalt{background:#EFF6FF;color:#1A6FE8;}
 .lead-dot-neu{background:#F3F4F6;color:#6B7280;}
+.dash-focus-card{
+  background:linear-gradient(168deg,#FFFFFF 0%,#F5F8FF 100%);
+  border:1px solid #D8E5FA;border-radius:18px;padding:16px 16px 15px;
+  box-shadow:0 8px 24px rgba(13,31,60,0.08);
+}
+.dash-focus-label{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#5B6A86;margin-bottom:8px;}
+.dash-focus-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:6px;}
+.dash-focus-number{font-family:var(--font-display);font-size:34px;font-weight:800;line-height:1;color:#0D1F3C;letter-spacing:-.04em;}
+.dash-focus-hint{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#EEF4FF;color:#1A6FE8;border:1px solid #CFE0FF;}
+.dash-focus-text{font-size:12.5px;color:#4B5872;line-height:1.58;}
+.dash-focus-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.dash-focus-btn{
+  border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
+  background:#1A6FE8;color:#fff;box-shadow:0 4px 14px rgba(26,111,232,0.28);transition:all var(--transition-fast);
+}
+.dash-focus-btn:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
 .dash-cb-section{margin-bottom:22px;}
 .dash-cb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
 .dash-cb-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:var(--font-display);letter-spacing:-.2px;}
@@ -1113,18 +1139,21 @@ body{
 }
 #dash-callback-list .call-row,#dash-recent-list .call-row{margin-bottom:10px;}
 @media(max-width:768px){
-  .dash-kpi-row{grid-template-columns:1fr 1fr;gap:10px;}
+  .dash-status-hero{padding:18px 16px;}
+  .dash-status-title{font-size:22px;}
   .dash-activation-actions{flex-direction:column;}
   .dash-btn-primary,.dash-btn-secondary{width:100%;}
   .fse-actions{flex-direction:column;}
   .fse-title{font-size:24px;}
+  .dash-focus-number{font-size:30px;}
   /* Mobile legacy cb-actions alignment */
   .cb-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:10px;}
   .cb-actions .btn-call,.btn-done-small,.btn-note{width:100%;justify-content:center;height:42px;padding:0 12px;font-size:12px;}
   .cb-row{flex-wrap:wrap;}
 }
 @media(max-width:380px){
-  .dash-kpi-row{grid-template-columns:1fr 1fr;}
+  .dash-kpi-row{grid-template-columns:1fr;}
+  .dash-status-title{font-size:20px;}
 }
 @media(max-width:640px){
   .overlay-card,.modal-sheet{
@@ -1462,21 +1491,20 @@ body{
 
 
 /* ─── Dashboard 2-col layout (desktop) ──────────────────────── */
-.dash-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;}
+.dash-grid{display:grid;grid-template-columns:1.45fr 1fr;gap:14px;}
 .dash-col{display:flex;flex-direction:column;gap:12px;}
 .dash-glass{
-  background:rgba(255,255,255,0.7);
-  border:0.5px solid rgba(255,255,255,0.95);
-  border-radius:16px;overflow:hidden;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 2px 16px rgba(0,0,0,0.06);
-  backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
+  background:var(--white);
+  border:1px solid #E5EBF5;
+  border-radius:18px;overflow:hidden;
+  box-shadow:0 10px 24px rgba(13,31,60,0.08);
 }
 .dash-glass-hd{
   display:flex;align-items:center;justify-content:space-between;
-  padding:13px 16px;border-bottom:0.5px solid rgba(0,0,0,0.05);
+  padding:14px 16px;border-bottom:1px solid #EEF3FA;background:#FAFCFF;
 }
-.dash-glass-title{font-size:13px;font-weight:700;color:#111827;letter-spacing:-.02em;}
-.dash-glass-link{font-size:11px;color:#1A6FE8;font-weight:500;text-decoration:none;cursor:pointer;}
+.dash-glass-title{font-size:13px;font-weight:700;color:#0F1F3C;letter-spacing:-.02em;}
+.dash-glass-link{font-size:11px;color:#1A6FE8;font-weight:700;text-decoration:none;cursor:pointer;}
 /* Side list items (Rückrufe + Follow-ups) */
 .dash-side-item{
   display:flex;align-items:center;gap:10px;
@@ -1498,14 +1526,14 @@ body{
 .dash-glass .call-row{
   border-radius:0!important;
   border-left:none!important;border-right:none!important;border-top:none!important;
-  border-bottom:0.5px solid rgba(0,0,0,0.04)!important;
+  border-bottom:1px solid #EDF2FA!important;
   backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
-  background:transparent!important;
+  background:#FFFFFF!important;
   box-shadow:none!important;
 }
 .dash-glass .call-row:last-child{border-bottom:none!important;}
-.dash-glass .call-row:hover{background:rgba(0,0,0,0.02)!important;transform:none!important;}
-.dash-glass .call-row.expanded{background:rgba(255,255,255,0.6)!important;transform:none!important;}
+.dash-glass .call-row:hover{background:#F8FBFF!important;transform:none!important;}
+.dash-glass .call-row.expanded{background:#F8FBFF!important;transform:none!important;}
 
 
 @media(max-width:900px){
@@ -1786,27 +1814,51 @@ body{
               <div><a id="dash-activation-primary" style="display:none;"></a></div>
             </div>
 
-            <!-- KPI KACHELN -->
-            <div class="dash-kpi-row">
-              <div class="dash-kpi" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
-                <div class="dash-kpi-label">Anrufe heute</div>
-                <div class="dash-kpi-val" id="kpi-heute">–</div>
-                <div class="dash-kpi-trend neutral" id="kpi-heute-trend"></div>
+            <div class="dash-top">
+              <div class="dash-status-hero" id="dash-status-hero">
+                <div class="dash-status-label">Voxera Dashboard</div>
+                <div class="dash-status-title" id="dash-status-title">Ihr Assistent ist bereit</div>
+                <div class="dash-status-sub" id="dash-status-text">Wir überwachen Ihre aktuellen Anfragen und priorisieren offene Rückrufe.</div>
+                <div class="dash-status-meta">
+                  <span class="dash-status-chip note" id="dash-status-chip-primary">Status wird geladen…</span>
+                  <span class="dash-status-chip note" id="dash-status-chip-secondary">Aktualisiert mit Live-Daten</span>
+                </div>
               </div>
-              <div class="dash-kpi" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">
-                <div class="dash-kpi-label">Offene Rückrufe</div>
-                <div class="dash-kpi-val" id="kpi-callbacks">–</div>
-                <div class="dash-kpi-trend neutral" id="kpi-callbacks-trend"></div>
+
+              <!-- KPI KACHELN -->
+              <div class="dash-kpi-row">
+                <div class="dash-kpi" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
+                  <div class="dash-kpi-label">Anrufe heute</div>
+                  <div class="dash-kpi-val" id="kpi-heute">–</div>
+                  <div class="dash-kpi-trend neutral" id="kpi-heute-trend"></div>
+                </div>
+                <div class="dash-kpi" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">
+                  <div class="dash-kpi-label">Offene Rückrufe</div>
+                  <div class="dash-kpi-val" id="kpi-callbacks">–</div>
+                  <div class="dash-kpi-trend neutral" id="kpi-callbacks-trend"></div>
+                </div>
+                <div class="dash-kpi" onclick="document.getElementById('dash-followup-section').scrollIntoView({behavior:'smooth'})">
+                  <div class="dash-kpi-label">Follow-ups</div>
+                  <div class="dash-kpi-val" id="kpi-followups">–</div>
+                  <div class="dash-kpi-trend neutral" id="kpi-followups-trend"></div>
+                </div>
+                <div class="dash-kpi" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
+                  <div class="dash-kpi-label">Leads</div>
+                  <div class="dash-kpi-val" id="kpi-leads">–</div>
+                  <div class="dash-kpi-leads" id="kpi-leads-dots"></div>
+                </div>
               </div>
-              <div class="dash-kpi" onclick="document.getElementById('dash-followup-section').scrollIntoView({behavior:'smooth'})">
-                <div class="dash-kpi-label">Follow-ups</div>
-                <div class="dash-kpi-val" id="kpi-followups">–</div>
-                <div class="dash-kpi-trend neutral" id="kpi-followups-trend"></div>
-              </div>
-              <div class="dash-kpi" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
-                <div class="dash-kpi-label">Leads</div>
-                <div class="dash-kpi-val" id="kpi-leads">–</div>
-                <div class="dash-kpi-leads" id="kpi-leads-dots"></div>
+
+              <div class="dash-focus-card" id="dash-focus-card">
+                <div class="dash-focus-label">Rückruf-Fokus</div>
+                <div class="dash-focus-head">
+                  <div class="dash-focus-number" id="dash-focus-number">–</div>
+                  <div class="dash-focus-hint" id="dash-focus-hint">Priorität</div>
+                </div>
+                <div class="dash-focus-text" id="dash-focus-text">Keine priorisierte Aufgabe vorhanden.</div>
+                <div class="dash-focus-actions">
+                  <button class="dash-focus-btn" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">Rückrufe öffnen</button>
+                </div>
               </div>
             </div>
 
@@ -1815,7 +1867,7 @@ body{
               <div class="dash-col">
                 <div class="dash-glass" id="dash-recent-section">
                   <div class="dash-glass-hd">
-                    <div class="dash-glass-title">Letzte Anrufe</div>
+                    <div class="dash-glass-title">Letzte Kontakte</div>
                     <span class="dash-glass-link" onclick="activateTab('anrufe')">Alle anzeigen</span>
                   </div>
                   <div class="call-list" id="dash-recent-list" style="margin-bottom:0;gap:0;"></div>
@@ -3896,6 +3948,47 @@ function renderDashboard(records) {
   var kpiFollowups = document.getElementById('kpi-followups');
   if (kpiFollowups) kpiFollowups.textContent = followupsOpen.length;
   renderKpiTrend('kpi-followups-trend', followupsOpen.length, 'followups');
+
+  // ── Hero + Fokuskarte (nur UI-Mapping, bestehende Datenquelle) ────────────
+  var statusHero = document.getElementById('dash-status-hero');
+  var statusTitle = document.getElementById('dash-status-title');
+  var statusText = document.getElementById('dash-status-text');
+  var statusChipPrimary = document.getElementById('dash-status-chip-primary');
+  var statusChipSecondary = document.getElementById('dash-status-chip-secondary');
+  if (statusHero && statusTitle && statusText && statusChipPrimary && statusChipSecondary) {
+    statusChipPrimary.className = 'dash-status-chip';
+    statusChipSecondary.className = 'dash-status-chip note';
+    if (offen.length > 0) {
+      statusTitle.textContent = 'Rückrufe benötigen Priorität';
+      statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Rückrufe. Voxera hat die wichtigsten Kontakte bereits für Sie gesammelt.';
+      statusChipPrimary.textContent = offen.length + ' offen';
+      statusChipPrimary.classList.add('alert');
+      statusChipSecondary.textContent = today.length + ' Anrufe heute';
+    } else {
+      statusTitle.textContent = 'Alles unter Kontrolle';
+      statusText.textContent = 'Aktuell gibt es keine offenen Rückrufe. Neue Anrufe und Follow-ups erscheinen automatisch in Ihrer Übersicht.';
+      statusChipPrimary.textContent = 'Keine offenen Rückrufe';
+      statusChipPrimary.classList.add('ok');
+      statusChipSecondary.textContent = today.length + ' Anrufe heute';
+    }
+  }
+
+  var focusNumberEl = document.getElementById('dash-focus-number');
+  var focusHintEl = document.getElementById('dash-focus-hint');
+  var focusTextEl = document.getElementById('dash-focus-text');
+  if (focusNumberEl && focusHintEl && focusTextEl) {
+    focusNumberEl.textContent = offen.length;
+    if (offen.length > 0) {
+      focusHintEl.textContent = 'Jetzt bearbeiten';
+      focusTextEl.textContent = 'Ihr schnellster Hebel: offene Rückrufe zuerst abschließen, dann Follow-ups priorisieren.';
+    } else if (followupsOpen.length > 0) {
+      focusHintEl.textContent = 'Follow-ups geplant';
+      focusTextEl.textContent = 'Keine offenen Rückrufe. Es warten ' + followupsOpen.length + ' Follow-ups auf Ihre nächste Aktion.';
+    } else {
+      focusHintEl.textContent = 'Keine offenen Tasks';
+      focusTextEl.textContent = 'Momentan gibt es keine offenen Rückrufe oder Follow-ups.';
+    }
+  }
 
   // Leads KPI
   var kpiLeads = document.getElementById('kpi-leads');
