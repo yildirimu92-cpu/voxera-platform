@@ -29,8 +29,16 @@ const CANONICAL_ALLOWED_FIELDS = new Set([
 
 function extractMissingColumnName(message) {
   const text = String(message || '');
-  const match = text.match(/column\s+"([^"]+)"\s+of relation\s+"customers"\s+does not exist/i);
-  return match && match[1] ? match[1] : '';
+  const patterns = [
+    /column\s+"([^"]+)"\s+of relation\s+"customers"\s+does not exist/i,
+    /Could not find the '\s*([^']+?)\s*' column of 'customers' in the schema cache/i,
+    /Could not find the '([^']+)' column/i
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) return match[1].trim();
+  }
+  return '';
 }
 
 exports.handler = async (event) => {
@@ -71,13 +79,9 @@ exports.handler = async (event) => {
     if (!['none', 'callback_only', 'all_calls'].includes(mode)) {
       return response(400, { error: 'notification_mode ungueltig' });
     }
-    const legacyByMode = {
-      none: { notification_active: false, new_log_email_active: false, missed_call_email_active: false },
-      callback_only: { notification_active: true, new_log_email_active: false, missed_call_email_active: true },
-      all_calls: { notification_active: true, new_log_email_active: true, missed_call_email_active: true }
-    };
+    // Canonical single source of truth: persist only notification_mode.
+    // Legacy boolean mirrors were removed from runtime writes to avoid schema-drift 500s.
     allowed.notification_mode = mode;
-    Object.assign(allowed, legacyByMode[mode]);
   }
 
   if (body.forwarding_setup_completed != null) {
@@ -211,7 +215,7 @@ exports.handler = async (event) => {
     .single();
 
   if (error) {
-    const missingColumn = error && error.code === '42703' ? extractMissingColumnName(error.message) : '';
+    const missingColumn = extractMissingColumnName(error && error.message);
     console.error('[customer-update-settings] update failed', {
       customerId: caller.customerId,
       payload: allowed,
