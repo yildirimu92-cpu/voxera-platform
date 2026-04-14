@@ -7299,6 +7299,10 @@ var activationV2DisclosureState = {
   advancedOptionsOpen: false,
   diagnosticsOpen: false
 };
+var activationResetFlowState = {
+  open: false,
+  stage: 'choice'
+};
 
 function isActivationV2DebugMode(){
   try {
@@ -7379,75 +7383,25 @@ function setActivationV2DisclosureOpen(key, open){
 
 async function activationV2RetryFlow(event) {
   if (event) event.stopPropagation();
-  try {
-    const context = await resolveCustomerContext();
-    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
-    clearActivationTransientState();
-    var resetPayload = {
-      setup_device_type: null,
-      forwarding_mode: null,
-      forwarding_status: 'not_started',
-      forwarding_setup_completed: false,
-      activation_started_at: null,
-      activated_at: null,
-      activation_test_mode: null,
-      activation_test_candidate_call_id: null,
-      last_confirmed_setup_device_type: null,
-      last_confirmed_forwarding_mode: null
-    };
-    await patchCustomerRecord(recId, resetPayload);
-    const verifyContext = await resolveCustomerContext();
-    var verifyRec = verifyContext && verifyContext.customerRecord ? verifyContext.customerRecord : null;
-    var resetPersisted = verifyRec
-      && String(verifyRec.forwarding_status || '').toLowerCase() === 'not_started'
-      && !verifyRec.activation_started_at
-      && !verifyRec.activation_test_mode
-      && !verifyRec.activation_test_candidate_call_id
-      && !verifyRec.setup_device_type
-      && !verifyRec.forwarding_mode
-      && !verifyRec.last_confirmed_setup_device_type
-      && !verifyRec.last_confirmed_forwarding_mode
-      && verifyRec.forwarding_setup_completed === false;
-    if (!resetPersisted) throw new Error('activation reset verification failed');
-    customerMeta.forwardingStatus = 'not_started';
-    customerMeta.activationStartedAt = null;
-    customerMeta.activationTestMode = null;
-    customerMeta.setupDeviceType = null;
-    customerMeta.forwardingMode = null;
-    customerMeta.lastConfirmedSetupDeviceType = null;
-    customerMeta.lastConfirmedForwardingMode = null;
-    customerMeta.forwardingSetupCompleted = false;
-    customerMeta.activationTestOutboundCallId = null;
-    if (verifyContext && verifyContext.customerRecord) {
-      verifyContext.customerRecord.forwarding_status = 'not_started';
-      verifyContext.customerRecord.activation_started_at = null;
-      verifyContext.customerRecord.activation_test_mode = null;
-      verifyContext.customerRecord.activation_test_candidate_call_id = null;
-      verifyContext.customerRecord.setup_device_type = null;
-      verifyContext.customerRecord.forwarding_mode = null;
-      verifyContext.customerRecord.last_confirmed_setup_device_type = null;
-      verifyContext.customerRecord.last_confirmed_forwarding_mode = null;
-      verifyContext.customerRecord.forwarding_setup_completed = false;
-    }
-    resetActivationFlowState();
-    persistActivationV2Step(1);
-    syncActivationPersistedState();
-    renderActivationV2();
-    toast('Aktivierung wurde zurückgesetzt. Sie können die Aktivierung jetzt erneut starten.');
-  } catch (e) {
-    console.error('activationV2RetryFlow failed', e);
-    toast('Aktivierung konnte nicht zurückgesetzt werden. Bitte erneut versuchen oder Support kontaktieren.', 'warning');
-  }
+  openActivationResetChoice(event);
 }
 
-async function activationV2RestartFlow(event) {
+function openActivationResetChoice(event){
   if (event) event.stopPropagation();
-  clearActivationTransientState();
-  resetActivationFlowState();
-  persistActivationV2Step(1);
+  activationResetFlowState.open = true;
+  activationResetFlowState.stage = 'choice';
   renderActivationV2();
-  activationV2DebugLog('flow restarted (local state reset)', activationV2StateSnapshot());
+}
+
+function closeActivationResetFlow(event){
+  if (event) event.stopPropagation();
+  activationResetFlowState.open = false;
+  activationResetFlowState.stage = 'choice';
+  renderActivationV2();
+}
+
+async function performActivationInternalReset(successMessage) {
+  clearActivationTransientState();
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
@@ -7488,12 +7442,87 @@ async function activationV2RestartFlow(event) {
     }
     syncActivationPersistedState();
     clearActivationV2StorageState();
+    resetActivationFlowState();
+    persistActivationV2Step(1);
+    activationResetFlowState.open = false;
+    activationResetFlowState.stage = 'choice';
     renderActivationV2();
-    toast('Einrichtung vollständig zurückgesetzt.');
+    toast(successMessage || 'Einrichtung vollständig zurückgesetzt.');
+    return true;
   } catch (e) {
-    console.error('activationV2RestartFlow failed', e);
+    console.error('performActivationInternalReset failed', e);
     toast('Lokaler Reset ausgeführt. Backend-Reset bitte erneut versuchen.');
+    return false;
   }
+}
+
+function openActivationGuidedDeactivate(event){
+  if (event) event.stopPropagation();
+  activationResetFlowState.open = true;
+  activationResetFlowState.stage = 'guided';
+  renderActivationV2();
+}
+
+function openActivationInternalResetWarning(event){
+  if (event) event.stopPropagation();
+  activationResetFlowState.open = true;
+  activationResetFlowState.stage = 'internal_warning';
+  renderActivationV2();
+}
+
+async function activationConfirmGuidedDeactivation(event){
+  if (event) event.stopPropagation();
+  var ok = await performActivationInternalReset('Weiterleitung bestätigt und Voxera zurückgesetzt.');
+  if (!ok) return;
+}
+
+async function activationConfirmInternalResetOnly(event){
+  if (event) event.stopPropagation();
+  var ok = await performActivationInternalReset('Voxera wurde intern zurückgesetzt.');
+  if (!ok) return;
+}
+
+async function activationV2RestartFlow(event) {
+  if (event) event.stopPropagation();
+  openActivationResetChoice(event);
+}
+
+function renderActivationResetFlowCard(deviceType, mode, deactCode) {
+  if (!activationResetFlowState.open) return '';
+  var bodyHtml = '';
+  if (activationResetFlowState.stage === 'guided') {
+    if (deviceType === 'mobile') {
+      bodyHtml += '<p>Deaktivieren Sie zuerst die Rufumleitung auf Ihrem Smartphone.</p>'
+        + '<p>Deaktivierungscode: <strong>' + escapeHtml(deactCode || '##002#') + '</strong></p>'
+        + '<div class="activation-actions inline">';
+      if (deactCode) {
+        bodyHtml += '<a class="activation-btn secondary" href="tel:' + encodeURIComponent(deactCode) + '" style="text-decoration:none;text-align:center;">Code direkt anwenden</a>';
+      }
+      bodyHtml += '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(JSON.stringify(deactCode || '##002#')) + '">Code kopieren</button>'
+        + '</div>';
+    } else {
+      bodyHtml += '<p>Entfernen Sie die Rufumleitung in Ihrer Telefonanlage oder im Anbieter-Portal und speichern Sie die Änderung.</p>';
+    }
+    bodyHtml += '<div class="activation-actions">'
+      + '<button type="button" class="activation-btn primary" data-action="confirm-guided-reset">Ich habe die Rufumleitung deaktiviert</button>'
+      + '<button type="button" class="activation-btn secondary" data-action="close-reset-flow">Abbrechen</button>'
+      + '</div>';
+  } else if (activationResetFlowState.stage === 'internal_warning') {
+    bodyHtml += '<p><strong>Die Rufumleitung kann weiterhin aktiv sein.</strong></p>'
+      + '<div class="activation-actions">'
+      + '<button type="button" class="activation-btn primary" data-action="confirm-internal-reset">Nur Voxera zurücksetzen</button>'
+      + '<button type="button" class="activation-btn secondary" data-action="close-reset-flow">Abbrechen</button>'
+      + '</div>';
+  } else {
+    bodyHtml += '<h3 style="margin:0 0 6px 0;">Einrichtung zurücksetzen?</h3>'
+      + '<p>Dadurch wird der Status in Voxera zurückgesetzt.<br>Eine bestehende Rufumleitung auf Ihrem Gerät oder bei Ihrem Anbieter bleibt möglicherweise aktiv.</p>'
+      + '<div class="activation-actions">'
+      + '<button type="button" class="activation-btn primary" data-action="open-guided-reset">Weiterleitung deaktivieren &amp; zurücksetzen</button>'
+      + '<button type="button" class="activation-btn secondary" data-action="open-internal-reset-warning">Nur Voxera zurücksetzen</button>'
+      + '<button type="button" class="activation-btn secondary" data-action="close-reset-flow">Abbrechen</button>'
+      + '</div>';
+  }
+  return '<section class="activation-panel"><h2>Einrichtung zurücksetzen</h2>' + bodyHtml + '</section>';
 }
 
 function bindActivationV2Events(){
@@ -7563,7 +7592,7 @@ function bindActivationV2Events(){
         retryActivationCheck(event);
         break;
       case 'deactivate-now':
-        activationDeactivateFast(event);
+        openActivationGuidedDeactivate(event);
         break;
       case 'change-selection':
         goToActivationV2Step(1);
@@ -7571,7 +7600,25 @@ function bindActivationV2Events(){
         break;
       case 'retry-flow':
       case 'restart-setup':
-        activationV2RestartFlow(event);
+        openActivationResetChoice(event);
+        break;
+      case 'open-reset-choice':
+        openActivationResetChoice(event);
+        break;
+      case 'open-guided-reset':
+        openActivationGuidedDeactivate(event);
+        break;
+      case 'open-internal-reset-warning':
+        openActivationInternalResetWarning(event);
+        break;
+      case 'confirm-guided-reset':
+        activationConfirmGuidedDeactivation(event);
+        break;
+      case 'confirm-internal-reset':
+        activationConfirmInternalResetOnly(event);
+        break;
+      case 'close-reset-flow':
+        closeActivationResetFlow(event);
         break;
       case 'toggle-advanced-options':
         setActivationV2DisclosureOpen('advancedOptionsOpen', !activationV2DisclosureState.advancedOptionsOpen);
@@ -7615,6 +7662,7 @@ function renderActivationV2(){
   var blockedStep3 = step === 3 && !step3Ready;
   var shouldShowRecoveryAction = uiState === 'pending_test' || uiState === 'failed' || blockedStep3;
   var code = getForwardingCode(mode, customerMeta.voxeraNumber || '');
+  var deactCode = getForwardingDisableCode(effectiveMode || '');
   var codeJson = JSON.stringify(code || '');
   var heroAction = hero.primaryAction || 'go-step';
   var heroValue = hero.primaryValue || '1';
@@ -7714,7 +7762,6 @@ function renderActivationV2(){
       + '<div class="activation-compact-card"><div class="activation-compact-label">Zielnummer</div><div class="activation-compact-val">' + escapeHtml(voxeraNumber) + '</div></div>'
       + '<div class="activation-compact-card"><div class="activation-compact-label">Letzte Prüfung</div><div class="activation-compact-val">' + escapeHtml(lastCheck) + '</div></div>'
       + '</div>';
-    var deactCode = getForwardingDisableCode(effectiveMode || '');
     if (effectiveDevice === 'mobile' && deactCode) {
       html += '<div class="activation-info-banner">Zur schnellen Deaktivierung am Smartphone nutzen Sie: <strong>' + escapeHtml(deactCode) + '</strong></div>'
         + '<div class="activation-actions inline">'
@@ -7725,7 +7772,9 @@ function renderActivationV2(){
       html += '<div class="activation-info-banner">Festnetz/Anlage: Rufumleitung beim Anbieter oder in der Anlage deaktivieren und danach unten bestätigen.</div>';
     }
     html += '<div class="activation-actions" style="margin-top:10px;">'
-      + '<button type="button" class="activation-btn primary" data-action="deactivate-now">Weiterleitung deaktivieren</button>'
+      + '<button type="button" class="activation-btn primary" data-action="open-guided-reset">Weiterleitung deaktivieren</button>'
+      + '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Hilfe zur Deaktivierung</button>'
+      + '<button type="button" class="activation-btn secondary" data-action="open-internal-reset-warning">Nur Voxera zurücksetzen</button>'
       + '</div></section>';
   }
 
@@ -7733,10 +7782,12 @@ function renderActivationV2(){
   var advancedPanelClass = 'activation-advanced is-open';
   var diagnosticsPanelClass = 'activation-advanced' + (activationV2DisclosureState.diagnosticsOpen ? ' is-open' : '');
 
+  html += renderActivationResetFlowCard(effectiveDevice, effectiveMode, deactCode || '');
+
   html += '<section class="' + advancedPanelClass + '" data-panel="advancedOptionsOpen">'
     + '<div class="activation-advanced-toggle" aria-hidden="true">Optionen</div>'
     + '<div class="activation-advanced-body">'
-    + (shouldShowRecoveryAction ? '<button type="button" class="activation-link-btn" data-action="restart-setup">Einrichtung neu starten</button>' : '<button type="button" class="activation-link-btn" data-action="change-selection">Auswahl ändern</button>')
+    + (shouldShowRecoveryAction ? '<button type="button" class="activation-link-btn" data-action="open-reset-choice">Einrichtung zurücksetzen</button>' : '<button type="button" class="activation-link-btn" data-action="change-selection">Auswahl ändern</button>')
     + '<button type="button" class="activation-link-btn" data-action="open-help-forwarding">Hilfe zur Einrichtung</button>'
     + '</div></section>';
 
