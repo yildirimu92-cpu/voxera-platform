@@ -5964,6 +5964,7 @@ var ACTIVATION_TEST_TIMEOUT_MS = 8 * 60 * 1000;
 var ACTIVATION_OUTBOUND_START_GRACE_MS = 90 * 1000;
 var activationSystemCallPending = false;
 var activationSystemCallError = '';
+var activationSystemCallTriggerInFlight = false;
 
 function getCandidateCallToken(call) {
   if (!call) return '';
@@ -6369,10 +6370,18 @@ function rejectActivationTestCall(event) {
 
 async function startSystemActivationTestCall(event) {
   if (event) event.stopPropagation();
+  if (activationSystemCallPending || activationSystemCallTriggerInFlight) return false;
+  if (customerMeta && customerMeta.activationTestOutboundCallId) {
+    activationSystemCallError = '';
+    startActivationPolling();
+    renderActivationV2();
+    return true;
+  }
   candidateCall = null;
   activationFlowSuccessToken = '';
   activationSystemCallError = '';
   activationSystemCallPending = true;
+  activationSystemCallTriggerInFlight = true;
   renderActivationV2();
   try {
     const json = await callDashboardFunction('activation-start-system-test-call', {});
@@ -6380,6 +6389,7 @@ async function startSystemActivationTestCall(event) {
     customerMeta.activationTestMode = 'system_call';
     customerMeta.activationTestOutboundCallId = outboundId || null;
     activationSystemCallPending = false;
+    activationSystemCallTriggerInFlight = false;
     activationSystemCallError = '';
     stopActivationPolling();
     startActivationPolling();
@@ -6389,6 +6399,7 @@ async function startSystemActivationTestCall(event) {
   } catch (e) {
     console.error('startSystemActivationTestCall failed', e);
     activationSystemCallPending = false;
+    activationSystemCallTriggerInFlight = false;
     activationSystemCallError = (e && e.message) ? String(e.message) : 'Testanruf konnte nicht gestartet werden.';
     toast('System-Testanruf konnte nicht gestartet werden: ' + activationSystemCallError);
     renderActivationV2();
@@ -6398,11 +6409,60 @@ async function startSystemActivationTestCall(event) {
 
 async function retryActivationCheck(event) {
   if (event) event.stopPropagation();
-  resetActivationTestRunState();
-  stopActivationPolling();
+  if (activationSystemCallPending || activationSystemCallTriggerInFlight) return;
+  if (customerMeta && customerMeta.activationTestOutboundCallId) {
+    activationSystemCallError = '';
+    startActivationPolling();
+    renderActivationV2();
+    toast('Testanruf wird vorbereitet.');
+    return;
+  }
   var started = await startSystemActivationTestCall(event);
   if (!started) return;
-  toast('Testanruf läuft. Wir warten auf die Weiterleitung Ihres Testanrufs.');
+  toast('Testanruf wird vorbereitet.');
+}
+
+async function activationDeactivateFast(event) {
+  if (event) event.stopPropagation();
+  if (activationSystemCallPending || activationSystemCallTriggerInFlight) return;
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird deaktiviert…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) throw new Error('customer record missing');
+    await patchCustomerRecord(recId, {
+      forwarding_status: 'inactive',
+      forwarding_setup_completed: false,
+      activation_started_at: null,
+      activated_at: null,
+      activation_test_mode: null,
+      activation_test_candidate_call_id: null
+    });
+    customerMeta.forwardingStatus = 'inactive';
+    customerMeta.forwardingSetupCompleted = false;
+    customerMeta.activationStartedAt = null;
+    customerMeta.activatedAt = null;
+    customerMeta.activationTestMode = null;
+    customerMeta.activationTestOutboundCallId = null;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'inactive';
+      context.customerRecord.forwarding_setup_completed = false;
+      context.customerRecord.activation_started_at = null;
+      context.customerRecord.activated_at = null;
+      context.customerRecord.activation_test_mode = null;
+      context.customerRecord.activation_test_candidate_call_id = null;
+    }
+    candidateCall = null;
+    stopActivationPolling();
+    toast('Weiterleitung deaktiviert.');
+    renderActivationV2();
+    return;
+  } catch (e) {
+    console.error('activationDeactivateFast failed', e);
+    toast('Weiterleitung konnte nicht deaktiviert werden.');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Weiterleitung deaktivieren'; }
 }
 
 async function activationCopyOwnNumber(event) {
@@ -7014,6 +7074,7 @@ function clearActivationTransientState(){
   activationFlowGuideToken = '';
   activationFlowSuccessToken = '';
   activationSystemCallPending = false;
+  activationSystemCallTriggerInFlight = false;
   activationSystemCallError = '';
 }
 
@@ -7476,6 +7537,9 @@ function bindActivationV2Events(){
       case 'retry-test':
         retryActivationCheck(event);
         break;
+      case 'deactivate-now':
+        activationDeactivateFast(event);
+        break;
       case 'change-selection':
         goToActivationV2Step(1);
         activationV2ScrollActiveStepIntoView();
@@ -7575,14 +7639,20 @@ function renderActivationV2(){
       + '<div class="activation-actions">';
 
     if (phase === 'test_pending' || phase === 'failed') {
-      html += '<div class="activation-info-banner">Weiterleitung gestartet. Starten Sie jetzt den automatischen Testanruf.</div>';
+      if (phase === 'test_pending') {
+        html += '<div class="activation-info-banner">Weiterleitung gestartet.</div>';
+        html += '<div class="activation-info-banner">Testanruf wird vorbereitet.</div>';
+      }
       if (candidateCall) {
         html += '<button type="button" class="activation-btn primary" data-action="confirm-test">Aktivierung abschliessen</button>';
         html += '<button type="button" class="activation-btn secondary" data-action="retry-test">Erneut prüfen</button>';
       } else {
-        if (activationSystemCallPending) {
+        if (activationSystemCallPending || activationSystemCallTriggerInFlight) {
           html += '<div class="activation-info-banner">Testanruf läuft. Wir warten auf die Weiterleitung Ihres Testanrufs.</div>';
           html += '<button type="button" class="activation-btn primary" data-action="retry-test" disabled>Testanruf läuft</button>';
+        } else if (customerMeta.activationTestOutboundCallId) {
+          html += '<div class="activation-info-banner">Testanruf gestartet. Wir warten auf die Weiterleitung Ihres Testanrufs.</div>';
+          html += '<button type="button" class="activation-btn primary" data-action="retry-test" disabled>Testanruf gestartet</button>';
         } else {
           html += '<button type="button" class="activation-btn primary" data-action="retry-test">Testanruf starten</button>';
         }
@@ -7618,6 +7688,19 @@ function renderActivationV2(){
       + '<div class="activation-compact-card"><div class="activation-compact-label">Weiterleitungsart</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
       + '<div class="activation-compact-card"><div class="activation-compact-label">Zielnummer</div><div class="activation-compact-val">' + escapeHtml(voxeraNumber) + '</div></div>'
       + '<div class="activation-compact-card"><div class="activation-compact-label">Letzte Prüfung</div><div class="activation-compact-val">' + escapeHtml(lastCheck) + '</div></div>'
+      + '</div>';
+    var deactCode = getForwardingDisableCode(effectiveMode || '');
+    if (effectiveDevice === 'mobile' && deactCode) {
+      html += '<div class="activation-info-banner">Zur schnellen Deaktivierung am Smartphone nutzen Sie: <strong>' + escapeHtml(deactCode) + '</strong></div>'
+        + '<div class="activation-actions inline">'
+        + '<a class="activation-btn secondary" href="tel:' + encodeURIComponent(deactCode) + '" style="text-decoration:none;text-align:center;">Deaktivierungscode anwenden</a>'
+        + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(JSON.stringify(deactCode)) + '">Code kopieren</button>'
+        + '</div>';
+    } else {
+      html += '<div class="activation-info-banner">Festnetz/Anlage: Rufumleitung beim Anbieter oder in der Anlage deaktivieren und danach unten bestätigen.</div>';
+    }
+    html += '<div class="activation-actions" style="margin-top:10px;">'
+      + '<button type="button" class="activation-btn primary" data-action="deactivate-now">Weiterleitung deaktivieren</button>'
       + '</div></section>';
   }
 

@@ -115,7 +115,7 @@ exports.handler = async (event) => {
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
-    .select('id, tel_nr, voxera_number, forwarding_status, activation_started_at')
+    .select('id, tel_nr, voxera_number, forwarding_status, activation_started_at, activation_test_mode, activation_test_candidate_call_id')
     .eq('id', caller.customerId)
     .single();
 
@@ -155,6 +155,108 @@ exports.handler = async (event) => {
   const testSessionStartedAt = toStr(customer.activation_started_at);
   if (!testSessionStartedAt) {
     return response(409, { error: 'Aktivierungssitzung fehlt. Bitte Aktivierung zuerst starten.' });
+  }
+  const existingCandidateCallId = toStr(customer.activation_test_candidate_call_id);
+  if (existingCandidateCallId && !existingCandidateCallId.startsWith('pending:')) {
+    return response(200, {
+      success: true,
+      activation_test: {
+        mode: 'system_call',
+        outbound_started: true,
+        outbound_call_id: existingCandidateCallId,
+        idempotent_reuse: true,
+        started_at: testSessionStartedAt,
+        customer_main_number: customerMainNumber
+      }
+    });
+  }
+
+  const now = Date.now();
+  const rateLimitWindowStartIso = new Date(now - (60 * 60 * 1000)).toISOString();
+  const { count: rateLimitCount, error: rateLimitError } = await sbAdmin
+    .from('calls')
+    .select('call_id', { count: 'exact', head: true })
+    .eq('customer_id', customer.id)
+    .eq('category', 'activation_test_outbound')
+    .gte('created_at', rateLimitWindowStartIso);
+
+  if (rateLimitError) {
+    console.error('[activation-start-system-test-call] rate_limit_lookup_failed', {
+      request_id: requestId || null,
+      customer_id: customer.id,
+      error_message: rateLimitError.message
+    });
+    return response(500, { error: 'Rate-Limit konnte nicht geprüft werden. Bitte später erneut versuchen.' });
+  }
+
+  if ((rateLimitCount || 0) >= 3) {
+    return response(429, {
+      error: 'Maximale Anzahl Testanrufe erreicht. Bitte später erneut versuchen.'
+    });
+  }
+
+  const pendingGuard = `pending:${crypto.createHash('sha256').update(`${customer.id}:${testSessionStartedAt}`).digest('hex').slice(0, 24)}`;
+  if (!existingCandidateCallId) {
+    const { data: guardRows, error: guardError } = await sbAdmin
+      .from('customers')
+      .update({
+        activation_test_mode: 'system_call',
+        activation_test_candidate_call_id: pendingGuard
+      })
+      .eq('id', customer.id)
+      .eq('forwarding_status', 'pending_test')
+      .eq('activation_started_at', testSessionStartedAt)
+      .is('activation_test_candidate_call_id', null)
+      .select('id');
+
+    if (guardError) {
+      console.error('[activation-start-system-test-call] idempotent_guard_failed', {
+        request_id: requestId || null,
+        customer_id: customer.id,
+        error_message: guardError.message
+      });
+      return response(500, { error: 'Testanruf konnte nicht sicher gestartet werden. Bitte erneut versuchen.' });
+    }
+
+    if (!Array.isArray(guardRows) || guardRows.length === 0) {
+      const { data: guardCustomer, error: guardCustomerError } = await sbAdmin
+        .from('customers')
+        .select('activation_test_candidate_call_id')
+        .eq('id', customer.id)
+        .single();
+      const guardCandidate = toStr(guardCustomer && guardCustomer.activation_test_candidate_call_id);
+      if (guardCustomerError) {
+        console.error('[activation-start-system-test-call] idempotent_guard_reload_failed', {
+          request_id: requestId || null,
+          customer_id: customer.id,
+          error_message: guardCustomerError.message
+        });
+        return response(500, { error: 'Testanruf konnte nicht sicher gestartet werden. Bitte erneut versuchen.' });
+      }
+      if (guardCandidate && !guardCandidate.startsWith('pending:')) {
+        return response(200, {
+          success: true,
+          activation_test: {
+            mode: 'system_call',
+            outbound_started: true,
+            outbound_call_id: guardCandidate,
+            idempotent_reuse: true,
+            started_at: testSessionStartedAt,
+            customer_main_number: customerMainNumber
+          }
+        });
+      }
+      return response(202, {
+        success: true,
+        activation_test: {
+          mode: 'system_call',
+          outbound_started: false,
+          pending: true,
+          started_at: testSessionStartedAt,
+          customer_main_number: customerMainNumber
+        }
+      });
+    }
   }
 
   const twilioFrom = twilioFallbackFrom || customerVoxeraNumber;
@@ -196,6 +298,13 @@ exports.handler = async (event) => {
       error_message: error && error.message ? error.message : 'Unknown Twilio error',
       twilio_status: error && error.status ? error.status : null
     });
+    if (!existingCandidateCallId) {
+      await sbAdmin
+        .from('customers')
+        .update({ activation_test_candidate_call_id: null })
+        .eq('id', customer.id)
+        .eq('activation_test_candidate_call_id', pendingGuard);
+    }
     return response(502, {
       error: 'Outbound-Testanruf konnte nicht gestartet werden.',
       details: error.message,
@@ -232,7 +341,33 @@ exports.handler = async (event) => {
       call_id: callSid,
       error_message: insertError.message
     });
+    if (!existingCandidateCallId) {
+      await sbAdmin
+        .from('customers')
+        .update({ activation_test_candidate_call_id: null })
+        .eq('id', customer.id)
+        .eq('activation_test_candidate_call_id', pendingGuard);
+    }
     return response(500, { error: 'Testanruf gestartet, aber Speicherung fehlgeschlagen. Bitte erneut versuchen.' });
+  }
+
+  if (!existingCandidateCallId) {
+    const { error: persistCandidateError } = await sbAdmin
+      .from('customers')
+      .update({
+        activation_test_mode: 'system_call',
+        activation_test_candidate_call_id: callSid
+      })
+      .eq('id', customer.id)
+      .eq('activation_test_candidate_call_id', pendingGuard);
+    if (persistCandidateError) {
+      console.error('[activation-start-system-test-call] customer_candidate_persist_failed', {
+        request_id: requestId || null,
+        customer_id: customer.id,
+        call_id: callSid,
+        error_message: persistCandidateError.message
+      });
+    }
   }
 
   return response(200, {
