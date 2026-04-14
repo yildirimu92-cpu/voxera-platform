@@ -19,6 +19,10 @@ function toStr(value) {
   return String(value).trim();
 }
 
+function buildSessionGuard(customerId, activationStartedAt) {
+  return `pending:${crypto.createHash('sha256').update(`${customerId}:${activationStartedAt}`).digest('hex').slice(0, 24)}`;
+}
+
 async function createTwilioOutboundCall({ accountSid, authToken, from, to }) {
   const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Calls.json`;
   const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
@@ -156,6 +160,7 @@ exports.handler = async (event) => {
   if (!testSessionStartedAt) {
     return response(409, { error: 'Aktivierungssitzung fehlt. Bitte Aktivierung zuerst starten.' });
   }
+  const sessionGuardId = buildSessionGuard(customer.id, testSessionStartedAt);
   const existingCandidateCallId = toStr(customer.activation_test_candidate_call_id);
   if (existingCandidateCallId && !existingCandidateCallId.startsWith('pending:')) {
     return response(200, {
@@ -179,6 +184,41 @@ exports.handler = async (event) => {
         pending: true,
         idempotent_reuse: true,
         session_guard_id: existingCandidateCallId,
+        started_at: testSessionStartedAt,
+        customer_main_number: customerMainNumber
+      }
+    });
+  }
+
+  const { data: existingSessionOutbound, error: existingSessionOutboundError } = await sbAdmin
+    .from('calls')
+    .select('call_id, created_at')
+    .eq('customer_id', customer.id)
+    .eq('category', 'activation_test_outbound')
+    .eq('direction', 'outbound')
+    .ilike('notes', `%activation_test_session_guard:${sessionGuardId}%`)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingSessionOutboundError) {
+    console.error('[activation-start-system-test-call] existing_session_outbound_lookup_failed', {
+      request_id: requestId || null,
+      customer_id: customer.id,
+      session_guard_id: sessionGuardId,
+      error_message: existingSessionOutboundError.message
+    });
+    return response(500, { error: 'Testanruf-Session konnte nicht geprüft werden. Bitte erneut versuchen.' });
+  }
+
+  if (existingSessionOutbound && toStr(existingSessionOutbound.call_id)) {
+    return response(200, {
+      success: true,
+      activation_test: {
+        mode: 'system_call',
+        outbound_started: true,
+        outbound_call_id: toStr(existingSessionOutbound.call_id),
+        idempotent_reuse: true,
         started_at: testSessionStartedAt,
         customer_main_number: customerMainNumber
       }
@@ -209,7 +249,7 @@ exports.handler = async (event) => {
     });
   }
 
-  const pendingGuard = `pending:${crypto.createHash('sha256').update(`${customer.id}:${testSessionStartedAt}`).digest('hex').slice(0, 24)}`;
+  const pendingGuard = sessionGuardId;
   if (!existingCandidateCallId) {
     const { data: guardRows, error: guardError } = await sbAdmin
       .from('customers')
@@ -341,7 +381,7 @@ exports.handler = async (event) => {
     dashboard_status: 'new',
     status: 'started',
     category: 'activation_test_outbound',
-    notes: `activation_test_session_started_at:${testSessionStartedAt}`,
+    notes: `activation_test_session_started_at:${testSessionStartedAt};activation_test_session_guard:${sessionGuardId}`,
     created_at: nowIso,
     updated_at: nowIso
   };

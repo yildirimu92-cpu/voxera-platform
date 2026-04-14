@@ -47,7 +47,7 @@ function twimlRedirectResponse() {
 async function resolveCustomerByVoxeraNumber(supabaseAdmin, calledNumber) {
   const { data: exactMatch, error: exactError } = await supabaseAdmin
     .from('customers')
-    .select('id, voxera_number')
+    .select('id, voxera_number, forwarding_status, activation_started_at')
     .eq('voxera_number', calledNumber)
     .maybeSingle();
 
@@ -56,7 +56,7 @@ async function resolveCustomerByVoxeraNumber(supabaseAdmin, calledNumber) {
 
   const { data: candidates, error: candidateError } = await supabaseAdmin
     .from('customers')
-    .select('id, voxera_number')
+    .select('id, voxera_number, forwarding_status, activation_started_at')
     .not('voxera_number', 'is', null)
     .limit(5000);
 
@@ -137,13 +137,16 @@ exports.handler = async (event) => {
     });
 
     if (customer?.id) {
+      const activationPending = String(customer.forwarding_status || '').toLowerCase() === 'pending_test';
       const provisionalRow = {
         call_id: callSid,
         customer_id: customer.id,
+        caller_name: activationPending ? 'Testanruf Voxera' : null,
         caller_phone: fromNormalized || null,
         called_number: toNormalized,
         voxera_number: toNormalized,
         direction: 'inbound',
+        category: activationPending ? 'activation_test_inbound' : null,
         dashboard_status: 'new',
         status: 'new',
         created_at: new Date().toISOString()
