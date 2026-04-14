@@ -2366,7 +2366,7 @@ body{
             </div>
 
             <!-- Support-Bereich -->
-            <div class="help-support-block">
+            <div class="help-support-block" id="help-support">
               <div class="help-support-text">Sie brauchen Hilfe? Wenn etwas nicht funktioniert, helfen wir Ihnen gerne weiter.</div>
               <button class="help-support-cta" onclick="window.location.href='mailto:support@voxera.ch'">Support kontaktieren</button>
             </div>
@@ -4932,12 +4932,41 @@ function closeAccount() {
   restoreMobileActiveTab();
 }
 
+function normalizeHelpAnchorId(anchorId) {
+  if (!anchorId) return '';
+  var raw = String(anchorId).trim().toLowerCase();
+  if (!raw) return '';
+  var aliasMap = {
+    forwarding: 'help-einrichtung',
+    smartphone: 'help-smartphone',
+    festnetz: 'help-festnetz',
+    support: 'help-support',
+    probleme: 'help-probleme',
+    einrichtung: 'help-einrichtung',
+    anrufe: 'help-anrufe',
+    konto: 'help-konto'
+  };
+  return aliasMap[raw] || raw;
+}
+
+function openActivationSection(options) {
+  var cfg = options || {};
+  showTab('einrichtung');
+  safeMountActivationV2({ reason: cfg.reason || 'activation-entry', softGate: false });
+  if (cfg.scrollTop) {
+    window.requestAnimationFrame(function() {
+      var shell = document.getElementById('activation-v2-shell');
+      if (shell) shell.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+}
+
 function openHelpSection(anchorId) {
-  var navEl = document.getElementById('nav-hilfe') || document.getElementById('mnav-hilfe');
-  if (navEl) showTab('hilfe', navEl);
-  if (!anchorId) return;
+  showTab('hilfe');
+  var normalizedAnchorId = normalizeHelpAnchorId(anchorId);
+  if (!normalizedAnchorId) return;
   window.requestAnimationFrame(function() {
-    var target = document.getElementById(anchorId);
+    var target = document.getElementById(normalizedAnchorId);
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
@@ -4957,7 +4986,11 @@ function resolveForwardingCode(template) {
 function renderForwardingCodes() {
   var num = getDialableVoxeraNumber();
   var hasNumber = !!num;
-  var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+  var ua = String((window.navigator && window.navigator.userAgent) || '').toLowerCase();
+  var isPhoneLikeUa = /iphone|android.+mobile|windows phone|ipod/.test(ua);
+  var isNarrowViewport = !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
+  var isTouchPrimary = !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+  var canDialDirectOnThisDevice = isPhoneLikeUa || (isTouchPrimary && isNarrowViewport);
   var fallbackEl = document.getElementById('forwarding-code-fallback');
   if (fallbackEl) fallbackEl.style.display = hasNumber ? 'none' : 'inline-flex';
 
@@ -4977,14 +5010,17 @@ function renderForwardingCodes() {
     var fixedCode = linkEl.getAttribute('data-fixed-code') || '';
     var template = linkEl.getAttribute('data-code-template') || '';
     var resolved = fixedCode || resolveForwardingCode(template);
-    var canUseDirect = !!resolved && isMobile && hasNumber;
-    linkEl.style.display = '';
+    var needsVoxeraNumber = !fixedCode;
+    var hasRequiredData = needsVoxeraNumber ? hasNumber : true;
+    var canUseDirect = !!resolved && hasRequiredData && canDialDirectOnThisDevice;
+    linkEl.style.display = canDialDirectOnThisDevice ? '' : 'none';
     linkEl.setAttribute('href', canUseDirect ? ('tel:' + encodeURIComponent(resolved)) : 'javascript:void(0)');
     linkEl.setAttribute('aria-disabled', canUseDirect ? 'false' : 'true');
     linkEl.setAttribute('data-code', resolved || '');
-    var noteEl = linkEl.closest('.help-forwarding-card');
-    noteEl = noteEl ? noteEl.querySelector('.help-dialer-note') : null;
-    if (noteEl) noteEl.style.display = (!isMobile && resolved) ? 'block' : 'none';
+    linkEl.setAttribute('data-direct-reason', (!hasRequiredData ? 'missing_number' : (!canDialDirectOnThisDevice ? 'device_unsupported' : 'ready')));
+    var noteRoot = linkEl.closest('.help-forwarding-card') || linkEl.closest('.setup-help-card');
+    var noteEl = noteRoot ? noteRoot.querySelector('.help-dialer-note') : null;
+    if (noteEl) noteEl.style.display = (!canDialDirectOnThisDevice && !!resolved) ? 'block' : 'none';
   });
 }
 
@@ -5119,10 +5155,11 @@ function applyForwardingCode(event, linkEl) {
   if (!linkEl) return;
   var code = linkEl.getAttribute('data-code') || '';
   var disabled = linkEl.getAttribute('aria-disabled') === 'true';
+  var reason = linkEl.getAttribute('data-direct-reason') || '';
   if (disabled || !code) {
     if (event) event.preventDefault();
-    var missingNumber = !getDialableVoxeraNumber();
-    toast(missingNumber ? 'Ihre Voxera-Nummer ist noch nicht verfügbar.' : 'Direktes Anwenden nur auf dem Smartphone verfügbar');
+    if (reason === 'missing_number') toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
+    else toast('Direktes Anwenden ist auf diesem Gerät nicht verfügbar. Bitte Code kopieren.');
     return;
   }
   applyForwarding(code);
@@ -5172,11 +5209,15 @@ async function changePassword() {
 //  NAVIGATION
 // ═══════════════════════════════════════════
 function showTab(name, el) {
+  if (!name) return;
+  var targetTab = document.getElementById('tab-' + name);
+  if (!targetTab) return;
   document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  el.classList.add('active');
+  targetTab.classList.add('active');
+  var navEl = el || document.getElementById('nav-' + name) || document.getElementById('mnav-' + name);
+  if (navEl) navEl.classList.add('active');
   const mnav = document.getElementById('mnav-'+name);
   if (mnav) mnav.classList.add('active');
   try {
@@ -5251,9 +5292,7 @@ function manualRefresh() {
 
 function openSetupWizardFromCta(event, stepId) {
   if (event) event.preventDefault();
-  var navEl = document.getElementById('nav-einrichtung') || document.getElementById('mnav-einrichtung');
-  if (navEl) showTab('einrichtung', navEl);
-  safeMountActivationV2({ reason: 'settings-cta', softGate: false });
+  openActivationSection({ reason: 'settings-cta', scrollTop: true });
 }
 
 function isForwardingSetupCompleted() {
@@ -7158,15 +7197,23 @@ async function activationV2RetryFlow(event) {
     activationFlowGuideToken = '';
     activationFlowSuccessToken = '';
     await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null, activation_test_mode: null, activation_test_candidate_call_id: null });
+    const verifyContext = await resolveCustomerContext();
+    var verifyRec = verifyContext && verifyContext.customerRecord ? verifyContext.customerRecord : null;
+    var resetPersisted = verifyRec
+      && String(verifyRec.forwarding_status || '').toLowerCase() === 'not_started'
+      && !verifyRec.activation_started_at
+      && !verifyRec.activation_test_mode
+      && !verifyRec.activation_test_candidate_call_id;
+    if (!resetPersisted) throw new Error('activation reset verification failed');
     customerMeta.forwardingStatus = 'not_started';
     customerMeta.activationStartedAt = null;
     customerMeta.activationTestMode = null;
     customerMeta.activationTestOutboundCallId = null;
-    if (context && context.customerRecord) {
-      context.customerRecord.forwarding_status = 'not_started';
-      context.customerRecord.activation_started_at = null;
-      context.customerRecord.activation_test_mode = null;
-      context.customerRecord.activation_test_candidate_call_id = null;
+    if (verifyContext && verifyContext.customerRecord) {
+      verifyContext.customerRecord.forwarding_status = 'not_started';
+      verifyContext.customerRecord.activation_started_at = null;
+      verifyContext.customerRecord.activation_test_mode = null;
+      verifyContext.customerRecord.activation_test_candidate_call_id = null;
     }
     clearActivationV2ModeConfirmation();
     persistActivationV2Step(activationV2FlowState.confirmedDeviceType ? 2 : 1);
@@ -7174,7 +7221,7 @@ async function activationV2RetryFlow(event) {
     toast('Aktivierung wurde zurückgesetzt. Sie können die Aktivierung jetzt erneut starten.');
   } catch (e) {
     console.error('activationV2RetryFlow failed', e);
-    toast('Aktivierung konnte nicht zurückgesetzt werden.', 'warning');
+    toast('Aktivierung konnte nicht zurückgesetzt werden. Bitte erneut versuchen oder Support kontaktieren.', 'warning');
   }
 }
 
