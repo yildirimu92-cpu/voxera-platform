@@ -26,6 +26,12 @@ function pickString(...values) {
   return '';
 }
 
+function normalizeCallDirection(...values) {
+  const raw = pickString(...values).toLowerCase();
+  if (raw === 'outbound') return 'outbound';
+  return 'inbound';
+}
+
 function hasOwn(obj, key) {
   return Boolean(obj) && Object.prototype.hasOwnProperty.call(obj, key);
 }
@@ -126,7 +132,7 @@ function buildOptionalCallPatch(payload, lifecyclePhase) {
   maybeSet('follow_up_at', payload.follow_up_at, payload.call?.follow_up_at);
   maybeSet('transcript', payload.transcript, payload.call?.transcript);
   maybeSet('notes', payload.notes, payload.call?.notes);
-  maybeSet('direction', payload.direction, payload.call_direction, payload.call?.direction);
+  patch.direction = normalizeCallDirection(payload.direction, payload.call_direction, payload.call?.direction);
   maybeSet('dashboard_status', payload.dashboard_status);
   maybeSet('status', payload.status, payload.call_status, payload.call?.status);
 
@@ -258,7 +264,7 @@ exports.handler = async (event) => {
     callback_requested: payload.callback_requested === true,
     dashboard_status: 'new',
     status: lifecyclePhase,
-    direction: pickString(payload.direction, payload.call_direction, payload.call?.direction, 'inbound'),
+    direction: normalizeCallDirection(payload.direction, payload.call_direction, payload.call?.direction),
     created_at: createdAt,
     updated_at: new Date().toISOString()
   };

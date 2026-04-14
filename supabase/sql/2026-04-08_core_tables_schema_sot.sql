@@ -136,14 +136,15 @@ CREATE TABLE IF NOT EXISTS public.calls (
   assigned_to uuid REFERENCES auth.users(id),
   status text,
   notes text,
-  direction text,
+  direction text NOT NULL DEFAULT 'inbound',
 
   -- ✅ sicher (runtime sorting + display)
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz,
 
   -- ✅ sicher: existing migration canonicalizes this domain
-  CONSTRAINT calls_dashboard_status_check CHECK (dashboard_status IN ('new', 'in_progress', 'follow_up_scheduled', 'closed'))
+  CONSTRAINT calls_dashboard_status_check CHECK (dashboard_status IN ('new', 'in_progress', 'follow_up_scheduled', 'closed')),
+  CONSTRAINT calls_direction_check CHECK (direction IN ('inbound', 'outbound'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_calls_call_id ON public.calls (call_id) WHERE call_id IS NOT NULL;
