@@ -6315,16 +6315,6 @@ async function activationStartLandlineTest(event) {
       context.customerRecord.activation_test_candidate_call_id = null;
     }
     renderActivationV2();
-    var started = await startSystemActivationTestCall(event);
-    if (!started) {
-      await patchCustomerRecord(recId, { forwarding_status: 'not_started' });
-      customerMeta.forwardingStatus = 'not_started';
-      if (context && context.customerRecord) {
-        context.customerRecord.forwarding_status = 'not_started';
-      }
-      renderActivationV2();
-      return;
-    }
   } catch(e) {
     console.error('activationStartLandlineTest failed', e);
     toast('Aktivierung konnte nicht gestartet werden.');
@@ -6424,27 +6414,22 @@ async function startSystemActivationTestCall(event) {
     activationSystemCallPending = false;
     activationSystemCallTriggerInFlight = false;
     activationSystemCallError = (e && e.message) ? String(e.message) : 'Testanruf konnte nicht gestartet werden.';
-    if (!customerMeta.activationTestOutboundCallId) {
-      toast('System-Testanruf konnte nicht gestartet werden: ' + activationSystemCallError);
-    }
     renderActivationV2();
     return false;
   }
 }
 
-async function retryActivationCheck(event) {
+async function startActivationTestFromManualCta(event) {
   if (event) event.stopPropagation();
   if (activationSystemCallPending || activationSystemCallTriggerInFlight) return;
   if (customerMeta && customerMeta.activationTestOutboundCallId) {
     activationSystemCallError = '';
     startActivationPolling();
     renderActivationV2();
-    toast('Testanruf wird vorbereitet.');
     return;
   }
   var started = await startSystemActivationTestCall(event);
   if (!started) return;
-  toast('Testanruf wird vorbereitet.');
 }
 
 async function activationDeactivateFast(event) {
@@ -7253,7 +7238,7 @@ function activationUiContentByState(state){
       title:'Fast geschafft',
       text:'Bitte führen Sie jetzt einen kurzen Test durch, damit Voxera live gehen kann.',
       primaryLabel:'Testanruf starten',
-      primaryAction:'retry-test'
+      primaryAction:'start-system-test'
     },
     active: {
       chip:'Live',
@@ -7589,7 +7574,8 @@ function bindActivationV2Events(){
         confirmActivationTestCall(event);
         break;
       case 'retry-test':
-        retryActivationCheck(event);
+      case 'start-system-test':
+        startActivationTestFromManualCta(event);
         break;
       case 'deactivate-now':
         openActivationGuidedDeactivate(event);
@@ -7703,7 +7689,6 @@ function renderActivationV2(){
       + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="3" ' + (!canProceedStep3 ? 'disabled' : '') + '>Weiter</button></div>';
   } else if (step3Ready) {
     if (candidateCall) html += '<div class="activation-info-banner">✓ Test erkannt. Sie können jetzt final aktivieren.</div>';
-    if (uiState === 'failed') html += '<div class="activation-warning-banner">Letzter Test nicht bestätigt. Bitte erneut aktivieren und prüfen.</div>';
     html += '<div class="activation-compact">'
       + '<div class="activation-compact-card"><div class="activation-compact-label">Gerät</div><div class="activation-compact-val">' + escapeHtml(device) + '</div></div>'
       + '<div class="activation-compact-card"><div class="activation-compact-label">Weiterleitungsart</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
@@ -7712,25 +7697,18 @@ function renderActivationV2(){
       + '<div class="activation-actions">';
 
     if (phase === 'test_pending' || phase === 'failed') {
-      if (phase === 'test_pending') {
-        html += '<div class="activation-info-banner">Weiterleitung gestartet.</div>';
-        html += '<div class="activation-info-banner">Testanruf wird vorbereitet.</div>';
-      }
+      html += '<div class="activation-info-banner">Weiterleitung gestartet.</div>';
+      html += '<div class="activation-info-banner">Bitte starten Sie jetzt den Testanruf.</div>';
       if (candidateCall) {
         html += '<button type="button" class="activation-btn primary" data-action="confirm-test">Aktivierung abschliessen</button>';
-        html += '<button type="button" class="activation-btn secondary" data-action="retry-test">Erneut prüfen</button>';
+        html += '<button type="button" class="activation-btn secondary" data-action="start-system-test">Testanruf starten</button>';
       } else {
         if (activationSystemCallPending || activationSystemCallTriggerInFlight) {
-          html += '<div class="activation-info-banner">Testanruf läuft. Wir warten auf die Weiterleitung Ihres Testanrufs.</div>';
-          html += '<button type="button" class="activation-btn primary" data-action="retry-test" disabled>Testanruf läuft</button>';
+          html += '<button type="button" class="activation-btn primary" data-action="start-system-test" disabled>Testanruf läuft</button>';
         } else if (customerMeta.activationTestOutboundCallId) {
-          html += '<div class="activation-info-banner">Testanruf gestartet. Wir warten auf die Weiterleitung Ihres Testanrufs.</div>';
-          html += '<button type="button" class="activation-btn primary" data-action="retry-test" disabled>Testanruf gestartet</button>';
+          html += '<button type="button" class="activation-btn primary" data-action="start-system-test" disabled>Testanruf gestartet</button>';
         } else {
-          html += '<button type="button" class="activation-btn primary" data-action="retry-test">Testanruf starten</button>';
-        }
-        if (activationSystemCallError) {
-          html += '<div class="activation-warning-banner">Kein Testanruf erkannt. ' + escapeHtml(activationSystemCallError) + '</div>';
+          html += '<button type="button" class="activation-btn primary" data-action="start-system-test">Testanruf starten</button>';
         }
         html += '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Manuell testen</button>';
       }
