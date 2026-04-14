@@ -386,8 +386,24 @@ body{
 .sidebar-footer{
   padding:14px 16px 16px;border-top:1px solid var(--vx-line);
   background:linear-gradient(180deg,rgba(255,255,255,0.72) 0%,rgba(255,255,255,0.96) 100%);
+  position:relative;
 }
-.sidebar-user-row{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+.sidebar-user-card{
+  display:flex;align-items:center;gap:9px;
+  border:1px solid transparent;border-radius:12px;
+  padding:10px 10px;cursor:pointer;
+  transition:all var(--mid);
+}
+.sidebar-user-card:hover{
+  background:rgba(75,159,255,0.08);
+  border-color:rgba(75,159,255,0.22);
+}
+.sidebar-user-card.open{
+  background:rgba(26,111,232,0.1);
+  border-color:rgba(26,111,232,0.28);
+  box-shadow:0 6px 18px rgba(13,31,60,0.08);
+}
+.sidebar-user-row{display:flex;align-items:center;gap:9px;min-width:0;flex:1;}
 .avatar-cust{
   width:28px;height:28px;border-radius:8px;background:var(--blue-light);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
@@ -395,14 +411,27 @@ body{
 }
 .sidebar-user{font-size:12px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sidebar-user-role{font-size:10.5px;color:var(--slate2);}
-.btn-logout{
-  width:100%;padding:8px 10px;
-  background:transparent;border:1px solid var(--line);border-radius:var(--r);
-  font-size:12px;font-weight:500;color:var(--slate);
-  cursor:pointer;font-family:inherit;transition:all var(--mid);
-  text-align:left;display:flex;align-items:center;gap:6px;
+.sidebar-user-caret{
+  margin-left:auto;color:var(--slate2);font-size:12px;
+  transition:transform var(--mid),color var(--mid);
 }
-.btn-logout:hover{background:var(--red-light);color:var(--red);border-color:var(--red-mid);}
+.sidebar-user-card.open .sidebar-user-caret{transform:rotate(180deg);color:var(--blue);}
+.user-menu{
+  position:absolute;left:16px;right:16px;bottom:72px;
+  background:rgba(255,255,255,0.98);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 14px 30px rgba(13,31,60,0.14);
+  padding:8px;display:none;backdrop-filter:blur(14px);
+}
+.user-menu.open{display:block;animation:userMenuIn .14s var(--ease);}
+@keyframes userMenuIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.user-menu-item{
+  width:100%;padding:10px 12px;border:none;background:transparent;
+  border-radius:10px;display:flex;align-items:center;gap:8px;
+  font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;
+  font-family:inherit;text-align:left;transition:background var(--fast),color var(--fast);
+}
+.user-menu-item:hover{background:var(--blue-light);color:var(--blue-dark);}
+.user-menu-item.danger:hover{background:var(--red-light);color:var(--red);}
 
 /* ═══════════════════════════════════════════
    MAIN — V1
@@ -1741,7 +1770,7 @@ body{
     <img class="logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera" />
   </div>
   <div class="mobile-header-right">
-    <div class="mobile-header-user" id="mobile-header-avatar" onclick="showTab('einstellungen',document.getElementById('mnav-konto'));window.scrollTo({top:0,behavior:'instant'});">–</div>
+    <div class="mobile-header-user" id="mobile-header-avatar" onclick="showTab('profil');window.scrollTo({top:0,behavior:'instant'});">–</div>
   </div>
 </div>
 
@@ -1795,17 +1824,22 @@ body{
         </div>
       </nav>
       <div class="sidebar-footer">
-        <div class="sidebar-user-row">
-          <div class="avatar-cust" id="sidebar-avatar-cust">–</div>
-          <div>
-            <div class="sidebar-user" id="sidebar-user">–</div>
-            <div class="sidebar-user-role">Customer Portal</div>
+        <div class="sidebar-user-card" id="sidebar-user-card" onclick="toggleUserMenu(event)">
+          <div class="sidebar-user-row">
+            <div class="avatar-cust" id="sidebar-avatar-cust">–</div>
+            <div style="min-width:0;">
+              <div class="sidebar-user" id="sidebar-user">–</div>
+              <div class="sidebar-user-role">Customer Portal</div>
+            </div>
           </div>
+          <span class="sidebar-user-caret">▾</span>
         </div>
-        <button class="btn-logout" onclick="doLogout()">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M6 8h8"/></svg>
-          Abmelden
-        </button>
+        <div class="user-menu" id="sidebar-user-menu">
+          <button class="user-menu-item" onclick="showTab('profil');closeUserMenu()">Profil</button>
+          <button class="user-menu-item" onclick="showTab('einstellungen',document.getElementById('nav-einstellungen'));closeUserMenu()">Einstellungen</button>
+          <button class="user-menu-item" onclick="openHelpSection();closeUserMenu()">Hilfe</button>
+          <button class="user-menu-item danger" onclick="closeUserMenu();doLogout()">Abmelden</button>
+        </div>
       </div>
     </aside>
 
@@ -2014,24 +2048,14 @@ body{
           <div class="call-list" id="archiv-list"></div>
         </div>
 
-        <!-- EINRICHTUNG TAB -->
-        <div class="tab-page" id="tab-einrichtung">
-          <div style="max-width:880px;margin-bottom:14px;">
-            <div class="section-title">Erreichbarkeit</div>
-            <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Steuern Sie Aktivierung, Weiterleitung und Ihre aktuelle Erreichbarkeit.</div>
-          </div>
-          <div id="activation-v2-shell"></div>
-        </div>
-
-        <!-- EINSTELLUNGEN TAB -->
-        <div class="tab-page" id="tab-einstellungen">
+        <!-- PROFIL TAB -->
+        <div class="tab-page" id="tab-profil">
           <div style="max-width:640px">
             <div style="margin-bottom:20px">
-              <div class="section-title">Einstellungen</div>
-            <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Konto, Benachrichtigungen, Erreichbarkeit, Plan und Support verwalten.</div>
+              <div class="section-title">Profil</div>
+              <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Persönliche Kontodaten und Zugangseinstellungen verwalten.</div>
             </div>
 
-            <!-- Profilfoto -->
             <div class="settings-card">
               <div class="settings-card-title">Firmenprofil</div>
               <div class="profile-photo-wrap">
@@ -2039,7 +2063,7 @@ body{
                   <span id="profile-photo-initials">–</span>
                 </div>
                 <div class="profile-photo-actions">
-                  <div style="font-size:13px;font-weight:500;color:var(--ink);">Firmenlogo / Profilfoto</div>
+                  <div style="font-size:13px;font-weight:500;color:var(--ink);">Firmenlogo / Profilbild</div>
                   <div style="font-size:12px;color:var(--slate);">Klicken Sie auf das Bild zum Ändern.<br>JPG oder PNG, max. 2 MB.</div>
                   <input type="file" id="avatar-upload-input" accept="image/jpeg,image/png,image/webp" onchange="uploadAvatar(this)">
                   <div class="avatar-upload-status" id="avatar-upload-status"></div>
@@ -2047,7 +2071,6 @@ body{
               </div>
             </div>
 
-            <!-- Konto -->
             <div class="settings-card">
               <div class="settings-card-title">Konto</div>
               <div class="settings-row">
@@ -2066,7 +2089,38 @@ body{
               </div>
             </div>
 
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Anfragen & Erreichbarkeit</div>
+            <div class="settings-card">
+              <div class="settings-card-title">Persönliche Daten</div>
+              <div class="settings-row">
+                <div class="settings-row-label">Name</div>
+                <div class="settings-row-value" id="profile-customer-name">–</div>
+              </div>
+              <div class="settings-row" style="border-bottom:none;">
+                <div class="settings-row-label">Telefon</div>
+                <div class="settings-row-value" id="profile-customer-tel">–</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EINRICHTUNG TAB -->
+        <div class="tab-page" id="tab-einrichtung">
+          <div style="max-width:880px;margin-bottom:14px;">
+            <div class="section-title">Erreichbarkeit</div>
+            <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Steuern Sie Aktivierung, Weiterleitung und Ihre aktuelle Erreichbarkeit.</div>
+          </div>
+          <div id="activation-v2-shell"></div>
+        </div>
+
+        <!-- EINSTELLUNGEN TAB -->
+        <div class="tab-page" id="tab-einstellungen">
+          <div style="max-width:640px">
+            <div style="margin-bottom:20px">
+              <div class="section-title">Einstellungen</div>
+            <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Systemeinstellungen für Benachrichtigungen, Erreichbarkeit, Weiterleitung, Plan und Support.</div>
+            </div>
+
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Erreichbarkeit & Weiterleitung</div>
             <div class="settings-card">
               <div class="settings-card-title">Ihre Voxera-Nummer</div>
               <div class="settings-row">
@@ -2159,14 +2213,7 @@ body{
               </div>
             </div>
 
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Hilfe</div>
-            <div class="settings-card">
-              <div class="settings-card-title">Hilfe</div>
-              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
-                Erfahren Sie, wie Voxera funktioniert und wie Sie alle Funktionen optimal nutzen.
-              </div>
-              <button class="settings-btn-primary" onclick="openHelpSection()">Öffnen</button>
-            </div>
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Support</div>
             <div class="settings-card">
               <div class="settings-card-title">Support kontaktieren</div>
               <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
@@ -2175,7 +2222,7 @@ body{
               <button class="settings-btn-secondary" onclick="requestSupport()">E-Mail senden</button>
             </div>
 
-            <div id="settings-plan-section" style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Abo & Nutzung</div>
+            <div id="settings-plan-section" style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Plan</div>
             <div class="settings-card">
               <div class="settings-card-title">Abo & Nutzung</div>
               <div class="settings-row">
@@ -2214,12 +2261,13 @@ body{
               <span class="chip chip-neu" id="usage-status-chip" style="margin-top:10px;display:inline-block;">Plan aktiv</span>
             </div>
 
-            <!-- Abmelden -->
-            <div class="settings-card" style="border:none;background:none;padding:0;box-shadow:none;">
-              <button onclick="doLogout()" style="width:100%;padding:13px;border-radius:12px;border:1px solid var(--gray200);background:var(--white);color:var(--gray500);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;">
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Abmelden
-              </button>
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Integrationen</div>
+            <div class="settings-card">
+              <div class="settings-card-title">Integrationen</div>
+              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 6px;">
+                API- und Systemintegrationen sind in diesem Bereich verfügbar.
+              </div>
+              <button class="settings-btn-secondary" onclick="openHelpSection('support')">Mehr erfahren</button>
             </div>
 
           </div>
@@ -2501,6 +2549,7 @@ body{
 </div>
 <!-- hidden fallback nav targets for JS references -->
 <div style="display:none">
+  <button id="mnav-profil" onclick="showTab('profil',this)"></button>
   <button id="mnav-einrichtung" onclick="showTab('einrichtung',this)"></button>
 </div>
 
@@ -4893,7 +4942,7 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
 //  ACCOUNT SETTINGS
 // ═══════════════════════════════════════════
 function openAccount() {
-  // Populate settings page data - email from customer metadata
+  // Populate profile/settings account data - email from customer metadata
   var emailEl = document.getElementById('account-email');
   if (emailEl) {
     if (customerMeta.customerEmail) {
@@ -4911,6 +4960,10 @@ function openAccount() {
       }
     }
   }
+  var nameEl = document.getElementById('profile-customer-name');
+  if (nameEl) nameEl.textContent = customerMeta.customerName || '–';
+  var telEl = document.getElementById('profile-customer-tel');
+  if (telEl) telEl.textContent = customerMeta.telNr || '–';
   var pn = document.getElementById('pw-new'); if(pn) pn.value = '';
   var pc = document.getElementById('pw-confirm'); if(pc) pc.value = '';
   var pe = document.getElementById('pw-error'); if(pe) pe.style.display = 'none';
@@ -5089,6 +5142,30 @@ function closeAccount() {
   // No-op - modal replaced by settings tab
   restoreMobileActiveTab();
 }
+
+function toggleUserMenu(event) {
+  if (event) event.stopPropagation();
+  var menu = document.getElementById('sidebar-user-menu');
+  var card = document.getElementById('sidebar-user-card');
+  if (!menu || !card) return;
+  var shouldOpen = !menu.classList.contains('open');
+  menu.classList.toggle('open', shouldOpen);
+  card.classList.toggle('open', shouldOpen);
+}
+
+function closeUserMenu() {
+  var menu = document.getElementById('sidebar-user-menu');
+  var card = document.getElementById('sidebar-user-card');
+  if (menu) menu.classList.remove('open');
+  if (card) card.classList.remove('open');
+}
+
+document.addEventListener('click', function(event) {
+  var menu = document.getElementById('sidebar-user-menu');
+  var card = document.getElementById('sidebar-user-card');
+  if (!menu || !card) return;
+  if (!card.contains(event.target)) closeUserMenu();
+});
 
 function normalizeHelpAnchorId(anchorId) {
   if (!anchorId) return '';
@@ -5373,6 +5450,7 @@ async function changePassword() {
 // ═══════════════════════════════════════════
 function showTab(name, el) {
   if (!name) return;
+  closeUserMenu();
   var targetTab = document.getElementById('tab-' + name);
   if (!targetTab) return;
   document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
@@ -5393,7 +5471,7 @@ function showTab(name, el) {
       }
     }
   } catch(e){}
-  if (name === 'einstellungen') {
+  if (name === 'einstellungen' || name === 'profil') {
     syncSystemVoxeraSettings();
     openAccount();
   }
