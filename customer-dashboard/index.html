@@ -3003,6 +3003,17 @@ function getCallerDisplayName(rawName) {
   return normalized;
 }
 
+function isActivationCallCategory(categoryRaw) {
+  const normalized = String(categoryRaw || '').trim().toLowerCase();
+  return normalized === 'activation_test_outbound';
+}
+
+function getCallDisplayName(fields) {
+  const f = fields || {};
+  if (isActivationCallCategory(f.category)) return 'Testanruf Voxera';
+  return getCallerDisplayName(f.caller_name);
+}
+
 function qualKey(q) {
   if (!q) return 'neu';
   const v = q.toLowerCase();
@@ -4111,7 +4122,7 @@ function renderList(containerId, records, opts) {
     const f = r.fields;
     const q = qualKey(f.lead_quality);
     const done = isClosedStatus(f.dashboard_status);
-    const callerDisplayName = getCallerDisplayName(f.caller_name);
+    const callerDisplayName = getCallDisplayName(f);
     const phoneLink = (f.tel_link || '').trim();
     const phoneRaw = (f.phone_number || f.caller_phone || '').trim();
     const displayPhone = phoneRaw || phoneLink.replace(/^tel:/i,'');
@@ -5965,6 +5976,7 @@ var ACTIVATION_OUTBOUND_START_GRACE_MS = 90 * 1000;
 var activationSystemCallPending = false;
 var activationSystemCallError = '';
 var activationSystemCallTriggerInFlight = false;
+var activationStartTriggerInFlight = false;
 
 function getCandidateCallToken(call) {
   if (!call) return '';
@@ -6238,6 +6250,8 @@ function stopActivationPolling() {
 
 async function activationStartSmartphone(event, code) {
   if (event) event.stopPropagation();
+  if (activationStartTriggerInFlight) return;
+  activationStartTriggerInFlight = true;
   var btn = event && event.currentTarget;
   try {
     const context = await resolveCustomerContext();
@@ -6269,6 +6283,8 @@ async function activationStartSmartphone(event, code) {
     console.error('activationStartSmartphone failed', e);
     toast('Aktivierung konnte nicht gestartet werden.');
     if (btn) { btn.disabled = false; btn.textContent = 'Jetzt aktivieren'; }
+  } finally {
+    activationStartTriggerInFlight = false;
   }
 }
 
@@ -6276,6 +6292,8 @@ async function activationStartSmartphone(event, code) {
 // forwarding manually; this starts the test-call detection.
 async function activationStartLandlineTest(event) {
   if (event) event.stopPropagation();
+  if (activationStartTriggerInFlight) return;
+  activationStartTriggerInFlight = true;
   var btn = event && event.currentTarget;
   if (btn) { btn.disabled = true; btn.textContent = 'Wird gestartet…'; }
   try {
@@ -6311,6 +6329,8 @@ async function activationStartLandlineTest(event) {
     console.error('activationStartLandlineTest failed', e);
     toast('Aktivierung konnte nicht gestartet werden.');
     if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; }
+  } finally {
+    activationStartTriggerInFlight = false;
   }
 }
 
@@ -6373,6 +6393,7 @@ async function startSystemActivationTestCall(event) {
   if (activationSystemCallPending || activationSystemCallTriggerInFlight) return false;
   if (customerMeta && customerMeta.activationTestOutboundCallId) {
     activationSystemCallError = '';
+    activationSystemCallPending = String(customerMeta.activationTestOutboundCallId).startsWith('pending:');
     startActivationPolling();
     renderActivationV2();
     return true;
@@ -6386,9 +6407,11 @@ async function startSystemActivationTestCall(event) {
   try {
     const json = await callDashboardFunction('activation-start-system-test-call', {});
     var outboundId = json && json.activation_test && json.activation_test.outbound_call_id ? String(json.activation_test.outbound_call_id) : '';
+    var pendingGuardId = json && json.activation_test && json.activation_test.session_guard_id ? String(json.activation_test.session_guard_id) : '';
+    var isPendingStart = !!(json && json.activation_test && json.activation_test.pending);
     customerMeta.activationTestMode = 'system_call';
-    customerMeta.activationTestOutboundCallId = outboundId || null;
-    activationSystemCallPending = false;
+    customerMeta.activationTestOutboundCallId = outboundId || pendingGuardId || null;
+    activationSystemCallPending = !outboundId && isPendingStart;
     activationSystemCallTriggerInFlight = false;
     activationSystemCallError = '';
     stopActivationPolling();
@@ -6401,7 +6424,9 @@ async function startSystemActivationTestCall(event) {
     activationSystemCallPending = false;
     activationSystemCallTriggerInFlight = false;
     activationSystemCallError = (e && e.message) ? String(e.message) : 'Testanruf konnte nicht gestartet werden.';
-    toast('System-Testanruf konnte nicht gestartet werden: ' + activationSystemCallError);
+    if (!customerMeta.activationTestOutboundCallId) {
+      toast('System-Testanruf konnte nicht gestartet werden: ' + activationSystemCallError);
+    }
     renderActivationV2();
     return false;
   }

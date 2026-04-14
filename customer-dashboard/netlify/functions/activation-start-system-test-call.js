@@ -170,6 +170,20 @@ exports.handler = async (event) => {
       }
     });
   }
+  if (existingCandidateCallId.startsWith('pending:')) {
+    return response(202, {
+      success: true,
+      activation_test: {
+        mode: 'system_call',
+        outbound_started: false,
+        pending: true,
+        idempotent_reuse: true,
+        session_guard_id: existingCandidateCallId,
+        started_at: testSessionStartedAt,
+        customer_main_number: customerMainNumber
+      }
+    });
+  }
 
   const now = Date.now();
   const rateLimitWindowStartIso = new Date(now - (60 * 60 * 1000)).toISOString();
@@ -252,6 +266,7 @@ exports.handler = async (event) => {
           mode: 'system_call',
           outbound_started: false,
           pending: true,
+          session_guard_id: pendingGuard,
           started_at: testSessionStartedAt,
           customer_main_number: customerMainNumber
         }
@@ -318,6 +333,7 @@ exports.handler = async (event) => {
   const outboundRow = {
     call_id: callSid,
     customer_id: customer.id,
+    caller_name: 'Testanruf Voxera',
     caller_phone: twilioFrom,
     called_number: customerMainNumber,
     voxera_number: customerVoxeraNumber || twilioFrom,
