@@ -1992,6 +1992,19 @@ body{
 .activation-link-btn{width:100%;border:1px solid #DCE4F1;background:#F8FAFC;color:#1E293B;font-size:13px;font-weight:600;border-radius:12px;padding:10px 12px;text-align:left;}
 .activation-info-banner{margin-top:10px;background:#ECFDF3;border:1px solid #BBF7D0;color:#166534;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.55;}
 .activation-warning-banner{margin-top:10px;background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.55;}
+.activation-mobile-main{border:1px solid #BFDBFE;background:linear-gradient(180deg,#EFF6FF 0%,#FFFFFF 100%);}
+.activation-mobile-main .activation-compact-label{color:#1D4ED8;}
+.activation-mobile-main-title{font-size:14px;font-weight:800;color:#0F172A;margin-bottom:4px;}
+.activation-code-line{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:9px 10px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;}
+.activation-code-line code{font-size:13px;font-weight:800;color:#0F172A;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;}
+.activation-toggle-btn{width:100%;border:1px solid #DCE4F1;background:#F8FAFC;color:#1E293B;font-size:12.5px;font-weight:700;border-radius:10px;padding:10px 12px;text-align:left;}
+.activation-alt-modes{display:grid;gap:8px;margin-top:8px;}
+.activation-separator{height:1px;background:#E2E8F0;margin:2px 0;}
+.activation-handover-flow{margin:8px 0 10px;padding-left:18px;color:#475569;font-size:12.5px;line-height:1.55;display:grid;gap:4px;}
+.activation-handover-status{margin-top:8px;background:#F8FAFC;border:1px solid #DCE4F1;border-radius:12px;padding:12px;}
+.activation-handover-status h3{font-size:13.5px;font-weight:800;color:#0F172A;margin-bottom:6px;}
+.activation-handover-status p{font-size:12.5px;color:#64748B;line-height:1.55;margin-bottom:8px;}
+.activation-handover-status.ready{background:#EFF6FF;border-color:#BFDBFE;}
 @media(min-width:780px){
   #activation-v2-shell{padding:28px 20px 42px;}
   .activation-hero{padding:26px 24px;}
@@ -6345,6 +6358,16 @@ function getForwardingModeLabel(mode) {
   return labels[mode] || mode || '';
 }
 
+function getForwardingModeGuide(mode) {
+  var copy = {
+    no_answer: { title: 'Empfohlen: Keine Antwort', text: 'Voxera übernimmt nur, wenn Sie nicht abnehmen.' },
+    unreachable: { title: 'Nicht erreichbar', text: 'Ideal, wenn Ihr Handy ausgeschaltet ist oder kein Netz hat.' },
+    busy: { title: 'Bei Besetzt', text: 'Wenn Sie bereits telefonieren, wird an Voxera weitergeleitet.' },
+    always: { title: 'Alle Anrufe', text: 'Leitet jeden Anruf direkt an Voxera weiter.' }
+  };
+  return copy[mode] || { title: getForwardingModeLabel(mode) || 'Weiterleitung', text: '' };
+}
+
 function showDashboard() {
   var dashEl = document.getElementById('dash-content');
   if (dashEl) dashEl.style.display = 'block';
@@ -8101,7 +8124,8 @@ var activationV2FlowState = {
   selectedDeviceType: null,
   selectedForwardingMode: null,
   currentTestPhase: 'preferences_pending',
-  userStepLocked: false
+  userStepLocked: false,
+  desktopHandoverConfirmed: false
 };
 
 function syncActivationPersistedState() {
@@ -8117,6 +8141,7 @@ function resetActivationFlowState() {
   activationV2FlowState.currentStep = 1;
   activationV2FlowState.currentTestPhase = 'preferences_pending';
   activationV2FlowState.userStepLocked = false;
+  activationV2FlowState.desktopHandoverConfirmed = false;
   activationV2StepState.step = 1;
 }
 
@@ -8265,6 +8290,7 @@ function selectActivationV2Mode(mode){
   activationSelectMode(null, mode).then(function(ok){
     if (ok) {
       activationV2FlowState.selectedForwardingMode = mode;
+      activationV2FlowState.desktopHandoverConfirmed = false;
       activationV2DebugLog('selected mode saved', { selectedMode: mode });
       persistActivationV2Step(3);
     }
@@ -8280,6 +8306,7 @@ function selectActivationV2Device(type){
     if (result) {
       var previousDevice = activationV2FlowState.selectedDeviceType;
       activationV2FlowState.selectedDeviceType = type;
+      activationV2FlowState.desktopHandoverConfirmed = false;
       activationV2DebugLog('selected device saved', { selectedDevice: type, previousDevice: previousDevice || null });
       if (previousDevice !== type) activationV2FlowState.selectedForwardingMode = null;
       persistActivationV2Step(2);
@@ -8365,7 +8392,8 @@ var activationV2SoftGateShown = false;
 var activationV2LastHandledTouch = { ts: 0, action: '', value: '', el: null };
 var activationV2DisclosureState = {
   advancedOptionsOpen: false,
-  diagnosticsOpen: false
+  diagnosticsOpen: false,
+  mobileAltModesOpen: false
 };
 var activationResetFlowState = {
   open: false,
@@ -8643,6 +8671,7 @@ function bindActivationV2Events(){
         if (value) selectActivationV2Mode(value);
         break;
       case 'start-smartphone':
+        activationV2FlowState.desktopHandoverConfirmed = false;
         activationStartSmartphone(event, target.getAttribute('data-code') || '');
         break;
       case 'copy-code':
@@ -8660,6 +8689,13 @@ function bindActivationV2Events(){
       case 'retry-test':
       case 'start-system-test':
         startActivationTestFromManualCta(event);
+        break;
+      case 'confirm-smartphone-handover':
+        activationV2FlowState.desktopHandoverConfirmed = true;
+        renderActivationV2();
+        break;
+      case 'toggle-mobile-alt-modes':
+        setActivationV2DisclosureOpen('mobileAltModesOpen', !activationV2DisclosureState.mobileAltModesOpen);
         break;
       case 'deactivate-now':
         openActivationGuidedDeactivate(event);
@@ -8863,19 +8899,64 @@ function renderActivationV2(){
     } else {
       if (effectiveDevice === 'mobile') {
         if (runtimeIsMobile) {
+          var primaryGuide = getForwardingModeGuide(mode);
+          var allModes = ['no_answer', 'unreachable', 'busy', 'always'];
+          var altModes = allModes.filter(function(entry){ return entry !== mode; });
+          var showAltModes = !!activationV2DisclosureState.mobileAltModesOpen;
           html += '<div class="activation-panel-sub">Führen Sie die Aktivierung jetzt direkt auf Ihrem Smartphone aus.</div>';
-          html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung aktivieren</button>';
-          html += '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>';
+          html += '<div class="activation-compact-card activation-mobile-main">'
+            + '<div class="activation-compact-label">Hauptoption</div>'
+            + '<div class="activation-mobile-main-title">' + escapeHtml(primaryGuide.title) + '</div>'
+            + (primaryGuide.text ? '<div class="activation-panel-sub" style="margin-bottom:8px;">' + escapeHtml(primaryGuide.text) + '</div>' : '')
+            + '<div class="activation-code-line"><span>Code</span><code>' + escapeHtml(code || '–') + '</code></div>'
+            + '<div class="activation-actions" style="margin-top:10px;">'
+            + '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Direkt anwenden</button>'
+            + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>'
+            + '</div></div>';
+          html += '<button type="button" class="activation-toggle-btn" data-action="toggle-mobile-alt-modes" aria-expanded="' + (showAltModes ? 'true' : 'false') + '">' + (showAltModes ? 'Andere Weiterleitungsarten ausblenden' : 'Andere Weiterleitungsarten anzeigen') + '</button>';
+          if (showAltModes) {
+            html += '<div class="activation-alt-modes">';
+            altModes.forEach(function(altMode){
+              var altCode = getForwardingCode(altMode, customerMeta.voxeraNumber || '');
+              var altGuide = getForwardingModeGuide(altMode);
+              html += '<div class="activation-compact-card">'
+                + '<div class="activation-mobile-main-title" style="font-size:13px;">' + escapeHtml(altGuide.title) + '</div>'
+                + '<div class="activation-code-line"><span>Code</span><code>' + escapeHtml(altCode || '–') + '</code></div>'
+                + '<div class="activation-actions" style="margin-top:8px;">'
+                + '<button type="button" class="activation-btn secondary" data-action="start-smartphone" data-code="' + escapeHtml(JSON.stringify(altCode || '')) + '">Direkt anwenden</button>'
+                + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(JSON.stringify(altCode || '')) + '">Code kopieren</button>'
+                + '</div></div>';
+            });
+            html += '</div>';
+          }
+          html += '<div class="activation-separator"></div>';
+          html += '<div class="activation-compact-card">'
+            + '<div class="activation-compact-label">Deaktivierung</div>'
+            + '<div class="activation-mobile-main-title" style="font-size:13px;">Weiterleitung ausschalten</div>'
+            + '<div class="activation-code-line"><span>Code</span><code>' + escapeHtml(deactCode || '##002#') + '</code></div>'
+            + '<div class="activation-actions" style="margin-top:8px;">'
+            + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(JSON.stringify(deactCode || '##002#')) + '">Code kopieren</button>'
+            + '</div></div>';
         } else {
           var canRenderQr = !!code && navigator.onLine !== false;
           var mobileLink = 'tel:' + encodeURIComponent(code || '');
           var qrPayload = encodeURIComponent(mobileLink);
-          html += '<div class="activation-info-banner">Diese Handynummer wird am einfachsten direkt auf dem Smartphone aktiviert.</div>';
+          var handoverConfirmed = !!activationV2FlowState.desktopHandoverConfirmed;
+          html += '<div class="activation-info-banner">Weiterleitung auf dem Smartphone einrichten.</div>';
+          html += '<ol class="activation-handover-flow"><li>QR-Code mit dem Smartphone scannen.</li><li>Weiterleitung auf dem Smartphone aktivieren.</li><li>Danach hier zurückkehren – Voxera führt Sie weiter.</li></ol>';
           html += '<div class="activation-compact-card" style="text-align:center;"><div class="activation-compact-label">Auf dem Smartphone fortsetzen</div>'
             + (canRenderQr
-              ? '<img alt="QR-Code für Smartphone-Aktivierung" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + qrPayload + '" style="width:180px;height:180px;border-radius:10px;margin:8px auto;display:block;"><div class="activation-panel-sub" style="margin-bottom:8px;">QR-Code mit dem Smartphone scannen.</div>'
+              ? '<img alt="QR-Code für Smartphone-Aktivierung" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + qrPayload + '" style="width:180px;height:180px;border-radius:10px;margin:8px auto;display:block;"><div class="activation-panel-sub" style="margin-bottom:8px;">Scannen und auf dem Smartphone anwenden.</div>'
               : '<div class="activation-panel-sub" style="margin:8px 0;">QR-Code aktuell nicht verfügbar. Bitte Link oder Code kopieren.</div>')
-            + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Link/Code kopieren</button></div>';
+            + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Link/Code kopieren</button>'
+            + '<div class="activation-panel-sub" style="margin:8px 0 0;">Direkt anwenden ist nur auf dem Smartphone verfügbar.</div></div>';
+          html += '<div class="activation-handover-status' + (handoverConfirmed ? ' ready' : '') + '">'
+            + '<h3>' + (handoverConfirmed ? 'Bestätigt – wir führen Sie weiter' : 'Wir warten auf Ihre Bestätigung') + '</h3>'
+            + '<p>Haben Sie die Weiterleitung auf Ihrem Smartphone aktiviert?</p>'
+            + (handoverConfirmed
+              ? '<button type="button" class="activation-btn primary" data-action="start-system-test">Nächster Schritt: Testanruf starten</button>'
+              : '<button type="button" class="activation-btn primary" data-action="confirm-smartphone-handover">Ja, ich habe die Weiterleitung aktiviert</button>')
+            + '</div>';
         }
       } else {
         html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung aktivieren</button>';
