@@ -842,6 +842,12 @@ body{
   transform:translateY(-2px);
 }
 .call-row:active{transform:none;}
+.call-row:focus,.call-row:focus-visible{outline:none;}
+.call-row,.call-row *{-webkit-tap-highlight-color:rgba(0,0,0,0);}
+@media (hover:none){
+  .call-row:hover{transform:none;}
+  #tab-anrufe .call-row:hover,#tab-rueckrufe .call-row:hover,#tab-archiv .call-row:hover{background:transparent!important;}
+}
 .call-row.done{opacity:.36;cursor:default;filter:grayscale(15%);}
 .call-row.hidden{display:none;}
 .av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
@@ -965,10 +971,10 @@ body{
   display:flex;flex-direction:column;overflow:hidden;
 }
 .modal-shell{display:flex;flex-direction:column;min-height:0;max-height:inherit;}
-.modal-head{padding:18px 18px 10px;border-bottom:1px solid transparent;display:flex;flex-direction:column;gap:3px;}
+.modal-head{padding:16px 16px 8px;border-bottom:1px solid transparent;display:flex;flex-direction:column;gap:3px;}
 .modal-head.with-divider{border-bottom-color:var(--gray100);}
-.modal-body{padding:0 18px 14px;overflow:auto;overflow-x:hidden;min-height:0;flex:1;}
-.modal-footer{padding:10px 18px 14px;border-top:1px solid var(--gray100);display:flex;gap:8px;justify-content:flex-end;background:var(--white);}
+.modal-body{padding:0 16px 12px;overflow:auto;overflow-x:hidden;min-height:0;flex:1;}
+.modal-footer{padding:9px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--gray100);display:flex;gap:8px;justify-content:flex-end;background:var(--white);}
 .modal--confirm .modal-head{padding-bottom:8px;}
 .modal--confirm .modal-body{padding-top:0;padding-bottom:10px;}
 .modal--confirm .modal-footer{padding-top:10px;}
@@ -985,14 +991,14 @@ body{
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
-.modal-sub{font-size:12px;color:var(--gray400);margin-bottom:12px;line-height:1.45;}
+.modal-sub{font-size:12px;color:var(--gray400);margin-bottom:8px;line-height:1.45;}
 .modal-existing{
   background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;
   padding:12px 14px;font-size:12px;color:var(--gray600);margin-bottom:14px;line-height:1.55;
 }
 .modal-existing strong{font-size:11px;color:var(--gray400);display:block;margin-bottom:3px;}
 .modal textarea{
-  width:100%;min-height:96px;border:1.5px solid var(--gray200);border-radius:12px;
+  width:100%;min-height:88px;border:1.5px solid var(--gray200);border-radius:12px;
   padding:11px 13px;font-size:13px;font-family:inherit;resize:vertical;outline:none;
   color:var(--gray900);transition:border-color var(--transition-fast);
 }
@@ -1166,10 +1172,10 @@ body{
 .focus-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
 .focus-value{font-size:24px;font-weight:800;font-family:var(--font-display);line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
-.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0 0 12px;}
+.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0 0 12px;align-items:start;max-width:100%;}
 .followup-field{min-width:0;}
 .followup-field label{display:block;font-size:11.5px;font-weight:600;color:var(--gray600);margin-bottom:6px;}
-.followup-field select,.followup-field input{width:100%;max-width:100%;padding:10px 12px;border:1.5px solid var(--gray200);border-radius:12px;background:var(--gray50);font-size:13px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
+.followup-field select,.followup-field input{width:100%;max-width:100%;min-width:0;padding:10px 12px;border:1.5px solid var(--gray200);border-radius:12px;background:var(--gray50);font-size:13px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
 .followup-field select:focus,.followup-field input:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
 .followup-mark-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
 .followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray900);}
@@ -1384,10 +1390,6 @@ body{
 .dash-kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:6px;}
 .dash-kpi-val{font-family:var(--font-display);font-size:24px;font-weight:800;line-height:1;color:#1A6FE8;margin-bottom:4px;letter-spacing:-.04em;}
 .dash-kpi-sub{font-size:10.5px;color:#9CA3AF;line-height:1.4;}
-.dash-kpi-trend{font-size:10px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:3px;}
-.dash-kpi-trend.up{color:#059669;}
-.dash-kpi-trend.down{color:#DC2626;}
-.dash-kpi-trend.neutral{color:#9CA3AF;}
 .dash-kpi-leads{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
 .dash-kpi-lead-dot{font-size:10px;font-weight:600;padding:3px 8px;gap:3px;}
 .lead-dot-hot{background:#FEF2F2;color:#DC2626;}
@@ -1892,7 +1894,7 @@ body{
   background:rgba(0,0,0,0.02)!important;transform:none!important;
 }
 #tab-anrufe .call-row:active,#tab-rueckrufe .call-row:active,#tab-archiv .call-row:active{
-  background:rgba(26,111,232,0.06)!important;transform:none!important;
+  background:rgba(0,0,0,0.03)!important;transform:none!important;
 }
 #tab-anrufe .call-row.expanded,#tab-rueckrufe .call-row.expanded,#tab-archiv .call-row.expanded{
   background:rgba(255,255,255,0.5)!important;transform:none!important;
@@ -2174,17 +2176,17 @@ body{
                 <div class="dash-kpi is-interactive" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
                   <div class="dash-kpi-label">Neue Anfragen</div>
                   <div class="dash-kpi-val" id="kpi-heute">–</div>
-                  <div class="dash-kpi-trend neutral" id="kpi-heute-trend"></div>
+                  
                 </div>
                 <div class="dash-kpi is-interactive" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">
                   <div class="dash-kpi-label">Offene Aufgaben</div>
                   <div class="dash-kpi-val" id="kpi-callbacks">–</div>
-                  <div class="dash-kpi-trend neutral" id="kpi-callbacks-trend"></div>
+                  
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label">Erledigt heute</div>
                   <div class="dash-kpi-val" id="kpi-followups">–</div>
-                  <div class="dash-kpi-trend neutral" id="kpi-followups-trend"></div>
+                  
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label">Aktivität</div>
@@ -3127,12 +3129,7 @@ function validateSupabaseConfig() {
 }
 
 const DEFAULT_PLAN_CONFIG = {
-  'Kein Plan':     {monthlyPrice:0,   minutes:0,   extraRate:0},
-  'Starter':       {monthlyPrice:149, minutes:120, extraRate:0.75},
-  'Business':      {monthlyPrice:299, minutes:300, extraRate:0.75},
-  'Pro':           {monthlyPrice:499, minutes:600, extraRate:0.75},
-  'Pilot':         {monthlyPrice:49,  minutes:60,  extraRate:0.90},
-  'Professional':  {monthlyPrice:549, minutes:400, extraRate:0.60}
+  'Kein Plan': { monthlyPrice: 0, minutes: 0, extraRate: 0 }
 };
 let PLAN_CONFIG = Object.assign({}, DEFAULT_PLAN_CONFIG);
 
@@ -3173,16 +3170,16 @@ async function loadPlanConfigFromSupabase() {
   try {
     const sb = getSupabaseAuthClient();
     if (!sb) return;
-    const { data, error } = await sb.from('plan_config').select('*').eq('active', true);
+    const { data, error } = await sb.from('plan_config').select('id,name,display_name,monthly_price,minutes,included_minutes,extra_rate,extra_per_minute,active').eq('active', true);
     if (error || !data || !data.length) return;
     PLAN_CONFIG = Object.assign({}, DEFAULT_PLAN_CONFIG);
     data.forEach(function(p) {
       const planName = String(p.name || p.display_name || p.id || '').trim();
       if (!planName) return;
       PLAN_CONFIG[planName] = {
-        monthlyPrice: p.monthly_price || 0,
-        minutes: p.minutes || 0,
-        extraRate: p.extra_rate || 0
+        monthlyPrice: Number(p.monthly_price || 0),
+        minutes: Number(p.minutes || p.included_minutes || 0),
+        extraRate: Number(p.extra_rate || p.extra_per_minute || 0)
       };
     });
   } catch(e) {
@@ -4202,19 +4199,22 @@ function sendUpgradeRequest() {
 
 function requestExtraMinutes() {
   selectedMinutesPkg = '';
-  var packages = [
-    {key:'50', label:'50 Minuten', price:'39 CHF'},
-    {key:'100', label:'100 Minuten', price:'69 CHF'},
-    {key:'250', label:'250 Minuten', price:'149 CHF'},
-    {key:'500', label:'500 Minuten', price:'269 CHF'}
-  ];
-  var html = packages.map(function(p){
-    return '<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--gray200);border-radius:10px;cursor:pointer;transition:all .15s;" onclick="this.querySelector(\'input\').checked=true;selectedMinutesPkg=\''+p.key+'\';document.querySelectorAll(\'#minutes-options label\').forEach(function(l){l.style.borderColor=\'var(--gray200)\';l.style.background=\'\'});this.style.borderColor=\'var(--blue)\';this.style.background=\'var(--blue-light)\'">'
-      +'<input type="radio" name="minutes-pkg" value="'+p.key+'" style="accent-color:#1A6FE8;width:16px;height:16px;">'
-      +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+p.label+'</div><div style="font-size:12px;color:var(--gray400);">'+p.price+'</div></div>'
+  var currentCfg = getPlanConfigEntryForPlan(customerMeta.plan) || { extraRate: 0 };
+  var ratePerMinute = Number(currentCfg.extraRate || 0);
+  var bundles = [50, 100, 250, 500];
+  var html = bundles.map(function(minutes){
+    var key = String(minutes);
+    var priceValue = ratePerMinute > 0 ? (Math.round(ratePerMinute * minutes * 100) / 100) : 0;
+    var priceLabel = ratePerMinute > 0 ? ('ca. ' + priceValue.toFixed(2) + ' CHF') : 'Preis auf Anfrage';
+    return '<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--gray200);border-radius:10px;cursor:pointer;transition:all .15s;" onclick="this.querySelector(\'input\').checked=true;selectedMinutesPkg=\''+key+'\';document.querySelectorAll(\'#minutes-options label\').forEach(function(l){l.style.borderColor=\'var(--gray200)\';l.style.background=\'\';});this.style.borderColor=\'var(--blue)\';this.style.background=\'var(--blue-light)\'">'
+      +'<input type="radio" name="minutes-pkg" value="'+key+'" style="accent-color:#1A6FE8;width:16px;height:16px;">'
+      +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+minutes+' Minuten</div><div style="font-size:12px;color:var(--gray400);">'+priceLabel+'</div></div>'
       +'</label>';
   }).join('');
-  document.getElementById('minutes-options').innerHTML = html;
+  var info = ratePerMinute > 0
+    ? '<div style="font-size:12px;color:var(--gray500);margin-bottom:6px;">Basis: ' + ratePerMinute.toFixed(2) + ' CHF pro Zusatzminute gemäss Plan-Konfiguration.</div>'
+    : '<div style="font-size:12px;color:var(--gray500);margin-bottom:6px;">Zusatzminuten-Preise sind für diesen Plan nicht in der Konfiguration hinterlegt.</div>';
+  document.getElementById('minutes-options').innerHTML = info + html;
   document.getElementById('minutes-overlay').classList.add('open');
   syncOverlayScrollLock();
 }
@@ -4392,30 +4392,6 @@ async function loadData() {
 }
 
 // ═══════════════════════════════════════════
-//  TREND HELPERS
-// ═══════════════════════════════════════════
-var kpiLastValues = { heute: null, callbacks: null, followups: null };
-
-function renderKpiTrend(id, current, lastKey) {
-  var el = document.getElementById(id);
-  if (!el) return;
-  var prev = kpiLastValues[lastKey];
-  if (prev === null) { el.textContent = ''; el.className = 'dash-kpi-trend neutral'; kpiLastValues[lastKey] = current; return; }
-  var diff = current - prev;
-  if (diff > 0) {
-    el.textContent = '↑';
-    el.className = 'dash-kpi-trend up';
-  } else if (diff < 0) {
-    el.textContent = '↓';
-    el.className = 'dash-kpi-trend down';
-  } else {
-    el.textContent = '→';
-    el.className = 'dash-kpi-trend neutral';
-  }
-  kpiLastValues[lastKey] = current;
-}
-
-// ═══════════════════════════════════════════
 //  BENACHRICHTIGUNGSTON (Warm Bell)
 // ═══════════════════════════════════════════
 var _audioCtx = null;
@@ -4469,15 +4445,12 @@ function renderDashboard(records) {
   // ── KPI: Anrufe heute / Rückrufe / Follow-ups / Leads ───────────────────────
   var kpiHeute = document.getElementById('kpi-heute');
   if (kpiHeute) kpiHeute.textContent = today.length;
-  renderKpiTrend('kpi-heute-trend', today.length, 'heute');
 
   var kpiCallbacks = document.getElementById('kpi-callbacks');
   if (kpiCallbacks) kpiCallbacks.textContent = offen.length;
-  renderKpiTrend('kpi-callbacks-trend', offen.length, 'callbacks');
 
   var kpiFollowups = document.getElementById('kpi-followups');
   if (kpiFollowups) kpiFollowups.textContent = doneToday.length;
-  renderKpiTrend('kpi-followups-trend', doneToday.length, 'followups');
 
   // ── Hero + Fokuskarte (nur UI-Mapping, bestehende Datenquelle) ────────────
   var statusHero = document.getElementById('dash-status-hero');
