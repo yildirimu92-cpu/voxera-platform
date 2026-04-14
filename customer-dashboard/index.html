@@ -168,7 +168,7 @@ body{
 .settings-btn-primary:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
 .settings-btn-secondary{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;display:inline-flex;align-items:center;}
 .settings-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
-.settings-module-tag{border-color:var(--gray200);background:var(--gray50);color:var(--gray500);text-transform:uppercase;letter-spacing:.05em;}
+.settings-module-tag{text-transform:uppercase;letter-spacing:.05em;}
 .settings-option-list{display:flex;flex-direction:column;gap:8px;}
 .settings-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
 .settings-box{background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;}
@@ -233,7 +233,7 @@ body{
 .help-code-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
 .help-direct-btn[aria-disabled="true"]{opacity:.55;pointer-events:none;cursor:not-allowed;}
 .help-dialer-note{display:none;font-size:11px;color:var(--gray500);margin:-2px 0 6px;text-align:right;}
-.help-chip{background:var(--green-light);border:1px solid var(--green-mid);color:#166534;margin-bottom:10px;}
+.help-chip{margin-bottom:10px;}
 @media(max-width:768px){
   .help-quickstart-grid{grid-template-columns:1fr;}
   .help-support-block{flex-direction:column;align-items:flex-start;}
@@ -424,6 +424,7 @@ body{
    UNIFIED BADGE / CHIP SYSTEM
 ═══════════════════════════════════════════ */
 .chip,
+.badge,
 .priority-chip,
 .meta-pill,
 .help-chip,
@@ -449,6 +450,66 @@ body{
   line-height:var(--badge-line-height);
   letter-spacing:.01em;
   white-space:nowrap;
+}
+/* Variant palette for all badges/chips */
+.badge-neutral,
+.chip-meta,
+.chip-kalt,
+.meta-pill,
+.activation-badge.not-started{
+  background:var(--gray100);
+  border-color:var(--gray200);
+  color:var(--gray600);
+}
+.badge-blue,
+.chip-workflow-neu,
+.chip-neu,
+.priority-normal,
+.act-deact-mobile-mode-badge,
+.act-deact-landline-mode-badge,
+.activation-state-chip{
+  background:var(--blue-light);
+  border-color:var(--blue-mid);
+  color:#1A6FE8;
+}
+.badge-green,
+.chip-workflow-closed,
+.chip-done,
+.status-pill,
+.help-chip,
+.activation-badge.active{
+  background:var(--green-light);
+  border-color:var(--green-mid);
+  color:#166534;
+}
+.badge-amber,
+.chip-priority-urgent,
+.chip-workflow-progress,
+.chip-working,
+.chip-warm,
+.priority-high,
+.activation-badge.in-progress,
+.activation-badge.pending-test{
+  background:var(--amber-light);
+  border-color:var(--amber-mid);
+  color:#92400E;
+}
+.badge-red,
+.chip-callback,
+.chip-rueckruf,
+.chip-hot,
+.priority-critical,
+.activation-badge.inactive{
+  background:var(--red-light);
+  border-color:var(--red-mid);
+  color:#991B1B;
+}
+.badge-outline,
+.settings-module-tag,
+.help-forwarding-reco{
+  background:var(--white);
+  border-color:var(--gray200);
+  color:var(--gray600);
 }
 .nav-badge{
   margin-left:auto;
@@ -546,13 +607,7 @@ body{
 .topbar-right{display:none;}
 .status-pill{
   display:flex;align-items:center;gap:6px;
-  background:var(--green-light);border:1px solid var(--green-mid);
   padding:var(--badge-pad-y) calc(var(--badge-pad-x) + 2px);
-  border-radius:var(--badge-radius);
-  font-size:var(--badge-font-size);
-  color:var(--green);
-  font-weight:var(--badge-font-weight);
-  line-height:var(--badge-line-height);
 }
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -602,13 +657,10 @@ body{
 }
 .live-pill{
   display:flex;align-items:center;gap:6px;
-  background:var(--blue-light);border:1px solid var(--blue-mid);
   padding:var(--badge-pad-y) calc(var(--badge-pad-x) + 2px);
-  border-radius:var(--badge-radius);
-  font-size:var(--badge-font-size);
+  background:var(--blue-light);
+  border-color:var(--blue-mid);
   color:#1A6FE8;
-  font-weight:var(--badge-font-weight);
-  line-height:var(--badge-line-height);
 }
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 2s infinite;}
 .incoming-banner{
@@ -814,19 +866,19 @@ body{
 /* ═══════════════════════════════════════════
    CHIPS — V2 (Minimal Status System)
 ═══════════════════════════════════════════ */
-.chip-callback{background:#FEE2E2;color:#B91C1C;border:1px solid #FECACA;}
-.chip-priority-urgent{background:var(--amber-light);color:#92400E;border:1px solid var(--amber-mid);}
-.chip-workflow-neu{background:var(--blue-light);color:#1A6FE8;border:1px solid var(--blue-mid);}
-.chip-workflow-progress{background:rgba(245,158,11,.08);color:#B45309;border:1px solid #FDE68A;}
-.chip-workflow-closed{background:var(--green-light);color:#166534;border:1px solid var(--green-mid);}
-.chip-meta{background:var(--gray100);color:var(--gray600);}
-.chip-hot{background:#FEE2E2;color:#B91C1C;}
-.chip-warm{background:#FEF3C7;color:#B45309;}
-.chip-kalt{background:var(--gray100);color:var(--gray600);}
-.chip-neu{background:var(--blue-light);color:#1A6FE8;}
-.chip-done{background:var(--green-light);color:var(--green);}
-.chip-working{background:rgba(245,158,11,.08);color:#D97706;}
-.chip-rueckruf{background:#FEE2E2;color:#B91C1C;}
+.chip-callback{}
+.chip-priority-urgent{}
+.chip-workflow-neu{}
+.chip-workflow-progress{}
+.chip-workflow-closed{}
+.chip-meta{}
+.chip-hot{}
+.chip-warm{}
+.chip-kalt{}
+.chip-neu{}
+.chip-done{}
+.chip-working{}
+.chip-rueckruf{}
 
 /* ═══════════════════════════════════════════
    UNIFIED GLOBAL BUTTON SYSTEM — V1
@@ -1084,9 +1136,9 @@ body{
 @media(max-width:480px){.account-usage-grid{grid-template-columns:1fr;}.account-usage-meta{flex-direction:column;align-items:flex-start;}}
 
 
-.priority-critical{background:var(--red-light);color:#991B1B;}
-.priority-high{background:var(--amber-light);color:#92400E;}
-.priority-normal{background:var(--blue-light);color:#1A6FE8;}
+.priority-critical{}
+.priority-high{}
+.priority-normal{}
 .focus-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:-6px 0 28px;}
 .focus-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:14px;padding:18px;}
 .focus-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
@@ -1096,7 +1148,7 @@ body{
 .followup-field label{display:block;font-size:11.5px;font-weight:600;color:var(--gray600);margin-bottom:6px;}
 .followup-field select,.followup-field input{width:100%;padding:10px 14px;border:1.5px solid var(--gray200);border-radius:12px;background:var(--gray50);font-size:13px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
 .followup-field select:focus,.followup-field input:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
-.meta-pill{background:var(--gray100);color:var(--gray600);margin-right:6px;margin-top:2px;}
+.meta-pill{margin-right:6px;margin-top:2px;}
 @media(max-width:768px){.followup-grid{grid-template-columns:1fr;}}
 
 /* ═══════════════════════════════════════════
@@ -1357,10 +1409,10 @@ body{
 .activation-number-item{flex:1;min-width:120px;}
 .activation-number-label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);margin-bottom:4px;}
 .activation-number-val{font-size:15px;font-weight:700;color:var(--gray900);font-variant-numeric:tabular-nums;}
-.activation-badge.not-started{background:var(--gray100);color:var(--gray600);}
-.activation-badge.in-progress{background:var(--amber-light);color:#92400E;border:1px solid var(--amber-mid);}
-.activation-badge.active{background:var(--green-light);color:#166534;border:1px solid var(--green-mid);}
-.activation-badge.inactive{background:var(--red-light);color:#991B1B;border:1px solid #FECACA;}
+.activation-badge.not-started{}
+.activation-badge.in-progress{}
+.activation-badge.active{}
+.activation-badge.inactive{}
 .activation-state-desc{font-size:12.5px;color:var(--gray600);margin-top:8px;line-height:1.55;}
 .activation-device-section{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .activation-device-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
@@ -1389,7 +1441,7 @@ body{
 .activation-deactivate-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
 /* Mobile deactivation action area */
 .act-deact-mobile-area{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
-.act-deact-mobile-mode-badge{background:#EFF6FF;border:1px solid #BFDBFE;color:#1A6FE8;margin-bottom:14px;}
+.act-deact-mobile-mode-badge{margin-bottom:14px;}
 .act-deact-mobile-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .act-deact-mobile-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
 .act-deact-mobile-note{font-size:12px;color:var(--gray500);line-height:1.6;padding:10px 13px;background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;}
@@ -1399,7 +1451,7 @@ body{
 .act-deact-mobile-nextstep-text{font-size:12.5px;color:var(--gray700);line-height:1.6;}
 /* Landline manual guidance */
 .act-deact-landline-area{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
-.act-deact-landline-mode-badge{background:#EFF6FF;border:1px solid #BFDBFE;color:#1A6FE8;margin-bottom:14px;}
+.act-deact-landline-mode-badge{margin-bottom:14px;}
 .act-deact-landline-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .act-deact-landline-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
 .act-deact-landline-hint{font-size:12px;color:var(--gray500);font-style:italic;padding:10px 13px;background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;line-height:1.55;}
@@ -1456,7 +1508,7 @@ body{
 
 .activation-status-card--success-highlight{box-shadow:0 0 0 2px #52dd7a,0 0 14px #52dd7a60!important;transition:box-shadow .2s;}
 .activation-status-card--neutral-highlight{box-shadow:0 0 0 2px #f2b5b5,0 0 14px #de434360!important;transition:box-shadow .2s;}
-.activation-badge.pending-test{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;}
+.activation-badge.pending-test{}
 .act-pending-test-card{background:var(--white);border:2px solid #FCD34D;border-radius:16px;padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-pending-test-header{margin-bottom:18px;}
 .act-pending-test-title{font-size:15px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.01em;}
@@ -1810,7 +1862,7 @@ body{
 .activation-brand{display:flex;align-items:center;justify-content:center;gap:8px;padding-top:6px;color:#1E3A8A;font-weight:700;font-family:var(--font-display);letter-spacing:-.02em;}
 .activation-brand img{height:20px;width:auto;}
 .activation-hero{background:#fff;border:1px solid #DBE3F0;border-radius:22px;padding:22px 18px;box-shadow:0 18px 44px rgba(15,23,42,.06);}
-.activation-state-chip{background:#EAF2FF;color:#1D4ED8;letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px;}
+.activation-state-chip{letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px;}
 .activation-hero h1{font-family:var(--font-display);font-size:28px;line-height:1.16;letter-spacing:-.03em;color:#0F172A;margin-bottom:8px;}
 .activation-hero p{font-size:14px;line-height:1.6;color:#475569;}
 .activation-hero .activation-primary{margin-top:14px;width:100%;}
@@ -2484,7 +2536,7 @@ body{
               <!-- Weiterleitungscodes (JS-driven) -->
               <div style="margin-top:22px;border-top:1px solid var(--gray100);padding-top:18px;">
                 <div class="help-section-title">Weiterleitungscodes für Ihr Gerät</div>
-                <div class="help-chip" id="forwarding-code-fallback" style="display:none;background:var(--amber-light);border-color:var(--amber-mid);color:#92400E;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>
+                <div class="help-chip badge-amber" id="forwarding-code-fallback" style="display:none;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>
                 <div class="help-mini-cards">
                   <a class="help-mini-card" href="#help-smartphone">
                     <div class="help-mini-title">Mit dem Smartphone</div>
@@ -5575,7 +5627,7 @@ function openSetupHelpOverlay(event, sectionId) {
             '<div class="setup-help-code-row"><code>##002#</code><div class="help-code-actions"><button class="settings-btn-secondary" data-fixed-code="##002#" onclick="copyForwardingCode(event,\'##002#\')">Code kopieren</button><a class="settings-btn-secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
         '</div>' +
-        '<div class="help-chip" id="setup-forwarding-fallback" style="display:none;background:var(--amber-light);border-color:var(--amber-mid);color:#92400E;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>',
+        '<div class="help-chip badge-amber" id="setup-forwarding-fallback" style="display:none;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>',
       anchor: 'smartphone'
     },
     testcall: {
