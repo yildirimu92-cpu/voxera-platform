@@ -2702,7 +2702,7 @@ let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -2967,6 +2967,7 @@ async function patchCustomerRecord(recordId, fields) {
   if (fields.setup_device_type !== undefined) payload.setup_device_type = fields.setup_device_type;
   if (fields.forwarding_status !== undefined) payload.forwarding_status = fields.forwarding_status;
   if (fields.activation_started_at !== undefined) payload.activation_started_at = fields.activation_started_at;
+  if (fields.activated_at !== undefined) payload.activated_at = fields.activated_at;
   if (fields.forwarding_mode !== undefined) payload.forwarding_mode = fields.forwarding_mode;
   if (fields.last_confirmed_setup_device_type !== undefined) payload.last_confirmed_setup_device_type = fields.last_confirmed_setup_device_type;
   if (fields.last_confirmed_forwarding_mode !== undefined) payload.last_confirmed_forwarding_mode = fields.last_confirmed_forwarding_mode;
@@ -3480,6 +3481,7 @@ async function loadCustomerMeta() {
     setupDeviceType: f.setup_device_type || null,
     forwardingStatus: f.forwarding_status || null,
     activationStartedAt: f.activation_started_at || null,
+    activatedAt: f.activated_at || null,
     forwardingMode: f.forwarding_mode || null,
     notificationMode: (f.notification_mode === 'none' || f.notification_mode === 'callback_only' || f.notification_mode === 'all_calls') ? f.notification_mode : 'none',
     lastConfirmedSetupDeviceType: f.last_confirmed_setup_device_type || null,
@@ -5890,6 +5892,8 @@ var candidateCall = null;
 var activationPollingInterval = null;
 var activationFlowGuideToken = '';
 var activationFlowSuccessToken = '';
+var ACTIVATION_TEST_POLL_MS = 4000;
+var ACTIVATION_TEST_TIMEOUT_MS = 3 * 60 * 1000;
 
 function getCandidateCallToken(call) {
   if (!call) return '';
@@ -5924,10 +5928,9 @@ function openActivationFlowModal(type) {
       + '<button class="btn-modal-save" type="button" onclick="closeActivationFlowModal();confirmActivationTestCall(event);">Test erfolgreich – aktivieren</button>'
       + '</div>';
   } else {
-    var isMobile = customerMeta && customerMeta.setupDeviceType === 'mobile';
     content.innerHTML = ''
       + '<div class="activation-flow-step">Schritt 1 von 2 · Testanruf starten</div>'
-      + '<h3>Weiterleitung aktiviert – jetzt Testanruf durchführen</h3>'
+      + '<h3>Testanruf durchführen</h3>'
       + '<div class="activation-flow-lead">Die Aktivierung wurde gestartet' + (modeLabel ? ' (<strong>' + escapeHtml(modeLabel) + '</strong>)' : '') + '. Wir warten jetzt auf Ihren Testanruf.</div>'
       + '<ul class="activation-flow-list">'
       + '<li><strong>Was passiert gerade?</strong>Voxera ist im Prüfmodus und erkennt den nächsten passenden Anruf automatisch.</li>'
@@ -5937,7 +5940,7 @@ function openActivationFlowModal(type) {
       + '<div class="activation-flow-success">Hinweis: Der Testanruf erscheint erst nach Gesprächsende im Dashboard.</div>'
       + '<div class="modal-actions">'
       + '<button class="btn-modal-cancel" type="button" onclick="closeActivationFlowModal()">Später</button>'
-      + '<button class="btn-modal-save" type="button" onclick="closeActivationFlowModal();scrollToStatusCard();">' + (isMobile ? 'Dialer öffnen & Test starten' : 'Verstanden – Testanruf starten') + '</button>'
+      + '<button class="btn-modal-save" type="button" onclick="closeActivationFlowModal();scrollToStatusCard();">Dialer öffnen & Test starten</button>'
       + '</div>';
   }
   overlay.classList.add('open');
@@ -5959,18 +5962,37 @@ function maybeOpenActivationSuccessModal() {
 
 // Returns the first call whose created_at is strictly after activationStartedAt.
 function findActivationCandidateCall(calls, activationStartedAt) {
-  if (!activationStartedAt) return null;
+  if (!activationStartedAt || !Array.isArray(calls) || !calls.length) return null;
+  var activationStartMs = new Date(activationStartedAt).getTime();
+  if (!Number.isFinite(activationStartMs)) return null;
+  var currentCustomerId = String((customerMeta && customerMeta.customerId) || '').trim();
+  var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
+  if (!isPendingTest) return null;
   var best = null;
   for (var i = 0; i < calls.length; i++) {
-    var ts = calls[i].fields && calls[i].fields.created_at;
-    if (!ts) continue;
-    if (ts > activationStartedAt) {
-      if (!best || ts < best.fields.created_at) {
-        best = calls[i];
-      }
-    }
+    var call = calls[i];
+    var fields = (call && call.fields) || {};
+    var callCustomerId = String(fields.customer_id || '').trim();
+    if (currentCustomerId && callCustomerId && callCustomerId !== currentCustomerId) continue;
+
+    var direction = String(fields.direction || fields.call_direction || '').trim().toLowerCase();
+    if (direction !== 'inbound') continue;
+
+    var createdAtRaw = fields.created_at || '';
+    if (!createdAtRaw) continue;
+    var createdAtMs = new Date(createdAtRaw).getTime();
+    if (!Number.isFinite(createdAtMs) || createdAtMs <= activationStartMs) continue;
+
+    if (!best || createdAtMs < new Date(best.fields.created_at || 0).getTime()) best = call;
   }
   return best || null;
+}
+
+function isActivationTestTimedOut() {
+  if (!customerMeta || customerMeta.forwardingStatus !== 'pending_test' || !customerMeta.activationStartedAt) return false;
+  var startedMs = new Date(customerMeta.activationStartedAt).getTime();
+  if (!Number.isFinite(startedMs)) return false;
+  return (Date.now() - startedMs) >= ACTIVATION_TEST_TIMEOUT_MS;
 }
 
 function startActivationPolling() {
@@ -5981,8 +6003,13 @@ function startActivationPolling() {
       stopActivationPolling();
       return;
     }
+    if (isActivationTestTimedOut()) {
+      stopActivationPolling();
+      renderActivationModule();
+      return;
+    }
     loadData().catch(function(err){ console.error('[activation-polling] loadData failed:', err); });
-  }, 5000);
+  }, ACTIVATION_TEST_POLL_MS);
 }
 
 function stopActivationPolling() {
@@ -6057,19 +6084,23 @@ async function confirmActivationTestCall(event) {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Test erfolgreich \u2013 aktivieren'; } return; }
+    var activatedAtNow = new Date().toISOString();
     await patchCustomerRecord(recId, {
       forwarding_status: 'active',
       forwarding_setup_completed: true,
+      activated_at: activatedAtNow,
       last_confirmed_setup_device_type: customerMeta.setupDeviceType,
       last_confirmed_forwarding_mode: customerMeta.forwardingMode
     });
     customerMeta.forwardingStatus = 'active';
     customerMeta.forwardingSetupCompleted = true;
+    customerMeta.activatedAt = activatedAtNow;
     customerMeta.lastConfirmedSetupDeviceType = customerMeta.setupDeviceType;
     customerMeta.lastConfirmedForwardingMode = customerMeta.forwardingMode;
     if (context && context.customerRecord) {
       context.customerRecord.forwarding_status = 'active';
       context.customerRecord.forwarding_setup_completed = true;
+      context.customerRecord.activated_at = customerMeta.activatedAt;
       context.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
       context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
     }
@@ -6124,6 +6155,7 @@ function renderPendingTestCard(meta) {
   var modeGuide = getDeviceModeTestGuidance(meta.setupDeviceType || '', mode, meta.telNr || '\u2013');
 
   var detectHtml;
+  var testTimedOut = !candidateCall && isActivationTestTimedOut();
   if (candidateCall) {
     detectHtml = '<div class="act-test-detect-area act-test-detect-found">'
       + '<div class="act-test-detect-title">\u2705 Testanruf erkannt</div>'
@@ -6133,17 +6165,26 @@ function renderPendingTestCard(meta) {
       + '<button type="button" class="act-action-btn-secondary" onclick="rejectActivationTestCall(event)">Erneut testen</button>'
       + '</div>'
       + '</div>';
+  } else if (testTimedOut) {
+    detectHtml = '<div class="act-test-detect-area">'
+      + '<div class="act-test-detect-icon">\u26A0\uFE0F</div>'
+      + '<div class="act-test-detect-label">Noch kein Testanruf erkannt</div>'
+      + '<div class="act-test-detect-hint">Bitte führen Sie den Testanruf erneut durch und starten Sie danach die Prüfung neu.</div>'
+      + '<div class="act-test-detect-btns" style="margin-top:12px;">'
+      + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Erneut versuchen</button>'
+      + '</div>'
+      + '</div>';
   } else {
     detectHtml = '<div class="act-test-detect-area">'
       + '<div class="act-test-detect-icon">\u23F3</div>'
-      + '<div class="act-test-detect-label">Warten auf Testanruf\u2026</div>'
+      + '<div class="act-test-detect-label">Wir warten auf Ihren Testanruf</div>'
       + '<div class="act-test-detect-hint">Sobald Ihr Testanruf im Dashboard erscheint, k\u00F6nnen Sie die Aktivierung best\u00E4tigen.</div>'
       + '</div>';
   }
 
   var html = '<div class="act-pending-test-card">'
     + '<div class="act-pending-test-header">'
-    + '<div class="act-pending-test-title">' + escapeHtml(modeGuide.title) + '</div>'
+    + '<div class="act-pending-test-title">Testanruf durchführen</div>'
     + '<div class="act-pending-test-sub">' + escapeHtml(modeGuide.subtitle) + '</div>'
     + '</div>'
     + '<div class="activation-flow-success" style="margin:0 0 12px 0;">'
