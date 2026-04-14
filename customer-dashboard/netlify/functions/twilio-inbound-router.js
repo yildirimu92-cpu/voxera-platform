@@ -143,6 +143,7 @@ exports.handler = async (event) => {
         caller_phone: fromNormalized || null,
         called_number: toNormalized,
         voxera_number: toNormalized,
+        direction: 'inbound',
         dashboard_status: 'new',
         status: 'new',
         created_at: new Date().toISOString()

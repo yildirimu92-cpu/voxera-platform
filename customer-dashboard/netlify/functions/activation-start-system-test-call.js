@@ -125,7 +125,7 @@ exports.handler = async (event) => {
       customer_id: caller.customerId,
       error_message: customerError ? customerError.message : null
     });
-    return response(500, { error: 'Kundendaten konnten nicht geladen werden.', details: customerError ? customerError.message : null });
+    return response(500, { error: 'Kundendaten konnten nicht geladen werden. Bitte spaeter erneut versuchen.' });
   }
 
   const customerMainNumber = normalizePhoneE164(customer.tel_nr).normalized;
@@ -226,7 +226,13 @@ exports.handler = async (event) => {
     .upsert(outboundRow, { onConflict: 'call_id' });
 
   if (insertError) {
-    return response(500, { error: 'Outbound-Testanruf wurde gestartet, aber nicht gespeichert.', details: insertError.message });
+    console.error('[activation-start-system-test-call] call_persist_failed', {
+      request_id: requestId || null,
+      customer_id: customer.id,
+      call_id: callSid,
+      error_message: insertError.message
+    });
+    return response(500, { error: 'Testanruf gestartet, aber Speicherung fehlgeschlagen. Bitte erneut versuchen.' });
   }
 
   return response(200, {

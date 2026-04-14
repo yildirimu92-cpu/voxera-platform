@@ -2940,7 +2940,6 @@ async function callDashboardFunction(name, payload) {
   if (!res.ok) {
     var errorParts = [];
     if (json && json.error) errorParts.push(String(json.error));
-    if (json && json.details) errorParts.push(String(json.details));
     const err = new Error(errorParts.length ? errorParts.join(' · ') : `HTTP ${res.status}`);
     err.status = res.status;
     err.payload = json;
