@@ -6675,7 +6675,8 @@ var activationV2FlowState = {
   currentStep: 1,
   confirmedDeviceType: null,
   confirmedForwardingMode: null,
-  activationPhase: 'preferences_pending'
+  activationPhase: 'preferences_pending',
+  ignorePersistedSelections: false
 };
 
 function getActivationV2StorageKey(suffix){
@@ -6707,10 +6708,12 @@ function clearActivationV2ModeConfirmation(){
 }
 
 function getActivationV2EffectiveDevice(){
+  if (activationV2FlowState.ignorePersistedSelections) return activationV2FlowState.confirmedDeviceType || null;
   return activationV2FlowState.confirmedDeviceType || (customerMeta && customerMeta.setupDeviceType) || null;
 }
 
 function getActivationV2EffectiveMode(){
+  if (activationV2FlowState.ignorePersistedSelections) return activationV2FlowState.confirmedForwardingMode || null;
   return activationV2FlowState.confirmedForwardingMode || (customerMeta && customerMeta.forwardingMode) || null;
 }
 
@@ -6915,11 +6918,37 @@ function activationV2StateSnapshot(){
     step: activationV2StepState.step,
     confirmedDeviceType: activationV2FlowState.confirmedDeviceType,
     confirmedForwardingMode: activationV2FlowState.confirmedForwardingMode,
+    ignorePersistedSelections: !!activationV2FlowState.ignorePersistedSelections,
     setupDeviceType: customerMeta && customerMeta.setupDeviceType,
     forwardingMode: customerMeta && customerMeta.forwardingMode,
     forwardingStatus: customerMeta && customerMeta.forwardingStatus,
     activationStartedAt: customerMeta && customerMeta.activationStartedAt
   };
+}
+
+function clearActivationV2StorageState(){
+  var activationKeySuffixes = ['step', 'confirmed_device', 'confirmed_mode', 'finished', 'setup_finished'];
+  var setupKeySuffixes = ['voxera_setup_steps', 'voxera_setup_finished', 'voxera_setup_reminder_dismissed'];
+  [window.localStorage, window.sessionStorage].forEach(function(storage){
+    if (!storage) return;
+    try {
+      activationKeySuffixes.forEach(function(suffix){
+        storage.removeItem(getActivationV2StorageKey(suffix));
+        storage.removeItem('voxera_activation_v2_' + suffix);
+      });
+      setupKeySuffixes.forEach(function(baseKey){
+        storage.removeItem(getSetupStorageKey(baseKey));
+        storage.removeItem(baseKey);
+      });
+      storage.removeItem('confirmed_device');
+      storage.removeItem('confirmed_mode');
+      storage.removeItem('activation_step');
+      storage.removeItem('voxera_activation_step');
+      storage.removeItem('voxera_tab');
+      storage.removeItem('voxera_last_non_setup_tab');
+      storage.removeItem('voxera_just_activated');
+    } catch(e) {}
+  });
 }
 
 function activationV2DebugLog(label, payload){
@@ -6976,15 +7005,50 @@ async function activationV2RetryFlow(event) {
   }
 }
 
-function activationV2RestartFlow(event) {
+async function activationV2RestartFlow(event) {
   if (event) event.stopPropagation();
+  clearActivationV2StorageState();
+  stopActivationPolling();
+  candidateCall = null;
+  activationFlowGuideToken = '';
+  activationFlowSuccessToken = '';
+  activationV2FlowState.currentStep = 1;
   activationV2FlowState.confirmedDeviceType = null;
   activationV2FlowState.confirmedForwardingMode = null;
-  persistActivationV2FlowState();
+  activationV2FlowState.ignorePersistedSelections = true;
   persistActivationV2Step(1);
-  activationV2DebugLog('flow restarted', activationV2StateSnapshot());
   renderActivationV2();
-  toast('Einrichtung neu gestartet.');
+  activationV2DebugLog('flow restarted (local state reset)', activationV2StateSnapshot());
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) throw new Error('customer record missing');
+    await patchCustomerRecord(recId, {
+      setup_device_type: null,
+      forwarding_mode: null,
+      activation_started_at: null,
+      forwarding_status: 'not_started'
+    });
+    customerMeta.setupDeviceType = null;
+    customerMeta.forwardingMode = null;
+    customerMeta.activationStartedAt = null;
+    customerMeta.forwardingStatus = 'not_started';
+    customerMeta.lastConfirmedSetupDeviceType = null;
+    customerMeta.lastConfirmedForwardingMode = null;
+    if (context && context.customerRecord) {
+      context.customerRecord.setup_device_type = null;
+      context.customerRecord.forwarding_mode = null;
+      context.customerRecord.activation_started_at = null;
+      context.customerRecord.forwarding_status = 'not_started';
+      context.customerRecord.last_confirmed_setup_device_type = null;
+      context.customerRecord.last_confirmed_forwarding_mode = null;
+    }
+    renderActivationV2();
+    toast('Einrichtung vollständig zurückgesetzt.');
+  } catch (e) {
+    console.error('activationV2RestartFlow failed', e);
+    toast('Lokaler Reset ausgeführt. Backend-Reset bitte erneut versuchen.');
+  }
 }
 
 function bindActivationV2Events(){
