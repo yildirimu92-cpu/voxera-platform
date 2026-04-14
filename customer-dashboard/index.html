@@ -1769,17 +1769,17 @@ body{
         </div>
         <div class="nav-item" id="nav-anrufe" onclick="showTab('anrufe',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M3.5 2.5h2l1 2.5-1.5 1c.8 1.5 2 2.7 3.5 3.5l1-1.5 2.5 1v2c0 .8-.7 1.5-1.5 1.5C5.2 13 3 7.5 3 4.5c0-.8.7-1 .5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-          Anrufe
+          Kontakte
           <span class="nav-badge blue" id="badge-anrufe">–</span>
         </div>
         <div class="nav-item" id="nav-rueckrufe" onclick="showTab('rueckrufe',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3.5l2 1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-          Rückrufe
+          Aufgaben
           <span class="nav-badge blue" id="badge-rueckrufe">–</span>
         </div>
         <div class="nav-item" id="nav-archiv" onclick="showTab('archiv',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M2 5v8a1 1 0 001 1h10a1 1 0 001-1V5" stroke="currentColor" stroke-width="1.3"/><path d="M6 8.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-          Archiv
+          Verlauf
         </div>
         <div class="nav-item" onclick="showTab('einrichtung',this)" id="nav-einrichtung">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3"/></svg>
@@ -1791,7 +1791,7 @@ body{
         </div>
         <div class="nav-item" onclick="showTab('hilfe',this)" id="nav-hilfe">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M6.9 6a1.2 1.2 0 112.1.8c-.3.5-.8.8-1.1 1.1-.3.2-.5.5-.5.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.3" r=".8" fill="currentColor"/></svg>
-          Hilfe & Anleitung
+          Hilfe
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -1870,7 +1870,7 @@ body{
                   <div class="dash-kpi-trend neutral" id="kpi-heute-trend"></div>
                 </div>
                 <div class="dash-kpi" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">
-                  <div class="dash-kpi-label">Offene Rückrufe</div>
+                  <div class="dash-kpi-label">Offene Aufgaben</div>
                   <div class="dash-kpi-val" id="kpi-callbacks">–</div>
                   <div class="dash-kpi-trend neutral" id="kpi-callbacks-trend"></div>
                 </div>
@@ -1887,14 +1887,14 @@ body{
               </div>
 
               <div class="dash-focus-card" id="dash-focus-card">
-                <div class="dash-focus-label">Rückruf-Fokus</div>
+                <div class="dash-focus-label">Aufgaben-Fokus</div>
                 <div class="dash-focus-head">
                   <div class="dash-focus-number" id="dash-focus-number">–</div>
                   <div class="dash-focus-hint" id="dash-focus-hint">Priorität</div>
                 </div>
                 <div class="dash-focus-text" id="dash-focus-text">Keine priorisierte Aufgabe vorhanden.</div>
                 <div class="dash-focus-actions">
-                  <button class="dash-focus-btn" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">Rückrufe öffnen</button>
+                  <button class="dash-focus-btn" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">Aufgaben öffnen</button>
                 </div>
               </div>
             </div>
@@ -1915,7 +1915,7 @@ body{
               <div class="dash-col">
                 <div class="dash-glass" id="dash-callback-section">
                   <div class="dash-glass-hd">
-                    <div class="dash-glass-title">Offene Rückrufe</div>
+                    <div class="dash-glass-title">Offene Aufgaben</div>
                     <span class="dash-glass-link" onclick="activateTab('rueckrufe')">Alle anzeigen</span>
                   </div>
                   <div id="dash-callback-list"></div>
@@ -1936,9 +1936,9 @@ body{
         <!-- ANRUFE TAB -->
         <div class="tab-page" id="tab-anrufe">
           <div class="section-head" style="margin-bottom:4px;">
-            <div class="section-title">Alle Anrufe</div>
+            <div class="section-title">Kontakte</div>
           </div>
-          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Alle eingegangenen Anrufe – filtern Sie nach Status oder suchen Sie nach Namen.</div>
+          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Alle eingegangenen Kundenanfragen auf einen Blick.</div>
           <div class="filter-tabs" style="margin-bottom:12px;">
             <button class="ftab active" onclick="filterList('anrufe-list','alle',this)">Alle</button>
             <button class="ftab" onclick="filterList('anrufe-list','dringend',this)">Dringend</button>
@@ -1954,9 +1954,9 @@ body{
         <!-- RÜCKRUFE TAB -->
         <div class="tab-page" id="tab-rueckrufe">
           <div class="section-head" style="margin-bottom:4px;">
-            <div class="section-title">Offene Rückrufe</div>
+            <div class="section-title">Aufgaben</div>
           </div>
-          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Anrufer, die um einen Rückruf gebeten haben – bitte zeitnah zurückrufen.</div>
+          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Offene Rückrufe, Follow-ups und nächste Schritte.</div>
           <div class="filter-tabs" style="margin-bottom:12px;">
             <button class="ftab active" onclick="filterList('rueckrufe-list','alle',this)">Alle</button>
             <button class="ftab" onclick="filterList('rueckrufe-list','dringend',this)">Dringend</button>
@@ -1972,9 +1972,9 @@ body{
         <!-- ARCHIV TAB -->
         <div class="tab-page" id="tab-archiv">
           <div class="section-head" style="margin-bottom:4px;">
-            <div class="section-title">Archiv</div>
+            <div class="section-title">Verlauf</div>
           </div>
-          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Erledigte Anrufe zur Dokumentation</div>
+          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Erledigte Kontakte und abgeschlossene Vorgänge.</div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;">
             <div class="filter-tabs">
               <button class="ftab active" onclick="filterArchiv('all',this)">Alle</button>
@@ -2155,9 +2155,9 @@ body{
               </div>
             </div>
 
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Hilfe & Anleitung</div>
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Hilfe</div>
             <div class="settings-card">
-              <div class="settings-card-title">Hilfe & Anleitung</div>
+              <div class="settings-card-title">Hilfe</div>
               <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
                 Erfahren Sie, wie Voxera funktioniert und wie Sie alle Funktionen optimal nutzen.
               </div>
@@ -2228,7 +2228,7 @@ body{
             <!-- Seitenkopf -->
             <div class="help-hero">
               <div class="section-title">Hilfe</div>
-              <div class="help-hero-sub">Schnelle Antworten und Unterstützung</div>
+              <div class="help-hero-sub">Antworten und Unterstützung für Ihr Voxera Portal.</div>
             </div>
 
             <!-- 3 Hauptkarten -->
@@ -2244,7 +2244,7 @@ body{
                 <div class="help-quickstart-icon">
                   <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#1A6FE8" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5l2 1.2"/></svg>
                 </div>
-                <div class="help-quickstart-title">Rückrufe verwalten</div>
+                <div class="help-quickstart-title">Aufgaben bearbeiten</div>
                 <div class="help-quickstart-sub">Offene Anfragen bearbeiten</div>
               </a>
               <a class="help-quickstart-card" href="#help-konto">
@@ -2370,22 +2370,22 @@ body{
               </div>
             </div>
 
-            <!-- Themenblock: Anrufe & Rückrufe -->
+            <!-- Themenblock: Kontakte & Aufgaben -->
             <div class="help-topic" id="help-anrufe">
-              <div class="help-topic-title">Anrufe &amp; Rückrufe</div>
+              <div class="help-topic-title">Kontakte &amp; Aufgaben</div>
               <div class="help-steps">
                 <div class="help-step">
                   <div class="help-step-num">1</div>
                   <div class="help-step-body">
                     <div class="help-step-title">Neue Anrufe sehen</div>
-                    <div class="help-step-text">Im Tab „Anrufe“ erscheinen alle neuen Einträge sofort mit Kontaktdaten und Anliegen.</div>
+                    <div class="help-step-text">Im Tab „Kontakte“ erscheinen alle neuen Einträge sofort mit Kontaktdaten und Anliegen.</div>
                   </div>
                 </div>
                 <div class="help-step">
                   <div class="help-step-num">2</div>
                   <div class="help-step-body">
                     <div class="help-step-title">Rückrufe bearbeiten</div>
-                    <div class="help-step-text">Unter „Rückrufe“ sehen Sie alle offenen Anfragen gebündelt. Erledigte Fälle einfach als abgeschlossen markieren.</div>
+                    <div class="help-step-text">Unter „Aufgaben“ sehen Sie alle offenen Anfragen gebündelt. Erledigte Fälle einfach als abgeschlossen markieren.</div>
                   </div>
                 </div>
                 <div class="help-step">
@@ -2398,8 +2398,8 @@ body{
                 <div class="help-step">
                   <div class="help-step-num">4</div>
                   <div class="help-step-body">
-                    <div class="help-step-title">Archiv nutzen</div>
-                    <div class="help-step-text">Erledigte Vorgänge bleiben im Archiv dokumentiert und sind jederzeit abrufbar.</div>
+                    <div class="help-step-title">Verlauf nutzen</div>
+                    <div class="help-step-text">Erledigte Vorgänge bleiben im Verlauf dokumentiert und sind jederzeit abrufbar.</div>
                   </div>
                 </div>
               </div>
@@ -2474,19 +2474,19 @@ body{
         <svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6.5" height="6.5" rx="1.5"/><rect x="8.5" y="1" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="1" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".2"/></svg>
         Dashboard
       </button>
-      <button class="mobile-nav-btn" id="mnav-anrufe" onclick="showTab('anrufe',this)">
+        <button class="mobile-nav-btn" id="mnav-anrufe" onclick="showTab('anrufe',this)">
         <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 2.5h2l1 2.5-1.5 1c.8 1.5 2 2.7 3.5 3.5l1-1.5 2.5 1v2c0 .8-.7 1.5-1.5 1.5C5.2 13 3 7.5 3 4.5c0-.8.7-1 .5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-        Anrufe
+        Kontakte
         <span class="mobile-nav-badge blue" id="mnav-badge-anrufe" style="display:none"></span>
       </button>
       <button class="mobile-nav-btn" id="mnav-rueckrufe" onclick="showTab('rueckrufe',this)">
         <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3.5l2 1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Rückrufe
+        Aufgaben
         <span class="mobile-nav-badge blue" id="mnav-badge-rueckrufe" style="display:none"></span>
       </button>
       <button class="mobile-nav-btn" id="mnav-archiv" onclick="showTab('archiv',this)">
         <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M2 5v8a1 1 0 001 1h10a1 1 0 001-1V5" stroke="currentColor" stroke-width="1.3"/><path d="M6 8.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Archiv
+        Verlauf
       </button>
       <button class="mobile-nav-btn" id="mnav-konto" onclick="showTab('einstellungen',this);openAccount()">
         <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M3.5 13c.8-2.1 2.5-3.2 4.5-3.2s3.7 1.1 4.5 3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -3447,7 +3447,7 @@ function updateDashboardHeaderMeta() {
   var buckets = deriveDashboardCallBuckets(allRecords || []);
   var openCalls = buckets.open.length;
   var openCallbacks = buckets.callbacks.length;
-  sub.textContent = openCalls + ' Anrufe · ' + openCallbacks + ' Rückrufe · Gerade aktualisiert';
+  sub.textContent = openCalls + ' Kontakte · ' + openCallbacks + ' Aufgaben · Gerade aktualisiert';
 }
 
 function isToday(raw) {
@@ -3996,17 +3996,17 @@ function renderDashboard(records) {
     statusChipPrimary.className = 'dash-status-chip';
     statusChipSecondary.className = 'dash-status-chip note';
     if (offen.length > 0) {
-      statusTitle.textContent = 'Rückrufe benötigen Priorität';
-      statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Rückrufe. Voxera hat die wichtigsten Kontakte bereits für Sie gesammelt.';
+      statusTitle.textContent = 'Aufgaben benötigen Priorität';
+      statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Aufgaben. Voxera hat die wichtigsten Kontakte bereits für Sie gesammelt.';
       statusChipPrimary.textContent = offen.length + ' offen';
       statusChipPrimary.classList.add('alert');
-      statusChipSecondary.textContent = today.length + ' Anrufe heute';
+      statusChipSecondary.textContent = today.length + ' Kontakte heute';
     } else {
       statusTitle.textContent = 'Alles unter Kontrolle';
-      statusText.textContent = 'Aktuell gibt es keine offenen Rückrufe. Neue Anrufe und Follow-ups erscheinen automatisch in Ihrer Übersicht.';
-      statusChipPrimary.textContent = 'Keine offenen Rückrufe';
+      statusText.textContent = 'Aktuell gibt es keine offenen Aufgaben. Neue Kontakte und Follow-ups erscheinen automatisch in Ihrer Übersicht.';
+      statusChipPrimary.textContent = 'Keine offenen Aufgaben';
       statusChipPrimary.classList.add('ok');
-      statusChipSecondary.textContent = today.length + ' Anrufe heute';
+      statusChipSecondary.textContent = today.length + ' Kontakte heute';
     }
   }
 
@@ -4017,13 +4017,13 @@ function renderDashboard(records) {
     focusNumberEl.textContent = offen.length;
     if (offen.length > 0) {
       focusHintEl.textContent = 'Jetzt bearbeiten';
-      focusTextEl.textContent = 'Ihr schnellster Hebel: offene Rückrufe zuerst abschließen, dann Follow-ups priorisieren.';
+      focusTextEl.textContent = 'Ihr schnellster Hebel: offene Aufgaben zuerst abschließen, dann Follow-ups priorisieren.';
     } else if (followupsOpen.length > 0) {
       focusHintEl.textContent = 'Follow-ups geplant';
-      focusTextEl.textContent = 'Keine offenen Rückrufe. Es warten ' + followupsOpen.length + ' Follow-ups auf Ihre nächste Aktion.';
+      focusTextEl.textContent = 'Keine offenen Aufgaben. Es warten ' + followupsOpen.length + ' Follow-ups auf Ihre nächste Aktion.';
     } else {
       focusHintEl.textContent = 'Keine offenen Tasks';
-      focusTextEl.textContent = 'Momentan gibt es keine offenen Rückrufe oder Follow-ups.';
+      focusTextEl.textContent = 'Momentan gibt es keine offenen Aufgaben oder Follow-ups.';
     }
   }
 
@@ -4047,7 +4047,7 @@ function renderDashboard(records) {
   var callbackList = document.getElementById('dash-callback-list');
   if (callbackList) {
     if (sortedOpenCallbacks.length === 0) {
-      callbackList.innerHTML = '<div class="dash-side-empty">Keine offenen Rückrufe</div>';
+      callbackList.innerHTML = '<div class="dash-side-empty">Keine offenen Aufgaben</div>';
     } else {
       renderList('dash-callback-list', sortedOpenCallbacks.slice(0,5), {showActions:true, skipSort:true, dashboardView:true});
     }
@@ -4066,7 +4066,7 @@ function renderDashboard(records) {
   var recentList = document.getElementById('dash-recent-list');
   if (recentList) {
     if (allOpenCalls.length === 0) {
-      recentList.innerHTML = '<div class="dash-empty"><div>Noch keine Anrufe</div><div style="margin-top:4px;">Sobald ein Anruf eingeht, erscheint er hier.</div></div>';
+      recentList.innerHTML = '<div class="dash-empty"><div>Noch keine Kontakte</div><div style="margin-top:4px;">Sobald eine Anfrage eingeht, erscheint sie hier.</div></div>';
     } else {
       renderList('dash-recent-list', allOpenCalls, {showActions:true, skipSort:true, limit:3, dashboardView:true});
       // Show "more" button if there are more
