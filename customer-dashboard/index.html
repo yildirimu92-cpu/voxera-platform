@@ -1607,11 +1607,11 @@ body{
 .activation-compact-val{font-size:13px;font-weight:700;color:#0F172A;word-break:break-word;}
 .activation-live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 .activation-advanced{background:#fff;border:1px solid #E2E8F0;border-radius:16px;}
-.activation-advanced summary{list-style:none;cursor:pointer;padding:14px 16px;font-size:13px;font-weight:700;color:#334155;display:flex;justify-content:space-between;align-items:center;}
-.activation-advanced summary::-webkit-details-marker{display:none;}
-.activation-advanced summary::after{content:'▾';color:#94A3B8;}
-.activation-advanced[open] summary::after{transform:rotate(180deg);}
-.activation-advanced-body{padding:0 12px 12px;display:grid;gap:8px;}
+.activation-advanced-toggle{width:100%;border:none;background:transparent;cursor:pointer;padding:14px 16px;font-size:13px;font-weight:700;color:#334155;display:flex;justify-content:space-between;align-items:center;text-align:left;font-family:inherit;}
+.activation-advanced-toggle::after{content:'▾';color:#94A3B8;transition:transform var(--transition-fast);}
+.activation-advanced.is-open .activation-advanced-toggle::after{transform:rotate(180deg);}
+.activation-advanced-body{padding:0 12px 12px;display:none;gap:8px;}
+.activation-advanced.is-open .activation-advanced-body{display:grid;}
 .activation-link-btn{width:100%;border:1px solid #DCE4F1;background:#F8FAFC;color:#1E293B;font-size:13px;font-weight:600;border-radius:12px;padding:10px 12px;text-align:left;}
 .activation-info-banner{margin-top:10px;background:#ECFDF3;border:1px solid #BBF7D0;color:#166534;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.55;}
 .activation-warning-banner{margin-top:10px;background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.55;}
@@ -7055,6 +7055,20 @@ function renderStepProgress(step){
 var activationV2EventsBound = false;
 var activationV2SoftGateShown = false;
 var activationV2LastHandledTouch = { ts: 0, action: '', value: '', el: null };
+var activationV2DisclosureState = {
+  advancedOptionsOpen: false,
+  diagnosticsOpen: false
+};
+
+function isActivationV2DebugMode(){
+  try {
+    var params = new URLSearchParams(window.location.search || '');
+    var flag = (params.get('activation_debug') || params.get('debug_activation') || '').toLowerCase();
+    return flag === '1' || flag === 'true' || flag === 'yes';
+  } catch (e) {
+    return false;
+  }
+}
 
 function activationV2StateSnapshot(){
   return {
@@ -7119,6 +7133,18 @@ function findActivationV2ActionTarget(event, shell) {
     el = el.parentElement;
   }
   return null;
+}
+
+function setActivationV2DisclosureOpen(key, open){
+  if (!activationV2DisclosureState || !Object.prototype.hasOwnProperty.call(activationV2DisclosureState, key)) return;
+  activationV2DisclosureState[key] = !!open;
+  var shell = document.getElementById('activation-v2-shell');
+  if (!shell) return;
+  var panel = shell.querySelector('.activation-advanced[data-panel="' + key + '"]');
+  if (!panel) return;
+  panel.classList.toggle('is-open', !!open);
+  var toggle = panel.querySelector('.activation-advanced-toggle');
+  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 async function activationV2RetryFlow(event) {
@@ -7279,6 +7305,12 @@ function bindActivationV2Events(){
       case 'open-deactivation':
         openActivationDeactivateSection();
         break;
+      case 'toggle-advanced-options':
+        setActivationV2DisclosureOpen('advancedOptionsOpen', !activationV2DisclosureState.advancedOptionsOpen);
+        break;
+      case 'toggle-diagnostics':
+        setActivationV2DisclosureOpen('diagnosticsOpen', !activationV2DisclosureState.diagnosticsOpen);
+        break;
       default:
         console.warn('[activation-v2] unknown action:', action);
     }
@@ -7407,23 +7439,32 @@ function renderActivationV2(){
       + '</div></section>';
   }
 
-  html += '<details class="activation-advanced"><summary>Erweiterte Optionen</summary>'
+  var showActivationDiagnostics = isActivationV2DebugMode();
+  var advancedPanelClass = 'activation-advanced' + (activationV2DisclosureState.advancedOptionsOpen ? ' is-open' : '');
+  var diagnosticsPanelClass = 'activation-advanced' + (activationV2DisclosureState.diagnosticsOpen ? ' is-open' : '');
+
+  html += '<section class="' + advancedPanelClass + '" data-panel="advancedOptionsOpen">'
+    + '<button type="button" class="activation-advanced-toggle" data-action="toggle-advanced-options" aria-expanded="' + (activationV2DisclosureState.advancedOptionsOpen ? 'true' : 'false') + '">Erweiterte Optionen</button>'
     + '<div class="activation-advanced-body">'
     + '<button type="button" class="activation-link-btn" data-action="go-step" data-value="2">Weiterleitung ändern</button>'
     + '<button type="button" class="activation-link-btn" data-action="restart-flow">Einrichtung neu starten</button>'
     + '<button type="button" class="activation-link-btn" data-action="retry-flow">Aktivierung erneut prüfen</button>'
     + '<button type="button" class="activation-link-btn" data-action="open-deactivation">Deaktivieren</button>'
     + '<button type="button" class="activation-link-btn" data-action="open-help-forwarding">Hilfe</button>'
-    + '</div></details>'
-    + '<details class="activation-advanced"><summary>Temporäre Aktivierungs-Diagnose</summary><div class="activation-advanced-body">'
-    + '<div class="activation-compact-card"><div class="activation-compact-label">Current Step</div><div class="activation-compact-val">' + escapeHtml(String(step)) + '</div></div>'
-    + '<div class="activation-compact-card"><div class="activation-compact-label">Render Branch</div><div class="activation-compact-val">' + escapeHtml(renderBranch) + '</div></div>'
-    + '<div class="activation-compact-card"><div class="activation-compact-label">Flow Phase</div><div class="activation-compact-val">' + escapeHtml(phase) + '</div></div>'
-    + '<div class="activation-compact-card"><div class="activation-compact-label">Device Source</div><div class="activation-compact-val">' + escapeHtml(deviceSource) + '</div></div>'
-    + '<div class="activation-compact-card"><div class="activation-compact-label">Mode Source</div><div class="activation-compact-val">' + escapeHtml(modeSource) + '</div></div>'
-    + '<div class="activation-compact-card"><div class="activation-compact-label">Selectable Buttons</div><div class="activation-compact-val">' + (selectionButtonsRendered ? 'rendered' : 'not_rendered') + '</div></div>'
-    + '</div></details>'
-    + '</div>';
+    + '</div></section>';
+
+  if (showActivationDiagnostics) {
+    html += '<section class="' + diagnosticsPanelClass + '" data-panel="diagnosticsOpen"><button type="button" class="activation-advanced-toggle" data-action="toggle-diagnostics" aria-expanded="' + (activationV2DisclosureState.diagnosticsOpen ? 'true' : 'false') + '">Temporäre Aktivierungs-Diagnose</button><div class="activation-advanced-body">'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Current Step</div><div class="activation-compact-val">' + escapeHtml(String(step)) + '</div></div>'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Render Branch</div><div class="activation-compact-val">' + escapeHtml(renderBranch) + '</div></div>'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Flow Phase</div><div class="activation-compact-val">' + escapeHtml(phase) + '</div></div>'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Device Source</div><div class="activation-compact-val">' + escapeHtml(deviceSource) + '</div></div>'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Mode Source</div><div class="activation-compact-val">' + escapeHtml(modeSource) + '</div></div>'
+      + '<div class="activation-compact-card"><div class="activation-compact-label">Selectable Buttons</div><div class="activation-compact-val">' + (selectionButtonsRendered ? 'rendered' : 'not_rendered') + '</div></div>'
+      + '</div></section>';
+  }
+
+  html += '</div>';
 
   shell.innerHTML = html;
   activationV2DebugLog('render diagnostics', {
