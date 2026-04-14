@@ -810,6 +810,8 @@ body{
   border-radius:16px;padding:15px 17px;
   display:flex;gap:12px;
   cursor:pointer;user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,1),
     0 1px 1px rgba(0,0,0,0.03),
@@ -839,6 +841,7 @@ body{
     0 24px 64px rgba(0,0,0,0.05);
   transform:translateY(-2px);
 }
+.call-row:active{transform:none;}
 .call-row.done{opacity:.36;cursor:default;filter:grayscale(15%);}
 .call-row.hidden{display:none;}
 .av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
@@ -955,22 +958,22 @@ body{
 .modal{
   background:var(--white);border-radius:20px;
   width:100%;max-width:460px;
-  max-height:min(88vh,calc(100dvh - 24px));
+  max-height:min(84vh,calc(100dvh - 20px));
   box-shadow:0 16px 48px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.06);
   animation:fadeUp .3s cubic-bezier(.16,1,.3,1) both;
   -webkit-overflow-scrolling:touch;
   display:flex;flex-direction:column;overflow:hidden;
 }
 .modal-shell{display:flex;flex-direction:column;min-height:0;max-height:inherit;}
-.modal-head{padding:22px 22px 12px;border-bottom:1px solid transparent;display:flex;flex-direction:column;gap:4px;}
+.modal-head{padding:18px 18px 10px;border-bottom:1px solid transparent;display:flex;flex-direction:column;gap:3px;}
 .modal-head.with-divider{border-bottom-color:var(--gray100);}
-.modal-body{padding:0 22px 18px;overflow:auto;min-height:0;flex:1;}
-.modal-footer{padding:14px 22px 18px;border-top:1px solid var(--gray100);display:flex;gap:8px;justify-content:flex-end;background:var(--white);}
+.modal-body{padding:0 18px 14px;overflow:auto;overflow-x:hidden;min-height:0;flex:1;}
+.modal-footer{padding:10px 18px 14px;border-top:1px solid var(--gray100);display:flex;gap:8px;justify-content:flex-end;background:var(--white);}
 .modal--confirm .modal-head{padding-bottom:8px;}
 .modal--confirm .modal-body{padding-top:0;padding-bottom:10px;}
 .modal--confirm .modal-footer{padding-top:10px;}
-.modal--form{max-width:540px;}
-.modal--form .modal-body{padding-top:4px;}
+.modal--form{max-width:520px;}
+.modal--form .modal-body{padding-top:2px;}
 .modal--compact{max-width:420px;}
 .modal h3{
   font-family:var(--font-display);
@@ -982,7 +985,7 @@ body{
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
-.modal-sub{font-size:12.5px;color:var(--gray400);margin-bottom:18px;}
+.modal-sub{font-size:12px;color:var(--gray400);margin-bottom:12px;line-height:1.45;}
 .modal-existing{
   background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;
   padding:12px 14px;font-size:12px;color:var(--gray600);margin-bottom:14px;line-height:1.55;
@@ -990,21 +993,21 @@ body{
 .modal-existing strong{font-size:11px;color:var(--gray400);display:block;margin-bottom:3px;}
 .modal textarea{
   width:100%;min-height:96px;border:1.5px solid var(--gray200);border-radius:12px;
-  padding:12px 16px;font-size:13px;font-family:inherit;resize:vertical;outline:none;
+  padding:11px 13px;font-size:13px;font-family:inherit;resize:vertical;outline:none;
   color:var(--gray900);transition:border-color var(--transition-fast);
 }
 .modal textarea:focus{border-color:#1A6FE8;box-shadow:0 0 0 3px rgba(26,111,232,.06);}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;}
 .btn-modal-save{
   background:var(--blue);color:var(--white);border:none;border-radius:10px;
-  padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+  padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;
   transition:all var(--transition-fast);box-shadow:0 1px 3px rgba(26,111,232,.12);
 }
 .btn-modal-save:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
 .btn-modal-save:disabled{opacity:.5;cursor:default;transform:none;}
 .btn-modal-cancel{
   background:var(--white);color:var(--gray600);border:1px solid var(--gray200);
-  border-radius:10px;padding:10px 18px;font-size:13px;cursor:pointer;font-family:inherit;
+  border-radius:10px;padding:9px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;
   transition:all var(--transition-fast);
 }
 .btn-modal-cancel:hover{background:var(--gray50);border-color:var(--gray400);}
@@ -1163,11 +1166,12 @@ body{
 .focus-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
 .focus-value{font-size:24px;font-weight:800;font-family:var(--font-display);line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
-.followup-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 14px;}
+.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0 0 12px;}
+.followup-field{min-width:0;}
 .followup-field label{display:block;font-size:11.5px;font-weight:600;color:var(--gray600);margin-bottom:6px;}
-.followup-field select,.followup-field input{width:100%;padding:10px 14px;border:1.5px solid var(--gray200);border-radius:12px;background:var(--gray50);font-size:13px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
+.followup-field select,.followup-field input{width:100%;max-width:100%;padding:10px 12px;border:1.5px solid var(--gray200);border-radius:12px;background:var(--gray50);font-size:13px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
 .followup-field select:focus,.followup-field input:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
-.followup-mark-row{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.followup-mark-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
 .followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray900);}
 .followup-mark-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--green);}
 .meta-pill{margin-right:6px;margin-top:2px;}
@@ -1368,12 +1372,15 @@ body{
 .dash-kpi{
   background:var(--white);
   border:1px solid #E8EEF8;
-  border-radius:16px;padding:14px 14px;cursor:pointer;
+  border-radius:16px;padding:14px 14px;cursor:default;
   box-shadow:0 4px 16px rgba(13,31,60,0.08);
   transition:all 0.22s cubic-bezier(0.16,1,0.3,1);
+  -webkit-tap-highlight-color:transparent;
 }
-.dash-kpi:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(13,31,60,0.12);border-color:#D7E3F7;}
-.dash-kpi:active{transform:translateY(0);}
+.dash-kpi.is-interactive{cursor:pointer;}
+.dash-kpi.is-interactive:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(13,31,60,0.12);border-color:#D7E3F7;}
+.dash-kpi.is-interactive:active{transform:translateY(0);}
+.dash-kpi.is-static:hover{transform:none;box-shadow:0 4px 16px rgba(13,31,60,0.08);border-color:#E8EEF8;}
 .dash-kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:6px;}
 .dash-kpi-val{font-family:var(--font-display);font-size:24px;font-weight:800;line-height:1;color:#1A6FE8;margin-bottom:4px;letter-spacing:-.04em;}
 .dash-kpi-sub{font-size:10.5px;color:#9CA3AF;line-height:1.4;}
@@ -1884,6 +1891,9 @@ body{
 #tab-anrufe .call-row:hover,#tab-rueckrufe .call-row:hover,#tab-archiv .call-row:hover{
   background:rgba(0,0,0,0.02)!important;transform:none!important;
 }
+#tab-anrufe .call-row:active,#tab-rueckrufe .call-row:active,#tab-archiv .call-row:active{
+  background:rgba(26,111,232,0.06)!important;transform:none!important;
+}
 #tab-anrufe .call-row.expanded,#tab-rueckrufe .call-row.expanded,#tab-archiv .call-row.expanded{
   background:rgba(255,255,255,0.5)!important;transform:none!important;
 }
@@ -1897,9 +1907,10 @@ body{
   width:34px;height:34px;border-radius:50%;border:none;
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
   transition:all 0.15s cubic-bezier(0.16,1,0.3,1);
 }
-.btn-icon:active{transform:scale(0.9);}
+.btn-icon:active{transform:scale(0.96);}
 .btn-icon-call{
   background:#22C55E;
   box-shadow:0 2px 8px rgba(34,197,94,0.35);
@@ -2160,22 +2171,22 @@ body{
 
               <!-- KPI KACHELN -->
               <div class="dash-kpi-row">
-                <div class="dash-kpi" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
+                <div class="dash-kpi is-interactive" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
                   <div class="dash-kpi-label">Neue Anfragen</div>
                   <div class="dash-kpi-val" id="kpi-heute">–</div>
                   <div class="dash-kpi-trend neutral" id="kpi-heute-trend"></div>
                 </div>
-                <div class="dash-kpi" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">
+                <div class="dash-kpi is-interactive" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">
                   <div class="dash-kpi-label">Offene Aufgaben</div>
                   <div class="dash-kpi-val" id="kpi-callbacks">–</div>
                   <div class="dash-kpi-trend neutral" id="kpi-callbacks-trend"></div>
                 </div>
-                <div class="dash-kpi" onclick="document.getElementById('dash-followup-section').scrollIntoView({behavior:'smooth'})">
+                <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label">Erledigt heute</div>
                   <div class="dash-kpi-val" id="kpi-followups">–</div>
                   <div class="dash-kpi-trend neutral" id="kpi-followups-trend"></div>
                 </div>
-                <div class="dash-kpi" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
+                <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label">Aktivität</div>
                   <div class="dash-kpi-val" id="kpi-leads">–</div>
                   <div class="dash-kpi-leads" id="kpi-leads-dots"></div>
@@ -3115,7 +3126,7 @@ function validateSupabaseConfig() {
   return { ok:true, message:'' };
 }
 
-const PLAN_CONFIG = {
+const DEFAULT_PLAN_CONFIG = {
   'Kein Plan':     {monthlyPrice:0,   minutes:0,   extraRate:0},
   'Starter':       {monthlyPrice:149, minutes:120, extraRate:0.75},
   'Business':      {monthlyPrice:299, minutes:300, extraRate:0.75},
@@ -3123,6 +3134,39 @@ const PLAN_CONFIG = {
   'Pilot':         {monthlyPrice:49,  minutes:60,  extraRate:0.90},
   'Professional':  {monthlyPrice:549, minutes:400, extraRate:0.60}
 };
+let PLAN_CONFIG = Object.assign({}, DEFAULT_PLAN_CONFIG);
+
+function normalizePlanLabel(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function getPlanConfigEntryForPlan(planName) {
+  const current = String(planName || '').trim();
+  if (PLAN_CONFIG[current]) return PLAN_CONFIG[current];
+  const normalizedCurrent = normalizePlanLabel(current);
+  const key = Object.keys(PLAN_CONFIG).find(function(name) {
+    return normalizePlanLabel(name) === normalizedCurrent;
+  });
+  return key ? PLAN_CONFIG[key] : null;
+}
+
+function getSortedUpgradePlans() {
+  return Object.keys(PLAN_CONFIG).map(function(name) {
+    const cfg = PLAN_CONFIG[name] || {};
+    return {
+      key: name,
+      label: name,
+      monthlyPrice: Number(cfg.monthlyPrice || 0),
+      minutes: Number(cfg.minutes || 0),
+      extraRate: Number(cfg.extraRate || 0)
+    };
+  }).filter(function(plan) {
+    return plan.monthlyPrice > 0 || plan.minutes > 0;
+  }).sort(function(a, b) {
+    if (a.monthlyPrice !== b.monthlyPrice) return a.monthlyPrice - b.monthlyPrice;
+    return a.minutes - b.minutes;
+  });
+}
 
 // Load plan config from Supabase and override local defaults
 async function loadPlanConfigFromSupabase() {
@@ -3131,8 +3175,11 @@ async function loadPlanConfigFromSupabase() {
     if (!sb) return;
     const { data, error } = await sb.from('plan_config').select('*').eq('active', true);
     if (error || !data || !data.length) return;
+    PLAN_CONFIG = Object.assign({}, DEFAULT_PLAN_CONFIG);
     data.forEach(function(p) {
-      PLAN_CONFIG[p.name] = {
+      const planName = String(p.name || p.display_name || p.id || '').trim();
+      if (!planName) return;
+      PLAN_CONFIG[planName] = {
         monthlyPrice: p.monthly_price || 0,
         minutes: p.minutes || 0,
         extraRate: p.extra_rate || 0
@@ -4041,7 +4088,7 @@ async function loadCustomerMeta() {
 }
 
 function renderUsage(records) {
-  const cfg = PLAN_CONFIG[customerMeta.plan] || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0};
+  const cfg = getPlanConfigEntryForPlan(customerMeta.plan) || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0};
   const now = new Date();
 
   // Compute billing period start from subscription start date (monthly anniversary)
@@ -4105,7 +4152,11 @@ function renderUsage(records) {
   const upTitle = document.getElementById('upgrade-primary-title');
   const upCopy = document.getElementById('upgrade-primary-copy');
   const addCopy = document.getElementById('upgrade-addon-copy');
-  const nextPlan = customerMeta.plan === 'Kein Plan' ? 'Starter' : customerMeta.plan === 'Starter' ? 'Business' : customerMeta.plan === 'Business' ? 'Pro' : 'Pro';
+  const allPlans = getSortedUpgradePlans();
+  const currentCfg = getPlanConfigEntryForPlan(customerMeta.plan) || { monthlyPrice: 0, minutes: 0 };
+  const nextPlan = (allPlans.find(function(plan) {
+    return plan.monthlyPrice > Number(currentCfg.monthlyPrice || 0) || plan.minutes > Number(currentCfg.minutes || 0);
+  }) || allPlans[allPlans.length - 1] || { label: customerMeta.plan || 'Business' }).label;
   if (upTitle) upTitle.textContent = over > 0 || pct >= 85 ? `Upgrade auf ${nextPlan}` : `Mehr Leistung mit ${nextPlan}`;
   if (upCopy) upCopy.textContent = over > 0 ? `Sie sind über Ihrem Inklusivvolumen. Ein Upgrade auf ${nextPlan} reduziert Zusatzkosten und schafft Reserve.` : pct >= 80 ? `Sie nutzen Ihr Paket bereits stark aus. ${nextPlan} bietet mehr Minuten und Reserve für Spitzenzeiten.` : `Ihr aktueller Plan läuft stabil. Ein Upgrade auf ${nextPlan} lohnt sich bei wachsendem Anrufvolumen.`;
   if (addCopy) addCopy.textContent = over > 0 ? `Aktuell ca. ${over} Zusatzminuten über dem Paket. Zusatzvolumen kann kurzfristig ergänzt werden.` : `Zusatzminuten sind ideal für Kampagnen, saisonale Peaks oder kurze Lastspitzen.`;
@@ -4117,17 +4168,24 @@ var selectedMinutesPkg = '';
 function requestUpgrade() {
   selectedUpgradePlan = '';
   var current = customerMeta.plan || 'Pilot';
-  var plans = [
-    {key:'Starter', label:'Starter', price:'149 CHF/Mt', min:'120 Min'},
-    {key:'Business', label:'Business', price:'299 CHF/Mt', min:'300 Min'},
-    {key:'Pro', label:'Pro', price:'499 CHF/Mt', min:'600 Min'}
-  ];
-  var html = plans.filter(function(p){ return p.key !== current; }).map(function(p){
+  var currentCfg = getPlanConfigEntryForPlan(current) || { monthlyPrice: 0, minutes: 0 };
+  var plans = getSortedUpgradePlans().filter(function(plan) {
+    if (normalizePlanLabel(plan.key) === normalizePlanLabel(current)) return false;
+    return plan.monthlyPrice >= Number(currentCfg.monthlyPrice || 0) || plan.minutes > Number(currentCfg.minutes || 0);
+  });
+  var html = plans.map(function(p){
+    var monthlyPrice = Number(p.monthlyPrice || 0);
+    var minutes = Number(p.minutes || 0);
+    var priceLabel = monthlyPrice > 0 ? (monthlyPrice + ' CHF/Mt') : 'Preis auf Anfrage';
+    var minLabel = minutes > 0 ? (minutes + ' Min') : 'ohne Minutenlimit';
     return '<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--gray200);border-radius:10px;cursor:pointer;transition:all .15s;" onclick="this.querySelector(\'input\').checked=true;selectedUpgradePlan=\''+p.key+'\';document.querySelectorAll(\'#upgrade-options label\').forEach(function(l){l.style.borderColor=\'var(--gray200)\';l.style.background=\'\'});this.style.borderColor=\'var(--blue)\';this.style.background=\'var(--blue-light)\'">'
       +'<input type="radio" name="upgrade-plan" value="'+p.key+'" style="accent-color:#1A6FE8;width:16px;height:16px;">'
-      +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+p.label+'</div><div style="font-size:12px;color:var(--gray400);">'+p.price+' · '+p.min+' inkl.</div></div>'
+      +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+p.label+'</div><div style="font-size:12px;color:var(--gray400);">'+priceLabel+' · '+minLabel+' inkl.</div></div>'
       +'</label>';
   }).join('');
+  if (!html) {
+    html = '<div style="font-size:12.5px;color:var(--gray500);line-height:1.5;padding:6px 2px;">Für Ihren aktuellen Plan ist momentan kein höheres Paket verfügbar. Kontaktieren Sie uns für individuelle Optionen.</div>';
+  }
   document.getElementById('upgrade-options').innerHTML = '<div style="font-size:12px;color:var(--gray400);margin-bottom:4px;">Aktuell: <strong>'+current+'</strong></div>' + html;
   document.getElementById('upgrade-overlay').classList.add('open');
   syncOverlayScrollLock();
@@ -5266,7 +5324,7 @@ function openDetail(recordId) {
           <div class="detail-title">Nächste Schritte</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">${callCardBadgeHtml(rec, { includeMetaQuality: true })}</div>
           <div class="detail-actions">
-            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')">Jetzt zurückrufen</a>` : ''}
+            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><i data-lucide="phone-call" style="width:14px;height:14px;stroke-width:2.2;" aria-hidden="true"></i>Jetzt zurückrufen</a>` : ''}
             <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up</button>
             <button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz</button>
           </div>
