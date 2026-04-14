@@ -5337,6 +5337,7 @@ function isForwardingActivated() {
 // Resets the activation test state when the user changes setup during pending_test.
 async function resetActivationTestContext(recId, context) {
   stopActivationPolling();
+  clearActivationFreshRunTracking();
   candidateCall = null;
   activationFlowSuccessToken = '';
   await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null, activation_test_mode: null, activation_test_candidate_call_id: null });
@@ -5781,6 +5782,7 @@ async function activationSkipTest(event) {
       context.customerRecord.activation_test_mode = customerMeta.activationTestMode || 'system_call';
       context.customerRecord.activation_test_candidate_call_id = customerMeta.activationTestOutboundCallId || null;
     }
+    clearActivationFreshRunTracking();
     candidateCall = null;
     activationFlowSuccessToken = '';
     stopActivationPolling();
@@ -5979,6 +5981,10 @@ var activationSystemCallError = '';
 var activationSystemCallTriggerInFlight = false;
 var activationStartTriggerInFlight = false;
 var activationRunStartLocalIso = '';
+var activationFreshRunState = {
+  startedAt: '',
+  awaitingPersistence: false
+};
 
 function getCandidateCallToken(call) {
   if (!call) return '';
@@ -6056,6 +6062,51 @@ function resetActivationTestRunState(){
   activationFlowSuccessToken = '';
   activationSystemCallError = '';
   customerMeta.activationTestOutboundCallId = null;
+}
+
+function clearActivationToastState(){
+  var el = document.getElementById('toast');
+  if (!el) return;
+  try { clearTimeout(el._toastTimer); } catch(e) {}
+  el.classList.remove('show');
+}
+
+function clearActivationRunErrorStorage(){
+  var keys = [
+    getSetupStorageKey('voxera_activation_error'),
+    getSetupStorageKey('voxera_activation_retry_flag'),
+    getSetupStorageKey('voxera_activation_recovery_flag'),
+    'voxera_activation_error',
+    'voxera_activation_retry_flag',
+    'voxera_activation_recovery_flag'
+  ];
+  [window.localStorage, window.sessionStorage].forEach(function(storage){
+    if (!storage) return;
+    try { keys.forEach(function(key){ storage.removeItem(key); }); } catch(e) {}
+  });
+}
+
+function clearActivationStateForRunStart(){
+  clearActivationStateForNewRunStart();
+  clearActivationTransientState();
+  clearActivationRunErrorStorage();
+  clearActivationToastState();
+  activationFreshRunState.startedAt = '';
+  activationFreshRunState.awaitingPersistence = false;
+}
+
+function markActivationFreshRunStarted(startedAtIso){
+  activationFreshRunState.startedAt = startedAtIso || '';
+  activationFreshRunState.awaitingPersistence = true;
+}
+
+function markActivationFreshRunPersisted(){
+  activationFreshRunState.awaitingPersistence = false;
+}
+
+function clearActivationFreshRunTracking(){
+  activationFreshRunState.startedAt = '';
+  activationFreshRunState.awaitingPersistence = false;
 }
 
 function clearActivationStateForNewRunStart(){
@@ -6271,7 +6322,8 @@ async function activationStartSmartphone(event, code) {
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
     var now = new Date().toISOString();
-    clearActivationStateForNewRunStart();
+    clearActivationStateForRunStart();
+    markActivationFreshRunStarted(now);
     activationRunStartLocalIso = now;
     customerMeta.forwardingStatus = 'pending_test';
     customerMeta.activationStartedAt = now;
@@ -6288,6 +6340,7 @@ async function activationStartSmartphone(event, code) {
       context.customerRecord.activation_test_mode = 'system_call';
       context.customerRecord.activation_test_candidate_call_id = null;
     }
+    markActivationFreshRunPersisted();
     activationRunStartLocalIso = '';
     // Step 2: rerender UI (pending_test card is now shown)
     renderActivationV2();
@@ -6297,6 +6350,7 @@ async function activationStartSmartphone(event, code) {
     if (code) window.location.href = 'tel:' + code;
   } catch(e) {
     console.error('activationStartSmartphone failed', e);
+    clearActivationFreshRunTracking();
     activationRunStartLocalIso = '';
     customerMeta.forwardingStatus = previousStatus;
     customerMeta.activationStartedAt = previousStartedAt;
@@ -6323,7 +6377,8 @@ async function activationStartLandlineTest(event) {
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
     var now = new Date().toISOString();
-    clearActivationStateForNewRunStart();
+    clearActivationStateForRunStart();
+    markActivationFreshRunStarted(now);
     activationRunStartLocalIso = now;
     customerMeta.forwardingStatus = 'pending_test';
     customerMeta.activationStartedAt = now;
@@ -6339,11 +6394,13 @@ async function activationStartLandlineTest(event) {
       context.customerRecord.activation_test_mode = 'system_call';
       context.customerRecord.activation_test_candidate_call_id = null;
     }
+    markActivationFreshRunPersisted();
     activationRunStartLocalIso = '';
     renderActivationV2();
     startActivationPolling();
   } catch(e) {
     console.error('activationStartLandlineTest failed', e);
+    clearActivationFreshRunTracking();
     activationRunStartLocalIso = '';
     customerMeta.forwardingStatus = previousStatus;
     customerMeta.activationStartedAt = previousStartedAt;
@@ -6387,6 +6444,7 @@ async function confirmActivationTestCall(event) {
       context.customerRecord.activation_test_mode = customerMeta.activationTestMode || 'system_call';
       context.customerRecord.activation_test_candidate_call_id = customerMeta.activationTestOutboundCallId || null;
     }
+    clearActivationFreshRunTracking();
     candidateCall = null;
     activationFlowSuccessToken = '';
     stopActivationPolling();
@@ -6497,6 +6555,7 @@ async function activationDeactivateFast(event) {
       context.customerRecord.activation_test_candidate_call_id = null;
     }
     candidateCall = null;
+    clearActivationFreshRunTracking();
     stopActivationPolling();
     toast('Weiterleitung deaktiviert.');
     renderActivationV2();
@@ -7141,11 +7200,18 @@ function shouldGateToActivationV2(){
 }
 
 function deriveActivationUiState(){
-  if (activationRunStartLocalIso && activationStartTriggerInFlight) return 'pending_test';
+  var localRunStartedAt = activationFreshRunState.startedAt || activationRunStartLocalIso || '';
+  if (localRunStartedAt && (activationStartTriggerInFlight || activationFreshRunState.awaitingPersistence)) return 'pending_test';
   var status = (customerMeta && customerMeta.forwardingStatus) ? String(customerMeta.forwardingStatus) : 'not_started';
   if (status === 'active') return 'active';
   if (status === 'inactive') return 'inactive';
   if (status === 'pending_test') {
+    if (localRunStartedAt) {
+      var matchesFreshRun = customerMeta && customerMeta.activationStartedAt === localRunStartedAt;
+      var freshRunGraceWindowMs = 2 * 60 * 1000;
+      var freshRunAgeMs = Date.now() - new Date(localRunStartedAt).getTime();
+      if (matchesFreshRun || (Number.isFinite(freshRunAgeMs) && freshRunAgeMs < freshRunGraceWindowMs)) return 'pending_test';
+    }
     if (!candidateCall && isActivationTestTimedOut()) return 'failed';
     return 'pending_test';
   }
@@ -7162,6 +7228,15 @@ function deriveActivationV2Phase(uiState){
   if (uiState === 'active') return 'active';
   if (uiState === 'failed' || uiState === 'inactive') return 'failed';
   return 'preferences_selected';
+}
+
+function getActivationRenderState(){
+  var uiState = deriveActivationUiState();
+  return {
+    uiState: uiState,
+    phase: deriveActivationV2Phase(uiState),
+    hero: activationUiContentByState(uiState)
+  };
 }
 
 function inferActivationV2Step(){
@@ -7421,6 +7496,7 @@ function closeActivationResetFlow(event){
 
 async function performActivationInternalReset(successMessage) {
   clearActivationTransientState();
+  clearActivationFreshRunTracking();
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
@@ -7664,10 +7740,11 @@ function renderActivationV2(){
   syncActivationPersistedState();
   restoreActivationV2Step();
   var step = activationV2StepState.step;
-  var uiState = deriveActivationUiState();
-  var phase = deriveActivationV2Phase(uiState);
+  var renderState = getActivationRenderState();
+  var uiState = renderState.uiState;
+  var phase = renderState.phase;
   activationV2FlowState.currentTestPhase = phase;
-  var hero = activationUiContentByState(uiState);
+  var hero = renderState.hero;
   var effectiveDevice = getActivationV2EffectiveDevice();
   var effectiveMode = getActivationV2EffectiveMode();
   var device = effectiveDevice === 'mobile' ? 'Smartphone' : (effectiveDevice === 'landline' ? 'Festnetz / Telefonanlage' : 'Nicht gewählt');
