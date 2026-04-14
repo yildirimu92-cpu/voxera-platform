@@ -3758,7 +3758,7 @@ async function loadData() {
       stopActivationPolling();
     }
 
-    renderActivationModule();
+    renderActivationV2();
 
     document.getElementById('dash-loading').style.display = 'none';
     routeDashboardFirstSessionExperience();
@@ -4971,6 +4971,11 @@ function openHelpSection(anchorId) {
   });
 }
 
+function openActivationInlineHelp(event) {
+  if (event) event.stopPropagation();
+  openSetupHelpOverlay(event, 'forwarding');
+}
+
 function getDialableVoxeraNumber() {
   var raw = (customerMeta && customerMeta.voxeraNumber) ? String(customerMeta.voxeraNumber) : '';
   var clean = raw.replace(/\s+/g, '').trim();
@@ -5325,7 +5330,7 @@ async function resetActivationTestContext(recId, context) {
     context.customerRecord.activation_test_candidate_call_id = null;
   }
   toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.');
-  renderActivationModule();
+  renderActivationV2();
 }
 
 async function persistSetupDeviceType(type) {
@@ -5670,7 +5675,7 @@ function renderActivationActionCard(meta) {
       helpBtn.type = 'button';
       helpBtn.className = 'act-action-btn-primary';
       helpBtn.textContent = 'Anleitung anzeigen';
-      helpBtn.addEventListener('click', function(e) { e.stopPropagation(); openHelpSection('forwarding'); });
+      helpBtn.addEventListener('click', function(e) { e.stopPropagation(); openActivationInlineHelp(e); });
       btnsEl.appendChild(helpBtn);
       var startTestBtn = document.createElement('button');
       startTestBtn.type = 'button';
@@ -5759,7 +5764,7 @@ async function activationSkipTest(event) {
     activationFlowSuccessToken = '';
     stopActivationPolling();
     toast('Rufumleitung erfolgreich aktiviert.');
-    renderActivationModule();
+    renderActivationV2();
     scrollToStatusCard();
     triggerStatusHighlight('success');
   } catch(e) {
@@ -5884,14 +5889,14 @@ function openActivationDeactivateSection() {
 async function activationSelectDevice(event, type) {
   if (event) event.stopPropagation();
   var result = await persistSetupDeviceType(type);
-  if (result) renderActivationModule();
+  if (result) renderActivationV2();
   return !!result;
 }
 
 async function activationSelectMode(event, mode) {
   if (event) event.stopPropagation();
   var ok = await persistForwardingMode(mode);
-  if (ok) renderActivationModule();
+  if (ok) renderActivationV2();
   return !!ok;
 }
 
@@ -5910,7 +5915,7 @@ async function activationConfirmDeactivation(event) {
   var ok = await persistForwardingStatus('inactive');
   if (ok) {
     toast('Rufumleitung erfolgreich deaktiviert.');
-    renderActivationModule();
+    renderActivationV2();
     scrollToStatusCard();
     triggerStatusHighlight('neutral');
   } else {
@@ -6099,7 +6104,7 @@ function startActivationPolling() {
     }
     if (isActivationTestTimedOut()) {
       stopActivationPolling();
-      renderActivationModule();
+      renderActivationV2();
       return;
     }
     loadData().catch(function(err){ console.error('[activation-polling] loadData failed:', err); });
@@ -6135,7 +6140,7 @@ async function activationStartSmartphone(event, code) {
       context.customerRecord.activation_test_candidate_call_id = null;
     }
     // Step 2: rerender UI (pending_test card is now shown)
-    renderActivationModule();
+    renderActivationV2();
     // Step 3: start lightweight polling to detect the candidate call
     startActivationPolling();
     // Step 4: only after state is safely persisted, open the dialer
@@ -6169,7 +6174,7 @@ async function activationStartLandlineTest(event) {
       context.customerRecord.activation_test_mode = 'system_call';
       context.customerRecord.activation_test_candidate_call_id = null;
     }
-    renderActivationModule();
+    renderActivationV2();
     var started = await startSystemActivationTestCall(event);
     if (!started) {
       await patchCustomerRecord(recId, { forwarding_status: 'not_started' });
@@ -6177,7 +6182,7 @@ async function activationStartLandlineTest(event) {
       if (context && context.customerRecord) {
         context.customerRecord.forwarding_status = 'not_started';
       }
-      renderActivationModule();
+      renderActivationV2();
       return;
     }
   } catch(e) {
@@ -6223,7 +6228,7 @@ async function confirmActivationTestCall(event) {
     activationFlowSuccessToken = '';
     stopActivationPolling();
     toast('Rufumleitung erfolgreich aktiviert.');
-    renderActivationModule();
+    renderActivationV2();
     scrollToStatusCard();
     triggerStatusHighlight('success');
   } catch(e) {
@@ -6238,14 +6243,14 @@ function rejectActivationTestCall(event) {
   candidateCall = null;
   activationFlowSuccessToken = '';
   // Keep polling – user wants to retry the test call
-  renderActivationModule();
+  renderActivationV2();
 }
 
 async function startSystemActivationTestCall(event) {
   if (event) event.stopPropagation();
   activationSystemCallError = '';
   activationSystemCallPending = true;
-  renderActivationModule();
+  renderActivationV2();
   try {
     const json = await callDashboardFunction('activation-start-system-test-call', {});
     var outboundId = json && json.activation_test && json.activation_test.outbound_call_id ? String(json.activation_test.outbound_call_id) : '';
@@ -6256,14 +6261,14 @@ async function startSystemActivationTestCall(event) {
     stopActivationPolling();
     startActivationPolling();
     loadData().catch(function(err){ console.error('[system-test-call] loadData failed:', err); });
-    renderActivationModule();
+    renderActivationV2();
     return true;
   } catch (e) {
     console.error('startSystemActivationTestCall failed', e);
     activationSystemCallPending = false;
     activationSystemCallError = (e && e.message) ? String(e.message) : 'Testanruf konnte nicht gestartet werden.';
     toast('System-Testanruf konnte nicht gestartet werden: ' + activationSystemCallError);
-    renderActivationModule();
+    renderActivationV2();
     return false;
   }
 }
@@ -6853,50 +6858,40 @@ function shouldShowSetupOnLogin(context){
 const ACTIVATION_V2_ENABLED = true;
 const ONBOARDING_TOTAL_STEPS = 3;
 var activationV2StepState = { step: 1 };
+var activationPersistedState = {
+  deviceType: null,
+  forwardingMode: null,
+  forwardingStatus: 'not_started',
+  activationStartedAt: null
+};
 var activationV2FlowState = {
   currentStep: 1,
-  confirmedDeviceType: null,
-  confirmedForwardingMode: null,
-  activationPhase: 'preferences_pending',
-  ignorePersistedSelections: false
+  selectedDeviceType: null,
+  selectedForwardingMode: null,
+  currentTestPhase: 'preferences_pending'
 };
 
-function getActivationV2StorageKey(suffix){
-  return getSetupStorageKey('voxera_activation_v2_' + suffix);
+function syncActivationPersistedState() {
+  activationPersistedState.deviceType = (customerMeta && customerMeta.setupDeviceType) || null;
+  activationPersistedState.forwardingMode = (customerMeta && customerMeta.forwardingMode) || null;
+  activationPersistedState.forwardingStatus = (customerMeta && customerMeta.forwardingStatus) || 'not_started';
+  activationPersistedState.activationStartedAt = (customerMeta && customerMeta.activationStartedAt) || null;
 }
 
-function restoreActivationV2FlowState(){
-  try {
-    activationV2FlowState.confirmedDeviceType = localStorage.getItem(getActivationV2StorageKey('confirmed_device')) || null;
-    activationV2FlowState.confirmedForwardingMode = localStorage.getItem(getActivationV2StorageKey('confirmed_mode')) || null;
-  } catch(e) {
-    activationV2FlowState.confirmedDeviceType = null;
-    activationV2FlowState.confirmedForwardingMode = null;
-  }
-}
-
-function persistActivationV2FlowState(){
-  try {
-    if (activationV2FlowState.confirmedDeviceType) localStorage.setItem(getActivationV2StorageKey('confirmed_device'), activationV2FlowState.confirmedDeviceType);
-    else localStorage.removeItem(getActivationV2StorageKey('confirmed_device'));
-    if (activationV2FlowState.confirmedForwardingMode) localStorage.setItem(getActivationV2StorageKey('confirmed_mode'), activationV2FlowState.confirmedForwardingMode);
-    else localStorage.removeItem(getActivationV2StorageKey('confirmed_mode'));
-  } catch(e) {}
-}
-
-function clearActivationV2ModeConfirmation(){
-  activationV2FlowState.confirmedForwardingMode = null;
-  persistActivationV2FlowState();
+function resetActivationFlowState() {
+  activationV2FlowState.selectedDeviceType = null;
+  activationV2FlowState.selectedForwardingMode = null;
+  activationV2FlowState.currentStep = 1;
+  activationV2FlowState.currentTestPhase = 'preferences_pending';
+  activationV2StepState.step = 1;
 }
 
 function getActivationV2EffectiveDevice(){
-  if (activationV2FlowState.ignorePersistedSelections) return activationV2FlowState.confirmedDeviceType || null;
-  return activationV2FlowState.confirmedDeviceType || (customerMeta && customerMeta.setupDeviceType) || null;
+  return activationV2FlowState.selectedDeviceType || activationPersistedState.deviceType || null;
 }
 
 function getActivationV2EffectiveMode(){
-  if (activationV2FlowState.ignorePersistedSelections) return activationV2FlowState.confirmedForwardingMode || null;
-  return activationV2FlowState.confirmedForwardingMode || (customerMeta && customerMeta.forwardingMode) || null;
+  return activationV2FlowState.selectedForwardingMode || activationPersistedState.forwardingMode || null;
 }
 
 function isActivationV2Skipped(){
@@ -6928,7 +6923,7 @@ function deriveActivationUiState(){
 }
 
 function deriveActivationV2Phase(uiState){
-  var hasSelections = !!activationV2FlowState.confirmedDeviceType && !!activationV2FlowState.confirmedForwardingMode;
+  var hasSelections = !!activationV2FlowState.selectedDeviceType && !!activationV2FlowState.selectedForwardingMode;
   if (!hasSelections) return 'preferences_pending';
   if (uiState === 'pending_test') return 'test_pending';
   if (uiState === 'active') return 'active';
@@ -6938,24 +6933,22 @@ function deriveActivationV2Phase(uiState){
 
 function inferActivationV2Step(){
   if (isForwardingActivated()) return 3;
-  if (activationV2FlowState.confirmedDeviceType && activationV2FlowState.confirmedForwardingMode) return 3;
-  if (activationV2FlowState.confirmedDeviceType) return 2;
+  if (activationV2FlowState.selectedDeviceType && activationV2FlowState.selectedForwardingMode) return 3;
+  if (activationV2FlowState.selectedDeviceType) return 2;
+  if (activationPersistedState.deviceType && activationPersistedState.forwardingMode) return 3;
+  if (activationPersistedState.deviceType) return 2;
   return 1;
 }
 
 function getNextActivationStep(){
-  if (activationV2FlowState.confirmedDeviceType && activationV2FlowState.confirmedForwardingMode) return 3;
-  if (activationV2FlowState.confirmedDeviceType) return 2;
+  if (activationV2FlowState.selectedDeviceType && activationV2FlowState.selectedForwardingMode) return 3;
+  if (activationV2FlowState.selectedDeviceType) return 2;
   return 1;
 }
 
 function restoreActivationV2Step(){
   var inferred = inferActivationV2Step();
-  var saved = 0;
-  try { saved = Number(localStorage.getItem(getActivationV2StorageKey('step')) || 0); } catch(e) {}
-  var step = Math.max(1, saved || 1);
-  if (step < inferred) step = inferred;
-  var normalized = Math.min(ONBOARDING_TOTAL_STEPS, step);
+  var normalized = Math.max(1, Math.min(ONBOARDING_TOTAL_STEPS, inferred));
   activationV2StepState.step = normalized;
   activationV2FlowState.currentStep = normalized;
 }
@@ -6963,7 +6956,6 @@ function restoreActivationV2Step(){
 function persistActivationV2Step(step){
   activationV2StepState.step = step;
   activationV2FlowState.currentStep = step;
-  try { localStorage.setItem(getActivationV2StorageKey('step'), String(step)); } catch(e) {}
 }
 
 function goToActivationV2Step(step){
@@ -6989,9 +6981,8 @@ function selectActivationV2Mode(mode){
   activationV2DebugLog('mode selected', { mode: mode });
   activationSelectMode(null, mode).then(function(ok){
     if (ok) {
-      activationV2FlowState.confirmedForwardingMode = mode;
-      activationV2DebugLog('selected mode saved', { confirmedMode: mode });
-      persistActivationV2FlowState();
+      activationV2FlowState.selectedForwardingMode = mode;
+      activationV2DebugLog('selected mode saved', { selectedMode: mode });
       persistActivationV2Step(3);
     }
     renderActivationV2();
@@ -7004,11 +6995,10 @@ function selectActivationV2Device(type){
   activationV2DebugLog('device selected', { type: type });
   activationSelectDevice(null, type).then(function(result){
     if (result) {
-      var previousDevice = activationV2FlowState.confirmedDeviceType;
-      activationV2FlowState.confirmedDeviceType = type;
-      activationV2DebugLog('selected device saved', { confirmedDevice: type, previousDevice: previousDevice || null });
-      if (previousDevice !== type) clearActivationV2ModeConfirmation();
-      persistActivationV2FlowState();
+      var previousDevice = activationV2FlowState.selectedDeviceType;
+      activationV2FlowState.selectedDeviceType = type;
+      activationV2DebugLog('selected device saved', { selectedDevice: type, previousDevice: previousDevice || null });
+      if (previousDevice !== type) activationV2FlowState.selectedForwardingMode = null;
       persistActivationV2Step(2);
     }
     renderActivationV2();
@@ -7019,9 +7009,6 @@ function selectActivationV2Device(type){
 function activationV2MarkFinishedAndOpenDashboard(){
   try {
     localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');
-    localStorage.removeItem(getActivationV2StorageKey('step'));
-    localStorage.removeItem(getActivationV2StorageKey('confirmed_device'));
-    localStorage.removeItem(getActivationV2StorageKey('confirmed_mode'));
   } catch(e) {}
   var app = document.getElementById('app');
   if (app) app.classList.remove('activation-v2-mode');
@@ -7112,34 +7099,24 @@ function isActivationV2DebugMode(){
 function activationV2StateSnapshot(){
   return {
     step: activationV2StepState.step,
-    confirmedDeviceType: activationV2FlowState.confirmedDeviceType,
-    confirmedForwardingMode: activationV2FlowState.confirmedForwardingMode,
-    ignorePersistedSelections: !!activationV2FlowState.ignorePersistedSelections,
-    setupDeviceType: customerMeta && customerMeta.setupDeviceType,
-    forwardingMode: customerMeta && customerMeta.forwardingMode,
-    forwardingStatus: customerMeta && customerMeta.forwardingStatus,
-    activationStartedAt: customerMeta && customerMeta.activationStartedAt
+    selectedDeviceType: activationV2FlowState.selectedDeviceType,
+    selectedForwardingMode: activationV2FlowState.selectedForwardingMode,
+    persistedDeviceType: activationPersistedState.deviceType,
+    persistedForwardingMode: activationPersistedState.forwardingMode,
+    persistedForwardingStatus: activationPersistedState.forwardingStatus,
+    persistedActivationStartedAt: activationPersistedState.activationStartedAt
   };
 }
 
 function clearActivationV2StorageState(){
-  var activationKeySuffixes = ['step', 'confirmed_device', 'confirmed_mode', 'finished', 'setup_finished'];
   var setupKeySuffixes = ['voxera_setup_steps', 'voxera_setup_finished', 'voxera_setup_reminder_dismissed'];
   [window.localStorage, window.sessionStorage].forEach(function(storage){
     if (!storage) return;
     try {
-      activationKeySuffixes.forEach(function(suffix){
-        storage.removeItem(getActivationV2StorageKey(suffix));
-        storage.removeItem('voxera_activation_v2_' + suffix);
-      });
       setupKeySuffixes.forEach(function(baseKey){
         storage.removeItem(getSetupStorageKey(baseKey));
         storage.removeItem(baseKey);
       });
-      storage.removeItem('confirmed_device');
-      storage.removeItem('confirmed_mode');
-      storage.removeItem('activation_step');
-      storage.removeItem('voxera_activation_step');
       storage.removeItem('voxera_tab');
       storage.removeItem('voxera_last_non_setup_tab');
       storage.removeItem('voxera_just_activated');
@@ -7196,17 +7173,19 @@ async function activationV2RetryFlow(event) {
     candidateCall = null;
     activationFlowGuideToken = '';
     activationFlowSuccessToken = '';
-    await patchCustomerRecord(recId, {
-      forwarding_status: 'not_started',
-      activation_started_at: null,
-      activation_test_mode: null,
-      activation_test_candidate_call_id: null,
+    var resetPayload = {
       setup_device_type: null,
       forwarding_mode: null,
+      forwarding_status: 'not_started',
+      forwarding_setup_completed: false,
+      activation_started_at: null,
+      activated_at: null,
+      activation_test_mode: null,
+      activation_test_candidate_call_id: null,
       last_confirmed_setup_device_type: null,
-      last_confirmed_forwarding_mode: null,
-      forwarding_setup_completed: false
-    });
+      last_confirmed_forwarding_mode: null
+    };
+    await patchCustomerRecord(recId, resetPayload);
     const verifyContext = await resolveCustomerContext();
     var verifyRec = verifyContext && verifyContext.customerRecord ? verifyContext.customerRecord : null;
     var resetPersisted = verifyRec
@@ -7240,9 +7219,9 @@ async function activationV2RetryFlow(event) {
       verifyContext.customerRecord.last_confirmed_forwarding_mode = null;
       verifyContext.customerRecord.forwarding_setup_completed = false;
     }
-    activationV2FlowState.confirmedDeviceType = null;
-    clearActivationV2ModeConfirmation();
+    resetActivationFlowState();
     persistActivationV2Step(1);
+    syncActivationPersistedState();
     renderActivationV2();
     toast('Aktivierung wurde zurückgesetzt. Sie können die Aktivierung jetzt erneut starten.');
   } catch (e) {
@@ -7253,15 +7232,11 @@ async function activationV2RetryFlow(event) {
 
 async function activationV2RestartFlow(event) {
   if (event) event.stopPropagation();
-  clearActivationV2StorageState();
   stopActivationPolling();
   candidateCall = null;
   activationFlowGuideToken = '';
   activationFlowSuccessToken = '';
-  activationV2FlowState.currentStep = 1;
-  activationV2FlowState.confirmedDeviceType = null;
-  activationV2FlowState.confirmedForwardingMode = null;
-  activationV2FlowState.ignorePersistedSelections = true;
+  resetActivationFlowState();
   persistActivationV2Step(1);
   renderActivationV2();
   activationV2DebugLog('flow restarted (local state reset)', activationV2StateSnapshot());
@@ -7269,20 +7244,26 @@ async function activationV2RestartFlow(event) {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) throw new Error('customer record missing');
-    await patchCustomerRecord(recId, {
+    var resetPayload = {
       setup_device_type: null,
       forwarding_mode: null,
-      activation_started_at: null,
       forwarding_status: 'not_started',
+      forwarding_setup_completed: false,
+      activation_started_at: null,
+      activated_at: null,
       activation_test_mode: null,
-      activation_test_candidate_call_id: null
-    });
+      activation_test_candidate_call_id: null,
+      last_confirmed_setup_device_type: null,
+      last_confirmed_forwarding_mode: null
+    };
+    await patchCustomerRecord(recId, resetPayload);
     customerMeta.setupDeviceType = null;
     customerMeta.forwardingMode = null;
     customerMeta.activationStartedAt = null;
     customerMeta.activationTestMode = null;
     customerMeta.activationTestOutboundCallId = null;
     customerMeta.forwardingStatus = 'not_started';
+    customerMeta.forwardingSetupCompleted = false;
     customerMeta.lastConfirmedSetupDeviceType = null;
     customerMeta.lastConfirmedForwardingMode = null;
     if (context && context.customerRecord) {
@@ -7294,7 +7275,10 @@ async function activationV2RestartFlow(event) {
       context.customerRecord.activation_test_candidate_call_id = null;
       context.customerRecord.last_confirmed_setup_device_type = null;
       context.customerRecord.last_confirmed_forwarding_mode = null;
+      context.customerRecord.forwarding_setup_completed = false;
+      context.customerRecord.activated_at = null;
     }
+    syncActivationPersistedState();
     renderActivationV2();
     toast('Einrichtung vollständig zurückgesetzt.');
   } catch (e) {
@@ -7361,7 +7345,7 @@ function bindActivationV2Events(){
         activationStartLandlineTest(event);
         break;
       case 'open-help-forwarding':
-        openHelpSection('forwarding');
+        openActivationInlineHelp(event);
         break;
       case 'confirm-test':
         confirmActivationTestCall(event);
@@ -7399,12 +7383,12 @@ function renderActivationV2(){
   if (!shell) return;
   activationV2DebugLog('state before render', activationV2StateSnapshot());
   bindActivationV2Events();
-  restoreActivationV2FlowState();
+  syncActivationPersistedState();
   restoreActivationV2Step();
   var step = activationV2StepState.step;
   var uiState = deriveActivationUiState();
   var phase = deriveActivationV2Phase(uiState);
-  activationV2FlowState.activationPhase = phase;
+  activationV2FlowState.currentTestPhase = phase;
   var hero = activationUiContentByState(uiState);
   var effectiveDevice = getActivationV2EffectiveDevice();
   var effectiveMode = getActivationV2EffectiveMode();
@@ -7414,17 +7398,17 @@ function renderActivationV2(){
   var voxeraNumber = customerMeta.voxeraNumber || '–';
   var activatedSince = customerMeta.activationStartedAt ? fmtDate(customerMeta.activationStartedAt) : '–';
   var lastCheck = candidateCall && candidateCall.created_at ? fmtDate(candidateCall.created_at) : 'Keine Prüfung';
-  var canProceedStep2 = !!activationV2FlowState.confirmedDeviceType;
-  var canProceedStep3 = !!activationV2FlowState.confirmedForwardingMode;
-  var step3Ready = !!activationV2FlowState.confirmedDeviceType && !!activationV2FlowState.confirmedForwardingMode;
+  var canProceedStep2 = !!activationV2FlowState.selectedDeviceType;
+  var canProceedStep3 = !!activationV2FlowState.selectedForwardingMode;
+  var step3Ready = !!activationV2FlowState.selectedDeviceType && !!activationV2FlowState.selectedForwardingMode;
   var code = getForwardingCode(mode, customerMeta.voxeraNumber || '');
   var codeJson = JSON.stringify(code || '');
   var heroAction = hero.primaryAction || 'go-step';
   var heroValue = hero.primaryValue || '1';
 
   var renderBranch = step === 1 ? 'step_1_device_selection' : (step === 2 ? 'step_2_mode_selection' : 'step_3_activation_actions');
-  var deviceSource = activationV2FlowState.confirmedDeviceType ? 'current_flow' : (customerMeta && customerMeta.setupDeviceType ? 'persisted' : 'none');
-  var modeSource = activationV2FlowState.confirmedForwardingMode ? 'current_flow' : (customerMeta && customerMeta.forwardingMode ? 'persisted' : 'none');
+  var deviceSource = activationV2FlowState.selectedDeviceType ? 'current_flow' : (activationPersistedState.deviceType ? 'persisted' : 'none');
+  var modeSource = activationV2FlowState.selectedForwardingMode ? 'current_flow' : (activationPersistedState.forwardingMode ? 'persisted' : 'none');
   var selectionButtonsRendered = step === 1 || step === 2;
   var continueEnabled = step === 1 ? canProceedStep2 : (step === 2 ? canProceedStep3 : step3Ready);
   if (step === 3 && !step3Ready) renderBranch = 'step_3_blocked_missing_current_flow';
@@ -7444,16 +7428,16 @@ function renderActivationV2(){
 
   if (step === 1) {
     html += '<div class="activation-choice-grid two">'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedDeviceType==='mobile'?'active':'') + '" data-action="select-device" data-value="mobile" aria-pressed="' + (activationV2FlowState.confirmedDeviceType==='mobile'?'true':'false') + '"><div class="activation-choice-title">Smartphone</div><div class="activation-choice-text">Aktivierung direkt am Handy.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedDeviceType==='landline'?'active':'') + '" data-action="select-device" data-value="landline" aria-pressed="' + (activationV2FlowState.confirmedDeviceType==='landline'?'true':'false') + '"><div class="activation-choice-title">Festnetz / Telefonanlage</div><div class="activation-choice-text">Aktivierung über Anlage oder Anbieter.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedDeviceType==='mobile'?'active':'') + '" data-action="select-device" data-value="mobile" aria-pressed="' + (activationV2FlowState.selectedDeviceType==='mobile'?'true':'false') + '"><div class="activation-choice-title">Smartphone</div><div class="activation-choice-text">Aktivierung direkt am Handy.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedDeviceType==='landline'?'active':'') + '" data-action="select-device" data-value="landline" aria-pressed="' + (activationV2FlowState.selectedDeviceType==='landline'?'true':'false') + '"><div class="activation-choice-title">Festnetz / Telefonanlage</div><div class="activation-choice-text">Aktivierung über Anlage oder Anbieter.</div></button>'
       + '</div>'
       + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="2" ' + (!canProceedStep2 ? 'disabled' : '') + '>Weiter</button></div>';
   } else if (step === 2) {
     html += '<div class="activation-choice-grid">'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedForwardingMode==='no_answer'?'active':'') + '" data-action="select-mode" data-value="no_answer" aria-pressed="' + (activationV2FlowState.confirmedForwardingMode==='no_answer'?'true':'false') + '"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Bei Nichtannahme übernimmt Voxera.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedForwardingMode==='unreachable'?'active':'') + '" data-action="select-mode" data-value="unreachable" aria-pressed="' + (activationV2FlowState.confirmedForwardingMode==='unreachable'?'true':'false') + '"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder ohne Netz.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedForwardingMode==='busy'?'active':'') + '" data-action="select-mode" data-value="busy" aria-pressed="' + (activationV2FlowState.confirmedForwardingMode==='busy'?'true':'false') + '"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits telefonieren.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.confirmedForwardingMode==='always'?'active':'') + '" data-action="select-mode" data-value="always" aria-pressed="' + (activationV2FlowState.confirmedForwardingMode==='always'?'true':'false') + '"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle Anrufe direkt an Voxera.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedForwardingMode==='no_answer'?'active':'') + '" data-action="select-mode" data-value="no_answer" aria-pressed="' + (activationV2FlowState.selectedForwardingMode==='no_answer'?'true':'false') + '"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Bei Nichtannahme übernimmt Voxera.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedForwardingMode==='unreachable'?'active':'') + '" data-action="select-mode" data-value="unreachable" aria-pressed="' + (activationV2FlowState.selectedForwardingMode==='unreachable'?'true':'false') + '"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder ohne Netz.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedForwardingMode==='busy'?'active':'') + '" data-action="select-mode" data-value="busy" aria-pressed="' + (activationV2FlowState.selectedForwardingMode==='busy'?'true':'false') + '"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits telefonieren.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedForwardingMode==='always'?'active':'') + '" data-action="select-mode" data-value="always" aria-pressed="' + (activationV2FlowState.selectedForwardingMode==='always'?'true':'false') + '"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle Anrufe direkt an Voxera.</div></button>'
       + '</div>'
       + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="3" ' + (!canProceedStep3 ? 'disabled' : '') + '>Weiter</button></div>';
   } else if (step3Ready) {
@@ -7497,7 +7481,7 @@ function renderActivationV2(){
   } else {
     html += '<div class="activation-warning-banner">Bitte wählen Sie zuerst Gerät und Weiterleitungsart in dieser Einrichtungssitzung.</div>'
       + '<div class="activation-actions">'
-      + '<button type="button" class="activation-btn primary" data-action="go-step" data-value="' + (activationV2FlowState.confirmedDeviceType ? '2' : '1') + '">Zurück zur Auswahl</button>'
+      + '<button type="button" class="activation-btn primary" data-action="go-step" data-value="' + (activationV2FlowState.selectedDeviceType ? '2' : '1') + '">Zurück zur Auswahl</button>'
       + '</div>';
   }
 
