@@ -313,27 +313,30 @@ body{
   box-shadow:8px 0 24px rgba(13,31,60,0.05);
 }
 .sidebar-logo{
-  padding:28px 20px 18px;
+  padding:24px 20px 18px;
   border-bottom:1px solid var(--vx-line);
-  display:flex;align-items:flex-start;justify-content:space-between;
+  display:flex;
+  align-items:center;
 }
-.logo-mark{display:flex;align-items:center;gap:9px;}
-.logo-image{display:block;height:30px;width:auto;object-fit:contain;}
+.sidebar-logo .logo-mark{display:flex;align-items:center;gap:12px;}
+.sidebar-logo .logo-image{display:block;height:30px;width:auto;object-fit:contain;}
+.logo-brand-copy{display:flex;flex-direction:column;justify-content:center;}
 .logo-wordmark{
-  font-size:25px;
+  font-size:22px;
   font-weight:800;
   color:var(--vx-night);
-  letter-spacing:-.04em;
+  text-transform:uppercase;
+  letter-spacing:-.03em;
   line-height:1;
   font-family:var(--font-display,var(--font));
 }
 .logo-sub{
-  font-size:10px;
-  font-weight:600;
+  font-size:9px;
+  font-weight:500;
   color:var(--vx-muted);
   text-transform:uppercase;
-  letter-spacing:.3em;
-  margin-top:8px;
+  letter-spacing:.34em;
+  margin-top:6px;
   line-height:1;
 }
 .sidebar-logo-text{font-family:'Plus Jakarta Sans','DM Sans',sans-serif;font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.04em;}
@@ -1751,9 +1754,12 @@ body{
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-logo">
-        <div>
-          <div class="logo-wordmark">VOXERA</div>
-          <div class="logo-sub">PORTAL</div>
+        <div class="logo-mark">
+          <img class="logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera" />
+          <div class="logo-brand-copy">
+            <div class="logo-wordmark">VOXERA</div>
+            <div class="logo-sub">PORTAL</div>
+          </div>
         </div>
       </div>
       <nav class="nav">
