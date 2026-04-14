@@ -1169,11 +1169,27 @@ body{
   transition:color var(--transition-fast);
 }
 .mobile-nav-btn.active{color:#1A6FE8;font-weight:700;}
+.mobile-nav-icon-wrap{
+  position:relative;
+  width:24px;
+  height:22px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
 .mobile-nav-btn svg,.mobile-nav-btn .lucide{width:20px;height:20px;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 .mobile-nav-badge{
-  position:absolute;top:1px;right:2px;background:#1A6FE8;color:#fff;
-  min-width:18px;text-align:center;
+  position:absolute;
+  top:0;
+  right:0;
+  transform:translate(62%,-40%);
+  background:#1A6FE8;color:#fff;
+  min-width:18px;
+  padding:2px 6px;
+  text-align:center;
   box-shadow:0 1px 4px rgba(26,111,232,0.35);
+  z-index:1;
+  pointer-events:none;
 }
 .mobile-nav-badge.blue{background:#1A6FE8;color:#fff;}
 .mobile-nav-badge.red{background:#DC2626;color:#fff;}
@@ -2721,25 +2737,35 @@ body{
   <div class="mobile-nav">
     <div class="mobile-nav-inner">
       <button class="mobile-nav-btn active" id="mnav-dashboard" onclick="showTab('dashboard',this)">
-        <i data-lucide="layout-grid" aria-hidden="true"></i>
+        <span class="mobile-nav-icon-wrap">
+          <i data-lucide="layout-grid" aria-hidden="true"></i>
+        </span>
         Übersicht
       </button>
         <button class="mobile-nav-btn" id="mnav-anrufe" onclick="showTab('anrufe',this)">
-        <i data-lucide="phone" aria-hidden="true"></i>
+        <span class="mobile-nav-icon-wrap">
+          <i data-lucide="phone" aria-hidden="true"></i>
+          <span class="mobile-nav-badge blue" id="mnav-badge-anrufe" style="display:none"></span>
+        </span>
         Anfragen
-        <span class="mobile-nav-badge blue" id="mnav-badge-anrufe" style="display:none"></span>
       </button>
       <button class="mobile-nav-btn" id="mnav-rueckrufe" onclick="showTab('rueckrufe',this)">
-        <i data-lucide="clock-3" aria-hidden="true"></i>
+        <span class="mobile-nav-icon-wrap">
+          <i data-lucide="clock-3" aria-hidden="true"></i>
+          <span class="mobile-nav-badge blue" id="mnav-badge-rueckrufe" style="display:none"></span>
+        </span>
         Aufgaben
-        <span class="mobile-nav-badge blue" id="mnav-badge-rueckrufe" style="display:none"></span>
       </button>
       <button class="mobile-nav-btn" id="mnav-archiv" onclick="showTab('archiv',this)">
-        <i data-lucide="history" aria-hidden="true"></i>
+        <span class="mobile-nav-icon-wrap">
+          <i data-lucide="history" aria-hidden="true"></i>
+        </span>
         Verlauf
       </button>
       <button class="mobile-nav-btn" id="mnav-konto" onclick="showTab('einstellungen',this);openAccount()">
-        <i data-lucide="settings" aria-hidden="true"></i>
+        <span class="mobile-nav-icon-wrap">
+          <i data-lucide="settings" aria-hidden="true"></i>
+        </span>
         Einstellungen
       </button>
     </div>
@@ -4361,8 +4387,8 @@ function renderDashboard(records) {
   var mb2    = document.getElementById('mnav-badge-rueckrufe');
   if (badgeA) { badgeA.textContent = allOpen.length; badgeA.style.display = allOpen.length > 0 ? '' : 'none'; }
   if (badgeR) { badgeR.textContent = offen.length; badgeR.style.display = offen.length > 0 ? '' : 'none'; }
-  if (mb1) { mb1.textContent = allOpen.length; mb1.style.display = allOpen.length > 0 ? 'block' : 'none'; }
-  if (mb2) { mb2.textContent = offen.length;   mb2.style.display = offen.length > 0   ? 'block' : 'none'; }
+  if (mb1) { mb1.textContent = formatMobileBadgeCount(allOpen.length); mb1.style.display = allOpen.length > 0 ? 'block' : 'none'; }
+  if (mb2) { mb2.textContent = formatMobileBadgeCount(offen.length);   mb2.style.display = offen.length > 0   ? 'block' : 'none'; }
 
   // Callback list lives on dedicated Rückrufe tab only
 
@@ -4403,6 +4429,13 @@ function updateActivationStatusCard(records) {
     primaryBtn.style.pointerEvents = hasBusinessNumber ? '' : 'none';
   }
   card.classList.add('show', 'info');
+}
+
+function formatMobileBadgeCount(value) {
+  var count = Number(value) || 0;
+  if (count <= 0) return '';
+  if (count > 999) return '999+';
+  return String(count);
 }
 
 function handleDashboardActivationPrimaryCta(event){
