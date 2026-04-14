@@ -7145,10 +7145,10 @@ async function activationV2RetryFlow(event) {
     clearActivationV2ModeConfirmation();
     persistActivationV2Step(activationV2FlowState.confirmedDeviceType ? 2 : 1);
     renderActivationV2();
-    toast('Aktivierung zurückgesetzt. Bitte starten Sie die Weiterleitung erneut.');
+    toast('Aktivierung wurde zurückgesetzt. Sie können die Aktivierung jetzt erneut starten.');
   } catch (e) {
     console.error('activationV2RetryFlow failed', e);
-    toast('Aktivierung konnte nicht zurückgesetzt werden.');
+    toast('Aktivierung konnte nicht zurückgesetzt werden.', 'warning');
   }
 }
 
