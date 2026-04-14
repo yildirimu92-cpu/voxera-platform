@@ -118,13 +118,21 @@ body{
 }
 
 /* ═══════════════════════════════════════════
-   SETTINGS PAGE — V1
+   SETTINGS PAGE — V2 PREMIUM
 ═══════════════════════════════════════════ */
-.settings-card{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
-.settings-card-title{font-size:11.5px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;}
+.settings-page{max-width:760px;display:flex;flex-direction:column;gap:14px;}
+.settings-page-head{margin-bottom:6px;}
+.settings-page-sub{font-size:13px;color:var(--gray500);margin-top:6px;line-height:1.6;max-width:620px;}
+.settings-card{background:var(--white);border:1px solid var(--gray200);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow-card);margin:0;}
+.settings-card + .settings-card{margin-top:0;}
+.settings-card-accent{border-color:var(--blue-mid);background:linear-gradient(180deg,#F6F9FF 0%,#EFF5FF 100%);}
+.settings-card-intro{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--gray100);}
+.settings-card-title{font-size:11.5px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;}
+.settings-card-lead{font-size:13px;color:var(--gray600);line-height:1.62;}
 .settings-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--gray100);font-size:13px;}
 .settings-row:first-of-type{padding-top:0;}
-.settings-row-label{color:var(--gray400);font-weight:600;min-width:100px;flex-shrink:0;padding-top:2px;}
+.settings-row:last-of-type{border-bottom:none;padding-bottom:0;}
+.settings-row-label{color:var(--gray500);font-weight:600;min-width:130px;flex-shrink:0;padding-top:2px;}
 .settings-row-value{color:var(--gray900);font-weight:600;text-align:right;flex:1;}
 .settings-input{width:100%;padding:10px 14px;border:1.5px solid var(--gray200);border-radius:10px;font-size:13px;font-family:inherit;color:var(--gray900);outline:none;background:var(--gray50);transition:all var(--transition-fast);}
 .settings-input:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
@@ -132,7 +140,18 @@ body{
 .settings-btn-primary:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
 .settings-btn-secondary{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;display:inline-flex;align-items:center;}
 .settings-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
-@media(max-width:768px){.settings-row{flex-direction:column;gap:6px;}.settings-row-value{text-align:left;}}
+.settings-module-tag{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;border:1px solid var(--gray200);background:var(--gray50);font-size:10.5px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.05em;}
+.settings-option-list{display:flex;flex-direction:column;gap:8px;}
+.settings-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
+.settings-box{background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;}
+.settings-box-kicker{font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;}
+.settings-stack{display:flex;flex-direction:column;gap:14px;}
+@media(max-width:768px){
+  .settings-page{max-width:100%;}
+  .settings-row{flex-direction:column;gap:6px;}
+  .settings-row-value{text-align:left;}
+  .settings-two-col{grid-template-columns:1fr;}
+}
 
 /* ═══════════════════════════════════════════
    HILFE — V2
@@ -2114,40 +2133,42 @@ body{
 
         <!-- EINSTELLUNGEN TAB -->
         <div class="tab-page" id="tab-einstellungen">
-          <div style="max-width:640px">
-            <div style="margin-bottom:20px">
+          <div class="settings-page">
+            <div class="settings-page-head">
               <div class="section-title">Einstellungen</div>
-            <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Systemeinstellungen für Benachrichtigungen, Erreichbarkeit, Weiterleitung, Plan und Support.</div>
+              <div class="settings-page-sub">Verwalten Sie Benachrichtigungen, Erreichbarkeit, Plan und Support zentral in einem klaren Arbeitsbereich.</div>
             </div>
 
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Erreichbarkeit & Weiterleitung</div>
             <div class="settings-card">
-              <div class="settings-card-title">Ihre Voxera-Nummer</div>
+              <div class="settings-card-intro">
+                <div class="settings-module-tag">Erreichbarkeit & Weiterleitung</div>
+                <div class="settings-card-title" style="margin-top:10px;">Statusübersicht</div>
+                <div class="settings-card-lead">Hier sehen Sie den aktuellen Stand Ihrer Voxera-Nummer und den Systemstatus auf einen Blick.</div>
+              </div>
               <div class="settings-row">
                 <div class="settings-row-label">Voxera-Nummer</div>
                 <div class="settings-row-value" id="settings-voxera-nr">–</div>
               </div>
-              <div class="settings-row" style="border-bottom:none;">
+              <div class="settings-row">
                 <div class="settings-row-label">Status</div>
                 <div class="settings-row-value" id="settings-system-status">–</div>
               </div>
             </div>
-            <div class="settings-card" style="border-color:var(--blue-mid);background:var(--blue-light);">
+            <div class="settings-card settings-card-accent">
               <div class="settings-card-title" style="color:#1A6FE8;">Aktivierung & Rufumleitung</div>
-              <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">
-                Richten Sie die Weiterleitung auf Ihre Voxera-Nummer ein, damit der KI-Assistent Ihre Anrufe entgegennehmen kann.
-              </div>
+              <div style="font-size:13px;color:var(--gray700);line-height:1.6;padding:4px 0 10px;">Richten Sie die Weiterleitung auf Ihre Voxera-Nummer ein, damit der KI-Assistent Ihre Anrufe zuverlässig entgegennehmen kann.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="settings-btn-primary" id="settings-wizard-btn" onclick="openSetupWizardFromCta(event,'s1')">Aktivierung öffnen</button>
+                <button class="settings-btn-primary" id="settings-wizard-btn" onclick="openSetupWizardFromCta(event,'s1')">Erreichbarkeit öffnen</button>
               </div>
             </div>
 
-            <!-- Benachrichtigungen -->
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Benachrichtigungen</div>
             <div class="settings-card">
-              <div class="settings-card-title">Benachrichtigungen</div>
-              <div style="font-size:12.5px;color:var(--gray500);margin-bottom:14px;">Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet.</div>
-              <div style="display:flex;flex-direction:column;gap:8px;">
+              <div class="settings-card-intro">
+                <div class="settings-module-tag">Benachrichtigungen</div>
+                <div class="settings-card-title" style="margin-top:10px;">Meldungen steuern</div>
+                <div class="settings-card-lead">Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet und welcher Ton für eingehende Meldungen genutzt wird.</div>
+              </div>
+              <div class="settings-option-list">
                 <label id="notif-card-none" onclick="selectNotifCard('none')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--blue-mid);background:var(--blue-light);cursor:pointer;transition:all .15s;">
                   <div>
                     <div style="font-size:13px;font-weight:600;color:#1A6FE8;">Keine Benachrichtigungen</div>
@@ -2173,20 +2194,13 @@ body{
                 </label>
               </div>
               <input type="hidden" name="notification-mode" id="notification-mode-hidden" value="none">
-              <div class="account-success" id="notif-success" style="margin-top:8px"></div>
-            </div>
-
-            <!-- Ton bei Benachrichtigung -->
-            <div class="settings-card">
-              <div class="settings-card-title">Benachrichtigungston</div>
-              <div style="font-size:12.5px;color:var(--gray500);margin-bottom:14px;">Wird bei eingehenden Anrufen abgespielt.</div>
-              <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;margin-bottom:14px;">
+              <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;margin:14px 0 12px;">
                 <span style="font-size:13px;color:var(--gray700);font-weight:500;">Ton aktiviert</span>
                 <div id="sound-toggle" onclick="toggleNotifSound()" style="width:44px;height:24px;border-radius:12px;background:#1A6FE8;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;">
                   <div id="sound-toggle-knob" style="position:absolute;top:3px;left:22px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
                 </div>
               </label>
-              <div style="display:flex;flex-direction:column;gap:8px;" id="sound-picker">
+              <div class="settings-option-list" id="sound-picker">
                 <label id="sound-card-subtle" onclick="selectSound('subtle')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--gray200);background:var(--white);cursor:pointer;transition:all .15s;">
                   <div>
                     <div style="font-size:13px;font-weight:600;color:var(--gray900);">Subtle Pop</div>
@@ -2211,20 +2225,24 @@ body{
                   <div id="sound-dot-crisp" style="width:20px;height:20px;border-radius:50%;border:1.5px solid var(--gray200);flex-shrink:0;"></div>
                 </label>
               </div>
+              <div class="account-success" id="notif-success" style="margin-top:10px"></div>
             </div>
 
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Support</div>
             <div class="settings-card">
-              <div class="settings-card-title">Support kontaktieren</div>
-              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 10px;">
-                Haben Sie Fragen oder benötigen Unterstützung?
+              <div class="settings-card-intro">
+                <div class="settings-module-tag">Support</div>
+                <div class="settings-card-title" style="margin-top:10px;">Schnelle Hilfe</div>
+                <div class="settings-card-lead">Unser Team unterstützt Sie bei Fragen zu Einrichtung, Betrieb und Nutzung Ihres Voxera Portals.</div>
               </div>
               <button class="settings-btn-secondary" onclick="requestSupport()">E-Mail senden</button>
             </div>
 
-            <div id="settings-plan-section" style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Plan</div>
             <div class="settings-card">
-              <div class="settings-card-title">Abo & Nutzung</div>
+              <div class="settings-card-intro" id="settings-plan-section">
+                <div class="settings-module-tag">Plan</div>
+                <div class="settings-card-title" style="margin-top:10px;">Abo & Nutzung</div>
+                <div class="settings-card-lead">Behalten Sie Plan, inklusive Minuten und aktuelle Nutzung transparent im Blick.</div>
+              </div>
               <div class="settings-row">
                 <div class="settings-row-label">Plan</div>
                 <div class="settings-row-value"><span id="usage-plan-sub">–</span></div>
@@ -2240,13 +2258,13 @@ body{
                 </div>
                 <div class="account-usage-meter"><div class="account-usage-meter-fill" id="usage-meter-fill" style="width:0%"></div></div>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
-                <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;">Diesen Monat</div>
+              <div class="settings-two-col">
+                <div class="settings-box">
+                  <div class="settings-box-kicker">Diesen Monat</div>
                   <div style="font-size:16px;font-weight:800;font-family:var(--font-display);" id="usage-month-minutes">–</div>
                 </div>
-                <div style="background:var(--gray50);border:1px solid var(--gray200);border-radius:10px;padding:10px 12px;">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600;margin-bottom:4px;">Inklusive</div>
+                <div class="settings-box">
+                  <div class="settings-box-kicker">Inklusive</div>
                   <div style="font-size:16px;font-weight:800;font-family:var(--font-display);" id="usage-included">–</div>
                 </div>
               </div>
@@ -2261,11 +2279,11 @@ body{
               <span class="chip chip-neu" id="usage-status-chip" style="margin-top:10px;display:inline-block;">Plan aktiv</span>
             </div>
 
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Integrationen</div>
             <div class="settings-card">
-              <div class="settings-card-title">Integrationen</div>
-              <div style="font-size:13px;color:var(--gray600);line-height:1.6;padding:4px 0 6px;">
-                API- und Systemintegrationen sind in diesem Bereich verfügbar.
+              <div class="settings-card-intro" style="margin-bottom:8px;">
+                <div class="settings-module-tag">Integrationen</div>
+                <div class="settings-card-title" style="margin-top:10px;">Verbindungen & Schnittstellen</div>
+                <div class="settings-card-lead">API- und Systemintegrationen werden in diesem Bereich zentral verfügbar gemacht.</div>
               </div>
               <button class="settings-btn-secondary" onclick="openHelpSection('support')">Mehr erfahren</button>
             </div>
