@@ -1258,6 +1258,23 @@ body{
   .toast{bottom:90px;}
   .focus-strip{grid-template-columns:1fr;gap:10px;margin-bottom:20px;}
   .call-list{gap:10px;}
+  .call-row.mobile-condensed-row{padding:13px 14px;gap:10px;align-items:flex-start;}
+  .call-row.mobile-condensed-row .av{width:36px;height:36px;font-size:11px;}
+  .call-row.mobile-condensed-row .call-top{margin-bottom:4px;}
+  .call-row.mobile-condensed-row .call-name{
+    font-size:13.5px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    display:block;
+    max-width:100%;
+  }
+  .call-row.mobile-condensed-row .call-secondary{margin-bottom:6px;gap:6px;row-gap:5px;}
+  .call-row.mobile-condensed-row .call-secondary .chip{max-width:100%;white-space:nowrap;}
+  .call-row.mobile-condensed-row .call-company{font-size:11px;}
+  .call-row.mobile-condensed-row .call-meta{font-size:11.5px;line-height:1.45;row-gap:3px;}
+  .call-row.mobile-condensed-row .call-meta-item:last-child{color:var(--gray500);font-weight:600;}
+  .call-row.mobile-condensed-row .call-inline-actions{align-self:flex-start;margin-top:1px;}
 }
 @media(max-width:380px){
   .kpi-val{font-size:24px;}
@@ -3563,6 +3580,52 @@ function callCardBadgeHtml(record, options) {
   return chips.filter(Boolean).join('');
 }
 
+function callCardMobileBadgeHtml(record) {
+  const f = (record && record.fields) || {};
+  const status = normalizeStatus(f.dashboard_status);
+  const hasFollowUp = !!resolveFollowUpAt(f);
+  const candidates = [];
+
+  // Tier A (highest value)
+  if (f.callback_requested && !isClosedStatus(f.dashboard_status)) {
+    candidates.push({ key: 'callback', tier: 1, rank: 1, html: '<span class="chip chip-callback">Rückruf gewünscht</span>' });
+  }
+  if (getPriority(record).key === 'urgent') {
+    candidates.push({ key: 'urgent', tier: 1, rank: 2, html: '<span class="chip chip-priority-urgent">Dringend</span>' });
+  }
+  if (status === CALL_STATUS.IN_PROGRESS || status === CALL_STATUS.FOLLOW_UP_SCHEDULED) {
+    candidates.push({ key: 'in_progress', tier: 1, rank: 3, html: '<span class="chip chip-workflow-progress">In Bearbeitung</span>' });
+  }
+
+  // Tier B (show only if space remains)
+  if (status === CALL_STATUS.NEW) {
+    candidates.push({ key: 'new', tier: 2, rank: 4, html: '<span class="chip chip-workflow-neu">Neu</span>' });
+  }
+  if (hasFollowUp && status !== CALL_STATUS.FOLLOW_UP_SCHEDULED && status !== CALL_STATUS.IN_PROGRESS) {
+    candidates.push({ key: 'termin', tier: 2, rank: 5, html: '<span class="chip chip-meta">Termin</span>' });
+  }
+  if (qualKey(f.lead_quality) === 'hot') {
+    candidates.push({ key: 'hot', tier: 2, rank: 6, html: '<span class="chip chip-hot">Hot Lead</span>' });
+  }
+
+  // Tier C (only when very little else exists)
+  if (isActivationCallCategory(f.category)) {
+    candidates.push({ key: 'systemtest', tier: 3, rank: 7, html: '<span class="chip chip-meta">Systemtest</span>' });
+  }
+
+  const seen = new Set();
+  const selected = candidates
+    .sort((a, b) => (a.tier - b.tier) || (a.rank - b.rank))
+    .filter(function(item) {
+      if (seen.has(item.key)) return false;
+      seen.add(item.key);
+      return true;
+    })
+    .slice(0, 2);
+
+  return selected.map(function(item) { return item.html; }).join('');
+}
+
 const DISPLAY_TIMEZONE = 'Europe/Zurich';
 const TIME_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, hour: '2-digit', minute: '2-digit' });
 const DATE_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit' });
@@ -4539,6 +4602,7 @@ function updateSystemStatus(records) {
 function renderList(containerId, records, opts) {
   opts = opts || {};
   const el = document.getElementById(containerId);
+  const isMobileList = window.matchMedia('(max-width: 768px)').matches;
   // Preserve expanded state across re-renders
   const expandedIds = new Set();
   if (el) {
@@ -4575,14 +4639,16 @@ function renderList(containerId, records, opts) {
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
-    return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${escHtml(normalizeStatus(f.dashboard_status))}" onclick="toggleCallRow(event,this)">
+    const badgeHtml = isMobileList ? callCardMobileBadgeHtml(r) : callCardBadgeHtml(r);
+
+    return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}${isMobileList?' mobile-condensed-row':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${escHtml(normalizeStatus(f.dashboard_status))}" onclick="toggleCallRow(event,this)">
       <div class="av ${avClass(f.lead_quality, done)}">${initials(callerDisplayName)}</div>
       <div class="call-body">
         <div class="call-top">
           <span class="call-name">${escHtml(callerDisplayName)}</span>
         </div>
         <div class="call-secondary">
-          ${callCardBadgeHtml(r)}
+          ${badgeHtml}
           ${f.company_name?`<span class="call-company">${escHtml(f.company_name)}</span>`:''}
         </div>
         <div class="call-meta">
