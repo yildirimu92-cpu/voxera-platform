@@ -5136,7 +5136,20 @@ function resolveNotificationMode(customer) {
 }
 
 var _notifSaveTimer = null;
-function selectNotifCard(mode) {
+var _notifSaveInFlight = null;
+var _notifSaveSeq = 0;
+
+function notifDebugLog(event, details) {
+  if (!window.__VOXERA_NOTIF_DEBUG__) return;
+  try {
+    console.info('[notif-settings]', event, details || {});
+  } catch(_) {}
+}
+
+function selectNotifCard(mode, opts) {
+  var options = opts || {};
+  var shouldAutosave = options.autosave !== false;
+  var source = options.source || 'ui';
   var cards = {none:'notif-card-none', callback_only:'notif-card-callback', all_calls:'notif-card-all'};
   var dots  = {none:'notif-dot-none', callback_only:'notif-dot-callback', all_calls:'notif-dot-all'};
   Object.keys(cards).forEach(function(m) {
@@ -5156,8 +5169,17 @@ function selectNotifCard(mode) {
   });
   var hidden = document.getElementById('notification-mode-hidden');
   if (hidden) hidden.value = mode;
-  if (_notifSaveTimer) clearTimeout(_notifSaveTimer);
-  _notifSaveTimer = setTimeout(saveNotifSettings, 600);
+  notifDebugLog('mode-selected', {
+    source: source,
+    mode: mode,
+    autosave: shouldAutosave
+  });
+  if (shouldAutosave) {
+    if (_notifSaveTimer) clearTimeout(_notifSaveTimer);
+    _notifSaveTimer = setTimeout(function() {
+      saveNotifSettings({ source: source + ':autosave' });
+    }, 600);
+  }
 }
 
 function selectSound(type, silent) {
@@ -5212,7 +5234,7 @@ function previewSound(type) {
 
 function applyNotificationModeToInputs(mode) {
   var selectedMode = mode || 'none';
-  selectNotifCard(selectedMode);
+  selectNotifCard(selectedMode, { autosave: false, source: 'load' });
   var setupNone = document.getElementById('setup-notif-mode-none');
   var setupCallbackOnly = document.getElementById('setup-notif-mode-callback-only');
   var setupAllCalls = document.getElementById('setup-notif-mode-all-calls');
@@ -5238,10 +5260,25 @@ async function loadNotifSettings() {
     const notificationMode = resolveNotificationMode(rec);
     applyNotificationModeToInputs(notificationMode);
     document.getElementById('account-overlay').dataset.customerRecordId = rec.id;
+    notifDebugLog('load-complete', {
+      recordId: rec.id,
+      notificationMode: notificationMode
+    });
   } catch(e) { console.error('Notif load error:', e); }
 }
 
-async function saveNotifSettings() {
+async function saveNotifSettings(opts) {
+  var options = opts || {};
+  var source = options.source || 'unknown';
+  var requestId = ++_notifSaveSeq;
+  if (_notifSaveInFlight) {
+    notifDebugLog('save-skipped-inflight', {
+      source: source,
+      requestId: requestId
+    });
+    return;
+  }
+  _notifSaveInFlight = requestId;
   const recordId = document.getElementById('account-overlay').dataset.customerRecordId;
   if (!recordId) {
     // Try to get record ID if not loaded yet
@@ -5252,19 +5289,48 @@ async function saveNotifSettings() {
       }
     } catch(e) {}
     var rid = document.getElementById('account-overlay').dataset.customerRecordId;
-    if (!rid) { toast('Fehler: Kundendaten nicht geladen'); return; }
+    if (!rid) {
+      notifDebugLog('save-abort-no-record', {
+        source: source,
+        requestId: requestId
+      });
+      _notifSaveInFlight = null;
+      toast('Fehler: Kundendaten nicht geladen');
+      return;
+    }
   }
   var finalRecordId = document.getElementById('account-overlay').dataset.customerRecordId;
   var notificationMode = getSelectedNotificationMode('notification-mode') || 'none';
+  var payload = { notification_mode: notificationMode };
+  notifDebugLog('save-request-start', {
+    source: source,
+    requestId: requestId,
+    recordId: finalRecordId,
+    notificationMode: notificationMode,
+    payload: payload
+  });
   try {
-    await patchCustomerRecord(finalRecordId, { notification_mode: notificationMode });
+    await patchCustomerRecord(finalRecordId, payload);
+    notifDebugLog('save-request-success', {
+      source: source,
+      requestId: requestId,
+      recordId: finalRecordId
+    });
     const s = document.getElementById('notif-success');
     s.textContent = 'Gespeichert';
     s.style.display = 'block';
     setTimeout(() => s.style.display = 'none', 2000);
   } catch(e) {
+    notifDebugLog('save-request-error', {
+      source: source,
+      requestId: requestId,
+      recordId: finalRecordId,
+      error: e && e.message ? e.message : String(e)
+    });
     toast('Fehler beim Speichern der Benachrichtigungen');
     console.error('Notif save error:', e);
+  } finally {
+    _notifSaveInFlight = null;
   }
 }
 
