@@ -6043,6 +6043,20 @@ function resetActivationTestRunState(){
   customerMeta.activationTestOutboundCallId = null;
 }
 
+function normalizeActivationDirection(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function resolveActivationCreatedAtMs(fields) {
+  var createdAtRaw = fields && fields.created_at ? String(fields.created_at) : '';
+  var createdAtMs = createdAtRaw ? new Date(createdAtRaw).getTime() : NaN;
+  return {
+    raw: createdAtRaw,
+    ms: createdAtMs,
+    parsedSuccessfully: Number.isFinite(createdAtMs)
+  };
+}
+
 // Returns the first qualifying outbound test marker for the current run.
 function findActivationOutboundTestCall(calls, activationStartedAt) {
   if (!activationStartedAt || !Array.isArray(calls) || !calls.length) {
@@ -6102,81 +6116,82 @@ function findActivationCandidateCall(calls, activationStartedAt) {
   if (!isPendingTest) return null;
 
   var outbound = findActivationOutboundTestCall(calls, activationStartedAt);
-  if (!outbound) return null;
+  var outboundCreatedMs = outbound ? new Date(((outbound.fields || {}).created_at) || '').getTime() : NaN;
+  var hasValidOutboundMarker = Number.isFinite(outboundCreatedMs);
 
-  var outboundCreatedMs = new Date(outbound.fields.created_at || '').getTime();
-  if (!Number.isFinite(outboundCreatedMs)) return null;
+  var activationStartMs = new Date(activationStartedAt).getTime();
+  if (!Number.isFinite(activationStartMs)) {
+    logActivationDetectionDiagnostics('candidate_scan_invalid_activation_started_at', {
+      activation_started_at: activationStartedAt
+    });
+    return null;
+  }
+  var timeoutDeadlineMs = activationStartMs + ACTIVATION_TEST_TIMEOUT_MS;
 
   var currentCustomerId = String((customerMeta && customerMeta.customerId) || '').trim();
   var bestInbound = null;
   for (var i = 0; i < calls.length; i++) {
     var call = calls[i];
     var fields = (call && call.fields) || {};
+    var candidateCallId = String(fields.call_id || call.id || '');
     var callCustomerId = String(fields.customer_id || '').trim();
-    if (currentCustomerId && callCustomerId && callCustomerId !== currentCustomerId) {
-      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
-        reason: 'customer_mismatch',
-        candidate_call_id: String(fields.call_id || call.id || ''),
-        candidate_customer_id: callCustomerId || null
-      });
-      continue;
-    }
-
-    var direction = String(fields.direction || fields.call_direction || '').trim().toLowerCase();
-    if (direction !== 'inbound') {
-      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
-        reason: 'direction_mismatch',
-        candidate_call_id: String(fields.call_id || call.id || ''),
-        direction: direction || null
-      });
-      continue;
-    }
-
+    var direction = normalizeActivationDirection(fields.direction || fields.call_direction);
     var category = String(fields.category || '').trim().toLowerCase();
-    if (category === 'activation_test_outbound') {
-      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
-        reason: 'category_mismatch_outbound_marker',
-        candidate_call_id: String(fields.call_id || call.id || ''),
-        category: category
-      });
-      continue;
-    }
+    var createdMeta = resolveActivationCreatedAtMs(fields);
+    var createdAtMs = createdMeta.ms;
 
-    var createdAtRaw = fields.created_at || '';
-    if (!createdAtRaw) continue;
-    var createdAtMs = new Date(createdAtRaw).getTime();
-    if (!Number.isFinite(createdAtMs)) continue;
-    if (createdAtMs <= outboundCreatedMs) {
-      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
-        reason: 'inbound_before_outbound',
-        candidate_call_id: String(fields.call_id || call.id || ''),
-        inbound_created_at: createdAtRaw,
-        outbound_created_at: outbound.fields.created_at || null
-      });
-      continue;
-    }
-    if ((createdAtMs - outboundCreatedMs) > ACTIVATION_TEST_TIMEOUT_MS) {
-      logActivationDetectionDiagnostics('inbound_candidate_rejected', {
-        reason: 'inbound_after_timeout',
-        candidate_call_id: String(fields.call_id || call.id || ''),
-        inbound_created_at: createdAtRaw,
-        outbound_created_at: outbound.fields.created_at || null
-      });
-      continue;
-    }
+    var customerMatch = !(currentCustomerId && callCustomerId && callCustomerId !== currentCustomerId);
+    var directionMatch = (direction === 'inbound' || direction === 'incoming');
+    var categoryMatch = category !== 'activation_test_outbound';
+    var createdAtParsed = createdMeta.parsedSuccessfully;
+    var afterActivationStartedAt = createdAtParsed && createdAtMs >= activationStartMs;
+    var afterOutboundMarker = createdAtParsed && (!hasValidOutboundMarker || createdAtMs >= outboundCreatedMs);
+    var withinTimeout = createdAtParsed && createdAtMs <= timeoutDeadlineMs;
 
+    var rejectReason = '';
+    if (!customerMatch) rejectReason = 'customer_mismatch';
+    else if (!directionMatch) rejectReason = 'direction_mismatch';
+    else if (!categoryMatch) rejectReason = 'category_mismatch_outbound_marker';
+    else if (!createdAtParsed) rejectReason = 'created_at_parse_failed';
+    else if (!afterActivationStartedAt) rejectReason = 'before_activation_started_at';
+    else if (!afterOutboundMarker) rejectReason = 'before_outbound_marker';
+    else if (!withinTimeout) rejectReason = 'after_timeout';
+
+    var accepted = !rejectReason;
+    logActivationDetectionDiagnostics('pending_test_candidate_evaluated', {
+      candidate_call_id: candidateCallId || null,
+      customer_match: customerMatch,
+      direction_match: directionMatch,
+      category_match: categoryMatch,
+      created_at_parsed_successfully: createdAtParsed,
+      after_activation_started_at: afterActivationStartedAt,
+      after_outbound_marker: afterOutboundMarker,
+      within_timeout: withinTimeout,
+      final_accepted: accepted,
+      reject_reason: rejectReason || null,
+      customer_id: callCustomerId || null,
+      direction: direction || null,
+      category: category || null,
+      created_at: createdMeta.raw || null,
+      called_number: fields.called_number || null,
+      voxera_number: fields.voxera_number || null
+    });
+
+    if (!accepted) continue;
     if (!bestInbound || createdAtMs < new Date(bestInbound.fields.created_at || 0).getTime()) bestInbound = call;
   }
 
   logActivationDetectionDiagnostics('inbound_candidate_found', {
     found: !!bestInbound,
     inbound_call_id: bestInbound ? String(bestInbound.fields.call_id || bestInbound.id || '') : null,
-    inbound_created_at: bestInbound ? (bestInbound.fields.created_at || null) : null
+    inbound_created_at: bestInbound ? (bestInbound.fields.created_at || null) : null,
+    outbound_marker_call_id: outbound ? String(outbound.fields.call_id || outbound.id || '') : null,
+    outbound_marker_present: hasValidOutboundMarker
   });
 
   if (bestInbound) {
     customerMeta.activationTestMode = 'system_call';
-    customerMeta.activationTestOutboundCallId = String(outbound.fields.call_id || outbound.id || '');
+    customerMeta.activationTestOutboundCallId = outbound ? String(outbound.fields.call_id || outbound.id || '') : null;
   }
   return bestInbound || null;
 }
