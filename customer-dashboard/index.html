@@ -371,7 +371,7 @@ body{
   outline:2px solid rgba(26,111,232,0.45);
   outline-offset:1px;
 }
-.nav-icon{width:16px;height:16px;flex-shrink:0;opacity:.7;}
+.nav-icon{width:18px;height:18px;flex-shrink:0;opacity:.78;display:block;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;}
 .nav-item.active .nav-icon{opacity:1;}
 .nav-badge{
   margin-left:auto;font-size:11px;font-weight:700;
@@ -1764,33 +1764,33 @@ body{
       </div>
       <nav class="nav">
         <div class="nav-item active" onclick="showTab('dashboard',this)">
-          <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6.5" height="6.5" rx="1.5"/><rect x="8.5" y="1" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="1" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".2"/></svg>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.75"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.75"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.75"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.75"/></svg>
           Übersicht
         </div>
         <div class="nav-item" id="nav-anrufe" onclick="showTab('anrufe',this)">
-          <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M3.5 2.5h2l1 2.5-1.5 1c.8 1.5 2 2.7 3.5 3.5l1-1.5 2.5 1v2c0 .8-.7 1.5-1.5 1.5C5.2 13 3 7.5 3 4.5c0-.8.7-1 .5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.08-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.8.59 2.66a2 2 0 0 1-.45 2.11L8 9.95a16 16 0 0 0 6.05 6.05l1.46-1.25a2 2 0 0 1 2.11-.45c.86.27 1.76.47 2.66.59A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="1.75"/></svg>
           Anfragen
           <span class="nav-badge blue" id="badge-anrufe">–</span>
         </div>
         <div class="nav-item" id="nav-rueckrufe" onclick="showTab('rueckrufe',this)">
-          <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3.5l2 1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.75"/></svg>
           Aufgaben
           <span class="nav-badge blue" id="badge-rueckrufe">–</span>
         </div>
         <div class="nav-item" id="nav-archiv" onclick="showTab('archiv',this)">
-          <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M2 5v8a1 1 0 001 1h10a1 1 0 001-1V5" stroke="currentColor" stroke-width="1.3"/><path d="M6 8.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 3v5h5" stroke="currentColor" stroke-width="1.75"/><path d="M3.05 13a9 9 0 1 0 .5-5.5L8 8" stroke="currentColor" stroke-width="1.75"/></svg>
           Verlauf
         </div>
         <div class="nav-item" onclick="showTab('einrichtung',this)" id="nav-einrichtung">
-          <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3"/></svg>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 18a10 10 0 0 1 20 0" stroke="currentColor" stroke-width="1.75"/><path d="M2 12a16 16 0 0 1 20 0" stroke="currentColor" stroke-width="1.75"/><path d="M2 6a22 22 0 0 1 20 0" stroke="currentColor" stroke-width="1.75"/></svg>
           Erreichbarkeit
         </div>
         <div class="nav-item" onclick="showTab('einstellungen',this)" id="nav-einstellungen">
-          <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M6.9 1.5h2.2l.3 1.7c.4.2.8.4 1.1.7l1.6-.5 1.1 1.9-1.3 1.1c0 .2.1.4.1.6s0 .4-.1.6l1.3 1.1-1.1 1.9-1.6-.5c-.3.3-.7.5-1.1.7l-.3 1.7H6.9l-.3-1.7c-.4-.2-.8-.4-1.1-.7l-1.6.5-1.1-1.9 1.3-1.1c0-.2-.1-.4-.1-.6s0-.4.1-.6L3.8 4.1l1.1-1.9 1.6.5c.3-.3.7-.5 1.1-.7l.3-1.5z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.75"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.16.34.26.71.3 1.09H20a2 2 0 0 1 0 4h-.3c-.04.38-.14.75-.3 1.09z" stroke="currentColor" stroke-width="1.75"/></svg>
           Einstellungen
         </div>
         <div class="nav-item" onclick="showTab('hilfe',this)" id="nav-hilfe">
-          <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M6.9 6a1.2 1.2 0 112.1.8c-.3.5-.8.8-1.1 1.1-.3.2-.5.5-.5.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.3" r=".8" fill="currentColor"/></svg>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.75"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.75"/><path d="M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M19.07 4.93l-2.83 2.83M7.76 16.24l-2.83 2.83" stroke="currentColor" stroke-width="1.75"/></svg>
           Hilfe
         </div>
       </nav>
@@ -4019,7 +4019,7 @@ function renderDashboard(records) {
     focusNumberEl.textContent = offen.length;
     if (offen.length > 0) {
       focusHintEl.textContent = 'Jetzt bearbeiten';
-      focusTextEl.textContent = 'Ihr schnellster Hebel: offene Aufgaben zuerst abschließen, dann Follow-ups priorisieren.';
+      focusTextEl.textContent = 'Ihr schnellster Hebel: offene Aufgaben zuerst abschliessen, dann Follow-ups priorisieren.';
     } else if (followupsOpen.length > 0) {
       focusHintEl.textContent = 'Follow-ups geplant';
       focusTextEl.textContent = 'Keine offenen Aufgaben. Es warten ' + followupsOpen.length + ' Follow-ups auf Ihre nächste Aktion.';
@@ -6015,7 +6015,7 @@ function renderDeactivationSection(meta) {
       + '</div>'
       + '<div class="activation-deactivation-section" style="margin-top:14px;">'
       + '<div class="activation-deactivation-title">Deaktivierung bestätigen</div>'
-      + '<div class="activation-deactivation-sub">Entfernen Sie die Rufumleitung und bestätigen Sie anschließend unten.</div>'
+      + '<div class="activation-deactivation-sub">Entfernen Sie die Rufumleitung und bestätigen Sie anschliessend unten.</div>'
       + '<ol class="activation-deactivation-steps">'
       + '<li>Entfernen Sie die Rufumleitung in Ihrem Telefon oder bei Ihrem Anbieter.</li>'
       + '<li>Führen Sie einen Testanruf durch – rufen Sie Ihre Nummer testweise an.</li>'
@@ -6876,14 +6876,14 @@ function getDeviceModeTestGuidance(deviceType, mode, telNr) {
       },
       unreachable: {
         title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Festnetz / Anlage)',
-        subtitle: 'Simulieren Sie Nicht-Erreichbarkeit gem\u00E4\u00DF den Vorgaben Ihres Anbieters.',
+        subtitle: 'Simulieren Sie Nicht-Erreichbarkeit gem\u00E4ss den Vorgaben Ihres Anbieters.',
         steps: [
           'Nicht-Erreichbarkeit bei Festnetz oder Telefonanlagen ist anbieter- und ger\u00E4teabh\u00E4ngig.',
           'Folgen Sie den Anweisungen Ihres Anbieters, um das Ger\u00E4t in einen nicht erreichbaren Zustand zu versetzen (z.\u00A0B. Leitung belegt, Ger\u00E4t ausgesteckt oder Anlage in DND-Modus).',
           'Rufen Sie dann Ihre eigene Festnetznummer an: <strong>' + safeTelNr + '</strong>',
           'Bei korrekter Konfiguration wird der Anruf an den KI-Assistenten weitergeleitet.'
         ],
-        expect: 'Erwartetes Ergebnis: Der Anruf wird weitergeleitet, wenn das Festnetzger\u00E4t gem\u00E4\u00DF Anbieter-Einstellungen als nicht erreichbar gilt.'
+        expect: 'Erwartetes Ergebnis: Der Anruf wird weitergeleitet, wenn das Festnetzger\u00E4t gem\u00E4ss Anbieter-Einstellungen als nicht erreichbar gilt.'
       },
       busy: {
         title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Festnetz / Anlage)',
