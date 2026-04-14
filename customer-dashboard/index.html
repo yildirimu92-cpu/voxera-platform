@@ -6993,6 +6993,15 @@ function resetActivationFlowState() {
   activationV2StepState.step = 1;
 }
 
+function clearActivationTransientState(){
+  stopActivationPolling();
+  candidateCall = null;
+  activationFlowGuideToken = '';
+  activationFlowSuccessToken = '';
+  activationSystemCallPending = false;
+  activationSystemCallError = '';
+}
+
 function getActivationV2EffectiveDevice(){
   return activationV2FlowState.selectedDeviceType || activationPersistedState.deviceType || null;
 }
@@ -7273,10 +7282,7 @@ async function activationV2RetryFlow(event) {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
-    stopActivationPolling();
-    candidateCall = null;
-    activationFlowGuideToken = '';
-    activationFlowSuccessToken = '';
+    clearActivationTransientState();
     var resetPayload = {
       setup_device_type: null,
       forwarding_mode: null,
@@ -7336,10 +7342,7 @@ async function activationV2RetryFlow(event) {
 
 async function activationV2RestartFlow(event) {
   if (event) event.stopPropagation();
-  stopActivationPolling();
-  candidateCall = null;
-  activationFlowGuideToken = '';
-  activationFlowSuccessToken = '';
+  clearActivationTransientState();
   resetActivationFlowState();
   persistActivationV2Step(1);
   renderActivationV2();
@@ -7383,6 +7386,7 @@ async function activationV2RestartFlow(event) {
       context.customerRecord.activated_at = null;
     }
     syncActivationPersistedState();
+    clearActivationV2StorageState();
     renderActivationV2();
     toast('Einrichtung vollständig zurückgesetzt.');
   } catch (e) {
@@ -7461,6 +7465,10 @@ function bindActivationV2Events(){
         goToActivationV2Step(1);
         activationV2ScrollActiveStepIntoView();
         break;
+      case 'retry-flow':
+      case 'restart-setup':
+        activationV2RestartFlow(event);
+        break;
       case 'toggle-advanced-options':
         setActivationV2DisclosureOpen('advancedOptionsOpen', !activationV2DisclosureState.advancedOptionsOpen);
         break;
@@ -7500,6 +7508,8 @@ function renderActivationV2(){
   var canProceedStep2 = !!activationV2FlowState.selectedDeviceType;
   var canProceedStep3 = !!activationV2FlowState.selectedForwardingMode;
   var step3Ready = !!activationV2FlowState.selectedDeviceType && !!activationV2FlowState.selectedForwardingMode;
+  var blockedStep3 = step === 3 && !step3Ready;
+  var shouldShowRecoveryAction = uiState === 'pending_test' || uiState === 'failed' || blockedStep3;
   var code = getForwardingCode(mode, customerMeta.voxeraNumber || '');
   var codeJson = JSON.stringify(code || '');
   var heroAction = hero.primaryAction || 'go-step';
@@ -7510,7 +7520,7 @@ function renderActivationV2(){
   var modeSource = activationV2FlowState.selectedForwardingMode ? 'current_flow' : (activationPersistedState.forwardingMode ? 'persisted' : 'none');
   var selectionButtonsRendered = step === 1 || step === 2;
   var continueEnabled = step === 1 ? canProceedStep2 : (step === 2 ? canProceedStep3 : step3Ready);
-  if (step === 3 && !step3Ready) renderBranch = 'step_3_blocked_missing_current_flow';
+  if (blockedStep3) renderBranch = 'step_3_blocked_missing_current_flow';
   activationV2DebugLog('continue button state', { step: step, enabled: continueEnabled });
 
   var html = '<div class="activation-shell">'
@@ -7566,6 +7576,7 @@ function renderActivationV2(){
         }
         html += '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Manuell testen</button>';
       }
+      html += '<button type="button" class="activation-btn secondary" data-action="restart-setup">Einrichtung neu starten</button>';
     } else {
       if (effectiveDevice === 'mobile') {
         html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung aktivieren</button>';
@@ -7580,7 +7591,7 @@ function renderActivationV2(){
   } else {
     html += '<div class="activation-warning-banner">Bitte wählen Sie zuerst Gerät und Weiterleitungsart in dieser Einrichtungssitzung.</div>'
       + '<div class="activation-actions">'
-      + '<button type="button" class="activation-btn primary" data-action="go-step" data-value="' + (activationV2FlowState.selectedDeviceType ? '2' : '1') + '">Zurück zur Auswahl</button>'
+      + '<button type="button" class="activation-btn primary" data-action="restart-setup">Einrichtung neu starten</button>'
       + '</div>';
   }
 
@@ -7602,7 +7613,7 @@ function renderActivationV2(){
   html += '<section class="' + advancedPanelClass + '" data-panel="advancedOptionsOpen">'
     + '<div class="activation-advanced-toggle" aria-hidden="true">Optionen</div>'
     + '<div class="activation-advanced-body">'
-    + '<button type="button" class="activation-link-btn" data-action="change-selection">Auswahl ändern</button>'
+    + (shouldShowRecoveryAction ? '<button type="button" class="activation-link-btn" data-action="restart-setup">Einrichtung neu starten</button>' : '<button type="button" class="activation-link-btn" data-action="change-selection">Auswahl ändern</button>')
     + '<button type="button" class="activation-link-btn" data-action="open-help-forwarding">Hilfe zur Einrichtung</button>'
     + '</div></section>';
 
