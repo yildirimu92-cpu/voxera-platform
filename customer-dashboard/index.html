@@ -6821,10 +6821,38 @@ function renderStepProgress(step){
 
 var activationV2EventsBound = false;
 var activationV2SoftGateShown = false;
-var activationV2LastTouchTs = 0;
+var activationV2LastHandledTouch = { ts: 0, action: '', value: '', el: null };
 
-function findActivationV2ActionTarget(rawTarget, shell) {
+function activationV2StateSnapshot(){
+  return {
+    step: activationV2StepState.step,
+    setupDeviceType: customerMeta && customerMeta.setupDeviceType,
+    forwardingMode: customerMeta && customerMeta.forwardingMode,
+    forwardingStatus: customerMeta && customerMeta.forwardingStatus,
+    activationStartedAt: customerMeta && customerMeta.activationStartedAt
+  };
+}
+
+function activationV2DebugLog(label, payload){
+  try { console.debug('[activation-v2]', label, payload || ''); } catch(e) {}
+}
+
+function findActivationV2ActionTarget(event, shell) {
+  if (!event || !shell) return null;
+  if (typeof event.composedPath === 'function') {
+    var path = event.composedPath();
+    for (var i = 0; i < path.length; i++) {
+      var node = path[i];
+      if (node === shell) break;
+      if (node && node.nodeType === 1 && node.hasAttribute && node.hasAttribute('data-action')) return node;
+    }
+  }
+  var rawTarget = event.target;
   var el = rawTarget && rawTarget.nodeType === 1 ? rawTarget : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+  if (el && el.closest) {
+    var closestAction = el.closest('[data-action]');
+    if (closestAction && shell.contains(closestAction)) return closestAction;
+  }
   while (el && el !== shell) {
     if (el.hasAttribute && el.hasAttribute('data-action')) return el;
     el = el.parentElement;
@@ -6862,19 +6890,32 @@ function bindActivationV2Events(){
   if (activationV2EventsBound) return;
   var shell = document.getElementById('activation-v2-shell');
   if (!shell) return;
+  activationV2DebugLog('listener attached', { root: '#activation-v2-shell' });
 
   var handleActionEvent = function(event){
-    if (event.type === 'touchend') {
-      activationV2LastTouchTs = Date.now();
-    } else if (event.type === 'click' && (Date.now() - activationV2LastTouchTs) < 450) {
-      return;
-    }
-    var target = findActivationV2ActionTarget(event.target, shell);
+    var target = findActivationV2ActionTarget(event, shell);
     if (!target || !shell.contains(target)) return;
     var action = target.getAttribute('data-action');
     var value = target.getAttribute('data-value');
     if (!action) return;
+    if (event.type === 'click') {
+      var isDuplicateTouchAction = activationV2LastHandledTouch.action === action
+        && activationV2LastHandledTouch.value === (value || '')
+        && (Date.now() - activationV2LastHandledTouch.ts) < 700;
+      if (isDuplicateTouchAction) return;
+    }
     event.preventDefault();
+    var stateBefore = activationV2StateSnapshot();
+    activationV2DebugLog('action resolved', { eventType: event.type, action: action });
+    activationV2DebugLog('action payload', {
+      value: value || '',
+      code: target.getAttribute('data-code') || '',
+      selector: target.className || target.tagName
+    });
+    activationV2DebugLog('state before', stateBefore);
+    if (event.type === 'touchend') {
+      activationV2LastHandledTouch = { ts: Date.now(), action: action, value: value || '', el: target };
+    }
     switch (action) {
       case 'go-step':
         goToActivationV2Step(Number(value || '1'));
@@ -6912,6 +6953,7 @@ function bindActivationV2Events(){
       default:
         console.warn('[activation-v2] unknown action:', action);
     }
+    activationV2DebugLog('state after', activationV2StateSnapshot());
   };
   shell.addEventListener('click', handleActionEvent);
   shell.addEventListener('touchend', handleActionEvent, { passive: false });
@@ -6944,7 +6986,7 @@ function renderActivationV2(){
     + '<div class="activation-state-chip">' + escapeHtml(hero.chip) + '</div>'
     + '<h1>' + escapeHtml(hero.title) + '</h1>'
     + '<p>' + escapeHtml(hero.text) + '</p>'
-    + '<button class="activation-btn primary activation-primary" data-action="' + escapeHtml(heroAction) + '" data-value="' + escapeHtml(heroValue) + '">' + escapeHtml(hero.primaryLabel) + '</button>'
+    + '<button type="button" class="activation-btn primary activation-primary" data-action="' + escapeHtml(heroAction) + '" data-value="' + escapeHtml(heroValue) + '">' + escapeHtml(hero.primaryLabel) + '</button>'
     + '</section>'
     + '<section class="activation-panel">'
     + '<h2>Geführte Aktivierung</h2>'
@@ -6953,18 +6995,18 @@ function renderActivationV2(){
 
   if (step === 1) {
     html += '<div class="activation-choice-grid two">'
-      + '<button class="activation-choice-card ' + (customerMeta.setupDeviceType==='mobile'?'active':'') + '" data-action="select-device" data-value="mobile"><div class="activation-choice-title">Smartphone</div><div class="activation-choice-text">Aktivierung direkt am Handy.</div></button>'
-      + '<button class="activation-choice-card ' + (customerMeta.setupDeviceType==='landline'?'active':'') + '" data-action="select-device" data-value="landline"><div class="activation-choice-title">Festnetz / Telefonanlage</div><div class="activation-choice-text">Aktivierung über Anlage oder Anbieter.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (customerMeta.setupDeviceType==='mobile'?'active':'') + '" data-action="select-device" data-value="mobile"><div class="activation-choice-title">Smartphone</div><div class="activation-choice-text">Aktivierung direkt am Handy.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (customerMeta.setupDeviceType==='landline'?'active':'') + '" data-action="select-device" data-value="landline"><div class="activation-choice-title">Festnetz / Telefonanlage</div><div class="activation-choice-text">Aktivierung über Anlage oder Anbieter.</div></button>'
       + '</div>'
-      + '<div class="activation-actions"><button class="activation-btn primary" data-action="go-step" data-value="2" ' + (!canProceedStep2 ? 'disabled' : '') + '>Weiter</button></div>';
+      + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="2" ' + (!canProceedStep2 ? 'disabled' : '') + '>Weiter</button></div>';
   } else if (step === 2) {
     html += '<div class="activation-choice-grid">'
-      + '<button class="activation-choice-card ' + (mode==='no_answer'?'active':'') + '" data-action="select-mode" data-value="no_answer"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Bei Nichtannahme übernimmt Voxera.</div></button>'
-      + '<button class="activation-choice-card ' + (mode==='unreachable'?'active':'') + '" data-action="select-mode" data-value="unreachable"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder ohne Netz.</div></button>'
-      + '<button class="activation-choice-card ' + (mode==='busy'?'active':'') + '" data-action="select-mode" data-value="busy"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits telefonieren.</div></button>'
-      + '<button class="activation-choice-card ' + (mode==='always'?'active':'') + '" data-action="select-mode" data-value="always"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle Anrufe direkt an Voxera.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (mode==='no_answer'?'active':'') + '" data-action="select-mode" data-value="no_answer"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Bei Nichtannahme übernimmt Voxera.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (mode==='unreachable'?'active':'') + '" data-action="select-mode" data-value="unreachable"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder ohne Netz.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (mode==='busy'?'active':'') + '" data-action="select-mode" data-value="busy"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits telefonieren.</div></button>'
+      + '<button type="button" class="activation-choice-card ' + (mode==='always'?'active':'') + '" data-action="select-mode" data-value="always"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle Anrufe direkt an Voxera.</div></button>'
       + '</div>'
-      + '<div class="activation-actions"><button class="activation-btn primary" data-action="go-step" data-value="3" ' + (!canProceedStep3 ? 'disabled' : '') + '>Weiter</button></div>';
+      + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="3" ' + (!canProceedStep3 ? 'disabled' : '') + '>Weiter</button></div>';
   } else {
     if (candidateCall) html += '<div class="activation-info-banner">✓ Test erkannt. Sie können jetzt final aktivieren.</div>';
     if (uiState === 'failed') html += '<div class="activation-warning-banner">Letzter Test nicht bestätigt. Bitte erneut aktivieren und prüfen.</div>';
@@ -6976,17 +7018,17 @@ function renderActivationV2(){
       + '<div class="activation-actions">';
 
     if (customerMeta.setupDeviceType === 'mobile') {
-      html += '<button class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung aktivieren</button>';
-      html += '<button class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>';
+      html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung aktivieren</button>';
+      html += '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>';
     } else {
-      html += '<button class="activation-btn primary" data-action="start-landline">Weiterleitung aktivieren</button>';
-      html += '<button class="activation-btn secondary" data-action="open-help-forwarding">Anleitung öffnen</button>';
+      html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung aktivieren</button>';
+      html += '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Anleitung öffnen</button>';
     }
 
     if (candidateCall) {
-      html += '<button class="activation-btn secondary" data-action="confirm-test">Test bestätigen</button>';
+      html += '<button type="button" class="activation-btn secondary" data-action="confirm-test">Test bestätigen</button>';
     } else {
-      html += '<button class="activation-btn secondary" data-action="retry-test">Test prüfen</button>';
+      html += '<button type="button" class="activation-btn secondary" data-action="retry-test">Test prüfen</button>';
     }
 
     html += '</div>';
@@ -7005,9 +7047,9 @@ function renderActivationV2(){
 
   html += '<details class="activation-advanced"><summary>Erweiterte Optionen</summary>'
     + '<div class="activation-advanced-body">'
-    + '<button class="activation-link-btn" data-action="go-step" data-value="2">Weiterleitung ändern</button>'
-    + '<button class="activation-link-btn" data-action="open-deactivation">Deaktivieren</button>'
-    + '<button class="activation-link-btn" data-action="open-help-forwarding">Hilfe</button>'
+    + '<button type="button" class="activation-link-btn" data-action="go-step" data-value="2">Weiterleitung ändern</button>'
+    + '<button type="button" class="activation-link-btn" data-action="open-deactivation">Deaktivieren</button>'
+    + '<button type="button" class="activation-link-btn" data-action="open-help-forwarding">Hilfe</button>'
     + '</div></details>'
     + '</div>';
 
