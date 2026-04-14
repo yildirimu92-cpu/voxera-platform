@@ -7196,27 +7196,53 @@ async function activationV2RetryFlow(event) {
     candidateCall = null;
     activationFlowGuideToken = '';
     activationFlowSuccessToken = '';
-    await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null, activation_test_mode: null, activation_test_candidate_call_id: null });
+    await patchCustomerRecord(recId, {
+      forwarding_status: 'not_started',
+      activation_started_at: null,
+      activation_test_mode: null,
+      activation_test_candidate_call_id: null,
+      setup_device_type: null,
+      forwarding_mode: null,
+      last_confirmed_setup_device_type: null,
+      last_confirmed_forwarding_mode: null,
+      forwarding_setup_completed: false
+    });
     const verifyContext = await resolveCustomerContext();
     var verifyRec = verifyContext && verifyContext.customerRecord ? verifyContext.customerRecord : null;
     var resetPersisted = verifyRec
       && String(verifyRec.forwarding_status || '').toLowerCase() === 'not_started'
       && !verifyRec.activation_started_at
       && !verifyRec.activation_test_mode
-      && !verifyRec.activation_test_candidate_call_id;
+      && !verifyRec.activation_test_candidate_call_id
+      && !verifyRec.setup_device_type
+      && !verifyRec.forwarding_mode
+      && !verifyRec.last_confirmed_setup_device_type
+      && !verifyRec.last_confirmed_forwarding_mode
+      && verifyRec.forwarding_setup_completed === false;
     if (!resetPersisted) throw new Error('activation reset verification failed');
     customerMeta.forwardingStatus = 'not_started';
     customerMeta.activationStartedAt = null;
     customerMeta.activationTestMode = null;
+    customerMeta.setupDeviceType = null;
+    customerMeta.forwardingMode = null;
+    customerMeta.lastConfirmedSetupDeviceType = null;
+    customerMeta.lastConfirmedForwardingMode = null;
+    customerMeta.forwardingSetupCompleted = false;
     customerMeta.activationTestOutboundCallId = null;
     if (verifyContext && verifyContext.customerRecord) {
       verifyContext.customerRecord.forwarding_status = 'not_started';
       verifyContext.customerRecord.activation_started_at = null;
       verifyContext.customerRecord.activation_test_mode = null;
       verifyContext.customerRecord.activation_test_candidate_call_id = null;
+      verifyContext.customerRecord.setup_device_type = null;
+      verifyContext.customerRecord.forwarding_mode = null;
+      verifyContext.customerRecord.last_confirmed_setup_device_type = null;
+      verifyContext.customerRecord.last_confirmed_forwarding_mode = null;
+      verifyContext.customerRecord.forwarding_setup_completed = false;
     }
+    activationV2FlowState.confirmedDeviceType = null;
     clearActivationV2ModeConfirmation();
-    persistActivationV2Step(activationV2FlowState.confirmedDeviceType ? 2 : 1);
+    persistActivationV2Step(1);
     renderActivationV2();
     toast('Aktivierung wurde zurückgesetzt. Sie können die Aktivierung jetzt erneut starten.');
   } catch (e) {

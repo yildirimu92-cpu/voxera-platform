@@ -12,6 +12,36 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function extractMissingColumnName(message) {
+  const text = String(message || '');
+  const match = text.match(/column\s+"([^"]+)"\s+of relation\s+"customers"\s+does not exist/i);
+  return match && match[1] ? match[1] : '';
+}
+
+async function updateCustomerWithSchemaFallback(sbAdmin, customerId, allowed) {
+  const payload = { ...allowed };
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const { data, error } = await sbAdmin
+      .from('customers')
+      .update(payload)
+      .eq('id', customerId)
+      .select('*')
+      .single();
+
+    if (!error) return { data, error: null, payload };
+
+    lastError = error;
+    const missingColumn = error && error.code === '42703' ? extractMissingColumnName(error.message) : '';
+    if (!missingColumn || !Object.prototype.hasOwnProperty.call(payload, missingColumn)) break;
+
+    delete payload[missingColumn];
+  }
+
+  return { data: null, error: lastError, payload };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -50,12 +80,16 @@ exports.handler = async (event) => {
     allowed.forwarding_setup_completed = body.forwarding_setup_completed === true;
   }
 
-  if (body.setup_device_type != null) {
-    const deviceType = String(body.setup_device_type).trim().toLowerCase();
-    if (!['mobile', 'landline'].includes(deviceType)) {
-      return response(400, { error: 'setup_device_type ungueltig' });
+  if ('setup_device_type' in body) {
+    if (body.setup_device_type === null) {
+      allowed.setup_device_type = null;
+    } else {
+      const deviceType = String(body.setup_device_type).trim().toLowerCase();
+      if (!['mobile', 'landline'].includes(deviceType)) {
+        return response(400, { error: 'setup_device_type ungueltig' });
+      }
+      allowed.setup_device_type = deviceType;
     }
-    allowed.setup_device_type = deviceType;
   }
 
   if (body.forwarding_status != null) {
@@ -90,12 +124,16 @@ exports.handler = async (event) => {
     }
   }
 
-  if (body.forwarding_mode != null) {
-    const forwardingMode = String(body.forwarding_mode).trim().toLowerCase();
-    if (!['no_answer', 'unreachable', 'always', 'busy'].includes(forwardingMode)) {
-      return response(400, { error: 'forwarding_mode ungueltig. Erlaubte Werte: no_answer, unreachable, always, busy' });
+  if ('forwarding_mode' in body) {
+    if (body.forwarding_mode === null) {
+      allowed.forwarding_mode = null;
+    } else {
+      const forwardingMode = String(body.forwarding_mode).trim().toLowerCase();
+      if (!['no_answer', 'unreachable', 'always', 'busy'].includes(forwardingMode)) {
+        return response(400, { error: 'forwarding_mode ungueltig. Erlaubte Werte: no_answer, unreachable, always, busy' });
+      }
+      allowed.forwarding_mode = forwardingMode;
     }
-    allowed.forwarding_mode = forwardingMode;
   }
 
   if ('activation_test_mode' in body) {
@@ -122,20 +160,28 @@ exports.handler = async (event) => {
     }
   }
 
-  if (body.last_confirmed_setup_device_type != null) {
-    const deviceType = String(body.last_confirmed_setup_device_type).trim().toLowerCase();
-    if (!['mobile', 'landline'].includes(deviceType)) {
-      return response(400, { error: 'last_confirmed_setup_device_type ungueltig. Erlaubte Werte: mobile, landline' });
+  if ('last_confirmed_setup_device_type' in body) {
+    if (body.last_confirmed_setup_device_type === null) {
+      allowed.last_confirmed_setup_device_type = null;
+    } else {
+      const deviceType = String(body.last_confirmed_setup_device_type).trim().toLowerCase();
+      if (!['mobile', 'landline'].includes(deviceType)) {
+        return response(400, { error: 'last_confirmed_setup_device_type ungueltig. Erlaubte Werte: mobile, landline' });
+      }
+      allowed.last_confirmed_setup_device_type = deviceType;
     }
-    allowed.last_confirmed_setup_device_type = deviceType;
   }
 
-  if (body.last_confirmed_forwarding_mode != null) {
-    const confirmedMode = String(body.last_confirmed_forwarding_mode).trim().toLowerCase();
-    if (!['no_answer', 'unreachable', 'always', 'busy'].includes(confirmedMode)) {
-      return response(400, { error: 'last_confirmed_forwarding_mode ungueltig. Erlaubte Werte: no_answer, unreachable, always, busy' });
+  if ('last_confirmed_forwarding_mode' in body) {
+    if (body.last_confirmed_forwarding_mode === null) {
+      allowed.last_confirmed_forwarding_mode = null;
+    } else {
+      const confirmedMode = String(body.last_confirmed_forwarding_mode).trim().toLowerCase();
+      if (!['no_answer', 'unreachable', 'always', 'busy'].includes(confirmedMode)) {
+        return response(400, { error: 'last_confirmed_forwarding_mode ungueltig. Erlaubte Werte: no_answer, unreachable, always, busy' });
+      }
+      allowed.last_confirmed_forwarding_mode = confirmedMode;
     }
-    allowed.last_confirmed_forwarding_mode = confirmedMode;
   }
 
   // ─── Avatar URL ──────────────────────────────────────────────────────────────
@@ -153,17 +199,12 @@ exports.handler = async (event) => {
   }
 
   allowed.updated_at = new Date().toISOString();
-  const { data, error } = await sbAdmin
-    .from('customers')
-    .update(allowed)
-    .eq('id', caller.customerId)
-    .select('*')
-    .single();
+  const { data, error, payload } = await updateCustomerWithSchemaFallback(sbAdmin, caller.customerId, allowed);
 
   if (error) {
     console.error('[customer-update-settings] update failed', {
       customerId: caller.customerId,
-      payload: allowed,
+      payload,
       code: error.code,
       message: error.message,
       details: error.details,
