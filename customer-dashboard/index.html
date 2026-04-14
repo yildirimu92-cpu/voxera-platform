@@ -1712,7 +1712,7 @@ body{
   <div class="login-card" id="login-card">
     <img src="/brand/05-app-icon-512px.svg" alt="Voxera" style="height:36px;width:auto;margin:0 auto 6px;display:block;"/>
     <div class="login-tag">KI-Telefonassistent Dashboard</div>
-    <div class="login-sub">Melden Sie sich an um Ihre Anrufe zu verwalten</div>
+    <div class="login-sub">Melden Sie sich an, um Ihre Kundenanfragen und Aufgaben zu steuern</div>
     <div class="login-error" id="login-error"></div>
     <div class="login-form">
       <div class="login-field">
@@ -1765,11 +1765,11 @@ body{
       <nav class="nav">
         <div class="nav-item active" onclick="showTab('dashboard',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6.5" height="6.5" rx="1.5"/><rect x="8.5" y="1" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="1" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".2"/></svg>
-          Dashboard
+          Übersicht
         </div>
         <div class="nav-item" id="nav-anrufe" onclick="showTab('anrufe',this)">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M3.5 2.5h2l1 2.5-1.5 1c.8 1.5 2 2.7 3.5 3.5l1-1.5 2.5 1v2c0 .8-.7 1.5-1.5 1.5C5.2 13 3 7.5 3 4.5c0-.8.7-1 .5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-          Kontakte
+          Anfragen
           <span class="nav-badge blue" id="badge-anrufe">–</span>
         </div>
         <div class="nav-item" id="nav-rueckrufe" onclick="showTab('rueckrufe',this)">
@@ -1783,7 +1783,7 @@ body{
         </div>
         <div class="nav-item" onclick="showTab('einrichtung',this)" id="nav-einrichtung">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3"/></svg>
-          Einrichtung
+          Erreichbarkeit
         </div>
         <div class="nav-item" onclick="showTab('einstellungen',this)" id="nav-einstellungen">
           <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M6.9 1.5h2.2l.3 1.7c.4.2.8.4 1.1.7l1.6-.5 1.1 1.9-1.3 1.1c0 .2.1.4.1.6s0 .4-.1.6l1.3 1.1-1.1 1.9-1.6-.5c-.3.3-.7.5-1.1.7l-.3 1.7H6.9l-.3-1.7c-.4-.2-.8-.4-1.1-.7l-1.6.5-1.1-1.9 1.3-1.1c0-.2-.1-.4-.1-.6s0-.4.1-.6L3.8 4.1l1.1-1.9 1.6.5c.3-.3.7-.5 1.1-.7l.3-1.5z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
@@ -1853,9 +1853,9 @@ body{
 
             <div class="dash-top">
               <div class="dash-status-hero" id="dash-status-hero">
-                <div class="dash-status-label">Voxera Dashboard</div>
-                <div class="dash-status-title" id="dash-status-title">Ihr Assistent ist bereit</div>
-                <div class="dash-status-sub" id="dash-status-text">Wir überwachen Ihre aktuellen Anfragen und priorisieren offene Rückrufe.</div>
+                <div class="dash-status-label">Voxera Operations Cockpit</div>
+                <div class="dash-status-title" id="dash-status-title">Voxera aktiv · erreichbar & bereit</div>
+                <div class="dash-status-sub" id="dash-status-text">Ihr Tagesstatus für neue Anfragen, offene Aufgaben und nächste Schritte.</div>
                 <div class="dash-status-meta">
                   <span class="dash-status-chip note" id="dash-status-chip-primary">Status wird geladen…</span>
                   <span class="dash-status-chip note" id="dash-status-chip-secondary">Aktualisiert mit Live-Daten</span>
@@ -1865,7 +1865,7 @@ body{
               <!-- KPI KACHELN -->
               <div class="dash-kpi-row">
                 <div class="dash-kpi" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
-                  <div class="dash-kpi-label">Anrufe heute</div>
+                  <div class="dash-kpi-label">Neue Anfragen</div>
                   <div class="dash-kpi-val" id="kpi-heute">–</div>
                   <div class="dash-kpi-trend neutral" id="kpi-heute-trend"></div>
                 </div>
@@ -1875,19 +1875,19 @@ body{
                   <div class="dash-kpi-trend neutral" id="kpi-callbacks-trend"></div>
                 </div>
                 <div class="dash-kpi" onclick="document.getElementById('dash-followup-section').scrollIntoView({behavior:'smooth'})">
-                  <div class="dash-kpi-label">Follow-ups</div>
+                  <div class="dash-kpi-label">Erledigt heute</div>
                   <div class="dash-kpi-val" id="kpi-followups">–</div>
                   <div class="dash-kpi-trend neutral" id="kpi-followups-trend"></div>
                 </div>
                 <div class="dash-kpi" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
-                  <div class="dash-kpi-label">Leads</div>
+                  <div class="dash-kpi-label">Aktivität</div>
                   <div class="dash-kpi-val" id="kpi-leads">–</div>
                   <div class="dash-kpi-leads" id="kpi-leads-dots"></div>
                 </div>
               </div>
 
               <div class="dash-focus-card" id="dash-focus-card">
-                <div class="dash-focus-label">Aufgaben-Fokus</div>
+                <div class="dash-focus-label">Priorität jetzt</div>
                 <div class="dash-focus-head">
                   <div class="dash-focus-number" id="dash-focus-number">–</div>
                   <div class="dash-focus-hint" id="dash-focus-hint">Priorität</div>
@@ -1904,7 +1904,7 @@ body{
               <div class="dash-col">
                 <div class="dash-glass" id="dash-recent-section">
                   <div class="dash-glass-hd">
-                    <div class="dash-glass-title">Letzte Kontakte</div>
+                    <div class="dash-glass-title">Neueste Anfragen</div>
                     <span class="dash-glass-link" onclick="activateTab('anrufe')">Alle anzeigen</span>
                   </div>
                   <div class="call-list" id="dash-recent-list" style="margin-bottom:0;gap:0;"></div>
@@ -1915,7 +1915,7 @@ body{
               <div class="dash-col">
                 <div class="dash-glass" id="dash-callback-section">
                   <div class="dash-glass-hd">
-                    <div class="dash-glass-title">Offene Aufgaben</div>
+                    <div class="dash-glass-title">Priorisierte Aufgaben</div>
                     <span class="dash-glass-link" onclick="activateTab('rueckrufe')">Alle anzeigen</span>
                   </div>
                   <div id="dash-callback-list"></div>
@@ -1936,9 +1936,9 @@ body{
         <!-- ANRUFE TAB -->
         <div class="tab-page" id="tab-anrufe">
           <div class="section-head" style="margin-bottom:4px;">
-            <div class="section-title">Kontakte</div>
+            <div class="section-title">Anfragen</div>
           </div>
-          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Alle eingegangenen Kundenanfragen auf einen Blick.</div>
+          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Alle eingehenden Kundenanfragen in einer priorisierten Übersicht.</div>
           <div class="filter-tabs" style="margin-bottom:12px;">
             <button class="ftab active" onclick="filterList('anrufe-list','alle',this)">Alle</button>
             <button class="ftab" onclick="filterList('anrufe-list','dringend',this)">Dringend</button>
@@ -1946,7 +1946,7 @@ body{
           </div>
           <div class="search-wrap">
             <svg class="search-icon" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-            <input class="search-input" placeholder="Anrufer suchen..." oninput="searchList('anrufe-list',this.value)">
+            <input class="search-input" placeholder="Anfrage, Name oder Nummer suchen..." oninput="searchList('anrufe-list',this.value)">
           </div>
           <div class="call-list" id="anrufe-list"></div>
         </div>
@@ -1956,7 +1956,7 @@ body{
           <div class="section-head" style="margin-bottom:4px;">
             <div class="section-title">Aufgaben</div>
           </div>
-          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Offene Rückrufe, Follow-ups und nächste Schritte.</div>
+          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Rückrufe, Follow-ups und alle nächsten Schritte in Ihrer Arbeitsliste.</div>
           <div class="filter-tabs" style="margin-bottom:12px;">
             <button class="ftab active" onclick="filterList('rueckrufe-list','alle',this)">Alle</button>
             <button class="ftab" onclick="filterList('rueckrufe-list','dringend',this)">Dringend</button>
@@ -1964,7 +1964,7 @@ body{
           </div>
           <div class="search-wrap">
             <svg class="search-icon" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-            <input class="search-input" placeholder="Anrufer suchen..." oninput="searchList('rueckrufe-list',this.value)">
+            <input class="search-input" placeholder="Aufgabe, Name oder Nummer suchen..." oninput="searchList('rueckrufe-list',this.value)">
           </div>
           <div class="call-list" id="rueckrufe-list"></div>
         </div>
@@ -2016,6 +2016,10 @@ body{
 
         <!-- EINRICHTUNG TAB -->
         <div class="tab-page" id="tab-einrichtung">
+          <div style="max-width:880px;margin-bottom:14px;">
+            <div class="section-title">Erreichbarkeit</div>
+            <div style="font-size:12.5px;color:var(--gray400);margin-top:4px;">Steuern Sie Aktivierung, Weiterleitung und Ihre aktuelle Erreichbarkeit.</div>
+          </div>
           <div id="activation-v2-shell"></div>
         </div>
 
@@ -2062,7 +2066,7 @@ body{
               </div>
             </div>
 
-            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Anrufe & Erreichbarkeit</div>
+            <div style="font-size:11.5px;font-weight:700;color:#6B7280;margin:18px 4px 10px;letter-spacing:0;">Anfragen & Erreichbarkeit</div>
             <div class="settings-card">
               <div class="settings-card-title">Ihre Voxera-Nummer</div>
               <div class="settings-row">
@@ -2370,15 +2374,15 @@ body{
               </div>
             </div>
 
-            <!-- Themenblock: Kontakte & Aufgaben -->
+            <!-- Themenblock: Anfragen & Aufgaben -->
             <div class="help-topic" id="help-anrufe">
-              <div class="help-topic-title">Kontakte &amp; Aufgaben</div>
+              <div class="help-topic-title">Anfragen &amp; Aufgaben</div>
               <div class="help-steps">
                 <div class="help-step">
                   <div class="help-step-num">1</div>
                   <div class="help-step-body">
                     <div class="help-step-title">Neue Anrufe sehen</div>
-                    <div class="help-step-text">Im Tab „Kontakte“ erscheinen alle neuen Einträge sofort mit Kontaktdaten und Anliegen.</div>
+                    <div class="help-step-text">Im Tab „Anfragen“ erscheinen alle neuen Einträge sofort mit Kontaktdaten und Anliegen.</div>
                   </div>
                 </div>
                 <div class="help-step">
@@ -2472,11 +2476,11 @@ body{
     <div class="mobile-nav-inner">
       <button class="mobile-nav-btn active" id="mnav-dashboard" onclick="showTab('dashboard',this)">
         <svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6.5" height="6.5" rx="1.5"/><rect x="8.5" y="1" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="1" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".4"/><rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1.5" opacity=".2"/></svg>
-        Dashboard
+        Übersicht
       </button>
         <button class="mobile-nav-btn" id="mnav-anrufe" onclick="showTab('anrufe',this)">
         <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 2.5h2l1 2.5-1.5 1c.8 1.5 2 2.7 3.5 3.5l1-1.5 2.5 1v2c0 .8-.7 1.5-1.5 1.5C5.2 13 3 7.5 3 4.5c0-.8.7-1 .5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-        Kontakte
+        Anfragen
         <span class="mobile-nav-badge blue" id="mnav-badge-anrufe" style="display:none"></span>
       </button>
       <button class="mobile-nav-btn" id="mnav-rueckrufe" onclick="showTab('rueckrufe',this)">
@@ -3447,7 +3451,7 @@ function updateDashboardHeaderMeta() {
   var buckets = deriveDashboardCallBuckets(allRecords || []);
   var openCalls = buckets.open.length;
   var openCallbacks = buckets.callbacks.length;
-  sub.textContent = openCalls + ' Kontakte · ' + openCallbacks + ' Aufgaben · Gerade aktualisiert';
+  sub.textContent = openCalls + ' Anfragen · ' + openCallbacks + ' Aufgaben · Gerade aktualisiert';
 }
 
 function isToday(raw) {
@@ -3962,6 +3966,9 @@ function updateSoundToggleUI(isOff) {
 function renderDashboard(records) {
   var buckets = deriveDashboardCallBuckets(records || []);
   var today = (records || []).filter(function(r) { return isToday(getRecordTimestamp(r)); });
+  var doneToday = (records || []).filter(function(r) {
+    return isClosedStatus(r.fields && r.fields.dashboard_status) && isToday(getRecordTimestamp(r));
+  });
   var offen = buckets.callbacks;
   var sortedOpenCallbacks = buckets.callbacks;
   var allOpen = buckets.open;
@@ -3969,11 +3976,6 @@ function renderDashboard(records) {
   updateActivationStatusCard(records);
 
   // ── KPI: Anrufe heute / Rückrufe / Follow-ups / Leads ───────────────────────
-  var hot  = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'hot'; }).length;
-  var warm = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'warm'; }).length;
-  var kalt = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'kalt'; }).length;
-  var neu  = today.filter(function(r) { return qualKey(r.fields.lead_quality) === 'neu'; }).length;
-
   var kpiHeute = document.getElementById('kpi-heute');
   if (kpiHeute) kpiHeute.textContent = today.length;
   renderKpiTrend('kpi-heute-trend', today.length, 'heute');
@@ -3983,8 +3985,8 @@ function renderDashboard(records) {
   renderKpiTrend('kpi-callbacks-trend', offen.length, 'callbacks');
 
   var kpiFollowups = document.getElementById('kpi-followups');
-  if (kpiFollowups) kpiFollowups.textContent = followupsOpen.length;
-  renderKpiTrend('kpi-followups-trend', followupsOpen.length, 'followups');
+  if (kpiFollowups) kpiFollowups.textContent = doneToday.length;
+  renderKpiTrend('kpi-followups-trend', doneToday.length, 'followups');
 
   // ── Hero + Fokuskarte (nur UI-Mapping, bestehende Datenquelle) ────────────
   var statusHero = document.getElementById('dash-status-hero');
@@ -3997,16 +3999,16 @@ function renderDashboard(records) {
     statusChipSecondary.className = 'dash-status-chip note';
     if (offen.length > 0) {
       statusTitle.textContent = 'Aufgaben benötigen Priorität';
-      statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Aufgaben. Voxera hat die wichtigsten Kontakte bereits für Sie gesammelt.';
+      statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Aufgaben. Voxera priorisiert die wichtigsten Anfragen für Ihren nächsten Schritt.';
       statusChipPrimary.textContent = offen.length + ' offen';
       statusChipPrimary.classList.add('alert');
-      statusChipSecondary.textContent = today.length + ' Kontakte heute';
+      statusChipSecondary.textContent = today.length + ' neue Anfragen heute';
     } else {
       statusTitle.textContent = 'Alles unter Kontrolle';
-      statusText.textContent = 'Aktuell gibt es keine offenen Aufgaben. Neue Kontakte und Follow-ups erscheinen automatisch in Ihrer Übersicht.';
+      statusText.textContent = 'Aktuell gibt es keine offenen Aufgaben. Neue Anfragen und Follow-ups erscheinen automatisch in Ihrer Übersicht.';
       statusChipPrimary.textContent = 'Keine offenen Aufgaben';
       statusChipPrimary.classList.add('ok');
-      statusChipSecondary.textContent = today.length + ' Kontakte heute';
+      statusChipSecondary.textContent = today.length + ' neue Anfragen heute';
     }
   }
 
@@ -4027,18 +4029,23 @@ function renderDashboard(records) {
     }
   }
 
-  // Leads KPI
+  // Aktivität KPI
   var kpiLeads = document.getElementById('kpi-leads');
-  var totalLeads = hot + warm + kalt + neu;
-  if (kpiLeads) kpiLeads.textContent = totalLeads;
+  var latestTs = 0;
+  (records || []).forEach(function(r) {
+    var ts = getRecordTimestamp(r);
+    if (ts && ts > latestTs) latestTs = ts;
+  });
+  var minutesSinceLast = latestTs ? Math.max(0, Math.floor((Date.now() - latestTs) / 60000)) : null;
+  if (kpiLeads) kpiLeads.textContent = minutesSinceLast === null ? '–' : (minutesSinceLast < 60 ? (minutesSinceLast + 'm') : (Math.floor(minutesSinceLast / 60) + 'h'));
   var leadsDotsEl = document.getElementById('kpi-leads-dots');
   if (leadsDotsEl) {
     var dotsHtml = '';
-    if (hot > 0)  dotsHtml += '<span class="dash-kpi-lead-dot lead-dot-hot">🔴 ' + hot + ' Hot</span>';
-    if (warm > 0) dotsHtml += '<span class="dash-kpi-lead-dot lead-dot-warm">🟡 ' + warm + ' Warm</span>';
-    if (kalt > 0) dotsHtml += '<span class="dash-kpi-lead-dot lead-dot-kalt">🔵 ' + kalt + ' Kalt</span>';
-    if (neu > 0)  dotsHtml += '<span class="dash-kpi-lead-dot lead-dot-neu">○ ' + neu + ' Neu</span>';
-    if (totalLeads === 0) dotsHtml = '<span class="dash-kpi-lead-dot lead-dot-neu">Noch keine Leads</span>';
+    if (minutesSinceLast === null) {
+      dotsHtml = '<span class="dash-kpi-lead-dot lead-dot-neu">Noch keine Aktivität</span>';
+    } else {
+      dotsHtml = '<span class="dash-kpi-lead-dot lead-dot-neu">Letzte Aktivität vor ' + (minutesSinceLast < 60 ? (minutesSinceLast + ' Minuten') : (Math.floor(minutesSinceLast / 60) + ' Stunden')) + '</span>';
+    }
     leadsDotsEl.innerHTML = dotsHtml;
   }
 
