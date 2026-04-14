@@ -6013,7 +6013,6 @@ async function activationStartSmartphone(event, code) {
     renderActivationModule();
     // Step 3: start lightweight polling to detect the candidate call
     startActivationPolling();
-    maybeOpenActivationGuideModal();
     // Step 4: only after state is safely persisted, open the dialer
     if (code) window.location.href = 'tel:' + code;
   } catch(e) {
@@ -6043,7 +6042,6 @@ async function activationStartLandlineTest(event) {
     }
     renderActivationModule();
     startActivationPolling();
-    maybeOpenActivationGuideModal();
   } catch(e) {
     console.error('activationStartLandlineTest failed', e);
     toast('Aktivierung konnte nicht gestartet werden.');
@@ -6676,7 +6674,8 @@ var activationV2StepState = { step: 1 };
 var activationV2FlowState = {
   currentStep: 1,
   confirmedDeviceType: null,
-  confirmedForwardingMode: null
+  confirmedForwardingMode: null,
+  activationPhase: 'preferences_pending'
 };
 
 function getActivationV2StorageKey(suffix){
@@ -6741,6 +6740,15 @@ function deriveActivationUiState(){
     return customerMeta && customerMeta.activationStartedAt ? 'pending_activation' : 'not_started';
   }
   return 'not_started';
+}
+
+function deriveActivationV2Phase(uiState){
+  var hasSelections = !!activationV2FlowState.confirmedDeviceType && !!activationV2FlowState.confirmedForwardingMode;
+  if (!hasSelections) return 'preferences_pending';
+  if (uiState === 'pending_test') return 'test_pending';
+  if (uiState === 'active') return 'active';
+  if (uiState === 'failed' || uiState === 'inactive') return 'failed';
+  return 'preferences_selected';
 }
 
 function inferActivationV2Step(){
@@ -7073,6 +7081,8 @@ function renderActivationV2(){
   restoreActivationV2Step();
   var step = activationV2StepState.step;
   var uiState = deriveActivationUiState();
+  var phase = deriveActivationV2Phase(uiState);
+  activationV2FlowState.activationPhase = phase;
   var hero = activationUiContentByState(uiState);
   var effectiveDevice = getActivationV2EffectiveDevice();
   var effectiveMode = getActivationV2EffectiveMode();
@@ -7134,18 +7144,23 @@ function renderActivationV2(){
       + '</div>'
       + '<div class="activation-actions">';
 
-    if (effectiveDevice === 'mobile') {
-      html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung aktivieren</button>';
-      html += '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>';
+    if (phase === 'test_pending' || phase === 'failed') {
+      html += '<div class="activation-info-banner">Weiterleitung gestartet. Führen Sie jetzt den Testanruf durch und prüfen Sie das Ergebnis.</div>';
+      if (candidateCall) {
+        html += '<button type="button" class="activation-btn primary" data-action="confirm-test">Test bestätigen</button>';
+        html += '<button type="button" class="activation-btn secondary" data-action="retry-test">Erneut prüfen</button>';
+      } else {
+        html += '<button type="button" class="activation-btn primary" data-action="retry-test">Test prüfen</button>';
+        html += '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Testanleitung öffnen</button>';
+      }
     } else {
-      html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung aktivieren</button>';
-      html += '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Anleitung öffnen</button>';
-    }
-
-    if (candidateCall) {
-      html += '<button type="button" class="activation-btn secondary" data-action="confirm-test">Test bestätigen</button>';
-    } else {
-      html += '<button type="button" class="activation-btn secondary" data-action="retry-test">Test prüfen</button>';
+      if (effectiveDevice === 'mobile') {
+        html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung aktivieren</button>';
+        html += '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>';
+      } else {
+        html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung aktivieren</button>';
+        html += '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Anleitung öffnen</button>';
+      }
     }
 
     html += '</div>';
@@ -7178,6 +7193,7 @@ function renderActivationV2(){
     + '<details class="activation-advanced"><summary>Temporäre Aktivierungs-Diagnose</summary><div class="activation-advanced-body">'
     + '<div class="activation-compact-card"><div class="activation-compact-label">Current Step</div><div class="activation-compact-val">' + escapeHtml(String(step)) + '</div></div>'
     + '<div class="activation-compact-card"><div class="activation-compact-label">Render Branch</div><div class="activation-compact-val">' + escapeHtml(renderBranch) + '</div></div>'
+    + '<div class="activation-compact-card"><div class="activation-compact-label">Flow Phase</div><div class="activation-compact-val">' + escapeHtml(phase) + '</div></div>'
     + '<div class="activation-compact-card"><div class="activation-compact-label">Device Source</div><div class="activation-compact-val">' + escapeHtml(deviceSource) + '</div></div>'
     + '<div class="activation-compact-card"><div class="activation-compact-label">Mode Source</div><div class="activation-compact-val">' + escapeHtml(modeSource) + '</div></div>'
     + '<div class="activation-compact-card"><div class="activation-compact-label">Selectable Buttons</div><div class="activation-compact-val">' + (selectionButtonsRendered ? 'rendered' : 'not_rendered') + '</div></div>'
@@ -7187,6 +7203,7 @@ function renderActivationV2(){
   shell.innerHTML = html;
   activationV2DebugLog('render diagnostics', {
     currentStep: step,
+    phase: phase,
     renderBranch: renderBranch,
     deviceSource: deviceSource,
     modeSource: modeSource,
