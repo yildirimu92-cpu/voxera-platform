@@ -1069,6 +1069,7 @@ body{
 .toast-icon.info{background:rgba(99,130,246,0.25);}
 .toast-icon.warning{background:rgba(251,191,36,0.25);}
 .toast-icon.error{background:rgba(248,113,113,0.28);}
+.sr-only{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 
 
 /* ═══════════════════════════════════════════
@@ -1174,12 +1175,18 @@ body{
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
 .followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0 0 12px;align-items:start;max-width:100%;}
 .followup-field{min-width:0;}
+.followup-grid > *{min-width:0;}
 .followup-field label{display:block;font-size:11.5px;font-weight:600;color:var(--gray600);margin-bottom:6px;}
 .followup-field select,.followup-field input{width:100%;max-width:100%;min-width:0;padding:10px 12px;border:1.5px solid var(--gray200);border-radius:12px;background:var(--gray50);font-size:13px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
+.followup-field input[type="datetime-local"]{display:block;width:100%;max-width:100%;min-width:0;}
 .followup-field select:focus,.followup-field input:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
 .followup-mark-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
 .followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray900);}
 .followup-mark-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--green);}
+#followup-overlay .modal,
+#followup-overlay .modal-shell,
+#followup-overlay .modal-body,
+#followup-overlay #followup-editable{min-width:0;max-width:100%;}
 .meta-pill{margin-right:6px;margin-top:2px;}
 @media(max-width:768px){.followup-grid{grid-template-columns:1fr;}}
 
@@ -3003,6 +3010,7 @@ body{
 
 <!-- TOAST -->
 <div class="toast" id="toast"><div class="toast-icon success" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg></div><span id="toast-text"></span></div>
+<div id="copy-feedback-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 <script>
 'use strict';
@@ -5205,24 +5213,8 @@ async function saveFollowup() {
   const currentRecord = allRecords.find(function(r){ return r.id === notizRecordId; });
   const currentStatus = normalizeStatus(currentRecord && currentRecord.fields ? currentRecord.fields.dashboard_status : CALL_STATUS.NEW);
   if (markComplete && markComplete.checked) {
-    if (currentStatus === CALL_STATUS.NEW) {
-      assertCallTransition(CALL_STATUS.NEW, CALL_STATUS.IN_PROGRESS);
-      assertCallTransition(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
-      assertCallTransition(CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED);
-    } else if (currentStatus === CALL_STATUS.IN_PROGRESS) {
-      assertCallTransition(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
-      assertCallTransition(CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED);
-    } else {
-      assertCallTransition(currentStatus, CALL_STATUS.CLOSED);
-    }
     newStatus = CALL_STATUS.CLOSED;
   } else if (followUpAt) {
-    if (currentStatus === CALL_STATUS.NEW) {
-      assertCallTransition(CALL_STATUS.NEW, CALL_STATUS.IN_PROGRESS);
-      assertCallTransition(CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED);
-    } else {
-      assertCallTransition(currentStatus, CALL_STATUS.FOLLOW_UP_SCHEDULED);
-    }
     newStatus = CALL_STATUS.FOLLOW_UP_SCHEDULED;
   }
 
@@ -5241,7 +5233,8 @@ async function saveFollowup() {
     notizRecordId = null;
     setTimeout(loadData, 500);
   } catch(e) {
-    toast(' Fehler beim Speichern');
+    const detail = e && e.message ? String(e.message) : '';
+    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen');
     btn.disabled = false; btn.textContent = 'Speichern';
   }
 }
@@ -5373,18 +5366,17 @@ async function saveNotiz() {
   btn.disabled = true; btn.textContent = 'Speichern...';
   const rec = allRecords.find(r => r.id === notizRecordId);
   const currentStatus = rec && rec.fields ? normalizeStatus(rec.fields.dashboard_status) : CALL_STATUS.NEW;
-  const fields = {notes_customer_voxera: text};
-  if (!isClosedStatus(currentStatus)) fields.dashboard_status = CALL_STATUS.IN_PROGRESS;
   try {
     await apiPatchOptional(notizRecordId, {notes_customer_voxera: text}, {notes_customer_voxera: text});
-    if (!isClosedStatus(currentStatus)) {
+    if (currentStatus === CALL_STATUS.NEW) {
       await applyStatusTransition(notizRecordId, currentStatus, CALL_STATUS.IN_PROGRESS);
     }
     toast('Notiz gespeichert');
     closeNotiz();
     setTimeout(loadData, 600);
   } catch(e) {
-    toast(' Fehler beim Speichern');
+    const detail = e && e.message ? String(e.message) : '';
+    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen');
     btn.disabled = false; btn.textContent = 'Speichern';
   }
 }
@@ -5907,7 +5899,6 @@ function openFullHelpFromWizard(anchorId) {
 
 async function copyForwardingCode(event, code) {
   if (event) event.stopPropagation();
-  var btn = event && event.currentTarget;
   if (!code) {
     toast('Code nicht verfügbar');
     return;
@@ -5928,13 +5919,13 @@ async function copyForwardingCode(event, code) {
       document.body.removeChild(temp);
       if (!copied) throw new Error('Clipboard API unavailable');
     }
-    if (btn) {
-      var prev = btn.textContent;
-      btn.textContent = 'Kopiert';
-      setTimeout(function(){ btn.textContent = prev; }, 1200);
-    }
+    var liveEl = document.getElementById('copy-feedback-live');
+    if (liveEl) liveEl.textContent = 'Code kopiert';
+    toast('Code kopiert');
   } catch (e) {
-    toast('Kopieren nicht möglich');
+    var liveEl = document.getElementById('copy-feedback-live');
+    if (liveEl) liveEl.textContent = 'Kopieren fehlgeschlagen';
+    toast('Kopieren fehlgeschlagen');
   }
 }
 
