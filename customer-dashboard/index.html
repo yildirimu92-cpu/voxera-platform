@@ -6029,8 +6029,67 @@ async function changePassword() {
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-function showTab(name, el) {
+const MAIN_NAV_HISTORY_TABS = new Set(['dashboard','anrufe','rueckrufe','archiv','einstellungen','hilfe']);
+const MAIN_NAV_DEFAULT_TAB = 'dashboard';
+const MAIN_NAV_URL_PARAM = 'tab';
+const MAIN_NAV_TAB_TO_URL = {
+  dashboard: 'overview',
+  anrufe: 'requests',
+  rueckrufe: 'tasks',
+  archiv: 'history',
+  einstellungen: 'settings',
+  hilfe: 'help'
+};
+const MAIN_NAV_URL_TO_TAB = Object.fromEntries(
+  Object.entries(MAIN_NAV_TAB_TO_URL).map(([tab,urlTab])=>[urlTab,tab])
+);
+
+function isMainNavHistoryTab(tabName){
+  return MAIN_NAV_HISTORY_TABS.has(String(tabName||'').trim());
+}
+
+function getCurrentTabName(){
+  const active=document.querySelector('.tab-page.active');
+  if(!active||!active.id) return '';
+  return active.id.replace(/^tab-/,'');
+}
+
+function getRequestedMainNavTabFromUrl(){
+  const params=new URLSearchParams(location.search||'');
+  if(!params.has(MAIN_NAV_URL_PARAM)) return {hasParam:false, tab:MAIN_NAV_DEFAULT_TAB, isValid:false};
+  const raw=String(params.get(MAIN_NAV_URL_PARAM)||'').trim().toLowerCase();
+  const mappedTab=MAIN_NAV_URL_TO_TAB[raw]||(isMainNavHistoryTab(raw)?raw:'');
+  if(isMainNavHistoryTab(mappedTab)) return {hasParam:true, tab:mappedTab, isValid:true};
+  return {hasParam:true, tab:MAIN_NAV_DEFAULT_TAB, isValid:false};
+}
+
+function getMainNavFromStateOrUrl(eventState){
+  const stateTab=eventState&&isMainNavHistoryTab(eventState.mainTab)?eventState.mainTab:'';
+  if(stateTab) return stateTab;
+  return getRequestedMainNavTabFromUrl().tab;
+}
+
+function writeMainNavHistory(tabName, mode){
+  if(!isMainNavHistoryTab(tabName)) return;
+  const params=new URLSearchParams(location.search||'');
+  params.set(MAIN_NAV_URL_PARAM,MAIN_NAV_TAB_TO_URL[tabName]||MAIN_NAV_TAB_TO_URL[MAIN_NAV_DEFAULT_TAB]);
+  const query=params.toString();
+  const nextUrl=`${location.pathname}${query?`?${query}`:''}${location.hash||''}`;
+  const statePayload={ ...(history.state||{}), mainTab:tabName };
+  if(mode==='replace') history.replaceState(statePayload,'',nextUrl);
+  else history.pushState(statePayload,'',nextUrl);
+}
+
+function findTabNavElement(tabName){
+  return document.getElementById('nav-' + tabName) ||
+         document.querySelector(`.nav-item[onclick*="'${tabName}'"]`) ||
+         document.getElementById('mnav-' + tabName);
+}
+
+function showTab(name, el, options) {
   if (!name) return;
+  const opts = (options && typeof options === 'object') ? options : {};
+  const previousTab = getCurrentTabName();
   closeUserMenu();
   closeMobileUserMenu();
   var targetTab = document.getElementById('tab-' + name);
@@ -6043,6 +6102,11 @@ function showTab(name, el) {
   if (navEl) navEl.classList.add('active');
   const mnav = document.getElementById('mnav-'+name);
   if (mnav) mnav.classList.add('active');
+  if (isMainNavHistoryTab(name)) {
+    const mode = opts.historyMode || 'push';
+    const shouldWrite = mode !== 'none' && (mode === 'replace' || previousTab !== name);
+    if (shouldWrite) writeMainNavHistory(name, mode === 'replace' ? 'replace' : 'push');
+  }
   try {
     // PRODUKTREGEL: Nach First-Login darf 'einrichtung' nicht mehr persistent gespeichert werden
     const setupFinished = localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));
@@ -6061,28 +6125,44 @@ function showTab(name, el) {
 
 function restoreTab() {
   try {
+    const urlState = getRequestedMainNavTabFromUrl();
+    if (urlState.hasParam) {
+      const navEl = findTabNavElement(urlState.tab);
+      if (navEl) {
+        showTab(urlState.tab, navEl, { historyMode: 'replace' });
+        return;
+      }
+    }
+
     const saved = sessionStorage.getItem('voxera_tab');
-    if (!saved || saved === 'dashboard') return;
+    if (!saved || saved === 'dashboard') {
+      showTab(MAIN_NAV_DEFAULT_TAB, findTabNavElement(MAIN_NAV_DEFAULT_TAB), { historyMode: 'replace' });
+      return;
+    }
 
     // PRODUKTREGEL: Nach First-Login darf 'einrichtung' niemals mehr automatisch restored werden
     if (saved === 'einrichtung') {
       const setupFinished = localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));
       if (setupFinished) {
         const fallbackTab = sessionStorage.getItem('voxera_last_non_setup_tab') || 'dashboard';
-        if (fallbackTab !== 'dashboard') {
-          const navEl = document.querySelector(`.nav-item[onclick*="'${fallbackTab}'"]`) ||
-                        document.getElementById('mnav-'+fallbackTab);
-          if (navEl) showTab(fallbackTab, navEl);
-        }
+        const navEl = findTabNavElement(fallbackTab);
+        if (navEl) showTab(fallbackTab, navEl, { historyMode: isMainNavHistoryTab(fallbackTab) ? 'replace' : 'none' });
         return;
       }
     }
 
-    const navEl = document.querySelector(`.nav-item[onclick*="'${saved}'"]`) ||
-                  document.getElementById('mnav-'+saved);
-    if (navEl) showTab(saved, navEl);
+    const navEl = findTabNavElement(saved);
+    if (navEl) showTab(saved, navEl, { historyMode: isMainNavHistoryTab(saved) ? 'replace' : 'none' });
   } catch(e){}
 }
+
+window.addEventListener('popstate', function(event){
+  const requestedTab = getMainNavFromStateOrUrl(event && event.state);
+  if (!isMainNavHistoryTab(requestedTab)) return;
+  const navEl = findTabNavElement(requestedTab);
+  if (!navEl) return;
+  showTab(requestedTab, navEl, { historyMode: 'none' });
+});
 
 function filterList(listId, type, btn) {
   btn.closest('.filter-tabs').querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
