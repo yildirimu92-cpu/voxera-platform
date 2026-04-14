@@ -2997,7 +2997,13 @@ function isDashLikePlaceholder(value) {
   return /^[-‐‑‒–—―−﹘﹣－~]+$/.test(s);
 }
 
-function getCallerDisplayName(rawName) {
+function isActivationTestCategory(categoryValue) {
+  const category = String(categoryValue || '').trim().toLowerCase();
+  return category === 'activation_test_outbound' || category === 'activation_test_inbound';
+}
+
+function getCallerDisplayName(rawName, fields) {
+  if (fields && isActivationTestCategory(fields.category)) return 'Testanruf Voxera';
   const normalized = String(rawName || '').trim();
   if (!normalized || isDashLikePlaceholder(normalized)) return 'Unbekannter Anrufer';
   return normalized;
@@ -4111,7 +4117,7 @@ function renderList(containerId, records, opts) {
     const f = r.fields;
     const q = qualKey(f.lead_quality);
     const done = isClosedStatus(f.dashboard_status);
-    const callerDisplayName = getCallerDisplayName(f.caller_name);
+    const callerDisplayName = getCallerDisplayName(f.caller_name, f);
     const phoneLink = (f.tel_link || '').trim();
     const phoneRaw = (f.phone_number || f.caller_phone || '').trim();
     const displayPhone = phoneRaw || phoneLink.replace(/^tel:/i,'');
@@ -6372,6 +6378,15 @@ async function startSystemActivationTestCall(event) {
   candidateCall = null;
   activationFlowSuccessToken = '';
   activationSystemCallError = '';
+  var existingOutbound = findActivationOutboundTestCall(allRecords || [], customerMeta && customerMeta.activationStartedAt);
+  if (existingOutbound) {
+    customerMeta.activationTestMode = 'system_call';
+    customerMeta.activationTestOutboundCallId = String(existingOutbound.fields.call_id || existingOutbound.id || '') || null;
+    activationSystemCallPending = false;
+    renderActivationV2();
+    startActivationPolling();
+    return true;
+  }
   activationSystemCallPending = true;
   renderActivationV2();
   try {
@@ -6389,6 +6404,13 @@ async function startSystemActivationTestCall(event) {
   } catch (e) {
     console.error('startSystemActivationTestCall failed', e);
     activationSystemCallPending = false;
+    if (e && Number(e.status) === 409) {
+      activationSystemCallError = '';
+      renderActivationV2();
+      startActivationPolling();
+      loadData().catch(function(err){ console.error('[system-test-call:409] loadData failed:', err); });
+      return true;
+    }
     activationSystemCallError = (e && e.message) ? String(e.message) : 'Testanruf konnte nicht gestartet werden.';
     toast('System-Testanruf konnte nicht gestartet werden: ' + activationSystemCallError);
     renderActivationV2();
@@ -6398,6 +6420,16 @@ async function startSystemActivationTestCall(event) {
 
 async function retryActivationCheck(event) {
   if (event) event.stopPropagation();
+  var existingOutbound = findActivationOutboundTestCall(allRecords || [], customerMeta && customerMeta.activationStartedAt);
+  if (existingOutbound) {
+    customerMeta.activationTestMode = 'system_call';
+    customerMeta.activationTestOutboundCallId = String(existingOutbound.fields.call_id || existingOutbound.id || '') || null;
+    activationSystemCallError = '';
+    activationSystemCallPending = false;
+    renderActivationV2();
+    startActivationPolling();
+    return;
+  }
   resetActivationTestRunState();
   stopActivationPolling();
   var started = await startSystemActivationTestCall(event);

@@ -168,6 +168,41 @@ exports.handler = async (event) => {
     return response(500, { error: 'Keine gueltige Absendernummer verfuegbar (voxera_number oder TWILIO_OUTBOUND_FROM_NUMBER).' });
   }
 
+  const sessionMarker = `activation_test_session_started_at:${testSessionStartedAt}`;
+  const { data: existingOutboundRows, error: existingOutboundError } = await sbAdmin
+    .from('calls')
+    .select('id, call_id, created_at')
+    .eq('customer_id', customer.id)
+    .eq('category', 'activation_test_outbound')
+    .eq('notes', sessionMarker)
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (existingOutboundError) {
+    console.error('[activation-start-system-test-call] existing_outbound_lookup_failed', {
+      request_id: requestId || null,
+      customer_id: customer.id,
+      error_message: existingOutboundError.message
+    });
+    return response(500, { error: 'Vorhandener Testanruf konnte nicht geprueft werden. Bitte erneut versuchen.' });
+  }
+
+  const existingOutbound = Array.isArray(existingOutboundRows) && existingOutboundRows.length ? existingOutboundRows[0] : null;
+  if (existingOutbound) {
+    const existingCallId = toStr(existingOutbound.call_id || existingOutbound.id);
+    return response(200, {
+      success: true,
+      activation_test: {
+        mode: 'system_call',
+        outbound_started: true,
+        reused_existing_outbound_call: true,
+        outbound_call_id: existingCallId || null,
+        started_at: toStr(existingOutbound.created_at) || null,
+        customer_main_number: customerMainNumber
+      }
+    });
+  }
+
   let twilioCall = null;
   try {
     console.log('[activation-start-system-test-call] twilio_request_start', {
@@ -208,6 +243,7 @@ exports.handler = async (event) => {
 
   const outboundRow = {
     call_id: callSid,
+    caller_name: 'Testanruf Voxera',
     customer_id: customer.id,
     caller_phone: twilioFrom,
     called_number: customerMainNumber,
@@ -216,7 +252,7 @@ exports.handler = async (event) => {
     dashboard_status: 'new',
     status: 'started',
     category: 'activation_test_outbound',
-    notes: `activation_test_session_started_at:${testSessionStartedAt}`,
+    notes: sessionMarker,
     created_at: nowIso,
     updated_at: nowIso
   };
@@ -232,7 +268,17 @@ exports.handler = async (event) => {
       call_id: callSid,
       error_message: insertError.message
     });
-    return response(500, { error: 'Testanruf gestartet, aber Speicherung fehlgeschlagen. Bitte erneut versuchen.' });
+    return response(200, {
+      success: true,
+      activation_test: {
+        mode: 'system_call',
+        outbound_started: true,
+        outbound_call_id: callSid,
+        started_at: nowIso,
+        customer_main_number: customerMainNumber,
+        persistence_warning: 'call_row_not_persisted'
+      }
+    });
   }
 
   return response(200, {
