@@ -60,9 +60,15 @@ function extractIncomingNumber(payload) {
 
 function extractExternalCallId(payload) {
   return pickString(
+    payload.CallSid,
+    payload.call_sid,
+    payload.callSid,
     payload.call_id,
     payload.external_call_id,
     payload.elevenlabs_call_id,
+    payload.call?.CallSid,
+    payload.call?.call_sid,
+    payload.call?.callSid,
     payload.call?.id,
     payload.call?.call_id,
     payload.call?.external_call_id,
@@ -161,6 +167,16 @@ function buildOptionalCallPatch(payload, lifecyclePhase) {
   return patch;
 }
 
+function inferActivationTestCategory({ customer, callRow }) {
+  if (!customer || String(customer.forwarding_status || '').toLowerCase() !== 'pending_test') return '';
+  const direction = String(callRow.direction || '').toLowerCase();
+  if (direction !== 'inbound') return '';
+  const startedAtMs = new Date(customer.activation_started_at || '').getTime();
+  const createdAtMs = new Date(callRow.created_at || '').getTime();
+  if (!Number.isFinite(startedAtMs) || !Number.isFinite(createdAtMs) || createdAtMs < startedAtMs) return '';
+  return 'activation_test_inbound';
+}
+
 function authorizeWebhook(event) {
   const requiredSecret = toStr(process.env.CALL_INTAKE_WEBHOOK_SECRET);
   if (!requiredSecret) return true;
@@ -215,7 +231,7 @@ exports.handler = async (event) => {
   let customer = null;
   const { data: exactMatch, error: customerError } = await sbAdmin
     .from('customers')
-    .select('id, voxera_number')
+    .select('id, voxera_number, forwarding_status, activation_started_at')
     .eq('voxera_number', incomingNumber)
     .maybeSingle();
 
@@ -228,7 +244,7 @@ exports.handler = async (event) => {
   if (!customer) {
     const { data: candidates, error: candidateError } = await sbAdmin
       .from('customers')
-      .select('id, voxera_number')
+      .select('id, voxera_number, forwarding_status, activation_started_at')
       .not('voxera_number', 'is', null)
       .limit(5000);
 
@@ -271,6 +287,13 @@ exports.handler = async (event) => {
 
   const finalPatch = buildOptionalCallPatch(payload, lifecyclePhase);
   const callRow = { ...provisionalRow, ...finalPatch };
+  if (!toStr(callRow.category)) {
+    const inferredCategory = inferActivationTestCategory({ customer, callRow });
+    if (inferredCategory) {
+      callRow.category = inferredCategory;
+      callRow.caller_name = callRow.caller_name || 'Testanruf Voxera';
+    }
+  }
 
   const { data: inserted, error: insertError } = await sbAdmin
     .from('calls')

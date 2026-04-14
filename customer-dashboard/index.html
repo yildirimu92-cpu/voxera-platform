@@ -3005,7 +3005,7 @@ function getCallerDisplayName(rawName) {
 
 function isActivationCallCategory(categoryRaw) {
   const normalized = String(categoryRaw || '').trim().toLowerCase();
-  return normalized === 'activation_test_outbound';
+  return normalized === 'activation_test_outbound' || normalized === 'activation_test_inbound';
 }
 
 function getCallDisplayName(fields) {
@@ -3184,6 +3184,7 @@ function callCardBadgeHtml(record, options) {
   const chips = [];
   chips.push(callbackChip(record));
   chips.push(priorityChip(record));
+  if (isActivationCallCategory(f.category)) chips.push('<span class="chip chip-meta">Systemtest</span>');
   chips.push(statusChip(f.dashboard_status));
   if (opts.includeMetaQuality) chips.push(qualChip(f.lead_quality));
   return chips.filter(Boolean).join('');
@@ -6422,6 +6423,8 @@ async function startSystemActivationTestCall(event) {
 async function startActivationTestFromManualCta(event) {
   if (event) event.stopPropagation();
   if (activationSystemCallPending || activationSystemCallTriggerInFlight) return;
+  var btn = event && event.currentTarget;
+  if (btn && typeof btn.disabled !== 'undefined') btn.disabled = true;
   if (customerMeta && customerMeta.activationTestOutboundCallId) {
     activationSystemCallError = '';
     startActivationPolling();
@@ -6429,7 +6432,7 @@ async function startActivationTestFromManualCta(event) {
     return;
   }
   var started = await startSystemActivationTestCall(event);
-  if (!started) return;
+  if (!started && btn && typeof btn.disabled !== 'undefined') btn.disabled = false;
 }
 
 async function activationDeactivateFast(event) {
