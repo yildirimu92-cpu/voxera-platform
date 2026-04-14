@@ -160,6 +160,20 @@ exports.handler = async (event) => {
     .select('*')
     .single();
 
-  if (error) return response(500, { error: 'Customer settings konnten nicht gespeichert werden.', details: error.message });
+  if (error) {
+    console.error('[customer-update-settings] update failed', {
+      customerId: caller.customerId,
+      payload: allowed,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    });
+    return response(500, {
+      error: 'Customer settings konnten nicht gespeichert werden.',
+      details: error.message,
+      code: error.code || null
+    });
+  }
   return response(200, { success: true, customer: data });
 };
