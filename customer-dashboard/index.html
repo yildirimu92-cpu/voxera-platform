@@ -1173,29 +1173,33 @@ body{
 .focus-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
 .focus-value{font-size:24px;font-weight:800;font-family:var(--font-display);line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
-.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;margin:0 0 10px;align-items:start;max-width:100%;}
+.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0 0 10px;align-items:start;max-width:100%;}
 .followup-field{min-width:0;}
 .followup-grid > *{min-width:0;}
 .followup-field label{display:block;font-size:11px;font-weight:600;color:var(--gray600);margin-bottom:5px;}
 .followup-field select,.followup-field input{width:100%;max-width:100%;min-width:0;padding:9px 11px;border:1.5px solid var(--gray200);border-radius:11px;background:var(--gray50);font-size:12.5px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
+.followup-field textarea{width:100%;max-width:100%;min-width:0;padding:9px 11px;border:1.5px solid var(--gray200);border-radius:11px;background:var(--gray50);font-size:12.5px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);resize:vertical;}
 .followup-field input[type="datetime-local"]{display:block;width:100%;max-width:100%;min-width:0;}
-.followup-field select:focus,.followup-field input:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
-.followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:7px;padding:8px 10px;border:1px solid var(--gray100);border-radius:10px;background:#FBFDFF;}
-.followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--gray900);}
+.followup-field select:focus,.followup-field input:focus,.followup-field textarea:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
+.followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:6px;padding:7px 10px;border:1px solid var(--gray100);border-radius:10px;background:#FBFDFF;}
+.followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--gray700);}
 .followup-mark-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--green);}
 #followup-overlay .modal,
 #followup-overlay .modal-shell,
 #followup-overlay .modal-body,
 #followup-overlay #followup-editable{min-width:0;max-width:100%;}
-#followup-overlay .modal{max-width:510px;}
-#followup-overlay .modal textarea{min-height:78px;}
-#followup-overlay .modal-body{padding-bottom:10px;}
+#followup-overlay .modal{max-width:500px;max-height:min(86vh,calc(100dvh - 18px));}
+#followup-overlay .modal-head{padding:14px 16px 8px;}
+#followup-overlay .modal-sub{margin-bottom:4px;}
+#followup-overlay .modal textarea{min-height:92px;max-height:180px;}
+#followup-overlay .modal-body{padding-bottom:8px;}
 #followup-overlay .modal-footer{position:sticky;bottom:0;background:linear-gradient(to top, var(--white) 70%, rgba(255,255,255,.94));}
 .meta-pill{margin-right:6px;margin-top:2px;}
 @media(max-width:768px){
   .followup-grid{grid-template-columns:1fr;gap:8px;}
-  #followup-overlay .modal{max-height:min(88vh,calc(100dvh - 10px));border-radius:16px 16px 0 0;}
-  #followup-overlay .modal-body{padding:0 14px 10px;}
+  #followup-overlay .modal{max-height:min(84vh,calc(100dvh - 8px));border-radius:16px 16px 0 0;}
+  #followup-overlay .modal-body{padding:0 14px 8px;}
+  #followup-overlay .modal textarea{min-height:82px;max-height:140px;}
 }
 
 /* ═══════════════════════════════════════════
@@ -1252,14 +1256,18 @@ body{
 .detail-layout{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;}
 .detail-card{background:var(--gray50);border:1px solid var(--gray200);border-radius:16px;padding:18px;}
 .detail-title{font-size:11.5px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;}
+.detail-section-title{font-size:12px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.detail-section-divider{height:1px;background:var(--gray200);margin:16px 0 12px;}
 .detail-line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--gray100);font-size:13px;}
 .detail-line:last-child{border-bottom:none;padding-bottom:0;}
 .detail-line span:first-child{color:var(--gray400);font-weight:600;}
 .detail-line span:last-child{text-align:right;font-weight:600;}
-.detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+.detail-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:16px;}
+.detail-actions .btn-call,.detail-actions .btn-a{width:100%;justify-content:center;text-align:center;}
+.call-action-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(255,255,255,.18);}
 .call-name.linklike{cursor:pointer;}
 .call-name.linklike:hover{text-decoration:underline;color:#1A6FE8;}
-@media(max-width:768px){.detail-layout{grid-template-columns:1fr;}.detail-head{padding:16px 16px 10px;}.detail-body{padding:12px 16px 14px;}.detail-footer{padding:10px 16px calc(14px + env(safe-area-inset-bottom));}}
+@media(max-width:768px){.detail-layout{grid-template-columns:1fr;}.detail-head{padding:16px 16px 10px;}.detail-body{padding:12px 16px 14px;}.detail-footer{padding:10px 16px calc(14px + env(safe-area-inset-bottom));}.detail-actions{grid-template-columns:1fr;}}
 
 /* ═══════════════════════════════════════════
    RESPONSIVE — V1
@@ -2812,7 +2820,7 @@ body{
             <!-- Support-Bereich -->
             <div class="help-support-block" id="help-support">
               <div class="help-support-text">Sie brauchen Hilfe? Wenn etwas nicht funktioniert, helfen wir Ihnen gerne weiter.</div>
-              <button class="help-support-cta" onclick="window.location.href='mailto:support@voxera.ch'">Support kontaktieren</button>
+              <button class="help-support-cta" onclick="window.location.href='mailto:info@voxera.ch'">Support kontaktieren</button>
             </div>
 
           </div>
@@ -2906,7 +2914,7 @@ body{
 
 <!-- CALL FOLLOW-UP MODAL -->
 <div class="overlay overlay--sheet" id="followup-overlay" onclick="if(event.target===this)closeFollowup()">
-  <div class="modal modal--form">
+  <div class="modal modal--form followup-modal">
     <div class="modal-shell">
       <div class="modal-head with-divider">
         <h3>Anruf nachbearbeiten</h3>
@@ -2936,7 +2944,10 @@ body{
               <input type="datetime-local" id="followup-datetime">
             </div>
           </div>
-          <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf..."></textarea>
+          <div class="followup-field">
+            <label for="followup-input">Notiz</label>
+            <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf..."></textarea>
+          </div>
           <div class="followup-mark-row">
             <label>
               <input type="checkbox" id="followup-mark-complete">
@@ -3264,6 +3275,27 @@ function sortOpenCallbacksOldestFirst(records) {
     var bTime = new Date(getOpenCallbackSortTime(b) || 0).getTime();
     return aTime - bTime;
   });
+}
+
+function compareFollowUpPriority(a, b) {
+  var aDate = parseFollowUpDate(resolveFollowUpAt((a && a.fields) || {}));
+  var bDate = parseFollowUpDate(resolveFollowUpAt((b && b.fields) || {}));
+  var aTime = aDate && !Number.isNaN(aDate.getTime()) ? aDate.getTime() : Number.MAX_SAFE_INTEGER;
+  var bTime = bDate && !Number.isNaN(bDate.getTime()) ? bDate.getTime() : Number.MAX_SAFE_INTEGER;
+  var now = new Date();
+  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  var tomorrowStart = todayStart + 86400000;
+  function bucket(ts){
+    if (!Number.isFinite(ts) || ts === Number.MAX_SAFE_INTEGER) return 3;
+    if (ts < todayStart) return 0;
+    if (ts < tomorrowStart) return 1;
+    return 2;
+  }
+  var aBucket = bucket(aTime);
+  var bBucket = bucket(bTime);
+  if (aBucket !== bBucket) return aBucket - bBucket;
+  if (aTime !== bTime) return aTime - bTime;
+  return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
 }
 
 function fmtFollowUpDateTime(raw) {
@@ -3676,10 +3708,7 @@ function deriveDashboardCallBuckets(records) {
   });
 
   buckets.callbacks = sortOpenCallbacksOldestFirst(buckets.callbacks);
-  buckets.followups.sort(function(a, b) {
-    return new Date(resolveFollowUpAt((a && a.fields) || {}) || 0).getTime() -
-           new Date(resolveFollowUpAt((b && b.fields) || {}) || 0).getTime();
-  });
+  buckets.followups.sort(compareFollowUpPriority);
   buckets.recent.sort(function(a, b) {
     return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
   });
@@ -3879,6 +3908,15 @@ function avClass(q, done) {
 function fmtDate(raw) {
   if (!raw) return '';
   try {
+    const now = new Date();
+    const nowDayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(nowDayStart.getTime() - 86400000);
+    const localLabel = function(parts){
+      const at = new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second || 0);
+      if (at >= nowDayStart) return 'Heute, ' + formatPartsTime(parts);
+      if (at >= yesterdayStart && at < nowDayStart) return 'Gestern, ' + formatPartsTime(parts);
+      return '';
+    };
     const localParts = parseLocalDateTimeParts(raw);
     if (localParts) {
       const dLocal = new Date(localParts.year, localParts.month - 1, localParts.day, localParts.hour, localParts.minute, localParts.second);
@@ -3886,15 +3924,17 @@ function fmtDate(raw) {
       if (diffLocal < 60) return 'Gerade eben';
       if (diffLocal < 3600) return 'vor ' + Math.floor(diffLocal/60) + ' Min';
       if (diffLocal < 86400) return 'vor ' + Math.floor(diffLocal/3600) + ' Std';
-      if (diffLocal < 172800) return 'Gestern ' + formatPartsTime(localParts);
+      const humanLocal = localLabel(localParts);
+      if (humanLocal) return humanLocal;
       return formatPartsDate(localParts) + ' ' + formatPartsTime(localParts);
     }
-    const d = parseCallTimestamp(raw), now = new Date();
+    const d = parseCallTimestamp(raw);
     const diff = Math.floor((now - d) / 1000);
     if (diff < 60) return 'Gerade eben';
     if (diff < 3600) return 'vor ' + Math.floor(diff/60) + ' Min';
     if (diff < 86400) return 'vor ' + Math.floor(diff/3600) + ' Std';
-    if (diff < 172800) return 'Gestern ' + formatTimeCH(d);
+    if (d >= nowDayStart) return 'Heute, ' + formatTimeCH(d);
+    if (d >= yesterdayStart && d < nowDayStart) return 'Gestern, ' + formatTimeCH(d);
     return formatDateShortCH(d) + ' ' + formatTimeCH(d);
   } catch(e) { return ''; }
 }
@@ -4873,7 +4913,7 @@ function renderList(containerId, records, opts) {
       </div>
       ${showActions && !done?`<div class="call-inline-actions">
         ${callTarget?`<button class="btn-icon btn-icon-call" onclick="event.stopPropagation();directCall('${r.id}','${encodeURIComponent(callTarget)}')" title="Anrufen">
-          <i data-lucide="phone-call" style="width:16px;height:16px;color:#fff;stroke-width:2.2;" aria-hidden="true"></i>
+          <i data-lucide="phone-forwarded" style="width:16px;height:16px;color:#fff;stroke-width:2.5;" aria-hidden="true"></i>
         </button>`:''}
         <button class="btn-icon btn-icon-done" onclick="event.stopPropagation();confirmClose('${r.id}','${CALL_STATUS.CLOSED}',this.closest('.call-row, .cb-row'))" title="Erledigt">
           <i data-lucide="check" style="width:16px;height:16px;stroke-width:2.2;" aria-hidden="true"></i>
@@ -5352,18 +5392,21 @@ function openDetail(recordId) {
     <div class="detail-layout">
       <div>
         <div class="detail-card" style="margin-bottom:14px">
+          <div class="detail-section-title">Informationen</div>
           <div class="detail-title">Zusammenfassung</div>
           <div style="font-size:14px;line-height:1.7;color:var(--gray600)">${escHtml(f.call_summary || 'Keine Zusammenfassung vorhanden.')}</div>
           ${f.notes_customer_voxera ? `<div style="margin-top:12px;padding:12px;background:var(--white);border:1px solid var(--gray200);border-radius:10px;font-size:13px;line-height:1.6;color:var(--gray600)"><strong style="color:var(--gray900)">Interne Notiz</strong><br>${escHtml(f.notes_customer_voxera)}</div>` : ''}
+          <div class="detail-section-divider"></div>
+          <div class="detail-section-title">Aktionen</div>
+          <div class="detail-actions">
+            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><span class="call-action-icon"><i data-lucide="phone-forwarded" style="width:14px;height:14px;color:#fff;stroke-width:2.5;" aria-hidden="true"></i></span>Jetzt zurückrufen</a>` : ''}
+            <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up</button>
+            <button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz</button>
+          </div>
         </div>
         <div class="detail-card">
           <div class="detail-title">Nächste Schritte</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">${callCardBadgeHtml(rec, { includeMetaQuality: true })}</div>
-          <div class="detail-actions">
-            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><i data-lucide="phone-call" style="width:14px;height:14px;stroke-width:2.2;" aria-hidden="true"></i>Jetzt zurückrufen</a>` : ''}
-            <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up</button>
-            <button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz</button>
-          </div>
         </div>
       </div>
       <div>
@@ -8390,6 +8433,8 @@ function renderStepProgress(step){
 var activationV2EventsBound = false;
 var activationV2SoftGateShown = false;
 var activationV2LastHandledTouch = { ts: 0, action: '', value: '', el: null };
+var activationV2RecentAction = { ts: 0, action: '', value: '', pointerId: null };
+var activationV2PointerDownMeta = { ts: 0, x: 0, y: 0, pointerId: null, action: '', value: '' };
 var activationV2DisclosureState = {
   advancedOptionsOpen: false,
   diagnosticsOpen: false,
@@ -8631,16 +8676,38 @@ function bindActivationV2Events(){
   var handleActionEvent = function(event){
     var target = findActivationV2ActionTarget(event, shell);
     if (!target || !shell.contains(target)) return;
+    if (target.disabled || target.getAttribute('aria-disabled') === 'true') return;
     var action = target.getAttribute('data-action');
     var value = target.getAttribute('data-value');
     if (!action) return;
-    if (event.type === 'click') {
-      var isDuplicateTouchAction = activationV2LastHandledTouch.action === action
-        && activationV2LastHandledTouch.value === (value || '')
-        && (Date.now() - activationV2LastHandledTouch.ts) < 700;
-      if (isDuplicateTouchAction) return;
+    var nowTs = Date.now();
+    if (event.type === 'pointerdown') {
+      activationV2PointerDownMeta = {
+        ts: nowTs,
+        x: typeof event.clientX === 'number' ? event.clientX : 0,
+        y: typeof event.clientY === 'number' ? event.clientY : 0,
+        pointerId: typeof event.pointerId === 'number' ? event.pointerId : null,
+        action: action,
+        value: value || ''
+      };
+      return;
+    }
+    if (event.type === 'pointerup') {
+      var moved = Math.hypot((event.clientX || 0) - activationV2PointerDownMeta.x, (event.clientY || 0) - activationV2PointerDownMeta.y);
+      var longPress = nowTs - (activationV2PointerDownMeta.ts || 0) > 900;
+      var sameAction = activationV2PointerDownMeta.action === action && activationV2PointerDownMeta.value === (value || '');
+      if (!sameAction || moved > 14 || longPress) return;
+    }
+    if (event.type === 'click' && activationV2RecentAction.action === action && activationV2RecentAction.value === (value || '') && (nowTs - activationV2RecentAction.ts) < 450) {
+      return;
     }
     event.preventDefault();
+    activationV2RecentAction = {
+      ts: nowTs,
+      action: action,
+      value: value || '',
+      pointerId: typeof event.pointerId === 'number' ? event.pointerId : null
+    };
     var stateBefore = activationV2StateSnapshot();
     activationV2DebugLog('action resolved', { eventType: event.type, action: action });
     activationV2DebugLog('action payload', {
@@ -8649,7 +8716,7 @@ function bindActivationV2Events(){
       selector: target.className || target.tagName
     });
     activationV2DebugLog('state before', stateBefore);
-    if (event.type === 'touchend') {
+    if (event.type === 'touchend' || event.type === 'pointerup') {
       activationV2LastHandledTouch = { ts: Date.now(), action: action, value: value || '', el: target };
     }
     switch (action) {
@@ -8738,7 +8805,8 @@ function bindActivationV2Events(){
     activationV2DebugLog('state after', activationV2StateSnapshot());
   };
   shell.addEventListener('click', handleActionEvent);
-  shell.addEventListener('touchend', handleActionEvent, { passive: false });
+  shell.addEventListener('pointerdown', handleActionEvent, { passive: true });
+  shell.addEventListener('pointerup', handleActionEvent, { passive: false });
   activationV2EventsBound = true;
 }
 
@@ -8913,9 +8981,9 @@ function renderActivationV2(){
             + '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Direkt anwenden</button>'
             + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>'
             + '</div></div>';
-          html += '<button type="button" class="activation-toggle-btn" data-action="toggle-mobile-alt-modes" aria-expanded="' + (showAltModes ? 'true' : 'false') + '">' + (showAltModes ? 'Andere Weiterleitungsarten ausblenden' : 'Andere Weiterleitungsarten anzeigen') + '</button>';
+          html += '<button type="button" class="activation-toggle-btn" data-action="toggle-mobile-alt-modes" aria-controls="activation-alt-modes-panel" aria-expanded="' + (showAltModes ? 'true' : 'false') + '">' + (showAltModes ? 'Andere Weiterleitungsarten ausblenden' : 'Andere Weiterleitungsarten anzeigen') + '</button>';
           if (showAltModes) {
-            html += '<div class="activation-alt-modes">';
+            html += '<div class="activation-alt-modes" id="activation-alt-modes-panel">';
             altModes.forEach(function(altMode){
               var altCode = getForwardingCode(altMode, customerMeta.voxeraNumber || '');
               var altGuide = getForwardingModeGuide(altMode);
@@ -8928,6 +8996,8 @@ function renderActivationV2(){
                 + '</div></div>';
             });
             html += '</div>';
+          } else {
+            html += '<div class="activation-alt-modes" id="activation-alt-modes-panel" hidden></div>';
           }
           html += '<div class="activation-separator"></div>';
           html += '<div class="activation-compact-card">'
