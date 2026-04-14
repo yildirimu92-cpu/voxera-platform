@@ -49,6 +49,14 @@ CREATE TABLE IF NOT EXISTS public.customers (
   payment_sent_at timestamptz,
   payment_received_at timestamptz,
   forwarding_setup_completed boolean NOT NULL DEFAULT false,
+  forwarding_status text NOT NULL DEFAULT 'not_started',
+  forwarding_mode text,
+  setup_device_type text,
+  activation_started_at timestamptz,
+  activation_test_mode text,
+  activation_test_candidate_call_id text,
+  last_confirmed_setup_device_type text,
+  last_confirmed_forwarding_mode text,
   start_date date,
 
   -- ✅ sicher (existing migration 2026-04-07_notification_mode_single_source.sql)
@@ -70,7 +78,13 @@ CREATE TABLE IF NOT EXISTS public.customers (
   CONSTRAINT customers_status_check CHECK (status IN ('onboarding', 'ready', 'invited', 'activated', 'live', 'paused', 'deleted')),
   CONSTRAINT customers_invite_status_check CHECK (invite_status IN ('not_sent', 'sent', 'activated')),
   CONSTRAINT customers_payment_status_check CHECK (payment_status IN ('none', 'pending', 'paid')),
-  CONSTRAINT customers_notification_mode_check CHECK (notification_mode IN ('none', 'callback_only', 'all_calls'))
+  CONSTRAINT customers_notification_mode_check CHECK (notification_mode IN ('none', 'callback_only', 'all_calls')),
+  CONSTRAINT customers_forwarding_status_check CHECK (forwarding_status IN ('not_started', 'pending_test', 'active', 'inactive')),
+  CONSTRAINT customers_forwarding_mode_check CHECK (forwarding_mode IS NULL OR forwarding_mode IN ('no_answer', 'unreachable', 'always', 'busy')),
+  CONSTRAINT customers_activation_test_mode_check CHECK (activation_test_mode IS NULL OR activation_test_mode IN ('system_call', 'manual_call')),
+  CONSTRAINT customers_last_confirmed_setup_device_type_check CHECK (last_confirmed_setup_device_type IS NULL OR last_confirmed_setup_device_type IN ('mobile', 'landline')),
+  CONSTRAINT customers_last_confirmed_forwarding_mode_check CHECK (last_confirmed_forwarding_mode IS NULL OR last_confirmed_forwarding_mode IN ('no_answer', 'unreachable', 'always', 'busy')),
+  CONSTRAINT customers_setup_device_type_check CHECK (setup_device_type IS NULL OR setup_device_type IN ('mobile', 'landline'))
 );
 
 -- ⚠️ inferred: unique semantics used operationally; keep nullable-compatible uniqueness.
