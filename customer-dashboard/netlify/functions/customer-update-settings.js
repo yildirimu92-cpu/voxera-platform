@@ -78,6 +78,18 @@ exports.handler = async (event) => {
     }
   }
 
+  if ('activated_at' in body) {
+    if (body.activated_at === null) {
+      allowed.activated_at = null;
+    } else {
+      const ts = String(body.activated_at).trim();
+      if (!ts || Number.isNaN(Date.parse(ts))) {
+        return response(400, { error: 'activated_at ungueltig. Erwartet: ISO 8601 Zeitstempel oder null' });
+      }
+      allowed.activated_at = ts;
+    }
+  }
+
   if (body.forwarding_mode != null) {
     const forwardingMode = String(body.forwarding_mode).trim().toLowerCase();
     if (!['no_answer', 'unreachable', 'always', 'busy'].includes(forwardingMode)) {
