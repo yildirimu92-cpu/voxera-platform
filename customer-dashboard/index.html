@@ -978,7 +978,7 @@ body{
 .modal--confirm .modal-head{padding-bottom:8px;}
 .modal--confirm .modal-body{padding-top:0;padding-bottom:10px;}
 .modal--confirm .modal-footer{padding-top:10px;}
-.modal--form{max-width:520px;}
+.modal--form{max-width:500px;}
 .modal--form .modal-body{padding-top:2px;}
 .modal--compact{max-width:420px;}
 .modal h3{
@@ -1173,22 +1173,30 @@ body{
 .focus-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
 .focus-value{font-size:24px;font-weight:800;font-family:var(--font-display);line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
-.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0 0 12px;align-items:start;max-width:100%;}
+.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;margin:0 0 10px;align-items:start;max-width:100%;}
 .followup-field{min-width:0;}
 .followup-grid > *{min-width:0;}
-.followup-field label{display:block;font-size:11.5px;font-weight:600;color:var(--gray600);margin-bottom:6px;}
-.followup-field select,.followup-field input{width:100%;max-width:100%;min-width:0;padding:10px 12px;border:1.5px solid var(--gray200);border-radius:12px;background:var(--gray50);font-size:13px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
+.followup-field label{display:block;font-size:11px;font-weight:600;color:var(--gray600);margin-bottom:5px;}
+.followup-field select,.followup-field input{width:100%;max-width:100%;min-width:0;padding:9px 11px;border:1.5px solid var(--gray200);border-radius:11px;background:var(--gray50);font-size:12.5px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
 .followup-field input[type="datetime-local"]{display:block;width:100%;max-width:100%;min-width:0;}
 .followup-field select:focus,.followup-field input:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
-.followup-mark-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
-.followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray900);}
+.followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:7px;padding:8px 10px;border:1px solid var(--gray100);border-radius:10px;background:#FBFDFF;}
+.followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--gray900);}
 .followup-mark-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--green);}
 #followup-overlay .modal,
 #followup-overlay .modal-shell,
 #followup-overlay .modal-body,
 #followup-overlay #followup-editable{min-width:0;max-width:100%;}
+#followup-overlay .modal{max-width:510px;}
+#followup-overlay .modal textarea{min-height:78px;}
+#followup-overlay .modal-body{padding-bottom:10px;}
+#followup-overlay .modal-footer{position:sticky;bottom:0;background:linear-gradient(to top, var(--white) 70%, rgba(255,255,255,.94));}
 .meta-pill{margin-right:6px;margin-top:2px;}
-@media(max-width:768px){.followup-grid{grid-template-columns:1fr;}}
+@media(max-width:768px){
+  .followup-grid{grid-template-columns:1fr;gap:8px;}
+  #followup-overlay .modal{max-height:min(88vh,calc(100dvh - 10px));border-radius:16px 16px 0 0;}
+  #followup-overlay .modal-body{padding:0 14px 10px;}
+}
 
 /* ═══════════════════════════════════════════
    MOBILE BOTTOM NAV — V1
@@ -3208,6 +3216,7 @@ let recentIncomingIds = new Set();
 let incomingBannerTimer = null;
 let currentUser = null;
 let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null};
+let customerContractMeta = null;
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 
@@ -3461,7 +3470,8 @@ async function patchCallRecord(recordId, fields) {
     call_id: recordId,
     notes_customer_voxera: fields.notes_customer_voxera,
     next_action: fields.next_action,
-    follow_up_at: fields.follow_up_at
+    follow_up_at: fields.follow_up_at,
+    mark_complete: fields.mark_complete === true
   });
   return json.call || null;
 }
@@ -3598,6 +3608,11 @@ function assertCallTransition(fromStatus, toStatus) {
 }
 function isClosedStatus(s) {
   return normalizeStatus(s) === CALL_STATUS.CLOSED;
+}
+
+function resolveClosedAt(fields) {
+  if (!fields || !isClosedStatus(fields.dashboard_status)) return '';
+  return fields.closed_at || fields.completed_at || fields.updated_at || '';
 }
 
 /**
@@ -4056,13 +4071,60 @@ function getBilledMinutesForRecord(record) {
   return 0;  // Missing or invalid duration = 0 minutes (billing must be actual data only)
 }
 
+function toValidNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function resolveContractUsageConfig() {
+  const c = customerContractMeta || {};
+  const monthlyPrice = toValidNumber(
+    c.recurring_amount_monthly ?? c.monthly_price ?? c.price_monthly ?? c.price_monthly_chf ?? c.monthlyPrice
+  );
+  const minutes = toValidNumber(
+    c.included_minutes ?? c.minutes ?? c.plan_minutes_included ?? c.minutesIncluded
+  );
+  const extraRate = toValidNumber(
+    c.extra_per_minute ?? c.extra_rate ?? c.overage_rate ?? c.extraRate
+  );
+  return {
+    monthlyPrice: monthlyPrice != null ? monthlyPrice : null,
+    minutes: minutes != null ? minutes : null,
+    extraRate: extraRate != null ? extraRate : null,
+    plan: (c.plan || c.plan_code || '').trim() || null
+  };
+}
+
+async function loadCustomerContractMeta(customerId) {
+  customerContractMeta = null;
+  if (!_sb || !customerId) return null;
+  try {
+    const { data, error } = await _sb
+      .from('contracts')
+      .select('*')
+      .eq('customer_id', customerId)
+      .in('status', ['active', 'signed'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error) return null;
+    const row = data && data.length ? data[0] : null;
+    customerContractMeta = row || null;
+    return customerContractMeta;
+  } catch (e) {
+    console.warn('[contract-meta] load failed', e);
+    return null;
+  }
+}
+
 async function loadCustomerMeta() {
   const context = await resolveCustomerContext();
   const rec = context.customerRecord;
   if (!rec) return customerMeta;
   const f = rec || {};
+  await loadCustomerContractMeta(context.customerId || f.id || '');
+  const contractUsage = resolveContractUsageConfig();
   customerMeta = {
-    plan: f.plan || customerMeta.plan || 'Kein Plan',
+    plan: contractUsage.plan || f.plan || customerMeta.plan || 'Kein Plan',
     startDate: f.start_date || '',
     customerName: f.contact_first_name || f.customer_name || customerMeta.customerName || '',
     customerEmail: f.email || '',
@@ -4081,7 +4143,10 @@ async function loadCustomerMeta() {
     lastConfirmedForwardingMode: f.last_confirmed_forwarding_mode || null,
     activationTestMode: f.activation_test_mode || null,
     activationTestOutboundCallId: f.activation_test_candidate_call_id || null,
-    avatarUrl: f.avatar_url || null
+    avatarUrl: f.avatar_url || null,
+    contractMonthlyPrice: contractUsage.monthlyPrice,
+    contractIncludedMinutes: contractUsage.minutes,
+    contractExtraRate: contractUsage.extraRate
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   // Render profile photo if available
@@ -4094,7 +4159,12 @@ async function loadCustomerMeta() {
 }
 
 function renderUsage(records) {
-  const cfg = getPlanConfigEntryForPlan(customerMeta.plan) || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0};
+  const planCfg = getPlanConfigEntryForPlan(customerMeta.plan) || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0};
+  const cfg = {
+    monthlyPrice: customerMeta.contractMonthlyPrice != null ? customerMeta.contractMonthlyPrice : Number(planCfg.monthlyPrice || 0),
+    minutes: customerMeta.contractIncludedMinutes != null ? customerMeta.contractIncludedMinutes : Number(planCfg.minutes || 0),
+    extraRate: customerMeta.contractExtraRate != null ? customerMeta.contractExtraRate : Number(planCfg.extraRate || 0)
+  };
   const now = new Date();
 
   // Compute billing period start from subscription start date (monthly anniversary)
@@ -4159,7 +4229,7 @@ function renderUsage(records) {
   const upCopy = document.getElementById('upgrade-primary-copy');
   const addCopy = document.getElementById('upgrade-addon-copy');
   const allPlans = getSortedUpgradePlans();
-  const currentCfg = getPlanConfigEntryForPlan(customerMeta.plan) || { monthlyPrice: 0, minutes: 0 };
+  const currentCfg = cfg;
   const nextPlan = (allPlans.find(function(plan) {
     return plan.monthlyPrice > Number(currentCfg.monthlyPrice || 0) || plan.minutes > Number(currentCfg.minutes || 0);
   }) || allPlans[allPlans.length - 1] || { label: customerMeta.plan || 'Business' }).label;
@@ -4371,8 +4441,6 @@ async function loadData() {
     if (customerMeta.forwardingStatus !== 'pending_test') {
       stopActivationPolling();
     }
-
-    renderActivationV2();
 
     document.getElementById('dash-loading').style.display = 'none';
     routeDashboardFirstSessionExperience();
@@ -4756,6 +4824,7 @@ function renderList(containerId, records, opts) {
     // Follow-up meta line (action/date/time) in short unified format
     const followUpAt = resolveFollowUpAt(f);
     const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
+    const closedAt = resolveClosedAt(f);
     // Always show exact date/time for call
     const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
 
@@ -4778,6 +4847,7 @@ function renderList(containerId, records, opts) {
         </div>
         ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
         ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
+        ${done && closedAt ? `<div class="followup-meta-line">Abgeschlossen am ${escHtml(fmtExactDateTime(closedAt) || fmtDate(closedAt))}</div>` : ''}
         ${notizText && !opts.dashboardView?`<div class="call-notiz">${escHtml(notizText)}</div>`:''}
         ${showActions && !done?`<div class="call-actions">
           <button class="btn-a btn-note" onclick="event.stopPropagation();openFollowupDirect('${r.id}')">Follow-up</button>
@@ -5205,30 +5275,16 @@ async function saveFollowup() {
   const btn = document.getElementById('followup-save-btn');
   btn.disabled = true; btn.textContent = 'Speichern...';
 
-  // Auto-determine status:
-  // - "closed" if mark-complete is checked
-  // - "follow_up_scheduled" if follow-up date is set (but no completion)
-  // - Otherwise keep existing (no status change)
-  let newStatus = null;
-  const currentRecord = allRecords.find(function(r){ return r.id === notizRecordId; });
-  const currentStatus = normalizeStatus(currentRecord && currentRecord.fields ? currentRecord.fields.dashboard_status : CALL_STATUS.NEW);
-  if (markComplete && markComplete.checked) {
-    newStatus = CALL_STATUS.CLOSED;
-  } else if (followUpAt) {
-    newStatus = CALL_STATUS.FOLLOW_UP_SCHEDULED;
-  }
-
-  const fields = { notes_customer_voxera: text, next_action: nextAction || null, follow_up_at: serializeFollowUpLocal(followUpAt) || null };
-  if (newStatus) fields.dashboard_status = newStatus;
-  if (newStatus === CALL_STATUS.CLOSED) fields.follow_up_at = null; // Completed calls have no pending follow-up
-  const fallbackFields = { notes_customer_voxera: text };
+  const fields = {
+    notes_customer_voxera: text,
+    next_action: nextAction || null,
+    follow_up_at: serializeFollowUpLocal(followUpAt) || null,
+    mark_complete: !!(markComplete && markComplete.checked)
+  };
+  if (fields.mark_complete) fields.follow_up_at = null;
   try {
-    // TODO: move to server-side function
-    await apiPatchOptional(notizRecordId, fields, fallbackFields);
-    if (newStatus) {
-      await applyStatusTransition(notizRecordId, currentStatus, newStatus);
-    }
-    toast(newStatus === CALL_STATUS.CLOSED ? 'Abgeschlossen' : followUpAt ? 'Follow-up gespeichert' : '✓ Gespeichert');
+    await patchCallRecord(notizRecordId, fields);
+    toast(fields.mark_complete ? 'Abgeschlossen' : followUpAt ? 'Follow-up gespeichert' : 'Gespeichert');
     closeFollowup();
     notizRecordId = null;
     setTimeout(loadData, 500);
@@ -5919,14 +5975,16 @@ async function copyForwardingCode(event, code) {
       document.body.removeChild(temp);
       if (!copied) throw new Error('Clipboard API unavailable');
     }
-    var liveEl = document.getElementById('copy-feedback-live');
-    if (liveEl) liveEl.textContent = 'Code kopiert';
-    toast('Code kopiert');
+    announceCopyFeedback('Code kopiert', 'success');
   } catch (e) {
-    var liveEl = document.getElementById('copy-feedback-live');
-    if (liveEl) liveEl.textContent = 'Kopieren fehlgeschlagen';
-    toast('Kopieren fehlgeschlagen');
+    announceCopyFeedback('Kopieren fehlgeschlagen', 'error');
   }
+}
+
+function announceCopyFeedback(message, type) {
+  var liveEl = document.getElementById('copy-feedback-live');
+  if (liveEl) liveEl.textContent = message || '';
+  toast(message || 'Aktion ausgeführt', type || 'success');
 }
 
 function applyForwarding(code) {
@@ -7377,7 +7435,10 @@ async function startSystemActivationTestCall(event) {
 
 async function startActivationTestFromManualCta(event) {
   if (event) event.stopPropagation();
-  if (activationSystemCallPending || activationSystemCallTriggerInFlight) return;
+  if (activationSystemCallPending || activationSystemCallTriggerInFlight) {
+    toast('Testanruf läuft bereits.');
+    return;
+  }
   var btn = event && event.currentTarget;
   if (btn && typeof btn.disabled !== 'undefined') {
     btn.disabled = true;
@@ -7397,6 +7458,7 @@ async function startActivationTestFromManualCta(event) {
     if (sessionLockKey) activationSystemCallSessionLock = sessionLockKey;
     startActivationPolling();
     renderActivationV2();
+    toast('Wir warten bereits auf den Testanruf.');
     return;
   }
   var started = await startSystemActivationTestCall(event);
@@ -7987,7 +8049,9 @@ function copyVoxeraNumber(e){
   if(e)e.stopPropagation();
   var num = customerMeta.voxeraNumber || '';
   if(!num){toast('Keine Nummer vorhanden');return;}
-  navigator.clipboard.writeText(num).then(function(){toast('Nummer kopiert: '+num);}).catch(function(){toast(num);});
+  navigator.clipboard.writeText(num)
+    .then(function(){ announceCopyFeedback('Nummer kopiert', 'success'); })
+    .catch(function(){ announceCopyFeedback('Kopieren fehlgeschlagen', 'error'); });
 }
 
 async function saveSetupNotifications(){
@@ -8036,7 +8100,8 @@ var activationV2FlowState = {
   currentStep: 1,
   selectedDeviceType: null,
   selectedForwardingMode: null,
-  currentTestPhase: 'preferences_pending'
+  currentTestPhase: 'preferences_pending',
+  userStepLocked: false
 };
 
 function syncActivationPersistedState() {
@@ -8051,6 +8116,7 @@ function resetActivationFlowState() {
   activationV2FlowState.selectedForwardingMode = null;
   activationV2FlowState.currentStep = 1;
   activationV2FlowState.currentTestPhase = 'preferences_pending';
+  activationV2FlowState.userStepLocked = false;
   activationV2StepState.step = 1;
 }
 
@@ -8140,11 +8206,11 @@ function getActivationRenderState(){
 }
 
 function inferActivationV2Step(){
-  if (isForwardingActivated()) return 3;
+  var uiState = deriveActivationUiState();
+  if (uiState === 'active' || uiState === 'pending_test' || uiState === 'failed') return 3;
   if (activationV2FlowState.selectedDeviceType && activationV2FlowState.selectedForwardingMode) return 3;
   if (activationV2FlowState.selectedDeviceType) return 2;
-  if (activationPersistedState.deviceType && activationPersistedState.forwardingMode) return 3;
-  if (activationPersistedState.deviceType) return 2;
+  if (activationV2FlowState.userStepLocked) return activationV2FlowState.currentStep || 1;
   return 1;
 }
 
@@ -8155,7 +8221,15 @@ function getNextActivationStep(){
 }
 
 function restoreActivationV2Step(){
-  var inferred = inferActivationV2Step();
+  var inferred = activationV2FlowState.userStepLocked
+    ? (activationV2FlowState.currentStep || 1)
+    : inferActivationV2Step();
+  var maxAllowed = 1;
+  if (activationV2FlowState.selectedDeviceType) maxAllowed = 2;
+  if (activationV2FlowState.selectedDeviceType && activationV2FlowState.selectedForwardingMode) maxAllowed = 3;
+  var uiState = deriveActivationUiState();
+  if (uiState === 'pending_test' || uiState === 'active' || uiState === 'failed') maxAllowed = 3;
+  if (inferred > maxAllowed) inferred = maxAllowed;
   var normalized = Math.max(1, Math.min(ONBOARDING_TOTAL_STEPS, inferred));
   activationV2StepState.step = normalized;
   activationV2FlowState.currentStep = normalized;
@@ -8164,6 +8238,7 @@ function restoreActivationV2Step(){
 function persistActivationV2Step(step){
   activationV2StepState.step = step;
   activationV2FlowState.currentStep = step;
+  activationV2FlowState.userStepLocked = true;
 }
 
 function goToActivationV2Step(step){
@@ -8701,10 +8776,12 @@ function renderActivationV2(){
       html += '<div class="activation-info-banner">Deaktivieren Sie die Rufumleitung in Ihrer Telefonanlage oder beim Anbieter und bestätigen Sie danach den Reset in Voxera.</div>';
     }
     html += '<div class="activation-actions" style="margin-top:10px;">'
-      + '<button type="button" class="activation-btn primary" data-action="open-guided-reset">Weiterleitung deaktivieren</button>'
+      + '<button type="button" class="activation-btn primary" data-action="open-guided-reset">Deaktivierung starten</button>'
+      + '<button type="button" class="activation-link-btn" data-action="open-internal-reset-warning">Nur Voxera zurücksetzen</button>'
+      + '</div>'
+      + '<div class="activation-actions" style="margin-top:8px;">'
       + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(JSON.stringify(deactCode || '##002#')) + '"' + (deactCode ? '' : ' disabled') + '>Code kopieren</button>'
       + '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Hilfe zur Deaktivierung</button>'
-      + '<button type="button" class="activation-link-btn" data-action="open-internal-reset-warning">Nur Voxera zurücksetzen</button>'
       + '</div></section>';
   } else if (isRecoveryMode) {
     html += '<section class="activation-panel">'
@@ -8790,10 +8867,15 @@ function renderActivationV2(){
           html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung aktivieren</button>';
           html += '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>';
         } else {
+          var canRenderQr = !!code && navigator.onLine !== false;
           var mobileLink = 'tel:' + encodeURIComponent(code || '');
           var qrPayload = encodeURIComponent(mobileLink);
           html += '<div class="activation-info-banner">Diese Handynummer wird am einfachsten direkt auf dem Smartphone aktiviert.</div>';
-          html += '<div class="activation-compact-card" style="text-align:center;"><div class="activation-compact-label">Auf dem Smartphone fortsetzen</div><img alt="QR-Code für Smartphone-Aktivierung" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + qrPayload + '" style="width:180px;height:180px;border-radius:10px;margin:8px auto;display:block;"><div class="activation-panel-sub" style="margin-bottom:8px;">QR-Code mit dem Smartphone scannen.</div><button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Link/Code kopieren</button></div>';
+          html += '<div class="activation-compact-card" style="text-align:center;"><div class="activation-compact-label">Auf dem Smartphone fortsetzen</div>'
+            + (canRenderQr
+              ? '<img alt="QR-Code für Smartphone-Aktivierung" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + qrPayload + '" style="width:180px;height:180px;border-radius:10px;margin:8px auto;display:block;"><div class="activation-panel-sub" style="margin-bottom:8px;">QR-Code mit dem Smartphone scannen.</div>'
+              : '<div class="activation-panel-sub" style="margin:8px 0;">QR-Code aktuell nicht verfügbar. Bitte Link oder Code kopieren.</div>')
+            + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Link/Code kopieren</button></div>';
         }
       } else {
         html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung aktivieren</button>';
