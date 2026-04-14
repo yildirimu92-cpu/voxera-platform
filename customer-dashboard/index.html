@@ -5978,6 +5978,7 @@ var activationSystemCallPending = false;
 var activationSystemCallError = '';
 var activationSystemCallTriggerInFlight = false;
 var activationStartTriggerInFlight = false;
+var activationRunStartLocalIso = '';
 
 function getCandidateCallToken(call) {
   if (!call) return '';
@@ -6055,6 +6056,14 @@ function resetActivationTestRunState(){
   activationFlowSuccessToken = '';
   activationSystemCallError = '';
   customerMeta.activationTestOutboundCallId = null;
+}
+
+function clearActivationStateForNewRunStart(){
+  resetActivationTestRunState();
+  stopActivationPolling();
+  activationFlowGuideToken = '';
+  activationResetFlowState.open = false;
+  activationResetFlowState.stage = 'choice';
 }
 
 function normalizeActivationDirection(value) {
@@ -6254,14 +6263,19 @@ async function activationStartSmartphone(event, code) {
   if (activationStartTriggerInFlight) return;
   activationStartTriggerInFlight = true;
   var btn = event && event.currentTarget;
+  var previousStatus = customerMeta.forwardingStatus;
+  var previousStartedAt = customerMeta.activationStartedAt;
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
     var now = new Date().toISOString();
-    resetActivationTestRunState();
-    stopActivationPolling();
+    clearActivationStateForNewRunStart();
+    activationRunStartLocalIso = now;
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationStartedAt = now;
+    renderActivationV2();
     // Step 1: persist state before opening dialer
     await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now, activation_test_mode: 'system_call', activation_test_candidate_call_id: null });
     customerMeta.forwardingStatus = 'pending_test';
@@ -6274,6 +6288,7 @@ async function activationStartSmartphone(event, code) {
       context.customerRecord.activation_test_mode = 'system_call';
       context.customerRecord.activation_test_candidate_call_id = null;
     }
+    activationRunStartLocalIso = '';
     // Step 2: rerender UI (pending_test card is now shown)
     renderActivationV2();
     // Step 3: start lightweight polling to detect the candidate call
@@ -6282,8 +6297,12 @@ async function activationStartSmartphone(event, code) {
     if (code) window.location.href = 'tel:' + code;
   } catch(e) {
     console.error('activationStartSmartphone failed', e);
+    activationRunStartLocalIso = '';
+    customerMeta.forwardingStatus = previousStatus;
+    customerMeta.activationStartedAt = previousStartedAt;
     toast('Aktivierung konnte nicht gestartet werden.');
     if (btn) { btn.disabled = false; btn.textContent = 'Jetzt aktivieren'; }
+    renderActivationV2();
   } finally {
     activationStartTriggerInFlight = false;
   }
@@ -6297,13 +6316,18 @@ async function activationStartLandlineTest(event) {
   activationStartTriggerInFlight = true;
   var btn = event && event.currentTarget;
   if (btn) { btn.disabled = true; btn.textContent = 'Wird gestartet…'; }
+  var previousStatus = customerMeta.forwardingStatus;
+  var previousStartedAt = customerMeta.activationStartedAt;
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
     if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
     var now = new Date().toISOString();
-    resetActivationTestRunState();
-    stopActivationPolling();
+    clearActivationStateForNewRunStart();
+    activationRunStartLocalIso = now;
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationStartedAt = now;
+    renderActivationV2();
     await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now, activation_test_mode: 'system_call', activation_test_candidate_call_id: null });
     customerMeta.forwardingStatus = 'pending_test';
     customerMeta.activationStartedAt = now;
@@ -6315,11 +6339,17 @@ async function activationStartLandlineTest(event) {
       context.customerRecord.activation_test_mode = 'system_call';
       context.customerRecord.activation_test_candidate_call_id = null;
     }
+    activationRunStartLocalIso = '';
     renderActivationV2();
+    startActivationPolling();
   } catch(e) {
     console.error('activationStartLandlineTest failed', e);
+    activationRunStartLocalIso = '';
+    customerMeta.forwardingStatus = previousStatus;
+    customerMeta.activationStartedAt = previousStartedAt;
     toast('Aktivierung konnte nicht gestartet werden.');
     if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; }
+    renderActivationV2();
   } finally {
     activationStartTriggerInFlight = false;
   }
@@ -7111,6 +7141,7 @@ function shouldGateToActivationV2(){
 }
 
 function deriveActivationUiState(){
+  if (activationRunStartLocalIso && activationStartTriggerInFlight) return 'pending_test';
   var status = (customerMeta && customerMeta.forwardingStatus) ? String(customerMeta.forwardingStatus) : 'not_started';
   if (status === 'active') return 'active';
   if (status === 'inactive') return 'inactive';
@@ -7699,7 +7730,7 @@ function renderActivationV2(){
       + '</div>'
       + '<div class="activation-actions">';
 
-    if (phase === 'test_pending' || phase === 'failed') {
+    if (uiState === 'pending_test') {
       html += '<div class="activation-info-banner">Weiterleitung gestartet.</div>';
       html += '<div class="activation-info-banner">Bitte starten Sie jetzt den Testanruf.</div>';
       if (candidateCall) {
@@ -7714,6 +7745,14 @@ function renderActivationV2(){
           html += '<button type="button" class="activation-btn primary" data-action="start-system-test">Testanruf starten</button>';
         }
         html += '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Manuell testen</button>';
+      }
+      html += '<button type="button" class="activation-btn secondary" data-action="restart-setup">Einrichtung neu starten</button>';
+    } else if (uiState === 'failed') {
+      html += '<div class="activation-warning-banner">Aktivierung fehlgeschlagen. Starten Sie die Weiterleitung erneut, um einen neuen Testlauf zu beginnen.</div>';
+      if (effectiveDevice === 'mobile') {
+        html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung erneut aktivieren</button>';
+      } else {
+        html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung erneut aktivieren</button>';
       }
       html += '<button type="button" class="activation-btn secondary" data-action="restart-setup">Einrichtung neu starten</button>';
     } else {
