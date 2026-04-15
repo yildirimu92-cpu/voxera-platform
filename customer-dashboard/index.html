@@ -2249,7 +2249,7 @@ body{
             <div class="dash-top">
               <div class="dash-status-hero" id="dash-status-hero">
                 <div class="dash-status-label">Voxera Operations Cockpit</div>
-                <div class="dash-status-title" id="dash-status-title">Übersicht für hüt</div>
+                <div class="dash-status-title" id="dash-status-title">Übersicht für heute</div>
                 <div class="dash-status-sub" id="dash-status-text">Neue Anfragen, offene Aufgaben und Priorität auf einen Blick.</div>
                 <div class="dash-status-meta">
                   <span class="dash-status-chip note" id="dash-status-chip-primary">Status wird geladen…</span>
@@ -2277,7 +2277,7 @@ body{
                 <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label" id="kpi-leads-label">Überfällig</div>
                   <div class="dash-kpi-val" id="kpi-leads">–</div>
-                  <div class="dash-kpi-static-note" id="kpi-leads-note">Offeni Aufgaben mit überschrittener Fälligkeit</div>
+                  <div class="dash-kpi-static-note" id="kpi-leads-note">Offene Aufgaben mit überschrittener Fälligkeit</div>
                 </div>
               </div>
 
@@ -2498,6 +2498,7 @@ body{
             </div>
 
             <div class="settings-card">
+              <div id="contract-access-banner" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:12px 14px;margin-bottom:12px;color:#991B1B;font-size:12.5px;line-height:1.5;"></div>
               <div class="settings-card-intro">
                 <div class="settings-module-tag">Benachrichtigungen</div>
                 <div class="settings-card-title" style="margin-top:10px;">Meldungen steuern</div>
@@ -3287,8 +3288,91 @@ let incomingBannerTimer = null;
 let currentUser = null;
 let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null};
 let customerContractMeta = null;
+let customerContractState = {
+  status: 'unknown',
+  hasContract: false,
+  hasActiveContract: false,
+  latestContract: null,
+  effectiveContract: null
+};
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
+const ACTIVE_CONTRACT_STATUSES = new Set(['active', 'signed']);
+
+function normalizeContractStatus(status) {
+  return String(status || '').trim().toLowerCase();
+}
+
+function deriveContractState(contractRows) {
+  const rows = Array.isArray(contractRows) ? contractRows : [];
+  const latest = rows.length ? rows[0] : null;
+  const activeContract = rows.find(function(row) {
+    return ACTIVE_CONTRACT_STATUSES.has(normalizeContractStatus(row && row.status));
+  }) || null;
+  const effectiveContract = activeContract || latest || null;
+  const effectiveStatus = normalizeContractStatus(effectiveContract && effectiveContract.status) || 'none';
+  return {
+    status: effectiveStatus,
+    hasContract: !!effectiveContract,
+    hasActiveContract: !!activeContract,
+    latestContract: latest,
+    effectiveContract: effectiveContract
+  };
+}
+
+function hasActiveContractAccess() {
+  return !!(customerContractState && customerContractState.hasActiveContract);
+}
+
+function isContractRestrictedState() {
+  return !hasActiveContractAccess();
+}
+
+function getContractStatusLabel(status) {
+  const normalized = normalizeContractStatus(status);
+  if (normalized === 'active') return 'Aktiv';
+  if (normalized === 'signed') return 'Unterzeichnet';
+  if (normalized === 'expired') return 'Abgelaufen';
+  if (normalized === 'cancelled') return 'Gekündigt';
+  if (normalized === 'pending' || normalized === 'pending_review') return 'Ausstehend';
+  if (normalized === 'draft') return 'Entwurf';
+  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Nicht vorhanden';
+}
+
+function getRestrictedContractMessage(scopeLabel) {
+  var scope = scopeLabel ? String(scopeLabel).trim() : 'Dieser Bereich';
+  return scope + ' ist ohne aktiven Vertrag nicht verfügbar.';
+}
+
+function applyContractAccessStateToUI() {
+  var restricted = isContractRestrictedState();
+  var contractStatusLabel = getContractStatusLabel(customerContractState && customerContractState.status);
+  var banner = document.getElementById('contract-access-banner');
+  if (banner) {
+    if (restricted) {
+      banner.style.display = 'block';
+      banner.textContent = 'Ihr Vertrag ist derzeit nicht aktiv (' + contractStatusLabel + '). Einstellungen und Erreichbarkeitsänderungen sind vorübergehend gesperrt.';
+    } else {
+      banner.style.display = 'none';
+      banner.textContent = '';
+    }
+  }
+
+  var wizardBtn = document.getElementById('settings-wizard-btn');
+  if (wizardBtn) {
+    wizardBtn.disabled = restricted;
+    wizardBtn.textContent = restricted ? 'Erreichbarkeit nicht verfügbar' : (isSetupComplete() ? 'Erneut öffnen' : 'Einrichtungsassistent öffnen');
+    wizardBtn.title = restricted ? 'Ohne aktiven Vertrag sind Erreichbarkeitsänderungen gesperrt.' : '';
+  }
+
+  ['notif-card-none', 'notif-card-callback', 'notif-card-all'].forEach(function(id) {
+    var card = document.getElementById(id);
+    if (!card) return;
+    card.style.pointerEvents = restricted ? 'none' : 'auto';
+    card.style.opacity = restricted ? '0.58' : '1';
+    card.setAttribute('aria-disabled', restricted ? 'true' : 'false');
+  });
+}
 
 function toDashboardRecord(row) {
   return { id: String(row.id), fields: row };
@@ -3585,6 +3669,11 @@ async function patchCallRecord(recordId, fields) {
 
 async function patchCustomerRecord(recordId, fields) {
   // customer-update-settings uses caller.customerId from JWT – no customer_id needed
+  if (isContractRestrictedState()) {
+    const err = new Error('Änderungen sind ohne aktiven Vertrag gesperrt.');
+    err.status = 403;
+    throw err;
+  }
   const payload = {};
   if (fields.notification_mode !== undefined) payload.notification_mode = fields.notification_mode;
   if (fields.forwarding_setup_completed !== undefined) payload.forwarding_setup_completed = fields.forwarding_setup_completed;
@@ -4272,18 +4361,24 @@ function resolveContractUsageConfig() {
 
 async function loadCustomerContractMeta(customerId) {
   customerContractMeta = null;
+  customerContractState = {
+    status: 'none',
+    hasContract: false,
+    hasActiveContract: false,
+    latestContract: null,
+    effectiveContract: null
+  };
   if (!_sb || !customerId) return null;
   try {
     const { data, error } = await _sb
       .from('contracts')
       .select('*')
       .eq('customer_id', customerId)
-      .in('status', ['active', 'signed'])
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(25);
     if (error) return null;
-    const row = data && data.length ? data[0] : null;
-    customerContractMeta = row || null;
+    customerContractState = deriveContractState(data || []);
+    customerContractMeta = customerContractState.effectiveContract || null;
     return customerContractMeta;
   } catch (e) {
     console.warn('[contract-meta] load failed', e);
@@ -4299,7 +4394,7 @@ async function loadCustomerMeta() {
   await loadCustomerContractMeta(context.customerId || f.id || '');
   const contractUsage = resolveContractUsageConfig();
   customerMeta = {
-    plan: contractUsage.plan || f.plan || customerMeta.plan || 'Kein Plan',
+    plan: contractUsage.plan || (customerContractState.hasContract ? 'Vertrag ohne Planangabe' : (f.plan || customerMeta.plan || 'Kein Plan')),
     startDate: f.start_date || '',
     customerName: f.contact_first_name || f.customer_name || customerMeta.customerName || '',
     customerEmail: f.email || '',
@@ -4321,7 +4416,10 @@ async function loadCustomerMeta() {
     avatarUrl: f.avatar_url || null,
     contractMonthlyPrice: contractUsage.monthlyPrice,
     contractIncludedMinutes: contractUsage.minutes,
-    contractExtraRate: contractUsage.extraRate
+    contractExtraRate: contractUsage.extraRate,
+    contractStatus: customerContractState.status || 'none',
+    hasActiveContract: customerContractState.hasActiveContract === true,
+    hasContract: customerContractState.hasContract === true
   };
   console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
   // Render profile photo if available
@@ -4334,7 +4432,10 @@ async function loadCustomerMeta() {
 }
 
 function renderUsage(records) {
-  const planCfg = getPlanConfigEntryForPlan(customerMeta.plan) || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0};
+  const hasContract = !!(customerMeta && customerMeta.hasContract);
+  const planCfg = hasContract
+    ? { monthlyPrice: 0, minutes: 0, extraRate: 0 }
+    : (getPlanConfigEntryForPlan(customerMeta.plan) || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0});
   const cfg = {
     monthlyPrice: customerMeta.contractMonthlyPrice != null ? customerMeta.contractMonthlyPrice : Number(planCfg.monthlyPrice || 0),
     minutes: customerMeta.contractIncludedMinutes != null ? customerMeta.contractIncludedMinutes : Number(planCfg.minutes || 0),
@@ -4385,7 +4486,9 @@ function renderUsage(records) {
   const set = (id, val) => { const el=document.getElementById(id); if (el) el.textContent = val; };
   const meter = document.getElementById('usage-meter-fill');
   if (meter) meter.style.width = `${pct}%`;
-  set('usage-plan-sub', `${customerMeta.plan} · CHF ${(cfg.monthlyPrice||0)} / Mt · ${cfg.minutes||0} Min. inkl.`);
+  const contractStatusLabel = getContractStatusLabel(customerMeta.contractStatus);
+  const activeSuffix = customerMeta.hasActiveContract ? '' : ' · Kein aktiver Vertrag';
+  set('usage-plan-sub', `${customerMeta.plan} · CHF ${(cfg.monthlyPrice||0)} / Mt · ${cfg.minutes||0} Min. inkl. · Vertragsstatus: ${contractStatusLabel}${activeSuffix}`);
   set('usage-month-minutes', `${used} Min`);
   // Dashboard KPI
   set('kpi-usage-min', used);
@@ -4397,8 +4500,13 @@ function renderUsage(records) {
   set('usage-extra-label', over > 0 ? `${over} Zusatzminuten · ${extraCost} CHF geschätzt` : 'Keine Zusatzkosten');
   const chip = document.getElementById('usage-status-chip');
   if (chip) {
-    chip.textContent = over > 0 ? 'Upgrade empfohlen' : pct >= 80 ? 'Nahe am Limit' : 'Plan aktiv';
-    chip.className = 'chip ' + (over > 0 ? 'chip-hot' : pct >= 80 ? 'chip-working' : 'chip-neu');
+    if (!customerMeta.hasActiveContract) {
+      chip.textContent = 'Vertrag inaktiv';
+      chip.className = 'chip chip-hot';
+    } else {
+      chip.textContent = over > 0 ? 'Upgrade empfohlen' : pct >= 80 ? 'Nahe am Limit' : 'Plan aktiv';
+      chip.className = 'chip ' + (over > 0 ? 'chip-hot' : pct >= 80 ? 'chip-working' : 'chip-neu');
+    }
   }
   const upTitle = document.getElementById('upgrade-primary-title');
   const upCopy = document.getElementById('upgrade-primary-copy');
@@ -4560,6 +4668,7 @@ async function loadData() {
 
   try {
     await loadCustomerMeta().catch(()=>{});
+    applyContractAccessStateToUI();
     await loadPlanConfigFromSupabase().catch(()=>{});
     const context = await resolveCustomerContext(true);
 
@@ -4585,6 +4694,7 @@ async function loadData() {
     renderAnrufe(records);
     renderRueckrufe(records);
     renderArchiv(records);
+    applyContractAccessStateToUI();
     updateLastUpdatedLabel();
 
     // Candidate-call detection: run after every refresh while in pending_test
@@ -4717,7 +4827,13 @@ function renderDashboard(records) {
   if (statusHero && statusTitle && statusText && statusChipPrimary && statusChipSecondary) {
     statusChipPrimary.className = 'dash-status-chip';
     statusChipSecondary.className = 'dash-status-chip note';
-    if (offen.length > 0) {
+    if (isContractRestrictedState()) {
+      statusTitle.textContent = 'Vertrag derzeit nicht aktiv';
+      statusText.textContent = 'Ihr Zugang ist eingeschränkt. Produktive Änderungen sind erst mit aktivem Vertrag wieder möglich.';
+      statusChipPrimary.textContent = 'Eingeschränkter Modus';
+      statusChipPrimary.classList.add('alert');
+      statusChipSecondary.textContent = 'Vertragsstatus: ' + getContractStatusLabel(customerMeta.contractStatus);
+    } else if (offen.length > 0) {
       statusTitle.textContent = 'Aufgaben im Fokus';
       statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Aufgaben.';
       statusChipPrimary.textContent = offen.length + ' offen';
@@ -4776,8 +4892,8 @@ function renderDashboard(records) {
   }
   if (kpiLeadsNote) {
     kpiLeadsNote.textContent = canUseOverdueMetric
-      ? 'Offeni Aufgaben mit überschrittener Fälligkeit'
-      : 'Offeni Aufgaben im Status In Bearbeitung';
+      ? 'Offene Aufgaben mit überschrittener Fälligkeit'
+      : 'Offene Aufgaben im Status In Bearbeitung';
   }
   if (kpiLeads) {
     kpiLeads.textContent = canUseOverdueMetric ? overdueCount : inProgressCount;
@@ -5014,7 +5130,7 @@ function renderList(containerId, records, opts) {
     var taskDueClass = 'open';
     if (!done && isTaskList) {
       if (taskDueBucket === 0) { taskDueLabel = 'Überfällig'; taskDueClass = 'overdue'; }
-      else if (taskDueBucket === 1) { taskDueLabel = 'Hüt fällig'; taskDueClass = 'today'; }
+      else if (taskDueBucket === 1) { taskDueLabel = 'Heute fällig'; taskDueClass = 'today'; }
       else if (taskDueBucket === 2) { taskDueLabel = 'Geplant'; taskDueClass = 'planned'; }
       else { taskDueLabel = 'Offe Aufgabe'; taskDueClass = 'open'; }
     }
@@ -5731,6 +5847,10 @@ function notifDebugLog(event, details) {
 function selectNotifCard(mode, opts) {
   var options = opts || {};
   var shouldAutosave = options.autosave !== false;
+  if (isContractRestrictedState() && shouldAutosave) {
+    toast('Benachrichtigungen sind ohne aktiven Vertrag schreibgeschützt.', 'warning');
+    return;
+  }
   var source = options.source || 'ui';
   var cards = {none:'notif-card-none', callback_only:'notif-card-callback', all_calls:'notif-card-all'};
   var dots  = {none:'notif-dot-none', callback_only:'notif-dot-callback', all_calls:'notif-dot-all'};
@@ -5850,6 +5970,10 @@ async function loadNotifSettings() {
 }
 
 async function saveNotifSettings(opts) {
+  if (isContractRestrictedState()) {
+    toast('Benachrichtigungen können ohne aktiven Vertrag nicht gespeichert werden.', 'warning');
+    return;
+  }
   var options = opts || {};
   var source = options.source || 'unknown';
   var requestId = ++_notifSaveSeq;
@@ -5909,7 +6033,7 @@ async function saveNotifSettings(opts) {
       recordId: finalRecordId,
       error: e && e.message ? e.message : String(e)
     });
-    toast('Fehler beim Speichern der Benachrichtigungen');
+    toast((e && e.status === 403) ? getRestrictedContractMessage('Benachrichtigungen') : 'Fehler beim Speichern der Benachrichtigungen');
     console.error('Notif save error:', e);
   } finally {
     _notifSaveInFlight = null;
@@ -6427,6 +6551,10 @@ function manualRefresh() {
 
 function openSetupWizardFromCta(event, stepId) {
   if (event) event.preventDefault();
+  if (isContractRestrictedState()) {
+    toast('Erreichbarkeit ist ohne aktiven Vertrag nicht verfügbar.', 'warning');
+    return;
+  }
   openActivationSection({ reason: 'settings-cta', scrollTop: true });
 }
 
@@ -6484,7 +6612,7 @@ async function persistSetupDeviceType(type) {
     return normalized;
   } catch(e) {
     console.error('setup_device_type save failed', e);
-    toast('Aktivierungsweg konnte nicht gespeichert werden.');
+    toast((e && e.status === 403) ? getRestrictedContractMessage('Aktivierung') : 'Aktivierungsweg konnte nicht gespeichert werden.');
     return null;
   }
 }
@@ -6500,7 +6628,7 @@ async function persistForwardingSetupCompleted() {
     return true;
   } catch(e) {
     console.error('forwarding_setup_completed save failed', e);
-    toast('Rufumleitungsstatus konnte nicht gespeichert werden.');
+    toast((e && e.status === 403) ? getRestrictedContractMessage('Erreichbarkeit') : 'Rufumleitungsstatus konnte nicht gespeichert werden.');
     return false;
   }
 }
@@ -6526,7 +6654,7 @@ async function persistForwardingMode(mode) {
     return true;
   } catch(e) {
     console.error('forwarding_mode save failed', e);
-    toast('Weiterleitungsmodus konnte nicht gespeichert werden.');
+    toast((e && e.status === 403) ? getRestrictedContractMessage('Erreichbarkeit') : 'Weiterleitungsmodus konnte nicht gespeichert werden.');
     return false;
   }
 }
@@ -8982,6 +9110,22 @@ function renderActivationV2(){
   var shell = document.getElementById('activation-v2-shell');
   if (!shell) return;
   activationV2DebugLog('state before render', activationV2StateSnapshot());
+  if (isContractRestrictedState()) {
+    var restrictedStatusLabel = getContractStatusLabel(customerMeta && customerMeta.contractStatus);
+    shell.innerHTML = '<div class="activation-shell">'
+      + '<section class="activation-hero">'
+      + '<div class="activation-state-chip">Eingeschränkter Vertrag</div>'
+      + '<h1>Aktivierung derzeit gesperrt</h1>'
+      + '<p>Ohne aktiven Vertrag sind Aktivierung, Erreichbarkeit und Einstellungen nur lesbar. Vertragsstatus: ' + escapeHtml(restrictedStatusLabel) + '.</p>'
+      + '<button type="button" class="activation-btn primary activation-primary" disabled>Aktivierung nicht verfügbar</button>'
+      + '</section>'
+      + '<section class="activation-panel">'
+      + '<h2>Nächster Schritt</h2>'
+      + '<div class="activation-warning-banner">Bitte kontaktieren Sie Voxera, um den Vertrag zu reaktivieren. Danach ist die Aktivierung wieder normal verfügbar.</div>'
+      + '</section>'
+      + '</div>';
+    return;
+  }
   bindActivationV2Events();
   syncActivationPersistedState();
   restoreActivationV2Step();
