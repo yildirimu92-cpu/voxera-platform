@@ -5,6 +5,12 @@ const {
   DB_CASE_STATUS_VALUES,
   isStatusConstraintError
 } = require('./_lib/case-status');
+const {
+  normalizePriorityForDb,
+  normalizeTypeForDb,
+  normalizeDueAtForDb,
+  normalizeDueTimeForDb
+} = require('./_lib/manual-task-model');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -17,11 +23,11 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
-const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'priority']);
+const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'priority', 'type', 'due_at', 'due_time', 'phone']);
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
-const DEFAULT_CASE_PRIORITY = 'medium';
+const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte verwenden Sie das Format HH:MM (z. B. 14:30).';
 
 const CASE_TRANSITIONS = {
   open: new Set(['in_progress']),
@@ -35,7 +41,7 @@ function isMissingManualTasksSchema(error) {
   const details = String(error?.details || '').toLowerCase();
   const hint = String(error?.hint || '').toLowerCase();
   const combined = `${message} ${details} ${hint}`;
-  const columnMentioned = /title|note|due_at|phone/.test(combined);
+  const columnMentioned = /title|note|due_at|due_time|phone|type|priority|status/.test(combined);
   const relationMentioned = /\bcases\b/.test(combined);
   const schemaIssue = /schema cache|column|does not exist|could not find/.test(combined);
   return columnMentioned && relationMentioned && schemaIssue;
@@ -48,15 +54,6 @@ function isPriorityConstraintError(error) {
   const combined = `${message} ${details} ${hint}`;
   return combined.includes('cases_priority_check')
     || (/\bcases\b/.test(combined) && /priority/.test(combined) && /violates check constraint/.test(combined));
-}
-
-function mapPriorityToDb(rawPriority) {
-  const key = String(rawPriority || '').trim().toLowerCase();
-  if (!key) return DEFAULT_CASE_PRIORITY;
-  if (key === 'urgent' || key === 'dringend') return 'high';
-  if (key === 'normal') return 'medium';
-  if (key === 'high' || key === 'medium' || key === 'low') return key;
-  return DEFAULT_CASE_PRIORITY;
 }
 
 function assertCaseTransition(from, to) {
@@ -86,10 +83,14 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungültiger Request Body' }); }
 
   const caseId = String(body.case_id || '').trim();
+  const updates = body.updates && typeof body.updates === 'object' && !Array.isArray(body.updates)
+    ? body.updates
+    : null;
   const field = String(body.field || '').trim();
   const value = body.value;
-  if (!caseId || !field) return response(400, { error: 'Pflichtfelder fehlen: case_id, field' });
-  if (!ALLOWED_FIELDS.has(field)) return response(400, { error: `Ungültiges Feld: ${field}` });
+  if (!caseId) return response(400, { error: 'Pflichtfeld fehlt: case_id', code: 'validation_case_id_required' });
+  if (!updates && !field) return response(400, { error: 'Pflichtfelder fehlen: case_id und updates oder field/value', code: 'validation_updates_required' });
+  if (field && !ALLOWED_FIELDS.has(field)) return response(400, { error: `Ungültiges Feld: ${field}`, code: 'validation_field_invalid' });
 
   const { data: current, error: currentError } = await sbAdmin
     .from('cases')
@@ -100,23 +101,59 @@ exports.handler = async (event) => {
   if (currentError || !current) return response(404, { error: 'Case nicht gefunden' });
 
   const updatePayload = { updated_at: new Date().toISOString() };
-  if (field === 'status') {
-    const fromStatus = mapManualTaskUiStatusToDb(current.status);
-    const toStatus = mapManualTaskUiStatusToDb(value);
+  const requestedUpdates = updates || { [field]: value };
+
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'status')) {
+    const fromStatus = mapManualTaskUiStatusToDb(current.status || 'open');
+    const toStatus = mapManualTaskUiStatusToDb(requestedUpdates.status);
     try {
       assertCaseTransition(fromStatus, toStatus);
     } catch (e) {
       return response(409, { error: e.message, from_status: fromStatus, to_status: toStatus });
     }
     updatePayload.status = toStatus;
-  } else if (field === 'title') {
-    const title = String(value || '').trim();
+  }
+
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'title')) {
+    const title = String(requestedUpdates.title || '').trim();
     if (!title) return response(400, { error: 'title darf nicht leer sein' });
     updatePayload.title = title;
-  } else if (field === 'note') {
-    updatePayload.note = String(value || '').trim() || null;
-  } else if (field === 'priority') {
-    updatePayload.priority = mapPriorityToDb(value);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'note')) {
+    updatePayload.note = String(requestedUpdates.note || '').trim() || null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'priority')) {
+    updatePayload.priority = normalizePriorityForDb(requestedUpdates.priority);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'type')) {
+    updatePayload.type = normalizeTypeForDb(requestedUpdates.type);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'phone')) {
+    updatePayload.phone = String(requestedUpdates.phone || '').trim() || null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'due_at')) {
+    const dueAtDb = normalizeDueAtForDb(requestedUpdates.due_at);
+    if (!dueAtDb.ok) {
+      return response(400, { error: 'Fälligkeitsdatum ist ungültig.', code: 'validation_due_at_invalid' });
+    }
+    updatePayload.due_at = dueAtDb.value;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'due_time')) {
+    const dueTimeDb = normalizeDueTimeForDb(requestedUpdates.due_time);
+    if (!dueTimeDb.ok) {
+      return response(400, { error: MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE, code: 'validation_due_time_invalid' });
+    }
+    updatePayload.due_time = dueTimeDb.value;
+  }
+
+  if (Object.keys(updatePayload).length === 1) {
+    return response(400, { error: 'Keine zulässigen Felder zum Aktualisieren übergeben.', code: 'validation_no_mutable_fields' });
   }
 
   const { data, error } = await sbAdmin
@@ -135,7 +172,7 @@ exports.handler = async (event) => {
       return response(400, {
         error: MANUAL_TASKS_STATUS_INVALID_MESSAGE,
         code: 'cases_status_invalid',
-        details: { allowed_statuses: DB_CASE_STATUS_VALUES, received_status: updatePayload.status || value }
+        details: { allowed_statuses: DB_CASE_STATUS_VALUES, received_status: updatePayload.status || requestedUpdates.status || value }
       });
     }
     if (isMissingManualTasksSchema(error)) {

@@ -1,11 +1,17 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const {
-  mapManualTaskUiStatusToDb,
-  isValidCaseStatus,
   DB_CASE_STATUS_VALUES,
-  isStatusConstraintError
+  isStatusConstraintError,
+  mapManualTaskUiStatusToDb
 } = require('./_lib/case-status');
+const {
+  normalizePriorityForDb,
+  normalizeTypeForDb,
+  normalizeDueAtForDb,
+  normalizeDueTimeForDb,
+  isValidCaseStatus
+} = require('./_lib/manual-task-model');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -21,9 +27,7 @@ function response(statusCode, payload) {
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
-const DEFAULT_CASE_PRIORITY = 'medium';
-const DEFAULT_CASE_TYPE = 'general';
-const ALLOWED_CASE_TYPES = new Set(['general', 'task', 'follow_up', 'callback', 'support']);
+const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte verwenden Sie das Format HH:MM (z. B. 14:30).';
 
 function log(stage, meta = {}) {
   try {
@@ -52,7 +56,7 @@ function isMissingManualTasksSchema(error) {
   const details = String(error?.details || '').toLowerCase();
   const hint = String(error?.hint || '').toLowerCase();
   const combined = `${message} ${details} ${hint}`;
-  const columnMentioned = /title|note|due_at|phone|status|type|priority/.test(combined);
+  const columnMentioned = /title|note|due_at|due_time|phone|status|type|priority/.test(combined);
   const relationMentioned = /\bcases\b/.test(combined);
   const schemaIssue = /schema cache|column|does not exist|could not find/.test(combined);
   return relationMentioned && schemaIssue && columnMentioned;
@@ -72,35 +76,6 @@ function isDbValidationError(error) {
   return ['22P02', '22007', '23502', '23514'].includes(pgCode);
 }
 
-function mapPriorityToDb(rawPriority) {
-  const key = String(rawPriority || '').trim().toLowerCase();
-  if (!key) return DEFAULT_CASE_PRIORITY;
-  if (key === 'urgent' || key === 'dringend') return 'high';
-  if (key === 'normal') return 'medium';
-  if (key === 'high' || key === 'medium' || key === 'low') return key;
-  return DEFAULT_CASE_PRIORITY;
-}
-
-function normalizeCaseType(rawType) {
-  const key = String(rawType || '').trim().toLowerCase().replace(/\s+/g, '_');
-  const aliases = {
-    allgemein: 'general',
-    general: 'general',
-    task: 'task',
-    aufgabe: 'task',
-    followup: 'follow_up',
-    follow_up: 'follow_up',
-    nachverfolgung: 'follow_up',
-    callback: 'callback',
-    rueckruf: 'callback',
-    rückruf: 'callback',
-    support: 'support'
-  };
-  const normalized = aliases[key] || DEFAULT_CASE_TYPE;
-  if (!ALLOWED_CASE_TYPES.has(normalized)) return DEFAULT_CASE_TYPE;
-  return normalized;
-}
-
 function sanitizeSupabaseError(error) {
   return {
     message: error?.message || null,
@@ -110,26 +85,10 @@ function sanitizeSupabaseError(error) {
   };
 }
 
-function normalizeDueAtForDb(rawDueAt) {
-  const raw = String(rawDueAt || '').trim();
-  if (!raw) return { ok: false, reason: 'missing' };
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return { ok: true, value: raw };
-  }
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) {
-    return { ok: false, reason: 'invalid' };
-  }
-
-  const dateOnly = parsed.toISOString().slice(0, 10);
-  return { ok: true, value: dateOnly };
-}
-
 function detectLikelyFieldMismatch(error) {
   const combined = `${String(error?.message || '')} ${String(error?.details || '')} ${String(error?.hint || '')}`.toLowerCase();
   if (combined.includes('due_at')) return 'due_at';
+  if (combined.includes('due_time')) return 'due_time';
   if (combined.includes('priority')) return 'priority';
   if (combined.includes('status')) return 'status';
   if (combined.includes('type')) return 'type';
@@ -203,18 +162,22 @@ exports.handler = async (event) => {
     const title = String(body.title || body.type || '').trim();
     const note = String(body.note || body.notes || '').trim();
     const dueAt = String(body.due_at || '').trim();
+    const dueTime = String(body.due_time || body.due_at_time || '').trim();
     const phone = String(body.phone || '').trim();
     const status = mapManualTaskUiStatusToDb(body.status || 'open');
-    const priority = mapPriorityToDb(body.priority);
-    const type = normalizeCaseType(body.type || DEFAULT_CASE_TYPE);
+    const priority = normalizePriorityForDb(body.priority);
+    const type = normalizeTypeForDb(body.type);
 
     const dueAtDb = normalizeDueAtForDb(dueAt);
+    const dueTimeDb = normalizeDueTimeForDb(dueTime);
 
     log('request.normalized_payload', {
       title,
       note,
       due_at_input: dueAt,
       due_at_db: dueAtDb.ok ? dueAtDb.value : null,
+      due_time_input: dueTime,
+      due_time_db: dueTimeDb.ok ? dueTimeDb.value : null,
       phone,
       status,
       priority,
@@ -231,6 +194,13 @@ exports.handler = async (event) => {
       }));
     }
 
+    if (!dueTimeDb.ok) {
+      return response(400, errorPayload(MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE, 'validation_due_time_invalid', {
+        expected: 'HH:MM',
+        received: dueTime
+      }));
+    }
+
     if (!isValidCaseStatus(status)) {
       return response(400, errorPayload('Status ist ungültig.', 'validation_status_invalid', { status }));
     }
@@ -243,6 +213,7 @@ exports.handler = async (event) => {
       priority,
       type,
       due_at: dueAtDb.value,
+      due_time: dueTimeDb.value,
       phone: phone || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -312,9 +283,11 @@ exports.handler = async (event) => {
         }));
       }
       if (isMissingManualTasksSchema(error)) {
+        const isDueTimeMismatch = mismatchedField === 'due_time';
         return response(503, errorPayload(MANUAL_TASKS_DB_EXTENSION_MESSAGE, 'cases_schema_extension_missing', {
           db_error: dbError,
-          mismatched_field: mismatchedField
+          mismatched_field: mismatchedField,
+          fallback_hint: isDueTimeMismatch ? 'cases_due_time_missing_migration' : null
         }));
       }
       if (isDbValidationError(error)) {
