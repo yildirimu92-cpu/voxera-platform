@@ -9,17 +9,17 @@ function parseBearerToken(headers) {
   return String(token || '').trim();
 }
 
-function fail(statusCode, error, details) {
-  return { ok: false, statusCode, body: { error, details: details || null } };
+function fail(statusCode, error, code, details) {
+  return { ok: false, statusCode, body: { error, code, details: details || null } };
 }
 
 async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, requireActiveContract = true }) {
   const token = parseBearerToken((event && event.headers) || {});
-  if (!token) return fail(401, 'Missing Bearer token');
+  if (!token) return fail(401, 'Missing Bearer token', 'auth_token_missing');
 
   const authClient = createClient(sbUrl, sbAnonKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data: authData, error: authError } = await authClient.auth.getUser(token);
-  if (authError || !authData?.user?.id) return fail(401, 'Invalid or expired token');
+  if (authError || !authData?.user?.id) return fail(401, 'Invalid or expired token', 'auth_token_invalid');
 
   const userId = authData.user.id;
   const { data: userRow, error: userError } = await sbAdmin
@@ -28,8 +28,8 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, require
     .eq('id', userId)
     .maybeSingle();
 
-  if (userError) return fail(500, 'User lookup failed', userError.message);
-  if (!userRow || !userRow.customer_id) return fail(403, 'Customer context missing');
+  if (userError) return fail(500, 'User lookup failed', 'guard_user_lookup_failed', userError.message);
+  if (!userRow || !userRow.customer_id) return fail(403, 'Customer context missing', 'guard_customer_context_missing');
 
   const customerId = String(userRow.customer_id);
   const { data: customerRow, error: customerError } = await sbAdmin
@@ -38,12 +38,12 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, require
     .eq('id', customerId)
     .maybeSingle();
 
-  if (customerError) return fail(500, 'Customer lookup failed', customerError.message);
-  if (!customerRow) return fail(403, 'Customer record missing');
+  if (customerError) return fail(500, 'Customer lookup failed', 'guard_customer_lookup_failed', customerError.message);
+  if (!customerRow) return fail(403, 'Customer record missing', 'guard_customer_missing');
 
   const entitlement = evaluateCustomerEntitlement(customerRow);
   if (!entitlement.entitled) {
-    return fail(403, 'Customer entitlement denied', {
+    return fail(403, 'Customer entitlement denied', 'guard_entitlement_denied', {
       reason: entitlement.code,
       message: entitlement.message,
       customer_status: entitlement.customer_status
@@ -55,11 +55,11 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, require
     .select('*')
     .eq('customer_id', customerId)
     .limit(50);
-  if (contractError) return fail(500, 'Contract lookup failed', contractError.message);
+  if (contractError) return fail(500, 'Contract lookup failed', 'guard_contract_lookup_failed', contractError.message);
 
   const contractState = deriveContractState(contractRows || []);
   if (requireActiveContract && !contractState.hasActiveContract) {
-    return fail(403, 'Customer entitlement denied', {
+    return fail(409, 'Customer entitlement denied', 'guard_contract_inactive', {
       reason: 'contract_inactive',
       message: 'Zugriff gesperrt: Kein aktiver Vertrag vorhanden.',
       contract_status: contractState.status
