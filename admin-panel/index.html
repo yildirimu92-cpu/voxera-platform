@@ -1103,6 +1103,235 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   }
   #offer-print-template .offer-doc h2{font-size:22pt!important;}
 }
+
+/* ─── VOXERA CI UPDATE — ADMIN PORTAL ─────────────────────────────────── */
+:root{
+  --vx-bg:#F7F8FC;
+  --vx-line:#E2E8F0;
+  --vx-muted:#94A3B8;
+  --vx-ink:#0F172A;
+}
+body,.main{background:#F7F8FC;}
+.sidebar{
+  background:#0D1F3C;
+  border-right:1px solid rgba(255,255,255,.08);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+.sidebar-logo{
+  padding:22px 18px 16px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.logo-mark{display:flex;align-items:center;gap:12px;}
+.logo-brand-copy{display:flex;flex-direction:column;justify-content:center;}
+.logo-wordmark{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:18px;
+  font-weight:800;
+  color:#FFFFFF;
+  letter-spacing:.01em;
+}
+.logo-sub{
+  font-size:9px;
+  font-weight:600;
+  color:rgba(255,255,255,.3);
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  margin-top:4px;
+  padding-left:0;
+}
+.sidebar-status-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin-top:14px;
+  padding:7px 10px;
+  border-radius:8px;
+  background:rgba(5,150,105,.12);
+  border:1px solid rgba(5,150,105,.2);
+  color:#34D399;
+  font-size:10px;
+  font-weight:700;
+}
+.sidebar-status-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#34D399;
+  animation:pulse 2s infinite;
+}
+.nav-section{
+  font-size:9px;
+  font-weight:700;
+  color:rgba(255,255,255,.2);
+  text-transform:uppercase;
+  letter-spacing:.14em;
+}
+.nav-item{
+  color:rgba(255,255,255,.55);
+  padding:7px 10px;
+  min-height:36px;
+  border-radius:8px;
+  border:1px solid transparent;
+  margin:3px 0;
+  font-weight:500;
+}
+.nav-item:hover{
+  color:#FFFFFF;
+  background:rgba(255,255,255,.06);
+  border-color:transparent;
+}
+.nav-item.active{
+  color:#FFFFFF;
+  background:rgba(26,111,232,.2);
+  border:1px solid rgba(26,111,232,.3);
+  border-left-color:rgba(26,111,232,.3);
+  font-weight:600;
+}
+.nav-item svg{opacity:1;color:inherit;}
+.nav-item.active svg{color:#4B9FFF;}
+.sidebar-footer{
+  padding:14px 16px;
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.avatar{
+  background:linear-gradient(135deg,#475569,#0F172A);
+  color:#FFFFFF;
+}
+.sidebar-user{color:#FFFFFF;}
+.sidebar-user-role{color:rgba(255,255,255,.35);}
+.btn-logout{
+  background:transparent;
+  border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.72);
+}
+.btn-logout:hover{
+  background:rgba(220,38,38,.12);
+  color:#FCA5A5;
+  border-color:rgba(220,38,38,.24);
+}
+.topbar{
+  background:#FFFFFF;
+  border-bottom:1px solid #E2E8F0;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+.page-title{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:16px;
+  font-weight:700;
+  color:#0F172A;
+}
+.page-sub{font-size:11px;color:#94A3B8;}
+.status-pill{
+  background:#ECFDF5;
+  border:1px solid #A7F3D0;
+  color:#065F46;
+  border-radius:99px;
+  padding:5px 10px;
+  font-size:11px;
+  font-weight:700;
+}
+.card{
+  background:#FFFFFF;
+  border:1px solid #E2E8F0;
+  border-radius:12px;
+  box-shadow:none;
+}
+.kpi{
+  position:relative;
+  background:#FFFFFF;
+  border:1px solid #E2E8F0;
+  border-radius:12px;
+  padding:14px 16px;
+  box-shadow:none;
+  overflow:hidden;
+}
+.kpi::before{
+  content:'';
+  position:absolute;
+  left:-1px;
+  right:-1px;
+  top:-1px;
+  height:3px;
+  border-radius:12px 12px 0 0;
+  background:#1A6FE8;
+}
+.kpi-grid .kpi:nth-child(1)::before{background:#D97706;}
+.kpi-grid .kpi:nth-child(2)::before{background:#059669;}
+.kpi-grid .kpi:nth-child(3)::before{background:#1A6FE8;}
+.kpi-grid .kpi:nth-child(4)::before{background:#DC2626;}
+.kpi-label{
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#94A3B8;
+  font-weight:700;
+  margin-bottom:8px;
+}
+.kpi-value{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:28px;
+  font-weight:800;
+  line-height:1;
+}
+.kpi-grid .kpi:nth-child(1) .kpi-value{color:#D97706;}
+.kpi-grid .kpi:nth-child(2) .kpi-value{color:#059669;}
+.kpi-grid .kpi:nth-child(3) .kpi-value{color:#1A6FE8;}
+.kpi-grid .kpi:nth-child(4) .kpi-value{color:#DC2626;}
+.kpi-sub{font-size:10px;color:#94A3B8;margin-top:6px;}
+.table-wrap{
+  background:#FFFFFF;
+  border:1px solid #E2E8F0;
+  border-radius:12px;
+  box-shadow:none;
+}
+.data-table th{
+  background:#F7F8FC;
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#94A3B8;
+  border-bottom:1px solid #F1F5F9;
+}
+.data-table td{border-bottom:1px solid #F1F5F9;}
+.data-table tbody tr:hover td{background:#F7F8FC;}
+.progress-bar{height:4px;border-radius:99px;background:#E2E8F0;}
+.progress-fill{background:#1A6FE8;border-radius:99px;}
+.progress-fill.progress-fill-blocked{background:#DC2626;}
+.progress-fill.progress-fill-complete{background:#059669;}
+.onboarding-queue-item{
+  background:#FFFFFF;
+  border:1px solid #E2E8F0;
+  border-radius:12px;
+  box-shadow:none;
+}
+.onboarding-queue-item.is-active{border-color:#1A6FE8;box-shadow:0 0 0 1px rgba(26,111,232,.18);}
+.onboarding-status-pill.state-completed{background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0;}
+.onboarding-status-pill.state-in-progress{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;}
+.onboarding-status-pill.state-blocked{background:#FEE2E2;color:#991B1B;border:1px solid #FECACA;}
+.onboarding-status-pill.state-open{background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;}
+.onboarding-substatus{
+  font-size:9px;
+  font-weight:600;
+  padding:2px 7px;
+  border-radius:99px;
+}
+.onboarding-substatus-pay-open{background:#FEE2E2;color:#991B1B;}
+.onboarding-substatus-pay-pending{background:#FEF3C7;color:#92400E;}
+.onboarding-substatus-pay-paid,.onboarding-substatus-setup-ready{background:#ECFDF5;color:#065F46;}
+.onboarding-substatus-setup-active{background:#EFF6FF;color:#1D4ED8;}
+.onboarding-substatus-setup-open{background:#F1F5F9;color:#475569;}
+.onboarding-blocker-note{
+  background:#FEF2F2;
+  border:1px solid #FECACA;
+  border-radius:6px;
+  color:#DC2626;
+  font-weight:600;
+}
+.chip{font-size:9px;font-weight:600;padding:2px 7px;border-radius:99px;}
+.btn-primary{background:#1A6FE8;color:#FFFFFF;font-weight:700;}
+.btn-primary:hover{background:#1340B0;}
 </style>
 </head>
 <body class="app-booting">
@@ -1120,12 +1349,21 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileMenu()"></div>
 <div class="app">
   <aside class="sidebar">
-    <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="sidebar-logo" style="display:flex;align-items:flex-start;justify-content:space-between;">
       <div>
         <div class="logo-mark">
-          <img class="logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera" />
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 2C4.5 2 2 4.5 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"></path>
+            <path d="M8 2C11.5 2 14 4.5 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"></path>
+            <path d="M2 8C2 11.5 4.5 14 8 14C11.5 14 14 11.5 14 8" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"></path>
+            <path d="M5.5 5.5L8 10L10.5 5.5" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <div class="logo-brand-copy">
+            <div class="logo-wordmark">VOXERA</div>
+            <div class="logo-sub">Admin Portal</div>
+          </div>
         </div>
-        <div class="logo-sub">Admin Portal</div>
+        <div class="sidebar-status-badge"><span class="sidebar-status-dot"></span>Assistent aktiv</div>
       </div>
       <!-- Close-Button nur mobile sichtbar -->
       <button onclick="closeMobileMenu()" style="display:none;background:none;border:none;cursor:pointer;padding:4px;color:var(--slate);" class="mobile-close-btn">

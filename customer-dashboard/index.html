@@ -2073,6 +2073,226 @@ body{
   .activation-live-grid,.activation-compact{grid-template-columns:1fr;}
 }
 
+
+/* ═══════════════════════════════════════════
+   VOXERA CI UPDATE — CUSTOMER PORTAL
+═══════════════════════════════════════════ */
+:root{
+  --vx-bg:#F7F8FC;
+  --vx-line:#E2E8F0;
+  --vx-muted:#94A3B8;
+  --vx-ink:#0F172A;
+}
+body,.main{background:#F7F8FC;}
+.sidebar{
+  background:#0D1F3C;
+  border-right:1px solid rgba(255,255,255,.08);
+  box-shadow:none;
+}
+.sidebar-logo{
+  padding:22px 18px 16px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  display:block;
+}
+.sidebar-logo .logo-mark{display:flex;align-items:center;gap:12px;}
+.sidebar-logo .logo-brand-copy{display:flex;flex-direction:column;justify-content:center;}
+.sidebar-logo .logo-wordmark{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:18px;
+  font-weight:800;
+  color:#FFFFFF;
+  letter-spacing:.01em;
+}
+.logo-sub{
+  font-size:9px;
+  font-weight:600;
+  color:rgba(255,255,255,.3);
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  margin-top:4px;
+}
+.sidebar-status-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin-top:14px;
+  padding:7px 10px;
+  border-radius:8px;
+  background:rgba(5,150,105,.12);
+  border:1px solid rgba(5,150,105,.2);
+  color:#34D399;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.02em;
+}
+.sidebar-status-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#34D399;
+  box-shadow:0 0 0 0 rgba(52,211,153,.55);
+  animation:pulse 2s infinite;
+}
+.nav{padding:14px 12px 10px;}
+.nav-section{
+  font-size:9px;
+  font-weight:700;
+  color:rgba(255,255,255,.2);
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  padding:14px 10px 6px;
+  margin-top:4px;
+}
+.nav-item{
+  color:rgba(255,255,255,.55);
+  padding:7px 10px;
+  min-height:36px;
+  border-radius:8px;
+  border:1px solid transparent;
+  margin:3px 0;
+}
+.nav-item:hover{
+  color:#FFFFFF;
+  background:rgba(255,255,255,.06);
+  border-color:transparent;
+  transform:none;
+}
+.nav-item.active{
+  background:rgba(26,111,232,.2);
+  border:1px solid rgba(26,111,232,.3);
+  color:#FFFFFF;
+  font-weight:600;
+  box-shadow:none;
+}
+.nav-icon{opacity:1;color:inherit;}
+.nav-item.active .nav-icon{color:#4B9FFF;}
+.nav-badge{box-shadow:none;}
+.sidebar-footer{
+  padding:14px 16px 16px;
+  border-top:1px solid rgba(255,255,255,.07);
+  background:transparent;
+}
+.sidebar-user-card:hover{
+  background:rgba(255,255,255,.06);
+  border-color:rgba(255,255,255,.08);
+}
+.sidebar-user-card.open{
+  background:rgba(26,111,232,.2);
+  border-color:rgba(26,111,232,.3);
+  box-shadow:none;
+}
+.avatar-cust{
+  background:linear-gradient(135deg,#1A6FE8,#4B9FFF);
+  color:#FFFFFF;
+}
+.sidebar-user{color:#FFFFFF;font-size:12px;font-weight:600;}
+.sidebar-user-role,.sidebar-user-caret{color:rgba(255,255,255,.35);}
+.topbar{
+  padding:14px 28px;
+  background:#FFFFFF;
+  border-bottom:1px solid #E2E8F0;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+.greeting-main.page-title{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:16px;
+  font-weight:700;
+  color:#0F172A;
+}
+.greeting-sub{
+  font-size:11px;
+  color:#94A3B8;
+}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.customer-live-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  background:#ECFDF5;
+  border:1px solid #A7F3D0;
+  color:#065F46;
+  border-radius:99px;
+  padding:5px 10px;
+  font-size:11px;
+  font-weight:700;
+}
+.customer-live-pill .status-dot{width:6px;height:6px;background:#059669;}
+#last-updated-label{display:none;}
+.dash-status-hero{
+  background:linear-gradient(135deg,#0D1F3C 0%,#162D54 100%);
+  border-radius:14px;
+  border:none;
+  box-shadow:none;
+}
+.dash-status-title{font-family:'Plus Jakarta Sans','DM Sans',sans-serif;font-weight:800;color:#FFFFFF;}
+.dash-status-sub{color:rgba(255,255,255,.55);}
+.dash-status-chip{
+  background:rgba(255,255,255,.1);
+  border-color:rgba(255,255,255,.14);
+  color:#FFFFFF;
+}
+.dash-kpi{
+  position:relative;
+  background:#FFFFFF;
+  border:1px solid #E2E8F0;
+  border-radius:12px;
+  padding:14px 16px;
+  box-shadow:none;
+  overflow:hidden;
+}
+.dash-kpi::before{
+  content:'';
+  position:absolute;
+  left:-1px;
+  right:-1px;
+  top:-1px;
+  height:3px;
+  border-radius:12px 12px 0 0;
+  background:#1A6FE8;
+}
+.dash-kpi-row .dash-kpi:nth-child(1)::before{background:#1A6FE8;}
+.dash-kpi-row .dash-kpi:nth-child(2)::before{background:#D97706;}
+.dash-kpi-row .dash-kpi:nth-child(3)::before{background:#059669;}
+.dash-kpi-row .dash-kpi:nth-child(4)::before{background:#DC2626;}
+.dash-kpi-label{
+  font-size:9.5px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#94A3B8;
+}
+.dash-kpi-val{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:28px;
+  font-weight:800;
+  line-height:1;
+}
+.dash-kpi-row .dash-kpi:nth-child(1) .dash-kpi-val{color:#1A6FE8;}
+.dash-kpi-row .dash-kpi:nth-child(2) .dash-kpi-val{color:#D97706;}
+.dash-kpi-row .dash-kpi:nth-child(3) .dash-kpi-val{color:#059669;}
+.dash-kpi-row .dash-kpi:nth-child(4) .dash-kpi-val{color:#DC2626;}
+.dash-kpi-action,.dash-kpi-static-note,.dash-kpi-sub{font-size:10px;color:#94A3B8;}
+.badge-hot,.chip-hot{background:#FEE2E2;color:#991B1B;border-color:#FEE2E2;}
+.badge-warm,.chip-warm{background:#FEF3C7;color:#92400E;border-color:#FEF3C7;}
+.badge-neu,.chip-neu{background:#EFF6FF;color:#1D4ED8;border-color:#EFF6FF;}
+.badge-ok,.chip-done{background:#ECFDF5;color:#065F46;border-color:#ECFDF5;}
+.badge-dringend{background:#FEE2E2;color:#991B1B;border-color:#FEE2E2;}
+.badge-geplant{background:#F1F5F9;color:#475569;border-color:#F1F5F9;}
+.badge-offen{background:#EFF6FF;color:#1D4ED8;border-color:#EFF6FF;}
+.settings-card{
+  background:#FFFFFF;
+  border:1px solid #E2E8F0;
+  border-radius:12px;
+  box-shadow:none;
+}
+.settings-card-title{
+  color:#1A6FE8;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  font-weight:700;
+}
 </style>
 </head>
 <body>
@@ -2145,12 +2365,18 @@ body{
     <aside class="sidebar">
       <div class="sidebar-logo">
         <div class="logo-mark">
-          <img class="logo-image" src="/brand/05-app-icon-512px.svg" alt="Voxera" />
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 2C4.5 2 2 4.5 2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"></path>
+            <path d="M8 2C11.5 2 14 4.5 14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"></path>
+            <path d="M2 8C2 11.5 4.5 14 8 14C11.5 14 14 11.5 14 8" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"></path>
+            <path d="M5.5 5.5L8 10L10.5 5.5" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
           <div class="logo-brand-copy">
             <div class="logo-wordmark">VOXERA</div>
-            <div class="logo-sub">PORTAL</div>
+            <div class="logo-sub">Customer Portal</div>
           </div>
         </div>
+        <div class="sidebar-status-badge"><span class="sidebar-status-dot"></span>Assistent aktiv</div>
       </div>
       <nav class="nav">
         <div class="nav-item active" onclick="showTab('dashboard',this)">
@@ -2212,6 +2438,7 @@ body{
           <div class="greeting-sub" id="greeting-sub">–</div>
         </div>
         <div class="topbar-right">
+          <span class="customer-live-pill"><span class="status-dot" aria-hidden="true"></span>System live</span>
           <span id="last-updated-label" style="font-size:11px;color:var(--gray400);"></span>
         </div>
       </div>
@@ -3654,15 +3881,20 @@ function compareFollowUpPriority(a, b) {
 
 function fmtFollowUpDateTime(raw) {
   if (!raw) return '';
+  const rawValue = String(raw).trim().replace(' ', 'T');
+  const localParts = parseLocalDateTimeParts(rawValue);
   const d = parseFollowUpDate(raw);
   if (!d || Number.isNaN(d.getTime())) return '';
+  const hasMeaningfulTime = localParts
+    ? !(localParts.hour === 0 && localParts.minute === 0 && (localParts.second || 0) === 0)
+    : !/^\d{4}-\d{2}-\d{2}(T00:00(?::00)?)?$/.test(rawValue);
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrowStart = new Date(todayStart.getTime() + 86400000);
   const yesterdayStart = new Date(todayStart.getTime() - 86400000);
-  if (d >= todayStart && d < tomorrowStart) return 'Heute, ' + formatTimeCH(d);
-  if (d >= yesterdayStart && d < todayStart) return 'Gestern, ' + formatTimeCH(d);
-  return formatDateLongCH(d) + ', ' + formatTimeCH(d);
+  if (d >= todayStart && d < tomorrowStart) return hasMeaningfulTime ? 'Heute, ' + formatTimeCH(d) : 'Heute';
+  if (d >= yesterdayStart && d < todayStart) return hasMeaningfulTime ? 'Gestern, ' + formatTimeCH(d) : 'Gestern';
+  return hasMeaningfulTime ? formatDateLongCH(d) + ', ' + formatTimeCH(d) : formatDateLongCH(d);
 }
 
 function buildFollowUpMetaText(nextAction, followUpAt) {
@@ -5672,7 +5904,7 @@ function renderList(containerId, records, opts) {
         ${notizText && !opts.dashboardView?`<div class="call-notiz">${escHtml(notizText)}</div>`:''}
         ${showActions && !done?`<div class="call-actions">
           <button class="btn-a btn-note" onclick="event.stopPropagation();${isManualTaskRecord(r) ? `openDetail('${r.id}')` : `openFollowupDirect('${r.id}')`}" title="${isManualTaskRecord(r) ? 'Details öffnen' : 'Follow-up setzen'}">${isManualTaskRecord(r) ? 'Details' : 'Follow-up setzen'}</button>
-          <button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')" title="Details öffnen">Details</button>
+          ${isManualTaskRecord(r) ? '' : `<button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')" title="Details öffnen">Details</button>`}
           ${isManualTaskRecord(r) ? '' : `<button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="event.stopPropagation();openNotizFromBtn(this)" title="Notiz bearbeiten">Notiz</button>`}
         </div>`:''}
         ${showActions && done?`<div class="call-actions">
