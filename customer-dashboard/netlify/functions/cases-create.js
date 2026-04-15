@@ -265,7 +265,7 @@ exports.handler = async (event) => {
       keys: Object.keys(payload)
     });
 
-    const { data, error } = await sbAdmin
+    let { data, error } = await sbAdmin
       .from('cases')
       .insert(payload)
       .select('*')
@@ -276,6 +276,27 @@ exports.handler = async (event) => {
       hasError: Boolean(error),
       error: error ? sanitizeSupabaseError(error) : null
     });
+
+    if (error) {
+      const dbError = sanitizeSupabaseError(error);
+      const mismatchedField = detectLikelyFieldMismatch(error);
+      if (isDbValidationError(error) && mismatchedField === 'type') {
+        const payloadWithoutType = { ...payload };
+        delete payloadWithoutType.type;
+        log('db.insert.retry_without_type', {
+          reason: 'type_field_validation_mismatch',
+          original_error: dbError,
+          payload_keys: Object.keys(payloadWithoutType)
+        });
+        const retried = await sbAdmin
+          .from('cases')
+          .insert(payloadWithoutType)
+          .select('*')
+          .single();
+        data = retried.data;
+        error = retried.error;
+      }
+    }
 
     if (error) {
       const dbError = sanitizeSupabaseError(error);
