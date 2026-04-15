@@ -2442,6 +2442,7 @@ const state={
   subscriptions:[], // populated by loadDataFromSupabase()
   offerAcceptancesByOfferId:{}, // populated by loadDataFromSupabase()
   offerEventsByOfferId:{}, // populated by loadDataFromSupabase()
+  offerEventsAvailability:{available:true,reason:''},
   offers:[], // populated by loadDataFromSupabase()
   offerSendState:{status:'idle',message:''},
   offerDbColumns:new Set(),
@@ -3434,7 +3435,7 @@ function renderBillingFinance(){
   const filteredOutReasons={ search:0, type:0, status:0 };
   if(search) {
     filtered=filtered.filter(i=>{
-      const keep=`${i.customerName} ${i.invoiceNo} ${i.type}`.toLowerCase().includes(search);
+      const keep=`${i.customerName} ${i.customerId||''} ${i.invoiceNo} ${i.type}`.toLowerCase().includes(search);
       if(!keep) filteredOutReasons.search+=1;
       return keep;
     });
@@ -3455,6 +3456,12 @@ function renderBillingFinance(){
     if(i.status==='paid') return false;
     const due=parseDate(i.dueDate);
     const keep=!!(due && due>=startOfToday && due<=endOfToday);
+    if(!keep) filteredOutReasons.status+=1;
+    return keep;
+  });
+  else if(statusFilter==='open') filtered=filtered.filter(i=>{
+    const st=String(i.status||'').toLowerCase();
+    const keep=st==='open' || st==='sent' || st==='overdue';
     if(!keep) filteredOutReasons.status+=1;
     return keep;
   });
@@ -4285,6 +4292,7 @@ function mapDbOfferEventToUi(row){
 
 async function trackOfferEventClient(eventType, offer, extra={}){
   if(!authClient||!offer?.id) return;
+  if(state.offerEventsAvailability && state.offerEventsAvailability.available===false) return;
   try{
     const payload={
       offer_id:offer.id,
@@ -4304,6 +4312,11 @@ async function trackOfferEventClient(eventType, offer, extra={}){
     if(!state.offerEventsByOfferId[String(offer.id)]) state.offerEventsByOfferId[String(offer.id)]=[];
     state.offerEventsByOfferId[String(offer.id)].unshift(mapped);
   }catch(err){
+    const msg=String(err?.message||'');
+    if(/offer_events/i.test(msg) && /schema cache|does not exist|not find|404/i.test(msg)){
+      state.offerEventsAvailability={available:false,reason:'source_missing'};
+      return;
+    }
     console.warn('[offer_events] client insert failed',err?.message||err);
   }
 }
@@ -4335,6 +4348,10 @@ function renderOfferResendWarning(offer){
 function renderOfferEventsTimeline(offer){
   const el=document.getElementById('offer-events-timeline');
   if(!el||!offer) return;
+  if(state.offerEventsAvailability && state.offerEventsAvailability.available===false){
+    el.innerHTML='<div class="muted">Versandverlauf ist in dieser Umgebung nicht verfügbar (Quelle offer_events fehlt).</div>';
+    return;
+  }
   const rows=getOfferEvents(offer.id);
   if(!rows.length){ el.innerHTML='<div class="muted">Noch keine Events vorhanden.</div>'; return; }
   el.innerHTML=rows.slice(0,20).map(ev=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border:1px solid var(--line2);border-radius:10px;"><div><strong>${esc(OFFER_EVENT_LABELS[ev.eventType]||ev.eventType)}</strong><div class="muted" style="margin-top:2px;">${esc(ev.recipientEmail||'')} ${ev.subject?`· ${esc(ev.subject)}`:''}</div></div><div class="muted" style="white-space:nowrap;">${formatDateTime(ev.eventAt)}</div></div>`).join('');
@@ -4640,8 +4657,11 @@ function openOfferDetail(id,silent=false){
 function setOfferSendFeedback(status,message){
   state.offerSendState={status:status||'idle',message:String(message||'')};
   renderOfferSendFeedback();
-  renderOfferResendWarning(offer);
-  renderOfferEventsTimeline(offer);
+  const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
+  if(offer){
+    renderOfferResendWarning(offer);
+    renderOfferEventsTimeline(offer);
+  }
 }
 function renderOfferSendFeedback(){
   const el=document.getElementById('offer-send-feedback');
@@ -4905,11 +4925,17 @@ function renderOfferPreview(offer){
 }
 async function createOffer(){
   const now=new Date();
+  if((!_planConfigData||_planConfigData.length===0) && authClient){
+    await loadPlanConfig();
+  }
+  const planCode='professional';
+  const planDefaults=resolveOfferDefaultsFromPlanConfig(planCode);
+  const textDefaults=resolveOfferTextDefaultsFromPlanConfig(planCode);
   const fallback={
-    id:crypto.randomUUID?crypto.randomUUID():String(Date.now()), offerNumber:'OFF-DRAFT', status:'draft', customerId:'', contractId:'', invoiceId:'', companyName:'', contactName:'', contactFirstName:'', contactLastName:'', email:'', phone:'', street:'', postalCode:'', city:'', country:'', address:'', plan:'professional', billingCycle:'monthly', durationMonths:12, setupFee:0, monthlyPrice:0, yearlyPrice:0, includedMinutes:0, extraPerMinute:0.75, numberCount:1, discountAmount:0, discountPercent:0, validUntil:new Date(now.getTime()+14*86400000).toISOString().slice(0,10), addOnNumbers:0, addOnSms:0, addOnAi:0, addOnNotes:'', introText:'', summaryText:'', customerNote:'', internalNotes:'', total:0, sentToEmail:'', sendSubject:'', createdAt:now.toISOString(), updatedAt:now.toISOString()
+    id:crypto.randomUUID?crypto.randomUUID():String(Date.now()), offerNumber:'OFF-DRAFT', status:'draft', customerId:'', contractId:'', invoiceId:'', companyName:'', contactName:'', contactFirstName:'', contactLastName:'', email:'', phone:'', street:'', postalCode:'', city:'', country:'', address:'', plan:planCode, billingCycle:'monthly', durationMonths:12, setupFee:Number(planDefaults?.setupFee||0), monthlyPrice:Number(planDefaults?.monthlyPrice||0), yearlyPrice:Number(planDefaults?.yearlyPrice||0), includedMinutes:Number(planDefaults?.includedMinutes||0), extraPerMinute:Number(planDefaults?.extraPerMinute||0), numberCount:Number(planDefaults?.hasNumberCount?planDefaults.numberCount:1), discountAmount:0, discountPercent:0, validUntil:new Date(now.getTime()+14*86400000).toISOString().slice(0,10), addOnNumbers:0, addOnSms:0, addOnAi:0, addOnNotes:'', introText:String(textDefaults?.introText||''), summaryText:String(textDefaults?.summaryText||''), customerNote:'', internalNotes:'', total:0, sentToEmail:'', sendSubject:'', createdAt:now.toISOString(), updatedAt:now.toISOString()
   };
   if(authClient){
-    const payload={status:'draft',valid_until:fallback.validUntil,billing_cycle:'monthly',plan:'professional'};
+    const payload={status:'draft',valid_until:fallback.validUntil,billing_cycle:'monthly',plan:planCode};
     if(!(state.offerDbColumns instanceof Set) || state.offerDbColumns.size===0 || state.offerDbColumns.has('duration_months')){
       payload.duration_months=fallback.durationMonths;
     }
@@ -5158,7 +5184,17 @@ async function loadOfferEventsFromSupabase(){
     .select('*')
     .order('event_at', { ascending: false })
     .limit(5000);
-  if (eventErr) { console.warn('[DB] offer_events load failed:', eventErr.message); return; }
+  if (eventErr) {
+    const msg=String(eventErr.message||'');
+    if(/offer_events/i.test(msg) && /schema cache|does not exist|not find|404/i.test(msg)){
+      state.offerEventsAvailability={available:false,reason:'source_missing'};
+      state.offerEventsByOfferId={};
+      return;
+    }
+    console.warn('[DB] offer_events load failed:', eventErr.message);
+    return;
+  }
+  state.offerEventsAvailability={available:true,reason:''};
   const mapped=(eventRows||[]).map(mapDbOfferEventToUi);
   state.offerEventsByOfferId = mapped.reduce((acc,row)=>{
     if(!row.offerId) return acc;
@@ -5663,7 +5699,15 @@ async function submitContractWizard() {
 
 function viewContract(id) {
   var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
-  if (!ct) return;
+  if (!ct) {
+    showToast('Vertrag konnte nicht geladen werden (Datensatz fehlt).');
+    return;
+  }
+  var modalEl = document.getElementById('view-contract-modal');
+  if (!modalEl) {
+    showToast('Vertragsdetails sind aktuell nicht verfügbar.');
+    return;
+  }
   var acc = contractAcceptanceData(ct);
   var displayPlan = planLabel(ct.plan || '—');
   var signedAt = acc ? formatDateDE(acc.createdAt) : formatDateDE(ct.updatedAt || ct.createdAt);
@@ -5730,9 +5774,8 @@ function viewContract(id) {
     durationInput.oninput = contractOpsRecomputeDates;
   }
   setContractOpsFeedback('', '');
-  var modal = document.getElementById('view-contract-modal');
-  if (modal) modal.dataset.contractId = ct.id;
-  document.getElementById('view-contract-modal').classList.add('open');
+  modalEl.dataset.contractId = ct.id;
+  modalEl.classList.add('open');
 }
 
 function closeViewContractModal() {
@@ -6946,6 +6989,8 @@ function openCustomerInvoicesInFinance(customerId){
   if(searchEl){
     searchEl.value=searchTerms;
   }
+  const statusEl=document.getElementById('finance-status-filter');
+  if(statusEl) statusEl.value='open';
   renderBillingFinance();
 }
 
@@ -8229,7 +8274,7 @@ async function loadDataFromSupabase() {
     state.events = recentEvents;
 
     console.log(`[DB] Loaded ${state.customers.length} customers, ${state.onboarding.length} onboarding, ${state.calls.length} calls, ${state.cases.length} cases, ${state.offers.length} offers, ${state.contracts.length} contracts, ${state.invoices.length} invoices.`);
-    loadPlanConfig();
+    await loadPlanConfig();
     return true;
   } catch(err) {
     console.error('[DB] Load failed:', err);
@@ -8632,13 +8677,13 @@ function renderPlanSelects(){
 }
 
 async function loadPlanConfig() {
-  if (!authClient) return;
+  if (!authClient) return false;
   try {
     const { data, error } = await authClient
       .from('plan_config')
       .select('*')
       .order('sort_order', { ascending: true });
-    if (error || !data) return;
+    if (error || !data) return false;
     _planConfigData = data.map((p)=>({
       ...p,
       id: normalizePlanCode(p.id),
@@ -8657,8 +8702,10 @@ async function loadPlanConfig() {
     renderInsights();
     renderOverview();
     if(state.selectedCustomer) renderProfileMinutes(state.selectedCustomer);
+    return true;
   } catch(e) {
     console.warn('[plan-config] load failed', e);
+    return false;
   }
 }
 

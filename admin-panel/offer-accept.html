@@ -53,6 +53,9 @@
     .feedback{margin-top:10px;font-size:14px;font-weight:600}
     .ok{color:var(--ok)}
     .err{color:var(--danger)}
+    .success-card{margin-top:12px;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px}
+    .success-card h3{font-size:15px;margin:0 0 6px}
+    .success-list{margin:0;padding-left:18px;color:#166534}
     .state{padding:16px 0 8px}
     .pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
     .pill-sent{background:#dbeafe;color:#1d4ed8}
@@ -138,6 +141,14 @@
         <label class="checkbox"><input id="confirm" type="checkbox" /> <span>Ich bestätige diese Offerte verbindlich und akzeptiere die aufgeführten Konditionen.</span></label>
         <button id="acceptBtn" class="btn btn-primary" onclick="submitAcceptance()">Offerte annehmen</button>
         <div class="feedback" id="feedback"></div>
+        <div id="acceptSuccess" class="success-card hidden">
+          <h3>Offerte erfolgreich angenommen</h3>
+          <ul class="success-list">
+            <li>Ihre Annahme wurde gespeichert und dem Vertrag zugeordnet.</li>
+            <li>Sie erhalten in Kürze die nächste Bestätigung per E-Mail.</li>
+            <li>Bei Fragen erreichen Sie uns unter support@voxera.ch.</li>
+          </ul>
+        </div>
       </section>
     </div>
   </div>
@@ -173,6 +184,7 @@
       fb.className = 'feedback err';
       if (accepted) {
         fb.textContent = 'Diese Offerte wurde bereits angenommen.';
+        document.getElementById('acceptSuccess').classList.remove('hidden');
       } else {
         fb.textContent = 'Eine Annahme ist nur möglich, wenn die Offerte den Status "sent" hat.';
       }
@@ -303,6 +315,7 @@
 
     fb.className='feedback ok';
     fb.textContent='Vielen Dank. Ihre Offerte wurde erfolgreich angenommen.';
+    document.getElementById('acceptSuccess').classList.remove('hidden');
     btn.disabled=true;
   }
 

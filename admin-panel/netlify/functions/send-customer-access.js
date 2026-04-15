@@ -148,6 +148,34 @@ function resolveDuplicateReason(customerRow) {
   return 'retry_allowed';
 }
 
+const ACCESS_ENABLED_CONTRACT_STATUSES = new Set(['active', 'signed']);
+
+async function ensureCustomerHasActiveContract(sbAdmin, customerId) {
+  const { data, error } = await sbAdmin
+    .from('contracts')
+    .select('id, status, updated_at')
+    .eq('customer_id', customerId)
+    .order('updated_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    return { ok: false, statusCode: 500, payload: { error: 'Contract lookup failed', details: error.message } };
+  }
+  const contracts = Array.isArray(data) ? data : [];
+  const activeContract = contracts.find((ct) => ACCESS_ENABLED_CONTRACT_STATUSES.has(String(ct?.status || '').trim().toLowerCase()));
+  if (!activeContract) {
+    return {
+      ok: false,
+      statusCode: 409,
+      payload: {
+        error: 'Kein aktiver Vertrag vorhanden. Zugang bleibt gesperrt, bis ein Vertrag aktiv/freigegeben ist.',
+        contract_required: true
+      }
+    };
+  }
+  return { ok: true, contractId: String(activeContract.id || '') };
+}
+
 function addMonths(date, months) {
   const d = new Date(date);
   const day = d.getUTCDate();
@@ -323,6 +351,8 @@ exports.handler = async (event) => {
 
   // ─── ACTION: mark_activated ───────────────────────────────────────────────
   if (action === 'mark_activated') {
+    const contractGate = await ensureCustomerHasActiveContract(sbAdmin, customerId);
+    if (!contractGate.ok) return response(contractGate.statusCode, contractGate.payload);
     const entitlement = evaluateCustomerEntitlement(customer);
     const setupFeeState = await loadSetupFeeState(sbAdmin, customerId);
     const paymentWarning = setupFeeState.message || null;
@@ -442,6 +472,8 @@ exports.handler = async (event) => {
   // ─── ACTION: send_access (Standard-Welcome-Mail) ──────────────────────────
   const normalizedCustomerStatus = normalizeCustomerStatus(customer.status);
   const normalizedOnboardingStatus = normalizeOnboardingStatus(onboardingRow?.status);
+  const contractGate = await ensureCustomerHasActiveContract(sbAdmin, customerId);
+  if (!contractGate.ok) return response(contractGate.statusCode, contractGate.payload);
   const entitlement = evaluateCustomerEntitlement(customer);
   const assistantReady = Boolean(
     String(customer.ai_business_description || '').trim() ||

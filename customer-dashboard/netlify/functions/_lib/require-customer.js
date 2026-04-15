@@ -49,6 +49,21 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin }) {
     });
   }
 
+  const { data: contractRows, error: contractError } = await sbAdmin
+    .from('contracts')
+    .select('id, status')
+    .eq('customer_id', customerId)
+    .limit(20);
+  if (contractError) return fail(500, 'Contract lookup failed', contractError.message);
+  const hasActiveContract = (Array.isArray(contractRows) ? contractRows : [])
+    .some((ct) => ['active', 'signed'].includes(String(ct?.status || '').trim().toLowerCase()));
+  if (!hasActiveContract) {
+    return fail(403, 'Customer entitlement denied', {
+      reason: 'contract_inactive',
+      message: 'Zugriff gesperrt: Kein aktiver Vertrag vorhanden.'
+    });
+  }
+
   return {
     ok: true,
     userId,
