@@ -11,8 +11,24 @@ const OFFER_EVENT_TYPES = new Set([
   'declined',
   'expired'
 ]);
+let offerEventsTableAvailable = true;
+
+function isMissingOfferEventsTable(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  return (
+    (message.includes('offer_events') || details.includes('offer_events')) &&
+    (
+      message.includes('schema cache') ||
+      message.includes('does not exist') ||
+      message.includes('could not find') ||
+      details.includes('schema cache')
+    )
+  );
+}
 
 async function recordOfferEvent(sbAdmin, payload) {
+  if (!offerEventsTableAvailable) return;
   const eventType = String(payload?.event_type || '').trim().toLowerCase();
   const offerId = String(payload?.offer_id || '').trim();
   if (!offerId || !OFFER_EVENT_TYPES.has(eventType)) return;
@@ -30,6 +46,11 @@ async function recordOfferEvent(sbAdmin, payload) {
 
   const { error } = await sbAdmin.from('offer_events').insert(row);
   if (error) {
+    if (isMissingOfferEventsTable(error)) {
+      offerEventsTableAvailable = false;
+      console.warn('[offer_events] disabled because table is missing in current schema');
+      return;
+    }
     console.warn('[offer_events] insert failed', {
       offer_id: offerId,
       event_type: eventType,
