@@ -857,7 +857,22 @@ body{
 .av-done{background:var(--green-light);color:var(--green);}
 .call-body{flex:1;min-width:0;}
 .call-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;}
+.call-top-main{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;flex:1;}
 .call-name{font-size:14px;font-weight:600;color:var(--gray900);}
+.call-open-indicator{
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  color:var(--gray400);
+  font-size:11px;
+  font-weight:600;
+  transition:color var(--transition-fast),transform var(--transition-fast);
+}
+.call-expand-chevron{display:inline-flex;align-items:center;justify-content:center;transition:transform .2s ease;color:currentColor;}
+.call-row:hover .call-open-indicator{color:#1A6FE8;}
+.call-row.expanded .call-open-indicator{color:#1A6FE8;}
+.call-row.expanded .call-expand-chevron{transform:rotate(90deg);}
 .call-secondary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
 .call-company{font-size:11.5px;color:var(--gray400);}
 .call-meta{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray400);margin-bottom:0;flex-wrap:wrap;}
@@ -1173,26 +1188,29 @@ body{
 .focus-label{font-size:11.5px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
 .focus-value{font-size:24px;font-weight:800;font-family:var(--font-display);line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
-.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0 0 10px;align-items:start;max-width:100%;}
+.followup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;margin:0 0 8px;align-items:start;max-width:100%;}
 .followup-field{min-width:0;}
 .followup-grid > *{min-width:0;}
-.followup-field label{display:block;font-size:11px;font-weight:600;color:var(--gray600);margin-bottom:5px;}
-.followup-field select,.followup-field input{width:100%;max-width:100%;min-width:0;padding:9px 11px;border:1.5px solid var(--gray200);border-radius:11px;background:var(--gray50);font-size:12.5px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
-.followup-field textarea{width:100%;max-width:100%;min-width:0;padding:9px 11px;border:1.5px solid var(--gray200);border-radius:11px;background:var(--gray50);font-size:12.5px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);resize:vertical;}
+.followup-field label{display:block;font-size:10.5px;font-weight:700;color:var(--gray500);margin-bottom:4px;letter-spacing:.02em;text-transform:uppercase;}
+.followup-field select,.followup-field input{width:100%;max-width:100%;min-width:0;padding:8px 10px;border:1.5px solid var(--gray200);border-radius:10px;background:var(--gray50);font-size:12.5px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);}
+.followup-field textarea{width:100%;max-width:100%;min-width:0;padding:9px 10px;border:1.5px solid var(--gray200);border-radius:10px;background:var(--gray50);font-size:12.5px;font-family:inherit;color:var(--gray900);outline:none;transition:all var(--transition-fast);resize:vertical;}
 .followup-field input[type="datetime-local"]{display:block;width:100%;max-width:100%;min-width:0;}
 .followup-field select:focus,.followup-field input:focus,.followup-field textarea:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
-.followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:6px;padding:6px 10px;border:1px solid var(--gray100);border-radius:10px;background:#FBFDFF;}
-.followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--gray600);}
+.followup-section{padding:8px 10px;border:1px solid var(--gray100);border-radius:12px;background:#FCFDFF;margin-bottom:8px;}
+.followup-section.followup-section-note{padding-top:10px;}
+.followup-section-title{font-size:11px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
+.followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:4px;padding:5px 9px;border:1px solid var(--gray100);border-radius:9px;background:#FBFDFF;}
+.followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;font-weight:600;color:var(--gray600);}
 .followup-mark-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--green);}
 #followup-overlay .modal,
 #followup-overlay .modal-shell,
 #followup-overlay .modal-body,
 #followup-overlay #followup-editable{min-width:0;max-width:100%;}
-#followup-overlay .modal{max-width:480px;max-height:min(84vh,calc(100dvh - 14px));}
+#followup-overlay .modal{max-width:500px;max-height:min(82vh,calc(100dvh - 12px));}
 #followup-overlay .modal-head{padding:12px 14px 7px;}
 #followup-overlay .modal-sub{margin-bottom:2px;}
-#followup-overlay .modal textarea{min-height:78px;max-height:150px;}
-#followup-overlay .modal-body{padding:0 14px 6px;}
+#followup-overlay .modal textarea{min-height:72px;max-height:132px;}
+#followup-overlay .modal-body{padding:0 14px 4px;}
 #followup-overlay .modal-footer{position:sticky;bottom:0;background:linear-gradient(to top, var(--white) 70%, rgba(255,255,255,.94));}
 #followup-overlay .followup-field label{margin-bottom:4px;}
 #followup-overlay .followup-grid{gap:8px;margin-bottom:8px;}
@@ -1200,10 +1218,10 @@ body{
 .meta-pill{margin-right:6px;margin-top:2px;}
 @media(max-width:768px){
   .followup-grid{grid-template-columns:1fr;gap:7px;}
-  #followup-overlay .modal{max-height:min(82vh,calc(100dvh - 6px));border-radius:16px 16px 0 0;}
+  #followup-overlay .modal{max-height:min(84vh,calc(100dvh - 6px));border-radius:16px 16px 0 0;}
   #followup-overlay .modal-body{padding:0 12px 6px;}
   #followup-overlay .modal-footer{padding:8px 12px calc(12px + env(safe-area-inset-bottom));}
-  #followup-overlay .modal textarea{min-height:74px;max-height:120px;}
+  #followup-overlay .modal textarea{min-height:80px;max-height:130px;}
 }
 
 /* ═══════════════════════════════════════════
@@ -1267,9 +1285,9 @@ body{
 .detail-line span:first-child{color:var(--gray400);font-weight:600;}
 .detail-line span:last-child{text-align:right;font-weight:600;}
 .detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;}
-.detail-actions .btn-call,.detail-actions .btn-a{width:100%;justify-content:center;text-align:center;}
-.detail-actions .btn-call{min-height:40px;}
-.detail-actions .btn-a{min-height:40px;}
+.detail-actions .btn-call,.detail-actions .btn-a{width:100%;justify-content:center;text-align:center;min-height:41px;}
+.detail-action-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.detail-action-group .btn-call,.detail-action-group .btn-a{width:100%;height:41px;justify-content:center;text-align:center;}
 .detail-zone-info{display:flex;flex-direction:column;gap:12px;}
 .detail-zone-actions{display:flex;flex-direction:column;gap:10px;}
 .detail-status-row{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 4px;}
@@ -1278,7 +1296,7 @@ body{
 .call-action-icon .lucide{stroke-width:2.7;}
 .call-name.linklike{cursor:pointer;}
 .call-name.linklike:hover{text-decoration:underline;color:#1A6FE8;}
-@media(max-width:768px){.detail-layout{grid-template-columns:1fr;}.detail-head{padding:16px 16px 10px;}.detail-body{padding:12px 16px 14px;}.detail-footer{padding:10px 16px calc(14px + env(safe-area-inset-bottom));}.detail-actions{grid-template-columns:1fr;}}
+@media(max-width:768px){.detail-layout{grid-template-columns:1fr;}.detail-head{padding:16px 16px 10px;}.detail-body{padding:12px 16px 14px;}.detail-footer{padding:10px 16px calc(14px + env(safe-area-inset-bottom));}.detail-actions,.detail-action-group{grid-template-columns:1fr;}}
 
 /* ═══════════════════════════════════════════
    RESPONSIVE — V1
@@ -1418,12 +1436,17 @@ body{
   -webkit-tap-highlight-color:transparent;
 }
 .dash-kpi.is-interactive{cursor:pointer;}
-.dash-kpi.is-interactive:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(13,31,60,0.12);border-color:#D7E3F7;}
-.dash-kpi.is-interactive:active{transform:translateY(0);}
+.dash-kpi.is-interactive:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(13,31,60,0.13);border-color:#CFE0FA;background:#FBFDFF;}
+.dash-kpi.is-interactive:active{transform:translateY(0);box-shadow:0 6px 16px rgba(13,31,60,0.12);}
+.dash-kpi.is-interactive:focus-visible{outline:2px solid #93C5FD;outline-offset:2px;}
+.dash-kpi.is-static{background:linear-gradient(180deg,#fff 0%,#F9FBFF 100%);}
 .dash-kpi.is-static:hover{transform:none;box-shadow:0 4px 16px rgba(13,31,60,0.08);border-color:#E8EEF8;}
 .dash-kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:6px;}
 .dash-kpi-val{font-family:var(--font-display);font-size:24px;font-weight:800;line-height:1;color:#1A6FE8;margin-bottom:4px;letter-spacing:-.04em;}
 .dash-kpi-sub{font-size:10.5px;color:#9CA3AF;line-height:1.4;}
+.dash-kpi-action{margin-top:7px;font-size:10.5px;font-weight:700;color:#1A6FE8;display:inline-flex;align-items:center;gap:5px;}
+.dash-kpi-action::after{content:'→';font-size:11px;line-height:1;transform:translateY(-.3px);}
+.dash-kpi-static-note{margin-top:7px;font-size:10px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
 .dash-kpi-leads{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
 .dash-kpi-lead-dot{font-size:10px;font-weight:600;padding:3px 8px;gap:3px;}
 .lead-dot-hot{background:#FEF2F2;color:#DC2626;}
@@ -1775,9 +1798,6 @@ body{
   margin-top:12px;padding-top:12px;
   border-top:0.5px solid rgba(26,111,232,0.1);
 }
-.call-expand-chevron{display:none;}
-
-
 /* ─── Splash Screen ─────────────────────────────────────────── */
 #splash-screen{
   position:fixed;inset:0;z-index:9999;
@@ -2221,24 +2241,25 @@ body{
 
               <!-- KPI KACHELN -->
               <div class="dash-kpi-row">
-                <div class="dash-kpi is-interactive" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">
+                <div class="dash-kpi is-interactive" role="button" tabindex="0" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('anrufe',document.getElementById('nav-anrufe'));}">
                   <div class="dash-kpi-label">Neue Anfragen</div>
                   <div class="dash-kpi-val" id="kpi-heute">–</div>
-                  
+                  <div class="dash-kpi-action">Zur Anfragenliste</div>
                 </div>
-                <div class="dash-kpi is-interactive" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))">
+                <div class="dash-kpi is-interactive" role="button" tabindex="0" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('rueckrufe',document.getElementById('nav-rueckrufe'));}">
                   <div class="dash-kpi-label">Offene Aufgaben</div>
                   <div class="dash-kpi-val" id="kpi-callbacks">–</div>
-                  
+                  <div class="dash-kpi-action">Zu Aufgaben</div>
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label">Erledigt heute</div>
                   <div class="dash-kpi-val" id="kpi-followups">–</div>
-                  
+                  <div class="dash-kpi-static-note">Nur Info</div>
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label">Aktivität</div>
                   <div class="dash-kpi-val" id="kpi-leads">–</div>
+                  <div class="dash-kpi-static-note">Nur Info</div>
                   <div class="dash-kpi-leads" id="kpi-leads-dots"></div>
                 </div>
               </div>
@@ -2937,33 +2958,38 @@ body{
           <button onclick="dismissCompletedWarning()" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:13px;padding:0;">✕</button>
         </div>
         <div id="followup-editable">
-          <div class="followup-grid">
-            <div class="followup-field">
-              <label for="followup-next-action">Nächste Aktion</label>
-              <select id="followup-next-action">
-                <option value="">Keine Auswahl</option>
-                <option value="Zurückrufen">Zurückrufen</option>
-                <option value="Termin bestätigen">Termin bestätigen</option>
-                <option value="Offerte senden">Offerte senden</option>
-                <option value="Information senden">Information senden</option>
-                <option value="Erneut versuchen">Erneut versuchen</option>
-                <option value="Kein Bedarf">Kein Bedarf</option>
-              </select>
-            </div>
-            <div class="followup-field">
-              <label for="followup-datetime">Follow-up geplant</label>
-              <input type="datetime-local" id="followup-datetime">
+          <div class="followup-section">
+            <div class="followup-section-title">Nächster Schritt</div>
+            <div class="followup-grid">
+              <div class="followup-field">
+                <label for="followup-next-action">Nächste Aktion</label>
+                <select id="followup-next-action">
+                  <option value="">Keine Auswahl</option>
+                  <option value="Zurückrufen">Zurückrufen</option>
+                  <option value="Termin bestätigen">Termin bestätigen</option>
+                  <option value="Offerte senden">Offerte senden</option>
+                  <option value="Information senden">Information senden</option>
+                  <option value="Erneut versuchen">Erneut versuchen</option>
+                  <option value="Kein Bedarf">Kein Bedarf</option>
+                </select>
+              </div>
+              <div class="followup-field">
+                <label for="followup-datetime">Follow-up geplant</label>
+                <input type="datetime-local" id="followup-datetime">
+              </div>
             </div>
           </div>
-          <div class="followup-field">
-            <label for="followup-input">Notiz</label>
-            <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf..."></textarea>
-          </div>
-          <div class="followup-mark-row">
-            <label>
-              <input type="checkbox" id="followup-mark-complete">
-              Als abgeschlossen markieren
-            </label>
+          <div class="followup-section followup-section-note">
+            <div class="followup-field">
+              <label for="followup-input">Notiz</label>
+              <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf..."></textarea>
+            </div>
+            <div class="followup-mark-row">
+              <label>
+                <input type="checkbox" id="followup-mark-complete">
+                Als abgeschlossen markieren
+              </label>
+            </div>
           </div>
           <div class="followup-footer-hint">Tipp: Auf kleinen Screens bleibt der Footer fixiert, damit Speichern immer erreichbar ist.</div>
         </div>
@@ -3965,6 +3991,23 @@ function fmtExactDateTime(raw) {
   } catch(e) { return ''; }
 }
 
+function fmtHumanDateTime(raw) {
+  if (!raw) return '';
+  try {
+    const d = parseCallTimestamp(raw);
+    if (!d || Number.isNaN(d.getTime())) return '';
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+    const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+    if (d >= todayStart && d < tomorrowStart) return 'Heute, ' + formatTimeCH(d);
+    if (d >= yesterdayStart && d < todayStart) return 'Gestern, ' + formatTimeCH(d);
+    return formatDateLongCH(d) + ', ' + formatTimeCH(d);
+  } catch(e) {
+    return '';
+  }
+}
+
 function parseFollowUpDate(raw) {
   if (!raw) return null;
   const localParts = parseLocalDateTimeParts(raw);
@@ -4578,7 +4621,6 @@ function updateSoundToggleUI(isOff) {
 // ═══════════════════════════════════════════
 function renderDashboard(records) {
   var buckets = deriveDashboardCallBuckets(records || []);
-  var today = (records || []).filter(function(r) { return isToday(getRecordTimestamp(r)); });
   var doneToday = (records || []).filter(function(r) {
     return isClosedStatus(r.fields && r.fields.dashboard_status) && isToday(getRecordTimestamp(r));
   });
@@ -4588,9 +4630,14 @@ function renderDashboard(records) {
   var followupsOpen = buckets.followups;
   updateActivationStatusCard(records);
 
-  // ── KPI: Anrufe heute / Rückrufe / Follow-ups / Leads ───────────────────────
+  var newOpenRequests = allOpen.filter(function(r){
+    var status = normalizeStatus(r.fields && r.fields.dashboard_status);
+    return status === CALL_STATUS.NEW;
+  });
+
+  // ── KPI: neue Anfragen / offene Aufgaben / erledigt heute / Aktivität ───────
   var kpiHeute = document.getElementById('kpi-heute');
-  if (kpiHeute) kpiHeute.textContent = today.length;
+  if (kpiHeute) kpiHeute.textContent = newOpenRequests.length;
 
   var kpiCallbacks = document.getElementById('kpi-callbacks');
   if (kpiCallbacks) kpiCallbacks.textContent = offen.length;
@@ -4612,13 +4659,13 @@ function renderDashboard(records) {
       statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Aufgaben. Voxera priorisiert die wichtigsten Anfragen für Ihren nächsten Schritt.';
       statusChipPrimary.textContent = offen.length + ' offen';
       statusChipPrimary.classList.add('alert');
-      statusChipSecondary.textContent = today.length + ' neue Anfragen heute';
+      statusChipSecondary.textContent = newOpenRequests.length + ' neue Anfragen offen';
     } else {
       statusTitle.textContent = 'Alles unter Kontrolle';
       statusText.textContent = 'Aktuell gibt es keine offenen Aufgaben. Neue Anfragen und Follow-ups erscheinen automatisch in Ihrer Übersicht.';
       statusChipPrimary.textContent = 'Keine offenen Aufgaben';
       statusChipPrimary.classList.add('ok');
-      statusChipSecondary.textContent = today.length + ' neue Anfragen heute';
+      statusChipSecondary.textContent = newOpenRequests.length + ' neue Anfragen offen';
     }
   }
 
@@ -4894,8 +4941,7 @@ function renderList(containerId, records, opts) {
     const followUpAt = resolveFollowUpAt(f);
     const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
     const closedAt = resolveClosedAt(f);
-    // Always show exact date/time for call
-    const callDateTime = fmtExactDateTime(getRecordTimestamp(r));
+    const callDateTime = fmtHumanDateTime(getRecordTimestamp(r)) || fmtExactDateTime(getRecordTimestamp(r));
 
     const badgeHtml = isMobileList ? callCardMobileBadgeHtml(r) : callCardBadgeHtml(r);
 
@@ -4903,7 +4949,10 @@ function renderList(containerId, records, opts) {
       <div class="av ${avClass(f.lead_quality, done)}">${initials(callerDisplayName)}</div>
       <div class="call-body">
         <div class="call-top">
-          <span class="call-name">${escHtml(callerDisplayName)}</span>
+          <div class="call-top-main">
+            <span class="call-name">${escHtml(callerDisplayName)}</span>
+          </div>
+          <span class="call-open-indicator">Details <span class="call-expand-chevron">›</span></span>
         </div>
         <div class="call-secondary">
           ${badgeHtml}
@@ -5418,14 +5467,14 @@ function openDetail(recordId) {
       <div class="detail-zone-actions">
         <div class="detail-card">
           <div class="detail-section-title">Aktionen</div>
-          <div class="detail-actions">
-            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><span class="call-action-icon"><i data-lucide="phone-call" style="width:14px;height:14px;color:#fff;" aria-hidden="true"></i></span>Jetzt zurückrufen</a>` : ''}
+          <div class="detail-action-group">
+            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><span class="call-action-icon"><i data-lucide="phone-call" style="width:14px;height:14px;color:#fff;" aria-hidden="true"></i></span>Jetzt zurückrufen</a>` : '<button class="btn-a btn-note" type="button" disabled>Keine Nummer hinterlegt</button>'}
             <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up setzen</button>
             <button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz bearbeiten</button>
           </div>
         </div>
         <div class="detail-card">
-          <div class="detail-title">Call-Infos</div>
+          <div class="detail-section-title">Call-Infos</div>
           <div class="detail-line"><span>Telefon</span><span>${escHtml(phone || '–')}</span></div>
           <div class="detail-line"><span>Kategorie</span><span>${escHtml(callCategoryLabel(f.category))}</span></div>
           <div class="detail-line"><span>Lead-Qualität</span><span>${escHtml(f.lead_quality || 'Neu')}</span></div>
