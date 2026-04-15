@@ -20,7 +20,11 @@ const ALLOWED_CASE_STATUSES = new Set(['open', 'in_progress', 'waiting', 'done']
 const ALLOWED_CASE_TYPES = new Set(['general', 'task', 'follow_up', 'callback', 'support']);
 
 function log(stage, meta = {}) {
-  console.log('[cases-create]', stage, JSON.stringify(meta));
+  try {
+    console.log('[cases-create]', stage, JSON.stringify(meta));
+  } catch (_error) {
+    console.log('[cases-create]', stage, '[unserializable-meta]');
+  }
 }
 
 function errorPayload(error, code, details) {
@@ -117,6 +121,12 @@ function sanitizeSupabaseError(error) {
   };
 }
 
+function safeBodyForLog(body) {
+  const raw = String(body || '');
+  if (raw.length <= 2500) return raw;
+  return `${raw.slice(0, 2500)}…[truncated:${raw.length}]`;
+}
+
 exports.handler = async (event) => {
   log('entry', { method: event?.httpMethod || null });
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
@@ -134,10 +144,21 @@ exports.handler = async (event) => {
 
     log('auth.start', { requireActiveContract: true });
     const caller = await requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, requireActiveContract: true });
-    log('auth.result', { ok: caller?.ok, statusCode: caller?.statusCode || 200 });
+    log('auth.result', {
+      ok: caller?.ok,
+      statusCode: caller?.statusCode || 200,
+      code: caller?.body?.code || null,
+      error: caller?.body?.error || null
+    });
     if (!caller?.ok) {
       const status = caller?.statusCode || 403;
-      const baseCode = status === 403 ? 'guard_denied' : status === 409 ? 'guard_conflict' : 'guard_failed';
+      const baseCode = status === 401
+        ? 'guard_unauthorized'
+        : status === 403
+          ? 'guard_denied'
+          : status === 409
+            ? 'guard_conflict'
+            : 'guard_failed';
       return response(status, {
         error: caller?.body?.error || 'Zugriff verweigert',
         code: caller?.body?.code || baseCode,
@@ -145,8 +166,13 @@ exports.handler = async (event) => {
       });
     }
 
-    log('resolved.customer', { customerId: caller.customerId });
-    log('request.raw_body', { body: event?.body || null });
+    if (!caller.customerId) {
+      log('auth.missing_customer_id', { caller });
+      return response(409, errorPayload('Customer-Kontext konnte nicht aufgelöst werden.', 'guard_customer_context_invalid'));
+    }
+
+    log('resolved.customer', { customerId: caller.customerId, userId: caller.userId || null });
+    log('request.raw_body', { body: safeBodyForLog(event?.body) });
 
     const parsed = safeJsonParse(event?.body || '{}');
     if (!parsed.ok) {
@@ -198,7 +224,11 @@ exports.handler = async (event) => {
       updated_at: new Date().toISOString()
     };
 
-    log('db.insert.payload', payload);
+    log('db.insert.payload', {
+      table: 'cases',
+      payload,
+      keys: Object.keys(payload)
+    });
 
     const { data, error } = await sbAdmin
       .from('cases')
@@ -213,6 +243,12 @@ exports.handler = async (event) => {
     });
 
     if (error) {
+      log('db.insert.error_classification', {
+        isPriorityConstraintError: isPriorityConstraintError(error),
+        isMissingManualTasksSchema: isMissingManualTasksSchema(error),
+        isDbValidationError: isDbValidationError(error),
+        code: error?.code || null
+      });
       if (isPriorityConstraintError(error)) {
         return response(400, errorPayload(MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, 'cases_priority_invalid', sanitizeSupabaseError(error)));
       }
