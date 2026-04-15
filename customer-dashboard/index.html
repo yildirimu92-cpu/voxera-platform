@@ -880,7 +880,12 @@ body{
 .call-meta-item + .call-meta-item::before{content:'•';color:var(--gray300);}
 .call-meta-phone{font-variant-numeric:tabular-nums;color:var(--gray600);}
 .call-summary{font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:10px;}
-.followup-meta-line{font-size:11.5px;color:var(--gray400);line-height:1.5;margin-bottom:12px;}
+.followup-meta-line{font-size:11.5px;color:#55627A;line-height:1.5;margin-bottom:10px;font-weight:500;}
+.task-due-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:10.5px;font-weight:700;letter-spacing:.02em;margin:2px 0 7px;}
+.task-due-pill.overdue{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;}
+.task-due-pill.today{background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE;}
+.task-due-pill.planned{background:#F8FAFC;color:#475569;border:1px solid #E2E8F0;}
+.task-due-pill.open{background:#F1F5F9;color:#475569;border:1px solid #CBD5E1;}
 .call-notiz{
   font-size:11px;color:var(--gray600);background:var(--gray50);
   padding:6px 12px;border-radius:8px;border-left:3px solid var(--line);
@@ -1389,11 +1394,11 @@ body{
 }
 
 /* ── DASHBOARD V2 PREMIUM (UI-only refresh) ─────────────────────────────── */
-.dash-top{display:grid;gap:14px;margin-bottom:16px;}
+.dash-top{display:grid;gap:12px;margin-bottom:14px;}
 .dash-status-hero{
   position:relative;overflow:hidden;
   background:linear-gradient(140deg,#0D1F3C 0%,#103162 58%,#1A6FE8 122%);
-  border-radius:20px;padding:20px 18px;border:1px solid rgba(255,255,255,0.16);
+  border-radius:20px;padding:17px 17px;border:1px solid rgba(255,255,255,0.16);
   box-shadow:0 8px 18px rgba(13,31,60,0.12),inset 0 1px 0 rgba(255,255,255,0.18);
   color:#fff;
 }
@@ -1403,9 +1408,9 @@ body{
   pointer-events:none;
 }
 .dash-status-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.76);margin-bottom:10px;}
-.dash-status-title{font-family:var(--font-display);font-size:24px;font-weight:800;line-height:1.15;letter-spacing:-.03em;margin-bottom:6px;position:relative;z-index:1;}
-.dash-status-sub{font-size:13px;line-height:1.58;color:rgba(255,255,255,0.88);max-width:460px;position:relative;z-index:1;}
-.dash-status-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1;}
+.dash-status-title{font-family:var(--font-display);font-size:22px;font-weight:800;line-height:1.15;letter-spacing:-.03em;margin-bottom:4px;position:relative;z-index:1;}
+.dash-status-sub{font-size:12.5px;line-height:1.55;color:rgba(255,255,255,0.88);max-width:460px;position:relative;z-index:1;}
+.dash-status-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;position:relative;z-index:1;}
 .dash-status-chip{
   border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);
 }
@@ -1472,11 +1477,11 @@ body{
   box-shadow:0 8px 24px rgba(13,31,60,0.08);
 }
 .dash-focus-label{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#5B6A86;margin-bottom:8px;}
-.dash-focus-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:6px;}
+.dash-focus-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:5px;}
 .dash-focus-number{font-family:var(--font-display);font-size:34px;font-weight:800;line-height:1;color:#0D1F3C;letter-spacing:-.04em;}
 .dash-focus-hint{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#EEF4FF;color:#1A6FE8;border:1px solid #CFE0FF;}
-.dash-focus-text{font-size:12.5px;color:#4B5872;line-height:1.58;}
-.dash-focus-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.dash-focus-text{font-size:12px;color:#4B5872;line-height:1.55;}
+.dash-focus-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
 .dash-focus-btn{
   border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
   background:#1A6FE8;color:#fff;box-shadow:0 4px 14px rgba(26,111,232,0.28);transition:all var(--transition-fast);
@@ -1511,7 +1516,7 @@ body{
   color:var(--slate);font-size:12.5px;text-align:center;
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
 }
-#dash-callback-list .call-row,#dash-recent-list .call-row{margin-bottom:10px;}
+#dash-callback-list .call-row,#dash-recent-list .call-row{margin-bottom:8px;}
 @media(max-width:768px){
   .dash-status-hero{padding:18px 16px;}
   .dash-status-title{font-size:22px;}
@@ -2244,8 +2249,8 @@ body{
             <div class="dash-top">
               <div class="dash-status-hero" id="dash-status-hero">
                 <div class="dash-status-label">Voxera Operations Cockpit</div>
-                <div class="dash-status-title" id="dash-status-title">Voxera aktiv · erreichbar & bereit</div>
-                <div class="dash-status-sub" id="dash-status-text">Ihr Tagesstatus für neue Anfragen, offene Aufgaben und nächste Schritte.</div>
+                <div class="dash-status-title" id="dash-status-title">Übersicht für hüt</div>
+                <div class="dash-status-sub" id="dash-status-text">Neue Anfragen, offene Aufgaben und Priorität auf einen Blick.</div>
                 <div class="dash-status-meta">
                   <span class="dash-status-chip note" id="dash-status-chip-primary">Status wird geladen…</span>
                   <span class="dash-status-chip note" id="dash-status-chip-secondary">Aktualisiert mit Live-Daten</span>
@@ -2270,10 +2275,9 @@ body{
                   <div class="dash-kpi-static-note">Nur Info</div>
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
-                  <div class="dash-kpi-label">Aktivität</div>
+                  <div class="dash-kpi-label">Überfällig</div>
                   <div class="dash-kpi-val" id="kpi-leads">–</div>
-                  <div class="dash-kpi-static-note">Nur Info</div>
-                  <div class="dash-kpi-leads" id="kpi-leads-dots"></div>
+                  <div class="dash-kpi-static-note">Offeni Aufgaben mit überschrittener Fälligkeit</div>
                 </div>
               </div>
 
@@ -2302,7 +2306,7 @@ body{
                   <button id="dash-recent-more" onclick="renderList('dash-recent-list',(this._allCalls||[]),{showActions:true,skipSort:true,dashboardView:true});this.style.display='none';" style="display:none;width:100%;padding:12px;background:transparent;border:none;border-top:0.5px solid rgba(0,0,0,0.05);font-size:12px;font-weight:500;color:#1A6FE8;cursor:pointer;font-family:inherit;">Alle anzeigen</button>
                 </div>
               </div>
-              <!-- RECHTS: Rückrufe + Follow-ups -->
+              <!-- RECHTS: Priorisierte Aufgaben -->
               <div class="dash-col">
                 <div class="dash-glass" id="dash-callback-section">
                   <div class="dash-glass-hd">
@@ -2310,13 +2314,6 @@ body{
                     <span class="dash-glass-link" onclick="activateTab('rueckrufe')">Alle anzeigen</span>
                   </div>
                   <div id="dash-callback-list"></div>
-                </div>
-                <div class="dash-glass" id="dash-followup-section">
-                  <div class="dash-glass-hd">
-                    <div class="dash-glass-title">Geplante Follow-ups</div>
-                    <span class="dash-glass-link" onclick="activateTab('rueckrufe')">Alle anzeigen</span>
-                  </div>
-                  <div id="dash-followup-list"></div>
                 </div>
               </div>
             </div>
@@ -2347,7 +2344,7 @@ body{
           <div class="section-head" style="margin-bottom:4px;">
             <div class="section-title">Aufgaben</div>
           </div>
-          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Rückrufe, Follow-ups und alle nächsten Schritte in Ihrer Arbeitsliste.</div>
+          <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Rückrufe, Follow-up-Aufgaben und alle nächsten Schritte in Ihrer Arbeitsliste.</div>
           <div class="filter-tabs" style="margin-bottom:12px;">
             <button class="ftab active" onclick="filterList('rueckrufe-list','alle',this)">Alle</button>
             <button class="ftab" onclick="filterList('rueckrufe-list','dringend',this)">Dringend</button>
@@ -2391,9 +2388,9 @@ body{
               <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Minuten total</div>
             </div>
             <div style="background:rgba(255,255,255,0.7);border:0.5px solid rgba(255,255,255,0.95);border-radius:14px;padding:14px 16px;backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 2px 12px rgba(0,0,0,0.05);">
-              <div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:6px;">Follow-ups</div>
+              <div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:6px;">Abgeschlossen hüt</div>
               <div style="font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.03em;" id="archiv-stat-followups">0</div>
-              <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Abgeschlossen</div>
+              <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Vorgänge</div>
             </div>
           </div>
 
@@ -4694,7 +4691,6 @@ function renderDashboard(records) {
   var offen = unifiedTasks;
   var sortedOpenCallbacks = unifiedTasks;
   var allOpen = buckets.open;
-  var followupsOpen = buckets.followups;
   updateActivationStatusCard(records);
 
   var newOpenRequests = allOpen.filter(function(r){
@@ -4702,7 +4698,7 @@ function renderDashboard(records) {
     return status === CALL_STATUS.NEW;
   });
 
-  // ── KPI: neue Anfragen / offene Aufgaben / erledigt heute / Aktivität ───────
+  // ── KPI: neue Anfragen / offene Aufgaben / erledigt heute / überfällig ─────
   var kpiHeute = document.getElementById('kpi-heute');
   if (kpiHeute) kpiHeute.textContent = newOpenRequests.length;
 
@@ -4722,17 +4718,17 @@ function renderDashboard(records) {
     statusChipPrimary.className = 'dash-status-chip';
     statusChipSecondary.className = 'dash-status-chip note';
     if (offen.length > 0) {
-      statusTitle.textContent = 'Aufgaben benötigen Priorität';
-      statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Aufgaben. Voxera priorisiert die wichtigsten Anfragen für Ihren nächsten Schritt.';
+      statusTitle.textContent = 'Aufgaben im Fokus';
+      statusText.textContent = 'Sie haben aktuell ' + offen.length + ' offene Aufgaben.';
       statusChipPrimary.textContent = offen.length + ' offen';
       statusChipPrimary.classList.add('alert');
-      statusChipSecondary.textContent = newOpenRequests.length + ' neue Anfragen offen';
+      statusChipSecondary.textContent = newOpenRequests.length + ' neue Anfragen';
     } else {
-      statusTitle.textContent = 'Alles unter Kontrolle';
-      statusText.textContent = 'Aktuell gibt es keine offenen Aufgaben. Neue Anfragen und Follow-ups erscheinen automatisch in Ihrer Übersicht.';
+      statusTitle.textContent = 'Alles im Griff';
+      statusText.textContent = 'Aktuell gibt es keine offenen Aufgaben.';
       statusChipPrimary.textContent = 'Keine offenen Aufgaben';
       statusChipPrimary.classList.add('ok');
-      statusChipSecondary.textContent = newOpenRequests.length + ' neue Anfragen offen';
+      statusChipSecondary.textContent = newOpenRequests.length + ' neue Anfragen';
     }
   }
 
@@ -4750,34 +4746,30 @@ function renderDashboard(records) {
     var nextFollowUpLabel = nextFollowUp ? fmtFollowUpDateTime(resolveFollowUpAt(nextFollowUp.fields || {})) : '';
     if (offen.length > 0 && nextFollowUpLabel) {
       focusHintEl.textContent = 'Nächster Rückruf';
-      focusTextEl.textContent = nextFollowUpLabel + ' · Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Offene Aufgaben: ' + offen.length;
+      focusTextEl.textContent = 'Offene Aufgaben: ' + offen.length + ' · Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Nächster Rückruf: ' + nextFollowUpLabel;
     } else if (offen.length > 0) {
       focusHintEl.textContent = 'Jetzt bearbeiten';
-      focusTextEl.textContent = 'Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Geplant: ' + upcoming + ' · Offene Aufgaben: ' + offen.length;
+      focusTextEl.textContent = 'Offene Aufgaben: ' + offen.length + ' · Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Geplant: ' + upcoming;
     } else {
       focusHintEl.textContent = 'Keine offenen Aufgaben';
-      focusTextEl.textContent = 'Momentan gibt es keine offenen Aufgaben oder Follow-ups.';
+      focusTextEl.textContent = 'Momentan gibt es keine offenen Aufgaben.';
     }
   }
 
-  // Aktivität KPI
+  // Überfällig KPI (Fallback: In Bearbeitung bei fehlender Fälligkeit)
   var kpiLeads = document.getElementById('kpi-leads');
-  var latestTs = 0;
-  (records || []).forEach(function(r) {
-    var ts = getRecordTimestamp(r);
-    if (ts && ts > latestTs) latestTs = ts;
+  var openTasksWithDueDate = offen.filter(function(r){
+    var due = parseFollowUpDate(resolveFollowUpAt((r && r.fields) || {}));
+    return !!(due && !Number.isNaN(due.getTime()));
   });
-  var minutesSinceLast = latestTs ? Math.max(0, Math.floor((Date.now() - latestTs) / 60000)) : null;
-  if (kpiLeads) kpiLeads.textContent = minutesSinceLast === null ? '–' : (minutesSinceLast < 60 ? (minutesSinceLast + 'm') : (Math.floor(minutesSinceLast / 60) + 'h'));
-  var leadsDotsEl = document.getElementById('kpi-leads-dots');
-  if (leadsDotsEl) {
-    var dotsHtml = '';
-    if (minutesSinceLast === null) {
-      dotsHtml = '<span class="dash-kpi-lead-dot lead-dot-neu">Noch keine Aktivität</span>';
-    } else {
-      dotsHtml = '<span class="dash-kpi-lead-dot lead-dot-neu">Letzte Aktivität vor ' + (minutesSinceLast < 60 ? (minutesSinceLast + ' Minuten') : (Math.floor(minutesSinceLast / 60) + ' Stunden')) + '</span>';
-    }
-    leadsDotsEl.innerHTML = dotsHtml;
+  var overdueCount = openTasksWithDueDate.filter(function(r){ return getTaskPriorityBucket(r) === 0; }).length;
+  var inProgressCount = (records || []).filter(function(r){
+    var fields = (r && r.fields) || {};
+    if (isClosedStatus(fields.dashboard_status)) return false;
+    return normalizeStatus(fields.dashboard_status) === CALL_STATUS.IN_PROGRESS;
+  }).length;
+  if (kpiLeads) {
+    kpiLeads.textContent = openTasksWithDueDate.length > 0 ? overdueCount : inProgressCount;
   }
 
   // ── Recent Calls (dedupliziert, nur primärer Arbeitskorb) ────────────
@@ -4790,17 +4782,6 @@ function renderDashboard(records) {
       renderList('dash-callback-list', sortedOpenCallbacks.slice(0,5), {showActions:true, skipSort:true, dashboardView:true});
     }
   }
-  // ── Follow-ups section ──────────────────────────────────────────────────────
-  var followupList = document.getElementById('dash-followup-list');
-  if (followupList) {
-    var followupsWithDate = buckets.followups;
-    if (followupsWithDate.length === 0) {
-      followupList.innerHTML = renderEmptyState('Keine geplanten Follow-ups', 'Sobald Termine gesetzt sind, werden sie hier angezeigt.');
-    } else {
-      renderList('dash-followup-list', followupsWithDate.slice(0,5), {showActions:true, skipSort:true, dashboardView:true});
-    }
-  }
-
   var recentList = document.getElementById('dash-recent-list');
   if (recentList) {
     if (allOpenCalls.length === 0) {
@@ -4981,6 +4962,7 @@ function renderList(containerId, records, opts) {
   opts = opts || {};
   const el = document.getElementById(containerId);
   const isMobileList = window.matchMedia('(max-width: 768px)').matches;
+  const isTaskList = containerId === 'rueckrufe-list' || containerId === 'dash-callback-list';
   // Preserve expanded state across re-renders
   const expandedIds = new Set();
   if (el) {
@@ -5016,6 +4998,15 @@ function renderList(containerId, records, opts) {
     // Follow-up meta line (action/date/time) in short unified format
     const followUpAt = resolveFollowUpAt(f);
     const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
+    const taskDueBucket = getTaskPriorityBucket(r);
+    var taskDueLabel = '';
+    var taskDueClass = 'open';
+    if (!done && isTaskList) {
+      if (taskDueBucket === 0) { taskDueLabel = 'Überfällig'; taskDueClass = 'overdue'; }
+      else if (taskDueBucket === 1) { taskDueLabel = 'Hüt fällig'; taskDueClass = 'today'; }
+      else if (taskDueBucket === 2) { taskDueLabel = 'Geplant'; taskDueClass = 'planned'; }
+      else { taskDueLabel = 'Offe Aufgabe'; taskDueClass = 'open'; }
+    }
     const closedAt = resolveClosedAt(f);
     const callDateTime = fmtHumanDateTime(getRecordTimestamp(r)) || fmtExactDateTime(getRecordTimestamp(r));
 
@@ -5039,12 +5030,13 @@ function renderList(containerId, records, opts) {
           ${(categoryLabel && !isDashLikePlaceholder(categoryLabel))?`<span class="call-meta-item">${escHtml(categoryLabel)}</span>`:''}
           <span class="call-meta-item">${callDateTime}</span>
         </div>
+        ${taskDueLabel?`<div class="task-due-pill ${taskDueClass}">${escHtml(taskDueLabel)}</div>`:''}
         ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
         ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
         ${done && closedAt ? `<div class="followup-meta-line">Abgeschlossen am ${escHtml(fmtExactDateTime(closedAt) || fmtDate(closedAt))}</div>` : ''}
         ${notizText && !opts.dashboardView?`<div class="call-notiz">${escHtml(notizText)}</div>`:''}
         ${showActions && !done?`<div class="call-actions">
-          <button class="btn-a btn-note" onclick="event.stopPropagation();openFollowupDirect('${r.id}')" title="Follow-up öffnen">Follow-up</button>
+          <button class="btn-a btn-note" onclick="event.stopPropagation();openFollowupDirect('${r.id}')" title="Follow-up setzen">Follow-up setzen</button>
           <button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')" title="Details öffnen">Details</button>
           <button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="event.stopPropagation();openNotizFromBtn(this)" title="Notiz bearbeiten">Notiz</button>
         </div>`:''}
@@ -5141,11 +5133,14 @@ function renderArchiv(records) {
     if (exportBtn) exportBtn.style.display = 'flex';
     const totalSecs = done.reduce((sum,r) => sum + Number((r.fields||{}).duration_seconds||0), 0);
     const totalMins = Math.round(totalSecs / 60);
-    const followupsDone = done.filter(r => resolveFollowUpAt(r.fields||{})).length;
+    const closedToday = done.filter(function(r){
+      const closedTs = resolveClosedAt((r && r.fields) || {}) || getRecordTimestamp(r);
+      return !!closedTs && isToday(closedTs);
+    }).length;
     const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
     set('archiv-stat-count', done.length);
     set('archiv-stat-time', totalMins);
-    set('archiv-stat-followups', followupsDone);
+    set('archiv-stat-followups', closedToday);
   } else {
     if (statsEl) statsEl.style.display = 'none';
     if (exportBtn) exportBtn.style.display = 'none';
