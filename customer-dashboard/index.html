@@ -2275,9 +2275,9 @@ body{
                   <div class="dash-kpi-static-note">Nur Info</div>
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
-                  <div class="dash-kpi-label">Überfällig</div>
+                  <div class="dash-kpi-label" id="kpi-leads-label">Überfällig</div>
                   <div class="dash-kpi-val" id="kpi-leads">–</div>
-                  <div class="dash-kpi-static-note">Offeni Aufgaben mit überschrittener Fälligkeit</div>
+                  <div class="dash-kpi-static-note" id="kpi-leads-note">Offeni Aufgaben mit überschrittener Fälligkeit</div>
                 </div>
               </div>
 
@@ -2388,7 +2388,7 @@ body{
               <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Minuten total</div>
             </div>
             <div style="background:rgba(255,255,255,0.7);border:0.5px solid rgba(255,255,255,0.95);border-radius:14px;padding:14px 16px;backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 2px 12px rgba(0,0,0,0.05);">
-              <div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:6px;">Abgeschlossen hüt</div>
+              <div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:6px;">Heute abgeschlossen</div>
               <div style="font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.03em;" id="archiv-stat-followups">0</div>
               <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Vorgänge</div>
             </div>
@@ -4756,8 +4756,10 @@ function renderDashboard(records) {
     }
   }
 
-  // Überfällig KPI (Fallback: In Bearbeitung bei fehlender Fälligkeit)
+  // KPI: semantisch sauber halten (Überfällig nur bei vorhandener Fälligkeit)
   var kpiLeads = document.getElementById('kpi-leads');
+  var kpiLeadsLabel = document.getElementById('kpi-leads-label');
+  var kpiLeadsNote = document.getElementById('kpi-leads-note');
   var openTasksWithDueDate = offen.filter(function(r){
     var due = parseFollowUpDate(resolveFollowUpAt((r && r.fields) || {}));
     return !!(due && !Number.isNaN(due.getTime()));
@@ -4768,8 +4770,17 @@ function renderDashboard(records) {
     if (isClosedStatus(fields.dashboard_status)) return false;
     return normalizeStatus(fields.dashboard_status) === CALL_STATUS.IN_PROGRESS;
   }).length;
+  var canUseOverdueMetric = openTasksWithDueDate.length > 0;
+  if (kpiLeadsLabel) {
+    kpiLeadsLabel.textContent = canUseOverdueMetric ? 'Überfällig' : 'In Bearbeitung';
+  }
+  if (kpiLeadsNote) {
+    kpiLeadsNote.textContent = canUseOverdueMetric
+      ? 'Offeni Aufgaben mit überschrittener Fälligkeit'
+      : 'Offeni Aufgaben im Status In Bearbeitung';
+  }
   if (kpiLeads) {
-    kpiLeads.textContent = openTasksWithDueDate.length > 0 ? overdueCount : inProgressCount;
+    kpiLeads.textContent = canUseOverdueMetric ? overdueCount : inProgressCount;
   }
 
   // ── Recent Calls (dedupliziert, nur primärer Arbeitskorb) ────────────
