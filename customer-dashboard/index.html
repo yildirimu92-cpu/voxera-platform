@@ -3045,15 +3045,20 @@ body{
               <input id="manual-task-due" type="date">
             </div>
             <div class="followup-field">
+              <label for="manual-task-due-time">Uhrzeit</label>
+              <input id="manual-task-due-time" type="time" step="60" placeholder="HH:MM">
+            </div>
+          </div>
+          <div class="followup-grid">
+            <div class="followup-field">
               <label for="manual-task-status">Status *</label>
               <select id="manual-task-status">
                 <option value="open" selected>Offen</option>
                 <option value="in_progress">In Bearbeitung</option>
+                <option value="waiting">Wartend</option>
                 <option value="done">Abgeschlossen</option>
               </select>
             </div>
-          </div>
-          <div class="followup-grid">
             <div class="followup-field">
               <label for="manual-task-priority">Priorität</label>
               <select id="manual-task-priority">
@@ -3062,6 +3067,8 @@ body{
                 <option value="normal">Normal</option>
               </select>
             </div>
+          </div>
+          <div class="followup-grid">
             <div class="followup-field">
               <label for="manual-task-phone">Telefonnummer</label>
               <input id="manual-task-phone" type="tel" placeholder="+41 ...">
@@ -3348,6 +3355,7 @@ async function loadPlanConfigFromSupabase() {
 let allRecords = [];
 let allManualTaskRecords = [];
 let notizRecordId = null;
+let editingManualTaskRecordId = null;
 let autoRefreshTimer = null;
 let pendingFollowupRecordId = null;
 let pendingFollowupStartedAt = 0;
@@ -3375,6 +3383,47 @@ const MANUAL_TASK_TYPE_OPTIONS = Object.freeze({
   information: 'Information senden',
   appointment: 'Termin',
   general: 'Allgemeine Aufgabe'
+});
+const MANUAL_TASK_STATUS_UI_TO_DB = Object.freeze({
+  offen: 'open',
+  open: 'open',
+  in_bearbeitung: 'in_progress',
+  'in bearbeitung': 'in_progress',
+  in_progress: 'in_progress',
+  wartend: 'waiting',
+  waiting: 'waiting',
+  erledigt: 'done',
+  abgeschlossen: 'done',
+  done: 'done',
+  closed: 'done',
+  geschlossen: 'done'
+});
+const MANUAL_TASK_PRIORITY_UI_TO_DB = Object.freeze({
+  dringend: 'high',
+  urgent: 'high',
+  hoch: 'high',
+  high: 'high',
+  normal: 'medium',
+  mittel: 'medium',
+  medium: 'medium',
+  niedrig: 'low',
+  low: 'low'
+});
+const MANUAL_TASK_TYPE_UI_TO_DB = Object.freeze({
+  rueckruf: 'callback',
+  rückruf: 'callback',
+  callback: 'callback',
+  followup: 'follow_up',
+  follow_up: 'follow_up',
+  'follow-up': 'follow_up',
+  nachverfolgung: 'follow_up',
+  information: 'information',
+  termin: 'appointment',
+  appointment: 'appointment',
+  allgemein: 'general',
+  general: 'general',
+  task: 'general',
+  aufgabe: 'general'
 });
 
 function normalizeContractStatus(status) {
@@ -3517,7 +3566,15 @@ function taskTypeLabel(rawType) {
 
 function resolveTaskDueAt(fields) {
   if (!fields) return '';
-  return fields.due_at || resolveFollowUpAt(fields) || '';
+  if (fields.due_at) {
+    const dueDate = String(fields.due_at).trim();
+    const dueTime = String(fields.due_time || fields.due_at_time || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate) && /^\d{2}:\d{2}$/.test(dueTime)) {
+      return `${dueDate}T${dueTime}`;
+    }
+    return dueDate;
+  }
+  return resolveFollowUpAt(fields) || '';
 }
 
 function isManualTaskRecord(record) {
@@ -3541,7 +3598,7 @@ function mapCaseToTaskRecord(row) {
       category: taskTypeLabel(row.type),
       caller_phone: row.phone || '',
       phone_number: row.phone || '',
-      follow_up_at: row.due_at || '',
+      follow_up_at: resolveTaskDueAt(row),
       callback_requested: String(row.type || '') === 'callback',
       dashboard_status: mapCaseStatusToDashboardStatus(row.status),
       next_action: taskTypeLabel(row.type)
@@ -3792,38 +3849,51 @@ async function loadManualTaskRecords(customerIdRaw) {
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 const MANUAL_TASKS_STATUS_INVALID_MESSAGE = 'Der gewählte Status ist ungültig. Bitte verwenden Sie „Offen“, „In Bearbeitung“ oder „Erledigt“.';
+const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte verwenden Sie das Format HH:MM (z. B. 14:30).';
 const MANUAL_TASKS_DEFAULT_PRIORITY = 'medium';
-const MANUAL_TASK_STATUS_UI_TO_DB = Object.freeze({
-  offen: 'open',
-  open: 'open',
-  in_bearbeitung: 'in_progress',
-  'in bearbeitung': 'in_progress',
-  in_progress: 'in_progress',
-  erledigt: 'done',
-  abgeschlossen: 'done',
-  done: 'done'
-});
 
 function isMissingManualTasksDbExtensionError(raw) {
   const msg = String(raw || '').toLowerCase();
-  const columnMentioned = /title|note|due_at|phone/.test(msg);
+  const columnMentioned = /title|note|due_at|due_time|phone/.test(msg);
   const relationMentioned = /\bcases\b/.test(msg);
   const schemaIssue = /schema cache|column|does not exist|could not find/.test(msg);
   return columnMentioned && relationMentioned && schemaIssue;
 }
 
 function mapManualTaskPriorityUiToDb(rawPriority) {
-  const key = String(rawPriority || '').trim().toLowerCase();
+  const key = String(rawPriority || '').trim().toLowerCase().replace(/\s+/g, '_');
   if (!key) return MANUAL_TASKS_DEFAULT_PRIORITY;
-  if (key === 'urgent' || key === 'dringend') return 'high';
-  if (key === 'normal') return 'medium';
-  if (key === 'high' || key === 'medium' || key === 'low') return key;
+  if (MANUAL_TASK_PRIORITY_UI_TO_DB[key]) return MANUAL_TASK_PRIORITY_UI_TO_DB[key];
+  if (['high', 'medium', 'low'].includes(key)) return key;
   return MANUAL_TASKS_DEFAULT_PRIORITY;
+}
+
+function mapManualTaskPriorityDbToUi(rawPriority) {
+  const key = String(rawPriority || '').trim().toLowerCase().replace(/\s+/g, '_');
+  if (key === 'high') return 'urgent';
+  if (key === 'medium') return 'normal';
+  return '';
 }
 
 function mapManualTaskStatusUiToDb(rawStatus) {
   const key = String(rawStatus || '').trim().toLowerCase().replace(/\s+/g, '_');
   return MANUAL_TASK_STATUS_UI_TO_DB[key] || 'open';
+}
+
+function mapManualTaskTypeUiToDb(rawType) {
+  const key = String(rawType || '').trim().toLowerCase().replace(/\s+/g, '_');
+  return MANUAL_TASK_TYPE_UI_TO_DB[key] || 'general';
+}
+
+function normalizeManualTaskDueTime(rawDueTime) {
+  const raw = String(rawDueTime || '').trim();
+  if (!raw) return '';
+  const m = raw.match(/^(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (hh > 23 || mm > 59) return null;
+  return `${m[1]}:${m[2]}`;
 }
 
 function isManualTaskPriorityConstraintError(raw) {
@@ -3841,20 +3911,26 @@ function isManualTaskStatusConstraintError(raw) {
 function isManualTaskContractInactiveError(error) {
   const payloadReason = String(error?.payload?.details?.reason || error?.payload?.reason || '').toLowerCase();
   const payloadEntitlement = String(error?.payload?.entitlement_code || '').toLowerCase();
+  const payloadCode = String(error?.payload?.code || '').toLowerCase();
   return Boolean(
     error
-    && Number(error.status) === 403
+    && [403, 409].includes(Number(error.status))
     && (
       String(error.reason || '').toLowerCase() === 'contract_inactive'
       || String(error.entitlement_code || '').toLowerCase() === 'contract_inactive'
       || payloadReason === 'contract_inactive'
       || payloadEntitlement === 'contract_inactive'
+      || payloadCode === 'guard_contract_inactive'
     )
   );
 }
 
 function toManualTaskUserMessage(error, fallbackMessage) {
   if (isManualTaskContractInactiveError(error)) return getRestrictedContractMessage('Aufgaben');
+  const dueTimeMissingMigration = String(error?.payload?.details?.fallback_hint || '') === 'cases_due_time_missing_migration';
+  if (dueTimeMissingMigration) {
+    return 'Uhrzeit konnte noch nicht gespeichert werden, da die Datenbank-Migration in dieser Umgebung noch nicht ausgerollt ist.';
+  }
   const raw = String(
     error?.message
     || error?.details
@@ -3865,6 +3941,7 @@ function toManualTaskUserMessage(error, fallbackMessage) {
   if (isMissingManualTasksDbExtensionError(raw)) return MANUAL_TASKS_DB_EXTENSION_MESSAGE;
   if (isManualTaskPriorityConstraintError(raw)) return MANUAL_TASKS_PRIORITY_INVALID_MESSAGE;
   if (isManualTaskStatusConstraintError(raw)) return MANUAL_TASKS_STATUS_INVALID_MESSAGE;
+  if (String(error?.code || error?.payload?.code || '') === 'validation_due_time_invalid') return MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE;
   return String(raw || fallbackMessage || 'Aufgabe konnte nicht gespeichert werden.');
 }
 
@@ -3874,8 +3951,9 @@ async function createManualTask(payload) {
     note: payload.note || null,
     status: mapManualTaskStatusUiToDb(payload.status || 'open'),
     priority: payload.priority || MANUAL_TASKS_DEFAULT_PRIORITY,
-    type: payload.type || 'general',
+    type: mapManualTaskTypeUiToDb(payload.type || 'general'),
     due_at: payload.due_at,
+    due_time: payload.due_time || null,
     phone: payload.phone || null
   };
   const json = await callDashboardFunction('cases-create', insertPayload);
@@ -3886,6 +3964,8 @@ async function createManualTask(payload) {
       err.reason = json.reason || '';
       err.entitlement_code = json.entitlement_code || '';
       err.details = json.details || '';
+      err.code = json.code || '';
+      err.payload = json;
     }
     throw err;
   }
@@ -3909,6 +3989,30 @@ async function updateManualTaskStatus(recordId, targetStatus) {
       err.reason = json.reason || '';
       err.entitlement_code = json.entitlement_code || '';
       err.details = json.details || '';
+    }
+    throw err;
+  }
+  return mapCaseToTaskRecord(json.case);
+}
+
+async function updateManualTask(recordId, updates) {
+  const rec = allManualTaskRecords.find(function(item) { return String(item.id) === String(recordId); });
+  if (!rec) throw new Error('Aufgabe nicht gefunden.');
+  const entityId = String((rec.fields && rec.fields.task_entity_id) || '').trim();
+  if (!entityId) throw new Error('Ungültige Aufgaben-ID.');
+  const json = await callDashboardFunction('cases-update', {
+    case_id: entityId,
+    updates: updates || {}
+  });
+  if (!json || json.success !== true || !json.case) {
+    const err = new Error((json && json.error) || 'Aufgabe konnte nicht aktualisiert werden.');
+    if (json && typeof json === 'object') {
+      err.status = Number(json.statusCode || json.status || 0) || 0;
+      err.reason = json.reason || '';
+      err.entitlement_code = json.entitlement_code || '';
+      err.details = json.details || '';
+      err.code = json.code || '';
+      err.payload = json;
     }
     throw err;
   }
@@ -4465,6 +4569,10 @@ function fmtHumanDateTime(raw) {
 
 function parseFollowUpDate(raw) {
   if (!raw) return null;
+  const dateOnly = String(raw).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 0, 0, 0);
+  }
   const localParts = parseLocalDateTimeParts(raw);
   if (localParts) {
     return new Date(localParts.year, localParts.month - 1, localParts.day, localParts.hour, localParts.minute, localParts.second);
@@ -6015,9 +6123,11 @@ function openManualTaskModal() {
     return;
   }
   const todayIso = new Date().toISOString().slice(0, 10);
+  editingManualTaskRecordId = null;
   document.getElementById('manual-task-title').value = '';
   document.getElementById('manual-task-type').value = 'callback';
   document.getElementById('manual-task-due').value = todayIso;
+  document.getElementById('manual-task-due-time').value = '';
   document.getElementById('manual-task-status').value = 'open';
   document.getElementById('manual-task-priority').value = '';
   document.getElementById('manual-task-note').value = '';
@@ -6031,7 +6141,37 @@ function openManualTaskModal() {
   syncOverlayScrollLock();
 }
 
+function openManualTaskEditModal(recordId) {
+  if (customerContractState.hasContract && isContractRestrictedState()) {
+    toast(getRestrictedContractMessage('Aufgaben'), 'warning');
+    return;
+  }
+  const rec = allManualTaskRecords.find(function(item) { return String(item.id) === String(recordId); });
+  if (!rec || !rec.fields) {
+    toast('Aufgabe nicht gefunden.');
+    return;
+  }
+  const f = rec.fields;
+  editingManualTaskRecordId = rec.id;
+  document.getElementById('manual-task-title').value = String(f.title || f.caller_name || '').trim();
+  document.getElementById('manual-task-type').value = mapManualTaskTypeUiToDb(f.type || 'general');
+  document.getElementById('manual-task-due').value = String(f.due_at || '').trim();
+  document.getElementById('manual-task-due-time').value = String(f.due_time || '').trim();
+  document.getElementById('manual-task-status').value = mapManualTaskStatusUiToDb(f.status || f.dashboard_status || 'open');
+  document.getElementById('manual-task-priority').value = mapManualTaskPriorityDbToUi(f.priority || '');
+  document.getElementById('manual-task-note').value = String(f.note || '').trim();
+  document.getElementById('manual-task-phone').value = String(f.phone || f.phone_number || '').trim();
+  const saveBtn = document.getElementById('manual-task-save-btn');
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Änderungen speichern';
+  }
+  document.getElementById('manual-task-overlay').classList.add('open');
+  syncOverlayScrollLock();
+}
+
 function closeManualTaskModal() {
+  editingManualTaskRecordId = null;
   document.getElementById('manual-task-overlay').classList.remove('open');
   syncOverlayScrollLock();
 }
@@ -6044,37 +6184,56 @@ async function saveManualTask() {
   const title = String(document.getElementById('manual-task-title').value || '').trim();
   const type = String(document.getElementById('manual-task-type').value || '').trim();
   const dueAt = String(document.getElementById('manual-task-due').value || '').trim();
+  const dueTimeRaw = String(document.getElementById('manual-task-due-time').value || '').trim();
+  const dueTime = normalizeManualTaskDueTime(dueTimeRaw);
   const status = mapManualTaskStatusUiToDb(document.getElementById('manual-task-status').value || 'open');
   const priority = String(document.getElementById('manual-task-priority').value || '').trim();
   const note = String(document.getElementById('manual-task-note').value || '').trim();
   const phone = String(document.getElementById('manual-task-phone').value || '').trim();
+  const isCallback = mapManualTaskTypeUiToDb(type) === 'callback';
   if (!title || !type || !dueAt) {
     toast('Bitte Titel, Typ und Fälligkeitsdatum ausfüllen.');
     return;
   }
+  if (dueTime === null) {
+    toast(MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE);
+    return;
+  }
+  if (isCallback && !dueTime) {
+    toast('Hinweis: Für Rückrufe ist eine Uhrzeit empfohlen.', 'info');
+  }
   const btn = document.getElementById('manual-task-save-btn');
   btn.disabled = true;
-  btn.textContent = 'Speichert...';
+  btn.textContent = editingManualTaskRecordId ? 'Speichert...' : 'Erstellt...';
   try {
-    const createdTask = await createManualTask({
+    const basePayload = {
       title: title,
       type: type,
       due_at: dueAt,
+      due_time: dueTime || null,
       status: status,
       priority: mapManualTaskPriorityUiToDb(priority),
       note: note || null,
       phone: phone || null
-    });
-    allManualTaskRecords.unshift(createdTask);
+    };
+    if (editingManualTaskRecordId) {
+      const updatedTask = await updateManualTask(editingManualTaskRecordId, basePayload);
+      const idx = allManualTaskRecords.findIndex(function(item) { return String(item.id) === String(editingManualTaskRecordId); });
+      if (idx >= 0) allManualTaskRecords[idx] = updatedTask;
+      toast('Aufgabe aktualisiert');
+    } else {
+      const createdTask = await createManualTask(basePayload);
+      allManualTaskRecords.unshift(createdTask);
+      toast('Aufgabe erstellt');
+    }
     renderDashboard(allRecords, allManualTaskRecords);
     renderRueckrufe(allRecords, allManualTaskRecords);
     closeManualTaskModal();
-    toast('Aufgabe erstellt');
   } catch (e) {
-    toast(toManualTaskUserMessage(e, 'Aufgabe konnte nicht gespeichert werden.'));
+    toast(toManualTaskUserMessage(e, editingManualTaskRecordId ? 'Aufgabe konnte nicht aktualisiert werden.' : 'Aufgabe konnte nicht gespeichert werden.'));
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Aufgabe erstellen';
+    btn.textContent = editingManualTaskRecordId ? 'Änderungen speichern' : 'Aufgabe erstellen';
   }
 }
 
@@ -6118,6 +6277,7 @@ function openDetail(recordId) {
             ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><span class="call-action-icon"><i data-lucide="phone-call" style="width:14px;height:14px;color:#fff;" aria-hidden="true"></i></span>Jetzt anrufen</a>` : '<button class="btn-a btn-note" type="button" disabled>Keine Nummer hinterlegt</button>'}
             ${isManual ? '' : `<button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up setzen</button>`}
             ${isManual ? '' : `<button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz bearbeiten</button>`}
+            ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn-a btn-note" onclick="closeDetail(); openManualTaskEditModal('${rec.id}')">Bearbeiten</button>` : ''}
             ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn-a btn-note" onclick="closeDetail(); confirmTaskDone('${rec.id}')">Erledigen</button>` : ''}
           </div>
         </div>
