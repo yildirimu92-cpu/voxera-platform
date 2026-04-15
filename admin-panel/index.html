@@ -3735,29 +3735,67 @@ function openCustomerAiSetup(customerId,event){
   if(typeof openAiWorkspace==='function') openAiWorkspace(String(customerId));
 }
 
+function sendAccessDebug(stage,details){
+  try{
+    if(details===undefined) console.info('[Send Access Debug]',stage);
+    else console.info('[Send Access Debug]',stage,details);
+  }catch(_e){}
+}
+
+function sendAccessToast(message,type){
+  sendAccessDebug('before toast',{message,type:type||'default'});
+  showToast(message);
+}
+
 function triggerSendAccessFromUi(customerId,source='unknown'){
   const selectedId=String(customerId||'').trim();
   console.info('[Send Access UI Trigger]',{source,customerId:selectedId});
-  if(!selectedId){
-    const msg=source==='onboarding-detail'
-      ?'Bitte zuerst einen Kunden in der Onboarding-Queue auswählen.'
-      :'Kein Kunde ausgewählt. Bitte zuerst ein Kundenprofil oder Onboarding-Detail öffnen.';
-    showToast(msg);
+  sendAccessDebug('entry',{source,customerId:selectedId});
+  try{
+    sendAccessDebug('before guard:customerId',{selectedId,source});
+    if(!selectedId){
+      const msg=source==='onboarding-detail'
+        ?'Bitte zuerst einen Kunden in der Onboarding-Queue auswählen.'
+        :'Kein Kunde ausgewählt. Bitte zuerst ein Kundenprofil oder Onboarding-Detail öffnen.';
+      sendAccessDebug('guard abort:missing customerId',{source});
+      sendAccessToast(msg,'warning');
+      return false;
+    }
+
+    const customer=customerById(selectedId);
+    if(!customer){
+      sendAccessDebug('guard abort:customer not found',{selectedId});
+      sendAccessToast('Kunde nicht gefunden. Bitte neu laden und erneut versuchen.','warning');
+      return false;
+    }
+
+    const onboarding=onboardingForCustomer(selectedId);
+    const actionState=getCustomerQuickActionState(customer,onboarding);
+    sendAccessDebug('after guard',{selectedId,actionState});
+
+    if(!actionState.showSendAccess||actionState.sendAccessDisabled){
+      const reason=actionState.sendAccessTooltip||'Zugang ist für diesen Kunden aktuell blockiert.';
+      sendAccessDebug('guard abort:not ready',{selectedId,reason,actionState});
+      sendAccessToast(reason,'warning');
+      return false;
+    }
+
+    sendAccessDebug('before modal open',{selectedId});
+    const opened=openSendAccessModal(selectedId);
+    sendAccessDebug('after modal open attempt',{selectedId,opened});
+    if(!opened){
+      sendAccessToast('Send-Modal konnte nicht geöffnet werden. Bitte Seite neu laden und erneut versuchen.','warning');
+      return false;
+    }
+    return true;
+  }catch(error){
+    sendAccessDebug('exception in triggerSendAccessFromUi',{
+      message:error?.message||String(error),
+      stack:error?.stack||''
+    });
+    sendAccessToast('Interner Fehler beim Öffnen von „Zugang senden“. Bitte erneut versuchen.','error');
     return false;
   }
-  const customer=customerById(selectedId);
-  if(!customer){
-    showToast('Kunde nicht gefunden. Bitte neu laden und erneut versuchen.');
-    return false;
-  }
-  const onboarding=onboardingForCustomer(selectedId);
-  const actionState=getCustomerQuickActionState(customer,onboarding);
-  if(!actionState.showSendAccess||actionState.sendAccessDisabled){
-    showToast(actionState.sendAccessTooltip||'Zugang ist für diesen Kunden aktuell blockiert.');
-    return false;
-  }
-  openSendAccessModal(selectedId);
-  return true;
 }
 
 function submitOnboardingSendAccess(){
@@ -6697,41 +6735,70 @@ function renderSendAccessValidation(customer){
 }
 
 function openSendAccessModal(customerId){
+  sendAccessDebug('openSendAccessModal:entry',{customerId,pending:!!state.sendAccessPending});
   if(state.sendAccessPending){
-    showToast('Versand läuft bereits. Bitte kurz warten.');
-    return;
+    sendAccessDebug('openSendAccessModal:guard pending',{customerId});
+    sendAccessToast('Versand läuft bereits. Bitte kurz warten.','warning');
+    return false;
   }
   if(!customerId){
-    showToast('Kein Kunde ausgewählt. Bitte zuerst einen Kunden öffnen.');
-    return;
+    sendAccessDebug('openSendAccessModal:guard missing customerId');
+    sendAccessToast('Kein Kunde ausgewählt. Bitte zuerst einen Kunden öffnen.','warning');
+    return false;
   }
   const customer=customerById(customerId);
   if(!customer){
-    showToast('Kunde nicht gefunden. Bitte Seite neu laden und erneut versuchen.');
-    return;
+    sendAccessDebug('openSendAccessModal:guard customer not found',{customerId});
+    sendAccessToast('Kunde nicht gefunden. Bitte Seite neu laden und erneut versuchen.','warning');
+    return false;
   }
   const onboarding=onboardingForCustomer(customerId);
   const actionState=getCustomerQuickActionState(customer,onboarding);
   if(!actionState.showSendAccess){
     const lifecycleLabel=getCustomerLifecycleLabel(customer,onboarding);
-    showToast(`Zugang kann im Status „${lifecycleLabel}“ nicht gesendet werden.`);
-    return;
+    sendAccessDebug('openSendAccessModal:guard lifecycle blocked',{customerId,lifecycleLabel});
+    sendAccessToast(`Zugang kann im Status „${lifecycleLabel}“ nicht gesendet werden.`,'warning');
+    return false;
   }
+
+  const modalEl=document.getElementById('send-access-modal');
+  const customerNameEl=document.getElementById('send-access-customer-name');
+  const customerEmailEl=document.getElementById('send-access-customer-email');
+  const inviteStatusEl=document.getElementById('send-access-invite-status');
+  const submitBtn=document.getElementById('send-access-submit-btn');
+  if(!modalEl||!customerNameEl||!customerEmailEl||!inviteStatusEl||!submitBtn){
+    sendAccessDebug('openSendAccessModal:guard missing modal dom',{
+      hasModal:!!modalEl,
+      hasName:!!customerNameEl,
+      hasEmail:!!customerEmailEl,
+      hasInviteStatus:!!inviteStatusEl,
+      hasSubmitBtn:!!submitBtn
+    });
+    sendAccessToast('Send-Modal ist nicht vollständig geladen. Bitte Seite neu laden.','error');
+    return false;
+  }
+
   state.sendAccessTargetId=customerId;
   setSendAccessFeedback(null,'');
-  document.getElementById('send-access-customer-name').textContent=customer.name||'—';
-  document.getElementById('send-access-customer-email').textContent=customer.email||'—';
-  document.getElementById('send-access-invite-status').textContent=customer.invite_status==='sent'?'Bereits gesendet':'Noch nicht gesendet';
+  customerNameEl.textContent=customer.name||'—';
+  customerEmailEl.textContent=customer.email||'—';
+  inviteStatusEl.textContent=customer.invite_status==='sent'?'Bereits gesendet':'Noch nicht gesendet';
 
   const readiness=getCustomerAccessReadiness(customer,onboarding);
   const obStatusEl=document.getElementById('send-access-onboarding-status');
   if(obStatusEl) obStatusEl.textContent=`${readiness.setupProgress}% · ${readiness.setupLabel}`;
 
   renderSendAccessValidation(customer);
-  const submitBtn=document.getElementById('send-access-submit-btn');
   submitBtn.textContent=readiness.warnings?.length?'Trotzdem Zugang senden':'Zugang jetzt senden';
   submitBtn.disabled=actionState.sendAccessDisabled||!readiness.isReady;
-  document.getElementById('send-access-modal').classList.add('open');
+  modalEl.classList.add('open');
+  const modalOpened=modalEl.classList.contains('open');
+  if(!modalOpened){
+    sendAccessDebug('openSendAccessModal:open class missing after set',{customerId});
+    sendAccessToast('Send-Modal konnte nicht angezeigt werden.','error');
+    return false;
+  }
+  return true;
 }
 
 function closeSendAccessModal(){
@@ -6763,6 +6830,7 @@ function applyAccessSendResult(customerId,customerPatch,nextStep){
 async function submitSendAccess(){
   if(state.sendAccessPending) return;
   const customerId=state.sendAccessTargetId;
+  sendAccessDebug('before request',{customerId});
   const customer=customerById(customerId);
   if(!customerId||!customer){
     setSendAccessFeedback('error','Kein gültiger Kunde ausgewählt. Bitte Modal schließen und erneut öffnen.');
