@@ -1,5 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
+const {
+  mapManualTaskUiStatusToDb,
+  isValidCaseStatus,
+  DB_CASE_STATUS_VALUES,
+  isStatusConstraintError
+} = require('./_lib/case-status');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -14,9 +20,9 @@ function response(statusCode, payload) {
 
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
+const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
 const DEFAULT_CASE_PRIORITY = 'medium';
 const DEFAULT_CASE_TYPE = 'general';
-const ALLOWED_CASE_STATUSES = new Set(['open', 'in_progress', 'waiting', 'done']);
 const ALLOWED_CASE_TYPES = new Set(['general', 'task', 'follow_up', 'callback', 'support']);
 
 function log(stage, meta = {}) {
@@ -73,23 +79,6 @@ function mapPriorityToDb(rawPriority) {
   if (key === 'normal') return 'medium';
   if (key === 'high' || key === 'medium' || key === 'low') return key;
   return DEFAULT_CASE_PRIORITY;
-}
-
-function normalizeCaseStatus(status) {
-  const raw = String(status || '').trim().toLowerCase().replace(/\s+/g, '_');
-  const aliases = {
-    offen: 'open',
-    open: 'open',
-    in_bearbeitung: 'in_progress',
-    in_progress: 'in_progress',
-    wartend: 'waiting',
-    waiting: 'waiting',
-    geschlossen: 'done',
-    erledigt: 'done',
-    done: 'done',
-    closed: 'done'
-  };
-  return aliases[raw] || 'open';
 }
 
 function normalizeCaseType(rawType) {
@@ -215,7 +204,7 @@ exports.handler = async (event) => {
     const note = String(body.note || body.notes || '').trim();
     const dueAt = String(body.due_at || '').trim();
     const phone = String(body.phone || '').trim();
-    const status = normalizeCaseStatus(body.status || 'open');
+    const status = mapManualTaskUiStatusToDb(body.status || 'open');
     const priority = mapPriorityToDb(body.priority);
     const type = normalizeCaseType(body.type || DEFAULT_CASE_TYPE);
 
@@ -242,7 +231,7 @@ exports.handler = async (event) => {
       }));
     }
 
-    if (!ALLOWED_CASE_STATUSES.has(status)) {
+    if (!isValidCaseStatus(status)) {
       return response(400, errorPayload('Status ist ungültig.', 'validation_status_invalid', { status }));
     }
 
@@ -312,6 +301,14 @@ exports.handler = async (event) => {
         return response(400, errorPayload(MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, 'cases_priority_invalid', {
           db_error: dbError,
           mismatched_field: mismatchedField
+        }));
+      }
+      if (isStatusConstraintError(error)) {
+        return response(400, errorPayload(MANUAL_TASKS_STATUS_INVALID_MESSAGE, 'cases_status_invalid', {
+          db_error: dbError,
+          mismatched_field: mismatchedField,
+          allowed_statuses: DB_CASE_STATUS_VALUES,
+          received_status: status
         }));
       }
       if (isMissingManualTasksSchema(error)) {

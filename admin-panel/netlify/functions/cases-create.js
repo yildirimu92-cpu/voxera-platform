@@ -1,6 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
+const {
+  mapManualTaskUiStatusToDb,
+  DB_CASE_STATUS_VALUES,
+  isStatusConstraintError
+} = require('./_lib/case-status');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +30,7 @@ const ALLOWED_MAIL_TEMPLATES = [
 
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist ungültig. Bitte verwenden Sie „Normal“, „Dringend“ oder keine Priorität.';
+const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
 const DEFAULT_CASE_PRIORITY = 'medium';
 
 function isMissingManualTasksSchema(error) {
@@ -88,6 +94,7 @@ exports.handler = async (event) => {
   const title = String(body.title || body.type || '').trim();
   const note = String(body.note || body.notes || '').trim();
   const priority = mapPriorityToDb(body.priority);
+  const status = mapManualTaskUiStatusToDb(body.status || 'open');
   const mailTemplate = String(body.mail_template || 'none').trim();
 
   if (!customerId) return response(400, { error: 'customer_id fehlt.' });
@@ -106,7 +113,7 @@ exports.handler = async (event) => {
     title,
     note: note || null,
     priority,
-    status: 'open',
+    status,
     created_at: now,
     updated_at: now,
     ...(validTemplate !== 'none' ? { mail_template: validTemplate } : {})
@@ -123,7 +130,7 @@ exports.handler = async (event) => {
     const { title: _t, note: _n, ...payloadFallback } = payloadWithTemplate;
     ({ data, error } = await sbAdmin
       .from('cases')
-      .insert({ customer_id: customerId, title, note: note || null, priority, status: 'open', created_at: now, updated_at: now })
+      .insert({ customer_id: customerId, title, note: note || null, priority, status, created_at: now, updated_at: now })
       .select('*')
       .single());
   }
@@ -132,6 +139,13 @@ exports.handler = async (event) => {
     console.error('Case insert failed', error);
     if (isPriorityConstraintError(error)) {
       return response(400, { error: MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, code: 'cases_priority_invalid' });
+    }
+    if (isStatusConstraintError(error)) {
+      return response(400, {
+        error: MANUAL_TASKS_STATUS_INVALID_MESSAGE,
+        code: 'cases_status_invalid',
+        details: { allowed_statuses: DB_CASE_STATUS_VALUES, received_status: status }
+      });
     }
     if (isMissingManualTasksSchema(error)) {
       return response(503, {

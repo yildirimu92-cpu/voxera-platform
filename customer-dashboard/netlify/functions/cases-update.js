@@ -1,5 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
+const {
+  mapManualTaskUiStatusToDb,
+  DB_CASE_STATUS_VALUES,
+  isStatusConstraintError
+} = require('./_lib/case-status');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +20,7 @@ function response(statusCode, payload) {
 const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'priority']);
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
+const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
 const DEFAULT_CASE_PRIORITY = 'medium';
 
 const CASE_TRANSITIONS = {
@@ -51,23 +57,6 @@ function mapPriorityToDb(rawPriority) {
   if (key === 'normal') return 'medium';
   if (key === 'high' || key === 'medium' || key === 'low') return key;
   return DEFAULT_CASE_PRIORITY;
-}
-
-function normalizeCaseStatus(status) {
-  const raw = String(status || '').trim().toLowerCase().replace(/\s+/g, '_');
-  const aliases = {
-    offen: 'open',
-    open: 'open',
-    in_bearbeitung: 'in_progress',
-    in_progress: 'in_progress',
-    wartend: 'waiting',
-    waiting: 'waiting',
-    geschlossen: 'done',
-    erledigt: 'done',
-    done: 'done',
-    closed: 'done'
-  };
-  return aliases[raw] || 'open';
 }
 
 function assertCaseTransition(from, to) {
@@ -112,8 +101,8 @@ exports.handler = async (event) => {
 
   const updatePayload = { updated_at: new Date().toISOString() };
   if (field === 'status') {
-    const fromStatus = normalizeCaseStatus(current.status);
-    const toStatus = normalizeCaseStatus(value);
+    const fromStatus = mapManualTaskUiStatusToDb(current.status);
+    const toStatus = mapManualTaskUiStatusToDb(value);
     try {
       assertCaseTransition(fromStatus, toStatus);
     } catch (e) {
@@ -141,6 +130,13 @@ exports.handler = async (event) => {
   if (error) {
     if (isPriorityConstraintError(error)) {
       return response(400, { error: MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, code: 'cases_priority_invalid' });
+    }
+    if (isStatusConstraintError(error)) {
+      return response(400, {
+        error: MANUAL_TASKS_STATUS_INVALID_MESSAGE,
+        code: 'cases_status_invalid',
+        details: { allowed_statuses: DB_CASE_STATUS_VALUES, received_status: updatePayload.status || value }
+      });
     }
     if (isMissingManualTasksSchema(error)) {
       return response(503, {

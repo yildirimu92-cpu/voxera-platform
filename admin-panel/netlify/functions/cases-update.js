@@ -1,6 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
-const { normalizeCaseStatus, assertCaseTransition } = require('./_lib/status-model');
+const { assertCaseTransition } = require('./_lib/status-model');
+const {
+  mapManualTaskUiStatusToDb,
+  DB_CASE_STATUS_VALUES,
+  isStatusConstraintError
+} = require('./_lib/case-status');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +21,7 @@ function response(statusCode, payload) {
 const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'priority']);
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist ungültig. Bitte verwenden Sie „Normal“, „Dringend“ oder keine Priorität.';
+const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
 const DEFAULT_CASE_PRIORITY = 'medium';
 
 function isMissingManualTasksSchema(error) {
@@ -80,8 +86,8 @@ exports.handler = async (event) => {
 
   const updatePayload = { updated_at: new Date().toISOString() };
   if (field === 'status') {
-    const fromStatus = normalizeCaseStatus(current.status);
-    const toStatus = normalizeCaseStatus(value);
+    const fromStatus = mapManualTaskUiStatusToDb(current.status);
+    const toStatus = mapManualTaskUiStatusToDb(value);
     try {
       assertCaseTransition(fromStatus, toStatus);
     } catch (e) {
@@ -107,6 +113,13 @@ exports.handler = async (event) => {
   if (error) {
     if (isPriorityConstraintError(error)) {
       return response(400, { error: MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, code: 'cases_priority_invalid' });
+    }
+    if (isStatusConstraintError(error)) {
+      return response(400, {
+        error: MANUAL_TASKS_STATUS_INVALID_MESSAGE,
+        code: 'cases_status_invalid',
+        details: { allowed_statuses: DB_CASE_STATUS_VALUES, received_status: updatePayload.status || value }
+      });
     }
     if (isMissingManualTasksSchema(error)) {
       return response(503, {
