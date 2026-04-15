@@ -2343,6 +2343,7 @@ body{
         <div class="tab-page" id="tab-rueckrufe">
           <div class="section-head" style="margin-bottom:4px;">
             <div class="section-title">Aufgaben</div>
+            <button class="btn-a btn-note" id="create-task-btn" onclick="openManualTaskModal()" style="margin-left:auto;">Neue Aufgabe</button>
           </div>
           <div style="font-size:12px;color:var(--gray400);margin-bottom:12px;">Rückrufe, Follow-up-Aufgaben und alle nächsten Schritte in Ihrer Arbeitsliste.</div>
           <div class="filter-tabs" style="margin-bottom:12px;">
@@ -3012,6 +3013,74 @@ body{
 </div>
 
 
+<!-- MANUELLE AUFGABE MODAL -->
+<div class="overlay overlay--sheet" id="manual-task-overlay" onclick="if(event.target===this)closeManualTaskModal()">
+  <div class="modal modal--form followup-modal">
+    <div class="modal-shell">
+      <div class="modal-head with-divider">
+        <h3>Neue Aufgabe</h3>
+        <div class="modal-sub">Erfassen Sie eine manuelle Aufgabe für Ihr Team.</div>
+      </div>
+      <div class="modal-body">
+        <div class="followup-section">
+          <div class="followup-grid">
+            <div class="followup-field">
+              <label for="manual-task-title">Titel *</label>
+              <input id="manual-task-title" type="text" placeholder="z. B. Herr Müller zurückrufen">
+            </div>
+            <div class="followup-field">
+              <label for="manual-task-type">Typ *</label>
+              <select id="manual-task-type">
+                <option value="callback">Rückruf</option>
+                <option value="follow_up">Follow-up</option>
+                <option value="information">Information senden</option>
+                <option value="appointment">Termin</option>
+                <option value="general">Allgemeine Aufgabe</option>
+              </select>
+            </div>
+          </div>
+          <div class="followup-grid">
+            <div class="followup-field">
+              <label for="manual-task-due">Fällig am *</label>
+              <input id="manual-task-due" type="date">
+            </div>
+            <div class="followup-field">
+              <label for="manual-task-status">Status *</label>
+              <select id="manual-task-status">
+                <option value="open" selected>Offen</option>
+                <option value="in_progress">In Bearbeitung</option>
+                <option value="done">Abgeschlossen</option>
+              </select>
+            </div>
+          </div>
+          <div class="followup-grid">
+            <div class="followup-field">
+              <label for="manual-task-priority">Priorität</label>
+              <select id="manual-task-priority">
+                <option value="">Nicht gesetzt</option>
+                <option value="urgent">Dringend</option>
+                <option value="normal">Normal</option>
+              </select>
+            </div>
+            <div class="followup-field">
+              <label for="manual-task-phone">Telefonnummer</label>
+              <input id="manual-task-phone" type="tel" placeholder="+41 ...">
+            </div>
+          </div>
+          <div class="followup-field">
+            <label for="manual-task-note">Notiz</label>
+            <textarea id="manual-task-note" placeholder="Optionale interne Notiz"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer modal-actions">
+        <button class="btn-modal-cancel" onclick="closeManualTaskModal()">Abbrechen</button>
+        <button class="btn-modal-save" id="manual-task-save-btn" onclick="saveManualTask()">Aufgabe erstellen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- CALL DETAIL MODAL -->
 <div class="detail-overlay" id="detail-overlay" onclick="if(event.target===this)closeDetail()">
   <div class="detail-modal">
@@ -3106,6 +3175,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Customer param is read dynamically in loadData
 const CALLS_TABLE = 'calls';
 const CUSTOMERS_TABLE = 'customers';
+const CASES_TABLE = 'cases';
 
 // Init Supabase with explicit session persistence
 const supabaseLib = window.supabase;
@@ -3276,6 +3346,7 @@ async function loadPlanConfigFromSupabase() {
 }
 
 let allRecords = [];
+let allManualTaskRecords = [];
 let notizRecordId = null;
 let autoRefreshTimer = null;
 let pendingFollowupRecordId = null;
@@ -3298,6 +3369,13 @@ let customerContractState = {
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
 const AVG_CALL_DURATION = 2.5;
 const ACTIVE_CONTRACT_STATUSES = new Set(['active', 'signed']);
+const MANUAL_TASK_TYPE_OPTIONS = Object.freeze({
+  callback: 'Rückruf',
+  follow_up: 'Follow-up',
+  information: 'Information senden',
+  appointment: 'Termin',
+  general: 'Allgemeine Aufgabe'
+});
 
 function normalizeContractStatus(status) {
   return String(status || '').trim().toLowerCase();
@@ -3372,6 +3450,14 @@ function applyContractAccessStateToUI() {
     card.style.opacity = restricted ? '0.58' : '1';
     card.setAttribute('aria-disabled', restricted ? 'true' : 'false');
   });
+
+  var taskBtn = document.getElementById('create-task-btn');
+  if (taskBtn) {
+    taskBtn.disabled = restricted;
+    taskBtn.style.opacity = restricted ? '.55' : '1';
+    taskBtn.style.pointerEvents = restricted ? 'none' : 'auto';
+    taskBtn.title = restricted ? 'Ohne aktiven Vertrag können keine neuen Aufgaben erstellt werden.' : '';
+  }
 }
 
 function toDashboardRecord(row) {
@@ -3392,6 +3478,57 @@ function getRecordTimestamp(record) {
 function resolveFollowUpAt(fields) {
   if (!fields) return '';
   return fields.follow_up_at || fields.followup_at || fields.followUpAt || fields.follow_up || '';
+}
+
+function normalizeTaskStatus(rawStatus) {
+  const raw = String(rawStatus || '').trim().toLowerCase();
+  if (raw === 'closed' || raw === 'done' || raw === 'abgeschlossen') return 'done';
+  if (raw === 'in_progress' || raw === 'follow_up_scheduled' || raw === 'in bearbeitung') return 'in_progress';
+  return 'open';
+}
+
+function mapCaseStatusToDashboardStatus(caseStatus) {
+  const normalized = normalizeTaskStatus(caseStatus);
+  if (normalized === 'done') return CALL_STATUS.CLOSED;
+  if (normalized === 'in_progress') return CALL_STATUS.IN_PROGRESS;
+  return CALL_STATUS.NEW;
+}
+
+function taskTypeLabel(rawType) {
+  const key = String(rawType || '').trim();
+  return MANUAL_TASK_TYPE_OPTIONS[key] || key || 'Allgemeine Aufgabe';
+}
+
+function resolveTaskDueAt(fields) {
+  if (!fields) return '';
+  return fields.due_at || resolveFollowUpAt(fields) || '';
+}
+
+function isManualTaskRecord(record) {
+  const f = (record && record.fields) || {};
+  return f.task_source === 'manual';
+}
+
+function mapCaseToTaskRecord(row) {
+  const taskId = String(row.id || '');
+  return {
+    id: 'case:' + taskId,
+    fields: {
+      ...row,
+      task_source: 'manual',
+      task_entity_id: taskId,
+      caller_name: row.title || 'Manuelle Aufgabe',
+      call_summary: row.note || '',
+      notes_customer_voxera: row.note || '',
+      category: taskTypeLabel(row.type),
+      caller_phone: row.phone || '',
+      phone_number: row.phone || '',
+      follow_up_at: row.due_at || '',
+      callback_requested: String(row.type || '') === 'callback',
+      dashboard_status: mapCaseStatusToDashboardStatus(row.status),
+      next_action: taskTypeLabel(row.type)
+    }
+  };
 }
 
 function getOpenCallbackSortTime(record) {
@@ -3621,6 +3758,53 @@ async function loadCallRecords(customerIdRaw) {
   return (data || []).map(toDashboardRecord);
 }
 
+async function loadManualTaskRecords(customerIdRaw) {
+  const customerId = (customerIdRaw || '').trim();
+  if (!_sb || !customerId) return [];
+  const { data, error } = await _sb
+    .from(CASES_TABLE)
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return (data || []).map(mapCaseToTaskRecord);
+}
+
+async function createManualTask(payload) {
+  const context = await resolveCustomerContext();
+  const customerId = (context && context.customerId ? String(context.customerId) : '').trim();
+  if (!_sb || !customerId) throw new Error('Kundenkontext fehlt.');
+  const insertPayload = {
+    customer_id: customerId,
+    title: payload.title,
+    note: payload.note || null,
+    status: payload.status || 'open',
+    priority: payload.priority || null,
+    type: payload.type || 'general',
+    due_at: payload.due_at,
+    phone: payload.phone || null
+  };
+  const { data, error } = await _sb.from(CASES_TABLE).insert(insertPayload).select('*').single();
+  if (error) throw error;
+  return mapCaseToTaskRecord(data);
+}
+
+async function updateManualTaskStatus(recordId, targetStatus) {
+  const rec = allManualTaskRecords.find(function(item) { return String(item.id) === String(recordId); });
+  if (!rec) throw new Error('Aufgabe nicht gefunden.');
+  const entityId = String((rec.fields && rec.fields.task_entity_id) || '').trim();
+  if (!entityId) throw new Error('Ungültige Aufgaben-ID.');
+  const { data, error } = await _sb
+    .from(CASES_TABLE)
+    .update({ status: targetStatus, updated_at: new Date().toISOString() })
+    .eq('id', entityId)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return mapCaseToTaskRecord(data);
+}
+
 async function callDashboardFunction(name, payload) {
   const sb = getSupabaseAuthClient();
   if (!sb) throw new Error('Supabase auth client missing');
@@ -3763,7 +3947,7 @@ const CALL_STATUS = Object.freeze({
   CLOSED: 'closed'
 });
 const CALL_STATUS_LABELS = Object.freeze({
-  [CALL_STATUS.NEW]: 'Neu',
+  [CALL_STATUS.NEW]: 'Offen',
   [CALL_STATUS.IN_PROGRESS]: 'In Bearbeitung',
   [CALL_STATUS.FOLLOW_UP_SCHEDULED]: 'In Bearbeitung',
   [CALL_STATUS.CLOSED]: 'Abgeschlossen'
@@ -3838,7 +4022,7 @@ function getDashboardBucketForCall(record) {
 
 function getTaskPriorityBucket(record) {
   const f = (record && record.fields) || {};
-  const followUpDate = parseFollowUpDate(resolveFollowUpAt(f));
+  const followUpDate = parseFollowUpDate(resolveTaskDueAt(f));
   if (!followUpDate || Number.isNaN(followUpDate.getTime())) return 3;
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -3871,9 +4055,12 @@ function getUnifiedOpenTasks(records) {
     const aBucket = getTaskPriorityBucket(a);
     const bBucket = getTaskPriorityBucket(b);
     if (aBucket !== bBucket) return aBucket - bBucket;
+    const aUrgent = getPriority(a).key === 'urgent' ? 0 : 1;
+    const bUrgent = getPriority(b).key === 'urgent' ? 0 : 1;
+    if (aUrgent !== bUrgent) return aUrgent - bUrgent;
     if (aBucket <= 2) {
-      const aDue = parseFollowUpDate(resolveFollowUpAt((a && a.fields) || {}));
-      const bDue = parseFollowUpDate(resolveFollowUpAt((b && b.fields) || {}));
+      const aDue = parseFollowUpDate(resolveTaskDueAt((a && a.fields) || {}));
+      const bDue = parseFollowUpDate(resolveTaskDueAt((b && b.fields) || {}));
       const aTs = aDue && !Number.isNaN(aDue.getTime()) ? aDue.getTime() : Number.MAX_SAFE_INTEGER;
       const bTs = bDue && !Number.isNaN(bDue.getTime()) ? bDue.getTime() : Number.MAX_SAFE_INTEGER;
       if (aTs !== bTs) return aTs - bTs;
@@ -3932,13 +4119,19 @@ function statusChip(s) {
   const n = normalizeStatus(s);
   if (n === CALL_STATUS.CLOSED) return '<span class="chip chip-workflow-closed">Abgeschlossen</span>';
   if (n === CALL_STATUS.IN_PROGRESS || n === CALL_STATUS.FOLLOW_UP_SCHEDULED) return '<span class="chip chip-workflow-progress">In Bearbeitung</span>';
-  return '<span class="chip chip-workflow-neu">Neu</span>';
+  return '<span class="chip chip-workflow-neu">Offen</span>';
 }
 
 function getPriority(record) {
   const f = (record && record.fields) || {};
+  if (isManualTaskRecord(record)) {
+    const manualPriority = String(f.priority || '').trim().toLowerCase();
+    if (manualPriority === 'urgent' || manualPriority === 'high') {
+      return { key: 'urgent', label: 'Dringend' };
+    }
+  }
   const now = new Date();
-  const followUp = parseFollowUpDate(f.follow_up_at);
+  const followUp = parseFollowUpDate(resolveTaskDueAt(f));
   const isHot = qualKey(f.lead_quality) === 'hot';
   const isUrgentFollowUp = followUp && !Number.isNaN(followUp.getTime()) && (followUp < now || isToday(f.follow_up_at));
   const urgent = isHot || isUrgentFollowUp;
@@ -4640,9 +4833,9 @@ function flagIncomingRecords(records) {
 
   setTimeout(() => {
     newIds.forEach(id => recentIncomingIds.delete(id));
-    renderDashboard(allRecords);
+    renderDashboard(allRecords, allManualTaskRecords);
     renderAnrufe(allRecords);
-    renderRueckrufe(allRecords);
+    renderRueckrufe(allRecords, allManualTaskRecords);
     renderArchiv(allRecords);
   }, 18000);
 }
@@ -4677,9 +4870,11 @@ async function loadData() {
     // ─── END ACCESS GUARD ────────────────────────────────────────────────
 
     const records = await loadCallRecords(context.customerId || '');
+    const manualTasks = await loadManualTaskRecords(context.customerId || '');
 
     flagIncomingRecords(records);
     allRecords = records;
+    allManualTaskRecords = manualTasks;
 
     const h = new Date().getHours();
     const greet = h<12 ? 'Guten Morgen' : h<18 ? 'Guten Tag' : 'Guten Abend';
@@ -4690,9 +4885,9 @@ async function loadData() {
       titleEl.dataset.custom = '1';
     }
 
-    renderDashboard(records);
+    renderDashboard(records, manualTasks);
     renderAnrufe(records);
-    renderRueckrufe(records);
+    renderRueckrufe(records, manualTasks);
     renderArchiv(records);
     applyContractAccessStateToUI();
     updateLastUpdatedLabel();
@@ -4792,9 +4987,13 @@ function updateSoundToggleUI(isOff) {
 // ═══════════════════════════════════════════
 //  RENDER DASHBOARD
 // ═══════════════════════════════════════════
-function renderDashboard(records) {
+function renderDashboard(records, manualTasks) {
   var buckets = deriveDashboardCallBuckets(records || []);
-  var unifiedTasks = getUnifiedOpenTasks(records || []);
+  var autoTasks = getUnifiedOpenTasks(records || []);
+  var manualOpenTasks = (manualTasks || allManualTaskRecords || []).filter(function(r) {
+    return !isClosedStatus((r.fields || {}).dashboard_status);
+  });
+  var unifiedTasks = getUnifiedOpenTasks([].concat(autoTasks, manualOpenTasks));
   var doneToday = (records || []).filter(function(r) {
     return isClosedStatus(r.fields && r.fields.dashboard_status) && isToday(getRecordTimestamp(r));
   });
@@ -4857,9 +5056,9 @@ function renderDashboard(records) {
     var dueToday = offen.filter(function(r){ return getTaskPriorityBucket(r) === 1; }).length;
     var upcoming = offen.filter(function(r){ return getTaskPriorityBucket(r) === 2; }).length;
     var nextFollowUp = offen.find(function(r){
-      return !!resolveFollowUpAt((r && r.fields) || {});
+      return !!resolveTaskDueAt((r && r.fields) || {});
     });
-    var nextFollowUpLabel = nextFollowUp ? fmtFollowUpDateTime(resolveFollowUpAt(nextFollowUp.fields || {})) : '';
+    var nextFollowUpLabel = nextFollowUp ? fmtFollowUpDateTime(resolveTaskDueAt(nextFollowUp.fields || {})) : '';
     if (offen.length > 0 && nextFollowUpLabel) {
       focusHintEl.textContent = 'Nächster Rückruf';
       focusTextEl.textContent = 'Offene Aufgaben: ' + offen.length + ' · Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Nächster Rückruf: ' + nextFollowUpLabel;
@@ -4877,11 +5076,11 @@ function renderDashboard(records) {
   var kpiLeadsLabel = document.getElementById('kpi-leads-label');
   var kpiLeadsNote = document.getElementById('kpi-leads-note');
   var openTasksWithDueDate = offen.filter(function(r){
-    var due = parseFollowUpDate(resolveFollowUpAt((r && r.fields) || {}));
+    var due = parseFollowUpDate(resolveTaskDueAt((r && r.fields) || {}));
     return !!(due && !Number.isNaN(due.getTime()));
   });
   var overdueCount = openTasksWithDueDate.filter(function(r){ return getTaskPriorityBucket(r) === 0; }).length;
-  var inProgressCount = (records || []).filter(function(r){
+  var inProgressCount = [].concat(records || [], manualTasks || allManualTaskRecords || []).filter(function(r){
     var fields = (r && r.fields) || {};
     if (isClosedStatus(fields.dashboard_status)) return false;
     return normalizeStatus(fields.dashboard_status) === CALL_STATUS.IN_PROGRESS;
@@ -5003,7 +5202,23 @@ function handleDashboardActivationPrimaryCta(event){
 
 function markCbDone(recordId) {
   const row = document.getElementById('cb-row-' + recordId);
-  confirmClose(recordId, CALL_STATUS.CLOSED, row);
+  confirmTaskDone(recordId, row);
+}
+
+function confirmTaskDone(recordId, rowElement) {
+  const manual = String(recordId || '').startsWith('case:');
+  openConfirmModal({
+    title: manual ? 'Aufgabe als abgeschlossen markieren?' : 'Anruf als erledigt markieren?',
+    text: manual
+      ? 'Diese Aufgabe wird als abgeschlossen markiert und aus der offenen Liste entfernt.'
+      : 'Dieser Eintrag wird aus den offenen Listen entfernt und ins Archiv verschoben.',
+    confirmLabel: 'Ja, erledigen',
+    loadingLabel: 'Speichere...',
+    tone: 'primary',
+    onConfirm: async function() {
+      return await doStatusChange(recordId, CALL_STATUS.CLOSED, rowElement || null);
+    }
+  });
 }
 
 function renderFollowups(records) {
@@ -5123,7 +5338,7 @@ function renderList(containerId, records, opts) {
     const incoming = recentIncomingIds.has(r.id);
     const priority = getPriority(r);
     // Follow-up meta line (action/date/time) in short unified format
-    const followUpAt = resolveFollowUpAt(f);
+    const followUpAt = resolveTaskDueAt(f);
     const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
     const taskDueBucket = getTaskPriorityBucket(r);
     var taskDueLabel = '';
@@ -5132,7 +5347,7 @@ function renderList(containerId, records, opts) {
       if (taskDueBucket === 0) { taskDueLabel = 'Überfällig'; taskDueClass = 'overdue'; }
       else if (taskDueBucket === 1) { taskDueLabel = 'Heute fällig'; taskDueClass = 'today'; }
       else if (taskDueBucket === 2) { taskDueLabel = 'Geplant'; taskDueClass = 'planned'; }
-      else { taskDueLabel = 'Offe Aufgabe'; taskDueClass = 'open'; }
+      else { taskDueLabel = 'Offene Aufgabe'; taskDueClass = 'open'; }
     }
     const closedAt = resolveClosedAt(f);
     const callDateTime = fmtHumanDateTime(getRecordTimestamp(r)) || fmtExactDateTime(getRecordTimestamp(r));
@@ -5163,9 +5378,9 @@ function renderList(containerId, records, opts) {
         ${done && closedAt ? `<div class="followup-meta-line">Abgeschlossen am ${escHtml(fmtExactDateTime(closedAt) || fmtDate(closedAt))}</div>` : ''}
         ${notizText && !opts.dashboardView?`<div class="call-notiz">${escHtml(notizText)}</div>`:''}
         ${showActions && !done?`<div class="call-actions">
-          <button class="btn-a btn-note" onclick="event.stopPropagation();openFollowupDirect('${r.id}')" title="Follow-up setzen">Follow-up setzen</button>
+          <button class="btn-a btn-note" onclick="event.stopPropagation();${isManualTaskRecord(r) ? `openDetail('${r.id}')` : `openFollowupDirect('${r.id}')`}" title="${isManualTaskRecord(r) ? 'Details öffnen' : 'Follow-up setzen'}">${isManualTaskRecord(r) ? 'Details' : 'Follow-up setzen'}</button>
           <button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')" title="Details öffnen">Details</button>
-          <button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="event.stopPropagation();openNotizFromBtn(this)" title="Notiz bearbeiten">Notiz</button>
+          ${isManualTaskRecord(r) ? '' : `<button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="event.stopPropagation();openNotizFromBtn(this)" title="Notiz bearbeiten">Notiz</button>`}
         </div>`:''}
         ${showActions && done?`<div class="call-actions">
           <button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')">Details</button>
@@ -5175,7 +5390,7 @@ function renderList(containerId, records, opts) {
         ${callTarget?`<button class="btn-icon btn-icon-call" onclick="event.stopPropagation();directCall('${r.id}','${encodeURIComponent(callTarget)}')" title="Anrufen">
           <i data-lucide="phone-call" style="width:16px;height:16px;color:#fff;stroke-width:2.6;" aria-hidden="true"></i>
         </button>`:''}
-        <button class="btn-icon btn-icon-done" onclick="event.stopPropagation();confirmClose('${r.id}','${CALL_STATUS.CLOSED}',this.closest('.call-row, .cb-row'))" title="Erledigt">
+        <button class="btn-icon btn-icon-done" onclick="event.stopPropagation();confirmTaskDone('${r.id}',this.closest('.call-row, .cb-row'))" title="Erledigt">
           <i data-lucide="check" style="width:16px;height:16px;stroke-width:2.2;" aria-hidden="true"></i>
         </button>
       </div>`:''}
@@ -5195,8 +5410,12 @@ function renderAnrufe(records) {
   renderList('anrufe-list', openOnly, {showActions:true});
 }
 
-function renderRueckrufe(records) {
-  const unifiedTasks = getUnifiedOpenTasks(records || []);
+function renderRueckrufe(records, manualTasks) {
+  const autoTasks = getUnifiedOpenTasks(records || []);
+  const manualOpenTasks = (manualTasks || allManualTaskRecords || []).filter(function(r) {
+    return !isClosedStatus((r.fields || {}).dashboard_status);
+  });
+  const unifiedTasks = getUnifiedOpenTasks([].concat(autoTasks, manualOpenTasks));
   renderList('rueckrufe-list', unifiedTasks, {showActions:true, primaryCallback:true, skipSort:true});
 }
 
@@ -5405,10 +5624,14 @@ async function runConfirmModalAction() {
 }
 
 function confirmClose(recordId, newStatus, rowElement) {
+  if (normalizeStatus(newStatus) === CALL_STATUS.CLOSED) {
+    confirmTaskDone(recordId, rowElement);
+    return;
+  }
   openConfirmModal({
-    title: 'Anruf als erledigt markieren?',
-    text: 'Dieser Eintrag wird aus den offenen Listen entfernt und ins Archiv verschoben.',
-    confirmLabel: 'Ja, erledigen',
+    title: 'Status aktualisieren?',
+    text: 'Der Status dieses Eintrags wird aktualisiert.',
+    confirmLabel: 'Speichern',
     loadingLabel: 'Speichere...',
     tone: 'primary',
     onConfirm: async function() {
@@ -5423,16 +5646,22 @@ function confirmCloseWithDropdownPreservation(recordId, newStatus, rowElement) {
 }
 
 async function doStatusChange(recordId, newStatus, rowElement) {
+  if (isContractRestrictedState()) {
+    toast(getRestrictedContractMessage('Aufgaben'), 'warning');
+    return false;
+  }
   const normalizedStatus = normalizeStatus(newStatus);
+  const isManualTask = String(recordId || '').startsWith('case:');
   const row = rowElement || null;
-  const cached = allRecords.find(r => String(r.id) === String(recordId));
+  const sourceRecords = isManualTask ? allManualTaskRecords : allRecords;
+  const cached = sourceRecords.find(r => String(r.id) === String(recordId));
   const currentStatus = normalizeStatus(cached && cached.fields ? cached.fields.dashboard_status : CALL_STATUS.NEW);
 
   if (currentStatus === normalizedStatus) {
     if (cached && cached.fields) cached.fields.dashboard_status = normalizedStatus;
-    renderDashboard(allRecords);
+    renderDashboard(allRecords, allManualTaskRecords);
     renderAnrufe(allRecords);
-    renderRueckrufe(allRecords);
+    renderRueckrufe(allRecords, allManualTaskRecords);
     renderArchiv(allRecords);
     toast('Status bereits gesetzt');
     return true;
@@ -5455,7 +5684,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     const topRow = row.querySelector('.call-top');
     if (topRow) {
       topRow.querySelectorAll('.chip').forEach(c => c.remove());
-      const original = allRecords.find(r => String(r.id) === String(recordId));
+      const original = sourceRecords.find(r => String(r.id) === String(recordId));
       if (original && original.fields) {
         original.fields.dashboard_status = normalizedStatus;
         topRow.insertAdjacentHTML('beforeend', callCardBadgeHtml(original));
@@ -5470,14 +5699,21 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     [CALL_STATUS.CLOSED]:'Abgeschlossen'
   };
   try {
-    await applyStatusTransition(recordId, currentStatus, normalizedStatus);
-    if (cached && cached.fields) {
-      cached.fields.dashboard_status = normalizedStatus;
-      if (isClosedStatus(normalizedStatus)) cached.fields.follow_up_at = null;
+    if (isManualTask) {
+      const caseStatus = normalizedStatus === CALL_STATUS.CLOSED ? 'done' : normalizedStatus === CALL_STATUS.IN_PROGRESS ? 'in_progress' : 'open';
+      const updated = await updateManualTaskStatus(recordId, caseStatus);
+      const idx = allManualTaskRecords.findIndex(function(r) { return String(r.id) === String(recordId); });
+      if (idx >= 0) allManualTaskRecords[idx] = updated;
+    } else {
+      await applyStatusTransition(recordId, currentStatus, normalizedStatus);
+      if (cached && cached.fields) {
+        cached.fields.dashboard_status = normalizedStatus;
+        if (isClosedStatus(normalizedStatus)) cached.fields.follow_up_at = null;
+      }
     }
-    renderDashboard(allRecords);
+    renderDashboard(allRecords, allManualTaskRecords);
     renderAnrufe(allRecords);
-    renderRueckrufe(allRecords);
+    renderRueckrufe(allRecords, allManualTaskRecords);
     renderArchiv(allRecords);
     toast(icons[normalizedStatus] || 'Status aktualisiert');
     return true;
@@ -5640,12 +5876,83 @@ async function safeLoadData() {
   }
 }
 
+function openManualTaskModal() {
+  if (isContractRestrictedState()) {
+    toast(getRestrictedContractMessage('Neue Aufgaben'), 'warning');
+    return;
+  }
+  const todayIso = new Date().toISOString().slice(0, 10);
+  document.getElementById('manual-task-title').value = '';
+  document.getElementById('manual-task-type').value = 'callback';
+  document.getElementById('manual-task-due').value = todayIso;
+  document.getElementById('manual-task-status').value = 'open';
+  document.getElementById('manual-task-priority').value = '';
+  document.getElementById('manual-task-note').value = '';
+  document.getElementById('manual-task-phone').value = '';
+  const saveBtn = document.getElementById('manual-task-save-btn');
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Aufgabe erstellen';
+  }
+  document.getElementById('manual-task-overlay').classList.add('open');
+  syncOverlayScrollLock();
+}
+
+function closeManualTaskModal() {
+  document.getElementById('manual-task-overlay').classList.remove('open');
+  syncOverlayScrollLock();
+}
+
+async function saveManualTask() {
+  if (isContractRestrictedState()) {
+    toast(getRestrictedContractMessage('Aufgaben'), 'warning');
+    return;
+  }
+  const title = String(document.getElementById('manual-task-title').value || '').trim();
+  const type = String(document.getElementById('manual-task-type').value || '').trim();
+  const dueAt = String(document.getElementById('manual-task-due').value || '').trim();
+  const status = String(document.getElementById('manual-task-status').value || 'open').trim();
+  const priority = String(document.getElementById('manual-task-priority').value || '').trim();
+  const note = String(document.getElementById('manual-task-note').value || '').trim();
+  const phone = String(document.getElementById('manual-task-phone').value || '').trim();
+  if (!title || !type || !dueAt) {
+    toast('Bitte Titel, Typ und Fälligkeitsdatum ausfüllen.');
+    return;
+  }
+  const btn = document.getElementById('manual-task-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Speichert...';
+  try {
+    const createdTask = await createManualTask({
+      title: title,
+      type: type,
+      due_at: dueAt,
+      status: status,
+      priority: priority || null,
+      note: note || null,
+      phone: phone || null
+    });
+    allManualTaskRecords.unshift(createdTask);
+    renderDashboard(allRecords, allManualTaskRecords);
+    renderRueckrufe(allRecords, allManualTaskRecords);
+    closeManualTaskModal();
+    toast('Aufgabe erstellt');
+  } catch (e) {
+    const msg = (e && (e.message || (e.payload && e.payload.error))) || 'Aufgabe konnte nicht gespeichert werden.';
+    toast(String(msg));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Aufgabe erstellen';
+  }
+}
+
 
 function escHtml(v){ return String(v||'').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 function openDetail(recordId) {
-  const rec = allRecords.find(r => r.id === recordId);
+  const rec = allRecords.find(r => r.id === recordId) || allManualTaskRecords.find(r => r.id === recordId);
   if (!rec) return;
   const f = rec.fields || {};
+  const isManual = isManualTaskRecord(rec);
   const phone = (f.phone_number || f.caller_phone || '').trim();
   const tel = (f.tel_link || (phone ? ('tel:' + phone.replace(/\s/g,'')) : '')).trim();
   const detailMetaParts = [];
@@ -5657,16 +5964,18 @@ function openDetail(recordId) {
     if (!text || isDashLikePlaceholder(text)) return '';
     return '<div class="detail-line"><span>' + escHtml(label) + '</span><span>' + escHtml(text) + '</span></div>';
   };
-  document.getElementById('detail-heading').textContent = getCallDisplayName(f) || 'Call-Detail';
+  document.getElementById('detail-heading').textContent = isManual ? (f.title || 'Aufgabe') : (getCallDisplayName(f) || 'Call-Detail');
   document.getElementById('detail-sub').textContent = detailMetaParts.join(' · ');
+  const infoTitle = isManual ? 'Aufgabe' : 'Zusammenfassung';
+  const infoText = isManual ? (f.note || f.call_summary || 'Keine Notiz vorhanden.') : (f.call_summary || 'Keine Zusammenfassung vorhanden.');
   document.getElementById('detail-content').innerHTML = `
     <div class="detail-layout">
       <div class="detail-zone-info">
         <div class="detail-card">
           <div class="detail-section-title">Informationen</div>
           <div class="detail-status-row">${callCardBadgeHtml(rec, { includeMetaQuality: true })}</div>
-          <div class="detail-title">Zusammenfassung</div>
-          <div class="detail-summary-text">${escHtml(f.call_summary || 'Keine Zusammenfassung vorhanden.')}</div>
+          <div class="detail-title">${escHtml(infoTitle)}</div>
+          <div class="detail-summary-text">${escHtml(infoText)}</div>
           ${f.notes_customer_voxera ? `<div style="margin-top:10px;padding:11px;background:var(--white);border:1px solid var(--gray200);border-radius:10px;font-size:13px;line-height:1.55;color:var(--gray600)"><strong style="color:var(--gray900)">Interne Notiz</strong><br>${escHtml(f.notes_customer_voxera)}</div>` : ''}
         </div>
       </div>
@@ -5674,20 +5983,21 @@ function openDetail(recordId) {
         <div class="detail-card">
           <div class="detail-section-title">Aktionen</div>
           <div class="detail-action-group">
-            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><span class="call-action-icon"><i data-lucide="phone-call" style="width:14px;height:14px;color:#fff;" aria-hidden="true"></i></span>Jetzt zurückrufen</a>` : '<button class="btn-a btn-note" type="button" disabled>Keine Nummer hinterlegt</button>'}
-            <button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up setzen</button>
-            <button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz bearbeiten</button>
+            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><span class="call-action-icon"><i data-lucide="phone-call" style="width:14px;height:14px;color:#fff;" aria-hidden="true"></i></span>Jetzt anrufen</a>` : '<button class="btn-a btn-note" type="button" disabled>Keine Nummer hinterlegt</button>'}
+            ${isManual ? '' : `<button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up setzen</button>`}
+            ${isManual ? '' : `<button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz bearbeiten</button>`}
+            ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn-a btn-note" onclick="closeDetail(); confirmTaskDone('${rec.id}')">Erledigen</button>` : ''}
           </div>
         </div>
         <div class="detail-card">
-          <div class="detail-section-title">Call-Infos</div>
+          <div class="detail-section-title">${isManual ? 'Aufgabeninfos' : 'Call-Infos'}</div>
           ${renderDetailLine('Telefon', phone)}
-          ${renderDetailLine('Kategorie', callCategoryLabel(f.category))}
-          ${renderDetailLine('Lead-Qualität', f.lead_quality || 'Neu')}
+          ${renderDetailLine('Kategorie', isManual ? taskTypeLabel(f.type) : callCategoryLabel(f.category))}
+          ${isManual ? '' : renderDetailLine('Lead-Qualität', f.lead_quality || 'Neu')}
           ${renderDetailLine('Status', statusLabel(f.dashboard_status))}
           ${renderDetailLine('Rückruf', f.callback_requested ? 'Ja' : 'Nein')}
           ${renderDetailLine('Nächste Aktion', f.next_action || '')}
-          ${renderDetailLine('Follow-up', f.follow_up_at ? fmtFollowUpDateTime(f.follow_up_at) : '')}
+          ${renderDetailLine('Fällig am', resolveTaskDueAt(f) ? fmtFollowUpDateTime(resolveTaskDueAt(f)) : '')}
           ${renderDetailLine('Erfasst', fmtDate(getRecordTimestamp(rec)))}
         </div>
       </div>
