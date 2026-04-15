@@ -21,7 +21,7 @@ function isMissingManualTasksSchema(error) {
   const details = String(error?.details || '').toLowerCase();
   const hint = String(error?.hint || '').toLowerCase();
   const combined = `${message} ${details} ${hint}`;
-  const columnMentioned = /due_at|phone/.test(combined);
+  const columnMentioned = /title|note|due_at|phone/.test(combined);
   const relationMentioned = /\bcases\b/.test(combined);
   const schemaIssue = /schema cache|column|does not exist|could not find/.test(combined);
   return columnMentioned && relationMentioned && schemaIssue;
