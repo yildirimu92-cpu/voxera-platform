@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { evaluateCustomerEntitlement } = require('./customer-entitlement');
+const { deriveContractState } = require('./contract-state');
 
 function parseBearerToken(headers) {
   const authHeader = headers.authorization || headers.Authorization || '';
@@ -49,27 +50,27 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, require
     });
   }
 
-  if (requireActiveContract) {
-    const { data: contractRows, error: contractError } = await sbAdmin
-      .from('contracts')
-      .select('id, status')
-      .eq('customer_id', customerId)
-      .limit(20);
-    if (contractError) return fail(500, 'Contract lookup failed', contractError.message);
-    const hasActiveContract = (Array.isArray(contractRows) ? contractRows : [])
-      .some((ct) => ['active', 'signed'].includes(String(ct?.status || '').trim().toLowerCase()));
-    if (!hasActiveContract) {
-      return fail(403, 'Customer entitlement denied', {
-        reason: 'contract_inactive',
-        message: 'Zugriff gesperrt: Kein aktiver Vertrag vorhanden.'
-      });
-    }
+  const { data: contractRows, error: contractError } = await sbAdmin
+    .from('contracts')
+    .select('*')
+    .eq('customer_id', customerId)
+    .limit(50);
+  if (contractError) return fail(500, 'Contract lookup failed', contractError.message);
+
+  const contractState = deriveContractState(contractRows || []);
+  if (requireActiveContract && !contractState.hasActiveContract) {
+    return fail(403, 'Customer entitlement denied', {
+      reason: 'contract_inactive',
+      message: 'Zugriff gesperrt: Kein aktiver Vertrag vorhanden.',
+      contract_status: contractState.status
+    });
   }
 
   return {
     ok: true,
     userId,
-    customerId
+    customerId,
+    contractState
   };
 }
 
