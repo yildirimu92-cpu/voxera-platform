@@ -23,6 +23,12 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function logStatusUpdate(stage, payload) {
+  try {
+    console.log('[cases-update][manual-task-status]', stage, JSON.stringify(payload || {}));
+  } catch (_e) {}
+}
+
 const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'priority', 'type', 'due_at', 'due_time', 'phone']);
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
@@ -31,9 +37,9 @@ const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte 
 const MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE = 'Die Uhrzeit kann aktuell noch nicht gespeichert werden, da die Datenbankspalte due_time in dieser Umgebung fehlt. Bitte speichern Sie vorerst ohne Uhrzeit.';
 
 const CASE_TRANSITIONS = {
-  open: new Set(['in_progress']),
+  open: new Set(['in_progress', 'done']),
   in_progress: new Set(['waiting', 'done']),
-  waiting: new Set(['in_progress']),
+  waiting: new Set(['in_progress', 'done']),
   done: new Set([])
 };
 
@@ -115,11 +121,26 @@ exports.handler = async (event) => {
   const requestedUpdates = updates || { [field]: value };
 
   if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'status')) {
+    const rawCurrent = current.status || 'open';
+    const rawRequested = requestedUpdates.status;
     const fromStatus = mapManualTaskUiStatusToDb(current.status || 'open');
     const toStatus = mapManualTaskUiStatusToDb(requestedUpdates.status);
+    logStatusUpdate('mapped', {
+      case_id: caseId,
+      raw_current_status: rawCurrent,
+      raw_requested_status: rawRequested,
+      mapped_from_status: fromStatus,
+      mapped_to_status: toStatus
+    });
     try {
       assertCaseTransition(fromStatus, toStatus);
     } catch (e) {
+      logStatusUpdate('transition_blocked', {
+        case_id: caseId,
+        from_status: fromStatus,
+        to_status: toStatus,
+        error: String(e && e.message || '')
+      });
       return response(409, { error: e.message, from_status: fromStatus, to_status: toStatus });
     }
     updatePayload.status = toStatus;
@@ -176,6 +197,15 @@ exports.handler = async (event) => {
     .single();
 
   if (error) {
+    if (Object.prototype.hasOwnProperty.call(updatePayload, 'status')) {
+      logStatusUpdate('db_error', {
+        case_id: caseId,
+        update_status: updatePayload.status,
+        message: String(error?.message || ''),
+        details: String(error?.details || ''),
+        hint: String(error?.hint || '')
+      });
+    }
     if (isPriorityConstraintError(error)) {
       return response(400, { error: MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, code: 'cases_priority_invalid' });
     }
@@ -201,5 +231,11 @@ exports.handler = async (event) => {
     return response(500, { error: 'Case konnte nicht aktualisiert werden.', details: error.message });
   }
 
+  if (Object.prototype.hasOwnProperty.call(updatePayload, 'status')) {
+    logStatusUpdate('db_success', {
+      case_id: caseId,
+      persisted_status: data && data.status ? data.status : null
+    });
+  }
   return response(200, { success: true, case: data });
 };

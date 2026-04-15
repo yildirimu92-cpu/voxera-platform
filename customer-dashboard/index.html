@@ -3487,6 +3487,12 @@ function getRestrictedContractMessage(scopeLabel) {
   return scope + ' ist ohne aktiven Vertrag nicht verfügbar.';
 }
 
+function logManualTaskDoneFlow(stage, payload) {
+  try {
+    console.info('[manual-task-done-flow]', stage, payload || {});
+  } catch (_e) {}
+}
+
 function applyContractAccessStateToUI() {
   var restricted = isContractRestrictedState();
   var contractStatusLabel = getContractStatusLabel(customerContractState && customerContractState.status);
@@ -3917,26 +3923,37 @@ function isManualTaskStatusConstraintError(raw) {
 }
 
 function isManualTaskContractInactiveError(error) {
+  const statusCode = Number(error?.status || error?.payload?.statusCode || error?.payload?.status || 0) || 0;
   const payloadReason = String(error?.payload?.details?.reason || error?.payload?.reason || '').toLowerCase();
   const payloadEntitlement = String(error?.payload?.entitlement_code || '').toLowerCase();
   const payloadCode = String(error?.payload?.code || '').toLowerCase();
-  return Boolean(
-    error
-    && [403, 409].includes(Number(error.status))
+  const topLevelCode = String(error?.code || '').toLowerCase();
+  const topLevelReason = String(error?.reason || '').toLowerCase();
+  const topLevelEntitlement = String(error?.entitlement_code || '').toLowerCase();
+  return Boolean(error
+    && [403, 409].includes(statusCode)
     && (
-      String(error.reason || '').toLowerCase() === 'contract_inactive'
-      || String(error.entitlement_code || '').toLowerCase() === 'contract_inactive'
-      || payloadReason === 'contract_inactive'
-      || payloadEntitlement === 'contract_inactive'
-      || payloadCode === 'guard_contract_inactive'
-    )
-  );
+      payloadCode === 'guard_contract_inactive'
+      || topLevelCode === 'guard_contract_inactive'
+      || (payloadReason === 'contract_inactive' && payloadCode.startsWith('guard_'))
+      || (topLevelReason === 'contract_inactive' && topLevelCode.startsWith('guard_'))
+      || (payloadEntitlement === 'contract_inactive' && payloadCode.startsWith('guard_'))
+      || (topLevelEntitlement === 'contract_inactive' && topLevelCode.startsWith('guard_'))
+    ));
 }
 
 function toManualTaskUserMessage(error, fallbackMessage) {
-  if (isManualTaskContractInactiveError(error)) return getRestrictedContractMessage('Aufgaben');
+  if (isManualTaskContractInactiveError(error)) {
+    logManualTaskDoneFlow('toast-resolver.contract-inactive', {
+      status: Number(error?.status || error?.payload?.statusCode || error?.payload?.status || 0) || 0,
+      code: String(error?.payload?.code || error?.code || ''),
+      reason: String(error?.payload?.details?.reason || error?.payload?.reason || error?.reason || '')
+    });
+    return getRestrictedContractMessage('Aufgaben');
+  }
   const dueTimeMissingMigration = String(error?.payload?.details?.fallback_hint || '') === 'cases_due_time_missing_migration';
   if (dueTimeMissingMigration) {
+    logManualTaskDoneFlow('toast-resolver.due-time-migration', {});
     return 'Uhrzeit konnte noch nicht gespeichert werden, da die Datenbank-Migration in dieser Umgebung noch nicht ausgerollt ist.';
   }
   const raw = String(
@@ -3946,6 +3963,11 @@ function toManualTaskUserMessage(error, fallbackMessage) {
     || (error?.payload && (error.payload.details || error.payload.error))
     || ''
   );
+  logManualTaskDoneFlow('toast-resolver.generic', {
+    status: Number(error?.status || error?.payload?.statusCode || error?.payload?.status || 0) || 0,
+    code: String(error?.payload?.code || error?.code || ''),
+    raw
+  });
   if (isMissingManualTasksDbExtensionError(raw)) return MANUAL_TASKS_DB_EXTENSION_MESSAGE;
   if (isManualTaskPriorityConstraintError(raw)) return MANUAL_TASKS_PRIORITY_INVALID_MESSAGE;
   if (isManualTaskStatusConstraintError(raw)) return MANUAL_TASKS_STATUS_INVALID_MESSAGE;
@@ -3986,10 +4008,41 @@ async function updateManualTaskStatus(recordId, targetStatus) {
   const entityId = String((rec.fields && rec.fields.task_entity_id) || '').trim();
   if (!entityId) throw new Error('Ungültige Aufgaben-ID.');
   const canonicalStatus = mapManualTaskStatusUiToDb(targetStatus || 'open');
-  const json = await callDashboardFunction('cases-update', {
+  const requestPayload = {
     case_id: entityId,
     field: 'status',
     value: canonicalStatus
+  };
+  logManualTaskDoneFlow('cases-update.request', {
+    handler: 'updateManualTaskStatus',
+    recordId: String(recordId),
+    entityId,
+    targetStatus: String(targetStatus || ''),
+    canonicalStatus,
+    requestPayload
+  });
+  let json;
+  try {
+    json = await callDashboardFunction('cases-update', requestPayload);
+  } catch (err) {
+    logManualTaskDoneFlow('cases-update.error', {
+      handler: 'updateManualTaskStatus',
+      recordId: String(recordId),
+      entityId,
+      canonicalStatus,
+      responseStatus: Number(err?.status || err?.payload?.statusCode || err?.payload?.status || 0) || 0,
+      responsePayload: err?.payload || null,
+      message: String(err?.message || '')
+    });
+    throw err;
+  }
+  logManualTaskDoneFlow('cases-update.response', {
+    handler: 'updateManualTaskStatus',
+    recordId: String(recordId),
+    entityId,
+    canonicalStatus,
+    success: !!(json && json.success === true && json.case),
+    returnedStatus: String((json && json.case && json.case.status) || '')
   });
   if (!json || json.success !== true || !json.case) {
     const err = new Error((json && json.error) || 'Status konnte nicht gespeichert werden.');
@@ -5447,11 +5500,16 @@ function handleDashboardActivationPrimaryCta(event){
 
 function markCbDone(recordId) {
   const row = document.getElementById('cb-row-' + recordId);
-  confirmTaskDone(recordId, row);
+  confirmTaskDone(recordId, row, 'legacy-cb-row');
 }
 
-function confirmTaskDone(recordId, rowElement) {
+function confirmTaskDone(recordId, rowElement, triggerSource) {
   const manual = String(recordId || '').startsWith('case:');
+  logManualTaskDoneFlow('confirm.open', {
+    triggerSource: triggerSource || 'unknown',
+    recordId: String(recordId || ''),
+    isManualTask: manual
+  });
   openConfirmModal({
     title: manual ? 'Aufgabe als abgeschlossen markieren?' : 'Anruf als erledigt markieren?',
     text: manual
@@ -5635,7 +5693,7 @@ function renderList(containerId, records, opts) {
         ${callTarget?`<button class="btn-icon btn-icon-call" onclick="event.stopPropagation();directCall('${r.id}','${encodeURIComponent(callTarget)}')" title="Anrufen">
           <i data-lucide="phone-call" style="width:16px;height:16px;color:#fff;stroke-width:2.6;" aria-hidden="true"></i>
         </button>`:''}
-        <button class="btn-icon btn-icon-done" onclick="event.stopPropagation();confirmTaskDone('${r.id}',this.closest('.call-row, .cb-row'))" title="Erledigt">
+        <button class="btn-icon btn-icon-done" onclick="event.stopPropagation();confirmTaskDone('${r.id}',this.closest('.call-row, .cb-row'),'list-quick-action')" title="Erledigt">
           <i data-lucide="check" style="width:16px;height:16px;stroke-width:2.2;" aria-hidden="true"></i>
         </button>
       </div>`:''}
@@ -5851,6 +5909,7 @@ async function runConfirmModalAction() {
   }
   confirmModalBusy = true;
   try {
+    logManualTaskDoneFlow('confirm.submit', { hasAction: true });
     const result = await fn();
     if (result !== false) {
       confirmModalBusy = false;
@@ -5869,7 +5928,7 @@ async function runConfirmModalAction() {
 
 function confirmClose(recordId, newStatus, rowElement) {
   if (normalizeStatus(newStatus) === CALL_STATUS.CLOSED) {
-    confirmTaskDone(recordId, rowElement);
+    confirmTaskDone(recordId, rowElement, 'status-dropdown');
     return;
   }
   openConfirmModal({
@@ -5890,12 +5949,23 @@ function confirmCloseWithDropdownPreservation(recordId, newStatus, rowElement) {
 }
 
 async function doStatusChange(recordId, newStatus, rowElement) {
-  if (isContractRestrictedState()) {
+  const hasKnownInactiveContract = !!(customerContractState && customerContractState.hasContract && !customerContractState.hasActiveContract);
+  if (hasKnownInactiveContract) {
     toast(getRestrictedContractMessage('Aufgaben'), 'warning');
+    logManualTaskDoneFlow('guard.blocked.contract-inactive', {
+      recordId: String(recordId || ''),
+      contractState: customerContractState
+    });
     return false;
   }
   const normalizedStatus = normalizeStatus(newStatus);
   const isManualTask = String(recordId || '').startsWith('case:');
+  logManualTaskDoneFlow('status-change.start', {
+    recordId: String(recordId || ''),
+    requestedStatus: String(newStatus || ''),
+    normalizedStatus,
+    isManualTask
+  });
   const row = rowElement || null;
   const sourceRecords = isManualTask ? allManualTaskRecords : allRecords;
   const cached = sourceRecords.find(r => String(r.id) === String(recordId));
@@ -5945,6 +6015,11 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   try {
     if (isManualTask) {
       const caseStatus = mapDashboardStatusToManualTaskDbStatus(normalizedStatus);
+      logManualTaskDoneFlow('status-change.manual-mapping', {
+        recordId: String(recordId || ''),
+        normalizedStatus,
+        mappedCaseStatus: caseStatus
+      });
       const updated = await updateManualTaskStatus(recordId, caseStatus);
       const idx = allManualTaskRecords.findIndex(function(r) { return String(r.id) === String(recordId); });
       if (idx >= 0) allManualTaskRecords[idx] = updated;
@@ -6280,7 +6355,7 @@ function openDetail(recordId) {
             ${isManual ? '' : `<button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up setzen</button>`}
             ${isManual ? '' : `<button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz bearbeiten</button>`}
             ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn-a btn-note" onclick="closeDetail(); openManualTaskEditModal('${rec.id}')">Bearbeiten</button>` : ''}
-            ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn-a btn-note" onclick="closeDetail(); confirmTaskDone('${rec.id}')">Erledigen</button>` : ''}
+            ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn-a btn-note" onclick="closeDetail(); confirmTaskDone('${rec.id}', null, 'detail-view-button')">Erledigen</button>` : ''}
           </div>
         </div>
         <div class="detail-card">
