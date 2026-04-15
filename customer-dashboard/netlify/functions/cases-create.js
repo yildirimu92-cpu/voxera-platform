@@ -121,6 +121,36 @@ function sanitizeSupabaseError(error) {
   };
 }
 
+function normalizeDueAtForDb(rawDueAt) {
+  const raw = String(rawDueAt || '').trim();
+  if (!raw) return { ok: false, reason: 'missing' };
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return { ok: true, value: raw };
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return { ok: false, reason: 'invalid' };
+  }
+
+  const dateOnly = parsed.toISOString().slice(0, 10);
+  return { ok: true, value: dateOnly };
+}
+
+function detectLikelyFieldMismatch(error) {
+  const combined = `${String(error?.message || '')} ${String(error?.details || '')} ${String(error?.hint || '')}`.toLowerCase();
+  if (combined.includes('due_at')) return 'due_at';
+  if (combined.includes('priority')) return 'priority';
+  if (combined.includes('status')) return 'status';
+  if (combined.includes('type')) return 'type';
+  if (combined.includes('title')) return 'title';
+  if (combined.includes('note')) return 'note';
+  if (combined.includes('phone')) return 'phone';
+  if (combined.includes('customer_id')) return 'customer_id';
+  return null;
+}
+
 function safeBodyForLog(body) {
   const raw = String(body || '');
   if (raw.length <= 2500) return raw;
@@ -189,10 +219,13 @@ exports.handler = async (event) => {
     const priority = mapPriorityToDb(body.priority);
     const type = normalizeCaseType(body.type || DEFAULT_CASE_TYPE);
 
+    const dueAtDb = normalizeDueAtForDb(dueAt);
+
     log('request.normalized_payload', {
       title,
       note,
-      due_at: dueAt,
+      due_at_input: dueAt,
+      due_at_db: dueAtDb.ok ? dueAtDb.value : null,
       phone,
       status,
       priority,
@@ -202,9 +235,11 @@ exports.handler = async (event) => {
     if (!title) return response(400, errorPayload('Titel fehlt.', 'validation_title_required'));
     if (!dueAt) return response(400, errorPayload('Fälligkeitsdatum fehlt.', 'validation_due_at_required'));
 
-    const dueDate = new Date(dueAt);
-    if (Number.isNaN(dueDate.getTime())) {
-      return response(400, errorPayload('Fälligkeitsdatum ist ungültig.', 'validation_due_at_invalid', { expected: 'ISO-8601 date string' }));
+    if (!dueAtDb.ok) {
+      return response(400, errorPayload('Fälligkeitsdatum ist ungültig.', 'validation_due_at_invalid', {
+        expected: 'YYYY-MM-DD oder parsebarer ISO-Date-String',
+        received: dueAt
+      }));
     }
 
     if (!ALLOWED_CASE_STATUSES.has(status)) {
@@ -218,7 +253,7 @@ exports.handler = async (event) => {
       status,
       priority,
       type,
-      due_at: dueDate.toISOString(),
+      due_at: dueAtDb.value,
       phone: phone || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -243,22 +278,37 @@ exports.handler = async (event) => {
     });
 
     if (error) {
+      const dbError = sanitizeSupabaseError(error);
+      const mismatchedField = detectLikelyFieldMismatch(error);
       log('db.insert.error_classification', {
         isPriorityConstraintError: isPriorityConstraintError(error),
         isMissingManualTasksSchema: isMissingManualTasksSchema(error),
         isDbValidationError: isDbValidationError(error),
-        code: error?.code || null
+        code: error?.code || null,
+        mismatchedField
       });
       if (isPriorityConstraintError(error)) {
-        return response(400, errorPayload(MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, 'cases_priority_invalid', sanitizeSupabaseError(error)));
+        return response(400, errorPayload(MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, 'cases_priority_invalid', {
+          db_error: dbError,
+          mismatched_field: mismatchedField
+        }));
       }
       if (isMissingManualTasksSchema(error)) {
-        return response(503, errorPayload(MANUAL_TASKS_DB_EXTENSION_MESSAGE, 'cases_schema_extension_missing', sanitizeSupabaseError(error)));
+        return response(503, errorPayload(MANUAL_TASKS_DB_EXTENSION_MESSAGE, 'cases_schema_extension_missing', {
+          db_error: dbError,
+          mismatched_field: mismatchedField
+        }));
       }
       if (isDbValidationError(error)) {
-        return response(400, errorPayload('Payload ist nicht mit dem Case-Schema kompatibel.', 'cases_payload_invalid', sanitizeSupabaseError(error)));
+        return response(400, errorPayload('Payload ist nicht mit dem Case-Schema kompatibel.', 'cases_payload_invalid', {
+          db_error: dbError,
+          mismatched_field: mismatchedField
+        }));
       }
-      return response(500, errorPayload('Case konnte nicht erstellt werden.', 'cases_create_failed', sanitizeSupabaseError(error)));
+      return response(500, errorPayload('Case konnte nicht erstellt werden.', 'cases_create_failed', {
+        db_error: dbError,
+        mismatched_field: mismatchedField
+      }));
     }
 
     return response(200, { success: true, case: data });
