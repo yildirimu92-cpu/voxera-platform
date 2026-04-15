@@ -3381,17 +3381,33 @@ function normalizeContractStatus(status) {
   return String(status || '').trim().toLowerCase();
 }
 
+function contractRecencyScore(row) {
+  if (!row || typeof row !== 'object') return 0;
+  var updatedAt = new Date(row.updated_at || 0).getTime();
+  var createdAt = new Date(row.created_at || 0).getTime();
+  var startDate = new Date(row.start_date || 0).getTime();
+  var maxTs = Math.max(
+    Number.isFinite(updatedAt) ? updatedAt : 0,
+    Number.isFinite(createdAt) ? createdAt : 0,
+    Number.isFinite(startDate) ? startDate : 0
+  );
+  return Number.isFinite(maxTs) ? maxTs : 0;
+}
+
 function deriveContractState(contractRows) {
-  const rows = Array.isArray(contractRows) ? contractRows : [];
+  const rows = Array.isArray(contractRows) ? [...contractRows] : [];
+  rows.sort(function(a, b) {
+    return contractRecencyScore(b) - contractRecencyScore(a);
+  });
   const latest = rows.length ? rows[0] : null;
   const activeContract = rows.find(function(row) {
-    return ACTIVE_CONTRACT_STATUSES.has(normalizeContractStatus(row && row.status));
+    return ACTIVE_CONTRACT_STATUSES.has(normalizeContractStatus((row && (row.status != null ? row.status : row.contract_status)) || ''));
   }) || null;
   const effectiveContract = activeContract || latest || null;
-  const effectiveStatus = normalizeContractStatus(effectiveContract && effectiveContract.status) || 'none';
+  const effectiveStatus = normalizeContractStatus((effectiveContract && (effectiveContract.status != null ? effectiveContract.status : effectiveContract.contract_status)) || '') || 'none';
   return {
     status: effectiveStatus,
-    hasContract: !!effectiveContract,
+    hasContract: rows.length > 0,
     hasActiveContract: !!activeContract,
     latestContract: latest,
     effectiveContract: effectiveContract
@@ -4562,13 +4578,31 @@ async function loadCustomerContractMeta(customerId) {
     effectiveContract: null
   };
   if (!_sb || !customerId) return null;
+
+  // Source-of-truth for customer contract state is the server-side resolver
+  // (same auth/customer mapping + contract selection logic as dashboard functions).
+  try {
+    const json = await callDashboardFunction('customer-contract-state', {});
+    const serverState = (json && json.state) || null;
+    if (serverState && typeof serverState === 'object') {
+      const contractRows = Array.isArray(serverState.contracts) ? serverState.contracts : [];
+      customerContractState = deriveContractState(contractRows);
+      customerContractMeta = customerContractState.effectiveContract || null;
+      return customerContractMeta;
+    }
+  } catch (e) {
+    console.warn('[contract-meta] function lookup failed, fallback to direct read', e);
+  }
+
+  // Fallback for older/local environments without deployed function.
   try {
     const { data, error } = await _sb
       .from('contracts')
       .select('*')
       .eq('customer_id', customerId)
+      .order('updated_at', { ascending: false })
       .order('created_at', { ascending: false })
-      .limit(25);
+      .limit(50);
     if (error) return null;
     customerContractState = deriveContractState(data || []);
     customerContractMeta = customerContractState.effectiveContract || null;
