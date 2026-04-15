@@ -39,7 +39,13 @@ exports.handler = async (event) => {
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const caller = await requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin });
+  const caller = await requireCustomerCaller({
+    event,
+    sbUrl,
+    sbAnonKey,
+    sbAdmin,
+    requireActiveContract: false
+  });
   if (!caller.ok) return response(caller.statusCode, caller.body);
 
   let body;

@@ -31,6 +31,8 @@ function normalizeCallStatus(raw) {
     'follow up scheduled': CALL_STATUS.FOLLOW_UP_SCHEDULED,
     'closed': CALL_STATUS.CLOSED,
     'done': CALL_STATUS.CLOSED,
+    'complete': CALL_STATUS.CLOSED,
+    'completed': CALL_STATUS.CLOSED,
     'archived': CALL_STATUS.ARCHIVED
   };
   return map[s] || CALL_STATUS.NEW;
@@ -65,7 +67,13 @@ exports.handler = async (event) => {
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const caller = await requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin });
+  const caller = await requireCustomerCaller({
+    event,
+    sbUrl,
+    sbAnonKey,
+    sbAdmin,
+    requireActiveContract: false
+  });
   if (!caller.ok) return response(caller.statusCode, caller.body);
 
   let body;
