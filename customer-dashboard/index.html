@@ -3791,7 +3791,18 @@ async function loadManualTaskRecords(customerIdRaw) {
 
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
+const MANUAL_TASKS_STATUS_INVALID_MESSAGE = 'Der gewählte Status ist ungültig. Bitte verwenden Sie „Offen“, „In Bearbeitung“ oder „Erledigt“.';
 const MANUAL_TASKS_DEFAULT_PRIORITY = 'medium';
+const MANUAL_TASK_STATUS_UI_TO_DB = Object.freeze({
+  offen: 'open',
+  open: 'open',
+  in_bearbeitung: 'in_progress',
+  'in bearbeitung': 'in_progress',
+  in_progress: 'in_progress',
+  erledigt: 'done',
+  abgeschlossen: 'done',
+  done: 'done'
+});
 
 function isMissingManualTasksDbExtensionError(raw) {
   const msg = String(raw || '').toLowerCase();
@@ -3810,10 +3821,21 @@ function mapManualTaskPriorityUiToDb(rawPriority) {
   return MANUAL_TASKS_DEFAULT_PRIORITY;
 }
 
+function mapManualTaskStatusUiToDb(rawStatus) {
+  const key = String(rawStatus || '').trim().toLowerCase().replace(/\s+/g, '_');
+  return MANUAL_TASK_STATUS_UI_TO_DB[key] || 'open';
+}
+
 function isManualTaskPriorityConstraintError(raw) {
   const msg = String(raw || '').toLowerCase();
   return msg.includes('cases_priority_check')
     || (/\bcases\b/.test(msg) && /priority/.test(msg) && /violates check constraint/.test(msg));
+}
+
+function isManualTaskStatusConstraintError(raw) {
+  const msg = String(raw || '').toLowerCase();
+  return msg.includes('cases_status_check')
+    || (/\bcases\b/.test(msg) && /status/.test(msg) && /violates check constraint/.test(msg));
 }
 
 function isManualTaskContractInactiveError(error) {
@@ -3842,6 +3864,7 @@ function toManualTaskUserMessage(error, fallbackMessage) {
   );
   if (isMissingManualTasksDbExtensionError(raw)) return MANUAL_TASKS_DB_EXTENSION_MESSAGE;
   if (isManualTaskPriorityConstraintError(raw)) return MANUAL_TASKS_PRIORITY_INVALID_MESSAGE;
+  if (isManualTaskStatusConstraintError(raw)) return MANUAL_TASKS_STATUS_INVALID_MESSAGE;
   return String(raw || fallbackMessage || 'Aufgabe konnte nicht gespeichert werden.');
 }
 
@@ -3849,7 +3872,7 @@ async function createManualTask(payload) {
   const insertPayload = {
     title: payload.title,
     note: payload.note || null,
-    status: payload.status || 'open',
+    status: mapManualTaskStatusUiToDb(payload.status || 'open'),
     priority: payload.priority || MANUAL_TASKS_DEFAULT_PRIORITY,
     type: payload.type || 'general',
     due_at: payload.due_at,
@@ -5805,7 +5828,13 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   };
   try {
     if (isManualTask) {
-      const caseStatus = normalizedStatus === CALL_STATUS.CLOSED ? 'done' : normalizedStatus === CALL_STATUS.IN_PROGRESS ? 'in_progress' : 'open';
+      const caseStatus = mapManualTaskStatusUiToDb(
+        normalizedStatus === CALL_STATUS.CLOSED
+          ? 'erledigt'
+          : normalizedStatus === CALL_STATUS.IN_PROGRESS
+            ? 'in_bearbeitung'
+            : 'offen'
+      );
       const updated = await updateManualTaskStatus(recordId, caseStatus);
       const idx = allManualTaskRecords.findIndex(function(r) { return String(r.id) === String(recordId); });
       if (idx >= 0) allManualTaskRecords[idx] = updated;
@@ -6015,7 +6044,7 @@ async function saveManualTask() {
   const title = String(document.getElementById('manual-task-title').value || '').trim();
   const type = String(document.getElementById('manual-task-type').value || '').trim();
   const dueAt = String(document.getElementById('manual-task-due').value || '').trim();
-  const status = String(document.getElementById('manual-task-status').value || 'open').trim();
+  const status = mapManualTaskStatusUiToDb(document.getElementById('manual-task-status').value || 'open');
   const priority = String(document.getElementById('manual-task-priority').value || '').trim();
   const note = String(document.getElementById('manual-task-note').value || '').trim();
   const phone = String(document.getElementById('manual-task-phone').value || '').trim();
