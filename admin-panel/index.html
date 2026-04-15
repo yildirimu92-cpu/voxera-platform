@@ -1301,7 +1301,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <div id="onboarding-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
             <div class="inline-actions" style="margin-top:12px;">
               <button class="btn btn-primary btn-sm" id="onboarding-open-profile">Kundenprofil öffnen</button>
-              <button class="btn btn-secondary btn-sm" onclick="openSendAccessModal(document.getElementById('onboarding-detail-wrap').dataset.customerId)">Zugang senden</button>
+              <button class="btn btn-secondary btn-sm" id="onboarding-send-access-btn" type="button" disabled title="Bitte zuerst einen Kunden auswählen.">Zugang senden</button>
             </div>
           </div>
         </div>
@@ -3702,6 +3702,11 @@ function renderOnboarding(){
     if(nameEl) nameEl.textContent='Kunde wählen';
     const checklistEl=document.getElementById('onboarding-checklist');
     if(checklistEl) checklistEl.innerHTML='<div class="empty">Wähle links einen Kunden aus der Queue.</div>';
+    const sendAccessBtn=document.getElementById('onboarding-send-access-btn');
+    if(sendAccessBtn){
+      sendAccessBtn.disabled=true;
+      sendAccessBtn.title='Bitte zuerst einen Kunden auswählen.';
+    }
   }
 }
 
@@ -3727,6 +3732,26 @@ function openCustomerAiSetup(customerId,event){
   state.aiSelectedCustomerId=String(customerId);
   if(typeof renderAiSetup==='function') renderAiSetup();
   if(typeof openAiWorkspace==='function') openAiWorkspace(String(customerId));
+}
+
+function submitOnboardingSendAccess(){
+  const selectedId=document.getElementById('onboarding-detail-wrap')?.dataset?.customerId||'';
+  if(!selectedId){
+    showToast('Bitte zuerst einen Kunden in der Onboarding-Queue auswählen.');
+    return;
+  }
+  const customer=customerById(selectedId);
+  if(!customer){
+    showToast('Kunde nicht gefunden. Bitte neu laden und erneut versuchen.');
+    return;
+  }
+  const onboarding=onboardingForCustomer(selectedId);
+  const actionState=getCustomerQuickActionState(customer,onboarding);
+  if(!actionState.showSendAccess||actionState.sendAccessDisabled){
+    showToast(actionState.sendAccessTooltip||'Zugang ist für diesen Kunden aktuell blockiert.');
+    return;
+  }
+  openSendAccessModal(selectedId);
 }
 
 function buildOnboardingQueueItem(customerId){
@@ -3788,6 +3813,13 @@ function openOnboardingDetail(customerId,options={}){
   }
   const profileBtn=document.getElementById('onboarding-open-profile');
   if(profileBtn) profileBtn.onclick=()=>openCustomerProfile(customerId);
+  const sendAccessBtn=document.getElementById('onboarding-send-access-btn');
+  if(sendAccessBtn){
+    const onboarding=onboardingForCustomer(customerId);
+    const actionState=getCustomerQuickActionState(q.customer,onboarding);
+    sendAccessBtn.disabled=!actionState.showSendAccess||!!actionState.sendAccessDisabled;
+    sendAccessBtn.title=sendAccessBtn.disabled?(actionState.sendAccessTooltip||'Einrichtung noch nicht abgeschlossen'):'';
+  }
   if(!skipScroll) wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
@@ -6652,12 +6684,26 @@ function renderSendAccessValidation(customer){
 }
 
 function openSendAccessModal(customerId){
-  if(state.sendAccessPending) return;
+  if(state.sendAccessPending){
+    showToast('Versand läuft bereits. Bitte kurz warten.');
+    return;
+  }
+  if(!customerId){
+    showToast('Kein Kunde ausgewählt. Bitte zuerst einen Kunden öffnen.');
+    return;
+  }
   const customer=customerById(customerId);
-  if(!customer) return;
+  if(!customer){
+    showToast('Kunde nicht gefunden. Bitte Seite neu laden und erneut versuchen.');
+    return;
+  }
   const onboarding=onboardingForCustomer(customerId);
   const actionState=getCustomerQuickActionState(customer,onboarding);
-  if(!actionState.showSendAccess) return;
+  if(!actionState.showSendAccess){
+    const lifecycleLabel=getCustomerLifecycleLabel(customer,onboarding);
+    showToast(`Zugang kann im Status „${lifecycleLabel}“ nicht gesendet werden.`);
+    return;
+  }
   state.sendAccessTargetId=customerId;
   setSendAccessFeedback(null,'');
   document.getElementById('send-access-customer-name').textContent=customer.name||'—';
@@ -6705,7 +6751,11 @@ async function submitSendAccess(){
   if(state.sendAccessPending) return;
   const customerId=state.sendAccessTargetId;
   const customer=customerById(customerId);
-  if(!customerId||!customer) return;
+  if(!customerId||!customer){
+    setSendAccessFeedback('error','Kein gültiger Kunde ausgewählt. Bitte Modal schließen und erneut öffnen.');
+    showToast('Zugang konnte nicht gestartet werden: Kunde fehlt.');
+    return;
+  }
 
   const onboarding=onboardingForCustomer(customerId);
   const actionState=getCustomerQuickActionState(customer,onboarding);
@@ -7834,6 +7884,7 @@ function wireUi(){
     document.querySelectorAll('.profile-panel').forEach(p=>p.classList.toggle('active',p.dataset.profilePanel===btn.dataset.profileTab));
   });
   document.getElementById('profile-add-note-btn').addEventListener('click',addProfileNote);
+  document.getElementById('onboarding-send-access-btn').addEventListener('click',submitOnboardingSendAccess);
   document.getElementById('send-access-submit-btn').addEventListener('click',submitSendAccess);
   document.getElementById('invoice-paid-submit-btn').addEventListener('click',submitInvoicePaidModal);
   document.getElementById('customer-danger-confirm-btn').addEventListener('click',submitCustomerDangerAction);
