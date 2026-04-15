@@ -3790,6 +3790,7 @@ async function loadManualTaskRecords(customerIdRaw) {
 }
 
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
+const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 
 function isMissingManualTasksDbExtensionError(raw) {
   const msg = String(raw || '').toLowerCase();
@@ -3797,6 +3798,21 @@ function isMissingManualTasksDbExtensionError(raw) {
   const relationMentioned = /\bcases\b/.test(msg);
   const schemaIssue = /schema cache|column|does not exist|could not find/.test(msg);
   return columnMentioned && relationMentioned && schemaIssue;
+}
+
+function mapManualTaskPriorityUiToDb(rawPriority) {
+  const key = String(rawPriority || '').trim().toLowerCase();
+  if (!key) return null;
+  if (key === 'urgent' || key === 'dringend') return 'high';
+  if (key === 'normal') return 'medium';
+  if (key === 'high' || key === 'medium' || key === 'low') return key;
+  return null;
+}
+
+function isManualTaskPriorityConstraintError(raw) {
+  const msg = String(raw || '').toLowerCase();
+  return msg.includes('cases_priority_check')
+    || (/\bcases\b/.test(msg) && /priority/.test(msg) && /violates check constraint/.test(msg));
 }
 
 function toManualTaskUserMessage(error, fallbackMessage) {
@@ -3808,6 +3824,7 @@ function toManualTaskUserMessage(error, fallbackMessage) {
     || ''
   );
   if (isMissingManualTasksDbExtensionError(raw)) return MANUAL_TASKS_DB_EXTENSION_MESSAGE;
+  if (isManualTaskPriorityConstraintError(raw)) return MANUAL_TASKS_PRIORITY_INVALID_MESSAGE;
   return String(raw || fallbackMessage || 'Aufgabe konnte nicht gespeichert werden.');
 }
 
@@ -5985,7 +6002,7 @@ async function saveManualTask() {
       type: type,
       due_at: dueAt,
       status: status,
-      priority: priority || null,
+      priority: mapManualTaskPriorityUiToDb(priority),
       note: note || null,
       phone: phone || null
     });
