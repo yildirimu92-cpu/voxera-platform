@@ -3791,6 +3791,7 @@ async function loadManualTaskRecords(customerIdRaw) {
 
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
+const MANUAL_TASKS_DEFAULT_PRIORITY = 'medium';
 
 function isMissingManualTasksDbExtensionError(raw) {
   const msg = String(raw || '').toLowerCase();
@@ -3802,11 +3803,11 @@ function isMissingManualTasksDbExtensionError(raw) {
 
 function mapManualTaskPriorityUiToDb(rawPriority) {
   const key = String(rawPriority || '').trim().toLowerCase();
-  if (!key) return null;
+  if (!key) return MANUAL_TASKS_DEFAULT_PRIORITY;
   if (key === 'urgent' || key === 'dringend') return 'high';
   if (key === 'normal') return 'medium';
   if (key === 'high' || key === 'medium' || key === 'low') return key;
-  return null;
+  return MANUAL_TASKS_DEFAULT_PRIORITY;
 }
 
 function isManualTaskPriorityConstraintError(raw) {
@@ -3815,7 +3816,23 @@ function isManualTaskPriorityConstraintError(raw) {
     || (/\bcases\b/.test(msg) && /priority/.test(msg) && /violates check constraint/.test(msg));
 }
 
+function isManualTaskContractInactiveError(error) {
+  const payloadReason = String(error?.payload?.details?.reason || error?.payload?.reason || '').toLowerCase();
+  const payloadEntitlement = String(error?.payload?.entitlement_code || '').toLowerCase();
+  return Boolean(
+    error
+    && Number(error.status) === 403
+    && (
+      String(error.reason || '').toLowerCase() === 'contract_inactive'
+      || String(error.entitlement_code || '').toLowerCase() === 'contract_inactive'
+      || payloadReason === 'contract_inactive'
+      || payloadEntitlement === 'contract_inactive'
+    )
+  );
+}
+
 function toManualTaskUserMessage(error, fallbackMessage) {
+  if (isManualTaskContractInactiveError(error)) return getRestrictedContractMessage('Aufgaben');
   const raw = String(
     error?.message
     || error?.details
@@ -3829,22 +3846,27 @@ function toManualTaskUserMessage(error, fallbackMessage) {
 }
 
 async function createManualTask(payload) {
-  const context = await resolveCustomerContext();
-  const customerId = (context && context.customerId ? String(context.customerId) : '').trim();
-  if (!_sb || !customerId) throw new Error('Kundenkontext fehlt.');
   const insertPayload = {
-    customer_id: customerId,
     title: payload.title,
     note: payload.note || null,
     status: payload.status || 'open',
-    priority: payload.priority || null,
+    priority: payload.priority || MANUAL_TASKS_DEFAULT_PRIORITY,
     type: payload.type || 'general',
     due_at: payload.due_at,
     phone: payload.phone || null
   };
-  const { data, error } = await _sb.from(CASES_TABLE).insert(insertPayload).select('*').single();
-  if (error) throw error;
-  return mapCaseToTaskRecord(data);
+  const json = await callDashboardFunction('cases-create', insertPayload);
+  if (!json || json.success !== true || !json.case) {
+    const err = new Error((json && json.error) || 'Aufgabe konnte nicht gespeichert werden.');
+    if (json && typeof json === 'object') {
+      err.status = Number(json.statusCode || json.status || 0) || 0;
+      err.reason = json.reason || '';
+      err.entitlement_code = json.entitlement_code || '';
+      err.details = json.details || '';
+    }
+    throw err;
+  }
+  return mapCaseToTaskRecord(json.case);
 }
 
 async function updateManualTaskStatus(recordId, targetStatus) {
@@ -3852,14 +3874,22 @@ async function updateManualTaskStatus(recordId, targetStatus) {
   if (!rec) throw new Error('Aufgabe nicht gefunden.');
   const entityId = String((rec.fields && rec.fields.task_entity_id) || '').trim();
   if (!entityId) throw new Error('Ungültige Aufgaben-ID.');
-  const { data, error } = await _sb
-    .from(CASES_TABLE)
-    .update({ status: targetStatus, updated_at: new Date().toISOString() })
-    .eq('id', entityId)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return mapCaseToTaskRecord(data);
+  const json = await callDashboardFunction('cases-update', {
+    case_id: entityId,
+    field: 'status',
+    value: targetStatus
+  });
+  if (!json || json.success !== true || !json.case) {
+    const err = new Error((json && json.error) || 'Status konnte nicht gespeichert werden.');
+    if (json && typeof json === 'object') {
+      err.status = Number(json.statusCode || json.status || 0) || 0;
+      err.reason = json.reason || '';
+      err.entitlement_code = json.entitlement_code || '';
+      err.details = json.details || '';
+    }
+    throw err;
+  }
+  return mapCaseToTaskRecord(json.case);
 }
 
 async function callDashboardFunction(name, payload) {
@@ -5951,7 +5981,7 @@ async function safeLoadData() {
 }
 
 function openManualTaskModal() {
-  if (isContractRestrictedState()) {
+  if (customerContractState.hasContract && isContractRestrictedState()) {
     toast(getRestrictedContractMessage('Neue Aufgaben'), 'warning');
     return;
   }
@@ -5978,7 +6008,7 @@ function closeManualTaskModal() {
 }
 
 async function saveManualTask() {
-  if (isContractRestrictedState()) {
+  if (customerContractState.hasContract && isContractRestrictedState()) {
     toast(getRestrictedContractMessage('Aufgaben'), 'warning');
     return;
   }

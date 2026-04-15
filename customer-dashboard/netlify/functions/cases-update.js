@@ -1,6 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const { requireAdminCaller } = require('./_lib/require-admin');
-const { normalizeCaseStatus, assertCaseTransition } = require('./_lib/status-model');
+const { requireCustomerCaller } = require('./_lib/require-customer');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -15,8 +14,15 @@ function response(statusCode, payload) {
 
 const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'priority']);
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
-const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist ungültig. Bitte verwenden Sie „Normal“, „Dringend“ oder keine Priorität.';
+const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 const DEFAULT_CASE_PRIORITY = 'medium';
+
+const CASE_TRANSITIONS = {
+  open: new Set(['in_progress']),
+  in_progress: new Set(['waiting', 'done']),
+  waiting: new Set(['in_progress']),
+  done: new Set([])
+};
 
 function isMissingManualTasksSchema(error) {
   const message = String(error?.message || '').toLowerCase();
@@ -47,6 +53,31 @@ function mapPriorityToDb(rawPriority) {
   return DEFAULT_CASE_PRIORITY;
 }
 
+function normalizeCaseStatus(status) {
+  const raw = String(status || '').trim().toLowerCase().replace(/\s+/g, '_');
+  const aliases = {
+    offen: 'open',
+    open: 'open',
+    in_bearbeitung: 'in_progress',
+    in_progress: 'in_progress',
+    wartend: 'waiting',
+    waiting: 'waiting',
+    geschlossen: 'done',
+    erledigt: 'done',
+    done: 'done',
+    closed: 'done'
+  };
+  return aliases[raw] || 'open';
+}
+
+function assertCaseTransition(from, to) {
+  if (from === to) return;
+  const allowed = CASE_TRANSITIONS[from] || new Set();
+  if (!allowed.has(to)) {
+    throw new Error(`Ungültiger Status-Übergang: ${from} → ${to}`);
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -59,22 +90,23 @@ exports.handler = async (event) => {
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const caller = await requireAdminCaller({ event, supabaseUrl: sbUrl, supabaseAnonKey: sbAnonKey, sbAdmin });
+  const caller = await requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, requireActiveContract: true });
   if (!caller.ok) return response(caller.statusCode, caller.body);
 
   let body;
-  try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungueltiger Request Body' }); }
+  try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungültiger Request Body' }); }
 
   const caseId = String(body.case_id || '').trim();
   const field = String(body.field || '').trim();
   const value = body.value;
   if (!caseId || !field) return response(400, { error: 'Pflichtfelder fehlen: case_id, field' });
-  if (!ALLOWED_FIELDS.has(field)) return response(400, { error: `Ungueltiges Feld: ${field}` });
+  if (!ALLOWED_FIELDS.has(field)) return response(400, { error: `Ungültiges Feld: ${field}` });
 
   const { data: current, error: currentError } = await sbAdmin
     .from('cases')
     .select('*')
     .eq('id', caseId)
+    .eq('customer_id', caller.customerId)
     .single();
   if (currentError || !current) return response(404, { error: 'Case nicht gefunden' });
 
@@ -102,8 +134,10 @@ exports.handler = async (event) => {
     .from('cases')
     .update(updatePayload)
     .eq('id', caseId)
+    .eq('customer_id', caller.customerId)
     .select('*')
     .single();
+
   if (error) {
     if (isPriorityConstraintError(error)) {
       return response(400, { error: MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, code: 'cases_priority_invalid' });

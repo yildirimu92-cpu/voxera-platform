@@ -25,6 +25,7 @@ const ALLOWED_MAIL_TEMPLATES = [
 
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist ungültig. Bitte verwenden Sie „Normal“, „Dringend“ oder keine Priorität.';
+const DEFAULT_CASE_PRIORITY = 'medium';
 
 function isMissingManualTasksSchema(error) {
   const message = String(error?.message || '').toLowerCase();
@@ -48,11 +49,11 @@ function isPriorityConstraintError(error) {
 
 function mapPriorityToDb(rawPriority) {
   const key = String(rawPriority || '').trim().toLowerCase();
-  if (!key) return null;
+  if (!key) return DEFAULT_CASE_PRIORITY;
   if (key === 'urgent' || key === 'dringend') return 'high';
   if (key === 'normal') return 'medium';
   if (key === 'high' || key === 'medium' || key === 'low') return key;
-  return null;
+  return DEFAULT_CASE_PRIORITY;
 }
 
 exports.handler = async (event) => {
