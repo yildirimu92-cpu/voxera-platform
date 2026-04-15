@@ -1301,7 +1301,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
             <div id="onboarding-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
             <div class="inline-actions" style="margin-top:12px;">
               <button class="btn btn-primary btn-sm" id="onboarding-open-profile">Kundenprofil öffnen</button>
-              <button class="btn btn-secondary btn-sm" id="onboarding-send-access-btn" type="button" disabled title="Bitte zuerst einen Kunden auswählen.">Zugang senden</button>
+              <button class="btn btn-secondary btn-sm" id="onboarding-send-access-btn" type="button" data-send-access-trigger data-send-access-source="onboarding-detail" data-send-access-blocked="1" title="Bitte zuerst einen Kunden auswählen.">Zugang senden</button>
             </div>
           </div>
         </div>
@@ -3546,10 +3546,10 @@ function renderCustomers(){
     const blockerLabel=snapshot?.blocker||'';
     const progressClass=snapshot?.status===ONBOARDING_STATUS.COMPLETED?'progress-fill-complete':snapshot?.status===ONBOARDING_STATUS.BLOCKED?'progress-fill-blocked':'';
     const actionState=getCustomerQuickActionState(c,onboarding);
-    const sendAccessDisabledAttr=actionState.sendAccessDisabled?'disabled':'';
+    const sendAccessBlockedAttr=actionState.sendAccessDisabled?'data-send-access-blocked="1"':'';
     const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
     const primaryAccessAction=actionState.showSendAccess
-      ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
+      ?`<button class="btn btn-secondary btn-sm" type="button" data-send-access-trigger data-send-access-source="customers-table" data-customer-id="${jsStr(c.id)}" ${sendAccessBlockedAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
       :'';
     return `<tr>
     <td class="wrap"><strong>${esc(c.name)}</strong><div class="muted" style="margin-top:2px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
@@ -3583,10 +3583,10 @@ function renderCustomers(){
     const nextStepLabel=deriveOperationalNextStep(snapshot);
     const blockerLabel=snapshot?.blocker||'';
     const actionState=getCustomerQuickActionState(c,onboarding);
-    const sendAccessDisabledAttr=actionState.sendAccessDisabled?'disabled':'';
+    const sendAccessBlockedAttr=actionState.sendAccessDisabled?'data-send-access-blocked="1"':'';
     const sendAccessTooltipAttr=actionState.sendAccessTooltip?`title="${esc(actionState.sendAccessTooltip)}"`:'';
     const primaryAccessAction=actionState.showSendAccess
-      ?`<button class="btn btn-secondary btn-sm" onclick="openSendAccessModal('${jsStr(c.id)}')" ${sendAccessDisabledAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
+      ?`<button class="btn btn-secondary btn-sm" type="button" data-send-access-trigger data-send-access-source="customers-card" data-customer-id="${jsStr(c.id)}" ${sendAccessBlockedAttr} ${sendAccessTooltipAttr}>${esc(actionState.sendAccessLabel)}</button>`
       :'';
     return `<div class="customer-card">
       <div class="customer-card-head">
@@ -3704,8 +3704,9 @@ function renderOnboarding(){
     if(checklistEl) checklistEl.innerHTML='<div class="empty">Wähle links einen Kunden aus der Queue.</div>';
     const sendAccessBtn=document.getElementById('onboarding-send-access-btn');
     if(sendAccessBtn){
-      sendAccessBtn.disabled=true;
       sendAccessBtn.title='Bitte zuerst einen Kunden auswählen.';
+      sendAccessBtn.dataset.customerId='';
+      sendAccessBtn.dataset.sendAccessBlocked='1';
     }
   }
 }
@@ -3718,7 +3719,7 @@ function getOnboardingStepAction(step, customerId){
     case 'AI basics configured':
       return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" onclick="openCustomerAiSetup('${customerId}',event)">AI konfigurieren</button>`;
     case 'activation sent':
-      return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" onclick="event.stopPropagation();openSendAccessModal('${customerId}')">Zugang senden</button>`;
+      return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" type="button" data-send-access-trigger data-send-access-source="onboarding-step" data-customer-id="${jsStr(customerId)}">Zugang senden</button>`;
     default:
       return '';
   }
@@ -3734,24 +3735,34 @@ function openCustomerAiSetup(customerId,event){
   if(typeof openAiWorkspace==='function') openAiWorkspace(String(customerId));
 }
 
-function submitOnboardingSendAccess(){
-  const selectedId=document.getElementById('onboarding-detail-wrap')?.dataset?.customerId||'';
+function triggerSendAccessFromUi(customerId,source='unknown'){
+  const selectedId=String(customerId||'').trim();
+  console.info('[Send Access UI Trigger]',{source,customerId:selectedId});
   if(!selectedId){
-    showToast('Bitte zuerst einen Kunden in der Onboarding-Queue auswählen.');
-    return;
+    const msg=source==='onboarding-detail'
+      ?'Bitte zuerst einen Kunden in der Onboarding-Queue auswählen.'
+      :'Kein Kunde ausgewählt. Bitte zuerst ein Kundenprofil oder Onboarding-Detail öffnen.';
+    showToast(msg);
+    return false;
   }
   const customer=customerById(selectedId);
   if(!customer){
     showToast('Kunde nicht gefunden. Bitte neu laden und erneut versuchen.');
-    return;
+    return false;
   }
   const onboarding=onboardingForCustomer(selectedId);
   const actionState=getCustomerQuickActionState(customer,onboarding);
   if(!actionState.showSendAccess||actionState.sendAccessDisabled){
     showToast(actionState.sendAccessTooltip||'Zugang ist für diesen Kunden aktuell blockiert.');
-    return;
+    return false;
   }
   openSendAccessModal(selectedId);
+  return true;
+}
+
+function submitOnboardingSendAccess(){
+  const selectedId=document.getElementById('onboarding-detail-wrap')?.dataset?.customerId||'';
+  triggerSendAccessFromUi(selectedId,'onboarding-detail');
 }
 
 function buildOnboardingQueueItem(customerId){
@@ -3817,8 +3828,10 @@ function openOnboardingDetail(customerId,options={}){
   if(sendAccessBtn){
     const onboarding=onboardingForCustomer(customerId);
     const actionState=getCustomerQuickActionState(q.customer,onboarding);
-    sendAccessBtn.disabled=!actionState.showSendAccess||!!actionState.sendAccessDisabled;
-    sendAccessBtn.title=sendAccessBtn.disabled?(actionState.sendAccessTooltip||'Einrichtung noch nicht abgeschlossen'):'';
+    const isBlocked=!actionState.showSendAccess||!!actionState.sendAccessDisabled;
+    sendAccessBtn.dataset.customerId=customerId;
+    sendAccessBtn.dataset.sendAccessBlocked=isBlocked?'1':'0';
+    sendAccessBtn.title=isBlocked?(actionState.sendAccessTooltip||'Einrichtung noch nicht abgeschlossen'):'';
   }
   if(!skipScroll) wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -6234,14 +6247,14 @@ function openCustomerProfile(id){
       <div class="profile-meta-line">${esc(contactDisplay(c)||'Kein Kontakt')} · ${esc(c.tel_nr||'Kein Telefon')} · ${esc(c.city||'—')}</div>
     </div>
     <div class="profile-quick-actions">
-      <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+      <button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
       <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">PW-Reset</button>
       <button class="btn btn-quiet" onclick="closeCustomerProfile()">Schließen</button>
     </div>`;
 
   const primaryActions=document.getElementById('profile-primary-actions');
   if(primaryActions) primaryActions.innerHTML=`
-    <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+    <button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
     <button class="btn btn-secondary" onclick="openCustomerOnboarding('${jsStr(id)}');closeCustomerProfile()">Onboarding öffnen</button>
     <button class="btn btn-secondary" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">Finance öffnen</button>
     <button class="btn btn-quiet" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Vertrag / Rechnungen</button>`;
@@ -6292,7 +6305,7 @@ function openCustomerProfile(id){
         <div class="card profile-section-card">
           <div class="profile-section-head"><h4>Zugang & Login</h4><p class="profile-section-copy">Direkter Zugriff und Identitätsaktionen.</p></div>
           <div class="profile-action-grid">
-            <button class="btn btn-primary" onclick="closeCustomerProfile();openSendAccessModal('${jsStr(id)}')" ${canSend?'':'disabled'} title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+            <button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
             <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">PW-Reset senden</button>
           </div>
           ${!canSend?`<div class="muted" style="margin-top:8px;font-size:12px;">Zugang senden blockiert: ${esc(actionState.sendAccessTooltip||'Pflichtdaten prüfen')}</div>`:''}
@@ -7884,7 +7897,6 @@ function wireUi(){
     document.querySelectorAll('.profile-panel').forEach(p=>p.classList.toggle('active',p.dataset.profilePanel===btn.dataset.profileTab));
   });
   document.getElementById('profile-add-note-btn').addEventListener('click',addProfileNote);
-  document.getElementById('onboarding-send-access-btn').addEventListener('click',submitOnboardingSendAccess);
   document.getElementById('send-access-submit-btn').addEventListener('click',submitSendAccess);
   document.getElementById('invoice-paid-submit-btn').addEventListener('click',submitInvoicePaidModal);
   document.getElementById('customer-danger-confirm-btn').addEventListener('click',submitCustomerDangerAction);
@@ -8479,6 +8491,19 @@ document.addEventListener('toggle',event=>{
   resetActionMenuList(menu.querySelector('.actions-menu-list'));
 },true);
 document.addEventListener('click',event=>{
+  const sendAccessBtn=event.target.closest('[data-send-access-trigger]');
+  if(sendAccessBtn){
+    event.preventDefault();
+    event.stopPropagation();
+    const source=sendAccessBtn.getAttribute('data-send-access-source')||'unknown';
+    let customerId=sendAccessBtn.getAttribute('data-customer-id')||'';
+    if(!customerId && sendAccessBtn.id==='onboarding-send-access-btn'){
+      customerId=document.getElementById('onboarding-detail-wrap')?.dataset?.customerId||'';
+    }
+    if(source==='customer-profile') closeCustomerProfile();
+    triggerSendAccessFromUi(customerId,source);
+    return;
+  }
   const toggleBtn=event.target.closest('[data-customer-menu-toggle]');
   if(toggleBtn){
     event.preventDefault();
