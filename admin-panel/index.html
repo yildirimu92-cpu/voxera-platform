@@ -2601,6 +2601,14 @@ function customerNumberLabel(customer){
     '—'
   ).trim() || '—';
 }
+const MANUAL_TASKS_DB_EXTENSION_MESSAGE='Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
+function isMissingManualTasksDbExtensionError(raw){
+  const msg=String(raw||'').toLowerCase();
+  const columnMentioned=/due_at|phone/.test(msg);
+  const relationMentioned=/\bcases\b/.test(msg);
+  const schemaIssue=/schema cache|column|does not exist|could not find/.test(msg);
+  return columnMentioned&&relationMentioned&&schemaIssue;
+}
 async function callAdminFunction(name,payload){
   if(!(authClient&&authClient.auth)) throw new Error('Admin-Auth nicht verfügbar.');
   const {data:{session},error}=await authClient.auth.getSession();
@@ -7750,6 +7758,11 @@ async function createCaseForCustomer(customerId,title='Follow-up',note='Manuell 
     if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
   }catch(error){
     const payload=error?.payload||{};
+    const rawMessage=payload?.details||payload?.error||error?.message||'';
+    if(payload?.code==='cases_schema_extension_missing'||isMissingManualTasksDbExtensionError(rawMessage)){
+      alert(MANUAL_TASKS_DB_EXTENSION_MESSAGE);
+      return;
+    }
     alert(payload?.error||error?.message||'Case konnte nicht erstellt werden.');
   }
 }
@@ -7773,6 +7786,11 @@ async function updateCase(caseId,field,value){
     if(idsEq(state.selectedCustomer,mapped.customerId)) openCustomerProfile(mapped.customerId);
   }catch(error){
     const payload=error?.payload||{};
+    const rawMessage=payload?.details||payload?.error||error?.message||'';
+    if(payload?.code==='cases_schema_extension_missing'||isMissingManualTasksDbExtensionError(rawMessage)){
+      alert(MANUAL_TASKS_DB_EXTENSION_MESSAGE);
+      return;
+    }
     alert(payload?.error||error?.message||'Case konnte nicht aktualisiert werden.');
   }
 }

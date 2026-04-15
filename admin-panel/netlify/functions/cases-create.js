@@ -23,6 +23,19 @@ const ALLOWED_MAIL_TEMPLATES = [
   'case_resolved'
 ];
 
+const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
+
+function isMissingManualTasksSchema(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const combined = `${message} ${details} ${hint}`;
+  const columnMentioned = /due_at|phone/.test(combined);
+  const relationMentioned = /\bcases\b/.test(combined);
+  const schemaIssue = /schema cache|column|does not exist|could not find/.test(combined);
+  return columnMentioned && relationMentioned && schemaIssue;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -95,6 +108,12 @@ exports.handler = async (event) => {
 
   if (error) {
     console.error('Case insert failed', error);
+    if (isMissingManualTasksSchema(error)) {
+      return response(503, {
+        error: MANUAL_TASKS_DB_EXTENSION_MESSAGE,
+        code: 'cases_schema_extension_missing'
+      });
+    }
     return response(500, { error: 'Case konnte nicht erstellt werden.', details: error.message });
   }
 
