@@ -1198,7 +1198,6 @@ body{
 .followup-field select:focus,.followup-field input:focus,.followup-field textarea:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
 .followup-section{padding:8px 10px;border:1px solid var(--gray100);border-radius:12px;background:#FCFDFF;margin-bottom:8px;}
 .followup-section.followup-section-note{padding-top:10px;}
-.followup-section-title{font-size:11px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
 .followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:4px;padding:5px 9px;border:1px solid var(--gray100);border-radius:9px;background:#FBFDFF;}
 .followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;font-weight:600;color:var(--gray600);}
 .followup-mark-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--green);}
@@ -1214,7 +1213,9 @@ body{
 #followup-overlay .modal-footer{position:sticky;bottom:0;background:linear-gradient(to top, var(--white) 70%, rgba(255,255,255,.94));}
 #followup-overlay .followup-field label{margin-bottom:4px;}
 #followup-overlay .followup-grid{gap:8px;margin-bottom:8px;}
-#followup-overlay .followup-footer-hint{font-size:11px;color:var(--gray500);line-height:1.45;margin:2px 0 0;}
+#followup-overlay .followup-field select,
+#followup-overlay .followup-field input,
+#followup-overlay .followup-field textarea{background:var(--white);}
 .meta-pill{margin-right:6px;margin-top:2px;}
 @media(max-width:768px){
   .followup-grid{grid-template-columns:1fr;gap:7px;}
@@ -1296,7 +1297,19 @@ body{
 .call-action-icon .lucide{stroke-width:2.7;}
 .call-name.linklike{cursor:pointer;}
 .call-name.linklike:hover{text-decoration:underline;color:#1A6FE8;}
-@media(max-width:768px){.detail-layout{grid-template-columns:1fr;}.detail-head{padding:16px 16px 10px;}.detail-body{padding:12px 16px 14px;}.detail-footer{padding:10px 16px calc(14px + env(safe-area-inset-bottom));}.detail-actions,.detail-action-group{grid-template-columns:1fr;}}
+@media(max-width:768px){
+  .detail-overlay{align-items:flex-end;padding:0;}
+  .detail-modal{border-radius:18px 18px 0 0;max-height:calc(100dvh - 4px);}
+  .detail-layout{grid-template-columns:1fr;gap:10px;}
+  .detail-head{padding:14px 14px 10px;}
+  .detail-body{padding:10px 12px 14px;}
+  .detail-footer{padding:10px 12px calc(14px + env(safe-area-inset-bottom));}
+  .detail-card{padding:13px 12px;border-radius:13px;}
+  .detail-line{display:grid;grid-template-columns:1fr;gap:2px;padding:8px 0;}
+  .detail-line span:last-child{text-align:left;word-break:break-word;}
+  .detail-actions,.detail-action-group{grid-template-columns:1fr;}
+  .detail-action-group .btn-call,.detail-action-group .btn-a{width:100%;min-height:42px;}
+}
 
 /* ═══════════════════════════════════════════
    RESPONSIVE — V1
@@ -2301,7 +2314,7 @@ body{
                 <div class="dash-glass" id="dash-followup-section">
                   <div class="dash-glass-hd">
                     <div class="dash-glass-title">Geplante Follow-ups</div>
-                    <span class="dash-glass-link" onclick="activateTab('anrufe')">Alle anzeigen</span>
+                    <span class="dash-glass-link" onclick="activateTab('rueckrufe')">Alle anzeigen</span>
                   </div>
                   <div id="dash-followup-list"></div>
                 </div>
@@ -2959,7 +2972,6 @@ body{
         </div>
         <div id="followup-editable">
           <div class="followup-section">
-            <div class="followup-section-title">Nächster Schritt</div>
             <div class="followup-grid">
               <div class="followup-field">
                 <label for="followup-next-action">Nächste Aktion</label>
@@ -2991,7 +3003,6 @@ body{
               </label>
             </div>
           </div>
-          <div class="followup-footer-hint">Tipp: Auf kleinen Screens bleibt der Footer fixiert, damit Speichern immer erreichbar ist.</div>
         </div>
       </div>
       <div class="modal-footer modal-actions">
@@ -3352,9 +3363,21 @@ function fmtFollowUpDateTime(raw) {
 function buildFollowUpMetaText(nextAction, followUpAt) {
   const action = (nextAction || '').trim();
   const formattedFollowUp = fmtFollowUpDateTime(followUpAt);
-  if (action && formattedFollowUp) return '→ ' + action + ' · ' + formattedFollowUp;
+  var timingLabel = '';
+  const followUpDate = parseFollowUpDate(followUpAt);
+  if (followUpDate && !Number.isNaN(followUpDate.getTime())) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const tomorrowStart = todayStart + 86400000;
+    const ts = followUpDate.getTime();
+    if (ts < todayStart) timingLabel = 'Überfällig';
+    else if (ts < tomorrowStart) timingLabel = 'Heute';
+    else timingLabel = 'Geplant';
+  }
+  const withTiming = timingLabel && formattedFollowUp ? (timingLabel + ' · ' + formattedFollowUp) : formattedFollowUp;
+  if (action && withTiming) return '→ ' + action + ' · ' + withTiming;
   if (action) return '→ ' + action;
-  if (formattedFollowUp) return formattedFollowUp;
+  if (withTiming) return withTiming;
   return '';
 }
 
@@ -3618,7 +3641,7 @@ function getCallDisplayName(fields) {
 
 function callCategoryLabel(categoryRaw) {
   const raw = String(categoryRaw || '').trim();
-  if (!raw) return '–';
+  if (!raw || isDashLikePlaceholder(raw)) return '';
   if (isActivationCallCategory(raw)) return 'Aktivierungstest (Voxera)';
   const map = {
     callback: 'Rückruf',
@@ -3677,7 +3700,9 @@ function normalizeStatus(s) {
     abgeschlossen: CALL_STATUS.CLOSED,
     erledigt: CALL_STATUS.CLOSED,
     closed: CALL_STATUS.CLOSED,
-    done: CALL_STATUS.CLOSED
+    done: CALL_STATUS.CLOSED,
+    complete: CALL_STATUS.CLOSED,
+    completed: CALL_STATUS.CLOSED
   };
   return aliases[raw] || CALL_STATUS.NEW;
 }
@@ -3723,6 +3748,55 @@ function getDashboardBucketForCall(record) {
   if (wantsCallback) return 'callback';
 
   return 'recent';
+}
+
+function getTaskPriorityBucket(record) {
+  const f = (record && record.fields) || {};
+  const followUpDate = parseFollowUpDate(resolveFollowUpAt(f));
+  if (!followUpDate || Number.isNaN(followUpDate.getTime())) return 3;
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const tomorrowStart = todayStart + 86400000;
+  const ts = followUpDate.getTime();
+  if (ts < todayStart) return 0;
+  if (ts < tomorrowStart) return 1;
+  return 2;
+}
+
+function getUnifiedOpenTasks(records) {
+  const uniqueById = new Map();
+  (records || []).forEach(function(record) {
+    if (!record || !record.id || uniqueById.has(record.id)) return;
+    uniqueById.set(record.id, record);
+  });
+
+  const tasks = [];
+  uniqueById.forEach(function(record) {
+    const f = (record && record.fields) || {};
+    if (isClosedStatus(f.dashboard_status)) return;
+    const hasFollowUp = !!resolveFollowUpAt(f);
+    const hasCallback = !!f.callback_requested;
+    const hasNextAction = !!String(f.next_action || '').trim();
+    if (!hasFollowUp && !hasCallback && !hasNextAction) return;
+    tasks.push(record);
+  });
+
+  return tasks.sort(function(a, b) {
+    const aBucket = getTaskPriorityBucket(a);
+    const bBucket = getTaskPriorityBucket(b);
+    if (aBucket !== bBucket) return aBucket - bBucket;
+    if (aBucket <= 2) {
+      const aDue = parseFollowUpDate(resolveFollowUpAt((a && a.fields) || {}));
+      const bDue = parseFollowUpDate(resolveFollowUpAt((b && b.fields) || {}));
+      const aTs = aDue && !Number.isNaN(aDue.getTime()) ? aDue.getTime() : Number.MAX_SAFE_INTEGER;
+      const bTs = bDue && !Number.isNaN(bDue.getTime()) ? bDue.getTime() : Number.MAX_SAFE_INTEGER;
+      if (aTs !== bTs) return aTs - bTs;
+    }
+    const aCallback = ((a && a.fields) || {}).callback_requested ? 0 : 1;
+    const bCallback = ((b && b.fields) || {}).callback_requested ? 0 : 1;
+    if (aCallback !== bCallback) return aCallback - bCallback;
+    return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
+  });
 }
 
 function deriveDashboardCallBuckets(records) {
@@ -3961,20 +4035,12 @@ function fmtDate(raw) {
     };
     const localParts = parseLocalDateTimeParts(raw);
     if (localParts) {
-      const dLocal = new Date(localParts.year, localParts.month - 1, localParts.day, localParts.hour, localParts.minute, localParts.second);
-      const diffLocal = Math.floor((new Date() - dLocal) / 1000);
-      if (diffLocal < 60) return 'Gerade eben';
-      if (diffLocal < 3600) return 'vor ' + Math.floor(diffLocal/60) + ' Min';
-      if (diffLocal < 86400) return 'vor ' + Math.floor(diffLocal/3600) + ' Std';
       const humanLocal = localLabel(localParts);
       if (humanLocal) return humanLocal;
       return formatPartsDate(localParts) + ' ' + formatPartsTime(localParts);
     }
     const d = parseCallTimestamp(raw);
-    const diff = Math.floor((now - d) / 1000);
-    if (diff < 60) return 'Gerade eben';
-    if (diff < 3600) return 'vor ' + Math.floor(diff/60) + ' Min';
-    if (diff < 86400) return 'vor ' + Math.floor(diff/3600) + ' Std';
+    if (!d || Number.isNaN(d.getTime())) return '';
     if (d >= nowDayStart) return 'Heute, ' + formatTimeCH(d);
     if (d >= yesterdayStart && d < nowDayStart) return 'Gestern, ' + formatTimeCH(d);
     return formatDateShortCH(d) + ' ' + formatTimeCH(d);
@@ -4621,11 +4687,12 @@ function updateSoundToggleUI(isOff) {
 // ═══════════════════════════════════════════
 function renderDashboard(records) {
   var buckets = deriveDashboardCallBuckets(records || []);
+  var unifiedTasks = getUnifiedOpenTasks(records || []);
   var doneToday = (records || []).filter(function(r) {
     return isClosedStatus(r.fields && r.fields.dashboard_status) && isToday(getRecordTimestamp(r));
   });
-  var offen = buckets.callbacks;
-  var sortedOpenCallbacks = buckets.callbacks;
+  var offen = unifiedTasks;
+  var sortedOpenCallbacks = unifiedTasks;
   var allOpen = buckets.open;
   var followupsOpen = buckets.followups;
   updateActivationStatusCard(records);
@@ -4674,14 +4741,21 @@ function renderDashboard(records) {
   var focusTextEl = document.getElementById('dash-focus-text');
   if (focusNumberEl && focusHintEl && focusTextEl) {
     focusNumberEl.textContent = offen.length;
-    if (offen.length > 0) {
+    var overdue = offen.filter(function(r){ return getTaskPriorityBucket(r) === 0; }).length;
+    var dueToday = offen.filter(function(r){ return getTaskPriorityBucket(r) === 1; }).length;
+    var upcoming = offen.filter(function(r){ return getTaskPriorityBucket(r) === 2; }).length;
+    var nextFollowUp = offen.find(function(r){
+      return !!resolveFollowUpAt((r && r.fields) || {});
+    });
+    var nextFollowUpLabel = nextFollowUp ? fmtFollowUpDateTime(resolveFollowUpAt(nextFollowUp.fields || {})) : '';
+    if (offen.length > 0 && nextFollowUpLabel) {
+      focusHintEl.textContent = 'Nächster Rückruf';
+      focusTextEl.textContent = nextFollowUpLabel + ' · Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Offene Aufgaben: ' + offen.length;
+    } else if (offen.length > 0) {
       focusHintEl.textContent = 'Jetzt bearbeiten';
-      focusTextEl.textContent = 'Ihr schnellster Hebel: offene Aufgaben zuerst abschliessen, dann Follow-ups priorisieren.';
-    } else if (followupsOpen.length > 0) {
-      focusHintEl.textContent = 'Follow-ups geplant';
-      focusTextEl.textContent = 'Keine offenen Aufgaben. Es warten ' + followupsOpen.length + ' Follow-ups auf Ihre nächste Aktion.';
+      focusTextEl.textContent = 'Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Geplant: ' + upcoming + ' · Offene Aufgaben: ' + offen.length;
     } else {
-      focusHintEl.textContent = 'Keine offenen Tasks';
+      focusHintEl.textContent = 'Keine offenen Aufgaben';
       focusTextEl.textContent = 'Momentan gibt es keine offenen Aufgaben oder Follow-ups.';
     }
   }
@@ -4753,9 +4827,9 @@ function renderDashboard(records) {
   var mb1    = document.getElementById('mnav-badge-anrufe');
   var mb2    = document.getElementById('mnav-badge-rueckrufe');
   if (badgeA) { badgeA.textContent = allOpen.length; badgeA.style.display = allOpen.length > 0 ? '' : 'none'; }
-  if (badgeR) { badgeR.textContent = offen.length; badgeR.style.display = offen.length > 0 ? '' : 'none'; }
+  if (badgeR) { badgeR.textContent = unifiedTasks.length; badgeR.style.display = unifiedTasks.length > 0 ? '' : 'none'; }
   if (mb1) { mb1.textContent = formatMobileBadgeCount(allOpen.length); mb1.style.display = allOpen.length > 0 ? 'block' : 'none'; }
-  if (mb2) { mb2.textContent = formatMobileBadgeCount(offen.length);   mb2.style.display = offen.length > 0   ? 'block' : 'none'; }
+  if (mb2) { mb2.textContent = formatMobileBadgeCount(unifiedTasks.length);   mb2.style.display = unifiedTasks.length > 0   ? 'block' : 'none'; }
 
   // Callback list lives on dedicated Rückrufe tab only
 
@@ -4933,7 +5007,9 @@ function renderList(containerId, records, opts) {
     const notizText = (f.notes_customer_voxera || '').trim();
     const showActions = opts.showActions !== false;
     const summary = (f.call_summary || fallbackCallSummary(f) || '').trim();
-    const callSummary = opts.dashboardView ? summary.substring(0, 140) : summary;
+    const visibleSummary = isDashLikePlaceholder(summary) ? '' : summary;
+    const categoryLabel = callCategoryLabel(f.category);
+    const callSummary = opts.dashboardView ? visibleSummary.substring(0, 140) : visibleSummary;
 
     const incoming = recentIncomingIds.has(r.id);
     const priority = getPriority(r);
@@ -4952,7 +5028,7 @@ function renderList(containerId, records, opts) {
           <div class="call-top-main">
             <span class="call-name">${escHtml(callerDisplayName)}</span>
           </div>
-          <span class="call-open-indicator">Details <span class="call-expand-chevron">›</span></span>
+          <span class="call-open-indicator">Details öffnen <span class="call-expand-chevron">›</span></span>
         </div>
         <div class="call-secondary">
           ${badgeHtml}
@@ -4960,7 +5036,7 @@ function renderList(containerId, records, opts) {
         </div>
         <div class="call-meta">
           ${displayPhone?`<span class="call-meta-item call-meta-phone">${escHtml(displayPhone)}</span>`:''}
-          ${f.category?`<span class="call-meta-item">${escHtml(f.category)}</span>`:''}
+          ${(categoryLabel && !isDashLikePlaceholder(categoryLabel))?`<span class="call-meta-item">${escHtml(categoryLabel)}</span>`:''}
           <span class="call-meta-item">${callDateTime}</span>
         </div>
         ${callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:''}
@@ -4968,9 +5044,9 @@ function renderList(containerId, records, opts) {
         ${done && closedAt ? `<div class="followup-meta-line">Abgeschlossen am ${escHtml(fmtExactDateTime(closedAt) || fmtDate(closedAt))}</div>` : ''}
         ${notizText && !opts.dashboardView?`<div class="call-notiz">${escHtml(notizText)}</div>`:''}
         ${showActions && !done?`<div class="call-actions">
-          <button class="btn-a btn-note" onclick="event.stopPropagation();openFollowupDirect('${r.id}')">Follow-up</button>
-          <button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')">Details</button>
-          <button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="event.stopPropagation();openNotizFromBtn(this)">Notiz</button>
+          <button class="btn-a btn-note" onclick="event.stopPropagation();openFollowupDirect('${r.id}')" title="Follow-up öffnen">Follow-up</button>
+          <button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')" title="Details öffnen">Details</button>
+          <button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="event.stopPropagation();openNotizFromBtn(this)" title="Notiz bearbeiten">Notiz</button>
         </div>`:''}
         ${showActions && done?`<div class="call-actions">
           <button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')">Details</button>
@@ -5001,9 +5077,8 @@ function renderAnrufe(records) {
 }
 
 function renderRueckrufe(records) {
-  const offen = records.filter(r => r.fields.callback_requested && !isClosedStatus(r.fields.dashboard_status));
-  const sortedOpenCallbacks = sortOpenCallbacksOldestFirst(offen);
-  renderList('rueckrufe-list', sortedOpenCallbacks, {showActions:true, primaryCallback:true, skipSort:true});
+  const unifiedTasks = getUnifiedOpenTasks(records || []);
+  renderList('rueckrufe-list', unifiedTasks, {showActions:true, primaryCallback:true, skipSort:true});
 }
 
 var _archivFilter = 'all';
@@ -5330,7 +5405,7 @@ function openFollowupDirect(recordId) {
 function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt) {
   notizRecordId = recordId;
   const done = isClosedStatus(currentStatus);
-  document.getElementById('followup-sub').textContent = callerName ? 'Nach dem Rückruf mit ' + callerName : 'Anruf nachbearbeiten';
+  document.getElementById('followup-sub').textContent = callerName ? 'Nach dem Rückruf mit ' + callerName : '';
   document.getElementById('followup-input').value = existingNotiz || '';
   document.getElementById('followup-next-action').value = nextAction || '';
   document.getElementById('followup-datetime').value = fmtDateTimeLocal(followUpAt || '');
@@ -5449,10 +5524,19 @@ function openDetail(recordId) {
   const rec = allRecords.find(r => r.id === recordId);
   if (!rec) return;
   const f = rec.fields || {};
-  const phone = (f.phone_number || f.caller_phone || '–').trim();
-  const tel = (f.tel_link || (phone && phone !== '–' ? ('tel:' + phone.replace(/\s/g,'')) : '')).trim();
+  const phone = (f.phone_number || f.caller_phone || '').trim();
+  const tel = (f.tel_link || (phone ? ('tel:' + phone.replace(/\s/g,'')) : '')).trim();
+  const detailMetaParts = [];
+  if (f.company_name && !isDashLikePlaceholder(f.company_name)) detailMetaParts.push(f.company_name);
+  const createdLabel = fmtDate(getRecordTimestamp(rec));
+  if (createdLabel) detailMetaParts.push(createdLabel);
+  const renderDetailLine = function(label, value) {
+    const text = String(value == null ? '' : value).trim();
+    if (!text || isDashLikePlaceholder(text)) return '';
+    return '<div class="detail-line"><span>' + escHtml(label) + '</span><span>' + escHtml(text) + '</span></div>';
+  };
   document.getElementById('detail-heading').textContent = getCallDisplayName(f) || 'Call-Detail';
-  document.getElementById('detail-sub').textContent = (f.company_name || '–') + ' · ' + fmtDate(getRecordTimestamp(rec));
+  document.getElementById('detail-sub').textContent = detailMetaParts.join(' · ');
   document.getElementById('detail-content').innerHTML = `
     <div class="detail-layout">
       <div class="detail-zone-info">
@@ -5475,14 +5559,14 @@ function openDetail(recordId) {
         </div>
         <div class="detail-card">
           <div class="detail-section-title">Call-Infos</div>
-          <div class="detail-line"><span>Telefon</span><span>${escHtml(phone || '–')}</span></div>
-          <div class="detail-line"><span>Kategorie</span><span>${escHtml(callCategoryLabel(f.category))}</span></div>
-          <div class="detail-line"><span>Lead-Qualität</span><span>${escHtml(f.lead_quality || 'Neu')}</span></div>
-          <div class="detail-line"><span>Status</span><span>${escHtml(statusLabel(f.dashboard_status))}</span></div>
-          <div class="detail-line"><span>Rückruf</span><span>${f.callback_requested ? 'Ja' : 'Nein'}</span></div>
-          <div class="detail-line"><span>Nächste Aktion</span><span>${escHtml(f.next_action || '–')}</span></div>
-          <div class="detail-line"><span>Follow-up</span><span>${f.follow_up_at ? fmtFollowUpDateTime(f.follow_up_at) : '–'}</span></div>
-          <div class="detail-line"><span>Erfasst</span><span>${fmtDate(getRecordTimestamp(rec))}</span></div>
+          ${renderDetailLine('Telefon', phone)}
+          ${renderDetailLine('Kategorie', callCategoryLabel(f.category))}
+          ${renderDetailLine('Lead-Qualität', f.lead_quality || 'Neu')}
+          ${renderDetailLine('Status', statusLabel(f.dashboard_status))}
+          ${renderDetailLine('Rückruf', f.callback_requested ? 'Ja' : 'Nein')}
+          ${renderDetailLine('Nächste Aktion', f.next_action || '')}
+          ${renderDetailLine('Follow-up', f.follow_up_at ? fmtFollowUpDateTime(f.follow_up_at) : '')}
+          ${renderDetailLine('Erfasst', fmtDate(getRecordTimestamp(rec)))}
         </div>
       </div>
     </div>`;
@@ -5542,7 +5626,7 @@ async function saveNotiz() {
   const rec = allRecords.find(r => r.id === notizRecordId);
   const currentStatus = rec && rec.fields ? normalizeStatus(rec.fields.dashboard_status) : CALL_STATUS.NEW;
   try {
-    await apiPatchOptional(notizRecordId, {notes_customer_voxera: text}, {notes_customer_voxera: text});
+    await patchCallRecord(notizRecordId, { notes_customer_voxera: text });
     if (currentStatus === CALL_STATUS.NEW) {
       await applyStatusTransition(notizRecordId, currentStatus, CALL_STATUS.IN_PROGRESS);
     }

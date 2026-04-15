@@ -24,7 +24,9 @@ function normalizeCallStatus(status) {
     abgeschlossen: CALL_STATUS.CLOSED,
     erledigt: CALL_STATUS.CLOSED,
     closed: CALL_STATUS.CLOSED,
-    done: CALL_STATUS.CLOSED
+    done: CALL_STATUS.CLOSED,
+    complete: CALL_STATUS.CLOSED,
+    completed: CALL_STATUS.CLOSED
   };
   return aliases[raw] || CALL_STATUS.NEW;
 }
