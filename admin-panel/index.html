@@ -2107,6 +2107,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
     </div>
   </div>
 </div>
+</div>
 
 <!-- SEND ACCESS MODAL -->
 <div class="modal-overlay" id="send-access-modal" onclick="if(event.target===this)closeSendAccessModal()">
@@ -3745,6 +3746,41 @@ function sendAccessDebug(stage,details){
 function sendAccessToast(message,type){
   sendAccessDebug('before toast',{message,type:type||'default'});
   showToast(message);
+}
+
+function getSendAccessModalVisibility(modalEl){
+  if(!modalEl) return {isVisible:false,reason:'modal-missing'};
+  const visibilityChain=[];
+  let node=modalEl;
+  let hiddenAncestor=null;
+  while(node&&node!==document.body){
+    const style=window.getComputedStyle(node);
+    const isHiddenByStyle=style.display==='none'||style.visibility==='hidden'||style.opacity==='0';
+    const isNonInteractive=style.pointerEvents==='none';
+    const entry={
+      node:node.id?`#${node.id}`:(node.className?String(node.className).split(/\s+/).filter(Boolean).slice(0,2).map(c=>`.${c}`).join('')||node.tagName.toLowerCase():node.tagName.toLowerCase()),
+      display:style.display,
+      visibility:style.visibility,
+      opacity:style.opacity,
+      pointerEvents:style.pointerEvents,
+      position:style.position,
+      zIndex:style.zIndex,
+      overflow:`${style.overflow}/${style.overflowX}/${style.overflowY}`,
+      transform:style.transform
+    };
+    visibilityChain.push(entry);
+    if((isHiddenByStyle||isNonInteractive)&&!hiddenAncestor) hiddenAncestor=entry.node;
+    node=node.parentElement;
+  }
+  const rect=modalEl.getBoundingClientRect();
+  const inViewport=rect.width>0&&rect.height>0&&rect.bottom>0&&rect.right>0&&rect.top<window.innerHeight&&rect.left<window.innerWidth;
+  return {
+    isVisible:!hiddenAncestor&&inViewport,
+    hiddenAncestor,
+    inViewport,
+    rect:{x:Math.round(rect.x),y:Math.round(rect.y),width:Math.round(rect.width),height:Math.round(rect.height)},
+    chain:visibilityChain.slice(0,6)
+  };
 }
 
 function triggerSendAccessFromUi(customerId,source='unknown'){
@@ -6797,6 +6833,11 @@ function openSendAccessModal(customerId){
     sendAccessDebug('openSendAccessModal:open class missing after set',{customerId});
     sendAccessToast('Send-Modal konnte nicht angezeigt werden.','error');
     return false;
+  }
+  const visibilityState=getSendAccessModalVisibility(modalEl);
+  sendAccessDebug('openSendAccessModal:visibility-state',{customerId,...visibilityState});
+  if(!visibilityState.isVisible){
+    sendAccessToast('Zugang-Modal intern geöffnet, aber im Layout nicht sichtbar. Bitte Seite neu laden oder Layout prüfen.','warning');
   }
   return true;
 }
