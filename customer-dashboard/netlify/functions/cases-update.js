@@ -29,18 +29,23 @@ function logStatusUpdate(stage, payload) {
   } catch (_e) {}
 }
 
-const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'priority', 'type', 'due_at', 'due_time', 'phone']);
+function logStatusReject(payload) {
+  logStatusUpdate('reject', payload);
+}
+
+const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'notes', 'priority', 'type', 'due_at', 'due_time', 'phone']);
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
 const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte verwenden Sie das Format HH:MM (z. B. 14:30).';
-const MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE = 'Die Uhrzeit kann aktuell noch nicht gespeichert werden, da die Datenbankspalte due_time in dieser Umgebung fehlt. Bitte speichern Sie vorerst ohne Uhrzeit.';
 
 const CASE_TRANSITIONS = {
-  open: new Set(['in_progress', 'done']),
-  in_progress: new Set(['waiting', 'done']),
-  waiting: new Set(['in_progress', 'done']),
-  done: new Set([])
+  new: new Set(['triaged', 'in_progress', 'waiting_external', 'resolved', 'closed']),
+  triaged: new Set(['in_progress', 'waiting_external', 'resolved', 'closed']),
+  in_progress: new Set(['waiting_external', 'resolved', 'closed']),
+  waiting_external: new Set(['in_progress', 'resolved', 'closed']),
+  resolved: new Set(['closed', 'in_progress', 'waiting_external']),
+  closed: new Set([])
 };
 
 function isMissingManualTasksSchema(error) {
@@ -61,16 +66,6 @@ function isPriorityConstraintError(error) {
   const combined = `${message} ${details} ${hint}`;
   return combined.includes('cases_priority_check')
     || (/\bcases\b/.test(combined) && /priority/.test(combined) && /violates check constraint/.test(combined));
-}
-
-function isDueTimeColumnMissing(error) {
-  const message = String(error?.message || '').toLowerCase();
-  const details = String(error?.details || '').toLowerCase();
-  const hint = String(error?.hint || '').toLowerCase();
-  const combined = `${message} ${details} ${hint}`;
-  return /\bcases\b/.test(combined)
-    && /\bdue_time\b/.test(combined)
-    && /(schema cache|column|does not exist|could not find)/.test(combined);
 }
 
 function assertCaseTransition(from, to) {
@@ -119,11 +114,12 @@ exports.handler = async (event) => {
 
   const updatePayload = { updated_at: new Date().toISOString() };
   const requestedUpdates = updates || { [field]: value };
+  const normalizedField = Object.prototype.hasOwnProperty.call(requestedUpdates, 'status') ? 'status' : field;
 
   if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'status')) {
-    const rawCurrent = current.status || 'open';
+    const rawCurrent = current.status || 'new';
     const rawRequested = requestedUpdates.status;
-    const fromStatus = mapManualTaskUiStatusToDb(current.status || 'open');
+    const fromStatus = mapManualTaskUiStatusToDb(current.status || 'new');
     const toStatus = mapManualTaskUiStatusToDb(requestedUpdates.status);
     logStatusUpdate('mapped', {
       case_id: caseId,
@@ -132,14 +128,27 @@ exports.handler = async (event) => {
       mapped_from_status: fromStatus,
       mapped_to_status: toStatus
     });
+    let transitionAllowed = true;
     try {
       assertCaseTransition(fromStatus, toStatus);
     } catch (e) {
+      transitionAllowed = false;
       logStatusUpdate('transition_blocked', {
         case_id: caseId,
         from_status: fromStatus,
         to_status: toStatus,
         error: String(e && e.message || '')
+      });
+      logStatusReject({
+        source_branch: 'status_transition_guard',
+        incoming_field: field || null,
+        incoming_value: value === undefined ? null : value,
+        normalized_field: normalizedField || null,
+        normalized_value: toStatus,
+        current_stored_status: rawCurrent,
+        requested_target_status: toStatus,
+        transition_allowed: transitionAllowed,
+        reject_reason: String(e && e.message || '')
       });
       return response(409, { error: e.message, from_status: fromStatus, to_status: toStatus });
     }
@@ -152,8 +161,11 @@ exports.handler = async (event) => {
     updatePayload.title = title;
   }
 
-  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'note')) {
-    updatePayload.note = String(requestedUpdates.note || '').trim() || null;
+  if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'note') || Object.prototype.hasOwnProperty.call(requestedUpdates, 'notes')) {
+    const rawNote = Object.prototype.hasOwnProperty.call(requestedUpdates, 'note')
+      ? requestedUpdates.note
+      : requestedUpdates.notes;
+    updatePayload.note = String(rawNote || '').trim() || null;
   }
 
   if (Object.prototype.hasOwnProperty.call(requestedUpdates, 'priority')) {
@@ -210,6 +222,17 @@ exports.handler = async (event) => {
       return response(400, { error: MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, code: 'cases_priority_invalid' });
     }
     if (isStatusConstraintError(error)) {
+      logStatusReject({
+        source_branch: 'status_constraint_error',
+        incoming_field: field || null,
+        incoming_value: value === undefined ? null : value,
+        normalized_field: normalizedField || null,
+        normalized_value: updatePayload.status || null,
+        current_stored_status: current.status || null,
+        requested_target_status: updatePayload.status || null,
+        transition_allowed: true,
+        reject_reason: String(error?.message || 'status_constraint_error')
+      });
       return response(400, {
         error: MANUAL_TASKS_STATUS_INVALID_MESSAGE,
         code: 'cases_status_invalid',
@@ -217,12 +240,6 @@ exports.handler = async (event) => {
       });
     }
     if (isMissingManualTasksSchema(error)) {
-      if (Object.prototype.hasOwnProperty.call(updatePayload, 'due_time') && isDueTimeColumnMissing(error)) {
-        return response(409, {
-          error: MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE,
-          code: 'cases_due_time_unavailable'
-        });
-      }
       return response(503, {
         error: MANUAL_TASKS_DB_EXTENSION_MESSAGE,
         code: 'cases_schema_extension_missing'

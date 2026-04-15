@@ -3053,10 +3053,10 @@ body{
             <div class="followup-field">
               <label for="manual-task-status">Status *</label>
               <select id="manual-task-status">
-                <option value="open" selected>Offen</option>
+                <option value="new" selected>Neu</option>
                 <option value="in_progress">In Bearbeitung</option>
-                <option value="waiting">Wartend</option>
-                <option value="done">Abgeschlossen</option>
+                <option value="waiting_external">Wartend</option>
+                <option value="closed">Abgeschlossen</option>
               </select>
             </div>
             <div class="followup-field">
@@ -3385,18 +3385,23 @@ const MANUAL_TASK_TYPE_OPTIONS = Object.freeze({
   general: 'Allgemeine Aufgabe'
 });
 const MANUAL_TASK_STATUS_UI_TO_DB = Object.freeze({
-  offen: 'open',
-  open: 'open',
+  neu: 'new',
+  new: 'new',
+  offen: 'new',
+  open: 'new',
+  triaged: 'triaged',
   in_bearbeitung: 'in_progress',
   'in bearbeitung': 'in_progress',
   in_progress: 'in_progress',
-  wartend: 'waiting',
-  waiting: 'waiting',
-  erledigt: 'done',
-  abgeschlossen: 'done',
-  done: 'done',
-  closed: 'done',
-  geschlossen: 'done'
+  wartend: 'waiting_external',
+  waiting: 'waiting_external',
+  waiting_external: 'waiting_external',
+  erledigt: 'closed',
+  abgeschlossen: 'closed',
+  done: 'closed',
+  closed: 'closed',
+  geschlossen: 'closed',
+  resolved: 'resolved'
 });
 const MANUAL_TASK_PRIORITY_UI_TO_DB = Object.freeze({
   dringend: 'high',
@@ -3553,7 +3558,8 @@ function resolveFollowUpAt(fields) {
 
 function normalizeTaskStatus(rawStatus) {
   const raw = String(rawStatus || '').trim().toLowerCase();
-  if (raw === 'closed' || raw === 'done' || raw === 'abgeschlossen') return 'done';
+  if (raw === 'closed' || raw === 'done' || raw === 'abgeschlossen' || raw === 'resolved') return 'done';
+  if (raw === 'waiting_external' || raw === 'waiting') return 'in_progress';
   if (raw === 'in_progress' || raw === 'follow_up_scheduled' || raw === 'in bearbeitung') return 'in_progress';
   return 'open';
 }
@@ -3854,7 +3860,7 @@ async function loadManualTaskRecords(customerIdRaw) {
 
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
-const MANUAL_TASKS_STATUS_INVALID_MESSAGE = 'Der gewählte Status ist ungültig. Bitte verwenden Sie „Offen“, „In Bearbeitung“ oder „Erledigt“.';
+const MANUAL_TASKS_STATUS_INVALID_MESSAGE = 'Der gewählte Status ist ungültig. Bitte verwenden Sie „Neu“, „In Bearbeitung“, „Wartend“ oder „Abgeschlossen“.';
 const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte verwenden Sie das Format HH:MM (z. B. 14:30).';
 const MANUAL_TASKS_DEFAULT_PRIORITY = 'medium';
 
@@ -3883,15 +3889,15 @@ function mapManualTaskPriorityDbToUi(rawPriority) {
 
 function mapManualTaskStatusUiToDb(rawStatus) {
   const key = String(rawStatus || '').trim().toLowerCase().replace(/\s+/g, '_');
-  return MANUAL_TASK_STATUS_UI_TO_DB[key] || 'open';
+  return MANUAL_TASK_STATUS_UI_TO_DB[key] || 'new';
 }
 
 function mapDashboardStatusToManualTaskDbStatus(status) {
   const normalized = normalizeStatus(status);
-  if (normalized === CALL_STATUS.CLOSED) return mapManualTaskStatusUiToDb('done');
-  if (normalized === CALL_STATUS.FOLLOW_UP_SCHEDULED) return mapManualTaskStatusUiToDb('waiting');
+  if (normalized === CALL_STATUS.CLOSED) return mapManualTaskStatusUiToDb('closed');
+  if (normalized === CALL_STATUS.FOLLOW_UP_SCHEDULED) return mapManualTaskStatusUiToDb('waiting_external');
   if (normalized === CALL_STATUS.IN_PROGRESS) return mapManualTaskStatusUiToDb('in_progress');
-  return mapManualTaskStatusUiToDb('open');
+  return mapManualTaskStatusUiToDb('new');
 }
 
 function mapManualTaskTypeUiToDb(rawType) {
@@ -3924,22 +3930,11 @@ function isManualTaskStatusConstraintError(raw) {
 
 function isManualTaskContractInactiveError(error) {
   const statusCode = Number(error?.status || error?.payload?.statusCode || error?.payload?.status || 0) || 0;
-  const payloadReason = String(error?.payload?.details?.reason || error?.payload?.reason || '').toLowerCase();
-  const payloadEntitlement = String(error?.payload?.entitlement_code || '').toLowerCase();
   const payloadCode = String(error?.payload?.code || '').toLowerCase();
   const topLevelCode = String(error?.code || '').toLowerCase();
-  const topLevelReason = String(error?.reason || '').toLowerCase();
-  const topLevelEntitlement = String(error?.entitlement_code || '').toLowerCase();
   return Boolean(error
-    && [403, 409].includes(statusCode)
-    && (
-      payloadCode === 'guard_contract_inactive'
-      || topLevelCode === 'guard_contract_inactive'
-      || (payloadReason === 'contract_inactive' && payloadCode.startsWith('guard_'))
-      || (topLevelReason === 'contract_inactive' && topLevelCode.startsWith('guard_'))
-      || (payloadEntitlement === 'contract_inactive' && payloadCode.startsWith('guard_'))
-      || (topLevelEntitlement === 'contract_inactive' && topLevelCode.startsWith('guard_'))
-    ));
+    && statusCode === 409
+    && (payloadCode === 'guard_contract_inactive' || topLevelCode === 'guard_contract_inactive'));
 }
 
 function toManualTaskUserMessage(error, fallbackMessage) {
@@ -3950,11 +3945,6 @@ function toManualTaskUserMessage(error, fallbackMessage) {
       reason: String(error?.payload?.details?.reason || error?.payload?.reason || error?.reason || '')
     });
     return getRestrictedContractMessage('Aufgaben');
-  }
-  const dueTimeMissingMigration = String(error?.payload?.details?.fallback_hint || '') === 'cases_due_time_missing_migration';
-  if (dueTimeMissingMigration) {
-    logManualTaskDoneFlow('toast-resolver.due-time-migration', {});
-    return 'Uhrzeit konnte noch nicht gespeichert werden, da die Datenbank-Migration in dieser Umgebung noch nicht ausgerollt ist.';
   }
   const raw = String(
     error?.message
@@ -3979,7 +3969,7 @@ async function createManualTask(payload) {
   const insertPayload = {
     title: payload.title,
     note: payload.note || null,
-    status: mapManualTaskStatusUiToDb(payload.status || 'open'),
+    status: mapManualTaskStatusUiToDb(payload.status || 'new'),
     priority: payload.priority || MANUAL_TASKS_DEFAULT_PRIORITY,
     type: mapManualTaskTypeUiToDb(payload.type || 'general'),
     due_at: payload.due_at,
@@ -4007,7 +3997,7 @@ async function updateManualTaskStatus(recordId, targetStatus) {
   if (!rec) throw new Error('Aufgabe nicht gefunden.');
   const entityId = String((rec.fields && rec.fields.task_entity_id) || '').trim();
   if (!entityId) throw new Error('Ungültige Aufgaben-ID.');
-  const canonicalStatus = mapManualTaskStatusUiToDb(targetStatus || 'open');
+  const canonicalStatus = mapManualTaskStatusUiToDb(targetStatus || 'new');
   const requestPayload = {
     case_id: entityId,
     field: 'status',
@@ -6205,7 +6195,7 @@ function openManualTaskModal() {
   document.getElementById('manual-task-type').value = 'callback';
   document.getElementById('manual-task-due').value = todayIso;
   document.getElementById('manual-task-due-time').value = '';
-  document.getElementById('manual-task-status').value = 'open';
+  document.getElementById('manual-task-status').value = 'new';
   document.getElementById('manual-task-priority').value = '';
   document.getElementById('manual-task-note').value = '';
   document.getElementById('manual-task-phone').value = '';
@@ -6234,9 +6224,9 @@ function openManualTaskEditModal(recordId) {
   document.getElementById('manual-task-type').value = mapManualTaskTypeUiToDb(f.type || 'general');
   document.getElementById('manual-task-due').value = String(f.due_at || '').trim();
   document.getElementById('manual-task-due-time').value = String(f.due_time || '').trim();
-  document.getElementById('manual-task-status').value = mapManualTaskStatusUiToDb(f.status || f.dashboard_status || 'open');
+  document.getElementById('manual-task-status').value = mapManualTaskStatusUiToDb(f.status || f.dashboard_status || 'new');
   document.getElementById('manual-task-priority').value = mapManualTaskPriorityDbToUi(f.priority || '');
-  document.getElementById('manual-task-note').value = String(f.note || '').trim();
+  document.getElementById('manual-task-note').value = String(f.note || f.notes || '').trim();
   document.getElementById('manual-task-phone').value = String(f.phone || f.phone_number || '').trim();
   const saveBtn = document.getElementById('manual-task-save-btn');
   if (saveBtn) {
@@ -6263,7 +6253,7 @@ async function saveManualTask() {
   const dueAt = String(document.getElementById('manual-task-due').value || '').trim();
   const dueTimeRaw = String(document.getElementById('manual-task-due-time').value || '').trim();
   const dueTime = normalizeManualTaskDueTime(dueTimeRaw);
-  const status = mapManualTaskStatusUiToDb(document.getElementById('manual-task-status').value || 'open');
+  const status = mapManualTaskStatusUiToDb(document.getElementById('manual-task-status').value || 'new');
   const priority = String(document.getElementById('manual-task-priority').value || '').trim();
   const note = String(document.getElementById('manual-task-note').value || '').trim();
   const phone = String(document.getElementById('manual-task-phone').value || '').trim();
