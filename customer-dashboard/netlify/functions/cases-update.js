@@ -28,6 +28,7 @@ const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung n
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
 const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte verwenden Sie das Format HH:MM (z. B. 14:30).';
+const MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE = 'Die Uhrzeit kann aktuell noch nicht gespeichert werden, da die Datenbankspalte due_time in dieser Umgebung fehlt. Bitte speichern Sie vorerst ohne Uhrzeit.';
 
 const CASE_TRANSITIONS = {
   open: new Set(['in_progress']),
@@ -54,6 +55,16 @@ function isPriorityConstraintError(error) {
   const combined = `${message} ${details} ${hint}`;
   return combined.includes('cases_priority_check')
     || (/\bcases\b/.test(combined) && /priority/.test(combined) && /violates check constraint/.test(combined));
+}
+
+function isDueTimeColumnMissing(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const combined = `${message} ${details} ${hint}`;
+  return /\bcases\b/.test(combined)
+    && /\bdue_time\b/.test(combined)
+    && /(schema cache|column|does not exist|could not find)/.test(combined);
 }
 
 function assertCaseTransition(from, to) {
@@ -176,6 +187,12 @@ exports.handler = async (event) => {
       });
     }
     if (isMissingManualTasksSchema(error)) {
+      if (Object.prototype.hasOwnProperty.call(updatePayload, 'due_time') && isDueTimeColumnMissing(error)) {
+        return response(409, {
+          error: MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE,
+          code: 'cases_due_time_unavailable'
+        });
+      }
       return response(503, {
         error: MANUAL_TASKS_DB_EXTENSION_MESSAGE,
         code: 'cases_schema_extension_missing'

@@ -28,6 +28,7 @@ const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung n
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 const MANUAL_TASKS_STATUS_INVALID_MESSAGE = `Der Status ist ungültig. Erlaubte Werte: ${DB_CASE_STATUS_VALUES.join(', ')}.`;
 const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte verwenden Sie das Format HH:MM (z. B. 14:30).';
+const MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE = 'Die Uhrzeit kann aktuell noch nicht gespeichert werden, da die Datenbankspalte due_time in dieser Umgebung fehlt. Bitte speichern Sie vorerst ohne Uhrzeit.';
 
 function log(stage, meta = {}) {
   try {
@@ -97,6 +98,13 @@ function detectLikelyFieldMismatch(error) {
   if (combined.includes('phone')) return 'phone';
   if (combined.includes('customer_id')) return 'customer_id';
   return null;
+}
+
+function isDueTimeColumnMissing(error) {
+  const combined = `${String(error?.message || '')} ${String(error?.details || '')} ${String(error?.hint || '')}`.toLowerCase();
+  return /\bcases\b/.test(combined)
+    && /\bdue_time\b/.test(combined)
+    && /(column|schema cache|does not exist|could not find)/.test(combined);
 }
 
 function safeBodyForLog(body) {
@@ -213,11 +221,11 @@ exports.handler = async (event) => {
       priority,
       type,
       due_at: dueAtDb.value,
-      due_time: dueTimeDb.value,
       phone: phone || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+    if (dueTimeDb.value !== null) payload.due_time = dueTimeDb.value;
 
     log('db.insert.payload', {
       table: 'cases',
@@ -284,6 +292,12 @@ exports.handler = async (event) => {
       }
       if (isMissingManualTasksSchema(error)) {
         const isDueTimeMismatch = mismatchedField === 'due_time';
+        if (isDueTimeMismatch && dueTimeDb.value !== null && isDueTimeColumnMissing(error)) {
+          return response(409, errorPayload(MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE, 'cases_due_time_unavailable', {
+            db_error: dbError,
+            migration_required: 'add_cases_due_time_column'
+          }));
+        }
         return response(503, errorPayload(MANUAL_TASKS_DB_EXTENSION_MESSAGE, 'cases_schema_extension_missing', {
           db_error: dbError,
           mismatched_field: mismatchedField,
