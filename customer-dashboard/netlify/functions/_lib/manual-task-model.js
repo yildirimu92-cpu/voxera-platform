@@ -1,6 +1,6 @@
 'use strict';
 
-const DB_CASE_STATUS_VALUES = Object.freeze(['open', 'in_progress', 'waiting', 'done']);
+const DB_CASE_STATUS_VALUES = Object.freeze(['new', 'triaged', 'in_progress', 'waiting_external', 'resolved', 'closed']);
 const DB_CASE_STATUS_SET = new Set(DB_CASE_STATUS_VALUES);
 
 const DB_CASE_PRIORITY_VALUES = Object.freeze(['low', 'medium', 'high']);
@@ -11,18 +11,23 @@ const DB_CASE_TYPE_VALUES = Object.freeze(['general', 'callback', 'follow_up', '
 const DB_CASE_TYPE_SET = new Set(DB_CASE_TYPE_VALUES);
 
 const MANUAL_TASK_UI_STATUS_TO_DB = Object.freeze({
-  offen: 'open',
-  open: 'open',
+  neu: 'new',
+  new: 'new',
+  offen: 'new',
+  open: 'new',
+  triaged: 'triaged',
   in_bearbeitung: 'in_progress',
   'in bearbeitung': 'in_progress',
   in_progress: 'in_progress',
-  erledigt: 'done',
-  abgeschlossen: 'done',
-  done: 'done',
-  geschlossen: 'done',
-  closed: 'done',
-  wartend: 'waiting',
-  waiting: 'waiting'
+  wartend: 'waiting_external',
+  waiting: 'waiting_external',
+  waiting_external: 'waiting_external',
+  erledigt: 'closed',
+  abgeschlossen: 'closed',
+  done: 'closed',
+  geschlossen: 'closed',
+  closed: 'closed',
+  resolved: 'resolved'
 });
 
 const MANUAL_TASK_UI_PRIORITY_TO_DB = Object.freeze({
@@ -57,12 +62,12 @@ const MANUAL_TASK_UI_TYPE_TO_DB = Object.freeze({
 });
 
 function normalizeStatusForDb(rawStatus, options = {}) {
-  const fallback = options.fallback || 'open';
+  const fallback = options.fallback || 'new';
   const raw = String(rawStatus || '').trim().toLowerCase().replace(/\s+/g, '_');
   const normalized = MANUAL_TASK_UI_STATUS_TO_DB[raw];
   if (normalized && DB_CASE_STATUS_SET.has(normalized)) return normalized;
   if (DB_CASE_STATUS_SET.has(raw)) return raw;
-  return DB_CASE_STATUS_SET.has(fallback) ? fallback : 'open';
+  return DB_CASE_STATUS_SET.has(fallback) ? fallback : 'new';
 }
 
 function normalizePriorityForDb(rawPriority, options = {}) {
