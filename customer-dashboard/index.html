@@ -3880,6 +3880,14 @@ function mapManualTaskStatusUiToDb(rawStatus) {
   return MANUAL_TASK_STATUS_UI_TO_DB[key] || 'open';
 }
 
+function mapDashboardStatusToManualTaskDbStatus(status) {
+  const normalized = normalizeStatus(status);
+  if (normalized === CALL_STATUS.CLOSED) return mapManualTaskStatusUiToDb('done');
+  if (normalized === CALL_STATUS.FOLLOW_UP_SCHEDULED) return mapManualTaskStatusUiToDb('waiting');
+  if (normalized === CALL_STATUS.IN_PROGRESS) return mapManualTaskStatusUiToDb('in_progress');
+  return mapManualTaskStatusUiToDb('open');
+}
+
 function mapManualTaskTypeUiToDb(rawType) {
   const key = String(rawType || '').trim().toLowerCase().replace(/\s+/g, '_');
   return MANUAL_TASK_TYPE_UI_TO_DB[key] || 'general';
@@ -3977,10 +3985,11 @@ async function updateManualTaskStatus(recordId, targetStatus) {
   if (!rec) throw new Error('Aufgabe nicht gefunden.');
   const entityId = String((rec.fields && rec.fields.task_entity_id) || '').trim();
   if (!entityId) throw new Error('Ungültige Aufgaben-ID.');
+  const canonicalStatus = mapManualTaskStatusUiToDb(targetStatus || 'open');
   const json = await callDashboardFunction('cases-update', {
     case_id: entityId,
     field: 'status',
-    value: targetStatus
+    value: canonicalStatus
   });
   if (!json || json.success !== true || !json.case) {
     const err = new Error((json && json.error) || 'Status konnte nicht gespeichert werden.');
@@ -5848,8 +5857,7 @@ async function runConfirmModalAction() {
       closeConfirmModal();
     }
   } catch (e) {
-    const msg = (e && (e.payload && e.payload.error || e.message)) || 'Fehler beim Speichern';
-    toast(' ' + msg);
+    toast(' ' + toManualTaskUserMessage(e, 'Aktion konnte nicht gespeichert werden.'));
   } finally {
     confirmModalBusy = false;
     if (okBtn) {
@@ -5936,13 +5944,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   };
   try {
     if (isManualTask) {
-      const caseStatus = mapManualTaskStatusUiToDb(
-        normalizedStatus === CALL_STATUS.CLOSED
-          ? 'erledigt'
-          : normalizedStatus === CALL_STATUS.IN_PROGRESS
-            ? 'in_bearbeitung'
-            : 'offen'
-      );
+      const caseStatus = mapDashboardStatusToManualTaskDbStatus(normalizedStatus);
       const updated = await updateManualTaskStatus(recordId, caseStatus);
       const idx = allManualTaskRecords.findIndex(function(r) { return String(r.id) === String(recordId); });
       if (idx >= 0) allManualTaskRecords[idx] = updated;
