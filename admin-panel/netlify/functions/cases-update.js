@@ -13,18 +13,37 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
-const ALLOWED_FIELDS = new Set(['status', 'title', 'note']);
+const ALLOWED_FIELDS = new Set(['status', 'title', 'note', 'priority']);
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
+const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist ungültig. Bitte verwenden Sie „Normal“, „Dringend“ oder keine Priorität.';
 
 function isMissingManualTasksSchema(error) {
   const message = String(error?.message || '').toLowerCase();
   const details = String(error?.details || '').toLowerCase();
   const hint = String(error?.hint || '').toLowerCase();
   const combined = `${message} ${details} ${hint}`;
-  const columnMentioned = /due_at|phone/.test(combined);
+  const columnMentioned = /title|note|due_at|phone/.test(combined);
   const relationMentioned = /\bcases\b/.test(combined);
   const schemaIssue = /schema cache|column|does not exist|could not find/.test(combined);
   return columnMentioned && relationMentioned && schemaIssue;
+}
+
+function isPriorityConstraintError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const combined = `${message} ${details} ${hint}`;
+  return combined.includes('cases_priority_check')
+    || (/\bcases\b/.test(combined) && /priority/.test(combined) && /violates check constraint/.test(combined));
+}
+
+function mapPriorityToDb(rawPriority) {
+  const key = String(rawPriority || '').trim().toLowerCase();
+  if (!key) return null;
+  if (key === 'urgent' || key === 'dringend') return 'high';
+  if (key === 'normal') return 'medium';
+  if (key === 'high' || key === 'medium' || key === 'low') return key;
+  return null;
 }
 
 exports.handler = async (event) => {
@@ -74,6 +93,8 @@ exports.handler = async (event) => {
     updatePayload.title = title;
   } else if (field === 'note') {
     updatePayload.note = String(value || '').trim() || null;
+  } else if (field === 'priority') {
+    updatePayload.priority = mapPriorityToDb(value);
   }
 
   const { data, error } = await sbAdmin
@@ -83,6 +104,9 @@ exports.handler = async (event) => {
     .select('*')
     .single();
   if (error) {
+    if (isPriorityConstraintError(error)) {
+      return response(400, { error: MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, code: 'cases_priority_invalid' });
+    }
     if (isMissingManualTasksSchema(error)) {
       return response(503, {
         error: MANUAL_TASKS_DB_EXTENSION_MESSAGE,

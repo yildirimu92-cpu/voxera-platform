@@ -24,16 +24,35 @@ const ALLOWED_MAIL_TEMPLATES = [
 ];
 
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
+const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist ungültig. Bitte verwenden Sie „Normal“, „Dringend“ oder keine Priorität.';
 
 function isMissingManualTasksSchema(error) {
   const message = String(error?.message || '').toLowerCase();
   const details = String(error?.details || '').toLowerCase();
   const hint = String(error?.hint || '').toLowerCase();
   const combined = `${message} ${details} ${hint}`;
-  const columnMentioned = /due_at|phone/.test(combined);
+  const columnMentioned = /title|note|due_at|phone/.test(combined);
   const relationMentioned = /\bcases\b/.test(combined);
   const schemaIssue = /schema cache|column|does not exist|could not find/.test(combined);
   return columnMentioned && relationMentioned && schemaIssue;
+}
+
+function isPriorityConstraintError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const combined = `${message} ${details} ${hint}`;
+  return combined.includes('cases_priority_check')
+    || (/\bcases\b/.test(combined) && /priority/.test(combined) && /violates check constraint/.test(combined));
+}
+
+function mapPriorityToDb(rawPriority) {
+  const key = String(rawPriority || '').trim().toLowerCase();
+  if (!key) return null;
+  if (key === 'urgent' || key === 'dringend') return 'high';
+  if (key === 'normal') return 'medium';
+  if (key === 'high' || key === 'medium' || key === 'low') return key;
+  return null;
 }
 
 exports.handler = async (event) => {
@@ -67,6 +86,7 @@ exports.handler = async (event) => {
   // Support both 'title' (new modal) and 'type' (legacy)
   const title = String(body.title || body.type || '').trim();
   const note = String(body.note || body.notes || '').trim();
+  const priority = mapPriorityToDb(body.priority);
   const mailTemplate = String(body.mail_template || 'none').trim();
 
   if (!customerId) return response(400, { error: 'customer_id fehlt.' });
@@ -84,6 +104,7 @@ exports.handler = async (event) => {
     customer_id: customerId,
     title,
     note: note || null,
+    priority,
     status: 'open',
     created_at: now,
     updated_at: now,
@@ -101,13 +122,16 @@ exports.handler = async (event) => {
     const { title: _t, note: _n, ...payloadFallback } = payloadWithTemplate;
     ({ data, error } = await sbAdmin
       .from('cases')
-      .insert({ customer_id: customerId, title, note: note || null, status: 'open', created_at: now, updated_at: now })
+      .insert({ customer_id: customerId, title, note: note || null, priority, status: 'open', created_at: now, updated_at: now })
       .select('*')
       .single());
   }
 
   if (error) {
     console.error('Case insert failed', error);
+    if (isPriorityConstraintError(error)) {
+      return response(400, { error: MANUAL_TASKS_PRIORITY_INVALID_MESSAGE, code: 'cases_priority_invalid' });
+    }
     if (isMissingManualTasksSchema(error)) {
       return response(503, {
         error: MANUAL_TASKS_DB_EXTENSION_MESSAGE,

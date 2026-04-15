@@ -2604,7 +2604,7 @@ function customerNumberLabel(customer){
 const MANUAL_TASKS_DB_EXTENSION_MESSAGE='Aufgaben konnten in dieser Umgebung noch nicht gespeichert werden, da die Datenbank-Erweiterung noch nicht aktiv ist.';
 function isMissingManualTasksDbExtensionError(raw){
   const msg=String(raw||'').toLowerCase();
-  const columnMentioned=/due_at|phone/.test(msg);
+  const columnMentioned=/title|note|due_at|phone/.test(msg);
   const relationMentioned=/\bcases\b/.test(msg);
   const schemaIssue=/schema cache|column|does not exist|could not find/.test(msg);
   return columnMentioned&&relationMentioned&&schemaIssue;
