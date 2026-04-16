@@ -1,5 +1,4 @@
 const { createClient } = require('@supabase/supabase-js');
-const { evaluateCustomerEntitlement } = require('./customer-entitlement');
 const { deriveContractState } = require('./contract-state');
 
 function parseBearerToken(headers) {
@@ -77,15 +76,6 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, require
 
   if (customerError) return fail(500, 'Customer lookup failed', 'guard_customer_lookup_failed', customerError.message);
   if (!customerRow) return fail(403, 'Customer record missing', 'guard_customer_missing');
-
-  const entitlement = evaluateCustomerEntitlement(customerRow);
-  if (!entitlement.entitled) {
-    return fail(403, 'Customer entitlement denied', 'guard_entitlement_denied', {
-      reason: entitlement.code,
-      message: entitlement.message,
-      customer_status: entitlement.customer_status
-    });
-  }
 
   let contractQuery = sbAdmin
     .from('contracts')
