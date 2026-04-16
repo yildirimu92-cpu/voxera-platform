@@ -2134,17 +2134,18 @@ button, a.btn { min-height: 44px; }
    ACTIVATION EXPERIENCE — STATE-DRIVEN SAAS
 ═══════════════════════════════════════════ */
 #activation-v2-shell{display:block;padding:4px 0 24px;}
-.activation-shell{width:100%;max-width:760px;margin:0 auto;display:grid;gap:14px;}
+.activation-shell{width:100%;max-width:760px;margin:0 auto;display:grid;gap:18px;}
 .activation-brand{display:flex;align-items:center;justify-content:center;gap:8px;padding-top:6px;color:#1E3A8A;font-weight:700;font-family:var(--font-display);letter-spacing:-.02em;}
 .activation-brand img{height:20px;width:auto;}
-.activation-hero{background:#fff;border:1px solid #DBE3F0;border-radius:20px;padding:16px 16px;box-shadow:0 12px 30px rgba(15,23,42,.05);}
+.activation-hero{background:#fff;border:1px solid #DBE3F0;border-radius:20px;padding:18px 18px;box-shadow:0 12px 30px rgba(15,23,42,.05);}
 .activation-state-chip{letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px;}
-.activation-hero h1{font-family:var(--font-display);font-size:24px;line-height:1.16;letter-spacing:-.03em;color:#0F172A;margin-bottom:6px;}
-.activation-hero p{font-size:13px;line-height:1.5;color:#475569;}
+.activation-back-row{display:flex;align-items:center;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid #E2E8F0;}
+.activation-hero h1{font-family:var(--font-display);font-size:24px;line-height:1.16;letter-spacing:-.03em;color:#0F172A;margin-bottom:8px;}
+.activation-hero p{font-size:13px;line-height:1.5;color:#475569;margin:0;}
 .activation-hero .activation-primary{margin-top:14px;width:100%;}
-.activation-panel{background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:14px;box-shadow:var(--shadow-card);}
+.activation-panel{background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:16px;box-shadow:var(--shadow-card);}
 .activation-panel h2{font-size:15px;font-weight:800;color:#0F172A;margin-bottom:4px;}
-.activation-panel-sub{font-size:12.5px;color:#64748B;line-height:1.55;margin-bottom:10px;}
+.activation-panel-sub{font-size:12.5px;color:#64748B;line-height:1.55;margin-bottom:12px;}
 .activation-final-success{border-color:#86EFAC;background:linear-gradient(180deg,#F0FDF4 0%,#FFFFFF 55%);box-shadow:0 10px 24px rgba(22,163,74,.12);}
 .activation-stepper{display:grid;gap:8px;margin-bottom:14px;}
 .activation-step-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid #E2E8F0;border-radius:10px;background:#F8FAFC;}
@@ -2176,7 +2177,7 @@ button, a.btn { min-height: 44px; }
 .activation-advanced.is-open .activation-advanced-toggle::after{transform:rotate(180deg);}
 .activation-advanced-body{padding:0 12px 12px;display:none;gap:8px;}
 .activation-advanced.is-open .activation-advanced-body{display:grid;}
-.activation-link-btn{width:100%;border:1px solid #E2E8F0;background:#fff;color:#64748B;font-size:12px;font-weight:600;border-radius:10px;padding:7px 10px;text-align:left;}
+.activation-link-btn{width:100%;border:1px solid #E2E8F0;background:#fff;color:#64748B;font-size:12px;font-weight:600;border-radius:10px;padding:8px 10px;text-align:left;}
 .activation-info-banner{margin-top:8px;background:#ECFDF3;border:1px solid #BBF7D0;color:#166534;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.45;}
 .activation-warning-banner{margin-top:10px;background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.55;}
 .activation-overview-steps{margin:8px 0 0;padding-left:17px;color:#C8D7F2;font-size:12px;line-height:1.45;display:grid;gap:3px;}
@@ -10219,7 +10220,15 @@ function mapUiTypeToDb(type){ return ({'nicht-abgehoben':'no_answer','immer':'al
 function mapDbTypeToUi(mode){ return ({'no_answer':'nicht-abgehoben','always':'immer','busy':'besetzt','unreachable':'nicht-erreichbar'})[mode] || 'nicht-abgehoben'; }
 function getTypeLabel(type){ return ({'nicht-abgehoben':'Wenn nicht abgehoben','immer':'Immer weiterleiten','besetzt':'Wenn besetzt','nicht-erreichbar':'Wenn nicht erreichbar'})[type] || type; }
 function getForwardingCode(type, voxeraNumber){ var t=['nicht-abgehoben','immer','besetzt','nicht-erreichbar'].includes(type)?type:mapDbTypeToUi(type); var n=voxeraNumber||''; return {activate:({'nicht-abgehoben':'**61*'+n+'#','immer':'**21*'+n+'#','besetzt':'**67*'+n+'#','nicht-erreichbar':'**62*'+n+'#'})[t]||'',deactivate:({'nicht-abgehoben':'##61#','immer':'##21#','besetzt':'##67#','nicht-erreichbar':'##62#'})[t]||''}; }
-function buildTelLink(code){ return 'tel:' + String(code || '').replace(/#/g, '%23'); }
+function sanitizeDialCode(code){ return String(code || '').replace(/\s+/g, ''); }
+function encodeDialCodeForTel(code){
+  var raw = sanitizeDialCode(code);
+  return raw
+    .replace(/\+/g, '%2B')
+    .replace(/\*/g, '%2A')
+    .replace(/#/g, '%23');
+}
+function buildTelLink(code){ return 'tel:' + encodeDialCodeForTel(code); }
 function renderQR(elementId, code){ var el=document.getElementById(elementId); if(!el || !window.QRCode || !code) return; el.innerHTML=''; new QRCode(el,{text:buildTelLink(code),width:160,height:160,colorDark:'#0D1F3C',colorLight:'#FFFFFF',correctLevel:QRCode.CorrectLevel.M}); }
 function copyToClipboard(text, btnId){ if(!text) return; navigator.clipboard.writeText(text).then(function(){ var b=document.getElementById(btnId); if(!b) return; var o=b.textContent; b.textContent='✓ Kopiert'; setTimeout(function(){ b.textContent=o; },2000); }).catch(function(){ toast('Kopieren fehlgeschlagen','error'); }); }
 function getErreichbarkeitFromCustomer(customer){ return { voxeraNumber:customer&&customer.voxera_number?customer.voxera_number:'', forwardingStatus:customer&&customer.forwarding_status?customer.forwarding_status:'not_started', forwardingModeUi:mapDbTypeToUi(customer&&customer.forwarding_mode?customer.forwarding_mode:'no_answer'), setupDeviceType:customer&&customer.setup_device_type?customer.setup_device_type:null, forwardingSetupCompleted:!!(customer&&customer.forwarding_setup_completed) }; }
@@ -10357,7 +10366,7 @@ function renderActivationV2(){
   if (state === 'change') { erreichbarkeit.selectedType = c.forwardingModeUi; erreichbarkeit.selectedDeviceType = c.setupDeviceType || 'mobile'; state = 'device_choice'; erreichbarkeitCurrentState = state; }
   var codeObj = getForwardingCode(erreichbarkeit.selectedType, erreichbarkeit.voxeraNumber);
 
-  function head(title, sub, back){ return `<section class="activation-hero">${back ? `<button class="activation-link-btn" onclick="showErreichbarkeitState('${back}')">← Zurück</button>` : ''}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(sub)}</p></section>`; }
+  function head(title, sub, back){ return `<section class="activation-hero">${back ? `<div class="activation-back-row"><button class="activation-link-btn" onclick="showErreichbarkeitState('${back}')">← Zurück</button></div>` : ''}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(sub)}</p></section>`; }
   function types(next){ var items=[['nicht-abgehoben','Wenn nicht abgehoben (empfohlen)'],['immer','Immer weiterleiten'],['besetzt','Wenn besetzt'],['nicht-erreichbar','Wenn nicht erreichbar']]; return `<div class="activation-choice-grid">${items.map(function(it){ return `<div class="e-card ${erreichbarkeit.selectedType===it[0]?'selected':''}" onclick="erreichbarkeitSetType('${it[0]}')"><div class="activation-choice-title">${it[1]}</div></div>`; }).join('')}</div><button class="activation-btn primary" style="margin-top:12px;" onclick="showErreichbarkeitState('${next}')">Weiter →</button>`; }
 
   var html = '<div class="activation-shell">';
