@@ -5265,13 +5265,21 @@ function toValidNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-function resolveContractUsageConfig() {
-  const c = customerContractMeta || {};
+function resolveContractUsageConfig(contractRow) {
+  const c = (contractRow && typeof contractRow === 'object') ? contractRow : {};
   const monthlyPrice = toValidNumber(
-    c.recurring_amount_monthly ?? c.monthly_price ?? c.price_monthly ?? c.price_monthly_chf ?? c.monthlyPrice
+    c.recurring_amount_monthly
+    ?? c.recurring_amount
+    ?? c.monthly_price
+    ?? c.price_monthly
+    ?? c.price_monthly_chf
+    ?? c.monthlyPrice
   );
   const minutes = toValidNumber(
-    c.included_minutes ?? c.minutes ?? c.plan_minutes_included ?? c.minutesIncluded
+    c.included_minutes
+    ?? c.plan_minutes_included
+    ?? c.minutes
+    ?? c.minutesIncluded
   );
   const extraRate = toValidNumber(
     c.extra_per_minute ?? c.extra_rate ?? c.overage_rate ?? c.extraRate
@@ -5282,6 +5290,18 @@ function resolveContractUsageConfig() {
     extraRate: extraRate != null ? extraRate : null,
     plan: (c.plan || c.plan_code || '').trim() || null
   };
+}
+
+function selectCommercialContractRow() {
+  const state = customerContractState || {};
+  if (state && state.hasActiveContract === true && state.effectiveContract) return state.effectiveContract;
+  return state.effectiveContract || state.latestContract || null;
+}
+
+function resolveCommercialValue({ contractValue, planValue, defaultValue }) {
+  if (contractValue != null) return contractValue;
+  if (planValue != null) return planValue;
+  return defaultValue;
 }
 
 async function loadCustomerContractMeta(customerId, subscriptionId) {
@@ -5363,9 +5383,12 @@ async function loadCustomerMeta() {
   if (!rec) return customerMeta;
   const f = rec || {};
   await loadCustomerContractMeta(context.customerId || f.id || '', f.subscription_id || null);
-  const contractUsage = resolveContractUsageConfig();
+  const commercialContract = selectCommercialContractRow();
+  const contractUsage = resolveContractUsageConfig(commercialContract);
+  const planFallback = getPlanConfigEntryForPlan(contractUsage.plan || f.plan || customerMeta.plan || '') || PLAN_CONFIG['Business'] || { monthlyPrice: 0, minutes: 0, extraRate: 0 };
+  const resolvedPlan = contractUsage.plan || (f.plan || customerMeta.plan || 'Kein Plan');
   customerMeta = {
-    plan: contractUsage.plan || (customerContractState.hasContract ? 'Vertrag ohne Planangabe' : (f.plan || customerMeta.plan || 'Kein Plan')),
+    plan: resolvedPlan,
     startDate: f.start_date || '',
     customerName: f.contact_first_name || f.customer_name || customerMeta.customerName || '',
     customerEmail: f.email || '',
@@ -5385,9 +5408,21 @@ async function loadCustomerMeta() {
     activationTestMode: f.activation_test_mode || null,
     activationTestOutboundCallId: f.activation_test_candidate_call_id || null,
     avatarUrl: f.avatar_url || null,
-    contractMonthlyPrice: contractUsage.monthlyPrice,
-    contractIncludedMinutes: contractUsage.minutes,
-    contractExtraRate: contractUsage.extraRate,
+    contractMonthlyPrice: resolveCommercialValue({
+      contractValue: contractUsage.monthlyPrice,
+      planValue: toValidNumber(planFallback.monthlyPrice),
+      defaultValue: 0
+    }),
+    contractIncludedMinutes: resolveCommercialValue({
+      contractValue: contractUsage.minutes,
+      planValue: toValidNumber(planFallback.minutes),
+      defaultValue: 0
+    }),
+    contractExtraRate: resolveCommercialValue({
+      contractValue: contractUsage.extraRate,
+      planValue: toValidNumber(planFallback.extraRate),
+      defaultValue: 0
+    }),
     contractStatus: customerContractState.status || 'none',
     hasActiveContract: customerContractState.hasActiveContract === true,
     hasContract: customerContractState.hasContract === true
@@ -5403,10 +5438,7 @@ async function loadCustomerMeta() {
 }
 
 function renderUsage(records) {
-  const hasContract = !!(customerMeta && customerMeta.hasContract);
-  const planCfg = hasContract
-    ? { monthlyPrice: 0, minutes: 0, extraRate: 0 }
-    : (getPlanConfigEntryForPlan(customerMeta.plan) || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0});
+  const planCfg = getPlanConfigEntryForPlan(customerMeta.plan) || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0};
   const cfg = {
     monthlyPrice: customerMeta.contractMonthlyPrice != null ? customerMeta.contractMonthlyPrice : Number(planCfg.monthlyPrice || 0),
     minutes: customerMeta.contractIncludedMinutes != null ? customerMeta.contractIncludedMinutes : Number(planCfg.minutes || 0),
