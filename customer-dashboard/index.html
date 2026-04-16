@@ -2675,7 +2675,7 @@ body,.main{background:#F7F8FC;}
                 <div style="flex:1;max-width:320px;">
                   <form onsubmit="event.preventDefault();changePassword();">
                     <input type="password" id="pw-new" class="settings-input" placeholder="Neues Passwort (mind. 8 Zeichen)" autocomplete="new-password">
-                    <input type="password" id="pw-confirm" class="settings-input" placeholder="Passwort bestätigen" autocomplete="new-password" style="margin-top:6px;">
+                    <input type="password" id="pw-confirm" class="settings-input" placeholder="Passwort bestätigen" style="margin-top:6px;">
                     <div class="account-error" id="pw-error" style="margin-top:6px;"></div>
                     <div class="account-success" id="pw-success" style="margin-top:6px;"></div>
                     <button class="settings-btn-primary" id="pw-save-btn" type="submit" style="margin-top:8px;">Passwort speichern</button>
@@ -3468,14 +3468,14 @@ if (supabaseLib && typeof supabaseLib.createClient === 'function' && supabaseUrl
   console.warn('[voxera-dashboard] createClient nicht aufgerufen (fehlende Library/Felder).');
 }
 
+const systemUnavailableMessage = 'System aktuell nicht verfügbar. Bitte Seite neu laden oder später erneut versuchen.';
+
 function getSupabaseAuthClient() {
   if (_sb && _sb.auth) return _sb;
   console.error('[voxera-dashboard] Supabase client is not initialized.');
   showSystemUnavailableState();
   return null;
 }
-
-const systemUnavailableMessage = 'System aktuell nicht verfügbar. Bitte Seite neu laden oder später erneut versuchen.';
 
 function showConfigError(message, options = {}) {
   const login = document.getElementById('login-screen');
@@ -7308,7 +7308,7 @@ async function changePassword() {
     document.getElementById('pw-confirm').value = '';
     toast('Passwort geändert');
   } catch (error) {
-    errEl.textContent = (error && error.message) ? error.message : 'Fehler beim Speichern.';
+    errEl.textContent = error?.message || 'Fehler beim Speichern.';
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
@@ -10581,7 +10581,7 @@ function showPasswordResetForm(accessToken, refreshToken) {
     <div class="login-error" id="reset-error"></div>
     <form class="login-form" onsubmit="event.preventDefault();doReset();">
       <div class="login-field"><label>Neues Passwort</label><input type="password" id="new-pw" placeholder="Mindestens 8 Zeichen" autocomplete="new-password"></div>
-      <div class="login-field"><label>Bestätigen</label><input type="password" id="confirm-pw" placeholder="Passwort wiederholen" autocomplete="new-password"></div>
+      <div class="login-field"><label>Bestätigen</label><input type="password" id="confirm-pw" placeholder="Passwort wiederholen"></div>
       <button class="login-btn" id="reset-btn" type="submit">Passwort speichern</button>
     </form>
   `;
