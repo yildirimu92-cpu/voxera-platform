@@ -5237,7 +5237,7 @@ function resolveContractUsageConfig() {
   };
 }
 
-async function loadCustomerContractMeta(customerId) {
+async function loadCustomerContractMeta(customerId, subscriptionId) {
   customerContractMeta = null;
   customerContractState = {
     status: 'none',
@@ -5265,13 +5265,19 @@ async function loadCustomerContractMeta(customerId) {
 
   // Fallback for older/local environments without deployed function.
   try {
-    const { data, error } = await _sb
+    let contractsQuery = _sb
       .from('contracts')
       .select('*')
-      .eq('customer_id', customerId)
       .order('updated_at', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(50);
+    const normalizedSubscriptionId = String(subscriptionId || '').trim();
+    if (normalizedSubscriptionId) {
+      contractsQuery = contractsQuery.or(`customer_id.eq.${customerId},subscription_id.eq.${normalizedSubscriptionId}`);
+    } else {
+      contractsQuery = contractsQuery.eq('customer_id', customerId);
+    }
+    const { data, error } = await contractsQuery;
     if (error) return null;
     customerContractState = deriveContractState(data || []);
     customerContractMeta = customerContractState.effectiveContract || null;
@@ -5287,7 +5293,7 @@ async function loadCustomerMeta() {
   const rec = context.customerRecord;
   if (!rec) return customerMeta;
   const f = rec || {};
-  await loadCustomerContractMeta(context.customerId || f.id || '');
+  await loadCustomerContractMeta(context.customerId || f.id || '', f.subscription_id || null);
   const contractUsage = resolveContractUsageConfig();
   customerMeta = {
     plan: contractUsage.plan || (customerContractState.hasContract ? 'Vertrag ohne Planangabe' : (f.plan || customerMeta.plan || 'Kein Plan')),
