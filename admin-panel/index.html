@@ -3110,25 +3110,52 @@ function resolveInviteState(customer){
     welcomeSentAt:customer?.welcome_sent_at||null
   };
 }
+const ACCESS_ALLOWED_CONTRACT_STATUSES=new Set(['active','signed']);
+function isOfferAcceptedCanonical(offer){
+  if(!offer) return false;
+  const status=String(offer.status||'').trim().toLowerCase();
+  return status==='accepted' || !!String(offer.acceptedAt||offer.accepted_at||'').trim();
+}
+function resolveCommercialAccessSignals(customerId){
+  const offers=(state.offers||[]).filter(offer=>idsEq(offer.customerId,customerId));
+  const acceptedOffers=offers.filter(isOfferAcceptedCanonical);
+  const latestAcceptedOffer=acceptedOffers
+    .slice()
+    .sort((a,b)=>(new Date(b.acceptedAt||b.accepted_at||b.updatedAt||0)).getTime()-(new Date(a.acceptedAt||a.accepted_at||a.updatedAt||0)).getTime())[0]||null;
+  const contracts=(state.contracts||[]).filter(ct=>idsEq(ct.customerId,customerId));
+  const activeContract=contracts.find(ct=>ACCESS_ALLOWED_CONTRACT_STATUSES.has(String(ct.status||'').trim().toLowerCase()))||null;
+  const linkedContract=latestAcceptedOffer?.contractId
+    ? contracts.find(ct=>idsEq(ct.id,latestAcceptedOffer.contractId))||null
+    : null;
+  return { acceptedOffers, latestAcceptedOffer, contracts, activeContract, linkedContract };
+}
 function resolveAccessGate(customer,onboarding){
   const lifecycle=resolveCustomerLifecycle(customer);
   const onboardingState=resolveOnboardingState(onboarding);
   const validation=validateCustomerAccessData(customer);
-  const voxeraNum=String(customer?.voxera_number||customer?.voxera||'').trim();
   const aiReady=hasCustomerAiBasicsConfigured(customer);
-  const hasContract=Boolean(latestContractForCustomer(customer?.id)?.id);
-  const lifecycleCompatible=['ready','invited','activated','live'].includes(lifecycle);
+  const commercial=resolveCommercialAccessSignals(customer?.id);
+  const lifecycleCompatible=['onboarding','ready'].includes(lifecycle);
 
   const hard_blockers=[];
-  if(!hasContract) hard_blockers.push('Aktiver Vertrag fehlt');
+  if(!commercial.activeContract){
+    if(commercial.latestAcceptedOffer && !commercial.linkedContract){
+      hard_blockers.push('Akzeptierte Offerte vorhanden, aber kein verknüpfter Vertrag.');
+    }else if(commercial.contracts.length){
+      const statusList=commercial.contracts.map(ct=>String(ct.status||'').trim()).filter(Boolean).join(', ');
+      hard_blockers.push(`Vertrag vorhanden, aber nicht startbereit/aktiv (${statusList||'Status unklar'}).`);
+    }else{
+      hard_blockers.push('Kein startbereiter Vertrag vorhanden (active/signed).');
+    }
+  }
   if(!lifecycleCompatible) hard_blockers.push(`Lifecycle nicht freigabefähig (${CUSTOMER_LIFECYCLE_LABELS[lifecycle]||lifecycle})`);
   if(!validation.ok) hard_blockers.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
-  if(!voxeraNum||voxeraNum==='Zuweisung offen') hard_blockers.push('Voxera-Nummer nicht zugewiesen');
-  if(!aiReady) hard_blockers.push('AI-Konfiguration fehlt (Geschäftsbeschreibung)');
   if(onboardingState.state===ONBOARDING_STATUS.BLOCKED) hard_blockers.push('Onboarding ist blockiert');
 
   const warnings=[];
   if(!isPaymentPaid(customer)) warnings.push(`Setup-Gebühr ist noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)}). Zugang kann trotzdem gesendet werden.`);
+  if(!aiReady) warnings.push('AI-Readiness fehlt (nur Warnung, kein Blocker).');
+  if(commercial.acceptedOffers.length===0) warnings.push('Noch keine akzeptierte Offerte gefunden.');
 
   return {
     allow:hard_blockers.length===0,
@@ -7060,8 +7087,9 @@ function renderSendAccessValidation(customer){
     readinessWarning.textContent=isBlocked?'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.':'';
   }
   if(setupFeeWarning){
-    setupFeeWarning.style.display=hasWarnings?'':'none';
-    setupFeeWarning.textContent=hasWarnings?'Setup-Gebühr ist noch nicht bezahlt. Zugang kann trotzdem gesendet werden.':'';
+    const setupWarning=warningReasons.find(msg=>/setup|gebühr|fee/i.test(String(msg||'')))||'';
+    setupFeeWarning.style.display=setupWarning?'':'none';
+    setupFeeWarning.textContent=setupWarning||'';
   }
 
   target.innerHTML=isBlocked
@@ -7069,7 +7097,14 @@ function renderSendAccessValidation(customer){
       + '<ul style="margin:4px 0 0 16px;padding:0;">'
       + blockReasons.map(r=>'<li style="color:var(--red);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
       + '</ul>'
-    : '<span style="color:var(--green);font-weight:500;">Alle Voraussetzungen erfüllt – Zugang kann gesendet werden.</span>';
+    : (
+      '<span style="color:var(--green);font-weight:500;">Alle Hard-Blocker erfüllt – Zugang kann gesendet werden.</span>'
+      + (hasWarnings
+        ? '<div style="margin-top:8px;color:var(--amber);font-size:12px;font-weight:600;">Warnings:</div><ul style="margin:4px 0 0 16px;padding:0;">'
+          + warningReasons.map(r=>'<li style="color:var(--amber);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
+          + '</ul>'
+        : '')
+    );
 }
 
 function openSendAccessModal(customerId){
@@ -7200,6 +7235,10 @@ async function submitSendAccess(){
   try{
     const json=await callAdminFunction('send-customer-access',{customer_id:customerId});
     if(!json?.success){
+      if(Array.isArray(json?.hard_blockers)&&json.hard_blockers.length){
+        setSendAccessFeedback('error',`Versand blockiert: ${json.hard_blockers.join(' · ')}.`);
+        return;
+      }
       if(json?.customer_status){
         setSendAccessFeedback('error',json?.error||'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.');
         return;
@@ -7224,6 +7263,10 @@ async function submitSendAccess(){
     setTimeout(()=>closeSendAccessModal(),900);
   }catch(error){
     const payload=error?.payload||{};
+    if(Array.isArray(payload?.hard_blockers)&&payload.hard_blockers.length){
+      setSendAccessFeedback('error',`Versand blockiert: ${payload.hard_blockers.join(' · ')}.`);
+      return;
+    }
     if(Array.isArray(payload?.missing_fields)&&payload.missing_fields.length){
       const labels=payload.missing_fields.map(validationLabelForField);
       document.getElementById('send-access-validation').innerHTML=`<span style="color:var(--red);font-weight:600;">Fehlend: ${esc(labels.join(', '))}</span>`;
