@@ -3,7 +3,6 @@ const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 const { STATUS, normalizeCustomerStatus, normalizeOnboardingStatus } = require('./_lib/status-model');
 const { normalizePlanCode } = require('./_lib/plan-config');
-const { evaluateCustomerEntitlement } = require('./_lib/customer-entitlement');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +11,7 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-const REQUIRED_FIELDS = ['customer_name', 'email', 'street', 'zip', 'city', 'country', 'plan'];
+const REQUIRED_FIELDS = ['email'];
 const ACCESS_ENABLED_CONTRACT_STATUSES = new Set(['active', 'signed']);
 
 function response(statusCode, payload) {
@@ -238,14 +237,9 @@ async function buildCommercialAccessGate({ sbAdmin, customer, customerId, onboar
     };
   }
 
-  const entitlement = evaluateCustomerEntitlement(customer);
-  if (!entitlement.entitled && entitlement.code !== 'payment_required') {
-    hardBlockers.push(entitlement.message);
-  }
-
   const onboardingStatus = normalizeOnboardingStatus(onboardingRow?.status);
   if (onboardingStatus === STATUS.onboarding.BLOCKED) {
-    hardBlockers.push('Onboarding ist blockiert.');
+    warnings.push('Onboarding ist blockiert (nur Hinweis, kein Entitlement-Blocker).');
   }
 
   if (!hasAssistantBasics(customer)) {

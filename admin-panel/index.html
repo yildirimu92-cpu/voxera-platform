@@ -3130,12 +3130,10 @@ function resolveCommercialAccessSignals(customerId){
   return { acceptedOffers, latestAcceptedOffer, contracts, activeContract, linkedContract };
 }
 function resolveAccessGate(customer,onboarding){
-  const lifecycle=resolveCustomerLifecycle(customer);
   const onboardingState=resolveOnboardingState(onboarding);
-  const validation=validateCustomerAccessData(customer);
+  const customerEmail=String(customer?.email||'').trim();
   const aiReady=hasCustomerAiBasicsConfigured(customer);
   const commercial=resolveCommercialAccessSignals(customer?.id);
-  const lifecycleCompatible=['onboarding','ready'].includes(lifecycle);
 
   const hard_blockers=[];
   if(!commercial.activeContract){
@@ -3148,14 +3146,13 @@ function resolveAccessGate(customer,onboarding){
       hard_blockers.push('Kein startbereiter Vertrag vorhanden (active/signed).');
     }
   }
-  if(!lifecycleCompatible) hard_blockers.push(`Lifecycle nicht freigabefähig (${CUSTOMER_LIFECYCLE_LABELS[lifecycle]||lifecycle})`);
-  if(!validation.ok) hard_blockers.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
-  if(onboardingState.state===ONBOARDING_STATUS.BLOCKED) hard_blockers.push('Onboarding ist blockiert');
+  if(!customerEmail) hard_blockers.push('Kunden-E-Mail fehlt.');
 
   const warnings=[];
   if(!isPaymentPaid(customer)) warnings.push(`Setup-Gebühr ist noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)}). Zugang kann trotzdem gesendet werden.`);
   if(!aiReady) warnings.push('AI-Readiness fehlt (nur Warnung, kein Blocker).');
   if(commercial.acceptedOffers.length===0) warnings.push('Noch keine akzeptierte Offerte gefunden.');
+  if(onboardingState.state===ONBOARDING_STATUS.BLOCKED) warnings.push('Onboarding ist blockiert (nur Hinweis, kein Entitlement-Blocker).');
 
   return {
     allow:hard_blockers.length===0,
@@ -3185,7 +3182,7 @@ function getCustomerLifecycleBadge(customer,onboarding){
 function getCustomerQuickActionState(customer,onboarding){
   const lifecycleStatus=resolveCustomerLifecycle(customer);
   const gate=resolveAccessGate(customer,onboarding);
-  const blockedReason=(gate.hard_blockers&&gate.hard_blockers[0])||'Einrichtung noch nicht abgeschlossen';
+  const blockedReason=(gate.hard_blockers&&gate.hard_blockers[0])||'Zugang derzeit nicht möglich';
   const base={
     lifecycleStatus,
     canSendAccess:false,
@@ -7139,7 +7136,7 @@ function renderSendAccessValidation(customer){
 
   if(readinessWarning){
     readinessWarning.style.display=isBlocked?'':'none';
-    readinessWarning.textContent=isBlocked?'Einrichtung noch nicht abgeschlossen. Zugang kann nicht gesendet werden.':'';
+    readinessWarning.textContent=isBlocked?'Voraussetzungen nicht erfüllt. Zugang kann nicht gesendet werden.':'';
   }
   if(setupFeeWarning){
     const setupWarning=warningReasons.find(msg=>/setup|gebühr|fee/i.test(String(msg||'')))||'';
@@ -7148,12 +7145,12 @@ function renderSendAccessValidation(customer){
   }
 
   target.innerHTML=isBlocked
-    ? '<div style="color:var(--red);font-size:12px;font-weight:600;margin-bottom:4px;">Einrichtung noch nicht abgeschlossen:</div>'
+    ? '<div style="color:var(--red);font-size:12px;font-weight:600;margin-bottom:4px;">Zugang aktuell blockiert:</div>'
       + '<ul style="margin:4px 0 0 16px;padding:0;">'
       + blockReasons.map(r=>'<li style="color:var(--red);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
       + '</ul>'
     : (
-      '<span style="color:var(--green);font-weight:500;">Alle Hard-Blocker erfüllt – Zugang kann gesendet werden.</span>'
+      '<span style="color:var(--green);font-weight:500;">Aktiver Vertrag vorhanden – Zugang kann gesendet werden.</span>'
       + (hasWarnings
         ? '<div style="margin-top:8px;color:var(--amber);font-size:12px;font-weight:600;">Warnings:</div><ul style="margin:4px 0 0 16px;padding:0;">'
           + warningReasons.map(r=>'<li style="color:var(--amber);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')

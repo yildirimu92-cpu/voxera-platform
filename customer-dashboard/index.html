@@ -4225,22 +4225,7 @@ function validateAccessGuard(context) {
   if (!context.customerRecord) {
     return { valid: false, reason: 'Kundendaten nicht gefunden' };
   }
-  const rawStatus = String(context.customerRecord.status || '').trim().toLowerCase();
-  const normalizedStatus = rawStatus === 'active' ? 'live' : rawStatus;
-
-  // Erlaubte Status: live, activated, invited, ready, onboarding
-  // (Kunden können sich einloggen sobald sie Zugang erhalten haben)
-  const ALLOWED = new Set(['live', 'activated', 'invited', 'ready', 'onboarding']);
-  if (ALLOWED.has(normalizedStatus)) {
-    return { valid: true, reason: '' };
-  }
-  if (normalizedStatus === 'paused') {
-    return { valid: false, reason: 'Konto ist pausiert. Bitte Support kontaktieren.' };
-  }
-  if (normalizedStatus === 'deleted') {
-    return { valid: false, reason: 'Konto ist deaktiviert.' };
-  }
-  return { valid: false, reason: 'Konto ist nicht freigeschaltet (Status: ' + (context.customerRecord.status || 'unbekannt') + ')' };
+  return { valid: true, reason: '' };
 }
 
 // Returns true if customer context is valid and active; otherwise triggers logout and returns false.
@@ -4360,6 +4345,15 @@ function isManualTaskStatusConstraintError(raw) {
 }
 
 function isManualTaskContractInactiveError(error) {
+  const statusCode = Number(error?.status || error?.payload?.statusCode || error?.payload?.status || 0) || 0;
+  const payloadCode = String(error?.payload?.code || '').toLowerCase();
+  const topLevelCode = String(error?.code || '').toLowerCase();
+  return Boolean(error
+    && statusCode === 409
+    && (payloadCode === 'guard_contract_inactive' || topLevelCode === 'guard_contract_inactive'));
+}
+
+function isContractInactiveError(error) {
   const statusCode = Number(error?.status || error?.payload?.statusCode || error?.payload?.status || 0) || 0;
   const payloadCode = String(error?.payload?.code || '').toLowerCase();
   const topLevelCode = String(error?.code || '').toLowerCase();
@@ -4585,11 +4579,6 @@ async function patchCallRecord(recordId, fields) {
 
 async function patchCustomerRecord(recordId, fields) {
   // customer-update-settings uses caller.customerId from JWT – no customer_id needed
-  if (isContractRestrictedState()) {
-    const err = new Error('Änderungen sind ohne aktiven Vertrag gesperrt.');
-    err.status = 403;
-    throw err;
-  }
   const payload = {};
   if (fields.notification_mode !== undefined) payload.notification_mode = fields.notification_mode;
   if (fields.forwarding_setup_completed !== undefined) payload.forwarding_setup_completed = fields.forwarding_setup_completed;
@@ -7235,7 +7224,7 @@ async function saveNotifSettings(opts) {
       recordId: finalRecordId,
       error: e && e.message ? e.message : String(e)
     });
-    toast((e && e.status === 403) ? getRestrictedContractMessage('Benachrichtigungen') : 'Fehler beim Speichern der Benachrichtigungen');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Benachrichtigungen') : 'Fehler beim Speichern der Benachrichtigungen');
     console.error('Notif save error:', e);
   } finally {
     _notifSaveInFlight = null;
@@ -7815,7 +7804,7 @@ async function persistSetupDeviceType(type) {
     return normalized;
   } catch(e) {
     console.error('setup_device_type save failed', e);
-    toast((e && e.status === 403) ? getRestrictedContractMessage('Aktivierung') : 'Aktivierungsweg konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Aktivierung') : 'Aktivierungsweg konnte nicht gespeichert werden.');
     return null;
   }
 }
@@ -7831,7 +7820,7 @@ async function persistForwardingSetupCompleted() {
     return true;
   } catch(e) {
     console.error('forwarding_setup_completed save failed', e);
-    toast((e && e.status === 403) ? getRestrictedContractMessage('Erreichbarkeit') : 'Rufumleitungsstatus konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Rufumleitungsstatus konnte nicht gespeichert werden.');
     return false;
   }
 }
@@ -7857,7 +7846,7 @@ async function persistForwardingMode(mode) {
     return true;
   } catch(e) {
     console.error('forwarding_mode save failed', e);
-    toast((e && e.status === 403) ? getRestrictedContractMessage('Erreichbarkeit') : 'Weiterleitungsmodus konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Weiterleitungsmodus konnte nicht gespeichert werden.');
     return false;
   }
 }
