@@ -34,7 +34,7 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, require
   const customerId = String(userRow.customer_id);
   const { data: customerRow, error: customerError } = await sbAdmin
     .from('customers')
-    .select('id, status')
+    .select('id, status, subscription_id')
     .eq('id', customerId)
     .maybeSingle();
 
@@ -50,11 +50,19 @@ async function requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, require
     });
   }
 
-  const { data: contractRows, error: contractError } = await sbAdmin
+  let contractQuery = sbAdmin
     .from('contracts')
     .select('*')
-    .eq('customer_id', customerId)
     .limit(50);
+
+  const subscriptionId = customerRow.subscription_id ? String(customerRow.subscription_id).trim() : '';
+  if (subscriptionId) {
+    contractQuery = contractQuery.or(`customer_id.eq.${customerId},subscription_id.eq.${subscriptionId}`);
+  } else {
+    contractQuery = contractQuery.eq('customer_id', customerId);
+  }
+
+  const { data: contractRows, error: contractError } = await contractQuery;
   if (contractError) return fail(500, 'Contract lookup failed', 'guard_contract_lookup_failed', contractError.message);
 
   const contractState = deriveContractState(contractRows || []);
