@@ -2294,10 +2294,10 @@ body,.main{background:#F7F8FC;}
   border-radius:12px 12px 0 0;
   background:#1A6FE8;
 }
-.dash-kpi-row .dash-kpi:nth-child(1)::before{background:#1A6FE8;}
-.dash-kpi-row .dash-kpi:nth-child(2)::before{background:#4B9FFF;}
-.dash-kpi-row .dash-kpi:nth-child(3)::before{background:#0D1F3C;}
-.dash-kpi-row .dash-kpi:nth-child(4)::before{background:#E8C547;}
+.dash-kpi--requests::before{background:var(--vx-blue);}
+.dash-kpi--open::before{background:var(--vx-gold);}
+.dash-kpi--done::before{background:var(--green);}
+.dash-kpi--overdue::before{background:var(--red);}
 .dash-kpi-label{
   font-size:9.5px;
   font-weight:700;
@@ -2311,10 +2311,25 @@ body,.main{background:#F7F8FC;}
   font-weight:800;
   line-height:1;
 }
-.dash-kpi-row .dash-kpi:nth-child(1) .dash-kpi-val{color:#1A6FE8;}
-.dash-kpi-row .dash-kpi:nth-child(2) .dash-kpi-val{color:#2D7FEF;}
-.dash-kpi-row .dash-kpi:nth-child(3) .dash-kpi-val{color:#0D1F3C;}
-.dash-kpi-row .dash-kpi:nth-child(4) .dash-kpi-val{color:#B88D12;}
+.dash-kpi--requests .dash-kpi-val{color:var(--vx-blue);}
+.dash-kpi--open .dash-kpi-val{color:var(--vx-gold);}
+.dash-kpi--done .dash-kpi-val{color:var(--green);}
+.dash-kpi--overdue .dash-kpi-val{color:var(--red);}
+.dash-kpi--overdue .dash-kpi-static-note{color:rgba(220,38,38,0.72);}
+.dash-kpi--open .dash-kpi-action{
+  color:var(--vx-gold);
+  text-shadow:0 0 0 rgba(0,0,0,0);
+}
+.dash-kpi--open .dash-kpi-label::after{
+  content:'';
+  display:inline-block;
+  width:4px;
+  height:4px;
+  border-radius:999px;
+  background:var(--vx-gold);
+  margin-left:6px;
+  transform:translateY(-1px);
+}
 .dash-kpi-action,.dash-kpi-static-note,.dash-kpi-sub{font-size:10px;color:#94A3B8;}
 .badge-hot,.chip-hot,.badge-dringend{background:#FEF2F2;color:#991B1B;border-color:#FECACA;}
 .badge-warm,.chip-warm{background:#FFFBEB;color:#92400E;border-color:#FDE68A;}
@@ -2527,22 +2542,22 @@ body,.main{background:#F7F8FC;}
 
               <!-- KPI KACHELN -->
               <div class="dash-kpi-row">
-                <div class="dash-kpi is-interactive" role="button" tabindex="0" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('anrufe',document.getElementById('nav-anrufe'));}">
+                <div class="dash-kpi dash-kpi--requests is-interactive" role="button" tabindex="0" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('anrufe',document.getElementById('nav-anrufe'));}">
                   <div class="dash-kpi-label" style="text-transform:none;letter-spacing:normal;">Neue Anfragen</div>
                   <div class="dash-kpi-val" id="kpi-heute">–</div>
                   <div class="dash-kpi-action">Zur Anfragenliste</div>
                 </div>
-                <div class="dash-kpi is-interactive" role="button" tabindex="0" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('rueckrufe',document.getElementById('nav-rueckrufe'));}">
+                <div class="dash-kpi dash-kpi--open is-interactive" role="button" tabindex="0" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('rueckrufe',document.getElementById('nav-rueckrufe'));}">
                   <div class="dash-kpi-label" style="text-transform:none;letter-spacing:normal;">Offene Aufgaben</div>
                   <div class="dash-kpi-val" id="kpi-callbacks">–</div>
                   <div class="dash-kpi-action">Zu Aufgaben</div>
                 </div>
-                <div class="dash-kpi is-static" aria-disabled="true">
+                <div class="dash-kpi dash-kpi--done is-static" aria-disabled="true">
                   <div class="dash-kpi-label" style="text-transform:none;letter-spacing:normal;">Erledigt heute</div>
                   <div class="dash-kpi-val" id="kpi-followups">–</div>
                   <div class="dash-kpi-static-note" style="text-transform:none;letter-spacing:normal;">Nur Info</div>
                 </div>
-                <div class="dash-kpi is-static" aria-disabled="true">
+                <div class="dash-kpi dash-kpi--overdue is-static" aria-disabled="true">
                   <div class="dash-kpi-label" id="kpi-leads-label" style="text-transform:none;letter-spacing:normal;">Überfällig</div>
                   <div class="dash-kpi-val" id="kpi-leads">–</div>
                   <div class="dash-kpi-static-note" id="kpi-leads-note" style="text-transform:none;letter-spacing:normal;">Offene Aufgaben mit überschrittener Fälligkeit</div>
