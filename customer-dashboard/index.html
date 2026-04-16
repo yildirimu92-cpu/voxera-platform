@@ -2493,29 +2493,29 @@ body,.main{background:#F7F8FC;}
               <!-- KPI KACHELN -->
               <div class="dash-kpi-row">
                 <div class="dash-kpi is-interactive" role="button" tabindex="0" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('anrufe',document.getElementById('nav-anrufe'));}">
-                  <div class="dash-kpi-label">Neue Anfragen</div>
+                  <div class="dash-kpi-label" style="text-transform:none;letter-spacing:normal;">Neue Anfragen</div>
                   <div class="dash-kpi-val" id="kpi-heute">–</div>
                   <div class="dash-kpi-action">Zur Anfragenliste</div>
                 </div>
                 <div class="dash-kpi is-interactive" role="button" tabindex="0" onclick="showTab('rueckrufe',document.getElementById('nav-rueckrufe'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('rueckrufe',document.getElementById('nav-rueckrufe'));}">
-                  <div class="dash-kpi-label">Offene Aufgaben</div>
+                  <div class="dash-kpi-label" style="text-transform:none;letter-spacing:normal;">Offene Aufgaben</div>
                   <div class="dash-kpi-val" id="kpi-callbacks">–</div>
                   <div class="dash-kpi-action">Zu Aufgaben</div>
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
-                  <div class="dash-kpi-label">Erledigt heute</div>
+                  <div class="dash-kpi-label" style="text-transform:none;letter-spacing:normal;">Erledigt heute</div>
                   <div class="dash-kpi-val" id="kpi-followups">–</div>
-                  <div class="dash-kpi-static-note">Nur Info</div>
+                  <div class="dash-kpi-static-note" style="text-transform:none;letter-spacing:normal;">Nur Info</div>
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
-                  <div class="dash-kpi-label" id="kpi-leads-label">Überfällig</div>
+                  <div class="dash-kpi-label" id="kpi-leads-label" style="text-transform:none;letter-spacing:normal;">Überfällig</div>
                   <div class="dash-kpi-val" id="kpi-leads">–</div>
-                  <div class="dash-kpi-static-note" id="kpi-leads-note">Offene Aufgaben mit überschrittener Fälligkeit</div>
+                  <div class="dash-kpi-static-note" id="kpi-leads-note" style="text-transform:none;letter-spacing:normal;">Offene Aufgaben mit überschrittener Fälligkeit</div>
                 </div>
               </div>
 
               <div class="dash-focus-card" id="dash-focus-card">
-                <div class="dash-focus-label">Priorität jetzt</div>
+                <div class="dash-focus-label" style="text-transform:none;letter-spacing:normal;">Priorität jetzt</div>
                 <div class="dash-focus-head">
                   <div class="dash-focus-number" id="dash-focus-number">–</div>
                   <div class="dash-focus-hint" id="dash-focus-hint">Priorität</div>
@@ -6571,7 +6571,7 @@ function openDetail(recordId) {
     <div class="detail-layout">
       <div class="detail-zone-info">
         <div class="detail-card">
-          <div class="detail-section-title">Informationen</div>
+          <div class="detail-section-title" style="text-transform:none;letter-spacing:normal;">Informationen</div>
           <div class="detail-status-row">${callCardBadgeHtml(rec, { includeMetaQuality: true })}</div>
           <div class="detail-title">${escHtml(infoTitle)}</div>
           <div class="detail-summary-text">${escHtml(infoText)}</div>
@@ -6580,9 +6580,9 @@ function openDetail(recordId) {
       </div>
       <div class="detail-zone-actions">
         <div class="detail-card">
-          <div class="detail-section-title">Aktionen</div>
+          <div class="detail-section-title" style="text-transform:none;letter-spacing:normal;">Aktionen</div>
           <div class="detail-action-group">
-            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><span class="call-action-icon"><i data-lucide="phone-call" style="width:14px;height:14px;color:#fff;" aria-hidden="true"></i></span>Jetzt anrufen</a>` : '<button class="btn-a btn-note" type="button" disabled>Keine Nummer hinterlegt</button>'}
+            ${tel ? `<a class="btn-call" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')"><span class="call-action-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true" focusable="false"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg></span>Jetzt anrufen</a>` : '<button class="btn-a btn-note" type="button" disabled>Keine Nummer hinterlegt</button>'}
             ${isManual ? '' : `<button class="btn-a btn-note" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Follow-up setzen</button>`}
             ${isManual ? '' : `<button class="btn-a btn-note" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz bearbeiten</button>`}
             ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn-a btn-note" onclick="closeDetail(); openManualTaskEditModal('${rec.id}')">Bearbeiten</button>` : ''}
@@ -6590,7 +6590,7 @@ function openDetail(recordId) {
           </div>
         </div>
         <div class="detail-card">
-          <div class="detail-section-title">${isManual ? 'Aufgabeninfos' : 'Call-Infos'}</div>
+          ${isManual ? '<div class="detail-section-title" style="text-transform:none;letter-spacing:normal;">Aufgabeninfos</div>' : '<div class="detail-section-title">Call-Infos</div>'}
           ${renderDetailLine('Telefon', phone)}
           ${renderDetailLine('Kategorie', isManual ? taskTypeLabel(f.type) : callCategoryLabel(f.category))}
           ${isManual ? '' : renderDetailLine('Lead-Qualität', f.lead_quality || 'Neu')}
