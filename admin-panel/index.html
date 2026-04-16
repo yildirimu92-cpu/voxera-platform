@@ -3222,6 +3222,13 @@ function getCustomerQuickActionState(customer,onboarding){
   if(lifecycleStatus==='paused') return {...base,showPausedState:true};
   return base;
 }
+function customerAccessTerminalLabel(actionState){
+  if(actionState?.showInvitationSent) return 'Zugang bereits gesendet';
+  if(actionState?.showActivated) return 'Zugang aktiviert';
+  if(actionState?.showLiveState) return 'Kunde live';
+  if(actionState?.showPausedState) return 'Kunde pausiert';
+  return 'Zugang nicht verfügbar';
+}
 function contactDisplay(customer){
   const first=String(customer?.contact_first_name||'').trim();
   const last=String(customer?.contact_last_name||'').trim();
@@ -5562,6 +5569,17 @@ function setContractOpsFeedback(type, message) {
   el.style.display = 'block';
   el.textContent = message;
 }
+function getContractStartConfirmationState(contract){
+  var status = String(contract?.status || '').trim().toLowerCase();
+  var hasOperationalStart = Boolean(String(contract?.startDate || '').trim()) && Number(contract?.months || 0) > 0;
+  if (status === 'cancelled') {
+    return { isTerminal: true, canConfirm: false, label: 'Vertrag beendet', hint: 'Vertragsstart kann bei beendetem Vertrag nicht bestätigt werden.' };
+  }
+  if (status === 'active' && hasOperationalStart) {
+    return { isTerminal: true, canConfirm: false, label: 'Bereits bestätigt', hint: 'Vertragsstart wurde bereits bestätigt.' };
+  }
+  return { isTerminal: false, canConfirm: true, label: 'Vertragsstart bestätigen', hint: '' };
+}
 
 function formatDateDE(dateStr) {
   if (!dateStr) return '—';
@@ -5597,6 +5615,10 @@ function contractStatusLabel(status) {
 
 function contractStatusBadgeClass(status) {
   return getContractStatusMeta({ status: status || '' }).badge;
+}
+function canCaptureContractSignature(status) {
+  var normalizedStatus = String(status || '').trim().toLowerCase();
+  return ['draft','pending_review','pending','review_required','ops_review','in_review'].includes(normalizedStatus);
 }
 
 function getContractTerminatedAt(ct) {
@@ -5845,7 +5867,7 @@ function renderContracts() {
     var statusMeta = getContractStatusMeta(ct);
     var cls   = statusMeta.badge;
     var label = statusMeta.label;
-    var canSign   = ct.status !== 'signed' && ct.status !== 'cancelled';
+    var canSign   = canCaptureContractSignature(ct.status);
     var canCancel = ct.status !== 'cancelled';
     var offerLabel = ct.offerId ? ('#' + ct.offerId.slice(0, 8)) : '—';
     var signBtn   = canSign ? '<button class="btn btn-secondary btn-sm" onclick="openSignatureModal(\''+jsStr(ct.id)+'\')">Unterschreiben</button>' : '';
@@ -5876,7 +5898,7 @@ function renderContracts() {
       var statusMeta = getContractStatusMeta(ct);
       var cls   = statusMeta.badge;
       var label = statusMeta.label;
-      var canSign = ct.status !== 'signed' && ct.status !== 'cancelled';
+      var canSign = canCaptureContractSignature(ct.status);
       var canCancel = ct.status !== 'cancelled';
       var terminationEffective = ct.status === 'cancelled' ? formatDateDE(ct.cancellationDate) : '—';
       var terminatedAt = ct.status === 'cancelled' ? formatDateDE(getContractTerminatedAt(ct) || ct.cancellationDate) : '—';
@@ -6230,7 +6252,19 @@ function viewContract(id) {
     startInput.oninput = contractOpsRecomputeDates;
     durationInput.oninput = contractOpsRecomputeDates;
   }
+  var opsState = getContractStartConfirmationState(ct);
+  var opsSaveBtn = document.getElementById('view-contract-ops-save-btn');
+  if (startInput) startInput.disabled = opsState.isTerminal;
+  if (durationInput) durationInput.disabled = opsState.isTerminal;
+  if (opsSaveBtn) {
+    opsSaveBtn.disabled = !opsState.canConfirm;
+    opsSaveBtn.textContent = opsState.label;
+    opsSaveBtn.title = opsState.hint || '';
+  }
   setContractOpsFeedback('', '');
+  if (opsState.isTerminal && opsState.hint) {
+    setContractOpsFeedback('success', opsState.hint);
+  }
   modalEl.dataset.contractId = ct.id;
   modalEl.classList.add('open');
 }
@@ -6244,6 +6278,11 @@ async function saveContractStartCheckpoint() {
   var id = modal ? modal.dataset.contractId : '';
   var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
   if (!ct) return;
+  var confirmationState = getContractStartConfirmationState(ct);
+  if (!confirmationState.canConfirm) {
+    setContractOpsFeedback('success', confirmationState.hint || 'Vertragsstart wurde bereits bestätigt.');
+    return;
+  }
 
   var startInput = document.getElementById('view-contract-start-date-input');
   var durationInput = document.getElementById('view-contract-duration-input');
@@ -6338,6 +6377,10 @@ async function saveContractStartCheckpoint() {
 function openSignatureModal(contractId) {
   var ct = state.contracts.find(function(c) { return idsEq(c.id, contractId); });
   if (!ct) return;
+  if (!canCaptureContractSignature(ct.status)) {
+    showToast('Signatur ist für diesen Vertragsstatus nicht mehr erforderlich.');
+    return;
+  }
   _wizardContractTargetId = contractId;
   var subEl = document.getElementById('sign-contract-sub');
   if (subEl) subEl.textContent = ct.customerName || '';
@@ -6365,6 +6408,10 @@ async function saveSignature() {
   var id = _wizardContractTargetId;
   var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
   if (!ct) return;
+  if (!canCaptureContractSignature(ct.status)) {
+    if (fb) { fb.className = 'modal-feedback error'; fb.style.display = 'block'; fb.textContent = 'Signatur ist für diesen Vertragsstatus nicht zulässig.'; }
+    return;
+  }
 
   var canvas = document.getElementById('sig-canvas-sign');
   var signatureData = canvas ? canvas.toDataURL('image/png') : null;
@@ -6645,6 +6692,13 @@ function openCustomerProfile(id){
   const customerCases=state.cases.filter(x=>idsEq(x.customerId,id));
   const openCases=customerCases.filter(ca=>String(ca.status||'').toLowerCase()!==CASE_STATUS.DONE).length;
   const canSend=actionState.showSendAccess&&!actionState.sendAccessDisabled;
+  const accessTerminalLabel=customerAccessTerminalLabel(actionState);
+  const accessActionHeader=actionState.showSendAccess
+    ? `<button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>`
+    : `<span class="badge badge-green">${esc(accessTerminalLabel)}</span>`;
+  const accessActionSecondary=actionState.showSendAccess
+    ? `<button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>`
+    : `<span class="badge badge-green">${esc(accessTerminalLabel)}</span>`;
 
   const header=document.getElementById('profile-header');
   if(header) header.innerHTML=`
@@ -6659,14 +6713,14 @@ function openCustomerProfile(id){
       <div class="profile-meta-line">${esc(contactDisplay(c)||'Kein Kontakt')} · ${esc(c.tel_nr||'Kein Telefon')} · ${esc(c.city||'—')}</div>
     </div>
     <div class="profile-quick-actions">
-      <button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+      ${accessActionHeader}
       <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">PW-Reset</button>
       <button class="btn btn-quiet" onclick="closeCustomerProfile()">Schließen</button>
     </div>`;
 
   const primaryActions=document.getElementById('profile-primary-actions');
   if(primaryActions) primaryActions.innerHTML=`
-    <button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+    ${accessActionSecondary}
     <button class="btn btn-secondary" onclick="openCustomerOnboarding('${jsStr(id)}');closeCustomerProfile()">Onboarding öffnen</button>
     <button class="btn btn-secondary" onclick="closeCustomerProfile();openFinanceForCustomer('${jsStr(id)}')">Finance öffnen</button>
     <button class="btn btn-quiet" onclick="closeCustomerProfile();openCustomerInvoicesInFinance('${jsStr(id)}')">Vertrag / Rechnungen</button>`;
@@ -6717,10 +6771,11 @@ function openCustomerProfile(id){
         <div class="card profile-section-card">
           <div class="profile-section-head"><h4>Zugang & Login</h4><p class="profile-section-copy">Direkter Zugriff und Identitätsaktionen.</p></div>
           <div class="profile-action-grid">
-            <button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>
+            ${accessActionSecondary}
             <button class="btn btn-secondary" onclick="closeCustomerProfile();sendPasswordReset('${jsStr(id)}')">PW-Reset senden</button>
           </div>
-          ${!canSend?`<div class="muted" style="margin-top:8px;font-size:12px;">Zugang senden blockiert: ${esc(actionState.sendAccessTooltip||'Pflichtdaten prüfen')}</div>`:''}
+          ${actionState.showSendAccess&&!canSend?`<div class="muted" style="margin-top:8px;font-size:12px;">Zugang senden blockiert: ${esc(actionState.sendAccessTooltip||'Pflichtdaten prüfen')}</div>`:''}
+          ${!actionState.showSendAccess?`<div class="muted" style="margin-top:8px;font-size:12px;">${esc(accessTerminalLabel)} – kein erneuter Versand notwendig.</div>`:''}
         </div>
         <div class="card profile-section-card">
           <div class="profile-section-head"><h4>Kunde verwalten</h4><p class="profile-section-copy">Stammdaten, Lifecycle, operative Tasks.</p></div>

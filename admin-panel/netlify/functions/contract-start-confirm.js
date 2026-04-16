@@ -80,6 +80,30 @@ exports.handler = async (event) => {
     .maybeSingle();
   if (contractError) return response(500, { error: 'Contract lookup failed.', step_failed: 'contract_lookup', contract_id: contractId, ...dbDiag(contractError) });
   if (!contract) return response(404, { error: 'Contract nicht gefunden.' });
+  const contractStatus = String(contract.status || '').trim().toLowerCase();
+  const existingStart = String(contract.start_date || '').trim();
+  const existingDurationRaw = Math.trunc(Number(contract.duration_months || contract.months || 0) || 0);
+  const existingDuration = existingDurationRaw > 0 ? existingDurationRaw : 0;
+  if (contractStatus === 'cancelled') {
+    return response(409, { error: 'Vertragsstart kann für beendete Verträge nicht bestätigt werden.' });
+  }
+  if (contractStatus === 'active' && existingStart && existingDuration > 0) {
+    const samePayload = existingStart === startDate && existingDuration === durationMonths;
+    if (samePayload) {
+      return response(200, {
+        success: true,
+        duplicate: true,
+        already_confirmed: true,
+        message: 'Vertragsstart wurde bereits bestätigt. Kein erneutes Update ausgeführt.',
+        contract
+      });
+    }
+    return response(409, {
+      error: 'Vertragsstart wurde bereits bestätigt und kann nicht erneut geändert werden.',
+      already_confirmed: true,
+      contract_id: contractId
+    });
+  }
 
   if (requestedCustomerId && String(contract.customer_id || '') && requestedCustomerId !== String(contract.customer_id)) {
     return response(409, { error: 'customer_id passt nicht zum Vertrag.' });
