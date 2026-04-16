@@ -177,7 +177,7 @@ body{
 .settings-row-value{color:var(--gray900);font-weight:600;text-align:right;flex:1;}
 .settings-input{width:100%;padding:10px 14px;border:1.5px solid var(--gray200);border-radius:10px;font-size:13px;font-family:inherit;color:var(--gray900);outline:none;background:var(--gray50);transition:all var(--transition-fast);}
 .settings-input:focus{border-color:#1A6FE8;background:var(--white);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
-.settings-btn-primary{background:var(--blue);color:var(--white);border:none;border-radius:10px;padding:9px 18px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;display:inline-flex;align-items:center;box-shadow:0 1px 3px rgba(26,111,232,.15);}
+.settings-btn-primary{background:var(--blue);color:var(--white);border:none;border-radius:10px;padding:9px 18px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;display:inline-flex;align-items:center;box-shadow:0 1px 3px rgba(26,111,232,.15);min-height:44px;}
 .settings-btn-primary:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
 .settings-btn-secondary{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);text-decoration:none;display:inline-flex;align-items:center;}
 .settings-btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
@@ -949,7 +949,7 @@ body{
   font-size:12.5px;font-weight:600;padding:8px 16px;border-radius:10px;
   cursor:pointer;border:1px solid var(--gray200);font-family:inherit;
   transition:all var(--transition-fast);display:inline-flex;align-items:center;gap:5px;
-  text-decoration:none;white-space:nowrap;height:36px;
+  text-decoration:none;white-space:nowrap;height:44px;min-height:44px;
 }
 /* PRIMARY FILLED ACTIONS */
 .btn-call{background:var(--blue);color:var(--white);border:none;box-shadow:0 1px 3px rgba(26,111,232,.12);}
@@ -1038,14 +1038,14 @@ body{
 .btn-modal-save{
   background:var(--blue);color:var(--white);border:none;border-radius:10px;
   padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;
-  transition:all var(--transition-fast);box-shadow:0 1px 3px rgba(26,111,232,.12);
+  transition:all var(--transition-fast);box-shadow:0 1px 3px rgba(26,111,232,.12);min-height:44px;
 }
 .btn-modal-save:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
 .btn-modal-save:disabled{opacity:.5;cursor:default;transform:none;}
 .btn-modal-cancel{
   background:var(--white);color:var(--gray600);border:1px solid var(--gray200);
   border-radius:10px;padding:9px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;
-  transition:all var(--transition-fast);
+  transition:all var(--transition-fast);min-height:44px;
 }
 .btn-modal-cancel:hover{background:var(--gray50);border-color:var(--gray400);}
 
@@ -1256,7 +1256,7 @@ body{
   display:flex;flex-direction:column;align-items:center;gap:3px;
   padding:4px 12px;cursor:pointer;font-size:10px;color:var(--gray400);
   font-weight:500;position:relative;border:none;background:none;font-family:inherit;
-  transition:color var(--transition-fast);
+  transition:color var(--transition-fast);min-width:44px;min-height:44px;justify-content:center;
 }
 .mobile-nav-btn.active{color:#1A6FE8;font-weight:700;}
 .mobile-nav-icon-wrap{
@@ -1302,9 +1302,9 @@ body{
 .detail-line span:first-child{color:var(--gray400);font-weight:600;}
 .detail-line span:last-child{text-align:right;font-weight:600;}
 .detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;}
-.detail-actions .btn-call,.detail-actions .btn-a{width:100%;justify-content:center;text-align:center;min-height:41px;}
+.detail-actions .btn-call,.detail-actions .btn-a{width:100%;justify-content:center;text-align:center;min-height:44px;}
 .detail-action-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
-.detail-action-group .btn-call,.detail-action-group .btn-a{width:100%;height:41px;justify-content:center;text-align:center;}
+.detail-action-group .btn-call,.detail-action-group .btn-a{width:100%;height:44px;min-height:44px;justify-content:center;text-align:center;}
 .detail-zone-info{display:flex;flex-direction:column;gap:12px;}
 .detail-zone-actions{display:flex;flex-direction:column;gap:10px;}
 .detail-status-row{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 4px;}
@@ -1324,7 +1324,7 @@ body{
   .detail-line{display:grid;grid-template-columns:1fr;gap:2px;padding:8px 0;}
   .detail-line span:last-child{text-align:left;word-break:break-word;}
   .detail-actions,.detail-action-group{grid-template-columns:1fr;}
-  .detail-action-group .btn-call,.detail-action-group .btn-a{width:100%;min-height:42px;}
+  .detail-action-group .btn-call,.detail-action-group .btn-a{width:100%;min-height:44px;}
 }
 
 /* ═══════════════════════════════════════════
@@ -1354,7 +1354,7 @@ body{
   .call-row.expanded .call-actions .btn-call,
   .call-row.expanded .call-actions .btn-callback{
     flex:1 1 calc(50% - 4px);justify-content:center;
-    height:42px;padding:0 12px;font-size:12px;min-width:0;
+    height:44px;min-height:44px;padding:0 12px;font-size:12px;min-width:0;
   }
   .btn,.btn-a{padding:8px 14px;font-size:11px;}
   .overlay,.account-overlay,.detail-overlay{padding:0;}
@@ -1518,7 +1518,7 @@ body{
 .cb-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;align-self:flex-end;}
 .btn-call{display:inline-flex;align-items:center;gap:5px;background:var(--blue);color:var(--white);border:none;border-radius:10px;padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:all var(--transition-fast);white-space:nowrap;box-shadow:0 1px 3px rgba(26,111,232,.12);}
 .btn-call:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
-.btn-done-small{display:inline-flex;align-items:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:10px;padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);height:36px;}
+.btn-done-small{display:inline-flex;align-items:center;background:var(--white);color:var(--gray600);border:1px solid var(--gray200);border-radius:10px;padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);height:44px;min-height:44px;}
 .btn-done-small:hover{border-color:var(--gray400);color:var(--gray700);background:var(--gray50);}
 .dash-empty{
   background:rgba(255,255,255,0.55);
@@ -1538,7 +1538,7 @@ body{
   .dash-focus-number{font-size:30px;}
   /* Mobile legacy cb-actions alignment */
   .cb-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:10px;}
-  .cb-actions .btn-call,.btn-done-small,.btn-note{width:100%;justify-content:center;height:42px;padding:0 12px;font-size:12px;}
+  .cb-actions .btn-call,.btn-done-small,.btn-note{width:100%;justify-content:center;height:44px;min-height:44px;padding:0 12px;font-size:12px;}
   .cb-row{flex-wrap:wrap;}
 }
 @media(max-width:380px){
@@ -1986,7 +1986,7 @@ body{
   display:flex;align-items:center;gap:7px;margin-left:auto;flex-shrink:0;
 }
 .btn-icon{
-  width:34px;height:34px;border-radius:50%;border:none;
+  width:44px;height:44px;border-radius:50%;border:none;
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;flex-shrink:0;
   -webkit-tap-highlight-color:transparent;
@@ -2329,7 +2329,7 @@ body,.main{background:#F7F8FC;}
     <div class="login-tag">Kundenportal</div>
     <div class="login-sub"><strong style="display:block;font-size:22px;line-height:1.2;color:#0F172A;margin-bottom:8px;letter-spacing:-.03em;font-family:var(--font-display);">Voxera Portal</strong>Verwalten Sie Anfragen, Aufgaben und Erreichbarkeit an einem Ort.</div>
     <div class="login-error" id="login-error"></div>
-    <div class="login-form">
+    <form class="login-form" onsubmit="event.preventDefault();doLogin();">
       <div class="login-field">
         <label>E-Mail</label>
         <input type="email" id="login-email" placeholder="ihre@email.ch" autocomplete="email">
@@ -2338,8 +2338,8 @@ body,.main{background:#F7F8FC;}
         <label>Passwort</label>
         <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
       </div>
-      <button class="login-btn" id="login-btn" onclick="doLogin()">Anmelden</button>
-    </div>
+      <button class="login-btn" id="login-btn" type="submit">Anmelden</button>
+    </form>
     <div class="login-links">
       <div class="login-note"><a href="javascript:void(0)" onclick="showForgotPassword()">Passwort vergessen?</a></div>
       <div class="login-divider"></div>
@@ -2673,11 +2673,13 @@ body,.main{background:#F7F8FC;}
               <div class="settings-row" style="border-bottom:none;">
                 <div class="settings-row-label">Passwort ändern</div>
                 <div style="flex:1;max-width:320px;">
-                  <input type="password" id="pw-new" class="settings-input" placeholder="Neues Passwort (mind. 8 Zeichen)">
-                  <input type="password" id="pw-confirm" class="settings-input" placeholder="Passwort bestätigen" style="margin-top:6px;">
-                  <div class="account-error" id="pw-error" style="margin-top:6px;"></div>
-                  <div class="account-success" id="pw-success" style="margin-top:6px;"></div>
-                  <button class="settings-btn-primary" id="pw-save-btn" onclick="changePassword()" style="margin-top:8px;">Passwort speichern</button>
+                  <form onsubmit="event.preventDefault();changePassword();">
+                    <input type="password" id="pw-new" class="settings-input" placeholder="Neues Passwort (mind. 8 Zeichen)" autocomplete="new-password">
+                    <input type="password" id="pw-confirm" class="settings-input" placeholder="Passwort bestätigen" autocomplete="new-password" style="margin-top:6px;">
+                    <div class="account-error" id="pw-error" style="margin-top:6px;"></div>
+                    <div class="account-success" id="pw-success" style="margin-top:6px;"></div>
+                    <button class="settings-btn-primary" id="pw-save-btn" type="submit" style="margin-top:8px;">Passwort speichern</button>
+                  </form>
                 </div>
               </div>
             </div>
@@ -3466,14 +3468,16 @@ if (supabaseLib && typeof supabaseLib.createClient === 'function' && supabaseUrl
   console.warn('[voxera-dashboard] createClient nicht aufgerufen (fehlende Library/Felder).');
 }
 
+const systemUnavailableMessage = 'System aktuell nicht verfügbar. Bitte Seite neu laden oder später erneut versuchen.';
+
 function getSupabaseAuthClient() {
   if (_sb && _sb.auth) return _sb;
   console.error('[voxera-dashboard] Supabase client is not initialized.');
-  showConfigError('Supabase-Client nicht initialisiert. Bitte Seite neu laden oder Konfiguration prüfen.');
+  showSystemUnavailableState();
   return null;
 }
 
-function showConfigError(message) {
+function showConfigError(message, options = {}) {
   const login = document.getElementById('login-screen');
   const app = document.getElementById('app');
   if (app) app.style.display = 'none';
@@ -3486,8 +3490,21 @@ function showConfigError(message) {
   const btn = document.getElementById('login-btn');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Konfiguration fehlt';
+    btn.textContent = options.buttonText || 'Konfiguration fehlt';
   }
+  if (options.disableInputs) {
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
+    if (emailInput) emailInput.disabled = true;
+    if (passwordInput) passwordInput.disabled = true;
+  }
+}
+
+function showSystemUnavailableState() {
+  showConfigError(systemUnavailableMessage, {
+    buttonText: 'Nicht verfügbar',
+    disableInputs: true
+  });
 }
 
 function parseSupabaseProjectRefFromUrl(url) {
@@ -4316,7 +4333,7 @@ async function updateManualTask(recordId, updates) {
 
 async function callDashboardFunction(name, payload) {
   const sb = getSupabaseAuthClient();
-  if (!sb) throw new Error('Supabase auth client missing');
+  if (!sb) throw new Error(systemUnavailableMessage);
   let { data: { session }, error } = await sb.auth.getSession();
   if (!error && (!session || !session.access_token)) {
     const refreshed = await sb.auth.refreshSession();
@@ -4324,7 +4341,7 @@ async function callDashboardFunction(name, payload) {
     error = refreshed?.error || null;
   }
   if (error || !session || !session.access_token) {
-    throw new Error('Auth session missing');
+    throw new Error('Sitzung nicht verfügbar. Bitte neu anmelden und erneut versuchen.');
   }
   const res = await fetch(`/.netlify/functions/${name}`, {
     method: 'POST',
@@ -7282,20 +7299,21 @@ async function changePassword() {
   }
 
   btn.disabled = true; btn.textContent = 'Speichern...';
-
-  const { error } = await sb.auth.updateUser({ password: pw });
-  if (error) {
-    errEl.textContent = error.message || 'Fehler beim Speichern.';
-    errEl.style.display = 'block';
-  } else {
+  try {
+    const { error } = await sb.auth.updateUser({ password: pw });
+    if (error) throw error;
     succEl.textContent = 'Passwort erfolgreich geändert';
     succEl.style.display = 'block';
     document.getElementById('pw-new').value = '';
     document.getElementById('pw-confirm').value = '';
     toast('Passwort geändert');
+  } catch (error) {
+    errEl.textContent = error?.message || 'Fehler beim Speichern.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Passwort speichern';
   }
-
-  btn.disabled = false; btn.textContent = 'Passwort speichern';
 }
 
 // ═══════════════════════════════════════════
@@ -10341,13 +10359,13 @@ function showForgotPassword() {
     <div class="login-tag">Passwort zurücksetzen</div>
     <div class="login-sub">Geben Sie Ihre E-Mail-Adresse ein. Sie erhalten einen Link zum Zurücksetzen.</div>
     <div class="login-error" id="forgot-error"></div>
-    <div class="login-form">
+    <form class="login-form" onsubmit="event.preventDefault();doForgotPassword();">
       <div class="login-field">
         <label>E-Mail</label>
         <input type="email" id="forgot-email" placeholder="ihre@email.ch" autocomplete="email">
       </div>
-      <button class="login-btn" id="forgot-btn" onclick="doForgotPassword()">Link senden</button>
-    </div>
+      <button class="login-btn" id="forgot-btn" type="submit">Link senden</button>
+    </form>
     <div class="login-links">
       <div class="login-note"><a href="javascript:void(0)" onclick="location.reload()">Zurück zum Login</a></div>
     </div>
@@ -10561,11 +10579,11 @@ function showPasswordResetForm(accessToken, refreshToken) {
     <div class="login-tag">Neues Passwort</div>
     <div class="login-sub">Wählen Sie ein neues Passwort für Ihr Voxera Portal.</div>
     <div class="login-error" id="reset-error"></div>
-    <div class="login-form">
-      <div class="login-field"><label>Neues Passwort</label><input type="password" id="new-pw" placeholder="Mindestens 8 Zeichen"></div>
-      <div class="login-field"><label>Bestätigen</label><input type="password" id="confirm-pw" placeholder="Passwort wiederholen"></div>
-      <button class="login-btn" id="reset-btn" onclick="doReset()">Passwort speichern</button>
-    </div>
+    <form class="login-form" onsubmit="event.preventDefault();doReset();">
+      <div class="login-field"><label>Neues Passwort</label><input type="password" id="new-pw" placeholder="Mindestens 8 Zeichen" autocomplete="new-password"></div>
+      <div class="login-field"><label>Bestätigen</label><input type="password" id="confirm-pw" placeholder="Passwort wiederholen" autocomplete="new-password"></div>
+      <button class="login-btn" id="reset-btn" type="submit">Passwort speichern</button>
+    </form>
   `;
   // Wait for innerHTML to be inserted into the DOM before attaching listeners
   setTimeout(function(){
@@ -10634,7 +10652,7 @@ const supabaseConfig = validateSupabaseConfig();
 console.info('[voxera-dashboard] build', APP_BUILD);
 refreshLucideIcons();
 if (!_sb || !_sb.auth) {
-  showConfigError('Supabase-Bibliothek nicht geladen. Bitte Seite neu laden.');
+  showSystemUnavailableState();
 } else if (!supabaseConfig.ok) {
   showConfigError(supabaseConfig.message);
 } else if (handleRecoveryHash()) {
