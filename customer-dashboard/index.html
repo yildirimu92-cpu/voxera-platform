@@ -1521,6 +1521,7 @@ body{
   box-shadow:0 6px 18px rgba(13,31,60,0.08);
 }
 .dash-focus-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748B;margin-bottom:10px;font-family:var(--font-display);}
+.dash-focus-datetime{font-family:var(--body-font);font-size:13px;font-weight:500;line-height:1.35;color:#64748B;margin-bottom:14px;letter-spacing:.01em;}
 .dash-focus-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;}
 .dash-focus-number{font-family:var(--font-display);font-size:36px;font-weight:800;line-height:1;color:#0D1F3C;letter-spacing:-.04em;}
 .dash-focus-hint{font-size:11px;font-weight:700;}
@@ -2572,6 +2573,7 @@ body,.main{background:#F7F8FC;}
 
               <div class="dash-focus-card" id="dash-focus-card">
                 <div class="dash-focus-label">Priorität jetzt</div>
+                <div class="dash-focus-datetime" id="dash-focus-datetime">–</div>
                 <div class="dash-focus-head">
                   <div class="dash-focus-number" id="dash-focus-number">–</div>
                   <div class="dash-focus-hint badge badge-night" id="dash-focus-hint">Priorität</div>
@@ -4801,6 +4803,7 @@ const DISPLAY_TIMEZONE = 'Europe/Zurich';
 const TIME_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, hour: '2-digit', minute: '2-digit' });
 const DATE_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit' });
 const DATE_LONG_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
+const WEEKDAY_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, weekday: 'short' });
 
 function formatTimeCH(date) {
   return TIME_FORMAT_CH.format(date);
@@ -4812,6 +4815,11 @@ function formatDateShortCH(date) {
 
 function formatDateLongCH(date) {
   return DATE_LONG_FORMAT_CH.format(date);
+}
+
+function formatDashboardFocusMetaNow(now) {
+  var weekday = WEEKDAY_SHORT_FORMAT_CH.format(now).replace('.', '').trim();
+  return weekday + ', ' + formatDateLongCH(now) + ' · ' + formatTimeCH(now);
 }
 
 function parseLocalDateTimeParts(raw) {
@@ -5662,6 +5670,10 @@ function renderDashboard(records, manualTasks) {
   var focusTextEl = document.getElementById('dash-focus-text');
   var focusNextEl = document.getElementById('dash-focus-next');
   var focusStatusEl = document.getElementById('dash-focus-status');
+  var focusDateTimeEl = document.getElementById('dash-focus-datetime');
+  if (focusDateTimeEl) {
+    focusDateTimeEl.textContent = formatDashboardFocusMetaNow(new Date());
+  }
   if (focusNumberEl && focusHintEl && focusTextEl && focusNextEl && focusStatusEl) {
     focusNumberEl.textContent = offen.length;
     var overdue = offen.filter(function(r){ return getTaskPriorityBucket(r) === 0; }).length;
