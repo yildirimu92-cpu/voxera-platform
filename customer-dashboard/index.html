@@ -3475,10 +3475,9 @@ function getSupabaseAuthClient() {
   return null;
 }
 
-const SYSTEM_UNAVAILABLE_MESSAGE = 'System aktuell nicht verfügbar. Bitte Seite neu laden oder später erneut versuchen.';
+const systemUnavailableMessage = 'System aktuell nicht verfügbar. Bitte Seite neu laden oder später erneut versuchen.';
 
-function showConfigError(message, options) {
-  const opts = options || {};
+function showConfigError(message, options = {}) {
   const login = document.getElementById('login-screen');
   const app = document.getElementById('app');
   if (app) app.style.display = 'none';
@@ -3491,9 +3490,9 @@ function showConfigError(message, options) {
   const btn = document.getElementById('login-btn');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = opts.buttonText || 'Konfiguration fehlt';
+    btn.textContent = options.buttonText || 'Konfiguration fehlt';
   }
-  if (opts.disableInputs) {
+  if (options.disableInputs) {
     const emailInput = document.getElementById('login-email');
     const passwordInput = document.getElementById('login-password');
     if (emailInput) emailInput.disabled = true;
@@ -3502,7 +3501,7 @@ function showConfigError(message, options) {
 }
 
 function showSystemUnavailableState() {
-  showConfigError(SYSTEM_UNAVAILABLE_MESSAGE, {
+  showConfigError(systemUnavailableMessage, {
     buttonText: 'Nicht verfügbar',
     disableInputs: true
   });
@@ -4334,7 +4333,7 @@ async function updateManualTask(recordId, updates) {
 
 async function callDashboardFunction(name, payload) {
   const sb = getSupabaseAuthClient();
-  if (!sb) throw new Error(SYSTEM_UNAVAILABLE_MESSAGE);
+  if (!sb) throw new Error(systemUnavailableMessage);
   let { data: { session }, error } = await sb.auth.getSession();
   if (!error && (!session || !session.access_token)) {
     const refreshed = await sb.auth.refreshSession();
