@@ -406,7 +406,7 @@ exports.handler = async (event) => {
     voxera_number: customerVoxeraNumber || twilioFrom,
     direction: 'outbound',
     dashboard_status: 'new',
-    status: 'started',
+    status: 'new',
     category: 'activation_test_outbound',
     notes: `activation_test_session_started_at:${testSessionStartedAt};activation_test_session_guard:${sessionGuardId}`,
     created_at: nowIso,
