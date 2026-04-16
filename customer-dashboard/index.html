@@ -881,7 +881,10 @@ body{
 .call-row:hover .call-open-indicator{color:#1A6FE8;}
 .call-row.expanded .call-open-indicator{color:#1A6FE8;}
 .call-row.expanded .call-expand-chevron{transform:rotate(90deg);}
-.call-secondary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.call-secondary{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.call-secondary-main{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;}
+.call-secondary-action{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#1A6FE8;white-space:nowrap;}
+.call-secondary-action::after{content:'→';font-size:11px;line-height:1;transform:translateY(-.3px);}
 .call-company{font-size:11.5px;color:var(--gray400);}
 .call-meta{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray400);margin-bottom:0;flex-wrap:wrap;}
 .call-meta-item{display:inline-flex;align-items:center;gap:6px;}
@@ -1415,7 +1418,7 @@ body{
 }
 .dash-status-hero::after{
   content:'';position:absolute;right:-40px;top:-46px;width:180px;height:180px;border-radius:50%;
-  background:radial-gradient(circle at 35% 35%,rgba(255,255,255,0.28) 0%,rgba(255,255,255,0) 62%);
+  background:radial-gradient(circle at 35% 35%,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0) 62%);
   pointer-events:none;
 }
 .dash-status-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.76);margin-bottom:10px;}
@@ -2196,7 +2199,7 @@ body,.main{background:#F7F8FC;}
   background:linear-gradient(135deg,#1A6FE8,#4B9FFF);
   color:#FFFFFF;
 }
-.sidebar-user{color:#FFFFFF;font-size:12px;font-weight:600;}
+.sidebar-user{color:#FFFFFF;font-size:12px;font-weight:600;display:block;max-width:148px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sidebar-user-role,.sidebar-user-caret{color:rgba(255,255,255,.35);}
 .topbar{
   padding:14px 28px;
@@ -2229,7 +2232,7 @@ body,.main{background:#F7F8FC;}
   font-weight:700;
 }
 .customer-live-pill .status-dot{width:6px;height:6px;background:#059669;}
-#last-updated-label{display:none;}
+#last-updated-label{display:inline-flex;}
 .dash-status-hero{
   background:linear-gradient(135deg,#0D1F3C 0%,#162D54 100%);
   border-radius:14px;
@@ -2275,7 +2278,7 @@ body,.main{background:#F7F8FC;}
 }
 .dash-kpi-val{
   font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
-  font-size:28px;
+  font-size:40px;
   font-weight:800;
   line-height:1;
 }
@@ -2510,7 +2513,7 @@ body,.main{background:#F7F8FC;}
                 <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label" style="text-transform:none;letter-spacing:normal;">Erledigt heute</div>
                   <div class="dash-kpi-val" id="kpi-followups">–</div>
-                  <div class="dash-kpi-static-note" style="text-transform:none;letter-spacing:normal;">Nur Info</div>
+                  <div class="dash-kpi-static-note" style="text-transform:none;letter-spacing:normal;">Heute abgeschlossen</div>
                 </div>
                 <div class="dash-kpi is-static" aria-disabled="true">
                   <div class="dash-kpi-label" id="kpi-leads-label" style="text-transform:none;letter-spacing:normal;">Überfällig</div>
@@ -2523,7 +2526,7 @@ body,.main{background:#F7F8FC;}
                 <div class="dash-focus-label" style="text-transform:none;letter-spacing:normal;">Priorität jetzt</div>
                 <div class="dash-focus-head">
                   <div class="dash-focus-number" id="dash-focus-number">–</div>
-                  <div class="dash-focus-hint" id="dash-focus-hint">Priorität</div>
+                  <div class="dash-focus-hint" id="dash-focus-hint">offene Aufgaben</div>
                 </div>
                 <div class="dash-focus-text" id="dash-focus-text">Keine priorisierte Aufgabe vorhanden.</div>
                 <div class="dash-focus-actions">
@@ -2541,8 +2544,8 @@ body,.main{background:#F7F8FC;}
                     <span class="dash-glass-link" onclick="activateTab('anrufe')">Alle anzeigen</span>
                   </div>
                   <div class="call-list" id="dash-recent-list" style="margin-bottom:0;gap:0;"></div>
-                  <button id="dash-recent-more" onclick="renderList('dash-recent-list',(this._allCalls||[]),{showActions:true,skipSort:true,dashboardView:true});this.style.display='none';" style="display:none;width:100%;padding:12px;background:transparent;border:none;border-top:0.5px solid rgba(0,0,0,0.05);font-size:12px;font-weight:500;color:#1A6FE8;cursor:pointer;font-family:inherit;">Alle anzeigen</button>
                 </div>
+                <button id="dash-recent-more" onclick="renderList('dash-recent-list',(this._allCalls||[]),{showActions:true,skipSort:true,dashboardView:true});this.style.display='none';" style="display:none;margin-top:10px;padding:0;background:transparent;border:none;font-size:12px;font-weight:700;color:#1A6FE8;cursor:pointer;font-family:inherit;">Alle anzeigen</button>
               </div>
               <!-- RECHTS: Priorisierte Aufgaben -->
               <div class="dash-col">
@@ -4898,9 +4901,8 @@ function updateLastUpdatedLabel() {
   const label = document.getElementById('last-updated-label');
   if (!label) return;
   const now = new Date();
-  const timeStr = formatTimeCH(now);
-  const dateStr = formatDateShortCH(now);
-  label.textContent = 'Zuletzt aktualisiert: ' + dateStr + ', ' + timeStr;
+  const timeStr = now.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+  label.textContent = 'Zuletzt aktualisiert: ' + timeStr;
   updateDashboardHeaderMeta();
 }
 
@@ -4910,7 +4912,7 @@ function updateDashboardHeaderMeta() {
   var buckets = deriveDashboardCallBuckets(allRecords || []);
   var openCalls = buckets.open.length;
   var openCallbacks = buckets.callbacks.length;
-  sub.textContent = openCalls + ' Anfragen · ' + openCallbacks + ' Aufgaben · Gerade aktualisiert';
+  sub.textContent = openCalls + ' Anfragen · ' + openCallbacks + ' Aufgaben';
 }
 
 function isToday(raw) {
@@ -5590,14 +5592,12 @@ function renderDashboard(records, manualTasks) {
       return !!resolveTaskDueAt((r && r.fields) || {});
     });
     var nextFollowUpLabel = nextFollowUp ? fmtFollowUpDateTime(resolveTaskDueAt(nextFollowUp.fields || {})) : '';
+    focusHintEl.textContent = offen.length === 1 ? 'offene Aufgabe' : 'offene Aufgaben';
     if (offen.length > 0 && nextFollowUpLabel) {
-      focusHintEl.textContent = 'Nächster Rückruf';
-      focusTextEl.textContent = 'Offene Aufgaben: ' + offen.length + ' · Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Nächster Rückruf: ' + nextFollowUpLabel;
+      focusTextEl.textContent = 'Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Nächster Rückruf: ' + nextFollowUpLabel;
     } else if (offen.length > 0) {
-      focusHintEl.textContent = 'Jetzt bearbeiten';
-      focusTextEl.textContent = 'Offene Aufgaben: ' + offen.length + ' · Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Geplant: ' + upcoming;
+      focusTextEl.textContent = 'Überfällig: ' + overdue + ' · Heute geplant: ' + dueToday + ' · Geplant: ' + upcoming;
     } else {
-      focusHintEl.textContent = 'Keine offenen Aufgaben';
       focusTextEl.textContent = 'Momentan gibt es keine offenen Aufgaben.';
     }
   }
@@ -5641,20 +5641,16 @@ function renderDashboard(records, manualTasks) {
   }
   var recentList = document.getElementById('dash-recent-list');
   if (recentList) {
+    var moreBtn = document.getElementById('dash-recent-more');
     if (allOpenCalls.length === 0) {
       recentList.innerHTML = renderEmptyState('Noch keine Anfragen vorhanden', 'Sobald eine Anfrage eingeht, erscheint sie hier.');
+      if (moreBtn) moreBtn.style.display = 'none';
     } else {
       renderList('dash-recent-list', allOpenCalls, {showActions:true, skipSort:true, limit:3, dashboardView:true});
-      // Show "more" button if there are more
-      var moreBtn = document.getElementById('dash-recent-more');
       if (moreBtn) {
-        if (allOpenCalls.length > 3) {
-          moreBtn.style.display = 'block';
-          moreBtn.textContent = 'Alle ' + allOpenCalls.length + ' Anrufe anzeigen';
-          moreBtn._allCalls = allOpenCalls;
-        } else {
-          moreBtn.style.display = 'none';
-        }
+        moreBtn.style.display = 'block';
+        moreBtn.textContent = 'Alle ' + allOpenCalls.length + ' Anrufe anzeigen';
+        moreBtn._allCalls = allOpenCalls;
       }
     }
   }
@@ -5897,11 +5893,14 @@ function renderList(containerId, records, opts) {
           <div class="call-top-main">
             <span class="call-name">${escHtml(callerDisplayName)}</span>
           </div>
-          <span class="call-open-indicator">Details öffnen <span class="call-expand-chevron">›</span></span>
+          ${(opts.dashboardView && isTaskList) ? '' : `<span class="call-open-indicator">Details öffnen <span class="call-expand-chevron">›</span></span>`}
         </div>
         <div class="call-secondary">
-          ${badgeHtml}
-          ${f.company_name?`<span class="call-company">${escHtml(f.company_name)}</span>`:''}
+          <div class="call-secondary-main">
+            ${badgeHtml}
+            ${f.company_name?`<span class="call-company">${escHtml(f.company_name)}</span>`:''}
+          </div>
+          ${(opts.dashboardView && isTaskList) ? `<span class="call-secondary-action">Details öffnen</span>` : ''}
         </div>
         <div class="call-meta">
           ${displayPhone?`<span class="call-meta-item call-meta-phone">${escHtml(displayPhone)}</span>`:''}
@@ -5914,13 +5913,11 @@ function renderList(containerId, records, opts) {
         ${done && closedAt ? `<div class="followup-meta-line">Abgeschlossen am ${escHtml(fmtExactDateTime(closedAt) || fmtDate(closedAt))}</div>` : ''}
         ${notizText && !opts.dashboardView?`<div class="call-notiz">${escHtml(notizText)}</div>`:''}
         ${showActions && !done?`<div class="call-actions">
-          <button class="btn-a btn-note" onclick="event.stopPropagation();${isManualTaskRecord(r) ? `openDetail('${r.id}')` : `openFollowupDirect('${r.id}')`}" title="${isManualTaskRecord(r) ? 'Details öffnen' : 'Follow-up setzen'}">${isManualTaskRecord(r) ? 'Details' : 'Follow-up setzen'}</button>
-          ${isManualTaskRecord(r) ? '' : `<button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')" title="Details öffnen">Details</button>`}
+          ${isManualTaskRecord(r) ? ((opts.dashboardView && isTaskList) ? '' : `<button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')" title="Details öffnen">Details</button>`) : `<button class="btn-a btn-note" onclick="event.stopPropagation();openFollowupDirect('${r.id}')" title="Follow-up setzen">Follow-up setzen</button>`}
+          ${(isManualTaskRecord(r) || (opts.dashboardView && isTaskList)) ? '' : `<button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')" title="Details öffnen">Details</button>`}
           ${isManualTaskRecord(r) ? '' : `<button class="btn-a btn-note" data-id="${r.id}" data-notiz="${encodeURIComponent(notizText)}" data-name="${encodeURIComponent(f.caller_name||'')}" onclick="event.stopPropagation();openNotizFromBtn(this)" title="Notiz bearbeiten">Notiz</button>`}
         </div>`:''}
-        ${showActions && done?`<div class="call-actions">
-          <button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')">Details</button>
-        </div>`:''}
+        ${showActions && done ? (((opts.dashboardView && isTaskList) ? '' : `<div class="call-actions"><button class="btn-a btn-note" onclick="event.stopPropagation();openDetail('${r.id}')">Details</button></div>`)) : ''}
       </div>
       ${showActions && !done?`<div class="call-inline-actions">
           ${callTarget?`<button class="btn-icon btn-icon-call" onclick="event.stopPropagation();directCall('${r.id}','${encodeURIComponent(callTarget)}')" title="Anrufen" aria-label="Anrufen">
@@ -10503,11 +10500,16 @@ function showApp(user) {
   const meta = user.user_metadata || {};
 
   // Initial greeting, will be updated with customer_name after loadData
-  const fallbackName = meta.full_name ? meta.full_name.split(' ')[0] : (user.email||'').split('@')[0];
+  const firstName = meta.first_name || (meta.full_name ? meta.full_name.split(' ')[0] : '');
+  const fallbackName = firstName || (user.email||'').split('@')[0];
   const greetingMain = document.getElementById('greeting-main');
   const greetWord = new Date().getHours()<12?'Morgen':new Date().getHours()<18?'Tag':'Abend';
   if (greetingMain) greetingMain.textContent = 'Guten ' + greetWord + ', ' + fallbackName;
-  document.getElementById('sidebar-user').textContent = user.email;
+  var sidebarUserEl = document.getElementById('sidebar-user');
+  if (sidebarUserEl) {
+    sidebarUserEl.textContent = firstName || user.email || '–';
+    sidebarUserEl.title = user.email || '';
+  }
   var initial = (user.email||'?')[0].toUpperCase();
   var avatarEl = document.getElementById('sidebar-avatar-cust');
   if(avatarEl) avatarEl.textContent = initial;
