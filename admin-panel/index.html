@@ -2946,6 +2946,16 @@ const CUSTOMER_LIFECYCLE_BADGE_CLASS={
   paused:'badge-gray',
   deleted:'badge-red'
 };
+const INVITE_STATUS={
+  NOT_SENT:'not_sent',
+  SENT:'sent',
+  ACTIVATED:'activated'
+};
+const INVITE_STATUS_LABELS={
+  [INVITE_STATUS.NOT_SENT]:'Nicht gesendet',
+  [INVITE_STATUS.SENT]:'Gesendet',
+  [INVITE_STATUS.ACTIVATED]:'Aktiviert'
+};
 const ONBOARDING_STATUS={
   NOT_STARTED:'not_started',
   IN_PROGRESS:'in_progress',
@@ -3023,6 +3033,20 @@ function normalizeOnboardingStatus(status){
   };
   return aliases[raw]||ONBOARDING_STATUS.NOT_STARTED;
 }
+function normalizeInviteStatus(status){
+  const raw=String(status||'').trim().toLowerCase();
+  const aliases={
+    'not sent':INVITE_STATUS.NOT_SENT,
+    not_sent:INVITE_STATUS.NOT_SENT,
+    pending:INVITE_STATUS.NOT_SENT,
+    invited:INVITE_STATUS.SENT,
+    sent:INVITE_STATUS.SENT,
+    sending:INVITE_STATUS.SENT,
+    activated:INVITE_STATUS.ACTIVATED,
+    live:INVITE_STATUS.ACTIVATED
+  };
+  return aliases[raw]||INVITE_STATUS.NOT_SENT;
+}
 function assertOnboardingTransition(from,to){
   const src=normalizeOnboardingStatus(from);
   const dst=normalizeOnboardingStatus(to);
@@ -3061,20 +3085,66 @@ function assertCaseTransition(from,to){
     throw new Error(`Illegal case transition: ${src} -> ${dst}`);
   }
 }
-function getCanonicalCustomerStatus(customer,onboarding){
+function resolveCustomerLifecycle(customer){
   const statusFromCustomer=normalizeCustomerLifecycleStatus(customer?.status);
   if(CUSTOMER_LIFECYCLE_STATUS_ORDER.includes(statusFromCustomer)) return statusFromCustomer;
-
-  const inviteStatus=String(customer?.invite_status||'').trim().toLowerCase();
-  if(inviteStatus==='sent') return 'invited';
-  if(isCustomerAccessReady(customer,onboarding)) return 'ready';
+  // Legacy fallback: unknown customer.status → onboarding (no invite/onboarding derivation).
   return 'onboarding';
 }
+function resolveOnboardingState(onboarding,meta={}){
+  const state=normalizeOnboardingStatus(onboarding?.status);
+  return {
+    state,
+    progress:Number(meta.progress ?? onboarding?.progress ?? 0),
+    nextStep:meta.nextStep ?? onboarding?.next ?? onboarding?.next_step ?? 'customer created',
+    blocker:meta.blocker ?? onboarding?.blocker ?? '',
+    source:onboarding?.status?'onboarding.status':'legacy-fallback'
+  };
+}
+function resolveInviteState(customer){
+  const inviteState=normalizeInviteStatus(customer?.invite_status);
+  return {
+    state:inviteState,
+    label:INVITE_STATUS_LABELS[inviteState]||INVITE_STATUS_LABELS[INVITE_STATUS.NOT_SENT],
+    welcomeSent:Boolean(customer?.welcome_sent),
+    welcomeSentAt:customer?.welcome_sent_at||null
+  };
+}
+function resolveAccessGate(customer,onboarding){
+  const lifecycle=resolveCustomerLifecycle(customer);
+  const onboardingState=resolveOnboardingState(onboarding);
+  const validation=validateCustomerAccessData(customer);
+  const voxeraNum=String(customer?.voxera_number||customer?.voxera||'').trim();
+  const aiReady=hasCustomerAiBasicsConfigured(customer);
+  const hasContract=Boolean(latestContractForCustomer(customer?.id)?.id);
+  const lifecycleCompatible=['ready','invited','activated','live'].includes(lifecycle);
+
+  const hard_blockers=[];
+  if(!hasContract) hard_blockers.push('Aktiver Vertrag fehlt');
+  if(!lifecycleCompatible) hard_blockers.push(`Lifecycle nicht freigabefähig (${CUSTOMER_LIFECYCLE_LABELS[lifecycle]||lifecycle})`);
+  if(!validation.ok) hard_blockers.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
+  if(!voxeraNum||voxeraNum==='Zuweisung offen') hard_blockers.push('Voxera-Nummer nicht zugewiesen');
+  if(!aiReady) hard_blockers.push('AI-Konfiguration fehlt (Geschäftsbeschreibung)');
+  if(onboardingState.state===ONBOARDING_STATUS.BLOCKED) hard_blockers.push('Onboarding ist blockiert');
+
+  const warnings=[];
+  if(!isPaymentPaid(customer)) warnings.push(`Setup-Gebühr ist noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)}). Zugang kann trotzdem gesendet werden.`);
+
+  return {
+    allow:hard_blockers.length===0,
+    blocked:hard_blockers.length>0,
+    warnings,
+    hard_blockers
+  };
+}
+function getCanonicalCustomerStatus(customer,onboarding){
+  return resolveCustomerLifecycle(customer);
+}
 function getCustomerLifecycleStatus(customer,onboarding){
-  return getCanonicalCustomerStatus(customer,onboarding);
+  return resolveCustomerLifecycle(customer);
 }
 function getCustomerLifecycleLabel(customer,onboarding){
-  return CUSTOMER_LIFECYCLE_LABELS[getCanonicalCustomerStatus(customer,onboarding)]||'Einrichtung läuft';
+  return CUSTOMER_LIFECYCLE_LABELS[resolveCustomerLifecycle(customer)]||'Einrichtung läuft';
 }
 function getCustomerLifecycleStatusLabel(customer,onboarding){
   return getCustomerLifecycleLabel(customer,onboarding);
@@ -3086,10 +3156,9 @@ function getCustomerLifecycleBadge(customer,onboarding){
   return `<span class="badge ${cls}">${esc(label)}</span>`;
 }
 function getCustomerQuickActionState(customer,onboarding){
-  const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
-  const accessReasons=getCustomerAccessBlockReasons(customer,onboarding);
-  const accessReady=accessReasons.length===0;
-  const blockedReason=accessReasons[0]||'Einrichtung noch nicht abgeschlossen';
+  const lifecycleStatus=resolveCustomerLifecycle(customer);
+  const gate=resolveAccessGate(customer,onboarding);
+  const blockedReason=(gate.hard_blockers&&gate.hard_blockers[0])||'Einrichtung noch nicht abgeschlossen';
   const base={
     lifecycleStatus,
     canSendAccess:false,
@@ -3106,18 +3175,18 @@ function getCustomerQuickActionState(customer,onboarding){
     return {
       ...base,
       showSendAccess:true,
-      canSendAccess:accessReady,
-      sendAccessDisabled:!accessReady,
-      sendAccessTooltip:accessReady?'':blockedReason
+      canSendAccess:gate.allow,
+      sendAccessDisabled:!gate.allow,
+      sendAccessTooltip:gate.allow?'':blockedReason
     };
   }
   if(lifecycleStatus==='ready'){
     return {
       ...base,
       showSendAccess:true,
-      canSendAccess:accessReady,
-      sendAccessDisabled:!accessReady,
-      sendAccessTooltip:accessReady?'':blockedReason
+      canSendAccess:gate.allow,
+      sendAccessDisabled:!gate.allow,
+      sendAccessTooltip:gate.allow?'':blockedReason
     };
   }
   if(lifecycleStatus==='invited') return {...base,showInvitationSent:true};
@@ -3202,11 +3271,7 @@ function paymentStatusLabel(status){
   return PAYMENT_STATUS_LABELS[normalizePaymentStatus(status)]||PAYMENT_STATUS_LABELS.none;
 }
 function inviteStatusLabel(status){
-  const normalized=String(status||'').trim().toLowerCase();
-  if(normalized==='sent'||normalized==='invited') return 'Gesendet';
-  if(normalized==='activated') return 'Aktiviert';
-  if(normalized==='live') return 'Live';
-  return 'Nicht gesendet';
+  return resolveInviteState({invite_status:status}).label;
 }
 function paymentStatusBadge(status){
   const normalized=normalizePaymentStatus(status);
@@ -6892,18 +6957,13 @@ function deriveOnboardingSnapshot(customerId){
   const progress=checklist.length?Math.round((doneSteps.length/checklist.length)*100):0;
   const blockerStep=ONBOARDING_BLOCKER_STEPS.find(step=>missingSet.has(step));
 
-  let status=ONBOARDING_STATUS.IN_PROGRESS;
-  if(missingSteps.length===0) status=ONBOARDING_STATUS.COMPLETED;
-  else if(doneSet.has('activation sent')&&missingSet.size===1&&missingSet.has('test call completed')) status=ONBOARDING_STATUS.READY;
-  else if(blockerStep) status=ONBOARDING_STATUS.BLOCKED;
-
+  const onboardingResolved=resolveOnboardingState(onboarding,{
+    progress,
+    nextStep:missingSteps[0]||'completed',
+    blocker:blockerStep?`Blockiert: ${CHECKLIST_TO_BUSINESS_STEP[blockerStep]||blockerStep}`:(onboarding.blocker||'')
+  });
+  const gate=resolveAccessGate(customer,onboarding);
   const validation=validateCustomerAccessData(customer);
-  const accessReasons=[];
-  if(validation.missing.length) accessReasons.push('Stammdaten fehlen: '+validation.missing.map(validationLabelForField).join(', '));
-  if(!voxeraNum||voxeraNum==='Zuweisung offen') accessReasons.push('Voxera-Nummer nicht zugewiesen');
-  if(!doneSet.has('AI basics configured')) accessReasons.push('AI-Konfiguration fehlt (Geschäftsbeschreibung)');
-  const accessWarnings=[];
-  if(!isPaymentPaid(customer)) accessWarnings.push(`Setup-Gebühr ist noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)}). Zugang kann trotzdem gesendet werden.`);
 
   return {
     customer,
@@ -6917,11 +6977,11 @@ function deriveOnboardingSnapshot(customerId){
     currentStep:doneSteps.length?doneSteps[doneSteps.length-1]:'Noch nicht gestartet',
     nextStep:missingSteps[0]||'completed',
     blockerStep,
-    blocker:blockerStep?`Blockiert: ${CHECKLIST_TO_BUSINESS_STEP[blockerStep]||blockerStep}`:(onboarding.blocker||''),
-    status,
-    accessReasons,
-    accessWarnings,
-    isAccessReady:accessReasons.length===0,
+    blocker:onboardingResolved.blocker,
+    status:onboardingResolved.state,
+    accessReasons:[...gate.hard_blockers],
+    accessWarnings:[...gate.warnings],
+    isAccessReady:gate.allow,
     hasRequiredAccessData:validation.ok,
     missingFields:validation.missing
   };
@@ -6929,13 +6989,8 @@ function deriveOnboardingSnapshot(customerId){
 
 function syncCustomerLifecycleStatus(customer,onboarding){
   if(!customer) return;
-  const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
-  if(lifecycleStatus==='paused'||lifecycleStatus==='invited'||lifecycleStatus==='activated'||lifecycleStatus==='live') return;
-  if(isCustomerAccessReady(customer,onboarding)){
-    customer.status='ready';
-    return;
-  }
-  customer.status='onboarding';
+  // Read-path canonicalization only. Keep legacy aliases normalized but do not derive from invite/onboarding.
+  customer.status=resolveCustomerLifecycle(customer);
 }
 
 function isCustomerAccessReady(customer,onboarding){
@@ -6958,9 +7013,10 @@ function getCustomerSetupProgress(customer,onboarding){
 
 function getCustomerAccessReadiness(customer,onboarding){
   const snapshot=customer?deriveOnboardingSnapshot(customer.id):null;
-  const blockReasons=snapshot?.accessReasons||[];
-  const warningReasons=snapshot?.accessWarnings||[];
-  const isReady=blockReasons.length===0;
+  const gate=resolveAccessGate(customer,onboarding);
+  const blockReasons=gate.hard_blockers||[];
+  const warningReasons=gate.warnings||[];
+  const isReady=gate.allow;
   return {
     isReady,
     onboardingReady:isReady,
@@ -7064,7 +7120,8 @@ function openSendAccessModal(customerId){
   setSendAccessFeedback(null,'');
   customerNameEl.textContent=customer.name||'—';
   customerEmailEl.textContent=customer.email||'—';
-  inviteStatusEl.textContent=customer.invite_status==='sent'?'Bereits gesendet':'Noch nicht gesendet';
+  const inviteState=resolveInviteState(customer);
+  inviteStatusEl.textContent=inviteState.state===INVITE_STATUS.SENT?'Bereits gesendet':inviteState.label;
 
   const readiness=getCustomerAccessReadiness(customer,onboarding);
   const obStatusEl=document.getElementById('send-access-onboarding-status');
