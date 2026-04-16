@@ -3884,6 +3884,16 @@ function deriveContractState(contractRows) {
   };
 }
 
+function resolveHasActiveContractFromState(stateLike) {
+  const state = stateLike && typeof stateLike === 'object' ? stateLike : {};
+  if (state.hasActiveContract === true) return true;
+  const status = normalizeContractStatus(state.status);
+  if (ACTIVE_CONTRACT_STATUSES.has(status)) return true;
+  const effective = state.effectiveContract || state.latestContract || null;
+  const effectiveStatus = normalizeContractStatus((effective && (effective.status != null ? effective.status : effective.contract_status)) || '');
+  return ACTIVE_CONTRACT_STATUSES.has(effectiveStatus);
+}
+
 function hasActiveContractAccess() {
   return !!(customerContractState && customerContractState.hasActiveContract);
 }
@@ -5279,7 +5289,19 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
           effectiveContract: serverState.effectiveContract || null
         };
       }
+      customerContractState.hasActiveContract = resolveHasActiveContractFromState(customerContractState);
       customerContractMeta = customerContractState.effectiveContract || customerContractState.latestContract || null;
+      console.info('[plan-card-debug] contract-state-source', {
+        serverState: {
+          status: serverState.status,
+          hasContract: serverState.hasContract,
+          hasActiveContract: serverState.hasActiveContract,
+          latestContract: serverState.latestContract || null,
+          effectiveContract: serverState.effectiveContract || null
+        },
+        finalContractState: customerContractState,
+        finalCustomerContractMeta: customerContractMeta
+      });
       return customerContractMeta;
     }
   } catch (e) {
@@ -5413,7 +5435,8 @@ function renderUsage(records) {
   if (meter) meter.style.width = `${pct}%`;
   const contractStatusLabel = getContractStatusLabel(customerMeta.contractStatus);
   const planLabel = formatPlanLabel(customerMeta.plan);
-  const activeSuffix = customerMeta.hasActiveContract ? '' : ' · Kein aktiver Vertrag';
+  const hasActiveContractForPlanCard = customerMeta.hasActiveContract === true;
+  const activeSuffix = hasActiveContractForPlanCard ? '' : ' · Kein aktiver Vertrag';
   set('usage-plan-sub', `${planLabel} · CHF ${(cfg.monthlyPrice||0)} / Mt · ${cfg.minutes||0} Min. inkl. · Vertragsstatus: ${contractStatusLabel}${activeSuffix}`);
   set('usage-month-minutes', `${used} Min`);
   // Dashboard KPI
@@ -5425,7 +5448,7 @@ function renderUsage(records) {
   set('usage-extra-label', over > 0 ? `${over} Zusatzminuten · ${extraCost} CHF geschätzt` : 'Keine Zusatzkosten');
   const chip = document.getElementById('usage-status-chip');
   if (chip) {
-    if (!customerMeta.hasActiveContract) {
+    if (!hasActiveContractForPlanCard) {
       chip.textContent = 'Vertrag inaktiv';
       chip.className = 'chip chip-hot';
     } else {
@@ -5433,6 +5456,15 @@ function renderUsage(records) {
       chip.className = 'chip ' + (over > 0 ? 'chip-hot' : pct >= 80 ? 'chip-working' : 'chip-neu');
     }
   }
+  console.info('[plan-card-debug] render-usage-plan-card', {
+    contractStatusLabel,
+    hasActiveContractForPlanCard,
+    activeSuffix,
+    usageChipText: chip ? chip.textContent : null,
+    usageChipClass: chip ? chip.className : null,
+    customerContractMeta,
+    customerContractState
+  });
   const upTitle = document.getElementById('upgrade-primary-title');
   const upCopy = document.getElementById('upgrade-primary-copy');
   const addCopy = document.getElementById('upgrade-addon-copy');
