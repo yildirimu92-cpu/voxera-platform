@@ -15,6 +15,7 @@
 <script src="/shared/offer-brand.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════
    RESET & VARIABLES — V1 PREMIUM REDESIGN
@@ -2052,6 +2053,81 @@ body{
 }
 
 
+
+
+.prog-seg { height: 3px; border-radius: 99px; flex: 1; }
+.prog-seg.active { background: #1A6FE8; }
+.prog-seg.done   { background: #059669; }
+.prog-seg.todo   { background: rgba(255,255,255,.12); }
+
+.e-card {
+  background: white;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.e-card.selected {
+  border-color: #1A6FE8;
+  box-shadow: 0 0 0 3px rgba(26,111,232,.1);
+}
+
+.code-block {
+  background: #0D1F3C;
+  border-radius: 16px;
+  padding: 18px;
+}
+.code-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: #E8C547;
+  margin-bottom: 8px;
+}
+.code-value {
+  font-family: 'Courier New', monospace;
+  font-size: 19px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: .04em;
+  word-break: break-all;
+}
+
+.hint-box { border: 1px solid #FDE68A; background: #FFFBEB; border-radius: 12px; overflow: hidden; }
+.hint-trigger { padding: 12px 14px; font-size: 13px; font-weight: 600; color: #92400E; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.hint-body { padding: 0 14px 12px; font-size: 12px; color: #92400E; line-height: 1.75; display: none; }
+.hint-body.open { display: block; }
+
+.deact-row {
+  background: #F1F5F9;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.deact-code { font-family: monospace; font-weight: 700; color: #0F172A; }
+
+.handoff-step { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+.handoff-num { width: 28px; height: 28px; border-radius: 50%; background: #1A6FE8; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.handoff-title { font-size: 14px; font-weight: 600; color: #0F172A; margin-bottom: 3px; }
+.handoff-sub { font-size: 12px; color: #94A3B8; line-height: 1.5; }
+
+button, a.btn { min-height: 44px; }
+
+@keyframes voxera-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(1.4); }
+}
+.pulse-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #34D399;
+  animation: voxera-pulse 2s infinite;
+  display: inline-block;
+}
 
 /* ═══════════════════════════════════════════
    ACTIVATION EXPERIENCE — STATE-DRIVEN SAAS
@@ -10128,296 +10204,97 @@ function bindActivationV2Events(){
   activationV2EventsBound = true;
 }
 
+function isMobileDevice() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+}
+function mapUiTypeToDb(type){ return ({'nicht-abgehoben':'no_answer','immer':'always','besetzt':'busy','nicht-erreichbar':'unreachable'})[type] || 'no_answer'; }
+function mapDbTypeToUi(mode){ return ({'no_answer':'nicht-abgehoben','always':'immer','busy':'besetzt','unreachable':'nicht-erreichbar'})[mode] || 'nicht-abgehoben'; }
+function getTypeLabel(type){ return ({'nicht-abgehoben':'Wenn nicht abgehoben','immer':'Immer weiterleiten','besetzt':'Wenn besetzt','nicht-erreichbar':'Wenn nicht erreichbar'})[type] || type; }
+function getForwardingCode(type, voxeraNumber){ var t=['nicht-abgehoben','immer','besetzt','nicht-erreichbar'].includes(type)?type:mapDbTypeToUi(type); var n=voxeraNumber||''; return {activate:({'nicht-abgehoben':'**61*'+n+'#','immer':'**21*'+n+'#','besetzt':'**67*'+n+'#','nicht-erreichbar':'**62*'+n+'#'})[t]||'',deactivate:({'nicht-abgehoben':'##61#','immer':'##21#','besetzt':'##67#','nicht-erreichbar':'##62#'})[t]||''}; }
+function buildTelLink(code){ return 'tel:' + String(code || '').replace(/#/g, '%23'); }
+function renderQR(elementId, code){ var el=document.getElementById(elementId); if(!el || !window.QRCode || !code) return; el.innerHTML=''; new QRCode(el,{text:buildTelLink(code),width:160,height:160,colorDark:'#0D1F3C',colorLight:'#FFFFFF',correctLevel:QRCode.CorrectLevel.M}); }
+function copyToClipboard(text, btnId){ if(!text) return; navigator.clipboard.writeText(text).then(function(){ var b=document.getElementById(btnId); if(!b) return; var o=b.textContent; b.textContent='✓ Kopiert'; setTimeout(function(){ b.textContent=o; },2000); }).catch(function(){ toast('Kopieren fehlgeschlagen','error'); }); }
+function getErreichbarkeitFromCustomer(customer){ return { voxeraNumber:customer&&customer.voxera_number?customer.voxera_number:'', forwardingStatus:customer&&customer.forwarding_status?customer.forwarding_status:'not_started', forwardingModeUi:mapDbTypeToUi(customer&&customer.forwarding_mode?customer.forwarding_mode:'no_answer'), setupDeviceType:customer&&customer.setup_device_type?customer.setup_device_type:null, forwardingSetupCompleted:!!(customer&&customer.forwarding_setup_completed) }; }
+
+var erreichbarkeit = { selectedProvider: 'swisscom', selectedType: 'nicht-abgehoben', selectedDeviceType: null, voxeraNumber: null };
+var erreichbarkeitCurrentState = 'overview';
+function showErreichbarkeitState(state){ erreichbarkeitCurrentState = state || 'overview'; renderActivationV2(); }
+function erreichbarkeitSetProvider(v){ erreichbarkeit.selectedProvider = v; renderActivationV2(); }
+function erreichbarkeitSetType(v){ erreichbarkeit.selectedType = v; renderActivationV2(); }
+function erreichbarkeitSetDevice(v){ erreichbarkeit.selectedDeviceType = v; renderActivationV2(); }
+function erreichbarkeitHintToggle(){ var el = document.getElementById('volte-hint-body'); if (el) el.classList.toggle('open'); }
+
+async function persistErreichbarkeitActivation(){
+  try {
+    var ctx = await resolveCustomerContext();
+    var rec = ctx && ctx.customerRecord;
+    if (!rec || !rec.id) throw new Error('customer missing');
+    await patchCustomerRecord(rec.id, {
+      forwarding_status: 'active',
+      forwarding_mode: mapUiTypeToDb(erreichbarkeit.selectedType),
+      forwarding_setup_completed: true,
+      setup_device_type: erreichbarkeit.selectedDeviceType
+    });
+    await loadCustomerMeta();
+    showErreichbarkeitState('success');
+  } catch (e) {
+    console.error(e);
+    toast('Aktivierung konnte nicht gespeichert werden.', 'error');
+  }
+}
+
+async function persistErreichbarkeitDeactivation(){
+  try {
+    var ctx = await resolveCustomerContext();
+    var rec = ctx && ctx.customerRecord;
+    if (!rec || !rec.id) throw new Error('customer missing');
+    await patchCustomerRecord(rec.id, { forwarding_status: 'inactive', forwarding_setup_completed: false });
+    await loadCustomerMeta();
+    showErreichbarkeitState('overview');
+  } catch (e) {
+    console.error(e);
+    toast('Deaktivierung konnte nicht gespeichert werden.', 'error');
+  }
+}
+
 function renderActivationV2(){
   var shell = document.getElementById('activation-v2-shell');
   if (!shell) return;
-  activationV2DebugLog('state before render', activationV2StateSnapshot());
-  if (isContractRestrictedState()) {
-    var restrictedStatusLabel = getContractStatusLabel(customerMeta && customerMeta.contractStatus);
-    shell.innerHTML = '<div class="activation-shell">'
-      + '<section class="activation-hero">'
-      + '<div class="activation-state-chip">Eingeschränkter Vertrag</div>'
-      + '<h1>Aktivierung derzeit gesperrt</h1>'
-      + '<p>Ohne aktiven Vertrag sind Aktivierung, Erreichbarkeit und Einstellungen nur lesbar. Vertragsstatus: ' + escapeHtml(restrictedStatusLabel) + '.</p>'
-      + '<button type="button" class="activation-btn primary activation-primary" disabled>Aktivierung nicht verfügbar</button>'
-      + '</section>'
-      + '<section class="activation-panel">'
-      + '<h2>Nächster Schritt</h2>'
-      + '<div class="activation-warning-banner">Bitte kontaktieren Sie Voxera, um den Vertrag zu reaktivieren. Danach ist die Aktivierung wieder normal verfügbar.</div>'
-      + '</section>'
-      + '</div>';
-    return;
-  }
-  bindActivationV2Events();
-  syncActivationPersistedState();
-  restoreActivationV2Step();
-  var step = activationV2StepState.step;
-  var renderState = getActivationRenderState();
-  var uiState = renderState.uiState;
-  var phase = renderState.phase;
-  activationV2FlowState.currentTestPhase = phase;
-  var hero = renderState.hero;
-  var effectiveDevice = getActivationV2EffectiveDevice();
-  var knownNumberType = getActivationKnownNumberType();
-  if (!effectiveDevice && knownNumberType) effectiveDevice = knownNumberType;
-  var effectiveMode = getActivationV2EffectiveMode();
-  var numberTypeLabel = effectiveDevice === 'mobile' ? 'Handynummer' : (effectiveDevice === 'landline' ? 'Festnetznummer' : 'Nicht bestätigt');
-  var runtimeIsMobile = isRuntimeMobileViewport();
-  var runtimeContextLabel = runtimeIsMobile ? 'Smartphone' : 'Desktop / Laptop';
-  var mode = effectiveMode;
-  var modeLabel = getForwardingModeLabel(mode) || 'Nicht gewählt';
-  var voxeraNumber = customerMeta.voxeraNumber || '–';
-  var activatedSince = customerMeta.activatedAt ? fmtDate(customerMeta.activatedAt) : (customerMeta.activationStartedAt ? fmtDate(customerMeta.activationStartedAt) : '–');
-  var lastCheck = candidateCall && candidateCall.created_at ? fmtDate(candidateCall.created_at) : 'Keine Prüfung';
-  var canProceedStep2 = !!effectiveDevice;
-  var canProceedStep3 = !!activationV2FlowState.selectedForwardingMode;
-  var step3Ready = !!effectiveDevice && !!(activationV2FlowState.selectedForwardingMode || activationPersistedState.forwardingMode);
-  var blockedStep3 = step === 3 && !step3Ready;
-  var shouldShowRecoveryAction = uiState === 'pending_test' || uiState === 'failed' || blockedStep3;
-  var code = getForwardingCode(mode, customerMeta.voxeraNumber || '');
-  var deactCode = getForwardingDisableCode(effectiveMode || '');
-  var codeJson = JSON.stringify(code || '');
-  var heroAction = hero.primaryAction || 'go-step';
-  var heroValue = hero.primaryValue || '1';
-  var isActiveMode = uiState === 'active';
-  var isRecoveryMode = uiState === 'failed';
-
-  var renderBranch = step === 1 ? 'step_1_device_selection' : (step === 2 ? 'step_2_mode_selection' : 'step_3_activation_actions');
-  var deviceSource = activationV2FlowState.selectedDeviceType ? 'current_flow' : (activationPersistedState.deviceType ? 'persisted' : 'none');
-  var modeSource = activationV2FlowState.selectedForwardingMode ? 'current_flow' : (activationPersistedState.forwardingMode ? 'persisted' : 'none');
-  var selectionButtonsRendered = step === 1 || step === 2;
-  var continueEnabled = step === 1 ? canProceedStep2 : (step === 2 ? canProceedStep3 : step3Ready);
-  if (blockedStep3) renderBranch = 'step_3_blocked_missing_current_flow';
-  activationV2DebugLog('continue button state', { step: step, enabled: continueEnabled });
-
-  var html = '<div class="activation-shell">'
-    + '<section class="activation-hero">'
-    + '<div class="activation-state-chip">' + escapeHtml(hero.chip) + '</div>'
-    + '<h1>' + escapeHtml(hero.title) + '</h1>'
-    + '<p>' + escapeHtml(hero.text) + '</p>'
-    + '<button type="button" class="activation-btn primary activation-primary" data-action="' + escapeHtml(heroAction) + '"' + (hero.primaryValue ? ' data-value="' + escapeHtml(heroValue) + '"' : '') + '>' + escapeHtml(hero.primaryLabel) + '</button>'
-    + '</section>';
-
-  if (isActiveMode) {
-    html += '<section class="activation-panel activation-final-success"><h2>Voxera ist jetzt aktiv</h2><div class="activation-panel-sub">Die Weiterleitung funktioniert. Die Aktivierung ist abgeschlossen.</div><div class="activation-live-grid">'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Aktiv seit</div><div class="activation-compact-val">' + escapeHtml(activatedSince) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Weiterleitungsart</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Zielnummer</div><div class="activation-compact-val">' + escapeHtml(voxeraNumber) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Letzte Prüfung</div><div class="activation-compact-val">' + escapeHtml(lastCheck) + '</div></div>'
-      + '</div></section>';
-
-    html += '<section class="activation-panel"><h2>Weiterleitung verwalten</h2>';
-    if (effectiveDevice === 'mobile' && deactCode) {
-      html += '<div class="activation-info-banner">Zur schnellen Deaktivierung am Smartphone: <strong>' + escapeHtml(deactCode) + '</strong></div>';
-    } else {
-      html += '<div class="activation-info-banner">Deaktivieren Sie die Rufumleitung in Ihrer Telefonanlage oder beim Anbieter und bestätigen Sie danach den Reset in Voxera.</div>';
-    }
-    html += '<div class="activation-actions" style="margin-top:10px;">'
-      + '<button type="button" class="activation-btn primary" data-action="open-guided-reset">Deaktivierung starten</button>'
-      + '<button type="button" class="activation-link-btn" data-action="open-internal-reset-warning">Nur Voxera zurücksetzen</button>'
-      + '</div>'
-      + '<div class="activation-actions" style="margin-top:8px;">'
-      + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(JSON.stringify(deactCode || '##002#')) + '"' + (deactCode ? '' : ' disabled') + '>Code kopieren</button>'
-      + '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Hilfe zur Deaktivierung</button>'
-      + '</div></section>';
-  } else if (isRecoveryMode) {
-    html += '<section class="activation-panel">'
-      + '<h2>Wiederherstellung</h2>'
-      + '<div class="activation-warning-banner">Aktivierung fehlgeschlagen. Starten Sie die Weiterleitung erneut und führen Sie danach den Testanruf durch.</div>'
-      + '<div class="activation-compact">'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Nummernart</div><div class="activation-compact-val">' + escapeHtml(numberTypeLabel) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Weiterleitungsart</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Zielnummer</div><div class="activation-compact-val">' + escapeHtml(voxeraNumber) + '</div></div>'
-      + '</div>'
-      + '<div class="activation-actions">';
-    if (effectiveDevice === 'mobile') {
-      html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung erneut aktivieren</button>';
-    } else {
-      html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung erneut aktivieren</button>';
-    }
-    html += '<button type="button" class="activation-btn secondary" data-action="start-system-test">Testanruf starten</button>'
-      + '<button type="button" class="activation-btn secondary" data-action="open-reset-choice">Einrichtung zurücksetzen</button>'
-      + '</div></section>';
-  } else {
-    html += '<section class="activation-panel">'
-      + '<h2>Geführte Aktivierung</h2>'
-      + '<div class="activation-panel-sub">Nur ein nächster Schritt, damit es schnell und klar bleibt.</div>'
-      + '<div class="activation-stepper">' + renderStepProgress(step) + '</div>';
-
-    if (step === 1) {
-      if (effectiveDevice) {
-        html += '<div class="activation-info-banner">Wir richten jetzt die Weiterleitung für Ihre <strong>' + escapeHtml(numberTypeLabel) + '</strong> ein.</div>'
-          + '<div class="activation-compact"><div class="activation-compact-card"><div class="activation-compact-label">Nummer</div><div class="activation-compact-val">' + escapeHtml(customerMeta.telNr || '–') + '</div></div><div class="activation-compact-card"><div class="activation-compact-label">Aktueller Kontext</div><div class="activation-compact-val">' + escapeHtml(runtimeContextLabel) + '</div></div></div>'
-          + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="2">Stimmt</button><button type="button" class="activation-btn secondary" data-action="change-selection">Anpassen</button></div>';
-      } else {
-        html += '<div class="activation-choice-grid two">'
-          + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedDeviceType==='mobile'?'active':'') + '" data-action="select-device" data-value="mobile" aria-pressed="' + (activationV2FlowState.selectedDeviceType==='mobile'?'true':'false') + '"><div class="activation-choice-title">Handynummer</div><div class="activation-choice-text">Diese Nummer wird über GSM/Smartphone geführt.</div></button>'
-          + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedDeviceType==='landline'?'active':'') + '" data-action="select-device" data-value="landline" aria-pressed="' + (activationV2FlowState.selectedDeviceType==='landline'?'true':'false') + '"><div class="activation-choice-title">Festnetznummer</div><div class="activation-choice-text">Diese Nummer läuft über Festnetz oder Telefonanlage.</div></button>'
-          + '</div>'
-          + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="2" ' + (!canProceedStep2 ? 'disabled' : '') + '>Weiter</button></div>';
-      }
-    } else if (step === 2) {
-    html += '<div class="activation-choice-grid">'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedForwardingMode==='no_answer'?'active':'') + '" data-action="select-mode" data-value="no_answer" aria-pressed="' + (activationV2FlowState.selectedForwardingMode==='no_answer'?'true':'false') + '"><div class="activation-choice-title">Keine Antwort</div><div class="activation-choice-text">Bei Nichtannahme übernimmt Voxera.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedForwardingMode==='unreachable'?'active':'') + '" data-action="select-mode" data-value="unreachable" aria-pressed="' + (activationV2FlowState.selectedForwardingMode==='unreachable'?'true':'false') + '"><div class="activation-choice-title">Nicht erreichbar</div><div class="activation-choice-text">Bei ausgeschaltetem Gerät oder ohne Netz.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedForwardingMode==='busy'?'active':'') + '" data-action="select-mode" data-value="busy" aria-pressed="' + (activationV2FlowState.selectedForwardingMode==='busy'?'true':'false') + '"><div class="activation-choice-title">Besetzt</div><div class="activation-choice-text">Wenn Sie bereits telefonieren.</div></button>'
-      + '<button type="button" class="activation-choice-card ' + (activationV2FlowState.selectedForwardingMode==='always'?'active':'') + '" data-action="select-mode" data-value="always" aria-pressed="' + (activationV2FlowState.selectedForwardingMode==='always'?'true':'false') + '"><div class="activation-choice-title">Immer</div><div class="activation-choice-text">Alle Anrufe direkt an Voxera.</div></button>'
-      + '</div>'
-      + '<div class="activation-actions"><button type="button" class="activation-btn primary" data-action="go-step" data-value="3" ' + (!canProceedStep3 ? 'disabled' : '') + '>Weiter</button></div>';
-    } else if (step3Ready) {
-    if (candidateCall) html += '<div class="activation-info-banner">✓ Test erkannt. Sie können jetzt final aktivieren.</div>';
-    html += '<div class="activation-compact">'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Nummernart</div><div class="activation-compact-val">' + escapeHtml(numberTypeLabel) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Weiterleitungsart</div><div class="activation-compact-val">' + escapeHtml(modeLabel) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Zielnummer</div><div class="activation-compact-val">' + escapeHtml(voxeraNumber) + '</div></div>'
-      + '</div>'
-      + '<div class="activation-actions">';
-
-      if (uiState === 'pending_test') {
-      html += '<div class="activation-info-banner">Status: Weiterleitung bereit. Nächster Schritt: Testanruf starten.</div>';
-      if (candidateCall) {
-        html += '<div class="activation-info-banner">Testanruf erkannt. Sie können die Aktivierung jetzt final abschliessen.</div>';
-        html += '<button type="button" class="activation-btn primary" data-action="confirm-test"' + (activationConfirmInFlight ? ' disabled' : '') + '>' + (activationConfirmInFlight ? 'Aktivierung wird abgeschlossen…' : 'Aktivierung abschliessen') + '</button>';
-      } else {
-        if (activationSystemCallPending || activationSystemCallTriggerInFlight) {
-          html += '<button type="button" class="activation-btn primary" data-action="start-system-test" disabled>Testanruf wird vorbereitet…</button>';
-        } else if (customerMeta.activationTestOutboundCallId) {
-          html += '<button type="button" class="activation-btn primary" data-action="start-system-test" disabled>Wir warten auf Ihren Testanruf…</button>';
-        } else {
-          html += '<button type="button" class="activation-btn primary" data-action="start-system-test">Testanruf starten</button>';
-        }
-        html += '<div class="activation-panel-sub" style="margin-top:8px;">Sie sehen sofort, sobald der Test erkannt wurde.</div>';
-      }
-      html += '<button type="button" class="activation-btn secondary" data-action="restart-setup">Einrichtung neu starten</button>';
-    } else if (uiState === 'failed') {
-      html += '<div class="activation-warning-banner">Aktivierung fehlgeschlagen. Starten Sie die Weiterleitung erneut, um einen neuen Testlauf zu beginnen.</div>';
-      if (effectiveDevice === 'mobile') {
-        html += '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Weiterleitung erneut aktivieren</button>';
-      } else {
-        html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung erneut aktivieren</button>';
-      }
-      html += '<button type="button" class="activation-btn secondary" data-action="restart-setup">Einrichtung neu starten</button>';
-    } else {
-      if (effectiveDevice === 'mobile') {
-        if (runtimeIsMobile) {
-          var primaryGuide = getForwardingModeGuide(mode);
-          var allModes = ['no_answer', 'unreachable', 'busy', 'always'];
-          var altModes = allModes.filter(function(entry){ return entry !== mode; });
-          var showAltModes = !!activationV2DisclosureState.mobileAltModesOpen;
-          html += '<div class="activation-panel-sub">Führen Sie die Aktivierung jetzt direkt auf Ihrem Smartphone aus.</div>';
-          html += '<div class="activation-compact-card activation-mobile-main">'
-            + '<div class="activation-compact-label">Hauptoption</div>'
-            + '<div class="activation-mobile-main-title">' + escapeHtml(primaryGuide.title) + '</div>'
-            + (primaryGuide.text ? '<div class="activation-panel-sub" style="margin-bottom:8px;">' + escapeHtml(primaryGuide.text) + '</div>' : '')
-            + '<div class="activation-code-line"><span>Code</span><code>' + escapeHtml(code || '–') + '</code></div>'
-            + '<div class="activation-actions" style="margin-top:10px;">'
-            + '<button type="button" class="activation-btn primary" data-action="start-smartphone" data-code="' + escapeHtml(codeJson) + '">Direkt anwenden</button>'
-            + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Code kopieren</button>'
-            + '</div></div>';
-          html += '<button type="button" class="activation-toggle-btn" data-action="toggle-mobile-alt-modes" aria-controls="activation-alt-modes-panel" aria-expanded="' + (showAltModes ? 'true' : 'false') + '">' + (showAltModes ? 'Andere Weiterleitungsarten ausblenden' : 'Andere Weiterleitungsarten anzeigen') + '</button>';
-          if (showAltModes) {
-            html += '<div class="activation-alt-modes" id="activation-alt-modes-panel">';
-            altModes.forEach(function(altMode){
-              var altCode = getForwardingCode(altMode, customerMeta.voxeraNumber || '');
-              var altGuide = getForwardingModeGuide(altMode);
-              html += '<div class="activation-compact-card">'
-                + '<div class="activation-mobile-main-title" style="font-size:13px;">' + escapeHtml(altGuide.title) + '</div>'
-                + '<div class="activation-code-line"><span>Code</span><code>' + escapeHtml(altCode || '–') + '</code></div>'
-                + '<div class="activation-actions" style="margin-top:8px;">'
-                + '<button type="button" class="activation-btn secondary" data-action="start-smartphone" data-code="' + escapeHtml(JSON.stringify(altCode || '')) + '">Direkt anwenden</button>'
-                + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(JSON.stringify(altCode || '')) + '">Code kopieren</button>'
-                + '</div></div>';
-            });
-            html += '</div>';
-          } else {
-            html += '<div class="activation-alt-modes" id="activation-alt-modes-panel" hidden></div>';
-          }
-          html += '<div class="activation-separator"></div>';
-          html += '<div class="activation-compact-card">'
-            + '<div class="activation-compact-label">Deaktivierung</div>'
-            + '<div class="activation-mobile-main-title" style="font-size:13px;">Weiterleitung ausschalten</div>'
-            + '<div class="activation-code-line"><span>Code</span><code>' + escapeHtml(deactCode || '##002#') + '</code></div>'
-            + '<div class="activation-actions" style="margin-top:8px;">'
-            + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(JSON.stringify(deactCode || '##002#')) + '">Code kopieren</button>'
-            + '</div></div>';
-        } else {
-          var canRenderQr = !!code && navigator.onLine !== false;
-          var mobileLink = 'tel:' + encodeURIComponent(code || '');
-          var qrPayload = encodeURIComponent(mobileLink);
-          var handoverConfirmed = !!activationV2FlowState.desktopHandoverConfirmed;
-          html += '<div class="activation-info-banner">Weiterleitung auf dem Smartphone einrichten.</div>';
-          html += '<ol class="activation-handover-flow"><li>QR-Code mit dem Smartphone scannen.</li><li>Weiterleitung auf dem Smartphone aktivieren.</li><li>Danach hier zurückkehren – Voxera führt Sie weiter.</li></ol>';
-          html += '<div class="activation-compact-card" style="text-align:center;"><div class="activation-compact-label">Auf dem Smartphone fortsetzen</div>'
-            + (canRenderQr
-              ? '<img alt="QR-Code für Smartphone-Aktivierung" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + qrPayload + '" style="width:180px;height:180px;border-radius:10px;margin:8px auto;display:block;"><div class="activation-panel-sub" style="margin-bottom:8px;">Scannen und auf dem Smartphone anwenden.</div>'
-              : '<div class="activation-panel-sub" style="margin:8px 0;">QR-Code aktuell nicht verfügbar. Bitte Link oder Code kopieren.</div>')
-            + '<button type="button" class="activation-btn secondary" data-action="copy-code" data-code="' + escapeHtml(codeJson) + '">Link/Code kopieren</button>'
-            + '<div class="activation-panel-sub" style="margin:8px 0 0;">Direkt anwenden ist nur auf dem Smartphone verfügbar.</div></div>';
-          html += '<div class="activation-handover-status' + (handoverConfirmed ? ' ready' : '') + '">'
-            + '<h3>' + (handoverConfirmed ? 'Bestätigt – wir führen Sie weiter' : 'Wir warten auf Ihre Bestätigung') + '</h3>'
-            + '<p>Haben Sie die Weiterleitung auf Ihrem Smartphone aktiviert?</p>'
-            + (handoverConfirmed
-              ? '<button type="button" class="activation-btn primary" data-action="start-system-test">Nächster Schritt: Testanruf starten</button>'
-              : '<button type="button" class="activation-btn primary" data-action="confirm-smartphone-handover">Ja, ich habe die Weiterleitung aktiviert</button>')
-            + '</div>';
-        }
-      } else {
-        html += '<button type="button" class="activation-btn primary" data-action="start-landline">Weiterleitung aktivieren</button>';
-        html += '<button type="button" class="activation-btn secondary" data-action="open-help-forwarding">Anleitung öffnen</button>';
-      }
-    }
-
-    html += '</div>';
-    } else {
-    html += '<div class="activation-warning-banner">Bitte wählen Sie zuerst Nummernart und Weiterleitungsart in dieser Einrichtungssitzung.</div>'
-      + '<div class="activation-actions">'
-      + '<button type="button" class="activation-btn primary" data-action="restart-setup">Einrichtung neu starten</button>'
-      + '</div>';
-    }
-
-    html += '</section>';
-  }
-
-  var showActivationDiagnostics = isActivationV2DebugMode();
-  var advancedPanelClass = 'activation-advanced is-open';
-  var diagnosticsPanelClass = 'activation-advanced' + (activationV2DisclosureState.diagnosticsOpen ? ' is-open' : '');
-
-  html += renderActivationResetFlowCard(effectiveDevice, effectiveMode, deactCode || '');
-
-  if (!isActiveMode) {
-    html += '<section class="' + advancedPanelClass + '" data-panel="advancedOptionsOpen">'
-      + '<div class="activation-advanced-toggle" aria-hidden="true">Optionen</div>'
-      + '<div class="activation-advanced-body">'
-      + (shouldShowRecoveryAction ? '<button type="button" class="activation-link-btn" data-action="open-reset-choice">Einrichtung zurücksetzen</button>' : '<button type="button" class="activation-link-btn" data-action="change-selection">Auswahl ändern</button>')
-      + '<button type="button" class="activation-link-btn" data-action="open-help-forwarding">Hilfe zur Einrichtung</button>'
-      + '</div></section>';
-  }
-
-  if (showActivationDiagnostics) {
-    html += '<section class="' + diagnosticsPanelClass + '" data-panel="diagnosticsOpen"><button type="button" class="activation-advanced-toggle" data-action="toggle-diagnostics" aria-expanded="' + (activationV2DisclosureState.diagnosticsOpen ? 'true' : 'false') + '">Temporäre Aktivierungs-Diagnose</button><div class="activation-advanced-body">'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Current Step</div><div class="activation-compact-val">' + escapeHtml(String(step)) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Render Branch</div><div class="activation-compact-val">' + escapeHtml(renderBranch) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Flow Phase</div><div class="activation-compact-val">' + escapeHtml(phase) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Device Source</div><div class="activation-compact-val">' + escapeHtml(deviceSource) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Mode Source</div><div class="activation-compact-val">' + escapeHtml(modeSource) + '</div></div>'
-      + '<div class="activation-compact-card"><div class="activation-compact-label">Selectable Buttons</div><div class="activation-compact-val">' + (selectionButtonsRendered ? 'rendered' : 'not_rendered') + '</div></div>'
-      + '</div></section>';
-  }
-
-  html += '</div>';
-
-  shell.innerHTML = html;
-  activationV2DebugLog('render diagnostics', {
-    currentStep: step,
-    phase: phase,
-    renderBranch: renderBranch,
-    deviceSource: deviceSource,
-    modeSource: modeSource,
-    selectableButtonsRendered: selectionButtonsRendered,
-    continueEnabled: continueEnabled,
-    step3Ready: step3Ready
+  var c = getErreichbarkeitFromCustomer({
+    voxera_number: customerMeta && customerMeta.voxeraNumber,
+    forwarding_status: customerMeta && customerMeta.forwardingStatus,
+    forwarding_mode: customerMeta && customerMeta.forwardingMode,
+    setup_device_type: customerMeta && customerMeta.setupDeviceType,
+    forwarding_setup_completed: customerMeta && customerMeta.forwardingSetupCompleted
   });
-  activationV2DebugLog('state after render', activationV2StateSnapshot());
+  erreichbarkeit.voxeraNumber = c.voxeraNumber || '';
+  if (!erreichbarkeit.selectedType) erreichbarkeit.selectedType = c.forwardingModeUi;
+  if (!erreichbarkeit.selectedDeviceType) erreichbarkeit.selectedDeviceType = c.setupDeviceType || null;
+  var active = c.forwardingStatus === 'active';
+  var state = erreichbarkeitCurrentState || 'overview';
+  if (state === 'change') { erreichbarkeit.selectedType = c.forwardingModeUi; erreichbarkeit.selectedDeviceType = c.setupDeviceType || 'mobile'; state = 'device_choice'; erreichbarkeitCurrentState = state; }
+  var codeObj = getForwardingCode(erreichbarkeit.selectedType, erreichbarkeit.voxeraNumber);
+
+  function head(title, sub, back){ return `<section class="activation-hero">${back ? `<button class="activation-link-btn" onclick="showErreichbarkeitState('${back}')">← Zurück</button>` : ''}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(sub)}</p></section>`; }
+  function types(next){ var items=[['nicht-abgehoben','Wenn nicht abgehoben (empfohlen)'],['immer','Immer weiterleiten'],['besetzt','Wenn besetzt'],['nicht-erreichbar','Wenn nicht erreichbar']]; return `<div class="activation-choice-grid">${items.map(function(it){ return `<div class="e-card ${erreichbarkeit.selectedType===it[0]?'selected':''}" onclick="erreichbarkeitSetType('${it[0]}')"><div class="activation-choice-title">${it[1]}</div></div>`; }).join('')}</div><button class="activation-btn primary" style="margin-top:12px;" onclick="showErreichbarkeitState('${next}')">Weiter →</button>`; }
+
+  var html = '<div class="activation-shell">';
+  if (state === 'overview') {
+    if (!active) html += `${head('Erreichbarkeit','Steuern Sie Aktivierung und Weiterleitung','')}<section class="activation-panel" style="background:#0D1F3C;color:#fff;"><div class="activation-state-chip" style="background:#E8C547;color:#0D1F3C;">BEREIT</div><h2 style="color:#fff;">Voxera aktivieren</h2><div class="activation-panel-sub" style="color:#D1D5DB;">In drei klaren Schritten richten Sie Ihre Weiterleitung ein.</div><button class="activation-btn primary" onclick="showErreichbarkeitState('device_choice')">Einrichtung starten</button></section><section class="activation-panel"><h2>Geführte Aktivierung</h2><ol style="padding-left:18px;line-height:1.8;"><li>Geräteart wählen</li><li>Weiterleitungsart wählen</li><li>Einrichten & bestätigen</li></ol><button class="activation-btn primary" onclick="showErreichbarkeitState('device_choice')">Einrichtung starten</button></section>`;
+    else html += `${head('Erreichbarkeit','Weiterleitung aktiv','')}<section class="activation-panel" style="background:#0D1F3C;color:#fff;"><div style="display:flex;gap:8px;align-items:center;"><span class="pulse-dot"></span><strong>Weiterleitung aktiv</strong></div><div class="code-eyebrow">IHRE VOXERA-NUMMER</div><div style="font-size:30px;font-weight:800;">${escapeHtml(c.voxeraNumber || '–')}</div><div style="color:#CBD5E1;font-size:12px;">${(c.setupDeviceType || 'mobile') === 'landline' ? 'Festnetz' : 'Mobile'} · ${escapeHtml(getTypeLabel(c.forwardingModeUi))}</div><div class="activation-actions" style="margin-top:12px;"><button class="activation-btn secondary" onclick="showErreichbarkeitState('change')">Ändern</button><button class="activation-btn primary" onclick="showErreichbarkeitState('deactivate')">Deaktivieren</button></div></section>`;
+  }
+  if (state === 'device_choice') html += `${head('Voxera aktivieren','Wählen Sie zuerst, wo Sie die Weiterleitung einrichten','overview')}<section class="activation-panel"><div class="activation-choice-grid two"><div class="e-card ${erreichbarkeit.selectedDeviceType==='mobile'?'selected':''}" onclick="erreichbarkeitSetDevice('mobile')"><div class="activation-choice-title">Mobile / Smartphone</div><div class="activation-choice-text">Per GSM-Code direkt auf Ihrem Handy einrichten</div></div><div class="e-card ${erreichbarkeit.selectedDeviceType==='landline'?'selected':''}" onclick="erreichbarkeitSetDevice('landline')"><div class="activation-choice-title">Festnetz</div><div class="activation-choice-text">Richten Sie die Weiterleitung für Ihre Festnetznummer ein</div></div></div><button class="activation-btn primary" style="margin-top:12px;" onclick="showErreichbarkeitState('${erreichbarkeit.selectedDeviceType==='landline'?'step1_landline_type':'step1_mobile_provider'}')">Weiter →</button></section>`;
+  if (state === 'step1_mobile_provider') html += `${head('Voxera aktivieren','Einmalige Einrichtung · unter 2 Minuten','device_choice')}<section class="activation-panel"><div style="margin:12px 0 8px;font-weight:700;">Ihr Mobilanbieter</div><div class="activation-choice-grid two">${['swisscom','sunrise','salt','anderer'].map(function(p){ return `<div class="e-card ${erreichbarkeit.selectedProvider===p?'selected':''}" onclick="erreichbarkeitSetProvider('${p}')">${p.charAt(0).toUpperCase()+p.slice(1)}</div>`; }).join('')}</div><div class="activation-info-banner" style="margin-top:10px;">Die Weiterleitungs-Codes sind bei allen Schweizer Anbietern identisch — GSM-Standard.</div><button class="activation-btn primary" style="margin-top:12px;" onclick="showErreichbarkeitState('step2_mobile_type')">Weiter →</button></section>`;
+  if (state === 'step2_mobile_type') html += `${head('Wann soll Voxera übernehmen?',erreichbarkeit.selectedProvider.toUpperCase(),'step1_mobile_provider')}<section class="activation-panel">${types('step3_mobile_setup')}<button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState('step1_mobile_provider')">Zurück</button></section>`;
+  if (state === 'step3_mobile_setup') html += `${head('Code einrichten',`${erreichbarkeit.selectedProvider.toUpperCase()} · ${getTypeLabel(erreichbarkeit.selectedType)}`,'step2_mobile_type')}<section class="activation-panel">${isMobileDevice() ? `<div class="code-block"><div class="code-eyebrow">AKTIVIERUNGSCODE</div><div class="code-value">${escapeHtml(codeObj.activate)}</div></div><div class="activation-actions" style="margin-top:10px;"><a class="activation-btn primary" href="${buildTelLink(codeObj.activate)}">Direkt wählen</a><button class="activation-btn secondary" id="copy-mobile-code" onclick="copyToClipboard('${codeObj.activate}','copy-mobile-code')">Kopieren</button></div><div class="hint-box" style="margin-top:10px;"><div class="hint-trigger" onclick="erreichbarkeitHintToggle()">Funktioniert der Code nicht?<span>▾</span></div><div class="hint-body" id="volte-hint-body">Das passiert manchmal bei Swisscom.<br>1. Einstellungen → Telefon → «WLAN-Anrufe & Mobile Daten» ausschalten<br>2. Code eingeben und grüne Taste drücken<br>3. Einstellung wieder einschalten<br>Dauert 30 Sekunden. Falls es immer noch nicht klappt: info@voxera.ch</div></div>` : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;"><div><div class="code-eyebrow" style="color:#0D1F3C">AUF IHREM SMARTPHONE</div><div class="handoff-step"><div class="handoff-num">1</div><div><div class="handoff-title">iPhone entsperren und Kamera öffnen</div><div class="handoff-sub">Zeigen Sie die Kamera auf den QR-Code rechts</div></div></div><div class="handoff-step"><div class="handoff-num">2</div><div><div class="handoff-title">QR-Code scannen</div><div class="handoff-sub">Der Dialer öffnet sich automatisch mit dem fertigen Code</div></div></div><div class="handoff-step"><div class="handoff-num">3</div><div><div class="handoff-title">Grüne Anruftaste drücken</div><div class="handoff-sub">Fertig — die Weiterleitung ist in 3 Sekunden aktiv</div></div></div></div><div style="background:#fff;border-radius:20px;box-shadow:0 10px 25px rgba(13,31,60,.12);padding:16px;"><div id="erreichbarkeit-qr-activate" style="display:flex;justify-content:center;"></div><div class="code-block" style="margin-top:12px;border-radius:10px;padding:10px;"><div class="code-value" style="font-size:13px;">${escapeHtml(codeObj.activate)}</div></div><button class="activation-btn secondary" id="copy-desktop-code" style="width:100%;margin-top:10px;" onclick="copyToClipboard('${codeObj.activate}','copy-desktop-code')">Code kopieren</button><div class="deact-row" style="margin-top:10px;"><span>Zum Deaktivieren: ${codeObj.deactivate}</span></div></div></div><div style="text-align:center;color:#94A3B8;font-size:12px;">Bitte bestätigen Sie erst nachdem Sie den Code auf Ihrem Telefon gewählt haben.</div>`}<button class="activation-btn primary" style="margin-top:12px;background:#059669;" onclick="persistErreichbarkeitActivation()">Weiterleitung ist eingerichtet ✓</button></section>`;
+  if (state === 'step1_landline_type') html += `${head('Festnetz einrichten','Wählen Sie, wann Voxera für Ihre Festnetznummer übernehmen soll','device_choice')}<section class="activation-panel">${types('step2_landline_setup')}<div class="activation-info-banner" style="margin-top:10px;">Je nach Telefonanlage oder Anbieter wird die Weiterleitung direkt in Ihrem Gerät, Router oder Kundencenter eingerichtet.</div></section>`;
+  if (state === 'step2_landline_setup') html += `${head('Festnetz einrichten',getTypeLabel(erreichbarkeit.selectedType),'step1_landline_type')}<section class="activation-panel"><div class="code-block"><div class="code-eyebrow">IHRE VOXERA-NUMMER</div><div class="code-value">${escapeHtml(erreichbarkeit.voxeraNumber || '–')}</div></div><ol style="padding-left:18px;line-height:1.8;margin-top:10px;"><li>Öffnen Sie die Einstellungen Ihrer Telefonanlage, Ihres Routers oder Ihres Anbieter-Portals.</li><li>Wählen Sie die Weiterleitungsart: ${escapeHtml(getTypeLabel(erreichbarkeit.selectedType))}</li><li>Tragen Sie diese Voxera-Nummer als Ziel ein: ${escapeHtml(erreichbarkeit.voxeraNumber || '–')}</li></ol><button class="activation-btn secondary" id="copy-landline-number" onclick="copyToClipboard('${(erreichbarkeit.voxeraNumber || '').replace(/'/g,'\\&#39;')}','copy-landline-number')">Voxera-Nummer kopieren</button><button class="activation-btn primary" style="margin-top:12px;background:#059669;" onclick="persistErreichbarkeitActivation()">Weiterleitung ist eingerichtet ✓</button></section>`;
+  if (state === 'deactivate') { var dType = c.setupDeviceType || erreichbarkeit.selectedDeviceType || 'mobile'; var dCode = getForwardingCode(c.forwardingModeUi || erreichbarkeit.selectedType, erreichbarkeit.voxeraNumber).deactivate; html += `${head('Weiterleitung deaktivieren',`${getTypeLabel(c.forwardingModeUi || erreichbarkeit.selectedType)} · ${dType==='landline'?'Festnetz':'Mobile'}`,'overview')}<section class="activation-panel">${dType==='landline' ? `<ol style="padding-left:18px;line-height:1.8;"><li>Öffnen Sie Ihre Telefonanlage / Router / Anbieter-Einstellungen</li><li>Entfernen Sie die Weiterleitung auf Ihre Voxera-Nummer</li><li>Speichern Sie die Änderung</li></ol>` : `<div class="code-block"><div class="code-eyebrow">DEAKTIVIERUNGSCODE</div><div class="code-value">${dCode}</div></div><div class="activation-actions" style="margin-top:10px;"><a class="activation-btn primary" href="${buildTelLink(dCode)}">Direkt wählen</a><button class="activation-btn secondary" id="copy-deact" onclick="copyToClipboard('${dCode}','copy-deact')">Code kopieren</button></div>${!isMobileDevice()?'<div id="erreichbarkeit-qr-deactivate" style="margin-top:12px;display:flex;justify-content:center;"></div><div style="text-align:center;color:#94A3B8;font-size:12px;">QR-Code mit iPhone scannen — Dialer öffnet sich direkt mit dem Deaktivierungs-Code</div>':''}`}<button class="activation-btn primary" style="margin-top:12px;background:#059669;" onclick="persistErreichbarkeitDeactivation()">Weiterleitung ist deaktiviert ✓</button><button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState('overview')">Abbrechen</button></section>`; }
+  if (state === 'success') html += `<section class="activation-panel activation-final-success" style="text-align:center;"><div style="font-size:32px;">✅</div><h2>Voxera ist aktiv</h2><div class="activation-panel-sub">${erreichbarkeit.selectedDeviceType==='landline'?'Ihre Festnetz-Weiterleitung ist eingerichtet und Voxera kann eingehende Anrufe übernehmen.':'Ihre Anrufe werden von Voxera entgegengenommen, wenn Sie nicht abnehmen.'}</div><div class="code-block" style="margin-top:12px;"><div class="code-eyebrow">IHRE VOXERA-NUMMER</div><div class="code-value">${escapeHtml(erreichbarkeit.voxeraNumber || '–')}</div></div><div class="activation-actions" style="justify-content:center;margin-top:12px;"><button class="activation-btn primary" onclick="showTab('dashboard')">Zum Dashboard</button><a class="activation-btn secondary" href="${buildTelLink(erreichbarkeit.voxeraNumber || '')}">Testanruf machen</a></div></section>`;
+  html += '</div>';
+  shell.innerHTML = html;
+  if (state === 'step3_mobile_setup' && !isMobileDevice()) renderQR('erreichbarkeit-qr-activate', codeObj.activate);
+  if (state === 'deactivate' && (c.setupDeviceType || erreichbarkeit.selectedDeviceType || 'mobile') === 'mobile' && !isMobileDevice()) renderQR('erreichbarkeit-qr-deactivate', getForwardingCode(c.forwardingModeUi || erreichbarkeit.selectedType, erreichbarkeit.voxeraNumber).deactivate);
 }
 
 function safeMountActivationV2(options){
