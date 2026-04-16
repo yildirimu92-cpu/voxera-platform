@@ -2972,10 +2972,6 @@ body,.main{background:#F7F8FC;}
                 <div class="settings-row-label">Plan</div>
                 <div class="settings-row-value"><span id="usage-plan-sub">–</span></div>
               </div>
-              <div class="settings-row">
-                <div class="settings-row-label">Kunde seit</div>
-                <div class="settings-row-value" id="usage-customer-since">–</div>
-              </div>
               <div style="padding:12px 0 6px;">
                 <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray600);margin-bottom:6px;">
                   <span id="usage-meter-label">0 von 0 Minuten</span>
@@ -3703,6 +3699,23 @@ let PLAN_CONFIG = Object.assign({}, DEFAULT_PLAN_CONFIG);
 
 function normalizePlanLabel(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function formatPlanLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 'Kein Plan';
+  const normalized = normalizePlanLabel(raw);
+  if (normalized === 'kein_plan' || normalized === 'none' || normalized === 'null') return 'Kein Plan';
+  if (normalized === 'starter') return 'Starter';
+  if (normalized === 'business') return 'Business';
+  if (normalized === 'professional' || normalized === 'pro') return 'Professional';
+  return raw
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map(function(part) {
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(' ');
 }
 
 function getPlanConfigEntryForPlan(planName) {
@@ -5255,8 +5268,18 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
     const serverState = (json && json.state) || null;
     if (serverState && typeof serverState === 'object') {
       const contractRows = Array.isArray(serverState.contracts) ? serverState.contracts : [];
-      customerContractState = deriveContractState(contractRows);
-      customerContractMeta = customerContractState.effectiveContract || null;
+      if (contractRows.length) {
+        customerContractState = deriveContractState(contractRows);
+      } else {
+        customerContractState = {
+          status: normalizeContractStatus(serverState.status) || 'none',
+          hasContract: serverState.hasContract === true,
+          hasActiveContract: serverState.hasActiveContract === true,
+          latestContract: serverState.latestContract || null,
+          effectiveContract: serverState.effectiveContract || null
+        };
+      }
+      customerContractMeta = customerContractState.effectiveContract || customerContractState.latestContract || null;
       return customerContractMeta;
     }
   } catch (e) {
@@ -5389,15 +5412,15 @@ function renderUsage(records) {
   const meter = document.getElementById('usage-meter-fill');
   if (meter) meter.style.width = `${pct}%`;
   const contractStatusLabel = getContractStatusLabel(customerMeta.contractStatus);
+  const planLabel = formatPlanLabel(customerMeta.plan);
   const activeSuffix = customerMeta.hasActiveContract ? '' : ' · Kein aktiver Vertrag';
-  set('usage-plan-sub', `${customerMeta.plan} · CHF ${(cfg.monthlyPrice||0)} / Mt · ${cfg.minutes||0} Min. inkl. · Vertragsstatus: ${contractStatusLabel}${activeSuffix}`);
+  set('usage-plan-sub', `${planLabel} · CHF ${(cfg.monthlyPrice||0)} / Mt · ${cfg.minutes||0} Min. inkl. · Vertragsstatus: ${contractStatusLabel}${activeSuffix}`);
   set('usage-month-minutes', `${used} Min`);
   // Dashboard KPI
   set('kpi-usage-min', used);
   const usageSub = document.getElementById('kpi-usage-sub');
   if (usageSub) usageSub.textContent = included > 0 ? `von ${included} Min. (${pct}%)` : 'Min. diesen Monat';
   set('usage-included', `${included} Min`);
-  set('usage-customer-since', customerMeta.startDate ? `Kunde seit ${fmtDateOnly(customerMeta.startDate)}` : 'Kunde seit –');
   set('usage-meter-label', `${used} von ${included} Minuten genutzt`);
   set('usage-extra-label', over > 0 ? `${over} Zusatzminuten · ${extraCost} CHF geschätzt` : 'Keine Zusatzkosten');
   const chip = document.getElementById('usage-status-chip');
