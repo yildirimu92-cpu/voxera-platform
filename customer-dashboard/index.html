@@ -4505,25 +4505,59 @@ async function updateManualTask(recordId, updates) {
 async function callDashboardFunction(name, payload) {
   const sb = getSupabaseAuthClient();
   if (!sb) throw new Error(systemUnavailableMessage);
+
   let { data: { session }, error } = await sb.auth.getSession();
-  if (!error && (!session || !session.access_token)) {
+  const expiresAt = Number(session && session.expires_at ? session.expires_at : 0) || 0;
+  const nowUnix = Math.floor(Date.now() / 1000);
+  const tokenExpiredOrNearExpiry = !!expiresAt && (expiresAt - nowUnix) <= 30;
+
+  if (!error && (!session || !session.access_token || tokenExpiredOrNearExpiry)) {
     const refreshed = await sb.auth.refreshSession();
     session = refreshed?.data?.session || null;
     error = refreshed?.error || null;
   }
+
+  logManualTaskDoneFlow('auth.before-request', {
+    handler: 'callDashboardFunction',
+    functionName: String(name || ''),
+    hasSession: !!session,
+    hasAccessToken: !!(session && session.access_token),
+    expiresAt,
+    nowUnix,
+    tokenExpiredOrNearExpiry,
+    refreshError: error ? String(error.message || error) : ''
+  });
+
   if (error || !session || !session.access_token) {
     throw new Error('Sitzung nicht verfügbar. Bitte neu anmelden und erneut versuchen.');
   }
-  const res = await fetch(`/.netlify/functions/${name}`, {
+
+  const authHeader = `Bearer ${session.access_token}`;
+  const requestUrl = `/.netlify/functions/${name}`;
+  logManualTaskDoneFlow('auth.request-dispatch', {
+    handler: 'callDashboardFunction',
+    functionName: String(name || ''),
+    requestUrl,
+    hasAuthorizationHeader: authHeader.startsWith('Bearer ')
+  });
+
+  const res = await fetch(requestUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`
+      'Authorization': authHeader
     },
     body: JSON.stringify(payload || {})
   });
+
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
+    logManualTaskDoneFlow('auth.response-error', {
+      handler: 'callDashboardFunction',
+      functionName: String(name || ''),
+      status: res.status,
+      payload: json || null
+    });
     var errorParts = [];
     if (json && json.error) errorParts.push(String(json.error));
     const err = new Error(errorParts.length ? errorParts.join(' · ') : `HTTP ${res.status}`);
@@ -4531,6 +4565,7 @@ async function callDashboardFunction(name, payload) {
     err.payload = json;
     throw err;
   }
+
   return json;
 }
 
