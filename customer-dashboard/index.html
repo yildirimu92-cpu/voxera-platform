@@ -8370,9 +8370,9 @@ function openActivationFlowModal(type) {
     content.innerHTML = ''
       + '<div class="activation-flow-step">Schritt 2 von 2 · Testanruf erkannt</div>'
       + '<h3>✅ Testanruf erkannt</h3>'
-      + '<div class="activation-flow-lead">Der Testanruf wurde im Dashboard gefunden. Bestätigen Sie jetzt den Erfolg, damit Voxera aktiv geschaltet wird.</div>'
+      + '<div class="activation-flow-lead">Der Testanruf auf Ihre hinterlegte Hauptnummer wurde im Dashboard erkannt. Bestätigen Sie jetzt den Erfolg, damit Voxera aktiv geschaltet wird.</div>'
       + '<ul class="activation-flow-list">'
-      + '<li><strong>Was passiert gerade?</strong>Ihr Testanruf ist eingegangen und wurde dem Aktivierungsprozess zugeordnet.</li>'
+      + '<li><strong>Was wurde erkannt?</strong>Der eingegangene Testanruf wurde dem Aktivierungsprozess eindeutig zugeordnet.</li>'
       + '<li><strong>Was ist jetzt zu tun?</strong>Klicken Sie auf <strong>„Aktivierung abschliessen“</strong>.</li>'
       + '<li><strong>Nächster Schritt</strong>Danach wechselt der Status auf <strong>Aktiv</strong>.</li>'
       + '</ul>'
@@ -8384,11 +8384,11 @@ function openActivationFlowModal(type) {
     content.innerHTML = ''
       + '<div class="activation-flow-step">Schritt 1 von 2 · Testanruf starten</div>'
       + '<h3>Testanruf durchführen</h3>'
-      + '<div class="activation-flow-lead">Die Aktivierung wurde gestartet' + (modeLabel ? ' (<strong>' + escapeHtml(modeLabel) + '</strong>)' : '') + '. Wir starten jetzt einen kurzen Testanruf auf Ihre Nummer.</div>'
+      + '<div class="activation-flow-lead">Die Aktivierung wurde gestartet' + (modeLabel ? ' (<strong>' + escapeHtml(modeLabel) + '</strong>)' : '') + '. Wir rufen jetzt Ihre hinterlegte Hauptnummer an.</div>'
       + '<ul class="activation-flow-list">'
-      + '<li><strong>Was passiert gerade?</strong>Voxera ist im Prüfmodus und erkennt den nächsten passenden Anruf automatisch.</li>'
-      + '<li><strong>Was ist jetzt zu tun?</strong>Sie müssen keinen Selbstanruf starten. Wir prüfen automatisch, ob der Anruf zu Voxera weitergeleitet wird.</li>'
-      + '<li><strong>Nächster Schritt</strong>Sobald der Testanruf erkannt wird, zeigen wir Ihnen die Bestätigung sofort prominent an.</li>'
+      + '<li><strong>Was passiert gerade?</strong>Wir prüfen automatisch, ob Ihre Weiterleitung den Testanruf korrekt zu Voxera übergibt.</li>'
+      + '<li><strong>Was ist jetzt zu tun?</strong>Sie müssen keinen eigenen Testanruf starten.</li>'
+      + '<li><strong>Nächster Schritt</strong>Sobald der Test erkannt wurde, erscheint die Bestätigung im Dashboard.</li>'
       + '</ul>'
       + '<div class="activation-flow-success">Hinweis: Der Testanruf erscheint erst nach Gesprächsende im Dashboard.</div>'
       + '<div class="modal-actions">'
@@ -8989,26 +8989,26 @@ function renderPendingTestCard(meta) {
   if (candidateCall) {
     detectHtml = '<div class="act-test-detect-area act-test-detect-found">'
       + '<div class="act-test-detect-title">\u2705 Testanruf erkannt</div>'
-      + '<div class="act-test-detect-sub">War das Ihr Testanruf?</div>'
+      + '<div class="act-test-detect-sub">Der Testanruf auf Ihre hinterlegte Hauptnummer wurde erkannt.</div>'
       + '<div class="act-test-detect-btns">'
       + '<button type="button" class="act-action-btn-primary" onclick="confirmActivationTestCall(event)">Aktivierung abschliessen</button>'
-      + '<button type="button" class="act-action-btn-secondary" onclick="rejectActivationTestCall(event)">Erneut testen</button>'
+      + '<button type="button" class="act-action-btn-secondary" onclick="rejectActivationTestCall(event)">Neuen Test starten</button>'
       + '</div>'
       + '</div>';
   } else if (testTimedOut) {
     detectHtml = '<div class="act-test-detect-area">'
       + '<div class="act-test-detect-icon">\u26A0\uFE0F</div>'
       + '<div class="act-test-detect-label">Kein Testanruf erkannt</div>'
-      + '<div class="act-test-detect-hint">Starten Sie einen neuen automatischen Test oder nutzen Sie den manuellen Fallback.</div>'
+      + '<div class="act-test-detect-hint">Der letzte Testanruf wurde noch nicht erkannt. Starten Sie bei Bedarf einen neuen Testanruf auf Ihre hinterlegte Hauptnummer.</div>'
       + '<div class="act-test-detect-btns" style="margin-top:12px;">'
-      + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Erneut versuchen</button>'
+      + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Neuen Test starten</button>'
       + '</div>'
       + '</div>';
   } else {
     detectHtml = '<div class="act-test-detect-area">'
       + '<div class="act-test-detect-icon">\u23F3</div>'
       + '<div class="act-test-detect-label">Testanruf läuft</div>'
-      + '<div class="act-test-detect-hint">Wir warten auf die Weiterleitung Ihres Testanrufs.</div>'
+      + '<div class="act-test-detect-hint">Wir rufen Ihre hinterlegte Hauptnummer an und warten auf die Erkennung im Dashboard.</div>'
       + '</div>';
   }
 
@@ -9018,11 +9018,11 @@ function renderPendingTestCard(meta) {
     + '<div class="act-pending-test-sub">' + escapeHtml(modeGuide.subtitle) + '</div>'
     + '</div>'
     + '<div class="activation-flow-success" style="margin:0 0 12px 0;">'
-    + '<strong style="display:block;margin-bottom:4px;">Wir starten jetzt einen kurzen Testanruf auf Ihre Nummer.</strong>'
-    + 'Sie müssen nichts weiter anrufen. Wir prüfen automatisch, ob die Weiterleitung korrekt bei Voxera ankommt.'
+    + '<strong style="display:block;margin-bottom:4px;">Wir rufen jetzt Ihre hinterlegte Hauptnummer an.</strong>'
+    + 'Damit prüfen wir automatisch, ob Ihre Weiterleitung korrekt zu Voxera führt.'
     + '</div>'
     + '<div class="act-pending-test-number-block">'
-    + '<div class="act-pending-test-number-label">Ihre Nummer</div>'
+    + '<div class="act-pending-test-number-label">Hinterlegte Hauptnummer (wird angerufen)</div>'
     + '<div class="act-pending-test-number">' + telNr + '</div>'
     + '<button type="button" class="act-action-btn-secondary act-pending-copy-btn" onclick="activationCopyOwnNumber(event)">Nummer kopieren</button>'
     + '</div>'
@@ -9037,7 +9037,7 @@ function renderPendingTestCard(meta) {
     + '<span>' + modeGuide.expect + '</span>'
     + '</div>'
     + '<div class="act-pending-voxera-note">'
-    + 'Weiterleitungsziel (nicht anrufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
+    + 'Voxera-Nummer (Weiterleitungsziel, wird nicht direkt angerufen): <span class="act-pending-voxera-num">' + voxeraNum + '</span>'
     + '</div>'
     + '<div class="act-pending-spoken-guide">'
     + '<div class="act-pending-spoken-guide-title">Was Sie beim Test sagen k\u00F6nnen</div>'
@@ -9046,13 +9046,13 @@ function renderPendingTestCard(meta) {
     + '<div class="act-pending-spoken-guide-item">\u201EIch teste gerade die Weiterleitung.\u201C</div>'
     + '</div>'
     + '<div class="act-pending-spoken-guide-tip">Beenden Sie den Anruf nach wenigen Sekunden.</div>'
-    + '<div class="act-pending-spoken-guide-note">Der Testanruf erscheint aktuell erst im Dashboard, nachdem der Anruf beendet wurde.</div>'
+    + '<div class="act-pending-spoken-guide-note">Die Testbestätigung erscheint im Dashboard, nachdem der Anruf beendet und erkannt wurde.</div>'
     + '</div>'
     + detectHtml
     + '<div class="act-pending-no-call-helper">'
     + '<div class="act-pending-no-call-title">Kein Anruf erkannt?</div>'
     + '<div class="act-pending-no-call-actions">'
-    + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Erneut versuchen</button>'
+    + '<button type="button" class="act-action-btn-secondary" onclick="retryActivationCheck(event)">Neuen Test starten</button>'
     + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'forwarding\')">Manuell testen</button>'
     + '<button type="button" class="act-action-btn-secondary" onclick="openHelpSection(\'support\')">Hilfe</button>'
     + '</div>'
@@ -9071,93 +9071,94 @@ function getDeviceModeTestGuidance(deviceType, mode, telNr) {
     mobile: {
       always: {
         title: 'Testanruf \u2013 Sofortweiterleitung (Smartphone)',
-        subtitle: 'Rufen Sie Ihre eigene Nummer von einem zweiten Ger\u00E4t aus an.',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
         steps: [
-          'Nehmen Sie ein zweites Telefon (z.\u00A0B. Handy eines Freundes oder Festnetz).',
-          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
-          'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden \u2013 ohne zu klingeln.'
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei korrekter Sofortweiterleitung wird der Testanruf direkt zu Voxera übergeben.'
         ],
-        expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird sofort weitergeleitet und im Dashboard erkannt.'
       },
       no_answer: {
         title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Smartphone)',
-        subtitle: 'Rufen Sie Ihre eigene Nummer an und nehmen Sie NICHT ab.',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
         steps: [
-          'Nehmen Sie ein zweites Telefon.',
-          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
-          'Lassen Sie Ihr Smartphone klingeln \u2013 nehmen Sie NICHT ab.',
-          'Nach kurzer Klingelzeit wird der Anruf an den KI-Assistenten weitergeleitet.'
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Lassen Sie den eingehenden Testanruf kurz laufen, ohne ihn anzunehmen.',
+          'Nach der konfigurierten Klingelzeit sollte die Weiterleitung zu Voxera greifen.'
         ],
-        expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
+        expect: 'Erwartetes Ergebnis: Nach Nichtannahme wird der Testanruf weitergeleitet und im Dashboard erkannt.'
       },
       unreachable: {
         title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Smartphone)',
-        subtitle: 'Schalten Sie Ihr Smartphone auf Flugmodus oder aus, dann rufen Sie an.',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
         steps: [
           'Schalten Sie Ihr Smartphone in den Flugmodus oder schalten Sie es aus.',
-          'Nehmen Sie ein zweites Telefon.',
-          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
-          'Da Ihr Smartphone nicht erreichbar ist, wird der Anruf sofort weitergeleitet.'
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei korrekter Konfiguration wird der Testanruf wegen Nicht-Erreichbarkeit zu Voxera weitergeleitet.'
         ],
-        expect: 'Erwartetes Ergebnis: Bei nicht erreichbarem Smartphone meldet sich sofort der KI-Assistent.'
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird bei Nicht-Erreichbarkeit weitergeleitet und im Dashboard erkannt.'
       },
       busy: {
         title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Smartphone)',
-        subtitle: 'Halten Sie Ihr Smartphone mit einem aktiven Anruf besch\u00E4ftigt.',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
         steps: [
           'Starten Sie auf Ihrem Smartphone einen aktiven Anruf (z.\u00A0B. eine beliebige Nummer anrufen).',
-          'Nehmen Sie ein zweites Telefon.',
-          'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>',
-          'Da Ihr Smartphone besetzt ist, wird der zweite Anruf an den KI-Assistenten weitergeleitet.'
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei besetzter Leitung sollte der Testanruf an Voxera weitergeleitet werden.'
         ],
-        expect: 'Erwartetes Ergebnis: Anruf bei besetztem Smartphone wird sofort an den KI-Assistenten weitergeleitet.'
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird bei Besetzt weitergeleitet und im Dashboard erkannt.'
       }
     },
     landline: {
       always: {
         title: 'Testanruf \u2013 Sofortweiterleitung (Festnetz / Anlage)',
-        subtitle: 'Rufen Sie nach der manuellen Einrichtung Ihre eigene Nummer von einem anderen Telefon an.',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
         steps: [
           'Stellen Sie sicher, dass die Rufumleitung in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage eingerichtet ist.',
-          'Nehmen Sie ein zweites Telefon (z.\u00A0B. Mobiltelefon).',
-          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
-          'Der Anruf sollte sofort an den KI-Assistenten weitergeleitet werden.'
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei korrekter Konfiguration sollte der Testanruf sofort an Voxera weitergeleitet werden.'
         ],
-        expect: 'Erwartetes Ergebnis: Der Anruf wird sofort weitergeleitet und der KI-Assistent meldet sich.'
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird sofort weitergeleitet und im Dashboard erkannt.'
       },
       no_answer: {
         title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Festnetz / Anlage)',
-        subtitle: 'Rufen Sie Ihre eigene Nummer an und lassen Sie es klingeln ohne abzunehmen.',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
         steps: [
           'Stellen Sie sicher, dass die Rufumleitung bei Nichtannahme in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage konfiguriert ist.',
-          'Nehmen Sie ein zweites Telefon.',
-          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
-          'Lassen Sie das Hauptger\u00E4t klingeln \u2013 nehmen Sie NICHT ab.',
-          'Nach der konfigurierten Klingelzeit wird der Anruf weitergeleitet.'
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Lassen Sie den eingehenden Testanruf kurz laufen, ohne ihn anzunehmen.',
+          'Nach der konfigurierten Klingelzeit sollte der Testanruf weitergeleitet werden.'
         ],
-        expect: 'Erwartetes Ergebnis: Nach dem Klingeln ohne Annahme meldet sich der KI-Assistent.'
+        expect: 'Erwartetes Ergebnis: Nach Nichtannahme wird der Testanruf weitergeleitet und im Dashboard erkannt.'
       },
       unreachable: {
         title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Festnetz / Anlage)',
-        subtitle: 'Simulieren Sie Nicht-Erreichbarkeit gem\u00E4ss den Vorgaben Ihres Anbieters.',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
         steps: [
           'Nicht-Erreichbarkeit bei Festnetz oder Telefonanlagen ist anbieter- und ger\u00E4teabh\u00E4ngig.',
           'Folgen Sie den Anweisungen Ihres Anbieters, um das Ger\u00E4t in einen nicht erreichbaren Zustand zu versetzen (z.\u00A0B. Leitung belegt, Ger\u00E4t ausgesteckt oder Anlage in DND-Modus).',
-          'Rufen Sie dann Ihre eigene Festnetznummer an: <strong>' + safeTelNr + '</strong>',
-          'Bei korrekter Konfiguration wird der Anruf an den KI-Assistenten weitergeleitet.'
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei korrekter Konfiguration wird der Testanruf an Voxera weitergeleitet.'
         ],
-        expect: 'Erwartetes Ergebnis: Der Anruf wird weitergeleitet, wenn das Festnetzger\u00E4t gem\u00E4ss Anbieter-Einstellungen als nicht erreichbar gilt.'
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird bei Nicht-Erreichbarkeit weitergeleitet und im Dashboard erkannt.'
       },
       busy: {
         title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Festnetz / Anlage)',
-        subtitle: 'Stellen Sie sicher, dass die Hauptleitung tats\u00E4chlich belegt ist.',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
         steps: [
           'Halten Sie die Hauptleitung mit einem aktiven Gespr\u00E4ch besetzt.',
-          'Nehmen Sie ein zweites Telefon.',
-          'W\u00E4hlen Sie Ihre eigene Festnetznummer: <strong>' + safeTelNr + '</strong>',
-          'Ob und wie schnell der zweite Anruf weitergeleitet wird, h\u00E4ngt von Ihrem Anbieter oder Ihrer Telefonanlage ab.'
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Ob und wie schnell der Testanruf weitergeleitet wird, hängt von Ihrem Anbieter oder Ihrer Telefonanlage ab.'
         ],
-        expect: 'Erwartetes Ergebnis: Eingehender Anruf bei besetzter Leitung wird an den KI-Assistenten weitergeleitet (abh\u00E4ngig von Anbieter-Einstellungen).'
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird bei Besetzt weitergeleitet und im Dashboard erkannt (abhängig von Anbieter-Einstellungen).'
       }
     }
   };
@@ -10386,9 +10387,9 @@ function renderActivationV2(){
     var testDetected = !!candidateCall;
     var testModeLabel = (c.setupDeviceType || 'mobile') === 'landline' ? 'Festnetz' : 'Mobile';
     var testStatusHtml = testDetected
-      ? `<div class="activation-info-banner" style="margin-top:10px;background:#ECFDF5;color:#065F46;"><strong>✅ Testanruf erkannt.</strong> Der Test wurde im Dashboard erfasst und als Systemtest markiert.</div>`
-      : `<div class="activation-info-banner" style="margin-top:10px;"><strong>Automatischer Testanruf läuft.</strong> Sie hören eine spezielle Voxera-Testansage. Danach erscheint der erkannte Test im Dashboard.</div>`;
-    html += `${head('Testanruf durchführen',`${testModeLabel} · ${escapeHtml(getTypeLabel(c.forwardingModeUi))}`,'overview')}<section class="activation-panel"><div class="code-block"><div class="code-eyebrow">IHRE HAUPTNUMMER</div><div class="code-value">${escapeHtml((customerMeta && customerMeta.telNr) ? customerMeta.telNr : '–')}</div></div>${testStatusHtml}${activationSystemCallError ? `<div class="activation-info-banner" style="margin-top:10px;background:#FEF2F2;color:#B91C1C;">${escapeHtml(activationSystemCallError)}</div>` : ''}<div class="activation-actions" style="margin-top:12px;"><button class="activation-btn secondary" onclick="startActivationTestFromManualCta(event)">Testanruf erneut starten</button>${testDetected ? '<button class="activation-btn primary" onclick="confirmActivationTestCall(event)">Test erfolgreich bestätigen</button>' : '<button class="activation-btn primary" onclick="loadData()">Erkennung aktualisieren</button>'}</div><button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState('overview')">Zur Übersicht</button></section>`;
+      ? `<div class="activation-info-banner" style="margin-top:10px;background:#ECFDF5;color:#065F46;"><strong>✅ Testanruf erkannt.</strong> Der Testanruf auf Ihre hinterlegte Hauptnummer wurde im Dashboard als Systemtest erfasst. Bestätigen Sie jetzt den erfolgreichen Test.</div>`
+      : `<div class="activation-info-banner" style="margin-top:10px;"><strong>Automatischer Testanruf läuft.</strong> Wir rufen Ihre hinterlegte Hauptnummer an und prüfen, ob die Weiterleitung korrekt zu Voxera führt. Nach Erkennung erscheint die Testbestätigung im Dashboard.</div>`;
+    html += `${head('Testanruf durchführen',`${testModeLabel} · ${escapeHtml(getTypeLabel(c.forwardingModeUi))}`,'overview')}<section class="activation-panel"><div class="code-block"><div class="code-eyebrow">HINTERLEGTE HAUPTNUMMER (WIRD ANGERUFEN)</div><div class="code-value">${escapeHtml((customerMeta && customerMeta.telNr) ? customerMeta.telNr : '–')}</div></div>${testStatusHtml}${activationSystemCallError ? `<div class="activation-info-banner" style="margin-top:10px;background:#FEF2F2;color:#B91C1C;">${escapeHtml(activationSystemCallError)}</div>` : ''}<div class="activation-actions" style="margin-top:12px;"><button class="activation-btn secondary" onclick="startActivationTestFromManualCta(event)">Neuen Testanruf starten</button>${testDetected ? '<button class="activation-btn primary" onclick="confirmActivationTestCall(event)">Test bestätigen</button>' : '<button class="activation-btn primary" onclick="loadData()">Erkennung aktualisieren</button>'}</div><button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState('overview')">Zur Übersicht</button></section>`;
   }
   html += '</div>';
   shell.innerHTML = html;
