@@ -44,7 +44,8 @@ exports.handler = async (event) => {
     sbUrl,
     sbAnonKey,
     sbAdmin,
-    requireActiveContract: false
+    requireActiveContract: false,
+    functionName: 'call-update-status'
   });
   if (!caller.ok) return response(caller.statusCode, caller.body);
 
