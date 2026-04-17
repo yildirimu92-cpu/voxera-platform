@@ -6028,6 +6028,7 @@ async function loadData() {
           candidateCall = found;
           stopActivationPolling();
           maybeOpenActivationSuccessModal();
+          maybeAutoConfirmActivationFromDetectedCall(found);
         }
       }
       // Restart 5s polling if it was lost (e.g. after page reload)
@@ -8757,6 +8758,8 @@ var activationSystemCallTriggerInFlight = false;
 var activationSystemCallSessionLock = '';
 var activationStartTriggerInFlight = false;
 var activationConfirmInFlight = false;
+var activationAutoConfirmInFlight = false;
+var activationAutoConfirmToken = '';
 var activationRunStartLocalIso = '';
 var activationFreshRunState = {
   startedAt: '',
@@ -8835,6 +8838,24 @@ function maybeOpenActivationSuccessModal() {
   openActivationFlowModal('success');
 }
 
+function maybeAutoConfirmActivationFromDetectedCall(detectedCall) {
+  if (!detectedCall) return;
+  var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
+  if (!isPendingTest) return;
+  if (activationAutoConfirmInFlight) return;
+  var token = [
+    getCandidateCallToken(detectedCall),
+    customerMeta && customerMeta.activationStartedAt ? String(customerMeta.activationStartedAt) : ''
+  ].join('|');
+  if (!token || token === activationAutoConfirmToken) return;
+  activationAutoConfirmToken = token;
+  activationAutoConfirmInFlight = true;
+  Promise.resolve(confirmActivationTestCall()).finally(function(){
+    activationAutoConfirmInFlight = false;
+    if (customerMeta && customerMeta.forwardingStatus !== 'active') activationAutoConfirmToken = '';
+  });
+}
+
 function logActivationDetectionDiagnostics(label, payload){
   try {
     console.info('[activation-test-diagnostics]', label, payload || {});
@@ -8897,6 +8918,8 @@ function clearActivationFreshRunTracking(){
 function clearActivationStateForNewRunStart(){
   resetActivationTestRunState();
   stopActivationPolling();
+  activationAutoConfirmToken = '';
+  activationAutoConfirmInFlight = false;
   activationFlowGuideToken = '';
   activationResetFlowState.open = false;
   activationResetFlowState.stage = 'choice';
@@ -9006,6 +9029,8 @@ function findActivationCandidateCall(calls, activationStartedAt) {
     var afterActivationStartedAt = createdAtParsed && createdAtMs >= activationStartMs;
     var afterOutboundMarker = createdAtParsed && (!hasValidOutboundMarker || createdAtMs >= outboundCreatedMs);
     var withinTimeout = createdAtParsed && createdAtMs <= timeoutDeadlineMs;
+    var persistedActivationInbound = category === 'activation_test_inbound';
+    var withinTimeoutOrPersistedDetection = withinTimeout || persistedActivationInbound;
 
     var rejectReason = '';
     if (!customerMatch) rejectReason = 'customer_mismatch';
@@ -9014,7 +9039,7 @@ function findActivationCandidateCall(calls, activationStartedAt) {
     else if (!createdAtParsed) rejectReason = 'created_at_parse_failed';
     else if (!afterActivationStartedAt) rejectReason = 'before_activation_started_at';
     else if (!afterOutboundMarker) rejectReason = 'before_outbound_marker';
-    else if (!withinTimeout) rejectReason = 'after_timeout';
+    else if (!withinTimeoutOrPersistedDetection) rejectReason = 'after_timeout';
 
     var accepted = !rejectReason;
     logActivationDetectionDiagnostics('pending_test_candidate_evaluated', {
@@ -9026,6 +9051,8 @@ function findActivationCandidateCall(calls, activationStartedAt) {
       after_activation_started_at: afterActivationStartedAt,
       after_outbound_marker: afterOutboundMarker,
       within_timeout: withinTimeout,
+      persisted_activation_inbound: persistedActivationInbound,
+      within_timeout_or_persisted_detection: withinTimeoutOrPersistedDetection,
       final_accepted: accepted,
       reject_reason: rejectReason || null,
       customer_id: callCustomerId || null,
@@ -9079,8 +9106,8 @@ function startActivationPolling() {
       return;
     }
     if (isActivationTestTimedOut()) {
-      stopActivationPolling();
       renderActivationV2();
+      loadData().catch(function(err){ console.error('[activation-polling] loadData failed:', err); });
       return;
     }
     loadData().catch(function(err){ console.error('[activation-polling] loadData failed:', err); });
@@ -9206,7 +9233,7 @@ async function confirmActivationTestCall(event) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; } return; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; } return false; }
     var activatedAtNow = new Date().toISOString();
     await patchCustomerRecord(recId, {
       forwarding_status: 'active',
@@ -9239,10 +9266,12 @@ async function confirmActivationTestCall(event) {
     renderActivationV2();
     scrollToStatusCard();
     triggerStatusHighlight('success');
+    return true;
   } catch(e) {
     console.error('confirmActivationTestCall failed', e);
     toast('Aktivierung konnte nicht abgeschlossen werden.');
     if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; }
+    return false;
   } finally {
     activationConfirmInFlight = false;
   }
