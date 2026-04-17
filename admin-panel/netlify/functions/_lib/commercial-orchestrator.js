@@ -1,6 +1,7 @@
 'use strict';
 
 const { orchestrateContractBilling } = require('./contract-billing-orchestrator');
+const { normalizePlanCode, isSalesPlanCode } = require('./plan-config');
 
 const CONTRACT_TRANSITIONS = Object.freeze({
   draft: new Set(['signed', 'cancelled']),
@@ -92,7 +93,7 @@ async function loadInvoicesForContract(sbAdmin, contractId) {
   return Array.isArray(data) ? data : [];
 }
 
-async function executeCommercialCommand({ sbAdmin, actor, command, payload = {} }) {
+async function executeCommercialCommand({ sbAdmin, actor, command, payload = {}, billingOrchestrator = orchestrateContractBilling }) {
   const nowIso = new Date().toISOString();
 
   if (command === 'contracts.create') {
@@ -161,6 +162,9 @@ async function executeCommercialCommand({ sbAdmin, actor, command, payload = {} 
 
     const previous = await getContractById(sbAdmin, contractId);
     if (!previous) throw new Error('Contract nicht gefunden.');
+    if (normalizeContractStatus(previous.status) === 'active') {
+      throw new Error('Contract ist bereits aktiv.');
+    }
     assertContractTransition(previous.status, 'active');
 
     const patch = {
@@ -178,7 +182,7 @@ async function executeCommercialCommand({ sbAdmin, actor, command, payload = {} 
     const customer = await getCustomerById(sbAdmin, updated.customer_id);
     if (!customer) throw new Error('Customer nicht gefunden.');
 
-    const billing = await orchestrateContractBilling({
+    const billing = await billingOrchestrator({
       sbAdmin,
       customer,
       contract: updated,
@@ -229,13 +233,24 @@ async function executeCommercialCommand({ sbAdmin, actor, command, payload = {} 
     if (command === 'contracts.suspend') patch.status = 'suspended';
     if (command === 'contracts.resume') patch.status = 'active';
     if (command === 'contracts.changePlan') {
-      patch.plan = payload.plan;
+      const normalizedPlan = normalizePlanCode(payload.plan);
+      if (!isSalesPlanCode(normalizedPlan)) {
+        throw new Error(`Ungültiger Zielplan: ${payload.plan || 'leer'}`);
+      }
+      patch.plan = normalizedPlan;
       if (Object.prototype.hasOwnProperty.call(payload, 'recurring_amount_monthly')) patch.recurring_amount_monthly = payload.recurring_amount_monthly;
       if (Object.prototype.hasOwnProperty.call(payload, 'recurring_amount_yearly')) patch.recurring_amount_yearly = payload.recurring_amount_yearly;
     }
     if (Object.prototype.hasOwnProperty.call(payload, 'notes')) patch.notes = payload.notes;
 
-    if (patch.status) assertContractTransition(previous.status, patch.status);
+    if (patch.status) {
+      const currentStatus = normalizeContractStatus(previous.status);
+      const targetStatus = normalizeContractStatus(patch.status);
+      if (currentStatus === targetStatus) {
+        throw new Error(`Contract ist bereits im Status '${targetStatus}'.`);
+      }
+      assertContractTransition(previous.status, patch.status);
+    }
 
     const { data: updated, error } = await sbAdmin.from('contracts').update(patch).eq('id', contractId).select('*').single();
     if (error) throw new Error(error.message || 'Contract command failed');
