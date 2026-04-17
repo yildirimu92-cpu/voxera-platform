@@ -8711,9 +8711,12 @@ function showLoadError(msg) {
 }
 
 async function loadDataFromSupabase() {
+  // Single source of truth: operational Admin data is read from Supabase only.
+  // No Airtable or alternative operational fallback path is allowed.
   // requires RLS policy: authenticated admin role can read operational tables
   if (!authClient) {
-    console.warn('[DB] No Supabase client — running in offline/demo mode.');
+    showLoadError('Supabase-Session fehlt. Das Admin Portal unterstützt keinen Offline-/Demo-Fallback für operative Daten.');
+    console.error('[DB] Missing Supabase client. Refusing to boot operational views without canonical data source.');
     return false;
   }
   showLoadingState();
@@ -8733,23 +8736,22 @@ async function loadDataFromSupabase() {
 
     if (obErr) throw obErr;
 
-    // 3. Load calls (current month only, source of truth for usage)
+    // 3. Load calls (source of truth for operational usage + activity)
     const monthStartIso=getCurrentMonthStartIso();
     const { data: callRows, error: callErr } = await authClient
       .from('calls')
       .select('*')
       .order('created_at', { ascending: false })
       .gte('created_at', monthStartIso);
-    // calls are non-critical — log but don't throw
-    if (callErr) console.warn('[DB] calls load failed:', callErr.message);
+    if (callErr) throw callErr;
 
-    // 4. Load cases (open + recent)
+    // 4. Load cases (source of truth for open/support workload)
     const { data: caseRows, error: caseErr } = await authClient
       .from('cases')
       .select('*')
       .order('updated_at', { ascending: false })
       .limit(500);
-    if (caseErr) console.warn('[DB] cases load failed:', caseErr.message);
+    if (caseErr) throw caseErr;
 
     // 5. Load subscriptions and build customer_id → subscription map
     const { data: subscriptionRows, error: subscriptionErr } = await authClient
