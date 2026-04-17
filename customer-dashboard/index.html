@@ -10476,6 +10476,15 @@ function renderQR(elementId, code){ var el=document.getElementById(elementId); i
 function copyToClipboard(text, btnId){ if(!text) return; navigator.clipboard.writeText(text).then(function(){ var b=document.getElementById(btnId); if(!b) return; var o=b.textContent; b.textContent='✓ Kopiert'; setTimeout(function(){ b.textContent=o; },2000); }).catch(function(){ toast('Kopieren fehlgeschlagen','error'); }); }
 function getErreichbarkeitFromCustomer(customer){ return { voxeraNumber:customer&&customer.voxera_number?customer.voxera_number:'', forwardingStatus:customer&&customer.forwarding_status?customer.forwarding_status:'not_started', forwardingModeUi:mapDbTypeToUi(customer&&customer.forwarding_mode?customer.forwarding_mode:'no_answer'), setupDeviceType:customer&&customer.setup_device_type?customer.setup_device_type:null, forwardingSetupCompleted:!!(customer&&customer.forwarding_setup_completed) }; }
 
+function getErreichbarkeitTestScreenState() {
+  var status = customerMeta && customerMeta.forwardingStatus ? String(customerMeta.forwardingStatus) : 'not_started';
+  if (status === 'active') return 'forwarding_active';
+  if (status !== 'pending_test') return 'test_not_started';
+  if (candidateCall) return 'test_detected';
+  if (isActivationTestTimedOut()) return 'recovery_needed';
+  return 'test_pending';
+}
+
 var erreichbarkeit = { selectedProvider: 'swisscom', selectedType: 'nicht-abgehoben', selectedDeviceType: null, voxeraNumber: null };
 var erreichbarkeitCurrentState = 'overview';
 function showErreichbarkeitState(state){ erreichbarkeitCurrentState = state || 'overview'; renderActivationV2(); }
@@ -10587,6 +10596,12 @@ async function startErreichbarkeitTestCall(event) {
   }
 }
 
+async function resetErreichbarkeitSetup(event) {
+  if (event) event.stopPropagation();
+  await performActivationInternalReset('Einrichtung zurückgesetzt. Sie können jetzt von vorne starten.');
+  showErreichbarkeitState('overview');
+}
+
 function renderActivationV2(){
   var shell = document.getElementById('activation-v2-shell');
   if (!shell) return;
@@ -10626,12 +10641,20 @@ function renderActivationV2(){
   if (state === 'deactivate') { var dType = c.setupDeviceType || erreichbarkeit.selectedDeviceType || 'mobile'; var dCode = getForwardingCode(c.forwardingModeUi || erreichbarkeit.selectedType, erreichbarkeit.voxeraNumber).deactivate; html += `${head('Weiterleitung deaktivieren',`${getTypeLabel(c.forwardingModeUi || erreichbarkeit.selectedType)} · ${dType==='landline'?'Festnetz':'Mobile'}`,'overview')}<section class="activation-panel">${dType==='landline' ? `<ol style="padding-left:18px;line-height:1.8;"><li>Öffnen Sie Ihre Telefonanlage / Router / Anbieter-Einstellungen.</li><li>Entfernen Sie die Weiterleitung auf die Voxera-Nummer.</li><li>Speichern Sie die Änderung dauerhaft.</li></ol><div class="activation-info-banner" style="margin-top:10px;"><strong>Aktuelle Konfiguration:</strong><br>Voxera-Nummer: ${escapeHtml(c.voxeraNumber || '–')}<br>Letzte Weiterleitungsart: ${escapeHtml(getTypeLabel(c.forwardingModeUi || erreichbarkeit.selectedType))}</div>` : `<div class="activation-panel-sub" style="margin-bottom:10px;">Deaktivieren Sie die Weiterleitung mit dem passenden Code für Ihre zuletzt gespeicherte Weiterleitungsart.</div><div class="code-block"><div class="code-eyebrow">DEAKTIVIERUNGSCODE</div><div class="code-value">${dCode}</div></div><div class="activation-actions" style="margin-top:10px;"><a class="activation-btn primary" href="${buildTelLink(dCode)}">Direkt wählen</a><button class="activation-btn secondary" id="copy-deact" onclick="copyToClipboard('${dCode}','copy-deact')">${isMobileDevice() ? 'Kopieren' : 'Code kopieren'}</button></div>${!isMobileDevice()?'<div id="erreichbarkeit-qr-deactivate" style="margin-top:12px;display:flex;justify-content:center;"></div><div style="text-align:center;color:#94A3B8;font-size:12px;">QR-Code mit dem Smartphone scannen — Dialer öffnet sich direkt mit dem Deaktivierungs-Code.</div>':''}`}<button class="activation-btn primary" style="margin-top:12px;background:#059669;" onclick="persistErreichbarkeitDeactivation()">Weiterleitung ist deaktiviert ✓</button><button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState('overview')">Abbrechen</button></section>`; }
   if (state === 'success') html += `<section class="activation-panel activation-final-success" style="text-align:center;"><div style="font-size:32px;">✅</div><h2>Voxera ist aktiv</h2><div class="activation-panel-sub">${erreichbarkeit.selectedDeviceType==='landline'?'Ihre Festnetz-Weiterleitung ist eingerichtet und Voxera kann eingehende Anrufe übernehmen.':'Ihre Anrufe werden von Voxera entgegengenommen, wenn Sie nicht abnehmen.'}</div><div class="code-block" style="margin-top:12px;"><div class="code-eyebrow">IHRE VOXERA-NUMMER</div><div class="code-value">${escapeHtml(erreichbarkeit.voxeraNumber || '–')}</div></div><div class="activation-info-banner" style="margin-top:12px;text-align:left;">Starten Sie jetzt den Testanruf auf Ihre hinterlegte Hauptnummer. Nach der Erkennung bestätigen Sie den Test direkt im Dashboard.</div><div class="activation-actions" style="justify-content:center;margin-top:12px;"><button class="activation-btn secondary" onclick="startErreichbarkeitTestCall(event)">Testanruf starten</button><button class="activation-btn primary" onclick="showTab('dashboard')">Zum Dashboard</button></div></section>`;
   if (state === 'test_pending') {
-    var testDetected = !!candidateCall;
+    var testScreenState = getErreichbarkeitTestScreenState();
+    var testDetected = testScreenState === 'test_detected';
+    var recoveryNeeded = testScreenState === 'recovery_needed';
+    var canOfferDeactivation = !!(c.setupDeviceType && c.forwardingModeUi && (c.forwardingSetupCompleted || testDetected));
     var testModeLabel = (c.setupDeviceType || 'mobile') === 'landline' ? 'Festnetz' : 'Mobile';
     var testStatusHtml = testDetected
       ? `<div class="activation-info-banner" style="margin-top:10px;background:#ECFDF5;color:#065F46;"><strong>✅ Testanruf erkannt.</strong> Der Anruf auf Ihre hinterlegte Hauptnummer wurde erkannt. Damit ist Ihre Weiterleitung zu Voxera bestätigt.</div>`
-      : `<div class="activation-info-banner" style="margin-top:10px;"><strong>Automatischer Testanruf läuft.</strong> Wir rufen Ihre hinterlegte Hauptnummer an. Bitte nehmen Sie den Anruf an; danach erscheint die Erkennung hier im Dashboard.</div>`;
-    html += `${head('Testanruf auf Hauptnummer',`${testModeLabel} · ${escapeHtml(getTypeLabel(c.forwardingModeUi))}`,'overview')}<section class="activation-panel"><div class="code-block"><div class="code-eyebrow">HINTERLEGTE KUNDENNUMMER (WIRD FÜR DEN TEST ANGERUFEN)</div><div class="code-value">${escapeHtml((customerMeta && customerMeta.telNr) ? customerMeta.telNr : '–')}</div></div>${testStatusHtml}${activationSystemCallError ? `<div class="activation-info-banner" style="margin-top:10px;background:#FEF2F2;color:#B91C1C;">${escapeHtml(activationSystemCallError)}</div>` : ''}<div class="activation-actions" style="margin-top:12px;"><button class="activation-btn secondary" onclick="startActivationTestFromManualCta(event)">Testanruf erneut starten</button>${testDetected ? '<button class="activation-btn primary" onclick="confirmActivationTestCall(event)">Test erfolgreich bestätigen</button>' : '<button class="activation-btn primary" onclick="loadData()">Teststatus aktualisieren</button>'}</div><button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState('overview')">Zur Übersicht</button></section>`;
+      : (recoveryNeeded
+        ? `<div class="activation-info-banner" style="margin-top:10px;background:#FFFBEB;color:#92400E;"><strong>⚠️ Test konnte nicht automatisch erkannt werden.</strong> Sie können den Test erneut starten oder die Einrichtung sauber zurücksetzen und neu beginnen.</div>`
+        : `<div class="activation-info-banner" style="margin-top:10px;"><strong>Automatischer Testanruf läuft.</strong> Wir rufen Ihre hinterlegte Hauptnummer an. Bitte nehmen Sie den Anruf an; danach erscheint die Erkennung hier im Dashboard.</div>`);
+    var deactivationBtnHtml = canOfferDeactivation
+      ? '<button class="activation-btn danger" onclick="showErreichbarkeitState(\'deactivate\')">Weiterleitung deaktivieren</button>'
+      : '';
+    html += `${head('Testanruf auf Hauptnummer',`${testModeLabel} · ${escapeHtml(getTypeLabel(c.forwardingModeUi))}`,'overview')}<section class="activation-panel"><div class="code-block"><div class="code-eyebrow">HINTERLEGTE KUNDENNUMMER (WIRD FÜR DEN TEST ANGERUFEN)</div><div class="code-value">${escapeHtml((customerMeta && customerMeta.telNr) ? customerMeta.telNr : '–')}</div></div>${testStatusHtml}${activationSystemCallError ? `<div class="activation-info-banner" style="margin-top:10px;background:#FEF2F2;color:#B91C1C;">${escapeHtml(activationSystemCallError)}</div>` : ''}<div class="activation-actions" style="margin-top:12px;"><button class="activation-btn secondary" onclick="startActivationTestFromManualCta(event)">Testanruf erneut starten</button>${testDetected ? '<button class="activation-btn primary" onclick="confirmActivationTestCall(event)">Test erfolgreich bestätigen</button>' : ''}</div><div class="activation-actions" style="margin-top:8px;"><button class="activation-btn secondary" onclick="resetErreichbarkeitSetup(event)">Einrichtung zurücksetzen</button>${deactivationBtnHtml}</div><button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState('overview')">Zur Übersicht</button></section>`;
   }
   html += '</div>';
   shell.innerHTML = html;
