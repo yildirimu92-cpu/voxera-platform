@@ -37,3 +37,19 @@ This verifies:
 1. Admin frontend has no Airtable references.
 2. Admin and Customer frontends both read `customers`, `calls`, and `cases` via Supabase table queries.
 3. Core Admin write functions are Supabase-backed and contain no Airtable references.
+
+## Calls/Cases parity contract (P1)
+
+For overlap views between Admin and Customer Dashboard, calls/cases must follow aligned semantics:
+
+- `calls`
+  - canonical overlap order: `created_at DESC`
+  - no implicit month filter in base load
+  - no implicit hard slice limit in base load
+- `cases`
+  - canonical overlap order: `updated_at DESC`
+  - no implicit hard slice limit in base load
+
+### Intentional broader Admin scope
+
+Admin is allowed to render broader cross-customer operational views (e.g. global activity boards), but this is intentional and must not alter the overlap query contract above.

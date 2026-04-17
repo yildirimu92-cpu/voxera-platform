@@ -52,6 +52,26 @@ for (const file of writeFns) {
   else pass('Admin write path has no Airtable API reference', file);
 }
 
+const adminCallsNoMonthFilter = sh("rg -n \"\\.gte\\('created_at',\\s*monthStartIso\\)\" admin-panel/index.html");
+if (adminCallsNoMonthFilter.ok && adminCallsNoMonthFilter.out.trim()) fail('Admin calls query still uses implicit month filter', adminCallsNoMonthFilter.out.trim());
+else pass('Admin calls query has no implicit month filter');
+
+const adminCasesNoLimit = sh("rg -n \"\\.limit\\(500\\)\" admin-panel/index.html");
+if (adminCasesNoLimit.ok && adminCasesNoLimit.out.trim()) fail('Admin cases query still uses implicit slice limit', adminCasesNoLimit.out.trim());
+else pass('Admin cases query has no implicit slice limit');
+
+const dashboardCallsNoLimit = sh("rg -n \"\\.limit\\(500\\)\" customer-dashboard/index.html");
+if (dashboardCallsNoLimit.ok && dashboardCallsNoLimit.out.trim()) fail('Dashboard calls query still uses implicit slice limit', dashboardCallsNoLimit.out.trim());
+else pass('Dashboard calls query has no implicit slice limit');
+
+const dashboardCasesUpdatedOrder = sh("rg -n \"\\.order\\('updated_at',\\s*\\{\\s*ascending:\\s*false\\s*\\}\\)\" customer-dashboard/index.html");
+if (dashboardCasesUpdatedOrder.ok && dashboardCasesUpdatedOrder.out.trim()) pass('Dashboard cases query orders by updated_at for parity');
+else fail('Dashboard cases query missing updated_at ordering');
+
+const contractWizardLocalFallback = sh("rg -n \"newId = crypto\\.randomUUID|local-state-only|Object\\.assign\\(\\{id: newId\\}, payload\\)\" admin-panel/index.html");
+if (contractWizardLocalFallback.ok && contractWizardLocalFallback.out.trim()) fail('Contract wizard still contains local-only write fallback branch', contractWizardLocalFallback.out.trim());
+else pass('Contract wizard has no local-only write fallback branch');
+
 const failed = checks.filter((entry) => !entry.ok);
 for (const entry of checks) {
   const icon = entry.ok ? '✅' : '❌';

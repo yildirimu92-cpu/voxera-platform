@@ -4459,7 +4459,12 @@ async function ensureActiveCustomerOrLogout(context) {
 }
 
 async function loadCallRecords(customerIdRaw) {
-  let query = _sb.from(CALLS_TABLE).select('*').order('created_at', { ascending: false }).limit(500);
+  // Parity contract with admin overlap views:
+  // - source: public.calls
+  // - scope: full customer history (no implicit month window)
+  // - order: created_at DESC
+  // - no implicit slice limit in base load
+  let query = _sb.from(CALLS_TABLE).select('*').order('created_at', { ascending: false });
   const customerId = (customerIdRaw || '').trim();
   console.info('[voxera-dashboard] calls query customer_id', customerId || null);
   if (customerId) {
@@ -4473,12 +4478,16 @@ async function loadCallRecords(customerIdRaw) {
 async function loadManualTaskRecords(customerIdRaw) {
   const customerId = (customerIdRaw || '').trim();
   if (!_sb || !customerId) return [];
+  // Parity contract with admin overlap views:
+  // - source: public.cases
+  // - scope: customer_id filtered
+  // - order: updated_at DESC (latest operational change first)
+  // - no implicit slice limit in base load
   const { data, error } = await _sb
     .from(CASES_TABLE)
     .select('*')
     .eq('customer_id', customerId)
-    .order('created_at', { ascending: false })
-    .limit(500);
+    .order('updated_at', { ascending: false });
   if (error) throw error;
   return (data || []).map(mapCaseToTaskRecord);
 }

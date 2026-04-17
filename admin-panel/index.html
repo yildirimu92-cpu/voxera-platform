@@ -6138,16 +6138,11 @@ async function submitContractWizard() {
 
   if (btn) { btn.disabled = true; btn.textContent = 'Speichern\u2026'; }
   try {
-    var newId;
-    if (authClient) {
-      var json = await callAdminFunction('admin-mutate', { action:'contracts.create', payload: payload });
-      if (!json || !json.contract) throw new Error('Kein Datensatz zurückgegeben.');
-      newId = String(json.contract.id);
-      state.contracts.unshift(mapDbContractToUi(json.contract));
-    } else {
-      newId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
-      state.contracts.unshift(mapDbContractToUi(Object.assign({id: newId}, payload)));
-    }
+    if (!authClient) throw new Error('Keine Verbindung zu Supabase. Vertrag kann nicht gespeichert werden.');
+    var json = await callAdminFunction('admin-mutate', { action:'contracts.create', payload: payload });
+    if (!json || !json.contract) throw new Error('Kein Datensatz zurückgegeben.');
+    var newId = String(json.contract.id);
+    state.contracts.unshift(mapDbContractToUi(json.contract));
     renderContracts();
     updateBadges();
     showToast('\u2713 Vertrag gespeichert.');
@@ -8736,21 +8731,28 @@ async function loadDataFromSupabase() {
 
     if (obErr) throw obErr;
 
-    // 3. Load calls (source of truth for operational usage + activity)
-    const monthStartIso=getCurrentMonthStartIso();
+    // 3. Load calls (parity contract with customer dashboard)
+    // Canonical overlap semantics:
+    // - source: public.calls
+    // - scope: full customer history (no implicit month window)
+    // - order: created_at DESC
+    // - no implicit slice limit in base load
     const { data: callRows, error: callErr } = await authClient
       .from('calls')
       .select('*')
-      .order('created_at', { ascending: false })
-      .gte('created_at', monthStartIso);
+      .order('created_at', { ascending: false });
     if (callErr) throw callErr;
 
-    // 4. Load cases (source of truth for open/support workload)
+    // 4. Load cases (parity contract with customer dashboard)
+    // Canonical overlap semantics:
+    // - source: public.cases
+    // - scope: full customer history
+    // - order: updated_at DESC (latest operational change wins)
+    // - no implicit slice limit in base load
     const { data: caseRows, error: caseErr } = await authClient
       .from('cases')
       .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(500);
+      .order('updated_at', { ascending: false });
     if (caseErr) throw caseErr;
 
     // 5. Load subscriptions and build customer_id → subscription map
