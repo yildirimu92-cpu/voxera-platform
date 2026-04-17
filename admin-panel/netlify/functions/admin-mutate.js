@@ -143,7 +143,7 @@ async function writeAdminAudit(sbAdmin, {
 async function getAdminById(sbAdmin, adminId) {
   const { data, error } = await sbAdmin
     .from('admins')
-    .select('id, email, role, status, created_at, disabled_at, updated_at')
+    .select('id, email, role, status, created_at, updated_at')
     .eq('id', adminId)
     .maybeSingle();
 
@@ -212,7 +212,6 @@ exports.handler = async (event) => {
           email,
           role,
           status,
-          disabled_at: null,
           updated_at: new Date().toISOString(),
           created_at: previous?.created_at || new Date().toISOString()
         }, { onConflict: 'id' });
@@ -327,7 +326,6 @@ exports.handler = async (event) => {
       const nowIso = new Date().toISOString();
       const patch = {
         status: nextStatus,
-        disabled_at: nextStatus === 'disabled' ? nowIso : null,
         updated_at: nowIso
       };
 
@@ -431,6 +429,10 @@ exports.handler = async (event) => {
 
     return response(400, { error: 'Unsupported action' });
   } catch (err) {
-    return response(500, { error: err?.message || 'Unknown server error.' });
+    return response(500, {
+      error: 'Admin mutate action failed',
+      error_code: 'admin_mutate_action_failed',
+      details: err?.message || 'Unknown server error.'
+    });
   }
 };
