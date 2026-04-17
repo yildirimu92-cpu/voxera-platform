@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voxera Offerte PDF</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <style>
+    /* ── VOXERA CI ── */
+    :root{
+      --night:#0D1F3C;
+      --blue:#1A6FE8;
+      --sky:#4B9FFF;
+      --gold:#E8C547;
+      --white:#FFFFFF;
+      --off:#F7F8FC;
+      --g100:#F1F5F9;
+      --g200:#E2E8F0;
+      --g300:#CBD5E1;
+      --g400:#94A3B8;
+      --g600:#475569;
+      --g900:#0F172A;
+      /* Legacy aliases */
+      --ink:var(--g900);
+      --slate:var(--g600);
+      --line:var(--g200);
+      --line-strong:var(--g300);
+      --brand:var(--blue);
+      --bg:var(--off);
+      --paper:var(--white);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:'DM Sans',system-ui,sans-serif;
+      color:var(--g900);
+      background:var(--off);
+    }
+
+    /* ── TOPNAV ── */
+    .topnav{
+      background:var(--night);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      height:52px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 20px;
+      position:sticky;
+      top:0;
+      z-index:100;
+    }
+    .topnav-brand{
+      display:flex;
+      align-items:center;
+      gap:9px;
+    }
+    .topnav-ico{
+      width:28px;
+      height:28px;
+      border-radius:7px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.1);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .topnav-word{
+      font-family:'Plus Jakarta Sans',sans-serif;
+      font-size:15px;
+      font-weight:800;
+      color:#fff;
+      letter-spacing:-.04em;
+    }
+    .topnav-actions{
+      display:flex;
+      gap:6px;
+    }
+    .topbtn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);
+      color:rgba(255,255,255,.7);
+      border-radius:8px;
+      padding:7px 14px;
+      font-family:'DM Sans',sans-serif;
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      transition:all .15s;
+    }
+    .topbtn:hover{
+      background:rgba(255,255,255,.12);
+      color:#fff;
+    }
+
+    /* ── LOADING STATE ── */
+    #state{
+      max-width:960px;
+      margin:60px auto;
+      padding:0 20px;
+      color:var(--g400);
+      font-size:15px;
+    }
+
+    /* ── VIEWER ── */
+    .viewer{
+      max-width:860px;
+      margin:24px auto 48px;
+      padding:0 20px;
+    }
+
+    /* ── SHEET (das eigentliche Dokument) ── */
+    .sheet{
+      background:var(--white);
+      border:1px solid var(--g200);
+      border-radius:16px;
+      box-shadow:0 8px 40px rgba(13,31,60,.08),0 2px 8px rgba(13,31,60,.04);
+      overflow:hidden;
+    }
+
+    /* Sheet Header */
+    .sheet-header{
+      background:var(--night);
+      padding:24px 28px;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:24px;
+      position:relative;
+      overflow:hidden;
+    }
+    .sheet-header::before{
+      content:'';
+      position:absolute;
+      right:-60px;
+      top:-60px;
+      width:200px;
+      height:200px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(26,111,232,.2) 0%,transparent 70%);
+    }
+    .sheet-header::after{
+      content:'';
+      position:absolute;
+      left:40%;
+      bottom:-60px;
+      width:180px;
+      height:180px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(232,197,71,.08) 0%,transparent 70%);
+    }
+    .sheet-brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:14px;
+      position:relative;
+      z-index:1;
+    }
+    .sheet-brand-ico{
+      width:32px;
+      height:32px;
+      border-radius:8px;
+      background:rgba(255,255,255,.1);
+      border:1px solid rgba(255,255,255,.12);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .sheet-brand-name{
+      font-family:'Plus Jakarta Sans',sans-serif;
+      font-size:16px;
+      font-weight:800;
+      color:#fff;
+      letter-spacing:-.04em;
+    }
+    .sheet-doc-title{
+      font-family:'Plus Jakarta Sans',sans-serif;
+      font-size:28px;
+      font-weight:800;
+      color:#fff;
+      letter-spacing:-.035em;
+      line-height:1.15;
+      margin:0 0 4px;
+      position:relative;
+      z-index:1;
+    }
+    .sheet-doc-sub{
+      font-size:13px;
+      color:rgba(255,255,255,.5);
+      position:relative;
+      z-index:1;
+    }
+
+    /* Meta Box */
+    .meta{
+      min-width:200px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:12px;
+      padding:12px 14px;
+      align-self:flex-start;
+      position:relative;
+      z-index:1;
+    }
+    .meta-row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      padding:7px 0;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      font-size:13px;
+    }
+    .meta-row:last-child{border-bottom:none;}
+    .meta-label{color:rgba(255,255,255,.4);}
+    .meta-value{font-weight:700;color:#fff;}
+
+    /* Sheet Body */
+    .sheet-body{
+      padding:24px 28px;
+    }
+
+    /* Grid */
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-bottom:14px;
+    }
+    .block{
+      border:1px solid var(--g200);
+      border-radius:12px;
+      padding:14px;
+      background:var(--g100);
+    }
+    .section-title{
+      font-size:9px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.14em;
+      color:var(--g400);
+      margin:0 0 10px;
+    }
+    .muted{color:var(--g600);}
+    .recipient{
+      font-size:14px;
+      color:var(--g900);
+      line-height:1.6;
+    }
+    .plan-text{
+      font-size:14px;
+      font-weight:600;
+      color:var(--g900);
+      margin-bottom:6px;
+    }
+
+    /* Preistabelle */
+    .price{
+      border:1px solid var(--g200);
+      border-radius:12px;
+      overflow:hidden;
+      margin-bottom:14px;
+    }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:10px;
+      padding:11px 16px;
+      border-bottom:1px solid var(--g200);
+      font-size:14px;
+    }
+    .row:last-child{border-bottom:none;}
+    .row span{color:var(--g600);}
+    .row strong{color:var(--g900);font-weight:700;}
+    .row-total{
+      background:var(--night);
+      border-bottom:none;
+    }
+    .row-total span{color:rgba(255,255,255,.5);font-weight:600;}
+    .row-total strong{color:#fff;font-size:18px;font-weight:800;}
+
+    /* Vertragsbedingungen */
+    .terms{
+      border:1px solid var(--g200);
+      border-radius:12px;
+      padding:16px;
+      background:var(--g100);
+    }
+    .terms p{
+      font-size:13px;
+      color:var(--g600);
+      line-height:1.65;
+      margin:0 0 8px;
+    }
+    .terms p:last-child{margin:0;}
+    .terms strong{color:var(--g900);}
+
+    /* ── UTILS ── */
+    .hidden{display:none!important;}
+
+    /* ── PRINT ── */
+    @media print{
+      @page{size:A4;margin:14mm;}
+      body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      .topnav{display:none;}
+      .viewer{max-width:none;margin:0;padding:0;}
+      .sheet{box-shadow:none;border:none;border-radius:0;}
+      .sheet-header{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      .grid,.block,.price,.row{break-inside:avoid-page;page-break-inside:avoid;}
+    }
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:760px){
+      .sheet-header{flex-direction:column;gap:14px;}
+      .meta{width:100%;}
+      .grid{grid-template-columns:1fr;}
+      .sheet-doc-title{font-size:22px;}
+      .viewer{padding:0 12px;}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ TOPNAV ══ -->
+  <nav class="topnav">
+    <div class="topnav-brand">
+      <div class="topnav-ico">
+        <svg width="16" height="16" viewBox="0 0 48 48" fill="none">
+          <path d="M24 6 C14 6,5 14,5 24" stroke="#4B9FFF" stroke-width="4" stroke-linecap="round"/>
+          <path d="M24 6 C34 6,43 14,43 24" stroke="#E8C547" stroke-width="4" stroke-linecap="round"/>
+          <path d="M5 24 C5 35,13 43,24 43 C35 43,43 35,43 24" stroke="white" stroke-width="4" stroke-linecap="round"/>
+          <path d="M16 16 L24 29 L32 16" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="topnav-word">VOXERA</span>
+    </div>
+    <div class="topnav-actions">
+      <button class="topbtn" type="button" onclick="window.location.reload()">
+        ↻ Neu laden
+      </button>
+      <a class="topbtn" id="pdfDownloadBtn" href="#" target="_blank" rel="noopener">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        PDF öffnen
+      </a>
+    </div>
+  </nav>
+
+  <!-- ══ LOADING STATE ══ -->
+  <div id="state">Offerte wird geladen…</div>
+
+  <!-- ══ DOC ══ -->
+  <div id="doc" style="display:none;">
+    <div class="viewer">
+      <div class="sheet">
+
+        <!-- Sheet Header (Night) -->
+        <div class="sheet-header">
+          <div>
+            <div class="sheet-brand">
+              <div class="sheet-brand-ico">
+                <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
+                  <path d="M24 6 C14 6,5 14,5 24" stroke="#4B9FFF" stroke-width="4" stroke-linecap="round"/>
+                  <path d="M24 6 C34 6,43 14,43 24" stroke="#E8C547" stroke-width="4" stroke-linecap="round"/>
+                  <path d="M5 24 C5 35,13 43,24 43 C35 43,43 35,43 24" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                  <path d="M16 16 L24 29 L32 16" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <span class="sheet-brand-name">VOXERA</span>
+            </div>
+            <h1 class="sheet-doc-title">Offerte</h1>
+            <p class="sheet-doc-sub">Individuelle Offerte für Ihre Voxera-Lösung</p>
+          </div>
+          <div class="meta">
+            <div class="meta-row">
+              <span class="meta-label">Offertennummer</span>
+              <span id="offerNo" class="meta-value">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Gültig bis</span>
+              <span id="validUntil" class="meta-value">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sheet Body -->
+        <div class="sheet-body">
+
+          <div class="grid">
+            <section class="block">
+              <p class="section-title">Empfänger</p>
+              <div id="recipient" class="recipient"></div>
+            </section>
+            <section class="block">
+              <p class="section-title">Leistung</p>
+              <div id="plan" class="plan-text"></div>
+              <div id="summary" class="muted" style="font-size:13px;line-height:1.6;"></div>
+            </section>
+          </div>
+
+          <div class="price">
+            <p class="section-title" style="padding:12px 16px 0;margin:0;">Preisübersicht</p>
+            <div class="row"><span>Einmalige Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
+            <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
+            <div class="row hidden" id="discountRow"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
+            <div class="row row-total"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+          </div>
+
+          <div class="terms">
+            <p class="section-title">Vertragsbedingungen (Schweiz, B2B)</p>
+            <p><strong>Scope:</strong> Voxera erbringt die in dieser Offerte beschriebenen Leistungen gemäss Paket und Add-ons.</p>
+            <p><strong>Pricing:</strong> Preise in CHF exkl. MwSt.; Rechnungsstellung gemäss gewähltem Zyklus.</p>
+            <p><strong>Dauer & Kündigung:</strong> Laufzeit gemäss Offerte; ordentliche Kündigung per Ende Laufzeit, ausserordentliche Kündigung aus wichtigem Grund vorbehalten.</p>
+            <p><strong>Datenschutz & AVV:</strong> Parteien schliessen bei Bedarf einen Auftragsverarbeitungsvertrag (AVV). Verarbeitung gemäss revDSG und anwendbarem Recht.</p>
+            <p><strong>Haftung:</strong> Haftung für leichte Fahrlässigkeit im gesetzlich zulässigen Umfang ausgeschlossen; zwingende Haftungstatbestände bleiben vorbehalten.</p>
+            <p><strong>Annahme:</strong> Mit digitaler Annahme wird diese Offerte zum verbindlichen Vertrag.</p>
+            <p><strong>Gerichtsstand:</strong> Soweit zulässig gilt Schweizer Recht; ausschliesslicher Gerichtsstand ist der Sitz der Voxera-Anbieterin.</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCRIPTS — UNVERÄNDERT ══ -->
+  <script src="/shared/offer-brand.js"></script>
+  <script>
+  const token = new URLSearchParams(location.search).get('token') || '';
+  const BRAND_LOGO_PATH = (window.VoxeraOfferBrand && window.VoxeraOfferBrand.OFFER_BRAND_ASSET_PATH) || '/brand/05-app-icon-512px.svg';
+  const logoEl=document.getElementById('brandLogo');
+  if(logoEl) logoEl.src=BRAND_LOGO_PATH;
+  const money = v => `CHF ${Number(v || 0).toFixed(2)}`;
+  const d = v => v ? new Date(v).toLocaleDateString('de-CH') : '—';
+  const esc = v => String(v ?? '').replace(/[&<>'\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+
+  async function load(){
+    const stateEl = document.getElementById('state');
+    if(!token){ stateEl.textContent='Token fehlt.'; return; }
+    const res = await fetch(`/.netlify/functions/offer-public-get?token=${encodeURIComponent(token)}`);
+    const json = await res.json();
+    if(!res.ok){ stateEl.textContent = json.error || 'Offerte konnte nicht geladen werden.'; return; }
+    const offer = json.offer || {};
+    const recurring = offer.billing_cycle === 'yearly' ? Number(offer.yearly_price||0) : Number(offer.monthly_price||0);
+    const discount = Number(offer.discount_amount||0) + (recurring * (Number(offer.discount_percent||0)/100));
+    const hasDiscount = discount > 0.000001;
+    document.getElementById('offerNo').textContent = offer.offer_number || '—';
+    document.getElementById('validUntil').textContent = d(offer.valid_until);
+    document.getElementById('recipient').innerHTML = [offer.company_name, offer.contact_name, [offer.street, offer.postal_code, offer.city, offer.country].filter(Boolean).join(', '), offer.email, offer.phone].filter(Boolean).map(v=>`<div>${esc(v)}</div>`).join('');
+    document.getElementById('plan').textContent = `${offer.plan || ''} · ${offer.billing_cycle === 'yearly' ? 'jährlich' : 'monatlich'} · ${offer.duration_months || 0} Monate`;
+    document.getElementById('summary').textContent = offer.offer_text?.summary || '';
+    document.getElementById('setupFee').textContent = money(offer.setup_fee);
+    document.getElementById('recurringLabel').textContent = offer.billing_cycle === 'yearly' ? 'Jährlich' : 'Monatlich';
+    document.getElementById('recurring').textContent = money(recurring);
+    document.getElementById('discount').textContent = `- ${money(discount)}`;
+    document.getElementById('discountRow').classList.toggle('hidden', !hasDiscount);
+    document.getElementById('total').textContent = money(offer.total);
+    document.getElementById('pdfDownloadBtn').href=window.location.href;
+    stateEl.style.display='none';
+    document.getElementById('doc').style.display='block';
+  }
+
+  load().catch(() => { document.getElementById('state').textContent = 'Fehler beim Laden der Offerte.'; });
+  </script>
+</body>
+</html>
