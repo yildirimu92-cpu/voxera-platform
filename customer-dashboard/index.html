@@ -2160,12 +2160,29 @@ button, a.btn { min-height: 44px; }
 .activation-choice-title{font-size:14px;font-weight:700;color:#0F172A;margin-bottom:4px;}
 .activation-choice-text{font-size:12.5px;color:#64748B;line-height:1.55;}
 .activation-actions{display:grid;gap:8px;margin-top:12px;}
-.activation-btn{width:100%;border:none;border-radius:12px;padding:11px 14px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;}
-.activation-btn.primary{background:#1A6FE8;color:#fff;box-shadow:0 8px 18px rgba(26,111,232,.24);}
-.activation-btn.secondary{background:#fff;color:#1E293B;border:1px solid #CBD5E1;}
-.activation-btn.tertiary{background:#F8FAFC;color:#475569;border:1px solid #E2E8F0;}
-.activation-btn.danger{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;}
-.activation-btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none;}
+.activation-btn{
+  width:100%;
+  min-height:var(--btn-height);
+  border-radius:var(--btn-radius);
+  padding:9px 18px;
+  border:1px solid transparent;
+  font-size:12.5px;
+  font-weight:700;
+  line-height:1.2;
+  font-family:inherit;
+  cursor:pointer;
+  transition:all var(--transition-fast);
+}
+.activation-btn.primary{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 1px 3px rgba(26,111,232,.12);}
+.activation-btn.primary:hover{background:var(--blue-dark);border-color:var(--blue-dark);transform:translateY(-0.5px);}
+.activation-btn.secondary{background:#fff;color:var(--gray600);border-color:var(--gray200);font-weight:600;}
+.activation-btn.secondary:hover{background:var(--gray50);border-color:var(--gray400);}
+.activation-btn.tertiary{background:#F8FAFC;color:#475569;border-color:#E2E8F0;font-weight:600;}
+.activation-btn.tertiary:hover{background:#F1F5F9;border-color:#CBD5E1;}
+.activation-btn.danger{background:#FEF2F2;color:#B91C1C;border-color:#FECACA;font-weight:600;}
+.activation-btn.danger:hover{background:#FEE2E2;border-color:#FCA5A5;}
+.activation-btn:active{transform:translateY(0);}
+.activation-btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none;transform:none;}
 .activation-compact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 .activation-compact-card{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:10px 11px;}
 .activation-compact-label{font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
@@ -3862,6 +3879,9 @@ let allManualTaskRecords = [];
 let notizRecordId = null;
 let editingManualTaskRecordId = null;
 let autoRefreshTimer = null;
+let realtimeLoadDebounceTimer = null;
+let dashboardRealtimeChannel = null;
+let dashboardRealtimeKey = '';
 let pendingFollowupRecordId = null;
 let pendingFollowupStartedAt = 0;
 let pendingFollowupStatus = '';
@@ -4003,6 +4023,84 @@ function hasKnownInactiveContract() {
 
 function isContractRestrictedState() {
   return hasKnownInactiveContract();
+}
+
+function hasActivationStateToResume() {
+  if (!customerMeta || typeof customerMeta !== 'object') return false;
+  var forwardingStatus = String(customerMeta.forwardingStatus || '').toLowerCase();
+  if (forwardingStatus === 'pending_test') return true;
+  if (forwardingStatus === 'active') return false;
+  var hasSelectedDevice = customerMeta.setupDeviceType === 'mobile' || customerMeta.setupDeviceType === 'landline';
+  var hasSelectedMode = ['no_answer', 'unreachable', 'always', 'busy'].includes(String(customerMeta.forwardingMode || '').toLowerCase());
+  if (hasSelectedDevice || hasSelectedMode) return true;
+  return customerMeta.forwardingSetupCompleted === true && forwardingStatus !== 'active';
+}
+
+function scheduleRealtimeLoad(reason) {
+  if (realtimeLoadDebounceTimer) clearTimeout(realtimeLoadDebounceTimer);
+  realtimeLoadDebounceTimer = setTimeout(function() {
+    realtimeLoadDebounceTimer = null;
+    loadData().catch(function(err) {
+      console.error('[realtime-sync] loadData failed', { reason: reason || 'unknown', error: err && err.message ? err.message : err });
+    });
+  }, 250);
+}
+
+function teardownDashboardRealtime() {
+  if (!_sb || !dashboardRealtimeChannel) return;
+  try {
+    _sb.removeChannel(dashboardRealtimeChannel);
+  } catch (err) {
+    console.warn('[realtime-sync] removeChannel failed', err);
+  }
+  dashboardRealtimeChannel = null;
+  dashboardRealtimeKey = '';
+}
+
+function setupDashboardRealtime(customerIdRaw) {
+  if (!_sb || typeof _sb.channel !== 'function') return;
+  const customerId = String(customerIdRaw || '').trim();
+  if (!customerId) {
+    teardownDashboardRealtime();
+    return;
+  }
+  const nextKey = `dashboard:${customerId}`;
+  if (dashboardRealtimeChannel && dashboardRealtimeKey === nextKey) return;
+  teardownDashboardRealtime();
+  const channelName = `customer-dashboard-${customerId}`;
+  const channel = _sb
+    .channel(channelName)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'calls',
+      filter: `customer_id=eq.${customerId}`
+    }, function() {
+      scheduleRealtimeLoad('calls-change');
+    })
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'cases',
+      filter: `customer_id=eq.${customerId}`
+    }, function() {
+      scheduleRealtimeLoad('cases-change');
+    })
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'customers',
+      filter: `id=eq.${customerId}`
+    }, function() {
+      scheduleRealtimeLoad('customer-change');
+    })
+    .subscribe(function(status) {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[realtime-sync] channel degraded, polling fallback remains active', { status: status, customerId: customerId });
+      }
+    });
+  dashboardRealtimeChannel = channel;
+  dashboardRealtimeKey = nextKey;
 }
 
 function getContractStatusLabel(status) {
@@ -4381,6 +4479,7 @@ const MANUAL_TASKS_DB_EXTENSION_MESSAGE = 'Aufgaben konnten in dieser Umgebung n
 const MANUAL_TASKS_PRIORITY_INVALID_MESSAGE = 'Die gewählte Priorität ist in dieser Umgebung nicht verfügbar. Bitte wählen Sie eine andere Priorität oder lassen Sie das Feld leer.';
 const MANUAL_TASKS_STATUS_INVALID_MESSAGE = 'Der gewählte Status ist ungültig. Bitte verwenden Sie „Neu“, „In Bearbeitung“, „Wartend“ oder „Abgeschlossen“.';
 const MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE = 'Die Uhrzeit ist ungültig. Bitte verwenden Sie das Format HH:MM (z. B. 14:30).';
+const MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE = 'Die Uhrzeit kann in dieser Umgebung derzeit nicht gespeichert werden. Bitte speichern Sie die Aufgabe ohne Uhrzeit oder kontaktieren Sie den Support.';
 const MANUAL_TASKS_DEFAULT_PRIORITY = 'medium';
 
 function isMissingManualTasksDbExtensionError(raw) {
@@ -4447,6 +4546,14 @@ function isManualTaskStatusConstraintError(raw) {
     || (/\bcases\b/.test(msg) && /status/.test(msg) && /violates check constraint/.test(msg));
 }
 
+function isManualTaskDueTimeSchemaMissingError(raw) {
+  const msg = String(raw || '').toLowerCase();
+  const dueTimeMentioned = /\bdue_time\b/.test(msg);
+  const schemaIssue = /schema cache|column|does not exist|could not find/.test(msg);
+  const relationMentioned = /\bcases\b/.test(msg);
+  return dueTimeMentioned && schemaIssue && relationMentioned;
+}
+
 function isManualTaskContractInactiveError(error) {
   const statusCode = Number(error?.status || error?.payload?.statusCode || error?.payload?.status || 0) || 0;
   const payloadCode = String(error?.payload?.code || '').toLowerCase();
@@ -4487,6 +4594,7 @@ function toManualTaskUserMessage(error, fallbackMessage) {
     raw
   });
   if (isMissingManualTasksDbExtensionError(raw)) return MANUAL_TASKS_DB_EXTENSION_MESSAGE;
+  if (isManualTaskDueTimeSchemaMissingError(raw)) return MANUAL_TASKS_DUE_TIME_UNAVAILABLE_MESSAGE;
   if (isManualTaskPriorityConstraintError(raw)) return MANUAL_TASKS_PRIORITY_INVALID_MESSAGE;
   if (isManualTaskStatusConstraintError(raw)) return MANUAL_TASKS_STATUS_INVALID_MESSAGE;
   if (String(error?.code || error?.payload?.code || '') === 'validation_due_time_invalid') return MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE;
@@ -5810,6 +5918,7 @@ async function loadData() {
     applyContractAccessStateToUI();
     await loadPlanConfigFromSupabase().catch(()=>{});
     const context = await resolveCustomerContext(true);
+    setupDashboardRealtime((context && context.customerId) || '');
 
     // ─── ACCESS GUARD ───────────────────────────────────────────────────
     if (!(await ensureActiveCustomerOrLogout(context))) return;
@@ -7847,6 +7956,13 @@ function restoreTab() {
 
     // PRODUKTREGEL: Nach First-Login darf 'einrichtung' niemals mehr automatisch restored werden
     if (saved === 'einrichtung') {
+      if (hasActivationStateToResume()) {
+        const setupNavEl = findTabNavElement('einrichtung');
+        if (setupNavEl) {
+          showTab('einrichtung', setupNavEl, { historyMode: 'replace' });
+          return;
+        }
+      }
       const setupFinished = localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));
       if (setupFinished) {
         const fallbackTab = sessionStorage.getItem('voxera_last_non_setup_tab') || 'dashboard';
@@ -10514,12 +10630,11 @@ async function persistErreichbarkeitActivation(){
 
 async function persistErreichbarkeitDeactivation(){
   try {
-    var ctx = await resolveCustomerContext();
-    var rec = ctx && ctx.customerRecord;
-    if (!rec || !rec.id) throw new Error('customer missing');
-    await patchCustomerRecord(rec.id, { forwarding_status: 'inactive', forwarding_setup_completed: false });
-    await loadCustomerMeta();
-    showErreichbarkeitState('overview');
+    var resetOk = await performActivationInternalReset('Weiterleitung deaktiviert. Sie können die Einrichtung neu starten.');
+    if (!resetOk) throw new Error('reset failed');
+    erreichbarkeit.selectedDeviceType = null;
+    erreichbarkeit.selectedType = 'nicht-abgehoben';
+    showErreichbarkeitState('device_choice');
   } catch (e) {
     console.error(e);
     toast('Deaktivierung konnte nicht gespeichert werden.', 'error');
@@ -10599,7 +10714,9 @@ async function startErreichbarkeitTestCall(event) {
 async function resetErreichbarkeitSetup(event) {
   if (event) event.stopPropagation();
   await performActivationInternalReset('Einrichtung zurückgesetzt. Sie können jetzt von vorne starten.');
-  showErreichbarkeitState('overview');
+  erreichbarkeit.selectedDeviceType = null;
+  erreichbarkeit.selectedType = 'nicht-abgehoben';
+  showErreichbarkeitState('device_choice');
 }
 
 function renderActivationV2(){
@@ -10654,7 +10771,10 @@ function renderActivationV2(){
     var deactivationBtnHtml = canOfferDeactivation
       ? '<button class="activation-btn danger" onclick="showErreichbarkeitState(\'deactivate\')">Weiterleitung deaktivieren</button>'
       : '';
-    html += `${head('Testanruf auf Hauptnummer',`${testModeLabel} · ${escapeHtml(getTypeLabel(c.forwardingModeUi))}`,'overview')}<section class="activation-panel"><div class="code-block"><div class="code-eyebrow">HINTERLEGTE KUNDENNUMMER (WIRD FÜR DEN TEST ANGERUFEN)</div><div class="code-value">${escapeHtml((customerMeta && customerMeta.telNr) ? customerMeta.telNr : '–')}</div></div>${testStatusHtml}${activationSystemCallError ? `<div class="activation-info-banner" style="margin-top:10px;background:#FEF2F2;color:#B91C1C;">${escapeHtml(activationSystemCallError)}</div>` : ''}<div class="activation-actions" style="margin-top:12px;"><button class="activation-btn secondary" onclick="startActivationTestFromManualCta(event)">Testanruf erneut starten</button>${testDetected ? '<button class="activation-btn primary" onclick="confirmActivationTestCall(event)">Test erfolgreich bestätigen</button>' : ''}</div><div class="activation-actions" style="margin-top:8px;"><button class="activation-btn secondary" onclick="resetErreichbarkeitSetup(event)">Einrichtung zurücksetzen</button>${deactivationBtnHtml}</div><button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState('overview')">Zur Übersicht</button></section>`;
+    var overviewBtnHtml = (testDetected || recoveryNeeded)
+      ? '<button class="activation-btn secondary" style="margin-top:8px;" onclick="showErreichbarkeitState(\'overview\')">Zur Übersicht</button>'
+      : '';
+    html += `${head('Testanruf auf Hauptnummer',`${testModeLabel} · ${escapeHtml(getTypeLabel(c.forwardingModeUi))}`,'overview')}<section class="activation-panel"><div class="code-block"><div class="code-eyebrow">HINTERLEGTE KUNDENNUMMER (WIRD FÜR DEN TEST ANGERUFEN)</div><div class="code-value">${escapeHtml((customerMeta && customerMeta.telNr) ? customerMeta.telNr : '–')}</div></div>${testStatusHtml}${activationSystemCallError ? `<div class="activation-info-banner" style="margin-top:10px;background:#FEF2F2;color:#B91C1C;">${escapeHtml(activationSystemCallError)}</div>` : ''}<div class="activation-actions" style="margin-top:12px;"><button class="activation-btn secondary" onclick="startActivationTestFromManualCta(event)">Testanruf erneut starten</button>${testDetected ? '<button class="activation-btn primary" onclick="confirmActivationTestCall(event)">Test erfolgreich bestätigen</button>' : ''}</div><div class="activation-actions" style="margin-top:8px;"><button class="activation-btn secondary" onclick="resetErreichbarkeitSetup(event)">Einrichtung zurücksetzen</button>${deactivationBtnHtml}</div>${overviewBtnHtml}</section>`;
   }
   html += '</div>';
   shell.innerHTML = html;
@@ -10838,6 +10958,8 @@ function showSplash(onDone) {
 }
 
 function showApp(user) {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  teardownDashboardRealtime();
   currentUser = user || null;
   resetSetupSessionState();
   setupStateCustomerId = '';
@@ -11010,6 +11132,7 @@ if (_sb && _sb.auth) {
   _sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
       if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      teardownDashboardRealtime();
       document.getElementById('app').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
     }
