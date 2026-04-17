@@ -32,6 +32,29 @@ function requireCapabilityOrFail(caller, capability) {
   });
 }
 
+function governanceDenied({ message, code, details = null, meta = null }) {
+  return response(409, {
+    error: message || 'Governance constraint violation',
+    code: code || 'governance_blocked',
+    details: details || null,
+    meta: meta || null
+  });
+}
+
+async function hasOtherActiveOwner(sbAdmin, excludedAdminId) {
+  const { data, error } = await sbAdmin
+    .from('admins')
+    .select('id, role, status');
+  if (error) throw new Error(error.message || 'Owner lookup failed');
+  const excludeId = String(excludedAdminId || '').trim();
+  const rows = Array.isArray(data) ? data : [];
+  return rows.some((row) => {
+    const rowId = String(row?.id || '').trim();
+    if (excludeId && rowId && rowId === excludeId) return false;
+    return normalizeAdminRole(row?.role) === 'owner' && normalizeAdminStatus(row?.status) === 'active';
+  });
+}
+
 async function findAuthUserByEmail(sbAdmin, email) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail) return null;
@@ -219,6 +242,29 @@ exports.handler = async (event) => {
 
       const previous = await getAdminById(sbAdmin, adminId);
       if (!previous) return response(404, { error: 'Admin nicht gefunden.' });
+      const previousRole = normalizeAdminRole(previous.role);
+      const nextRole = normalizeAdminRole(role);
+
+      if (adminId === caller.userId && previousRole === 'owner' && nextRole !== 'owner') {
+        return governanceDenied({
+          message: 'Owner kann die eigene Rolle nicht herabstufen.',
+          code: 'owner_self_downgrade_blocked',
+          details: 'self role downgrade from owner is not allowed',
+          meta: { admin_id: adminId, previous_role: previousRole, next_role: nextRole }
+        });
+      }
+
+      if (previousRole === 'owner' && nextRole !== 'owner') {
+        const hasOtherOwner = await hasOtherActiveOwner(sbAdmin, adminId);
+        if (!hasOtherOwner) {
+          return governanceDenied({
+            message: 'Die Rolle des letzten aktiven Owner kann nicht entfernt werden.',
+            code: 'last_owner_role_removal_blocked',
+            details: 'at least one active owner must remain',
+            meta: { admin_id: adminId, previous_role: previousRole, next_role: nextRole }
+          });
+        }
+      }
 
       const { error } = await sbAdmin
         .from('admins')
@@ -260,8 +306,21 @@ exports.handler = async (event) => {
       if (!previous) return response(404, { error: 'Admin nicht gefunden.' });
 
       const previousStatus = normalizeAdminStatus(previous.status);
+      const previousRole = normalizeAdminRole(previous.role);
       if (previousStatus === nextStatus) {
         return response(200, { ok: true, unchanged: true, status: nextStatus });
+      }
+
+      if (previousRole === 'owner' && previousStatus === 'active' && nextStatus === 'disabled') {
+        const hasOtherOwner = await hasOtherActiveOwner(sbAdmin, adminId);
+        if (!hasOtherOwner) {
+          return governanceDenied({
+            message: 'Der letzte aktive Owner kann nicht deaktiviert werden.',
+            code: 'last_owner_disable_blocked',
+            details: 'at least one active owner must remain',
+            meta: { admin_id: adminId, previous_role: previousRole, previous_status: previousStatus, next_status: nextStatus }
+          });
+        }
       }
 
       const nowIso = new Date().toISOString();
