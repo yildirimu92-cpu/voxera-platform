@@ -3,6 +3,13 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const ALLOWED_ADMIN_ROLES = new Set(['super-admin', 'admin', 'support', 'owner', 'ops']);
+const ROLE_CAPABILITIES = {
+  owner: new Set(['customer:write', 'admin:manage', 'offer:write', 'contract:write', 'billing:write', 'plan:write']),
+  'super-admin': new Set(['customer:write', 'admin:manage', 'offer:write', 'contract:write', 'billing:write', 'plan:write']),
+  admin: new Set(['customer:write', 'offer:write', 'contract:write', 'billing:write', 'plan:write']),
+  ops: new Set(['customer:write', 'offer:write', 'contract:write', 'billing:write']),
+  support: new Set(['customer:write'])
+};
 
 function normalizeAdminRole(role) {
   const raw = String(role || '').trim().toLowerCase().replace(/_/g, '-');
@@ -32,6 +39,12 @@ function forbidden(message = 'Forbidden') {
     statusCode: 403,
     body: { error: message }
   };
+}
+
+function hasCapability(role, capability) {
+  if (!capability) return true;
+  const caps = ROLE_CAPABILITIES[normalizeAdminRole(role)] || new Set();
+  return caps.has(capability);
 }
 
 async function requireAdminCaller({ event, supabaseUrl, supabaseAnonKey, sbAdmin }) {
@@ -91,5 +104,8 @@ async function requireAdminCaller({ event, supabaseUrl, supabaseAnonKey, sbAdmin
 
 module.exports = {
   requireAdminCaller,
-  ALLOWED_ADMIN_ROLES
+  ALLOWED_ADMIN_ROLES,
+  ROLE_CAPABILITIES,
+  hasCapability,
+  forbidden
 };
