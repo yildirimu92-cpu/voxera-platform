@@ -3696,6 +3696,12 @@ const DEFAULT_PLAN_CONFIG = {
   'Kein Plan': { monthlyPrice: 0, minutes: 0, extraRate: 0 }
 };
 let PLAN_CONFIG = Object.assign({}, DEFAULT_PLAN_CONFIG);
+let PLAN_CONFIG_STATE = {
+  status: 'idle',
+  loadedFromSupabase: false,
+  hasActivePlans: false,
+  errorMessage: ''
+};
 
 function normalizePlanLabel(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
@@ -3746,13 +3752,83 @@ function getSortedUpgradePlans() {
   });
 }
 
+function getCurrentPlanForUpgrade() {
+  return String(customerMeta.plan || '').trim() || 'Kein Plan';
+}
+
+function getAvailableUpgradePlansForCurrentPlan(currentPlan) {
+  const sortedPlans = getSortedUpgradePlans();
+  if (!sortedPlans.length) return [];
+  const normalizedCurrent = normalizePlanLabel(currentPlan);
+  const currentIndex = sortedPlans.findIndex(function(plan) {
+    return normalizePlanLabel(plan.key) === normalizedCurrent;
+  });
+  if (currentIndex < 0) return [];
+  return sortedPlans.filter(function(_, idx) {
+    return idx > currentIndex;
+  });
+}
+
+function getUpgradeModalState() {
+  const currentPlan = getCurrentPlanForUpgrade();
+  const upgrades = getAvailableUpgradePlansForCurrentPlan(currentPlan);
+  if (!PLAN_CONFIG_STATE.loadedFromSupabase) {
+    return {
+      currentPlan: currentPlan,
+      upgrades: [],
+      canUpgrade: false,
+      sendEnabled: false,
+      modalSub: 'Verfügbarkeit wird aus der Plan-Konfiguration geladen.',
+      infoMessage: 'Upgrade-Optionen konnten momentan nicht aus der Plan-Konfiguration geladen werden. Bitte versuchen Sie es später erneut oder kontaktieren Sie uns direkt.',
+      ctaLabel: 'Aktuell nicht verfügbar'
+    };
+  }
+  if (!upgrades.length) {
+    return {
+      currentPlan: currentPlan,
+      upgrades: [],
+      canUpgrade: false,
+      sendEnabled: false,
+      modalSub: 'Es sind aktuell keine höheren Pakete verfügbar.',
+      infoMessage: 'Für Ihren aktuellen Plan ist momentan kein höheres Paket verfügbar.',
+      ctaLabel: 'Kein Upgrade verfügbar'
+    };
+  }
+  return {
+    currentPlan: currentPlan,
+    upgrades: upgrades,
+    canUpgrade: true,
+    sendEnabled: true,
+    modalSub: 'Wählen Sie den gewünschten Plan:',
+    infoMessage: '',
+    ctaLabel: 'Anfrage senden'
+  };
+}
+
 // Load plan config from Supabase and override local defaults
 async function loadPlanConfigFromSupabase() {
+  PLAN_CONFIG_STATE.status = 'loading';
   try {
     const sb = getSupabaseAuthClient();
-    if (!sb) return;
+    if (!sb) {
+      PLAN_CONFIG_STATE = {
+        status: 'error',
+        loadedFromSupabase: false,
+        hasActivePlans: false,
+        errorMessage: 'Supabase Client nicht verfügbar'
+      };
+      return;
+    }
     const { data, error } = await sb.from('plan_config').select('id,name,display_name,monthly_price,minutes,included_minutes,extra_rate,extra_per_minute,active').eq('active', true);
-    if (error || !data || !data.length) return;
+    if (error || !data || !data.length) {
+      PLAN_CONFIG_STATE = {
+        status: 'error',
+        loadedFromSupabase: false,
+        hasActivePlans: false,
+        errorMessage: (error && error.message) ? error.message : 'Keine aktiven plan_config Datensätze'
+      };
+      return;
+    }
     PLAN_CONFIG = Object.assign({}, DEFAULT_PLAN_CONFIG);
     data.forEach(function(p) {
       const planName = String(p.name || p.display_name || p.id || '').trim();
@@ -3763,8 +3839,21 @@ async function loadPlanConfigFromSupabase() {
         extraRate: Number(p.extra_rate || p.extra_per_minute || 0)
       };
     });
+    const activePlanCount = getSortedUpgradePlans().length;
+    PLAN_CONFIG_STATE = {
+      status: 'ready',
+      loadedFromSupabase: true,
+      hasActivePlans: activePlanCount > 0,
+      errorMessage: ''
+    };
   } catch(e) {
     console.warn('[plan-config] load failed', e);
+    PLAN_CONFIG_STATE = {
+      status: 'error',
+      loadedFromSupabase: false,
+      hasActivePlans: false,
+      errorMessage: (e && e.message) ? e.message : 'Unbekannter Fehler'
+    };
   }
 }
 
@@ -5552,13 +5641,13 @@ function renderUsage(records) {
   const upTitle = document.getElementById('upgrade-primary-title');
   const upCopy = document.getElementById('upgrade-primary-copy');
   const addCopy = document.getElementById('upgrade-addon-copy');
-  const allPlans = getSortedUpgradePlans();
   const currentCfg = cfg;
-  const nextPlan = (allPlans.find(function(plan) {
-    return plan.monthlyPrice > Number(currentCfg.monthlyPrice || 0) || plan.minutes > Number(currentCfg.minutes || 0);
-  }) || allPlans[allPlans.length - 1] || { label: customerMeta.plan || 'Business' }).label;
-  if (upTitle) upTitle.textContent = over > 0 || pct >= 85 ? `Upgrade auf ${nextPlan}` : `Mehr Leistung mit ${nextPlan}`;
-  if (upCopy) upCopy.textContent = over > 0 ? `Sie sind über Ihrem Inklusivvolumen. Ein Upgrade auf ${nextPlan} reduziert Zusatzkosten und schafft Reserve.` : pct >= 80 ? `Sie nutzen Ihr Paket bereits stark aus. ${nextPlan} bietet mehr Minuten und Reserve für Spitzenzeiten.` : `Ihr aktueller Plan läuft stabil. Ein Upgrade auf ${nextPlan} lohnt sich bei wachsendem Anrufvolumen.`;
+  const upgradeState = getUpgradeModalState();
+  const nextPlan = upgradeState.upgrades[0] ? upgradeState.upgrades[0].label : null;
+  if (upTitle) upTitle.textContent = nextPlan ? (over > 0 || pct >= 85 ? `Upgrade auf ${nextPlan}` : `Mehr Leistung mit ${nextPlan}`) : 'Aktuell kein höheres Paket';
+  if (upCopy) upCopy.textContent = nextPlan
+    ? (over > 0 ? `Sie sind über Ihrem Inklusivvolumen. Ein Upgrade auf ${nextPlan} reduziert Zusatzkosten und schafft Reserve.` : pct >= 80 ? `Sie nutzen Ihr Paket bereits stark aus. ${nextPlan} bietet mehr Minuten und Reserve für Spitzenzeiten.` : `Ihr aktueller Plan läuft stabil. Ein Upgrade auf ${nextPlan} lohnt sich bei wachsendem Anrufvolumen.`)
+    : 'Für Ihren aktuellen Plan ist momentan kein höheres Paket verfügbar.';
   if (addCopy) addCopy.textContent = over > 0 ? `Aktuell ca. ${over} Zusatzminuten über dem Paket. Zusatzvolumen kann kurzfristig ergänzt werden.` : `Zusatzminuten sind ideal für Kampagnen, saisonale Peaks oder kurze Lastspitzen.`;
 }
 
@@ -5567,12 +5656,9 @@ var selectedMinutesPkg = '';
 
 function requestUpgrade() {
   selectedUpgradePlan = '';
-  var current = customerMeta.plan || 'Pilot';
-  var currentCfg = getPlanConfigEntryForPlan(current) || { monthlyPrice: 0, minutes: 0 };
-  var plans = getSortedUpgradePlans().filter(function(plan) {
-    if (normalizePlanLabel(plan.key) === normalizePlanLabel(current)) return false;
-    return plan.monthlyPrice >= Number(currentCfg.monthlyPrice || 0) || plan.minutes > Number(currentCfg.minutes || 0);
-  });
+  var state = getUpgradeModalState();
+  var current = state.currentPlan;
+  var plans = state.upgrades;
   var html = plans.map(function(p){
     var monthlyPrice = Number(p.monthlyPrice || 0);
     var minutes = Number(p.minutes || 0);
@@ -5583,8 +5669,15 @@ function requestUpgrade() {
       +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+p.label+'</div><div style="font-size:12px;color:var(--gray400);">'+priceLabel+' · '+minLabel+' inkl.</div></div>'
       +'</label>';
   }).join('');
-  if (!html) {
-    html = '<div style="font-size:12.5px;color:var(--gray500);line-height:1.5;padding:6px 2px;">Für Ihren aktuellen Plan ist momentan kein höheres Paket verfügbar. Kontaktieren Sie uns für individuelle Optionen.</div>';
+  if (!html) html = '<div style="font-size:12.5px;color:var(--gray500);line-height:1.5;padding:6px 2px;">' + state.infoMessage + '</div>';
+  var subEl = document.querySelector('#upgrade-overlay .modal-sub');
+  if (subEl) subEl.textContent = state.modalSub;
+  var sendBtn = document.getElementById('upgrade-send-btn');
+  if (sendBtn) {
+    sendBtn.textContent = state.ctaLabel;
+    sendBtn.disabled = state.sendEnabled !== true;
+    sendBtn.style.opacity = state.sendEnabled ? '1' : '.55';
+    sendBtn.style.cursor = state.sendEnabled ? 'pointer' : 'not-allowed';
   }
   document.getElementById('upgrade-options').innerHTML = '<div style="font-size:12px;color:var(--gray400);margin-bottom:4px;">Aktuell: <strong>'+current+'</strong></div>' + html;
   document.getElementById('upgrade-overlay').classList.add('open');
@@ -5592,6 +5685,11 @@ function requestUpgrade() {
 }
 
 function sendUpgradeRequest() {
+  var state = getUpgradeModalState();
+  if (!state.sendEnabled) {
+    toast('Upgrade-Optionen sind aktuell nicht verfügbar');
+    return;
+  }
   if (!selectedUpgradePlan) { toast('Bitte Plan auswählen'); return; }
   var subject = encodeURIComponent('Voxera Upgrade auf ' + selectedUpgradePlan + ' - ' + (customerMeta.customerName || 'Kunde'));
   var body = encodeURIComponent('Hallo Voxera-Team,\r\n\r\nich möchte auf den Plan "' + selectedUpgradePlan + '" upgraden.\r\n\r\nKunde: ' + (customerMeta.customerName || '-') + '\r\nCustomer ID: ' + (customerMeta.customerId || '-') + '\r\nAktueller Plan: ' + (customerMeta.plan || '-') + '\r\nGewünschter Plan: ' + selectedUpgradePlan + '\r\n\r\nBitte kontaktiert mich.\r\n');
