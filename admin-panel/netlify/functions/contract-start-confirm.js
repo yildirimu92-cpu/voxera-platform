@@ -3,7 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { syncPostAcceptanceLifecycle } = require('./_lib/offer-acceptance');
-const { orchestrateContractBilling } = require('./_lib/contract-billing-orchestrator');
+const { executeCommercialCommand } = require('./_lib/commercial-orchestrator');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -14,16 +14,6 @@ const headers = {
 
 function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
-}
-
-function dbDiag(error) {
-  if (!error) return { db_message: null, db_code: null, db_details: null, db_hint: null };
-  return {
-    db_message: error.message || null,
-    db_code: error.code || null,
-    db_details: error.details || null,
-    db_hint: error.hint || null
-  };
 }
 
 function addMonthsDateIsoUtc(dateStr, months) {
@@ -61,156 +51,49 @@ exports.handler = async (event) => {
   if (!startDate || !computedEndDate || !endDate) return response(400, { error: 'start_date oder duration_months ungültig.' });
   if (endDate !== computedEndDate) return response(409, { error: 'end_date ist inkonsistent zur Kombination aus start_date und duration_months.' });
 
-  const nowIso = new Date().toISOString();
-  const idempotencyKey = String(event.headers['x-idempotency-key'] || '').trim() || `contract_start_confirm:${contractId}:${startDate}:${durationMonths}`;
-  const requestedCustomerId = String(body.customer_id || '').trim();
-  console.log('[contract_start_confirm] start', JSON.stringify({
-    idempotency_key: idempotencyKey,
-    contract_id: contractId || null,
-    customer_id: requestedCustomerId || null,
-    start_date: startDate,
-    end_date: endDate,
-    duration_months: durationMonths
-  }));
-
-  const { data: contract, error: contractError } = await sbAdmin
-    .from('contracts')
-    .select('*')
-    .eq('id', contractId)
-    .maybeSingle();
-  if (contractError) return response(500, { error: 'Contract lookup failed.', step_failed: 'contract_lookup', contract_id: contractId, ...dbDiag(contractError) });
-  if (!contract) return response(404, { error: 'Contract nicht gefunden.' });
-  const contractStatus = String(contract.status || '').trim().toLowerCase();
-  const existingStart = String(contract.start_date || '').trim();
-  const existingDurationRaw = Math.trunc(Number(contract.duration_months || contract.months || 0) || 0);
-  const existingDuration = existingDurationRaw > 0 ? existingDurationRaw : 0;
-  if (contractStatus === 'cancelled') {
-    return response(409, { error: 'Vertragsstart kann für beendete Verträge nicht bestätigt werden.' });
-  }
-  if (contractStatus === 'active' && existingStart && existingDuration > 0) {
-    const samePayload = existingStart === startDate && existingDuration === durationMonths;
-    if (samePayload) {
-      return response(200, {
-        success: true,
-        duplicate: true,
-        already_confirmed: true,
-        message: 'Vertragsstart wurde bereits bestätigt. Kein erneutes Update ausgeführt.',
-        contract
-      });
-    }
-    return response(409, {
-      error: 'Vertragsstart wurde bereits bestätigt und kann nicht erneut geändert werden.',
-      already_confirmed: true,
-      contract_id: contractId
-    });
-  }
-
-  if (requestedCustomerId && String(contract.customer_id || '') && requestedCustomerId !== String(contract.customer_id)) {
-    return response(409, { error: 'customer_id passt nicht zum Vertrag.' });
-  }
-  const customerId = String(body.customer_id || contract.customer_id || '').trim();
-  if (!customerId) return response(409, { error: 'Contract hat keine customer_id.' });
-
-  const { data: customer, error: customerError } = await sbAdmin
-    .from('customers')
-    .select('*')
-    .eq('id', customerId)
-    .maybeSingle();
-  if (customerError) return response(500, { error: 'Customer lookup failed.', step_failed: 'customer_lookup', contract_id: contractId, customer_id: customerId, ...dbDiag(customerError) });
-  if (!customer) return response(404, { error: 'Customer nicht gefunden.' });
-
-  const noticeMonths = String(contract.cancellation_notice || '') === '3 Monate' ? 3 : 1;
-  const patch = {
-    status: 'active',
-    start_date: startDate,
-    duration_months: durationMonths,
-    months: durationMonths,
-    end_date: endDate,
-    cancellation_date: addMonthsDateIsoUtc(endDate, -noticeMonths),
-    notes: String(body.notes || contract.notes || '').trim() || null,
-    updated_at: nowIso
-  };
-  if (Object.prototype.hasOwnProperty.call(contract, 'activated_at')) {
-    patch.activated_at = contract.activated_at || nowIso;
-  }
-
-  const { data: updatedContract, error: updateError } = await sbAdmin
-    .from('contracts')
-    .update(patch)
-    .eq('id', contractId)
-    .select('*')
-    .single();
-  if (updateError) return response(500, { error: 'Contract update failed.', step_failed: 'contract_update', contract_id: contractId, customer_id: customerId, ...dbDiag(updateError) });
-
-  let billing;
-  let billingErrorPayload = null;
   try {
-    billing = await orchestrateContractBilling({
+    const result = await executeCommercialCommand({
       sbAdmin,
-      customer,
-      contract: updatedContract,
-      nowIso,
-      startDate,
-      forceActiveSubscription: true
+      actor: { userId: caller.userId, role: caller.role },
+      command: 'contracts.activate',
+      payload: {
+        contract_id: contractId,
+        customer_id: body.customer_id || null,
+        start_date: startDate,
+        term_months: durationMonths,
+        end_date: endDate,
+        notes: body.notes || null
+      }
     });
-  } catch (billingError) {
-    const structured = billingError && billingError.error === 'Contract billing orchestration failed'
-      ? billingError
-      : null;
-    billingErrorPayload = {
-      error: 'Contract billing orchestration failed',
-      step_failed: structured?.step_failed || 'contract_billing_orchestration',
-      contract_id: structured?.contract_id || contractId,
-      customer_id: structured?.customer_id || customerId,
-      subscription_id: structured?.subscription_id || null,
-      setup_fee_invoice_id: structured?.setup_fee_invoice_id || null,
-      month_1_invoice_id: structured?.month_1_invoice_id || null,
-      ...(structured || dbDiag(billingError))
-    };
-    console.error('[contract_start_confirm] billing_follow_up_required', JSON.stringify(billingErrorPayload));
-    billing = {
-      subscription: null,
-      setupInvoice: null,
-      recurringInvoice: null,
-      setup_fee_invoice_created: false,
-      recurring_invoice_created: false,
-      pdf: { errors: [] }
-    };
+
+    await syncPostAcceptanceLifecycle({
+      sbAdmin,
+      offer: { customer_id: result.contract?.customer_id || body.customer_id || null },
+      nowIso: new Date().toISOString()
+    });
+
+    return response(200, {
+      success: true,
+      contract_updated: true,
+      subscription_ready: Boolean(result.subscription?.id),
+      follow_up_required: false,
+      follow_up_issues: [],
+      diagnostics: null,
+      setup_fee_invoice_created: Boolean(result.setup_fee_invoice_created),
+      recurring_invoice_created: Boolean(result.recurring_invoice_created),
+      pdfs_generated: Boolean(result.pdfs_generated),
+      pdf_generation_errors: result.pdf_generation_errors || [],
+      contract: result.contract,
+      subscription: result.subscription || null,
+      setup_fee_invoice: result.setup_fee_invoice || null,
+      recurring_invoice: result.recurring_invoice || null,
+      read_model: result.read_model || null
+    });
+  } catch (err) {
+    const status = /not found|nicht gefunden/i.test(String(err?.message || '')) ? 404 : 409;
+    return response(status, {
+      error: err?.message || 'Contract activation failed',
+      step_failed: 'contracts.activate'
+    });
   }
-
-  if (billing.setupInvoice?.id && contract.offer_id) {
-    await sbAdmin.from('offers').update({ invoice_id: billing.setupInvoice.id, updated_at: nowIso }).eq('id', contract.offer_id);
-  }
-
-  await syncPostAcceptanceLifecycle({
-    sbAdmin,
-    offer: { customer_id: customerId },
-    nowIso
-  });
-
-  console.log('[contract_start_confirm] end', JSON.stringify({
-    idempotency_key: idempotencyKey,
-    contract_id: updatedContract?.id || contractId,
-    customer_id: customer?.id || customerId,
-    subscription_id: billing?.subscription?.id || null,
-    setup_fee_invoice_id: billing?.setupInvoice?.id || null,
-    month_1_invoice_id: billing?.recurringInvoice?.id || null
-  }));
-
-  return response(200, {
-    success: true,
-    contract_updated: true,
-    subscription_ready: Boolean(billing.subscription?.id),
-    follow_up_required: Boolean(billingErrorPayload),
-    follow_up_issues: billingErrorPayload ? ['billing'] : [],
-    diagnostics: billingErrorPayload || null,
-    setup_fee_invoice_created: Boolean(billing.setup_fee_invoice_created),
-    recurring_invoice_created: Boolean(billing.recurring_invoice_created),
-    pdfs_generated: (billing.pdf?.errors || []).length === 0,
-    pdf_generation_errors: billing.pdf?.errors || [],
-    contract: updatedContract,
-    subscription: billing.subscription,
-    setup_fee_invoice: billing.setupInvoice,
-    recurring_invoice: billing.recurringInvoice
-  });
 };
