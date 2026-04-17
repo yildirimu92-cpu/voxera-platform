@@ -3785,6 +3785,7 @@ let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEma
 let customerContractMeta = null;
 let customerContractState = {
   status: 'unknown',
+  resolution: 'unresolved',
   hasContract: false,
   hasActiveContract: false,
   latestContract: null,
@@ -3898,8 +3899,21 @@ function hasActiveContractAccess() {
   return !!(customerContractState && customerContractState.hasActiveContract);
 }
 
+function hasResolvedContractState() {
+  return !!(customerContractState && customerContractState.resolution === 'resolved');
+}
+
+function hasKnownInactiveContract() {
+  return !!(
+    hasResolvedContractState()
+    && customerContractState
+    && customerContractState.hasContract === true
+    && customerContractState.hasActiveContract !== true
+  );
+}
+
 function isContractRestrictedState() {
-  return !hasActiveContractAccess();
+  return hasKnownInactiveContract();
 }
 
 function getContractStatusLabel(status) {
@@ -5307,7 +5321,8 @@ function resolveCommercialValue({ contractValue, planValue, defaultValue }) {
 async function loadCustomerContractMeta(customerId, subscriptionId) {
   customerContractMeta = null;
   customerContractState = {
-    status: 'none',
+    status: 'unknown',
+    resolution: 'loading',
     hasContract: false,
     hasActiveContract: false,
     latestContract: null,
@@ -5326,13 +5341,15 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
         customerContractState = deriveContractState(contractRows);
       } else {
         customerContractState = {
-          status: normalizeContractStatus(serverState.status) || 'none',
+          status: normalizeContractStatus(serverState.status) || 'unknown',
+          resolution: 'resolved',
           hasContract: serverState.hasContract === true,
           hasActiveContract: serverState.hasActiveContract === true,
           latestContract: serverState.latestContract || null,
           effectiveContract: serverState.effectiveContract || null
         };
       }
+      customerContractState.resolution = 'resolved';
       customerContractState.hasActiveContract = resolveHasActiveContractFromState(customerContractState);
       customerContractMeta = customerContractState.effectiveContract || customerContractState.latestContract || null;
       console.info('[plan-card-debug] contract-state-source', {
@@ -5369,10 +5386,19 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
     const { data, error } = await contractsQuery;
     if (error) return null;
     customerContractState = deriveContractState(data || []);
+    customerContractState.resolution = 'resolved';
     customerContractMeta = customerContractState.effectiveContract || null;
     return customerContractMeta;
   } catch (e) {
     console.warn('[contract-meta] load failed', e);
+    customerContractState = {
+      status: 'unknown',
+      resolution: 'error',
+      hasContract: false,
+      hasActiveContract: false,
+      latestContract: null,
+      effectiveContract: null
+    };
     return null;
   }
 }
@@ -5492,7 +5518,8 @@ function renderUsage(records) {
   const contractStatusLabel = getContractStatusLabel(customerMeta.contractStatus);
   const planLabel = formatPlanLabel(customerMeta.plan);
   const hasActiveContractForPlanCard = customerMeta.hasActiveContract === true;
-  const activeSuffix = hasActiveContractForPlanCard ? '' : ' · Kein aktiver Vertrag';
+  const hasKnownInactiveContractForPlanCard = hasKnownInactiveContract();
+  const activeSuffix = hasKnownInactiveContractForPlanCard ? ' · Kein aktiver Vertrag' : '';
   set('usage-plan-sub', `${planLabel} · CHF ${(cfg.monthlyPrice||0)} / Mt · ${cfg.minutes||0} Min. inkl. · Vertragsstatus: ${contractStatusLabel}${activeSuffix}`);
   set('usage-month-minutes', `${used} Min`);
   // Dashboard KPI
@@ -5504,7 +5531,7 @@ function renderUsage(records) {
   set('usage-extra-label', over > 0 ? `${over} Zusatzminuten · ${extraCost} CHF geschätzt` : 'Keine Zusatzkosten');
   const chip = document.getElementById('usage-status-chip');
   if (chip) {
-    if (!hasActiveContractForPlanCard) {
+    if (hasKnownInactiveContractForPlanCard) {
       chip.textContent = 'Vertrag inaktiv';
       chip.className = 'chip chip-hot';
     } else {
@@ -5515,6 +5542,7 @@ function renderUsage(records) {
   console.info('[plan-card-debug] render-usage-plan-card', {
     contractStatusLabel,
     hasActiveContractForPlanCard,
+    hasKnownInactiveContractForPlanCard,
     activeSuffix,
     usageChipText: chip ? chip.textContent : null,
     usageChipClass: chip ? chip.className : null,
@@ -6493,8 +6521,7 @@ function confirmCloseWithDropdownPreservation(recordId, newStatus, rowElement) {
 }
 
 async function doStatusChange(recordId, newStatus, rowElement) {
-  const hasKnownInactiveContract = !!(customerContractState && customerContractState.hasContract && !customerContractState.hasActiveContract);
-  if (hasKnownInactiveContract) {
+  if (hasKnownInactiveContract()) {
     toast(getRestrictedContractMessage('Aufgaben'), 'warning');
     logManualTaskDoneFlow('guard.blocked.contract-inactive', {
       recordId: String(recordId || ''),
