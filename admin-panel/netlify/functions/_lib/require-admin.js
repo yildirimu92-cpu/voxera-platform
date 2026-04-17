@@ -128,7 +128,7 @@ async function requireAdminCaller({ event, supabaseUrl, supabaseAnonKey, sbAdmin
   const userId = authData.user.id;
   const { data: adminRow, error: adminError } = await sbAdmin
     .from('admins')
-    .select('id, role, status, disabled_at')
+    .select('id, role, status')
     .eq('id', userId)
     .maybeSingle();
 
