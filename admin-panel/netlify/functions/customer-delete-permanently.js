@@ -8,7 +8,7 @@ const headers = {
   'Content-Type': 'application/json'
 };
 
-const HARD_DELETE_ALLOWED_ROLES = new Set(['super-admin', 'owner']);
+const HARD_DELETE_ALLOWED_ROLES = new Set(['owner']);
 
 function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
@@ -29,7 +29,7 @@ exports.handler = async (event) => {
   const caller = await requireAdminCaller({ event, supabaseUrl: sbUrl, supabaseAnonKey: sbAnonKey, sbAdmin });
   if (!caller.ok) return response(caller.statusCode, caller.body);
   if (!HARD_DELETE_ALLOWED_ROLES.has(String(caller.role || ''))) {
-    return response(403, { error: 'Nur owner/super-admin duerfen endgueltig loeschen.' });
+    return response(403, { error: 'Nur owner duerfen endgueltig loeschen.' });
   }
 
   let body;

@@ -4599,18 +4599,24 @@ function renderSettings(){
   }
   // Load all admins
   if(authClient){
-    authClient.from('admins').select('id,email,role,created_at').order('created_at',{ascending:true}).then(({data,error})=>{
+    authClient.from('admins').select('id,email,role,status,created_at').order('created_at',{ascending:true}).then(({data,error})=>{
       const tbody=document.getElementById('settings-admin-table');
       if(!tbody) return;
-      if(error||!data){tbody.innerHTML='<tr><td colspan="4"><div class="empty">Fehler beim Laden.</div></td></tr>';return;}
-      tbody.innerHTML=data.map(a=>`<tr>
-        <td>${esc(a.email||'—')}</td>
-        <td><select class="select" style="height:30px;padding:2px 8px;" onchange="updateAdminRole('${esc(a.id)}',this.value)">
-          ${['super-admin','admin','support','owner','ops'].map(r=>`<option value="${r}" ${a.role===r?'selected':''}>${r}</option>`).join('')}
-        </select></td>
-        <td>${a.created_at?new Date(a.created_at).toLocaleDateString('de-CH'):'—'}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="removeAdmin('${esc(a.id)}','${esc(a.email||'')}')">Entfernen</button></td>
-      </tr>`).join('')||'<tr><td colspan="4"><div class="empty">Keine Admins.</div></td></tr>';
+      if(error||!data){tbody.innerHTML='<tr><td colspan="5"><div class="empty">Fehler beim Laden.</div></td></tr>';return;}
+      tbody.innerHTML=data.map(a=>{
+        const status=(String(a.status||'active').toLowerCase()==='disabled')?'disabled':'active';
+        return `<tr>
+          <td>${esc(a.email||'—')}</td>
+          <td><select class="select" style="height:30px;padding:2px 8px;" onchange="updateAdminRole('${esc(a.id)}',this.value)">
+            ${['owner','admin','support'].map(r=>`<option value="${r}" ${a.role===r?'selected':''}>${r}</option>`).join('')}
+          </select></td>
+          <td><span class="chip ${status==='active'?'chip-green':'chip-red'}">${status==='active'?'Aktiv':'Deaktiviert'}</span></td>
+          <td>${a.created_at?new Date(a.created_at).toLocaleDateString('de-CH'):'—'}</td>
+          <td>
+            <button class="btn ${status==='active'?'btn-danger':'btn-secondary'} btn-sm" onclick="setAdminStatus('${esc(a.id)}','${status==='active'?'disabled':'active'}','${esc(a.email||'')}')">${status==='active'?'Deaktivieren':'Reaktivieren'}</button>
+          </td>
+        </tr>`;
+      }).join('')||'<tr><td colspan="5"><div class="empty">Keine Admins.</div></td></tr>';
     });
   }
 }
@@ -4618,7 +4624,7 @@ function renderSettings(){
 function openAddAdminModal(){
   const email=prompt('E-Mail des neuen Admins:');
   if(!email||!email.includes('@')) return;
-  const role=prompt('Rolle (admin / support / super-admin / owner / ops):','admin');
+  const role=prompt('Rolle (owner / admin / support):','admin');
   if(!role) return;
   if(!authClient) return;
   callAdminFunction('admin-mutate',{action:'admins.create',email,role}).then(()=>{
@@ -4635,13 +4641,14 @@ async function updateAdminRole(adminId,newRole){
   showToast('✓ Rolle aktualisiert.');
 }
 
-async function removeAdmin(adminId,email){
-  if(!confirm('Admin '+email+' wirklich entfernen?')) return;
+async function setAdminStatus(adminId,nextStatus,email){
+  const actionLabel=nextStatus==='disabled'?'deaktivieren':'reaktivieren';
+  if(!confirm('Admin '+email+' wirklich '+actionLabel+'?')) return;
   if(!authClient) return;
   try{
-    await callAdminFunction('admin-mutate',{action:'admins.delete',admin_id:adminId});
+    await callAdminFunction('admin-mutate',{action:'admins.setStatus',admin_id:adminId,status:nextStatus});
   }catch(error){alert('Fehler: '+(error?.message||error));return;}
-  showToast('✓ Admin entfernt.');
+  showToast(nextStatus==='disabled'?'✓ Admin deaktiviert.':'✓ Admin reaktiviert.');
   renderSettings();
 }
 
@@ -7904,9 +7911,9 @@ async function submitCustomerDangerAction(){
   }
   if(mode==='delete'){
     const role=String(state.currentAdminRole||'').trim().toLowerCase();
-    if(role && !['owner','super-admin'].includes(role)){
+    if(role && role!=='owner'){
       console.warn('[Customer Actions] delete blocked: role not allowed',{customerId,role});
-      setCustomerDangerFeedback('error','Endgültiges Löschen ist nur für owner/super-admin erlaubt.');
+      setCustomerDangerFeedback('error','Endgültiges Löschen ist nur für owner erlaubt.');
       return;
     }
   }
@@ -8463,17 +8470,26 @@ async function requireAdminSessionOrRedirect(){
   }
   const {data:admin,error:adminError}=await authClient
     .from('admins')
-    .select('id,role')
+    .select('id,role,status')
     .eq('id',session.user.id)
     .maybeSingle();
   const normalizeRole=(r)=>{
     const raw=String(r||'').trim().toLowerCase().replace(/_/g,'-');
     if(!raw) return '';
-    if(raw==='superadmin') return 'super-admin';
+    if(raw==='superadmin') return 'owner';
+    if(raw==='super-admin') return 'owner';
+    if(raw==='ops') return 'admin';
+    return raw;
+  };
+  const normalizeStatus=(v)=>{
+    const raw=String(v||'active').trim().toLowerCase().replace(/_/g,'-');
+    if(!raw||raw==='enabled') return 'active';
+    if(raw==='inactive'||raw==='revoked') return 'disabled';
     return raw;
   };
   const role=normalizeRole(admin?.role);
-  const allowed=new Set(['super-admin','admin','support','owner','ops']);
+  const status=normalizeStatus(admin?.status);
+  const allowed=new Set(['owner','admin','support']);
   if(adminError){
     try{await authClient.auth.signOut();}catch(_e){}
     window.location.replace('login.html');
@@ -8484,13 +8500,18 @@ async function requireAdminSessionOrRedirect(){
     window.location.replace('login.html');
     throw new Error('Admin row missing');
   }
-  if(role && !allowed.has(role)){
+  if(!role || !allowed.has(role)){
     try{await authClient.auth.signOut();}catch(_e){}
     window.location.replace('login.html');
     throw new Error('Admin role not allowed');
   }
+  if(status!=='active'){
+    try{await authClient.auth.signOut();}catch(_e){}
+    window.location.replace('login.html');
+    throw new Error('Admin disabled');
+  }
   state.currentAdminRole=role||'';
-  return admin;
+  return {...admin,role,status};
 }
 
 // ─── Supabase → state mappers ──────────────────────────────────────────────

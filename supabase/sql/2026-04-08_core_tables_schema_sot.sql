@@ -237,15 +237,20 @@ CREATE TABLE IF NOT EXISTS public.admins (
   -- ✅ sicher (runtime)
   email text,
   role text NOT NULL DEFAULT 'admin',
+  status text NOT NULL DEFAULT 'active',
+  disabled_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
 
   -- ⚠️ inferred (runtime + docs)
   name text,
   force_password_change boolean NOT NULL DEFAULT false,
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT admins_status_check CHECK (replace(lower(status), '_', '-') IN ('active', 'disabled'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_admins_email ON public.admins (email) WHERE email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_admins_role ON public.admins (role);
+CREATE INDEX IF NOT EXISTS idx_admins_status ON public.admins (status);
 
 -- End of governance DDL snapshot.
