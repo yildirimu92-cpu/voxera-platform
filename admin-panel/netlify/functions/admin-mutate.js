@@ -1,5 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
-const { requireAdminCaller, hasCapability } = require('./_lib/require-admin');
+const {
+  requireAdminCaller,
+  hasCapability,
+  CANONICAL_ADMIN_ROLES,
+  normalizeAdminRole,
+  normalizeAdminStatus
+} = require('./_lib/require-admin');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +30,101 @@ function requireCapabilityOrFail(caller, capability) {
     required_capability: capability,
     caller_role: caller.role || null
   });
+}
+
+async function findAuthUserByEmail(sbAdmin, email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  let page = 1;
+  const perPage = 200;
+  while (page <= 10) {
+    const { data, error } = await sbAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(error.message || 'Auth user list failed');
+    const users = Array.isArray(data?.users) ? data.users : [];
+    const match = users.find((u) => String(u?.email || '').trim().toLowerCase() === normalizedEmail);
+    if (match) return match;
+    if (users.length < perPage) break;
+    page += 1;
+  }
+  return null;
+}
+
+async function createOrFindAdminAuthUser(sbAdmin, email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  const created = await sbAdmin.auth.admin.createUser({
+    email: normalizedEmail,
+    email_confirm: true,
+    app_metadata: { role: 'admin' },
+    user_metadata: { source: 'admin_panel_provisioning' }
+  });
+
+  if (!created.error && created.data?.user?.id) {
+    return {
+      user: created.data.user,
+      mode: 'created'
+    };
+  }
+
+  const existing = await findAuthUserByEmail(sbAdmin, normalizedEmail);
+  if (existing?.id) {
+    return {
+      user: existing,
+      mode: 'existing'
+    };
+  }
+
+  throw new Error(created.error?.message || 'Auth user create failed.');
+}
+
+function normalizeProvisionedRole(role) {
+  const normalized = normalizeAdminRole(role || 'admin');
+  if (!CANONICAL_ADMIN_ROLES.has(normalized)) {
+    throw new Error('Ungueltige Rolle. Erlaubt: owner, admin, support.');
+  }
+  return normalized;
+}
+
+async function writeAdminAudit(sbAdmin, {
+  actorId,
+  actorRole,
+  targetAdminId,
+  action,
+  previousRole,
+  newRole,
+  previousStatus,
+  newStatus,
+  meta
+}) {
+  const row = {
+    actor_admin_id: actorId || null,
+    actor_role: actorRole || null,
+    target_admin_id: targetAdminId || null,
+    action: action || null,
+    previous_role: previousRole || null,
+    new_role: newRole || null,
+    previous_status: previousStatus || null,
+    new_status: newStatus || null,
+    meta: meta || null,
+    happened_at: new Date().toISOString()
+  };
+
+  const { error } = await sbAdmin.from('admin_lifecycle_audit').insert(row);
+  if (error) {
+    throw new Error(`Audit write failed: ${error.message}`);
+  }
+}
+
+async function getAdminById(sbAdmin, adminId) {
+  const { data, error } = await sbAdmin
+    .from('admins')
+    .select('id, email, role, status, created_at, disabled_at, updated_at')
+    .eq('id', adminId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message || 'Admin lookup failed');
+  return data || null;
 }
 
 exports.handler = async (event) => {
@@ -68,44 +169,124 @@ exports.handler = async (event) => {
     if (action === 'admins.create') {
       const denied = requireCapabilityOrFail(caller, 'admin:manage');
       if (denied) return denied;
-      const email = String(body.email || '').trim().toLowerCase();
-      const role = String(body.role || 'admin').trim();
-      if (!email || !email.includes('@')) return response(400, { error: 'Ungültige E-Mail.' });
 
-      const authRes = await sbAdmin.auth.admin.createUser({ email, email_confirm: true });
-      if (authRes.error) {
-        return response(400, { error: authRes.error.message || 'Auth user create failed.' });
-      }
-      const userId = authRes.data?.user?.id;
+      const email = String(body.email || '').trim().toLowerCase();
+      if (!email || !email.includes('@')) return response(400, { error: 'Ungültige E-Mail.' });
+      const role = normalizeProvisionedRole(body.role || 'admin');
+      const status = 'active';
+
+      const authUser = await createOrFindAdminAuthUser(sbAdmin, email);
+      const userId = authUser.user?.id;
       if (!userId) return response(500, { error: 'Auth user id missing.' });
+
+      const previous = await getAdminById(sbAdmin, userId);
 
       const { error } = await sbAdmin
         .from('admins')
-        .upsert({ id: userId, email, role, created_at: new Date().toISOString() }, { onConflict: 'id' });
+        .upsert({
+          id: userId,
+          email,
+          role,
+          status,
+          disabled_at: null,
+          updated_at: new Date().toISOString(),
+          created_at: previous?.created_at || new Date().toISOString()
+        }, { onConflict: 'id' });
       if (error) return response(400, { error: error.message });
-      return response(200, { ok: true, admin: { id: userId, email, role } });
+
+      await writeAdminAudit(sbAdmin, {
+        actorId: caller.userId,
+        actorRole: caller.role,
+        targetAdminId: userId,
+        action: previous ? 'admin.reprovisioned' : 'admin.created',
+        previousRole: normalizeAdminRole(previous?.role || ''),
+        newRole: role,
+        previousStatus: normalizeAdminStatus(previous?.status || ''),
+        newStatus: status,
+        meta: { email, auth_mode: authUser.mode }
+      });
+
+      return response(200, { ok: true, admin: { id: userId, email, role, status } });
     }
 
     if (action === 'admins.updateRole') {
       const denied = requireCapabilityOrFail(caller, 'admin:manage');
       if (denied) return denied;
+
       const adminId = String(body.admin_id || '').trim();
-      const role = String(body.role || '').trim();
+      const role = normalizeProvisionedRole(body.role || '');
       if (!adminId || !role) return response(400, { error: 'admin_id und role sind erforderlich.' });
-      const { error } = await sbAdmin.from('admins').update({ role }).eq('id', adminId);
+
+      const previous = await getAdminById(sbAdmin, adminId);
+      if (!previous) return response(404, { error: 'Admin nicht gefunden.' });
+
+      const { error } = await sbAdmin
+        .from('admins')
+        .update({ role, updated_at: new Date().toISOString() })
+        .eq('id', adminId);
       if (error) return response(400, { error: error.message });
+
+      await writeAdminAudit(sbAdmin, {
+        actorId: caller.userId,
+        actorRole: caller.role,
+        targetAdminId: adminId,
+        action: 'admin.role_changed',
+        previousRole: normalizeAdminRole(previous.role),
+        newRole: role,
+        previousStatus: normalizeAdminStatus(previous.status),
+        newStatus: normalizeAdminStatus(previous.status),
+        meta: { email: previous.email || null }
+      });
+
       return response(200, { ok: true });
     }
 
-    if (action === 'admins.delete') {
+    if (action === 'admins.setStatus') {
       const denied = requireCapabilityOrFail(caller, 'admin:manage');
       if (denied) return denied;
+
       const adminId = String(body.admin_id || '').trim();
-      if (!adminId) return response(400, { error: 'admin_id ist erforderlich.' });
-      if (adminId === caller.userId) return response(400, { error: 'Der aktive Admin kann sich nicht selbst entfernen.' });
-      const { error } = await sbAdmin.from('admins').delete().eq('id', adminId);
+      const nextStatus = normalizeAdminStatus(body.status);
+
+      if (!adminId || !nextStatus) return response(400, { error: 'admin_id und status sind erforderlich.' });
+      if (!['active', 'disabled'].includes(nextStatus)) {
+        return response(400, { error: 'Ungueltiger status. Erlaubt: active, disabled.' });
+      }
+      if (adminId === caller.userId && nextStatus === 'disabled') {
+        return response(400, { error: 'Der aktive Admin kann sich nicht selbst deaktivieren.' });
+      }
+
+      const previous = await getAdminById(sbAdmin, adminId);
+      if (!previous) return response(404, { error: 'Admin nicht gefunden.' });
+
+      const previousStatus = normalizeAdminStatus(previous.status);
+      if (previousStatus === nextStatus) {
+        return response(200, { ok: true, unchanged: true, status: nextStatus });
+      }
+
+      const nowIso = new Date().toISOString();
+      const patch = {
+        status: nextStatus,
+        disabled_at: nextStatus === 'disabled' ? nowIso : null,
+        updated_at: nowIso
+      };
+
+      const { error } = await sbAdmin.from('admins').update(patch).eq('id', adminId);
       if (error) return response(400, { error: error.message });
-      return response(200, { ok: true });
+
+      await writeAdminAudit(sbAdmin, {
+        actorId: caller.userId,
+        actorRole: caller.role,
+        targetAdminId: adminId,
+        action: nextStatus === 'disabled' ? 'admin.disabled' : 'admin.reenabled',
+        previousRole: normalizeAdminRole(previous.role),
+        newRole: normalizeAdminRole(previous.role),
+        previousStatus,
+        newStatus: nextStatus,
+        meta: { email: previous.email || null }
+      });
+
+      return response(200, { ok: true, status: nextStatus });
     }
 
     if (action === 'offers.create') {
