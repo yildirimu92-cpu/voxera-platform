@@ -6138,16 +6138,10 @@ async function submitContractWizard() {
 
   if (btn) { btn.disabled = true; btn.textContent = 'Speichern\u2026'; }
   try {
-    var newId;
-    if (authClient) {
-      var json = await callAdminFunction('admin-mutate', { action:'contracts.create', payload: payload });
-      if (!json || !json.contract) throw new Error('Kein Datensatz zurückgegeben.');
-      newId = String(json.contract.id);
-      state.contracts.unshift(mapDbContractToUi(json.contract));
-    } else {
-      newId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
-      state.contracts.unshift(mapDbContractToUi(Object.assign({id: newId}, payload)));
-    }
+    var json = await callAdminFunction('admin-mutate', { action:'contracts.create', payload: payload });
+    if (!json || !json.contract) throw new Error('Kein Datensatz zurückgegeben.');
+    var newId = String(json.contract.id);
+    await loadDataFromSupabase();
     renderContracts();
     updateBadges();
     showToast('\u2713 Vertrag gespeichert.');
@@ -6316,52 +6310,37 @@ async function saveContractStartCheckpoint() {
 
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Speichern…'; }
   try {
-    if (authClient) {
-      var result = await callAdminFunction('contract-start-confirm', {
-        contract_id: String(id),
-        customer_id: String(ct.customerId || ''),
-        plan: String(ct.plan || ''),
-        start_date: startDate,
-        term_months: months,
-        end_date: endDate,
-        notes: mergedNotes
-      });
-      if (result && result.contract) ct = Object.assign(ct, mapDbContractToUi(result.contract));
-      var ensuredText = '';
-      if (result && result.subscription_ready) {
-        ensuredText += ' Subscription sichergestellt.';
-      }
-      if(result && result.setup_fee_invoice){
-        ensuredText += result.setup_fee_invoice_created
-          ? ' Setup-Fee-Rechnungsentwurf erstellt.'
-          : ' Setup-Fee-Rechnungsentwurf bereits vorhanden.';
-        state.invoices=[result.setup_fee_invoice].concat((state.invoices||[]).filter(inv=>!idsEq(inv.id,result.setup_fee_invoice.id)));
-      }
-      if(result && result.recurring_invoice){
-        ensuredText += result.recurring_invoice_created
-          ? ' Monatsrechnung (Entwurf) erstellt.'
-          : ' Monatsrechnung (Entwurf) bereits vorhanden.';
-        state.invoices=[result.recurring_invoice].concat((state.invoices||[]).filter(inv=>!idsEq(inv.id,result.recurring_invoice.id)));
-      }
-      if(result && result.pdfs_generated){
-        ensuredText += ' PDF-Vorschauen erstellt.';
-      }
-      renderContracts();
-      renderBillingFinance();
-      viewContract(id);
-      setContractOpsFeedback('success', 'Vertragsstart gespeichert.' + ensuredText);
-      return;
-    } else {
-      ct.startDate = startDate;
-      ct.months = months;
-      ct.endDate = endDate;
-      ct.cancellationDate = cancellationDate || '';
-      ct.notes = mergedNotes;
-      ct.updatedAt = nowIso;
+    var result = await callAdminFunction('contract-start-confirm', {
+      contract_id: String(id),
+      customer_id: String(ct.customerId || ''),
+      plan: String(ct.plan || ''),
+      start_date: startDate,
+      term_months: months,
+      end_date: endDate,
+      notes: mergedNotes
+    });
+    var ensuredText = '';
+    if (result && result.subscription_ready) {
+      ensuredText += ' Subscription sichergestellt.';
     }
+    if(result && result.setup_fee_invoice){
+      ensuredText += result.setup_fee_invoice_created
+        ? ' Setup-Fee-Rechnungsentwurf erstellt.'
+        : ' Setup-Fee-Rechnungsentwurf bereits vorhanden.';
+    }
+    if(result && result.recurring_invoice){
+      ensuredText += result.recurring_invoice_created
+        ? ' Monatsrechnung (Entwurf) erstellt.'
+        : ' Monatsrechnung (Entwurf) bereits vorhanden.';
+    }
+    if(result && result.pdfs_generated){
+      ensuredText += ' PDF-Vorschauen erstellt.';
+    }
+    await loadDataFromSupabase();
     renderContracts();
+    renderBillingFinance();
     viewContract(id);
-    setContractOpsFeedback('success', 'Vertragsstart gespeichert.');
+    setContractOpsFeedback('success', 'Vertragsstart gespeichert.' + ensuredText);
   } catch (err) {
     setContractOpsFeedback('error', 'Speichern fehlgeschlagen: ' + (err.message || err));
   } finally {
@@ -6415,11 +6394,8 @@ async function saveSignature() {
 
   if (btn) { btn.disabled = true; btn.textContent = 'Speichern\u2026'; }
   try {
-    if (authClient) {
-      await callAdminFunction('admin-mutate', { action:'contracts.update', contract_id: id, payload: {signature_data: signatureData, status: 'signed'} });
-    }
-    ct.signatureData = signatureData;
-    ct.status = 'signed';
+    await callAdminFunction('admin-mutate', { action:'contracts.update', contract_id: id, payload: {signature_data: signatureData, status: 'signed'} });
+    await loadDataFromSupabase();
     renderContracts();
     updateBadges();
     showToast('\u2713 Vertrag unterzeichnet.');
@@ -6450,20 +6426,16 @@ async function cancelContractOrdinary(id) {
   if (!confirm('Ordentliche Kündigung für Vertrag von ' + ct.customerName + ' erfassen?')) return;
   var today = new Date().toISOString().slice(0, 10);
   try {
-    if (authClient) {
-      await callAdminFunction('admin-mutate', {
-        action:'contracts.update',
+    await callAdminFunction('admin-mutate', {
+      action:'contracts.cancel',
+      payload:{
         contract_id:id,
-        payload:{
-          status: 'cancelled',
-          cancellation_date: ct.cancellationDate || today,
-          notes: ((ct.notes || '') + '\n[Ordentliche Kündigung erfasst am ' + today + ']').trim()
-        }
-      });
-    }
-    ct.status = 'cancelled';
-    if (!ct.cancellationDate) ct.cancellationDate = today;
-    ct.notes = ((ct.notes || '') + '\n[Ordentliche Kündigung erfasst am ' + today + ']').trim();
+        cancellation_date: ct.cancellationDate || today,
+        notes: ((ct.notes || '') + '\n[Ordentliche Kündigung erfasst am ' + today + ']').trim(),
+        termination_type: 'ordinary'
+      }
+    });
+    await loadDataFromSupabase();
     renderContracts();
     updateBadges();
     showToast('\u2713 Ordentliche Kündigung erfasst.');
@@ -6501,30 +6473,20 @@ async function cancelContractExtraordinary(id) {
     } catch (_e) {}
   }
   try {
-    if (authClient) {
-      await callAdminFunction('admin-mutate', {
-        action:'contracts.update',
+    await callAdminFunction('admin-mutate', {
+      action:'contracts.cancel',
+      payload:{
         contract_id:id,
-        payload:{
-          status: 'cancelled',
-          termination_type: 'extraordinary',
-          termination_reason: reason,
-          terminated_at: terminatedAtIso,
-          terminated_by: terminatedBy,
-          cancellation_date: endDate,
-          end_date: endDate,
-          notes: ((ct.notes || '') + '\n' + noteLine).trim()
-        }
-      });
-    }
-    ct.status = 'cancelled';
-    ct.terminationType = 'extraordinary';
-    ct.terminationReason = reason;
-    ct.terminatedAt = terminatedAtIso;
-    ct.terminatedBy = terminatedBy;
-    ct.cancellationDate = endDate;
-    ct.endDate = endDate;
-    ct.notes = ((ct.notes || '') + '\n' + noteLine).trim();
+        termination_type: 'extraordinary',
+        termination_reason: reason,
+        terminated_at: terminatedAtIso,
+        terminated_by: terminatedBy,
+        cancellation_date: endDate,
+        end_date: endDate,
+        notes: ((ct.notes || '') + '\n' + noteLine).trim()
+      }
+    });
+    await loadDataFromSupabase();
     renderContracts();
     updateBadges();
     showToast('\u2713 Ausserordentliche Kündigung erfasst.');

@@ -6,6 +6,7 @@ const {
   normalizeAdminRole,
   normalizeAdminStatus
 } = require('./_lib/require-admin');
+const { executeCommercialCommand } = require('./_lib/commercial-orchestrator');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -381,9 +382,13 @@ exports.handler = async (event) => {
       const denied = requireCapabilityOrFail(caller, 'contract:write');
       if (denied) return denied;
       const payload = sanitizePatch(body.payload);
-      const { data, error } = await sbAdmin.from('contracts').insert(payload).select('*').single();
-      if (error) return response(400, { error: error.message });
-      return response(200, { ok: true, contract: data });
+      const result = await executeCommercialCommand({
+        sbAdmin,
+        actor: { userId: caller.userId, role: caller.role },
+        command: 'contracts.create',
+        payload
+      });
+      return response(200, { ok: true, contract: result.contract, read_model: result.read_model });
     }
 
     if (action === 'contracts.update') {
@@ -392,9 +397,25 @@ exports.handler = async (event) => {
       const contractId = String(body.contract_id || '').trim();
       if (!contractId) return response(400, { error: 'contract_id ist erforderlich.' });
       const payload = sanitizePatch(body.payload);
-      const { error } = await sbAdmin.from('contracts').update(payload).eq('id', contractId);
-      if (error) return response(400, { error: error.message });
-      return response(200, { ok: true });
+      const result = await executeCommercialCommand({
+        sbAdmin,
+        actor: { userId: caller.userId, role: caller.role },
+        command: 'contracts.update',
+        payload: { contract_id: contractId, payload }
+      });
+      return response(200, { ok: true, contract: result.contract, read_model: result.read_model });
+    }
+
+    if (['contracts.activate', 'contracts.changePlan', 'contracts.suspend', 'contracts.resume', 'contracts.cancel'].includes(action)) {
+      const denied = requireCapabilityOrFail(caller, 'contract:write');
+      if (denied) return denied;
+      const result = await executeCommercialCommand({
+        sbAdmin,
+        actor: { userId: caller.userId, role: caller.role },
+        command: action,
+        payload: sanitizePatch(body.payload || body)
+      });
+      return response(200, { ok: true, ...result });
     }
 
     if (action === 'plan-config.update') {
