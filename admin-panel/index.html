@@ -4512,8 +4512,7 @@ async function saveCustomerAiConfig(){
         ai_summary: cfg.summary||null,
         updated_at: new Date().toISOString()
       };
-      const {error}=await authClient.from('customers').update(patch).eq('id',id);
-      if(error) throw error;
+      await callAdminFunction('admin-mutate',{action:'customers.update',id,patch});
       console.log('[AI Summary] saved successfully');
       // Update local state
       const c=customerById(id);
@@ -4622,31 +4621,26 @@ function openAddAdminModal(){
   const role=prompt('Rolle (admin / support / super-admin / owner / ops):','admin');
   if(!role) return;
   if(!authClient) return;
-  // Create auth user + admins row
-  authClient.auth.admin?.createUser({email,email_confirm:true}).then(({data,error})=>{
-    if(error&&!error.message?.includes('already')){alert('Fehler: '+error.message);return;}
-    const userId=data?.user?.id;
-    if(!userId){alert('Auth-User konnte nicht erstellt werden.');return;}
-    authClient.from('admins').insert({id:userId,email,role,created_at:new Date().toISOString()}).then(({error:e})=>{
-      if(e){alert('Fehler beim Eintragen: '+e.message);return;}
-      showToast('✓ Admin '+email+' hinzugefügt.');
-      renderSettings();
-    });
-  }).catch(err=>alert('Fehler: '+err.message));
+  callAdminFunction('admin-mutate',{action:'admins.create',email,role}).then(()=>{
+    showToast('✓ Admin '+email+' hinzugefügt.');
+    renderSettings();
+  }).catch((e)=>alert('Fehler beim Eintragen: '+(e?.message||e)));
 }
 
 async function updateAdminRole(adminId,newRole){
   if(!authClient) return;
-  const {error}=await authClient.from('admins').update({role:newRole}).eq('id',adminId);
-  if(error){alert('Fehler: '+error.message);renderSettings();return;}
+  try{
+    await callAdminFunction('admin-mutate',{action:'admins.updateRole',admin_id:adminId,role:newRole});
+  }catch(error){alert('Fehler: '+(error?.message||error));renderSettings();return;}
   showToast('✓ Rolle aktualisiert.');
 }
 
 async function removeAdmin(adminId,email){
   if(!confirm('Admin '+email+' wirklich entfernen?')) return;
   if(!authClient) return;
-  const {error}=await authClient.from('admins').delete().eq('id',adminId);
-  if(error){alert('Fehler: '+error.message);return;}
+  try{
+    await callAdminFunction('admin-mutate',{action:'admins.delete',admin_id:adminId});
+  }catch(error){alert('Fehler: '+(error?.message||error));return;}
   showToast('✓ Admin entfernt.');
   renderSettings();
 }
@@ -4767,8 +4761,7 @@ async function trackOfferEventClient(eventType, offer, extra={}){
     };
     const {data:{session}}=await authClient.auth.getSession();
     if(session?.user?.id) payload.actor_id=session.user.id;
-    const {error}=await authClient.from('offer_events').insert(payload);
-    if(error) throw error;
+    await callAdminFunction('admin-mutate',{action:'offer-events.create',payload});
     const mapped=mapDbOfferEventToUi(payload);
     if(!state.offerEventsByOfferId[String(offer.id)]) state.offerEventsByOfferId[String(offer.id)]=[];
     state.offerEventsByOfferId[String(offer.id)].unshift(mapped);
@@ -5400,9 +5393,9 @@ async function createOffer(){
     if(!(state.offerDbColumns instanceof Set) || state.offerDbColumns.size===0 || state.offerDbColumns.has('duration_months')){
       payload.duration_months=fallback.durationMonths;
     }
-    const {data,error}=await authClient.from('offers').insert(payload).select('*').single();
-    if(error){alert('Offerte konnte nicht erstellt werden: '+error.message); return;}
-    fallback.id=String(data.id); Object.assign(fallback,mapDbOfferToUi(data));
+    const json=await callAdminFunction('admin-mutate',{action:'offers.create',payload});
+    if(!json?.offer){alert('Offerte konnte nicht erstellt werden.'); return;}
+    fallback.id=String(json.offer.id); Object.assign(fallback,mapDbOfferToUi(json.offer));
   }
   applyPlanDefaultsToOffer(fallback);
   state.offers.unshift(fallback);
@@ -5419,8 +5412,9 @@ async function saveOffer(){
   offerFieldChanged();
   const payload=buildOfferDbPayload(offer);
   if(authClient){
-    const {error}=await authClient.from('offers').update(payload).eq('id',offer.id);
-    if(error){alert('Speichern fehlgeschlagen: '+error.message);return;}
+    try{
+      await callAdminFunction('admin-mutate',{action:'offers.update',offer_id:offer.id,payload});
+    }catch(error){alert('Speichern fehlgeschlagen: '+(error?.message||error));return;}
   }
   await trackOfferEventClient('saved',offer);
   showToast('✓ Offerte gespeichert.');
@@ -5462,18 +5456,18 @@ async function sendOffer(){
     offer.deliveryStatus='sent';
     offer.publicToken=resp?.data?.public_token||offer.publicToken||'';
     if(authClient){
-      const {error:updateErr}=await authClient
-        .from('offers')
-        .update({
+      await callAdminFunction('admin-mutate',{
+        action:'offers.update',
+        offer_id:offer.id,
+        payload:{
           status:'sent',
           sent_at:nowIso,
           sent_to_email:sentTo||null,
           delivery_status:'sent',
           email_subject:String(offer.sendSubject||'').trim()||null,
           updated_at:nowIso
-        })
-        .eq('id',offer.id);
-      if(updateErr) throw new Error(updateErr.message||'Offerte-Status konnte nicht gespeichert werden.');
+        }
+      });
     }
     setOfferSendFeedback('success',`Erfolgreich versendet an ${sentTo}.`);
     showToast('✓ Offerte gesendet.');
@@ -5490,9 +5484,9 @@ async function duplicateOffer(){
   const payload={...buildOfferDbPayload(offer),status:'draft'};
   let dup;
   if(authClient){
-    const {data,error}=await authClient.from('offers').insert(payload).select('*').single();
-    if(error){alert('Duplizieren fehlgeschlagen: '+error.message); return;}
-    dup=mapDbOfferToUi(data);
+    const json=await callAdminFunction('admin-mutate',{action:'offers.create',payload});
+    if(!json?.offer){alert('Duplizieren fehlgeschlagen.'); return;}
+    dup=mapDbOfferToUi(json.offer);
   }else{
     dup={...offer,id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),offerNumber:'OFF-DRAFT',status:'draft',contractId:'',invoiceId:'',sentAt:'',sentToEmail:'',sendSubject:'',deliveryStatus:''};
   }
@@ -6139,11 +6133,10 @@ async function submitContractWizard() {
   try {
     var newId;
     if (authClient) {
-      var res = await authClient.from('contracts').insert(payload).select().single();
-      if (res.error) throw res.error;
-      if (!res.data) throw new Error('Kein Datensatz zurückgegeben.');
-      newId = String(res.data.id);
-      state.contracts.unshift(mapDbContractToUi(res.data));
+      var json = await callAdminFunction('admin-mutate', { action:'contracts.create', payload: payload });
+      if (!json || !json.contract) throw new Error('Kein Datensatz zurückgegeben.');
+      newId = String(json.contract.id);
+      state.contracts.unshift(mapDbContractToUi(json.contract));
     } else {
       newId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
       state.contracts.unshift(mapDbContractToUi(Object.assign({id: newId}, payload)));
@@ -6416,8 +6409,7 @@ async function saveSignature() {
   if (btn) { btn.disabled = true; btn.textContent = 'Speichern\u2026'; }
   try {
     if (authClient) {
-      var res = await authClient.from('contracts').update({signature_data: signatureData, status: 'signed'}).eq('id', id);
-      if (res.error) throw res.error;
+      await callAdminFunction('admin-mutate', { action:'contracts.update', contract_id: id, payload: {signature_data: signatureData, status: 'signed'} });
     }
     ct.signatureData = signatureData;
     ct.status = 'signed';
@@ -6452,12 +6444,15 @@ async function cancelContractOrdinary(id) {
   var today = new Date().toISOString().slice(0, 10);
   try {
     if (authClient) {
-      var res = await authClient.from('contracts').update({
-        status: 'cancelled',
-        cancellation_date: ct.cancellationDate || today,
-        notes: ((ct.notes || '') + '\n[Ordentliche Kündigung erfasst am ' + today + ']').trim()
-      }).eq('id', id);
-      if (res.error) throw res.error;
+      await callAdminFunction('admin-mutate', {
+        action:'contracts.update',
+        contract_id:id,
+        payload:{
+          status: 'cancelled',
+          cancellation_date: ct.cancellationDate || today,
+          notes: ((ct.notes || '') + '\n[Ordentliche Kündigung erfasst am ' + today + ']').trim()
+        }
+      });
     }
     ct.status = 'cancelled';
     if (!ct.cancellationDate) ct.cancellationDate = today;
@@ -6500,17 +6495,20 @@ async function cancelContractExtraordinary(id) {
   }
   try {
     if (authClient) {
-      var res = await authClient.from('contracts').update({
-        status: 'cancelled',
-        termination_type: 'extraordinary',
-        termination_reason: reason,
-        terminated_at: terminatedAtIso,
-        terminated_by: terminatedBy,
-        cancellation_date: endDate,
-        end_date: endDate,
-        notes: ((ct.notes || '') + '\n' + noteLine).trim()
-      }).eq('id', id);
-      if (res.error) throw res.error;
+      await callAdminFunction('admin-mutate', {
+        action:'contracts.update',
+        contract_id:id,
+        payload:{
+          status: 'cancelled',
+          termination_type: 'extraordinary',
+          termination_reason: reason,
+          terminated_at: terminatedAtIso,
+          terminated_by: terminatedBy,
+          cancellation_date: endDate,
+          end_date: endDate,
+          notes: ((ct.notes || '') + '\n' + noteLine).trim()
+        }
+      });
     }
     ct.status = 'cancelled';
     ct.terminationType = 'extraordinary';
@@ -6588,8 +6586,7 @@ function handleContractWordUpload(inputEl) {
     var base64 = e.target.result; // data:...;base64,...
     try {
       if (authClient) {
-        var res = await authClient.from('contracts').update({contract_document: base64}).eq('id', id);
-        if (res.error) throw res.error;
+        await callAdminFunction('admin-mutate', { action:'contracts.update', contract_id:id, payload:{contract_document: base64} });
       }
       ct.contractDocument = base64;
       renderContracts();
@@ -7706,8 +7703,7 @@ async function submitEditCustomer(e){
 
   try {
     if(!authClient) throw new Error('Keine Verbindung zu Supabase.');
-    const {error}=await authClient.from('customers').update(payload).eq('id',id);
-    if(error) throw error;
+    await callAdminFunction('admin-mutate',{action:'customers.update',id,patch:payload});
 
     // Update local state
     Object.assign(c,{
@@ -9432,8 +9428,7 @@ async function savePlanConfig() {
         if('yearly_payment_link' in local) patch.yearly_payment_link=yearlyLink;
         if('payment_link_yearly' in local) patch.payment_link_yearly=yearlyLink;
       }
-      const { error } = await authClient.from('plan_config').update(patch).eq('id',id);
-      if (error) throw error;
+      await callAdminFunction('admin-mutate',{action:'plan-config.update',plan_id:id,payload:patch});
       if(local) Object.assign(local,patch);
     }
     if (fb) { fb.style.color='var(--green)'; fb.textContent='Gespeichert.'; setTimeout(()=>fb.textContent='',3000); }
