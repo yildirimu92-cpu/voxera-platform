@@ -4923,7 +4923,26 @@ function syncCanonicalCustomerStateFromRecord(record) {
   customerMeta.telNr = fields.tel_nr || '';
   customerMeta.forwardingSetupCompleted = fields.forwarding_setup_completed === true;
   customerMeta.setupDeviceType = fields.setup_device_type || null;
-  customerMeta.forwardingStatus = fields.forwarding_status || null;
+
+  // ── Activation Confirm Quiet Period Guard ──────────────────────────────────
+  // Nach confirmActivationTestCall() ist forwardingStatus optimistisch auf
+  // 'active' gesetzt. Falls loadData() innerhalb von ACTIVATION_CONFIRM_QUIET_MS
+  // (2500ms) laeuft und die DB noch 'pending_test' zurueckgibt (Propagation
+  // noch nicht committed), wuerde der Write den optimistischen State
+  // ueberschreiben -> zweiter Auto-Confirm -> UI-Flicker.
+  // Fix: forwardingStatus waehrend der Quiet Period nicht ueberschreiben,
+  // AUSSER die DB meldet bereits 'active' (dann sofort uebernehmen).
+  var incomingStatus = fields.forwarding_status || null;
+  var isInQuietPeriod = activationConfirmQuietUntil > 0 && Date.now() < activationConfirmQuietUntil;
+  if (isInQuietPeriod && incomingStatus !== 'active') {
+    // Status nicht ueberschreiben – Confirm-Write noch in Propagation
+  } else {
+    customerMeta.forwardingStatus = incomingStatus;
+    if (incomingStatus === 'active') {
+      activationConfirmQuietUntil = 0; // Quiet Period beenden sobald DB 'active' bestaetigt
+    }
+  }
+
   customerMeta.activationStartedAt = fields.activation_started_at || null;
   customerMeta.activatedAt = fields.activated_at || null;
   customerMeta.forwardingMode = fields.forwarding_mode || null;
@@ -6036,6 +6055,15 @@ function showIncomingBanner(count) {
 //  LOAD DATA
 // ═══════════════════════════════════════════
 async function loadData() {
+  // ── Concurrency Guard ─────────────────────────────────────────────────────
+  // Verhindert parallele loadData-Laeufe (Realtime + Polling + focus + confirm
+  // koennen gleichzeitig feuern). Ohne Guard ueberschreibt der langsamere Lauf
+  // customerMeta / candidateCall des schnelleren -> State Drift.
+  if (loadDataInFlight) {
+    return;
+  }
+  loadDataInFlight = true;
+
   const btn = document.getElementById('refresh-btn');
   if (btn) { btn.textContent = '↻ Lädt...'; btn.style.opacity = '.6'; }
 
@@ -6125,9 +6153,11 @@ async function loadData() {
 
     document.getElementById('dash-loading').innerHTML =
       `<div class="error-banner">Fehler beim Laden: ${uiMsg}<br><small>Bitte Seite neu laden.</small></div>`;
+  } finally {
+    // Concurrency Guard: immer freigeben, auch bei Fehlern
+    loadDataInFlight = false;
+    if (btn) { btn.textContent = '↻ Aktualisieren'; btn.style.opacity = '1'; }
   }
-
-  if (btn) { btn.textContent = '↻ Aktualisieren'; btn.style.opacity = '1'; }
 }
 
 // ═══════════════════════════════════════════
@@ -8823,6 +8853,23 @@ var activationFreshRunState = {
   awaitingPersistence: false
 };
 
+// ── Concurrency Guard: verhindert parallele loadData()-Laeufe ────────────────
+// Ohne diesen Guard koennen Realtime, Polling, focus und confirm gleichzeitig
+// loadData() starten. Der langsamere Lauf ueberschreibt dann customerMeta /
+// candidateCall des schnelleren -> State Drift und falsche UI-Zustaende.
+var loadDataInFlight = false;
+
+// ── Activation Confirm Quiet Period ──────────────────────────────────────────
+// Nach confirmActivationTestCall() schreibt patchCustomerRecord() forwarding_status='active'
+// in die DB. Der anschliessende loadData()-Aufruf (via Realtime oder Polling)
+// kann diesen Write noch nicht sehen wenn die DB-Propagation noch laeuft.
+// Resultat: loadData liest 'pending_test' -> ueberschreibt customerMeta.forwardingStatus
+// -> activationAutoConfirmToken wird geleert -> zweiter Auto-Confirm startet.
+// Fix: nach erfolgreichem Confirm blockiert loadData() das Ueberschreiben von
+// forwardingStatus fuer 2500ms (ACTIVATION_CONFIRM_QUIET_MS).
+var ACTIVATION_CONFIRM_QUIET_MS = 2500;
+var activationConfirmQuietUntil = 0; // Timestamp (ms), 0 = kein Block aktiv
+
 function getActivationSessionLockKey() {
   if (!customerMeta || !customerMeta.activationStartedAt) return '';
   return 'session:' + String(customerMeta.activationStartedAt);
@@ -9342,6 +9389,12 @@ async function confirmActivationTestCall(event) {
     candidateCall = null;
     activationFlowSuccessToken = '';
     stopActivationPolling();
+    // ── Quiet Period setzen ────────────────────────────────────────────────
+    // Blockiert loadData() fuer ACTIVATION_CONFIRM_QUIET_MS (2500ms) davon,
+    // forwardingStatus aus der DB zu ueberschreiben. Verhindert das Zurueck-
+    // fallen auf 'pending_test' wenn die DB-Propagation noch laeuft und
+    // Realtime/Polling schneller feuert als der Write committed ist.
+    activationConfirmQuietUntil = Date.now() + ACTIVATION_CONFIRM_QUIET_MS;
     toast('Rufumleitung erfolgreich aktiviert.');
     renderActivationV2();
     scrollToStatusCard();
