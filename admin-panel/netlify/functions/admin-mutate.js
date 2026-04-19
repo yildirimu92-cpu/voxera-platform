@@ -1,3 +1,35 @@
+/**
+ * admin-mutate.js
+ *
+ * Zentraler Admin-Mutations-Endpunkt.
+ *
+ * Unterstützte Actions:
+ *   - customers.update
+ *   - customers.delete      ← NEU (owner-only, permanent hard delete)
+ *   - admins.create
+ *   - admins.updateRole
+ *   - admins.setStatus
+ *   - offers.create
+ *   - offers.update
+ *   - offer-events.create
+ *   - contracts.create
+ *   - contracts.update
+ *   - contracts.activate
+ *   - contracts.changePlan
+ *   - contracts.suspend
+ *   - contracts.resume
+ *   - contracts.cancel
+ *   - plan-config.update
+ *
+ * customers.delete:
+ *   Erlaubte Rollen: owner (exklusiv)
+ *   Delegiert an: permanentlyDeleteCustomer() aus customer-delete-permanently.js
+ *   Führt keinen eigenen Delete-Code aus – Single Source of Truth bleibt
+ *   customer-delete-permanently.js.
+ */
+
+'use strict';
+
 const { createClient } = require('@supabase/supabase-js');
 const {
   requireAdminCaller,
@@ -7,6 +39,9 @@ const {
   normalizeAdminStatus
 } = require('./_lib/require-admin');
 const { executeCommercialCommand } = require('./_lib/commercial-orchestrator');
+
+// Importiert den kanonischen Delete-Flow (Single Source of Truth)
+const { permanentlyDeleteCustomer } = require('./customer-delete-permanently');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -179,6 +214,8 @@ exports.handler = async (event) => {
   const action = String(body.action || '').trim();
 
   try {
+
+    // ── customers.update ────────────────────────────────────────────────────
     if (action === 'customers.update') {
       const denied = requireCapabilityOrFail(caller, 'customer:write');
       if (denied) return denied;
@@ -190,6 +227,49 @@ exports.handler = async (event) => {
       return response(200, { ok: true });
     }
 
+    // ── customers.delete ────────────────────────────────────────────────────
+    //
+    // Governance:
+    //   - Nur Admins mit Rolle "owner" dürfen permanent löschen.
+    //   - hasCapability wird NICHT verwendet, da customer:delete eine neue
+    //     Capability ist, deren Mapping in require-admin.js noch nicht
+    //     verifiziert ist. Der Role-Check erfolgt hier explizit und direkt.
+    //   - Die Delete-Logik liegt vollständig in permanentlyDeleteCustomer()
+    //     (customer-delete-permanently.js) – keine eigene Implementierung hier.
+    //
+    if (action === 'customers.delete') {
+      const callerRole = String(caller.role || '').toLowerCase().trim();
+      if (callerRole !== 'owner') {
+        return response(403, {
+          error: 'Nur Admins mit der Rolle "owner" dürfen Kunden permanent löschen.',
+          caller_role: callerRole,
+        });
+      }
+
+      const customerId = String(body.customer_id || '').trim();
+      if (!customerId) {
+        return response(400, { error: 'customer_id ist erforderlich.' });
+      }
+
+      const result = await permanentlyDeleteCustomer(sbAdmin, customerId);
+
+      if (!result.success) {
+        console.error('[admin-mutate] customers.delete Fehler:', result.error);
+        return response(500, {
+          error: result.error,
+          steps_completed: result.steps,
+        });
+      }
+
+      console.log('[admin-mutate] customers.delete ✅ abgeschlossen für customer_id:', customerId);
+      return response(200, {
+        ok: true,
+        customer_id: customerId,
+        steps_completed: result.steps,
+      });
+    }
+
+    // ── admins.create ───────────────────────────────────────────────────────
     if (action === 'admins.create') {
       const denied = requireCapabilityOrFail(caller, 'admin:manage');
       if (denied) return denied;
@@ -232,6 +312,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true, admin: { id: userId, email, role, status } });
     }
 
+    // ── admins.updateRole ───────────────────────────────────────────────────
     if (action === 'admins.updateRole') {
       const denied = requireCapabilityOrFail(caller, 'admin:manage');
       if (denied) return denied;
@@ -287,6 +368,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true });
     }
 
+    // ── admins.setStatus ────────────────────────────────────────────────────
     if (action === 'admins.setStatus') {
       const denied = requireCapabilityOrFail(caller, 'admin:manage');
       if (denied) return denied;
@@ -347,6 +429,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true, status: nextStatus });
     }
 
+    // ── offers.create ───────────────────────────────────────────────────────
     if (action === 'offers.create') {
       const denied = requireCapabilityOrFail(caller, 'offer:write');
       if (denied) return denied;
@@ -356,6 +439,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true, offer: data });
     }
 
+    // ── offers.update ───────────────────────────────────────────────────────
     if (action === 'offers.update') {
       const denied = requireCapabilityOrFail(caller, 'offer:write');
       if (denied) return denied;
@@ -367,6 +451,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true });
     }
 
+    // ── offer-events.create ─────────────────────────────────────────────────
     if (action === 'offer-events.create') {
       const denied = requireCapabilityOrFail(caller, 'offer:write');
       if (denied) return denied;
@@ -376,6 +461,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true, event: data });
     }
 
+    // ── contracts.create ────────────────────────────────────────────────────
     if (action === 'contracts.create') {
       const denied = requireCapabilityOrFail(caller, 'contract:write');
       if (denied) return denied;
@@ -389,6 +475,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true, contract: result.contract, read_model: result.read_model });
     }
 
+    // ── contracts.update ────────────────────────────────────────────────────
     if (action === 'contracts.update') {
       const denied = requireCapabilityOrFail(caller, 'contract:write');
       if (denied) return denied;
@@ -404,6 +491,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true, contract: result.contract, read_model: result.read_model });
     }
 
+    // ── contracts lifecycle ─────────────────────────────────────────────────
     if (['contracts.activate', 'contracts.changePlan', 'contracts.suspend', 'contracts.resume', 'contracts.cancel'].includes(action)) {
       const denied = requireCapabilityOrFail(caller, 'contract:write');
       if (denied) return denied;
@@ -416,6 +504,7 @@ exports.handler = async (event) => {
       return response(200, { ok: true, ...result });
     }
 
+    // ── plan-config.update ──────────────────────────────────────────────────
     if (action === 'plan-config.update') {
       const denied = requireCapabilityOrFail(caller, 'plan:write');
       if (denied) return denied;
@@ -427,7 +516,9 @@ exports.handler = async (event) => {
       return response(200, { ok: true });
     }
 
+    // ── Unbekannte Action ───────────────────────────────────────────────────
     return response(400, { error: 'Unsupported action' });
+
   } catch (err) {
     return response(500, {
       error: 'Admin mutate action failed',
