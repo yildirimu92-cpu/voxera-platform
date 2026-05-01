@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de-CH">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unterzeichneter Vertrag – Voxera</title>
+  <link rel="icon" href="https://voxera.ch/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="https://voxera.ch/favicon.ico" sizes="32x32">
+  <meta name="theme-color" content="#0D1F3C">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#F1F5F9;color:#0F172A;min-height:100vh;}
+
+    /* Topbar */
+    .topbar{background:#0D1F3C;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+    .topbar-brand{display:flex;align-items:center;gap:10px;}
+    .topbar-logo{width:30px;height:30px;background:rgba(255,255,255,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+    .topbar-wordmark{font-size:16px;font-weight:800;color:#fff;letter-spacing:-.03em;}
+    .topbar-tag{font-size:10px;font-weight:700;color:#E8C547;letter-spacing:.15em;text-transform:uppercase;}
+
+    /* Shell */
+    .shell{max-width:800px;margin:0 auto;padding:40px 20px 60px;}
+
+    /* Header Card */
+    .doc-header{background:#0D1F3C;border-radius:16px;padding:32px 36px;margin-bottom:24px;position:relative;overflow:hidden;}
+    .doc-header::after{content:'';position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.05);}
+    .doc-header-badge{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#E8C547;margin-bottom:12px;}
+    .doc-header-title{font-size:28px;font-weight:800;color:#fff;letter-spacing:-.03em;line-height:1.2;margin-bottom:8px;}
+    .doc-header-sub{font-size:14px;color:rgba(255,255,255,.55);line-height:1.55;}
+    .doc-header-status{display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:20px;padding:5px 12px;margin-top:16px;font-size:12px;font-weight:600;color:#10B981;}
+
+    /* Cards */
+    .card{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:24px;margin-bottom:16px;}
+    .card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:14px;}
+
+    /* Detail Grid */
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .detail-item{}
+    .detail-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94A3B8;margin-bottom:3px;}
+    .detail-value{font-size:14px;font-weight:600;color:#0F172A;}
+    .detail-value.accent{color:#1A6FE8;}
+    .detail-value.success{color:#059669;}
+
+    /* Signatures */
+    .sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    .sig-box{border:1px solid #E2E8F0;border-radius:12px;padding:16px;background:#F8FAFC;}
+    .sig-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94A3B8;margin-bottom:10px;}
+    .sig-img{width:100%;border:1px solid #E2E8F0;border-radius:8px;background:#fff;display:block;}
+    .sig-name{font-size:13px;font-weight:600;color:#0F172A;margin-top:10px;}
+    .sig-date{font-size:12px;color:#64748B;margin-top:2px;}
+    .sig-placeholder{height:80px;display:flex;align-items:center;justify-content:center;color:#CBD5E1;font-size:13px;border:1.5px dashed #E2E8F0;border-radius:8px;}
+
+    /* Print button */
+    .print-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#1A6FE8;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;}
+    .print-btn:hover{background:#1558c0;}
+
+    /* Loading / Error */
+    .state{text-align:center;padding:80px 20px;color:#64748B;}
+    .state h2{font-size:20px;font-weight:700;color:#0F172A;margin-bottom:8px;}
+
+    /* Print styles */
+    @media print {
+      body{background:#fff;}
+      .topbar,.print-actions,.topbar-tag{display:none!important;}
+      .shell{padding:0;max-width:100%;}
+      .doc-header{background:#0D1F3C!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      .card{box-shadow:none;border:1px solid #E2E8F0;}
+      @page{margin:20mm;}
+    }
+
+    @media(max-width:600px){
+      .detail-grid,.sig-grid{grid-template-columns:1fr;}
+      .doc-header{padding:24px 20px;}
+      .shell{padding:24px 16px 48px;}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo">
+        <svg width="16" height="16" viewBox="0 0 48 48" fill="none">
+          <path d="M24 6 C14 6,5 14,5 24" stroke="#4B9FFF" stroke-width="4" stroke-linecap="round"/>
+          <path d="M24 6 C34 6,43 14,43 24" stroke="#E8C547" stroke-width="4" stroke-linecap="round"/>
+          <path d="M5 24 C5 35,13 43,24 43 C35 43,43 35,43 24" stroke="white" stroke-width="4" stroke-linecap="round"/>
+          <path d="M16 16 L24 29 L32 16" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="topbar-wordmark">VOXERA</span>
+    </div>
+    <span class="topbar-tag">Unterzeichneter Vertrag</span>
+  </div>
+
+  <div class="shell">
+    <div id="loadingState" class="state">
+      <p>Vertrag wird geladen…</p>
+    </div>
+
+    <div id="docContent" style="display:none;">
+
+      <!-- Header -->
+      <div class="doc-header">
+        <div class="doc-header-badge">Voxera · Dienstleistungsvertrag</div>
+        <div class="doc-header-title" id="doc-title">Unterzeichneter Vertrag</div>
+        <div class="doc-header-sub" id="doc-sub">Beidseitig unterzeichnetes Exemplar</div>
+        <div class="doc-header-status">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Beidseitig unterzeichnet
+        </div>
+      </div>
+
+      <!-- Vertragsdetails -->
+      <div class="card">
+        <div class="card-title">Vertragsdetails</div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Kunde</div>
+            <div class="detail-value" id="doc-customer">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Paket</div>
+            <div class="detail-value" id="doc-plan">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Vertragsbeginn</div>
+            <div class="detail-value" id="doc-start">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Vertragsende</div>
+            <div class="detail-value" id="doc-end">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Laufzeit</div>
+            <div class="detail-value" id="doc-duration">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Vertrags-ID</div>
+            <div class="detail-value" id="doc-id" style="font-family:monospace;font-size:12px;">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unterschriften -->
+      <div class="card">
+        <div class="card-title">Unterschriften</div>
+        <div class="sig-grid">
+          <!-- Kundensignatur -->
+          <div class="sig-box">
+            <div class="sig-label">Auftraggeber</div>
+            <div id="customer-sig-wrap">
+              <img id="customer-sig-img" class="sig-img" alt="Unterschrift Auftraggeber">
+            </div>
+            <div class="sig-name" id="customer-sig-name">—</div>
+            <div class="sig-date" id="customer-sig-date">—</div>
+          </div>
+          <!-- Gegenzeichnung Voxera -->
+          <div class="sig-box">
+            <div class="sig-label">Auftragnehmer · Voxera</div>
+            <img id="voxera-sig-img" class="sig-img" alt="Unterschrift Voxera">
+            <div class="sig-name" id="voxera-sig-name">—</div>
+            <div class="sig-date" id="voxera-sig-date" style="color:#059669;">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vertragstext -->
+      <div class="card">
+        <div class="card-title">Vertragstext</div>
+        <pre id="doc-contract-text" style="font-family:inherit;font-size:13px;color:#334155;line-height:1.7;white-space:pre-wrap;"></pre>
+      </div>
+
+      <!-- Rechtlicher Hinweis -->
+      <div style="padding:16px 20px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;margin-bottom:24px;">
+        <p style="font-size:12px;color:#64748B;line-height:1.65;">Dieser Vertrag wurde digital unterzeichnet. Die Unterschriften wurden mit Zeitstempel und IP-Adresse erfasst und sind rechtlich verbindlich gemäss schweizerischem Vertragsrecht (OR Art. 1 ff.). Voxera, Binsböschenweg 3, 6045 Meggen.</p>
+      </div>
+
+      <!-- Print Button -->
+      <div class="print-actions" style="text-align:center;">
+        <button class="print-btn" onclick="window.print()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Als PDF drucken / speichern
+        </button>
+      </div>
+
+    </div><!-- end docContent -->
+  </div><!-- end shell -->
+
+  <script>
+  const token = new URLSearchParams(location.search).get('token') || '';
+  const SUPABASE_URL     = 'https://ulcofbgrovgcvowdjrge.supabase.co';
+  const SUPABASE_ANON_KEY = document.currentScript?.dataset?.anon || '';
+
+  const fmt = v => v ? new Date(v).toLocaleDateString('de-CH', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+
+  async function loadContract() {
+    const stateEl = document.getElementById('loadingState');
+    if (!token) { stateEl.innerHTML = '<h2>Ungültiger Link</h2><p>Token fehlt.</p>'; return; }
+
+    // Vertrag über public token laden (via Netlify Function)
+    const res = await fetch(`/.netlify/functions/contract-public-get?token=${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      stateEl.innerHTML = `<h2>Nicht gefunden</h2><p>${json.error || 'Vertrag konnte nicht geladen werden.'}</p>`;
+      return;
+    }
+    const { contract, offer } = await res.json();
+
+    // Header
+    document.getElementById('doc-title').textContent = 'Vertrag – ' + (contract.customer_name || 'Kunde');
+    document.getElementById('doc-sub').textContent = (contract.plan || 'Voxera') + ' · Laufzeit: ' + (contract.duration_months || contract.months || '?') + ' Monate';
+
+    // Details
+    document.getElementById('doc-customer').textContent = contract.customer_name || '—';
+    document.getElementById('doc-plan').textContent = contract.plan || '—';
+    document.getElementById('doc-start').textContent = fmt(contract.start_date);
+    document.getElementById('doc-end').textContent = fmt(contract.end_date);
+    document.getElementById('doc-duration').textContent = (contract.duration_months || contract.months || '—') + ' Monate';
+    document.getElementById('doc-id').textContent = '#' + contract.id;
+
+    // Kundensignatur
+    const custSigData = contract.signature_data || offer?.signature_data || null;
+    const custName    = contract.accepted_by_name || offer?.accepted_by_name || contract.customer_name || '—';
+    const custDate    = contract.accepted_at || offer?.accepted_at || null;
+    if (custSigData) {
+      document.getElementById('customer-sig-img').src = custSigData;
+    } else {
+      document.getElementById('customer-sig-wrap').innerHTML = '<div class="sig-placeholder">Keine Signatur gespeichert</div>';
+    }
+    document.getElementById('customer-sig-name').textContent = custName;
+    document.getElementById('customer-sig-date').textContent = custDate ? fmt(custDate) : '—';
+
+    // Gegenzeichnung Voxera
+    document.getElementById('voxera-sig-img').src = contract.countersignature_data || '';
+    document.getElementById('voxera-sig-name').textContent = contract.countersign_name || 'Umut Yildirim, Voxera';
+    document.getElementById('voxera-sig-date').textContent = fmt(contract.countersigned_at);
+
+    // Vertragstext
+    document.getElementById('doc-contract-text').textContent = contract.contract_text || 'Kein Vertragstext vorhanden.';
+
+    stateEl.style.display = 'none';
+    document.getElementById('docContent').style.display = 'block';
+  }
+
+  loadContract().catch(err => {
+    document.getElementById('loadingState').innerHTML = '<h2>Fehler</h2><p>' + (err.message || 'Unbekannter Fehler') + '</p>';
+  });
+  </script>
+</body>
+</html>
