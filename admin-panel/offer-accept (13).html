@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voxera Offerte annehmen</title>
+  <link rel="icon" href="https://voxera.ch/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="https://voxera.ch/favicon.ico" sizes="32x32">
+  <link rel="icon" href="https://voxera.ch/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="https://voxera.ch/apple-touch-icon.png">
+  <meta name="theme-color" content="#0D1F3C">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <style>
+    /* ── VOXERA CI TOKENS ── */
+    :root{
+      --night:#0D1F3C;
+      --night2:#122444;
+      --blue:#1A6FE8;
+      --blue-dark:#1340B0;
+      --sky:#4B9FFF;
+      --gold:#E8C547;
+      --white:#FFFFFF;
+      --off:#F7F8FC;
+      --g100:#F1F5F9;
+      --g200:#E2E8F0;
+      --g400:#94A3B8;
+      --g600:#475569;
+      --g900:#0F172A;
+      --green:#059669;
+      --green-bg:#ECFDF5;
+      --green-border:#A7F3D0;
+      --red:#DC2626;
+      --red-bg:#FEF2F2;
+      --red-border:#FECACA;
+      --gold-bg:#FEF9EC;
+      --gold-border:#F5D878;
+      --fd:'Plus Jakarta Sans',system-ui,sans-serif;
+      --fb:'DM Sans',system-ui,sans-serif;
+
+      /* Legacy aliases — bewahren was die JS-Logik eventuell braucht */
+      --ink:var(--g900);
+      --slate:var(--g600);
+      --line:var(--g200);
+      --bg:var(--off);
+      --brand:var(--blue);
+      --brand-dark:var(--blue-dark);
+      --ok:#065F46;
+      --danger:var(--red);
+      --card:var(--white);
+    }
+
+    /* ── RESET ── */
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      background:var(--off);
+      font-family:var(--fb);
+      color:var(--g900);
+      line-height:1.6;
+      min-height:100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar{
+      background:var(--night);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      padding:0 24px;
+      height:56px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      position:sticky;
+      top:0;
+      z-index:100;
+    }
+    .topbar-brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .topbar-logo-ico{
+      width:30px;
+      height:30px;
+      border-radius:7px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.1);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-shrink:0;
+    }
+    .topbar-wordmark{
+      font-family:var(--fd);
+      font-size:16px;
+      font-weight:800;
+      color:#fff;
+      letter-spacing:-.04em;
+    }
+    .topbar-tag{
+      font-size:10px;
+      font-weight:700;
+      color:rgba(255,255,255,.3);
+      letter-spacing:.16em;
+      text-transform:uppercase;
+    }
+
+    /* ── SHELL ── */
+    .shell{
+      max-width:1080px;
+      margin:0 auto;
+      padding:28px 20px 60px;
+    }
+
+    /* ── HERO ── */
+    .hero{
+      background:var(--night);
+      border-radius:20px;
+      padding:28px;
+      position:relative;
+      overflow:hidden;
+      margin-bottom:20px;
+    }
+    .hero::before{
+      content:'';
+      position:absolute;
+      right:-80px;
+      top:-80px;
+      width:280px;
+      height:280px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(26,111,232,.2) 0%,transparent 70%);
+      pointer-events:none;
+    }
+    .hero::after{
+      content:'';
+      position:absolute;
+      left:30%;
+      bottom:-80px;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(232,197,71,.08) 0%,transparent 70%);
+      pointer-events:none;
+    }
+    .hero-grid{
+      display:grid;
+      grid-template-columns:1.2fr .8fr;
+      gap:20px;
+      align-items:center;
+      position:relative;
+      z-index:1;
+    }
+    .hero-eyebrow{
+      font-size:10px;
+      font-weight:700;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--gold);
+      margin-bottom:10px;
+    }
+    .hero h1{
+      font-family:var(--fd);
+      font-size:30px;
+      font-weight:800;
+      color:#fff;
+      letter-spacing:-.035em;
+      line-height:1.15;
+      margin:0 0 8px;
+    }
+    .hero-sub{
+      font-size:14px;
+      color:rgba(255,255,255,.5);
+      margin:0 0 16px;
+    }
+
+    /* CTA Row */
+    .cta-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    /* Stats Box */
+    .stats{
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      padding:14px 16px;
+    }
+    .stats .row{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      padding:8px 0;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      font-size:13px;
+    }
+    .stats .row:last-child{border-bottom:none;}
+    .stats .row span{color:rgba(255,255,255,.45);}
+    .stats .row strong{color:#fff;font-weight:700;}
+
+    /* ── BUTTONS ── */
+    .btn{
+      appearance:none;
+      border:none;
+      border-radius:12px;
+      padding:12px 20px;
+      font-family:var(--fb);
+      font-size:14px;
+      font-weight:700;
+      cursor:pointer;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      transition:all .15s;
+      letter-spacing:-.01em;
+    }
+    .btn-primary{
+      background:var(--blue);
+      color:#fff;
+    }
+    .btn-primary:hover{background:var(--blue-dark);}
+    .btn-secondary{
+      background:rgba(255,255,255,.1);
+      color:#fff;
+      border:1px solid rgba(255,255,255,.15);
+    }
+    .btn-secondary:hover{background:rgba(255,255,255,.16);}
+    .btn-outline{
+      background:white;
+      color:var(--g600);
+      border:1.5px solid var(--g200);
+    }
+    .btn-outline:hover{border-color:var(--blue);color:var(--blue);}
+    .btn:disabled{opacity:.45;cursor:not-allowed;}
+    .btn:disabled:hover{background:var(--blue);}
+
+    /* ── CONTENT GRID ── */
+    .content{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:16px;
+    }
+
+    /* ── CARDS ── */
+    .card{
+      background:var(--white);
+      border:1px solid var(--g200);
+      border-radius:18px;
+      padding:24px;
+      box-shadow:0 4px 24px rgba(13,31,60,.05);
+    }
+    .card-title{
+      font-family:var(--fd);
+      font-size:17px;
+      font-weight:700;
+      color:var(--g900);
+      letter-spacing:-.02em;
+      margin:0 0 16px;
+    }
+
+    /* ── OFFER OVERVIEW ── */
+    .offer-overview{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-bottom:16px;
+    }
+    .mini{
+      background:var(--g100);
+      border:1px solid var(--g200);
+      border-radius:10px;
+      padding:10px 12px;
+    }
+    .mini .label{
+      font-size:9px;
+      font-weight:700;
+      color:var(--g400);
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      margin-bottom:4px;
+    }
+    .mini .value{
+      font-size:14px;
+      font-weight:600;
+      color:var(--g900);
+      word-break:break-word;
+    }
+
+    /* Preistabelle */
+    .price-table{
+      background:var(--g100);
+      border:1px solid var(--g200);
+      border-radius:12px;
+      overflow:hidden;
+    }
+    .price-table .row{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      padding:10px 14px;
+      border-bottom:1px solid var(--g200);
+      font-size:14px;
+    }
+    .price-table .row:last-child{border-bottom:none;}
+    .price-table .row span{color:var(--g600);}
+    .price-table .row strong{color:var(--g900);font-weight:700;}
+    .price-table .row-total{
+      background:var(--night);
+      border-bottom:none;
+    }
+    .price-table .row-total span{color:rgba(255,255,255,.5);font-weight:700;}
+    .price-table .row-total strong{color:#fff;font-size:17px;font-weight:800;}
+
+    /* ── FORMULAR ── */
+    .form-label{
+      display:block;
+      font-size:12px;
+      font-weight:700;
+      color:var(--g600);
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      margin:16px 0 6px;
+    }
+    input[type=text],
+    input[type=email]{
+      width:100%;
+      padding:11px 14px;
+      border:1.5px solid var(--g200);
+      border-radius:10px;
+      font-family:var(--fb);
+      font-size:15px;
+      color:var(--g900);
+      background:var(--white);
+      transition:border .15s,box-shadow .15s;
+    }
+    input[type=text]:focus,
+    input[type=email]:focus{
+      outline:none;
+      border-color:var(--blue);
+      box-shadow:0 0 0 3px rgba(26,111,232,.12);
+    }
+
+    /* Signatur */
+    .signature-wrap{
+      margin-top:6px;
+      border:1.5px solid var(--g200);
+      border-radius:12px;
+      background:var(--white);
+      overflow:hidden;
+      transition:border .15s;
+    }
+    .signature-wrap:focus-within{
+      border-color:var(--blue);
+    }
+    #signaturePad{
+      width:100%;
+      height:180px;
+      display:block;
+      touch-action:none;
+      background:var(--white);
+      cursor:crosshair;
+    }
+    .signature-actions{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:8px 12px;
+      background:var(--g100);
+      border-top:1px solid var(--g200);
+      font-size:11px;
+      color:var(--g400);
+      font-weight:500;
+    }
+
+    /* Checkbox */
+    .checkbox{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      background:var(--g100);
+      border:1.5px solid var(--g200);
+      border-radius:10px;
+      padding:12px;
+      margin-top:14px;
+      font-size:13px;
+      color:var(--g600);
+      line-height:1.55;
+      cursor:pointer;
+    }
+    .checkbox input{
+      margin-top:2px;
+      accent-color:var(--blue);
+      flex-shrink:0;
+      width:16px;
+      height:16px;
+      cursor:pointer;
+    }
+
+    /* Accept Button */
+    #acceptBtn{
+      width:100%;
+      margin-top:14px;
+      padding:14px;
+      font-size:15px;
+      border-radius:13px;
+    }
+
+    /* Feedback */
+    .feedback{
+      margin-top:12px;
+      font-size:13px;
+      font-weight:600;
+      line-height:1.5;
+    }
+    .ok{color:var(--ok);}
+    .err{
+      background:var(--red-bg);
+      border:1px solid var(--red-border);
+      border-radius:8px;
+      padding:10px 12px;
+      color:var(--red);
+      font-weight:500;
+    }
+
+    /* Status Pills */
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      padding:4px 10px;
+      border-radius:99px;
+      font-size:11px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+    }
+    .pill-sent{background:#EFF6FF;color:var(--blue);}
+    .pill-other{background:var(--red-bg);color:var(--red);}
+
+    /* Success Card */
+    .success-card{
+      margin-top:14px;
+      background:var(--green-bg);
+      border:1px solid var(--green-border);
+      border-left:3px solid var(--green);
+      border-radius:12px;
+      padding:14px 16px;
+    }
+    .success-card h3{
+      font-family:var(--fd);
+      font-size:14px;
+      font-weight:700;
+      color:#065F46;
+      margin:0 0 8px;
+    }
+    .success-list{
+      margin:0;
+      padding-left:18px;
+      color:#065F46;
+      font-size:13px;
+      line-height:1.7;
+    }
+
+    /* State text */
+    .state{
+      padding:12px 0 6px;
+      font-size:14px;
+      color:rgba(255,255,255,.5);
+    }
+
+    /* ── FOOTER ── */
+    .page-footer{
+      text-align:center;
+      margin-top:40px;
+      font-size:12px;
+      color:var(--g400);
+      line-height:1.8;
+    }
+    .page-footer a{
+      color:var(--g400);
+      text-decoration:none;
+    }
+    .page-footer a:hover{color:var(--blue);}
+
+    /* ── UTILS ── */
+    .hidden{display:none!important;}
+    .muted{color:var(--g600);}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:900px){
+      .hero h1{font-size:26px;}
+      .hero-grid,.content{grid-template-columns:1fr;}
+    }
+    @media(max-width:640px){
+      .shell{padding:14px 14px 40px;}
+      .hero{padding:20px;}
+      .hero h1{font-size:22px;}
+      .card{padding:18px;}
+      .offer-overview{grid-template-columns:1fr;}
+      .btn{width:100%;}
+      .cta-row{flex-direction:column;}
+      .topbar-tag{display:none;}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ TOPBAR ══ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo-ico">
+        <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
+          <path d="M24 6 C14 6,5 14,5 24" stroke="#4B9FFF" stroke-width="4" stroke-linecap="round"/>
+          <path d="M24 6 C34 6,43 14,43 24" stroke="#E8C547" stroke-width="4" stroke-linecap="round"/>
+          <path d="M5 24 C5 35,13 43,24 43 C35 43,43 35,43 24" stroke="white" stroke-width="4" stroke-linecap="round"/>
+          <path d="M16 16 L24 29 L32 16" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="topbar-wordmark">VOXERA</span>
+    </div>
+    <span class="topbar-tag">Offerte</span>
+  </div>
+
+  <div class="shell">
+
+    <!-- ══ HERO ══ -->
+    <div class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="hero-eyebrow">Voxera · Offerte</div>
+          <h1>Ihre Offerte online annehmen</h1>
+          <p class="hero-sub muted" id="state">Offerte wird geladen…</p>
+          <div id="ctaRow" class="cta-row" style="display:none;">
+            <button id="jumpToAcceptBtn" class="btn btn-primary" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              Offerte annehmen
+            </button>
+          </div>
+        </div>
+        <div class="stats" id="quickStats" style="display:none;">
+          <div class="row"><span id="statusLabel">Status</span><strong id="statusText">—</strong></div>
+          <div class="row"><span>Offerte</span><strong id="offerNo">—</strong></div>
+          <div class="row"><span>Gültig bis</span><strong id="validUntil">—</strong></div>
+          <div class="row"><span id="recurringLabel">Monatlich</span><strong id="recurring">CHF 0.00</strong></div>
+          <div class="row"><span>Gesamt</span><strong id="total">CHF 0.00</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CONTENT ══ -->
+    <div id="content" class="content" style="display:none;">
+
+      <!-- Offertedetails -->
+      <section class="card">
+        <h2 class="card-title">Offertedetails</h2>
+        <div class="offer-overview">
+          <div class="mini"><div class="label">Firma</div><div class="value" id="company">—</div></div>
+          <div class="mini"><div class="label">Ansprechperson</div><div class="value" id="contact">—</div></div>
+          <div class="mini"><div class="label">Paket</div><div class="value" id="plan">—</div></div>
+          <div class="mini"><div class="label">Laufzeit</div><div class="value" id="duration">—</div></div>
+        </div>
+        <div class="mini" style="margin-bottom:16px;">
+          <div class="label">Zusammenfassung</div>
+          <div class="value muted" id="summary" style="font-weight:500;line-height:1.6;">—</div>
+        </div>
+        <div class="price-table">
+          <div class="row"><span>Einmalige Einrichtung</span><strong id="setupFee">CHF 0.00</strong></div>
+          <div class="row"><span id="pricingRecurringLabel">Monatlich</span><strong id="pricingRecurring">CHF 0.00</strong></div>
+          <div class="row hidden" id="discountRow"><span>Rabatt</span><strong id="discount">CHF 0.00</strong></div>
+          <div class="row row-total"><span>Gesamtpreis</span><strong id="pricingTotal">CHF 0.00</strong></div>
+        </div>
+
+        <!-- Leistungsumfang -->
+        <div style="margin-top:18px;">
+          <div class="label" style="margin-bottom:10px;">Leistungsumfang</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="leistungGrid">
+            <div style="background:var(--g100);border:1px solid var(--g200);border-radius:10px;padding:12px 14px;">
+              <div class="label">Inkl. Minuten/Monat</div>
+              <div class="value" id="includedMinutes">—</div>
+            </div>
+            <div style="background:var(--g100);border:1px solid var(--g200);border-radius:10px;padding:12px 14px;">
+              <div class="label">Zusatzminuten</div>
+              <div class="value" id="extraPerMinute">—</div>
+            </div>
+            <div style="background:var(--g100);border:1px solid var(--g200);border-radius:10px;padding:12px 14px;">
+              <div class="label">Rufnummern</div>
+              <div class="value" id="numberCount">—</div>
+            </div>
+            <div style="background:var(--g100);border:1px solid var(--g200);border-radius:10px;padding:12px 14px;">
+              <div class="label">Vertragsbeginn</div>
+              <div class="value" id="startsAt">—</div>
+            </div>
+          </div>
+          <!-- Add-ons -->
+          <div id="addOnsSection" style="display:none;margin-top:8px;">
+            <div class="label" style="margin:10px 0 6px;">Zusatzoptionen</div>
+            <div id="addOnsList" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Annahme & Signatur -->
+      <section class="card" id="acceptSection">
+        <h2 class="card-title">Annahme & Signatur</h2>
+        <p class="muted" style="margin:0 0 14px;font-size:14px;">Bitte füllen Sie das Formular aus und unterschreiben Sie im Feld unten.</p>
+        <div id="statusPillWrap" style="margin-bottom:12px;"></div>
+
+        <label class="form-label" for="signerName">Ihr Name</label>
+        <input id="signerName" type="text" placeholder="Max Muster" autocomplete="name" />
+
+        <label class="form-label" for="signerEmail">Ihre E-Mail</label>
+        <input id="signerEmail" type="email" placeholder="max@firma.ch" autocomplete="email" />
+
+        <!-- Rechtliche Dokumente -->
+        <div style="background:var(--g100);border:1px solid var(--g200);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+          <p style="font-size:13px;font-weight:700;color:var(--g900);margin:0 0 10px;">Vertragsdokumente</p>
+          <p style="font-size:13px;color:var(--g600);margin:0 0 10px;">Bitte lesen Sie die folgenden Dokumente vor der Unterzeichnung:</p>
+          <div style="display:flex;flex-direction:column;gap:7px;">
+            <a href="https://voxera.ch/agb" target="_blank" rel="noopener"
+               style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Allgemeine Geschäftsbedingungen (AGB) v2.0
+            </a>
+            <a href="https://voxera.ch/datenschutz" target="_blank" rel="noopener"
+               style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Datenschutzerklärung v2.0
+            </a>
+            <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--g600);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Auftragsverarbeitungsvertrag (AVV) v1.0 — als PDF-Anhang dieser Offerte-E-Mail erhalten
+            </span>
+          </div>
+        </div>
+
+        <label class="form-label">Unterschrift</label>
+        <div class="signature-wrap">
+          <canvas id="signaturePad"></canvas>
+          <div class="signature-actions">
+            <span>Mit Maus oder Finger unterschreiben</span>
+            <button type="button" class="btn btn-outline" onclick="clearSignature()" style="padding:6px 12px;border-radius:8px;font-size:12px;">Löschen</button>
+          </div>
+        </div>
+
+        <!-- 3 separate Zustimmungen -->
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;padding:14px 16px;background:var(--off);border:1px solid var(--g200);border-radius:10px;">
+          <label class="checkbox" style="align-items:flex-start;">
+            <input id="confirmAgb" type="checkbox" style="margin-top:2px;flex-shrink:0;" />
+            <span style="font-size:13.5px;">Ich habe die <a href="https://voxera.ch/agb" target="_blank" style="color:var(--blue);font-weight:600;">Allgemeinen Geschäftsbedingungen (AGB v2.0)</a> gelesen und akzeptiere sie verbindlich.</span>
+          </label>
+          <label class="checkbox" style="align-items:flex-start;">
+            <input id="confirmAvv" type="checkbox" style="margin-top:2px;flex-shrink:0;" />
+            <span style="font-size:13.5px;">Ich habe den <strong>Auftragsverarbeitungsvertrag (AVV v1.0)</strong>, den ich als PDF-Anhang der Offerte-E-Mail erhalten habe, gelesen und akzeptiere ihn verbindlich.</span>
+          </label>
+          <label class="checkbox" style="align-items:flex-start;">
+            <input id="confirmDse" type="checkbox" style="margin-top:2px;flex-shrink:0;" />
+            <span style="font-size:13.5px;">Ich habe die <a href="https://voxera.ch/datenschutz" target="_blank" style="color:var(--blue);font-weight:600;">Datenschutzerklärung (v2.0)</a> gelesen und nehme sie zur Kenntnis.</span>
+          </label>
+        </div>
+
+        <button id="acceptBtn" class="btn btn-primary" onclick="submitAcceptance()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Offerte annehmen
+        </button>
+
+        <div class="feedback" id="feedback"></div>
+
+        <div id="acceptSuccess" class="success-card hidden">
+          <h3>✓ Offerte erfolgreich angenommen</h3>
+          <ul class="success-list">
+            <li>Ihre Annahme wurde gespeichert und dem Vertrag zugeordnet.</li>
+            <li>Sie erhalten in Kürze die nächste Bestätigung per E-Mail.</li>
+            <li>Bei Fragen erreichen Sie uns unter <a href="mailto:info@voxera.ch" style="color:#065F46;">info@voxera.ch</a></li>
+          </ul>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ══ SUCCESS MODAL ══ -->
+    <div id="successModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(13,31,60,0.97);align-items:center;justify-content:center;padding:24px;">
+      <div style="max-width:480px;width:100%;text-align:center;">
+        <!-- Icon -->
+        <div style="width:72px;height:72px;border-radius:50%;background:rgba(5,150,105,0.15);border:2px solid rgba(5,150,105,0.4);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <!-- Titel -->
+        <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-0.03em;margin:0 0 12px;line-height:1.2;">Offerte erfolgreich<br>unterzeichnet</h2>
+        <p style="font-size:15px;color:rgba(255,255,255,0.6);line-height:1.65;margin:0 0 32px;">Ihre Unterschrift wurde gespeichert. Sie erhalten in Kürze eine Bestätigung per E-Mail.</p>
+        <!-- Details -->
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:20px 24px;margin-bottom:28px;text-align:left;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);">
+            <span style="font-size:13px;color:rgba(255,255,255,0.4);">Offerte</span>
+            <span id="modalOfferNo" style="font-size:13px;font-weight:600;color:#ffffff;">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);">
+            <span style="font-size:13px;color:rgba(255,255,255,0.4);">Unterzeichnet von</span>
+            <span id="modalSignerName" style="font-size:13px;font-weight:600;color:#ffffff;">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;">
+            <span style="font-size:13px;color:rgba(255,255,255,0.4);">Datum</span>
+            <span id="modalDate" style="font-size:13px;font-weight:600;color:#10B981;">—</span>
+          </div>
+        </div>
+        <!-- CTA -->
+        <a href="https://voxera.ch" style="display:inline-block;padding:13px 28px;background:#1A6FE8;color:#ffffff;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:12px;">Zur Voxera Website →</a>
+        <p style="font-size:12px;color:rgba(255,255,255,0.3);margin:0;">Bei Fragen: <a href="mailto:info@voxera.ch" style="color:rgba(255,255,255,0.4);">info@voxera.ch</a></p>
+      </div>
+    </div>
+
+    <!-- ══ ALREADY ACCEPTED OVERLAY ══ -->
+    <div id="alreadyAcceptedOverlay" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(13,31,60,0.97);align-items:center;justify-content:center;padding:24px;">
+      <div style="max-width:480px;width:100%;text-align:center;">
+        <div style="width:72px;height:72px;border-radius:50%;background:rgba(26,111,232,0.15);border:2px solid rgba(26,111,232,0.4);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4B9FFF" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-0.03em;margin:0 0 12px;line-height:1.2;">Offerte bereits<br>unterzeichnet</h2>
+        <p style="font-size:15px;color:rgba(255,255,255,0.6);line-height:1.65;margin:0 0 28px;">Diese Offerte wurde bereits angenommen. Eine erneute Unterzeichnung ist nicht möglich.</p>
+        <a href="https://voxera.ch" style="display:inline-block;padding:13px 28px;background:#1A6FE8;color:#ffffff;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">Zur Voxera Website →</a>
+        <p style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.3);">Bei Fragen: <a href="mailto:info@voxera.ch" style="color:rgba(255,255,255,0.4);">info@voxera.ch</a></p>
+      </div>
+    </div>
+
+    <!-- ══ PAGE FOOTER ══ -->
+    <div class="page-footer">
+      © 2026 VOXERA ·
+      <a href="https://voxera.ch">voxera.ch</a> ·
+      <a href="mailto:info@voxera.ch">info@voxera.ch</a> ·
+      <a href="https://voxera.ch/datenschutz">Datenschutz</a> ·
+      <a href="https://voxera.ch/agb">AGB</a> ·
+      <a href="https://voxera.ch/impressum">Impressum</a>
+    </div>
+
+  </div>
+
+  <!-- ══ SCRIPTS — UNVERÄNDERT ══ -->
+  <script src="/shared/offer-brand.js"></script>
+  <script>
+  const token = new URLSearchParams(location.search).get('token') || '';
+  let offer = null;
+  const BRAND_LOGO_PATH = (window.VoxeraOfferBrand && window.VoxeraOfferBrand.OFFER_BRAND_ASSET_PATH) || '/brand/05-app-icon-512px.svg';
+  let signatureDirty = false;
+  let signatureCtx = null;
+  let signatureCanvas = null;
+  let isDrawing = false;
+  let lastPoint = null;
+  const money = v => `CHF ${Number(v || 0).toFixed(2)}`;
+  const d = v => v ? new Date(v).toLocaleDateString('de-CH') : '—';
+  const px = (event) => {
+    const rect = signatureCanvas.getBoundingClientRect();
+    const source = event.touches?.[0] || event;
+    return { x: source.clientX - rect.left, y: source.clientY - rect.top };
+  };
+
+  function showSuccessModal(signerName, offerNo) {
+    const now = new Date().toLocaleDateString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric' });
+    document.getElementById('modalOfferNo').textContent = offerNo || '—';
+    document.getElementById('modalSignerName').textContent = signerName || '—';
+    document.getElementById('modalDate').textContent = now;
+    const modal = document.getElementById('successModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function showAlreadyAcceptedOverlay() {
+    const overlay = document.getElementById('alreadyAcceptedOverlay');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function setAcceptabilityState(status, accepted){
+    const normalized = String(status || '').toLowerCase();
+    const canAccept = normalized === 'sent' && !accepted;
+    const pillWrap = document.getElementById('statusPillWrap');
+    const statusClass = canAccept ? 'pill pill-sent' : 'pill pill-other';
+    pillWrap.innerHTML = `<span class="${statusClass}">Status: ${normalized || 'unbekannt'}</span>`;
+
+    const btn = document.getElementById('acceptBtn');
+    btn.disabled = !canAccept;
+    if(!canAccept){
+      if (accepted) {
+        // Bereits angenommen — Overlay zeigen
+        setTimeout(() => showAlreadyAcceptedOverlay(), 300);
+      } else {
+        const fb = document.getElementById('feedback');
+        fb.className = 'feedback err';
+        fb.textContent = 'Eine Annahme ist nur möglich, wenn die Offerte den Status "sent" hat.';
+      }
+    }
+    return canAccept;
+  }
+
+  function resizeSignaturePad(){
+    if(!signatureCanvas || !signatureCtx) return;
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const bounds = signatureCanvas.getBoundingClientRect();
+    signatureCanvas.width = Math.floor(bounds.width * ratio);
+    signatureCanvas.height = Math.floor(180 * ratio);
+    signatureCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    signatureCtx.lineWidth = 2;
+    signatureCtx.lineCap = 'round';
+    signatureCtx.lineJoin = 'round';
+    signatureCtx.strokeStyle = '#0f172a';
+  }
+
+  function startDraw(event){ event.preventDefault(); isDrawing = true; lastPoint = px(event); }
+  function moveDraw(event){
+    if(!isDrawing || !signatureCtx) return;
+    event.preventDefault();
+    const point = px(event);
+    signatureCtx.beginPath();
+    signatureCtx.moveTo(lastPoint.x, lastPoint.y);
+    signatureCtx.lineTo(point.x, point.y);
+    signatureCtx.stroke();
+    lastPoint = point;
+    signatureDirty = true;
+  }
+  function endDraw(){ isDrawing = false; lastPoint = null; }
+  function clearSignature(){
+    if(!signatureCtx || !signatureCanvas) return;
+    signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+    signatureDirty = false;
+  }
+  window.clearSignature = clearSignature;
+
+  async function loadOffer(){
+    const stateEl = document.getElementById('state');
+    if(!token){ stateEl.textContent='Ungültiger Link (Token fehlt).'; return; }
+
+    const res = await fetch(`/.netlify/functions/offer-public-get?token=${encodeURIComponent(token)}`);
+    const json = await res.json();
+    if(!res.ok){ stateEl.textContent=json.error||'Offerte konnte nicht geladen werden.'; return; }
+
+    offer = json.offer;
+    const recurring = offer.billing_cycle === 'yearly' ? Number(offer.yearly_price || 0) : Number(offer.monthly_price || 0);
+    const discount = Number(offer.discount_amount || 0) + (recurring * (Number(offer.discount_percent || 0) / 100));
+    const hasDiscount = discount > 0.000001;
+    const accepted = Boolean(offer.accepted_at);
+
+    const planLabel = (offer.plan || 'Voxera Plan').charAt(0).toUpperCase() + (offer.plan || 'Voxera Plan').slice(1);
+    document.getElementById('company').textContent = offer.company_name || 'Voxera Kunde';
+    document.getElementById('contact').textContent = offer.contact_name || offer.email || '—';
+    document.getElementById('offerNo').textContent = offer.offer_number || '—';
+    document.getElementById('validUntil').textContent = d(offer.valid_until);
+    document.getElementById('plan').textContent = `${planLabel} · ${offer.billing_cycle === 'yearly' ? 'jährlich' : 'monatlich'}`;
+    document.getElementById('duration').textContent = `${offer.duration_months || 0} Monate`;
+    document.getElementById('summary').textContent = offer.offer_text?.introduction || offer.offer_text?.summary || 'Ihre individuelle Voxera Offerte.';
+    document.getElementById('setupFee').textContent = money(offer.setup_fee);
+    document.getElementById('pricingRecurringLabel').textContent = offer.billing_cycle === 'yearly' ? 'Jährlich' : 'Monatlich';
+    document.getElementById('pricingRecurring').textContent = money(recurring);
+    document.getElementById('discount').textContent = `- ${money(discount)}`;
+    document.getElementById('discountRow').classList.toggle('hidden', !hasDiscount);
+    document.getElementById('pricingTotal').textContent = money(offer.total);
+
+    // Leistungsumfang
+    document.getElementById('includedMinutes').textContent = offer.included_minutes ? `${offer.included_minutes} Min.` : '—';
+    document.getElementById('extraPerMinute').textContent = offer.extra_per_minute ? `CHF ${Number(offer.extra_per_minute).toFixed(4)}/Min.` : '—';
+    document.getElementById('numberCount').textContent = offer.number_count ? `${offer.number_count} Nummer${offer.number_count > 1 ? 'n' : ''}` : '—';
+    document.getElementById('startsAt').textContent = offer.starts_at ? d(offer.starts_at) : 'Nach Aktivierung';
+
+    // Add-ons
+    const addOns = offer.add_ons || {};
+    const addOnEntries = Object.entries(addOns).filter(([, v]) => v && Number(v) > 0);
+    if (addOnEntries.length > 0) {
+      document.getElementById('addOnsSection').style.display = 'block';
+      const addOnLabels = { additional_numbers: 'Zusätzliche Nummern', sms_alerts: 'SMS-Benachrichtigungen', custom_ai_setup: 'Custom AI Setup' };
+      document.getElementById('addOnsList').innerHTML = addOnEntries.map(([k, v]) =>
+        `<div style="display:flex;justify-content:space-between;background:var(--g100);border:1px solid var(--g200);border-radius:8px;padding:8px 12px;font-size:13px;">
+          <span>${addOnLabels[k] || k}</span><strong>${money(v)}</strong>
+        </div>`
+      ).join('');
+    }
+
+    document.getElementById('statusText').textContent = String(offer.status || 'unbekannt').toUpperCase();
+    document.getElementById('statusLabel').textContent = 'Status';
+    document.getElementById('recurringLabel').textContent = offer.billing_cycle === 'yearly' ? 'Jährlich' : 'Monatlich';
+    document.getElementById('recurring').textContent = money(recurring);
+    document.getElementById('total').textContent = money(offer.total);
+
+    const canAccept = setAcceptabilityState(offer.status, accepted);
+    if (canAccept && offer.email) {
+      document.getElementById('signerEmail').value = offer.email;
+    }
+
+    document.getElementById('jumpToAcceptBtn').addEventListener('click', () => {
+      document.getElementById('acceptSection').scrollIntoView({ behavior:'smooth', block:'start' });
+      document.getElementById('signerName').focus();
+    });
+
+    stateEl.style.display='none';
+    document.getElementById('ctaRow').style.display='flex';
+    document.getElementById('quickStats').style.display='block';
+    document.getElementById('content').style.display='grid';
+    // Canvas-Fix: Grösse neu berechnen nachdem der Inhalt sichtbar ist
+    // (beim ersten Aufruf war #content noch display:none → width=0)
+    requestAnimationFrame(() => resizeSignaturePad());
+  }
+
+  async function submitAcceptance(){
+    const signer_name  = document.getElementById('signerName').value.trim();
+    const signer_email = document.getElementById('signerEmail').value.trim();
+    const agb_accepted = document.getElementById('confirmAgb').checked;
+    const avv_accepted = document.getElementById('confirmAvv').checked;
+    const dse_accepted = document.getElementById('confirmDse').checked;
+    const fb = document.getElementById('feedback');
+
+    if (!offer || String(offer.status || '').toLowerCase() !== 'sent') {
+      fb.className = 'feedback err';
+      fb.textContent = 'Diese Offerte kann aktuell nicht angenommen werden.';
+      return;
+    }
+    if(!signer_name){   fb.className='feedback err'; fb.textContent='Bitte geben Sie Ihren Namen ein.'; return; }
+    if(!signatureDirty){ fb.className='feedback err'; fb.textContent='Bitte unterschreiben Sie im Signaturfeld.'; return; }
+    if(!agb_accepted){  fb.className='feedback err'; fb.textContent='Bitte bestätigen Sie die Allgemeinen Geschäftsbedingungen (AGB).'; return; }
+    if(!avv_accepted){  fb.className='feedback err'; fb.textContent='Bitte bestätigen Sie den Auftragsverarbeitungsvertrag (AVV).'; return; }
+    if(!dse_accepted){  fb.className='feedback err'; fb.textContent='Bitte nehmen Sie die Datenschutzerklärung zur Kenntnis.'; return; }
+
+    const signature_data = signatureCanvas.toDataURL('image/png');
+    const btn = document.getElementById('acceptBtn');
+    btn.disabled = true;
+    fb.className='feedback';
+    fb.textContent='';
+
+    const res = await fetch('/.netlify/functions/offer-public-accept', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        token,
+        signer_name,
+        signer_email,
+        signature_data,
+        // Separate Zustimmungen mit Versionsangabe
+        agb_accepted,
+        agb_version: 'v2.0-2026-05-01',
+        avv_accepted,
+        avv_version: 'v1.0-2026-05-01',
+        dse_accepted,
+        dse_version: 'v2.0-2026-05-01',
+        // Legacy-Feld für Rückwärtskompatibilität
+        confirm_accepted: agb_accepted && avv_accepted && dse_accepted
+      })
+    });
+    const json = await res.json();
+
+    if(!res.ok){
+      fb.className='feedback err';
+      fb.textContent=json.error||'Bestätigung fehlgeschlagen.';
+      btn.disabled=false;
+      return;
+    }
+
+    fb.className='feedback ok';
+    fb.textContent='Vielen Dank. Ihre Offerte wurde erfolgreich angenommen.';
+    document.getElementById('acceptSuccess').classList.remove('hidden');
+    btn.disabled=true;
+    // Success Modal anzeigen
+    setTimeout(() => showSuccessModal(signer_name, offer?.offer_number), 400);
+  }
+
+  function initSignaturePad(){
+    signatureCanvas = document.getElementById('signaturePad');
+    if(!signatureCanvas) return;
+    signatureCtx = signatureCanvas.getContext('2d');
+    resizeSignaturePad();
+    ['mousedown','touchstart'].forEach(type => signatureCanvas.addEventListener(type, startDraw, { passive:false }));
+    ['mousemove','touchmove'].forEach(type => signatureCanvas.addEventListener(type, moveDraw, { passive:false }));
+    ['mouseup','mouseleave','touchend','touchcancel'].forEach(type => signatureCanvas.addEventListener(type, endDraw, { passive:false }));
+    window.addEventListener('resize', resizeSignaturePad);
+  }
+
+  initSignaturePad();
+  loadOffer().catch(() => { document.getElementById('state').textContent='Fehler beim Laden der Offerte.'; });
+  </script>
+</body>
+</html>
