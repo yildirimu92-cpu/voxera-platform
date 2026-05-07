@@ -563,6 +563,54 @@ exports.handler = async (event) => {
         invoice_id: invoice.id
       });
     }
+
+    // ── Überzugs-Mail via Make ──────────────────────────────────────
+    try {
+      const customerMailData = await sbAdmin
+        .from('customers')
+        .select('customer_name, email, contact_first_name, contact_last_name, contact_name')
+        .eq('id', customerId)
+        .single();
+
+      if (customerMailData.data) {
+        const c = customerMailData.data;
+        const recipientName = c.contact_first_name
+          ? `${c.contact_first_name} ${c.contact_last_name || ''}`.trim()
+          : (c.contact_name || c.customer_name || 'Kunde');
+
+        const periodLabel = body.period_start_label && body.period_end_label
+          ? `${body.period_start_label} – ${body.period_end_label}`
+          : (body.period_month || '—');
+
+        const mailOverageRate = Number(body.overage_rate || 0);
+        const mailOverageMinutes = Number(body.overage_minutes || 0);
+        const totalAmountMail = (mailOverageMinutes * mailOverageRate).toFixed(2);
+
+        await fetch('https://hook.eu1.make.com/4hlkpn5t6i3m9wsvu5mbpqggygq4yc6s', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mail_type: 'overage_email',
+            recipient_name: recipientName,
+            customer_email: c.email,
+            customer_name: c.customer_name,
+            period_label: periodLabel,
+            invoice_number: invoice.invoice_number || '—',
+            included_minutes: body.included_minutes || '—',
+            used_minutes: body.used_minutes || '—',
+            overage_minutes: mailOverageMinutes,
+            overage_rate: mailOverageRate.toFixed(4),
+            total_amount: totalAmountMail,
+            payment_link: invoice.payment_link || ''
+          })
+        });
+      }
+    } catch (mailErr) {
+      // Mail-Fehler darf die Invoice-Response nicht blockieren
+      console.error('[overage-mail] webhook error:', mailErr.message);
+    }
+    // ── Ende Überzugs-Mail ─────────────────────────────────────────
+
     return response(200, { success: true, action, invoice, created: true });
   }
 
