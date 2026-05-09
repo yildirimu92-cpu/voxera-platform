@@ -504,6 +504,53 @@ exports.handler = async (event) => {
       return response(200, { ok: true, ...result });
     }
 
+
+    // ── addons.activate ─────────────────────────────────────────────────────
+    if (action === 'addons.activate') {
+      const denied = requireCapabilityOrFail(caller, 'customer:write');
+      if (denied) return denied;
+      const customerId = String(body.customer_id || '').trim();
+      const addonCode = String(body.addon_code || '').trim();
+      if (!customerId || !addonCode) return response(400, { error: 'customer_id und addon_code sind erforderlich.' });
+
+      const { data: addonRef, error: addonErr } = await sbAdmin
+        .from('voxera_addons')
+        .select('*')
+        .eq('addon_code', addonCode)
+        .eq('coming_soon', false)
+        .maybeSingle();
+      if (addonErr) return response(400, { error: addonErr.message });
+      if (!addonRef) return response(400, { error: 'Add-on nicht verfügbar' });
+
+      const { error } = await sbAdmin.from('customer_addons').upsert({
+        customer_id: customerId,
+        addon_code: addonCode,
+        status: 'active',
+        billing_cycle: addonRef.billing_type,
+        price_chf: addonRef.price_monthly_chf || addonRef.price_onetime_chf,
+        starts_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'customer_id,addon_code' });
+      if (error) return response(400, { error: error.message });
+      return response(200, { ok: true });
+    }
+
+    // ── addons.cancel ───────────────────────────────────────────────────────
+    if (action === 'addons.cancel') {
+      const denied = requireCapabilityOrFail(caller, 'customer:write');
+      if (denied) return denied;
+      const customerAddonId = String(body.customer_addon_id || '').trim();
+      if (!customerAddonId) return response(400, { error: 'customer_addon_id ist erforderlich.' });
+
+      const { error } = await sbAdmin.from('customer_addons').update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }).eq('id', customerAddonId);
+      if (error) return response(400, { error: error.message });
+      return response(200, { ok: true });
+    }
+
     // ── plan-config.update ──────────────────────────────────────────────────
     if (action === 'plan-config.update') {
       const denied = requireCapabilityOrFail(caller, 'plan:write');
