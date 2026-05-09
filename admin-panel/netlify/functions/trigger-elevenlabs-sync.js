@@ -62,6 +62,30 @@ exports.handler = async (event) => {
   if (customer.ai_instructions)         l3Parts.push(`## KUNDENSPEZIFISCHE ANWEISUNGEN\n${customer.ai_instructions}`);
   if (customer.ai_fallback_escalation)  l3Parts.push(`## ESKALATION & FALLBACK\n${customer.ai_fallback_escalation}`);
   if (customer.ai_response_constraints) l3Parts.push(`## ANTWORTGRENZEN\n${customer.ai_response_constraints}`);
+  if (customer.ai_branch_extra) {
+    const extra = typeof customer.ai_branch_extra === 'string'
+      ? JSON.parse(customer.ai_branch_extra)
+      : customer.ai_branch_extra;
+
+    const extraLines = [];
+    if (extra.pannendienst) extraLines.push('Pannendienst: verfügbar');
+    if (extra.notfalldienst) extraLines.push('Notfalldienst: verfügbar');
+    if (extra.notfall_kanton) extraLines.push(`Notfalldienst Kanton: ${extra.notfall_kanton}`);
+    if (extra.marken) extraLines.push(`Fahrzeugmarken: ${extra.marken}`);
+    if (extra.kassentyp) extraLines.push(`Kassentyp: ${extra.kassentyp}`);
+    if (extra.fachgebiet) extraLines.push(`Fachgebiet: ${extra.fachgebiet}`);
+    if (extra.reservation !== undefined) extraLines.push(`Reservation: ${extra.reservation ? 'Ja' : 'Nein'}`);
+    if (extra.takeaway !== undefined) extraLines.push(`Takeaway: ${extra.takeaway ? 'Ja' : 'Nein'}`);
+    if (extra.max_gruppe) extraLines.push(`Gruppen über ${extra.max_gruppe} Personen: Rückruf nötig`);
+    if (extra.online_booking_url) extraLines.push(`Online-Buchung: ${extra.online_booking_url}`);
+    if (extra.schwerpunkte?.length) extraLines.push(`Schwerpunkte: ${extra.schwerpunkte.join(', ')}`);
+    if (extra.rechtsgebiete?.length) extraLines.push(`Rechtsgebiete: ${extra.rechtsgebiete.join(', ')}`);
+
+    if (extraLines.length) {
+      l3Parts.push(`## BRANCHENSPEZIFISCHE ANGABEN\n${extraLines.join('\n')}`);
+    }
+  }
+
   const l3 = l3Parts.join('\n\n');
 
   // Variablen
@@ -71,14 +95,16 @@ exports.handler = async (event) => {
   const tone          = customer.ai_tone          || 'professional';
   const language      = customer.ai_language      || 'de';
   const greeting      = customer.ai_greeting      || '';
-  const displayName   = customer.customer_display_name || customer.customer_name || '';
-  const legalName     = customer.customer_legal_name   || customer.customer_name || '';
+  const personName    = customer.ai_person_name   || '';
+  const firmName      = customer.customer_legal_name || customer.customer_name || '';
+  const displayName   = customer.customer_display_name || firmName;
+  const legalName     = firmName;
   const wirOderIch    = customerType === 'company' ? 'Wir-Form' : 'Ich-Form';
   const wirMeldetSich = customerType === 'company' ? 'Wir melden uns' : 'Ich melde mich';
   const tonMap        = { formal: 'konservativ-formell', professional: 'warm-professionell', casual: 'locker und direkt' };
   const tonText       = tonMap[tone] || tonMap.professional;
   const anredeText    = addressForm === 'du' ? 'Du-Form (informell)' : 'Sie-Form (formell)';
-  const autoGreeting  = greeting || buildGreeting(assistantName, customerType, displayName, language);
+  const autoGreeting  = greeting || buildGreeting(assistantName, customerType, personName, firmName, language);
 
   let prompt = l1
     // Uppercase Varianten (neu)
@@ -165,20 +191,23 @@ exports.handler = async (event) => {
   };
 };
 
-function buildGreeting(name, type, firmName, lang) {
+function buildGreeting(name, type, personName, firmName, lang) {
   if (lang === 'fr') {
     if (type === 'company') return `Bonjour, ici ${name} de ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    return `Bonjour, ici ${name}, l'assistante de ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
+    if (type === 'consultant') return `Bonjour, ici ${name}, l'assistante de ${personName||firmName} chez ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
+    return `Bonjour, ici ${name}, l'assistante de ${personName||firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
   }
   if (lang === 'it') {
     if (type === 'company') return `Buongiorno, sono ${name} di ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
-    return `Buongiorno, sono ${name}, l'assistente di ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
+    if (type === 'consultant') return `Buongiorno, sono ${name}, l'assistente di ${personName||firmName} presso ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
+    return `Buongiorno, sono ${name}, l'assistente di ${personName||firmName}. La chiamata viene registrata. Come posso aiutarla?`;
   }
   if (lang === 'en') {
     if (type === 'company') return `Hello, this is ${name} from ${firmName}. This call is being recorded. How may I help you?`;
-    return `Hello, this is ${name}, assistant to ${firmName}. This call is being recorded. How may I help you?`;
+    if (type === 'consultant') return `Hello, this is ${name}, assistant to ${personName||firmName} at ${firmName}. This call is being recorded. How may I help you?`;
+    return `Hello, this is ${name}, assistant to ${personName||firmName}. This call is being recorded. How may I help you?`;
   }
   if (type === 'company')    return `Grüezi, hier ist ${name} von ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  if (type === 'consultant') return `Grüezi, hier ist ${name}, die Assistentin von ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  return `Grüezi, hier ist ${name}, die Assistentin von ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
+  if (type === 'consultant') return `Grüezi, hier ist ${name}, die Assistentin von ${personName||firmName} bei ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
+  return `Grüezi, hier ist ${name}, die Assistentin von ${personName||firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
 }

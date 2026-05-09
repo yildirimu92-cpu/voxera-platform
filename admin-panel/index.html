@@ -6324,6 +6324,14 @@ async function wizardFinish(){
         // Neue Wizard-Felder (Identität + Persönlichkeit)
         assistant_name:   d.assistantName||null,
         ai_customer_type: d.customerType||null,
+        customer_display_name: (() => {
+          const firm = c?.name || '';
+          const person = d._customerPersonName || '';
+          if (d.customerType === 'company') return firm;
+          return person || firm;
+        })(),
+        customer_legal_name: c?.name || null,
+        ai_person_name: (d.customerType !== 'company') ? (d._customerPersonName || null) : null,
         ai_address_form:  d.addressForm||null,
         ai_tone:          d.tone||null,
         ai_language:      d.language||null,
