@@ -5677,6 +5677,20 @@ function renderAiWorkspace(){
     ['Letzte AI-Aktualisierung',cfg.lastUpdate||'—'],
     ['Offene Punkte',missing.length?`Fehlt: ${missing.join(', ')}`:'0']
   ].map(([k,v])=>`<div class="card" style="padding:10px 12px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
+  if(!c.elevenlabs_agent_id){
+    document.getElementById('ai-customer-context').innerHTML += `
+      <div class="card" style="padding:10px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:12px;font-weight:600;">Kein ElevenLabs Agent vorhanden</div>
+            <div class="muted" style="font-size:11px;">Agent jetzt automatisch aus Plan-Konfiguration erzeugen.</div>
+          </div>
+          <button id="btn-provision-agent-${c.id}" class="btn btn-secondary btn-sm" onclick="provisionAgentManual('${c.id}')">
+            <i class="ti ti-robot" aria-hidden="true"></i> ElevenLabs Agent erstellen
+          </button>
+        </div>
+      </div>`;
+  }
   // Convert escaped \n (from DB) to real newlines for textarea display
   const toTa=(v)=>(v||'').replace(/\\n/g,'\n');
   document.getElementById('ai-business-description').value=toTa(cfg.businessDescription);
@@ -5695,6 +5709,30 @@ function renderAiWorkspace(){
   document.getElementById('ai-internal-notes').value=toTa(cfg.internalNotes);
   const generatedSummary=document.getElementById('ai-generated-summary');
   if(generatedSummary) generatedSummary.value=cfg.summary||'';
+}
+
+async function provisionAgentManual(customerId){
+  const btn = document.getElementById(`btn-provision-agent-${customerId}`);
+  if(btn){ btn.disabled = true; btn.textContent = 'Wird erstellt…'; }
+  try{
+    const res = await fetch('/.netlify/functions/elevenlabs-provision-agent',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ customer_id: customerId, triggered_by: 'admin_manual' })
+    });
+    const data = await res.json();
+    if(res.ok && data.success){
+      showToast('✓ Agent erstellt: ' + data.agent_id);
+      await loadCustomers();
+      renderAiSetup();
+    }else{
+      showToast('⚠ Fehler: ' + (data.error || 'unbekannt'));
+      if(btn){ btn.disabled = false; btn.textContent = 'ElevenLabs Agent erstellen'; }
+    }
+  }catch(_err){
+    showToast('⚠ Netzwerkfehler beim Erstellen.');
+    if(btn){ btn.disabled = false; btn.textContent = 'ElevenLabs Agent erstellen'; }
+  }
 }
 
 // ── Industry Templates ──────────────────────────────────────────────────────
@@ -6307,7 +6345,25 @@ async function wizardFinish(){
           showToast('⚠ Wizard gespeichert, ElevenLabs Sync fehlgeschlagen.');
         }
       } else {
-        showToast('✓ AI Setup gespeichert.');
+        try{
+          showToast('⟳ ElevenLabs Agent wird erstellt…');
+          const provRes = await fetch('/.netlify/functions/elevenlabs-provision-agent',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ customer_id: id, triggered_by: 'wizard' })
+          });
+          const provData = await provRes.json();
+          if(provRes.ok && provData.success){
+            if(cAfterSave){ cAfterSave.elevenlabs_agent_id = provData.agent_id; }
+            showToast('✓ ElevenLabs Agent erstellt + Prompt synchronisiert.');
+          }else{
+            showToast('⚠ Wizard gespeichert. Agent-Erstellung fehlgeschlagen: ' + (provData.error || 'unbekannt'));
+            console.error('[wizard] Provisioning fehlgeschlagen:', provData);
+          }
+        }catch(provErr){
+          showToast('⚠ Wizard gespeichert. Agent-Erstellung konnte nicht gestartet werden.');
+          console.error('[wizard] Provisioning-Fehler:', provErr);
+        }
       }
     }catch(err){
       showToast('Fehler beim Speichern: '+(err.message||err));
@@ -6595,16 +6651,15 @@ function renderWizardStepSummary(data){
     return '—';
   })();
   return `
-    <div style="margin-bottom:12px;font-size:13px;color:var(--slate2);">Alles korrekt? Klick auf <strong>Speichern</strong> — danach öffnet sich die Prompt-Vorschau zum Kopieren.</div>
+    <div style="margin-bottom:12px;font-size:13px;color:var(--slate2);">Alles korrekt? Klick auf <strong>Speichern</strong> — der ElevenLabs Agent wird danach automatisch erstellt (falls noch nicht vorhanden) und direkt synchronisiert.</div>
     ${rows.map(([k,v])=>`<div class="wizard-summary-row"><span class="wizard-summary-k">${esc(k)}</span><span class="wizard-summary-v">${esc(String(v))}</span></div>`).join('')}
     <div style="margin-top:16px;padding:14px 16px;background:var(--blue-soft,#EEF5FF);border:1px solid #BFDBFE;border-radius:10px;">
-      <div style="font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">⚡ Nach dem Speichern: ElevenLabs einrichten</div>
+      <div style="font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">⚡ Nach dem Speichern: Auto-Provisioning Status</div>
       <div style="display:flex;flex-direction:column;gap:7px;">
-        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</span><span><strong>Prompt kopieren</strong> — Vorschau öffnet sich automatisch nach dem Speichern</span></div>
-        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</span><span><strong>ElevenLabs</strong> → Basis-Agent → <em>Duplicate</em> → Name: <strong>${esc(_wizCustomerName)}</strong></span></div>
-        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</span><span><strong>System-Prompt einfügen</strong> → kopierten Text einsetzen</span></div>
-        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">4</span><span><strong>Twilio-Nummer zuweisen</strong> → Phone Number: <strong>${esc(_wizVoxeraNum)}</strong></span></div>
-        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">5</span><span><strong>Agent-ID kopieren</strong> → aus ElevenLabs-URL → im Kundenprofil unter <em>ElevenLabs Agent-ID</em> eintragen</span></div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</span><span><strong>Wizard speichern</strong> — die Kundendaten werden persistent gespeichert.</span></div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</span><span><strong>Auto-Provisioning</strong> — falls noch keine Agent-ID existiert, wird für <strong>${esc(_wizCustomerName)}</strong> automatisch ein ElevenLabs Agent erstellt.</span></div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</span><span><strong>Direkter Prompt-Sync</strong> — der vollständige Prompt wird anschliessend automatisch zum Agent gepusht.</span></div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">4</span><span><strong>Fallback</strong> — falls die Erstellung fehlschlägt, kann im AI-Setup manuell über den Button «ElevenLabs Agent erstellen» wiederholt werden (Twilio-Nummer: <strong>${esc(_wizVoxeraNum)}</strong>).</span></div>
       </div>
     </div>`;
 }
