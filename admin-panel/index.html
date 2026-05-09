@@ -6080,7 +6080,7 @@ function buildAutoGreeting(data) {
 }
 // ── End AI Feature Gates ──────────────────────────────────────────────────────
 
-function openAiWizard(customerId){
+async function openAiWizard(customerId){
   // Close any open modals before opening wizard to prevent bleed-through
   document.querySelectorAll('.modal-overlay.open').forEach(m=>{
     if(m.id!=='ai-wizard-modal') m.classList.remove('open');
@@ -6093,6 +6093,20 @@ function openAiWizard(customerId){
   // Fields with text content use template defaults if cfg is empty.
   // Feature gates für diesen Kunden
   const planFeatures = getCustomerAiFeatures(c);
+  const planCode = String(c?.plan || c?.plan_code || 'starter').toLowerCase();
+  let availableVoices = [];
+  if (authClient) {
+    const planTiers = { starter: 1, business: 2, professional: 3 };
+    const currentTier = planTiers[planCode] || 1;
+    const eligiblePlans = Object.entries(planTiers).filter(([, tier]) => tier <= currentTier).map(([plan]) => plan);
+    const { data: voicesData } = await authClient
+      .from('voxera_voices')
+      .select('*')
+      .in('available_from_plan', eligiblePlans)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    availableVoices = Array.isArray(voicesData) ? voicesData : [];
+  }
   const data = {
     templateId,
     spezialgebiet: c?.spezialgebiet || '',
@@ -6105,6 +6119,8 @@ function openAiWizard(customerId){
     tone:            c?.ai_tone           || 'professional',
     language:        c?.ai_language       || 'de',
     greeting:        c?.ai_greeting       || '',
+    voiceId:         c?.voice_id || '',
+    secondLanguage:  (Array.isArray(c?.selected_languages) && c.selected_languages[1]) ? c.selected_languages[1] : 'fr',
     // AI Config fields
     businessDescription: cfg.businessDescription || defaults.businessDescription || '',
     services:            cfg.services            || defaults.services            || '',
@@ -6114,7 +6130,9 @@ function openAiWizard(customerId){
     fallbackEscalation:  cfg.fallbackEscalation  || defaults.fallbackEscalation  || '',
     responseConstraints: cfg.responseConstraints || defaults.responseConstraints || '',
     // Feature gates
-    _features: planFeatures
+    _features: planFeatures,
+    _planCode: planCode,
+    _availableVoices: availableVoices
   };
   // Pre-seed dynamic-step field values from customer record for known keys
   // (e.g. sprechstunden_modus, notfallnummer_*) – this keeps backward compat
@@ -6310,6 +6328,12 @@ async function wizardFinish(){
         ai_tone:          d.tone||null,
         ai_language:      d.language||null,
         ai_greeting:      d.greeting||null,
+        voice_id:         d.voiceId || null,
+        selected_languages: (() => {
+          if (d._planCode === 'business') return ['de', d.secondLanguage || 'fr'];
+          if (d._planCode === 'professional') return ['de', 'fr', 'it', 'en'];
+          return ['de'];
+        })(),
         ai_internal_notes: (()=>{
           // Persist dynamic wizard fields that don't have own DB columns
           const dynKeys=['termin_modus','booking_url','pannendaten_aufnehmen','takeaway_aktiv',
@@ -6385,6 +6409,9 @@ async function wizardFinish(){
 
 // ── Wizard Step Renderers ────────────────────────────────────────────────────
 function renderWizardStepIdentitaet(data){
+  const planCode = String(data._planCode || '').toLowerCase();
+  const voices = Array.isArray(data._availableVoices) ? data._availableVoices : [];
+  const canChooseVoice = planCode !== 'starter';
   const f = data._features || {};
   const locked = (label) => `<span style="font-size:10px;color:var(--slate2);margin-left:6px;">🔒 ${label}</span>`;
   const planBadge = f.custom_assistant_name ? '' : locked('Ab Professional');
@@ -6417,7 +6444,23 @@ function renderWizardStepIdentitaet(data){
       <label>Personenname</label>
       <input class="input" id="wz-person-name" value="${esc(data._customerPersonName||'')}" placeholder="z.B. Umut Yildirim">
       <div style="font-size:11px;color:var(--slate2);margin-top:4px;">Der Name der Person die Lara vertritt.</div>
-    </div>`;
+    </div>
+    <div class="wizard-field">
+      <label>Stimme ${canChooseVoice ? '' : '<span style="font-size:10px;color:var(--slate2);margin-left:6px;">🔒 Ab Business wählbar</span>'}</label>
+      ${canChooseVoice ? `
+        <select class="select" id="wz-voice-id" style="height:38px;">
+          ${(voices.length ? voices : [{ voice_id:'', display_name:'Standard' }]).map(v => `<option value="${esc(v.voice_id || '')}" ${String(v.voice_id||'')===String(data.voiceId||'')?'selected':''}>${esc(v.display_name || v.voice_id || 'Standard')}</option>`).join('')}
+        </select>
+      ` : `<div class="input" style="background:var(--surface);color:var(--slate2);">${esc((voices.find(v=>v.is_default) || voices[0] || {}).display_name || 'Lara (Weiblich)')}</div>`}
+    </div>
+    ${planCode === 'business' ? `<div class="wizard-field">
+      <label>Zweite Sprache</label>
+      <select class="select" id="wz-second-language" style="height:38px;">
+        <option value="fr" ${(data.secondLanguage||'fr')==='fr'?'selected':''}>Französisch (DE + FR)</option>
+        <option value="it" ${(data.secondLanguage||'fr')==='it'?'selected':''}>Italienisch (DE + IT)</option>
+      </select>
+    </div>` : ''}
+    `;
 }
 
 function collectWizardStepIdentitaet(data){
@@ -6428,6 +6471,10 @@ function collectWizardStepIdentitaet(data){
     if(sel) data.customerType = sel.value;
   }
   data._customerPersonName = document.getElementById('wz-person-name')?.value.trim()||'';
+  const selectedVoiceId = document.getElementById('wz-voice-id')?.value || '';
+  if (selectedVoiceId) data.voiceId = selectedVoiceId;
+  const secondLang = document.getElementById('wz-second-language')?.value || '';
+  if (secondLang) data.secondLanguage = secondLang;
 }
 
 function renderWizardStepBranche(data){

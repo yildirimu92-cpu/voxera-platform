@@ -4659,6 +4659,15 @@ body,.main{background:var(--vx-bg);}
             <div id="assistent-config-list" style="display:grid;gap:8px;"></div>
           </div>
 
+          <div class="settings-card" id="assistant-voice-card" style="margin-bottom:12px;display:none;">
+            <div class="settings-card-title">Stimme</div>
+            <div id="assistant-voice-list" style="display:grid;gap:8px;margin-bottom:12px;"></div>
+            <div id="assistant-voice-actions" style="display:none;align-items:center;gap:8px;">
+              <button class="settings-btn-primary" id="assistant-voice-save-btn" onclick="saveAssistantVoiceSelection()">Stimme speichern</button>
+              <div id="assistant-voice-feedback" style="font-size:12px;color:var(--gray500);"></div>
+            </div>
+          </div>
+
           <!-- Änderung anfragen -->
           <div class="settings-card" style="margin-bottom:12px;">
             <div class="settings-card-title">Anpassung anfragen</div>
@@ -7486,6 +7495,7 @@ async function loadAssistentRequests() {
   // Update assistent name display
   const nameEl = document.getElementById('assistent-name-display');
   if (nameEl) nameEl.textContent = customerMeta.assistantName || 'Lara';
+  await loadAssistantVoices();
 
   try {
     const custId = customerMeta.customerId || customerContext?.customerId || '';
@@ -7529,6 +7539,69 @@ async function loadAssistentRequests() {
 
   } catch(e) {
     el.innerHTML = '<div style="font-size:12px;color:var(--red);">Fehler beim Laden.</div>';
+  }
+}
+
+let assistantVoiceOptions = [];
+let assistantSelectedVoiceId = '';
+async function loadAssistantVoices() {
+  const card = document.getElementById('assistant-voice-card');
+  const listEl = document.getElementById('assistant-voice-list');
+  const actionsEl = document.getElementById('assistant-voice-actions');
+  if (!card || !listEl || !actionsEl) return;
+  const customerId = String(customerMeta.customerId || customerContext?.customerId || '').trim();
+  if (!customerId) return;
+  try {
+    const res = await fetch(`/.netlify/functions/get-available-voices?customer_id=${encodeURIComponent(customerId)}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error || 'voices_load_failed');
+    const planCode = String(json?.plan_code || '').toLowerCase();
+    assistantVoiceOptions = Array.isArray(json?.voices) ? json.voices : [];
+    assistantSelectedVoiceId = String(json?.selected_voice_id || customerMeta.voiceId || '').trim();
+    const canSelect = planCode !== 'starter';
+    card.style.display = '';
+    actionsEl.style.display = canSelect ? 'flex' : 'none';
+    if (!assistantVoiceOptions.length) {
+      listEl.innerHTML = '<div style="font-size:13px;color:var(--gray500);">Keine Stimmen verfügbar.</div>';
+      return;
+    }
+    listEl.innerHTML = assistantVoiceOptions.map((v) => {
+      const vid = String(v.voice_id || '');
+      const active = vid === assistantSelectedVoiceId;
+      return `<label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid ${active ? '#1A6FE8' : 'var(--gray200)'};border-radius:10px;background:${active ? '#EFF6FF' : '#fff'};cursor:${canSelect ? 'pointer' : 'default'};">
+        <input type="radio" name="assistant-voice" value="${escHtml(vid)}" ${active ? 'checked' : ''} ${canSelect ? '' : 'disabled'} onchange="assistantSelectedVoiceId='${escHtml(vid)}'">
+        <div><div style="font-size:13px;font-weight:600;">${escHtml(v.display_name || vid)}</div><div style="font-size:12px;color:var(--gray500);">${escHtml(v.description || '')}</div></div>
+      </label>`;
+    }).join('');
+  } catch (e) {
+    card.style.display = '';
+    listEl.innerHTML = '<div style="font-size:12px;color:var(--red,#DC2626);">Stimmen konnten nicht geladen werden.</div>';
+  }
+}
+
+async function saveAssistantVoiceSelection() {
+  const btn = document.getElementById('assistant-voice-save-btn');
+  const fb = document.getElementById('assistant-voice-feedback');
+  if (!btn || !fb) return;
+  const customerId = String(customerMeta.customerId || customerContext?.customerId || '').trim();
+  if (!customerId || !assistantSelectedVoiceId) return;
+  btn.disabled = true; btn.textContent = 'Speichern…'; fb.textContent = '';
+  try {
+    const res = await fetch('/.netlify/functions/customer-update-assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_id: assistantSelectedVoiceId })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error || 'save_failed');
+    customerMeta.voiceId = assistantSelectedVoiceId;
+    fb.style.color = 'var(--green-dark,#059669)';
+    fb.textContent = '✓ Stimme wurde aktualisiert.';
+  } catch (e) {
+    fb.style.color = 'var(--red,#DC2626)';
+    fb.textContent = 'Speichern fehlgeschlagen.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Stimme speichern';
   }
 }
 
@@ -8051,6 +8124,8 @@ async function loadCustomerMeta() {
     activationTestMode: f.activation_test_mode || null,
     activationTestOutboundCallId: f.activation_test_candidate_call_id || null,
     avatarUrl: f.avatar_url || null,
+    voiceId: f.voice_id || null,
+    selectedLanguages: Array.isArray(f.selected_languages) ? f.selected_languages : [],
     contractMonthlyPrice: resolveCommercialValue({
       contractValue: contractUsage.monthlyPrice,
       planValue: toValidNumber(planFallback.monthlyPrice),
