@@ -7544,6 +7544,55 @@ async function loadAssistentRequests() {
 
 let assistantVoiceOptions = [];
 let assistantSelectedVoiceId = '';
+let currentVoicePreviewAudio = null;
+let currentVoicePreviewBtn = null;
+
+async function previewVoice(voiceId, btn) {
+  if (!voiceId || !btn) return;
+  if (currentVoicePreviewAudio && currentVoicePreviewBtn === btn) {
+    currentVoicePreviewAudio.pause();
+    btn.innerHTML = '<i class="ti ti-player-play"></i>';
+    currentVoicePreviewAudio = null;
+    currentVoicePreviewBtn = null;
+    return;
+  }
+  if (currentVoicePreviewAudio) {
+    currentVoicePreviewAudio.pause();
+    if (currentVoicePreviewBtn) currentVoicePreviewBtn.innerHTML = '<i class="ti ti-player-play"></i>';
+    currentVoicePreviewAudio = null;
+    currentVoicePreviewBtn = null;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i>';
+  try {
+    const res = await fetch('/.netlify/functions/preview-voice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_id: String(voiceId || '') })
+    });
+    if (!res.ok) throw new Error('preview_failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    currentVoicePreviewAudio = audio;
+    currentVoicePreviewBtn = btn;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-player-pause"></i>';
+    audio.onended = () => {
+      btn.innerHTML = '<i class="ti ti-player-play"></i>';
+      currentVoicePreviewAudio = null;
+      currentVoicePreviewBtn = null;
+      URL.revokeObjectURL(url);
+    };
+    await audio.play();
+  } catch (e) {
+    btn.innerHTML = '<i class="ti ti-player-play"></i>';
+    btn.disabled = false;
+    toast('Vorschau konnte nicht geladen werden.', 'error');
+  }
+}
+
 async function loadAssistantVoices() {
   const card = document.getElementById('assistant-voice-card');
   const listEl = document.getElementById('assistant-voice-list');
@@ -7568,9 +7617,12 @@ async function loadAssistantVoices() {
     listEl.innerHTML = assistantVoiceOptions.map((v) => {
       const vid = String(v.voice_id || '');
       const active = vid === assistantSelectedVoiceId;
-      return `<label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid ${active ? '#1A6FE8' : 'var(--gray200)'};border-radius:10px;background:${active ? '#EFF6FF' : '#fff'};cursor:${canSelect ? 'pointer' : 'default'};">
-        <input type="radio" name="assistant-voice" value="${escHtml(vid)}" ${active ? 'checked' : ''} ${canSelect ? '' : 'disabled'} onchange="assistantSelectedVoiceId='${escHtml(vid)}'">
-        <div><div style="font-size:13px;font-weight:600;">${escHtml(v.display_name || vid)}</div><div style="font-size:12px;color:var(--gray500);">${escHtml(v.description || '')}</div></div>
+      return `<label style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px;border:1px solid ${active ? '#1A6FE8' : 'var(--gray200)'};border-radius:10px;background:${active ? '#EFF6FF' : '#fff'};cursor:${canSelect ? 'pointer' : 'default'};">
+        <div style="display:flex;gap:10px;">
+          <input type="radio" name="assistant-voice" value="${escHtml(vid)}" ${active ? 'checked' : ''} ${canSelect ? '' : 'disabled'} onchange="assistantSelectedVoiceId='${escHtml(vid)}'">
+          <div><div style="font-size:13px;font-weight:600;">${escHtml(v.display_name || vid)}</div><div style="font-size:12px;color:var(--gray500);">${escHtml(v.description || '')}</div></div>
+        </div>
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();previewVoice('${escHtml(vid)}',this)" aria-label="Stimme anhören" style="width:34px;height:34px;border-radius:999px;border:1px solid var(--gray200);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--gray700);"><i class="ti ti-player-play"></i></button>
       </label>`;
     }).join('');
   } catch (e) {
