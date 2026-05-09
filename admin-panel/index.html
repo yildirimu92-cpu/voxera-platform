@@ -5929,6 +5929,28 @@ function voxPrompt({title='Eingabe', message='', label='', placeholder='', defau
 // ── End Shared Dialog ────────────────────────────────────────────────────────
 
 // ── AI Setup Wizard ──────────────────────────────────────────────────────────
+
+const WIZARD_BRANCH_EXTRA_FIELDS = {
+  versicherung: [
+    { key:'sparten', label:'Sparten (kommagetrennt)' },
+    { key:'beratungsart', label:'Beratungsart (unabhaengig/gebunden)' },
+    { key:'gesellschaft', label:'Gesellschaft (bei gebunden)' },
+    { key:'schadenmeldung', label:'Schadenmeldung möglich (ja/nein)' },
+    { key:'pannenhilfe', label:'Pannenhilfe (ja/nein)' }
+  ],
+  garage: [
+    { key:'marken', label:'Marken' },
+    { key:'pannendienst', label:'Pannendienst (ja/nein)' },
+    { key:'pannendienst_nummer', label:'Pannendienst-Nummer' },
+    { key:'occasion_verkauf', label:'Occasion-Verkauf (ja/nein)' },
+    { key:'annahme_zeiten', label:'Annahmezeiten' }
+  ],
+  restaurant: [
+    { key:'kueche', label:'Küche' }, { key:'reservation', label:'Reservation (ja/nein)' },
+    { key:'takeaway', label:'Takeaway (ja/nein)' }, { key:'lieferung', label:'Lieferung (ja/nein)' },
+    { key:'max_gruppe', label:'Max Gruppe ohne Rückruf' }
+  ]
+};
 function getWizardSteps(templateId){
   const defaults = getTemplateDefaults(templateId);
   // Convert each JSON-defined extra step into render+collect handlers
@@ -5941,6 +5963,13 @@ function getWizardSteps(templateId){
     collect: (data) => collectWizardDynamicStep(stepDef, data)
   }));
   return [
+    {
+      id:'website',
+      title:'Website & Basisinfos',
+      sub:'Website auslesen und Felder vorbefüllen',
+      render: renderWizardStepWebsite,
+      collect: collectWizardStepWebsite
+    },
     {
       id:'identitaet',
       title:'Assistent & Identität',
@@ -5971,11 +6000,25 @@ function getWizardSteps(templateId){
       collect: collectWizardStepRegeln
     },
     {
+      id:'branche_extra',
+      title:'Branchenspezifisch',
+      sub:'Zusatzfelder nach Branche',
+      render: renderWizardStepBrancheExtra,
+      collect: collectWizardStepBrancheExtra
+    },
+    {
       id:'persoenlichkeit',
       title:'Persönlichkeit & Ton',
       sub:'Anrede, Tonalität, Sprache und Begrüssung',
       render: renderWizardStepPersoenlichkeit,
       collect: collectWizardStepPersoenlichkeit
+    },
+    {
+      id:'weiterleitungen',
+      title:'Weiterleitungen',
+      sub:'Demnächst verfügbar',
+      render: renderWizardStepWeiterleitungen,
+      collect: collectWizardStepWeiterleitungen
     },
     {
       id:'zusammenfassung',
@@ -6120,6 +6163,16 @@ async function openAiWizard(customerId){
     language:        c?.ai_language       || 'de',
     greeting:        c?.ai_greeting       || '',
     voiceId:         c?.voice_id || '',
+    websiteUrl:      c?.ai_website_url || '',
+    shortDescription:c?.ai_short_description || '',
+    branchExtra:     c?.ai_branch_extra || {},
+    forwarding1Name: c?.ai_forwarding_1_name || '',
+    forwarding1Number: c?.ai_forwarding_1_number || '',
+    forwarding1Trigger: c?.ai_forwarding_1_trigger || '',
+    forwarding2Name: c?.ai_forwarding_2_name || '',
+    forwarding2Number: c?.ai_forwarding_2_number || '',
+    forwarding2Trigger: c?.ai_forwarding_2_trigger || '',
+    emergencyNumber: c?.ai_emergency_number || '144',
     secondLanguage:  (Array.isArray(c?.selected_languages) && c.selected_languages[1]) ? c.selected_languages[1] : 'fr',
     // AI Config fields
     businessDescription: cfg.businessDescription || defaults.businessDescription || '',
@@ -6317,6 +6370,16 @@ async function wizardFinish(){
         ai_services: d.services||null,
         ai_location_hours: d.locationHours||null,
         ai_booking_faq: d.bookingFaq||null,
+        ai_website_url: d.websiteUrl || null,
+        ai_short_description: d.shortDescription || null,
+        ai_branch_extra: d.branchExtra && Object.keys(d.branchExtra).length ? d.branchExtra : null,
+        ai_forwarding_1_name: d.forwarding1Name || null,
+        ai_forwarding_1_number: d.forwarding1Number || null,
+        ai_forwarding_1_trigger: d.forwarding1Trigger || null,
+        ai_forwarding_2_name: d.forwarding2Name || null,
+        ai_forwarding_2_number: d.forwarding2Number || null,
+        ai_forwarding_2_trigger: d.forwarding2Trigger || null,
+        ai_emergency_number: d.emergencyNumber || '144',
         ai_instructions: d.instructions||null,
         ai_fallback_escalation: d.fallbackEscalation||null,
         ai_response_constraints: d.responseConstraints||null,
@@ -6324,6 +6387,14 @@ async function wizardFinish(){
         // Neue Wizard-Felder (Identität + Persönlichkeit)
         assistant_name:   d.assistantName||null,
         ai_customer_type: d.customerType||null,
+        customer_display_name: (() => {
+          const firm = c?.name || '';
+          const person = d._customerPersonName || '';
+          if (d.customerType === 'company') return firm;
+          return person || firm;
+        })(),
+        customer_legal_name: c?.name || null,
+        ai_person_name: (d.customerType !== 'company') ? (d._customerPersonName || null) : null,
         ai_address_form:  d.addressForm||null,
         ai_tone:          d.tone||null,
         ai_language:      d.language||null,
@@ -6515,6 +6586,47 @@ function collectWizardStepBranche(data){
 //  Both are now defined in industry_templates.extra_steps as JSON
 //  and rendered by renderWizardDynamicStep.)
 
+
+function renderWizardStepWebsite(data){
+  return `<div class="wizard-field"><label>Website URL</label><input class="input" id="wz-website-url" value="${esc(data.websiteUrl||'')}" placeholder="https://...">
+  <div style="margin-top:8px;"><button type="button" class="btn btn-secondary btn-sm" onclick="wizardScrapeWebsite()" id="wz-scrape-btn">Automatisch auslesen</button><span id="wz-scrape-feedback" style="margin-left:8px;font-size:12px;color:var(--slate2);"></span></div></div>
+  <div class="wizard-field"><label>Kurzbeschreibung</label><textarea class="textarea" id="wz-short-description">${escNl(data.shortDescription||'')}</textarea></div>`;
+}
+function collectWizardStepWebsite(data){
+  data.websiteUrl=document.getElementById('wz-website-url')?.value.trim()||'';
+  data.shortDescription=document.getElementById('wz-short-description')?.value.trim()||'';
+}
+function getBranchExtraFields(templateId){ return WIZARD_BRANCH_EXTRA_FIELDS[templateId] || []; }
+function renderWizardStepBrancheExtra(data){
+  const fs=getBranchExtraFields(data.templateId);
+  if(!fs.length) return '<div class="empty">Keine branchenspezifischen Felder für dieses Template.</div>';
+  return fs.map(f=>`<div class="wizard-field"><label>${esc(f.label)}</label><input class="input" id="wz-branch-${esc(f.key)}" value="${esc((data.branchExtra||{})[f.key]??'')}"></div>`).join('');
+}
+function collectWizardStepBrancheExtra(data){
+  const fs=getBranchExtraFields(data.templateId); const out={...(data.branchExtra||{})};
+  fs.forEach(f=>{ const v=document.getElementById('wz-branch-'+f.key)?.value; if(v!==undefined) out[f.key]=String(v).trim(); });
+  data.branchExtra=out;
+}
+function renderWizardStepWeiterleitungen(data){
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><strong>Weiterleitungen</strong><span class="badge badge-gray">Demnächst</span></div>
+  <div style="font-size:12px;color:var(--slate2);margin-bottom:10px;">Diese Daten werden gespeichert und aktiviert sobald die Weiterleitungs-Funktion freigeschaltet wird.</div>
+  <div class="wizard-field"><label>Ziel 1 Name</label><input class="input" id="wz-fwd1-name" value="${esc(data.forwarding1Name||'')}" style="opacity:.65"></div>
+  <div class="wizard-field"><label>Ziel 1 Nummer</label><input class="input" id="wz-fwd1-number" value="${esc(data.forwarding1Number||'')}" style="opacity:.65"></div>
+  <div class="wizard-field"><label>Ziel 1 Trigger</label><input class="input" id="wz-fwd1-trigger" value="${esc(data.forwarding1Trigger||'')}" style="opacity:.65"></div>
+  <div class="wizard-field"><label>Ziel 2 Name</label><input class="input" id="wz-fwd2-name" value="${esc(data.forwarding2Name||'')}" style="opacity:.65"></div>
+  <div class="wizard-field"><label>Ziel 2 Nummer</label><input class="input" id="wz-fwd2-number" value="${esc(data.forwarding2Number||'')}" style="opacity:.65"></div>
+  <div class="wizard-field"><label>Ziel 2 Trigger</label><input class="input" id="wz-fwd2-trigger" value="${esc(data.forwarding2Trigger||'')}" style="opacity:.65"></div>
+  <div class="wizard-field"><label>Notfallnummer</label><input class="input" id="wz-emergency" value="${esc(data.emergencyNumber||'144')}" style="opacity:.65"></div>`;
+}
+function collectWizardStepWeiterleitungen(data){
+  data.forwarding1Name=document.getElementById('wz-fwd1-name')?.value.trim()||'';
+  data.forwarding1Number=document.getElementById('wz-fwd1-number')?.value.trim()||'';
+  data.forwarding1Trigger=document.getElementById('wz-fwd1-trigger')?.value.trim()||'';
+  data.forwarding2Name=document.getElementById('wz-fwd2-name')?.value.trim()||'';
+  data.forwarding2Number=document.getElementById('wz-fwd2-number')?.value.trim()||'';
+  data.forwarding2Trigger=document.getElementById('wz-fwd2-trigger')?.value.trim()||'';
+  data.emergencyNumber=document.getElementById('wz-emergency')?.value.trim()||'144';
+}
 function renderWizardStepProfil(data){
   const _wNl=(v)=>(v||'').replace(/\\n/g,'\n');
   return `
@@ -14191,6 +14303,27 @@ async function loadAiChangesHistory() {
   }
 }
 // ── End Admin: AI Changes History ─────────────────────────────────────────────
+
+
+async function wizardScrapeWebsite(){
+  const btn=document.getElementById('wz-scrape-btn'); const fb=document.getElementById('wz-scrape-feedback');
+  const url=document.getElementById('wz-website-url')?.value.trim();
+  if(!url){ fb.textContent='Bitte URL eingeben.'; return; }
+  btn.disabled=true; fb.textContent='Lese Website…';
+  try{
+    const res=await fetch('/.netlify/functions/scrape-website',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const json=await res.json(); if(!res.ok||!json.success) throw new Error(json.error||'Fehler');
+    const d=state.aiWizard.data;
+    d.shortDescription=json.data?.short_description||d.shortDescription||'';
+    d.businessDescription=json.data?.short_description||d.businessDescription||'';
+    d.services=json.data?.services||d.services||'';
+    d.locationHours=json.data?.location_hours||d.locationHours||'';
+    if(json.data?.industry_guess) d.templateId=json.data.industry_guess;
+    renderWizardModal();
+    fb.textContent='✓ Felder vorausgefüllt.';
+  }catch(e){ fb.textContent='Manuell ausfüllen (Website nicht erreichbar).'; }
+  btn.disabled=false;
+}
 
 // ── Wizard AI Generate ───────────────────────────────────────────────────────
 async function wizardAiGenerate(){
