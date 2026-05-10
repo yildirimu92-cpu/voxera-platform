@@ -157,7 +157,7 @@ body{
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 .login-logo-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:20px;}
-.login-logo-ico{width:52px;height:52px;border-radius:14px;background:var(--vx-night);display:flex;align-items:center;justify-content:center;margin-bottom:10px;box-shadow:0 4px 16px rgba(13,31,60,.25);}
+.login-logo-ico{width:52px;height:52px;border-radius:var(--r-lg);background:var(--vx-night);display:flex;align-items:center;justify-content:center;margin-bottom:10px;box-shadow:0 4px 16px rgba(13,31,60,.25);}
 .login-logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:var(--text-xl);font-weight:var(--fw-extrabold);color:var(--vx-night);letter-spacing:-.04em;margin-bottom:3px;}
 .login-tag{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--g400);margin-bottom:0;}
 .login-sub{font-size:14px;color:var(--g600);margin-bottom:28px;line-height:1.55;}
@@ -234,9 +234,9 @@ body{
 .settings-card{
   background:var(--surface);
   border:0.5px solid var(--line);
-  border-radius:16px;
+  border-radius:var(--r-xl);
   padding:0;
-  box-shadow:0 2px 8px rgba(13,31,60,.06);
+  box-shadow:var(--shadow-card);
   margin:0;
   overflow:hidden;
 }
@@ -287,9 +287,9 @@ body{
 .vx-section{
   background:var(--surface);
   border:0.5px solid var(--line);
-  border-radius:16px;
+  border-radius:var(--r-xl);
   overflow:hidden;
-  box-shadow:0 2px 8px rgba(13,31,60,.06);
+  box-shadow:var(--shadow-card);
   margin-bottom:12px;
 }
 .vx-section-header{
@@ -347,12 +347,12 @@ html[data-theme="dark"] .settings-card{
 .help-hero{margin-bottom:28px;}
 .help-hero-sub{font-size:14px;color:var(--slate2);margin-top:5px;line-height:1.6;}
 .help-quickstart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
-.help-quickstart-card{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:20px 18px;text-decoration:none;transition:all var(--transition-fast);box-shadow:var(--shadow-card);}
+.help-quickstart-card{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:20px 18px;text-decoration:none;transition:all var(--transition-fast);box-shadow:var(--shadow-card);}
 .help-quickstart-card:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);transform:translateY(-1px);}
 .help-quickstart-icon{width:36px;height:36px;background:var(--blue-light);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .help-quickstart-title{font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1.3;}
 .help-quickstart-sub{font-size:12px;color:var(--gray600);line-height:1.5;}
-.help-topic{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:0;margin-bottom:14px;box-shadow:0 2px 8px rgba(13,31,60,.06);overflow:hidden;}
+.help-topic{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:0;margin-bottom:14px;box-shadow:var(--shadow-card);overflow:hidden;}
 .help-steps{padding:16px 18px;display:flex;flex-direction:column;gap:0;}
 .help-topic-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:0;letter-spacing:-.025em;padding:14px 18px;background:var(--vx-night);}
 .help-steps{display:flex;flex-direction:column;}
@@ -363,7 +363,7 @@ html[data-theme="dark"] .settings-card{
 .help-step-body{flex:1;}
 .help-step-title{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:3px;}
 .help-step-text{font-size:13px;color:var(--gray600);line-height:1.6;}
-.help-support-block{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:28px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.help-support-block{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:28px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;}
 .help-support-text{font-size:13.5px;color:var(--gray700);line-height:1.65;flex:1;}
 .help-support-cta{background:var(--blue);color:#fff;border:none;border-radius:10px;padding:11px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);white-space:nowrap;box-shadow:0 1px 3px rgba(26,111,232,.15);}
 .help-support-cta:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
@@ -421,7 +421,7 @@ html[data-theme="dark"] .settings-card{
 /* Dark Mode (Block ist selbst schon dunkel — Buttons bleiben gleich) */
 .einrichtung-status-card{
   background:var(--surface);border:1px solid var(--surface-border);
-  border-radius:16px;padding:18px 20px;margin-bottom:20px;
+  border-radius:var(--r-xl);padding:18px 20px;margin-bottom:20px;
   box-shadow:var(--shadow-card);
   display:grid;grid-template-columns:repeat(4,1fr);
 }
@@ -456,7 +456,7 @@ html[data-theme="dark"] .settings-card{
 .setup-step-text{font-size:13px;color:var(--ink);line-height:1.6;}
 .setup-step-sub{font-size:12px;color:var(--gray400);margin-top:2px;}
 .help-forwarding-grid{display:grid;gap:12px;margin:12px 0 16px;}
-.help-forwarding-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:14px;padding:14px 16px;}
+.help-forwarding-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;}
 .help-forwarding-card.recommended{background:var(--green-light);border-color:var(--green-mid);}
 .help-forwarding-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
 .help-forwarding-title{font-size:13px;font-weight:700;color:var(--gray900);}
@@ -485,7 +485,7 @@ html[data-theme="dark"] .settings-card{
 .setup-welcome-title{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--gray900);margin-bottom:8px;letter-spacing:-.02em;}
 .setup-welcome-sub{font-size:14px;color:var(--gray600);line-height:1.65;max-width:480px;margin:0 auto 28px;}
 .setup-steps{display:flex;flex-direction:column;gap:14px;max-width:600px;margin:0 auto;}
-.setup-step{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:22px 24px;cursor:pointer;transition:all var(--transition-md);position:relative;overflow:hidden;box-shadow:var(--shadow-card);}
+.setup-step{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r-xl);padding:22px 24px;cursor:pointer;transition:all var(--transition-md);position:relative;overflow:hidden;box-shadow:var(--shadow-card);}
 .setup-step:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);}
 .setup-step.done{border-color:var(--green-mid);background:#FAFFF8;}
 .setup-step.step-done{border-color:var(--green-mid);background:#FAFFF8;}
@@ -511,7 +511,7 @@ html[data-theme="dark"] .settings-card{
 .setup-step.step-skipped .setup-step-title{color:var(--amber);}
 .setup-step.skipped .setup-step-desc::after{content:' – übersprungen';color:var(--amber);font-weight:600;}
 .setup-step.step-skipped .setup-step-desc::after{content:' – übersprungen';color:var(--amber);font-weight:600;}
-.setup-open-summary{max-width:600px;margin:20px auto 0;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:14px;padding:18px 22px;display:none;}
+.setup-open-summary{max-width:600px;margin:20px auto 0;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:var(--r-lg);padding:18px 22px;display:none;}
 .setup-open-summary.show{display:block;}
 .setup-open-summary-title{font-size:13px;font-weight:700;color:#92400E;margin-bottom:10px;}
 .setup-open-summary-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:5px;}
@@ -785,7 +785,7 @@ html[data-theme="dark"] .settings-card{
 .sidebar-user-card.open .sidebar-user-caret{transform:rotate(180deg);color:var(--blue);}
 .user-menu{
   position:absolute;left:16px;right:16px;bottom:72px;
-  background:rgba(255,255,255,0.98);border:0.5px solid var(--line);border-radius:14px;
+  background:rgba(255,255,255,0.98);border:0.5px solid var(--line);border-radius:var(--r-lg);
   box-shadow:0 14px 30px rgba(13,31,60,0.14);
   padding:8px;display:none;backdrop-filter:blur(14px);
 }
@@ -891,7 +891,7 @@ html[data-theme="dark"] .settings-card{
 }
 
 .error-banner{
-  background:linear-gradient(180deg,#FFF7F7 0%,#FEEFEF 100%);border:1px solid #FBCACA;border-radius:14px;
+  background:linear-gradient(180deg,#FFF7F7 0%,#FEEFEF 100%);border:1px solid #FBCACA;border-radius:var(--r-lg);
   padding:16px 18px;color:#B42318;font-size:13px;margin-bottom:18px;box-shadow:0 8px 22px rgba(220,38,38,.08);
 }
 .live-pill{
@@ -907,7 +907,7 @@ html[data-theme="dark"] .settings-card{
   z-index:9990;
   background:rgba(17,24,39,0.92);
   border:0.5px solid rgba(255,255,255,0.12);
-  border-radius:16px;
+  border-radius:var(--r-xl);
   padding:13px 20px;
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   box-shadow:0 8px 32px rgba(0,0,0,0.28);
@@ -986,7 +986,7 @@ html[data-theme="dark"] .settings-card{
   border-left:3px solid var(--blue);
   border-radius:12px;padding:16px 18px;
   transition:all var(--transition-fast);cursor:default;
-  box-shadow:0 2px 8px rgba(13,31,60,.05);
+  box-shadow:var(--shadow-card);
 }
 .kpi:hover{border-color:var(--blue-mid);box-shadow:0 4px 16px rgba(26,111,232,.1);}
 .kpi-label{font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:block;}
@@ -1003,7 +1003,7 @@ html[data-theme="dark"] .settings-card{
    CHARTS — V1
 ═══════════════════════════════════════════ */
 .charts-row{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:28px;}
-.card{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 2px 8px rgba(13,31,60,.06);overflow:hidden;}
+.card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:22px;box-shadow:var(--shadow-card);overflow:hidden;}
 .card-title{font-size:12px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:18px;}
 .bar-wrap{display:flex;flex-direction:column;gap:10px;}
 .bar-row{display:flex;align-items:center;gap:10px;}
@@ -1028,7 +1028,7 @@ html[data-theme="dark"] .settings-card{
 /* ── Unified Page Header (Night-Bar) ── */
 .vx-page-header{
   background:var(--vx-night);
-  border-radius:14px;
+  border-radius:var(--r-lg);
   padding:16px 18px;
   margin-bottom:14px;
   display:flex;
@@ -1098,7 +1098,7 @@ html[data-theme="dark"] .settings-card{
 .call-list{display:flex;flex-direction:column;gap:10px;margin-bottom:28px;}
 .call-row{
   /* overridden by cr-* classes below — kept for compat */
-  border-radius:14px;padding:0;
+  border-radius:var(--r-lg);padding:0;
   display:flex;flex-direction:column;gap:0;
   cursor:pointer;user-select:none;
   overflow:hidden;
@@ -1390,7 +1390,7 @@ html[data-theme="dark"] .settings-card{
 .confirm-copy{flex:1;}
 .confirm-copy h3{margin-bottom:3px;}
 .modal{
-  background:var(--surface);border-radius:16px;
+  background:var(--surface);border-radius:var(--r-xl);
   width:100%;max-width:520px;
   max-height:min(88vh,calc(100dvh - 40px));
   box-shadow:0 24px 64px rgba(0,0,0,.18),0 4px 16px rgba(0,0,0,.08);
@@ -1425,11 +1425,11 @@ html[data-theme="dark"] .settings-card{
 .modal-field:last-child{margin-bottom:0;}
 .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
 /* Overlay center for confirm */
-.overlay--center .modal{border-radius:16px;max-width:380px;animation:modalIn .22s cubic-bezier(.16,1,.3,1) both;}
+.overlay--center .modal{border-radius:var(--r-xl);max-width:380px;animation:modalIn .22s cubic-bezier(.16,1,.3,1) both;}
 @keyframes modalIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 /* Confirm modal specifics */
 .modal-confirm-body{padding:20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;}
-.modal-confirm-icon{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;}
+.modal-confirm-icon{width:52px;height:52px;border-radius:var(--r-xl);display:flex;align-items:center;justify-content:center;}
 .modal-confirm-icon.blue{background:#EEF4FF;color:#1A6FE8;}
 .modal-confirm-icon.red{background:#FEF2F2;color:#DC2626;}
 .modal-confirm-icon.green{background:#ECFDF5;color:#059669;}
@@ -1494,7 +1494,7 @@ html[data-theme="dark"] .settings-card{
   color:#fff;
   font-size:13px;font-weight:500;
   padding:11px 20px;
-  border-radius:16px;
+  border-radius:var(--r-xl);
   z-index:9000;
   opacity:0;
   transition:opacity 0.22s ease, transform 0.28s cubic-bezier(0.16,1,0.3,1);
@@ -1574,7 +1574,7 @@ html[data-theme="dark"] .settings-card{
 .toggle-switch.green input:checked + .toggle-slider{box-shadow:0 0 0 3px rgba(5,150,105,0.15);}
 
 
-.account-plan-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:16px;padding:18px;}
+.account-plan-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:18px;}
 .account-plan-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;}
 .account-plan-title{font-size:16px;font-weight:800;font-family:var(--font-display);color:var(--gray900);line-height:1.2;}
 .account-plan-sub{font-size:12px;color:var(--gray400);margin-top:4px;}
@@ -1582,10 +1582,10 @@ html[data-theme="dark"] .settings-card{
 .account-usage-meter-fill{height:100%;background:var(--blue);border-radius:999px;transition:width .3s ease;}
 .account-usage-meta{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--gray600);margin-bottom:14px;flex-wrap:wrap;}
 .account-usage-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px;}
-.account-usage-mini{background:var(--surface);border:0.5px solid var(--line);border-radius:14px;padding:14px;}
+.account-usage-mini{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);padding:14px;}
 .account-usage-mini-label{font-size:12px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
 .account-usage-mini-val{font-size:18px;font-weight:800;font-family:var(--font-display);color:var(--gray900);line-height:1.1;}
-.account-upgrade-box{background:var(--surface);border:0.5px solid var(--line);border-radius:14px;padding:16px;}
+.account-upgrade-box{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);padding:16px;}
 .account-upgrade-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:5px;}
 .account-upgrade-copy{font-size:12px;color:var(--gray600);line-height:1.6;margin-bottom:14px;}
 .account-usage-actions{display:flex;gap:8px;flex-wrap:wrap;}
@@ -1598,7 +1598,7 @@ html[data-theme="dark"] .settings-card{
 .priority-high{}
 .priority-normal{}
 .focus-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:-6px 0 28px;}
-.focus-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:14px;padding:18px;}
+.focus-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:var(--r-lg);padding:18px;}
 .focus-label{font-size:12px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
 .focus-value{font-size:24px;font-weight:800;font-family:var(--font-display);line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
@@ -1691,7 +1691,7 @@ html[data-theme="dark"] .settings-card{
 .detail-body{padding:16px 24px 18px;overflow:auto;min-height:0;flex:1;}
 .detail-footer{padding:12px 24px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--surface2);display:flex;justify-content:flex-end;background:var(--surface);}
 .detail-layout{display:flex;flex-direction:column;gap:0;}
-.detail-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:16px;padding:18px;}
+.detail-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:18px;}
 .detail-title{font-size:12px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;}
 .detail-section-title{font-size:12px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
 .detail-section-divider{height:1px;background:var(--line);margin:16px 0 12px;}
@@ -1766,7 +1766,7 @@ html[data-theme="dark"] .settings-card{
     max-height:calc(100dvh - 6px);
     border-radius:18px 18px 0 0;
   }
-  .overlay.overlay--center .modal{border-radius:16px;max-height:min(78dvh,calc(100dvh - 24px));}
+  .overlay.overlay--center .modal{border-radius:var(--r-xl);max-height:min(78dvh,calc(100dvh - 24px));}
   .modal-head{padding:16px 16px 10px;}
   .modal-body{padding:0 16px 14px;}
   .modal-footer{padding:10px 16px calc(14px + env(safe-area-inset-bottom));}
@@ -1809,7 +1809,7 @@ html[data-theme="dark"] .settings-card{
 .dash-status-chip.alert{background:rgba(220,38,38,0.22);border-color:rgba(254,202,202,0.55);}
 .dash-status-chip.ok{background:rgba(5,150,105,0.24);border-color:rgba(167,243,208,0.55);}
 .dash-status-chip.note{background:rgba(255,255,255,0.12);}
-.dash-activation-card{background:#FFF9F2;border:1px solid #FDE68A;border-radius:14px;padding:18px 20px;margin-bottom:18px;display:none;box-shadow:var(--shadow-card);}
+.dash-activation-card{background:#FFF9F2;border:1px solid #FDE68A;border-radius:var(--r-lg);padding:18px 20px;margin-bottom:18px;display:none;box-shadow:var(--shadow-card);}
 .dash-activation-card.show{display:block;}
 .dash-activation-card.info{background:#F8FAFF;border-color:#BFDBFE;}
 .dash-activation-card.success{background:var(--green-light);border-color:#86EFAC;}
@@ -1820,12 +1820,12 @@ html[data-theme="dark"] .settings-card{
 .dash-activation-card.info .dash-activation-text{color:#1340B0;}
 .dash-activation-card.success .dash-activation-text{color:#166534;}
 .dash-activation-actions{display:flex;gap:8px;flex-wrap:wrap;}
-.fse-card{display:none;background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow-card);}
+.fse-card{display:none;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:28px;margin-bottom:18px;box-shadow:var(--shadow-card);}
 .fse-card.show{display:block;}
 .fse-title{font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--gray900);margin-bottom:10px;letter-spacing:-.02em;}
 .fse-sub{font-size:14px;color:var(--gray600);line-height:1.65;margin-bottom:20px;max-width:640px;}
 .fse-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
-.fse-progress{background:var(--surface2);border:0.5px solid var(--line);border-radius:14px;padding:16px;}
+.fse-progress{background:var(--surface2);border:0.5px solid var(--line);border-radius:var(--r-lg);padding:16px;}
 .fse-progress-title{font-size:13px;font-weight:700;color:var(--gray700);margin-bottom:10px;}
 .fse-progress ul{margin:0;padding:0;list-style:none;display:grid;gap:7px;}
 .fse-progress li{font-size:13px;color:var(--gray600);}
@@ -1836,7 +1836,7 @@ html[data-theme="dark"] .settings-card{
 .dash-kpi{
   background:var(--surface);
   border:0.5px solid var(--line);
-  border-radius:16px;padding:14px 14px;cursor:default;
+  border-radius:var(--r-xl);padding:14px 14px;cursor:default;
   box-shadow:var(--surface-shadow-soft);
   transition:all 0.22s cubic-bezier(0.16,1,0.3,1);
   -webkit-tap-highlight-color:transparent;
@@ -1861,7 +1861,7 @@ html[data-theme="dark"] .settings-card{
 .lead-dot-neu{background:#F3F4F6;color:#6B7280;}
 .dash-focus-card{
   background:var(--surface);
-  border:1px solid #CFE0FA;border-radius:16px;padding:18px;
+  border:1px solid #CFE0FA;border-radius:var(--r-xl);padding:18px;
   box-shadow:0 6px 18px rgba(13,31,60,0.08);
 }
 .dash-focus-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748B;margin-bottom:10px;font-family:var(--font-display);}
@@ -1886,7 +1886,7 @@ html[data-theme="dark"] .settings-card{
 .dash-cb-title.secondary{font-size:15px;color:var(--gray700);}
 .dash-cb-link{font-size:12px;color:var(--blue);text-decoration:none;font-weight:600;cursor:pointer;}
 .dash-cb-link:hover{text-decoration:underline;}
-.cb-row{background:var(--surface);border:0.5px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:10px;transition:all var(--transition-fast);box-shadow:var(--shadow-card);}
+.cb-row{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:10px;transition:all var(--transition-fast);box-shadow:var(--shadow-card);}
 .cb-row.priority{border-color:#FECACA;background:#FFFBFB;}
 .cb-row.priority:hover{border-color:#FCA5A5;box-shadow:0 2px 8px rgba(220,38,38,.06);}
 .cb-row.secondary:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);}
@@ -1901,7 +1901,7 @@ html[data-theme="dark"] .settings-card{
 .dash-empty{
   background:var(--surface);
   border:1px solid var(--surface-border);
-  border-radius:14px;padding:24px 16px;
+  border-radius:var(--r-lg);padding:24px 16px;
   color:var(--slate);font-size:13px;text-align:center;
   box-shadow:var(--surface-shadow-soft);
 }
@@ -1937,11 +1937,11 @@ html[data-theme="dark"] .settings-card{
 .activation-module{margin-bottom:24px;}
 .activation-module-title{font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.02em;}
 .activation-module-sub{font-size:13px;color:var(--gray600);margin-bottom:16px;line-height:1.55;}
-.activation-live-header{background:linear-gradient(135deg,#ECFDF3 0%,#F0F9FF 100%);border:1px solid #BBF7D0;border-radius:16px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-live-header{background:linear-gradient(135deg,#ECFDF3 0%,#F0F9FF 100%);border:1px solid #BBF7D0;border-radius:var(--r-xl);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .activation-live-eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#166534;margin-bottom:6px;}
 .activation-live-title{font-size:22px;font-weight:800;letter-spacing:-.02em;color:#14532D;margin-bottom:4px;}
 .activation-live-sub{font-size:13px;color:#166534;line-height:1.55;}
-.activation-status-card{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-status-card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .activation-numbers{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;}
 .activation-number-item{flex:1;min-width:120px;}
 .activation-number-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);margin-bottom:4px;}
@@ -1951,7 +1951,7 @@ html[data-theme="dark"] .settings-card{
 .activation-badge.active{}
 .activation-badge.inactive{}
 .activation-state-desc{font-size:13px;color:var(--gray600);margin-top:8px;line-height:1.55;}
-.activation-device-section{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-device-section{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .activation-device-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .activation-device-sub{font-size:13px;color:var(--gray600);margin-bottom:14px;}
 .activation-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -1965,7 +1965,7 @@ html[data-theme="dark"] .settings-card{
 .activation-instructions p{font-size:13px;color:var(--gray600);line-height:1.6;margin-bottom:8px;}
 .activation-instructions p:last-child{margin-bottom:0;}
 .activation-instructions-note{font-size:12px;color:var(--gray400);font-style:italic;}
-.activation-deactivation-section{background:var(--surface);border:1px solid #FECACA;border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.activation-deactivation-section{background:var(--surface);border:1px solid #FECACA;border-radius:var(--r-xl);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .activation-deactivation-title{font-size:14px;font-weight:700;color:#991B1B;margin-bottom:4px;}
 .activation-deactivation-sub{font-size:13px;color:var(--gray600);margin-bottom:14px;}
 .activation-deactivation-steps{margin:0 0 14px 18px;}
@@ -1977,7 +1977,7 @@ html[data-theme="dark"] .settings-card{
 .activation-deactivate-btn:hover:not(:disabled){background:#B91C1C;transform:translateY(-0.5px);}
 .activation-deactivate-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
 /* Mobile deactivation action area */
-.act-deact-mobile-area{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-deact-mobile-area{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-deact-mobile-mode-badge{margin-bottom:14px;}
 .act-deact-mobile-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .act-deact-mobile-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
@@ -1987,7 +1987,7 @@ html[data-theme="dark"] .settings-card{
 .act-deact-mobile-nextstep-title{font-size:13px;font-weight:700;color:#92400E;margin-bottom:6px;}
 .act-deact-mobile-nextstep-text{font-size:13px;color:var(--gray700);line-height:1.6;}
 /* Landline manual guidance */
-.act-deact-landline-area{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-deact-landline-area{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-deact-landline-mode-badge{margin-bottom:14px;}
 .act-deact-landline-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .act-deact-landline-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
@@ -2001,7 +2001,7 @@ html[data-theme="dark"] .settings-card{
   .activation-numbers{flex-direction:column;gap:10px;}
   .activation-choice-grid{grid-template-columns:1fr;}
 }
-.act-mode-section{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-mode-section{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-mode-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .act-mode-sub{font-size:13px;color:var(--gray600);margin-bottom:14px;}
 .act-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -2012,13 +2012,13 @@ html[data-theme="dark"] .settings-card{
 .act-mode-card-label{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:3px;}
 .act-mode-card-desc{font-size:12px;color:var(--gray600);line-height:1.5;}
 .act-mode-card.selected .act-mode-card-label{color:var(--blue-dark);}
-.activation-settings-section{background:#FAFBFD;border:0.5px solid var(--line);border-radius:16px;padding:16px 16px 2px 16px;margin-bottom:14px;}
+.activation-settings-section{background:#FAFBFD;border:0.5px solid var(--line);border-radius:var(--r-xl);padding:16px 16px 2px 16px;margin-bottom:14px;}
 .activation-settings-title{font-size:12px;font-weight:700;color:var(--gray500);letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}
 .activation-settings-sub{font-size:12px;color:var(--gray500);margin-bottom:12px;}
-.activation-testfocus-section{background:#FFFBEB;border:1px solid #FDE68A;border-radius:16px;padding:16px 16px 2px 16px;margin-bottom:14px;}
+.activation-testfocus-section{background:#FFFBEB;border:1px solid #FDE68A;border-radius:var(--r-xl);padding:16px 16px 2px 16px;margin-bottom:14px;}
 .activation-testfocus-title{font-size:12px;font-weight:700;color:#92400E;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}
 .activation-testfocus-sub{font-size:12px;color:#92400E;margin-bottom:12px;}
-.act-action-section{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-action-section{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-action-title{font-size:14px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .act-action-sub{font-size:13px;color:var(--gray600);margin-bottom:16px;}
 .act-action-code-box{background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
@@ -2032,7 +2032,7 @@ html[data-theme="dark"] .settings-card{
 .act-test-required-info{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:12px 16px;margin-top:14px;}
 .act-test-required-info-title{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:4px;}
 .act-test-required-info-body{font-size:12px;color:#1340B0;line-height:1.55;}
-.activation-more-options{margin-bottom:14px;border:0.5px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow-card);}
+.activation-more-options{margin-bottom:14px;border:0.5px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-card);}
 .activation-more-options summary{cursor:pointer;list-style:none;padding:14px 16px;font-size:13px;font-weight:700;color:var(--gray700);display:flex;align-items:center;justify-content:space-between;}
 .activation-more-options summary::-webkit-details-marker{display:none;}
 .activation-more-options summary::after{content:'▾';font-size:14px;color:var(--gray500);transition:transform var(--transition-fast);}
@@ -2042,7 +2042,7 @@ html[data-theme="dark"] .settings-card{
 .activation-status-card--success-highlight{box-shadow:0 0 0 2px #52dd7a,0 0 14px #52dd7a60!important;transition:box-shadow .2s;}
 .activation-status-card--neutral-highlight{box-shadow:0 0 0 2px #f2b5b5,0 0 14px #de434360!important;transition:box-shadow .2s;}
 .activation-badge.pending-test{}
-.act-pending-test-card{background:var(--surface);border:2px solid #FCD34D;border-radius:16px;padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
+.act-pending-test-card{background:var(--surface);border:2px solid #FCD34D;border-radius:var(--r-xl);padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow-card);}
 .act-pending-test-header{margin-bottom:18px;}
 .act-pending-test-title{font-size:15px;font-weight:800;color:var(--gray900);margin-bottom:4px;letter-spacing:-.01em;}
 .act-pending-test-sub{font-size:13px;color:var(--gray600);line-height:1.55;}
@@ -2113,7 +2113,7 @@ html[data-theme="dark"] .settings-card{
   width:min(240px,calc(100vw - 24px));
   background:rgba(255,255,255,0.98);
   border:0.5px solid var(--line);
-  border-radius:14px;
+  border-radius:var(--r-lg);
   box-shadow:0 14px 30px rgba(13,31,60,0.14);
   padding:8px;
   display:none;
@@ -2289,8 +2289,8 @@ html[data-theme="dark"] .settings-card{
 .dash-glass{
   background:var(--surface);
   border:0.5px solid var(--line);
-  border-radius:14px;overflow:hidden;
-  box-shadow:0 2px 8px rgba(13,31,60,.06);
+  border-radius:var(--r-lg);overflow:hidden;
+  box-shadow:var(--shadow-card);
 }
 .dash-glass-hd{
   display:flex;align-items:center;justify-content:space-between;
@@ -2338,7 +2338,7 @@ html[data-theme="dark"] .settings-card{
 #tab-anrufe .call-list,#tab-rueckrufe .call-list,#tab-archiv .call-list{
   background:rgba(255,255,255,0.7);
   border:0.5px solid rgba(255,255,255,0.95);
-  border-radius:16px;overflow:hidden;
+  border-radius:var(--r-xl);overflow:hidden;
   box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 2px 16px rgba(0,0,0,0.06);
   backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
   gap:0!important;margin-bottom:16px!important;padding:0;
@@ -2483,7 +2483,7 @@ button, a.btn { min-height: 44px; }
 .activation-hero h1{font-family:var(--font-display);font-size:24px;line-height:1.16;letter-spacing:-.03em;color:#0F172A;margin-bottom:8px;}
 .activation-hero p{font-size:13px;line-height:1.5;color:#475569;margin:0;}
 .activation-hero .activation-primary{margin-top:14px;width:100%;}
-.activation-panel{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-card);}
+.activation-panel{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:16px;box-shadow:var(--shadow-card);}
 .activation-panel h2{font-size:15px;font-weight:800;color:#0F172A;margin-bottom:4px;}
 .activation-panel-sub{font-size:13px;color:#64748B;line-height:1.55;margin-bottom:12px;}
 .activation-final-success{border-color:#86EFAC;background:linear-gradient(180deg,#F0FDF4 0%,#FFFFFF 55%);box-shadow:0 10px 24px rgba(22,163,74,.12);}
@@ -2495,7 +2495,7 @@ button, a.btn { min-height: 44px; }
 .activation-step-row.done .activation-step-index,.activation-step-row.active .activation-step-index{background:#1D4ED8;color:#fff;}
 .activation-step-label{font-size:13px;font-weight:600;color:#334155;}
 .activation-choice-grid{display:grid;gap:10px;}
-.activation-choice-card{border:1.5px solid #D8E0EC;border-radius:14px;padding:14px;background:var(--surface);cursor:pointer;transition:all .18s ease;}
+.activation-choice-card{border:1.5px solid #D8E0EC;border-radius:var(--r-lg);padding:14px;background:var(--surface);cursor:pointer;transition:all .18s ease;}
 .activation-choice-card.active{border-color:#1D4ED8;background:#EEF4FF;box-shadow:0 0 0 3px rgba(29,78,216,.11);}
 .activation-choice-title{font-size:14px;font-weight:700;color:#0F172A;margin-bottom:4px;}
 .activation-choice-text{font-size:13px;color:#64748B;line-height:1.55;}
@@ -2544,7 +2544,7 @@ button, a.btn { min-height: 44px; }
 .activation-compact-label{font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
 .activation-compact-val{font-size:13px;font-weight:700;color:#0F172A;word-break:break-word;}
 .activation-live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
-.activation-advanced{background:var(--surface);border:0.5px solid var(--line);border-radius:16px;}
+.activation-advanced{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);}
 .activation-advanced-toggle{width:100%;border:none;background:transparent;cursor:pointer;padding:14px 16px;font-size:13px;font-weight:700;color:#334155;display:flex;justify-content:space-between;align-items:center;text-align:left;font-family:inherit;}
 .activation-advanced-toggle::after{content:'▾';color:#94A3B8;transition:transform var(--transition-fast);}
 .activation-advanced.is-open .activation-advanced-toggle::after{transform:rotate(180deg);}
@@ -2732,7 +2732,7 @@ body,.main{background:var(--vx-bg);}
 #last-updated-label{display:none;}
 .dash-status-hero{
   background:linear-gradient(135deg,var(--vx-night) 0%,#162D54 72%,var(--blue) 130%);
-  border-radius:16px;
+  border-radius:var(--r-xl);
   border:1px solid rgba(255,255,255,.1);
   box-shadow:0 6px 16px rgba(13,31,60,.12);
 }
@@ -2747,7 +2747,7 @@ body,.main{background:var(--vx-bg);}
   position:relative;
   background:var(--surface);
   border:0.5px solid var(--line);
-  border-radius:14px;
+  border-radius:var(--r-lg);
   padding:14px 16px;
   box-shadow:0 1px 3px rgba(13,31,60,0.035);
   overflow:hidden;
@@ -2801,7 +2801,7 @@ body,.main{background:var(--vx-bg);}
 .settings-card{
   background:var(--surface);
   border:1px solid var(--surface-border);
-  border-radius:14px;
+  border-radius:var(--r-lg);
   box-shadow:var(--surface-shadow-soft);
 }
 .settings-card-title{
@@ -3036,7 +3036,7 @@ body,.main{background:var(--vx-bg);}
 .dash-kpi{
   position:relative;
   padding:16px 18px;
-  border-radius:14px;
+  border-radius:var(--r-lg);
   border:0.5px solid var(--line);
   background:var(--surface);
   box-shadow:0 1px 2px rgba(13,31,60,0.03);
@@ -3535,7 +3535,7 @@ body,.main{background:var(--vx-bg);}
   display:grid;grid-template-columns:repeat(2,1fr);gap:10px;
 }
 .skel-kpi{
-  height:82px;border-radius:14px;
+  height:82px;border-radius:var(--r-lg);
 }
 /* Section Header */
 .skel-hd{
@@ -3562,7 +3562,7 @@ body,.main{background:var(--vx-bg);}
 .skel-glass{
   background:rgba(255,255,255,0.7);
   border:0.5px solid rgba(255,255,255,0.95);
-  border-radius:16px;overflow:hidden;
+  border-radius:var(--r-xl);overflow:hidden;
   box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 2px 16px rgba(0,0,0,0.06);
   backdrop-filter:blur(20px) saturate(180%);
   -webkit-backdrop-filter:blur(20px) saturate(180%);
@@ -3578,7 +3578,7 @@ body,.main{background:var(--vx-bg);}
 }
 .empty-icon{
   width:48px;height:48px;margin:0 auto 14px;
-  border-radius:14px;
+  border-radius:var(--r-lg);
   display:flex;align-items:center;justify-content:center;
   background:linear-gradient(180deg,#F8FAFF 0%,#EFF4FF 100%);
   border:1px solid #DDE8FA;
@@ -3717,7 +3717,7 @@ body,.main{background:var(--vx-bg);}
   .dash-focus-number{font-size:32px;}
   .dash-grid{gap:10px;}
   /* Glass-Karten full-width */
-  .dash-glass{border-radius:14px;}
+  .dash-glass{border-radius:var(--r-lg);}
   .dash-glass-hd{padding:12px 14px;}
 }
 
@@ -3892,7 +3892,7 @@ body,.main{background:var(--vx-bg);}
 .au-kpi-val,.au-kpi-sub{padding-top:0;}
 .au-kpi-sub{font-size:11px;color:rgba(255,255,255,.35);font-weight:500;}
 .au-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px;}
-.au-card{background:var(--surface);border:0.5px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(13,31,60,.06);}
+.au-card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-card);}
 .au-card-hd{display:flex;align-items:center;justify-content:space-between;background:#0D1F3C;padding:10px 18px;border-radius:0;}
 .au-card-title{font-family:var(--font-display);font-size:12px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:.01em;}
 .au-chart-wrap{width:100%;overflow:hidden;}
@@ -5029,7 +5029,7 @@ body,.main{background:var(--vx-bg);}
   @keyframes sheetUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
   .modal-drag{display:block;}
   .modal-head-top{padding:12px 18px 14px;}
-  .overlay--center .modal{border-radius:16px;max-width:360px;}
+  .overlay--center .modal{border-radius:var(--r-xl);max-width:360px;}
 
   /* ── vx-page-header ──────────────────────────────── */
   .vx-page-header {
@@ -5201,7 +5201,7 @@ body,.main{background:var(--vx-bg);}
 .vx-acc-editing .vx-acc-read{display:none;} .vx-acc-editing .vx-acc-edit{display:block;}
 
 /* ── Assistent Pending System ─────────────────────── */
-.vx-pending-bar{background:#0D1F3C;border-radius:14px;padding:14px 16px;margin-bottom:12px;display:none;}
+.vx-pending-bar{background:#0D1F3C;border-radius:var(--r-lg);padding:14px 16px;margin-bottom:12px;display:none;}
 .vx-pending-bar.visible{display:block;}
 .vx-pending-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;}
 .vx-pending-sub{font-size:11px;color:rgba(255,255,255,.45);margin-bottom:10px;}
@@ -5211,7 +5211,7 @@ body,.main{background:var(--vx-bg);}
 .vx-pending-actions{display:flex;gap:8px;}
 .vx-btn-preview{flex:1;padding:10px;background:rgba(255,255,255,.1);border:0.5px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
 .vx-btn-live{flex:1;padding:10px;background:#1A6FE8;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
-.vx-success-bar{background:#0D1F3C;border-radius:14px;padding:16px;margin-bottom:12px;text-align:center;display:none;}
+.vx-success-bar{background:#0D1F3C;border-radius:var(--r-lg);padding:16px;margin-bottom:12px;text-align:center;display:none;}
 .vx-success-bar.visible{display:block;}
 /* Changed field highlight */
 .vxi-field.pending{background:#FFFBEB;border-radius:10px;border-left:3px solid #F59E0B;padding-left:10px;margin-left:-10px;}
@@ -5259,7 +5259,7 @@ body,.main{background:var(--vx-bg);}
 .au2-kpi-trend.down{color:#F87171;}
 .au2-spark{display:flex;align-items:flex-end;gap:2px;height:22px;margin-top:6px;}
 .au2-spark-bar{flex:1;border-radius:2px 2px 0 0;min-height:3px;}
-.au2-card{background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;}
+.au2-card{background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;}
 .au2-night-head{background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;}
 .au2-night-title{font-size:12px;font-weight:700;color:#fff;}
 .au2-night-badge{font-size:10px;font-weight:700;color:rgba(255,255,255,.6);background:rgba(255,255,255,.1);padding:2px 8px;border-radius:6px;}
@@ -5558,7 +5558,7 @@ body,.main{background:var(--vx-bg);}
                   <div class="skel skel-kpi"></div>
                 </div>
                 <!-- Skeleton Recent Rows -->
-                <div class="skel-glass skel-rows" style="margin:14px 14px 14px;border-radius:14px;">
+                <div class="skel-glass skel-rows" style="margin:14px 14px 14px;border-radius:var(--r-lg);">
                   <div class="skel-hd">
                     <div class="skel skel-hd-title"></div>
                     <div class="skel skel-hd-link"></div>
@@ -5611,7 +5611,7 @@ body,.main{background:var(--vx-bg);}
 
             <!-- GREETING + DAILY REPORT -->
             <!-- HERO HEADER: Greeting + KPIs integriert -->
-            <div id="dash-greeting-block" style="background:#0D1F3C;border-radius:14px;padding:16px 18px;margin-bottom:14px;box-sizing:border-box;display:flex;flex-direction:column;">
+            <div id="dash-greeting-block" style="background:#0D1F3C;border-radius:var(--r-lg);padding:16px 18px;margin-bottom:14px;box-sizing:border-box;display:flex;flex-direction:column;">
               <!-- Top: Greeting + Datum -->
               <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:8px;">
                 <div style="min-width:0;flex:1;">
@@ -5655,7 +5655,7 @@ body,.main{background:var(--vx-bg);}
               </div>
             </div>
 
-              <div id="dash-daily-report" style="display:none;background:var(--surface);border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px;">
+              <div id="dash-daily-report" style="display:none;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;">
               <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:0.5px solid var(--line);">
                 <i data-lucide="sparkles" style="width:16px;height:16px;color:#1A6FE8;flex-shrink:0;" aria-hidden="true"></i>
                 <div style="font-size:11px;font-weight:700;color:#0D1F3C;text-transform:uppercase;letter-spacing:.08em;">Tagesbericht</div>
@@ -5667,7 +5667,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- JETZT WICHTIG — Fokus-Karte + Card-Stack -->
-            <div id="dash-priority-section" style="margin-bottom:14px;border-radius:14px;overflow:hidden;border:0.5px solid var(--line);box-shadow:0 2px 8px rgba(13,31,60,.06);">
+            <div id="dash-priority-section" style="margin-bottom:14px;border-radius:var(--r-lg);overflow:hidden;border:0.5px solid var(--line);box-shadow:var(--shadow-card);">
               <div style="background:#0D1F3C;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:14px 14px 0 0;">
                 <div style="font-size:13px;font-weight:700;color:#fff;letter-spacing:-.01em;">Jetzt wichtig</div>
                 <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,.45);cursor:pointer;" onclick="showTab('anrufe',document.getElementById('nav-anrufe'))">Alle anzeigen →</span>
@@ -5861,21 +5861,21 @@ body,.main{background:var(--vx-bg);}
 
           <!-- Stats -->
           <div id="archiv-stats" style="display:none;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
-            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:14px;box-shadow:0 2px 8px rgba(13,31,60,.05);border-left:3px solid #1A6FE8;">
+            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-card);border-left:3px solid #1A6FE8;">
               <div style="background:#0D1F3C;padding:6px 14px;font-size:9px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;">Erledigt</div>
               <div style="padding:10px 14px;">
                 <div style="font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.03em;font-family:var(--font-display);" id="archiv-stat-count">0</div>
                 <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Anrufe</div>
               </div>
             </div>
-            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:14px;box-shadow:0 2px 8px rgba(13,31,60,.05);border-left:3px solid #1A6FE8;">
+            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-card);border-left:3px solid #1A6FE8;">
               <div style="background:#0D1F3C;padding:6px 14px;font-size:9px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;">Gesprächszeit</div>
               <div style="padding:10px 14px;">
                 <div style="font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.03em;font-family:var(--font-display);" id="archiv-stat-time">0</div>
                 <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Minuten total</div>
               </div>
             </div>
-            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:14px;box-shadow:0 2px 8px rgba(13,31,60,.05);border-left:3px solid #1A6FE8;">
+            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-card);border-left:3px solid #1A6FE8;">
               <div style="background:#0D1F3C;padding:6px 14px;font-size:9px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;">Heute erledigt</div>
               <div style="padding:10px 14px;">
                 <div style="font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.03em;font-family:var(--font-display);" id="archiv-stat-followups">0</div>
@@ -6358,7 +6358,7 @@ body,.main{background:var(--vx-bg);}
               <div class="vx-page-header-title">Einstellungen</div>
             </div>
 
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;">
+            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;">
               <div onclick="vxMehrShow('profil')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
                 <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i data-lucide="user" style="width:17px;height:17px;color:#1A6FE8;" aria-hidden="true"></i></div>
                 <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Profil</div><div id="mehr-profil-sub" style="font-size:11px;color:var(--slate2);">Name, E-Mail, Passwort</div></div>
@@ -6400,7 +6400,7 @@ body,.main{background:var(--vx-bg);}
               <button onclick="vxMehrBack()" class="vx-back-btn"><i data-lucide="arrow-left" style="width:18px;height:18px;" aria-hidden="true"></i></button>
               <div style="flex:1;"><div class="vx-page-header-title">Darstellung</div></div>
             </div>
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Anzeigemodus</span></div>
               <div style="padding:14px 16px;">
                 <div class="theme-picker" id="theme-picker-darstellung" role="radiogroup" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
@@ -6423,7 +6423,7 @@ body,.main{background:var(--vx-bg);}
               <a href="tel:+41800123456" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:#fff;border:0.5px solid var(--line);border-radius:12px;text-decoration:none;"><div style="width:34px;height:34px;background:#EEF4FF;border-radius:9px;display:flex;align-items:center;justify-content:center;"><i data-lucide="phone" style="width:16px;height:16px;color:#1A6FE8;" aria-hidden="true"></i></div><span style="font-size:11px;font-weight:600;color:var(--ink);">Anruf</span></a>
               <a href="https://voxera.ch" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:#fff;border:0.5px solid var(--line);border-radius:12px;text-decoration:none;"><div style="width:34px;height:34px;background:#EEF4FF;border-radius:9px;display:flex;align-items:center;justify-content:center;"><i data-lucide="globe" style="width:16px;height:16px;color:#1A6FE8;" aria-hidden="true"></i></div><span style="font-size:11px;font-weight:600;color:var(--ink);">Website</span></a>
             </div>
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;"><i data-lucide="zap" style="width:14px;height:14px;color:rgba(255,255,255,.7);" aria-hidden="true"></i><span style="font-size:13px;font-weight:700;color:#fff;">Erste Schritte</span></div>
               <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
                 <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Rufumleitung unter <strong style="color:var(--ink);">Einstellungen → Rufumleitung</strong> einrichten.</div></div>
@@ -6431,7 +6431,7 @@ body,.main{background:var(--vx-bg);}
                 <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Geschäftsnummer anrufen — Lara nimmt ab. Anruf erscheint im Dashboard.</div></div>
               </div>
             </div>
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;"><i data-lucide="help-circle" style="width:14px;height:14px;color:rgba(255,255,255,.7);" aria-hidden="true"></i><span style="font-size:13px;font-weight:700;color:#fff;">Häufige Fragen</span></div>
               <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
                 <div><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Wie schnell sind Änderungen aktiv?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Nach "Live schalten" sofort — innerhalb von Sekunden.</div></div>
@@ -6439,7 +6439,7 @@ body,.main{background:var(--vx-bg);}
                 <div><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Was passiert bei Ferien?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Feiertage & Ferien-Modus kommt bald — bis dahin Erreichbarkeit im Assistent anpassen.</div></div>
               </div>
             </div>
-            <div style="background:#0D1F3C;border-radius:14px;padding:16px;text-align:center;">
+            <div style="background:#0D1F3C;border-radius:var(--r-lg);padding:16px;text-align:center;">
               <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">Noch Fragen?</div>
               <div style="font-size:11px;color:rgba(255,255,255,.45);margin-bottom:12px;">Unser Team hilft gerne weiter.</div>
               <a href="mailto:info@voxera.ch" style="display:inline-block;background:#1A6FE8;color:#fff;text-decoration:none;border-radius:9px;padding:8px 20px;font-size:12px;font-weight:600;">info@voxera.ch</a>
@@ -6454,7 +6454,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- Konto -->
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:10px;">
                 <div id="profil-avatar-preview" style="width:30px;height:30px;border-radius:50%;background:#1A6FE8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;">U</div>
                 <div>
@@ -6484,7 +6484,7 @@ body,.main{background:var(--vx-bg);}
             <div id="fb-profil-page" style="font-size:12px;text-align:center;margin-bottom:10px;color:#059669;"></div>
 
             <!-- Passwort -->
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Passwort ändern</span></div>
               <div style="padding:12px 16px;border-bottom:0.5px solid var(--line);">
                 <div style="font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Neues Passwort</div>
@@ -6507,7 +6507,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- E-Mail Karte -->
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;">
                 <i data-lucide="mail" style="width:15px;height:15px;color:rgba(255,255,255,.7);" aria-hidden="true"></i>
                 <span style="font-size:13px;font-weight:700;color:#fff;">E-Mail Benachrichtigungen</span>
@@ -6542,7 +6542,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- SMS Karte -->
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;">
                 <div style="display:flex;align-items:center;gap:8px;">
                   <i data-lucide="message-square" style="width:15px;height:15px;color:rgba(255,255,255,.7);" aria-hidden="true"></i>
@@ -6586,7 +6586,7 @@ body,.main{background:var(--vx-bg);}
             <div style="font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;padding:0 2px;">An Anrufer</div>
 
             <!-- SMS Bestätigung — Add-on -->
-            <div style="background:#fff;border-radius:14px;border:0.5px solid var(--line);overflow:hidden;margin-bottom:10px;">
+            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:10px;">
               <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--line);">
                 <div style="display:flex;align-items:center;gap:10px;">
                   <div style="width:34px;height:34px;border-radius:10px;background:var(--blue-subtle);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -6637,7 +6637,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- Aktueller Plan -->
-            <div style="background:#0D1F3C;border-radius:14px;padding:16px;margin-bottom:12px;">
+            <div style="background:#0D1F3C;border-radius:var(--r-lg);padding:16px;margin-bottom:12px;">
               <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Aktueller Plan</div>
               <div style="display:flex;align-items:baseline;gap:8px;">
                 <div id="abo-plan-name" style="font-size:20px;font-weight:700;color:#fff;">–</div>
@@ -6646,7 +6646,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- Minutenverbrauch -->
-            <div style="background:#fff;border-radius:14px;border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;">
                 <span style="font-size:13px;font-weight:700;color:#fff;">Minutenverbrauch</span>
                 <span id="abo-minutes-text" style="font-size:12px;color:rgba(255,255,255,.6);">– / – Min</span>
@@ -6660,7 +6660,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- Add-ons -->
-            <div style="background:#fff;border-radius:14px;border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Add-ons</span></div>
               <div id="abo-addons-list" style="padding:8px 14px;">
               <!-- Dynamisch befüllt -->
@@ -6674,7 +6674,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- Rechnungen -->
-            <div style="background:#fff;border-radius:14px;border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
+            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Rechnungen</span></div>
               <div id="abo-invoices-list" style="padding:14px 16px;">
               <div style="font-size:13px;color:var(--slate2);text-align:center;">Rechnungen werden hier angezeigt sobald verfügbar.</div>
@@ -7134,7 +7134,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- Einrichtung neu starten -->
-            <div style="background:var(--surface);border-radius:16px;border:0.5px solid var(--line);padding:16px 20px;margin-top:8px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:14px;">
+            <div style="background:var(--surface);border-radius:var(--r-xl);border:0.5px solid var(--line);padding:16px 20px;margin-top:8px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:14px;">
               <div>
                 <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px;">Einrichtungs-Assistent</div>
                 <div style="font-size:12px;color:var(--slate2);">Schritt-für-Schritt durch die Einrichtung</div>
@@ -7143,7 +7143,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- Support -->
-            <div style="background:#0D1F3C;border-radius:16px;padding:20px;margin-top:8px;margin-bottom:16px;text-align:center;">
+            <div style="background:#0D1F3C;border-radius:var(--r-xl);padding:20px;margin-top:8px;margin-bottom:16px;text-align:center;">
               <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;">Noch Fragen?</div>
               <div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:16px;">Unser Team hilft Ihnen gerne weiter.</div>
               <a href="mailto:info@voxera.ch" style="display:inline-block;background:#1A6FE8;color:#fff;text-decoration:none;border-radius:10px;padding:10px 24px;font-size:13px;font-weight:600;">info@voxera.ch</a>
@@ -7202,7 +7202,7 @@ body,.main{background:var(--vx-bg);}
 
 <!-- PLAN UPGRADE MODAL -->
 <div id="vx-upgrade-overlay" onclick="if(event.target===this)vxCloseUpgradeModal()" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.5);backdrop-filter:blur(8px);z-index:9001;align-items:center;justify-content:center;padding:20px;" class="vx-custom-overlay">
-  <div style="background:var(--surface);border-radius:16px;width:100%;max-width:520px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.18);max-height:88vh;overflow-y:auto;">
+  <div style="background:var(--surface);border-radius:var(--r-xl);width:100%;max-width:520px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.18);max-height:88vh;overflow-y:auto;">
     <div style="background:#0D1F3C;padding:14px 20px 16px;display:flex;flex-direction:column;gap:10px;">
       <div style="width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:999px;margin:0 auto;"></div>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -7229,7 +7229,7 @@ body,.main{background:var(--vx-bg);}
     <div style="padding:16px 24px;display:flex;flex-direction:column;gap:10px;">
 
       <!-- Starter -->
-      <div id="vx-plan-starter" style="border:1.5px solid var(--line);border-radius:14px;padding:16px;opacity:.5;cursor:default;">
+      <div id="vx-plan-starter" style="border:1.5px solid var(--line);border-radius:var(--r-lg);padding:16px;opacity:.5;cursor:default;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--ink);">Starter</div>
@@ -7244,7 +7244,7 @@ body,.main{background:var(--vx-bg);}
       </div>
 
       <!-- Business -->
-      <div id="vx-plan-business" onclick="vxSelectUpgradePlan('business')" style="border:1.5px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#1A6FE8'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--line)'">
+      <div id="vx-plan-business" onclick="vxSelectUpgradePlan('business')" style="border:1.5px solid var(--line);border-radius:var(--r-lg);padding:16px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#1A6FE8'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--line)'">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--ink);">Business</div>
@@ -7263,7 +7263,7 @@ body,.main{background:var(--vx-bg);}
       </div>
 
       <!-- Professional -->
-      <div id="vx-plan-professional" onclick="vxSelectUpgradePlan('professional')" style="border:1.5px solid #E8C547;border-radius:14px;padding:16px;cursor:pointer;transition:all .15s;background:rgba(232,197,71,.04);" onmouseover="this.style.borderColor='#1A6FE8'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='#E8C547'">
+      <div id="vx-plan-professional" onclick="vxSelectUpgradePlan('professional')" style="border:1.5px solid #E8C547;border-radius:var(--r-lg);padding:16px;cursor:pointer;transition:all .15s;background:rgba(232,197,71,.04);" onmouseover="this.style.borderColor='#1A6FE8'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='#E8C547'">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div style="display:flex;align-items:center;gap:8px;">
             <div>
@@ -7298,7 +7298,7 @@ body,.main{background:var(--vx-bg);}
 
 <!-- ZUSATZMINUTEN MODAL -->
 <div id="vx-minutes-overlay" onclick="if(event.target===this)vxCloseMinutesModal()" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.5);backdrop-filter:blur(8px);z-index:9001;align-items:center;justify-content:center;padding:20px;" class="vx-custom-overlay">
-  <div style="background:var(--surface);border-radius:16px;width:100%;max-width:420px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.18);">
+  <div style="background:var(--surface);border-radius:var(--r-xl);width:100%;max-width:420px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.18);">
     <div style="background:#0D1F3C;padding:14px 20px 16px;display:flex;flex-direction:column;gap:10px;">
       <div style="width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:999px;margin:0 auto;"></div>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -7316,7 +7316,7 @@ body,.main{background:var(--vx-bg);}
     <!-- Packages -->
     <div style="padding:16px 24px;display:flex;flex-direction:column;gap:10px;">
 
-      <div onclick="vxSelectMinutesPkg('50')" id="vx-min-50" style="border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;">
+      <div onclick="vxSelectMinutesPkg('50')" id="vx-min-50" style="border:1.5px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;">
         <div>
           <div style="font-size:15px;font-weight:700;color:var(--ink);">50 Minuten</div>
           <div style="font-size:12px;color:var(--slate2);">CHF 0.30 / Min</div>
@@ -7327,7 +7327,7 @@ body,.main{background:var(--vx-bg);}
         </div>
       </div>
 
-      <div onclick="vxSelectMinutesPkg('100')" id="vx-min-100" style="border:1.5px solid #E8C547;border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;background:rgba(232,197,71,.04);">
+      <div onclick="vxSelectMinutesPkg('100')" id="vx-min-100" style="border:1.5px solid #E8C547;border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;background:rgba(232,197,71,.04);">
         <div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:15px;font-weight:700;color:var(--ink);">100 Minuten</span>
@@ -7341,7 +7341,7 @@ body,.main{background:var(--vx-bg);}
         </div>
       </div>
 
-      <div onclick="vxSelectMinutesPkg('200')" id="vx-min-200" style="border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;">
+      <div onclick="vxSelectMinutesPkg('200')" id="vx-min-200" style="border:1.5px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;">
         <div>
           <div style="font-size:15px;font-weight:700;color:var(--ink);">200 Minuten</div>
           <div style="font-size:12px;color:var(--slate2);">CHF 0.225 / Min</div>
@@ -7387,7 +7387,7 @@ body,.main{background:var(--vx-bg);}
     <div style="padding:16px 20px;">
 
       <!-- Schritt 1: Rufumleitung -->
-      <div id="vx-ob-step-1" onclick="vxOnboardingOpenStep(1)" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;border:1.5px solid var(--line);margin-bottom:10px;cursor:pointer;transition:all .15s;">
+      <div id="vx-ob-step-1" onclick="vxOnboardingOpenStep(1)" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r-lg);border:1.5px solid var(--line);margin-bottom:10px;cursor:pointer;transition:all .15s;">
         <div id="vx-ob-icon-1" style="width:40px;height:40px;border-radius:12px;background:var(--blue-subtle);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <i data-lucide="phone-forwarded" style="width:18px;height:18px;color:#1A6FE8;" aria-hidden="true"></i>
         </div>
@@ -7399,7 +7399,7 @@ body,.main{background:var(--vx-bg);}
       </div>
 
       <!-- Schritt 2: Assistent -->
-      <div id="vx-ob-step-2" onclick="vxOnboardingOpenStep(2)" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;border:1.5px solid var(--line);margin-bottom:10px;cursor:pointer;transition:all .15s;">
+      <div id="vx-ob-step-2" onclick="vxOnboardingOpenStep(2)" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r-lg);border:1.5px solid var(--line);margin-bottom:10px;cursor:pointer;transition:all .15s;">
         <div id="vx-ob-icon-2" style="width:40px;height:40px;border-radius:12px;background:var(--blue-subtle);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <i data-lucide="bot" style="width:18px;height:18px;color:#1A6FE8;" aria-hidden="true"></i>
         </div>
@@ -7411,7 +7411,7 @@ body,.main{background:var(--vx-bg);}
       </div>
 
       <!-- Schritt 3: Benachrichtigungen -->
-      <div id="vx-ob-step-3" onclick="vxOnboardingOpenStep(3)" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;border:1.5px solid var(--line);margin-bottom:16px;cursor:pointer;transition:all .15s;">
+      <div id="vx-ob-step-3" onclick="vxOnboardingOpenStep(3)" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r-lg);border:1.5px solid var(--line);margin-bottom:16px;cursor:pointer;transition:all .15s;">
         <div id="vx-ob-icon-3" style="width:40px;height:40px;border-radius:12px;background:var(--blue-subtle);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <i data-lucide="bell" style="width:18px;height:18px;color:#1A6FE8;" aria-hidden="true"></i>
         </div>
@@ -7635,7 +7635,7 @@ body,.main{background:var(--vx-bg);}
 
 <!-- CONFIRM MODAL -->
 <div class="overlay overlay--center confirm-variant" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal()">
-  <div class="modal modal--confirm modal--compact confirm-tone-primary" id="confirm-modal" style="border-radius:16px;max-width:360px;">
+  <div class="modal modal--confirm modal--compact confirm-tone-primary" id="confirm-modal" style="border-radius:var(--r-xl);max-width:360px;">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top" style="padding:16px 20px;">
@@ -10209,7 +10209,7 @@ async function loadAssistantVoices() {
       const radioDot = active
         ? `<div style="width:16px;height:16px;border-radius:50%;border:1.5px solid #1A6FE8;background:#1A6FE8;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="width:6px;height:6px;border-radius:50%;background:var(--surface);"></div></div><span style="font-size:12px;color:#1A6FE8;font-weight:600;">Aktiv</span>`
         : `<div style="width:16px;height:16px;border-radius:50%;border:1.5px solid #D1D5DB;background:var(--surface);flex-shrink:0;"></div><span style="font-size:12px;color:#9CA3AF;">Wählen</span>`;
-      return `<div style="display:flex;flex-direction:column;gap:10px;padding:14px 16px;border:${cardBorder};border-radius:14px;background:${cardBg};transition:border-color .15s,background .15s;">
+      return `<div style="display:flex;flex-direction:column;gap:10px;padding:14px 16px;border:${cardBorder};border-radius:var(--r-lg);background:${cardBg};transition:border-color .15s,background .15s;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
           <div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
@@ -11353,7 +11353,7 @@ function vxInitRufumleitung() {
     return '<button onclick="vxShellSelectProvider(\'' + k + '\',this)" class="provider-btn' + (i===0?' provider-btn-active':'') + '" style="padding:10px 8px;border-radius:10px;border:0.5px solid var(--line);background:' + (i===0?'var(--blue-subtle)':'var(--surface)') + ';font-size:13px;font-weight:600;color:' + (i===0?'#1A6FE8':'var(--ink)') + ';cursor:pointer;font-family:inherit;transition:all .15s;">' + provLabels[k] + '</button>';
   }).join('');
   function card(header, body, id) {
-    return '<div ' + (id?'id="'+id+'" ':'') + 'style="background:var(--surface);border:0.5px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(13,31,60,.06);margin-bottom:10px;"><div style="background:#0D1F3C;padding:10px 16px;font-size:9px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;">' + header + '</div><div style="padding:14px 16px;">' + body + '</div></div>';
+    return '<div ' + (id?'id="'+id+'" ':'') + 'style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-card);margin-bottom:10px;"><div style="background:#0D1F3C;padding:10px 16px;font-size:9px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;">' + header + '</div><div style="padding:14px 16px;">' + body + '</div></div>';
   }
   var numCard = card('Ihre Voxera-Nummer',
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">' +
@@ -11365,7 +11365,7 @@ function vxInitRufumleitung() {
   var steps = ['Klicken Sie auf <strong>Testanruf starten</strong>','Voxera ruft Ihre Geschäftsnummer an','<strong>Nicht abnehmen</strong> — Lara übernimmt automatisch'];
   var stepsHtml = steps.map(function(s,i){return '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);margin-bottom:6px;"><div style="width:20px;height:20px;border-radius:50%;background:#1A6FE8;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+(i+1)+'</div>'+s+'</div>';}).join('');
   var testCard = card('Weiterleitung testen', stepsHtml + '<button onclick="checkTestCall()" id="test-call-btn" style="background:#0D1F3C;color:#fff;border:none;border-radius:10px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;">Testanruf starten</button><div id="test-call-result" style="font-size:13px;color:var(--ink2);margin-top:8px;"></div>');
-  var deactCard = '<div id="shell-deactivation-card" style="display:none;background:var(--surface);border:0.5px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(13,31,60,.06);margin-bottom:10px;"><div style="background:#0D1F3C;padding:10px 16px;font-size:9px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;">Weiterleitung deaktivieren</div><div style="padding:14px 16px;"><div style="font-size:13px;color:var(--slate2);margin-bottom:12px;">Deaktivierungs-Code für Ihren Anbieter ausführen.</div><div id="shell-deactivation-codes"></div></div></div>';
+  var deactCard = '<div id="shell-deactivation-card" style="display:none;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-card);margin-bottom:10px;"><div style="background:#0D1F3C;padding:10px 16px;font-size:9px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;">Weiterleitung deaktivieren</div><div style="padding:14px 16px;"><div style="font-size:13px;color:var(--slate2);margin-bottom:12px;">Deaktivierungs-Code für Ihren Anbieter ausführen.</div><div id="shell-deactivation-codes"></div></div></div>';
   shell.innerHTML = numCard + provCard + instrCard + testCard + deactCard;
   if (typeof lucide !== 'undefined') lucide.createIcons();
   vxShellSelectProvider('swisscom', shell.querySelector('.provider-btn'));
@@ -11683,7 +11683,7 @@ function renderVoiceCards() {
     const radioDot = active
       ? `<div style="width:16px;height:16px;border-radius:50%;border:1.5px solid #1A6FE8;background:#1A6FE8;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="width:6px;height:6px;border-radius:50%;background:var(--surface);"></div></div><span style="font-size:12px;color:#1A6FE8;font-weight:600;">Aktiv</span>`
       : `<div style="width:16px;height:16px;border-radius:50%;border:1.5px solid #D1D5DB;background:var(--surface);flex-shrink:0;"></div><span style="font-size:12px;color:#9CA3AF;">Wählen</span>`;
-    return `<div style="display:flex;flex-direction:column;gap:10px;padding:14px 16px;border:${cardBorder};border-radius:14px;background:${cardBg};transition:border-color .15s,background .15s;">
+    return `<div style="display:flex;flex-direction:column;gap:10px;padding:14px 16px;border:${cardBorder};border-radius:var(--r-lg);background:${cardBg};transition:border-color .15s,background .15s;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
         <div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
