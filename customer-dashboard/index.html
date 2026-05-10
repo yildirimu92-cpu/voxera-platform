@@ -21697,6 +21697,7 @@ html[data-theme="dark"] #tab-hilfe details div {
 
 /* Zurück-Button — schlichter Pfeil */
 <style>
+.vx-page-header .vx-back-btn,
 .vx-back-btn {
   display: inline-flex;
   align-items: center;
@@ -21715,7 +21716,13 @@ html[data-theme="dark"] #tab-hilfe details div {
   box-sizing: border-box;
   transition: background .15s;
 }
+.vx-page-header .vx-back-btn:hover,
 .vx-back-btn:hover { background: rgba(255,255,255,.2); }
+html[data-theme="dark"] .vx-page-header .vx-back-btn {
+  background: rgba(255,255,255,.12) !important;
+  border-color: rgba(255,255,255,.2) !important;
+  border-radius: 50% !important;
+}
 .vx-back-btn i[data-lucide],
 .vx-back-btn svg {
   width: 18px;
