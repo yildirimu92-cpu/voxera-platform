@@ -705,7 +705,7 @@ html[data-theme="dark"] .settings-card{
 .activation-badge.active{
   background:var(--green-light);
   border-color:var(--green-mid);
-  color:#166534;
+  color:var(--green);
 }
 .badge-gold,
 .badge-warm,
@@ -714,9 +714,9 @@ html[data-theme="dark"] .settings-card{
 .activation-badge.pending-test{
   background:var(--amber-light);
   border-color:var(--amber-mid);
-  color:#92400E;
+  color:var(--amber);
 }
-.badge-amber{background:var(--amber-light);border-color:var(--amber-mid);color:#92400E;}
+.badge-amber{background:var(--amber-light);border-color:var(--amber-mid);color:var(--amber);}
 .badge-night{
   background:rgba(13,31,60,0.1);
   border-color:rgba(13,31,60,0.2);
@@ -730,7 +730,7 @@ html[data-theme="dark"] .settings-card{
 .activation-badge.inactive{
   background:var(--red-light);
   border-color:var(--red-mid);
-  color:#991B1B;
+  color:var(--red);
 }
 .badge-outline,
 .settings-module-tag,
@@ -748,8 +748,8 @@ html[data-theme="dark"] .settings-card{
 }
 .nav-item.active .nav-badge{background:var(--blue);color:#fff;}
 .nav-badge.blue{background:var(--blue);color:#fff;}
-.nav-badge.red{background:#DC2626;color:#fff;}
-.nav-badge.orange{background:#D97706;color:#fff;}
+.nav-badge.red{background:var(--red);color:#fff;}
+.nav-badge.orange{background:var(--amber);color:#fff;}
 .sidebar-footer{
   padding:14px 16px 16px;border-top:0.5px solid rgba(255,255,255,.08);
   background:transparent;
@@ -1680,8 +1680,8 @@ html[data-theme="dark"] .settings-card{
   pointer-events:none;
 }
 .mobile-nav-badge.blue{background:var(--blue);color:#fff;}
-.mobile-nav-badge.red{background:#DC2626;color:#fff;}
-.mobile-nav-badge.orange{background:#D97706;color:#fff;}
+.mobile-nav-badge.red{background:var(--red);color:#fff;}
+.mobile-nav-badge.orange{background:var(--amber);color:#fff;}
 
 
 .detail-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.44);backdrop-filter:blur(6px);z-index:220;align-items:center;justify-content:center;padding:16px;}
@@ -3292,7 +3292,7 @@ body,.main{background:var(--vx-bg);}
 .chip-priority-urgent{
   background:#FEF2F2;
   border-color:rgba(220,38,38,0.28);
-  color:#991B1B;
+  color:var(--red);
   font-weight:700;
 }
 
@@ -3300,7 +3300,7 @@ body,.main{background:var(--vx-bg);}
 .task-due-pill.overdue{
   background:#FEF2F2;
   border-color:rgba(185,28,28,0.25);
-  color:#991B1B;
+  color:var(--red);
   font-weight:700;
 }
 .task-due-pill.today{
@@ -3379,7 +3379,7 @@ body,.main{background:var(--vx-bg);}
 .task-due-pill.overdue{
   background:#FEF2F2;
   border-color:rgba(185,28,28,0.28);
-  color:#991B1B;
+  color:var(--red);
 }
 .task-due-pill.today{
   background:#EFF6FF;
