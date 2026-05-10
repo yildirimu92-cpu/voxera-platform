@@ -7980,7 +7980,7 @@ function applyContractAccessStateToUI() {
     card.setAttribute('aria-disabled', restricted ? 'true' : 'false');
   });
 
-  var taskBtn = document.querySelector('button.btn.btn--primary[onclick="openManualTaskModal()"]');
+  var taskBtn = document.querySelector('#tab-rueckrufe .section-head .btn.btn--primary');
   if (taskBtn) {
     taskBtn.disabled = restricted;
     taskBtn.style.opacity = restricted ? '.55' : '1';
