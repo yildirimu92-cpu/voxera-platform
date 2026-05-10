@@ -1181,11 +1181,11 @@ html[data-theme="dark"] .settings-card{
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border-radius: var(--btn-radius);
   border: 1px solid transparent;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-md);
+  font-weight: var(--fw-semibold);
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
@@ -1196,6 +1196,10 @@ html[data-theme="dark"] .settings-card{
 .btn:disabled {
   opacity: .45;
   cursor: default;
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26,111,232,.18);
 }
 
 /* PRIMARY */
@@ -1285,9 +1289,9 @@ html[data-theme="dark"] .settings-card{
   justify-content: center;
 }
 .btn--sm {
-  font-size: 12px;
+  font-size: var(--text-sm);
   min-height: 36px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
 }
 
 /* ───────────────────────────────────────────
@@ -1311,8 +1315,8 @@ html[data-theme="dark"] .settings-card{
 
 .settings-btn-primary, .dash-btn-primary, .setup-btn-primary, .act-action-btn-primary, .btn-modal-save, .btn-account-save, .dm-btn-primary, .btn-call, .btn-callback.primary {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 0 16px; border-radius: var(--btn-radius); border: 1px solid var(--blue);
-  font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+  padding: 0 var(--space-4); border-radius: var(--btn-radius); border: 1px solid var(--blue);
+  font-size: var(--text-md); font-weight: var(--fw-semibold); font-family: inherit; cursor: pointer;
   white-space: nowrap; text-decoration: none; transition: all var(--transition-fast);
   min-height: var(--btn-height);
   background: var(--blue); color: #fff; box-shadow: 0 1px 3px rgba(26,111,232,.12);
@@ -1330,8 +1334,8 @@ html[data-theme="dark"] .settings-card{
 .btn-done, .btn-done-small, .btn-note, .btn-callback:not(.primary),
 .btn-a {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 0 16px; border-radius: var(--btn-radius); border: 1px solid var(--surface-border);
-  font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+  padding: 0 var(--space-4); border-radius: var(--btn-radius); border: 1px solid var(--surface-border);
+  font-size: var(--text-md); font-weight: var(--fw-semibold); font-family: inherit; cursor: pointer;
   white-space: nowrap; text-decoration: none; transition: all var(--transition-fast);
   min-height: var(--btn-height);
   background: var(--surface); color: var(--ink2);
@@ -1351,7 +1355,14 @@ html[data-theme="dark"] .settings-card{
 .btn-modal-save.neutral { background: #475569; color: #fff; border-color: #475569; box-shadow: 0 1px 3px rgba(71,85,105,.2); }
 .btn-modal-save.neutral:hover { background: #334155; border-color: #334155; }
 
-.dm-btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 16px; border-radius: var(--btn-radius); border: 1px solid transparent; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; text-decoration: none; transition: all var(--transition-fast); min-height: var(--btn-height); }
+.dm-btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 var(--space-4); border-radius: var(--btn-radius); border: 1px solid transparent; font-size: var(--text-md); font-weight: var(--fw-semibold); font-family: inherit; cursor: pointer; white-space: nowrap; text-decoration: none; transition: all var(--transition-fast); min-height: var(--btn-height); }
+.settings-btn-primary:focus-visible, .dash-btn-primary:focus-visible, .setup-btn-primary:focus-visible, .act-action-btn-primary:focus-visible, .btn-modal-save:focus-visible, .btn-account-save:focus-visible, .dm-btn-primary:focus-visible, .btn-call:focus-visible, .btn-callback.primary:focus-visible,
+.settings-btn-secondary:focus-visible, .dash-btn-secondary:focus-visible, .setup-btn-secondary:focus-visible, .act-action-btn-secondary:focus-visible, .btn-modal-cancel:focus-visible, .btn-account-cancel:focus-visible, .dm-btn-secondary:focus-visible, .btn-refresh:focus-visible, .btn-done:focus-visible, .btn-done-small:focus-visible, .btn-note:focus-visible, .btn-callback:not(.primary):focus-visible, .btn-a:focus-visible,
+.btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-outline:focus-visible, .btn-dark:focus-visible, .btn-success:focus-visible, .btn-ghost:focus-visible, .btn-danger:focus-visible,
+.login-btn:focus-visible, .modal-btn-p:focus-visible, .modal-btn-s:focus-visible, .modal-btn-danger:focus-visible, .activation-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26,111,232,.18);
+}
 
 .followup-choices{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px;}
 .followup-choice{flex:1;min-width:120px;padding:11px 14px;border:0.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--gray600);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);}
