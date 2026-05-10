@@ -72,6 +72,10 @@
   --font-display:'Plus Jakarta Sans','DM Sans',sans-serif;
   --headline-font:'Plus Jakarta Sans','DM Sans',sans-serif;
   --body-font:'DM Sans',-apple-system,sans-serif;
+  --text-xs:11px;--text-sm:12px;--text-md:13px;--text-base:15px;--text-lg:17px;--text-xl:22px;--text-display:32px;
+  --lh-tight:1;--lh-badge:1.2;--lh-body:1.5;--lh-long:1.6;
+  --fw-regular:400;--fw-medium:500;--fw-semibold:600;--fw-bold:700;--fw-extrabold:800;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-12:48px;
   /* Geometry – normalized token scale */
   --r-sm:8px;--r-md:10px;--r-lg:14px;--r-xl:16px;--r-full:999px;
   /* Backward-compatible aliases */
@@ -91,10 +95,10 @@
   --transition-fast:0.15s cubic-bezier(0.4,0,0.2,1);
   --transition-md:0.25s cubic-bezier(0.4,0,0.2,1);
   /* Unified badge/chip system */
-  --badge-font-size:11px;
-  --badge-font-weight:700;
-  --badge-line-height:1.2;
-  --badge-pad-y:4px;
+  --badge-font-size:var(--text-xs);
+  --badge-font-weight:var(--fw-bold);
+  --badge-line-height:var(--lh-badge);
+  --badge-pad-y:var(--space-1);
   --badge-pad-x:10px;
   --badge-radius:999px;
   --badge-gap:5px;
@@ -154,11 +158,11 @@ body{
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 .login-logo-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:20px;}
 .login-logo-ico{width:52px;height:52px;border-radius:14px;background:var(--vx-night);display:flex;align-items:center;justify-content:center;margin-bottom:10px;box-shadow:0 4px 16px rgba(13,31,60,.25);}
-.login-logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:var(--vx-night);letter-spacing:-.04em;margin-bottom:3px;}
+.login-logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:var(--text-xl);font-weight:var(--fw-extrabold);color:var(--vx-night);letter-spacing:-.04em;margin-bottom:3px;}
 .login-tag{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--g400);margin-bottom:0;}
 .login-sub{font-size:14px;color:var(--g600);margin-bottom:28px;line-height:1.55;}
-.login-form{display:flex;flex-direction:column;gap:12px;margin-bottom:16px;text-align:left;}
-.login-field label{display:block;font-size:11px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+.login-form{display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-4);text-align:left;}
+.login-field label{display:block;font-size:var(--text-xs);font-weight:var(--fw-bold);color:var(--g600);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
 .login-field input{
   width:100%;padding:12px 14px;
   background:var(--g100);border:1.5px solid var(--g200);
@@ -179,21 +183,21 @@ body{
 .login-btn{
   display:block;width:100%;padding:13px;
   background:var(--blue);color:#FFFFFF;border:none;border-radius:12px;
-  font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;
+  font-family:'DM Sans',sans-serif;font-size:var(--text-base);font-weight:var(--fw-bold);
   cursor:pointer;letter-spacing:-.01em;
   transition:all .15s;box-shadow:0 4px 20px rgba(26,111,232,.3);
 }
 .login-btn:hover{background:#1340B0;transform:translateY(-1px);box-shadow:0 6px 24px rgba(26,111,232,.4);}
 .login-btn:active{transform:translateY(0);}
 .login-btn:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none;}
-.login-note{font-size:13px;color:var(--g400);line-height:1.6;margin-top:2px;}
-.login-note a{color:var(--blue);text-decoration:none;font-weight:600;}
+.login-note{font-size:var(--text-md);color:var(--g400);line-height:var(--lh-long);margin-top:2px;}
+.login-note a{color:var(--blue);text-decoration:none;font-weight:var(--fw-semibold);}
 .login-note a:hover{text-decoration:underline;}
-.login-links{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+.login-links{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-1);}
 .login-divider{height:1px;background:var(--g200);margin:4px 0;}
 .login-error{
   background:var(--red-light);border:1px solid #FECACA;border-radius:9px;
-  padding:10px 14px;font-size:13px;color:var(--red);
+  padding:10px 14px;font-size:var(--text-md);color:var(--red);
   margin-bottom:16px;text-align:left;display:none;line-height:1.5;
 }
 /* Mobile: Card vertikal zentriert mit ausreichend Abstand oben */
@@ -224,7 +228,7 @@ body{
 ═══════════════════════════════════════════ */
 .settings-page{max-width:760px;display:flex;flex-direction:column;gap:14px;}
 .settings-page-head{margin-bottom:6px;}
-.settings-page-sub{font-size:13px;color:var(--gray500);margin-top:6px;line-height:1.6;max-width:620px;}
+.settings-page-sub{font-size:var(--text-md);color:var(--gray500);margin-top:6px;line-height:var(--lh-long);max-width:620px;}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* ── Voxera Card v2 — neue Designsprache ── */
 .settings-card{
@@ -246,13 +250,13 @@ body{
   gap:12px;
 }
 .settings-card-header-title{
-  font-size:15px;
-  font-weight:700;
+  font-size:var(--text-base);
+  font-weight:var(--fw-bold);
   color:#fff;
   letter-spacing:-.02em;
 }
 .settings-card-header-sub{
-  font-size:12px;
+  font-size:var(--text-sm);
   color:rgba(255,255,255,.5);
   margin-top:1px;
 }
@@ -304,7 +308,7 @@ body{
   font-size:14px;font-weight:700;color:#fff;letter-spacing:-.02em;
 }
 .vx-section-header-text .sub{
-  font-size:12px;color:rgba(255,255,255,.45);margin-top:1px;
+  font-size:var(--text-sm);color:rgba(255,255,255,.45);margin-top:1px;
 }
 .vx-section-body{
   padding:18px 20px;
@@ -395,7 +399,7 @@ html[data-theme="dark"] .settings-card{
 .setup-code-copy{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
   padding:9px 12px;border-radius:8px;
-  font-size:12px;font-weight:700;font-family:inherit;
+  font-size:var(--text-sm);font-weight:700;font-family:inherit;
   cursor:pointer;white-space:nowrap;text-decoration:none;
   transition:background .15s;
   background:var(--blue);color:#fff;border:none;
@@ -404,7 +408,7 @@ html[data-theme="dark"] .settings-card{
 .setup-code-dial{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
   padding:9px 12px;border-radius:8px;
-  font-size:12px;font-weight:700;font-family:inherit;
+  font-size:var(--text-sm);font-weight:700;font-family:inherit;
   cursor:pointer;white-space:nowrap;text-decoration:none;
   transition:background .15s;
   background:rgba(255,255,255,.1);color:#fff;border:0.5px solid rgba(255,255,255,.2);
@@ -433,7 +437,7 @@ html[data-theme="dark"] .settings-card{
 .einrichtung-status-value{font-size:13px;font-weight:600;color:var(--ink);line-height:1.3;}
 .einrichtung-status-badge{
   display:inline-flex;align-items:center;gap:5px;
-  font-size:12px;font-weight:700;padding:3px 10px;
+  font-size:var(--text-sm);font-weight:700;padding:3px 10px;
   border-radius:999px;border:1px solid;
   white-space:nowrap;
 }
@@ -817,7 +821,7 @@ html[data-theme="dark"] .settings-card{
   font-family:var(--font);
 }
 .greeting-sub{
-  font-size:12px;
+  font-size:var(--text-sm);
   font-weight:400;
   letter-spacing:0;
   color:var(--slate2);
@@ -2225,7 +2229,7 @@ html[data-theme="dark"] .settings-card{
   position:relative;z-index:1;
 }
 .splash-subtagline{
-  font-size:12px;color:rgba(255,255,255,.35);font-weight:500;letter-spacing:.01em;
+  font-size:var(--text-sm);color:rgba(255,255,255,.35);font-weight:500;letter-spacing:.01em;
   margin-top:-4px;text-align:center;
   position:relative;z-index:1;
 }
@@ -3297,7 +3301,7 @@ body,.main{background:var(--vx-bg);}
 
 /* — CALL META — feiner */
 .call-meta{
-  font-size:12px;
+  font-size:var(--text-sm);
   color:#6B7280;
   gap:4px;
 }
@@ -3458,7 +3462,7 @@ body,.main{background:var(--vx-bg);}
 .ftab{
   padding:6px 14px;
   border-radius:999px;
-  font-size:12px;
+  font-size:var(--text-sm);
   font-weight:600;
   font-family:var(--font-display);
   border:1.5px solid transparent;
@@ -3723,7 +3727,7 @@ body,.main{background:var(--vx-bg);}
     flex-shrink:0;
     white-space:nowrap;
     padding:7px 14px;
-    font-size:12px;
+    font-size:var(--text-sm);
   }
 }
 
