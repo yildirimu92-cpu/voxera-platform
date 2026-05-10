@@ -21695,51 +21695,67 @@ html[data-theme="dark"] #tab-hilfe details div {
   color: var(--slate2) !important;
 }
 
-/* Zurück-Button — schlichter Pfeil */
+/* Zurück-Button — Night-Bar Icon Control (isolated from generic btn/chip/card styles) */
 <style>
 .vx-page-header .vx-back-btn,
 .vx-back-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
-  flex-shrink: 0;
-  flex-grow: 0;
-  border-radius: 50%;
-  border: 0.5px solid rgba(255,255,255,.2);
-  background: rgba(255,255,255,.12);
-  cursor: pointer;
-  padding: 0;
-  box-sizing: border-box;
-  transition: background .15s;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:38px !important;
+  height:38px !important;
+  min-width:38px !important;
+  min-height:38px !important;
+  flex-shrink:0 !important;
+  flex-grow:0 !important;
+  padding:0 !important;
+  border-radius:50% !important;
+  border:0.5px solid rgba(255,255,255,.2) !important;
+  background:rgba(255,255,255,.12) !important;
+  color:rgba(255,255,255,.95) !important;
+  box-shadow:none !important;
+  text-decoration:none !important;
+  cursor:pointer;
+  box-sizing:border-box;
+  appearance:none;
+  -webkit-appearance:none;
+  transition:background .15s ease,border-color .15s ease,box-shadow .15s ease;
 }
 .vx-page-header .vx-back-btn:hover,
-.vx-back-btn:hover { background: rgba(255,255,255,.2); }
-html[data-theme="dark"] .vx-page-header .vx-back-btn {
-  background: rgba(255,255,255,.12) !important;
-  border-color: rgba(255,255,255,.2) !important;
-  border-radius: 50% !important;
+.vx-back-btn:hover {
+  background:rgba(255,255,255,.16) !important;
+  border-color:rgba(255,255,255,.22) !important;
 }
+.vx-page-header .vx-back-btn:focus-visible,
+.vx-back-btn:focus-visible {
+  outline:none;
+  box-shadow:0 0 0 2px rgba(147,197,253,.55) !important;
+}
+html[data-theme="dark"] .vx-page-header .vx-back-btn,
+html[data-theme="dark"] .vx-back-btn {
+  background:rgba(255,255,255,.12) !important;
+  border-color:rgba(255,255,255,.2) !important;
+  border-radius:50% !important;
+}
+.vx-page-header .vx-back-btn i[data-lucide],
+.vx-page-header .vx-back-btn svg,
 .vx-back-btn i[data-lucide],
 .vx-back-btn svg {
-  width: 18px;
-  height: 18px;
-  color: #fff;
-  stroke: #fff;
-  flex-shrink: 0;
-  pointer-events: none;
+  width:18px;
+  height:18px;
+  color:#fff !important;
+  stroke:#fff !important;
+  flex-shrink:0;
+  pointer-events:none;
 }
 
 .mobile-only-back i[data-lucide],
 .mobile-only-back svg {
-  width: 20px !important;
-  height: 20px !important;
-  color: var(--ink) !important;
-  stroke: var(--ink) !important;
-  flex-shrink: 0 !important;
+  width:20px !important;
+  height:20px !important;
+  color:#fff !important;
+  stroke:#fff !important;
+  flex-shrink:0 !important;
 }
 
 </style>
