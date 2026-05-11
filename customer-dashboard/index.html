@@ -8037,6 +8037,25 @@ let recentIncomingIds = new Set();
 let dashPriorityExpanded = false;
 let _dashPriorityAllRecords = [];
 
+const CALL_STATUS = Object.freeze({
+  NEW: 'new',
+  IN_PROGRESS: 'in_progress',
+  FOLLOW_UP_SCHEDULED: 'follow_up_scheduled',
+  CLOSED: 'closed'
+});
+const CALL_STATUS_LABELS = Object.freeze({
+  [CALL_STATUS.NEW]: 'Offen',
+  [CALL_STATUS.IN_PROGRESS]: 'In Bearbeitung',
+  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: 'In Bearbeitung',
+  [CALL_STATUS.CLOSED]: 'Abgeschlossen'
+});
+const CALL_STATUS_TRANSITIONS = Object.freeze({
+  [CALL_STATUS.NEW]: new Set([CALL_STATUS.IN_PROGRESS]),
+  [CALL_STATUS.IN_PROGRESS]: new Set([CALL_STATUS.FOLLOW_UP_SCHEDULED]),
+  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: new Set([CALL_STATUS.CLOSED]),
+  [CALL_STATUS.CLOSED]: new Set([])
+});
+
 function isDueOrOverdueFollowUp(fields) {
   var due = parseFollowUpDate(resolveTaskDueAt(fields || {}));
   if (!due || Number.isNaN(due.getTime())) return false;
@@ -9486,24 +9505,6 @@ function qualChip(q) {
   return `<span class="chip chip-meta">${lbl[k]}</span>`;
 }
 
-const CALL_STATUS = Object.freeze({
-  NEW: 'new',
-  IN_PROGRESS: 'in_progress',
-  FOLLOW_UP_SCHEDULED: 'follow_up_scheduled',
-  CLOSED: 'closed'
-});
-const CALL_STATUS_LABELS = Object.freeze({
-  [CALL_STATUS.NEW]: 'Offen',
-  [CALL_STATUS.IN_PROGRESS]: 'In Bearbeitung',
-  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: 'In Bearbeitung',
-  [CALL_STATUS.CLOSED]: 'Abgeschlossen'
-});
-const CALL_STATUS_TRANSITIONS = Object.freeze({
-  [CALL_STATUS.NEW]: new Set([CALL_STATUS.IN_PROGRESS]),
-  [CALL_STATUS.IN_PROGRESS]: new Set([CALL_STATUS.FOLLOW_UP_SCHEDULED]),
-  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: new Set([CALL_STATUS.CLOSED]),
-  [CALL_STATUS.CLOSED]: new Set([])
-});
 function normalizeStatus(s) {
   const raw = String(s || '').trim().toLowerCase();
   const aliases = {
