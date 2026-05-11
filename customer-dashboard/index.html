@@ -12820,7 +12820,9 @@ function flagIncomingRecords(records) {
 var _liveHeroTimer = null;
 var _liveHeroCurrentId = null;
 var _liveHeroNotified = new Set();
-var CALL_LIVE_FRESHNESS_MS = 90 * 1000; // 90s: verhindert hängende LIVE-Anzeige nach sehr kurzem Auflegen
+var CALL_LIVE_INCOMING_FRESHNESS_MS = 45 * 1000;
+var CALL_LIVE_ACTIVE_FRESHNESS_MS = 90 * 1000;
+var _staleLiveRecordIds = new Set(); // verhindert, dass einmal als stale erkannte Live-Records erneut im Hero auftauchen
 
 function getCallDisplayState(record) {
   var f = (record && record.fields) || {};
@@ -12840,11 +12842,25 @@ function getCallDisplayState(record) {
   var ts = getRecordTimestamp(record);
   var parsed = ts ? parseCallTimestamp(ts) : null;
   var updatedAtMs = parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : 0;
-  var isFresh = updatedAtMs > 0 && (Date.now() - updatedAtMs) <= CALL_LIVE_FRESHNESS_MS;
+  var nowMs = Date.now();
+  var liveThresholdMs = liveStatus === 'incoming' ? CALL_LIVE_INCOMING_FRESHNESS_MS : CALL_LIVE_ACTIVE_FRESHNESS_MS;
+  var recordId = String((record && record.id) || '').trim();
+  var isFresh = updatedAtMs > 0 && (nowMs - updatedAtMs) <= liveThresholdMs;
+
+  if (isLiveStatus && !isFresh && recordId) {
+    _staleLiveRecordIds.add(recordId);
+  }
 
   if (isShortAbandoned) return 'short_abandoned';
-  if (isCompleted) return 'final';
-  if (isAnalyzing) return 'processing';
+  if (isCompleted) {
+    if (recordId) _staleLiveRecordIds.delete(recordId);
+    return 'final';
+  }
+  if (isAnalyzing) {
+    if (recordId) _staleLiveRecordIds.delete(recordId);
+    return 'processing';
+  }
+  if (isLiveStatus && isFresh && recordId && _staleLiveRecordIds.has(recordId)) return 'processing';
   if (isLiveStatus && isFresh) return 'live';
   if (isLiveStatus && !isFresh) return 'processing';
   if (isFailed && !hasFinalContent) return 'short_abandoned';

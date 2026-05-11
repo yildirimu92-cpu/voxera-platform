@@ -4,6 +4,73 @@ const { normalizePhoneE164 } = require('./_lib/phone-normalize');
 
 const ELEVENLABS_INBOUND_URL = 'https://api.us.elevenlabs.io/twilio/inbound_call';
 
+
+function normalizeBaseUrl(rawUrl) {
+  const raw = toStringOrEmpty(rawUrl);
+  if (!raw) return '';
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const u = new URL(withProtocol);
+    return `${u.protocol}//${u.host}`;
+  } catch (_err) {
+    return '';
+  }
+}
+
+function resolveStatusCallbackUrl() {
+  const baseUrl = normalizeBaseUrl(
+    process.env.TWILIO_STATUS_CALLBACK_BASE_URL
+    || process.env.URL
+    || process.env.DEPLOY_PRIME_URL
+    || process.env.DEPLOY_URL
+  );
+  if (!baseUrl) return '';
+  return `${baseUrl}/twilio/status-callback`;
+}
+
+function buildElevenLabsInboundUrl(statusCallbackUrl) {
+  const u = new URL(ELEVENLABS_INBOUND_URL);
+  if (statusCallbackUrl) {
+    u.searchParams.set('statusCallback', statusCallbackUrl);
+    ['initiated', 'ringing', 'answered', 'completed'].forEach((evt) => {
+      u.searchParams.append('statusCallbackEvent', evt);
+    });
+  }
+  return u.toString();
+}
+
+async function attachTwilioStatusCallback(callSid, statusCallbackUrl) {
+  const accountSid = toStringOrEmpty(process.env.TWILIO_ACCOUNT_SID);
+  const authToken = toStringOrEmpty(process.env.TWILIO_AUTH_TOKEN);
+  if (!callSid || !statusCallbackUrl || !accountSid || !authToken) {
+    return { ok: false, skipped: true, reason: 'missing_config_or_input' };
+  }
+
+  const params = new URLSearchParams();
+  params.set('StatusCallback', statusCallbackUrl);
+  params.set('StatusCallbackMethod', 'POST');
+  ['initiated', 'ringing', 'answered', 'completed'].forEach((evt) => {
+    params.append('StatusCallbackEvent', evt);
+  });
+
+  const authHeader = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+  const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${encodeURIComponent(callSid)}.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    return { ok: false, skipped: false, status: resp.status, body: text.slice(0, 500) };
+  }
+
+  return { ok: true, skipped: false };
+}
+
 function parseBody(event) {
   const body = event.body || '';
   if (!body) return {};
@@ -19,8 +86,9 @@ function toStringOrEmpty(value) {
   return String(value).trim();
 }
 
-function twimlRedirectResponse() {
-  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Redirect method="POST">${ELEVENLABS_INBOUND_URL}</Redirect>\n</Response>`;
+function twimlRedirectResponse(statusCallbackUrl) {
+  const elevenLabsTarget = buildElevenLabsInboundUrl(statusCallbackUrl);
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Redirect method="POST">${elevenLabsTarget}</Redirect>\n</Response>`;
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'text/xml; charset=utf-8', 'Cache-Control': 'no-store' },
@@ -88,18 +156,22 @@ exports.handler = async (event) => {
       hasCallSid: Boolean(callSid),
       hasTo: Boolean(toRaw)
     });
-    return twimlRedirectResponse();
+    return twimlRedirectResponse(resolveStatusCallbackUrl());
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseServiceRoleKey) {
     console.error('[twilio-inbound-router] Supabase env missing');
-    return twimlRedirectResponse();
+    return twimlRedirectResponse(resolveStatusCallbackUrl());
   }
 
   const toNormalized = normalizePhoneE164(toRaw).normalized || toRaw;
   const fromNormalized = normalizePhoneE164(fromRaw).normalized || fromRaw;
+  const statusCallbackUrl = resolveStatusCallbackUrl();
+  if (!statusCallbackUrl) {
+    console.warn('[twilio-inbound-router] status callback url not resolved');
+  }
 
   // ─── Loop-Erkennung ──────────────────────────────────────────────────────
   if (fromNormalized === toNormalized) {
@@ -138,7 +210,8 @@ exports.handler = async (event) => {
       dashboard_status: 'new',
       category: 'inbound',
       live_status: 'incoming',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     const { error: insertError } = await supabaseAdmin
@@ -159,6 +232,17 @@ exports.handler = async (event) => {
     // Fehler niemals den ElevenLabs-Redirect blockieren
   }
 
-  console.log('[twilio-inbound-router] redirected to ElevenLabs', { callSid });
-  return twimlRedirectResponse();
+  try {
+    const callbackAttach = await attachTwilioStatusCallback(callSid, statusCallbackUrl);
+    if (!callbackAttach.ok && !callbackAttach.skipped) {
+      console.error('[twilio-inbound-router] twilio callback attach failed', { callSid, statusCallbackUrl, ...callbackAttach });
+    } else {
+      console.log('[twilio-inbound-router] twilio callback attach', { callSid, statusCallbackUrl, ...callbackAttach });
+    }
+  } catch (attachErr) {
+    console.error('[twilio-inbound-router] twilio callback attach error', { callSid, error: attachErr.message });
+  }
+
+  console.log('[twilio-inbound-router] redirected to ElevenLabs', { callSid, statusCallbackUrl: statusCallbackUrl || null });
+  return twimlRedirectResponse(statusCallbackUrl);
 };
