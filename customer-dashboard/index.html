@@ -1635,21 +1635,15 @@ button[aria-label]:focus-visible {
 #followup-overlay .modal-body,
 #followup-overlay #followup-editable{min-width:0;max-width:100%;}
 #followup-overlay .modal{max-width:500px;max-height:min(82vh,calc(100dvh - 12px));}
-#followup-overlay .modal-head-inner{padding:12px 14px;}
-#followup-overlay .modal-sub{padding:4px 14px;margin-bottom:0;}
 #followup-overlay .modal textarea{min-height:72px;max-height:132px;}
-#followup-overlay .modal-body{padding:0 14px 4px;}
 #followup-overlay .modal-footer{position:sticky;bottom:0;background:linear-gradient(to top, var(--surface) 70%, rgba(var(--surface-rgb, 247,248,250),.94));}
-#followup-overlay .followup-field label{margin-bottom:4px;}
-#followup-overlay .followup-grid{gap:8px;margin-bottom:8px;}
-#followup-overlay .followup-field select,
-#followup-overlay .followup-field input,
-#followup-overlay .followup-field textarea{background:var(--surface);}
+#followup-overlay .followup-subtitle{margin-top:2px;}
+#followup-overlay .followup-editable{margin-top:4px;}
+#followup-overlay .followup-action-grid{column-gap:12px;row-gap:14px;}
 .meta-pill{margin-right:6px;margin-top:2px;}
 @media(max-width:768px){
   .followup-grid{grid-template-columns:1fr;gap:7px;}
   #followup-overlay .modal{max-height:min(88vh,calc(100dvh - 6px));border-radius:16px 16px 0 0;}
-  #followup-overlay .modal-body{padding:0 12px 6px;}
   #followup-overlay .modal-footer{padding:8px 12px calc(12px + env(safe-area-inset-bottom));}
   #followup-overlay .modal textarea{min-height:80px;max-height:130px;}
 }
@@ -7515,7 +7509,7 @@ body,.main{background:var(--vx-bg);}
             <h3 id="followup-title">Nachfassen</h3>
             <button class="modal-close-btn" onclick="closeFollowup()" aria-label="Schliessen"><i data-lucide="x" style="width:15px;height:15px;" aria-hidden="true"></i></button>
           </div>
-          <div class="modal-head-sub" id="followup-sub"></div>
+          <div class="modal-head-sub followup-subtitle" id="followup-sub"></div>
         </div>
       </div>
       <div class="modal-body">
@@ -7523,8 +7517,8 @@ body,.main{background:var(--vx-bg);}
           Dieser Anruf ist abgeschlossen und kann nicht mehr bearbeitet werden.
           <button onclick="dismissCompletedWarning()" aria-label="Hinweis ausblenden" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;">×</button>
         </div>
-        <div id="followup-editable">
-          <div class="modal-grid">
+        <div id="followup-editable" class="followup-editable">
+          <div class="modal-grid followup-action-grid">
             <div class="modal-field" style="margin-bottom:0;">
               <label for="followup-next-action">Nächste Aktion</label>
               <select id="followup-next-action">
@@ -8731,6 +8725,24 @@ function sortOpenCallbacksOldestFirst(records) {
 
 // Follow-up ist ein Workflow-/Task-Lifecycle und getrennt vom Telephony-Lifecycle.
 // next_action ist die Source of Truth für die nächste konkrete Aktion.
+function getFollowUpTaskType(record) {
+  const f = (record && record.fields) || record || {};
+  const action = String(f.next_action || '').trim();
+  if (!action) return 'generic';
+  if (action === 'Zurückrufen' || action === 'Erneut versuchen') return 'callback';
+  if (action === 'Termin bestätigen' || action === 'Offerte senden' || action === 'Information senden') return 'task';
+  if (action === 'Kein Bedarf') return 'closed';
+  return 'generic';
+}
+
+function getFollowUpTaskLabel(record) {
+  const type = getFollowUpTaskType(record);
+  if (type === 'callback') return 'Rückruf';
+  if (type === 'task') return 'Aufgabe';
+  if (type === 'closed') return 'Abgeschlossen';
+  return 'Nachfassen';
+}
+
 function getFollowUpActionLabel(record) {
   const f = (record && record.fields) || record || {};
   const action = String(f.next_action || '').trim();
@@ -9546,7 +9558,8 @@ function classifyRecordBuckets(record, now) {
   const isLive = telephonyState === 'incoming' || telephonyState === 'active';
   const isProcessing = telephonyState === 'processing';
 
-  const isCallback = f.callback_requested === true || f.callback_requested === 'true';
+  const followUpTaskType = getFollowUpTaskType(record);
+  const isCallback = followUpTaskType === 'callback';
 
   const followUpRaw = resolveFollowUpAt(f);
   const followUpDate = followUpRaw ? parseFollowUpDate(followUpRaw) : null;
@@ -9617,8 +9630,9 @@ function getDashboardBucketForCall(record) {
   const status = normalizeStatus(f.dashboard_status);
   if (status === CALL_STATUS.NEW) buckets.push('recent');
 
+  const taskType = getFollowUpTaskType(record);
   if (resolveFollowUpAt(f)) buckets.push('followup');
-  if (f.callback_requested) buckets.push('callback');
+  if (taskType === 'callback') buckets.push('callback');
 
   return buckets;
 }
@@ -9648,9 +9662,11 @@ function getUnifiedOpenTasks(records) {
     const f = (record && record.fields) || {};
     if (isClosedStatus(f.dashboard_status)) return;
     const hasFollowUp = !!resolveFollowUpAt(f);
-    const hasCallback = !!f.callback_requested;
-    const hasNextAction = !!String(f.next_action || '').trim();
-    if (!hasFollowUp && !hasCallback && !hasNextAction) return;
+    const taskType = getFollowUpTaskType(record);
+    const hasCallback = taskType === 'callback';
+    const hasTaskAction = taskType === 'task' || taskType === 'generic';
+    if (taskType === 'closed') return;
+    if (!hasFollowUp && !hasCallback && !hasTaskAction) return;
     tasks.push(record);
   });
 
@@ -9751,9 +9767,12 @@ function priorityChip(record) {
 
 function callbackChip(record) {
   const f = (record && record.fields) || {};
-  return f.callback_requested && !isClosedStatus(f.dashboard_status)
-    ? '<span class="chip chip-callback">Rückruf gewünscht</span>'
-    : '';
+  if (isClosedStatus(f.dashboard_status)) return '';
+  const taskType = getFollowUpTaskType(record);
+  if (taskType === 'callback') return '<span class="chip chip-callback">Rückruf</span>';
+  if (taskType === 'task') return '<span class="chip chip-meta">Aufgabe</span>';
+  if (taskType === 'closed') return '<span class="chip chip-workflow-closed">Abgeschlossen</span>';
+  return '<span class="chip chip-meta">Nachfassen</span>';
 }
 
 function callCardBadgeHtml(record, options) {
@@ -9775,8 +9794,13 @@ function callCardMobileBadgeHtml(record) {
   const candidates = [];
 
   // Tier A (highest value)
-  if (f.callback_requested && !isClosedStatus(f.dashboard_status)) {
-    candidates.push({ key: 'callback', tier: 1, rank: 1, html: '<span class="chip chip-callback">Rückruf gewünscht</span>' });
+  const taskType = getFollowUpTaskType(record);
+  if (taskType === 'callback' && !isClosedStatus(f.dashboard_status)) {
+    candidates.push({ key: 'callback', tier: 1, rank: 1, html: '<span class="chip chip-callback">Rückruf</span>' });
+  } else if (taskType === 'task' && !isClosedStatus(f.dashboard_status)) {
+    candidates.push({ key: 'task', tier: 1, rank: 1, html: '<span class="chip chip-meta">Aufgabe</span>' });
+  } else if (taskType === 'generic' && !isClosedStatus(f.dashboard_status)) {
+    candidates.push({ key: 'generic', tier: 2, rank: 5, html: '<span class="chip chip-meta">Nachfassen</span>' });
   }
   if (getPriority(record).key === 'urgent') {
     candidates.push({ key: 'urgent', tier: 1, rank: 2, html: '<span class="chip chip-priority-urgent">Dringend</span>' });
@@ -14122,7 +14146,7 @@ function renderDashboard(records, manualTasks) {
       var state = getCallDisplayState(r);
       if (state === 'short_abandoned') return false;
       var f = (r && r.fields) || {};
-      var isCallback = f.callback_requested === true || f.callback_requested === 'true';
+      var isCallback = getFollowUpTaskType(r) === 'callback';
       var badgeState = getFollowUpBadgeState(r, priorityNow);
       var hasDatedFollowUp = !!formatFollowUpDueLabel(r, priorityNow);
       var isUrgent = getPriority(r).key === 'urgent';
@@ -14136,8 +14160,8 @@ function renderDashboard(records, manualTasks) {
       var bFields = (b && b.fields) || {};
       var aBadge = getFollowUpBadgeState(a, priorityNow);
       var bBadge = getFollowUpBadgeState(b, priorityNow);
-      var aCallback = aFields.callback_requested === true || aFields.callback_requested === 'true';
-      var bCallback = bFields.callback_requested === true || bFields.callback_requested === 'true';
+      var aCallback = getFollowUpTaskType(a) === 'callback';
+      var bCallback = getFollowUpTaskType(b) === 'callback';
       var aUrgent = getPriority(a).key === 'urgent';
       var bUrgent = getPriority(b).key === 'urgent';
       function rank(badge, callback, urgent) {
@@ -14628,7 +14652,7 @@ function renderAnrufeInbox(containerId, records) {
       var summary = f.summary || f.call_summary || '';
       var category = getCallCategoryDisplayLabel(rec);
       var duration = f.duration_seconds ? _formatDuration(f.duration_seconds) : '';
-      var isCallback = f.callback_requested === true || f.callback_requested === 'true';
+      var isCallback = getFollowUpTaskType(rec) === 'callback';
       var isDringend = String(f.priority||'').toLowerCase() === 'high' || String(f.lead_quality||'').toLowerCase() === 'hot';
       var isManual = !!(f.is_manual_task || f.task_type);
       var displayState = getCallDisplayState(rec);
