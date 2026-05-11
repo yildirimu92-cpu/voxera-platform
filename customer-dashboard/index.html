@@ -6029,7 +6029,7 @@ body,.main{background:var(--vx-bg);}
             <div class="vx-pending-sub">Noch nicht live — teste zuerst oder schalte direkt live.</div>
             <div class="vx-pending-list" id="vx-pending-list"></div>
             <div class="vx-pending-actions">
-              <button class="vx-btn-preview" onclick="vxPendingPreview()">
+              <button id="pending-preview-btn" class="vx-btn-preview" onclick="vxPendingPreview()">
                 <i data-lucide="play" style="width:13px;height:13px;margin-right:5px;" aria-hidden="true"></i>Vorschau
               </button>
               <button class="vx-btn-live" onclick="vxPendingGoLive()">
@@ -10326,7 +10326,7 @@ async function previewVoice(voiceId, btn) {
     const res = await fetch('/.netlify/functions/preview-voice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ voice_id: String(voiceId || '') })
+      body: JSON.stringify({ voice_id: String(voiceId || ''), text: window._previewVoiceText || '' })
     });
     if (!res.ok) throw new Error('preview_failed');
     const blob = await res.blob();
@@ -10553,57 +10553,17 @@ function vxPendingUpdate() {
 }
 
 function vxPendingPreview() {
-  var assistantName = (customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Ihrem Assistenten';
-  var agentId = (customerMeta && (customerMeta.elevenlabsAgentId || customerMeta.elevenLabsAgentId || customerMeta.agentId)) ? String(customerMeta.elevenlabsAgentId || customerMeta.elevenLabsAgentId || customerMeta.agentId) : '';
-  var overlay = document.getElementById('vx-preview-modal');
-  var title = document.getElementById('vx-preview-title');
-  var text = document.getElementById('vx-preview-text');
-  var wrap = document.getElementById('vx-preview-widget-wrap');
-  if (!overlay || !title || !text || !wrap) return;
-  title.textContent = 'Vorschau — Gespräch mit ' + assistantName;
-  text.textContent = 'Sprechen Sie jetzt mit ' + assistantName + '. Die Konversation verwendet die aktuell gespeicherten Einstellungen.';
-  wrap.innerHTML = '';
-  if (agentId) {
-    if (!window.__vxConvaiScriptLoading) {
-      window.__vxConvaiScriptLoading = new Promise(function(resolve, reject) {
-        var existing = document.querySelector('script[data-vx-convai="1"]');
-        if (existing) { resolve(); return; }
-        var script = document.createElement('script');
-        script.type = 'module';
-        script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
-        script.type = 'text/javascript';
-        script.async = true;
-        script.dataset.vxConvai = '1';
-        script.onload = function() { resolve(); };
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    }
-    window.__vxConvaiScriptLoading.then(function() {
-      if (!document.getElementById('vx-preview-modal') || !document.getElementById('vx-preview-modal').classList.contains('open')) return;
-      var widget = document.createElement('elevenlabs-convai');
-      widget.setAttribute('agent-id', agentId);
-      wrap.innerHTML = '';
-      wrap.appendChild(widget);
-    }).catch(function() {
-      wrap.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Vorschau konnte nicht geladen werden.</div>';
-    });
-  } else {
-    wrap.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Kein Agent konfiguriert.</div>';
-  }
-  overlay.classList.add('open');
-  setOverlayAriaHidden('vx-preview-modal', false);
-  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
-}
-
-function vxClosePendingPreview() {
-  var overlay = document.getElementById('vx-preview-modal');
-  var wrap = document.getElementById('vx-preview-widget-wrap');
-  if (wrap) wrap.innerHTML = '';
-  if (overlay) {
-    overlay.classList.remove('open');
-    setOverlayAriaHidden('vx-preview-modal', true);
-  }
+  var voiceId = window.assistantSelectedVoiceId || (customerMeta && customerMeta.voiceId) || '';
+  var greetingEl = document.getElementById('assistent-greeting-visible');
+  var greetingText = (greetingEl && greetingEl.value.trim()) || (typeof vxBuildAutoGreeting === 'function' ? vxBuildAutoGreeting() : '');
+  if (!voiceId) { toast('Keine Stimme konfiguriert.', 'error'); return; }
+  if (!greetingText) { toast('Kein Begrüssungstext verfügbar.', 'error'); return; }
+  var btn = document.getElementById('pending-preview-btn');
+  if (!btn) btn = event && event.target ? event.target : document.createElement('button');
+  // Temporarily patch fetch to include text
+  var origFetch = window._previewVoiceText;
+  window._previewVoiceText = greetingText;
+  previewVoice(voiceId, btn);
 }
 
 function vxPendingGoLive() {
