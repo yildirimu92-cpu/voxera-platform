@@ -8109,7 +8109,10 @@ function renderDashPriorityList() {
     html += '<div class="dpr-sub">';
     if (isCallback) html += '<span class="dpr-badge dpr-badge-red">Rückruf</span>';
     if (isDringend) html += '<span class="dpr-badge dpr-badge-amber">Dringend</span>';
-    if (isDueOrOverdueFollowUp(f)) html += '<span class="dpr-badge dpr-badge-amber">Fällig</span>';
+    var followState = getFollowUpBadgeState(rec, new Date());
+    if (followState === 'overdue') html += '<span class="dpr-badge dpr-badge-amber">Überfällig</span>';
+    else if (followState === 'today') html += '<span class="dpr-badge dpr-badge-amber">Heute</span>';
+    else if (followState === 'planned') html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">Geplant</span>';
     else if (resolveFollowUpAt(f)) html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">Nachfassen</span>';
     if (subLine) html += '<span class="dpr-sub-text">'+subLine+'</span>';
     html += '</div></div>';
@@ -8726,64 +8729,83 @@ function sortOpenCallbacksOldestFirst(records) {
   });
 }
 
-function compareFollowUpPriority(a, b) {
-  var aDate = parseFollowUpDate(resolveFollowUpAt((a && a.fields) || {}));
-  var bDate = parseFollowUpDate(resolveFollowUpAt((b && b.fields) || {}));
-  var aTime = aDate && !Number.isNaN(aDate.getTime()) ? aDate.getTime() : Number.MAX_SAFE_INTEGER;
-  var bTime = bDate && !Number.isNaN(bDate.getTime()) ? bDate.getTime() : Number.MAX_SAFE_INTEGER;
-  var now = new Date();
-  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  var tomorrowStart = todayStart + 86400000;
-  function bucket(ts){
+// Follow-up ist ein Workflow-/Task-Lifecycle und getrennt vom Telephony-Lifecycle.
+// next_action ist die Source of Truth für die nächste konkrete Aktion.
+function getFollowUpActionLabel(record) {
+  const f = (record && record.fields) || record || {};
+  const action = String(f.next_action || '').trim();
+  return action || 'Nachfassen';
+}
+
+// Display-Helper: rein lesend, mutiert keine Record-Werte.
+// follow_up_at (bzw. resolveTaskDueAt) ist die Source of Truth für zeitliche Einordnung.
+function getFollowUpBadgeState(record, now) {
+  const f = (record && record.fields) || record || {};
+  const followUpAt = resolveTaskDueAt(f);
+  const due = parseFollowUpDate(followUpAt);
+  if (!due || Number.isNaN(due.getTime())) return 'generic';
+  const currentNow = now instanceof Date ? now : new Date();
+  const todayStart = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate());
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+  if (due.getTime() < currentNow.getTime()) return 'overdue';
+  if (due >= todayStart && due < tomorrowStart) return 'today';
+  return 'planned';
+}
+
+function formatFollowUpDueLabel(record, now) {
+  const f = (record && record.fields) || record || {};
+  const followUpAt = resolveTaskDueAt(f);
+  const due = parseFollowUpDate(followUpAt);
+  if (!due || Number.isNaN(due.getTime())) return '';
+  const currentNow = now instanceof Date ? now : new Date();
+  const todayStart = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate());
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+  const dayAfterTomorrowStart = new Date(todayStart.getTime() + (2 * 86400000));
+  const dueTs = due.getTime();
+  const nowTs = currentNow.getTime();
+  const timeLabel = formatTimeCH(due);
+  if (dueTs < nowTs) {
+    if (due >= todayStart && due < tomorrowStart) return 'Überfällig seit ' + timeLabel;
+    return 'Überfällig seit ' + formatDateShortCH(due) + ', ' + timeLabel;
+  }
+  if (due >= todayStart && due < tomorrowStart) return 'Heute, ' + timeLabel;
+  if (due >= tomorrowStart && due < dayAfterTomorrowStart) return 'Morgen, ' + timeLabel;
+  return formatDateShortCH(due) + ', ' + timeLabel;
+}
+
+function compareFollowUpPriority(a, b, now) {
+  const currentNow = now instanceof Date ? now : new Date();
+  const aFields = (a && a.fields) || {};
+  const bFields = (b && b.fields) || {};
+  const aDate = parseFollowUpDate(resolveTaskDueAt(aFields));
+  const bDate = parseFollowUpDate(resolveTaskDueAt(bFields));
+  const aTs = aDate && !Number.isNaN(aDate.getTime()) ? aDate.getTime() : Number.MAX_SAFE_INTEGER;
+  const bTs = bDate && !Number.isNaN(bDate.getTime()) ? bDate.getTime() : Number.MAX_SAFE_INTEGER;
+  const nowTs = currentNow.getTime();
+  const todayStart = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate()).getTime();
+  const tomorrowStart = todayStart + 86400000;
+  function bucket(ts) {
     if (!Number.isFinite(ts) || ts === Number.MAX_SAFE_INTEGER) return 3;
-    if (ts < todayStart) return 0;
+    if (ts < nowTs) return 0;
     if (ts < tomorrowStart) return 1;
     return 2;
   }
-  var aBucket = bucket(aTime);
-  var bBucket = bucket(bTime);
+  const aBucket = bucket(aTs);
+  const bBucket = bucket(bTs);
   if (aBucket !== bBucket) return aBucket - bBucket;
-  if (aTime !== bTime) return aTime - bTime;
+  if (aTs !== bTs) return aTs - bTs;
   return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
 }
 
-function fmtFollowUpDateTime(raw) {
-  if (!raw) return '';
-  const rawValue = String(raw).trim().replace(' ', 'T');
-  const localParts = parseLocalDateTimeParts(rawValue);
-  const d = parseFollowUpDate(raw);
-  if (!d || Number.isNaN(d.getTime())) return '';
-  const hasMeaningfulTime = localParts
-    ? !(localParts.hour === 0 && localParts.minute === 0 && (localParts.second || 0) === 0)
-    : !/^\d{4}-\d{2}-\d{2}(T00:00(?::00)?)?$/.test(rawValue);
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
-  const yesterdayStart = new Date(todayStart.getTime() - 86400000);
-  if (d >= todayStart && d < tomorrowStart) return hasMeaningfulTime ? 'Heute, ' + formatTimeCH(d) : 'Heute';
-  if (d >= yesterdayStart && d < todayStart) return hasMeaningfulTime ? 'Gestern, ' + formatTimeCH(d) : 'Gestern';
-  return hasMeaningfulTime ? formatDateLongCH(d) + ', ' + formatTimeCH(d) : formatDateLongCH(d);
-}
-
-function buildFollowUpMetaText(nextAction, followUpAt) {
-  const action = (nextAction || '').trim();
-  const formattedFollowUp = fmtFollowUpDateTime(followUpAt);
-  var timingLabel = '';
-  const followUpDate = parseFollowUpDate(followUpAt);
-  if (followUpDate && !Number.isNaN(followUpDate.getTime())) {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const tomorrowStart = todayStart + 86400000;
-    const ts = followUpDate.getTime();
-    if (ts < todayStart) timingLabel = 'Überfällig';
-    else if (ts < tomorrowStart) timingLabel = 'Heute';
-    else timingLabel = 'Geplant';
-  }
-  const withTiming = timingLabel && formattedFollowUp ? (timingLabel + ' · ' + formattedFollowUp) : formattedFollowUp;
-  if (action && withTiming) return '→ ' + action + ' · ' + withTiming;
-  if (action) return '→ ' + action;
-  if (withTiming) return withTiming;
-  return '';
+function buildFollowUpMetaText(record, now) {
+  const dueLabel = formatFollowUpDueLabel(record, now);
+  const action = getFollowUpActionLabel(record);
+  const f = (record && record.fields) || record || {};
+  const noteSource = String(f.notes_customer_voxera || f.notes || '').trim();
+  const noteSnippet = noteSource ? (noteSource.length > 70 ? noteSource.slice(0, 70) + '…' : noteSource) : '';
+  let text = dueLabel ? ('→ ' + action + ' · ' + dueLabel) : ('→ ' + action);
+  if (noteSnippet) text += ' · ' + noteSnippet;
+  return text;
 }
 
 function fallbackCallSummary(fields) {
@@ -14093,6 +14115,7 @@ function renderDashboard(records, manualTasks) {
   // Nutzt buckets.open (alle nicht-erledigten) statt nur buckets.recent
   var liveRecord = pickLiveCall(records || []);
   var isLiveMatch = buildLiveCallMatcher(liveRecord);
+  var priorityNow = new Date();
   var priorityRecords = buckets.open
     .filter(function(r){ return !isLiveMatch || !isLiveMatch(r); })
     .filter(function(r){
@@ -14100,14 +14123,36 @@ function renderDashboard(records, manualTasks) {
       if (state === 'short_abandoned') return false;
       var f = (r && r.fields) || {};
       var isCallback = f.callback_requested === true || f.callback_requested === 'true';
+      var badgeState = getFollowUpBadgeState(r, priorityNow);
+      var hasDatedFollowUp = !!formatFollowUpDueLabel(r, priorityNow);
       var isUrgent = getPriority(r).key === 'urgent';
-      var dueOrOverdueFollowUp = isDueOrOverdueFollowUp(f);
-      if (state === 'processing') return isCallback || isUrgent || dueOrOverdueFollowUp;
-      if (isCallback || isUrgent || dueOrOverdueFollowUp) return true;
-      return normalizeStatus(f.dashboard_status) === CALL_STATUS.NEW;
+      if (hasDatedFollowUp && badgeState === 'planned') return false;
+      if (state === 'processing') return isCallback || isUrgent || badgeState === 'overdue' || badgeState === 'today';
+      return isCallback || isUrgent || badgeState === 'overdue' || badgeState === 'today' || normalizeStatus(f.dashboard_status) === CALL_STATUS.NEW;
     })
-    .filter(function(r){ return getPriorityBucket(r) < 99; })
-    .sort(function(a,b){ return getPriorityBucket(a) - getPriorityBucket(b); });
+    .filter(function(r){ return !isClosedStatus(((r && r.fields) || {}).dashboard_status); })
+    .sort(function(a, b) {
+      var aFields = (a && a.fields) || {};
+      var bFields = (b && b.fields) || {};
+      var aBadge = getFollowUpBadgeState(a, priorityNow);
+      var bBadge = getFollowUpBadgeState(b, priorityNow);
+      var aCallback = aFields.callback_requested === true || aFields.callback_requested === 'true';
+      var bCallback = bFields.callback_requested === true || bFields.callback_requested === 'true';
+      var aUrgent = getPriority(a).key === 'urgent';
+      var bUrgent = getPriority(b).key === 'urgent';
+      function rank(badge, callback, urgent) {
+        if (badge === 'overdue') return 0;
+        if (badge === 'today') return 1;
+        if (callback && badge === 'generic') return 2;
+        if (urgent) return 3;
+        return 4;
+      }
+      var ar = rank(aBadge, aCallback, aUrgent);
+      var br = rank(bBadge, bCallback, bUrgent);
+      if (ar !== br) return ar - br;
+      if (ar <= 1) return compareFollowUpPriority(a, b, priorityNow);
+      return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
+    });
   _dashPriorityAllRecords = priorityRecords;
   renderDashPriorityList();
   var moreBtn = document.getElementById('dash-recent-more');
@@ -14403,7 +14448,7 @@ function renderList(containerId, records, opts) {
     const priority = getPriority(r);
     // Follow-up meta line (action/date/time) in short unified format
     const followUpAt = resolveTaskDueAt(f);
-    const followUpMetaText = buildFollowUpMetaText(f.next_action, followUpAt);
+    const followUpMetaText = buildFollowUpMetaText(r, new Date());
     const taskDueBucket = getTaskPriorityBucket(r);
     var taskDueLabel = '';
     var taskDueClass = 'open';
@@ -14607,7 +14652,10 @@ function renderAnrufeInbox(containerId, records) {
       html += '<div class="dpr-sub">';
       if (isCallback) html += '<span class="dpr-badge dpr-badge-red">Rückruf</span>';
       if (isDringend) html += '<span class="dpr-badge dpr-badge-amber">Dringend</span>';
-      if (isDueOrOverdueFollowUp(f)) html += '<span class="dpr-badge dpr-badge-amber">Fällig</span>';
+      var followState = getFollowUpBadgeState(rec, new Date());
+      if (followState === 'overdue') html += '<span class="dpr-badge dpr-badge-amber">Überfällig</span>';
+      else if (followState === 'today') html += '<span class="dpr-badge dpr-badge-amber">Heute</span>';
+      else if (followState === 'planned') html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">Geplant</span>';
       else if (resolveFollowUpAt(f)) html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">Nachfassen</span>';
       if (isLiveCall) html += '<span class="dpr-badge" style="color:#ef4444;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);">LIVE</span>';
       if (isProcessingCall) html += '<span class="dpr-badge" style="color:#2563EB;background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.35);">Wird verarbeitet</span>';
@@ -15930,6 +15978,7 @@ function openDetail(recordId) {
           ${!isManual && f.duration_seconds ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Gesprächsdauer</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(formatDurationForDisplay(f.duration_seconds))}</div></div>` : ''}
           <div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Status</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(statusLabel(f.dashboard_status))}</div></div>
           ${f.callback_requested ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Rückruf</div><div style="font-size:13px;font-weight:600;color:#DC2626;">Ja</div></div>` : ''}
+          ${resolveTaskDueAt(f) ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Follow-up</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(formatFollowUpDueLabel(rec, new Date()) || 'Nachfassen')}</div><div style="font-size:12px;color:var(--slate2);margin-top:2px;">${escHtml(getFollowUpActionLabel(rec))}</div></div>` : ''}
         </div>
       </div>
 
