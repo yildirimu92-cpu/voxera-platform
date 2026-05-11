@@ -5245,8 +5245,8 @@ body,.main{background:var(--vx-bg);}
 /* Coming soon badge */
 .vx-coming-soon{display:inline-flex;align-items:center;font-size:10px;font-weight:700;color:#7C3AED;background:#EDE9FE;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:middle;}
 /* Pending dot in accordion header */
-.vx-pending-dot{width:7px;height:7px;border-radius:50%;background:#F59E0B;display:none;flex-shrink:0;}
-.vx-pending-dot.visible{display:inline-block;}
+.vx-pending-dot{display:none;font-size:10px;font-weight:700;color:#D97706;background:#FEF3C7;border:0.5px solid #FDE68A;border-radius:999px;padding:2px 8px;flex-shrink:0;letter-spacing:.01em;}
+.vx-pending-dot.visible{display:inline-flex;align-items:center;}
 /* Assistent status in header */
 .vx-ass-status{font-size:11px;color:#34D399;margin-top:2px;}
 .vx-ass-status.has-pending{color:#F59E0B;}
@@ -5256,7 +5256,6 @@ body,.main{background:var(--vx-bg);}
 #tab-assistent .vx-acc-header span{color:#fff!important;}
 #tab-assistent .vx-acc-header i[data-lucide]{color:rgba(255,255,255,.6)!important;}
 #tab-assistent .vx-acc-header [data-lucide="chevron-down"]{color:rgba(255,255,255,.35)!important;}
-#tab-assistent .vx-acc-header .vx-pending-dot{background:#F59E0B;}
 #tab-assistent .vx-acc-header .vx-coming-soon{background:rgba(124,58,237,.25);color:#C4B5FD;}
 #tab-assistent .vx-acc-header:hover{background:#162a4a;}
 #tab-assistent .vx-acc-header[style*="not-allowed"]{background:#0D1F3C;opacity:.55;}
@@ -7549,6 +7548,31 @@ body,.main{background:var(--vx-bg);}
       <div class="modal-footer">
         <button class="modal-btn-s" onclick="closeFollowup()">Abbrechen</button>
         <button class="modal-btn-p" id="followup-save-btn" onclick="saveFollowup()">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ASSISTENT VORSCHAU MODAL -->
+<div class="overlay overlay--sheet" id="vx-preview-modal" onclick="if(event.target===this)vxClosePendingPreview()" role="dialog" aria-modal="true" aria-labelledby="vx-preview-title" aria-hidden="true">
+  <div class="modal followup-modal" tabindex="-1">
+    <div class="modal-shell">
+      <div class="modal-head">
+        <div class="modal-head-top">
+          <div class="modal-drag"></div>
+          <div class="modal-head-row">
+            <div class="modal-head-icon"><i data-lucide="phone" style="width:16px;height:16px;color:rgba(255,255,255,.8);" aria-hidden="true"></i></div>
+            <h3 id="vx-preview-title">Vorschau</h3>
+            <button class="modal-close-btn" onclick="vxClosePendingPreview()" aria-label="Schliessen"><i data-lucide="x" style="width:15px;height:15px;" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="vx-preview-text" style="font-size:13px;color:var(--ink2);line-height:1.6;margin-bottom:12px;"></div>
+        <div id="vx-preview-widget-wrap"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn-s" onclick="vxClosePendingPreview()">Schliessen</button>
       </div>
     </div>
   </div>
@@ -10530,14 +10554,61 @@ function vxPendingUpdate() {
     if (!dot) return;
     var hasPending = Object.keys(_vxPending).some(function(k) { return accMap[k] === acc || k.startsWith(acc); });
     dot.classList.toggle('visible', hasPending);
+    dot.textContent = hasPending ? 'Ausstehend' : '';
   });
   if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
 }
 
 function vxPendingPreview() {
-  // Testanruf mit pending Werten — für jetzt Info-Modal
-  var names = Object.values(_vxPending).map(function(p) { return p.label; }).join(', ');
-  alert('Vorschau-Testanruf wird gestartet.\n\nLara verwendet vorübergehend Ihre neuen Einstellungen für:\n' + names + '\n\nNach dem Test können Sie live schalten.');
+  var assistantName = (customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Ihrem Assistenten';
+  var agentId = (customerMeta && (customerMeta.elevenLabsAgentId || customerMeta.agentId)) ? String(customerMeta.elevenLabsAgentId || customerMeta.agentId) : '';
+  var overlay = document.getElementById('vx-preview-modal');
+  var title = document.getElementById('vx-preview-title');
+  var text = document.getElementById('vx-preview-text');
+  var wrap = document.getElementById('vx-preview-widget-wrap');
+  if (!overlay || !title || !text || !wrap) return;
+  title.textContent = 'Vorschau — Gespräch mit ' + assistantName;
+  text.textContent = 'Sprechen Sie jetzt mit ' + assistantName + '. Die Konversation verwendet die aktuell gespeicherten Einstellungen.';
+  wrap.innerHTML = '';
+  if (agentId) {
+    if (!window.__vxConvaiScriptLoading) {
+      window.__vxConvaiScriptLoading = new Promise(function(resolve, reject) {
+        var existing = document.querySelector('script[data-vx-convai="1"]');
+        if (existing) { resolve(); return; }
+        var script = document.createElement('script');
+        script.type = 'module';
+        script.src = 'https://elevenlabs.io/convai-widget/index.js';
+        script.dataset.vxConvai = '1';
+        script.onload = function() { resolve(); };
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+    window.__vxConvaiScriptLoading.then(function() {
+      if (!document.getElementById('vx-preview-modal') || !document.getElementById('vx-preview-modal').classList.contains('open')) return;
+      var widget = document.createElement('elevenlabs-convai');
+      widget.setAttribute('agent-id', agentId);
+      wrap.innerHTML = '';
+      wrap.appendChild(widget);
+    }).catch(function() {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Vorschau konnte nicht geladen werden.</div>';
+    });
+  } else {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Kein Agent konfiguriert.</div>';
+  }
+  overlay.classList.add('open');
+  setOverlayAriaHidden('vx-preview-modal', false);
+  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
+}
+
+function vxClosePendingPreview() {
+  var overlay = document.getElementById('vx-preview-modal');
+  var wrap = document.getElementById('vx-preview-widget-wrap');
+  if (wrap) wrap.innerHTML = '';
+  if (overlay) {
+    overlay.classList.remove('open');
+    setOverlayAriaHidden('vx-preview-modal', true);
+  }
 }
 
 function vxPendingGoLive() {
@@ -10599,7 +10670,7 @@ async function vxPendingSend(payload) {
     setTimeout(function() { if (successBar) successBar.classList.remove('visible'); }, 3500);
   } catch(e) {
     if (liveBtn) { liveBtn.disabled = false; liveBtn.textContent = 'Live schalten'; }
-    alert('Fehler beim Speichern. Bitte versuche es erneut.');
+    toast('Fehler beim Speichern. Bitte versuche es erneut.', 'info');
   }
 }
 
