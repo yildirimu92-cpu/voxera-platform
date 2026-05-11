@@ -6635,6 +6635,12 @@ body,.main{background:var(--vx-bg);}
               </div>
             </div>
 
+            <!-- Vertragsdetails -->
+            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
+              <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Vertragsdetails</span></div>
+              <div id="abo-contract-details" style="padding:12px 14px;"></div>
+            </div>
+
             <!-- Minutenverbrauch -->
             <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;">
@@ -6669,6 +6675,13 @@ body,.main{background:var(--vx-bg);}
               <div id="abo-invoices-list" style="padding:14px 16px;">
               <div style="font-size:13px;color:var(--slate2);text-align:center;">Rechnungen werden hier angezeigt sobald verfügbar.</div>
             </div>
+            </div>
+
+            <!-- Kündigung -->
+            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);padding:14px 16px;">
+              <div style="font-size:12px;font-weight:600;color:#94A3B8;margin-bottom:8px;">Vertrag kündigen</div>
+              <div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:12px;">Sie können Ihren Vertrag unter Einhaltung der Kündigungsfrist kündigen. Die Kündigung wird von unserem Team bearbeitet.</div>
+              <div id="abo-cancellation-action"></div>
             </div>
           </div>
 
@@ -11316,8 +11329,70 @@ async function vxInitAbonnement() {
     if (warnEl) warnEl.style.display = pct >= 80 ? 'block' : 'none';
   } catch(e) {}
 
+  vxRenderContractDetails();
   // Add-ons laden
   vxRenderAboAddons();
+  vxRenderCancellationSection();
+}
+
+function vxFmtDate(value) {
+  if (!value) return '–';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '–';
+  return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
+}
+
+function vxFmtChf(amount) {
+  const n = Number(amount);
+  if (!isFinite(n)) return '–';
+  return 'CHF ' + Math.round(n) + '.–';
+}
+
+function vxComputeNextRenewal(startDate, durationMonths) {
+  if (!startDate) return null;
+  const start = new Date(startDate);
+  if (isNaN(start.getTime())) return null;
+  const now = new Date();
+  const duration = Number(durationMonths);
+  if (!isFinite(duration) || duration <= 1) {
+    const next = new Date(start);
+    while (next <= now) next.setMonth(next.getMonth() + 1);
+    return next;
+  }
+  const next = new Date(start);
+  while (next <= now) next.setMonth(next.getMonth() + duration);
+  return next;
+}
+
+function vxRenderContractDetails() {
+  const el = document.getElementById('abo-contract-details');
+  if (!el) return;
+  const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
+  const durationRaw = Number(ct.duration_months);
+  const durationText = (!durationRaw || durationRaw <= 1) ? 'Monatlich' : (durationRaw + ' Monate');
+  const nextRenewal = vxComputeNextRenewal(ct.start_date, ct.duration_months);
+  const status = String(ct.status || '').toLowerCase();
+  const statusLabel = status === 'cancelled' ? 'Gekündigt' : (status === 'active' ? 'Aktiv' : (ct.status || 'Unbekannt'));
+  const statusStyle = status === 'cancelled'
+    ? 'background:#FEF2F2;color:#DC2626;border:0.5px solid #FECACA;'
+    : 'background:#ECFDF5;color:#059669;border:0.5px solid #BBF7D0;';
+
+  let warningHtml = '';
+  if (ct.cancellation_date) {
+    warningHtml = '<div style="grid-column:1/-1;background:#FFFBEB;color:#B45309;border:0.5px solid #FDE68A;border-radius:10px;padding:8px 10px;font-size:12px;">Kündigung eingereicht per ' + vxFmtDate(ct.cancellation_date) + '</div>';
+  }
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;">
+      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Vertragsbeginn</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${vxFmtDate(ct.start_date)}</div></div>
+      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Vertragsdauer</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${durationText}</div></div>
+      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Monatlicher Betrag</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${vxFmtChf(ct.recurring_amount_monthly)}</div></div>
+      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Nächste Verlängerung</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${nextRenewal ? vxFmtDate(nextRenewal) : '–'}</div></div>
+      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Kündigungsfrist</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${ct.cancellation_notice || '30 Tage'}</div></div>
+      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Status</div><span style="display:inline-flex;font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;${statusStyle}">${statusLabel}</span></div>
+      ${warningHtml}
+    </div>
+  `;
 }
 
 async function vxRenderAboAddons() {
@@ -11325,34 +11400,74 @@ async function vxRenderAboAddons() {
   if (!listEl) return;
 
   try {
-    const _sb = getSupabaseAuthClient();
-    // Verfügbare Add-ons
-    const { data: available } = await _sb.from('voxera_addons').select('addon_code,display_name,price_monthly_chf,coming_soon').eq('coming_soon', false).order('sort_order');
-    // Aktive Add-ons des Kunden
-    const { data: active } = await _sb.from('customer_addons').select('addon_code,active').eq('customer_id', customerMeta.customerId);
-    const activeSet = new Set((active || []).filter(a => a.active).map(a => a.addon_code));
+    const cards = [
+      { addon_code: 'sms_notify_kunde', display_name: 'SMS Benachrichtigungen', price: 'CHF 9/Mt', icon: 'message-square', teaser: '' },
+      { addon_code: 'sms_confirm_caller', display_name: 'SMS an Anrufer', price: 'CHF 19/Mt', icon: 'message-circle', teaser: '' },
+      { addon_code: 'minutes_block', display_name: 'Zusatzminuten (+50 Min)', price: 'CHF 19', icon: 'plus-circle', teaser: 'Ihr Stripe-Link wird hier erscheinen', soonText: 'In Kürze' }
+    ];
+    const loadedAddons = Array.isArray(customerMeta.customerAddons) ? customerMeta.customerAddons : [];
+    const activeSet = new Set(loadedAddons.filter(a => a && a.active).map(a => String(a.addon_code || '').toLowerCase()));
 
-    if (!available || !available.length) {
-      listEl.innerHTML = '<div style="font-size:13px;color:var(--slate2);text-align:center;padding:12px;">Keine Add-ons verfügbar.</div>';
-      return;
-    }
-
-    listEl.innerHTML = available.map(a => {
-      const isActive = activeSet.has(a.addon_code);
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface);border-radius:10px;border:0.5px solid var(--line);margin-bottom:8px;">
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--ink);">${a.display_name}</div>
-          <div style="font-size:11px;color:var(--slate2);">CHF ${a.price_monthly_chf}/Mt</div>
-        </div>
-        ${isActive
-          ? '<span style="font-size:11px;background:#F0FDF4;color:#059669;border-radius:20px;padding:3px 10px;font-weight:600;border:0.5px solid #BBF7D0;">Aktiv</span>'
-          : `<button onclick="vxRequestAddon('${a.addon_code}')" style="font-size:12px;background:#1A6FE8;color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit;font-weight:600;">Anfragen</button>`
-        }
-      </div>`;
+    listEl.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' + cards.map(function(a) {
+      const isActive = activeSet.has(String(a.addon_code).toLowerCase());
+      const usageInfo = isActive && a.addon_code === 'minutes_block'
+        ? '<div style="font-size:11px;color:var(--slate2);margin-top:4px;">Aktive Blöcke: ' + loadedAddons.filter(function(x){return x && x.active && String(x.addon_code||'').toLowerCase()==='minutes_block';}).length + '</div>'
+        : '';
+      const badge = isActive
+        ? '<span style="font-size:11px;font-weight:700;color:#059669;background:#ECFDF5;border:0.5px solid #BBF7D0;border-radius:999px;padding:3px 10px;">Aktiv</span>'
+        : '<span style="font-size:11px;font-weight:600;color:#64748B;background:#F1F5F9;border:0.5px solid #E2E8F0;border-radius:999px;padding:3px 10px;">' + (a.soonText || 'Coming Soon') + '</span>';
+      return '<div style="border-radius:14px;border:0.5px solid var(--line);background:#fff;padding:14px;">'
+        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'
+        + '<div style=\"display:flex;gap:10px;\">'
+        + '<div style="width:36px;height:36px;border-radius:10px;background:#0D1F3C;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i data-lucide="' + a.icon + '" style="width:16px;height:16px;color:#fff;"></i></div>'
+        + '<div><div style="font-size:13px;font-weight:600;color:var(--ink);line-height:1.35;">' + a.display_name + '</div><div style="font-size:11px;color:var(--slate2);margin-top:2px;">' + a.price + '</div>' + usageInfo + '</div>'
+        + '</div>' + badge + '</div>'
+        + (a.teaser ? '<div style="font-size:11px;color:var(--slate2);margin-top:8px;">' + a.teaser + '</div>' : '')
+        + '</div>';
     }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   } catch(e) {
     listEl.innerHTML = '<div style="font-size:13px;color:var(--slate2);">Fehler beim Laden.</div>';
   }
+}
+
+function vxRenderCancellationSection() {
+  const el = document.getElementById('abo-cancellation-action');
+  if (!el) return;
+  const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
+  if (ct.cancellation_date || ct.termination_type) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Kündigung bereits eingereicht</div>';
+    return;
+  }
+  el.innerHTML = '<button onclick="vxSubmitCancellationRequest()" style="background:transparent;border:0.5px solid #FCA5A5;color:#DC2626;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Kündigung einreichen</button>';
+}
+
+async function vxSubmitCancellationRequest() {
+  const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
+  openConfirmModal({
+    title: 'Möchten Sie Ihren Vertrag wirklich kündigen?',
+    text: 'Vertragsende: ' + (vxFmtDate(ct.end_date) || '–') + '.',
+    tone: 'danger',
+    confirmLabel: 'Ja, Kündigung einreichen',
+    onConfirm: async function() {
+      const NOTIFY_URL = '/.netlify/functions/ai-change-notify';
+      const payload = {
+        mail_type: 'cancellation_request',
+        customer_id: customerMeta.customerId || null,
+        customer_name: customerMeta.customerName || null,
+        plan: customerMeta.plan || null,
+        cancellation_notice: ct.cancellation_notice || '30 Tage'
+      };
+      const res = await fetch(NOTIFY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error('Kündigung konnte nicht eingereicht werden.');
+      ct.cancellation_date = new Date().toISOString();
+      if (customerContractMeta) customerContractMeta.cancellation_date = ct.cancellation_date;
+      vxRenderContractDetails();
+      vxRenderCancellationSection();
+      toast('Kündigung eingereicht. Wir melden uns in Kürze.');
+      return true;
+    }
+  });
 }
 
 // ── Stripe Links aus plan_config ─────────────────────────────────────────────
