@@ -4,18 +4,18 @@
 //     schedule = "*/5 * * * *"
 //
 // Zweck:
-//   Anrufe die in live_status='incoming'/'active'/'analyzing' stecken geblieben
-//   sind werden nach STALE_THRESHOLD_MINUTES auf live_status='failed' gesetzt.
-//   ElevenLabs hat 5 Min max Anrufdauer → 6 Min Threshold ist sicher.
+//   Safety-Net für sehr kurze/abgebrochene Calls, bei denen kein ElevenLabs-Final-Webhook
+//   ankommt. Solche Datensätze dürfen nicht dauerhaft auf live_status='incoming' bleiben.
 //
 // Scope (strikt):
-//   NUR Zeilen mit live_status IN ('incoming','active','analyzing')
-//   AND created_at < NOW()-6min.
+//   NUR Zeilen mit live_status='incoming'
+//   AND created_at älter als Threshold
+//   AND transcript/call_summary/duration_seconds/elevenlabs_conversation_id IS NULL.
 //   Kein anderes Feld, kein anderer Status wird angefasst.
 
 const { createClient } = require('@supabase/supabase-js');
 
-const STALE_THRESHOLD_MINUTES = 6; // ElevenLabs max 5 Min + 1 Min Puffer
+const STALE_THRESHOLD_SECONDS = 120; // 2 Minuten: sicher > kurzer Klingel/Hangup, schnell genug fürs Dashboard
 
 exports.handler = async () => {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -30,16 +30,18 @@ exports.handler = async () => {
     auth: { autoRefreshToken: false, persistSession: false }
   });
 
-  const cutoffIso = new Date(
-    Date.now() - STALE_THRESHOLD_MINUTES * 60 * 1000
-  ).toISOString();
+  const cutoffIso = new Date(Date.now() - STALE_THRESHOLD_SECONDS * 1000).toISOString();
 
   // Erst selektieren — Logging der betroffenen IDs vor dem Update.
   const { data: stale, error: selectError } = await sbAdmin
     .from('calls')
-    .select('id, call_id, created_at, live_status')
-    .in('live_status', ['incoming', 'active', 'analyzing'])
-    .lt('created_at', cutoffIso);
+    .select('id, call_id, created_at, updated_at, live_status')
+    .eq('live_status', 'incoming')
+    .lt('created_at', cutoffIso)
+    .is('transcript', null)
+    .is('call_summary', null)
+    .is('duration_seconds', null)
+    .is('elevenlabs_conversation_id', null);
 
   if (selectError) {
     console.error('[cleanup-stale-calls] select failed', { error: selectError.message });
