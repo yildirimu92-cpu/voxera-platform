@@ -8085,7 +8085,7 @@ function renderDashPriorityList() {
     var company = (f.company_name && f.caller_name && f.company_name !== f.caller_name) ? f.company_name : '';
     var phone = f.caller_phone || f.phone_number || '';
     var summary = f.summary || f.call_summary || '';
-    var category = f.category || '';
+    var category = getCallCategoryDisplayLabel(rec);
     var duration = f.duration_seconds ? _formatDuration(f.duration_seconds) : '';
     var isCallback = f.callback_requested === true || f.callback_requested === 'true';
     var isDringend = String(f.priority||'').toLowerCase() === 'high' || String(f.lead_quality||'').toLowerCase() === 'hot';
@@ -9419,6 +9419,22 @@ function callCategoryLabel(categoryRaw) {
   const lower = raw.toLowerCase();
   if (map[lower]) return map[lower];
   return raw.replace(/[_-]+/g, ' ').replace(/\b\w/g, function(m){ return m.toUpperCase(); });
+}
+
+function getCallCategoryDisplayLabel(record) {
+  // raw category may contain technical routing values.
+  // customer UI must show friendly display labels.
+  const f = (record && record.fields) || {};
+  const liveStatus = String(f.live_status || '').trim().toLowerCase();
+  const displayState = getCallDisplayState(record);
+  if (liveStatus === 'abandoned' || displayState === 'short_abandoned') return 'Kurzer Anruf';
+
+  const rawCategory = String(f.category || '').trim();
+  const normalizedCategory = rawCategory.toLowerCase();
+  if (normalizedCategory === 'activation_test_outbound') return 'Testanruf';
+  if (normalizedCategory === 'inbound') return 'Eingehender Anruf';
+  if (!rawCategory || isDashLikePlaceholder(rawCategory)) return 'Nicht kategorisiert';
+  return callCategoryLabel(rawCategory);
 }
 
 function qualKey(q) {
@@ -14371,7 +14387,7 @@ function renderList(containerId, records, opts) {
     const showActions = opts.showActions !== false;
     const summary = (f.call_summary || fallbackCallSummary(f) || '').trim();
     const visibleSummary = isDashLikePlaceholder(summary) ? '' : summary;
-    const categoryLabel = callCategoryLabel(f.category);
+    const categoryLabel = getCallCategoryDisplayLabel(r);
     const callSummary = opts.dashboardView ? visibleSummary.substring(0, 140) : visibleSummary;
 
     const incoming = recentIncomingIds.has(r.id);
@@ -14565,7 +14581,7 @@ function renderAnrufeInbox(containerId, records) {
       var company = (f.company_name && f.caller_name && f.company_name !== f.caller_name) ? f.company_name : '';
       var phone = f.caller_phone || f.phone_number || '';
       var summary = f.summary || f.call_summary || '';
-      var category = f.category || '';
+      var category = getCallCategoryDisplayLabel(rec);
       var duration = f.duration_seconds ? _formatDuration(f.duration_seconds) : '';
       var isCallback = f.callback_requested === true || f.callback_requested === 'true';
       var isDringend = String(f.priority||'').toLowerCase() === 'high' || String(f.lead_quality||'').toLowerCase() === 'hot';
@@ -14737,8 +14753,7 @@ function renderFocusModeCard(idx) {
     dueColor = 'var(--gray400, #64748B)';
   }
 
-  var category = f.category || '';
-  var catLbl = category ? String(category).replace(/_/g,' ') : '–';
+  var catLbl = getCallCategoryDisplayLabel(r);
 
   shell.innerHTML =
     '<div class="fm-card">' +
@@ -14927,7 +14942,7 @@ function renderArchivInbox(containerId, records) {
       var name = f.caller_name || f.company_name || 'Unbekannte Nummer';
       var company = (f.company_name && f.caller_name && f.company_name !== f.caller_name) ? f.company_name : '';
       var phone = f.caller_phone || f.phone_number || '';
-      var category = f.category || '';
+      var category = getCallCategoryDisplayLabel(rec);
       var duration = f.duration_seconds ? _formatDuration(f.duration_seconds) : '';
       var ts = getRecordTimestamp(rec);
       var timeStr = ts ? (function(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); })(new Date(ts)) : '';
@@ -15910,7 +15925,7 @@ function openDetail(recordId) {
         <div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Call-Infos</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
           ${phone ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Telefon</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(phone)}</div></div>` : ''}
-          ${callCategoryLabel(f.category) && !isManual ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Kategorie</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(callCategoryLabel(f.category))}</div></div>` : ''}
+          ${!isManual ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Kategorie</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(getCallCategoryDisplayLabel(rec))}</div></div>` : ''}
           ${!isManual && f.lead_quality ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Lead-Qualität</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(f.lead_quality)}</div></div>` : ''}
           ${!isManual && f.duration_seconds ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Gesprächsdauer</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(formatDurationForDisplay(f.duration_seconds))}</div></div>` : ''}
           <div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Status</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(statusLabel(f.dashboard_status))}</div></div>
