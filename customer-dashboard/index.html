@@ -1363,6 +1363,13 @@ html[data-theme="dark"] .settings-card{
   outline: none;
   box-shadow: 0 0 0 3px rgba(26,111,232,.18);
 }
+.detail-footer .btn:focus-visible,
+.call-actions button:focus-visible,
+.call-actions a:focus-visible,
+button[aria-label]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26,111,232,.18);
+}
 
 .followup-choices{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px;}
 .followup-choice{flex:1;min-width:120px;padding:11px 14px;border:0.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--gray600);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);}
@@ -7458,15 +7465,15 @@ body,.main{background:var(--vx-bg);}
 </div>
 
 <!-- NOTIZ MODAL -->
-<div class="overlay overlay--sheet" id="notiz-overlay" onclick="if(event.target===this)closeNotiz()">
-  <div class="modal">
+<div class="overlay overlay--sheet" id="notiz-overlay" onclick="if(event.target===this)closeNotiz()" role="dialog" aria-modal="true" aria-labelledby="notiz-title" aria-hidden="true">
+  <div class="modal" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top">
           <div class="modal-drag"></div>
           <div class="modal-head-row">
             <div class="modal-head-icon"><i data-lucide="pencil" style="width:16px;height:16px;color:rgba(255,255,255,.8);" aria-hidden="true"></i></div>
-            <h3>Notiz</h3>
+            <h3 id="notiz-title">Notiz</h3>
             <button class="modal-close-btn" onclick="closeNotiz()" aria-label="Schliessen"><i data-lucide="x" style="width:15px;height:15px;" aria-hidden="true"></i></button>
           </div>
           <div class="modal-head-sub" id="notiz-sub"></div>
@@ -7489,15 +7496,15 @@ body,.main{background:var(--vx-bg);}
 
 
 <!-- CALL FOLLOW-UP MODAL -->
-<div class="overlay overlay--sheet" id="followup-overlay" onclick="if(event.target===this)closeFollowup()">
-  <div class="modal followup-modal">
+<div class="overlay overlay--sheet" id="followup-overlay" onclick="if(event.target===this)closeFollowup()" role="dialog" aria-modal="true" aria-labelledby="followup-title" aria-hidden="true">
+  <div class="modal followup-modal" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top">
           <div class="modal-drag"></div>
           <div class="modal-head-row">
             <div class="modal-head-icon"><i data-lucide="phone-outgoing" style="width:16px;height:16px;color:rgba(255,255,255,.8);" aria-hidden="true"></i></div>
-            <h3>Nachfassen</h3>
+            <h3 id="followup-title">Nachfassen</h3>
             <button class="modal-close-btn" onclick="closeFollowup()" aria-label="Schliessen"><i data-lucide="x" style="width:15px;height:15px;" aria-hidden="true"></i></button>
           </div>
           <div class="modal-head-sub" id="followup-sub"></div>
@@ -7506,7 +7513,7 @@ body,.main{background:var(--vx-bg);}
       <div class="modal-body">
         <div id="followup-locked-warning" style="display:none;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400E;margin-bottom:14px;">
           Dieser Anruf ist abgeschlossen und kann nicht mehr bearbeitet werden.
-          <button onclick="dismissCompletedWarning()" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;">×</button>
+          <button onclick="dismissCompletedWarning()" aria-label="Hinweis ausblenden" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;">×</button>
         </div>
         <div id="followup-editable">
           <div class="modal-grid">
@@ -7546,7 +7553,7 @@ body,.main{background:var(--vx-bg);}
 </div>
 
 <!-- MANUELLE AUFGABE MODAL -->
-<div class="overlay overlay--sheet" id="manual-task-overlay" onclick="if(event.target===this)closeManualTaskModal()">
+<div class="overlay overlay--sheet" id="manual-task-overlay" onclick="if(event.target===this)closeManualTaskModal()" role="dialog" aria-modal="true" aria-labelledby="manual-task-title-heading" aria-hidden="true">
   <div class="modal followup-modal">
     <div class="modal-shell">
       <div class="modal-head">
@@ -7554,7 +7561,7 @@ body,.main{background:var(--vx-bg);}
           <div class="modal-drag"></div>
           <div class="modal-head-row">
             <div class="modal-head-icon"><i data-lucide="plus" style="width:16px;height:16px;color:rgba(255,255,255,.8);" aria-hidden="true"></i></div>
-            <h3>Neuer Eintrag</h3>
+            <h3 id="manual-task-title-heading">Neuer Eintrag</h3>
             <button class="modal-close-btn" onclick="closeManualTaskModal()" aria-label="Schliessen"><i data-lucide="x" style="width:15px;height:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
@@ -7622,8 +7629,8 @@ body,.main{background:var(--vx-bg);}
 </div>
 
 <!-- CALL DETAIL MODAL -->
-<div class="detail-overlay" id="detail-overlay" onclick="if(event.target===this)closeDetail()">
-  <div class="detail-modal">
+<div class="detail-overlay" id="detail-overlay" onclick="if(event.target===this)closeDetail()" role="dialog" aria-modal="true" aria-labelledby="detail-heading" aria-hidden="true">
+  <div class="detail-modal" tabindex="-1">
     <div class="detail-head">
       <h3 id="detail-heading">Call-Detail</h3>
       <div class="modal-sub" id="detail-sub"></div>
@@ -7636,8 +7643,8 @@ body,.main{background:var(--vx-bg);}
 </div>
 
 <!-- CONFIRM MODAL -->
-<div class="overlay overlay--center confirm-variant" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal()">
-  <div class="modal modal--confirm modal--compact confirm-tone-primary" id="confirm-modal" style="border-radius:var(--r-xl);max-width:360px;">
+<div class="overlay overlay--center confirm-variant" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal()" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-hidden="true">
+  <div class="modal modal--confirm modal--compact confirm-tone-primary" id="confirm-modal" style="border-radius:var(--r-xl);max-width:360px;" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top" style="padding:16px 20px;">
@@ -14886,6 +14893,26 @@ function activateTab(name) {
 // ═══════════════════════════════════════════
 var confirmModalAction = null;
 var confirmModalBusy = false;
+var overlayFocusReturnMap = {};
+
+function rememberOverlayFocusReturn(overlayId) {
+  if (!overlayId) return;
+  var active = document.activeElement;
+  if (active && typeof active.focus === 'function') overlayFocusReturnMap[overlayId] = active;
+}
+
+function restoreOverlayFocus(overlayId) {
+  var el = overlayFocusReturnMap[overlayId];
+  delete overlayFocusReturnMap[overlayId];
+  if (el && el.isConnected && !el.disabled && el.getAttribute('aria-hidden') !== 'true') {
+    try { el.focus({ preventScroll: true }); } catch(e) { try { el.focus(); } catch(_) {} }
+  }
+}
+
+function setOverlayAriaHidden(overlayId, hidden) {
+  var overlay = document.getElementById(overlayId);
+  if (overlay) overlay.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+}
 
 function syncOverlayScrollLock() {
   var openOverlay = document.querySelector('.overlay.open, .detail-overlay.open, .account-overlay.open');
@@ -14898,6 +14925,7 @@ function syncOverlayScrollLock() {
 })();
 
 function openConfirmModal(config) {
+  rememberOverlayFocusReturn('confirm-overlay');
   confirmModalBusy = false;
   const titleEl = document.getElementById('confirm-title');
   const subEl = document.getElementById('confirm-sub');
@@ -14917,10 +14945,12 @@ function openConfirmModal(config) {
     else okBtn.classList.add('btn--primary');
     okBtn.dataset.loadingLabel = (config && config.loadingLabel) || 'Bitte warten...';
     okBtn.disabled = false;
+    okBtn.setAttribute('aria-disabled', 'false');
   }
   confirmModalAction = (config && typeof config.onConfirm === 'function') ? config.onConfirm : null;
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.add('open');
+  setOverlayAriaHidden('confirm-overlay', false);
   syncOverlayScrollLock();
 }
 
@@ -14928,7 +14958,9 @@ function closeConfirmModal() {
   if (confirmModalBusy) return;
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.remove('open');
+  setOverlayAriaHidden('confirm-overlay', true);
   syncOverlayScrollLock();
+  restoreOverlayFocus('confirm-overlay');
   confirmModalBusy = false;
   confirmModalAction = null;
 }
@@ -14944,6 +14976,7 @@ async function runConfirmModalAction() {
   const originalLabel = okBtn ? okBtn.textContent : '';
   if (okBtn) {
     okBtn.disabled = true;
+    okBtn.setAttribute('aria-disabled', 'true');
     okBtn.textContent = okBtn.dataset.loadingLabel || 'Bitte warten...';
   }
   confirmModalBusy = true;
@@ -14960,6 +14993,7 @@ async function runConfirmModalAction() {
     confirmModalBusy = false;
     if (okBtn) {
       okBtn.disabled = false;
+    okBtn.setAttribute('aria-disabled', 'false');
       okBtn.textContent = originalLabel || 'Bestätigen';
     }
   }
@@ -15116,6 +15150,7 @@ function openFollowupDirect(recordId) {
 }
 
 function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt) {
+  rememberOverlayFocusReturn('followup-overlay');
   notizRecordId = recordId;
   const done = isClosedStatus(currentStatus);
   document.getElementById('followup-sub').textContent = callerName ? 'Nach dem Rückruf mit ' + callerName : '';
@@ -15143,6 +15178,7 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Speichern'; }
   }
   document.getElementById('followup-overlay').classList.add('open');
+  setOverlayAriaHidden('followup-overlay', false);
   syncOverlayScrollLock();
 }
 
@@ -15160,6 +15196,7 @@ function dismissCompletedWarning() {
 
 function closeFollowup() {
   document.getElementById('followup-overlay').classList.remove('open');
+  setOverlayAriaHidden('followup-overlay', true);
   syncOverlayScrollLock();
   document.getElementById('followup-input').value = '';
   document.getElementById('followup-next-action').value = '';
@@ -15170,6 +15207,7 @@ function closeFollowup() {
   if (editableSection) {
     editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = false; });
   }
+  restoreOverlayFocus('followup-overlay');
 }
 
 async function saveFollowup() {
@@ -15237,6 +15275,7 @@ function openManualTaskModal() {
     toast(getRestrictedContractMessage('Neue Aufgaben'), 'warning');
     return;
   }
+  rememberOverlayFocusReturn('manual-task-overlay');
   const todayIso = new Date().toISOString().slice(0, 10);
   editingManualTaskRecordId = null;
   document.getElementById('manual-task-title').value = '';
@@ -15253,6 +15292,7 @@ function openManualTaskModal() {
     saveBtn.textContent = 'Aufgabe erstellen';
   }
   document.getElementById('manual-task-overlay').classList.add('open');
+  setOverlayAriaHidden('manual-task-overlay', false);
   syncOverlayScrollLock();
 }
 
@@ -15261,6 +15301,7 @@ function openManualTaskEditModal(recordId) {
     toast(getRestrictedContractMessage('Aufgaben'), 'warning');
     return;
   }
+  rememberOverlayFocusReturn('manual-task-overlay');
   const rec = allManualTaskRecords.find(function(item) { return String(item.id) === String(recordId); });
   if (!rec || !rec.fields) {
     toast('Aufgabe nicht gefunden.');
@@ -15282,13 +15323,16 @@ function openManualTaskEditModal(recordId) {
     saveBtn.textContent = 'Änderungen speichern';
   }
   document.getElementById('manual-task-overlay').classList.add('open');
+  setOverlayAriaHidden('manual-task-overlay', false);
   syncOverlayScrollLock();
 }
 
 function closeManualTaskModal() {
   editingManualTaskRecordId = null;
   document.getElementById('manual-task-overlay').classList.remove('open');
+  setOverlayAriaHidden('manual-task-overlay', true);
   syncOverlayScrollLock();
+  restoreOverlayFocus('manual-task-overlay');
 }
 
 async function saveManualTask() {
@@ -15613,6 +15657,7 @@ document.addEventListener('keydown', function(e) {
 
 function escHtml(v){ return String(v||'').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 function openDetail(recordId) {
+  rememberOverlayFocusReturn('detail-overlay');
   const rec = allRecords.find(r => r.id === recordId) || allManualTaskRecords.find(r => r.id === recordId);
   if (!rec) return;
   const f = rec.fields || {};
@@ -15671,9 +15716,10 @@ function openDetail(recordId) {
 
     </div>`;
   document.getElementById('detail-overlay').classList.add('open');
+  setOverlayAriaHidden('detail-overlay', false);
   syncOverlayScrollLock();
 }
-function closeDetail(){ document.getElementById('detail-overlay').classList.remove('open'); syncOverlayScrollLock(); }
+function closeDetail(){ document.getElementById('detail-overlay').classList.remove('open'); setOverlayAriaHidden('detail-overlay', true); syncOverlayScrollLock(); restoreOverlayFocus('detail-overlay'); }
 
 
 // ═══════════════════════════════════════════
@@ -15687,6 +15733,7 @@ function openNotizFromBtn(btn) {
 }
 
 function openNotiz(recordId, existingNotiz, callerName) {
+  rememberOverlayFocusReturn('notiz-overlay');
   notizRecordId = recordId;
   let safeName = callerName || '';
   let safeNotiz = existingNotiz || '';
@@ -15706,16 +15753,19 @@ function openNotiz(recordId, existingNotiz, callerName) {
   document.getElementById('notiz-save-btn').disabled = false;
   document.getElementById('notiz-save-btn').textContent = 'Speichern';
   document.getElementById('notiz-overlay').classList.add('open');
+  setOverlayAriaHidden('notiz-overlay', false);
   syncOverlayScrollLock();
   setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }, 150);
 }
 
 function closeNotiz() {
   document.getElementById('notiz-overlay').classList.remove('open');
+  setOverlayAriaHidden('notiz-overlay', true);
   syncOverlayScrollLock();
   document.getElementById('notiz-input').value = '';
   document.getElementById('notiz-existing').style.display = 'none';
   notizRecordId = null;
+  restoreOverlayFocus('notiz-overlay');
 }
 
 async function saveNotiz() {
@@ -15743,6 +15793,26 @@ async function saveNotiz() {
 document.getElementById('notiz-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.metaKey) saveNotiz();
 });
+
+(function initOverlayEscapeHandling(){
+  if (window.__VOXERA_OVERLAY_ESC_BOUND__) return;
+  window.__VOXERA_OVERLAY_ESC_BOUND__ = true;
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape') return;
+    var active = document.activeElement;
+    if (active && active.tagName === 'TEXTAREA') {
+      active.blur();
+      e.preventDefault();
+      return;
+    }
+    if (confirmModalBusy && document.getElementById('confirm-overlay').classList.contains('open')) return;
+    if (document.getElementById('confirm-overlay').classList.contains('open')) { closeConfirmModal(); return; }
+    if (document.getElementById('manual-task-overlay').classList.contains('open')) { closeManualTaskModal(); return; }
+    if (document.getElementById('followup-overlay').classList.contains('open')) { closeFollowup(); return; }
+    if (document.getElementById('notiz-overlay').classList.contains('open')) { closeNotiz(); return; }
+    if (document.getElementById('detail-overlay').classList.contains('open')) { closeDetail(); }
+  });
+})();
 
 // ═══════════════════════════════════════════
 //  ACCOUNT SETTINGS
