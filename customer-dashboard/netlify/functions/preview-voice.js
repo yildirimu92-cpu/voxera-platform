@@ -16,6 +16,8 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); } catch { return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
   const voiceId = String(body.voice_id || '').trim();
+  const requestText = String(body.text || '').trim();
+  const previewText = requestText || PREVIEW_TEXT;
   if (!voiceId) return { statusCode: 400, body: JSON.stringify({ error: 'voice_id required' }) };
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -46,7 +48,7 @@ exports.handler = async (event) => {
           Accept: 'audio/mpeg'
         },
         body: JSON.stringify({
-          text: PREVIEW_TEXT,
+          text: previewText,
           model_id: 'eleven_multilingual_v2',
           voice_settings: { stability: 0.5, similarity_boost: 0.75 }
         })
