@@ -6141,7 +6141,13 @@ body,.main{background:var(--vx-bg);}
               <!-- hidden selects for vxSaveSection compat -->
               <select id="edit-address-form" style="display:none;"><option value="sie">Sie-Form</option><option value="du">Du-Form</option></select>
               <select id="edit-tone" style="display:none;"><option value="professional">Professionell</option><option value="formal">Formal</option><option value="casual">Locker</option></select>
+              <textarea id="assistent-greeting" rows="3" style="display:none;"></textarea>
               <div style="padding:0 16px;">
+                <div style="margin-top:10px;margin-bottom:10px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:4px;">Begrüssung</div>
+                  <textarea id="assistent-greeting-visible" rows="3" placeholder="Wird automatisch generiert wenn leer gelassen." style="width:100%;border:0.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;" onfocus="this.style.borderColor='#1A6FE8'" onblur="this.style.borderColor='var(--line)'" oninput="vxSyncGreetingPreview()"></textarea>
+                  <div id="assistent-greeting-preview" style="font-size:11px;color:var(--slate2);margin-top:5px;">Vorschau: –</div>
+                </div>
                 <!-- Row: Anrede -->
                 <div class="vxr-row" id="vxr-ton-anrede">
                   <div class="vxr-label">Anrede</div>
@@ -9409,6 +9415,7 @@ function syncCanonicalCustomerStateFromRecord(record) {
   customerMeta.customerType     = fields.ai_customer_type  || 'company';
   customerMeta.addressForm      = fields.ai_address_form   || 'sie';
   customerMeta.tone             = fields.ai_tone           || 'professional';
+  customerMeta.greeting         = fields.ai_greeting       || '';
   customerMeta.language         = fields.ai_language       || 'de';
   customerMeta.businessDescription = fields.ai_business_description || '';
   customerMeta.services            = fields.ai_services            || '';
@@ -10738,7 +10745,29 @@ function vxFillAccordionRead(id) {
     };
     setVxr('ton-anrede', customerMeta.addressForm || 'sie', anredeMap);
     setVxr('ton-ton',    customerMeta.tone || 'professional',  tonMap);
+    var greetingVisible = document.getElementById('assistent-greeting-visible');
+    var greetingHidden = document.getElementById('assistent-greeting');
+    if (greetingVisible) greetingVisible.value = customerMeta.greeting || '';
+    if (greetingHidden) greetingHidden.value = customerMeta.greeting || '';
+    vxSyncGreetingPreview();
   }
+}
+
+
+function vxBuildAutoGreeting() {
+  var name = String(customerMeta.assistantName || 'Lara').trim() || 'Lara';
+  var company = String(customerMeta.customerName || customerMeta.contactFirstName || '').trim();
+  return company ? ('Grüezi, hier ist ' + name + ' von ' + company + '…') : ('Grüezi, hier ist ' + name + '…');
+}
+
+function vxSyncGreetingPreview() {
+  var input = document.getElementById('assistent-greeting-visible');
+  var hidden = document.getElementById('assistent-greeting');
+  var preview = document.getElementById('assistent-greeting-preview');
+  if (!input || !hidden || !preview) return;
+  var val = (input.value || '').trim();
+  hidden.value = input.value || '';
+  preview.textContent = 'Vorschau: ' + (val || vxBuildAutoGreeting());
 }
 
 function vxToggleAcc(id) {
@@ -10937,6 +10966,7 @@ async function vxSaveSection(id) {
   if (id === 'ton') {
     payload.ai_address_form = document.getElementById('edit-address-form')?.value || 'sie';
     payload.ai_tone = document.getElementById('edit-tone')?.value || 'professional';
+    payload.ai_greeting = document.getElementById('assistent-greeting')?.value.trim() || '';
   }
   if (id === 'stimme') {
     // assistant_name nur senden wenn Plan es erlaubt
@@ -10986,7 +11016,7 @@ async function vxSaveSection(id) {
       vxFillAccordionRead('profil');
     }
     if (id === 'erreichbarkeit') { customerMeta.locationHours = payload.ai_location_hours; vxFillAccordionRead('erreichbarkeit'); }
-    if (id === 'ton') { customerMeta.addressForm = payload.ai_address_form; customerMeta.tone = payload.ai_tone; vxFillAccordionRead('ton'); }
+    if (id === 'ton') { customerMeta.addressForm = payload.ai_address_form; customerMeta.tone = payload.ai_tone; customerMeta.greeting = payload.ai_greeting || ''; vxFillAccordionRead('ton'); }
     if (id === 'stimme') {
       if (payload.assistant_name) {
         customerMeta.assistantName = payload.assistant_name;
@@ -12560,6 +12590,7 @@ async function loadCustomerMeta() {
     businessDescription: f.ai_business_description || '',
     services:            f.ai_services            || '',
     locationHours:       f.ai_location_hours      || '',
+    greeting:            f.ai_greeting            || '',
     forwarding1Name:     f.ai_forwarding_1_name   || '',
     forwarding1Number:   f.ai_forwarding_1_number || '',
     forwarding1Trigger:  f.ai_forwarding_1_trigger|| '',
@@ -20313,22 +20344,26 @@ function toggleCallRow(event, row) {
 <div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:10000;pointer-events:none;">
   <canvas id="tour-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
   <div id="tour-card" style="
-    position:absolute;background:var(--surface);border-radius:18px;
-    padding:24px 24px 20px;max-width:300px;width:calc(100vw - 40px);
+    position:absolute;background:var(--surface);border-radius:20px;
+    padding:28px 28px 22px;max-width:320px;width:calc(100vw - 40px);
     box-shadow:0 20px 60px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.15);
     pointer-events:all;transition:top .35s cubic-bezier(.16,1,.3,1),left .35s cubic-bezier(.16,1,.3,1);
     animation:tourCardIn .3s cubic-bezier(.16,1,.3,1);
   ">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div style="display:flex;gap:5px;" id="tour-dots"></div>
-      <button onclick="tourSkip()" style="background:none;border:none;cursor:pointer;font-size:12px;color:#94A3B8;padding:0;font-family:inherit;">Überspringen</button>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;">
+      <div id="tour-progress" style="font-size:12px;font-weight:700;color:#94A3B8;line-height:1.2;">1 / 7</div>
+      <button onclick="tourSkip()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#CBD5E1;padding:0;font-family:inherit;">Überspringen</button>
     </div>
-    <div id="tour-icon" style="width:40px;height:40px;border-radius:12px;background:#EEF2FF;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"></div>
-    <div id="tour-title" style="font-size:15px;font-weight:700;color:#0F172A;margin-bottom:6px;"></div>
-    <div id="tour-text" style="font-size:13px;color:#64748B;line-height:1.6;margin-bottom:18px;"></div>
+    <div style="height:3px;background:#E2E8F0;border-radius:999px;margin-bottom:14px;overflow:hidden;"><div id="tour-progress-bar" style="height:100%;width:14%;background:#1A6FE8;border-radius:999px;transition:width .25s ease;"></div></div>
+    <div id="tour-icon" style="width:48px;height:48px;border-radius:14px;background:#EEF4FF;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"></div>
+    <div id="tour-title" style="font-size:17px;font-weight:800;color:#0D1F3C;letter-spacing:-0.02em;margin-bottom:8px;"></div>
+    <div id="tour-text" style="font-size:13.5px;color:#475569;line-height:1.65;margin-bottom:18px;"></div>
     <div style="display:flex;gap:8px;">
-      <button id="tour-back-btn" onclick="tourBack()" style="flex:0;padding:9px 16px;border-radius:10px;border:0.5px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;color:#64748B;cursor:pointer;font-family:inherit;display:none;">Zurück</button>
-      <button id="tour-next-btn" onclick="tourNext()" style="flex:1;padding:9px 16px;border-radius:10px;border:none;background:#1A6FE8
+      <button id="tour-back-btn" onclick="tourBack()" style="flex:0;padding:10px 14px;border-radius:10px;border:none;background:transparent;font-size:13px;font-weight:600;color:#94A3B8;cursor:pointer;font-family:inherit;display:none;">Zurück</button>
+      <button id="tour-next-btn" onclick="tourNext()" style="flex:1;padding:11px 16px;border-radius:12px;border:none;background:#0D1F3C;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Weiter</button>
+    </div>
+  </div>
+</div>
 @keyframes tourCardIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -22051,57 +22086,27 @@ html[data-theme="dark"] .vx-back-btn {
 
 </style>
 <script>
-var TOUR_STORAGE_KEY = 'voxera_tour_v1_done';
+var TOUR_STORAGE_KEY = 'voxera_tour_v2_done';
 var _tourStep = 0;
 var _tourActive = false;
 
-var TOUR_STEPS = [
-  {
-    target: null,
-    icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A6FE8" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>',
-    title: 'Willkommen bei Voxera!',
-    text: 'Ihr KI-Telefonassistent ist eingerichtet. Diese kurze Tour zeigt Ihnen die wichtigsten Bereiche.',
-    position: 'center'
-  },
-  {
-    tab: 'anrufe', target: 'nav-anrufe', mobileTarget: 'nav-anrufe',
-    icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A6FE8" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.09 9.82 19.79 19.79 0 011 1.27 2 2 0 013 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91A16 16 0 0016 16.91l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>',
-    title: 'Anrufe',
-    text: 'Alle eingehenden Anrufe mit KI-Zusammenfassung, Kategorie und Lead-Qualität.',
-    position: 'right'
-  },
-  {
-    tab: 'assistent', target: 'nav-assistent', mobileTarget: 'nav-assistent',
-    icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A6FE8" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
-    title: 'Assistent',
-    text: 'Konfigurieren Sie Lara — Geschäftsprofil, Erreichbarkeit, Stimme und Weiterleitungen.',
-    position: 'right'
-  },
-  {
-    tab: 'auswertung', target: 'nav-auswertung', mobileTarget: 'nav-auswertung',
-    icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A6FE8" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
-    title: 'Analyse',
-    text: 'Anrufvolumen, Minutenverbrauch, Lead-Qualität und Top-Kategorien auf einen Blick.',
-    position: 'right'
-  },
-  {
-    tab: 'mehr', target: 'nav-mehr', mobileTarget: 'nav-mehr',
-    icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
-    title: 'Mehr',
-    text: 'Profil, Benachrichtigungen, Abonnement und Rufumleitung — alles an einem Ort.',
-    position: 'right'
-  },
-  {
-    target: null,
-    icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    title: 'Alles klar!',
-    text: 'Den Einrichtungs-Assistenten finden Sie jederzeit unter Hilfe. Viel Erfolg mit Voxera!',
-    position: 'center',
-    iconBg: '#F0FDF4',
-    iconColor: '#059669',
-    isLast: true
-  }
-];
+var TOUR_STEPS = [];
+
+function tourBuildSteps() {
+  var assistantName = String(customerMeta?.assistantName || 'Lara').trim() || 'Lara';
+  var displayName = String(customerMeta?.displayName || customerMeta?.contactFirstName || customerMeta?.customerName || 'Willkommen').trim();
+  var greeting = String(customerMeta?.greeting || '').trim() || vxBuildAutoGreeting();
+  var quoteHtml = '<div style="background:#F8FAFC;border-left:3px solid #1A6FE8;padding:10px 14px;border-radius:0 8px 8px 0;font-style:italic;color:#334155;margin-top:8px;">„' + greeting.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '“</div>';
+  return [
+    { target:null, position:'center', iconBg:'#0D1F3C', icon:'<i data-lucide="sparkles" style="width:22px;height:22px;color:#fff;"></i>', title:'Willkommen bei Voxera, ' + displayName + '.', text:'Ihr Assistent ' + assistantName + ' ist eingerichtet und bereit für Ihren ersten Anruf. Diese Tour dauert 60 Sekunden.' },
+    { tab:'assistent', target:'nav-assistent', mobileTarget:'nav-assistent', iconBg:'#EEF4FF', icon:'<i data-lucide="mic" style="width:22px;height:22px;color:#1A6FE8;"></i>', title: assistantName + ' spricht in Ihrem Namen.', text:'Ton, Anrede und Stimme sind bereits konfiguriert. Sie können jederzeit anpassen.' },
+    { tab:'assistent', target:'assistent-greeting-visible', mobileTarget:'assistent-greeting-visible', iconBg:'#EEF4FF', icon:'<i data-lucide="message-circle" style="width:22px;height:22px;color:#1A6FE8;"></i>', title:'So meldet sich ' + assistantName + ' bei Ihren Kunden.', text:'', htmlText: quoteHtml },
+    { tab:'assistent', target:'vxi-profil-desc', mobileTarget:'vxi-profil-desc', iconBg:'#EEF4FF', icon:'<i data-lucide="building" style="width:22px;height:22px;color:#1A6FE8;"></i>', title: assistantName + ' kennt Ihr Unternehmen.', text:'Geschäftsprofil und Leistungen sind hinterlegt. Je mehr Details, desto besser die Antworten.' },
+    { tab:'anrufe', target:'nav-anrufe', mobileTarget:'nav-anrufe', iconBg:'#EEF4FF', icon:'<i data-lucide="phone" style="width:22px;height:22px;color:#1A6FE8;"></i>', title:'Jeder Anruf — vollständig dokumentiert.', text:'KI-Zusammenfassung, Kategorie und Lead-Qualität für jeden eingehenden Anruf. Follow-ups direkt setzen.' },
+    { tab:'heute', target:'nav-heute', mobileTarget:'nav-heute', iconBg:'#EEF4FF', icon:'<i data-lucide="layout-dashboard" style="width:22px;height:22px;color:#1A6FE8;"></i>', title:'Ihr Tages-Cockpit.', text:'Offene Aufgaben, überfällige Follow-ups und die wichtigsten Anrufe — immer auf einen Blick.' },
+    { target:null, position:'center', iconBg:'#0D1F3C', icon:'<i data-lucide="check" style="width:22px;height:22px;color:#fff;"></i>', title:'Sie sind startklar.', text:'Letzte Aufgabe: Rufumleitung einrichten, damit Voxera Ihre Anrufe entgegennehmen kann.', isLast:true, ctaText:'Rufumleitung einrichten', action:'forwarding' }
+  ];
+}
 
 function tourGetTargetRect(targetId, mobileTargetId) {
   var isMobile = window.innerWidth < 768;
@@ -22207,17 +22212,22 @@ function tourRender() {
   tourPositionCard(rect, isMobile);
 
   var iconEl = document.getElementById('tour-icon');
-  if (iconEl) { iconEl.innerHTML = step.icon; iconEl.style.background = step.iconBg || '#EEF2FF'; }
+  if (iconEl) { iconEl.innerHTML = step.icon; iconEl.style.background = step.iconBg || '#EEF4FF'; }
+  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
   document.getElementById('tour-title').textContent = step.title;
-  document.getElementById('tour-text').textContent = step.text;
-  var dots = document.getElementById('tour-dots');
-  if (dots) dots.innerHTML = TOUR_STEPS.map(function(_, i) {
-    return '<span style="width:' + (i === _tourStep ? '18' : '6') + 'px;height:6px;border-radius:3px;background:' + (i === _tourStep ? '#1A6FE8' : 'rgba(0,0,0,0.15)') + ';transition:all .25s;display:inline-block;"></span>';
-  }).join('');
+  var textEl = document.getElementById('tour-text');
+  if (textEl) {
+    if (step.htmlText) textEl.innerHTML = step.htmlText;
+    else textEl.textContent = step.text || '';
+  }
+  var progressEl = document.getElementById('tour-progress');
+  if (progressEl) progressEl.textContent = (_tourStep + 1) + ' / ' + TOUR_STEPS.length;
+  var barEl = document.getElementById('tour-progress-bar');
+  if (barEl) barEl.style.width = Math.round(((_tourStep + 1) / TOUR_STEPS.length) * 100) + '%';
   var backBtn = document.getElementById('tour-back-btn');
   var nextBtn = document.getElementById('tour-next-btn');
   if (backBtn) backBtn.style.display = _tourStep > 0 ? 'block' : 'none';
-  if (nextBtn) nextBtn.textContent = step.isLast ? '🎉  Los geht\'s!' : 'Weiter →';
+  if (nextBtn) { nextBtn.textContent = step.ctaText || (step.isLast ? 'Fertig' : 'Weiter'); nextBtn.style.background = step.isLast ? '#1A6FE8' : '#0D1F3C'; }
 }
 
 function tourGoToStep(idx) {
@@ -22233,6 +22243,7 @@ function tourGoToStep(idx) {
 }
 
 function tourStart() {
+  TOUR_STEPS = tourBuildSteps();
   _tourStep = 0;
   _tourActive = true;
   // Flag sofort beim Start setzen — Abbrechen = auch "gesehen", nie mehr auto-starten
@@ -22244,6 +22255,12 @@ function tourStart() {
 }
 
 function tourNext() {
+  var step = TOUR_STEPS[_tourStep] || {};
+  if (step.action === 'forwarding') {
+    tourDone();
+    setTimeout(function(){ try { openSetupWizardFromCta(null, 's1'); } catch(_e) {} }, 120);
+    return;
+  }
   if (_tourStep >= TOUR_STEPS.length - 1) { tourDone(); return; }
   tourGoToStep(_tourStep + 1);
 }
