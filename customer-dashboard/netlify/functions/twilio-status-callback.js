@@ -1,6 +1,7 @@
 const querystring = require('querystring');
 const { createClient } = require('@supabase/supabase-js');
 
+const DEBUG_TWILIO_STATUS = process.env.DEBUG_TWILIO_STATUS === 'true';
 const STATUS_MAP = Object.freeze({
   ringing: 'incoming',
   'in-progress': 'active',
@@ -69,9 +70,16 @@ exports.handler = async (event) => {
   }
 
   const payload = parseBody(event);
+  if (DEBUG_TWILIO_STATUS) {
+    console.log('[twilio-status-callback] payload', payload);
+  }
   const callSid = toStr(payload.CallSid);
   const twilioStatus = toStr(payload.CallStatus).toLowerCase();
   const mappedStatus = STATUS_MAP[twilioStatus] || '';
+
+  if (DEBUG_TWILIO_STATUS) {
+    console.log('[twilio-status-callback] resolved', { callSid: callSid || null, twilioStatus: twilioStatus || null, mappedStatus: mappedStatus || null });
+  }
 
   if (!callSid) {
     return {
@@ -165,6 +173,10 @@ exports.handler = async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Call update failed', details: updateError.message })
     };
+  }
+
+  if (DEBUG_TWILIO_STATUS) {
+    console.log('[twilio-status-callback] db update result', { callSid, mappedStatus, matchedRows: rows.length, updatedCallId: row.id });
   }
 
   return {
