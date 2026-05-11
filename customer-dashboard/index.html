@@ -8043,13 +8043,20 @@ let recentIncomingIds = new Set();
 let dashPriorityExpanded = false;
 let _dashPriorityAllRecords = [];
 
+function isDueOrOverdueFollowUp(fields) {
+  var due = parseFollowUpDate(resolveTaskDueAt(fields || {}));
+  if (!due || Number.isNaN(due.getTime())) return false;
+  return getTaskPriorityBucket({ fields: fields || {} }) <= 1;
+}
+
 function getPriorityBucket(r) {
   var f = r.fields || {};
   var status = normalizeStatus(f.dashboard_status);
   if (isClosedStatus(status)) return 99; // erledigt — nie anzeigen
   var isCallback = f.callback_requested === true || f.callback_requested === 'true';
   var isDringend = String(f.lead_quality||'').toLowerCase() === 'hot' || String(f.priority||'').toLowerCase() === 'high';
-  if (isCallback || isDringend) return 0; // 🔴 Rot
+  var dueOrOverdueFollowUp = isDueOrOverdueFollowUp(f);
+  if (isCallback || isDringend || dueOrOverdueFollowUp) return 0; // 🔴 Rot
   if (status === CALL_STATUS.NEW || status === 'new') return 1; // 🔵 Blau
   return 2; // ⚪ Grau
 }
@@ -8102,6 +8109,8 @@ function renderDashPriorityList() {
     html += '<div class="dpr-sub">';
     if (isCallback) html += '<span class="dpr-badge dpr-badge-red">Rückruf</span>';
     if (isDringend) html += '<span class="dpr-badge dpr-badge-amber">Dringend</span>';
+    if (isDueOrOverdueFollowUp(f)) html += '<span class="dpr-badge dpr-badge-amber">Fällig</span>';
+    else if (resolveFollowUpAt(f)) html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">Nachfassen</span>';
     if (subLine) html += '<span class="dpr-sub-text">'+subLine+'</span>';
     html += '</div></div>';
     html += '<div class="dpr-right">';
@@ -13959,11 +13968,13 @@ function renderDashboard(records, manualTasks) {
     .filter(function(r){
       var state = getCallDisplayState(r);
       if (state === 'short_abandoned') return false;
-      if (state === 'processing') {
-        var f = (r && r.fields) || {};
-        return f.callback_requested === true || f.callback_requested === 'true';
-      }
-      return true;
+      var f = (r && r.fields) || {};
+      var isCallback = f.callback_requested === true || f.callback_requested === 'true';
+      var isUrgent = getPriority(r).key === 'urgent';
+      var dueOrOverdueFollowUp = isDueOrOverdueFollowUp(f);
+      if (state === 'processing') return isCallback || isUrgent || dueOrOverdueFollowUp;
+      if (isCallback || isUrgent || dueOrOverdueFollowUp) return true;
+      return normalizeStatus(f.dashboard_status) === CALL_STATUS.NEW;
     })
     .filter(function(r){ return getPriorityBucket(r) < 99; })
     .sort(function(a,b){ return getPriorityBucket(a) - getPriorityBucket(b); });
@@ -14466,6 +14477,8 @@ function renderAnrufeInbox(containerId, records) {
       html += '<div class="dpr-sub">';
       if (isCallback) html += '<span class="dpr-badge dpr-badge-red">Rückruf</span>';
       if (isDringend) html += '<span class="dpr-badge dpr-badge-amber">Dringend</span>';
+      if (isDueOrOverdueFollowUp(f)) html += '<span class="dpr-badge dpr-badge-amber">Fällig</span>';
+      else if (resolveFollowUpAt(f)) html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">Nachfassen</span>';
       if (isLiveCall) html += '<span class="dpr-badge" style="color:#ef4444;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);">LIVE</span>';
       if (isProcessingCall) html += '<span class="dpr-badge" style="color:#2563EB;background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.35);">Wird verarbeitet</span>';
       if (isShortAbandonedCall) html += '<span class="dpr-badge" style="color:#475569;background:rgba(71,85,105,.1);border-color:rgba(71,85,105,.25);">Kurzer Anruf</span>';
