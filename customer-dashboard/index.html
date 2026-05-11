@@ -11443,6 +11443,13 @@ function vxRenderCancellationSection() {
   const el = document.getElementById('abo-cancellation-action');
   if (!el) return;
   const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
+  const isActive = String(ct.status || '').toLowerCase() === 'active';
+  if ((ct.cancellation_date || ct.termination_type) && isActive) {
+    el.innerHTML = ''
+      + '<div style="font-size:12px;color:var(--slate2);margin-bottom:10px;">Kündigung bereits eingereicht</div>'
+      + '<button onclick="vxSubmitReactivationRequest()" style="background:transparent;border:0.5px solid #1A6FE8;color:#1A6FE8;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Kündigung zurückziehen</button>';
+    return;
+  }
   if (ct.cancellation_date || ct.termination_type) {
     el.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Kündigung bereits eingereicht</div>';
     return;
@@ -11452,27 +11459,144 @@ function vxRenderCancellationSection() {
 
 async function vxSubmitCancellationRequest() {
   const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
+  const reasons = [
+    'Zu teuer',
+    'Zu wenig Anrufe / geringes Volumen',
+    'Qualität der Anrufe / Zusammenfassungen ungenügend',
+    'Assistent versteht Anfragen nicht korrekt',
+    'Technische Probleme',
+    'Wechsel zu anderem Anbieter',
+    'Geschäft aufgegeben / Umstrukturierung',
+    'Sonstiges'
+  ];
+  let selectedReason = '';
+  let customReason = '';
+  let step = 1;
+  const now = new Date();
+  const noticeMatch = String(ct.cancellation_notice || '').match(/(\d+)/);
+  const noticeDays = noticeMatch ? Math.max(0, Number(noticeMatch[1])) : 30;
+  const cancellationDate = new Date(now.getTime() + (noticeDays || 30) * 24 * 60 * 60 * 1000);
+  function renderStep() {
+    const subEl = document.getElementById('confirm-sub');
+    if (!subEl) return;
+    if (step === 1) {
+      subEl.innerHTML = '<div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:14px;">Warum möchten Sie kündigen?</div>'
+        + '<div id="vx-cancel-reasons" style="display:grid;gap:8px;"></div>'
+        + '<div id="vx-cancel-other-wrap" style="display:none;margin-top:10px;"><textarea id="vx-cancel-other" placeholder="Bitte Grund eingeben" style="width:100%;min-height:88px;border:0.5px solid var(--line);border-radius:10px;padding:10px;font-size:13px;font-family:inherit;resize:vertical;"></textarea></div>';
+      const reasonsEl = subEl.querySelector('#vx-cancel-reasons');
+      reasonsEl.innerHTML = reasons.map(function(reason) {
+        const active = selectedReason === reason;
+        return '<button data-reason="' + reason.replace(/"/g, '&quot;') + '" style="text-align:left;background:' + (active ? '#EFF6FF' : '#fff') + ';border:0.5px solid ' + (active ? '#1A6FE8' : 'var(--line)') + ';color:var(--ink);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;cursor:pointer;">' + reason + '</button>';
+      }).join('');
+      reasonsEl.querySelectorAll('button[data-reason]').forEach(function(btn) {
+        btn.onclick = function() {
+          selectedReason = btn.getAttribute('data-reason') || '';
+          renderStep();
+        };
+      });
+      const isOther = selectedReason === 'Sonstiges';
+      const otherWrap = subEl.querySelector('#vx-cancel-other-wrap');
+      otherWrap.style.display = isOther ? 'block' : 'none';
+      const otherInput = subEl.querySelector('#vx-cancel-other');
+      otherInput.value = customReason;
+      otherInput.oninput = function() { customReason = String(otherInput.value || ''); refreshButtons(); };
+    } else {
+      const reasonText = selectedReason === 'Sonstiges' ? customReason.trim() : selectedReason;
+      subEl.innerHTML = ''
+        + '<div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px;">Kündigung bestätigen</div>'
+        + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Ausgewählter Grund: <strong>' + (reasonText || '–') + '</strong></div>'
+        + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Vertragsende: <strong>' + vxFmtDate(cancellationDate.toISOString()) + '</strong></div>'
+        + '<div style="font-size:12px;color:#B45309;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:10px;padding:9px 10px;">Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert.</div>';
+    }
+    refreshButtons();
+  }
+  function refreshButtons() {
+    const okBtn = document.getElementById('confirm-ok-btn');
+    const cancelBtn = document.querySelector('#confirm-overlay .modal-btn-s');
+    if (!okBtn || !cancelBtn) return;
+    const canContinue = !!selectedReason && (selectedReason !== 'Sonstiges' || !!customReason.trim());
+    if (step === 1) {
+      cancelBtn.style.display = 'none';
+      okBtn.textContent = 'Weiter →';
+      okBtn.style.background = '#0D1F3C';
+      okBtn.disabled = !canContinue;
+      okBtn.style.opacity = canContinue ? '1' : '.45';
+      okBtn.style.cursor = canContinue ? 'pointer' : 'not-allowed';
+    } else {
+      cancelBtn.style.display = '';
+      cancelBtn.textContent = 'Abbrechen';
+      okBtn.textContent = 'Ja, Kündigung einreichen';
+      okBtn.style.background = '#DC2626';
+      okBtn.disabled = false;
+      okBtn.style.opacity = '1';
+      okBtn.style.cursor = 'pointer';
+    }
+  }
   openConfirmModal({
-    title: 'Möchten Sie Ihren Vertrag wirklich kündigen?',
-    text: 'Vertragsende: ' + (vxFmtDate(ct.end_date) || '–') + '.',
-    tone: 'danger',
-    confirmLabel: 'Ja, Kündigung einreichen',
+    title: '',
+    text: '',
+    confirmLabel: 'Weiter →',
     onConfirm: async function() {
-      const NOTIFY_URL = '/.netlify/functions/ai-change-notify';
-      const payload = {
-        mail_type: 'cancellation_request',
-        customer_id: customerMeta.customerId || null,
-        customer_name: customerMeta.customerName || null,
-        plan: customerMeta.plan || null,
-        cancellation_notice: ct.cancellation_notice || '30 Tage'
-      };
-      const res = await fetch(NOTIFY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error('Kündigung konnte nicht eingereicht werden.');
-      ct.cancellation_date = new Date().toISOString();
-      if (customerContractMeta) customerContractMeta.cancellation_date = ct.cancellation_date;
+      if (step === 1) { step = 2; renderStep(); return false; }
+      const reasonText = selectedReason === 'Sonstiges' ? customReason.trim() : selectedReason;
+      const cancelRes = await fetch('/.netlify/functions/customer-cancel-contract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', termination_reason: reasonText })
+      });
+      if (!cancelRes.ok) throw new Error('Kündigung konnte nicht eingereicht werden.');
+      await fetch('/.netlify/functions/ai-change-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mail_type: 'cancellation_request',
+          customer_id: customerMeta.customerId || null,
+          customer_name: customerMeta.customerName || null,
+          plan: customerMeta.plan || null,
+          cancellation_notice: ct.cancellation_notice || '30 Tage'
+        })
+      });
+      ct.cancellation_date = cancellationDate.toISOString();
+      ct.termination_reason = reasonText;
+      ct.termination_type = 'customer_request';
+      if (customerContractMeta) {
+        customerContractMeta.cancellation_date = ct.cancellation_date;
+        customerContractMeta.termination_reason = ct.termination_reason;
+        customerContractMeta.termination_type = ct.termination_type;
+      }
       vxRenderContractDetails();
       vxRenderCancellationSection();
-      toast('Kündigung eingereicht. Wir melden uns in Kürze.');
+      toast('Kündigung eingereicht.');
+      return true;
+    }
+  });
+  renderStep();
+}
+
+async function vxSubmitReactivationRequest() {
+  openConfirmModal({
+    title: 'Möchten Sie Ihre Kündigung wirklich zurückziehen?',
+    text: '',
+    confirmLabel: 'Ja, zurückziehen',
+    onConfirm: async function() {
+      const res = await fetch('/.netlify/functions/customer-cancel-contract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reactivate' })
+      });
+      if (!res.ok) throw new Error('Kündigung konnte nicht zurückgezogen werden.');
+      const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
+      ct.cancellation_date = null;
+      ct.termination_reason = null;
+      ct.termination_type = null;
+      if (customerContractMeta) {
+        customerContractMeta.cancellation_date = null;
+        customerContractMeta.termination_reason = null;
+        customerContractMeta.termination_type = null;
+      }
+      vxRenderContractDetails();
+      vxRenderCancellationSection();
+      toast('Kündigung zurückgezogen. Ihr Abonnement läuft weiter.');
       return true;
     }
   });
