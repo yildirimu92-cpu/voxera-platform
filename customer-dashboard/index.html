@@ -9470,6 +9470,63 @@ function isClosedStatus(s) {
   return normalizeStatus(s) === CALL_STATUS.CLOSED;
 }
 
+
+function classifyRecordBuckets(record, now) {
+  // PR1 canonical classification layer.
+  // Telephony lifecycle and workflow lifecycle are separate concerns.
+  // Compatibility note: "analyzing" is a legacy runtime live_status value and
+  // maps to canonical architectural state "processing" in this helper only.
+  // Future migration may remove "analyzing" once writers/readers are aligned.
+  const f = (record && record.fields) || {};
+  const currentNow = now instanceof Date ? now : new Date();
+
+  const workflowState = normalizeStatus(f.dashboard_status);
+  const isClosedWorkflow = workflowState === CALL_STATUS.CLOSED;
+
+  const rawLiveStatus = String(f.live_status || '').trim().toLowerCase();
+  const telephonyState = rawLiveStatus === 'analyzing' ? 'processing' : rawLiveStatus;
+
+  // Live/processing are exclusive operational buckets.
+  const isLive = telephonyState === 'incoming' || telephonyState === 'active';
+  const isProcessing = telephonyState === 'processing';
+
+  const isCallback = f.callback_requested === true || f.callback_requested === 'true';
+
+  const followUpRaw = resolveFollowUpAt(f);
+  const followUpDate = followUpRaw ? parseFollowUpDate(followUpRaw) : null;
+  const hasValidFollowUp = !!(followUpDate && !Number.isNaN(followUpDate.getTime()));
+  const isDueFollowUp = hasValidFollowUp ? followUpDate.getTime() <= currentNow.getTime() : false;
+  const isFutureFollowUp = hasValidFollowUp ? followUpDate.getTime() > currentNow.getTime() : false;
+
+  // Future follow-ups are tasks, not "Jetzt wichtig".
+  // Due follow-ups can become "Jetzt wichtig".
+  const isUrgentPriority = String(f.priority || '').toLowerCase() === 'high' || String(f.lead_quality || '').toLowerCase() === 'hot';
+  const isNowImportant = !isClosedWorkflow && !isLive && !isProcessing && (
+    isCallback ||
+    isDueFollowUp ||
+    (workflowState === CALL_STATUS.NEW && isUrgentPriority)
+  );
+
+  const isTask = workflowState === CALL_STATUS.FOLLOW_UP_SCHEDULED && !!followUpRaw;
+  const isHistory = telephonyState === 'completed' || telephonyState === 'failed' || telephonyState === 'abandoned';
+  const isArchiveEligible = isClosedWorkflow && isHistory;
+
+  return {
+    isLive,
+    isProcessing,
+    isNowImportant,
+    isTask,
+    isHistory,
+    isArchiveEligible,
+    isCallback,
+    isDueFollowUp,
+    isFutureFollowUp,
+    isClosedWorkflow,
+    telephonyState,
+    workflowState
+  };
+}
+
 function resolveClosedAt(fields) {
   if (!fields || !isClosedStatus(fields.dashboard_status)) return '';
   return fields.closed_at || fields.completed_at || fields.updated_at || '';
