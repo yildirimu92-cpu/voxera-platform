@@ -5939,33 +5939,6 @@ body,.main{background:var(--vx-bg);}
             </div>
           </div>
 
-          <!-- Verbrauch diesen Monat -->
-          <div class="au2-card" style="margin:10px 0 0;">
-            <div class="au2-night-head">
-              <span class="au2-night-title">Verbrauch diesen Monat</span>
-              <span class="au2-night-badge" id="au2-usage-plan-badge">–</span>
-            </div>
-            <div style="padding:14px 16px;">
-              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
-                <div>
-                  <span id="au2-minutes-used" style="font-size:28px;font-weight:800;color:var(--ink);letter-spacing:-.03em;">–</span>
-                  <span id="au2-minutes-total" style="font-size:13px;color:var(--slate2);margin-left:4px;">/ – Min</span>
-                </div>
-                <div id="au2-minutes-pct" style="font-size:13px;font-weight:700;color:#1A6FE8;">–%</div>
-              </div>
-              <div style="height:8px;background:#F1F5F9;border-radius:999px;overflow:hidden;margin-bottom:8px;">
-                <div id="au2-minutes-bar" style="height:100%;border-radius:999px;background:#1A6FE8;width:0%;transition:width .5s;"></div>
-              </div>
-              <div id="au2-minutes-detail" style="font-size:11px;color:var(--slate2);"></div>
-              <div id="au2-minutes-warning" style="display:none;margin-top:8px;background:#FFF7ED;border-radius:8px;padding:8px 10px;font-size:12px;color:#92400E;">⚠ Über 80% des Minutenkontingents verbraucht.</div>
-            </div>
-            <!-- Anrufe die zählen -->
-            <div style="border-top:0.5px solid var(--line);">
-              <div style="padding:10px 16px 6px;font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;">Gezählte Anrufe diesen Monat</div>
-              <div id="au2-billed-calls" style="max-height:220px;overflow-y:auto;"></div>
-            </div>
-          </div>
-
           <!-- Lara's Zusammenfassung -->
           <div class="au2-card" style="margin:8px 0 0;">
             <div class="au2-night-head">
@@ -11263,15 +11236,27 @@ async function vxInitAbonnement() {
   if (nameEl) nameEl.textContent = planNames[planCode] || planCode;
   if (priceEl) priceEl.textContent = planPrices[planCode] || '';
 
-  // Minutenverbrauch — Vertrag + Zusatzminuten
+  // Minutenverbrauch — Vertrag + aktive Zusatzminuten (aus bereits geladenen customer_addons)
   try {
     const _aboContractRow = (typeof selectCommercialContractRow === 'function') ? selectCommercialContractRow() : null;
     const _contractMins = _aboContractRow ? (_aboContractRow.included_minutes ?? _aboContractRow.plan_minutes_included ?? null) : null;
-    const _baseMins = customerMeta.contractIncludedMinutes != null 
-      ? Number(customerMeta.contractIncludedMinutes) 
+    const _baseMins = customerMeta.contractIncludedMinutes != null
+      ? Number(customerMeta.contractIncludedMinutes)
       : (_contractMins != null ? Number(_contractMins) : 0);
-    const total = _baseMins + Number(customerMeta.extraMinutes || 0);
     const now2 = new Date();
+    const todayStart = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate());
+    const loadedAddons = Array.isArray(customerMeta.customerAddons) ? customerMeta.customerAddons : [];
+    const extraMinutes = loadedAddons
+      .filter(function(a) {
+        if (!a || !a.active) return false;
+        if (String(a.addon_code || '').toLowerCase() !== 'minutes_block') return false;
+        if (!a.valid_until) return true;
+        const validUntil = new Date(a.valid_until);
+        if (isNaN(validUntil.getTime())) return false;
+        return validUntil >= todayStart;
+      })
+      .reduce(function(sum, a) { return sum + ((Number(a.quantity) || 1) * 50); }, 0);
+    const total = _baseMins + extraMinutes;
     // Use contract anniversary date (same logic as renderUsage)
     const _contractRow2 = (typeof selectCommercialContractRow === 'function') ? selectCommercialContractRow() : null;
     const _effStart2 = (customerMeta.startDate && customerMeta.startDate !== '') ? customerMeta.startDate : (_contractRow2 && _contractRow2.start_date) || '';
@@ -11289,7 +11274,7 @@ async function vxInitAbonnement() {
     const monthRecs = (allRecordsRaw || []).filter(function(r) {
       const ts = getRecordTimestamp(r); if (!ts) return false;
       const d = new Date(ts);
-      return !isNaN(d.getTime()) && d >= _periodStart2 && d <= now2;
+      return !isNaN(d.getTime()) && d >= _periodStart2 && d <= now2 && !isActivationCallCategory(((r||{}).fields||{}).category);
     });
     const used = Math.round(monthRecs.reduce(function(s,r){const b=getBilledMinutesForRecord(r);return s+(b>0?b:estimateMinutesForRecord(r));},0));
     const pct = total > 0 ? Math.min(100, Math.round(used / total * 100)) : 0;
@@ -12608,6 +12593,7 @@ async function loadCustomerMeta() {
       .select('addon_code, active, quantity, valid_until')
       .eq('customer_id', customerMeta.customerId);
     if (!addonsError && addons) {
+      customerMeta.customerAddons = addons;
       const activeAddons = addons.filter(a => {
         if (!a.active) return false;
         // Check valid_until for time-limited addons (extra minutes)
@@ -12623,11 +12609,13 @@ async function loadCustomerMeta() {
       const minuteAddons = activeAddons.filter(a => a.addon_code === 'minutes_block');
       customerMeta.extraMinutes = minuteAddons.reduce((s, a) => s + (Number(a.quantity) || 1) * 50, 0);
     } else {
+      customerMeta.customerAddons = [];
       customerMeta.smsNotifyAddon = false;
       customerMeta.smsCallerAddon = false;
       customerMeta.extraMinutes = 0;
     }
   } catch(e) {
+    customerMeta.customerAddons = [];
     customerMeta.smsNotifyAddon = false;
     customerMeta.smsCallerAddon = false;
     customerMeta.extraMinutes = 0;
@@ -13290,9 +13278,6 @@ function renderAuswertung() {
   // Sparklines
   _auBuildSparkCalls(all);
 
-  // Verbrauch (immer Monat, unabhängig vom Period-Selector)
-  _auRenderVerbrauch(all);
-
   // AI Summary
   _auAiSummary(records, total, hotCount, closed);
 
@@ -13312,113 +13297,6 @@ function renderAuswertung() {
   _auLeadQuality(total, hotCount, warmCount, kaltCount, unknownCount);
 }
 
-function _auRenderVerbrauch(all) {
-  var now = new Date();
-
-  // Use same billing period logic as renderUsage (contract anniversary)
-  var contractRow = (typeof selectCommercialContractRow === 'function') ? selectCommercialContractRow() : null;
-  var effectiveStartDate = (customerMeta.startDate && customerMeta.startDate !== '') 
-    ? customerMeta.startDate 
-    : (contractRow && contractRow.start_date) || '';
-  console.log('[Bericht] startDate:', effectiveStartDate, 'contractRow:', contractRow && contractRow.start_date, 'customerMeta:', customerMeta.startDate);
-  var periodStart = null;
-  if (effectiveStartDate && effectiveStartDate !== '') {
-    var startDate = new Date(effectiveStartDate);
-    if (!isNaN(startDate.getTime())) {
-      var dayOfMonth = startDate.getDate();
-      periodStart = new Date(now.getFullYear(), now.getMonth(), dayOfMonth, 0, 0, 0, 0);
-      if (periodStart > now) periodStart = new Date(now.getFullYear(), now.getMonth()-1, dayOfMonth, 0, 0, 0, 0);
-      if (periodStart < startDate) periodStart = startDate;
-    }
-  }
-  if (!periodStart) periodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-
-  // Filter records for this billing period
-  var monthRecs = all.filter(function(r) {
-    var ts = getRecordTimestamp(r); if (!ts) return false;
-    var d = new Date(ts);
-    return !isNaN(d.getTime()) && d >= periodStart && d <= now;
-  });
-
-  // Get total minutes — contract takes priority over plan config
-  var contractRow = (typeof selectCommercialContractRow === 'function') ? selectCommercialContractRow() : null;
-  var contractMinutes = contractRow ? (contractRow.included_minutes ?? contractRow.plan_minutes_included ?? contractRow.minutes ?? null) : null;
-  var cfg = null;
-  try { cfg = getPlanConfigEntryForPlan(customerMeta.plan); } catch(e) {}
-  var baseMinutes = 0;
-  if (customerMeta.contractIncludedMinutes != null) {
-    baseMinutes = Number(customerMeta.contractIncludedMinutes);
-  } else if (contractMinutes != null) {
-    baseMinutes = Number(contractMinutes);
-  } else if (cfg) {
-    baseMinutes = Number(cfg.minutes || 0);
-  }
-  var extraMinutes = Number(customerMeta.extraMinutes || 0);
-  var total = baseMinutes + extraMinutes;
-
-  // Calculate used minutes
-  var used = Math.round(monthRecs.reduce(function(s,r) {
-    var b = getBilledMinutesForRecord(r);
-    return s + (b > 0 ? b : estimateMinutesForRecord(r));
-  }, 0));
-
-  var pct = total > 0 ? Math.min(100, Math.round(used / total * 100)) : 0;
-  var remaining = Math.max(0, total - used);
-  var color = pct >= 90 ? '#DC2626' : pct >= 80 ? '#D97706' : '#1A6FE8';
-
-  // Plan badge
-  var planLabels = {starter:'Starter', business:'Business', professional:'Professional'};
-  var planCode = String(customerMeta.plan || '').toLowerCase();
-  _auEl('au2-usage-plan-badge', planLabels[planCode] || (customerMeta.plan || 'Kein Plan'));
-
-  // Numbers
-  _auEl('au2-minutes-used', used);
-  _auEl('au2-minutes-total', '/ ' + total + ' Min');
-  _auEl('au2-minutes-pct', pct + '%');
-
-  // Bar
-  var barEl = document.getElementById('au2-minutes-bar');
-  if (barEl) { barEl.style.width = pct + '%'; barEl.style.background = color; }
-
-  // Detail text
-  var detailEl = document.getElementById('au2-minutes-detail');
-  if (detailEl) {
-    var daysLeft = Math.ceil((new Date(now.getFullYear(), now.getMonth()+1, periodStart.getDate()) - now) / 86400000);
-    var periodStr = periodStart.getDate() + '. ' + ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][periodStart.getMonth()];
-    detailEl.textContent = remaining + ' Min verbleibend · Periode ab ' + periodStr + ' · ' + monthRecs.length + ' Anrufe';
-  }
-
-  // Warning
-  var warnEl = document.getElementById('au2-minutes-warning');
-  if (warnEl) warnEl.style.display = pct >= 80 ? 'block' : 'none';
-
-  // Billed calls list
-  var listEl = document.getElementById('au2-billed-calls');
-  if (!listEl) return;
-  if (!monthRecs.length) {
-    listEl.innerHTML = '<div style="padding:12px 16px;font-size:12px;color:var(--slate2);">Noch keine Anrufe diesen Monat.</div>';
-    return;
-  }
-  var sorted = monthRecs.slice().sort(function(a,b) {
-    return new Date(getRecordTimestamp(b)) - new Date(getRecordTimestamp(a));
-  });
-  listEl.innerHTML = sorted.map(function(r) {
-    var f = r.fields || {};
-    var name = f.caller_name || f.company_name || 'Unbekannte Nummer';
-    var ts = getRecordTimestamp(r);
-    var d = ts ? new Date(ts) : null;
-    var dateStr = d ? (d.getDate() + '. ' + ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][d.getMonth()]) : '–';
-    var mins = getBilledMinutesForRecord(r) || estimateMinutesForRecord(r);
-    var minsLabel = mins > 0 ? (mins < 1 ? '< 1 Min' : Math.round(mins) + ' Min') : '–';
-    var initials = name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase() || '?';
-    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:0.5px solid var(--line);">' +
-      '<div style="width:28px;height:28px;border-radius:8px;background:#EEF4FF;color:#1A6FE8;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + initials + '</div>' +
-      '<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(name) + '</div>' +
-      '<div style="font-size:11px;color:var(--slate2);">' + dateStr + '</div></div>' +
-      '<div style="font-size:12px;font-weight:700;color:#1A6FE8;flex-shrink:0;">' + minsLabel + '</div>' +
-      '</div>';
-  }).join('') + '<div style="padding:8px 16px;font-size:11px;color:var(--slate2);text-align:right;">Total: ' + used + ' Min aus ' + monthRecs.length + ' Anrufen</div>';
-}
 
 function _auEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
 
