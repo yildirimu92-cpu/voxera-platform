@@ -18223,7 +18223,7 @@ var selectedSetupNotificationOption = null;
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
 var SETUP_LABELS = {s1:'Rufumleitung einrichten',s2:'Weiterleitung aktivieren & testen',s3:'Benachrichtigungen einrichten',s4:'Assistent konfigurieren',s5:'Fertig'};
 var selectedSetupDevice = null;
-function isSetupComplete(){ return SETUP_STEPS.every(function(k){return setupDone[k];}); }
+function isSetupComplete(){ var steps = Array.isArray(SETUP_STEPS) ? SETUP_STEPS : []; return steps.every(function(k){return setupDone[k];}); }
 function getSetupCount(){ return SETUP_STEPS.filter(function(k){return setupDone[k];}).length; }
 function getOpenSteps(){ return SETUP_STEPS.filter(function(k){return !setupDone[k];}); }
 function getSetupStorageCustomerId(){
