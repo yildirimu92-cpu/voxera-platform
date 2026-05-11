@@ -8525,8 +8525,26 @@ function setupDashboardRealtime(customerIdRaw) {
       schema: 'public',
       table: 'calls',
       filter: `customer_id=eq.${customerId}`
-    }, function() {
-      scheduleRealtimeLoad('calls-change');
+    }, function(payload) {
+      var next = (payload && payload.new) || null;
+      var nextId = next && next.id != null ? String(next.id) : '';
+      var nextLiveStatus = String((next && next.live_status) || '').toLowerCase();
+      var isTerminalLiveStatus = CALL_LIVE_TERMINAL_STATES.has(nextLiveStatus);
+      if (nextId && isTerminalLiveStatus && Array.isArray(allRecords) && allRecords.length) {
+        var idx = allRecords.findIndex(function(r) { return String((r && r.id) || '') === nextId; });
+        if (idx >= 0 && allRecords[idx] && allRecords[idx].fields) {
+          allRecords[idx].fields.live_status = next.live_status;
+          if (next.updated_at) allRecords[idx].fields.updated_at = next.updated_at;
+          if (next.completed_at) allRecords[idx].fields.completed_at = next.completed_at;
+          if (next.duration_seconds !== undefined) allRecords[idx].fields.duration_seconds = next.duration_seconds;
+        }
+      }
+      if (isTerminalLiveStatus) {
+        // Terminal-Callbacks müssen LIVE sofort ausblenden (keine künstliche Nachlaufzeit).
+        renderDashboard(allRecords, allManualTaskRecords);
+        renderAnrufe(allRecords);
+      }
+      scheduleRealtimeLoad(isTerminalLiveStatus ? 'calls-terminal-change' : 'calls-change');
     })
     .on('postgres_changes', {
       event: '*',
@@ -12814,15 +12832,21 @@ function flagIncomingRecords(records) {
 
 // ═══════════════════════════════════════════
 //  LIVE HERO — Phase A
-//  Reagiert auf live_status='incoming' / 'analyzing' der Calls.
+//  Reagiert auf live_status='incoming' / 'active' der Calls.
 //  Wird aus loadData() heraus aufgerufen, also bei jedem Realtime-Tick.
+//  Visual live freshness schützt Customer-Trust: ein Call darf nach Hangup
+//  nicht künstlich lange als LIVE sichtbar bleiben.
+//  Billing bleibt davon strikt getrennt und muss auf terminaler Telephony-
+//  Dauer basieren, niemals auf dem UI-Live-Timer.
 // ═══════════════════════════════════════════
 var _liveHeroTimer = null;
 var _liveHeroCurrentId = null;
 var _liveHeroNotified = new Set();
-var CALL_LIVE_INCOMING_FRESHNESS_MS = 45 * 1000;
-var CALL_LIVE_ACTIVE_FRESHNESS_MS = 90 * 1000;
-var _staleLiveRecordIds = new Set(); // verhindert, dass einmal als stale erkannte Live-Records erneut im Hero auftauchen
+var CALL_LIVE_INCOMING_FRESHNESS_MS = 10 * 1000;
+var CALL_LIVE_ACTIVE_FRESHNESS_MS = 20 * 1000;
+var CALL_LIVE_TERMINAL_STATES = new Set(['completed', 'processing', 'failed', 'abandoned']);
+var _staleLiveRecordIds = new Set(); // verhindert, dass einmal als stale erkannte Live-Records erneut im Hero auftauchen, bis ein neueres updated_at eintrifft
+var _staleLiveRecordUpdatedAtMs = new Map();
 
 function getCallDisplayState(record) {
   var f = (record && record.fields) || {};
@@ -12839,6 +12863,7 @@ function getCallDisplayState(record) {
   var isShortAbandoned = isFailed && !hasCallSummary && !hasCallSummaryShort && !hasTranscript && isShortDuration;
   var isLiveStatus = liveStatus === 'incoming' || liveStatus === 'active';
   var isAnalyzing = liveStatus === 'analyzing';
+  var isTerminalStatus = CALL_LIVE_TERMINAL_STATES.has(liveStatus);
   var ts = getRecordTimestamp(record);
   var parsed = ts ? parseCallTimestamp(ts) : null;
   var updatedAtMs = parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : 0;
@@ -12849,18 +12874,34 @@ function getCallDisplayState(record) {
 
   if (isLiveStatus && !isFresh && recordId) {
     _staleLiveRecordIds.add(recordId);
+    _staleLiveRecordUpdatedAtMs.set(recordId, updatedAtMs);
   }
 
+  if (isTerminalStatus) return 'final';
   if (isShortAbandoned) return 'short_abandoned';
   if (isCompleted) {
-    if (recordId) _staleLiveRecordIds.delete(recordId);
+    if (recordId) {
+      _staleLiveRecordIds.delete(recordId);
+      _staleLiveRecordUpdatedAtMs.delete(recordId);
+    }
     return 'final';
   }
   if (isAnalyzing) {
-    if (recordId) _staleLiveRecordIds.delete(recordId);
+    if (recordId) {
+      _staleLiveRecordIds.delete(recordId);
+      _staleLiveRecordUpdatedAtMs.delete(recordId);
+    }
     return 'processing';
   }
-  if (isLiveStatus && isFresh && recordId && _staleLiveRecordIds.has(recordId)) return 'processing';
+  if (isLiveStatus && isFresh && recordId && _staleLiveRecordIds.has(recordId)) {
+    var staleTs = Number(_staleLiveRecordUpdatedAtMs.get(recordId) || 0);
+    if (updatedAtMs > staleTs) {
+      _staleLiveRecordIds.delete(recordId);
+      _staleLiveRecordUpdatedAtMs.delete(recordId);
+      return 'live';
+    }
+    return 'processing';
+  }
   if (isLiveStatus && isFresh) return 'live';
   if (isLiveStatus && !isFresh) return 'processing';
   if (isFailed && !hasFinalContent) return 'short_abandoned';
