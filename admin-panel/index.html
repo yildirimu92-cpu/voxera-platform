@@ -30,8 +30,8 @@
   --font-display:'Plus Jakarta Sans','DM Sans',sans-serif;
   --mono:'JetBrains Mono','SF Mono',monospace;
   /* Geometry */
-  --r:6px;--r-lg:10px;--r-xl:12px;--r-2xl:16px;
-  --radius:8px;--radius-lg:12px;
+  --r:8px;--r-lg:14px;--r-xl:16px;--r-2xl:16px;
+  --radius:8px;--radius-lg:14px;
   /* Shadows */
   --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
   --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
@@ -52,7 +52,7 @@
   --modal-max-height:calc(var(--app-dvh) - var(--safe-top) - var(--safe-bottom) - 32px);
 }
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth;height:100%;overflow-x:clip;}
-body{font-family:var(--font);font-size:13px;color:var(--ink);background:var(--vx-bg);min-height:100vh;min-height:var(--app-dvh);overflow-x:clip;line-height:1.5;letter-spacing:-0.01em;}
+body{font-size:13px;font-family:var(--font);font-size:13px;color:var(--ink);background:var(--vx-bg);min-height:100vh;min-height:var(--app-dvh);overflow-x:clip;line-height:1.5;letter-spacing:-0.01em;}
 body.mobile-nav-lock{overflow:hidden;touch-action:none;}
 body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{visibility:hidden;}
 
@@ -251,20 +251,21 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .toolbar{display:grid;grid-template-columns:minmax(0,1.3fr) repeat(4,minmax(0,1fr)) auto;gap:8px;margin-bottom:12px;align-items:center;}
 
 /* ─── Form Elements ─────────────────────────────────────────────── */
-.input,.select,.textarea{
-  padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;
-  font-size:13px;font-family:inherit;color:var(--ink);
-  background:var(--surface);outline:none;
-  transition:all var(--transition-fast);width:100%;
-  min-width:0;max-width:100%;
-  box-shadow:var(--shadow-card);
+.input, .select {
+  height: 36px;
+  border: 0.5px solid #E4E8F0;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1A1A2E;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
 }
 .input::placeholder{color:var(--slate2);}
 .textarea{min-height:96px;resize:vertical;}
-.input:focus,.select:focus,.textarea:focus{
-  border-color:var(--blue);
-  box-shadow:0 0 0 3px rgba(26,111,232,.08);
-}
+.input:focus, .select:focus { border-color: #1A6FE8; }
 
 /* ─── Plan Config Cards ─────────────────────────────────────────────── */
 .plan-config-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;}
@@ -1503,12 +1504,11 @@ body,.main{background:#F7F8FC;}
   background:rgba(255,255,255,.06);
   border-color:transparent;
 }
-.nav-item.active{
-  color:#FFFFFF;
-  background:rgba(26,111,232,.2);
-  border:1px solid rgba(26,111,232,.3);
-  border-left-color:rgba(26,111,232,.3);
-  font-weight:600;
+.nav-item.active {
+  color: #fff;
+  background: rgba(26,111,232,0.2);
+  border-left: 2.5px solid #1A6FE8;
+  font-weight: 700;
 }
 .nav-item svg{opacity:1;color:inherit;}
 .nav-item.active svg{color:#4B9FFF;}
@@ -1538,13 +1538,17 @@ body,.main{background:#F7F8FC;}
   backdrop-filter:none;
   -webkit-backdrop-filter:none;
 }
-.page-title{
-  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
-  font-size:16px;
-  font-weight:700;
-  color:#0F172A;
+.page-title, #page-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0D1F3C;
+  letter-spacing: -0.03em;
 }
-.page-sub{font-size:11px;color:#94A3B8;}
+.page-sub, #page-sub {
+  font-size: 12px;
+  color: #94A3B8;
+  margin-top: 2px;
+}
 .status-pill{
   background:#ECFDF5;
   border:1px solid #A7F3D0;
@@ -1554,11 +1558,39 @@ body,.main{background:#F7F8FC;}
   font-size:11px;
   font-weight:700;
 }
-.card{
-  background:#FFFFFF;
-  border:1px solid #E2E8F0;
-  border-radius:12px;
-  box-shadow:none;
+.card {
+  background: #fff;
+  border: 0.5px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  margin-bottom: 12px;
+}
+.card-head {
+  background: #0D1F3C;
+  padding: 11px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.card-head h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.card-head .badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.85);
+  border: none;
+}
+.card > *:not(.card-head) {
+  padding: 14px 16px;
 }
 .kpi{
   position:relative;
@@ -1608,16 +1640,27 @@ body,.main{background:#F7F8FC;}
   border-radius:12px;
   box-shadow:none;
 }
-.data-table th{
-  background:#F7F8FC;
-  font-size:9px;
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  color:#94A3B8;
-  border-bottom:1px solid #F1F5F9;
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table thead th {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  padding: 8px 12px;
+  border-bottom: 0.5px solid #E4E8F0;
+  background: #F8FAFC;
+  text-align: left;
 }
-.data-table td{border-bottom:1px solid #F1F5F9;}
-.data-table tbody tr:hover td{background:#F7F8FC;}
+.data-table tbody td {
+  padding: 12px 12px;
+  font-size: 13px;
+  color: #1A1A2E;
+  border-bottom: 0.5px solid #F1F4F9;
+  vertical-align: middle;
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: #F8FAFC; }
 .progress-bar{height:4px;border-radius:99px;background:#E2E8F0;}
 .progress-fill{background:#1A6FE8;border-radius:99px;}
 .progress-fill.progress-fill-blocked{background:#DC2626;}
@@ -1652,8 +1695,34 @@ body,.main{background:#F7F8FC;}
   font-weight:600;
 }
 .chip{font-size:9px;font-weight:600;padding:2px 7px;border-radius:99px;}
-.btn-primary{background:#1A6FE8;color:#FFFFFF;font-weight:700;}
-.btn-primary:hover{background:#1340B0;}
+.btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  white-space: nowrap;
+  height: 36px;
+  letter-spacing: -0.01em;
+}
+.btn-primary {
+  background: #1A6FE8;
+  color: #fff;
+}
+.btn-primary:hover { background: #1558BA; }
+.btn-night { background: #0D1F3C; color: #fff; }
+.btn-night:hover { background: #1a2f52; }
+.btn-quiet { background: #F1F5F9; color: #475569; border: 0.5px solid #E2E8F0; }
+.btn-quiet:hover { background: #E2E8F0; }
+.btn-danger { background: #FEF2F2; color: #DC2626; border: 0.5px solid #FECACA; }
+.btn-danger:hover { background: #FECACA; }
+.btn-sm { height: 30px; padding: 0 12px; font-size: 12px; }
 </style>
 </head>
 <body class="app-booting">
@@ -1685,7 +1754,7 @@ body,.main{background:#F7F8FC;}
             <div class="logo-sub">Admin Portal</div>
           </div>
         </div>
-        <div class="sidebar-status-badge"><span class="sidebar-status-dot"></span>Assistent aktiv</div>
+        
       </div>
       <!-- Close-Button nur mobile sichtbar -->
       <button onclick="closeMobileMenu()" style="display:none;background:none;border:none;cursor:pointer;padding:4px;color:var(--slate);" class="mobile-close-btn">
@@ -1773,7 +1842,7 @@ body,.main{background:#F7F8FC;}
         </div>
       </div>
       <div class="topbar-right">
-        <div class="status-pill"><span class="status-dot"></span>System live</div>
+        
       </div>
     </header>
 
@@ -2019,13 +2088,13 @@ body,.main{background:#F7F8FC;}
       <!-- ACTIVITY -->
       <section id="section-activity" class="section">
         <div class="grid-2">
-          <div class="card"><div class="card-head"><h3>Recent Calls</h3></div><div class="list" id="activity-calls"></div></div>
+          <div class="card"><div class="card-head"><h3>Letzte Anrufe</h3></div><div class="list" id="activity-calls"></div></div>
           <div class="card"><div class="card-head"><h3>Recent Onboarding Actions</h3></div><div class="list" id="activity-onboarding"></div></div>
         </div>
         <div class="grid-3" style="margin-top:16px;">
-          <div class="card"><div class="card-head"><h3>Customer Changes</h3></div><div class="list" id="activity-customer-changes"></div></div>
-          <div class="card"><div class="card-head"><h3>Support Activity</h3></div><div class="list" id="activity-support"></div></div>
-          <div class="card"><div class="card-head"><h3>Operational Events</h3></div><div class="list" id="activity-events"></div></div>
+          <div class="card"><div class="card-head"><h3>Kundenänderungen</h3></div><div class="list" id="activity-customer-changes"></div></div>
+          <div class="card"><div class="card-head"><h3>Support-Aktivität</h3></div><div class="list" id="activity-support"></div></div>
+          <div class="card"><div class="card-head"><h3>System-Ereignisse</h3></div><div class="list" id="activity-events"></div></div>
         </div>
       </section>
 
@@ -4534,7 +4603,7 @@ function isSubscriptionDueForRenewal(customer, now=new Date()){
 }
 function subscriptionStatusBadge(status){
   const raw=String(status||'').toLowerCase();
-  if(raw==='active') return '<span class="badge badge-green">Aktiv</span>';
+  if(raw==='active') return '<span class="badge badge-green">Active</span>';
   if(raw==='cancelled') return '<span class="badge badge-red">Gekündigt</span>';
   if(raw==='paused') return '<span class="badge badge-amber">Pausiert</span>';
   if(raw==='pending') return '<span class="badge badge-blue">Ausstehend</span>';
