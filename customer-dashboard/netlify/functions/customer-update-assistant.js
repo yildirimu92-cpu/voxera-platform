@@ -49,6 +49,11 @@ exports.handler = async (event) => {
     ai_business_description,
     ai_services,
     ai_location_hours,
+    ai_booking_faq,
+    ai_fallback_escalation,
+    ai_response_constraints,
+    ai_instructions,
+    ai_greeting,
     ai_tone,
     ai_address_form,
     // Nur Professional
@@ -77,6 +82,11 @@ exports.handler = async (event) => {
   if (ai_business_description !== undefined) patch.ai_business_description = String(ai_business_description).trim() || null;
   if (ai_services !== undefined)             patch.ai_services             = String(ai_services).trim() || null;
   if (ai_location_hours !== undefined)       patch.ai_location_hours       = String(ai_location_hours).trim() || null;
+  if (ai_booking_faq !== undefined)          patch.ai_booking_faq          = String(ai_booking_faq).trim() || null;
+  if (ai_fallback_escalation !== undefined)  patch.ai_fallback_escalation  = String(ai_fallback_escalation).trim() || null;
+  if (ai_response_constraints !== undefined) patch.ai_response_constraints = String(ai_response_constraints).trim() || null;
+  if (ai_instructions !== undefined)         patch.ai_instructions         = String(ai_instructions).trim() || null;
+  if (ai_greeting !== undefined)             patch.ai_greeting             = String(ai_greeting).trim() || null;
   if (ai_tone !== undefined)                 patch.ai_tone                 = String(ai_tone).trim() || null;
   if (ai_address_form !== undefined)         patch.ai_address_form         = String(ai_address_form).trim() || null;
 
