@@ -12754,20 +12754,44 @@ function flagIncomingRecords(records) {
 var _liveHeroTimer = null;
 var _liveHeroCurrentId = null;
 var _liveHeroNotified = new Set();
+var CALL_LIVE_FRESHNESS_MS = 90 * 1000; // 90s: verhindert hängende LIVE-Anzeige nach sehr kurzem Auflegen
+
+function getCallDisplayState(record) {
+  var f = (record && record.fields) || {};
+  var liveStatus = String(f.live_status || '').toLowerCase();
+  var hasCallSummary = !!String(f.call_summary || '').trim();
+  var hasCallSummaryShort = !!String(f.call_summary_short || '').trim();
+  var hasTranscript = !!String(f.transcript || '').trim();
+  var hasDuration = f.duration_seconds !== null && f.duration_seconds !== undefined;
+  var hasFinalContent = hasCallSummary || hasCallSummaryShort || hasTranscript || hasDuration;
+  var isCompleted = liveStatus === 'completed' || hasFinalContent;
+  var isFailed = liveStatus === 'failed';
+  var durationValue = Number(f.duration_seconds);
+  var isShortDuration = !hasDuration || Number.isNaN(durationValue) || durationValue < 8;
+  var isShortAbandoned = isFailed && !hasCallSummary && !hasCallSummaryShort && !hasTranscript && isShortDuration;
+  var isLiveStatus = liveStatus === 'incoming' || liveStatus === 'active';
+  var isAnalyzing = liveStatus === 'analyzing';
+  var ts = getRecordTimestamp(record);
+  var parsed = ts ? parseCallTimestamp(ts) : null;
+  var updatedAtMs = parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : 0;
+  var isFresh = updatedAtMs > 0 && (Date.now() - updatedAtMs) <= CALL_LIVE_FRESHNESS_MS;
+
+  if (isShortAbandoned) return 'short_abandoned';
+  if (isCompleted) return 'final';
+  if (isAnalyzing) return 'processing';
+  if (isLiveStatus && isFresh) return 'live';
+  if (isLiveStatus && !isFresh) return 'processing';
+  if (isFailed && !hasFinalContent) return 'short_abandoned';
+  if (!hasFinalContent) return 'processing';
+  return 'final';
+}
 
 function pickLiveCall(records) {
   if (!Array.isArray(records) || !records.length) return null;
-  var LIVE_MAX_AGE_MS = 6 * 60 * 1000; // 6 Minuten (5 Min max Anrufdauer + 1 Min Puffer)
-  var now = Date.now();
   var live = records.filter(function(r) {
     var f = r.fields || {};
     if (isActivationCallCategory(f.category)) return false;
-    var s = String(f.live_status || '').toLowerCase();
-    if (s !== 'incoming' && s !== 'active' && s !== 'analyzing') return false;
-    // Guard: Anruf darf nicht älter als 10 Minuten sein
-    var ts = parseCallTimestamp ? parseCallTimestamp(f.created_at) : new Date(f.created_at || 0);
-    var age = ts ? (now - ts.getTime()) : Infinity;
-    return age < LIVE_MAX_AGE_MS;
+    return getCallDisplayState(r) === 'live';
   });
   if (!live.length) return null;
   // Newest first
@@ -12792,8 +12816,7 @@ function buildLiveCallMatcher(liveRecord) {
     if (!record || !record.fields) return false;
     if (liveId && String(record.id || '').trim() === liveId) return true;
     var f = record.fields || {};
-    var state = String(f.live_status || '').toLowerCase();
-    if (state !== 'incoming' && state !== 'active' && state !== 'analyzing') return false;
+    if (getCallDisplayState(record) !== 'live') return false;
     var recordPhone = String(f.caller_phone || f.phone_number || '').trim();
     var phoneMatch = !!(livePhone && recordPhone && livePhone === recordPhone);
     if (!phoneMatch) return false;
@@ -12833,7 +12856,6 @@ function updateLiveHero(records) {
   var assistantName = (typeof getAssistantName === 'function') ? getAssistantName() : 'Lara';
 
   var isIncoming = state === 'incoming';
-  var isAnalyzing = state === 'analyzing';
 
   // Live-Row erstellen
   var row = document.createElement('div');
@@ -12878,17 +12900,15 @@ function updateLiveHero(records) {
     ? (company ? company : (caller !== 'Unbekannte Nummer' ? caller : 'Eingehender Anruf'))
     : (company ? company : caller);
   var badge = document.createElement('span');
-  badge.textContent = isIncoming ? 'LIVE' : 'ANALYSE';
+  badge.textContent = 'LIVE';
   badge.style.cssText = 'font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:.06em;' +
-    (isIncoming ? 'color:#ef4444;background:rgba(239,68,68,.2);' : 'color:#60a5fa;background:rgba(96,165,250,.2);');
+    'color:#ef4444;background:rgba(239,68,68,.2);';
   nameEl.appendChild(nameText);
   nameEl.appendChild(badge);
 
   var subEl = document.createElement('div');
   subEl.style.cssText = 'font-size:11px;color:rgba(255,255,255,.45);margin-top:2px;';
-  subEl.textContent = isIncoming
-    ? (assistantName + ' nimmt entgegen…')
-    : (assistantName + ' wertet aus…');
+  subEl.textContent = assistantName + ' nimmt entgegen…';
 
   body.appendChild(nameEl);
   body.appendChild(subEl);
@@ -12897,21 +12917,16 @@ function updateLiveHero(records) {
   var timerEl = document.createElement('div');
   timerEl.style.cssText = 'font-size:16px;font-weight:700;color:#fff;font-family:var(--font-display);letter-spacing:-.02em;flex-shrink:0;';
 
-  if (isIncoming) {
-    var parsed = (typeof parseCallTimestamp === 'function') ? parseCallTimestamp(f.created_at) : null;
-    var startTs = parsed ? parsed.getTime() : Date.now();
-    if (_liveHeroTimer) clearInterval(_liveHeroTimer);
-    var tick = function() { timerEl.textContent = _formatLiveCounter((Date.now() - startTs) / 1000); };
-    tick();
-    _liveHeroTimer = setInterval(tick, 1000);
+  var parsed = (typeof parseCallTimestamp === 'function') ? parseCallTimestamp(getRecordTimestamp(rec)) : null;
+  var startTs = parsed ? parsed.getTime() : Date.now();
+  if (_liveHeroTimer) clearInterval(_liveHeroTimer);
+  var tick = function() { timerEl.textContent = _formatLiveCounter((Date.now() - startTs) / 1000); };
+  tick();
+  _liveHeroTimer = setInterval(tick, 1000);
 
-    if (!_liveHeroNotified.has(rec.id)) {
-      _liveHeroNotified.add(rec.id);
-      notifyLiveCall(caller, company, rec.id);
-    }
-  } else {
-    if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
-    timerEl.textContent = _formatLiveCounter(f.duration_seconds || 0);
+  if (!_liveHeroNotified.has(rec.id)) {
+    _liveHeroNotified.add(rec.id);
+    notifyLiveCall(caller, company, rec.id);
   }
 
   row.appendChild(av);
@@ -13941,6 +13956,15 @@ function renderDashboard(records, manualTasks) {
   var isLiveMatch = buildLiveCallMatcher(liveRecord);
   var priorityRecords = buckets.open
     .filter(function(r){ return !isLiveMatch || !isLiveMatch(r); })
+    .filter(function(r){
+      var state = getCallDisplayState(r);
+      if (state === 'short_abandoned') return false;
+      if (state === 'processing') {
+        var f = (r && r.fields) || {};
+        return f.callback_requested === true || f.callback_requested === 'true';
+      }
+      return true;
+    })
     .filter(function(r){ return getPriorityBucket(r) < 99; })
     .sort(function(a,b){ return getPriorityBucket(a) - getPriorityBucket(b); });
   _dashPriorityAllRecords = priorityRecords;
@@ -14226,12 +14250,14 @@ function renderList(containerId, records, opts) {
     const callSummary = opts.dashboardView ? visibleSummary.substring(0, 140) : visibleSummary;
 
     const incoming = recentIncomingIds.has(r.id);
-    const liveStatus = String(f.live_status || '').toLowerCase();
-    const isLiveCall = liveStatus === 'incoming' || liveStatus === 'active' || liveStatus === 'analyzing';
-    const liveBadgeHtml = isLiveCall ? (() => {
-      const stateClass = liveStatus === 'analyzing' ? 'state-analyzing' : 'state-incoming';
-      const stateText = liveStatus === 'analyzing' ? 'WIRD AUSGEWERTET' : 'LIVE';
-      return `<span class="live-call-badge ${stateClass}"><span class="live-call-badge-dot"></span>${stateText}</span>`;
+    const displayState = getCallDisplayState(r);
+    const isLiveCall = displayState === 'live';
+    const isProcessingCall = displayState === 'processing';
+    const isShortAbandonedCall = displayState === 'short_abandoned';
+    const liveBadgeHtml = (isLiveCall || isProcessingCall || isShortAbandonedCall) ? (() => {
+      if (isLiveCall) return `<span class="live-call-badge state-incoming"><span class="live-call-badge-dot"></span>LIVE</span>`;
+      if (isProcessingCall) return `<span class="live-call-badge state-analyzing"><span class="live-call-badge-dot"></span>Wird verarbeitet</span>`;
+      return `<span class="live-call-badge state-analyzing"><span class="live-call-badge-dot"></span>Kurzer Anruf</span>`;
     })() : '';
     const priority = getPriority(r);
     // Follow-up meta line (action/date/time) in short unified format
@@ -14260,8 +14286,9 @@ function renderList(containerId, records, opts) {
     const ibxAvCls   = ibxUrgent ? 'ibx-av-red' : done ? 'ibx-av-gray' : 'ibx-av-blue';
     const ibxNameCls = done ? 'ibx-name-done' : '';
     // Subject: live state first, then priority, then category
-    const ibxSubj = isLiveCall && liveStatus === 'analyzing' ? '⏳ Wird ausgewertet…'
-                  : isLiveCall ? '🎙 Anruf läuft gerade…'
+    const ibxSubj = isLiveCall ? 'Lara nimmt entgegen…'
+                  : isProcessingCall ? 'Zusammenfassung wird erstellt…'
+                  : isShortAbandonedCall ? 'Der Anrufer hat aufgelegt, bevor eine Anfrage aufgenommen wurde.'
                   : f.callback_requested && !done ? 'Rückruf gewünscht'
                   : ibxUrgent ? 'Dringend'
                   : (categoryLabel && !isDashLikePlaceholder(categoryLabel)) ? categoryLabel
@@ -14331,7 +14358,7 @@ function renderList(containerId, records, opts) {
           ${(!isManualTaskRecord(r) && customerMeta && customerMeta.smsCallerAddon) ? '<span class="call-meta-item" style="color:#059669;font-weight:600;">✓ SMS</span>' : ''}
         </div>
         ${taskDueLabel?`<div class="task-due-pill ${taskDueClass}" style="margin-top:6px;">${escHtml(taskDueLabel)}</div>`:''}
-        ${isLiveCall && !callSummary ? `<div class="call-summary" style="color:#94A3B8;font-style:italic;">${liveStatus === 'analyzing' ? '⏳ Zusammenfassung wird erstellt…' : '🎙️ Anruf läuft gerade…'}</div>` : (callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:'')}
+        ${(isLiveCall || isProcessingCall || isShortAbandonedCall) && !callSummary ? `<div class="call-summary" style="color:#94A3B8;font-style:italic;">${isLiveCall ? 'Lara nimmt entgegen…' : (isProcessingCall ? 'Zusammenfassung wird erstellt…' : 'Der Anrufer hat aufgelegt, bevor eine Anfrage aufgenommen wurde.')}</div>` : (callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:'')}
         ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
         ${done && closedAt ? `<div class="followup-meta-line">Abgeschlossen am ${escHtml(fmtExactDateTime(closedAt) || fmtDate(closedAt))}</div>` : ''}
         ${callEndInfo && !opts.dashboardView ? `<div style="margin-top:4px;"><span class="chip ${callEndInfo.cls}" style="font-size:10.5px;">${callEndInfo.label}</span></div>` : ''}
@@ -14418,6 +14445,10 @@ function renderAnrufeInbox(containerId, records) {
       var isCallback = f.callback_requested === true || f.callback_requested === 'true';
       var isDringend = String(f.priority||'').toLowerCase() === 'high' || String(f.lead_quality||'').toLowerCase() === 'hot';
       var isManual = !!(f.is_manual_task || f.task_type);
+      var displayState = getCallDisplayState(rec);
+      var isLiveCall = displayState === 'live';
+      var isProcessingCall = displayState === 'processing';
+      var isShortAbandonedCall = displayState === 'short_abandoned';
       var ts = getRecordTimestamp(rec);
       var timeStr = ts ? (function(d){ return d ? formatTimeCH(d) : ''; })(parseCallTimestamp(ts)) : '';
       var initials = name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
@@ -14435,6 +14466,9 @@ function renderAnrufeInbox(containerId, records) {
       html += '<div class="dpr-sub">';
       if (isCallback) html += '<span class="dpr-badge dpr-badge-red">Rückruf</span>';
       if (isDringend) html += '<span class="dpr-badge dpr-badge-amber">Dringend</span>';
+      if (isLiveCall) html += '<span class="dpr-badge" style="color:#ef4444;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);">LIVE</span>';
+      if (isProcessingCall) html += '<span class="dpr-badge" style="color:#2563EB;background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.35);">Wird verarbeitet</span>';
+      if (isShortAbandonedCall) html += '<span class="dpr-badge" style="color:#475569;background:rgba(71,85,105,.1);border-color:rgba(71,85,105,.25);">Kurzer Anruf</span>';
       if (isManual) html += '<span class="dpr-badge" style="color:#0D1F3C;background:#EEF2FF;border-color:#C7D7FA;">Manuell</span>';
       if (subParts.length) html += '<span class="dpr-sub-text">'+subParts.join(' · ')+'</span>';
       html += '</div></div>';
@@ -14443,6 +14477,9 @@ function renderAnrufeInbox(containerId, records) {
       html += '</div>';
       html += '<div class="dpr-exp" style="display:none;" data-rec-id="'+rec.id+'" data-phone="'+_esc(phone)+'">';
       if (summary) html += '<div class="dpr-summary">'+_esc(summary)+'</div>';
+      else if (isLiveCall) html += '<div class="dpr-summary">Lara nimmt entgegen…</div>';
+      else if (isProcessingCall) html += '<div class="dpr-summary">Zusammenfassung wird erstellt…</div>';
+      else if (isShortAbandonedCall) html += '<div class="dpr-summary">Der Anrufer hat aufgelegt, bevor eine Anfrage aufgenommen wurde.</div>';
       html += '<div class="dpr-actions">';
       html += '<button class="dpr-btn dpr-btn-primary" data-action="call">Anrufen</button>';
       html += '<button class="dpr-btn" data-action="done">Erledigt</button>';
