@@ -1161,7 +1161,7 @@ html[data-theme="dark"] .settings-card{
 .call-meta-item + .call-meta-item::before{content:'•';color:var(--gray300);}
 .call-meta-phone{font-variant-numeric:tabular-nums;color:var(--ink2);}
 .call-summary{font-size:var(--text-md);color:var(--slate);line-height:1.55;margin-bottom:10px;}
-.followup-meta-line{font-size:var(--text-sm);color:var(--slate);line-height:1.5;margin-bottom:10px;font-weight:var(--fw-medium);}
+.followup-meta-line{font-size:var(--text-sm);color:#1A6FE8;line-height:1.5;margin-bottom:10px;font-weight:600;}
 .task-due-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:10.5px;font-weight:700;letter-spacing:.02em;margin:2px 0 7px;}
 .task-due-pill.overdue{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;}
 .task-due-pill.today{background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE;}
@@ -13038,15 +13038,24 @@ function buildLiveCallMatcher(liveRecord) {
   };
 }
 
-function _formatLiveCounter(seconds) {
-  var sec = Math.max(0, Math.floor(seconds || 0));
-  var m = Math.floor(sec / 60);
-  var s = sec % 60;
-  return m + ':' + (s < 10 ? '0' + s : s);
-}
-
 function updateLiveHero(records) {
-  var rec = pickLiveCall(records || allRecords || []);
+  var source = Array.isArray(records) ? records : (allRecords || []);
+  var rec = source
+    .filter(function(r) {
+      if (!r || !r.fields) return false;
+      var f = r.fields || {};
+      if (isActivationCallCategory(f.category)) return false;
+      var liveStatus = String(f.live_status || '').toLowerCase();
+      var isLiveCandidate = liveStatus === 'incoming' || liveStatus === 'active';
+      return isLiveCandidate && !CALL_LIVE_TERMINAL_STATES.has(liveStatus);
+    })
+    .sort(function(a, b) {
+      var pa = (typeof parseCallTimestamp === 'function') ? parseCallTimestamp((a.fields || {}).created_at) : null;
+      var pb = (typeof parseCallTimestamp === 'function') ? parseCallTimestamp((b.fields || {}).created_at) : null;
+      var ta = pa ? pa.getTime() : 0;
+      var tb = pb ? pb.getTime() : 0;
+      return tb - ta;
+    })[0] || null;
   var priorityList = document.getElementById('dash-priority-list');
 
   // Alten Live-Row entfernen
@@ -13060,13 +13069,9 @@ function updateLiveHero(records) {
   }
 
   var f = rec.fields || {};
-  var state = String(f.live_status || '').toLowerCase();
   var caller = (typeof getCallDisplayName === 'function' ? getCallDisplayName(f) : null)
                || f.caller_name || f.phone_number || f.caller_phone || 'Unbekannte Nummer';
   var company = f.company_name || '';
-  var assistantName = (typeof getAssistantName === 'function') ? getAssistantName() : 'Lara';
-
-  var isIncoming = state === 'incoming';
 
   // Live-Row erstellen
   var row = document.createElement('div');
@@ -13077,7 +13082,7 @@ function updateLiveHero(records) {
     'align-items:center',
     'gap:10px',
     'padding:12px 14px',
-    'background:#0D1F3C',
+    'background:#EAF2FF',
     'border-radius:0',
     'cursor:pointer',
     'position:relative',
@@ -13097,43 +13102,24 @@ function updateLiveHero(records) {
   var av = document.createElement('div');
   var initials = caller.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase() || '?';
   av.textContent = initials;
-  av.style.cssText = 'width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;' +
-    (isIncoming ? 'background:#ef4444;animation:liveDotPulse 1.2s ease-in-out infinite;' : 'background:#60a5fa;');
+  av.style.cssText = 'width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1e3a5f;flex-shrink:0;background:#D7E8FF;';
 
   // Body
   var body = document.createElement('div');
   body.style.cssText = 'flex:1;min-width:0;';
 
   var nameEl = document.createElement('div');
-  nameEl.style.cssText = 'font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;';
-  var nameText = document.createElement('span');
-  nameText.textContent = isIncoming
-    ? (company ? company : (caller !== 'Unbekannte Nummer' ? caller : 'Eingehender Anruf'))
-    : (company ? company : caller);
-  var badge = document.createElement('span');
-  badge.textContent = 'LIVE';
-  badge.style.cssText = 'font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:.06em;' +
-    'color:#ef4444;background:rgba(239,68,68,.2);';
-  nameEl.appendChild(nameText);
-  nameEl.appendChild(badge);
+  nameEl.style.cssText = 'font-size:13px;font-weight:700;color:#1e3a5f;';
+  nameEl.textContent = company ? company : caller;
 
   var subEl = document.createElement('div');
-  subEl.style.cssText = 'font-size:11px;color:rgba(255,255,255,.45);margin-top:2px;';
-  subEl.textContent = assistantName + ' nimmt entgegen…';
+  subEl.style.cssText = 'font-size:11px;color:#64748b;margin-top:2px;';
+  subEl.textContent = 'Anruf eingegangen · wird verarbeitet';
 
   body.appendChild(nameEl);
   body.appendChild(subEl);
 
-  // Timer
-  var timerEl = document.createElement('div');
-  timerEl.style.cssText = 'font-size:16px;font-weight:700;color:#fff;font-family:var(--font-display);letter-spacing:-.02em;flex-shrink:0;';
-
-  var parsed = (typeof parseCallTimestamp === 'function') ? parseCallTimestamp(getRecordTimestamp(rec)) : null;
-  var startTs = parsed ? parsed.getTime() : Date.now();
-  if (_liveHeroTimer) clearInterval(_liveHeroTimer);
-  var tick = function() { timerEl.textContent = _formatLiveCounter((Date.now() - startTs) / 1000); };
-  tick();
-  _liveHeroTimer = setInterval(tick, 1000);
+  if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
 
   if (!_liveHeroNotified.has(rec.id)) {
     _liveHeroNotified.add(rec.id);
@@ -13142,7 +13128,6 @@ function updateLiveHero(records) {
 
   row.appendChild(av);
   row.appendChild(body);
-  row.appendChild(timerEl);
 
   // Als erstes Element in Priority-Liste einfügen
   if (priorityList) {
@@ -15503,6 +15488,33 @@ function _completedWarningDismissed(recordId) {
   try { return !!localStorage.getItem('voxera_warn_dismissed_' + recordId); } catch(e) { return false; }
 }
 
+
+function rerenderFollowupMetaForCallRow(recordId) {
+  if (!recordId) return;
+  var rec = (allRecords || []).find(function(r) { return r && r.id === recordId; });
+  if (!rec || !rec.fields) return;
+  var followUpMetaText = buildFollowUpMetaText(rec, new Date());
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.call-row[data-id]')).filter(function(row) {
+    return row && row.dataset && row.dataset.id === recordId;
+  });
+  rows.forEach(function(row) {
+    var body = row.querySelector('.cr-body');
+    if (!body) return;
+    var summaryEl = body.querySelector('.call-summary');
+    var existingLines = body.querySelectorAll('.followup-meta-line');
+    existingLines.forEach(function(el) {
+      if (!el.textContent || el.textContent.indexOf('Abgeschlossen am') !== 0) el.remove();
+    });
+    if (!followUpMetaText) return;
+    var metaEl = document.createElement('div');
+    metaEl.className = 'followup-meta-line';
+    metaEl.textContent = followUpMetaText;
+    if (summaryEl && summaryEl.nextSibling) body.insertBefore(metaEl, summaryEl.nextSibling);
+    else if (summaryEl) body.appendChild(metaEl);
+    else body.insertBefore(metaEl, body.firstChild);
+  });
+}
+
 function dismissCompletedWarning() {
   const w = document.getElementById('followup-locked-warning');
   if (w) w.style.display = 'none';
@@ -15544,7 +15556,18 @@ async function saveFollowup() {
   };
   if (fields.mark_complete) fields.follow_up_at = null;
   try {
-    await patchCallRecord(notizRecordId, fields);
+    var recordId = notizRecordId;
+    await patchCallRecord(recordId, fields);
+    var localRec = (allRecords || []).find(function(r) { return r && r.id === recordId; });
+    if (localRec && localRec.fields) {
+      localRec.fields.notes_customer_voxera = fields.notes_customer_voxera;
+      localRec.fields.next_action = fields.next_action;
+      localRec.fields.follow_up_at = fields.follow_up_at;
+      if (fields.mark_complete) {
+        localRec.fields.follow_up_at = null;
+      }
+    }
+    rerenderFollowupMetaForCallRow(recordId);
     toast(fields.mark_complete ? 'Abgeschlossen' : followUpAt ? 'Follow-up gespeichert' : 'Gespeichert');
     closeFollowup();
     notizRecordId = null;
