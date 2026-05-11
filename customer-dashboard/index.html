@@ -12781,6 +12781,29 @@ function pickLiveCall(records) {
   return live[0];
 }
 
+function buildLiveCallMatcher(liveRecord) {
+  if (!liveRecord || !liveRecord.fields) return null;
+  var liveFields = liveRecord.fields || {};
+  var liveId = String(liveRecord.id || '').trim();
+  var livePhone = String(liveFields.caller_phone || liveFields.phone_number || '').trim();
+  var liveCreated = parseCallTimestamp(liveFields.created_at);
+  var liveCreatedMs = liveCreated && !Number.isNaN(liveCreated.getTime()) ? liveCreated.getTime() : null;
+  return function(record) {
+    if (!record || !record.fields) return false;
+    if (liveId && String(record.id || '').trim() === liveId) return true;
+    var f = record.fields || {};
+    var state = String(f.live_status || '').toLowerCase();
+    if (state !== 'incoming' && state !== 'active' && state !== 'analyzing') return false;
+    var recordPhone = String(f.caller_phone || f.phone_number || '').trim();
+    var phoneMatch = !!(livePhone && recordPhone && livePhone === recordPhone);
+    if (!phoneMatch) return false;
+    var recordCreated = parseCallTimestamp(f.created_at);
+    var recordCreatedMs = recordCreated && !Number.isNaN(recordCreated.getTime()) ? recordCreated.getTime() : null;
+    if (liveCreatedMs === null || recordCreatedMs === null) return false;
+    return Math.abs(recordCreatedMs - liveCreatedMs) <= 2 * 60 * 1000;
+  };
+}
+
 function _formatLiveCounter(seconds) {
   var sec = Math.max(0, Math.floor(seconds || 0));
   var m = Math.floor(sec / 60);
@@ -13914,7 +13937,10 @@ function renderDashboard(records, manualTasks) {
   var allOpenCalls = buckets.recent;
   // ── Priorisierte Einheitsliste "Jetzt wichtig" ───────────────────
   // Nutzt buckets.open (alle nicht-erledigten) statt nur buckets.recent
+  var liveRecord = pickLiveCall(records || []);
+  var isLiveMatch = buildLiveCallMatcher(liveRecord);
   var priorityRecords = buckets.open
+    .filter(function(r){ return !isLiveMatch || !isLiveMatch(r); })
     .filter(function(r){ return getPriorityBucket(r) < 99; })
     .sort(function(a,b){ return getPriorityBucket(a) - getPriorityBucket(b); });
   _dashPriorityAllRecords = priorityRecords;
@@ -14351,19 +14377,25 @@ function renderAnrufeInbox(containerId, records) {
     return;
   }
 
+  var liveRecord = pickLiveCall(records || allRecords || []);
+  var isLiveMatch = buildLiveCallMatcher(liveRecord);
+  var visibleRecords = (records || []).filter(function(rec) {
+    return !isLiveMatch || !isLiveMatch(rec);
+  });
+
   // Gruppieren nach Datum
   var today = new Date(); today.setHours(0,0,0,0);
   var yesterday = new Date(today - 86400000);
   var groups = {};
   var groupOrder = [];
 
-  records.forEach(function(rec) {
+  visibleRecords.forEach(function(rec) {
     var ts = getRecordTimestamp(rec);
-    var d = ts ? new Date(ts) : null;
+    var d = ts ? parseCallTimestamp(ts) : null;
     var label;
     if (!d) { label = 'Unbekannt'; }
     else {
-      var dd = new Date(d); dd.setHours(0,0,0,0);
+      var dd = new Date(d.getTime()); dd.setHours(0,0,0,0);
       if (dd.getTime() === today.getTime()) label = 'Heute';
       else if (dd.getTime() === yesterday.getTime()) label = 'Gestern';
       else label = d.getDate() + '. ' + ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][d.getMonth()] + ' ' + d.getFullYear();
@@ -14387,7 +14419,7 @@ function renderAnrufeInbox(containerId, records) {
       var isDringend = String(f.priority||'').toLowerCase() === 'high' || String(f.lead_quality||'').toLowerCase() === 'hot';
       var isManual = !!(f.is_manual_task || f.task_type);
       var ts = getRecordTimestamp(rec);
-      var timeStr = ts ? (function(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); })(new Date(ts)) : '';
+      var timeStr = ts ? (function(d){ return d ? formatTimeCH(d) : ''; })(parseCallTimestamp(ts)) : '';
       var initials = name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
       var avatarBg = isCallback ? '#DC2626' : isDringend ? '#D97706' : isManual ? '#0D1F3C' : '#1A6FE8';
       var subParts = [];
