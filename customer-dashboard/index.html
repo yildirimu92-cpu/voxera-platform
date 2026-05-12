@@ -22995,24 +22995,34 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
   }
 
   function vxDv2LoadHistory(currentId, phone) {
-    var el = document.getElementById('vx-dv2-history');
+    var sourceRecords = Array.isArray(window.allRecords)
+      ? window.allRecords
+      : (typeof allRecords !== 'undefined' && Array.isArray(allRecords) ? allRecords : []);
+    var firstFivePhones = sourceRecords.slice(0,5).map(function(r){
+      var f = (r && r.fields) || {};
+      return f.caller_phone || f.phone_number || '';
+    });
+    console.log('[vxDv2LoadHistory] phone=', phone, 'allRecords.length=', sourceRecords.length, 'first5Phones=', firstFivePhones);
+
+    var el = document.getElementById('vx-dv2-history') || document.querySelector('#vx-dv2-sheet #vx-dv2-history');
     if (!el) return;
     var cleanPhone = vxNormalizePhone(phone);
-    var recs = (window.allRecords||[]).filter(function(r){
+    var recs = sourceRecords.filter(function(r){
       var f = r.fields||{};
-      var p = vxNormalizePhone(f.caller_phone||f.phone_number||'');
+      var p = vxNormalizePhone(f.caller_phone || f.phone_number || '');
       return p && cleanPhone && p === cleanPhone;
     }).sort(function(a,b){
-      return new Date(b.fields.created_at||0) - new Date(a.fields.created_at||0);
+      return new Date((b.fields||{}).created_at||0) - new Date((a.fields||{}).created_at||0);
     });
     // Always show at least the current call
     if (recs.length === 0) {
-      var cur = (window.allRecords||[]).find(function(r){ return r.id === currentId; });
+      var cur = sourceRecords.find(function(r){ return r.id === currentId; });
       if (cur) recs = [cur];
     }
     if (recs.length === 0) return;
     var title = recs.length > 1 ? 'Alle Anrufe dieser Nummer (' + recs.length + ')' : 'Dieser Anruf';
     var html = '<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">' + title + '</div>';
+    el.innerHTML = html;
     recs.slice(0,5).forEach(function(r) {
       var f = r.fields||{};
       var isCur = r.id === currentId;
