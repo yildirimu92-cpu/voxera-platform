@@ -14030,9 +14030,14 @@ function showCallDetail(callId) {
     // Set current call ID
     window._vxCurrentCallId = callId;
     
+    // Vorherigen Detail-UI State vollständig zurücksetzen
+    if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
+
     // Page sichtbar machen
     page.style.display = 'block';
     page.scrollTop = 0;
+    var wrap = document.getElementById('call-detail-scroll-wrap');
+    if (wrap) wrap.scrollTop = 0;
     console.log('[cd] page visible');
     
     // Render
@@ -14065,7 +14070,9 @@ window.hideCallDetail = hideCallDetail;
 
 function hideCallDetail() {
   var page = document.getElementById('call-detail-page');
+  if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
   if (page) page.style.display = 'none';
+  window._vxCurrentCallId = null;
   // Clear hash but keep current tab
   if (window.location.hash.indexOf('#call/') === 0) {
     try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch(e) {}
@@ -14423,8 +14430,7 @@ function vxSetupMorphingBanner() {
     const banner = document.getElementById('call-detail-banner');
     const statsWrap = document.getElementById('call-detail-stats-wrap');
     if (!page || !banner) return;
-    if (page._vxBannerSetup) return;
-    page._vxBannerSetup = true;
+    var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
     
     // Smooth scroll range
     const SCROLL_START = 10;
@@ -14464,6 +14470,7 @@ function vxSetupMorphingBanner() {
     
     // Apply state - alle DOM-Writes in einem rAF-Tick (kein Layout-Thrashing)
     function applyState(scrollY) {
+      if (isMobile) return;
       // Progress 0..1 mit smooth easing
       const raw = (scrollY - SCROLL_START) / (SCROLL_END - SCROLL_START);
       const linearP = raw < 0 ? 0 : (raw > 1 ? 1 : raw);
@@ -14549,16 +14556,55 @@ function vxSetupMorphingBanner() {
         }
       });
     }
-    
+
+    // idempotent listener setup
+    if (page._vxBannerOnScroll) {
+      page.removeEventListener('scroll', page._vxBannerOnScroll);
+    }
+    page._vxBannerOnScroll = onScroll;
     page.addEventListener('scroll', onScroll, { passive: true });
-    
-    // Initial state
-    applyState(0);
+
+    // Initial state / mobile reset
+    if (isMobile) {
+      if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
+    } else {
+      applyState(page.scrollTop || 0);
+    }
   } catch (err) {
     console.error('[scroll] setup error:', err);
   }
 }
 window.vxSetupMorphingBanner = vxSetupMorphingBanner;
+
+function vxResetCallDetailViewState() {
+  var page = document.getElementById('call-detail-page');
+  var banner = document.getElementById('call-detail-banner');
+  var statsWrap = document.getElementById('call-detail-stats-wrap');
+  var avatar = document.getElementById('call-detail-avatar');
+  var title = document.getElementById('call-detail-title');
+  var subtitle = document.getElementById('call-detail-subtitle');
+  var dateEl = document.getElementById('call-detail-banner-date');
+  var quickActions = document.getElementById('call-detail-quick-actions');
+  var wrap = document.getElementById('call-detail-scroll-wrap');
+
+  if (page) page.scrollTop = 0;
+  if (wrap) wrap.scrollTop = 0;
+
+  [avatar, title, subtitle, dateEl, quickActions, statsWrap].forEach(function(el) {
+    if (el) el.removeAttribute('style');
+  });
+  if (banner) {
+    banner.style.padding = '';
+  }
+  if (subtitle) { subtitle.style.opacity = ''; subtitle.style.maxHeight = ''; subtitle.style.marginTop = ''; }
+  if (dateEl) { dateEl.style.opacity = ''; dateEl.style.maxWidth = ''; }
+  if (statsWrap) { statsWrap.style.opacity = ''; statsWrap.style.maxHeight = ''; statsWrap.style.marginBottom = ''; statsWrap.style.pointerEvents = ''; }
+  if (banner) {
+    banner.classList.remove('is-scrolled');
+    banner._isScrolled = false;
+  }
+}
+window.vxResetCallDetailViewState = vxResetCallDetailViewState;
 
 // Helper für Pill-Toggle (nur 1 aktiv)
 function vxTogglePill(btn) {
