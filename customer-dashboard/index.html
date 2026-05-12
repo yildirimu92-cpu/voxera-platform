@@ -5351,6 +5351,38 @@ body,.main{background:var(--vx-bg);}
 
 /* Date separators in lists */
 .anrufe-date-sep{font-size:11px!important;font-weight:700!important;}
+
+/* Call Detail Page */
+#call-detail-page {
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.call-detail-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+  #call-detail-page {
+    min-height: 100vh;
+  }
+
+  .call-detail-header {
+    padding: 12px;
+  }
+
+  #call-detail-content {
+    padding: 12px !important;
+  }
+}
+
 </style>
 <body>
 
@@ -7161,7 +7193,27 @@ body,.main{background:var(--vx-bg);}
 
           </div>
         
-          </div><!-- /vx-page-wrap -->
+          
+
+<!-- Call-Detail Page -->
+<div id="call-detail-page" style="display: none; min-height: 100vh;">
+  <div class="call-detail-header" style="background: var(--vx-night); color: white; padding: 16px;">
+    <button onclick="window.history.back()"
+            style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0;">
+      ← Zurück
+    </button>
+    <div id="call-detail-title" style="margin-top: 8px; font-size: 18px; font-weight: 700;"></div>
+    <div id="call-detail-subtitle" style="margin-top: 4px; font-size: 12px; color: rgba(255,255,255,0.7);"></div>
+  </div>
+
+  <div style="padding: 16px; max-width: 900px; margin: 0 auto;">
+    <div id="call-detail-content">
+      <!-- Wird dynamisch befüllt -->
+    </div>
+  </div>
+</div>
+
+</div><!-- /vx-page-wrap -->
         </div>
 <!-- MOBILE BOTTOM NAV -->
   <div class="mobile-nav">
@@ -8403,6 +8455,7 @@ function dprAction(action, recId, extra) {
     return;
   }
   if (action === 'detail') {
+    if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
     return;
   }
@@ -13968,6 +14021,133 @@ function updateBrowserNotifToggleUI() {
     else { status.textContent = ''; }
   }
 }
+
+
+function showCallDetail(callId) {
+  if (!authClient) { showToast('⚠️ Authentifizierung erforderlich'); return; }
+  if (!callId || typeof callId !== 'string') { showToast('⚠️ Ungültige Anruf-ID'); return; }
+  document.querySelectorAll('[id^="tab-"], [id^="section-"]').forEach(function(el){
+    if (el.id !== 'call-detail-page') el.style.display = 'none';
+  });
+  var page=document.getElementById('call-detail-page');
+  if (page) page.style.display='block';
+  loadAndRenderCallDetail(callId);
+  window.location.hash = '#call/' + callId;
+  window.scrollTo(0,0);
+}
+
+function hideCallDetail() {
+  var page=document.getElementById('call-detail-page');
+  if (page) page.style.display='none';
+  showTab(lastActiveTab || 'dashboard', null);
+}
+
+async function buildCallHistory(phoneNumber) {
+  if (!authClient) { showToast('⚠️ Authentifizierung erforderlich'); return []; }
+  try {
+    const { data: calls, error: callsError } = await authClient.from('calls').select('*').eq('phone_number', phoneNumber).order('created_at', {ascending: true});
+    if (callsError) throw callsError;
+    const { data: tasks, error: tasksError } = await authClient.from('customer_tasks').select('*').like('phone_number', phoneNumber).order('due_at', {ascending: true});
+    if (tasksError) throw tasksError;
+    const history = [];
+    (calls || []).forEach(function(call){ history.push({type:'call_inbound',timestamp:call.created_at,duration:call.duration_seconds||0,summary:call.call_summary||'',category:call.category||'',lead_quality:call.lead_quality||'',call_id:call.id,transcription:call.transcription||'',notes:call.notes||''}); });
+    (tasks || []).forEach(function(task){ if(task.callback_requested){ history.push({type:'followup_created',timestamp:task.created_at,action:'callback',due_at:task.due_at,notes:task.notes||'',status:task.status||'open',task_id:task.id}); }});
+    history.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+    return history;
+  } catch (error) { console.error('Error building call history:', error); return []; }
+}
+
+async function loadAndRenderCallDetail(callId) {
+  if (!authClient) { showToast('⚠️ Authentifizierung erforderlich'); return; }
+  try {
+    const { data: call, error } = await authClient.from('calls').select('*').eq('id', callId).single();
+    if (error || !call) { document.getElementById('call-detail-content').innerHTML='<p style="color: var(--red);">Anruf nicht gefunden.</p>'; return; }
+    const history = await buildCallHistory(call.phone_number);
+    renderCallDetailPage(call, history);
+  } catch (error) { console.error('Error loading call detail:', error); document.getElementById('call-detail-content').innerHTML='<p style="color: var(--red);">Fehler beim Laden.</p>'; }
+}
+
+function renderCallDetailPage(call, history) {
+  if (!call?.id) { console.error('Call data incomplete'); return; }
+
+  const timestamp = new Date(call.created_at);
+  document.getElementById('call-detail-title').textContent = call.caller_name || 'Unbekannte Nummer';
+  document.getElementById('call-detail-subtitle').textContent = (call.phone_number || '') + ' • ' + fmtDate(timestamp) + ' ' + fmtTime(timestamp);
+
+  const callId = call.id;
+  const dur = call.duration_seconds || 0;
+
+  let html = '';
+
+  html += '<div style="margin-bottom:24px"><h3 style="color: var(--ink); margin-bottom: 12px; font-size: 16px; font-weight: 700;">Anruf-Details</h3>';
+  html += '<div style="background: var(--surface2); padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.8; color: var(--ink);">';
+  html += '<div>Dauer: <strong>' + Math.floor(dur/60) + ' Min ' + (dur%60) + ' Sek</strong></div>';
+  if (call.category) html += '<div>Kategorie: <strong>' + call.category + '</strong></div>';
+  if (call.lead_quality) html += '<div>Lead-Quality: <strong>' + call.lead_quality + '</strong></div>';
+  html += '</div></div>';
+
+  html += '<div style="margin-bottom:24px;"><h3 style="color: var(--ink); margin-bottom: 12px; font-size: 16px; font-weight: 700;">Zusammenfassung</h3>';
+  html += '<p style="color: var(--ink); line-height: 1.6; font-size: 13px;">' + (call.call_summary || '(Keine Zusammenfassung vorhanden)') + '</p></div>';
+
+  html += '<div style="margin-bottom:24px;"><h3 style="color: var(--ink); margin-bottom: 12px; font-size: 16px; font-weight: 700;">Notiz</h3>';
+  html += '<textarea id="call-detail-notes" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit;min-height:80px;resize:vertical;color:var(--ink);background:var(--surface);" placeholder="Notiz hinzufügen...">' + (call.notes || '') + '</textarea>';
+  html += '<button data-call-id="' + callId + '" onclick="saveCallNotes(this.dataset.callId)" style="margin-top:8px;padding:8px 16px;background:var(--blue);color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">Speichern</button></div>';
+
+  html += '<div style="margin-bottom:24px;"><h3 style="color: var(--ink); margin-bottom: 12px; font-size: 16px; font-weight: 700;">Follow-up</h3>';
+  html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">';
+  html += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="followup-callback" style="cursor:pointer;width:16px;height:16px;"><span style="font-size:13px;color:var(--ink);">Rückruf</span></label>';
+  html += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="followup-email" style="cursor:pointer;width:16px;height:16px;"><span style="font-size:13px;color:var(--ink);">E-Mail</span></label>';
+  html += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="followup-task" style="cursor:pointer;width:16px;height:16px;"><span style="font-size:13px;color:var(--ink);">Aufgabe</span></label>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px;align-items:center;">';
+  html += '<input type="datetime-local" id="followup-date" style="padding:8px;border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--ink);background:var(--surface);">';
+  html += '<button data-call-id="' + callId + '" onclick="saveFollowUp(this.dataset.callId)" style="padding:8px 16px;background:var(--blue);color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">Speichern</button>';
+  html += '</div></div>';
+
+  html += renderTimelineHTML(history);
+
+  document.getElementById('call-detail-content').innerHTML = html;
+}
+
+function renderTimelineHTML(history) {
+  if (!history || history.length === 0) {
+    return '<div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--line);"><p style="color: var(--muted); font-size: 13px;">Keine weitere Historie für diese Nummer.</p></div>';
+  }
+
+  let html = '<div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--line);"><h3 style="color: var(--ink); margin-bottom: 20px; font-size: 16px; font-weight: 700;">Kontakt-Historie</h3>';
+
+  history.forEach(function(e) {
+    const t = new Date(e.timestamp);
+
+    if (e.type === 'call_inbound') {
+      const transcriptId = 'transcript-' + e.call_id;
+      const dur = e.duration || 0;
+
+      html += '<div style="margin-bottom:14px;">';
+      html += '<strong>' + fmtDate(t) + ' ' + fmtTime(t) + ' Uhr</strong>';
+      html += '<div>Eingehender Anruf · Dauer: ' + Math.floor(dur/60) + ' Min ' + (dur%60) + ' Sek';
+      if (e.category) html += ' • ' + e.category;
+      html += '</div>';
+      html += '<div>' + (e.summary || '(Keine Zusammenfassung)') + '</div>';
+
+      if (e.transcription) {
+        html += '<button data-target="' + transcriptId + '" onclick="toggleTranscript(this.dataset.target)" style="margin-top:8px;padding:4px 8px;border:none;background:var(--blue-subtle);color:var(--blue);border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;">Transkript anzeigen ▼</button>';
+        html += '<div id="' + transcriptId + '" style="display:none;margin-top:8px;padding:8px;background:var(--surface2);border-radius:6px;font-size:12px;">' + e.transcription + '</div>';
+      }
+
+      html += '</div>';
+    } else {
+      html += '<div style="margin-bottom:14px;"><strong>' + fmtDate(t) + ' ' + fmtTime(t) + ' Uhr</strong><div>Follow-up: Rückruf</div></div>';
+    }
+  });
+
+  html += '</div>';
+  return html;
+}
+
+function toggleTranscript(id){const e=document.getElementById(id);if(e)e.style.display=e.style.display==='none'?'block':'none';}
+function saveCallNotes(callId){ if(!authClient){showToast('⚠️ Authentifizierung erforderlich');return;} const notes=document.getElementById('call-detail-notes')?.value||''; authClient.from('calls').update({notes:notes}).eq('id',callId).then(r=>showToast(r.error?'⚠️ Fehler beim Speichern':'✓ Notiz gespeichert')); }
+function saveFollowUp(callId){ if(!authClient){showToast('⚠️ Authentifizierung erforderlich');return;} const call=state.calls?.find(c=>c.id===callId); if(!call){showToast('⚠️ Anruf nicht gefunden');return;} const callback=document.getElementById('followup-callback')?.checked; const email=document.getElementById('followup-email')?.checked; const task=document.getElementById('followup-task')?.checked; const dueDateInput=document.getElementById('followup-date')?.value; if(!callback&&!email&&!task){showToast('⚠️ Bitte mindestens eine Aktion wählen');return;} if(!dueDateInput){showToast('⚠️ Bitte Datum/Uhrzeit wählen');return;} const taskData={customer_id:call.customer_id,phone_number:call.phone_number,caller_name:call.caller_name,callback_requested:callback,email_requested:email,task_required:task,due_at:new Date(dueDateInput).toISOString(),notes:'',status:'open'}; authClient.from('customer_tasks').insert([taskData]).then(r=>{ if(r.error){showToast('⚠️ Fehler beim Speichern');} else {showToast('✓ Follow-up gespeichert'); ['followup-callback','followup-email','followup-task'].forEach(id=>document.getElementById(id).checked=false); document.getElementById('followup-date').value='';}}); }
 
 function toggleBrowserNotif() {
   if (!('Notification' in window)) { toast('Browser unterstützt keine Push-Benachrichtigungen.', 'warning'); return; }
