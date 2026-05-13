@@ -14007,7 +14007,7 @@ function updateBrowserNotifToggleUI() {
 }
 
 
-function showCallDetail(callId) {
+async function showCallDetail(callId) {
   console.log('[cd] open', callId);
   try {
     var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
@@ -14041,10 +14041,29 @@ function showCallDetail(callId) {
     console.log('[cd] page visible');
     
     // Render
-    loadAndRenderCallDetail(callId);
+    console.log('[cd] before render', callId);
+    try {
+      await loadAndRenderCallDetail(callId);
+      if (window._vxCurrentCallId === callId) {
+        console.log('[cd] render success', callId);
+      } else {
+        console.log('[cd] render stale ignored', callId, 'current=', window._vxCurrentCallId);
+      }
+    } catch (renderErr) {
+      console.error('[cd] render error', renderErr);
+      var errEl = document.getElementById('call-detail-content');
+      if (errEl) errEl.innerHTML = '<p style="color:#dc2626;padding:16px;">Fehler beim Rendern.</p>';
+      return;
+    }
     
     // Hash setzen
-    try { window.location.hash = '#call/' + callId; } catch(e) {}
+    try {
+      window._vxCallDetailSyncingHash = true;
+      window.location.hash = '#call/' + callId;
+      setTimeout(function(){ window._vxCallDetailSyncingHash = false; }, 0);
+    } catch(e) {
+      window._vxCallDetailSyncingHash = false;
+    }
     
     // ESC-Taste registrieren (einmal)
     if (!window._vxCallDetailEscBound) {
@@ -14069,14 +14088,38 @@ window.showCallDetail = showCallDetail;
 window.hideCallDetail = hideCallDetail;
 
 function hideCallDetail() {
+  console.log('[cd] hide start');
   var page = document.getElementById('call-detail-page');
+  var wrap = document.getElementById('call-detail-scroll-wrap');
+  var content = document.getElementById('call-detail-content');
+  var htmlEl = document.documentElement;
+  var bodyEl = document.body;
+  if (page) {
+    page.classList.remove('active');
+    page.classList.add('hidden');
+    page.style.pointerEvents = '';
+    page.scrollTop = 0;
+  }
+  if (wrap) wrap.scrollTop = 0;
   if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
   if (page) page.style.display = 'none';
+  if (content) {
+    content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
+  }
+  if (htmlEl) htmlEl.style.overflow = '';
+  if (bodyEl) bodyEl.style.overflow = '';
   window._vxCurrentCallId = null;
   // Clear hash but keep current tab
   if (window.location.hash.indexOf('#call/') === 0) {
-    try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch(e) {}
+    try {
+      window._vxCallDetailSyncingHash = true;
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      setTimeout(function(){ window._vxCallDetailSyncingHash = false; }, 0);
+    } catch(e) {
+      window._vxCallDetailSyncingHash = false;
+    }
   }
+  console.log('[cd] hide done');
 }
 
 async function buildCallHistory(phoneNumber) {
@@ -14177,9 +14220,11 @@ async function loadAndRenderCallDetail(callId) {
     var phoneForHistory = localCall.caller_phone || '';
     try {
       var history = phoneForHistory ? await buildCallHistory(phoneForHistory) : [];
+      if (window._vxCurrentCallId !== callId) return;
       renderCallDetailPage(localCall, history);
     } catch (err) {
       console.error('[call-detail] history error:', err);
+      if (window._vxCurrentCallId !== callId) return;
       renderCallDetailPage(localCall, []);
     }
     return;
@@ -14195,6 +14240,7 @@ async function loadAndRenderCallDetail(callId) {
     }
     const phoneNumber = call.caller_phone || call.phone_number || '';
     const history = phoneNumber ? await buildCallHistory(phoneNumber) : [];
+    if (window._vxCurrentCallId !== callId) return;
     renderCallDetailPage(call, history);
   } catch (error) {
     console.error('[call-detail] load error:', error);
@@ -18338,7 +18384,7 @@ window.addEventListener('popstate', function(event){
   if (window.location.hash.indexOf('#call/') !== 0) {
     var callDetailPage = document.getElementById('call-detail-page');
     if (callDetailPage && callDetailPage.style.display === 'block') {
-      callDetailPage.style.display = 'none';
+      if (typeof hideCallDetail === 'function') hideCallDetail();
     }
   }
   const requestedTab = getMainNavFromStateOrUrl(event && event.state);
@@ -18346,6 +18392,25 @@ window.addEventListener('popstate', function(event){
   const navEl = findTabNavElement(requestedTab);
   if (!navEl) return;
   showTab(requestedTab, navEl, { historyMode: 'none' });
+});
+
+window.addEventListener('hashchange', function() {
+  var hash = window.location.hash || '';
+  console.log('[cd] hash changed', hash);
+  if (window._vxCallDetailSyncingHash) return;
+  var page = document.getElementById('call-detail-page');
+  var isOpen = !!(page && page.style.display === 'block');
+  var m = hash.match(/^#call\/(.+)$/);
+  if (m && m[1]) {
+    var callIdFromHash = decodeURIComponent(m[1]);
+    if (!isOpen || window._vxCurrentCallId !== callIdFromHash) {
+      showCallDetail(callIdFromHash);
+    }
+    return;
+  }
+  if (!m && isOpen) {
+    hideCallDetail();
+  }
 });
 
 function filterList(listId, type, btn) {
