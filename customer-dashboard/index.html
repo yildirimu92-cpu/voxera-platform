@@ -8132,6 +8132,20 @@ let pendingFollowupStatus = '';
 let hasLoadedInitialRecords = false;
 let seenRecordIds = new Set();
 let recentIncomingIds = new Set();
+function getCallSeenStorageKey() {
+  var customerId = (customerMeta && customerMeta.customerId) ? String(customerMeta.customerId).trim() : 'global';
+  return 'voxera_seen_calls_' + customerId;
+}
+function getSeenCallIdsFromStorage() {
+  try { return new Set(JSON.parse(localStorage.getItem(getCallSeenStorageKey()) || '[]')); } catch(e) { return new Set(); }
+}
+function markVisibleCallsAsSeen(records) {
+  try {
+    var seen = getSeenCallIdsFromStorage();
+    (records || []).forEach(function(r) { if (r && r.id) seen.add(String(r.id)); });
+    localStorage.setItem(getCallSeenStorageKey(), JSON.stringify(Array.from(seen)));
+  } catch(e) {}
+}
 let dashPriorityExpanded = false;
 let _dashPriorityAllRecords = [];
 
@@ -8412,8 +8426,10 @@ function dprToggle(rowEl) {
 }
 
 function dprAction(action, recId, extra) {
+  var sourceRec = (typeof allRecords !== 'undefined' ? allRecords : []).find(function(r){ return r.id === recId; })
+    || (typeof allManualTaskRecords !== 'undefined' ? allManualTaskRecords : []).find(function(r){ return r.id === recId; });
+  var isManualSource = !!(sourceRec && isManualTaskRecord(sourceRec));
   if (action === 'call') {
-    var sourceRec = (typeof allRecords !== 'undefined' ? allRecords : []).find(function(r){ return r.id === recId; });
     var isArchived = sourceRec && isClosedStatus((sourceRec.fields||{}).dashboard_status);
     if (isArchived && sourceRec) {
       var f = sourceRec.fields || {};
@@ -8455,6 +8471,10 @@ function dprAction(action, recId, extra) {
     return;
   }
   if (action === 'followup') {
+    if (isManualSource) {
+      if (typeof showTaskDetail === 'function') showTaskDetail(recId);
+      return;
+    }
     if (typeof showCallDetail === 'function') {
       showCallDetail(recId);
       setTimeout(function() {
@@ -8473,6 +8493,7 @@ function dprAction(action, recId, extra) {
     return;
   }
   if (action === 'detail') {
+    if (isManualSource) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); return; }
     if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
     return;
@@ -8852,14 +8873,14 @@ function isOpenWorkItem(item) {
 function mapCallsToWorkItems(calls) {
   return (calls || []).map(function(rec) {
     var f = (rec && rec.fields) || {};
-    return { id: 'call:' + rec.id, source: 'call', record: rec, phone: normalizePhoneForMatch(f.caller_phone || f.phone_number || ''), dueAt: resolveTaskDueAt(f), createdAt: getRecordTimestamp(rec) || '', status: String(f.dashboard_status || ''), type: getFollowUpTaskType(rec) };
+    return { id: 'call:' + rec.id, source: 'call', entityType: 'call', entityId: rec.id, relatedCallId: null, record: rec, phone: normalizePhoneForMatch(f.caller_phone || f.phone_number || ''), dueAt: resolveTaskDueAt(f), createdAt: getRecordTimestamp(rec) || '', status: String(f.dashboard_status || ''), type: getFollowUpTaskType(rec) };
   });
 }
 
 function mapManualTasksToWorkItems(manualTasks) {
   return (manualTasks || []).map(function(task) {
     var f = (task && task.fields) || {};
-    return { id: 'manual:' + task.id, source: 'manual', record: task, phone: normalizePhoneForMatch(f.phone || f.caller_phone || f.phone_number || ''), dueAt: resolveTaskDueAt(f), createdAt: getRecordTimestamp(task) || '', status: String(f.status || f.dashboard_status || ''), type: String(f.type || '').toLowerCase() || 'task' };
+    return { id: 'manual:' + task.id, source: 'manual_task', entityType: 'manual_task', entityId: task.id, relatedCallId: String(f.related_call_id || f.call_id || f.origin_call_id || '').trim() || null, record: task, phone: normalizePhoneForMatch(f.phone || f.caller_phone || f.phone_number || ''), dueAt: resolveTaskDueAt(f), createdAt: getRecordTimestamp(task) || '', status: String(f.status || f.dashboard_status || ''), type: String(f.type || '').toLowerCase() || 'task' };
   });
 }
 
@@ -15612,12 +15633,12 @@ function renderDashboard(records, manualTasks) {
   var allTasks = (typeof allManualTaskRecords !== 'undefined' && allManualTaskRecords) ? allManualTaskRecords : [];
   var workItems = buildDashboardWorkItems(buckets.open || [], allTasks);
   var manualNow = workItems.filter(function(w) {
-    if (w.source !== 'manual') return false;
+    if (w.source !== 'manual_task') return false;
     var due = parseFollowUpDate(w.dueAt || '');
     return due && !Number.isNaN(due.getTime()) && due <= todayEnd;
   }).map(function(w){ return w.record; });
   var manualPlanned = workItems.filter(function(w) {
-    if (w.source !== 'manual') return false;
+    if (w.source !== 'manual_task') return false;
     var due = parseFollowUpDate(w.dueAt || '');
     return due && !Number.isNaN(due.getTime()) && due > todayEnd;
   }).map(function(w){ return w.record; });
@@ -15682,8 +15703,9 @@ function renderDashboard(records, manualTasks) {
   var mb1    = document.getElementById('mnav-badge-anrufe');
   var mb2    = document.getElementById('mnav-badge-rueckrufe');
   // Badge = nur neue, noch nicht gesehene Anrufe
+  var seenCalls = getSeenCallIdsFromStorage();
   var newCount = allOpen.filter(function(r) {
-    return normalizeStatus((r.fields||{}).dashboard_status) === CALL_STATUS.NEW;
+    return normalizeStatus((r.fields||{}).dashboard_status) === CALL_STATUS.NEW && !seenCalls.has(String(r.id));
   }).length;
   if (badgeA) { badgeA.textContent = newCount; badgeA.style.display = newCount > 0 ? '' : 'none'; }
   if (badgeR) { badgeR.style.display = 'none'; }
@@ -17503,16 +17525,56 @@ document.addEventListener('keydown', function(e) {
 });
 
 function escHtml(v){ return String(v||'').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+function getTaskTypeUiMeta(rawType) {
+  var type = String(rawType || '').toLowerCase();
+  if (type === 'callback' || type === 'rueckruf') return { label: 'Rückruf', primary: 'Anrufen' };
+  if (type === 'information' || type === 'offerte') return { label: 'Offerte', primary: 'Offerte vorbereiten' };
+  if (type === 'appointment' || type === 'termin') return { label: 'Termin', primary: 'Termin planen' };
+  return { label: 'Sonstiges', primary: 'Aufgabe öffnen' };
+}
+function showTaskDetail(taskId) {
+  var rec = (allManualTaskRecords || []).find(function(r) { return r.id === taskId; }) || (allRecords || []).find(function(r) { return r.id === taskId && isManualTaskRecord(r); });
+  if (!rec) return;
+  var f = rec.fields || {};
+  rememberOverlayFocusReturn('detail-overlay');
+  var meta = getTaskTypeUiMeta(f.type);
+  var phone = String(f.phone || f.phone_number || f.caller_phone || '').trim();
+  var tel = phone ? ('tel:' + phone.replace(/\s/g, '')) : '';
+  var relatedCallId = String(f.related_call_id || f.call_id || f.origin_call_id || '').trim();
+  var relatedCall = relatedCallId ? (allRecords || []).find(function(r) { return r.id === relatedCallId; }) : null;
+  var contact = String(f.caller_name || f.contact_name || f.company_name || f.title || 'Aufgabe').trim();
+  var dueLabel = fmtFollowUpDateTime(resolveTaskDueAt(f)) || 'Kein Termin';
+  var primaryLabel = meta.primary;
+  if (!phone && primaryLabel === 'Anrufen') primaryLabel = 'Erledigt markieren';
+  document.getElementById('detail-heading').textContent = contact;
+  document.getElementById('detail-sub').textContent = meta.label + ' · ' + statusLabel(f.dashboard_status || f.status || 'new');
+  document.getElementById('detail-content').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;"><span class="dpr-badge" style="color:#0D1F3C;background:#EEF2FF;border-color:#C7D7FA;">${escHtml(meta.label)}</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="detail-line"><span>Titel</span><span>${escHtml(f.title || '—')}</span></div>
+        <div class="detail-line"><span>Kontakt</span><span>${escHtml(contact)}</span></div>
+        <div class="detail-line"><span>Telefon</span><span>${escHtml(phone || '—')}</span></div>
+        <div class="detail-line"><span>Fälligkeit</span><span>${escHtml(dueLabel)}</span></div>
+        <div class="detail-line"><span>Status</span><span>${escHtml(statusLabel(f.dashboard_status || f.status || 'new'))}</span></div>
+      </div>
+      <div style="padding:12px 14px;background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;font-size:13px;line-height:1.55;color:var(--ink2);">${escHtml(f.note || f.notes || f.call_summary || 'Keine Notiz vorhanden.')}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:12px;border-top:0.5px solid var(--line);">
+        ${tel ? `<a class="btn btn--primary" href="${tel}" onclick="event.stopPropagation();directCall('${rec.id}','${encodeURIComponent(tel)}')">${escHtml(primaryLabel)}</a>` : `<button class="btn btn--primary" onclick="closeDetail();openManualTaskEditModal('${rec.id}')">${escHtml(primaryLabel)}</button>`}
+        <button class="btn btn--secondary" onclick="closeDetail();confirmTaskDone('${rec.id}', null, 'task-detail')">Erledigt</button>
+        <button class="btn btn--secondary" onclick="closeDetail();openManualTaskEditModal('${rec.id}')">Verschieben</button>
+        ${relatedCall ? `<button class="btn btn--secondary" onclick="closeDetail();showCallDetail('${relatedCall.id}')">Originalanruf öffnen</button>` : ''}
+      </div>
+    </div>`;
+  document.getElementById('detail-overlay').classList.add('open');
+  setOverlayAriaHidden('detail-overlay', false);
+  syncOverlayScrollLock();
+}
 function openDetail(recordId) {
-  // NEW: For real calls (not manual tasks), open the new Call-Detail page instead of the old modal
-  if (typeof showCallDetail === 'function') {
-    const rec = allRecords.find(r => r.id === recordId);
-    const isCall = rec && !isManualTaskRecord(rec);
-    if (isCall) {
-      showCallDetail(recordId);
-      return;
-    }
-  }
+  const recForRouting = allRecords.find(r => r.id === recordId) || allManualTaskRecords.find(r => r.id === recordId);
+  if (!recForRouting) return;
+  if (isManualTaskRecord(recForRouting)) { showTaskDetail(recordId); return; }
+  if (typeof showCallDetail === 'function') { showCallDetail(recordId); return; }
   rememberOverlayFocusReturn('detail-overlay');
   const rec = allRecords.find(r => r.id === recordId) || allManualTaskRecords.find(r => r.id === recordId);
   if (!rec) return;
@@ -18491,6 +18553,10 @@ function showTab(name, el, options) {
   if (mnav) mnav.classList.add('active');
   if (name === 'vertrag') renderVertrag();
   if (name === 'einrichtung') renderEinrichtungTab();
+  if (name === 'anrufe') {
+    markVisibleCallsAsSeen((allRecords || []).filter(function(r) { return !isClosedStatus(((r && r.fields) || {}).dashboard_status); }));
+    renderDashboard(allRecords || [], allManualTaskRecords || []);
+  }
   if (isMainNavHistoryTab(name)) {
     const mode = opts.historyMode || 'push';
     const shouldWrite = mode !== 'none' && (mode === 'replace' || previousTab !== name);
