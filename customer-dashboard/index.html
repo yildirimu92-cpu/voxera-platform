@@ -8854,6 +8854,50 @@ function resolveTaskDueAt(fields) {
   return resolveFollowUpAt(fields) || '';
 }
 
+function getTaskDueRaw(taskOrFields) {
+  var fields = (taskOrFields && taskOrFields.fields) ? taskOrFields.fields : (taskOrFields || {});
+  var dueAt = String(fields.due_at || '').trim();
+  if (dueAt) {
+    var dueTime = String(fields.due_time || fields.due_at_time || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dueAt) && /^\d{2}:\d{2}$/.test(dueTime)) return dueAt + 'T' + dueTime;
+    return dueAt;
+  }
+  return String(fields.follow_up_at || fields.followup_at || fields.followUpAt || fields.follow_up || '').trim();
+}
+
+function parseTaskDueAt(taskOrFields) {
+  var raw = getTaskDueRaw(taskOrFields);
+  if (!raw) return null;
+  var d = parseFollowUpDate(raw);
+  return (d && !Number.isNaN(d.getTime())) ? d : null;
+}
+
+function formatTaskDueLabel(taskOrFields, options) {
+  var opts = options || {};
+  var due = parseTaskDueAt(taskOrFields);
+  if (!due) return opts.emptyLabel || 'Ohne Fälligkeit';
+  var now = opts.now instanceof Date ? opts.now : new Date();
+  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var tomorrowStart = new Date(todayStart.getTime() + 86400000);
+  var dayAfterTomorrowStart = new Date(todayStart.getTime() + 172800000);
+  var timeLabel = formatTimeCH(due);
+  if (due.getTime() < now.getTime()) {
+    if (due >= todayStart && due < tomorrowStart) return 'Überfällig seit ' + timeLabel;
+    return 'Überfällig seit ' + formatDateShortCH(due) + ', ' + timeLabel;
+  }
+  if (due >= todayStart && due < tomorrowStart) return 'Heute, ' + timeLabel;
+  if (due >= tomorrowStart && due < dayAfterTomorrowStart) return 'Morgen, ' + timeLabel;
+  return formatDateShortCH(due) + ', ' + timeLabel;
+}
+
+function getOpenTaskCount() {
+  var closed = new Set(['closed','resolved','completed','done','cancelled','archived','deleted']);
+  return (allManualTaskRecords || []).filter(function(rec){
+    var status = String((((rec||{}).fields||{}).status || '').trim().toLowerCase());
+    return !closed.has(status);
+  }).length;
+}
+
 function normalizePhoneForMatch(phone) {
   var raw = String(phone || '').trim();
   if (!raw) return '';
@@ -9007,24 +9051,7 @@ function getFollowUpBadgeState(record, now) {
 }
 
 function formatFollowUpDueLabel(record, now) {
-  const f = (record && record.fields) || record || {};
-  const followUpAt = resolveTaskDueAt(f);
-  const due = parseFollowUpDate(followUpAt);
-  if (!due || Number.isNaN(due.getTime())) return '';
-  const currentNow = now instanceof Date ? now : new Date();
-  const todayStart = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate());
-  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
-  const dayAfterTomorrowStart = new Date(todayStart.getTime() + (2 * 86400000));
-  const dueTs = due.getTime();
-  const nowTs = currentNow.getTime();
-  const timeLabel = formatTimeCH(due);
-  if (dueTs < nowTs) {
-    if (due >= todayStart && due < tomorrowStart) return 'Überfällig seit ' + timeLabel;
-    return 'Überfällig seit ' + formatDateShortCH(due) + ', ' + timeLabel;
-  }
-  if (due >= todayStart && due < tomorrowStart) return 'Heute, ' + timeLabel;
-  if (due >= tomorrowStart && due < dayAfterTomorrowStart) return 'Morgen, ' + timeLabel;
-  return formatDateShortCH(due) + ', ' + timeLabel;
+  return formatTaskDueLabel(record, { now: now, emptyLabel: '' });
 }
 
 function compareFollowUpPriority(a, b, now) {
@@ -12737,7 +12764,7 @@ function updateDashboardHeaderMeta() {
   if (!sub) return;
   var buckets = deriveDashboardCallBuckets(allRecords || []);
   var openCalls = buckets.open.length;
-  var openCallbacks = buckets.callbacks.length;
+  var openCallbacks = getOpenTaskCount();
   var now2 = new Date();
   var days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
   var months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -15683,9 +15710,9 @@ function renderDashboard(records, manualTasks) {
   renderDashPriorityList();
   var moreBtn = document.getElementById('dash-recent-more');
   if (moreBtn) {
-    if (!dashPriorityExpanded && priorityRecords.length > 5) {
+    if (!dashPriorityExpanded && _dashPriorityAllRecords.length > 5) {
       moreBtn.style.display = 'block';
-      moreBtn.textContent = 'Alle ' + priorityRecords.length + ' Anfragen anzeigen';
+      moreBtn.textContent = 'Alle ' + _dashPriorityAllRecords.length + ' Anfragen anzeigen';
     } else {
       moreBtn.style.display = 'none';
     }
@@ -17543,16 +17570,15 @@ function showTaskDetail(taskId) {
   var relatedCallId = String(f.related_call_id || f.call_id || f.origin_call_id || '').trim();
   var relatedCall = relatedCallId ? (allRecords || []).find(function(r) { return r.id === relatedCallId; }) : null;
   var contact = String(f.caller_name || f.contact_name || f.company_name || f.title || 'Aufgabe').trim();
-  var dueLabel = fmtFollowUpDateTime(resolveTaskDueAt(f)) || 'Kein Termin';
+  var dueLabel = formatTaskDueLabel(f);
   var primaryLabel = meta.primary;
   if (!phone && primaryLabel === 'Anrufen') primaryLabel = 'Erledigt markieren';
-  document.getElementById('detail-heading').textContent = contact;
-  document.getElementById('detail-sub').textContent = meta.label + ' · ' + statusLabel(f.dashboard_status || f.status || 'new');
+  document.getElementById('detail-heading').textContent = (meta.label === 'Offerte' ? 'Offerte senden' : (meta.label === 'Sonstiges' ? 'Aufgabe' : meta.label));
+  document.getElementById('detail-sub').textContent = contact + ' · ' + statusLabel(f.dashboard_status || f.status || 'new');
   document.getElementById('detail-content').innerHTML = `
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div style="display:flex;flex-wrap:wrap;gap:6px;"><span class="dpr-badge" style="color:#0D1F3C;background:#EEF2FF;border-color:#C7D7FA;">${escHtml(meta.label)}</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div class="detail-line"><span>Titel</span><span>${escHtml(f.title || '—')}</span></div>
         <div class="detail-line"><span>Kontakt</span><span>${escHtml(contact)}</span></div>
         <div class="detail-line"><span>Telefon</span><span>${escHtml(phone || '—')}</span></div>
         <div class="detail-line"><span>Fälligkeit</span><span>${escHtml(dueLabel)}</span></div>
