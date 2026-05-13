@@ -8833,6 +8833,63 @@ function resolveTaskDueAt(fields) {
   return resolveFollowUpAt(fields) || '';
 }
 
+function normalizePhoneForMatch(phone) {
+  var raw = String(phone || '').trim();
+  if (!raw) return '';
+  var digits = raw.replace(/[^\d]/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('0041')) digits = '41' + digits.slice(4);
+  if (digits.startsWith('41') && digits.length > 9) digits = '0' + digits.slice(2);
+  return digits;
+}
+
+function isOpenWorkItem(item) {
+  var status = String((item && item.status) || '').trim().toLowerCase();
+  if (!status) return true;
+  return !['closed', 'resolved', 'completed', 'done'].includes(status);
+}
+
+function mapCallsToWorkItems(calls) {
+  return (calls || []).map(function(rec) {
+    var f = (rec && rec.fields) || {};
+    return { id: 'call:' + rec.id, source: 'call', record: rec, phone: normalizePhoneForMatch(f.caller_phone || f.phone_number || ''), dueAt: resolveTaskDueAt(f), createdAt: getRecordTimestamp(rec) || '', status: String(f.dashboard_status || ''), type: getFollowUpTaskType(rec) };
+  });
+}
+
+function mapManualTasksToWorkItems(manualTasks) {
+  return (manualTasks || []).map(function(task) {
+    var f = (task && task.fields) || {};
+    return { id: 'manual:' + task.id, source: 'manual', record: task, phone: normalizePhoneForMatch(f.phone || f.caller_phone || f.phone_number || ''), dueAt: resolveTaskDueAt(f), createdAt: getRecordTimestamp(task) || '', status: String(f.status || f.dashboard_status || ''), type: String(f.type || '').toLowerCase() || 'task' };
+  });
+}
+
+function sortWorkItemsByOperationalPriority(items) {
+  var now = new Date();
+  return [...(items || [])].sort(function(a, b) {
+    function rank(it) {
+      var d = parseFollowUpDate(it.dueAt || '');
+      if (!d || Number.isNaN(d.getTime())) return 4;
+      var ts = d.getTime();
+      var dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      var nextDay = dayStart + 86400000;
+      if (ts < now.getTime()) return 0;
+      if (ts < nextDay) return 1;
+      return 2;
+    }
+    var ar = rank(a), br = rank(b);
+    if (ar !== br) return ar - br;
+    var ad = parseFollowUpDate(a.dueAt || ''); var bd = parseFollowUpDate(b.dueAt || '');
+    var at = ad && !Number.isNaN(ad.getTime()) ? ad.getTime() : Number.MAX_SAFE_INTEGER;
+    var bt = bd && !Number.isNaN(bd.getTime()) ? bd.getTime() : Number.MAX_SAFE_INTEGER;
+    if (at !== bt) return at - bt;
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+}
+
+function buildDashboardWorkItems(calls, manualTasks) {
+  return sortWorkItemsByOperationalPriority([].concat(mapCallsToWorkItems(calls), mapManualTasksToWorkItems(manualTasks)).filter(isOpenWorkItem));
+}
+
 // ─── Follow-up Badge: offener Follow-up für diesen Anruf ───────────────────
 function getOpenFollowupForRecord(record) {
   var phone = (record && record.fields) ? (record.fields.caller_phone || record.fields.phone_number || '') : '';
@@ -8841,8 +8898,7 @@ function getOpenFollowupForRecord(record) {
   return tasks.find(function(t) {
     var tf = t.fields || {};
     var status = String(tf.status || '').toLowerCase();
-    var isDone = status === 'closed' || status === 'resolved' || status === 'completed';
-    return tf.phone === phone && !isDone;
+    return normalizePhoneForMatch(tf.phone) === normalizePhoneForMatch(phone) && isOpenWorkItem({ status: status });
   }) || null;
 }
 
@@ -14709,8 +14765,17 @@ function saveFollowUpV2(callId) {
     phone: f.caller_phone || f.phone_number || ''
   };
 
-  createManualTask(payload).then(function() {
+  createManualTask(payload).then(function(created) {
+    if (!Array.isArray(allManualTaskRecords)) allManualTaskRecords = [];
+    if (created && created.id) {
+      var exists = allManualTaskRecords.some(function(r) { return String(r.id) === String(created.id); });
+      if (!exists) allManualTaskRecords.unshift(created);
+    }
+    renderDashboard(allRecords, allManualTaskRecords);
+    renderAnrufe(allRecords);
+    renderRueckrufe(allRecords, allManualTaskRecords);
     toast('Follow-up gespeichert', 'success');
+    setTimeout(function() { toast('Zu Heute wichtig wechseln', 'info'); }, 250);
     // Detail schließen und Daten neu laden
     if (typeof hideCallDetail === 'function') hideCallDetail();
     var navEl = document.getElementById('nav-anrufe');
@@ -15544,26 +15609,18 @@ function renderDashboard(records, manualTasks) {
   var todayStart = new Date(priorityNow.getFullYear(), priorityNow.getMonth(), priorityNow.getDate());
   var todayEnd = new Date(todayStart.getTime() + 86400000);
 
-  // ─── Manual Follow-ups (aus customer_tasks) für Heute-Tab ───────────────
-  // Finde alle Anrufe die einen fälligen oder überfälligen Manual-Follow-up haben
-  var manualFollowupCallIds = new Set();
   var allTasks = (typeof allManualTaskRecords !== 'undefined' && allManualTaskRecords) ? allManualTaskRecords : [];
-  allTasks.forEach(function(t) {
-    var tf = t.fields || {};
-    if (tf.status === 'completed' || tf.status === 'closed') return;
-    if (!tf.due_at) return;
-    var due = new Date(tf.due_at);
-    if (due <= todayEnd) { // fällig heute oder überfällig
-      // Finde passenden Call anhand phone
-      if (tf.phone) {
-        var matchingCall = (buckets.open || []).find(function(r) {
-          var f2 = r.fields || {};
-          return (f2.caller_phone || f2.phone_number) === tf.phone;
-        });
-        if (matchingCall) manualFollowupCallIds.add(matchingCall.id);
-      }
-    }
-  });
+  var workItems = buildDashboardWorkItems(buckets.open || [], allTasks);
+  var manualNow = workItems.filter(function(w) {
+    if (w.source !== 'manual') return false;
+    var due = parseFollowUpDate(w.dueAt || '');
+    return due && !Number.isNaN(due.getTime()) && due <= todayEnd;
+  }).map(function(w){ return w.record; });
+  var manualPlanned = workItems.filter(function(w) {
+    if (w.source !== 'manual') return false;
+    var due = parseFollowUpDate(w.dueAt || '');
+    return due && !Number.isNaN(due.getTime()) && due > todayEnd;
+  }).map(function(w){ return w.record; });
   var priorityRecords = buckets.open
     .filter(function(r){ return !isLiveMatch || !isLiveMatch(r); })
     .filter(function(r){
@@ -15576,7 +15633,7 @@ function renderDashboard(records, manualTasks) {
       var isUrgent = getPriority(r).key === 'urgent';
       if (hasDatedFollowUp && badgeState === 'planned') return false;
       if (state === 'processing') return isCallback || isUrgent || badgeState === 'overdue' || badgeState === 'today';
-      return isCallback || isUrgent || badgeState === 'overdue' || badgeState === 'today' || normalizeStatus(f.dashboard_status) === CALL_STATUS.NEW || manualFollowupCallIds.has(r.id);
+      return isCallback || isUrgent || badgeState === 'overdue' || badgeState === 'today' || normalizeStatus(f.dashboard_status) === CALL_STATUS.NEW;
     })
     .filter(function(r){ return !isClosedStatus(((r && r.fields) || {}).dashboard_status); })
     .sort(function(a, b) {
@@ -15588,34 +15645,20 @@ function renderDashboard(records, manualTasks) {
       var bCallback = getFollowUpTaskType(b) === 'callback';
       var aUrgent = getPriority(a).key === 'urgent';
       var bUrgent = getPriority(b).key === 'urgent';
-      function rank(badge, callback, urgent, hasManualFollowup) {
-        if (badge === 'overdue' || hasManualFollowup === 'overdue') return 0;
-        if (badge === 'today' || hasManualFollowup === 'today') return 1;
+      function rank(badge, callback, urgent) {
+        if (badge === 'overdue') return 0;
+        if (badge === 'today') return 1;
         if (callback && badge === 'generic') return 2;
         if (urgent) return 3;
         return 4;
       }
-      function getManualFollowupRank(r) {
-        if (!manualFollowupCallIds.has(r.id)) return null;
-        var tf2 = allTasks.find(function(t) {
-          var tf3 = t.fields || {};
-          var f2 = r.fields || {};
-          return tf3.phone === (f2.caller_phone || f2.phone_number) && tf3.status !== 'completed';
-        });
-        if (!tf2) return null;
-        var due2 = tf2.fields && tf2.fields.due_at ? new Date(tf2.fields.due_at) : null;
-        if (!due2) return null;
-        return due2 < todayStart ? 'overdue' : 'today';
-      }
-      var aManual = getManualFollowupRank(a);
-      var bManual = getManualFollowupRank(b);
-      var ar = rank(aBadge, aCallback, aUrgent, aManual);
-      var br = rank(bBadge, bCallback, bUrgent, bManual);
+      var ar = rank(aBadge, aCallback, aUrgent);
+      var br = rank(bBadge, bCallback, bUrgent);
       if (ar !== br) return ar - br;
       if (ar <= 1) return compareFollowUpPriority(a, b, priorityNow);
       return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
     });
-  _dashPriorityAllRecords = priorityRecords;
+  _dashPriorityAllRecords = manualNow.concat(priorityRecords, manualPlanned);
   renderDashPriorityList();
   var moreBtn = document.getElementById('dash-recent-more');
   if (moreBtn) {
@@ -16116,6 +16159,7 @@ function renderAnrufeInbox(containerId, records) {
       var isLiveCall = displayState === 'live';
       var isProcessingCall = displayState === 'processing';
       var isShortAbandonedCall = displayState === 'short_abandoned';
+      var openManualFollowup = getOpenFollowupForRecord(rec);
       var ts = getRecordTimestamp(rec);
       var timeStr = ts ? (function(d){ return d ? formatTimeCH(d) : ''; })(parseCallTimestamp(ts)) : '';
       var initials = name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
@@ -16138,6 +16182,13 @@ function renderAnrufeInbox(containerId, records) {
       else if (followState === 'today') html += '<span class="dpr-badge dpr-badge-amber">Heute</span>';
       else if (followState === 'planned') html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">Geplant</span>';
       else if (resolveFollowUpAt(f)) html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">Nachfassen</span>';
+      if (openManualFollowup) {
+        var mf = openManualFollowup.fields || {};
+        var lblMap = { callback: 'Rückruf', offerte: 'Offerte', information: 'Offerte', termin: 'Termin', appointment: 'Termin', task: 'Aufgabe', general: 'Aufgabe' };
+        var fType = lblMap[String(mf.type || '').toLowerCase()] || 'Follow-up';
+        var dueLbl = fmtFollowUpDateTime(resolveTaskDueAt(mf)).replace(',', '');
+        html += '<span class="dpr-badge" style="color:#1D4ED8;background:#EFF6FF;border-color:#BFDBFE;">' + _esc(fType + (dueLbl ? ' · ' + dueLbl : '')) + '</span>';
+      }
       if (isLiveCall) html += '<span class="dpr-badge" style="color:#ef4444;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);">LIVE</span>';
       if (isProcessingCall) html += '<span class="dpr-badge" style="color:#2563EB;background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.35);">Wird verarbeitet</span>';
       if (isShortAbandonedCall) html += '<span class="dpr-badge" style="color:#475569;background:rgba(71,85,105,.1);border-color:rgba(71,85,105,.25);">Kurzer Anruf</span>';
