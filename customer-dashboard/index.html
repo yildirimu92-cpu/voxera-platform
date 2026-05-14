@@ -6182,49 +6182,26 @@ body,.main{background:var(--vx-bg);}
 
         <!-- ANFRAGEN TAB -->
         <div class="tab-page" id="tab-anrufe">
-          <!-- Page Header -->
-          <div class="vx-page-header">
-            <div class="vx-page-header-title">Anfragen</div>
-            <div class="vx-page-header-sub" style="font-size:12px;color:rgba(255,255,255,.55);margin-top:4px;">Von Lara entgegengenommene Kontakte und deren Bearbeitungsstatus.</div>
-            <div class="vx-page-header-action">
-              <button onclick="openManualTaskModal()" style="height:34px;padding:0 14px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
-                <i class="ph-bold ph-plus"  style="font-size:14px;" aria-hidden="true"></i>
-                Manuelle Anfrage
-              </button>
+          <div id="anrufe-split" style="display:grid;grid-template-columns:220px 1fr;height:calc(100vh - 48px);background:#fff;border-radius:16px;border:0.5px solid #E4E8F0;overflow:hidden;">
+            <div id="anrufe-split-left" style="background:#F7F8FA;border-right:0.5px solid #E4E8F0;display:flex;flex-direction:column;overflow:hidden;">
+              <div class="sp-night" style="background:#0D1F3C;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;">
+                <div><div style="font-size:13px;font-weight:700;color:#fff;">Anfragen</div><div id="anrufe-split-count">–</div></div>
+                <button onclick="openManualTaskModal()" style="height:30px;padding:0 12px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;"><i class="ph-bold ph-plus" style="font-size:13px;"></i>Neu</button>
+              </div>
+              <div style="display:flex;gap:4px;padding:10px 12px;border-bottom:0.5px solid #E4E8F0;flex-shrink:0;">
+                <button class="vxfb-chip vxfb-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)" style="height:24px;padding:0 10px;border-radius:999px;font-size:10px;font-weight:700;">Offen</button>
+                <button class="vxfb-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)" style="height:24px;padding:0 10px;border-radius:999px;font-size:10px;font-weight:700;">Erledigt</button>
+                <button class="vxfb-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)" style="height:24px;padding:0 10px;border-radius:999px;font-size:10px;font-weight:700;">Archiv</button>
+              </div>
+              <div style="padding:8px 12px;border-bottom:0.5px solid #E4E8F0;flex-shrink:0;"><div class="vxfb-search-box" id="fb-anrufe-searchbox" style="position:relative;"><i class="ph-bold ph-magnifying-glass vxfb-search-icon"></i><input class="vxfb-search-input" id="fb-anrufe-input" placeholder="Suchen…" oninput="vxFbSearch('anrufe',this.value)" onkeydown="if(event.key==='Escape'){vxFbClearSearch('anrufe');}"><button class="vxfb-search-clear" id="fb-anrufe-clear" onclick="vxFbClearSearch('anrufe')" style="display:none;"><i class="ph-bold ph-x"></i></button></div></div>
+              <div id="anrufe-sub-offen" style="flex:1;overflow-y:auto;"><div class="call-list" id="anrufe-list"></div></div>
+            </div>
+            <div id="anrufe-split-right" style="display:flex;flex-direction:column;overflow:hidden;">
+              <div id="anrufe-split-empty" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#7A8599;"><i class="ph-bold ph-arrow-left" style="font-size:24px;opacity:.35;"></i><div style="font-size:13px;">Anfrage auswählen</div></div>
+              <div id="anrufe-split-detail" style="flex:1;display:none;flex-direction:column;overflow:hidden;"></div>
             </div>
           </div>
-          <!-- Suche -->
-          <div class="vxfb-search-row" style="margin-bottom:10px;">
-            <div class="vxfb-search-box" id="fb-anrufe-searchbox">
-              <i class="ph-bold ph-magnifying-glass vxfb-search-icon" aria-hidden="true"></i>
-              <input class="vxfb-search-input" id="fb-anrufe-input" placeholder="Name, Nummer oder Stichwort…" oninput="vxFbSearch('anrufe',this.value)" onkeydown="if(event.key==='Escape'){vxFbClearSearch('anrufe');}">
-              <button class="vxfb-search-clear" id="fb-anrufe-clear" onclick="vxFbClearSearch('anrufe')" style="display:none;" aria-label="Suche leeren">
-                <i class="ph-bold ph-x" ></i>
-              </button>
-            </div>
-            <span class="vxfb-result-count" id="fb-anrufe-count" style="display:none;"></span>
-          </div>
-          <!-- Filter Chips -->
-          <div class="vxfb-filter-row" style="margin-bottom:14px;">
-            <div class="vxfb-chips">
-              <button class="vxfb-chip" data-filter="alle" onclick="anrufeChipFilter('alle',this)">Alle</button>
-              <button class="vxfb-chip vxfb-chip--active" data-filter="neu" onclick="anrufeChipFilter('neu',this)">Neu</button>
-              <button class="vxfb-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
-              <button class="vxfb-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
-              <button class="vxfb-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiv</button>
-            </div>
-          </div>
-
-          <!-- Offen sub-tab -->
-          <div id="anrufe-sub-offen">
-          <div class="call-list" id="anrufe-list"></div>
-          </div><!-- end anrufe-sub-offen -->
-
-
-
         </div>
-
-
 
         <!-- AUSWERTUNG TAB -->
         <div class="tab-page" id="tab-auswertung">
@@ -8827,6 +8804,26 @@ function renderDashPriorityList() {
 
   el.innerHTML = html;
 
+  el.querySelectorAll('.dpr-card').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('.dpr-btn, .va-exp-panel, button')) return;
+      var recId = card.dataset.id;
+      if (!recId) return;
+      var isMobile = window.innerWidth < 768;
+      if (!isMobile && typeof vxSplitShowDetail === 'function') {
+        e.stopPropagation();
+        vxSplitShowDetail(recId);
+      }
+    });
+  });
+
+  var countEl = document.getElementById('anrufe-split-count');
+  if (countEl) {
+    var openCount = (allRecords || []).filter(function(r){ return !vxInquiryIsCompleted(r) && !vxInquiryIsArchived(r); }).length;
+    var doneCount = (allRecords || []).filter(function(r){ return vxInquiryIsCompleted(r); }).length;
+    countEl.textContent = openCount + ' offen · ' + doneCount + ' erledigt';
+  }
+
   // [PATCH v2.31 — expanded Panels isolieren]
   el.querySelectorAll('.va-exp-panel').forEach(function(panel) {
     panel.addEventListener('click', function(e) { e.stopPropagation(); }, true);
@@ -9095,6 +9092,10 @@ function dprAction(action, recId, extra) {
     return;
   }
   if (action === 'detail' || action === 'edit') {
+    var splitRight = document.getElementById('anrufe-split-right');
+    if (splitRight && splitRight.offsetParent !== null) {
+      if (typeof vxSplitShowDetail === 'function') { vxSplitShowDetail(recId); return; }
+    }
     if (isManualSource) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); return; }
     if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
@@ -11227,6 +11228,7 @@ function vxInquiryFilterEmptyText(filter) {
 }
 // ── Anrufe Sub-Tab Switcher ──────────────────────────────────────────────────
 function anrufeChipFilter(filter, btn) {
+  if (typeof vxSplitClearDetail === 'function') vxSplitClearDetail();
   _anrufeFilter = filter || 'alle';
   document.querySelectorAll('#tab-anrufe .vxfb-chip').forEach(function(c) {
     c.classList.remove('vxfb-chip--active');
@@ -17429,8 +17431,42 @@ function renderList(containerId, records, opts) {
   refreshLucideIcons();
 }
 
+
+function vxSplitClearDetail() {
+  var empty = document.getElementById('anrufe-split-empty');
+  var detail = document.getElementById('anrufe-split-detail');
+  if (empty) empty.style.display = '';
+  if (detail) { detail.style.display = 'none'; detail.innerHTML = ''; }
+  document.querySelectorAll('#anrufe-list .dpr-card.sp-active').forEach(function(c){ c.classList.remove('sp-active'); });
+}
+
+function vxSplitShowDetail(recordId) {
+  var rec = (allRecords || []).find(function(r){ return String(r.id) === String(recordId); }) || (allManualTaskRecords || []).find(function(r){ return String(r.id) === String(recordId); });
+  if (!rec) return;
+  if (window.innerWidth < 768) {
+    if (isManualTaskRecord(rec) && typeof showTaskDetail === 'function') { showTaskDetail(recordId); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recordId); return; }
+    return;
+  }
+  var empty = document.getElementById('anrufe-split-empty');
+  var detail = document.getElementById('anrufe-split-detail');
+  if (!detail) return;
+  document.querySelectorAll('#anrufe-list .dpr-card').forEach(function(c){ c.classList.toggle('sp-active', String(c.dataset.id) === String(recordId)); });
+  var f = rec.fields || {};
+  var phone = f.phone || f.caller_phone || f.tel_link || '';
+  var name = f.caller_name || f.name || phone || 'Unbekannt';
+  var summary = String(f.call_summary || f.summary || f.note || f.notes || '').trim();
+  detail.innerHTML = '<div style="padding:16px 20px;border-bottom:0.5px solid #E4E8F0;font-size:18px;font-weight:800;color:#1A1A2E;">'+_esc(name)+'</div>'+
+    '<div style="padding:16px 20px;overflow:auto;flex:1;">'+
+    (phone?'<div style="font-size:12px;color:#1A6FE8;margin-bottom:10px;">'+_esc(phone)+'</div>':'')+
+    '<div style="font-size:13px;color:#37415A;line-height:1.6;">'+_esc(summary || 'Keine Zusammenfassung vorhanden.')+'</div></div>'+
+    '<div style="padding:12px 20px;border-top:0.5px solid #E4E8F0;"><button type="button" class="btn dpr-btn" data-action="detail" data-rec-id="'+_esc(String(rec.id))+'" style="height:38px;background:#1A6FE8;border:none;border-radius:9px;color:#fff;font-size:12px;font-weight:600;padding:0 12px;">Vollansicht öffnen</button></div>';
+  detail.style.display = 'flex';
+  if (empty) empty.style.display = 'none';
+  setTimeout(function(){ if (typeof vxDv2LoadHistory === 'function') vxDv2LoadHistory(recordId, phone); }, 80);
+}
 function renderAnrufe(records) {
-  var filter = _anrufeFilter || 'alle';
+  var filter = _anrufeFilter || 'offen';
   var source = (records || []).filter(function(r) { return r && !isManualTaskRecord(r); });
   var filtered = source.filter(function(r) { return vxInquiryMatchesFilter(r, filter); });
   var sorted = applySortToRecords(filtered, _anrufeSort);
@@ -17441,7 +17477,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   var el = document.getElementById(containerId);
   if (!el) return;
   el.classList.add('dpr-command-center');
-  var filter = activeFilter || _anrufeFilter || 'alle';
+  var filter = activeFilter || _anrufeFilter || 'offen';
 
   if (!records || records.length === 0) {
     el.innerHTML = '<div style="padding:24px 20px;text-align:center;color:var(--slate2);font-size:13px;background:#fff;border-radius:0 0 14px 14px;">' +
@@ -17629,6 +17665,26 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   });
   el.innerHTML = html;
 
+  el.querySelectorAll('.dpr-card').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('.dpr-btn, .va-exp-panel, button')) return;
+      var recId = card.dataset.id;
+      if (!recId) return;
+      var isMobile = window.innerWidth < 768;
+      if (!isMobile && typeof vxSplitShowDetail === 'function') {
+        e.stopPropagation();
+        vxSplitShowDetail(recId);
+      }
+    });
+  });
+
+  var countEl = document.getElementById('anrufe-split-count');
+  if (countEl) {
+    var openCount = (allRecords || []).filter(function(r){ return !vxInquiryIsCompleted(r) && !vxInquiryIsArchived(r); }).length;
+    var doneCount = (allRecords || []).filter(function(r){ return vxInquiryIsCompleted(r); }).length;
+    countEl.textContent = openCount + ' offen · ' + doneCount + ' erledigt';
+  }
+
   // [PATCH v2.31 — expanded Panels isolieren]
   el.querySelectorAll('.va-exp-panel').forEach(function(panel) {
     panel.addEventListener('click', function(e) { e.stopPropagation(); }, true);
@@ -17695,7 +17751,7 @@ var _focusModeActive = false;
 
 var _archivFilter = 'all';
 var _archivAllDone = [];
-var _anrufeFilter = 'neu';
+var _anrufeFilter = 'offen';
 var _rueckrufeFilter = 'alle';
 var _anrufeSort = 'datum-neu';
 var _rueckrufeSort = 'datum-neu';
@@ -17886,6 +17942,26 @@ function renderArchivInbox(containerId, records) {
   });
 
   el.innerHTML = html;
+
+  el.querySelectorAll('.dpr-card').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('.dpr-btn, .va-exp-panel, button')) return;
+      var recId = card.dataset.id;
+      if (!recId) return;
+      var isMobile = window.innerWidth < 768;
+      if (!isMobile && typeof vxSplitShowDetail === 'function') {
+        e.stopPropagation();
+        vxSplitShowDetail(recId);
+      }
+    });
+  });
+
+  var countEl = document.getElementById('anrufe-split-count');
+  if (countEl) {
+    var openCount = (allRecords || []).filter(function(r){ return !vxInquiryIsCompleted(r) && !vxInquiryIsArchived(r); }).length;
+    var doneCount = (allRecords || []).filter(function(r){ return vxInquiryIsCompleted(r); }).length;
+    countEl.textContent = openCount + ' offen · ' + doneCount + ' erledigt';
+  }
 
   // [PATCH v2.31 — expanded Panels isolieren]
   el.querySelectorAll('.va-exp-panel').forEach(function(panel) {
@@ -20401,7 +20477,7 @@ function showTab(name, el, options) {
   
   const previousTab = getCurrentTabName();
   if (previousTab === 'dashboard' && name !== 'dashboard') dashRecentExpanded = false;
-  if (previousTab === 'anrufe' && name !== 'anrufe') { _anrufeFilter = 'neu'; }
+  if (previousTab === 'anrufe' && name !== 'anrufe') { _anrufeFilter = 'offen'; }
   if (name === 'assistent') { setTimeout(loadAssistentRequests, 100); }
   if (previousTab === 'rueckrufe' && name !== 'rueckrufe') { _rueckrufeFilter = 'alle'; }
   closeUserMenu();
@@ -29135,6 +29211,20 @@ button.vx-cd-qa-success:hover,
   font-weight: 600 !important;
   justify-content: center !important;
 }
+
+.sp-active .dpr-row { background: rgba(26,111,232,.04); }
+.sp-active { border-left: 3px solid #1A6FE8 !important; }
+.vx-zone-label { font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#7A8599;margin-bottom:10px;display:flex;align-items:center;gap:8px; }
+.vx-zone-line { flex:1;height:0.5px;background:#E4E8F0; }
+.vx-focus-header { background:#0D1F3C; }
+#anrufe-split-count { font-size:10px;color:rgba(255,255,255,.35);margin-top:2px; }
+@media (max-width: 767px) {
+  #anrufe-split { grid-template-columns:1fr !important; height:auto !important; }
+  #anrufe-split-right { display:none !important; }
+}
+html[data-theme="dark"] #anrufe-split-left { background: var(--surface2); }
+html[data-theme="dark"] #anrufe-split { background: var(--surface); border-color: var(--line2); }
+html[data-theme="dark"] .sp-active { background: rgba(26,111,232,.08); }
 </style>
 
 
