@@ -6147,6 +6147,9 @@ body,.main{background:var(--vx-bg);}
               </div>
             </div>
 
+            <!-- Zone 2: Focus-Card -->
+            <div id="dash-focus-zone" style="margin-bottom:24px;"></div>
+
             <!-- JETZT WICHTIG — Fokus-Karte + Card-Stack -->
             <div id="dash-priority-section" style="margin-bottom:14px;border-radius:var(--r-lg);overflow:hidden;border:0.5px solid var(--line);box-shadow:var(--shadow-card);">
               <div style="background:#0D1F3C;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:14px 14px 0 0;">
@@ -8692,6 +8695,12 @@ function vxBuildExpPanel(opts) {
 window.vxBuildExpPanel = vxBuildExpPanel;
 
 
+
+
+function renderDashFocusCard() {
+  var el = document.getElementById('dash-focus-zone');
+  if (!el) return;
+}
 
 function renderDashPriorityList() {
   var el = document.getElementById('dash-priority-list');
@@ -17010,6 +17019,7 @@ function renderDashboard(records, manualTasks) {
     return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
   });
   renderDashPriorityList();
+  renderDashFocusCard();
   var moreBtn = document.getElementById('dash-recent-more');
   if (moreBtn) {
     if (!dashPriorityExpanded && _dashPriorityAllRecords.length > 5) {
