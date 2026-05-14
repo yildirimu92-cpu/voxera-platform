@@ -15358,8 +15358,7 @@ function showCallDetail(callId) {
 
     // Page sichtbar machen
     page.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden'; // html-Element auch
+    vxSetScrollLock('call-detail-page', true);
     page.scrollTop = 0;
     var wrap = document.getElementById('call-detail-scroll-wrap');
     if (wrap) wrap.scrollTop = 0;
@@ -15393,8 +15392,8 @@ function hideCallDetail() {
   var page = document.getElementById('call-detail-page');
   if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
   if (page) page.style.display = 'none';
-  document.body.style.overflow = '';
-  document.documentElement.style.overflow = '';
+  vxSetScrollLock('call-detail-page', false);
+  vxSyncScrollLock();
   window._vxCurrentCallId = null;
   window._vxCurrentTaskId = null;
   window._vxCurrentDetailType = null;
@@ -18322,14 +18321,50 @@ function setOverlayAriaHidden(overlayId, hidden) {
   if (overlay) overlay.setAttribute('aria-hidden', hidden ? 'true' : 'false');
 }
 
+
+window.vxScrollLocks = window.vxScrollLocks || new Set();
+
+function vxApplyScrollLock() {
+  var locked = !!(window.vxScrollLocks && window.vxScrollLocks.size);
+  var value = locked ? 'hidden' : '';
+  if (document.body) document.body.style.overflow = value;
+  if (document.documentElement) document.documentElement.style.overflow = value;
+  if (window.VOXERA_DEBUG_SCROLL) {
+    console.debug('[scroll-lock] apply', locked, Array.from(window.vxScrollLocks || []));
+  }
+}
+
+function vxSetScrollLock(reason, locked) {
+  if (!window.vxScrollLocks) window.vxScrollLocks = new Set();
+  if (!reason) reason = 'unknown';
+  if (locked) window.vxScrollLocks.add(String(reason));
+  else window.vxScrollLocks.delete(String(reason));
+  vxApplyScrollLock();
+}
+
+function vxClearAllScrollLocks() {
+  if (!window.vxScrollLocks) window.vxScrollLocks = new Set();
+  window.vxScrollLocks.clear();
+  vxApplyScrollLock();
+}
+
+function vxSyncScrollLock() {
+  var hasOverlay = !!document.querySelector('.overlay.open, .detail-overlay.open, .account-overlay.open');
+  var callDetail = document.getElementById('call-detail-page');
+  var callDetailOpen = !!(callDetail && callDetail.style.display === 'block');
+  var detailV2 = document.getElementById('vx-detail-v2');
+  var detailV2Open = !!(detailV2 && detailV2.style.display !== 'none');
+  vxSetScrollLock('overlay', hasOverlay);
+  vxSetScrollLock('call-detail-page', callDetailOpen);
+  vxSetScrollLock('detail-v2', detailV2Open);
+}
 function syncOverlayScrollLock() {
-  var openOverlay = document.querySelector('.overlay.open, .detail-overlay.open, .account-overlay.open');
-  document.body.style.overflow = openOverlay ? 'hidden' : '';
+  vxSyncScrollLock();
 }
 
 (function initOverlayScrollLock(){
-  document.addEventListener('click', function(){ setTimeout(syncOverlayScrollLock, 0); });
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') setTimeout(syncOverlayScrollLock, 0); });
+  document.addEventListener('click', function(){ setTimeout(vxSyncScrollLock, 0); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') setTimeout(vxSyncScrollLock, 0); });
 })();
 
 function openConfirmModal(config) {
@@ -19659,8 +19694,7 @@ function showTaskDetail(taskId) {
   if (!page) return;
   if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
   page.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-  document.documentElement.style.overflow = 'hidden';
+  vxSetScrollLock('call-detail-page', true);
   page.scrollTop = 0;
   var wrap = document.getElementById('call-detail-scroll-wrap');
   if (wrap) wrap.scrollTop = 0;
@@ -20637,7 +20671,8 @@ function showTab(name, el, options) {
         hideCallDetail();
       } else {
         callDetailPage.style.display = 'none';
-        document.body.style.overflow = '';
+        vxSetScrollLock('call-detail-page', false);
+        vxSyncScrollLock();
       }
     }
   }
@@ -20741,7 +20776,12 @@ window.addEventListener('popstate', function(event){
   // ─── Wenn vorher Detail-Hash war und jetzt nicht mehr: Detail-Page schließen ───
   var callDetailPage = document.getElementById('call-detail-page');
   if (callDetailPage && callDetailPage.style.display === 'block') {
-    callDetailPage.style.display = 'none';
+    if (typeof hideCallDetail === 'function') hideCallDetail();
+    else {
+      callDetailPage.style.display = 'none';
+      vxSetScrollLock('call-detail-page', false);
+      vxSyncScrollLock();
+    }
   }
   
   const requestedTab = getMainNavFromStateOrUrl(event && event.state);
@@ -26610,13 +26650,15 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
     // Show
     var ov = document.getElementById('vx-detail-v2');
     if (ov) { ov.style.display = 'flex'; }
-    document.body.style.overflow = 'hidden';
+    vxSetScrollLock('detail-v2', true);
+    vxSyncScrollLock();
   }
 
   function vxCloseDetailV2() {
     var ov = document.getElementById('vx-detail-v2');
     if (ov) ov.style.display = 'none';
-    document.body.style.overflow = '';
+    vxSetScrollLock('detail-v2', false);
+    vxSyncScrollLock();
     _recId = null;
   }
 
