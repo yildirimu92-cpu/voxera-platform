@@ -8808,7 +8808,8 @@ function showConfigError(message, options = {}) {
   if (app) app.style.display = 'none';
   if (login) login.style.display = 'flex';
   const errEl = document.getElementById('login-error');
-  if (errEl) {
+  var shouldShowMappingError = !!currentUser && !isLogoutInProgress && !isAuthTransition;
+  if (errEl && shouldShowMappingError) {
     errEl.textContent = message;
     errEl.style.display = 'block';
   }
@@ -9545,7 +9546,7 @@ function renderDashPriorityList() {
       var phone = String(f.caller_phone || f.phone_number || f.phone || '').trim();
       var summaryText = st.state === 'live' ? 'Lara nimmt den Anruf gerade entgegen.' : 'Zusammenfassung wird erstellt.';
       html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="incoming" data-rail="new">';
-      html += '<div class="vx-heute-row rail-today" onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'">';
+      html += '<div class="vx-heute-row rail-today" onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
       html += '<div class="vx-row-icon is-call"><i class="ph-bold ph-phone-incoming"></i></div><div class="vx-row-body">';
       html += '<div class="vx-row-name">'+_esc(name)+'<span class="vx-row-pill">'+_esc(st.label)+'</span></div>';
       html += '<div class="vx-row-summary">'+_esc(summaryText)+'</div>';
@@ -9597,7 +9598,7 @@ function renderDashPriorityList() {
       else if (_railVal === 'planned') _railClass += ' rail-planned';
       else _railClass += ' rail-today';
       html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="'+_esc(typeMeta.kind)+'" data-rail="'+_railVal+'">';
-      html += '<div class="'+_railClass+'" onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'">';
+      html += '<div class="'+_railClass+'" onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
       // [v2.72] Zusammenfassung: KI-Summary für Calls, Notiz für Tasks (max 60 Zeichen)
       var _rowSummary = '';
       var _rawSum = String(f.call_summary || f.summary || f.note || f.notes || '').trim();
@@ -10106,6 +10107,25 @@ function dprOpenAnfragenDetailFromRow(rowEl) {
   return false;
 }
 
+function vxOpenPriorityRecord(recordId) {
+  var recId = String(recordId || '').trim();
+  if (!recId) return false;
+  var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
+  if (!rec) {
+    var all = (Array.isArray(window.allRecords) ? window.allRecords : []);
+    rec = all.find(function(r){ return String((r && r.id) || '') === recId; }) || null;
+  }
+  if (!rec) return false;
+  window._vxActiveRecordId = recId;
+  if (typeof vxSetAnfragenActive === 'function') vxSetAnfragenActive(recId);
+  if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) {
+    if (typeof showTaskDetail === 'function') { showTaskDetail(recId); return true; }
+    return false;
+  }
+  if (typeof showCallDetail === 'function') { showCallDetail(recId); return true; }
+  return false;
+}
+
 function dprToggleClick(e, rowEl) {
   e.stopPropagation();
   // Touch-Geräte: click nach touchend ignorieren
@@ -10121,19 +10141,8 @@ function dprToggleClick(e, rowEl) {
   // [v3.0] Heute-Tab → immer Detail-Seite (kein Expand)
   var inHeuteList = rowEl.closest('#dash-priority-list');
   if (inHeuteList) {
-    var recId = rowEl.dataset.id;
-    if (recId) {
-      var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
-      var listEl = document.getElementById(containerId);
-      if (listEl) listEl.querySelectorAll('.vx-anf-row').forEach(function(row){ row.classList.remove('is-active'); });
-      var activeRow = card.querySelector('.vx-anf-row');
-      if (activeRow) activeRow.classList.add('is-active');
-      if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) {
-        if (typeof showTaskDetail === 'function') { showTaskDetail(recId); return; }
-      } else {
-        if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
-      }
-    }
+    var recId = rowEl.dataset.id || rowEl.getAttribute('data-record-id');
+    if (recId && vxOpenPriorityRecord(recId)) return;
   }
   _dprToggleExec(rowEl);
 }
@@ -10168,15 +10177,8 @@ function dprToggleTouchEnd(e, rowEl) {
   // [v3.0] Heute-Tab → immer Detail-Seite (kein Expand)
   var inHeuteList = rowEl.closest('#dash-priority-list');
   if (inHeuteList) {
-    var recId = rowEl.dataset.id;
-    if (recId) {
-      var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
-      if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) {
-        if (typeof showTaskDetail === 'function') { try { e.preventDefault(); } catch(_e) {} showTaskDetail(recId); return; }
-      } else {
-        if (typeof showCallDetail === 'function') { try { e.preventDefault(); } catch(_e) {} showCallDetail(recId); return; }
-      }
-    }
+    var recId = rowEl.dataset.id || rowEl.getAttribute('data-record-id');
+    if (recId && vxOpenPriorityRecord(recId)) { try { e.preventDefault(); } catch(_e) {} return; }
   }
   _dprToggleExec(rowEl);
 }
@@ -10372,6 +10374,8 @@ let currentUser = null;
 let showAppInProgress = false;
 let forceDashboardOnNextRestore = false;
 window._vxForceDashboardAfterLogin = false;
+let isLogoutInProgress = false;
+let isAuthTransition = false;
 let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
 let customerContractMeta = null;
 let customerContractState = {
@@ -19971,7 +19975,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       else { _preview = String(f.call_summary || f.summary || f.note || '').trim(); if (_preview.length > 65) _preview = _preview.slice(0,62) + '…'; }
 
       html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="inquiry" data-rail="'+_railAnfragen+'" data-filter-new="'+(_isUnread?'1':'0')+'" data-filter-task="'+(linkedTasks.length>0?'1':'0')+'" data-filter-planned="'+((_isOnToday||vxInquiryIsPlanned(rec))?'1':'0')+'" data-filter-checked="'+(_isDoneOrArch?'1':'0')+'" data-filter-archived="'+(vxInquiryIsArchived(rec)?'1':'0')+'">';
-      html += '<div class="vx-anf-row'+(_isDoneOrArch?' is-done-row':'')+(_isUnread?' is-unread':'')+'"'+_rowOpacity+' onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'">';
+      html += '<div class="vx-anf-row'+(_isDoneOrArch?' is-done-row':'')+(_isUnread?' is-unread':'')+'"'+_rowOpacity+' onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
       // Ungelesen-Dot
       html += _isUnread ? '<div class="vx-anf-dot"></div>' : '<div class="vx-anf-dot-empty"></div>';
       // Icon
@@ -26004,6 +26008,7 @@ async function doLogin() {
   errEl.style.display = 'none';
 
   try {
+    isAuthTransition = true;
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
@@ -26028,7 +26033,9 @@ async function doLogin() {
     window._vxCurrentCallId = null;
     window._vxCurrentTaskId = null;
     showApp(user);
+    isAuthTransition = false;
   } catch(e) {
+    isAuthTransition = false;
     const raw = (e && e.message) ? String(e.message) : '';
     const low = raw.toLowerCase();
     let msg = 'Login fehlgeschlagen.';
@@ -26044,12 +26051,22 @@ async function doLogin() {
 }
 
 async function doLogout() {
+  isLogoutInProgress = true;
+  isAuthTransition = true;
   showAppInProgress = false;
   currentUser = null; // sofort null setzen damit laufende loadData-Calls still abbrechen
   const sb = getSupabaseAuthClient();
   if (!sb) return;
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-  await sb.auth.signOut();
+  try {
+    var signOutRes = await sb.auth.signOut({ scope: 'local' });
+    if (signOutRes && signOutRes.error) throw signOutRes.error;
+  } catch (signOutErr) {
+    var fallbackNeeded = /scope|local|unsupported|invalid/i.test(String((signOutErr && signOutErr.message) || signOutErr || ''));
+    if (!fallbackNeeded) throw signOutErr;
+    var fallbackRes = await sb.auth.signOut();
+    if (fallbackRes && fallbackRes.error) throw fallbackRes.error;
+  }
   resetSetupSessionState();
   setupStateCustomerId = '';
   customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
@@ -26062,7 +26079,10 @@ async function doLogout() {
   var loginErr = document.getElementById('login-error');
   if (loginErr) { loginErr.style.display = 'none'; loginErr.textContent = ''; }
   initNetworkCanvas();
+  isLogoutInProgress = false;
+  isAuthTransition = false;
 }
+
 
 let logoutInFlight = false;
 async function handleLogout(triggerEl, beforeLogout) {
@@ -26385,12 +26405,15 @@ if (!_sb || !_sb.auth) {
 if (_sb && _sb.auth) {
   _sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
+      isAuthTransition = false;
+      currentUser = null;
       if (autoRefreshTimer) clearInterval(autoRefreshTimer);
       teardownDashboardRealtime();
       document.getElementById('app').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
     }
     if (event === 'SIGNED_IN' && session && session.user && document.getElementById('app').style.display === 'none') {
+      isAuthTransition = false;
       // Wenn gerade von activate.html weitergeleitet → App direkt zeigen, kein Recovery-Form
       showApp(session.user);
     }
