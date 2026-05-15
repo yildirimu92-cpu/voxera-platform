@@ -9540,7 +9540,7 @@ function renderDashPriorityList() {
       var st = (typeof vxGetCallDisplayState === 'function' ? vxGetCallDisplayState(rec) : null) || (typeof vxGetDefaultCallDisplayState === 'function' ? vxGetDefaultCallDisplayState() : { state:'ready', label:'Neu', isTemporary:false });
       var name = vxDashResolveWorkTitle(rec);
       var phone = String(f.caller_phone || f.phone_number || f.phone || '').trim();
-      var summaryText = st.state === 'live' ? 'Lara nimmt den Anruf gerade entgegen.' : (st.state === 'processing' ? 'Zusammenfassung wird erstellt.' : 'Anrufdaten werden geprüft.');
+      var summaryText = st.state === 'live' ? 'Lara nimmt den Anruf gerade entgegen.' : 'Zusammenfassung wird erstellt.';
       html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="incoming" data-rail="new">';
       html += '<div class="vx-heute-row rail-today" onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'">';
       html += '<div class="vx-row-icon is-call"><i class="ph-bold ph-phone-incoming"></i></div><div class="vx-row-body">';
@@ -12061,7 +12061,13 @@ function callCategoryLabel(categoryRaw) {
     rückruf: 'Rückruf',
     appointment: 'Termin',
     offer: 'Offerte',
-    info: 'Information'
+    info: 'Information',
+    inbound: 'Eingehender Anruf',
+    incoming_call: 'Eingehender Anruf',
+    complaint: 'Reklamation',
+    support: 'Support',
+    other: 'Sonstiges',
+    sonstiges: 'Sonstiges'
   };
   const lower = raw.toLowerCase();
   if (map[lower]) return map[lower];
@@ -12080,8 +12086,8 @@ function getCallCategoryDisplayLabel(record) {
   const normalizedCategory = rawCategory.toLowerCase();
   if (normalizedCategory === 'activation_test_outbound') return 'Testanruf';
   if (normalizedCategory === 'inbound') return 'Eingehender Anruf';
-  if (!rawCategory || isDashLikePlaceholder(rawCategory)) return 'Nicht kategorisiert';
-  return callCategoryLabel(rawCategory);
+  if (!rawCategory || isDashLikePlaceholder(rawCategory)) return 'Anruf';
+  return callCategoryLabel(rawCategory) || 'Anruf';
 }
 
 function qualKey(q) {
@@ -12699,6 +12705,15 @@ function vxGetInquiryBucket(record) {
   if (vxInquiryIsCompleted(record)) return 'erledigt';
   return vxInquiryIsPlanned(record) ? 'geplant' : 'offen';
 }
+
+function vxGetInquiryDisplayStatus(record) {
+  var bucket = vxGetInquiryBucket(record);
+  if (bucket === 'archiv') return 'Archiviert';
+  if (bucket === 'erledigt') return 'Erledigt';
+  if (bucket === 'geplant') return 'Geplant';
+  return 'Neu';
+}
+
 
 function vxInquiryMatchesFilter(record, filter) {
   var bucket = vxGetInquiryBucket(record);
@@ -16911,6 +16926,10 @@ function showCallDetail(callId) {
 
 
     window._vxCurrentCallId = callId;
+    window._vxActiveRecordId = String(callId);
+    document.querySelectorAll('#anrufe-list .dpr-card, #dash-priority-list .dpr-card').forEach(function(c) {
+      c.classList.toggle('sp-active', String(c.dataset.id) === String(callId));
+    });
     
 
 
@@ -17251,11 +17270,13 @@ function renderCallDetailPage(call, history) {
   else if (leadQ === 'cold') { qualityValue = 'Cold'; qualityColor = '#94A3B8'; qualityGradient = 'linear-gradient(90deg,#94A3B8,#64748B)'; }
   
   const statusVal = String(call.dashboard_status || 'new').toLowerCase();
-  const statusLabel = statusVal === 'closed' || statusVal === 'done' ? 'Erledigt'
-    : statusVal === 'archived' || statusVal === 'archiviert' ? 'Erledigt'
-    : statusVal === 'in_progress' ? 'In Bearbeitung'
-    : statusVal === 'follow_up_scheduled' ? 'Geplant'
-    : 'Neu';
+  const statusLabel = (typeof vxGetInquiryDisplayStatus === 'function')
+    ? vxGetInquiryDisplayStatus({ id: call.id, fields: call })
+    : (statusVal === 'closed' || statusVal === 'done' ? 'Erledigt'
+      : statusVal === 'archived' || statusVal === 'archiviert' ? 'Erledigt'
+      : statusVal === 'in_progress' ? 'In Bearbeitung'
+      : statusVal === 'follow_up_scheduled' ? 'Geplant'
+      : 'Neu');
   const statusColor = statusVal === 'closed' || statusVal === 'done' ? '#059669'
     : statusVal === 'in_progress' ? '#1A6FE8'
     : statusVal === 'follow_up_scheduled' ? '#E8C547'
@@ -17279,7 +17300,7 @@ function renderCallDetailPage(call, history) {
     var durSub = dur >= 60 ? 'Minuten' : 'Sekunden';
     statsEl.innerHTML =
       _kpiCell('Dauer', durStr, 'rgba(255,255,255,.9)', 'rgba(255,255,255,.15)', durSub) +
-      _kpiCell('Kategorie', call.category || '–', 'rgba(255,255,255,.9)', 'rgba(255,255,255,.12)', 'Typ') +
+      _kpiCell('Kategorie', getCallCategoryDisplayLabel({ id: call.id, fields: call }) || 'Anruf', 'rgba(255,255,255,.9)', 'rgba(255,255,255,.12)', 'Typ') +
       _kpiCell('Lead-Quality', qualityValue, qualityColor, qualityGradient, 'Bewertung') +
       _kpiCell('Status', statusLabel, statusColor, statusGradient, 'aktuell');
   }
@@ -19999,7 +20020,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       var _preview = '';
       if (_stateMeta.state === 'live') _preview = 'Lara nimmt den Anruf gerade entgegen.';
       else if (_stateMeta.state === 'processing') _preview = 'Zusammenfassung wird erstellt.';
-      else if (_stateMeta.state === 'checking') _preview = 'Anrufdaten werden geprüft.';
+      else if (_stateMeta.state === 'checking') _preview = 'Zusammenfassung wird erstellt.';
       else { _preview = String(f.call_summary || f.summary || f.note || '').trim(); if (_preview.length > 65) _preview = _preview.slice(0,62) + '…'; }
 
       html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="inquiry" data-rail="'+_railAnfragen+'" data-filter-new="'+(_isUnread?'1':'0')+'" data-filter-task="'+(linkedTasks.length>0?'1':'0')+'" data-filter-planned="'+((_isOnToday||vxInquiryIsPlanned(rec))?'1':'0')+'" data-filter-checked="'+(_isDoneOrArch?'1':'0')+'" data-filter-archived="'+(vxInquiryIsArchived(rec)?'1':'0')+'">';
@@ -20025,7 +20046,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   el.innerHTML = html;
 
   // Aktive Row wiederherstellen nach Re-Render
-  var _activeId = window._vxCurrentCallId || window._vxCurrentTaskId;
+  var _activeId = window._vxActiveRecordId || window._vxCurrentCallId || window._vxCurrentTaskId;
   if (_activeId) {
     el.querySelectorAll('.dpr-card').forEach(function(c) {
       c.classList.toggle('sp-active', String(c.dataset.id) === String(_activeId));
@@ -20037,6 +20058,9 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       if (e.target.closest('.dpr-btn, .va-exp-panel, button')) return;
       var recId = card.dataset.id;
       if (!recId) return;
+      window._vxActiveRecordId = String(recId);
+      card.classList.add('sp-active');
+      el.querySelectorAll('.dpr-card').forEach(function(sib) { if (sib !== card) sib.classList.remove('sp-active'); });
       // [v3.0] Immer Detail öffnen — Split-Panel auf Desktop, Fullscreen auf Mobile
       var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
       if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) {
@@ -21908,6 +21932,10 @@ function showTaskDetail(taskId) {
   var page = document.getElementById('call-detail-page');
   if (!page) return;
   if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
+  window._vxCurrentDetailType = 'task';
+  window._vxCurrentCallId = null;
+  window._vxCurrentTaskId = String(taskId);
+  window._vxActiveRecordId = String(taskId);
 
   // [v2.66] Dieselbe Split-Logik wie showCallDetail:
   // Im Anfragen-Tab auf Desktop → Split-Panel, sonst Fullscreen
