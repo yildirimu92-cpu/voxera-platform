@@ -10993,40 +10993,7 @@ function vxAttachCallGroupMeta(primary, group) {
 
 function vxConsolidateSameDayCallerRecords(records, options) {
   var source = Array.isArray(records) ? records : [];
-  if (!source.length) return [];
-  var opts = options || {};
-  var groups = new Map();
-  var passthrough = [];
-  source.forEach(function(rec) {
-    var key = vxGetCallConsolidationKey(rec);
-    if (!key) { passthrough.push(rec); return; }
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(rec);
-  });
-  var consolidated = passthrough.slice();
-  groups.forEach(function(group) {
-    var sorted = group.slice().sort(function(a, b) {
-      return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
-    });
-    // Primary: bevorzuge den Record der dem aktuellen Filter entspricht
-    // z.B. im "Erledigt"-Tab soll der closed Record primär sein
-    var primary = sorted[0];
-    if (group.length > 1) {
-      var closedRec = sorted.find(function(r) { return vxInquiryIsCompleted(r) || vxInquiryIsArchived(r); });
-      var openRec = sorted.find(function(r) { return !vxInquiryIsCompleted(r) && !vxInquiryIsArchived(r); });
-      if (opts.filter === 'abgeschlossen' || opts.filter === 'geprueft') {
-        primary = closedRec || sorted[0];
-      } else {
-        // Im offenen Filter: nehme den offenen Record als primär wenn vorhanden
-        primary = openRec || sorted[0];
-      }
-    }
-    consolidated.push(vxAttachCallGroupMeta(primary, sorted));
-  });
-  consolidated.sort(function(a, b) {
-    return new Date(getRecordTimestamp(b) || 0).getTime() - new Date(getRecordTimestamp(a) || 0).getTime();
-  });
-  return consolidated;
+  return source.slice();
 }
 
 function vxFormatCallGroupMeta(record) {
@@ -11068,7 +11035,6 @@ function vxGetTaskTypeCounts(tasks) {
 function vxBuildDailyReportText(records, manualTasks) {
   var openTasks = vxGetOpenManualTasks();
   var newRequests = vxGetNewRequestCalls(records || []);
-  if (typeof vxConsolidateSameDayCallerRecords === 'function') newRequests = vxConsolidateSameDayCallerRecords(newRequests, { scope: 'daily-report-new-requests' });
   var dueCounts = vxGetTaskDueBucketCounts(openTasks);
   var typeCounts = vxGetTaskTypeCounts(openTasks);
   var parts = [];
@@ -18595,7 +18561,7 @@ function renderDashboard(records, manualTasks) {
     var status = normalizeStatus(r.fields && r.fields.dashboard_status);
     return status === CALL_STATUS.NEW && !(typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(r));
   });
-  var newOpenRequests = (typeof vxConsolidateSameDayCallerRecords === 'function') ? vxConsolidateSameDayCallerRecords(newOpenRequestsRaw, { scope: 'kpi-new-requests' }) : newOpenRequestsRaw;
+  var newOpenRequests = newOpenRequestsRaw;
 
   // ── KPI: neue Anfragen / offene Aufgaben / erledigt heute / überfällig ─────
   var kpiHeute = document.getElementById('kpi-heute');
@@ -18724,7 +18690,6 @@ function renderDashboard(records, manualTasks) {
     // Jetzt: zentrale getOpenTaskCount()-Funktion, dieselbe wie topbar verwendet
     // [BUG FIX v2.54] Gleicher Filter wie KPI: isOnToday-Records ausschliessen
     var openRequestUnits = (typeof vxGetNewRequestCalls === 'function') ? vxGetNewRequestCalls(records || []).filter(function(r){ return !(typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(r)); }) : (records||[]).filter(function(r){ return normalizeStatus((r.fields||{}).dashboard_status) === CALL_STATUS.NEW && !(typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(r)); });
-    if (typeof vxConsolidateSameDayCallerRecords === 'function') openRequestUnits = vxConsolidateSameDayCallerRecords(openRequestUnits, { scope: 'greeting-new-requests' });
     var openCount = openRequestUnits.length;
     var taskCount = (typeof getOpenTaskCount === 'function') ? getOpenTaskCount() : (manualTasks||allManualTaskRecords||[]).filter(function(r){ var f=(r&&r.fields)||{}; return !vxIsClosedManualTaskStatus(f.status || f.dashboard_status); }).length;
     var parts = [];
@@ -18927,11 +18892,6 @@ function renderDashboard(records, manualTasks) {
   _dashPriorityAllRecords = uniqueAll.sort(function(a, b) {
     return vxCompareDashboardPriorityRecords(a, b, priorityNow);
   });
-  if (typeof vxConsolidateSameDayCallerRecords === 'function') {
-    _dashPriorityAllRecords = vxConsolidateSameDayCallerRecords(_dashPriorityAllRecords, { scope: 'heute' }).sort(function(a, b) {
-      return vxCompareDashboardPriorityRecords(a, b, priorityNow);
-    });
-  }
   renderDashPriorityList();
   // [v2.70] Focus-Card entfernt
   var moreBtn = document.getElementById('dash-recent-more');
@@ -19080,28 +19040,11 @@ function confirmTaskDone(recordId, rowElement, triggerSource, onSuccess, options
       const shouldArchive = !!(confirmState && confirmState.archiveAfterClose);
       const targetStatus = shouldArchive ? CALL_STATUS.ARCHIVED : CALL_STATUS.CLOSED;
 
-      // Wenn Gruppen-Record (N× heute): alle Call-Records der Gruppe erledigen.
-      // Manual tasks are always a single entity.
-      const rec = manual ? null : (allRecords || []).find(r => String(r.id) === String(recordId));
-      const groupIds = (!manual && rec && rec._vxGroup && rec._vxGroup.callIds && rec._vxGroup.callIds.length > 1)
-        ? rec._vxGroup.callIds
-        : [recordId];
-
-      let result = true;
-      for (var gi = 0; gi < groupIds.length; gi++) {
-        const gid = groupIds[gi];
-        const r = await doStatusChange(gid, targetStatus, gid === recordId ? (rowElement || null) : null);
-        if (r === false) { result = false; break; }
-      }
+      var result = await doStatusChange(recordId, targetStatus, rowElement || null);
 
       if (result !== false) {
-        // Detail / modals schliessen + Feedback
         if (typeof vxCloseAfterSuccessfulCompletion === 'function') vxCloseAfterSuccessfulCompletion();
-        var groupCount = groupIds.length;
-        toast(shouldArchive
-          ? (groupCount > 1 ? groupCount + ' Anrufe archiviert' : 'Archiviert')
-          : (groupCount > 1 ? groupCount + ' Anrufe als erledigt markiert' : 'Als erledigt markiert'),
-          'success');
+        toast(shouldArchive ? 'Archiviert' : 'Als erledigt markiert', 'success');
         if (typeof onSuccess === 'function') onSuccess();
       }
       return result;
@@ -19829,8 +19772,7 @@ function renderAnrufe() {
       return 0;
     });
   }
-  var consolidated = sorted; // Kein Konsolidieren — jeder Call als eigener Eintrag
-  renderAnrufeInbox('anrufe-list', consolidated, filter);
+  renderAnrufeInbox('anrufe-list', sorted, filter);
 }
 
 function renderAnrufeInbox(containerId, records, activeFilter) {
