@@ -16597,9 +16597,64 @@ function updateBrowserNotifToggleUI() {
 }
 
 
+function vxGetCallSummary(callOrFields) {
+  var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : (callOrFields || {});
+  var summaryKeys = ['call_summary', 'summary', 'call_summary_short', 'ai_summary', 'analysis_summary'];
+  for (var i = 0; i < summaryKeys.length; i++) {
+    var val = src[summaryKeys[i]];
+    if (val == null) continue;
+    var text = String(val).trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function vxGetCallTranscript(callOrFields) {
+  var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : (callOrFields || {});
+  var transcriptKeys = ['transcription', 'transcript'];
+  for (var i = 0; i < transcriptKeys.length; i++) {
+    var val = src[transcriptKeys[i]];
+    if (val == null) continue;
+    var text = String(val).trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function vxDetailPushCurrentContext() {
+  var t = window._vxCurrentDetailType;
+  var id = t === 'task' ? window._vxCurrentTaskId : window._vxCurrentCallId;
+  if (!t || !id) return;
+  if (!Array.isArray(window._vxDetailBackStack)) window._vxDetailBackStack = [];
+  var stack = window._vxDetailBackStack;
+  var top = stack.length ? stack[stack.length - 1] : null;
+  if (top && top.type === t && String(top.id) === String(id)) return;
+  stack.push({ type: t, id: String(id) });
+}
+
+function vxDetailGoBack() {
+  var stack = Array.isArray(window._vxDetailBackStack) ? window._vxDetailBackStack : [];
+  if (!stack.length) return;
+  var prev = stack.pop();
+  if (!prev || !prev.id) return;
+  if (prev.type === 'task' && typeof showTaskDetail === 'function') {
+    showTaskDetail(String(prev.id));
+    return;
+  }
+  if (typeof showCallDetail === 'function') showCallDetail(String(prev.id));
+}
+window.vxDetailGoBack = vxDetailGoBack;
+
+function vxRenderDetailBackLinkHtml() {
+  var stack = Array.isArray(window._vxDetailBackStack) ? window._vxDetailBackStack : [];
+  if (!stack.length) return '';
+  return '<button type="button" onclick="event.stopPropagation();vxDetailGoBack()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--blue);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:10px;">← Zurück zum vorherigen Eintrag</button>';
+}
+
 // Öffnet einen Call aus der Kontakt-Historie heraus
 function vxOpenCallFromHistory(callId) {
   if (!callId) return;
+  vxDetailPushCurrentContext();
   // Record in allRecords suchen
   var rec = null;
   if (typeof allRecords !== 'undefined' && Array.isArray(allRecords)) {
@@ -16823,6 +16878,7 @@ function hideCallDetail() {
   window._vxCurrentCallId = null;
   window._vxCurrentTaskId = null;
   window._vxCurrentDetailType = null;
+  window._vxDetailBackStack = [];
   // Clear hash but keep current tab
   if (window.location.hash.indexOf('#call/') === 0 || window.location.hash.indexOf('#task/') === 0) {
     try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch(e) {}
@@ -16861,11 +16917,11 @@ async function buildCallHistory(phoneNumber) {
         type: 'call_inbound',
         timestamp: call.created_at,
         duration: call.duration_seconds || 0,
-        summary: call.call_summary || '',
+        summary: vxGetCallSummary(call),
         category: call.category || '',
         lead_quality: call.lead_quality || '',
         call_id: call.id,
-        transcription: call.transcript || '',
+        transcription: vxGetCallTranscript(call),
         notes: call.notes_customer_voxera || ''
       });
     });
@@ -16920,10 +16976,10 @@ async function loadAndRenderCallDetail(callId) {
       phone_number: f.phone_number || f.caller_phone || '',
       created_at: f.created_at || f.received_at || new Date().toISOString(),
       duration_seconds: f.duration_seconds || 0,
-      call_summary: f.call_summary || f.summary || '',
+      call_summary: vxGetCallSummary(f),
       category: f.category || '',
       lead_quality: f.lead_quality || '',
-      transcription: f.transcription || '',
+      transcription: vxGetCallTranscript(f),
       notes_customer_voxera: f.notes_customer_voxera || '',
       customer_id: f.customer_id || ''
     };
@@ -17044,10 +17100,11 @@ function renderCallDetailPage(call, history) {
   
   // ─── BODY CONTENT (Card-Patterns wie Dashboard) ───
   const callId = call.id;
-  const summary = call.call_summary || '';
+  const summary = vxGetCallSummary(call);
   const noteVal = call.notes_customer_voxera || call.notes || '';
   
   let html = '';
+  html += vxRenderDetailBackLinkHtml();
   
   // ─── CARD: Zusammenfassung (KI) — wie Daily Report Card ───
   html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;">';
@@ -17062,7 +17119,7 @@ function renderCallDetailPage(call, history) {
   } else {
     // Elite Empty-State
     html += '<div style="text-align:center;padding:8px 0;">';
-    html +=   '<div style="font-size:13px;color:var(--slate);font-style:italic;">Lara hat zu diesem Anruf keine Zusammenfassung erstellt.</div>';
+    html +=   '<div style="font-size:13px;color:var(--slate);font-style:italic;">Keine Zusammenfassung vorhanden.</div>';
     html +=   '<div style="font-size:11px;color:var(--slate2);margin-top:4px;">Vermutlich wurde aufgelegt oder der Anruf war zu kurz.</div>';
     html += '</div>';
   }
@@ -17071,7 +17128,7 @@ function renderCallDetailPage(call, history) {
 
   // ─── CARD: Transkript (wenn vorhanden) ───────────────────
   // [PATCH v2.32] Transkript gehört in die Detail-Seite, nicht in den expanded Panel
-  var callTranscript = call.transcription || call.transcript || '';
+  var callTranscript = vxGetCallTranscript(call);
   if (callTranscript) {
     html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;">';
     html +=   '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:0.5px solid var(--line);cursor:pointer;" onclick="var b=this.nextElementSibling;var open=b.style.display!==\'none\';b.style.display=open?\'none\':\'block\';this.querySelector(\'.vx-tr-chev\').style.transform=open?\'rotate(0deg)\':\'rotate(90deg)\'">';
@@ -21504,6 +21561,7 @@ function renderTaskDetailPage(taskRecord, history) {
 
   // ─── Beschreibungs-Card ───
   var html = '';
+  html += vxRenderDetailBackLinkHtml();
   html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;">';
   html +=   '<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:0.5px solid var(--line);background:var(--vx-bg);">';
   html +=     '<i class="ph-bold ph-' + visual.icon + '" style="color:' + visual.color + ';font-size:15px;flex-shrink:0;" aria-hidden="true"></i>';
@@ -21557,7 +21615,7 @@ function renderTaskDetailPage(taskRecord, history) {
   // ─── Verknüpfter Anruf (Zusammenfassung) ───
   if (relatedCall) {
     var rf = relatedCall.fields || {};
-    var rfSummary = rf.call_summary || rf.summary || '';
+    var rfSummary = vxGetCallSummary(rf);
     html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;">';
     html +=   '<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:0.5px solid var(--line);background:var(--vx-bg);">';
     html +=     '<i class="ph-bold ph-phone-transfer" style="color:#1A6FE8;font-size:15px;" aria-hidden="true"></i>';
