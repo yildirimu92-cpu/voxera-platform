@@ -17156,6 +17156,9 @@ async function loadAndRenderCallDetail(callId) {
       phone_number: f.phone_number || f.caller_phone || '',
       created_at: f.created_at || f.received_at || new Date().toISOString(),
       duration_seconds: f.duration_seconds || 0,
+      dashboard_status: f.dashboard_status || '',
+      status: f.status || '',
+      follow_up_at: f.follow_up_at || '',
       call_summary: vxGetCallSummary(f),
       category: f.category || '',
       lead_quality: f.lead_quality || '',
@@ -21743,7 +21746,9 @@ function renderTaskDetailPage(taskRecord, history) {
   var relatedCall = vxTaskDetailRelatedCall(f);
   var contact = vxGetTaskContactDisplayName(f);
   var dueLabel = formatTaskDueLabel(f, { emptyLabel: 'Ohne Fälligkeit' });
-  var statusText = statusLabel(f.dashboard_status || f.status || 'new');
+  var statusText = (typeof vxGetInquiryDisplayStatus === 'function')
+    ? vxGetInquiryDisplayStatus(taskRecord)
+    : statusLabel(f.dashboard_status || f.status || 'new');
   var sourceText = relatedCall ? 'Aus Anruf' : 'Manuell';
   var titleText = meta.sectionTitle || meta.primary || meta.label || 'Aufgabe';
   var rawTitle = String(f.title || '').trim();
@@ -21783,9 +21788,11 @@ function renderTaskDetailPage(taskRecord, history) {
         + '<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:4px;">' + sub + '</div>'
         + '</div>';
     };
-    var _tIsDone = f.status === 'closed' || f.dashboard_status === 'closed';
-    var _tStatusColor = _tIsDone ? '#34D399' : '#4B9FFF';
-    var _tStatusGrad = _tIsDone ? 'linear-gradient(90deg,#059669,#047857)' : 'linear-gradient(90deg,#1A6FE8,#1560C8)';
+    var _taskBucket = (typeof vxGetInquiryBucket === 'function') ? vxGetInquiryBucket(taskRecord) : 'open';
+    var _tStatusColor = _taskBucket === 'done' ? '#34D399' : (_taskBucket === 'planned' ? '#E8C547' : (_taskBucket === 'archived' ? '#94A3B8' : '#4B9FFF'));
+    var _tStatusGrad = _taskBucket === 'done' ? 'linear-gradient(90deg,#059669,#047857)'
+      : (_taskBucket === 'planned' ? 'linear-gradient(90deg,#E8C547,#B45309)'
+        : (_taskBucket === 'archived' ? 'linear-gradient(90deg,#94A3B8,#64748B)' : 'linear-gradient(90deg,#1A6FE8,#1560C8)'));
     statsEl.innerHTML =
       _tKpi('Typ', escHtml(meta.label), 'rgba(255,255,255,.9)', 'rgba(255,255,255,.12)', 'Aufgabe') +
       _tKpi('Fälligkeit', escHtml(dueLabel), 'rgba(255,255,255,.9)', 'rgba(255,255,255,.1)', 'Zeitpunkt') +
@@ -26009,6 +26016,8 @@ async function doLogin() {
 
   try {
     isAuthTransition = true;
+    isLogoutInProgress = false;
+    setLogoutButtonsLoading(false);
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
@@ -26032,6 +26041,8 @@ async function doLogin() {
     window._vxActiveRecordId = null;
     window._vxCurrentCallId = null;
     window._vxCurrentTaskId = null;
+    isLogoutInProgress = false;
+    setLogoutButtonsLoading(false);
     showApp(user);
     isAuthTransition = false;
   } catch(e) {
@@ -26070,8 +26081,7 @@ async function doLogout() {
   resetSetupSessionState();
   setupStateCustomerId = '';
   customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
+  showLogin();
   document.getElementById('login-password').value = '';
   // Re-enable login button in case it was disabled from a previous attempt
   var loginBtn = document.getElementById('login-btn');
@@ -26081,6 +26091,34 @@ async function doLogout() {
   initNetworkCanvas();
   isLogoutInProgress = false;
   isAuthTransition = false;
+}
+
+function setLogoutButtonsLoading(isLoading) {
+  var shouldLoad = !!isLoading;
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('button[onclick*="handleLogout"]'));
+  buttons.forEach(function(btn) {
+    if (!btn) return;
+    if (!btn.dataset.logoutDefaultHtml) btn.dataset.logoutDefaultHtml = btn.innerHTML || 'Abmelden';
+    if (shouldLoad) {
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.innerHTML = '<i class="ph-light ph-spinner-gap menu-icon" aria-hidden="true"></i>Melde ab...';
+      return;
+    }
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+    btn.innerHTML = btn.dataset.logoutDefaultHtml || 'Abmelden';
+  });
+}
+
+function showLogin() {
+  isLogoutInProgress = false;
+  isAuthTransition = false;
+  setLogoutButtonsLoading(false);
+  var app = document.getElementById('app');
+  if (app) app.style.display = 'none';
+  var login = document.getElementById('login-screen');
+  if (login) login.style.display = 'flex';
 }
 
 
@@ -26093,11 +26131,7 @@ async function handleLogout(triggerEl, beforeLogout) {
   var oldDisabled = btn ? !!btn.disabled : false;
   try {
     if (typeof beforeLogout === 'function') beforeLogout();
-    if (btn) {
-      btn.disabled = true;
-      btn.setAttribute('aria-busy', 'true');
-      btn.innerHTML = '<i class="ph-light ph-spinner-gap menu-icon" aria-hidden="true"></i>Melde ab...';
-    }
+    setLogoutButtonsLoading(true);
     await doLogout();
   } catch (e) {
     var msg = (e && e.message) ? String(e.message) : 'Abmelden fehlgeschlagen';
@@ -26108,6 +26142,7 @@ async function handleLogout(triggerEl, beforeLogout) {
       btn.removeAttribute('aria-busy');
     }
   } finally {
+    setLogoutButtonsLoading(false);
     logoutInFlight = false;
   }
 }
@@ -26175,6 +26210,9 @@ async function runInitialLoader(loadPromise, options) {
 function showApp(user) {
   if (showAppInProgress) return;
   showAppInProgress = true;
+  isLogoutInProgress = false;
+  isAuthTransition = false;
+  setLogoutButtonsLoading(false);
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   teardownDashboardRealtime();
   currentUser = user || null;
@@ -26378,7 +26416,7 @@ if (!_sb || !_sb.auth) {
       if (!handled) {
         _sb.auth.getSession().then(function({ data: { session } }) {
           if (session) { showApp(session.user); }
-          else { document.getElementById('login-screen').style.display = 'flex'; initNetworkCanvas(); }
+          else { showLogin(); initNetworkCanvas(); }
         });
       }
     });
@@ -26387,7 +26425,7 @@ if (!_sb || !_sb.auth) {
       if (session) {
         showApp(session.user);
       } else {
-        document.getElementById('login-screen').style.display = 'flex';
+        showLogin();
         initNetworkCanvas();
       }
     }).catch((err) => {
@@ -26396,7 +26434,7 @@ if (!_sb || !_sb.auth) {
         showConfigError('Supabase API-Key ungültig. Bitte aktuellen Anon Key eintragen.');
         return;
       }
-      document.getElementById('login-screen').style.display = 'flex';
+      showLogin();
       initNetworkCanvas();
     });
   }
@@ -26409,11 +26447,12 @@ if (_sb && _sb.auth) {
       currentUser = null;
       if (autoRefreshTimer) clearInterval(autoRefreshTimer);
       teardownDashboardRealtime();
-      document.getElementById('app').style.display = 'none';
-      document.getElementById('login-screen').style.display = 'flex';
+      showLogin();
     }
     if (event === 'SIGNED_IN' && session && session.user && document.getElementById('app').style.display === 'none') {
+      isLogoutInProgress = false;
       isAuthTransition = false;
+      setLogoutButtonsLoading(false);
       // Wenn gerade von activate.html weitergeleitet → App direkt zeigen, kein Recovery-Form
       showApp(session.user);
     }
