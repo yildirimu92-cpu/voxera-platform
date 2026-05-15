@@ -32398,6 +32398,200 @@ html[data-theme="dark"] .sp-active { background: rgba(26,111,232,.08); }
 .vx-archive-expiry.is-near{
   background:#FFFBEB;color:#B45309;border-color:#FDE68A;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   DS COMPLIANCE PASS STUFE 1 — VISUAL ONLY
+   Scope: rein visuelle Normalisierung, keine Business-/Datenlogik.
+═══════════════════════════════════════════════════════════ */
+
+/* Badge / Chip baseline: 11px, pill radius, konsistente Padding */
+:root{
+  --badge-font-size:11px;
+  --badge-pad-y:3px;
+  --badge-pad-x:10px;
+}
+.badge,
+.chip,
+.meta-pill,
+.vx-row-pill,
+.vx-anf-pill,
+.vx-cd-pill{
+  border-radius:999px !important;
+  font-size:11px !important;
+  line-height:1.2 !important;
+  padding:3px 10px !important;
+}
+.vx-row-pill,
+.vx-anf-pill{
+  font-weight:600 !important;
+}
+.vx-cd-pill{
+  min-height:44px !important;
+  height:44px !important;
+  padding:0 14px !important;
+  font-weight:600 !important;
+}
+
+/* Row/List normalization */
+#dash-priority-list .dpr-row,
+#anrufe-list.dpr-command-center .dpr-row{
+  min-height:76px !important;
+  padding:12px 16px !important;
+}
+#dash-priority-list .dpr-name,
+#anrufe-list.dpr-command-center .dpr-name,
+.vx-row-name,
+.vx-anf-name{
+  font-size:14px !important;
+  font-weight:600 !important;
+}
+#dash-priority-list .dpr-task-line,
+#anrufe-list.dpr-command-center .dpr-task-line,
+#dash-priority-list .dpr-meta,
+#anrufe-list.dpr-command-center .dpr-meta,
+.vx-row-meta,
+.vx-anf-meta{
+  font-size:12px !important;
+}
+#dash-priority-list .dpr-desc,
+#anrufe-list.dpr-command-center .dpr-desc,
+.vx-row-preview,
+.vx-anf-preview{
+  font-size:11px !important;
+}
+
+/* Active/Hover states: neutral hover + subtle blue active with left bar */
+#dash-priority-list .dpr-row:hover,
+#anrufe-list.dpr-command-center .dpr-row:hover{
+  background:var(--surface2) !important;
+}
+#dash-priority-list .sp-active .dpr-row,
+#anrufe-list .sp-active .dpr-row,
+#dash-priority-list .dpr-card.sp-active .dpr-row,
+#anrufe-list .dpr-card.sp-active .dpr-row{
+  background:rgba(26,111,232,.05) !important;
+}
+#dash-priority-list .sp-active,
+#anrufe-list .sp-active,
+#dash-priority-list .dpr-card.sp-active,
+#anrufe-list .dpr-card.sp-active{
+  border-left:3px solid var(--blue) !important;
+}
+
+/* Icon scales */
+.vx-row-icon, .vx-anf-icon,
+#dash-priority-list .dpr-type-icon,
+#anrufe-list.dpr-command-center .dpr-type-icon{
+  width:36px !important;
+  height:36px !important;
+  min-width:36px !important;
+  min-height:36px !important;
+}
+.vx-ibtn,
+#dash-priority-list .dpr-quick-btn,
+#anrufe-list.dpr-command-center .dpr-quick-btn,
+.btn-icon-done, .btn-icon-call{
+  width:40px !important;
+  height:40px !important;
+  min-width:40px !important;
+  min-height:40px !important;
+}
+
+/* Buttons: unify heights/radius (incl. modal) */
+.btn,
+.settings-btn-primary, .dash-btn-primary, .setup-btn-primary, .act-action-btn-primary,
+.btn-modal-save, .btn-account-save, .dm-btn-primary, .btn-call, .btn-callback.primary,
+.settings-btn-secondary, .dash-btn-secondary, .setup-btn-secondary, .act-action-btn-secondary,
+.btn-modal-cancel, .btn-account-cancel, .dm-btn-secondary, .btn-refresh,
+.btn-done, .btn-done-small, .btn-note, .btn-callback:not(.primary), .btn-a,
+.modal-btn-p, .modal-btn-s, .modal-btn-danger{
+  min-height:44px !important;
+  height:44px !important;
+  border-radius:10px !important;
+}
+.btn--sm,
+.dpr-row-action.btn--sm{
+  min-height:36px !important;
+  height:36px !important;
+}
+
+/* Header action consistency */
+.vx-page-header button{
+  min-height:40px;
+  border-radius:10px;
+}
+
+/* Card/Panel language */
+.vx-report-card,
+.vx-jetzt-section,
+.settings-card,
+.report-card,
+.card,
+.panel,
+#dash-priority-list.dpr-command-center,
+#anrufe-list.dpr-command-center{
+  border-radius:var(--r-lg) !important;
+  box-shadow:var(--shadow-card) !important;
+}
+.vx-report-body,
+.settings-card-body,
+.report-card-body,
+.card-body,
+.panel-body{
+  padding:12px 16px !important;
+}
+
+/* Empty states alignment */
+.empty,
+.vx-notif-empty,
+.vx-notif-mobile-empty{
+  padding:34px 24px !important;
+  font-size:13px !important;
+  color:var(--slate) !important;
+  text-align:center;
+}
+.empty-icon,
+.vx-notif-empty i,
+.vx-notif-mobile-empty i{
+  width:44px;
+  height:44px;
+  margin:0 auto 12px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.empty-title{font-size:14px;font-weight:700;}
+.empty-sub,
+.vx-notif-mobile-empty small{font-size:13px;line-height:1.58;}
+
+/* Mobile normalization */
+@media (max-width:768px){
+  #dash-priority-list .dpr-row,
+  #anrufe-list.dpr-command-center .dpr-row{
+    min-height:68px !important;
+    padding:10px 14px !important;
+  }
+  #dash-priority-list .dpr-quick-btn,
+  #anrufe-list.dpr-command-center .dpr-quick-btn,
+  .btn-icon-done, .btn-icon-call{
+    width:44px !important;
+    height:44px !important;
+    min-width:44px !important;
+    min-height:44px !important;
+  }
+  #call-detail-quick-actions .vx-back-btn,
+  #call-detail-quick-actions .vx-cd-qa,
+  #call-detail-quick-actions button,
+  #anrufe-split-right #call-detail-quick-actions .vx-back-btn{
+    width:48px !important;
+    height:48px !important;
+    min-width:48px !important;
+    min-height:48px !important;
+    border-radius:12px !important;
+  }
+}
+
 </style>
 
 
