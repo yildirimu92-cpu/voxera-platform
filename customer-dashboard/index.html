@@ -15152,24 +15152,33 @@ function _showAiReport(text, isLoading, generatedAtIso) {
     var d = new Date(generatedAtIso);
     var hh = String(d.getHours()).padStart(2,'0');
     var mm = String(d.getMinutes()).padStart(2,'0');
-    metaEl.innerHTML = '<span>Stand: ' + hh + ':' + mm + ' Uhr</span>' +
+    metaEl.innerHTML = '<span>Zuletzt aktualisiert: ' + hh + ':' + mm + '</span>' +
       '<button id="dash-daily-report-refresh" type="button" ' +
       'style="background:none;border:none;color:#1A6FE8;cursor:pointer;font-family:inherit;font-size:11px;padding:2px 6px;border-radius:4px;" ' +
       'onmouseover="this.style.background=\'rgba(26,111,232,0.08)\'" ' +
-      'onmouseout="this.style.background=\'none\'">Neu generieren</button>';
+      'onmouseout="this.style.background=\'none\'">Neu generieren</button>' +
+      '<span id="dash-daily-report-status" style="display:none;color:#94A3B8;"></span>';
     metaEl.style.display = 'flex';
     var refreshBtn = document.getElementById('dash-daily-report-refresh');
+    var statusEl = document.getElementById('dash-daily-report-status');
     if (refreshBtn) {
-      refreshBtn.onclick = function() {
-        // Cache löschen und neu generieren
-        try {
-          var customerId = (typeof customerContext !== 'undefined' && customerContext && customerContext.customerId) ? customerContext.customerId : 'default';
-          var today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Zurich' });
-          localStorage.removeItem('voxera_ai_report_v22_' + customerId + '_' + today);
-        } catch(e) {}
+      refreshBtn.onclick = async function() {
+        if (refreshBtn.disabled) return;
+        var oldLabel = refreshBtn.textContent;
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Generiere…';
+        if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
         _aiReportGenerated = false;
         _aiReportForceRefresh = true;
-        generateAiDailyReport(window.allRecords || allRecords, window.allManualTaskRecords || allManualTaskRecords, null);
+        try {
+          await generateAiDailyReport(window.allRecords || allRecords, window.allManualTaskRecords || allManualTaskRecords, null);
+          if (statusEl) { statusEl.textContent = 'Aktualisiert'; statusEl.style.color = '#64748B'; statusEl.style.display = 'inline'; }
+        } catch(e) {
+          if (statusEl) { statusEl.textContent = 'Aktualisierung fehlgeschlagen'; statusEl.style.color = '#DC2626'; statusEl.style.display = 'inline'; }
+        } finally {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = oldLabel;
+        }
       };
     }
   }
@@ -16763,7 +16772,7 @@ function showCallDetail(callId) {
       page.classList.add('is-fullscreen'); // [v2.66]
       page.style.position = 'fixed';
       page.style.top = '0';
-      page.style.left = '232px';
+      page.style.left = window.innerWidth < 768 ? '0' : '232px';
       page.style.right = '0';
       page.style.bottom = '0';
       page.style.zIndex = '9999';
@@ -17111,7 +17120,7 @@ function renderCallDetailPage(call, history) {
   html +=   '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:0.5px solid var(--line);">';
   html +=     '<i class="ph-bold ph-sparkle" style="color:#1A6FE8;flex-shrink:0;" style="font-size:16px;" aria-hidden="true"></i>';
   html +=     '<div style="font-size:10px;font-weight:600;color:#0D1F3C;text-transform:uppercase;letter-spacing:.06em;">Zusammenfassung</div>';
-  html +=     '<div style="font-size:10px;font-weight:600;color:#1A6FE8;background:#EAF2FF;border-radius:4px;padding:2px 7px;margin-left:auto;">KI-Zusammenfassung</div>';
+  html += summary ? '<div style="font-size:10px;font-weight:500;color:#64748B;margin-left:auto;">KI-generiert</div>' : '';
   html +=   '</div>';
   html +=   '<div style="padding:10px 12px;">';
   if (summary) {
@@ -17119,7 +17128,7 @@ function renderCallDetailPage(call, history) {
   } else {
     // Elite Empty-State
     html += '<div style="text-align:center;padding:8px 0;">';
-    html +=   '<div style="font-size:13px;color:var(--slate);font-style:italic;">Keine Zusammenfassung vorhanden.</div>';
+    html +=   '<div style="font-size:13px;color:var(--slate);font-style:italic;">' + (callTranscript ? 'Transkript vorhanden — Zusammenfassung wird noch erstellt.' : 'Keine Zusammenfassung vorhanden.') + '</div>';
     html +=   '<div style="font-size:11px;color:var(--slate2);margin-top:4px;">Vermutlich wurde aufgelegt oder der Anruf war zu kurz.</div>';
     html += '</div>';
   }
@@ -17705,7 +17714,6 @@ function renderTimelineHTML(history) {
       const whenLabel = vxTimelineDateLabel(t) + (Number.isNaN(t.getTime()) ? '' : ' · ' + formatTimeCH(t) + ' Uhr');
 
       if (e.type === 'call_inbound') {
-        const transcriptId = 'transcript-' + e.call_id;
         const dur = e.duration || 0;
         const isClickable = !!e.call_id;
         const clickHandler = isClickable
@@ -17728,12 +17736,10 @@ function renderTimelineHTML(history) {
         if (metaParts.length > 0) {
           inner += '<div style="font-size:11px;color:var(--slate);margin-top:3px;">' + metaParts.join(' · ') + '</div>';
         }
-        inner += '<div style="font-size:12px;color:var(--ink2);margin-top:6px;line-height:1.5;">' + (e.summary || '<em style="color:var(--slate);">Keine Zusammenfassung</em>') + '</div>';
         var _transcriptText = e.transcription || e.transcript || "";
-        if (_transcriptText) {
-          inner += '<button data-target="' + transcriptId + '" onclick="toggleTranscript(this.dataset.target)" style="margin-top:8px;padding:5px 10px;background:#EAF2FF;color:#1A6FE8;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">Transkript anzeigen ▼</button>';
-          inner += '<div id="' + transcriptId + '" style="display:none;margin-top:8px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;font-size:12px;line-height:1.5;color:var(--ink);">' + _transcriptText + '</div>';
-        }
+        var _historySummary = (e.summary || '').trim();
+        if (!_historySummary && _transcriptText) _historySummary = 'Transkript vorhanden';
+        inner += '<div style="font-size:12px;color:var(--ink2);margin-top:6px;line-height:1.5;">' + (_historySummary || '<em style="color:var(--slate);">Keine Zusammenfassung</em>') + '</div>';
         inner += '</div></div>';
       } else {
         const typeMap = { callback: 'Rückruf', information: 'Offerte', offerte: 'Offerte', appointment: 'Termin', termin: 'Termin', general: 'Aufgabe', task: 'Aufgabe', follow_up: 'Nachfassen' };
@@ -17977,7 +17983,7 @@ function vxCallDetailExpand() {
     document.body.appendChild(page);
     page.style.position = 'fixed';
     page.style.top = '0';
-    page.style.left = '232px';
+    page.style.left = window.innerWidth < 768 ? '0' : '232px';
     page.style.right = '0';
     page.style.bottom = '0';
     page.style.zIndex = '9999';
@@ -18573,12 +18579,12 @@ function renderDashboard(records, manualTasks) {
 
   if (kpiTodayLabel) kpiTodayLabel.textContent = 'Offene Aufgaben';
   if (kpiTodayNote) kpiTodayNote.textContent = 'zu erledigen';
-  if (kpiTd) { kpiTd.textContent = openTaskCount || '0'; kpiTd.style.color = openTaskCount > 0 ? '#DC2626' : '#059669'; }
+  if (kpiTd) { kpiTd.textContent = openTaskCount || '0'; kpiTd.style.color = openTaskCount > 0 ? '#DC2626' : '#94A3B8'; }
 
   if (kpiDoneLabel) kpiDoneLabel.textContent = dueMetricIsOverdue ? 'Überfällig' : 'Heute fällig';
   if (kpiDoneNote) kpiDoneNote.textContent = dueMetricIsOverdue ? 'sofort prüfen' : 'Aufgaben';
-  if (kpiDueBar) kpiDueBar.style.background = dueMetricIsOverdue ? 'linear-gradient(90deg,#f87171,#dc2626)' : 'linear-gradient(90deg,#059669,#047857)';
-  if (kpiDn) { kpiDn.textContent = dueMetricValue || '0'; kpiDn.style.color = dueMetricIsOverdue ? '#DC2626' : '#059669'; }
+  if (kpiDueBar) kpiDueBar.style.background = dueMetricValue > 0 ? (dueMetricIsOverdue ? 'linear-gradient(90deg,#f87171,#dc2626)' : 'linear-gradient(90deg,#FCD34D,#D97706)') : 'linear-gradient(90deg,#CBD5E1,#94A3B8)';
+  if (kpiDn) { kpiDn.textContent = dueMetricValue || '0'; kpiDn.style.color = dueMetricValue > 0 ? (dueMetricIsOverdue ? '#DC2626' : '#D97706') : '#94A3B8'; }
   var reach = getReachabilityStatus(records);
   var reachColors = { green:'#059669', amber:'#E8C547', red:'#DC2626', gray:'#94A3B8' };
   
