@@ -6644,7 +6644,7 @@ body,.main{background:var(--vx-bg);}
         <div class="user-menu" id="sidebar-user-menu">
           <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeUserMenu();setTimeout(function(){vxMehrShow('profil');},100);"><i class="ph-light ph-user menu-icon" aria-hidden="true"></i>Profil</button>
           <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeUserMenu();setTimeout(function(){vxMehrShow('hilfe');},100);"><i class="ph-light ph-question menu-icon" aria-hidden="true"></i>Hilfe</button>
-          <button class="user-menu-item danger" onclick="closeUserMenu();doLogout()"><i class="ph-light ph-sign-out menu-icon" aria-hidden="true"></i>Abmelden</button>
+          <button class="user-menu-item danger" onclick="handleLogout(this, closeUserMenu)"><i class="ph-light ph-sign-out menu-icon" aria-hidden="true"></i>Abmelden</button>
         </div>
       </div>
     </aside>
@@ -10370,6 +10370,7 @@ let incomingBannerTimer = null;
 let hasCompletedInitialDashboardLoad = false;
 let currentUser = null;
 let showAppInProgress = false;
+let forceDashboardOnNextRestore = false;
 let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
 let customerContractMeta = null;
 let customerContractState = {
@@ -20892,7 +20893,7 @@ async function saveFollowup() {
     renderAnrufe();
     renderRueckrufe(allRecords, allManualTaskRecords);
     renderDashPriorityList(allRecords, allManualTaskRecords);
-    toast(fields.mark_complete ? 'Erledigt' : followUpAt ? 'Nachfassen gespeichert' : 'Gespeichert');
+    toast(fields.mark_complete ? 'Erledigt' : followUpAt ? 'Folgeaktivität geplant' : 'Gespeichert');
     // Schedule reminder if enabled
     var reminderSettings = window.vxGetReminderSettings ? vxGetReminderSettings() : {active:false};
     if (reminderSettings.active && followUpAt) {
@@ -20902,6 +20903,7 @@ async function saveFollowup() {
       });
     }
     vxResetReminderUI && vxResetReminderUI();
+    btn.disabled = false; btn.textContent = 'Speichern';
     closeFollowup();
     if (fields.mark_complete && typeof vxCloseAfterSuccessfulCompletion === 'function') vxCloseAfterSuccessfulCompletion();
     notizRecordId = null;
@@ -22979,6 +22981,11 @@ function showTab(name, el, options) {
 
 function restoreTab() {
   try {
+    if (forceDashboardOnNextRestore) {
+      forceDashboardOnNextRestore = false;
+      showTab(MAIN_NAV_DEFAULT_TAB, findTabNavElement(MAIN_NAV_DEFAULT_TAB), { historyMode: 'replace' });
+      return;
+    }
     const urlState = getRequestedMainNavTabFromUrl();
     if (urlState.hasParam) {
       const navEl = findTabNavElement(urlState.tab);
@@ -25977,11 +25984,15 @@ async function doLogin() {
     const user = (data && data.user) ? data.user : await getCurrentSessionUser();
     if (!user) throw new Error('Auth session missing');
 
-    // Fresh login: always start on the dashboard tab, not a previously saved tab.
+    // Fresh login: always start on the dashboard tab, not a previously saved tab/detail state.
+    forceDashboardOnNextRestore = true;
     try {
       sessionStorage.removeItem('voxera_tab');
       sessionStorage.removeItem('voxera_last_non_setup_tab');
+      history.replaceState({}, '', window.location.pathname + window.location.search);
     } catch(e) {}
+    if (typeof hideCallDetail === 'function') hideCallDetail();
+    window._vxActiveRecordId = null;
     showApp(user);
   } catch(e) {
     const raw = (e && e.message) ? String(e.message) : '';
@@ -26017,6 +26028,34 @@ async function doLogout() {
   var loginErr = document.getElementById('login-error');
   if (loginErr) { loginErr.style.display = 'none'; loginErr.textContent = ''; }
   initNetworkCanvas();
+}
+
+let logoutInFlight = false;
+async function handleLogout(triggerEl, beforeLogout) {
+  if (logoutInFlight) return;
+  logoutInFlight = true;
+  var btn = triggerEl || null;
+  var oldHtml = btn ? btn.innerHTML : '';
+  var oldDisabled = btn ? !!btn.disabled : false;
+  try {
+    if (typeof beforeLogout === 'function') beforeLogout();
+    if (btn) {
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.innerHTML = '<i class="ph-light ph-spinner-gap menu-icon" aria-hidden="true"></i>Melde ab...';
+    }
+    await doLogout();
+  } catch (e) {
+    var msg = (e && e.message) ? String(e.message) : 'Abmelden fehlgeschlagen';
+    toast(msg);
+    if (btn) {
+      btn.disabled = oldDisabled;
+      btn.innerHTML = oldHtml || 'Abmelden';
+      btn.removeAttribute('aria-busy');
+    }
+  } finally {
+    logoutInFlight = false;
+  }
 }
 
 function showSplash(onDone) {
