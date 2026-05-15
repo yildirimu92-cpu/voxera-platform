@@ -294,6 +294,16 @@ html[data-theme="dark"]{
 .vx-notif-list{overflow-y:auto;flex:1;}
 .vx-notif-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 20px;color:var(--slate2);font-size:12px;text-align:center;gap:8px;}
 .vx-notif-empty i{font-size:26px;}
+.vx-notif-mobile-shell{padding:12px 12px calc(86px + env(safe-area-inset-bottom));}
+.vx-notif-mobile-head{background:var(--vx-kpi-bg);border-radius:16px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 22px rgba(13,31,60,.16);margin-bottom:10px;}
+.vx-notif-mobile-back{width:34px;height:34px;border-radius:999px;border:none;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;flex-shrink:0;}
+.vx-notif-mobile-title{flex:1;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.02em;}
+.vx-notif-mobile-markall{background:none;border:none;font-size:12px;font-weight:600;color:rgba(255,255,255,.72);padding:5px 6px;border-radius:8px;cursor:pointer;font-family:inherit;}
+.vx-notif-mobile-list{background:var(--surface);border:0.5px solid var(--line);border-radius:14px;min-height:220px;overflow:hidden;}
+.vx-notif-mobile-empty{padding:36px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;color:var(--slate2);gap:8px;font-size:13px;}
+.vx-notif-mobile-empty i{font-size:28px;color:#94A3B8;}
+.vx-notif-mobile-empty small{font-size:12px;line-height:1.55;color:#94A3B8;max-width:280px;}
+
 .vx-notif-date-sep{padding:4px 14px;font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;background:var(--surface2);}
 .vx-ni{display:flex;align-items:flex-start;gap:9px;padding:10px 14px;border-bottom:0.5px solid var(--line);cursor:pointer;transition:background .1s;position:relative;}
 .vx-ni:last-child{border-bottom:none;}
@@ -6748,17 +6758,17 @@ body,.main{background:var(--vx-bg);}
                 </div>
               </div>
               <div id="dash-kpi-strip" class="vx-kpi-strip">
-                <div class="vx-kpi-cell" style="border-top:2px solid var(--vx-blue);">
+                <div class="vx-kpi-cell" id="kpi-cell-callbacks">
                   <div id="kpi-callbacks-label" class="vx-kpi-label">Neue Anfragen</div>
                   <div id="kpi-callbacks-new" class="vx-kpi-val" style="color:var(--vx-blue);">–</div>
                   <div id="kpi-callbacks-note" class="vx-kpi-note">ungeprüft</div>
                 </div>
-                <div class="vx-kpi-cell" style="border-top:2px solid var(--vx-red);">
+                <div class="vx-kpi-cell" id="kpi-cell-today">
                   <div id="kpi-today-label" class="vx-kpi-label">Offene Aufgaben</div>
                   <div id="kpi-today-new" class="vx-kpi-val" style="color:var(--vx-red);">–</div>
                   <div id="kpi-today-note" class="vx-kpi-note">zu erledigen</div>
                 </div>
-                <div class="vx-kpi-cell" style="border-top:2px solid var(--vx-gold);">
+                <div class="vx-kpi-cell" id="kpi-cell-due">
                   <div id="kpi-due-bar-new" style="display:none;"></div>
                   <div id="kpi-done-label" class="vx-kpi-label">Heute fällig</div>
                   <div id="kpi-done-new" class="vx-kpi-val" style="color:var(--vx-gold);">–</div>
@@ -6776,7 +6786,7 @@ body,.main{background:var(--vx-bg);}
               <div id="dash-daily-report" class="vx-report-card" style="display:none;">
                 <div class="vx-report-head">
                   <div class="vx-report-label"><i class="ph-bold ph-sparkle" aria-hidden="true"></i>Tagesbericht</div>
-                  <div class="vx-report-ki">KI-Zusammenfassung</div>
+                  <div class="vx-report-ki">Automatisch erstellt</div>
                 </div>
                 <div class="vx-report-body">
                   <div id="dash-daily-report-text" class="vx-report-text"></div>
@@ -8110,17 +8120,20 @@ body,.main{background:var(--vx-bg);}
 
         <!-- ── BENACHRICHTIGUNGEN — Mobile Vollseite ── -->
         <div class="tab-page" id="tab-benachrichtigungen">
-          <div style="background:#0D1F3C;padding:12px 16px 14px;display:flex;align-items:center;gap:12px;">
-            <button onclick="vxBellPageBack()" style="width:34px;height:34px;border-radius:10px;border:none;background:rgba(255,255,255,.1);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;" aria-label="Zurück">
-              <i class="ph-bold ph-arrow-left" aria-hidden="true"></i>
-            </button>
-            <div style="flex:1;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.02em;">Benachrichtigungen</div>
-            <button onclick="vxBellMarkAll()" style="background:none;border:none;font-size:12px;font-weight:500;color:rgba(255,255,255,.5);cursor:pointer;font-family:inherit;padding:5px 8px;border-radius:6px;">Alle gelesen</button>
-          </div>
-          <div id="vx-notif-page-list" style="background:var(--surface);min-height:200px;">
-            <div style="padding:40px 20px;text-align:center;color:var(--slate2);font-size:13px;">
-              <i class="ph-bold ph-bell-slash" style="font-size:28px;display:block;margin-bottom:8px;" aria-hidden="true"></i>
-              Keine Benachrichtigungen
+          <div class="vx-notif-mobile-shell">
+            <div class="vx-notif-mobile-head">
+              <button class="vx-notif-mobile-back" onclick="vxBellPageBack()" aria-label="Zurück">
+                <i class="ph-bold ph-arrow-left" aria-hidden="true"></i>
+              </button>
+              <div class="vx-notif-mobile-title">Benachrichtigungen</div>
+              <button class="vx-notif-mobile-markall" onclick="vxBellMarkAll()">Alle gelesen</button>
+            </div>
+            <div id="vx-notif-page-list" class="vx-notif-mobile-list">
+              <div class="vx-notif-mobile-empty">
+                <i class="ph-bold ph-bell-slash" aria-hidden="true"></i>
+                <div>Keine neuen Benachrichtigungen</div>
+                <small>Lara informiert dich hier über neue Anrufe, Rückrufe und wichtige Hinweise.</small>
+              </div>
             </div>
           </div>
         </div>
@@ -9809,7 +9822,7 @@ function vxBellPageRender() {
   if (!list) return;
   var unread = _vxNotifCache.filter(function(n){ return !n.read; });
   if (!unread.length) {
-    list.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--slate2);font-size:13px;"><i class="ph-bold ph-bell-slash" style="font-size:28px;display:block;margin-bottom:8px;" aria-hidden="true"></i>Keine neuen Benachrichtigungen</div>';
+    list.innerHTML = '<div class="vx-notif-mobile-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i><div>Keine neuen Benachrichtigungen</div><small>Lara informiert dich hier über neue Anrufe, Rückrufe und wichtige Hinweise.</small></div>';
     return;
   }
   var html = _vxBellBuildHTML(unread, 'vxBellPageItemClick');
@@ -18560,6 +18573,9 @@ function renderDashboard(records, manualTasks) {
   var kpiDoneLabel = document.getElementById('kpi-done-label');
   var kpiDoneNote = document.getElementById('kpi-done-note');
   var kpiDueBar = document.getElementById('kpi-due-bar-new');
+  var kpiCellCallbacks = document.getElementById('kpi-cell-callbacks');
+  var kpiCellToday = document.getElementById('kpi-cell-today');
+  var kpiCellDue = document.getElementById('kpi-cell-due');
 
   // [PATCH v2.11] KPIs nach Inbox-/Arbeitslogik statt reiner Telefonie:
   // 1) Neue Anfragen = ungeprüfte Calls (dashboard_status = new)
@@ -18575,14 +18591,17 @@ function renderDashboard(records, manualTasks) {
 
   if (kpiCallbacksLabel) kpiCallbacksLabel.textContent = 'Neue Anfragen';
   if (kpiCallbacksNote) kpiCallbacksNote.textContent = 'ungeprüft';
+  if (kpiCellCallbacks) kpiCellCallbacks.style.borderTop = newRequestCount > 0 ? '2px solid var(--vx-blue)' : '2px solid rgba(148,163,184,.45)';
   if (kpiCb) { kpiCb.textContent = newRequestCount || '0'; kpiCb.style.color = newRequestCount > 0 ? '#1A6FE8' : '#94A3B8'; }
 
   if (kpiTodayLabel) kpiTodayLabel.textContent = 'Offene Aufgaben';
   if (kpiTodayNote) kpiTodayNote.textContent = 'zu erledigen';
+  if (kpiCellToday) kpiCellToday.style.borderTop = openTaskCount > 0 ? '2px solid var(--vx-red)' : '2px solid rgba(148,163,184,.45)';
   if (kpiTd) { kpiTd.textContent = openTaskCount || '0'; kpiTd.style.color = openTaskCount > 0 ? '#DC2626' : '#94A3B8'; }
 
   if (kpiDoneLabel) kpiDoneLabel.textContent = dueMetricIsOverdue ? 'Überfällig' : 'Heute fällig';
   if (kpiDoneNote) kpiDoneNote.textContent = dueMetricIsOverdue ? 'sofort prüfen' : 'Aufgaben';
+  if (kpiCellDue) kpiCellDue.style.borderTop = dueMetricValue > 0 ? (dueMetricIsOverdue ? '2px solid #DC2626' : '2px solid var(--vx-gold)') : '2px solid rgba(148,163,184,.45)';
   if (kpiDueBar) kpiDueBar.style.background = dueMetricValue > 0 ? (dueMetricIsOverdue ? 'linear-gradient(90deg,#f87171,#dc2626)' : 'linear-gradient(90deg,#FCD34D,#D97706)') : 'linear-gradient(90deg,#CBD5E1,#94A3B8)';
   if (kpiDn) { kpiDn.textContent = dueMetricValue || '0'; kpiDn.style.color = dueMetricValue > 0 ? (dueMetricIsOverdue ? '#DC2626' : '#D97706') : '#94A3B8'; }
   var reach = getReachabilityStatus(records);
@@ -21689,7 +21708,7 @@ function showTaskDetail(taskId) {
     page.classList.add('is-fullscreen');
     page.style.position = 'fixed';
     page.style.top = '0';
-    page.style.left = '232px';
+    page.style.left = window.innerWidth < 768 ? '0' : '232px';
     page.style.right = '0';
     page.style.bottom = '0';
     page.style.zIndex = '9999';
@@ -31782,8 +31801,19 @@ button.vx-cd-qa-success:hover,
   -webkit-touch-callout: none;
 }
 @media (max-width: 767px) {
-  #anrufe-split { grid-template-columns:1fr !important; height:auto !important; }
-  #anrufe-split-right { display:none !important; }
+  #anrufe-split {
+    display:block !important;
+    grid-template-columns:1fr !important;
+    height:auto !important;
+    overflow:hidden !important;
+  }
+  #anrufe-split-right,
+  #anrufe-split-resizer { display:none !important; }
+  #anrufe-split-left {
+    width:100% !important;
+    max-width:100% !important;
+    border-right:none !important;
+  }
 }
 html[data-theme="dark"] #anrufe-split-left { background: var(--surface2); }
 html[data-theme="dark"] #anrufe-split { background: var(--surface); border-color: var(--line2); }
