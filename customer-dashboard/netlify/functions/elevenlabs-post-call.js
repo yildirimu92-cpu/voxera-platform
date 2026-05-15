@@ -162,10 +162,23 @@ function buildUpdatePayloadFromData(data, elevenLabsConvId, liveStatus) {
   const callerName = toStr(pickDC(dc, 'caller_name'));
   if (callerName) updatePayload.caller_name = callerName;
 
-  const callSummary = toStr(pickDC(dc, 'call_summary'));
+  const callSummary = toStr(
+    pickDC(dc, 'call_summary') ||
+    pickDC(dc, 'summary') ||
+    analysis.call_summary ||
+    analysis.summary
+  );
   if (callSummary) updatePayload.call_summary = callSummary;
 
-  const callSummaryShort = toStr(pickDC(dc, 'call_summary_short'));
+  const callSummaryShort = toStr(
+    pickDC(dc, 'call_summary_short') ||
+    pickDC(dc, 'short_summary') ||
+    pickDC(dc, 'summary_short') ||
+    pickDC(dc, 'conversation_summary') ||
+    pickDC(dc, 'transcript_summary') ||
+    analysis.call_summary_short ||
+    analysis.short_summary
+  );
   if (callSummaryShort) updatePayload.call_summary_short = callSummaryShort;
 
   const duration = toInt(meta.call_duration_secs);
@@ -270,8 +283,21 @@ async function handleToolCall(body, event) {
   const updatePayload = {};
   if (body.caller_name)        updatePayload.caller_name        = toStr(body.caller_name);
   if (body.company_name)       updatePayload.company_name       = toStr(body.company_name);
-  if (body.call_summary)       updatePayload.call_summary       = toStr(body.call_summary);
-  if (body.call_summary_short) updatePayload.call_summary_short = toStr(body.call_summary_short);
+  const bodyCallSummary = toStr(
+    body.call_summary ||
+    body.summary ||
+    body.callSummary ||
+    body.conversation_summary ||
+    body.transcript_summary
+  );
+  if (bodyCallSummary) updatePayload.call_summary = bodyCallSummary;
+
+  const bodyCallSummaryShort = toStr(
+    body.call_summary_short ||
+    body.short_summary ||
+    body.summary_short
+  );
+  if (bodyCallSummaryShort) updatePayload.call_summary_short = bodyCallSummaryShort;
   if (body.category)           updatePayload.category           = toStr(body.category);
   if (body.lead_quality)       updatePayload.lead_quality       = toStr(body.lead_quality);
   if (body.next_action)        updatePayload.next_action        = toStr(body.next_action);
@@ -435,7 +461,12 @@ exports.handler = async (event) => {
   // ─── Dual-Path Authentication ────────────────────────────────────────────
   // Path A: Post-Call Webhook (ElevenLabs automatic) → HMAC Signature
   // Path B: Tool-Call (Lara calls send_to_voxera) → webhook_secret in body
-  const isToolCall = !sigHeader && (body.webhook_secret || body.call_summary !== undefined);
+  const isToolCall = !sigHeader && (
+    body.webhook_secret ||
+    body.call_summary !== undefined ||
+    body.summary !== undefined ||
+    body.callSummary !== undefined
+  );
 
   if (isToolCall) {
     // Path B: Tool-Call — validate via webhook_secret in body
@@ -447,7 +478,7 @@ exports.handler = async (event) => {
     console.log('[elevenlabs-post-call] tool-call path accepted', {
       caller_name: body.caller_name || '',
       category: body.category || '',
-      call_summary: body.call_summary ? 'present' : 'empty'
+      call_summary: (body.call_summary || body.summary || body.callSummary) ? 'present' : 'empty'
     });
     // Handle tool-call directly — build call record from tool parameters
     return await handleToolCall(body, event);
