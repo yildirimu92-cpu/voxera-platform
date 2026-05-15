@@ -16083,22 +16083,24 @@ function vxGetCallDisplayState(callOrFields) {
     var hasDuration = src.duration_seconds !== null && src.duration_seconds !== undefined && !Number.isNaN(Number(src.duration_seconds));
     var hasReadySignals = hasSummary || (hasTranscript && hasDuration);
     var hasCompletedLikeState = ['completed', 'archived'].includes(liveStatus);
-    var hasStrongReadySignals = hasReadySignals || hasCompletedLikeState;
+    var isLiveStatus = ['incoming','active','live','ringing'].includes(liveStatus);
+    var hasDurationReadySignal = hasDuration && !isLiveStatus;
+    var hasStrongReadySignals = hasReadySignals || hasCompletedLikeState || hasDurationReadySignal;
     var tsRaw = src.updated_at || src.created_at;
     var ts = (tsRaw && typeof parseCallTimestamp === 'function') ? parseCallTimestamp(tsRaw) : (tsRaw ? new Date(tsRaw) : null);
     var ageMs = ts && !Number.isNaN(ts.getTime()) ? (Date.now() - ts.getTime()) : Number.POSITIVE_INFINITY;
-    var isLiveStatus = ['incoming','active','live','ringing'].includes(liveStatus);
     var isProcessingStatus = ['analyzing','processing'].includes(liveStatus);
     var callId = String((callOrFields && (callOrFields.id || callOrFields.call_id)) || src.id || src.call_id || '').trim();
     var cacheEntry = callId ? (cache[callId] || {}) : null;
 
+    // Hard ready lock: completed or final duration outside explicit live states must never render as temporary.
     if (hasStrongReadySignals) {
       if (cacheEntry) {
         cacheEntry.state = 'ready';
         cacheEntry.readyLocked = true;
         cacheEntry.firstSeenAt = cacheEntry.firstSeenAt || now;
         cacheEntry.lastSeenAt = now;
-        cacheEntry.stableUntil = Math.max(Number(cacheEntry.stableUntil || 0), now);
+        cacheEntry.stableUntil = now;
         cache[callId] = cacheEntry;
       }
       return fallback;
@@ -16123,7 +16125,7 @@ function vxGetCallDisplayState(callOrFields) {
       return { state:'live', label:'LIVE', tone:'danger', title:'Live-Anruf', description:'Lara nimmt den Anruf gerade entgegen. Die Zusammenfassung erscheint nach Gesprächsende.', isTemporary:true };
     }
 
-    if (ageMs > CALL_DISPLAY_TEMP_STALE_MS && !hasSummary && !hasTranscript) {
+    if (!hasCompletedLikeState && !hasDuration && ageMs > CALL_DISPLAY_TEMP_STALE_MS && !hasSummary && !hasTranscript) {
       if (cacheEntry) {
         cacheEntry.state = 'checking';
         cacheEntry.firstSeenAt = cacheEntry.firstSeenAt || now;
@@ -16133,7 +16135,7 @@ function vxGetCallDisplayState(callOrFields) {
       return { state:'checking', label:'Wird geprüft', tone:'neutral', title:'Anrufdaten werden geprüft', description:'Die Zusammenfassung erscheint, sobald die Verarbeitung abgeschlossen ist.', isTemporary:true };
     }
 
-    if (isProcessingStatus || (cacheEntry && cacheEntry.state === 'live') || ageMs <= CALL_DISPLAY_TEMP_STALE_MS) {
+    if (!hasCompletedLikeState && !hasDuration && (isProcessingStatus || (cacheEntry && cacheEntry.state === 'live') || ageMs <= CALL_DISPLAY_TEMP_STALE_MS)) {
       if (cacheEntry) {
         cacheEntry.state = 'processing';
         cacheEntry.firstSeenAt = cacheEntry.firstSeenAt || now;
