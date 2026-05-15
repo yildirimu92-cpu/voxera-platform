@@ -16039,6 +16039,9 @@ var _liveHeroNotified = new Set();
 var _staleLiveRecordIds = new Set(); // verhindert, dass einmal als stale erkannte Live-Records erneut im Hero auftauchen, bis ein neueres updated_at eintrifft
 var _staleLiveRecordUpdatedAtMs = new Map();
 var TEMP_CALL_POLL_INTERVAL_MS = 9000;
+var CALL_DISPLAY_LIVE_STABLE_MS = 12000;
+var CALL_DISPLAY_TEMP_STALE_MS = 30 * 60 * 1000;
+var CALL_DISPLAY_CACHE_TTL_MS = 60 * 60 * 1000;
 
 function vxGetDefaultCallDisplayState() {
   return {
@@ -16055,6 +16058,17 @@ if (typeof window !== 'undefined') window.vxGetDefaultCallDisplayState = vxGetDe
 function vxGetCallDisplayState(callOrFields) {
   var fallback = vxGetDefaultCallDisplayState();
   try {
+    if (typeof window !== 'undefined') {
+      window._vxCallDisplayStateCache = window._vxCallDisplayStateCache || {};
+    }
+    var cache = (typeof window !== 'undefined' && window._vxCallDisplayStateCache) ? window._vxCallDisplayStateCache : {};
+    var now = Date.now();
+    Object.keys(cache).forEach(function(key) {
+      var entry = cache[key];
+      if (!entry) return;
+      if ((now - Number(entry.lastSeenAt || 0)) > CALL_DISPLAY_CACHE_TTL_MS) delete cache[key];
+    });
+
     if (!callOrFields) return fallback;
     var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : callOrFields;
     if (!src || typeof src !== 'object') return fallback;
@@ -16067,26 +16081,65 @@ function vxGetCallDisplayState(callOrFields) {
     var hasSummary = !!summary;
     var hasTranscript = !!transcript;
     var hasDuration = src.duration_seconds !== null && src.duration_seconds !== undefined && !Number.isNaN(Number(src.duration_seconds));
-    var hasReadySignals = hasSummary || hasTranscript || hasDuration;
+    var hasReadySignals = hasSummary || (hasTranscript && hasDuration);
+    var hasCompletedLikeState = ['completed', 'archived'].includes(liveStatus);
+    var hasStrongReadySignals = hasReadySignals || hasCompletedLikeState;
     var tsRaw = src.updated_at || src.created_at;
     var ts = (tsRaw && typeof parseCallTimestamp === 'function') ? parseCallTimestamp(tsRaw) : (tsRaw ? new Date(tsRaw) : null);
     var ageMs = ts && !Number.isNaN(ts.getTime()) ? (Date.now() - ts.getTime()) : Number.POSITIVE_INFINITY;
     var isLiveStatus = ['incoming','active','live','ringing'].includes(liveStatus);
     var isProcessingStatus = ['analyzing','processing'].includes(liveStatus);
-    var isLiveFresh = isLiveStatus && ageMs <= (10*60*1000);
-    var isLiveStale = isLiveStatus && ageMs > (10*60*1000);
-    var isProcessingStale = isProcessingStatus && ageMs > (30*60*1000) && !hasReadySignals;
-    var isProcessingByAge = ageMs <= (30*60*1000) && !hasSummary;
-    if (hasReadySignals) {
+    var callId = String((callOrFields && (callOrFields.id || callOrFields.call_id)) || src.id || src.call_id || '').trim();
+    var cacheEntry = callId ? (cache[callId] || {}) : null;
+
+    if (hasStrongReadySignals) {
+      if (cacheEntry) {
+        cacheEntry.state = 'ready';
+        cacheEntry.readyLocked = true;
+        cacheEntry.firstSeenAt = cacheEntry.firstSeenAt || now;
+        cacheEntry.lastSeenAt = now;
+        cacheEntry.stableUntil = Math.max(Number(cacheEntry.stableUntil || 0), now);
+        cache[callId] = cacheEntry;
+      }
       return fallback;
     }
-    if (isLiveStale || isProcessingStale) {
-      return { state:'checking', label:'Wird geprüft', tone:'neutral', title:'Anrufdaten werden geprüft', description:'Die Zusammenfassung erscheint, sobald die Verarbeitung abgeschlossen ist.', isTemporary:true };
-    }
-    if (isLiveFresh) {
+
+    if (cacheEntry && cacheEntry.readyLocked) return fallback;
+
+    if (isLiveStatus) {
+      if (cacheEntry) {
+        cacheEntry.state = 'live';
+        cacheEntry.firstSeenAt = cacheEntry.firstSeenAt || now;
+        cacheEntry.lastSeenAt = now;
+        cacheEntry.stableUntil = now + CALL_DISPLAY_LIVE_STABLE_MS;
+        cache[callId] = cacheEntry;
+      }
       return { state:'live', label:'LIVE', tone:'danger', title:'Live-Anruf', description:'Lara nimmt den Anruf gerade entgegen. Die Zusammenfassung erscheint nach Gesprächsende.', isTemporary:true };
     }
-    if (isProcessingStatus || isProcessingByAge) {
+
+    if (cacheEntry && cacheEntry.state === 'live' && Number(cacheEntry.stableUntil || 0) > now) {
+      cacheEntry.lastSeenAt = now;
+      cache[callId] = cacheEntry;
+      return { state:'live', label:'LIVE', tone:'danger', title:'Live-Anruf', description:'Lara nimmt den Anruf gerade entgegen. Die Zusammenfassung erscheint nach Gesprächsende.', isTemporary:true };
+    }
+
+    if (ageMs > CALL_DISPLAY_TEMP_STALE_MS && !hasSummary && !hasTranscript) {
+      if (cacheEntry) {
+        cacheEntry.state = 'checking';
+        cacheEntry.firstSeenAt = cacheEntry.firstSeenAt || now;
+        cacheEntry.lastSeenAt = now;
+        cache[callId] = cacheEntry;
+      }
+      return { state:'checking', label:'Wird geprüft', tone:'neutral', title:'Anrufdaten werden geprüft', description:'Die Zusammenfassung erscheint, sobald die Verarbeitung abgeschlossen ist.', isTemporary:true };
+    }
+
+    if (isProcessingStatus || (cacheEntry && cacheEntry.state === 'live') || ageMs <= CALL_DISPLAY_TEMP_STALE_MS) {
+      if (cacheEntry) {
+        cacheEntry.state = 'processing';
+        cacheEntry.firstSeenAt = cacheEntry.firstSeenAt || now;
+        cacheEntry.lastSeenAt = now;
+        cache[callId] = cacheEntry;
+      }
       return { state:'processing', label:'Wird verarbeitet', tone:'blue', title:'Anruf wird verarbeitet', description:'Zusammenfassung und Transkript werden vorbereitet.', isTemporary:true };
     }
     return fallback;
