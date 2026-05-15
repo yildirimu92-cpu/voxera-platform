@@ -998,7 +998,7 @@ html[data-theme="dark"] .settings-card{
 .nav-section:first-child{padding-top:2px;}
 .nav-item{
   display:flex;align-items:center;gap:10px;
-  min-height:40px;
+  min-height:44px;
   padding:10px 12px;cursor:pointer;
   font-size:13px;color:var(--vx-muted);font-weight:600;
   border-radius:10px;
@@ -2055,6 +2055,11 @@ body:has(#call-detail-page[style*="block"]) .overlay {
   transition:color .18s ease;min-width:44px;min-height:44px;justify-content:center;
 }
 .mobile-nav-btn.active{color:#fff;font-weight:700;}
+.mobile-nav-btn:focus-visible{
+  outline:2px solid rgba(147,197,253,.95);
+  outline-offset:2px;
+  border-radius:12px;
+}
 .mobile-nav-icon-wrap{
   position:relative;
   width:24px;
@@ -2082,6 +2087,10 @@ body:has(#call-detail-page[style*="block"]) .overlay {
 .mobile-nav-badge.red{background:var(--red);color:#fff;}
 .mobile-nav-badge.orange{background:var(--amber);color:#fff;}
 
+.vx-page-header button{
+  min-height:40px;
+  border-radius:10px;
+}
 
 .detail-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.44);backdrop-filter:blur(6px);z-index:var(--z-overlay-detail);align-items:center;justify-content:center;padding:16px;}
 .detail-overlay.open{display:flex;}
@@ -4234,11 +4243,15 @@ body,.main{background:var(--vx-bg);}
   .dash-kpi{padding:10px 10px;}
   .dash-kpi-val{font-size:24px;}
   .greeting-main{font-size:16px!important;}
-  .mobile-nav-btn{padding:4px 8px;min-width:40px;}
+  .mobile-nav-btn{padding:4px 8px;min-width:44px;min-height:44px;}
 }
 
 /* — TOAST über Bottom-Nav — */
 @media(max-width:768px){
+  .vx-page-header button{
+    min-height:44px;
+    border-radius:12px;
+  }
   .toast{
     bottom:calc(env(safe-area-inset-bottom) + 72px)!important;
     left:12px!important;right:12px!important;
