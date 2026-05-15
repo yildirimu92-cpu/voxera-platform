@@ -10371,6 +10371,7 @@ let hasCompletedInitialDashboardLoad = false;
 let currentUser = null;
 let showAppInProgress = false;
 let forceDashboardOnNextRestore = false;
+window._vxForceDashboardAfterLogin = false;
 let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
 let customerContractMeta = null;
 let customerContractState = {
@@ -22979,13 +22980,38 @@ function showTab(name, el, options) {
   }
 }
 
+function consumeForceDashboardAfterLogin() {
+  var shouldForce = !!window._vxForceDashboardAfterLogin || !!forceDashboardOnNextRestore;
+  if (!shouldForce) return false;
+  window._vxForceDashboardAfterLogin = false;
+  forceDashboardOnNextRestore = false;
+  window._vxActiveRecordId = null;
+  window._vxCurrentCallId = null;
+  window._vxCurrentTaskId = null;
+  _anrufeFilter = 'offen';
+  try {
+    sessionStorage.setItem('voxera_tab', 'dashboard');
+    sessionStorage.setItem('voxera_last_non_setup_tab', 'dashboard');
+    localStorage.setItem('voxera_tab', 'dashboard');
+    localStorage.setItem('currentTab', 'dashboard');
+    localStorage.setItem('activeTab', 'dashboard');
+  } catch(e) {}
+  if (typeof hideCallDetail === 'function') hideCallDetail();
+  if (typeof closeDetail === 'function') closeDetail();
+  if (typeof vxCloseDetailV2 === 'function') vxCloseDetailV2();
+  var md = document.getElementById('anrufe-split-detail');
+  if (md) md.style.display = 'none';
+  try {
+    history.replaceState({ ...(history.state||{}), mainTab: MAIN_NAV_DEFAULT_TAB }, '', location.pathname + location.search);
+  } catch(e) {}
+  showTab(MAIN_NAV_DEFAULT_TAB, findTabNavElement(MAIN_NAV_DEFAULT_TAB), { historyMode: 'replace' });
+  return true;
+}
+
 function restoreTab() {
   try {
-    if (forceDashboardOnNextRestore) {
-      forceDashboardOnNextRestore = false;
-      showTab(MAIN_NAV_DEFAULT_TAB, findTabNavElement(MAIN_NAV_DEFAULT_TAB), { historyMode: 'replace' });
-      return;
-    }
+    if (consumeForceDashboardAfterLogin()) return;
+
     const urlState = getRequestedMainNavTabFromUrl();
     if (urlState.hasParam) {
       const navEl = findTabNavElement(urlState.tab);
@@ -25986,13 +26012,21 @@ async function doLogin() {
 
     // Fresh login: always start on the dashboard tab, not a previously saved tab/detail state.
     forceDashboardOnNextRestore = true;
+    window._vxForceDashboardAfterLogin = true;
     try {
       sessionStorage.removeItem('voxera_tab');
       sessionStorage.removeItem('voxera_last_non_setup_tab');
+      localStorage.setItem('voxera_tab', 'dashboard');
+      localStorage.setItem('currentTab', 'dashboard');
+      localStorage.setItem('activeTab', 'dashboard');
       history.replaceState({}, '', window.location.pathname + window.location.search);
     } catch(e) {}
     if (typeof hideCallDetail === 'function') hideCallDetail();
+    if (typeof closeDetail === 'function') closeDetail();
+    if (typeof vxCloseDetailV2 === 'function') vxCloseDetailV2();
     window._vxActiveRecordId = null;
+    window._vxCurrentCallId = null;
+    window._vxCurrentTaskId = null;
     showApp(user);
   } catch(e) {
     const raw = (e && e.message) ? String(e.message) : '';
