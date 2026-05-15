@@ -73,6 +73,25 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function parseMaybeJsonObject(v) {
+  if (!v) return null;
+  if (typeof v === 'object' && !Array.isArray(v)) return v;
+  if (typeof v !== 'string') return null;
+  try {
+    const parsed = JSON.parse(v);
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildShortSummary(text, maxLen = 140) {
+  const clean = toStr(text).replace(/\s+/g, ' ');
+  if (!clean) return '';
+  if (clean.length <= maxLen) return clean;
+  return clean.slice(0, maxLen - 1).trimEnd() + '…';
+}
+
 // ─── HMAC Signature Verification (Stripe-Style) ─────────────────────────────
 function verifySignature(rawBody, signatureHeader, secret) {
   if (!signatureHeader || !secret) return { ok: false, reason: 'missing_input' };
@@ -156,17 +175,40 @@ function buildUpdatePayloadFromData(data, elevenLabsConvId, liveStatus) {
   const meta = data.metadata || {};
   const analysis = data.analysis || {};
   const dc = analysis.data_collection_results || {};
+  const extractedData = analysis.extracted_data || data.extracted_data || {};
+  const collectedData = analysis.collected_data || data.collected_data || {};
+  const dynamicVariables = analysis.dynamic_variables || data.dynamic_variables || {};
+  const variables = data.variables || {};
+  const callObj = data.call || {};
+  const resultObj = data.result || {};
 
   const updatePayload = {};
 
-  const callerName = toStr(pickDC(dc, 'caller_name'));
+  const callerName = toStr(
+    pickDC(dc, 'caller_name') ||
+    extractedData.caller_name ||
+    collectedData.caller_name ||
+    dynamicVariables.caller_name ||
+    variables.caller_name ||
+    callObj.caller_name ||
+    resultObj.caller_name
+  );
   if (callerName) updatePayload.caller_name = callerName;
 
   const callSummary = toStr(
     pickDC(dc, 'call_summary') ||
     pickDC(dc, 'summary') ||
+    analysis.transcript_summary ||
+    analysis.conversation_summary ||
     analysis.call_summary ||
-    analysis.summary
+    analysis.summary ||
+    extractedData.call_summary ||
+    extractedData.summary ||
+    collectedData.call_summary ||
+    collectedData.summary ||
+    dynamicVariables.call_summary ||
+    variables.call_summary ||
+    resultObj.call_summary
   );
   if (callSummary) updatePayload.call_summary = callSummary;
 
@@ -177,9 +219,19 @@ function buildUpdatePayloadFromData(data, elevenLabsConvId, liveStatus) {
     pickDC(dc, 'conversation_summary') ||
     pickDC(dc, 'transcript_summary') ||
     analysis.call_summary_short ||
-    analysis.short_summary
+    analysis.short_summary ||
+    extractedData.call_summary_short ||
+    extractedData.short_summary ||
+    collectedData.call_summary_short ||
+    collectedData.short_summary ||
+    dynamicVariables.call_summary_short ||
+    variables.call_summary_short ||
+    resultObj.call_summary_short
   );
   if (callSummaryShort) updatePayload.call_summary_short = callSummaryShort;
+  if (!updatePayload.call_summary_short && updatePayload.call_summary) {
+    updatePayload.call_summary_short = buildShortSummary(updatePayload.call_summary, 140);
+  }
 
   const duration = toInt(meta.call_duration_secs);
   if (duration !== null) updatePayload.duration_seconds = duration;
@@ -232,6 +284,30 @@ function buildUpdatePayloadFromData(data, elevenLabsConvId, liveStatus) {
   updatePayload.dashboard_status = 'new';
   if (liveStatus) updatePayload.live_status = liveStatus;
   updatePayload.updated_at = new Date().toISOString();
+
+  console.log('[elevenlabs-post-call] mapped data payload', {
+    nestedKeys: {
+      data: Object.keys(data || {}),
+      analysis: Object.keys(analysis || {}),
+      metadata: Object.keys(meta || {}),
+      dc: Object.keys(dc || {}),
+      extractedData: Object.keys(extractedData || {}),
+      collectedData: Object.keys(collectedData || {}),
+      dynamicVariables: Object.keys(dynamicVariables || {}),
+      variables: Object.keys(variables || {})
+    },
+    hasCallerNameCandidate: Boolean(callerName),
+    hasSummaryCandidate: Boolean(callSummary),
+    hasShortSummaryCandidate: Boolean(callSummaryShort || updatePayload.call_summary_short),
+    hasTranscript: Boolean(updatePayload.transcript),
+    hasTranscriptJson: Array.isArray(updatePayload.transcript_json) && updatePayload.transcript_json.length > 0,
+    caller_name_source: callerName ? 'data-analysis/dc-or-extracted' : null,
+    call_summary_source: callSummary ? 'data-analysis/dc-or-analysis-or-extracted' : null,
+    call_summary_short_source: updatePayload.call_summary_short
+      ? (callSummaryShort ? 'data-analysis/dc-or-analysis-or-extracted' : 'fallback_from_call_summary')
+      : null,
+    updatePayloadKeys: Object.keys(updatePayload)
+  });
 
   return updatePayload;
 }
@@ -499,6 +575,17 @@ exports.handler = async (event) => {
   }
 
   const data = body.data || {};
+  const rawToolCalls = data.tool_calls || data.toolCalls || body.tool_calls || body.toolCalls || [];
+  const sendToVoxeraCall = Array.isArray(rawToolCalls)
+    ? rawToolCalls.find(tc => toStr(tc?.name || tc?.tool_name || tc?.function?.name) === 'send_to_voxera')
+    : null;
+  const parsedToolArgs = parseMaybeJsonObject(
+    sendToVoxeraCall?.arguments ||
+    sendToVoxeraCall?.args ||
+    sendToVoxeraCall?.function?.arguments ||
+    sendToVoxeraCall?.tool_call?.arguments
+  ) || {};
+
   const elevenLabsConvId = toStr(data.conversation_id);
   const { callerPhone, calledNumber, twilioCallSid } = extractPhoneInfo(data);
 
@@ -509,10 +596,28 @@ exports.handler = async (event) => {
 
   console.log('[elevenlabs-post-call] received', {
     elevenLabsConvId,
-    callerPhone: callerPhone || null,
-    calledNumber: calledNumber || null,
-    twilioCallSid: twilioCallSid || null,
-    duration: (data.metadata || {}).call_duration_secs
+    payloadKeys: Object.keys(body || {}),
+    dataKeys: Object.keys(data || {}),
+    analysisKeys: Object.keys((data.analysis || {})),
+    metadataKeys: Object.keys((data.metadata || {})),
+    toolCallKeys: Array.isArray(rawToolCalls) ? rawToolCalls.map(tc => Object.keys(tc || {})) : [],
+    hasToolCall: Boolean(sendToVoxeraCall),
+    hasToolArgs: Object.keys(parsedToolArgs).length > 0,
+    hasCallerNameCandidate: Boolean(
+      parsedToolArgs.caller_name || parsedToolArgs.name || parsedToolArgs.full_name || parsedToolArgs.customer_name
+    ),
+    hasSummaryCandidate: Boolean(
+      parsedToolArgs.call_summary || parsedToolArgs.summary || parsedToolArgs.transcript_summary
+    ),
+    hasShortSummaryCandidate: Boolean(
+      parsedToolArgs.call_summary_short || parsedToolArgs.short_summary || parsedToolArgs.summary_short
+    ),
+    hasTranscript: Array.isArray(data.transcript) && data.transcript.length > 0,
+    hasTranscriptJson: Array.isArray(data.transcript) && data.transcript.length > 0,
+    callerPhonePresent: Boolean(callerPhone),
+    calledNumberPresent: Boolean(calledNumber),
+    twilioCallSidPresent: Boolean(twilioCallSid),
+    durationPresent: Boolean((data.metadata || {}).call_duration_secs)
   });
 
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -527,6 +632,36 @@ exports.handler = async (event) => {
   // ─── Initial-Payload aus Webhook-Daten ──────────────────────────────────
   // Status 'analyzing': der Anruf ist beendet, Daten werden gerade vervollständigt.
   let updatePayload = buildUpdatePayloadFromData(data, elevenLabsConvId, 'analyzing');
+  if (!updatePayload.caller_name) {
+    const toolCallerName = toStr(
+      parsedToolArgs.caller_name ||
+      parsedToolArgs.name ||
+      parsedToolArgs.full_name ||
+      parsedToolArgs.customer_name
+    );
+    if (toolCallerName) updatePayload.caller_name = toolCallerName;
+  }
+  if (!updatePayload.call_summary) {
+    const toolSummary = toStr(
+      parsedToolArgs.call_summary ||
+      parsedToolArgs.summary ||
+      parsedToolArgs.transcript_summary ||
+      parsedToolArgs.conversation_summary
+    );
+    if (toolSummary) updatePayload.call_summary = toolSummary;
+  }
+  if (!updatePayload.call_summary_short) {
+    const toolSummaryShort = toStr(
+      parsedToolArgs.call_summary_short ||
+      parsedToolArgs.short_summary ||
+      parsedToolArgs.summary_short
+    );
+    if (toolSummaryShort) {
+      updatePayload.call_summary_short = toolSummaryShort;
+    } else if (updatePayload.call_summary) {
+      updatePayload.call_summary_short = buildShortSummary(updatePayload.call_summary, 140);
+    }
+  }
 
   // ─── Match-Strategie (4-stufig) ─────────────────────────────────────────
   let matchedRecordId = null;
