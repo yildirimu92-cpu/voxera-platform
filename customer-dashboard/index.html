@@ -12678,37 +12678,36 @@ function vxInquiryOpenTasks(record) {
 // [v2.64] Task-Status-Helfer — liest customer_tasks Felder (status + due_at), NICHT dashboard_status
 function vxTaskStatusBucket(record) {
   var f = (record && record.fields) || {};
-  var status = String(f.status || '').toLowerCase().trim();
-  var hasDue = !!(f.due_at);
+  var status = String(f.status || f.dashboard_status || '').toLowerCase().trim();
+  var hasDue = !!String(f.due_at || '').trim();
   if (status === 'closed' || status === 'done' || status === 'erledigt') return 'erledigt';
   if (status === 'new' || status === '' || status === 'open' || status === 'offen') {
     return hasDue ? 'geplant' : 'offen';
   }
   // Fallback: unbekannter Status → offen
-  return 'offen';
+  return hasDue ? 'geplant' : 'offen';
+}
+
+function vxGetInquiryBucket(record) {
+  if (!record) return 'offen';
+  if (typeof isManualTaskRecord === 'function' && isManualTaskRecord(record)) {
+    var taskBucket = vxTaskStatusBucket(record);
+    if (taskBucket === 'erledigt') return 'erledigt';
+    return taskBucket === 'geplant' ? 'geplant' : 'offen';
+  }
+  if (vxInquiryIsArchived(record)) return 'archiv';
+  if (vxInquiryIsCompleted(record)) return 'erledigt';
+  return vxInquiryIsPlanned(record) ? 'geplant' : 'offen';
 }
 
 function vxInquiryMatchesFilter(record, filter) {
-  if (typeof isManualTaskRecord === 'function' && isManualTaskRecord(record)) {
-    var isCompleted = vxInquiryIsCompleted(record);
-    var hasDue = !!((record.fields || {}).follow_up_at);
-    if (filter === 'abgeschlossen' || filter === 'geprueft') return isCompleted;
-    if (filter === 'archiv') return false; // Manuelle Tasks haben kein Archiv
-    if (isCompleted) return false;
-    if (filter === 'geplant') return hasDue;
-    if (filter === 'offen') return !hasDue;
-    if (filter === 'neu') return !hasDue;
-    return true;
-  }
-  var linkedTasks = vxInquiryOpenTasks(record);
-  var isOnToday = typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(record);
-  if (filter === 'archiv') return vxInquiryIsArchived(record);
-  if (filter === 'offen') return !vxInquiryIsCompleted(record) && !vxInquiryIsArchived(record);
-  if (filter === 'neu') return vxInquiryIsNew(record) && !isOnToday;
-  if (filter === 'geplant') return !vxInquiryIsCompleted(record) && !vxInquiryIsArchived(record) && (vxInquiryIsPlanned(record) || isOnToday || linkedTasks.some(function(task){ return !!(((task || {}).fields || {}).due_at); }));
-  if (filter === 'abgeschlossen' || filter === 'geprueft') return vxInquiryIsCompleted(record) && !vxInquiryIsArchived(record);
+  var bucket = vxGetInquiryBucket(record);
   if (filter === 'alle') return true;
-  return !vxInquiryIsArchived(record);
+  if (filter === 'archiv') return bucket === 'archiv';
+  if (filter === 'abgeschlossen' || filter === 'geprueft') return bucket === 'erledigt';
+  if (filter === 'geplant') return bucket === 'geplant';
+  if (filter === 'offen' || filter === 'neu') return bucket === 'offen';
+  return bucket !== 'archiv';
 }
 function vxInquiryFilterEmptyText(filter) {
   if (filter === 'offen') return 'Keine offenen Vorgänge — alles erledigt.';
@@ -20861,7 +20860,14 @@ async function saveFollowup() {
         localRec.fields.follow_up_at = null;
       }
     }
+    if (fields.mark_complete) {
+      localRec.fields.dashboard_status = CALL_STATUS.CLOSED;
+    }
     rerenderFollowupMetaForCallRow(recordId);
+    renderDashboard(allRecords, allManualTaskRecords);
+    renderAnrufe();
+    renderRueckrufe(allRecords, allManualTaskRecords);
+    renderDashPriorityList(allRecords, allManualTaskRecords);
     toast(fields.mark_complete ? 'Erledigt' : followUpAt ? 'Nachfassen gespeichert' : 'Gespeichert');
     // Schedule reminder if enabled
     var reminderSettings = window.vxGetReminderSettings ? vxGetReminderSettings() : {active:false};
