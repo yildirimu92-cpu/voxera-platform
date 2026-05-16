@@ -282,7 +282,7 @@ html[data-theme="dark"]{
 /* ══════════════════════════════════════════
    BENACHRICHTIGUNGS-PANEL
 ══════════════════════════════════════════ */
-.vx-notif-panel{position:fixed;left:16px;right:auto;top:72px;bottom:auto;width:320px;max-width:calc(100vw - 32px);max-height:min(520px,calc(100vh - 90px));background:var(--surface);border:0.5px solid var(--line);border-radius:16px;box-shadow:0 16px 48px rgba(13,31,60,.18),0 4px 12px rgba(0,0,0,.08);z-index:200;display:flex;flex-direction:column;overflow:hidden;animation:vxNotifIn .18s cubic-bezier(.16,1,.3,1);}
+.vx-notif-panel{position:fixed;left:16px;right:auto;top:72px;bottom:auto;width:320px;max-width:calc(100vw - 32px);max-height:min(520px,calc(100vh - 90px));background:var(--surface);border:0.5px solid var(--line);border-radius:16px;box-shadow:0 16px 48px rgba(13,31,60,.18),0 4px 12px rgba(0,0,0,.08);z-index:10020;display:flex;flex-direction:column;overflow:hidden;animation:vxNotifIn .18s cubic-bezier(.16,1,.3,1);}
 @keyframes vxNotifIn{from{opacity:0;transform:translateY(-6px) scale(.98);}to{opacity:1;transform:none;}}
 @media(max-width:768px){.vx-notif-panel{left:8px;right:8px;top:56px;bottom:auto;width:auto;max-width:none;max-height:60vh;}}
 .vx-notif-header{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:0.5px solid var(--line);flex-shrink:0;}
@@ -6847,15 +6847,17 @@ body,.main{background:var(--vx-bg);}
         <div class="tab-page" id="tab-anrufe">
 
           <!-- vx-page-header — konsistent mit Bericht und Assistent -->
-          <div class="vx-page-header" style="padding:22px 24px;border-radius:16px;">
+          <div class="vx-page-header" style="padding:18px 24px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
             <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
               <div class="vx-page-header-title">Anfragen</div>
               <div id="anrufe-split-count" style="font-size:12px;color:rgba(255,255,255,.72);">–</div>
             </div>
-            <button onclick="openManualTaskModal()" style="height:38px;padding:0 14px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
-              <i class="ph-bold ph-plus" style="font-size:13px;" aria-hidden="true"></i>Task erstellen
-            </button>
-            <button onclick="openManualTaskModal()" style="height:38px;padding:0 16px;background:#1A6FE8;border:0.5px solid #2F86FF;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Neu</button>
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-left:auto;">
+              <button onclick="openManualTaskModal()" style="height:38px;padding:0 14px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
+                <i class="ph-bold ph-plus" style="font-size:13px;" aria-hidden="true"></i>Task erstellen
+              </button>
+              <button onclick="openManualRequestModal()" style="height:38px;padding:0 16px;background:#1A6FE8;border:0.5px solid #2F86FF;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Neu</button>
+            </div>
           </div>
 
           <!-- ── SPLIT PANEL v3.0 ── -->
@@ -8222,7 +8224,7 @@ body,.main{background:var(--vx-bg);}
     </div>
   </div>
 </div>
-<div id="vx-notif-backdrop" style="display:none;position:fixed;inset:0;z-index:199;" onclick="vxBellClose()"></div>
+<div id="vx-notif-backdrop" style="display:none;position:fixed;inset:0;z-index:10019;" onclick="vxBellClose()"></div>
 <!-- ═══ TOAST CONTAINER ═══ -->
 <div id="vx-toast-container"></div>
 
@@ -8620,7 +8622,7 @@ body,.main{background:var(--vx-bg);}
           <div class="modal-drag"></div>
           <div class="modal-head-row">
             <div class="modal-head-icon"><i class="ph-bold ph-plus" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-            <h3 id="manual-task-title-heading">Neue Aufgabe</h3>
+            <h3 id="manual-task-title-heading">Task erstellen</h3>
             <button class="modal-close-btn" onclick="closeManualTaskModal()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
@@ -8628,8 +8630,8 @@ body,.main{background:var(--vx-bg);}
       <div class="modal-body">
         <div class="modal-grid">
           <div class="modal-field" style="margin-bottom:0;">
-            <label for="manual-task-title">Name / Titel *</label>
-            <input id="manual-task-title" type="text" placeholder="z.B. Herr Müller zurückrufen">
+            <label for="manual-task-title">Titel</label>
+            <input id="manual-task-title" type="text" placeholder="z.B. Rückruf für Herr Müller">
           </div>
           <div class="modal-field" style="margin-bottom:0;">
             <label for="manual-task-type">Typ</label>
@@ -8637,36 +8639,61 @@ body,.main{background:var(--vx-bg);}
               <option value="callback">Rückruf</option>
               <option value="offerte">Offerte</option>
               <option value="appointment">Termin</option>
-              <option value="information">Info senden</option>
               <option value="general">Sonstiges</option>
             </select>
           </div>
         </div>
+        <div style="font-size:12px;color:var(--slate2);margin:-2px 0 8px;">Plane einen manuellen Rückruf, eine Aufgabe oder ein Follow-up.</div>
         <div class="modal-field">
-          <label for="manual-task-phone">Telefonnummer</label>
-          <input id="manual-task-phone" type="tel" placeholder="+41 …">
+          <label for="manual-task-due">Fällig am</label>
+          <input id="manual-task-due" type="date">
         </div>
         <div class="modal-field">
-          <label style="display:flex;align-items:center;gap:4px;">
-            Zeitpunkt <span style="color:#DC2626;font-size:12px;">*</span>
-          </label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;" id="manual-task-quick-chips">
-            <button type="button" class="vx-cd-pill vx-cd-due-chip" data-due-mode="in30" onclick="vxManualTaskQuickDue(this,'in30')">30 Min.</button>
-            <button type="button" class="vx-cd-pill vx-cd-due-chip" data-due-mode="laterToday" onclick="vxManualTaskQuickDue(this,'laterToday')">Heute</button>
-            <button type="button" class="vx-cd-pill vx-cd-due-chip is-active" data-due-mode="tomorrow9" onclick="vxManualTaskQuickDue(this,'tomorrow9')">Morgen 09:00</button>
-            <button type="button" class="vx-cd-pill vx-cd-due-chip" data-due-mode="plus2d" onclick="vxManualTaskQuickDue(this,'plus2d')">In 2 Tagen</button>
-            <button type="button" class="vx-cd-pill vx-cd-due-chip" data-due-mode="custom" onclick="vxManualTaskQuickDue(this,'custom')">Eigenes</button>
-          </div>
-          <input id="manual-task-datetime" type="datetime-local" class="vx-cd-date-input" style="display:none;width:100%;">
+          <label for="manual-task-due-time">Uhrzeit</label>
+          <input id="manual-task-due-time" type="time">
         </div>
         <div class="modal-field">
-          <label for="manual-task-note">Notiz <span style="font-weight:400;color:var(--slate2);">(optional)</span></label>
+          <label for="manual-task-owner">Zuständig</label>
+          <input id="manual-task-owner" type="text" placeholder="z.B. Team Verkauf">
+        </div>
+        <div class="modal-field">
+          <label for="manual-task-note">Notiz</label>
           <textarea id="manual-task-note" placeholder="Optionale interne Notiz…" style="min-height:72px;"></textarea>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn--secondary btn--sm" onclick="closeManualTaskModal()">Abbrechen</button>
-        <button class="btn btn--primary" id="manual-task-save-btn" onclick="saveManualTask()">Erstellen</button>
+        <button class="btn btn--primary" id="manual-task-save-btn" onclick="saveManualTask()">Task erstellen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay overlay--sheet" id="manual-request-overlay" onclick="if(event.target===this)closeManualRequestModal()" role="dialog" aria-modal="true" aria-labelledby="manual-request-title-heading" aria-hidden="true">
+  <div class="modal followup-modal">
+    <div class="modal-shell">
+      <div class="modal-head">
+        <div class="modal-head-top">
+          <div class="modal-drag"></div>
+          <div class="modal-head-row">
+            <div class="modal-head-icon"><i class="ph-bold ph-plus-circle" style="color:rgba(255,255,255,.8);" aria-hidden="true"></i></div>
+            <h3 id="manual-request-title-heading">Neue Anfrage</h3>
+            <button class="modal-close-btn" onclick="closeManualRequestModal()" aria-label="Schliessen"><i class="ph-bold ph-x" style="font-size:15px;" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:12px;color:var(--slate2);margin-bottom:10px;">Erfasse eine neue Anfrage oder einen manuellen Eingang für die Inbox.</div>
+        <div class="modal-field"><label for="manual-request-name">Name / Firma</label><input id="manual-request-name" type="text"></div>
+        <div class="modal-field"><label for="manual-request-phone">Telefon</label><input id="manual-request-phone" type="tel" placeholder="+41 …"></div>
+        <div class="modal-field"><label for="manual-request-category">Kategorie</label><select id="manual-request-category"><option value="anruf">Anruf</option><option value="callback">Rückruf</option><option value="offerte">Offerte</option><option value="appointment">Termin</option><option value="general">Sonstiges</option></select></div>
+        <div class="modal-field"><label for="manual-request-priority">Priorität</label><select id="manual-request-priority"><option value="hot">Neu</option><option value="warm">Warm</option><option value="cold">Cold</option></select></div>
+        <div class="modal-field"><label for="manual-request-summary">Zusammenfassung</label><textarea id="manual-request-summary" style="min-height:72px;"></textarea></div>
+        <div class="modal-field" style="display:flex;align-items:center;gap:8px;"><input id="manual-request-inbox" type="checkbox" checked style="width:16px;height:16px;"><label for="manual-request-inbox" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;">Direkt in Inbox anzeigen</label></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary btn--sm" onclick="closeManualRequestModal()">Abbrechen</button>
+        <button class="btn btn--primary" id="manual-request-save-btn" onclick="saveManualRequest()">+ Neu anlegen</button>
       </div>
     </div>
   </div>
@@ -10820,8 +10847,11 @@ function vxNormalizeDashboardStatus(value) {
 
 function vxIsDoneRecord(record) {
   var f = (record && record.fields) || {};
-  if (f.archived_at || f.completed_at) return true;
-  var statusCandidates = [f.dashboard_status, f.status, f.live_status];
+  if ((record && (record.archived_at || record.completed_at)) || f.archived_at || f.completed_at) return true;
+  var statusCandidates = [
+    record && record.dashboard_status, record && record.status, record && record.live_status,
+    f.dashboard_status, f.status, f.live_status
+  ];
   for (var i = 0; i < statusCandidates.length; i++) {
     if (vxNormalizeDashboardStatus(statusCandidates[i]) === 'done') return true;
   }
@@ -10833,7 +10863,7 @@ function vxHasPlannedNextAction(record) {
   if (vxIsDoneRecord(record)) return false;
   var plannedDateFields = ['callback_at','follow_up_at','followup_at','due_at','due_date','reminder_at','planned_at','task_due_at'];
   for (var i = 0; i < plannedDateFields.length; i++) {
-    var val = f[plannedDateFields[i]];
+    var val = (record && record[plannedDateFields[i]] !== undefined) ? record[plannedDateFields[i]] : f[plannedDateFields[i]];
     if (val != null && String(val).trim() !== '') return true;
   }
   if (typeof f.callback_requested !== 'undefined' && !!f.callback_requested) return true;
@@ -10846,9 +10876,12 @@ function vxHasPlannedNextAction(record) {
 
 function vxIsUnreadRecord(record) {
   var f = (record && record.fields) || {};
+  var rawReadAt = (record && record.read_at !== undefined) ? record.read_at : f.read_at;
   if (Object.prototype.hasOwnProperty.call(f, 'is_unread')) return !!f.is_unread;
+  if (record && Object.prototype.hasOwnProperty.call(record, 'is_unread')) return !!record.is_unread;
   if (Object.prototype.hasOwnProperty.call(f, 'unread') && f.unread != null) return !!f.unread;
-  return !f.read_at;
+  if (record && Object.prototype.hasOwnProperty.call(record, 'unread') && record.unread != null) return !!record.unread;
+  return !rawReadAt;
 }
 
 function vxClassifyRequestRecord(record) {
@@ -10876,7 +10909,10 @@ function vxGetRequestCounts(records) {
     else counts.read += 1;
     if (c.bucket === 'done') {
       var f = (rec && rec.fields) || {};
-      var doneTs = String(f.completed_at || f.updated_at || '').trim();
+      var doneTs = String(
+        (rec && (rec.completed_at || rec.updated_at)) ||
+        f.completed_at || f.updated_at || ''
+      ).trim();
       if (doneTs && doneTs.slice(0, 10) === todayYmd) counts.doneToday += 1;
     }
   });
@@ -21492,7 +21528,10 @@ function openManualTaskModal() {
   document.getElementById('manual-task-title').value = '';
   document.getElementById('manual-task-type').value = 'callback';
   document.getElementById('manual-task-note').value = '';
-  document.getElementById('manual-task-phone').value = '';
+  var taskOwnerEl = document.getElementById('manual-task-owner');
+  if (taskOwnerEl) taskOwnerEl.value = '';
+  var taskPhoneEl = document.getElementById('manual-task-phone');
+  if (taskPhoneEl) taskPhoneEl.value = '';
   // [PATCH v2.20 — Neues Formular: datetime-local statt getrennter date+time Inputs]
   var dtInput = document.getElementById('manual-task-datetime');
   if (dtInput) {
@@ -21519,13 +21558,13 @@ function openManualTaskModal() {
   if (legacyStatus) legacyStatus.value = 'new';
   if (legacyPriority) legacyPriority.value = '';
   const modalHeading = document.getElementById('manual-task-title-heading');
-  if (modalHeading) modalHeading.textContent = 'Neue Aufgabe';
+  if (modalHeading) modalHeading.textContent = 'Task erstellen';
   const modeHint = document.getElementById('manual-task-mode-hint');
   if (modeHint) modeHint.style.display = 'none';
   const saveBtn = document.getElementById('manual-task-save-btn');
   if (saveBtn) {
     saveBtn.disabled = false;
-    saveBtn.textContent = 'Erstellen';
+    saveBtn.textContent = 'Task erstellen';
   }
   document.getElementById('manual-task-overlay').classList.add('open');
   setOverlayAriaHidden('manual-task-overlay', false);
@@ -21548,7 +21587,10 @@ function openManualTaskEditModal(recordId) {
   document.getElementById('manual-task-title').value = String(f.title || f.caller_name || '').trim();
   document.getElementById('manual-task-type').value = mapManualTaskTypeUiToDb(f.type || 'general');
   document.getElementById('manual-task-note').value = String(f.note || f.notes || '').trim();
-  document.getElementById('manual-task-phone').value = String(f.phone || f.phone_number || '').trim();
+  var taskPhoneElEdit = document.getElementById('manual-task-phone');
+  if (taskPhoneElEdit) taskPhoneElEdit.value = String(f.phone || f.phone_number || '').trim();
+  var taskOwnerElEdit = document.getElementById('manual-task-owner');
+  if (taskOwnerElEdit) taskOwnerElEdit.value = String(f.owner || '').trim();
 
   // [PATCH v2.21 — Edit-Modal: datetime-local aus due_at + due_time zusammensetzen]
   var dtInput = document.getElementById('manual-task-datetime');
@@ -21612,6 +21654,58 @@ function closeManualTaskModal() {
   restoreOverlayFocus('manual-task-overlay');
 }
 
+function openManualRequestModal() {
+  rememberOverlayFocusReturn('manual-request-overlay');
+  document.getElementById('manual-request-name').value = '';
+  document.getElementById('manual-request-phone').value = '';
+  document.getElementById('manual-request-category').value = 'anruf';
+  document.getElementById('manual-request-priority').value = 'hot';
+  document.getElementById('manual-request-summary').value = '';
+  document.getElementById('manual-request-inbox').checked = true;
+  document.getElementById('manual-request-overlay').classList.add('open');
+  setOverlayAriaHidden('manual-request-overlay', false);
+  syncOverlayScrollLock();
+}
+
+function closeManualRequestModal() {
+  document.getElementById('manual-request-overlay').classList.remove('open');
+  setOverlayAriaHidden('manual-request-overlay', true);
+  syncOverlayScrollLock();
+  restoreOverlayFocus('manual-request-overlay');
+}
+
+function saveManualRequest() {
+  var name = String(document.getElementById('manual-request-name').value || '').trim();
+  if (!name) { toast('Bitte Name / Firma ausfüllen.'); return; }
+  var phone = String(document.getElementById('manual-request-phone').value || '').trim();
+  var category = String(document.getElementById('manual-request-category').value || 'anruf');
+  var priority = String(document.getElementById('manual-request-priority').value || 'hot');
+  var summary = String(document.getElementById('manual-request-summary').value || '').trim();
+  var forceInbox = !!document.getElementById('manual-request-inbox').checked;
+  var nowIso = new Date().toISOString();
+  var rec = {
+    id: 'manual_req_' + Date.now(),
+    fields: {
+      caller_name: name,
+      company_name: name,
+      phone_number: phone || null,
+      category: category,
+      lead_quality: priority,
+      call_summary: summary || 'Manuell erfasst',
+      dashboard_status: forceInbox ? 'new' : 'in_progress',
+      created_at: nowIso,
+      updated_at: nowIso
+    }
+  };
+  allRecords = Array.isArray(allRecords) ? allRecords : [];
+  allRecords.unshift(rec);
+  closeManualRequestModal();
+  renderDashboard(allRecords, allManualTaskRecords);
+  renderAnrufe();
+  vxUpdateAnfragenCount();
+  toast('Anfrage erstellt');
+}
+
 async function saveManualTask() {
   if (customerContractState.hasContract && isContractRestrictedState()) {
     toast(getRestrictedContractMessage('Aufgaben'), 'warning');
@@ -21620,7 +21714,10 @@ async function saveManualTask() {
   const title = String(document.getElementById('manual-task-title').value || '').trim();
   const type = String(document.getElementById('manual-task-type').value || '').trim();
   const note = String(document.getElementById('manual-task-note').value || '').trim();
-  const phone = String(document.getElementById('manual-task-phone').value || '').trim();
+  var taskPhoneElSave = document.getElementById('manual-task-phone');
+  const phone = String((taskPhoneElSave && taskPhoneElSave.value) || '').trim();
+  var taskOwnerElSave = document.getElementById('manual-task-owner');
+  const owner = String((taskOwnerElSave && taskOwnerElSave.value) || '').trim();
 
   // [PATCH v2.20 — Neues datetime-local Feld als primäre Quelle für Fälligkeit]
   // Fallback auf Legacy-Felder (due + due_time) für rückwärtskompatibles Edit-Modal
@@ -21677,6 +21774,7 @@ async function saveManualTask() {
       status: status,
       priority: mapManualTaskPriorityUiToDb(priority),
       note: note || null,
+      owner: owner || null,
       phone: phone || null
     };
     if (editingManualTaskRecordId) {
