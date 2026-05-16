@@ -127,7 +127,7 @@ function buildOptionalCallPatch(payload, lifecyclePhase) {
     if (normalized) patch[column] = normalized;
   };
 
-  maybeSet('caller_name', payload.caller_name, payload.contact_name, payload.call?.caller_name);
+  maybeSet('caller_name', payload.caller_name, payload.name, payload.full_name, payload.customer_name, payload.contact_name, payload.callerName, payload.caller?.name, payload.call?.caller_name, payload.call?.name);
   maybeSet('summary', payload.summary, payload.call_summary, payload.call?.summary);
   maybeSet('call_summary', payload.call_summary, payload.summary, payload.call?.summary);
   maybeSet('call_summary_short', payload.call_summary_short, payload.summary_short, payload.call?.summary_short);
