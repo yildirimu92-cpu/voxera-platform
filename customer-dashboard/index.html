@@ -8747,6 +8747,30 @@ const BRAND_LOGO_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_LO
 const BRAND_FAVICON_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_FAVICON_PATH)||BRAND_LOGO_PATH;
 const APP_BUILD = '2026-04-02.3';
 
+
+const VX_DEBUG =
+  new URLSearchParams(window.location.search).has('debug') ||
+  localStorage.getItem('vx_debug') === '1';
+
+function vxDebugLog(...args) {
+  if (VX_DEBUG) console.log(...args);
+}
+
+function vxDebugInfo(...args) {
+  if (VX_DEBUG) console.info(...args);
+}
+
+function vxDebugGroup(...args) {
+  if (VX_DEBUG) console.group(...args);
+}
+
+function vxDebugGroupEnd() {
+  if (VX_DEBUG) console.groupEnd();
+}
+
+window.vxDebugEnable = function(){ localStorage.setItem('vx_debug','1'); location.reload(); };
+window.vxDebugDisable = function(){ localStorage.removeItem('vx_debug'); location.reload(); };
+
 // ═══════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════
@@ -8761,9 +8785,9 @@ const CASES_TABLE = 'customer_tasks';
 const supabaseLib = window.supabase;
 const supabaseUrlValue = String(SUPABASE_URL || '').trim();
 const supabaseAnonKeyValue = String(SUPABASE_ANON_KEY || '').trim();
-console.info('[voxera-dashboard] window.supabase verfügbar:', !!supabaseLib);
-console.info('[voxera-dashboard] SUPABASE_URL gesetzt:', !!supabaseUrlValue);
-console.info('[voxera-dashboard] SUPABASE_ANON_KEY gesetzt:', !!supabaseAnonKeyValue);
+vxDebugInfo('[voxera-dashboard] window.supabase verfügbar:', !!supabaseLib);
+vxDebugInfo('[voxera-dashboard] SUPABASE_URL gesetzt:', !!supabaseUrlValue);
+vxDebugInfo('[voxera-dashboard] SUPABASE_ANON_KEY gesetzt:', !!supabaseAnonKeyValue);
 
 var _sb = null;
 const CUSTOMER_AUTH_STORAGE_KEY = 'voxera-auth';
@@ -8792,7 +8816,7 @@ if (supabaseLib && typeof supabaseLib.createClient === 'function' && supabaseUrl
         storageKey: CUSTOMER_AUTH_STORAGE_KEY
       }
     });
-    console.info('[voxera-dashboard] Client erfolgreich erstellt');
+    vxDebugInfo('[voxera-dashboard] Client erfolgreich erstellt');
   } catch (initErr) {
     _sb = null;
     console.error('[voxera-dashboard] Supabase createClient fehlgeschlagen:', initErr);
@@ -9884,7 +9908,7 @@ function vxNotifSubscribe() {
         if (_vxBellOpen) { vxBellRender(); vxBellPageRender(); }
       })
       .subscribe();
-    console.log('[vxNotif] Realtime subscribed');
+    vxDebugLog('[vxNotif] Realtime subscribed');
   } catch(e) { console.warn('[vxNotif] subscribe error', e); }
 }
 
@@ -10695,7 +10719,7 @@ function getRestrictedContractMessage(scopeLabel) {
 
 function logManualTaskDoneFlow(stage, payload) {
   try {
-    console.info('[manual-task-done-flow]', stage, payload || {});
+    vxDebugInfo('[manual-task-done-flow]', stage, payload || {});
   } catch (_e) {}
 }
 
@@ -11425,7 +11449,7 @@ async function resolveCustomerContext(forceReload) {
 
   const authUser = currentUser || await getCurrentSessionUser();
   const authUserId = authUser && authUser.id ? String(authUser.id).trim() : '';
-  console.info('[voxera-dashboard] auth user id', authUserId || null);
+  vxDebugInfo('[voxera-dashboard] auth user id', authUserId || null);
   if (!authUserId) {
     customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
     return customerContext;
@@ -11442,7 +11466,7 @@ async function resolveCustomerContext(forceReload) {
 
   const usersCustomerId = userRow && userRow.customer_id ? String(userRow.customer_id).trim() : '';
   const resolvedCustomerId = usersCustomerId || '';
-  console.info('[voxera-dashboard] users.customer_id', usersCustomerId || null);
+  vxDebugInfo('[voxera-dashboard] users.customer_id', usersCustomerId || null);
   if (!usersCustomerId) {
     console.error('[voxera-dashboard] tenant context missing: users.customer_id is empty for auth user', authUserId);
   }
@@ -11459,9 +11483,8 @@ async function resolveCustomerContext(forceReload) {
     if (!customerRecord) {
       console.error('[voxera-dashboard] tenant context invalid: customers row missing for users.customer_id', resolvedCustomerId);
     }
-    console.info('[voxera-dashboard] customers record', customerRecord || null);
   } else {
-    console.info('[voxera-dashboard] customers.id', null);
+    vxDebugInfo('[voxera-dashboard] customers.id', null);
   }
 
   customerContext = {
@@ -11516,7 +11539,7 @@ async function loadCallRecords(customerIdRaw) {
   const customerId = (customerIdRaw || '').trim();
   if (!_sb || !customerId) return []; // Niemals ohne customerId abfragen – RLS gibt sonst falsche/beschränkte Daten zurück
   let query = _sb.from(CALLS_TABLE).select('*').order('created_at', { ascending: false }).limit(500);
-  console.info('[voxera-dashboard] calls query customer_id', customerId || null);
+  vxDebugInfo('[voxera-dashboard] calls query customer_id', customerId || null);
   query = query.eq('customer_id', customerId);
   const { data, error } = await query;
   if (error) throw error;
@@ -15652,7 +15675,7 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
       customerContractState.hasActiveContract = resolveHasActiveContractFromState(customerContractState);
       customerContractMeta = customerContractState.effectiveContract || customerContractState.latestContract || null;
       renderVertrag();
-      console.info('[plan-card-debug] contract-state-source', {
+      vxDebugInfo('[plan-card-debug] contract-state-source', {
         serverState: {
           status: serverState.status,
           hasContract: serverState.hasContract,
@@ -15732,7 +15755,7 @@ async function loadCustomerMeta() {
     resolvedForwardingStatus = rawForwardingStatus;
   }
 
-  console.log('[voxera] startDate mapping — commercialContract.start_date:', commercialContract && commercialContract.start_date, '| f.start_date:', f.start_date);
+  vxDebugLog('[voxera] startDate mapping — commercialContract.start_date:', commercialContract && commercialContract.start_date, '| f.start_date:', f.start_date);
   customerMeta = {
     plan: resolvedPlan,
     startDate: (commercialContract && commercialContract.start_date) 
@@ -15810,7 +15833,7 @@ async function loadCustomerMeta() {
     smsCallerTrigger:    f.sms_caller_trigger     || 'callback_only',
     smsCallerTemplate:   f.sms_caller_template    || ''
   };
-  console.info('[voxera-dashboard] customerMeta mapped', customerMeta);
+  vxDebugInfo('[voxera-dashboard] customerMeta mapped', customerMeta);
 
   // Onboarding Modal
   setTimeout(function() { vxOnboardingInit(); }, 800);
@@ -15851,7 +15874,7 @@ async function loadCustomerMeta() {
   }
   // Render profile photo if available
   renderProfilePhoto(customerMeta.avatarUrl || null, customerMeta.customerEmail || '');
-  console.info('[voxera-dashboard] customerMeta numbers', {
+  vxDebugInfo('[voxera-dashboard] customerMeta numbers', {
     voxeraNumber: customerMeta.voxeraNumber || null,
     telNr: customerMeta.telNr || null
   });
@@ -15962,7 +15985,7 @@ function renderUsage(records) {
       chip.className = 'chip ' + (over > 0 ? 'chip-hot' : pct >= 80 ? 'chip-working' : 'chip-neu');
     }
   }
-  console.info('[plan-card-debug] render-usage-plan-card', {
+  vxDebugInfo('[plan-card-debug] render-usage-plan-card', {
     contractStatusLabel,
     hasActiveContractForPlanCard,
     hasKnownInactiveContractForPlanCard,
@@ -20740,7 +20763,7 @@ function vxApplyScrollLock() {
   if (document.body) document.body.style.overflow = value;
   if (document.documentElement) document.documentElement.style.overflow = value;
   if (window.VOXERA_DEBUG_SCROLL) {
-    console.debug('[scroll-lock] apply', locked, Array.from(window.vxScrollLocks || []));
+    vxDebugLog('[scroll-lock] apply', locked, Array.from(window.vxScrollLocks || []));
   }
 }
 
@@ -21259,12 +21282,12 @@ async function safeLoadData() {
     var result = await sb.auth.getSession();
     if (!result.data.session) {
       // Session expired - try to recover silently
-      console.log('Session check: no active session');
+      vxDebugLog('Session check: no active session');
       return; // Don't force logout - Supabase will auto-refresh if possible
     }
     loadData();
   } catch(e) {
-    console.log('Session check error:', e.message);
+    vxDebugLog('Session check error:', e.message);
   }
 }
 
@@ -22508,7 +22531,7 @@ function renderSystemVoxeraNumbers(meta) {
   var numEl = document.getElementById('settings-voxera-nr');
   if(numEl) numEl.textContent = meta.voxeraNumber || '–';
   renderForwardingCodes();
-  console.info('[voxera-dashboard] settings rendered numbers', {
+  vxDebugInfo('[voxera-dashboard] settings rendered numbers', {
     voxeraNumber: numEl ? numEl.textContent : null
   });
 }
@@ -22536,7 +22559,7 @@ var _notifSaveSeq = 0;
 function notifDebugLog(event, details) {
   if (!window.__VOXERA_NOTIF_DEBUG__) return;
   try {
-    console.info('[notif-settings]', event, details || {});
+    vxDebugInfo('[notif-settings]', event, details || {});
   } catch(_) {}
 }
 
@@ -25205,7 +25228,7 @@ function clearActivationV2StorageState(){
 }
 
 function activationV2DebugLog(label, payload){
-  try { console.debug('[activation-v2]', label, payload || ''); } catch(e) {}
+  try { vxDebugLog('[activation-v2]', label, payload || ''); } catch(e) {}
 }
 
 function shouldGuardActivationV2Action(action){
@@ -26785,7 +26808,7 @@ function refreshLucideIcons() {
 //  INIT
 // ═══════════════════════════════════════════
 const supabaseConfig = validateSupabaseConfig();
-console.info('[voxera-dashboard] build', APP_BUILD);
+vxDebugInfo('[voxera-dashboard] build', APP_BUILD);
 refreshLucideIcons();
 if (!_sb || !_sb.auth) {
   showSystemUnavailableState();
@@ -26843,7 +26866,7 @@ if (_sb && _sb.auth) {
       showApp(session.user);
     }
     if (event === 'TOKEN_REFRESHED' && session) {
-      console.log('Session refreshed');
+      vxDebugLog('Session refreshed');
     }
     // PASSWORD_RECOVERY: nur zeigen wenn User explizit einen Reset-Link geöffnet hat
     // NICHT nach Aktivierung (activate.html leitet mit sauberer Session weiter)
@@ -29734,7 +29757,7 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
         var f = (r && r.fields) || {};
         return f.caller_phone || f.phone_number || '';
       });
-      console.log('[vxDv2LoadHistory] phone=', phone, 'allRecords.length=', sourceRecords.length, 'first5Phones=', firstFivePhones);
+      vxDebugLog('[vxDv2LoadHistory] phone=', phone, 'allRecords.length=', sourceRecords.length, 'first5Phones=', firstFivePhones);
     }
 
     var el = document.getElementById('vx-dv2-history') || document.querySelector('#vx-dv2-sheet #vx-dv2-history');
