@@ -92,6 +92,22 @@ function buildShortSummary(text, maxLen = 140) {
   return clean.slice(0, maxLen - 1).trimEnd() + '…';
 }
 
+function pickFirstString(candidates) {
+  for (const candidate of candidates) {
+    const value = toStr(candidate?.value !== undefined ? candidate.value : candidate);
+    if (value) return value;
+  }
+  return '';
+}
+
+function detectLang(text) {
+  const sample = toStr(text).toLowerCase();
+  if (!sample) return 'unknown';
+  if (/[äöüß]/.test(sample) || /\b(der|die|das|und|mit|für|nicht|ein|eine|anrufer|rückruf|offerte|gespräch)\b/.test(sample)) return 'de';
+  if (/\b(the|and|from|with|customer|caller|requested|summary|call)\b/.test(sample)) return 'en';
+  return 'unknown';
+}
+
 // ─── HMAC Signature Verification (Stripe-Style) ─────────────────────────────
 function verifySignature(rawBody, signatureHeader, secret) {
   if (!signatureHeader || !secret) return { ok: false, reason: 'missing_input' };
@@ -184,128 +200,79 @@ function buildUpdatePayloadFromData(data, elevenLabsConvId, liveStatus) {
 
   const updatePayload = {};
 
-  const callerName = toStr(
-    pickDC(dc, 'caller_name') ||
-    extractedData.caller_name ||
-    collectedData.caller_name ||
-    dynamicVariables.caller_name ||
-    variables.caller_name ||
-    callObj.caller_name ||
-    resultObj.caller_name
-  );
+  const callerName = pickFirstString([
+    pickDC(dc, 'caller_name'), pickDC(dc, 'name'), pickDC(dc, 'full_name'), pickDC(dc, 'customer_name'), pickDC(dc, 'contact_name'),
+    extractedData.caller_name, extractedData.name, extractedData.full_name, extractedData.customer_name, extractedData.contact_name,
+    collectedData.caller_name, collectedData.name, collectedData.full_name, collectedData.customer_name, collectedData.contact_name,
+    dynamicVariables.caller_name, dynamicVariables.name, dynamicVariables.full_name,
+    variables.caller_name, variables.name, variables.full_name,
+    callObj.caller_name, callObj.name, callObj.full_name,
+    resultObj.caller_name, resultObj.name, resultObj.full_name
+  ]);
   if (callerName) updatePayload.caller_name = callerName;
 
-  const callSummary = toStr(
-    pickDC(dc, 'call_summary') ||
-    pickDC(dc, 'summary') ||
-    analysis.transcript_summary ||
-    analysis.conversation_summary ||
-    analysis.call_summary ||
-    analysis.summary ||
-    extractedData.call_summary ||
-    extractedData.summary ||
-    collectedData.call_summary ||
-    collectedData.summary ||
-    dynamicVariables.call_summary ||
-    variables.call_summary ||
-    resultObj.call_summary
-  );
+  const callSummary = pickFirstString([
+    pickDC(dc, 'call_summary'), pickDC(dc, 'summary'),
+    extractedData.call_summary, extractedData.summary,
+    collectedData.call_summary, collectedData.summary,
+    dynamicVariables.call_summary, dynamicVariables.summary,
+    variables.call_summary, variables.summary,
+    callObj.call_summary, callObj.summary,
+    resultObj.call_summary, resultObj.summary,
+    analysis.call_summary, analysis.summary, analysis.transcript_summary, analysis.conversation_summary
+  ]);
   if (callSummary) updatePayload.call_summary = callSummary;
 
-  const callSummaryShort = toStr(
-    pickDC(dc, 'call_summary_short') ||
-    pickDC(dc, 'short_summary') ||
-    pickDC(dc, 'summary_short') ||
-    pickDC(dc, 'conversation_summary') ||
-    pickDC(dc, 'transcript_summary') ||
-    analysis.call_summary_short ||
-    analysis.short_summary ||
-    extractedData.call_summary_short ||
-    extractedData.short_summary ||
-    collectedData.call_summary_short ||
-    collectedData.short_summary ||
-    dynamicVariables.call_summary_short ||
-    variables.call_summary_short ||
+  const callSummaryShort = pickFirstString([
+    pickDC(dc, 'call_summary_short'), pickDC(dc, 'short_summary'), pickDC(dc, 'summary_short'),
+    extractedData.call_summary_short, extractedData.short_summary,
+    collectedData.call_summary_short, collectedData.short_summary,
+    dynamicVariables.call_summary_short, dynamicVariables.short_summary,
+    variables.call_summary_short, variables.short_summary,
+    analysis.call_summary_short, analysis.short_summary,
     resultObj.call_summary_short
-  );
+  ]);
   if (callSummaryShort) updatePayload.call_summary_short = callSummaryShort;
-  if (!updatePayload.call_summary_short && updatePayload.call_summary) {
-    updatePayload.call_summary_short = buildShortSummary(updatePayload.call_summary, 140);
-  }
+  if (!updatePayload.call_summary_short && updatePayload.call_summary) updatePayload.call_summary_short = buildShortSummary(updatePayload.call_summary, 140);
 
   const duration = toInt(meta.call_duration_secs);
   if (duration !== null) updatePayload.duration_seconds = duration;
-
   const callbackRequestedRaw = pickDC(dc, 'callback_requested');
-  if (
-    callbackRequestedRaw !== null &&
-    callbackRequestedRaw !== undefined &&
-    callbackRequestedRaw !== ''
-  ) {
-    updatePayload.callback_requested = toBool(callbackRequestedRaw);
-  }
-
+  if (callbackRequestedRaw !== null && callbackRequestedRaw !== undefined && callbackRequestedRaw !== '') updatePayload.callback_requested = toBool(callbackRequestedRaw);
   const leadQuality = toStr(pickDC(dc, 'lead_quality'));
   if (leadQuality) updatePayload.lead_quality = leadQuality;
-
   const category = toStr(pickDC(dc, 'category'));
   if (category && category.toLowerCase() !== 'inbound') updatePayload.category = category;
-
   const nextAction = toStr(pickDC(dc, 'next_action'));
   if (nextAction) updatePayload.next_action = nextAction;
-
   const priority = toStr(pickDC(dc, 'priority'));
   if (priority) updatePayload.priority = priority;
-
   const intent = toStr(pickDC(dc, 'intent'));
   if (intent) updatePayload.intent = intent;
-
   const urgency = toStr(pickDC(dc, 'urgency'));
   if (urgency) updatePayload.urgency = urgency;
-
   const companyName = toStr(pickDC(dc, 'company_name'));
   if (companyName) updatePayload.company_name = companyName;
 
-  // ─── [PATCH 1] Transcript ────────────────────────────────────────────────
-  // ElevenLabs liefert data.transcript als Array von {role, message, time_in_call_secs}.
-  // transcript_json: raw Array für strukturierte Auswertung im Dashboard.
-  // transcript:      lesbarer Plaintext (role: message pro Zeile).
-  // Gilt für Webhook-Payload UND für jeden Polling-API-Response (gleiches Schema).
   if (Array.isArray(data.transcript) && data.transcript.length > 0) {
     updatePayload.transcript_json = data.transcript;
-    updatePayload.transcript = data.transcript
-      .map(t => `${toStr(t.role)}: ${toStr(t.message)}`)
-      .filter(line => line.trim() !== ':')
-      .join('\n');
+    updatePayload.transcript = data.transcript.map(t => `${toStr(t.role)}: ${toStr(t.message)}`).filter(line => line.trim() !== ':').join('\\n');
   }
-  // ─── [END PATCH 1] ───────────────────────────────────────────────────────
 
   updatePayload.elevenlabs_conversation_id = elevenLabsConvId;
   updatePayload.dashboard_status = 'new';
   if (liveStatus) updatePayload.live_status = liveStatus;
   updatePayload.updated_at = new Date().toISOString();
 
+  const summaryLang = detectLang(callSummary);
   console.log('[elevenlabs-post-call] mapped data payload', {
-    nestedKeys: {
-      data: Object.keys(data || {}),
-      analysis: Object.keys(analysis || {}),
-      metadata: Object.keys(meta || {}),
-      dc: Object.keys(dc || {}),
-      extractedData: Object.keys(extractedData || {}),
-      collectedData: Object.keys(collectedData || {}),
-      dynamicVariables: Object.keys(dynamicVariables || {}),
-      variables: Object.keys(variables || {})
-    },
+    payloadKeys: Object.keys(data || {}),
     hasCallerNameCandidate: Boolean(callerName),
+    hasCallerPhoneCandidate: Boolean(meta?.phone_call?.external_number || meta?.external_number),
     hasSummaryCandidate: Boolean(callSummary),
-    hasShortSummaryCandidate: Boolean(callSummaryShort || updatePayload.call_summary_short),
-    hasTranscript: Boolean(updatePayload.transcript),
-    hasTranscriptJson: Array.isArray(updatePayload.transcript_json) && updatePayload.transcript_json.length > 0,
-    caller_name_source: callerName ? 'data-analysis/dc-or-extracted' : null,
-    call_summary_source: callSummary ? 'data-analysis/dc-or-analysis-or-extracted' : null,
-    call_summary_short_source: updatePayload.call_summary_short
-      ? (callSummaryShort ? 'data-analysis/dc-or-analysis-or-extracted' : 'fallback_from_call_summary')
-      : null,
+    summarySource: callSummary ? 'dc/extracted/collected/dynamic/analysis' : null,
+    callerNameSource: callerName ? 'dc/extracted/collected/dynamic/variables' : null,
+    summaryLang,
     updatePayloadKeys: Object.keys(updatePayload)
   });
 
@@ -357,7 +324,8 @@ async function handleToolCall(body, event) {
 
   // Build update payload from tool body
   const updatePayload = {};
-  if (body.caller_name)        updatePayload.caller_name        = toStr(body.caller_name);
+  const callerNameCandidate = pickFirstString([body.caller_name, body.name, body.full_name, body.customer_name, body.contact_name, body.callerName, body.caller?.name]);
+  if (callerNameCandidate) updatePayload.caller_name = callerNameCandidate;
   if (body.company_name)       updatePayload.company_name       = toStr(body.company_name);
   const bodyCallSummary = toStr(
     body.call_summary ||
@@ -374,6 +342,7 @@ async function handleToolCall(body, event) {
     body.summary_short
   );
   if (bodyCallSummaryShort) updatePayload.call_summary_short = bodyCallSummaryShort;
+  if (!updatePayload.call_summary_short && updatePayload.call_summary) updatePayload.call_summary_short = buildShortSummary(updatePayload.call_summary, 140);
   if (body.category)           updatePayload.category           = toStr(body.category);
   if (body.lead_quality)       updatePayload.lead_quality       = toStr(body.lead_quality);
   if (body.next_action)        updatePayload.next_action        = toStr(body.next_action);
@@ -499,7 +468,7 @@ async function handleToolCall(body, event) {
     console.warn('[elevenlabs-post-call] tool-call notification error', e.message);
   }
 
-  return response(200, { success: true, matchStrategy });
+  return response(200, { success: true, message: 'Das Anliegen wurde erfolgreich aufgenommen.' });
 }
 // ─── End Tool-Call Handler ───────────────────────────────────────────────────
 
@@ -552,9 +521,12 @@ exports.handler = async (event) => {
       return response(401, { error: 'Invalid webhook_secret' });
     }
     console.log('[elevenlabs-post-call] tool-call path accepted', {
-      caller_name: body.caller_name || '',
-      category: body.category || '',
-      call_summary: (body.call_summary || body.summary || body.callSummary) ? 'present' : 'empty'
+      toolCallReceived: true,
+      payloadKeys: Object.keys(body || {}),
+      hasCallerNameCandidate: Boolean(body.caller_name || body.name || body.full_name || body.customer_name || body.contact_name || body.callerName || body.caller?.name),
+      hasCallerPhoneCandidate: Boolean(body.phone_number || body.caller_phone),
+      hasSummaryCandidate: Boolean(body.call_summary || body.summary || body.callSummary),
+      responseStatus: 200
     });
     // Handle tool-call directly — build call record from tool parameters
     return await handleToolCall(body, event);
