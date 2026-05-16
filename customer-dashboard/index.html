@@ -381,12 +381,13 @@ html[data-theme="dark"] .vx-ni-icon.warning{background:rgba(220,38,38,.15);color
 .vx-group-label{font-size:9px;font-weight:600;color:var(--vx-text3);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:4px;}
 .vx-group-count{font-size:9px;color:var(--vx-blue);background:var(--vx-blue-light);padding:1px 7px;border-radius:999px;font-weight:600;}
 
-.vx-heute-row{display:grid;grid-template-columns:36px minmax(0,1fr) auto;column-gap:12px;align-items:center;padding:9px 14px;border-bottom:0.5px solid var(--vx-border);background:var(--vx-surface);cursor:pointer;transition:background .1s;}
+.vx-heute-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;column-gap:12px;align-items:center;padding:10px 12px;border:1px solid rgba(15,33,63,.09);border-radius:14px;background:#fff;cursor:pointer;transition:background .12s,border-color .12s;position:relative;}
 .vx-heute-row:hover{background:var(--vx-bg);}
-.vx-heute-row:last-child{border-bottom:none;}
-.vx-heute-row.rail-today{border-left:2px solid var(--vx-blue);}
-.vx-heute-row.rail-planned{border-left:2px solid #E8C547;}
-.vx-heute-row.rail-overdue{border-left:2px solid var(--vx-red);}
+.vx-heute-row:last-child{border-bottom:1px solid rgba(15,33,63,.09);}
+.vx-heute-row.rail-today,.vx-heute-row.rail-planned,.vx-heute-row.rail-overdue{border-left:1px solid rgba(15,33,63,.09);}
+.vx-heute-row.is-unread{background:rgba(26,111,232,.06);border-color:rgba(26,111,232,.24);}
+.vx-heute-row.is-unread::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;background:#1A6FE8;border-radius:3px;}
+.vx-heute-row.is-done-row{opacity:.85;background:#F8FAFC;}
 .vx-row-icon{width:36px;height:36px;border-radius:10px;background:var(--vx-pill-bg);border:0.5px solid var(--vx-pill-bd);display:flex;align-items:center;justify-content:center;color:var(--vx-pill-text);flex-shrink:0;font-size:16px;}
 .vx-row-icon.is-call{background:var(--vx-blue-light);border-color:var(--vx-blue-bd);color:var(--vx-blue);}
 .vx-row-body{min-width:0;}
@@ -402,6 +403,11 @@ html[data-theme="dark"] .vx-ni-icon.warning{background:rgba(220,38,38,.15);color
 .vx-ibtn.is-ghost-call{background:var(--vx-blue-light);border-color:var(--vx-blue-bd);color:var(--vx-blue);}
 .vx-ibtn.is-ghost-call:hover{background:var(--vx-blue);color:#fff;}
 .vx-ibtn.is-done:hover{background:var(--vx-green-light);border-color:var(--vx-green-bd);color:var(--vx-green);}
+.vx-ibtn.is-overflow{background:#fff;color:#64748B;}
+.vx-row-menu{position:absolute;right:10px;top:46px;min-width:210px;background:#fff;border:1px solid rgba(15,33,63,.12);border-radius:12px;box-shadow:0 18px 36px rgba(13,31,60,.18);padding:6px;z-index:30;display:none;}
+.vx-row-menu.is-open{display:block;}
+.vx-row-menu button{width:100%;text-align:left;border:0;background:#fff;border-radius:9px;padding:9px 10px;font-size:12px;color:#23314D;cursor:pointer;font-family:inherit;}
+.vx-row-menu button:hover{background:#F2F7FF;}
 
 .vx-split{display:flex;flex-direction:row;height:calc(100vh - 118px);background:var(--vx-surface);border-radius:var(--vx-r-xl);border:0.5px solid var(--vx-border-md);overflow:hidden;}
 .vx-split-left{width:300px;min-width:220px;max-width:55%;background:var(--vx-surface);border-right:0.5px solid var(--vx-border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
@@ -6841,12 +6847,15 @@ body,.main{background:var(--vx-bg);}
         <div class="tab-page" id="tab-anrufe">
 
           <!-- vx-page-header — konsistent mit Bericht und Assistent -->
-          <div class="vx-page-header">
-            <div class="vx-page-header-title">Anfragen</div>
-            <div id="anrufe-split-count" style="font-size:11px;color:rgba(255,255,255,.4);margin-right:4px;">–</div>
-            <button onclick="openManualTaskModal()" style="height:32px;padding:0 14px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
+          <div class="vx-page-header" style="padding:22px 24px;border-radius:16px;">
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
+              <div class="vx-page-header-title">Anfragen</div>
+              <div id="anrufe-split-count" style="font-size:12px;color:rgba(255,255,255,.72);">–</div>
+            </div>
+            <button onclick="openManualTaskModal()" style="height:38px;padding:0 14px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
               <i class="ph-bold ph-plus" style="font-size:13px;" aria-hidden="true"></i>Task erstellen
             </button>
+            <button onclick="openManualTaskModal()" style="height:38px;padding:0 16px;background:#1A6FE8;border:0.5px solid #2F86FF;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Neu</button>
           </div>
 
           <!-- ── SPLIT PANEL v3.0 ── -->
@@ -6855,10 +6864,14 @@ body,.main{background:var(--vx-bg);}
             <!-- LINKS -->
             <div id="anrufe-split-left" class="vx-split-left">
               <div class="vx-split-filters">
-                <button class="vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
+                <button class="vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Inbox</button>
                 <button class="vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
                 <button class="vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
-                <button class="vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)" title="Archivierte Anfragen"><i class="ph-bold ph-archive" style="font-size:12px;"></i></button>
+              </div>
+              <div class="vx-split-filters" id="anrufe-inbox-subfilters" style="margin-top:4px;">
+                <button class="vx-chip vx-chip--active" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter('unread',this)">Ungelesen (0)</button>
+                <button class="vx-chip" data-inbox-subfilter="read" onclick="anrufeInboxSubFilter('read',this)">Gelesen (0)</button>
+                <button class="vx-chip" data-inbox-subfilter="all" onclick="anrufeInboxSubFilter('all',this)">Alle (0)</button>
               </div>
               <div class="vx-split-search">
                 <div class="vxfb-search-box" id="fb-anrufe-searchbox">
@@ -6877,7 +6890,7 @@ body,.main{background:var(--vx-bg);}
             <div id="anrufe-split-right" class="vx-split-right">
               <div id="anrufe-split-empty" class="vx-split-empty">
                 <i class="ph-bold ph-tray" style="font-size:28px;opacity:.2;" aria-hidden="true"></i>
-                <div class="vx-split-empty-text">Anfrage auswählen</div>
+                <div class="vx-split-empty-text">Wähle eine Anfrage aus, um Details zu sehen.</div>
               </div>
               <div id="anrufe-split-detail" style="flex:1;display:none;flex-direction:column;overflow:hidden;"></div>
             </div>
@@ -9762,10 +9775,11 @@ function renderDashPriorityList() {
 // Sort-/Global-Click-Handlern oder SVG-Icon-Klicks geschluckt werden.
 function vxHandleDprButtonClick(e) {
   var target = e && e.target;
-  var btn = target && target.closest ? (target.closest('.dpr-btn') || target.closest('.vx-ibtn')) : null;
+  var btn = target && target.closest ? (target.closest('.dpr-btn') || target.closest('.vx-ibtn') || target.closest('[data-action]')) : null;
   if (!btn) return;
   var action = btn.dataset && btn.dataset.action ? btn.dataset.action : '';
   if (!action) return;
+  document.querySelectorAll('.vx-row-menu.is-open').forEach(function(m){ m.classList.remove('is-open'); });
   if (e.preventDefault) e.preventDefault();
   if (e.stopPropagation) e.stopPropagation();
   if (e.stopImmediatePropagation) e.stopImmediatePropagation();
@@ -10393,6 +10407,22 @@ function dprAction(action, recId, extra) {
     } else if (typeof doStatusChange === 'function') {
       doStatusChange(recId, CALL_STATUS.ARCHIVED, archiveRow || null);
     }
+    return;
+  }
+  if (action === 'mark-read') {
+    vxMarkRequestAsRead(recId);
+    renderAnrufe();
+    return;
+  }
+  if (action === 'mark-unread') {
+    vxMarkRequestAsUnread(recId);
+    renderAnrufe();
+    return;
+  }
+  if (action === 'copy-details') {
+    var src = (sourceRec && sourceRec.fields) || {};
+    var txt = [src.caller_name || src.name || '', src.caller_phone || src.phone || '', src.call_summary || src.summary || src.note || ''].filter(Boolean).join('\n');
+    if (navigator.clipboard && txt) navigator.clipboard.writeText(txt).catch(function(){});
     return;
   }
   if (action === 'followup') {
@@ -12882,7 +12912,17 @@ function anrufeChipFilter(filter, btn) {
   }
   // Aktiven Button setzen
   if (btn) btn.classList.add('vx-chip--active');
+  var subWrap = document.getElementById('anrufe-inbox-subfilters');
+  if (subWrap) subWrap.style.display = _anrufeFilter === 'offen' ? '' : 'none';
   document.getElementById('anrufe-sub-offen') && (document.getElementById('anrufe-sub-offen').style.display = '');
+  renderAnrufe();
+}
+
+function anrufeInboxSubFilter(filter, btn) {
+  _anrufeInboxSubfilter = filter || 'unread';
+  var container = btn ? btn.closest('#anrufe-inbox-subfilters') : document.getElementById('anrufe-inbox-subfilters');
+  if (container) container.querySelectorAll('button').forEach(function(c) { c.classList.remove('vx-chip--active'); });
+  if (btn) btn.classList.add('vx-chip--active');
   renderAnrufe();
 }
 
@@ -20158,15 +20198,26 @@ function vxSplitShowDetail(recordId) {
 function vxUpdateAnfragenCount() {
   var countEl = document.getElementById('anrufe-split-count');
   if (!countEl) return;
-  var records = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : [];
-  var offen = 0, geplant = 0, erledigt = 0;
-  records.forEach(function(r) {
-    if (!r) return;
-    if (vxInquiryMatchesFilter(r, 'abgeschlossen')) erledigt++;
-    else if (vxInquiryMatchesFilter(r, 'geplant')) geplant++;
-    else if (vxInquiryMatchesFilter(r, 'offen')) offen++;
+  var calls = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : [];
+  var tasks = (typeof allManualTaskRecords !== 'undefined' && allManualTaskRecords) ? allManualTaskRecords : [];
+  var source = [].concat(calls, tasks).filter(Boolean).filter(function(r) {
+    return isManualTaskRecord(r) || isCustomerVisibleCall(r);
   });
-  countEl.textContent = offen + ' offen · ' + geplant + ' geplant · ' + erledigt + ' erledigt';
+  var counts = vxGetRequestCounts(source);
+  countEl.textContent = counts.inbox + ' Inbox · ' + counts.planned + ' geplant · ' + counts.doneToday + ' erledigt heute';
+
+  var subWrap = document.getElementById('anrufe-inbox-subfilters');
+  if (subWrap) {
+    var inboxRecords = source.filter(function(r) { return vxClassifyRequestRecord(r).bucket === 'inbox'; });
+    var unread = inboxRecords.filter(function(r){ return vxIsUnreadRecord(r); }).length;
+    var read = Math.max(0, inboxRecords.length - unread);
+    subWrap.querySelectorAll('[data-inbox-subfilter]').forEach(function(btn) {
+      var key = btn.getAttribute('data-inbox-subfilter');
+      if (key === 'unread') btn.textContent = 'Ungelesen (' + unread + ')';
+      if (key === 'read') btn.textContent = 'Gelesen (' + read + ')';
+      if (key === 'all') btn.textContent = 'Alle (' + inboxRecords.length + ')';
+    });
+  }
 }
 
 function renderAnrufe() {
@@ -20181,6 +20232,13 @@ function renderAnrufe() {
     return isCustomerVisibleCall(r);
   });
   var filtered = source.filter(function(r) { return vxInquiryMatchesFilter(r, filter); });
+  if (filter === 'offen') {
+    filtered = filtered.filter(function(r) {
+      if (_anrufeInboxSubfilter === 'all') return true;
+      if (_anrufeInboxSubfilter === 'read') return !vxIsUnreadRecord(r);
+      return vxIsUnreadRecord(r);
+    });
+  }
   var sorted = applySortToRecords(filtered, _anrufeSort);
   if (filter === 'offen') {
     var rank = { live:0, processing:1, checking:2, ready:3 };
@@ -20237,9 +20295,10 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   var filter = activeFilter || _anrufeFilter || 'offen';
 
   if (!records || records.length === 0) {
+    var emptyLabel = filter === 'offen' ? 'Keine offenen Anfragen in der Inbox.' : (filter === 'geplant' ? 'Keine geplanten Aufgaben oder Rückrufe.' : 'Noch keine erledigten Einträge.');
     el.innerHTML = '<div style="padding:24px 20px;text-align:center;color:var(--slate2);font-size:13px;background:#fff;border-radius:0 0 14px 14px;">' +
       '<i class="ph-bold ph-tray" style="color:#1A6FE8;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;"></i>' +
-      _esc(vxInquiryFilterEmptyText(filter)) + '</div>';
+      _esc(emptyLabel) + '</div>';
     refreshLucideIcons();
     return;
   }
@@ -20424,7 +20483,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       html += '<div class="vx-heute-row '+_rowRailClass+(_isDoneOrArch?' is-done-row':'')+(_isUnread?' is-unread':'')+'"'+_rowOpacity+' onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
       html += '<div class="vx-row-icon'+(_isCallIcon?' is-call':'')+'"><i class="ph-bold ph-'+iconName+'" aria-hidden="true"></i></div>';
       html += '<div class="vx-row-body">';
-      html += '<div class="vx-row-name" style="'+(_isUnread?'font-weight:700;':'')+'">'+_esc(name)+(company?'<span class="dpr-co">'+_esc(company)+'</span>':'')+'<span class="vx-row-pill">'+_esc(_pillLabel)+'</span></div>';
+      html += '<div class="vx-row-name" style="'+(_isUnread?'font-weight:700;':'')+'">'+(_isUnread?'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#1A6FE8;margin-right:7px;vertical-align:middle;"></span>':'')+_esc(name)+(company?'<span class="dpr-co">'+_esc(company)+'</span>':'')+(_isUnread?'<span class="vx-row-pill" style="background:#DBEAFE;color:#1A6FE8;border-color:#BFDBFE;">Neu</span>':'')+'<span class="vx-row-pill">'+_esc(_pillLabel)+'</span></div>';
       if (dueMeta && dueMeta.value) html += '<div class="vx-row-time">'+_esc(dueMeta.value)+'</div>';
       if (_preview) html += '<div class="vx-row-summary">'+_esc(_preview)+'</div>';
       html += '</div>';
@@ -20433,6 +20492,8 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       if (phone) html += '<button type="button" class="vx-ibtn is-call" data-action="call" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="Anrufen"><i class="ph-bold ph-phone-call"></i></button>';
       if (!_isDoneOrArch) html += '<button type="button" class="vx-ibtn" data-action="followup" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="Fälligkeit"><i class="ph-bold ph-calendar"></i></button>';
       if (!_isDoneOrArch) html += '<button type="button" class="vx-ibtn is-done" data-action="done" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="Erledigt"><i class="ph-bold ph-check"></i></button>';
+      html += '<button type="button" class="vx-ibtn is-overflow" data-action="overflow" data-rec-id="'+_esc(rec.id)+'" title="Mehr"><i class="ph-bold ph-dots-three"></i></button>';
+      html += '<div class="vx-row-menu" id="vx-row-menu-'+_esc(rec.id)+'"><button type="button" data-action="fulldetail" data-rec-id="'+_esc(rec.id)+'">Anfrage öffnen</button><button type="button" data-action="mark-read" data-rec-id="'+_esc(rec.id)+'">Als gelesen markieren</button><button type="button" data-action="mark-unread" data-rec-id="'+_esc(rec.id)+'">Als ungelesen markieren</button><button type="button" data-action="copy-details" data-rec-id="'+_esc(rec.id)+'">Details kopieren</button><button type="button" data-action="archive" data-rec-id="'+_esc(rec.id)+'">Archivieren</button></div>';
       html += '</div>';
       html += '</div>';
       // Expanded Panel bleibt für Touch-Long-Press (sekundär)
@@ -20452,23 +20513,29 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
     });
   }
 
-  el.querySelectorAll('.dpr-card').forEach(function(card) {
-    card.addEventListener('click', function(e) {
-      if (e.target.closest('.dpr-btn, .va-exp-panel, button')) return;
+  if (!el.dataset.boundClick) {
+    el.addEventListener('click', function(e) {
+      var overflowBtn = e.target.closest('[data-action="overflow"]');
+      if (overflowBtn) {
+        e.stopPropagation();
+        el.querySelectorAll('.vx-row-menu.is-open').forEach(function(m){ m.classList.remove('is-open'); });
+        var menu = overflowBtn.parentElement && overflowBtn.parentElement.querySelector('.vx-row-menu');
+        if (menu) menu.classList.toggle('is-open');
+        return;
+      }
+      var card = e.target.closest('.dpr-card');
+      if (!card || e.target.closest('.dpr-btn, .va-exp-panel, button')) return;
       var recId = card.dataset.id;
       if (!recId) return;
       window._vxActiveRecordId = String(recId);
       card.classList.add('sp-active');
       el.querySelectorAll('.dpr-card').forEach(function(sib) { if (sib !== card) sib.classList.remove('sp-active'); });
-      // [v3.0] Immer Detail öffnen — Split-Panel auf Desktop, Fullscreen auf Mobile
       var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
-      if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) {
-        if (typeof showTaskDetail === 'function') { e.stopPropagation(); showTaskDetail(recId); }
-      } else {
-        if (typeof showCallDetail === 'function') { e.stopPropagation(); showCallDetail(recId); }
-      }
+      if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); }
+      else if (typeof showCallDetail === 'function') showCallDetail(recId);
     });
-  });
+    el.dataset.boundClick = '1';
+  }
 
   vxUpdateAnfragenCount();
   /* phosphor: no init needed */
@@ -20534,6 +20601,7 @@ var _focusModeActive = false;
 var _archivFilter = 'all';
 var _archivAllDone = [];
 var _anrufeFilter = 'offen';
+var _anrufeInboxSubfilter = 'unread';
 var _rueckrufeFilter = 'alle';
 var _anrufeSort = 'datum-neu';
 var _rueckrufeSort = 'datum-neu';
