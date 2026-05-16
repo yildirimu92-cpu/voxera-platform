@@ -6841,12 +6841,15 @@ body,.main{background:var(--vx-bg);}
         <div class="tab-page" id="tab-anrufe">
 
           <!-- vx-page-header — konsistent mit Bericht und Assistent -->
-          <div class="vx-page-header">
-            <div class="vx-page-header-title">Anfragen</div>
-            <div id="anrufe-split-count" style="font-size:11px;color:rgba(255,255,255,.4);margin-right:4px;">–</div>
-            <button onclick="openManualTaskModal()" style="height:32px;padding:0 14px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
+          <div class="vx-page-header" style="padding:22px 24px;border-radius:16px;">
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
+              <div class="vx-page-header-title">Anfragen</div>
+              <div id="anrufe-split-count" style="font-size:12px;color:rgba(255,255,255,.72);">–</div>
+            </div>
+            <button onclick="openManualTaskModal()" style="height:38px;padding:0 14px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
               <i class="ph-bold ph-plus" style="font-size:13px;" aria-hidden="true"></i>Task erstellen
             </button>
+            <button onclick="openManualTaskModal()" style="height:38px;padding:0 16px;background:#1A6FE8;border:0.5px solid #2F86FF;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Neu</button>
           </div>
 
           <!-- ── SPLIT PANEL v3.0 ── -->
@@ -6855,10 +6858,14 @@ body,.main{background:var(--vx-bg);}
             <!-- LINKS -->
             <div id="anrufe-split-left" class="vx-split-left">
               <div class="vx-split-filters">
-                <button class="vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
+                <button class="vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Inbox</button>
                 <button class="vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
                 <button class="vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
-                <button class="vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)" title="Archivierte Anfragen"><i class="ph-bold ph-archive" style="font-size:12px;"></i></button>
+              </div>
+              <div class="vx-split-filters" id="anrufe-inbox-subfilters" style="margin-top:4px;">
+                <button class="vx-chip vx-chip--active" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter('unread',this)">Ungelesen (0)</button>
+                <button class="vx-chip" data-inbox-subfilter="read" onclick="anrufeInboxSubFilter('read',this)">Gelesen (0)</button>
+                <button class="vx-chip" data-inbox-subfilter="all" onclick="anrufeInboxSubFilter('all',this)">Alle (0)</button>
               </div>
               <div class="vx-split-search">
                 <div class="vxfb-search-box" id="fb-anrufe-searchbox">
@@ -12882,7 +12889,17 @@ function anrufeChipFilter(filter, btn) {
   }
   // Aktiven Button setzen
   if (btn) btn.classList.add('vx-chip--active');
+  var subWrap = document.getElementById('anrufe-inbox-subfilters');
+  if (subWrap) subWrap.style.display = _anrufeFilter === 'offen' ? '' : 'none';
   document.getElementById('anrufe-sub-offen') && (document.getElementById('anrufe-sub-offen').style.display = '');
+  renderAnrufe();
+}
+
+function anrufeInboxSubFilter(filter, btn) {
+  _anrufeInboxSubfilter = filter || 'unread';
+  var container = btn ? btn.closest('#anrufe-inbox-subfilters') : document.getElementById('anrufe-inbox-subfilters');
+  if (container) container.querySelectorAll('button').forEach(function(c) { c.classList.remove('vx-chip--active'); });
+  if (btn) btn.classList.add('vx-chip--active');
   renderAnrufe();
 }
 
@@ -20158,15 +20175,26 @@ function vxSplitShowDetail(recordId) {
 function vxUpdateAnfragenCount() {
   var countEl = document.getElementById('anrufe-split-count');
   if (!countEl) return;
-  var records = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : [];
-  var offen = 0, geplant = 0, erledigt = 0;
-  records.forEach(function(r) {
-    if (!r) return;
-    if (vxInquiryMatchesFilter(r, 'abgeschlossen')) erledigt++;
-    else if (vxInquiryMatchesFilter(r, 'geplant')) geplant++;
-    else if (vxInquiryMatchesFilter(r, 'offen')) offen++;
+  var calls = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : [];
+  var tasks = (typeof allManualTaskRecords !== 'undefined' && allManualTaskRecords) ? allManualTaskRecords : [];
+  var source = [].concat(calls, tasks).filter(Boolean).filter(function(r) {
+    return isManualTaskRecord(r) || isCustomerVisibleCall(r);
   });
-  countEl.textContent = offen + ' offen · ' + geplant + ' geplant · ' + erledigt + ' erledigt';
+  var counts = vxGetRequestCounts(source);
+  countEl.textContent = counts.inbox + ' Inbox · ' + counts.planned + ' geplant · ' + counts.doneToday + ' erledigt heute';
+
+  var subWrap = document.getElementById('anrufe-inbox-subfilters');
+  if (subWrap) {
+    var inboxRecords = source.filter(function(r) { return vxClassifyRequestRecord(r).bucket === 'inbox'; });
+    var unread = inboxRecords.filter(function(r){ return vxIsUnreadRecord(r); }).length;
+    var read = Math.max(0, inboxRecords.length - unread);
+    subWrap.querySelectorAll('[data-inbox-subfilter]').forEach(function(btn) {
+      var key = btn.getAttribute('data-inbox-subfilter');
+      if (key === 'unread') btn.textContent = 'Ungelesen (' + unread + ')';
+      if (key === 'read') btn.textContent = 'Gelesen (' + read + ')';
+      if (key === 'all') btn.textContent = 'Alle (' + inboxRecords.length + ')';
+    });
+  }
 }
 
 function renderAnrufe() {
@@ -20181,6 +20209,13 @@ function renderAnrufe() {
     return isCustomerVisibleCall(r);
   });
   var filtered = source.filter(function(r) { return vxInquiryMatchesFilter(r, filter); });
+  if (filter === 'offen') {
+    filtered = filtered.filter(function(r) {
+      if (_anrufeInboxSubfilter === 'all') return true;
+      if (_anrufeInboxSubfilter === 'read') return !vxIsUnreadRecord(r);
+      return vxIsUnreadRecord(r);
+    });
+  }
   var sorted = applySortToRecords(filtered, _anrufeSort);
   if (filter === 'offen') {
     var rank = { live:0, processing:1, checking:2, ready:3 };
@@ -20534,6 +20569,7 @@ var _focusModeActive = false;
 var _archivFilter = 'all';
 var _archivAllDone = [];
 var _anrufeFilter = 'offen';
+var _anrufeInboxSubfilter = 'unread';
 var _rueckrufeFilter = 'alle';
 var _anrufeSort = 'datum-neu';
 var _rueckrufeSort = 'datum-neu';
