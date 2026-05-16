@@ -16829,35 +16829,59 @@ function vxGetCallTranscript(callOrFields) {
   return '';
 }
 
+function vxGetDetailNavStack() {
+  if (!Array.isArray(window.vxDetailNavStack)) window.vxDetailNavStack = [];
+  return window.vxDetailNavStack;
+}
+
+function vxEnsureDetailRootListEntry() {
+  var stack = vxGetDetailNavStack();
+  if (stack.length) return stack;
+  var activeTab = (typeof getCurrentTabName === 'function' && getCurrentTabName()) || window.__currentTab || 'requests';
+  stack.push({ type: 'list', tab: String(activeTab || 'requests') });
+  return stack;
+}
+
 function vxDetailPushCurrentContext() {
   var t = window._vxCurrentDetailType;
   var id = t === 'task' ? window._vxCurrentTaskId : window._vxCurrentCallId;
   if (!t || !id) return;
-  if (!Array.isArray(window._vxDetailBackStack)) window._vxDetailBackStack = [];
-  var stack = window._vxDetailBackStack;
+  var stack = vxEnsureDetailRootListEntry();
   var top = stack.length ? stack[stack.length - 1] : null;
   if (top && top.type === t && String(top.id) === String(id)) return;
   stack.push({ type: t, id: String(id) });
 }
 
-function vxDetailGoBack() {
-  var stack = Array.isArray(window._vxDetailBackStack) ? window._vxDetailBackStack : [];
-  if (!stack.length) return;
-  var prev = stack.pop();
-  if (!prev || !prev.id) return;
-  if (prev.type === 'task' && typeof showTaskDetail === 'function') {
-    showTaskDetail(String(prev.id));
+function vxHandleDetailBack() {
+  var stack = vxGetDetailNavStack();
+  var prev = stack.length ? stack.pop() : null;
+  if (!prev) {
+    if (typeof hideCallDetail === 'function') hideCallDetail();
+    else if (typeof vxForceCloseCallDetail === 'function') vxForceCloseCallDetail('empty-detail-nav-stack');
     return;
   }
-  if (typeof showCallDetail === 'function') showCallDetail(String(prev.id));
+  if (prev.type === 'call' && prev.id && typeof showCallDetail === 'function') {
+    showCallDetail(String(prev.id), { fromBackStack: true });
+    return;
+  }
+  if (prev.type === 'task' && prev.id && typeof showTaskDetail === 'function') {
+    showTaskDetail(String(prev.id), { fromBackStack: true });
+    return;
+  }
+  if (prev.type === 'list') {
+    if (typeof hideCallDetail === 'function') hideCallDetail();
+    if (typeof showTab === 'function') {
+      var tab = String(prev.tab || 'requests');
+      var navEl = (typeof findTabNavElement === 'function') ? findTabNavElement(tab) : null;
+      showTab(tab, navEl, { historyMode: 'none' });
+    }
+    return;
+  }
+  if (typeof hideCallDetail === 'function') hideCallDetail();
 }
-window.vxDetailGoBack = vxDetailGoBack;
+window.vxHandleDetailBack = vxHandleDetailBack;
 
-function vxRenderDetailBackLinkHtml() {
-  var stack = Array.isArray(window._vxDetailBackStack) ? window._vxDetailBackStack : [];
-  if (!stack.length) return '';
-  return '<button type="button" onclick="event.stopPropagation();vxDetailGoBack()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--blue);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:10px;">← Zurück zum vorherigen Eintrag</button>';
-}
+function vxRenderDetailBackLinkHtml() { return ''; }
 
 // Öffnet einen Call aus der Kontakt-Historie heraus
 function vxOpenCallFromHistory(callId) {
@@ -16876,7 +16900,7 @@ function vxOpenCallFromHistory(callId) {
     if (typeof vxOpenDetailV2 === 'function') {
       vxOpenDetailV2(String(callId));
     } else if (typeof showCallDetail === 'function') {
-      showCallDetail(String(callId));
+      showCallDetail(String(callId), { fromHistoryEntry: true });
     }
   } else {
     // Record nicht im Cache — Tab wechseln + öffnen
@@ -17014,8 +17038,9 @@ function vxEnsureNoOrphanDetailView(reason) {
 window.vxEnsureNoOrphanDetailView = vxEnsureNoOrphanDetailView;
 window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
-function showCallDetail(callId) {
+function showCallDetail(callId, options) {
   try {
+    options = options || {};
     callId = String(callId || '').trim();
     if (!callId) {
       console.warn('[detail] blocked open without id', { source: 'showCallDetail' });
@@ -17027,6 +17052,18 @@ function showCallDetail(callId) {
 
     // Als gelesen markieren: new → in_progress (non-blocking)
     vxMarkCallAsRead(callId);
+
+    if (!options.fromBackStack) {
+      var stack = vxGetDetailNavStack();
+      var hasOpenDetail = !!(window._vxCurrentCallId || window._vxCurrentTaskId);
+      if (!hasOpenDetail) {
+        var activeTab = (typeof getCurrentTabName === 'function' && getCurrentTabName()) || window.__currentTab || 'requests';
+        stack.length = 0;
+        stack.push({ type: 'list', tab: String(activeTab || 'requests') });
+      } else if (options.fromHistoryEntry) {
+        vxDetailPushCurrentContext();
+      }
+    }
 
     window._vxCurrentDetailType = 'call';
 
@@ -17204,7 +17241,7 @@ function hideCallDetail() {
   window._vxCurrentCallId = null;
   window._vxCurrentTaskId = null;
   window._vxCurrentDetailType = null;
-  window._vxDetailBackStack = [];
+  window.vxDetailNavStack = [];
   // Clear hash but keep current tab
   if (window.location.hash.indexOf('#call/') === 0 || window.location.hash.indexOf('#task/') === 0) {
     try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch(e) {}
@@ -29747,7 +29784,7 @@ document.getElementById('vx-dv2-close').addEventListener('click', function(){ vx
     <div class="vx-page-header" id="call-detail-banner" style="position:sticky;top:0;z-index:20;will-change:padding;box-shadow:none;border-radius:var(--r-lg);">
       
       <!-- Back-Button -->
-      <button onclick="event.stopPropagation();hideCallDetail()" class="vx-back-btn" aria-label="Zurück">
+      <button onclick="event.stopPropagation();vxHandleDetailBack()" class="vx-back-btn" aria-label="Zurück">
         <i class="ph-bold ph-arrow-left"  style="font-size:18px;" aria-hidden="true"></i>
       </button>
       
