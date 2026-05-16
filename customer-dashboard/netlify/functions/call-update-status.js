@@ -15,6 +15,20 @@ function response(statusCode, payload) {
 
 function buildTransitionSequence(current, target) {
   if (current === target) return [];
+  if (target === CALL_STATUS.ARCHIVED) {
+    if (current === CALL_STATUS.NEW) {
+      return [CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED, CALL_STATUS.ARCHIVED];
+    }
+    if (current === CALL_STATUS.IN_PROGRESS) {
+      return [CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED, CALL_STATUS.ARCHIVED];
+    }
+    if (current === CALL_STATUS.FOLLOW_UP_SCHEDULED) {
+      return [CALL_STATUS.CLOSED, CALL_STATUS.ARCHIVED];
+    }
+    if (current === CALL_STATUS.CLOSED) {
+      return [CALL_STATUS.ARCHIVED];
+    }
+  }
   if (current === CALL_STATUS.NEW && target === CALL_STATUS.FOLLOW_UP_SCHEDULED) {
     return [CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED];
   }
