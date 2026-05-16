@@ -9048,6 +9048,50 @@ async function loadPlanConfigFromSupabase() {
   }
 }
 
+
+var _vxStorageQuotaWarned = false;
+function vxWarnStorageQuotaOnce() {
+  if (_vxStorageQuotaWarned) return;
+  _vxStorageQuotaWarned = true;
+  console.warn('[storage] quota exceeded; continuing without persistent cache');
+}
+function vxIsQuotaExceededError(err) {
+  if (!err) return false;
+  var msg = String((err && err.message) || err || '');
+  return err.name === 'QuotaExceededError' || err.code === 22 || /quota|kQuotaBytes/i.test(msg);
+}
+function vxCleanupNonCriticalVoxeraStorage() {
+  try {
+    var prefixes = ['vx_', 'voxera_'];
+    var keep = ['supabase.auth.token', 'sb-', 'supabase-'];
+    var remove = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i);
+      if (!key) continue;
+      if (keep.some(function(k){ return key.indexOf(k) === 0 || key.indexOf(k) >= 0; })) continue;
+      if (prefixes.some(function(p){ return key.indexOf(p) === 0; })) remove.push(key);
+    }
+    remove.forEach(function(k){ try { localStorage.removeItem(k); } catch(_e) {} });
+  } catch(_e) {}
+}
+function vxSafeLocalStorageSet(key, value) {
+  try { localStorage.setItem(key, value); return true; }
+  catch (e) {
+    if (vxIsQuotaExceededError(e)) {
+      vxWarnStorageQuotaOnce();
+      vxCleanupNonCriticalVoxeraStorage();
+      try { localStorage.setItem(key, value); return true; } catch(_e) {}
+    }
+    return false;
+  }
+}
+function vxSafeJsonLocalStorageSet(key, value) {
+  return vxSafeLocalStorageSet(key, JSON.stringify(value));
+}
+function vxSafeSessionStorageSet(key, value) {
+  try { sessionStorage.setItem(key, value); return true; }
+  catch (e) { if (vxIsQuotaExceededError(e)) vxWarnStorageQuotaOnce(); return false; }
+}
 let allRecords = [];
 let allRecordsRaw = []; // includes activation test calls for polling
 let allManualTaskRecords = [];
@@ -9076,7 +9120,7 @@ function markVisibleCallsAsSeen(records) {
   try {
     var seen = getSeenCallIdsFromStorage();
     (records || []).forEach(function(r) { if (r && r.id) seen.add(String(r.id)); });
-    try { localStorage.setItem(getCallSeenStorageKey(), JSON.stringify(Array.from(seen))); } catch(e) { console.warn('[seen-calls] localStorage quota exceeded, clearing old data'); try { localStorage.removeItem(getCallSeenStorageKey()); } catch(e2) {} }
+    try { vxSafeJsonLocalStorageSet(getCallSeenStorageKey(), Array.from(seen)); } catch(e) { console.warn('[seen-calls] localStorage quota exceeded, clearing old data'); try { localStorage.removeItem(getCallSeenStorageKey()); } catch(e2) {} }
   } catch(e) {}
 }
 let dashPriorityExpanded = false;
@@ -15206,7 +15250,7 @@ async function generateAiDailyReport(records, manualTasks, lastSignInAt) {
   if (openCallbacks.length === 0 && totalOpen === 0) {
     var emptyText = 'Alles erledigt — keine offenen Aufgaben oder Rückrufe.';
     var nowIso = new Date().toISOString();
-    try { localStorage.setItem(cacheKey, JSON.stringify({ text: emptyText, generatedAt: nowIso })); } catch(e) {}
+    try { vxSafeJsonLocalStorageSet(cacheKey, { text: emptyText, generatedAt: nowIso }); } catch(e) {}
     _showAiReport(emptyText, false, nowIso);
     _aiReportGenerated = true;
     return;
@@ -15219,7 +15263,7 @@ async function generateAiDailyReport(records, manualTasks, lastSignInAt) {
     var text = (resp && resp.text) ? resp.text : null;
     if (text) {
       var generatedAt = new Date().toISOString();
-      try { localStorage.setItem(cacheKey, JSON.stringify({ text: text, generatedAt: generatedAt })); } catch(e) {}
+      try { vxSafeJsonLocalStorageSet(cacheKey, { text: text, generatedAt: generatedAt }); } catch(e) {}
       _showAiReport(text, false, generatedAt);
       _aiReportGenerated = true;
     } else {
@@ -15229,7 +15273,7 @@ async function generateAiDailyReport(records, manualTasks, lastSignInAt) {
     console.warn('[ai-report] fallback:', e.message);
     var fallback = buildDailyReport(records, manualTasks);
     var fallbackTime = new Date().toISOString();
-    try { localStorage.setItem(cacheKey, JSON.stringify({ text: fallback || '', generatedAt: fallbackTime })); } catch(ee) {}
+    try { vxSafeJsonLocalStorageSet(cacheKey, { text: fallback || '', generatedAt: fallbackTime }); } catch(ee) {}
     _showAiReport(fallback || '', false, fallbackTime);
     _aiReportGenerated = true;
   }
@@ -18543,14 +18587,14 @@ function toggleBrowserNotif() {
   var off = localStorage.getItem('voxera_browser_notif_off') === '1';
   if (!off && Notification.permission === 'granted') {
     // Ausschalten
-    localStorage.setItem('voxera_browser_notif_off', '1');
+    vxSafeLocalStorageSet('voxera_browser_notif_off', '1');
     updateBrowserNotifToggleUI();
     return;
   }
   // Einschalten — Permission anfragen falls noch nicht
   ensureNotificationPermission().then(function(perm) {
     if (perm === 'granted') {
-      localStorage.setItem('voxera_browser_notif_off', '0');
+      vxSafeLocalStorageSet('voxera_browser_notif_off', '0');
       updateBrowserNotifToggleUI();
       toast('Browser-Benachrichtigungen aktiviert.');
     } else {
@@ -18750,7 +18794,7 @@ function vxMaybePlayLiveCallSound(record, source) {
 function toggleNotifSound() {
   var off = localStorage.getItem('voxera_sound_off') === '1';
   var newOff = !off;
-  localStorage.setItem('voxera_sound_off', newOff ? '1' : '0');
+  vxSafeLocalStorageSet('voxera_sound_off', newOff ? '1' : '0');
   updateSoundToggleUI(newOff);
   if (!newOff) playNotifSound();
 }
@@ -21108,7 +21152,7 @@ function dismissCompletedWarning() {
   const w = document.getElementById('followup-locked-warning');
   if (w) w.style.display = 'none';
   if (notizRecordId) {
-    try { localStorage.setItem('voxera_warn_dismissed_' + notizRecordId, '1'); } catch(e) {}
+    try { vxSafeLocalStorageSet('voxera_warn_dismissed_' + notizRecordId, '1'); } catch(e) {}
   }
 }
 
@@ -22557,7 +22601,7 @@ function selectSound(type, silent) {
       dot.innerHTML = '';
     }
   });
-  localStorage.setItem('voxera_sound_type', type);
+  vxSafeLocalStorageSet('voxera_sound_type', type);
   if (!silent) previewSound(type);
 }
 
@@ -23303,9 +23347,9 @@ function showTab(name, el, options) {
     // PRODUKTREGEL: Nach First-Login darf 'einrichtung' nicht mehr persistent gespeichert werden
     const setupFinished = localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));
     if (!setupFinished || name !== 'einrichtung') {
-      sessionStorage.setItem('voxera_tab', name);
+      vxSafeSessionStorageSet('voxera_tab', name);
       if (name !== 'einrichtung') {
-        sessionStorage.setItem('voxera_last_non_setup_tab', name);
+        vxSafeSessionStorageSet('voxera_last_non_setup_tab', name);
       }
     }
   } catch(e){}
@@ -23328,11 +23372,11 @@ function consumeForceDashboardAfterLogin() {
   window._vxCurrentTaskId = null;
   _anrufeFilter = 'offen';
   try {
-    sessionStorage.setItem('voxera_tab', 'dashboard');
-    sessionStorage.setItem('voxera_last_non_setup_tab', 'dashboard');
-    localStorage.setItem('voxera_tab', 'dashboard');
-    localStorage.setItem('currentTab', 'dashboard');
-    localStorage.setItem('activeTab', 'dashboard');
+    vxSafeSessionStorageSet('voxera_tab', 'dashboard');
+    vxSafeSessionStorageSet('voxera_last_non_setup_tab', 'dashboard');
+    vxSafeLocalStorageSet('voxera_tab', 'dashboard');
+    vxSafeLocalStorageSet('currentTab', 'dashboard');
+    vxSafeLocalStorageSet('activeTab', 'dashboard');
   } catch(e) {}
   if (typeof hideCallDetail === 'function') hideCallDetail();
   if (typeof closeDetail === 'function') closeDetail();
@@ -24781,7 +24825,7 @@ function saveNotificationAndContinue(event){
 }
 
 function finishSetup(){
-  try{localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
+  try{vxSafeLocalStorageSet(getSetupStorageKey('voxera_setup_finished'),'1');}catch(e){}
   updateDashboardReminder();
   var navEl = document.querySelector('.nav-item[onclick*="dashboard"]') || document.getElementById('mnav-dashboard');
   if(navEl) showTab('dashboard',navEl);
@@ -25037,7 +25081,7 @@ function selectActivationV2Device(type){
 
 function activationV2MarkFinishedAndOpenDashboard(){
   try {
-    localStorage.setItem(getSetupStorageKey('voxera_setup_finished'),'1');
+    vxSafeLocalStorageSet(getSetupStorageKey('voxera_setup_finished'),'1');
   } catch(e) {}
   var app = document.getElementById('app');
   if (app) app.classList.remove('activation-v2-mode');
@@ -26366,9 +26410,9 @@ async function doLogin() {
     try {
       sessionStorage.removeItem('voxera_tab');
       sessionStorage.removeItem('voxera_last_non_setup_tab');
-      localStorage.setItem('voxera_tab', 'dashboard');
-      localStorage.setItem('currentTab', 'dashboard');
-      localStorage.setItem('activeTab', 'dashboard');
+      vxSafeLocalStorageSet('voxera_tab', 'dashboard');
+      vxSafeLocalStorageSet('currentTab', 'dashboard');
+      vxSafeLocalStorageSet('activeTab', 'dashboard');
       history.replaceState({}, '', window.location.pathname + window.location.search);
     } catch(e) {}
     if (typeof hideCallDetail === 'function') hideCallDetail();
@@ -29266,7 +29310,7 @@ function tourStart() {
   _tourStep = 0;
   _tourActive = true;
   // Flag sofort beim Start setzen — Abbrechen = auch "gesehen", nie mehr auto-starten
-  try { localStorage.setItem(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
+  try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
   var overlay = document.getElementById('tour-overlay');
   overlay.style.display = 'block';
   overlay.style.pointerEvents = 'all';
@@ -29295,7 +29339,7 @@ function tourDone() {
   _tourActive = false;
   var overlay = document.getElementById('tour-overlay');
   if (overlay) overlay.style.display = 'none';
-  try { localStorage.setItem(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
+  try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
   var navEl = document.querySelector('.nav-item');
   showTab('dashboard', navEl, { historyMode: 'none' });
 }
@@ -29361,7 +29405,7 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
       console.warn('[VoxeraTheme] Invalid preference:', pref, '— erlaubt:', VALID.join(', '));
       return;
     }
-    try { localStorage.setItem(STORAGE_KEY, pref); } catch (e) {}
+    try { vxSafeLocalStorageSet(STORAGE_KEY, pref); } catch (e) {}
     applyTheme(pref);
   }
 
@@ -33195,7 +33239,7 @@ html[data-theme="dark"] .sp-active { background: rgba(26,111,232,.08); }
     var maxW = Math.floor(container.offsetWidth * MAX_RATIO);
     var newW = Math.min(Math.max(startW + delta, MIN_W), maxW);
     leftPanel.style.width = newW + 'px';
-    try { localStorage.setItem('vx_split_w', newW); } catch(e) {}
+    try { vxSafeLocalStorageSet('vx_split_w', newW); } catch(e) {}
   }
 
   function onMouseUp() {

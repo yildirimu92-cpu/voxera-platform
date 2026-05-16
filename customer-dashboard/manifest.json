@@ -1,0 +1,24 @@
+{
+  "name": "Voxera Dashboard",
+  "short_name": "Voxera",
+  "description": "Voxera Kunden-Dashboard",
+  "start_url": "/?tab=overview",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0D1F3C",
+  "theme_color": "#1A6FE8",
+  "lang": "de-CH",
+  "icons": [
+    {
+      "src": "/brand/05-app-icon-512px.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/apple-touch-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
