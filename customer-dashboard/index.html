@@ -17001,6 +17001,8 @@ function showCallDetail(callId) {
     page.scrollTop = 0;
     var wrap = document.getElementById('call-detail-scroll-wrap');
     if (wrap) wrap.scrollTop = 0;
+    var bottomBar = document.getElementById('vx-cd-bottom-bar');
+    if (bottomBar) bottomBar.style.display = window.innerWidth <= 768 ? 'grid' : 'none';
 
     // Render
     loadAndRenderCallDetail(callId);
@@ -17067,6 +17069,8 @@ function hideCallDetail() {
       return; // nicht schliessen
     }
     page.style.display = 'none';
+    var bottomBar = document.getElementById('vx-cd-bottom-bar');
+    if (bottomBar) bottomBar.style.display = 'none';
     // Wenn noch in split-right (sollte nicht vorkommen): zurück ins body
     if (splitRight && splitRight.contains(page)) {
       document.body.appendChild(page);
@@ -17276,17 +17280,13 @@ function renderCallDetailPage(call, history) {
   // ─── DATE TOP-RIGHT ───
   const dateEl = document.getElementById('call-detail-banner-date');
   if (dateEl) {
-    dateEl.textContent = fmtDate(timestamp);
+    var _weekdayDate = timestamp.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    var _time = timestamp.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    dateEl.innerHTML = '<span>' + _weekdayDate + '</span><span class="vx-cd-date-time">' + _time + '</span>';
   }
-  
-  // ─── KPI STRIP (EXAKT wie Dashboard Pattern) ───
+
   const leadQ = String(call.lead_quality || '').toLowerCase();
-  let qualityValue = '–';
-  let qualityColor = 'rgba(255,255,255,.5)';
-  let qualityGradient = 'rgba(255,255,255,.15)';
-  if (leadQ === 'warm') { qualityValue = 'Warm'; qualityColor = '#E8C547'; qualityGradient = 'linear-gradient(90deg,#E8C547,#B45309)'; }
-  else if (leadQ === 'hot') { qualityValue = 'Hot'; qualityColor = '#DC2626'; qualityGradient = 'linear-gradient(90deg,#DC2626,#B91C1C)'; }
-  else if (leadQ === 'cold') { qualityValue = 'Cold'; qualityColor = '#94A3B8'; qualityGradient = 'linear-gradient(90deg,#94A3B8,#64748B)'; }
+  let qualityValue = leadQ === 'warm' ? 'Warm' : (leadQ === 'hot' ? 'Hot' : (leadQ === 'cold' ? 'Cold' : '–'));
   
   const statusVal = String(call.dashboard_status || 'new').toLowerCase();
   const statusLabel = (typeof vxGetInquiryDisplayStatus === 'function')
@@ -17300,29 +17300,6 @@ function renderCallDetailPage(call, history) {
     : statusVal === 'in_progress' ? '#1A6FE8'
     : statusVal === 'follow_up_scheduled' ? '#E8C547'
     : '#1A6FE8';
-  const statusGradient = statusVal === 'closed' || statusVal === 'done' ? 'linear-gradient(90deg,#059669,#047857)'
-    : statusVal === 'in_progress' ? 'linear-gradient(90deg,#1A6FE8,#1560C8)'
-    : statusVal === 'follow_up_scheduled' ? 'linear-gradient(90deg,#E8C547,#B45309)'
-    : 'linear-gradient(90deg,#1A6FE8,#1560C8)';
-  
-  const statsEl = document.getElementById('call-detail-stats');
-  if (statsEl) {
-    var _kpiCell = function(label, value, valueColor, accentGradient, sub) {
-      return '<div style="background:#0D1F3C;padding:12px 14px;position:relative;overflow:hidden;">'
-        + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:' + accentGradient + ';border-radius:0;"></div>'
-        + '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">' + label + '</div>'
-        + '<div style="font-size:clamp(15px,3vw,20px);font-weight:800;color:' + valueColor + ';line-height:1.1;letter-spacing:-.02em;font-family:var(--font-display);word-break:break-word;">' + value + '</div>'
-        + '<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:4px;">' + sub + '</div>'
-        + '</div>';
-    };
-    var durStr = dur >= 60 ? Math.floor(dur/60) + ':' + String(dur%60).padStart(2,'0') : (dur || '0');
-    var durSub = dur >= 60 ? 'Minuten' : 'Sekunden';
-    statsEl.innerHTML =
-      _kpiCell('Dauer', durStr, 'rgba(255,255,255,.9)', 'rgba(255,255,255,.15)', durSub) +
-      _kpiCell('Kategorie', getCallCategoryDisplayLabel({ id: call.id, fields: call }) || 'Anruf', 'rgba(255,255,255,.9)', 'rgba(255,255,255,.12)', 'Typ') +
-      _kpiCell('Lead-Quality', qualityValue, qualityColor, qualityGradient, 'Bewertung') +
-      _kpiCell('Status', statusLabel, statusColor, statusGradient, 'aktuell');
-  }
   
   // ─── BODY CONTENT (Card-Patterns wie Dashboard) ───
   const callId = call.id;
@@ -17333,6 +17310,14 @@ function renderCallDetailPage(call, history) {
   
   let html = '';
   html += vxRenderDetailBackLinkHtml();
+  var durStr = dur >= 60 ? Math.floor(dur/60) + ':' + String(dur%60).padStart(2,'0') : (dur || '0') + 's';
+  var leadPillStyle = leadQ === 'hot' ? 'color:#991B1B;background:#FEF2F2;border:0.5px solid #FECACA;' : (leadQ === 'warm' ? 'color:#92400E;background:#FFFBEB;border:0.5px solid #FDE68A;' : 'color:#64748B;background:#F1F5F9;border:0.5px solid #E2E8F0;');
+  html += '<div id="vx-cd-meta-pills" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;">';
+  html += '<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;color:#1A6FE8;background:#EFF6FF;border:0.5px solid #BFDBFE;">' + (getCallCategoryDisplayLabel({ id: call.id, fields: call }) || 'Anruf') + '</span>';
+  html += '<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;' + leadPillStyle + '">' + qualityValue + '</span>';
+  html += '<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;border:0.5px solid ' + statusColor + '33;color:' + statusColor + ';background:' + statusColor + '14;">' + statusLabel + '</span>';
+  html += '<span style="font-size:11px;color:#94A3B8;display:inline-flex;align-items:center;gap:4px;"><i class="ph-bold ph-clock" aria-hidden="true"></i>' + durStr + '</span>';
+  html += '</div>';
   
   // ─── CARD: Zusammenfassung (KI) — wie Daily Report Card ───
   html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;">';
@@ -17384,34 +17369,9 @@ function renderCallDetailPage(call, history) {
   html +=       '<span style="font-size:11px;color:var(--slate);">Speichert automatisch · Strg+S für sofortiges Speichern</span>';
   html +=     '</div>';
   html +=   '</div>';
-  html += '</div>';
-  
-  // [v3.0] Call-Detail: Premium-Aktionen, sauber ohne Bugs
-  var _callPhone = call.caller_phone || call.phone_number || '';
-  var _isDoneCall = statusVal === 'closed' || statusVal === 'done';
-  var _ab = 'display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:1px solid transparent;box-sizing:border-box;';
-
-  html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">';
-  // Anrufen — primary
-  if (_callPhone) {
-    html += '<button type="button" style="' + _ab + 'background:#1A6FE8;color:#fff;border-color:#1A6FE8;width:100%;" onclick="event.stopPropagation();vxCallDetailAnrufen(event)">';
-    html +=   '<i class="ph-bold ph-phone-call" style="font-size:16px;opacity:.9;" aria-hidden="true"></i>Anrufen';
-    html += '</button>';
-  } else {
-    html += '<button type="button" style="' + _ab + 'background:#1A6FE8;color:#fff;border-color:#1A6FE8;width:100%;opacity:.35;cursor:default;" disabled>';
-    html +=   '<i class="ph-bold ph-phone-call" style="font-size:16px;" aria-hidden="true"></i>Anrufen';
-    html += '</button>';
-  }
-  // Erledigt — secondary
-  if (_isDoneCall) {
-    html += '<button type="button" style="' + _ab + 'background:var(--surface);color:var(--slate2);border-color:var(--line);width:100%;opacity:.4;cursor:default;" disabled>';
-    html +=   '<i class="ph-bold ph-check" style="font-size:16px;" aria-hidden="true"></i>Erledigt';
-    html += '</button>';
-  } else {
-    html += '<button type="button" style="' + _ab + 'background:var(--surface);color:var(--ink2);border-color:var(--line);width:100%;" onclick="event.stopPropagation();vxCallDetailErledigt(event)">';
-    html +=   '<i class="ph-bold ph-check" style="font-size:16px;color:#059669;opacity:.9;" aria-hidden="true"></i>Als erledigt markieren';
-    html += '</button>';
-  }
+  html +=   '<div style="padding:6px 12px 8px;border-top:0.5px solid rgba(0,0,0,.06);display:flex;justify-content:flex-end;">';
+  html +=     '<button onclick="vxCallDetailArchivieren()" style="background:none;border:none;font-size:11px;color:#94A3B8;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;gap:4px;"><i class="ph-bold ph-archive" style="font-size:13px;" aria-hidden="true"></i>Archivieren</button>';
+  html +=   '</div>';
   html += '</div>';
 
   // ─── Kontakt-Historie ───
@@ -29612,25 +29572,18 @@ document.getElementById('vx-dv2-close').addEventListener('click', function(){ vx
       
       <!-- QUICK ACTIONS — verwenden System-Klasse .vx-back-btn für identische Geometrie -->
       <div id="call-detail-quick-actions" style="display:flex;gap:6px;flex-shrink:0;">
-        <button onclick="event.stopPropagation();vxCallDetailAnrufen(event)" class="vx-back-btn vx-cd-qa" id="vx-cd-qa-call" aria-label="Anrufen" title="Anrufen">
-          <i class="ph-bold ph-phone" style="font-size:20px;" aria-hidden="true"></i>
-        </button>
         <button onclick="event.stopPropagation();vxCallDetailFaelligkeit()" class="vx-back-btn vx-cd-qa" id="vx-cd-qa-faelligkeit" aria-label="Fälligkeit ändern" title="Fälligkeit ändern">
           <i class="ph-bold ph-calendar-plus" style="font-size:20px;" aria-hidden="true"></i>
         </button>
         <button onclick="event.stopPropagation();vxCallDetailExpand()" class="vx-back-btn vx-cd-qa" id="vx-cd-qa-expand" aria-label="Vollbild öffnen" title="Vollbild öffnen">
           <i class="ph-bold ph-arrows-out" style="font-size:20px;" aria-hidden="true"></i>
         </button>
-        <button onclick="event.stopPropagation();vxCallDetailErledigt(event)" class="vx-back-btn vx-cd-qa vx-cd-qa-success" id="vx-cd-qa-done" aria-label="Als erledigt markieren" title="Als erledigt markieren">
-          <i class="ph-bold ph-check" style="font-size:20px;" aria-hidden="true"></i>
+        <button onclick="event.stopPropagation();vxCallDetailAnrufen(event)" class="vx-cd-header-btn vx-cd-header-btn-call" id="vx-cd-qa-call" aria-label="Anrufen" title="Anrufen">
+          Anrufen
         </button>
-      </div>
-    </div>
-    
-    <!-- KPI Strip -->
-    <div id="call-detail-stats-wrap" style="background:#0D1F3C;border-radius:var(--r-lg);padding:0;margin-bottom:14px;overflow:hidden;max-height:200px;opacity:1;will-change:max-height,opacity,margin-bottom;">
-      <div id="call-detail-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.08);border-radius:var(--r-lg);overflow:hidden;">
-        <!-- Wird dynamisch befüllt -->
+        <button onclick="event.stopPropagation();vxCallDetailErledigt(event)" class="vx-cd-header-btn vx-cd-header-btn-done" id="vx-cd-qa-done" aria-label="Als erledigt markieren" title="Als erledigt markieren">
+          Erledigt
+        </button>
       </div>
     </div>
     
@@ -29639,6 +29592,10 @@ document.getElementById('vx-dv2-close').addEventListener('click', function(){ vx
       <!-- Wird dynamisch befüllt -->
     </div>
     
+  </div>
+  <div id="vx-cd-bottom-bar" style="display:none;">
+    <button id="vx-cd-bb-call" onclick="event.stopPropagation();vxCallDetailAnrufen(event)">📞 Anrufen</button>
+    <button id="vx-cd-bb-done" onclick="event.stopPropagation();vxCallDetailErledigt(event)">✓ Erledigt</button>
   </div>
 </div>
 
@@ -31515,6 +31472,25 @@ button.vx-cd-qa-success:hover,
 #dash-priority-list .dpr-action-cell {
   display: none !important;
 }
+
+/* [v3.1] Call-Detail Header + Action Hierarchy Redesign */
+#call-detail-banner.vx-page-header { padding: 11px 14px !important; background:#0D1F3C !important; }
+#call-detail-avatar.vx-cd-avatar { width:38px !important;height:38px !important;min-width:38px !important;background:rgba(26,111,232,.2)!important;border:0.5px solid rgba(26,111,232,.3)!important;color:#93C5FD!important; }
+#call-detail-banner .vx-cd-title { font-size:17px !important;font-weight:700 !important;color:rgba(255,255,255,.93)!important; }
+#call-detail-subtitle.vx-cd-subtitle { font-size:11px !important;color:rgba(255,255,255,.45)!important; }
+#call-detail-banner-date.vx-cd-banner-date { text-align:right !important; margin-right:6px !important; color:rgba(255,255,255,.6)!important; }
+#call-detail-banner-date .vx-cd-date-time { color:rgba(255,255,255,.42); display:block; }
+#call-detail-quick-actions .vx-cd-qa { width:34px !important;height:34px !important;border-radius:9px !important;background:rgba(255,255,255,.1)!important;border:0.5px solid rgba(255,255,255,.14)!important; }
+#call-detail-quick-actions .vx-cd-qa i { color:rgba(255,255,255,.7)!important;font-size:16px !important; }
+#call-detail-quick-actions .vx-cd-header-btn { border-radius:8px;border:none;padding:6px 12px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif; }
+#call-detail-quick-actions .vx-cd-header-btn-call { background:#1A6FE8;color:#fff; }
+#call-detail-quick-actions .vx-cd-header-btn-done { background:rgba(5,150,105,.2);border:0.5px solid rgba(5,150,105,.4);color:#6EE7B7; }
+#vx-cd-bottom-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:#0D1F3C;border-top:0.5px solid rgba(255,255,255,.08);padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom));grid-template-columns:1fr 1fr;gap:8px;z-index:30;}
+#vx-cd-bottom-bar button{border-radius:10px;padding:12px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;}
+#vx-cd-bb-call{background:#1A6FE8;color:#fff;border:none;}
+#vx-cd-bb-done{background:rgba(5,150,105,.2);border:0.5px solid rgba(5,150,105,.4);color:#6EE7B7;}
+@media(max-width:768px){#call-detail-quick-actions .vx-cd-header-btn{display:none!important;}#call-detail-scroll-wrap.content{padding-bottom:calc(80px + env(safe-area-inset-bottom))!important;}}
+@media(min-width:769px){#vx-cd-bottom-bar{display:none!important;}}
 
 /* [PATCH v2.40] Nachfassen Planen — Mobile optimiert */
 @media(max-width: 600px) {
