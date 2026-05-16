@@ -2,13 +2,15 @@ const CALL_STATUS = Object.freeze({
   NEW: 'new',
   IN_PROGRESS: 'in_progress',
   FOLLOW_UP_SCHEDULED: 'follow_up_scheduled',
-  CLOSED: 'closed'
+  CLOSED: 'closed',
+  ARCHIVED: 'archived'
 });
 
 const CALL_TRANSITIONS = Object.freeze({
-  [CALL_STATUS.NEW]: new Set([CALL_STATUS.IN_PROGRESS]),
-  [CALL_STATUS.IN_PROGRESS]: new Set([CALL_STATUS.FOLLOW_UP_SCHEDULED]),
-  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: new Set([CALL_STATUS.CLOSED]),
+  [CALL_STATUS.NEW]: new Set([CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED, CALL_STATUS.ARCHIVED]),
+  [CALL_STATUS.IN_PROGRESS]: new Set([CALL_STATUS.FOLLOW_UP_SCHEDULED, CALL_STATUS.CLOSED, CALL_STATUS.ARCHIVED]),
+  [CALL_STATUS.FOLLOW_UP_SCHEDULED]: new Set([CALL_STATUS.CLOSED, CALL_STATUS.ARCHIVED]),
+  [CALL_STATUS.ARCHIVED]: new Set([]),
   [CALL_STATUS.CLOSED]: new Set([])
 });
 
@@ -20,13 +22,19 @@ function normalizeCallStatus(status) {
     in_bearbeitung: CALL_STATUS.IN_PROGRESS,
     in_progress: CALL_STATUS.IN_PROGRESS,
     follow_up_scheduled: CALL_STATUS.FOLLOW_UP_SCHEDULED,
+    geplant: CALL_STATUS.FOLLOW_UP_SCHEDULED,
+    planned: CALL_STATUS.FOLLOW_UP_SCHEDULED,
     'follow-up_geplant': CALL_STATUS.FOLLOW_UP_SCHEDULED,
     abgeschlossen: CALL_STATUS.CLOSED,
     erledigt: CALL_STATUS.CLOSED,
     closed: CALL_STATUS.CLOSED,
     done: CALL_STATUS.CLOSED,
     complete: CALL_STATUS.CLOSED,
-    completed: CALL_STATUS.CLOSED
+    completed: CALL_STATUS.CLOSED,
+    resolved: CALL_STATUS.CLOSED,
+    archiviert: CALL_STATUS.ARCHIVED,
+    archived: CALL_STATUS.ARCHIVED,
+    archive: CALL_STATUS.ARCHIVED
   };
   return aliases[raw] || CALL_STATUS.NEW;
 }
