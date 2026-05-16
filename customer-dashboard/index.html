@@ -19067,11 +19067,13 @@ function confirmTaskDone(recordId, rowElement, triggerSource, onSuccess, options
       return;
     }
   }
-  logManualTaskDoneFlow('confirm.open', {
-    triggerSource: triggerSource || 'unknown',
-    recordId: String(recordId || ''),
-    isManualTask: manual
-  });
+  if (manual) {
+    logManualTaskDoneFlow('confirm.open', {
+      triggerSource: triggerSource || 'unknown',
+      recordId: String(recordId || ''),
+      isManualTask: true
+    });
+  }
   realtimeSuppressUntil = Date.now() + 5000; // Verhindert Focus-Event Reload während Modal offen ist
   openConfirmModal({
     title: manual ? 'Aufgabe als erledigt markieren?' : 'Anfrage als erledigt markieren?',
@@ -20656,12 +20658,14 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   }
   const normalizedStatus = normalizeStatus(newStatus);
   const isManualTask = (typeof vxIsManualTaskRecordId === 'function') ? vxIsManualTaskRecordId(recordId) : String(recordId || '').startsWith('case:');
-  logManualTaskDoneFlow('status-change.start', {
-    recordId: String(recordId || ''),
-    requestedStatus: String(newStatus || ''),
-    normalizedStatus,
-    isManualTask
-  });
+  if (isManualTask) {
+    logManualTaskDoneFlow('status-change.start', {
+      recordId: String(recordId || ''),
+      requestedStatus: String(newStatus || ''),
+      normalizedStatus,
+      isManualTask: true
+    });
+  }
   const row = rowElement || null;
   const sourceRecords = isManualTask ? (allManualTaskRecords || []) : (allRecords || []);
   const cached = (typeof vxResolveDprRecord === 'function')
@@ -20715,7 +20719,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     realtimeSuppressUntil = Date.now() + 2000; // Realtime unterdrücken VOR API-Call
     if (isManualTask) {
       if (normalizedStatus === CALL_STATUS.ARCHIVED) {
-        toast('Task-Archiv ist aktuell nicht verfügbar (kein archivierter Task-Status im Datenmodell).', 'warning');
+        toast('Aufgabenarchiv wird noch nicht unterstützt', 'warning');
         return false;
       }
       const caseStatus = mapDashboardStatusToManualTaskDbStatus(normalizedStatus);
