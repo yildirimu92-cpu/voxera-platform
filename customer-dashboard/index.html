@@ -23199,9 +23199,42 @@ function renderVertrag() {
   }
 }
 
+
+const VX_ROOT_TABS = new Set(['dashboard','anrufe','assistent','auswertung','einstellungen','hilfe']);
+const VX_NAV_AUDIT = [
+  { view: 'call-detail', parent: 'anrufe/dashboard', back: 'vxHandleDetailBack' },
+  { view: 'task-detail', parent: 'anrufe/dashboard', back: 'vxHandleDetailBack' },
+  { view: 'contact-history-detail', parent: 'call-detail|task-detail', back: 'vxHandleDetailBack' },
+  { view: 'notifications-mobile-page', parent: 'previous-root-tab', back: 'vxBellPageBack' },
+  { view: 'mehr-subviews (profil/benachrichtigungen/abonnement/darstellung/hilfe/rufumleitung)', parent: 'mehr-main', back: 'vxMehrBack' },
+  { view: 'activation-v2 drilldowns', parent: 'einrichtung-root', back: 'activationV2SetStep / action-back' },
+  { view: 'modal/sheet overlays', parent: 'active-tab', back: 'modal-close-btn|backdrop|Escape' },
+  { view: 'hash routes #call/:id #task/:id', parent: 'anrufe/dashboard', back: 'hashchange + vxHandleDetailBack/hideCallDetail' }
+];
+
+function vxCloseTransientViewsForRootTab(nextTab) {
+  if (!VX_ROOT_TABS.has(String(nextTab || ''))) return;
+  try {
+    vxBellClose();
+    _vxBellOpen = false;
+  } catch(e) {}
+  try {
+    if (String(nextTab) !== 'mehr' && typeof vxMehrBack === 'function') vxMehrBack();
+  } catch(e) {}
+  try {
+    document.querySelectorAll('.overlay.open').forEach(function(el){ el.classList.remove('open'); });
+    if (typeof syncOverlayScrollLock === 'function') syncOverlayScrollLock();
+  } catch(e) {}
+  try {
+    if (typeof vxSetScrollLock === 'function') vxSetScrollLock('detail-v2', false);
+    if (typeof vxSyncScrollLock === 'function') vxSyncScrollLock();
+  } catch(e) {}
+}
+
 function showTab(name, el, options) {
   if (!name) return;
   const opts = (options && typeof options === 'object') ? options : {};
+  vxCloseTransientViewsForRootTab(name);
   
   // ─── FIX: Call-Detail Page nur bei EXPLIZITEN Tab-Wechseln schließen ───
   // (nicht bei internen showTab-Aufrufen ohne Click-Element wie Polling/Refresh)
