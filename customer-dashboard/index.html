@@ -9508,17 +9508,7 @@ function renderDashPriorityList() {
   el.classList.add('dpr-command-center');
   // Launch guard: "Laufende Anrufe" darf ausschliesslich echte Live-Calls zeigen.
   // Completed-/duration-Calls mit fehlender Summary sind normale Anfragen, keine temporären Live-Zeilen.
-  var tempRecords = ((typeof allRecords !== 'undefined' && allRecords) ? allRecords : []).filter(function(rec){
-    if (!rec || !rec.fields || !isCustomerVisibleCall(rec)) return false;
-    var f = rec.fields || {};
-    var st = (typeof vxGetCallDisplayState === 'function' ? vxGetCallDisplayState(rec) : null) || {};
-    var liveStatus = String(f.live_status || '').trim().toLowerCase();
-    var isExplicitLive = ['incoming','active','live','ringing'].indexOf(liveStatus) !== -1;
-    var hasDuration = f.duration_seconds !== null && f.duration_seconds !== undefined && !Number.isNaN(Number(f.duration_seconds));
-    return st.state === 'live' && isExplicitLive && !hasDuration;
-  }).sort(function(a,b){
-    return new Date(getRecordTimestamp(b) || 0) - new Date(getRecordTimestamp(a) || 0);
-  });
+  var tempRecords = [];
 
   if (records.length === 0 && tempRecords.length === 0) {
     el.innerHTML = '<div style="padding:24px 20px;text-align:center;color:var(--slate2);font-size:13px;background:#fff;">' +
@@ -16350,11 +16340,13 @@ function updateLiveHero(records) {
 
   if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
 
-  if (!_liveHeroNotified.has(rec.id)) {
-    _liveHeroNotified.add(rec.id);
+  var recStableId = vxGetCallStableId(rec);
+  if (recStableId && !_liveHeroNotified.has(recStableId)) {
+    _liveHeroNotified.add(recStableId);
     notifyLiveCall(caller, company, rec.id);
     vxToast({ type: 'call', title: 'Eingehender Anruf', sub: company ? company + ' · ' + caller : caller });
     vxBellAdd({ type: 'call', title: 'Eingehender Anruf', sub: company ? company + ' · ' + caller : caller, recId: rec.id });
+    vxMaybePlayLiveCallSound(rec, 'live-hero');
   }
 
   // Live-Call nur auf Heute-Tab zeigen (Jetzt wichtig)
@@ -18388,7 +18380,7 @@ function showIncomingBanner(count, newRecords) {
   el.classList.add('show');
   if (incomingBannerTimer) clearTimeout(incomingBannerTimer);
   incomingBannerTimer = setTimeout(function() { el.classList.remove('show'); }, 8000);
-  playNotifSound();
+  if (count === 1 && newRecords && newRecords[0]) vxMaybePlayLiveCallSound(newRecords[0], 'incoming-banner');
 }
 
 function handleIncomingBannerClick() {
@@ -18523,6 +18515,7 @@ async function loadData() {
 //  BENACHRICHTIGUNGSTON (Warm Bell)
 // ═══════════════════════════════════════════
 var _audioCtx = null;
+window.vxPlayedLiveSoundIds = window.vxPlayedLiveSoundIds || new Set();
 function getAudioCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return _audioCtx;
@@ -18532,6 +18525,21 @@ function playNotifSound() {
   if (localStorage.getItem('voxera_sound_off') === '1') return;
   var type = localStorage.getItem('voxera_sound_type') || 'warm';
   previewSound(type);
+}
+
+function vxMaybePlayLiveCallSound(record, source) {
+  try {
+    var stableId = vxGetCallStableId(record);
+    if (!stableId) return false;
+    if (!vxIsLiveCall(record)) return false;
+    if (window.vxPlayedLiveSoundIds.has(stableId)) return false;
+    window.vxPlayedLiveSoundIds.add(stableId);
+    playNotifSound();
+    return true;
+  } catch (e) {
+    console.warn('[live-sound] failed', source || 'unknown', e);
+    return false;
+  }
 }
 
 function toggleNotifSound() {
@@ -19805,19 +19813,25 @@ function renderAnrufe() {
   renderAnrufeInbox('anrufe-list', sorted, filter);
 }
 
+function vxGetCallStableId(record) {
+  if (!record) return '';
+  var f = record.fields || {};
+  return String(record.id || f.id || record.call_id || f.call_id || '').trim();
+}
+
+function vxIsLiveCall(record) {
+  if (!record || isManualTaskRecord(record)) return false;
+  var f = record.fields || {};
+  var liveStatus = String((f.live_status !== undefined ? f.live_status : record.live_status) || '').trim().toLowerCase();
+  return ['live', 'ringing', 'in_progress', 'processing', 'incoming', 'active'].indexOf(liveStatus) !== -1;
+}
+
 function vxGetLiveCallIdSet(records) {
   var ids = new Set();
   (records || []).forEach(function(rec) {
-    if (!rec || !rec.fields || !isCustomerVisibleCall(rec)) return;
-    var f = rec.fields || {};
-    var liveStatus = String(f.live_status || '').trim().toLowerCase();
-    if (['incoming','active','live','ringing'].indexOf(liveStatus) === -1) return;
-    var recId = String(rec.id || '').trim();
-    var fieldId = String(f.id || '').trim();
-    var callId = String(f.call_id || '').trim();
-    if (recId) ids.add(recId);
-    else if (fieldId) ids.add(fieldId);
-    else if (callId) ids.add(callId);
+    if (!rec || !isCustomerVisibleCall(rec) || !vxIsLiveCall(rec)) return;
+    var stableId = vxGetCallStableId(rec);
+    if (stableId) ids.add(stableId);
   });
   return ids;
 }
@@ -19829,10 +19843,9 @@ function vxIsExcludedNormalCall(rec, liveCallIds) {
   var direction = String(f.direction || '').toLowerCase().trim();
   if (category === 'activation_test_outbound') return true;
   if (direction === 'outbound') return true;
-  var recId = String(rec.id || '').trim();
-  var fieldId = String(f.id || '').trim();
-  var callId = String(f.call_id || '').trim();
-  return (recId && liveCallIds.has(recId)) || (fieldId && liveCallIds.has(fieldId)) || (callId && liveCallIds.has(callId));
+  if (vxIsLiveCall(rec)) return true;
+  var stableId = vxGetCallStableId(rec);
+  return !!(stableId && liveCallIds && liveCallIds.has(stableId));
 }
 
 function renderAnrufeInbox(containerId, records, activeFilter) {
