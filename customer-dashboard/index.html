@@ -9527,14 +9527,22 @@ function renderDashPriorityList() {
 
   var limit = dashPriorityExpanded ? 999 : 5;
   var visible = records.slice(0, limit);
-  var tempKeys = new Set(tempRecords.map(function(rec){ var f = (rec && rec.fields) || {}; return String(rec.id || f.call_id || '').trim(); }).filter(Boolean));
+  var tempKeys = new Set();
+  tempRecords.forEach(function(rec){
+    var f = (rec && rec.fields) || {};
+    var recIdKey = String((rec && rec.id) || '').trim();
+    var callIdKey = String(f.call_id || '').trim();
+    if (recIdKey) tempKeys.add(recIdKey);
+    if (callIdKey) tempKeys.add(callIdKey);
+  });
   var groups = { overdue: [], today: [], planned: [], calls: [] };
   var groupOrder = ['overdue', 'today', 'planned', 'calls'];
 
   visible.forEach(function(rec) {
     var keyF = (rec && rec.fields) || {};
-    var recKey = String(rec.id || keyF.call_id || '').trim();
-    if (tempKeys.has(recKey)) return;
+    var recIdKey = String(rec.id || '').trim();
+    var callIdKey = String(keyF.call_id || '').trim();
+    if ((recIdKey && tempKeys.has(recIdKey)) || (callIdKey && tempKeys.has(callIdKey))) return;
     var typeMeta = vxDashGetCommandTypeMeta(rec);
     var dueMeta = vxDashGetDueMeta(rec, typeMeta);
     var key = groups[dueMeta.group] ? dueMeta.group : 'today';
@@ -20008,7 +20016,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="inquiry" data-rail="'+_railAnfragen+'" data-filter-new="'+(_isUnread?'1':'0')+'" data-filter-task="'+(linkedTasks.length>0?'1':'0')+'" data-filter-planned="'+((_isOnToday||vxInquiryIsPlanned(rec))?'1':'0')+'" data-filter-checked="'+(_isDoneOrArch?'1':'0')+'" data-filter-archived="'+(vxInquiryIsArchived(rec)?'1':'0')+'">';
       html += '<div class="vx-anf-row'+(_isDoneOrArch?' is-done-row':'')+(_isUnread?' is-unread':'')+'"'+_rowOpacity+' onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
       // Ungelesen-Dot
-      html += _isUnread ? '<div class="vx-anf-dot"></div>' : '<div class="vx-anf-dot-empty"></div>';
+      html += '<div class="vx-anf-dot-empty" aria-hidden="true"></div>';
       // Icon
       html += '<div class="vx-anf-icon'+(_isCallIcon?' is-call':'')+' "><i class="ph-bold ph-'+iconName+'" aria-hidden="true"></i></div>';
       // Body
@@ -26805,6 +26813,47 @@ function toggleCallRow(event, row) {
 html[data-theme="dark"] .fm-card { background: var(--surface); border-color: var(--line); }
 html[data-theme="dark"] .au-card { background: var(--surface); border-color: var(--line); box-shadow: 0 2px 16px rgba(0,0,0,.2); }
 html[data-theme="dark"] .settings-card { background: var(--surface) !important; border-color: var(--line) !important; box-shadow: 0 2px 16px rgba(0,0,0,.2) !important; }
+
+/* v5.1 Launch polish — eindeutiger Row-Active-State + kein Inbox-Dot + Live-Dedupe-kompatible Rails */
+#anrufe-list .dpr-card::before,
+#dash-priority-list .dpr-card::before {
+  display: none !important;
+}
+#anrufe-list .vx-anf-row,
+#dash-priority-list .vx-heute-row {
+  border-left: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+#anrufe-list .vx-anf-row.rail-today,
+#anrufe-list .vx-anf-row.rail-planned,
+#anrufe-list .vx-anf-row.rail-overdue,
+#dash-priority-list .vx-heute-row.rail-today,
+#dash-priority-list .vx-heute-row.rail-planned,
+#dash-priority-list .vx-heute-row.rail-overdue {
+  border-left: none !important;
+}
+#anrufe-list .dpr-card.sp-active,
+#dash-priority-list .dpr-card.sp-active,
+#anrufe-list .sp-active,
+#dash-priority-list .sp-active {
+  border-left: 3px solid var(--blue) !important;
+}
+#anrufe-list .dpr-card.sp-active .vx-anf-row,
+#dash-priority-list .dpr-card.sp-active .vx-heute-row {
+  background: rgba(26,111,232,.06) !important;
+}
+#anrufe-list .vx-anf-dot {
+  display: none !important;
+}
+#anrufe-list .vx-anf-dot-empty {
+  width: 6px !important;
+  height: 6px !important;
+  flex-shrink: 0 !important;
+  margin-top: 5px !important;
+  background: transparent !important;
+  border-radius: 50% !important;
+}
 html[data-theme="dark"] .au-card-title { color: var(--ink); }
 html[data-theme="dark"] .vx-section-header { background: var(--vx-night); }
 html[data-theme="dark"] #mehr-sub-profil > div:first-child,
