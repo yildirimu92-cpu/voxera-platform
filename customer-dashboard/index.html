@@ -6845,7 +6845,7 @@ body,.main{background:var(--vx-bg);}
             <div class="vx-page-header-title">Anfragen</div>
             <div id="anrufe-split-count" style="font-size:11px;color:rgba(255,255,255,.4);margin-right:4px;">–</div>
             <button onclick="openManualTaskModal()" style="height:32px;padding:0 14px;background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">
-              <i class="ph-bold ph-plus" style="font-size:13px;" aria-hidden="true"></i>Neu
+              <i class="ph-bold ph-plus" style="font-size:13px;" aria-hidden="true"></i>Task erstellen
             </button>
           </div>
 
@@ -10152,21 +10152,7 @@ function vxMarkRowAsUnread(rowEl) {
   var card = rowEl.closest('.dpr-card') || rowEl;
   var id = card && card.dataset ? card.dataset.id : null;
   if (!id) return;
-  // Record lokal auf 'new' zurücksetzen
-  var rec = null;
-  if (typeof allRecords !== 'undefined' && Array.isArray(allRecords)) {
-    rec = allRecords.find(function(r) { return String((r && r.id) || '') === String(id); });
-  }
-  if (!rec || !rec.fields) return;
-  rec.fields.dashboard_status = CALL_STATUS.NEW;
-  // DB async
-  if (typeof _sb !== 'undefined' && _sb) {
-    _sb.from('calls').update({ dashboard_status: CALL_STATUS.NEW, updated_at: new Date().toISOString() }).eq('id', id).then(function() {
-      // Re-Render damit Punkt wieder erscheint
-      if (typeof renderAnrufe === 'function') renderAnrufe();
-      if (typeof renderDashboard === 'function') renderDashboard(allRecords, allManualTaskRecords);
-    });
-  }
+  vxMarkRequestAsUnread(id);
 }
 
 function _dprToggleLock_unused() {} // namespace guard
@@ -10788,6 +10774,85 @@ function normalizeTaskStatus(rawStatus) {
   if (raw === 'waiting_external' || raw === 'waiting') return 'in_progress';
   if (raw === 'in_progress' || raw === 'follow_up_scheduled' || raw === 'in bearbeitung') return 'in_progress';
   return 'open';
+}
+
+function vxNormalizeDashboardStatus(value) {
+  var raw = String(value == null ? '' : value).trim().toLowerCase();
+  if (!raw) return '';
+  var doneAliases = new Set(['done','completed','complete','erledigt','abgeschlossen','archived','archiviert','closed','resolved','cancelled','deleted']);
+  var plannedAliases = new Set(['planned','geplant','followup','follow_up','scheduled','callback_planned','follow_up_scheduled']);
+  var openAliases = new Set(['new','neu','open','offen','pending','in_progress','in bearbeitung','processing']);
+  if (doneAliases.has(raw)) return 'done';
+  if (plannedAliases.has(raw)) return 'planned';
+  if (openAliases.has(raw)) return 'open';
+  return raw;
+}
+
+function vxIsDoneRecord(record) {
+  var f = (record && record.fields) || {};
+  if (f.archived_at || f.completed_at) return true;
+  var statusCandidates = [f.dashboard_status, f.status, f.live_status];
+  for (var i = 0; i < statusCandidates.length; i++) {
+    if (vxNormalizeDashboardStatus(statusCandidates[i]) === 'done') return true;
+  }
+  return false;
+}
+
+function vxHasPlannedNextAction(record) {
+  var f = (record && record.fields) || {};
+  if (vxIsDoneRecord(record)) return false;
+  var plannedDateFields = ['callback_at','follow_up_at','followup_at','due_at','due_date','reminder_at','planned_at','task_due_at'];
+  for (var i = 0; i < plannedDateFields.length; i++) {
+    var val = f[plannedDateFields[i]];
+    if (val != null && String(val).trim() !== '') return true;
+  }
+  if (typeof f.callback_requested !== 'undefined' && !!f.callback_requested) return true;
+  var statusCandidates = [f.dashboard_status, f.status, f.live_status];
+  for (var j = 0; j < statusCandidates.length; j++) {
+    if (vxNormalizeDashboardStatus(statusCandidates[j]) === 'planned') return true;
+  }
+  return false;
+}
+
+function vxIsUnreadRecord(record) {
+  var f = (record && record.fields) || {};
+  if (Object.prototype.hasOwnProperty.call(f, 'is_unread')) return !!f.is_unread;
+  if (Object.prototype.hasOwnProperty.call(f, 'unread') && f.unread != null) return !!f.unread;
+  return !f.read_at;
+}
+
+function vxClassifyRequestRecord(record) {
+  var f = (record && record.fields) || {};
+  var isDone = vxIsDoneRecord(record);
+  var isPlanned = !isDone && vxHasPlannedNextAction(record);
+  var isUnread = vxIsUnreadRecord(record);
+  var bucket = isDone ? 'done' : (isPlanned ? 'planned' : 'inbox');
+  var statusLabel = bucket === 'done' ? 'Erledigt' : (bucket === 'planned' ? 'Geplant' : 'Inbox');
+  var statusTone = bucket === 'done' ? 'done' : (bucket === 'planned' ? 'planned' : (isUnread ? 'new' : 'neutral'));
+  var reason = isDone
+    ? 'status_done_or_closed'
+    : (isPlanned ? 'planned_next_action_present' : 'active_without_plan');
+  return { bucket: bucket, isUnread: isUnread, statusLabel: statusLabel, statusTone: statusTone, reason: reason };
+}
+
+function vxGetRequestCounts(records) {
+  var list = Array.isArray(records) ? records.filter(Boolean) : [];
+  var counts = { inbox: 0, planned: 0, done: 0, doneToday: 0, unread: 0, read: 0, all: list.length };
+  var todayYmd = new Date().toISOString().slice(0, 10);
+  list.forEach(function(rec) {
+    var c = vxClassifyRequestRecord(rec);
+    counts[c.bucket] += 1;
+    if (c.isUnread) counts.unread += 1;
+    else counts.read += 1;
+    if (c.bucket === 'done') {
+      var f = (rec && rec.fields) || {};
+      var doneTs = String(f.completed_at || f.updated_at || '').trim();
+      if (doneTs && doneTs.slice(0, 10) === todayYmd) counts.doneToday += 1;
+    }
+  });
+  // Fallback: If no reliable done timestamp exists in data, doneToday mirrors done for KPI continuity.
+  if (counts.done > 0 && counts.doneToday === 0) counts.doneToday = counts.done;
+  return counts;
 }
 
 function mapCaseStatusToDashboardStatus(caseStatus) {
@@ -17062,6 +17127,50 @@ function vxMarkCallAsRead(callId) {
         rec.fields.read_at = null;
       });
   }
+}
+
+function vxMarkRequestAsRead(recordId) {
+  if (!recordId) return Promise.resolve(false);
+  var rec = null;
+  if (typeof allRecords !== 'undefined' && Array.isArray(allRecords)) {
+    rec = allRecords.find(function(r) { return String((r && r.id) || '') === String(recordId); }) || null;
+  }
+  if (!rec || !rec.fields) return Promise.resolve(false);
+  var readAtIso = new Date().toISOString();
+  rec.fields.read_at = readAtIso;
+  if (typeof renderDashboard === 'function') renderDashboard(allRecords || [], allManualTaskRecords || []);
+  if (typeof renderAnrufe === 'function') renderAnrufe();
+  if (typeof renderDashPriorityList === 'function') renderDashPriorityList();
+  if (!(typeof _sb !== 'undefined' && _sb)) return Promise.resolve(true);
+  return _sb.from('calls').update({ read_at: readAtIso, updated_at: readAtIso }).eq('id', recordId).then(function(res){
+    if (res && res.error) return false;
+    return true;
+  }).catch(function(){ return false; });
+}
+
+function vxMarkRequestAsUnread(recordId) {
+  if (!recordId) return Promise.resolve(false);
+  var rec = null;
+  if (typeof allRecords !== 'undefined' && Array.isArray(allRecords)) {
+    rec = allRecords.find(function(r) { return String((r && r.id) || '') === String(recordId); }) || null;
+  }
+  if (!rec || !rec.fields) return Promise.resolve(false);
+  rec.fields.read_at = null;
+  if (typeof renderDashboard === 'function') renderDashboard(allRecords || [], allManualTaskRecords || []);
+  if (typeof renderAnrufe === 'function') renderAnrufe();
+  if (typeof renderDashPriorityList === 'function') renderDashPriorityList();
+  if (!(typeof _sb !== 'undefined' && _sb)) return Promise.resolve(true);
+  return _sb.from('calls').update({ read_at: null, updated_at: new Date().toISOString() }).eq('id', recordId).then(function(res){
+    if (res && res.error) {
+      rec.fields.read_at = rec.fields.read_at || null;
+      console.warn('[vxRequestUnread] TODO: read_at NULL update denied by RLS/grants.', res.error);
+      return false;
+    }
+    return true;
+  }).catch(function(err){
+    console.warn('[vxRequestUnread] TODO: read_at NULL update failed (possible RLS/grants).', err);
+    return false;
+  });
 }
 
 
