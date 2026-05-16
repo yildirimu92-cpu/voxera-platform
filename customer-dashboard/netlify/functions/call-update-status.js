@@ -13,6 +13,14 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function logStatusUpdate(event, details) {
+  try {
+    console.log('[call-update-status]', event, JSON.stringify(details || {}));
+  } catch (_e) {
+    console.log('[call-update-status]', event);
+  }
+}
+
 function buildTransitionSequence(current, target) {
   if (current === target) return [];
   if (target === CALL_STATUS.ARCHIVED) {
@@ -67,7 +75,8 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungueltiger Request Body' }); }
 
   const callId = String(body.call_id || '').trim();
-  const targetStatus = normalizeCallStatus(body.status);
+  const incomingStatus = body.status;
+  const targetStatus = normalizeCallStatus(incomingStatus);
   if (!callId) return response(400, { error: 'call_id fehlt' });
 
   const { data: callRow, error: callError } = await sbAdmin
@@ -82,6 +91,13 @@ exports.handler = async (event) => {
 
   const currentStatus = normalizeCallStatus(callRow.dashboard_status || CALL_STATUS.NEW);
   const sequence = buildTransitionSequence(currentStatus, targetStatus);
+  const transitionCheck = {
+    incomingStatus,
+    normalizedCurrentStatus: currentStatus,
+    targetStatus: incomingStatus,
+    normalizedTargetStatus: targetStatus,
+    transitionSequence: sequence
+  };
 
   try {
     let cursor = currentStatus;
@@ -89,8 +105,18 @@ exports.handler = async (event) => {
       assertCallTransition(cursor, status);
       cursor = status;
     }
+    logStatusUpdate('transition_check', {
+      ...transitionCheck,
+      allowedTransition: true
+    });
   } catch (e) {
-    return response(409, { error: e.message, from_status: currentStatus, to_status: targetStatus });
+    logStatusUpdate('transition_check', {
+      ...transitionCheck,
+      allowedTransition: false,
+      error: e.message,
+      responseStatus: 409
+    });
+    return response(409, { error: e.message, from_status: currentStatus, to_status: targetStatus, normalized_current_status: currentStatus, normalized_target_status: targetStatus, transition_allowed: false });
   }
 
   let result = callRow;
@@ -109,7 +135,19 @@ exports.handler = async (event) => {
       .select('*')
       .single();
 
-    if (error) return response(500, { error: 'Call-Status konnte nicht gespeichert werden.', details: error.message, target_status: status });
+    if (error) {
+      logStatusUpdate('db_update_error', {
+        normalizedCurrentStatus: currentStatus,
+        normalizedTargetStatus: targetStatus,
+        allowedTransition: true,
+        dbUpdateError: {
+          code: error.code || null,
+          message: error.message || 'unknown'
+        },
+        responseStatus: 500
+      });
+      return response(500, { error: 'Call-Status konnte nicht gespeichert werden.', details: error.message, target_status: status });
+    }
     result = data;
   }
 
