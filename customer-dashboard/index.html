@@ -12882,10 +12882,14 @@ async function loadAssistentRequests() {
   }
 }
 
-window.assistantVoiceOptions = [];
+window.assistantVoiceOptions = window.assistantVoiceOptions || null;
 window.assistantSelectedVoiceId = '';
 window.currentVoicePreviewAudio = null;
 window.currentVoicePreviewBtn = null;
+window._vxAssistantVoicesLoading = false;
+window._vxAssistantVoicesLoaded = false;
+window._vxAssistantVoicesError = null;
+window._vxAssistantVoicesPromise = null;
 
 async function previewVoice(voiceId, btn) {
   if (!voiceId || !btn) return;
@@ -12964,27 +12968,59 @@ function setPlayBtn(btn, state) {
   }
 }
 
-async function loadAssistantVoices() {
+function vxRenderAssistantVoicesLoading() {
+  const listEl = document.getElementById('assistant-voice-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;color:var(--gray400,#94A3B8);"><i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;display:inline-block;"></i> Stimmen werden geladen…</div>';
+}
+
+function vxRenderAssistantVoicesError() {
+  const listEl = document.getElementById('assistant-voice-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:10px 12px;border:1px solid #FECACA;background:#FEF2F2;border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;"><span style="font-size:12px;color:#B91C1C;">Stimmen konnten nicht geladen werden.</span><button type="button" onclick="loadAssistantVoices(true)" style="background:#fff;border:1px solid #FCA5A5;color:#B91C1C;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Erneut laden</button></div>';
+}
+
+async function vxPreloadAssistantVoices(forceReload) {
+  if (window._vxAssistantVoicesLoaded && !forceReload) return window.assistantVoiceOptions || [];
+  if (window._vxAssistantVoicesLoading && window._vxAssistantVoicesPromise) return window._vxAssistantVoicesPromise;
+  const customerId = String(customerMeta.customerId || customerContext?.customerId || '').trim();
+  if (!customerId) return [];
+  window._vxAssistantVoicesLoading = true;
+  window._vxAssistantVoicesError = null;
+  window._vxAssistantVoicesPromise = (async function() {
+    try {
+      const _vSb = getSupabaseAuthClient();
+      const { data: { session: _vSession } } = await _vSb.auth.getSession();
+      const res = await fetch(`/.netlify/functions/get-available-voices?customer_id=${encodeURIComponent(customerId)}`, {
+        headers: { 'Authorization': `Bearer ${_vSession?.access_token || ''}` }
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'voices_load_failed');
+      window.assistantVoiceOptions = Array.isArray(json?.voices) ? json.voices : [];
+      if (!window.assistantSelectedVoiceId) {
+        window.assistantSelectedVoiceId = String(json?.selected_voice_id || customerMeta.voiceId || '').trim();
+      }
+      window._vxAssistantVoicesLoaded = true;
+      return window.assistantVoiceOptions;
+    } catch (e) {
+      window._vxAssistantVoicesError = e;
+      throw e;
+    } finally {
+      window._vxAssistantVoicesLoading = false;
+    }
+  })();
+  return window._vxAssistantVoicesPromise;
+}
+
+async function loadAssistantVoices(forceReload) {
   const listEl = document.getElementById('assistant-voice-list');
   if (!listEl) return;
   const customerId = String(customerMeta.customerId || customerContext?.customerId || '').trim();
   if (!customerId) return;
-  listEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;color:var(--gray400,#94A3B8);"><i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;display:inline-block;"></i> Stimmen werden geladen…</div>';
   try {
-    const _vSb = getSupabaseAuthClient();
-    const { data: { session: _vSession } } = await _vSb.auth.getSession();
-    const res = await fetch(`/.netlify/functions/get-available-voices?customer_id=${encodeURIComponent(customerId)}`, {
-      headers: {
-        'Authorization': `Bearer ${_vSession?.access_token || ''}`
-      }
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.error || 'voices_load_failed');
-    const planCode = String(json?.plan_code || '').toLowerCase();
-    window.assistantVoiceOptions = Array.isArray(json?.voices) ? json.voices : [];
-    if (!window.assistantSelectedVoiceId) {
-      window.assistantSelectedVoiceId = String(json?.selected_voice_id || customerMeta.voiceId || '').trim();
-    }
+    if (window._vxAssistantVoicesLoading) vxRenderAssistantVoicesLoading();
+    else if (!window._vxAssistantVoicesLoaded || forceReload) vxRenderAssistantVoicesLoading();
+    await vxPreloadAssistantVoices(forceReload);
     if (!window.assistantVoiceOptions.length) {
       listEl.innerHTML = '<div style="font-size:13px;color:var(--slate2);">Keine Stimmen verfügbar.</div>';
       return;
@@ -13027,9 +13063,7 @@ async function loadAssistantVoices() {
         </div>
       </div>`;
     }).join('');
-  } catch (e) {
-    listEl.innerHTML = '<div style="font-size:12px;color:var(--red,#DC2626);">Stimmen konnten nicht geladen werden.</div>';
-  }
+  } catch (e) { vxRenderAssistantVoicesError(); }
 }
 
 // ── Voxera Accordion Logic ────────────────────────────────────────────────────
@@ -13621,7 +13655,20 @@ function vxFillAccordion(id) {
       if (window.assistantVoiceOptions && window.assistantVoiceOptions.length) {
         renderVoiceCards();
       } else {
-        if (typeof loadAssistantVoices === 'function') loadAssistantVoices();
+        if (window._vxAssistantVoicesLoading) {
+          vxRenderAssistantVoicesLoading();
+          if (window._vxAssistantVoicesPromise) {
+            window._vxAssistantVoicesPromise
+              .then(function() {
+                var visible = document.getElementById('accbody-stimme') && document.getElementById('accbody-stimme').style.display !== 'none';
+                if (visible) loadAssistantVoices();
+              })
+              .catch(function() {
+                var visible = document.getElementById('accbody-stimme') && document.getElementById('accbody-stimme').style.display !== 'none';
+                if (visible) vxRenderAssistantVoicesError();
+              });
+          }
+        } else if (typeof loadAssistantVoices === 'function') loadAssistantVoices();
       }
     }
   }
@@ -14883,6 +14930,10 @@ function selectVoice(vid) {
 function renderVoiceCards() {
   const listEl = document.getElementById('assistant-voice-list');
   if (!listEl) return;
+  if (!Array.isArray(window.assistantVoiceOptions) || !window.assistantVoiceOptions.length) {
+    listEl.innerHTML = '<div style="font-size:13px;color:var(--slate2);">Keine Stimmen verfügbar.</div>';
+    return;
+  }
   const planCode = String(customerMeta.plan || '').toLowerCase();
   const canSelect = planCode === 'business' || planCode === 'professional';
   listEl.innerHTML = window.assistantVoiceOptions.map((v) => {
@@ -26506,6 +26557,11 @@ function showApp(user) {
     safeMountActivationV2({ reason: 'showApp', softGate: false });
     setTimeout(injectSortButtons, 100);
     tourCheckFirstLogin();
+    setTimeout(function() {
+      if (typeof vxPreloadAssistantVoices === 'function') {
+        vxPreloadAssistantVoices().catch(function(){});
+      }
+    }, 300);
   }).catch(function(err) {
     showAppInProgress = false; // Guard freigeben bei Fehler
     console.error('[voxera-dashboard] initial load failed', err);
