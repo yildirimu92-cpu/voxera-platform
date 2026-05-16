@@ -5008,8 +5008,9 @@ body,.main{background:var(--vx-bg);}
   transition: border-color .15s, box-shadow .15s;
 }
 .vxfb-search-box:focus-within {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgba(26,111,232,.1);
+  border-color: #2F6BFF;
+  box-shadow: 0 0 0 3px rgba(47,107,255,.14);
+  background:#fff;
 }
 .vxfb-search-icon {
   width: 15px; height: 15px;
@@ -8622,7 +8623,10 @@ body,.main{background:var(--vx-bg);}
           <div class="modal-drag"></div>
           <div class="modal-head-row">
             <div class="modal-head-icon"><i class="ph-bold ph-plus" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-            <h3 id="manual-task-title-heading">Task erstellen</h3>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <h3 id="manual-task-title-heading">Task erstellen</h3>
+              <div style="font-size:12px;color:rgba(255,255,255,.78);font-weight:500;">Plane einen Rückruf, eine Aufgabe oder ein Follow-up.</div>
+            </div>
             <button class="modal-close-btn" onclick="closeManualTaskModal()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
@@ -8643,7 +8647,7 @@ body,.main{background:var(--vx-bg);}
             </select>
           </div>
         </div>
-        <div style="font-size:12px;color:var(--slate2);margin:-2px 0 8px;">Plane einen manuellen Rückruf, eine Aufgabe oder ein Follow-up.</div>
+        <div style="font-size:12px;color:var(--slate2);margin:-2px 0 8px;">Für geplante interne Aufgaben. Erscheint unter „Geplant“.</div>
         <div class="modal-field">
           <label for="manual-task-due">Fällig am</label>
           <input id="manual-task-due" type="date">
@@ -8677,13 +8681,16 @@ body,.main{background:var(--vx-bg);}
           <div class="modal-drag"></div>
           <div class="modal-head-row">
             <div class="modal-head-icon"><i class="ph-bold ph-plus-circle" style="color:rgba(255,255,255,.8);" aria-hidden="true"></i></div>
-            <h3 id="manual-request-title-heading">Neue Anfrage</h3>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <h3 id="manual-request-title-heading">Neue Anfrage</h3>
+              <div style="font-size:12px;color:rgba(255,255,255,.78);font-weight:500;">Erfasse einen neuen Eingang für die Inbox.</div>
+            </div>
             <button class="modal-close-btn" onclick="closeManualRequestModal()" aria-label="Schliessen"><i class="ph-bold ph-x" style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
       </div>
       <div class="modal-body">
-        <div style="font-size:12px;color:var(--slate2);margin-bottom:10px;">Erfasse eine neue Anfrage oder einen manuellen Eingang für die Inbox.</div>
+        <div style="font-size:12px;color:var(--slate2);margin-bottom:10px;">Für neue manuelle Anfragen, Leads oder Rückrufwünsche. Erscheint in der Inbox.</div>
         <div class="modal-field"><label for="manual-request-name">Name / Firma</label><input id="manual-request-name" type="text"></div>
         <div class="modal-field"><label for="manual-request-phone">Telefon</label><input id="manual-request-phone" type="tel" placeholder="+41 …"></div>
         <div class="modal-field"><label for="manual-request-category">Kategorie</label><select id="manual-request-category"><option value="anruf">Anruf</option><option value="callback">Rückruf</option><option value="offerte">Offerte</option><option value="appointment">Termin</option><option value="general">Sonstiges</option></select></div>
@@ -10457,21 +10464,9 @@ function dprAction(action, recId, extra) {
       if (typeof showTaskDetail === 'function') showTaskDetail(recId);
       return;
     }
-    if (typeof showCallDetail === 'function') {
-      showCallDetail(recId);
-      setTimeout(function() {
-        var sec = document.getElementById('followup-section');
-        if (sec) {
-          var page = document.getElementById('call-detail-page');
-          if (page) {
-            var secTop = sec.getBoundingClientRect().top - page.getBoundingClientRect().top + page.scrollTop;
-            page.scrollTo({ top: secTop - 80, behavior: 'smooth' }); // 80px Offset für sticky Banner
-          } else {
-            sec.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }
-      }, 450);
-    }
+    if (typeof openFollowupDirect === 'function') { openFollowupDirect(recId); return; }
+    if (typeof openFollowup === 'function') { openFollowup(recId); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recId); }
     return;
   }
   if (action === 'fulldetail') {
@@ -20240,6 +20235,11 @@ function vxUpdateAnfragenCount() {
     return isManualTaskRecord(r) || isCustomerVisibleCall(r);
   });
   var counts = vxGetRequestCounts(source);
+  vxDebugLog('[anfragen:counts]', {
+    total: source.length,
+    counts: counts,
+    sampleShape: source[0] ? Object.keys(source[0]).slice(0, 12) : []
+  });
   countEl.textContent = counts.inbox + ' Inbox · ' + counts.planned + ' geplant · ' + counts.doneToday + ' erledigt heute';
 
   var subWrap = document.getElementById('anrufe-inbox-subfilters');
@@ -20273,6 +20273,19 @@ function renderAnrufe() {
       if (_anrufeInboxSubfilter === 'all') return true;
       if (_anrufeInboxSubfilter === 'read') return !vxIsUnreadRecord(r);
       return vxIsUnreadRecord(r);
+    });
+  }
+  var _searchQ = String(window._anrufeSearchQuery || '').trim().toLowerCase();
+  if (_searchQ) {
+    filtered = filtered.filter(function(r) {
+      var f = (r && r.fields) || {};
+      var haystack = [
+        r && r.name, r && r.caller_name, r && r.phone, r && r.caller_phone, r && r.phone_number,
+        r && r.summary, r && r.transcript, r && r.category, r && r.lead_quality, r && r.dashboard_status,
+        f.name, f.caller_name, f.phone, f.caller_phone, f.phone_number,
+        f.call_summary, f.summary, f.transcript, f.category, f.lead_quality, f.dashboard_status
+      ].filter(function(v){ return v != null; }).map(function(v){ return String(v).toLowerCase(); }).join(' ');
+      return haystack.indexOf(_searchQ) !== -1;
     });
   }
   var sorted = applySortToRecords(filtered, _anrufeSort);
@@ -21871,13 +21884,18 @@ function vxFbSearch(key, value) {
   var state = _vxFbState[key];
   if (!state) return;
   state.search = value;
+  if (key === 'anrufe') window._anrufeSearchQuery = String(value || '');
   var listId = _vxFbListMap[key];
   var clearBtn = document.getElementById('fb-' + key + '-clear');
   var hintEl = document.getElementById('fb-' + key + '-searchbox');
   var hint = hintEl ? hintEl.querySelector('.vxfb-search-hint') : null;
   if (clearBtn) clearBtn.style.display = value ? 'flex' : 'none';
   if (hint) hint.style.display = value ? 'none' : '';
-  searchList(listId, value);
+  if (key === 'anrufe') {
+    if (typeof renderAnrufe === 'function') renderAnrufe();
+  } else {
+    searchList(listId, value);
+  }
   vxFbUpdateCount(key);
   vxFbUpdateActiveRow(key);
 }
