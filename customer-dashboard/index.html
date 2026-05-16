@@ -310,6 +310,8 @@ html[data-theme="dark"]{
 .vx-ni:hover{background:var(--surface2);}
 .vx-ni.is-unread{background:rgba(26,111,232,.03);}
 .vx-ni.is-unread::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--vx-blue);}
+.vx-ni.is-read{opacity:.62;background:transparent;}
+.vx-ni.is-read .vx-ni-title{font-weight:500;}
 .vx-ni-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
 .vx-ni-icon.call{background:#EFF6FF;color:#1A6FE8;}
 .vx-ni-icon.task{background:#FFFBEB;color:#D97706;}
@@ -412,9 +414,11 @@ html[data-theme="dark"] .vx-ni-icon.warning{background:rgba(220,38,38,.15);color
 .vx-chip{height:26px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;border:0.5px solid var(--vx-border-md);color:var(--vx-text3);background:var(--vx-surface);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .12s;}
 .vx-chip:hover{color:var(--vx-text2);}
 .vx-chip--active{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
+.vx-chip--active:hover{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
 html[data-theme="dark"] .vx-chip--active{background:rgba(26,111,232,.2);color:#93C5FD;border-color:rgba(26,111,232,.3);}
 .vxfb-chip{height:26px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;border:0.5px solid var(--vx-border-md);color:var(--vx-text3);background:var(--vx-surface);cursor:pointer;white-space:nowrap;font-family:inherit;}
 .vxfb-chip--active,.vxfb-chip.vxfb-chip--active{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
+.vxfb-chip--active:hover,.vxfb-chip.vxfb-chip--active:hover{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
 html[data-theme="dark"] .vxfb-chip--active{background:rgba(26,111,232,.2);color:#93C5FD;border-color:rgba(26,111,232,.3);}
 
 .vx-anf-row{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border-bottom:0.5px solid var(--vx-border);cursor:pointer;background:var(--vx-surface);transition:background .1s;}
@@ -9523,10 +9527,14 @@ function renderDashPriorityList() {
 
   var limit = dashPriorityExpanded ? 999 : 5;
   var visible = records.slice(0, limit);
+  var tempKeys = new Set(tempRecords.map(function(rec){ var f = (rec && rec.fields) || {}; return String(rec.id || f.call_id || '').trim(); }).filter(Boolean));
   var groups = { overdue: [], today: [], planned: [], calls: [] };
   var groupOrder = ['overdue', 'today', 'planned', 'calls'];
 
   visible.forEach(function(rec) {
+    var keyF = (rec && rec.fields) || {};
+    var recKey = String(rec.id || keyF.call_id || '').trim();
+    if (tempKeys.has(recKey)) return;
     var typeMeta = vxDashGetCommandTypeMeta(rec);
     var dueMeta = vxDashGetDueMeta(rec, typeMeta);
     var key = groups[dueMeta.group] ? dueMeta.group : 'today';
@@ -9761,6 +9769,21 @@ async function vxNotifMarkRead(id) {
   } catch(e) { console.warn('[vxNotif] markRead error', e); }
 }
 
+
+function vxNotifMarkReadByRecord(recId) {
+  var key = String(recId || '').trim();
+  if (!key) return;
+  var changed = false;
+  _vxNotifCache.forEach(function(n) {
+    if (n.read) return;
+    if (String(n.recId || '') === key) { n.read = true; changed = true; }
+  });
+  if (!changed) return;
+  vxBellUpdateBadge();
+  vxBellRender();
+  vxBellPageRender();
+}
+
 async function vxNotifMarkAllRead() {
   // Alle ungelesenen im Cache markieren
   var unread = _vxNotifCache.filter(function(n){ return !n.read; });
@@ -9845,12 +9868,12 @@ function vxBellAdd(opts) {
 function vxBellRender() {
   var list = document.getElementById('vx-notif-list');
   if (!list) return;
-  var unread = _vxNotifCache.filter(function(n){ return !n.read; });
-  if (!unread.length) {
-    list.innerHTML = '<div class="vx-notif-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i>Keine neuen Benachrichtigungen</div>';
+  var items = _vxNotifCache.filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
+  if (!items.length) {
+    list.innerHTML = '<div class="vx-notif-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i>Keine Benachrichtigungen der letzten 7 Tage</div>';
     return;
   }
-  var html = _vxBellBuildHTML(unread, 'vxBellItemClick');
+  var html = _vxBellBuildHTML(items, 'vxBellItemClick');
   list.innerHTML = html;
 }
 
@@ -9858,12 +9881,12 @@ function vxBellRender() {
 function vxBellPageRender() {
   var list = document.getElementById('vx-notif-page-list');
   if (!list) return;
-  var unread = _vxNotifCache.filter(function(n){ return !n.read; });
-  if (!unread.length) {
-    list.innerHTML = '<div class="vx-notif-mobile-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i><div>Keine neuen Benachrichtigungen</div><small>Lara informiert dich hier über neue Anrufe, Rückrufe und wichtige Hinweise.</small></div>';
+  var items = _vxNotifCache.filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
+  if (!items.length) {
+    list.innerHTML = '<div class="vx-notif-mobile-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i><div>Keine Benachrichtigungen</div><small>Lara informiert dich hier über neue Anrufe, Rückrufe und wichtige Hinweise.</small></div>';
     return;
   }
-  var html = _vxBellBuildHTML(unread, 'vxBellPageItemClick');
+  var html = _vxBellBuildHTML(items, 'vxBellPageItemClick');
   list.innerHTML = html;
 }
 
@@ -9889,12 +9912,12 @@ function _vxBellBuildHTML(items, clickFn) {
     html += '<div class="vx-notif-date-sep">' + g.label + '</div>';
     g.items.forEach(function(n) {
       var icon = iconMap[n.type] || 'ph-bell';
-            html += '<div class="vx-ni is-unread" onclick="' + clickFn + '(\'' + n.id + '\',\'' + (n.recId||'') + '\')" data-nid="' + n.id + '">';
+            html += '<div class="vx-ni ' + (n.read ? 'is-read' : 'is-unread') + '" onclick="' + clickFn + '(\'' + n.id + '\',\'' + (n.recId||'') + '\')" data-nid="' + n.id + '">';
       html += '<div class="vx-ni-icon ' + (n.type||'call') + '"><i class="ph-bold ' + icon + '" aria-hidden="true"></i></div>';
       html += '<div class="vx-ni-body"><div class="vx-ni-title">' + _esc(n.title) + '</div>';
       if (n.sub) html += '<div class="vx-ni-sub">' + _esc(n.sub) + '</div>';
       html += '<div class="vx-ni-time">' + vxNotifAge(n.ts) + '</div></div>';
-      html += '<div class="vx-ni-dot"></div></div>';
+      html += (n.read ? '' : '<div class="vx-ni-dot"></div>') + '</div>';
     });
   });
   return html;
@@ -16837,6 +16860,9 @@ function vxOpenCallFromHistory(callId) {
     rec = allRecords.find(function(r) { return String((r && r.id) || '') === String(callId); });
   }
   if (rec) {
+    window._vxActiveRecordId = String(callId);
+    if (typeof renderAnrufe === 'function') renderAnrufe();
+    if (typeof renderDashPriorityList === 'function') renderDashPriorityList();
     // Record gefunden — direkt Detail öffnen
     if (typeof vxOpenDetailV2 === 'function') {
       vxOpenDetailV2(String(callId));
@@ -16902,6 +16928,7 @@ function showCallDetail(callId) {
 
     window._vxCurrentCallId = callId;
     window._vxActiveRecordId = String(callId);
+    vxNotifMarkReadByRecord(callId);
     document.querySelectorAll('#anrufe-list .dpr-card, #dash-priority-list .dpr-card').forEach(function(c) {
       c.classList.toggle('sp-active', String(c.dataset.id) === String(callId));
     });
@@ -17844,6 +17871,7 @@ function saveFollowUpV2(callId) {
     }
 
     renderDashboard(allRecords, allManualTaskRecords);
+    vxNotifMarkReadByRecord(recordId);
     renderAnrufe();
     renderRueckrufe(allRecords, allManualTaskRecords);
     toast('Nachfassen gespeichert', 'success');
@@ -19937,7 +19965,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       // Meta-Zeile: nur Telefon
       var _metaSimple = (phone && name !== phone) ? _esc(phone) : '';
       // [v3.0] Outlook-Pattern mit vx-* Klassen
-      var _isUnread = vxInquiryIsNew(rec) && !_isOnToday;
+      var _isUnread = !isManualTaskRecord(rec) && vxInquiryIsNew(rec) && !_isOnToday;
       var _isDoneOrArch = vxInquiryIsCompleted(rec) || vxInquiryIsArchived(rec);
       var _isCallIcon = _typeMeta.kind === 'callback' || _typeMeta.kind === 'incoming';
       var _rowOpacity = _isDoneOrArch ? ' style="opacity:.45;"' : '';
@@ -20884,6 +20912,7 @@ async function saveFollowup() {
   try {
     var recordId = notizRecordId;
     await patchCallRecord(recordId, fields);
+    vxNotifMarkReadByRecord(recordId);
     var localRec = (allRecords || []).find(function(r) { return r && r.id === recordId; });
     if (localRec && localRec.fields) {
       localRec.fields.notes_customer_voxera = fields.notes_customer_voxera;
@@ -21462,7 +21491,19 @@ function getTaskTypeUiMeta(rawType) {
       actionHelp: 'Startet direkt einen Anruf über die hinterlegte Telefonnummer.'
     };
   }
-  if (type === 'information' || type === 'offerte' || type === 'offer') {
+  if (type === 'information' || type === 'info' || type === 'info_senden' || type === 'information_senden') {
+    return {
+      kind: 'information',
+      label: 'Info',
+      primary: 'Info senden',
+      primaryAction: 'edit',
+      sectionTitle: 'Information',
+      descriptionFallback: 'Information an Kundin oder Kunden senden und Versand dokumentieren.',
+      emptyNote: 'Keine zusätzliche Information hinterlegt.',
+      actionHelp: 'Öffnet die Aufgabe zur Bearbeitung und Dokumentation.'
+    };
+  }
+  if (type === 'offerte' || type === 'offer') {
     return {
       kind: 'offer',
       label: 'Offerte',
