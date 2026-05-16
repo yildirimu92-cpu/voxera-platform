@@ -9501,12 +9501,12 @@ function renderDashPriorityList() {
   var el = document.getElementById('dash-priority-list');
   if (!el) return;
 
-  var records = _dashPriorityAllRecords || [];
+  var records = (_dashPriorityAllRecords || []).filter(function(rec){ return isManualTaskRecord(rec) || isCustomerVisibleCall(rec); });
   el.classList.add('dpr-command-center');
   // Launch guard: "Laufende Anrufe" darf ausschliesslich echte Live-Calls zeigen.
   // Completed-/duration-Calls mit fehlender Summary sind normale Anfragen, keine temporären Live-Zeilen.
   var tempRecords = ((typeof allRecords !== 'undefined' && allRecords) ? allRecords : []).filter(function(rec){
-    if (!rec || !rec.fields || isActivationCallCategory((rec.fields||{}).category)) return false;
+    if (!rec || !rec.fields || !isCustomerVisibleCall(rec)) return false;
     var f = rec.fields || {};
     var st = (typeof vxGetCallDisplayState === 'function' ? vxGetCallDisplayState(rec) : null) || {};
     var liveStatus = String(f.live_status || '').trim().toLowerCase();
@@ -9627,7 +9627,8 @@ function renderDashPriorityList() {
       var _iconClass = _isCallType ? 'vx-row-icon is-call' : 'vx-row-icon';
       html += '<div class="'+_iconClass+'"><i class="ph-bold ph-'+typeMeta.icon+'"></i></div>';
       html += '<div class="vx-row-body">';
-      html += '<div class="vx-row-name">'+_esc(name)+'<span class="vx-row-pill">'+_esc(typeMeta.label)+'</span>'+(company ? '<span class="dpr-co">'+_esc(company)+'</span>' : '')+'</div>';
+      var _isUnreadCall = !isManualTaskRecord(rec) && !f.read_at;
+      html += '<div class="vx-row-name" style="'+(_isUnreadCall?'font-weight:700;':'')+'">'+(_isUnreadCall?'<span style="display:inline-block;width:4px;height:4px;border-radius:50%;background:#1A6FE8;margin-right:6px;vertical-align:middle;"></span>':'')+_esc(name)+'<span class="vx-row-pill">'+_esc(typeMeta.label)+'</span>'+(company ? '<span class="dpr-co">'+_esc(company)+'</span>' : '')+'</div>';
       if (dueMeta && dueMeta.value) html += '<div class="vx-row-time">'+_esc(dueMeta.value)+'</div>';
       if (_rowSummary) html += '<div class="vx-row-summary">'+_esc(_rowSummary)+'</div>';
       html += '</div>';
@@ -10974,8 +10975,8 @@ function vxGetOpenManualTasks() {
 function vxGetNewRequestCalls(records) {
   return (records || []).filter(function(rec) {
     var f = (rec && rec.fields) || {};
-    if (isActivationCallCategory(f.category)) return false;
-    return normalizeStatus(f.dashboard_status) === CALL_STATUS.NEW;
+    if (!isCustomerVisibleCall(rec)) return false;
+    return String(f.live_status || '').trim().toLowerCase() === 'completed' && !f.read_at;
   });
 }
 
@@ -11988,6 +11989,32 @@ function isActivationCallCategory(categoryRaw) {
   return normalized === 'activation_test_outbound' || normalized === 'activation_test_inbound';
 }
 
+const CATEGORY_LABELS = {
+  rueckrufanfrage: 'Rückrufanfrage',
+  terminanfrage: 'Terminanfrage',
+  informationsanfrage: 'Informationsanfrage',
+  offertenanfrage: 'Offertenanfrage',
+  beschwerde: 'Beschwerde',
+  aenderung_kuendigung: 'Änderung / Kündigung',
+  notfall: 'Notfall',
+  sonstiges: 'Sonstiges'
+};
+
+function getCategoryLabel(category) {
+  var raw = String(category || '').trim();
+  if (!raw || isDashLikePlaceholder(raw)) return '';
+  return CATEGORY_LABELS[raw] || raw;
+}
+
+function isCustomerVisibleCall(record) {
+  var f = (record && record.fields) || {};
+  var category = String(f.category || '').trim().toLowerCase();
+  var direction = String(f.direction || f.call_direction || '').trim().toLowerCase();
+  if (category === 'activation_test_outbound') return false;
+  if (direction === 'outbound') return false;
+  return !isActivationCallCategory(category);
+}
+
 function vxNormalizePhone(p) {
   var s = String(p||'').replace(/[\s\-\.]/g,'');
   if (s.startsWith('0041')) s = '+41' + s.slice(4);
@@ -12057,28 +12084,7 @@ function getCallDisplayName(fields) {
   return name;
 }
 
-function callCategoryLabel(categoryRaw) {
-  const raw = String(categoryRaw || '').trim();
-  if (!raw || isDashLikePlaceholder(raw)) return '';
-  if (isActivationCallCategory(raw)) return 'Aktivierungstest (Voxera)';
-  const map = {
-    callback: 'Rückruf',
-    rueckruf: 'Rückruf',
-    rückruf: 'Rückruf',
-    appointment: 'Termin',
-    offer: 'Offerte',
-    info: 'Information',
-    inbound: 'Eingehender Anruf',
-    incoming_call: 'Eingehender Anruf',
-    complaint: 'Reklamation',
-    support: 'Support',
-    other: 'Sonstiges',
-    sonstiges: 'Sonstiges'
-  };
-  const lower = raw.toLowerCase();
-  if (map[lower]) return map[lower];
-  return raw.replace(/[_-]+/g, ' ').replace(/\b\w/g, function(m){ return m.toUpperCase(); });
-}
+function callCategoryLabel(categoryRaw) { return getCategoryLabel(categoryRaw); }
 
 function getCallCategoryDisplayLabel(record) {
   // raw category may contain technical routing values.
@@ -12090,10 +12096,9 @@ function getCallCategoryDisplayLabel(record) {
 
   const rawCategory = String(f.category || '').trim();
   const normalizedCategory = rawCategory.toLowerCase();
-  if (normalizedCategory === 'activation_test_outbound') return 'Testanruf';
   if (normalizedCategory === 'inbound') return 'Eingehender Anruf';
   if (!rawCategory || isDashLikePlaceholder(rawCategory)) return 'Anruf';
-  return callCategoryLabel(rawCategory) || 'Anruf';
+  return getCategoryLabel(rawCategory) || 'Anruf';
 }
 
 function qualKey(q) {
@@ -16887,8 +16892,8 @@ function vxOpenCallFromHistory(callId) {
   }
 }
 
-// ── Als gelesen markieren: new → in_progress beim Öffnen ──────────────
-// Nicht-blockierend, kein Toast, nur für Calls mit status=new
+// ── Als gelesen markieren: read_at setzen beim Öffnen ──────────────
+// Nicht-blockierend, kein Toast, nur wenn read_at noch NULL ist
 function vxMarkCallAsRead(callId) {
   if (!callId) return;
   // Record im Cache suchen
@@ -16897,24 +16902,25 @@ function vxMarkCallAsRead(callId) {
     rec = allRecords.find(function(r) { return String((r && r.id) || '') === String(callId); });
   }
   if (!rec || !rec.fields) return;
-  var current = normalizeStatus(rec.fields.dashboard_status);
-  // Nur wenn aktuell 'new' → auf 'in_progress' setzen
-  if (current !== CALL_STATUS.NEW) return;
-  // Lokal sofort updaten damit Re-Render korrekt ist
-  rec.fields.dashboard_status = CALL_STATUS.IN_PROGRESS;
+  if (rec.fields.read_at) return;
+  var readAtIso = new Date().toISOString();
+  rec.fields.read_at = readAtIso;
+  rec.fields.updated_at = readAtIso;
+  if (typeof renderDashboard === 'function') renderDashboard(allRecords || [], allManualTaskRecords || []);
+  if (typeof renderAnrufe === 'function') renderAnrufe();
+  if (typeof renderDashPriorityList === 'function') renderDashPriorityList();
   // DB async aktualisieren — non-blocking, kein Toast
   if (typeof _sb !== 'undefined' && _sb) {
     _sb.from('calls')
-      .update({ dashboard_status: CALL_STATUS.IN_PROGRESS, updated_at: new Date().toISOString() })
+      .update({ read_at: readAtIso, updated_at: readAtIso })
       .eq('id', callId)
       .then(function(res) {
         if (res && res.error) {
-          // Bei Fehler lokal zurücksetzen
-          rec.fields.dashboard_status = CALL_STATUS.NEW;
+          rec.fields.read_at = null;
         }
       })
       .catch(function() {
-        rec.fields.dashboard_status = CALL_STATUS.NEW;
+        rec.fields.read_at = null;
       });
   }
 }
@@ -18603,11 +18609,9 @@ function renderDashboard(records, manualTasks) {
   // [BUG FIX v2.52b] KPI "Neue Anfragen" muss dieselbe Logik wie Chip "Neu" verwenden:
   // Records mit status=new die bereits auf Heute sind (callback/urgency/followup)
   // werden im Chip "Neu" ausgeblendet — der KPI muss das ebenfalls tun.
-  var newOpenRequestsRaw = (typeof vxGetNewRequestCalls === 'function') ? vxGetNewRequestCalls(records || []).filter(function(r) {
-    return !(typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(r));
-  }) : allOpen.filter(function(r){
-    var status = normalizeStatus(r.fields && r.fields.dashboard_status);
-    return status === CALL_STATUS.NEW && !(typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(r));
+  var newOpenRequestsRaw = (typeof vxGetNewRequestCalls === 'function') ? vxGetNewRequestCalls(records || []) : allOpen.filter(function(r){
+    var f = (r && r.fields) || {};
+    return isCustomerVisibleCall(r) && String(f.live_status || '').trim().toLowerCase() === 'completed' && !f.read_at;
   });
   var newOpenRequests = newOpenRequestsRaw;
 
@@ -19533,6 +19537,9 @@ function updateSystemStatus(records) {
 // ═══════════════════════════════════════════
 function renderList(containerId, records, opts) {
   opts = opts || {};
+  records = (records || []).filter(function(rec) {
+    return isManualTaskRecord(rec) || isCustomerVisibleCall(rec);
+  });
   const el = document.getElementById(containerId);
   const isMobileList = window.matchMedia('(max-width: 768px)').matches;
   const isTaskList = containerId === 'rueckrufe-list' || containerId === 'dash-callback-list';
@@ -19608,6 +19615,7 @@ function renderList(containerId, records, opts) {
     // ── Inbox mobile vars ──
     const ibxUrgent  = !done && (priority.key === 'urgent' || !!f.callback_requested);
     const ibxNew     = !done && normalizeStatus(f.dashboard_status) === 'new';
+    const isUnread   = !isManualTaskRecord(r) && !f.read_at;
     const ibxDotCls  = ibxUrgent ? 'ibx-dot-urgent' : ibxNew ? 'ibx-dot-new' : 'ibx-dot-empty';
     const ibxAvCls   = ibxUrgent ? 'ibx-av-red' : done ? 'ibx-av-gray' : 'ibx-av-blue';
     const ibxNameCls = done ? 'ibx-name-done' : '';
@@ -19643,11 +19651,11 @@ function renderList(containerId, records, opts) {
     return `<div class="call-row${done?' done':''}${incoming?' incoming':''}${opts.dashboardView?' dashboard-call':''}" data-qual="${q}" data-done="${done?'1':'0'}" data-id="${r.id}" data-open="${done?'0':'1'}" data-priority="${priority.key}" data-status="${escHtml(normalizeStatus(f.dashboard_status))}" onclick="toggleCallRow(event,this)">
 
       <!-- ── MOBILE: INBOX ROW ── -->
-      <div class="ibx-dot-col"><div class="ibx-dot ${ibxDotCls}"></div></div>
+      <div class="ibx-dot-col"><div class="ibx-dot ${ibxDotCls}" style="${isUnread?'background:#1A6FE8;':''}"></div></div>
       <div class="ibx-av-col"><div class="ibx-av ${ibxAvCls}">${initials(callerDisplayName)}</div></div>
       <div class="ibx-body">
         <div class="ibx-top">
-          <span class="ibx-name ${ibxNameCls}">${escHtml(callerDisplayName)}${f.company_name && !done?` <span style="font-size:10px;font-weight:400;color:var(--slate2);">${escHtml(f.company_name)}</span>`:''}</span>
+          <span class="ibx-name ${ibxNameCls}" style="${isUnread?'font-weight:700;':''}">${escHtml(callerDisplayName)}${f.company_name && !done?` <span style="font-size:10px;font-weight:400;color:var(--slate2);">${escHtml(f.company_name)}</span>`:''}</span>
           <span class="ibx-time">${callDateTime}</span>
         </div>
         <div class="ibx-subject${ibxSubjMuted?' ibx-subject-muted':''}">${escHtml(ibxSubj)}</div>
@@ -19810,7 +19818,11 @@ function renderAnrufe() {
   // Parameter wird ignoriert — verhindert dass Task-Array beim Aufruf wegfällt
   var calls = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : [];
   var tasks = (typeof allManualTaskRecords !== 'undefined' && allManualTaskRecords) ? allManualTaskRecords : [];
-  var source = [].concat(calls, tasks).filter(function(r) { return !!r; });
+  var source = [].concat(calls, tasks).filter(function(r) {
+    if (!r) return false;
+    if (isManualTaskRecord(r)) return true;
+    return isCustomerVisibleCall(r);
+  });
   var filtered = source.filter(function(r) { return vxInquiryMatchesFilter(r, filter); });
   var sorted = applySortToRecords(filtered, _anrufeSort);
   if (filter === 'offen') {
@@ -19975,7 +19987,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       // Meta-Zeile: nur Telefon
       var _metaSimple = (phone && name !== phone) ? _esc(phone) : '';
       // [v3.0] Outlook-Pattern mit vx-* Klassen
-      var _isUnread = !isManualTaskRecord(rec) && vxInquiryIsNew(rec) && !_isOnToday;
+      var _isUnread = !isManualTaskRecord(rec) && !f.read_at;
       var _isDoneOrArch = vxInquiryIsCompleted(rec) || vxInquiryIsArchived(rec);
       var _isCallIcon = _typeMeta.kind === 'callback' || _typeMeta.kind === 'incoming';
       var _rowOpacity = _isDoneOrArch ? ' style="opacity:.45;"' : '';
@@ -20018,12 +20030,12 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="inquiry" data-rail="'+_railAnfragen+'" data-filter-new="'+(_isUnread?'1':'0')+'" data-filter-task="'+(linkedTasks.length>0?'1':'0')+'" data-filter-planned="'+((_isOnToday||vxInquiryIsPlanned(rec))?'1':'0')+'" data-filter-checked="'+(_isDoneOrArch?'1':'0')+'" data-filter-archived="'+(vxInquiryIsArchived(rec)?'1':'0')+'">';
       html += '<div class="vx-anf-row'+(_isDoneOrArch?' is-done-row':'')+(_isUnread?' is-unread':'')+'"'+_rowOpacity+' onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
       // Ungelesen-Dot
-      html += '<div class="vx-anf-dot-empty" aria-hidden="true"></div>';
+      html += '<div class="vx-anf-dot-empty" aria-hidden="true" style="'+(_isUnread?'background:#1A6FE8;opacity:1;':'')+'"></div>';
       // Icon
       html += '<div class="vx-anf-icon'+(_isCallIcon?' is-call':'')+' "><i class="ph-bold ph-'+iconName+'" aria-hidden="true"></i></div>';
       // Body
       html += '<div class="vx-anf-body">';
-      html += '<div class="vx-anf-top"><div class="vx-anf-name">'+_esc(name)+(company?'<span style="font-size:10px;color:var(--vx-text3);margin-left:5px;">'+_esc(company)+'</span>':'')+'</div><div class="vx-anf-time">'+_esc(dueMeta.value)+'</div></div>';
+      html += '<div class="vx-anf-top"><div class="vx-anf-name" style="'+(_isUnread?'font-weight:700;':'')+'">'+_esc(name)+(company?'<span style="font-size:10px;color:var(--vx-text3);margin-left:5px;">'+_esc(company)+'</span>':'')+'</div><div class="vx-anf-time">'+_esc(dueMeta.value)+'</div></div>';
       html += '<div class="vx-anf-pills"><span class="'+_statusPillClass+'">'+_esc(_pillLabel)+'</span>'+_leadPill+(urgencyBadge?urgencyBadge:'')+_expiryPill+'</div>';
       if (_preview) html += '<div class="vx-anf-preview">'+_esc(_preview)+'</div>';
       html += '</div>';
