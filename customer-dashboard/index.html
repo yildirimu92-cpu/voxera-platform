@@ -6043,6 +6043,7 @@ body,.main{background:var(--vx-bg);}
 .vxi-field.pending .vxi-old{display:block;}
 .vxr-row.pending{background:#FFFBEB;}
 .vxr-row.pending .vxr-label{color:#92400E;}
+.plan-badge{background:#E8C547;color:#0D1F3C;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:8px;}
 .vxr-old{font-size:11px;color:#92400E;text-decoration:line-through;margin-right:6px;display:none;}
 .vxr-row.pending .vxr-old{display:inline;}
 /* Coming soon badge */
@@ -7421,7 +7422,8 @@ body,.main{background:var(--vx-bg);}
                 <div class="vxi-old" id="vxiold-profil-svc"></div>
                 <div class="vxi-value vxi-empty" id="vxiv-profil-svc">Antippen zum Ergänzen…</div>
                 <button class="vxi-pencil" onclick="event.stopPropagation();vxiEdit('profil-svc')" aria-label="Bearbeiten"><i class="ph-bold ph-pencil-simple" style="font-size:13px;" aria-hidden="true"></i></button>
-                <textarea class="vxi-textarea" placeholder="z.B. Neuinstallationen, Reparaturen, Wartung…"></textarea>
+                <textarea class="vxi-textarea" style="white-space:pre-wrap;" placeholder="z.B. Neuinstallationen, Reparaturen, Wartung…"></textarea>
+                <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:6px;">Eine Leistung pro Zeile</div>
                 <div class="vxi-actions">
                   <button class="btn btn--secondary btn--sm" onclick="event.stopPropagation();vxiCancel('profil-svc')">Abbrechen</button>
                   <button class="btn btn--primary" onclick="event.stopPropagation();vxiSave('profil-svc','profil')">Speichern</button>
@@ -7505,9 +7507,9 @@ body,.main{background:var(--vx-bg);}
               <textarea id="assistent-greeting" rows="3" style="display:none;"></textarea>
               <div style="padding:0 16px;">
                 <div style="margin-top:10px;margin-bottom:10px;">
-                  <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:4px;">Begrüssung</div>
-                  <textarea id="assistent-greeting-visible" rows="3" placeholder="Wird automatisch generiert wenn leer gelassen." style="width:100%;border:0.5px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;background:rgba(255,255,255,.06);color:#fff;" onfocus="this.style.borderColor='#1A6FE8'" onblur="this.style.borderColor='rgba(255,255,255,.12)'" oninput="vxSyncGreetingPreview()"></textarea>
-                  <div id="assistent-greeting-preview" style="font-size:11px;color:rgba(255,255,255,.35);margin-top:5px;">Vorschau: –</div>
+                  <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:4px;">Begrüssung (automatisch)</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:6px;">Wird automatisch aus Ihren Angaben generiert</div>
+                  <div id="assistent-greeting-visible" style="width:100%;border:0.5px solid rgba(255,255,255,.12);border-radius:8px;padding:10px;font-size:13px;line-height:1.5;font-family:inherit;box-sizing:border-box;background:rgba(255,255,255,.03);color:rgba(255,255,255,.72);pointer-events:none;user-select:none;">–</div>
                 </div>
                 <div class="vxr-row" id="vxr-ton-anrede">
                   <div class="vxr-label">Anrede</div>
@@ -7523,7 +7525,7 @@ body,.main{background:var(--vx-bg);}
                   <button class="vxr-edit" onclick="vxrEdit('ton-anrede')" aria-label="Bearbeiten"><i class="ph-bold ph-pencil-simple" style="font-size:13px;" aria-hidden="true"></i></button>
                 </div>
                 <div class="vxr-row" id="vxr-ton-ton">
-                  <div class="vxr-label">Tonalität</div>
+                  <div class="vxr-label">Tonalität <span id="tone-plan-badge" class="plan-badge" style="display:none;">Business</span></div>
                   <div class="vxr-value"><span class="vxr-old" id="vxrold-ton-ton"></span>Professionell</div>
                   <div class="vxr-select-wrap">
                     <select class="vxr-select">
@@ -13023,6 +13025,7 @@ function syncCanonicalCustomerStateFromRecord(record) {
   customerMeta.addressForm      = fields.ai_address_form   || 'sie';
   customerMeta.tone             = fields.ai_tone           || 'professional';
   customerMeta.greeting         = fields.ai_greeting       || '';
+  customerMeta.planCode         = (fields.plan_code || fields.plan || customerMeta.plan || 'starter');
   customerMeta.language         = fields.ai_language       || 'de';
   customerMeta.businessDescription = fields.ai_business_description || '';
   customerMeta.services            = fields.ai_services            || '';
@@ -14367,8 +14370,8 @@ async function vxPendingPreview() {
   var btn = document.querySelector('.vx-btn-preview');
   var assistantName = (customerMeta && customerMeta.assistantName) || 'Lara';
   // Begrüssungstext aus dem Textarea holen (aktuell editierter Wert)
-  var greetingEl = document.getElementById('assistent-greeting-visible') || document.getElementById('assistent-greeting');
-  var greeting = greetingEl ? greetingEl.value.trim() : '';
+  var greetingEl = document.getElementById('assistent-greeting-visible');
+  var greeting = greetingEl ? String(greetingEl.textContent || '').trim() : '';
   if (!greeting) {
     greeting = (customerMeta && customerMeta.greeting) || ('Grüezi, hier ist ' + assistantName + '. Wie kann ich Ihnen helfen?');
   }
@@ -14431,9 +14434,9 @@ function vxPendingGoLive() {
     var bue = document.getElementById('edit-office-hours')?.value || '';
     var ter = document.getElementById('edit-appointment-hours')?.value || '';
     var parts = [];
-    if (tel) parts.push('TEL: ' + tel);
-    if (bue) parts.push('BÜRO: ' + bue);
-    if (ter) parts.push('TERMIN: ' + ter);
+    if (tel) parts.push('Telefonisch: ' + tel);
+    if (bue) parts.push('Bürozeiten: ' + bue);
+    if (ter) parts.push('Terminzeiten: ' + ter);
     payload.ai_location_hours = parts.join('\n');
   }
   if (_vxPending['ton-anrede']) { var el = document.getElementById('edit-address-form'); if(el) payload.ai_address_form = el.value; }
@@ -14607,19 +14610,21 @@ function vxFillAccordionRead(id) {
       var ta = f.querySelector('.vxi-textarea');
       var vEl = f.querySelector('.vxi-value');
       if (ta) ta.value = val;
-      if (vEl) { vEl.textContent = val || 'Tippen zum Ergänzen…'; vEl.className = 'vxi-value' + (val ? '' : ' vxi-empty'); }
+      if (vEl) {
+        if (fid === 'profil-svc' && val) vEl.innerHTML = String(val).replace(/\n/g, '<br>');
+        else vEl.textContent = val || 'Tippen zum Ergänzen…';
+        vEl.className = 'vxi-value' + (val ? '' : ' vxi-empty');
+      }
       f.classList.remove('editing');
     };
     setVxi('profil-desc', desc); setVxi('profil-svc', svc);
   }
   if (base === 'erreichbarkeit') {
     var raw = customerMeta.locationHours || '';
-    var lines = raw.split('\n');
-    var findLine = function(prefix) { var l = lines.find(function(x){ return x.startsWith(prefix+':'); }); return l ? l.slice(prefix.length+1).trim() : ''; };
-    var hasPfx = raw.indexOf('TEL:') >= 0 || raw.indexOf('BÜRO:') >= 0;
-    var tel    = hasPfx ? findLine('TEL')    : raw;
-    var buero  = hasPfx ? findLine('BÜRO')   : '';
-    var termin = hasPfx ? findLine('TERMIN') : '';
+    var parsed = vxParseLocationHours(raw);
+    var tel = parsed.tel;
+    var buero = parsed.buero;
+    var termin = parsed.termin;
     var setVxi = function(fid, val) {
       var f = document.getElementById('vxi-' + fid); if (!f) return;
       var ta = f.querySelector('.vxi-textarea');
@@ -14648,27 +14653,37 @@ function vxFillAccordionRead(id) {
     setVxr('ton-ton',    customerMeta.tone || 'professional',  tonMap);
     var greetingVisible = document.getElementById('assistent-greeting-visible');
     var greetingHidden = document.getElementById('assistent-greeting');
-    if (greetingVisible) greetingVisible.value = customerMeta.greeting || '';
-    if (greetingHidden) greetingHidden.value = customerMeta.greeting || '';
-    vxSyncGreetingPreview();
+    var autoGreeting = vxBuildAutoGreeting();
+    if (greetingVisible) greetingVisible.textContent = autoGreeting;
+    if (greetingHidden) greetingHidden.value = autoGreeting;
   }
 }
 
 
 function vxBuildAutoGreeting() {
   var name = String(customerMeta.assistantName || 'Lara').trim() || 'Lara';
-  var company = String(customerMeta.customerName || customerMeta.contactFirstName || '').trim();
-  return company ? ('Grüezi, hier ist ' + name + ' von ' + company + '…') : ('Grüezi, hier ist ' + name + '…');
+  var company = String(customerMeta.customerName || customerMeta.contactFirstName || 'Ihrer Firma').trim() || 'Ihrer Firma';
+  return 'Grüezi, hier ist ' + name + ' von ' + company + '. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?';
 }
 
-function vxSyncGreetingPreview() {
-  var input = document.getElementById('assistent-greeting-visible');
-  var hidden = document.getElementById('assistent-greeting');
-  var preview = document.getElementById('assistent-greeting-preview');
-  if (!input || !hidden || !preview) return;
-  var val = (input.value || '').trim();
-  hidden.value = input.value || '';
-  preview.textContent = 'Vorschau: ' + (val || vxBuildAutoGreeting());
+function vxSyncGreetingPreview() {}
+
+function vxParseLocationHours(raw) {
+  raw = String(raw || '').trim();
+  var out = { tel:'', buero:'', termin:'', firstLine: '' };
+  if (!raw) return out;
+  var lines = raw.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  out.firstLine = lines[0] || '';
+  lines.forEach(function(line){
+    var idx = line.indexOf(':');
+    var key = idx > -1 ? line.slice(0, idx).trim().toLowerCase() : '';
+    var val = idx > -1 ? line.slice(idx + 1).trim() : line.trim();
+    if (key === 'telefonisch' || key === 'tel') out.tel = val;
+    else if (key === 'bürozeiten' || key === 'büro') out.buero = val;
+    else if (key === 'terminzeiten' || key === 'termin') out.termin = val;
+  });
+  if (!(out.tel || out.buero || out.termin)) out.tel = raw;
+  return out;
 }
 
 function vxToggleAcc(id) {
@@ -14704,32 +14719,13 @@ function vxFillAccordion(id) {
   }
   if (id === 'erreichbarkeit') {
     const raw = customerMeta.locationHours || '';
-    const lines = raw.split('\n');
-    const findLine = (prefix) => {
-      const l = lines.find(function(x){ return x.startsWith(prefix + ':'); });
-      return l ? l.slice(prefix.length + 1).trim() : '';
-    };
-    const hasPrefixes = raw.indexOf('TEL:') >= 0 || raw.indexOf('BÜRO:') >= 0 || raw.indexOf('TERMIN:') >= 0;
+    const parsed = vxParseLocationHours(raw);
     const el1 = document.getElementById('edit-phone-hours');
     const el2 = document.getElementById('edit-office-hours');
     const el3 = document.getElementById('edit-appointment-hours');
-    if (hasPrefixes) {
-      if (el1) el1.value = findLine('TEL');
-      if (el2) el2.value = findLine('BÜRO');
-      if (el3) el3.value = findLine('TERMIN');
-    } else if (raw) {
-      // Altes Format — alles in Telefonische Erreichbarkeit, Rest leer
-      if (el1) el1.value = raw;
-      if (el2) el2.value = '';
-      if (el3) el3.value = '';
-      // Hinweis anzeigen
-      const hint = document.getElementById('erreichbarkeit-migration-hint');
-      if (hint) hint.style.display = 'block';
-    } else {
-      if (el1) el1.value = '';
-      if (el2) el2.value = '';
-      if (el3) el3.value = '';
-    }
+    if (el1) el1.value = parsed.tel || '';
+    if (el2) el2.value = parsed.buero || '';
+    if (el3) el3.value = parsed.termin || '';
     vxFillAccordionRead('erreichbarkeit');
     var bodyErr = document.getElementById('accbody-erreichbarkeit');
     if (bodyErr) bodyErr.classList.remove('vx-acc-editing');
@@ -14800,6 +14796,12 @@ function vxFillAccordion(id) {
     }
   }
   if (id === 'ton') {
+    const planCode = (customerMeta.planCode || customerMeta.plan || 'starter').toLowerCase();
+    const isBusinessPlus = planCode === 'business' || planCode === 'professional';
+    const toneRow = document.getElementById('vxr-ton-ton');
+    const toneBadge = document.getElementById('tone-plan-badge');
+    if (toneRow) { toneRow.style.opacity = isBusinessPlus ? '1' : '0.5'; toneRow.style.pointerEvents = isBusinessPlus ? '' : 'none'; }
+    if (toneBadge) toneBadge.style.display = isBusinessPlus ? 'none' : 'inline-block';
     const sel1 = document.getElementById('edit-address-form');
     const sel2 = document.getElementById('edit-tone');
     if (sel1) sel1.value = customerMeta.addressForm || 'sie';
@@ -14877,15 +14879,16 @@ async function vxSaveSection(id) {
     const termin= document.getElementById('edit-appointment-hours')?.value.trim() || '';
     // Combine into structured format
     const parts = [];
-    if (tel)    parts.push('TEL: ' + tel);
-    if (buero)  parts.push('BÜRO: ' + buero);
-    if (termin) parts.push('TERMIN: ' + termin);
+    if (tel)    parts.push('Telefonisch: ' + tel);
+    if (buero)  parts.push('Bürozeiten: ' + buero);
+    if (termin) parts.push('Terminzeiten: ' + termin);
     payload.ai_location_hours = parts.join('\n') || '';
   }
   if (id === 'ton') {
+    const planCode = (customerMeta.planCode || customerMeta.plan || 'starter').toLowerCase();
+    const isBusinessPlus = planCode === 'business' || planCode === 'professional';
     payload.ai_address_form = document.getElementById('edit-address-form')?.value || 'sie';
-    payload.ai_tone = document.getElementById('edit-tone')?.value || 'professional';
-    payload.ai_greeting = document.getElementById('assistent-greeting')?.value.trim() || '';
+    payload.ai_tone = isBusinessPlus ? (document.getElementById('edit-tone')?.value || 'professional') : (customerMeta.tone || 'professional');
   }
   if (id === 'stimme') {
     // assistant_name nur senden wenn Plan es erlaubt
@@ -14935,7 +14938,7 @@ async function vxSaveSection(id) {
       vxFillAccordionRead('profil');
     }
     if (id === 'erreichbarkeit') { customerMeta.locationHours = payload.ai_location_hours; vxFillAccordionRead('erreichbarkeit'); }
-    if (id === 'ton') { customerMeta.addressForm = payload.ai_address_form; customerMeta.tone = payload.ai_tone; customerMeta.greeting = payload.ai_greeting || ''; vxFillAccordionRead('ton'); }
+    if (id === 'ton') { customerMeta.addressForm = payload.ai_address_form; customerMeta.tone = payload.ai_tone; vxFillAccordionRead('ton'); }
     if (id === 'stimme') {
       if (payload.assistant_name) {
         customerMeta.assistantName = payload.assistant_name;
@@ -14946,7 +14949,7 @@ async function vxSaveSection(id) {
       }
     }
 
-    if (fb) { fb.style.color = '#059669'; fb.textContent = id === 'weiterleitungen' ? '✓ Anfrage gesendet — Admin bestätigt die Änderung.' : '✓ Gespeichert — Lara wird sofort aktualisiert.'; }
+    if (fb) { fb.style.color = '#059669'; fb.textContent = id === 'weiterleitungen' ? '✓ Anfrage gesendet — Admin bestätigt die Änderung.' : (id === 'erreichbarkeit' ? 'Erreichbarkeit aktualisiert ✓' : '✓ Gespeichert — Lara wird sofort aktualisiert.'); }
     // Accordion-Status aktualisieren
     vxUpdateAccordionStatuses();
   } catch (e) {
