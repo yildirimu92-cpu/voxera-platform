@@ -19384,162 +19384,87 @@ function renderCallDetailPage(call, history) {
   var dateLong = timestamp ? timestamp.toLocaleDateString('de-DE', { day:'2-digit', month:'long', year:'numeric' }) : '';
   var timeShort = timestamp ? timestamp.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }) : '';
 
-  // ─── HEADER PILLS — max. 2: Status + Handlungsbedarf/Rückruf
-  // Relevanz lebt NICHT im Header (sie steht in der Details-Karte).
-  var _pillBase = 'font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;line-height:1;';
-  var _detailPills = [];
-  function _addDetailPill(label, style) {
-    if (!label || _detailPills.length >= 2) return;
-    _detailPills.push('<span style="' + _pillBase + style + '">' + ((typeof escapeHtml === 'function') ? escapeHtml(label) : label) + '</span>');
+  // ─── DETAIL STRUCTURE: header + action-oriented content ───
+  var _esc = (typeof escapeHtml === 'function') ? escapeHtml : function(v){
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c;
+    });
+  };
+  var workflow = (typeof vxGetWorkflowState === 'function') ? vxGetWorkflowState(call) : null;
+  var workflowState = workflow && workflow.state ? workflow.state : (call.follow_up_at ? 'planned' : statusVal);
+  var statusGroup = (workflowState === 'done') ? 'done'
+    : (workflowState === 'archived') ? 'archived'
+    : (workflowState === 'planned' || workflowState === 'overdue') ? 'planned'
+    : 'open';
+  statusBusinessLabel = statusGroup === 'done' ? 'Erledigt'
+    : (statusGroup === 'archived' ? 'Archiviert'
+      : (statusGroup === 'planned' ? 'Geplant' : 'Offen'));
+  var detailStatusColor = statusGroup === 'done' ? '#059669'
+    : (statusGroup === 'archived' ? '#64748B'
+      : (statusGroup === 'planned' ? '#B7791F' : '#1A6FE8'));
+
+  var dueRaw = call.follow_up_at || call.followup_at || call.due_at || '';
+  var dueDate = dueRaw ? ((typeof parseCallTimestamp === 'function' ? parseCallTimestamp(dueRaw) : null) || new Date(dueRaw)) : null;
+  if (dueDate && isNaN(dueDate.getTime())) dueDate = null;
+  var dueLabel = dueDate
+    ? dueDate.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' }) + ' · ' + dueDate.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })
+    : (statusGroup === 'planned' ? 'Fälligkeit offen' : 'Keine Fälligkeit');
+  var receivedLabel = (dateLong && timeShort) ? (dateLong + ' · ' + timeShort) : (dateLong || timeShort || '–');
+  var safeCallId = String(callId || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+  function _cdCan(action) {
+    if (typeof vxCanPerformAction !== 'function') return { allowed:true, reason:'matrix_unavailable' };
+    try { return vxCanPerformAction(call, action) || { allowed:false, reason:'unknown' }; }
+    catch(e) { return { allowed:false, reason:'matrix_error' }; }
   }
-  _addDetailPill(statusBusinessLabel, 'border:0.5px solid ' + statusColor + '33;color:' + statusColor + ';background:' + statusColor + '14;');
-  if (isCallback) _addDetailPill('Rückruf', 'color:#1A6FE8;background:#EFF6FF;border:0.5px solid #BFDBFE;');
-  else if (isNoAction || isTest) _addDetailPill('Kein Handlungsbedarf', 'color:#64748B;background:#F8FAFC;border:0.5px solid #E2E8F0;');
-  else if (isOffer) _addDetailPill('Anfrage prüfen', 'color:#1A6FE8;background:#EFF6FF;border:0.5px solid #BFDBFE;');
-  else if (isAppointment) _addDetailPill('Terminbezug', 'color:#475569;background:#F8FAFC;border:0.5px solid #E2E8F0;');
-  // ═══════════════════════════════════════════════════════════════════════
-  // VOXERA DETAIL HEADER — clean rebuild 2026-05-17
-  // Visual sprache: same dark Voxera-Kopfkarte as Heute/Anfragen page headers.
-  // Struktur:
-  //   Desktop split:  [avatar][identity ........... ][primary][menu][focus]
-  //                                                   [pills row]
-  //   Desktop focus:  [back-pill][avatar][identity .][primary][menu][split-toggle]
-  //   Mobile:         [back-pill]                    (Aktionen leben in Bottom-Bar)
-  //                   [avatar][identity .........]
-  //                   [pills row]
-  //
-  // Behaviour-Regeln:
-  //   - Buttons rechtsbündig (flex-shrink:0, min-width auf Wrapper)
-  //   - Badges max. 3, mit overflow-Ellipsis
-  //   - Primaryaktion ist kontextabhängig (Anrufen / Erledigen / Aufgabe erstellen)
-  //   - Auf Mobile: keine Header-Aktion-Buttons (Bottom-Bar übernimmt)
-  //   - Auf Mobile: kein Fokus/Expand-Button (Detail = bereits Vollansicht)
-  // ═══════════════════════════════════════════════════════════════════════
+  function _cdActionButton(cfg) {
+    var permission = cfg.permission || _cdCan(cfg.action);
+    var disabled = permission && permission.allowed === false;
+    var style = cfg.primary
+      ? 'height:40px;padding:0 16px;border-radius:10px;border:none;background:#1A6FE8;color:#fff;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 18px rgba(26,111,232,.18);'
+      : 'height:40px;padding:0 16px;border-radius:10px;border:0.5px solid #D7DEEA;background:#fff;color:#0D1F3C;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;';
+    if (disabled) style += 'opacity:.48;cursor:not-allowed;filter:saturate(.55);';
+    return '<button type="button" id="' + _esc(cfg.id || '') + '" style="' + style + '" onclick="' + _esc(cfg.onclick || '') + '"' + (disabled ? ' disabled aria-disabled="true" title="Aktion aktuell nicht erlaubt"' : '') + '>'
+      + '<i class="ph-bold ' + _esc(cfg.icon || 'ph-circle') + '" aria-hidden="true"></i>' + _esc(cfg.label || '') + '</button>';
+  }
+  function _cdCard(icon, title, body, extraTitleHtml) {
+    return '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;">'
+      + '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--line);">'
+      + '<i class="ph-bold ' + _esc(icon) + '" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i>'
+      + '<div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">' + _esc(title) + '</div>'
+      + (extraTitleHtml || '')
+      + '</div>' + body + '</div>';
+  }
+  function _cdMeta(label, value, sub) {
+    return '<div style="padding:7px 12px 7px 0;min-width:0;"><div style="font-size:10px;font-weight:750;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">' + _esc(label) + '</div><div style="font-size:13px;font-weight:700;color:#0D1F3C;line-height:1.35;word-break:break-word;">' + _esc(value || '–') + '</div>' + (sub ? '<div style="font-size:11px;color:#64748B;margin-top:2px;">' + _esc(sub) + '</div>' : '') + '</div>';
+  }
+
   try {
     var _banner = document.getElementById('call-detail-banner');
     if (_banner) {
-      var _esc = (typeof escapeHtml === 'function') ? escapeHtml : function(v){
-        return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){
-          return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] || c;
-        });
-      };
-      var _headerTitle = _esc(callerName || displayPhone || 'Unbekannte Nummer');
-      var _headerPhone = displayPhone ? _esc(displayPhone) : '';
-      var _headerDate = timeShort ? _esc(timeShort) : '';
-      var _headerDuration = durStr ? _esc(durStr) : '';
-      var _metaParts = [];
-      if (_headerPhone) _metaParts.push(_headerPhone);
-      else _metaParts.push('Keine Telefonnummer');
-      if (_headerDate) _metaParts.push(_headerDate);
-      if (_headerDuration) _metaParts.push(_headerDuration);
-      var _headerMeta = _metaParts.join(' · ');
-      var _headerMetaHtml = _metaParts.map(function(part){
-        return '<span class="vxd-meta-item">' + _esc(part) + '</span>';
-      }).join('');
-
-      // Badges: max. 2, bereits oben in _detailPills berechnet
-      var _statusPillsHtml = _detailPills.slice(0, 2).join('');
-
-      var _hasPhone = !!displayPhone;
-      var _isFocusMode = !!(document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode'));
-
-      // Primaryaktion bestimmen — eine einzige sinnvolle Hauptaktion
-      // - Rückruf + Nummer  → Anrufen
-      // - Kein Handlungsbedarf / Test → Erledigen
-      // - Offerte / Termin → Aufgabe erstellen
-      // - sonst → Erledigen
-      // legacyId stellt sicher, dass Legacy-JS (Loading/Success-Feedback in
-      // vxCallDetailErledigt etc.) den richtigen Button findet.
-      var _primary;
-      if (isCallback && _hasPhone) {
-        _primary = {
-          label: 'Anrufen',
-          icon: 'ph-phone',
-          onclick: 'vxCallDetailAnrufen(event)',
-          title: 'Anrufen: ' + _headerPhone,
-          disabled: false,
-          legacyId: 'vx-cd-qa-call'
-        };
-      } else if (isNoAction || isTest) {
-        _primary = {
-          label: 'Erledigen',
-          icon: 'ph-check',
-          onclick: 'vxCallDetailErledigt(event)',
-          title: 'Als erledigt markieren',
-          disabled: false,
-          legacyId: 'vx-cd-qa-done'
-        };
-      } else if ((isOffer || isAppointment) && typeof openManualTaskFromCall === 'function') {
-        var _safePrimaryCallId = String(callId || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        _primary = {
-          label: 'Aufgabe erstellen',
-          icon: 'ph-plus',
-          onclick: "openManualTaskFromCall('" + _safePrimaryCallId + "')",
-          title: 'Aufgabe für diese Anfrage erstellen',
-          disabled: false,
-          legacyId: 'vx-cd-header-call'
-        };
-      } else {
-        _primary = {
-          label: 'Erledigen',
-          icon: 'ph-check',
-          onclick: 'vxCallDetailErledigt(event)',
-          title: 'Als erledigt markieren',
-          disabled: false,
-          legacyId: 'vx-cd-qa-done'
-        };
-      }
-
-      var _focusLabel = _isFocusMode ? 'Split' : 'Fokus';
-      var _focusTitle = _isFocusMode ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
-      var _focusIcon = _isFocusMode ? 'ph-corners-in' : 'ph-corners-out';
-
-      var _secondaryHeaderLabel = '';
-      if (isCallback) _secondaryHeaderLabel = 'Rückruf';
-      else if (isNoAction || isTest) _secondaryHeaderLabel = 'Kein Handlungsbedarf';
-      else if (isOffer) _secondaryHeaderLabel = 'Anfrage prüfen';
-      else if (isAppointment) _secondaryHeaderLabel = 'Terminbezug';
-      else if (hasConcreteAction) _secondaryHeaderLabel = 'Handlungsbedarf';
-
-      var _statusPillClass = (statusBusinessLabel === 'Erledigt' || statusBusinessLabel === 'Archiviert') ? ' vxdr-pill--success' : ' vxdr-pill--status';
-      var _pillHtml = '<span class="vxdr-pill' + _statusPillClass + '">' + _esc(statusBusinessLabel) + '</span>'
-        + (_secondaryHeaderLabel ? '<span class="vxdr-pill vxdr-pill--context">' + _esc(_secondaryHeaderLabel) + '</span>' : '');
-
       var _pageForFocus = document.getElementById('call-detail-page');
       var _isEmbeddedSplit = !!(_pageForFocus && document.getElementById('anrufe-split-right') && document.getElementById('anrufe-split-right').contains(_pageForFocus));
       var _focusMode = !!((document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode')) || (_pageForFocus && !_isEmbeddedSplit && (_pageForFocus.classList.contains('is-fullscreen') || _pageForFocus.classList.contains('vx-detail-focus'))));
       var _layoutClass = _focusMode ? 'vxdr-focus' : 'vxdr-split';
       var _focusToggleTitle = _focusMode ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
       var _focusToggleIcon = _focusMode ? 'ph-corners-in' : 'ph-corners-out';
-
       _banner.className = 'vxdr-banner';
       _banner.removeAttribute('style');
       _banner.innerHTML = ''
-        + '<section class="vxdr-header ' + _layoutClass + '" aria-label="Anrufdetails">'
+        + '<section class="vxdr-header ' + _layoutClass + '" aria-label="Anfragedetails">'
         +   '<button type="button" class="vxdr-back" aria-label="Zurück zu Anfragen" onclick="event.stopPropagation();vxHandleDetailBack();">'
         +     '<i class="ph-bold ph-arrow-left" aria-hidden="true"></i><span>Anfragen</span>'
         +   '</button>'
         +   '<div class="vxdr-identity">'
         +     '<div class="vxdr-avatar" id="call-detail-avatar">' + _esc(initials) + '</div>'
         +     '<div class="vxdr-copy">'
-        +       '<div class="vxdr-title-row"><div class="vxdr-title" id="call-detail-title">' + _headerTitle + '</div></div>'
-        +       '<div class="vxdr-meta" id="call-detail-subtitle" aria-label="' + _esc(_headerMeta) + '">' + _headerMetaHtml + '</div>'
-        +       '<div class="vxdr-pills">' + _pillHtml + '</div>'
+        +       '<div class="vxdr-title-row"><div class="vxdr-title" id="call-detail-title">' + _esc(callerName || displayPhone || 'Unbekannte Nummer') + '</div></div>'
+        +       '<div class="vxdr-meta" id="call-detail-subtitle"><span class="vxd-meta-item">' + _esc(statusBusinessLabel) + '</span><span class="vxd-meta-item">Fällig: ' + _esc(dueLabel) + '</span><span class="vxd-meta-item">Eingang: ' + _esc(receivedLabel) + '</span></div>'
+        +       '<div class="vxdr-pills"><span class="vxdr-pill vxdr-pill--status" style="border-color:' + detailStatusColor + '33;color:' + detailStatusColor + ';background:' + detailStatusColor + '14;">' + _esc(statusBusinessLabel) + '</span>' + (dueDate ? '<span class="vxdr-pill vxdr-pill--context">' + _esc(dueLabel) + '</span>' : '') + '</div>'
         +     '</div>'
         +   '</div>'
         +   '<div class="vxdr-actions">'
-        +     '<button type="button" class="vxdr-btn vxdr-primary" id="' + _primary.legacyId + '" onclick="event.stopPropagation();' + _primary.onclick + '" title="' + _esc(_primary.title) + '"' + (_primary.disabled ? ' disabled aria-disabled="true"' : '') + '>'
-        +       '<i class="ph-bold ' + _primary.icon + '" aria-hidden="true"></i><span class="vxdr-btn-label">' + _esc(_primary.label) + '</span>'
-        +     '</button>'
-        +     (_focusMode
-        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-corners-in" aria-hidden="true"></i></button>'
-        : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _esc(_focusToggleTitle) + '" title="' + _esc(_focusToggleTitle) + '"><i class="ph-bold ' + _focusToggleIcon + '" aria-hidden="true"></i></button>')
-        +     '<button type="button" class="vxdr-iconbtn" id="vxd-menu-trigger" onclick="event.stopPropagation();vxdToggleMenu(event);" aria-haspopup="menu" aria-expanded="false" aria-label="Weitere Aktionen" title="Weitere Aktionen"><i class="ph-bold ph-dots-three-vertical" aria-hidden="true"></i></button>'
-        +   '</div>'
-        +   '<div class="vxdr-menu" id="vxd-menu" role="menu" hidden>'
-        +     '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailFaelligkeit();"><i class="ph-bold ph-calendar-plus" aria-hidden="true"></i><span>Follow-up planen</span></button>'
-        +     (isCallback || isOffer || isAppointment ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailErledigt(event);"><i class="ph-bold ph-check" aria-hidden="true"></i><span>Als erledigt markieren</span></button>' : '')
-        +     (_hasPhone && !isCallback ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailAnrufen(event);"><i class="ph-bold ph-phone" aria-hidden="true"></i><span>Anrufen</span></button>' : '')
+        +     '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _esc(_focusToggleTitle) + '" title="' + _esc(_focusToggleTitle) + '"><i class="ph-bold ' + _focusToggleIcon + '" aria-hidden="true"></i></button>'
         +   '</div>'
         + '</section>';
     }
@@ -19547,90 +19472,84 @@ function renderCallDetailPage(call, history) {
     console.warn('[voxera] detail header render skipped', _headerErr);
   }
 
-  // ─── CARD: Nächster Schritt — primary action cockpit ───
+  var actionsByStatus = {
+    open: [
+      { action:'call', id:'vx-cd-qa-call', label:'Anrufen', icon:'ph-phone', primary:true, onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','call','detail-main',event);" },
+      { action:'followup', id:'vx-cd-qa-due', label:'Planen', icon:'ph-calendar-plus', onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','followup','detail-main',event);" },
+      { action:'done', id:'vx-cd-qa-done', label:'Erledigen', icon:'ph-check', onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','done','detail-main',event);" }
+    ],
+    planned: [
+      { action:'call', id:'vx-cd-qa-call', label:'Anrufen', icon:'ph-phone', primary:true, onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','call','detail-main',event);" },
+      { action:'followup', id:'vx-cd-qa-due', label:'Fälligkeit ändern', icon:'ph-calendar-plus', onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','followup','detail-main',event);" },
+      { action:'done', id:'vx-cd-qa-done', label:'Erledigen', icon:'ph-check', onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','done','detail-main',event);" }
+    ],
+    done: [
+      { action:'call', id:'vx-cd-qa-call', label:'Anrufen', icon:'ph-phone', primary:true, onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','call','detail-main',event);" },
+      { action:'reopen', id:'vx-cd-qa-reopen', label:'Wieder öffnen', icon:'ph-arrow-counter-clockwise', onclick:"event.stopPropagation();dprAction('reopen','" + safeCallId + "');" },
+      { action:'archive', id:'vx-cd-qa-archive', label:'Archivieren', icon:'ph-archive-box', onclick:"event.stopPropagation();dprAction('archive','" + safeCallId + "');" }
+    ],
+    archived: [
+      { action:'reopen', id:'vx-cd-qa-reopen', label:'Wieder öffnen', icon:'ph-arrow-counter-clockwise', primary:true, onclick:"event.stopPropagation();dprAction('reopen','" + safeCallId + "');" }
+    ]
+  };
+  if (statusGroup === 'archived' && displayPhone) {
+    actionsByStatus.archived.push({ action:'call', id:'vx-cd-qa-call', label:'Anrufen', icon:'ph-phone', onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','call','detail-main',event);" });
+  }
+  var visibleActions = actionsByStatus[statusGroup] || actionsByStatus.open;
+
   html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;box-shadow:0 10px 28px rgba(15,23,42,.04);">';
   html +=   '<div style="display:flex;gap:14px;align-items:flex-start;padding:15px 16px 12px;">';
-  html +=     '<div style="width:34px;height:34px;border-radius:12px;background:#EEF4FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-flag" style="font-size:17px;color:#1A6FE8;" aria-hidden="true"></i></div>';
+  html +=     '<div style="width:34px;height:34px;border-radius:12px;background:#EEF4FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-lightning" style="font-size:17px;color:#1A6FE8;" aria-hidden="true"></i></div>';
   html +=     '<div style="min-width:0;flex:1;">';
-  html +=       '<div style="font-size:15px;font-weight:800;color:#0D1F3C;letter-spacing:-.02em;margin-bottom:4px;">' + actionTitleSafe + '</div>';
-  html +=       '<div style="font-size:13px;color:#465670;line-height:1.55;">' + actionTextSafe + '</div>';
-  html +=       '<div style="font-size:11px;color:#94A3B8;margin-top:5px;">' + actionHintSafe + '</div>';
+  html +=       '<div style="font-size:15px;font-weight:800;color:#0D1F3C;letter-spacing:-.02em;margin-bottom:4px;">Hauptaktionen</div>';
+  html +=       '<div style="font-size:13px;color:#465670;line-height:1.55;">Status: ' + _esc(statusBusinessLabel) + ' · Fälligkeit: ' + _esc(dueLabel) + '</div>';
   html +=     '</div>';
   html +=   '</div>';
   html +=   '<div style="display:flex;align-items:center;gap:8px;padding:0 16px 15px;flex-wrap:wrap;">';
-  if (isNoAction || isTest) {
-    html += '<button onclick="vxCallDetailErledigt()" style="height:36px;padding:0 14px;border-radius:10px;border:0.5px solid #D7DEEA;background:#fff;color:#0D1F3C;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"><i class="ph-bold ph-check" aria-hidden="true"></i>Als erledigt markieren</button>';
-  } else {
-    if (isCallback && displayPhone) html += '<button onclick="vxCallDetailAnrufen()" style="height:38px;padding:0 16px;border-radius:10px;border:none;background:#1A6FE8;color:#fff;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 18px rgba(26,111,232,.18);"><i class="ph-bold ph-phone" aria-hidden="true"></i>Anrufen</button>';
-    if (!isCallback && (isOffer || isAppointment) && typeof openManualTaskFromCall === 'function') html += '<button onclick="openManualTaskFromCall(\'' + callId + '\')" style="height:38px;padding:0 16px;border-radius:10px;border:none;background:#1A6FE8;color:#fff;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 18px rgba(26,111,232,.18);"><i class="ph-bold ph-plus" aria-hidden="true"></i>Aufgabe erstellen</button>';
-    html += '<button onclick="vxCallDetailFaelligkeit()" style="height:38px;padding:0 16px;border-radius:10px;border:0.5px solid #D7DEEA;background:#fff;color:#0D1F3C;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"><i class="ph-bold ph-calendar-plus" aria-hidden="true"></i>Follow-up planen</button>';
-    html += '<button onclick="vxCallDetailErledigt()" style="height:38px;padding:0 16px;border-radius:10px;border:0.5px solid #D7DEEA;background:#fff;color:#0D1F3C;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"><i class="ph-bold ph-check" aria-hidden="true"></i>Als erledigt markieren</button>';
-  }
+  visibleActions.forEach(function(actionCfg){ html += _cdActionButton(actionCfg); });
   html +=   '</div>';
   html += '</div>';
 
-  // ─── CARD: Zusammenfassung (KI) ───
-  html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;">';
-  html +=   '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--line);">';
-  html +=     '<i class="ph-bold ph-sparkle" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i>';
-  html +=     '<div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Zusammenfassung</div>';
-  html += summary ? '<div style="font-size:10px;font-weight:700;color:#64748B;margin-left:auto;text-transform:uppercase;letter-spacing:.07em;">Automatisch erstellt</div>' : '';
-  html +=   '</div>';
-  html +=   '<div style="padding:13px 14px;">';
+  var concernBody = '<div style="padding:13px 14px;">';
   if (!stateMeta.isTemporary && summary) {
-    html += '<div style="font-size:13px;color:#37415A;line-height:1.7;">' + summary + '</div>';
+    concernBody += '<div style="font-size:13px;color:#37415A;line-height:1.7;">' + summary + '</div>';
   } else {
-    html += '<div style="text-align:center;padding:10px 0;">';
-    html +=   '<div style="font-size:13px;color:var(--slate);font-style:italic;">' + (callTranscript ? 'Gesprächsverlauf vorhanden — Zusammenfassung wird noch erstellt.' : 'Keine Zusammenfassung vorhanden.') + '</div>';
-    html +=   '<div style="font-size:11px;color:var(--slate2);margin-top:4px;">Vermutlich wurde aufgelegt oder der Anruf war zu kurz.</div>';
-    html += '</div>';
+    concernBody += '<div style="text-align:center;padding:10px 0;"><div style="font-size:13px;color:var(--slate);font-style:italic;">' + _esc(callTranscript ? 'Gesprächsverlauf vorhanden — Zusammenfassung wird noch erstellt.' : 'Kein Anliegen erkannt.') + '</div><div style="font-size:11px;color:var(--slate2);margin-top:4px;">' + _esc(actionText) + '</div></div>';
   }
-  html +=   '</div>';
-  html += '</div>';
+  concernBody += '<div style="margin-top:10px;font-size:11px;color:#64748B;line-height:1.5;">' + _esc(actionHint) + '</div>';
+  concernBody += '</div>';
+  html += _cdCard('ph-chat-circle-text', 'Anliegen', concernBody, summary ? '<div style="font-size:10px;font-weight:700;color:#64748B;margin-left:auto;text-transform:uppercase;letter-spacing:.07em;">Automatisch erstellt</div>' : '');
 
-  // ─── CARD: Details grid ───
-  html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;">';
-  html +=   '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--line);">';
-  html +=     '<i class="ph-bold ph-info" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i>';
-  html +=     '<div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Anrufdetails</div>';
-  html +=   '</div>';
-  html +=   '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding:12px 14px;">';
-  function _cdMeta(label, value, sub) { return '<div style="padding:7px 12px 7px 0;min-width:0;"><div style="font-size:10px;font-weight:750;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">' + label + '</div><div style="font-size:13px;font-weight:700;color:#0D1F3C;line-height:1.35;word-break:break-word;">' + (value || '–') + '</div>' + (sub ? '<div style="font-size:11px;color:#64748B;margin-top:2px;">' + sub + '</div>' : '') + '</div>'; }
-  html += _cdMeta('Kategorie', safeCategory, null);
-  html += _cdMeta('Relevanz', relevanceLabel, priorityNorm ? ('Dringlichkeit: ' + priorityNorm) : null);
-  html += _cdMeta('Status', statusBusinessLabel, null);
-  html += _cdMeta('Handlungsbedarf', hasHandlungsbedarf ? 'Ja' : 'Nein', actionTitle);
-  html += _cdMeta('Dauer', durStr, null);
-  html += _cdMeta('Zeitpunkt', timeShort, dateLong);
-  html += _cdMeta('Quelle', 'Telefonanruf', displayPhone || null);
-  html +=   '</div>';
-  html += '</div>';
+  var contactBody = '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding:12px 14px;">'
+    + _cdMeta('Name', callerName || 'Unbekannt', null)
+    + _cdMeta('Telefon', displayPhone || 'Keine Telefonnummer', null)
+    + _cdMeta('Quelle', 'Telefonanruf', null)
+    + _cdMeta('Eingang', receivedLabel, null)
+    + '</div>';
+  html += _cdCard('ph-address-book', 'Kontakt', contactBody, '');
 
-  // ─── CARD: Transkript (secondary accordion, geordnet nach Sprecher/Abschnitten) ───
+  var notesBody = '<div style="padding:12px 14px;">'
+    + '<textarea id="call-detail-notes" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;resize:vertical;min-height:74px;background:var(--vx-bg,#F7F8FA);color:var(--ink,#1A1A2E);box-sizing:border-box;line-height:1.6;outline:none;" placeholder="Notiz hinzufügen...">' + _esc(noteVal) + '</textarea>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--slate);">Speichert automatisch · Strg+S für sofortiges Speichern</span></div>'
+    + '</div>';
+  html += _cdCard('ph-pencil-simple', 'Notizen', notesBody, '<div id="vx-cd-save-indicator" class="vx-cd-save-indicator" style="margin-left:auto;opacity:0;"><span class="dot"></span><span class="indicator-text"></span></div>');
+
+  html += renderTimelineHTML(history);
+
   html += (typeof vxRenderTranscriptCardHtml === 'function')
     ? vxRenderTranscriptCardHtml(callTranscript)
-    : '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;"><div style="display:flex;align-items:center;gap:10px;padding:11px 14px;"><i class="ph-bold ph-file-text" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i><div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Gesprächsverlauf</div></div><div style="border-top:0.5px solid var(--line);padding:12px 14px;font-size:12px;line-height:1.7;color:var(--ink2);white-space:pre-wrap;max-height:320px;overflow-y:auto;">' + escapeHtml(callTranscript || 'Kein Gesprächsverlauf vorhanden.') + '</div></div>';
+    : _cdCard('ph-file-text', 'Verlauf', '<div style="padding:12px 14px;font-size:12px;line-height:1.7;color:var(--ink2);white-space:pre-wrap;max-height:320px;overflow-y:auto;">' + _esc(callTranscript || 'Kein Gesprächsverlauf vorhanden.') + '</div>', '');
 
-  // ─── CARD: Notiz ───
-  html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;">';
-  html +=   '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--line);">';
-  html +=     '<i class="ph-bold ph-pencil-simple" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i>';
-  html +=     '<div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Persönliche Notiz</div>';
-  html +=     '<div id="vx-cd-save-indicator" class="vx-cd-save-indicator" style="margin-left:auto;opacity:0;">';
-  html +=       '<span class="dot"></span><span class="indicator-text"></span>';
-  html +=     '</div>';
-  html +=   '</div>';
-  html +=   '<div style="padding:12px 14px;">';
-  html +=     '<textarea id="call-detail-notes" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;resize:vertical;min-height:74px;background:var(--vx-bg,#F7F8FA);color:var(--ink,#1A1A2E);box-sizing:border-box;line-height:1.6;outline:none;" placeholder="Notiz hinzufügen...">' + noteVal + '</textarea>';
-  html +=     '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">';
-  html +=       '<span style="font-size:11px;color:var(--slate);">Speichert automatisch · Strg+S für sofortiges Speichern</span>';
-  html +=     '</div>';
-  html +=   '</div>';
-  html += '</div>';
+  var moreBody = '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding:12px 14px;">'
+    + _cdMeta('Kategorie', safeCategory, null)
+    + _cdMeta('Relevanz', relevanceLabel, priorityNorm ? ('Dringlichkeit: ' + priorityNorm) : null)
+    + _cdMeta('Status', statusBusinessLabel, null)
+    + _cdMeta('Handlungsbedarf', hasHandlungsbedarf ? 'Ja' : 'Nein', actionTitle)
+    + _cdMeta('Dauer', durStr, null)
+    + _cdMeta('Zeitpunkt', timeShort, dateLong)
+    + '</div>';
+  html += _cdCard('ph-info', 'Weitere Details', moreBody, '');
 
-  // ─── Kontakt-Historie ───
-  html += renderTimelineHTML(history);
-  
   const contentEl = document.getElementById('call-detail-content');
   if (contentEl) contentEl.innerHTML = html;
 
@@ -43188,7 +43107,7 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
 
     var selectors = {
       call: ['#vx-cd-qa-call','#vx-cd-header-call','#vx-cd-bb-call'],
-      followup: ['#vx-cd-bb-due','button[onclick*="vxCallDetailFaelligkeit"]'],
+      followup: ['#vx-cd-qa-due','#vx-cd-bb-due','button[onclick*="vxCallDetailFaelligkeit"]'],
       done: ['#vx-cd-qa-done','#vx-cd-bb-done','button[onclick*="vxCallDetailErledigt"]']
     };
     function setBtns(list, allowed){
