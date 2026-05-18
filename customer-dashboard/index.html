@@ -7345,13 +7345,11 @@ body,.main{background:var(--vx-bg);}
             <!-- LINKS -->
             <div id="anrufe-split-left" class="vx-split-left">
               <div class="vx-split-filters">
-                <button class="vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
+                <button class="vx-chip vx-chip--active" data-filter="alle" onclick="anrufeChipFilter('alle',this)">Alle</button>
+                <button class="vx-chip" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
                 <button class="vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
                 <button class="vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
-                <button class="vx-chip" data-filter="alle" onclick="anrufeChipFilter('alle',this)">Alle</button>
-              </div>
-              <div class="vx-split-filters vx-split-filters--compact" id="anrufe-inbox-subfilters" style="margin-top:4px;">
-                <button class="vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
+                <button class="vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiviert</button>
               </div>
               <div class="vx-split-search">
                 <div class="vxfb-search-box" id="fb-anrufe-searchbox">
@@ -11034,13 +11032,13 @@ function dprOpenAnfragenDetailFromRow(rowEl) {
     recId = card ? card.dataset.id : null;
   }
   if (!recId) return false;
+  window._vxLastAnfragenRecordId = String(recId);
+  if (typeof vxRouteRowOpen === 'function') return !!vxRouteRowOpen(recId, 'anfragen-row');
   var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
   if (rec && isManualTaskRecord(rec)) {
-    window._vxLastAnfragenRecordId = String(recId);
     if (typeof showTaskDetail === 'function') { showTaskDetail(recId); return true; }
     return false;
   }
-  window._vxLastAnfragenRecordId = String(recId);
   if (typeof showCallDetail === 'function') { showCallDetail(recId); return true; }
   return false;
 }
@@ -14016,8 +14014,17 @@ function vxTaskStatusBucket(record) {
 
 function vxGetInquiryBucket(record) {
   if (!record) return 'offen';
+  if (typeof vxGetWorkflowState === 'function') {
+    var wf = vxGetWorkflowState(record);
+    var state = String((wf && wf.state) || '').toLowerCase();
+    if (state === 'archived') return 'archiv';
+    if (state === 'done') return 'erledigt';
+    if (state === 'planned' || state === 'overdue') return 'geplant';
+    return 'offen';
+  }
   if (typeof isManualTaskRecord === 'function' && isManualTaskRecord(record)) {
     var taskBucket = vxTaskStatusBucket(record);
+    if (taskBucket === 'archiv') return 'archiv';
     if (taskBucket === 'erledigt') return 'erledigt';
     return taskBucket === 'geplant' ? 'geplant' : 'offen';
   }
@@ -14142,7 +14149,7 @@ function anrufeChipFilter(filter, btn) {
   // Aktiven Button setzen
   if (btn) btn.classList.add('vx-chip--active');
   var subWrap = document.getElementById('anrufe-inbox-subfilters');
-  if (subWrap) subWrap.style.display = _anrufeFilter === 'offen' ? '' : 'none';
+  if (subWrap) subWrap.style.display = 'none';
   document.getElementById('anrufe-sub-offen') && (document.getElementById('anrufe-sub-offen').style.display = '');
   renderAnrufe();
 }
@@ -21065,7 +21072,7 @@ function vxGoToAnfragenFilter(filter, subfilter) {
     });
     var subWrap = document.getElementById('anrufe-inbox-subfilters');
     if (subWrap) {
-      subWrap.style.display = _anrufeFilter === 'offen' ? '' : 'none';
+      subWrap.style.display = 'none';
       subWrap.querySelectorAll('button').forEach(function(b){
         var active = b.getAttribute('data-inbox-subfilter') === _anrufeInboxSubfilter;
         b.classList.toggle('vx-chip--active', active);
@@ -22589,18 +22596,20 @@ function vxUpdateAnfragenCount() {
   });
 
   var countEl = document.getElementById('anrufe-split-count');
-  if (countEl) countEl.textContent = counts.new + ' offen · ' + counts.planned + ' geplant · ' + counts.done + ' erledigt';
+  if (countEl) countEl.textContent = counts.all + ' alle · ' + counts.new + ' offen · ' + counts.planned + ' geplant · ' + counts.done + ' erledigt · ' + counts.archived + ' archiviert';
 
   var mainWrap = document.querySelector('#anrufe-split-left .vx-split-filters');
   if (mainWrap) {
     var inboxBtn = mainWrap.querySelector('[data-filter="offen"]');
     var plannedBtn = mainWrap.querySelector('[data-filter="geplant"]');
     var doneBtn = mainWrap.querySelector('[data-filter="abgeschlossen"]');
+    var archiveBtn = mainWrap.querySelector('[data-filter="archiv"]');
     var allBtn = mainWrap.querySelector('[data-filter="alle"]');
     if (inboxBtn) inboxBtn.textContent = 'Offen (' + counts.new + ')';
     if (plannedBtn) plannedBtn.textContent = 'Geplant (' + counts.planned + ')';
     if (doneBtn) doneBtn.textContent = 'Erledigt (' + counts.done + ')';
-    if (allBtn) allBtn.textContent = 'Alle (' + (counts.all || counts.total) + ')';
+    if (archiveBtn) archiveBtn.textContent = 'Archiviert (' + counts.archived + ')';
+    if (allBtn) allBtn.textContent = 'Alle (' + counts.all + ')';
   }
 
   var subWrap = document.getElementById('anrufe-inbox-subfilters');
@@ -22705,7 +22714,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   var filter = activeFilter || _anrufeFilter || 'offen';
 
   if (!records || records.length === 0) {
-    var emptyLabel = filter === 'offen' ? 'Keine offenen Anfragen.' : (filter === 'geplant' ? 'Keine geplanten Aufgaben oder Rückrufe.' : (filter === 'alle' ? 'Keine Anfragen vorhanden.' : 'Noch keine erledigten Einträge.'));
+    var emptyLabel = (typeof vxInquiryFilterEmptyText === 'function') ? vxInquiryFilterEmptyText(filter) : 'Keine Anfragen vorhanden.';
     el.innerHTML = '<div style="padding:24px 20px;text-align:center;color:var(--slate2);font-size:13px;background:#fff;border-radius:0 0 14px 14px;">' +
       '<i class="ph-bold ph-tray" style="color:#1A6FE8;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;"></i>' +
       _esc(emptyLabel) + '</div>';
@@ -22741,24 +22750,21 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
 
   function buildInquiryDueMeta(rec, linkedTasks) {
     var f = (rec && rec.fields) || {};
-    if (vxInquiryIsArchived(rec)) {
-      var tsArchived = getRecordTimestamp(rec);
-      return { label: 'Erledigt', value: tsArchived ? _formatRelativeTime(tsArchived) : 'erledigt', state: 'incoming', group: 'calls' };
+    var bucket = (typeof vxGetInquiryBucket === 'function') ? vxGetInquiryBucket(rec) : 'offen';
+    var due = f.follow_up_at || f.followup_at || f.followUpAt || f.due_at || f.due_date || '';
+    if (bucket === 'archiv') {
+      var tsArchived = f.archived_at || f.updated_at || getRecordTimestamp(rec);
+      return { label: 'Archiviert', value: tsArchived ? _formatRelativeTime(tsArchived) : '', state: 'archived', group: 'calls' };
     }
-    if (vxInquiryIsCompleted(rec)) {
-      var tsClosed = getRecordTimestamp(rec);
-      return { label: 'Erledigt', value: tsClosed ? _formatRelativeTime(tsClosed) : 'erledigt', state: 'incoming', group: 'calls' };
+    if (bucket === 'erledigt') {
+      var tsClosed = f.completed_at || f.closed_at || f.done_at || f.updated_at || getRecordTimestamp(rec);
+      return { label: 'Erledigt', value: tsClosed ? _formatRelativeTime(tsClosed) : '', state: 'done', group: 'calls' };
     }
-    if (vxInquiryIsPlanned(rec)) {
-      var due = f.follow_up_at || f.followup_at || f.followUpAt || '';
-      return { label: 'Geplant', value: due ? fmtExactDateTime(due) : 'geplant', state: 'planned', group: 'calls' };
-    }
-    if (vxInquiryIsNew(rec)) {
-      var tsNew = getRecordTimestamp(rec);
-      return { label: 'Offen', value: tsNew ? _formatRelativeTime(tsNew) : 'offen', state: 'today', group: 'calls' };
+    if (bucket === 'geplant') {
+      return { label: 'Geplant', value: due ? fmtExactDateTime(due) : '', state: 'planned', group: 'calls' };
     }
     var ts = getRecordTimestamp(rec);
-    return { label: 'Eingegangen', value: ts ? _formatRelativeTime(ts) : '', state: 'incoming', group: 'calls' };
+    return { label: 'Offen', value: ts ? _formatRelativeTime(ts) : '', state: 'open', group: 'calls' };
   }
 
   function buildInquiryDescription(rec, linkedTasks, category, summary) {
@@ -22808,6 +22814,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
         urgencyBadge = '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#FFFBEB;color:#B45309;border:0.5px solid #E8C547;margin-left:4px;"><i class=\"ph-bold ph-clock\" style=\"font-size:10px;\"></i>Heute</span>';
       }
       var linkedTasks = vxFindOpenManualTasksForPhone(phone);
+      var _inquiryBucket = (typeof vxGetInquiryBucket === 'function') ? vxGetInquiryBucket(rec) : 'offen';
       var dueMeta = buildInquiryDueMeta(rec, linkedTasks);
       var name = vxDashResolveWorkTitle(rec);
       var company = (f.company_name && f.caller_name && f.company_name !== f.caller_name) ? f.company_name : '';
@@ -22828,12 +22835,12 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       var _stateMeta = (typeof vxGetCallDisplayState === 'function' ? vxGetCallDisplayState(rec) : null) || vxGetDefaultCallDisplayState();
       var iconClass = _typeMeta.pillClass;
       var iconName = _typeMeta.icon;
-      var _archOrDone = vxInquiryIsArchived(rec) || vxInquiryIsCompleted(rec);
+      var _archOrDone = _inquiryBucket === 'archiv' || _inquiryBucket === 'erledigt';
       var _isOnToday = typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(rec);
       var _isCallback2 = f.callback_requested === true || f.callback_requested === 'true';
       var _railAnfragen = _archOrDone ? 'done'
         : urgencyVal === 'sofort' ? 'urgent'
-        : (_isOnToday || vxInquiryIsPlanned(rec)) ? 'planned'
+        : (_isOnToday || _inquiryBucket === 'geplant') ? 'planned'
         : _isCallback2 ? 'callback'
         : 'new';
       // Beschreibung: KI-Zusammenfassung / Notiz via einheitliche Funktion
@@ -22849,7 +22856,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       var _metaSimple = (phone && name !== phone) ? _esc(phone) : '';
       // [v3.0] Outlook-Pattern mit vx-* Klassen
       var _isUnread = (typeof vxIsUnreadRecord === 'function') ? vxIsUnreadRecord(rec) : (!isManualTaskRecord(rec) && !f.read_at);
-      var _isDoneOrArch = vxInquiryIsCompleted(rec) || vxInquiryIsArchived(rec);
+      var _isDoneOrArch = _inquiryBucket === 'erledigt' || _inquiryBucket === 'archiv';
       var _isCallIcon = _typeMeta.kind === 'callback' || _typeMeta.kind === 'incoming';
       var _rowOpacity = _isDoneOrArch ? ' style="opacity:.45;"' : '';
 
@@ -22857,7 +22864,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       var _statusPillClass = 'vx-anf-pill';
       var _statusLabel = dueMeta.label;
       if (_isDoneOrArch) _statusPillClass += ' is-done';
-      else if (vxInquiryIsPlanned(rec)) _statusPillClass += ' is-planned';
+      else if (_inquiryBucket === 'geplant') _statusPillClass += ' is-planned';
       else if (_isUnread) _statusPillClass += ' is-new';
 
       // Lead quality pill
@@ -22881,45 +22888,30 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
         }
       }
 
-      // Preview text
-      var _preview = '';
-      if (_stateMeta.state === 'live') _preview = 'Lara nimmt den Anruf gerade entgegen.';
-      else if (_stateMeta.state === 'processing') _preview = 'Zusammenfassung wird erstellt.';
-      else if (_stateMeta.state === 'checking') _preview = 'Zusammenfassung wird erstellt.';
-      else { _preview = String(f.call_summary || f.summary || f.note || '').trim(); if (_preview.length > 65) _preview = _preview.slice(0,62) + '…'; }
+      // Vereinfachtes Anfragekarten-Pattern: Name, kurzes Anliegen, Status · Zeit/Fälligkeit.
+      var _concern = String(f.next_action || f.category || f.call_summary || f.summary || f.note || f.notes || '').trim();
+      if (!_concern) _concern = isManualTaskRecord(rec) ? 'Aufgabe' : 'Anfrage';
+      _concern = _concern.replace(/\s+/g, ' ');
+      if (_concern.length > 72) _concern = _concern.slice(0, 69).trim() + '…';
+      var _displayName = String(name || phone || 'Unbekannt').trim();
+      var _statusText = (typeof vxGetInquiryDisplayStatus === 'function') ? vxGetInquiryDisplayStatus(rec) : (dueMeta.label || 'Offen');
+      var _timeText = dueMeta && dueMeta.value ? dueMeta.value : '';
+      var _statusTime = _statusText + (_timeText ? ' · ' + _timeText : '');
 
-      html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="inquiry" data-rail="'+_railAnfragen+'" data-filter-new="'+(_isUnread?'1':'0')+'" data-filter-task="'+(linkedTasks.length>0?'1':'0')+'" data-filter-planned="'+((_isOnToday||vxInquiryIsPlanned(rec))?'1':'0')+'" data-filter-checked="'+(_isDoneOrArch?'1':'0')+'" data-filter-archived="'+(vxInquiryIsArchived(rec)?'1':'0')+'">';
+      html += '<div class="dpr-card" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="inquiry" data-rail="'+_railAnfragen+'" data-filter-new="'+(_isUnread?'1':'0')+'" data-filter-task="'+(linkedTasks.length>0?'1':'0')+'" data-filter-planned="'+(_inquiryBucket === 'geplant'?'1':'0')+'" data-filter-checked="'+(_inquiryBucket === 'erledigt'?'1':'0')+'" data-filter-archived="'+(_inquiryBucket === 'archiv'?'1':'0')+'">';
       var _rowRailClass = _railAnfragen === 'urgent' ? 'rail-overdue' : (_railAnfragen === 'planned' ? 'rail-planned' : 'rail-today');
-      html += '<div class="vx-heute-row '+_rowRailClass+(_isDoneOrArch?' is-done-row':'')+(_isUnread?' is-unread':'')+'"'+_rowOpacity+' onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
+      html += '<div class="vx-heute-row vx-anf-row '+_rowRailClass+(_isDoneOrArch?' is-done-row':'')+(_isUnread?' is-unread':'')+'"'+_rowOpacity+' onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
       html += '<div class="vx-row-icon'+(_isCallIcon?' is-call':'')+'"><i class="ph-bold ph-'+iconName+'" aria-hidden="true"></i></div>';
       html += '<div class="vx-row-body">';
-      html += '<div class="vx-row-name" style="'+(_isUnread?'font-weight:700;':'')+'">'+(_isUnread?'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#1A6FE8;margin-right:7px;vertical-align:middle;"></span>':'')+_esc(name)+(company?'<span class="dpr-co">'+_esc(company)+'</span>':'')+(_isUnread?'<span class="vx-row-pill" style="background:#DBEAFE;color:#1A6FE8;border-color:#BFDBFE;">Neu</span>':'')+'<span class="vx-row-pill">'+_esc(_pillLabel)+'</span></div>';
-      if (dueMeta && dueMeta.value) html += '<div class="vx-row-time">'+_esc(dueMeta.value)+'</div>';
-      if (_preview) html += '<div class="vx-row-summary">'+_esc(_preview)+'</div>';
-      html += '</div>';
-      // [v3.3] Anfragen-Aktionslogik: gleiche Hierarchie wie Heute.
-      // Sichtbar bleibt nur eine Hauptaktion + Overflow; Status-, Planungs- und Archivaktionen liegen im Menü.
-      var _primaryAnfrage = (typeof vxTodayGetPrimaryAction === 'function')
-        ? vxTodayGetPrimaryAction(rec, _typeMeta, phone)
-        : { action:(phone ? 'call' : 'open'), title:(phone ? 'Anrufen' : 'Öffnen'), icon:(phone ? 'phone-call' : 'arrow-square-out') };
-      var _primaryActionAnfrage = _isDoneOrArch ? 'fulldetail' : _primaryAnfrage.action;
-      var _primaryTitleAnfrage = _isDoneOrArch ? 'Details' : _primaryAnfrage.title;
-      var _primaryIconAnfrage = _isDoneOrArch ? 'sidebar-simple' : _primaryAnfrage.icon;
-      var _primaryClassAnfrage = 'vx-ibtn vx-ibtn-main ' + (_primaryActionAnfrage === 'call' ? 'is-ghost-call' : 'is-open');
-      html += '<div class="vx-row-btns vx-row-btns--single">';
-      html += '<button type="button" class="'+_primaryClassAnfrage+'" data-action="'+_primaryActionAnfrage+'" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="'+_esc(_primaryTitleAnfrage)+'"><i class="ph-bold ph-'+_primaryIconAnfrage+'"></i><span>'+_esc(_primaryTitleAnfrage)+'</span></button>';
-      html += '<button type="button" class="vx-ibtn is-overflow" data-action="overflow" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="Mehr"><i class="ph-bold ph-dots-three"></i></button>';
-      html += '<div class="vx-row-menu" id="vx-row-menu-'+_esc(rec.id)+'">';
-      html += (typeof vxAnfragenBuildRowMenuHtml === 'function')
-        ? vxAnfragenBuildRowMenuHtml(rec, phone, _typeMeta)
-        : '<button type="button" data-action="fulldetail" data-rec-id="'+_esc(rec.id)+'">Details öffnen</button>';
-      html += '</div>';
+      html += '<div class="vx-row-name" style="'+(_isUnread?'font-weight:700;':'')+'">'+(_isUnread?'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#1A6FE8;margin-right:7px;vertical-align:middle;"></span>':'')+_esc(_displayName)+'</div>';
+      html += '<div class="vx-row-summary">'+_esc(_concern)+'</div>';
+      html += '<div class="vx-row-time">'+_esc(_statusTime)+'</div>';
       html += '</div>';
       html += '</div>';
       // Expanded Panel bleibt für Touch-Long-Press (sekundär)
       var isCallback = (f.callback_requested === true || f.callback_requested === 'true');
-      var isDone = vxInquiryIsCompleted(rec);
-      var isArchived = vxInquiryIsArchived(rec);
+      var isDone = _inquiryBucket === 'erledigt';
+      var isArchived = _inquiryBucket === 'archiv';
       html += '</div>'; // /dpr-card
     });
   });
@@ -22950,9 +22942,12 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       window._vxActiveRecordId = String(recId);
       card.classList.add('sp-active');
       el.querySelectorAll('.dpr-card').forEach(function(sib) { if (sib !== card) sib.classList.remove('sp-active'); });
-      var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
-      if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); }
-      else if (typeof showCallDetail === 'function') showCallDetail(recId);
+      if (typeof vxRouteRowOpen === 'function') vxRouteRowOpen(recId, 'anfragen-card');
+      else {
+        var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
+        if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); }
+        else if (typeof showCallDetail === 'function') showCallDetail(recId);
+      }
     });
     el.dataset.boundClick = '1';
   }
@@ -23020,7 +23015,7 @@ var _focusModeActive = false;
 
 var _archivFilter = 'all';
 var _archivAllDone = [];
-var _anrufeFilter = 'offen';
+var _anrufeFilter = 'alle';
 var _anrufeInboxSubfilter = 'all';
 var _rueckrufeFilter = 'alle';
 var _anrufeSort = 'datum-neu';
@@ -43855,7 +43850,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   window.vxIsModalOpen=function(){var m=window.vxGetOpenModal(); return !!(m&&visible(m));};
   window.vxCloseOpenMenus=function(){document.querySelectorAll('.vx-row-menu.is-open,.vxdr-menu.is-open').forEach(el=>el.classList.remove('is-open'));document.querySelectorAll('#vxd-menu,[id$="-menu"]').forEach(el=>el.setAttribute('hidden',''));};
   window.vxResetInteractionState=function(reason){var allowClose=(reason==='close-detail'||reason==='navigation'); if(!allowClose||window.vxIsModalOpen()) return false; window.vxCloseOpenMenus(); try{document.body.classList.remove('vx-resizing-split','vx-row-menu-open');}catch(e){} return true;};
-  window.vxRouteRowOpen=function(recordId,source){state.lastRowSource=source||'unknown'; state.lastRecordId=recordId||null; if(!recordId){console.warn('[vxRouteRowOpen] missing recordId',source); return false;} if(typeof window.openCallDetail==='function') {window.openCallDetail(recordId,source); return true;} if(typeof window.showCallDetail==='function'){window.showCallDetail(recordId,source); return true;} if(typeof window.vxOpenCallDetail==='function'){window.vxOpenCallDetail(recordId,source); return true;} console.warn('[vxRouteRowOpen] no detail opener found',recordId,source); return false;};
+  window.vxRouteRowOpen=function(recordId,source){state.lastRowSource=source||'unknown'; state.lastRecordId=recordId||null; if(!recordId){console.warn('[vxRouteRowOpen] missing recordId',source); return false;} var rec=(typeof window.vxResolveDprRecord==='function')?window.vxResolveDprRecord(recordId):null; if(rec&&typeof window.isManualTaskRecord==='function'&&window.isManualTaskRecord(rec)&&typeof window.showTaskDetail==='function'){window.showTaskDetail(recordId); return true;} if(typeof window.openCallDetail==='function') {window.openCallDetail(recordId,source); return true;} if(typeof window.showCallDetail==='function'){window.showCallDetail(recordId,source); return true;} if(typeof window.vxOpenCallDetail==='function'){window.vxOpenCallDetail(recordId,source); return true;} console.warn('[vxRouteRowOpen] no detail opener found',recordId,source); return false;};
   window.vxRunCallAction=function(recordId,action,source,ev){var t0=Date.now(); state.lastAction=action; state.lastRecordId=recordId||state.lastRecordId; if(!action){console.warn('[vxRunCallAction] missing action',source); return false;} var debug=window.VX_DEBUG===true; if(debug) console.debug('[vxRunCallAction:start]',action,source||'unknown'); var out=false; if(action==='back'){out=(typeof window.vxHandleDetailBack==='function') ? !!window.vxHandleDetailBack() : ((typeof window.hideCallDetail==='function') ? !!window.hideCallDetail() : false);} else if(action==='menu'){window.vxCloseOpenMenus(); out=true;} else if(action==='followup'){ if(typeof window.vxCallDetailFaelligkeit==='function') out=!!window.vxCallDetailFaelligkeit(ev); else if(typeof window.openFollowupDirect==='function') out=!!window.openFollowupDirect(recordId); else if(typeof window.openFollowup==='function') out=!!window.openFollowup(recordId);} else if(action==='done'){ if(typeof window.vxCallDetailErledigt==='function') out=!!window.vxCallDetailErledigt(ev); else if(typeof window.confirmTaskDone==='function') out=!!window.confirmTaskDone(recordId,null,'vx-interaction-layer'); } else if(action==='call'){ if(typeof window.vxCallDetailAnrufen==='function') out=!!window.vxCallDetailAnrufen(ev); else if(typeof window.startCall==='function') out=!!window.startCall(recordId); } else if(action==='note'&&typeof window.openNote==='function') out=!!window.openNote(recordId); if(debug) console.debug('[vxRunCallAction:end]',action,(Date.now()-t0)+'ms'); return out;};
   function rowRecordId(row){return row&& (row.getAttribute('data-rec-id')||row.getAttribute('data-record-id')||row.getAttribute('data-id'));}
   document.addEventListener('touchstart',function(ev){state.lastTouchTarget=ev&&ev.target?ev.target:null;},{passive:true,capture:true});
