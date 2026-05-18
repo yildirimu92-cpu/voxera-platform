@@ -19146,14 +19146,10 @@ async function loadAndRenderCallDetail(callId) {
     return;
   }
   
-  // Show loading state
-  var loadingEl = document.getElementById('call-detail-content');
-  if (loadingEl) loadingEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
-  
   // Lokalen Record finden (schnell)
   var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
   var localRec = recordsSource.find(function(r) { return r.id === callId; });
-  
+
   if (localRec && localRec.fields) {
     var f = localRec.fields;
     var localCall = {
@@ -19177,13 +19173,9 @@ async function loadAndRenderCallDetail(callId) {
       notes_customer_voxera: f.notes_customer_voxera || '',
       customer_id: f.customer_id || ''
     };
-    
+
     var phoneForHistory = localCall.caller_phone || '';
 
-    // [v3.5 FIX] Detailseite sofort aus lokalem Record rendern.
-    // Vorher wurde zuerst die Kontakt-Historie geladen. Wenn diese Abfrage langsam
-    // war oder hing, blieb die Detailseite bei "Lade…" stehen. Die Detailakte
-    // ist jetzt sofort sichtbar; die Historie wird danach best-effort nachgeladen.
     if (String(window._vxCurrentCallId || '') !== String(callId) || window._vxCurrentDetailType !== 'call') return;
     renderCallDetailPage(localCall, []);
 
@@ -19191,16 +19183,23 @@ async function loadAndRenderCallDetail(callId) {
       try {
         var history = await buildCallHistory(phoneForHistory);
         if (String(window._vxCurrentCallId || '') !== String(callId) || window._vxCurrentDetailType !== 'call') return;
-        renderCallDetailPage(localCall, history || []);
+        var timelineWrap = document.getElementById('vx-cd-timeline-wrap');
+        if (timelineWrap) {
+          timelineWrap.innerHTML = renderTimelineHTML(history || []);
+        } else {
+          renderCallDetailPage(localCall, history || []);
+        }
       } catch (err) {
         console.error('[call-detail] history error:', err);
-        // Detail bleibt sichtbar; nur Historie fällt weg.
       }
     }
     return;
   }
-  
-  // Fallback: from Supabase
+
+  // Fallback: from Supabase — show loading state only when no local record is available
+  var loadingEl = document.getElementById('call-detail-content');
+  if (loadingEl) loadingEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
+
   try {
     const { data: call, error } = await sb.from('calls').select('*').eq('id', callId).single();
     if (error || !call) {
@@ -19464,12 +19463,9 @@ function renderCallDetailPage(call, history) {
     ],
     done: [
       { action:'call', id:'vx-cd-qa-call', label:'Anrufen', icon:'ph-phone', primary:true, onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','call','detail-main',event);" },
-      { action:'reopen', id:'vx-cd-qa-reopen', label:'Wieder öffnen', icon:'ph-arrow-counter-clockwise', onclick:"event.stopPropagation();dprAction('reopen','" + safeCallId + "');" },
       { action:'archive', id:'vx-cd-qa-archive', label:'Archivieren', icon:'ph-archive-box', onclick:"event.stopPropagation();dprAction('archive','" + safeCallId + "');" }
     ],
-    archived: [
-      { action:'reopen', id:'vx-cd-qa-reopen', label:'Wieder öffnen', icon:'ph-arrow-counter-clockwise', primary:true, onclick:"event.stopPropagation();dprAction('reopen','" + safeCallId + "');" }
-    ]
+    archived: []
   };
   if (statusGroup === 'archived' && displayPhone) {
     actionsByStatus.archived.push({ action:'call', id:'vx-cd-qa-call', label:'Anrufen', icon:'ph-phone', onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','call','detail-main',event);" });
@@ -19513,7 +19509,7 @@ function renderCallDetailPage(call, history) {
     + '</div>';
   html += _cdCard('ph-pencil-simple', 'Notizen', notesBody, '<div id="vx-cd-save-indicator" class="vx-cd-save-indicator" style="margin-left:auto;opacity:0;"><span class="dot"></span><span class="indicator-text"></span></div>');
 
-  html += renderTimelineHTML(history);
+  html += '<div id="vx-cd-timeline-wrap">' + renderTimelineHTML(history) + '</div>';
 
   html += (typeof vxRenderTranscriptCardHtml === 'function')
     ? vxRenderTranscriptCardHtml(callTranscript)
