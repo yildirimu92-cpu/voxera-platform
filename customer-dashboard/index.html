@@ -16138,9 +16138,38 @@ function vxCopyCode(btn) {
 
 
 // ── Onboarding Modal ─────────────────────────────────────────────────────────
-function vxOnboardingInit() {
-  // Nicht zeigen wenn bereits abgeschlossen
-  if (customerMeta.onboardingCompleted) return;
+window.__vxOnboardingAutoInitDone = window.__vxOnboardingAutoInitDone === true;
+window.__vxOnboardingSessionCompleted = window.__vxOnboardingSessionCompleted === true;
+
+function vxOnboardingMetaIsKnown(meta) {
+  if (!meta || typeof meta !== 'object') return false;
+  var customerId = String(meta.customerId || '').trim();
+  if (!customerId) return false;
+  return typeof meta.onboardingCompleted === 'boolean';
+}
+
+function vxOnboardingShouldAutoOpen(meta) {
+  if (!meta || typeof meta !== 'object') return false;
+  var customerId = String(meta.customerId || '').trim();
+  if (!customerId) return false;
+  if (meta.onboardingCompleted === true) return false;
+  if (window.__vxOnboardingSessionCompleted === true) return false;
+  return meta.onboardingCompleted === false;
+}
+
+function vxOnboardingInit(options) {
+  var opts = options || {};
+  var force = opts.force === true;
+  if (!force && window.__vxOnboardingAutoInitDone === true) return;
+
+  var metaKnown = vxOnboardingMetaIsKnown(customerMeta);
+  var shouldOpen = metaKnown ? vxOnboardingShouldAutoOpen(customerMeta) : false;
+  if (!force && !metaKnown) return;
+
+  if (!force && !shouldOpen) {
+    window.__vxOnboardingAutoInitDone = true;
+    return;
+  }
 
   // Schritt-Status bestimmen
   vxOnboardingUpdateSteps();
@@ -16151,6 +16180,7 @@ function vxOnboardingInit() {
     overlay.style.display = 'flex';
     /* phosphor: no init needed */
   }
+  if (!force) window.__vxOnboardingAutoInitDone = true;
 }
 
 function vxOnboardingUpdateSteps() {
@@ -16212,7 +16242,10 @@ function vxOnboardingOpenStep(num) {
 
   // Beim Zurückkommen Modal wieder zeigen (nach 2s)
   setTimeout(function() {
-    if (!customerMeta.onboardingCompleted) {
+    var canReopen = vxOnboardingMetaIsKnown(customerMeta)
+      && customerMeta.onboardingCompleted !== true
+      && window.__vxOnboardingSessionCompleted !== true;
+    if (canReopen) {
       vxOnboardingUpdateSteps();
       const overlay = document.getElementById('vx-onboarding-overlay');
       if (overlay) overlay.style.display = 'flex';
@@ -16234,26 +16267,41 @@ async function vxOnboardingFinish() {
 }
 
 async function vxOnboardingMarkComplete() {
+  var customerId = String((customerMeta && customerMeta.customerId) || '').trim();
+  if (!customerId) {
+    if (typeof toast === 'function') toast('Onboarding konnte nicht gespeichert werden (fehlende Kundenzuordnung).', 'error');
+    console.error('[onboarding] mark complete failed: missing customerId');
+    return false;
+  }
   try {
     const _sb = getSupabaseAuthClient();
-    await _sb.from('customers')
+    if (!_sb) throw new Error('Supabase client unavailable');
+    const result = await _sb.from('customers')
       .update({ onboarding_completed: true })
-      .eq('id', customerMeta.customerId);
+      .eq('id', customerId)
+      .select('id,onboarding_completed')
+      .single();
+    if (result && result.error) throw result.error;
     customerMeta.onboardingCompleted = true;
+    window.__vxOnboardingSessionCompleted = true;
+    window.__vxOnboardingAutoInitDone = true;
+    const overlay = document.getElementById('vx-onboarding-overlay');
+    if (overlay) overlay.style.display = 'none';
+    return true;
   } catch(e) {
-    console.warn('[onboarding] mark complete failed', e.message);
+    customerMeta.onboardingCompleted = false;
+    console.error('[onboarding] mark complete failed', e);
+    if (typeof toast === 'function') toast('Onboarding konnte nicht gespeichert werden. Bitte erneut versuchen.', 'error');
+    return false;
   }
 }
 
 // Manuell starten (z.B. von Hilfe-Seite)
 function vxOnboardingRestart() {
   customerMeta.onboardingCompleted = false;
-  vxOnboardingUpdateSteps();
-  const overlay = document.getElementById('vx-onboarding-overlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
-    /* phosphor: no init needed */
-  }
+  window.__vxOnboardingSessionCompleted = false;
+  window.__vxOnboardingAutoInitDone = false;
+  vxOnboardingInit({ force: true });
 }
 
 // Dark Mode für Onboarding Modal
@@ -26180,7 +26228,10 @@ function showTab(name, el, options) {
     if (shouldWrite) writeMainNavHistory(name, mode === 'replace' ? 'replace' : 'push');
   }
   // Onboarding zurückbringen wenn Kunde zu Haupt-Tabs navigiert
-  if (window._vxOnboardingPendingReturn && typeof customerMeta !== 'undefined' && !customerMeta.onboardingCompleted &&
+  if (window._vxOnboardingPendingReturn &&
+      vxOnboardingMetaIsKnown(customerMeta) &&
+      customerMeta.onboardingCompleted !== true &&
+      window.__vxOnboardingSessionCompleted !== true &&
       (name === 'dashboard' || name === 'mehr' || name === 'assistent')) {
     window._vxOnboardingPendingReturn = false;
     setTimeout(function() {
