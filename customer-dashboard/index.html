@@ -44032,6 +44032,40 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   if (window.__vxInteractionLayerV1Installed) return;
   window.__vxInteractionLayerV1Installed = true;
   var state={lastAction:null,lastRowSource:null,lastRecordId:null,lastTouchTs:0,lastTouchTarget:null,lastTapRowTs:0,lastTapRowId:null,resizing:false,pendingTouchRowId:null};
+  var vxTiming={active:window.VX_MOBILE_TIMING_DEBUG===true,rows:[],t0:0,timer:null,lastTouchendTs:0};
+  function vxTimingNow(){ return (window.performance&&typeof window.performance.now==='function') ? window.performance.now() : Date.now(); }
+  function vxTimingTargetName(target){
+    if(!target) return '';
+    var id=target.id ? ('#'+target.id) : '';
+    var cls=target.className&&typeof target.className==='string' ? ('.'+target.className.trim().split(/\s+/).filter(Boolean).slice(0,2).join('.')) : '';
+    return String((target.tagName||'node').toLowerCase()+id+cls);
+  }
+  function vxTimingPush(step,meta){
+    if(!vxTiming.active) return;
+    if(!vxTiming.t0) vxTiming.t0=vxTimingNow();
+    var row={t:Math.round(vxTimingNow()-vxTiming.t0),step:step};
+    if(meta&&typeof meta==='object'){
+      Object.keys(meta).forEach(function(k){ row[k]=meta[k]; });
+    }
+    vxTiming.rows.push(row);
+    clearTimeout(vxTiming.timer);
+    vxTiming.timer=setTimeout(function(){
+      if(!vxTiming.active||!vxTiming.rows.length) return;
+      try{ console.table(vxTiming.rows.slice()); }catch(e){ console.log(vxTiming.rows.slice()); }
+      vxTiming.rows.length=0; vxTiming.t0=0;
+    },220);
+  }
+  function vxTimingWrap(name){
+    var old=window[name];
+    if(typeof old!=='function'||old.__vxTimingWrapped) return;
+    var wrapped=function(){
+      vxTimingPush(name+':start',{handled:!!(arguments[0]&&arguments[0].__vxHandled),suppressActive:Date.now()<=Number(window.vxSuppressGhostTapUntil||0)});
+      try{return old.apply(this,arguments);}
+      finally{vxTimingPush(name+':end');}
+    };
+    wrapped.__vxTimingWrapped=true;
+    window[name]=wrapped;
+  }
   window.vxSuppressGhostTapUntil = Number(window.vxSuppressGhostTapUntil||0);
   window.vxSuppressGhostTap=function(reason,durationMs){
     var ms=Math.max(120,Math.min(1200,Number(durationMs)||450));
@@ -44090,6 +44124,10 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   function rowRecordId(row){return row&& (row.getAttribute('data-rec-id')||row.getAttribute('data-record-id')||row.getAttribute('data-id'));}
   document.addEventListener('touchstart',function(ev){state.lastTouchTarget=ev&&ev.target?ev.target:null;},{passive:true,capture:true});
   document.addEventListener('touchend',function(ev){
+    if(vxTiming.active){
+      vxTiming.lastTouchendTs=Date.now();
+      vxTimingPush('touchend dedupe',{target:vxTimingTargetName(ev&&ev.target),handled:!!(ev&&ev.__vxHandled),suppressActive:Date.now()<=Number(window.vxSuppressGhostTapUntil||0)});
+    }
     if(ev.__vxHandled) return;
     state.lastTouchTs=Date.now();
     var t=ev&&ev.target;
@@ -44098,6 +44136,10 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     state.pendingTouchRowId=rowRecordId(row)||null;
   },{passive:true,capture:true});
   document.addEventListener('click',function(ev){
+    if(vxTiming.active){
+      var delay= vxTiming.lastTouchendTs ? (Date.now()-vxTiming.lastTouchendTs) : null;
+      vxTimingPush('row capture click',{target:vxTimingTargetName(ev&&ev.target),handled:!!(ev&&ev.__vxHandled),afterTouchendMs:delay,suppressActive:Date.now()<=Number(window.vxSuppressGhostTapUntil||0)});
+    }
     if(ev.__vxHandled) return;
     if(state.resizing) return;
     var t=ev.target; if(!t||!t.closest) return;
@@ -44113,6 +44155,36 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     window.vxRouteRowOpen(id,row.getAttribute('data-source')||row.id||'row-click');
   },true);
   document.addEventListener('click',function(ev){ if(ev.__vxHandled) return; var t=ev.target; if(vxGhostTapSuppressed(t)){ ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; return; } var b=ev.target&&ev.target.closest?ev.target.closest('[data-action],button'):null; if(!b) return; var form=b.closest&&b.closest('form'); if(form&&!b.getAttribute('type')) b.setAttribute('type','button'); var action=(b.getAttribute('data-action')||'').trim(); if(action==='reopen'||action==='done-info'){ if(window.vxToast) window.vxToast('Dieser Eintrag ist abgeschlossen. Für einen erneuten Kontakt wird ein neuer Folge-Eintrag erstellt.','info'); ev.preventDefault(); return;} if(!action) return; if(b.disabled){console.warn('[vx] action blocked disabled',action,b.id||b.className); return;} var rid=b.getAttribute('data-rec-id')||b.getAttribute('data-record-id')||state.lastRecordId; if(['call','followup','done','note','menu','back'].includes(action)){ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; window.vxRunCallAction(rid,action,'detail-button',ev);}},true);
+  document.addEventListener('click',function(ev){
+    if(!vxTiming.active) return;
+    var t=ev&&ev.target;
+    var b=t&&t.closest?t.closest('button,[data-action]'):null;
+    var onclick=b&&b.getAttribute?String(b.getAttribute('onclick')||''):'';
+    var action=(b&&b.getAttribute&&b.getAttribute('data-action'))||'';
+    var step='document capture click';
+    if(action==='followup'||onclick.indexOf('vxCallDetailFaelligkeit')>=0||onclick.indexOf('openFollowupDirect')>=0) step='followup:first-tap';
+    if(action==='done'||onclick.indexOf('vxCallDetailErledigt')>=0||onclick.indexOf('confirmTaskDone')>=0) step='done:first-tap';
+    vxTimingPush(step,{target:vxTimingTargetName(t),action:action||undefined,inlineOnclick:onclick?true:false,handled:!!(ev&&ev.__vxHandled),suppressActive:Date.now()<=Number(window.vxSuppressGhostTapUntil||0)});
+  },true);
+  document.addEventListener('click',function(ev){
+    if(!vxTiming.active) return;
+    var t=ev&&ev.target;
+    var b=t&&t.closest?t.closest('[onclick*="vxCallDetailFaelligkeit"],[onclick*="vxCallDetailErledigt"],#vx-cd-bb-due,#vx-cd-bb-done,#vx-cd-qa-done'):null;
+    if(!b) return;
+    vxTimingPush('action capture',{target:vxTimingTargetName(t),handlerTarget:vxTimingTargetName(b),handled:!!(ev&&ev.__vxHandled)});
+  },true);
+  if(vxTiming.active){
+    ['vxRunCallAction','vxCallDetailFaelligkeit','openFollowupDirect','openFollowup','vxCallDetailErledigt','confirmTaskDone','openConfirmModal','closeFollowup'].forEach(vxTimingWrap);
+    try{
+      var mo=new MutationObserver(function(){
+        var f=document.getElementById('followup-overlay');
+        var c=document.getElementById('confirm-overlay');
+        if(f&&f.classList&&f.classList.contains('open')) vxTimingPush('followup-overlay:visible');
+        if(c&&c.classList&&c.classList.contains('open')) vxTimingPush('confirm-overlay:visible');
+      });
+      mo.observe(document.documentElement||document.body,{attributes:true,subtree:true,attributeFilter:['class','aria-hidden','style']});
+    }catch(e){}
+  }
   var rz=document.getElementById('anrufe-split-resizer');
   if(rz){rz.addEventListener('pointerdown',function(ev){state.resizing=true; document.body.classList.add('vx-resizing-split'); ev.stopPropagation();},{capture:true}); rz.addEventListener('pointerup',function(){state.resizing=false; document.body.classList.remove('vx-resizing-split');},{capture:true}); rz.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();},{capture:true});}
   window.addEventListener('unhandledrejection',function(ev){console.warn('[vx] unhandled rejection',ev.reason);});
