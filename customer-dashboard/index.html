@@ -41001,115 +41001,12 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 
 
 <script>
-/* VOXERA — Done/read-only UI guard
-   Prevents duplicate “Erledigt” actions after a record is already completed. */
+/* VOXERA — Done/read-only UI guard disabled by product decision.
+   Keep API as no-op for legacy callers, without mutating button states. */
 (function(){
-  if (window.__VX_DONE_READONLY_GUARD__) return;
-  window.__VX_DONE_READONLY_GUARD__ = true;
-
-  function currentDetailRecord(){
-    var page = document.getElementById('call-detail-page');
-    var id = String((window._vxCurrentCallId || window._vxCurrentTaskId || (page && page.dataset && page.dataset.vxDetailId) || '')).trim();
-    if (!id) return null;
-    return (typeof window.vxResolveActionRecord === 'function') ? window.vxResolveActionRecord(id) : null;
-  }
-  function setBtnReadonly(btn, label){
-    if (!btn) return;
-    if (!btn.dataset.vxOriginalOnclick && btn.getAttribute('onclick')) btn.dataset.vxOriginalOnclick = btn.getAttribute('onclick');
-    if (!btn.dataset.vxOriginalTitle && btn.getAttribute('title')) btn.dataset.vxOriginalTitle = btn.getAttribute('title');
-    btn.disabled = true;
-    btn.setAttribute('aria-disabled','true');
-    btn.classList.add('vx-readonly-action');
-    btn.classList.remove('is-loading');
-    btn.title = 'Dieser Eintrag ist bereits erledigt';
-    btn.onclick = function(ev){ if(ev) ev.stopPropagation(); return false; };
-    var span = btn.querySelector('span');
-    if (span && label) {
-      if (!span.dataset.vxOriginalText) span.dataset.vxOriginalText = span.textContent || '';
-      span.textContent = label;
-    }
-  }
-  function resetBtnReadonly(btn){
-    if (!btn) return;
-    btn.disabled = false;
-    btn.removeAttribute('aria-disabled');
-    btn.classList.remove('vx-readonly-action');
-    if (btn.dataset.vxOriginalTitle) btn.setAttribute('title', btn.dataset.vxOriginalTitle);
-    else btn.removeAttribute('title');
-    if (btn.dataset.vxOriginalOnclick) btn.setAttribute('onclick', btn.dataset.vxOriginalOnclick);
-    else btn.onclick = null;
-    var span = btn.querySelector('span');
-    if (span && span.dataset.vxOriginalText) span.textContent = span.dataset.vxOriginalText;
-  }
-  function hideMenuDoneActions(){
-    var menu = document.getElementById('vxd-menu');
-    if (!menu) return;
-    menu.querySelectorAll('button').forEach(function(btn){
-      var txt = String(btn.textContent || '').toLowerCase();
-      if (txt.indexOf('erledigt') >= 0 || txt.indexOf('follow-up') >= 0 || txt.indexOf('fälligkeit') >= 0 || txt.indexOf('faelligkeit') >= 0) {
-        btn.style.display = 'none';
-        btn.setAttribute('aria-hidden','true');
-      }
-    });
-  }
-  function showMenuDoneActions(){
-    var menu = document.getElementById('vxd-menu');
-    if (!menu) return;
-    menu.querySelectorAll('button').forEach(function(btn){
-      btn.style.display = '';
-      btn.removeAttribute('aria-hidden');
-    });
-  }
-  function resetDoneReadonly(){
-    resetBtnReadonly(document.getElementById('vx-cd-qa-done'));
-    resetBtnReadonly(document.getElementById('vx-cd-bb-due'));
-    showMenuDoneActions();
-    var content = document.getElementById('call-detail-content');
-    if (content) {
-      var note = content.querySelector('[data-vx-readonly-note="done"]');
-      if (note && note.parentNode) note.parentNode.removeChild(note);
-    }
-  }
-  function applyDoneReadonly(){
-    resetDoneReadonly();
-  }
-  var pending = false;
-  function schedule(){
-    if (pending) return;
-    pending = true;
-    setTimeout(function(){ pending = false; applyDoneReadonly(); }, 30);
-  }
-  document.addEventListener('click', schedule, true);
-  window.addEventListener('hashchange', schedule, {passive:true});
-  var oldRenderCall = window.renderCallDetailPage;
-  if (typeof oldRenderCall === 'function' && !oldRenderCall._vxDoneReadonlyWrapped) {
-    var wrappedCall = function(){ var res = oldRenderCall.apply(this, arguments); schedule(); return res; };
-    wrappedCall._vxDoneReadonlyWrapped = true;
-    window.renderCallDetailPage = wrappedCall;
-  }
-  var oldRenderTask = window.renderTaskDetailPage;
-  if (typeof oldRenderTask === 'function' && !oldRenderTask._vxDoneReadonlyWrapped) {
-    var wrappedTask = function(){ var res = oldRenderTask.apply(this, arguments); schedule(); return res; };
-    wrappedTask._vxDoneReadonlyWrapped = true;
-    window.renderTaskDetailPage = wrappedTask;
-  }
-  var page = document.getElementById('call-detail-page');
-  if (page && window.MutationObserver) {
-    new MutationObserver(schedule).observe(page, {childList:true, subtree:true, attributes:true, attributeFilter:['class','style','data-vx-detail-id']});
-  }
-  window.vxApplyDoneReadonly = applyDoneReadonly;
+  window.vxApplyDoneReadonly = function(){ return false; };
 })();
 </script>
-<style>
-/* VOXERA — completed items: actions are visually read-only */
-.vx-readonly-action,
-.vx-readonly-action:hover{
-  opacity:.52!important;
-  cursor:not-allowed!important;
-  transform:none!important;
-  box-shadow:none!important;
-}
-</style>
 
 
 <style id="vx-row-state-followup-read-fix">
@@ -41631,204 +41528,11 @@ button[data-action="archive"],
 
 
 
-<style id="vx-done-detail-readonly-final-style">
-/* VOXERA — final completed-detail view: no operational action cards/buttons for done records. */
-#call-detail-page.vx-detail-done-readonly #vx-cd-bb-call,
-#call-detail-page.vx-detail-done-readonly #vx-cd-bb-due,
-#call-detail-page.vx-detail-done-readonly #vx-cd-qa-call,
-#call-detail-page.vx-detail-done-readonly #vx-cd-qa-done{
-  display:none!important;
-}
-#call-detail-page.vx-detail-done-readonly #vx-cd-bottom-bar{
-  grid-template-columns:1fr!important;
-}
-#call-detail-page.vx-detail-done-readonly #vx-cd-bb-menu{
-  width:100%!important;
-  min-height:48px!important;
-  border-radius:14px!important;
-  background:rgba(255,255,255,.10)!important;
-  border:0.5px solid rgba(255,255,255,.18)!important;
-  color:#fff!important;
-}
-#call-detail-page.vx-detail-done-readonly #vx-cd-bb-menu .vx-bb-menu-label{
-  display:inline!important;
-  font-weight:800!important;
-  font-size:13px!important;
-  letter-spacing:.01em!important;
-}
-.vx-done-status-card{
-  background:var(--surface);
-  border:0.5px solid var(--line);
-  border-radius:var(--r-lg);
-  overflow:hidden;
-  margin-bottom:12px;
-  box-shadow:0 10px 28px rgba(15,23,42,.04);
-}
-.vx-done-status-card__inner{
-  display:flex;
-  gap:14px;
-  align-items:flex-start;
-  padding:15px 16px;
-}
-.vx-done-status-card__icon{
-  width:36px;
-  height:36px;
-  border-radius:13px;
-  background:#ECFDF5;
-  color:#059669;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-shrink:0;
-}
-.vx-done-status-card__title{
-  font-size:15px;
-  font-weight:850;
-  color:#0D1F3C;
-  letter-spacing:-.02em;
-  margin-bottom:4px;
-}
-.vx-done-status-card__text{
-  font-size:13px;
-  color:#465670;
-  line-height:1.55;
-}
-.vx-done-status-card__meta{
-  font-size:11px;
-  color:#94A3B8;
-  margin-top:5px;
-}
-</style>
 <script id="vx-done-detail-readonly-final-script">
-/* VOXERA — completed detail contract.
-   Done records are view-only: hide operational action cards and keep only passive details. */
+/* VOXERA — completed detail readonly final disabled by product decision.
+   Keep API as no-op for legacy callers, without observers/wrappers/timeouts. */
 (function(){
-  if (window.__VX_DONE_DETAIL_READONLY_FINAL__) return;
-  window.__VX_DONE_DETAIL_READONLY_FINAL__ = true;
-
-  function resolveCurrentRecord(){
-    var page = document.getElementById('call-detail-page');
-    var id = String((window._vxCurrentCallId || window._vxCurrentTaskId || (page && page.dataset && page.dataset.vxDetailId) || '')).trim();
-    if (!id) return null;
-    if (typeof window.vxResolveActionRecord === 'function') return window.vxResolveActionRecord(id);
-    return null;
-  }
-
-  function isDoneRecord(rec){
-    if (typeof window.vxIsReadonlyDoneRecord === 'function') return !!window.vxIsReadonlyDoneRecord(rec);
-    var f = rec && (rec.fields || rec);
-    var s = String((f && (f.dashboard_status || f.status || f.state)) || '').toLowerCase();
-    return ['closed','done','erledigt','completed','complete'].indexOf(s) >= 0;
-  }
-
-  function looksLikeOperationalActionCard(el){
-    if (!el || el.nodeType !== 1) return false;
-    if (el.classList && el.classList.contains('vx-done-status-card')) return false;
-    var txt = String(el.textContent || '').toLowerCase();
-    var hasActionTitle = txt.indexOf('rückruf empfohlen') >= 0 || txt.indexOf('nächsten schritt') >= 0 || txt.indexOf('kein handlungsbedarf') >= 0 || txt.indexOf('anfrage prüfen') >= 0;
-    var hasOperationalButton = txt.indexOf('als erledigt markieren') >= 0 || txt.indexOf('follow-up planen') >= 0 || txt.indexOf('anrufen') >= 0 || txt.indexOf('aufgabe erstellen') >= 0;
-    return hasActionTitle && hasOperationalButton;
-  }
-
-  function makeDoneStatusCard(){
-    var card = document.createElement('div');
-    card.className = 'vx-done-status-card';
-    card.setAttribute('data-vx-done-status-card','1');
-    card.innerHTML = ''
-      + '<div class="vx-done-status-card__inner">'
-      +   '<div class="vx-done-status-card__icon"><i class="ph-bold ph-check" aria-hidden="true"></i></div>'
-      +   '<div style="min-width:0;flex:1;">'
-      +     '<div class="vx-done-status-card__title">Erledigt</div>'
-      +     '<div class="vx-done-status-card__text">Dieser Eintrag ist abgeschlossen. Die Gesprächsdetails bleiben sichtbar; operative Aktionen sind ausgeblendet.</div>'
-      +     '<div class="vx-done-status-card__meta">Zum Bearbeiten müsste der Eintrag bewusst wieder geöffnet werden.</div>'
-      +   '</div>'
-      + '</div>';
-    return card;
-  }
-
-  function ensureMenuLabel(){
-    var btn = document.getElementById('vx-cd-bb-menu');
-    if (!btn) return;
-    if (!btn.querySelector('.vx-bb-menu-label')) {
-      var span = document.createElement('span');
-      span.className = 'vx-bb-menu-label';
-      span.textContent = 'Mehr';
-      btn.appendChild(span);
-    }
-  }
-
-  function resetMenuLabel(){
-    var btn = document.getElementById('vx-cd-bb-menu');
-    if (!btn) return;
-    Array.prototype.slice.call(btn.querySelectorAll('.vx-bb-menu-label')).forEach(function(el){ el.remove(); });
-  }
-
-  function removeOperationalCards(content){
-    if (!content) return;
-    Array.prototype.slice.call(content.children).forEach(function(child){
-      if (looksLikeOperationalActionCard(child)) child.remove();
-    });
-  }
-
-  function ensureStatusCard(content){
-    if (!content || content.querySelector('[data-vx-done-status-card="1"]')) return;
-    var insertBefore = null;
-    Array.prototype.slice.call(content.children).some(function(child){
-      var txt = String(child.textContent || '').toLowerCase();
-      if (txt.indexOf('zusammenfassung') >= 0 || txt.indexOf('anrufdetails') >= 0 || txt.indexOf('aufgabendetails') >= 0) {
-        insertBefore = child;
-        return true;
-      }
-      return false;
-    });
-    content.insertBefore(makeDoneStatusCard(), insertBefore || content.firstChild);
-  }
-
-  function clearStatusCard(content){
-    if (!content) return;
-    Array.prototype.slice.call(content.querySelectorAll('[data-vx-done-status-card="1"]')).forEach(function(el){ el.remove(); });
-  }
-
-  function apply(){
-    var page = document.getElementById('call-detail-page');
-    var content = document.getElementById('call-detail-content');
-    if (!page || !content || !page.classList.contains('is-open')) return;
-    page.classList.remove('vx-detail-done-readonly');
-    clearStatusCard(content);
-    resetMenuLabel();
-    ensureMenuLabel();
-  }
-
-  var scheduled = false;
-  function schedule(){
-    if (scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(function(){
-      scheduled = false;
-      apply();
-    });
-  }
-
-  var oldCall = window.renderCallDetailPage;
-  if (typeof oldCall === 'function' && !oldCall._vxDoneDetailReadonlyFinal) {
-    var wrappedCall = function(){ var res = oldCall.apply(this, arguments); schedule(); return res; };
-    wrappedCall._vxDoneDetailReadonlyFinal = true;
-    window.renderCallDetailPage = wrappedCall;
-  }
-  var oldTask = window.renderTaskDetailPage;
-  if (typeof oldTask === 'function' && !oldTask._vxDoneDetailReadonlyFinal) {
-    var wrappedTask = function(){ var res = oldTask.apply(this, arguments); schedule(); return res; };
-    wrappedTask._vxDoneDetailReadonlyFinal = true;
-    window.renderTaskDetailPage = wrappedTask;
-  }
-  document.addEventListener('click', schedule, true);
-  window.addEventListener('hashchange', schedule, {passive:true});
-  var page = document.getElementById('call-detail-page');
-  if (page && window.MutationObserver) {
-    new MutationObserver(schedule).observe(page, {childList:true, subtree:true, attributes:true, attributeFilter:['class','style','data-vx-detail-id']});
-  }
-  schedule();
-  window.vxApplyDoneDetailReadonlyFinal = apply;
+  window.vxApplyDoneDetailReadonlyFinal = function(){ return false; };
 })();
 </script>
 
@@ -43148,8 +42852,7 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
       clearReadonlyUi();
       return;
     }
-    try { if (typeof window.vxApplyDoneReadonly === 'function') window.vxApplyDoneReadonly(); } catch(e) {}
-    try { if (typeof window.vxApplyDoneDetailReadonlyFinal === 'function') window.vxApplyDoneDetailReadonlyFinal(); } catch(e) {}
+    // Done-readonly UI layers are intentionally disabled by product decision.
   }
   window.vxApplyStrictDetailDoneState = applyStrictDetailDoneState;
 
@@ -44066,7 +43769,14 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     if(!detailOpen&&!modalOpen&&window.vxCloseOpenMenus) window.vxCloseOpenMenus();
     state.lastAction=reason||state.lastAction;
   }
-  window.vxIsDetailOpen=function(){var el=detail(); if(!el) return false; var hasId=!!(el.getAttribute('data-vx-detail-id')||window._vxCurrentCallId); return el.classList.contains('is-open')&&hasId;};
+  window.vxIsDetailOpen=function(){
+    var el=detail();
+    if(!el) return false;
+    if(!el.classList.contains('is-open')) return false;
+    var cs=getComputedStyle(el);
+    if(!cs) return false;
+    return cs.display!=='none'&&cs.visibility!=='hidden';
+  };
   window.vxGetOpenModal=function(){return document.querySelector('#followup-overlay.open,#confirm-overlay.open,.overlay.open,[role="dialog"].open');};
   window.vxIsModalOpen=function(){var m=window.vxGetOpenModal(); return !!(m&&visible(m));};
   window.vxCloseOpenMenus=function(){document.querySelectorAll('.vx-row-menu.is-open,.vxdr-menu.is-open').forEach(el=>el.classList.remove('is-open'));document.querySelectorAll('#vxd-menu,[id$="-menu"]').forEach(el=>el.setAttribute('hidden',''));};
