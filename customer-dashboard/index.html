@@ -9804,12 +9804,18 @@ function vxDashGetTaskDescription(record, typeMeta, contactName) {
 
 function vxDashGetDueMeta(record, typeMeta) {
   var f = (record && record.fields) || {};
+  var bucket = (typeof vxGetInquiryBucket === 'function') ? vxGetInquiryBucket(record) : 'offen';
   var now = new Date();
   var due = (typeof parseTaskDueAt === 'function') ? parseTaskDueAt(f) : null;
+  if (!due && (f.callback_at || f.planned_at || f.scheduled_at || f.reminder_at)) {
+    due = parseFollowUpDate(f.callback_at || f.planned_at || f.scheduled_at || f.reminder_at);
+  }
   var label = '';
   var value = '';
   var state = 'open';
   var group = 'today';
+  if (bucket === 'archiv') return { label: 'Archiviert', value: '', state: 'archived', group: 'done_recent' };
+  if (bucket === 'erledigt') return { label: 'Erledigt', value: '', state: 'done', group: 'done_recent' };
   if (due && !Number.isNaN(due.getTime())) {
     var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var tomorrowStart = new Date(todayStart.getTime() + 86400000);
@@ -9828,9 +9834,14 @@ function vxDashGetDueMeta(record, typeMeta) {
       value = formatted || '';
       state = 'planned'; group = 'planned';
     }
+  } else if (bucket === 'geplant') {
+    label = 'Geplant';
+    value = '';
+    state = 'planned';
+    group = 'planned';
   } else {
     var ts = getRecordTimestamp(record);
-    label = (typeMeta && typeMeta.kind === 'incoming') ? 'Eingegangen' : 'Offen';
+    label = 'Offen';
     value = ts ? _formatRelativeTime(ts) : '';
     state = (typeMeta && typeMeta.kind === 'incoming') ? 'incoming' : 'open';
     group = (typeMeta && typeMeta.kind === 'incoming') ? 'calls' : 'today';
@@ -9850,10 +9861,11 @@ function vxDashGroupLabel(groupKey) {
 // Angleichung an vxDashGetCommandTypeMeta für konsistente Darstellung
 function vxGetInquiryTypeMeta(rec) {
   var f = (rec && rec.fields) || {};
-  var isNew = vxInquiryIsNew(rec);
-  var isPlanned = vxInquiryIsPlanned(rec);
-  var isDone = vxInquiryIsCompleted(rec);
-  var isArchived = vxInquiryIsArchived(rec);
+  var statusLabel = (typeof vxGetInquiryDisplayStatus === 'function') ? vxGetInquiryDisplayStatus(rec) : 'Offen';
+  var bucket = (typeof vxGetInquiryBucket === 'function') ? vxGetInquiryBucket(rec) : 'offen';
+  var isNew = bucket === 'offen';
+  var isDone = bucket === 'erledigt';
+  var isArchived = bucket === 'archiv';
   var isCallback = f.callback_requested === true || f.callback_requested === 'true';
   var category = '';
   try { category = getCallCategoryDisplayLabel(rec) || ''; } catch(e) {}
@@ -9861,29 +9873,29 @@ function vxGetInquiryTypeMeta(rec) {
   // Icon und Farbe nach Inhalt (nicht nach Status)
   if (isCallback) return {
     pillClass: 'dpr-kind-callback', icon: 'phone-outgoing',
-    label: 'Rückruf', statusLabel: isDone ? 'Erledigt' : isPlanned ? 'Geplant' : 'Offen'
+    label: 'Rückruf', statusLabel: statusLabel
   };
   if (category && category.toLowerCase().indexOf('termin') >= 0) return {
     pillClass: 'dpr-kind-appointment', icon: 'calendar-plus',
-    label: 'Termin', statusLabel: isDone ? 'Erledigt' : isPlanned ? 'Geplant' : 'Offen'
+    label: 'Termin', statusLabel: statusLabel
   };
   if (category && (category.toLowerCase().indexOf('offerte') >= 0 || category.toLowerCase().indexOf('information') >= 0)) return {
     pillClass: 'dpr-kind-offer', icon: 'receipt',
-    label: 'Offerte', statusLabel: isDone ? 'Erledigt' : isPlanned ? 'Geplant' : 'Offen'
+    label: 'Offerte', statusLabel: statusLabel
   };
   if (isArchived) return {
     pillClass: 'dpr-kind-default', icon: 'check-circle',
-    label: 'Erledigt', statusLabel: 'Erledigt'
+    label: 'Archiviert', statusLabel: statusLabel
   };
   if (isDone) return {
     pillClass: 'dpr-kind-default', icon: 'phone-incoming',
-    label: 'Erledigt', statusLabel: 'Erledigt'
+    label: 'Erledigt', statusLabel: statusLabel
   };
   // Default: eingehender Anruf
   return {
     pillClass: 'dpr-kind-incoming', icon: 'tray',
-    label: isNew ? 'Neu' : isPlanned ? 'Geplant' : 'Anfrage',
-    statusLabel: isDone ? 'Erledigt' : isPlanned ? 'Geplant' : 'Offen'
+    label: isNew ? 'Neu' : (bucket === 'geplant' ? 'Geplant' : 'Anfrage'),
+    statusLabel: statusLabel
   };
 }
 window.vxGetInquiryTypeMeta = vxGetInquiryTypeMeta;
@@ -13923,27 +13935,38 @@ function updateLastUpdatedLabel() {
 // ── Anfragen Filter + Status Helpers ──────────────────────────────────────────
 function vxInquiryRawStatus(record) {
   var f = (record && record.fields) || {};
-  return String(f.dashboard_status || '').trim().toLowerCase();
+  return String(f.dashboard_status || f.status || f.call_status || '').trim().toLowerCase();
+}
+function vxInquiryWorkflowState(record) {
+  if (typeof vxGetWorkflowState !== 'function') return '';
+  try {
+    var wf = vxGetWorkflowState(record);
+    return String((wf && wf.state) || '').toLowerCase();
+  } catch(e) { return ''; }
 }
 function vxInquiryIsArchived(record) {
-  return normalizeStatus(((record && record.fields) || {}).dashboard_status) === CALL_STATUS.ARCHIVED;
+  var state = vxInquiryWorkflowState(record);
+  if (state) return state === 'archived';
+  var f = (record && record.fields) || {};
+  return !!(f.archived_at || (record && record.archived_at)) || normalizeStatus(f.dashboard_status || f.status || f.call_status) === CALL_STATUS.ARCHIVED;
 }
 function vxInquiryIsCompleted(record) {
-  return normalizeStatus(((record && record.fields) || {}).dashboard_status) === CALL_STATUS.CLOSED;
+  var state = vxInquiryWorkflowState(record);
+  if (state) return state === 'done';
+  var f = (record && record.fields) || {};
+  return !!(f.completed_at || f.done_at || (record && (record.completed_at || record.done_at))) || normalizeStatus(f.dashboard_status || f.status || f.call_status) === CALL_STATUS.CLOSED;
 }
 function vxInquiryIsChecked(record) {
   // Backward-compatible alias: checked now means fachlich abgeschlossen, not archived.
   return vxInquiryIsCompleted(record);
 }
 function vxInquiryIsNew(record) {
-  return vxInquiryRawStatus(record) === CALL_STATUS.NEW;
+  var bucket = vxGetInquiryBucket(record);
+  return bucket === 'offen';
 }
 function vxInquiryIsPlanned(record) {
-  if (vxInquiryIsArchived(record) || vxInquiryIsCompleted(record)) return false;
-  var f = (record && record.fields) || {};
-  var raw = vxInquiryRawStatus(record);
-  // Anfragen: Geplant ist ein echter Termin/Fälligkeit, nicht einfach "steht heute unter Aufmerksamkeit".
-  return raw === CALL_STATUS.FOLLOW_UP_SCHEDULED || !!(f.follow_up_at || f.followup_at || f.followUpAt || f.due_at || f.due_date);
+  var bucket = vxGetInquiryBucket(record);
+  return bucket === 'geplant';
 }
 
 function vxInquiryOpenTasks(record) {
@@ -13967,12 +13990,11 @@ function vxTaskStatusBucket(record) {
 
 function vxGetInquiryBucket(record) {
   if (!record) return 'offen';
-  if (typeof vxGetWorkflowState === 'function') {
-    var wf = vxGetWorkflowState(record);
-    var state = String((wf && wf.state) || '').toLowerCase();
-    if (state === 'archived') return 'archiv';
-    if (state === 'done') return 'erledigt';
-    if (state === 'planned' || state === 'overdue') return 'geplant';
+  var workflowState = vxInquiryWorkflowState(record);
+  if (workflowState) {
+    if (workflowState === 'archived') return 'archiv';
+    if (workflowState === 'done') return 'erledigt';
+    if (workflowState === 'planned' || workflowState === 'overdue') return 'geplant';
     return 'offen';
   }
   if (typeof isManualTaskRecord === 'function' && isManualTaskRecord(record)) {
@@ -13983,7 +14005,10 @@ function vxGetInquiryBucket(record) {
   }
   if (vxInquiryIsArchived(record)) return 'archiv';
   if (vxInquiryIsCompleted(record)) return 'erledigt';
-  return vxInquiryIsPlanned(record) ? 'geplant' : 'offen';
+  var f = (record && record.fields) || {};
+  var raw = vxInquiryRawStatus(record);
+  var hasDue = !!(f.follow_up_at || f.followup_at || f.followUpAt || f.callback_at || f.due_at || f.due_date || f.task_due_at || f.planned_at || f.scheduled_at || f.reminder_at || (record && (record.follow_up_at || record.followup_at || record.callback_at || record.due_at || record.due_date || record.task_due_at || record.planned_at || record.scheduled_at || record.reminder_at)));
+  return (raw === CALL_STATUS.FOLLOW_UP_SCHEDULED || raw === 'planned' || raw === 'scheduled' || raw === 'geplant' || hasDue) ? 'geplant' : 'offen';
 }
 
 function vxGetInquiryDisplayStatus(record) {
@@ -19357,7 +19382,7 @@ function renderCallDetailPage(call, history) {
     : (statusGroup === 'archived' ? '#64748B'
       : (statusGroup === 'planned' ? '#B7791F' : '#1A6FE8'));
 
-  var dueRaw = call.follow_up_at || call.followup_at || call.due_at || '';
+  var dueRaw = call.follow_up_at || call.followup_at || call.callback_at || call.due_at || call.due_date || call.task_due_at || call.planned_at || call.scheduled_at || call.reminder_at || '';
   var dueDate = dueRaw ? ((typeof parseCallTimestamp === 'function' ? parseCallTimestamp(dueRaw) : null) || new Date(dueRaw)) : null;
   if (dueDate && isNaN(dueDate.getTime())) dueDate = null;
   var dueLabel = dueDate
@@ -22624,7 +22649,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   function buildInquiryDueMeta(rec, linkedTasks) {
     var f = (rec && rec.fields) || {};
     var bucket = (typeof vxGetInquiryBucket === 'function') ? vxGetInquiryBucket(rec) : 'offen';
-    var due = f.follow_up_at || f.followup_at || f.followUpAt || f.due_at || f.due_date || '';
+    var due = f.follow_up_at || f.followup_at || f.followUpAt || f.callback_at || f.due_at || f.due_date || f.task_due_at || f.planned_at || f.scheduled_at || f.reminder_at || '';
     if (bucket === 'archiv') {
       var tsArchived = f.archived_at || f.updated_at || getRecordTimestamp(rec);
       return { label: 'Archiviert', value: tsArchived ? _formatRelativeTime(tsArchived) : '', state: 'archived', group: 'calls' };
@@ -42953,8 +42978,19 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     var live = _vxLow(f.live_status || rec.live_status || '');
     var dashRaw = f.dashboard_status || rec.dashboard_status || f.status || rec.status || f.call_status || rec.call_status || '';
     var dash = vxNormalizeWorkflowStatus(dashRaw);
-    var explicitOpen = ['open','planned'].indexOf(dash) >= 0;
-    var explicitDone = dash === 'done' || dash === 'archived';
+    var explicitArchived = dash === 'archived';
+    var explicitDone = dash === 'done';
+    var explicitPlanned = dash === 'planned';
+    var dueRaw = f.follow_up_at || f.followup_at || f.callback_at || f.due_at || f.due_date || f.task_due_at || f.planned_at || f.scheduled_at || f.reminder_at || rec.follow_up_at || rec.followup_at || rec.callback_at || rec.due_at || rec.due_date || rec.task_due_at || rec.planned_at || rec.scheduled_at || rec.reminder_at || '';
+    var due = _vxParseTime(dueRaw);
+
+    /* UI-Hauptstatus: archived > done > planned > open. */
+    if (explicitArchived || f.archived_at || rec.archived_at) return { state:'archived', record:rec, reason: explicitArchived ? 'explicit_archived' : 'archived_at', isTerminal:true, isActionable:false };
+    if (explicitDone || f.completed_at || rec.completed_at || f.done_at || rec.done_at) return { state:'done', record:rec, reason: explicitDone ? 'explicit_done' : 'completed_at', isTerminal:true, isActionable:false };
+    if (explicitPlanned || due) {
+      var plannedState = due && due.getTime() < _vxNow() ? 'overdue' : 'planned';
+      return { state: plannedState, record:rec, reason: explicitPlanned ? 'explicit_planned' : 'due_at', isTerminal:false, isActionable:true };
+    }
 
     var displayState = null;
     try { displayState = (typeof vxGetCallDisplayState === 'function') ? vxGetCallDisplayState(rec) : null; } catch(e){}
@@ -42969,30 +43005,6 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     if (!isTask && ['processing','analyzing'].indexOf(live) >= 0) {
       return { state:'processing', record:rec, reason:'live_status', isTerminal:false, isActionable:false };
     }
-
-    /* Explizit offene Statuswerte gewinnen gegen alte Nebenfelder wie completed_at.
-       Das verhindert, dass mehrere Calls derselben Nummer fälschlich gemeinsam gesperrt werden. */
-    if (explicitOpen) {
-      var dueOpen = _vxParseTime(f.follow_up_at || f.followup_at || f.due_at || '');
-      if (dueOpen) {
-        var dueState = dueOpen.getTime() < _vxNow() ? 'overdue' : 'planned';
-        return { state: dueState, record:rec, reason:'explicit_open_with_due', isTerminal:false, isActionable:true };
-      }
-      if (dash === 'planned') return { state:'planned', record:rec, reason:'explicit_planned', isTerminal:false, isActionable:true };
-      if (!!(f.callback_requested || rec.callback_requested)) return { state:'callback_requested', record:rec, reason:'callback_requested', isTerminal:false, isActionable:true };
-      return { state:'open', record:rec, reason:'explicit_open', isTerminal:false, isActionable:true };
-    }
-
-    if (explicitDone) {
-      return { state: dash === 'archived' ? 'archived' : 'done', record:rec, reason:'explicit_done', isTerminal:true, isActionable:false };
-    }
-
-    /* Fallback für alte Daten nur, wenn kein klar offener Status vorhanden ist. */
-    if (f.archived_at || rec.archived_at) return { state:'archived', record:rec, reason:'archived_at', isTerminal:true, isActionable:false };
-    if (f.completed_at || rec.completed_at || f.done_at || rec.done_at) return { state:'done', record:rec, reason:'completed_at', isTerminal:true, isActionable:false };
-
-    var due = _vxParseTime(f.follow_up_at || f.followup_at || f.due_at || '');
-    if (due) return { state: due.getTime() < _vxNow() ? 'overdue' : 'planned', record:rec, reason:'due_at', isTerminal:false, isActionable:true };
 
     if (!!(f.callback_requested || rec.callback_requested)) return { state:'callback_requested', record:rec, reason:'callback_requested', isTerminal:false, isActionable:true };
 
