@@ -7379,104 +7379,53 @@ body,.main{background:var(--vx-bg);}
         <!-- AUSWERTUNG TAB -->
         <div class="tab-page" id="tab-auswertung">
 
-          <!-- Header mit Period Selector -->
+          <!-- Header mit V1-Zeitraumfilter -->
           <div class="vx-page-header">
-            <div class="vx-page-header-title">Bericht</div>
+            <div>
+              <div class="vx-page-header-title">Bericht</div>
+              <div style="font-size:12px;color:var(--slate2);margin-top:3px;">Kompakte Übersicht der wichtigsten Anfragen im gewählten Zeitraum.</div>
+            </div>
             <div class="vx-page-header-action" id="au-period-row" style="display:flex;gap:5px;">
               <button class="btn btn--secondary btn--sm au-period-btn" onclick="auSetPeriod('today',this)">Heute</button>
-              <button class="au-period-btn au-period-active" onclick="auSetPeriod('week',this)">Woche</button>
-              <button class="btn btn--secondary btn--sm au-period-btn" onclick="auSetPeriod('month',this)">Monat</button>
-              <button class="btn btn--secondary btn--sm au-period-btn" onclick="auSetPeriod('all',this)">Gesamt</button>
+              <button class="au-period-btn au-period-active" onclick="auSetPeriod('week',this)">7 Tage</button>
+              <button class="btn btn--secondary btn--sm au-period-btn" onclick="auSetPeriod('month',this)">30 Tage</button>
             </div>
           </div>
 
-          <!-- KPI Strip -->
+          <!-- V1 KPI Strip -->
           <div class="au2-kpi-strip">
             <div class="au2-kpi">
-              <div class="au2-kpi-label">Anrufe</div>
+              <div class="au2-kpi-label">Anfragen</div>
               <div class="au2-kpi-val" id="au2-calls">–</div>
-              <div class="au2-kpi-trend" id="au2-calls-trend"></div>
-              <div class="au2-spark" id="au2-spark-calls"></div>
             </div>
             <div class="au2-kpi">
-              <div class="au2-kpi-label">Ø Dauer</div>
-              <div class="au2-kpi-val au2-green" id="au2-dur">–</div>
-              <div class="au2-kpi-trend" id="au2-dur-trend"></div>
-            </div>
-            <div class="au2-kpi">
-              <div class="au2-kpi-label">Hot Leads</div>
-              <div class="au2-kpi-val au2-gold" id="au2-hot">–</div>
-              <div class="au2-kpi-trend" id="au2-hot-trend"></div>
+              <div class="au2-kpi-label">Rückrufe</div>
+              <div class="au2-kpi-val au2-gold" id="au2-callbacks">–</div>
             </div>
             <div class="au2-kpi">
               <div class="au2-kpi-label">Erledigt</div>
-              <div class="au2-kpi-val au2-green" id="au2-rate">–</div>
-              <div class="au2-kpi-trend" id="au2-rate-trend"></div>
+              <div class="au2-kpi-val au2-green" id="au2-done">–</div>
+            </div>
+            <div class="au2-kpi">
+              <div class="au2-kpi-label">Status</div>
+              <div class="au2-kpi-val" id="au2-status" style="font-size:16px;line-height:1.25;letter-spacing:-.02em;">–</div>
             </div>
           </div>
 
-          <!-- Lara's Zusammenfassung -->
+          <!-- Kurze Zusammenfassung -->
           <div class="au2-card" style="margin:8px 0 0;">
             <div class="au2-night-head">
-              <span class="au2-night-title">✦ Laras Zusammenfassung</span>
-              <span class="au2-night-badge">Automatisch erstellt</span>
+              <span class="au2-night-title">Kurze Zusammenfassung</span>
             </div>
             <div class="au2-ai-summary" id="au2-ai-text">Daten werden geladen…</div>
-            <div class="au2-ai-highlights">
-              <div class="au2-ai-hl">
-                <div class="au2-ai-hl-label">Top Kategorie</div>
-                <div class="au2-ai-hl-val" id="au2-top-cat">–</div>
-                <div class="au2-ai-hl-sub" id="au2-top-cat-sub">–</div>
-              </div>
-              <div class="au2-ai-hl" style="border-left:0.5px solid var(--line);">
-                <div class="au2-ai-hl-label">Stosszeit</div>
-                <div class="au2-ai-hl-val" id="au2-best-time">–</div>
-                <div class="au2-ai-hl-sub" id="au2-best-time-sub">–</div>
-              </div>
-            </div>
           </div>
 
-          <!-- Handlungsbedarf -->
-          <div class="au2-card" style="margin:8px 0 0;" id="au2-insights-card">
-            <div class="au2-night-head">
-              <span class="au2-night-title">Handlungsbedarf</span>
-              <span class="au2-night-badge" id="au2-insight-badge">0 Hinweise</span>
-            </div>
-            <div style="padding:12px 14px;display:flex;flex-direction:column;gap:6px;" id="au2-insights-list">
-              <div style="font-size:12px;color:var(--slate2);text-align:center;padding:8px 0;">Keine offenen Hinweise.</div>
-            </div>
-          </div>
-
-          <!-- Wochenverlauf -->
-          <div class="au2-card" style="margin:8px 0 0;">
-            <div class="au2-night-head">
-              <span class="au2-night-title" id="au2-chart-title">Anrufe diese Woche</span>
-            </div>
-            <div style="padding-top:10px;">
-              <div class="au2-week-chart" id="au2-week-chart"></div>
-              <div class="au2-week-foot">
-                <span id="au2-chart-foot-l">–</span>
-                <span id="au2-chart-foot-r">–</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 2-col: Kategorien + Tageszeiten -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 0;">
-            <div class="au2-card" style="margin:0;">
-              <div class="au2-night-head"><span class="au2-night-title" style="font-size:11px;">Kategorien</span></div>
-              <div style="padding:12px 14px;" id="au2-categories"></div>
-            </div>
-            <div class="au2-card" style="margin:0;">
-              <div class="au2-night-head"><span class="au2-night-title" style="font-size:11px;">Tageszeiten</span></div>
-              <div style="padding:12px 14px;" id="au2-call-times"></div>
-            </div>
-          </div>
-
-          <!-- Lead Qualität -->
+          <!-- Häufige Anliegen -->
           <div class="au2-card" style="margin:8px 0 16px;">
-            <div class="au2-night-head"><span class="au2-night-title">Lead-Qualität</span></div>
-            <div id="au2-lead-quality"></div>
+            <div class="au2-night-head">
+              <span class="au2-night-title">Häufige Anliegen</span>
+            </div>
+            <div style="padding:12px 14px;" id="au2-categories"></div>
           </div>
 
         </div><!-- EINSTELLUNGEN TAB -->
@@ -7817,9 +7766,9 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;">
-              <div onclick="vxMehrShow('profil')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
-                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-user" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Profil</div><div id="mehr-profil-sub" style="font-size:11px;color:var(--slate2);">Name, E-Mail, Passwort</div></div>
+              <div onclick="vxOpenAssistantSettings()" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
+                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-robot" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Assistent</div><div style="font-size:11px;color:var(--slate2);">Profil, Stimme, Erreichbarkeit</div></div>
                 <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
               </div>
               <div onclick="vxMehrShow('benachrichtigungen')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
@@ -7827,15 +7776,19 @@ body,.main{background:var(--vx-bg);}
                 <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Benachrichtigungen</div><div style="font-size:11px;color:var(--slate2);">E-Mail, SMS, Browser</div></div>
                 <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
               </div>
-              <div onclick="vxMehrShow('abonnement')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
-                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-credit-card" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Abonnement & Add-ons</div><div id="mehr-plan-label" style="font-size:11px;color:var(--slate2);">Ihr aktueller Plan</div></div>
+              <div onclick="vxMehrShow('rufumleitung')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
+                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-phone-transfer" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Weiterleitung</div><div style="font-size:11px;color:var(--slate2);">Rufumleitung einrichten</div></div>
                 <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
               </div>
-
-              <div onclick="vxMehrShow('hilfe')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;">
+              <div onclick="vxMehrShow('profil')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
+                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-user" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Konto</div><div id="mehr-profil-sub" style="font-size:11px;color:var(--slate2);">Name, E-Mail, Passwort</div></div>
+                <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
+              </div>
+              <div onclick="showTab('hilfe',document.getElementById('nav-hilfe'))" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;">
                 <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-question" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Hilfe</div><div style="font-size:11px;color:var(--slate2);">FAQ, Support kontaktieren</div></div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Hilfe & Support</div><div style="font-size:11px;color:var(--slate2);">FAQ, Tour und Kontakt</div></div>
                 <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
               </div>
             </div>
@@ -7870,7 +7823,7 @@ body,.main{background:var(--vx-bg);}
             <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;"><i class="ph-bold ph-lightning" style="color:rgba(255,255,255,.7);" style="font-size:14px;" aria-hidden="true"></i><span style="font-size:13px;font-weight:700;color:#fff;">Erste Schritte</span></div>
               <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
-                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Rufumleitung unter <strong style="color:var(--ink);">Assistent → Rufumleitung</strong> einrichten.</div></div>
+                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Rufumleitung unter <strong style="color:var(--ink);">Einstellungen → Weiterleitung</strong> einrichten.</div></div>
                 <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Im Tab <strong style="color:var(--ink);">Assistent</strong> Profil und Erreichbarkeit konfigurieren, dann live schalten.</div></div>
                 <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Geschäftsnummer anrufen — Lara nimmt ab. Anruf erscheint im Dashboard.</div></div>
               </div>
@@ -7894,7 +7847,7 @@ body,.main{background:var(--vx-bg);}
           <div id="mehr-sub-profil" style="display:none;">
             <div class="vx-page-header" style="align-items:center;gap:12px;">
               <button onclick="vxMehrBack()" class="vx-back-btn"><i class="ph-bold ph-arrow-left"  style="font-size:18px;" aria-hidden="true"></i></button>
-              <div style="flex:1;"><div class="vx-page-header-title">Profil</div></div>
+              <div style="flex:1;"><div class="vx-page-header-title">Konto</div></div>
             </div>
 
             <!-- Konto -->
@@ -8144,7 +8097,7 @@ body,.main{background:var(--vx-bg);}
           <div id="mehr-sub-rufumleitung" style="display:none;">
             <div class="vx-page-header" style="align-items:center;gap:12px;">
               <button onclick="vxMehrBack()" class="vx-back-btn"><i class="ph-bold ph-arrow-left"  style="font-size:18px;" aria-hidden="true"></i></button>
-              <div style="flex:1;"><div class="vx-page-header-title">Rufumleitung</div></div>
+              <div style="flex:1;"><div class="vx-page-header-title">Weiterleitung</div></div>
             </div>
             <div id="rufumleitung-shell"></div>
           </div>
@@ -8169,7 +8122,7 @@ body,.main{background:var(--vx-bg);}
                 <div class="settings-card-lead">Hier sehen Sie Ihre Voxera-Nummer und den Systemstatus auf einen Blick. Die Rufumleitung und Assistent-Einstellungen verwalten Sie im Bereich Assistent.</div>
               </div>
               <div style="margin-bottom:12px;">
-                <button class="btn btn--secondary" onclick="showTab('assistent',document.getElementById('nav-assistent')||document.getElementById('mnav-assistent'))" style="width:100%;justify-content:center;">
+                <button class="btn btn--secondary" onclick="vxOpenAssistantSettings()" style="width:100%;justify-content:center;">
                   Zum Assistent-Bereich
                 </button>
               </div>
@@ -8399,7 +8352,7 @@ body,.main{background:var(--vx-bg);}
                   <div class="help-step-num">1</div>
                   <div class="help-step-body">
                     <div class="help-step-title">Rufumleitung einrichten</div>
-                    <div class="help-step-text">Gehen Sie zu <strong>Assistent → Rufumleitung</strong>, wählen Sie Ihren Anbieter (Swisscom, Sunrise, Salt etc.) und kopieren Sie den Code für "Bei Nichterreichbarkeit". So bleibt Lara erreichbar wenn Sie nicht abnehmen können.</div>
+                    <div class="help-step-text">Gehen Sie zu <strong>Einstellungen → Weiterleitung</strong>, wählen Sie Ihren Anbieter (Swisscom, Sunrise, Salt etc.) und kopieren Sie den Code für "Bei Nichterreichbarkeit". So bleibt Lara erreichbar wenn Sie nicht abnehmen können.</div>
                   </div>
                 </div>
                 <div class="help-step">
@@ -8526,7 +8479,7 @@ body,.main{background:var(--vx-bg);}
                   <div class="help-step-num">2</div>
                   <div class="help-step-body">
                     <div class="help-step-title">Benachrichtigungen einrichten</div>
-                    <div class="help-step-text">Unter <strong>Mehr → Benachrichtigungen</strong> stellen Sie ein wann Sie per E-Mail informiert werden. Mit dem SMS Add-on erhalten Sie Benachrichtigungen direkt aufs Handy.</div>
+                    <div class="help-step-text">Unter <strong>Einstellungen → Benachrichtigungen</strong> stellen Sie ein wann Sie per E-Mail informiert werden. Mit dem SMS Add-on erhalten Sie Benachrichtigungen direkt aufs Handy.</div>
                   </div>
                 </div>
                 <div class="help-step">
@@ -8561,7 +8514,7 @@ body,.main{background:var(--vx-bg);}
                 </details>
                 <details style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;">
                   <summary style="font-size:13px;font-weight:600;color:var(--ink);list-style:none;display:flex;justify-content:space-between;align-items:center;">Wie funktioniert das SMS Add-on? <i class="ph-bold ph-caret-down" style="color:var(--slate2);flex-shrink:0;" style="font-size:16px;" aria-hidden="true"></i></summary>
-                  <div style="font-size:13px;color:var(--slate2);margin-top:10px;line-height:1.6;">Nach jedem Anruf (oder nur bei Rückruf-Anfragen) erhalten Sie eine SMS auf Ihr Handy. Unter <strong>Mehr → Benachrichtigungen</strong> können Sie das Add-on anfragen und konfigurieren.</div>
+                  <div style="font-size:13px;color:var(--slate2);margin-top:10px;line-height:1.6;">Nach jedem Anruf (oder nur bei Rückruf-Anfragen) erhalten Sie eine SMS auf Ihr Handy. Unter <strong>Einstellungen → Benachrichtigungen</strong> können Sie das Add-on anfragen und konfigurieren.</div>
                 </details>
               </div>
             </div>
@@ -15221,6 +15174,12 @@ function vxUpdateAccordionStatuses() {
   });
 }
 
+
+function vxOpenAssistantSettings() {
+  var navEl = (window.innerWidth < 768 ? document.getElementById('mnav-mehr') : document.getElementById('nav-mehr')) || document.getElementById('nav-mehr') || document.getElementById('mnav-mehr');
+  showTab('assistent', navEl);
+}
+
 // Plan-Label im Mehr-Tab
 // ── Mehr Tab Navigation ───────────────────────────────────────────────────────
 function vxMehrShow(sub) {
@@ -18043,9 +18002,9 @@ function _auFilterRecords(records) {
   if (_auPeriod === 'today') {
     start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   } else if (_auPeriod === 'week') {
-    start = new Date(now.getTime() - 7 * 86400000);
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
   } else if (_auPeriod === 'month') {
-    start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
   } else {
     return records;
   }
@@ -18061,56 +18020,51 @@ function renderAuswertung() {
   var all = allRecords || [];
   var records = _auFilterRecords(all);
   var total = records.length;
-
-  // KPIs
+  var callbackCount = records.filter(_auIsCallbackRecord).length;
   var closed = records.filter(function(r){ return isClosedStatus((r.fields||{}).dashboard_status); }).length;
-  var totalDur = records.reduce(function(s,r){ return s+Number((r.fields||{}).duration_seconds||0); }, 0);
-  var avgDur = total ? Math.round(totalDur/total) : 0;
-  var avgDurLabel = !total ? '–' : avgDur < 60 ? avgDur+'s' : Math.floor(avgDur/60)+':'+(String(avgDur%60).padStart(2,'0'));
-  var hotCount = records.filter(function(r){ return qualKey((r.fields||{}).lead_quality)==='hot'; }).length;
-  var warmCount = records.filter(function(r){ return qualKey((r.fields||{}).lead_quality)==='warm'; }).length;
-  var kaltCount = records.filter(function(r){ return qualKey((r.fields||{}).lead_quality)==='kalt'; }).length;
-  var unknownCount = total - hotCount - warmCount - kaltCount;
-  var rate = total ? Math.round(closed/total*100) : 0;
 
-  // Set KPI values
   _auEl('au2-calls', total || '–');
-  _auEl('au2-dur', avgDurLabel);
-  _auEl('au2-hot', hotCount || '–');
-  _auEl('au2-rate', total ? rate+'%' : '–');
+  _auEl('au2-callbacks', callbackCount || '–');
+  _auEl('au2-done', closed || '–');
+  _auEl('au2-status', _auStatusLabel(all));
 
-  // Trends (compare to previous period)
-  var prev = _auPrevPeriodRecords(all);
-  var prevTotal = prev.length;
-  var prevHot = prev.filter(function(r){ return qualKey((r.fields||{}).lead_quality)==='hot'; }).length;
-  var prevRate = prevTotal ? Math.round(prev.filter(function(r){ return isClosedStatus((r.fields||{}).dashboard_status); }).length/prevTotal*100) : 0;
-  _auTrend('au2-calls-trend', total - prevTotal, prevTotal ? 'vs. Vorperiode' : '');
-  _auTrend('au2-hot-trend', hotCount - prevHot, prevTotal ? 'vs. Vorperiode' : '');
-  var rateDiff = rate - prevRate;
-  _auTrend('au2-rate-trend', rateDiff, prevTotal ? '% vs. Vorperiode' : '');
-
-  // Sparklines
-  _auBuildSparkCalls(all);
-
-  // AI Summary
-  _auAiSummary(records, total, hotCount, closed);
-
-  // Insights
-  _auInsights(all, records);
-
-  // Week chart
-  _auWeekChart2(records);
-
-  // Categories
+  _auSummaryV1(records, total, callbackCount, closed);
   _auCategories2(records, total);
-
-  // Call times
-  _auCallTimes2(records, total);
-
-  // Lead quality
-  _auLeadQuality(total, hotCount, warmCount, kaltCount, unknownCount);
 }
 
+function _auIsCallbackRecord(record) {
+  var f = (record && record.fields) || {};
+  return f.callback_requested === true || f.callback_requested === 'true';
+}
+
+function _auPeriodLabel() {
+  return {today:'heute', week:'in den letzten 7 Tagen', month:'in den letzten 30 Tagen', all:'insgesamt'}[_auPeriod] || 'im gewählten Zeitraum';
+}
+
+function _auStatusLabel(records) {
+  var list = Array.isArray(records) ? records : [];
+  var latest = (typeof getLatestCallDate === 'function') ? getLatestCallDate(list) : null;
+  if (latest && ((new Date() - latest) / (1000*60*60) < 72)) return 'Aktiv';
+  if (list.length > 0) return 'Bereit';
+  return 'Wartet';
+}
+
+function _auSummaryV1(records, total, callbackCount, closed) {
+  var el = document.getElementById('au2-ai-text');
+  if (!el) return;
+  var periodLabel = _auPeriodLabel();
+  if (!total) {
+    el.textContent = 'Noch keine Anfragen ' + periodLabel + '. Sobald Voxera Anrufe entgegennimmt, erscheint hier eine kurze Zusammenfassung.';
+    return;
+  }
+  var parts = [];
+  parts.push(total + ' Anfrage' + (total !== 1 ? 'n' : '') + ' ' + periodLabel);
+  parts.push(callbackCount + ' Rückruf' + (callbackCount !== 1 ? 'e' : ''));
+  parts.push(closed + ' erledigt');
+  var open = Math.max(total - closed, 0);
+  if (open > 0) parts.push(open + ' noch offen oder in Bearbeitung');
+  el.textContent = parts.join(' · ') + '.';
+}
 
 function _auEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
 
