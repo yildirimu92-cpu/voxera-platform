@@ -83,8 +83,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Voxera Dashboard</title>
 <!-- BUILD: 2026-05-17-v3 -->
-<meta name="vx-build" content="2026-05-17-v3-bottom-bar-css-disabled">
-<script>window.__VX_BUILD = "2026-05-17-v3-bottom-bar-css-disabled";</script>
+<meta name="vx-build" content="2026-05-17-v3-scroll-stability">
+<script>window.__VX_BUILD = "2026-05-17-v3-scroll-stability";</script>
 
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
@@ -23935,11 +23935,32 @@ window.addEventListener('focus', () => {
   safeLoadData();
 });
 window.addEventListener('online', () => safeLoadData());
+window.addEventListener('scroll', function(){
+  if (!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) return;
+  window.__vxLastMobileScrollTs = Date.now();
+}, { passive:true, capture:true });
 
 // Session-safe data loader - checks session before loading, avoids false logouts
+window.__vxLastMobileScrollTs = Number(window.__vxLastMobileScrollTs || 0);
+window.__vxSafeLoadDataDelayTimer = Number(window.__vxSafeLoadDataDelayTimer || 0);
+
 async function safeLoadData() {
-  if (document.getElementById('app').style.display === 'none') return; // not logged in
+  var app = document.getElementById('app');
+  if (!app || app.style.display === 'none') return; // not logged in
   if (realtimeSuppressUntil > 0 && Date.now() < realtimeSuppressUntil) return; // Mutation läuft gerade
+  var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+  var detailPage = document.getElementById('call-detail-page');
+  var detailOpen = !!(detailPage && detailPage.classList && detailPage.classList.contains('is-open'));
+  var inCallsView = !!document.querySelector('#tab-anrufe.active,#tab-anrufe[style*="display: block"],#anrufe-list,#anrufe-split-left');
+  var lastScrollTs = Number(window.__vxLastMobileScrollTs || 0);
+  if (isMobile && (detailOpen || inCallsView) && lastScrollTs > 0) {
+    var elapsed = Date.now() - lastScrollTs;
+    if (elapsed < 700) {
+      clearTimeout(window.__vxSafeLoadDataDelayTimer);
+      window.__vxSafeLoadDataDelayTimer = setTimeout(function(){ safeLoadData(); }, Math.max(120, 720 - elapsed));
+      return;
+    }
+  }
   const sb = getSupabaseAuthClient();
   if (!sb) return;
   try {
@@ -39964,8 +39985,8 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     if(!page || !wrap) return;
     var y = wrap.scrollTop || 0;
     var scrolled = y > 48;
-    page.classList.toggle('vx-detail-scrolled', scrolled);
-    if(banner) banner.classList.toggle('vx-detail-scrolled', scrolled);
+    if(page.classList.contains('vx-detail-scrolled') !== scrolled) page.classList.toggle('vx-detail-scrolled', scrolled);
+    if(banner && banner.classList.contains('vx-detail-scrolled') !== scrolled) banner.classList.toggle('vx-detail-scrolled', scrolled);
   }
   function bindDetailScroll(){
     var wrap = document.getElementById('call-detail-scroll-wrap');
@@ -39984,7 +40005,18 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 
   var page = document.getElementById('call-detail-page');
   if(page && window.MutationObserver){
-    new MutationObserver(function(){ scheduleBind(); }).observe(page, { attributes:true, attributeFilter:['class','style'] });
+    new MutationObserver(function(mutations){
+      for(var i=0;i<mutations.length;i++){
+        var m=mutations[i];
+        if(!m || m.type!=='attributes') continue;
+        if(m.attributeName!=='class'){ scheduleBind(); return; }
+        var prev = String(m.oldValue||'');
+        var curr = String(page.className||'');
+        var prevSans = prev.replace(/\bvx-detail-scrolled\b/g,'').replace(/\s+/g,' ').trim();
+        var currSans = curr.replace(/\bvx-detail-scrolled\b/g,'').replace(/\s+/g,' ').trim();
+        if(prevSans!==currSans){ scheduleBind(); return; }
+      }
+    }).observe(page, { attributes:true, attributeOldValue:true, attributeFilter:['class','style'] });
   }
   var banner = document.getElementById('call-detail-banner');
   if(banner && window.MutationObserver){
@@ -40994,7 +41026,18 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     var page = document.getElementById('call-detail-page');
     if(!page || page._vxStateGuardObserved || !window.MutationObserver) return;
     page._vxStateGuardObserved = true;
-    new MutationObserver(function(){ syncActiveRows('detail-mutation'); }).observe(page, { attributes:true, attributeFilter:['class','style','data-vx-display','data-vx-detail-id'] });
+    new MutationObserver(function(mutations){
+      for(var i=0;i<mutations.length;i++){
+        var m=mutations[i];
+        if(!m || m.type!=='attributes') continue;
+        if(m.attributeName!=='class'){ syncActiveRows('detail-mutation'); return; }
+        var prev = String(m.oldValue||'');
+        var curr = String(page.className||'');
+        var prevSans = prev.replace(/\bvx-detail-scrolled\b/g,'').replace(/\s+/g,' ').trim();
+        var currSans = curr.replace(/\bvx-detail-scrolled\b/g,'').replace(/\s+/g,' ').trim();
+        if(prevSans!==currSans){ syncActiveRows('detail-mutation'); return; }
+      }
+    }).observe(page, { attributes:true, attributeOldValue:true, attributeFilter:['class','style','data-vx-display','data-vx-detail-id'] });
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindDetailObserver);
   else bindDetailObserver();
@@ -42910,7 +42953,21 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
   }
   var page = document.getElementById('call-detail-page');
   if (page && window.MutationObserver) {
-    new MutationObserver(schedule).observe(page, { childList:true, subtree:true, attributes:true, attributeFilter:['class','style','data-vx-detail-id','data-vx-detail-type'] });
+    new MutationObserver(function(mutations){
+      var shouldSchedule = false;
+      for(var i=0;i<mutations.length;i++){
+        var m=mutations[i];
+        if(!m) continue;
+        if(m.type!=='attributes'){ shouldSchedule = true; break; }
+        if(m.attributeName!=='class'){ shouldSchedule = true; break; }
+        var prev = String(m.oldValue||'');
+        var curr = String(page.className||'');
+        var prevSans = prev.replace(/\bvx-detail-scrolled\b/g,'').replace(/\s+/g,' ').trim();
+        var currSans = curr.replace(/\bvx-detail-scrolled\b/g,'').replace(/\s+/g,' ').trim();
+        if(prevSans!==currSans){ shouldSchedule = true; break; }
+      }
+      if(shouldSchedule) schedule();
+    }).observe(page, { childList:true, subtree:true, attributes:true, attributeOldValue:true, attributeFilter:['class','style','data-vx-detail-id','data-vx-detail-type'] });
   }
   document.addEventListener('click', function(ev){
     var trigger = ev.target && ev.target.closest && ev.target.closest('#vx-cd-qa-done,#vx-cd-bb-due,[onclick*="vxCallDetailErledigt"]');
