@@ -20355,12 +20355,19 @@ function vxCallDetailMail() {
 window.vxCallDetailMail = vxCallDetailMail;
 
 // [v2.66] Fälligkeit ändern — routet korrekt für Call und Task
-function vxCallDetailFaelligkeit() {
+function vxCallDetailFaelligkeit(ev) {
+  if (ev && ev.__vxHandled) return true;
+  if (ev) {
+    if (ev.preventDefault) ev.preventDefault();
+    if (ev.stopPropagation) ev.stopPropagation();
+    ev.__vxHandled = true;
+  }
   var id = window._vxCurrentDetailType === 'task'
     ? window._vxCurrentTaskId
     : window._vxCurrentCallId;
   if (!id) return;
   if (typeof openFollowupDirect === 'function') openFollowupDirect(id);
+  return true;
 }
 window.vxCallDetailFaelligkeit = vxCallDetailFaelligkeit;
 
@@ -20494,10 +20501,16 @@ window.vxCallDetailExpand = vxCallDetailExpand;
 
 
 // Als erledigt markieren
-function vxCallDetailErledigt() {
+function vxCallDetailErledigt(ev) {
+  if (ev && ev.__vxHandled) return true;
+  if (ev) {
+    if (ev.preventDefault) ev.preventDefault();
+    if (ev.stopPropagation) ev.stopPropagation();
+    ev.__vxHandled = true;
+  }
   if (window._vxCurrentDetailType === 'task') {
     vxTaskDetailDone(window._vxCurrentTaskId);
-    return;
+    return true;
   }
   var callId = window._vxCurrentCallId;
   if (!callId) return;
@@ -20535,7 +20548,7 @@ function vxCallDetailErledigt() {
     if (!sb) {
       resetBtn();
       showToast('⚠️ Authentifizierung erforderlich');
-      return;
+      return true;
     }
     sb.from('calls').update({ dashboard_status: 'closed', updated_at: new Date().toISOString() }).eq('id', callId).then(function(r) {
       resetBtn();
@@ -21783,7 +21796,7 @@ function confirmTaskDone(recordId, rowElement, triggerSource, onSuccess, options
         tone: 'primary',
         onConfirm: async function() { return true; }
       });
-      return;
+      return true;
     }
   }
   if (manual) {
@@ -21818,6 +21831,7 @@ function confirmTaskDone(recordId, rowElement, triggerSource, onSuccess, options
       return result;
     }
   });
+  return true;
 }
 
 // Wrapper für Focus Mode: ruft confirmTaskDone auf und navigiert danach zur nächsten Karte.
@@ -23491,8 +23505,10 @@ function openConfirmModal(config) {
 }
 
 function closeConfirmModal(ev) {
+  if (ev && ev.__vxHandled) return;
   if (ev && ev.preventDefault) ev.preventDefault();
   if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (ev) ev.__vxHandled = true;
   if (window.VX_DEBUG === true) console.debug('[vxModalClose:start] confirm');
   if (confirmModalBusy) return;
   const overlay = document.getElementById('confirm-overlay');
@@ -23818,8 +23834,10 @@ function dismissCompletedWarning() {
 }
 
 function closeFollowup(ev) {
+  if (ev && ev.__vxHandled) return;
   if (ev && ev.preventDefault) ev.preventDefault();
   if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (ev) ev.__vxHandled = true;
   if (window.VX_DEBUG === true) console.debug('[vxModalClose:start] followup');
   vxSetActionButtonLoading(document.getElementById('followup-save-btn'), false);
   document.getElementById('followup-overlay').classList.remove('open');
@@ -44068,10 +44086,11 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   window.vxCloseOpenMenus=function(){document.querySelectorAll('.vx-row-menu.is-open,.vxdr-menu.is-open').forEach(el=>el.classList.remove('is-open'));document.querySelectorAll('#vxd-menu,[id$="-menu"]').forEach(el=>el.setAttribute('hidden',''));};
   window.vxResetInteractionState=function(reason){var allowClose=(reason==='close-detail'||reason==='navigation'); if(!allowClose||window.vxIsModalOpen()) return false; window.vxCloseOpenMenus(); try{document.body.classList.remove('vx-resizing-split','vx-row-menu-open');}catch(e){} return true;};
   window.vxRouteRowOpen=function(recordId,source){state.lastRowSource=source||'unknown'; state.lastRecordId=recordId||null; if(!recordId){console.warn('[vxRouteRowOpen] missing recordId',source); return false;} if(typeof window.openCallDetail==='function') {window.openCallDetail(recordId,source); return true;} if(typeof window.showCallDetail==='function'){window.showCallDetail(recordId,source); return true;} if(typeof window.vxOpenCallDetail==='function'){window.vxOpenCallDetail(recordId,source); return true;} console.warn('[vxRouteRowOpen] no detail opener found',recordId,source); return false;};
-  window.vxRunCallAction=function(recordId,action,source){var t0=Date.now(); state.lastAction=action; state.lastRecordId=recordId||state.lastRecordId; if(!action){console.warn('[vxRunCallAction] missing action',source); return false;} var debug=window.VX_DEBUG===true; if(debug) console.debug('[vxRunCallAction:start]',action,source||'unknown'); var out=false; if(action==='back'){out=(typeof window.vxHandleDetailBack==='function') ? !!window.vxHandleDetailBack() : ((typeof window.hideCallDetail==='function') ? !!window.hideCallDetail() : false);} else if(action==='menu'){window.vxCloseOpenMenus(); out=true;} else if(action==='followup'){ if(typeof window.vxCallDetailFaelligkeit==='function') out=!!window.vxCallDetailFaelligkeit(); else if(typeof window.openFollowupDirect==='function') out=!!window.openFollowupDirect(recordId); else if(typeof window.openFollowup==='function') out=!!window.openFollowup(recordId);} else if(action==='done'){ if(typeof window.vxCallDetailErledigt==='function') out=!!window.vxCallDetailErledigt(); else if(typeof window.confirmTaskDone==='function') out=!!window.confirmTaskDone(recordId,null,'vx-interaction-layer'); } else if(action==='call'&&typeof window.startCall==='function') out=!!window.startCall(recordId); else if(action==='note'&&typeof window.openNote==='function') out=!!window.openNote(recordId); if(debug) console.debug('[vxRunCallAction:end]',action,(Date.now()-t0)+'ms'); return out;};
+  window.vxRunCallAction=function(recordId,action,source,ev){var t0=Date.now(); state.lastAction=action; state.lastRecordId=recordId||state.lastRecordId; if(!action){console.warn('[vxRunCallAction] missing action',source); return false;} var debug=window.VX_DEBUG===true; if(debug) console.debug('[vxRunCallAction:start]',action,source||'unknown'); var out=false; if(action==='back'){out=(typeof window.vxHandleDetailBack==='function') ? !!window.vxHandleDetailBack() : ((typeof window.hideCallDetail==='function') ? !!window.hideCallDetail() : false);} else if(action==='menu'){window.vxCloseOpenMenus(); out=true;} else if(action==='followup'){ if(typeof window.vxCallDetailFaelligkeit==='function') out=!!window.vxCallDetailFaelligkeit(ev); else if(typeof window.openFollowupDirect==='function') out=!!window.openFollowupDirect(recordId); else if(typeof window.openFollowup==='function') out=!!window.openFollowup(recordId);} else if(action==='done'){ if(typeof window.vxCallDetailErledigt==='function') out=!!window.vxCallDetailErledigt(ev); else if(typeof window.confirmTaskDone==='function') out=!!window.confirmTaskDone(recordId,null,'vx-interaction-layer'); } else if(action==='call'&&typeof window.startCall==='function') out=!!window.startCall(recordId); else if(action==='note'&&typeof window.openNote==='function') out=!!window.openNote(recordId); if(debug) console.debug('[vxRunCallAction:end]',action,(Date.now()-t0)+'ms'); return out;};
   function rowRecordId(row){return row&& (row.getAttribute('data-rec-id')||row.getAttribute('data-record-id')||row.getAttribute('data-id'));}
   document.addEventListener('touchstart',function(ev){state.lastTouchTarget=ev&&ev.target?ev.target:null;},{passive:true,capture:true});
   document.addEventListener('touchend',function(ev){
+    if(ev.__vxHandled) return;
     state.lastTouchTs=Date.now();
     var t=ev&&ev.target;
     if(!t||!t.closest||isInteractiveChild(t)) return;
@@ -44079,6 +44098,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     state.pendingTouchRowId=rowRecordId(row)||null;
   },{passive:true,capture:true});
   document.addEventListener('click',function(ev){
+    if(ev.__vxHandled) return;
     if(state.resizing) return;
     var t=ev.target; if(!t||!t.closest) return;
     if(vxGhostTapSuppressed(t)){ ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; return; }
@@ -44089,9 +44109,10 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     if(!id) return;
     if(state.lastTapRowId===id&&now-state.lastTapRowTs<420) return;
     state.lastTapRowId=id; state.lastTapRowTs=now; state.pendingTouchRowId=null;
+    ev.__vxHandled=true;
     window.vxRouteRowOpen(id,row.getAttribute('data-source')||row.id||'row-click');
   },true);
-  document.addEventListener('click',function(ev){ if(ev.__vxHandled) return; var t=ev.target; if(vxGhostTapSuppressed(t)){ ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; return; } var b=ev.target&&ev.target.closest?ev.target.closest('[data-action],button'):null; if(!b) return; var form=b.closest&&b.closest('form'); if(form&&!b.getAttribute('type')) b.setAttribute('type','button'); var action=(b.getAttribute('data-action')||'').trim(); if(action==='reopen'||action==='done-info'){ if(window.vxToast) window.vxToast('Dieser Eintrag ist abgeschlossen. Für einen erneuten Kontakt wird ein neuer Folge-Eintrag erstellt.','info'); ev.preventDefault(); return;} if(!action) return; if(b.disabled){console.warn('[vx] action blocked disabled',action,b.id||b.className); return;} var rid=b.getAttribute('data-rec-id')||b.getAttribute('data-record-id')||state.lastRecordId; if(['call','followup','done','note','menu','back'].includes(action)){ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; window.vxRunCallAction(rid,action,'detail-button');}},true);
+  document.addEventListener('click',function(ev){ if(ev.__vxHandled) return; var t=ev.target; if(vxGhostTapSuppressed(t)){ ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; return; } var b=ev.target&&ev.target.closest?ev.target.closest('[data-action],button'):null; if(!b) return; var form=b.closest&&b.closest('form'); if(form&&!b.getAttribute('type')) b.setAttribute('type','button'); var action=(b.getAttribute('data-action')||'').trim(); if(action==='reopen'||action==='done-info'){ if(window.vxToast) window.vxToast('Dieser Eintrag ist abgeschlossen. Für einen erneuten Kontakt wird ein neuer Folge-Eintrag erstellt.','info'); ev.preventDefault(); return;} if(!action) return; if(b.disabled){console.warn('[vx] action blocked disabled',action,b.id||b.className); return;} var rid=b.getAttribute('data-rec-id')||b.getAttribute('data-record-id')||state.lastRecordId; if(['call','followup','done','note','menu','back'].includes(action)){ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; window.vxRunCallAction(rid,action,'detail-button',ev);}},true);
   var rz=document.getElementById('anrufe-split-resizer');
   if(rz){rz.addEventListener('pointerdown',function(ev){state.resizing=true; document.body.classList.add('vx-resizing-split'); ev.stopPropagation();},{capture:true}); rz.addEventListener('pointerup',function(){state.resizing=false; document.body.classList.remove('vx-resizing-split');},{capture:true}); rz.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();},{capture:true});}
   window.addEventListener('unhandledrejection',function(ev){console.warn('[vx] unhandled rejection',ev.reason);});
