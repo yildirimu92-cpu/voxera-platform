@@ -7264,7 +7264,7 @@ body,.main{background:var(--vx-bg);}
             <!-- JETZT WICHTIG — Fokus-Karte + Card-Stack -->
             <div id="dash-priority-section" class="vx-jetzt-section vx-work-section">
               <div class="vx-jetzt-header">
-                <div class="vx-jetzt-title"><i class="ph-bold ph-lightning" aria-hidden="true"></i>Aufmerksamkeit <span>einmalig priorisiert</span></div>
+                <div class="vx-jetzt-title"><i class="ph-bold ph-lightning" aria-hidden="true"></i>Jetzt wichtig <span>fokussiert priorisiert</span></div>
                 <span class="vx-jetzt-link" onclick="vxDashShowAllImportant(event);">Alle →</span>
               </div>
               <div id="dash-priority-list" class="vx-jetzt-list"></div>
@@ -7274,11 +7274,11 @@ body,.main{background:var(--vx-bg);}
             <!-- HEUTE: Verlauf statt zweite Arbeitsliste -->
             <div id="dash-activity-section" class="vx-jetzt-section">
               <div class="vx-jetzt-header">
-                <div class="vx-jetzt-title"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i>Heute passiert</div>
+                <div class="vx-jetzt-title"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i>Kürzlich erledigt</div>
                 <span id="dash-activity-count" class="vx-jetzt-link">0</span>
               </div>
               <div id="dash-activity-list" class="vx-jetzt-list"></div>
-              <div class="vx-activity-note">Chronologischer Verlauf. Die Arbeitsentscheidung passiert oben unter Aufmerksamkeit.</div>
+              <div class="vx-activity-note">Zuletzt abgeschlossene Einträge für schnellen Tageskontext.</div>
             </div>
 
             <!-- HEUTE: Anrufe heute — Zielbereich für KPI, keine versteckten Anfragen-Filter -->
@@ -9888,10 +9888,10 @@ function vxDashGetDueMeta(record, typeMeta) {
 }
 
 function vxDashGroupLabel(groupKey) {
-  if (groupKey === 'overdue') return 'Überfällig';
-  if (groupKey === 'today') return 'Heute';
+  if (groupKey === 'important') return 'Jetzt wichtig';
+  if (groupKey === 'new_requests') return 'Neue Anfragen';
   if (groupKey === 'planned') return 'Geplant';
-  if (groupKey === 'calls') return 'Letzte Anrufe';
+  if (groupKey === 'done_recent') return 'Kürzlich erledigt';
   return 'Weitere';
 }
 
@@ -10209,8 +10209,9 @@ function renderDashPriorityList() {
     if (recIdKey) tempKeys.add(recIdKey);
     if (callIdKey) tempKeys.add(callIdKey);
   });
-  var groups = { overdue: [], today: [], planned: [], calls: [] };
-  var groupOrder = ['overdue', 'today', 'planned', 'calls'];
+  var groups = { important: [], new_requests: [], planned: [], done_recent: [] };
+  var groupOrder = ['important', 'new_requests', 'planned', 'done_recent'];
+  var assignedIds = new Set();
 
   visible.forEach(function(rec) {
     var keyF = (rec && rec.fields) || {};
@@ -10219,9 +10220,19 @@ function renderDashPriorityList() {
     if ((recIdKey && tempKeys.has(recIdKey)) || (callIdKey && tempKeys.has(callIdKey))) return;
     var typeMeta = vxDashGetCommandTypeMeta(rec);
     var dueMeta = vxDashGetDueMeta(rec, typeMeta);
-    var key = groups[dueMeta.group] ? dueMeta.group : 'today';
-    groups[key].push({ record: rec, typeMeta: typeMeta, dueMeta: dueMeta });
+    var isDone = typeof vxInquiryMatchesFilter === 'function' ? vxInquiryMatchesFilter(rec, 'abgeschlossen') : isClosedStatus((keyF && keyF.dashboard_status) || '');
+    var urgentFlag = String(keyF.priority || keyF.urgency || keyF.severity || '').toLowerCase();
+    var isUrgent = urgentFlag.indexOf('urgent') >= 0 || urgentFlag.indexOf('dring') >= 0 || urgentFlag.indexOf('high') >= 0 || urgentFlag.indexOf('prio') >= 0;
+    var groupKey = 'new_requests';
+    if (isDone) groupKey = 'done_recent';
+    else if (dueMeta.state === 'overdue' || isUrgent) groupKey = 'important';
+    else if (dueMeta.state === 'planned' || dueMeta.state === 'today') groupKey = 'planned';
+    var stableId = recIdKey || callIdKey;
+    if (stableId && assignedIds.has(stableId)) return;
+    if (stableId) assignedIds.add(stableId);
+    groups[groupKey].push({ record: rec, typeMeta: typeMeta, dueMeta: dueMeta });
   });
+  window._vxHeutePrimaryGroups = groups;
 
   var html = '';
 
@@ -10264,7 +10275,7 @@ function renderDashPriorityList() {
     var items = groups[groupKey] || [];
     if (!items.length) return;
     html += '<div class="dpr-group dpr-group-' + groupKey + '">';
-    html += '<div class="vx-group-head"><span class="vx-group-label"><i class="ph-bold ph-' + (groupKey === 'overdue' ? 'alarm' : groupKey === 'today' ? 'sun' : groupKey === 'planned' ? 'calendar-dots' : 'phone-incoming') + '" aria-hidden="true"></i>' + vxDashGroupLabel(groupKey) + '</span><span class="vx-group-count">' + items.length + '</span></div>';
+    html += '<div class="vx-group-head"><span class="vx-group-label"><i class="ph-bold ph-' + (groupKey === 'important' ? 'alarm' : groupKey === 'new_requests' ? 'phone-incoming' : groupKey === 'planned' ? 'calendar-dots' : 'check-circle') + '" aria-hidden="true"></i>' + vxDashGroupLabel(groupKey) + '</span><span class="vx-group-count">' + items.length + '</span></div>';
 
     items.forEach(function(item) {
       var rec = item.record;
@@ -21469,11 +21480,12 @@ function renderDashboard(records, manualTasks) {
   if (typeof vxSetHeuteKpiCell === 'function') vxSetHeuteKpiCell(kpiCellCompleted, heuteDoneRecords.length > 0, 'vxHeuteKpiOpenDone');
 
   var heuteActivityRecords = [].concat(heuteTodayCallRecords || [], heuteDoneRecords || []);
-  if (typeof vxHeuteRenderActivityList === 'function') vxHeuteRenderActivityList(heuteActivityRecords);
-  ['dash-today-calls-section','dash-today-done-section'].forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
+  if (typeof vxHeuteRenderActivityList === 'function') vxHeuteRenderActivityList(heuteDoneRecords || []);
+  if (typeof vxHeuteRenderScopedList === 'function') {
+    vxHeuteRenderScopedList('dash-today-done-list','dash-today-done-section','dash-today-done-count',heuteDoneRecords,'Noch keine erledigten Einträge.');
+  }
+  var callsSection = document.getElementById('dash-today-calls-section');
+  if (callsSection) callsSection.style.display = 'none';
 
   var reach = getReachabilityStatus(records);
 
@@ -21597,7 +21609,7 @@ function renderDashboard(records, manualTasks) {
   var combinedAll = [].concat(manualNow, priorityRecords, manualPlanned);
   // V3.2: Heute nutzt ein bewusstes ViewModel.
   // Relevante Calls + offene customer_tasks kommen in Aufmerksamkeit;
-  // irrelevante Calls bleiben im Verlauf "Heute passiert".
+  // irrelevante Calls bleiben im Verlauf "Kürzlich erledigt".
   if (typeof vxBuildTodayAttentionRecords === 'function') {
     _dashPriorityAllRecords = vxBuildTodayAttentionRecords(records || [], allTasks || []);
   } else {
