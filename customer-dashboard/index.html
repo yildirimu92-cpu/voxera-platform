@@ -84,7 +84,7 @@
 <title>Voxera Dashboard</title>
 <!-- BUILD: 2026-05-17-v3 -->
 <meta name="vx-build" content="2026-05-17-v3-aftercall-safe">
-<script>window.__VX_BUILD = "2026-05-17-v3-aftercall-safe";</script>
+<script>window.__VX_BUILD = "2026-05-17-v3-bottom-bar-disabled";</script>
 
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
@@ -18950,7 +18950,7 @@ function showCallDetail(callId, options) {
     var wrap = document.getElementById('call-detail-scroll-wrap');
     if (wrap) wrap.scrollTop = 0;
     var bottomBar = document.getElementById('vx-cd-bottom-bar');
-    if (bottomBar) bottomBar.style.display = window.innerWidth <= 768 ? 'grid' : 'none';
+    if (bottomBar) { bottomBar.style.display = 'none'; bottomBar.style.pointerEvents = 'none'; bottomBar.setAttribute('aria-hidden','true'); }
 
     // Render
     loadAndRenderCallDetail(callId);
@@ -32043,7 +32043,7 @@ document.getElementById('vx-dv2-close').addEventListener('click', function(){ vx
     </div>
     
   </div>
-  <div id="vx-cd-bottom-bar" style="display:none;" aria-label="Schnellaktionen">
+  <div id="vx-cd-bottom-bar" style="display:none;pointer-events:none;" aria-label="Schnellaktionen" aria-hidden="true">
     <button id="vx-cd-bb-call" onclick="event.stopPropagation();vxCallDetailAnrufen(event)" style="display:flex;align-items:center;justify-content:center;gap:7px;"><i class="ph-bold ph-phone" style="font-size:18px;" aria-hidden="true"></i><span>Anrufen</span></button>
     <button id="vx-cd-bb-due" onclick="event.stopPropagation();vxCallDetailFaelligkeit(event)" style="display:flex;align-items:center;justify-content:center;gap:7px;"><i class="ph-bold ph-calendar-plus" style="font-size:18px;" aria-hidden="true"></i><span>Fälligkeit ändern</span></button>
     <button id="vx-cd-bb-menu" onclick="event.stopPropagation();vxdToggleMenu(event)" aria-label="Weitere Aktionen" title="Weitere Aktionen" style="display:flex;align-items:center;justify-content:center;gap:7px;"><i class="ph-bold ph-dots-three" style="font-size:20px;" aria-hidden="true"></i></button>
@@ -39665,26 +39665,12 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   function isMobile(){ return window.matchMedia && window.matchMedia('(max-width:768px)').matches; }
   function syncMobileDetailBar(){
     try {
-      if(!isMobile()) return;
-      var page=document.getElementById('call-detail-page');
       var bar=document.getElementById('vx-cd-bottom-bar');
-      if(!page||!bar) return;
-      var open=page.classList.contains('is-open') || page.style.display==='flex' || page.style.display==='block';
-      bar.style.display=open?'grid':'none';
-      var phoneEl=document.getElementById('call-detail-subtitle');
-      var callBtn=document.getElementById('vx-cd-bb-call');
-      var phoneRaw='';
-      if (phoneEl) {
-        phoneRaw = phoneEl.getAttribute('aria-label');
-        if (phoneRaw == null) phoneRaw = phoneEl.textContent;
-      }
-      var phone = String(phoneRaw == null ? '' : phoneRaw).trim();
-      if(callBtn){
-        var hasPhone=!!phone && phone.indexOf('Keine Telefonnummer')<0;
-        callBtn.disabled=!hasPhone;
-        callBtn.classList.toggle('is-disabled',!hasPhone);
-        callBtn.setAttribute('aria-disabled',hasPhone?'false':'true');
-      }
+      if(!bar) return;
+      bar.style.display='none';
+      bar.style.pointerEvents='none';
+      bar.setAttribute('aria-hidden','true');
+      return;
     } catch(e) {
       console.warn('[voxera] syncMobileDetailBar skipped safely', e);
     }
