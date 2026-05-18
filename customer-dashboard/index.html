@@ -83,6 +83,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Voxera Dashboard</title>
 <!-- BUILD: 2026-05-17-v3 -->
+<meta name="vx-build" content="2026-05-17-v3-aftercall-safe">
+<script>window.__VX_BUILD = "2026-05-17-v3-aftercall-safe";</script>
 
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
@@ -16135,6 +16137,8 @@ function vxCopyCode(btn) {
 // ── Onboarding Modal ─────────────────────────────────────────────────────────
 window.__vxOnboardingAutoInitDone = window.__vxOnboardingAutoInitDone === true;
 window.__vxOnboardingSessionCompleted = window.__vxOnboardingSessionCompleted === true;
+var VX_ONBOARDING_DISABLED = true;
+var VX_TOUR_DISABLED = true;
 
 function vxOnboardingMetaIsKnown(meta) {
   if (!meta || typeof meta !== 'object') return false;
@@ -16148,6 +16152,7 @@ function vxOnboardingShouldAutoOpen(meta) {
 }
 
 function vxOnboardingInit(options) {
+  if (VX_ONBOARDING_DISABLED === true) return;
   var opts = options || {};
   var force = opts.force === true;
   if (!force && window.__vxOnboardingAutoInitDone === true) return;
@@ -31545,6 +31550,7 @@ function tourGoToStep(idx) {
 }
 
 function tourStart() {
+  if (VX_TOUR_DISABLED === true) return;
   TOUR_STEPS = tourBuildSteps();
   _tourStep = 0;
   _tourActive = true;
@@ -41130,7 +41136,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 
 
 <!-- VOXERA AFTER-CALL SHEET -->
-<div class="overlay overlay--sheet" id="vx-aftercall-overlay" onclick="if(event.target===this)vxCloseAfterCallSheet()" role="dialog" aria-modal="true" aria-labelledby="vx-aftercall-title" aria-hidden="true">
+<div class="overlay overlay--sheet" id="vx-aftercall-overlay" onclick="if(event.target===this)vxCloseAfterCallSheet(event)" role="dialog" aria-modal="true" aria-labelledby="vx-aftercall-title" aria-hidden="true">
   <div class="modal vx-aftercall-modal" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
@@ -41142,7 +41148,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
               <h3 id="vx-aftercall-title">Gespräch nachbearbeiten</h3>
               <div class="modal-head-sub" id="vx-aftercall-sub">Notiz erfassen und nächsten Schritt festlegen.</div>
             </div>
-            <button class="modal-close-btn" onclick="vxCloseAfterCallSheet()" aria-label="Schliessen"><i class="ph-bold ph-x" style="font-size:15px;" aria-hidden="true"></i></button>
+            <button class="modal-close-btn" onclick="vxCloseAfterCallSheet(event)" aria-label="Schliessen"><i class="ph-bold ph-x" style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
       </div>
@@ -41183,7 +41189,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
         </div>
       </div>
       <div class="modal-footer vx-aftercall-footer">
-        <button class="btn btn--secondary btn--sm" id="vx-aftercall-later-btn" onclick="vxCloseAfterCallSheet()">Später</button>
+        <button class="btn btn--secondary btn--sm" id="vx-aftercall-later-btn" onclick="vxCloseAfterCallSheet(event)">Später</button>
         <button class="btn btn--secondary btn--sm" id="vx-aftercall-done-btn" onclick="vxSaveAfterCallSheet(true)">Erledigen</button>
         <button class="btn btn--primary" id="vx-aftercall-save-btn" onclick="vxSaveAfterCallSheet(false)">Speichern</button>
       </div>
@@ -41276,7 +41282,13 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     return true;
   };
 
-  window.vxCloseAfterCallSheet = function(){
+  window.vxCloseAfterCallSheet = function(ev){
+    if (ev) {
+      if (ev.preventDefault) ev.preventDefault();
+      if (ev.stopPropagation) ev.stopPropagation();
+      ev.__vxHandled = true;
+    }
+    if (typeof window.vxSuppressGhostTap === 'function') window.vxSuppressGhostTap('aftercall-close', 450);
     var saveBtn = document.getElementById('vx-aftercall-save-btn');
     var doneBtn = document.getElementById('vx-aftercall-done-btn');
     if (typeof vxSetActionButtonLoading === 'function') {
@@ -41285,6 +41297,8 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     }
     setOverlay(false);
     afterCallRecordId = null;
+    afterCallPending = null;
+    return false;
   };
 
   function updateFollowFields(){
@@ -41349,35 +41363,21 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
       if (typeof vxSetActionButtonLoading === 'function') vxSetActionButtonLoading(saveBtn, false);
     }
   };
-
   function scheduleAfterCall(recordId){
-    var rec = resolveRecord(recordId);
-    if (!rec || !rec.fields) return;
-    afterCallPending = { recordId:String(recordId), startedAt:Date.now() };
-    setTimeout(function(){
-      if (!afterCallPending || afterCallPending.recordId !== String(recordId)) return;
-      if (document.visibilityState && document.visibilityState !== 'visible') return;
-      window.vxOpenAfterCallSheet(recordId);
-      afterCallPending = null;
-    }, 900);
+    afterCallPending = null;
+    return false;
   }
 
   function maybeOpenPendingAfterCall(){
-    if (!afterCallPending) return;
-    if (Date.now() - afterCallPending.startedAt > 10 * 60 * 1000) { afterCallPending = null; return; }
-    var id = afterCallPending.recordId;
     afterCallPending = null;
-    setTimeout(function(){ window.vxOpenAfterCallSheet(id); }, 250);
+    return false;
   }
-  document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') maybeOpenPendingAfterCall(); });
-  window.addEventListener('focus', maybeOpenPendingAfterCall);
 
   var oldDirectCall = window.directCall;
   window.directCall = function(recordId, encodedTarget){
     var raw = decodeURIComponent(encodedTarget || '').trim();
     if (!raw) { if (typeof toast === 'function') toast('Keine Telefonnummer vorhanden', 'warning'); return false; }
     var href = /^tel:/i.test(raw) ? raw : ('tel:' + raw.replace(/\s/g,''));
-    scheduleAfterCall(recordId);
     try { window.location.href = href; } catch(e) { window.location.assign(href); }
     return false;
   };
@@ -41386,9 +41386,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   var oldDetailCall = window.vxCallDetailAnrufen;
   if (typeof oldDetailCall === 'function' && !oldDetailCall._vxAfterCallWrapped) {
     window.vxCallDetailAnrufen = function(){
-      var id = window._vxCurrentCallId;
       var result = oldDetailCall.apply(this, arguments);
-      if (id) scheduleAfterCall(id);
       return result;
     };
     window.vxCallDetailAnrufen._vxAfterCallWrapped = true;
@@ -41398,7 +41396,6 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   if (typeof oldDprAction === 'function' && !oldDprAction._vxAfterCallWrapped) {
     window.dprAction = function(action, recId, extra){
       var result = oldDprAction.apply(this, arguments);
-      if (action === 'call' && recId) scheduleAfterCall(recId);
       return result;
     };
     window.dprAction._vxAfterCallWrapped = true;
@@ -41408,7 +41405,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   document.addEventListener('keydown', function(e){
     if (e.key === 'Escape') {
       var overlay = document.getElementById('vx-aftercall-overlay');
-      if (overlay && overlay.classList.contains('open')) { window.vxCloseAfterCallSheet(); }
+      if (overlay && overlay.classList.contains('open')) { window.vxCloseAfterCallSheet(e); }
     }
   });
 })();
