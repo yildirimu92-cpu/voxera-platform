@@ -7072,7 +7072,7 @@ body,.main{background:var(--vx-bg);}
           Anfragen
           <span class="nav-badge blue" id="badge-anrufe" style="display:none">–</span>
         </div>
-        <div class="nav-item" id="nav-assistent" onclick="showTab('assistent',this)">
+        <div class="nav-item" id="nav-assistent" onclick="showTab('assistent',this)" style="display:none;">
           <i class="ph-light ph-robot nav-icon" aria-hidden="true"></i>
           Assistent
         </div>
@@ -8168,7 +8168,12 @@ body,.main{background:var(--vx-bg);}
               <div class="settings-card-intro">
                 <div class="settings-module-tag">Systemstatus</div>
                 <div class="settings-card-title" style="margin-top:10px;">Statusübersicht</div>
-                <div class="settings-card-lead">Hier sehen Sie Ihre Voxera-Nummer und den Systemstatus auf einen Blick. Die Rufumleitung konfigurieren Sie im Tab Assistent.</div>
+                <div class="settings-card-lead">Hier sehen Sie Ihre Voxera-Nummer und den Systemstatus auf einen Blick. Die Rufumleitung und Assistent-Einstellungen verwalten Sie im Bereich Assistent.</div>
+              </div>
+              <div style="margin-bottom:12px;">
+                <button class="btn btn--secondary" onclick="showTab('assistent',document.getElementById('nav-assistent')||document.getElementById('mnav-assistent'))" style="width:100%;justify-content:center;">
+                  Zum Assistent-Bereich
+                </button>
               </div>
               <div class="settings-row">
                 <div class="settings-row-label">Voxera-Nummer</div>
@@ -8626,7 +8631,7 @@ body,.main{background:var(--vx-bg);}
         </span>
         Anfragen
       </button>
-      <button class="mobile-nav-btn" id="mnav-assistent" onclick="showTab('assistent',this)">
+      <button class="mobile-nav-btn" id="mnav-assistent" onclick="showTab('assistent',this)" style="display:none;">
         <span class="mobile-nav-icon-wrap">
           <i class="ph-bold ph-robot" aria-hidden="true"></i>
         </span>
@@ -8640,9 +8645,9 @@ body,.main{background:var(--vx-bg);}
       </button>
       <button class="mobile-nav-btn" id="mnav-mehr" onclick="showTab('mehr',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-dots-three" aria-hidden="true"></i>
+          <i class="ph-bold ph-gear" aria-hidden="true"></i>
         </span>
-        Mehr
+        Einstellungen
       </button>
       <!-- Hidden compat -->
       <button id="mnav-konto" style="display:none" onclick="showTab('einstellungen',this);openAccount()"></button>
