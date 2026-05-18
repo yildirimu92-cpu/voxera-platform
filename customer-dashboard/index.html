@@ -5482,6 +5482,11 @@ body,.main{background:var(--vx-bg);}
   #detail-overlay {
     align-items: flex-end !important;
   }
+  #detail-overlay:not(.open),
+  #detail-overlay[aria-hidden="true"] {
+    pointer-events: none !important;
+    display: none !important;
+  }
   .detail-head {
     border-radius: 16px 16px 0 0 !important;
     padding: 12px 16px !important;
@@ -24920,10 +24925,10 @@ function renderTaskDetailPage(taskRecord, history) {
         + '<section class="vxdr-header ' + _tLayoutClass + '" aria-label="Aufgabendetails">'
         +   '<button type="button" class="vxdr-back" aria-label="Zurück zu Anfragen" onclick="event.stopPropagation();vxHandleDetailBack();"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i><span>Anfragen</span></button>'
         +   '<div class="vxdr-identity">'
-        +     '<div class="vxdr-avatar" id="call-detail-avatar"><i class="ph-bold ph-' + _escT(visual.icon) + '" aria-hidden="true"></i></div>'
+        +     '<div class="vxdr-avatar" id="task-detail-avatar"><i class="ph-bold ph-' + _escT(visual.icon) + '" aria-hidden="true"></i></div>'
         +     '<div class="vxdr-copy">'
-        +       '<div class="vxdr-title-row"><div class="vxdr-title" id="call-detail-title">' + _escT(contact) + '</div></div>'
-        +       '<div class="vxdr-meta" id="call-detail-subtitle" aria-label="' + _escT(_tMeta) + '">' + _tMetaHtml + '</div>'
+        +       '<div class="vxdr-title-row"><div class="vxdr-title" id="task-detail-title">' + _escT(contact) + '</div></div>'
+        +       '<div class="vxdr-meta" id="task-detail-subtitle" aria-label="' + _escT(_tMeta) + '">' + _tMetaHtml + '</div>'
         +       '<div class="vxdr-pills">' + _tPillHtml + '</div>'
         +     '</div>'
         +   '</div>'
@@ -24948,16 +24953,16 @@ function renderTaskDetailPage(taskRecord, history) {
   // Legacy-Anker: einige existierende Funktionen referenzieren diese einzelnen IDs.
   // Sie werden jetzt vom neuen .vxd-header bereitgestellt — der Block unten bleibt
   // als Sicherheitsnetz, falls etwas im DOM bereits aktualisiert wurde.
-  var avatarEl = document.getElementById('call-detail-avatar');
+  var avatarEl = document.getElementById('task-detail-avatar') || document.getElementById('call-detail-avatar');
   if (avatarEl && !avatarEl.classList.contains('vxdr-avatar')) {
     avatarEl.style.background = 'rgba(255,255,255,.12)';
     avatarEl.style.border = '1px solid rgba(255,255,255,.2)';
     avatarEl.style.borderRadius = '10px';
     avatarEl.innerHTML = '<i class="ph-bold ph-' + visual.icon + '" style="color:#fff;font-size:18px;" aria-hidden="true"></i>';
   }
-  var titleEl = document.getElementById('call-detail-title');
+  var titleEl = document.getElementById('task-detail-title') || document.getElementById('call-detail-title');
   if (titleEl) titleEl.textContent = contact;
-  var subtitleEl = document.getElementById('call-detail-subtitle');
+  var subtitleEl = document.getElementById('task-detail-subtitle') || document.getElementById('call-detail-subtitle');
   if (subtitleEl) subtitleEl.textContent = meta.label + (phone ? ' · ' + phone : '');
   var dateEl = document.getElementById('call-detail-banner-date');
   if (dateEl) dateEl.textContent = dateRight;
@@ -44067,7 +44072,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   window.vxCloseOpenMenus=function(){document.querySelectorAll('.vx-row-menu.is-open,.vxdr-menu.is-open').forEach(el=>el.classList.remove('is-open'));document.querySelectorAll('#vxd-menu,[id$="-menu"]').forEach(el=>el.setAttribute('hidden',''));};
   window.vxResetInteractionState=function(reason){var allowClose=(reason==='close-detail'||reason==='navigation'); if(!allowClose||window.vxIsModalOpen()) return false; window.vxCloseOpenMenus(); try{document.body.classList.remove('vx-resizing-split','vx-row-menu-open');}catch(e){} return true;};
   window.vxRouteRowOpen=function(recordId,source){state.lastRowSource=source||'unknown'; state.lastRecordId=recordId||null; if(!recordId){console.warn('[vxRouteRowOpen] missing recordId',source); return false;} if(typeof window.openCallDetail==='function') {window.openCallDetail(recordId,source); return true;} if(typeof window.showCallDetail==='function'){window.showCallDetail(recordId,source); return true;} if(typeof window.vxOpenCallDetail==='function'){window.vxOpenCallDetail(recordId,source); return true;} console.warn('[vxRouteRowOpen] no detail opener found',recordId,source); return false;};
-  window.vxRunCallAction=function(recordId,action,source,ev){var t0=Date.now(); state.lastAction=action; state.lastRecordId=recordId||state.lastRecordId; if(!action){console.warn('[vxRunCallAction] missing action',source); return false;} var debug=window.VX_DEBUG===true; if(debug) console.debug('[vxRunCallAction:start]',action,source||'unknown'); var out=false; if(action==='back'){out=(typeof window.vxHandleDetailBack==='function') ? !!window.vxHandleDetailBack() : ((typeof window.hideCallDetail==='function') ? !!window.hideCallDetail() : false);} else if(action==='menu'){window.vxCloseOpenMenus(); out=true;} else if(action==='followup'){ if(typeof window.vxCallDetailFaelligkeit==='function') out=!!window.vxCallDetailFaelligkeit(ev); else if(typeof window.openFollowupDirect==='function') out=!!window.openFollowupDirect(recordId); else if(typeof window.openFollowup==='function') out=!!window.openFollowup(recordId);} else if(action==='done'){ if(typeof window.vxCallDetailErledigt==='function') out=!!window.vxCallDetailErledigt(ev); else if(typeof window.confirmTaskDone==='function') out=!!window.confirmTaskDone(recordId,null,'vx-interaction-layer'); } else if(action==='call'&&typeof window.startCall==='function') out=!!window.startCall(recordId); else if(action==='note'&&typeof window.openNote==='function') out=!!window.openNote(recordId); if(debug) console.debug('[vxRunCallAction:end]',action,(Date.now()-t0)+'ms'); return out;};
+  window.vxRunCallAction=function(recordId,action,source,ev){var t0=Date.now(); state.lastAction=action; state.lastRecordId=recordId||state.lastRecordId; if(!action){console.warn('[vxRunCallAction] missing action',source); return false;} var debug=window.VX_DEBUG===true; if(debug) console.debug('[vxRunCallAction:start]',action,source||'unknown'); var out=false; if(action==='back'){out=(typeof window.vxHandleDetailBack==='function') ? !!window.vxHandleDetailBack() : ((typeof window.hideCallDetail==='function') ? !!window.hideCallDetail() : false);} else if(action==='menu'){window.vxCloseOpenMenus(); out=true;} else if(action==='followup'){ if(typeof window.vxCallDetailFaelligkeit==='function') out=!!window.vxCallDetailFaelligkeit(ev); else if(typeof window.openFollowupDirect==='function') out=!!window.openFollowupDirect(recordId); else if(typeof window.openFollowup==='function') out=!!window.openFollowup(recordId);} else if(action==='done'){ if(typeof window.vxCallDetailErledigt==='function') out=!!window.vxCallDetailErledigt(ev); else if(typeof window.confirmTaskDone==='function') out=!!window.confirmTaskDone(recordId,null,'vx-interaction-layer'); } else if(action==='call'){ if(typeof window.vxCallDetailAnrufen==='function') out=!!window.vxCallDetailAnrufen(ev); else if(typeof window.startCall==='function') out=!!window.startCall(recordId); } else if(action==='note'&&typeof window.openNote==='function') out=!!window.openNote(recordId); if(debug) console.debug('[vxRunCallAction:end]',action,(Date.now()-t0)+'ms'); return out;};
   function rowRecordId(row){return row&& (row.getAttribute('data-rec-id')||row.getAttribute('data-record-id')||row.getAttribute('data-id'));}
   document.addEventListener('touchstart',function(ev){state.lastTouchTarget=ev&&ev.target?ev.target:null;},{passive:true,capture:true});
   document.addEventListener('touchend',function(ev){
