@@ -8973,7 +8973,7 @@ body,.main{background:var(--vx-bg);}
       </div>
       <div class="modal-body">
         <div id="followup-locked-warning" style="display:none;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400E;margin-bottom:14px;">
-          Dieser Anruf ist erledigt und kann nicht mehr bearbeitet werden.
+          Dieser Hinweis ist deaktiviert.
           <button onclick="dismissCompletedWarning()" aria-label="Hinweis ausblenden" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;">×</button>
         </div>
         <div id="followup-editable" class="followup-editable">
@@ -10077,17 +10077,15 @@ function renderDashFocusCard() {
     html += '<div style="margin-bottom:20px;"></div>';
   }
 
-  if (isCallback && phone && !isDone) {
+  if (isCallback && phone) {
     html += '<button type="button" class="btn dpr-btn" data-action="call" data-rec-id="' + id + '" data-phone="' + ph + '" style="width:100%;height:52px;background:#1A6FE8;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;font-family:inherit;"><i class="ph-bold ph-phone-call" style="font-size:18px;" aria-hidden="true"></i>Jetzt anrufen · ' + _esc(phone) + '</button>';
   } else {
     html += '<button type="button" class="btn dpr-btn" data-action="fulldetail" data-rec-id="' + id + '" data-phone="' + ph + '" style="width:100%;height:52px;background:#1A6FE8;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;font-family:inherit;"><i class="ph-bold ph-sidebar-simple" style="font-size:18px;" aria-hidden="true"></i>Details</button>';
   }
-  if (!isDone) {
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
-    html += '<button type="button" class="btn dpr-btn" data-action="followup" data-rec-id="' + id + '" data-phone="' + ph + '" style="height:42px;background:#fff;border:0.5px solid #E4E8F0;border-radius:10px;color:#37415A;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;"><i class="ph-bold ph-calendar" style="font-size:14px;" aria-hidden="true"></i>Fälligkeit</button>';
-    html += '<button type="button" class="btn dpr-btn" data-action="done" data-rec-id="' + id + '" data-phone="' + ph + '" style="height:42px;background:#fff;border:0.5px solid #E4E8F0;border-radius:10px;color:#37415A;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;"><i class="ph-bold ph-check" style="font-size:14px;" aria-hidden="true"></i>Erledigt</button>';
-    html += '</div>';
-  }
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+  html += '<button type="button" class="btn dpr-btn" data-action="followup" data-rec-id="' + id + '" data-phone="' + ph + '" style="height:42px;background:#fff;border:0.5px solid #E4E8F0;border-radius:10px;color:#37415A;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;"><i class="ph-bold ph-calendar" style="font-size:14px;" aria-hidden="true"></i>Fälligkeit</button>';
+  html += '<button type="button" class="btn dpr-btn" data-action="done" data-rec-id="' + id + '" data-phone="' + ph + '" style="height:42px;background:#fff;border:0.5px solid #E4E8F0;border-radius:10px;color:#37415A;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;"><i class="ph-bold ph-check" style="font-size:14px;" aria-hidden="true"></i>Erledigt</button>';
+  html += '</div>';
   html += '</div></div>'; // /body + /card
 
   el.innerHTML = html;
@@ -12360,10 +12358,6 @@ function vxTodayBuildRowMenuHtml(record, phone, typeMeta) {
   var isDone = (typeof vxHeuteIsDoneRecord === 'function') ? vxHeuteIsDoneRecord(record) : isClosedStatus(f.dashboard_status || f.status);
   var html = '';
   html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
-  if (isDone) {
-    html += '<button type="button" data-action="done-info" data-rec-id="'+id+'">Hinweis zu abgeschlossenem Eintrag</button>';
-    return html;
-  }
   if (isManual) {
     html += '<button type="button" data-action="edit" data-rec-id="'+id+'">Bearbeiten</button>';
     html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Fälligkeit ändern</button>';
@@ -12388,10 +12382,6 @@ function vxAnfragenBuildRowMenuHtml(record, phone, typeMeta) {
   var isDone = (typeof vxHeuteIsDoneRecord === 'function') ? vxHeuteIsDoneRecord(record) : isClosedStatus(f.dashboard_status || f.status);
   var html = '';
   html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
-  if (isDone) {
-    html += '<button type="button" data-action="done-info" data-rec-id="'+id+'">Hinweis zu abgeschlossenem Eintrag</button>';
-    return html;
-  }
   if (isManual) {
     html += '<button type="button" data-action="edit" data-rec-id="'+id+'">Bearbeiten</button>';
     html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Fälligkeit ändern</button>';
@@ -16149,12 +16139,7 @@ function vxOnboardingMetaIsKnown(meta) {
 }
 
 function vxOnboardingShouldAutoOpen(meta) {
-  if (!meta || typeof meta !== 'object') return false;
-  var customerId = String(meta.customerId || '').trim();
-  if (!customerId) return false;
-  if (meta.onboardingCompleted === true) return false;
-  if (window.__vxOnboardingSessionCompleted === true) return false;
-  return meta.onboardingCompleted === false;
+  return false;
 }
 
 function vxOnboardingInit(options) {
@@ -17213,8 +17198,7 @@ async function loadCustomerMeta() {
   };
   vxDebugInfo('[voxera-dashboard] customerMeta mapped', customerMeta);
 
-  // Onboarding Modal
-  setTimeout(function() { vxOnboardingInit(); }, 800);
+  // Onboarding/Wizard Autostart deaktiviert
 
   // Add-on Status laden (Tabelle evtl. nicht vorhanden — graceful fallback)
   try {
@@ -31594,9 +31578,7 @@ function tourDone() {
   showTab('dashboard', navEl, { historyMode: 'none' });
 }
 
-function tourCheckFirstLogin() {
-  try { if (!localStorage.getItem(TOUR_STORAGE_KEY)) setTimeout(tourStart, 1400); } catch(_e) {}
-}
+function tourCheckFirstLogin() { return false; }
 
 window.addEventListener('resize', function() { if (_tourActive) tourRender(); });
 </script>
@@ -41084,23 +41066,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     }
   }
   function applyDoneReadonly(){
-    var rec = currentDetailRecord();
-    var isDone = !!(typeof window.vxIsReadonlyDoneRecord === 'function' && window.vxIsReadonlyDoneRecord(rec));
-    if (!isDone) {
-      resetDoneReadonly();
-      return;
-    }
-    setBtnReadonly(document.getElementById('vx-cd-qa-done'), 'Erledigt');
-    setBtnReadonly(document.getElementById('vx-cd-bb-due'), 'Erledigt');
-    hideMenuDoneActions();
-    var content = document.getElementById('call-detail-content');
-    if (content && !content.querySelector('[data-vx-readonly-note="done"]')) {
-      var note = document.createElement('div');
-      note.setAttribute('data-vx-readonly-note','done');
-      note.style.cssText = 'margin:0 0 12px;padding:10px 12px;border:0.5px solid var(--line);border-radius:12px;background:var(--surface2);font-size:12px;color:var(--slate);line-height:1.45;';
-      note.textContent = 'Dieser Eintrag ist erledigt. Operative Aktionen sind gesperrt.';
-      content.insertBefore(note, content.firstChild);
-    }
+    resetDoneReadonly();
   }
   var pending = false;
   function schedule(){
@@ -41822,29 +41788,10 @@ button[data-action="archive"],
     var page = document.getElementById('call-detail-page');
     var content = document.getElementById('call-detail-content');
     if (!page || !content || !page.classList.contains('is-open')) return;
-    var rec = resolveCurrentRecord();
-    var done = isDoneRecord(rec);
-    page.classList.toggle('vx-detail-done-readonly', !!done);
-    if (!done) {
-      clearStatusCard(content);
-      resetMenuLabel();
-      return;
-    }
-    removeOperationalCards(content);
-    ensureStatusCard(content);
+    page.classList.remove('vx-detail-done-readonly');
+    clearStatusCard(content);
+    resetMenuLabel();
     ensureMenuLabel();
-    try {
-      var menu = document.getElementById('vxd-menu');
-      if (menu) {
-        Array.prototype.slice.call(menu.querySelectorAll('button')).forEach(function(btn){
-          var t = String(btn.textContent || '').toLowerCase();
-          if (t.indexOf('follow-up') >= 0 || t.indexOf('erledigt') >= 0 || t.indexOf('fälligkeit') >= 0 || t.indexOf('faelligkeit') >= 0 || t.indexOf('anrufen') >= 0) {
-            btn.style.display = 'none';
-            btn.setAttribute('aria-hidden','true');
-          }
-        });
-      }
-    } catch(e) {}
   }
 
   var scheduled = false;
@@ -43436,9 +43383,9 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
       return { allowed:false, reason:'call_not_ready', state:s };
     }
     if (s === 'done' || s === 'archived') {
-      if (action === 'view' || action === 'more') return { allowed:true, reason:'readonly_allowed', state:s };
-      if (action === 'reopen') return { allowed:true, reason:'reopen_allowed', state:s };
-      return { allowed:false, reason:'terminal_readonly', state:s };
+      if (action === 'call' || action === 'after_call') return { allowed:hasPhone, reason:hasPhone?'allowed':'missing_phone', state:s };
+      if (action === 'unread') return { allowed:false, reason:'unread_not_relevant', state:s };
+      return { allowed:true, reason:'allowed_done_state', state:s };
     }
     if (action === 'call' || action === 'after_call') return { allowed:hasPhone, reason:hasPhone?'allowed':'missing_phone', state:s };
     if (action === 'done') return { allowed:true, reason:'allowed', state:s };
@@ -43494,8 +43441,8 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
   function vxToastGuardMessage(result, action){
     var msg = '';
     if (!result) return;
-    if (result.reason === 'terminal_readonly') msg = 'Dieser Eintrag ist abgeschlossen. Operative Aktionen sind gesperrt.';
-    else if (result.reason === 'call_not_ready') msg = result.state === 'live' ? 'Der Anruf läuft noch. Aktionen sind erst nach der Verarbeitung möglich.' : 'Die Anrufdaten werden noch verarbeitet.';
+    if (result.reason === 'call_not_ready') msg = result.state === 'live' ? 'Der Anruf läuft noch. Aktionen sind erst nach der Verarbeitung möglich.' : 'Die Anrufdaten werden noch verarbeitet.';
+    else if (result.reason === 'terminal_readonly') msg = '';
     else if (result.reason === 'missing_phone') msg = 'Keine Telefonnummer vorhanden.';
     else if (result.reason === 'unread_not_relevant') msg = 'Ungelesen ist nur für neue eingehende Anrufe relevant.';
     else if (result.reason === 'record_missing') msg = 'Eintrag konnte nicht eindeutig zugeordnet werden.';
@@ -44154,7 +44101,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     ev.__vxHandled=true;
     window.vxRouteRowOpen(id,row.getAttribute('data-source')||row.id||'row-click');
   },true);
-  document.addEventListener('click',function(ev){ if(ev.__vxHandled) return; var t=ev.target; if(vxGhostTapSuppressed(t)){ ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; return; } var b=ev.target&&ev.target.closest?ev.target.closest('[data-action],button'):null; if(!b) return; var form=b.closest&&b.closest('form'); if(form&&!b.getAttribute('type')) b.setAttribute('type','button'); var action=(b.getAttribute('data-action')||'').trim(); if(action==='reopen'||action==='done-info'){ if(window.vxToast) window.vxToast('Dieser Eintrag ist abgeschlossen. Für einen erneuten Kontakt wird ein neuer Folge-Eintrag erstellt.','info'); ev.preventDefault(); return;} if(!action) return; if(b.disabled){console.warn('[vx] action blocked disabled',action,b.id||b.className); return;} var rid=b.getAttribute('data-rec-id')||b.getAttribute('data-record-id')||state.lastRecordId; if(['call','followup','done','note','menu','back'].includes(action)){ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; window.vxRunCallAction(rid,action,'detail-button',ev);}},true);
+  document.addEventListener('click',function(ev){ if(ev.__vxHandled) return; var t=ev.target; if(vxGhostTapSuppressed(t)){ ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; return; } var b=ev.target&&ev.target.closest?ev.target.closest('[data-action],button'):null; if(!b) return; var form=b.closest&&b.closest('form'); if(form&&!b.getAttribute('type')) b.setAttribute('type','button'); var action=(b.getAttribute('data-action')||'').trim(); if(action==='reopen'||action==='done-info'){ ev.preventDefault(); return;} if(!action) return; if(b.disabled){console.warn('[vx] action blocked disabled',action,b.id||b.className); return;} var rid=b.getAttribute('data-rec-id')||b.getAttribute('data-record-id')||state.lastRecordId; if(['call','followup','done','note','menu','back'].includes(action)){ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; window.vxRunCallAction(rid,action,'detail-button',ev);}},true);
   document.addEventListener('click',function(ev){
     if(!vxTiming.active) return;
     var t=ev&&ev.target;
