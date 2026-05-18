@@ -9701,8 +9701,8 @@ const CALL_STATUS = Object.freeze({
   ARCHIVED: 'archived'
 });
 const CALL_STATUS_LABELS = Object.freeze({
-  [CALL_STATUS.NEW]: 'Neu',
-  [CALL_STATUS.IN_PROGRESS]: 'In Bearbeitung',
+  [CALL_STATUS.NEW]: 'Offen',
+  [CALL_STATUS.IN_PROGRESS]: 'Offen',
   [CALL_STATUS.FOLLOW_UP_SCHEDULED]: 'Geplant',
   [CALL_STATUS.CLOSED]: 'Erledigt',
   [CALL_STATUS.ARCHIVED]: 'Archiviert'
@@ -11752,7 +11752,7 @@ function vxClassifyRequestRecord(record) {
   var isPlanned = !isDone && vxHasPlannedNextAction(record);
   var isUnread = vxIsUnreadRecord(record);
   var bucket = isDone ? 'done' : (isPlanned ? 'planned' : 'inbox');
-  var statusLabel = bucket === 'done' ? 'Erledigt' : (bucket === 'planned' ? 'Geplant' : 'Inbox');
+  var statusLabel = bucket === 'done' ? 'Erledigt' : (bucket === 'planned' ? 'Geplant' : 'Offen');
   var statusTone = bucket === 'done' ? 'done' : (bucket === 'planned' ? 'planned' : (isUnread ? 'new' : 'neutral'));
   var reason = isDone
     ? 'status_done_or_closed'
@@ -14251,7 +14251,7 @@ async function loadAssistentRequests() {
 
     const statusMap = {
       open:        { label: 'Offen',           color: '#F59E0B', bg: '#FEF3C7' },
-      in_progress: { label: 'In Bearbeitung',  color: '#1A6FE8', bg: '#EFF6FF' },
+      in_progress: { label: 'Offen',           color: '#1A6FE8', bg: '#EFF6FF' },
       done:        { label: 'Erledigt',         color: '#059669', bg: '#D1FAE5' }
     };
 
@@ -19301,10 +19301,10 @@ function renderCallDetailPage(call, history) {
   const statusLabel = (typeof vxGetInquiryDisplayStatus === 'function')
     ? vxGetInquiryDisplayStatus({ id: call.id, fields: call })
     : (statusVal === 'closed' || statusVal === 'done' ? 'Erledigt'
-      : statusVal === 'archived' || statusVal === 'archiviert' ? 'Erledigt'
-      : statusVal === 'in_progress' ? 'In Bearbeitung'
+      : statusVal === 'archived' || statusVal === 'archiviert' ? 'Archiviert'
+      : statusVal === 'in_progress' ? 'Offen'
       : statusVal === 'follow_up_scheduled' ? 'Geplant'
-      : 'Neu');
+      : 'Offen');
   const statusColor = statusVal === 'closed' || statusVal === 'done' ? '#059669'
     : statusVal === 'in_progress' ? '#1A6FE8'
     : statusVal === 'follow_up_scheduled' ? '#E8C547'
@@ -23638,9 +23638,9 @@ async function doStatusChange(recordId, newStatus, rowElement) {
   }
 
   const icons = {
-    [CALL_STATUS.NEW]:'Neu',
-    [CALL_STATUS.IN_PROGRESS]:'In Bearbeitung',
-    [CALL_STATUS.FOLLOW_UP_SCHEDULED]:'In Bearbeitung',
+    [CALL_STATUS.NEW]:'Offen',
+    [CALL_STATUS.IN_PROGRESS]:'Offen',
+    [CALL_STATUS.FOLLOW_UP_SCHEDULED]:'Geplant',
     [CALL_STATUS.CLOSED]:'Erledigt',
     [CALL_STATUS.ARCHIVED]:'Archiviert'
   };
@@ -42540,11 +42540,15 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     return n ? (n + 's') : '';
   }
   function statusLabel(call){
+    var workflow = (typeof vxGetWorkflowState === 'function') ? vxGetWorkflowState(call) : null;
+    var state = String((workflow && workflow.state) || '').toLowerCase();
+    if (state === 'archived') return 'Archiviert';
+    if (state === 'done') return 'Erledigt';
+    if (state === 'planned') return 'Geplant';
     var s = String((call && (call.dashboard_status || call.status)) || '').toLowerCase();
-    if (s === 'closed' || s === 'done' || s === 'erledigt') return 'Erledigt';
-    if (s === 'archived' || s === 'archiviert') return 'Erledigt';
+    if (s === 'archived' || s === 'archiviert') return 'Archiviert';
+    if (s === 'closed' || s === 'done' || s === 'erledigt' || s === 'abgeschlossen') return 'Erledigt';
     if (call && call.follow_up_at) return 'Geplant';
-    if (s === 'in_progress' || s === 'in bearbeitung') return 'In Bearbeitung';
     return 'Offen';
   }
   function isDone(call){
