@@ -8957,7 +8957,7 @@ body,.main{background:var(--vx-bg);}
 
 
 <!-- CALL FOLLOW-UP MODAL -->
-<div class="overlay overlay--sheet" id="followup-overlay" onclick="if(event.target===this)closeFollowup()" role="dialog" aria-modal="true" aria-labelledby="followup-title" aria-hidden="true">
+<div class="overlay overlay--sheet" id="followup-overlay" onclick="if(event.target===this)closeFollowup(event)" role="dialog" aria-modal="true" aria-labelledby="followup-title" aria-hidden="true">
   <div class="modal followup-modal" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
@@ -8966,7 +8966,7 @@ body,.main{background:var(--vx-bg);}
           <div class="modal-head-row">
             <div class="modal-head-icon"><i class="ph-bold ph-phone-outgoing" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
             <h3 id="followup-title">Follow-up planen</h3>
-            <button class="modal-close-btn" onclick="closeFollowup()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
+            <button class="modal-close-btn" onclick="closeFollowup(event)" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
           <div class="modal-head-sub followup-subtitle" id="followup-sub"></div>
         </div>
@@ -9014,7 +9014,7 @@ body,.main{background:var(--vx-bg);}
         <div id="followup-reminder-selected"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeFollowup()">Abbrechen</button>
+        <button class="btn btn--secondary btn--sm" onclick="closeFollowup(event)">Abbrechen</button>
         <button class="btn btn--primary" id="followup-save-btn" onclick="saveFollowup()">Planen</button>
       </div>
     </div>
@@ -9153,7 +9153,7 @@ body,.main{background:var(--vx-bg);}
 </div>
 
 <!-- CONFIRM MODAL -->
-<div class="overlay overlay--center confirm-variant" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal()" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-hidden="true">
+<div class="overlay overlay--center confirm-variant" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal(event)" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-hidden="true">
   <div class="modal modal--confirm modal--compact confirm-tone-primary" id="confirm-modal" style="border-radius:var(--r-xl);max-width:360px;" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
@@ -9161,7 +9161,7 @@ body,.main{background:var(--vx-bg);}
           <div class="modal-head-row">
             <div class="modal-head-icon" id="confirm-icon"><i class="ph-bold ph-warning-circle" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
             <h3 id="confirm-title">Bitte bestätigen</h3>
-            <button class="modal-close-btn" onclick="closeConfirmModal()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
+            <button class="modal-close-btn" onclick="closeConfirmModal(event)" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
       </div>
@@ -9170,7 +9170,7 @@ body,.main{background:var(--vx-bg);}
         <label id="confirm-checkbox-wrap" class="confirm-checkbox-wrap" style="display:none;"><input type="checkbox" id="confirm-checkbox"> <span id="confirm-checkbox-label"></span></label>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeConfirmModal()">Abbrechen</button>
+        <button class="btn btn--secondary btn--sm" onclick="closeConfirmModal(event)">Abbrechen</button>
         <button class="btn btn--primary" id="confirm-ok-btn" onclick="runConfirmModalAction()">Bestätigen</button>
       </div>
     </div>
@@ -23398,6 +23398,8 @@ window.vxCloseAfterSuccessfulCompletion = vxCloseAfterSuccessfulCompletion;
 })();
 
 function openConfirmModal(config) {
+  var __vxT0 = Date.now();
+  if (window.VX_DEBUG === true) console.debug('[vxDoneModalOpen:start]');
   rememberOverlayFocusReturn('confirm-overlay');
   confirmModalBusy = false;
   const titleEl = document.getElementById('confirm-title');
@@ -23437,9 +23439,13 @@ function openConfirmModal(config) {
   if (overlay) overlay.classList.add('open');
   setOverlayAriaHidden('confirm-overlay', false);
   syncOverlayScrollLock();
+  if (window.VX_DEBUG === true) console.debug('[vxDoneModalOpen:end]', (Date.now() - __vxT0) + 'ms');
 }
 
-function closeConfirmModal() {
+function closeConfirmModal(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (window.VX_DEBUG === true) console.debug('[vxModalClose:start] confirm');
   if (confirmModalBusy) return;
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.remove('open');
@@ -23457,6 +23463,8 @@ function closeConfirmModal() {
   if (doneBtn && doneBtn.classList.contains('is-loading')) {
     doneBtn.classList.remove('is-loading');
   }
+  if (typeof window.vxSuppressGhostTap === 'function') window.vxSuppressGhostTap('modal-close', 450);
+  if (window.VX_DEBUG === true) console.debug('[vxModalClose:end] confirm');
 }
 
 async function runConfirmModalAction() {
@@ -23687,6 +23695,8 @@ function openFollowupDirect(recordId) {
 }
 
 function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt) {
+  var __vxT0 = Date.now();
+  if (window.VX_DEBUG === true) console.debug('[vxFollowupModalOpen:start]', String(recordId || ''));
   rememberOverlayFocusReturn('followup-overlay');
   notizRecordId = recordId;
   const done = isClosedStatus(currentStatus);
@@ -23717,6 +23727,7 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
   document.getElementById('followup-overlay').classList.add('open');
   setOverlayAriaHidden('followup-overlay', false);
   syncOverlayScrollLock();
+  if (window.VX_DEBUG === true) console.debug('[vxFollowupModalOpen:end]', (Date.now() - __vxT0) + 'ms');
 }
 
 function _completedWarningDismissed(recordId) {
@@ -23758,7 +23769,10 @@ function dismissCompletedWarning() {
   }
 }
 
-function closeFollowup() {
+function closeFollowup(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (window.VX_DEBUG === true) console.debug('[vxModalClose:start] followup');
   vxSetActionButtonLoading(document.getElementById('followup-save-btn'), false);
   document.getElementById('followup-overlay').classList.remove('open');
   setOverlayAriaHidden('followup-overlay', true);
@@ -23775,6 +23789,8 @@ function closeFollowup() {
     editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = false; });
   }
   restoreOverlayFocus('followup-overlay');
+  if (typeof window.vxSuppressGhostTap === 'function') window.vxSuppressGhostTap('modal-close', 450);
+  if (window.VX_DEBUG === true) console.debug('[vxModalClose:end] followup');
 }
 
 async function saveFollowup() {
@@ -25275,9 +25291,9 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
       return;
     }
     if (confirmModalBusy && document.getElementById('confirm-overlay').classList.contains('open')) return;
-    if (document.getElementById('confirm-overlay').classList.contains('open')) { closeConfirmModal(); return; }
+    if (document.getElementById('confirm-overlay').classList.contains('open')) { closeConfirmModal(e); return; }
     if (document.getElementById('manual-task-overlay').classList.contains('open')) { closeManualTaskModal(); return; }
-    if (document.getElementById('followup-overlay').classList.contains('open')) { closeFollowup(); return; }
+    if (document.getElementById('followup-overlay').classList.contains('open')) { closeFollowup(e); return; }
     if (document.getElementById('notiz-overlay').classList.contains('open')) { closeNotiz(); return; }
     if (document.getElementById('detail-overlay').classList.contains('open')) { closeDetail(); }
   });
@@ -43947,6 +43963,18 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   if (window.__vxInteractionLayerV1Installed) return;
   window.__vxInteractionLayerV1Installed = true;
   var state={lastAction:null,lastRowSource:null,lastRecordId:null,lastTouchTs:0,lastTouchTarget:null,lastTapRowTs:0,lastTapRowId:null,resizing:false,pendingTouchRowId:null};
+  window.vxSuppressGhostTapUntil = Number(window.vxSuppressGhostTapUntil||0);
+  window.vxSuppressGhostTap=function(reason,durationMs){
+    var ms=Math.max(120,Math.min(1200,Number(durationMs)||450));
+    window.vxSuppressGhostTapUntil=Date.now()+ms;
+    if(window.VX_DEBUG===true) console.debug('[vx] ghost-tap suppress',reason||'unknown',ms);
+    return window.vxSuppressGhostTapUntil;
+  };
+  function vxGhostTapSuppressed(target){
+    if(Date.now()>Number(window.vxSuppressGhostTapUntil||0)) return false;
+    if(window.vxIsModalOpen&&window.vxIsModalOpen()) return false;
+    return !(target&&target.closest&&target.closest('#followup-overlay.open,#confirm-overlay.open,.overlay.open,[role="dialog"].open'));
+  }
   var ROW_SEL='.dpr-card,[data-rec-id],[data-record-id],[data-id][data-row],.vx-heute-row,.vx-anf-row,.vx-history-row,.vx-done-row';
   var INTERACTIVE_SEL='button,a,input,select,textarea,[role="button"],[data-action],.vx-action,.vx-menu-trigger,.modal button,.overlay button,.modal-close,.close-btn,.modal-close-btn,#anrufe-split-resizer';
   function visible(el){if(!el) return false; var cs=getComputedStyle(el); return cs.display!=='none'&&cs.visibility!=='hidden'&&cs.pointerEvents!=='none';}
@@ -43989,7 +44017,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   window.vxCloseOpenMenus=function(){document.querySelectorAll('.vx-row-menu.is-open,.vxdr-menu.is-open').forEach(el=>el.classList.remove('is-open'));document.querySelectorAll('#vxd-menu,[id$="-menu"]').forEach(el=>el.setAttribute('hidden',''));};
   window.vxResetInteractionState=function(reason){var allowClose=(reason==='close-detail'||reason==='navigation'); if(!allowClose||window.vxIsModalOpen()) return false; window.vxCloseOpenMenus(); try{document.body.classList.remove('vx-resizing-split','vx-row-menu-open');}catch(e){} return true;};
   window.vxRouteRowOpen=function(recordId,source){state.lastRowSource=source||'unknown'; state.lastRecordId=recordId||null; if(!recordId){console.warn('[vxRouteRowOpen] missing recordId',source); return false;} if(typeof window.openCallDetail==='function') {window.openCallDetail(recordId,source); return true;} if(typeof window.showCallDetail==='function'){window.showCallDetail(recordId,source); return true;} if(typeof window.vxOpenCallDetail==='function'){window.vxOpenCallDetail(recordId,source); return true;} console.warn('[vxRouteRowOpen] no detail opener found',recordId,source); return false;};
-  window.vxRunCallAction=function(recordId,action,source){state.lastAction=action; state.lastRecordId=recordId||state.lastRecordId; if(!action){console.warn('[vxRunCallAction] missing action',source); return false;} if(action==='back'){if(typeof window.vxHandleDetailBack==='function') return !!window.vxHandleDetailBack(); if(typeof window.hideCallDetail==='function') return !!window.hideCallDetail(); return false;} if(action==='menu'){window.vxCloseOpenMenus(); return true;} if(action==='followup'&&typeof window.openFollowup==='function') return !!window.openFollowup(recordId); if(action==='done'&&typeof window.openDoneConfirm==='function') return !!window.openDoneConfirm(recordId); if(action==='call'&&typeof window.startCall==='function') return !!window.startCall(recordId); if(action==='note'&&typeof window.openNote==='function') return !!window.openNote(recordId); return false;};
+  window.vxRunCallAction=function(recordId,action,source){var t0=Date.now(); state.lastAction=action; state.lastRecordId=recordId||state.lastRecordId; if(!action){console.warn('[vxRunCallAction] missing action',source); return false;} var debug=window.VX_DEBUG===true; if(debug) console.debug('[vxRunCallAction:start]',action,source||'unknown'); var out=false; if(action==='back'){out=(typeof window.vxHandleDetailBack==='function') ? !!window.vxHandleDetailBack() : ((typeof window.hideCallDetail==='function') ? !!window.hideCallDetail() : false);} else if(action==='menu'){window.vxCloseOpenMenus(); out=true;} else if(action==='followup'){ if(typeof window.vxCallDetailFaelligkeit==='function') out=!!window.vxCallDetailFaelligkeit(); else if(typeof window.openFollowupDirect==='function') out=!!window.openFollowupDirect(recordId); else if(typeof window.openFollowup==='function') out=!!window.openFollowup(recordId);} else if(action==='done'){ if(typeof window.vxCallDetailErledigt==='function') out=!!window.vxCallDetailErledigt(); else if(typeof window.confirmTaskDone==='function') out=!!window.confirmTaskDone(recordId,null,'vx-interaction-layer'); } else if(action==='call'&&typeof window.startCall==='function') out=!!window.startCall(recordId); else if(action==='note'&&typeof window.openNote==='function') out=!!window.openNote(recordId); if(debug) console.debug('[vxRunCallAction:end]',action,(Date.now()-t0)+'ms'); return out;};
   function rowRecordId(row){return row&& (row.getAttribute('data-rec-id')||row.getAttribute('data-record-id')||row.getAttribute('data-id'));}
   document.addEventListener('touchstart',function(ev){state.lastTouchTarget=ev&&ev.target?ev.target:null;},{passive:true,capture:true});
   document.addEventListener('touchend',function(ev){
@@ -44002,6 +44030,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   document.addEventListener('click',function(ev){
     if(state.resizing) return;
     var t=ev.target; if(!t||!t.closest) return;
+    if(vxGhostTapSuppressed(t)){ ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; return; }
     if(t.closest('.mobile-nav-btn,.nav-item,[data-tab]')&&window.vxIsModalOpen&&window.vxIsModalOpen()){ ev.preventDefault(); return; }
     if(isInteractiveChild(t)) return;
     var row=t.closest(ROW_SEL); if(!row) return;
@@ -44011,7 +44040,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     state.lastTapRowId=id; state.lastTapRowTs=now; state.pendingTouchRowId=null;
     window.vxRouteRowOpen(id,row.getAttribute('data-source')||row.id||'row-click');
   },true);
-  document.addEventListener('click',function(ev){var b=ev.target&&ev.target.closest?ev.target.closest('[data-action],button'):null; if(!b) return; var form=b.closest&&b.closest('form'); if(form&&!b.getAttribute('type')) b.setAttribute('type','button'); var action=(b.getAttribute('data-action')||'').trim(); if(action==='reopen'||action==='done-info'){ if(window.vxToast) window.vxToast('Dieser Eintrag ist abgeschlossen. Für einen erneuten Kontakt wird ein neuer Folge-Eintrag erstellt.','info'); ev.preventDefault(); return;} if(!action) return; if(b.disabled){console.warn('[vx] action blocked disabled',action,b.id||b.className); return;} var rid=b.getAttribute('data-rec-id')||b.getAttribute('data-record-id')||state.lastRecordId; if(['call','followup','done','note','menu','back'].includes(action)){ev.stopPropagation(); window.vxRunCallAction(rid,action,'detail-button');}},true);
+  document.addEventListener('click',function(ev){ if(ev.__vxHandled) return; var t=ev.target; if(vxGhostTapSuppressed(t)){ ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; return; } var b=ev.target&&ev.target.closest?ev.target.closest('[data-action],button'):null; if(!b) return; var form=b.closest&&b.closest('form'); if(form&&!b.getAttribute('type')) b.setAttribute('type','button'); var action=(b.getAttribute('data-action')||'').trim(); if(action==='reopen'||action==='done-info'){ if(window.vxToast) window.vxToast('Dieser Eintrag ist abgeschlossen. Für einen erneuten Kontakt wird ein neuer Folge-Eintrag erstellt.','info'); ev.preventDefault(); return;} if(!action) return; if(b.disabled){console.warn('[vx] action blocked disabled',action,b.id||b.className); return;} var rid=b.getAttribute('data-rec-id')||b.getAttribute('data-record-id')||state.lastRecordId; if(['call','followup','done','note','menu','back'].includes(action)){ev.preventDefault(); ev.stopPropagation(); ev.__vxHandled=true; window.vxRunCallAction(rid,action,'detail-button');}},true);
   var rz=document.getElementById('anrufe-split-resizer');
   if(rz){rz.addEventListener('pointerdown',function(ev){state.resizing=true; document.body.classList.add('vx-resizing-split'); ev.stopPropagation();},{capture:true}); rz.addEventListener('pointerup',function(){state.resizing=false; document.body.classList.remove('vx-resizing-split');},{capture:true}); rz.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();},{capture:true});}
   window.addEventListener('unhandledrejection',function(ev){console.warn('[vx] unhandled rejection',ev.reason);});
