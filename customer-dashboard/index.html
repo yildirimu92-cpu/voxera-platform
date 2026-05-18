@@ -83,8 +83,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Voxera Dashboard</title>
 <!-- BUILD: 2026-05-17-v3 -->
-<meta name="vx-build" content="2026-05-17-v3-aftercall-safe">
-<script>window.__VX_BUILD = "2026-05-17-v3-bottom-bar-disabled";</script>
+<meta name="vx-build" content="2026-05-17-v3-bottom-bar-css-disabled">
+<script>window.__VX_BUILD = "2026-05-17-v3-bottom-bar-css-disabled";</script>
 
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
@@ -39505,7 +39505,9 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     right:0!important;
     bottom:0!important;
     z-index:15000!important;
-    display:grid!important;
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
     grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 52px!important;
     gap:9px!important;
     padding:10px 12px calc(10px + env(safe-area-inset-bottom))!important;
@@ -39574,7 +39576,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   body #call-detail-banner.vxdr-banner .vxdr-title{font-size:21px!important;}
   body #call-detail-banner.vxdr-banner .vxdr-meta{font-size:15px!important;}
   body #call-detail-banner.vxdr-banner .vxdr-pill{height:25px!important;font-size:11.5px!important;padding:0 10px!important;}
-  body #vx-cd-bottom-bar{grid-template-columns:minmax(0,1fr) minmax(0,.96fr) 48px!important;gap:7px!important;padding-left:10px!important;padding-right:10px!important;}
+  body #vx-cd-bottom-bar{display:none!important;visibility:hidden!important;pointer-events:none!important;grid-template-columns:minmax(0,1fr) minmax(0,.96fr) 48px!important;gap:7px!important;padding-left:10px!important;padding-right:10px!important;}
   body #vx-cd-bottom-bar button{height:46px!important;font-size:12px!important;}
 }
 
@@ -40510,6 +40512,9 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 
   /* Mobile Bottom-Bar: konsistente Buttons, gleiche Höhe/Radien. */
   body #vx-cd-bottom-bar{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr) 48px!important;
     gap:8px!important;
     padding:9px 12px calc(9px + env(safe-area-inset-bottom))!important;
@@ -40541,7 +40546,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   }
   body #call-detail-page.is-open #call-detail-banner.vxdr-banner .vxdr-title{font-size:14.5px!important;}
   body #call-detail-page.is-open #call-detail-banner.vxdr-banner .vxdr-meta{font-size:10.5px!important;}
-  body #vx-cd-bottom-bar{grid-template-columns:minmax(0,1fr) minmax(0,.95fr) 46px!important;gap:7px!important;padding-left:10px!important;padding-right:10px!important;}
+  body #vx-cd-bottom-bar{display:none!important;visibility:hidden!important;pointer-events:none!important;grid-template-columns:minmax(0,1fr) minmax(0,.95fr) 46px!important;gap:7px!important;padding-left:10px!important;padding-right:10px!important;}
   body #vx-cd-bottom-bar button{height:44px!important;min-height:44px!important;font-size:12px!important;}
 }
 
@@ -40601,6 +40606,9 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     right:0!important;
     width:100%!important;
     box-sizing:border-box!important;
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
   }
   body .mobile-header{z-index:45!important;}
   body .mobile-nav{z-index:50!important;}
@@ -40658,7 +40666,9 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     bottom:0!important;
     width:100%!important;
     z-index:3!important;
-    display:grid;
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr) 48px!important;
     gap:8px!important;
     padding:8px 12px 8px!important;
@@ -40684,6 +40694,9 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 
 @media(max-width:390px){
   body #vx-cd-bottom-bar{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
     grid-template-columns:minmax(0,1fr) minmax(0,.95fr) 46px!important;
     gap:7px!important;
     padding-left:10px!important;
