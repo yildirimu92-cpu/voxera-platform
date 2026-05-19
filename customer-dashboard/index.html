@@ -18871,6 +18871,9 @@ window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 function vxRenderRequestsDetailV2(record) {
   var host = document.getElementById('requests-detail-v2');
   if (!host || !record || !record.fields) return false;
+  var recordId = String(record.id || '').trim();
+  if (!recordId) return false;
+  host.dataset.vxRecordId = recordId;
   var f = record.fields || {};
   var phone = String(f.caller_phone || f.phone || f.phone_number || '').trim();
   var name = String(f.caller_name || f.name || phone || 'Unbekannt').trim();
@@ -18911,7 +18914,7 @@ function vxRenderRequestsDetailV2(record) {
     +   '</section>'
     +   '<section style="background:#fff;border:1px solid var(--vx-border,#E4E8F0);border-radius:14px;padding:14px 16px;">'
     +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Verlauf</div>'
-    +     '<div id="requests-detail-v2-history" style="font-size:13px;color:var(--slate2,#64748B);margin-top:10px;">Lade Verlauf…</div>'
+    +     '<div id="requests-detail-v2-history" data-vx-record-id="' + _esc(recordId) + '" style="font-size:13px;color:var(--slate2,#64748B);margin-top:10px;">Lade Verlauf…</div>'
     +   '</section>'
     + '</div>';
   return true;
@@ -18920,15 +18923,23 @@ function vxRenderRequestsDetailV2(record) {
 function vxLoadRequestsDetailV2History(record) {
   var slot = document.getElementById('requests-detail-v2-history');
   if (!slot || !record || !record.fields) return;
+  var recordId = String(record.id || '').trim();
+  if (!recordId) return;
+  slot.dataset.vxRecordId = recordId;
   var phone = String(record.fields.caller_phone || record.fields.phone || record.fields.phone_number || '').trim();
   if (!phone) { slot.textContent = 'Keine Telefonnummer für Verlauf vorhanden.'; return; }
   buildCallHistory(phone).then(function(history) {
-    if (!document.getElementById('requests-detail-v2-history')) return;
-    slot.innerHTML = (typeof renderCallHistory === 'function')
+    var liveSlot = document.getElementById('requests-detail-v2-history');
+    if (!liveSlot) return;
+    if (String(liveSlot.dataset.vxRecordId || '') !== recordId) return;
+    liveSlot.innerHTML = (typeof renderCallHistory === 'function')
       ? renderCallHistory(history || [])
       : '<div style="color:var(--slate2,#64748B);">Verlauf konnte nicht gerendert werden.</div>';
   }).catch(function() {
-    if (slot) slot.textContent = 'Verlauf konnte nicht geladen werden.';
+    var liveSlot = document.getElementById('requests-detail-v2-history');
+    if (!liveSlot) return;
+    if (String(liveSlot.dataset.vxRecordId || '') !== recordId) return;
+    liveSlot.textContent = 'Verlauf konnte nicht geladen werden.';
   });
 }
 
