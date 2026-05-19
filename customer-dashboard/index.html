@@ -18991,15 +18991,25 @@ function showCallDetail(callId, options) {
     );
     var useSplitDetailV2 = !!(anrufeTabActive && window.innerWidth >= 1100 && splitRight && v2Host);
     if (useSplitDetailV2) {
-      var recordsSourceV2 = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
-      var recV2 = recordsSourceV2.find(function(r) { return String(r.id) === String(callId); });
+      var recV2 = (typeof vxResolveDprRecord === 'function')
+        ? vxResolveDprRecord(callId)
+        : null;
+      if (!recV2) {
+        var recordsSourceV2 = []
+          .concat((typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []))
+          .concat((typeof allManualTaskRecords !== 'undefined' && allManualTaskRecords) ? allManualTaskRecords : (window.allManualTaskRecords || []));
+        recV2 = recordsSourceV2.find(function(r) { return String(r.id) === String(callId); });
+      }
       page.classList.remove('is-open');
       page.style.display = 'none';
       page.setAttribute('aria-hidden', 'true');
-      if (splitEmpty) splitEmpty.style.display = 'none';
-      if (v2Host) v2Host.style.display = 'block';
       if (recV2 && vxRenderRequestsDetailV2(recV2)) {
+        if (splitEmpty) splitEmpty.style.display = 'none';
+        if (v2Host) v2Host.style.display = 'block';
         vxLoadRequestsDetailV2History(recV2);
+      } else {
+        if (v2Host) { v2Host.style.display = 'none'; v2Host.innerHTML = ''; }
+        if (splitEmpty) splitEmpty.style.display = '';
       }
     } else {
       // Standard: App-Shell Detailmodus (Header/Nav bleiben sichtbar)
