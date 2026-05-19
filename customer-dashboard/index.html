@@ -19146,11 +19146,9 @@ async function loadAndRenderCallDetail(callId) {
     return;
   }
   
-  // Show loading state
-  var loadingEl = document.getElementById('call-detail-content');
-  if (loadingEl) loadingEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
-  
-  // Lokalen Record finden (schnell)
+  // Lokalen Record vor dem Ladezustand finden: im Desktop-Split soll ein vorhandener
+  // Record ohne Zwischen-Flash direkt rendern; der Fallback-Loader bleibt nur für
+  // fehlende lokale Daten bzw. Supabase-Fallbacks.
   var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
   var localRec = recordsSource.find(function(r) { return r.id === callId; });
   
@@ -19200,7 +19198,10 @@ async function loadAndRenderCallDetail(callId) {
     return;
   }
   
-  // Fallback: from Supabase
+  // Fallback: from Supabase. Nur hier ist der Ladezustand sichtbar nötig, weil kein
+  // lokaler Record für einen sofortigen stabilen Render vorhanden ist.
+  var loadingEl = document.getElementById('call-detail-content');
+  if (loadingEl) loadingEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
   try {
     const { data: call, error } = await sb.from('calls').select('*').eq('id', callId).single();
     if (error || !call) {
@@ -19464,12 +19465,9 @@ function renderCallDetailPage(call, history) {
     ],
     done: [
       { action:'call', id:'vx-cd-qa-call', label:'Anrufen', icon:'ph-phone', primary:true, onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','call','detail-main',event);" },
-      { action:'reopen', id:'vx-cd-qa-reopen', label:'Wieder öffnen', icon:'ph-arrow-counter-clockwise', onclick:"event.stopPropagation();dprAction('reopen','" + safeCallId + "');" },
       { action:'archive', id:'vx-cd-qa-archive', label:'Archivieren', icon:'ph-archive-box', onclick:"event.stopPropagation();dprAction('archive','" + safeCallId + "');" }
     ],
-    archived: [
-      { action:'reopen', id:'vx-cd-qa-reopen', label:'Wieder öffnen', icon:'ph-arrow-counter-clockwise', primary:true, onclick:"event.stopPropagation();dprAction('reopen','" + safeCallId + "');" }
-    ]
+    archived: []
   };
   if (statusGroup === 'archived' && displayPhone) {
     actionsByStatus.archived.push({ action:'call', id:'vx-cd-qa-call', label:'Anrufen', icon:'ph-phone', onclick:"event.stopPropagation();vxRunCallAction('" + safeCallId + "','call','detail-main',event);" });
@@ -19484,9 +19482,11 @@ function renderCallDetailPage(call, history) {
   html +=       '<div style="font-size:13px;color:#465670;line-height:1.55;">Status: ' + _esc(statusBusinessLabel) + ' · Fälligkeit: ' + _esc(dueLabel) + '</div>';
   html +=     '</div>';
   html +=   '</div>';
-  html +=   '<div style="display:flex;align-items:center;gap:8px;padding:0 16px 15px;flex-wrap:wrap;">';
-  visibleActions.forEach(function(actionCfg){ html += _cdActionButton(actionCfg); });
-  html +=   '</div>';
+  if (visibleActions.length) {
+    html +=   '<div style="display:flex;align-items:center;gap:8px;padding:0 16px 15px;flex-wrap:wrap;">';
+    visibleActions.forEach(function(actionCfg){ html += _cdActionButton(actionCfg); });
+    html +=   '</div>';
+  }
   html += '</div>';
 
   var concernBody = '<div style="padding:13px 14px;">';
