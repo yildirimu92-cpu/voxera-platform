@@ -19141,7 +19141,7 @@ function showCallDetail(callId, options) {
     if (bottomBar) { bottomBar.style.display = 'none'; bottomBar.style.pointerEvents = 'none'; bottomBar.setAttribute('aria-hidden','true'); }
 
     // Render
-    if (!useSplitDetailV2) {
+    if (!useSplitDetailV2 && !useTodaySplitDetailV2) {
       var _v2 = document.getElementById('requests-detail-v2');
       if (_v2) { _v2.style.display = 'none'; _v2.innerHTML = ''; _v2.removeAttribute('data-vx-record-id'); }
       var _todayV2 = document.getElementById('today-detail-v2');
