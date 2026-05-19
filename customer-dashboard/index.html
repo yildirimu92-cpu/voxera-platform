@@ -18819,6 +18819,8 @@ function vxForceCloseCallDetail(reason) {
     if (splitEmpty) splitEmpty.style.display = '';
     var bar = document.getElementById('split-action-bar');
     if (bar) bar.remove();
+    var splitV2 = document.getElementById('vx-split-detail-v2');
+    if (splitV2) { splitV2.style.display = 'none'; splitV2.innerHTML = ''; }
     window._vxCurrentCallId = null;
     window._vxCurrentTaskId = null;
     window._vxCurrentDetailType = null;
@@ -18854,6 +18856,110 @@ function vxEnsureNoOrphanDetailView(reason) {
 }
 window.vxEnsureNoOrphanDetailView = vxEnsureNoOrphanDetailView;
 window.vxForceCloseCallDetail = vxForceCloseCallDetail;
+
+function vxIsSplitDetailV2Enabled() {
+  try {
+    if (String(localStorage.getItem('vxSplitDetailV2') || '') === '1') return true;
+  } catch (e) {}
+  try {
+    var qs = new URLSearchParams(window.location.search || '');
+    if (qs.get('vxsplitv2') === '1') return true;
+  } catch (e2) {}
+  return false;
+}
+
+function vxCanUseSplitDetailV2() {
+  var tab = document.getElementById('tab-anrufe');
+  var splitRight = document.getElementById('anrufe-split-right');
+  return !!(vxIsSplitDetailV2Enabled() && tab && tab.classList.contains('active') && splitRight && window.innerWidth >= 768);
+}
+
+function vxEnsureSplitDetailV2Host() {
+  var splitRight = document.getElementById('anrufe-split-right');
+  if (!splitRight) return null;
+  var host = document.getElementById('vx-split-detail-v2');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'vx-split-detail-v2';
+    host.style.flex = '1';
+    host.style.display = 'none';
+    host.style.overflowY = 'auto';
+    host.style.overflowX = 'hidden';
+    host.style.padding = '14px';
+    host.style.boxSizing = 'border-box';
+    splitRight.appendChild(host);
+  }
+  return host;
+}
+
+function vxRenderSplitDetailV2(recordId) {
+  var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+  var host = vxEnsureSplitDetailV2Host();
+  if (!host) return false;
+  var empty = document.getElementById('anrufe-split-empty');
+  if (empty) empty.style.display = 'none';
+  host.style.display = 'block';
+  var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
+  var rec = (recordsSource || []).find(function(r){ return String(r && r.id) === String(recordId); }) || null;
+  if (!rec || !rec.fields) {
+    host.innerHTML = '<div style="padding:16px;color:#64748b;">Datensatz nicht lokal verfügbar.</div>';
+    return true;
+  }
+  var f = rec.fields || {};
+  var caller = (f.caller_name || f.callerName || '').trim();
+  var phone = (f.caller_phone || f.phone || '').trim();
+  var displayPhone = phone || 'Keine Telefonnummer';
+  var statusObj = (typeof vxGetWorkflowState === 'function') ? vxGetWorkflowState(rec) : {};
+  var statusLabel = String((statusObj && statusObj.label) || f.status_label || f.status || 'Offen');
+  var received = f.created_at ? (typeof formatDateTime === 'function' ? formatDateTime(f.created_at) : String(f.created_at)) : '—';
+  var summary = String(f.anliegen || f.summary || f.notes_customer_voxera || '').trim() || 'Kein Anliegen erfasst.';
+  var safeId = String(recordId).replace(/'/g, "\\'");
+  var can = function(action){
+    if (typeof vxCanPerformAction !== 'function') return { allowed: true };
+    try { return vxCanPerformAction(rec, action) || { allowed:false }; } catch (e) { return { allowed:false }; }
+  };
+  function actionBtn(label, action, primary) {
+    var allow = can(action);
+    if (!allow.allowed) return '';
+    return '<button type="button" data-action="' + action + '" data-rec-id="' + safeId + '" onclick="event.stopPropagation();vxRunCallAction(\'' + safeId + '\',\'' + action + '\',\'split-v2\',event);" style="padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:' + (primary ? '#1A6FE8' : 'var(--surface)') + ';color:' + (primary ? '#fff' : 'var(--ink)') + ';font-weight:700;cursor:pointer;">' + label + '</button>';
+  }
+  var archiveBtn = '';
+  var canArchive = can('archive');
+  if (canArchive.allowed && typeof dprAction === 'function') {
+    archiveBtn = '<button type="button" onclick="event.stopPropagation();dprAction(\'archive\',\'' + safeId + '\');" style="padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;cursor:pointer;">Archivieren</button>';
+  }
+  host.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:12px;">'
+    + '<div><div style="font-size:18px;font-weight:800;color:#0f172a;">' + (caller || displayPhone) + '</div><div style="font-size:12px;color:#64748b;">' + displayPhone + '</div></div>'
+    + '<div style="font-size:12px;color:#475569;text-align:right;"><div>' + statusLabel + '</div><div>' + received + '</div></div></div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'
+    + actionBtn('Anrufen', 'call', true)
+    + actionBtn('Planen/Fälligkeit', 'followup', false)
+    + actionBtn('Erledigen', 'done', false)
+    + archiveBtn
+    + '</div>'
+    + '<div style="margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);"><div style="font-weight:700;margin-bottom:6px;">Anliegen</div><div style="font-size:13px;line-height:1.5;">' + summary + '</div></div>'
+    + '<div style="margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);"><div style="font-weight:700;margin-bottom:6px;">Kontakt</div><div style="font-size:13px;">' + displayPhone + '</div></div>'
+    + '<div id="vx-split-detail-v2-history" style="padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);"><div style="font-weight:700;margin-bottom:6px;">Verlauf</div><div style="font-size:12px;color:#64748b;">Wird geladen…</div></div>';
+
+  Promise.resolve().then(async function(){
+    var historyEl = document.getElementById('vx-split-detail-v2-history');
+    if (!historyEl) return;
+    var normalized = (typeof vxNormalizePhone === 'function') ? vxNormalizePhone(phone) : phone;
+    var hist = normalized ? await buildCallHistory(normalized) : [];
+    if (!historyEl) return;
+    historyEl.innerHTML = '<div style="font-weight:700;margin-bottom:6px;">Verlauf</div>' + renderTimelineHTML(hist || []);
+  }).catch(function(err){
+    var historyEl = document.getElementById('vx-split-detail-v2-history');
+    if (historyEl) historyEl.innerHTML = '<div style="font-weight:700;margin-bottom:6px;">Verlauf</div><div style="font-size:12px;color:#b91c1c;">Verlauf konnte nicht geladen werden.</div>';
+    console.warn('[split-v2] history load failed', err);
+  });
+  if (window.VX_DEBUG === true || String(localStorage.getItem('vxdiag') || '') === '1') {
+    var dt = ((window.performance && performance.now) ? performance.now() : Date.now()) - t0;
+    console.info('split-v2 render', { recordId: String(recordId), durationMs: Math.round(dt) });
+  }
+  return true;
+}
 
 function showCallDetail(callId, options) {
   try {
@@ -18909,7 +19015,16 @@ function showCallDetail(callId, options) {
     var anrufeTabActive = document.getElementById('tab-anrufe') &&
       document.getElementById('tab-anrufe').classList.contains('active');
     var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
-    if (useSplitDetail) {
+    if (useSplitDetail && vxCanUseSplitDetailV2()) {
+      page.style.display = 'none';
+      page.classList.remove('is-fullscreen');
+      page.classList.remove('vx-detail-focus');
+      document.body.classList.remove('vx-requests-focus-mode');
+      page.setAttribute('aria-hidden', 'true');
+      page.style.pointerEvents = 'none';
+      if (splitRight && splitRight.contains(page)) document.body.appendChild(page);
+      vxRenderSplitDetailV2(callId);
+    } else if (useSplitDetail) {
       // Detail in anrufe-split-right einbetten
       if (!splitRight.contains(page)) {
         splitRight.appendChild(page);
@@ -18975,9 +19090,9 @@ function showCallDetail(callId, options) {
     if (bottomBar) { bottomBar.style.display = 'none'; bottomBar.style.pointerEvents = 'none'; bottomBar.setAttribute('aria-hidden','true'); }
 
     // Render
-    loadAndRenderCallDetail(callId);
+    if (!(useSplitDetail && vxCanUseSplitDetailV2())) loadAndRenderCallDetail(callId);
     // [v2.56] Action-Bar im Split nach Render aktualisieren
-    if (useSplitDetail) {
+    if (useSplitDetail && !vxCanUseSplitDetailV2()) {
       setTimeout(function() { vxSplitUpdateActionBar(callId); }, 200);
     }
 
@@ -19073,6 +19188,8 @@ function hideCallDetail() {
     // Split empty state wieder zeigen
     var splitEmpty = document.getElementById('anrufe-split-empty');
     if (splitEmpty) splitEmpty.style.display = '';
+    var splitV2 = document.getElementById('vx-split-detail-v2');
+    if (splitV2) { splitV2.style.display = 'none'; splitV2.innerHTML = ''; }
     // [B1-FIX] Action-Bar entfernen
     var bar = document.getElementById('split-action-bar');
     if (bar) bar.remove();
