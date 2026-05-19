@@ -10347,8 +10347,12 @@ function renderDashPriorityList() {
       var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
       if (rec && isManualTaskRecord(rec)) {
         if (typeof showTaskDetail === 'function') { e.stopPropagation(); showTaskDetail(recId); }
-      } else {
-        if (typeof showCallDetail === 'function') { e.stopPropagation(); showCallDetail(recId); }
+      } else if (typeof vxRouteRowOpen === 'function') {
+        e.stopPropagation();
+        vxRouteRowOpen(recId, 'dash-priority-card');
+      } else if (typeof showCallDetail === 'function') {
+        e.stopPropagation();
+        showCallDetail(recId, { source: 'dash-priority-card:fallback' });
       }
     });
   });
@@ -11005,7 +11009,7 @@ function dprOpenAnfragenDetailFromRow(rowEl) {
     if (typeof showTaskDetail === 'function') { showTaskDetail(recId); return true; }
     return false;
   }
-  if (typeof showCallDetail === 'function') { showCallDetail(recId); return true; }
+  if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprOpenAnfragenDetailFromRow:fallback' }); return true; }
   return false;
 }
 
@@ -11025,7 +11029,8 @@ function vxOpenPriorityRecord(recordId) {
     if (typeof showTaskDetail === 'function') { showTaskDetail(recId); return true; }
     return false;
   }
-  if (typeof showCallDetail === 'function') { showCallDetail(recId); return true; }
+  if (typeof vxRouteRowOpen === 'function') return !!vxRouteRowOpen(recId, 'vxOpenPriorityRecord');
+  if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'vxOpenPriorityRecord:fallback' }); return true; }
   return false;
 }
 
@@ -11193,7 +11198,8 @@ function dprAction(action, recId, extra) {
     if (typeof vxOpenTelHref === 'function') {
       if (!vxOpenTelHref(phoneForDial, 'Keine gültige Telefonnummer vorhanden')) {
         if (isManualSource && typeof showTaskDetail === 'function') showTaskDetail(recId);
-        else if (typeof showCallDetail === 'function') showCallDetail(recId);
+        else if (typeof vxRouteRowOpen === 'function') vxRouteRowOpen(recId, 'dprAction:call');
+        else if (typeof showCallDetail === 'function') showCallDetail(recId, { source: 'dprAction:call:fallback' });
       }
     } else {
       var dialPhone = String(phoneForDial || '').replace(/[^+0-9]/g, '');
@@ -11272,7 +11278,8 @@ function dprAction(action, recId, extra) {
   if (action === 'create-task') {
     if (typeof openManualTaskFromCall === 'function') { openManualTaskFromCall(recId); return; }
     if (typeof openManualTaskModal === 'function') { openManualTaskModal(); return; }
-    if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
+    if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:create-task-fallback-open'); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:create-task-fallback-open:fallback' }); return; }
     return;
   }
   if (action === 'followup') {
@@ -11283,19 +11290,22 @@ function dprAction(action, recId, extra) {
     }
     if (typeof openFollowupDirect === 'function') { openFollowupDirect(recId); return; }
     if (typeof openFollowup === 'function') { openFollowup(recId); return; }
-    if (typeof showCallDetail === 'function') { showCallDetail(recId); }
+    if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:followup-fallback-open'); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:followup-fallback-open:fallback' }); }
     return;
   }
   if (action === 'open') {
     if (isManualSource) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); return; }
-    if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
+    if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:open'); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:open:fallback' }); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
     return;
   }
   if (action === 'fulldetail') {
     // [v2.56] Vollansicht aus Split-Panel: immer showCallDetail, nie recursive
     if (isManualSource) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); return; }
-    if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
+    if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:fulldetail'); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:fulldetail:fallback' }); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
     return;
   }
@@ -11306,13 +11316,15 @@ function dprAction(action, recId, extra) {
       else if (typeof showTaskDetail === 'function') showTaskDetail(recId);
       return;
     }
-    if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
+    if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:detail-edit'); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:detail-edit:fallback' }); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
     return;
   }
   if (action === 'followup') {
     if (typeof openFollowupDirect === 'function') { openFollowupDirect(recId); return; }
-    if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
+    if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:followup-alt'); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:followup-alt:fallback' }); return; }
     return;
   }
   if (action === 'note') {
@@ -43776,7 +43788,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   window.vxIsModalOpen=function(){var m=window.vxGetOpenModal(); return !!(m&&visible(m));};
   window.vxCloseOpenMenus=function(){document.querySelectorAll('.vx-row-menu.is-open,.vxdr-menu.is-open').forEach(el=>el.classList.remove('is-open'));document.querySelectorAll('#vxd-menu,[id$="-menu"]').forEach(el=>el.setAttribute('hidden',''));};
   window.vxResetInteractionState=function(reason){var allowClose=(reason==='close-detail'||reason==='navigation'); if(!allowClose||window.vxIsModalOpen()) return false; window.vxCloseOpenMenus(); try{document.body.classList.remove('vx-resizing-split','vx-row-menu-open');}catch(e){} return true;};
-  window.vxRouteRowOpen=function(recordId,source){state.lastRowSource=source||'unknown'; state.lastRecordId=recordId||null; if(!recordId){console.warn('[vxRouteRowOpen] missing recordId',source); return false;} var rec=(typeof window.vxResolveDprRecord==='function')?window.vxResolveDprRecord(recordId):null; if(rec&&typeof window.isManualTaskRecord==='function'&&window.isManualTaskRecord(rec)&&typeof window.showTaskDetail==='function'){window.showTaskDetail(recordId); return true;} if(typeof window.openCallDetail==='function') {window.openCallDetail(recordId,source); return true;} if(typeof window.showCallDetail==='function'){window.showCallDetail(recordId,source); return true;} if(typeof window.vxOpenCallDetail==='function'){window.vxOpenCallDetail(recordId,source); return true;} console.warn('[vxRouteRowOpen] no detail opener found',recordId,source); return false;};
+  window.vxRouteRowOpen=function(recordId,source){state.lastRowSource=source||'unknown'; state.lastRecordId=recordId||null; if(!recordId){console.warn('[vxRouteRowOpen] missing recordId',source); return false;} var rec=(typeof window.vxResolveDprRecord==='function')?window.vxResolveDprRecord(recordId):null; if(rec&&typeof window.isManualTaskRecord==='function'&&window.isManualTaskRecord(rec)&&typeof window.showTaskDetail==='function'){window.showTaskDetail(recordId); return true;} if(typeof window.showCallDetail==='function'){window.showCallDetail(recordId,{ source:source||'vxRouteRowOpen' }); return true;} if(typeof window.openCallDetail==='function'){console.warn('[vxRouteRowOpen] showCallDetail missing; using legacy openCallDetail fallback',recordId,source); window.openCallDetail(recordId,source); return true;} if(typeof window.vxOpenCallDetail==='function'){console.warn('[vxRouteRowOpen] showCallDetail missing; using legacy vxOpenCallDetail fallback',recordId,source); window.vxOpenCallDetail(recordId,source); return true;} console.warn('[vxRouteRowOpen] no detail opener found',recordId,source); return false;};
   window.vxRunCallAction=function(recordId,action,source,ev){var t0=Date.now(); state.lastAction=action; state.lastRecordId=recordId||state.lastRecordId; if(!action){console.warn('[vxRunCallAction] missing action',source); return false;} var debug=window.VX_DEBUG===true; if(debug) console.debug('[vxRunCallAction:start]',action,source||'unknown'); var out=false; if(action==='back'){out=(typeof window.vxHandleDetailBack==='function') ? !!window.vxHandleDetailBack() : ((typeof window.hideCallDetail==='function') ? !!window.hideCallDetail() : false);} else if(action==='menu'){window.vxCloseOpenMenus(); out=true;} else if(action==='followup'){ if(typeof window.vxCallDetailFaelligkeit==='function') out=!!window.vxCallDetailFaelligkeit(ev); else if(typeof window.openFollowupDirect==='function') out=!!window.openFollowupDirect(recordId); else if(typeof window.openFollowup==='function') out=!!window.openFollowup(recordId);} else if(action==='done'){ if(typeof window.vxCallDetailErledigt==='function') out=!!window.vxCallDetailErledigt(ev); else if(typeof window.confirmTaskDone==='function') out=!!window.confirmTaskDone(recordId,null,'vx-interaction-layer'); } else if(action==='call'){ if(typeof window.vxCallDetailAnrufen==='function') out=!!window.vxCallDetailAnrufen(ev); else if(typeof window.startCall==='function') out=!!window.startCall(recordId); } else if(action==='note'&&typeof window.openNote==='function') out=!!window.openNote(recordId); if(debug) console.debug('[vxRunCallAction:end]',action,(Date.now()-t0)+'ms'); return out;};
   function rowRecordId(row){return row&& (row.getAttribute('data-rec-id')||row.getAttribute('data-record-id')||row.getAttribute('data-id'));}
   document.addEventListener('touchstart',function(ev){state.lastTouchTarget=ev&&ev.target?ev.target:null;},{passive:true,capture:true});
