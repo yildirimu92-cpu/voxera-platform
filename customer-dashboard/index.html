@@ -469,6 +469,14 @@
 .vx-split-empty-text{font-size:12px;color:var(--vx-text3);}
 #anrufe-split-left{flex:1;max-width:none;}
 #anrufe-split-right,#anrufe-split-resizer{display:none!important;}
+#anrufe-split{display:block;}
+@media (min-width: 1100px){
+  #anrufe-split{display:flex !important;height:calc(100vh - 170px);min-height:560px;}
+  #anrufe-split-left{flex:0 0 420px !important;width:420px !important;max-width:420px !important;border-right:1px solid var(--line) !important;}
+  #anrufe-split-resizer{display:none !important;}
+  #anrufe-split-right{display:flex !important;flex:1 1 auto;min-width:0;background:var(--bg);border-radius:14px;overflow:hidden;}
+  #anrufe-split-empty{display:flex !important;align-items:center;justify-content:center;color:var(--slate);font-weight:600;}
+}
 
 .vx-chip{height:26px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;border:0.5px solid var(--vx-border-md);color:var(--vx-text3);background:var(--vx-surface);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .12s;}
 .vx-chip:hover{color:var(--vx-text2);}
@@ -18913,7 +18921,7 @@ function showCallDetail(callId, options) {
       (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
       (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active'))
     );
-    var useSplitDetail = false;
+    var useSplitDetail = !!(anrufeTabActive && window.innerWidth >= 1100 && splitRight);
     if (useSplitDetail) {
       // Detail in anrufe-split-right einbetten
       if (!splitRight.contains(page)) {
@@ -25097,7 +25105,7 @@ function showTaskDetail(taskId) {
   var splitEmpty = document.getElementById('anrufe-split-empty');
   var anrufeTabActive = document.getElementById('tab-anrufe') &&
     document.getElementById('tab-anrufe').classList.contains('active');
-  var useSplitDetail = false;
+  var useSplitDetail = !!(anrufeTabActive && window.innerWidth >= 1100 && splitRight);
 
   if (useSplitDetail) {
     if (!splitRight.contains(page)) splitRight.appendChild(page);
@@ -33823,6 +33831,8 @@ div[style*="scrollbar-width:none"]::-webkit-scrollbar {
 }
 /* Datum jetzt in Meta-Pills, nicht mehr im Header */
 #call-detail-banner-date.vx-cd-banner-date { display: none !important; }
+#call-detail-page.is-fullscreen #call-detail-banner .vxdr-back{display:inline-flex !important;}
+
 /* Quick-Actions: nie schrumpfen, immer eckig */
 #call-detail-quick-actions {
   flex-shrink: 0 !important;
