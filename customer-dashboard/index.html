@@ -11029,6 +11029,7 @@ function vxOpenPriorityRecord(recordId) {
 }
 
 function dprToggleClick(e, rowEl) {
+  e.__vxHandled = true;
   e.stopPropagation();
   // Touch-Geräte: click nach touchend ignorieren
   if (e.type === 'click' && (Date.now() - _dprLastTouch) < 800) return;
@@ -11068,6 +11069,7 @@ function dprToggleTouchEnd(e, rowEl) {
   if (window._vxLongPressActive) return;
   _dprLastTouch = Date.now();
   if (_dprToggleLock) return;
+  e.__vxHandled = true;
   _dprToggleLock = true;
   setTimeout(function(){ _dprToggleLock = false; }, 600);
   // Als gelesen markieren — Punkt entfernen
@@ -22834,6 +22836,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
 
   if (!el.dataset.boundClick) {
     el.addEventListener('click', function(e) {
+      if (e.__vxHandled) return;
       var overflowBtn = e.target.closest('[data-action="overflow"]');
       if (overflowBtn) {
         e.preventDefault();
@@ -43772,6 +43775,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     if(t.closest('.mobile-nav-btn,.nav-item,[data-tab]')&&window.vxIsModalOpen&&window.vxIsModalOpen()){ ev.preventDefault(); return; }
     if(isInteractiveChild(t)) return;
     var row=t.closest(ROW_SEL); if(!row) return;
+    if(row.closest&&row.closest('#anrufe-list, #anrufe-split-left')) return;
     var id=rowRecordId(row), now=Date.now();
     if(!id) return;
     if(state.lastTapRowId===id&&now-state.lastTapRowTs<420) return;
