@@ -10987,9 +10987,10 @@ var _dprTouchMoved = false;
 function dprOpenAnfragenDetailFromRow(rowEl) {
   // [v2.57] Mobile/Touch Fix: Anfragen-Logs muessen auch bei touchend direkt ins Detail routen.
   if (!rowEl || !rowEl.closest) return false;
+  var inAnfragenList = rowEl.closest('#anrufe-list');
   var inSplitList = rowEl.closest('#anrufe-split-left');
   var inArchivList = rowEl.closest('#archiv-list');
-  if (!inSplitList && !inArchivList) return false;
+  if (!inAnfragenList && !inSplitList && !inArchivList) return false;
   // vx-anf-row hat data-id direkt; dpr-card als Fallback
   var recId = (rowEl.dataset && rowEl.dataset.id) || null;
   if (!recId) {
@@ -22847,6 +22848,8 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       }
       var card = e.target.closest('.dpr-card');
       if (!card || e.target.closest('.dpr-btn, .va-exp-panel, button')) return;
+      var rowForInline = e.target.closest('.vx-heute-row, .vx-anf-row, .vx-live-call-row, .dpr-row');
+      if (rowForInline && rowForInline.getAttribute && /dprToggleClick\s*\(/.test(String(rowForInline.getAttribute('onclick') || ''))) return;
       var recId = card.dataset.id;
       if (!recId) return;
       window._vxActiveRecordId = String(recId);
@@ -43840,6 +43843,12 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
       var right=document.getElementById('anrufe-split-right');
       return !!(page&&right&&right.contains(page));
     }
+    function isDesktopSplitActive(){
+      var right=document.getElementById('anrufe-split-right');
+      var tab=document.getElementById('tab-anrufe');
+      var tabActive=!!(tab&&tab.classList&&tab.classList.contains('active'));
+      return !!(!isMobile()&&tabActive&&right);
+    }
     function activeRowId(){
       var row=document.querySelector('#anrufe-list .dpr-card.sp-active,[data-record-id].sp-active,#anrufe-list .vx-anf-row.sp-active,#anrufe-list .vx-heute-row.sp-active');
       if(!row) return null;
@@ -43851,13 +43860,13 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
       diagState.current={token:token,startAt:now(),source:source||'unknown',callId:callId||null};
       console.groupCollapsed('[vxdiag split] cycle '+token+' '+(source||'unknown')+' callId='+(callId||'n/a'));
       console.time('[vxdiag split] cycle '+token);
-      console.log('[vxdiag split] context',{timestamp:new Date().toISOString(),perfNow:now(),source:source||'unknown',callId:callId||null,desktopSplitActive:!isMobile(),detailInSplitRight:inSplit(),activeRowId:activeRowId()});
+      console.log('[vxdiag split] context',{timestamp:new Date().toISOString(),perfNow:now(),source:source||'unknown',callId:callId||null,desktopSplitActive:isDesktopSplitActive(),detailInSplitRight:inSplit(),activeRowId:activeRowId()});
       console.groupEnd();
     }
     function logStep(name,payload){
       var cur=diagState.current||{};
       console.groupCollapsed('[vxdiag split] '+name+' token='+(cur.token||'none'));
-      console.log('[vxdiag split] step',{timestamp:new Date().toISOString(),perfNow:now(),callId:cur.callId||null,source:cur.source||'unknown',desktopSplitActive:!isMobile(),detailInSplitRight:inSplit(),activeRowId:activeRowId(),payload:payload||null});
+      console.log('[vxdiag split] step',{timestamp:new Date().toISOString(),perfNow:now(),callId:cur.callId||null,source:cur.source||'unknown',desktopSplitActive:isDesktopSplitActive(),detailInSplitRight:inSplit(),activeRowId:activeRowId(),payload:payload||null});
       console.groupEnd();
     }
     function wrap(name,extractor){
