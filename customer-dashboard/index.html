@@ -467,6 +467,8 @@
 .vx-split-right{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--vx-detail-bg);}
 .vx-split-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--vx-text3);}
 .vx-split-empty-text{font-size:12px;color:var(--vx-text3);}
+#anrufe-split-left{flex:1;max-width:none;}
+#anrufe-split-right,#anrufe-split-resizer{display:none!important;}
 
 .vx-chip{height:26px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;border:0.5px solid var(--vx-border-md);color:var(--vx-text3);background:var(--vx-surface);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .12s;}
 .vx-chip:hover{color:var(--vx-text2);}
@@ -18911,7 +18913,7 @@ function showCallDetail(callId, options) {
       (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
       (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active'))
     );
-    var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
+    var useSplitDetail = false;
     if (useSplitDetail) {
       // Detail in anrufe-split-right einbetten
       if (!splitRight.contains(page)) {
@@ -19015,12 +19017,12 @@ function hideCallDetail() {
     page.classList.remove('is-fullscreen');
     page.classList.remove('vx-detail-focus');
     document.body.classList.remove('vx-requests-focus-mode');
-    // [v2.67] Wenn von Fullscreen zurück UND Anfragen-Tab aktiv → Split wiederherstellen
+    // Splitview im Anfragen-Tab deaktiviert: kein Rückwechsel in rechte Spalte.
     var anrufeTabActive = document.getElementById('tab-anrufe') &&
       document.getElementById('tab-anrufe').classList.contains('active');
     var splitRight = document.getElementById('anrufe-split-right');
     var currentId = window._vxCurrentCallId || window._vxCurrentTaskId;
-    if (wasFullscreen && anrufeTabActive && splitRight && currentId && window.innerWidth >= 768) {
+    if (false && wasFullscreen && anrufeTabActive && splitRight && currentId && window.innerWidth >= 768) {
       // Split-View wieder öffnen statt schliessen
       page.classList.add('is-open');
       page.classList.remove('is-fullscreen');
@@ -25104,7 +25106,7 @@ function showTaskDetail(taskId) {
   var splitEmpty = document.getElementById('anrufe-split-empty');
   var anrufeTabActive = document.getElementById('tab-anrufe') &&
     document.getElementById('tab-anrufe').classList.contains('active');
-  var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
+  var useSplitDetail = false;
 
   if (useSplitDetail) {
     if (!splitRight.contains(page)) splitRight.appendChild(page);
