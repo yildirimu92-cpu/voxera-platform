@@ -18858,13 +18858,7 @@ window.vxEnsureNoOrphanDetailView = vxEnsureNoOrphanDetailView;
 window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
 function vxIsSplitDetailV2Enabled() {
-  try {
-    if (String(localStorage.getItem('vxSplitDetailV2') || '') === '1') return true;
-  } catch (e) {}
-  try {
-    var qs = new URLSearchParams(window.location.search || '');
-    if (qs.get('vxsplitv2') === '1') return true;
-  } catch (e2) {}
+  // Split-V2 disabled: experimental path caused empty requests state.
   return false;
 }
 
@@ -19022,7 +19016,7 @@ function showCallDetail(callId, options) {
       (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active'))
     );
     var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
-    if (String(localStorage.getItem('vxdiag') || '') === '1' || String(localStorage.getItem('vxSplitDetailV2') || '') === '1' || String((new URLSearchParams(window.location.search || '')).get('vxsplitv2') || '') === '1') {
+    if (String(localStorage.getItem('vxdiag') || '') === '1') {
       console.info('[VX-SPLIT-V2]', {
         enabled: vxIsSplitDetailV2Enabled(),
         canUse: vxCanUseSplitDetailV2(),
@@ -24041,7 +24035,7 @@ async function safeLoadData() {
   var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
   var detailPage = document.getElementById('call-detail-page');
   var detailOpen = !!(detailPage && detailPage.classList && detailPage.classList.contains('is-open'));
-  var inCallsView = !!document.querySelector('#tab-anrufe.active,#tab-anrufe[style*="display: block"],#anrufe-list,#anrufe-split-left');
+  var inCallsView = !!document.querySelector('#tab-anrufe.active,#anrufe-list,#anrufe-split-left');
   var lastScrollTs = Number(window.__vxLastMobileScrollTs || 0);
   if (isMobile && (detailOpen || inCallsView) && lastScrollTs > 0) {
     var elapsed = Date.now() - lastScrollTs;
