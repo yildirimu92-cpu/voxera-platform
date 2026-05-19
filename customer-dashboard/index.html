@@ -19457,8 +19457,6 @@ function renderCallDetailPage(call, history, options) {
       var _isEmbeddedSplit = !!(_pageForFocus && document.getElementById('anrufe-split-right') && document.getElementById('anrufe-split-right').contains(_pageForFocus));
       var _focusMode = !!((document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode')) || (_pageForFocus && !_isEmbeddedSplit && (_pageForFocus.classList.contains('is-fullscreen') || _pageForFocus.classList.contains('vx-detail-focus'))));
       var _layoutClass = _focusMode ? 'vxdr-focus' : 'vxdr-split';
-      var _focusToggleTitle = _focusMode ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
-      var _focusToggleIcon = _focusMode ? 'ph-corners-in' : 'ph-corners-out';
       _banner.className = 'vxdr-banner';
       _banner.removeAttribute('style');
       _banner.innerHTML = ''
@@ -19473,9 +19471,6 @@ function renderCallDetailPage(call, history, options) {
         +       '<div class="vxdr-meta" id="call-detail-subtitle"><span class="vxd-meta-item">' + _esc(statusBusinessLabel) + '</span><span class="vxd-meta-item">Fällig: ' + _esc(dueLabel) + '</span><span class="vxd-meta-item">Eingang: ' + _esc(receivedLabel) + '</span></div>'
         +       '<div class="vxdr-pills"><span class="vxdr-pill vxdr-pill--status" style="border-color:' + detailStatusColor + '33;color:' + detailStatusColor + ';background:' + detailStatusColor + '14;">' + _esc(statusBusinessLabel) + '</span>' + (dueDate ? '<span class="vxdr-pill vxdr-pill--context">' + _esc(dueLabel) + '</span>' : '') + '</div>'
         +     '</div>'
-        +   '</div>'
-        +   '<div class="vxdr-actions">'
-        +     '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _esc(_focusToggleTitle) + '" title="' + _esc(_focusToggleTitle) + '"><i class="ph-bold ' + _focusToggleIcon + '" aria-hidden="true"></i></button>'
         +   '</div>'
         + '</section>';
     }
@@ -24907,8 +24902,7 @@ function renderTaskDetailPage(taskRecord, history) {
         + (_tSecondaryLabel ? '<span class="vxdr-pill vxdr-pill--context">' + _escT(_tSecondaryLabel) + '</span>' : '');
       var _tPageForFocus = document.getElementById('call-detail-page');
       var _tIsEmbeddedSplit = !!(_tPageForFocus && document.getElementById('anrufe-split-right') && document.getElementById('anrufe-split-right').contains(_tPageForFocus));
-      var _tFocusMode = !!((document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode')) || (_tPageForFocus && !_tIsEmbeddedSplit && (_tPageForFocus.classList.contains('is-fullscreen') || _tPageForFocus.classList.contains('vx-detail-focus'))));
-      var _tLayoutClass = _tFocusMode ? 'vxdr-focus' : 'vxdr-split';
+      var _tLayoutClass = 'vxdr-split';
       var _tPrimaryLabel = phone ? 'Anrufen' : 'Erledigen';
       var _tPrimaryIcon = phone ? 'ph-phone' : 'ph-check';
       var _tPrimaryId = phone ? 'vx-cd-qa-call' : 'vx-cd-qa-done';
@@ -24928,9 +24922,6 @@ function renderTaskDetailPage(taskRecord, history) {
         +   '</div>'
         +   '<div class="vxdr-actions">'
         +     '<button type="button" class="vxdr-btn vxdr-primary" id="' + _tPrimaryId + '" onclick="event.stopPropagation();' + _tPrimaryAction + ';" title="' + _escT(_tPrimaryLabel) + '"><i class="ph-bold ' + _tPrimaryIcon + '" aria-hidden="true"></i><span class="vxdr-btn-label">' + _escT(_tPrimaryLabel) + '</span></button>'
-        +     (_tFocusMode
-        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-corners-in" aria-hidden="true"></i></button>'
-        : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _escT(_tFocusTitle) + '" title="' + _escT(_tFocusTitle) + '"><i class="ph-bold ' + _tFocusIcon + '" aria-hidden="true"></i></button>')
         +     '<button type="button" class="vxdr-iconbtn" id="vxd-menu-trigger" onclick="event.stopPropagation();vxdToggleMenu(event);" aria-haspopup="menu" aria-expanded="false" aria-label="Weitere Aktionen" title="Weitere Aktionen"><i class="ph-bold ph-dots-three-vertical" aria-hidden="true"></i></button>'
         +   '</div>'
         +   '<div class="vxdr-menu" id="vxd-menu" role="menu" hidden>'
