@@ -18879,7 +18879,7 @@ function vxRenderRequestsDetailV2(record) {
   var category = String(f.category || f.next_action || '').trim();
   var priority = String(f.lead_quality || '').trim();
   var created = f.created_at || f.received_at || '';
-  var dateText = created ? formatDateTime(created) : '–';
+  var dateText = created ? (fmtDate(created) || '–') : '–';
   var done = vxInquiryIsCompleted(record);
   var canCall = !!phone;
   host.innerHTML = ''
