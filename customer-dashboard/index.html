@@ -19035,7 +19035,17 @@ function showCallDetail(callId, options) {
       (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
       (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active'))
     );
-    var useSplitDetailV2 = !!((anrufeTabActive || options.forceSplitDetailV2 === true) && window.innerWidth >= 1100 && splitRight && v2Host);
+    var shouldForceSplitDetailV2 = options.forceSplitDetailV2 === true;
+    if (shouldForceSplitDetailV2 && !anrufeTabActive && window.innerWidth >= 1100 && typeof showTab === 'function') {
+      var navAnrufe = document.getElementById('nav-anrufe') || document.getElementById('mnav-anrufe');
+      showTab('anrufe', navAnrufe, { historyMode: 'none' });
+      anrufeTab = document.getElementById('tab-anrufe');
+      anrufeTabActive = !!(anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active'));
+      splitRight = document.getElementById('anrufe-split-right');
+      splitEmpty = document.getElementById('anrufe-split-empty');
+      v2Host = document.getElementById('requests-detail-v2');
+    }
+    var useSplitDetailV2 = !!((anrufeTabActive || shouldForceSplitDetailV2) && window.innerWidth >= 1100 && splitRight && v2Host);
     if (useSplitDetailV2) {
       var recV2 = (typeof vxResolveDprRecord === 'function')
         ? vxResolveDprRecord(callId)
