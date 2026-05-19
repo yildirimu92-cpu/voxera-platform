@@ -18871,7 +18871,12 @@ function vxIsSplitDetailV2Enabled() {
 function vxCanUseSplitDetailV2() {
   var tab = document.getElementById('tab-anrufe');
   var splitRight = document.getElementById('anrufe-split-right');
-  return !!(vxIsSplitDetailV2Enabled() && tab && tab.classList.contains('active') && splitRight && window.innerWidth >= 768);
+  var tabIsAnrufe = !!(
+    (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
+    (tab && tab.classList && tab.classList.contains('active')) ||
+    (tab && /display\s*:\s*block/i.test(String(tab.getAttribute('style') || '')))
+  );
+  return !!(vxIsSplitDetailV2Enabled() && tabIsAnrufe && splitRight && window.innerWidth >= 768);
 }
 
 function vxEnsureSplitDetailV2Host() {
@@ -19012,9 +19017,24 @@ function showCallDetail(callId, options) {
     // [v2.56] Wenn Anfragen-Tab aktiv: Detail in rechter Spalte einbetten
     var splitRight = document.getElementById('anrufe-split-right');
     var splitEmpty = document.getElementById('anrufe-split-empty');
-    var anrufeTabActive = document.getElementById('tab-anrufe') &&
-      document.getElementById('tab-anrufe').classList.contains('active');
+    var anrufeTab = document.getElementById('tab-anrufe');
+    var anrufeTabActive = !!(
+      (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
+      (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active')) ||
+      (anrufeTab && /display\s*:\s*block/i.test(String(anrufeTab.getAttribute('style') || '')))
+    );
     var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
+    if (String(localStorage.getItem('vxdiag') || '') === '1' || String(localStorage.getItem('vxSplitDetailV2') || '') === '1' || String((new URLSearchParams(window.location.search || '')).get('vxsplitv2') || '') === '1') {
+      console.info('[VX-SPLIT-V2]', {
+        enabled: vxIsSplitDetailV2Enabled(),
+        canUse: vxCanUseSplitDetailV2(),
+        activeTab: (typeof getCurrentTabName === 'function') ? getCurrentTabName() : null,
+        width: window.innerWidth,
+        rightExists: !!splitRight,
+        useSplitDetail: !!useSplitDetail,
+        callId: String(callId || '')
+      });
+    }
     if (useSplitDetail && vxCanUseSplitDetailV2()) {
       page.style.display = 'none';
       page.classList.remove('is-fullscreen');
