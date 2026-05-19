@@ -19558,6 +19558,9 @@ function renderCallDetailPage(call, history) {
 
   const contentEl = document.getElementById('call-detail-content');
   if (contentEl) contentEl.innerHTML = html;
+  if (typeof window.vxApplyActionMatrixToCurrentDetail === 'function') {
+    try { window.vxApplyActionMatrixToCurrentDetail(); } catch(_e) {}
+  }
 
   // Lucide icons re-initialize
   /* phosphor: no init needed */
@@ -43245,26 +43248,6 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     window.vxMarkRequestAsUnread._vxActionMatrixWrapped = true;
   }
 
-  /* Detail render hooks */
-  if (typeof window.showCallDetail === 'function' && !window.showCallDetail._vxActionMatrixWrapped) {
-    var _oldShowCallDetail = window.showCallDetail;
-    window.showCallDetail = function(){
-      var ret = _oldShowCallDetail.apply(this, arguments);
-      setTimeout(vxApplyActionMatrixToCurrentDetail, 80);
-      return ret;
-    };
-    window.showCallDetail._vxActionMatrixWrapped = true;
-  }
-
-  if (typeof window.renderCallDetailPage === 'function' && !window.renderCallDetailPage._vxActionMatrixWrapped) {
-    var _oldRenderCallDetailPage = window.renderCallDetailPage;
-    window.renderCallDetailPage = function(){
-      var ret = _oldRenderCallDetailPage.apply(this, arguments);
-      setTimeout(vxApplyActionMatrixToCurrentDetail, 40);
-      return ret;
-    };
-    window.renderCallDetailPage._vxActionMatrixWrapped = true;
-  }
 
   document.addEventListener('click', function(ev){
     var target = ev.target && ev.target.closest ? ev.target.closest('[onclick*="vxCallDetailAnrufen"],[onclick*="vxCallDetailFaelligkeit"],[onclick*="vxCallDetailErledigt"]') : null;
@@ -43292,7 +43275,7 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     }
   }, true);
 
-  setTimeout(vxApplyActionMatrixToCurrentDetail, 250);
+  vxApplyActionMatrixToCurrentDetail();
 })();
 </script>
 <style id="vx-workflow-action-matrix-style">
