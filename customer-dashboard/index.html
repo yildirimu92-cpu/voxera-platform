@@ -19189,9 +19189,10 @@ async function loadAndRenderCallDetail(callId) {
       try {
         var history = await buildCallHistory(phoneForHistory);
         if (String(window._vxCurrentCallId || '') !== String(callId) || window._vxCurrentDetailType !== 'call') return;
-        renderCallDetailPage(localCall, history || []);
+        vxUpdateCallDetailHistory(history || []);
       } catch (err) {
         console.error('[call-detail] history error:', err);
+        vxUpdateCallDetailHistory([]);
         // Detail bleibt sichtbar; nur Historie fällt weg.
       }
     }
@@ -19513,7 +19514,7 @@ function renderCallDetailPage(call, history) {
     + '</div>';
   html += _cdCard('ph-pencil-simple', 'Notizen', notesBody, '<div id="vx-cd-save-indicator" class="vx-cd-save-indicator" style="margin-left:auto;opacity:0;"><span class="dot"></span><span class="indicator-text"></span></div>');
 
-  html += renderTimelineHTML(history);
+  html += '<div id="vx-call-history-slot">' + renderTimelineHTML(history) + '</div>';
 
   html += (typeof vxRenderTranscriptCardHtml === 'function')
     ? vxRenderTranscriptCardHtml(callTranscript)
@@ -19579,6 +19580,14 @@ function renderCallDetailPage(call, history) {
     });
   }
 }
+
+function vxUpdateCallDetailHistory(history) {
+  var slot = document.getElementById('vx-call-history-slot');
+  if (!slot) return false;
+  slot.innerHTML = renderTimelineHTML(history || []);
+  return true;
+}
+window.vxUpdateCallDetailHistory = vxUpdateCallDetailHistory;
 
 // Morphing-Banner: ELITE smooth scroll
 // - requestAnimationFrame (kein Layout-Thrashing)
