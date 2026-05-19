@@ -19209,7 +19209,7 @@ async function loadAndRenderCallDetail(callId) {
     // war oder hing, blieb die Detailseite bei "Lade…" stehen. Die Detailakte
     // ist jetzt sofort sichtbar; die Historie wird danach best-effort nachgeladen.
     if (String(window._vxCurrentCallId || '') !== String(callId) || window._vxCurrentDetailType !== 'call') return;
-    renderCallDetailPage(localCall, []);
+    renderCallDetailPage(localCall, [], { historyLoading: !!phoneForHistory });
 
     if (phoneForHistory) {
       try {
@@ -19273,7 +19273,9 @@ function vxMountCallDetailMetaIntoHeader() {
   }
 }
 
-function renderCallDetailPage(call, history) {
+function renderCallDetailPage(call, history, options) {
+  options = options || {};
+  var historyLoading = !!options.historyLoading;
   if (!call || !call.id) { console.error('Call data incomplete'); return; }
   var _detailPage = document.getElementById('call-detail-page');
   if (!_detailPage || !_detailPage.classList.contains('is-open')) return;
@@ -19540,7 +19542,7 @@ function renderCallDetailPage(call, history) {
     + '</div>';
   html += _cdCard('ph-pencil-simple', 'Notizen', notesBody, '<div id="vx-cd-save-indicator" class="vx-cd-save-indicator" style="margin-left:auto;opacity:0;"><span class="dot"></span><span class="indicator-text"></span></div>');
 
-  html += '<div id="vx-call-history-slot">' + renderTimelineHTML(history) + '</div>';
+  html += '<div id="vx-call-history-slot">' + renderTimelineHTML(history, { loading: historyLoading }) + '</div>';
 
   html += (typeof vxRenderTranscriptCardHtml === 'function')
     ? vxRenderTranscriptCardHtml(callTranscript)
@@ -19613,7 +19615,7 @@ function renderCallDetailPage(call, history) {
 function vxUpdateCallDetailHistory(history) {
   var slot = document.getElementById('vx-call-history-slot');
   if (!slot) return false;
-  slot.innerHTML = renderTimelineHTML(history || []);
+  slot.innerHTML = renderTimelineHTML(history || [], { loading: false });
   return true;
 }
 window.vxUpdateCallDetailHistory = vxUpdateCallDetailHistory;
@@ -20026,7 +20028,9 @@ function saveFollowUpV2(callId) {
 }
 window.saveFollowUpV2 = saveFollowUpV2;
 
-function renderTimelineHTML(history) {
+function renderTimelineHTML(history, options) {
+  options = options || {};
+  var isLoading = !!options.loading;
   const eventCount = history ? history.length : 0;
   const maxInitialEvents = 5;
   let inner = '';
@@ -20042,7 +20046,18 @@ function renderTimelineHTML(history) {
   }
 
   if (!history || history.length === 0) {
-    inner = '<div style="padding:20px 16px;text-align:center;color:var(--slate);font-size:13px;">Keine weitere Historie für diese Nummer.</div>';
+    if (isLoading) {
+      inner = '<div style="padding:16px;min-height:210px;">'
+        + '<div style="font-size:13px;color:#465670;font-weight:700;margin-bottom:12px;">Verlauf wird geladen …</div>'
+        + '<div style="display:grid;gap:10px;">'
+        + '<div style="height:42px;border-radius:8px;background:linear-gradient(90deg,rgba(148,163,184,.18),rgba(148,163,184,.08));"></div>'
+        + '<div style="height:42px;border-radius:8px;background:linear-gradient(90deg,rgba(148,163,184,.18),rgba(148,163,184,.08));"></div>'
+        + '<div style="height:42px;border-radius:8px;background:linear-gradient(90deg,rgba(148,163,184,.18),rgba(148,163,184,.08));"></div>'
+        + '</div>'
+        + '</div>';
+    } else {
+      inner = '<div style="padding:20px 16px;text-align:center;color:var(--slate);font-size:13px;">Keine weitere Historie für diese Nummer.</div>';
+    }
   } else {
     inner = '<div style="padding:14px 16px;">';
     inner += '<div style="position:relative;padding-left:24px;">';
