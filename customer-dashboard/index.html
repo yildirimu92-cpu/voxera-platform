@@ -11031,12 +11031,18 @@ function dprOpenAnfragenDetailFromRow(rowEl) {
 function vxOpenRequestDetail(recordId, source) {
   var recId = String(recordId || '').trim();
   if (!recId) return false;
+  var recIdRaw = recId.indexOf('case:') === 0 ? recId.slice(5) : recId;
   var rec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(recId) : null;
   if (!rec) {
     var sourcePools = []
       .concat((Array.isArray(window.allRecords) ? window.allRecords : []))
       .concat((Array.isArray(window.allManualTaskRecords) ? window.allManualTaskRecords : []));
-    rec = sourcePools.find(function(item) { return String((item && item.id) || '') === recId; }) || null;
+    rec = sourcePools.find(function(item) {
+      var itemId = String((item && item.id) || '');
+      var f = (item && item.fields) || {};
+      var taskEntityId = String(f.task_entity_id || '');
+      return itemId === recId || itemId === recIdRaw || taskEntityId === recId || taskEntityId === recIdRaw;
+    }) || null;
   }
   if (!rec) return false;
   window._vxActiveRecordId = recId;
@@ -11051,7 +11057,8 @@ function vxOpenRequestDetail(recordId, source) {
     var shouldForceDesktopV2 = window.innerWidth >= 1100 && (
       src === 'anfragen-row' ||
       src === 'vxOpenPriorityRecord' ||
-      src === 'dash-priority-card'
+      src === 'dash-priority-card' ||
+      src.indexOf('dprAction:') === 0
     );
     showCallDetail(recId, { source: src, forceSplitDetailV2: shouldForceDesktopV2 });
     return true;
@@ -11332,6 +11339,7 @@ function dprAction(action, recId, extra) {
   }
   if (action === 'open') {
     if (isManualSource) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); return; }
+    if (typeof vxOpenRequestDetail === 'function' && vxOpenRequestDetail(recId, 'dprAction:open')) return;
     if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:open'); return; }
     if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:open:fallback' }); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
@@ -11340,6 +11348,7 @@ function dprAction(action, recId, extra) {
   if (action === 'fulldetail') {
     // [v2.56] Vollansicht aus Split-Panel: immer showCallDetail, nie recursive
     if (isManualSource) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); return; }
+    if (typeof vxOpenRequestDetail === 'function' && vxOpenRequestDetail(recId, 'dprAction:fulldetail')) return;
     if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:fulldetail'); return; }
     if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:fulldetail:fallback' }); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
@@ -11352,6 +11361,7 @@ function dprAction(action, recId, extra) {
       else if (typeof showTaskDetail === 'function') showTaskDetail(recId);
       return;
     }
+    if (typeof vxOpenRequestDetail === 'function' && vxOpenRequestDetail(recId, 'dprAction:detail-edit')) return;
     if (typeof vxRouteRowOpen === 'function') { vxRouteRowOpen(recId, 'dprAction:detail-edit'); return; }
     if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'dprAction:detail-edit:fallback' }); return; }
     if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId);
