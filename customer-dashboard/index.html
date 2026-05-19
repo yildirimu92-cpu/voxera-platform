@@ -18873,8 +18873,7 @@ function vxCanUseSplitDetailV2() {
   var splitRight = document.getElementById('anrufe-split-right');
   var tabIsAnrufe = !!(
     (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
-    (tab && tab.classList && tab.classList.contains('active')) ||
-    (tab && /display\s*:\s*block/i.test(String(tab.getAttribute('style') || '')))
+    (tab && tab.classList && tab.classList.contains('active'))
   );
   return !!(vxIsSplitDetailV2Enabled() && tabIsAnrufe && splitRight && window.innerWidth >= 768);
 }
@@ -18908,7 +18907,7 @@ function vxRenderSplitDetailV2(recordId) {
   var rec = (recordsSource || []).find(function(r){ return String(r && r.id) === String(recordId); }) || null;
   if (!rec || !rec.fields) {
     host.innerHTML = '<div style="padding:16px;color:#64748b;">Datensatz nicht lokal verfügbar.</div>';
-    return true;
+    return !!(host.style.display === 'block' && String(host.textContent || '').trim().length > 0);
   }
   var f = rec.fields || {};
   var caller = (f.caller_name || f.callerName || '').trim();
@@ -18963,7 +18962,7 @@ function vxRenderSplitDetailV2(recordId) {
     var dt = ((window.performance && performance.now) ? performance.now() : Date.now()) - t0;
     console.info('split-v2 render', { recordId: String(recordId), durationMs: Math.round(dt) });
   }
-  return true;
+  return !!(host.style.display === 'block' && String(host.textContent || '').trim().length > 0);
 }
 
 function showCallDetail(callId, options) {
@@ -19020,8 +19019,7 @@ function showCallDetail(callId, options) {
     var anrufeTab = document.getElementById('tab-anrufe');
     var anrufeTabActive = !!(
       (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
-      (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active')) ||
-      (anrufeTab && /display\s*:\s*block/i.test(String(anrufeTab.getAttribute('style') || '')))
+      (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active'))
     );
     var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
     if (String(localStorage.getItem('vxdiag') || '') === '1' || String(localStorage.getItem('vxSplitDetailV2') || '') === '1' || String((new URLSearchParams(window.location.search || '')).get('vxsplitv2') || '') === '1') {
@@ -19035,15 +19033,25 @@ function showCallDetail(callId, options) {
         callId: String(callId || '')
       });
     }
+    var usedSplitV2 = false;
     if (useSplitDetail && vxCanUseSplitDetailV2()) {
-      page.style.display = 'none';
-      page.classList.remove('is-fullscreen');
-      page.classList.remove('vx-detail-focus');
-      document.body.classList.remove('vx-requests-focus-mode');
-      page.setAttribute('aria-hidden', 'true');
-      page.style.pointerEvents = 'none';
-      if (splitRight && splitRight.contains(page)) document.body.appendChild(page);
-      vxRenderSplitDetailV2(callId);
+      var v2Rendered = vxRenderSplitDetailV2(callId) === true;
+      if (v2Rendered) {
+        usedSplitV2 = true;
+        page.style.display = 'none';
+        page.classList.remove('is-fullscreen');
+        page.classList.remove('vx-detail-focus');
+        document.body.classList.remove('vx-requests-focus-mode');
+        page.setAttribute('aria-hidden', 'true');
+        page.style.pointerEvents = 'none';
+        if (splitRight && splitRight.contains(page)) document.body.appendChild(page);
+      } else {
+        var v2Host = document.getElementById('vx-split-detail-v2');
+        if (v2Host) { v2Host.innerHTML = ''; v2Host.style.display = 'none'; }
+        if (window.VX_DEBUG === true || String(localStorage.getItem('vxdiag') || '') === '1') {
+          console.warn('[split-v2] render fallback to legacy', { callId: String(callId || '') });
+        }
+      }
     } else if (useSplitDetail) {
       // Detail in anrufe-split-right einbetten
       if (!splitRight.contains(page)) {
@@ -19110,7 +19118,7 @@ function showCallDetail(callId, options) {
     if (bottomBar) { bottomBar.style.display = 'none'; bottomBar.style.pointerEvents = 'none'; bottomBar.setAttribute('aria-hidden','true'); }
 
     // Render
-    if (!(useSplitDetail && vxCanUseSplitDetailV2())) loadAndRenderCallDetail(callId);
+    if (!usedSplitV2) loadAndRenderCallDetail(callId);
     // [v2.56] Action-Bar im Split nach Render aktualisieren
     if (useSplitDetail && !vxCanUseSplitDetailV2()) {
       setTimeout(function() { vxSplitUpdateActionBar(callId); }, 200);
