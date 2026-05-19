@@ -10358,6 +10358,9 @@ function renderDashPriorityList() {
       var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
       if (rec && isManualTaskRecord(rec)) {
         if (typeof showTaskDetail === 'function') { e.stopPropagation(); showTaskDetail(recId); }
+      } else if (typeof vxOpenRequestDetail === 'function') {
+        e.stopPropagation();
+        vxOpenRequestDetail(recId, 'dash-priority-card');
       } else if (typeof vxRouteRowOpen === 'function') {
         e.stopPropagation();
         vxRouteRowOpen(recId, 'dash-priority-card');
@@ -11014,6 +11017,7 @@ function dprOpenAnfragenDetailFromRow(rowEl) {
   }
   if (!recId) return false;
   window._vxLastAnfragenRecordId = String(recId);
+  if (typeof vxOpenRequestDetail === 'function') return !!vxOpenRequestDetail(recId, 'anfragen-row');
   if (typeof vxRouteRowOpen === 'function') return !!vxRouteRowOpen(recId, 'anfragen-row');
   var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
   if (rec && isManualTaskRecord(rec)) {
@@ -11024,13 +11028,15 @@ function dprOpenAnfragenDetailFromRow(rowEl) {
   return false;
 }
 
-function vxOpenPriorityRecord(recordId) {
+function vxOpenRequestDetail(recordId, source) {
   var recId = String(recordId || '').trim();
   if (!recId) return false;
-  var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
+  var rec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(recId) : null;
   if (!rec) {
-    var all = (Array.isArray(window.allRecords) ? window.allRecords : []);
-    rec = all.find(function(r){ return String((r && r.id) || '') === recId; }) || null;
+    var sourcePools = []
+      .concat((Array.isArray(window.allRecords) ? window.allRecords : []))
+      .concat((Array.isArray(window.allManualTaskRecords) ? window.allManualTaskRecords : []));
+    rec = sourcePools.find(function(item) { return String((item && item.id) || '') === recId; }) || null;
   }
   if (!rec) return false;
   window._vxActiveRecordId = recId;
@@ -11040,6 +11046,25 @@ function vxOpenPriorityRecord(recordId) {
     if (typeof showTaskDetail === 'function') { showTaskDetail(recId); return true; }
     return false;
   }
+  if (typeof showCallDetail === 'function') {
+    var src = String(source || 'vxOpenRequestDetail');
+    var shouldForceDesktopV2 = window.innerWidth >= 1100 && (
+      src === 'anfragen-row' ||
+      src === 'vxOpenPriorityRecord' ||
+      src === 'dash-priority-card'
+    );
+    showCallDetail(recId, { source: src, forceSplitDetailV2: shouldForceDesktopV2 });
+    return true;
+  }
+  if (typeof vxRouteRowOpen === 'function') return !!vxRouteRowOpen(recId, source || 'vxOpenRequestDetail:fallback-route');
+  return false;
+}
+window.vxOpenRequestDetail = vxOpenRequestDetail;
+
+function vxOpenPriorityRecord(recordId) {
+  if (typeof vxOpenRequestDetail === 'function') return !!vxOpenRequestDetail(recordId, 'vxOpenPriorityRecord');
+  var recId = String(recordId || '').trim();
+  if (!recId) return false;
   if (typeof vxRouteRowOpen === 'function') return !!vxRouteRowOpen(recId, 'vxOpenPriorityRecord');
   if (typeof showCallDetail === 'function') { showCallDetail(recId, { source: 'vxOpenPriorityRecord:fallback' }); return true; }
   return false;
@@ -19000,7 +19025,7 @@ function showCallDetail(callId, options) {
       (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
       (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active'))
     );
-    var useSplitDetailV2 = !!(anrufeTabActive && window.innerWidth >= 1100 && splitRight && v2Host);
+    var useSplitDetailV2 = !!((anrufeTabActive || options.forceSplitDetailV2 === true) && window.innerWidth >= 1100 && splitRight && v2Host);
     if (useSplitDetailV2) {
       var recV2 = (typeof vxResolveDprRecord === 'function')
         ? vxResolveDprRecord(callId)
