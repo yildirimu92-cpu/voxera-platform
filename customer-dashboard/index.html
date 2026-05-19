@@ -43733,7 +43733,21 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
         body.classList.toggle(c,on); html.classList.toggle(c,on);
       });
     }
-    if(d){ d.style.pointerEvents=detailOpen?'auto':'none'; d.setAttribute('aria-hidden',detailOpen?'false':'true'); }
+    if(d){
+      if(!detailOpen){
+        var ae=document.activeElement;
+        if(ae&&d.contains(ae)){
+          var focusTarget=document.querySelector('.mobile-nav .mobile-nav-btn.active, .mobile-nav .mobile-nav-btn, .nav-item.active, .nav-item, #tab-anrufe, #tab-dashboard, #tab-mehr');
+          if(focusTarget&&typeof focusTarget.focus==='function'){
+            try{ focusTarget.focus({ preventScroll:true }); }catch(_e){ try{ focusTarget.focus(); }catch(__e){} }
+          }else if(body&&typeof body.focus==='function'){
+            try{ body.setAttribute('tabindex','-1'); body.focus({ preventScroll:true }); }catch(_e2){ try{ body.focus(); }catch(__e2){} }
+          }
+        }
+      }
+      d.style.pointerEvents=detailOpen?'auto':'none';
+      d.setAttribute('aria-hidden',detailOpen?'false':'true');
+    }
     if(nav) nav.style.pointerEvents=modalOpen?'none':'auto';
     if(!detailOpen&&!modalOpen&&window.vxCloseOpenMenus) window.vxCloseOpenMenus();
     state.lastAction=reason||state.lastAction;
