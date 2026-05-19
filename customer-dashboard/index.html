@@ -18880,8 +18880,21 @@ function vxRenderRequestsDetailV2(record) {
   var priority = String(f.lead_quality || '').trim();
   var created = f.created_at || f.received_at || '';
   var dateText = created ? (fmtDate(created) || '–') : '–';
+  var durationSec = Number(f.duration_seconds || f.duration || 0) || 0;
+  var durationText = durationSec > 0 ? Math.max(1, Math.round(durationSec / 60)) + ' Min' : '';
+  var sourceText = String(f.source || f.channel || f.origin || 'Unbekannt').trim();
+  var callbackRequested = !!f.callback_requested;
+  var dueRaw = f.follow_up_at || f.followup_at || f.due_at || f.planned_at || f.planned_date || f.follow_up_date || '';
+  var dueText = dueRaw ? (fmtDateTime(dueRaw) || fmtDate(dueRaw) || '–') : '';
+  var nextAction = String(f.next_action || '').trim();
+  var notesText = String(f.notes_customer_voxera || '').trim();
+  var haystack = [summary, category, nextAction].join(' ').toLowerCase();
+  var hasTerminwunsch = callbackRequested || /termin|wunschzeit|rückruf/.test(haystack);
+  var statusLine = hasTerminwunsch ? 'Terminwunsch erkannt' : 'Zu prüfen';
+  var clarificationLine = hasTerminwunsch ? 'Terminabklärung offen' : 'Rückruf empfohlen';
   var done = vxInquiryIsCompleted(record);
   var canCall = !!phone;
+  var canSaveNote = typeof openNote === 'function';
   host.innerHTML = ''
     + '<div style="padding:20px;display:flex;flex-direction:column;gap:14px;min-height:100%;">'
     +   '<section style="background:#fff;border:1px solid var(--vx-border,#E4E8F0);border-radius:14px;padding:16px 18px;">'
@@ -18890,24 +18903,40 @@ function vxRenderRequestsDetailV2(record) {
     +       '<div style="font-size:20px;font-weight:700;color:var(--ink,#1A1A2E);">' + _esc(name) + '</div>'
     +       '<span class="chip ' + _esc(done ? 'done' : 'callback') + '">' + _esc(status || 'offen') + '</span>'
     +     '</div>'
-    +     '<div style="font-size:12px;color:var(--slate2,#64748B);margin-top:5px;">' + _esc(dateText) + '</div>'
+    +     '<div style="font-size:12px;color:var(--slate2,#64748B);margin-top:5px;">' + _esc(phone || 'Keine Telefonnummer') + '</div>'
+    +     '<div style="font-size:12px;color:var(--slate2,#64748B);margin-top:4px;">' + _esc(dateText + (durationText ? ' · ' + durationText : '')) + '</div>'
     +     (category || priority ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">' + (category ? '<span class="chip note">' + _esc(category) + '</span>' : '') + (priority ? '<span class="chip note">' + _esc(priority) + '</span>' : '') + '</div>' : '')
     +   '</section>'
     +   '<section style="background:#fff;border:1px solid var(--vx-border,#E4E8F0);border-radius:14px;padding:14px 16px;">'
-    +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Kontakt</div>'
-    +     '<div style="font-size:15px;color:var(--ink,#1A1A2E);margin-top:8px;">' + _esc(phone || 'Keine Telefonnummer') + '</div>'
+    +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Hauptaktionen</div>'
+    +     '<div style="font-size:13px;color:var(--ink2,#334155);margin-top:8px;">' + _esc(statusLine) + '</div>'
+    +     '<div style="font-size:12px;color:var(--slate2,#64748B);margin-top:4px;">' + _esc(clarificationLine) + '</div>'
+    +     (dueText ? '<div style="font-size:12px;color:var(--slate2,#64748B);margin-top:6px;">' + _esc(hasTerminwunsch ? ('Wunschzeit: ' + dueText) : ('Fälligkeit: ' + dueText)) + '</div>' : '')
+    +     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
+    +       '<button class="btn btn--secondary" ' + (canCall ? '' : 'disabled ') + 'onclick="vxCallDetailAnrufen()">Anrufen</button>'
+    +       '<button class="btn btn--secondary" onclick="vxCallDetailFaelligkeit(event)">' + _esc(dueText ? 'Fälligkeit ändern' : 'Rückruf planen') + '</button>'
+    +       (done ? '' : '<button class="btn btn--primary" onclick="vxCallDetailErledigt(event)">Erledigen</button>')
+    +     '</div>'
     +   '</section>'
     +   '<section style="background:#fff;border:1px solid var(--vx-border,#E4E8F0);border-radius:14px;padding:14px 16px;">'
     +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Anliegen</div>'
     +     '<div style="font-size:14px;color:var(--ink2,#334155);line-height:1.6;margin-top:8px;">' + _esc(summary) + '</div>'
+    +     (category ? '<div style="margin-top:8px;font-size:12px;color:var(--slate2,#64748B);">Kategorie: ' + _esc(category) + '</div>' : '')
+    +     '<div style="margin-top:8px;font-size:11px;color:var(--slate2,#64748B);">Automatisch erstellt</div>'
     +   '</section>'
     +   '<section style="background:#fff;border:1px solid var(--vx-border,#E4E8F0);border-radius:14px;padding:14px 16px;">'
-    +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Aktionen</div>'
-    +     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
-    +       '<button class="btn btn--secondary" ' + (canCall ? '' : 'disabled ') + 'onclick="vxCallDetailAnrufen()">Anrufen</button>'
-    +       '<button class="btn btn--secondary" onclick="vxCallDetailFaelligkeit(event)">Fälligkeit</button>'
-    +       (done ? '' : '<button class="btn btn--primary" onclick="vxCallDetailErledigt(event)">Erledigen</button>')
+    +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Kontakt</div>'
+    +     '<div style="font-size:13px;color:var(--ink2,#334155);line-height:1.7;margin-top:8px;">'
+    +       '<div><strong>Name:</strong> ' + _esc(name || '–') + '</div>'
+    +       '<div><strong>Telefon:</strong> ' + _esc(phone || '–') + '</div>'
+    +       '<div><strong>Quelle:</strong> ' + _esc(sourceText || '–') + '</div>'
+    +       '<div><strong>Eingang:</strong> ' + _esc(dateText) + '</div>'
     +     '</div>'
+    +   '</section>'
+    +   '<section style="background:#fff;border:1px solid var(--vx-border,#E4E8F0);border-radius:14px;padding:14px 16px;">'
+    +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Notizen</div>'
+    +     '<div style="font-size:13px;color:var(--ink2,#334155);line-height:1.6;margin-top:8px;white-space:pre-wrap;">' + _esc(notesText || 'Noch keine interne Notiz vorhanden.') + '</div>'
+    +     (canSaveNote ? '<div style="margin-top:10px;"><button class="btn btn--secondary" onclick="openNote(\'' + _esc(record.id) + '\')">Notiz öffnen</button></div>' : '')
     +   '</section>'
     +   '<section style="background:#fff;border:1px solid var(--vx-border,#E4E8F0);border-radius:14px;padding:14px 16px;">'
     +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Verlauf</div>'
@@ -18924,9 +18953,16 @@ function vxLoadRequestsDetailV2History(record) {
   if (!phone) { slot.textContent = 'Keine Telefonnummer für Verlauf vorhanden.'; return; }
   buildCallHistory(phone).then(function(history) {
     if (!document.getElementById('requests-detail-v2-history')) return;
-    slot.innerHTML = (typeof renderCallHistory === 'function')
-      ? renderCallHistory(history || [])
-      : '<div style="color:var(--slate2,#64748B);">Verlauf konnte nicht gerendert werden.</div>';
+    if (typeof renderCallHistory !== 'function') {
+      slot.innerHTML = '<div style="color:var(--slate2,#64748B);">Verlauf konnte nicht gerendert werden.</div>';
+      return;
+    }
+    try {
+      slot.innerHTML = renderCallHistory(history || []);
+    } catch (err) {
+      console.warn('[requests-v2] renderCallHistory failed', err);
+      slot.innerHTML = '<div style="color:var(--slate2,#64748B);">Verlauf konnte nicht gerendert werden.</div>';
+    }
   }).catch(function() {
     if (slot) slot.textContent = 'Verlauf konnte nicht geladen werden.';
   });
