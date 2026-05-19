@@ -477,6 +477,14 @@
   #anrufe-split-right{display:flex !important;flex:1 1 auto;min-width:0;background:var(--bg);border-radius:14px;overflow:hidden;}
   #anrufe-split-empty{align-items:center;justify-content:center;color:var(--slate);font-weight:600;}
 }
+@media (min-width: 1100px){
+  #dash-workspace{display:flex;align-items:stretch;gap:14px;min-height:560px;}
+  #dash-workspace-main{flex:1 1 0;min-width:0;}
+  #today-detail-v2-shell{display:flex !important;flex:0 0 min(42%,540px);min-width:340px;min-height:560px;background:var(--vx-surface);border:0.5px solid var(--vx-border-md);border-radius:var(--vx-r-xl);overflow:hidden;}
+}
+#today-detail-v2-shell{display:none;flex-direction:column;}
+#today-detail-v2-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--vx-text3);padding:18px;text-align:center;}
+#today-detail-v2{display:none;flex:1;min-height:0;overflow:auto;background:var(--vx-bg,#F7F8FA);}
 
 .vx-chip{height:26px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;border:0.5px solid var(--vx-border-md);color:var(--vx-text3);background:var(--vx-surface);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .12s;}
 .vx-chip:hover{color:var(--vx-text2);}
@@ -7329,6 +7337,14 @@ body,.main{background:var(--vx-bg);}
               <div id="dash-focus-card"><div id="dash-focus-label"></div><div id="dash-focus-datetime"></div><div id="dash-focus-number"></div><div id="dash-focus-hint"></div><div id="dash-focus-text"></div><div id="dash-focus-next"></div><div id="dash-focus-status"></div></div>
             </div>
 
+            </div>
+            <div id="today-detail-v2-shell" aria-hidden="true">
+              <div id="today-detail-v2-empty">
+                <i class="ph-bold ph-tray" style="font-size:28px;opacity:.2;" aria-hidden="true"></i>
+                <div class="vx-split-empty-text">Wähle in „Jetzt wichtig“ einen Eintrag aus, um Details zu sehen.</div>
+              </div>
+              <div id="today-detail-v2"></div>
+            </div>
           </div>
         </div>
 
@@ -18814,6 +18830,9 @@ function vxForceCloseCallDetail(reason) {
   try {
     var page = document.getElementById('call-detail-page');
     var splitRight = document.getElementById('anrufe-split-right');
+    var todayShell = document.getElementById('today-detail-v2-shell');
+    var todayHost = document.getElementById('today-detail-v2');
+    var todayEmpty = document.getElementById('today-detail-v2-empty');
     var v2Host = document.getElementById('requests-detail-v2');
     var splitEmpty = document.getElementById('anrufe-split-empty');
     var bottomBar = document.getElementById('vx-cd-bottom-bar');
@@ -18864,7 +18883,9 @@ function vxForceCloseCallDetail(reason) {
       card.classList.remove('sp-active');
     });
     if (splitEmpty) splitEmpty.style.display = '';
-    if (v2Host) { v2Host.style.display = 'none'; v2Host.innerHTML = ''; }
+    if (v2Host) { v2Host.style.display = 'none'; v2Host.innerHTML = ''; v2Host.removeAttribute('data-vx-record-id'); }
+    if (todayEmpty) todayEmpty.style.display = '';
+    if (todayHost) { todayHost.style.display = 'none'; todayHost.innerHTML = ''; todayHost.removeAttribute('data-vx-record-id'); }
     var bar = document.getElementById('split-action-bar');
     if (bar) bar.remove();
     window._vxCurrentCallId = null;
@@ -18903,8 +18924,9 @@ function vxEnsureNoOrphanDetailView(reason) {
 window.vxEnsureNoOrphanDetailView = vxEnsureNoOrphanDetailView;
 window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
-function vxRenderRequestsDetailV2(record) {
-  var host = document.getElementById('requests-detail-v2');
+function vxRenderRequestsDetailV2(record, options) {
+  options = options || {};
+  var host = options.hostEl || document.getElementById('requests-detail-v2');
   if (!host || !record || !record.fields) return false;
   var recordId = String(record.id || '').trim();
   if (!recordId) return false;
@@ -18949,14 +18971,16 @@ function vxRenderRequestsDetailV2(record) {
     +   '</section>'
     +   '<section style="background:#fff;border:1px solid var(--vx-border,#E4E8F0);border-radius:14px;padding:14px 16px;">'
     +     '<div style="font-size:11px;color:var(--slate2,#64748B);text-transform:uppercase;letter-spacing:.05em;">Verlauf</div>'
-    +     '<div id="requests-detail-v2-history" data-vx-record-id="' + _esc(recordId) + '" style="font-size:13px;color:var(--slate2,#64748B);margin-top:10px;">Lade Verlauf…</div>'
+    +     '<div class="requests-detail-v2-history" data-vx-record-id="' + _esc(recordId) + '" style="font-size:13px;color:var(--slate2,#64748B);margin-top:10px;">Lade Verlauf…</div>'
     +   '</section>'
     + '</div>';
   return true;
 }
 
-function vxLoadRequestsDetailV2History(record) {
-  var slot = document.getElementById('requests-detail-v2-history');
+function vxLoadRequestsDetailV2History(record, options) {
+  options = options || {};
+  var host = options.hostEl || document.getElementById('requests-detail-v2');
+  var slot = options.slotEl || (host && host.querySelector('.requests-detail-v2-history'));
   if (!slot || !record || !record.fields) return;
   var recordId = String(record.id || '').trim();
   if (!recordId) return;
@@ -18964,14 +18988,14 @@ function vxLoadRequestsDetailV2History(record) {
   var phone = String(record.fields.caller_phone || record.fields.phone || record.fields.phone_number || '').trim();
   if (!phone) { slot.textContent = 'Keine Telefonnummer für Verlauf vorhanden.'; return; }
   buildCallHistory(phone).then(function(history) {
-    var liveSlot = document.getElementById('requests-detail-v2-history');
+    var liveSlot = options.slotEl || (host && host.querySelector('.requests-detail-v2-history'));
     if (!liveSlot) return;
     if (String(liveSlot.dataset.vxRecordId || '') !== recordId) return;
     liveSlot.innerHTML = (typeof renderCallHistory === 'function')
       ? renderCallHistory(history || [])
       : '<div style="color:var(--slate2,#64748B);">Verlauf konnte nicht gerendert werden.</div>';
   }).catch(function() {
-    var liveSlot = document.getElementById('requests-detail-v2-history');
+    var liveSlot = options.slotEl || (host && host.querySelector('.requests-detail-v2-history'));
     if (!liveSlot) return;
     if (String(liveSlot.dataset.vxRecordId || '') !== recordId) return;
     liveSlot.textContent = 'Verlauf konnte nicht geladen werden.';
@@ -19028,6 +19052,9 @@ function showCallDetail(callId, options) {
 
     // [v2.56] Wenn Anfragen-Tab aktiv: Detail in rechter Spalte einbetten
     var splitRight = document.getElementById('anrufe-split-right');
+    var todayShell = document.getElementById('today-detail-v2-shell');
+    var todayHost = document.getElementById('today-detail-v2');
+    var todayEmpty = document.getElementById('today-detail-v2-empty');
     var splitEmpty = document.getElementById('anrufe-split-empty');
     var v2Host = document.getElementById('requests-detail-v2');
     var anrufeTab = document.getElementById('tab-anrufe');
@@ -19035,7 +19062,10 @@ function showCallDetail(callId, options) {
       (typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe') ||
       (anrufeTab && anrufeTab.classList && anrufeTab.classList.contains('active'))
     );
-    var shouldForceSplitDetailV2 = options.forceSplitDetailV2 === true;
+    var source = String(options.source || "");
+    var fromTodayContext = source === "vxOpenPriorityRecord" || source === "dash-priority-card" || source.indexOf("dprAction:") === 0;
+    var canUseTodayDesktopHost = window.innerWidth >= 1100 && fromTodayContext && todayShell && todayHost;
+    var shouldForceSplitDetailV2 = options.forceSplitDetailV2 === true && !canUseTodayDesktopHost;
     if (shouldForceSplitDetailV2 && !anrufeTabActive && window.innerWidth >= 1100 && typeof showTab === 'function') {
       var navAnrufe = document.getElementById('nav-anrufe') || document.getElementById('mnav-anrufe');
       showTab('anrufe', navAnrufe, { historyMode: 'none' });
@@ -19045,8 +19075,9 @@ function showCallDetail(callId, options) {
       splitEmpty = document.getElementById('anrufe-split-empty');
       v2Host = document.getElementById('requests-detail-v2');
     }
-    var useSplitDetailV2 = !!((anrufeTabActive || shouldForceSplitDetailV2) && window.innerWidth >= 1100 && splitRight && v2Host);
-    if (useSplitDetailV2) {
+    var useTodaySplitDetailV2 = !!canUseTodayDesktopHost;
+    var useSplitDetailV2 = !!(!useTodaySplitDetailV2 && (anrufeTabActive || shouldForceSplitDetailV2) && window.innerWidth >= 1100 && splitRight && v2Host);
+    if (useTodaySplitDetailV2 || useSplitDetailV2) {
       var recV2 = (typeof vxResolveDprRecord === 'function')
         ? vxResolveDprRecord(callId)
         : null;
@@ -19059,13 +19090,19 @@ function showCallDetail(callId, options) {
       page.classList.remove('is-open');
       page.style.display = 'none';
       page.setAttribute('aria-hidden', 'true');
-      if (recV2 && vxRenderRequestsDetailV2(recV2)) {
-        if (splitEmpty) splitEmpty.style.display = 'none';
-        if (v2Host) v2Host.style.display = 'block';
-        vxLoadRequestsDetailV2History(recV2);
+      var activeHost = useTodaySplitDetailV2 ? todayHost : v2Host;
+      var activeEmpty = useTodaySplitDetailV2 ? todayEmpty : splitEmpty;
+      if (todayHost && !useTodaySplitDetailV2) { todayHost.style.display = "none"; todayHost.innerHTML = ""; todayHost.removeAttribute("data-vx-record-id"); }
+      if (todayEmpty && !useTodaySplitDetailV2) todayEmpty.style.display = "";
+      if (v2Host && useTodaySplitDetailV2) { v2Host.style.display = "none"; v2Host.innerHTML = ""; v2Host.removeAttribute("data-vx-record-id"); }
+      if (splitEmpty && useTodaySplitDetailV2) splitEmpty.style.display = "";
+      if (recV2 && vxRenderRequestsDetailV2(recV2, { hostEl: activeHost })) {
+        if (activeEmpty) activeEmpty.style.display = "none";
+        if (activeHost) activeHost.style.display = "block";
+        vxLoadRequestsDetailV2History(recV2, { hostEl: activeHost });
       } else {
-        if (v2Host) { v2Host.style.display = 'none'; v2Host.innerHTML = ''; }
-        if (splitEmpty) splitEmpty.style.display = '';
+        if (activeHost) { activeHost.style.display = "none"; activeHost.innerHTML = ""; }
+        if (activeEmpty) activeEmpty.style.display = "";
       }
     } else {
       // Standard: App-Shell Detailmodus (Header/Nav bleiben sichtbar)
@@ -19106,7 +19143,11 @@ function showCallDetail(callId, options) {
     // Render
     if (!useSplitDetailV2) {
       var _v2 = document.getElementById('requests-detail-v2');
-      if (_v2) { _v2.style.display = 'none'; _v2.innerHTML = ''; }
+      if (_v2) { _v2.style.display = 'none'; _v2.innerHTML = ''; _v2.removeAttribute('data-vx-record-id'); }
+      var _todayV2 = document.getElementById('today-detail-v2');
+      var _todayEmpty = document.getElementById('today-detail-v2-empty');
+      if (_todayV2) { _todayV2.style.display = 'none'; _todayV2.innerHTML = ''; _todayV2.removeAttribute('data-vx-record-id'); }
+      if (_todayEmpty) _todayEmpty.style.display = '';
       loadAndRenderCallDetail(callId);
     }
 
@@ -19145,6 +19186,9 @@ function hideCallDetail() {
     var anrufeTabActive = document.getElementById('tab-anrufe') &&
       document.getElementById('tab-anrufe').classList.contains('active');
     var splitRight = document.getElementById('anrufe-split-right');
+    var todayShell = document.getElementById('today-detail-v2-shell');
+    var todayHost = document.getElementById('today-detail-v2');
+    var todayEmpty = document.getElementById('today-detail-v2-empty');
     var v2Host = document.getElementById('requests-detail-v2');
     var currentId = window._vxCurrentCallId || window._vxCurrentTaskId;
     if (false && wasFullscreen && anrufeTabActive && splitRight && currentId && window.innerWidth >= 768) {
@@ -19872,6 +19916,9 @@ function vxSetupMorphingBanner() {
     // [v2.67] Scroll-Container erkennen: im Split-Panel scrollt scroll-wrap, nicht page
     function getScrollEl() {
       var splitRight = document.getElementById('anrufe-split-right');
+    var todayShell = document.getElementById('today-detail-v2-shell');
+    var todayHost = document.getElementById('today-detail-v2');
+    var todayEmpty = document.getElementById('today-detail-v2-empty');
       if (splitRight && splitRight.contains(page)) {
         return document.getElementById('call-detail-scroll-wrap') || page;
       }
