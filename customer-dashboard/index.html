@@ -40835,8 +40835,12 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     return str((page.dataset && (page.dataset.vxDetailId || page.dataset.recordId || page.dataset.id)) || window._vxCurrentCallId || window._vxCurrentTaskId || window._vxActiveRecordId || '');
   }
 
+  var lastActiveSyncKey = '';
   function syncActiveRows(reason){
     var id = getOpenDetailId();
+    var key = (id ? ('open:' + id) : 'closed');
+    if (key === lastActiveSyncKey) return;
+    lastActiveSyncKey = key;
     if(id) setOnlyActiveRequestRow(id);
     else clearActiveRequestRows(reason || 'no-open-detail');
   }
@@ -42811,11 +42815,15 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     if (menu) Array.prototype.slice.call(menu.querySelectorAll('button')).forEach(function(btn){ btn.style.display=''; btn.removeAttribute('aria-hidden'); });
   }
 
+  var lastStrictDoneKey = '';
   function applyStrictDetailDoneState(){
     var ident = vxCurrentDetailIdentity();
     if (!ident.id) return;
     var rec = vxResolveExactRecord(ident.id, ident.type);
     var done = vxIsRecordDoneStrict(rec);
+    var key = String(ident.type || 'call') + ':' + String(ident.id) + ':' + (done ? 'done' : 'open');
+    if (key === lastStrictDoneKey) return;
+    lastStrictDoneKey = key;
     if (!done) {
       clearReadonlyUi();
       return;
@@ -43078,10 +43086,15 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     return map;
   }
 
+  var lastActionMatrixKey = '';
   function vxApplyActionMatrixToCurrentDetail(){
     var rec = vxGetCurrentDetailRecordStrict();
     if (!rec) return;
     var wf = vxGetWorkflowState(rec);
+    var recId = String(rec.id || rec.call_id || (rec.fields && (rec.fields.id || rec.fields.call_id)) || '');
+    var matrixKey = recId + ':' + String(wf.state || '') + ':' + String(window._vxCurrentDetailType || 'call');
+    if (matrixKey === lastActionMatrixKey) return;
+    lastActionMatrixKey = matrixKey;
     var canCall = vxCanPerformAction(rec, 'call').allowed;
     var canFollow = vxCanPerformAction(rec, 'followup').allowed;
     var canDone = vxCanPerformAction(rec, 'done').allowed;
@@ -43215,7 +43228,6 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     window.showCallDetail = function(){
       var ret = _oldShowCallDetail.apply(this, arguments);
       setTimeout(vxApplyActionMatrixToCurrentDetail, 80);
-      setTimeout(vxApplyActionMatrixToCurrentDetail, 260);
       return ret;
     };
     window.showCallDetail._vxActionMatrixWrapped = true;
@@ -43834,7 +43846,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
   var rz=document.getElementById('anrufe-split-resizer');
   if(rz){rz.addEventListener('pointerdown',function(ev){state.resizing=true; document.body.classList.add('vx-resizing-split'); ev.stopPropagation();},{capture:true}); rz.addEventListener('pointerup',function(){state.resizing=false; document.body.classList.remove('vx-resizing-split');},{capture:true}); rz.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();},{capture:true});}
   window.addEventListener('unhandledrejection',function(ev){console.warn('[vx] unhandled rejection',ev.reason);});
-  ['showCallDetail','closeCallDetail','hideCallDetail','vxForceCloseCallDetail','showTab'].forEach(function(fn){
+  ['showCallDetail','closeCallDetail','hideCallDetail','vxForceCloseCallDetail'].forEach(function(fn){
     var old=window[fn];
     if(typeof old!=='function'||old.__vxMobileStateWrapped) return;
     var wrapped=function(){ var out=old.apply(this,arguments); requestAnimationFrame(function(){syncMobileState(fn);}); return out; };
