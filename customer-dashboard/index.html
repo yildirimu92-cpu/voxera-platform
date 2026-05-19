@@ -42910,8 +42910,8 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     if (typeof previousDetailDone === 'function') return previousDetailDone.apply(this, arguments);
   };
 
-  // After every detail render/mutation, re-evaluate against exact record.
-  function schedule(){ setTimeout(applyStrictDetailDoneState, 0); setTimeout(applyStrictDetailDoneState, 80); }
+  // Done-readonly post-run layers removed; keep a single immediate sync on detail open.
+  function schedule(){ applyStrictDetailDoneState(); }
   var oldShowCallDetail = window.showCallDetail;
   if (typeof oldShowCallDetail === 'function' && !oldShowCallDetail._vxStrictCallIdentityWrapped) {
     window.showCallDetail = function(callId, options){
@@ -42928,24 +42928,6 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
       return res;
     };
     window.showCallDetail._vxStrictCallIdentityWrapped = true;
-  }
-  var page = document.getElementById('call-detail-page');
-  if (page && window.MutationObserver) {
-    new MutationObserver(function(mutations){
-      var shouldSchedule = false;
-      for(var i=0;i<mutations.length;i++){
-        var m=mutations[i];
-        if(!m) continue;
-        if(m.type!=='attributes'){ shouldSchedule = true; break; }
-        if(m.attributeName!=='class'){ shouldSchedule = true; break; }
-        var prev = String(m.oldValue||'');
-        var curr = String(page.className||'');
-        var prevSans = prev.replace(/\bvx-detail-scrolled\b/g,'').replace(/\s+/g,' ').trim();
-        var currSans = curr.replace(/\bvx-detail-scrolled\b/g,'').replace(/\s+/g,' ').trim();
-        if(prevSans!==currSans){ shouldSchedule = true; break; }
-      }
-      if(shouldSchedule) schedule();
-    }).observe(page, { childList:true, subtree:true, attributes:true, attributeOldValue:true, attributeFilter:['class','style','data-vx-detail-id','data-vx-detail-type'] });
   }
   document.addEventListener('click', function(ev){
     var trigger = ev.target && ev.target.closest && ev.target.closest('#vx-cd-qa-done,#vx-cd-bb-due,[onclick*="vxCallDetailErledigt"]');
@@ -43108,10 +43090,15 @@ body .incoming-banner-sub{font-size:11.5px!important;color:rgba(255,255,255,.58)
     if (s === 'live' || s === 'processing') {
       return { allowed:false, reason:'call_not_ready', state:s };
     }
-    if (s === 'done' || s === 'archived') {
+    if (s === 'done') {
       if (action === 'call' || action === 'after_call') return { allowed:hasPhone, reason:hasPhone?'allowed':'missing_phone', state:s };
-      if (action === 'unread') return { allowed:false, reason:'unread_not_relevant', state:s };
+      if (action === 'done' || action === 'reopen' || action === 'unread') return { allowed:false, reason: action === 'done' ? 'already_done' : 'unread_not_relevant', state:s };
       return { allowed:true, reason:'allowed_done_state', state:s };
+    }
+    if (s === 'archived') {
+      if (action === 'call' || action === 'after_call') return { allowed:hasPhone, reason:hasPhone?'allowed':'missing_phone', state:s };
+      if (action === 'view' || action === 'more') return { allowed:true, reason:'allowed_archived_view', state:s };
+      return { allowed:false, reason:'archived_limited', state:s };
     }
     if (action === 'call' || action === 'after_call') return { allowed:hasPhone, reason:hasPhone?'allowed':'missing_phone', state:s };
     if (action === 'done') return { allowed:true, reason:'allowed', state:s };
