@@ -19077,7 +19077,7 @@ function showCallDetail(callId, options) {
     }
     var useTodaySplitDetailV2 = !!canUseTodayDesktopHost;
     var useSplitDetailV2 = !!(!useTodaySplitDetailV2 && (anrufeTabActive || shouldForceSplitDetailV2) && window.innerWidth >= 1100 && splitRight && v2Host);
-    if (useTodaySplitDetailV2 || useSplitDetailV2) {
+    if (!useSplitDetailV2 && !useTodaySplitDetailV2) {
       var recV2 = (typeof vxResolveDprRecord === 'function')
         ? vxResolveDprRecord(callId)
         : null;
