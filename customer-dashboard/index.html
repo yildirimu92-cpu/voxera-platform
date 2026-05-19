@@ -18772,6 +18772,7 @@ function vxForceCloseCallDetail(reason) {
     var bottomBar = document.getElementById('vx-cd-bottom-bar');
     if (bottomBar) bottomBar.style.display = 'none';
     if (page) {
+      if (typeof window.vxMoveFocusOutOfDetail === 'function') window.vxMoveFocusOutOfDetail(page, reason || 'vxForceCloseCallDetail');
       page.classList.remove('is-open');
       page.classList.remove('is-fullscreen');
       page.classList.remove('vx-detail-focus');
@@ -18779,6 +18780,8 @@ function vxForceCloseCallDetail(reason) {
       page.removeAttribute('data-vx-detail-type');
       page.removeAttribute('data-vx-detail-id');
       page.style.display = 'none';
+      page.setAttribute('aria-hidden', 'true');
+      page.style.pointerEvents = 'none';
       page.style.position = 'fixed';
       page.style.top = '0';
       page.style.left = window.innerWidth < 768 ? '0' : '232px';
@@ -18889,6 +18892,8 @@ function showCallDetail(callId, options) {
     window._vxActiveRecordId = String(callId);
     window._vxLastAnfragenRecordId = String(callId);
     page.classList.add('is-open');
+    page.setAttribute('aria-hidden', 'false');
+    page.style.pointerEvents = 'auto';
     page.dataset.vxDetailType = 'call';
     page.dataset.vxDetailId = String(callId);
     vxNotifMarkReadByRecord(callId);
@@ -19002,6 +19007,7 @@ function hideCallDetail() {
   var page = document.getElementById('call-detail-page');
   if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
   if (page) {
+    if (typeof window.vxMoveFocusOutOfDetail === 'function') window.vxMoveFocusOutOfDetail(page, 'hideCallDetail');
     var wasFullscreen = page.classList.contains('is-fullscreen');
     page.classList.remove('is-fullscreen');
     page.classList.remove('vx-detail-focus');
@@ -19040,6 +19046,8 @@ function hideCallDetail() {
     page.removeAttribute('data-vx-detail-type');
     page.removeAttribute('data-vx-detail-id');
     page.style.display = 'none';
+    page.setAttribute('aria-hidden', 'true');
+    page.style.pointerEvents = 'none';
     var bottomBar = document.getElementById('vx-cd-bottom-bar');
     if (bottomBar) bottomBar.style.display = 'none';
     // Wenn noch in split-right (sollte nicht vorkommen): zurück ins body
@@ -43743,6 +43751,24 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
     var classes=['no-scroll','modal-open','detail-open','vx-no-scroll','vx-mobile-lock','is-detail-open','is-modal-open','vx-detail-open','vx-mobile-detail-open'];
     return classes.some(function(c){return !!((body&&body.classList.contains(c))||(html&&html.classList.contains(c)));});
   }
+  function moveFocusOutOfDetail(detailEl, reason){
+    var d = detailEl || detail();
+    if (!d) return false;
+    var ae = document.activeElement;
+    if (!ae || !d.contains(ae)) return false;
+    var target = document.querySelector('.mobile-nav .mobile-nav-btn.active, .mobile-nav .mobile-nav-btn, .nav-item.active, .nav-item, #tab-anrufe, #tab-dashboard, #tab-mehr, #anrufe-list .dpr-card.sp-active, #anrufe-list .dpr-card, #dash-priority-list .dpr-card.sp-active, #dash-priority-list .dpr-card');
+    if (target && typeof target.focus === 'function') {
+      try { target.focus({ preventScroll:true }); } catch(_e) { try { target.focus(); } catch(__e) {} }
+    } else {
+      try { ae.blur(); } catch(_e2) {}
+      if (document.body && typeof document.body.focus === 'function') {
+        try { document.body.setAttribute('tabindex', '-1'); document.body.focus({ preventScroll:true }); } catch(_e3) { try { document.body.focus(); } catch(__e3) {} }
+      }
+    }
+    if (window.VX_DEBUG === true && window.console && console.debug) console.debug('[vx] focus moved out of detail', reason || 'unknown');
+    return true;
+  }
+  window.vxMoveFocusOutOfDetail = moveFocusOutOfDetail;
   function syncMobileState(reason){
     if(!isMobile()) return;
     var body=document.body, html=document.documentElement, d=detail(), detailOpen=window.vxIsDetailOpen(), modalOpen=window.vxIsModalOpen();
@@ -43758,17 +43784,7 @@ button.vx-action-click-feedback{opacity:.72!important;transform:translateY(1px)!
       });
     }
     if(d){
-      if(!detailOpen){
-        var ae=document.activeElement;
-        if(ae&&d.contains(ae)){
-          var focusTarget=document.querySelector('.mobile-nav .mobile-nav-btn.active, .mobile-nav .mobile-nav-btn, .nav-item.active, .nav-item, #tab-anrufe, #tab-dashboard, #tab-mehr');
-          if(focusTarget&&typeof focusTarget.focus==='function'){
-            try{ focusTarget.focus({ preventScroll:true }); }catch(_e){ try{ focusTarget.focus(); }catch(__e){} }
-          }else if(body&&typeof body.focus==='function'){
-            try{ body.setAttribute('tabindex','-1'); body.focus({ preventScroll:true }); }catch(_e2){ try{ body.focus(); }catch(__e2){} }
-          }
-        }
-      }
+      if(!detailOpen) moveFocusOutOfDetail(d, 'syncMobileState:close');
       d.style.pointerEvents=detailOpen?'auto':'none';
       d.setAttribute('aria-hidden',detailOpen?'false':'true');
     }
