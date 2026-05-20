@@ -22342,22 +22342,149 @@ function vxRenderRequestsDetailV2(record, options) {
   options = options || {};
   var host = options.hostEl || document.getElementById('requests-detail-v2');
   if (!host) return;
-  var f = (record && record.fields) ? record.fields : {};
-  var name    = String(f.caller_name || '').trim();
-  var phone   = String(f.phone || f.caller_phone || f.tel_link || '').trim();
-  var rawDate = f.created_at || f.received_at || '';
-  var date    = rawDate ? fmtDate(rawDate) : '';
-  var status  = String(f.status || f.dashboard_status || '').trim();
-  var summary = (typeof vxGetCallSummary === 'function')
-    ? vxGetCallSummary(record)
-    : String(f.call_summary || f.summary || '').trim();
-  var rows = '';
-  if (name)    rows += '<div class="vx-rdv2-row"><span class="vx-rdv2-label">Name</span><span class="vx-rdv2-val">' + _esc(name) + '</span></div>';
-  if (phone)   rows += '<div class="vx-rdv2-row"><span class="vx-rdv2-label">Telefon</span><span class="vx-rdv2-val">' + _esc(phone) + '</span></div>';
-  if (date)    rows += '<div class="vx-rdv2-row"><span class="vx-rdv2-label">Datum</span><span class="vx-rdv2-val">' + _esc(date) + '</span></div>';
-  if (status)  rows += '<div class="vx-rdv2-row"><span class="vx-rdv2-label">Status</span><span class="vx-rdv2-val">' + _esc(status) + '</span></div>';
-  if (summary) rows += '<div class="vx-rdv2-summary">' + _esc(summary) + '</div>';
-  host.innerHTML = '<div class="vx-rdv2-card">' + rows + '</div>';
+
+  var f        = (record && record.fields) ? record.fields : {};
+  var name     = String(f.caller_name || '').trim();
+  var phone    = String(f.phone || f.caller_phone || f.tel_link || '').trim();
+  var rawDate  = f.created_at || f.received_at || '';
+  var date     = rawDate ? fmtDate(rawDate) : '';
+  var status   = String(f.status || f.dashboard_status || '').trim();
+  var catRaw   = String(f.category || '').trim();
+  var category = (function(c) {
+    var cl = c.toLowerCase();
+    if (cl.indexOf('termin bestätigt') !== -1 || cl.indexOf('termin bestätigen') !== -1) return 'Terminwunsch erkannt';
+    if (cl.indexOf('termin geplant') !== -1) return 'Terminabklärung offen';
+    return c;
+  })(catRaw);
+  var leadQual = String(f.lead_quality || '').trim();
+  var source   = String(f.source || '').trim();
+  var durSec   = f.duration_seconds;
+  var duration = (durSec != null && durSec !== '' && !isNaN(Number(durSec)) && Number(durSec) > 0)
+                 ? _formatDuration(durSec) : '';
+  var summary  = (typeof vxGetCallSummary === 'function')
+                 ? vxGetCallSummary(record)
+                 : String(f.call_summary || f.summary || '').trim();
+  var note     = String(f.notes_customer_voxera || '').trim();
+  var isDone   = (typeof vxInquiryIsCompleted === 'function') && vxInquiryIsCompleted(record);
+
+  var displayName = name || phone || '—';
+  var initials = name
+    ? name.trim().split(/\s+/).slice(0, 2).map(function(w) { return w[0] || ''; }).join('').toUpperCase()
+    : (phone ? phone.replace(/\D/g, '').slice(-2) : '?');
+
+  // ── A) Header ──────────────────────────────────────────────────────────────
+  var chipHtml = '';
+  var chipBase = 'display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;';
+  if (status)   chipHtml += '<span style="' + chipBase + 'background:#E5E7EB;color:#374151;">' + _esc(status) + '</span>';
+  if (category) chipHtml += '<span style="' + chipBase + 'background:#DBEAFE;color:#1E40AF;">' + _esc(category) + '</span>';
+  if (leadQual) {
+    var lqLower = leadQual.toLowerCase();
+    var lqBg = lqLower === 'hot' ? '#FEE2E2' : (lqLower === 'warm' ? '#FEF3C7' : '#F3F4F6');
+    var lqFg = lqLower === 'hot' ? '#991B1B' : (lqLower === 'warm' ? '#92400E' : '#374151');
+    chipHtml += '<span style="' + chipBase + 'background:' + lqBg + ';color:' + lqFg + ';">' + _esc(leadQual) + '</span>';
+  }
+
+  var headerHtml =
+    '<div style="display:flex;align-items:flex-start;gap:12px;padding:16px 16px 8px;">' +
+      '<div style="flex-shrink:0;width:44px;height:44px;border-radius:50%;background:#0D1F3C;color:#fff;' +
+           'display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;">' +
+        _esc(initials) +
+      '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(displayName) + '</div>' +
+        (name && phone ? '<div style="color:#6B7280;font-size:13px;">' + _esc(phone) + '</div>' : '') +
+        '<div style="color:#9CA3AF;font-size:12px;margin-top:2px;">' +
+          _esc(date) + (duration ? ' · ' + _esc(duration) : '') +
+        '</div>' +
+        (chipHtml ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + chipHtml + '</div>' : '') +
+      '</div>' +
+    '</div>';
+
+  // ── B) Hauptaktionen ────────────────────────────────────────────────────────
+  var btnBase = 'display:inline-flex;align-items:center;padding:7px 14px;border:none;border-radius:8px;' +
+                'font-size:13px;font-weight:500;cursor:pointer;';
+  var actionsHtml = '<div style="display:flex;gap:8px;padding:0 16px 16px;flex-wrap:wrap;">';
+  if (phone) {
+    actionsHtml += '<button onclick="vxCallDetailAnrufen()" style="' + btnBase + 'background:#0D1F3C;color:#fff;">Anrufen</button>';
+  }
+  actionsHtml += '<button onclick="vxCallDetailFaelligkeit()" style="' + btnBase + 'background:#F3F4F6;color:#374151;">Rückruf planen</button>';
+  if (!isDone) {
+    actionsHtml += '<button onclick="vxCallDetailErledigt()" style="' + btnBase + 'background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;">Als erledigt markieren</button>';
+  }
+  actionsHtml += '</div>';
+
+  // ── Card-Wrapper-Style ──────────────────────────────────────────────────────
+  var cardStyle = 'background:#fff;border-radius:12px;padding:16px;';
+  var labelStyle = 'color:#6B7280;font-size:12px;margin-bottom:1px;';
+  var rowStyle   = 'margin-bottom:8px;';
+
+  // ── C) Karte "Anliegen" ─────────────────────────────────────────────────────
+  var anliegenHtml = '';
+  if (summary || category || leadQual) {
+    anliegenHtml = '<div style="' + cardStyle + '">' +
+      '<div style="font-weight:600;font-size:14px;margin-bottom:10px;">Anliegen</div>';
+    if (summary) {
+      anliegenHtml +=
+        '<div style="font-size:13px;line-height:1.5;margin-bottom:6px;">' + _esc(summary) + '</div>' +
+        '<div style="font-size:11px;color:#9CA3AF;">automatisch erstellt</div>';
+    }
+    if (category) {
+      anliegenHtml += '<div style="' + rowStyle + 'margin-top:10px;">' +
+        '<div style="' + labelStyle + '">Kategorie</div>' +
+        '<div style="font-size:13px;">' + _esc(category) + '</div></div>';
+    }
+    if (leadQual) {
+      anliegenHtml += '<div style="' + rowStyle + '">' +
+        '<div style="' + labelStyle + '">Lead-Qualität</div>' +
+        '<div style="font-size:13px;">' + _esc(leadQual) + '</div></div>';
+    }
+    anliegenHtml += '</div>';
+  }
+
+  // ── D) Karte "Kontakt" ──────────────────────────────────────────────────────
+  var kontaktHtml = '<div style="' + cardStyle + '">' +
+    '<div style="font-weight:600;font-size:14px;margin-bottom:10px;">Kontakt</div>';
+  if (name) {
+    kontaktHtml += '<div style="' + rowStyle + '">' +
+      '<div style="' + labelStyle + '">Name</div>' +
+      '<div style="font-size:13px;">' + _esc(name) + '</div></div>';
+  }
+  if (phone) {
+    kontaktHtml += '<div style="' + rowStyle + '">' +
+      '<div style="' + labelStyle + '">Telefon</div>' +
+      '<div style="font-size:13px;"><a href="tel:' + _esc(phone) + '" style="color:#1D4ED8;text-decoration:none;">' + _esc(phone) + '</a></div></div>';
+  }
+  if (source) {
+    kontaktHtml += '<div style="' + rowStyle + '">' +
+      '<div style="' + labelStyle + '">Quelle</div>' +
+      '<div style="font-size:13px;">' + _esc(source) + '</div></div>';
+  }
+  if (date) {
+    kontaktHtml += '<div style="' + rowStyle + '">' +
+      '<div style="' + labelStyle + '">Eingang</div>' +
+      '<div style="font-size:13px;">' + _esc(date) + '</div></div>';
+  }
+  kontaktHtml += '</div>';
+
+  // ── E) Karte "Notizen" ──────────────────────────────────────────────────────
+  var notizenHtml =
+    '<div style="' + cardStyle + '">' +
+      '<div style="font-weight:600;font-size:14px;margin-bottom:10px;">Notizen</div>' +
+      '<textarea id="vx-dv2-note" style="width:100%;min-height:80px;padding:8px;border:1px solid #E5E7EB;' +
+        'border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;">' +
+        _esc(note) +
+      '</textarea>' +
+      '<button id="vx-dv2-save-btn" onclick="vxDv2SaveNote()" style="' + btnBase +
+        'background:#0D1F3C;color:#fff;margin-top:8px;">Speichern</button>' +
+    '</div>';
+
+  host.innerHTML =
+    '<div style="overflow-y:auto;height:100%;padding-bottom:32px;">' +
+      headerHtml + actionsHtml +
+      '<div style="display:flex;flex-direction:column;gap:12px;padding:0 16px;">' +
+        anliegenHtml + kontaktHtml + notizenHtml +
+      '</div>' +
+    '</div>';
 }
 
 function vxSplitClearDetail() {
