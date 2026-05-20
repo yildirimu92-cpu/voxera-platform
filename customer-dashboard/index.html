@@ -18700,9 +18700,16 @@ function showCallDetail(callId, options) {
       // [v2-stable] Detail-V2: kein Reparenting, permanent host in split-right
       var detailV2El = document.getElementById('requests-detail-v2');
       if (splitEmpty) splitEmpty.style.display = 'none';
-      if (detailV2El) detailV2El.style.display = 'flex';
+      if (detailV2El) detailV2El.style.display = 'block';
       var rec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(callId) : null;
-      if (rec) vxRenderRequestsDetailV2(rec, { hostEl: detailV2El });
+      if (!rec && Array.isArray(window.allRecords)) {
+        rec = window.allRecords.find(function(r) { return String((r && r.id) || '') === String(callId); }) || null;
+      }
+      if (rec) {
+        vxRenderRequestsDetailV2(rec, { hostEl: detailV2El });
+      } else if (detailV2El) {
+        detailV2El.innerHTML = '<div style="padding:2rem;color:#888;">Wird geladen...</div>';
+      }
     } else if (useSplitDetail) {
       // Detail in anrufe-split-right einbetten
       if (!splitRight.contains(page)) {
