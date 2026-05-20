@@ -18597,6 +18597,8 @@ function vxForceCloseCallDetail(reason) {
       card.classList.remove('sp-active');
     });
     if (splitEmpty) splitEmpty.style.display = '';
+    var detailV2El = document.getElementById('requests-detail-v2');
+    if (detailV2El) { detailV2El.style.display = 'none'; detailV2El.innerHTML = ''; }
     var bar = document.getElementById('split-action-bar');
     if (bar) bar.remove();
     window._vxCurrentCallId = null;
@@ -18689,14 +18691,16 @@ function showCallDetail(callId, options) {
     var splitEmpty = document.getElementById('anrufe-split-empty');
     var anrufeTabActive = document.getElementById('tab-anrufe') &&
       document.getElementById('tab-anrufe').classList.contains('active');
-    var useDetailV2 = anrufeTabActive && splitRight && window.innerWidth >= 1100;
-    var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768 && !useDetailV2;
+    var useDetailV2 = !options.forceFullscreen && anrufeTabActive && splitRight && window.innerWidth >= 1100;
+    var useSplitDetail = !options.forceFullscreen && anrufeTabActive && splitRight && window.innerWidth >= 768 && !useDetailV2;
     console.log('[v2] anrufeTabActive:', anrufeTabActive);
     console.log('[v2] innerWidth:', window.innerWidth);
     console.log('[v2] splitRight:', !!splitRight);
     console.log('[v2] useDetailV2:', useDetailV2);
     console.log('[v2] useSplitDetail:', useSplitDetail);
     if (useDetailV2) {
+      page.classList.remove('is-open');
+      page.style.display = 'none';
       // [v2-stable] Detail-V2: kein Reparenting, permanent host in split-right
       var detailV2El = document.getElementById('requests-detail-v2');
       if (splitEmpty) splitEmpty.style.display = 'none';
@@ -19292,7 +19296,7 @@ function renderCallDetailPage(call, history) {
 
       var _focusLabel = _isFocusMode ? 'Split' : 'Fokus';
       var _focusTitle = _isFocusMode ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
-      var _focusIcon = _isFocusMode ? 'ph-corners-in' : 'ph-corners-out';
+      var _focusIcon = _isFocusMode ? 'ph-arrows-in' : 'ph-arrows-out';
 
       var _secondaryHeaderLabel = '';
       if (isCallback) _secondaryHeaderLabel = 'Rückruf';
@@ -19310,7 +19314,7 @@ function renderCallDetailPage(call, history) {
       var _focusMode = !!((document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode')) || (_pageForFocus && !_isEmbeddedSplit && (_pageForFocus.classList.contains('is-fullscreen') || _pageForFocus.classList.contains('vx-detail-focus'))));
       var _layoutClass = _focusMode ? 'vxdr-focus' : 'vxdr-split';
       var _focusToggleTitle = _focusMode ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
-      var _focusToggleIcon = _focusMode ? 'ph-corners-in' : 'ph-corners-out';
+      var _focusToggleIcon = _focusMode ? 'ph-arrows-in' : 'ph-arrows-out';
 
       _banner.className = 'vxdr-banner';
       _banner.removeAttribute('style');
@@ -19332,7 +19336,7 @@ function renderCallDetailPage(call, history) {
         +       '<i class="ph-bold ' + _primary.icon + '" aria-hidden="true"></i><span class="vxdr-btn-label">' + _esc(_primary.label) + '</span>'
         +     '</button>'
         +     (_focusMode
-        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-corners-in" aria-hidden="true"></i></button>'
+        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-arrows-in" aria-hidden="true"></i></button>'
         : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _esc(_focusToggleTitle) + '" title="' + _esc(_focusToggleTitle) + '"><i class="ph-bold ' + _focusToggleIcon + '" aria-hidden="true"></i></button>')
         +     '<button type="button" class="vxdr-iconbtn" id="vxd-menu-trigger" onclick="event.stopPropagation();vxdToggleMenu(event);" aria-haspopup="menu" aria-expanded="false" aria-label="Weitere Aktionen" title="Weitere Aktionen"><i class="ph-bold ph-dots-three-vertical" aria-hidden="true"></i></button>'
         +   '</div>'
@@ -20230,6 +20234,21 @@ function vxCallDetailExpand() {
   var isMobile = window.innerWidth < 768;
   if (isMobile) return; // Mobile ist bereits Fokusansicht.
 
+  // useDetailV2-Modus: detailV2El ist Host, call-detail-page ist nicht in splitRight
+  var _detailV2El = document.getElementById('requests-detail-v2');
+  var _isDetailV2Active = !!(_detailV2El && _detailV2El.style.display === 'block');
+  if (_isDetailV2Active && !(page.classList.contains('is-fullscreen') || page.classList.contains('vx-detail-focus'))) {
+    var _currentId = String(window._vxCurrentCallId || window._vxCurrentTaskId || '').trim();
+    if (_currentId) {
+      if (window._vxCurrentDetailType === 'task' && typeof showTaskDetail === 'function') {
+        showTaskDetail(_currentId, { forceFullscreen: true });
+      } else if (typeof showCallDetail === 'function') {
+        showCallDetail(_currentId, { forceFullscreen: true });
+      }
+    }
+    return;
+  }
+
   // Toggle: Im Fokusmodus zurück in die Split-Ansicht, ohne den geöffneten Datensatz zu verlieren.
   if (page.classList.contains('is-fullscreen') || page.classList.contains('vx-detail-focus')) {
     var currentId = String(window._vxCurrentCallId || window._vxCurrentTaskId || page.dataset.vxDetailId || '').trim();
@@ -20298,7 +20317,7 @@ function vxCallDetailExpand() {
       expandBtn.classList.add('vxdr-focus-toggle');
       expandBtn.setAttribute('aria-label', 'Zur Split-Ansicht wechseln');
       expandBtn.title = 'Zur Split-Ansicht wechseln';
-      expandBtn.innerHTML = '<i class="ph-bold ph-corners-in" aria-hidden="true"></i>';
+      expandBtn.innerHTML = '<i class="ph-bold ph-arrows-in" aria-hidden="true"></i>';
       expandBtn.style.display = 'inline-flex';
       expandBtn.style.visibility = 'visible';
       expandBtn.style.opacity = '1';
@@ -24722,7 +24741,7 @@ function renderTaskDetailPage(taskRecord, history) {
       var _tIsFocus = !!(document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode'));
       var _tFocusLabel = _tIsFocus ? 'Split' : 'Fokus';
       var _tFocusTitle = _tIsFocus ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
-      var _tFocusIcon = _tIsFocus ? 'ph-corners-in' : 'ph-corners-out';
+      var _tFocusIcon = _tIsFocus ? 'ph-arrows-in' : 'ph-arrows-out';
       var _tMetaParts = [];
       _tMetaParts.push(_escT(meta.label || 'Aufgabe'));
       if (phone) _tMetaParts.push(_escT(phone));
@@ -24764,7 +24783,7 @@ function renderTaskDetailPage(taskRecord, history) {
         +   '<div class="vxdr-actions">'
         +     '<button type="button" class="vxdr-btn vxdr-primary" id="' + _tPrimaryId + '" onclick="event.stopPropagation();' + _tPrimaryAction + ';" title="' + _escT(_tPrimaryLabel) + '"><i class="ph-bold ' + _tPrimaryIcon + '" aria-hidden="true"></i><span class="vxdr-btn-label">' + _escT(_tPrimaryLabel) + '</span></button>'
         +     (_tFocusMode
-        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-corners-in" aria-hidden="true"></i></button>'
+        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-arrows-in" aria-hidden="true"></i></button>'
         : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _escT(_tFocusTitle) + '" title="' + _escT(_tFocusTitle) + '"><i class="ph-bold ' + _tFocusIcon + '" aria-hidden="true"></i></button>')
         +     '<button type="button" class="vxdr-iconbtn" id="vxd-menu-trigger" onclick="event.stopPropagation();vxdToggleMenu(event);" aria-haspopup="menu" aria-expanded="false" aria-label="Weitere Aktionen" title="Weitere Aktionen"><i class="ph-bold ph-dots-three-vertical" aria-hidden="true"></i></button>'
         +   '</div>'
@@ -38397,8 +38416,6 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
 /* Icon fallback: prevents an empty button if the icon font does not expose a glyph */
 #call-detail-banner.vxdr-banner .vxdr-focus-toggle i{display:inline-flex!important;align-items:center;justify-content:center;width:16px;height:16px;}
 #call-detail-banner.vxdr-banner .vxdr-focus-toggle i::before{font-size:16px;line-height:1;}
-#call-detail-banner.vxdr-banner .vxdr-focus-toggle[aria-label*="verkleinern"] i::before{content:"↙";}
-#call-detail-banner.vxdr-banner .vxdr-focus-toggle[aria-label*="Fokusmodus"] i::before{content:"↗";}
 body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-scroll-wrap.content{padding-top:16px!important;}
 body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-scroll-wrap .vx-page-wrap{max-width:1040px!important;width:min(1040px,calc(100% - 40px))!important;margin:0 auto!important;}
 body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banner.vxdr-banner{margin:0 auto 18px!important;max-width:1040px!important;width:min(1040px,calc(100% - 40px))!important;}
@@ -39539,7 +39556,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     bar.style.display=open?'grid':'none';
     var phoneEl=document.getElementById('call-detail-subtitle');
     var callBtn=document.getElementById('vx-cd-bb-call');
-    var phone=(phoneEl && (phoneEl.getAttribute('aria-label')||phoneEl.textContent||'')).trim();
+    var phone=((phoneEl && (phoneEl.getAttribute('aria-label')||phoneEl.textContent||'')) || '').trim();
     if(callBtn){
       var hasPhone=!!phone && phone.indexOf('Keine Telefonnummer')<0;
       callBtn.disabled=!hasPhone;
