@@ -19312,6 +19312,7 @@ function renderCallDetailPage(call, history) {
       var _pageForFocus = document.getElementById('call-detail-page');
       var _isEmbeddedSplit = !!(_pageForFocus && document.getElementById('anrufe-split-right') && document.getElementById('anrufe-split-right').contains(_pageForFocus));
       var _focusMode = !!((document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode')) || (_pageForFocus && !_isEmbeddedSplit && (_pageForFocus.classList.contains('is-fullscreen') || _pageForFocus.classList.contains('vx-detail-focus'))));
+      var _anrufeTabActive = !!(document.getElementById('tab-anrufe') && document.getElementById('tab-anrufe').classList.contains('active'));
       var _layoutClass = _focusMode ? 'vxdr-focus' : 'vxdr-split';
       var _focusToggleTitle = _focusMode ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
       var _focusToggleIcon = _focusMode ? 'ph-arrows-in' : 'ph-arrows-out';
@@ -19335,9 +19336,11 @@ function renderCallDetailPage(call, history) {
         +     '<button type="button" class="vxdr-btn vxdr-primary" id="' + _primary.legacyId + '" onclick="event.stopPropagation();' + _primary.onclick + '" title="' + _esc(_primary.title) + '"' + (_primary.disabled ? ' disabled aria-disabled="true"' : '') + '>'
         +       '<i class="ph-bold ' + _primary.icon + '" aria-hidden="true"></i><span class="vxdr-btn-label">' + _esc(_primary.label) + '</span>'
         +     '</button>'
-        +     (_focusMode
-        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-arrows-in" aria-hidden="true"></i></button>'
-        : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _esc(_focusToggleTitle) + '" title="' + _esc(_focusToggleTitle) + '"><i class="ph-bold ' + _focusToggleIcon + '" aria-hidden="true"></i></button>')
+        +     (_anrufeTabActive
+        ? (_focusMode
+          ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-arrows-in" aria-hidden="true"></i></button>'
+          : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _esc(_focusToggleTitle) + '" title="' + _esc(_focusToggleTitle) + '"><i class="ph-bold ' + _focusToggleIcon + '" aria-hidden="true"></i></button>')
+        : '')
         +     '<button type="button" class="vxdr-iconbtn" id="vxd-menu-trigger" onclick="event.stopPropagation();vxdToggleMenu(event);" aria-haspopup="menu" aria-expanded="false" aria-label="Weitere Aktionen" title="Weitere Aktionen"><i class="ph-bold ph-dots-three-vertical" aria-hidden="true"></i></button>'
         +   '</div>'
         +   '<div class="vxdr-menu" id="vxd-menu" role="menu" hidden>'
@@ -20233,6 +20236,9 @@ function vxCallDetailExpand() {
 
   var isMobile = window.innerWidth < 768;
   if (isMobile) return; // Mobile ist bereits Fokusansicht.
+
+  var _anrufeTab = document.getElementById('tab-anrufe');
+  if (!_anrufeTab || !_anrufeTab.classList.contains('active')) return; // nur im Anfragen-Tab
 
   // useDetailV2-Modus: detailV2El ist Host, call-detail-page ist nicht in splitRight
   var _detailV2El = document.getElementById('requests-detail-v2');
@@ -24739,6 +24745,7 @@ function renderTaskDetailPage(taskRecord, history) {
         });
       };
       var _tIsFocus = !!(document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode'));
+      var _tAnrufeTabActive = !!(document.getElementById('tab-anrufe') && document.getElementById('tab-anrufe').classList.contains('active'));
       var _tFocusLabel = _tIsFocus ? 'Split' : 'Fokus';
       var _tFocusTitle = _tIsFocus ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
       var _tFocusIcon = _tIsFocus ? 'ph-arrows-in' : 'ph-arrows-out';
@@ -24782,9 +24789,11 @@ function renderTaskDetailPage(taskRecord, history) {
         +   '</div>'
         +   '<div class="vxdr-actions">'
         +     '<button type="button" class="vxdr-btn vxdr-primary" id="' + _tPrimaryId + '" onclick="event.stopPropagation();' + _tPrimaryAction + ';" title="' + _escT(_tPrimaryLabel) + '"><i class="ph-bold ' + _tPrimaryIcon + '" aria-hidden="true"></i><span class="vxdr-btn-label">' + _escT(_tPrimaryLabel) + '</span></button>'
-        +     (_tFocusMode
-        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-arrows-in" aria-hidden="true"></i></button>'
-        : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _escT(_tFocusTitle) + '" title="' + _escT(_tFocusTitle) + '"><i class="ph-bold ' + _tFocusIcon + '" aria-hidden="true"></i></button>')
+        +     (_tAnrufeTabActive
+        ? (_tFocusMode
+          ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-arrows-in" aria-hidden="true"></i></button>'
+          : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _escT(_tFocusTitle) + '" title="' + _escT(_tFocusTitle) + '"><i class="ph-bold ' + _tFocusIcon + '" aria-hidden="true"></i></button>')
+        : '')
         +     '<button type="button" class="vxdr-iconbtn" id="vxd-menu-trigger" onclick="event.stopPropagation();vxdToggleMenu(event);" aria-haspopup="menu" aria-expanded="false" aria-label="Weitere Aktionen" title="Weitere Aktionen"><i class="ph-bold ph-dots-three-vertical" aria-hidden="true"></i></button>'
         +   '</div>'
         +   '<div class="vxdr-menu" id="vxd-menu" role="menu" hidden>'
