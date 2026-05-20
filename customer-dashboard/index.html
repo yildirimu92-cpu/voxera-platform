@@ -18637,6 +18637,9 @@ window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
 function showCallDetail(callId, options) {
   try {
+    console.log('[v2-debug] anrufeTabActive:', document.getElementById('tab-anrufe')?.classList.contains('active'));
+    console.log('[v2-debug] innerWidth:', window.innerWidth);
+    console.log('[v2-debug] splitRight:', !!document.getElementById('anrufe-split-right'));
     options = options || {};
     callId = String(callId || '').trim();
     if (!callId) {
@@ -18688,6 +18691,11 @@ function showCallDetail(callId, options) {
       document.getElementById('tab-anrufe').classList.contains('active');
     var useDetailV2 = anrufeTabActive && splitRight && window.innerWidth >= 1100;
     var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768 && !useDetailV2;
+    console.log('[v2] anrufeTabActive:', anrufeTabActive);
+    console.log('[v2] innerWidth:', window.innerWidth);
+    console.log('[v2] splitRight:', !!splitRight);
+    console.log('[v2] useDetailV2:', useDetailV2);
+    console.log('[v2] useSplitDetail:', useSplitDetail);
     if (useDetailV2) {
       // [v2-stable] Detail-V2: kein Reparenting, permanent host in split-right
       var detailV2El = document.getElementById('requests-detail-v2');
