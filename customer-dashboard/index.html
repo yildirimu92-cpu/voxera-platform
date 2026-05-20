@@ -450,6 +450,7 @@
 
 @media(max-width:900px){.vx-heute-row{padding:9px 12px;min-height:52px;}.vx-jetzt-section,.vx-greeting-block{border-radius:var(--vx-r-lg);}}
 @media(max-width:767px){.vx-split{display:block;height:auto;border-radius:var(--vx-r-lg);}.vx-split-left{height:auto;}.vx-split-right{display:none;}}
+@media(min-width:1100px){#anrufe-split-right{display:flex;flex-direction:column;}}
 
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
 body{
@@ -7260,6 +7261,7 @@ body,.main{background:var(--vx-bg);}
                 <i class="ph-bold ph-tray" style="font-size:28px;opacity:.2;" aria-hidden="true"></i>
                 <div class="vx-split-empty-text">Wähle eine Anfrage aus, um Details zu sehen.</div>
               </div>
+              <div id="requests-detail-v2" style="display:none;flex:1;overflow:auto;"></div>
               <div id="anrufe-split-detail" style="flex:1;display:none;flex-direction:column;overflow:hidden;"></div>
             </div>
 
@@ -18684,8 +18686,16 @@ function showCallDetail(callId, options) {
     var splitEmpty = document.getElementById('anrufe-split-empty');
     var anrufeTabActive = document.getElementById('tab-anrufe') &&
       document.getElementById('tab-anrufe').classList.contains('active');
-    var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
-    if (useSplitDetail) {
+    var useDetailV2 = anrufeTabActive && splitRight && window.innerWidth >= 1100;
+    var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768 && !useDetailV2;
+    if (useDetailV2) {
+      // [v2-stable] Detail-V2: kein Reparenting, permanent host in split-right
+      var detailV2El = document.getElementById('requests-detail-v2');
+      if (splitEmpty) splitEmpty.style.display = 'none';
+      if (detailV2El) detailV2El.style.display = 'flex';
+      var rec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(callId) : null;
+      if (rec) vxRenderRequestsDetailV2(rec, { hostEl: detailV2El });
+    } else if (useSplitDetail) {
       // Detail in anrufe-split-right einbetten
       if (!splitRight.contains(page)) {
         splitRight.appendChild(page);
@@ -22292,6 +22302,28 @@ function vxSplitUpdateActionBar(callId) {
 
   // [v2.66] split-action-bar deaktiviert — CTAs sind jetzt im Header (vx-cd-qa)
   // Keine separate Bar mehr nötig
+}
+
+function vxRenderRequestsDetailV2(record, options) {
+  options = options || {};
+  var host = options.hostEl || document.getElementById('requests-detail-v2');
+  if (!host) return;
+  var f = (record && record.fields) ? record.fields : {};
+  var name    = String(f.caller_name || '').trim();
+  var phone   = String(f.phone || f.caller_phone || f.tel_link || '').trim();
+  var rawDate = f.created_at || f.received_at || '';
+  var date    = rawDate ? fmtDate(rawDate) : '';
+  var status  = String(f.status || f.dashboard_status || '').trim();
+  var summary = (typeof vxGetCallSummary === 'function')
+    ? vxGetCallSummary(record)
+    : String(f.call_summary || f.summary || '').trim();
+  var rows = '';
+  if (name)    rows += '<div class="vx-rdv2-row"><span class="vx-rdv2-label">Name</span><span class="vx-rdv2-val">' + _esc(name) + '</span></div>';
+  if (phone)   rows += '<div class="vx-rdv2-row"><span class="vx-rdv2-label">Telefon</span><span class="vx-rdv2-val">' + _esc(phone) + '</span></div>';
+  if (date)    rows += '<div class="vx-rdv2-row"><span class="vx-rdv2-label">Datum</span><span class="vx-rdv2-val">' + _esc(date) + '</span></div>';
+  if (status)  rows += '<div class="vx-rdv2-row"><span class="vx-rdv2-label">Status</span><span class="vx-rdv2-val">' + _esc(status) + '</span></div>';
+  if (summary) rows += '<div class="vx-rdv2-summary">' + _esc(summary) + '</div>';
+  host.innerHTML = '<div class="vx-rdv2-card">' + rows + '</div>';
 }
 
 function vxSplitClearDetail() {
