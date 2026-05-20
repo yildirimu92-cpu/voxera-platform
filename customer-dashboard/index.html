@@ -18639,9 +18639,6 @@ window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
 function showCallDetail(callId, options) {
   try {
-    console.log('[v2-debug] anrufeTabActive:', document.getElementById('tab-anrufe')?.classList.contains('active'));
-    console.log('[v2-debug] innerWidth:', window.innerWidth);
-    console.log('[v2-debug] splitRight:', !!document.getElementById('anrufe-split-right'));
     options = options || {};
     callId = String(callId || '').trim();
     if (!callId) {
@@ -18693,11 +18690,6 @@ function showCallDetail(callId, options) {
       document.getElementById('tab-anrufe').classList.contains('active');
     var useDetailV2 = !options.forceFullscreen && anrufeTabActive && splitRight && window.innerWidth >= 1100;
     var useSplitDetail = !options.forceFullscreen && anrufeTabActive && splitRight && window.innerWidth >= 768 && !useDetailV2;
-    console.log('[v2] anrufeTabActive:', anrufeTabActive);
-    console.log('[v2] innerWidth:', window.innerWidth);
-    console.log('[v2] splitRight:', !!splitRight);
-    console.log('[v2] useDetailV2:', useDetailV2);
-    console.log('[v2] useSplitDetail:', useSplitDetail);
     if (useDetailV2) {
       page.classList.remove('is-open');
       page.style.display = 'none';
@@ -31812,7 +31804,8 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
   }
 
   function vxDv2SaveNote() {
-    if (!_recId) return;
+    var recId = _recId || String(window._vxCurrentCallId || '').trim();
+    if (!recId) return;
     var field = document.getElementById('vx-dv2-note');
     var btn = document.getElementById('vx-dv2-save-btn');
     if (!field) return;
@@ -31830,11 +31823,11 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
       if (window.toast) toast('Speichern nicht möglich: Verbindung fehlt.');
       return;
     }
-    sb.from('calls').update({ notes_customer_voxera: noteText, updated_at: new Date().toISOString() }).eq('id', _recId)
+    sb.from('calls').update({ notes_customer_voxera: noteText, updated_at: new Date().toISOString() }).eq('id', recId)
       .then(function() {
-        var rec = (window.allRecords||[]).find(function(r){return r.id===_recId;});
+        var rec = (window.allRecords||[]).find(function(r){return r.id===recId;});
         if (rec && rec.fields) rec.fields.notes_customer_voxera = noteText;
-        resetBtn('Gespeichert', '#059669');
+        resetBtn('Gespeichert ✓', '#059669');
         setTimeout(function(){ resetBtn('Speichern', '#0D1F3C'); }, 2000);
         if (window.renderDashPriorityList) renderDashPriorityList();
       }).catch(function() {
@@ -31954,6 +31947,7 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 
   window.vxOpenDetailV2 = vxOpenDetailV2;
   window.vxCloseDetailV2 = vxCloseDetailV2;
+  window.vxDv2SaveNote = vxDv2SaveNote;
 })();
 
 document.getElementById('vx-dv2-close').addEventListener('click', function(){ vxCloseDetailV2(); });
