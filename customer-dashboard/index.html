@@ -18637,6 +18637,9 @@ window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
 function showCallDetail(callId, options) {
   try {
+    console.log('[v2-debug] anrufeTabActive:', document.getElementById('tab-anrufe')?.classList.contains('active'));
+    console.log('[v2-debug] innerWidth:', window.innerWidth);
+    console.log('[v2-debug] splitRight:', !!document.getElementById('anrufe-split-right'));
     options = options || {};
     callId = String(callId || '').trim();
     if (!callId) {
