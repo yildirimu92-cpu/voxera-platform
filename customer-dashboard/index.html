@@ -22466,7 +22466,7 @@ function vxRenderRequestsDetailV2(record, options) {
         'border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;">' +
         _esc(note) +
       '</textarea>' +
-      '<button id="vx-dv2-save-btn" style="' + btnBase +
+      '<button id="vx-dv2-save-btn" onclick="vxDv2SaveNote()" style="' + btnBase +
         'background:#0D1F3C;color:#fff;margin-top:8px;">Speichern</button>' +
     '</div>';
 
@@ -31947,6 +31947,7 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 
   window.vxOpenDetailV2 = vxOpenDetailV2;
   window.vxCloseDetailV2 = vxCloseDetailV2;
+  window.vxDv2SaveNote = vxDv2SaveNote;
 })();
 
 document.getElementById('vx-dv2-close').addEventListener('click', function(){ vxCloseDetailV2(); });
