@@ -14356,7 +14356,7 @@ function vxInquiryFilterEmptyText(filter) {
 function anrufeChipFilter(filter, btn) {
   window._vxAnfragenTodayOnly = false;
   if (typeof vxSplitClearDetail === 'function') vxSplitClearDetail();
-  _anrufeFilter = filter || 'offen';
+  _anrufeFilter = filter || 'alle';
   // Alle Filter-Buttons in diesem Container bereinigen
   var container = btn ? btn.closest('.vx-split-filters') : document.querySelector('#anrufe-split-left .vx-split-filters');
   if (container) {
@@ -21646,7 +21646,7 @@ function vxGoToAnfragenFilter(filter, subfilter) {
   if (typeof vxCloseFloatingRowMenu === 'function') vxCloseFloatingRowMenu();
   if (typeof showTab === 'function') showTab('anrufe', document.getElementById('nav-anrufe'), { historyMode: 'push' });
   setTimeout(function(){
-    _anrufeFilter = filter || 'offen';
+    _anrufeFilter = filter || 'alle';
     if (subfilter) _anrufeInboxSubfilter = subfilter;
     var search = document.getElementById('fb-anrufe-input');
     if (search) search.value = '';
@@ -35958,18 +35958,26 @@ button.vx-cd-qa-success:hover,
   if (!resizer || !leftPanel) return;
   
   var startX = 0, startW = 0, dragging = false;
-  var MIN_W = 220, MAX_RATIO = 0.6;
+  var DEFAULT_W = 440, MIN_W = 390, MAX_RATIO = 0.6;
+  function clampWidth(candidate) {
+    var container = leftPanel.parentElement;
+    var maxW = Math.floor((container ? container.offsetWidth : window.innerWidth || 0) * MAX_RATIO);
+    if (!isFinite(maxW) || maxW <= MIN_W) maxW = MIN_W;
+    return Math.min(Math.max(candidate, MIN_W), maxW);
+  }
+  function applyWidth(nextW) {
+    var clamped = clampWidth(nextW);
+    leftPanel.style.setProperty('--vx-split-left-w', clamped + 'px');
+    leftPanel.style.setProperty('width', clamped + 'px', 'important');
+    leftPanel.style.setProperty('flex-basis', clamped + 'px', 'important');
+    return clamped;
+  }
 
   function onMouseMove(e) {
     if (!dragging) return;
     var delta = e.clientX - startX;
-    var container = leftPanel.parentElement;
-    var maxW = Math.floor(container.offsetWidth * MAX_RATIO);
-    var newW = Math.min(Math.max(startW + delta, MIN_W), maxW);
-    leftPanel.style.setProperty('--vx-split-left-w', newW + 'px');
-    leftPanel.style.setProperty('width', newW + 'px', 'important');
-    leftPanel.style.setProperty('flex-basis', newW + 'px', 'important');
-    try { vxSafeLocalStorageSet('vx_split_w', newW); } catch(e) {}
+    var applied = applyWidth(startW + delta);
+    try { vxSafeLocalStorageSet('vx_split_w', applied); } catch(e) {}
   }
 
   function onMouseUp() {
@@ -35994,14 +36002,12 @@ button.vx-cd-qa-success:hover,
     document.addEventListener('mouseup', onMouseUp);
   });
 
-  // Restore saved width
+  // Restore saved width (legacy values are clamped).
   try {
-    var saved = parseInt(localStorage.getItem('vx_split_w'));
-    if (saved && saved >= MIN_W) {
-      leftPanel.style.setProperty('--vx-split-left-w', saved + 'px');
-      leftPanel.style.setProperty('width', saved + 'px', 'important');
-      leftPanel.style.setProperty('flex-basis', saved + 'px', 'important');
-    }
+    var rawSaved = parseInt(localStorage.getItem('vx_split_w'), 10);
+    var initial = Number.isFinite(rawSaved) ? rawSaved : DEFAULT_W;
+    var applied = applyWidth(initial);
+    vxSafeLocalStorageSet('vx_split_w', applied);
   } catch(e) {}
 })();
 </script>
@@ -42274,10 +42280,10 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 }
 #tab-anrufe .vx-split #anrufe-split-left,
 #anrufe-split-left{
-  width:var(--vx-split-left-w, 300px) !important;
-  min-width:220px !important;
+  width:var(--vx-split-left-w, 440px) !important;
+  min-width:390px !important;
   max-width:55% !important;
-  flex:0 0 var(--vx-split-left-w, 300px) !important;
+  flex:0 0 var(--vx-split-left-w, 440px) !important;
   border-radius:10px 0 0 10px !important;
 }
 #anrufe-split-resizer{
@@ -43637,8 +43643,8 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 /* Filter bleiben auch bei schmaler Split-Spalte sichtbar/bedienbar */
 #anrufe-split-left.vx-split-left,
 .vx-split-left#anrufe-split-left{
-  min-width:360px!important;
-  width:max(360px, var(--vx-anfragen-left-width, 360px))!important;
+  min-width:390px!important;
+  width:max(390px, var(--vx-anfragen-left-width, 440px))!important;
 }
 #anrufe-split-left .vx-split-filters{
   display:flex!important;
@@ -43823,11 +43829,11 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     window.renderDashboard = renderDashboard = wrappedDash;
   }
 
-  /* Filter-Reihenfolge: bewusst operativ — Offen, Geplant, Erledigt, Alle. */
+  /* Filter-Reihenfolge: Alle, Offen, Geplant, Erledigt. */
   function normalizeFilterOrder(){
     var wrap = document.querySelector('#anrufe-split-left .vx-split-filters');
     if (!wrap) return;
-    var order = ['offen','geplant','abgeschlossen','alle'];
+    var order = ['alle','offen','geplant','abgeschlossen'];
     order.forEach(function(key){
       var btn = wrap.querySelector('button[data-filter="'+key+'"]');
       if (btn) wrap.appendChild(btn);
