@@ -24037,7 +24037,8 @@ async function saveFollowup() {
       sourceRec = allRecords.find(function(r){ return r && String(r.id) === String(recordId); });
     }
     var sourceFields = (sourceRec && sourceRec.fields) || {};
-    var sourceIsDone = isClosedStatus(sourceFields.dashboard_status || sourceFields.status || currentStatus || '');
+    var sourceLifecycle = (sourceRec && typeof vxGetEntryLifecycleStatus === 'function') ? vxGetEntryLifecycleStatus(sourceRec) : '';
+    var sourceIsDone = sourceLifecycle === 'done' || sourceLifecycle === 'archived' || isClosedStatus(sourceFields.dashboard_status || sourceFields.status || currentStatus || '');
     if (sourceIsDone && followUpAt && !fields.mark_complete) {
       var dueAt = String(followUpAt || '').slice(0, 10);
       var dueTime = String(followUpAt || '').slice(11, 16) || '09:00';
@@ -24057,6 +24058,7 @@ async function saveFollowup() {
       if (createdTask) {
         allManualTaskRecords = Array.isArray(allManualTaskRecords) ? allManualTaskRecords : [];
         allManualTaskRecords.unshift(createdTask);
+        window.allManualTaskRecords = allManualTaskRecords;
       }
       if (typeof vxRefreshOperationalViews === 'function') vxRefreshOperationalViews(allRecords, allManualTaskRecords);
       else { renderDashboard(allRecords, allManualTaskRecords); renderRueckrufe(allRecords, allManualTaskRecords); }
