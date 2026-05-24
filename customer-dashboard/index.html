@@ -9645,6 +9645,7 @@ let allRecords = [];
 let allRecordsRaw = []; // includes activation test calls for polling
 let allManualTaskRecords = [];
 let notizRecordId = null;
+let followupCallerName = '';
 let editingManualTaskRecordId = null;
 let autoRefreshTimer = null;
 let realtimeLoadDebounceTimer = null;
@@ -23914,6 +23915,7 @@ function openFollowupDirect(recordId) {
 function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt) {
   rememberOverlayFocusReturn('followup-overlay');
   notizRecordId = recordId;
+  followupCallerName = String(callerName || '').trim();
   const done = isClosedStatus(currentStatus);
   document.getElementById('followup-sub').textContent = callerName ? 'Nach dem Rückruf mit ' + callerName : '';
   document.getElementById('followup-input').value = existingNotiz || '';
@@ -23993,6 +23995,7 @@ function closeFollowup() {
   document.getElementById('followup-input').value = '';
   document.getElementById('followup-next-action').value = '';
   document.getElementById('followup-datetime').value = '';
+  followupCallerName = '';
   const mc = document.getElementById('followup-mark-complete');
   if (mc) {
     mc.checked = false;
@@ -24042,7 +24045,7 @@ async function saveFollowup() {
     if (sourceIsDone && followUpAt && !fields.mark_complete) {
       var dueAt = String(followUpAt || '').slice(0, 10);
       var dueTime = String(followUpAt || '').slice(11, 16) || '09:00';
-      var caller = String(sourceFields.caller_name || sourceFields.company_name || callerName || '').trim();
+      var caller = String(sourceFields.caller_name || sourceFields.company_name || followupCallerName || '').trim();
       var phone = String(sourceFields.caller_phone || sourceFields.phone_number || sourceFields.tel_link || '').trim();
       var createdTask = await createManualTask({
         title: caller ? ('Rückruf für ' + caller) : 'Rückruf planen',
