@@ -18671,28 +18671,117 @@ function vxGetCallTranscript(callOrFields) {
 
 function vxGetCallAudioUrl(callOrFields) {
   var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : (callOrFields || {});
-  var keys = [
-    'recording_url','recordingUrl','call_recording_url','callRecordingUrl',
-    'audio_url','audioUrl','call_audio_url','conversation_audio_url',
-    'elevenlabs_audio_url','elevenlabs_recording_url','twilio_recording_url',
-    'recording','audio','voicemail_url'
+  var directKeys = [
+    'recording_url','recordingUrl','recordingURL','call_recording_url','callRecordingUrl','callRecordingURL',
+    'audio_url','audioUrl','audioURL','call_audio_url','callAudioUrl','conversation_audio_url','conversationAudioUrl',
+    'elevenlabs_audio_url','elevenlabsAudioUrl','elevenlabs_recording_url','elevenlabsRecordingUrl',
+    'twilio_recording_url','twilioRecordingUrl','voicemail_url','voicemailUrl','media_url','mediaUrl',
+    'recording','audio','audio_file','audioFile','audio_download_url','download_url','signed_url','signedUrl'
   ];
+  function validAudioUrl(text){
+    text = String(text || '').trim();
+    if (!text) return '';
+    if (/^data:audio\//i.test(text)) return text;
+    if (/^https?:\/\//i.test(text) && (/audio|record|recording|voice|voicemail|media|download|signed|mp3|wav|m4a|ogg/i.test(text))) return text;
+    return '';
+  }
+  for (var i = 0; i < directKeys.length; i++) {
+    var val = src[directKeys[i]];
+    var url = validAudioUrl(val);
+    if (url) return url;
+  }
+  var seen = [];
+  function scan(obj, depth){
+    if (!obj || depth > 4) return '';
+    if (typeof obj === 'string') {
+      var direct = validAudioUrl(obj);
+      if (direct) return direct;
+      try {
+        var parsed = JSON.parse(obj);
+        return scan(parsed, depth + 1);
+      } catch(e) { return ''; }
+    }
+    if (typeof obj !== 'object') return '';
+    if (seen.indexOf(obj) >= 0) return '';
+    seen.push(obj);
+    var keys = Object.keys(obj);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      var value = obj[key];
+      if (/audio|record|recording|voice|voicemail|media|download|signed/i.test(key)) {
+        var byKey = validAudioUrl(value);
+        if (byKey) return byKey;
+      }
+    }
+    for (var j = 0; j < keys.length; j++) {
+      var nested = scan(obj[keys[j]], depth + 1);
+      if (nested) return nested;
+    }
+    return '';
+  }
+  return scan(src, 0);
+}
+function vxGetElevenLabsConversationId(callOrFields) {
+  var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : (callOrFields || {});
+  var keys = ['elevenlabs_conversation_id','elevenlabsConversationId','conversation_id','conversationId','eleven_conversation_id','agent_conversation_id','call_conversation_id'];
   for (var i = 0; i < keys.length; i++) {
     var val = src[keys[i]];
-    if (val == null) continue;
-    var text = String(val).trim();
-    if (/^https?:\/\//i.test(text) || /^data:audio\//i.test(text)) return text;
+    if (val !== undefined && val !== null && String(val).trim()) return String(val).trim();
   }
   return '';
 }
+window.vxGetElevenLabsConversationId = vxGetElevenLabsConversationId;
 function vxRenderCallAudioCardHtml(callOrFields) {
   var audioUrl = vxGetCallAudioUrl(callOrFields);
+  var conversationId = (typeof vxGetElevenLabsConversationId === 'function') ? vxGetElevenLabsConversationId(callOrFields) : '';
+  if (!audioUrl && conversationId) {
+    var convSafe = (typeof escapeHtml === 'function') ? escapeHtml(conversationId) : String(conversationId).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    return '<div class="vx-transcript-card" id="vx-call-audio-card" data-conversation-id="'+convSafe+'"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">ElevenLabs</div></div><div class="vx-transcript-empty">Audio ist über eine ElevenLabs Conversation-ID verknüpft, aber noch nicht als URL im Dashboard synchronisiert.<br><button type="button" class="btn btn--secondary btn--sm" style="margin-top:10px;" onclick="vxTryLoadElevenLabsAudioFromDashboard(this)">Audio abrufen</button><div class="vx-audio-fetch-status" style="font-size:11px;color:var(--slate2);margin-top:8px;"></div></div></div>';
+  }
   if (!audioUrl) {
-    return '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Nicht verfügbar</div></div><div class="vx-transcript-empty">Für diesen Anruf ist noch keine Audioaufnahme im Dashboard hinterlegt.</div></div>';
+    return '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Nicht synchronisiert</div></div><div class="vx-transcript-empty">Für diesen Anruf ist im geladenen Datensatz noch keine Audio-URL oder ElevenLabs Conversation-ID hinterlegt.</div></div>';
   }
   var safe = (typeof escapeHtml === 'function') ? escapeHtml(audioUrl) : String(audioUrl).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   return '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Abspielen</div></div><div style="padding:12px 14px;border-top:0.5px solid var(--line);"><audio controls preload="metadata" style="width:100%;display:block;"><source src="'+safe+'"></audio><div style="font-size:11px;color:var(--slate2);margin-top:7px;line-height:1.45;">Originalaufnahme des Anrufs, sofern durch ElevenLabs/Twilio an Voxera übergeben.</div></div></div>';
 }
+async function vxTryLoadElevenLabsAudioFromDashboard(btn) {
+  var card = btn && btn.closest ? btn.closest('#vx-call-audio-card') : document.getElementById('vx-call-audio-card');
+  var status = card ? card.querySelector('.vx-audio-fetch-status') : null;
+  var conversationId = card ? String(card.getAttribute('data-conversation-id') || '').trim() : '';
+  if (!conversationId) return;
+  var endpoints = [
+    '/.netlify/functions/elevenlabs-conversation-audio?conversation_id=' + encodeURIComponent(conversationId),
+    '/.netlify/functions/elevenlabs-audio?conversation_id=' + encodeURIComponent(conversationId),
+    '/.netlify/functions/get-elevenlabs-audio?conversation_id=' + encodeURIComponent(conversationId)
+  ];
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = 'Audio wird abgerufen…';
+  try {
+    for (var i = 0; i < endpoints.length; i++) {
+      var res = await fetch(endpoints[i], { method:'GET' });
+      if (!res.ok) continue;
+      var ct = String(res.headers.get('content-type') || '').toLowerCase();
+      var url = '';
+      if (ct.indexOf('application/json') >= 0) {
+        var json = await res.json();
+        url = json.audio_url || json.audioUrl || json.recording_url || json.url || '';
+      } else if (ct.indexOf('audio/') >= 0) {
+        var blob = await res.blob();
+        url = URL.createObjectURL(blob);
+      }
+      if (url && card) {
+        card.outerHTML = '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Abspielen</div></div><div style="padding:12px 14px;border-top:0.5px solid var(--line);"><audio controls preload="metadata" style="width:100%;display:block;" src="'+String(url).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')+'"></audio></div></div>';
+        return;
+      }
+    }
+    if (status) status.textContent = 'Kein Audio-Endpunkt erreichbar. Backend-Sync/Netlify Function fehlt noch.';
+  } catch(e) {
+    if (status) status.textContent = 'Audio konnte nicht geladen werden.';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+window.vxTryLoadElevenLabsAudioFromDashboard = vxTryLoadElevenLabsAudioFromDashboard;
 window.vxGetCallAudioUrl = vxGetCallAudioUrl;
 window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
 
@@ -45595,12 +45684,18 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     if (map[key]) return map[key];
     return raw.replace(/_/g,' ').replace(/\b\w/g, function(m){ return m.toUpperCase(); });
   }
-  function fmtTs(value){
+  function fmtTs(value, opts){
+    opts = opts || {};
     if (!value) return '';
-    try { if (typeof window.formatDateTime === 'function') return window.formatDateTime(value); } catch(e) {}
-    try { if (typeof formatDateTime === 'function') return formatDateTime(value); } catch(e) {}
-    var d = new Date(value);
-    if (!isNaN(d.getTime())) return vxFormatDateTimeCH(d);
+    try {
+      if (typeof window.vxFormatDateTimeCH === 'function') {
+        return window.vxFormatDateTimeCH(value, { semanticLocal: !!opts.semanticLocal });
+      }
+    } catch(e) {}
+    try {
+      var d = opts.semanticLocal && typeof parseFollowUpDate === 'function' ? parseFollowUpDate(value) : new Date(value);
+      if (d && !isNaN(d.getTime())) return DATE_TIME_SHORT_FORMAT_CH.format(d);
+    } catch(e) {}
     return String(value);
   }
   function statusOf(record){
@@ -45664,6 +45759,21 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     return '<div class="vx-dv2-info-item"><div class="vx-dv2-info-label">'+esc(label)+'</div><div class="vx-dv2-info-value">'+esc(value || '—')+'</div>'+(sub?'<div class="vx-dv2-info-sub">'+esc(sub)+'</div>':'')+'</div>';
   }
   function noteOf(record){ var f = fieldsOf(record); return first(f.notes_customer_voxera, f.customer_note, f.note, f.notes, f.description); }
+  function taskDueRaw(record){
+    var f = fieldsOf(record);
+    try {
+      if (typeof resolveTaskDueAt === 'function') {
+        var resolved = resolveTaskDueAt(f);
+        if (resolved) return resolved;
+      }
+    } catch(e) {}
+    var dueDate = first(f.due_at, f.due_date, f.task_due_at, f.scheduled_at, f.follow_up_at, f.followup_at);
+    var dueTime = first(f.due_time, f.task_due_time);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(dueDate || '').trim()) && /^\d{2}:\d{2}$/.test(String(dueTime || '').trim())) {
+      return String(dueDate).trim() + 'T' + String(dueTime).trim();
+    }
+    return dueDate || '';
+  }
   function renderTask(record, options){
     options = options || {};
     var host = options.hostEl || document.getElementById('requests-detail-v2');
@@ -45671,7 +45781,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     var f = fieldsOf(record);
     var title = titleOf(record);
     var phone = phoneOf(record);
-    var due = first(f.follow_up_at, f.followup_at, f.due_at, f.due_date, f.task_due_at, f.scheduled_at);
+    var due = taskDueRaw(record);
     var created = first(f.created_at, f.inserted_at, f.received_at);
     var assignee = first(f.assignee_name, f.assignee, f.assigned_to, f.owner_name, f.owner);
     var taskType = isCallbackTask(record) ? 'Rückruf' : human(first(f.task_type, f.type, f.category)) || 'Aufgabe';
@@ -45686,7 +45796,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     html +=   '<div class="vx-dv2-header"><div class="vx-dv2-avatar">'+esc(isCallbackTask(record)?'R':'A')+'</div><div style="flex:1;min-width:0;">';
     html +=     '<div class="vx-dv2-title">'+esc(title)+'</div>';
     if (phone) html += '<div class="vx-dv2-phone">'+esc(phone)+'</div>';
-    html +=     '<div class="vx-dv2-meta">'+esc([due ? ('Fällig: ' + fmtTs(due)) : '', created ? ('Erstellt: ' + fmtTs(created)) : ''].filter(Boolean).join(' · ') || 'Aufgabe')+'</div>';
+    html +=     '<div class="vx-dv2-meta">'+esc([due ? ('Fällig: ' + fmtTs(due, { semanticLocal: true })) : '', created ? ('Erstellt: ' + fmtTs(created)) : ''].filter(Boolean).join(' · ') || 'Aufgabe')+'</div>';
     html +=     '<div class="vx-dv2-chips">'+chip(status, done?'green':(status==='Geplant'?'gold':'neutral'))+chip(taskType, isCallbackTask(record)?'blue':'neutral')+(due?chip('Fällig', 'gold'):'')+'</div>';
     html +=   '</div></div>';
     html +=   '<div class="vx-dv2-actions">';
@@ -45700,7 +45810,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     html +=     '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-info"></i> Aufgabendetails</div><span>Übersicht</span></div><div class="vx-dv2-info-grid">';
     html +=       item('Status', status);
     html +=       item('Typ', taskType);
-    html +=       item('Fälligkeit', due ? fmtTs(due) : 'Nicht geplant');
+    html +=       item('Fälligkeit', due ? fmtTs(due, { semanticLocal: true }) : 'Nicht geplant');
     html +=       item('Zuständig', assignee || 'Nicht zugewiesen');
     html +=       item('Telefon / Bezug', phone || '—');
     html +=       item('Erstellt', created ? fmtTs(created) : '—');
