@@ -18754,7 +18754,7 @@ function vxRenderModernAudioPlayerHtml(audioUrl, metaText){
     + '<div class="vx-audio-modern__controls">'
     + '<button class="vx-audio-modern__btn" type="button" data-vx-audio-action="back" aria-label="10 Sekunden zurück">↺</button>'
     + '<button class="vx-audio-modern__btn vx-audio-modern__btn--primary" type="button" data-vx-audio-action="play" aria-label="Audio abspielen">▶</button>'
-    + '<div class="vx-audio-modern__timeline"><div class="vx-audio-modern__wave" aria-hidden="true">'+bars+'</div><input class="vx-audio-modern__range" data-vx-audio-range type="range" min="0" max="1000" value="0"><div class="vx-audio-modern__time"><span data-vx-audio-current>0:00</span><span data-vx-audio-duration>0:00</span></div></div>'
+    + '<div class="vx-audio-modern__timeline"><div class="vx-audio-modern__wave" aria-hidden="true">'+bars+'</div><div class="vx-audio-modern__seek-feedback" data-vx-audio-seek-feedback aria-hidden="true"></div><input class="vx-audio-modern__range" data-vx-audio-range type="range" min="0" max="1000" value="0"><div class="vx-audio-modern__time"><span data-vx-audio-current>0:00</span><span data-vx-audio-duration>0:00</span></div></div>'
     + '<button class="vx-audio-modern__btn" type="button" data-vx-audio-action="forward" aria-label="10 Sekunden vor">↻</button>'
     + '</div><div class="vx-audio-modern__bottom"><div class="vx-audio-modern__volume"><span aria-hidden="true">⌁</span><input type="range" min="0" max="1" step="0.05" value="1" data-vx-audio-volume aria-label="Lautstärke"></div><div class="vx-audio-modern__speed">'
     + '<button class="vx-audio-modern__speed-btn is-active" type="button" data-vx-audio-speed="1">1x</button>'
@@ -18854,6 +18854,35 @@ window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
     var el = player && player.querySelector('[data-vx-audio-status]');
     if (el) el.textContent = text || '';
   }
+  function updateProgressNow(player, audio){
+    if (!player || !audio) return;
+    var cur = player.querySelector('[data-vx-audio-current]');
+    var range = player.querySelector('[data-vx-audio-range]');
+    if (cur) cur.textContent = formatTime(audio.currentTime || 0);
+    if (range && isFinite(audio.duration) && audio.duration > 0) {
+      var progress = Math.max(0, Math.min(1000, Math.round(((audio.currentTime || 0) / audio.duration) * 1000)));
+      range.value = String(progress);
+      range.style.setProperty('--vx-audio-progress', String(Math.round(progress / 10)) + '%');
+    }
+  }
+  function showSeekFeedback(player, label, direction, button){
+    if (!player) return;
+    var el = player.querySelector('[data-vx-audio-seek-feedback]');
+    if (el) {
+      el.textContent = label;
+      el.classList.remove('is-back','is-forward','is-visible');
+      void el.offsetWidth;
+      if (direction) el.classList.add(direction === 'back' ? 'is-back' : 'is-forward');
+      el.classList.add('is-visible');
+      clearTimeout(el.__vxSeekTimer);
+      el.__vxSeekTimer = setTimeout(function(){ el.classList.remove('is-visible'); }, 720);
+    }
+    if (button) {
+      button.classList.add('is-tap-feedback');
+      clearTimeout(button.__vxTapTimer);
+      button.__vxTapTimer = setTimeout(function(){ button.classList.remove('is-tap-feedback'); }, 260);
+    }
+  }
   function hydratePlayer(player){
     if (!player || player.__vxAudioHydrated) return player && player.__vxAudioState;
     var audio = player.querySelector('audio');
@@ -18931,9 +18960,13 @@ window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
         } catch(e) { setStatus(player, 'Wiedergabe blockiert · erneut tippen'); }
       } else if (action === 'back') {
         audio.currentTime = Math.max(0, (audio.currentTime || 0) - 10);
+        updateProgressNow(player, audio);
+        showSeekFeedback(player, '−10s', 'back', actionBtn);
       } else if (action === 'forward') {
         var dur = isFinite(audio.duration) ? audio.duration : (audio.currentTime || 0) + 10;
         audio.currentTime = Math.min(dur, (audio.currentTime || 0) + 10);
+        updateProgressNow(player, audio);
+        showSeekFeedback(player, '+10s', 'forward', actionBtn);
       }
     }
     if (speedBtn) {
@@ -18957,6 +18990,7 @@ window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
     }
     if (!isFinite(state.audio.duration) || state.audio.duration <= 0) return;
     state.audio.currentTime = (Number(range.value) / 1000) * state.audio.duration;
+    updateProgressNow(player, state.audio);
   });
   window.vxHydrateModernAudioPlayers = function(root){
     (root || document).querySelectorAll('[data-vx-audio-player]').forEach(hydratePlayer);
@@ -45876,6 +45910,13 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-audio-modern__speed-btn{appearance:none;-webkit-appearance:none;border:0;border-radius:999px;min-width:44px;padding:8px 11px;background:transparent;color:#64748b;font-size:12px;font-weight:850;line-height:1;cursor:pointer;}
 .vx-audio-modern__speed-btn.is-active{background:#fff;color:#071833;box-shadow:0 4px 12px rgba(15,23,42,.11);}
 .vx-audio-modern__status{text-align:right;font-size:12px;font-weight:750;color:#8792a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+.vx-audio-modern__seek-feedback{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%) scale(.92);z-index:3;display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:32px;padding:0 12px;border-radius:999px;background:rgba(7,24,51,.92);color:#fff;font-size:12px;font-weight:900;letter-spacing:.01em;box-shadow:0 12px 26px rgba(7,24,51,.22);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;font-variant-numeric:tabular-nums;}
+.vx-audio-modern__seek-feedback.is-visible{opacity:1;transform:translate(-50%,-52%) scale(1);}
+.vx-audio-modern__seek-feedback.is-back{left:36%;}
+.vx-audio-modern__seek-feedback.is-forward{left:64%;}
+.vx-audio-modern__btn.is-tap-feedback{background:#dfe8f4;color:#071833;box-shadow:0 8px 18px rgba(15,23,42,.12);}
+.vx-audio-modern__btn--primary.is-tap-feedback{background:#071833;color:#fff;}
 .vx-audio-modern__audio{position:absolute !important;width:1px !important;height:1px !important;opacity:0 !important;pointer-events:none !important;overflow:hidden !important;}
 @media (min-width:900px){.vx-audio-modern{max-width:820px;margin:0 auto;padding:16px 18px;}.vx-audio-modern__surface{padding:14px 16px 13px;}}
 @media (max-width:720px){.vx-audio-modern{padding:14px;border-radius:20px;box-shadow:0 8px 20px rgba(15,23,42,.045);}.vx-audio-modern__top{margin-bottom:11px;}.vx-audio-modern__title{font-size:11px;letter-spacing:.16em;}.vx-audio-modern__sub{font-size:12px;}.vx-audio-modern__surface{padding:12px;border-radius:17px;}.vx-audio-modern__controls{grid-template-columns:38px 50px minmax(0,1fr) 38px;gap:8px;}.vx-audio-modern__wave{height:34px;gap:2px;}.vx-audio-modern__wave span{width:2px;min-width:2px;}.vx-audio-modern__bottom{grid-template-columns:1fr;gap:10px;}.vx-audio-modern__speed{justify-self:start;}.vx-audio-modern__status{text-align:left;}.vx-audio-modern__volume input{max-width:160px;}}
