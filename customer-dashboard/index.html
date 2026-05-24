@@ -32073,7 +32073,6 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 
     // Nachfassen button
     if (e.target.classList.contains('vx-dv2-btn-followup')) {
-      vxCloseDetailV2();
       if (_recId && window.openFollowupDirect) openFollowupDirect(_recId);
       return;
     }
@@ -32081,7 +32080,6 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
     // Done button
     if (e.target.classList.contains('vx-dv2-btn-done')) {
       var rid = _recId;
-      vxCloseDetailV2();
       if (rid && window.confirmTaskDone) confirmTaskDone(rid, null, 'vx-detail-v2');
       return;
     }
