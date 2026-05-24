@@ -8829,16 +8829,18 @@ body,.main{background:var(--vx-bg);}
         <div class="modal-head-top">
           <div class="modal-drag"></div>
           <div class="modal-head-row">
-            <div class="modal-head-icon"><i class="ph-bold ph-pencil-simple" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-            <h3 id="notiz-title">Notiz</h3>
+            <div class="modal-head-icon vx-modal-icon"><i class="ph-bold ph-pencil-simple" aria-hidden="true"></i></div>
+            <div class="vx-modal-head-copy">
+              <h3 id="notiz-title" class="vx-modal-title">Notiz</h3>
+              <div class="vx-modal-sub" id="notiz-sub"></div>
+            </div>
             <button class="modal-close-btn" onclick="closeNotiz()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
-          <div class="modal-head-sub" id="notiz-sub"></div>
         </div>
       </div>
       <div class="modal-body">
-        <div id="notiz-existing" style="display:none;margin-bottom:12px;padding:10px 12px;background:#F7F8FA;border-radius:8px;font-size:13px;color:var(--slate2);border:0.5px solid var(--line);"></div>
-        <div class="modal-field">
+        <div id="notiz-existing" class="vx-modal-alert vx-modal-alert-info" style="display:none"></div>
+        <div class="vx-modal-field">
           <label>Ihre Notiz</label>
           <textarea id="notiz-input" placeholder="z.B. Rückruf vereinbart, Termin Mittwoch 14 Uhr…"></textarea>
         </div>
@@ -8860,21 +8862,23 @@ body,.main{background:var(--vx-bg);}
         <div class="modal-head-top">
           <div class="modal-drag"></div>
           <div class="modal-head-row">
-            <div class="modal-head-icon"><i class="ph-bold ph-phone-outgoing" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-            <h3 id="followup-title">Nachfassen</h3>
+            <div class="modal-head-icon vx-modal-icon"><i class="ph-bold ph-phone-outgoing" aria-hidden="true"></i></div>
+            <div class="vx-modal-head-copy">
+              <h3 id="followup-title" class="vx-modal-title">Nachfassen</h3>
+              <div class="vx-modal-sub" id="followup-sub"></div>
+            </div>
             <button class="modal-close-btn" onclick="closeFollowup()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
-          <div class="modal-head-sub followup-subtitle" id="followup-sub"></div>
-        </div>
+                  </div>
       </div>
       <div class="modal-body">
-        <div id="followup-locked-warning" style="display:none;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400E;margin-bottom:14px;">
+        <div id="followup-locked-warning" class="vx-modal-alert vx-modal-alert-warn" style="display:none">
           Dieser Anruf ist erledigt und kann nicht mehr bearbeitet werden.
           <button onclick="dismissCompletedWarning()" aria-label="Hinweis ausblenden" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;">×</button>
         </div>
         <div id="followup-editable" class="followup-editable">
-          <div class="modal-grid followup-action-grid">
-            <div class="modal-field" style="margin-bottom:0;">
+          <div class="vx-modal-grid followup-action-grid">
+            <div class="vx-modal-field" style="margin-bottom:0;">
               <label for="followup-next-action">Nächste Aktion</label>
               <select id="followup-next-action">
                 <option value="">Keine Auswahl</option>
@@ -8886,34 +8890,40 @@ body,.main{background:var(--vx-bg);}
                 <option value="Kein Bedarf">Kein Bedarf</option>
               </select>
             </div>
-            <div class="modal-field" style="margin-bottom:0;">
+            <div class="vx-modal-field" style="margin-bottom:0;">
               <label for="followup-datetime">Nachfassen geplant</label>
               <input type="datetime-local" id="followup-datetime">
             </div>
           </div>
-          <div class="modal-field">
+          <div class="vx-modal-chips" id="followup-quick-chips">
+            <button type="button" class="vx-modal-chip" data-due-mode="today9">Heute</button>
+            <button type="button" class="vx-modal-chip" data-due-mode="tomorrow9">Morgen 09:00</button>
+            <button type="button" class="vx-modal-chip" data-due-mode="2days">+2 Tage</button>
+            <button type="button" class="vx-modal-chip" data-due-mode="nextweek">Nächste Woche</button>
+          </div>
+          <div class="vx-modal-field">
             <label for="followup-input">Notiz</label>
             <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf…" style="min-height:72px;"></textarea>
           </div>
-          <div class="followup-mark-row" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#F7F8FA;border-radius:10px;border:0.5px solid var(--line);">
+          <div class="followup-mark-row vx-modal-check-row">
             <input type="checkbox" id="followup-mark-complete" style="width:16px;height:16px;accent-color:#1A6FE8;">
-            <label for="followup-mark-complete" style="font-size:13px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;margin:0;">Als erledigt markieren</label>
+            <span>Als erledigt markieren</span>
           </div>
         </div>
       </div>
       <!-- Reminder section -->
-      <div style="padding:12px 16px;border-top:0.5px solid var(--line);background:#F8FAFC;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <input type="checkbox" id="followup-reminder-on" style="width:16px;height:16px;accent-color:#1A6FE8;cursor:pointer;">
-          <label for="followup-reminder-on" style="font-size:13px;color:var(--ink);font-weight:500;cursor:pointer;">Erinnerung aktivieren</label>
+      <div class="vx-modal-field" style="padding:12px 16px;border-top:0.5px solid var(--line);background:#F8FAFC;margin-bottom:0;">
+        <div class="vx-modal-check-row" style="margin-bottom:10px;">
+          <input type="checkbox" id="followup-reminder-on" style="cursor:pointer;">
+          <span>Erinnerung aktivieren</span>
         </div>
         <div id="followup-reminder-opts" style="display:none;padding:8px 12px;background:#EFF6FF;border-radius:10px;">
           <div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Erinnerung wie viele Minuten vorher?</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button type="button" class="followup-reminder-opt" data-min="5" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border:0.5px solid #BFDBFE;background:#fff;color:#1A6FE8;">5 Min</button>
-            <button type="button" class="followup-reminder-opt" data-min="15" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border:0.5px solid #BFDBFE;background:#fff;color:#1A6FE8;">15 Min</button>
-            <button type="button" class="followup-reminder-opt" data-min="30" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border:0.5px solid #BFDBFE;background:#fff;color:#1A6FE8;">30 Min</button>
-            <button type="button" class="followup-reminder-opt" data-min="60" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border:0.5px solid #BFDBFE;background:#fff;color:#1A6FE8;">1 Std</button>
+            <button type="button" class="followup-reminder-opt vx-modal-chip" data-min="5">5 Min</button>
+            <button type="button" class="followup-reminder-opt vx-modal-chip" data-min="15">15 Min</button>
+            <button type="button" class="followup-reminder-opt vx-modal-chip" data-min="30">30 Min</button>
+            <button type="button" class="followup-reminder-opt vx-modal-chip" data-min="60">1 Std</button>
           </div>
           <div id="followup-reminder-selected" style="font-size:11px;color:#1A6FE8;margin-top:6px;font-weight:600;"></div>
         </div>
@@ -8959,22 +8969,22 @@ body,.main{background:var(--vx-bg);}
         <div class="modal-head-top">
           <div class="modal-drag"></div>
           <div class="modal-head-row">
-            <div class="modal-head-icon"><i class="ph-bold ph-plus" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-            <div style="display:flex;flex-direction:column;gap:2px;">
-              <h3 id="manual-task-title-heading">Task erstellen</h3>
-              <div style="font-size:12px;color:rgba(255,255,255,.78);font-weight:500;">Plane einen Rückruf, eine Aufgabe oder ein Follow-up.</div>
+            <div class="modal-head-icon vx-modal-icon"><i class="ph-bold ph-plus" aria-hidden="true"></i></div>
+            <div class="vx-modal-head-copy">
+              <h3 id="manual-task-title-heading" class="vx-modal-title">Task erstellen</h3>
+              <div class="vx-modal-sub">Plane einen Rückruf, eine Aufgabe oder ein Follow-up.</div>
             </div>
             <button class="modal-close-btn" onclick="closeManualTaskModal()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
       </div>
       <div class="modal-body">
-        <div class="modal-grid">
-          <div class="modal-field" style="margin-bottom:0;">
+        <div class="vx-modal-grid">
+          <div class="vx-modal-field" style="margin-bottom:0;">
             <label for="manual-task-title">Titel</label>
             <input id="manual-task-title" type="text" placeholder="z.B. Rückruf für Herr Müller">
           </div>
-          <div class="modal-field" style="margin-bottom:0;">
+          <div class="vx-modal-field" style="margin-bottom:0;">
             <label for="manual-task-type">Typ</label>
             <select id="manual-task-type">
               <option value="callback">Rückruf</option>
@@ -8984,20 +8994,34 @@ body,.main{background:var(--vx-bg);}
             </select>
           </div>
         </div>
-        <div style="font-size:12px;color:var(--slate2);margin:-2px 0 8px;">Für geplante interne Aufgaben. Erscheint unter „Geplant“.</div>
-        <div class="modal-field">
+        <div class="vx-modal-hint">Für geplante interne Aufgaben. Erscheint unter „Geplant“.</div>
+        <div class="vx-modal-field">
           <label for="manual-task-due">Fällig am</label>
-          <input id="manual-task-due" type="date">
+          <input id="manual-task-due" type="date" style="display:none">
         </div>
-        <div class="modal-field">
+        <div class="vx-modal-field">
           <label for="manual-task-due-time">Uhrzeit</label>
-          <input id="manual-task-due-time" type="time">
+          <input id="manual-task-due-time" type="time" style="display:none">
         </div>
-        <div class="modal-field">
+        <div class="vx-modal-field">
+          <label for="manual-task-datetime">Fällig am</label>
+          <input id="manual-task-datetime" type="datetime-local">
+        </div>
+        <div class="vx-modal-chips" id="manual-task-quick-chips">
+          <button type="button" class="vx-modal-chip vx-cd-due-chip" data-due-mode="today9">Heute</button>
+          <button type="button" class="vx-modal-chip vx-cd-due-chip is-active" data-due-mode="tomorrow9">Morgen 09:00</button>
+          <button type="button" class="vx-modal-chip vx-cd-due-chip" data-due-mode="2days">+2 Tage</button>
+          <button type="button" class="vx-modal-chip vx-cd-due-chip" data-due-mode="nextweek">Nächste Woche</button>
+        </div>
+        <div class="vx-modal-field">
           <label for="manual-task-owner">Zuständig</label>
           <input id="manual-task-owner" type="text" placeholder="z.B. Team Verkauf">
         </div>
-        <div class="modal-field">
+        <div class="vx-modal-field">
+          <label for="manual-task-phone">Telefon</label>
+          <input id="manual-task-phone" type="tel" placeholder="+41 …">
+        </div>
+        <div class="vx-modal-field">
           <label for="manual-task-note">Notiz</label>
           <textarea id="manual-task-note" placeholder="Optionale interne Notiz…" style="min-height:72px;"></textarea>
         </div>
@@ -9017,23 +9041,27 @@ body,.main{background:var(--vx-bg);}
         <div class="modal-head-top">
           <div class="modal-drag"></div>
           <div class="modal-head-row">
-            <div class="modal-head-icon"><i class="ph-bold ph-plus-circle" style="color:rgba(255,255,255,.8);" aria-hidden="true"></i></div>
-            <div style="display:flex;flex-direction:column;gap:2px;">
-              <h3 id="manual-request-title-heading">Neue Anfrage</h3>
-              <div style="font-size:12px;color:rgba(255,255,255,.78);font-weight:500;">Erfasse einen neuen Eingang für die Inbox.</div>
+            <div class="modal-head-icon vx-modal-icon"><i class="ph-bold ph-plus-circle" aria-hidden="true"></i></div>
+            <div class="vx-modal-head-copy">
+              <h3 id="manual-request-title-heading" class="vx-modal-title">Neue Anfrage</h3>
+              <div class="vx-modal-sub">Erfasse einen neuen Eingang für die Inbox.</div>
             </div>
             <button class="modal-close-btn" onclick="closeManualRequestModal()" aria-label="Schliessen"><i class="ph-bold ph-x" style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
       </div>
       <div class="modal-body">
-        <div style="font-size:12px;color:var(--slate2);margin-bottom:10px;">Für neue manuelle Anfragen, Leads oder Rückrufwünsche. Erscheint in der Inbox.</div>
-        <div class="modal-field"><label for="manual-request-name">Name / Firma</label><input id="manual-request-name" type="text"></div>
-        <div class="modal-field"><label for="manual-request-phone">Telefon</label><input id="manual-request-phone" type="tel" placeholder="+41 …"></div>
-        <div class="modal-field"><label for="manual-request-category">Kategorie</label><select id="manual-request-category"><option value="anruf">Anruf</option><option value="callback">Rückruf</option><option value="offerte">Offerte</option><option value="appointment">Termin</option><option value="general">Sonstiges</option></select></div>
-        <div class="modal-field"><label for="manual-request-priority">Priorität</label><select id="manual-request-priority"><option value="hot">Neu</option><option value="warm">Warm</option><option value="cold">Cold</option></select></div>
-        <div class="modal-field"><label for="manual-request-summary">Zusammenfassung</label><textarea id="manual-request-summary" style="min-height:72px;"></textarea></div>
-        <div class="modal-field" style="display:flex;align-items:center;gap:8px;"><input id="manual-request-inbox" type="checkbox" checked style="width:16px;height:16px;"><label for="manual-request-inbox" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;">Direkt in Inbox anzeigen</label></div>
+        <div class="vx-modal-hint" style="margin-top:0;">Für neue manuelle Anfragen, Leads oder Rückrufwünsche. Erscheint in der Inbox.</div>
+        <div class="vx-modal-grid">
+          <div class="vx-modal-field" style="margin-bottom:0;"><label for="manual-request-name">Name / Firma</label><input id="manual-request-name" type="text"></div>
+          <div class="vx-modal-field" style="margin-bottom:0;"><label for="manual-request-phone">Telefon</label><input id="manual-request-phone" type="tel" placeholder="+41 …"></div>
+        </div>
+        <div class="vx-modal-grid">
+          <div class="vx-modal-field" style="margin-bottom:0;"><label for="manual-request-category">Kategorie</label><select id="manual-request-category"><option value="anruf">Anruf</option><option value="callback">Rückruf</option><option value="offerte">Offerte</option><option value="appointment">Termin</option><option value="general">Sonstiges</option></select></div>
+          <div class="vx-modal-field" style="margin-bottom:0;"><label for="manual-request-priority">Priorität</label><select id="manual-request-priority"><option value="hot">Neu</option><option value="warm">Warm</option><option value="cold">Cold</option></select></div>
+        </div>
+        <div class="vx-modal-field"><label for="manual-request-summary">Zusammenfassung</label><textarea id="manual-request-summary" style="min-height:72px;"></textarea></div>
+        <label class="vx-modal-check-row"><input id="manual-request-inbox" type="checkbox" checked><span>Direkt in Inbox anzeigen</span></label>
       </div>
       <div class="modal-footer">
         <button class="btn btn--secondary btn--sm" onclick="closeManualRequestModal()">Abbrechen</button>
@@ -9064,8 +9092,10 @@ body,.main{background:var(--vx-bg);}
       <div class="modal-head">
         <div class="modal-head-top" style="padding:16px 20px;">
           <div class="modal-head-row">
-            <div class="modal-head-icon" id="confirm-icon"><i class="ph-bold ph-warning-circle" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-            <h3 id="confirm-title">Bitte bestätigen</h3>
+            <div class="modal-head-icon vx-modal-icon" id="confirm-icon"><i class="ph-bold ph-warning-circle" aria-hidden="true"></i></div>
+            <div class="vx-modal-head-copy">
+              <h3 id="confirm-title" class="vx-modal-title">Bitte bestätigen</h3>
+            </div>
             <button class="modal-close-btn" onclick="closeConfirmModal()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
         </div>
@@ -44017,6 +44047,40 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 }
 </style>
 
+<style id="vx-modal-redesign-unified">
+/* ═══════════════════════════════════════════
+   VX MODAL REDESIGN — Einheitliche Modals
+═══════════════════════════════════════════ */
+.vx-modal-icon {width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;color:rgba(255,255,255,0.85);}
+.vx-modal-head-copy {flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+.vx-modal-title {font-family:var(--vx-font-disp)!important;font-size:16px!important;font-weight:800!important;color:#fff!important;letter-spacing:-0.025em!important;margin:0!important;}
+.vx-modal-sub {font-size:12px;color:rgba(255,255,255,0.48);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vx-modal-sub:empty { display:none; }
+.vx-modal-field {margin-bottom:14px;}
+.vx-modal-field:last-child {margin-bottom:0;}
+.vx-modal-field label {display:block;font-size:10px;font-weight:700;color:var(--vx-text3);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:6px;}
+.vx-modal-field input,.vx-modal-field select,.vx-modal-field textarea {width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--vx-r-lg);background:var(--vx-bg);color:var(--vx-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.15s;-webkit-appearance:none;}
+.vx-modal-field input:focus,.vx-modal-field select:focus,.vx-modal-field textarea:focus {border-color:var(--vx-blue);background:#fff;}
+.vx-modal-field textarea {min-height:80px;resize:none;line-height:1.5;}
+.vx-modal-field select {background-image:url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A8599' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+.vx-modal-field input[type="datetime-local"] {color-scheme:light;font-size:13px;}
+.vx-modal-grid {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+@media (max-width: 480px) {.vx-modal-grid {grid-template-columns:1fr;}}
+.vx-modal-chips {display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;margin-bottom:14px;}
+.vx-modal-chip {padding:5px 11px;border-radius:7px;border:1.5px solid var(--line);background:var(--vx-surface);color:var(--vx-text2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+.vx-modal-chip:hover,.vx-modal-chip.is-active {border-color:var(--vx-blue);background:var(--vx-blue-light);color:var(--vx-blue);}
+.vx-modal-check-row {display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:var(--vx-r-lg);border:1.5px solid var(--line);background:var(--vx-bg);cursor:pointer;transition:border-color 0.15s;}
+.vx-modal-check-row:hover { border-color: var(--vx-blue); }
+.vx-modal-check-row input[type="checkbox"] {width:16px;height:16px;border-radius:4px;accent-color:var(--vx-blue);margin:0;flex-shrink:0;}
+.vx-modal-check-row span {font-size:13px;color:var(--vx-text2);font-weight:500;}
+.vx-modal-alert {border-radius:var(--vx-r-lg);padding:10px 13px;font-size:13px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;}
+.vx-modal-alert-warn {background:#FFFBEB;border:1.5px solid #FDE68A;color:#92400E;}
+.vx-modal-alert-info {background:var(--vx-blue-light);border:1.5px solid var(--vx-blue-bd);color:#1256b8;}
+.vx-modal-hint {font-size:11px;color:var(--vx-text3);margin-top:-10px;margin-bottom:12px;}
+.vx-confirm-icon-wrap {width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px;}
+.vx-confirm-icon-wrap.green { background: var(--green-light); }
+.vx-confirm-icon-wrap.red { background: #FEF2F2; }
+</style>
 
 <!-- PR-Q — Heute-Rows an Inbox-System angleichen: 2026-05-23 -->
 <style id="vx-pr-q-today-row-alignment">
