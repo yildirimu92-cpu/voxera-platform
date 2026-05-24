@@ -46147,6 +46147,56 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     }
     return dueDate || '';
   }
+  function vxRenderDetailV2Actions(record, context){
+    context = context || {};
+    var actionSet = null;
+    try {
+      if (typeof vxBuildOperationalRowActions === 'function') {
+        actionSet = vxBuildOperationalRowActions(record, { phone: context.phone || '', surface: 'requests', typeMeta: context.typeMeta || null }) || null;
+      }
+    } catch(e) { actionSet = null; }
+    if (!actionSet) return '';
+    var primary = actionSet.primaryAction || null;
+    var menu = Array.isArray(actionSet.menuActions) ? actionSet.menuActions : [];
+    var out = [];
+    var seen = Object.create(null);
+    function addBtn(html, key){
+      if (!html) return;
+      if (key && seen[key]) return;
+      if (key) seen[key] = true;
+      out.push(html);
+    }
+    function mapAction(actionName, isPrimary){
+      var cls = 'vx-dv2-btn' + (isPrimary ? ' vx-dv2-btn-primary' : '');
+      if (actionName === 'done') {
+        return '<button class="vx-dv2-btn vx-dv2-btn-done" onclick="vxCallDetailErledigt()"><i class="ph-bold ph-check"></i>Erledigen</button>';
+      }
+      if (actionName === 'call' && context.phone) {
+        return '<button class="'+cls+'" onclick="vxCallDetailAnrufen()"><i class="ph-bold ph-phone"></i>Anrufen</button>';
+      }
+      if (actionName === 'followup' || actionName === 'schedule-callback') {
+        return '<button class="'+cls+'" onclick="vxCallDetailFaelligkeit()"><i class="ph-bold ph-calendar-plus"></i>' + esc(context.followupLabel || 'Rückruf planen') + '</button>';
+      }
+      if (actionName === 'create-task') {
+        return '<button class="'+cls+'" onclick="vxCallDetailFaelligkeit()"><i class="ph-bold ph-plus-circle"></i>Aufgabe erstellen</button>';
+      }
+      if (actionName === 'archive') {
+        return '<button class="'+cls+'" onclick="vxCallDetailArchivieren()"><i class="ph-bold ph-archive"></i>Archivieren</button>';
+      }
+      if (actionName === 'fulldetail' && context.isTask && context.allowTaskEdit) {
+        return '<button class="'+cls+'" onclick="openManualTaskEditModal(window._vxCurrentTaskId || window._vxActiveRecordId)"><i class="ph-bold ph-pencil-simple"></i>Bearbeiten</button>';
+      }
+      return '';
+    }
+
+    if (primary && primary.action) addBtn(mapAction(primary.action, true), primary.action);
+    menu.forEach(function(item){
+      var act = item && item.action ? String(item.action) : '';
+      addBtn(mapAction(act, false), act);
+    });
+
+    return out.join('');
+  }
   function renderTask(record, options){
     options = options || {};
     var host = options.hostEl || document.getElementById('requests-detail-v2');
@@ -46172,11 +46222,8 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     html +=     '<div class="vx-dv2-meta">'+esc([due ? ('Fällig: ' + fmtTs(due, { semanticLocal: true })) : '', created ? ('Erstellt: ' + fmtTs(created)) : ''].filter(Boolean).join(' · ') || 'Aufgabe')+'</div>';
     html +=     '<div class="vx-dv2-chips">'+chip(status, done?'green':(status==='Geplant'?'gold':'neutral'))+chip(taskType, isCallbackTask(record)?'blue':'neutral')+(due?chip('Fällig', 'gold'):'')+'</div>';
     html +=   '</div></div>';
-    html +=   '<div class="vx-dv2-actions">';
-    if (phone) html += '<button class="vx-dv2-btn vx-dv2-btn-primary" onclick="vxCallDetailAnrufen()"><i class="ph-bold ph-phone"></i>Anrufen</button>';
-    html +=     '<button class="vx-dv2-btn" onclick="openManualTaskEditModal(window._vxCurrentTaskId || window._vxActiveRecordId)"><i class="ph-bold ph-pencil-simple"></i>Bearbeiten</button>';
-    if (!done) html += '<button class="vx-dv2-btn vx-dv2-btn-done" onclick="vxCallDetailErledigt()"><i class="ph-bold ph-check"></i>Erledigen</button>';
-    html +=   '</div>';
+    var taskActionsHtml = vxRenderDetailV2Actions(record, { phone: phone, isTask: true, allowTaskEdit: !done, followupLabel: (status === 'Geplant' ? 'Fälligkeit ändern' : 'Fälligkeit setzen') });
+    html +=   '<div class="vx-dv2-actions">' + taskActionsHtml + '</div>';
     html +=   '<div class="vx-dv2-body">';
     html +=     '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-check-square"></i> Aufgabe</div><span>'+esc(taskType)+'</span></div>';
     html +=       '<div class="vx-dv2-text">'+esc(first(f.summary, f.description, f.note, f.notes, isCallbackTask(record) ? 'Geplanter Rückruf zu diesem Eintrag.' : 'Diese Aufgabe ist mit einem Voxera-Eintrag verknüpft.'))+'</div></div>';
@@ -46206,7 +46253,18 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   window.vxRenderRequestsDetailV2 = function(record, options){
     options = options || {};
     if (isTaskRecord(record)) return renderTask(record, options);
-    if (typeof prevRender === 'function') return prevRender.call(this, record, options);
+    if (typeof prevRender === 'function') {
+      prevRender.call(this, record, options);
+      var hostA = options.hostEl || document.getElementById('requests-detail-v2');
+      if (hostA) {
+        var actionBar = hostA.querySelector('.vx-dv2-actions');
+        if (actionBar) {
+          var phoneCall = phoneOf(record);
+          actionBar.innerHTML = vxRenderDetailV2Actions(record, { phone: phoneCall, isTask: false, allowTaskEdit: false, followupLabel: 'Rückruf planen' });
+        }
+      }
+      return;
+    }
     var host = options.hostEl || document.getElementById('requests-detail-v2');
     if (host) host.innerHTML = '<div style="padding:24px;color:#64748B;">Detailansicht konnte nicht geladen werden.</div>';
   };
