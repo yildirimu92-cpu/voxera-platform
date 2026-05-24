@@ -18731,6 +18731,32 @@ function vxGetElevenLabsConversationId(callOrFields) {
   return '';
 }
 window.vxGetElevenLabsConversationId = vxGetElevenLabsConversationId;
+
+function vxAudioEscapeAttr(value){
+  return String(value || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function vxAudioEscapeText(value){
+  return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function vxRenderModernAudioPlayerHtml(audioUrl, metaText){
+  var safeUrl = vxAudioEscapeAttr(audioUrl);
+  var safeMeta = vxAudioEscapeText(metaText || 'Gesprächsaufnahme');
+  return '<div class="vx-audio-modern" data-vx-audio-player data-audio-url="'+safeUrl+'">'
+    + '<div class="vx-audio-modern__top"><div class="vx-audio-modern__meta"><div class="vx-audio-modern__title">Audioaufnahme</div><div class="vx-audio-modern__sub">'+safeMeta+'</div></div><div class="vx-audio-modern__boost">Boost aktiv</div></div>'
+    + '<div class="vx-audio-modern__controls">'
+    + '<button class="vx-audio-modern__btn" type="button" data-vx-audio-action="back" aria-label="10 Sekunden zurück">↺</button>'
+    + '<button class="vx-audio-modern__btn vx-audio-modern__btn--primary" type="button" data-vx-audio-action="play" aria-label="Audio abspielen">▶</button>'
+    + '<div class="vx-audio-modern__timeline"><input class="vx-audio-modern__range" data-vx-audio-range type="range" min="0" max="1000" value="0"><div class="vx-audio-modern__time"><span data-vx-audio-current>0:00</span><span data-vx-audio-duration>0:00</span></div></div>'
+    + '<button class="vx-audio-modern__btn" type="button" data-vx-audio-action="forward" aria-label="10 Sekunden vor">↻</button>'
+    + '</div><div class="vx-audio-modern__bottom"><div class="vx-audio-modern__speed">'
+    + '<button class="vx-audio-modern__speed-btn is-active" type="button" data-vx-audio-speed="1">1x</button>'
+    + '<button class="vx-audio-modern__speed-btn" type="button" data-vx-audio-speed="1.25">1.25x</button>'
+    + '<button class="vx-audio-modern__speed-btn" type="button" data-vx-audio-speed="1.5">1.5x</button>'
+    + '</div><div class="vx-audio-modern__status" data-vx-audio-status>Bereit · Boost aktiv</div></div>'
+    + '<audio class="vx-audio-modern__audio" preload="metadata" playsinline src="'+safeUrl+'"></audio>'
+    + '</div>';
+}
+
 function vxRenderCallAudioCardHtml(callOrFields) {
   var audioUrl = vxGetCallAudioUrl(callOrFields);
   var conversationId = (typeof vxGetElevenLabsConversationId === 'function') ? vxGetElevenLabsConversationId(callOrFields) : '';
@@ -18741,8 +18767,7 @@ function vxRenderCallAudioCardHtml(callOrFields) {
   if (!audioUrl) {
     return '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Nicht synchronisiert</div></div><div class="vx-transcript-empty">Für diesen Anruf ist im geladenen Datensatz noch keine Audio-URL oder ElevenLabs Conversation-ID hinterlegt.</div></div>';
   }
-  var safe = (typeof escapeHtml === 'function') ? escapeHtml(audioUrl) : String(audioUrl).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-  return '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Abspielen</div></div><div style="padding:12px 14px;border-top:0.5px solid var(--line);"><audio controls preload="metadata" style="width:100%;display:block;"><source src="'+safe+'"></audio><div style="font-size:11px;color:var(--slate2);margin-top:7px;line-height:1.45;">Originalaufnahme des Anrufs, sofern durch ElevenLabs/Twilio an Voxera übergeben.</div></div></div>';
+  return '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(audioUrl, 'Originalaufnahme des Anrufs') + '</div></div>';
 }
 async function vxTryLoadElevenLabsAudioFromDashboard(btn) {
   var card = btn && btn.closest ? btn.closest('#vx-call-audio-card') : document.getElementById('vx-call-audio-card');
@@ -18770,7 +18795,7 @@ async function vxTryLoadElevenLabsAudioFromDashboard(btn) {
         url = URL.createObjectURL(blob);
       }
       if (url && card) {
-        card.outerHTML = '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Abspielen</div></div><div style="padding:12px 14px;border-top:0.5px solid var(--line);"><audio controls preload="metadata" style="width:100%;display:block;" src="'+String(url).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')+'"></audio></div></div>';
+        card.outerHTML = '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(url, 'Gerade abgerufen') + '</div></div>';
         return;
       }
     }
@@ -18784,6 +18809,122 @@ async function vxTryLoadElevenLabsAudioFromDashboard(btn) {
 window.vxTryLoadElevenLabsAudioFromDashboard = vxTryLoadElevenLabsAudioFromDashboard;
 window.vxGetCallAudioUrl = vxGetCallAudioUrl;
 window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
+
+(function initVoxeraModernAudioPlayer(){
+  if (window.__vxModernAudioPlayerInit) return;
+  window.__vxModernAudioPlayerInit = true;
+  var BOOST_GAIN = 1.7;
+  function formatTime(seconds){
+    if (!isFinite(seconds) || seconds < 0) return '0:00';
+    var mins = Math.floor(seconds / 60);
+    var secs = Math.floor(seconds % 60);
+    return mins + ':' + String(secs).padStart(2,'0');
+  }
+  function setStatus(player, text){
+    var el = player && player.querySelector('[data-vx-audio-status]');
+    if (el) el.textContent = text || '';
+  }
+  function hydratePlayer(player){
+    if (!player || player.__vxAudioHydrated) return player && player.__vxAudioState;
+    var audio = player.querySelector('audio');
+    if (!audio) return null;
+    player.__vxAudioHydrated = true;
+    player.__vxAudioState = { audio: audio, audioContext: null, source: null, gain: null };
+    audio.playsInline = true;
+    audio.preload = 'metadata';
+    audio.addEventListener('loadedmetadata', function(){
+      var dur = player.querySelector('[data-vx-audio-duration]');
+      if (dur) dur.textContent = formatTime(audio.duration);
+      setStatus(player, 'Bereit · ' + BOOST_GAIN + 'x Boost');
+    });
+    audio.addEventListener('timeupdate', function(){
+      var cur = player.querySelector('[data-vx-audio-current]');
+      var range = player.querySelector('[data-vx-audio-range]');
+      if (cur) cur.textContent = formatTime(audio.currentTime);
+      if (range && isFinite(audio.duration) && audio.duration > 0) range.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
+    });
+    audio.addEventListener('play', function(){
+      var btn = player.querySelector('[data-vx-audio-action="play"]');
+      if (btn) btn.textContent = 'Ⅱ';
+      setStatus(player, 'Wird abgespielt');
+    });
+    audio.addEventListener('pause', function(){
+      var btn = player.querySelector('[data-vx-audio-action="play"]');
+      if (btn) btn.textContent = '▶';
+      if (!audio.ended) setStatus(player, 'Pausiert');
+    });
+    audio.addEventListener('ended', function(){
+      var btn = player.querySelector('[data-vx-audio-action="play"]');
+      if (btn) btn.textContent = '▶';
+      setStatus(player, 'Abgeschlossen');
+    });
+    audio.addEventListener('error', function(){ setStatus(player, 'Audio konnte nicht geladen werden'); });
+    return player.__vxAudioState;
+  }
+  function ensureBoost(player){
+    var state = hydratePlayer(player);
+    if (!state || state.gain) return state;
+    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) { setStatus(player, 'Bereit'); return state; }
+    try {
+      state.audioContext = new AudioContextClass();
+      state.source = state.audioContext.createMediaElementSource(state.audio);
+      state.gain = state.audioContext.createGain();
+      state.gain.gain.value = BOOST_GAIN;
+      state.source.connect(state.gain);
+      state.gain.connect(state.audioContext.destination);
+      setStatus(player, 'Bereit · ' + BOOST_GAIN + 'x Boost');
+    } catch(e) {
+      setStatus(player, 'Bereit');
+    }
+    return state;
+  }
+  function closestPlayer(el){ return el && el.closest ? el.closest('[data-vx-audio-player]') : null; }
+  document.addEventListener('click', async function(ev){
+    var actionBtn = ev.target && ev.target.closest ? ev.target.closest('[data-vx-audio-action]') : null;
+    var speedBtn = ev.target && ev.target.closest ? ev.target.closest('[data-vx-audio-speed]') : null;
+    if (!actionBtn && !speedBtn) return;
+    var player = closestPlayer(actionBtn || speedBtn);
+    if (!player) return;
+    var state = ensureBoost(player);
+    if (!state || !state.audio) return;
+    var audio = state.audio;
+    if (actionBtn) {
+      var action = actionBtn.getAttribute('data-vx-audio-action');
+      if (action === 'play') {
+        try {
+          if (state.audioContext && state.audioContext.state === 'suspended') await state.audioContext.resume();
+          if (audio.paused) await audio.play(); else audio.pause();
+        } catch(e) { setStatus(player, 'Wiedergabe blockiert · erneut tippen'); }
+      } else if (action === 'back') {
+        audio.currentTime = Math.max(0, (audio.currentTime || 0) - 10);
+      } else if (action === 'forward') {
+        var dur = isFinite(audio.duration) ? audio.duration : (audio.currentTime || 0) + 10;
+        audio.currentTime = Math.min(dur, (audio.currentTime || 0) + 10);
+      }
+    }
+    if (speedBtn) {
+      var speed = Number(speedBtn.getAttribute('data-vx-audio-speed') || '1') || 1;
+      audio.playbackRate = speed;
+      player.querySelectorAll('[data-vx-audio-speed]').forEach(function(btn){ btn.classList.remove('is-active'); });
+      speedBtn.classList.add('is-active');
+      setStatus(player, speed + 'x · ' + BOOST_GAIN + 'x Boost');
+    }
+  });
+  document.addEventListener('input', function(ev){
+    var range = ev.target && ev.target.matches && ev.target.matches('[data-vx-audio-range]') ? ev.target : null;
+    if (!range) return;
+    var player = closestPlayer(range);
+    var state = hydratePlayer(player);
+    if (!state || !isFinite(state.audio.duration) || state.audio.duration <= 0) return;
+    state.audio.currentTime = (Number(range.value) / 1000) * state.audio.duration;
+  });
+  window.vxHydrateModernAudioPlayers = function(root){
+    (root || document).querySelectorAll('[data-vx-audio-player]').forEach(hydratePlayer);
+  };
+  document.addEventListener('DOMContentLoaded', function(){ window.vxHydrateModernAudioPlayers(document); });
+})();
+
 
 function vxGetDetailNavStack() {
   if (!Array.isArray(window.vxDetailNavStack)) window.vxDetailNavStack = [];
@@ -22447,9 +22588,40 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
     return false;
   }
 
+  // ── Unified Row Menu Bridge ──────────────────────────────────────────────
+  // Source of truth for row actions is the same hidden .vx-row-menu that powers
+  // the visible three-dot overflow button. Long-press and right-click must not
+  // build their own action list, otherwise status-specific actions drift.
+  function _openUnifiedRowPortalMenu(card, x, y) {
+    if (!card || typeof vxOpenFloatingRowMenuAtPoint !== 'function') return false;
+
+    var row = card.closest && card.closest('.vx-heute-row');
+    if (!row && card.querySelector) row = card.querySelector('.vx-heute-row');
+    if (!row) return false;
+
+    var rowMenu = row.querySelector && row.querySelector('.vx-row-menu');
+    if (!rowMenu && card.querySelector) rowMenu = card.querySelector('.vx-row-menu');
+    if (!rowMenu) return false;
+
+    var recId = (row.dataset && (row.dataset.recordId || row.dataset.id)) ||
+      (card.dataset && (card.dataset.recordId || card.dataset.id)) || '';
+    var phone = (row.dataset && row.dataset.phone) ||
+      (card.dataset && card.dataset.phone) || '';
+
+    var source = { dataset: { recId: recId, id: recId, recordId: recId, phone: phone } };
+    vxOpenFloatingRowMenuAtPoint(source, rowMenu, x, y);
+    return true;
+  }
+
   // ── Öffnen (gemeinsam für Rechtsklick + Long-Press) ───────────────────────
   function _openForCard(card, x, y) {
     if (_anyOverlayOpen()) return; // kein Menü wenn Overlay/Modal offen
+
+    // Prefer the operational row menu used by the three-dot button. This keeps
+    // long-press/right-click exactly aligned with the visible overflow menu.
+    if (_openUnifiedRowPortalMenu(card, x, y)) return;
+
+    // Legacy fallback for older dpr-cards without a .vx-row-menu.
     var rec = _resolveRecord(card);
     if (!rec) return;
     var id = card.dataset.id;
@@ -22463,32 +22635,9 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
     var card = e.target.closest('.dpr-card');
     if (!card) return;
 
-    // Anfragen rows use the exact same portal menu as the visible three-dot
-    // overflow button. This avoids two competing context-menu systems and
-    // keeps all actions identical on right-click and on "...".
-    var row = e.target.closest && e.target.closest('#anrufe-list .vx-heute-row');
-    if (row) {
-      var rowMenu = row.querySelector('.vx-row-menu');
-      if (!rowMenu) {
-        var rowBtnScope = row.querySelector('.vx-row-btns');
-        rowMenu = rowBtnScope && rowBtnScope.querySelector ? rowBtnScope.querySelector('.vx-row-menu') : null;
-      }
-      if (rowMenu && typeof vxOpenFloatingRowMenuAtPoint === 'function') {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-        var source = {
-          dataset: {
-            recId: row.dataset.recordId || row.dataset.id || card.dataset.id || '',
-            phone: card.dataset.phone || row.dataset.phone || ''
-          }
-        };
-        vxOpenFloatingRowMenuAtPoint(source, rowMenu, e.clientX + 4, e.clientY + 4);
-        return;
-      }
-    }
-
     e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     _openForCard(card, e.clientX + 4, e.clientY + 4);
   }
 
