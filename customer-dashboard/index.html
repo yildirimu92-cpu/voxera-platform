@@ -7234,10 +7234,10 @@ body,.main{background:var(--vx-bg);}
             <!-- LINKS -->
             <div id="anrufe-split-left" class="vx-split-left">
               <div class="vx-split-filters">
-                <button class="vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
+                <button class="vx-chip vx-chip--active" data-filter="alle" onclick="anrufeChipFilter('alle',this)">Alle</button>
+                <button class="vx-chip" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
                 <button class="vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
                 <button class="vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
-                <button class="vx-chip" data-filter="alle" onclick="anrufeChipFilter('alle',this)">Alle</button>
               </div>
               <div class="vx-split-filters vx-split-filters--compact" id="anrufe-inbox-subfilters" style="margin-top:4px;">
                 <button class="vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
@@ -9684,6 +9684,53 @@ const DATE_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLA
 const DATE_LONG_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
 const WEEKDAY_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, weekday: 'short' });
 
+const DATE_TIME_SHORT_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+const DATE_TIME_LONG_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+const WEEKDAY_DATE_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, weekday:'short', day:'2-digit', month:'2-digit' });
+const DATE_MONTH_LONG_FORMAT_CH = new Intl.DateTimeFormat('de-CH', { timeZone: DISPLAY_TIMEZONE, day:'2-digit', month:'long', year:'numeric' });
+
+function vxNormalizeTimestampForCH(raw, semanticLocal) {
+  if (!raw) return null;
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : raw;
+  var s = String(raw).trim();
+  if (!s) return null;
+  if (semanticLocal) {
+    s = s.replace(' ', 'T').replace(/\.\d+/, '').replace(/([Zz]|[+-]\d{2}:?\d{2})$/, '');
+    var p = (typeof parseLocalDateTimeParts === 'function') ? parseLocalDateTimeParts(s) : null;
+    if (p) return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second || 0);
+  }
+  var d = null;
+  try {
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s) && !/[Zz]$/.test(s) && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+      d = new Date(s.replace(' ', 'T').replace(/(\d{2}:\d{2}:\d{2})\.\d+/, '$1') + 'Z');
+    } else {
+      d = new Date(s.replace(' ', 'T'));
+    }
+  } catch(e) { d = null; }
+  return (d && !Number.isNaN(d.getTime())) ? d : null;
+}
+function vxFormatDateTimeCH(raw, opts) {
+  opts = opts || {};
+  var d = vxNormalizeTimestampForCH(raw, !!opts.semanticLocal);
+  if (!d) return '';
+  if (opts.dateOnly) return DATE_MONTH_LONG_FORMAT_CH.format(d);
+  if (opts.weekdayDate) return WEEKDAY_DATE_FORMAT_CH.format(d).replace(',', '');
+  if (opts.timeOnly) return TIME_FORMAT_CH.format(d);
+  if (opts.long) return DATE_TIME_LONG_FORMAT_CH.format(d);
+  return DATE_TIME_SHORT_FORMAT_CH.format(d);
+}
+function vxFormatDateCH(raw) {
+  var d = vxNormalizeTimestampForCH(raw, false);
+  return d ? DATE_LONG_FORMAT_CH.format(d) : '';
+}
+function vxFormatTimeCH(raw) {
+  var d = vxNormalizeTimestampForCH(raw, false);
+  return d ? TIME_FORMAT_CH.format(d) : '';
+}
+window.vxFormatDateTimeCH = vxFormatDateTimeCH;
+window.vxFormatDateCH = vxFormatDateCH;
+window.vxFormatTimeCH = vxFormatTimeCH;
+
 const CALL_STATUS = Object.freeze({
   NEW: 'new',
   IN_PROGRESS: 'in_progress',
@@ -10830,7 +10877,7 @@ function vxNotifAge(ts) {
   if (diff < 60000) return 'Gerade eben';
   if (diff < 3600000) return 'Vor ' + Math.floor(diff/60000) + ' Min.';
   if (diff < 86400000) return 'Vor ' + Math.floor(diff/3600000) + ' Std.';
-  return new Date(ts).toLocaleDateString('de-CH', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  return vxFormatDateTimeCH(ts);
 }
 
 // ── Bell Toggle ────────────────────────────────────────────
@@ -11235,6 +11282,9 @@ function dprAction(action, recId, extra) {
   var sourceRec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(recId) : ((typeof allRecords !== 'undefined' ? allRecords : []).find(function(r){ return r.id === recId; })
     || (typeof allManualTaskRecords !== 'undefined' ? allManualTaskRecords : []).find(function(r){ return r.id === recId; }));
   var isManualSource = !!(sourceRec && isManualTaskRecord(sourceRec));
+  var actionLifecycle = (typeof vxRowActionLifecycle === 'function') ? vxRowActionLifecycle(sourceRec) : '';
+  var actionIsDone = actionLifecycle === 'done' || actionLifecycle === 'archived';
+  var actionIsArchived = actionLifecycle === 'archived';
   if (action === 'call') {
     var fCall = (sourceRec && sourceRec.fields) || {};
     var phoneForDial = extra || fCall.phone || fCall.caller_phone || fCall.tel_link || '';
@@ -11251,6 +11301,11 @@ function dprAction(action, recId, extra) {
     return;
   }
   if (action === 'done') {
+    if (actionIsDone) {
+      if (typeof toast === 'function') toast('Dieser Eintrag ist bereits erledigt.', 'info');
+      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.');
+      return;
+    }
     if (typeof vxGuardDoneAction === 'function' && vxGuardDoneAction(recId, 'dprAction.done')) return;
     var row = document.querySelector('.dpr-card[data-id="'+recId+'"]');
     if (typeof confirmTaskDone === 'function') {
@@ -11261,6 +11316,11 @@ function dprAction(action, recId, extra) {
     return;
   }
   if (action === 'archive') {
+    if (actionIsArchived) {
+      if (typeof toast === 'function') toast('Dieser Eintrag ist bereits archiviert.', 'info');
+      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits archiviert.');
+      return;
+    }
     var archiveRow = document.querySelector('.dpr-card[data-id="'+recId+'"]');
     if (isManualSource) {
       openConfirmModal({
@@ -11320,6 +11380,12 @@ function dprAction(action, recId, extra) {
   if (action === 'create-task') {
     if (typeof openManualTaskFromCall === 'function') { openManualTaskFromCall(recId); return; }
     if (typeof openManualTaskModal === 'function') { openManualTaskModal(); return; }
+    if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
+    return;
+  }
+  if (action === 'schedule-callback') {
+    if (typeof openFollowupDirect === 'function') { openFollowupDirect(recId); return; }
+    if (isManualSource && typeof showTaskDetail === 'function') { showTaskDetail(recId); return; }
     if (typeof showCallDetail === 'function') { showCallDetail(recId); return; }
     return;
   }
@@ -12452,7 +12518,7 @@ function vxTodayIsOpenManualTaskForAttention(record) {
 }
 function vxTodayGetRecordPhone(record) {
   var f = (record && record.fields) || {};
-  return String(f.caller_phone || f.phone || f.tel_link || '').trim();
+  return String(f.caller_phone || f.phone_number || f.phone || f.tel_link || '').trim();
 }
 function vxTodayGetPrimaryAction(record, typeMeta, phone) {
   var f = (record && record.fields) || {};
@@ -12466,64 +12532,88 @@ function vxTodayGetPrimaryAction(record, typeMeta, phone) {
   if (wantsCall && phone) return { action:'call', title:'Anrufen', icon:'phone-call', kind:'call' };
   return { action:'open', title:'Öffnen', icon:'arrow-square-out', kind:'open' };
 }
-function vxTodayBuildRowMenuHtml(record, phone, typeMeta) {
+function vxRowActionLifecycle(record) {
+  if (record && typeof vxGetEntryLifecycleStatus === 'function') return vxGetEntryLifecycleStatus(record);
   var f = (record && record.fields) || {};
-  var id = _esc(String((record && record.id) || ''));
-  var isManual = typeof isManualTaskRecord === 'function' && isManualTaskRecord(record);
-  var isDone = (typeof vxHeuteIsDoneRecord === 'function') ? vxHeuteIsDoneRecord(record) : isClosedStatus(f.dashboard_status || f.status);
-  var html = '';
-  html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
-  if (isDone) {
-    html += '<button type="button" data-action="reopen" data-rec-id="'+id+'">Wieder öffnen</button>';
-    return html;
-  }
-  if (isManual) {
-    html += '<button type="button" data-action="edit" data-rec-id="'+id+'">Bearbeiten</button>';
-    html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Fälligkeit ändern</button>';
-    html += '<button type="button" data-action="done" data-rec-id="'+id+'">Als erledigt markieren</button>';
-    html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
-    return html;
-  }
-  var callback = f.callback_requested === true || String(f.callback_requested).toLowerCase() === 'true' || (typeMeta && typeMeta.kind === 'callback');
-  if (callback) {
-    html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Follow-up planen</button>';
-  } else {
-    html += '<button type="button" data-action="create-task" data-rec-id="'+id+'">Aufgabe erstellen</button>';
-    html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Rückruf planen</button>';
-  }
-  html += '<button type="button" data-action="done" data-rec-id="'+id+'">Als erledigt markieren</button>';
-  if (phone) html += '<button type="button" data-action="copy-phone" data-rec-id="'+id+'" data-phone="'+_esc(phone)+'">Telefonnummer kopieren</button>';
-  html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
-  return html;
+  var status = String(f.dashboard_status || f.status || '').toLowerCase();
+  if (f.archived_at || ['archived','archive','archiviert','deleted','cancelled','canceled'].includes(status)) return 'archived';
+  if (f.completed_at || f.done_at || f.closed_at || ['closed','done','completed','resolved','erledigt','abgeschlossen'].includes(status)) return 'done';
+  if (f.follow_up_at || f.due_at || ['planned','scheduled','geplant','follow_up_scheduled'].includes(status)) return 'planned';
+  return 'open';
 }
-function vxAnfragenBuildRowMenuHtml(record, phone, typeMeta) {
-  // [PR-I 2026-05-23] Reduziertes Apple-like Row-Menü.
-  // Details öffnen / Details kopieren / doppelte Read-Aktionen bleiben bewusst draussen.
+function vxRowActionIsDone(record) {
+  var lifecycle = vxRowActionLifecycle(record);
+  return lifecycle === 'done' || lifecycle === 'archived';
+}
+function vxRowActionIsArchived(record) {
+  return vxRowActionLifecycle(record) === 'archived';
+}
+function vxRowActionLabelEscape(v) {
+  return (typeof _esc === 'function') ? _esc(v) : String(v || '').replace(/[&<>'"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]; });
+}
+function vxRowActionPhone(record, fallback) {
   var f = (record && record.fields) || {};
-  var id = _esc(String((record && record.id) || ''));
+  return String(fallback || f.caller_phone || f.phone_number || f.phone || f.tel_link || '').trim();
+}
+function vxBuildOperationalRowMenuHtml(record, phone, typeMeta, opts) {
+  opts = opts || {};
+  var id = vxRowActionLabelEscape(String((record && record.id) || ''));
+  var safePhone = vxRowActionLabelEscape(vxRowActionPhone(record, phone));
   var isManual = typeof isManualTaskRecord === 'function' && isManualTaskRecord(record);
+  var lifecycle = vxRowActionLifecycle(record);
+  var isDone = lifecycle === 'done';
+  var isArchived = lifecycle === 'archived';
+  var isPlanned = lifecycle === 'planned';
+  var hasPhone = !!vxRowActionPhone(record, phone);
   var html = '';
 
+  if (hasPhone) html += '<button type="button" data-action="call" data-rec-id="'+id+'" data-phone="'+safePhone+'">Anrufen</button>';
+
   if (isManual) {
-    html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Fälligkeit ändern</button>';
-    html += '<button type="button" data-action="edit" data-rec-id="'+id+'">Aufgabe bearbeiten</button>';
+    if (isDone || isArchived) {
+      html += '<button type="button" data-action="schedule-callback" data-rec-id="'+id+'">Rückruf planen</button>';
+      html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
+      if (!isArchived) html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
+      return html;
+    }
+    html += '<button type="button" data-action="followup" data-rec-id="'+id+'">'+(isPlanned ? 'Fälligkeit ändern' : 'Fälligkeit setzen')+'</button>';
+    html += '<button type="button" data-action="done" data-rec-id="'+id+'">Als erledigt markieren</button>';
+    html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
     html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
+    return html;
+  }
+
+  if (isDone || isArchived) {
+    html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Rückruf planen</button>';
+    html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
+    if (typeof vxIsUnreadEligibleRecord !== 'function' || vxIsUnreadEligibleRecord(record)) {
+      var unreadDone = (typeof vxIsUnreadRecord === 'function') ? vxIsUnreadRecord(record) : false;
+      html += unreadDone
+        ? '<button type="button" data-action="mark-read" data-rec-id="'+id+'">Als gelesen markieren</button>'
+        : '<button type="button" data-action="mark-unread" data-rec-id="'+id+'">Als ungelesen markieren</button>';
+    }
+    if (!isArchived) html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
     return html;
   }
 
   html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Rückruf planen</button>';
   html += '<button type="button" data-action="create-task" data-rec-id="'+id+'">Aufgabe erstellen</button>';
-  if (phone) html += '<button type="button" data-action="copy-phone" data-rec-id="'+id+'" data-phone="'+_esc(phone)+'">Telefonnummer kopieren</button>';
-
+  html += '<button type="button" data-action="done" data-rec-id="'+id+'">Als erledigt markieren</button>';
+  html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
   if (typeof vxIsUnreadEligibleRecord !== 'function' || vxIsUnreadEligibleRecord(record)) {
     var isUnread = (typeof vxIsUnreadRecord === 'function') ? vxIsUnreadRecord(record) : false;
     html += isUnread
       ? '<button type="button" data-action="mark-read" data-rec-id="'+id+'">Als gelesen markieren</button>'
       : '<button type="button" data-action="mark-unread" data-rec-id="'+id+'">Als ungelesen markieren</button>';
   }
-
   html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
   return html;
+}
+function vxTodayBuildRowMenuHtml(record, phone, typeMeta) {
+  return vxBuildOperationalRowMenuHtml(record, phone, typeMeta, { surface:'today' });
+}
+function vxAnfragenBuildRowMenuHtml(record, phone, typeMeta) {
+  return vxBuildOperationalRowMenuHtml(record, phone, typeMeta, { surface:'requests' });
 }
 function vxDecorateTodayAttentionRecord(record) {
   if (!record) return record;
@@ -18579,6 +18669,33 @@ function vxGetCallTranscript(callOrFields) {
   return '';
 }
 
+function vxGetCallAudioUrl(callOrFields) {
+  var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : (callOrFields || {});
+  var keys = [
+    'recording_url','recordingUrl','call_recording_url','callRecordingUrl',
+    'audio_url','audioUrl','call_audio_url','conversation_audio_url',
+    'elevenlabs_audio_url','elevenlabs_recording_url','twilio_recording_url',
+    'recording','audio','voicemail_url'
+  ];
+  for (var i = 0; i < keys.length; i++) {
+    var val = src[keys[i]];
+    if (val == null) continue;
+    var text = String(val).trim();
+    if (/^https?:\/\//i.test(text) || /^data:audio\//i.test(text)) return text;
+  }
+  return '';
+}
+function vxRenderCallAudioCardHtml(callOrFields) {
+  var audioUrl = vxGetCallAudioUrl(callOrFields);
+  if (!audioUrl) {
+    return '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Nicht verfügbar</div></div><div class="vx-transcript-empty">Für diesen Anruf ist noch keine Audioaufnahme im Dashboard hinterlegt.</div></div>';
+  }
+  var safe = (typeof escapeHtml === 'function') ? escapeHtml(audioUrl) : String(audioUrl).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  return '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Abspielen</div></div><div style="padding:12px 14px;border-top:0.5px solid var(--line);"><audio controls preload="metadata" style="width:100%;display:block;"><source src="'+safe+'"></audio><div style="font-size:11px;color:var(--slate2);margin-top:7px;line-height:1.45;">Originalaufnahme des Anrufs, sofern durch ElevenLabs/Twilio an Voxera übergeben.</div></div></div>';
+}
+window.vxGetCallAudioUrl = vxGetCallAudioUrl;
+window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
+
 function vxGetDetailNavStack() {
   if (!Array.isArray(window.vxDetailNavStack)) window.vxDetailNavStack = [];
   return window.vxDetailNavStack;
@@ -19339,8 +19456,8 @@ function renderCallDetailPage(call, history) {
   // ─── DATE TOP-RIGHT ───
   const dateEl = document.getElementById('call-detail-banner-date');
   if (dateEl) {
-    var _weekdayDate = timestamp.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
-    var _time = timestamp.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    var _weekdayDate = vxFormatDateTimeCH(timestamp, { weekdayDate: true });
+    var _time = vxFormatDateTimeCH(timestamp, { timeOnly: true });
     dateEl.innerHTML = '<span>' + _weekdayDate + '</span><span class="vx-cd-date-time">' + _time + '</span>';
   }
 
@@ -19413,8 +19530,8 @@ function renderCallDetailPage(call, history) {
   var actionTitleSafe = (typeof escapeHtml === 'function') ? escapeHtml(actionTitle) : actionTitle;
   var actionTextSafe = (typeof escapeHtml === 'function') ? escapeHtml(actionText) : actionText;
   var actionHintSafe = (typeof escapeHtml === 'function') ? escapeHtml(actionHint) : actionHint;
-  var dateLong = timestamp ? timestamp.toLocaleDateString('de-DE', { day:'2-digit', month:'long', year:'numeric' }) : '';
-  var timeShort = timestamp ? timestamp.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }) : '';
+  var dateLong = timestamp ? vxFormatDateTimeCH(timestamp, { dateOnly: true }) : '';
+  var timeShort = timestamp ? vxFormatDateTimeCH(timestamp, { timeOnly: true }) : '';
 
   // ─── HEADER PILLS — max. 2: Status + Handlungsbedarf/Rückruf
   // Relevanz lebt NICHT im Header (sie steht in der Details-Karte).
@@ -19640,7 +19757,8 @@ function renderCallDetailPage(call, history) {
   html +=   '</div>';
   html += '</div>';
 
-  // ─── CARD: Transkript (secondary accordion, geordnet nach Sprecher/Abschnitten) ───
+  // ─── CARD: Audioaufnahme + Transkript (secondary accordion, geordnet nach Sprecher/Abschnitten) ───
+  html += (typeof vxRenderCallAudioCardHtml === 'function') ? vxRenderCallAudioCardHtml(call) : '';
   html += (typeof vxRenderTranscriptCardHtml === 'function')
     ? vxRenderTranscriptCardHtml(callTranscript)
     : '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;"><div style="display:flex;align-items:center;gap:10px;padding:11px 14px;"><i class="ph-bold ph-file-text" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i><div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Gesprächsverlauf</div></div><div style="border-top:0.5px solid var(--line);padding:12px 14px;font-size:12px;line-height:1.7;color:var(--ink2);white-space:pre-wrap;max-height:320px;overflow-y:auto;">' + escapeHtml(callTranscript || 'Kein Gesprächsverlauf vorhanden.') + '</div></div>';
@@ -22070,36 +22188,62 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
   }
 
   // ── Items für Call ────────────────────────────────────────────────────────
+  function _ctxResolveById(id) {
+    if (typeof vxResolveDprRecord === 'function') return vxResolveDprRecord(id);
+    var calls = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
+    var tasks = (typeof allManualTaskRecords !== 'undefined' && allManualTaskRecords) ? allManualTaskRecords : (window.allManualTaskRecords || []);
+    return calls.find(function(r){ return String((r && r.id) || '') === String(id); })
+      || tasks.find(function(r){ return String((r && r.id) || '') === String(id); });
+  }
+
+  function _ctxRecordPhone(rec) {
+    var f = (rec && rec.fields) || {};
+    return String(f.caller_phone || f.phone_number || f.phone || f.tel_link || '').trim();
+  }
+
+  // ── Items für Call ────────────────────────────────────────────────────────
   function _callItems(id) {
-    // Gelesen = status != 'new', Ungelesen = status == 'new'
-    var rec = null;
-    if (typeof allRecords !== 'undefined') rec = allRecords.find(function(r){ return String((r&&r.id)||'') === String(id); });
+    var rec = _ctxResolveById(id);
+    var lifecycle = (typeof vxRowActionLifecycle === 'function') ? vxRowActionLifecycle(rec) : '';
+    var isDone = lifecycle === 'done';
+    var isArchived = lifecycle === 'archived';
+    var phone = _ctxRecordPhone(rec);
+    var f = (rec && rec.fields) || {};
     var currentStatus = rec && rec.fields ? normalizeStatus(rec.fields.dashboard_status) : CALL_STATUS.NEW;
     var isRead = currentStatus !== CALL_STATUS.NEW;
-    var items = [
-      {
+    var items = [];
+
+    if (phone) {
+      items.push({
+        label: 'Anrufen',
+        icon: 'phone-call',
+        action: function() { if (typeof dprAction === 'function') dprAction('call', id, phone); }
+      });
+    }
+
+    if (!isDone && !isArchived) {
+      items.push({
         label: 'Als erledigt markieren',
         icon: 'check-circle',
-        action: function() {
-          if (typeof confirmTaskDone === 'function') confirmTaskDone(id, null, 'context-menu');
-        }
-      },
-      {
-        label: 'Rückruf planen',
-        icon: 'phone-outgoing',
-        action: function() {
-          if (typeof openFollowupDirect === 'function') openFollowupDirect(id);
-        }
-      },
-      {
-        label: 'Details öffnen',
-        icon: 'arrow-square-out',
-        action: function() {
-          if (typeof openDetail === 'function') openDetail(id);
-        }
-      },
-      'divider',
-      {
+        action: function() { if (typeof confirmTaskDone === 'function') confirmTaskDone(id, null, 'context-menu'); }
+      });
+    }
+
+    items.push({
+      label: 'Rückruf planen',
+      icon: 'phone-outgoing',
+      action: function() { if (typeof openFollowupDirect === 'function') openFollowupDirect(id); }
+    });
+
+    items.push({
+      label: 'Details öffnen',
+      icon: 'arrow-square-out',
+      action: function() { if (typeof showCallDetail === 'function') showCallDetail(id); else if (typeof openDetail === 'function') openDetail(id); }
+    });
+
+    if (typeof vxIsUnreadEligibleRecord !== 'function' || vxIsUnreadEligibleRecord(rec)) {
+      items.push('divider');
+      items.push({
         label: isRead ? 'Als ungelesen markieren' : 'Als gelesen markieren',
         icon: isRead ? 'envelope' : 'envelope-open',
         action: function() {
@@ -22111,47 +22255,86 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
             if (typeof vxMarkRowAsRead === 'function') vxMarkRowAsRead(card);
           }
         }
-      },
-      'divider',
-      {
+      });
+    }
+
+    if (!isArchived) {
+      items.push('divider');
+      items.push({
         label: 'Archivieren',
         icon: 'archive',
-        action: function() {
-          if (typeof confirmArchiveInquiry === 'function') confirmArchiveInquiry(id, null);
-        },
+        action: function() { if (typeof confirmArchiveInquiry === 'function') confirmArchiveInquiry(id, null); },
         danger: false
-      },
-    ];
+      });
+    }
     return items;
   }
 
   // ── Items für Task ────────────────────────────────────────────────────────
   function _taskItems(id, rec) {
+    rec = rec || _ctxResolveById(id);
     var f = (rec && rec.fields) || {};
+    var lifecycle = (typeof vxRowActionLifecycle === 'function') ? vxRowActionLifecycle(rec) : '';
+    var isDone = lifecycle === 'done';
+    var isArchived = lifecycle === 'archived';
     var hasDue = !!(f.follow_up_at || f.due_at);
-    return [
-      {
-        label: 'Als erledigt markieren',
-        icon: 'check-circle',
-        action: function() {
-          if (typeof confirmTaskDone === 'function') confirmTaskDone(id, null, 'context-menu');
-        }
-      },
-      {
-        label: hasDue ? 'Fälligkeit ändern' : 'Fälligkeit setzen',
-        icon: 'calendar-plus',
-        action: function() {
-          if (typeof openFollowupDirect === 'function') openFollowupDirect(id);
-        }
-      },
-      {
+    var phone = _ctxRecordPhone(rec);
+    var items = [];
+
+    if (phone) {
+      items.push({
+        label: 'Anrufen',
+        icon: 'phone-call',
+        action: function() { if (typeof dprAction === 'function') dprAction('call', id, phone); }
+      });
+    }
+
+    if (isDone || isArchived) {
+      items.push({
+        label: 'Rückruf planen',
+        icon: 'phone-outgoing',
+        action: function() { if (typeof openFollowupDirect === 'function') openFollowupDirect(id); }
+      });
+      items.push({
         label: 'Details öffnen',
         icon: 'arrow-square-out',
-        action: function() {
-          if (typeof showTaskDetail === 'function') showTaskDetail(id);
-        }
-      },
-    ];
+        action: function() { if (typeof showTaskDetail === 'function') showTaskDetail(id); }
+      });
+      if (!isArchived) {
+        items.push('divider');
+        items.push({
+          label: 'Archivieren',
+          icon: 'archive',
+          action: function() { if (typeof dprAction === 'function') dprAction('archive', id); },
+          danger: false
+        });
+      }
+      return items;
+    }
+
+    items.push({
+      label: 'Als erledigt markieren',
+      icon: 'check-circle',
+      action: function() { if (typeof confirmTaskDone === 'function') confirmTaskDone(id, null, 'context-menu'); }
+    });
+    items.push({
+      label: hasDue ? 'Fälligkeit ändern' : 'Fälligkeit setzen',
+      icon: 'calendar-plus',
+      action: function() { if (typeof openFollowupDirect === 'function') openFollowupDirect(id); }
+    });
+    items.push({
+      label: 'Details öffnen',
+      icon: 'arrow-square-out',
+      action: function() { if (typeof showTaskDetail === 'function') showTaskDetail(id); }
+    });
+    items.push('divider');
+    items.push({
+      label: 'Archivieren',
+      icon: 'archive',
+      action: function() { if (typeof dprAction === 'function') dprAction('archive', id); },
+      danger: false
+    });
+    return items;
   }
 
   // ── Guard: prüft ob ein Modal/Overlay/Detail-Page offen ist ─────────────
@@ -22814,7 +22997,7 @@ function vxUpdateAnfragenCount() {
 }
 
 function renderAnrufe() {
-  var filter = _anrufeFilter || 'offen';
+  var filter = _anrufeFilter || 'alle';
   // [v2.65] Unified Inbox: immer intern aus allRecords + allManualTaskRecords lesen
   // Parameter wird ignoriert — verhindert dass Task-Array beim Aufruf wegfällt
   var source = (typeof vxGetAnfragenSourceRecords === 'function') ? vxGetAnfragenSourceRecords() : [];
@@ -22901,7 +23084,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   var el = document.getElementById(containerId);
   if (!el) return;
   el.classList.add('dpr-command-center');
-  var filter = activeFilter || _anrufeFilter || 'offen';
+  var filter = activeFilter || _anrufeFilter || 'alle';
 
   if (!records || records.length === 0) {
     var emptyLabel = filter === 'offen' ? 'Keine offenen Anfragen.' : (filter === 'geplant' ? 'Keine geplanten Aufgaben oder Rückrufe.' : (filter === 'alle' ? 'Keine Anfragen vorhanden.' : 'Noch keine erledigten Einträge.'));
@@ -23222,7 +23405,7 @@ var _focusModeActive = false;
 
 var _archivFilter = 'all';
 var _archivAllDone = [];
-var _anrufeFilter = 'offen';
+var _anrufeFilter = 'alle';
 var _anrufeInboxSubfilter = 'all';
 var _rueckrufeFilter = 'alle';
 var _anrufeSort = 'datum-neu';
@@ -35904,6 +36087,57 @@ button.vx-cd-qa-success:hover,
   }
 }
 
+/* PATCH: Mobile Anfragen row actions aligned with Heute tab
+   Root cause: previous mobile rule made actions full-width in grid column 2,
+   so the overflow button was rendered below/inside the text column. */
+@media(max-width:768px){
+  #anrufe-list.dpr-command-center .vx-heute-row{
+    display:grid !important;
+    grid-template-columns:42px minmax(0,1fr) 52px !important;
+    column-gap:10px !important;
+    align-items:center !important;
+    padding:10px 12px !important;
+  }
+  #anrufe-list.dpr-command-center .vx-row-icon{
+    grid-column:1 !important;
+    grid-row:1 !important;
+  }
+  #anrufe-list.dpr-command-center .vx-row-body{
+    grid-column:2 !important;
+    grid-row:1 !important;
+    min-width:0 !important;
+  }
+  #anrufe-list.dpr-command-center .vx-row-btns--single{
+    grid-column:3 !important;
+    grid-row:1 !important;
+    width:44px !important;
+    min-width:44px !important;
+    max-width:44px !important;
+    margin-top:0 !important;
+    justify-self:end !important;
+    align-self:center !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:flex-end !important;
+    gap:0 !important;
+  }
+  #anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn-main{
+    display:none !important;
+  }
+  #anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn.is-overflow{
+    display:flex !important;
+    flex:0 0 44px !important;
+    width:44px !important;
+    min-width:44px !important;
+    max-width:44px !important;
+    height:44px !important;
+    min-height:44px !important;
+    margin:0 !important;
+    padding:0 !important;
+    border-radius:14px !important;
+  }
+}
+
 
 /* ═══════════════════════════════════════════════════════════
    PATCH v2.91 — Anfragen Detail Header gemäss Mockup
@@ -42963,6 +43197,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
     html +=       detailItem('Eingang', date || '—');
     html +=     '</div></div>';
 
+    html +=     (typeof vxRenderCallAudioCardHtml === 'function') ? vxRenderCallAudioCardHtml(record) : '';
     html +=     renderTranscript(transcript);
 
     html +=     '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-pencil-simple"></i> Persönliche Notiz</div><span>Manuell</span></div>';
@@ -43968,7 +44203,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   function fmt(raw){
     if (!raw) return '';
     try { if (typeof fmtDate === 'function') return fmtDate(raw); } catch(e) {}
-    try { return new Date(raw).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); } catch(e) {}
+    try { return vxFormatDateTimeCH(raw); } catch(e) {}
     return String(raw);
   }
   function fmtDue(record, f){
@@ -45012,7 +45247,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   function showSplitEmpty(filter){
     var empty = document.getElementById('anrufe-split-empty');
     var detail = document.getElementById('requests-detail-v2');
-    var copy = getEmptyCopy(filter || window._anrufeFilter || 'offen');
+    var copy = getEmptyCopy(filter || window._anrufeFilter || 'alle');
     if (detail) {
       detail.style.display = 'none';
       detail.innerHTML = '';
@@ -45082,7 +45317,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
       var wrappedChip = function(filter, btn){
         var previousId = String(window._vxActiveRecordId || window._vxLastAnfragenRecordId || '').trim();
         var result = oldChip.apply(this, arguments);
-        scheduleAutoSelect(filter || window._anrufeFilter || 'offen', previousId);
+        scheduleAutoSelect(filter || window._anrufeFilter || 'alle', previousId);
         return result;
       };
       wrappedChip._vxAutoSelectWrapped = true;
@@ -45094,7 +45329,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
       var wrappedSub = function(filter, btn){
         var previousId = String(window._vxActiveRecordId || window._vxLastAnfragenRecordId || '').trim();
         var result = oldSub.apply(this, arguments);
-        scheduleAutoSelect(window._anrufeFilter || 'offen', previousId);
+        scheduleAutoSelect(window._anrufeFilter || 'alle', previousId);
         return result;
       };
       wrappedSub._vxAutoSelectWrapped = true;
@@ -45365,7 +45600,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     try { if (typeof window.formatDateTime === 'function') return window.formatDateTime(value); } catch(e) {}
     try { if (typeof formatDateTime === 'function') return formatDateTime(value); } catch(e) {}
     var d = new Date(value);
-    if (!isNaN(d.getTime())) return d.toLocaleString('de-CH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    if (!isNaN(d.getTime())) return vxFormatDateTimeCH(d);
     return String(value);
   }
   function statusOf(record){
@@ -45496,4 +45731,198 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 </script>
 
 </body>
+
+
+<!-- PR-NOTIF-KPI-COUPLING-FIX: 2026-05-24
+     Scope: Heute KPI target + Bell notification click coupling only. -->
+<script id="vx-pr-notif-kpi-coupling-fix">
+(function(){
+  'use strict';
+  if (window.__vxPrNotifKpiCouplingFix) return;
+  window.__vxPrNotifKpiCouplingFix = true;
+
+  function vxNfcRecords(){
+    try { if (Array.isArray(window.allRecords)) return window.allRecords; } catch(e) {}
+    try { if (typeof allRecords !== 'undefined' && Array.isArray(allRecords)) return allRecords; } catch(e) {}
+    return [];
+  }
+  function vxNfcTasks(){
+    try { if (Array.isArray(window.allManualTaskRecords)) return window.allManualTaskRecords; } catch(e) {}
+    try { if (typeof allManualTaskRecords !== 'undefined' && Array.isArray(allManualTaskRecords)) return allManualTaskRecords; } catch(e) {}
+    return [];
+  }
+  function vxNfcFields(record){ return (record && record.fields) ? record.fields : (record || {}); }
+  function vxNfcCleanId(value){ return String(value || '').trim(); }
+  function vxNfcRawId(value){
+    var id = vxNfcCleanId(value);
+    if (id.indexOf('case:') === 0) return id.slice(5);
+    if (id.indexOf('call:') === 0) return id.slice(5);
+    if (id.indexOf('manual:') === 0) return id.slice(7);
+    return id;
+  }
+  function vxNfcIsTask(record){
+    try { if (typeof isManualTaskRecord === 'function') return !!isManualTaskRecord(record); } catch(e) {}
+    var f = vxNfcFields(record);
+    var id = vxNfcCleanId(record && record.id);
+    return id.indexOf('case:') === 0 || !!f.task_entity_id || f.task_source === 'manual' || f.is_manual_task === true;
+  }
+  function vxNfcRecordIds(record){
+    var f = vxNfcFields(record);
+    var ids = [
+      record && record.id,
+      f.id,
+      f.task_entity_id,
+      f.task_id,
+      record && record.task_id,
+      f.call_id,
+      record && record.call_id,
+      f.related_call_id,
+      f.source_call_id,
+      f.origin_call_id
+    ];
+    var out = [];
+    ids.forEach(function(v){
+      var id = vxNfcCleanId(v);
+      if (!id) return;
+      out.push(id);
+      out.push(vxNfcRawId(id));
+      out.push('case:' + vxNfcRawId(id));
+      out.push('call:' + vxNfcRawId(id));
+    });
+    return out.filter(Boolean);
+  }
+  function vxNfcMatches(record, targetId){
+    var key = vxNfcCleanId(targetId);
+    var raw = vxNfcRawId(key);
+    if (!key) return false;
+    return vxNfcRecordIds(record).some(function(id){ return id === key || id === raw; });
+  }
+  function vxNfcNotificationById(nid){
+    try {
+      var cache = Array.isArray(window._vxNotifCache) ? window._vxNotifCache : (typeof _vxNotifCache !== 'undefined' ? _vxNotifCache : []);
+      return (cache || []).find(function(n){ return String(n && n.id) === String(nid); }) || null;
+    } catch(e) { return null; }
+  }
+  function vxNfcPreferTask(n){
+    var raw = String(((n && n.type) || '') + ' ' + ((n && n.title) || '') + ' ' + ((n && n.sub) || '')).toLowerCase();
+    return /task|aufgabe|callback|rückruf|rueckruf|follow|nachfass|fällig|faellig/.test(raw);
+  }
+  function vxNfcResolveNotificationRecord(nid, recId){
+    var n = vxNfcNotificationById(nid);
+    var target = vxNfcCleanId(recId || (n && n.recId));
+    if (!target) return null;
+    var tasks = vxNfcTasks();
+    var calls = vxNfcRecords();
+    var preferred = vxNfcPreferTask(n) ? tasks.concat(calls) : calls.concat(tasks);
+    for (var i = 0; i < preferred.length; i++) {
+      if (vxNfcMatches(preferred[i], target)) return preferred[i];
+    }
+    // Fallback: use existing resolver if it knows the target.
+    try { if (typeof vxFindRecordByIdSafe === 'function') return vxFindRecordByIdSafe(target); } catch(e) {}
+    return null;
+  }
+  function vxNfcOpenId(record, fallbackId){
+    var f = vxNfcFields(record);
+    if (vxNfcIsTask(record)) return vxNfcCleanId(f.task_entity_id || vxNfcRawId(record && record.id) || vxNfcRawId(f.id) || fallbackId);
+    return vxNfcCleanId(vxNfcRawId(record && record.id) || vxNfcRawId(f.id) || fallbackId);
+  }
+  function vxNfcCloseBell(){
+    try { if (typeof vxBellClose === 'function') vxBellClose(); } catch(e) {}
+    try { if (typeof vxBellPageRender === 'function') vxBellPageRender(); } catch(e) {}
+  }
+  function vxNfcOpenRecordFromNotification(nid, recId, isMobile){
+    var record = vxNfcResolveNotificationRecord(nid, recId);
+    if (!record) {
+      if (typeof toast === 'function') toast('Benachrichtigung konnte keinem aktuellen Eintrag zugeordnet werden.', 'warning');
+      return false;
+    }
+    var openId = vxNfcOpenId(record, recId);
+    var isTask = vxNfcIsTask(record);
+    if (nid && typeof vxNotifMarkRead === 'function') {
+      try { vxNotifMarkRead(nid); } catch(e) {}
+    }
+    vxNfcCloseBell();
+    var navEl = document.getElementById(isMobile ? 'mnav-anrufe' : 'nav-anrufe') || document.getElementById('nav-anrufe') || document.getElementById('mnav-anrufe');
+    try { window._vxLastAnfragenRecordId = openId; window._vxActiveRecordId = openId; } catch(e) {}
+    if (typeof showTab === 'function') showTab('anrufe', navEl, { historyMode: 'push' });
+    window.setTimeout(function(){
+      try { window._vxLastAnfragenRecordId = openId; window._vxActiveRecordId = openId; } catch(e) {}
+      if (isTask && typeof showTaskDetail === 'function') { showTaskDetail(openId); return; }
+      if (!isTask && typeof showCallDetail === 'function') { showCallDetail(openId); return; }
+      if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(openId);
+    }, 320);
+    return true;
+  }
+
+  // Replace fragile inline-only bell routing with a coupled resolver that opens the exact Call/Task row.
+  window.vxOpenNotificationTarget = function(nid, recId, isMobile){
+    return vxNfcOpenRecordFromNotification(nid, recId, !!isMobile);
+  };
+  window.vxBellItemClick = function(nid, recId){
+    vxNfcOpenRecordFromNotification(nid, recId, false);
+  };
+  window.vxBellPageItemClick = function(nid, recId){
+    vxNfcOpenRecordFromNotification(nid, recId, true);
+  };
+
+  // Delegated click handler: works even if inline onclick is blocked, stale, or not attached.
+  document.addEventListener('click', function(ev){
+    var row = ev.target && ev.target.closest ? ev.target.closest('#vx-notif-list .vx-ni, #vx-notif-page-list .vx-ni') : null;
+    if (!row) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    var nid = row.getAttribute('data-nid') || '';
+    var n = vxNfcNotificationById(nid);
+    var recId = row.getAttribute('data-rec-id') || (n && n.recId) || '';
+    var isMobile = !!row.closest('#vx-notif-page-list');
+    vxNfcOpenRecordFromNotification(nid, recId, isMobile);
+  }, true);
+
+  function vxNfcBuckets(){
+    try {
+      if (typeof window.vxBuildEntryBuckets === 'function') return window.vxBuildEntryBuckets(vxNfcRecords(), vxNfcTasks());
+    } catch(e) {}
+    return { today: { callsToday: [] } };
+  }
+  function vxNfcRenderTodayCallsSection(){
+    var buckets = vxNfcBuckets();
+    var calls = (buckets.today && buckets.today.callsToday) ? buckets.today.callsToday : [];
+    var sectionId = 'dash-today-calls-section';
+    var navEl = document.getElementById('nav-dashboard') || document.getElementById('mnav-dashboard');
+    if (typeof showTab === 'function') showTab('dashboard', navEl, { historyMode: 'push' });
+    function renderAndScroll(){
+      try {
+        var done = document.getElementById('dash-today-done-section');
+        if (done) done.style.display = 'none';
+        if (typeof window.vxHeuteRenderScopedList === 'function') {
+          window.vxHeuteRenderScopedList('dash-today-calls-list', sectionId, 'dash-today-calls-count', calls, 'Heute gab es noch keine Anrufe.');
+        } else {
+          var section = document.getElementById(sectionId);
+          var count = document.getElementById('dash-today-calls-count');
+          if (section) section.style.display = '';
+          if (count) count.textContent = String(calls.length || 0);
+        }
+        var target = document.getElementById(sectionId);
+        if (target) {
+          target.style.display = '';
+          if (target.scrollIntoView) target.scrollIntoView({ behavior:'smooth', block:'start' });
+        }
+      } catch(e) { try { console.warn('[vxHeute] today-calls KPI open failed', e); } catch(_) {} }
+    }
+    window.setTimeout(renderAndScroll, 80);
+    window.setTimeout(renderAndScroll, 280);
+  }
+  window.vxHeuteKpiOpenTodayCalls = vxNfcRenderTodayCallsSection;
+
+  // Delegated KPI click: survives dashboard rerenders and overwritten inline onclick handlers.
+  document.addEventListener('click', function(ev){
+    var cell = ev.target && ev.target.closest ? ev.target.closest('#kpi-cell-callbacks') : null;
+    if (!cell) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    vxNfcRenderTodayCallsSection();
+  }, true);
+})();
+</script>
+
 </html>
