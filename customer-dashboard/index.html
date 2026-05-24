@@ -8147,6 +8147,37 @@ body,.main{background:var(--vx-bg);}
 
             <div class="settings-card">
               <div class="settings-card-intro">
+                <div class="settings-module-tag">Benachrichtigungen</div>
+                <div class="settings-card-title" style="margin-top:10px;">Benachrichtigungen</div>
+                <div class="settings-card-lead">Lege fest, welche Hinweise in der Glocke angezeigt werden.</div>
+              </div>
+              <div class="settings-option-list">
+                <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+                  <div>
+                    <div style="font-size:13px;color:var(--ink2);font-weight:600;">Wichtige Anfragen</div>
+                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Hot Leads und dringende Anfragen.</div>
+                  </div>
+                  <input id="inapp-setting-important-requests" type="checkbox" style="width:18px;height:18px;accent-color:#1A6FE8;cursor:pointer;">
+                </label>
+                <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+                  <div>
+                    <div style="font-size:13px;color:var(--ink2);font-weight:600;">Rückrufe & Aufgaben</div>
+                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Rückrufwünsche und fällige Aufgaben.</div>
+                  </div>
+                  <input id="inapp-setting-callbacks-and-tasks" type="checkbox" style="width:18px;height:18px;accent-color:#1A6FE8;cursor:pointer;">
+                </label>
+                <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;opacity:.72;cursor:not-allowed;">
+                  <div>
+                    <div style="font-size:13px;color:var(--ink2);font-weight:600;">Systemhinweise</div>
+                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Wichtige Hinweise zur Erreichbarkeit und Einrichtung.</div>
+                  </div>
+                  <input id="inapp-setting-system" type="checkbox" checked disabled style="width:18px;height:18px;accent-color:#1A6FE8;cursor:not-allowed;">
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-card-intro">
                 <div class="settings-module-tag">Darstellung</div>
                 <div class="settings-card-title" style="margin-top:10px;">Theme-Modus</div>
                 <div class="settings-card-lead">Wählen Sie zwischen hellem und dunklem Erscheinungsbild oder folgen Sie automatisch Ihrer Systemeinstellung.</div>
@@ -10620,6 +10651,23 @@ function vxNotifFilterVisible(items) {
   }
   return visible;
 }
+function vxNotifTypeToSettingsCategory(rawType) {
+  var type = String(rawType || '').trim().toLowerCase();
+  if (['hot', 'important', 'urgent', 'lead_high'].indexOf(type) !== -1) return 'important_requests';
+  if (['callback', 'callback_due', 'task_due', 'followup'].indexOf(type) !== -1) return 'callbacks_and_tasks';
+  if (['system', 'forwarding', 'setup', 'assistant', 'error'].indexOf(type) !== -1) return 'system';
+  // V1 fallback for unknown types: keep visible through important_requests switch
+  return 'important_requests';
+}
+function vxNotifFilterBySettings(items) {
+  var source = Array.isArray(items) ? items : [];
+  var settings = vxNormalizeInAppNotificationSettings((customerMeta && customerMeta.inAppNotificationSettings) || VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS);
+  return source.filter(function(n) {
+    var category = vxNotifTypeToSettingsCategory(n && n.type);
+    if (category === 'system') return true; // V1 hardcoded always true
+    return settings[category] !== false;
+  });
+}
 function vxNotificationTargetIdFromRecord(record, fallbackId) {
   var f = (record && record.fields) || {};
   return String((record && record.id) || f.id || f.task_entity_id || f.task_id || fallbackId || '').trim();
@@ -10789,7 +10837,7 @@ function vxNotifSubscribe() {
 
 // ── Badge updaten ──────────────────────────────────────────
 function vxBellUpdateBadge() {
-  var unread = vxNotifFilterVisible(_vxNotifCache).filter(function(n){ return !n.read; }).length;
+  var unread = vxNotifFilterBySettings(vxNotifFilterVisible(_vxNotifCache)).filter(function(n){ return !n.read; }).length;
   var txt = unread > 9 ? '9+' : String(unread);
   var desktopBadge = document.getElementById('vx-bell-badge');
   if (desktopBadge) {
@@ -10814,7 +10862,7 @@ function vxBellAdd(opts) {
 function vxBellRender() {
   var list = document.getElementById('vx-notif-list');
   if (!list) return;
-  var items = vxNotifFilterVisible(_vxNotifCache).filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
+  var items = vxNotifFilterBySettings(vxNotifFilterVisible(_vxNotifCache)).filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
   if (!items.length) {
     vxSetHtmlIfChanged(list, '<div class="vx-notif-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i>Keine Benachrichtigungen der letzten 7 Tage</div>');
     return;
@@ -10827,7 +10875,7 @@ function vxBellRender() {
 function vxBellPageRender() {
   var list = document.getElementById('vx-notif-page-list');
   if (!list) return;
-  var items = vxNotifFilterVisible(_vxNotifCache).filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
+  var items = vxNotifFilterBySettings(vxNotifFilterVisible(_vxNotifCache)).filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
   if (!items.length) {
     vxSetHtmlIfChanged(list, '<div class="vx-notif-mobile-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i><div>Keine Benachrichtigungen</div><small>Lara informiert dich hier über neue Anrufe, Rückrufe und wichtige Hinweise.</small></div>');
     return;
@@ -11450,6 +11498,20 @@ window._vxForceDashboardAfterLogin = false;
 let isLogoutInProgress = false;
 let isAuthTransition = false;
 let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
+const VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS = Object.freeze({
+  important_requests: true,
+  callbacks_and_tasks: true,
+  system: true
+});
+function vxNormalizeInAppNotificationSettings(raw) {
+  var source = (raw && typeof raw === 'object') ? raw : {};
+  return {
+    important_requests: source.important_requests !== false,
+    callbacks_and_tasks: source.callbacks_and_tasks !== false,
+    // V1: system remains always enabled
+    system: true
+  };
+}
 let customerContractMeta = null;
 let customerContractState = {
   status: 'unknown',
@@ -13450,6 +13512,7 @@ function syncCanonicalCustomerStateFromRecord(record) {
   customerMeta.lastConfirmedForwardingMode = fields.last_confirmed_forwarding_mode || null;
   customerMeta.activationTestMode = fields.activation_test_mode || null;
   customerMeta.activationTestOutboundCallId = fields.activation_test_candidate_call_id || null;
+  customerMeta.inAppNotificationSettings = vxNormalizeInAppNotificationSettings(fields.in_app_notification_settings || VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS);
   // [PATCH v2.41] Intelligente Priorisierung
   // [PATCH v2.44] smart_routing_enabled nicht mehr benötigt — feste Logik
   // [PATCH v2.41/v2.43] Assistent-Tab UI nach Daten-Load aktualisieren
@@ -15493,6 +15556,14 @@ function vxInitBenachrichtigungen() {
     if (tpl) tpl.value = customerMeta.smsCallerTemplate || '';
     document.getElementById('sms-caller-detail').style.display = customerMeta.smsCallerEnabled ? 'block' : 'none';
   }
+  var inAppSettings = vxNormalizeInAppNotificationSettings(customerMeta.inAppNotificationSettings || VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS);
+  customerMeta.inAppNotificationSettings = inAppSettings;
+  var importantToggle = document.getElementById('inapp-setting-important-requests');
+  var callbacksToggle = document.getElementById('inapp-setting-callbacks-and-tasks');
+  var systemToggle = document.getElementById('inapp-setting-system');
+  if (importantToggle) importantToggle.checked = inAppSettings.important_requests === true;
+  if (callbacksToggle) callbacksToggle.checked = inAppSettings.callbacks_and_tasks === true;
+  if (systemToggle) systemToggle.checked = true;
 }
 
 function vxSetToggle2(type, enabled) {
@@ -15525,6 +15596,11 @@ async function vxSaveBenachrichtigungen() {
 
     const payload = {
       notification_mode: mode,
+      in_app_notification_settings: {
+        important_requests: !!document.getElementById('inapp-setting-important-requests')?.checked,
+        callbacks_and_tasks: !!document.getElementById('inapp-setting-callbacks-and-tasks')?.checked,
+        system: true
+      },
       sms_notify_enabled:  customerMeta.smsNotifyEnabled,
       sms_notify_trigger:  document.getElementById('sms-notify-trigger2')?.value || 'all',
       sms_notify_number:   document.getElementById('sms-notify-number2')?.value.trim() || '',
@@ -15540,12 +15616,22 @@ async function vxSaveBenachrichtigungen() {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json?.error || 'Fehler');
+    const inAppSettings = vxNormalizeInAppNotificationSettings(payload.in_app_notification_settings);
+    const { error: inAppSettingsError } = await _sb
+      .from('customers')
+      .update({ in_app_notification_settings: inAppSettings })
+      .eq('id', customerMeta.customerId);
+    if (inAppSettingsError) throw new Error(inAppSettingsError.message || 'In-App-Benachrichtigungen konnten nicht gespeichert werden.');
 
     customerMeta.notificationMode = mode;
     customerMeta.smsNotifyTrigger = payload.sms_notify_trigger;
     customerMeta.smsNotifyNumber = payload.sms_notify_number;
     customerMeta.smsCallerTrigger = payload.sms_caller_trigger;
     customerMeta.smsCallerTemplate = payload.sms_caller_template;
+    customerMeta.inAppNotificationSettings = inAppSettings;
+    vxBellUpdateBadge();
+    vxBellRender();
+    vxBellPageRender();
 
     if (fb) { fb.style.color = '#059669'; fb.textContent = '✓ Benachrichtigungen gespeichert.'; }
   } catch(e) {
