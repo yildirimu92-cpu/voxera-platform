@@ -1759,9 +1759,11 @@ button[aria-label]:focus-visible {
 }
 /* Wenn Call-Detail Page offen ist, Overlays über die Page heben (sonst hinter z-index:9999) */
 body:has(#call-detail-page[data-vx-display="block"]) .overlay,
-body:has(#call-detail-page[style*="block"]) .overlay,
-body:has(#vx-detail-v2[style*="display: flex"]) .overlay,
-body:has(#vx-detail-v2[style*="display:flex"]) .overlay {
+body:has(#call-detail-page[style*="block"]) .overlay {
+  z-index: 10000;
+}
+body.vx-detail-v2-open #followup-overlay.open,
+body.vx-detail-v2-open #confirm-overlay.open {
   z-index: 10000;
 }
 .overlay.open{display:flex;}
@@ -31932,14 +31934,14 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 
     // Show
     var ov = document.getElementById('vx-detail-v2');
-    if (ov) { ov.style.display = 'flex'; }
+    if (ov) { ov.style.display = 'flex'; document.body.classList.add('vx-detail-v2-open'); }
     vxSetScrollLock('detail-v2', true);
     vxSyncScrollLock();
   }
 
   function vxCloseDetailV2() {
     var ov = document.getElementById('vx-detail-v2');
-    if (ov) ov.style.display = 'none';
+    if (ov) { ov.style.display = 'none'; document.body.classList.remove('vx-detail-v2-open'); }
     vxSetScrollLock('detail-v2', false);
     vxSyncScrollLock();
     _recId = null;
