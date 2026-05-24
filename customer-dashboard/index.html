@@ -31730,231 +31730,19 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 </script>
 
 <!-- VX DETAIL OVERLAY v2 -->
-<div id="vx-detail-v2" style="display:none;position:fixed;inset:0;z-index:9050;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center;">
-  <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;">
-    <div style="background:#0D1F3C;border-radius:20px 20px 0 0;padding:16px 20px;flex-shrink:0;position:sticky;top:0;z-index:1;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div id="vx-dv2-av" style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;"></div>
-          <div>
-            <div id="vx-dv2-name" style="font-size:15px;font-weight:700;color:#fff;letter-spacing:-.02em;"></div>
-            <div id="vx-dv2-meta" style="font-size:11px;color:rgba(255,255,255,.45);margin-top:2px;"></div>
-          </div>
-        </div>
-        <button id="vx-dv2-close" style="background:rgba(255,255,255,.12);border:none;color:rgba(255,255,255,.7);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;font-family:inherit;line-height:1;">&times;</button>
-      </div>
-      <div id="vx-dv2-actions" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-    </div>
-    <div id="vx-dv2-body" style="padding:16px;flex:1;"></div>
-  </div>
-</div>
+<!-- #vx-detail-v2 removed: routing now handled by #vx-detail-v2-fullscreen (PR-O) -->
 <script>
+/* Slim stub: vxOpenDetailV2 redirects to new routing; vxDv2SaveNote kept for fullscreen note-save */
 (function() {
-  // VX Detail Overlay v2 - clean implementation
-  var _recId = null;
-  var VX_DV2_DEBUG = false;
-
-  function vxParseDateSafe(rawValue) {
-    if (!rawValue) return null;
-    if (rawValue instanceof Date) return Number.isNaN(rawValue.getTime()) ? null : rawValue;
-    var raw = String(rawValue).trim();
-    if (!raw) return null;
-    var hasZone = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
-    var parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime()) && !hasZone) parsed = new Date(raw + 'Z');
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-
-  function vxFormatDateTimeSafe(rawValue) {
-    var d = vxParseDateSafe(rawValue);
-    if (!d) return '';
-    try {
-      return d.toLocaleString('de-CH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Zurich' });
-    } catch (e) {
-      return '';
-    }
-  }
-
-  function vxOpenDetailV2(recordId) {
-    var rec = (window.allRecords||[]).find(function(r){return r.id===recordId;});
-    if (!rec) { if(window.openDetail) window.openDetail(recordId); return; }
-    // NEW: For real calls, redirect to new Call-Detail page
-    var f0 = rec.fields || {};
-    var isManualRec = !!(f0.is_manual_task || f0.task_type || f0.task_source === 'manual');
-    if (!isManualRec && typeof window.showCallDetail === 'function') {
-      window.showCallDetail(recordId);
-      return;
-    }
-    _recId = recordId;
-    var f = f0;
-    // [PATCH 2026-05-13 v2.3 — Phone-Match Kontakt-Auflösung]
-    var name = (typeof vxResolveDisplayName === 'function')
-      ? vxResolveDisplayName(f, 'Unbekannte Nummer')
-      : (f.caller_name || f.company_name || 'Unbekannte Nummer');
-    var phone = (f.caller_phone || f.phone_number || '').trim();
-    var tel = phone ? 'tel:' + phone.replace(/\s/g,'') : '';
-    var summary = f.call_summary || f.summary || '';
-    var note = f.notes_customer_voxera || '';
-    var isManual = !!(f.is_manual_task || f.task_type);
-    var dur = f.duration_seconds ? (Math.floor(f.duration_seconds/60) + 'm ' + Math.floor(f.duration_seconds%60) + 's') : '';
-    var initials = name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
-    var isCallback = f.callback_requested===true||f.callback_requested==='true';
-    var isClosed = window.isClosedStatus ? isClosedStatus(f.dashboard_status) : false;
-
-    // Header
-    var av = document.getElementById('vx-dv2-av');
-    if (av) { av.textContent = initials; av.style.background = isCallback ? 'rgba(220,38,38,.35)' : 'rgba(26,111,232,.35)'; }
-    var nm = document.getElementById('vx-dv2-name');
-    if (nm) nm.textContent = name;
-    var mt = document.getElementById('vx-dv2-meta');
-    if (mt) mt.textContent = [phone, dur].filter(Boolean).join(' \u00b7 ');
-
-    // Actions - use data attributes, no inline onclick with recordId
-    var actEl = document.getElementById('vx-dv2-actions');
-    if (actEl) {
-      actEl.innerHTML = '';
-      if (tel) {
-        var a = document.createElement('a');
-        a.href = tel;
-        a.className = 'vx-dv2-btn-call';
-        a.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:9px;background:#1A6FE8;color:#fff;text-decoration:none;font-size:12px;font-weight:600;font-family:inherit;';
-        a.textContent = 'Anrufen';
-        a.addEventListener('click', function() {
-          if (window.directCall) directCall(recordId, encodeURIComponent(tel));
-        });
-        actEl.appendChild(a);
-      }
-      if (!isManual) {
-        var b1 = document.createElement('button');
-        b1.className = 'vx-dv2-btn-followup';
-        b1.style.cssText = 'padding:7px 14px;border-radius:9px;background:rgba(255,255,255,.12);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;';
-        b1.textContent = 'R\u00fcckruf planen';
-        actEl.appendChild(b1);
-      }
-      if (!isManual && !isClosed) {
-        var b2 = document.createElement('button');
-        b2.className = 'vx-dv2-btn-done';
-        b2.style.cssText = 'padding:7px 14px;border-radius:9px;background:rgba(5,150,105,.25);color:#34D399;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;';
-        b2.textContent = 'Erledigt';
-        actEl.appendChild(b2);
-      }
-    }
-
-    // Body
-    var bodyEl = document.getElementById('vx-dv2-body');
-    if (!bodyEl) return;
-    var bodyHtml = '';
-
-    // Summary
-    bodyHtml += '<div style="margin-bottom:16px;">';
-    bodyHtml += '<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">KI-Zusammenfassung</div>';
-    bodyHtml += '<div style="font-size:13px;color:#13284D;line-height:1.65;background:#F8FAFC;border:0.5px solid #E8EDF3;border-radius:10px;padding:12px 14px;">';
-    bodyHtml += summary || 'Keine Zusammenfassung vorhanden.';
-    bodyHtml += '</div></div>';
-
-    // Note
-    bodyHtml += '<div style="margin-bottom:16px;padding-top:14px;border-top:0.5px solid #F1F4F9;">';
-    bodyHtml += '<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Interne Notiz</div>';
-    bodyHtml += '<textarea id="vx-dv2-note" style="width:100%;border:0.5px solid #E2E8F0;border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;color:#13284D;resize:none;outline:none;min-height:68px;line-height:1.5;box-sizing:border-box;" placeholder="Interne Notiz \u2014 wird nicht an den Kunden gesendet \u2026"></textarea>';
-    bodyHtml += '<div style="display:flex;justify-content:flex-end;margin-top:6px;">';
-    bodyHtml += '<button id="vx-dv2-save-btn" style="font-size:11px;font-weight:600;padding:5px 14px;border-radius:8px;border:none;background:#0D1F3C;color:#fff;cursor:pointer;font-family:inherit;">Speichern</button>';
-    bodyHtml += '</div></div>';
-
-    // Call infos
-    bodyHtml += '<div style="padding-top:14px;border-top:0.5px solid #F1F4F9;">';
-    bodyHtml += '<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Call-Infos</div>';
-    bodyHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
-    if (phone) {
-      bodyHtml += '<div style="background:#F8FAFC;border:0.5px solid #E8EDF3;border-radius:10px;padding:10px 12px;">';
-      bodyHtml += '<div style="font-size:9px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Telefon</div>';
-      bodyHtml += '<div style="font-size:13px;font-weight:600;color:#0D1F3C;">' + phone + '</div></div>';
-    }
-    if (dur) {
-      bodyHtml += '<div style="background:#F8FAFC;border:0.5px solid #E8EDF3;border-radius:10px;padding:10px 12px;">';
-      bodyHtml += '<div style="font-size:9px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Dauer</div>';
-      bodyHtml += '<div style="font-size:13px;font-weight:600;color:#0D1F3C;">' + dur + '</div></div>';
-    }
-    bodyHtml += '</div></div>';
-
-    // Timeline
-    var hasFollowup = f.follow_up_at || f.next_action;
-    var hasNote = (note || '').trim().length > 0;
-    if (hasFollowup || hasNote) {
-      bodyHtml += '<div style="padding-top:14px;border-top:0.5px solid #F1F4F9;margin-bottom:0;">';
-      bodyHtml += '<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Aktivität</div>';
-      // Anruf entry
-      bodyHtml += '<div style="display:flex;gap:10px;margin-bottom:10px;">';
-      bodyHtml += '<div style="display:flex;flex-direction:column;align-items:center;width:24px;">';
-      bodyHtml += '<div style="width:24px;height:24px;border-radius:7px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">';
-      bodyHtml += '<svg width="11" height="11" viewBox="0 0 24 24" fill="#1A6FE8"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>';
-      bodyHtml += '</div>';
-      if (hasFollowup || hasNote) bodyHtml += '<div style="width:1px;flex:1;background:#E8EDF3;margin:3px auto;"></div>';
-      bodyHtml += '</div>';
-      bodyHtml += '<div style="flex:1;padding-bottom:10px;"><div style="font-size:12px;font-weight:600;color:#0D1F3C;">Eingehender Anruf</div>';
-      bodyHtml += '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + dur + (dur ? ' · ' : '') + 'Lara</div></div>';
-      bodyHtml += '</div>';
-      // Nachfassen entry
-      if (hasFollowup) {
-        var fuDate = vxFormatDateTimeSafe(f.follow_up_at);
-        bodyHtml += '<div style="display:flex;gap:10px;margin-bottom:10px;">';
-        bodyHtml += '<div style="display:flex;flex-direction:column;align-items:center;width:24px;">';
-        bodyHtml += '<div style="width:24px;height:24px;border-radius:7px;background:#FEF9EC;display:flex;align-items:center;justify-content:center;flex-shrink:0;">';
-        bodyHtml += '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#D97706" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>';
-        bodyHtml += '</div>';
-        if (hasNote) bodyHtml += '<div style="width:1px;flex:1;background:#E8EDF3;margin:3px auto;"></div>';
-        bodyHtml += '</div>';
-        bodyHtml += '<div style="flex:1;padding-bottom:10px;"><div style="font-size:12px;font-weight:600;color:#0D1F3C;">' + (f.next_action || 'Nachfassen') + '</div>';
-        bodyHtml += '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + fuDate + '</div></div>';
-        bodyHtml += '</div>';
-      }
-      // Note entry
-      if (hasNote) {
-        bodyHtml += '<div style="display:flex;gap:10px;">';
-        bodyHtml += '<div style="width:24px;height:24px;border-radius:7px;background:#EEF2FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">';
-        bodyHtml += '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#1A6FE8" stroke-width="1.8" stroke-linecap="round"><path d="M3 4h10M3 8h7M3 12h5"/></svg>';
-        bodyHtml += '</div>';
-        bodyHtml += '<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#0D1F3C;">Notiz</div>';
-        bodyHtml += '<div style="font-size:11px;color:#94A3B8;margin-top:1px;background:#EEF2FF;border-radius:7px;padding:5px 8px;">' + note.substring(0,80) + (note.length>80?'…':'') + '</div></div>';
-        bodyHtml += '</div>';
-      }
-      bodyHtml += '</div>';
-    }
-
-    // History
-    bodyHtml += '<div id="vx-dv2-history" style="padding-top:14px;margin-top:14px;border-top:0.5px solid #F1F4F9;"></div>';
-
-    bodyEl.innerHTML = bodyHtml;
-
-    // Set note value safely
-    var noteField = document.getElementById('vx-dv2-note');
-    if (noteField) noteField.value = note;
-
-    // Load history
-    setTimeout(function(){ vxDv2LoadHistory(recordId, phone); }, 50);
-
-    // Show
-    var ov = document.getElementById('vx-detail-v2');
-    if (ov) { ov.style.display = 'flex'; document.body.classList.add('vx-detail-v2-open'); }
-    vxSetScrollLock('detail-v2', true);
-    vxSyncScrollLock();
-  }
-
-  function vxCloseDetailV2() {
-    var ov = document.getElementById('vx-detail-v2');
-    if (ov) { ov.style.display = 'none'; document.body.classList.remove('vx-detail-v2-open'); }
-    vxSetScrollLock('detail-v2', false);
-    vxSyncScrollLock();
-    _recId = null;
-  }
-
-  function vxDv2SaveNote() {
-    var recId = _recId || String(window._vxCurrentCallId || '').trim();
+  // vxDv2SaveNote: saves note from fullscreen detail view into Supabase
+  window.vxDv2SaveNote = function() {
+    var recId = String(window._vxCurrentCallId || window._vxCurrentTaskId || '').trim();
     if (!recId) return;
     var field = document.getElementById('vx-dv2-note');
     var btn = document.getElementById('vx-dv2-save-btn');
     if (!field) return;
     var noteText = field.value.trim();
-    if (btn) { btn.textContent = 'Speichert\u2026'; btn.disabled = true; }
+    if (btn) { btn.textContent = 'Speichert…'; btn.disabled = true; }
     var resetBtn = function(label, bg) {
       if (!btn) return;
       btn.textContent = label || 'Speichern';
@@ -31962,14 +31750,10 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
       btn.disabled = false;
     };
     var sb = window.getSupabaseAuthClient ? getSupabaseAuthClient() : window._sb;
-    if (!sb) {
-      resetBtn('Speichern', '#0D1F3C');
-      if (window.toast) toast('Speichern nicht möglich: Verbindung fehlt.');
-      return;
-    }
+    if (!sb) { resetBtn('Speichern'); if (window.toast) toast('Verbindung fehlt.'); return; }
     sb.from('calls').update({ notes_customer_voxera: noteText, updated_at: new Date().toISOString() }).eq('id', recId)
       .then(function() {
-        var rec = (window.allRecords||[]).find(function(r){return r.id===recId;});
+        var rec = (window.allRecords||[]).find(function(r){ return r.id === recId; });
         if (rec && rec.fields) rec.fields.notes_customer_voxera = noteText;
         resetBtn('Gespeichert ✓', '#059669');
         setTimeout(function(){ resetBtn('Speichern', '#0D1F3C'); }, 2000);
@@ -31977,122 +31761,19 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
       }).catch(function() {
         resetBtn('Fehler', '#DC2626');
         if (window.toast) toast('Notiz konnte nicht gespeichert werden.');
-      }).finally(function() {
-        if (btn && btn.textContent === 'Speichert…') resetBtn('Speichern', '#0D1F3C');
       });
-  }
+  };
 
-  function vxNormalizePhone(p) {
-    // Normalize for matching: remove separators, normalize CH prefixes
-    var s = String(p || '').trim();
-    if (!s) return '';
-    s = s.replace(/[\s\-\.()\/]/g,'');
-    if (s.startsWith('00')) s = '+' + s.slice(2);
-    if (s.startsWith('+41')) s = '+41' + s.slice(3);
-    else if (/^0[1-9]/.test(s)) s = '+41' + s.slice(1);
-    return s.toLowerCase();
-  }
+  // vxOpenDetailV2: redirect to new fullscreen routing
+  window.vxOpenDetailV2 = function(recordId) {
+    if (typeof window.showCallDetail === 'function') window.showCallDetail(recordId);
+  };
 
-  function vxDv2LoadHistory(currentId, phone) {
-    var sourceRecords = Array.isArray(window.allRecords)
-      ? window.allRecords
-      : (typeof allRecords !== 'undefined' && Array.isArray(allRecords) ? allRecords : []);
-    if (VX_DV2_DEBUG) {
-      var firstFivePhones = sourceRecords.slice(0,5).map(function(r){
-        var f = (r && r.fields) || {};
-        return f.caller_phone || f.phone_number || '';
-      });
-      vxDebugLog('[vxDv2LoadHistory] phone=', phone, 'allRecords.length=', sourceRecords.length, 'first5Phones=', firstFivePhones);
-    }
-
-    var el = document.getElementById('vx-dv2-history') || document.querySelector('#vx-dv2-sheet #vx-dv2-history');
-    if (!el) return;
-    var cleanPhone = vxNormalizePhone(phone);
-    var recs = sourceRecords.filter(function(r){
-      var f = r.fields||{};
-      var p = vxNormalizePhone(f.caller_phone || f.phone_number || '');
-      return p && cleanPhone && p === cleanPhone;
-    }).sort(function(a,b){
-      return new Date((b.fields||{}).created_at||0) - new Date((a.fields||{}).created_at||0);
-    });
-    // Always show at least the current call
-    var usedCurrentFallback = false;
-    if (recs.length === 0) {
-      var cur = sourceRecords.find(function(r){ return r.id === currentId; });
-      if (cur) {
-        recs = [cur];
-        usedCurrentFallback = true;
-      }
-    }
-    if (recs.length === 0) {
-      el.innerHTML = '<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Anrufhistorie</div>'
-        + '<div style="font-size:12px;color:#94A3B8;">Keine Anrufhistorie verfügbar.</div>';
-      return;
-    }
-    var title = recs.length > 1 ? 'Alle Anrufe dieser Nummer (' + recs.length + ')' : 'Dieser Anruf';
-    var html = '<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">' + title + '</div>';
-    if (usedCurrentFallback) {
-      html += '<div style="font-size:11px;color:#94A3B8;margin-bottom:8px;">Keine weiteren Anrufe zu dieser Nummer gefunden.</div>';
-    }
-    el.innerHTML = html;
-    recs.slice(0,5).forEach(function(r) {
-      var f = r.fields||{};
-      var isCur = r.id === currentId;
-      var d = f.duration_seconds ? (Math.floor(f.duration_seconds/60) + 'm ' + Math.floor(f.duration_seconds%60) + 's') : '';
-      var closed = window.isClosedStatus ? isClosedStatus(f.dashboard_status) : false;
-      var dot = isCur ? '#1A6FE8' : closed ? '#059669' : '#CBD5E1';
-      var ts = vxFormatDateTimeSafe(f.created_at);
-      var div = document.createElement('div');
-      div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid #F1F4F9;cursor:pointer;';
-      div.dataset.historyId = r.id;
-      div.innerHTML = '<div style="width:7px;height:7px;border-radius:50%;background:' + dot + ';flex-shrink:0;"></div>'
-        + '<div style="flex:1;"><div style="font-size:12px;font-weight:' + (isCur?'700':'500') + ';color:#0D1F3C;">' + (d||'Anruf') + '</div>'
-        + '<div style="font-size:11px;color:#94A3B8;">' + (closed?'Erledigt':'Offen') + (f.notes_customer_voxera?' \u00b7 Notiz':'') + '</div></div>'
-        + '<div style="font-size:11px;color:#94A3B8;">' + ts + '</div>';
-      el.appendChild(div);
-    });
-  }
-
-  // Event delegation on overlay
-  document.addEventListener('click', function(e) {
-    var ov = document.getElementById('vx-detail-v2');
-    if (!ov || ov.style.display === 'none') return;
-
-    // Close on backdrop
-    if (e.target === ov) { vxCloseDetailV2(); return; }
-
-    // History item click
-    var histItem = e.target.closest('[data-history-id]');
-    if (histItem) {
-      var hid = histItem.dataset.historyId;
-      vxCloseDetailV2();
-      setTimeout(function(){ vxOpenDetailV2(hid); }, 100);
-      return;
-    }
-
-    // Save note
-    if (e.target.id === 'vx-dv2-save-btn') { vxDv2SaveNote(); return; }
-
-    // Nachfassen button
-    if (e.target.classList.contains('vx-dv2-btn-followup')) {
-      if (_recId && window.openFollowupDirect) openFollowupDirect(_recId);
-      return;
-    }
-
-    // Done button
-    if (e.target.classList.contains('vx-dv2-btn-done')) {
-      var rid = _recId;
-      if (rid && window.confirmTaskDone) confirmTaskDone(rid, null, 'vx-detail-v2');
-      return;
-    }
-  });
-
-  window.vxOpenDetailV2 = vxOpenDetailV2;
-  window.vxCloseDetailV2 = vxCloseDetailV2;
-  window.vxDv2SaveNote = vxDv2SaveNote;
+  // vxCloseDetailV2: no-op stub (old bottom-sheet removed)
+  window.vxCloseDetailV2 = function() {
+    if (typeof window.vxCloseDetailV2Fullscreen === 'function') window.vxCloseDetailV2Fullscreen();
+  };
 })();
-
-document.getElementById('vx-dv2-close').addEventListener('click', function(){ vxCloseDetailV2(); });
 </script>
 <script>
 // ── Nachfassen Reminder Logic ─────────────────────
