@@ -10604,21 +10604,13 @@ function vxFindRecordByIdSafe(recordId) {
 }
 function vxNotifIsResolvable(n) {
   if (!n) return false;
-  var recId = String(n.recId || '').trim();
-  if (!recId) return false;
-  // Solange Records/Tasks noch nicht geladen sind, nichts ausblenden. Sonst wirkt die Glocke beim Initial-Load leer.
-  if (!_vxNotifDataReady) return true;
-  return !!vxFindRecordByIdSafe(recId);
+  var resolved = vxResolveNotificationTarget(n, n.recId);
+  if (!resolved.ok && resolved.reason === 'target_not_found' && !_vxNotifDataReady) return true;
+  return true;
 }
 function vxNotifFilterVisible(items) {
   var source = Array.isArray(items) ? items : [];
-  var visible = source.filter(function(n){ return vxNotifIsResolvable(n); });
-  var hiddenCount = source.length - visible.length;
-  if (hiddenCount > 0 && !_vxNotifHiddenUnresolvedLogged) {
-    _vxNotifHiddenUnresolvedLogged = true;
-    try { console.debug('[vxNotif] hidden unresolved notifications:', hiddenCount); } catch(e) {}
-  }
-  return visible;
+  return source.filter(function(n){ return vxNotifIsResolvable(n); });
 }
 function vxNotificationTargetIdFromRecord(record, fallbackId) {
   var f = (record && record.fields) || {};
@@ -10630,36 +10622,67 @@ function vxIsRecordLiveOrPendingSafe(record) {
   var status = String(f.live_status || record.live_status || f.call_status || record.call_status || '').toLowerCase();
   return ['ringing','incoming','in_progress','active','live','analyzing'].indexOf(status) !== -1;
 }
-function vxOpenNotificationTarget(nid, recId, isMobile) {
-  recId = String(recId || '').trim();
-  var rec = vxFindRecordByIdSafe(recId);
-  if (!recId || !rec) {
-    if (typeof toast === 'function') toast('Benachrichtigung konnte keinem aktuellen Eintrag zugeordnet werden.', 'warning');
+function vxResolveNotificationTarget(notification, fallbackRecId) {
+  var n = notification || {};
+  var targetTypeRaw = String(n.targetType || n.target_type || '').trim().toLowerCase();
+  var targetId = String(n.targetId || n.target_id || n.recId || fallbackRecId || '').trim();
+  if (!targetTypeRaw && targetId) targetTypeRaw = 'call';
+  if (!targetId) return { ok: false, reason: 'missing_target' };
+  var resolvedType = targetTypeRaw;
+  if (['call','task','case','system'].indexOf(resolvedType) === -1) return { ok: false, reason: 'unsupported_target_type', type: resolvedType, id: targetId };
+  if (resolvedType === 'case' || resolvedType === 'system') return { ok: true, type: resolvedType, id: targetId, record: null };
+  var rec = vxFindRecordByIdSafe(targetId);
+  if (!rec) return { ok: false, reason: 'target_not_found', type: resolvedType, id: targetId };
+  var inferredTask = (typeof isManualTaskRecord === 'function') && isManualTaskRecord(rec);
+  if (!targetTypeRaw) resolvedType = inferredTask ? 'task' : 'call';
+  if (resolvedType === 'call' && inferredTask) resolvedType = 'task';
+  if (resolvedType === 'task' && !inferredTask) resolvedType = 'call';
+  var openId = vxNotificationTargetIdFromRecord(rec, targetId);
+  if (!openId) return { ok: false, reason: 'missing_target', type: resolvedType };
+  return { ok: true, type: resolvedType, id: openId, record: rec };
+}
+
+function vxOpenNotificationTarget(notificationOrNid, recId, isMobile) {
+  var notification = (notificationOrNid && typeof notificationOrNid === 'object')
+    ? notificationOrNid
+    : ((_vxNotifCache || []).find(function(item){ return item && item.id === notificationOrNid; }) || { id: notificationOrNid, recId: recId });
+  var resolved = vxResolveNotificationTarget(notification, recId);
+  if (!resolved.ok) {
+    var msg = (resolved.reason === 'unsupported_target_type')
+      ? 'Eintrag kann noch nicht geöffnet werden.'
+      : 'Eintrag nicht mehr verfügbar oder noch nicht geladen.';
+    if (typeof toast === 'function') toast(msg, 'warning');
     if (isMobile) vxBellPageRender(); else vxBellRender();
-    return;
+    return false;
   }
-  if (nid) vxNotifMarkRead(nid);
+  if (resolved.type === 'case' || resolved.type === 'system') {
+    if (typeof toast === 'function') toast('Eintrag kann noch nicht geöffnet werden.', 'warning');
+    if (isMobile) vxBellPageRender(); else vxBellRender();
+    return false;
+  }
+  var rec = resolved.record;
   if (rec && vxIsRecordLiveOrPendingSafe(rec)) {
     if (isMobile) vxBellPageBack(); else vxBellClose();
     var navDash = document.getElementById('mnav-dashboard') || document.getElementById('nav-dashboard');
     if (typeof showTab === 'function') showTab('dashboard', navDash);
     if (typeof toast === 'function') toast('Live-Anruf läuft noch. Details erscheinen nach Gesprächsende.', 'info');
-    return;
+    return false;
   }
-  var targetId = vxNotificationTargetIdFromRecord(rec, recId);
-  var isTaskTarget = (typeof isManualTaskRecord === 'function') && isManualTaskRecord(rec);
   var openTarget = function(){
     var navEl = document.getElementById(isMobile ? 'mnav-anrufe' : 'nav-anrufe') || document.getElementById('nav-anrufe') || document.getElementById('mnav-anrufe');
     if (typeof showTab === 'function') showTab('anrufe', navEl);
     setTimeout(function(){
-      if (isTaskTarget && typeof showTaskDetail === 'function') { showTaskDetail(targetId); return; }
-      if (!isTaskTarget && typeof showCallDetail === 'function') { showCallDetail(targetId); return; }
-      if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(targetId);
+      if (resolved.type === 'task' && typeof showTaskDetail === 'function') { showTaskDetail(resolved.id); return; }
+      if (resolved.type === 'call' && typeof showCallDetail === 'function') { showCallDetail(resolved.id); return; }
+      if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(resolved.id);
     }, 180);
   };
   if (isMobile) { setTimeout(function(){ vxBellPageBack(); setTimeout(openTarget, 150); }, 160); }
   else { vxBellClose(); openTarget(); }
+  if (notification && notification.id) vxNotifMarkRead(notification.id);
+  return true;
 }
+
 
 // ── Supabase lesen ─────────────────────────────────────────
 async function vxNotifLoadFromDB() {
@@ -10668,17 +10691,21 @@ async function vxNotifLoadFromDB() {
   try {
     var { data, error } = await sb
       .from('notifications')
-      .select('id, type, title, sub, call_id, read_at, created_at')
+      .select('id, type, title, sub, call_id, target_type, target_id, read_at, created_at')
       .order('created_at', { ascending: false })
       .limit(80);
     if (error) { console.warn('[vxNotif] load error', error.message); return []; }
     _vxNotifCache = (data || []).map(function(n) {
+      var targetId = String(n.target_id || n.call_id || '').trim();
+      var targetType = String(n.target_type || (targetId ? 'call' : '') || '').trim().toLowerCase();
       return {
         id: n.id,
         type: n.type || 'call',
         title: n.title || '',
         sub: n.sub || '',
-        recId: n.call_id || '',
+        targetType: targetType || null,
+        targetId: targetId || null,
+        recId: targetId,
         ts: new Date(n.created_at).getTime(),
         read: !!n.read_at
       };
@@ -10763,12 +10790,16 @@ function vxNotifSubscribe() {
       }, function(payload) {
         var n = payload.new;
         if (!n) return;
+        var targetId = String(n.target_id || n.call_id || '').trim();
+        var targetType = String(n.target_type || (targetId ? 'call' : '') || '').trim().toLowerCase();
         var item = {
           id: n.id,
           type: n.type || 'call',
           title: n.title || '',
           sub: n.sub || '',
-          recId: n.call_id || '',
+          targetType: targetType || null,
+          targetId: targetId || null,
+          recId: targetId,
           ts: new Date(n.created_at).getTime(),
           read: false
         };
@@ -10927,11 +10958,13 @@ function vxBellMarkAll() {
   vxNotifMarkAllRead();
 }
 function vxBellItemClick(nid, recId) {
-  vxOpenNotificationTarget(nid, recId, false);
+  var item = (_vxNotifCache || []).find(function(n){ return n && n.id === nid; }) || { id: nid, recId: recId };
+  vxOpenNotificationTarget(item, recId, false);
   vxBellRender();
 }
 function vxBellPageItemClick(nid, recId) {
-  vxOpenNotificationTarget(nid, recId, true);
+  var item = (_vxNotifCache || []).find(function(n){ return n && n.id === nid; }) || { id: nid, recId: recId };
+  vxOpenNotificationTarget(item, recId, true);
   vxBellPageRender();
 }
 

@@ -27,12 +27,15 @@ async function insertNotification(sbAdmin, { customerId, type, title, sub, callI
     const notifTitle = isHot
       ? 'Hot Lead — ' + (title || 'Neuer Anruf')
       : title || 'Neuer Anruf';
+    const hasTargetId = !!(callId && String(callId).trim());
     await sbAdmin.from('notifications').insert({
       customer_id: customerId,
       type: type || 'call',
       title: notifTitle,
       sub: sub || null,
       call_id: callId || null,
+      target_type: hasTargetId ? 'call' : null,
+      target_id: hasTargetId ? String(callId).trim() : null,
       read_at: null,
       created_at: new Date().toISOString()
     });
