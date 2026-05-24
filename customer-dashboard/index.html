@@ -12583,17 +12583,54 @@ function vxTodayGetRecordPhone(record) {
   var f = (record && record.fields) || {};
   return String(f.caller_phone || f.phone_number || f.phone || f.tel_link || '').trim();
 }
-function vxTodayGetPrimaryAction(record, typeMeta, phone) {
-  var f = (record && record.fields) || {};
+function vxBuildOperationalRowActions(record, context) {
+  context = context || {};
+  var id = vxRowActionLabelEscape(String((record && record.id) || ''));
+  var safePhone = vxRowActionLabelEscape(vxRowActionPhone(record, context.phone));
   var isManual = typeof isManualTaskRecord === 'function' && isManualTaskRecord(record);
-  var rawType = vxTodayNormText(f.type || '');
-  var category = vxTodayNormText(f.category || '');
-  var nextAction = String(f.next_action || '').trim();
-  var wantsCall = false;
-  if (isManual) wantsCall = rawType === 'callback' || rawType === 'ruckruf' || rawType === 'rueckruf';
-  else wantsCall = f.callback_requested === true || String(f.callback_requested).toLowerCase() === 'true' || category.indexOf('ruckruf') >= 0 || vxTodayTextSuggestsCallback(nextAction);
-  if (wantsCall && phone) return { action:'call', title:'Anrufen', icon:'phone-call', kind:'call' };
-  return { action:'open', title:'Öffnen', icon:'arrow-square-out', kind:'open' };
+  var lifecycle = vxRowActionLifecycle(record);
+  var isDone = lifecycle === 'done';
+  var isArchived = lifecycle === 'archived';
+  var isPlanned = lifecycle === 'planned';
+  var hasPhone = !!vxRowActionPhone(record, context.phone);
+  var primaryAction = isDone || isArchived
+    ? { action:'fulldetail', title:'Details', icon:'sidebar-simple' }
+    : { action:'done', title:'Erledigen', icon:'check' };
+  var menuActions = [];
+
+  if (hasPhone) menuActions.push({ action:'call', title:'Anrufen', attrs:' data-phone="'+safePhone+'"' });
+
+  if (isManual) {
+    if (isDone || isArchived) {
+      menuActions.push({ action:'schedule-callback', title:'Rückruf planen' });
+      menuActions.push({ action:'create-task', title:'Aufgabe erstellen' });
+      if (!isArchived) menuActions.push({ action:'archive', title:'Archivieren' });
+    } else {
+      menuActions.push({ action:'followup', title:(isPlanned ? 'Fälligkeit ändern' : 'Fälligkeit setzen') });
+      menuActions.push({ action:'fulldetail', title:'Details öffnen' });
+      menuActions.push({ action:'archive', title:'Archivieren' });
+    }
+    return { primaryAction: primaryAction, menuActions: menuActions };
+  }
+
+  if (isDone || isArchived) {
+    menuActions.push({ action:'followup', title:'Rückruf planen' });
+    menuActions.push({ action:'create-task', title:'Aufgabe erstellen' });
+    if (!isArchived) menuActions.push({ action:'archive', title:'Archivieren' });
+    return { primaryAction: primaryAction, menuActions: menuActions };
+  }
+
+  menuActions.push({ action:'followup', title:'Rückruf planen' });
+  if (isPlanned) menuActions.push({ action:'followup', title:'Fälligkeit ändern' });
+  else menuActions.push({ action:'create-task', title:'Aufgabe erstellen' });
+  menuActions.push({ action:'fulldetail', title:'Details öffnen' });
+  menuActions.push({ action:'archive', title:'Archivieren' });
+  return { primaryAction: primaryAction, menuActions: menuActions };
+}
+
+function vxTodayGetPrimaryAction(record, typeMeta, phone) {
+  var actions = vxBuildOperationalRowActions(record, { phone: phone, surface: 'today', typeMeta: typeMeta });
+  return actions.primaryAction;
 }
 function vxRowActionLifecycle(record) {
   if (record && typeof vxGetEntryLifecycleStatus === 'function') return vxGetEntryLifecycleStatus(record);
@@ -12621,55 +12658,12 @@ function vxRowActionPhone(record, fallback) {
 function vxBuildOperationalRowMenuHtml(record, phone, typeMeta, opts) {
   opts = opts || {};
   var id = vxRowActionLabelEscape(String((record && record.id) || ''));
-  var safePhone = vxRowActionLabelEscape(vxRowActionPhone(record, phone));
-  var isManual = typeof isManualTaskRecord === 'function' && isManualTaskRecord(record);
-  var lifecycle = vxRowActionLifecycle(record);
-  var isDone = lifecycle === 'done';
-  var isArchived = lifecycle === 'archived';
-  var isPlanned = lifecycle === 'planned';
-  var hasPhone = !!vxRowActionPhone(record, phone);
+  var actions = vxBuildOperationalRowActions(record, { phone: phone, surface: opts.surface || '', typeMeta: typeMeta });
   var html = '';
-
-  if (hasPhone) html += '<button type="button" data-action="call" data-rec-id="'+id+'" data-phone="'+safePhone+'">Anrufen</button>';
-
-  if (isManual) {
-    if (isDone || isArchived) {
-      html += '<button type="button" data-action="schedule-callback" data-rec-id="'+id+'">Rückruf planen</button>';
-      html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
-      if (!isArchived) html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
-      return html;
-    }
-    html += '<button type="button" data-action="followup" data-rec-id="'+id+'">'+(isPlanned ? 'Fälligkeit ändern' : 'Fälligkeit setzen')+'</button>';
-    html += '<button type="button" data-action="done" data-rec-id="'+id+'">Als erledigt markieren</button>';
-    html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
-    html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
-    return html;
-  }
-
-  if (isDone || isArchived) {
-    html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Rückruf planen</button>';
-    html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
-    if (typeof vxIsUnreadEligibleRecord !== 'function' || vxIsUnreadEligibleRecord(record)) {
-      var unreadDone = (typeof vxIsUnreadRecord === 'function') ? vxIsUnreadRecord(record) : false;
-      html += unreadDone
-        ? '<button type="button" data-action="mark-read" data-rec-id="'+id+'">Als gelesen markieren</button>'
-        : '<button type="button" data-action="mark-unread" data-rec-id="'+id+'">Als ungelesen markieren</button>';
-    }
-    if (!isArchived) html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
-    return html;
-  }
-
-  html += '<button type="button" data-action="followup" data-rec-id="'+id+'">Rückruf planen</button>';
-  html += '<button type="button" data-action="create-task" data-rec-id="'+id+'">Aufgabe erstellen</button>';
-  html += '<button type="button" data-action="done" data-rec-id="'+id+'">Als erledigt markieren</button>';
-  html += '<button type="button" data-action="fulldetail" data-rec-id="'+id+'">Details öffnen</button>';
-  if (typeof vxIsUnreadEligibleRecord !== 'function' || vxIsUnreadEligibleRecord(record)) {
-    var isUnread = (typeof vxIsUnreadRecord === 'function') ? vxIsUnreadRecord(record) : false;
-    html += isUnread
-      ? '<button type="button" data-action="mark-read" data-rec-id="'+id+'">Als gelesen markieren</button>'
-      : '<button type="button" data-action="mark-unread" data-rec-id="'+id+'">Als ungelesen markieren</button>';
-  }
-  html += '<button type="button" data-action="archive" data-rec-id="'+id+'">Archivieren</button>';
+  (actions.menuActions || []).forEach(function(item) {
+    if (!item || !item.action) return;
+    html += '<button type="button" data-action="' + item.action + '" data-rec-id="' + id + '"' + (item.attrs || '') + '>' + item.title + '</button>';
+  });
   return html;
 }
 function vxTodayBuildRowMenuHtml(record, phone, typeMeta) {
@@ -23688,14 +23682,12 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       var _primaryAnfrage = (typeof vxTodayGetPrimaryAction === 'function')
         ? vxTodayGetPrimaryAction(rec, _typeMeta, phone)
         : { action:(phone ? 'call' : 'open'), title:(phone ? 'Anrufen' : 'Öffnen'), icon:(phone ? 'phone-call' : 'arrow-square-out') };
-      var _primaryActionAnfrage = _isDoneOrArch ? 'fulldetail' : _primaryAnfrage.action;
-      var _primaryTitleAnfrage = _isDoneOrArch ? 'Details' : _primaryAnfrage.title;
-      var _primaryIconAnfrage = _isDoneOrArch ? 'sidebar-simple' : _primaryAnfrage.icon;
-      var _primaryClassAnfrage = 'vx-ibtn vx-ibtn-main ' + (_primaryActionAnfrage === 'call' ? 'is-ghost-call' : 'is-open');
+      var _primaryActionAnfrage = _primaryAnfrage.action;
+      var _primaryTitleAnfrage = _primaryAnfrage.title;
+      var _primaryIconAnfrage = _primaryAnfrage.icon;
+      var _primaryClassAnfrage = 'vx-ibtn vx-ibtn-main ' + (_primaryActionAnfrage === 'done' ? 'is-open' : (_primaryActionAnfrage === 'call' ? 'is-ghost-call' : 'is-open'));
       html += '<div class="vx-row-btns vx-row-btns--single">';
-      if (_primaryActionAnfrage === 'call' && phone) {
-        html += '<button type="button" class="'+_primaryClassAnfrage+'" data-action="'+_primaryActionAnfrage+'" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="'+_esc(_primaryTitleAnfrage)+'" aria-label="'+_esc(_primaryTitleAnfrage)+'"><i class="ph-bold ph-'+_primaryIconAnfrage+'" aria-hidden="true"></i></button>';
-      }
+      html += '<button type="button" class="'+_primaryClassAnfrage+'" data-action="'+_primaryActionAnfrage+'" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="'+_esc(_primaryTitleAnfrage)+'" aria-label="'+_esc(_primaryTitleAnfrage)+'"><i class="ph-bold ph-'+_primaryIconAnfrage+'" aria-hidden="true"></i></button>';
       html += '<button type="button" class="vx-ibtn is-overflow" data-action="overflow" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="Mehr"><i class="ph-bold ph-dots-three"></i></button>';
       html += '<div class="vx-row-menu" id="vx-row-menu-'+_esc(rec.id)+'">';
       html += (typeof vxAnfragenBuildRowMenuHtml === 'function')
