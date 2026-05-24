@@ -45795,54 +45795,58 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 @media(max-width:1180px){#requests-detail-v2 .vx-dv2-info-grid,#vx-detail-v2-full-content .vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:760px){#requests-detail-v2 .vx-dv2-info-grid,#vx-detail-v2-full-content .vx-dv2-info-grid{grid-template-columns:1fr;}#requests-detail-v2 .vx-dv2-actions,#vx-detail-v2-full-content .vx-dv2-actions{position:sticky;top:0;z-index:2;}}
 
-/* === Voxera Modern Audio Player — design polish / source-of-truth styles === */
+/* === Voxera Modern Audio Player — refined compact layout === */
 .vx-audio-modern{
+  --vx-audio-navy:#071833;
+  --vx-audio-blue:#2563eb;
+  --vx-audio-muted:#8b97aa;
+  --vx-audio-line:#e6ebf2;
+  --vx-audio-soft:#f5f7fb;
   display:block;
   width:100%;
   box-sizing:border-box;
   margin:0;
-  padding:18px;
-  border:1px solid rgba(15,23,42,.075);
-  border-radius:22px;
-  background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);
-  box-shadow:0 14px 38px rgba(15,23,42,.055);
+  padding:18px 20px;
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(15,23,42,.045);
   color:#0f172a;
   font-family:inherit;
 }
 .vx-audio-modern *{box-sizing:border-box;}
 .vx-audio-modern__top{
   display:flex;
-  align-items:flex-start;
+  align-items:center;
   justify-content:space-between;
   gap:14px;
-  margin-bottom:16px;
+  margin-bottom:14px;
 }
 .vx-audio-modern__meta{min-width:0;}
 .vx-audio-modern__title{
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:9px;
   font-size:12px;
   font-weight:850;
   line-height:1.2;
-  letter-spacing:.16em;
+  letter-spacing:.18em;
   text-transform:uppercase;
-  color:#0f172a;
+  color:#101c33;
 }
 .vx-audio-modern__title:before{
   content:"";
-  width:18px;
-  height:18px;
+  width:19px;
+  height:19px;
   display:inline-block;
   flex:0 0 auto;
-  border-radius:6px;
-  background:linear-gradient(180deg,#3b82f6,#2563eb);
+  background:#2f80ed;
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 10v4'/%3E%3Cpath d='M6 7v10'/%3E%3Cpath d='M10 4v16'/%3E%3Cpath d='M14 7v10'/%3E%3Cpath d='M18 10v4'/%3E%3Cpath d='M22 11v2'/%3E%3C/svg%3E") center/contain no-repeat;
           mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 10v4'/%3E%3Cpath d='M6 7v10'/%3E%3Cpath d='M10 4v16'/%3E%3Cpath d='M14 7v10'/%3E%3Cpath d='M18 10v4'/%3E%3Cpath d='M22 11v2'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 .vx-audio-modern__sub{
-  margin-top:6px;
-  max-width:56ch;
+  margin-top:5px;
+  max-width:52ch;
   font-size:13px;
   font-weight:650;
   line-height:1.35;
@@ -45856,11 +45860,11 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  min-height:28px;
-  padding:7px 10px;
+  height:30px;
+  padding:0 12px;
   border-radius:999px;
-  border:1px solid #bfdbfe;
-  background:#eff6ff;
+  border:1px solid #dbeafe;
+  background:#f4f8ff;
   color:#2563eb;
   font-size:11px;
   font-weight:850;
@@ -45868,38 +45872,39 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 }
 .vx-audio-modern__controls{
   display:grid;
-  grid-template-columns:42px 52px minmax(160px,1fr) 42px;
+  grid-template-columns:38px 46px minmax(120px,1fr) 38px;
   align-items:center;
-  gap:12px;
+  gap:10px;
+  padding:4px 0 2px;
 }
 .vx-audio-modern__btn{
   appearance:none;
   -webkit-appearance:none;
-  width:42px;
-  height:42px;
+  width:38px;
+  height:38px;
   border:0;
-  border-radius:15px;
+  border-radius:14px;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  background:#eef2f7;
+  background:#f1f5f9;
   color:#334155;
-  font-size:16px;
+  font-size:15px;
   font-weight:900;
   line-height:1;
   cursor:pointer;
   transition:transform .14s ease,background .14s ease,color .14s ease,box-shadow .14s ease;
 }
-.vx-audio-modern__btn:hover{background:#e2e8f0;color:#0f172a;}
+.vx-audio-modern__btn:hover{background:#e8eef6;color:#0f172a;}
 .vx-audio-modern__btn:active{transform:scale(.96);}
 .vx-audio-modern__btn--primary{
-  width:52px;
-  height:52px;
-  border-radius:18px;
-  background:#071833;
+  width:46px;
+  height:46px;
+  border-radius:16px;
+  background:var(--vx-audio-navy);
   color:#fff;
-  font-size:19px;
-  box-shadow:0 15px 30px rgba(7,24,51,.24);
+  font-size:18px;
+  box-shadow:0 10px 24px rgba(7,24,51,.22);
 }
 .vx-audio-modern__btn--primary:hover{background:#0b1f42;color:#fff;}
 .vx-audio-modern__timeline{min-width:0;width:100%;padding:0 2px;}
@@ -45907,53 +45912,38 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   appearance:none;
   -webkit-appearance:none;
   width:100%;
-  height:28px;
+  height:26px;
   margin:0;
   background:transparent;
   cursor:pointer;
   vertical-align:middle;
 }
 .vx-audio-modern__range::-webkit-slider-runnable-track{
-  height:8px;
+  height:7px;
   border-radius:999px;
-  background:linear-gradient(90deg,#071833 0%,#071833 var(--vx-audio-progress,0%),#e2e8f0 var(--vx-audio-progress,0%),#e2e8f0 100%);
+  background:linear-gradient(90deg,var(--vx-audio-navy) 0%,var(--vx-audio-navy) var(--vx-audio-progress,0%),#e6ebf2 var(--vx-audio-progress,0%),#e6ebf2 100%);
 }
-.vx-audio-modern__range::-moz-range-track{
-  height:8px;
-  border-radius:999px;
-  background:#e2e8f0;
-}
-.vx-audio-modern__range::-moz-range-progress{
-  height:8px;
-  border-radius:999px;
-  background:#071833;
-}
+.vx-audio-modern__range::-moz-range-track{height:7px;border-radius:999px;background:#e6ebf2;}
+.vx-audio-modern__range::-moz-range-progress{height:7px;border-radius:999px;background:var(--vx-audio-navy);}
 .vx-audio-modern__range::-webkit-slider-thumb{
   -webkit-appearance:none;
-  width:18px;
-  height:18px;
+  width:17px;
+  height:17px;
   margin-top:-5px;
   border-radius:50%;
   border:3px solid #fff;
-  background:#071833;
+  background:var(--vx-audio-navy);
   box-shadow:0 4px 12px rgba(15,23,42,.2);
 }
-.vx-audio-modern__range::-moz-range-thumb{
-  width:18px;
-  height:18px;
-  border-radius:50%;
-  border:3px solid #fff;
-  background:#071833;
-  box-shadow:0 4px 12px rgba(15,23,42,.2);
-}
+.vx-audio-modern__range::-moz-range-thumb{width:17px;height:17px;border-radius:50%;border:3px solid #fff;background:var(--vx-audio-navy);box-shadow:0 4px 12px rgba(15,23,42,.2);}
 .vx-audio-modern__time{
   display:flex;
   justify-content:space-between;
   gap:12px;
-  margin-top:2px;
+  margin-top:1px;
   font-size:12px;
   font-weight:750;
-  color:#94a3b8;
+  color:#9aa5b5;
   font-variant-numeric:tabular-nums;
 }
 .vx-audio-modern__bottom{
@@ -45961,22 +45951,22 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   justify-content:space-between;
   align-items:center;
   gap:12px;
-  margin-top:14px;
+  margin-top:12px;
 }
 .vx-audio-modern__speed{
   display:inline-flex;
   align-items:center;
-  gap:4px;
-  padding:4px;
+  gap:3px;
+  padding:3px;
   border-radius:999px;
-  background:#eef2f7;
+  background:#f1f5f9;
 }
 .vx-audio-modern__speed-btn{
   appearance:none;
   -webkit-appearance:none;
   border:0;
   border-radius:999px;
-  min-width:42px;
+  min-width:40px;
   padding:7px 10px;
   background:transparent;
   color:#64748b;
@@ -45985,38 +45975,43 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   line-height:1;
   cursor:pointer;
 }
-.vx-audio-modern__speed-btn.is-active{
-  background:#fff;
-  color:#071833;
-  box-shadow:0 2px 9px rgba(15,23,42,.1);
-}
+.vx-audio-modern__speed-btn.is-active{background:#fff;color:var(--vx-audio-navy);box-shadow:0 2px 9px rgba(15,23,42,.1);}
 .vx-audio-modern__status{
   min-width:0;
   text-align:right;
   font-size:12px;
-  font-weight:700;
-  color:#94a3b8;
+  font-weight:750;
+  color:#9aa5b5;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.vx-audio-modern__audio{
-  position:absolute !important;
-  width:1px !important;
-  height:1px !important;
-  opacity:0 !important;
-  pointer-events:none !important;
-  overflow:hidden !important;
+.vx-audio-modern__audio{position:absolute !important;width:1px !important;height:1px !important;opacity:0 !important;pointer-events:none !important;overflow:hidden !important;}
+@media (min-width: 900px){
+  .vx-audio-modern{padding:16px 18px;}
+  .vx-audio-modern__bottom{margin-left:94px;}
 }
 @media (max-width:720px){
-  .vx-audio-modern{padding:14px;border-radius:20px;}
-  .vx-audio-modern__top{align-items:flex-start;margin-bottom:14px;}
-  .vx-audio-modern__sub{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
-  .vx-audio-modern__controls{grid-template-columns:40px 50px minmax(0,1fr) 40px;gap:8px;}
-  .vx-audio-modern__btn{width:40px;height:40px;border-radius:14px;}
-  .vx-audio-modern__btn--primary{width:50px;height:50px;border-radius:17px;}
-  .vx-audio-modern__bottom{align-items:flex-start;flex-direction:column;}
-  .vx-audio-modern__status{text-align:left;width:100%;}
+  .vx-audio-modern{padding:14px;border-radius:20px;box-shadow:0 8px 20px rgba(15,23,42,.04);}
+  .vx-audio-modern__top{align-items:center;margin-bottom:12px;}
+  .vx-audio-modern__title{font-size:11px;letter-spacing:.16em;}
+  .vx-audio-modern__sub{font-size:12px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .vx-audio-modern__boost{height:28px;padding:0 10px;font-size:10.5px;}
+  .vx-audio-modern__controls{grid-template-columns:38px 48px minmax(0,1fr) 38px;gap:8px;}
+  .vx-audio-modern__btn{width:38px;height:38px;border-radius:14px;}
+  .vx-audio-modern__btn--primary{width:48px;height:48px;border-radius:17px;}
+  .vx-audio-modern__bottom{margin-top:10px;align-items:center;flex-direction:row;}
+  .vx-audio-modern__speed-btn{min-width:38px;padding:7px 9px;}
+  .vx-audio-modern__status{text-align:right;max-width:46%;}
+}
+@media (max-width:420px){
+  .vx-audio-modern{padding:13px;}
+  .vx-audio-modern__controls{grid-template-columns:36px 46px minmax(0,1fr) 36px;gap:7px;}
+  .vx-audio-modern__btn{width:36px;height:36px;border-radius:13px;font-size:14px;}
+  .vx-audio-modern__btn--primary{width:46px;height:46px;border-radius:16px;font-size:17px;}
+  .vx-audio-modern__bottom{flex-direction:column;align-items:stretch;gap:9px;}
+  .vx-audio-modern__speed{align-self:flex-start;}
+  .vx-audio-modern__status{text-align:left;max-width:100%;}
 }
 
 </style>
