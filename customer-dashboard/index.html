@@ -1766,11 +1766,6 @@ body.vx-detail-v2-open #followup-overlay.open,
 body.vx-detail-v2-open #confirm-overlay.open {
   z-index: 10000;
 }
-/* Mobile Fullscreen-V2: Overlays über #vx-detail-v2-fullscreen (z-index 10050) heben */
-body.vx-dv2-fullscreen-open #followup-overlay.open,
-body.vx-dv2-fullscreen-open #confirm-overlay.open {
-  z-index: 10100;
-}
 .overlay.open{display:flex;}
 .overlay.overlay--center{align-items:center;}
 .overlay.overlay--sheet{align-items:center;}
@@ -44329,7 +44324,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 #manual-request-overlay.open,
 #notiz-overlay.open,
 #confirm-overlay.open{
-  z-index:10050!important;
+  z-index:10200!important;
   pointer-events:auto!important;
 }
 #followup-overlay.open .modal,
