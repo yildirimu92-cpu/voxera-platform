@@ -9678,6 +9678,7 @@ let allManualTaskRecords = [];
 let notizRecordId = null;
 let followupCallerName = '';
 let editingManualTaskRecordId = null;
+let vxTaskModalMode = 'create';
 let autoRefreshTimer = null;
 let realtimeLoadDebounceTimer = null;
 let dashboardRealtimeChannel = null;
@@ -24822,6 +24823,7 @@ function openManualTaskModal() {
     return;
   }
   rememberOverlayFocusReturn('manual-task-overlay');
+  vxTaskModalMode = 'create';
   editingManualTaskRecordId = null;
   if (!_vxPendingManualTaskSource) _vxPendingManualTaskSource = null;
   document.getElementById('manual-task-title').value = '';
@@ -24876,6 +24878,7 @@ function openManualTaskEditModal(recordId) {
     return;
   }
   rememberOverlayFocusReturn('manual-task-overlay');
+  vxTaskModalMode = 'edit';
   const rec = allManualTaskRecords.find(function(item) { return String(item.id) === String(recordId); });
   if (!rec || !rec.fields) {
     toast('Aufgabe nicht gefunden.');
@@ -24944,6 +24947,7 @@ function openManualTaskEditModal(recordId) {
 }
 
 function closeManualTaskModal() {
+  vxTaskModalMode = 'create';
   editingManualTaskRecordId = null;
   _vxPendingManualTaskSource = null;
   var modeHint = document.getElementById('manual-task-mode-hint');
@@ -25069,9 +25073,10 @@ async function saveManualTask() {
   }
   const btn = document.getElementById('manual-task-save-btn');
   if (vxIsActionButtonSaving(btn)) return;
-  const activeEditId = editingManualTaskRecordId ? String(editingManualTaskRecordId) : null;
+  const isEditMode = String(vxTaskModalMode || '').toLowerCase() === 'edit';
+  const activeEditId = (isEditMode && editingManualTaskRecordId) ? String(editingManualTaskRecordId) : null;
   let savedTaskId = activeEditId;
-  vxSetActionButtonLoading(btn, true, editingManualTaskRecordId ? 'Speichert...' : 'Erstellt...');
+  vxSetActionButtonLoading(btn, true, isEditMode ? 'Speichert...' : 'Erstellt...');
   try {
     const basePayload = {
       title: title,
@@ -25084,20 +25089,21 @@ async function saveManualTask() {
       owner: owner || null,
       phone: phone || null
     };
-    if (!editingManualTaskRecordId && _vxPendingManualTaskSource) {
+    if (!isEditMode && _vxPendingManualTaskSource) {
       basePayload.source_type = _vxPendingManualTaskSource.source_type || 'call';
       basePayload.source_call_id = _vxPendingManualTaskSource.source_call_id || null;
     }
-    if (editingManualTaskRecordId) {
+    if (isEditMode) {
+      if (!editingManualTaskRecordId) throw new Error('Ungültiger Bearbeitungsmodus ohne Aufgaben-ID.');
       const updatedTask = await updateManualTask(editingManualTaskRecordId, basePayload);
       const idx = allManualTaskRecords.findIndex(function(item) { return String(item.id) === String(editingManualTaskRecordId); });
       if (idx >= 0) allManualTaskRecords[idx] = updatedTask;
-      toast('Aufgabe aktualisiert');
+      toast('Änderungen gespeichert');
     } else {
       const createdTask = await createManualTask(basePayload);
       if (createdTask && createdTask.id) savedTaskId = String(createdTask.id);
       allManualTaskRecords.unshift(createdTask);
-      toast('Aufgabe erstellt');
+      toast('Task erstellt');
     }
     if (typeof vxRefreshOperationalViews === 'function') vxRefreshOperationalViews(allRecords, allManualTaskRecords);
     else { renderDashboard(allRecords, allManualTaskRecords); renderRueckrufe(allRecords, allManualTaskRecords); }
@@ -25106,7 +25112,12 @@ async function saveManualTask() {
       setTimeout(function(){ vxRefreshOpenTaskDetail(activeEditId); }, 0);
     }
   } catch (e) {
-    toast(toManualTaskUserMessage(e, editingManualTaskRecordId ? 'Aufgabe konnte nicht aktualisiert werden.' : 'Aufgabe konnte nicht gespeichert werden.'));
+    console.warn('[manual-task-save]', {
+      mode: vxTaskModalMode,
+      editingTaskId: editingManualTaskRecordId,
+      error: e
+    });
+    toast(toManualTaskUserMessage(e, isEditMode ? 'Task konnte nicht gespeichert werden.' : 'Task konnte nicht gespeichert werden.'));
   } finally {
     vxSetActionButtonLoading(btn, false);
   }
@@ -46171,7 +46182,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     html +=   '</div></div>';
     html +=   '<div class="vx-dv2-actions">';
     if (phone) html += '<button class="vx-dv2-btn vx-dv2-btn-primary" onclick="vxCallDetailAnrufen()"><i class="ph-bold ph-phone"></i>Anrufen</button>';
-    html +=     '<button class="vx-dv2-btn" onclick="openManualTaskModal(window._vxCurrentTaskId || window._vxActiveRecordId)"><i class="ph-bold ph-pencil-simple"></i>Bearbeiten</button>';
+    html +=     '<button class="vx-dv2-btn" onclick="openManualTaskEditModal(window._vxCurrentTaskId || window._vxActiveRecordId)"><i class="ph-bold ph-pencil-simple"></i>Bearbeiten</button>';
     if (!done) html += '<button class="vx-dv2-btn vx-dv2-btn-done" onclick="vxCallDetailErledigt()"><i class="ph-bold ph-check"></i>Erledigen</button>';
     html +=   '</div>';
     html +=   '<div class="vx-dv2-body">';
