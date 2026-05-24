@@ -10504,6 +10504,8 @@ window.vxHandleDprButtonClick = vxHandleDprButtonClick;
 var _vxBellOpen = false;
 var _vxNotifCache = [];       // In-Memory Cache (wird via Realtime aktuell gehalten)
 var _vxNotifLoaded = false;   // Verhindert Doppel-Load
+var _vxNotifDataReady = false; // Records/Tasks wurden mindestens einmal geladen; erst dann unaufloesbare Notifications ausblenden
+var _vxNotifHiddenUnresolvedLogged = false;
 var _vxNotifSubscription = null;
 
 // ── Text + target helpers ─────────────────────────────────
@@ -10535,15 +10537,45 @@ function vxFormatNotificationSub(value) {
 function vxFindRecordByIdSafe(recordId) {
   var key = String(recordId || '').trim();
   if (!key) return null;
+  var raw = key.indexOf('case:') === 0 ? key.slice(5) : key;
   var pools = [];
-  try { pools.push.apply(pools, window.allRecords || []); } catch(e) {}
-  try { pools.push.apply(pools, window.allManualTaskRecords || []); } catch(e) {}
+  try { if (Array.isArray(window.allRecords)) pools.push.apply(pools, window.allRecords); } catch(e) {}
+  try { if (Array.isArray(window.allManualTaskRecords)) pools.push.apply(pools, window.allManualTaskRecords); } catch(e) {}
+  try { if (typeof allRecords !== 'undefined' && Array.isArray(allRecords)) pools.push.apply(pools, allRecords); } catch(e) {}
+  try { if (typeof allManualTaskRecords !== 'undefined' && Array.isArray(allManualTaskRecords)) pools.push.apply(pools, allManualTaskRecords); } catch(e) {}
   for (var i=0;i<pools.length;i++) {
     var r = pools[i] || {}; var f = r.fields || {};
-    var id = String(r.id || f.id || r.call_id || f.call_id || r.task_id || f.task_id || '').trim();
-    if (id === key) return r;
+    var ids = [
+      r.id, f.id, r.call_id, f.call_id, r.task_id, f.task_id,
+      f.task_entity_id, f.related_call_id, f.source_call_id, f.origin_call_id
+    ].map(function(v){ return String(v || '').trim(); }).filter(Boolean);
+    for (var j=0;j<ids.length;j++) {
+      if (ids[j] === key || ids[j] === raw || ('case:' + ids[j]) === key) return r;
+    }
   }
   return null;
+}
+function vxNotifIsResolvable(n) {
+  if (!n) return false;
+  var recId = String(n.recId || '').trim();
+  if (!recId) return false;
+  // Solange Records/Tasks noch nicht geladen sind, nichts ausblenden. Sonst wirkt die Glocke beim Initial-Load leer.
+  if (!_vxNotifDataReady) return true;
+  return !!vxFindRecordByIdSafe(recId);
+}
+function vxNotifFilterVisible(items) {
+  var source = Array.isArray(items) ? items : [];
+  var visible = source.filter(function(n){ return vxNotifIsResolvable(n); });
+  var hiddenCount = source.length - visible.length;
+  if (hiddenCount > 0 && !_vxNotifHiddenUnresolvedLogged) {
+    _vxNotifHiddenUnresolvedLogged = true;
+    try { console.debug('[vxNotif] hidden unresolved notifications:', hiddenCount); } catch(e) {}
+  }
+  return visible;
+}
+function vxNotificationTargetIdFromRecord(record, fallbackId) {
+  var f = (record && record.fields) || {};
+  return String((record && record.id) || f.id || f.task_entity_id || f.task_id || fallbackId || '').trim();
 }
 function vxIsRecordLiveOrPendingSafe(record) {
   if (!record) return false;
@@ -10552,8 +10584,14 @@ function vxIsRecordLiveOrPendingSafe(record) {
   return ['ringing','incoming','in_progress','active','live','analyzing'].indexOf(status) !== -1;
 }
 function vxOpenNotificationTarget(nid, recId, isMobile) {
-  if (nid) vxNotifMarkRead(nid);
+  recId = String(recId || '').trim();
   var rec = vxFindRecordByIdSafe(recId);
+  if (!recId || !rec) {
+    if (typeof toast === 'function') toast('Benachrichtigung konnte keinem aktuellen Eintrag zugeordnet werden.', 'warning');
+    if (isMobile) vxBellPageRender(); else vxBellRender();
+    return;
+  }
+  if (nid) vxNotifMarkRead(nid);
   if (rec && vxIsRecordLiveOrPendingSafe(rec)) {
     if (isMobile) vxBellPageBack(); else vxBellClose();
     var navDash = document.getElementById('mnav-dashboard') || document.getElementById('nav-dashboard');
@@ -10561,11 +10599,16 @@ function vxOpenNotificationTarget(nid, recId, isMobile) {
     if (typeof toast === 'function') toast('Live-Anruf läuft noch. Details erscheinen nach Gesprächsende.', 'info');
     return;
   }
-  if (!recId) { if (isMobile) vxBellPageRender(); else vxBellRender(); return; }
+  var targetId = vxNotificationTargetIdFromRecord(rec, recId);
+  var isTaskTarget = (typeof isManualTaskRecord === 'function') && isManualTaskRecord(rec);
   var openTarget = function(){
     var navEl = document.getElementById(isMobile ? 'mnav-anrufe' : 'nav-anrufe') || document.getElementById('nav-anrufe') || document.getElementById('mnav-anrufe');
     if (typeof showTab === 'function') showTab('anrufe', navEl);
-    setTimeout(function(){ if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(recId); }, 140);
+    setTimeout(function(){
+      if (isTaskTarget && typeof showTaskDetail === 'function') { showTaskDetail(targetId); return; }
+      if (!isTaskTarget && typeof showCallDetail === 'function') { showCallDetail(targetId); return; }
+      if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(targetId);
+    }, 180);
   };
   if (isMobile) { setTimeout(function(){ vxBellPageBack(); setTimeout(openTarget, 150); }, 160); }
   else { vxBellClose(); openTarget(); }
@@ -10699,7 +10742,7 @@ function vxNotifSubscribe() {
 
 // ── Badge updaten ──────────────────────────────────────────
 function vxBellUpdateBadge() {
-  var unread = _vxNotifCache.filter(function(n){ return !n.read; }).length;
+  var unread = vxNotifFilterVisible(_vxNotifCache).filter(function(n){ return !n.read; }).length;
   var txt = unread > 9 ? '9+' : String(unread);
   var desktopBadge = document.getElementById('vx-bell-badge');
   if (desktopBadge) {
@@ -10724,7 +10767,7 @@ function vxBellAdd(opts) {
 function vxBellRender() {
   var list = document.getElementById('vx-notif-list');
   if (!list) return;
-  var items = _vxNotifCache.filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
+  var items = vxNotifFilterVisible(_vxNotifCache).filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
   if (!items.length) {
     vxSetHtmlIfChanged(list, '<div class="vx-notif-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i>Keine Benachrichtigungen der letzten 7 Tage</div>');
     return;
@@ -10737,7 +10780,7 @@ function vxBellRender() {
 function vxBellPageRender() {
   var list = document.getElementById('vx-notif-page-list');
   if (!list) return;
-  var items = _vxNotifCache.filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
+  var items = vxNotifFilterVisible(_vxNotifCache).filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
   if (!items.length) {
     vxSetHtmlIfChanged(list, '<div class="vx-notif-mobile-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i><div>Keine Benachrichtigungen</div><small>Lara informiert dich hier über neue Anrufe, Rückrufe und wichtige Hinweise.</small></div>');
     return;
@@ -20811,6 +20854,13 @@ async function loadData() {
       return !isActivationCallCategory((r.fields || {}).category);
     });
     allManualTaskRecords = manualTasks;
+    window.allRecords = allRecords;
+    window.allManualTaskRecords = allManualTaskRecords;
+    _vxNotifDataReady = true;
+    if (_vxNotifLoaded) {
+      vxBellUpdateBadge();
+      if (_vxBellOpen) { vxBellRender(); vxBellPageRender(); }
+    }
 
     const titleEl = document.getElementById('greeting-main');
     if (titleEl) {
