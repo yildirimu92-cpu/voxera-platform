@@ -10604,13 +10604,21 @@ function vxFindRecordByIdSafe(recordId) {
 }
 function vxNotifIsResolvable(n) {
   if (!n) return false;
-  var resolved = vxResolveNotificationTarget(n, n.recId);
-  if (!resolved.ok && resolved.reason === 'target_not_found' && !_vxNotifDataReady) return true;
-  return true;
+  var recId = String(n.recId || '').trim();
+  if (!recId) return false;
+  // Solange Records/Tasks noch nicht geladen sind, nichts ausblenden. Sonst wirkt die Glocke beim Initial-Load leer.
+  if (!_vxNotifDataReady) return true;
+  return !!vxFindRecordByIdSafe(recId);
 }
 function vxNotifFilterVisible(items) {
   var source = Array.isArray(items) ? items : [];
-  return source.filter(function(n){ return vxNotifIsResolvable(n); });
+  var visible = source.filter(function(n){ return vxNotifIsResolvable(n); });
+  var hiddenCount = source.length - visible.length;
+  if (hiddenCount > 0 && !_vxNotifHiddenUnresolvedLogged) {
+    _vxNotifHiddenUnresolvedLogged = true;
+    try { console.debug('[vxNotif] hidden unresolved notifications:', hiddenCount); } catch(e) {}
+  }
+  return visible;
 }
 function vxNotificationTargetIdFromRecord(record, fallbackId) {
   var f = (record && record.fields) || {};
@@ -10622,67 +10630,36 @@ function vxIsRecordLiveOrPendingSafe(record) {
   var status = String(f.live_status || record.live_status || f.call_status || record.call_status || '').toLowerCase();
   return ['ringing','incoming','in_progress','active','live','analyzing'].indexOf(status) !== -1;
 }
-function vxResolveNotificationTarget(notification, fallbackRecId) {
-  var n = notification || {};
-  var targetTypeRaw = String(n.targetType || n.target_type || '').trim().toLowerCase();
-  var targetId = String(n.targetId || n.target_id || n.recId || fallbackRecId || '').trim();
-  if (!targetTypeRaw && targetId) targetTypeRaw = 'call';
-  if (!targetId) return { ok: false, reason: 'missing_target' };
-  var resolvedType = targetTypeRaw;
-  if (['call','task','case','system'].indexOf(resolvedType) === -1) return { ok: false, reason: 'unsupported_target_type', type: resolvedType, id: targetId };
-  if (resolvedType === 'case' || resolvedType === 'system') return { ok: true, type: resolvedType, id: targetId, record: null };
-  var rec = vxFindRecordByIdSafe(targetId);
-  if (!rec) return { ok: false, reason: 'target_not_found', type: resolvedType, id: targetId };
-  var inferredTask = (typeof isManualTaskRecord === 'function') && isManualTaskRecord(rec);
-  if (!targetTypeRaw) resolvedType = inferredTask ? 'task' : 'call';
-  if (resolvedType === 'call' && inferredTask) resolvedType = 'task';
-  if (resolvedType === 'task' && !inferredTask) resolvedType = 'call';
-  var openId = vxNotificationTargetIdFromRecord(rec, targetId);
-  if (!openId) return { ok: false, reason: 'missing_target', type: resolvedType };
-  return { ok: true, type: resolvedType, id: openId, record: rec };
-}
-
-function vxOpenNotificationTarget(notificationOrNid, recId, isMobile) {
-  var notification = (notificationOrNid && typeof notificationOrNid === 'object')
-    ? notificationOrNid
-    : ((_vxNotifCache || []).find(function(item){ return item && item.id === notificationOrNid; }) || { id: notificationOrNid, recId: recId });
-  var resolved = vxResolveNotificationTarget(notification, recId);
-  if (!resolved.ok) {
-    var msg = (resolved.reason === 'unsupported_target_type')
-      ? 'Eintrag kann noch nicht geöffnet werden.'
-      : 'Eintrag nicht mehr verfügbar oder noch nicht geladen.';
-    if (typeof toast === 'function') toast(msg, 'warning');
+function vxOpenNotificationTarget(nid, recId, isMobile) {
+  recId = String(recId || '').trim();
+  var rec = vxFindRecordByIdSafe(recId);
+  if (!recId || !rec) {
+    if (typeof toast === 'function') toast('Benachrichtigung konnte keinem aktuellen Eintrag zugeordnet werden.', 'warning');
     if (isMobile) vxBellPageRender(); else vxBellRender();
-    return false;
+    return;
   }
-  if (resolved.type === 'case' || resolved.type === 'system') {
-    if (typeof toast === 'function') toast('Eintrag kann noch nicht geöffnet werden.', 'warning');
-    if (isMobile) vxBellPageRender(); else vxBellRender();
-    return false;
-  }
-  var rec = resolved.record;
+  if (nid) vxNotifMarkRead(nid);
   if (rec && vxIsRecordLiveOrPendingSafe(rec)) {
     if (isMobile) vxBellPageBack(); else vxBellClose();
     var navDash = document.getElementById('mnav-dashboard') || document.getElementById('nav-dashboard');
     if (typeof showTab === 'function') showTab('dashboard', navDash);
     if (typeof toast === 'function') toast('Live-Anruf läuft noch. Details erscheinen nach Gesprächsende.', 'info');
-    return false;
+    return;
   }
+  var targetId = vxNotificationTargetIdFromRecord(rec, recId);
+  var isTaskTarget = (typeof isManualTaskRecord === 'function') && isManualTaskRecord(rec);
   var openTarget = function(){
     var navEl = document.getElementById(isMobile ? 'mnav-anrufe' : 'nav-anrufe') || document.getElementById('nav-anrufe') || document.getElementById('mnav-anrufe');
     if (typeof showTab === 'function') showTab('anrufe', navEl);
     setTimeout(function(){
-      if (resolved.type === 'task' && typeof showTaskDetail === 'function') { showTaskDetail(resolved.id); return; }
-      if (resolved.type === 'call' && typeof showCallDetail === 'function') { showCallDetail(resolved.id); return; }
-      if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(resolved.id);
+      if (isTaskTarget && typeof showTaskDetail === 'function') { showTaskDetail(targetId); return; }
+      if (!isTaskTarget && typeof showCallDetail === 'function') { showCallDetail(targetId); return; }
+      if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(targetId);
     }, 180);
   };
   if (isMobile) { setTimeout(function(){ vxBellPageBack(); setTimeout(openTarget, 150); }, 160); }
   else { vxBellClose(); openTarget(); }
-  if (notification && notification.id) vxNotifMarkRead(notification.id);
-  return true;
 }
-
 
 // ── Supabase lesen ─────────────────────────────────────────
 async function vxNotifLoadFromDB() {
@@ -10691,21 +10668,17 @@ async function vxNotifLoadFromDB() {
   try {
     var { data, error } = await sb
       .from('notifications')
-      .select('id, type, title, sub, call_id, target_type, target_id, read_at, created_at')
+      .select('id, type, title, sub, call_id, read_at, created_at')
       .order('created_at', { ascending: false })
       .limit(80);
     if (error) { console.warn('[vxNotif] load error', error.message); return []; }
     _vxNotifCache = (data || []).map(function(n) {
-      var targetId = String(n.target_id || n.call_id || '').trim();
-      var targetType = String(n.target_type || (targetId ? 'call' : '') || '').trim().toLowerCase();
       return {
         id: n.id,
         type: n.type || 'call',
         title: n.title || '',
         sub: n.sub || '',
-        targetType: targetType || null,
-        targetId: targetId || null,
-        recId: targetId,
+        recId: n.call_id || '',
         ts: new Date(n.created_at).getTime(),
         read: !!n.read_at
       };
@@ -10790,16 +10763,12 @@ function vxNotifSubscribe() {
       }, function(payload) {
         var n = payload.new;
         if (!n) return;
-        var targetId = String(n.target_id || n.call_id || '').trim();
-        var targetType = String(n.target_type || (targetId ? 'call' : '') || '').trim().toLowerCase();
         var item = {
           id: n.id,
           type: n.type || 'call',
           title: n.title || '',
           sub: n.sub || '',
-          targetType: targetType || null,
-          targetId: targetId || null,
-          recId: targetId,
+          recId: n.call_id || '',
           ts: new Date(n.created_at).getTime(),
           read: false
         };
@@ -10958,13 +10927,11 @@ function vxBellMarkAll() {
   vxNotifMarkAllRead();
 }
 function vxBellItemClick(nid, recId) {
-  var item = (_vxNotifCache || []).find(function(n){ return n && n.id === nid; }) || { id: nid, recId: recId };
-  vxOpenNotificationTarget(item, recId, false);
+  vxOpenNotificationTarget(nid, recId, false);
   vxBellRender();
 }
 function vxBellPageItemClick(nid, recId) {
-  var item = (_vxNotifCache || []).find(function(n){ return n && n.id === nid; }) || { id: nid, recId: recId };
-  vxOpenNotificationTarget(item, recId, true);
+  vxOpenNotificationTarget(nid, recId, true);
   vxBellPageRender();
 }
 
@@ -18773,47 +18740,63 @@ function vxAudioEscapeText(value){
 }
 function vxRenderModernAudioPlayerHtml(audioUrl, metaText){
   var safeUrl = vxAudioEscapeAttr(audioUrl);
-  var safeMeta = vxAudioEscapeText(metaText || 'Gesprächsaufnahme');
+  var safeMeta = vxAudioEscapeText(metaText || 'Bereit zum Abspielen');
+  var bars = '';
+  for (var i = 0; i < 42; i++) {
+    var h = 18 + ((i * 7) % 28);
+    if (i % 5 === 0) h += 12;
+    if (i > 24) h = Math.max(12, h - 10);
+    bars += '<span style="height:'+h+'%"></span>';
+  }
   return '<div class="vx-audio-modern" data-vx-audio-player data-audio-url="'+safeUrl+'">'
-    + '<div class="vx-audio-modern__top"><div class="vx-audio-modern__meta"><div class="vx-audio-modern__title">Audioaufnahme</div><div class="vx-audio-modern__sub">'+safeMeta+'</div></div><div class="vx-audio-modern__boost">Boost aktiv</div></div>'
+    + '<div class="vx-audio-modern__top"><div class="vx-audio-modern__meta"><div class="vx-audio-modern__title">Audioaufnahme</div><div class="vx-audio-modern__sub"><span></span>'+safeMeta+'</div></div></div>'
+    + '<div class="vx-audio-modern__surface">'
     + '<div class="vx-audio-modern__controls">'
     + '<button class="vx-audio-modern__btn" type="button" data-vx-audio-action="back" aria-label="10 Sekunden zurück">↺</button>'
     + '<button class="vx-audio-modern__btn vx-audio-modern__btn--primary" type="button" data-vx-audio-action="play" aria-label="Audio abspielen">▶</button>'
-    + '<div class="vx-audio-modern__timeline"><input class="vx-audio-modern__range" data-vx-audio-range type="range" min="0" max="1000" value="0"><div class="vx-audio-modern__time"><span data-vx-audio-current>0:00</span><span data-vx-audio-duration>0:00</span></div></div>'
+    + '<div class="vx-audio-modern__timeline"><div class="vx-audio-modern__wave" aria-hidden="true">'+bars+'</div><input class="vx-audio-modern__range" data-vx-audio-range type="range" min="0" max="1000" value="0"><div class="vx-audio-modern__time"><span data-vx-audio-current>0:00</span><span data-vx-audio-duration>0:00</span></div></div>'
     + '<button class="vx-audio-modern__btn" type="button" data-vx-audio-action="forward" aria-label="10 Sekunden vor">↻</button>'
-    + '</div><div class="vx-audio-modern__bottom"><div class="vx-audio-modern__speed">'
+    + '</div><div class="vx-audio-modern__bottom"><div class="vx-audio-modern__volume"><span aria-hidden="true">⌁</span><input type="range" min="0" max="1" step="0.05" value="1" data-vx-audio-volume aria-label="Lautstärke"></div><div class="vx-audio-modern__speed">'
     + '<button class="vx-audio-modern__speed-btn is-active" type="button" data-vx-audio-speed="1">1x</button>'
     + '<button class="vx-audio-modern__speed-btn" type="button" data-vx-audio-speed="1.25">1.25x</button>'
     + '<button class="vx-audio-modern__speed-btn" type="button" data-vx-audio-speed="1.5">1.5x</button>'
-    + '</div><div class="vx-audio-modern__status" data-vx-audio-status>Bereit · Boost aktiv</div></div>'
-    + '<audio class="vx-audio-modern__audio" preload="metadata" playsinline src="'+safeUrl+'"></audio>'
+    + '</div><div class="vx-audio-modern__status" data-vx-audio-status>Bereit zum Abspielen</div></div>'
+    + '</div><audio class="vx-audio-modern__audio" preload="metadata" playsinline src="'+safeUrl+'"></audio>'
     + '</div>';
+}
+
+function vxRenderAudioStateCardHtml(state, message, conversationId){
+  var attr = conversationId ? ' data-conversation-id="'+vxAudioEscapeAttr(conversationId)+'" data-vx-audio-auto="1"' : '';
+  var safeMessage = vxAudioEscapeText(message || '');
+  var loading = state === 'loading' ? '<div class="vx-audio-state__spinner" aria-hidden="true"></div>' : '';
+  var retry = state === 'error' && conversationId ? '<button type="button" class="vx-audio-state__retry" onclick="vxTryLoadElevenLabsAudioFromDashboard(this)">Erneut versuchen</button>' : '';
+  return '<div class="vx-transcript-card vx-audio-state-card" id="vx-call-audio-card"'+attr+'><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div></div><div class="vx-audio-state vx-audio-state--'+state+'">'+loading+'<div>'+safeMessage+'</div>'+retry+'<div class="vx-audio-fetch-status" aria-live="polite"></div></div></div>';
 }
 
 function vxRenderCallAudioCardHtml(callOrFields) {
   var audioUrl = vxGetCallAudioUrl(callOrFields);
   var conversationId = (typeof vxGetElevenLabsConversationId === 'function') ? vxGetElevenLabsConversationId(callOrFields) : '';
-  if (!audioUrl && conversationId) {
-    var convSafe = (typeof escapeHtml === 'function') ? escapeHtml(conversationId) : String(conversationId).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-    return '<div class="vx-transcript-card" id="vx-call-audio-card" data-conversation-id="'+convSafe+'"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">ElevenLabs</div></div><div class="vx-transcript-empty">Audio ist über eine ElevenLabs Conversation-ID verknüpft, aber noch nicht als URL im Dashboard synchronisiert.<br><button type="button" class="btn btn--secondary btn--sm" style="margin-top:10px;" onclick="vxTryLoadElevenLabsAudioFromDashboard(this)">Audio abrufen</button><div class="vx-audio-fetch-status" style="font-size:11px;color:var(--slate2);margin-top:8px;"></div></div></div>';
+  if (audioUrl) {
+    return '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(audioUrl, 'Bereit zum Abspielen') + '</div></div>';
   }
-  if (!audioUrl) {
-    return '<div class="vx-transcript-card" id="vx-call-audio-card"><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div><div class="vx-transcript-meta">Nicht synchronisiert</div></div><div class="vx-transcript-empty">Für diesen Anruf ist im geladenen Datensatz noch keine Audio-URL oder ElevenLabs Conversation-ID hinterlegt.</div></div>';
+  if (conversationId) {
+    return vxRenderAudioStateCardHtml('loading', 'Aufnahme wird geladen …', conversationId);
   }
-  return '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(audioUrl, 'Originalaufnahme des Anrufs') + '</div></div>';
+  return vxRenderAudioStateCardHtml('empty', 'Für diesen Eintrag ist keine Aufnahme verfügbar.', '');
 }
-async function vxTryLoadElevenLabsAudioFromDashboard(btn) {
-  var card = btn && btn.closest ? btn.closest('#vx-call-audio-card') : document.getElementById('vx-call-audio-card');
+async function vxTryLoadElevenLabsAudioFromDashboard(trigger) {
+  var card = trigger && trigger.closest ? trigger.closest('#vx-call-audio-card') : (trigger && trigger.id === 'vx-call-audio-card' ? trigger : document.getElementById('vx-call-audio-card'));
   var status = card ? card.querySelector('.vx-audio-fetch-status') : null;
   var conversationId = card ? String(card.getAttribute('data-conversation-id') || '').trim() : '';
-  if (!conversationId) return;
+  if (!conversationId || !card) return false;
+  if (card.getAttribute('data-vx-audio-loading') === '1') return false;
+  card.setAttribute('data-vx-audio-loading','1');
+  var btn = trigger && trigger.tagName === 'BUTTON' ? trigger : null;
   var endpoints = [
-    '/.netlify/functions/elevenlabs-conversation-audio?conversation_id=' + encodeURIComponent(conversationId),
-    '/.netlify/functions/elevenlabs-audio?conversation_id=' + encodeURIComponent(conversationId),
-    '/.netlify/functions/get-elevenlabs-audio?conversation_id=' + encodeURIComponent(conversationId)
+    '/.netlify/functions/elevenlabs-conversation-audio?conversation_id=' + encodeURIComponent(conversationId)
   ];
   if (btn) btn.disabled = true;
-  if (status) status.textContent = 'Audio wird abgerufen…';
+  if (status) status.textContent = '';
   try {
     for (var i = 0; i < endpoints.length; i++) {
       var res = await fetch(endpoints[i], { method:'GET' });
@@ -18823,24 +18806,38 @@ async function vxTryLoadElevenLabsAudioFromDashboard(btn) {
       if (ct.indexOf('application/json') >= 0) {
         var json = await res.json();
         url = json.audio_url || json.audioUrl || json.recording_url || json.url || '';
-      } else if (ct.indexOf('audio/') >= 0) {
+      } else if (ct.indexOf('audio/') >= 0 || ct.indexOf('application/octet-stream') >= 0) {
         var blob = await res.blob();
         url = URL.createObjectURL(blob);
       }
       if (url && card) {
-        card.outerHTML = '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(url, 'Gerade abgerufen') + '</div></div>';
-        return;
+        card.outerHTML = '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(url, 'Bereit zum Abspielen') + '</div></div>';
+        if (window.vxHydrateModernAudioPlayers) window.vxHydrateModernAudioPlayers(document);
+        return true;
       }
     }
-    if (status) status.textContent = 'Kein Audio-Endpunkt erreichbar. Backend-Sync/Netlify Function fehlt noch.';
+    card.outerHTML = vxRenderAudioStateCardHtml('error', 'Aufnahme konnte nicht geladen werden.', conversationId);
+    return false;
   } catch(e) {
-    if (status) status.textContent = 'Audio konnte nicht geladen werden.';
+    console.warn('[voxera-audio] loading failed', e);
+    card.outerHTML = vxRenderAudioStateCardHtml('error', 'Aufnahme konnte nicht geladen werden.', conversationId);
+    return false;
   } finally {
+    if (card) card.removeAttribute('data-vx-audio-loading');
     if (btn) btn.disabled = false;
   }
 }
+function vxAutoLoadAudioCards(root){
+  (root || document).querySelectorAll('#vx-call-audio-card[data-vx-audio-auto="1"]').forEach(function(card){
+    if (card.getAttribute('data-vx-audio-loading') === '1' || card.getAttribute('data-vx-audio-tried') === '1') return;
+    card.setAttribute('data-vx-audio-tried','1');
+    vxTryLoadElevenLabsAudioFromDashboard(card);
+  });
+}
 window.vxTryLoadElevenLabsAudioFromDashboard = vxTryLoadElevenLabsAudioFromDashboard;
+window.vxAutoLoadAudioCards = vxAutoLoadAudioCards;
 window.vxGetCallAudioUrl = vxGetCallAudioUrl;
+window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
 window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
 
 (function initVoxeraModernAudioPlayer(){
@@ -18868,14 +18865,16 @@ window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
     audio.addEventListener('loadedmetadata', function(){
       var dur = player.querySelector('[data-vx-audio-duration]');
       if (dur) dur.textContent = formatTime(audio.duration);
-      setStatus(player, 'Bereit · ' + BOOST_GAIN + 'x Boost');
+      setStatus(player, 'Bereit zum Abspielen');
     });
     audio.addEventListener('timeupdate', function(){
       var cur = player.querySelector('[data-vx-audio-current]');
       var range = player.querySelector('[data-vx-audio-range]');
       if (cur) cur.textContent = formatTime(audio.currentTime);
-      if (range && isFinite(audio.duration) && audio.duration > 0) range.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
+      if (range && isFinite(audio.duration) && audio.duration > 0) {
+        range.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
         range.style.setProperty('--vx-audio-progress', String(Math.round((audio.currentTime / audio.duration) * 100)) + '%');
+      }
     });
     audio.addEventListener('play', function(){
       var btn = player.querySelector('[data-vx-audio-action="play"]');
@@ -18907,7 +18906,7 @@ window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
       state.gain.gain.value = BOOST_GAIN;
       state.source.connect(state.gain);
       state.gain.connect(state.audioContext.destination);
-      setStatus(player, 'Bereit · ' + BOOST_GAIN + 'x Boost');
+      setStatus(player, 'Bereit zum Abspielen');
     } catch(e) {
       setStatus(player, 'Bereit');
     }
@@ -18942,21 +18941,31 @@ window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
       audio.playbackRate = speed;
       player.querySelectorAll('[data-vx-audio-speed]').forEach(function(btn){ btn.classList.remove('is-active'); });
       speedBtn.classList.add('is-active');
-      setStatus(player, speed + 'x · ' + BOOST_GAIN + 'x Boost');
+      setStatus(player, speed + 'x');
     }
   });
   document.addEventListener('input', function(ev){
     var range = ev.target && ev.target.matches && ev.target.matches('[data-vx-audio-range]') ? ev.target : null;
-    if (!range) return;
-    var player = closestPlayer(range);
+    var volume = ev.target && ev.target.matches && ev.target.matches('[data-vx-audio-volume]') ? ev.target : null;
+    if (!range && !volume) return;
+    var player = closestPlayer(range || volume);
     var state = hydratePlayer(player);
-    if (!state || !isFinite(state.audio.duration) || state.audio.duration <= 0) return;
+    if (!state || !state.audio) return;
+    if (volume) {
+      state.audio.volume = Math.max(0, Math.min(1, Number(volume.value) || 0));
+      return;
+    }
+    if (!isFinite(state.audio.duration) || state.audio.duration <= 0) return;
     state.audio.currentTime = (Number(range.value) / 1000) * state.audio.duration;
   });
   window.vxHydrateModernAudioPlayers = function(root){
     (root || document).querySelectorAll('[data-vx-audio-player]').forEach(hydratePlayer);
+    if (window.vxAutoLoadAudioCards) window.vxAutoLoadAudioCards(root || document);
   };
   document.addEventListener('DOMContentLoaded', function(){ window.vxHydrateModernAudioPlayers(document); });
+  if (window.MutationObserver) {
+    new MutationObserver(function(){ window.vxHydrateModernAudioPlayers(document); }).observe(document.documentElement, { childList:true, subtree:true });
+  }
 })();
 
 
@@ -45828,224 +45837,49 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 @media(max-width:1180px){#requests-detail-v2 .vx-dv2-info-grid,#vx-detail-v2-full-content .vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:760px){#requests-detail-v2 .vx-dv2-info-grid,#vx-detail-v2-full-content .vx-dv2-info-grid{grid-template-columns:1fr;}#requests-detail-v2 .vx-dv2-actions,#vx-detail-v2-full-content .vx-dv2-actions{position:sticky;top:0;z-index:2;}}
 
-/* === Voxera Modern Audio Player — refined compact layout === */
+/* === Voxera Audio Player UX V2 — premium compact SaaS layout === */
+.vx-audio-state-card .vx-transcript-head{border-bottom:0.5px solid var(--line,rgba(15,23,42,.08));}
+.vx-audio-state{display:flex;align-items:center;justify-content:center;gap:10px;min-height:96px;padding:22px 18px;color:#7c8798;font-size:13px;font-weight:650;text-align:center;}
+.vx-audio-state__spinner{width:18px;height:18px;border-radius:50%;border:2px solid #dbeafe;border-top-color:#2563eb;animation:vxAudioSpin .8s linear infinite;}
+.vx-audio-state__retry{margin-left:8px;border:1px solid #dbe4f0;background:#fff;color:#0f172a;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;}
+@keyframes vxAudioSpin{to{transform:rotate(360deg)}}
 .vx-audio-modern{
   --vx-audio-navy:#071833;
-  --vx-audio-blue:#2563eb;
-  --vx-audio-muted:#8b97aa;
-  --vx-audio-line:#e6ebf2;
-  --vx-audio-soft:#f5f7fb;
-  display:block;
-  width:100%;
-  box-sizing:border-box;
-  margin:0;
-  padding:18px 20px;
-  border:1px solid rgba(15,23,42,.08);
-  border-radius:20px;
-  background:#fff;
-  box-shadow:0 8px 24px rgba(15,23,42,.045);
-  color:#0f172a;
-  font-family:inherit;
+  --vx-audio-blue:#2f6df6;
+  --vx-audio-soft:#f5f8fc;
+  --vx-audio-line:#e5eaf2;
+  width:100%;box-sizing:border-box;margin:0;padding:16px 18px;border:1px solid rgba(15,23,42,.08);border-radius:20px;background:linear-gradient(180deg,#fff 0%,#fbfcff 100%);box-shadow:0 12px 30px rgba(15,23,42,.055);color:#0f172a;font-family:inherit;
 }
 .vx-audio-modern *{box-sizing:border-box;}
-.vx-audio-modern__top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:14px;
-  margin-bottom:14px;
-}
-.vx-audio-modern__meta{min-width:0;}
-.vx-audio-modern__title{
-  display:flex;
-  align-items:center;
-  gap:9px;
-  font-size:12px;
-  font-weight:850;
-  line-height:1.2;
-  letter-spacing:.18em;
-  text-transform:uppercase;
-  color:#101c33;
-}
-.vx-audio-modern__title:before{
-  content:"";
-  width:19px;
-  height:19px;
-  display:inline-block;
-  flex:0 0 auto;
-  background:#2f80ed;
-  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 10v4'/%3E%3Cpath d='M6 7v10'/%3E%3Cpath d='M10 4v16'/%3E%3Cpath d='M14 7v10'/%3E%3Cpath d='M18 10v4'/%3E%3Cpath d='M22 11v2'/%3E%3C/svg%3E") center/contain no-repeat;
-          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 10v4'/%3E%3Cpath d='M6 7v10'/%3E%3Cpath d='M10 4v16'/%3E%3Cpath d='M14 7v10'/%3E%3Cpath d='M18 10v4'/%3E%3Cpath d='M22 11v2'/%3E%3C/svg%3E") center/contain no-repeat;
-}
-.vx-audio-modern__sub{
-  margin-top:5px;
-  max-width:52ch;
-  font-size:13px;
-  font-weight:650;
-  line-height:1.35;
-  color:#64748b;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.vx-audio-modern__boost{
-  flex:0 0 auto;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  height:30px;
-  padding:0 12px;
-  border-radius:999px;
-  border:1px solid #dbeafe;
-  background:#f4f8ff;
-  color:#2563eb;
-  font-size:11px;
-  font-weight:850;
-  letter-spacing:.04em;
-}
-.vx-audio-modern__controls{
-  display:grid;
-  grid-template-columns:38px 46px minmax(120px,1fr) 38px;
-  align-items:center;
-  gap:10px;
-  padding:4px 0 2px;
-}
-.vx-audio-modern__btn{
-  appearance:none;
-  -webkit-appearance:none;
-  width:38px;
-  height:38px;
-  border:0;
-  border-radius:14px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  background:#f1f5f9;
-  color:#334155;
-  font-size:15px;
-  font-weight:900;
-  line-height:1;
-  cursor:pointer;
-  transition:transform .14s ease,background .14s ease,color .14s ease,box-shadow .14s ease;
-}
-.vx-audio-modern__btn:hover{background:#e8eef6;color:#0f172a;}
-.vx-audio-modern__btn:active{transform:scale(.96);}
-.vx-audio-modern__btn--primary{
-  width:46px;
-  height:46px;
-  border-radius:16px;
-  background:var(--vx-audio-navy);
-  color:#fff;
-  font-size:18px;
-  box-shadow:0 10px 24px rgba(7,24,51,.22);
-}
+.vx-audio-modern__top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px;}
+.vx-audio-modern__title{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:850;letter-spacing:.18em;text-transform:uppercase;color:#0f172a;line-height:1.2;}
+.vx-audio-modern__title:before{content:"";width:18px;height:18px;flex:0 0 auto;background:#2f6df6;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 10v4'/%3E%3Cpath d='M7 7v10'/%3E%3Cpath d='M11 4v16'/%3E%3Cpath d='M15 8v8'/%3E%3Cpath d='M19 11v2'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 10v4'/%3E%3Cpath d='M7 7v10'/%3E%3Cpath d='M11 4v16'/%3E%3Cpath d='M15 8v8'/%3E%3Cpath d='M19 11v2'/%3E%3C/svg%3E") center/contain no-repeat;}
+.vx-audio-modern__sub{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:12px;font-weight:700;color:#7c8798;}
+.vx-audio-modern__sub span{width:7px;height:7px;border-radius:50%;background:#28b070;box-shadow:0 0 0 3px rgba(40,176,112,.12);}
+.vx-audio-modern__surface{border:1px solid rgba(15,23,42,.065);border-radius:18px;background:#fff;padding:13px 14px 12px;}
+.vx-audio-modern__controls{display:grid;grid-template-columns:38px 50px minmax(120px,1fr) 38px;align-items:center;gap:12px;}
+.vx-audio-modern__btn{appearance:none;-webkit-appearance:none;width:38px;height:38px;border:0;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;background:#f3f6fa;color:#334155;font-size:16px;font-weight:900;line-height:1;cursor:pointer;transition:transform .14s ease,background .14s ease,color .14s ease,box-shadow .14s ease;}
+.vx-audio-modern__btn:hover{background:#eaf0f7;color:#0f172a;}.vx-audio-modern__btn:active{transform:scale(.96);}
+.vx-audio-modern__btn--primary{width:50px;height:50px;border-radius:17px;background:linear-gradient(180deg,#10305f 0%,#071833 100%);color:#fff;font-size:18px;box-shadow:0 12px 26px rgba(7,24,51,.24);}
 .vx-audio-modern__btn--primary:hover{background:#0b1f42;color:#fff;}
-.vx-audio-modern__timeline{min-width:0;width:100%;padding:0 2px;}
-.vx-audio-modern__range{
-  appearance:none;
-  -webkit-appearance:none;
-  width:100%;
-  height:26px;
-  margin:0;
-  background:transparent;
-  cursor:pointer;
-  vertical-align:middle;
-}
-.vx-audio-modern__range::-webkit-slider-runnable-track{
-  height:7px;
-  border-radius:999px;
-  background:linear-gradient(90deg,var(--vx-audio-navy) 0%,var(--vx-audio-navy) var(--vx-audio-progress,0%),#e6ebf2 var(--vx-audio-progress,0%),#e6ebf2 100%);
-}
-.vx-audio-modern__range::-moz-range-track{height:7px;border-radius:999px;background:#e6ebf2;}
-.vx-audio-modern__range::-moz-range-progress{height:7px;border-radius:999px;background:var(--vx-audio-navy);}
-.vx-audio-modern__range::-webkit-slider-thumb{
-  -webkit-appearance:none;
-  width:17px;
-  height:17px;
-  margin-top:-5px;
-  border-radius:50%;
-  border:3px solid #fff;
-  background:var(--vx-audio-navy);
-  box-shadow:0 4px 12px rgba(15,23,42,.2);
-}
-.vx-audio-modern__range::-moz-range-thumb{width:17px;height:17px;border-radius:50%;border:3px solid #fff;background:var(--vx-audio-navy);box-shadow:0 4px 12px rgba(15,23,42,.2);}
-.vx-audio-modern__time{
-  display:flex;
-  justify-content:space-between;
-  gap:12px;
-  margin-top:1px;
-  font-size:12px;
-  font-weight:750;
-  color:#9aa5b5;
-  font-variant-numeric:tabular-nums;
-}
-.vx-audio-modern__bottom{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  margin-top:12px;
-}
-.vx-audio-modern__speed{
-  display:inline-flex;
-  align-items:center;
-  gap:3px;
-  padding:3px;
-  border-radius:999px;
-  background:#f1f5f9;
-}
-.vx-audio-modern__speed-btn{
-  appearance:none;
-  -webkit-appearance:none;
-  border:0;
-  border-radius:999px;
-  min-width:40px;
-  padding:7px 10px;
-  background:transparent;
-  color:#64748b;
-  font-size:12px;
-  font-weight:850;
-  line-height:1;
-  cursor:pointer;
-}
-.vx-audio-modern__speed-btn.is-active{background:#fff;color:var(--vx-audio-navy);box-shadow:0 2px 9px rgba(15,23,42,.1);}
-.vx-audio-modern__status{
-  min-width:0;
-  text-align:right;
-  font-size:12px;
-  font-weight:750;
-  color:#9aa5b5;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+.vx-audio-modern__timeline{position:relative;min-width:0;width:100%;padding:1px 0 0;}
+.vx-audio-modern__wave{height:38px;display:flex;align-items:center;gap:3px;padding:0 4px;overflow:hidden;}
+.vx-audio-modern__wave span{width:3px;min-width:3px;border-radius:999px;background:linear-gradient(180deg,#2f6df6,#9ec1ff);opacity:.38;}
+.vx-audio-modern__wave span:nth-child(-n+15){opacity:.8;}
+.vx-audio-modern__range{appearance:none;-webkit-appearance:none;position:absolute;left:0;right:0;top:0;width:100%;height:38px;margin:0;background:transparent;cursor:pointer;opacity:.01;}
+.vx-audio-modern__range::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:38px;}.vx-audio-modern__range::-moz-range-thumb{width:22px;height:38px;border:0;background:transparent;}
+.vx-audio-modern__time{display:flex;justify-content:space-between;gap:12px;margin-top:2px;font-size:12px;font-weight:800;color:#8792a5;font-variant-numeric:tabular-nums;}
+.vx-audio-modern__bottom{display:grid;grid-template-columns:minmax(100px,190px) auto minmax(90px,1fr);align-items:center;gap:12px;margin-top:12px;}
+.vx-audio-modern__volume{display:flex;align-items:center;gap:8px;color:#64748b;}
+.vx-audio-modern__volume input{width:100%;accent-color:#2f6df6;}
+.vx-audio-modern__speed{justify-self:center;display:inline-flex;align-items:center;gap:3px;padding:4px;border-radius:999px;background:#f1f5f9;}
+.vx-audio-modern__speed-btn{appearance:none;-webkit-appearance:none;border:0;border-radius:999px;min-width:44px;padding:8px 11px;background:transparent;color:#64748b;font-size:12px;font-weight:850;line-height:1;cursor:pointer;}
+.vx-audio-modern__speed-btn.is-active{background:#fff;color:#071833;box-shadow:0 4px 12px rgba(15,23,42,.11);}
+.vx-audio-modern__status{text-align:right;font-size:12px;font-weight:750;color:#8792a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .vx-audio-modern__audio{position:absolute !important;width:1px !important;height:1px !important;opacity:0 !important;pointer-events:none !important;overflow:hidden !important;}
-@media (min-width: 900px){
-  .vx-audio-modern{padding:16px 18px;}
-  .vx-audio-modern__bottom{margin-left:94px;}
-}
-@media (max-width:720px){
-  .vx-audio-modern{padding:14px;border-radius:20px;box-shadow:0 8px 20px rgba(15,23,42,.04);}
-  .vx-audio-modern__top{align-items:center;margin-bottom:12px;}
-  .vx-audio-modern__title{font-size:11px;letter-spacing:.16em;}
-  .vx-audio-modern__sub{font-size:12px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
-  .vx-audio-modern__boost{height:28px;padding:0 10px;font-size:10.5px;}
-  .vx-audio-modern__controls{grid-template-columns:38px 48px minmax(0,1fr) 38px;gap:8px;}
-  .vx-audio-modern__btn{width:38px;height:38px;border-radius:14px;}
-  .vx-audio-modern__btn--primary{width:48px;height:48px;border-radius:17px;}
-  .vx-audio-modern__bottom{margin-top:10px;align-items:center;flex-direction:row;}
-  .vx-audio-modern__speed-btn{min-width:38px;padding:7px 9px;}
-  .vx-audio-modern__status{text-align:right;max-width:46%;}
-}
-@media (max-width:420px){
-  .vx-audio-modern{padding:13px;}
-  .vx-audio-modern__controls{grid-template-columns:36px 46px minmax(0,1fr) 36px;gap:7px;}
-  .vx-audio-modern__btn{width:36px;height:36px;border-radius:13px;font-size:14px;}
-  .vx-audio-modern__btn--primary{width:46px;height:46px;border-radius:16px;font-size:17px;}
-  .vx-audio-modern__bottom{flex-direction:column;align-items:stretch;gap:9px;}
-  .vx-audio-modern__speed{align-self:flex-start;}
-  .vx-audio-modern__status{text-align:left;max-width:100%;}
-}
+@media (min-width:900px){.vx-audio-modern{max-width:820px;margin:0 auto;padding:16px 18px;}.vx-audio-modern__surface{padding:14px 16px 13px;}}
+@media (max-width:720px){.vx-audio-modern{padding:14px;border-radius:20px;box-shadow:0 8px 20px rgba(15,23,42,.045);}.vx-audio-modern__top{margin-bottom:11px;}.vx-audio-modern__title{font-size:11px;letter-spacing:.16em;}.vx-audio-modern__sub{font-size:12px;}.vx-audio-modern__surface{padding:12px;border-radius:17px;}.vx-audio-modern__controls{grid-template-columns:38px 50px minmax(0,1fr) 38px;gap:8px;}.vx-audio-modern__wave{height:34px;gap:2px;}.vx-audio-modern__wave span{width:2px;min-width:2px;}.vx-audio-modern__bottom{grid-template-columns:1fr;gap:10px;}.vx-audio-modern__speed{justify-self:start;}.vx-audio-modern__status{text-align:left;}.vx-audio-modern__volume input{max-width:160px;}}
+@media (max-width:420px){.vx-audio-modern__controls{grid-template-columns:36px 48px minmax(0,1fr) 36px;gap:7px;}.vx-audio-modern__btn{width:36px;height:36px;border-radius:13px;}.vx-audio-modern__btn--primary{width:48px;height:48px;border-radius:16px;}.vx-audio-modern__speed-btn{min-width:40px;padding:8px 10px;}}
 
 </style>
 <script id="vx-pr-v2-task-call-detail-validation">
