@@ -9691,6 +9691,7 @@ let allRecordsRaw = []; // includes activation test calls for polling
 let allManualTaskRecords = [];
 let notizRecordId = null;
 let followupCallerName = '';
+let followupModalMode = 'callback';
 let editingManualTaskRecordId = null;
 let vxTaskModalMode = 'create';
 let autoRefreshTimer = null;
@@ -20988,14 +20989,23 @@ function vxCallDetailMail() {
 window.vxCallDetailMail = vxCallDetailMail;
 
 // [v2.66] Fälligkeit ändern — routet korrekt für Call und Task
-function vxCallDetailFaelligkeit() {
+function vxCallDetailFaelligkeit(options) {
   var id = window._vxCurrentDetailType === 'task'
     ? window._vxCurrentTaskId
     : window._vxCurrentCallId;
   if (!id) return;
-  if (typeof openFollowupDirect === 'function') openFollowupDirect(id);
+  if (typeof openFollowupDirect === 'function') openFollowupDirect(id, options || null);
 }
 window.vxCallDetailFaelligkeit = vxCallDetailFaelligkeit;
+
+function vxCallDetailCreateTask(recordOrId) {
+  var id = recordOrId || (window._vxCurrentDetailType === 'task'
+    ? window._vxCurrentTaskId
+    : window._vxCurrentCallId);
+  if (!id) return;
+  if (typeof openManualTaskModal === 'function') openManualTaskModal();
+}
+window.vxCallDetailCreateTask = vxCallDetailCreateTask;
 
 // Detail-Page: Anfrage archivieren
 function vxCallDetailArchivieren() {
@@ -24705,22 +24715,29 @@ function maybeOpenFollowup() {
   pendingFollowupRecordId = null;
 }
 
-function openFollowupDirect(recordId) {
+function openFollowupDirect(recordId, options) {
   // [v2.65] Auch Tasks (case:-Prefix) auflösen
   var rec = (typeof vxResolveDprRecord === 'function')
     ? vxResolveDprRecord(recordId)
     : allRecords.find(function(r){ return r.id === recordId; });
   if (!rec) return;
   var f = rec.fields || {};
-  openFollowup(recordId, (f.caller_name || f.title || '').trim(), (f.notes_customer_voxera || f.note || f.notes || '').trim(), f.dashboard_status || '', f.next_action || '', f.follow_up_at || '');
+  openFollowup(recordId, (f.caller_name || f.title || '').trim(), (f.notes_customer_voxera || f.note || f.notes || '').trim(), f.dashboard_status || '', f.next_action || '', f.follow_up_at || '', options || null);
 }
 
-function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt) {
+function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt, options) {
   rememberOverlayFocusReturn('followup-overlay');
   notizRecordId = recordId;
   followupCallerName = String(callerName || '').trim();
+  var opts = options || {};
+  var mode = String(opts.mode || 'callback').toLowerCase();
+  if (mode !== 'due') mode = 'callback';
+  followupModalMode = mode;
   const done = isClosedStatus(currentStatus);
-  document.getElementById('followup-sub').textContent = callerName ? 'Nach dem Rückruf mit ' + callerName : '';
+  var hasExistingDue = !!String(followUpAt || '').trim();
+  var titleEl = document.getElementById('followup-title');
+  if (titleEl) titleEl.textContent = (mode === 'due') ? (hasExistingDue ? 'Fälligkeit ändern' : 'Fälligkeit setzen') : 'Nachfassen planen';
+  document.getElementById('followup-sub').textContent = callerName ? ((mode === 'due' ? 'Fälligkeit für ' : 'Nach dem Rückruf mit ') + callerName) : '';
   document.getElementById('followup-input').value = existingNotiz || '';
   document.getElementById('followup-next-action').value = nextAction || '';
   document.getElementById('followup-datetime').value = fmtDateTimeLocal(followUpAt || '');
@@ -24737,7 +24754,9 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
     // Erledigte Einträge bleiben abgeschlossen; ein neuer Rückruf wird als separate Aufgabe geplant.
     if (lockWarning) {
       lockWarning.style.display = 'block';
-      lockWarning.childNodes[0].nodeValue = 'Dieser Eintrag bleibt erledigt. Der Rückruf wird als neue geplante Aufgabe erstellt. ';
+      lockWarning.childNodes[0].nodeValue = mode === 'due'
+        ? 'Dieser Eintrag bleibt erledigt. Die Fälligkeit wird als neue geplante Aufgabe erstellt. '
+        : 'Dieser Eintrag bleibt erledigt. Der Rückruf wird als neue geplante Aufgabe erstellt. ';
     }
   } else if (lockWarning) {
     lockWarning.style.display = 'none';
@@ -24745,7 +24764,11 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
   if (editableSection) {
     editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = false; });
   }
-  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = done ? 'Rückruf erstellen' : 'Speichern'; }
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    if (mode === 'due') saveBtn.textContent = 'Fälligkeit speichern';
+    else saveBtn.textContent = done ? 'Rückruf erstellen' : 'Nachfassen speichern';
+  }
   document.getElementById('followup-overlay').classList.add('open');
   setOverlayAriaHidden('followup-overlay', false);
   syncOverlayScrollLock();
@@ -24799,6 +24822,7 @@ function closeFollowup() {
   document.getElementById('followup-next-action').value = '';
   document.getElementById('followup-datetime').value = '';
   followupCallerName = '';
+  followupModalMode = 'callback';
   const mc = document.getElementById('followup-mark-complete');
   if (mc) {
     mc.checked = false;
@@ -46369,10 +46393,15 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
         return '<button class="'+cls+'" onclick="vxCallDetailAnrufen()"><i class="ph-bold ph-phone"></i>Anrufen</button>';
       }
       if (actionName === 'followup' || actionName === 'schedule-callback') {
-        return '<button class="'+cls+'" onclick="vxCallDetailFaelligkeit()"><i class="ph-bold ph-calendar-plus"></i>' + esc(context.followupLabel || 'Rückruf planen') + '</button>';
+        var followupMode = context.isTask ? 'due' : 'callback';
+        var followupLabel = context.followupLabel || (context.isTask ? 'Fälligkeit setzen' : 'Rückruf planen');
+        return '<button class="'+cls+'" onclick="vxCallDetailFaelligkeit({ mode: \''+followupMode+'\' })"><i class="ph-bold ph-calendar-plus"></i>' + esc(followupLabel) + '</button>';
+      }
+      if (actionName === 'edit-due' || actionName === 'due') {
+        return '<button class="'+cls+'" onclick="vxCallDetailFaelligkeit({ mode: \'due\' })"><i class="ph-bold ph-calendar-plus"></i>' + esc(context.followupLabel || 'Fälligkeit setzen') + '</button>';
       }
       if (actionName === 'create-task') {
-        return '<button class="'+cls+'" onclick="vxCallDetailFaelligkeit()"><i class="ph-bold ph-plus-circle"></i>Aufgabe erstellen</button>';
+        return '<button class="'+cls+'" onclick="vxCallDetailCreateTask(window._vxActiveRecordId || window._vxCurrentCallId)"><i class="ph-bold ph-plus-circle"></i>Aufgabe erstellen</button>';
       }
       if (actionName === 'archive') {
         return '<button class="'+cls+'" onclick="vxCallDetailArchivieren()"><i class="ph-bold ph-archive"></i>Archivieren</button>';
