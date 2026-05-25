@@ -24928,9 +24928,15 @@ function rerenderFollowupMetaForCallRow(recordId) {
     var metaEl = document.createElement('div');
     metaEl.className = 'followup-meta-line';
     metaEl.textContent = followUpMetaText;
-    if (summaryEl && summaryEl.nextSibling) body.insertBefore(metaEl, summaryEl.nextSibling);
-    else if (summaryEl) body.appendChild(metaEl);
-    else body.insertBefore(metaEl, body.firstChild);
+    if (summaryEl) {
+      var summaryParent = summaryEl.parentNode;
+      if (summaryParent === body && summaryEl.nextSibling && summaryEl.nextSibling.parentNode === body) body.insertBefore(metaEl, summaryEl.nextSibling);
+      else if (summaryParent && summaryEl.nextSibling && summaryEl.nextSibling.parentNode === summaryParent) summaryParent.insertBefore(metaEl, summaryEl.nextSibling);
+      else if (summaryParent) summaryParent.appendChild(metaEl);
+      else if (body && body.firstChild && body.firstChild.parentNode === body) body.insertBefore(metaEl, body.firstChild);
+      else if (body) body.appendChild(metaEl);
+    } else if (body && body.firstChild && body.firstChild.parentNode === body) body.insertBefore(metaEl, body.firstChild);
+    else if (body) body.appendChild(metaEl);
   });
 }
 
