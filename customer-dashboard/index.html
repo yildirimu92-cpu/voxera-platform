@@ -46182,58 +46182,13 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     var navEl = document.getElementById('nav-dashboard') || document.getElementById('mnav-dashboard');
     if (typeof window.showTab === 'function') window.showTab('dashboard', navEl, { historyMode: 'push' });
   }
-  function vxUHideScopedSections(exceptId){
-    ['dash-today-calls-section','dash-today-done-section'].forEach(function(id){
-      var el = document.getElementById(id);
-      if (el) el.style.display = (id === exceptId) ? '' : 'none';
-    });
-  }
   function vxUScrollTo(id){
     window.setTimeout(function(){
       var target = document.getElementById(id);
       if (target && target.scrollIntoView) target.scrollIntoView({ behavior:'smooth', block:'start' });
     }, 40);
   }
-  function vxURenderScoped(kind){
-    var b = vxUBuckets();
-    if (kind === 'callsToday') {
-      var source = (typeof window.vxGetAnfragenSourceRecords === 'function') ? window.vxGetAnfragenSourceRecords() : [].concat(vxURecords(), vxUTasks());
-      var calls = (typeof window.vxGetHeuteTodayCallRecords === 'function') ? window.vxGetHeuteTodayCallRecords(source) : ((b.today && b.today.callsToday) ? b.today.callsToday : []);
-      if (!calls.length) return;
-      vxUShowDashboard();
-      window.setTimeout(function(){
-        if (typeof window.vxHeuteRenderScopedList === 'function') {
-          window.vxHeuteRenderScopedList('dash-today-calls-list','dash-today-calls-section','dash-today-calls-count', calls, 'Heute gab es noch keine Anrufe.');
-        } else {
-          var section = document.getElementById('dash-today-calls-section');
-          var count = document.getElementById('dash-today-calls-count');
-          if (section) section.style.display = '';
-          if (count) count.textContent = String(calls.length || 0);
-        }
-        vxUHideScopedSections('dash-today-calls-section');
-        vxUScrollTo('dash-today-calls-section');
-      }, 0);
-      return;
-    }
-    if (kind === 'doneToday') {
-      var done = (b.today && b.today.doneToday) ? b.today.doneToday : [];
-      vxUShowDashboard();
-      window.setTimeout(function(){
-        if (typeof window.vxHeuteRenderScopedList === 'function') {
-          window.vxHeuteRenderScopedList('dash-today-done-list','dash-today-done-section','dash-today-done-count', done, 'Heute wurde noch nichts erledigt.');
-        } else {
-          var section = document.getElementById('dash-today-done-section');
-          var count = document.getElementById('dash-today-done-count');
-          if (section) section.style.display = '';
-          if (count) count.textContent = String(done.length || 0);
-        }
-        vxUHideScopedSections('dash-today-done-section');
-        vxUScrollTo('dash-today-done-section');
-      }, 0);
-    }
-  }
   function vxUGoAnfragen(filter, subfilter){
-    vxUHideScopedSections('');
     if (typeof window.vxGoToAnfragenFilter === 'function') {
       window.vxGoToAnfragenFilter(filter || 'offen', subfilter || 'all');
       return;
@@ -46242,19 +46197,24 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     if (typeof window.showTab === 'function') window.showTab('anrufe', navEl, { historyMode:'push' });
   }
 
-  // KPI 1: Anrufe heute → show exactly the Today Calls scoped section.
-  window.vxHeuteKpiOpenTodayCalls = function(){ vxURenderScoped('callsToday'); };
+  // KPI 1: Anrufe heute → bleibt auf Heute und scrollt zur Section.
+  window.vxHeuteKpiOpenTodayCalls = function(){
+    vxUShowDashboard();
+    vxUScrollTo('dash-today-calls-section');
+  };
   // KPI 2: Offene Anfragen → Anfragen > Offen.
   window.vxHeuteKpiOpenPlanned = function(){ vxUGoAnfragen('offen', 'all'); };
   window.vxHeuteKpiOpenInbox = window.vxHeuteKpiOpenPlanned;
   // KPI 3: Wichtig jetzt → Heute > Aufmerksamkeit.
   window.vxHeuteKpiScrollImportant = function(){
     vxUShowDashboard();
-    vxUHideScopedSections('');
     vxUScrollTo('dash-priority-section');
   };
-  // KPI 4: Erledigt heute → show exactly the Done Today scoped section.
-  window.vxHeuteKpiOpenDone = function(){ vxURenderScoped('doneToday'); };
+  // KPI 4: Erledigt heute → bleibt auf Heute und scrollt zur Section.
+  window.vxHeuteKpiOpenDone = function(){
+    vxUShowDashboard();
+    vxUScrollTo('dash-today-done-section');
+  };
 
   function vxUAttachCurrentCells(){
     try {
@@ -46879,33 +46839,6 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     vxNfcOpenRecordFromNotification(nid, recId, isMobile);
   }, true);
 
-  function vxNfcBuckets(){
-    try {
-      if (typeof window.vxBuildEntryBuckets === 'function') return window.vxBuildEntryBuckets(vxNfcRecords(), vxNfcTasks());
-    } catch(e) {}
-    return { today: { callsToday: [] } };
-  }
-  function vxNfcRenderTodayCallsSection(){
-    var sectionId = 'dash-today-calls-section';
-    var navEl = document.getElementById('nav-dashboard') || document.getElementById('mnav-dashboard');
-    if (typeof showTab === 'function') showTab('dashboard', navEl, { historyMode: 'push' });
-    window.setTimeout(function(){
-      try {
-        var target = document.getElementById(sectionId);
-        if (target && target.scrollIntoView) target.scrollIntoView({ behavior:'smooth', block:'start' });
-      } catch(e) { try { console.warn('[vxHeute] today-calls KPI scroll failed', e); } catch(_) {} }
-    }, 0);
-  }
-  window.vxHeuteKpiOpenTodayCalls = vxNfcRenderTodayCallsSection;
-
-  // Delegated KPI click: survives dashboard rerenders and overwritten inline onclick handlers.
-  document.addEventListener('click', function(ev){
-    var cell = ev.target && ev.target.closest ? ev.target.closest('#kpi-cell-callbacks') : null;
-    if (!cell) return;
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-    vxNfcRenderTodayCallsSection();
-  }, true);
 })();
 </script>
 
