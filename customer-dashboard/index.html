@@ -11531,7 +11531,7 @@ let forceDashboardOnNextRestore = false;
 window._vxForceDashboardAfterLogin = false;
 let isLogoutInProgress = false;
 let isAuthTransition = false;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerDisplayName:'', customerLegalName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
 const VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS = Object.freeze({
   important_requests: true,
   callbacks_and_tasks: true,
@@ -13517,6 +13517,8 @@ function syncCanonicalCustomerStateFromRecord(record) {
   customerMeta.activationStartedAt = fields.activation_started_at || null;
   customerMeta.assistantName   = fields.assistant_name    || 'Lara';
   customerMeta.contactFirstName = fields.contact_first_name || fields.customer_display_name || fields.customer_name || '';
+  customerMeta.customerDisplayName = fields.customer_display_name || '';
+  customerMeta.customerLegalName = fields.customer_legal_name || '';
   customerMeta.customerType     = fields.ai_customer_type  || 'company';
   customerMeta.addressForm      = fields.ai_address_form   || 'sie';
   customerMeta.tone             = fields.ai_tone           || 'professional';
@@ -15154,9 +15156,19 @@ function vxFillAccordionRead(id) {
 }
 
 
+function vxResolveSpokenCompanyName() {
+  var fromDisplay = String(customerMeta.customerDisplayName || '').trim();
+  if (fromDisplay) return fromDisplay;
+  var fromCustomer = String(customerMeta.customerName || '').trim();
+  if (fromCustomer) return fromCustomer;
+  var fromLegal = String(customerMeta.customerLegalName || '').trim();
+  if (fromLegal) return fromLegal;
+  return 'Ihr Unternehmen';
+}
+
 function vxBuildAutoGreeting() {
   var name = String(customerMeta.assistantName || 'Lara').trim() || 'Lara';
-  var company = String(customerMeta.customerName || customerMeta.contactFirstName || 'Ihrer Firma').trim() || 'Ihrer Firma';
+  var company = vxResolveSpokenCompanyName();
   return 'Grüezi, hier ist ' + name + ' von ' + company + '. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?';
 }
 
