@@ -21792,13 +21792,13 @@ function vxHeuteKpiOpenTodayCalls() {
   }, 0);
 }
 // KPI 2: Offene Anfragen → Anfragen Tab, Filter Offen
-function vxHeuteKpiOpenPlanned() { vxGoToAnfragenFilter('offen', 'all'); }
+function vxHeuteKpiOpenPlanned() { vxGoToAnfragenFilter('offen'); }
 // KPI 3: Wichtig jetzt → bleibt auf Heute, scrollt zu Aufmerksamkeit
 function vxHeuteKpiScrollImportant() { vxHeuteScrollToSection('dash-priority-section'); }
 // KPI 4: Erledigt heute → Anfragen Tab, Filter Abgeschlossen
 function vxHeuteKpiOpenDone() { vxGoToAnfragenFilter('abgeschlossen', 'all'); }
 // Compat aliases
-function vxHeuteKpiOpenInbox() { vxGoToAnfragenFilter('offen', 'all'); }
+function vxHeuteKpiOpenInbox() { vxGoToAnfragenFilter('offen'); }
 
 function vxHeuteFormatRowTime(record) {
   var ts = vxHeuteGetTimestamp(record, ['completed_at','closed_at','done_at','archived_at','resolved_at','updated_at','created_at','inserted_at']);
@@ -45888,7 +45888,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 
   // Ensure the click target for the "Offene Anfragen" KPI remains exactly Anfragen > Offen.
   window.vxHeuteKpiOpenPlanned = function() {
-    if (typeof vxGoToAnfragenFilter === 'function') vxGoToAnfragenFilter('offen', 'all');
+    if (typeof vxGoToAnfragenFilter === 'function') vxGoToAnfragenFilter('offen');
   };
   window.vxHeuteKpiOpenInbox = window.vxHeuteKpiOpenPlanned;
 
@@ -46190,7 +46190,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   }
   function vxUGoAnfragen(filter, subfilter){
     if (typeof window.vxGoToAnfragenFilter === 'function') {
-      window.vxGoToAnfragenFilter(filter || 'offen', subfilter || 'all');
+      window.vxGoToAnfragenFilter(filter || 'offen');
       return;
     }
     var navEl = document.getElementById('nav-anrufe') || document.getElementById('mnav-anrufe');
@@ -46203,7 +46203,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     vxUScrollTo('dash-today-calls-section');
   };
   // KPI 2: Offene Anfragen → Anfragen > Offen.
-  window.vxHeuteKpiOpenPlanned = function(){ vxUGoAnfragen('offen', 'all'); };
+  window.vxHeuteKpiOpenPlanned = function(){ vxUGoAnfragen('offen'); };
   window.vxHeuteKpiOpenInbox = window.vxHeuteKpiOpenPlanned;
   // KPI 3: Wichtig jetzt → Heute > Aufmerksamkeit.
   window.vxHeuteKpiScrollImportant = function(){
