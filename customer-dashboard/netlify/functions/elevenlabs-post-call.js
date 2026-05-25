@@ -569,6 +569,51 @@ exports.handler = async (event) => {
     return response(400, { error: 'conversation_id required' });
   }
 
+  // ─── Abgebrochene Anrufe erkennen ────────────────────────────────────────
+  // ElevenLabs setzt data.status = 'done' bei normalen Anrufen.
+  // Bei Abbruch ist status != 'done' (z.B. 'failed', 'interrupted', 'aborted').
+  // Solche Anrufe duerfen NICHT als 'completed' markiert werden, sonst wandern
+  // sie automatisch nach Erledigt, obwohl niemand den Vorgang bearbeitet hat.
+  const conversationStatus = toStr(data.status).toLowerCase();
+  const isAbortedCall = conversationStatus !== '' && conversationStatus !== 'done';
+  const durationSecs = toInt((data.metadata || {}).call_duration_secs) || 0;
+  // Zusaetzlicher Schutz: <4 Sekunden = kein echtes Gespraech
+  const isTooShort = durationSecs > 0 && durationSecs < 4;
+
+  if (isAbortedCall || isTooShort) {
+    console.log('[elevenlabs-post-call] aborted/dropped call — minimal update only, no completion', {
+      elevenLabsConvId, conversationStatus, durationSecs, isAbortedCall, isTooShort
+    });
+    const supabaseUrl2 = process.env.SUPABASE_URL;
+    const supabaseServiceRoleKey2 = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl2 && supabaseServiceRoleKey2) {
+      const sbAdmin2 = createClient(supabaseUrl2, supabaseServiceRoleKey2, {
+        auth: { autoRefreshToken: false, persistSession: false }
+      });
+      const abortPayload = {
+        elevenlabs_conversation_id: elevenLabsConvId,
+        live_status: 'aborted',
+        updated_at: new Date().toISOString()
+      };
+      if (durationSecs > 0) abortPayload.duration_seconds = durationSecs;
+      let abortedId = null;
+      const { data: ex1 } = await sbAdmin2.from('calls').select('id')
+        .eq('elevenlabs_conversation_id', elevenLabsConvId).maybeSingle();
+      if (ex1?.id) abortedId = ex1.id;
+      if (!abortedId && twilioCallSid) {
+        const { data: ex2 } = await sbAdmin2.from('calls').select('id')
+          .eq('call_id', twilioCallSid).maybeSingle();
+        if (ex2?.id) abortedId = ex2.id;
+      }
+      if (abortedId) {
+        await sbAdmin2.from('calls').update(abortPayload).eq('id', abortedId);
+        console.log('[elevenlabs-post-call] aborted stub updated', { abortedId });
+      }
+    }
+    return response(200, { success: true, aborted: true, conversationStatus, durationSecs });
+  }
+  // ─── Ende Abbruch-Erkennung ───────────────────────────────────────────────
+
   console.log('[elevenlabs-post-call] received', {
     elevenLabsConvId,
     payloadKeys: Object.keys(body || {}),
