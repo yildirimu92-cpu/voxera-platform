@@ -11187,6 +11187,9 @@ function vxOpenPriorityRecord(recordId) {
 
 function dprToggleClick(e, rowEl) {
   e.stopPropagation();
+  if (window._vxInboxSelectionMode && rowEl && rowEl.closest && rowEl.closest('#anrufe-list, #anrufe-split-left')) {
+    return;
+  }
   // Touch-Geräte: click nach touchend ignorieren
   if (e.type === 'click' && (Date.now() - _dprLastTouch) < 800) return;
   if (e.target.closest('.dpr-btn, .dpr-quick-btn, .vx-ibtn, button')) return;
@@ -11223,6 +11226,7 @@ function dprToggleTouchMove(e) {
 
 function dprToggleTouchEnd(e, rowEl) {
   if (_dprTouchMoved) return; // War ein Scroll — ignorieren
+  if (window._vxInboxSelectionMode && rowEl && rowEl.closest && rowEl.closest('#anrufe-list, #anrufe-split-left')) return;
   if (e.target.closest('.dpr-btn, .dpr-quick-btn, .vx-ibtn, button')) return;
   // [v2.65 FIX] Long-Press hat Context-Menu geöffnet — Card-Aktion unterdrücken
   if (window._vxLongPressActive) return;
@@ -23741,19 +23745,20 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
     el.addEventListener('click', function(e) {
       var rowEl = e.target.closest('.vx-heute-row');
       if (window._vxInboxSelectionMode && rowEl) {
+        var rowId = vxInboxResolveRowRecordId(e.target) || vxInboxResolveRowRecordId(rowEl);
+        if (rowId) {
+          e.preventDefault();
+          e.stopPropagation();
+          vxInboxToggleSelected(rowId);
+          renderAnrufe();
+          return;
+        }
         var blockedActionBtn = e.target.closest('button, [data-action]');
         if (blockedActionBtn) {
           e.preventDefault();
           e.stopPropagation();
           return;
         }
-        var rowId = rowEl.dataset.recordId || rowEl.dataset.id;
-        if (!rowId) return;
-        e.preventDefault();
-        e.stopPropagation();
-        vxInboxToggleSelected(rowId);
-        renderAnrufe();
-        return;
       }
       var overflowBtn = e.target.closest('[data-action="overflow"]');
       if (overflowBtn) {
@@ -23864,6 +23869,19 @@ function vxInboxToggleSelected(recordId) {
   if (window._vxInboxSelectedIds.has(recId)) window._vxInboxSelectedIds.delete(recId);
   else window._vxInboxSelectedIds.add(recId);
 }
+function vxInboxResolveRowRecordId(target) {
+  if (!target || !target.closest) return '';
+  var recNode = target.closest('[data-record-id]');
+  if (!recNode) recNode = target.closest('[data-id]');
+  if (!recNode) recNode = target.closest('.vx-heute-row, .dpr-card');
+  if (!recNode) return '';
+  return String(
+    (recNode.getAttribute && recNode.getAttribute('data-record-id')) ||
+    (recNode.getAttribute && recNode.getAttribute('data-id')) ||
+    (recNode.dataset ? (recNode.dataset.recordId || recNode.dataset.id) : '') ||
+    ''
+  ).trim();
+}
 function vxRenderInboxSelectionToolbar() {
   var mount = document.getElementById('vx-inbox-selection-toolbar');
   var controls = document.getElementById('anrufe-selection-controls');
@@ -23882,7 +23900,7 @@ function vxRenderInboxSelectionToolbar() {
 }
 function vxInboxEnterSelectionMode() {
   window._vxInboxSelectionMode = true;
-  if (!window._vxInboxSelectedIds || typeof window._vxInboxSelectedIds.has !== 'function') window._vxInboxSelectedIds = new Set();
+  vxInboxClearSelection();
   renderAnrufe();
 }
 function vxInboxExitSelectionMode() {
