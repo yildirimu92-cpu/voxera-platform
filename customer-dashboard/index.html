@@ -7253,9 +7253,7 @@ body,.main{background:var(--vx-bg);}
               </div>
               <div class="vx-split-filters vx-split-filters--compact" id="anrufe-inbox-subfilters" style="margin-top:4px;">
                 <button class="vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
-                <div class="vx-selection-controls" id="anrufe-selection-controls">
-                  <button class="vx-chip" id="vx-inbox-select-btn" type="button" onclick="vxInboxEnterSelectionMode()">Auswählen</button>
-                </div>
+                <div class="vx-selection-controls" id="anrufe-selection-controls" style="display:none;"></div>
               </div>
               <div id="vx-inbox-selection-toolbar"></div>
               <div class="vx-split-search">
@@ -23528,7 +23526,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   if (!el) return;
   el.classList.add('dpr-command-center');
   var filter = vxGetAnfragenActiveFilter(activeFilter);
-  var _selectionMode = !!window._vxInboxSelectionMode;
+  var _selectionMode = false;
 
   if (!records || records.length === 0) {
     var emptyLabel = vxInquiryFilterEmptyText(filter);
@@ -23969,25 +23967,14 @@ function vxInboxResolveRowRecordId(target) {
 function vxRenderInboxSelectionToolbar() {
   var mount = document.getElementById('vx-inbox-selection-toolbar');
   var controls = document.getElementById('anrufe-selection-controls');
-  if (!mount || !controls) return;
-  var mode = !!window._vxInboxSelectionMode;
-  controls.style.display = mode ? 'none' : '';
-  if (!mode) { mount.innerHTML = ''; return; }
-  var selectedCount = window._vxInboxSelectedIds ? window._vxInboxSelectedIds.size : 0;
-  var label = selectedCount > 0 ? (selectedCount + ' ausgewählt') : 'Auswahlmodus';
-  mount.innerHTML = '<div class="vx-inbox-selection-toolbar">'
-    + '<strong>' + label + '</strong>'
-    + '<div class="vx-inbox-selection-actions">'
-    + (selectedCount > 0 ? '<button class=\"vx-chip\" type=\"button\" onclick=\"vxInboxRunBulkStatusChange(\'done\');\">Erledigen</button>' : '')
-    + (selectedCount > 0 ? '<button class=\"vx-chip\" type=\"button\" onclick=\"vxInboxRunBulkStatusChange(\'archive\');\">Archivieren</button>' : '')
-    + (selectedCount > 0 ? '<button class=\"vx-chip\" type=\"button\" onclick=\"vxInboxClearSelection();renderAnrufe();\">Auswahl aufheben</button>' : '')
-    + '<button class="vx-chip" type="button" onclick="vxInboxExitSelectionMode();">Abbrechen</button>'
-    + '</div></div>';
+  if (controls) controls.style.display = 'none';
+  if (mount) mount.innerHTML = '';
 }
 function vxInboxEnterSelectionMode() {
-  window._vxInboxSelectionMode = true;
+  window._vxInboxSelectionMode = false;
   vxInboxClearSelection();
-  renderAnrufe(vxGetAnfragenActiveFilter());
+  vxRenderInboxSelectionToolbar();
+  return false;
 }
 function vxInboxExitSelectionMode() {
   window._vxInboxSelectionMode = false;
