@@ -46886,32 +46886,15 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     return { today: { callsToday: [] } };
   }
   function vxNfcRenderTodayCallsSection(){
-    var buckets = vxNfcBuckets();
-    var calls = (buckets.today && buckets.today.callsToday) ? buckets.today.callsToday : [];
     var sectionId = 'dash-today-calls-section';
     var navEl = document.getElementById('nav-dashboard') || document.getElementById('mnav-dashboard');
     if (typeof showTab === 'function') showTab('dashboard', navEl, { historyMode: 'push' });
-    function renderAndScroll(){
+    window.setTimeout(function(){
       try {
-        var done = document.getElementById('dash-today-done-section');
-        if (done) done.style.display = 'none';
-        if (typeof window.vxHeuteRenderScopedList === 'function') {
-          window.vxHeuteRenderScopedList('dash-today-calls-list', sectionId, 'dash-today-calls-count', calls, 'Heute gab es noch keine Anrufe.');
-        } else {
-          var section = document.getElementById(sectionId);
-          var count = document.getElementById('dash-today-calls-count');
-          if (section) section.style.display = '';
-          if (count) count.textContent = String(calls.length || 0);
-        }
         var target = document.getElementById(sectionId);
-        if (target) {
-          target.style.display = '';
-          if (target.scrollIntoView) target.scrollIntoView({ behavior:'smooth', block:'start' });
-        }
-      } catch(e) { try { console.warn('[vxHeute] today-calls KPI open failed', e); } catch(_) {} }
-    }
-    window.setTimeout(renderAndScroll, 80);
-    window.setTimeout(renderAndScroll, 280);
+        if (target && target.scrollIntoView) target.scrollIntoView({ behavior:'smooth', block:'start' });
+      } catch(e) { try { console.warn('[vxHeute] today-calls KPI scroll failed', e); } catch(_) {} }
+    }, 0);
   }
   window.vxHeuteKpiOpenTodayCalls = vxNfcRenderTodayCallsSection;
 
