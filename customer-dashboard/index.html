@@ -46349,6 +46349,30 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 @media (max-width:420px){.vx-audio-modern__controls{grid-template-columns:36px 48px minmax(0,1fr) 36px;gap:7px;}.vx-audio-modern__btn{width:36px;height:36px;border-radius:13px;}.vx-audio-modern__btn--primary{width:48px;height:48px;border-radius:16px;}.vx-audio-modern__speed-btn{min-width:40px;padding:8px 10px;}}
 
 </style>
+
+<style id="vx-mobile-split-width-fix-2026-05-25">
+/*
+  Root-Cause-Fix: Mobile Anfragen-Spalte zu schmal.
+
+  Ursache: In vx-regression-fix-split-row-layout-2026-05-23 (global, kein Media-Query)
+  steht der Selektor "#tab-anrufe .vx-split #anrufe-split-left" mit Spezifität (2,1,0).
+  Dieser setzt width:440px!important und min-width:390px!important ohne Mobile-Scope.
+  Alle bisherigen Mobile-Fixes verwendeten Selektoren mit niedrigerer Spezifität
+  ((1,0,0) oder (1,1,0)) — sie verloren deshalb trotz !important und späterer Source-Order.
+
+  Fix: Gleicher Selektor (2,1,0) + mobile Media-Query + spätere Source-Order → gewinnt definitiv.
+  Desktop >768px bleibt unberührt.
+*/
+@media (max-width: 768px) {
+  #tab-anrufe .vx-split #anrufe-split-left {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+    border-radius: 0 !important;
+  }
+}
+</style>
 <script id="vx-pr-v2-task-call-detail-validation">
 (function(){
   'use strict';
