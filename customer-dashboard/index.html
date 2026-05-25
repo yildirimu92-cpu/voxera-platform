@@ -43973,10 +43973,12 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 <!-- PR-J4 — Detail-V2/Modal/Inbox Stabilisierung: 2026-05-23 -->
 <style id="vx-pr-j4-stability-polish-css">
 /* Filter bleiben auch bei schmaler Split-Spalte sichtbar/bedienbar */
-#anrufe-split-left.vx-split-left,
-.vx-split-left#anrufe-split-left{
-  min-width:390px!important;
-  width:max(390px, var(--vx-anfragen-left-width, 440px))!important;
+@media(min-width:1100px){
+  #anrufe-split-left.vx-split-left,
+  .vx-split-left#anrufe-split-left{
+    min-width:390px!important;
+    width:max(390px, var(--vx-anfragen-left-width, 440px))!important;
+  }
 }
 #anrufe-split-left .vx-split-filters{
   display:flex!important;
