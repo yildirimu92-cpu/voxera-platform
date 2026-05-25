@@ -15534,7 +15534,12 @@ function vxUpdateAccordionStatuses() {
       statusEl.className = 'vx-acc-status';
       statusEl.style.cssText = 'font-size:11px;font-weight:500;margin-right:6px;';
       const chev = header.querySelector('[id^="chev-"]');
-      if (chev) header.insertBefore(statusEl, chev);
+      const chevParent = chev ? chev.parentNode : null;
+      if (chevParent && chev && chev.parentNode === chevParent) {
+        chevParent.insertBefore(statusEl, chev);
+      } else {
+        header.appendChild(statusEl);
+      }
     }
     if (s.id === 'ton') {
       const toneLabels = { professional: 'Professionell', formal: 'Formell', casual: 'Locker' };
