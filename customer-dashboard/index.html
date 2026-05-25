@@ -7625,7 +7625,7 @@ body,.main{background:var(--vx-bg);}
                   <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:6px;">Stimme wählen</div>
                   <div id="assistant-voice-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;"></div>
                 </div>
-                <button onclick="vxStimmePending()" id="save-stimme" style="width:100%;background:#1A6FE8;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Übernehmen</button>
+                <button onclick="vxSaveSection('stimme')" id="save-stimme" style="width:100%;background:#1A6FE8;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Übernehmen</button>
                 <div id="fb-stimme" style="font-size:12px;margin-top:6px;text-align:center;color:rgba(255,255,255,.5);"></div>
                 <div id="stimme-upgrade-hint" style="display:none;margin-top:8px;padding:8px 12px;background:var(--blue-subtle);border-radius:8px;font-size:12px;color:var(--blue);text-align:center;">Ab dem Business-Paket können Sie Stimme und Name anpassen. <a href="#" onclick="showTab('mehr',document.getElementById('nav-mehr'));setTimeout(function(){vxMehrShow('abonnement');},100);return false;" style="color:var(--blue);font-weight:600;">Upgrade ansehen</a></div>
               </div>
@@ -10420,7 +10420,7 @@ function renderDashPriorityList() {
 
   // Live-Row als erstes einfügen wenn vorhanden
   var existingLive = document.getElementById('live-call-row');
-  if (existingLive) el.insertBefore(existingLive, el.firstChild);
+  if (existingLive && existingLive.parentNode === el) el.insertBefore(existingLive, el.firstChild);
 
   refreshLucideIcons();
   dprRestoreOpen();
@@ -14994,8 +14994,9 @@ function vxStimmePending() {
     }
   }
   if (canVoice) {
-    var sel = document.querySelector('input[name="voice-select"]:checked');
-    if (sel && sel.value !== customerMeta.voiceId) {
+    var selectedVoiceId = String(window.assistantSelectedVoiceId || '').trim();
+    var savedVoiceId = String(customerMeta.voiceId || '').trim();
+    if (selectedVoiceId && selectedVoiceId !== savedVoiceId) {
       changes.push({key:'stimme-voice', label:'Stimme geändert'});
     }
   }
@@ -15434,11 +15435,13 @@ async function vxSaveSection(id) {
       const nameVal = document.getElementById('assistent-name-input')?.value.trim();
       if (nameVal) payload.assistant_name = nameVal;
     }
-    // voice_id: planabhängig prüfen
-    const _canEditVoice = _planCode !== 'starter';
+    // voice_id aus zentralem Auswahl-State lesen
+    const _voiceSelectionEnabled = customerMeta?.voiceSelectionEnabled;
+    const _canEditVoice = (_voiceSelectionEnabled === true)
+      || (_voiceSelectionEnabled !== false && _planCode !== 'starter');
     if (_canEditVoice) {
-      const selectedVoice = document.querySelector('input[name="voice-select"]:checked');
-      if (selectedVoice) payload.voice_id = selectedVoice.value;
+      const selectedVoiceId = String(window.assistantSelectedVoiceId || customerMeta.voiceId || '').trim();
+      if (selectedVoiceId) payload.voice_id = selectedVoiceId;
     }
     // Wenn nichts zu senden → Abbruch
     if (!payload.assistant_name && !payload.voice_id) {
@@ -15483,12 +15486,25 @@ async function vxSaveSection(id) {
         if (nameEl) nameEl.textContent = payload.assistant_name;
         if (avatarEl) avatarEl.textContent = payload.assistant_name.charAt(0).toUpperCase();
       }
+      const blockedVoice = Array.isArray(json?.errors) && json.errors.includes('voice_not_allowed_on_plan');
+      if (payload.voice_id && !blockedVoice) {
+        customerMeta.voiceId = payload.voice_id;
+        window.assistantSelectedVoiceId = payload.voice_id;
+      } else if (blockedVoice) {
+        window.assistantSelectedVoiceId = String(customerMeta.voiceId || '').trim();
+      }
+      if (typeof renderVoiceCards === 'function') renderVoiceCards();
     }
 
     if (fb) {
-      const ux = vxBuildAssistantSaveFeedback(json, { forwardingOnly: id === 'weiterleitungen' });
-      fb.style.color = ux.color;
-      fb.textContent = ux.text;
+      if (id === 'stimme' && Array.isArray(json?.errors) && json.errors.includes('voice_not_allowed_on_plan')) {
+        fb.style.color = '#B45309';
+        fb.textContent = 'Stimme kann mit Ihrem aktuellen Paket nicht geändert werden.';
+      } else {
+        const ux = vxBuildAssistantSaveFeedback(json, { forwardingOnly: id === 'weiterleitungen' });
+        fb.style.color = ux.color;
+        fb.textContent = ux.text;
+      }
     }
     // Accordion-Status aktualisieren
     vxUpdateAccordionStatuses();
@@ -16677,7 +16693,7 @@ function selectVoice(vid) {
   if (planCode === 'starter') return; // Starter kann keine Stimme wählen
   window.assistantSelectedVoiceId = vid;
   renderVoiceCards();
-  vxSaveSection('stimme');
+  vxStimmePending();
 }
 
 function renderVoiceCards() {
@@ -16727,35 +16743,7 @@ function renderVoiceCards() {
 }
 
 async function saveAssistantVoiceSelection() {
-  const btn = document.getElementById('assistant-voice-save-btn');
-  const fb = document.getElementById('assistant-voice-feedback');
-  if (!btn || !fb) return;
-  const customerId = String(customerMeta.customerId || customerContext?.customerId || '').trim();
-  if (!customerId || !window.assistantSelectedVoiceId) return;
-  btn.disabled = true; btn.textContent = 'Speichern…'; fb.textContent = '';
-  try {
-    const _vaSb = getSupabaseAuthClient();
-    const { data: { session: _vaSession } } = await _vaSb.auth.getSession();
-    const res = await fetch('/.netlify/functions/customer-update-assistant', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${_vaSession?.access_token || ''}`
-      },
-      body: JSON.stringify({ voice_id: window.assistantSelectedVoiceId })
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.error || 'save_failed');
-    customerMeta.voiceId = window.assistantSelectedVoiceId;
-    const ux = vxBuildAssistantSaveFeedback(json);
-    fb.style.color = ux.color;
-    fb.textContent = ux.text;
-  } catch (e) {
-    fb.style.color = 'var(--red,#DC2626)';
-    fb.textContent = 'Speichern fehlgeschlagen.';
-  } finally {
-    btn.disabled = false; btn.textContent = 'Stimme speichern';
-  }
+  return vxSaveSection('stimme');
 }
 
 function prefillAssistentChange(text) {
@@ -17477,6 +17465,7 @@ async function loadCustomerMeta() {
     activationTestOutboundCallId: f.activation_test_candidate_call_id || null,
     avatarUrl: f.avatar_url || null,
     voiceId: f.voice_id || null,
+    voiceSelectionEnabled: f.voice_selection_enabled === true,
     selectedLanguages: Array.isArray(f.selected_languages) ? f.selected_languages : [],
     contractMonthlyPrice: resolveCommercialValue({
       contractValue: contractUsage.monthlyPrice,
