@@ -1506,14 +1506,15 @@ body{
 }
 .call-row.done{opacity:.6;cursor:default;filter:grayscale(10%);}
 .call-row.hidden{display:none;}
-.vx-heute-row.vx-row-highlight{
-  background:linear-gradient(90deg, rgba(26,111,232,0.14) 0%, rgba(26,111,232,0.04) 60%, rgba(26,111,232,0) 100%) !important;
-  box-shadow:inset 0 0 0 1px rgba(26,111,232,0.22);
-  animation:vxRowHighlightFade 1.6s ease-out forwards;
+.vx-heute-row.vx-row-highlight,
+.vx-anf-row.vx-row-highlight{
+  background:linear-gradient(90deg, rgba(16,185,129,0.16) 0%, rgba(16,185,129,0.05) 60%, rgba(16,185,129,0) 100%) !important;
+  box-shadow:inset 0 0 0 1px rgba(16,185,129,0.35);
+  animation:vxRowHighlightFade 1.4s ease-out forwards;
 }
 @keyframes vxRowHighlightFade{
-  0%{background:linear-gradient(90deg, rgba(26,111,232,0.16) 0%, rgba(26,111,232,0.06) 62%, rgba(26,111,232,0) 100%);}
-  100%{background:transparent;box-shadow:inset 0 0 0 1px rgba(26,111,232,0);}
+  0%{background:linear-gradient(90deg, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0.08) 62%, rgba(16,185,129,0) 100%);}
+  100%{background:transparent;box-shadow:inset 0 0 0 1px rgba(16,185,129,0);}
 }
 .av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
 .av-default{background:var(--blue-subtle);color:var(--blue);}
@@ -24467,17 +24468,17 @@ function vxRefreshActiveDetailAfterAction(options) {
   var currentActiveId = String(window._vxActiveRecordId || '').trim();
   var targetId = String(opts.recordId || '').trim();
   var createdId = String(opts.createdRecordId || '').trim();
+  var primaryId = createdId || targetId;
   var detailId = '';
 
-  if (activeType === 'task' && (targetId || currentActiveId)) {
-    detailId = targetId || currentActiveId;
-  } else if (activeType === 'call' && (targetId || currentActiveId)) {
-    detailId = targetId || currentActiveId;
-  } else if (!activeType && (targetId || currentActiveId)) {
-    detailId = targetId || currentActiveId;
+  if (activeType === 'task' && (primaryId || currentActiveId)) {
+    detailId = primaryId || currentActiveId;
+  } else if (activeType === 'call' && (primaryId || currentActiveId)) {
+    detailId = primaryId || currentActiveId;
+  } else if (!activeType && (primaryId || currentActiveId)) {
+    detailId = primaryId || currentActiveId;
   }
 
-  if (!detailId && createdId) detailId = createdId;
   if (!detailId) return;
 
   var isTask = (typeof vxIsManualTaskRecordId === 'function')
