@@ -24460,6 +24460,36 @@ function vxApplyPendingRowHighlight() {
   setTimeout(function() { row.classList.remove('vx-row-highlight'); }, 1600);
 }
 
+function vxRefreshActiveDetailAfterAction(options) {
+  var opts = options || {};
+  var activeType = String(window._vxCurrentDetailType || '').trim().toLowerCase();
+  var currentActiveId = String(window._vxActiveRecordId || '').trim();
+  var targetId = String(opts.recordId || '').trim();
+  var createdId = String(opts.createdRecordId || '').trim();
+  var detailId = '';
+
+  if (activeType === 'task' && (targetId || currentActiveId)) {
+    detailId = targetId || currentActiveId;
+  } else if (activeType === 'call' && (targetId || currentActiveId)) {
+    detailId = targetId || currentActiveId;
+  } else if (!activeType && (targetId || currentActiveId)) {
+    detailId = targetId || currentActiveId;
+  }
+
+  if (!detailId && createdId) detailId = createdId;
+  if (!detailId) return;
+
+  var isTask = (typeof vxIsManualTaskRecordId === 'function')
+    ? vxIsManualTaskRecordId(detailId)
+    : String(detailId || '').indexOf('case:') === 0;
+
+  if (isTask) {
+    if (typeof showTaskDetail === 'function') showTaskDetail(detailId);
+  } else {
+    if (typeof showCallDetail === 'function') showCallDetail(detailId);
+  }
+}
+
 function vxAfterActionSuccess(options) {
   var opts = options || {};
   var targetId = String(opts.createdRecordId || opts.recordId || '').trim();
@@ -24477,6 +24507,7 @@ function vxAfterActionSuccess(options) {
     if (typeof renderAnrufe === 'function') renderAnrufe();
     if (typeof renderRueckrufe === 'function') renderRueckrufe(allRecords, allManualTaskRecords);
   }
+  try { vxRefreshActiveDetailAfterAction({ recordId: opts.recordId || '', createdRecordId: opts.createdRecordId || '' }); } catch(e) {}
   if (targetId && typeof vxSetActiveRequestRow === 'function') {
     setTimeout(function(){ try { vxSetActiveRequestRow(targetId); } catch(e) {} }, 0);
   }
