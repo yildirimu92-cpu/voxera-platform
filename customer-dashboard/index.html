@@ -23892,6 +23892,67 @@ function vxInboxToggleSelected(recordId) {
   if (window._vxInboxSelectedIds.has(recId)) window._vxInboxSelectedIds.delete(recId);
   else window._vxInboxSelectedIds.add(recId);
 }
+function vxInboxResolveSelectedRecords() {
+  var ids = Array.from((window._vxInboxSelectedIds && typeof window._vxInboxSelectedIds.values === 'function') ? window._vxInboxSelectedIds.values() : []);
+  return ids.map(function(id) {
+    var rec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(id) : null;
+    if (!rec) rec = vxResolveActionRecord(id);
+    return { id: String(id || '').trim(), record: rec || null };
+  }).filter(function(entry) { return !!entry.id; });
+}
+function vxInboxCanBulkDone(record) {
+  if (!record) return false;
+  if (vxInquiryIsArchived(record) || vxInquiryIsCompleted(record)) return false;
+  return vxInquiryIsNew(record) || vxInquiryIsPlanned(record);
+}
+function vxInboxCanBulkArchive(record) {
+  if (!record) return false;
+  if (vxInquiryIsArchived(record)) return false;
+  var id = String((record && record.id) || '').trim();
+  if (!id) return false;
+  if (typeof vxCanPerformAction === 'function') return !!vxCanPerformAction(id, 'archive');
+  return vxInquiryIsNew(record) || vxInquiryIsPlanned(record) || vxInquiryIsCompleted(record);
+}
+async function vxInboxRunBulkStatusChange(actionType) {
+  var isArchive = actionType === 'archive';
+  var targetStatus = isArchive ? CALL_STATUS.ARCHIVED : CALL_STATUS.CLOSED;
+  var selected = vxInboxResolveSelectedRecords();
+  if (!selected.length) return;
+  var eligibilityFn = isArchive ? vxInboxCanBulkArchive : vxInboxCanBulkDone;
+  var eligible = selected.filter(function(entry) { return eligibilityFn(entry.record); });
+  var skipped = selected.length - eligible.length;
+  var success = 0;
+  var failed = 0;
+
+  for (var i = 0; i < eligible.length; i++) {
+    var entry = eligible[i];
+    try {
+      var ok = await doStatusChange(entry.id, targetStatus, null);
+      if (ok !== false) success++;
+      else failed++;
+    } catch (err) {
+      failed++;
+      console.warn('[inbox-bulk-action]', { action: actionType, id: entry.id, error: err });
+    }
+  }
+
+  renderAnrufe(vxGetAnfragenActiveFilter());
+  vxInboxExitSelectionMode();
+
+  if (failed > 0) {
+    if (typeof toast === 'function') toast('Einige Einträge konnten nicht aktualisiert werden.', 'warning');
+    else if (typeof showToast === 'function') showToast('Einige Einträge konnten nicht aktualisiert werden.');
+  } else if (success > 0 && skipped > 0) {
+    if (typeof toast === 'function') toast(success + ' von ' + selected.length + ' Einträgen ' + (isArchive ? 'archiviert' : 'erledigt') + '. ' + skipped + ' übersprungen.', 'info');
+    else if (typeof showToast === 'function') showToast(success + ' von ' + selected.length + ' Einträgen ' + (isArchive ? 'archiviert' : 'erledigt') + '. ' + skipped + ' übersprungen.');
+  } else if (success > 0) {
+    if (typeof toast === 'function') toast(success + ' Einträge ' + (isArchive ? 'archiviert' : 'erledigt') + '.', 'success');
+    else if (typeof showToast === 'function') showToast(success + ' Einträge ' + (isArchive ? 'archiviert' : 'erledigt') + '.');
+  } else if (selected.length > 0) {
+    if (typeof toast === 'function') toast('Keine passenden Einträge für diese Aktion ausgewählt.', 'info');
+    else if (typeof showToast === 'function') showToast('Keine passenden Einträge für diese Aktion ausgewählt.');
+  }
+}
 function vxInboxResolveRowRecordId(target) {
   if (!target || !target.closest) return '';
   var recNode = target.closest('[data-record-id]');
@@ -23917,6 +23978,8 @@ function vxRenderInboxSelectionToolbar() {
   mount.innerHTML = '<div class="vx-inbox-selection-toolbar">'
     + '<strong>' + label + '</strong>'
     + '<div class="vx-inbox-selection-actions">'
+    + (selectedCount > 0 ? '<button class=\"vx-chip\" type=\"button\" onclick=\"vxInboxRunBulkStatusChange(\'done\');\">Erledigen</button>' : '')
+    + (selectedCount > 0 ? '<button class=\"vx-chip\" type=\"button\" onclick=\"vxInboxRunBulkStatusChange(\'archive\');\">Archivieren</button>' : '')
     + (selectedCount > 0 ? '<button class=\"vx-chip\" type=\"button\" onclick=\"vxInboxClearSelection();renderAnrufe();\">Auswahl aufheben</button>' : '')
     + '<button class="vx-chip" type="button" onclick="vxInboxExitSelectionMode();">Abbrechen</button>'
     + '</div></div>';
