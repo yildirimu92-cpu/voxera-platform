@@ -83,9 +83,9 @@ exports.handler = async (event) => {
   if (ai_services !== undefined)             patch.ai_services             = String(ai_services).trim() || null;
   if (ai_location_hours !== undefined)       patch.ai_location_hours       = String(ai_location_hours).trim() || null;
   if (ai_booking_faq !== undefined)          patch.ai_booking_faq          = String(ai_booking_faq).trim() || null;
-  if (ai_fallback_escalation !== undefined)  patch.ai_fallback_escalation  = String(ai_fallback_escalation).trim() || null;
-  if (ai_response_constraints !== undefined) patch.ai_response_constraints = String(ai_response_constraints).trim() || null;
-  if (ai_instructions !== undefined)         patch.ai_instructions         = String(ai_instructions).trim() || null;
+  if (ai_fallback_escalation !== undefined)  errors.push('ai_fallback_escalation_customer_edit_blocked');
+  if (ai_response_constraints !== undefined) errors.push('ai_response_constraints_customer_edit_blocked');
+  if (ai_instructions !== undefined)         errors.push('ai_instructions_customer_edit_blocked');
   if (ai_greeting !== undefined)             patch.ai_greeting             = String(ai_greeting).trim() || null;
   if (ai_tone !== undefined)                 patch.ai_tone                 = String(ai_tone).trim() || null;
   if (ai_address_form !== undefined)         patch.ai_address_form         = String(ai_address_form).trim() || null;
@@ -147,6 +147,8 @@ exports.handler = async (event) => {
   const forwardingFields = ['ai_forwarding_1_name','ai_forwarding_1_number','ai_forwarding_1_trigger','ai_forwarding_2_name','ai_forwarding_2_number','ai_forwarding_2_trigger','ai_emergency_number'];
   const hasNonForwardingChange = patchKeys.some(k => !forwardingFields.includes(k));
 
+  let syncStatus = null;
+  let syncError = null;
   if (hasNonForwardingChange && customer?.elevenlabs_agent_id) {
     try {
       const adminUrl = process.env.ADMIN_URL || 'https://admin.voxera.ch';
@@ -159,12 +161,28 @@ exports.handler = async (event) => {
           triggered_by: 'customer_self_edit'
         })
       });
-      if (!syncRes.ok) console.error('[customer-update-assistant] Sync fehlgeschlagen:', syncRes.status);
-      else console.log('[customer-update-assistant] Sync erfolgreich');
+      if (!syncRes.ok) {
+        syncStatus = 'failed';
+        syncError = `sync_http_${syncRes.status}`;
+        console.error('[customer-update-assistant] Sync fehlgeschlagen:', syncRes.status);
+      } else {
+        syncStatus = 'success';
+        console.log('[customer-update-assistant] Sync erfolgreich');
+      }
     } catch (e) {
+      syncStatus = 'failed';
+      syncError = e.message || 'sync_failed';
       console.error('[customer-update-assistant] Sync-Fehler:', e.message);
     }
+  } else if (hasNonForwardingChange) {
+    syncStatus = 'skipped_no_agent';
   }
 
-  return response(200, { success: true, updated: patchKeys, errors: errors.length ? errors : undefined });
+  return response(200, {
+    success: true,
+    updated: patchKeys,
+    errors: errors.length ? errors : undefined,
+    sync_status: syncStatus,
+    sync_error: syncError
+  });
 };

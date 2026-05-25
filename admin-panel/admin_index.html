@@ -2070,10 +2070,12 @@ body,.main{background:#F7F8FC;}
             <div id="ai-workspace-empty" class="empty">Wähle einen Kunden aus der AI-Queue, um die Konfiguration zu bearbeiten.</div>
             <div id="ai-workspace" style="display:none;">
               <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
-                <button class="btn btn-quiet btn-sm" style="font-size:11px;" onclick="openAiWizard(state.aiSelectedCustomerId)">↩ Wizard neu starten</button>
+                <button class="btn btn-quiet btn-sm" style="font-size:11px;" onclick="openAiWizard(state.aiSelectedCustomerId)">↩ Setup-Assistent öffnen</button>
               </div>
               <div class="detail-grid" id="ai-customer-context"></div>
               <div class="ai-workspace-block">
+                <div class="card-title" style="margin-top:6px;">Laufende Assistenten-Konfiguration</div>
+                <div class="muted" style="font-size:11px;margin:4px 0 8px 0;">Änderungen hier werden in der Kundenkonfiguration gespeichert und anschliessend mit ElevenLabs synchronisiert.</div>
                 <div class="card-title" style="margin-top:12px;">Branchen-Template</div>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                   <select class="input" id="ai-template-select" style="flex:1;min-width:160px;">
@@ -6279,6 +6281,7 @@ function applyIndustryTemplate(){
   const sel=document.getElementById('ai-template-select');
   const templateId=sel?sel.value:'';
   if(!templateId){ showToast('Bitte zuerst ein Template auswählen.'); return; }
+  showToast('Hinweis: Templates sind Startwerte. Bereits angepasste Inhalte werden nicht blind überschrieben.');
   const defaults = getTemplateDefaults(templateId);
   // Only prefill EMPTY fields – never overwrite existing content (workspace fast-path)
   const fieldMap = [
@@ -6622,12 +6625,34 @@ function buildAutoGreeting(data) {
 // ── End AI Feature Gates ──────────────────────────────────────────────────────
 
 async function openAiWizard(customerId){
+  const c=customerById(customerId);
+  const cfg=state.aiConfigs[customerId]||{};
+  const isConfigured = Boolean(
+    c?.elevenlabs_agent_id ||
+    String(cfg.businessDescription||'').trim() ||
+    String(cfg.services||'').trim() ||
+    String(cfg.locationHours||'').trim() ||
+    String(cfg.bookingFaq||'').trim() ||
+    String(cfg.instructions||'').trim() ||
+    String(cfg.fallbackEscalation||'').trim() ||
+    String(cfg.responseConstraints||'').trim() ||
+    String(c?.ai_business_description||'').trim() ||
+    String(c?.ai_services||'').trim()
+  );
+  if(isConfigured){
+    const proceed = await voxConfirm({
+      title: 'Setup-Assistent für Erstkonfiguration',
+      message: 'Dieser Assistent ist für die Erstkonfiguration gedacht. Bestehende Werte können überschrieben werden. Für normale Anpassungen nutze die Laufende Assistenten-Konfiguration.',
+      confirmText: 'Trotzdem öffnen',
+      cancelText: 'Abbrechen',
+      danger: true
+    });
+    if(proceed !== true) return;
+  }
   // Close any open modals before opening wizard to prevent bleed-through
   document.querySelectorAll('.modal-overlay.open').forEach(m=>{
     if(m.id!=='ai-wizard-modal') m.classList.remove('open');
   });
-  const c=customerById(customerId);
-  const cfg=state.aiConfigs[customerId]||{};
   // Default to 'generic' template if no specific one is selected.
   const templateId = cfg.industryTemplateId || 'generic';
   const defaults = getTemplateDefaults(templateId);
