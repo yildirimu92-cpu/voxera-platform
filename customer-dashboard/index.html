@@ -46635,6 +46635,45 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 })();
 </script>
 
+<script id="vx-mobile-split-width-fix-js-2026-05-25">
+/*
+  Root-Cause-Fix Part 2 (JS): Der Split-Resizer setzt auf jedem Seitenload:
+    leftPanel.style.setProperty('width', clamped + 'px', 'important')
+    leftPanel.style.setProperty('flex-basis', clamped + 'px', 'important')
+  Mit MIN_W=390 wird so immer mindestens 390px als Inline-!important gesetzt.
+  Inline-!important toppt jeden Stylesheet-!important — alle bisherigen CSS-Fixes scheiterten daran.
+
+  Fix: Auf Mobile (<=768px) diese Inline-Styles nach Resizer-Init entfernen.
+  Desktop (>768px) bleibt unberuehrt.
+*/
+(function(){
+  function vxClearMobileSplitInlineWidth(){
+    if (window.innerWidth > 768) return;
+    var leftPanel = document.getElementById('anrufe-split-left');
+    if (!leftPanel) return;
+    leftPanel.style.removeProperty('width');
+    leftPanel.style.removeProperty('flex-basis');
+    leftPanel.style.removeProperty('--vx-split-left-w');
+  }
+
+  // Sofort (Resizer hat gerade synchron ausgefuehrt)
+  vxClearMobileSplitInlineWidth();
+
+  // Nach DOMContentLoaded (Absicherung fuer spaete Initialisierungen)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', vxClearMobileSplitInlineWidth);
+  }
+
+  // Nach window.load
+  window.addEventListener('load', vxClearMobileSplitInlineWidth);
+
+  // Orientation/Resize: nach Wechsel zu Mobile aufraumen
+  window.addEventListener('resize', function(){
+    if (window.innerWidth <= 768) vxClearMobileSplitInlineWidth();
+  });
+})();
+</script>
+
 </body>
 
 
