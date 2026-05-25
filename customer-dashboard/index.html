@@ -14360,12 +14360,35 @@ function vxGetEntryCounts(records) {
   return counts;
 }
 function vxInquiryFilterEmptyText(filter) {
-  if (filter === 'offen') return 'Keine offenen Vorgänge.';
-  if (filter === 'geplant') return 'Keine geplanten Vorgänge oder Termine.';
+  if (filter === 'offen') return 'Keine offenen Anfragen.';
+  if (filter === 'geplant') return 'Keine geplanten Anfragen.';
   if (filter === 'neu') return 'Keine offenen Anfragen — Lara legt neue Kontakte hier ab.';
-  if (filter === 'abgeschlossen' || filter === 'geprueft') return 'Noch keine erledigten Anfragen.';
+  if (filter === 'abgeschlossen' || filter === 'geprueft') return 'Keine erledigten Anfragen.';
   if (filter === 'archiv') return 'Archiv ist leer. Archivierte Anfragen werden nach 90 Tagen automatisch gelöscht.';
-  return 'Keine Anfragen — Lara nimmt neue Kontakte entgegen.';
+  return 'Keine Anfragen.';
+}
+function vxGetAnfragenActiveFilter(nextFilter) {
+  var normalized = String(nextFilter || '').trim().toLowerCase();
+  if (!normalized) normalized = String(window._vxAnfragenActiveFilter || _anrufeFilter || 'alle').trim().toLowerCase();
+  if (!normalized) normalized = 'alle';
+  if (normalized === 'neu') normalized = 'offen';
+  if (['alle','offen','geplant','abgeschlossen','archiv'].indexOf(normalized) === -1) normalized = 'alle';
+  window._vxAnfragenActiveFilter = normalized;
+  _anrufeFilter = normalized;
+  return normalized;
+}
+function vxSyncAnfragenFilterChips(activeFilter) {
+  var filter = vxGetAnfragenActiveFilter(activeFilter);
+  var container = document.querySelector('#anrufe-split-left .vx-split-filters');
+  if (container) {
+    container.querySelectorAll('button[data-filter]').forEach(function(btn) {
+      var btnFilter = String(btn.getAttribute('data-filter') || '').trim().toLowerCase();
+      btn.classList.toggle('vx-chip--active', btnFilter === filter);
+      btn.classList.toggle('vxfb-chip--active', btnFilter === filter);
+    });
+  }
+  var subWrap = document.getElementById('anrufe-inbox-subfilters');
+  if (subWrap) subWrap.style.display = filter === 'offen' ? '' : 'none';
 }
 // ── Anrufe Sub-Tab Switcher ──────────────────────────────────────────────────
 function anrufeChipFilter(filter, btn) {
@@ -14373,7 +14396,7 @@ function anrufeChipFilter(filter, btn) {
   if (window._vxInboxSelectionMode) vxInboxExitSelectionMode();
   else vxInboxClearSelection();
   if (typeof vxSplitClearDetail === 'function') vxSplitClearDetail();
-  _anrufeFilter = filter || 'alle';
+  var activeFilter = vxGetAnfragenActiveFilter(filter || 'alle');
   // Alle Filter-Buttons in diesem Container bereinigen
   var container = btn ? btn.closest('.vx-split-filters') : document.querySelector('#anrufe-split-left .vx-split-filters');
   if (container) {
@@ -14383,8 +14406,7 @@ function anrufeChipFilter(filter, btn) {
   }
   // Aktiven Button setzen
   if (btn) btn.classList.add('vx-chip--active');
-  var subWrap = document.getElementById('anrufe-inbox-subfilters');
-  if (subWrap) subWrap.style.display = _anrufeFilter === 'offen' ? '' : 'none';
+  vxSyncAnfragenFilterChips(activeFilter);
   document.getElementById('anrufe-sub-offen') && (document.getElementById('anrufe-sub-offen').style.display = '');
   renderAnrufe();
 }
@@ -23417,7 +23439,8 @@ function vxUpdateAnfragenCount() {
 }
 
 function renderAnrufe() {
-  var filter = _anrufeFilter || 'alle';
+  var filter = vxGetAnfragenActiveFilter();
+  vxSyncAnfragenFilterChips(filter);
   // [v2.65] Unified Inbox: immer intern aus allRecords + allManualTaskRecords lesen
   // Parameter wird ignoriert — verhindert dass Task-Array beim Aufruf wegfällt
   var source = (typeof vxGetAnfragenSourceRecords === 'function') ? vxGetAnfragenSourceRecords() : [];
@@ -23504,11 +23527,11 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   var el = document.getElementById(containerId);
   if (!el) return;
   el.classList.add('dpr-command-center');
-  var filter = activeFilter || _anrufeFilter || 'alle';
+  var filter = vxGetAnfragenActiveFilter(activeFilter);
   var _selectionMode = !!window._vxInboxSelectionMode;
 
   if (!records || records.length === 0) {
-    var emptyLabel = filter === 'offen' ? 'Keine offenen Anfragen.' : (filter === 'geplant' ? 'Keine geplanten Aufgaben oder Rückrufe.' : (filter === 'alle' ? 'Keine Anfragen vorhanden.' : 'Noch keine erledigten Einträge.'));
+    var emptyLabel = vxInquiryFilterEmptyText(filter);
     el.innerHTML = '<div style="padding:24px 20px;text-align:center;color:var(--slate2);font-size:13px;background:#fff;border-radius:0 0 14px 14px;">' +
       '<i class="ph-bold ph-tray" style="color:#1A6FE8;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;"></i>' +
       _esc(emptyLabel) + '</div>';
@@ -23901,12 +23924,12 @@ function vxRenderInboxSelectionToolbar() {
 function vxInboxEnterSelectionMode() {
   window._vxInboxSelectionMode = true;
   vxInboxClearSelection();
-  renderAnrufe();
+  renderAnrufe(vxGetAnfragenActiveFilter());
 }
 function vxInboxExitSelectionMode() {
   window._vxInboxSelectionMode = false;
   vxInboxClearSelection();
-  renderAnrufe();
+  renderAnrufe(vxGetAnfragenActiveFilter());
 }
 
 function applySortToRecords(records, sortKey) {
