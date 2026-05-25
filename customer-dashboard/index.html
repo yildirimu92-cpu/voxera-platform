@@ -10726,6 +10726,10 @@ function vxOpenNotificationTarget(nid, recId, isMobile) {
     var navEl = document.getElementById(isMobile ? 'mnav-anrufe' : 'nav-anrufe') || document.getElementById('nav-anrufe') || document.getElementById('mnav-anrufe');
     if (typeof showTab === 'function') showTab('anrufe', navEl);
     setTimeout(function(){
+      // Filter auf 'alle' zuruecksetzen, damit der Ziel-Anruf in der linken Liste
+      // sichtbar ist — unabhaengig vom vorherigen Filter (Offen/Geplant/Erledigt).
+      var alleBtn = document.querySelector('#anrufe-split-left button[data-filter="alle"]');
+      if (alleBtn && typeof anrufeChipFilter === 'function') anrufeChipFilter('alle', alleBtn);
       if (isTaskTarget && typeof showTaskDetail === 'function') { showTaskDetail(targetId); return; }
       if (!isTaskTarget && typeof showCallDetail === 'function') { showCallDetail(targetId); return; }
       if (typeof vxOpenDetailV2 === 'function') vxOpenDetailV2(targetId);
