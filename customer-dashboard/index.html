@@ -12634,8 +12634,9 @@ function vxBuildOperationalRowActions(record, context) {
       menuActions.push({ action:'create-task', title:'Aufgabe erstellen' });
       if (!isArchived) menuActions.push({ action:'archive', title:'Archivieren' });
     } else {
-      menuActions.push({ action:'followup', title:(isPlanned ? 'Fälligkeit ändern' : 'Fälligkeit setzen') });
-      menuActions.push({ action:'fulldetail', title:'Details öffnen' });
+      menuActions.push({ action:'done', title:'Erledigen' });
+      menuActions.push({ action:'followup', title:'Fälligkeit ändern' });
+      menuActions.push({ action:'edit', title:'Bearbeiten' });
       menuActions.push({ action:'archive', title:'Archivieren' });
     }
     return { primaryAction: primaryAction, menuActions: menuActions };
@@ -46488,7 +46489,11 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
       }
       if (actionName === 'followup' || actionName === 'schedule-callback') {
         var followupMode = context.isTask ? 'due' : 'callback';
-        var followupLabel = context.followupLabel || (context.isTask ? 'Fälligkeit setzen' : 'Rückruf planen');
+        var followupLabel = context.followupLabel || (context.isTask ? 'Fälligkeit ändern' : 'Rückruf planen');
+        if (actionName === 'schedule-callback') {
+          followupMode = 'callback';
+          followupLabel = context.followupLabel || 'Rückruf planen';
+        }
         return '<button class="'+cls+'" onclick="vxCallDetailFaelligkeit({ mode: \''+followupMode+'\' })"><i class="ph-bold ph-calendar-plus"></i>' + esc(followupLabel) + '</button>';
       }
       if (actionName === 'edit-due' || actionName === 'due') {
@@ -46500,7 +46505,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
       if (actionName === 'archive') {
         return '<button class="'+cls+'" onclick="vxCallDetailArchivieren()"><i class="ph-bold ph-archive"></i>Archivieren</button>';
       }
-      if (actionName === 'fulldetail' && context.isTask && context.allowTaskEdit) {
+      if ((actionName === 'fulldetail' || actionName === 'edit') && context.isTask && context.allowTaskEdit) {
         return '<button class="'+cls+'" onclick="openManualTaskEditModal(window._vxCurrentTaskId || window._vxActiveRecordId)"><i class="ph-bold ph-pencil-simple"></i>Bearbeiten</button>';
       }
       return '';
@@ -46539,7 +46544,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
     html +=     '<div class="vx-dv2-meta">'+esc([due ? ('Fällig: ' + fmtTs(due, { semanticLocal: true })) : '', created ? ('Erstellt: ' + fmtTs(created)) : ''].filter(Boolean).join(' · ') || 'Aufgabe')+'</div>';
     html +=     '<div class="vx-dv2-chips">'+chip(status, done?'green':(status==='Geplant'?'gold':'neutral'))+chip(taskType, isCallbackTask(record)?'blue':'neutral')+(due?chip('Fällig', 'gold'):'')+'</div>';
     html +=   '</div></div>';
-    var taskActionsHtml = vxRenderDetailV2Actions(record, { phone: phone, isTask: true, allowTaskEdit: !done, followupLabel: (status === 'Geplant' ? 'Fälligkeit ändern' : 'Fälligkeit setzen') });
+    var taskActionsHtml = vxRenderDetailV2Actions(record, { phone: phone, isTask: true, allowTaskEdit: !done, followupLabel: (done ? 'Rückruf planen' : 'Fälligkeit ändern') });
     html +=   '<div class="vx-dv2-actions">' + taskActionsHtml + '</div>';
     html +=   '<div class="vx-dv2-body">';
     html +=     '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-check-square"></i> Aufgabe</div><span>'+esc(taskType)+'</span></div>';
