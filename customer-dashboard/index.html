@@ -8923,7 +8923,7 @@ body,.main{background:var(--vx-bg);}
         </div>
         <div id="followup-editable" class="followup-editable">
           <div class="vx-modal-grid followup-action-grid">
-            <div class="vx-modal-field" style="margin-bottom:0;">
+            <div class="vx-modal-field" id="followup-next-action-field" style="margin-bottom:0;">
               <label for="followup-next-action">Nächste Aktion</label>
               <select id="followup-next-action">
                 <option value="">Keine Auswahl</option>
@@ -8950,7 +8950,7 @@ body,.main{background:var(--vx-bg);}
             <label for="followup-input">Notiz</label>
             <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf…" style="min-height:72px;"></textarea>
           </div>
-          <div class="followup-mark-row vx-modal-check-row">
+          <div class="followup-mark-row vx-modal-check-row" id="followup-mark-row">
             <input type="checkbox" id="followup-mark-complete" style="width:16px;height:16px;accent-color:#1A6FE8;">
             <span>Als erledigt markieren</span>
           </div>
@@ -9000,7 +9000,7 @@ body,.main{background:var(--vx-bg);}
             <div class="modal-head-icon vx-modal-icon"><i class="ph-bold ph-plus" aria-hidden="true"></i></div>
             <div class="vx-modal-head-copy">
               <h3 id="manual-task-title-heading" class="vx-modal-title">Task erstellen</h3>
-              <div class="vx-modal-sub">Plane einen Rückruf, eine Aufgabe oder ein Follow-up.</div>
+              <div class="vx-modal-sub" id="manual-task-subtitle">Erstelle eine interne Aufgabe für diesen Eintrag.</div>
             </div>
             <button class="modal-close-btn" onclick="closeManualTaskModal()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
           </div>
@@ -9032,7 +9032,7 @@ body,.main{background:var(--vx-bg);}
           <input id="manual-task-due-time" type="time" style="display:none">
         </div>
         <div class="vx-modal-field">
-          <label for="manual-task-datetime">Fällig am</label>
+          <label for="manual-task-datetime">Fälligkeit</label>
           <input id="manual-task-datetime" type="datetime-local">
         </div>
         <div class="vx-modal-chips" id="manual-task-quick-chips">
@@ -9056,7 +9056,7 @@ body,.main{background:var(--vx-bg);}
       </div>
       <div class="modal-footer">
         <button class="btn btn--secondary btn--sm" onclick="closeManualTaskModal()">Abbrechen</button>
-        <button class="btn btn--primary" id="manual-task-save-btn" onclick="saveManualTask()">Task erstellen</button>
+        <button class="btn btn--primary" id="manual-task-save-btn" onclick="saveManualTask()">Aufgabe erstellen</button>
       </div>
     </div>
   </div>
@@ -24737,15 +24737,22 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
   var hasExistingDue = !!String(followUpAt || '').trim();
   var titleEl = document.getElementById('followup-title');
   if (titleEl) titleEl.textContent = (mode === 'due') ? (hasExistingDue ? 'Fälligkeit ändern' : 'Fälligkeit setzen') : 'Nachfassen planen';
-  document.getElementById('followup-sub').textContent = callerName ? ((mode === 'due' ? 'Fälligkeit für ' : 'Nach dem Rückruf mit ') + callerName) : '';
+  var subtitleEl = document.getElementById('followup-sub');
+  if (subtitleEl) {
+    subtitleEl.textContent = (mode === 'due')
+      ? 'Lege fest, wann dieser Eintrag wieder fällig ist.'
+      : 'Plane einen Rückruf oder Folgekontakt.';
+  }
   document.getElementById('followup-input').value = existingNotiz || '';
-  document.getElementById('followup-next-action').value = nextAction || '';
+  document.getElementById('followup-next-action').value = (mode === 'due') ? '' : (nextAction || '');
   document.getElementById('followup-datetime').value = fmtDateTimeLocal(followUpAt || '');
+  var nextActionField = document.getElementById('followup-next-action-field');
+  if (nextActionField) nextActionField.style.display = (mode === 'due') ? 'none' : '';
   const markComplete = document.getElementById('followup-mark-complete');
   if (markComplete) {
     markComplete.checked = false;
-    var markRow = markComplete.closest('.followup-mark-row');
-    if (markRow) markRow.style.display = done ? 'none' : '';
+    var markRow = document.getElementById('followup-mark-row') || markComplete.closest('.followup-mark-row');
+    if (markRow) markRow.style.display = (mode === 'due' || done) ? 'none' : '';
   }
   const lockWarning = document.getElementById('followup-locked-warning');
   const editableSection = document.getElementById('followup-editable');
@@ -24826,9 +24833,11 @@ function closeFollowup() {
   const mc = document.getElementById('followup-mark-complete');
   if (mc) {
     mc.checked = false;
-    var mcRow = mc.closest('.followup-mark-row');
+    var mcRow = document.getElementById('followup-mark-row') || mc.closest('.followup-mark-row');
     if (mcRow) mcRow.style.display = '';
   }
+  var nextActionField = document.getElementById('followup-next-action-field');
+  if (nextActionField) nextActionField.style.display = '';
   const editableSection = document.getElementById('followup-editable');
   if (editableSection) {
     editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = false; });
@@ -25035,7 +25044,7 @@ function openManualTaskModal() {
     dtInput.value = (typeof vxFormatLocalDateTimeForInput === 'function')
       ? vxFormatLocalDateTimeForInput(tomorrow9)
       : (tomorrow9.getFullYear() + '-' + String(tomorrow9.getMonth()+1).padStart(2,'0') + '-' + String(tomorrow9.getDate()).padStart(2,'0') + 'T09:00');
-    dtInput.style.display = 'none';
+    dtInput.style.display = '';
   }
   // Quick-Chips zurücksetzen, Morgen 09:00 aktiv
   document.querySelectorAll('#manual-task-quick-chips .vx-cd-due-chip').forEach(function(c) {
@@ -25051,13 +25060,15 @@ function openManualTaskModal() {
   if (legacyStatus) legacyStatus.value = 'new';
   if (legacyPriority) legacyPriority.value = '';
   const modalHeading = document.getElementById('manual-task-title-heading');
-  if (modalHeading) modalHeading.textContent = 'Task erstellen';
+  if (modalHeading) modalHeading.textContent = 'Aufgabe erstellen';
+  var subtitle = document.getElementById('manual-task-subtitle');
+  if (subtitle) subtitle.textContent = 'Erstelle eine interne Aufgabe für diesen Eintrag.';
   const modeHint = document.getElementById('manual-task-mode-hint');
   if (modeHint) modeHint.style.display = 'none';
   const saveBtn = document.getElementById('manual-task-save-btn');
   if (saveBtn) {
     saveBtn.disabled = false;
-    saveBtn.textContent = 'Task erstellen';
+    saveBtn.textContent = 'Aufgabe erstellen';
   }
   document.getElementById('manual-task-overlay').classList.add('open');
   setOverlayAriaHidden('manual-task-overlay', false);
@@ -25097,7 +25108,7 @@ function openManualTaskEditModal(recordId) {
       dtInput.value = (!Number.isNaN(d.getTime()) && typeof vxFormatLocalDateTimeForInput === 'function')
         ? vxFormatLocalDateTimeForInput(d)
         : combined;
-      dtInput.style.display = 'none';
+      dtInput.style.display = '';
     } else {
       // Kein Datum gesetzt — Default Morgen 09:00
       var tomorrow9 = new Date();
@@ -25106,7 +25117,7 @@ function openManualTaskEditModal(recordId) {
       dtInput.value = (typeof vxFormatLocalDateTimeForInput === 'function')
         ? vxFormatLocalDateTimeForInput(tomorrow9)
         : '';
-      dtInput.style.display = 'none';
+      dtInput.style.display = '';
     }
     // Quick-Chips: kein Default aktiv beim Edit (Datum ist bereits gesetzt)
     document.querySelectorAll('#manual-task-quick-chips .vx-cd-due-chip').forEach(function(c) {
@@ -25126,6 +25137,8 @@ function openManualTaskEditModal(recordId) {
 
   const modalHeading = document.getElementById('manual-task-title-heading');
   if (modalHeading) modalHeading.textContent = 'Aufgabe bearbeiten';
+  var subtitle = document.getElementById('manual-task-subtitle');
+  if (subtitle) subtitle.textContent = 'Passe Titel, Fälligkeit, Zuständigkeit und Notiz an.';
   const modeHint = document.getElementById('manual-task-mode-hint');
   if (modeHint) modeHint.style.display = 'none';
   const saveBtn = document.getElementById('manual-task-save-btn');
