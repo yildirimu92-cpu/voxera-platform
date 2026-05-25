@@ -1506,6 +1506,15 @@ body{
 }
 .call-row.done{opacity:.6;cursor:default;filter:grayscale(10%);}
 .call-row.hidden{display:none;}
+.vx-heute-row.vx-row-highlight{
+  background:linear-gradient(90deg, rgba(26,111,232,0.14) 0%, rgba(26,111,232,0.04) 60%, rgba(26,111,232,0) 100%) !important;
+  box-shadow:inset 0 0 0 1px rgba(26,111,232,0.22);
+  animation:vxRowHighlightFade 1.6s ease-out forwards;
+}
+@keyframes vxRowHighlightFade{
+  0%{background:linear-gradient(90deg, rgba(26,111,232,0.16) 0%, rgba(26,111,232,0.06) 62%, rgba(26,111,232,0) 100%);}
+  100%{background:transparent;box-shadow:inset 0 0 0 1px rgba(26,111,232,0);}
+}
 .av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
 .av-default{background:var(--blue-subtle);color:var(--blue);}
 .av-done{background:var(--surface2);color:var(--slate2);}
@@ -23816,6 +23825,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
   /* phosphor: no init needed */
   dprRestoreOpen('anrufe-list');
   if (window._vxActiveRecordId && typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(window._vxActiveRecordId);
+  vxApplyPendingRowHighlight();
 }
 
 function renderRueckrufe(records, manualTasks) {
@@ -24173,6 +24183,7 @@ function renderArchivInbox(containerId, records) {
   /* phosphor: no init needed */
   dprRestoreOpen();
   if (window._vxActiveRecordId && typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(window._vxActiveRecordId);
+  vxApplyPendingRowHighlight();
 }
 
 function filterArchiv(period, btn) {
@@ -24432,6 +24443,45 @@ function vxCloseAfterSuccessfulCompletion() {
   try { vxClearAllScrollLocks(); } catch(e) { syncOverlayScrollLock(); }
 }
 window.vxCloseAfterSuccessfulCompletion = vxCloseAfterSuccessfulCompletion;
+
+window._vxPendingHighlightRecordId = window._vxPendingHighlightRecordId || null;
+
+function vxApplyPendingRowHighlight() {
+  var targetId = String(window._vxPendingHighlightRecordId || '').trim();
+  if (!targetId) return;
+  var row = document.querySelector('.vx-heute-row[data-record-id="' + CSS.escape(targetId) + '"]')
+    || document.querySelector('.vx-heute-row[data-id="' + CSS.escape(targetId) + '"]')
+    || document.querySelector('.dpr-card[data-id="' + CSS.escape(targetId) + '"] .vx-heute-row');
+  if (!row) return;
+  row.classList.remove('vx-row-highlight');
+  void row.offsetWidth;
+  row.classList.add('vx-row-highlight');
+  window._vxPendingHighlightRecordId = null;
+  setTimeout(function() { row.classList.remove('vx-row-highlight'); }, 1600);
+}
+
+function vxAfterActionSuccess(options) {
+  var opts = options || {};
+  var targetId = String(opts.createdRecordId || opts.recordId || '').trim();
+  if (targetId) {
+    window._vxActiveRecordId = targetId;
+    window._vxPendingHighlightRecordId = targetId;
+  }
+  if (opts.closeModal !== false) {
+    if (opts.modal === 'manual-task' && typeof closeManualTaskModal === 'function') closeManualTaskModal();
+    else if (opts.modal === 'followup' && typeof closeFollowup === 'function') closeFollowup();
+  }
+  if (typeof vxRefreshOperationalViews === 'function') vxRefreshOperationalViews(allRecords, allManualTaskRecords);
+  else {
+    if (typeof renderDashboard === 'function') renderDashboard(allRecords, allManualTaskRecords);
+    if (typeof renderAnrufe === 'function') renderAnrufe();
+    if (typeof renderRueckrufe === 'function') renderRueckrufe(allRecords, allManualTaskRecords);
+  }
+  if (targetId && typeof vxSetActiveRequestRow === 'function') {
+    setTimeout(function(){ try { vxSetActiveRequestRow(targetId); } catch(e) {} }, 0);
+  }
+}
+
 
 (function initOverlayScrollLock(){
   document.addEventListener('click', function(){ setTimeout(vxSyncScrollLock, 0); });
@@ -24899,9 +24949,10 @@ async function saveFollowup() {
         allManualTaskRecords.unshift(createdTask);
         window.allManualTaskRecords = allManualTaskRecords;
       }
-      if (typeof vxRefreshOperationalViews === 'function') vxRefreshOperationalViews(allRecords, allManualTaskRecords);
-      else { renderDashboard(allRecords, allManualTaskRecords); renderRueckrufe(allRecords, allManualTaskRecords); }
-      closeFollowup();
+      vxAfterActionSuccess({
+        createdRecordId: createdTask && createdTask.id ? String(createdTask.id) : '',
+        modal: 'followup'
+      });
       notizRecordId = null;
       toast('Rückruf als neue Aufgabe geplant');
       vxScheduleSingleDataRefresh(500);
@@ -24928,10 +24979,7 @@ async function saveFollowup() {
     }
 
     rerenderFollowupMetaForCallRow(recordId);
-    vxRefreshOperationalViews(allRecords, allManualTaskRecords);
-
-    // Success contract: close the operative sheet immediately after a successful save.
-    closeFollowup();
+    vxAfterActionSuccess({ recordId: recordId, modal: 'followup' });
     notizRecordId = null;
 
     toast(fields.mark_complete ? 'Erledigt' : followUpAt ? 'Rückruf geplant' : 'Gespeichert');
@@ -25310,9 +25358,11 @@ async function saveManualTask() {
       allManualTaskRecords.unshift(createdTask);
       toast('Task erstellt');
     }
-    if (typeof vxRefreshOperationalViews === 'function') vxRefreshOperationalViews(allRecords, allManualTaskRecords);
-    else { renderDashboard(allRecords, allManualTaskRecords); renderRueckrufe(allRecords, allManualTaskRecords); }
-    closeManualTaskModal();
+    vxAfterActionSuccess({
+      recordId: isEditMode ? activeEditId : '',
+      createdRecordId: !isEditMode ? savedTaskId : '',
+      modal: 'manual-task'
+    });
     if (activeEditId && typeof vxRefreshOpenTaskDetail === 'function') {
       setTimeout(function(){ vxRefreshOpenTaskDetail(activeEditId); }, 0);
     }
