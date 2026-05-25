@@ -42733,6 +42733,21 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 }
 
 @media(max-width:1099px){
+  #tab-anrufe .vx-split,
+  #anrufe-split{
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    grid-template-columns:1fr !important;
+  }
+  #tab-anrufe #anrufe-split-right,
+  #anrufe-split-right{
+    display:none !important;
+    width:0 !important;
+    min-width:0 !important;
+    max-width:0 !important;
+    flex:0 0 auto !important;
+  }
   #tab-anrufe .vx-split #anrufe-split-left,
   #anrufe-split-left{
     width:100% !important;
