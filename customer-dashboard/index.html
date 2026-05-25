@@ -21882,6 +21882,16 @@ function vxHeuteRenderActivityList(records) {
   refreshLucideIcons();
 }
 
+function vxGetHeuteTodayCallRecords(sourceRecords) {
+  var source = Array.isArray(sourceRecords) ? sourceRecords : [];
+  return vxHeuteDedupeByStableId(source).filter(function(r) {
+    return !vxHeuteIsManualTask(r)
+      && (typeof isCustomerVisibleCall !== 'function' || isCustomerVisibleCall(r))
+      && vxHeuteRecordCreatedToday(r)
+      && !vxHeuteIsOutboundOrTestRecord(r);
+  });
+}
+
 function vxHeuteRenderScopedList(listId, sectionId, countId, records, emptyText) {
   var section = document.getElementById(sectionId);
   var list = document.getElementById(listId);
@@ -22130,9 +22140,9 @@ function renderDashboard(records, manualTasks) {
   };
   // Central today view-model: the KPIs and the visible Heute sections use the same arrays.
   var heuteViewSource = (typeof vxGetAnfragenSourceRecords === 'function') ? vxGetAnfragenSourceRecords() : [].concat(records || [], manualTasks || allManualTaskRecords || []);
-  var heuteTodayCallRecords = vxHeuteDedupeByStableId(heuteViewSource).filter(function(r) {
-    return !vxHeuteIsManualTask(r) && (typeof isCustomerVisibleCall !== 'function' || isCustomerVisibleCall(r)) && vxHeuteRecordCreatedToday(r) && !vxHeuteIsOutboundOrTestRecord(r);
-  });
+  var heuteTodayCallRecords = (typeof vxGetHeuteTodayCallRecords === 'function')
+    ? vxGetHeuteTodayCallRecords(heuteViewSource)
+    : [];
   var heuteDoneRecords = heuteViewSource.filter(function(r) {
     var isDone = typeof vxInquiryMatchesFilter === 'function' ? vxInquiryMatchesFilter(r, 'abgeschlossen') : vxHeuteIsDoneRecord(r);
     return isDone && vxHeuteRecordCompletedToday(r);
@@ -22173,10 +22183,10 @@ function renderDashboard(records, manualTasks) {
 
   var heuteActivityRecords = [].concat(heuteTodayCallRecords || [], heuteDoneRecords || []);
   if (typeof vxHeuteRenderActivityList === 'function') vxHeuteRenderActivityList(heuteActivityRecords);
-  ['dash-today-calls-section','dash-today-done-section'].forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
+  if (typeof vxHeuteRenderScopedList === 'function') {
+    vxHeuteRenderScopedList('dash-today-calls-list','dash-today-calls-section','dash-today-calls-count', heuteTodayCallRecords, 'Heute gab es noch keine Anrufe.');
+    vxHeuteRenderScopedList('dash-today-done-list','dash-today-done-section','dash-today-done-count', heuteDoneRecords, 'Heute wurde noch nichts erledigt.');
+  }
 
   var reach = getReachabilityStatus(records);
 
@@ -46187,7 +46197,9 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   function vxURenderScoped(kind){
     var b = vxUBuckets();
     if (kind === 'callsToday') {
-      var calls = (b.today && b.today.callsToday) ? b.today.callsToday : [];
+      var source = (typeof window.vxGetAnfragenSourceRecords === 'function') ? window.vxGetAnfragenSourceRecords() : [].concat(vxURecords(), vxUTasks());
+      var calls = (typeof window.vxGetHeuteTodayCallRecords === 'function') ? window.vxGetHeuteTodayCallRecords(source) : ((b.today && b.today.callsToday) ? b.today.callsToday : []);
+      if (!calls.length) return;
       vxUShowDashboard();
       window.setTimeout(function(){
         if (typeof window.vxHeuteRenderScopedList === 'function') {
