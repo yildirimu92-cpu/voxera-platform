@@ -358,18 +358,18 @@
 .vx-heute-row.rail-today,.vx-heute-row.rail-planned,.vx-heute-row.rail-overdue{border-left:1px solid rgba(15,33,63,.09);}
 .vx-heute-row.is-unread{background:rgba(26,111,232,.06);border-color:rgba(26,111,232,.24);}
 .vx-heute-row.is-unread::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;background:#1A6FE8;border-radius:3px;}
-.vx-heute-row.is-selection-mode{grid-template-columns:20px 36px minmax(0,1fr) auto;column-gap:10px;}
-.vx-heute-row.is-selection-mode .vx-row-btns{opacity:.45;pointer-events:none;}
-.vx-inbox-select-dot{width:18px;height:18px;border-radius:50%;border:1.5px solid #CBD5E1;display:inline-flex;align-items:center;justify-content:center;flex:0 0 18px;color:transparent;background:#fff;margin:0;}
+.vx-heute-row.is-selection-mode{grid-template-columns:24px 40px minmax(0,1fr);column-gap:10px;}
+.vx-heute-row.is-selection-mode .vx-row-btns{display:none!important;opacity:0;pointer-events:none;}
+.vx-inbox-select-dot{width:24px;height:24px;border-radius:50%;border:1.5px solid #CBD5E1;display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;color:transparent;background:#fff;margin:0;}
 .vx-heute-row.is-selected .vx-inbox-select-dot{border-color:#1A6FE8;background:#1A6FE8;color:#fff;}
 .vx-heute-row.is-selected{background:#F3F8FF;}
-.vx-inbox-selection-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 10px;border-bottom:0.5px solid var(--vx-border);background:#F8FAFC;min-height:34px;}
+.vx-inbox-selection-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 10px;border-bottom:0.5px solid var(--vx-border);background:#F8FAFC;min-height:30px;}
 .vx-inbox-selection-toolbar strong{font-size:11px;font-weight:600;color:var(--vx-text2);}
 .vx-inbox-selection-toolbar .vx-inbox-selection-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
-.vx-inbox-selection-toolbar .vx-chip{height:24px;padding:0 10px;font-size:10px;}
+.vx-inbox-selection-toolbar .vx-chip{height:22px;padding:0 10px;font-size:10px;}
 .vx-inbox-selection-toolbar .vx-chip[disabled]{opacity:.45;pointer-events:none;}
-.vx-selection-controls{justify-content:flex-end;padding:6px 10px;margin-top:4px;}
-#vx-inbox-select-btn{height:24px;padding:0 10px;font-size:10px;font-weight:600;border-radius:999px;background:#fff;}
+.vx-selection-controls{margin-left:auto;padding:0;border:0;}
+#vx-inbox-select-btn{height:22px;padding:0 10px;font-size:10px;font-weight:600;border-radius:999px;background:#fff;}
 .vx-heute-row.is-done-row{opacity:.85;background:#F8FAFC;}
 .vx-row-icon{width:36px;height:36px;border-radius:10px;background:var(--vx-pill-bg);border:0.5px solid var(--vx-pill-bd);display:flex;align-items:center;justify-content:center;color:var(--vx-pill-text);flex-shrink:0;font-size:16px;}
 .vx-row-icon.is-call{background:var(--vx-blue-light);border-color:var(--vx-blue-bd);color:var(--vx-blue);}
@@ -7253,9 +7253,9 @@ body,.main{background:var(--vx-bg);}
               </div>
               <div class="vx-split-filters vx-split-filters--compact" id="anrufe-inbox-subfilters" style="margin-top:4px;">
                 <button class="vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
-              </div>
-              <div class="vx-split-filters vx-split-filters--compact vx-selection-controls" id="anrufe-selection-controls">
-                <button class="vx-chip" id="vx-inbox-select-btn" type="button" onclick="vxInboxEnterSelectionMode()">Auswählen</button>
+                <div class="vx-selection-controls" id="anrufe-selection-controls">
+                  <button class="vx-chip" id="vx-inbox-select-btn" type="button" onclick="vxInboxEnterSelectionMode()">Auswählen</button>
+                </div>
               </div>
               <div id="vx-inbox-selection-toolbar"></div>
               <div class="vx-split-search">
@@ -23872,10 +23872,11 @@ function vxRenderInboxSelectionToolbar() {
   controls.style.display = mode ? 'none' : '';
   if (!mode) { mount.innerHTML = ''; return; }
   var selectedCount = window._vxInboxSelectedIds ? window._vxInboxSelectedIds.size : 0;
+  var label = selectedCount > 0 ? (selectedCount + ' ausgewählt') : 'Auswahlmodus';
   mount.innerHTML = '<div class="vx-inbox-selection-toolbar">'
-    + '<strong>' + selectedCount + ' ausgewählt</strong>'
+    + '<strong>' + label + '</strong>'
     + '<div class="vx-inbox-selection-actions">'
-    + (selectedCount > 0 ? '<button class=\"vx-chip\" type=\"button\" onclick=\"vxInboxClearSelection();renderAnrufe();\">Auswahl aufheben</button>' : '<button class=\"vx-chip\" type=\"button\" disabled aria-disabled=\"true\" title=\"Keine Auswahl\">Auswahl aufheben</button>')
+    + (selectedCount > 0 ? '<button class=\"vx-chip\" type=\"button\" onclick=\"vxInboxClearSelection();renderAnrufe();\">Auswahl aufheben</button>' : '')
     + '<button class="vx-chip" type="button" onclick="vxInboxExitSelectionMode();">Abbrechen</button>'
     + '</div></div>';
 }
@@ -42476,6 +42477,11 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   column-gap:9px !important;
   padding:10px 12px !important;
 }
+#anrufe-list .vx-heute-row.is-selection-mode,
+#anrufe-split-left .vx-heute-row.is-selection-mode{
+  grid-template-columns:24px 40px minmax(0,1fr) !important;
+  column-gap:10px !important;
+}
 #anrufe-list .vx-row-body,
 #anrufe-split-left .vx-row-body,
 #anrufe-list .vx-anf-body,
@@ -42483,6 +42489,19 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   min-width:0 !important;
   overflow:hidden !important;
   padding-right:0 !important;
+}
+#anrufe-list .vx-heute-row.is-selection-mode .vx-row-body,
+#anrufe-split-left .vx-heute-row.is-selection-mode .vx-row-body{
+  max-width:none !important;
+  padding-right:0 !important;
+}
+#anrufe-list .vx-heute-row.is-selection-mode .vx-row-btns,
+#anrufe-split-left .vx-heute-row.is-selection-mode .vx-row-btns{
+  display:none !important;
+  width:0 !important;
+  min-width:0 !important;
+  max-width:0 !important;
+  pointer-events:none !important;
 }
 #anrufe-list .dpr-card:hover .vx-row-body,
 #anrufe-list .dpr-card:focus-within .vx-row-body,
