@@ -7426,7 +7426,7 @@ body,.main{background:var(--vx-bg);}
           <div class="vx-success-bar" id="vx-success-bar">
             <div style="font-size:28px;margin-bottom:6px;color:#34D399;">✓</div>
             <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;">Lara ist aktualisiert</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.45);">Alle Änderungen sind sofort aktiv.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.45);">Änderungen wurden gespeichert und werden synchronisiert.</div>
           </div>
 
           <!-- ══════════════════════════════════════════════
@@ -15368,6 +15368,36 @@ function vxFillAccordion(id) {
   }
 }
 
+
+function vxBuildAssistantSaveFeedback(result, options) {
+  const opts = options || {};
+  const errors = Array.isArray(result?.errors) ? result.errors : [];
+  const blocked = Array.isArray(result?.blocked_fields) ? result.blocked_fields : [];
+  const syncStatus = String(result?.sync_status || 'skipped_no_sync_fields');
+  const syncError = result?.sync_error ? String(result.sync_error) : '';
+  const hasPartial = blocked.length > 0 || errors.length > 0;
+  if (hasPartial) {
+    return {
+      color: '#B45309',
+      text: 'Teilweise gespeichert. Einige Felder können nur durch Voxera angepasst werden.'
+    };
+  }
+  if (opts.forwardingOnly || syncStatus === 'skipped_forwarding_only') {
+    return { color: '#059669', text: 'Weiterleitungsdaten gespeichert.' };
+  }
+  if (syncStatus === 'success') {
+    return { color: '#059669', text: 'Gespeichert und mit dem Assistenten synchronisiert.' };
+  }
+  if (syncStatus === 'failed') {
+    const suffix = syncError ? (' (' + syncError + ')') : '';
+    return { color: '#B45309', text: 'Gespeichert, aber Synchronisierung fehlgeschlagen. Voxera prüft dies.' + suffix };
+  }
+  if (syncStatus === 'skipped_no_agent') {
+    return { color: '#B45309', text: 'Gespeichert. Der Assistent ist noch nicht vollständig eingerichtet.' };
+  }
+  return { color: '#059669', text: 'Gespeichert.' };
+}
+
 async function vxSaveSection(id) {
   const btn = document.getElementById('save-' + id);
   const fb = document.getElementById('fb-' + id);
@@ -15413,7 +15443,7 @@ async function vxSaveSection(id) {
     // Wenn nichts zu senden → Abbruch
     if (!payload.assistant_name && !payload.voice_id) {
       if (fb) { fb.style.color = 'var(--slate2)'; fb.textContent = 'Keine Änderungen.'; }
-      if (btn) { btn.disabled = false; btn.textContent = 'Speichern — sofort live'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Speichern'; }
       return;
     }
   }
@@ -15455,7 +15485,11 @@ async function vxSaveSection(id) {
       }
     }
 
-    if (fb) { fb.style.color = '#059669'; fb.textContent = id === 'weiterleitungen' ? '✓ Anfrage gesendet — Admin bestätigt die Änderung.' : (id === 'erreichbarkeit' ? 'Erreichbarkeit aktualisiert ✓' : '✓ Gespeichert — Lara wird sofort aktualisiert.'); }
+    if (fb) {
+      const ux = vxBuildAssistantSaveFeedback(json, { forwardingOnly: id === 'weiterleitungen' });
+      fb.style.color = ux.color;
+      fb.textContent = ux.text;
+    }
     // Accordion-Status aktualisieren
     vxUpdateAccordionStatuses();
   } catch (e) {
@@ -15463,7 +15497,7 @@ async function vxSaveSection(id) {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = id === 'weiterleitungen' ? 'Zur Bestätigung senden' : 'Speichern — sofort live';
+      btn.textContent = id === 'weiterleitungen' ? 'Zur Bestätigung senden' : 'Speichern';
     }
   }
 }
@@ -15700,7 +15734,7 @@ async function vxSaveBenachrichtigungen() {
     vxBellRender();
     vxBellPageRender();
 
-    if (fb) { fb.style.color = '#059669'; fb.textContent = '✓ Benachrichtigungen gespeichert.'; }
+    if (fb) { const ux = vxBuildAssistantSaveFeedback(json); fb.style.color = ux.color; fb.textContent = ux.text; }
   } catch(e) {
     if (fb) { fb.style.color = '#DC2626'; fb.textContent = 'Fehler: ' + (e.message || ''); }
   }
@@ -16627,8 +16661,9 @@ async function saveAssistantName() {
     customerMeta.assistantName = newName;
     document.getElementById('assistent-name-display').textContent = newName;
     document.getElementById('assistent-avatar').textContent = newName.charAt(0).toUpperCase();
-    fb.style.color = 'var(--green-dark,#059669)';
-    fb.textContent = '✓ Name wurde aktualisiert — ElevenLabs wird synchronisiert.';
+    const ux = vxBuildAssistantSaveFeedback(json);
+    fb.style.color = ux.color;
+    fb.textContent = ux.text;
   } catch (e) {
     fb.style.color = 'var(--red,#DC2626)';
     fb.textContent = 'Speichern fehlgeschlagen: ' + (e.message || '');
@@ -16712,8 +16747,9 @@ async function saveAssistantVoiceSelection() {
     const json = await res.json();
     if (!res.ok) throw new Error(json?.error || 'save_failed');
     customerMeta.voiceId = window.assistantSelectedVoiceId;
-    fb.style.color = 'var(--green-dark,#059669)';
-    fb.textContent = '✓ Stimme wurde aktualisiert.';
+    const ux = vxBuildAssistantSaveFeedback(json);
+    fb.style.color = ux.color;
+    fb.textContent = ux.text;
   } catch (e) {
     fb.style.color = 'var(--red,#DC2626)';
     fb.textContent = 'Speichern fehlgeschlagen.';
