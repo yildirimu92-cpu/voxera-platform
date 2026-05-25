@@ -15435,13 +15435,11 @@ async function vxSaveSection(id) {
       const nameVal = document.getElementById('assistent-name-input')?.value.trim();
       if (nameVal) payload.assistant_name = nameVal;
     }
-    // voice_id aus zentralem Auswahl-State lesen
-    const _voiceSelectionEnabled = customerMeta?.voiceSelectionEnabled;
-    const _canEditVoice = (_voiceSelectionEnabled === true)
-      || (_voiceSelectionEnabled !== false && _planCode !== 'starter');
-    if (_canEditVoice) {
-      const selectedVoiceId = String(window.assistantSelectedVoiceId || customerMeta.voiceId || '').trim();
-      if (selectedVoiceId) payload.voice_id = selectedVoiceId;
+    // voice_id aus zentralem Auswahl-State lesen und senden, wenn aktiv geändert
+    const selectedVoiceId = String(window.assistantSelectedVoiceId || '').trim();
+    const currentVoiceId = String(customerMeta?.voiceId || '').trim();
+    if (selectedVoiceId && selectedVoiceId !== currentVoiceId) {
+      payload.voice_id = selectedVoiceId;
     }
     // Wenn nichts zu senden → Abbruch
     if (!payload.assistant_name && !payload.voice_id) {
