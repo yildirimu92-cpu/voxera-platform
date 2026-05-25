@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Voxera Dashboard</title>
-<!-- BUILD: 2026-05-17-v3 -->
+<!-- BUILD: 2026-05-25-insertbefore-debug-v1 -->
 
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
@@ -15507,6 +15507,7 @@ async function vxSaveSection(id) {
     // Accordion-Status aktualisieren
     vxUpdateAccordionStatuses();
   } catch (e) {
+    console.error('[vxSaveSection] failed', e);
     if (fb) { fb.style.color = '#DC2626'; fb.textContent = 'Fehler: ' + (e.message || 'Unbekannt'); }
   } finally {
     if (btn) {
