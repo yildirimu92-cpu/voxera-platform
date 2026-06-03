@@ -4370,13 +4370,21 @@ body,.main{background:var(--vx-bg);}
   margin-bottom:8px!important;
 }
 #archiv-stat-count,
-#archiv-stat-time,
+#archiv-stat-time{
+  font-family:var(--font-display)!important;
+  font-size:30px!important;
+  font-weight:800!important;
+  letter-spacing:-.035em!important;
+  color:#fff!important;
+  line-height:1!important;
+  font-variant-numeric:tabular-nums!important;
+}
 #archiv-stat-followups{
   font-family:var(--font-display)!important;
   font-size:30px!important;
   font-weight:800!important;
   letter-spacing:-.035em!important;
-  color:var(--vx-night)!important;
+  color:#059669!important;
   line-height:1!important;
   font-variant-numeric:tabular-nums!important;
 }
@@ -7408,7 +7416,7 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <!-- KPI Strip — identisch zu Heute -->
-            <div id="archiv-kpi-strip" class="vx-kpi-strip" style="display:none;">
+            <div id="archiv-kpi-strip" class="vx-kpi-strip" style="display:none;grid-template-columns:repeat(3,1fr);">
               <div class="vx-kpi-cell">
                 <div class="vx-kpi-label">Einträge</div>
                 <div id="archiv-stat-count" class="vx-kpi-val" style="color:#fff;">–</div>
@@ -16648,14 +16656,14 @@ function vxOnboardingOpenStep(num) {
     setTimeout(function() { if (typeof vxMehrShow === 'function') vxMehrShow('benachrichtigungen'); }, 100);
   }
 
-  // Beim Zurückkommen Modal wieder zeigen (nach 2s)
+  // Beim Zurückkommen Modal wieder zeigen (nach 8s — genug Zeit für Rufumleitung)
   setTimeout(function() {
     if (!customerMeta.onboardingCompleted) {
       vxOnboardingUpdateSteps();
       const overlay = document.getElementById('vx-onboarding-overlay');
       if (overlay) overlay.style.display = 'flex';
     }
-  }, 2000);
+  }, 8000);
 }
 
 function vxOnboardingSkip() {
@@ -22250,7 +22258,7 @@ function renderDashboard(records, manualTasks) {
     var greetBlock = document.getElementById('dash-greeting-block');
     if (greetBlock && greetBlock.nextSibling) greetBlock.parentNode.insertBefore(warnBanner, greetBlock.nextSibling);
   }
-  if (reach.daysSince !== null && reach.daysSince >= 3) {
+  if (reach.daysSince !== null && reach.daysSince >= 7) {
     warnBanner.style.display = '';
     warnBanner.innerHTML = '⚠ Seit ' + reach.daysSince + ' Tagen kein Anruf eingegangen — ist die Weiterleitung noch aktiv?';
   } else {
@@ -23096,7 +23104,7 @@ function updateSystemStatus(records) {
   var now = new Date();
   if (latest) {
     var hoursSince = (now - latest) / (1000 * 60 * 60);
-    hasRecent = hoursSince < 72;
+    hasRecent = hoursSince < 168;
   }
 
   if (el && txt) {
@@ -23107,7 +23115,7 @@ function updateSystemStatus(records) {
       el.style.color = 'var(--green)';
       if (dot) dot.style.background = 'var(--green)';
     } else if (records.length > 0) {
-      txt.textContent = 'Letzter Anruf vor über 3 Tagen';
+      txt.textContent = 'Letzter Anruf vor über 7 Tagen';
       el.style.background = 'var(--amber-light)';
       el.style.borderColor = 'var(--amber-mid)';
       el.style.color = 'var(--amber)';
@@ -24294,12 +24302,12 @@ function renderArchivInbox(containerId, records) {
       html += '<div class="vx-anf-dot-empty"></div>';
       html += '<div class="vx-anf-icon is-call"><i class="ph-bold ph-'+inquiryMeta.icon+'"></i></div>';
       html += '<div class="vx-anf-body">';
-      html += '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">';
-      html += '<div class="vx-anf-name">'+_esc(name)+(company?' <span style="font-weight:400;color:var(--vx-text3);">· '+_esc(company)+'</span>':'')+'</div>';
+      html += '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;">';
+      html += '<div class="vx-anf-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">'+_esc(name)+(company?' <span style="font-weight:400;color:var(--vx-text3);">· '+_esc(company)+'</span>':'')+'</div>';
       // Löschdatum rechts
       if (delDateStr) {
-        html += '<div style="font-size:11px;color:'+(soon?'#DC2626':'var(--slate2)')+';white-space:nowrap;flex-shrink:0;" title="Wird endgültig gelöscht am '+delDateStr+'">';
-        html += '<i class="ph-bold ph-trash" style="font-size:10px;margin-right:2px;" aria-hidden="true"></i>'+delDateStr;
+        html += '<div style="font-size:10px;color:'+(soon?'#DC2626':'var(--slate2)')+';white-space:nowrap;flex-shrink:0;" title="Wird endgültig gelöscht am '+delDateStr+'">';
+        html += '<i class="ph-bold ph-trash" style="font-size:9px;margin-right:2px;" aria-hidden="true"></i>'+delDateStr;
         html += '</div>';
       }
       html += '</div>';
@@ -24341,36 +24349,26 @@ function filterArchiv(period, btn) {
   }
   var now = new Date();
   var filtered = _archivAllDone.slice();
+
+  function _archivTs(r) {
+    var f = (r && r.fields) || {};
+    var raw = f.completed_at || f.closed_at || f.done_at || getRecordTimestamp(r);
+    if (!raw) return null;
+    var s = String(raw).trim().replace(' ', 'T');
+    if (!/[Zz]$/.test(s) && !/[+-]\d{2}:?\d{2}$/.test(s)) s += 'Z';
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   if (period === 'week') {
     var weekAgo = new Date(now.getTime() - 7*24*60*60*1000);
-    filtered = _archivAllDone.filter(function(r) {
-      var ts = getRecordTimestamp(r);
-      if (!ts) return false;
-      var s = String(ts).trim().replace(' ','T');
-      if (!/[Zz]$/.test(s) && !/[+-]\d{2}:?\d{2}$/.test(s)) s += 'Z';
-      var d = new Date(s);
-      return !isNaN(d.getTime()) && d >= weekAgo;
-    });
+    filtered = _archivAllDone.filter(function(r) { var d = _archivTs(r); return d && d >= weekAgo; });
   } else if (period === 'month') {
     var monthAgo = new Date(now.getFullYear(), now.getMonth()-1, now.getDate());
-    filtered = _archivAllDone.filter(function(r) {
-      var ts = getRecordTimestamp(r);
-      if (!ts) return false;
-      var s = String(ts).trim().replace(' ','T');
-      if (!/[Zz]$/.test(s) && !/[+-]\d{2}:?\d{2}$/.test(s)) s += 'Z';
-      var d = new Date(s);
-      return !isNaN(d.getTime()) && d >= monthAgo;
-    });
+    filtered = _archivAllDone.filter(function(r) { var d = _archivTs(r); return d && d >= monthAgo; });
   } else if (period === 'today') {
     var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    filtered = _archivAllDone.filter(function(r) {
-      var ts = getRecordTimestamp(r);
-      if (!ts) return false;
-      var s = String(ts).trim().replace(' ','T');
-      if (!/[Zz]$/.test(s) && !/[+-]\d{2}:?\d{2}$/.test(s)) s += 'Z';
-      var d = new Date(s);
-      return !isNaN(d.getTime()) && d >= todayStart;
-    });
+    filtered = _archivAllDone.filter(function(r) { var d = _archivTs(r); return d && d >= todayStart; });
   }
   renderArchivInbox('archiv-list', applySortToRecords(filtered, _archivSort));
 }
@@ -24385,7 +24383,7 @@ function renderArchiv(records) {
 
   if (done.length > 0) {
     if (kpiStrip) kpiStrip.style.display = 'grid';
-    if (exportBtn) exportBtn.style.display = 'flex';
+    if (exportBtn) { exportBtn.style.display = 'flex'; }
 
     const totalSecs = done.reduce((sum,r) => sum + Number((r.fields||{}).duration_seconds||0), 0);
     const totalMins = Math.round(totalSecs / 60);
@@ -24411,6 +24409,8 @@ function renderArchiv(records) {
 
 async function vxArchivRestore(recordId) {
   if (!recordId) return;
+  const sb = getSupabaseAuthClient ? getSupabaseAuthClient() : _sb;
+  if (!sb) return;
   try {
     var btn = document.querySelector('[onclick*="vxArchivRestore(\''+recordId+'\')"]');
     if (btn) { btn.disabled = true; btn.textContent = '…'; }
@@ -24421,7 +24421,7 @@ async function vxArchivRestore(recordId) {
       closed_at: null,
       updated_at: new Date().toISOString()
     };
-    var res = await _sb.from('calls').update(patch).eq('id', recordId);
+    var res = await sb.from('calls').update(patch).eq('id', recordId);
     if (res.error) throw res.error;
 
     // Update local record
@@ -26706,7 +26706,7 @@ function renderSystemStatusInSettings() {
   if(!sysEl) return;
   var latest = getLatestCallDate(allRecords);
   var hasRecent = latest && ((new Date() - latest) / (1000*60*60) < 72);
-  sysEl.textContent = hasRecent ? 'Aktiv – Anrufe werden empfangen' : allRecords.length > 0 ? 'Bereit – letzter Anruf vor über 3 Tagen' : 'Warte auf ersten Anruf';
+  sysEl.textContent = hasRecent ? 'Aktiv – Anrufe werden empfangen' : allRecords.length > 0 ? 'Bereit – letzter Anruf vor über 7 Tagen' : 'Warte auf ersten Anruf';
 }
 
 function renderSystemVoxeraNumbers(meta) {
@@ -35623,6 +35623,9 @@ button.vx-cd-qa-success:hover,
 }
 
 /* Expanded Panel Hintergrund */
+#archiv-list{overflow:hidden;width:100%;}
+#archiv-list .dpr-card{overflow:hidden;max-width:100%;}
+#archiv-list .vx-anf-row{overflow:hidden;max-width:100%;}
 #dash-priority-list .va-exp-panel,
 #anrufe-list.dpr-command-center .va-exp-panel,
 #archiv-list .va-exp-panel,
