@@ -7403,63 +7403,55 @@ body,.main{background:var(--vx-bg);}
         <!-- ARCHIV TAB -->
         <div class="tab-page" id="tab-archiv">
 
-          <!-- Header — identisch zu Heute/Anfragen -->
-          <div class="vx-greeting-block">
-            <div class="vx-greeting-top">
-              <div class="vx-greeting-left">
-                <div class="vx-greeting-title">Archiv</div>
-                <div id="archiv-stats-sub" class="vx-greeting-sub">–</div>
+          <!-- Header identisch zu Anfragen -->
+          <div class="vx-page-header" style="padding:18px 24px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
+              <div class="vx-page-header-title">Archiv</div>
+              <div id="archiv-stats-sub" style="font-size:12px;color:rgba(255,255,255,.72);">–</div>
+            </div>
+            <button id="archiv-export-btn" onclick="exportArchiv()" style="display:none;height:36px;padding:0 14px;border-radius:10px;background:rgba(255,255,255,.12);border:0.5px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;align-items:center;gap:6px;flex-shrink:0;"><i class="ph-bold ph-download-simple" style="font-size:13px;" aria-hidden="true"></i>Exportieren</button>
+          </div>
+
+          <!-- Split Panel identisch zu Anfragen -->
+          <div id="archiv-split" class="vx-split">
+
+            <div id="archiv-split-left" class="vx-split-left">
+
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid var(--vx-border);background:#FEF9EC;flex-shrink:0;">
+                <i class="ph-bold ph-clock" style="color:#D97706;font-size:13px;flex-shrink:0;" aria-hidden="true"></i>
+                <div style="font-size:10px;color:#92400E;line-height:1.4;">Einträge werden nach <strong>90 Tagen</strong> gelöscht.</div>
               </div>
-              <div style="display:flex;align-items:flex-start;gap:8px;flex-shrink:0;">
-                <button id="archiv-export-btn" onclick="exportArchiv()" style="display:none;height:34px;padding:0 14px;border-radius:10px;background:rgba(255,255,255,.12);border:0.5px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;align-items:center;gap:6px;"><i class="ph-bold ph-download-simple" style="font-size:13px;" aria-hidden="true"></i>Exportieren</button>
+
+              <div class="vx-split-filters">
+                <button class="vx-chip vx-chip--active" data-archiv-filter="all" onclick="filterArchiv('all',this)">Alle</button>
+                <button class="vx-chip" data-archiv-filter="today" onclick="filterArchiv('today',this)">Heute</button>
+                <button class="vx-chip" data-archiv-filter="week" onclick="filterArchiv('week',this)">Diese Woche</button>
+                <button class="vx-chip" data-archiv-filter="month" onclick="filterArchiv('month',this)">Dieser Monat</button>
+              </div>
+
+              <div class="vx-split-scroll">
+                <div class="call-list" id="archiv-list"></div>
               </div>
             </div>
 
-            <!-- KPI Strip — identisch zu Heute -->
-            <div id="archiv-kpi-strip" class="vx-kpi-strip" style="display:none;grid-template-columns:repeat(3,1fr);">
-              <div class="vx-kpi-cell">
-                <div class="vx-kpi-label">Einträge</div>
-                <div id="archiv-stat-count" class="vx-kpi-val" style="color:#fff;">–</div>
-                <div class="vx-kpi-note">archiviert</div>
+            <div id="archiv-split-resizer" title="Ziehen zum Anpassen"></div>
+            <div id="archiv-split-right" class="vx-split-right">
+              <div id="archiv-split-empty" class="vx-split-empty">
+                <i class="ph-bold ph-archive" style="font-size:28px;opacity:.2;" aria-hidden="true"></i>
+                <div class="vx-split-empty-text">Wähle einen Eintrag aus, um Details zu sehen.</div>
               </div>
-              <div class="vx-kpi-cell">
-                <div class="vx-kpi-label">Gesamtdauer</div>
-                <div id="archiv-stat-time" class="vx-kpi-val" style="color:#fff;">–</div>
-                <div class="vx-kpi-note">Minuten</div>
-              </div>
-              <div class="vx-kpi-cell">
-                <div class="vx-kpi-label">Heute erledigt</div>
-                <div id="archiv-stat-followups" class="vx-kpi-val" style="color:#059669;">–</div>
-                <div class="vx-kpi-note">Heute abgeschlossen</div>
-              </div>
+              <div id="archiv-detail-v2" style="display:none;flex:1;overflow:auto;"></div>
             </div>
           </div>
 
-          <!-- Löschhinweis -->
-          <div style="display:flex;align-items:flex-start;gap:10px;background:#FEF9EC;border:0.5px solid #FDE68A;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
-            <i class="ph-bold ph-clock" style="color:#D97706;font-size:16px;flex-shrink:0;margin-top:1px;" aria-hidden="true"></i>
-            <div style="font-size:12px;color:#92400E;line-height:1.55;">
-              <strong>Aufbewahrungsfrist:</strong> Archivierte Einträge werden nach <strong>12 Monaten</strong> automatisch und unwiderruflich gelöscht. Exportieren Sie wichtige Daten rechtzeitig.
-            </div>
+          <div style="display:none;">
+            <div id="archiv-stats"></div>
+            <div id="archiv-stat-count"></div>
+            <div id="archiv-stat-time"></div>
+            <div id="archiv-stat-followups"></div>
+            <div id="archiv-kpi-strip"></div>
           </div>
 
-          <!-- Filter-Chips — identisch zu Anfragen -->
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
-            <button class="vx-chip vx-chip--active" onclick="filterArchiv('all',this)">Alle</button>
-            <button class="vx-chip" onclick="filterArchiv('today',this)">Heute</button>
-            <button class="vx-chip" onclick="filterArchiv('week',this)">Diese Woche</button>
-            <button class="vx-chip" onclick="filterArchiv('month',this)">Dieser Monat</button>
-          </div>
-
-          <!-- Hidden compat for old renderArchiv stats references -->
-          <div id="archiv-stats" style="display:none;">
-            <div><div id="archiv-stat-count-old"></div></div>
-            <div><div id="archiv-stat-time-old"></div></div>
-            <div><div id="archiv-stat-followups-old"></div></div>
-          </div>
-
-          <!-- Liste -->
-          <div id="archiv-list"></div>
         </div><!-- ARCHIV TAB -->
 
         <!-- MEIN ASSISTENT TAB -->
@@ -23497,11 +23489,58 @@ function vxRenderRequestsDetailV2(record, options) {
 // [PR-C] Archiv-Row Click-Handler
 function vxArchivRowClick(e, cardEl) {
   if (e.target.closest('button')) return;
-  var recId = cardEl.dataset.id;
+  var recId = cardEl && cardEl.dataset && cardEl.dataset.id;
   if (!recId) return;
+
+  var isMobile = window.innerWidth < 768;
+
+  if (isMobile) {
+    // Mobile: Vollbild wie Anfragen
+    if (typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(recId);
+    if (typeof showCallDetail === 'function') showCallDetail(recId);
+    return;
+  }
+
+  // Desktop: in archiv-split-right einbetten
+  var splitRight = document.getElementById('archiv-split-right');
+  var splitEmpty = document.getElementById('archiv-split-empty');
+  var detailHost = document.getElementById('archiv-detail-v2');
+
+  if (!splitRight || !detailHost) {
+    // Fallback
+    if (typeof showCallDetail === 'function') showCallDetail(recId);
+    return;
+  }
+
+  // Active row markieren
   if (typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(recId);
-  var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
-  if (rec && typeof showCallDetail === 'function') showCallDetail(recId);
+  window._vxActiveRecordId = recId;
+  window._vxCurrentCallId = recId;
+
+  // Record auflösen
+  var rec = null;
+  if (typeof vxResolveDprRecord === 'function') rec = vxResolveDprRecord(recId);
+  if (!rec && Array.isArray(allRecords)) {
+    rec = allRecords.find(function(r) { return String((r && r.id) || '') === String(recId); }) || null;
+  }
+
+  if (!rec) {
+    detailHost.innerHTML = '<div style="padding:2rem;color:var(--slate2);font-size:13px;">Wird geladen…</div>';
+    if (splitEmpty) splitEmpty.style.display = 'none';
+    detailHost.style.display = 'flex';
+    return;
+  }
+
+  if (splitEmpty) splitEmpty.style.display = 'none';
+  detailHost.style.display = 'block';
+
+  // Detail rendern — nutzt denselben Renderer wie Anfragen
+  if (typeof vxRenderRequestsDetailV2 === 'function') {
+    vxRenderRequestsDetailV2(rec, { hostEl: detailHost });
+  } else if (typeof renderCallDetailPage === 'function') {
+    detailHost.innerHTML = '';
+    renderCallDetailPage(rec.fields || rec, []);
+  }
 }
 
 function vxGetAnfragenSourceRecords() {
@@ -24246,7 +24285,7 @@ function renderArchivInbox(containerId, records) {
     var d = parseCallTimestamp(ts);
     if (!d || isNaN(d.getTime())) return null;
     var del = new Date(d);
-    del.setMonth(del.getMonth() + 12);
+    del.setDate(del.getDate() + 90);
     return del;
   }
   function fmtDeletionDate(rec) {
@@ -24257,7 +24296,7 @@ function renderArchivInbox(containerId, records) {
   function isDeletionSoon(rec) {
     var d = calcDeletionDate(rec);
     if (!d) return false;
-    return (d - new Date()) < 30 * 24 * 60 * 60 * 1000; // < 30 Tage
+    return (d - new Date()) < 14 * 24 * 60 * 60 * 1000; // < 14 Tage
   }
 
   var groups = {};
@@ -24318,7 +24357,7 @@ function renderArchivInbox(containerId, records) {
       if (summary) html += '<div class="vx-anf-preview">'+_esc(summary)+'</div>';
       // Wiederherstellen-Button
       html += '<div style="margin-top:8px;" onclick="event.stopPropagation();">';
-      html += '<button onclick="vxArchivRestore(\''+id+'\')" style="height:28px;padding:0 10px;border-radius:8px;border:0.5px solid var(--line);background:var(--surface2);color:var(--slate);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;">';
+      html += '<button data-restore-id="'+id+'" onclick="event.stopPropagation();vxArchivRestore(this.dataset.restoreId)" style="height:28px;padding:0 10px;border-radius:8px;border:0.5px solid var(--line);background:var(--surface2);color:var(--slate);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;">';
       html += '<i class="ph-bold ph-arrow-u-up-left" style="font-size:11px;" aria-hidden="true"></i>Wiederherstellen</button>';
       html += '</div>';
       html += '</div>'; // vx-anf-body
@@ -24340,6 +24379,10 @@ function filterArchiv(period, btn) {
   var archivChips = document.querySelectorAll('#tab-archiv .vx-chip');
   archivChips.forEach(function(c) { c.classList.remove('vx-chip--active'); });
   if (btn) btn.classList.add('vx-chip--active');
+  else {
+    var activeChip = document.querySelector('#tab-archiv .vx-chip[data-archiv-filter="'+period+'"]');
+    if (activeChip) activeChip.classList.add('vx-chip--active');
+  }
 
   // Always sync from allRecords
   if (allRecords && allRecords.length) {
@@ -24377,13 +24420,11 @@ function renderArchiv(records) {
   const done = records.filter(r => isClosedStatus(r.fields.dashboard_status));
   _archivAllDone = done;
 
-  const kpiStrip = document.getElementById('archiv-kpi-strip');
   const exportBtn = document.getElementById('archiv-export-btn');
   const statsSub = document.getElementById('archiv-stats-sub');
 
   if (done.length > 0) {
-    if (kpiStrip) kpiStrip.style.display = 'grid';
-    if (exportBtn) { exportBtn.style.display = 'flex'; }
+    if (exportBtn) exportBtn.style.display = 'flex';
 
     const totalSecs = done.reduce((sum,r) => sum + Number((r.fields||{}).duration_seconds||0), 0);
     const totalMins = Math.round(totalSecs / 60);
@@ -24397,11 +24438,11 @@ function renderArchiv(records) {
     set('archiv-stat-count', done.length);
     set('archiv-stat-time', totalMins);
     set('archiv-stat-followups', closedToday);
-    if (statsSub) statsSub.textContent = done.length + ' Einträge · ' + totalMins + ' Min. Gesprächsdauer';
+    if (statsSub) statsSub.textContent = done.length + ' Eintr\u00e4ge \u00b7 ' + totalMins + ' Min. Gespr\u00e4chsdauer';
+    if (exportBtn) exportBtn.style.display = 'flex';
   } else {
-    if (kpiStrip) kpiStrip.style.display = 'none';
+    if (statsSub) statsSub.textContent = 'Noch keine archivierten Eintr\u00e4ge';
     if (exportBtn) exportBtn.style.display = 'none';
-    if (statsSub) statsSub.textContent = 'Noch keine archivierten Einträge';
   }
   filterArchiv(_archivFilter, null);
 }
@@ -24409,36 +24450,48 @@ function renderArchiv(records) {
 
 async function vxArchivRestore(recordId) {
   if (!recordId) return;
-  const sb = getSupabaseAuthClient ? getSupabaseAuthClient() : _sb;
-  if (!sb) return;
+
+  var btn = document.querySelector('[data-restore-id="'+recordId+'"]');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+  var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
+  if (!sb) {
+    if (typeof showToast === 'function') showToast('⚠ Authentifizierung erforderlich');
+    if (btn) { btn.disabled = false; btn.textContent = 'Wiederherstellen'; }
+    return;
+  }
+
   try {
-    var btn = document.querySelector('[onclick*="vxArchivRestore(\''+recordId+'\')"]');
-    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    var result = await sb.from('calls')
+      .update({ dashboard_status: 'new', completed_at: null, closed_at: null, updated_at: new Date().toISOString() })
+      .eq('id', recordId);
 
-    var patch = {
-      dashboard_status: 'new',
-      completed_at: null,
-      closed_at: null,
-      updated_at: new Date().toISOString()
-    };
-    var res = await sb.from('calls').update(patch).eq('id', recordId);
-    if (res.error) throw res.error;
+    if (result.error) throw result.error;
 
-    // Update local record
-    var idx = (allRecords || []).findIndex(function(r){ return String(r.id) === String(recordId); });
-    if (idx >= 0) {
-      allRecords[idx].fields.dashboard_status = 'new';
-      allRecords[idx].fields.completed_at = null;
-      allRecords[idx].fields.closed_at = null;
+    // Lokalen State aktualisieren
+    var records = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
+    var rec = records.find(function(r) { return String((r && r.id) || '') === String(recordId); });
+    if (rec && rec.fields) {
+      rec.fields.dashboard_status = 'new';
+      rec.fields.completed_at = null;
+      rec.fields.closed_at = null;
     }
+
     if (typeof showToast === 'function') showToast('✓ Eintrag wiederhergestellt');
-    renderArchiv(allRecords || []);
+    else if (typeof toast === 'function') toast('Eintrag wiederhergestellt', 'success');
+
+    renderArchiv(records);
     if (typeof renderAnrufe === 'function') renderAnrufe();
-    if (typeof renderDashboard === 'function') renderDashboard(allRecords || [], []);
+    if (typeof renderDashboard === 'function') renderDashboard(records, []);
+
   } catch(e) {
-    if (typeof showToast === 'function') showToast('⚠ Fehler beim Wiederherstellen');
-    var btn2 = document.querySelector('[onclick*="vxArchivRestore(\''+recordId+'\')"]');
-    if (btn2) { btn2.disabled = false; btn2.innerHTML = '<i class="ph-bold ph-arrow-u-up-left" style="font-size:11px;"></i>Wiederherstellen'; }
+    console.error('[vxArchivRestore]', e);
+    if (typeof showToast === 'function') showToast('⚠ Fehler: ' + (e.message || 'Unbekannter Fehler'));
+    var btn2 = document.querySelector('[data-restore-id="'+recordId+'"]');
+    if (btn2) {
+      btn2.disabled = false;
+      btn2.innerHTML = '<i class="ph-bold ph-arrow-u-up-left" style="font-size:11px;"></i> Wiederherstellen';
+    }
   }
 }
 window.vxArchivRestore = vxArchivRestore;
@@ -35624,6 +35677,9 @@ button.vx-cd-qa-success:hover,
 
 /* Expanded Panel Hintergrund */
 #archiv-list{overflow:hidden;width:100%;}
+#archiv-detail-v2{flex:1;overflow-y:auto;background:var(--vx-detail-bg);}
+#archiv-split-right{display:flex;flex-direction:column;}
+@media(max-width:767px){#archiv-split{display:block;height:auto;}.archiv-split-left{height:auto;}.archiv-split-right{display:none;}}
 #archiv-list .dpr-card{overflow:hidden;max-width:100%;}
 #archiv-list .vx-anf-row{overflow:hidden;max-width:100%;}
 #dash-priority-list .va-exp-panel,
@@ -36097,18 +36153,18 @@ button.vx-cd-qa-success:hover,
 }
 
 /* ── Split-View Resizer ──────────────────────────────────── */
-#anrufe-split-resizer{
+#anrufe-split-resizer,#archiv-split-resizer{
   width:5px;flex-shrink:0;cursor:col-resize;
   background:transparent;
   position:relative;z-index:10;
   transition:background .15s;
   -webkit-user-select:none;user-select:none;
 }
-#anrufe-split-resizer:hover,
-#anrufe-split-resizer.is-dragging{
+#anrufe-split-resizer:hover,#anrufe-split-resizer.is-dragging,
+#archiv-split-resizer:hover,#archiv-split-resizer.is-dragging{
   background:rgba(26,111,232,.25);
 }
-#anrufe-split-resizer::after{
+#anrufe-split-resizer::after,#archiv-split-resizer::after{
   content:'';
   position:absolute;top:50%;left:50%;
   transform:translate(-50%,-50%);
@@ -36117,8 +36173,8 @@ button.vx-cd-qa-success:hover,
   background:rgba(26,111,232,.4);
   opacity:0;transition:opacity .15s;
 }
-#anrufe-split-resizer:hover::after,
-#anrufe-split-resizer.is-dragging::after{ opacity:1; }
+#anrufe-split-resizer:hover::after,#anrufe-split-resizer.is-dragging::after,
+#archiv-split-resizer:hover::after,#archiv-split-resizer.is-dragging::after{ opacity:1; }
 
 /* Archiv: Lösch-Warnung Pill */
 .vx-archive-expiry{
@@ -36500,6 +36556,44 @@ button.vx-cd-qa-success:hover,
     var applied = applyWidth(initial);
     vxSafeLocalStorageSet('vx_split_w', applied);
   } catch(e) {}
+})();
+
+(function(){
+  var resizer = document.getElementById('archiv-split-resizer');
+  var leftPanel = document.getElementById('archiv-split-left');
+  if (!resizer || !leftPanel) return;
+  var startX = 0, startW = 0, dragging = false;
+  var DEFAULT_W = 440, MIN_W = 300, MAX_RATIO = 0.6;
+  function clampW(c) {
+    var maxW = Math.floor((leftPanel.parentElement ? leftPanel.parentElement.offsetWidth : window.innerWidth) * MAX_RATIO);
+    if (!isFinite(maxW) || maxW <= MIN_W) maxW = MIN_W;
+    return Math.min(Math.max(c, MIN_W), maxW);
+  }
+  function applyW(w) {
+    var clamped = clampW(w);
+    leftPanel.style.setProperty('width', clamped + 'px', 'important');
+    leftPanel.style.setProperty('flex-basis', clamped + 'px', 'important');
+    return clamped;
+  }
+  function onMM(e) { if (dragging) applyW(startW + e.clientX - startX); }
+  function onMU() {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('is-dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.removeEventListener('mousemove', onMM);
+    document.removeEventListener('mouseup', onMU);
+  }
+  resizer.addEventListener('mousedown', function(e) {
+    e.preventDefault(); dragging = true; startX = e.clientX; startW = leftPanel.offsetWidth;
+    resizer.classList.add('is-dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMM);
+    document.addEventListener('mouseup', onMU);
+  });
+  applyW(DEFAULT_W);
 })();
 </script>
 
