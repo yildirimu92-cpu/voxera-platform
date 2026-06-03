@@ -403,10 +403,10 @@
 .vx-split-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--vx-text3);}
 .vx-split-empty-text{font-size:12px;color:var(--vx-text3);}
 
-.vx-chip{height:26px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;border:0.5px solid var(--vx-border-md);color:var(--vx-text3);background:var(--vx-surface);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .12s;}
-.vx-chip:hover{color:var(--vx-text2);}
-.vx-chip--active{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
-.vx-chip--active:hover{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
+.vx-chip{height:28px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:500;border:none;color:var(--vx-text3);background:transparent;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .12s;}
+.vx-chip:hover{background:var(--vx-bg);color:var(--vx-text2);}
+.vx-chip--active{background:#1A6FE8;color:#fff;}
+.vx-chip--active:hover{background:#1560C8;color:#fff;}
 
 .vxfb-chip{height:26px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;border:0.5px solid var(--vx-border-md);color:var(--vx-text3);background:var(--vx-surface);cursor:pointer;white-space:nowrap;font-family:inherit;}
 .vxfb-chip--active,.vxfb-chip.vxfb-chip--active{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
@@ -1411,13 +1411,14 @@ body{
 /* ── Unified Page Header (Night-Bar) ── */
 .vx-page-header{
   background:var(--vx-night);
-  border-radius:var(--r-lg);
-  padding:14px 18px;
+  border-radius:16px;
+  padding:18px 24px;
   margin-bottom:14px;
   display:flex;
   align-items:center;
-  gap:12px;
-  min-height:56px;
+  justify-content:space-between;
+  gap:16px;
+  min-height:60px;
   box-sizing:border-box;
 }
 .vx-page-header-title{
@@ -7248,7 +7249,7 @@ body,.main{background:var(--vx-bg);}
         <div class="tab-page" id="tab-anrufe">
 
           <!-- vx-page-header — konsistent mit Bericht und Assistent -->
-          <div class="vx-page-header" style="padding:18px 24px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+          <div class="vx-page-header">
             <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
               <div class="vx-page-header-title">Anfragen</div>
               <div id="anrufe-split-count" style="font-size:12px;color:rgba(255,255,255,.72);">–</div>
@@ -7404,7 +7405,7 @@ body,.main{background:var(--vx-bg);}
         <div class="tab-page" id="tab-archiv">
 
           <!-- Header identisch zu Anfragen -->
-          <div class="vx-page-header" style="padding:18px 24px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+          <div class="vx-page-header">
             <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
               <div class="vx-page-header-title">Archiv</div>
               <div id="archiv-stats-sub" style="font-size:12px;color:rgba(255,255,255,.72);">–</div>
@@ -20221,10 +20222,13 @@ function renderCallDetailPage(call, history) {
         +     '<button type="button" class="vxdr-iconbtn" id="vxd-menu-trigger" onclick="event.stopPropagation();vxdToggleMenu(event);" aria-haspopup="menu" aria-expanded="false" aria-label="Weitere Aktionen" title="Weitere Aktionen"><i class="ph-bold ph-dots-three-vertical" aria-hidden="true"></i></button>'
         +   '</div>'
         +   '<div class="vxdr-menu" id="vxd-menu" role="menu" hidden>'
-        +     '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailFaelligkeit();"><i class="ph-bold ph-calendar-plus" aria-hidden="true"></i><span>Follow-up planen</span></button>'
-        +     (isCallback || isOffer || isAppointment ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailErledigt(event);"><i class="ph-bold ph-check" aria-hidden="true"></i><span>Als erledigt markieren</span></button>' : '')
-        +     (_hasPhone && !isCallback ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailAnrufen(event);"><i class="ph-bold ph-phone" aria-hidden="true"></i><span>Anrufen</span></button>' : '')
-        +     '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailArchivieren();"><i class="ph-bold ph-archive" aria-hidden="true"></i><span>Archivieren</span></button>'
+        +     (document.getElementById('tab-archiv') && document.getElementById('tab-archiv').classList.contains('active')
+                ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxArchivRestore(window._vxCurrentCallId);"><i class="ph-bold ph-arrow-u-up-left" aria-hidden="true"></i><span>Wiederherstellen</span></button>'
+                : '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailFaelligkeit();"><i class="ph-bold ph-calendar-plus" aria-hidden="true"></i><span>Follow-up planen</span></button>'
+                + (isCallback || isOffer || isAppointment ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailErledigt(event);"><i class="ph-bold ph-check" aria-hidden="true"></i><span>Als erledigt markieren</span></button>' : '')
+                + (_hasPhone && !isCallback ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailAnrufen(event);"><i class="ph-bold ph-phone" aria-hidden="true"></i><span>Anrufen</span></button>' : '')
+                + '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxCallDetailArchivieren();"><i class="ph-bold ph-archive" aria-hidden="true"></i><span>Archivieren</span></button>'
+              )
         +   '</div>'
         + '</section>';
     }
@@ -24270,44 +24274,23 @@ function renderArchivInbox(containerId, records) {
   if (!el) return;
 
   if (!records || records.length === 0) {
-    el.innerHTML = '<div style="padding:32px 20px;text-align:center;color:var(--slate2);font-size:13px;background:var(--surface);border-radius:var(--r-lg);border:0.5px solid var(--line);">' +
-      '<i class="ph-bold ph-archive-box" style="font-size:28px;color:#E4E8F0;margin-bottom:10px;display:block;"></i>' +
-      '<div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">Noch kein Verlauf</div>' +
-      '<div style="font-size:12px;color:var(--slate2);">Erledigte Anrufe erscheinen hier im Verlauf.</div></div>';
+    var emptyMsg = (typeof vxGetInboxEmptyMessage === 'function')
+      ? vxGetInboxEmptyMessage('archiv', 'all')
+      : 'Noch keine archivierten Einträge.';
+    el.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--vx-text3);font-size:13px;">'
+      + '<i class="ph-bold ph-archive-box" style="font-size:28px;opacity:.25;margin-bottom:8px;display:block;" aria-hidden="true"></i>'
+      + '<div>' + _esc(emptyMsg) + '</div></div>';
     return;
   }
 
-  // Helper: Löschdatum berechnen (12 Monate nach Erstellung)
-  function calcDeletionDate(rec) {
-    var f = (rec && rec.fields) || {};
-    var ts = f.created_at || getRecordTimestamp(rec);
-    if (!ts) return null;
-    var d = parseCallTimestamp(ts);
-    if (!d || isNaN(d.getTime())) return null;
-    var del = new Date(d);
-    del.setDate(del.getDate() + 90);
-    return del;
-  }
-  function fmtDeletionDate(rec) {
-    var d = calcDeletionDate(rec);
-    if (!d) return '';
-    return d.toLocaleDateString('de-CH', { day:'numeric', month:'short', year:'numeric', timeZone:'Europe/Zurich' });
-  }
-  function isDeletionSoon(rec) {
-    var d = calcDeletionDate(rec);
-    if (!d) return false;
-    return (d - new Date()) < 14 * 24 * 60 * 60 * 1000; // < 14 Tage
-  }
-
-  var groups = {};
-  var groupOrder = [];
-  var _rtz2 = 'Europe/Zurich';
-  var _rfd2 = function(d) { return new Intl.DateTimeFormat('de-CH',{timeZone:_rtz2,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(d)); };
-  var _rtdk2 = _rfd2(new Date()); var _ryek2 = _rfd2(new Date(Date.now()-86400000));
-
+  // Datum-Gruppen — identisch zu Anfragen
+  var _now = new Date();
+  var _rfd2 = function(d) { return d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate(); };
+  var _rtdk2 = _rfd2(_now);
+  var _ryek2 = _rfd2(new Date(_now.getTime() - 86400000));
+  var groups = {}, groupOrder = [];
   records.forEach(function(rec) {
-    var f = (rec && rec.fields) || {};
-    var ts = f.completed_at || f.closed_at || f.done_at || getRecordTimestamp(rec);
+    var ts = getRecordTimestamp(rec);
     var d = ts ? parseCallTimestamp(ts) : null;
     var label;
     if (!d) { label = 'Unbekannt'; }
@@ -24315,7 +24298,7 @@ function renderArchivInbox(containerId, records) {
       var dk2 = _rfd2(d);
       if (dk2 === _rtdk2) label = 'Heute';
       else if (dk2 === _ryek2) label = 'Gestern';
-      else label = d.toLocaleDateString('de-CH', {day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Zurich'});
+      else label = d.toLocaleDateString('de-CH', {day:'numeric', month:'short', year:'numeric', timeZone:'Europe/Zurich'});
     }
     if (!groups[label]) { groups[label] = []; groupOrder.push(label); }
     groups[label].push(rec);
@@ -24323,51 +24306,41 @@ function renderArchivInbox(containerId, records) {
 
   var html = '';
   groupOrder.forEach(function(label) {
-    html += '<div class="vx-date-sep">'+label+'</div>';
+    html += '<div class="vx-date-sep"><i class="ph-bold ph-calendar-dots" aria-hidden="true"></i>' + _esc(label) + '</div>';
     groups[label].forEach(function(rec) {
       var f = rec.fields || {};
       var id = _esc(rec.id);
+      var phone = String(f.caller_phone || f.phone_number || '').trim();
       var name = vxResolveDisplayName(f, 'Unbekannte Nummer');
       var company = (f.company_name && f.caller_name && f.company_name !== f.caller_name) ? f.company_name : '';
-      var phone = f.caller_phone || f.phone_number || '';
-      var duration = f.duration_seconds ? _formatDuration(f.duration_seconds) : '';
-      var summary = f.summary || f.call_summary || '';
-      var inquiryMeta = vxGetInquiryTypeMeta(rec);
-      var delDateStr = fmtDeletionDate(rec);
-      var soon = isDeletionSoon(rec);
+      var _typeMeta = (typeof vxDashGetCommandTypeMeta === 'function') ? vxDashGetCommandTypeMeta(rec) : {icon:'phone-incoming', label:'Anruf', pillClass:'dpr-kind-default', kind:'incoming'};
+      var iconName = _typeMeta.icon || 'phone-incoming';
+      var _isCallIcon = _typeMeta.kind === 'callback' || _typeMeta.kind === 'incoming';
+      var _preview = String(f.call_summary || f.summary || f.note || '').trim();
+      if (_preview.length > 65) _preview = _preview.slice(0, 62) + '…';
+      var ts2 = getRecordTimestamp(rec);
+      var _timeStr = ts2 ? _formatRelativeTime(ts2) : '';
+      var _activeRenderId = String(window._vxActiveRecordId || window._vxLastAnfragenRecordId || window._vxCurrentCallId || '');
+      var _activeClass = (_activeRenderId && String(rec.id) === _activeRenderId) ? ' sp-active' : '';
 
-      html += '<div class="dpr-card" data-id="'+id+'" data-phone="'+_esc(phone)+'" data-kind="inquiry" data-rail="done" onclick="vxArchivRowClick(event,this)">';
-      html += '<div class="vx-anf-row" data-id="'+id+'" data-phone="'+_esc(phone)+'">';
-      html += '<div class="vx-anf-dot-empty"></div>';
-      html += '<div class="vx-anf-icon is-call"><i class="ph-bold ph-'+inquiryMeta.icon+'"></i></div>';
-      html += '<div class="vx-anf-body">';
-      html += '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;">';
-      html += '<div class="vx-anf-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">'+_esc(name)+(company?' <span style="font-weight:400;color:var(--vx-text3);">· '+_esc(company)+'</span>':'')+'</div>';
-      // Löschdatum rechts
-      if (delDateStr) {
-        html += '<div style="font-size:10px;color:'+(soon?'#DC2626':'var(--slate2)')+';white-space:nowrap;flex-shrink:0;" title="Wird endgültig gelöscht am '+delDateStr+'">';
-        html += '<i class="ph-bold ph-trash" style="font-size:9px;margin-right:2px;" aria-hidden="true"></i>'+delDateStr;
-        html += '</div>';
-      }
+      html += '<div class="dpr-card' + _activeClass + '" data-id="' + id + '" data-phone="' + _esc(phone) + '" data-kind="inquiry" data-rail="done" onclick="vxArchivRowClick(event,this)">';
+      html += '<div class="vx-heute-row rail-today" data-id="' + id + '" data-record-id="' + id + '">';
+      html += '<div class="vx-row-icon' + (_isCallIcon ? ' is-call' : '') + '"><i class="ph-bold ph-' + iconName + '" aria-hidden="true"></i></div>';
+      html += '<div class="vx-row-body">';
+      html += '<div class="vx-row-name">' + _esc(name) + (company ? '<span class="dpr-co">' + _esc(company) + '</span>' : '') + '<span class="vx-row-pill dpr-kind-done">Archiviert</span></div>';
+      if (_timeStr) html += '<div class="vx-row-time">' + _esc(_timeStr) + '</div>';
+      if (_preview) html += '<div class="vx-row-summary">' + _esc(_preview) + '</div>';
       html += '</div>';
-      html += '<div class="vx-anf-pills">';
-      html += '<span class="vx-anf-pill is-done">Erledigt</span>';
-      if (duration) html += '<span class="vx-anf-pill" style="color:var(--vx-text3);">'+duration+'</span>';
+      // Wiederherstellen — kompakter Button rechts
+      html += '<div class="vx-row-btns vx-row-btns--single" onclick="event.stopPropagation();">';
+      html += '<button type="button" class="vx-ibtn is-open" data-restore-id="' + id + '" onclick="event.stopPropagation();vxArchivRestore(this.dataset.restoreId)" title="Wiederherstellen" aria-label="Wiederherstellen"><i class="ph-bold ph-arrow-u-up-left" aria-hidden="true"></i></button>';
       html += '</div>';
-      if (summary) html += '<div class="vx-anf-preview">'+_esc(summary)+'</div>';
-      // Wiederherstellen-Button
-      html += '<div style="margin-top:8px;" onclick="event.stopPropagation();">';
-      html += '<button data-restore-id="'+id+'" onclick="event.stopPropagation();vxArchivRestore(this.dataset.restoreId)" style="height:28px;padding:0 10px;border-radius:8px;border:0.5px solid var(--line);background:var(--surface2);color:var(--slate);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;">';
-      html += '<i class="ph-bold ph-arrow-u-up-left" style="font-size:11px;" aria-hidden="true"></i>Wiederherstellen</button>';
-      html += '</div>';
-      html += '</div>'; // vx-anf-body
-      html += '</div>'; // vx-anf-row
+      html += '</div>'; // vx-heute-row
       html += '</div>'; // dpr-card
     });
   });
 
   el.innerHTML = html;
-  dprRestoreOpen();
   if (window._vxActiveRecordId && typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(window._vxActiveRecordId);
   vxApplyPendingRowHighlight();
 }
@@ -24384,10 +24357,10 @@ function filterArchiv(period, btn) {
     if (activeChip) activeChip.classList.add('vx-chip--active');
   }
 
-  // Always sync from allRecords
+  // Always sync from allRecords — nur echte archived Records
   if (allRecords && allRecords.length) {
     _archivAllDone = allRecords.filter(function(r) {
-      return isClosedStatus(r.fields.dashboard_status);
+      return normalizeStatus((r.fields || {}).dashboard_status) === CALL_STATUS.ARCHIVED;
     });
   }
   var now = new Date();
@@ -24417,7 +24390,10 @@ function filterArchiv(period, btn) {
 }
 
 function renderArchiv(records) {
-  const done = records.filter(r => isClosedStatus(r.fields.dashboard_status));
+  const done = records.filter(r => {
+    var s = normalizeStatus((r.fields || {}).dashboard_status);
+    return s === CALL_STATUS.ARCHIVED;
+  });
   _archivAllDone = done;
 
   const exportBtn = document.getElementById('archiv-export-btn');
@@ -24463,7 +24439,7 @@ async function vxArchivRestore(recordId) {
 
   try {
     var result = await sb.from('calls')
-      .update({ dashboard_status: 'new', completed_at: null, closed_at: null, updated_at: new Date().toISOString() })
+      .update({ dashboard_status: 'closed', completed_at: null, updated_at: new Date().toISOString() })
       .eq('id', recordId);
 
     if (result.error) throw result.error;
@@ -24472,9 +24448,8 @@ async function vxArchivRestore(recordId) {
     var records = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
     var rec = records.find(function(r) { return String((r && r.id) || '') === String(recordId); });
     if (rec && rec.fields) {
-      rec.fields.dashboard_status = 'new';
+      rec.fields.dashboard_status = 'closed';
       rec.fields.completed_at = null;
-      rec.fields.closed_at = null;
     }
 
     if (typeof showToast === 'function') showToast('✓ Eintrag wiederhergestellt');
@@ -24498,7 +24473,7 @@ window.vxArchivRestore = vxArchivRestore;
 
 function exportArchiv() {
   var done = _archivAllDone.length ? _archivAllDone :
-    (allRecords||[]).filter(function(r){ return isClosedStatus(r.fields.dashboard_status); });
+    (allRecords||[]).filter(function(r){ return normalizeStatus((r.fields||{}).dashboard_status) === CALL_STATUS.ARCHIVED; });
   if (!done.length) { toast('Keine Einträge zum Exportieren'); return; }
   var rows = [['Name','Telefon','Kategorie','Datum','Uhrzeit','Zusammenfassung','Nachfassen','Notiz']];
   done.forEach(function(r) {
@@ -44193,6 +44168,7 @@ body:has(#tab-archiv.active) .content{
       '#requests-detail-v2 .vx-dv2-note{width:100%;min-height:90px;padding:10px 12px;border:0.5px solid var(--vx-border-md);border-radius:10px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;background:var(--vx-bg);color:var(--vx-text);line-height:1.6;}\n' +
       '@media(max-width:1180px){#requests-detail-v2 .vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}\n' +
       '@media(max-width:760px){#requests-detail-v2 .vx-dv2-info-grid{grid-template-columns:1fr;}#requests-detail-v2 .vx-dv2-actions{position:sticky;top:0;z-index:2;}}\n';
+    style.textContent += style.textContent.replace(/#requests-detail-v2/g, '#archiv-detail-v2');
     document.head.appendChild(style);
   }
 
