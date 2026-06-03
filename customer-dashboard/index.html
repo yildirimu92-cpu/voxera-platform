@@ -6991,6 +6991,10 @@ body,.main{background:var(--vx-bg);}
           <i class="ph-light ph-chart-bar nav-icon" aria-hidden="true"></i>
           Bericht
         </div>
+        <div class="nav-item" id="nav-archiv" onclick="showTab('archiv',this)">
+          <i class="ph-light ph-archive nav-icon" aria-hidden="true"></i>
+          Archiv
+        </div>
         <div class="nav-item" id="nav-mehr" onclick="showTab('mehr',this)">
           <i class="ph-light ph-gear nav-icon" aria-hidden="true"></i>
           Einstellungen
@@ -7004,7 +7008,6 @@ body,.main{background:var(--vx-bg);}
         </div>
         <!-- Hidden compat nav items — kept for JS references -->
         <div id="nav-rueckrufe" style="display:none"></div>
-        <div id="nav-archiv" style="display:none"></div>
       </nav>
 
       <div class="sidebar-footer">
@@ -7155,9 +7158,9 @@ body,.main{background:var(--vx-bg);}
                   <div id="kpi-done-new" class="vx-kpi-val" style="color:var(--vx-gold);">–</div>
                   <div id="kpi-done-note" class="vx-kpi-note">Anfragen</div>
                 </div>
-                <div class="vx-kpi-cell" style="display:none;">
+                <div class="vx-kpi-cell" id="kpi-cell-completed">
                   <div id="kpi-reach-bar-new" style="display:none;"></div>
-                  <div class="vx-kpi-label">Assistent</div>
+                  <div class="vx-kpi-label">Erledigt heute</div>
                   <div id="kpi-reach-val" class="vx-kpi-val">–</div>
                   <div id="kpi-reach-label" class="vx-kpi-note"></div>
                 </div>
@@ -7388,6 +7391,54 @@ body,.main{background:var(--vx-bg);}
           </div>
 
         </div><!-- EINSTELLUNGEN TAB -->
+
+        <!-- ARCHIV TAB -->
+        <div class="tab-page" id="tab-archiv">
+          <div class="vx-page-header">
+            <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+              <div class="vx-page-header-title">Archiv</div>
+              <div id="archiv-stats-sub" style="font-size:12px;color:rgba(255,255,255,.65);">–</div>
+            </div>
+            <button id="archiv-export-btn" onclick="exportArchiv()" style="display:none;height:36px;padding:0 14px;border-radius:10px;background:rgba(255,255,255,.12);border:0.5px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;"><i class="ph-bold ph-download-simple" style="font-size:13px;" aria-hidden="true"></i>Exportieren</button>
+          </div>
+
+          <!-- Löschhinweis -->
+          <div style="display:flex;align-items:flex-start;gap:10px;background:#FEF9EC;border:0.5px solid #FDE68A;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+            <i class="ph-bold ph-clock" style="color:#D97706;font-size:16px;flex-shrink:0;margin-top:1px;" aria-hidden="true"></i>
+            <div style="font-size:12px;color:#92400E;line-height:1.55;">
+              <strong>Aufbewahrungsfrist:</strong> Archivierte Einträge werden nach <strong>12 Monaten</strong> automatisch und unwiderruflich gelöscht. Exportieren Sie wichtige Daten rechtzeitig.
+            </div>
+          </div>
+
+          <!-- Filter -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+            <button class="archiv-filter-btn active" onclick="filterArchiv('all',this)">Alle</button>
+            <button class="archiv-filter-btn" onclick="filterArchiv('today',this)">Heute</button>
+            <button class="archiv-filter-btn" onclick="filterArchiv('week',this)">Diese Woche</button>
+            <button class="archiv-filter-btn" onclick="filterArchiv('month',this)">Dieser Monat</button>
+          </div>
+
+          <!-- Stats -->
+          <div id="archiv-stats" style="display:none;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:12px 14px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate2);margin-bottom:4px;">Einträge</div>
+              <div id="archiv-stat-count" style="font-size:22px;font-weight:800;color:var(--ink);">–</div>
+            </div>
+            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:12px 14px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate2);margin-bottom:4px;">Gesamtdauer</div>
+              <div id="archiv-stat-time" style="font-size:22px;font-weight:800;color:var(--ink);">–</div>
+              <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Minuten</div>
+            </div>
+            <div style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:12px 14px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate2);margin-bottom:4px;">Heute erledigt</div>
+              <div id="archiv-stat-followups" style="font-size:22px;font-weight:800;color:#059669;">–</div>
+            </div>
+          </div>
+
+          <!-- Liste -->
+          <div id="archiv-list"></div>
+        </div><!-- ARCHIV TAB -->
+
         <!-- MEIN ASSISTENT TAB -->
         <div class="tab-page" id="tab-assistent">
 
@@ -8575,6 +8626,12 @@ body,.main{background:var(--vx-bg);}
         </span>
         Bericht
       </button>
+      <button class="mobile-nav-btn" id="mnav-archiv" onclick="showTab('archiv',this)">
+        <span class="mobile-nav-icon-wrap">
+          <i class="ph-bold ph-archive" aria-hidden="true"></i>
+        </span>
+        Archiv
+      </button>
       <button class="mobile-nav-btn" id="mnav-mehr" onclick="showTab('mehr',this)">
         <span class="mobile-nav-icon-wrap">
           <i class="ph-bold ph-dots-three" aria-hidden="true"></i>
@@ -8584,7 +8641,6 @@ body,.main{background:var(--vx-bg);}
       <!-- Hidden compat -->
       <button id="mnav-konto" style="display:none" onclick="showTab('einstellungen',this);openAccount()"></button>
       <button id="mnav-rueckrufe" style="display:none" onclick="showTab('rueckrufe',this)"></button>
-      <button id="mnav-archiv" style="display:none" onclick="showTab('archiv',this)"></button>
     </div>
   </div>
 
@@ -9892,11 +9948,11 @@ function vxDashGetCommandTypeMeta(record) {
   var nextAction = String(f.next_action || '').trim().toLowerCase();
   var hasFollowUp = !!(f.follow_up_at || f.followup_at || f.followUpAt || f.follow_up);
   var isCallback = f.callback_requested === true || f.callback_requested === 'true' || rawType === 'callback' || rawType === 'rueckruf' || rawType === 'rückruf' || nextAction.indexOf('rückruf') >= 0 || nextAction.indexOf('zurückruf') >= 0 || nextAction.indexOf('zurückrufen') >= 0;
-  if (isCallback) return { kind:'callback', label:'Rückruf', icon:'phone-outgoing', pillClass:'dpr-kind-callback', action:'call', actionLabel:'Jetzt anrufen', actionIcon:'phone-call', actionClass:'is-call' };
-  if (rawType === 'offerte' || rawType === 'information' || rawType === 'offer' || nextAction.indexOf('offerte') >= 0 || nextAction.indexOf('information') >= 0) return { kind:'offer', label:'Offerte', icon:'receipt', pillClass:'dpr-kind-offer', action:'edit', actionLabel:'Bearbeiten', actionIcon:'pencil-simple', actionClass:'is-soft-blue' };
-  if (rawType === 'termin' || rawType === 'appointment' || nextAction.indexOf('termin') >= 0) return { kind:'appointment', label:'Termin', icon:'calendar-plus', pillClass:'dpr-kind-appointment', action:'edit', actionLabel:'Bearbeiten', actionIcon:'pencil-simple', actionClass:'is-soft-blue' };
-  if (rawType === 'follow_up' || rawType === 'nachfassen') return { kind:'followup', label:'Nachfassen', icon:'clock-countdown', pillClass:'dpr-kind-task', action:'edit', actionLabel:'Bearbeiten', actionIcon:'pencil-simple', actionClass:'is-soft-blue' };
-  if (rawType === 'task' || rawType === 'general' || rawType === 'aufgabe' || rawType === 'sonstiges' || hasFollowUp || nextAction) return { kind:'task', label:'Aufgabe', icon:'check-circle', pillClass:'dpr-kind-task', action:'edit', actionLabel:'Bearbeiten', actionIcon:'pencil-simple', actionClass:'is-soft-blue' };
+  if (isCallback) return { kind:'callback', label:'Rückruf', icon:'phone-incoming', pillClass:'dpr-kind-callback', action:'call', actionLabel:'Jetzt anrufen', actionIcon:'phone-call', actionClass:'is-call' };
+  if (rawType === 'offerte' || rawType === 'information' || rawType === 'offer' || nextAction.indexOf('offerte') >= 0 || nextAction.indexOf('information') >= 0) return { kind:'offer', label:'Offerte', icon:'phone-incoming', pillClass:'dpr-kind-offer', action:'edit', actionLabel:'Bearbeiten', actionIcon:'pencil-simple', actionClass:'is-soft-blue' };
+  if (rawType === 'termin' || rawType === 'appointment' || nextAction.indexOf('termin') >= 0) return { kind:'appointment', label:'Termin', icon:'phone-incoming', pillClass:'dpr-kind-appointment', action:'edit', actionLabel:'Bearbeiten', actionIcon:'pencil-simple', actionClass:'is-soft-blue' };
+  if (rawType === 'follow_up' || rawType === 'nachfassen') return { kind:'followup', label:'Nachfassen', icon:'phone-incoming', pillClass:'dpr-kind-task', action:'edit', actionLabel:'Bearbeiten', actionIcon:'pencil-simple', actionClass:'is-soft-blue' };
+  if (rawType === 'task' || rawType === 'general' || rawType === 'aufgabe' || rawType === 'sonstiges' || hasFollowUp || nextAction) return { kind:'task', label:'Anruf', icon:'phone-incoming', pillClass:'dpr-kind-incoming', action:'edit', actionLabel:'Bearbeiten', actionIcon:'pencil-simple', actionClass:'is-soft-blue' };
   return { kind:'incoming', label:'Anruf', icon:'phone-incoming', pillClass:'dpr-kind-incoming', action:'detail', actionLabel:'Details', actionIcon:'caret-right', actionClass:'is-soft-blue' };
 }
 
@@ -9997,19 +10053,19 @@ function vxGetInquiryTypeMeta(rec) {
 
   // Icon und Farbe nach Inhalt (nicht nach Status)
   if (isCallback) return {
-    pillClass: 'dpr-kind-callback', icon: 'phone-outgoing',
+    pillClass: 'dpr-kind-callback', icon: 'phone-incoming',
     label: 'Rückruf', statusLabel: isDone ? 'Erledigt' : isPlanned ? 'Geplant' : 'Offen'
   };
   if (category && category.toLowerCase().indexOf('termin') >= 0) return {
-    pillClass: 'dpr-kind-appointment', icon: 'calendar-plus',
+    pillClass: 'dpr-kind-appointment', icon: 'phone-incoming',
     label: 'Termin', statusLabel: isDone ? 'Erledigt' : isPlanned ? 'Geplant' : 'Offen'
   };
   if (category && (category.toLowerCase().indexOf('offerte') >= 0 || category.toLowerCase().indexOf('information') >= 0)) return {
-    pillClass: 'dpr-kind-offer', icon: 'receipt',
+    pillClass: 'dpr-kind-offer', icon: 'phone-incoming',
     label: 'Offerte', statusLabel: isDone ? 'Erledigt' : isPlanned ? 'Geplant' : 'Offen'
   };
   if (isArchived) return {
-    pillClass: 'dpr-kind-default', icon: 'check-circle',
+    pillClass: 'dpr-kind-default', icon: 'phone-incoming',
     label: 'Erledigt', statusLabel: 'Erledigt'
   };
   if (isDone) return {
