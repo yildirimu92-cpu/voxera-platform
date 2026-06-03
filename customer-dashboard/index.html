@@ -11852,7 +11852,7 @@ function resolveFollowUpAt(fields) {
 
 function normalizeTaskStatus(rawStatus) {
   const raw = String(rawStatus || '').trim().toLowerCase();
-  if (raw === 'closed' || raw === 'done' || raw === 'abgeschlossen' || raw === 'resolved' || raw === 'completed' || raw === 'erledigt') return 'done';
+  if (raw === 'closed' || raw === 'done' || raw === 'abgeschlossen' || raw === 'resolved' || raw === 'erledigt') return 'done';
   if (raw === 'waiting_external' || raw === 'waiting') return 'in_progress';
   if (raw === 'planned' || raw === 'scheduled' || raw === 'geplant' || raw === 'follow_up_scheduled') return 'planned';
   if (raw === 'in_progress' || raw === 'follow_up_scheduled' || raw === 'in bearbeitung') return 'in_progress';
@@ -11868,7 +11868,7 @@ function vxNormalizeStatusToken(value) {
   if (!raw) return '';
   raw = raw.replace(/[\u2010-\u2015]/g, '-').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
   var archivedAliases = ['archived','archive','archiv','archiviert','deleted','gelöscht','geloescht','cancelled','canceled','storniert'];
-  var doneAliases = ['done','completed','complete','closed','resolved','erledigt','abgeschlossen','geschlossen','fertig'];
+  var doneAliases = ['done','closed','resolved','erledigt','abgeschlossen','geschlossen','fertig'];
   var plannedAliases = ['planned','geplant','scheduled','followup','follow up','follow up scheduled','follow up geplant','callback planned','callback geplant','rückruf geplant','rueckruf geplant'];
   var openAliases = ['new','neu','open','offen','pending','in progress','in bearbeitung','processing','triaged','waiting external','waiting'];
   if (archivedAliases.indexOf(raw) !== -1) return 'archived';
@@ -12629,7 +12629,6 @@ function vxBuildOperationalRowActions(record, context) {
   if (isManual) {
     if (isDone || isArchived) {
       menuActions.push({ action:'schedule-callback', title:'Rückruf planen' });
-      menuActions.push({ action:'create-task', title:'Aufgabe erstellen' });
       if (!isArchived) menuActions.push({ action:'archive', title:'Archivieren' });
     } else {
       menuActions.push({ action:'done', title:'Erledigen' });
@@ -12642,14 +12641,12 @@ function vxBuildOperationalRowActions(record, context) {
 
   if (isDone || isArchived) {
     menuActions.push({ action:'followup', title:'Rückruf planen' });
-    menuActions.push({ action:'create-task', title:'Aufgabe erstellen' });
     if (!isArchived) menuActions.push({ action:'archive', title:'Archivieren' });
     return { primaryAction: primaryAction, menuActions: menuActions };
   }
 
   menuActions.push({ action:'followup', title:'Rückruf planen' });
   if (isPlanned) menuActions.push({ action:'followup', title:'Fälligkeit ändern' });
-  else menuActions.push({ action:'create-task', title:'Aufgabe erstellen' });
   menuActions.push({ action:'fulldetail', title:'Details öffnen' });
   menuActions.push({ action:'archive', title:'Archivieren' });
   return { primaryAction: primaryAction, menuActions: menuActions };
@@ -20099,16 +20096,6 @@ function renderCallDetailPage(call, history) {
           title: 'Als erledigt markieren',
           disabled: false,
           legacyId: 'vx-cd-qa-done'
-        };
-      } else if ((isOffer || isAppointment) && typeof openManualTaskFromCall === 'function') {
-        var _safePrimaryCallId = String(callId || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        _primary = {
-          label: 'Aufgabe erstellen',
-          icon: 'ph-plus',
-          onclick: "openManualTaskFromCall('" + _safePrimaryCallId + "')",
-          title: 'Aufgabe für diese Anfrage erstellen',
-          disabled: false,
-          legacyId: 'vx-cd-header-call'
         };
       } else {
         _primary = {
@@ -46558,7 +46545,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
         return '<button class="'+cls+'" onclick="vxCallDetailFaelligkeit({ mode: \'due\' })"><i class="ph-bold ph-calendar-plus"></i>' + esc(context.followupLabel || 'Fälligkeit setzen') + '</button>';
       }
       if (actionName === 'create-task') {
-        return '<button class="'+cls+'" onclick="vxCallDetailCreateTask(window._vxActiveRecordId || window._vxCurrentCallId)"><i class="ph-bold ph-plus-circle"></i>Aufgabe erstellen</button>';
+        return '';
       }
       if (actionName === 'archive') {
         return '<button class="'+cls+'" onclick="vxCallDetailArchivieren()"><i class="ph-bold ph-archive"></i>Archivieren</button>';
