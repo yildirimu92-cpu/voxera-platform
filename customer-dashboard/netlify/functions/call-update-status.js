@@ -37,6 +37,10 @@ function buildTransitionSequence(current, target) {
       return [CALL_STATUS.ARCHIVED];
     }
   }
+  // Wiederherstellen: archived → closed (direkt)
+  if (current === CALL_STATUS.ARCHIVED && target === CALL_STATUS.CLOSED) {
+    return [CALL_STATUS.CLOSED];
+  }
   if (current === CALL_STATUS.NEW && target === CALL_STATUS.FOLLOW_UP_SCHEDULED) {
     return [CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED];
   }
