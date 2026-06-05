@@ -374,7 +374,7 @@
 .vx-row-icon{width:36px;height:36px;border-radius:10px;background:var(--vx-pill-bg);border:0.5px solid var(--vx-pill-bd);display:flex;align-items:center;justify-content:center;color:var(--vx-pill-text);flex-shrink:0;font-size:16px;}
 .vx-row-icon.is-call{background:var(--vx-blue-light);border-color:var(--vx-blue-bd);color:var(--vx-blue);}
 .vx-row-body{min-width:0;}
-.vx-row-name{font-size:12px;font-weight:500;color:var(--vx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vx-row-name{font-size:14px;font-weight:600;color:var(--vx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .vx-row-pill{display:inline-block;font-size:9px;padding:1px 6px;border-radius:4px;border:0.5px solid var(--vx-pill-bd);color:var(--vx-pill-text);background:var(--vx-pill-bg);margin-left:5px;font-weight:500;}
 .vx-row-time{font-size:10px;color:var(--vx-text3);margin-top:2px;}
 .vx-row-summary{font-size:10px;color:var(--vx-text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -7792,6 +7792,11 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;">
+              <div onclick="showTab('auswertung')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
+                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-chart-bar" style="color:#1A6FE8;font-size:17px;" aria-hidden="true"></i></div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Bericht</div><div style="font-size:11px;color:var(--slate2);">Anrufstatistiken & Auswertung</div></div>
+                <i class="ph-bold ph-caret-right" style="color:var(--slate2);font-size:15px;" aria-hidden="true"></i>
+              </div>
               <div onclick="vxMehrShow('profil')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
                 <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-user" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
                 <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Profil</div><div id="mehr-profil-sub" style="font-size:11px;color:var(--slate2);">Name, E-Mail, Passwort</div></div>
@@ -8636,7 +8641,7 @@ body,.main{background:var(--vx-bg);}
         </span>
         Assistent
       </button>
-      <button class="mobile-nav-btn" id="mnav-auswertung" onclick="showTab('auswertung',this)">
+      <button class="mobile-nav-btn" id="mnav-auswertung" onclick="showTab('auswertung',this)" style="display:none;">
         <span class="mobile-nav-icon-wrap">
           <i class="ph-bold ph-chart-bar" aria-hidden="true"></i>
         </span>
@@ -24333,7 +24338,7 @@ function renderArchivInbox(containerId, records) {
       html += '</div>';
       // Wiederherstellen — kompakter Button rechts
       html += '<div class="vx-row-btns vx-row-btns--single" onclick="event.stopPropagation();">';
-      html += '<button type="button" class="vx-ibtn is-open" data-restore-id="' + id + '" onclick="event.stopPropagation();vxArchivRestore(this.dataset.restoreId)" title="Wiederherstellen" aria-label="Wiederherstellen"><i class="ph-bold ph-arrow-u-up-left" aria-hidden="true"></i></button>';
+      html += '<button type="button" class="vx-ibtn is-open" data-restore-id="' + id + '" onclick="event.stopPropagation();vxArchivRestore(this.dataset.restoreId)" title="Wiederherstellen" aria-label="Wiederherstellen" style="width:32px;height:32px;border-radius:8px;font-size:14px;overflow:hidden;"><i class="ph-bold ph-arrow-u-up-left" aria-hidden="true"></i></button>';
       html += '</div>';
       html += '</div>'; // vx-heute-row
       html += '</div>'; // dpr-card
@@ -24428,21 +24433,16 @@ async function vxArchivRestore(recordId) {
   if (!recordId) return;
 
   var btn = document.querySelector('[data-restore-id="'+recordId+'"]');
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
-
-  var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
-  if (!sb) {
-    if (typeof showToast === 'function') showToast('⚠ Authentifizierung erforderlich');
-    if (btn) { btn.disabled = false; btn.textContent = 'Wiederherstellen'; }
-    return;
-  }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner" style="font-size:11px;"></i>'; }
 
   try {
-    var result = await sb.from('calls')
-      .update({ dashboard_status: 'closed', completed_at: null, updated_at: new Date().toISOString() })
-      .eq('id', recordId);
+    // Muss über Netlify Function gehen — direkter Supabase-Call scheitert an RLS + DB-Constraint
+    var result = await callDashboardFunction('call-update-status', {
+      call_id: recordId,
+      status: 'closed'
+    });
 
-    if (result.error) throw result.error;
+    if (result && result.error) throw new Error(result.error);
 
     // Lokalen State aktualisieren
     var records = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
@@ -24465,7 +24465,7 @@ async function vxArchivRestore(recordId) {
     var btn2 = document.querySelector('[data-restore-id="'+recordId+'"]');
     if (btn2) {
       btn2.disabled = false;
-      btn2.innerHTML = '<i class="ph-bold ph-arrow-u-up-left" style="font-size:11px;"></i> Wiederherstellen';
+      btn2.innerHTML = '<i class="ph-bold ph-arrow-u-up-left" aria-hidden="true"></i>';
     }
   }
 }
@@ -42931,6 +42931,16 @@ body:has(#tab-archiv.active) .content{
 #archiv-split-right{
   min-width:0 !important;
   flex:1 1 auto !important;
+}
+
+/* Mobile: Archiv kein Split — volle Breite */
+@media(max-width:768px){
+  #tab-archiv.active{height:auto !important;overflow:visible !important;}
+  #tab-archiv .vx-split{display:block !important;height:auto !important;overflow:visible !important;}
+  #archiv-split-left,#tab-archiv .vx-split #archiv-split-left{width:100% !important;max-width:100% !important;min-width:0 !important;flex:none !important;border-radius:var(--vx-r-lg) !important;}
+  #archiv-split-resizer{display:none !important;}
+  #archiv-split-right{display:none !important;}
+  body:has(#tab-archiv.active) .content{overflow:auto !important;}
 }
 
 /* 2) Row Layout: aktive Selection darf nicht automatisch die Row-Actions einblenden.
