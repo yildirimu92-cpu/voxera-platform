@@ -51,7 +51,7 @@ const checks = [
   ['is_admin body found', isAdminBody.length > 0],
   ['is_admin rejects foreign UUID checks', /p_user_id is not distinct from auth\.uid\(\)/i.test(isAdminBody) && /a\.id = auth\.uid\(\)/i.test(isAdminBody)],
   ['calls browser inserts revoked', /revoke insert on table public\.calls from anon/i.test(migration) && /revoke insert on table public\.calls from authenticated/i.test(migration)],
-  ['notifications browser inserts revoked', /revoke insert on table public\.notifications from anon/i.test(migration) && /revoke insert on table public\.notifications from authenticated/i.test(migration))],
+  ['notifications browser inserts revoked', /revoke insert on table public\.notifications from anon/i.test(migration) && /revoke insert on table public\.notifications from authenticated/i.test(migration)],
   ['ai_change_requests tenant policies created', /ai_change_requests_customer_select_own/.test(migration) && /customer_id = public\.current_customer_id\(\)/.test(migration)],
   ['system_config admin-only policy created', /create policy system_config_admin_select/i.test(migration) && /public\.is_admin\(auth\.uid\(\)\)/.test(migration)],
   ['migration has object guards', /to_regprocedure\(/.test(migration) && /to_regclass\(/.test(migration)],
