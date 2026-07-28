@@ -2,112 +2,91 @@
 
 This checklist applies only after an approved Supabase migration and Netlify deployment. It has not been run against production.
 
-## 1. Database verification
+## 1. Repository and database checks
 
-Run:
+Run from a full checkout:
+
+```text
+node --test customer-dashboard/tests/elevenlabs-conversation-audio.test.cjs
+node --test customer-dashboard/tests/conversation-audio-client.test.cjs
+node scripts/verify-p0-security-foundation.mjs
+```
+
+Run in Supabase after migration:
 
 ```text
 supabase/verification/p0_security_post_migration.sql
 ```
 
-Required result: every named check returns `PASS`.
+Every named database check must return `PASS`.
 
-Additionally inspect the detailed policy and GRANT result sets and attach a redacted export to the deployment record.
+## 2. Customer Dashboard audio client
 
-## 2. Audio endpoint tests
+Use test calls only. Do not capture token values or audio content.
 
-Use real test records, not customer production calls. Never paste tokens or audio into the deployment record.
+1. Open a call with only `elevenlabs_conversation_id` available.
+2. Confirm the “Audio abrufen” button invokes `vxTryLoadElevenLabsAudioFromDashboard`.
+3. Confirm the network request targets only `/.netlify/functions/elevenlabs-conversation-audio`.
+4. Confirm an Authorization header is present.
+5. Confirm the response is consumed as a Blob.
+6. Confirm the rendered audio element uses a `blob:` URL.
+7. Confirm no `<audio src>` points directly at the protected Function.
+8. Load another recording and confirm the old Blob URL is revoked.
+9. Reload/close the page and confirm the active Blob URL is released.
 
-| Case | Request identity | Conversation ID | Expected |
-|---|---|---|---|
-| no token | none | known test call | `401 auth_token_missing` |
-| invalid token | invalid/expired | known test call | `401 auth_token_invalid` |
-| user without customer mapping | authenticated user with no `users.customer_id`, not admin | known test call | `403 customer_context_missing` |
-| foreign tenant | customer A | customer B test call | `403 tenant_access_denied`; no ElevenLabs request |
-| unknown conversation | customer A | nonexistent ID | `404 call_not_found`; no ElevenLabs request |
-| own call | customer A | customer A test call | `200`, audio returned |
-| admin | active canonical admin | customer B test call | `200`, audio returned |
-| provider failure | authorized test request while provider is deliberately unavailable in a controlled environment | own call | `502 elevenlabs_audio_fetch_failed`, no provider body |
+Expected customer messages:
 
-### CORS
+| Result | Expected message behavior |
+|---|---|
+| no session / no access token / 401 | session expired; request re-login |
+| 403 | no access to this recording |
+| 404 | no recording found for the call |
+| 502 | provider temporarily unavailable |
 
-- Allowed Origin echoes that exact Origin and adds `Vary: Origin`.
-- Disallowed Origin returns `403 origin_not_allowed` without `Access-Control-Allow-Origin`.
-- No response uses `Access-Control-Allow-Origin: *`.
-- Same-origin/server requests without an Origin header remain possible but do not receive a CORS allow header.
+## 3. Audio endpoint authorization
 
-### Logging
+| Case | Expected |
+|---|---|
+| no token | `401 auth_token_missing` |
+| invalid token | `401 auth_token_invalid` |
+| user without customer mapping | `403 customer_context_missing` |
+| customer A requests customer B call | `403 tenant_access_denied`; no provider request |
+| unknown conversation | `404 call_not_found`; no provider request |
+| own call | `200`, binary audio |
+| active admin | `200`, binary audio |
+| provider failure | `502 elevenlabs_audio_fetch_failed`; no provider body |
 
-Inspect Netlify Function logs and confirm they do not contain:
+Confirm CORS uses an allowed exact Origin and never `*`. Confirm logs contain no Bearer tokens, keys, provider bodies, base64 audio or raw audio bytes.
 
-- Bearer tokens;
-- Supabase keys;
-- ElevenLabs keys;
-- provider response bodies;
-- base64 audio;
-- raw audio bytes.
+## 4. Tenant-safe profile binding
 
-## 3. Call ingestion
+Use disposable test identities.
 
-Trigger controlled test calls through each active server path:
+1. Existing `users.customer_id` remains unchanged when `ensure_user_profile` is called with different parameter values.
+2. An unbound user with exactly one `customers.auth_user_id = auth.uid()` match is bound to that customer.
+3. An unbound user with no server match remains unbound.
+4. A caller cannot claim a known customer by supplying `p_customer_id`.
+5. `p_dashboard_id`, `p_email` and auth metadata do not affect binding.
+6. Duplicate customer rows for one `auth_user_id` are a deployment blocker and cause a controlled ambiguity error.
+7. The existing `create-customer.js` flow still creates a customer with both `customers.auth_user_id` and `users.customer_id` populated.
 
-1. Twilio inbound router.
-2. ElevenLabs post-call webhook.
-3. Any active test-call Function.
+## 5. Self-only admin helper
 
-Expected:
+1. An ordinary authenticated user calling `is_admin(auth.uid())` receives false.
+2. An active admin calling `is_admin(auth.uid())` receives true.
+3. Any authenticated user calling `is_admin(<different UUID>)` receives false.
+4. Existing admin RLS policies using `is_admin(auth.uid())` continue to work.
+5. A service-role context without `auth.uid()` cannot use the parameter to enumerate admin status.
 
-- call rows are created by the backend;
-- anon and ordinary authenticated direct inserts fail;
-- existing customer SELECT/UPDATE behavior remains tenant-scoped.
+## 6. Existing P0 database controls
 
-## 4. Notifications
+- anon and ordinary authenticated INSERT into `calls` fail;
+- anon and ordinary authenticated INSERT into `notifications` fail;
+- customer A cannot access customer B `ai_change_requests`;
+- `authenticated_read_all` is absent;
+- ordinary customers cannot read `prompt_master_l1`;
+- backend ingestion, notification creation and ElevenLabs sync continue to work.
 
-1. Complete a controlled test call that creates a notification.
-2. Confirm the server-side notification row is created.
-3. Attempt a direct anon INSERT: it must fail.
-4. Attempt a direct ordinary authenticated INSERT: it must fail unless a separately approved tenant-scoped policy is introduced later.
-5. Confirm existing notification reads still follow their live tenant policy.
+## 7. Completion record
 
-## 5. AI change requests
-
-With customer A, customer B and an admin:
-
-- customer A can create/read/update/delete only rows whose `customer_id` equals customer A;
-- customer A receives no rows belonging to customer B;
-- customer A cannot change a row's `customer_id` to customer B;
-- customer B has symmetric isolation;
-- an active valid admin can process all rows;
-- a disabled or unknown admin row does not receive admin access;
-- policy `authenticated_read_all` no longer exists.
-
-## 6. System configuration
-
-- ordinary customer SELECT on `system_config` returns no rows or a permission-safe empty result;
-- ordinary customer cannot retrieve `key = 'prompt_master_l1'`;
-- active admin can read through the admin policy where the admin client requires direct access;
-- `trigger-elevenlabs-sync` can still read `prompt_master_l1` using the server-side service role and complete a controlled sync.
-
-## 7. Function privileges
-
-Confirm via the post-migration script:
-
-- `delete_auth_user_data(uuid)`: service role yes; PUBLIC/anon/authenticated no;
-- `ensure_user_profile(text,text,text)`: authenticated and service role yes; anon/PUBLIC no;
-- `ensure_user_profile(text,text)`: authenticated/anon/PUBLIC no if present;
-- `current_customer_id()` and required admin helpers: authenticated execution remains available;
-- trigger and backend maintenance functions have no unnecessary direct client execution.
-
-## 8. Completion record
-
-Record:
-
-- Supabase project ref, without keys;
-- migration execution timestamp;
-- migration operator;
-- post-check output;
-- Netlify site name;
-- production deploy ID and commit SHA;
-- test identities used, without tokens or personal data;
-- pass/fail result for every section;
-- any rollback or exception decision.
+Record project ref, migration timestamp/operator, redacted post-check output, Netlify site/deploy ID/SHA, test identities without personal data, each pass/fail result, and any rollback decision.

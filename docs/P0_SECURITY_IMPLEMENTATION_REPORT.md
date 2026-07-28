@@ -12,95 +12,109 @@ The productive Supabase and Netlify state remains live-dependent. Repository fin
 
 ## Root causes addressed
 
-### Audio endpoint
+### Server audio endpoint
 
-The previous `customer-dashboard/netlify/functions/elevenlabs-conversation-audio.js` accepted a caller-provided ElevenLabs conversation ID and called the provider without first proving that the authenticated user belonged to the call's customer. It also returned wildcard CORS and included provider response text in failures.
+`customer-dashboard/netlify/functions/elevenlabs-conversation-audio.js` now requires a Supabase Bearer token, resolves the caller through `public.users`, checks `calls.customer_id`, permits only a server-verified active admin exception, and calls ElevenLabs only after authorization. Provider response bodies and audio payloads are not logged or included in errors. Wildcard CORS was removed.
 
-The replacement handler now:
+### Actual Customer Dashboard audio client
 
-1. permits only `GET`, `POST` and preflight `OPTIONS`;
-2. validates the request Origin against the known Voxera domains plus the optional `VOXERA_ALLOWED_ORIGINS` allowlist;
-3. requires a Bearer token;
-4. validates the token through Supabase Auth;
-5. loads `public.users` and resolves `users.customer_id`;
-6. permits an exception only for an active, canonical server-verified row in `public.admins`;
-7. loads the call by `calls.elevenlabs_conversation_id`;
-8. returns `404` for an unknown call and `403` for another tenant;
-9. calls ElevenLabs only after authorization succeeds;
-10. no longer exposes provider response bodies or audio data in errors or logs;
-11. preserves the existing GET audio response and POST `audio_url` response formats.
+The actual call-site was identified in the dashboard monolith as:
 
-### SECURITY DEFINER privileges
+- `vxTryLoadElevenLabsAudioFromDashboard(btn)` in `customer-dashboard/index.html`;
+- it is invoked by the “Audio abrufen” button created by `vxRenderCallAudioCardHtml(...)` when only an ElevenLabs conversation ID is present;
+- the legacy implementation called the Function without an Authorization header and tried three endpoint names;
+- the resulting audio was assigned to the existing modern player through a Blob URL.
 
-The migration establishes explicit EXECUTE rights and search paths for the known canonical functions. Optional or legacy functions are altered only when `to_regprocedure(...)` confirms that the exact signature exists. No function is dropped.
+`customer-dashboard/shared/offer-brand.js` is loaded synchronously by the dashboard before the monolithic inline scripts. It now contains a narrowly scoped conversation-audio client and installs a post-parse bridge on `DOMContentLoaded` that replaces the legacy global call-site before a user can activate the button.
+
+The controlled flow now:
+
+1. obtains the current Supabase client through `getSupabaseAuthClient()`;
+2. loads the current session with `auth.getSession()`;
+3. rejects a missing session or access token before any request;
+4. calls only `/.netlify/functions/elevenlabs-conversation-audio`;
+5. sends `Authorization: Bearer <access token>`;
+6. consumes the response with `response.blob()`;
+7. creates the player URL using `URL.createObjectURL(...)`;
+8. revokes the previous Blob URL after a successful replacement and on page unload;
+9. maps `401`, `403`, `404` and `502` to customer-safe messages;
+10. does not log tokens or audio content and contains no service-role key.
+
+The existing visual audio player and controls remain unchanged. A protected Function URL is not assigned directly to an `<audio src>`.
+
+### Tenant-safe `ensure_user_profile(text,text,text)`
+
+The compatibility signature remains, but all three caller parameters are ignored for tenant binding. The function no longer reads `raw_user_meta_data` or other user-controlled metadata.
+
+Binding rules:
+
+1. `auth.uid()` is mandatory;
+2. an existing `public.users` row is loaded or created unbound;
+3. an existing `users.customer_id` is returned unchanged;
+4. an unbound profile is matched only against `public.customers.auth_user_id = auth.uid()`;
+5. exactly one match permits assignment;
+6. no match returns the unbound profile;
+7. multiple matches raise a controlled ambiguity error;
+8. all table references are schema-qualified and `search_path` remains `pg_catalog`.
+
+The server-side `create-customer.js` path remains compatible because it already writes both `customers.auth_user_id` and `users.customer_id`.
+
+### Self-only `is_admin(uuid)`
+
+The UUID signature remains for RLS compatibility, but the function now returns true only when:
+
+- `auth.uid()` is present;
+- `p_user_id IS NOT DISTINCT FROM auth.uid()`;
+- the active admin row belongs to `auth.uid()`.
+
+An authenticated user cannot use the function to inspect another UUID. Existing policies using `is_admin(auth.uid())` retain their intended behavior. A service-role request without a user identity cannot use the argument as an arbitrary lookup oracle.
 
 ### RLS and table privileges
 
-The migration treats RLS policies and table GRANTs as separate controls:
+The migration continues to:
 
-- browser/anonymous INSERT rights are removed from `calls` and `notifications`;
-- `ai_change_requests` policies are replaced with customer tenant policies plus an `is_admin(auth.uid())` admin policy;
-- `system_config` SELECT policies are replaced with an admin-only policy;
-- service-role server paths retain the required table privileges.
+- remove browser/anonymous INSERT rights from `calls` and `notifications`;
+- replace broad `ai_change_requests` policies with tenant policies plus `is_admin(auth.uid())`;
+- make `system_config` directly readable only through the admin policy;
+- preserve service-role server paths.
 
 ## Repository dependency findings
 
-- Call creation/upsert was found in server-side Netlify Functions, including `elevenlabs-post-call.js`, `call-intake-webhook.js` and `activation-start-system-test-call.js`.
-- No active browser-side call INSERT path was found by repository code search.
-- Notification INSERT usage was found in the server-side `elevenlabs-post-call.js` path.
-- `system_config` and `prompt_master_l1` usage was found in the server-side `admin-panel/netlify/functions/trigger-elevenlabs-sync.js` path.
-- No proven customer-browser requirement for `prompt_master_l1` was found.
-- `current_customer_id()` and `is_admin(uuid)` are referenced by repository RLS SQL and therefore retain authenticated EXECUTE.
-- `handle_auth_user_created()` is a trigger function and receives no direct client EXECUTE grant.
-- Exact live dependencies for optional legacy functions remain subject to the preflight output.
+- Call creation/upsert paths found in the repository are server-side Netlify Functions.
+- Notification INSERT usage was found in server-side post-call processing.
+- `prompt_master_l1` is read by a server-side admin Function; no customer-browser requirement was proven.
+- `current_customer_id()` and `is_admin(uuid)` are used by repository RLS SQL.
+- `handle_auth_user_created()` is a trigger function and has no direct client grant.
+- The legacy two-argument `ensure_user_profile` remains a removal candidate.
 
 ## Changed implementation files
 
-- `customer-dashboard/netlify/functions/elevenlabs-conversation-audio.js`
-- `customer-dashboard/tests/elevenlabs-conversation-audio.test.cjs`
+- `customer-dashboard/shared/offer-brand.js`
+- `customer-dashboard/tests/conversation-audio-client.test.cjs`
 - `supabase/migrations/2026-07-28_p0_security_foundation.sql`
 - `supabase/verification/p0_security_preflight.sql`
 - `supabase/verification/p0_security_post_migration.sql`
 - `scripts/verify-p0-security-foundation.mjs`
 - five P0 documentation files under `docs/`
 
-## Acceptance coverage
-
-| Acceptance requirement | Repository implementation status |
-|---|---|
-| Audio without login returns 401 | Automated test passes |
-| Customer cannot load another customer's audio | Automated test passes; live test still required |
-| `delete_auth_user_data` only service role | Migration and post-check prepared; live application required |
-| anon cannot insert Calls | Migration revokes policy path and table grant; live application required |
-| anon cannot insert Notifications | Migration revokes policy path and table grant; live application required |
-| customer cannot access another tenant's `ai_change_requests` | Canonical policies prepared; live application required |
-| normal customer cannot read `prompt_master_l1` | `system_config` admin-only SELECT policy prepared; live application required |
-| required RLS helpers remain usable | authenticated/service-role grants retained; live post-check required |
-| no production migration | Confirmed for this implementation task |
-| no deployment | Confirmed for this implementation task |
+The existing server endpoint and its tests from the first P0 commit remain part of the branch.
 
 ## Validation performed
 
-- `node --test customer-dashboard/tests/elevenlabs-conversation-audio.test.cjs`
+- `node --test customer-dashboard/tests/conversation-audio-client.test.cjs`
   - 9 tests passed, 0 failed.
-- `node scripts/verify-p0-security-foundation.mjs`
-  - 15 repository checks passed, 0 failed.
+- existing server endpoint suite remains available at `customer-dashboard/tests/elevenlabs-conversation-audio.test.cjs`.
 - `node --check` completed without syntax errors for the changed JavaScript files.
 
-The SQL migration was not executed against Supabase and could not be parsed by a live PostgreSQL server in the implementation environment. The preflight is therefore mandatory before application.
+The repository verification script was extended to inspect the full checked-out `customer-dashboard/index.html`, the secure shared bootstrap, migration bodies and both SQL verification scripts. In the current execution environment the private repository could not be cloned because no GitHub CLI/token and no DNS access were available; therefore the expanded full-checkout verifier must be run in an authenticated local checkout or CI before deployment.
 
-## Net diff and design constraints
-
-- Existing audio endpoint behavior was replaced rather than patched with a second handler.
-- No new product feature, CRM feature, UI redesign or end-of-file hotfix block was added.
-- No product rows are inserted, updated or deleted by the migration itself.
-- The migration changes function definitions/ACLs, policies, RLS enablement and table privileges only.
+The SQL migration was not executed against Supabase and was not parsed by a live PostgreSQL server. The read-only preflight remains mandatory.
 
 ## Remaining risks
 
-1. Live objects, policies, function overloads and GRANTs may differ from repository files.
-2. Optional legacy functions can have live trigger, cron or policy dependencies not represented in GitHub.
-3. Removing authenticated INSERT on `calls` and `notifications` can affect an undocumented external client; preflight and a staged smoke test are required.
-4. `ai_change_requests.customer_id` must exist and be compatible with `current_customer_id()`; the migration aborts if the column is missing.
-5. The exact deployed dashboard code may not yet send a Bearer token to this endpoint. The repository call site could not be positively identified by code search, so this must be checked in a deploy preview before production.
-6. CORS domains outside the three repository-known Voxera origins require explicit `VOXERA_ALLOWED_ORIGINS` configuration before deployment.
+1. Live functions, policies, overloads, triggers and GRANTs can differ from repository files.
+2. `customers.auth_user_id` must exist and non-null values must map uniquely; the preflight reports duplicate bindings.
+3. The dashboard monolith still contains the legacy function text, but the synchronously loaded shared bootstrap neutralizes and replaces its global runtime binding before user interaction. A later non-P0 refactor should move the call-site directly into a dedicated dashboard module.
+4. The secure client bridge and server endpoint require deploy-preview browser verification with two tenants and an admin.
+5. Required browser Origins outside the known Voxera domains require explicit allowlist configuration in a separate approved operational step.
+6. No production migration or deployment has been performed.

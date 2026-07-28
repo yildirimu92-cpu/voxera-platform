@@ -4,97 +4,82 @@ No step in this plan has been executed against production.
 
 ## Preconditions
 
-1. Confirm the intended production Supabase project and Netlify customer-dashboard site.
+1. Confirm the production Supabase project and Netlify customer-dashboard site.
 2. Record the current production deploy SHA and Netlify deploy ID.
-3. Run `supabase/verification/p0_security_preflight.sql` in the Supabase SQL Editor with a role allowed to inspect catalog metadata.
-4. Export the complete preflight results. This is the rollback source of truth.
-5. Review every optional function overload, trigger, policy and table GRANT against external integrations, Edge Functions and Cron jobs.
-6. Confirm `public.ai_change_requests.customer_id` exists and is compatible with `public.current_customer_id()`.
-7. Confirm the deployed dashboard sends its current Supabase access token as `Authorization: Bearer <token>` when requesting conversation audio.
-8. Confirm every required browser Origin is one of:
-   - `https://dashboard.voxera.ch`
-   - `https://admin.voxera.ch`
-   - `https://voxera.ch`
-   - or is explicitly configured in `VOXERA_ALLOWED_ORIGINS`.
+3. Run `supabase/verification/p0_security_preflight.sql` and save the complete result as rollback evidence.
+4. Confirm `public.customers.auth_user_id` exists.
+5. Confirm no non-null `customers.auth_user_id` is assigned to more than one customer.
+6. Confirm `public.ai_change_requests.customer_id` exists and is compatible with `current_customer_id()`.
+7. Review optional function overloads, triggers, policies, Edge Functions and Cron jobs.
+8. Run the repository verifier from a full authenticated checkout:
 
-Do not copy secret values into tickets, screenshots or repository files.
+   ```text
+   node scripts/verify-p0-security-foundation.mjs
+   ```
 
-## Recommended rollout sequence
+9. Confirm the actual dashboard call-site `vxTryLoadElevenLabsAudioFromDashboard` is replaced at runtime by the secure shared bootstrap.
+10. Do not copy tokens, keys or audio into deployment records.
 
-### Phase 1: Deploy-preview validation
+## Phase 1: Deploy-preview validation
 
-1. Push the branch only; do not merge.
-2. Create a Netlify deploy preview for the customer dashboard if previews are enabled.
-3. Use test users for customer A, customer B and an active admin.
-4. Execute the HTTP checks in `P0_POST_DEPLOY_VERIFICATION.md`.
-5. Confirm the preview function logs contain no authorization tokens, provider response bodies or audio payloads.
+1. Use a Netlify deploy preview only after explicit approval; do not merge.
+2. Confirm `customer-dashboard/shared/offer-brand.js` is served from the approved commit.
+3. In browser developer tools, activate “Audio abrufen” for a test call.
+4. Confirm exactly one request is made to `/.netlify/functions/elevenlabs-conversation-audio`.
+5. Confirm the request has an Authorization header without recording its value.
+6. Confirm the `<audio>` source is a `blob:` URL, not the protected Function URL.
+7. Load a second audio and confirm the previous Blob URL is revoked.
+8. Test customer A, customer B, missing/expired session and an active admin.
+9. Confirm logs contain no tokens, provider bodies or audio payloads.
 
-### Phase 2: Supabase preflight decision
+## Phase 2: Supabase preflight decision
 
-1. Compare live functions and policies with the matrices in this package.
-2. Stop if an undocumented browser INSERT, trigger, policy dependency or cron invocation is found.
-3. Build a live-specific rollback SQL file from the preflight definitions and ACLs. Do not use a generic broad-access rollback.
+Stop before migration when any of the following is found:
 
-### Phase 3: Apply the Supabase migration
+- duplicate `customers.auth_user_id` bindings;
+- missing required columns;
+- an undocumented browser INSERT dependency;
+- a policy/trigger/cron dependency on a privilege being removed;
+- a live function definition incompatible with the prepared replacement.
 
-1. Open Supabase Dashboard → SQL Editor → New query.
-2. Paste the exact contents of `supabase/migrations/2026-07-28_p0_security_foundation.sql`.
-3. Reconfirm that the selected project is production.
-4. Run once. The script uses a transaction and aborts on an incompatible required object.
+Build a live-specific rollback SQL file from the preflight definitions, ACLs, policies and GRANTs.
+
+## Phase 3: Apply the Supabase migration
+
+Only after preflight approval:
+
+1. Supabase Dashboard → SQL Editor → New query.
+2. Paste the exact approved `supabase/migrations/2026-07-28_p0_security_foundation.sql`.
+3. Reconfirm the project.
+4. Run once; the script is transactional.
 5. Immediately run `supabase/verification/p0_security_post_migration.sql`.
-6. Do not continue if any result is `FAIL`.
+6. Stop if any result is `FAIL`.
 
-### Phase 4: Netlify production deploy
+## Phase 4: Production deployment
 
-Only after the database post-check is clean:
+Only after the database post-check and deploy-preview tests pass:
 
-1. Deploy the reviewed branch commit to the existing customer-dashboard site using the normal Git-connected production process.
-2. Do not alter build settings, domains, environment values or scheduled functions during this rollout.
-3. Confirm the deployed commit SHA equals the approved P0 commit.
-4. Run the complete post-deploy verification checklist.
+1. Deploy the reviewed commit through the existing Git-connected process.
+2. Do not alter build settings, domains, environment values or scheduled functions.
+3. Confirm the deployed SHA equals the approved commit.
+4. Run `P0_POST_DEPLOY_VERIFICATION.md`.
 
 ## Rollback triggers
 
-Rollback immediately when any of the following occurs:
-
-- customer audio requests fail for own calls;
-- another tenant's audio is accessible;
-- Twilio/ElevenLabs call ingestion fails after privilege changes;
-- notifications are no longer created by the backend;
-- customer AI change requests cannot be created or managed within their tenant;
-- admin access to `system_config` fails;
-- normal customers can still read `prompt_master_l1`;
-- RLS helper functions fail with permission or search-path errors.
+- own-call audio fails;
+- a foreign tenant can access audio;
+- the dashboard sends no Bearer token or assigns the Function URL directly to audio src;
+- customer provisioning becomes unbound unexpectedly;
+- a customer can claim another `customer_id` through RPC parameters or metadata;
+- `is_admin(uuid)` reveals another user's status;
+- ingestion, notifications, AI requests or admin configuration access regress.
 
 ## Netlify rollback
 
-1. Netlify Dashboard → affected site → Deploys.
-2. Select the recorded previous production deploy.
-3. Publish/restore that deploy according to the existing Netlify workflow.
-4. Confirm the previous commit SHA is active.
-5. Repeat the audio endpoint smoke tests.
-
-This rolls back the Function code only. It does not restore Supabase policies or ACLs.
+Restore the recorded previous deploy from Netlify → Site → Deploys, confirm the previous SHA, and rerun audio smoke tests. This rolls back client/Function code only, not database ACLs or policies.
 
 ## Supabase rollback
 
-### Preferred rollback during execution
+If the migration fails before `COMMIT`, PostgreSQL rolls back the transaction. After a successful commit, use the preflight snapshot to restore the exact prior function definitions, ACLs, search paths, policies and table GRANTs in one transaction.
 
-If the migration errors before its final `COMMIT`, PostgreSQL rolls back the transaction. Record the error and do not retry until the live incompatibility is understood.
-
-### Rollback after a successful commit
-
-Use the preflight snapshot to restore exactly:
-
-1. original `pg_get_functiondef` definitions where this migration replaced canonical functions;
-2. original function owners, search-path settings and EXECUTE ACLs;
-3. original policy definitions for `calls`, `notifications`, `ai_change_requests` and `system_config`;
-4. original role table GRANTs.
-
-Apply the live-specific rollback in one transaction, then rerun the preflight queries and targeted application smoke tests.
-
-Do **not** restore `WITH CHECK (true)`, `authenticated_read_all` or broad `system_config` reads merely to make a failing client work. If rollback would reintroduce a P0 exposure, keep the affected feature disabled and correct the client/server path instead.
-
-## Secret handling
-
-No key rotation is included in this package. If logs or live inspection reveal exposure of a service-role key, ElevenLabs key, provider token or SMTP credential, treat rotation as a separate incident procedure after endpoint access is contained.
+Do not restore broad P0 exposures merely to make a client work. Keep the affected feature disabled and correct the client/server path instead.

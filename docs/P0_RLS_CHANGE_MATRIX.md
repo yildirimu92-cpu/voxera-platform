@@ -2,54 +2,38 @@
 
 **Baseline:** `main@682b88cbc16deb259f6f513de02b7bdc9fc255ab`
 
-RLS policies and table GRANTs are treated as independent requirements. Service-role server calls do not require anonymous or generally authenticated permissive policies.
+RLS policies and table GRANTs are independent controls. Service-role server operations do not justify permissive browser policies.
 
 ## RLS changes
 
-| Table | Verified risk / repository finding | P0 policy change | Preserved access | Live verification |
+| Table | P0 risk | Policy change | Preserved access | Live verification |
 |---|---|---|---|---|
-| `calls` | Live policy reportedly permits system/admin insert with a broad check. Repository INSERT/upsert paths found only in server-side Functions; no browser INSERT path was found. | Drop all INSERT/ALL policies assigned to PUBLIC, anon or authenticated. Create no browser INSERT policy. | Existing SELECT/UPDATE policies are left untouched. Service-role INSERT grant retained. | Confirm no external browser/mobile client inserts directly. Test Twilio and ElevenLabs ingestion after migration. |
-| `notifications` | Live PUBLIC/anon insert exposure reported. Repository INSERT found in server-side `elevenlabs-post-call.js`. | Drop INSERT/ALL policies assigned to PUBLIC, anon or authenticated. Create no browser INSERT policy. | Existing read/update policies are left untouched. Service-role INSERT grant retained. | Confirm no external direct client notification creation. Test post-call notification creation. |
-| `ai_change_requests` | Live `authenticated_read_all` permits cross-tenant access. | Replace all existing policies with admin ALL plus customer own SELECT/INSERT/UPDATE/DELETE policies using `customer_id = current_customer_id()`. | Real admins retain full access through `is_admin(auth.uid())`; customers retain own-tenant CRUD. | Confirm table has `customer_id`; test two customer accounts and one admin. |
-| `system_config` | General authenticated SELECT exposes sensitive configuration including `prompt_master_l1`. Repository usage found only in a service-role Netlify Function. | Remove every SELECT/ALL policy and create `system_config_admin_select`. No customer allowlist is introduced because no product dependency was proven. | Authenticated admins can read; service role can read; normal customers receive no rows. | Test admin direct read, customer direct read and ElevenLabs sync. |
+| `calls` | Broad browser/anon INSERT path | Remove INSERT/ALL policies assigned to PUBLIC, anon or authenticated; no browser INSERT policy | Existing SELECT/UPDATE policies untouched; service-role INSERT retained | Test all active ingestion paths and confirm no external browser writer |
+| `notifications` | PUBLIC/anon INSERT exposure | Remove INSERT/ALL policies assigned to PUBLIC, anon or authenticated | Existing read/update policies untouched; service-role INSERT retained | Test backend post-call notification creation |
+| `ai_change_requests` | `authenticated_read_all` permits cross-tenant access | Replace all policies with admin ALL and own-tenant CRUD policies | Admin access requires `is_admin(auth.uid())`; customers use `current_customer_id()` | Test customer A, customer B and an admin |
+| `system_config` | Authenticated customers can read sensitive keys | Replace SELECT/ALL policies with `system_config_admin_select` | Admin and service-role reads | Confirm customer cannot read `prompt_master_l1`; server sync still works |
 
 ## Table privilege matrix after P0
 
-`—` means no privilege is required by this package. Existing non-P0 privileges are not deliberately changed unless the migration explicitly revokes and re-grants the table.
+| Table | Role | SELECT | INSERT | UPDATE | DELETE | Policy / bypass |
+|---|---|---:|---:|---:|---:|---|
+| `calls` | anon | unchanged/non-required | No | unchanged | unchanged | none for INSERT |
+| `calls` | authenticated | existing | No | existing | existing | tenant RLS for permitted operations |
+| `calls` | service_role | existing | Yes | existing | existing | service-role bypass |
+| `notifications` | anon | unchanged/non-required | No | unchanged | unchanged | none for INSERT |
+| `notifications` | authenticated | existing | No | existing | existing | live tenant read/update policies |
+| `notifications` | service_role | existing | Yes | existing | existing | service-role bypass |
+| `ai_change_requests` | anon | No | No | No | No | none |
+| `ai_change_requests` | authenticated | Yes | Yes | Yes | Yes | own tenant or self-only admin helper |
+| `ai_change_requests` | service_role | Yes | Yes | Yes | Yes | bypass |
+| `system_config` | anon | No | — | — | — | none |
+| `system_config` | authenticated | Yes | — | — | — | rows only through `system_config_admin_select` |
+| `system_config` | service_role | Yes | unchanged | unchanged | unchanged | bypass |
 
-| Table | Role | SELECT | INSERT | UPDATE | DELETE | Required policy / bypass | Repository-verified need |
-|---|---|---:|---:|---:|---:|---|---|
-| `calls` | anon | — | No | — | — | none | none found |
-| `calls` | authenticated | existing grant unchanged | No | existing grant unchanged | existing grant unchanged | tenant RLS for existing operations | dashboard reads/updates own calls |
-| `calls` | service_role | existing | Yes | existing | existing | service-role bypass | webhook and server ingestion |
-| `notifications` | anon | — | No | — | — | none | none found |
-| `notifications` | authenticated | existing grant unchanged | No | existing grant unchanged | existing grant unchanged | existing tenant policies, live-dependent | dashboard notification consumption is live-dependent |
-| `notifications` | service_role | existing | Yes | existing | existing | service-role bypass | post-call backend insert |
-| `ai_change_requests` | anon | No | No | No | No | none | none |
-| `ai_change_requests` | authenticated | Yes | Yes | Yes | Yes | own-tenant policies or admin policy | customer request workflow plus admin processing |
-| `ai_change_requests` | service_role | Yes | Yes | Yes | Yes | service-role bypass | backend compatibility |
-| `system_config` | anon | No | — | — | — | none | none |
-| `system_config` | authenticated | Yes | — | — | — | `system_config_admin_select` | admin-only direct read |
-| `system_config` | service_role | Yes | existing unchanged | existing unchanged | existing unchanged | service-role bypass | ElevenLabs prompt assembly |
+## Helper effect on RLS
 
-## Policy replacement details
-
-### `ai_change_requests`
-
-Created policies:
-
-- `ai_change_requests_admin_all`
-- `ai_change_requests_customer_select_own`
-- `ai_change_requests_customer_insert_own`
-- `ai_change_requests_customer_update_own`
-- `ai_change_requests_customer_delete_own`
-
-All pre-existing policies on this table are removed before the canonical set is recreated. This is required because PostgreSQL permissive policies are OR-combined; leaving `authenticated_read_all` would defeat tenant isolation.
-
-### `system_config`
-
-All SELECT and ALL policies are removed before `system_config_admin_select` is created. Retaining an unknown permissive SELECT policy would continue exposing `prompt_master_l1`.
+Policies continue to call `public.is_admin(auth.uid())`. The hardened function preserves this path while preventing authenticated callers from checking arbitrary UUIDs. Customer policies continue to use `public.current_customer_id()`.
 
 ## Data impact
 
-The migration does not change customer, call, notification, AI request, contract, invoice or configuration rows. It changes only RLS enablement, policy definitions, function definitions/ACLs and table privileges.
+The migration does not modify customer, call, notification, AI request, contract, invoice or configuration rows. The only row mutation possible is when an authenticated caller invokes `ensure_user_profile`: an unbound `public.users` profile may be bound to exactly one server-created `public.customers.auth_user_id` match. Caller-supplied tenant hints cannot cause this assignment.

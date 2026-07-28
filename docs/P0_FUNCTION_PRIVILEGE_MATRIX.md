@@ -2,40 +2,37 @@
 
 **Baseline:** `main@682b88cbc16deb259f6f513de02b7bdc9fc255ab`
 
-This matrix separates repository evidence from live verification. The live function definitions, owners, ACLs, trigger dependencies and cron usage must be captured with `supabase/verification/p0_security_preflight.sql` before the migration is run.
+Live definitions, ACLs, owners, triggers and cron dependencies must be captured with `supabase/verification/p0_security_preflight.sql` before application.
 
-| Function | Repository usage / dependency | RLS | Trigger | Netlify / frontend | Required direct roles after P0 | Search path after P0 | Migration behavior |
-|---|---|---:|---:|---|---|---|---|
-| `delete_auth_user_data(uuid)` | Repository SQL states backend-only auth deletion | No repository RLS use found | No | Intended service-role backend use; no active RPC call confirmed | `service_role` only | `pg_catalog` | Canonical fully qualified definition; PUBLIC/anon/authenticated revoked |
-| `ensure_user_profile(text,text,text)` | Repository provisioning SQL; authenticated `auth.uid()` invariant | Possible customer provisioning helper | No | Exact active RPC call not found; authenticated contract retained | `authenticated`, `service_role` | `pg_catalog` | Canonical definition preserves `auth.uid()` check and qualified tables |
-| `ensure_user_profile(text,text)` | No active repository dependency found; designated legacy signature | Not found | Not found | Not found | `service_role` only, if present | `pg_catalog, public, auth` | Not dropped; exact signature guarded; removal candidate |
-| `cleanup_old_notifications()` | No active repository invocation found | No repository policy use found | No repository trigger found | No Netlify invocation found | `service_role` only, if present | `pg_catalog, public` | Body preserved; exact signature guarded |
-| `handle_auth_user_created()` | Created as auth-user trigger function in repository SQL | No | Yes, `auth.users` after insert | No direct call required | no direct client grant | `pg_catalog` | Canonical qualified trigger body; all client/service direct grants revoked |
-| `current_customer_id()` | Used by customer RLS policies for customers, calls, onboarding and cases | Yes | No | No direct browser RPC requirement found | `authenticated`, `service_role` | `pg_catalog` | Canonical qualified definition and explicit grants |
-| `is_admin(uuid)` | Used by admin RLS policies; default argument permits `is_admin()` style invocation | Yes | No | No direct frontend RPC requirement found | `authenticated`, `service_role` | `pg_catalog` | Canonical active-role/status check and explicit grants |
-| `is_admin()` exact overload | No exact repository definition or call found; may exist live | Live policy dependency unknown | Unknown | Not found | `authenticated`, `service_role`, if present | `pg_catalog, public, auth` | Body preserved; exact signature guarded |
-| `is_super_admin()` | No repository use found | Live policy dependency unknown | Unknown | Not found | `authenticated`, `service_role`, if present | `pg_catalog, public, auth` | Body preserved; exact signature guarded |
-| `next_customer_code(integer)` | No repository call found; customer creation currently constructs an ID in Netlify code | No repository policy use found | No repository trigger found | No active RPC call found | `service_role` only, if present | `pg_catalog, public` | Body preserved; exact signature guarded |
+| Function | Repository dependency | Required direct roles after P0 | Search path | P0 behavior |
+|---|---|---|---|---|
+| `delete_auth_user_data(uuid)` | Backend-only auth deletion | `service_role` | `pg_catalog` | PUBLIC/anon/authenticated revoked; qualified auth tables |
+| `ensure_user_profile(text,text,text)` | Authenticated profile compatibility RPC | `authenticated`, `service_role` | `pg_catalog` | Parameters retained but ignored for tenant binding; no user metadata; only unique `customers.auth_user_id = auth.uid()` match may bind |
+| `ensure_user_profile(text,text)` | No active dependency found; legacy signature | `service_role` only, if present | `pg_catalog, public, auth` | Not dropped; authenticated/anon/PUBLIC revoked; removal candidate |
+| `cleanup_old_notifications()` | No repository invocation found | `service_role` only, if present | `pg_catalog, public` | Existing body preserved behind exact-signature guard |
+| `handle_auth_user_created()` | Trigger on `auth.users` | no direct role | `pg_catalog` | Qualified trigger body; direct grants revoked |
+| `current_customer_id()` | Customer RLS helper | `authenticated`, `service_role` | `pg_catalog` | Resolves only `auth.uid()` from `public.users` |
+| `is_admin(uuid)` | Admin RLS helper, called as `is_admin(auth.uid())` | `authenticated`, `service_role` | `pg_catalog` | Parameter retained, but caller can evaluate only `auth.uid()`; foreign UUID returns false |
+| `is_admin()` exact overload | Live existence/dependency unknown | authenticated/service role only if live dependency is confirmed | `pg_catalog, public, auth` | Existing body preserved behind guard |
+| `is_super_admin()` | Live dependency unknown | authenticated/service role only if confirmed | `pg_catalog, public, auth` | Existing body preserved behind guard |
+| `next_customer_code(integer)` | No active repository call found | `service_role` only, if present | `pg_catalog, public` | Existing body preserved behind guard |
 
-## Role rules implemented
+## Tenant-binding invariants
 
-| Role | Default P0 rule |
-|---|---|
-| `PUBLIC` | EXECUTE revoked from all listed SECURITY DEFINER functions |
-| `anon` | No EXECUTE retained |
-| `authenticated` | Retained only for RLS helpers and the canonical three-argument profile function |
-| `service_role` | Retained for backend functions and helpers required by server paths |
-| function owner / trigger engine | Ownership is not changed; trigger invocation remains governed by the trigger definition |
+`ensure_user_profile(text,text,text)` must never derive `customer_id` from:
+
+- `p_customer_id`;
+- `p_dashboard_id`;
+- `p_email`;
+- `raw_user_meta_data`;
+- any other caller-controlled metadata.
+
+A missing server-side match leaves the profile unbound. Multiple `customers.auth_user_id` matches are treated as an error and must be corrected before rollout.
+
+## Admin-helper invariant
+
+`is_admin(uuid)` is not an admin-directory lookup RPC. Its argument exists only for compatibility with policies that pass `auth.uid()`. The function body requires the supplied UUID to equal `auth.uid()` and checks the admin row using `auth.uid()` itself.
 
 ## Legacy removal candidate
 
-`public.ensure_user_profile(text,text)` is intentionally not dropped in this package. After live dependency inspection confirms no policy, trigger, frontend RPC, Netlify Function or external automation depends on it, it should be removed in a separate migration with its own rollback evidence.
-
-## Live evidence required before application
-
-1. `pg_get_functiondef` for every listed overload.
-2. `proacl`, `proconfig`, owner and `prosecdef` from `pg_proc`.
-3. trigger references from `information_schema.triggers`.
-4. policy expressions from `pg_policies`.
-5. Supabase Cron/pg_cron jobs and Edge Functions that may call maintenance RPCs.
-6. API logs or code for external clients not represented in this repository.
+`public.ensure_user_profile(text,text)` remains present only for rollback-safe compatibility. Remove it later in a separate migration after live policies, triggers, RPC logs, Edge Functions and external automations confirm no dependency.
