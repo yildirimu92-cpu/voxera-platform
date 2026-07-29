@@ -5209,6 +5209,13 @@ async function sendAllDrafts(type) {
   if (!rows.length) { showToast('Keine Entwürfe vorhanden.'); return; }
   const label = type === 'setup_fee' ? 'Setup-Fee' : type === 'recurring' ? 'Recurring' : 'Rechnungs';
   const reviewRows=rows.map(inv=>buildInvoiceOperationalData(inv.id)).filter(Boolean);
+  if(reviewRows.length!==rows.length){
+    await voxAlert({
+      title:'Sammelversand blockiert',
+      message:'Mindestens eine Rechnung konnte nicht vollständig geladen werden. Bitte Billing neu laden und erneut prüfen.'
+    });
+    return;
+  }
   const invalidRows=reviewRows.filter(data=>{
     const email=String(data.customer?.email||data.raw?.customer_email||'').trim();
     return !isValidEmailAddress(email);
@@ -5667,7 +5674,8 @@ function renderBillingFinance(){
   });
   rootInvoiceBody.innerHTML=filtered.map(i=>{
     const canAct = i.id && i.customerId && i.status !== 'paid' && i.status !== 'cancelled';
-    const isSent = i.raw?.status === 'open' || i.status === 'open' || i.raw?.status === 'sent';
+    const canSend = i.id && i.status !== 'paid' && i.status !== 'cancelled';
+    const isSent = ['open','sent','overdue'].includes(String(i.status||'').toLowerCase()) || ['open','sent','overdue'].includes(String(i.raw?.status||'').toLowerCase());
     const histId = 'hist-' + String(i.id||'').replace(/[^a-z0-9]/gi,'');
     return `<tr class="bf-invoice-row" onclick="toggleBfHistory('${jsStr(i.id)}')" style="cursor:pointer;">
       <td data-label="Rechnung"><div class="bf-invoice-no">${esc(i.invoiceNo||'—')}</div><div class="bf-invoice-id">${esc(String(i.id||'').slice(0,8))}</div></td>
@@ -5680,7 +5688,7 @@ function renderBillingFinance(){
         <div class="bf-actions">
           <div class="bf-actions-row">
             <button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button>
-            <button class="btn btn-secondary btn-sm" id="send-btn-${jsStr(i.id)}" ${i.id?`onclick="sendInvoiceEmail('${jsStr(i.id)}',this)"`:'disabled'}>${isSent?'✓ Gesendet':'Senden'}</button>
+            <button class="btn btn-secondary btn-sm" id="send-btn-${jsStr(i.id)}" ${canSend?`onclick="sendInvoiceEmail('${jsStr(i.id)}',this)"`:'disabled'}>${isSent?'Erneut senden':'Senden'}</button>
           </div>
           <div class="bf-actions-row">
             <button class="btn btn-primary btn-sm" ${canAct?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"` :'disabled'}>Bezahlt</button>
@@ -10997,7 +11005,7 @@ function renderTodayBlock(dotCls, title, invoices, filterKey){
     const status=String(inv.status||'').toLowerCase();
     let actions='';
     if(status==='draft'){
-      actions=`<button class="btn btn-secondary btn-sm" onclick="sendInvoiceEmail('${jsStr(inv.id)}',this)">${String(inv.status||'').toLowerCase()==='open'?'✓ Gesendet':'Versenden'}</button>`;
+      actions=`<button class="btn btn-secondary btn-sm" onclick="sendInvoiceEmail('${jsStr(inv.id)}',this)">Senden</button>`;
     } else {
       actions=`<button class="btn btn-secondary btn-sm" onclick="markInvoicePaid('${jsStr(inv.customer_id)}','${jsStr(inv.id)}')">Als bezahlt</button><button class="btn btn-quiet btn-sm" onclick="openInvoicesTabForInvoice('${jsStr(inv.id)}')">Details</button>`;
     }
@@ -12204,6 +12212,15 @@ async function sendInvoiceEmail(invoiceId, btnEl, options={}){
   try{
     const data=buildInvoiceOperationalData(invoiceId);
     if(!data) throw new Error('Rechnung wurde nicht gefunden.');
+    if(['paid','cancelled'].includes(data.status)){
+      if(settings.reportErrors){
+        await voxAlert({
+          title:'Versand blockiert',
+          message:'Bezahlte oder stornierte Rechnungen werden nicht erneut als Zahlungsaufforderung versendet.'
+        });
+      }
+      return false;
+    }
     const recipient=String(data.customer?.email||data.raw?.customer_email||'').trim();
     if(!isValidEmailAddress(recipient)){
       if(settings.reportErrors){
@@ -12702,7 +12719,7 @@ function openInvoiceOperational(invoiceId,customerId){
   if(paidBtn) paidBtn.style.display=['paid','cancelled'].includes(data.status)?'none':'inline-flex';
   const sendBtn=document.getElementById('invoice-detail-send');
   if(sendBtn){
-    sendBtn.style.display=data.status==='cancelled'?'none':'inline-flex';
+    sendBtn.style.display=['paid','cancelled'].includes(data.status)?'none':'inline-flex';
     sendBtn.disabled=false;
     sendBtn.textContent=data.status==='draft'?'Rechnung senden':'Erneut senden';
   }
