@@ -1800,6 +1800,128 @@ body,.main{background:#F7F8FC;}
   /* Customer cards: inner grid 1-col */
   .customer-section-shell .toolbar { grid-template-columns: 1fr 1fr !important; }
 }
+
+  /* =========================================================
+     ADMIN SHELL CONSISTENCY PASS
+     One shell, one page header, one tab pattern, one page width.
+     ========================================================= */
+  :root{
+    --admin-page-max:1440px;
+    --admin-page-gutter:28px;
+    --admin-control-height:38px;
+    --admin-focus:rgba(31,111,235,.24);
+  }
+  .main{min-width:0;}
+  .topbar{
+    min-height:72px;
+    padding:14px var(--admin-page-gutter);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-left{min-width:0;}
+  .page-title{line-height:1.2;}
+  .page-sub{margin-top:3px;}
+  .content{
+    box-sizing:border-box;
+    width:100%;
+    max-width:var(--admin-page-max);
+    margin:0 auto;
+    padding:24px var(--admin-page-gutter) 40px;
+  }
+  .section{
+    box-sizing:border-box;
+    width:100%;
+    max-width:none!important;
+    padding:0!important;
+  }
+  .module-switcher-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-bottom:16px;
+  }
+  .module-tabs{
+    display:flex;
+    align-items:center;
+    gap:3px;
+    width:max-content;
+    max-width:100%;
+    margin:0 0 16px;
+    padding:4px;
+    overflow-x:auto;
+    overscroll-behavior-x:contain;
+    scrollbar-width:none;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#EEF2F7;
+  }
+  .module-tabs::-webkit-scrollbar{display:none;}
+  .module-switcher-row>.module-tabs{margin-bottom:0;}
+  .module-tab,
+  .bf-tab.module-tab{
+    min-height:var(--admin-control-height);
+    padding:8px 15px;
+    border:0;
+    border-radius:9px;
+    background:transparent;
+    color:var(--slate2);
+    font-family:inherit;
+    font-size:12px;
+    font-weight:650;
+    line-height:1.2;
+    white-space:nowrap;
+    cursor:pointer;
+    box-shadow:none;
+  }
+  .module-tab.active,
+  .module-tab.bf-tab-active,
+  .bf-tab.module-tab.bf-tab-active{
+    background:#fff;
+    color:var(--ink);
+    box-shadow:0 1px 3px rgba(15,23,42,.10);
+  }
+  #ai-panel-config .ai-setup-layout{
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:16px!important;
+  }
+  #ai-panel-config .ai-setup-layout>*{min-width:0;}
+  #ai-panel-config .ai-workspace-card{
+    position:static!important;
+    top:auto!important;
+    width:100%;
+  }
+  #section-ai-setup textarea,
+  #section-ai-setup .textarea{
+    width:100%;
+    max-width:none;
+  }
+  .nav-item:focus-visible,
+  .mobile-tab:focus-visible,
+  .mobile-more-item:focus-visible,
+  .module-tab:focus-visible,
+  .btn:focus-visible{
+    outline:3px solid var(--admin-focus);
+    outline-offset:2px;
+  }
+  @media(max-width:920px){
+    :root{--admin-page-gutter:20px;}
+    .topbar{min-height:64px;padding:12px var(--admin-page-gutter);}
+    .content{padding:20px var(--admin-page-gutter) 104px;}
+  }
+  @media(max-width:768px){
+    :root{--admin-page-gutter:12px;}
+    .topbar{padding:10px var(--admin-page-gutter);}
+    .content{padding:12px var(--admin-page-gutter) calc(96px + env(safe-area-inset-bottom));}
+    .section{padding:0!important;}
+    .module-switcher-row{align-items:stretch;margin-bottom:12px;}
+    .module-switcher-row>.module-tabs{width:100%;}
+    .module-switcher-row>[id^="sales-action-"]{width:100%;}
+    .module-switcher-row>[id^="sales-action-"] .btn{width:100%;justify-content:center;}
+    .module-tabs{width:100%;margin-bottom:12px;}
+    .module-tab,.bf-tab.module-tab{flex:0 0 auto;min-height:40px;}
+  }
+
 </style>
 </head>
 <body class="app-booting">
@@ -1839,27 +1961,31 @@ body,.main{background:#F7F8FC;}
       </button>
     </div>
     <nav class="nav" id="main-nav">
-      <div class="nav-section">Operations</div>
+      <div class="nav-section">Arbeitsbereich</div>
       <a href="#overview" class="nav-item" data-route="overview">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
         Cockpit
-      </a>
-      <a href="#customers" class="nav-item" data-route="customers">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/><path d="M11 7c1.66 0 3 1.34 3 3v2"/></svg>
-        Kunden
       </a>
       <a href="#offers" class="nav-item" data-route="offers">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 2.5h8.5L14 5v8.5A1.5 1.5 0 0112.5 15h-9A1.5 1.5 0 012 13.5v-9A1.5 1.5 0 013.5 3"/><path d="M11.5 2.5V5H14"/><path d="M5 8h6M5 10.5h6"/></svg>
         Sales
       </a>
+      <a href="#customers" class="nav-item" data-route="customers">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/><path d="M11 7c1.66 0 3 1.34 3 3v2"/></svg>
+        Kunden
+      </a>
+      <a href="#onboarding" class="nav-item" data-route="onboarding">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h10M8 3l5 5-5 5"/></svg>
+        Onboarding
+      </a>
       <a href="#billing-finance" class="nav-item" data-route="billing-finance">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 7.5h12M5 11h2.5"/></svg>
         Billing
       </a>
-      <div class="nav-section">Configure</div>
+      <div class="nav-section">Steuerung</div>
       <a href="#ai-setup" class="nav-item" data-route="ai-setup" style="position:relative;">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="2"/><path d="M8 2v1M8 13v1M2 8h1M13 8h1M3.86 3.86l.7.7M11.44 11.44l.7.7M3.86 12.14l.7-.7M11.44 4.56l.7-.7"/></svg>
-        AI &amp; System
+        Assistenten
         <span id="nav-ai-change-badge" style="display:none;position:absolute;top:6px;right:8px;min-width:16px;height:16px;background:#DC2626;color:#fff;border-radius:8px;font-size:10px;font-weight:700;line-height:16px;text-align:center;padding:0 4px;">0</span>
       </a>
       <div class="nav-section">Analyse</div>
@@ -1982,9 +2108,6 @@ body,.main{background:#F7F8FC;}
 
       <!-- ONBOARDING -->
       <section id="section-onboarding" class="section">
-        <div class="section-head">
-          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Onboarding</h3>
-        </div>
         <div class="toolbar" style="margin-bottom:12px;">
           <input class="input" id="onboarding-search" placeholder="Suche Firma, Kontakt, E-Mail, Kundennummer …">
           <select class="select" id="onboarding-status-filter">
@@ -2037,10 +2160,10 @@ body,.main{background:#F7F8FC;}
       <section id="section-ai-setup" class="section">
 
         <!-- Tab Bar -->
-        <div style="display:flex;gap:2px;background:#F1F5F9;border-radius:10px;padding:3px;margin-bottom:12px;width:fit-content;">
-          <button type="button" id="ai-tab-requests" onclick="aiShowTab('requests')" style="padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:#fff;color:#0D1F3C;box-shadow:0 1px 3px rgba(0,0,0,.08);">Änderungsanfragen</button>
-          <button type="button" id="ai-tab-config" onclick="aiShowTab('config')" style="padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;color:#94A3B8;">AI-Konfiguration</button>
-          <button type="button" id="ai-tab-sync" onclick="aiShowTab('sync')" style="padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;color:#94A3B8;">Sync-Log</button>
+        <div class="module-tabs" role="tablist" aria-label="Assistentenbereiche">
+          <button type="button" class="module-tab active" id="ai-tab-requests" role="tab" aria-selected="true" onclick="aiShowTab('requests')">Änderungsanfragen</button>
+          <button type="button" class="module-tab" id="ai-tab-config" role="tab" aria-selected="false" onclick="aiShowTab('config')">Konfiguration</button>
+          <button type="button" class="module-tab" id="ai-tab-sync" role="tab" aria-selected="false" onclick="aiShowTab('sync')">Sync-Status</button>
         </div>
 
         <!-- Panel: Änderungsanfragen -->
@@ -2212,9 +2335,6 @@ body,.main{background:#F7F8FC;}
 
       <!-- INSIGHTS -->
       <section id="section-insights" class="section">
-        <div class="section-head">
-          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Insights</h3>
-        </div>
         <!-- Minuten-Verbrauch pro Kunde -->
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head"><h3>Minuten-Verbrauch pro Kunde</h3><span class="badge badge-blue">Live aus calls</span></div>
@@ -2263,11 +2383,11 @@ body,.main{background:#F7F8FC;}
           <div class="bf-kpi-strip" id="finance-kpi-strip" style="margin-bottom:12px;"></div>
 
           <!-- Tabs -->
-          <div class="bf-tabs" style="display:flex;gap:2px;background:#F1F5F9;border-radius:10px;padding:3px;margin-bottom:12px;width:fit-content;">
-            <button class="bf-tab bf-tab-active" data-bf-tab="today" onclick="switchBfTab('today',this)">Aufgaben</button>
-            <button class="bf-tab" data-bf-tab="invoices" onclick="switchBfTab('invoices',this)">Alle Rechnungen</button>
-            <button class="bf-tab" data-bf-tab="subscriptions" onclick="switchBfTab('subscriptions',this)">Subscriptions</button>
-            <button class="bf-tab" data-bf-tab="overage" onclick="switchBfTab('overage',this)">Überzug</button>
+          <div class="bf-tabs module-tabs" role="tablist" aria-label="Billing-Bereiche">
+            <button class="bf-tab module-tab bf-tab-active" role="tab" aria-selected="true" data-bf-tab="today" onclick="switchBfTab('today',this)">Aufgaben</button>
+            <button class="bf-tab module-tab" role="tab" aria-selected="false" data-bf-tab="invoices" onclick="switchBfTab('invoices',this)">Alle Rechnungen</button>
+            <button class="bf-tab module-tab" role="tab" aria-selected="false" data-bf-tab="subscriptions" onclick="switchBfTab('subscriptions',this)">Subscriptions</button>
+            <button class="bf-tab module-tab" role="tab" aria-selected="false" data-bf-tab="overage" onclick="switchBfTab('overage',this)">Überzug</button>
           </div>
 
           <!-- Tab: Aufgaben -->
@@ -2355,9 +2475,6 @@ body,.main{background:#F7F8FC;}
 
       <!-- SETTINGS -->
       <section id="section-settings" class="section">
-        <div class="section-head">
-          <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Einstellungen</h3>
-        </div>
 
         <!-- Row 1: Konto + System -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
@@ -2417,10 +2534,10 @@ body,.main{background:#F7F8FC;}
       </section>
       <!-- OFFERS -->
       <section id="section-offers" class="section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-          <div style="display:flex;gap:2px;background:#F1F5F9;border-radius:10px;padding:3px;">
-            <button type="button" id="sales-tab-offers" onclick="salesShowTab('offers')" style="padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:#fff;color:#0D1F3C;box-shadow:0 1px 3px rgba(0,0,0,.08);">Offerten</button>
-            <button type="button" id="sales-tab-contracts" onclick="salesShowTab('contracts')" style="padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;color:#94A3B8;">Verträge</button>
+        <div class="module-switcher-row">
+          <div class="module-tabs" role="tablist" aria-label="Sales-Bereiche">
+            <button type="button" class="module-tab active" id="sales-tab-offers" role="tab" aria-selected="true" onclick="salesShowTab('offers')">Offerten</button>
+            <button type="button" class="module-tab" id="sales-tab-contracts" role="tab" aria-selected="false" onclick="salesShowTab('contracts')">Verträge</button>
           </div>
           <div id="sales-action-offers">
             <button class="btn btn-primary" onclick="openOfferWizard()">
@@ -2667,7 +2784,11 @@ body,.main{background:#F7F8FC;}
 <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Mobile Hauptnavigation">
   <button class="mobile-tab" data-route="overview" type="button">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
-    <span>Übersicht</span>
+    <span>Cockpit</span>
+  </button>
+  <button class="mobile-tab" data-route="offers" type="button">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 2.5h8.5L14 5v8.5A1.5 1.5 0 0112.5 15h-9A1.5 1.5 0 012 13.5v-9A1.5 1.5 0 013.5 3"/><path d="M11.5 2.5V5H14"/><path d="M5 8h6M5 10.5h6"/></svg>
+    <span>Sales</span>
   </button>
   <button class="mobile-tab" data-route="customers" type="button">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/><path d="M11 7c1.66 0 3 1.34 3 3v2"/></svg>
@@ -2676,10 +2797,6 @@ body,.main{background:#F7F8FC;}
   <button class="mobile-tab" data-route="onboarding" type="button">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8h10M8 3l5 5-5 5"/></svg>
     <span>Onboarding</span><span class="mobile-tab-badge" id="mobile-badge-onboarding">0</span>
-  </button>
-  <button class="mobile-tab" data-route="billing-finance" type="button">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 7.5h12M5 11h2.5"/></svg>
-    <span>Finance</span>
   </button>
   <button class="mobile-tab" id="mobile-more-trigger" data-route="more" type="button" aria-expanded="false">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="3.2" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="12.8" cy="8" r="1.1"/></svg>
@@ -2691,10 +2808,10 @@ body,.main{background:#F7F8FC;}
   <div class="mobile-more-handle"></div>
   <div class="mobile-more-title">Mehr Bereiche</div>
   <div class="mobile-more-list" id="mobile-more-list">
-    <button class="mobile-more-item" data-route="ai-setup" type="button">AI Setup <span>→</span></button>
+    <button class="mobile-more-item" data-route="billing-finance" type="button">Billing <span>→</span></button>
+    <button class="mobile-more-item" data-route="ai-setup" type="button">Assistenten <span>→</span></button>
     <button class="mobile-more-item" data-route="cases" type="button">Cases <span>→</span></button>
     <button class="mobile-more-item" data-route="contracts" type="button">Verträge <span>→</span></button>
-    <button class="mobile-more-item" data-route="offers" type="button">Offerten <span>→</span></button>
     <button class="mobile-more-item" data-route="insights" type="button">Insights <span>→</span></button>
     <button class="mobile-more-item" data-route="activity" type="button">Aktivität <span>→</span></button>
     <button class="mobile-more-item" data-route="settings" type="button">Einstellungen <span>→</span></button>
@@ -4005,7 +4122,7 @@ const routeMeta={
   'overview':['Cockpit','Dein tägliches Kommandozentrum.'],
   'customers':['Kunden','Pipeline und Workspace pro Kunde.'],
   'onboarding':['Onboarding','Setup Readiness und Checklisten-Fortschritt.'],
-  'ai-setup':['AI & System','Konfiguration, Sync-Qualität und Systemsteuerung.'],
+  'ai-setup':['Assistenten','Konfiguration, Änderungsanfragen und Sync-Status.'],
   'cases':['Cases','Rückrufe, Follow-ups und Workflow-Verantwortung.'],
   'activity':['Aktivität','Cross-Customer Echtzeit-Transparenz.'],
   'insights':['Insights','Nutzung, Trends und Business-Überblick.'],
@@ -4015,7 +4132,7 @@ const routeMeta={
   'contracts':['Verträge','Serviceverträge mit Kunden verwalten.'],
   'customer-workspace':['Kunden-Workspace','']
 };
-const mobileMoreRoutes=new Set(['ai-setup','cases','contracts','offers','insights','activity','settings']);
+const mobileMoreRoutes=new Set(['billing-finance','ai-setup','cases','contracts','insights','activity','settings']);
 
 function syncMobileNavActive(route){
   const normalized=routes.includes(route)?route:'overview';
@@ -4024,10 +4141,15 @@ function syncMobileNavActive(route){
     const isMore=tabRoute==='more';
     const active=isMore?mobileMoreRoutes.has(normalized):tabRoute===normalized;
     tab.classList.toggle('active',active);
+    if(active && !isMore) tab.setAttribute('aria-current','page');
+    else tab.removeAttribute('aria-current');
     if(isMore) tab.setAttribute('aria-expanded',String(active && document.getElementById('mobile-more-sheet')?.classList.contains('open')));
   });
   document.querySelectorAll('#mobile-more-list .mobile-more-item').forEach(item=>{
-    item.classList.toggle('active',item.dataset.route===normalized);
+    const active=item.dataset.route===normalized;
+    item.classList.toggle('active',active);
+    if(active) item.setAttribute('aria-current','page');
+    else item.removeAttribute('aria-current');
   });
 }
 
@@ -8121,9 +8243,8 @@ function aiShowTab(tab) {
     var active = p === tab;
     if (panel) panel.style.display = active ? '' : 'none';
     if (btn) {
-      btn.style.background = active ? '#fff' : 'transparent';
-      btn.style.color = active ? '#0D1F3C' : '#94A3B8';
-      btn.style.boxShadow = active ? '0 1px 3px rgba(0,0,0,.08)' : 'none';
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
     }
   });
   // Show sync log card when on sync tab
@@ -8144,8 +8265,14 @@ function salesShowTab(tab) {
   panelC.style.display = isOffers ? 'none' : '';
   if (actO) actO.style.display = isOffers ? '' : 'none';
   if (actC) actC.style.display = isOffers ? 'none' : '';
-  if (tabO) { tabO.style.background = isOffers ? '#fff' : 'transparent'; tabO.style.color = isOffers ? '#0D1F3C' : '#94A3B8'; tabO.style.boxShadow = isOffers ? '0 1px 3px rgba(0,0,0,.08)' : 'none'; }
-  if (tabC) { tabC.style.background = isOffers ? 'transparent' : '#fff'; tabC.style.color = isOffers ? '#94A3B8' : '#0D1F3C'; tabC.style.boxShadow = isOffers ? 'none' : '0 1px 3px rgba(0,0,0,.08)'; }
+  if (tabO) {
+    tabO.classList.toggle('active', isOffers);
+    tabO.setAttribute('aria-selected', String(isOffers));
+  }
+  if (tabC) {
+    tabC.classList.toggle('active', !isOffers);
+    tabC.setAttribute('aria-selected', String(!isOffers));
+  }
   if (!isOffers) {
     // Sync inline contracts table from original contracts table
     var origBody = document.getElementById('contracts-table-body');
@@ -11055,7 +11182,12 @@ function setRoute(route,replaceHash=false){
   if(typeof _voxDialogReset === 'function') _voxDialogReset();
   document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
   routes.forEach(r=>document.getElementById('section-'+r)?.classList.toggle('active',r===route));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.route===route));
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    const active=n.dataset.route===route;
+    n.classList.toggle('active',active);
+    if(active) n.setAttribute('aria-current','page');
+    else n.removeAttribute('aria-current');
+  });
   syncMobileNavActive(route);
   closeMobileMenu();
   closeMobileMoreMenu();
