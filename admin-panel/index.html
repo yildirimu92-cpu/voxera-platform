@@ -1934,6 +1934,139 @@ body,.main{background:#F7F8FC;}
     .module-tab,.bf-tab.module-tab{flex:0 0 auto;min-height:40px;}
   }
 
+
+  /* ADMIN COMPONENT FOUNDATION — shared visual language */
+  :root{
+    --admin-surface:#FFFFFF;
+    --admin-surface-soft:#F7F9FC;
+    --admin-radius-sm:10px;
+    --admin-radius-md:14px;
+    --admin-radius-lg:18px;
+    --admin-shadow-sm:0 1px 2px rgba(15,23,42,.04);
+    --admin-shadow-md:0 8px 24px rgba(15,23,42,.06);
+  }
+
+  /* Shared content surfaces */
+  .main .card,
+  .main .table-wrap,
+  .main .bf-panel,
+  .main .customer-section-shell{
+    border:1px solid var(--line);
+    border-radius:var(--admin-radius-md);
+    background:var(--admin-surface);
+    box-shadow:var(--admin-shadow-sm);
+  }
+  .main .card-head,
+  .main .section-head,
+  .main .bf-panel-head{
+    min-height:52px;
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    border-radius:var(--admin-radius-md) var(--admin-radius-md) 0 0;
+  }
+  .main .card-head h2,
+  .main .card-head h3,
+  .main .section-head h2,
+  .main .section-head h3,
+  .main .bf-panel-head h2,
+  .main .bf-panel-head h3{
+    margin:0;
+    color:var(--ink);
+    font-size:14px;
+    font-weight:700;
+    line-height:1.25;
+  }
+
+  /* Shared filter and control surfaces */
+  .main .toolbar,
+  .main .bf-toolbar{
+    gap:10px;
+    margin-bottom:16px;
+    padding:14px;
+    border:1px solid var(--line);
+    border-radius:var(--admin-radius-md);
+    background:var(--admin-surface);
+    box-shadow:var(--admin-shadow-sm);
+  }
+  .main input:not([type="checkbox"]):not([type="radio"]),
+  .main select,
+  .main textarea{
+    border-color:var(--line);
+    border-radius:var(--admin-radius-sm);
+    background:#fff;
+    font-family:inherit;
+  }
+  .main input:not([type="checkbox"]):not([type="radio"]):focus,
+  .main select:focus,
+  .main textarea:focus{
+    border-color:var(--blue);
+    outline:3px solid var(--admin-focus);
+    outline-offset:0;
+  }
+
+  /* Predictable action hierarchy */
+  .main .btn{
+    min-height:var(--admin-control-height);
+    border-radius:var(--admin-radius-sm);
+    font-family:inherit;
+    font-weight:650;
+    line-height:1.2;
+  }
+  .main .btn-primary{box-shadow:0 4px 12px rgba(31,111,235,.18);}
+  .main .btn-danger{box-shadow:none;}
+  .main .modal-close,
+  .main .vox-modal-close,
+  .main button[aria-label="Schließen"],
+  .main button[aria-label="Dialog schließen"]{
+    display:inline-flex;
+    width:38px;
+    height:38px;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    border:1px solid var(--line);
+    border-radius:var(--admin-radius-sm);
+    background:var(--admin-surface-soft);
+    color:var(--ink);
+    font:inherit;
+    cursor:pointer;
+  }
+
+  /* Tables keep one visual rhythm; mobile-specific card transforms still win. */
+  .main table{border-collapse:separate;border-spacing:0;}
+  .main th{
+    background:var(--admin-surface-soft);
+    color:var(--muted);
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
+  .main td,.main th{border-bottom:1px solid var(--line);}
+  .main tbody tr:last-child td{border-bottom:0;}
+
+  @media(max-width:768px){
+    .main .card,
+    .main .table-wrap,
+    .main .bf-panel,
+    .main .customer-section-shell{border-radius:var(--admin-radius-md);}
+    .main .card-head,
+    .main .section-head,
+    .main .bf-panel-head{
+      min-height:48px;
+      padding:12px 14px;
+    }
+    .main .toolbar,
+    .main .bf-toolbar{
+      display:grid;
+      grid-template-columns:minmax(0,1fr);
+      padding:12px;
+    }
+    .main .toolbar>*,
+    .main .bf-toolbar>*{min-width:0;max-width:100%;}
+    .main .btn{min-height:42px;}
+  }
+
 </style>
 </head>
 <body class="app-booting">
