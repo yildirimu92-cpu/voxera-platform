@@ -492,11 +492,23 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   ══════════════════════════════════════════════ */
   .bf-kpi-strip{grid-template-columns:1fr!important;}
   .bf-tabs{justify-content:flex-start!important;}
-  /* Invoice table: show Rechnung, Kunde, Status, Betrag */
-  .bf-invoice-table th:nth-child(3),.bf-invoice-table td:nth-child(3),
-  .bf-invoice-table th:nth-child(6),.bf-invoice-table td:nth-child(6),
-  .bf-invoice-table th:nth-child(7),.bf-invoice-table td:nth-child(7){display:none!important;}
-  .bf-invoice-table{min-width:0!important;}
+  /* Invoice table: full-action cards in portrait */
+  #bf-tab-invoices .bf-invoice-table-wrap{overflow:visible!important;border:0!important;background:transparent!important;}
+  #bf-tab-invoices .bf-invoice-table{display:block!important;min-width:0!important;width:100%!important;border-collapse:separate!important;}
+  #bf-tab-invoices .bf-invoice-table thead{display:none!important;}
+  #bf-tab-invoices .bf-invoice-table tbody{display:grid!important;gap:12px!important;}
+  #bf-tab-invoices .bf-invoice-table tr.bf-invoice-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:0!important;border:1px solid var(--line)!important;border-radius:16px!important;background:#fff!important;overflow:hidden!important;box-shadow:0 4px 14px rgba(13,31,60,.05)!important;}
+  #bf-tab-invoices .bf-invoice-table tr.bf-invoice-row td{display:flex!important;min-width:0!important;flex-direction:column!important;align-items:flex-start!important;gap:5px!important;padding:12px 14px!important;border-bottom:1px solid var(--line2,#F1F5F9)!important;font-size:13px!important;}
+  #bf-tab-invoices .bf-invoice-table tr.bf-invoice-row td::before{content:attr(data-label);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate2);}
+  #bf-tab-invoices .bf-invoice-table tr.bf-invoice-row td:nth-child(1),
+  #bf-tab-invoices .bf-invoice-table tr.bf-invoice-row td:nth-child(2),
+  #bf-tab-invoices .bf-invoice-table tr.bf-invoice-row td:nth-child(7){grid-column:1/-1!important;}
+  #bf-tab-invoices .bf-invoice-table tr.bf-invoice-row td:nth-child(7){border-bottom:0!important;background:var(--gray50,#F8FAFC)!important;}
+  #bf-tab-invoices .bf-invoice-table .bf-actions{width:100%!important;align-items:stretch!important;}
+  #bf-tab-invoices .bf-invoice-table .bf-actions-row{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%!important;gap:8px!important;}
+  #bf-tab-invoices .bf-invoice-table .bf-actions-row .btn{width:100%!important;min-height:44px!important;justify-content:center!important;}
+  #bf-tab-invoices .bf-invoice-table tr.bf-history-row{grid-column:1/-1!important;background:#FAFCFF!important;border:1px solid var(--line)!important;border-radius:14px!important;}
+  #bf-tab-invoices .bf-invoice-table tr.bf-history-row td{display:block!important;padding:12px 14px!important;}
   /* Overage table: show Kunde, Periode, Inklusive, Verbraucht, Überzug, Aktion */
   #bf-tab-overage .data-table th:nth-child(2),#bf-tab-overage .data-table td:nth-child(2),
   #bf-tab-overage .data-table th:nth-child(7),#bf-tab-overage .data-table td:nth-child(7),
@@ -2137,7 +2149,7 @@ body,.main{background:#F7F8FC;}
             </div>
             <div id="onboarding-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
             <div class="inline-actions" style="margin-top:12px;">
-              <button class="btn btn-primary btn-sm" id="onboarding-open-profile">Kundenprofil öffnen</button>
+              <button class="btn btn-primary btn-sm" id="onboarding-open-profile">Workspace öffnen</button>
               <button class="btn btn-secondary btn-sm" id="onboarding-send-access-btn" type="button" data-send-access-trigger data-send-access-source="onboarding-detail" data-send-access-blocked="1" title="Bitte zuerst einen Kunden auswählen.">Zugang senden</button>
             </div>
           </div>
@@ -5487,14 +5499,14 @@ function renderBillingFinance(){
     const canAct = i.id && i.customerId && i.status !== 'paid' && i.status !== 'cancelled';
     const isSent = i.raw?.status === 'open' || i.status === 'open' || i.raw?.status === 'sent';
     const histId = 'hist-' + String(i.id||'').replace(/[^a-z0-9]/gi,'');
-    return `<tr onclick="toggleBfHistory('${jsStr(i.id)}')" style="cursor:pointer;">
-      <td><div class="bf-invoice-no">${esc(i.invoiceNo||'—')}</div><div class="bf-invoice-id">${esc(String(i.id||'').slice(0,8))}</div></td>
-      <td><div class="bf-invoice-customer">${esc(i.customerName||'—')}</div><div class="bf-invoice-type">${esc(invoiceTypeLabel(i.type))}</div></td>
-      <td>${esc(invoiceTypeLabel(i.type))}</td>
-      <td>${bfStatusBadge(i.status)}</td>
-      <td><span class="bf-amount">${esc(moneyChf(i.amount))}</span></td>
-      <td><div class="bf-date">${esc(formatDate(i.dueDate))}</div>${i.paidAt?`<div class="bf-date-sub">Bezahlt ${esc(formatDate(i.paidAt))}</div>`:''}</td>
-      <td onclick="event.stopPropagation()">
+    return `<tr class="bf-invoice-row" onclick="toggleBfHistory('${jsStr(i.id)}')" style="cursor:pointer;">
+      <td data-label="Rechnung"><div class="bf-invoice-no">${esc(i.invoiceNo||'—')}</div><div class="bf-invoice-id">${esc(String(i.id||'').slice(0,8))}</div></td>
+      <td data-label="Kunde"><div class="bf-invoice-customer">${esc(i.customerName||'—')}</div><div class="bf-invoice-type">${esc(invoiceTypeLabel(i.type))}</div></td>
+      <td data-label="Typ">${esc(invoiceTypeLabel(i.type))}</td>
+      <td data-label="Status">${bfStatusBadge(i.status)}</td>
+      <td data-label="Betrag"><span class="bf-amount">${esc(moneyChf(i.amount))}</span></td>
+      <td data-label="Fällig"><div class="bf-date">${esc(formatDate(i.dueDate))}</div>${i.paidAt?`<div class="bf-date-sub">Bezahlt ${esc(formatDate(i.paidAt))}</div>`:''}</td>
+      <td data-label="Aktionen" onclick="event.stopPropagation()">
         <div class="bf-actions">
           <div class="bf-actions-row">
             <button class="btn btn-quiet btn-sm" ${i.customerId?`onclick="openInvoiceOperational('${jsStr(i.id)}','${jsStr(i.customerId)}')"`:'disabled'}>Öffnen</button>
@@ -5544,7 +5556,12 @@ function renderBillingFinance(){
 function toggleBfHistory(invoiceId) {
   const histId = 'hist-' + String(invoiceId||'').replace(/[^a-z0-9]/gi,'');
   const row = document.getElementById(histId);
-  if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+  if (row) {
+    const shouldShow = row.style.display === 'none';
+    row.style.display = shouldShow
+      ? (window.matchMedia('(max-width:600px)').matches ? 'block' : 'table-row')
+      : 'none';
+  }
 }
 
 function updatePipelineStrip(){
@@ -5570,6 +5587,7 @@ function openCustomerWorkspace(id) {
   if (!cust) return;
   const section = document.getElementById('section-customer-workspace');
   if (section) section.dataset.customerId = id;
+  try { sessionStorage.setItem('voxera.admin.customerWorkspaceId', String(id)); } catch (_e) {}
 
   // Navigate to workspace section
   setRoute('customer-workspace');
@@ -5583,6 +5601,7 @@ function openCustomerWorkspace(id) {
 }
 
 function closeCustomerWorkspace() {
+  try { sessionStorage.removeItem('voxera.admin.customerWorkspaceId'); } catch (_e) {}
   setRoute('customers');
 }
 
@@ -6149,7 +6168,7 @@ function openOnboardingDetail(customerId,options={}){
     }).join('')}</div>`;
   }
   const profileBtn=document.getElementById('onboarding-open-profile');
-  if(profileBtn) profileBtn.onclick=()=>openCustomerProfile(customerId);
+  if(profileBtn) profileBtn.onclick=()=>openCustomerWorkspace(customerId);
   const sendAccessBtn=document.getElementById('onboarding-send-access-btn');
   if(sendAccessBtn){
     const onboarding=onboardingForCustomer(customerId);
@@ -6188,7 +6207,7 @@ function renderOnboardingDetail(){
   }).join('');
   document.getElementById('onboarding-next-action').textContent=checklistDisplayLabel(q.nextStep);
   document.getElementById('onboarding-blocker').textContent=q.blocker||'Kein blocker aktiv';
-  document.getElementById('onboarding-open-profile').onclick=()=>openCustomerProfile(q.customer.id);
+  document.getElementById('onboarding-open-profile').onclick=()=>openCustomerWorkspace(q.customer.id);
 }
 
 function aiMissingFields(cfg){
@@ -11206,7 +11225,10 @@ function onHashRoute(){
   const route=location.hash.replace('#','')||'overview';
   if(route==='customer-workspace'){
     const section=document.getElementById('section-customer-workspace');
-    const customerId=section?.dataset?.customerId||'';
+    let storedCustomerId='';
+    try { storedCustomerId=sessionStorage.getItem('voxera.admin.customerWorkspaceId')||''; } catch (_e) {}
+    const customerId=section?.dataset?.customerId||storedCustomerId;
+    if(section && customerId) section.dataset.customerId=customerId;
     const customer=customerById(customerId);
     if(!customer){
       setRoute('customers',true);
