@@ -645,6 +645,49 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .modal-title{font-size:18px;font-weight:700;letter-spacing:-.03em;color:var(--ink);}
 .modal-sub{font-size:12px;color:var(--slate2);margin-top:3px;}
 .modal-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:18px;}
+.modal-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px;}
+.modal-head h3{font-size:18px;font-weight:700;letter-spacing:-.03em;color:var(--ink);margin:0;}
+.modal-body{display:grid;gap:8px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:0.5px solid var(--line);}
+.modal-icon-close{width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;border:0.5px solid var(--line);border-radius:11px;background:#F7F9FC;color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s,transform .15s;}
+.modal-icon-close:hover{background:#EDF3FC;border-color:#BFCCE0;}
+.modal-icon-close:active{transform:scale(.97);}
+.modal-icon-close:focus-visible{outline:3px solid rgba(37,117,235,.22);outline-offset:2px;}
+.modal-icon-close svg{width:17px;height:17px;}
+
+.invoice-detail-modal{max-width:720px;padding:0;overflow:hidden;}
+.invoice-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:24px;background:linear-gradient(135deg,#0B2447 0%,#0D315E 100%);color:#fff;}
+.invoice-detail-head .modal-title{color:#fff;font-size:21px;}
+.invoice-detail-head .modal-sub{color:rgba(255,255,255,.62);margin-top:5px;}
+.invoice-detail-head .modal-icon-close{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);color:#fff;}
+.invoice-detail-head .modal-icon-close:hover{background:rgba(255,255,255,.18);}
+.invoice-detail-content{padding:24px;}
+.invoice-detail-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.invoice-detail-summary-card{padding:16px;border:0.5px solid var(--line);border-radius:14px;background:#F8FAFD;}
+.invoice-detail-summary-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--slate2);}
+.invoice-detail-amount{font-size:28px;font-weight:750;letter-spacing:-.04em;color:var(--ink);margin-top:5px;}
+.invoice-detail-recipient{font-size:16px;font-weight:650;color:var(--ink);margin-top:5px;overflow-wrap:anywhere;}
+.invoice-detail-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;}
+.invoice-detail-meta-item{padding:13px 15px;border-right:0.5px solid var(--line);border-bottom:0.5px solid var(--line);}
+.invoice-detail-meta-item:nth-child(3n){border-right:0;}
+.invoice-detail-meta-item:nth-last-child(-n+3){border-bottom:0;}
+.invoice-detail-meta-k{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);margin-bottom:5px;}
+.invoice-detail-meta-v{display:block;font-size:13px;font-weight:600;color:var(--ink);overflow-wrap:anywhere;}
+.invoice-detail-lines{border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;}
+.invoice-detail-lines-title{padding:12px 15px;background:#F4F7FB;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--slate2);}
+.invoice-detail-line{display:grid;grid-template-columns:1fr auto;gap:16px;padding:13px 15px;border-top:0.5px solid var(--line);font-size:13px;}
+.invoice-detail-line strong{color:var(--ink);}
+.invoice-detail-note{padding:12px 14px;border-radius:12px;border:1px solid #BFDBFE;background:#EFF6FF;color:#1E3A5F;font-size:12px;line-height:1.5;}
+.invoice-detail-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px;}
+@media(max-width:640px){
+  .invoice-detail-summary{grid-template-columns:1fr;}
+  .invoice-detail-meta{grid-template-columns:1fr 1fr;}
+  .invoice-detail-meta-item,.invoice-detail-meta-item:nth-child(3n){border-right:0.5px solid var(--line);border-bottom:0.5px solid var(--line);}
+  .invoice-detail-meta-item:nth-child(2n){border-right:0;}
+  .invoice-detail-meta-item:nth-last-child(-n+2){border-bottom:0;}
+  .invoice-detail-content,.invoice-detail-head{padding:18px;}
+  .invoice-detail-actions .btn{flex:1 1 calc(50% - 4px);}
+}
 
 /* ─── Form grid ─────────────────────────────────────────────── */
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
@@ -2536,7 +2579,7 @@ body,.main{background:#F7F8FC;}
       </section>
 
       <!-- CUSTOMER WORKSPACE -->
-      <section id="section-customer-workspace" class="section" style="display:none;">
+      <section id="section-customer-workspace" class="section">
         <!-- Back bar -->
         <div id="cw-back-bar" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
           <button type="button" onclick="closeCustomerWorkspace()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;border:0.5px solid var(--line);background:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#0D1F3C;">
@@ -3162,6 +3205,55 @@ body,.main{background:#F7F8FC;}
   </div>
 </div>
 
+<!-- INVOICE DETAIL MODAL -->
+<div class="modal-overlay" id="invoice-detail-modal" style="z-index:365;" onclick="if(event.target===this)closeInvoiceDetailModal()">
+  <div class="modal invoice-detail-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-detail-title">
+    <div class="invoice-detail-head">
+      <div>
+        <div class="modal-title" id="invoice-detail-title">Rechnung</div>
+        <div class="modal-sub" id="invoice-detail-sub">Rechnungsdetails</div>
+      </div>
+      <button class="modal-icon-close" type="button" onclick="closeInvoiceDetailModal()" aria-label="Rechnungsansicht schliessen" title="Schliessen">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
+      </button>
+    </div>
+    <div class="invoice-detail-content">
+      <div class="invoice-detail-summary">
+        <div class="invoice-detail-summary-card">
+          <div class="invoice-detail-summary-label">Betrag</div>
+          <div class="invoice-detail-amount" id="invoice-detail-amount">CHF 0.00</div>
+          <div id="invoice-detail-status" style="margin-top:8px;"></div>
+        </div>
+        <div class="invoice-detail-summary-card">
+          <div class="invoice-detail-summary-label">Empfänger</div>
+          <div class="invoice-detail-recipient" id="invoice-detail-customer">—</div>
+          <div class="muted" id="invoice-detail-email" style="font-size:12px;margin-top:4px;">—</div>
+        </div>
+      </div>
+      <div class="invoice-detail-meta">
+        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Typ</span><span class="invoice-detail-meta-v" id="invoice-detail-type">—</span></div>
+        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Ausgestellt</span><span class="invoice-detail-meta-v" id="invoice-detail-issued">—</span></div>
+        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Fällig</span><span class="invoice-detail-meta-v" id="invoice-detail-due">—</span></div>
+        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Bezahlt</span><span class="invoice-detail-meta-v" id="invoice-detail-paid-at">—</span></div>
+        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Mahnstufe</span><span class="invoice-detail-meta-v" id="invoice-detail-reminder">Keine</span></div>
+        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Interne ID</span><span class="invoice-detail-meta-v" id="invoice-detail-id">—</span></div>
+      </div>
+      <div class="invoice-detail-lines">
+        <div class="invoice-detail-lines-title">Positionen</div>
+        <div id="invoice-detail-lines"></div>
+      </div>
+      <div class="invoice-detail-note" id="invoice-detail-note">Beim Senden wird genau diese Rechnung verwendet und der Versand protokolliert.</div>
+      <div class="invoice-detail-actions">
+        <a class="btn btn-quiet" id="invoice-detail-pdf" href="#" target="_blank" rel="noopener" style="display:none;">PDF öffnen</a>
+        <button class="btn btn-quiet" id="invoice-detail-remind" type="button" onclick="remindInvoiceFromDetail()">Mahnung</button>
+        <button class="btn btn-secondary" id="invoice-detail-paid-action" type="button" onclick="markInvoicePaidFromDetail()">Als bezahlt</button>
+        <button class="btn btn-primary" id="invoice-detail-send" type="button" onclick="sendInvoiceFromDetail(this)">Rechnung senden</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- END INVOICE DETAIL MODAL -->
+
 <div class="modal-overlay" id="invoice-paid-modal" style="z-index:370;" onclick="if(event.target===this)closeInvoicePaidModal()">
   <div class="modal" style="max-width:520px;">
     <div class="modal-head">
@@ -3169,7 +3261,9 @@ body,.main{background:#F7F8FC;}
         <div class="modal-title">Rechnung als bezahlt markieren</div>
         <div class="modal-sub" id="invoice-paid-sub">Manuelle Zahlungsbestätigung inkl. Betrag, Datum und Referenz/Notiz.</div>
       </div>
-      <button class="btn btn-quiet" onclick="closeInvoicePaidModal()">✕</button>
+      <button class="modal-icon-close" type="button" onclick="closeInvoicePaidModal()" aria-label="Dialog schliessen" title="Schliessen">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
+      </button>
     </div>
     <div id="invoice-paid-feedback" class="modal-feedback"></div>
     <div class="grid-2" style="margin-bottom:12px;">
@@ -3212,7 +3306,9 @@ body,.main{background:#F7F8FC;}
         <h3>Mahnung versenden</h3>
         <div class="modal-sub">Mahnstufe wählen, protokollieren und Mail versenden.</div>
       </div>
-      <button class="modal-close" onclick="closeReminderModal()">✕</button>
+      <button class="modal-icon-close" type="button" onclick="closeReminderModal()" aria-label="Dialog schliessen" title="Schliessen">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
+      </button>
     </div>
     <div id="reminder-modal-feedback" class="modal-feedback"></div>
     <div class="modal-body">
@@ -3776,6 +3872,7 @@ const state={
   sendAccessPending:false,
   sendAccessTargetId:null,
   invoicePaidModal:{customerId:null,invoiceId:null,pending:false},
+  invoiceDetailModal:{customerId:null,invoiceId:null},
   caseCapturePending:false,
   caseCaptureCustomerId:null,
   customerDangerPending:false,
@@ -10975,6 +11072,22 @@ function setRoute(route,replaceHash=false){
 
 function onHashRoute(){
   const route=location.hash.replace('#','')||'overview';
+  if(route==='customer-workspace'){
+    const section=document.getElementById('section-customer-workspace');
+    const customerId=section?.dataset?.customerId||'';
+    const customer=customerById(customerId);
+    if(!customer){
+      setRoute('customers',true);
+      return;
+    }
+    setRoute(route,true);
+    const title=document.getElementById('page-title');
+    const sub=document.getElementById('page-sub');
+    if(title) title.textContent='Kunden-Workspace';
+    if(sub) sub.textContent=customer.name||'Kundendetails';
+    renderCustomerWorkspace(customerId);
+    return;
+  }
   setRoute(route,true);
 }
 
@@ -11753,34 +11866,37 @@ async function sendBillingPaymentLink(customerId){
 }
 
 async function sendInvoiceEmail(invoiceId, btnEl){
-  if(!invoiceId) return;
-  // Disable button during send
+  if(!invoiceId) return false;
+  const originalLabel=btnEl?.textContent||'Rechnung senden';
   if(btnEl){ btnEl.disabled=true; btnEl.textContent='Wird gesendet…'; }
   try{
-    // Route correctly based on invoice_type
-    const inv = (state.invoices||[]).find(i=>i.id===invoiceId);
-    const invoiceType = String(inv?.invoice_type||inv?.type||inv?.raw?.invoice_type||'').toLowerCase();
-    const isSetupFee = invoiceType==='setup_fee';
-    const payload = isSetupFee
-      ? { mail_type:'setup_fee_email', customer_id: inv?.customerId||inv?.customer_id||inv?.raw?.customer_id }
-      : { mail_type:'invoice_email', invoice_id:invoiceId };
-    const json=await callAdminFunction('mail-dispatch', payload);
+    const inv=(state.invoices||[]).find(i=>idsEq(i.id,invoiceId));
+    if(!inv) throw new Error('Rechnung wurde nicht gefunden.');
+    const invoiceType=String(inv?.invoice_type||inv?.type||inv?.raw?.invoice_type||'').toLowerCase();
+    const isSetupFee=invoiceType==='setup_fee';
+    const customerId=inv?.customerId||inv?.customer_id||inv?.raw?.customer_id||'';
+    const payload=isSetupFee
+      ? {mail_type:'setup_fee_email',customer_id:customerId,invoice_id:invoiceId}
+      : {mail_type:'invoice_email',invoice_id:invoiceId};
+    const json=await callAdminFunction('mail-dispatch',payload);
     if(!json?.success) throw new Error(json?.error||'Mailversand fehlgeschlagen.');
-    // Update invoice status to 'open' if it was draft
     if(inv && (inv.status==='draft'||inv.raw?.status==='draft') && authClient){
-      try {
+      try{
         await authClient.from('invoices')
-          .update({ status:'open', updated_at:new Date().toISOString() })
-          .eq('id', invoiceId);
-      } catch(_e) {}
+          .update({status:'open',updated_at:new Date().toISOString()})
+          .eq('id',invoiceId);
+      }catch(_e){}
     }
     await loadDataFromSupabase();
     showToast('✓ Rechnung gesendet.');
     renderBillingFinance();
+    if(idsEq(state.invoiceDetailModal?.invoiceId,invoiceId)) closeInvoiceDetailModal();
+    return true;
   }catch(err){
     const payload=err?.payload||{};
-    if(btnEl){ btnEl.disabled=false; btnEl.textContent='Rechnung senden'; }
+    if(btnEl){btnEl.disabled=false;btnEl.textContent=originalLabel;}
     alert(payload?.error||err?.message||'Rechnung konnte nicht gesendet werden.');
+    return false;
   }
 }
 
@@ -12105,14 +12221,136 @@ function openCustomerInvoicesInFinance(customerId){
   renderBillingFinance();
 }
 
-function openInvoiceOperational(invoiceId,customerId){
-  if(!customerId) return;
-  openCustomerProfile(customerId);
-  const activate=()=>{
-    const target=document.querySelector(`#customer-profile-modal .profile-tab[data-profile-tab="rechnungen"]`);
-    if(target) target.click();
+function buildInvoiceOperationalData(invoiceId,customerIdHint){
+  const raw=(state.invoices||[]).find(inv=>idsEq(inv.id,invoiceId));
+  if(!raw) return null;
+  const items=(state.invoiceItems||[]).filter(item=>idsEq(item.invoice_id||item.invoiceId,invoiceId));
+  const itemTotal=items.reduce((sum,item)=>{
+    const quantity=Number(item.quantity||1);
+    const unit=Number(item.unit_price ?? item.unit_amount ?? item.amount ?? 0);
+    const total=Number(item.total_amount ?? item.amount_total ?? (quantity*unit));
+    return sum+(Number.isFinite(total)?total:0);
+  },0);
+  const amountRaw=Number(raw.total_amount ?? raw.amount_total ?? raw.amount_due ?? raw.amount ?? itemTotal);
+  const amount=Number.isFinite(amountRaw)?amountRaw:0;
+  const dueDate=raw.due_date||raw.due_at||raw.invoice_due_date||null;
+  const paidAt=raw.paid_at||raw.payment_date||raw.paid_date||null;
+  const issuedAt=raw.issued_at||raw.created_at||raw.invoice_date||null;
+  const status=normalizeInvoiceStatus(raw.status||raw.payment_status,dueDate,paidAt);
+  const inferredType=items[0]?.type||items[0]?.item_type||items[0]?.category||'';
+  const type=classifyInvoiceType(raw.invoice_type||raw.type||raw.category||inferredType);
+  const customerId=String(raw.customer_id||raw.customerId||customerIdHint||'');
+  const customer=customerById(customerId);
+  return {
+    id:String(raw.id||invoiceId||''),
+    raw,
+    items,
+    amount,
+    dueDate,
+    paidAt,
+    issuedAt,
+    status,
+    type,
+    customerId,
+    customer,
+    customerName:customer?.name||raw.customer_name||'—',
+    customerEmail:customer?.email||raw.customer_email||'—',
+    invoiceNo:raw.invoice_number||raw.number||raw.external_invoice_no||String(raw.id||invoiceId||'—'),
+    reminderLevel:detectReminderLevel(raw,status,dueDate),
+    pdfUrl:String(raw.pdf_url||raw.invoice_pdf_url||'').trim()
   };
-  setTimeout(activate,50);
+}
+
+function openInvoiceOperational(invoiceId,customerId){
+  const data=buildInvoiceOperationalData(invoiceId,customerId);
+  if(!data){
+    showToast('Rechnung konnte nicht geladen werden.');
+    return;
+  }
+  state.invoiceDetailModal={customerId:data.customerId,invoiceId:data.id};
+  const title=document.getElementById('invoice-detail-title');
+  const sub=document.getElementById('invoice-detail-sub');
+  if(title) title.textContent='Rechnung '+data.invoiceNo;
+  if(sub) sub.textContent=invoiceTypeLabel(data.type)+' · '+data.customerName;
+  const amountEl=document.getElementById('invoice-detail-amount');
+  if(amountEl) amountEl.textContent='CHF '+Number(data.amount||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const statusEl=document.getElementById('invoice-detail-status');
+  if(statusEl) statusEl.innerHTML=bfStatusBadge(data.status);
+  const customerEl=document.getElementById('invoice-detail-customer');
+  if(customerEl) customerEl.textContent=data.customerName;
+  const emailEl=document.getElementById('invoice-detail-email');
+  if(emailEl) emailEl.textContent=data.customerEmail;
+  const typeEl=document.getElementById('invoice-detail-type');
+  if(typeEl) typeEl.textContent=invoiceTypeLabel(data.type);
+  const issuedEl=document.getElementById('invoice-detail-issued');
+  if(issuedEl) issuedEl.textContent=formatDate(data.issuedAt);
+  const dueEl=document.getElementById('invoice-detail-due');
+  if(dueEl) dueEl.textContent=formatDate(data.dueDate);
+  const paidEl=document.getElementById('invoice-detail-paid-at');
+  if(paidEl) paidEl.textContent=formatDate(data.paidAt);
+  const reminderEl=document.getElementById('invoice-detail-reminder');
+  if(reminderEl) reminderEl.textContent=data.reminderLevel>0?'L'+data.reminderLevel:'Keine';
+  const idEl=document.getElementById('invoice-detail-id');
+  if(idEl) idEl.textContent=data.id;
+  const linesEl=document.getElementById('invoice-detail-lines');
+  if(linesEl){
+    const rows=data.items.length?data.items:[{description:invoiceTypeLabel(data.type),quantity:1,total_amount:data.amount}];
+    linesEl.innerHTML=rows.map(item=>{
+      const description=esc(item.description||item.label||item.name||item.item_name||invoiceTypeLabel(data.type));
+      const quantity=Number(item.quantity||1);
+      const amountValue=Number(item.total_amount ?? item.amount_total ?? item.amount ?? ((Number(item.unit_price||0))*quantity));
+      const safeAmount=Number.isFinite(amountValue)?amountValue:0;
+      const qtyLabel=quantity>1?' · '+quantity+'×':'';
+      return '<div class="invoice-detail-line"><span><strong>'+description+'</strong><span class="muted">'+qtyLabel+'</span></span><strong>'+moneyChf(safeAmount)+'</strong></div>';
+    }).join('');
+  }
+  const noteEl=document.getElementById('invoice-detail-note');
+  if(noteEl) noteEl.textContent=data.type==='setup_fee'
+    ? 'Beim Senden werden diese Setup-Rechnung und der hinterlegte Zahlungslink gemeinsam an den Kunden übergeben.'
+    : 'Beim Senden wird genau diese Rechnung verwendet und der Versand protokolliert.';
+  const pdfEl=document.getElementById('invoice-detail-pdf');
+  const validPdf=data.pdfUrl.startsWith('https://')||data.pdfUrl.startsWith('http://');
+  if(pdfEl){
+    pdfEl.style.display=validPdf?'inline-flex':'none';
+    pdfEl.href=validPdf?data.pdfUrl:'#';
+  }
+  const remindBtn=document.getElementById('invoice-detail-remind');
+  if(remindBtn) remindBtn.style.display=['open','sent','overdue'].includes(data.status)?'inline-flex':'none';
+  const paidBtn=document.getElementById('invoice-detail-paid-action');
+  if(paidBtn) paidBtn.style.display=['paid','cancelled'].includes(data.status)?'none':'inline-flex';
+  const sendBtn=document.getElementById('invoice-detail-send');
+  if(sendBtn){
+    sendBtn.style.display=data.status==='cancelled'?'none':'inline-flex';
+    sendBtn.disabled=false;
+    sendBtn.textContent=data.status==='draft'?'Rechnung senden':'Erneut senden';
+  }
+  document.getElementById('invoice-detail-modal')?.classList.add('open');
+}
+
+function closeInvoiceDetailModal(){
+  state.invoiceDetailModal={customerId:null,invoiceId:null};
+  document.getElementById('invoice-detail-modal')?.classList.remove('open');
+}
+
+async function sendInvoiceFromDetail(btnEl){
+  const invoiceId=state.invoiceDetailModal?.invoiceId;
+  if(!invoiceId) return;
+  await sendInvoiceEmail(invoiceId,btnEl);
+}
+
+function markInvoicePaidFromDetail(){
+  const target={...state.invoiceDetailModal};
+  if(!target.invoiceId||!target.customerId) return;
+  closeInvoiceDetailModal();
+  openInvoicePaidModal(target.customerId,target.invoiceId);
+}
+
+function remindInvoiceFromDetail(){
+  const target={...state.invoiceDetailModal};
+  if(!target.invoiceId||!target.customerId) return;
+  const data=buildInvoiceOperationalData(target.invoiceId,target.customerId);
+  closeInvoiceDetailModal();
+  openReminderModal(target.customerId,target.invoiceId,data?.reminderLevel||0);
 }
 
 // ── Reminder Modal State ────────────────────────────────────────
