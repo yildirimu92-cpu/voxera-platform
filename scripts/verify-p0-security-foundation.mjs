@@ -9,10 +9,31 @@ const paths = {
   clientAudio: new URL('../customer-dashboard/shared/offer-brand.js', import.meta.url),
   dashboard: new URL('../customer-dashboard/index.html', import.meta.url),
   preflight: new URL('../supabase/verification/p0_security_preflight.sql', import.meta.url),
-  postflight: new URL('../supabase/verification/p0_security_post_migration.sql', import.meta.url)
+  postflight: new URL('../supabase/verification/p0_security_post_migration.sql', import.meta.url),
+  adminIndex: new URL('../admin-panel/index.html', import.meta.url),
+  adminSync: new URL('../admin-panel/netlify/functions/trigger-elevenlabs-sync.js', import.meta.url),
+  adminProvision: new URL('../admin-panel/netlify/functions/elevenlabs-provision-agent.js', import.meta.url),
+  adminAiApply: new URL('../admin-panel/netlify/functions/ai-apply-change.js', import.meta.url),
+  adminScrape: new URL('../admin-panel/netlify/functions/scrape-website.js', import.meta.url),
+  customerDuplicateAiApply: new URL('../customer-dashboard/netlify/functions/ai-apply-change.js', import.meta.url),
+  callIntake: new URL('../customer-dashboard/netlify/functions/call-intake-webhook.js', import.meta.url)
 };
 
-const [migration, serverAudio, clientAudio, dashboard, preflight, postflight] = await Promise.all(
+const [
+  migration,
+  serverAudio,
+  clientAudio,
+  dashboard,
+  preflight,
+  postflight,
+  adminIndex,
+  adminSync,
+  adminProvision,
+  adminAiApply,
+  adminScrape,
+  customerDuplicateAiApply,
+  callIntake
+] = await Promise.all(
   Object.values(paths).map(path => readFile(path, 'utf8'))
 );
 
@@ -27,6 +48,20 @@ const isAdminBody = taggedBody(migration, 'is_admin');
 const directProtectedAudioSrc = /(?:<audio[^>]+src|audio\.src\s*=)[^\n>]*elevenlabs-conversation-audio/i;
 
 const checks = [
+  ['admin sync requires authorized customer write', /requireAdminCaller/.test(adminSync) && /requiredCapability: 'customer:write'/.test(adminSync)],
+  ['admin provisioning requires authorized customer write', /requireAdminCaller/.test(adminProvision) && /requiredCapability: 'customer:write'/.test(adminProvision)],
+  ['admin provisioning propagates auth to internal sync', /'Authorization': authHeader/.test(adminProvision)],
+  ['admin AI change generation requires authorized customer write', /requireAdminCaller/.test(adminAiApply) && /requiredCapability: 'customer:write'/.test(adminAiApply)],
+  ['admin website extraction requires authorized customer write', /requireAdminCaller/.test(adminScrape) && /requiredCapability: 'customer:write'/.test(adminScrape)],
+  ['admin website extraction validates DNS and redirects', /dns\.lookup/.test(adminScrape) && /redirect: 'manual'/.test(adminScrape) && /private_target/.test(adminScrape)],
+  ['admin website extraction limits response size', /MAX_RESPONSE_BYTES = 1_000_000/.test(adminScrape) && /website_too_large/.test(adminScrape)],
+  ['admin privileged calls use authenticated helper', ['elevenlabs-provision-agent', 'trigger-elevenlabs-sync', 'ai-apply-change', 'scrape-website'].every(name => adminIndex.includes("callAdminFunction('" + name + "'"))],
+  ['admin privileged calls have no direct unauthenticated fetch', !/fetch\('\/\.netlify\/functions\/(elevenlabs-provision-agent|trigger-elevenlabs-sync|ai-apply-change|scrape-website)/.test(adminIndex)],
+  ['admin workspace refresh does not reload all operational data', !/await loadDataFromSupabase\(\{ silent: true \}\)/.test(adminIndex) && /loadSyncLog\(customerId\)/.test(adminIndex)],
+  ['ElevenLabs provisioning enforces 90-day retention', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminProvision) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminProvision) && !/retention_days: -1/.test(adminProvision)],
+  ['duplicate customer AI mutation endpoint is quarantined', /statusCode: 410/.test(customerDuplicateAiApply) && !/SUPABASE_SERVICE_ROLE_KEY/.test(customerDuplicateAiApply) && !/ANTHROPIC_API_KEY/.test(customerDuplicateAiApply)],
+  ['call intake fails closed without webhook secret', /configurationMissing: true/.test(callIntake) && /response\(503/.test(callIntake) && !/if \(!requiredSecret\) return true/.test(callIntake)],
+  ['call intake compares webhook secrets in constant time', /crypto\.timingSafeEqual/.test(callIntake)],
   ['server audio requires Bearer token', /auth_token_missing/.test(serverAudio) && /auth\.getUser\(token\)/.test(serverAudio)],
   ['server audio resolves public.users tenant', /\.from\('users'\)/.test(serverAudio) && /customer_id/.test(serverAudio)],
   ['server audio checks calls tenant before ElevenLabs', serverAudio.indexOf(".from('calls')") < serverAudio.indexOf('api.elevenlabs.io')],
