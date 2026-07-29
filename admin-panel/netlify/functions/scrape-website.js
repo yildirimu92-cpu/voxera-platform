@@ -2,6 +2,8 @@
 
 const dns = require('node:dns').promises;
 const net = require('node:net');
+const http = require('node:http');
+const https = require('node:https');
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 
@@ -82,7 +84,7 @@ function isBlockedIp(address) {
   return false;
 }
 
-async function validateTarget(rawUrl) {
+async function resolveTarget(rawUrl) {
   let target;
   try {
     target = new URL(String(rawUrl || '').trim());
@@ -96,20 +98,24 @@ async function validateTarget(rawUrl) {
   if (target.username || target.password) {
     throw new ScrapeError(400, 'url_credentials_not_allowed', 'URLs mit Zugangsdaten sind nicht zulässig.');
   }
-  if (target.port && !['80', '443'].includes(target.port)) {
-    throw new ScrapeError(400, 'unsupported_port', 'Nur die Standard-Ports 80 und 443 sind zulässig.');
+
+  const expectedPort = target.protocol === 'https:' ? '443' : '80';
+  if (target.port && target.port !== expectedPort) {
+    throw new ScrapeError(400, 'unsupported_port', 'Nur der Standard-Port des gewählten Protokolls ist zulässig.');
   }
 
+  target.hash = '';
   const hostname = target.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (!hostname || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) {
     throw new ScrapeError(400, 'private_target', 'Lokale oder interne Ziele sind nicht zulässig.');
   }
 
-  if (net.isIP(hostname)) {
+  const literalFamily = net.isIP(hostname);
+  if (literalFamily) {
     if (isBlockedIp(hostname)) {
       throw new ScrapeError(400, 'private_target', 'Lokale oder interne Ziele sind nicht zulässig.');
     }
-    return target;
+    return { target, address: hostname, family: literalFamily };
   }
 
   let addresses;
@@ -123,82 +129,126 @@ async function validateTarget(rawUrl) {
     throw new ScrapeError(400, 'private_target', 'Lokale oder interne Ziele sind nicht zulässig.');
   }
 
-  return target;
+  const selected = addresses[0];
+  return { target, address: selected.address, family: selected.family };
+}
+
+async function validateTarget(rawUrl) {
+  const resolved = await resolveTarget(rawUrl);
+  return resolved.target;
+}
+
+function createPinnedLookup(address, family) {
+  return (_hostname, options, callback) => {
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+    if (options && options.all) {
+      callback(null, [{ address, family }]);
+      return;
+    }
+    callback(null, address, family);
+  };
+}
+
+function requestPinnedTarget({ target, address, family }) {
+  return new Promise((resolve, reject) => {
+    const hostname = target.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    const transport = target.protocol === 'https:' ? https : http;
+    const requestOptions = {
+      protocol: target.protocol,
+      hostname,
+      port: target.port || undefined,
+      method: 'GET',
+      path: (target.pathname || '/') + target.search,
+      headers: {
+        'Host': target.host,
+        'User-Agent': 'Mozilla/5.0 (compatible; VoxeraWebsiteSetup/1.0; +https://voxera.ch)',
+        'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.9',
+        'Accept-Encoding': 'identity'
+      },
+      lookup: createPinnedLookup(address, family)
+    };
+
+    if (target.protocol === 'https:' && !net.isIP(hostname)) {
+      requestOptions.servername = hostname;
+    }
+
+    const request = transport.request(requestOptions, resolve);
+    request.setTimeout(FETCH_TIMEOUT_MS, () => {
+      const timeoutError = new Error('Website request timed out');
+      timeoutError.code = 'ETIMEDOUT';
+      request.destroy(timeoutError);
+    });
+    request.on('error', reject);
+    request.end();
+  });
 }
 
 async function readLimitedText(res) {
-  const declaredLength = Number(res.headers.get('content-length') || 0);
-  if (declaredLength > MAX_RESPONSE_BYTES) {
+  const declaredLength = Number(res.headers['content-length'] || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
+    res.destroy();
     throw new ScrapeError(413, 'website_too_large', 'Die Website ist für die automatische Analyse zu gross.');
   }
-  if (!res.body || typeof res.body.getReader !== 'function') {
-    const text = await res.text();
-    if (Buffer.byteLength(text, 'utf8') > MAX_RESPONSE_BYTES) {
-      throw new ScrapeError(413, 'website_too_large', 'Die Website ist für die automatische Analyse zu gross.');
-    }
-    return text;
-  }
 
-  const reader = res.body.getReader();
   const chunks = [];
   let bytes = 0;
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    bytes += result.value.byteLength;
-    if (bytes > MAX_RESPONSE_BYTES) {
-      await reader.cancel();
-      throw new ScrapeError(413, 'website_too_large', 'Die Website ist für die automatische Analyse zu gross.');
+  try {
+    for await (const chunk of res) {
+      const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      bytes += value.length;
+      if (bytes > MAX_RESPONSE_BYTES) {
+        res.destroy();
+        throw new ScrapeError(413, 'website_too_large', 'Die Website ist für die automatische Analyse zu gross.');
+      }
+      chunks.push(value);
     }
-    chunks.push(Buffer.from(result.value));
+  } catch (error) {
+    if (error instanceof ScrapeError) throw error;
+    throw new ScrapeError(502, 'website_read_failed', 'Die Website-Inhalte konnten nicht vollständig gelesen werden.');
   }
+
   return Buffer.concat(chunks).toString('utf8');
 }
 
 async function fetchWebsite(rawUrl, redirectCount = 0) {
-  const target = await validateTarget(rawUrl);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const resolved = await resolveTarget(rawUrl);
+  const { target } = resolved;
 
   let res;
   try {
-    res = await fetch(target, {
-      redirect: 'manual',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; VoxeraWebsiteSetup/1.0; +https://voxera.ch)',
-        'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.9'
-      }
-    });
+    res = await requestPinnedTarget(resolved);
   } catch (error) {
-    if (error && error.name === 'AbortError') {
+    if (error && error.code === 'ETIMEDOUT') {
       throw new ScrapeError(504, 'website_timeout', 'Die Website hat nicht rechtzeitig geantwortet.');
     }
     throw new ScrapeError(502, 'website_unreachable', 'Die Website konnte nicht erreicht werden.');
-  } finally {
-    clearTimeout(timeout);
   }
 
-  if ([301, 302, 303, 307, 308].includes(res.status)) {
+  const statusCode = Number(res.statusCode || 0);
+  if ([301, 302, 303, 307, 308].includes(statusCode)) {
     if (redirectCount >= MAX_REDIRECTS) {
+      res.destroy();
       throw new ScrapeError(502, 'too_many_redirects', 'Die Website leitet zu oft weiter.');
     }
-    const location = res.headers.get('location');
+    const location = res.headers.location;
+    res.destroy();
     if (!location) {
       throw new ScrapeError(502, 'invalid_redirect', 'Die Website hat eine ungültige Weiterleitung geliefert.');
-    }
-    if (res.body && typeof res.body.cancel === 'function') {
-      await res.body.cancel().catch(() => {});
     }
     return fetchWebsite(new URL(location, target).toString(), redirectCount + 1);
   }
 
-  if (!res.ok) {
-    throw new ScrapeError(502, 'website_http_error', 'Die Website antwortete mit HTTP ' + res.status + '.');
+  if (statusCode < 200 || statusCode >= 300) {
+    res.destroy();
+    throw new ScrapeError(502, 'website_http_error', 'Die Website antwortete mit HTTP ' + statusCode + '.');
   }
 
-  const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+  const contentType = String(res.headers['content-type'] || '').toLowerCase();
   if (contentType && !contentType.includes('text/html') && !contentType.includes('application/xhtml+xml') && !contentType.includes('text/plain')) {
+    res.destroy();
     throw new ScrapeError(415, 'unsupported_content_type', 'Die URL liefert keine auslesbare HTML- oder Textseite.');
   }
 
@@ -271,7 +321,7 @@ function cleanResult(input) {
   };
 }
 
-exports.handler = async (event) => {
+async function handler(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }
@@ -375,12 +425,15 @@ exports.handler = async (event) => {
       error_code: 'ai_extraction_failed'
     });
   }
-};
+}
 
 module.exports = {
+  handler,
   isBlockedIpv4,
   isBlockedIp,
   validateTarget,
+  resolveTarget,
+  createPinnedLookup,
   htmlToText,
   parseAiJson,
   cleanResult
