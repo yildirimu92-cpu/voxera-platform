@@ -2680,8 +2680,8 @@ body,.main{background:#F7F8FC;}
         </div><!-- /sales-panel-contracts -->
 
       </section>
-      <!-- CONTRACTS (hidden, kept for JS compatibility) -->
-      <section id="section-contracts" style="display:none!important;"> class="section">
+      <!-- CONTRACTS (standalone route and Sales data source) -->
+      <section id="section-contracts" class="section">
         <div class="section-head">
           <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Verträge</h3>
           <button class="btn btn-primary" onclick="openContractWizard()">
@@ -11215,6 +11215,7 @@ function setRoute(route,replaceHash=false){
   document.getElementById('page-sub').textContent=sub;
   if(route==='billing-finance') renderBillingFinance();
   if(route==='offers') renderOffers();
+  if(route==='contracts') renderContracts();
   if(location.hash!==`#${route}`){
     if(replaceHash) history.replaceState(null,'',`#${route}`);
     else location.hash=route;
