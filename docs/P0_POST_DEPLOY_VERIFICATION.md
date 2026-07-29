@@ -98,7 +98,7 @@ Use disposable test identities.
 ## 8. Call intake secret
 
 1. Production has a configured `CALL_INTAKE_WEBHOOK_SECRET` and the upstream caller sends the matching value.
-2. Missing configuration returns `503 retention_configuration_missing` only in the isolated negative test; production must not remain in this state.
+2. Missing configuration returns `503` with `error_code: webhook_secret_missing` only in the isolated negative test; production must not remain in this state.
 3. Missing or invalid caller secrets return `401`.
 4. A valid signed test call maps to the correct tenant and creates or updates exactly one call.
 5. Logs contain no secret, raw transcript or complete webhook body.
