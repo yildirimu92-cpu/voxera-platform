@@ -3,11 +3,14 @@
 // Vermeidet CORS Problem zwischen admin.voxera.ch und dashboard.voxera.ch
 
 const { createClient } = require('@supabase/supabase-js');
+const { requireAdminCaller } = require('./_lib/require-admin');
 
 const ELEVENLABS_API_KEY   = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_ANON_KEY    = process.env.SUPABASE_ANON_KEY;
 const ELEVENLABS_BASE      = 'https://api.elevenlabs.io/v1/convai/agents';
+const AUDIO_TRANSCRIPT_RETENTION_DAYS = 90;
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -24,13 +27,24 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'customer_id and agent_id required' }) };
   }
 
-  if (!ELEVENLABS_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  if (!ELEVENLABS_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Missing env vars' }) };
   }
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
+
+  const guard = await requireAdminCaller({
+    event,
+    supabaseUrl: SUPABASE_URL,
+    supabaseAnonKey: SUPABASE_ANON_KEY,
+    sbAdmin: sb,
+    requiredCapability: 'customer:write'
+  });
+  if (!guard.ok) {
+    return { statusCode: guard.statusCode, body: JSON.stringify(guard.body) };
+  }
 
   // Lade Kundendaten
   const { data: customer, error: custErr } = await sb
@@ -192,6 +206,13 @@ exports.handler = async (event) => {
             first_message: autoGreeting
           },
           tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined
+        },
+        platform_settings: {
+          privacy: {
+            record_voice: true,
+            retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS,
+            zero_retention_mode: false
+          }
         }
       })
     });

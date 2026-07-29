@@ -28,3 +28,6 @@
 
 [functions."cleanup-stale-calls"]
   schedule = "*/5 * * * *"
+
+[functions."enforce-data-retention"]
+  schedule = "17 3 * * *"

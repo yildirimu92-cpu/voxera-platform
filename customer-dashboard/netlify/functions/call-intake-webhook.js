@@ -177,23 +177,40 @@ function inferActivationTestCategory({ customer, callRow }) {
   return 'activation_test_inbound';
 }
 
+function constantTimeSecretEquals(expected, provided) {
+  const expectedDigest = crypto.createHash('sha256').update(String(expected)).digest();
+  const providedDigest = crypto.createHash('sha256').update(String(provided)).digest();
+  return crypto.timingSafeEqual(expectedDigest, providedDigest);
+}
+
 function authorizeWebhook(event) {
   const requiredSecret = toStr(process.env.CALL_INTAKE_WEBHOOK_SECRET);
-  if (!requiredSecret) return true;
+  if (!requiredSecret) return { ok: false, configurationMissing: true };
 
   const authHeader = toStr(event.headers?.authorization || event.headers?.Authorization);
   const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
   const headerSecret = toStr(event.headers?.['x-webhook-secret'] || event.headers?.['X-Webhook-Secret']);
   const providedSecret = bearer || headerSecret;
 
-  return Boolean(providedSecret) && providedSecret === requiredSecret;
+  return {
+    ok: Boolean(providedSecret) && constantTimeSecretEquals(requiredSecret, providedSecret),
+    configurationMissing: false
+  };
 }
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
 
-  if (!authorizeWebhook(event)) {
+  const webhookAuthorization = authorizeWebhook(event);
+  if (webhookAuthorization.configurationMissing) {
+    console.error('[call-intake-webhook] CALL_INTAKE_WEBHOOK_SECRET is missing; refusing intake.');
+    return response(503, {
+      error: 'Webhook security configuration missing',
+      error_code: 'webhook_secret_missing'
+    });
+  }
+  if (!webhookAuthorization.ok) {
     return response(401, { error: 'Unauthorized webhook request' });
   }
 

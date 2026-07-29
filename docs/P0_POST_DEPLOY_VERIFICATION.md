@@ -87,6 +87,33 @@ Use disposable test identities.
 - ordinary customers cannot read `prompt_master_l1`;
 - backend ingestion, notification creation and ElevenLabs sync continue to work.
 
-## 7. Completion record
+## 7. Protected Admin operations
 
-Record project ref, migration timestamp/operator, redacted post-check output, Netlify site/deploy ID/SHA, test identities without personal data, each pass/fail result, and any rollback decision.
+1. Without a Bearer token, `trigger-elevenlabs-sync`, `elevenlabs-provision-agent`, `ai-apply-change` and `scrape-website` are rejected before tenant data is read.
+2. An authorized Admin with `customer:write` can complete each operation.
+3. Website extraction succeeds for a disposable public HTTPS site and rejects localhost, private/reserved IPs, embedded credentials, unsupported ports and private redirect targets.
+4. The Admin AI workspace remains open for at least ten minutes without a full splash reload or loss of unsaved form state.
+5. A newly provisioned and an existing synced ElevenLabs agent both show provider retention of 90 days.
+
+## 8. Call intake secret
+
+1. Production has a configured `CALL_INTAKE_WEBHOOK_SECRET` and the upstream caller sends the matching value.
+2. Missing configuration returns `503` with `error_code: webhook_secret_missing` only in the isolated negative test; production must not remain in this state.
+3. Missing or invalid caller secrets return `401`.
+4. A valid signed test call maps to the correct tenant and creates or updates exactly one call.
+5. Logs contain no secret, raw transcript or complete webhook body.
+
+## 9. Data retention
+
+1. Confirm the scheduled `enforce-data-retention` Function exists.
+2. With the enable flag absent, it reports `enabled: false` and mutates nothing.
+3. In a disposable dataset, rows just newer than 90 days remain unchanged.
+4. Rows older than 90 days retain summaries and operational fields but have `transcript`, `transcript_json` and `elevenlabs_conversation_id` cleared.
+5. Rows just newer than 180 days remain; rows older than 180 days are deleted.
+6. Production enablement occurs only after snapshot and foreign-key review.
+7. Provider-side agent privacy reports `retention_days = 90`.
+8. `cleanup-stale-calls` remains a separate two-minute live-status safety net and is not counted as retention enforcement.
+
+## 10. Completion record
+
+Record project ref, migration timestamp/operator, redacted post-check output, Netlify site/deploy ID/SHA, test identities without personal data, retention cutoff counts, each pass/fail result, and any rollback decision.

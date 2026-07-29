@@ -7420,7 +7420,7 @@ body,.main{background:var(--vx-bg);}
 
               <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid var(--vx-border);background:#FEF9EC;flex-shrink:0;">
                 <i class="ph-bold ph-clock" style="color:#D97706;font-size:13px;flex-shrink:0;" aria-hidden="true"></i>
-                <div style="font-size:10px;color:#92400E;line-height:1.4;">Einträge werden nach <strong>90 Tagen</strong> gelöscht.</div>
+                <div style="font-size:10px;color:#92400E;line-height:1.4;">Audio und vollständige Transkripte werden nach <strong>90 Tagen</strong>, Archiveinträge nach <strong>180 Tagen</strong> gelöscht.</div>
               </div>
 
               <div class="vx-split-filters">
@@ -14441,7 +14441,7 @@ function vxInquiryFilterEmptyText(filter) {
   if (filter === 'geplant') return 'Keine geplanten Anfragen.';
   if (filter === 'neu') return 'Keine offenen Anfragen — Lara legt neue Kontakte hier ab.';
   if (filter === 'abgeschlossen' || filter === 'geprueft') return 'Keine erledigten Anfragen.';
-  if (filter === 'archiv') return 'Archiv ist leer. Archivierte Anfragen werden nach 90 Tagen automatisch gelöscht.';
+  if (filter === 'archiv') return 'Archiv ist leer. Audio und vollständige Transkripte werden nach 90 Tagen, Archiveinträge nach 180 Tagen gelöscht.';
   return 'Keine Anfragen.';
 }
 function vxGetAnfragenActiveFilter(nextFilter) {

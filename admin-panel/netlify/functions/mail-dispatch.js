@@ -325,6 +325,7 @@ function customerRecipientName(customer) {
 
 async function loadSetupFeePayload(sbAdmin, body) {
   const customerId = trimOrNull(body.customer_id);
+  const invoiceId = trimOrNull(body.invoice_id);
   if (!customerId) return { ok: false, statusCode: 400, error: 'Für setup_fee_email ist customer_id erforderlich.' };
 
   const { data: customer, error: customerError } = await sbAdmin
@@ -334,6 +335,25 @@ async function loadSetupFeePayload(sbAdmin, body) {
     .maybeSingle();
   if (customerError) return { ok: false, statusCode: 500, error: 'Customer lookup failed.', details: customerError.message };
   if (!customer) return { ok: false, statusCode: 404, error: 'Kunde nicht gefunden.' };
+
+  let invoice = null;
+  if (invoiceId) {
+    const { data: invoiceData, error: invoiceError } = await sbAdmin
+      .from('invoices')
+      .select('*')
+      .eq('id', invoiceId)
+      .maybeSingle();
+    if (invoiceError) return { ok: false, statusCode: 500, error: 'Invoice lookup failed.', details: invoiceError.message };
+    if (!invoiceData) return { ok: false, statusCode: 404, error: 'Setup-Rechnung nicht gefunden.' };
+    if (String(invoiceData.customer_id || '') !== String(customer.id)) {
+      return { ok: false, statusCode: 409, error: 'Die gewählte Rechnung gehört nicht zu diesem Kunden.' };
+    }
+    const invoiceType = String(invoiceData.invoice_type || invoiceData.type || '').trim().toLowerCase();
+    if (invoiceType !== 'setup_fee') {
+      return { ok: false, statusCode: 409, error: 'Die gewählte Rechnung ist keine Setup-Fee-Rechnung.' };
+    }
+    invoice = invoiceData;
+  }
 
   const recipientEmail = trimOrNull(body?.overrides?.to_email) || trimOrNull(customer.email);
   if (!recipientEmail) {
@@ -353,7 +373,10 @@ async function loadSetupFeePayload(sbAdmin, body) {
     return { ok: false, statusCode: 400, error: `plan_config für ${planCode} fehlt.` };
   }
 
-  const paymentLink = trimOrNull(customer.payment_link) || trimOrNull(planConfig.setup_fee_payment_link);
+  const paymentLink = trimOrNull(invoice?.payment_link)
+    || trimOrNull(customer.payment_link)
+    || trimOrNull(planConfig.setup_fee_payment_link)
+    || trimOrNull(planConfig.setup_fee_link);
   if (!paymentLink) {
     return { ok: false, statusCode: 400, error: 'setup_fee_payment_link fehlt in plan_config.' };
   }
@@ -361,12 +384,30 @@ async function loadSetupFeePayload(sbAdmin, body) {
     return { ok: false, statusCode: 400, error: 'setup_fee_payment_link muss mit http:// oder https:// beginnen.' };
   }
 
-  const setupFeeAmount = Number(
+  const invoiceAmount = invoice
+    ? Number(invoice.total_amount ?? invoice.amount_total ?? invoice.amount_due ?? invoice.amount)
+    : NaN;
+  const configuredAmount = Number(
     customer.setup_fee_amount != null ? customer.setup_fee_amount : planConfig.setup_fee_amount
   );
+  const setupFeeAmount = Number.isFinite(invoiceAmount) ? invoiceAmount : configuredAmount;
   if (!Number.isFinite(setupFeeAmount) || setupFeeAmount < 0) {
     return { ok: false, statusCode: 400, error: 'setup_fee_amount ist ungültig.' };
   }
+
+  const invoicePayload = invoice ? {
+    id: invoice.id,
+    invoice_number: invoice.invoice_number || null,
+    invoice_type: invoice.invoice_type || null,
+    status: invoice.status || null,
+    amount: Number(setupFeeAmount.toFixed(2)),
+    due_at: invoice.due_at || invoice.due_date || null,
+    currency: invoice.currency || 'CHF',
+    pdf_url: trimOrNull(invoice.pdf_url),
+    payment_link: paymentLink,
+    issued_at: invoice.issued_at || null,
+    paid_at: invoice.paid_at || null
+  } : null;
 
   const payload = {
     event_type: 'setup_fee_email',
@@ -386,9 +427,14 @@ async function loadSetupFeePayload(sbAdmin, body) {
     },
     setup_fee: {
       amount: Number(setupFeeAmount.toFixed(2)),
-      currency: 'CHF',
-      payment_link: paymentLink
+      currency: invoice?.currency || 'CHF',
+      payment_link: paymentLink,
+      invoice_id: invoice?.id || null,
+      invoice_number: invoice?.invoice_number || null,
+      due_at: invoice?.due_at || invoice?.due_date || null,
+      pdf_url: trimOrNull(invoice?.pdf_url)
     },
+    invoice: invoicePayload,
     plan: {
       id: planConfig.id || planCode,
       plan_label: planConfig.plan_label || planConfig.name || planLabel(planCode)
@@ -401,12 +447,16 @@ async function loadSetupFeePayload(sbAdmin, body) {
 
   return {
     ok: true,
-    eventType: 'setup_fee_email', // mail_type
+    eventType: 'setup_fee_email',
     payload,
     payloadSummary: `setup_fee_email -> ${recipientEmail}`,
-    dedupeKey: `setup_fee_email:${customer.id}:${Date.now()}`,
+    dedupeKey: invoice
+      ? `setup_fee_email:${invoice.id}:${Date.now()}`
+      : `setup_fee_email:${customer.id}:${Date.now()}`,
     responseData: {
       customer_id: customer.id,
+      invoice_id: invoice?.id || null,
+      invoice_number: invoice?.invoice_number || null,
       sent_to_email: recipientEmail,
       plan_code: planCode
     }

@@ -3,10 +3,12 @@
 // generiert mit Claude passende Feldänderungen (Vorher/Nachher)
 
 const { createClient } = require('@supabase/supabase-js');
+const { requireAdminCaller } = require('./_lib/require-admin');
 
 const ANTHROPIC_API_KEY    = process.env.ANTHROPIC_API_KEY;
 const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_ANON_KEY    = process.env.SUPABASE_ANON_KEY;
 
 // FIX 1: ai_tone, ai_address_form, ai_language ergänzt
 // Vorher fehlten diese 3 Felder → Claude sah den aktuellen Ton/Anrede/Sprache nie
@@ -33,7 +35,7 @@ const ALLOWED_FIELDS = new Set(Object.keys(FIELD_LABELS));
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': 'https://admin.voxera.ch',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
 exports.handler = async (event) => {
@@ -55,13 +57,28 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'customer_id and request_message required' }) };
   }
 
-  if (!ANTHROPIC_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  if (!ANTHROPIC_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
     return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Missing env vars' }) };
   }
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
+
+  const guard = await requireAdminCaller({
+    event,
+    supabaseUrl: SUPABASE_URL,
+    supabaseAnonKey: SUPABASE_ANON_KEY,
+    sbAdmin: sb,
+    requiredCapability: 'customer:write'
+  });
+  if (!guard.ok) {
+    return {
+      statusCode: guard.statusCode,
+      headers: CORS_HEADERS,
+      body: JSON.stringify(guard.body)
+    };
+  }
 
   // 1. Lade aktuelle Kundenfelder
   const { data: customer, error: custErr } = await sb

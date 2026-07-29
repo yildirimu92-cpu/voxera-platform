@@ -3,11 +3,14 @@
 // Wird aufgerufen wenn ein neuer Kunde onboardet wird
 
 const { createClient } = require('@supabase/supabase-js');
+const { requireAdminCaller } = require('./_lib/require-admin');
 
 const ELEVENLABS_API_KEY  = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL        = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_ANON_KEY    = process.env.SUPABASE_ANON_KEY;
 const ELEVENLABS_BASE     = 'https://api.elevenlabs.io/v1/convai/agents';
+const AUDIO_TRANSCRIPT_RETENTION_DAYS = 90;
 
 // ── Agent-Template (identisch mit konfiguriertem Yildirim-Agent, ohne Kundendaten) ──
 const AGENT_TEMPLATE = {
@@ -120,7 +123,7 @@ const AGENT_TEMPLATE = {
     summary_language: 'de',
     auth: { enable_auth: true, allowlist: [], require_origin_header: false },
     call_limits: { agent_concurrency_limit: 10, daily_limit: 500, bursting_enabled: true },
-    privacy: { record_voice: true, retention_days: -1, zero_retention_mode: false },
+    privacy: { record_voice: true, retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS, zero_retention_mode: false },
     analysis_llm: 'gemini-2.5-flash'
   }
 };
@@ -140,13 +143,24 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'customer_id required' }) };
   }
 
-  if (!ELEVENLABS_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  if (!ELEVENLABS_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Missing env vars' }) };
   }
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
+
+  const guard = await requireAdminCaller({
+    event,
+    supabaseUrl: SUPABASE_URL,
+    supabaseAnonKey: SUPABASE_ANON_KEY,
+    sbAdmin: sb,
+    requiredCapability: 'customer:write'
+  });
+  if (!guard.ok) {
+    return { statusCode: guard.statusCode, body: JSON.stringify(guard.body) };
+  }
 
   // 1. Kundendaten laden
   const { data: customer, error: custErr } = await sb
@@ -221,15 +235,22 @@ exports.handler = async (event) => {
   // 9. Sofort Prompt synchronisieren
   try {
     const adminUrl = process.env.ADMIN_URL || 'https://admin.voxera.ch';
-    await fetch(`${adminUrl}/.netlify/functions/trigger-elevenlabs-sync`, {
+    const authHeader = event.headers?.authorization || event.headers?.Authorization || '';
+    const syncResponse = await fetch(`${adminUrl}/.netlify/functions/trigger-elevenlabs-sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader
+      },
       body: JSON.stringify({
         customer_id,
         agent_id: agentId,
         triggered_by: `provision_${triggered_by}`
       })
     });
+    if (!syncResponse.ok) {
+      throw new Error(`Initial sync returned HTTP ${syncResponse.status}`);
+    }
   } catch(e) {
     console.warn('[provision] Initial sync failed:', e.message);
     // Nicht kritisch — Agent existiert, kann manuell synchronisiert werden
