@@ -6110,9 +6110,15 @@ function openAiWorkspace(customerId){
   _adminWorkspaceRefreshTimer = setInterval(async function(){
     if(!state.aiSelectedCustomerId) { clearInterval(_adminWorkspaceRefreshTimer); return; }
     try {
-      await loadDataFromSupabase({ silent: true });
-      renderAiWorkspace();
-    } catch(e) {}
+      const customerId=state.aiSelectedCustomerId;
+      await Promise.all([
+        loadAiChangeRequests(),
+        loadAiChangesHistory(),
+        loadSyncLog(customerId)
+      ]);
+    } catch(e) {
+      console.warn('[AI workspace refresh] Background refresh failed:', e?.message||e);
+    }
   }, 30000);
   if(window.matchMedia('(max-width: 1100px)').matches){
     requestAnimationFrame(()=>{
@@ -6194,22 +6200,16 @@ async function provisionAgentManual(customerId){
   const btn = document.getElementById(`btn-provision-agent-${customerId}`);
   if(btn){ btn.disabled = true; btn.textContent = 'Wird erstellt…'; }
   try{
-    const res = await fetch('/.netlify/functions/elevenlabs-provision-agent',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ customer_id: customerId, triggered_by: 'admin_manual' })
+    const data = await callAdminFunction('elevenlabs-provision-agent',{
+      customer_id: customerId,
+      triggered_by: 'admin_manual'
     });
-    const data = await res.json();
-    if(res.ok && data.success){
-      showToast('✓ Agent erstellt: ' + data.agent_id);
-      await loadCustomers();
-      renderAiSetup();
-    }else{
-      showToast('⚠ Fehler: ' + (data.error || 'unbekannt'));
-      if(btn){ btn.disabled = false; btn.textContent = 'ElevenLabs Agent erstellen'; }
-    }
-  }catch(_err){
-    showToast('⚠ Netzwerkfehler beim Erstellen.');
+    if(!data.success) throw new Error(data.error || 'Agent-Erstellung fehlgeschlagen.');
+    showToast('✓ Agent erstellt: ' + data.agent_id);
+    await loadCustomers();
+    renderAiSetup();
+  }catch(err){
+    showToast('⚠ Agent-Erstellung fehlgeschlagen: ' + (err?.message || 'Unbekannter Fehler'));
     if(btn){ btn.disabled = false; btn.textContent = 'ElevenLabs Agent erstellen'; }
   }
 }
@@ -6951,36 +6951,25 @@ async function wizardFinish(){
       const cAfterSave = customerById(id);
       if(cAfterSave?.elevenlabs_agent_id){
         try{
-          const syncRes = await fetch('/.netlify/functions/trigger-elevenlabs-sync',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({
-              customer_id: id,
-              agent_id: cAfterSave.elevenlabs_agent_id,
-              triggered_by: 'wizard'
-            })
+          await callAdminFunction('trigger-elevenlabs-sync',{
+            customer_id: id,
+            agent_id: cAfterSave.elevenlabs_agent_id,
+            triggered_by: 'wizard'
           });
-          if(syncRes.ok){ showToast('✓ Wizard gespeichert + ElevenLabs aktualisiert.'); }
-          else { showToast('⚠ Wizard gespeichert, ElevenLabs Sync fehlgeschlagen.'); }
+          showToast('✓ Wizard gespeichert + ElevenLabs aktualisiert.');
         }catch(e){
           showToast('⚠ Wizard gespeichert, ElevenLabs Sync fehlgeschlagen.');
         }
       } else {
         try{
           showToast('⟳ ElevenLabs Agent wird erstellt…');
-          const provRes = await fetch('/.netlify/functions/elevenlabs-provision-agent',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ customer_id: id, triggered_by: 'wizard' })
+          const provData = await callAdminFunction('elevenlabs-provision-agent',{
+            customer_id: id,
+            triggered_by: 'wizard'
           });
-          const provData = await provRes.json();
-          if(provRes.ok && provData.success){
-            if(cAfterSave){ cAfterSave.elevenlabs_agent_id = provData.agent_id; }
-            showToast('✓ ElevenLabs Agent erstellt + Prompt synchronisiert.');
-          }else{
-            showToast('⚠ Wizard gespeichert. Agent-Erstellung fehlgeschlagen: ' + (provData.error || 'unbekannt'));
-            console.error('[wizard] Provisioning fehlgeschlagen:', provData);
-          }
+          if(!provData.success) throw new Error(provData.error || 'Agent-Erstellung fehlgeschlagen.');
+          if(cAfterSave){ cAfterSave.elevenlabs_agent_id = provData.agent_id; }
+          showToast('✓ ElevenLabs Agent erstellt + Prompt-Sync ausgelöst.');
         }catch(provErr){
           showToast('⚠ Wizard gespeichert. Agent-Erstellung konnte nicht gestartet werden.');
           console.error('[wizard] Provisioning-Fehler:', provErr);
@@ -7455,18 +7444,13 @@ async function saveCustomerAiConfig(){
             ai_location_hours:1, ai_booking_faq:1, ai_instructions:1,
             ai_fallback_escalation:1, ai_response_constraints:1, industry_template_id:1
           }).forEach(k => { prevValues[k] = c[k] || ''; });
-          const syncRes = await fetch('/.netlify/functions/trigger-elevenlabs-sync',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({
-              customer_id: id,
-              agent_id: c.elevenlabs_agent_id,
-              triggered_by: 'admin_save',
-              prev_values: prevValues
-            })
+          await callAdminFunction('trigger-elevenlabs-sync',{
+            customer_id: id,
+            agent_id: c.elevenlabs_agent_id,
+            triggered_by: 'admin_save',
+            prev_values: prevValues
           });
-          if(syncRes.ok){ showToast('✓ AI Setup + ElevenLabs aktualisiert.'); }
-          else { showToast('⚠ AI Setup gespeichert, ElevenLabs Sync fehlgeschlagen.'); }
+          showToast('✓ AI Setup + ElevenLabs aktualisiert.');
         }catch(e){
           showToast('⚠ AI Setup gespeichert, ElevenLabs Sync fehlgeschlagen.');
         }
@@ -13505,7 +13489,7 @@ function showLoadError(msg) {
 }
 
 async function loadDataFromSupabase(opts) {
-  const skipLoaderToggle = !!(opts && opts.skipLoaderToggle);
+  const skipLoaderToggle = !!(opts && (opts.skipLoaderToggle || opts.silent));
   // Single source of truth: operational Admin data is read from Supabase only.
   // No Airtable or alternative operational fallback path is allowed.
   // requires RLS policy: authenticated admin role can read operational tables
@@ -14822,14 +14806,12 @@ async function applyChangeRequest(requestId, customerId, message) {
   resultEl.innerHTML = '<div style="font-size:12px;color:var(--slate2);">✦ AI analysiert Anfrage…</div>';
 
   try {
-    const res = await fetch('/.netlify/functions/ai-apply-change', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customer_id: customerId, request_id: requestId, request_message: message })
+    const data = await callAdminFunction('ai-apply-change', {
+      customer_id: customerId,
+      request_id: requestId,
+      request_message: message
     });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) throw new Error(data.error || 'Fehler');
+    if (!data.success) throw new Error(data.error || 'Fehler');
 
     if (!data.changes || Object.keys(data.changes).length === 0) {
       resultEl.innerHTML = '<div style="font-size:12px;color:var(--slate2);padding:8px 12px;background:var(--surface);border-radius:8px;">Keine Änderungen nötig.</div>';
@@ -14882,14 +14864,10 @@ async function confirmApplyChange(requestId, customerId) {
 
     // 3. Trigger ElevenLabs sync if agent exists
     if (c?.elevenlabs_agent_id) {
-      await fetch('/.netlify/functions/trigger-elevenlabs-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customer_id: customerId,
-          agent_id: c.elevenlabs_agent_id,
-          triggered_by: 'customer_request'
-        })
+      await callAdminFunction('trigger-elevenlabs-sync', {
+        customer_id: customerId,
+        agent_id: c.elevenlabs_agent_id,
+        triggered_by: 'customer_request'
       });
     }
 
@@ -14992,8 +14970,8 @@ async function wizardScrapeWebsite(){
   document.getElementById('wz-website-url').value=url;
   btn.disabled=true; fb.textContent='Lese Website…';
   try{
-    const res=await fetch('/.netlify/functions/scrape-website',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
-    const json=await res.json(); if(!res.ok||!json.success) throw new Error(json.error||'Fehler');
+    const json=await callAdminFunction('scrape-website',{url});
+    if(!json.success) throw new Error(json.error||'Website-Auslesung fehlgeschlagen.');
     const d=state.aiWizard.data;
     const scraped=json.data||{};
     // Nur leere Felder befüllen (nie überschreiben) + _scrapedFields tracken
