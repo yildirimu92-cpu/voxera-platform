@@ -5202,23 +5202,60 @@ function bfInvoiceHistory(inv) {
 
 async function sendAllDrafts(type) {
   const rows = (state.invoices||[]).filter(i => {
-    const t = String(i.invoice_type||'').toLowerCase();
-    const s = String(i.status||'').toLowerCase();
+    const t = classifyInvoiceType(i.invoice_type||i.type||i.raw?.invoice_type||'');
+    const s = String(i.status||i.raw?.status||'').toLowerCase();
     return s === 'draft' && (!type || t === type);
   });
   if (!rows.length) { showToast('Keine Entwürfe vorhanden.'); return; }
-  const label = type === 'setup_fee' ? 'Setup-Fee' : type === 'recurring' ? 'Recurring' : 'alle';
-  if (!confirm(`${rows.length} ${label}-Entwurf${rows.length > 1 ? 'e' : ''} jetzt senden?`)) return;
+  const label = type === 'setup_fee' ? 'Setup-Fee' : type === 'recurring' ? 'Recurring' : 'Rechnungs';
+  const reviewRows=rows.map(inv=>buildInvoiceOperationalData(inv.id)).filter(Boolean);
+  const invalidRows=reviewRows.filter(data=>{
+    const email=String(data.customer?.email||data.raw?.customer_email||'').trim();
+    return !isValidEmailAddress(email);
+  });
+  if(invalidRows.length){
+    await voxAlert({
+      title:'Sammelversand blockiert',
+      message:`${invalidRows.length} Rechnung${invalidRows.length>1?'en haben':' hat'} keine gültige Empfänger-E-Mail. Bitte zuerst die betroffenen Kundenprofile korrigieren.`
+    });
+    return;
+  }
+  const preview=reviewRows.slice(0,5).map(data=>{
+    const email=String(data.customer?.email||data.raw?.customer_email||'').trim();
+    return `<div style="display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-bottom:1px solid #E7ECF3;"><span>${esc(data.invoiceNo)}</span><strong style="text-align:right;overflow-wrap:anywhere;">${esc(email)}</strong></div>`;
+  }).join('');
+  const more=reviewRows.length>5?`<div style="padding-top:8px;color:#667085;">+ ${reviewRows.length-5} weitere Rechnung${reviewRows.length-5>1?'en':''}</div>`:'';
+  const confirmed=await voxConfirm({
+    title:`${rows.length} ${label}-Entwurf${rows.length>1?'e':''} versenden`,
+    message:`
+      <div style="display:grid;gap:12px;text-align:left;">
+        <div style="color:#667085;line-height:1.5;">Bitte Empfänger prüfen. Nach der Bestätigung werden die E-Mails unmittelbar und nacheinander über Make versendet.</div>
+        <div style="padding:6px 12px;border:1px solid #DCE4F0;border-radius:12px;background:#F7F9FC;">${preview}${more}</div>
+      </div>`,
+    confirmText:'Jetzt senden',
+    cancelText:'Abbrechen'
+  });
+  if(!confirmed) return;
+
   let sent = 0, failed = 0;
   for (const inv of rows) {
-    try {
-      await sendInvoiceEmail(inv.id, null);
-      sent++;
-    } catch(_e) { failed++; }
+    const ok=await sendInvoiceEmail(inv.id,null,{
+      skipConfirmation:true,
+      refresh:false,
+      notify:false,
+      closeDetail:false,
+      reportErrors:false
+    });
+    if(ok) sent++;
+    else failed++;
   }
   await loadDataFromSupabase();
   renderBillingFinance();
-  showToast(`✓ ${sent} Rechnung${sent > 1 ? 'en' : ''} gesendet${failed > 0 ? ` (${failed} fehlgeschlagen)` : ''}.`);
+  if(failed>0){
+    showToast(`⚠ ${sent} gesendet, ${failed} fehlgeschlagen. Details in der Konsole.`);
+  }else{
+    showToast(`✓ ${sent} Rechnung${sent>1?'en':''} gesendet.`);
+  }
 }
 
 async function sendAllReminders(level) {
@@ -12153,37 +12190,94 @@ async function sendBillingPaymentLink(customerId){
   return createManualSetupInvoice(customerId,contractId);
 }
 
-async function sendInvoiceEmail(invoiceId, btnEl){
+async function sendInvoiceEmail(invoiceId, btnEl, options={}){
   if(!invoiceId) return false;
+  const settings={
+    skipConfirmation:false,
+    refresh:true,
+    notify:true,
+    closeDetail:true,
+    reportErrors:true,
+    ...(options||{})
+  };
   const originalLabel=btnEl?.textContent||'Rechnung senden';
-  if(btnEl){ btnEl.disabled=true; btnEl.textContent='Wird gesendet…'; }
   try{
-    const inv=(state.invoices||[]).find(i=>idsEq(i.id,invoiceId));
-    if(!inv) throw new Error('Rechnung wurde nicht gefunden.');
-    const invoiceType=String(inv?.invoice_type||inv?.type||inv?.raw?.invoice_type||'').toLowerCase();
-    const isSetupFee=invoiceType==='setup_fee';
-    const customerId=inv?.customerId||inv?.customer_id||inv?.raw?.customer_id||'';
+    const data=buildInvoiceOperationalData(invoiceId);
+    if(!data) throw new Error('Rechnung wurde nicht gefunden.');
+    const recipient=String(data.customer?.email||data.raw?.customer_email||'').trim();
+    if(!isValidEmailAddress(recipient)){
+      if(settings.reportErrors){
+        await voxAlert({
+          title:'Versand nicht möglich',
+          message:'Für diese Rechnung ist keine gültige Empfänger-E-Mail hinterlegt. Bitte zuerst das Kundenprofil korrigieren.'
+        });
+      }
+      return false;
+    }
+    if(!settings.skipConfirmation){
+      const isResend=data.status!=='draft';
+      const confirmed=await voxConfirm({
+        title:isResend?'Rechnung erneut versenden':'Rechnung versenden',
+        message:`
+          <div style="display:grid;gap:12px;text-align:left;">
+            <div style="padding:14px;border:1px solid #DCE4F0;border-radius:14px;background:#F7F9FC;">
+              <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A97AB;">Rechnung</div>
+              <div style="margin-top:5px;font-size:18px;font-weight:800;color:#0B1F3A;">${esc(data.invoiceNo)}</div>
+              <div style="margin-top:3px;color:#667085;">${esc(invoiceTypeLabel(data.type))}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;">
+              <span style="color:#667085;">Kunde</span><strong style="text-align:right;">${esc(data.customerName)}</strong>
+              <span style="color:#667085;">Empfänger</span><strong style="text-align:right;overflow-wrap:anywhere;">${esc(recipient)}</strong>
+              <span style="color:#667085;">Betrag</span><strong style="text-align:right;">${esc(moneyChf(data.amount))}</strong>
+              <span style="color:#667085;">Fällig</span><strong style="text-align:right;">${esc(formatDate(data.dueDate))}</strong>
+            </div>
+            <div style="padding:12px 14px;border-radius:12px;background:#FFF7E8;color:#8A4B08;font-size:13px;line-height:1.45;">
+              Mit «${isResend?'Erneut senden':'Jetzt senden'}» wird unmittelbar eine E-Mail über Make an diesen Empfänger ausgelöst.
+            </div>
+          </div>`,
+        confirmText:isResend?'Erneut senden':'Jetzt senden',
+        cancelText:'Abbrechen'
+      });
+      if(!confirmed) return false;
+    }
+
+    if(btnEl){ btnEl.disabled=true; btnEl.textContent='Wird gesendet…'; }
+    const isSetupFee=data.type==='setup_fee';
+    if(isSetupFee&&!data.customerId) throw new Error('Der Rechnung ist kein Kunde zugeordnet.');
     const payload=isSetupFee
-      ? {mail_type:'setup_fee_email',customer_id:customerId,invoice_id:invoiceId}
+      ? {mail_type:'setup_fee_email',customer_id:data.customerId,invoice_id:invoiceId}
       : {mail_type:'invoice_email',invoice_id:invoiceId};
     const json=await callAdminFunction('mail-dispatch',payload);
     if(!json?.success) throw new Error(json?.error||'Mailversand fehlgeschlagen.');
-    if(inv && (inv.status==='draft'||inv.raw?.status==='draft') && authClient){
-      try{
-        await authClient.from('invoices')
-          .update({status:'open',updated_at:new Date().toISOString()})
-          .eq('id',invoiceId);
-      }catch(_e){}
+
+    let statusWarning='';
+    if(data.status==='draft'&&authClient){
+      const {error:updateError}=await authClient.from('invoices')
+        .update({status:'open',updated_at:new Date().toISOString()})
+        .eq('id',invoiceId);
+      if(updateError){
+        statusWarning='E-Mail wurde gesendet, der Rechnungsstatus konnte aber nicht aktualisiert werden.';
+        console.warn('[billing] invoice sent but status update failed:',invoiceId,updateError.message);
+      }
     }
-    await loadDataFromSupabase();
-    showToast('✓ Rechnung gesendet.');
-    renderBillingFinance();
-    if(idsEq(state.invoiceDetailModal?.invoiceId,invoiceId)) closeInvoiceDetailModal();
+
+    if(settings.refresh) await loadDataFromSupabase();
+    if(settings.notify){
+      showToast(statusWarning?`⚠ ${statusWarning}`:'✓ Rechnung gesendet.');
+    }
+    if(settings.refresh) renderBillingFinance();
+    if(settings.closeDetail&&idsEq(state.invoiceDetailModal?.invoiceId,invoiceId)) closeInvoiceDetailModal();
+    if(btnEl){ btnEl.disabled=false; btnEl.textContent=originalLabel; }
     return true;
   }catch(err){
-    const payload=err?.payload||{};
     if(btnEl){btnEl.disabled=false;btnEl.textContent=originalLabel;}
-    alert(payload?.error||err?.message||'Rechnung konnte nicht gesendet werden.');
+    const payload=err?.payload||{};
+    const message=payload?.error||err?.message||'Rechnung konnte nicht gesendet werden.';
+    if(settings.reportErrors){
+      await voxAlert({title:'Rechnung nicht gesendet',message:esc(message)});
+    }else{
+      console.warn('[billing] invoice send failed:',invoiceId,message);
+    }
     return false;
   }
 }
