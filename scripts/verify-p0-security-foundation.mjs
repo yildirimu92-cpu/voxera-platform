@@ -16,7 +16,9 @@ const paths = {
   adminAiApply: new URL('../admin-panel/netlify/functions/ai-apply-change.js', import.meta.url),
   adminScrape: new URL('../admin-panel/netlify/functions/scrape-website.js', import.meta.url),
   customerDuplicateAiApply: new URL('../customer-dashboard/netlify/functions/ai-apply-change.js', import.meta.url),
-  callIntake: new URL('../customer-dashboard/netlify/functions/call-intake-webhook.js', import.meta.url)
+  callIntake: new URL('../customer-dashboard/netlify/functions/call-intake-webhook.js', import.meta.url),
+  retentionJob: new URL('../customer-dashboard/netlify/functions/enforce-data-retention.js', import.meta.url),
+  customerNetlify: new URL('../customer-dashboard/netlify.toml', import.meta.url)
 };
 
 const [
@@ -32,7 +34,9 @@ const [
   adminAiApply,
   adminScrape,
   customerDuplicateAiApply,
-  callIntake
+  callIntake,
+  retentionJob,
+  customerNetlify
 ] = await Promise.all(
   Object.values(paths).map(path => readFile(path, 'utf8'))
 );
@@ -59,6 +63,9 @@ const checks = [
   ['admin privileged calls have no direct unauthenticated fetch', !/fetch\('\/\.netlify\/functions\/(elevenlabs-provision-agent|trigger-elevenlabs-sync|ai-apply-change|scrape-website)/.test(adminIndex)],
   ['admin workspace refresh does not reload all operational data', !/await loadDataFromSupabase\(\{ silent: true \}\)/.test(adminIndex) && /loadSyncLog\(customerId\)/.test(adminIndex)],
   ['ElevenLabs provisioning enforces 90-day retention', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminProvision) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminProvision) && !/retention_days: -1/.test(adminProvision)],
+  ['ElevenLabs sync enforces 90-day retention for existing agents', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminSync) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminSync) && !/retention_days: -1/.test(adminSync)],
+  ['database retention separates raw and operational call data', /TRANSCRIPT_RETENTION_DAYS = 90/.test(retentionJob) && /CALL_RECORD_RETENTION_DAYS = 180/.test(retentionJob) && /transcript: null/.test(retentionJob) && /transcript_json: null/.test(retentionJob) && /elevenlabs_conversation_id: null/.test(retentionJob) && /\.delete\(\)/.test(retentionJob)],
+  ['database retention is gated and scheduled daily', /DATA_RETENTION_ENFORCEMENT_ENABLED !== 'true'/.test(retentionJob) && /\[functions\."enforce-data-retention"\]/.test(customerNetlify) && /schedule = "17 3 \* \* \*"/.test(customerNetlify)],
   ['duplicate customer AI mutation endpoint is quarantined', /statusCode: 410/.test(customerDuplicateAiApply) && !/SUPABASE_SERVICE_ROLE_KEY/.test(customerDuplicateAiApply) && !/ANTHROPIC_API_KEY/.test(customerDuplicateAiApply)],
   ['call intake fails closed without webhook secret', /configurationMissing: true/.test(callIntake) && /response\(503/.test(callIntake) && !/if \(!requiredSecret\) return true/.test(callIntake)],
   ['call intake compares webhook secrets in constant time', /crypto\.timingSafeEqual/.test(callIntake)],
