@@ -668,9 +668,13 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .modal-icon-close svg{width:17px;height:17px;}
 
 .invoice-detail-modal{max-width:720px;padding:0;overflow:hidden;}
-.invoice-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:24px;background:linear-gradient(135deg,#0B2447 0%,#0D315E 100%);color:#fff;}
-.invoice-detail-head .modal-title{color:#fff;font-size:21px;}
-.invoice-detail-head .modal-sub{color:rgba(255,255,255,.62);margin-top:5px;}
+.invoice-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:24px;background:linear-gradient(135deg,#081F3D 0%,#0D315E 100%);color:#fff;}
+.invoice-detail-heading{min-width:0;}
+.invoice-detail-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#68A6FF;margin-bottom:6px;}
+.invoice-detail-head .modal-title{color:#fff;font-size:22px;overflow-wrap:anywhere;}
+.invoice-detail-head .modal-sub{color:rgba(255,255,255,.66);margin-top:5px;}
+.invoice-detail-head-actions{display:flex;align-items:center;gap:10px;flex:0 0 auto;}
+.invoice-detail-head-actions .badge{border-color:rgba(255,255,255,.22);}
 .invoice-detail-head .modal-icon-close{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);color:#fff;}
 .invoice-detail-head .modal-icon-close:hover{background:rgba(255,255,255,.18);}
 .invoice-detail-content{padding:24px;}
@@ -679,10 +683,8 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .invoice-detail-summary-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--slate2);}
 .invoice-detail-amount{font-size:28px;font-weight:750;letter-spacing:-.04em;color:var(--ink);margin-top:5px;}
 .invoice-detail-recipient{font-size:16px;font-weight:650;color:var(--ink);margin-top:5px;overflow-wrap:anywhere;}
-.invoice-detail-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;}
-.invoice-detail-meta-item{padding:13px 15px;border-right:0.5px solid var(--line);border-bottom:0.5px solid var(--line);}
-.invoice-detail-meta-item:nth-child(3n){border-right:0;}
-.invoice-detail-meta-item:nth-last-child(-n+3){border-bottom:0;}
+.invoice-detail-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--line);margin-bottom:16px;}
+.invoice-detail-meta-item{padding:13px 15px;background:#fff;}
 .invoice-detail-meta-k{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);margin-bottom:5px;}
 .invoice-detail-meta-v{display:block;font-size:13px;font-weight:600;color:var(--ink);overflow-wrap:anywhere;}
 .invoice-detail-lines{border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;}
@@ -690,15 +692,60 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .invoice-detail-line{display:grid;grid-template-columns:1fr auto;gap:16px;padding:13px 15px;border-top:0.5px solid var(--line);font-size:13px;}
 .invoice-detail-line strong{color:var(--ink);}
 .invoice-detail-note{padding:12px 14px;border-radius:12px;border:1px solid #BFDBFE;background:#EFF6FF;color:#1E3A5F;font-size:12px;line-height:1.5;}
+.invoice-detail-technical{margin-top:12px;border:0.5px solid var(--line);border-radius:12px;background:#FBFCFE;}
+.invoice-detail-technical summary{padding:11px 14px;cursor:pointer;font-size:12px;font-weight:700;color:var(--slate2);list-style:none;}
+.invoice-detail-technical summary::-webkit-details-marker{display:none;}
+.invoice-detail-technical summary::after{content:'+';float:right;font-size:16px;line-height:1;color:var(--slate2);}
+.invoice-detail-technical[open] summary::after{content:'−';}
+.invoice-detail-technical-row{display:flex;justify-content:space-between;gap:16px;padding:0 14px 12px;font-size:12px;color:var(--slate2);}
+.invoice-detail-technical-row strong{color:var(--ink);overflow-wrap:anywhere;text-align:right;}
 .invoice-detail-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px;}
+
+.billing-dialog{max-width:600px;padding:0;overflow:hidden;}
+.billing-dialog-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:22px 24px;background:linear-gradient(135deg,#081F3D 0%,#0D315E 100%);color:#fff;}
+.billing-dialog-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#68A6FF;margin-bottom:6px;}
+.billing-dialog-head .modal-title{color:#fff;font-size:21px;}
+.billing-dialog-head .modal-sub{color:rgba(255,255,255,.66);margin-top:5px;}
+.billing-dialog-head .modal-icon-close{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);color:#fff;}
+.billing-dialog-head .modal-icon-close:hover{background:rgba(255,255,255,.18);}
+.billing-dialog-body{padding:22px 24px 4px;}
+.billing-dialog-summary{display:grid;grid-template-columns:1fr 1fr;gap:1px;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--line);margin-bottom:18px;}
+.billing-dialog-summary-item{padding:13px 15px;background:#F8FAFD;min-width:0;}
+.billing-dialog-summary-k{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);margin-bottom:4px;}
+.billing-dialog-summary-v{display:block;font-size:13px;font-weight:650;color:var(--ink);overflow-wrap:anywhere;}
+.reminder-level-label{display:block;margin-bottom:8px;font-size:12px;font-weight:700;color:var(--slate2);}
+.reminder-level-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.reminder-level-btn{min-height:74px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);text-align:left;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;box-shadow:none;}
+.reminder-level-btn strong{font-size:14px;}
+.reminder-level-btn span{font-size:12px;color:var(--slate2);}
+.reminder-level-btn:hover{border-color:#9EC5FF;background:#F7FAFF;}
+.reminder-level-btn.active{background:#EAF3FF!important;color:#0B56C5!important;border-color:#2B76E5!important;box-shadow:0 0 0 1px rgba(43,118,229,.08);}
+.reminder-level-btn.active span{color:#245EA8;}
+.reminder-level-btn[data-level="2"].active{background:#FFF1F0!important;color:#A61B1B!important;border-color:#E45B5B!important;}
+.reminder-level-btn[data-level="2"].active span{color:#A61B1B;}
+.billing-dialog-field{margin-top:16px;}
+.billing-dialog-field label{display:block;margin-bottom:6px;font-size:12px;font-weight:700;color:var(--slate2);}
+.billing-dialog-warning{margin-top:14px;padding:11px 13px;border-left:3px solid #E7A019;border-radius:10px;background:#FFF8E8;color:#7A4A06;font-size:12px;line-height:1.5;}
+.billing-dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:18px 24px 22px;}
+#reminder-modal-feedback{margin:16px 24px 0;}
+#reminder-modal-feedback:empty{display:none;}
+#reminder-modal-feedback.warning{display:block;border:1px solid #F2C66D;background:#FFF8E8;color:#7A4A06;border-radius:10px;padding:11px 13px;}
+
 @media(max-width:640px){
   .invoice-detail-summary{grid-template-columns:1fr;}
   .invoice-detail-meta{grid-template-columns:1fr 1fr;}
-  .invoice-detail-meta-item,.invoice-detail-meta-item:nth-child(3n){border-right:0.5px solid var(--line);border-bottom:0.5px solid var(--line);}
-  .invoice-detail-meta-item:nth-child(2n){border-right:0;}
-  .invoice-detail-meta-item:nth-last-child(-n+2){border-bottom:0;}
-  .invoice-detail-content,.invoice-detail-head{padding:18px;}
+  .invoice-detail-content,.invoice-detail-head,.billing-dialog-head{padding:18px;}
+  .invoice-detail-head{align-items:flex-start;}
+  .invoice-detail-head-actions{gap:6px;}
   .invoice-detail-actions .btn{flex:1 1 calc(50% - 4px);}
+  .billing-dialog-body{padding:18px 18px 4px;}
+  .billing-dialog-actions{padding:16px 18px 18px;}
+  #reminder-modal-feedback{margin:14px 18px 0;}
+}
+@media(max-width:480px){
+  .reminder-level-grid{grid-template-columns:1fr;}
+  .billing-dialog-summary{grid-template-columns:1fr;}
+  .billing-dialog-actions .btn{flex:1;}
 }
 
 /* ─── Form grid ─────────────────────────────────────────────── */
@@ -810,8 +857,6 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .bf-status-badge.cancelled{background:#F8FAFC;color:#94A3B8;}
 .bf-reminder-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap;}
 .bf-reminder-badge.none{background:#F1F5F9;color:#94A3B8;}
-.reminder-level-btn.active{background:var(--blue)!important;color:#fff!important;border-color:var(--blue)!important;}
-@media(max-width:480px){#reminder-modal .modal{width:calc(100vw - 20px)!important;max-width:460px!important;} #reminder-modal .modal-body>div[style*="display:flex;gap:8px"]{flex-direction:column!important;}}
 @media(max-width:600px){.overview-task-item{overflow-wrap:anywhere;}}
 .bf-reminder-badge.l1{background:#FFFBEB;color:#92400E;}
 .bf-reminder-badge.l2{background:#FEF2F2;color:#B91C1C;}
@@ -3471,20 +3516,23 @@ body,.main{background:#F7F8FC;}
 <div class="modal-overlay" id="invoice-detail-modal" style="z-index:365;" onclick="if(event.target===this)closeInvoiceDetailModal()">
   <div class="modal invoice-detail-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-detail-title">
     <div class="invoice-detail-head">
-      <div>
+      <div class="invoice-detail-heading">
+        <div class="invoice-detail-kicker">Billing</div>
         <div class="modal-title" id="invoice-detail-title">Rechnung</div>
         <div class="modal-sub" id="invoice-detail-sub">Rechnungsdetails</div>
       </div>
-      <button class="modal-icon-close" type="button" onclick="closeInvoiceDetailModal()" aria-label="Rechnungsansicht schliessen" title="Schliessen">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
-      </button>
+      <div class="invoice-detail-head-actions">
+        <div id="invoice-detail-status"></div>
+        <button class="modal-icon-close" type="button" onclick="closeInvoiceDetailModal()" aria-label="Rechnungsansicht schliessen" title="Schliessen">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
+        </button>
+      </div>
     </div>
     <div class="invoice-detail-content">
       <div class="invoice-detail-summary">
         <div class="invoice-detail-summary-card">
-          <div class="invoice-detail-summary-label">Betrag</div>
+          <div class="invoice-detail-summary-label">Zu bezahlen</div>
           <div class="invoice-detail-amount" id="invoice-detail-amount">CHF 0.00</div>
-          <div id="invoice-detail-status" style="margin-top:8px;"></div>
         </div>
         <div class="invoice-detail-summary-card">
           <div class="invoice-detail-summary-label">Empfänger</div>
@@ -3496,15 +3544,18 @@ body,.main{background:#F7F8FC;}
         <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Typ</span><span class="invoice-detail-meta-v" id="invoice-detail-type">—</span></div>
         <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Ausgestellt</span><span class="invoice-detail-meta-v" id="invoice-detail-issued">—</span></div>
         <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Fällig</span><span class="invoice-detail-meta-v" id="invoice-detail-due">—</span></div>
-        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Bezahlt</span><span class="invoice-detail-meta-v" id="invoice-detail-paid-at">—</span></div>
-        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Mahnstufe</span><span class="invoice-detail-meta-v" id="invoice-detail-reminder">Keine</span></div>
-        <div class="invoice-detail-meta-item"><span class="invoice-detail-meta-k">Interne ID</span><span class="invoice-detail-meta-v" id="invoice-detail-id">—</span></div>
+        <div class="invoice-detail-meta-item" id="invoice-detail-paid-wrap"><span class="invoice-detail-meta-k">Bezahlt</span><span class="invoice-detail-meta-v" id="invoice-detail-paid-at">—</span></div>
+        <div class="invoice-detail-meta-item" id="invoice-detail-reminder-wrap"><span class="invoice-detail-meta-k">Mahnstufe</span><span class="invoice-detail-meta-v" id="invoice-detail-reminder">Keine</span></div>
       </div>
       <div class="invoice-detail-lines">
         <div class="invoice-detail-lines-title">Positionen</div>
         <div id="invoice-detail-lines"></div>
       </div>
       <div class="invoice-detail-note" id="invoice-detail-note">Beim Senden wird genau diese Rechnung verwendet und der Versand protokolliert.</div>
+      <details class="invoice-detail-technical" id="invoice-detail-technical">
+        <summary>Technische Referenz</summary>
+        <div class="invoice-detail-technical-row"><span>Interne ID</span><strong id="invoice-detail-id">—</strong></div>
+      </details>
       <div class="invoice-detail-actions">
         <a class="btn btn-quiet" id="invoice-detail-pdf" href="#" target="_blank" rel="noopener" style="display:none;">PDF öffnen</a>
         <button class="btn btn-quiet" id="invoice-detail-remind" type="button" onclick="remindInvoiceFromDetail()">Mahnung</button>
@@ -3562,37 +3613,40 @@ body,.main{background:#F7F8FC;}
 
 <!-- REMINDER MODAL -->
 <div class="modal-overlay" id="reminder-modal" style="z-index:370;" onclick="if(event.target===this)closeReminderModal()">
-  <div class="modal" style="max-width:460px;">
-    <div class="modal-head">
+  <div class="modal billing-dialog reminder-dialog" role="dialog" aria-modal="true" aria-labelledby="reminder-modal-title">
+    <div class="billing-dialog-head">
       <div>
-        <h3>Mahnung versenden</h3>
-        <div class="modal-sub">Mahnstufe wählen, protokollieren und Mail versenden.</div>
+        <div class="billing-dialog-kicker">Forderungsmanagement</div>
+        <div class="modal-title" id="reminder-modal-title">Mahnung versenden</div>
+        <div class="modal-sub">Mahnstufe prüfen, protokollieren und per E-Mail senden.</div>
       </div>
-      <button class="modal-icon-close" type="button" onclick="closeReminderModal()" aria-label="Dialog schliessen" title="Schliessen">
+      <button class="modal-icon-close" type="button" onclick="closeReminderModal()" aria-label="Mahnungsdialog schliessen" title="Schliessen">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
       </button>
     </div>
-    <div id="reminder-modal-feedback" class="modal-feedback"></div>
-    <div class="modal-body">
-      <div class="detail-item"><span class="detail-k">Kunde</span><span class="detail-v" id="reminder-modal-customer">—</span></div>
-      <div class="detail-item"><span class="detail-k">Rechnung</span><span class="detail-v" id="reminder-modal-invoice">—</span></div>
-      <div class="detail-item"><span class="detail-k">Betrag</span><span class="detail-v" id="reminder-modal-amount">—</span></div>
-      <div class="detail-item"><span class="detail-k">Fällig</span><span class="detail-v" id="reminder-modal-due">—</span></div>
-      <div style="margin-top:14px;">
-        <label class="muted" style="font-size:12px;font-weight:600;display:block;margin-bottom:8px;">Mahnstufe</label>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-secondary reminder-level-btn" data-level="1" onclick="selectReminderLevel(1)" style="flex:1;"><strong>L1</strong> — Erste Mahnung</button>
-          <button class="btn btn-secondary reminder-level-btn" data-level="2" onclick="selectReminderLevel(2)" style="flex:1;"><strong>L2</strong> — Letzte Warnung</button>
-        </div>
+    <div id="reminder-modal-feedback" class="modal-feedback" role="status" aria-live="polite"></div>
+    <div class="billing-dialog-body">
+      <div class="billing-dialog-summary">
+        <div class="billing-dialog-summary-item"><span class="billing-dialog-summary-k">Kunde</span><span class="billing-dialog-summary-v" id="reminder-modal-customer">—</span></div>
+        <div class="billing-dialog-summary-item"><span class="billing-dialog-summary-k">Rechnung</span><span class="billing-dialog-summary-v" id="reminder-modal-invoice">—</span></div>
+        <div class="billing-dialog-summary-item"><span class="billing-dialog-summary-k">Betrag</span><span class="billing-dialog-summary-v" id="reminder-modal-amount">—</span></div>
+        <div class="billing-dialog-summary-item"><span class="billing-dialog-summary-k">Fällig / Status</span><span class="billing-dialog-summary-v"><span id="reminder-modal-due">—</span><span id="reminder-modal-status" style="display:block;margin-top:5px;"></span></span></div>
+        <div class="billing-dialog-summary-item" style="grid-column:1/-1;"><span class="billing-dialog-summary-k">Empfänger</span><span class="billing-dialog-summary-v" id="reminder-modal-email">—</span></div>
       </div>
-      <div style="margin-top:12px;">
-        <label class="muted" for="reminder-modal-note" style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Interne Notiz (optional)</label>
-        <textarea id="reminder-modal-note" class="textarea" rows="2" placeholder="z.B. Telefonat versucht, keine Antwort"></textarea>
+      <label class="reminder-level-label">Mahnstufe</label>
+      <div class="reminder-level-grid" role="group" aria-label="Mahnstufe wählen">
+        <button class="reminder-level-btn" type="button" data-level="1" aria-pressed="false" onclick="selectReminderLevel(1)"><strong>L1 · Erste Mahnung</strong><span>Freundliche Zahlungserinnerung</span></button>
+        <button class="reminder-level-btn" type="button" data-level="2" aria-pressed="false" onclick="selectReminderLevel(2)"><strong>L2 · Letzte Warnung</strong><span>Deutliche letzte Zahlungsaufforderung</span></button>
       </div>
+      <div class="billing-dialog-field">
+        <label for="reminder-modal-note">Interne Notiz (optional)</label>
+        <textarea id="reminder-modal-note" class="textarea" rows="2" placeholder="z. B. Telefonat versucht, keine Antwort"></textarea>
+      </div>
+      <div class="billing-dialog-warning">Mit «Protokollieren &amp; senden» wird die Mahnung sofort gespeichert und anschliessend per E-Mail über Make versendet.</div>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-quiet" onclick="closeReminderModal()">Abbrechen</button>
-      <button class="btn btn-primary" onclick="submitReminderModal()">Protokollieren &amp; senden</button>
+    <div class="billing-dialog-actions">
+      <button class="btn btn-quiet" type="button" onclick="closeReminderModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="reminder-modal-submit" type="button" onclick="submitReminderModal()">Protokollieren &amp; senden</button>
     </div>
   </div>
 </div>
@@ -12669,7 +12723,7 @@ function openInvoiceOperational(invoiceId,customerId){
   state.invoiceDetailModal={customerId:data.customerId,invoiceId:data.id};
   const title=document.getElementById('invoice-detail-title');
   const sub=document.getElementById('invoice-detail-sub');
-  if(title) title.textContent='Rechnung '+data.invoiceNo;
+  if(title) title.textContent=data.invoiceNo;
   if(sub) sub.textContent=invoiceTypeLabel(data.type)+' · '+data.customerName;
   const amountEl=document.getElementById('invoice-detail-amount');
   if(amountEl) amountEl.textContent='CHF '+Number(data.amount||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -12687,10 +12741,14 @@ function openInvoiceOperational(invoiceId,customerId){
   if(dueEl) dueEl.textContent=formatDate(data.dueDate);
   const paidEl=document.getElementById('invoice-detail-paid-at');
   if(paidEl) paidEl.textContent=formatDate(data.paidAt);
+  const paidWrap=document.getElementById('invoice-detail-paid-wrap');
+  if(paidWrap) paidWrap.style.display=data.paidAt?'block':'none';
   const reminderEl=document.getElementById('invoice-detail-reminder');
   if(reminderEl) reminderEl.textContent=data.reminderLevel>0?'L'+data.reminderLevel:'Keine';
   const idEl=document.getElementById('invoice-detail-id');
   if(idEl) idEl.textContent=data.id;
+  const technicalEl=document.getElementById('invoice-detail-technical');
+  if(technicalEl) technicalEl.open=false;
   const linesEl=document.getElementById('invoice-detail-lines');
   if(linesEl){
     const rows=data.items.length?data.items:[{description:invoiceTypeLabel(data.type),quantity:1,total_amount:data.amount}];
@@ -12755,28 +12813,53 @@ function remindInvoiceFromDetail(){
 // ── Reminder Modal State ────────────────────────────────────────
 function openReminderModal(customerId, invoiceId, currentLevel) {
   if (!invoiceId || !customerId) return;
-  const inv = (state.invoices||[]).find(i => idsEq(i.id, invoiceId));
-  const customer = customerById(customerId);
-  if (!inv || !customer) return;
-  const suggestedLevel = Math.max(1, Math.min(2, Number(currentLevel||0) + 1));
-  state.reminderModal = { customerId, invoiceId, pending: false };
+  const data = buildInvoiceOperationalData(invoiceId, customerId);
+  if (!data || !data.customerId) {
+    showToast('Mahnung konnte nicht vorbereitet werden.');
+    return;
+  }
+  const baseLevel = Number.isFinite(Number(currentLevel)) ? Number(currentLevel) : Number(data.reminderLevel || 0);
+  const suggestedLevel = Math.max(1, Math.min(2, baseLevel + 1));
+  state.reminderModal = {
+    customerId: data.customerId,
+    invoiceId: data.id,
+    level: suggestedLevel,
+    pending: false,
+    recorded: false
+  };
 
-  // Fill modal fields
-  const invAmount = Number(inv.total_amount ?? inv.amount ?? 0);
-  document.getElementById('reminder-modal-customer').textContent = customer.name || '—';
-  document.getElementById('reminder-modal-invoice').textContent = inv.invoice_number || inv.id || '—';
-  document.getElementById('reminder-modal-amount').textContent = invAmount > 0 ? `CHF ${invAmount.toFixed(2)}` : '—';
-  document.getElementById('reminder-modal-due').textContent = inv.due_at ? new Date(inv.due_at).toLocaleDateString('de-CH') : '—';
+  const customerEl = document.getElementById('reminder-modal-customer');
+  if (customerEl) customerEl.textContent = data.customerName || '—';
+  const invoiceEl = document.getElementById('reminder-modal-invoice');
+  if (invoiceEl) invoiceEl.textContent = data.invoiceNo || data.id || '—';
+  const amountEl = document.getElementById('reminder-modal-amount');
+  if (amountEl) amountEl.textContent = moneyChf(data.amount);
+  const dueEl = document.getElementById('reminder-modal-due');
+  if (dueEl) dueEl.textContent = formatDate(data.dueDate);
+  const emailEl = document.getElementById('reminder-modal-email');
+  if (emailEl) emailEl.textContent = data.customerEmail || '—';
+  const statusEl = document.getElementById('reminder-modal-status');
+  if (statusEl) statusEl.innerHTML = bfStatusBadge(data.status);
 
-  // Set level buttons
   document.querySelectorAll('.reminder-level-btn').forEach(btn => {
-    btn.classList.toggle('active', Number(btn.dataset.level) === suggestedLevel);
+    const selected = Number(btn.dataset.level) === suggestedLevel;
+    btn.classList.toggle('active', selected);
+    btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
   });
-  state.reminderModal.level = suggestedLevel;
 
-  document.getElementById('reminder-modal-note').value = '';
-  document.getElementById('reminder-modal-feedback').textContent = '';
-  document.getElementById('reminder-modal').classList.add('open');
+  const noteEl = document.getElementById('reminder-modal-note');
+  if (noteEl) noteEl.value = '';
+  const fb = document.getElementById('reminder-modal-feedback');
+  if (fb) {
+    fb.className = 'modal-feedback';
+    fb.textContent = '';
+  }
+  const submitBtn = document.getElementById('reminder-modal-submit');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Protokollieren & senden';
+  }
+  document.getElementById('reminder-modal')?.classList.add('open');
 }
 
 function closeReminderModal() {
@@ -12786,55 +12869,85 @@ function closeReminderModal() {
 }
 
 function selectReminderLevel(level) {
-  if (!state.reminderModal) return;
+  if (!state.reminderModal || state.reminderModal.recorded) return;
   state.reminderModal.level = level;
   document.querySelectorAll('.reminder-level-btn').forEach(btn => {
-    btn.classList.toggle('active', Number(btn.dataset.level) === level);
+    const selected = Number(btn.dataset.level) === level;
+    btn.classList.toggle('active', selected);
+    btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
   });
 }
 
 async function submitReminderModal() {
-  if (!state.reminderModal || state.reminderModal.pending) return;
+  if (!state.reminderModal || state.reminderModal.pending || state.reminderModal.recorded) return;
   const { customerId, invoiceId, level } = state.reminderModal;
   const note = String(document.getElementById('reminder-modal-note')?.value || '').trim();
   const fb = document.getElementById('reminder-modal-feedback');
+  const submitBtn = document.getElementById('reminder-modal-submit');
+  let reminderRecorded = false;
+  let mailSent = false;
 
   state.reminderModal.pending = true;
-  if (fb) fb.textContent = '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Wird gesendet…';
+  }
+  if (fb) {
+    fb.className = 'modal-feedback';
+    fb.textContent = '';
+  }
 
   try {
-    // 1. Reminder in DB protokollieren
     const json = await callCustomerBillingUpdate({
       customer_id: customerId,
       action: 'record_invoice_reminder',
       invoice_id: invoiceId,
       reminder_level: level,
-      notes: note || `Manueller Reminder L${level}`
+      notes: note || ('Manueller Reminder L' + level)
     });
     if (!json?.success || !json?.invoice) throw new Error(json?.error || 'Reminder-Update fehlgeschlagen.');
+    reminderRecorded = true;
+    if (state.reminderModal) state.reminderModal.recorded = true;
     const idx = state.invoices.findIndex(inv => idsEq(inv.id, invoiceId));
     if (idx >= 0) state.invoices[idx] = json.invoice;
 
-    // 2. Mahnung via Make-Webhook versenden
     const mailType = level >= 2 ? 'reminder_final_email' : 'reminder_email';
-    let mailSent = false;
-    try {
-      await callAdminFunction('mail-dispatch', { mail_type: mailType, invoice_id: invoiceId });
-      mailSent = true;
-    } catch(mailErr) {
-      console.warn('[reminder] mail-dispatch error:', mailErr?.message);
-    }
+    const mailJson = await callAdminFunction('mail-dispatch', {
+      mail_type: mailType,
+      invoice_id: invoiceId
+    });
+    if (!mailJson?.success) throw new Error(mailJson?.error || 'Mailversand fehlgeschlagen.');
+    mailSent = true;
 
-    showToast(mailSent
-      ? `✓ Mahnung L${level} protokolliert und versendet.`
-      : `✓ Mahnung L${level} protokolliert — Mail-Versand fehlgeschlagen, bitte manuell prüfen.`);
+    if (fb) {
+      fb.className = 'modal-feedback success';
+      fb.textContent = 'Mahnung L' + level + ' wurde protokolliert und versendet.';
+    }
+    showToast('✓ Mahnung L' + level + ' protokolliert und versendet.');
     renderAll();
-    setTimeout(() => closeReminderModal(), 500);
-  } catch(err) {
+    setTimeout(() => closeReminderModal(), 700);
+  } catch (err) {
     const payload = err?.payload || {};
-    if (fb) fb.textContent = payload?.error || err?.message || 'Reminder-Update fehlgeschlagen.';
+    const message = payload?.error || err?.message || 'Mahnung konnte nicht verarbeitet werden.';
+    if (reminderRecorded && !mailSent) {
+      if (fb) {
+        fb.className = 'modal-feedback warning';
+        fb.textContent = 'Die Mahnung wurde protokolliert, aber die E-Mail konnte nicht versendet werden. Bitte nicht erneut protokollieren; den Versand manuell prüfen.';
+      }
+      showToast('⚠ Mahnung protokolliert — E-Mail-Versand fehlgeschlagen.');
+      renderAll();
+    } else if (fb) {
+      fb.className = 'modal-feedback error';
+      fb.textContent = message;
+    }
   } finally {
-    if (state.reminderModal) state.reminderModal.pending = false;
+    if (state.reminderModal) {
+      state.reminderModal.pending = false;
+      if (submitBtn) {
+        submitBtn.disabled = Boolean(state.reminderModal.recorded);
+        submitBtn.textContent = state.reminderModal.recorded ? 'Bereits protokolliert' : 'Protokollieren & senden';
+      }
+    }
   }
 }
 
