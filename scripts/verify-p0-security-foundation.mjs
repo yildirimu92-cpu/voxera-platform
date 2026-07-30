@@ -18,7 +18,10 @@ const paths = {
   customerDuplicateAiApply: new URL('../customer-dashboard/netlify/functions/ai-apply-change.js', import.meta.url),
   callIntake: new URL('../customer-dashboard/netlify/functions/call-intake-webhook.js', import.meta.url),
   retentionJob: new URL('../customer-dashboard/netlify/functions/enforce-data-retention.js', import.meta.url),
-  customerNetlify: new URL('../customer-dashboard/netlify.toml', import.meta.url)
+  customerNetlify: new URL('../customer-dashboard/netlify.toml', import.meta.url),
+  customerPreviewVoice: new URL('../customer-dashboard/netlify/functions/preview-voice.js', import.meta.url),
+  customerAiChangeNotify: new URL('../customer-dashboard/netlify/functions/ai-change-notify.js', import.meta.url),
+  customerAiDailyReport: new URL('../customer-dashboard/netlify/functions/ai-daily-report.js', import.meta.url)
 };
 
 const [
@@ -36,7 +39,10 @@ const [
   customerDuplicateAiApply,
   callIntake,
   retentionJob,
-  customerNetlify
+  customerNetlify,
+  customerPreviewVoice,
+  customerAiChangeNotify,
+  customerAiDailyReport
 ] = await Promise.all(
   Object.values(paths).map(path => readFile(path, 'utf8'))
 );
@@ -71,6 +77,16 @@ const checks = [
   ['duplicate customer AI mutation endpoint is quarantined', /statusCode: 410/.test(customerDuplicateAiApply) && !/SUPABASE_SERVICE_ROLE_KEY/.test(customerDuplicateAiApply) && !/ANTHROPIC_API_KEY/.test(customerDuplicateAiApply)],
   ['call intake fails closed without webhook secret', /configurationMissing: true/.test(callIntake) && /response\(503/.test(callIntake) && !/if \(!requiredSecret\) return true/.test(callIntake)],
   ['call intake compares webhook secrets in constant time', /crypto\.timingSafeEqual/.test(callIntake)],
+  ['customer voice preview requires authenticated customer context', /requireCustomerCaller/.test(customerPreviewVoice) && /caller\.customerId/.test(customerPreviewVoice)],
+  ['customer voice preview enforces plan eligibility', /available_from_plan/.test(customerPreviewVoice) && /voiceTier > currentTier/.test(customerPreviewVoice)],
+  ['customer voice preview bounds input and hides provider details', /MAX_PREVIEW_TEXT_LENGTH = 500/.test(customerPreviewVoice) && /private, no-store/.test(customerPreviewVoice) && !/await ttsResponse\.text/.test(customerPreviewVoice) && !/detail\s*:/.test(customerPreviewVoice)],
+  ['customer AI change notification requires authenticated customer context', /requireCustomerCaller/.test(customerAiChangeNotify) && /customer_id:\s*caller\.customerId/.test(customerAiChangeNotify)],
+  ['customer AI change notification derives identity server-side', /\.eq\('id', caller\.customerId\)/.test(customerAiChangeNotify) && !/const\s*\{\s*customer_id/.test(customerAiChangeNotify) && !/body\.customer_id/.test(customerAiChangeNotify)],
+  ['customer AI change notification verifies delivery result', /webhookResponse\.ok/.test(customerAiChangeNotify) && /notification_delivery_failed/.test(customerAiChangeNotify)],
+  ['customer daily report requires authenticated customer context', /requireCustomerCaller/.test(customerAiDailyReport) && /caller\.customerId/.test(customerAiDailyReport)],
+  ['customer daily report bounds provider use and hides provider errors', /MAX_PROMPT_LENGTH = 3000/.test(customerAiDailyReport) && /max_tokens: 150/.test(customerAiDailyReport) && !/error:\s*e\.message/.test(customerAiDailyReport)],
+  ['dashboard authenticates both customer voice preview calls', (dashboard.match(/fetch\('\/\.netlify\/functions\/preview-voice'[\s\S]{0,260}'Authorization': 'Bearer ' \+ accessToken/g) || []).length === 2 && /async function vxGetCustomerAccessToken\(\)/.test(dashboard)],
+  ['dashboard AI change notification uses authenticated helper', /callDashboardFunction\('ai-change-notify', \{ message: msg \}\)/.test(dashboard) && !/const NOTIFY_URL = '\/\.netlify\/functions\/ai-change-notify'/.test(dashboard)],
   ['server audio requires Bearer token', /auth_token_missing/.test(serverAudio) && /auth\.getUser\(token\)/.test(serverAudio)],
   ['server audio resolves public.users tenant', /\.from\('users'\)/.test(serverAudio) && /customer_id/.test(serverAudio)],
   ['server audio checks calls tenant before ElevenLabs', serverAudio.indexOf(".from('calls')") < serverAudio.indexOf('api.elevenlabs.io')],
