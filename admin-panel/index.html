@@ -2328,7 +2328,8 @@ body,.main{background:#F7F8FC;}
             <div id="onboarding-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
             <div class="inline-actions" style="margin-top:12px;">
               <button class="btn btn-primary btn-sm" id="onboarding-open-profile">Workspace öffnen</button>
-              <button class="btn btn-secondary btn-sm" id="onboarding-send-access-btn" type="button" data-send-access-trigger data-send-access-source="onboarding-detail" data-send-access-blocked="1" title="Bitte zuerst einen Kunden auswählen.">Zugang senden</button>
+              <button class="btn btn-secondary btn-sm" id="onboarding-go-live-btn" type="button" data-go-live-trigger data-go-live-action="approve" style="display:none;">Admin-Freigabe prüfen</button>
+              <button class="btn btn-secondary btn-sm" id="onboarding-send-access-btn" type="button" data-send-access-trigger data-send-access-source="onboarding-detail" data-send-access-blocked="1" style="display:none;" title="Bitte zuerst einen Kunden auswählen.">Zugang senden</button>
             </div>
           </div>
         </div>
@@ -3512,6 +3513,40 @@ body,.main{background:#F7F8FC;}
   </div>
 </div>
 
+<!-- ADMIN APPROVAL / GO-LIVE MODAL -->
+<div class="modal-overlay" id="go-live-modal" style="z-index:364;" onclick="if(event.target===this)closeCustomerGoLiveModal()">
+  <div class="modal" style="max-width:680px;" role="dialog" aria-modal="true" aria-labelledby="go-live-modal-title">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title" id="go-live-modal-title">Admin-Freigabe</div>
+        <div class="modal-sub" id="go-live-modal-sub">Launch-Gates kontrollieren und nachvollziehbar dokumentieren.</div>
+      </div>
+      <button class="modal-icon-close" type="button" onclick="closeCustomerGoLiveModal()" aria-label="Dialog schliessen" title="Schliessen">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
+      </button>
+    </div>
+    <div id="go-live-feedback" class="modal-feedback"></div>
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;background:var(--bg);">
+      <div class="detail-item"><span class="detail-k">Kunde</span><span class="detail-v" id="go-live-customer-name">—</span></div>
+      <div class="detail-item"><span class="detail-k">Lifecycle</span><span class="detail-v" id="go-live-customer-status">—</span></div>
+      <div class="detail-item" style="border:none;"><span class="detail-k">Freigabe</span><span class="detail-v" id="go-live-approval-status">—</span></div>
+    </div>
+    <div id="go-live-gate-summary" class="card" style="padding:14px 16px;margin-bottom:12px;background:var(--bg);"></div>
+    <div class="card" id="go-live-manual-checks-card" style="padding:14px 16px;margin-bottom:12px;background:var(--bg);">
+      <div class="card-title" style="margin-bottom:10px;">Manuelle Freigabeprüfungen</div>
+      <div id="go-live-checks" style="display:flex;flex-direction:column;gap:9px;"></div>
+    </div>
+    <label style="display:block;margin-bottom:12px;">
+      <span class="field-label">Freigabe-/Go-live-Notiz (optional)</span>
+      <textarea id="go-live-note" rows="3" placeholder="Prüfhinweis, Abweichung oder Verantwortlichkeit dokumentieren"></textarea>
+    </label>
+    <div class="inline-actions" style="justify-content:flex-end;">
+      <button class="btn btn-quiet" type="button" onclick="closeCustomerGoLiveModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="go-live-submit-btn" type="button" onclick="submitCustomerGoLive()">Freigabe speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- INVOICE DETAIL MODAL -->
 <div class="modal-overlay" id="invoice-detail-modal" style="z-index:365;" onclick="if(event.target===this)closeInvoiceDetailModal()">
   <div class="modal invoice-detail-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-detail-title">
@@ -4187,6 +4222,7 @@ const state={
   createCustomerPending:false,
   sendAccessPending:false,
   sendAccessTargetId:null,
+  goLiveModal:{customerId:null,mode:null,pending:false},
   invoicePaidModal:{customerId:null,invoiceId:null,pending:false},
   invoiceDetailModal:{customerId:null,invoiceId:null},
   caseCapturePending:false,
@@ -4670,45 +4706,73 @@ function isOfferAcceptedCanonical(offer){
 function resolveCommercialAccessSignals(customerId){
   const offers=(state.offers||[]).filter(offer=>idsEq(offer.customerId,customerId));
   const acceptedOffers=offers.filter(isOfferAcceptedCanonical);
-  const latestAcceptedOffer=acceptedOffers
-    .slice()
-    .sort((a,b)=>(new Date(b.acceptedAt||b.accepted_at||b.updatedAt||0)).getTime()-(new Date(a.acceptedAt||a.accepted_at||a.updatedAt||0)).getTime())[0]||null;
-  const contracts=(state.contracts||[]).filter(ct=>idsEq(ct.customerId,customerId));
-  const activeContract=contracts.find(ct=>ACCESS_ALLOWED_CONTRACT_STATUSES.has(String(ct.status||'').trim().toLowerCase()))||null;
-  const linkedContract=latestAcceptedOffer?.contractId
-    ? contracts.find(ct=>idsEq(ct.id,latestAcceptedOffer.contractId))||null
-    : null;
-  return { acceptedOffers, latestAcceptedOffer, contracts, activeContract, linkedContract };
+  const contracts=(state.contracts||[]).filter(contract=>idsEq(contract.customerId,customerId));
+  const activeContracts=contracts.filter(contract=>
+    ACCESS_ALLOWED_CONTRACT_STATUSES.has(String(contract.status||'').trim().toLowerCase())
+  );
+  const acceptedOfferLinkedToActiveContract=acceptedOffers.find(offer=>
+    activeContracts.some(contract=>
+      (offer.contractId&&idsEq(offer.contractId,contract.id))||
+      (contract.offerId&&idsEq(contract.offerId,offer.id))
+    )
+  )||null;
+  return {acceptedOffers,contracts,activeContracts,acceptedOfferLinkedToActiveContract};
 }
-function resolveAccessGate(customer,onboarding){
-  const onboardingState=resolveOnboardingState(onboarding);
-  const customerEmail=String(customer?.email||'').trim();
-  const aiReady=hasCustomerAiBasicsConfigured(customer);
+function getGoLiveTechnicalPrecheck(customer,onboarding){
+  const validation=validateCustomerAccessData(customer);
   const commercial=resolveCommercialAccessSignals(customer?.id);
-
+  const onboardingState=resolveOnboardingState(onboarding);
   const hard_blockers=[];
-  if(!commercial.activeContract){
-    if(commercial.latestAcceptedOffer && !commercial.linkedContract){
-      hard_blockers.push('Akzeptierte Offerte vorhanden, aber kein verknüpfter Vertrag.');
-    }else if(commercial.contracts.length){
-      const statusList=commercial.contracts.map(ct=>String(ct.status||'').trim()).filter(Boolean).join(', ');
-      hard_blockers.push(`Vertrag vorhanden, aber nicht startbereit/aktiv (${statusList||'Status unklar'}).`);
-    }else{
-      hard_blockers.push('Kein startbereiter Vertrag vorhanden (active/signed).');
-    }
+  if(!validation.ok){
+    hard_blockers.push(`Pflicht-Stammdaten fehlen: ${validation.missing.map(validationLabelForField).join(', ')}.`);
   }
-  if(!customerEmail) hard_blockers.push('Kunden-E-Mail fehlt.');
-
+  if(!commercial.acceptedOffers.length) hard_blockers.push('Keine akzeptierte Offerte vorhanden.');
+  if(!commercial.activeContracts.length){
+    hard_blockers.push('Kein startbereiter Vertrag vorhanden (active/signed).');
+  }else if(commercial.acceptedOffers.length&&!commercial.acceptedOfferLinkedToActiveContract){
+    hard_blockers.push('Akzeptierte Offerte ist nicht mit einem startbereiten Vertrag verknüpft.');
+  }
+  if(!onboarding) hard_blockers.push('Onboarding-Datensatz fehlt.');
+  else if(onboardingState.state===ONBOARDING_STATUS.BLOCKED) hard_blockers.push('Onboarding ist blockiert.');
+  const voxeraNumber=String(customer?.voxera_number||customer?.voxera||'').trim();
+  if(!voxeraNumber||/zuweisung offen|pending|nicht zugewiesen/i.test(voxeraNumber)){
+    hard_blockers.push('Voxera-Rufnummer ist nicht zugewiesen.');
+  }
+  if(!String(customer?.elevenlabs_agent_id||'').trim()) hard_blockers.push('ElevenLabs Agent-ID fehlt.');
+  if(!hasCustomerAiBasicsConfigured(customer)){
+    hard_blockers.push('Kritische AI-Konfiguration ist unvollständig.');
+  }
   const warnings=[];
-  if(!isPaymentPaid(customer)) warnings.push(`Setup-Gebühr ist noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)}). Zugang kann trotzdem gesendet werden.`);
-  if(!aiReady) warnings.push('AI-Readiness fehlt (nur Warnung, kein Blocker).');
-  if(commercial.acceptedOffers.length===0) warnings.push('Noch keine akzeptierte Offerte gefunden.');
-  if(onboardingState.state===ONBOARDING_STATUS.BLOCKED) warnings.push('Onboarding ist blockiert (nur Hinweis, kein Entitlement-Blocker).');
-
+  if(!isPaymentPaid(customer)){
+    warnings.push(`Setup-Gebühr ist noch nicht bezahlt (${paymentStatusLabel(customer?.payment_status)}). Dies blockiert die Freigabe nicht.`);
+  }
   return {
     allow:hard_blockers.length===0,
     blocked:hard_blockers.length>0,
     warnings,
+    hard_blockers,
+    commercial,
+    validation
+  };
+}
+function resolveAccessGate(customer,onboarding){
+  const technical=getGoLiveTechnicalPrecheck(customer,onboarding);
+  const hard_blockers=[...technical.hard_blockers];
+  const lifecycleStatus=resolveCustomerLifecycle(customer);
+  if(!customer?.go_live_approved_at||!customer?.go_live_approved_by){
+    hard_blockers.push('Dokumentierte Admin-Freigabe fehlt.');
+  }
+  if(lifecycleStatus!==CUSTOMER_STATUS.READY){
+    hard_blockers.push('Kunde ist noch nicht im freigegebenen Status „Bereit“.');
+  }
+  const onboardingState=resolveOnboardingState(onboarding);
+  if(onboardingState.state!==ONBOARDING_STATUS.READY){
+    hard_blockers.push('Onboarding ist noch nicht als bereit freigegeben.');
+  }
+  return {
+    allow:hard_blockers.length===0,
+    blocked:hard_blockers.length>0,
+    warnings:technical.warnings,
     hard_blockers
   };
 }
@@ -4725,15 +4789,24 @@ function getCustomerLifecycleStatusLabel(customer,onboarding){
   return getCustomerLifecycleLabel(customer,onboarding);
 }
 function getCustomerLifecycleBadge(customer,onboarding){
-  const lifecycleStatus=getCanonicalCustomerStatus(customer,onboarding);
-  const label=getCustomerLifecycleLabel(customer,onboarding);
-  const cls=CUSTOMER_LIFECYCLE_BADGE_CLASS[lifecycleStatus]||'badge-gray';
+  const status=resolveCustomerLifecycle(customer);
+  const label=CUSTOMER_LIFECYCLE_LABELS[status]||'Einrichtung läuft';
+  let cls='badge-blue';
+  if(status===CUSTOMER_STATUS.READY) cls='badge-green';
+  else if(status===CUSTOMER_STATUS.INVITED) cls='badge-blue';
+  else if(status===CUSTOMER_STATUS.ACTIVATED) cls='badge-green';
+  else if(status===CUSTOMER_STATUS.LIVE) cls='badge-green';
+  else if(status===CUSTOMER_STATUS.PAUSED) cls='badge-amber';
+  else if(status===CUSTOMER_STATUS.DELETED) cls='badge-gray';
   return `<span class="badge ${cls}">${esc(label)}</span>`;
 }
 function getCustomerQuickActionState(customer,onboarding){
   const lifecycleStatus=resolveCustomerLifecycle(customer);
   const gate=resolveAccessGate(customer,onboarding);
+  const technical=getGoLiveTechnicalPrecheck(customer,onboarding);
+  const approved=Boolean(customer?.go_live_approved_at&&customer?.go_live_approved_by);
   const blockedReason=(gate.hard_blockers&&gate.hard_blockers[0])||'Zugang derzeit nicht möglich';
+  const technicalBlockedReason=(technical.hard_blockers&&technical.hard_blockers[0])||'Go-live derzeit nicht möglich';
   const base={
     lifecycleStatus,
     canSendAccess:false,
@@ -4741,12 +4814,24 @@ function getCustomerQuickActionState(customer,onboarding){
     sendAccessDisabled:true,
     sendAccessTooltip:'',
     showSendAccess:false,
+    showApproval:false,
+    approvalLabel:approved?'Freigabe aktualisieren':'Admin-Freigabe prüfen',
+    approvalDisabled:false,
+    approvalTooltip:technical.allow?'':technicalBlockedReason,
+    showGoLive:false,
+    goLiveLabel:'Kunde live schalten',
+    goLiveDisabled:false,
+    goLiveTooltip:technical.allow?'':technicalBlockedReason,
     showInvitationSent:false,
     showActivated:false,
     showLiveState:false,
     showPausedState:false
   };
-  if(lifecycleStatus==='onboarding'){
+  if(lifecycleStatus===CUSTOMER_STATUS.ONBOARDING){
+    return {...base,showApproval:true};
+  }
+  if(lifecycleStatus===CUSTOMER_STATUS.READY){
+    if(!approved) return {...base,showApproval:true};
     return {
       ...base,
       showSendAccess:true,
@@ -4755,22 +4840,19 @@ function getCustomerQuickActionState(customer,onboarding){
       sendAccessTooltip:gate.allow?'':blockedReason
     };
   }
-  if(lifecycleStatus==='ready'){
-    return {
-      ...base,
-      showSendAccess:true,
-      canSendAccess:gate.allow,
-      sendAccessDisabled:!gate.allow,
-      sendAccessTooltip:gate.allow?'':blockedReason
-    };
+  if(lifecycleStatus===CUSTOMER_STATUS.INVITED) return {...base,showInvitationSent:true};
+  if(lifecycleStatus===CUSTOMER_STATUS.ACTIVATED){
+    return {...base,showActivated:true,showGoLive:true};
   }
-  if(lifecycleStatus==='invited') return {...base,showInvitationSent:true};
-  if(lifecycleStatus==='activated') return {...base,showActivated:true};
-  if(lifecycleStatus==='live') return {...base,showLiveState:true};
-  if(lifecycleStatus==='paused') return {...base,showPausedState:true};
+  if(lifecycleStatus===CUSTOMER_STATUS.LIVE) return {...base,showLiveState:true};
+  if(lifecycleStatus===CUSTOMER_STATUS.PAUSED){
+    return {...base,showPausedState:true,showGoLive:true};
+  }
   return base;
 }
 function customerAccessTerminalLabel(actionState){
+  if(actionState?.showApproval) return 'Admin-Freigabe ausstehend';
+  if(actionState?.showGoLive) return 'Go-live bereit';
   if(actionState?.showInvitationSent) return 'Zugang bereits gesendet';
   if(actionState?.showActivated) return 'Zugang aktiviert';
   if(actionState?.showLiveState) return 'Kunde live';
@@ -5861,15 +5943,20 @@ function renderCustomerWorkspace(id) {
   if (g('cw-breadcrumb')) g('cw-breadcrumb').textContent = cu.name || '';
   if (g('cw-badges')) g('cw-badges').innerHTML = getCustomerLifecycleBadge(cu, onboard) + ' ' + paymentStatusBadge(cu.payment_status);
 
-  // Actions
+// Actions
   if (g('cw-actions')) {
     const actionState = getCustomerQuickActionState(cu, onboard);
-    const canSend = actionState.showSendAccess && !actionState.sendAccessDisabled;
-    var sendBtn = '';
-    if (actionState.showSendAccess) {
-      sendBtn = '<button class="btn btn-primary btn-sm" type="button" data-send-access-trigger data-send-access-source="workspace" data-customer-id="' + jsStr(id) + '"' + (actionState.sendAccessDisabled ? ' data-send-access-blocked="1"' : '') + '>' + esc(actionState.sendAccessLabel) + '</button>';
+    let primaryAction = '';
+    if (actionState.showApproval) {
+      primaryAction = '<button class="btn btn-secondary btn-sm" type="button" data-go-live-trigger data-go-live-action="approve" data-customer-id="' + jsStr(id) + '" title="' + esc(actionState.approvalTooltip||'Admin-Freigabe dokumentieren') + '">' + esc(actionState.approvalLabel) + '</button>';
+    } else if (actionState.showSendAccess) {
+      primaryAction = '<button class="btn btn-primary btn-sm" type="button" data-send-access-trigger data-send-access-source="workspace" data-customer-id="' + jsStr(id) + '"' + (actionState.sendAccessDisabled ? ' data-send-access-blocked="1"' : '') + ' title="' + esc(actionState.sendAccessTooltip||'Kundenzugang senden') + '">' + esc(actionState.sendAccessLabel) + '</button>';
+    } else if (actionState.showGoLive) {
+      primaryAction = '<button class="btn btn-primary btn-sm" type="button" data-go-live-trigger data-go-live-action="go_live" data-customer-id="' + jsStr(id) + '" title="' + esc(actionState.goLiveTooltip||'Kunde kontrolliert live schalten') + '">' + esc(actionState.goLiveLabel) + '</button>';
+    } else {
+      primaryAction = '<span class="badge badge-green">' + esc(customerAccessTerminalLabel(actionState)) + '</span>';
     }
-    g('cw-actions').innerHTML = sendBtn
+    g('cw-actions').innerHTML = primaryAction
       + '<button class="btn btn-quiet btn-sm" type="button" onclick="openCustomerProfile(\'' + jsStr(id) + '\')" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Details</button>'
       + '<button class="btn btn-quiet btn-sm" type="button" onclick="openAiWizard(\'' + jsStr(id) + '\')" style="background:rgba(232,197,71,.15);color:#E8C547;border:none;">AI Wizard</button>';
   }
@@ -6401,15 +6488,26 @@ function openOnboardingDetail(customerId,options={}){
   }
   const profileBtn=document.getElementById('onboarding-open-profile');
   if(profileBtn) profileBtn.onclick=()=>openCustomerWorkspace(customerId);
-  const sendAccessBtn=document.getElementById('onboarding-send-access-btn');
-  if(sendAccessBtn){
-    const onboarding=onboardingForCustomer(customerId);
+  const onboarding=onboardingForCustomer(customerId);
     const actionState=getCustomerQuickActionState(q.customer,onboarding);
-    const isBlocked=!actionState.showSendAccess||!!actionState.sendAccessDisabled;
-    sendAccessBtn.dataset.customerId=customerId;
-    sendAccessBtn.dataset.sendAccessBlocked=isBlocked?'1':'0';
-    sendAccessBtn.title=isBlocked?(actionState.sendAccessTooltip||'Einrichtung noch nicht abgeschlossen'):'';
-  }
+    const goLiveBtn=document.getElementById('onboarding-go-live-btn');
+    if(goLiveBtn){
+      const mode=actionState.showGoLive?'go_live':'approve';
+      const visible=actionState.showApproval||actionState.showGoLive;
+      goLiveBtn.style.display=visible?'':'none';
+      goLiveBtn.dataset.customerId=customerId;
+      goLiveBtn.dataset.goLiveAction=mode;
+      goLiveBtn.textContent=actionState.showGoLive?actionState.goLiveLabel:actionState.approvalLabel;
+      goLiveBtn.title=actionState.showGoLive?(actionState.goLiveTooltip||'Kunde kontrolliert live schalten'):(actionState.approvalTooltip||'Admin-Freigabe dokumentieren');
+    }
+    const sendAccessBtn=document.getElementById('onboarding-send-access-btn');
+    if(sendAccessBtn){
+      const isBlocked=!actionState.showSendAccess||!!actionState.sendAccessDisabled;
+      sendAccessBtn.style.display=actionState.showSendAccess?'':'none';
+      sendAccessBtn.dataset.customerId=customerId;
+      sendAccessBtn.dataset.sendAccessBlocked=isBlocked?'1':'0';
+      sendAccessBtn.title=isBlocked?(actionState.sendAccessTooltip||'Einrichtung noch nicht abgeschlossen'):'Kundenzugang senden';
+    }
   if(!skipScroll) wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
@@ -11876,10 +11974,13 @@ function hasRequiredAccessData(customer){
 
 function hasCustomerAiBasicsConfigured(customer){
   const aiConfig=state.aiConfigs&&(state.aiConfigs[customer?.id]||state.aiConfigs[customer?.customer_id]);
-  const businessDescription=
-    String(customer?.ai_business_description||'').trim()||
-    String(aiConfig?.businessDescription||aiConfig?.business_description||'').trim();
-  return !!businessDescription;
+  const requiredValues=[
+    [customer?.ai_business_description,aiConfig?.businessDescription,aiConfig?.business_description],
+    [customer?.ai_services,aiConfig?.services],
+    [customer?.ai_instructions,aiConfig?.instructions],
+    [customer?.ai_fallback_escalation,aiConfig?.fallbackEscalation,aiConfig?.fallback_escalation]
+  ];
+  return requiredValues.every(values=>values.some(value=>String(value||'').trim()));
 }
 
 function hasCustomerCalls(customer){
@@ -12034,7 +12135,7 @@ function renderSendAccessValidation(customer){
       + blockReasons.map(r=>'<li style="color:var(--red);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
       + '</ul>'
     : (
-      '<span style="color:var(--green);font-weight:500;">Aktiver Vertrag vorhanden – Zugang kann gesendet werden.</span>'
+      '<span style="color:var(--green);font-weight:500;">Admin-Freigabe und technische Voraussetzungen erfüllt – Zugang kann gesendet werden.</span>'
       + (hasWarnings
         ? '<div style="margin-top:8px;color:var(--amber);font-size:12px;font-weight:600;">Warnings:</div><ul style="margin:4px 0 0 16px;padding:0;">'
           + warningReasons.map(r=>'<li style="color:var(--amber);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
@@ -12122,6 +12223,197 @@ function closeSendAccessModal(){
   setSendAccessFeedback(null,'');
   document.getElementById('send-access-modal').classList.remove('open');
 }
+
+const GO_LIVE_CHECK_LABELS={"commercial_terms_confirmed":"Offerte, Vertrag, Plan, Preise, Laufzeit und Einheiten sind geprüft.","contact_and_escalation_confirmed":"Kontakt-, Erreichbarkeits- und Eskalationsdaten sind bestätigt.","privacy_configured":"Aufzeichnung, Datenschutz und Aufbewahrung sind konfiguriert.","assistant_reviewed":"Wissen, Regeln, Grenzen und Fallback des Assistenten sind geprüft.","technical_sync_tested":"Rufnummer, Telefonie, Agent und Synchronisation wurden erfolgreich getestet.","required_scenarios_passed":"Pflichtszenarien inklusive Unsicherheit, Eskalation, Notfall und Ausfall wurden bestanden.","portal_owner_confirmed":"Verantwortliche Person für das Customer Portal ist festgelegt."};
+
+function parseGoLiveChecks(value){
+  if(value&&typeof value==='object'&&!Array.isArray(value)) return {...value};
+  if(typeof value==='string'){
+    try{
+      const parsed=JSON.parse(value);
+      return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
+    }catch(_error){}
+  }
+  return {};
+}
+
+function setGoLiveFeedback(type,message){
+  const target=document.getElementById('go-live-feedback');
+  if(!target) return;
+  target.className='modal-feedback';
+  target.textContent=message||'';
+  if(type==='error') target.classList.add('error');
+  if(type==='success') target.classList.add('success');
+}
+
+function renderGoLiveCalendarVisibility(){
+  const required=document.querySelector('#go-live-checks [data-go-live-check="calendar_required"]');
+  const row=document.getElementById('go-live-calendar-tested-row');
+  if(row) row.style.display=required?.checked?'flex':'none';
+  updateGoLiveSubmitAvailability();
+}
+
+function collectGoLiveChecks(){
+  const checks={};
+  document.querySelectorAll('#go-live-checks [data-go-live-check]').forEach(input=>{
+    checks[input.dataset.goLiveCheck]=input.checked===true;
+  });
+  return checks;
+}
+
+function updateGoLiveSubmitAvailability(){
+  const btn=document.getElementById('go-live-submit-btn');
+  if(!btn||state.goLiveModal.pending) return;
+  const customer=customerById(state.goLiveModal.customerId);
+  const onboarding=onboardingForCustomer(state.goLiveModal.customerId);
+  const technical=getGoLiveTechnicalPrecheck(customer,onboarding);
+  if(state.goLiveModal.mode==='approve'){
+    const checks=collectGoLiveChecks();
+    const allRequired=Object.keys(GO_LIVE_CHECK_LABELS).every(key=>checks[key]===true);
+    const calendarReady=!checks.calendar_required||checks.calendar_tested===true;
+    btn.disabled=!technical.allow||!allRequired||!calendarReady;
+    return;
+  }
+  const lifecycle=resolveCustomerLifecycle(customer);
+  btn.disabled=!technical.allow||!customer?.go_live_approved_at||!customer?.go_live_approved_by||![CUSTOMER_STATUS.ACTIVATED,CUSTOMER_STATUS.PAUSED].includes(lifecycle);
+}
+
+function renderCustomerGoLiveModal(){
+  const customer=customerById(state.goLiveModal.customerId);
+  if(!customer) return;
+  const onboarding=onboardingForCustomer(customer.id);
+  const technical=getGoLiveTechnicalPrecheck(customer,onboarding);
+  const mode=state.goLiveModal.mode==='go_live'?'go_live':'approve';
+  const storedChecks=parseGoLiveChecks(customer.go_live_checks);
+  const readonly=mode==='go_live';
+  const title=document.getElementById('go-live-modal-title');
+  const sub=document.getElementById('go-live-modal-sub');
+  const submit=document.getElementById('go-live-submit-btn');
+  const checksCard=document.getElementById('go-live-manual-checks-card');
+  document.getElementById('go-live-customer-name').textContent=customer.name||customer.customer_name||'—';
+  document.getElementById('go-live-customer-status').textContent=getCustomerLifecycleLabel(customer,onboarding);
+  document.getElementById('go-live-approval-status').textContent=customer.go_live_approved_at
+    ? `Freigegeben am ${formatDateTime(customer.go_live_approved_at)}`
+    : 'Noch nicht freigegeben';
+  if(title) title.textContent=mode==='go_live'?'Kunde live schalten':'Admin-Freigabe';
+  if(sub) sub.textContent=mode==='go_live'
+    ? 'Technische Gates erneut prüfen und den Kunden bewusst live schalten.'
+    : 'Launch-Gates kontrollieren und nachvollziehbar dokumentieren.';
+  if(submit){
+    submit.textContent=mode==='go_live'?'Jetzt live schalten':'Freigabe speichern';
+    submit.dataset.defaultLabel=submit.textContent;
+  }
+  if(checksCard) checksCard.style.display='';
+  const checksTarget=document.getElementById('go-live-checks');
+  if(checksTarget){
+    const rows=Object.entries(GO_LIVE_CHECK_LABELS).map(([key,label])=>
+      `<label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--ink);">
+        <input type="checkbox" data-go-live-check="${esc(key)}" ${storedChecks[key]?'checked':''} ${readonly?'disabled':''} onchange="updateGoLiveSubmitAvailability()">
+        <span>${esc(label)}</span>
+      </label>`
+    );
+    rows.push(`<label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--ink);">
+      <input type="checkbox" data-go-live-check="calendar_required" ${storedChecks.calendar_required?'checked':''} ${readonly?'disabled':''} onchange="renderGoLiveCalendarVisibility()">
+      <span>Kalenderintegration gehört zum verkauften Leistungsumfang.</span>
+    </label>`);
+    rows.push(`<label id="go-live-calendar-tested-row" style="display:${storedChecks.calendar_required?'flex':'none'};align-items:flex-start;gap:9px;margin-left:24px;font-size:13px;color:var(--ink);">
+      <input type="checkbox" data-go-live-check="calendar_tested" ${storedChecks.calendar_tested?'checked':''} ${readonly?'disabled':''} onchange="updateGoLiveSubmitAvailability()">
+      <span>Kalender ist verbunden und mit einer Testbuchung geprüft.</span>
+    </label>`);
+    checksTarget.innerHTML=rows.join('');
+  }
+  const summary=document.getElementById('go-live-gate-summary');
+  if(summary){
+    const blockerHtml=technical.hard_blockers.length
+      ? '<div style="color:var(--red);font-weight:700;margin-bottom:6px;">Technische Freigabe blockiert</div><ul style="margin:0 0 0 18px;padding:0;">'+technical.hard_blockers.map(item=>'<li style="color:var(--red);font-size:12px;margin-bottom:3px;">'+esc(item)+'</li>').join('')+'</ul>'
+      : '<div style="color:var(--green);font-weight:700;">Technische Voraussetzungen erfüllt.</div>';
+    const warningHtml=technical.warnings.length
+      ? '<div style="margin-top:9px;color:var(--amber);font-size:12px;font-weight:600;">'+technical.warnings.map(esc).join('<br>')+'</div>'
+      : '';
+    summary.innerHTML=blockerHtml+warningHtml;
+  }
+  const note=document.getElementById('go-live-note');
+  if(note) note.value=customer.go_live_approval_note||'';
+  updateGoLiveSubmitAvailability();
+}
+
+function openCustomerGoLiveModal(customerId,mode='approve'){
+  if(state.goLiveModal.pending) return false;
+  const customer=customerById(customerId);
+  const modal=document.getElementById('go-live-modal');
+  if(!customer||!modal){
+    showToast('Go-live-Dialog konnte nicht geöffnet werden.');
+    return false;
+  }
+  closeCustomerInteractionLayers('go-live-modal');
+  state.goLiveModal={customerId:String(customerId),mode:mode==='go_live'?'go_live':'approve',pending:false};
+  setGoLiveFeedback(null,'');
+  modal.classList.add('open');
+  renderCustomerGoLiveModal();
+  return true;
+}
+
+function closeCustomerGoLiveModal(){
+  if(state.goLiveModal.pending) return;
+  const modal=document.getElementById('go-live-modal');
+  if(modal) modal.classList.remove('open');
+  state.goLiveModal={customerId:null,mode:null,pending:false};
+  setGoLiveFeedback(null,'');
+}
+
+function setCustomerGoLivePending(isPending){
+  state.goLiveModal.pending=Boolean(isPending);
+  const btn=document.getElementById('go-live-submit-btn');
+  if(!btn) return;
+  btn.disabled=Boolean(isPending);
+  btn.textContent=isPending
+    ? (state.goLiveModal.mode==='go_live'?'Schalte live…':'Speichere Freigabe…')
+    : (btn.dataset.defaultLabel||'Freigabe speichern');
+}
+
+async function submitCustomerGoLive(){
+  if(state.goLiveModal.pending) return;
+  const customerId=state.goLiveModal.customerId;
+  const mode=state.goLiveModal.mode==='go_live'?'go_live':'approve';
+  const customer=customerById(customerId);
+  if(!customer){
+    setGoLiveFeedback('error','Kunde wurde nicht gefunden. Bitte den Dialog neu öffnen.');
+    return;
+  }
+  updateGoLiveSubmitAvailability();
+  const submit=document.getElementById('go-live-submit-btn');
+  if(submit?.disabled){
+    setGoLiveFeedback('error',mode==='go_live'
+      ? 'Go-live ist blockiert. Bitte die angezeigten Voraussetzungen prüfen.'
+      : 'Bitte alle Freigabeprüfungen bestätigen und technische Blocker beheben.');
+    return;
+  }
+  setGoLiveFeedback(null,'');
+  setCustomerGoLivePending(true);
+  try{
+    const result=await callAdminFunction('customer-go-live',{
+      action:mode,
+      customer_id:customerId,
+      note:String(document.getElementById('go-live-note')?.value||'').trim()||null,
+      checks:collectGoLiveChecks()
+    });
+    await loadDataFromSupabase({silent:true});
+    renderCustomers();
+    renderOnboarding();
+    renderOverview();
+    updateBadges();
+    setCustomerGoLivePending(false);
+    closeCustomerGoLiveModal();
+    showToast(result?.message||(mode==='go_live'?'Kunde wurde live geschaltet.':'Admin-Freigabe wurde gespeichert.'));
+  }catch(error){
+    const details=Array.isArray(error?.payload?.hard_blockers)?error.payload.hard_blockers.join(' · '):'';
+    setGoLiveFeedback('error',[error?.message||'Aktion fehlgeschlagen.',details].filter(Boolean).join(' '));
+    setCustomerGoLivePending(false);
+    updateGoLiveSubmitAvailability();
+  }
+}
+
+
 
 function applyAccessSendResult(customerId,customerPatch,nextStep){
   const c=customerById(customerId);
@@ -14052,6 +14344,11 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
     payment_link: dbRow.payment_link || null,
     payment_sent_at: dbRow.payment_sent_at || null,
     payment_received_at: dbRow.payment_received_at || null,
+    go_live_approved_at: dbRow.go_live_approved_at || null,
+    go_live_approved_by: dbRow.go_live_approved_by || null,
+    go_live_approval_note: dbRow.go_live_approval_note || null,
+    go_live_checks: dbRow.go_live_checks && typeof dbRow.go_live_checks === 'object' ? dbRow.go_live_checks : {},
+    live_at: dbRow.live_at || null,
     // Voxera
     voxera:        dbRow.voxera_number || 'Zuweisung offen',
     dashboard_id:  dbRow.dashboard_id  || null,
@@ -14582,7 +14879,7 @@ function handleCustomerAction(action,customerId,event,target){
 }
 function closeCustomerInteractionLayers(keepModalId){
   closeAllActionMenus();
-  ['customer-profile-modal','case-capture-modal','edit-customer-modal','send-access-modal','customer-danger-modal'].forEach(id=>{
+  ['customer-profile-modal','case-capture-modal','edit-customer-modal','send-access-modal','go-live-modal','customer-danger-modal'].forEach(id=>{
     if(keepModalId && id===keepModalId) return;
     const modal=document.getElementById(id);
     if(!modal) return;
@@ -14601,6 +14898,18 @@ document.addEventListener('toggle',event=>{
   resetActionMenuList(menu.querySelector('.actions-menu-list'));
 },true);
 document.addEventListener('click',event=>{
+  const goLiveBtn=event.target.closest('[data-go-live-trigger]');
+  if(goLiveBtn){
+    event.preventDefault();
+    event.stopPropagation();
+    let customerId=goLiveBtn.getAttribute('data-customer-id')||'';
+    if(!customerId&&goLiveBtn.id==='onboarding-go-live-btn'){
+      customerId=document.getElementById('onboarding-detail-wrap')?.dataset?.customerId||'';
+    }
+    const mode=goLiveBtn.getAttribute('data-go-live-action')==='go_live'?'go_live':'approve';
+    openCustomerGoLiveModal(customerId,mode);
+    return;
+  }
   const sendAccessBtn=event.target.closest('[data-send-access-trigger]');
   if(sendAccessBtn){
     event.preventDefault();
