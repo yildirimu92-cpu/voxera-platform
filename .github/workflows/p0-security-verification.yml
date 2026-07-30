@@ -25,3 +25,6 @@ jobs:
 
       - name: Run repository security checks
         run: node scripts/verify-p0-security-foundation.mjs
+
+      - name: Verify Phase 1 launch gates
+        run: node scripts/verify-phase1-launch-gates.mjs
