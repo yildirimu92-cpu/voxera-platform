@@ -1,11 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const {
-  STATUS,
   normalizeOnboardingStatus,
-  assertOnboardingTransition,
-  normalizeCustomerStatus,
-  assertCustomerTransition
+  assertOnboardingTransition
 } = require('./_lib/status-model');
 
 const headers = {
@@ -78,34 +75,7 @@ exports.handler = async (event) => {
 
   if (error) return response(500, { error: 'Onboarding konnte nicht aktualisiert werden.', details: error.message });
 
-  const prevStatus = normalizeOnboardingStatus(current.status);
-  const nextStatus = normalizeOnboardingStatus(data.status);
-  let updatedCustomer = null;
-  if (prevStatus === STATUS.onboarding.READY && nextStatus === STATUS.onboarding.COMPLETED) {
-    const { data: customer, error: customerError } = await sbAdmin
-      .from('customers')
-      .select('id, status')
-      .eq('id', customerId)
-      .maybeSingle();
-
-    if (!customerError && customer) {
-      const currentStatus = normalizeCustomerStatus(customer.status);
-      if (currentStatus !== STATUS.customer.LIVE) {
-        try {
-          assertCustomerTransition(currentStatus, STATUS.customer.LIVE);
-          const { data: promotedCustomer } = await sbAdmin
-            .from('customers')
-            .update({ status: STATUS.customer.LIVE, updated_at: new Date().toISOString() })
-            .eq('id', customerId)
-            .select('id, status, updated_at')
-            .maybeSingle();
-          updatedCustomer = promotedCustomer || null;
-        } catch (_e) {
-          // Ignore non-legal transitions here; lifecycle remains source-of-truth.
-        }
-      }
-    }
-  }
-
-  return response(200, { success: true, onboarding: data, customer: updatedCustomer });
+  // Onboarding and customer lifecycle are intentionally separate.
+  // Completing onboarding never promotes a customer to LIVE; only customer-go-live may do that.
+  return response(200, { success: true, onboarding: data, customer: null });
 };
