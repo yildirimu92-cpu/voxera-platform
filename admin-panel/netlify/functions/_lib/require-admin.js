@@ -10,8 +10,8 @@ const ROLE_ALIASES = {
 };
 
 const ROLE_CAPABILITIES = {
-  owner: new Set(['customer:write', 'admin:manage', 'offer:write', 'contract:write', 'billing:write', 'plan:write']),
-  admin: new Set(['customer:write', 'offer:write', 'contract:write', 'billing:write', 'plan:write']),
+  owner: new Set(['customer:write', 'admin:manage', 'offer:write', 'contract:write', 'billing:write', 'plan:write', 'lifecycle:approve']),
+  admin: new Set(['customer:write', 'offer:write', 'contract:write', 'billing:write', 'plan:write', 'lifecycle:approve']),
   support: new Set(['customer:write'])
 };
 
