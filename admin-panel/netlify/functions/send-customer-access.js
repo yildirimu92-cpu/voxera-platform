@@ -11,7 +11,8 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-const REQUIRED_FIELDS = ['email'];
+const REQUIRED_FIELDS = ['customer_name', 'email', 'street', 'zip', 'city', 'country', 'plan'];
+const AI_REQUIRED_FIELDS = ['ai_business_description', 'ai_services', 'ai_instructions', 'ai_fallback_escalation'];
 const ACCESS_ENABLED_CONTRACT_STATUSES = new Set(['active', 'signed']);
 
 function response(statusCode, payload) {
@@ -19,10 +20,12 @@ function response(statusCode, payload) {
 }
 
 function hasAssistantBasics(customer) {
-  return Boolean(
-    String(customer?.ai_business_description || '').trim() ||
-    String(customer?.ai_instructions || '').trim()
-  );
+  return AI_REQUIRED_FIELDS.every((field) => String(customer?.[field] || '').trim());
+}
+
+function hasAssignedNumber(customer) {
+  const value = String(customer?.voxera_number || '').trim();
+  return Boolean(value && !/zuweisung offen|pending|nicht zugewiesen/i.test(value));
 }
 
 function missingRequiredCustomerFields(customer) {
@@ -164,86 +167,101 @@ function resolveDuplicateReason(customerRow) {
 }
 
 async function resolveContractGate(sbAdmin, customerId) {
-  const { data, error } = await sbAdmin
-    .from('contracts')
-    .select('id, status, updated_at')
-    .eq('customer_id', customerId)
-    .order('updated_at', { ascending: false })
-    .limit(20);
-
-  if (error) {
-    return { ok: false, statusCode: 500, payload: { error: 'Contract lookup failed', details: error.message } };
-  }
-  const contracts = Array.isArray(data) ? data : [];
-  const activeContract = contracts.find((ct) => ACCESS_ENABLED_CONTRACT_STATUSES.has(String(ct?.status || '').trim().toLowerCase()));
-  if (!activeContract) {
-    let acceptedOfferWithoutContract = false;
-    const offerLookup = await sbAdmin
-      .from('offers')
-      .select('id, status, accepted_at, contract_id')
+  const [contractsResult, offersResult] = await Promise.all([
+    sbAdmin
+      .from('contracts')
+      .select('id, status, updated_at')
       .eq('customer_id', customerId)
       .order('updated_at', { ascending: false })
-      .limit(20);
-    if (!offerLookup.error) {
-      const offers = Array.isArray(offerLookup.data) ? offerLookup.data : [];
-      acceptedOfferWithoutContract = offers.some((offer) => {
-        const status = String(offer?.status || '').trim().toLowerCase();
-        const accepted = status === 'accepted' || Boolean(offer?.accepted_at);
-        return accepted && !String(offer?.contract_id || '').trim();
-      });
-    }
-    const existingStatuses = contracts
-      .map((ct) => String(ct?.status || '').trim())
-      .filter(Boolean);
-    return {
-      ok: false,
-      statusCode: 409,
-      payload: {
-        error: 'Kein aktiver Vertrag vorhanden. Zugang bleibt gesperrt, bis ein Vertrag aktiv/freigegeben ist.',
-        contract_required: true,
-        hard_blockers: acceptedOfferWithoutContract
-          ? ['Akzeptierte Offerte ohne verknüpften Vertrag']
-          : existingStatuses.length
-          ? [`Vertrag vorhanden, aber nicht startbereit/aktiv (${existingStatuses.join(', ')})`]
-          : ['Kein Vertrag vorhanden'],
-        warnings: []
-      }
-    };
+      .limit(50),
+    sbAdmin
+      .from('offers')
+      .select('id, status, accepted_at, contract_id, updated_at')
+      .eq('customer_id', customerId)
+      .order('updated_at', { ascending: false })
+      .limit(50)
+  ]);
+
+  if (contractsResult.error) {
+    return { ok: false, statusCode: 500, payload: { error: 'Contract lookup failed', details: contractsResult.error.message } };
   }
+  if (offersResult.error) {
+    return { ok: false, statusCode: 500, payload: { error: 'Offer lookup failed', details: offersResult.error.message } };
+  }
+
+  const contracts = Array.isArray(contractsResult.data) ? contractsResult.data : [];
+  const offers = Array.isArray(offersResult.data) ? offersResult.data : [];
+  const activeContracts = contracts.filter((contract) =>
+    ACCESS_ENABLED_CONTRACT_STATUSES.has(String(contract?.status || '').trim().toLowerCase())
+  );
+  const acceptedOffers = offers.filter((offer) => {
+    const status = String(offer?.status || '').trim().toLowerCase();
+    return status === 'accepted' || Boolean(offer?.accepted_at);
+  });
+  const linkedOffer = acceptedOffers.find((offer) =>
+    activeContracts.some((contract) => String(contract.id) === String(offer.contract_id || ''))
+  ) || null;
+
+  const hardBlockers = [];
+  if (!acceptedOffers.length) hardBlockers.push('Keine akzeptierte Offerte vorhanden.');
+  if (!activeContracts.length) hardBlockers.push('Kein startbereiter Vertrag vorhanden (active/signed).');
+  if (acceptedOffers.length && activeContracts.length && !linkedOffer) {
+    hardBlockers.push('Akzeptierte Offerte ist nicht mit einem startbereiten Vertrag verknüpft.');
+  }
+
   return {
-    ok: true,
-    contractId: String(activeContract.id || ''),
-    contracts
+    ok: hardBlockers.length === 0,
+    statusCode: hardBlockers.length ? 409 : 200,
+    payload: {
+      error: hardBlockers.length ? 'Commercial→Access Gate ist nicht erfüllt.' : null,
+      hard_blockers: hardBlockers,
+      warnings: []
+    },
+    contractId: linkedOffer ? String(linkedOffer.contract_id || '') : '',
+    contracts,
+    acceptedOffers,
+    linkedOffer
   };
 }
 
 async function buildCommercialAccessGate({ sbAdmin, customer, customerId, onboardingRow }) {
   const hardBlockers = [];
   const warnings = [];
-
   const missingFields = missingRequiredCustomerFields(customer);
+
   if (missingFields.length) {
     hardBlockers.push(`Pflicht-Stammdaten fehlen: ${missingFields.join(', ')}`);
   }
 
   const contractGate = await resolveContractGate(sbAdmin, customerId);
   if (!contractGate.ok) {
-    return {
-      allow: false,
-      hard_blockers: [...(contractGate.payload?.hard_blockers || []), ...hardBlockers],
-      warnings,
-      missing_fields: missingFields,
-      contract_gate: contractGate
-    };
+    hardBlockers.push(...(contractGate.payload?.hard_blockers || []));
   }
 
-  const onboardingStatus = normalizeOnboardingStatus(onboardingRow?.status);
-  if (onboardingStatus === STATUS.onboarding.BLOCKED) {
-    warnings.push('Onboarding ist blockiert (nur Hinweis, kein Entitlement-Blocker).');
+  const customerStatus = normalizeCustomerStatus(customer.status);
+  if (customerStatus !== STATUS.customer.READY) {
+    hardBlockers.push(`Kundenstatus muss vor dem Versand „ready“ sein (aktuell: ${customerStatus || 'unklar'}).`);
+  }
+  if (!customer.go_live_approved_at || !customer.go_live_approved_by) {
+    hardBlockers.push('Dokumentierte Admin-Freigabe fehlt.');
   }
 
+  if (!onboardingRow) {
+    hardBlockers.push('Onboarding-Datensatz fehlt.');
+  } else {
+    const onboardingStatus = normalizeOnboardingStatus(onboardingRow.status);
+    if (onboardingStatus === STATUS.onboarding.BLOCKED) {
+      hardBlockers.push('Onboarding ist blockiert.');
+    } else if (onboardingStatus !== STATUS.onboarding.READY) {
+      hardBlockers.push(`Onboarding muss vor dem Versand „ready“ sein (aktuell: ${onboardingStatus}).`);
+    }
+  }
+
+  if (!hasAssignedNumber(customer)) hardBlockers.push('Voxera-Rufnummer ist nicht zugewiesen.');
+  if (!String(customer.elevenlabs_agent_id || '').trim()) hardBlockers.push('ElevenLabs Agent-ID fehlt.');
   if (!hasAssistantBasics(customer)) {
-    warnings.push('AI-Readiness unvollständig (Business-Kontext/Instruktionen fehlen). Zugang bleibt erlaubt.');
+    const missingAi = AI_REQUIRED_FIELDS.filter((field) => !String(customer?.[field] || '').trim());
+    hardBlockers.push(`Kritische AI-Konfiguration fehlt: ${missingAi.join(', ')}`);
   }
 
   const setupFeeState = await loadSetupFeeState(sbAdmin, customerId);
@@ -257,14 +275,6 @@ async function buildCommercialAccessGate({ sbAdmin, customer, customerId, onboar
     setup_fee_state: setupFeeState,
     contract_gate: contractGate
   };
-}
-
-function addMonths(date, months) {
-  const d = new Date(date);
-  const day = d.getUTCDate();
-  d.setUTCMonth(d.getUTCMonth() + months);
-  if (d.getUTCDate() < day) d.setUTCDate(0);
-  return d;
 }
 
 async function loadSetupFeeState(sbAdmin, customerId) {
@@ -434,72 +444,66 @@ exports.handler = async (event) => {
 
   // ─── ACTION: mark_activated ───────────────────────────────────────────────
   if (action === 'mark_activated') {
-    const contractGate = await resolveContractGate(sbAdmin, customerId);
-    if (!contractGate.ok) return response(contractGate.statusCode, contractGate.payload);
-    const setupFeeState = await loadSetupFeeState(sbAdmin, customerId);
-    const paymentWarning = setupFeeState.message || null;
-
-    const nowIso = new Date().toISOString();
-    const { data: updatedCustomer, error: updateErr } = await sbAdmin
-      .from('customers')
-      .update({ status: 'activated', invite_status: 'activated', updated_at: nowIso })
-      .eq('id', customerId)
-      .select('*')
-      .single();
-
-    if (updateErr) return response(500, { error: 'Status konnte nicht gesetzt werden.', details: updateErr.message });
-
-    const { data: existingSubscription, error: subscriptionLookupError } = await sbAdmin
-      .from('subscriptions')
-      .select('*')
-      .eq('customer_id', customerId)
-      .maybeSingle();
-
-    if (subscriptionLookupError) {
-      return response(500, {
-        error: 'Subscription konnte nicht geladen werden.',
-        details: subscriptionLookupError.message
+    const currentStatus = normalizeCustomerStatus(customer.status);
+    if ([STATUS.customer.ACTIVATED, STATUS.customer.LIVE].includes(currentStatus)) {
+      return response(200, {
+        success: true,
+        duplicate: true,
+        message: 'Kundenzugang ist bereits aktiviert.',
+        customer
+      });
+    }
+    if (!customer.go_live_approved_at || !customer.go_live_approved_by) {
+      return response(409, { error: 'Dokumentierte Admin-Freigabe fehlt.' });
+    }
+    if (currentStatus !== STATUS.customer.INVITED || !customer.welcome_sent || customer.invite_status !== STATUS.access.SENT) {
+      return response(409, {
+        error: 'Der versendete Kundenzugang muss zuerst aktiviert werden.',
+        customer_status: currentStatus,
+        invite_status: customer.invite_status || null,
+        welcome_sent: Boolean(customer.welcome_sent)
       });
     }
 
-    let updatedSubscription = existingSubscription || null;
-    if (existingSubscription) {
-      const billingCycle = String(existingSubscription.billing_cycle || 'monthly').trim().toLowerCase();
-      const renewsAt = addMonths(new Date(nowIso), billingCycle === 'yearly' ? 12 : 1).toISOString();
-      const subscriptionPatch = {
-        subscription_status: 'active',
-        status: 'active',
-        starts_at: nowIso,
-        renews_at: renewsAt,
+    const contractGate = await resolveContractGate(sbAdmin, customerId);
+    if (!contractGate.ok) return response(contractGate.statusCode, contractGate.payload);
+    const setupFeeState = await loadSetupFeeState(sbAdmin, customerId);
+    const nowIso = new Date().toISOString();
+    const { data: updatedCustomer, error: updateErr } = await sbAdmin
+      .from('customers')
+      .update({
+        status: STATUS.customer.ACTIVATED,
+        invite_status: STATUS.access.ACTIVATED,
+        activated_at: customer.activated_at || nowIso,
         updated_at: nowIso
-      };
-      const { data: subUpdated, error: subUpdateErr } = await sbAdmin
-        .from('subscriptions')
-        .update(subscriptionPatch)
-        .eq('id', existingSubscription.id)
-        .select('*')
-        .single();
-      if (subUpdateErr) {
-        return response(500, {
-          error: 'Subscription konnte nicht aktiviert werden.',
-          details: subUpdateErr.message
-        });
-      }
-      updatedSubscription = subUpdated;
+      })
+      .eq('id', customerId)
+      .eq('status', STATUS.customer.INVITED)
+      .eq('invite_status', STATUS.access.SENT)
+      .select('*')
+      .single();
+
+    if (updateErr) {
+      return response(409, {
+        error: 'Aktivierung konnte nicht exklusiv gespeichert werden. Bitte Status neu laden.',
+        details: updateErr.message
+      });
     }
 
     return response(200, {
       success: true,
-      message: 'Kunde auf aktiviert gesetzt.',
-      warning: paymentWarning,
+      message: 'Kundenzugang aktiviert. Go-live bleibt ein separater Admin-Schritt.',
+      warning: setupFeeState.message || null,
       setup_fee_state: setupFeeState,
       customer: updatedCustomer,
-      subscription: updatedSubscription
+      lifecycle_separated: true
     });
   }
 
-  // ─── Pflichtfelder prüfen (für send_access + reset_password) ─────────────
-  const missingFields = missingRequiredCustomerFields(customer);
+  // Passwort-Reset benötigt nur die E-Mail; der Erstzugang durchläuft den vollständigen Gate.
+  const missingFields = action === 'reset_password'
+    ? (String(customer.email || '').trim() ? [] : ['email'])
+    : missingRequiredCustomerFields(customer);
 
   if (missingFields.length > 0) {
     return response(400, {
@@ -549,27 +553,6 @@ exports.handler = async (event) => {
 
   // ─── ACTION: send_access (Standard-Welcome-Mail) ──────────────────────────
   const normalizedCustomerStatus = normalizeCustomerStatus(customer.status);
-  const gate = await buildCommercialAccessGate({ sbAdmin, customer, customerId, onboardingRow });
-  if (!gate.allow) {
-    return response(409, {
-      error: 'Commercial→Access Gate blockiert den Versand.',
-      hard_blockers: gate.hard_blockers,
-      warnings: gate.warnings,
-      missing_fields: gate.missing_fields
-    });
-  }
-  const assistantReady = hasAssistantBasics(customer);
-
-  // Log AI readiness but do NOT block – frontend already guards this
-  console.info(JSON.stringify({
-    level: 'info',
-    event: 'send_customer_access_ai_check',
-    idempotency_scope: idempotencyScope,
-    customer_id: customerId,
-    assistant_ready: assistantReady,
-    customer_status: normalizedCustomerStatus
-  }));
-
   if (customer.welcome_sent || customer.invite_status === STATUS.access.SENT || customer.invite_status === STATUS.access.ACTIVATED) {
     console.info(JSON.stringify({
       level: 'info',
@@ -587,6 +570,26 @@ exports.handler = async (event) => {
       customer
     });
   }
+
+  const gate = await buildCommercialAccessGate({ sbAdmin, customer, customerId, onboardingRow });
+  if (!gate.allow) {
+    return response(409, {
+      error: 'Commercial→Access Gate blockiert den Versand.',
+      hard_blockers: gate.hard_blockers,
+      warnings: gate.warnings,
+      missing_fields: gate.missing_fields
+    });
+  }
+
+  console.info(JSON.stringify({
+    level: 'info',
+    event: 'send_customer_access_gate_passed',
+    idempotency_scope: idempotencyScope,
+    customer_id: customerId,
+    assistant_ready: hasAssistantBasics(customer),
+    customer_status: normalizedCustomerStatus,
+    admin_approved: true
+  }));
 
   const setupFeeState = gate.setup_fee_state || await loadSetupFeeState(sbAdmin, customerId);
   if (setupFeeState.warningOnly) {
@@ -613,19 +616,24 @@ exports.handler = async (event) => {
     welcome_sent: Boolean(customer.welcome_sent)
   }));
 
-  // Fetch fresh state just before claim to avoid stale reads
-  const { data: freshCustomer } = await sbAdmin
+  // Fetch fresh state just before claim to avoid stale reads.
+  const { data: freshCustomer, error: freshCustomerError } = await sbAdmin
     .from('customers')
     .select('id, status, invite_status, welcome_sent')
     .eq('id', customerId)
     .single();
 
-  const freshInviteStatus = String(freshCustomer?.invite_status || '').trim().toLowerCase();
-  const freshStatus = String(freshCustomer?.status || '').trim().toLowerCase();
-  const claimableStatuses = [String(STATUS.customer.ONBOARDING).toLowerCase(), 'pending', 'onboarding'];
+  if (freshCustomerError || !freshCustomer) {
+    return response(500, {
+      error: 'Kundenstatus konnte vor dem Versand nicht erneut geladen werden.',
+      details: freshCustomerError?.message || null
+    });
+  }
 
-  // Guard: skip claim if already sent/sending
-  if (freshCustomer?.welcome_sent || freshInviteStatus === 'sent' || freshInviteStatus === 'sending' || freshInviteStatus === 'activated') {
+  const freshInviteStatus = String(freshCustomer.invite_status || '').trim().toLowerCase();
+  const freshStatus = normalizeCustomerStatus(freshCustomer.status);
+
+  if (freshCustomer.welcome_sent || freshInviteStatus === 'sent' || freshInviteStatus === 'sending' || freshInviteStatus === 'activated') {
     return response(200, {
       success: true,
       duplicate: true,
@@ -634,27 +642,25 @@ exports.handler = async (event) => {
       customer: freshCustomer
     });
   }
+  if (freshStatus !== STATUS.customer.READY) {
+    return response(409, {
+      error: 'Zugang kann nur aus dem freigegebenen Status „ready“ gesendet werden.',
+      customer_status: freshStatus
+    });
+  }
 
   const claimTs = new Date().toISOString();
-
-  // Use simple eq filters – no .or() to avoid PostgREST combination issues
   let claimQuery = sbAdmin
     .from('customers')
     .update({ invite_status: 'sending', updated_at: claimTs })
     .eq('id', customerId)
-    .select('id');
+    .eq('status', STATUS.customer.READY);
 
-  // Only add status filter if status is actually a claimable value
-  if (claimableStatuses.includes(freshStatus)) {
-    claimQuery = sbAdmin
-      .from('customers')
-      .update({ invite_status: 'sending', updated_at: claimTs })
-      .eq('id', customerId)
-      .in('status', [STATUS.customer.ONBOARDING, 'pending', 'onboarding'])
-      .select('id');
-  }
+  claimQuery = freshCustomer.invite_status == null
+    ? claimQuery.is('invite_status', null)
+    : claimQuery.eq('invite_status', freshCustomer.invite_status);
 
-  const { data: claimRows, error: claimError } = await claimQuery;
+  const { data: claimRows, error: claimError } = await claimQuery.select('id');
 
   if (claimError) {
     console.error(JSON.stringify({
