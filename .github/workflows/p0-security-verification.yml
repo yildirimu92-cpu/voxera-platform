@@ -28,3 +28,6 @@ jobs:
 
       - name: Verify Phase 1 launch gates
         run: node scripts/verify-phase1-launch-gates.mjs
+
+      - name: Verify Billing mail controls
+        run: node scripts/verify-billing-mail-controls.mjs
