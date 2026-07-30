@@ -2270,6 +2270,14 @@ body,.main{background:#F7F8FC;}
           </div>
         </div>
 
+        <div class="customer-section-shell card" id="cancellation-requests-card" style="margin-bottom:16px;">
+          <div class="section-head">
+            <h3 style="font-size:15px;font-weight:700;letter-spacing:-.02em;color:#fff;">Kündigungsanträge</h3>
+            <span class="badge badge-warning" id="cancellation-requests-count">0 offen</span>
+          </div>
+          <div id="cancellation-requests-list" style="padding:14px 16px;"></div>
+        </div>
+
         <div class="customer-section-shell card">
           <div class="section-head">
             <h3 style="font-size:15px;font-weight:700;letter-spacing:-.02em;color:#fff;">Kundenliste</h3>
@@ -4230,6 +4238,8 @@ const state={
   customerDangerPending:false,
   customerDangerTargetId:null,
   customerDangerMode:null,
+  cancellationRequests:[],
+  cancellationRequestPendingId:null,
   customers:[],  // populated by loadDataFromSupabase()
   calls:[],  // populated by loadDataFromSupabase()
   cases:[],  // populated by loadDataFromSupabase()
@@ -6087,6 +6097,151 @@ function renderCustomerWorkspace(id) {
 }
 
 
+
+function cancellationDateInputValue(value){
+  const date = value ? new Date(value) : null;
+  if(!date || Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0,10);
+}
+
+function cancellationRequestStatusMeta(status){
+  const value=String(status||'').toLowerCase();
+  const map={
+    pending:{label:'Offen',style:'background:#FFFBEB;color:#B45309;border:1px solid #FDE68A;'},
+    processing:{label:'In Bearbeitung',style:'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;'},
+    approved:{label:'Genehmigt',style:'background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;'},
+    rejected:{label:'Abgelehnt',style:'background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;'},
+    withdrawn:{label:'Zurückgezogen',style:'background:#F8FAFC;color:#475569;border:1px solid #E2E8F0;'},
+    finalized:{label:'Beendet',style:'background:#F1F5F9;color:#334155;border:1px solid #CBD5E1;'}
+  };
+  return map[value]||{label:value||'Unbekannt',style:'background:#F8FAFC;color:#475569;border:1px solid #E2E8F0;'};
+}
+
+function adminCanWriteContracts(){
+  const role=String(state.currentAdminRole||'').trim().toLowerCase().replace(/-/g,'_');
+  return ['owner','admin','super_admin'].includes(role);
+}
+
+function renderCancellationRequests(){
+  const list=document.getElementById('cancellation-requests-list');
+  const count=document.getElementById('cancellation-requests-count');
+  if(!list||!count) return;
+
+  const operational=(state.cancellationRequests||[])
+    .filter(request=>['pending','processing','approved'].includes(String(request.status||'').toLowerCase()))
+    .sort((a,b)=>{
+      const aDate=new Date(a.approved_effective_at||a.requested_effective_at||a.created_at||0).getTime()||0;
+      const bDate=new Date(b.approved_effective_at||b.requested_effective_at||b.created_at||0).getTime()||0;
+      return aDate-bDate;
+    });
+  count.textContent=operational.length+' offen';
+
+  if(!operational.length){
+    list.innerHTML='<div style="border:1px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--slate2);font-size:13px;">Keine offenen Kündigungsanträge.</div>';
+    return;
+  }
+
+  const canWrite=adminCanWriteContracts();
+  list.innerHTML=operational.map(request=>{
+    const status=String(request.status||'').toLowerCase();
+    const meta=cancellationRequestStatusMeta(status);
+    const customer=customerById(request.customer_id);
+    const customerName=customer?customer.name:'Kunde '+String(request.customer_id||'');
+    const requestedAt=request.requested_effective_at||null;
+    const approvedAt=request.approved_effective_at||null;
+    const effectiveAt=approvedAt||requestedAt;
+    const due=effectiveAt&&!Number.isNaN(new Date(effectiveAt).getTime())&&new Date(effectiveAt).getTime()<=Date.now();
+    const pending=state.cancellationRequestPendingId===request.id;
+    let actions='';
+
+    if(!canWrite){
+      actions='<span style="font-size:11px;color:var(--slate2);">Keine Berechtigung zur Vertragsänderung</span>';
+    }else if(status==='pending'){
+      actions=''
+        +'<button class="btn btn-primary btn-sm" type="button" '+(pending?'disabled':'')+' onclick="adminReviewCancellationRequest(\''+jsStr(request.id)+'\',\'approve\')">Genehmigen</button>'
+        +'<button class="btn btn-quiet btn-sm" type="button" '+(pending?'disabled':'')+' onclick="adminReviewCancellationRequest(\''+jsStr(request.id)+'\',\'reject\')">Ablehnen</button>';
+    }else if(status==='approved'){
+      actions='<button class="btn btn-danger btn-sm" type="button" '+((pending||!due)?'disabled':'')+' onclick="adminReviewCancellationRequest(\''+jsStr(request.id)+'\',\'finalize\')">'+(due?'Vertrag beenden':'Noch nicht fällig')+'</button>';
+    }else{
+      actions='<span style="font-size:11px;color:var(--slate2);">'+(pending?'Aktion läuft …':'Wird verarbeitet')+'</span>';
+    }
+
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);">'
+      +'<div><div style="font-size:13px;font-weight:700;color:var(--ink);">'+esc(customerName)+'</div><div style="font-size:11px;color:var(--slate2);margin-top:3px;">Antrag '+esc(String(request.id||'').slice(0,8))+'</div></div>'
+      +'<div><span style="display:inline-flex;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;'+meta.style+'">'+esc(meta.label)+'</span><div style="font-size:11px;color:var(--slate2);margin-top:5px;">Eingang '+esc(fmtDate(request.created_at))+'</div></div>'
+      +'<div><div style="font-size:11px;color:var(--slate2);">Gewünschtes / bestätigtes Ende</div><div style="font-size:13px;font-weight:600;color:var(--ink);margin-top:3px;">'+esc(fmtDate(effectiveAt))+'</div><div style="font-size:11px;color:var(--slate2);margin-top:5px;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+esc(request.reason||'')+'">'+esc(request.reason||'Kein Grund angegeben')+'</div></div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">'+actions+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+async function adminReviewCancellationRequest(requestId,action){
+  const request=(state.cancellationRequests||[]).find(item=>idsEq(item.id,requestId));
+  if(!request||state.cancellationRequestPendingId) return;
+  const customer=customerById(request.customer_id);
+  const customerName=customer?customer.name:'dieser Kunde';
+  const normalizedAction=String(action||'').toLowerCase();
+  let payload={action:normalizedAction,request_id:request.id};
+
+  if(normalizedAction==='approve'){
+    const defaultDate=cancellationDateInputValue(request.approved_effective_at||request.requested_effective_at);
+    const effectiveAt=await voxPrompt({
+      title:'Kündigung genehmigen',
+      message:'Bitte Vertragslaufzeit und Kündigungsfrist für '+esc(customerName)+' prüfen. Der Vertrag bleibt bis zum bestätigten Datum aktiv.',
+      label:'Wirksamkeitsdatum (JJJJ-MM-TT)',
+      placeholder:'2026-12-31',
+      defaultValue:defaultDate,
+      confirmText:'Genehmigen',
+      required:true
+    });
+    if(effectiveAt===null) return;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(effectiveAt)){
+      await voxAlert({title:'Ungültiges Datum',message:'Bitte das Datum im Format JJJJ-MM-TT eingeben.'});
+      return;
+    }
+    payload.effective_at=effectiveAt;
+  }else if(normalizedAction==='reject'){
+    const note=await voxPrompt({
+      title:'Kündigungsantrag ablehnen',
+      message:'Die Begründung wird intern protokolliert.',
+      label:'Interne Begründung',
+      placeholder:'Warum wird der Antrag abgelehnt?',
+      confirmText:'Ablehnen',
+      required:true
+    });
+    if(note===null) return;
+    payload.admin_note=note;
+  }else if(normalizedAction==='finalize'){
+    const effectiveAt=request.approved_effective_at||request.requested_effective_at;
+    const ok=await voxConfirm({
+      title:'Vertrag jetzt beenden?',
+      message:'Die genehmigte Kündigung von '+esc(customerName)+' ist seit '+esc(fmtDate(effectiveAt))+' wirksam. Erst diese Aktion beendet Vertrag und Subscription.',
+      confirmText:'Vertrag beenden',
+      danger:true
+    });
+    if(!ok) return;
+  }else{
+    return;
+  }
+
+  state.cancellationRequestPendingId=request.id;
+  renderCancellationRequests();
+  try{
+    await callAdminFunction('admin-cancellation-request',payload);
+    showToast(
+      normalizedAction==='approve'?'Kündigung genehmigt. Vertrag bleibt bis zum Wirksamkeitsdatum aktiv.':
+      normalizedAction==='reject'?'Kündigungsantrag abgelehnt.':
+      'Vertrag und Subscription wurden beendet.'
+    );
+    await loadDataFromSupabase({silent:true});
+    renderAll();
+  }catch(error){
+    await voxAlert({title:'Kündigungsaktion fehlgeschlagen',message:esc(error.message||String(error))});
+  }finally{
+    state.cancellationRequestPendingId=null;
+    renderCancellationRequests();
+  }
+}
 
 function renderCustomers(){
   const search=(document.getElementById('customer-search').value||'').toLowerCase().trim();
@@ -11492,6 +11647,7 @@ function hydrateFilters(){
 }
 
 function renderAll(){
+  renderCancellationRequests();
   renderCustomers();
   renderOverview();
   renderOnboarding();
@@ -14599,6 +14755,19 @@ async function loadDataFromSupabase(opts) {
       .limit(500);
     if (caseErr) throw caseErr;
 
+    // 4b. Load customer cancellation requests (non-critical until migration is deployed)
+    let cancellationRows = [];
+    const { data: loadedCancellationRows, error: cancellationErr } = await authClient
+      .from('cancellation_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (cancellationErr) {
+      console.warn('[DB] cancellation_requests load failed:', cancellationErr.message);
+    } else {
+      cancellationRows = loadedCancellationRows || [];
+    }
+
     // 5. Load subscriptions and build customer_id → subscription map
     const { data: subscriptionRows, error: subscriptionErr } = await authClient
       .from('subscriptions')
@@ -14666,6 +14835,7 @@ async function loadDataFromSupabase(opts) {
     state.calls      = (callRows  || []).map(mapDbCallToUi);
     state.usageByCustomerMonthly = buildCurrentMonthUsageByCustomer(state.calls);
     state.cases      = (caseRows  || []).map(mapDbCaseToUi);
+    state.cancellationRequests = cancellationRows || [];
     state.subscriptions = subscriptionRows || [];
     state.invoices   = invoiceRows || [];
     state.invoiceItems = invoiceItemRows || [];
@@ -14719,7 +14889,7 @@ async function loadDataFromSupabase(opts) {
     });
     state.events = recentEvents;
 
-    console.log(`[DB] Loaded ${state.customers.length} customers, ${state.onboarding.length} onboarding, ${state.calls.length} calls, ${state.cases.length} cases, ${state.offers.length} offers, ${state.contracts.length} contracts, ${state.invoices.length} invoices.`);
+    console.log(`[DB] Loaded ${state.customers.length} customers, ${state.onboarding.length} onboarding, ${state.calls.length} calls, ${state.cases.length} cases, ${state.cancellationRequests.length} cancellation requests, ${state.offers.length} offers, ${state.contracts.length} contracts, ${state.invoices.length} invoices.`);
     await loadPlanConfig();
     // Load change request badge
     setTimeout(function(){ loadAiChangeRequests(); }, 1500);
@@ -14763,6 +14933,7 @@ async function init() {
       ['hydrateFilters', hydrateFilters],
       ['updateBadges', updateBadges],
       ['renderOverview', renderOverview],
+      ['renderCancellationRequests', renderCancellationRequests],
       ['renderCustomers', renderCustomers],
       ['renderOnboarding', renderOnboarding],
       ['renderAiSetup', renderAiSetup],

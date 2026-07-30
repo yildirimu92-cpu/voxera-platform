@@ -11611,6 +11611,7 @@ function vxNormalizeInAppNotificationSettings(raw) {
   };
 }
 let customerContractMeta = null;
+let customerCancellationRequest = null;
 let customerContractState = {
   status: 'unknown',
   resolution: 'unresolved',
@@ -15931,8 +15932,19 @@ function vxRenderContractDetails() {
     : 'background:#ECFDF5;color:#059669;border:0.5px solid #BBF7D0;';
 
   let warningHtml = '';
-  if (ct.cancellation_date) {
-    warningHtml = '<div style="grid-column:1/-1;background:#FFFBEB;color:#B45309;border:0.5px solid #FDE68A;border-radius:10px;padding:8px 10px;font-size:12px;">Kündigung eingereicht per ' + vxFmtDate(ct.cancellation_date) + '</div>';
+  const cancellationRequest = customerCancellationRequest || null;
+  const cancellationStatus = String(cancellationRequest && cancellationRequest.status || '').toLowerCase();
+  if (cancellationStatus === 'pending') {
+    warningHtml = '<div style="grid-column:1/-1;background:#FFFBEB;color:#B45309;border:0.5px solid #FDE68A;border-radius:10px;padding:8px 10px;font-size:12px;">Kündigungsantrag eingereicht. Ihr Vertrag bleibt bis zur Entscheidung aktiv.</div>';
+  } else if (cancellationStatus === 'processing') {
+    warningHtml = '<div style="grid-column:1/-1;background:#EFF6FF;color:#1D4ED8;border:0.5px solid #BFDBFE;border-radius:10px;padding:8px 10px;font-size:12px;">Ihr Kündigungsantrag wird geprüft.</div>';
+  } else if (cancellationStatus === 'approved') {
+    const effectiveAt = cancellationRequest.approved_effective_at || cancellationRequest.requested_effective_at;
+    warningHtml = '<div style="grid-column:1/-1;background:#FFFBEB;color:#B45309;border:0.5px solid #FDE68A;border-radius:10px;padding:8px 10px;font-size:12px;">Kündigung genehmigt zum ' + vxFmtDate(effectiveAt) + '. Bis dahin bleibt der Vertrag aktiv.</div>';
+  } else if (cancellationStatus === 'finalized') {
+    warningHtml = '<div style="grid-column:1/-1;background:#FEF2F2;color:#B91C1C;border:0.5px solid #FECACA;border-radius:10px;padding:8px 10px;font-size:12px;">Vertrag beendet.</div>';
+  } else if (ct.cancellation_date) {
+    warningHtml = '<div style="grid-column:1/-1;background:#FFFBEB;color:#B45309;border:0.5px solid #FDE68A;border-radius:10px;padding:8px 10px;font-size:12px;">Kündigung vorgemerkt zum ' + vxFmtDate(ct.cancellation_date) + '.</div>';
   }
 
   el.innerHTML = `
@@ -15984,22 +15996,96 @@ async function vxRenderAboAddons() {
   }
 }
 
+async function vxLoadCancellationRequest() {
+  customerCancellationRequest = null;
+  try {
+    const json = await callDashboardFunction('customer-cancel-contract', { action: 'status' });
+    customerCancellationRequest = (json && (json.current_request || json.latest_request)) || null;
+  } catch (error) {
+    console.warn('[cancellation-request] status load failed', error);
+  }
+  return customerCancellationRequest;
+}
+
+function vxCancellationStatusLabel(status) {
+  const labels = {
+    pending: 'Zur Prüfung eingereicht',
+    processing: 'Wird geprüft',
+    approved: 'Genehmigt',
+    rejected: 'Abgelehnt',
+    withdrawn: 'Zurückgezogen',
+    finalized: 'Vertrag beendet'
+  };
+  return labels[String(status || '').toLowerCase()] || 'Status unbekannt';
+}
+
 function vxRenderCancellationSection() {
   const el = document.getElementById('abo-cancellation-action');
   if (!el) return;
   const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
-  const isActive = String(ct.status || '').toLowerCase() === 'active';
-  if ((ct.cancellation_date || ct.termination_type) && isActive) {
-    el.innerHTML = ''
-      + '<div style="font-size:12px;color:var(--slate2);margin-bottom:10px;">Kündigung bereits eingereicht</div>'
-      + '<button onclick="vxSubmitReactivationRequest()" style="background:transparent;border:0.5px solid #1A6FE8;color:#1A6FE8;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Kündigung zurückziehen</button>';
+  const contractStatus = String(ct.status || '').toLowerCase();
+  const request = customerCancellationRequest || null;
+  const requestStatus = String(request && request.status || '').toLowerCase();
+  const effectiveAt = request && (request.approved_effective_at || request.requested_effective_at);
+  const statusCard = function(copy, tone) {
+    const palette = tone === 'danger'
+      ? 'background:#FEF2F2;color:#B91C1C;border:0.5px solid #FECACA;'
+      : tone === 'info'
+        ? 'background:#EFF6FF;color:#1D4ED8;border:0.5px solid #BFDBFE;'
+        : 'background:#FFFBEB;color:#B45309;border:0.5px solid #FDE68A;';
+    return '<div style="' + palette + 'border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.5;">' + copy + '</div>';
+  };
+
+  if (requestStatus === 'pending') {
+    el.innerHTML = statusCard('Ihr Kündigungsantrag ist eingereicht. Der Vertrag bleibt aktiv, bis Voxera den Antrag geprüft hat.', 'warning')
+      + '<button onclick="vxWithdrawCancellationRequest()" style="margin-top:10px;background:transparent;border:0.5px solid #1A6FE8;color:#1A6FE8;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Antrag zurückziehen</button>';
+    return;
+  }
+  if (requestStatus === 'processing') {
+    el.innerHTML = statusCard('Ihr Kündigungsantrag wird gerade geprüft und kann währenddessen nicht zurückgezogen werden.', 'info');
+    return;
+  }
+  if (requestStatus === 'approved') {
+    el.innerHTML = statusCard('Ihre Kündigung wurde zum <strong>' + escapeHtml(vxFmtDate(effectiveAt)) + '</strong> genehmigt. Bis zu diesem Datum bleibt der Vertrag aktiv.', 'warning');
+    return;
+  }
+  if (requestStatus === 'finalized' || contractStatus === 'cancelled') {
+    el.innerHTML = statusCard('Dieser Vertrag ist beendet.', 'danger');
     return;
   }
   if (ct.cancellation_date || ct.termination_type) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Kündigung bereits eingereicht</div>';
+    el.innerHTML = statusCard('Für diesen Vertrag ist bereits eine Kündigung vorgemerkt. Bitte kontaktieren Sie Voxera bei Rückfragen.', 'warning');
     return;
   }
-  el.innerHTML = '<button onclick="vxSubmitCancellationRequest()" style="background:transparent;border:0.5px solid #FCA5A5;color:#DC2626;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Kündigung einreichen</button>';
+
+  let historyHtml = '';
+  if (requestStatus === 'rejected') {
+    historyHtml = statusCard('Der letzte Kündigungsantrag wurde abgelehnt. Sie können einen neuen Antrag einreichen oder Voxera kontaktieren.', 'danger') + '<div style="height:10px;"></div>';
+  } else if (requestStatus === 'withdrawn') {
+    historyHtml = statusCard('Der letzte Kündigungsantrag wurde zurückgezogen. Ihr Vertrag läuft weiter.', 'info') + '<div style="height:10px;"></div>';
+  }
+
+  if (!['active', 'signed'].includes(contractStatus)) {
+    el.innerHTML = historyHtml + '<div style="font-size:12px;color:var(--slate2);">Für diesen Vertrag kann aktuell kein Kündigungsantrag erstellt werden.</div>';
+    return;
+  }
+  el.innerHTML = historyHtml + '<button onclick="vxSubmitCancellationRequest()" style="background:transparent;border:0.5px solid #FCA5A5;color:#DC2626;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Kündigung beantragen</button>';
+}
+
+function vxEstimateCancellationEffectiveAt(contract) {
+  const now = new Date();
+  const rawNotice = String(contract && contract.cancellation_notice || '30 Tage').trim().toLowerCase();
+  const amountMatch = rawNotice.match(/(\d+)/);
+  const amount = Math.max(1, Number(amountMatch && amountMatch[1]) || 1);
+  const requested = new Date(now);
+  if (/jahr|year/.test(rawNotice)) requested.setUTCFullYear(requested.getUTCFullYear() + amount);
+  else if (/monat|month/.test(rawNotice)) requested.setUTCMonth(requested.getUTCMonth() + amount);
+  else if (/woche|week/.test(rawNotice)) requested.setUTCDate(requested.getUTCDate() + (amount * 7));
+  else requested.setUTCDate(requested.getUTCDate() + (amountMatch ? amount : 30));
+
+  const contractualEnd = contract && contract.end_date ? new Date(contract.end_date) : null;
+  if (contractualEnd && !Number.isNaN(contractualEnd.getTime()) && contractualEnd.getTime() > requested.getTime()) return contractualEnd;
+  return requested;
 }
 
 async function vxSubmitCancellationRequest() {
@@ -16017,10 +16103,8 @@ async function vxSubmitCancellationRequest() {
   let selectedReason = '';
   let customReason = '';
   let step = 1;
-  const now = new Date();
-  const noticeMatch = String(ct.cancellation_notice || '').match(/(\d+)/);
-  const noticeDays = noticeMatch ? Math.max(0, Number(noticeMatch[1])) : 30;
-  const cancellationDate = new Date(now.getTime() + (noticeDays || 30) * 24 * 60 * 60 * 1000);
+  const estimatedEffectiveAt = vxEstimateCancellationEffectiveAt(ct);
+
   function renderStep() {
     const subEl = document.getElementById('confirm-sub');
     if (!subEl) return;
@@ -16031,7 +16115,7 @@ async function vxSubmitCancellationRequest() {
       const reasonsEl = subEl.querySelector('#vx-cancel-reasons');
       reasonsEl.innerHTML = reasons.map(function(reason) {
         const active = selectedReason === reason;
-        return '<button data-reason="' + reason.replace(/"/g, '&quot;') + '" style="text-align:left;background:' + (active ? '#EFF6FF' : '#fff') + ';border:0.5px solid ' + (active ? '#1A6FE8' : 'var(--line)') + ';color:var(--ink);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;cursor:pointer;">' + reason + '</button>';
+        return '<button data-reason="' + escapeHtml(reason) + '" style="text-align:left;background:' + (active ? '#EFF6FF' : '#fff') + ';border:0.5px solid ' + (active ? '#1A6FE8' : 'var(--line)') + ';color:var(--ink);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;cursor:pointer;">' + escapeHtml(reason) + '</button>';
       }).join('');
       reasonsEl.querySelectorAll('button[data-reason]').forEach(function(btn) {
         btn.onclick = function() {
@@ -16048,13 +16132,14 @@ async function vxSubmitCancellationRequest() {
     } else {
       const reasonText = selectedReason === 'Sonstiges' ? customReason.trim() : selectedReason;
       subEl.innerHTML = ''
-        + '<div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px;">Kündigung bestätigen</div>'
-        + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Ausgewählter Grund: <strong>' + (reasonText || '–') + '</strong></div>'
-        + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Vertragsende: <strong>' + vxFmtDate(cancellationDate.toISOString()) + '</strong></div>'
-        + '<div style="font-size:12px;color:#B45309;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:10px;padding:9px 10px;">Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert.</div>';
+        + '<div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px;">Kündigungsantrag bestätigen</div>'
+        + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Ausgewählter Grund: <strong>' + escapeHtml(reasonText || '–') + '</strong></div>'
+        + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Frühestes gewünschtes Vertragsende: <strong>' + escapeHtml(vxFmtDate(estimatedEffectiveAt.toISOString())) + '</strong></div>'
+        + '<div style="font-size:12px;color:#B45309;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:10px;padding:9px 10px;">Voxera prüft Vertragslaufzeit und Kündigungsfrist. Der Vertrag bleibt bis zur Genehmigung und zum bestätigten Wirksamkeitsdatum aktiv.</div>';
     }
     refreshButtons();
   }
+
   function refreshButtons() {
     const okBtn = document.getElementById('confirm-ok-btn');
     const cancelBtn = document.querySelector('#confirm-overlay .modal-btn-s');
@@ -16070,78 +16155,58 @@ async function vxSubmitCancellationRequest() {
     } else {
       cancelBtn.style.display = '';
       cancelBtn.textContent = 'Abbrechen';
-      okBtn.textContent = 'Ja, Kündigung einreichen';
+      okBtn.textContent = 'Antrag einreichen';
       okBtn.style.background = '#DC2626';
       okBtn.disabled = false;
       okBtn.style.opacity = '1';
       okBtn.style.cursor = 'pointer';
     }
   }
+
   openConfirmModal({
     title: '',
     text: '',
     confirmLabel: 'Weiter →',
     onConfirm: async function() {
-      if (step === 1) { step = 2; renderStep(); return false; }
-      const reasonText = selectedReason === 'Sonstiges' ? customReason.trim() : selectedReason;
-      const cancelRes = await fetch('/.netlify/functions/customer-cancel-contract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel', termination_reason: reasonText })
-      });
-      if (!cancelRes.ok) throw new Error('Kündigung konnte nicht eingereicht werden.');
-      await fetch('/.netlify/functions/ai-change-notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mail_type: 'cancellation_request',
-          customer_id: customerMeta.customerId || null,
-          customer_name: customerMeta.customerName || null,
-          plan: customerMeta.plan || null,
-          cancellation_notice: ct.cancellation_notice || '30 Tage'
-        })
-      });
-      ct.cancellation_date = cancellationDate.toISOString();
-      ct.termination_reason = reasonText;
-      ct.termination_type = 'customer_request';
-      if (customerContractMeta) {
-        customerContractMeta.cancellation_date = ct.cancellation_date;
-        customerContractMeta.termination_reason = ct.termination_reason;
-        customerContractMeta.termination_type = ct.termination_type;
+      if (step === 1) {
+        step = 2;
+        renderStep();
+        return false;
       }
+      const reasonText = selectedReason === 'Sonstiges' ? customReason.trim() : selectedReason;
+      const json = await callDashboardFunction('customer-cancel-contract', {
+        action: 'request_cancel',
+        reason: reasonText
+      });
+      customerCancellationRequest = (json && json.request) || null;
       vxRenderContractDetails();
       vxRenderCancellationSection();
-      toast('Kündigung eingereicht.');
+      toast('Kündigungsantrag eingereicht. Voxera prüft die Vertragsbedingungen.');
       return true;
     }
   });
   renderStep();
 }
 
-async function vxSubmitReactivationRequest() {
+async function vxWithdrawCancellationRequest() {
+  const request = customerCancellationRequest || null;
+  if (!request || String(request.status || '').toLowerCase() !== 'pending') {
+    toast('Dieser Antrag kann nicht mehr zurückgezogen werden.');
+    return;
+  }
   openConfirmModal({
-    title: 'Möchten Sie Ihre Kündigung wirklich zurückziehen?',
-    text: '',
-    confirmLabel: 'Ja, zurückziehen',
+    title: 'Kündigungsantrag zurückziehen?',
+    text: 'Ihr Vertrag läuft unverändert weiter.',
+    confirmLabel: 'Ja, Antrag zurückziehen',
     onConfirm: async function() {
-      const res = await fetch('/.netlify/functions/customer-cancel-contract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reactivate' })
+      const json = await callDashboardFunction('customer-cancel-contract', {
+        action: 'withdraw_request',
+        request_id: request.id
       });
-      if (!res.ok) throw new Error('Kündigung konnte nicht zurückgezogen werden.');
-      const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
-      ct.cancellation_date = null;
-      ct.termination_reason = null;
-      ct.termination_type = null;
-      if (customerContractMeta) {
-        customerContractMeta.cancellation_date = null;
-        customerContractMeta.termination_reason = null;
-        customerContractMeta.termination_type = null;
-      }
+      customerCancellationRequest = (json && json.request) || null;
       vxRenderContractDetails();
       vxRenderCancellationSection();
-      toast('Kündigung zurückgezogen. Ihr Abonnement läuft weiter.');
+      toast('Kündigungsantrag zurückgezogen. Ihr Vertrag läuft weiter.');
       return true;
     }
   });
@@ -17390,6 +17455,7 @@ function resolveCommercialValue({ contractValue, planValue, defaultValue }) {
 
 async function loadCustomerContractMeta(customerId, subscriptionId) {
   customerContractMeta = null;
+  customerCancellationRequest = null;
   customerContractState = {
     status: 'unknown',
     resolution: 'loading',
@@ -17422,6 +17488,7 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
       customerContractState.resolution = 'resolved';
       customerContractState.hasActiveContract = resolveHasActiveContractFromState(customerContractState);
       customerContractMeta = customerContractState.effectiveContract || customerContractState.latestContract || null;
+      await vxLoadCancellationRequest();
       renderVertrag();
       vxDebugInfo('[plan-card-debug] contract-state-source', {
         serverState: {
@@ -17459,6 +17526,7 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
     customerContractState = deriveContractState(data || []);
     customerContractState.resolution = 'resolved';
     customerContractMeta = customerContractState.effectiveContract || null;
+    await vxLoadCancellationRequest();
     renderVertrag();
     return customerContractMeta;
   } catch (e) {
