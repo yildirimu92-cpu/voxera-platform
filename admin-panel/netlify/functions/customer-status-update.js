@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
-const { normalizeCustomerStatus, assertCustomerTransition } = require('./_lib/status-model');
+const { STATUS, normalizeCustomerStatus, assertCustomerTransition } = require('./_lib/status-model');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -25,7 +25,13 @@ exports.handler = async (event) => {
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const caller = await requireAdminCaller({ event, supabaseUrl: sbUrl, supabaseAnonKey: sbAnonKey, sbAdmin });
+  const caller = await requireAdminCaller({
+    event,
+    supabaseUrl: sbUrl,
+    supabaseAnonKey: sbAnonKey,
+    sbAdmin,
+    requiredCapability: 'customer:write'
+  });
   if (!caller.ok) return response(caller.statusCode, caller.body);
 
   let body;
@@ -34,6 +40,12 @@ exports.handler = async (event) => {
   const customerId = String(body.customer_id || '').trim();
   const targetStatus = normalizeCustomerStatus(body.status);
   if (!customerId) return response(400, { error: 'customer_id fehlt' });
+  if (targetStatus === STATUS.customer.LIVE) {
+    return response(409, {
+      error: 'Go-live ist ausschliesslich über die dokumentierte Admin-Freigabe möglich.',
+      required_endpoint: 'customer-go-live'
+    });
+  }
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
