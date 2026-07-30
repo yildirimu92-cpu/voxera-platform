@@ -20,14 +20,10 @@
  *      Vertrag = Wahrheit für included_minutes + overage_rate_per_minute,
  *      plan_config = Fallback.
  *
- *   3. Mail-Trigger: für ALLE neu erstellten Drafts wird eine
- *      `invoice_email` Webhook-Nachricht via mail-dispatch ausgelöst, was
- *      Make das richtige Routing ermöglicht (subscription_payment vs
- *      setup_fee vs extra_minutes – Filter im Make-Router prüft auf
- *      invoice.invoice_type).
- *      Hinweis: Wenn der Admin Drafts manuell prüfen will (Modus B aus
- *      Operativ-Modell), ENV-Variable AUTO_SEND_DRAFTS=false setzen –
- *      dann werden Drafts nur erstellt, aber nicht versandt.
+ *   3. Manueller Mail-Freigabeprozess: neu erstellte Rechnungen bleiben als
+ *      DRAFT bestehen. Rechnungs-, Setup- und Mahnmails werden ausschliesslich
+ *      nach Admin-Prüfung über mail-dispatch ausgelöst. Der Runner versendet
+ *      keine Kundenmails und erkennt nur fällige Mahnungen.
  *
  *   4. Subscription-Patch: setzt last_billing_sent_at, billing_state,
  *      next_reminder_at. Idempotent.
@@ -35,7 +31,6 @@
  * Aufruf:
  *   - GET/POST → führt vollen Sweep aus
  *   - Optional: ?dry_run=1 → keine DB-Writes, nur Report
- *   - ENV: AUTO_SEND_DRAFTS=true|false (default: false – Drafts ohne Versand)
  *
  * Zeit-Logik:
  *   - Recurring wird PREPAID erstellt (am Tag von next_invoice_date,
@@ -71,13 +66,6 @@ function log(level, event, payload = {}) {
 function intEnv(name, fallback) {
   const raw = Number.parseInt(process.env[name] || '', 10);
   return Number.isFinite(raw) && raw > 0 ? raw : fallback;
-}
-
-function boolEnv(name, fallback) {
-  const raw = String(process.env[name] || '').trim().toLowerCase();
-  if (raw === 'true' || raw === '1' || raw === 'yes') return true;
-  if (raw === 'false' || raw === '0' || raw === 'no') return false;
-  return fallback;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -430,130 +418,12 @@ async function runOverageSweep({ sbAdmin, now }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mail dispatch trigger (optional)
+// Customer mail control
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Triggers mail-dispatch.js via internal HTTP call for a list of newly
- * created draft invoices. Skipped if AUTO_SEND_DRAFTS is false (default).
- *
- * NOTE: This is a placeholder. Actual implementation depends on whether
- * mail-dispatch.js exposes a programmatic invoice_email entry point or
- * requires HTTP. For now, we leave drafts as-is and rely on the admin
- * to review them in the "Heute"-Tab and trigger sending manually.
- */
-async function sendWebhookMail(payload) {
-  const webhookUrl = process.env.MAKE_MAIL_WEBHOOK;
-  if (!webhookUrl) return { ok: false, error: 'MAKE_MAIL_WEBHOOK not configured' };
-  try {
-    const res = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    return { ok: res.ok, status: res.status };
-  } catch (err) {
-    return { ok: false, error: err.message || String(err) };
-  }
-}
-
-async function triggerInvoiceMails(sbAdmin, invoiceIds) {
-  if (!Array.isArray(invoiceIds) || invoiceIds.length === 0) return { sent: 0, errors: [] };
-  let sent = 0;
-  const errors = [];
-  for (const invoiceId of invoiceIds) {
-    try {
-      const { data: invoice } = await sbAdmin.from('invoices').select('*').eq('id', invoiceId).maybeSingle();
-      if (!invoice) { errors.push({ invoice_id: invoiceId, error: 'not_found' }); continue; }
-      const { data: customer } = await sbAdmin.from('customers').select('*').eq('id', invoice.customer_id).maybeSingle();
-      if (!customer) { errors.push({ invoice_id: invoiceId, error: 'customer_not_found' }); continue; }
-      const invoiceType = String(invoice.invoice_type || '').toLowerCase();
-      let payload;
-      if (invoiceType === 'setup_fee') {
-        // Use setup_fee_email route
-        const planCode = normalizePlanCode(customer.plan_code || customer.plan);
-        const { plan: planConfig } = await loadPlanByCode(sbAdmin, planCode);
-        const paymentLink = planConfig?.setup_fee_payment_link || null;
-        payload = {
-          mail_type: 'setup_fee_email',
-          recipient: { email: customer.email, name: customer.contact_name || customer.customer_name },
-          customer: { id: customer.id, customer_name: customer.customer_name, plan_code: planCode },
-          setup_fee: { amount: Number(invoice.total_amount || 0), currency: invoice.currency || 'CHF', payment_link: paymentLink },
-          plan: { id: planConfig?.id || planCode, plan_label: planConfig?.plan_label || planConfig?.name || planCode },
-          meta: { source: 'auto_billing', requested_at: new Date().toISOString() }
-        };
-      } else if (invoiceType === 'extra_minutes') {
-        // Überzug → Banküberweisung (kein fixer Stripe-Link möglich)
-        const voxeraIban = process.env.VOXERA_IBAN || 'CH53 0878 1000 2615 3320 0';
-        const voxeraBic  = process.env.VOXERA_BIC  || 'SWQBCHZZXXX';
-        const voxeraBank = process.env.VOXERA_BANK_NAME || 'Voxera AI c/o Umut Yildirim';
-        // Extract period info from invoice metadata or notes
-        const meta = invoice.metadata || {};
-        const periodMonth = meta.period_month || invoice.notes?.match(/\d{4}-\d{2}/)?.[0] || '—';
-        const overageMinutes = meta.overage_minutes || '—';
-        const overageRate = meta.overage_rate || '—';
-        payload = {
-          mail_type: 'overage_email',
-          recipient: { email: customer.email, name: customer.contact_name || customer.customer_name },
-          customer: { id: customer.id, customer_name: customer.customer_name },
-          invoice: {
-            id: invoice.id,
-            invoice_number: invoice.invoice_number || '—',
-            amount: Number(invoice.total_amount || 0),
-            currency: invoice.currency || 'CHF',
-            due_at: invoice.due_at,
-            period_month: periodMonth
-          },
-          overage: {
-            minutes: overageMinutes,
-            rate: overageRate,
-            period_month: periodMonth
-          },
-          // Banküberweisung
-          payment_method: 'bank_transfer',
-          payment_iban: voxeraIban,
-          payment_bic: voxeraBic,
-          payment_bank: voxeraBank,
-          payment_reference: invoice.invoice_number || '—',
-          payment_due_days: 7,
-          meta: { source: 'auto_billing', requested_at: new Date().toISOString() }
-        };
-      } else {
-        // Use invoice_email route
-        let subscription = null;
-        if (invoice.subscription_id) {
-          const { data: sub } = await sbAdmin.from('subscriptions').select('*').eq('id', invoice.subscription_id).maybeSingle();
-          subscription = sub || null;
-        }
-        const planCode = normalizePlanCode(subscription?.plan_code || customer.plan_code || customer.plan);
-        payload = {
-          mail_type: 'invoice_email',
-          recipient: { email: customer.email, name: customer.contact_name || customer.customer_name },
-          customer: { id: customer.id, customer_name: customer.customer_name, plan_code: planCode, plan_label: planCode ? planCode.charAt(0).toUpperCase()+planCode.slice(1) : 'Voxera' },
-          invoice: {
-            id: invoice.id, invoice_number: invoice.invoice_number, invoice_type: invoice.invoice_type,
-            status: invoice.status, amount: Number(invoice.total_amount || 0),
-            due_at: invoice.due_at, currency: invoice.currency || 'CHF',
-            payment_link: invoice.payment_link || null
-          },
-          subscription: subscription ? { id: subscription.id, billing_cycle: subscription.billing_cycle, plan_code: planCode, plan_label: planCode ? planCode.charAt(0).toUpperCase()+planCode.slice(1) : 'Voxera' } : { id: null, billing_cycle: null, plan_code: planCode, plan_label: planCode ? planCode.charAt(0).toUpperCase()+planCode.slice(1) : 'Voxera' },
-          meta: { source: 'auto_billing', requested_at: new Date().toISOString() }
-        };
-      }
-      const result = await sendWebhookMail(payload);
-      if (result.ok) {
-        // Mark invoice as open after sending
-        await sbAdmin.from('invoices').update({ status: 'open', updated_at: new Date().toISOString() }).eq('id', invoiceId);
-        sent++;
-      } else {
-        errors.push({ invoice_id: invoiceId, error: result.error || `status ${result.status}` });
-      }
-    } catch (err) {
-      errors.push({ invoice_id: invoiceId, error: err.message || String(err) });
-    }
-  }
-  return { sent, errors };
-}
+//
+// Invoice, setup-fee, overage, reminder and contract-expiry messages must be
+// reviewed and approved manually in the Admin Portal. This scheduled runner
+// therefore never calls MAKE_MAIL_WEBHOOK.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Setup Fee T-7 Sweep
@@ -561,7 +431,7 @@ async function triggerInvoiceMails(sbAdmin, invoiceIds) {
 
 /**
  * Finds contracts starting in exactly 7 days and creates setup_fee invoices
- * if not already present. Sends email immediately via webhook.
+ * if not already present. The draft remains unsent until an admin approves it.
  */
 async function runSetupFeeSweep({ sbAdmin, now }) {
   const targetDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 7));
@@ -616,15 +486,20 @@ async function runSetupFeeSweep({ sbAdmin, now }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Finds open/overdue invoices and sends reminder emails.
- * - Reminder 1: due_at + 7 days (first reminder)
- * - Reminder 2: due_at + 14 days (final warning — account will be suspended)
- * Tracks reminders via invoice.notes to avoid duplicates.
+ * Finds open/overdue invoices that require a manually approved reminder.
+ * - Reminder 1: due_at + 7 days
+ * - Reminder 2: due_at + 14 days
+ *
+ * Detection is read-only: no note is written and no customer mail is sent.
+ * Existing reminder notes are respected so the Admin Portal can avoid duplicates.
  */
 async function runDunningSweep({ sbAdmin, now }) {
-  const todayStr = now.toISOString().slice(0, 10);
-  const reminder1Threshold = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7)).toISOString().slice(0, 10);
-  const reminder2Threshold = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 14)).toISOString().slice(0, 10);
+  const reminder1Threshold = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7)
+  ).toISOString().slice(0, 10);
+  const reminder2Threshold = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 14)
+  ).toISOString().slice(0, 10);
 
   const { data: invoices, error } = await sbAdmin
     .from('invoices')
@@ -633,80 +508,68 @@ async function runDunningSweep({ sbAdmin, now }) {
     .lte('due_at', reminder1Threshold + 'T23:59:59.999Z')
     .limit(200);
 
-  if (error) return { processed: 0, results: [], error: 'invoices_query_failed: ' + error.message };
+  if (error) {
+    return {
+      processed: 0,
+      reminder1_due: 0,
+      reminder2_due: 0,
+      mails_sent: 0,
+      results: [],
+      error: 'invoices_query_failed: ' + error.message
+    };
+  }
 
   const results = [];
-  const mailIds = { reminder1: [], reminder2: [] };
+  const due = { reminder1: [], reminder2: [] };
 
   for (const invoice of (invoices || [])) {
     const notes = String(invoice.notes || '');
-    const dueDateStr = invoice.due_at ? invoice.due_at.slice(0, 10) : null;
-    if (!dueDateStr) { results.push({ invoice_id: invoice.id, skipped: 'no_due_date' }); continue; }
+    const dueDateStr = invoice.due_at ? String(invoice.due_at).slice(0, 10) : null;
+    if (!dueDateStr) {
+      results.push({ invoice_id: invoice.id, skipped: 'no_due_date' });
+      continue;
+    }
 
     const hasReminder2 = notes.includes('[REMINDER L2') || notes.includes('[REMINDER_FINAL');
     const hasReminder1 = notes.includes('[REMINDER L1') || notes.includes('[REMINDER L2');
 
-    // Final warning: due + 14 days
     if (dueDateStr <= reminder2Threshold && !hasReminder2) {
-      const noteEntry = `[REMINDER_FINAL ${todayStr}] Letzte Warnung – Konto wird bei Nichtbezahlung deaktiviert`;
-      await sbAdmin.from('invoices').update({
-        notes: [notes, noteEntry].filter(Boolean).join('\n'),
-        updated_at: new Date().toISOString()
-      }).eq('id', invoice.id);
-      mailIds.reminder2.push(invoice.id);
-      results.push({ invoice_id: invoice.id, customer_id: invoice.customer_id, action: 'reminder2_sent' });
+      due.reminder2.push(invoice.id);
+      results.push({
+        invoice_id: invoice.id,
+        customer_id: invoice.customer_id,
+        action: 'manual_reminder_required',
+        reminder_level: 2
+      });
       continue;
     }
 
-    // First reminder: due + 7 days
     if (dueDateStr <= reminder1Threshold && !hasReminder1) {
-      const noteEntry = `[REMINDER L1 ${todayStr}] Erste Mahnung versendet`;
-      await sbAdmin.from('invoices').update({
-        notes: [notes, noteEntry].filter(Boolean).join('\n'),
-        updated_at: new Date().toISOString()
-      }).eq('id', invoice.id);
-      mailIds.reminder1.push(invoice.id);
-      results.push({ invoice_id: invoice.id, customer_id: invoice.customer_id, action: 'reminder1_sent' });
+      due.reminder1.push(invoice.id);
+      results.push({
+        invoice_id: invoice.id,
+        customer_id: invoice.customer_id,
+        action: 'manual_reminder_required',
+        reminder_level: 1
+      });
       continue;
     }
 
-    results.push({ invoice_id: invoice.id, skipped: hasReminder2 ? 'final_already_sent' : hasReminder1 ? 'reminder1_already_sent' : 'not_yet_due_for_reminder' });
-  }
-
-  // Send reminder emails via webhook
-  const webhookUrl = process.env.MAKE_MAIL_WEBHOOK;
-  let mailsSent = 0;
-  if (webhookUrl) {
-    for (const invoiceId of [...mailIds.reminder1, ...mailIds.reminder2]) {
-      try {
-        const { data: invoice } = await sbAdmin.from('invoices').select('*').eq('id', invoiceId).maybeSingle();
-        const { data: customer } = await sbAdmin.from('customers').select('*').eq('id', invoice?.customer_id).maybeSingle();
-        if (!invoice || !customer) continue;
-        const isFinal = mailIds.reminder2.includes(invoiceId);
-        const planCode = normalizePlanCode(customer.plan_code || customer.plan);
-        const payload = {
-          mail_type: isFinal ? 'reminder_final_email' : 'reminder_email',
-          reminder_level: isFinal ? 2 : 1,
-          recipient: { email: customer.email, name: customer.contact_name || customer.customer_name },
-          customer: { id: customer.id, customer_name: customer.customer_name, plan_code: planCode },
-          invoice: {
-            id: invoice.id, invoice_number: invoice.invoice_number,
-            amount: Number(invoice.total_amount || 0), due_at: invoice.due_at,
-            currency: invoice.currency || 'CHF', payment_link: invoice.payment_link || null
-          },
-          meta: { source: 'auto_dunning', requested_at: new Date().toISOString() }
-        };
-        const res = await sendWebhookMail(payload);
-        if (res.ok) mailsSent++;
-      } catch (_e) { console.warn('[daily-runner] mail dispatch error:', _e?.message || String(_e)); }
-    }
+    results.push({
+      invoice_id: invoice.id,
+      skipped: hasReminder2
+        ? 'final_already_sent'
+        : hasReminder1
+          ? 'reminder1_already_sent'
+          : 'not_yet_due_for_reminder'
+    });
   }
 
   return {
     processed: (invoices || []).length,
-    reminder1_sent: mailIds.reminder1.length,
-    reminder2_sent: mailIds.reminder2.length,
-    mails_sent: mailsSent,
+    reminder1_due: due.reminder1.length,
+    reminder2_due: due.reminder2.length,
+    mails_sent: 0,
     results
   };
 }
@@ -719,7 +582,7 @@ async function runDunningSweep({ sbAdmin, now }) {
  * Finds contracts where end_date = today and deactivates them + the customer
  * if no other active contract remains.
  *
- * Also sends a contract_expired_email via Make webhook.
+ * The runner records that a notification is required but does not send it.
  */
 async function runContractExpirySweep({ sbAdmin, now }) {
   const todayStr = now.toISOString().slice(0, 10);
@@ -784,46 +647,15 @@ async function runContractExpirySweep({ sbAdmin, now }) {
         }
       }
 
-      // 3. Send expiry notification via Make webhook
-      const webhookUrl = process.env.MAKE_MAIL_WEBHOOK;
-      if (webhookUrl) {
-        try {
-          const { data: customer } = await sbAdmin
-            .from('customers')
-            .select('email, contact_name, customer_name')
-            .eq('id', contract.customer_id)
-            .maybeSingle();
-
-          if (customer) {
-            await fetch(webhookUrl, {
-              method:  'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                mail_type:         'contract_expired_email',
-                recipient: {
-                  email: customer.email,
-                  name:  customer.contact_name || customer.customer_name
-                },
-                customer: { id: contract.customer_id },
-                contract: {
-                  id:       contract.id,
-                  end_date: todayStr,
-                  plan:     contract.plan
-                },
-                meta: { source: 'auto_expiry', requested_at: now.toISOString() }
-              })
-            });
-          }
-        } catch (mailErr) {
-          log('warn', 'expiry_mail_failed', { contract_id: contract.id, error: mailErr.message });
-        }
-      }
+      // 3. Customer notification requires explicit Admin approval.
+      const notificationRequired = true;
 
       results.push({
         contract_id:          contract.id,
         customer_id:          contract.customer_id,
         cancelled:            true,
         customer_deactivated: customerDeactivated,
+        notification_required: notificationRequired,
         end_date:             todayStr
       });
 
@@ -857,12 +689,15 @@ exports.handler = async (event) => {
 
   const params = event.queryStringParameters || {};
   const dryRun = String(params.dry_run || '').trim() === '1';
-  const autoSendDrafts = boolEnv('AUTO_SEND_DRAFTS', false);
 
   const now = new Date();
   const nowIso = now.toISOString();
 
-  log('info', 'billing_runner_start', { dry_run: dryRun, auto_send_drafts: autoSendDrafts, ran_at: nowIso });
+  log('info', 'billing_runner_start', {
+    dry_run: dryRun,
+    manual_mail_approval: true,
+    ran_at: nowIso
+  });
 
   // ── 1. Recurring Sweep ─────────────────────────────────────────────────────
   let recurringResult = { processed: 0, results: [] };
@@ -889,7 +724,13 @@ exports.handler = async (event) => {
   }
 
   // ── 1c. Dunning Sweep ──────────────────────────────────────────────────────
-  let dunningResult = { processed: 0, results: [], reminder1_sent: 0, reminder2_sent: 0 };
+  let dunningResult = {
+    processed: 0,
+    results: [],
+    reminder1_due: 0,
+    reminder2_due: 0,
+    mails_sent: 0
+  };
   if (!dryRun) {
     try {
       dunningResult = await runDunningSweep({ sbAdmin, now });
@@ -927,7 +768,7 @@ exports.handler = async (event) => {
     log('info', 'dry_run_skipping_expiry');
   }
 
-  // ── 3. Mail trigger for newly created drafts ──────────────────────────────
+  // ── 3. Manual mail approval queue ─────────────────────────────────────────
   const newRecurringInvoiceIds = (recurringResult.results || [])
     .filter(r => r.created && r.invoice_id)
     .map(r => r.invoice_id);
@@ -937,19 +778,21 @@ exports.handler = async (event) => {
   const newSetupFeeInvoiceIds = (setupFeeResult.results || [])
     .filter(r => r.created && r.invoice_id)
     .map(r => r.invoice_id);
-  const allNewInvoiceIds = newRecurringInvoiceIds.concat(newOverageInvoiceIds).concat(newSetupFeeInvoiceIds);
-
-  let mailResult = { sent: 0, errors: [], note: 'auto_send_disabled' };
-  if (autoSendDrafts && !dryRun && allNewInvoiceIds.length > 0) {
-    mailResult = await triggerInvoiceMails(sbAdmin, allNewInvoiceIds);
-  }
+  const allNewInvoiceIds = newRecurringInvoiceIds
+    .concat(newOverageInvoiceIds)
+    .concat(newSetupFeeInvoiceIds);
+  const mailResult = {
+    sent: 0,
+    errors: [],
+    note: 'manual_admin_approval_required'
+  };
 
   // ── Summary ───────────────────────────────────────────────────────────────
   const summary = {
     success: true,
     ran_at: nowIso,
     dry_run: dryRun,
-    auto_send_drafts: autoSendDrafts,
+    manual_mail_approval: true,
     recurring: {
       processed: recurringResult.processed,
       created: newRecurringInvoiceIds.length,
@@ -977,9 +820,11 @@ exports.handler = async (event) => {
     },
     dunning: {
       processed: dunningResult.processed,
-      reminder1_sent: dunningResult.reminder1_sent || 0,
-      reminder2_sent: dunningResult.reminder2_sent || 0,
-      mails_sent: dunningResult.mails_sent || 0
+      reminder1_due: dunningResult.reminder1_due || 0,
+      reminder2_due: dunningResult.reminder2_due || 0,
+      mails_sent: 0,
+      results: dunningResult.results || [],
+      error: dunningResult.error || null
     },
     expiry: {
       processed: expiryResult.processed,
@@ -992,7 +837,9 @@ exports.handler = async (event) => {
   log('info', 'billing_runner_done', {
     recurring_created: summary.recurring.created,
     overage_created: summary.overage.created,
-    mail_sent: mailResult.sent
+    mail_sent: 0,
+    reminder1_due: summary.dunning.reminder1_due,
+    reminder2_due: summary.dunning.reminder2_due
   });
 
   return response(200, summary);

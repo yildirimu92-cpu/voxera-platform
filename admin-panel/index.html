@@ -12577,6 +12577,37 @@ async function sendInvoiceEmail(invoiceId, btnEl, options={}){
       }
       return false;
     }
+
+    const isSetupFee=data.type==='setup_fee';
+    if(isSetupFee&&!data.customerId) throw new Error('Der Rechnung ist kein Kunde zugeordnet.');
+    const payload=isSetupFee
+      ? {mail_type:'setup_fee_email',customer_id:data.customerId,invoice_id:invoiceId}
+      : {mail_type:'invoice_email',invoice_id:invoiceId};
+
+    if(btnEl){ btnEl.disabled=true; btnEl.textContent='Wird geprüft…'; }
+    const previewJson=await callAdminFunction('mail-dispatch',{...payload,dry_run:true});
+    if(!previewJson?.success||!previewJson?.dry_run){
+      throw new Error(previewJson?.error||'E-Mail-Vorschau konnte nicht erstellt werden.');
+    }
+
+    const preview=previewJson.preview||{};
+    const previewInvoice=preview.invoice||{};
+    const previewSetupFee=preview.setup_fee||{};
+    const previewRecipient=String(preview.recipient?.email||recipient).trim();
+    const previewInvoiceNo=String(
+      previewInvoice.invoice_number||previewSetupFee.invoice_number||data.invoiceNo||'—'
+    );
+    const previewAmount=Number(
+      previewInvoice.amount??previewSetupFee.amount??data.amount??0
+    );
+    const previewCurrency=String(
+      previewInvoice.currency||previewSetupFee.currency||data.currency||'CHF'
+    ).toUpperCase();
+    const previewDueDate=previewInvoice.due_at||previewSetupFee.due_at||data.dueDate||null;
+    const previewPaymentLink=String(
+      previewInvoice.payment_link||previewSetupFee.payment_link||''
+    ).trim();
+
     if(!settings.skipConfirmation){
       const isResend=data.status!=='draft';
       const confirmed=await voxConfirm({
@@ -12584,15 +12615,16 @@ async function sendInvoiceEmail(invoiceId, btnEl, options={}){
         message:`
           <div style="display:grid;gap:12px;text-align:left;">
             <div style="padding:14px;border:1px solid #DCE4F0;border-radius:14px;background:#F7F9FC;">
-              <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A97AB;">Rechnung</div>
-              <div style="margin-top:5px;font-size:18px;font-weight:800;color:#0B1F3A;">${esc(data.invoiceNo)}</div>
+              <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A97AB;">Geprüfte Versandvorschau</div>
+              <div style="margin-top:5px;font-size:18px;font-weight:800;color:#0B1F3A;">${esc(previewInvoiceNo)}</div>
               <div style="margin-top:3px;color:#667085;">${esc(invoiceTypeLabel(data.type))}</div>
             </div>
             <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;">
               <span style="color:#667085;">Kunde</span><strong style="text-align:right;">${esc(data.customerName)}</strong>
-              <span style="color:#667085;">Empfänger</span><strong style="text-align:right;overflow-wrap:anywhere;">${esc(recipient)}</strong>
-              <span style="color:#667085;">Betrag</span><strong style="text-align:right;">${esc(moneyChf(data.amount))}</strong>
-              <span style="color:#667085;">Fällig</span><strong style="text-align:right;">${esc(formatDate(data.dueDate))}</strong>
+              <span style="color:#667085;">Empfänger</span><strong style="text-align:right;overflow-wrap:anywhere;">${esc(previewRecipient)}</strong>
+              <span style="color:#667085;">Betrag</span><strong style="text-align:right;">${esc(previewCurrency+' '+previewAmount.toFixed(2))}</strong>
+              <span style="color:#667085;">Fällig</span><strong style="text-align:right;">${esc(formatDate(previewDueDate))}</strong>
+              <span style="color:#667085;">Zahlungslink</span><strong style="text-align:right;color:${previewPaymentLink?'#087A55':'#B54708'};">${previewPaymentLink?'Vorhanden':'Nicht hinterlegt'}</strong>
             </div>
             <div style="padding:12px 14px;border-radius:12px;background:#FFF7E8;color:#8A4B08;font-size:13px;line-height:1.45;">
               Mit «${isResend?'Erneut senden':'Jetzt senden'}» wird unmittelbar eine E-Mail über Make an diesen Empfänger ausgelöst.
@@ -12601,15 +12633,13 @@ async function sendInvoiceEmail(invoiceId, btnEl, options={}){
         confirmText:isResend?'Erneut senden':'Jetzt senden',
         cancelText:'Abbrechen'
       });
-      if(!confirmed) return false;
+      if(!confirmed){
+        if(btnEl){ btnEl.disabled=false; btnEl.textContent=originalLabel; }
+        return false;
+      }
     }
 
     if(btnEl){ btnEl.disabled=true; btnEl.textContent='Wird gesendet…'; }
-    const isSetupFee=data.type==='setup_fee';
-    if(isSetupFee&&!data.customerId) throw new Error('Der Rechnung ist kein Kunde zugeordnet.');
-    const payload=isSetupFee
-      ? {mail_type:'setup_fee_email',customer_id:data.customerId,invoice_id:invoiceId}
-      : {mail_type:'invoice_email',invoice_id:invoiceId};
     const json=await callAdminFunction('mail-dispatch',payload);
     if(!json?.success) throw new Error(json?.error||'Mailversand fehlgeschlagen.');
 
@@ -13176,13 +13206,18 @@ async function submitReminderModal() {
   const note = String(document.getElementById('reminder-modal-note')?.value || '').trim();
   const fb = document.getElementById('reminder-modal-feedback');
   const submitBtn = document.getElementById('reminder-modal-submit');
+  const mailType = level >= 2 ? 'reminder_final_email' : 'reminder_email';
+  const mailPayload = {
+    mail_type: mailType,
+    invoice_id: invoiceId
+  };
   let reminderRecorded = false;
   let mailSent = false;
 
   state.reminderModal.pending = true;
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Wird gesendet…';
+    submitBtn.textContent = 'Wird geprüft…';
   }
   if (fb) {
     fb.className = 'modal-feedback';
@@ -13190,6 +13225,15 @@ async function submitReminderModal() {
   }
 
   try {
+    const previewJson = await callAdminFunction('mail-dispatch', {
+      ...mailPayload,
+      dry_run: true
+    });
+    if (!previewJson?.success || !previewJson?.dry_run) {
+      throw new Error(previewJson?.error || 'Mahnung konnte vor dem Versand nicht geprüft werden.');
+    }
+
+    if (submitBtn) submitBtn.textContent = 'Wird gesendet…';
     const json = await callCustomerBillingUpdate({
       customer_id: customerId,
       action: 'record_invoice_reminder',
@@ -13203,11 +13247,7 @@ async function submitReminderModal() {
     const idx = state.invoices.findIndex(inv => idsEq(inv.id, invoiceId));
     if (idx >= 0) state.invoices[idx] = json.invoice;
 
-    const mailType = level >= 2 ? 'reminder_final_email' : 'reminder_email';
-    const mailJson = await callAdminFunction('mail-dispatch', {
-      mail_type: mailType,
-      invoice_id: invoiceId
-    });
+    const mailJson = await callAdminFunction('mail-dispatch', mailPayload);
     if (!mailJson?.success) throw new Error(mailJson?.error || 'Mailversand fehlgeschlagen.');
     mailSent = true;
 
