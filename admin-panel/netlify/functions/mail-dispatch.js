@@ -37,32 +37,6 @@ function pickOfferRecipientEmail(offer, overrides) {
 function isValidEmailAddress(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
-
-function normalizeInvoiceMailStatus(invoice) {
-  if (invoice?.paid_at) return 'paid';
-  const raw = String(invoice?.status || '').trim().toLowerCase();
-  if (raw === 'paid' || raw === 'bezahlt') return 'paid';
-  if (raw === 'cancelled' || raw === 'canceled' || raw === 'void' || raw === 'storniert') return 'cancelled';
-  if (raw === 'overdue' || raw === 'ueberfaellig' || raw === 'überfällig') return 'overdue';
-  if (raw === 'sent' || raw === 'gesendet') return 'sent';
-  if (raw === 'draft' || raw === 'entwurf') return 'draft';
-  return raw || 'open';
-}
-
-function invoiceMailStateError(invoice, mailType) {
-  const status = normalizeInvoiceMailStatus(invoice);
-  if (status === 'paid') {
-    return { ok: false, statusCode: 409, error: 'Bezahlte Rechnungen dürfen nicht als Zahlungsaufforderung versendet werden.' };
-  }
-  if (status === 'cancelled') {
-    return { ok: false, statusCode: 409, error: 'Stornierte Rechnungen dürfen nicht versendet werden.' };
-  }
-  if (['reminder_email', 'reminder_final_email'].includes(mailType)
-      && !['open', 'overdue', 'sent'].includes(status)) {
-    return { ok: false, statusCode: 409, error: 'Mahnungen dürfen nur für offene oder überfällige Rechnungen versendet werden.' };
-  }
-  return null;
-}
 function canonicalPlanValue(value) {
   const key = String(value || '').trim().toLowerCase();
   if (key === 'starter') return 'Starter';
@@ -378,17 +352,12 @@ async function loadSetupFeePayload(sbAdmin, body) {
     if (invoiceType !== 'setup_fee') {
       return { ok: false, statusCode: 409, error: 'Die gewählte Rechnung ist keine Setup-Fee-Rechnung.' };
     }
-    const stateError = invoiceMailStateError(invoiceData, 'setup_fee_email');
-    if (stateError) return stateError;
     invoice = invoiceData;
   }
 
   const recipientEmail = trimOrNull(body?.overrides?.to_email) || trimOrNull(customer.email);
   if (!recipientEmail) {
     return { ok: false, statusCode: 400, error: 'Kunde hat keine Empfänger-E-Mail.' };
-  }
-  if (!isValidEmailAddress(recipientEmail)) {
-    return { ok: false, statusCode: 400, error: 'Ungültige Empfänger-E-Mail.' };
   }
 
   const planCode = normalizePlanCode(customer.plan_code || customer.plan);
@@ -506,9 +475,6 @@ async function loadInvoicePayload(sbAdmin, body, mailType = 'invoice_email') {
   if (invoiceError) return { ok: false, statusCode: 500, error: 'Invoice lookup failed.', details: invoiceError.message };
   if (!invoice) return { ok: false, statusCode: 404, error: 'Rechnung nicht gefunden.' };
 
-  const stateError = invoiceMailStateError(invoice, mailType);
-  if (stateError) return stateError;
-
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
     .select('*')
@@ -520,9 +486,6 @@ async function loadInvoicePayload(sbAdmin, body, mailType = 'invoice_email') {
   const recipientEmail = trimOrNull(body?.overrides?.to_email) || trimOrNull(customer.email);
   if (!recipientEmail) {
     return { ok: false, statusCode: 400, error: 'Kunde hat keine Empfänger-E-Mail.' };
-  }
-  if (!isValidEmailAddress(recipientEmail)) {
-    return { ok: false, statusCode: 400, error: 'Ungültige Empfänger-E-Mail.' };
   }
 
   let subscription = null;
@@ -667,13 +630,6 @@ exports.handler = async (event) => {
   const parsed = parseBody(event);
   if (!parsed.ok) return response(400, { error: parsed.error });
 
-  const requestedMailType = trimOrNull(parsed.body.mail_type) || trimOrNull(parsed.body.event_type);
-  const isDryRun = parsed.body.dry_run === true;
-  const previewableMailTypes = ['setup_fee_email', 'invoice_email', 'reminder_email', 'reminder_final_email'];
-  if (isDryRun && !previewableMailTypes.includes(requestedMailType)) {
-    return response(400, { error: 'dry_run ist nur für Rechnungs- und Mahnungs-E-Mails verfügbar.' });
-  }
-
   const dispatch = await buildDispatchPayload(sbAdmin, parsed.body);
   if (!dispatch.ok) return response(dispatch.statusCode || 400, {
     error: dispatch.error,
@@ -681,21 +637,6 @@ exports.handler = async (event) => {
   });
 
   const eventType = dispatch.eventType; // = mail_type
-  if (isDryRun) {
-    log('info', 'mail_dispatch_preview_ready', {
-      event_type: eventType,
-      requested_by: caller.userId || null,
-      invoice_id: dispatch.responseData?.invoice_id || null
-    });
-    return response(200, {
-      success: true,
-      dry_run: true,
-      event_type: eventType,
-      data: dispatch.responseData,
-      preview: dispatch.payload
-    });
-  }
-
   let outbox;
 
   try {
