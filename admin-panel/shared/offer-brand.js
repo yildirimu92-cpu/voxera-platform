@@ -15,9 +15,10 @@
     ONBOARDING:'onboarding', READY:'ready', INVITED:'invited', ACTIVATED:'activated', LIVE:'live', PAUSED:'paused', DELETED:'deleted'
   });
   [
-    '/shared/admin-runtime-ui.js?v=20260731-1',
-    '/shared/admin-runtime-navigation.js?v=20260731-1',
-    '/shared/admin-runtime-sync.js?v=20260731-1'
+    '/shared/admin-runtime-ui.js?v=20260731-2',
+    '/shared/admin-runtime-navigation.js?v=20260731-2',
+    '/shared/admin-runtime-sync.js?v=20260731-2',
+    '/shared/admin-runtime-cases.js?v=20260731-1'
   ].forEach((src, index) => {
     const id = `voxera-admin-runtime-${index}`;
     if (document.getElementById(id)) return;
