@@ -31,3 +31,9 @@ jobs:
 
       - name: Verify Billing mail controls
         run: node scripts/verify-billing-mail-controls.mjs
+
+      - name: Verify admin runtime patches
+        run: node scripts/verify-admin-runtime-patches.mjs
+
+      - name: Verify case system separation
+        run: node scripts/verify-case-separation.mjs

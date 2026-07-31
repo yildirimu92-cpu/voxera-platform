@@ -242,12 +242,3 @@
     }
   };
 });
-
-(function loadCustomerCaseIntake(root) {
-  if (!root || !root.document || root.__voxeraCustomerCaseIntakeLoaded) return;
-  root.__voxeraCustomerCaseIntakeLoaded = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-case-intake.js?v=20260731-1';
-  script.async = false;
-  root.document.head.appendChild(script);
-})(typeof globalThis !== 'undefined' ? globalThis : this);

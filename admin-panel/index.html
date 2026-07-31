@@ -667,7 +667,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .modal-icon-close:focus-visible{outline:3px solid rgba(37,117,235,.22);outline-offset:2px;}
 .modal-icon-close svg{width:17px;height:17px;}
 
-.invoice-detail-modal{max-width:720px;padding:0;overflow:hidden;}
+.invoice-detail-modal{max-width:720px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:var(--modal-max-height);}
 .invoice-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:24px;background:linear-gradient(135deg,#081F3D 0%,#0D315E 100%);color:#fff;}
 .invoice-detail-heading{min-width:0;}
 .invoice-detail-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#68A6FF;margin-bottom:6px;}
@@ -677,7 +677,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .invoice-detail-head-actions .badge{border-color:rgba(255,255,255,.22);}
 .invoice-detail-head .modal-icon-close{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);color:#fff;}
 .invoice-detail-head .modal-icon-close:hover{background:rgba(255,255,255,.18);}
-.invoice-detail-content{padding:24px;}
+.invoice-detail-content{padding:24px;overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch;}
 .invoice-detail-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
 .invoice-detail-summary-card{padding:16px;border:0.5px solid var(--line);border-radius:14px;background:#F8FAFD;}
 .invoice-detail-summary-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--slate2);}
@@ -701,14 +701,14 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .invoice-detail-technical-row strong{color:var(--ink);overflow-wrap:anywhere;text-align:right;}
 .invoice-detail-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px;}
 
-.billing-dialog{max-width:600px;padding:0;overflow:hidden;}
+.billing-dialog{max-width:600px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:var(--modal-max-height);}
 .billing-dialog-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:22px 24px;background:linear-gradient(135deg,#081F3D 0%,#0D315E 100%);color:#fff;}
 .billing-dialog-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#68A6FF;margin-bottom:6px;}
 .billing-dialog-head .modal-title{color:#fff;font-size:21px;}
 .billing-dialog-head .modal-sub{color:rgba(255,255,255,.66);margin-top:5px;}
 .billing-dialog-head .modal-icon-close{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);color:#fff;}
 .billing-dialog-head .modal-icon-close:hover{background:rgba(255,255,255,.18);}
-.billing-dialog-body{padding:22px 24px 4px;}
+.billing-dialog-body{padding:22px 24px 4px;overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch;}
 .billing-dialog-summary{display:grid;grid-template-columns:1fr 1fr;gap:1px;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--line);margin-bottom:18px;}
 .billing-dialog-summary-item{padding:13px 15px;background:#F8FAFD;min-width:0;}
 .billing-dialog-summary-k{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);margin-bottom:4px;}
@@ -726,7 +726,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .billing-dialog-field{margin-top:16px;}
 .billing-dialog-field label{display:block;margin-bottom:6px;font-size:12px;font-weight:700;color:var(--slate2);}
 .billing-dialog-warning{margin-top:14px;padding:11px 13px;border-left:3px solid #E7A019;border-radius:10px;background:#FFF8E8;color:#7A4A06;font-size:12px;line-height:1.5;}
-.billing-dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:18px 24px 22px;}
+.billing-dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:18px 24px 22px;flex:0 0 auto;border-top:0.5px solid var(--line);background:var(--surface);}
 #reminder-modal-feedback{margin:16px 24px 0;}
 #reminder-modal-feedback:empty{display:none;}
 #reminder-modal-feedback.warning{display:block;border:1px solid #F2C66D;background:#FFF8E8;color:#7A4A06;border-radius:10px;padding:11px 13px;}
@@ -1038,7 +1038,8 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
   .modal .form-grid{grid-template-columns:1fr;}
   .modal .inline-actions{width:100%;}
   .modal .inline-actions .btn{flex:1;justify-content:center;min-width:0;}
-  #customer-profile-modal .modal{overflow-x:hidden;padding:0;border-radius:14px;overflow:hidden;}
+  #customer-profile-modal .modal{overflow:hidden;padding:0;border-radius:14px;display:flex;flex-direction:column;}
+#customer-profile-modal .profile-shell{overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch;}
 
   /* ─── Forms 1 Spalte ─── */
   form [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
@@ -2112,6 +2113,19 @@ body,.main{background:#F7F8FC;}
     .main .btn{min-height:42px;}
   }
 
+</style>
+
+<style id="voxera-p0-viewport-fixes">
+/* P0 viewport safety: every modal remains operable on laptop/tablet/mobile. */
+.modal-overlay{overflow-y:auto;overscroll-behavior:contain;}
+.modal{max-height:min(var(--modal-max-height),calc(100dvh - var(--safe-top) - var(--safe-bottom) - 24px));}
+.billing-dialog-head,.invoice-detail-head{flex:0 0 auto;}
+@media (max-height:760px){
+  .modal-overlay{align-items:flex-start;padding-top:12px;padding-bottom:12px;}
+  .billing-dialog,.invoice-detail-modal,#customer-profile-modal .modal{max-height:calc(100dvh - 24px);}
+  .billing-dialog-head,.invoice-detail-head{padding-top:16px;padding-bottom:16px;}
+  .billing-dialog-actions{padding-top:12px;padding-bottom:12px;}
+}
 </style>
 </head>
 <body class="app-booting">
@@ -5437,7 +5451,7 @@ async function sendAllReminders(level) {
         if(!invId){ skipped++; continue; }
         try {
           await callCustomerBillingUpdate({ customer_id: customerId, action: 'record_invoice_reminder', invoice_id: invId, reminder_level: level, notes: `Auto-Batch Reminder L${level}` });
-          try { await callAdminFunction('mail-dispatch', { mail_type: mailType, invoice_id: invId }); } catch(mailErr) {
+          try { await callAdminFunction('mail-dispatch', { mail_type: mailType, invoice_id: invId, request_id:(window.crypto?.randomUUID?.()||`batch-reminder-${invId}-${Date.now()}`) }); } catch(mailErr) {
             console.warn('[billing] sendAllReminders mail failed:', invId, mailErr?.message);
           }
           sent++;
@@ -8068,7 +8082,7 @@ function renderCases(){
           ${[CASE_STATUS.OPEN,CASE_STATUS.IN_PROGRESS,CASE_STATUS.WAITING,CASE_STATUS.DONE].map(s=>`<option value="${s}" ${s===normalizeCaseStatus(c.status)?'selected':''}>${caseStatusLabel(s)}</option>`).join('')}
         </select>
       </td>
-      <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(c.customerId)}')">${esc(customerName)}</button></td>
+      <td><button class="btn btn-quiet btn-sm" onclick="openCustomerWorkspace('${jsStr(c.customerId)}')">${esc(customerName)}</button></td>
     </tr>`;
   };
   const el=byId('cases-all');
@@ -9451,7 +9465,7 @@ async function sendOffer(){
     const overrides={};
     if(String(offer.sentToEmail||'').trim()) overrides.to_email=String(offer.sentToEmail).trim();
     if(String(offer.sendSubject||'').trim()) overrides.subject=String(offer.sendSubject).trim();
-    const payload={mail_type:'offer_email',offer_id:offer.id};
+    const payload={mail_type:'offer_email',offer_id:offer.id,request_id:(window.crypto?.randomUUID?.()||`offer-${Date.now()}-${Math.random().toString(16).slice(2)}`)};
     if(Object.keys(overrides).length) payload.overrides=overrides;
     const resp=await callAdminFunction('mail-dispatch',payload);
     const nowIso=new Date().toISOString();
@@ -9475,8 +9489,8 @@ async function sendOffer(){
         }
       });
     }
-    setOfferSendFeedback('success',`Erfolgreich versendet an ${sentTo}.`);
-    showToast('✓ Offerte gesendet.');
+    setOfferSendFeedback('success',`An die E-Mail-Automation übergeben: ${sentTo}.`);
+    showToast('✓ Offerte an die E-Mail-Automation übergeben.');
     await loadOfferEventsFromSupabase();
     renderOffers();
   }catch(e){
@@ -9877,9 +9891,11 @@ function renderContracts() {
     var isSuspended = ct.status === 'suspended';
     var canSign   = canCaptureContractSignature(ct.status);
     var canCancel = isActive || isSigned;
+    var yearlyAmount=Number(ct.recurringAmountYearly||0);
+    var monthlyAmount=Number(ct.recurringAmountMonthly||0);
     var monthlyAmt = ct.billingCycle === 'yearly'
-      ? (ct.recurringAmountYearly > 0 ? 'CHF '+ct.recurringAmountYearly.toFixed(2)+' /J' : '—')
-      : (ct.recurringAmountMonthly > 0 ? 'CHF '+ct.recurringAmountMonthly.toFixed(2)+' /Mt.' : '—');
+      ? (yearlyAmount > 0 ? 'CHF '+yearlyAmount.toFixed(2)+' /J' : '—')
+      : (monthlyAmount > 0 ? 'CHF '+monthlyAmount.toFixed(2)+' /Mt.' : '—');
 
     // Status-based action buttons
     var actions = '<button class="btn btn-quiet btn-sm" onclick="viewContract(\''+jsStr(ct.id)+'\')">Ansehen</button>';
@@ -9891,7 +9907,7 @@ function renderContracts() {
     if (ct.contractDocument) actions += '<button class="btn btn-quiet btn-sm" onclick="downloadContractWord(\''+jsStr(ct.id)+'\')">Word</button>';
 
     return '<tr>'
-      + '<td><div><strong>#'+esc(ct.id.slice(0,8))+'</strong><div class="muted">'+formatDateDE(ct.createdAt)+'</div></div></td>'
+      + '<td><div><strong>#'+esc(String(ct.id||'—').slice(0,8))+'</strong><div class="muted">'+formatDateDE(ct.createdAt)+'</div></div></td>'
       + '<td>'+esc(ct.customerName||'—')+'</td>'
       + '<td>'+esc(planLabel(ct.plan||'—'))+'</td>'
       + '<td>'+(ct.months ? ct.months+' Mt.' : '—')+'</td>'
@@ -9912,10 +9928,11 @@ function renderContracts() {
       var isSuspended = ct.status === 'suspended';
       var canSign     = canCaptureContractSignature(ct.status);
       var canCancel   = isActive || isSigned;
-      var monthlyAmt  = ct.recurringAmountMonthly > 0 ? 'CHF '+ct.recurringAmountMonthly.toFixed(2)+'/Mt.' : '—';
+      var mobileMonthlyAmount=Number(ct.recurringAmountMonthly||0);
+      var monthlyAmt  = mobileMonthlyAmount > 0 ? 'CHF '+mobileMonthlyAmount.toFixed(2)+'/Mt.' : '—';
       return '<article class="contract-list-card" role="button" tabindex="0" onclick="viewContract(\''+jsStr(ct.id)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();viewContract(\''+jsStr(ct.id)+'\');}">'
         + '<div class="contract-list-head"><div>'
-        + '<div class="contract-list-id">#'+esc(ct.id.slice(0,8))+'</div>'
+        + '<div class="contract-list-id">#'+esc(String(ct.id||'—').slice(0,8))+'</div>'
         + '<div class="contract-list-customer">'+esc(ct.customerName||'—')+'</div>'
         + '<div class="contract-list-plan">'+esc(planLabel(ct.plan||'—'))+' · '+(ct.months?ct.months+' Monate':'—')+'</div>'
         + '</div><span class="badge '+cls+'">'+label+'</span></div>'
@@ -10217,7 +10234,7 @@ function viewContract(id, opts) {
   var head = document.getElementById('view-contract-head');
   if (head) {
     head.innerHTML = '<div class="contract-head-main"><div>'
-      + '<div class="contract-head-id">Vertrag #'+esc(ct.id.slice(0,8))+'</div>'
+      + '<div class="contract-head-id">Vertrag #'+esc(String(ct.id||'—').slice(0,8))+'</div>'
       + '<div class="contract-head-title">'+esc(ct.customerName || 'Unbekannter Kunde')+'</div>'
       + '<div class="contract-head-sub">Offerte: '+(ct.offerId ? '#'+esc(ct.offerId.slice(0,8)) : '—')+'</div>'
       + '</div><span class="badge '+contractStatusBadgeClass(ct.status)+'">'+esc(contractStatusLabel(ct.status))+'</span></div>';
@@ -11050,7 +11067,7 @@ function renderSubscriptionCardActions(customer, contract, contractStatus, subSt
   actions += `<button class="btn btn-primary btn-sm" onclick="createManualSubscriptionInvoice('${jsStr(customer.id)}','${jsStr(contract?.id||'')}')" ${billable?'':'disabled'} title="${esc(disabledReason)}">Nächste Rechnung erstellen</button>`;
   actions += `<button class="btn btn-secondary btn-sm" onclick="openCustomerInvoicesInFinance('${jsStr(customer.id)}')">Alle Rechnungen anzeigen</button>`;
   if(contract?.id){
-    actions += `<button class="btn btn-quiet btn-sm" onclick="openCustomerProfile('${jsStr(customer.id)}')">Kunden öffnen</button>`;
+    actions += `<button class="btn btn-quiet btn-sm" onclick="openCustomerWorkspace('${jsStr(customer.id)}')">Workspace öffnen</button>`;
   }
   return actions;
 }
@@ -11545,7 +11562,17 @@ function setRoute(route,replaceHash=false){
   document.getElementById('page-sub').textContent=sub;
   if(route==='billing-finance') renderBillingFinance();
   if(route==='offers') renderOffers();
-  if(route==='contracts') renderContracts();
+  if(route==='contracts'){
+    try{ renderContracts(); }
+    catch(error){
+      console.error('[contracts] route render failed:',error);
+      const tbody=document.getElementById('contracts-table-body');
+      const cards=document.getElementById('contracts-cards');
+      const errorHtml=`<div class="empty"><strong>Verträge konnten nicht dargestellt werden.</strong><div class="muted" style="margin-top:6px;">${esc(error?.message||'Unbekannter Fehler')}</div><button class="btn btn-secondary btn-sm" style="margin-top:12px;" onclick="loadDataFromSupabase().then(()=>setRoute('contracts',true))">Erneut laden</button></div>`;
+      if(tbody) tbody.innerHTML=`<tr><td colspan="8">${errorHtml}</td></tr>`;
+      if(cards) cards.innerHTML=errorHtml;
+    }
+  }
   if(location.hash!==`#${route}`){
     if(replaceHash) history.replaceState(null,'',`#${route}`);
     else location.hash=route;
@@ -12580,9 +12607,10 @@ async function sendInvoiceEmail(invoiceId, btnEl, options={}){
 
     const isSetupFee=data.type==='setup_fee';
     if(isSetupFee&&!data.customerId) throw new Error('Der Rechnung ist kein Kunde zugeordnet.');
+    const dispatchRequestId=(window.crypto?.randomUUID?.()||`mail-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     const payload=isSetupFee
-      ? {mail_type:'setup_fee_email',customer_id:data.customerId,invoice_id:invoiceId}
-      : {mail_type:'invoice_email',invoice_id:invoiceId};
+      ? {mail_type:'setup_fee_email',customer_id:data.customerId,invoice_id:invoiceId,request_id:dispatchRequestId}
+      : {mail_type:'invoice_email',invoice_id:invoiceId,request_id:dispatchRequestId};
 
     if(btnEl){ btnEl.disabled=true; btnEl.textContent='Wird geprüft…'; }
     const previewJson=await callAdminFunction('mail-dispatch',{...payload,dry_run:true});
@@ -12656,7 +12684,7 @@ async function sendInvoiceEmail(invoiceId, btnEl, options={}){
 
     if(settings.refresh) await loadDataFromSupabase();
     if(settings.notify){
-      showToast(statusWarning?`⚠ ${statusWarning}`:'✓ Rechnung gesendet.');
+      showToast(statusWarning?`⚠ ${statusWarning}`:'✓ Versand an die E-Mail-Automation übergeben.');
     }
     if(settings.refresh) renderBillingFinance();
     if(settings.closeDetail&&idsEq(state.invoiceDetailModal?.invoiceId,invoiceId)) closeInvoiceDetailModal();
@@ -13209,7 +13237,8 @@ async function submitReminderModal() {
   const mailType = level >= 2 ? 'reminder_final_email' : 'reminder_email';
   const mailPayload = {
     mail_type: mailType,
-    invoice_id: invoiceId
+    invoice_id: invoiceId,
+    request_id:(window.crypto?.randomUUID?.()||`reminder-${Date.now()}-${Math.random().toString(16).slice(2)}`)
   };
   let reminderRecorded = false;
   let mailSent = false;
@@ -13253,9 +13282,9 @@ async function submitReminderModal() {
 
     if (fb) {
       fb.className = 'modal-feedback success';
-      fb.textContent = 'Mahnung L' + level + ' wurde protokolliert und versendet.';
+      fb.textContent = 'Mahnung L' + level + ' wurde protokolliert und an die E-Mail-Automation übergeben.';
     }
-    showToast('✓ Mahnung L' + level + ' protokolliert und versendet.');
+    showToast('✓ Mahnung L' + level + ' protokolliert und übergeben.');
     renderAll();
     setTimeout(() => closeReminderModal(), 700);
   } catch (err) {
@@ -14575,8 +14604,17 @@ function showLoadError(msg) {
   if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
+let _loadDataPromise = null;
+let _hasLoadedOperationalData = false;
+
 async function loadDataFromSupabase(opts) {
-  const skipLoaderToggle = !!(opts && (opts.skipLoaderToggle || opts.silent));
+  const requestedOpts=opts||{};
+  if(_loadDataPromise){
+    console.debug('[DB] Reusing active load request instead of starting a second full reload.');
+    return _loadDataPromise;
+  }
+  const skipLoaderToggle = !!(requestedOpts.skipLoaderToggle || requestedOpts.silent || _hasLoadedOperationalData);
+  _loadDataPromise=(async()=>{
   // Single source of truth: operational Admin data is read from Supabase only.
   // No Airtable or alternative operational fallback path is allowed.
   // requires RLS policy: authenticated admin role can read operational tables
@@ -14615,7 +14653,7 @@ async function loadDataFromSupabase(opts) {
       .from('onboarding')
       .select('*');
 
-    if (obErr) throw obErr;
+    if (obErr) console.warn('[DB] onboarding load failed — customers remain available:', obErr.message);
 
     // 3. Load calls (source of truth for operational usage + activity)
     // Load 2 months back to cover any billing period regardless of start_date anniversary
@@ -14629,7 +14667,7 @@ async function loadDataFromSupabase(opts) {
       .select('*')
       .order('created_at', { ascending: false })
       .gte('created_at', twoMonthsAgoIso);
-    if (callErr) throw callErr;
+    if (callErr) console.warn('[DB] calls load failed — core customer views remain available:', callErr.message);
 
     // 4. Load cases (source of truth for open/support workload)
     const { data: caseRows, error: caseErr } = await authClient
@@ -14637,7 +14675,7 @@ async function loadDataFromSupabase(opts) {
       .select('*')
       .order('updated_at', { ascending: false })
       .limit(500);
-    if (caseErr) throw caseErr;
+    if (caseErr) console.warn('[DB] cases load failed — core customer views remain available:', caseErr.message);
 
     // 5. Load subscriptions and build customer_id → subscription map
     const { data: subscriptionRows, error: subscriptionErr } = await authClient
@@ -14763,6 +14801,7 @@ async function loadDataFromSupabase(opts) {
     await loadPlanConfig();
     // Load change request badge
     setTimeout(function(){ loadAiChangeRequests(); }, 1500);
+    _hasLoadedOperationalData=true;
     return true;
   } catch(err) {
     console.error('[DB] Load failed:', err);
@@ -14772,6 +14811,12 @@ async function loadDataFromSupabase(opts) {
     // Always hide the loading overlay after a load attempt finishes,
     // unless the caller (init()) said it manages the lifecycle itself.
     if (!skipLoaderToggle) hideLoadingState();
+  }
+  })();
+  try{
+    return await _loadDataPromise;
+  }finally{
+    _loadDataPromise=null;
   }
 }
 
