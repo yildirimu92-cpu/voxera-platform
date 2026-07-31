@@ -6,6 +6,7 @@ const files = [
   'admin-panel/shared/admin-runtime-navigation.js',
   'admin-panel/shared/admin-runtime-sync.js',
   'admin-panel/shared/admin-runtime-cases.js',
+  'admin-panel/shared/admin-runtime-cases-admin-only.js',
   'admin-panel/shared/admin-runtime-mobile.js',
   'customer-dashboard/shared/customer-runtime-case-intake.js',
   'customer-dashboard/shared/offer-brand.js'
