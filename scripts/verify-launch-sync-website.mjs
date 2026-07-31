@@ -29,7 +29,7 @@ const checks = [
   ['sync coordinator derives stored agent id', /customer\.elevenlabs_agent_id/.test(source.syncCoordinator) && /agent_mismatch/.test(source.syncCoordinator)],
   ['sync coordinator has bounded timeout', /SYNC_TIMEOUT_MS = 24_000/.test(source.syncCoordinator) && /AbortController/.test(source.syncCoordinator)],
   ['sync coordinator records failed timeout state', /setSyncState\(sb, customerId, 'failed'/.test(source.syncCoordinator) && /sync_timeout/.test(source.syncCoordinator)],
-  ['sync status is server-side and authenticated', /requiredCapability: 'customer:read'/.test(source.syncStatus) && /elevenlabs_sync_log/.test(source.syncStatus)],
+  ['sync status is server-side and authenticated', /requiredCapability: 'customer:write'/.test(source.syncStatus) && /elevenlabs_sync_log/.test(source.syncStatus)],
   ['sync runtime no longer queries sync log directly', /elevenlabs-sync-status/.test(source.syncRuntime) && !/authClient\.from\('elevenlabs_sync_log'\)/.test(source.syncRuntime)],
   ['sync runtime exposes manual retry', /Jetzt synchronisieren/.test(source.syncRuntime) && /trigger-elevenlabs-sync/.test(source.syncRuntime)],
   ['website coordinator retries scheme safely', /https:\/\//.test(source.scrapeCoordinator) && /http:\/\//.test(source.scrapeCoordinator) && /FALLBACK_CODES/.test(source.scrapeCoordinator)],
