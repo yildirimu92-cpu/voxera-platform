@@ -4,7 +4,10 @@ import vm from 'node:vm';
 const files = [
   'admin-panel/shared/admin-runtime-ui.js',
   'admin-panel/shared/admin-runtime-navigation.js',
-  'admin-panel/shared/admin-runtime-sync.js'
+  'admin-panel/shared/admin-runtime-sync.js',
+  'admin-panel/shared/admin-runtime-cases.js',
+  'customer-dashboard/shared/customer-runtime-case-intake.js',
+  'customer-dashboard/shared/offer-brand.js'
 ];
 
 let failed = false;
