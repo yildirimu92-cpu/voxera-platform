@@ -2,6 +2,13 @@
   'use strict';
   if (!w || typeof document === 'undefined') return;
 
+  let patchScheduled = false;
+
+  function setTextIfChanged(node, value) {
+    const next = String(value);
+    if (node && node.textContent !== next) node.textContent = next;
+  }
+
   function renderCasesSafe() {
     try {
       if (typeof w.renderCases === 'function') w.renderCases();
@@ -29,10 +36,11 @@
   function patchPageCopy() {
     const section = document.getElementById('section-cases');
     if (!section?.classList.contains('active')) return;
-    const title = document.querySelector('.page-title');
-    const sub = document.querySelector('.page-sub');
-    if (title) title.textContent = 'Cases';
-    if (sub) sub.textContent = 'Interne Aufgaben, Support-Anfragen und administrative Wiedervorlagen.';
+    setTextIfChanged(document.querySelector('.page-title'), 'Cases');
+    setTextIfChanged(
+      document.querySelector('.page-sub'),
+      'Interne Aufgaben, Support-Anfragen und administrative Wiedervorlagen.'
+    );
   }
 
   function patchSourceLabels() {
@@ -48,13 +56,24 @@
     document.querySelectorAll('#cases-all .case-source-note').forEach(node => {
       const raw = String(node.textContent || '').trim().toLowerCase();
       const next = labels[raw];
-      if (next && node.textContent !== next) node.textContent = next;
+      if (next) setTextIfChanged(node, next);
     });
   }
 
   function patchCasesUi() {
     patchPageCopy();
     patchSourceLabels();
+  }
+
+  function schedulePatchCasesUi() {
+    if (patchScheduled) return;
+    patchScheduled = true;
+    const run = () => {
+      patchScheduled = false;
+      patchCasesUi();
+    };
+    if (typeof w.requestAnimationFrame === 'function') w.requestAnimationFrame(run);
+    else setTimeout(run, 0);
   }
 
   function start() {
@@ -64,15 +83,19 @@
     }
 
     patchCasesUi();
-    w.addEventListener('hashchange', () => setTimeout(patchCasesUi, 0));
+    w.addEventListener('hashchange', schedulePatchCasesUi);
 
     const main = document.querySelector('.main') || document.body;
-    const observer = new MutationObserver(() => patchCasesUi());
-    observer.observe(main, { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
+    const observer = new MutationObserver(schedulePatchCasesUi);
+    observer.observe(main, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class']
+    });
 
-    setTimeout(patchCasesUi, 250);
-    setTimeout(patchCasesUi, 900);
-    setTimeout(patchCasesUi, 1800);
+    setTimeout(schedulePatchCasesUi, 250);
+    setTimeout(schedulePatchCasesUi, 900);
   }
 
   if (document.readyState === 'complete') start();
