@@ -37,7 +37,7 @@ exports.handler = async event => {
     supabaseUrl: SUPABASE_URL,
     supabaseAnonKey: SUPABASE_ANON_KEY,
     sbAdmin: sb,
-    requiredCapability: 'customer:read'
+    requiredCapability: 'customer:write'
   });
   if (!guard.ok) return response(guard.statusCode, guard.body);
 
