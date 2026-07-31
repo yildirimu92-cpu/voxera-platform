@@ -14,10 +14,12 @@ const checks = [
   ['Case due-date updates use the dedicated endpoint', hotfix.includes("adminCall('cases-due-update'")],
   ['Reset is intercepted before legacy listeners and clears both filters', usability.includes("document.addEventListener('click', resetCaseFilters, true)") && usability.includes('event.stopImmediatePropagation()') && usability.includes("type.value = 'all'")],
   ['Cases page copy no longer describes Customer follow-ups', usability.includes('Interne Aufgaben, Support-Anfragen und administrative Wiedervorlagen.')],
+  ['Cases page copy is changed idempotently', usability.includes('function setTextIfChanged') && usability.includes('node.textContent !== next')],
+  ['Mutation callbacks are coalesced instead of recursively patching', usability.includes('if (patchScheduled) return;') && usability.includes('requestAnimationFrame')],
   ['Open cases can be completed directly', statusModel.includes("[STATUS.case.OPEN]: new Set([STATUS.case.IN_PROGRESS, STATUS.case.WAITING, STATUS.case.DONE])")],
   ['Completed cases can be reopened', statusModel.includes("[STATUS.case.DONE]: new Set([STATUS.case.OPEN, STATUS.case.IN_PROGRESS])")],
   ['The Admin bootstrap loads the state hotfix after operations', loader.includes('/shared/admin-runtime-cases-state-hotfix.js') && loader.indexOf('/shared/admin-runtime-cases-state-hotfix.js') > loader.indexOf('/shared/admin-runtime-operations-v3.js')],
-  ['The usability fix is loaded last', loader.includes('/shared/admin-runtime-cases-usability-fix.js') && loader.indexOf('/shared/admin-runtime-cases-usability-fix.js') > loader.indexOf('/shared/admin-runtime-cases-state-hotfix.js')]
+  ['The usability fix is loaded last with the freeze-fix cache version', loader.includes('/shared/admin-runtime-cases-usability-fix.js?v=20260731-2') && loader.indexOf('/shared/admin-runtime-cases-usability-fix.js') > loader.indexOf('/shared/admin-runtime-cases-state-hotfix.js')]
 ];
 
 let failed = false;
