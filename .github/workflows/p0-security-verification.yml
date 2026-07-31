@@ -62,3 +62,6 @@ jobs:
 
       - name: Verify invoice adjustments and credit notes
         run: node scripts/verify-invoice-adjustments.mjs
+
+      - name: Verify contract activation recovery
+        run: node scripts/verify-contract-activation-recovery.mjs
