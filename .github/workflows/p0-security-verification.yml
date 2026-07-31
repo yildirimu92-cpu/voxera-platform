@@ -55,3 +55,6 @@ jobs:
 
       - name: Verify protected customer writes
         run: node scripts/verify-admin-customer-write-integrity.mjs
+
+      - name: Verify contract termination operational state
+        run: node scripts/verify-contract-termination-operational-state.mjs
