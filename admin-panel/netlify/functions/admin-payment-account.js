@@ -85,6 +85,16 @@ function validate(row) {
   return null;
 }
 
+async function listAccounts(sbAdmin) {
+  const { data, error } = await sbAdmin
+    .from('payment_accounts')
+    .select('*')
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (error) return { error };
+  return { data: data || [] };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (!['GET','POST'].includes(event.httpMethod)) return respond(405, { error: 'Method not allowed' });
@@ -98,18 +108,19 @@ exports.handler = async (event) => {
   const caller = await requireAdminCaller({ event, supabaseUrl: url, supabaseAnonKey: anonKey, sbAdmin });
   if (!caller.ok) return respond(caller.statusCode, caller.body);
 
-  if (event.httpMethod === 'GET') {
-    const { data, error } = await sbAdmin
-      .from('payment_accounts')
-      .select('*')
-      .order('is_default', { ascending: false })
-      .order('created_at', { ascending: true });
-    if (error) return respond(500, { error: error.message });
-    return respond(200, { success: true, accounts: data || [] });
+  let body = {};
+  if (event.httpMethod === 'POST') {
+    try { body = JSON.parse(event.body || '{}'); } catch (_e) { return respond(400, { error: 'Ungültiger Request Body.' }); }
   }
 
-  let body;
-  try { body = JSON.parse(event.body || '{}'); } catch (_e) { return respond(400, { error: 'Ungültiger Request Body.' }); }
+  // The shared admin client posts all function calls. Support an explicit list action
+  // so an empty first setup is never mistaken for an account save.
+  if (event.httpMethod === 'GET' || body.action === 'list') {
+    const result = await listAccounts(sbAdmin);
+    if (result.error) return respond(500, { error: result.error.message });
+    return respond(200, { success: true, accounts: result.data });
+  }
+
   const row = normalize(body);
   const validationError = validate(row);
   if (validationError) return respond(400, { error: validationError });
