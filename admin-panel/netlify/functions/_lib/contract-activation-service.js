@@ -1,6 +1,7 @@
 'use strict';
 
 const { orchestrateContractBilling } = require('./contract-billing-orchestrator');
+const { applyContractInvoicesPaymentContext } = require('./invoice-payment-context');
 
 const ACTIVATABLE_STATUSES = new Set(['pending', 'pending_review', 'signed', 'active']);
 const OPTIONAL_CONTRACT_COLUMNS = new Set(['end_date', 'updated_at', 'notes']);
@@ -75,11 +76,22 @@ async function activateContractSafely({ sbAdmin, actor, contractId, requestedCus
   if (!customer) throw Object.assign(new Error('Customer nicht gefunden.'), { step_failed: 'load_customer' });
 
   const billing = await orchestrateContractBilling({ sbAdmin, customer, contract: updated, nowIso, startDate, forceActiveSubscription: true });
+  const paymentInvoices = await applyContractInvoicesPaymentContext({
+    sbAdmin,
+    customer,
+    invoices: {
+      setup_fee: billing?.setupInvoice || null,
+      recurring: billing?.recurringInvoice || null
+    }
+  });
+  if (paymentInvoices.setup_fee) billing.setupInvoice = paymentInvoices.setup_fee;
+  if (paymentInvoices.recurring) billing.recurringInvoice = paymentInvoices.recurring;
+
   const subscription = billing?.subscription || null;
   const { data: invoices } = await sbAdmin.from('invoices').select('*').eq('contract_id', contractId).order('created_at', { ascending: false }).limit(10);
   const readModel = { contract: updated, customer, subscription, billing: { invoice_open_count: (invoices || []).filter(i => !['paid','cancelled','void','credited'].includes(String(i?.status || '').toLowerCase())).length, latest_invoice_id: invoices?.[0]?.id || null, latest_invoice_status: invoices?.[0]?.status || null }, last_mutation_at: new Date().toISOString() };
 
-  await sbAdmin.from('commercial_lifecycle_audit').insert({ actor_admin_id: actor?.userId || null, actor_role: actor?.role || null, action: recovery ? 'contracts.activate.recover' : 'contracts.activate', customer_id: customerId, contract_id: contractId, subscription_id: subscription?.id || null, previous_state: { contract: previous }, next_state: readModel, metadata: { activation_recovery: recovery, removed_schema_columns: updatedResult.removedColumns, setup_fee_invoice_id: billing?.setupInvoice?.id || null, recurring_invoice_id: billing?.recurringInvoice?.id || null }, happened_at: new Date().toISOString() });
+  await sbAdmin.from('commercial_lifecycle_audit').insert({ actor_admin_id: actor?.userId || null, actor_role: actor?.role || null, action: recovery ? 'contracts.activate.recover' : 'contracts.activate', customer_id: customerId, contract_id: contractId, subscription_id: subscription?.id || null, previous_state: { contract: previous }, next_state: readModel, metadata: { activation_recovery: recovery, removed_schema_columns: updatedResult.removedColumns, setup_fee_invoice_id: billing?.setupInvoice?.id || null, recurring_invoice_id: billing?.recurringInvoice?.id || null, payment_account_id: billing?.setupInvoice?.payment_account_id || billing?.recurringInvoice?.payment_account_id || null }, happened_at: new Date().toISOString() });
 
   return { contract: updated, subscription, setup_fee_invoice: billing?.setupInvoice || null, recurring_invoice: billing?.recurringInvoice || null, setup_fee_invoice_created: Boolean(billing?.setup_fee_invoice_created), recurring_invoice_created: Boolean(billing?.recurring_invoice_created), pdfs_generated: (billing?.pdf?.errors || []).length === 0, pdf_generation_errors: billing?.pdf?.errors || [], activation_recovery: recovery, removed_schema_columns: updatedResult.removedColumns, read_model: readModel };
 }
