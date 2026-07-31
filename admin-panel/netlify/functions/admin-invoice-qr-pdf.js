@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { generateSwissQrInvoicePdf } = require('./_lib/swiss-qr-bill');
+const { applyInvoicePaymentContext } = require('./_lib/invoice-payment-context');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,24 @@ const headers = {
 };
 
 const respond = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
+
+async function ensurePaymentContext(sbAdmin, invoice) {
+  if (invoice.payment_account_snapshot && invoice.customer_snapshot) return invoice;
+  if (!invoice.customer_id) {
+    throw new Error('Die Rechnung ist keinem Kunden zugeordnet und kann deshalb nicht ergänzt werden.');
+  }
+
+  const { data: customer, error: customerError } = await sbAdmin
+    .from('customers')
+    .select('*')
+    .eq('id', invoice.customer_id)
+    .maybeSingle();
+
+  if (customerError) throw new Error(`Kundendaten konnten nicht geladen werden: ${customerError.message}`);
+  if (!customer) throw new Error('Der zur Rechnung gehörende Kunde wurde nicht gefunden.');
+
+  return applyInvoicePaymentContext({ sbAdmin, invoice, customer });
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
@@ -31,16 +50,18 @@ exports.handler = async (event) => {
   const invoiceId = String(body.invoice_id || '').trim();
   if (!invoiceId) return respond(400, { error: 'invoice_id fehlt.' });
 
-  const { data: invoice, error: invoiceError } = await sbAdmin.from('invoices').select('*').eq('id', invoiceId).maybeSingle();
+  const { data: originalInvoice, error: invoiceError } = await sbAdmin.from('invoices').select('*').eq('id', invoiceId).maybeSingle();
   if (invoiceError) return respond(500, { error: invoiceError.message });
-  if (!invoice) return respond(404, { error: 'Rechnung nicht gefunden.' });
-  if (!invoice.payment_account_snapshot) return respond(409, { error: 'Die Rechnung enthält noch keinen Zahlungskonto-Snapshot.' });
-  if (!invoice.customer_snapshot) return respond(409, { error: 'Die Rechnung enthält noch keinen Kundensnapshot.' });
-
-  const { data: items, error: itemsError } = await sbAdmin.from('invoice_items').select('*').eq('invoice_id', invoiceId).order('sort_order', { ascending: true });
-  if (itemsError) return respond(500, { error: itemsError.message });
+  if (!originalInvoice) return respond(404, { error: 'Rechnung nicht gefunden.' });
 
   try {
+    const invoice = await ensurePaymentContext(sbAdmin, originalInvoice);
+    if (!invoice.payment_account_snapshot) throw new Error('Zahlungskonto-Snapshot konnte nicht erstellt werden.');
+    if (!invoice.customer_snapshot) throw new Error('Kundensnapshot konnte nicht erstellt werden.');
+
+    const { data: items, error: itemsError } = await sbAdmin.from('invoice_items').select('*').eq('invoice_id', invoiceId).order('sort_order', { ascending: true });
+    if (itemsError) throw new Error(itemsError.message);
+
     const generated = await generateSwissQrInvoicePdf({ invoice, items: items || [] });
     const bucket = 'invoice-pdfs';
     const buckets = await sbAdmin.storage.listBuckets();
@@ -73,11 +94,23 @@ exports.handler = async (event) => {
       customer_id: invoice.customer_id || null,
       contract_id: invoice.contract_id || null,
       invoice_id: invoice.id,
-      metadata: { pdf_path: path, pdf_version: version, reference_type: invoice.payment_reference_type || 'NON' },
+      metadata: {
+        pdf_path: path,
+        pdf_version: version,
+        reference_type: invoice.payment_reference_type || 'NON',
+        payment_context_backfilled: !originalInvoice.payment_account_snapshot || !originalInvoice.customer_snapshot
+      },
       happened_at: now
     });
 
-    return respond(200, { success: true, invoice: updated, pdf_url: publicUrl, pdf_path: path, pdf_version: version });
+    return respond(200, {
+      success: true,
+      invoice: updated,
+      pdf_url: publicUrl,
+      pdf_path: path,
+      pdf_version: version,
+      payment_context_backfilled: !originalInvoice.payment_account_snapshot || !originalInvoice.customer_snapshot
+    });
   } catch (error) {
     return respond(409, { error: error?.message || 'QR-Rechnung konnte nicht erstellt werden.' });
   }
