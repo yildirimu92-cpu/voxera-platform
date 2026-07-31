@@ -62,3 +62,6 @@ jobs:
 
       - name: Verify invoice adjustments and credit notes
         run: node scripts/verify-invoice-adjustments.mjs
+
+      - name: Verify Admin design system V2
+        run: node scripts/verify-admin-design-system-v2.mjs
