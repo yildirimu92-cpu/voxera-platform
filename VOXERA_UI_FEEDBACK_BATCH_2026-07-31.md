@@ -24,3 +24,11 @@
 6. Kunden-Workspace: kein alter Detail-Workspace; Rechnungs- und Vertrags-Shortcuts prüfen.
 7. Onboarding- und Billing-KPI-Leisten prüfen.
 8. Assistenten > Sync-Status: Ergebnis, leerer Zustand oder klare Fehlermeldung innerhalb 12 Sekunden.
+
+## Automatische Checks
+
+- Netlify Deploy Preview Admin: erfolgreich.
+- Netlify Deploy Preview Customer Dashboard: erfolgreich.
+- P0 Security Verification: erfolgreich.
+- Phase-1-Launch-Gates: erfolgreich.
+- Billing-Mail-Control-Checks: erfolgreich.
