@@ -65,3 +65,6 @@ jobs:
 
       - name: Verify Admin design system V2
         run: node scripts/verify-admin-design-system-v2.mjs
+
+      - name: Verify invoice payment snapshots
+        run: node scripts/verify-invoice-payment-snapshots.mjs
