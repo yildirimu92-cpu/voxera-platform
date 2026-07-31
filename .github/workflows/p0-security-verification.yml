@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - fix/contract-termination-operational-state-2026-07-31
   workflow_dispatch:
 
 permissions:
@@ -58,3 +59,6 @@ jobs:
 
       - name: Verify contract termination operational state
         run: node scripts/verify-contract-termination-operational-state.mjs
+
+      - name: Verify invoice adjustments and credit notes
+        run: node scripts/verify-invoice-adjustments.mjs
