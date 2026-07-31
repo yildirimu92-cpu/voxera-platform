@@ -34,9 +34,9 @@
       #overview-kpis .kpi-label,#onboarding-kpis .kpi-label,#finance-kpi-strip .bf-kpi-label{font-size:10px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:.08em!important;color:#64748B!important;margin-bottom:7px!important}
       #overview-kpis .kpi-value,#onboarding-kpis .kpi-value,#finance-kpi-strip .bf-kpi-value{color:#0D1F3C!important;font-size:25px!important;font-weight:800!important;line-height:1.05!important;letter-spacing:-.035em!important}
       #overview-kpis .kpi-sub,#onboarding-kpis .kpi-sub,#finance-kpi-strip .bf-kpi-sub{font-size:11px!important;color:#64748B!important;margin-top:5px!important;line-height:1.35!important}
-      .main .card-head,.main [style*="background:#0D1F3C"],.main [style*="background: #0D1F3C"]{color:#fff!important}
-      .main .card-head h1,.main .card-head h2,.main .card-head h3,.main .card-head strong,.main [style*="background:#0D1F3C"] h1,.main [style*="background:#0D1F3C"] h2,.main [style*="background:#0D1F3C"] h3,.main [style*="background:#0D1F3C"] strong{color:#fff!important}
-      .main .card-head .muted,.main .card-head p,.main .card-head small{color:rgba(255,255,255,.68)!important}
+      .main .vox-dark-head,.main [style*="background:#0D1F3C"],.main [style*="background: #0D1F3C"]{color:#fff!important}
+      .main .vox-dark-head h1,.main .vox-dark-head h2,.main .vox-dark-head h3,.main .vox-dark-head strong,.main [style*="background:#0D1F3C"] h1,.main [style*="background:#0D1F3C"] h2,.main [style*="background:#0D1F3C"] h3,.main [style*="background:#0D1F3C"] strong{color:#fff!important}
+      .main .vox-dark-head .muted,.main .vox-dark-head p,.main .vox-dark-head small{color:rgba(255,255,255,.72)!important}
       #overview-activity-list{display:block!important;margin-top:12px}
       .vox-ops{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 16px 16px}
       .vox-op{border:1px solid var(--line);border-radius:12px;background:#F8FAFC;padding:13px 14px;text-align:left;cursor:pointer;font:inherit}
@@ -45,6 +45,17 @@
       @media(max-width:560px){#overview-kpis,#onboarding-kpis,#finance-kpi-strip{grid-template-columns:1fr!important}#overview-kpis>*+*,#onboarding-kpis>*+*,#finance-kpi-strip>*+*{border-left:0!important;border-top:1px solid var(--line)!important}#overview-kpis>:nth-child(3),#onboarding-kpis>:nth-child(3),#finance-kpi-strip>:nth-child(3){grid-column:auto}.vox-ops{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
+  }
+
+  function applyDarkHeaderContrast(root = document) {
+    root.querySelectorAll('.card-head,.section-head').forEach(head => {
+      const bg = getComputedStyle(head).backgroundColor;
+      const match = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      if (!match) return;
+      const r = Number(match[1]), g = Number(match[2]), b = Number(match[3]);
+      const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      head.classList.toggle('vox-dark-head', luminance < 0.46);
+    });
   }
 
   function patchCockpit() {
@@ -123,7 +134,7 @@
   }
 
   ready(() => {
-    addCss();
+    addCss(); applyDarkHeaderContrast();
     const overview = typeof renderOverview === 'function' ? renderOverview : null;
     if (overview) renderOverview = function () { const r = overview.apply(this, arguments); patchCockpit(); return r; };
     const onboarding = typeof renderOnboarding === 'function' ? renderOnboarding : null;
@@ -135,7 +146,13 @@
       state.invoices = (original || []).map(inv => String(inv.status || '').toLowerCase() === 'draft' && evidence(inv) ? Object.assign({}, inv, { status: 'open' }) : inv);
       try { return today.apply(this, arguments); } finally { state.invoices = original; }
     };
-    patchCockpit(); billingKpis();
-    setTimeout(() => { patchCockpit(); billingKpis(); }, 1600);
+    patchCockpit(); billingKpis(); applyDarkHeaderContrast();
+    setTimeout(() => { patchCockpit(); billingKpis(); applyDarkHeaderContrast(); }, 1600);
+    const contrastObserver = new MutationObserver(records => {
+      records.forEach(record => record.addedNodes.forEach(node => {
+        if (node.nodeType === 1) applyDarkHeaderContrast(node.matches?.('.card-head,.section-head') ? node.parentElement || node : node);
+      }));
+    });
+    contrastObserver.observe(document.querySelector('.main') || document.body, { childList: true, subtree: true });
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
