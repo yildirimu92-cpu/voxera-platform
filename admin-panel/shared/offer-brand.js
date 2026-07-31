@@ -17,13 +17,14 @@
   [
     '/shared/admin-runtime-ui.js?v=20260731-3',
     '/shared/admin-runtime-navigation.js?v=20260731-3',
-    '/shared/admin-runtime-sync.js?v=20260731-2',
+    '/shared/admin-runtime-sync.js?v=20260731-4',
     '/shared/admin-runtime-cases.js?v=20260731-3',
     '/shared/admin-runtime-cases-admin-only.js?v=20260731-1',
     '/shared/admin-runtime-mobile.js?v=20260731-1',
     '/shared/admin-runtime-operations-v3.js?v=20260731-1',
     '/shared/admin-runtime-cases-state-hotfix.js?v=20260731-1',
-    '/shared/admin-runtime-cases-usability-fix.js?v=20260731-2'
+    '/shared/admin-runtime-cases-usability-fix.js?v=20260731-2',
+    '/shared/admin-runtime-launch-p0.js?v=20260731-1'
   ].forEach((src, index) => {
     const id = `voxera-admin-runtime-${index}`;
     if (document.getElementById(id)) return;
