@@ -11,11 +11,9 @@
   };
 
   function api(method, payload) {
-    if (method === 'GET' && typeof w.callAdminFunction === 'function') {
-      return w.callAdminFunction('admin-payment-account', null, { method: 'GET' });
-    }
-    if (typeof w.callAdminFunction === 'function') return w.callAdminFunction('admin-payment-account', payload);
-    throw new Error('Admin API ist nicht verfügbar.');
+    if (typeof w.callAdminFunction !== 'function') throw new Error('Admin API ist nicht verfügbar.');
+    if (method === 'GET') return w.callAdminFunction('admin-payment-account', { action:'list' });
+    return w.callAdminFunction('admin-payment-account', payload);
   }
 
   function shell() {
@@ -52,10 +50,23 @@
     const account = state.accounts.find((a) => a.is_default && a.is_active) || state.accounts[0] || null;
     if (!account) {
       content.innerHTML = `
-        <div class="vx-empty-state">
-          <strong>Noch kein Zahlungskonto definiert</strong>
-          <span>Hinterlege das Voxera-Konto für Rechnungen und künftige QR-Zahlteile.</span>
-          <button class="btn btn-primary" type="button" id="vx-payment-account-create">Zahlungskonto erfassen</button>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.72fr);gap:18px;align-items:stretch" class="vx-payment-setup-grid">
+          <div class="vx-empty-state" style="min-height:250px;align-items:flex-start;text-align:left;padding:28px">
+            <span class="badge badge-amber">Einrichtung erforderlich</span>
+            <strong style="font-size:18px;color:var(--vx-admin-ink)">Swiss QR-Rechnungen sind noch nicht eingerichtet</strong>
+            <span>Hinterlege einmalig das Voxera-Empfangskonto. Danach können Rechnungen mit korrekten Zahlungsinformationen erstellt werden.</span>
+            <button class="btn btn-primary" type="button" id="vx-payment-account-create">Zahlungskonto einrichten</button>
+          </div>
+          <div class="card" style="margin:0;padding:20px;box-shadow:none">
+            <strong style="display:block;margin-bottom:14px">Einrichtungsfortschritt</strong>
+            <div style="display:grid;gap:12px;font-size:13px">
+              <div>① Unternehmensdaten</div>
+              <div>② Bankverbindung</div>
+              <div>③ Rechnungsstandard</div>
+              <div>④ Aktivieren</div>
+            </div>
+            <p class="muted" style="margin-top:18px;font-size:12px">Stripe bleibt standardmässig deaktiviert. QR-Rechnung und Zahlungsfrist können im Formular festgelegt werden.</p>
+          </div>
         </div>`;
       content.querySelector('#vx-payment-account-create')?.addEventListener('click', () => renderForm(null));
       return;
@@ -98,6 +109,7 @@
     content.innerHTML = `
       <form id="vx-payment-account-form">
         <input type="hidden" name="id" value="${esc(a.id || '')}">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"><span class="badge">1 Unternehmensdaten</span><span class="badge">2 Bankkonto</span><span class="badge">3 Rechnungen</span></div>
         <div class="grid-2" style="gap:12px 16px">
           ${field('account_name','Kontobezeichnung',a.account_name || 'Voxera CHF',{required:true})}
           ${field('creditor_name','Kontoinhaber / Firma',a.creditor_name,{required:true})}
@@ -171,11 +183,15 @@
       render();
     } catch (error) {
       const content = shell()?.querySelector('#vx-payment-account-content');
-      if (content) content.innerHTML = `<div class="vx-empty-state"><strong>Zahlungskonto konnte nicht geladen werden</strong><span>${esc(error?.payload?.error || error?.message || '')}</span></div>`;
+      if (content) content.innerHTML = `<div class="vx-empty-state"><strong>Zahlungskonto konnte nicht geladen werden</strong><span>${esc(error?.payload?.error || error?.message || '')}</span><button class="btn btn-secondary" type="button" id="vx-payment-account-retry">Erneut versuchen</button></div>`;
+      content?.querySelector('#vx-payment-account-retry')?.addEventListener('click', load);
     }
   }
 
   function install() {
+    const style = document.createElement('style');
+    style.textContent = '@media(max-width:768px){.vx-payment-setup-grid{grid-template-columns:1fr!important}}';
+    document.head.appendChild(style);
     const observer = new MutationObserver(() => {
       if (document.getElementById('section-settings') && !shell()) {
         ensureShell();
