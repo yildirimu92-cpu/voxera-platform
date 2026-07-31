@@ -24,4 +24,33 @@ set case_type = coalesce(nullif(case_type, ''), 'internal_task'),
     source = coalesce(nullif(source, ''), 'admin')
 where case_type is null or case_type = '' or source is null or source = '';
 
+create or replace function public.sync_ai_change_request_from_case()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.case_type = 'assistant_change'
+     and new.source = 'ai_change_request'
+     and nullif(new.source_ref_id, '') is not null
+     and to_regclass('public.ai_change_requests') is not null then
+    update public.ai_change_requests
+    set status = case
+      when new.status = 'done' then 'done'
+      when new.status in ('in_progress', 'waiting_external') then 'in_progress'
+      else 'open'
+    end,
+    updated_at = now()
+    where id::text = new.source_ref_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists sync_ai_change_request_from_case on public.voxera_cases;
+create trigger sync_ai_change_request_from_case
+after insert or update of status on public.voxera_cases
+for each row execute function public.sync_ai_change_request_from_case();
+
 commit;
