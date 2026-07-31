@@ -8,6 +8,9 @@ const files = [
   'admin-panel/shared/admin-runtime-cases.js',
   'admin-panel/shared/admin-runtime-cases-admin-only.js',
   'admin-panel/shared/admin-runtime-mobile.js',
+  'admin-panel/shared/admin-runtime-operations-v3.js',
+  'admin-panel/shared/admin-runtime-cases-state-hotfix.js',
+  'admin-panel/shared/admin-runtime-cases-usability-fix.js',
   'customer-dashboard/shared/customer-runtime-case-intake.js',
   'customer-dashboard/shared/offer-brand.js'
 ];

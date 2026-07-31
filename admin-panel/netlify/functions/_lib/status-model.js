@@ -59,11 +59,15 @@ const ONBOARDING_TRANSITIONS = Object.freeze({
   [STATUS.onboarding.READY]: new Set([STATUS.onboarding.COMPLETED]),
   [STATUS.onboarding.COMPLETED]: new Set([])
 });
+
+// Administrative cases are an operational worklist, not a rigid approval chain.
+// Direct completion, reopening and returning a task to Open are deliberate and
+// prevent the UI from offering status choices that the backend then rejects.
 const CASE_TRANSITIONS = Object.freeze({
-  [STATUS.case.OPEN]: new Set([STATUS.case.IN_PROGRESS]),
-  [STATUS.case.IN_PROGRESS]: new Set([STATUS.case.WAITING, STATUS.case.DONE]),
-  [STATUS.case.WAITING]: new Set([STATUS.case.IN_PROGRESS]),
-  [STATUS.case.DONE]: new Set([])
+  [STATUS.case.OPEN]: new Set([STATUS.case.IN_PROGRESS, STATUS.case.WAITING, STATUS.case.DONE]),
+  [STATUS.case.IN_PROGRESS]: new Set([STATUS.case.OPEN, STATUS.case.WAITING, STATUS.case.DONE]),
+  [STATUS.case.WAITING]: new Set([STATUS.case.OPEN, STATUS.case.IN_PROGRESS, STATUS.case.DONE]),
+  [STATUS.case.DONE]: new Set([STATUS.case.OPEN, STATUS.case.IN_PROGRESS])
 });
 const CALL_TRANSITIONS = Object.freeze({
   [STATUS.call.NEW]: new Set([STATUS.call.IN_PROGRESS]),

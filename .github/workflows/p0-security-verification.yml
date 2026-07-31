@@ -43,3 +43,6 @@ jobs:
 
       - name: Verify admin operations workflow
         run: node scripts/verify-admin-operations-v3.mjs
+
+      - name: Verify case state and status hotfix
+        run: node scripts/verify-cases-state-status-hotfix.mjs
