@@ -20,6 +20,83 @@
     catch (_) { return String(c?.status || '').toLowerCase(); }
   }
 
+  function installOperationalOnboardingSemantics() {
+    const snapshotOriginal = typeof w.deriveOnboardingSnapshot === 'function' ? w.deriveOnboardingSnapshot : null;
+    if (snapshotOriginal && !snapshotOriginal.__voxOperationalSetup) {
+      const wrappedSnapshot = function (customerId) {
+        const snapshot = snapshotOriginal.apply(this, arguments);
+        if (!snapshot) return snapshot;
+
+        const appState = typeof state !== 'undefined' ? state : w.state;
+        const checklist = Array.isArray(appState?.checklist) ? appState.checklist : [];
+        const isPortalActivationStep = step => /dashboard\s*access\s*active|portal.*activ|kundenportal.*aktiv/i.test(String(step || ''));
+        const operationalSteps = checklist.filter(step => !isPortalActivationStep(step));
+        if (!operationalSteps.length || operationalSteps.length === checklist.length) {
+          return Object.assign({}, snapshot, { operationalComplete: Number(snapshot.progress || 0) >= 100 });
+        }
+
+        const doneSet = snapshot.doneSet instanceof Set
+          ? new Set(snapshot.doneSet)
+          : new Set(Array.isArray(snapshot.doneSteps) ? snapshot.doneSteps : []);
+        const missingSteps = operationalSteps.filter(step => !doneSet.has(step));
+        const doneSteps = operationalSteps.filter(step => doneSet.has(step));
+        const progress = Math.round((doneSteps.length / operationalSteps.length) * 100);
+        const operationalComplete = missingSteps.length === 0;
+
+        return Object.assign({}, snapshot, {
+          operationalComplete,
+          operationalProgress: progress,
+          progress,
+          doneSteps,
+          missingSteps,
+          missingSet: new Set(missingSteps),
+          currentStep: doneSteps.length ? doneSteps[doneSteps.length - 1] : 'Noch nicht gestartet',
+          nextStep: operationalComplete ? 'completed' : (missingSteps[0] || snapshot.nextStep),
+          blockerStep: operationalComplete ? null : snapshot.blockerStep,
+          blocker: operationalComplete ? null : snapshot.blocker,
+          status: operationalComplete
+            ? (w.ONBOARDING_STATUS?.COMPLETED || 'completed')
+            : snapshot.status
+        });
+      };
+      wrappedSnapshot.__voxOperationalSetup = true;
+      w.deriveOnboardingSnapshot = wrappedSnapshot;
+    }
+
+    const lifecycleOriginal = typeof w.getCustomerLifecycleStatus === 'function' ? w.getCustomerLifecycleStatus : null;
+    if (lifecycleOriginal && !lifecycleOriginal.__voxOperationalSetup) {
+      const wrappedLifecycle = function (customer, onboarding) {
+        const base = lifecycleOriginal.apply(this, arguments);
+        const snapshot = customer?.id && typeof w.deriveOnboardingSnapshot === 'function'
+          ? w.deriveOnboardingSnapshot(customer.id)
+          : null;
+        if (snapshot?.operationalComplete && !['live', 'paused', 'deleted'].includes(String(base || '').toLowerCase())) {
+          return 'activated';
+        }
+        return base;
+      };
+      wrappedLifecycle.__voxOperationalSetup = true;
+      w.getCustomerLifecycleStatus = wrappedLifecycle;
+      if (typeof w.getCanonicalCustomerStatus === 'function') w.getCanonicalCustomerStatus = wrappedLifecycle;
+
+      const labelOriginal = typeof w.getCustomerLifecycleLabel === 'function' ? w.getCustomerLifecycleLabel : null;
+      w.getCustomerLifecycleLabel = function (customer, onboarding) {
+        const status = w.getCustomerLifecycleStatus(customer, onboarding);
+        return w.CUSTOMER_LIFECYCLE_LABELS?.[status]
+          || (status === 'activated' ? 'Aktiv' : (labelOriginal ? labelOriginal(customer, onboarding) : status));
+      };
+      w.getCustomerLifecycleStatusLabel = w.getCustomerLifecycleLabel;
+
+      const badgeOriginal = typeof w.getCustomerLifecycleBadge === 'function' ? w.getCustomerLifecycleBadge : null;
+      if (badgeOriginal) {
+        w.getCustomerLifecycleBadge = function (customer, onboarding) {
+          const status = w.getCustomerLifecycleStatus(customer, onboarding);
+          return badgeOriginal(Object.assign({}, customer, { status }), onboarding);
+        };
+      }
+    }
+  }
+
   function addCss() {
     if (document.getElementById('voxera-runtime-ui-css')) return;
     const style = document.createElement('style');
@@ -34,9 +111,22 @@
       #overview-kpis .kpi-label,#onboarding-kpis .kpi-label,#finance-kpi-strip .bf-kpi-label{font-size:10px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:.08em!important;color:#64748B!important;margin-bottom:7px!important}
       #overview-kpis .kpi-value,#onboarding-kpis .kpi-value,#finance-kpi-strip .bf-kpi-value{color:#0D1F3C!important;font-size:25px!important;font-weight:800!important;line-height:1.05!important;letter-spacing:-.035em!important}
       #overview-kpis .kpi-sub,#onboarding-kpis .kpi-sub,#finance-kpi-strip .bf-kpi-sub{font-size:11px!important;color:#64748B!important;margin-top:5px!important;line-height:1.35!important}
+
+      .main .card-head:not(.vox-dark-head) h1,.main .card-head:not(.vox-dark-head) h2,.main .card-head:not(.vox-dark-head) h3,
+      .main .section-head:not(.vox-dark-head) h1,.main .section-head:not(.vox-dark-head) h2,.main .section-head:not(.vox-dark-head) h3{color:var(--ink)!important}
+      .main .card-head:not(.vox-dark-head) .muted,.main .section-head:not(.vox-dark-head) .muted{color:var(--slate2)!important}
       .main .vox-dark-head,.main [style*="background:#0D1F3C"],.main [style*="background: #0D1F3C"]{color:#fff!important}
       .main .vox-dark-head h1,.main .vox-dark-head h2,.main .vox-dark-head h3,.main .vox-dark-head strong,.main [style*="background:#0D1F3C"] h1,.main [style*="background:#0D1F3C"] h2,.main [style*="background:#0D1F3C"] h3,.main [style*="background:#0D1F3C"] strong{color:#fff!important}
       .main .vox-dark-head .muted,.main .vox-dark-head p,.main .vox-dark-head small{color:rgba(255,255,255,.72)!important}
+
+      #cw-header{background:linear-gradient(135deg,#FFFFFF 0%,#F3F7FF 100%)!important;border:1px solid var(--line)!important;box-shadow:0 1px 3px rgba(15,23,42,.06)!important;padding:18px 20px!important}
+      #cw-header #cw-avatar{background:#EAF2FF!important;color:#1558BA!important}
+      #cw-header #cw-name{color:var(--ink)!important}
+      #cw-header #cw-meta{color:var(--slate)!important}
+      #cw-header #cw-actions .btn{background:#fff!important;color:var(--ink)!important;border:1px solid var(--line)!important}
+      #cw-header #cw-actions .btn.btn-primary{background:var(--blue)!important;color:#fff!important;border-color:var(--blue)!important}
+      #cw-header #cw-actions .btn:hover{border-color:var(--blue-mid)!important}
+
       #overview-activity-list{display:block!important;margin-top:12px}
       .vox-ops{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 16px 16px}
       .vox-op{border:1px solid var(--line);border-radius:12px;background:#F8FAFC;padding:13px 14px;text-align:left;cursor:pointer;font:inherit}
@@ -61,11 +151,19 @@
   function patchCockpit() {
     try {
       const customers = (state.customers || []).filter(c => life(c) !== 'deleted');
-      const live = customers.filter(c => life(c) === 'live').length;
-      const mrr = customers.reduce((sum, c) => {
-        if (!['live', 'activated', 'invited'].includes(life(c))) return sum;
-        const p = typeof planConfigByCode === 'function' ? planConfigByCode(c.plan_code || c.plan) : null;
-        return sum + Number(p?.monthly_price || 0);
+      const liveCustomers = customers.filter(c => life(c) === 'live');
+      const live = liveCustomers.length;
+      const mrr = liveCustomers.reduce((sum, c) => {
+        const contract = typeof latestContractForCustomer === 'function' ? latestContractForCustomer(c.id) : null;
+        if (contract && ['active', 'signed'].includes(String(contract.status || '').toLowerCase())) {
+          const cycle = String(contract.billingCycle || c.subscription_billing_cycle || 'monthly').toLowerCase();
+          const amount = cycle === 'yearly'
+            ? Number(contract.recurringAmountYearly || 0) / 12
+            : Number(contract.recurringAmountMonthly || 0);
+          if (Number.isFinite(amount) && amount > 0) return sum + amount;
+        }
+        const plan = typeof planConfigByCode === 'function' ? planConfigByCode(c.plan_code || c.plan) : null;
+        return sum + Number(plan?.monthly_price || 0);
       }, 0);
       const start = new Date(); start.setHours(0, 0, 0, 0);
       const calls = (state.calls || []).filter(x => {
@@ -73,7 +171,7 @@
         return !Number.isNaN(d.getTime()) && d >= start;
       }).length;
       const k = document.getElementById('overview-kpis');
-      if (k) k.innerHTML = `<div class="kpi"><div class="kpi-label">Live</div><div class="kpi-value">${live}</div><div class="kpi-sub">Kunden aktiv</div></div><div class="kpi"><div class="kpi-label">MRR</div><div class="kpi-value">CHF ${mrr.toLocaleString('de-CH')}</div><div class="kpi-sub">Monatlich wiederkehrend</div></div><div class="kpi"><div class="kpi-label">Anrufe heute</div><div class="kpi-value">${calls}</div><div class="kpi-sub">Seit Mitternacht</div></div>`;
+      if (k) k.innerHTML = `<div class="kpi"><div class="kpi-label">Live</div><div class="kpi-value">${live}</div><div class="kpi-sub">Kunden produktiv aktiv</div></div><div class="kpi"><div class="kpi-label">MRR</div><div class="kpi-value">CHF ${mrr.toLocaleString('de-CH',{maximumFractionDigits:2})}</div><div class="kpi-sub">Nur Live-Kunden</div></div><div class="kpi"><div class="kpi-label">Anrufe heute</div><div class="kpi-value">${calls}</div><div class="kpi-sub">Seit Mitternacht</div></div>`;
 
       const drafts = (state.invoices || []).filter(inv => {
         let type = String(inv.invoice_type || inv.type || '').toLowerCase();
@@ -134,6 +232,7 @@
   }
 
   ready(() => {
+    installOperationalOnboardingSemantics();
     addCss(); applyDarkHeaderContrast();
     const overview = typeof renderOverview === 'function' ? renderOverview : null;
     if (overview) renderOverview = function () { const r = overview.apply(this, arguments); patchCockpit(); return r; };

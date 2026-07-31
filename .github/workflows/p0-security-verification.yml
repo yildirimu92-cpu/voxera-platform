@@ -37,3 +37,6 @@ jobs:
 
       - name: Verify case system separation
         run: node scripts/verify-case-separation.mjs
+
+      - name: Verify admin UX feedback fixes
+        run: node scripts/verify-admin-ux-feedback.mjs
