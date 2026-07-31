@@ -46,3 +46,6 @@ jobs:
 
       - name: Verify case state and status hotfix
         run: node scripts/verify-cases-state-status-hotfix.mjs
+
+      - name: Verify launch sync and website flows
+        run: node scripts/verify-launch-sync-website.mjs
