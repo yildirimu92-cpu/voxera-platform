@@ -27,7 +27,8 @@
         const snapshot = snapshotOriginal.apply(this, arguments);
         if (!snapshot) return snapshot;
 
-        const checklist = Array.isArray(w.state?.checklist) ? w.state.checklist : [];
+        const appState = typeof state !== 'undefined' ? state : w.state;
+        const checklist = Array.isArray(appState?.checklist) ? appState.checklist : [];
         const isPortalActivationStep = step => /dashboard\s*access\s*active|portal.*activ|kundenportal.*aktiv/i.test(String(step || ''));
         const operationalSteps = checklist.filter(step => !isPortalActivationStep(step));
         if (!operationalSteps.length || operationalSteps.length === checklist.length) {
