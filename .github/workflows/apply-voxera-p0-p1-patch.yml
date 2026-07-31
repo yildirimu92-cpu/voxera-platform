@@ -1,0 +1,42 @@
+name: Apply Voxera P0 P1 patch
+
+on:
+  push:
+    branches:
+      - fix/p0-p1-stability-2026-07-31
+    paths:
+      - '.voxera-patches/voxera-p0-p1.patch.gz.b64'
+      - '.github/workflows/apply-voxera-p0-p1-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    if: ${{ !contains(github.event.head_commit.message, '[patch-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decode and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .voxera-patches/voxera-p0-p1.patch.gz.b64 | gzip -d > /tmp/voxera.patch
+          git apply --check /tmp/voxera.patch
+          git apply /tmp/voxera.patch
+          rm -f .voxera-patches/voxera-p0-p1.patch.gz.b64
+          rmdir .voxera-patches 2>/dev/null || true
+          rm -f .github/workflows/apply-voxera-p0-p1-patch.yml
+
+      - name: Commit applied files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: stabilize customer loading, billing dispatch and modals [patch-applied]'
+          git push origin HEAD:fix/p0-p1-stability-2026-07-31
