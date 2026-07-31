@@ -34,3 +34,6 @@ jobs:
 
       - name: Verify admin runtime patches
         run: node scripts/verify-admin-runtime-patches.mjs
+
+      - name: Verify case system separation
+        run: node scripts/verify-case-separation.mjs
