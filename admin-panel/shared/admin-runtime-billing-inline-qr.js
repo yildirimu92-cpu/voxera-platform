@@ -1,0 +1,151 @@
+(function (w) {
+  'use strict';
+  if (!w || typeof document === 'undefined') return;
+
+  const TAB_LABELS = ['aufgaben','alle rechnungen','subscriptions','überzug'];
+  const busy = new Set();
+  let selectedLabel = null;
+  let lastSignature = '';
+
+  const norm = value => String(value || '').trim().toLowerCase();
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const onBilling = () => /billing/i.test(String(location.hash || '')) || /billing/i.test(String(location.pathname || ''));
+  const invoices = () => (typeof state !== 'undefined' && Array.isArray(state.invoices)) ? state.invoices : [];
+
+  function findTabs() {
+    return Array.from(document.querySelectorAll('button,a,[role="tab"]'))
+      .filter(node => TAB_LABELS.includes(norm(node.textContent)));
+  }
+
+  function inferSelectedTab(tabs) {
+    if (selectedLabel && tabs.some(tab => norm(tab.textContent) === selectedLabel)) return selectedLabel;
+    const explicit = tabs.find(tab => tab.getAttribute('aria-selected') === 'true' || tab.dataset.active === 'true');
+    if (explicit) return norm(explicit.textContent);
+    const active = tabs.find(tab => tab.classList.contains('active') || tab.classList.contains('is-active'));
+    return active ? norm(active.textContent) : 'aufgaben';
+  }
+
+  function syncTabs() {
+    if (!onBilling()) return;
+    const tabs = findTabs();
+    if (tabs.length < 2) return;
+    const activeLabel = inferSelectedTab(tabs);
+    tabs.forEach(tab => {
+      const active = norm(tab.textContent) === activeLabel;
+      if (tab.classList.contains('active') !== active) tab.classList.toggle('active', active);
+      if (tab.classList.contains('is-active') !== active) tab.classList.toggle('is-active', active);
+      if (tab.getAttribute('aria-selected') !== String(active)) tab.setAttribute('aria-selected', String(active));
+      if (active) {
+        if (tab.dataset.active !== 'true') tab.dataset.active = 'true';
+      } else if ('active' in tab.dataset) {
+        delete tab.dataset.active;
+      }
+    });
+  }
+
+  function invoiceByNumber(number) {
+    return invoices().find(invoice => String(invoice.invoice_number || '') === String(number || '')) || null;
+  }
+
+  function actionCellForRow(row) {
+    const cells = Array.from(row.children || []);
+    return cells.find(cell => /öffnen|erneut senden|bezahlt|mahnen/i.test(String(cell.textContent || ''))) || cells[cells.length - 1] || null;
+  }
+
+  function buttonHtml(invoice) {
+    if (invoice.pdf_url) {
+      return `<a class="btn btn-secondary btn-sm vx-inline-qr-action" data-vx-qr-open="${esc(invoice.id)}" href="${esc(invoice.pdf_url)}" target="_blank" rel="noopener">QR öffnen</a>`;
+    }
+    const isBusy = busy.has(String(invoice.id));
+    return `<button type="button" class="btn btn-secondary btn-sm vx-inline-qr-action" data-vx-qr-generate="${esc(invoice.id)}" ${isBusy ? 'disabled' : ''}>${isBusy ? 'QR wird erstellt…' : 'QR-Rechnung erstellen'}</button>`;
+  }
+
+  function mountInlineActions() {
+    if (!onBilling()) return;
+    const all = invoices();
+    if (!all.length) return;
+
+    const rows = Array.from(document.querySelectorAll('tr, .table-row, [role="row"]'));
+    rows.forEach(row => {
+      const text = String(row.textContent || '');
+      const match = text.match(/VX-\d{4}-\d{6}/);
+      if (!match) return;
+      const invoice = invoiceByNumber(match[0]);
+      if (!invoice) return;
+      const cell = actionCellForRow(row);
+      if (!cell) return;
+
+      const existing = cell.querySelector('.vx-inline-qr-action');
+      const desiredState = invoice.pdf_url ? `open:${invoice.pdf_url}` : `generate:${busy.has(String(invoice.id))}`;
+      if (existing && existing.dataset.vxState === desiredState) return;
+      if (existing) existing.remove();
+
+      const wrapper = document.createElement('span');
+      wrapper.innerHTML = buttonHtml(invoice);
+      const control = wrapper.firstElementChild;
+      if (!control) return;
+      control.dataset.vxState = desiredState;
+      cell.appendChild(control);
+    });
+  }
+
+  async function generate(invoiceId, button) {
+    if (!invoiceId || busy.has(String(invoiceId))) return;
+    busy.add(String(invoiceId));
+    if (button) { button.disabled = true; button.textContent = 'QR wird erstellt…'; }
+    try {
+      const result = await w.callAdminFunction('admin-invoice-qr-pdf', { invoice_id: invoiceId });
+      if (!result?.success || !result?.invoice) throw new Error(result?.error || 'QR-Rechnung konnte nicht erstellt werden.');
+      if (typeof state !== 'undefined' && Array.isArray(state.invoices)) {
+        const index = state.invoices.findIndex(row => String(row.id) === String(invoiceId));
+        if (index >= 0) state.invoices[index] = { ...state.invoices[index], ...result.invoice };
+      }
+      if (typeof w.showToast === 'function') w.showToast('QR-Rechnung wurde erstellt.');
+      if (result.pdf_url) w.open(result.pdf_url, '_blank', 'noopener');
+    } catch (error) {
+      const message = error?.payload?.error || error?.message || String(error);
+      if (typeof w.showToast === 'function') w.showToast(`QR-PDF fehlgeschlagen: ${message}`);
+      else w.alert(`QR-PDF fehlgeschlagen: ${message}`);
+    } finally {
+      busy.delete(String(invoiceId));
+      lastSignature = '';
+      mountInlineActions();
+    }
+  }
+
+  function signature() {
+    const tabSig = findTabs().map(tab => `${norm(tab.textContent)}:${tab.className}:${tab.getAttribute('aria-selected')}`).join('|');
+    const invoiceSig = invoices().map(inv => `${inv.id}:${inv.invoice_number}:${inv.pdf_url || ''}:${inv.pdf_version || 0}`).join('|');
+    const rowSig = Array.from(document.querySelectorAll('tr, .table-row, [role="row"]')).map(row => String(row.textContent || '').slice(0,80)).join('|');
+    return `${location.hash}|${tabSig}|${invoiceSig}|${rowSig}`;
+  }
+
+  function tick() {
+    if (!onBilling()) return;
+    const next = signature();
+    if (next === lastSignature) return;
+    lastSignature = next;
+    syncTabs();
+    mountInlineActions();
+  }
+
+  document.addEventListener('click', event => {
+    const tab = event.target?.closest?.('button,a,[role="tab"]');
+    if (tab && TAB_LABELS.includes(norm(tab.textContent))) {
+      selectedLabel = norm(tab.textContent);
+      setTimeout(() => { lastSignature = ''; tick(); }, 0);
+      setTimeout(() => { lastSignature = ''; tick(); }, 150);
+      return;
+    }
+    const qr = event.target?.closest?.('[data-vx-qr-generate]');
+    if (qr) {
+      event.preventDefault();
+      generate(qr.dataset.vxQrGenerate, qr);
+    }
+  }, true);
+
+  w.addEventListener('hashchange', () => { selectedLabel = null; lastSignature = ''; setTimeout(tick, 50); });
+  setInterval(tick, 800);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tick, { once:true });
+  else tick();
+})(typeof globalThis !== 'undefined' ? globalThis : window);
