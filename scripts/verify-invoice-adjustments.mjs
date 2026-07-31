@@ -23,7 +23,7 @@ const checks = [
   ['credit amount cannot exceed remaining amount', /Credit amount exceeds the remaining creditable amount/.test(src.migration)],
   ['financial writes are idempotent', /invoice_financial_actions/.test(src.migration) && /pg_advisory_xact_lock/.test(src.migration) && /request_id/.test(src.endpoint)],
   ['original invoices are never deleted', !/from\('invoices'\)\.delete/.test(src.endpoint) && !/delete from public\.invoices/i.test(src.migration)],
-  ['paid invoice refunds are recorded, not executed', /invoice_refunds/.test(src.migration) && /does not trigger/i.test(src.runtime)],
+  ['paid invoice refunds are recorded, not executed', /invoice_refunds/.test(src.migration) && /keine automatische Bank- oder Stripe-Zahlung/i.test(src.runtime)],
   ['runtime adds correction action to invoice detail', /Storno \/ Gutschrift/.test(src.runtime) && /invoice-detail-financial-action/.test(src.runtime)],
   ['legacy credit and cancel actions are routed safely', /create_credit_note/.test(src.runtime) && /cancel_invoice/.test(src.runtime) && /invoice-financial-action/.test(src.runtime)],
   ['runtime loads after contract termination', src.loader.indexOf('admin-runtime-invoice-adjustments.js') > src.loader.indexOf('admin-runtime-contract-termination.js')]
