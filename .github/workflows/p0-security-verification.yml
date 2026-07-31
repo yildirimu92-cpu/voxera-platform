@@ -40,3 +40,6 @@ jobs:
 
       - name: Verify admin UX feedback fixes
         run: node scripts/verify-admin-ux-feedback.mjs
+
+      - name: Verify admin operations workflow
+        run: node scripts/verify-admin-operations-v3.mjs
