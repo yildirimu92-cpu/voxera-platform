@@ -29,7 +29,8 @@
     '/shared/admin-runtime-contract-termination.js?v=20260731-1',
     '/shared/admin-runtime-invoice-adjustments.js?v=20260731-1',
     '/shared/admin-runtime-design-system-v2.js?v=20260731-1',
-    '/shared/admin-runtime-payment-account.js?v=20260801-1'
+    '/shared/admin-runtime-payment-account.js?v=20260801-1',
+    '/shared/admin-runtime-billing-inline-qr.js?v=20260801-1'
   ].forEach((src, index) => {
     const id = `voxera-admin-runtime-${index}`;
     if (document.getElementById(id)) return;
