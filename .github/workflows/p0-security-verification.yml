@@ -52,3 +52,6 @@ jobs:
 
       - name: Verify launch readiness gate
         run: node scripts/verify-launch-readiness-gate.mjs
+
+      - name: Verify protected customer writes
+        run: node scripts/verify-admin-customer-write-integrity.mjs
