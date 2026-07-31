@@ -49,3 +49,6 @@ jobs:
 
       - name: Verify launch sync and website flows
         run: node scripts/verify-launch-sync-website.mjs
+
+      - name: Verify launch readiness gate
+        run: node scripts/verify-launch-readiness-gate.mjs
