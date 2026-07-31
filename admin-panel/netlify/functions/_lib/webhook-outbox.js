@@ -22,6 +22,22 @@ function formatSupabaseError(error) {
   return JSON.stringify(payload);
 }
 
+function isUniqueViolation(error) {
+  return String(error && error.code || '') === '23505';
+}
+
+async function findExistingOutboxEvent(sbAdmin, eventType, dedupeKey) {
+  if (!dedupeKey) return null;
+  const { data, error } = await sbAdmin
+    .from('outbox_events')
+    .select('id, event_type, status, retry_count, created_at, dedupe_key, last_error, last_attempt_at')
+    .eq('event_type', eventType)
+    .eq('dedupe_key', dedupeKey)
+    .maybeSingle();
+  if (error) throw new Error(`outbox duplicate lookup failed: ${formatSupabaseError(error)}`);
+  return data ? { ...data, duplicate: true } : null;
+}
+
 async function insertOutboxModern(sbAdmin, row) {
   return sbAdmin
     .from('outbox_events')
@@ -63,6 +79,11 @@ async function createOutboxEvent(sbAdmin, { eventType, payload, payloadSummary, 
   const modernResult = await insertOutboxModern(sbAdmin, row);
   if (!modernResult.error) {
     return modernResult.data;
+  }
+
+  if (isUniqueViolation(modernResult.error)) {
+    const existing = await findExistingOutboxEvent(sbAdmin, row.event_type, row.dedupe_key);
+    if (existing) return existing;
   }
 
   if (!isMissingColumnError(modernResult.error)) {

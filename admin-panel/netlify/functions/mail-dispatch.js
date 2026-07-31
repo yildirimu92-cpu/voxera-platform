@@ -31,6 +31,18 @@ function parseBody(event) {
   }
 }
 
+function normalizeRequestId(value) {
+  const requestId = trimOrNull(value);
+  if (!requestId) return null;
+  if (!/^[A-Za-z0-9._:-]{8,160}$/.test(requestId)) return null;
+  return requestId;
+}
+
+function dispatchDedupeKey(body, fallbackKey) {
+  const requestId = normalizeRequestId(body?.request_id);
+  return requestId ? `${fallbackKey}:request:${requestId}` : `${fallbackKey}:legacy:${Date.now()}`;
+}
+
 function pickOfferRecipientEmail(offer, overrides) {
   return trimOrNull(overrides?.to_email) || trimOrNull(offer?.sent_to_email) || trimOrNull(offer?.email);
 }
@@ -210,7 +222,7 @@ async function loadOfferPayload(sbAdmin, body) {  const offerId = trimOrNull(bod
     eventType: 'offer_email', // mail_type
     payload,
     payloadSummary: `offer_email -> ${recipientEmail}`,
-    dedupeKey: `offer_email:${offer.id}:${Date.now()}`,
+    dedupeKey: dispatchDedupeKey(body, `offer_email:${offer.id}`),
     responseData: {
       offer_id: offer.id,
       sent_to_email: recipientEmail,
@@ -332,7 +344,7 @@ async function loadSubscriptionPaymentPayload(sbAdmin, body) {
     eventType: 'subscription_payment_email',
     payload,
     payloadSummary: `subscription_payment_email -> ${recipientEmail}`,
-    dedupeKey: `subscription_payment_email:${subscription.id}:${Date.now()}`,
+    dedupeKey: dispatchDedupeKey(body, `subscription_payment_email:${subscription.id}`),
     responseData: {
       customer_id: customer.id,
       subscription_id: subscription.id,
@@ -482,8 +494,8 @@ async function loadSetupFeePayload(sbAdmin, body) {
     payload,
     payloadSummary: `setup_fee_email -> ${recipientEmail}`,
     dedupeKey: invoice
-      ? `setup_fee_email:${invoice.id}:${Date.now()}`
-      : `setup_fee_email:${customer.id}:${Date.now()}`,
+      ? dispatchDedupeKey(body, `setup_fee_email:${invoice.id}`)
+      : dispatchDedupeKey(body, `setup_fee_email:${customer.id}`),
     responseData: {
       customer_id: customer.id,
       invoice_id: invoice?.id || null,
@@ -613,7 +625,7 @@ async function loadInvoicePayload(sbAdmin, body, mailType = 'invoice_email') {
     eventType: mailType,
     payload,
     payloadSummary: `invoice_email -> ${recipientEmail}`,
-    dedupeKey: `invoice_email:${invoice.id}:${Date.now()}`,
+    dedupeKey: dispatchDedupeKey(body, `${mailType}:${invoice.id}`),
     responseData: {
       invoice_id: invoice.id,
       customer_id: customer.id,
@@ -711,6 +723,45 @@ exports.handler = async (event) => {
     return response(500, { error: 'Webhook-Outbox konnte nicht gespeichert werden.', details: msg });
   }
 
+  if (outbox.duplicate) {
+    const duplicateStatus=String(outbox.status||'').toLowerCase();
+    log('info', 'mail_dispatch_duplicate_suppressed', {
+      event_type: eventType,
+      outbox_id: outbox.id,
+      status: duplicateStatus,
+      requested_by: caller.userId || null
+    });
+    if (duplicateStatus === 'sent') {
+      return response(200, {
+        success: true,
+        duplicate: true,
+        accepted: true,
+        delivery_confirmed: false,
+        event_type: eventType,
+        outbox_id: outbox.id,
+        data: dispatch.responseData
+      });
+    }
+    if (duplicateStatus === 'pending') {
+      return response(202, {
+        success: true,
+        duplicate: true,
+        accepted: true,
+        delivery_confirmed: false,
+        event_type: eventType,
+        outbox_id: outbox.id,
+        data: dispatch.responseData
+      });
+    }
+    return response(409, {
+      success: false,
+      duplicate: true,
+      error: 'Ein identischer Versandversuch ist bereits fehlgeschlagen. Bitte den Versand bewusst erneut auslösen.',
+      event_type: eventType,
+      outbox_id: outbox.id
+    });
+  }
+
   log('info', 'webhook_send_attempt', { event_type: eventType, outbox_id: outbox.id, requested_by: caller.userId || null });
 
   const webhookUrl = process.env.MAKE_MAIL_WEBHOOK;
@@ -762,6 +813,8 @@ exports.handler = async (event) => {
 
     return response(200, {
       success: true,
+      accepted: true,
+      delivery_confirmed: false,
       event_type: eventType,
       outbox_id: outbox.id,
       data: dispatch.responseData
