@@ -2,13 +2,13 @@
   'use strict';
   if (!w || typeof document === 'undefined') return;
 
-  const TAB_LABELS = ['aufgaben','alle rechnungen','subscriptions','überzug'];
+  const TAB_LABELS = ['aufgaben', 'alle rechnungen', 'subscriptions', 'überzug'];
   const busy = new Set();
   let selectedLabel = null;
   let lastSignature = '';
 
   const norm = value => String(value || '').trim().toLowerCase();
-  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const onBilling = () => /billing/i.test(String(location.hash || '')) || /billing/i.test(String(location.pathname || ''));
   const invoices = () => (typeof state !== 'undefined' && Array.isArray(state.invoices)) ? state.invoices : [];
 
@@ -52,12 +52,21 @@
     return cells.find(cell => /öffnen|erneut senden|bezahlt|mahnen/i.test(String(cell.textContent || ''))) || cells[cells.length - 1] || null;
   }
 
-  function buttonHtml(invoice) {
-    if (invoice.pdf_url) {
-      return `<a class="btn btn-secondary btn-sm vx-inline-qr-action" data-vx-qr-open="${esc(invoice.id)}" href="${esc(invoice.pdf_url)}" target="_blank" rel="noopener">QR öffnen</a>`;
-    }
+  function actionsHtml(invoice) {
+    const invoiceId = esc(invoice.id);
     const isBusy = busy.has(String(invoice.id));
-    return `<button type="button" class="btn btn-secondary btn-sm vx-inline-qr-action" data-vx-qr-generate="${esc(invoice.id)}" ${isBusy ? 'disabled' : ''}>${isBusy ? 'QR wird erstellt…' : 'QR-Rechnung erstellen'}</button>`;
+    const style = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px';
+
+    if (invoice.pdf_url) {
+      return `<span class="vx-inline-qr-actions" style="${style}">
+        <a class="btn btn-secondary btn-sm vx-inline-qr-action" data-vx-qr-open="${invoiceId}" href="${esc(invoice.pdf_url)}" target="_blank" rel="noopener">QR öffnen</a>
+        <button type="button" class="btn btn-secondary btn-sm vx-inline-qr-action" data-vx-qr-generate="${invoiceId}" data-vx-qr-mode="regenerate" ${isBusy ? 'disabled' : ''}>${isBusy ? 'Wird neu erstellt…' : 'Neu generieren'}</button>
+      </span>`;
+    }
+
+    return `<span class="vx-inline-qr-actions" style="${style}">
+      <button type="button" class="btn btn-secondary btn-sm vx-inline-qr-action" data-vx-qr-generate="${invoiceId}" data-vx-qr-mode="create" ${isBusy ? 'disabled' : ''}>${isBusy ? 'QR wird erstellt…' : 'QR-Rechnung erstellen'}</button>
+    </span>`;
   }
 
   function mountInlineActions() {
@@ -75,32 +84,41 @@
       const cell = actionCellForRow(row);
       if (!cell) return;
 
-      const existing = cell.querySelector('.vx-inline-qr-action');
-      const desiredState = invoice.pdf_url ? `open:${invoice.pdf_url}` : `generate:${busy.has(String(invoice.id))}`;
+      const desiredState = `${invoice.pdf_url ? 'pdf' : 'missing'}:${invoice.pdf_url || ''}:${invoice.pdf_version || 0}:${busy.has(String(invoice.id))}`;
+      const existing = cell.querySelector('.vx-inline-qr-actions');
       if (existing && existing.dataset.vxState === desiredState) return;
       if (existing) existing.remove();
 
-      const wrapper = document.createElement('span');
-      wrapper.innerHTML = buttonHtml(invoice);
-      const control = wrapper.firstElementChild;
-      if (!control) return;
-      control.dataset.vxState = desiredState;
-      cell.appendChild(control);
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = actionsHtml(invoice);
+      const controls = wrapper.firstElementChild;
+      if (!controls) return;
+      controls.dataset.vxState = desiredState;
+      cell.appendChild(controls);
     });
   }
 
-  async function generate(invoiceId, button) {
+  async function generate(invoiceId, button, mode) {
     if (!invoiceId || busy.has(String(invoiceId))) return;
     busy.add(String(invoiceId));
-    if (button) { button.disabled = true; button.textContent = 'QR wird erstellt…'; }
+    const regenerating = mode === 'regenerate';
+    if (button) {
+      button.disabled = true;
+      button.textContent = regenerating ? 'Wird neu erstellt…' : 'QR wird erstellt…';
+    }
+
     try {
       const result = await w.callAdminFunction('admin-invoice-qr-pdf', { invoice_id: invoiceId });
       if (!result?.success || !result?.invoice) throw new Error(result?.error || 'QR-Rechnung konnte nicht erstellt werden.');
+
       if (typeof state !== 'undefined' && Array.isArray(state.invoices)) {
         const index = state.invoices.findIndex(row => String(row.id) === String(invoiceId));
         if (index >= 0) state.invoices[index] = { ...state.invoices[index], ...result.invoice };
       }
-      if (typeof w.showToast === 'function') w.showToast('QR-Rechnung wurde erstellt.');
+
+      if (typeof w.showToast === 'function') {
+        w.showToast(regenerating ? 'QR-Rechnung wurde neu generiert.' : 'QR-Rechnung wurde erstellt.');
+      }
       if (result.pdf_url) w.open(result.pdf_url, '_blank', 'noopener');
     } catch (error) {
       const message = error?.payload?.error || error?.message || String(error);
@@ -116,7 +134,7 @@
   function signature() {
     const tabSig = findTabs().map(tab => `${norm(tab.textContent)}:${tab.className}:${tab.getAttribute('aria-selected')}`).join('|');
     const invoiceSig = invoices().map(inv => `${inv.id}:${inv.invoice_number}:${inv.pdf_url || ''}:${inv.pdf_version || 0}`).join('|');
-    const rowSig = Array.from(document.querySelectorAll('tr, .table-row, [role="row"]')).map(row => String(row.textContent || '').slice(0,80)).join('|');
+    const rowSig = Array.from(document.querySelectorAll('tr, .table-row, [role="row"]')).map(row => String(row.textContent || '').slice(0, 100)).join('|');
     return `${location.hash}|${tabSig}|${invoiceSig}|${rowSig}`;
   }
 
@@ -137,15 +155,21 @@
       setTimeout(() => { lastSignature = ''; tick(); }, 150);
       return;
     }
+
     const qr = event.target?.closest?.('[data-vx-qr-generate]');
     if (qr) {
       event.preventDefault();
-      generate(qr.dataset.vxQrGenerate, qr);
+      generate(qr.dataset.vxQrGenerate, qr, qr.dataset.vxQrMode || 'create');
     }
   }, true);
 
-  w.addEventListener('hashchange', () => { selectedLabel = null; lastSignature = ''; setTimeout(tick, 50); });
+  w.addEventListener('hashchange', () => {
+    selectedLabel = null;
+    lastSignature = '';
+    setTimeout(tick, 50);
+  });
+
   setInterval(tick, 800);
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tick, { once:true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tick, { once: true });
   else tick();
 })(typeof globalThis !== 'undefined' ? globalThis : window);
