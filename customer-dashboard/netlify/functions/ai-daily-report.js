@@ -1,42 +1,65 @@
-// Netlify Function: ai-daily-report
-// Ruft Anthropic API server-side auf und gibt KI-Tagesbericht zurück
-// Deployment: netlify/functions/ai-daily-report.js
+'use strict';
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const { createClient } = require('@supabase/supabase-js');
+const { requireCustomerCaller } = require('./_lib/require-customer');
 
-exports.handler = async function(event, context) {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+const MAX_PROMPT_LENGTH = 3000;
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+  'Cache-Control': 'private, no-store',
+  Vary: 'Authorization'
+};
+
+function response(statusCode, payload) {
+  return { statusCode, headers, body: JSON.stringify(payload) };
+}
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
+
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbAnonKey = process.env.SUPABASE_ANON_KEY;
+  const sbServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+  if (!sbUrl || !sbAnonKey || !sbServiceKey || !anthropicApiKey) {
+    console.error('[ai-daily-report] server_configuration_missing');
+    return response(503, { error: 'server_configuration_missing' });
   }
 
-  // Auth check via Supabase JWT (basic)
-  const authHeader = event.headers['authorization'] || '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
-  }
-
-  if (!ANTHROPIC_API_KEY) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'API key not configured' }) };
-  }
+  const sbAdmin = createClient(sbUrl, sbServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+  const caller = await requireCustomerCaller({
+    event,
+    sbUrl,
+    sbAnonKey,
+    sbAdmin,
+    functionName: 'ai-daily-report'
+  });
+  if (!caller.ok) return response(caller.statusCode, caller.body);
 
   let body;
   try {
     body = JSON.parse(event.body || '{}');
-  } catch(e) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) };
+  } catch {
+    return response(400, { error: 'invalid_json' });
   }
 
-  const { prompt } = body;
-  if (!prompt || typeof prompt !== 'string' || prompt.length > 3000) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid prompt' }) };
+  const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+  if (!prompt || prompt.length > MAX_PROMPT_LENGTH) {
+    return response(400, { error: 'invalid_prompt', max_length: MAX_PROMPT_LENGTH });
   }
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const providerResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': anthropicApiKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
@@ -46,21 +69,23 @@ exports.handler = async function(event, context) {
       })
     });
 
-    const data = await resp.json();
-    const text = data?.content?.[0]?.text?.trim() || null;
-
-    if (!text) {
-      return { statusCode: 502, body: JSON.stringify({ error: 'No response from AI' }) };
+    if (!providerResponse.ok) {
+      console.error('[ai-daily-report] provider_request_failed', {
+        customer_id: caller.customerId,
+        status: providerResponse.status
+      });
+      return response(502, { error: 'report_generation_failed' });
     }
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    };
+    const data = await providerResponse.json();
+    const text = Array.isArray(data && data.content)
+      ? String(data.content.find(block => block && block.type === 'text')?.text || '').trim()
+      : '';
+    if (!text) return response(502, { error: 'report_generation_failed' });
 
-  } catch(e) {
-    console.error('[ai-daily-report] Error:', e.message);
-    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+    return response(200, { text });
+  } catch {
+    console.error('[ai-daily-report] request_failed', { customer_id: caller.customerId });
+    return response(500, { error: 'report_generation_failed' });
   }
 };

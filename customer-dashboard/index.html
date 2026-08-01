@@ -14637,6 +14637,24 @@ window._vxAssistantVoicesLoaded = false;
 window._vxAssistantVoicesError = null;
 window._vxAssistantVoicesPromise = null;
 
+async function vxGetCustomerAccessToken() {
+  const sb = typeof getSupabaseAuthClient === 'function' ? getSupabaseAuthClient() : null;
+  if (!sb || !sb.auth) throw new Error('Sitzung nicht verfügbar.');
+
+  let { data: { session }, error } = await sb.auth.getSession();
+  const expiresAt = Number(session && session.expires_at ? session.expires_at : 0) || 0;
+  const nowUnix = Math.floor(Date.now() / 1000);
+  if (!error && (!session || !session.access_token || (expiresAt && (expiresAt - nowUnix) <= 30))) {
+    const refreshed = await sb.auth.refreshSession();
+    session = refreshed?.data?.session || null;
+    error = refreshed?.error || null;
+  }
+  if (error || !session || !session.access_token) {
+    throw new Error('Sitzung nicht verfügbar. Bitte neu anmelden.');
+  }
+  return session.access_token;
+}
+
 async function previewVoice(voiceId, btn) {
   if (!voiceId || !btn) return;
 
@@ -14662,9 +14680,13 @@ async function previewVoice(voiceId, btn) {
   btn.disabled = true;
 
   try {
+    const accessToken = await vxGetCustomerAccessToken();
     const res = await fetch('/.netlify/functions/preview-voice', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken
+      },
       body: JSON.stringify({ voice_id: String(voiceId || '') })
     });
     if (!res.ok) throw new Error('preview_failed');
@@ -14946,9 +14968,13 @@ async function vxPendingPreview() {
   }
   if (btn) { btn.innerHTML = '<i class="ph-bold ph-spinner" style="margin-right:5px;animation:spin 1s linear infinite;" aria-hidden="true"></i>Lädt…'; }
   try {
+    var accessToken = await vxGetCustomerAccessToken();
     var res = await fetch('/.netlify/functions/preview-voice', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ((typeof getSupabaseAuthClient === 'function' && getSupabaseAuthClient().auth && (await getSupabaseAuthClient().auth.getSession()).data.session) ? (await getSupabaseAuthClient().auth.getSession()).data.session.access_token : '') },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken
+      },
       body: JSON.stringify({ voice_id: voiceId, text: greeting })
     });
     if (!res.ok) throw new Error('preview_failed');
@@ -16845,18 +16871,9 @@ async function submitAssistentChange() {
       });
     if (error) throw error;
 
-    // Trigger Make notification webhook
-    const NOTIFY_URL = '/.netlify/functions/ai-change-notify';
+    // Admin notification is authenticated and tenant-bound server-side.
     try {
-      await fetch(NOTIFY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customer_id: customerMeta.customerId,
-          customer_name: customerMeta.customerName || '',
-          message: msg
-        })
-      });
+      await callDashboardFunction('ai-change-notify', { message: msg });
     } catch(e) { /* notification failure is non-critical */ }
 
     document.getElementById('assistent-change-msg').value = '';
