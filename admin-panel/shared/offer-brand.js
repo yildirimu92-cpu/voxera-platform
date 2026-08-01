@@ -39,7 +39,8 @@
     '/shared/admin-runtime-v3-regression-fix.js?v=20260801-1',
     '/shared/admin-runtime-plan-input-cleanup.js?v=20260801-1',
     '/shared/admin-runtime-plan-input-render-fix.js?v=20260801-1',
-    '/shared/admin-runtime-plan-placeholder-visibility.js?v=20260801-1'
+    '/shared/admin-runtime-plan-placeholder-visibility.js?v=20260801-1',
+    '/shared/admin-runtime-billing-actions-v2.js?v=20260801-2'
   ].forEach((src, index) => {
     const id = `voxera-admin-runtime-${index}`;
     if (document.getElementById(id)) return;
