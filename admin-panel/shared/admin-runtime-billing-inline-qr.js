@@ -99,32 +99,9 @@
   }
 
   function mountInlineActions() {
-    if (!onBilling()) return;
-    const all = invoices();
-    if (!all.length) return;
-
-    const rows = Array.from(document.querySelectorAll('tr, .table-row, [role="row"]'));
-    rows.forEach(row => {
-      const text = String(row.textContent || '');
-      const match = text.match(/VX-\d{4}-\d{6}/);
-      if (!match) return;
-      const invoice = invoiceByNumber(match[0]);
-      if (!invoice) return;
-      const cell = actionCellForRow(row);
-      if (!cell) return;
-
-      const desiredState = `${invoice.pdf_url ? 'pdf' : 'missing'}:${invoice.pdf_url || ''}:${invoice.pdf_version || 0}:${busy.has(String(invoice.id))}`;
-      const existing = cell.querySelector('.vx-inline-qr-actions');
-      if (existing && existing.dataset.vxState === desiredState) return;
-      if (existing) existing.remove();
-
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = actionsHtml(invoice);
-      const controls = wrapper.firstElementChild;
-      if (!controls) return;
-      controls.dataset.vxState = desiredState;
-      cell.appendChild(controls);
-    });
+    // The invoice table intentionally exposes only the four business actions.
+    // QR/PDF controls live in the invoice detail modal.
+    document.querySelectorAll('.vx-inline-qr-actions').forEach(node => node.remove());
   }
 
   async function generate(invoiceId, button, mode) {
@@ -140,6 +117,10 @@
       const result = await w.callAdminFunction('admin-invoice-qr-pdf', { invoice_id: invoiceId });
       if (!result?.success || !result?.invoice) throw new Error(result?.error || 'QR-Rechnung konnte nicht erstellt werden.');
       mergeInvoiceIntoState(result.invoice);
+      const detailModal = document.getElementById('invoice-detail-modal');
+      if (detailModal?.classList.contains('open') && typeof w.openInvoiceOperational === 'function') {
+        w.openInvoiceOperational(invoiceId, result.invoice.customer_id || result.invoice.customerId || '');
+      }
 
       if (typeof w.showToast === 'function') {
         w.showToast(regenerating ? 'QR-Rechnung wurde neu generiert.' : 'QR-Rechnung wurde erstellt.');
