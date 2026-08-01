@@ -6317,8 +6317,11 @@ function renderOnboarding(){
 
 function getOnboardingStepAction(step, customerId){
   switch(step){
-    case 'Voxera number assigned':
-      return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" onclick="event.stopPropagation();closeCustomerProfile&&closeCustomerProfile();openEditCustomerModal('${customerId}')">Nummer eintragen</button>`;
+    case 'Voxera number assigned': {
+      const assigned=Boolean(customerById(customerId)?.voxera_number);
+      const label=assigned?'Nummer ansehen / ändern':'Nummer eintragen';
+      return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" type="button" onclick="event.stopPropagation();if(typeof openTwilioNumberAssignment==='function')openTwilioNumberAssignment('${jsStr(customerId)}')">${label}</button>`;
+    }
     case 'AI basics configured':
       return `<button class="btn btn-quiet btn-sm" style="margin-left:auto;" onclick="openCustomerAiSetup('${customerId}',event)">AI konfigurieren</button>`;
     case 'agent configured':
@@ -6492,7 +6495,7 @@ function openOnboardingDetail(customerId,options={}){
     const missingSet=new Set(q.missingSteps||[]);
     checklistEl.innerHTML=`<div class="onboarding-checklist-wrap"><div class="onboarding-checklist-title">Technische Details / interne Setup-Checks</div>${state.checklist.map(step=>{
       const isDone=!missingSet.has(step);
-      const action=isDone?'':getOnboardingStepAction(step,customerId);
+      const action=(!isDone||step==='Voxera number assigned')?getOnboardingStepAction(step,customerId):'';
       return `<div class="onboarding-checklist-item">
         <span aria-hidden="true" style="font-size:15px;line-height:1;color:${isDone?'#059669':'#9CA3AF'};">${isDone?'✔':'○'}</span>
         <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(checklistDisplayLabel(step))}</span>
@@ -6546,7 +6549,7 @@ function renderOnboardingDetail(){
   document.getElementById('onboarding-checklist').innerHTML=state.checklist.map(step=>{
     const done=!missingSet2.has(step);
     const blocking=ONBOARDING_BLOCKER_STEPS.includes(step)&&!done;
-    const action=done?'':getOnboardingStepAction(step,id);
+    const action=(!done||step==='Voxera number assigned')?getOnboardingStepAction(step,id):'';
     return `<div class="detail-item"><span class="detail-k">${esc(checklistDisplayLabel(step))} ${blocking?'<span class="chip" style="margin-left:6px;">Blocking</span>':''}</span><span class="detail-v"><button class="btn ${done?'btn-quiet':'btn-secondary'} btn-sm" onclick="toggleOnboardingStep('${jsStr(q.customer.id)}','${step.replace(/'/g,"\\'")}')">${done?'Erledigt':'Markieren'}</button></span></div>`;
   }).join('');
   document.getElementById('onboarding-next-action').textContent=checklistDisplayLabel(q.nextStep);
@@ -11819,7 +11822,7 @@ function openCustomerProfile(id){
       const isDone=!missingSetProfile.has(step);
       const svgDone='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const svgOpen='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="#9CA3AF" stroke-width="1"/></svg>';
-      const stepAction=isDone?'':getOnboardingStepAction(step,id);
+      const stepAction=(!isDone||step==='Voxera number assigned')?getOnboardingStepAction(step,id):'';
       return `<div class="list-item" style="opacity:${isDone?1:0.7};">
         <span style="margin-right:8px;">${isDone?svgDone:svgOpen}</span>
         <div><div class="list-main" style="text-decoration:${isDone?'line-through':'none'}">${esc(checklistDisplayLabel(step))}</div></div>
