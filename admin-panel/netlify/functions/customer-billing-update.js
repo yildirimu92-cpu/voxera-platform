@@ -202,38 +202,12 @@ exports.handler = async (event) => {
   }
 
   if (action === 'record_invoice_reminder') {
-    const invoiceId = String(body.invoice_id || '').trim();
-    if (!invoiceId) return response(400, { error: 'invoice_id fehlt' });
-    const reminderLevel = Math.max(1, Math.min(3, Number(body.reminder_level || 1) || 1));
-
-    const { data: invoice, error: invoiceLookupError } = await sbAdmin
-      .from('invoices')
-      .select('*')
-      .eq('id', invoiceId)
-      .maybeSingle();
-    if (invoiceLookupError) return response(500, { error: 'Invoice lookup failed', details: invoiceLookupError.message });
-    if (!invoice) return response(404, { error: 'Rechnung nicht gefunden.' });
-    if (String(invoice.customer_id) !== customerId) return response(409, { error: 'Rechnung gehört nicht zu diesem Kunden.' });
-
-    const notePrefix = `[REMINDER L${reminderLevel} ${nowIso}]`;
-    const userNote = String(body.notes || '').trim();
-    const mergedNotes = [notePrefix, userNote].filter(Boolean).join(' · ');
-    const MAX_NOTES = 8000;
-    const combinedNotes = [String(invoice.notes || '').trim(), mergedNotes].filter(Boolean).join('\n');
-    const patch = {
-      notes: combinedNotes.length > MAX_NOTES
-        ? combinedNotes.slice(0, MAX_NOTES - 3) + '...'
-        : combinedNotes,
-      updated_at: nowIso
-    };
-    const { data: updatedInvoice, error: updateErr } = await sbAdmin
-      .from('invoices')
-      .update(patch)
-      .eq('id', invoiceId)
-      .select('*')
-      .single();
-    if (updateErr) return response(500, { error: 'Reminder konnte nicht gespeichert werden.', details: updateErr.message });
-    return response(200, { success: true, action, invoice: updatedInvoice });
+    return response(409, {
+      error: 'Mahnungen müssen über den zentralen Rechnungsversand ausgelöst werden.',
+      step_failed: 'canonical_dunning_dispatch_required',
+      action,
+      required_function: 'invoice-mail-dispatch'
+    });
   }
 
   if (action === 'create_manual_setup_invoice') {
@@ -403,7 +377,7 @@ exports.handler = async (event) => {
     if (!invoice) return response(404, { error: 'Rechnung nicht gefunden.' });
     if (String(invoice.customer_id || '') !== customerId) return response(409, { error: 'Rechnung gehört nicht zu diesem Kunden.' });
     if (invoiceIsCancelledLike(invoice)) return response(200, { success: true, action, invoice, already_cancelled: true });
-    const patch = { status: 'cancelled', updated_at: new Date().toISOString() };
+    const patch = { status: 'cancelled', dunning_status: 'closed_cancelled', dunning_updated_at: new Date().toISOString(), updated_at: new Date().toISOString() };
     const { data: cancelled, error: cancelError } = await sbAdmin.from('invoices').update(patch).eq('id', invoiceId).select('*').single();
     if (cancelError) return response(500, { error: 'Invoice cancel failed', details: cancelError.message });
     return response(200, { success: true, action, invoice: cancelled });
