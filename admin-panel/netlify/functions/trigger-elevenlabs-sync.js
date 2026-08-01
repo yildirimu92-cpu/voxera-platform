@@ -3,7 +3,7 @@
 // Vermeidet CORS Problem zwischen admin.voxera.ch und dashboard.voxera.ch
 
 const { createClient } = require('@supabase/supabase-js');
-const { requireAdminCaller } = require('./_lib/require-admin');
+const { requirePromptSyncCaller } = require('./_lib/require-prompt-sync-caller');
 const { buildPromptV2 } = require('./_lib/prompt-builder-v2');
 
 const ELEVENLABS_API_KEY   = process.env.ELEVENLABS_API_KEY;
@@ -36,12 +36,12 @@ exports.handler = async (event) => {
     auth: { autoRefreshToken: false, persistSession: false }
   });
 
-  const guard = await requireAdminCaller({
+  const guard = await requirePromptSyncCaller({
     event,
     supabaseUrl: SUPABASE_URL,
     supabaseAnonKey: SUPABASE_ANON_KEY,
     sbAdmin: sb,
-    requiredCapability: 'customer:write'
+    requestedCustomerId: customer_id
   });
   if (!guard.ok) {
     return { statusCode: guard.statusCode, body: JSON.stringify(guard.body) };
@@ -73,11 +73,25 @@ exports.handler = async (event) => {
     if (voiceRow?.gender === 'male') assistantRole = 'der Assistent';
   }
 
+  const nowIso = new Date().toISOString();
+  const { data: operationalUpdates, error: operationalError } = await sb
+    .from('customer_operational_updates')
+    .select('id,type,title,message,behavior,starts_at,ends_at,status')
+    .eq('customer_id', customer_id)
+    .eq('status', 'published')
+    .gt('ends_at', nowIso)
+    .order('starts_at', { ascending: true })
+    .limit(20);
+  if (operationalError) {
+    return { statusCode: 500, body: JSON.stringify({ error: 'Operational updates could not be loaded', error_code: 'operational_updates_lookup_failed' }) };
+  }
+
   const compiled = buildPromptV2({
     customer,
     masterPrompt: l1Row?.value || '',
     industryPrompt,
-    assistantRole
+    assistantRole,
+    operationalUpdates: operationalUpdates || []
   });
   const fullPrompt = compiled.prompt;
   const autoGreeting = compiled.firstMessage;
