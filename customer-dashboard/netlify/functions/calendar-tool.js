@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { safeEqual } = require('./_lib/calendar-crypto');
+const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
@@ -119,6 +120,9 @@ exports.handler = async (event) => {
 
   try {
     const customerId = await resolveCustomer(sb, body);
+    if (!calendarEnabledForCustomer(customerId)) {
+      return reply(403, { ok: false, error: 'calendar_customer_not_enabled' });
+    }
     if (requestId) {
       const { data: previous } = await sb.from('calendar_booking_audit')
         .select('status,details')
