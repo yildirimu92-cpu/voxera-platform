@@ -53,6 +53,13 @@ function validateWindow(startIso, endIso, settings) {
   if (start > Date.now() + horizon) throw new Error('calendar_booking_horizon_exceeded');
 }
 
+function bufferedWindow(startIso, endIso, settings) {
+  return {
+    start: new Date(new Date(startIso).getTime() - Number(settings.buffer_before_minutes || 0) * 60000).toISOString(),
+    end: new Date(new Date(endIso).getTime() + Number(settings.buffer_after_minutes || 0) * 60000).toISOString()
+  };
+}
+
 function eventInput(body, settings) {
   const start = iso(body.start, 'start');
   const end = iso(body.end, 'end');
@@ -104,18 +111,24 @@ exports.handler = async (event) => {
   const action = String(body.action || '').trim().toLowerCase();
   const allowedActions = ['availability', 'book', 'reschedule', 'cancel'];
   if (!allowedActions.includes(action)) return reply(400, { ok: false, error: 'calendar_action_unsupported' });
-  const requestId = String(body.request_id || '').trim() || null;
+  const requestId = String(body.request_id || '').trim().slice(0, 200) || null;
+  if (['book', 'reschedule', 'cancel'].includes(action) && !requestId) {
+    return reply(400, { ok: false, error: 'calendar_request_id_required' });
+  }
   let claimedAuditId = null;
 
   try {
+    const customerId = await resolveCustomer(sb, body);
     if (requestId) {
-      const { data: previous } = await sb.from('calendar_booking_audit').select('status,details').eq('request_id', requestId).maybeSingle();
+      const { data: previous } = await sb.from('calendar_booking_audit')
+        .select('status,details')
+        .eq('customer_id', customerId)
+        .eq('request_id', requestId)
+        .maybeSingle();
       if (previous?.status === 'success' && previous.details?.response) return reply(200, previous.details.response);
       if (previous?.status === 'processing') return reply(409, { ok: false, error: 'calendar_request_in_progress' });
       if (previous?.status === 'failed') return reply(409, { ok: false, error: 'calendar_request_id_already_failed' });
     }
-
-    const customerId = await resolveCustomer(sb, body);
     const { data: settings, error: settingsError } = await sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle();
     if (settingsError) throw settingsError;
     if (!settings?.feature_enabled || !settings.active_provider) return reply(409, { ok: false, error: 'calendar_not_enabled_for_customer' });
@@ -152,7 +165,11 @@ exports.handler = async (event) => {
         details: { claimed_at: new Date().toISOString() }
       }).select('id').maybeSingle();
       if (claimError?.code === '23505') {
-        const { data: existing } = await sb.from('calendar_booking_audit').select('status,details').eq('request_id', requestId).maybeSingle();
+        const { data: existing } = await sb.from('calendar_booking_audit')
+          .select('status,details')
+          .eq('customer_id', customerId)
+          .eq('request_id', requestId)
+          .maybeSingle();
         if (existing?.status === 'success' && existing.details?.response) return reply(200, existing.details.response);
         return reply(409, { ok: false, error: existing?.status === 'processing' ? 'calendar_request_in_progress' : 'calendar_request_id_already_used' });
       }
@@ -167,13 +184,13 @@ exports.handler = async (event) => {
 
     if (action === 'availability') {
       validateWindow(startIso, endIso, settings);
-      const bufferedStart = new Date(new Date(startIso).getTime() - Number(settings.buffer_before_minutes || 0) * 60000).toISOString();
-      const bufferedEnd = new Date(new Date(endIso).getTime() + Number(settings.buffer_after_minutes || 0) * 60000).toISOString();
-      const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, bufferedStart, bufferedEnd);
+      const window = bufferedWindow(startIso, endIso, settings);
+      const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
       responsePayload = { ok: true, action, available: result.available, requested_start: startIso, requested_end: endIso, busy: result.busy };
     } else if (action === 'book') {
       const input = eventInput(body, settings);
-      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, input.start, input.end);
+      const window = bufferedWindow(input.start, input.end, settings);
+      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
       if (!availability.available) {
         const conflict = new Error('calendar_slot_unavailable');
         conflict.status = 409;
@@ -189,7 +206,8 @@ exports.handler = async (event) => {
       };
     } else if (action === 'reschedule') {
       const input = eventInput(body, settings);
-      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, input.start, input.end, externalEventId);
+      const window = bufferedWindow(input.start, input.end, settings);
+      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end, externalEventId);
       if (!availability.available) {
         const conflict = new Error('calendar_slot_unavailable');
         conflict.status = 409;
@@ -248,4 +266,4 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { verifyToolAuth, verifyHmac, validateWindow };
+exports._test = { verifyToolAuth, verifyHmac, validateWindow, bufferedWindow };
