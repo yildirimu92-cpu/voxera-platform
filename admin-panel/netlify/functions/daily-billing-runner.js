@@ -47,6 +47,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { runRecurringBillingSweep, createSetupFeeInvoice } = require('./_lib/invoice-service');
 const { normalizePlanCode, loadPlanByCode } = require('./_lib/plan-config');
+const { evaluateInvoiceDunning } = require('./_lib/invoice-dunning');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -486,27 +487,18 @@ async function runSetupFeeSweep({ sbAdmin, now }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Finds open/overdue invoices that require a manually approved reminder.
- * - Reminder 1: due_at + 7 days
- * - Reminder 2: due_at + 14 days
+ * Finds invoices whose next canonical dunning step requires manual approval.
  *
- * Detection is read-only: no note is written and no customer mail is sent.
- * Existing reminder notes are respected so the Admin Portal can avoid duplicates.
+ * Detection is read-only: no state is changed and no customer mail is sent.
+ * Eligibility is shared with the manual mail endpoints.
  */
 async function runDunningSweep({ sbAdmin, now }) {
-  const reminder1Threshold = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7)
-  ).toISOString().slice(0, 10);
-  const reminder2Threshold = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 14)
-  ).toISOString().slice(0, 10);
-
   const { data: invoices, error } = await sbAdmin
     .from('invoices')
     .select('*')
-    .eq('status', 'open')
-    .lte('due_at', reminder1Threshold + 'T23:59:59.999Z')
-    .limit(200);
+    .in('status', ['open', 'sent', 'overdue'])
+    .not('due_at', 'is', null)
+    .limit(500);
 
   if (error) {
     return {
@@ -523,45 +515,33 @@ async function runDunningSweep({ sbAdmin, now }) {
   const due = { reminder1: [], reminder2: [] };
 
   for (const invoice of (invoices || [])) {
-    const notes = String(invoice.notes || '');
-    const dueDateStr = invoice.due_at ? String(invoice.due_at).slice(0, 10) : null;
-    if (!dueDateStr) {
-      results.push({ invoice_id: invoice.id, skipped: 'no_due_date' });
-      continue;
-    }
-
-    const hasReminder2 = notes.includes('[REMINDER L2') || notes.includes('[REMINDER_FINAL');
-    const hasReminder1 = notes.includes('[REMINDER L1') || notes.includes('[REMINDER L2');
-
-    if (dueDateStr <= reminder2Threshold && !hasReminder2) {
-      due.reminder2.push(invoice.id);
-      results.push({
-        invoice_id: invoice.id,
-        customer_id: invoice.customer_id,
-        action: 'manual_reminder_required',
-        reminder_level: 2
-      });
-      continue;
-    }
-
-    if (dueDateStr <= reminder1Threshold && !hasReminder1) {
+    const dunning = evaluateInvoiceDunning(invoice, { now });
+    if (dunning.can_remind && dunning.eligible_level === 1) {
       due.reminder1.push(invoice.id);
       results.push({
         invoice_id: invoice.id,
         customer_id: invoice.customer_id,
         action: 'manual_reminder_required',
-        reminder_level: 1
+        reminder_level: 1,
+        dunning
       });
       continue;
     }
-
+    if (dunning.can_remind && dunning.eligible_level === 2) {
+      due.reminder2.push(invoice.id);
+      results.push({
+        invoice_id: invoice.id,
+        customer_id: invoice.customer_id,
+        action: 'manual_reminder_required',
+        reminder_level: 2,
+        dunning
+      });
+      continue;
+    }
     results.push({
       invoice_id: invoice.id,
-      skipped: hasReminder2
-        ? 'final_already_sent'
-        : hasReminder1
-          ? 'reminder1_already_sent'
-          : 'not_yet_due_for_reminder'
+      skipped: dunning.reason_code,
+      dunning
     });
   }
 
