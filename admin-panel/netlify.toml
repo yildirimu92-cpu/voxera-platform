@@ -8,6 +8,9 @@
 [functions."daily-billing-runner"]
   schedule = "0 6 * * *"
 
+[functions."lifecycle-runner"]
+  schedule = "15 4 * * *"
+
 [[headers]]
   for = "/*"
   [headers.values]
