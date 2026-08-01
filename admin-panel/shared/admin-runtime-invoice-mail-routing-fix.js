@@ -23,12 +23,16 @@
       const type = normalizeType(body);
       const name = String(functionName || '').trim().toLowerCase();
       const hasInvoiceContext = Boolean(body.invoice_id || body.invoice?.id || body.customer_id || body.subscription_id);
-      const isSupportedMail = TYPES.has(String(body.mail_type || body.event_type || body.original_mail_type || '').trim().toLowerCase()) ||
-        ['invoice_email','reminder_email','reminder_final_email'].includes(type);
+      const rawType = String(body.mail_type || body.event_type || body.original_mail_type || '').trim().toLowerCase();
+      const isSupportedMail = TYPES.has(rawType) || ['invoice_email','reminder_email','reminder_final_email'].includes(type);
+      const isDryRun = body.dry_run === true || body.preview === true || body.validate_only === true;
+      const isPreviewFunction = PREVIEW_NAMES.has(name) || (name.includes('preview') && (name.includes('mail') || name.includes('email')));
+      const isDispatchFunction = name === 'mail-dispatch' || name === 'invoice-mail-dispatch';
 
-      if (hasInvoiceContext && isSupportedMail && (PREVIEW_NAMES.has(name) || (name.includes('preview') && (name.includes('mail') || name.includes('email'))))) {
+      if (hasInvoiceContext && isSupportedMail && (isPreviewFunction || (isDispatchFunction && isDryRun))) {
         return original('invoice-mail-preview', {
           ...body,
+          dry_run: true,
           invoice_id: body.invoice_id || body.invoice?.id,
           original_mail_type: body.original_mail_type || body.mail_type || body.event_type || type,
           mail_type: type,
@@ -36,9 +40,10 @@
         }, ...rest);
       }
 
-      if (hasInvoiceContext && isSupportedMail && (name === 'mail-dispatch' || name === 'invoice-mail-dispatch')) {
+      if (hasInvoiceContext && isSupportedMail && isDispatchFunction) {
         return original('invoice-mail-dispatch', {
           ...body,
+          dry_run: false,
           invoice_id: body.invoice_id || body.invoice?.id,
           original_mail_type: body.original_mail_type || body.mail_type || body.event_type || type,
           mail_type: type,

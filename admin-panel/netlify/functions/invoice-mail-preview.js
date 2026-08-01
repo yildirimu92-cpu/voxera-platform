@@ -104,6 +104,7 @@ exports.handler = async event => {
   };
   return respond(200, {
     success:true,
+    dry_run:true,
     valid:true,
     eligible:true,
     can_send:true,
