@@ -11,11 +11,13 @@ const files = {
   loader: 'customer-dashboard/shared/offer-brand.js',
   prompt: 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js',
   trigger: 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
-  guard: 'admin-panel/netlify/functions/_lib/require-prompt-sync-caller.js'
+  guard: 'admin-panel/netlify/functions/_lib/require-prompt-sync-caller.js',
+  assistant: 'customer-dashboard/netlify/functions/customer-update-assistant.js',
+  proxy: 'customer-dashboard/netlify/functions/elevenlabs-sync-prompt.js'
 };
 const source = Object.fromEntries(Object.entries(files).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')]));
 const failures = [];
-for (const key of ['api','runtime','loader','prompt','trigger','guard']) {
+for (const key of ['api','runtime','loader','prompt','trigger','guard','assistant','proxy']) {
   try { new vm.Script(source[key], { filename: files[key] }); }
   catch (error) { failures.push(error.message); }
 }
@@ -29,6 +31,9 @@ for (const token of ['Aktuelle Betriebsinfos','Ferien / geschlossen','Geänderte
   if (!source.runtime.includes(token)) failures.push('Operational UI missing: ' + token);
 }
 if (!source.loader.includes('/shared/customer-runtime-operational-updates.js')) failures.push('Runtime loader missing');
+for (const key of ['api','assistant','proxy']) {
+  if (!source[key].includes('Authorization')) failures.push('Customer authorization forwarding missing in ' + files[key]);
+}
 for (const token of ['requirePromptSyncCaller','operationalUpdates','customer_operational_updates']) {
   if (!source.trigger.includes(token)) failures.push('Prompt sync missing: ' + token);
 }
