@@ -81,40 +81,49 @@
   function renderAssignment(data) {
     hydrateData(data, {});
     return `
-      <div style="padding:12px 14px;margin-bottom:14px;border:1px solid #BFDBFE;background:var(--blue-soft,#EEF5FF);border-radius:10px;font-size:12px;line-height:1.55;color:var(--ink)">
-        Wähle alle Funktionen, die dieser Kunde benötigt. Der Agent kombiniert sie abhängig vom Anliegen des Anrufers. Formuliere betriebliche Regeln – keine technischen Prompt-Befehle.
+      <div class="wizard-intro-card">
+        Wähle alle Funktionen, die der Assistent für diesen Kunden kombinieren darf. Die Website-Analyse liefert Vorschläge; verbindlich ist die Auswahl in diesem Schritt.
       </div>
-      <div class="wizard-field"><label>Funktionen des Agenten <span style="font-weight:500;color:var(--slate2)">(Mehrfachauswahl)</span></label><div class="wizard-radio-group">
-        ${checkbox('information',data._promptFunctions,'Information & FAQ','Fragen anhand der hinterlegten Unternehmensdaten beantworten.')}
-        ${checkbox('consulting',data._promptFunctions,'Beratung','Bedarf verstehen und passende dokumentierte Leistungen erklären.')}
-        ${checkbox('lead',data._promptFunctions,'Lead qualifizieren','Interesse, Bedarf und Voraussetzungen für die Beratung klären.')}
-        ${checkbox('appointment',data._promptFunctions,'Termine','Terminanfrage aufnehmen oder mit angebundenem Kalender buchen.')}
-        ${checkbox('quote',data._promptFunctions,'Offertenanfrage','Anforderungen für ein Angebot strukturiert erfassen.')}
-        ${checkbox('callback',data._promptFunctions,'Rückruf aufnehmen','Eine vollständige und priorisierte Rückrufanfrage erfassen.')}
-        ${checkbox('support',data._promptFunctions,'Support-Triage','Supportanliegen aufnehmen, priorisieren und weiterleiten.')}
-        ${checkbox('transfer',data._promptFunctions,'Weiterleiten','Gemäss konfigurierten Regeln an die richtige Person übergeben.')}
-      </div></div>
-      <div class="wizard-field"><label>Spezifische Regeln für die gewählten Funktionen</label>
-        <textarea class="textarea" id="wz-prompt-function-instructions" style="min-height:110px" placeholder="Beispiel:\nBeratung: Starter für kleine Teams, Business bei mehreren Sprachen erklären.\nLead: Branche, Teamgrösse und Anrufvolumen erfragen.\nOfferte: Keine Preise zusagen; Beratungstermin anbieten.">${esc(data._promptFunctionInstructions)}</textarea>
-        <div class="wizard-hint">Hier kann jeder Kunde bestimmen, wie die gewählten Funktionen konkret ausgeführt werden.</div>
-      </div>
-      <div class="wizard-field"><label>Welche Angaben müssen erfasst werden?</label>
-        <textarea class="textarea" id="wz-prompt-required" style="min-height:105px" placeholder="Eine Angabe pro Zeile">${esc(data._promptRequiredInformation)}</textarea>
-        <div class="wizard-hint">Nur Informationen eintragen, die für den nächsten Prozessschritt wirklich benötigt werden.</div>
-      </div>
-      <div class="wizard-field"><label>Wann gilt das Gespräch als erfolgreich?</label>
-        <textarea class="textarea" id="wz-prompt-success" style="min-height:88px">${esc(data._promptSuccessDefinition)}</textarea>
-      </div>
-      <div class="wizard-field"><label>Terminbefugnis</label><div class="wizard-radio-group">
-        ${radio('wz-prompt-appointment','none',data._promptAppointmentMode,'Keine Termine','Nur informieren oder Rückruf anbieten.')}
-        ${radio('wz-prompt-appointment','request',data._promptAppointmentMode,'Terminanfrage aufnehmen','Keine Zusage; Bestätigung erfolgt durch das Unternehmen.')}
-        ${radio('wz-prompt-appointment','direct',data._promptAppointmentMode,'Direkt buchen','Nur mit erfolgreicher Bestätigung des angebundenen Kalenders.')}
-      </div></div>
-      <div class="wizard-field"><label>Wenn eine Information fehlt</label><div class="wizard-radio-group">
-        ${radio('wz-prompt-unknown','transparent',data._promptUnknownHandling,'Transparent bleiben','Offen sagen, dass die Information nicht vorliegt.')}
-        ${radio('wz-prompt-unknown','callback',data._promptUnknownHandling,'Rückruf aufnehmen','Kontaktdaten und Anliegen vollständig erfassen.')}
-        ${radio('wz-prompt-unknown','human',data._promptUnknownHandling,'An Menschen übergeben','Weiterleiten, sonst Rückruf aufnehmen.')}
-      </div></div>`;
+      <section class="wizard-section-card">
+        <div class="wizard-section-heading"><span>1</span><div><strong>Funktionen auswählen</strong><small>Mehrfachauswahl möglich</small></div></div>
+        <div class="wizard-choice-grid">
+          ${checkbox('information',data._promptFunctions,'Information & FAQ','Dokumentierte Fragen beantworten.')}
+          ${checkbox('consulting',data._promptFunctions,'Beratung','Bedarf verstehen und Leistungen erklären.')}
+          ${checkbox('lead',data._promptFunctions,'Lead qualifizieren','Interesse und Voraussetzungen klären.')}
+          ${checkbox('appointment',data._promptFunctions,'Termine','Anfragen aufnehmen oder bestätigt buchen.')}
+          ${checkbox('quote',data._promptFunctions,'Offertenanfrage','Anforderungen strukturiert erfassen.')}
+          ${checkbox('callback',data._promptFunctions,'Rückruf','Kontaktdaten und Anliegen aufnehmen.')}
+          ${checkbox('support',data._promptFunctions,'Support-Triage','Anliegen priorisieren und weiterleiten.')}
+          ${checkbox('transfer',data._promptFunctions,'Weiterleiten','Gemäss Regeln an Menschen übergeben.')}
+        </div>
+        <div class="wizard-field wizard-field-spaced"><label>Spezifische Regeln für diese Funktionen</label>
+          <textarea class="textarea" id="wz-prompt-function-instructions" style="min-height:100px" placeholder="Beispiel:\nBeratung: Plan anhand von Teamgrösse und Sprachen erklären.\nOfferte: Keine Preise zusagen; Beratungstermin anbieten.">${esc(data._promptFunctionInstructions)}</textarea>
+        </div>
+      </section>
+      <section class="wizard-section-card">
+        <div class="wizard-section-heading"><span>2</span><div><strong>Ziel und Pflichtangaben</strong><small>Was der Agent erfassen und erreichen soll</small></div></div>
+        <div class="wizard-field"><label>Welche Angaben müssen erfasst werden?</label>
+          <textarea class="textarea" id="wz-prompt-required" style="min-height:92px" placeholder="Eine Angabe pro Zeile">${esc(data._promptRequiredInformation)}</textarea>
+        </div>
+        <div class="wizard-field"><label>Wann gilt das Gespräch als erfolgreich?</label>
+          <textarea class="textarea" id="wz-prompt-success" style="min-height:78px">${esc(data._promptSuccessDefinition)}</textarea>
+        </div>
+      </section>
+      <section class="wizard-section-card">
+        <div class="wizard-section-heading"><span>3</span><div><strong>Befugnisse festlegen</strong><small>Keine stillschweigenden Zusagen</small></div></div>
+        <div class="wizard-decision-grid">
+          <div class="wizard-decision-block"><label class="wizard-decision-label">Terminbefugnis</label><div class="wizard-radio-group">
+            ${radio('wz-prompt-appointment','none',data._promptAppointmentMode,'Keine Termine','Nur informieren oder Rückruf anbieten.')}
+            ${radio('wz-prompt-appointment','request',data._promptAppointmentMode,'Anfrage aufnehmen','Bestätigung durch das Unternehmen.')}
+            ${radio('wz-prompt-appointment','direct',data._promptAppointmentMode,'Direkt buchen','Nur nach erfolgreicher Kalenderbestätigung.')}
+          </div></div>
+          <div class="wizard-decision-block"><label class="wizard-decision-label">Wenn eine Information fehlt</label><div class="wizard-radio-group">
+            ${radio('wz-prompt-unknown','transparent',data._promptUnknownHandling,'Transparent bleiben','Offen sagen, dass die Information fehlt.')}
+            ${radio('wz-prompt-unknown','callback',data._promptUnknownHandling,'Rückruf aufnehmen','Kontaktdaten und Anliegen erfassen.')}
+            ${radio('wz-prompt-unknown','human',data._promptUnknownHandling,'An Menschen übergeben','Weiterleiten, sonst Rückruf aufnehmen.')}
+          </div></div>
+        </div>
+      </section>`;
   }
 
   function collectAssignment(data) {
@@ -157,18 +166,120 @@
       </div>`;
   }
 
+  function renderFinalReview(data) {
+    const checks = preflight(data);
+    const failed = checks.filter(item => !item[1]);
+    const score = Math.round(((checks.length - failed.length) / checks.length) * 100);
+    const functionLabels = {
+      information:'Information & FAQ', consulting:'Beratung', lead:'Lead qualifizieren',
+      appointment:'Termine', quote:'Offertenanfrage', callback:'Rückruf',
+      support:'Support-Triage', transfer:'Weiterleiten'
+    };
+    const languageLabels = { de:'Deutsch', fr:'Französisch', it:'Italienisch', en:'Englisch' };
+    const toneLabels = { formal:'Formal', professional:'Professionell', casual:'Locker' };
+    const appointmentLabels = { none:'Keine Termine', request:'Terminanfrage', direct:'Direktbuchung mit Kalenderbestätigung' };
+    const unknownLabels = { transparent:'Transparent bleiben', callback:'Rückruf aufnehmen', human:'An Menschen übergeben' };
+    const functions = (Array.isArray(data._promptFunctions) ? data._promptFunctions : []).map(item => functionLabels[item] || item);
+    const defaults = typeof getTemplateDefaults === 'function' ? (getTemplateDefaults(data.templateId || 'generic') || {}) : {};
+    const voices = Array.isArray(data._availableVoices) ? data._availableVoices : [];
+    const voice = voices.find(item => String(item.voice_id || '') === String(data.voiceId || ''));
+    const customerId = typeof state !== 'undefined' ? state.aiWizard?.customerId : '';
+    const customer = customerId && typeof customerById === 'function' ? customerById(customerId) : null;
+    const syncMessage = customer?.elevenlabs_agent_id
+      ? 'Die Konfiguration wird gespeichert und mit dem bestehenden ElevenLabs-Agent synchronisiert.'
+      : 'Die Konfiguration wird gespeichert, der ElevenLabs-Agent erstellt und danach automatisch synchronisiert.';
+
+    return `
+      <div class="wizard-quality-hero ${failed.length ? 'warning' : 'ready'}">
+        <div><span>Konfigurationsqualität</span><strong>${score}%</strong></div>
+        <p>${failed.length ? failed.length + ' Pflichtbereich' + (failed.length === 1 ? '' : 'e') + ' benötigen noch Aufmerksamkeit.' : 'Alle erforderlichen Bereiche sind vollständig konfiguriert.'}</p>
+      </div>
+      ${failed.length ? `<div class="wizard-final-blockers"><strong>Vor dem Go-live prüfen</strong>${failed.map(item => `<div><span>!</span><p><b>${esc(item[0])}</b><small>${esc(item[2])}</small></p></div>`).join('')}</div>` : ''}
+      <div class="wizard-review-grid">
+        <section class="wizard-review-card">
+          <span class="wizard-review-kicker">Assistent</span>
+          <strong>${esc(data.assistantName || 'Lara')}</strong>
+          <p>${esc(languageLabels[data.language] || data.language || 'Deutsch')} · ${esc(toneLabels[data.tone] || data.tone || 'Professionell')} · ${esc(voice?.display_name || 'Standardstimme')}</p>
+        </section>
+        <section class="wizard-review-card">
+          <span class="wizard-review-kicker">Unternehmen</span>
+          <strong>${esc(defaults.name || data.templateId || 'Allgemein')}</strong>
+          <p>${data.businessDescription ? 'Geschäftsprofil und Angebot erfasst' : 'Geschäftsprofil noch offen'}</p>
+        </section>
+        <section class="wizard-review-card wizard-review-card-wide">
+          <span class="wizard-review-kicker">Funktionen</span>
+          <div class="wizard-review-chips">${functions.map(label => `<span>${esc(label)}</span>`).join('') || '<span>Keine Funktion gewählt</span>'}</div>
+        </section>
+        <section class="wizard-review-card">
+          <span class="wizard-review-kicker">Terminbefugnis</span>
+          <strong>${esc(appointmentLabels[data._promptAppointmentMode] || 'Terminanfrage')}</strong>
+        </section>
+        <section class="wizard-review-card">
+          <span class="wizard-review-kicker">Fehlende Information</span>
+          <strong>${esc(unknownLabels[data._promptUnknownHandling] || 'Rückruf aufnehmen')}</strong>
+        </section>
+      </div>
+      <div class="wizard-sync-note"><span>↗</span><div><strong>Speichern & synchronisieren</strong><p>${esc(syncMessage)}</p></div></div>`;
+  }
+
   function installWizardSteps() {
     const original = w.getWizardSteps;
     if (typeof original !== 'function' || original.__voxPromptBuilderV2) return;
     const wrapped = function () {
-      const steps = original.apply(this, arguments);
-      if (!Array.isArray(steps) || steps.some(step => step.id === 'agent_auftrag')) return steps;
-      const assignment = { id:'agent_auftrag', title:'Auftrag & Befugnisse', sub:'Was der Agent erreichen, erfassen und verbindlich tun darf', render:renderAssignment, collect:collectAssignment };
-      const check = { id:'prompt_check', title:'Prompt-Qualitätscheck', sub:'Vollständigkeit und Entscheidungsgrenzen vor dem Speichern', render:renderPreflight, collect:persistProfileToConfig };
+      let steps = original.apply(this, arguments);
+      if (!Array.isArray(steps)) return steps;
+
       const profileIndex = steps.findIndex(step => step.id === 'profil');
-      steps.splice(profileIndex >= 0 ? profileIndex + 1 : 0, 0, assignment);
-      const summaryIndex = steps.findIndex(step => step.id === 'zusammenfassung');
-      steps.splice(summaryIndex >= 0 ? summaryIndex : steps.length, 0, check);
+      const personalityIndex = steps.findIndex(step => step.id === 'persoenlichkeit');
+      if (profileIndex >= 0 && personalityIndex > profileIndex + 1) {
+        const branchDetailSteps = steps.slice(profileIndex + 1, personalityIndex);
+        const profileStep = steps[profileIndex];
+        const profileRender = profileStep.render;
+        const profileCollect = profileStep.collect;
+        profileStep.render = data => profileRender(data) + branchDetailSteps.map(step =>
+          '<section class="wizard-section-card wizard-branch-details"><div class="wizard-section-heading"><div><strong>' +
+          esc(step.title || 'Branchenspezifische Angaben') + '</strong><small>' + esc(step.sub || '') +
+          '</small></div></div>' + step.render(data) + '</section>'
+        ).join('');
+        profileStep.collect = data => {
+          profileCollect(data);
+          branchDetailSteps.forEach(step => step.collect(data));
+        };
+        steps.splice(profileIndex + 1, branchDetailSteps.length);
+      }
+
+      steps = steps.filter(step => step.id !== 'weiterleitungen');
+      const names = {
+        website:['Website analysieren','Website auslesen und Basisinformationen übernehmen'],
+        branche:['Branche & Unternehmen','Passende Vorlage und betriebliche Einordnung'],
+        identitaet:['Assistent & Stimme','Name, Kundentyp und Stimme festlegen'],
+        profil:['Profil & Angebot','Unternehmen, Leistungen und Erreichbarkeit'],
+        persoenlichkeit:['Gesprächsstil & Begrüssung','Anrede, Tonalität, Sprache und Begrüssung'],
+        regeln:['Regeln & Grenzen','Gesprächsregeln, Eskalation und Compliance']
+      };
+      steps.forEach(step => {
+        if (!names[step.id]) return;
+        step.title = names[step.id][0];
+        step.sub = names[step.id][1];
+      });
+
+      const currentProfileIndex = steps.findIndex(step => step.id === 'profil');
+      const assignment = {
+        id:'agent_auftrag',
+        title:'Auftrag & Funktionen',
+        sub:'Funktionen, Gesprächsziel und Befugnisse festlegen',
+        render:renderAssignment,
+        collect:collectAssignment
+      };
+      steps.splice(currentProfileIndex >= 0 ? currentProfileIndex + 1 : 0, 0, assignment);
+
+      const summary = steps.find(step => step.id === 'zusammenfassung');
+      if (summary) {
+        summary.title = 'Prüfen & Agent erstellen';
+        summary.sub = 'Konfiguration prüfen, speichern und synchronisieren';
+        summary.render = renderFinalReview;
+        summary.collect = persistProfileToConfig;
+      }
       return steps;
     };
     wrapped.__voxPromptBuilderV2 = true;

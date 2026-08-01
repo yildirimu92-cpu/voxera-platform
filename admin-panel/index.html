@@ -901,7 +901,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .bf-today-empty-sub{font-size:13px;color:var(--slate2);margin-top:4px;}
 
 /* ─── AI Setup Wizard ────────────────────────────────────────── */
-.wizard-steps{display:flex;align-items:center;gap:0;margin-bottom:20px;}
+.wizard-steps{display:block;margin:0 0 18px;}
 .wizard-step-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--slate2);flex-shrink:0;transition:all .2s;}
 .wizard-step-dot.active{border-color:var(--blue);background:var(--blue);color:#fff;}
 .wizard-step-dot.done{border-color:var(--green-dark);background:var(--green-dark);color:#fff;}
@@ -924,6 +924,61 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .wizard-summary-v{font-weight:500;color:var(--ink);text-align:right;max-width:60%;}
 .wizard-nav{display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:0.5px solid var(--line);}
 .wizard-hint{font-size:11.5px;color:var(--slate2);margin-top:6px;}
+.ai-wizard-shell{max-width:640px!important;padding:0!important;overflow:hidden!important;display:flex;flex-direction:column;max-height:var(--modal-max-height);}
+.ai-wizard-header{padding:24px 24px 0;flex:0 0 auto;}
+.ai-wizard-body{padding:0 24px;overflow-y:auto;min-height:0;flex:1 1 auto;overscroll-behavior:contain;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;}
+.ai-wizard-shell .wizard-nav{margin:0;padding:16px 24px 20px;background:var(--surface);border-top:1px solid var(--line);flex:0 0 auto;box-shadow:0 -8px 22px rgba(15,31,61,.04);}
+.wizard-progress-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font-size:11px;color:var(--slate2);}
+.wizard-progress-meta strong{font-size:11px;color:var(--ink);}
+.wizard-progress-track{height:6px;border-radius:999px;background:#E7EDF6;overflow:hidden;}
+.wizard-progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--green-dark),var(--blue));transition:width .2s ease;}
+.wizard-intro-card{padding:12px 14px;margin-bottom:14px;border:1px solid #BFDBFE;background:var(--blue-soft,#EEF5FF);border-radius:12px;font-size:12px;line-height:1.55;color:var(--ink);}
+.wizard-section-card{padding:16px;margin-bottom:14px;border:1px solid var(--line);border-radius:14px;background:#fff;}
+.wizard-section-heading{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;}
+.wizard-section-heading>span{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 24px;background:var(--blue);color:#fff;font-size:11px;font-weight:800;}
+.wizard-section-heading strong{display:block;font-size:13px;color:var(--ink);}
+.wizard-section-heading small{display:block;font-size:11px;color:var(--slate2);margin-top:2px;font-weight:400;}
+.wizard-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.wizard-choice-grid .wizard-radio-opt{height:100%;padding:10px;}
+.wizard-field-spaced{margin-top:14px;}
+.wizard-decision-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.wizard-decision-block{min-width:0;}
+.wizard-decision-label{display:block;font-size:11px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
+.wizard-branch-details{background:#F8FAFD;margin-top:14px;}
+.wizard-quality-hero{padding:16px;border-radius:14px;margin-bottom:14px;border:1px solid;}
+.wizard-quality-hero.ready{background:#F0FDF4;border-color:#A7F3D0;}
+.wizard-quality-hero.warning{background:#FFFBEB;border-color:#FDE68A;}
+.wizard-quality-hero>div{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.wizard-quality-hero span{font-size:12px;font-weight:800;color:var(--ink);}
+.wizard-quality-hero strong{font-size:26px;letter-spacing:-.04em;color:var(--green-dark);}
+.wizard-quality-hero.warning strong{color:var(--amber);}
+.wizard-quality-hero p{font-size:11.5px;color:var(--slate2);margin:3px 0 0;}
+.wizard-final-blockers{padding:14px;margin-bottom:14px;border:1px solid #FDE68A;border-radius:12px;background:#FFFBEB;}
+.wizard-final-blockers>strong{font-size:12px;color:var(--amber);}
+.wizard-final-blockers>div{display:flex;gap:9px;margin-top:9px;}
+.wizard-final-blockers>div>span{color:var(--amber);font-weight:900;}
+.wizard-final-blockers p{margin:0;font-size:12px;}
+.wizard-final-blockers b,.wizard-final-blockers small{display:block;}
+.wizard-final-blockers small{color:var(--slate2);margin-top:2px;font-weight:400;}
+.wizard-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.wizard-review-card{padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;min-width:0;}
+.wizard-review-card-wide{grid-column:1/-1;}
+.wizard-review-kicker{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--slate2);margin-bottom:5px;}
+.wizard-review-card>strong{display:block;font-size:13px;color:var(--ink);}
+.wizard-review-card>p{font-size:11.5px;color:var(--slate2);margin:4px 0 0;line-height:1.45;}
+.wizard-review-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.wizard-review-chips span{padding:5px 8px;border-radius:999px;background:#EEF5FF;color:var(--blue);font-size:11px;font-weight:700;}
+.wizard-sync-note{display:flex;gap:11px;align-items:flex-start;margin-top:14px;padding:13px 14px;border-radius:12px;background:#0D1F3C;color:#fff;}
+.wizard-sync-note>span{width:24px;height:24px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;flex:0 0 24px;font-weight:800;}
+.wizard-sync-note strong{font-size:12px;}
+.wizard-sync-note p{font-size:11.5px;line-height:1.5;color:rgba(255,255,255,.72);margin:3px 0 0;}
+@media(max-width:640px){
+  .ai-wizard-header{padding:18px 16px 0;}
+  .ai-wizard-body{padding:0 16px;}
+  .ai-wizard-shell .wizard-nav{padding:14px 16px 16px;}
+  .wizard-choice-grid,.wizard-decision-grid,.wizard-review-grid{grid-template-columns:1fr;}
+  .wizard-review-card-wide{grid-column:auto;}
+}
 
 /* ─── Label ─────────────────────────────────────────────────── */
 label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);margin-bottom:5px;letter-spacing:.01em;}
@@ -3087,16 +3142,20 @@ body,.main{background:#F7F8FC;}
 
 <!-- AI SETUP WIZARD MODAL -->
 <div class="modal-overlay" id="ai-wizard-modal" style="z-index:360;" onclick="if(event.target===this)closeAiWizard()">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-top">
-      <div style="flex:1;">
-        <div class="modal-title" id="wizard-modal-title">AI Setup</div>
-        <div class="modal-sub" id="wizard-modal-sub"></div>
+  <div class="modal ai-wizard-shell">
+    <div class="ai-wizard-header">
+      <div class="modal-top">
+        <div style="flex:1;min-width:0;">
+          <div class="modal-title" id="wizard-modal-title">AI Setup</div>
+          <div class="modal-sub" id="wizard-modal-sub"></div>
+        </div>
+        <button type="button" class="modal-icon-close" onclick="closeAiWizard()" aria-label="Wizard schliessen">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
       </div>
-      <button class="btn btn-quiet" onclick="closeAiWizard()">Abbrechen</button>
+      <div class="wizard-steps" id="wizard-step-dots"></div>
     </div>
-    <div class="wizard-steps" id="wizard-step-dots"></div>
-    <div id="wizard-body"></div>
+    <div id="wizard-body" class="ai-wizard-body"></div>
     <div class="wizard-nav">
       <button class="btn btn-secondary" id="wizard-back-btn" onclick="wizardBack()">← Zurück</button>
       <button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Weiter →</button>
@@ -7405,13 +7464,10 @@ function renderWizardModal(){
   if(!step) return;
   document.getElementById('wizard-modal-title').textContent=step.title;
   document.getElementById('wizard-modal-sub').textContent=step.sub;
-  // Step dots
+  // Compact progress — remains readable even with branch-specific content
   const dotsEl=document.getElementById('wizard-step-dots');
-  dotsEl.innerHTML=w.steps.map((s,i)=>{
-    const cls=i<w.step?'done':i===w.step?'active':'';
-    const line=i<w.steps.length-1?`<div class="wizard-step-line${i<w.step?' done':''}"></div>`:'';
-    return `<div class="wizard-step-dot ${cls}">${i<w.step?'✓':i+1}</div>${line}`;
-  }).join('');
+  const progress=Math.round(((w.step+1)/w.steps.length)*100);
+  dotsEl.innerHTML=`<div class="wizard-progress-meta"><strong>Schritt ${w.step+1} von ${w.steps.length}</strong><span>${progress}%</span></div><div class="wizard-progress-track"><div class="wizard-progress-fill" style="width:${progress}%"></div></div>`;
   // Body
   document.getElementById('wizard-body').innerHTML=step.render(w.data,w.customerId);
   // Nav buttons
@@ -7419,7 +7475,7 @@ function renderWizardModal(){
   const nextBtn=document.getElementById('wizard-next-btn');
   backBtn.style.visibility=w.step===0?'hidden':'visible';
   const isLast=w.step===w.steps.length-1;
-  nextBtn.textContent=isLast?'✓ Speichern':'Weiter →';
+  nextBtn.textContent=isLast?'Speichern & synchronisieren':'Weiter →';
   nextBtn.className=isLast?'btn btn-primary':'btn btn-primary';
 }
 
@@ -7686,13 +7742,6 @@ function renderWizardStepIdentitaet(data){
       <div style="font-size:11px;color:var(--slate2);margin-top:4px;">Der Name der Person die Lara vertritt (z.B. Umut Yildirim).</div>
     </div>
     <div class="wizard-field">
-      <label>Vorschau Begrüssungssatz</label>
-      <div id="wz-greeting-preview" style="background:#0D1F3C;border-radius:10px;padding:12px 14px;font-size:13px;color:rgba(255,255,255,.85);line-height:1.6;font-style:italic;">
-        ${esc(buildAutoGreeting(data))}
-      </div>
-      <div style="font-size:11px;color:var(--slate2);margin-top:4px;">Aktualisiert sich automatisch basierend auf deinen Eingaben.</div>
-    </div>
-    <div class="wizard-field">
       <label>Stimme ${canChooseVoice ? '' : '<span style="font-size:10px;color:var(--slate2);margin-left:6px;">🔒 Ab Business wählbar</span>'}</label>
       ${canChooseVoice ? `
         <select class="select" id="wz-voice-id" style="height:38px;">
@@ -7870,27 +7919,27 @@ function collectWizardStepProfil(data){
 function renderWizardStepRegeln(data){
   const _wNl=(v)=>(v||'').replace(/\\n/g,'\n');
   return `
-    <div style="background:var(--blue-light,#EAF2FF);border:1px solid var(--blue,#1A6FE8);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <div style="font-size:12px;color:var(--blue,#1A6FE8);">Lara kann Regeln aus Branche + Profil ableiten.</div>
+    <div class="wizard-intro-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div><strong style="display:block;font-size:12px;">Regeln automatisch vorbereiten</strong><span style="font-size:11px;color:var(--slate2);">Vorschläge werden aus Branche, Profil und Angebot abgeleitet.</span></div>
       <button type="button" class="btn btn-primary btn-sm" onclick="wizardAiGenerateRegeln()" id="wz-ai-btn-regeln" style="font-size:12px;white-space:nowrap;">✦ Regeln vorschlagen</button>
     </div>
-    <div id="wz-ai-feedback-regeln" style="font-size:12px;margin-bottom:8px;color:var(--slate2);display:none;"></div>
-      <button type="button" class="btn btn-primary btn-sm" onclick="wizardAiGenerateRegeln()" id="wz-ai-btn-regeln" style="font-size:12px;">✦ Regeln automatisch ausfüllen</button>
-      <div id="wz-ai-feedback-regeln" style="font-size:12px;margin-top:6px;color:var(--slate2);display:none;"></div>
-    </div>
-    <div class="wizard-field">
-      <label>Gesprächsregeln für Lara</label>
-      <textarea class="textarea" id="wz-instructions" placeholder="Ton, Begrüssung, was Lara nie sagen soll…">${escNl(data.instructions)}</textarea>
-    </div>
-    <div class="wizard-field">
-      <label>Eskalationsregeln</label>
-      <textarea class="textarea" id="wz-fallback" placeholder="Wann soll Lara eskalieren oder einen Rückruf anbieten?">${escNl(data.fallbackEscalation)}</textarea>
-    </div>
-    <div class="wizard-field">
-      <label>Antwortgrenzen / Compliance</label>
-      <textarea class="textarea" id="wz-constraints" placeholder="Was darf Lara auf keinen Fall sagen oder zusagen?" style="min-height:70px;">${escNl(data.responseConstraints)}</textarea>
-    </div>`;
+    <div id="wz-ai-feedback-regeln" style="font-size:12px;margin:-6px 0 12px;color:var(--slate2);display:none;"></div>
+    <section class="wizard-section-card">
+      <div class="wizard-field">
+        <label>Gesprächsregeln</label>
+        <textarea class="textarea" id="wz-instructions" placeholder="Wie soll der Assistent Gespräche führen?">${escNl(data.instructions)}</textarea>
+      </div>
+      <div class="wizard-field">
+        <label>Eskalation und Rückruf</label>
+        <textarea class="textarea" id="wz-fallback" placeholder="Wann eskalieren, weiterleiten oder einen Rückruf aufnehmen?">${escNl(data.fallbackEscalation)}</textarea>
+      </div>
+      <div class="wizard-field" style="margin-bottom:0;">
+        <label>Antwortgrenzen / Compliance</label>
+        <textarea class="textarea" id="wz-constraints" placeholder="Was darf der Assistent niemals sagen oder verbindlich zusagen?" style="min-height:70px;">${escNl(data.responseConstraints)}</textarea>
+      </div>
+    </section>`;
 }
+
 function collectWizardStepRegeln(data){
   data.aiInputRegeln=document.getElementById('wz-ai-input-regeln')?.value.trim()||'';
   data.instructions=document.getElementById('wz-instructions')?.value.trim()||'';
