@@ -2,7 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
-const { generateSwissQrInvoicePdf } = require('./_lib/swiss-qr-bill');
+const { generateSwissQrInvoicePdf } = require('./_lib/swiss-qr-bill-branded');
 const { applyInvoicePaymentContext } = require('./_lib/invoice-payment-context');
 
 const headers = {
@@ -278,7 +278,8 @@ exports.handler = async (event) => {
         reference_type: invoice.payment_reference_type || 'NON',
         payment_context_backfilled: !originalInvoice.payment_account_snapshot || !originalInvoice.customer_snapshot,
         line_items_backfilled: resolved.backfilled,
-        rendered_item_count: resolved.items.length
+        rendered_item_count: resolved.items.length,
+        voxera_logo_applied: true
       },
       happened_at: now
     });
@@ -291,7 +292,8 @@ exports.handler = async (event) => {
       pdf_version: version,
       payment_context_backfilled: !originalInvoice.payment_account_snapshot || !originalInvoice.customer_snapshot,
       line_items_backfilled: resolved.backfilled,
-      rendered_item_count: resolved.items.length
+      rendered_item_count: resolved.items.length,
+      voxera_logo_applied: true
     });
   } catch (error) {
     return respond(409, { error: error?.message || 'QR-Rechnung konnte nicht erstellt werden.' });
