@@ -45,7 +45,7 @@ const customer = {
   ai_instructions:'Frage jeweils nur eine Information auf einmal ab.',
   ai_fallback_escalation:'Bei Unsicherheit eine Rückrufanfrage aufnehmen.',
   ai_response_constraints:'Keine Preise oder Verfügbarkeiten erfinden.',
-  ai_internal_notes:'[PROMPT_V2] {"version":2,"goal":"lead","requiredInformation":"Name\\nFirma\\nTelefonnummer\\nAnliegen","successDefinition":"Der Lead ist qualifiziert und der nächste Schritt bestätigt.","appointmentMode":"request","unknownHandling":"callback"}\n[WIZARD] {"sprachen":"de_en","haeufigste_anliegen":"Produktfragen"}',
+  ai_internal_notes:'[PROMPT_V2] {"version":2,"functions":["information","consulting","lead","appointment","quote","callback"],"functionInstructions":"Beratung: Passenden Voxera-Plan anhand des Bedarfs erklären.\\nLead: Branche, Teamgrösse und Anrufvolumen erfragen.","requiredInformation":"Name\\nFirma\\nTelefonnummer\\nAnliegen","successDefinition":"Der Lead ist qualifiziert und der nächste Schritt bestätigt.","appointmentMode":"request","unknownHandling":"callback"}\n[WIZARD] {"sprachen":"de_en","haeufigste_anliegen":"Produktfragen"}',
   ai_emergency_number:'144'
 };
 
@@ -58,9 +58,13 @@ const result = buildPromptV2({
 check('compiler version is explicit', () => assert.equal(result.version, PROMPT_BUILDER_VERSION));
 check('meta documentation is stripped', () => assert.ok(!result.prompt.includes('Dokumentation')));
 check('identity variables are resolved', () => assert.match(result.prompt, /Du bist Lara von Voxera Test AG/));
-check('structured assignment reaches productive prompt', () => {
-  assert.match(result.prompt, /AUFTRAG & ERFOLGSKRITERIUM/);
+check('combined functions reach the productive prompt', () => {
+  assert.match(result.prompt, /AUFGABEN & ERFOLGSKRITERIUM/);
+  assert.match(result.prompt, /Informationen und häufige Fragen/);
+  assert.match(result.prompt, /Interessenten bedarfsgerecht beraten/);
   assert.match(result.prompt, /Interessenten qualifizieren/);
+  assert.match(result.prompt, /Offerten- oder Angebotsanfragen/);
+  assert.match(result.prompt, /Passenden Voxera-Plan anhand des Bedarfs erklären/);
   assert.match(result.prompt, /Name\nFirma\nTelefonnummer\nAnliegen/);
 });
 check('appointment request cannot become a booking promise', () => {
@@ -82,7 +86,8 @@ check('quality report is deterministic and ready', () => {
   assert.equal(result.quality.ready, true);
   assert.equal(result.quality.checks.length, 8);
 });
-check('malformed profile marker fails safely', () => assert.equal(parsePromptProfile('[PROMPT_V2] invalid').goal, ''));
+check('malformed profile marker fails safely', () => assert.deepEqual(parsePromptProfile('[PROMPT_V2] invalid').functions, []));
+check('legacy single goals remain backward compatible', () => assert.deepEqual(parsePromptProfile('[PROMPT_V2] {"goal":"service"}').functions, ['information']));
 check('direct booking remains tool-confirmation gated', () => {
   const direct = buildPromptV2({ customer:{...customer, ai_internal_notes:customer.ai_internal_notes.replace('"request"','"direct"')}, masterPrompt:'{{CUSTOMER_LAYER}}' });
   assert.match(direct.prompt, /nur dann verbindlich bestätigen/);
@@ -107,11 +112,14 @@ check('preview remains admin protected and uncached', () => {
 check('wizard collects operational decisions and persists a structured marker', () => {
   assert.match(source.runtime, /agent_auftrag/);
   assert.match(source.runtime, /prompt_check/);
+  assert.match(source.runtime, /wz-prompt-functions/);
+  assert.match(source.runtime, /Mehrfachauswahl/);
+  assert.match(source.runtime, /functionInstructions/);
   assert.match(source.runtime, /appointmentMode/);
   assert.match(source.runtime, /upsertProfile/);
 });
 check('admin preview requests the productive server prompt', () => assert.match(source.runtime, /callAdminFunction\('prompt-preview'/));
-check('runtime is loaded by admin bootstrap', () => assert.match(source.loader, /admin-runtime-prompt-builder-v2\.js\?v=20260801-1/));
+check('runtime is loaded by admin bootstrap', () => assert.match(source.loader, /admin-runtime-prompt-builder-v2\.js\?v=20260801-2/));
 
 if (failed) {
   console.error(`Prompt Builder V2 verification failed: ${failed}`);
