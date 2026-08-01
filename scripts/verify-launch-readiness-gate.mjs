@@ -30,7 +30,7 @@ const checks = [
   ['runtime requests server readiness on modal open', /action:'check'/.test(source.runtime) && /openCustomerGoLiveModal/.test(source.runtime)],
   ['runtime blocks submit when server gate fails', /voxServerBlocked/.test(source.runtime) && /button\.disabled = true/.test(source.runtime)],
   ['runtime visibly separates automatic and manual tests', /Ein Häkchen ersetzt keinen realen Testanruf/.test(source.runtime)],
-  ['runtime cache version is refreshed', /admin-runtime-launch-p0\.js\?v=20260801-3/.test(source.loader)]
+  ['runtime cache version is refreshed', /admin-runtime-launch-p0\.js\?v=20260801-4/.test(source.loader)]
 ];
 
 for (const [name, passed] of checks) {
