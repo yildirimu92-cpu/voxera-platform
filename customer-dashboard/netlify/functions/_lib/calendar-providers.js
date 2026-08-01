@@ -198,8 +198,8 @@ async function accountSnapshot(provider, accessToken) {
   };
 }
 
-async function checkAvailability(provider, accessToken, calendarId, startIso, endIso) {
-  if (provider === 'google') {
+async function checkAvailability(provider, accessToken, calendarId, startIso, endIso, excludeEventId = '') {
+  if (provider === 'google' && !excludeEventId) {
     const payload = await apiFetch('https://www.googleapis.com/calendar/v3/freeBusy', accessToken, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -209,14 +209,28 @@ async function checkAvailability(provider, accessToken, calendarId, startIso, en
     return { available: busy.length === 0, busy };
   }
 
+  if (provider === 'google') {
+    const params = new URLSearchParams({
+      timeMin: startIso,
+      timeMax: endIso,
+      singleEvents: 'true',
+      showDeleted: 'false',
+      maxResults: '250'
+    });
+    const payload = await apiFetch('https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendarId) + '/events?' + params.toString(), accessToken);
+    const busy = (payload.items || [])
+      .filter((item) => item.id !== excludeEventId && item.status !== 'cancelled' && item.transparency !== 'transparent')
+      .map((item) => ({ id: item.id, start: item.start?.dateTime || item.start?.date, end: item.end?.dateTime || item.end?.date }));
+    return { available: busy.length === 0, busy };
+  }
+
   const params = new URLSearchParams({ startDateTime: startIso, endDateTime: endIso, '$select': 'id,start,end,showAs,isCancelled' });
   const payload = await apiFetch('https://graph.microsoft.com/v1.0/me/calendars/' + encodeURIComponent(calendarId) + '/calendarView?' + params.toString(), accessToken, {
     headers: { Prefer: 'outlook.timezone="UTC"' }
   });
-  const busy = (payload.value || []).filter((item) => !item.isCancelled && !['free', 'workingElsewhere'].includes(item.showAs)).map((item) => ({
-    start: item.start?.dateTime,
-    end: item.end?.dateTime
-  }));
+  const busy = (payload.value || [])
+    .filter((item) => item.id !== excludeEventId && !item.isCancelled && !['free', 'workingElsewhere'].includes(item.showAs))
+    .map((item) => ({ id: item.id, start: item.start?.dateTime, end: item.end?.dateTime }));
   return { available: busy.length === 0, busy };
 }
 
@@ -224,8 +238,8 @@ function googleEvent(input) {
   return {
     summary: input.title,
     description: input.description || '',
-    start: { dateTime: input.start, timeZone: input.timezone },
-    end: { dateTime: input.end, timeZone: input.timezone },
+    start: { dateTime: input.start, timeZone: 'UTC' },
+    end: { dateTime: input.end, timeZone: 'UTC' },
     attendees: (input.attendees || []).filter(Boolean).map((email) => ({ email }))
   };
 }
