@@ -14,15 +14,26 @@ function header(event, name) {
   return key ? String(headersIn[key] || '').trim() : '';
 }
 
-function verifySignature(event) {
-  const secret = String(process.env.CALENDAR_TOOL_WEBHOOK_SECRET || '').trim();
+function verifyHmac(event, secret) {
   const timestamp = header(event, 'X-Voxera-Timestamp');
   const provided = header(event, 'X-Voxera-Signature').replace(/^sha256=/i, '');
-  if (!secret || !timestamp || !provided) return false;
+  if (!timestamp || !provided) return false;
   const seconds = Number(timestamp);
   if (!Number.isFinite(seconds) || Math.abs(Date.now() / 1000 - seconds) > 300) return false;
   const expected = crypto.createHmac('sha256', secret).update(timestamp + '.' + String(event.body || ''), 'utf8').digest('hex');
   return safeEqual(provided, expected);
+}
+
+function verifyToolAuth(event) {
+  const secret = String(process.env.CALENDAR_TOOL_WEBHOOK_SECRET || '').trim();
+  if (!secret) return false;
+
+  const authorization = header(event, 'Authorization');
+  const bearer = /^Bearer\s+(.+)$/i.exec(authorization);
+  if (bearer && safeEqual(bearer[1].trim(), secret)) return true;
+
+  // Optional compatibility path for trusted internal callers that can sign the raw body.
+  return verifyHmac(event, secret);
 }
 
 function iso(value, field) {
@@ -79,7 +90,7 @@ async function resolveCustomer(sb, body) {
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'method_not_allowed' });
   if (process.env.CALENDAR_INTEGRATION_ENABLED !== 'true') return reply(503, { ok: false, error: 'calendar_integration_disabled' });
-  if (!verifySignature(event)) return reply(403, { ok: false, error: 'calendar_tool_signature_invalid' });
+  if (!verifyToolAuth(event)) return reply(403, { ok: false, error: 'calendar_tool_auth_invalid' });
 
   const sbUrl = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -237,4 +248,4 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { verifySignature, validateWindow };
+exports._test = { verifyToolAuth, verifyHmac, validateWindow };
