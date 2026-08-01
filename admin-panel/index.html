@@ -4771,22 +4771,28 @@ function getGoLiveTechnicalPrecheck(customer,onboarding){
 }
 function resolveAccessGate(customer,onboarding){
   const technical=getGoLiveTechnicalPrecheck(customer,onboarding);
-  const hard_blockers=[...technical.hard_blockers];
+  const validation=validateCustomerInviteData(customer);
+  const hard_blockers=[];
+  const warnings=[...(technical.hard_blockers||[]),...(technical.warnings||[])];
   const lifecycleStatus=resolveCustomerLifecycle(customer);
+  const inviteAllowedStatuses=new Set([CUSTOMER_STATUS.ONBOARDING,CUSTOMER_STATUS.READY]);
+
+  if(!validation.ok){
+    hard_blockers.push(`Für den Zugangsversand fehlt: ${validation.missing.map(validationLabelForField).join(', ')}.`);
+  }
+  if(!inviteAllowedStatuses.has(lifecycleStatus)){
+    hard_blockers.push(`Zugang kann im Status „${getCustomerLifecycleLabel(customer,onboarding)}“ nicht erstmalig gesendet werden.`);
+  }else if(lifecycleStatus===CUSTOMER_STATUS.ONBOARDING){
+    warnings.push('Einrichtung läuft noch. Der Portalzugang kann bereits gesendet werden.');
+  }
   if(!customer?.go_live_approved_at||!customer?.go_live_approved_by){
-    hard_blockers.push('Dokumentierte Admin-Freigabe fehlt.');
+    warnings.push('Admin-Freigabe für den späteren Go-live fehlt noch.');
   }
-  if(lifecycleStatus!==CUSTOMER_STATUS.READY){
-    hard_blockers.push('Kunde ist noch nicht im freigegebenen Status „Bereit“.');
-  }
-  const onboardingState=resolveOnboardingState(onboarding);
-  if(onboardingState.state!==ONBOARDING_STATUS.READY){
-    hard_blockers.push('Onboarding ist noch nicht als bereit freigegeben.');
-  }
+
   return {
     allow:hard_blockers.length===0,
     blocked:hard_blockers.length>0,
-    warnings:technical.warnings,
+    warnings:[...new Set(warnings.filter(Boolean))],
     hard_blockers
   };
 }
@@ -4841,17 +4847,16 @@ function getCustomerQuickActionState(customer,onboarding){
     showLiveState:false,
     showPausedState:false
   };
-  if(lifecycleStatus===CUSTOMER_STATUS.ONBOARDING){
-    return {...base,showApproval:true};
-  }
-  if(lifecycleStatus===CUSTOMER_STATUS.READY){
-    if(!approved) return {...base,showApproval:true};
+  if(lifecycleStatus===CUSTOMER_STATUS.ONBOARDING||lifecycleStatus===CUSTOMER_STATUS.READY){
     return {
       ...base,
+      showApproval:!approved,
       showSendAccess:true,
       canSendAccess:gate.allow,
       sendAccessDisabled:!gate.allow,
-      sendAccessTooltip:gate.allow?'':blockedReason
+      sendAccessTooltip:gate.allow
+        ? (gate.warnings?.length?'Setup noch offen – der Portalzugang kann trotzdem gesendet werden.':'')
+        : blockedReason
     };
   }
   if(lifecycleStatus===CUSTOMER_STATUS.INVITED) return {...base,showInvitationSent:true};
@@ -11982,6 +11987,7 @@ function validationLabelForField(field){
 }
 
 const ACCESS_REQUIRED_FIELDS=['customer_name','email','street','zip','city','country','plan'];
+const ACCESS_INVITE_REQUIRED_FIELDS=['email'];
 const ONBOARDING_BLOCKER_STEPS=['Voxera number assigned','AI basics configured','agent configured'];
 
 function isOnboardingStatusReady(status){
@@ -11995,6 +12001,11 @@ function validateCustomerAccessData(customer){
     }
     return !String(customer?.[field]||'').trim();
   });
+  return {ok:missing.length===0,missing};
+}
+
+function validateCustomerInviteData(customer){
+  const missing=ACCESS_INVITE_REQUIRED_FIELDS.filter(field=>!String(customer?.[field]||'').trim());
   return {ok:missing.length===0,missing};
 }
 
@@ -12058,6 +12069,11 @@ function deriveOnboardingSnapshot(customerId){
   });
   const gate=resolveAccessGate(customer,onboarding);
   const validation=validateCustomerAccessData(customer);
+  const technical=getGoLiveTechnicalPrecheck(customer,onboarding);
+  const setupReady=technical.allow
+    && Boolean(customer?.go_live_approved_at&&customer?.go_live_approved_by)
+    && resolveCustomerLifecycle(customer)===CUSTOMER_STATUS.READY
+    && resolveOnboardingState(onboarding).state===ONBOARDING_STATUS.READY;
 
   return {
     customer,
@@ -12075,7 +12091,7 @@ function deriveOnboardingSnapshot(customerId){
     status:onboardingResolved.state,
     accessReasons:[...gate.hard_blockers],
     accessWarnings:[...gate.warnings],
-    isAccessReady:gate.allow,
+    isAccessReady:setupReady,
     hasRequiredAccessData:validation.ok,
     missingFields:validation.missing
   };
@@ -12106,16 +12122,16 @@ function getCustomerSetupProgress(customer,onboarding){
 }
 
 function getCustomerAccessReadiness(customer,onboarding){
-  const snapshot=customer?deriveOnboardingSnapshot(customer.id):null;
   const gate=resolveAccessGate(customer,onboarding);
+  const inviteValidation=validateCustomerInviteData(customer);
   const blockReasons=gate.hard_blockers||[];
   const warningReasons=gate.warnings||[];
   const isReady=gate.allow;
   return {
     isReady,
-    onboardingReady:isReady,
-    hasRequiredData:snapshot?.hasRequiredAccessData||false,
-    missingFields:snapshot?.missingFields||[],
+    onboardingReady:resolveOnboardingState(onboarding).state===ONBOARDING_STATUS.READY,
+    hasRequiredData:inviteValidation.ok,
+    missingFields:inviteValidation.missing,
     setupProgress:getCustomerSetupProgress(customer,onboarding),
     setupLabel:getCustomerSetupReadinessLabel(customer,onboarding),
     reasons:blockReasons,
@@ -12151,7 +12167,7 @@ function renderSendAccessValidation(customer){
 
   if(readinessWarning){
     readinessWarning.style.display=isBlocked?'':'none';
-    readinessWarning.textContent=isBlocked?'Voraussetzungen nicht erfüllt. Zugang kann nicht gesendet werden.':'';
+    readinessWarning.textContent=isBlocked?'Für den Versand fehlt die Kunden-E-Mail. Offene Setup-Schritte allein blockieren den Zugang nicht.':'';
   }
   if(setupFeeWarning){
     const setupWarning=warningReasons.find(msg=>/setup|gebühr|fee/i.test(String(msg||'')))||'';
@@ -12165,9 +12181,9 @@ function renderSendAccessValidation(customer){
       + blockReasons.map(r=>'<li style="color:var(--red);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
       + '</ul>'
     : (
-      '<span style="color:var(--green);font-weight:500;">Admin-Freigabe und technische Voraussetzungen erfüllt – Zugang kann gesendet werden.</span>'
+      '<span style="color:var(--green);font-weight:500;">Portalzugang kann jetzt gesendet werden. Die Einrichtung und der Go-live bleiben separate Schritte.</span>'
       + (hasWarnings
-        ? '<div style="margin-top:8px;color:var(--amber);font-size:12px;font-weight:600;">Warnings:</div><ul style="margin:4px 0 0 16px;padding:0;">'
+        ? '<div style="margin-top:8px;color:var(--amber);font-size:12px;font-weight:600;">Setup noch offen (kein Versand-Blocker):</div><ul style="margin:4px 0 0 16px;padding:0;">'
           + warningReasons.map(r=>'<li style="color:var(--amber);font-size:12px;margin-bottom:2px;">'+esc(r)+'</li>').join('')
           + '</ul>'
         : '')
