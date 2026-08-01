@@ -19,10 +19,7 @@
       #billing-finance table{table-layout:auto!important}
       .modal .vx-modal-actions-v2{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap}
       .modal .vx-modal-actions-v2 .vx-action-menu{position:relative}
-      @media(max-width:980px){
-        #billing-finance .vx-billing-actions-v2{align-items:stretch}
-        #billing-finance td:last-child{min-width:170px}
-      }
+      @media(max-width:980px){#billing-finance td:last-child{min-width:170px}}
       @media(max-width:720px){
         #billing-finance .vx-billing-actions-v2{display:grid;grid-template-columns:1fr auto;width:100%}
         #billing-finance .vx-billing-actions-v2>.btn:first-child{width:100%}
@@ -34,35 +31,42 @@
 
   const labelOf=(el)=>String(el?.textContent||el?.getAttribute?.('aria-label')||'').replace(/\s+/g,' ').trim().toLowerCase();
   const isAction=(el)=>/öffnen|erneut senden|mahnen|mahnung|bezahlt|qr öffnen|pdf öffnen|neu generieren|storno|gutschrift/.test(labelOf(el));
+  const dedupe=(actions)=>{
+    const seen=new Set();
+    return actions.filter(action=>{
+      const key=labelOf(action).replace(/^als /,'').replace(/^rechnung /,'');
+      if(!key||seen.has(key)){action.style.display='none';return false;}
+      seen.add(key);return true;
+    });
+  };
 
   function closeOtherMenus(current){
     document.querySelectorAll('details.vx-action-menu[open]').forEach(d=>{if(d!==current)d.removeAttribute('open');});
   }
 
-  function buildGroup(container, actions){
-    if(container.dataset.vxActionsV2==='1'||actions.length<3)return;
-    const openAction=actions.find(a=>/^öffnen$|rechnung öffnen|pdf öffnen/.test(labelOf(a)))||actions[0];
+  function buildGroup(container, rawActions){
+    if(container.dataset.vxActionsV2==='1')return;
+    const actions=dedupe(rawActions);
+    if(actions.length<3)return;
+    const openAction=actions.find(a=>/^öffnen$|rechnung öffnen/.test(labelOf(a)))||actions[0];
     const secondary=actions.filter(a=>a!==openAction);
     const group=document.createElement('div');
     group.className='vx-billing-actions-v2';
     openAction.parentNode.insertBefore(group,openAction);
     group.appendChild(openAction);
-    if(secondary.length===1){group.appendChild(secondary[0]);}
-    else{
-      const details=document.createElement('details');
-      details.className='vx-action-menu';
-      const summary=document.createElement('summary');
-      summary.textContent='Aktionen';
-      const pop=document.createElement('div');
-      pop.className='vx-action-popover';
-      secondary.forEach(action=>{
-        if(/storno|gutschrift|pausieren/.test(labelOf(action)))action.classList.add('danger');
-        pop.appendChild(action);
-      });
-      details.append(summary,pop);
-      details.addEventListener('toggle',()=>{if(details.open)closeOtherMenus(details);});
-      group.appendChild(details);
-    }
+    const details=document.createElement('details');
+    details.className='vx-action-menu';
+    const summary=document.createElement('summary');
+    summary.textContent='Aktionen';
+    const pop=document.createElement('div');
+    pop.className='vx-action-popover';
+    secondary.forEach(action=>{
+      if(/storno|gutschrift/.test(labelOf(action)))action.classList.add('danger');
+      pop.appendChild(action);
+    });
+    details.append(summary,pop);
+    details.addEventListener('toggle',()=>{if(details.open)closeOtherMenus(details);});
+    group.appendChild(details);
     container.dataset.vxActionsV2='1';
   }
 
@@ -81,7 +85,7 @@
     document.querySelectorAll('.modal').forEach(modal=>{
       const title=String(modal.textContent||'').toLowerCase();
       if(!title.includes('billing')&&!title.includes('rechnung'))return;
-      const actions=[...modal.querySelectorAll('button,a')].filter(isAction);
+      const actions=dedupe([...modal.querySelectorAll('button,a')].filter(isAction));
       if(actions.length<4)return;
       const footer=actions[0].closest('.modal-footer')||actions[0].parentElement;
       if(!footer||footer.dataset.vxActionsV2==='1')return;
