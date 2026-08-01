@@ -33,7 +33,7 @@ try {
   failures.push('Calendar crypto test failed: ' + error.message);
 }
 
-for (const token of ['calendar_connections','calendar_settings','calendar_oauth_states','calendar_booking_audit','enable row level security']) {
+for (const token of ['calendar_connections','calendar_settings','calendar_oauth_states','calendar_booking_audit','customer_id, request_id','enable row level security']) {
   if (!source.migration.includes(token)) failures.push('Migration missing: ' + token);
 }
 for (const token of ["google:", "microsoft:", 'calendar.calendarlist.readonly', 'Calendars.ReadWrite', 'ensureAccessToken', 'checkAvailability', 'createEvent', 'updateEvent', 'deleteEvent']) {
@@ -42,13 +42,13 @@ for (const token of ["google:", "microsoft:", 'calendar.calendarlist.readonly', 
 for (const token of ["process.env.CALENDAR_INTEGRATION_ENABLED === 'true'"]) {
   if (!source.connections.includes(token) && !source.tool.includes(token)) failures.push('Feature guard missing: ' + token);
 }
-for (const token of ['requireCustomerCaller','oauth_start','save_settings','select_calendar','disconnect']) {
+for (const token of ['requireCustomerCaller','oauth_start','save_settings','calendar_setting_invalid','calendar_active_provider_not_ready','select_calendar','disconnect']) {
   if (!source.connections.includes(token)) failures.push('Connection workflow missing: ' + token);
 }
-for (const token of ['hashState(state)','used_at','encryptSecret(token.access_token)','calendar_refresh_token_missing']) {
+for (const token of ['hashState(state)',".is('used_at', null)",".gt('expires_at', now)",'encryptSecret(token.access_token)','calendar_refresh_token_missing']) {
   if (!source.callback.includes(token)) failures.push('OAuth callback guard missing: ' + token);
 }
-for (const token of ['Authorization','Bearer','verifyToolAuth','X-Voxera-Timestamp','X-Voxera-Signature','calendar_agent_id_required','request_id','availability','reschedule','cancel']) {
+for (const token of ['Authorization','Bearer','verifyToolAuth','X-Voxera-Timestamp','X-Voxera-Signature','calendar_agent_id_required','calendar_request_id_required',".eq('customer_id', customerId)",'bufferedWindow','request_id','availability','reschedule','cancel']) {
   if (!source.tool.includes(token)) failures.push('Calendar tool contract missing: ' + token);
 }
 for (const token of ['Google Calendar','Microsoft 365 / Outlook','calendar_integration_disabled','vxCalendarOpen']) {
