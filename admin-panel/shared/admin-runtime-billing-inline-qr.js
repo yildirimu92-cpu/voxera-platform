@@ -6,11 +6,40 @@
   const busy = new Set();
   let selectedLabel = null;
   let lastSignature = '';
+  let billingCallWrapped = false;
 
   const norm = value => String(value || '').trim().toLowerCase();
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const onBilling = () => /billing/i.test(String(location.hash || '')) || /billing/i.test(String(location.pathname || ''));
   const invoices = () => (typeof state !== 'undefined' && Array.isArray(state.invoices)) ? state.invoices : [];
+
+  function mergeInvoiceIntoState(invoice) {
+    if (!invoice || typeof state === 'undefined' || !Array.isArray(state.invoices)) return;
+    const index = state.invoices.findIndex(row => String(row.id) === String(invoice.id));
+    if (index >= 0) state.invoices[index] = { ...state.invoices[index], ...invoice };
+    else state.invoices.unshift(invoice);
+  }
+
+  function installOverageInvoiceRoute() {
+    if (billingCallWrapped || typeof w.callAdminFunction !== 'function') return;
+    const original = w.callAdminFunction.bind(w);
+    w.callAdminFunction = async function (functionName, payload, ...rest) {
+      const action = norm(payload?.action);
+      if (functionName === 'customer-billing-update' && action === 'create_overage_invoice') {
+        const result = await original('admin-overage-invoice', payload, ...rest);
+        if (result?.invoice) mergeInvoiceIntoState(result.invoice);
+        if (result?.success && typeof w.showToast === 'function') {
+          w.showToast(result.created === false
+            ? 'Überzugsrechnung für diese Periode ist bereits vorhanden.'
+            : 'Überzugsrechnung mit Swiss QR Code wurde erstellt.');
+        }
+        lastSignature = '';
+        return result;
+      }
+      return original(functionName, payload, ...rest);
+    };
+    billingCallWrapped = true;
+  }
 
   function findTabs() {
     return Array.from(document.querySelectorAll('button,a,[role="tab"]'))
@@ -110,11 +139,7 @@
     try {
       const result = await w.callAdminFunction('admin-invoice-qr-pdf', { invoice_id: invoiceId });
       if (!result?.success || !result?.invoice) throw new Error(result?.error || 'QR-Rechnung konnte nicht erstellt werden.');
-
-      if (typeof state !== 'undefined' && Array.isArray(state.invoices)) {
-        const index = state.invoices.findIndex(row => String(row.id) === String(invoiceId));
-        if (index >= 0) state.invoices[index] = { ...state.invoices[index], ...result.invoice };
-      }
+      mergeInvoiceIntoState(result.invoice);
 
       if (typeof w.showToast === 'function') {
         w.showToast(regenerating ? 'QR-Rechnung wurde neu generiert.' : 'QR-Rechnung wurde erstellt.');
@@ -139,6 +164,7 @@
   }
 
   function tick() {
+    installOverageInvoiceRoute();
     if (!onBilling()) return;
     const next = signature();
     if (next === lastSignature) return;
