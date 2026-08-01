@@ -111,14 +111,41 @@ exports.handler = async (event) => {
       const allowed = {
         active_provider: input.active_provider ? safeProvider(input.active_provider) : null,
         timezone: String(input.timezone || 'Europe/Zurich').slice(0, 80),
-        appointment_duration_minutes: Number(input.appointment_duration_minutes || 30),
-        buffer_before_minutes: Number(input.buffer_before_minutes || 0),
-        buffer_after_minutes: Number(input.buffer_after_minutes || 0),
-        minimum_notice_minutes: Number(input.minimum_notice_minutes || 0),
-        booking_horizon_days: Number(input.booking_horizon_days || 60),
+        appointment_duration_minutes: Number(input.appointment_duration_minutes ?? 30),
+        buffer_before_minutes: Number(input.buffer_before_minutes ?? 0),
+        buffer_after_minutes: Number(input.buffer_after_minutes ?? 0),
+        minimum_notice_minutes: Number(input.minimum_notice_minutes ?? 120),
+        booking_horizon_days: Number(input.booking_horizon_days ?? 60),
         feature_enabled: input.feature_enabled === true,
         updated_at: new Date().toISOString()
       };
+      const ranges = {
+        appointment_duration_minutes: [10, 240],
+        buffer_before_minutes: [0, 180],
+        buffer_after_minutes: [0, 180],
+        minimum_notice_minutes: [0, 10080],
+        booking_horizon_days: [1, 365]
+      };
+      const invalidNumber = Object.entries(ranges).find(([field, [min, max]]) =>
+        !Number.isInteger(allowed[field]) || allowed[field] < min || allowed[field] > max
+      );
+      if (invalidNumber) return reply(400, { ok: false, error: 'calendar_setting_invalid', field: invalidNumber[0] });
+      try { new Intl.DateTimeFormat('de-CH', { timeZone: allowed.timezone }).format(new Date()); }
+      catch (_error) { return reply(400, { ok: false, error: 'calendar_timezone_invalid' }); }
+      if (allowed.feature_enabled && !allowed.active_provider) {
+        return reply(400, { ok: false, error: 'calendar_active_provider_required' });
+      }
+      if (allowed.active_provider) {
+        const { data: activeConnection, error: activeError } = await sb.from('calendar_connections')
+          .select('status,selected_calendar_id')
+          .eq('customer_id', caller.customerId)
+          .eq('provider', allowed.active_provider)
+          .maybeSingle();
+        if (activeError) throw activeError;
+        if (!activeConnection || activeConnection.status !== 'connected' || !activeConnection.selected_calendar_id) {
+          return reply(409, { ok: false, error: 'calendar_active_provider_not_ready' });
+        }
+      }
       const { error } = await sb.from('calendar_settings').upsert({ customer_id: caller.customerId, ...allowed }, { onConflict: 'customer_id' });
       if (error) throw error;
       return reply(200, { ok: true, ...(await loadStatus(sb, caller.customerId)) });
