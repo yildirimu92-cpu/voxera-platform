@@ -113,6 +113,14 @@ exports.handler = async event => {
     }
 
     const customer = resolved.customer;
+    if (!customer.email) {
+      return respond(422, {
+        resolved: true,
+        customer_id: customer.id,
+        error: 'Kunde hat keine Benachrichtigungs-E-Mail.'
+      });
+    }
+
     return respond(200, {
       resolved: true,
       strategy: resolved.strategy,
@@ -120,7 +128,7 @@ exports.handler = async event => {
       customer_id: customer.id,
       customer_name: customer.customer_name || null,
       contact_name: customer.contact_name || null,
-      customer_email: customer.email || null,
+      customer_email: customer.email,
       notification_active: customer.notification_active === true,
       notification_mode: customer.notification_mode || 'none',
       new_log_email_active: customer.new_log_email_active === true,
