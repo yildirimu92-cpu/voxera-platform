@@ -5,6 +5,7 @@ on:
     paths:
       - 'customer-dashboard/netlify/functions/_lib/phone-normalize.js'
       - 'customer-dashboard/netlify/functions/elevenlabs-post-call.js'
+      - 'customer-dashboard/netlify/functions/call-intake-resolve-customer.js'
       - 'customer-dashboard/tests/phone-normalize.test.cjs'
       - 'supabase/sql/2026-08-01_call_intake_idempotency.sql'
       - '.github/workflows/verify-call-intake.yml'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'customer-dashboard/netlify/functions/_lib/phone-normalize.js'
       - 'customer-dashboard/netlify/functions/elevenlabs-post-call.js'
+      - 'customer-dashboard/netlify/functions/call-intake-resolve-customer.js'
       - 'customer-dashboard/tests/phone-normalize.test.cjs'
       - 'supabase/sql/2026-08-01_call_intake_idempotency.sql'
 
@@ -28,10 +30,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Check phone normalizer syntax
-        run: node --check customer-dashboard/netlify/functions/_lib/phone-normalize.js
+      - name: Check call intake function syntax
+        run: |
+          node --check customer-dashboard/netlify/functions/_lib/phone-normalize.js
+          node --check customer-dashboard/netlify/functions/call-intake-resolve-customer.js
       - name: Run phone normalization tests
         run: node --test customer-dashboard/tests/phone-normalize.test.cjs
+      - name: Verify resolver security contract
+        shell: bash
+        run: |
+          grep -q "CALL_INTAKE_RESOLVER_SECRET" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
+          grep -q "timingSafeEqual" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
+          grep -q "notification_active" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
+          grep -q "missed_call_email_active" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
       - name: Verify call intake migration invariants
         shell: bash
         run: |
