@@ -1,6 +1,6 @@
-# Voxera Calendar Integration (Google + Microsoft)
+# Voxera Calendar Integration (Google-first, Microsoft-ready)
 
-This integration is disabled by default. Merge and deploy the foundation without enabling OAuth or assistant booking until a permanent test customer exists.
+This integration is disabled by default. Google can be rolled out first; Microsoft remains technically prepared and hidden until its OAuth credentials are configured. Merge and deploy the foundation without enabling assistant booking until a permanent test customer exists.
 
 ## Architecture
 
@@ -29,11 +29,14 @@ CALENDAR_TOOL_WEBHOOK_SECRET=<at least 32 random bytes>
 GOOGLE_CALENDAR_CLIENT_ID=
 GOOGLE_CALENDAR_CLIENT_SECRET=
 
+# Optional: leave both unset to keep Microsoft hidden
 MICROSOFT_CALENDAR_CLIENT_ID=
 MICROSOFT_CALENDAR_CLIENT_SECRET=
 ```
 
-Keep `CALENDAR_INTEGRATION_ENABLED=false` until database migration, OAuth app setup, preview tests, a permanent test customer, and ElevenLabs tool tests are complete.
+Keep `CALENDAR_INTEGRATION_ENABLED=false` until database migration, Google OAuth setup, preview tests, a permanent test customer, and ElevenLabs tool tests are complete.
+
+Microsoft OAuth variables are optional. A provider is offered only when both its client ID and client secret are configured. An existing connection remains visible if credentials are later removed so that the customer can still disconnect it safely.
 
 For controlled testing, set `CALENDAR_ROLLOUT_CUSTOMER_IDS` to the exact test customer ID before enabling the global flag. Multiple IDs are comma-separated. An empty value denies every customer; use `*` only for an intentional broad rollout.
 
@@ -62,7 +65,7 @@ Official references:
 - https://developers.google.com/calendar/api/v3/reference/events/insert
 - https://developers.google.com/calendar/api/v3/reference/freebusy/query
 
-## Microsoft Entra setup
+## Optional Microsoft Entra setup
 
 1. Register a Voxera application in Microsoft Entra.
 2. Configure it as a confidential Web application.
@@ -114,9 +117,9 @@ Supported actions:
 Before changing the feature flag to `true`:
 
 1. Apply `2026-08-01_calendar_integrations_foundation.sql`.
-2. Configure both OAuth applications and secrets.
-3. Connect one Google and one Microsoft test calendar.
-4. Verify calendar selection and token refresh.
+2. Configure the Google OAuth application and secrets. Microsoft may remain unconfigured.
+3. Connect one Google test calendar and every additional provider that is configured.
+4. Verify calendar selection and token refresh for each configured provider.
 5. Configure a permanent test customer and ElevenLabs agent, then add only that customer to `CALENDAR_ROLLOUT_CUSTOMER_IDS`.
 6. Test availability, book, reschedule, and cancel.
 7. Verify audit rows and cross-customer isolation.
