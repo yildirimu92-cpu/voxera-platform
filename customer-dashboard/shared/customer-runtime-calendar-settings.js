@@ -16,7 +16,7 @@
     const node = document.createElement('style');
     node.id = 'vx-calendar-settings-style';
     node.textContent = [
-      '.vx-cal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vx-cal-card{background:#fff;border:.5px solid var(--line,#e4e8f0);border-radius:14px;padding:16px}.vx-cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.vx-cal-provider{font-size:14px;font-weight:700;color:var(--ink,#0d1f3c)}.vx-cal-meta{font-size:12px;color:var(--slate2,#7a8599);margin-top:4px;line-height:1.5}.vx-cal-pill{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:650;background:#f1f5f9;color:#64748b}.vx-cal-pill.ok{background:#ecfdf5;color:#047857}.vx-cal-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.vx-cal-btn{border:0;border-radius:9px;padding:9px 12px;font:600 12px inherit;cursor:pointer;background:#0d1f3c;color:#fff}.vx-cal-btn.secondary{background:#eef4ff;color:#1a6fe8}.vx-cal-btn.danger{background:#fef2f2;color:#b91c1c}.vx-cal-btn:disabled{opacity:.45;cursor:not-allowed}.vx-cal-banner{padding:12px 14px;border-radius:11px;margin-bottom:14px;font-size:13px;background:#fff7ed;color:#9a3412}.vx-cal-banner.ok{background:#ecfdf5;color:#047857}.vx-cal-status{display:none;margin:12px 0;padding:10px 12px;border-radius:10px;font-size:12px}.vx-cal-status.loading{display:block;background:#eff6ff;color:#1d4ed8}.vx-cal-status.success{display:block;background:#ecfdf5;color:#047857}.vx-cal-status.error{display:block;background:#fef2f2;color:#b91c1c}.vx-cal-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vx-cal-field label{display:block;font-size:11px;font-weight:650;color:var(--slate2,#7a8599);margin-bottom:5px}.vx-cal-field input,.vx-cal-field select{width:100%;box-sizing:border-box;border:.5px solid var(--line,#e4e8f0);border-radius:9px;padding:10px 11px;background:#fff;color:var(--ink,#0d1f3c);font:500 13px inherit}@media(max-width:720px){.vx-cal-grid,.vx-cal-form{grid-template-columns:1fr}}'
+      '.vx-cal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vx-cal-grid.single{grid-template-columns:1fr}.vx-cal-card{background:#fff;border:.5px solid var(--line,#e4e8f0);border-radius:14px;padding:16px}.vx-cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.vx-cal-provider{font-size:14px;font-weight:700;color:var(--ink,#0d1f3c)}.vx-cal-meta{font-size:12px;color:var(--slate2,#7a8599);margin-top:4px;line-height:1.5}.vx-cal-pill{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:650;background:#f1f5f9;color:#64748b}.vx-cal-pill.ok{background:#ecfdf5;color:#047857}.vx-cal-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.vx-cal-btn{border:0;border-radius:9px;padding:9px 12px;font:600 12px inherit;cursor:pointer;background:#0d1f3c;color:#fff}.vx-cal-btn.secondary{background:#eef4ff;color:#1a6fe8}.vx-cal-btn.danger{background:#fef2f2;color:#b91c1c}.vx-cal-btn:disabled{opacity:.45;cursor:not-allowed}.vx-cal-banner{padding:12px 14px;border-radius:11px;margin-bottom:14px;font-size:13px;background:#fff7ed;color:#9a3412}.vx-cal-banner.ok{background:#ecfdf5;color:#047857}.vx-cal-status{display:none;margin:12px 0;padding:10px 12px;border-radius:10px;font-size:12px}.vx-cal-status.loading{display:block;background:#eff6ff;color:#1d4ed8}.vx-cal-status.success{display:block;background:#ecfdf5;color:#047857}.vx-cal-status.error{display:block;background:#fef2f2;color:#b91c1c}.vx-cal-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vx-cal-field label{display:block;font-size:11px;font-weight:650;color:var(--slate2,#7a8599);margin-bottom:5px}.vx-cal-field input,.vx-cal-field select{width:100%;box-sizing:border-box;border:.5px solid var(--line,#e4e8f0);border-radius:9px;padding:10px 11px;background:#fff;color:var(--ink,#0d1f3c);font:500 13px inherit}@media(max-width:720px){.vx-cal-grid,.vx-cal-form{grid-template-columns:1fr}}'
     ].join('');
     document.head.appendChild(node);
   }
@@ -31,8 +31,8 @@
       if (list) {
         const entry = document.createElement('div');
         entry.id = 'vx-calendar-settings-entry';
-        entry.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:.5px solid var(--line)';
-        entry.innerHTML = '<div style="width:36px;height:36px;background:#eef4ff;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ph-bold ph-calendar-dots" style="color:#1a6fe8;font-size:17px" aria-hidden="true"></i></div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ink)">Kalender</div><div id="vx-calendar-entry-sub" style="font-size:11px;color:var(--slate2)">Google und Microsoft verbinden</div></div><i class="ph-bold ph-caret-right" style="color:var(--slate2);font-size:15px" aria-hidden="true"></i>';
+        entry.style.cssText = 'display:none;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:.5px solid var(--line)';
+        entry.innerHTML = '<div style="width:36px;height:36px;background:#eef4ff;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ph-bold ph-calendar-dots" style="color:#1a6fe8;font-size:17px" aria-hidden="true"></i></div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ink)">Kalender</div><div id="vx-calendar-entry-sub" style="font-size:11px;color:var(--slate2)">Kalender verbinden</div></div><i class="ph-bold ph-caret-right" style="color:var(--slate2);font-size:15px" aria-hidden="true"></i>';
         entry.addEventListener('click', open);
         const help = Array.from(list.children).find((child) => /Hilfe/.test(child.textContent || ''));
         list.insertBefore(entry, help || null);
@@ -42,7 +42,7 @@
       const page = document.createElement('div');
       page.id = 'mehr-sub-kalender';
       page.style.display = 'none';
-      page.innerHTML = '<div class="vx-page-header" style="align-items:center;gap:12px"><button type="button" class="vx-back-btn" data-cal-back><i class="ph-bold ph-arrow-left" style="font-size:18px" aria-hidden="true"></i></button><div style="flex:1"><div class="vx-page-header-title">Kalenderintegration</div><div style="font-size:12px;color:var(--slate2);margin-top:3px">Google Calendar und Microsoft 365 sicher mit Voxera verbinden.</div></div></div><div id="vx-calendar-page-body"></div>';
+      page.innerHTML = '<div class="vx-page-header" style="align-items:center;gap:12px"><button type="button" class="vx-back-btn" data-cal-back><i class="ph-bold ph-arrow-left" style="font-size:18px" aria-hidden="true"></i></button><div style="flex:1"><div class="vx-page-header-title">Kalenderintegration</div><div style="font-size:12px;color:var(--slate2);margin-top:3px">Kalender sicher mit Voxera verbinden.</div></div></div><div id="vx-calendar-page-body"></div>';
       tab.appendChild(page);
       page.querySelector('[data-cal-back]').addEventListener('click', back);
     }
@@ -58,6 +58,12 @@
 
   function connection(provider) {
     return (state?.connections || []).find((item) => item.provider === provider) || null;
+  }
+
+  function visibleProviders() {
+    const configured = state?.provider_configured || {};
+    const announced = Array.isArray(state?.available_providers) ? state.available_providers : Object.keys(providerLabels);
+    return announced.filter((provider) => providerLabels[provider] && (configured[provider] === true || connection(provider)));
   }
 
   function providerCard(provider) {
@@ -82,14 +88,21 @@
       body.innerHTML = '<div class="vx-cal-banner">Kalenderstatus wird geladen …</div>';
       return;
     }
+    const providers = visibleProviders();
+    const entry = document.getElementById('vx-calendar-settings-entry');
+    if (entry) entry.style.display = state.enabled && providers.length ? 'flex' : 'none';
     const settings = state.settings || {};
     const connectedProviders = (state.connections || []).filter((item) => item.status === 'connected');
     const activeOptions = connectedProviders.map((item) => '<option value="' + item.provider + '"' + (settings.active_provider === item.provider ? ' selected' : '') + '>' + providerLabels[item.provider] + '</option>').join('');
+    const providerCards = providers.length
+      ? providers.map((provider) => providerCard(provider)).join('')
+      : '<div class="vx-cal-card"><div class="vx-cal-provider">Kein Kalenderanbieter verfügbar</div><div class="vx-cal-meta">Die OAuth-Konfiguration ist noch nicht vollständig.</div></div>';
+    const providerSummary = providers.map((provider) => providerLabels[provider]).join(' und ');
     body.innerHTML =
       '<div class="vx-cal-banner ' + (state.enabled ? 'ok' : '') + '">' +
       (state.enabled ? 'Kalenderintegration ist freigeschaltet. Verbindungen bleiben kundenspezifisch.' : 'Sicher vorbereitet, aber noch nicht produktiv aktiviert. Verbindungen und Buchungen sind gesperrt.') +
       '</div><div id="vx-calendar-status" class="vx-cal-status" role="status" aria-live="polite"></div>' +
-      '<div class="vx-cal-grid">' + providerCard('google') + providerCard('microsoft') + '</div>' +
+      '<div class="vx-cal-grid' + (providers.length === 1 ? ' single' : '') + '">' + providerCards + '</div>' +
       '<div class="vx-cal-card" style="margin-top:12px"><div class="vx-cal-provider">Buchungsregeln</div><div class="vx-cal-meta">Diese Regeln gelten unabhängig vom verbundenen Anbieter.</div><div class="vx-cal-form" style="margin-top:14px">' +
       '<div class="vx-cal-field"><label>Aktiver Anbieter</label><select id="vx-cal-active-provider"><option value="">Nicht aktiv</option>' + activeOptions + '</select></div>' +
       '<div class="vx-cal-field"><label>Zeitzone</label><select id="vx-cal-timezone"><option value="Europe/Zurich"' + (settings.timezone === 'Europe/Zurich' ? ' selected' : '') + '>Europe/Zurich</option><option value="UTC"' + (settings.timezone === 'UTC' ? ' selected' : '') + '>UTC</option></select></div>' +
@@ -102,7 +115,7 @@
       '</div><div class="vx-cal-actions"><button type="button" class="vx-cal-btn" id="vx-calendar-save"' + (!state.enabled || busy ? ' disabled' : '') + '>Einstellungen speichern</button></div></div>';
     bind();
     const entrySub = document.getElementById('vx-calendar-entry-sub');
-    if (entrySub) entrySub.textContent = connectedProviders.length ? connectedProviders.length + ' Anbieter verbunden' : state.enabled ? 'Google und Microsoft verbinden' : 'Vorbereitet · noch deaktiviert';
+    if (entrySub) entrySub.textContent = connectedProviders.length ? connectedProviders.length + ' Anbieter verbunden' : state.enabled && providerSummary ? providerSummary + ' verbinden' : 'Vorbereitet · noch deaktiviert';
   }
 
   function bind() {
@@ -195,6 +208,19 @@
     run('Einstellungen werden gespeichert …', () => call({ action: 'save_settings', settings }));
   }
 
+  async function preload(attempt = 0) {
+    if (typeof root.callDashboardFunction !== 'function') {
+      if (attempt < 20) root.setTimeout(() => preload(attempt + 1), 300);
+      return;
+    }
+    try {
+      state = await call({ action: 'status' });
+      render();
+    } catch (_error) {
+      if (attempt < 3) root.setTimeout(() => preload(attempt + 1), 1000);
+    }
+  }
+
   function open() {
     if (!inject()) return;
     document.getElementById('mehr-main').style.display = 'none';
@@ -221,7 +247,11 @@
 
   root.vxCalendarOpen = open;
   const install = () => {
-    if (!inject()) root.setTimeout(install, 300);
+    if (!inject()) {
+      root.setTimeout(install, 300);
+      return;
+    }
+    preload();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
   else install();
