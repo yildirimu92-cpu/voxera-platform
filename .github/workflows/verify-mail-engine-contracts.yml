@@ -1,0 +1,36 @@
+name: Verify Mail Engine Contracts
+
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/netlify/functions/**'
+      - 'customer-dashboard/netlify/functions/**'
+      - 'admin-panel/shared/**'
+      - 'config/mail-engine-contracts.json'
+      - 'scripts/verify-mail-engine-contracts.mjs'
+      - '.github/workflows/verify-mail-engine-contracts.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'admin-panel/netlify/functions/**'
+      - 'customer-dashboard/netlify/functions/**'
+      - 'admin-panel/shared/**'
+      - 'config/mail-engine-contracts.json'
+      - 'scripts/verify-mail-engine-contracts.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify central mail contracts
+        run: node scripts/verify-mail-engine-contracts.mjs
