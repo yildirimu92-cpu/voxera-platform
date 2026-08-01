@@ -43,10 +43,15 @@ async function loadStatus(sb, customerId) {
   ]);
   if (connectionError) throw connectionError;
   if (settingsError) throw settingsError;
+  const normalizedConnections = connections || [];
+  const providerConfigured = Object.fromEntries(providers.map((provider) => [provider, providerReadiness(provider)]));
   return {
     enabled: calendarEnabledForCustomer(customerId),
-    provider_configured: Object.fromEntries(providers.map((provider) => [provider, providerReadiness(provider)])),
-    connections: connections || [],
+    provider_configured: providerConfigured,
+    available_providers: providers.filter((provider) =>
+      providerConfigured[provider] || normalizedConnections.some((item) => item.provider === provider)
+    ),
+    connections: normalizedConnections,
     settings: settings || {
       customer_id: customerId,
       active_provider: null,
@@ -87,7 +92,9 @@ exports.handler = async (event) => {
 
     if (action === 'oauth_start') {
       const provider = safeProvider(body.provider);
-      providerConfig(provider);
+      if (!providerReadiness(provider)) {
+        return reply(503, { ok: false, error: 'calendar_provider_not_configured', provider });
+      }
       const origin = dashboardOrigin();
       if (!origin) return reply(500, { ok: false, error: 'calendar_dashboard_origin_invalid' });
       const state = randomState();
@@ -136,6 +143,9 @@ exports.handler = async (event) => {
         return reply(400, { ok: false, error: 'calendar_active_provider_required' });
       }
       if (allowed.active_provider) {
+        if (!providerReadiness(allowed.active_provider)) {
+          return reply(409, { ok: false, error: 'calendar_provider_not_configured', provider: allowed.active_provider });
+        }
         const { data: activeConnection, error: activeError } = await sb.from('calendar_connections')
           .select('status,selected_calendar_id')
           .eq('customer_id', caller.customerId)
@@ -153,6 +163,9 @@ exports.handler = async (event) => {
 
     if (action === 'select_calendar') {
       const provider = safeProvider(body.provider);
+      if (!providerReadiness(provider)) {
+        return reply(503, { ok: false, error: 'calendar_provider_not_configured', provider });
+      }
       const calendarId = String(body.calendar_id || '').trim();
       const { data: connection, error: lookupError } = await sb.from('calendar_connections').select('id,calendars').eq('customer_id', caller.customerId).eq('provider', provider).maybeSingle();
       if (lookupError) throw lookupError;
@@ -170,6 +183,9 @@ exports.handler = async (event) => {
 
     if (action === 'test') {
       const provider = safeProvider(body.provider);
+      if (!providerReadiness(provider)) {
+        return reply(503, { ok: false, error: 'calendar_provider_not_configured', provider });
+      }
       const { data: connection, error: lookupError } = await sb.from('calendar_connections').select('*').eq('customer_id', caller.customerId).eq('provider', provider).maybeSingle();
       if (lookupError) throw lookupError;
       if (!connection) return reply(404, { ok: false, error: 'calendar_connection_not_found' });
