@@ -4,12 +4,23 @@ const PROMPT_BUILDER_VERSION = '2.0';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
-const GOAL_TEXT = Object.freeze({
-  service: 'Fragen zuverlässig beantworten und das Anliegen vollständig erfassen.',
+const FUNCTION_TEXT = Object.freeze({
+  information: 'Informationen und häufige Fragen anhand der hinterlegten Unternehmensdaten zuverlässig beantworten.',
+  consulting: 'Interessenten bedarfsgerecht beraten, passende hinterlegte Leistungen erklären und bei der Auswahl unterstützen, ohne nicht dokumentierte Eigenschaften oder Ergebnisse zu versprechen.',
   lead: 'Interessenten qualifizieren und die für eine spätere Beratung nötigen Angaben erfassen.',
-  appointment: 'Das Anliegen klären und den passenden nächsten Terminschritt einleiten.',
+  appointment: 'Das Anliegen klären und den passenden nächsten Terminschritt gemäss der definierten Terminbefugnis einleiten.',
+  quote: 'Offerten- oder Angebotsanfragen strukturiert aufnehmen; keine Preise oder verbindlichen Angebote erfinden.',
   callback: 'Eine vollständige Rückrufanfrage aufnehmen und verbindlich zusammenfassen.',
-  support: 'Supportanliegen strukturiert aufnehmen, priorisieren und korrekt weiterleiten.'
+  support: 'Supportanliegen strukturiert aufnehmen, priorisieren und korrekt weiterleiten.',
+  transfer: 'Anrufende gemäss den konfigurierten Regeln an die richtige zuständige Person weiterleiten.'
+});
+
+const LEGACY_GOAL_FUNCTION = Object.freeze({
+  service:'information',
+  lead:'lead',
+  appointment:'appointment',
+  callback:'callback',
+  support:'support'
 });
 
 const APPOINTMENT_TEXT = Object.freeze({
@@ -43,12 +54,16 @@ function parseMarkedJson(notes, marker) {
 
 function parsePromptProfile(notes) {
   const raw = parseMarkedJson(notes, PROFILE_MARKER);
-  const goal = Object.prototype.hasOwnProperty.call(GOAL_TEXT, raw.goal) ? raw.goal : '';
+  const requestedFunctions = Array.isArray(raw.functions) ? raw.functions : [];
+  const functions = [...new Set(requestedFunctions.filter(item => Object.prototype.hasOwnProperty.call(FUNCTION_TEXT, item)))];
+  if (!functions.length && LEGACY_GOAL_FUNCTION[raw.goal]) functions.push(LEGACY_GOAL_FUNCTION[raw.goal]);
   const appointmentMode = Object.prototype.hasOwnProperty.call(APPOINTMENT_TEXT, raw.appointmentMode) ? raw.appointmentMode : '';
   const unknownHandling = Object.prototype.hasOwnProperty.call(UNKNOWN_TEXT, raw.unknownHandling) ? raw.unknownHandling : '';
   return {
     version: 2,
-    goal,
+    functions,
+    goal: functions[0] || '',
+    functionInstructions: text(raw.functionInstructions),
     requiredInformation: text(raw.requiredInformation),
     successDefinition: text(raw.successDefinition),
     appointmentMode,
@@ -99,9 +114,11 @@ function operationalLines(wizard) {
 
 function buildPromptProfileSections(profile) {
   const parts = [];
-  if (profile.goal) {
+  if (profile.functions.length) {
     const success = profile.successDefinition || 'Das Anliegen ist geklärt, die nötigen Angaben sind erfasst und der nächste Schritt wurde korrekt zusammengefasst.';
-    parts.push(`## AUFTRAG & ERFOLGSKRITERIUM\nHauptauftrag: ${GOAL_TEXT[profile.goal]}\nErfolgreich ist das Gespräch, wenn: ${success}`);
+    const capabilities = profile.functions.map(item => `- ${FUNCTION_TEXT[item]}`).join('\n');
+    const instructions = profile.functionInstructions ? `\n\nKundenspezifische Regeln für diese Funktionen:\n${profile.functionInstructions}` : '';
+    parts.push(`## AUFGABEN & ERFOLGSKRITERIUM\nDu kombinierst je nach Anliegen die folgenden freigegebenen Funktionen:\n${capabilities}${instructions}\n\nErfolgreich ist das Gespräch, wenn: ${success}`);
   }
   if (profile.requiredInformation) {
     parts.push(`## PFLICHTINFORMATIONEN\nErfrage die folgenden Angaben nur soweit sie für das konkrete Anliegen relevant sind. Stelle kurze Fragen einzeln und bestätige kritische Angaben:\n${profile.requiredInformation}`);
@@ -115,7 +132,7 @@ function qualityReport(customer, profile, industryPrompt) {
   const checks = [
     ['business_profile', Boolean(text(customer.ai_business_description)), 'Geschäftsprofil erfasst'],
     ['services', Boolean(text(customer.ai_services)), 'Leistungen erfasst'],
-    ['goal', Boolean(profile.goal), 'Hauptauftrag festgelegt'],
+    ['functions', profile.functions.length > 0, 'Mindestens eine Agent-Funktion gewählt'],
     ['required_information', Boolean(profile.requiredInformation), 'Pflichtinformationen definiert'],
     ['appointment_mode', Boolean(profile.appointmentMode), 'Terminbefugnis eindeutig'],
     ['unknown_handling', Boolean(profile.unknownHandling), 'Fallback bei Unsicherheit definiert'],
@@ -123,7 +140,7 @@ function qualityReport(customer, profile, industryPrompt) {
     ['industry_layer', Boolean(text(industryPrompt)), 'Branchenregeln vorhanden']
   ].map(([id, passed, label]) => ({ id, passed, label }));
   const passed = checks.filter(item => item.passed).length;
-  const blockers = checks.filter(item => ['business_profile', 'services', 'goal', 'response_limits'].includes(item.id) && !item.passed).map(item => item.label);
+  const blockers = checks.filter(item => ['business_profile', 'services', 'functions', 'response_limits'].includes(item.id) && !item.passed).map(item => item.label);
   return {
     score: Math.round((passed / checks.length) * 100),
     ready: blockers.length === 0,
