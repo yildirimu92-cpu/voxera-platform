@@ -1,35 +1,110 @@
-// trigger-elevenlabs-sync.js
-// Admin Portal Netlify Function — proxied ElevenLabs sync
-// Vermeidet CORS Problem zwischen admin.voxera.ch und dashboard.voxera.ch
+'use strict';
 
 const { createClient } = require('@supabase/supabase-js');
 const { requirePromptSyncCaller } = require('./_lib/require-prompt-sync-caller');
 const { buildPromptV2 } = require('./_lib/prompt-builder-v2');
+const {
+  configured: calendarToolProvisioningConfigured,
+  ensureWorkspaceTool,
+  mergedAgentToolIds,
+  calendarPromptBlock
+} = require('./_lib/elevenlabs-calendar-tool');
 
-const ELEVENLABS_API_KEY   = process.env.ELEVENLABS_API_KEY;
-const SUPABASE_URL         = process.env.SUPABASE_URL;
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SUPABASE_ANON_KEY    = process.env.SUPABASE_ANON_KEY;
-const ELEVENLABS_BASE      = 'https://api.elevenlabs.io/v1/convai/agents';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1/convai/agents';
 const AUDIO_TRANSCRIPT_RETENTION_DAYS = 90;
 
+function response(statusCode, payload) {
+  return {
+    statusCode,
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify(payload)
+  };
+}
+
+async function loadPromptInputs(sb, customerId, customer) {
+  const nowIso = new Date().toISOString();
+  const [masterResult, operationalResult, calendarResult] = await Promise.all([
+    sb.from('system_config').select('value').eq('key', 'prompt_master_l1').maybeSingle(),
+    sb.from('customer_operational_updates')
+      .select('id,type,title,message,behavior,starts_at,ends_at,status')
+      .eq('customer_id', customerId)
+      .eq('status', 'published')
+      .gt('ends_at', nowIso)
+      .order('starts_at', { ascending: true })
+      .limit(20),
+    sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle()
+  ]);
+
+  if (masterResult.error) throw masterResult.error;
+  if (operationalResult.error) {
+    const error = new Error('operational_updates_lookup_failed');
+    error.cause = operationalResult.error;
+    throw error;
+  }
+  if (calendarResult.error) throw calendarResult.error;
+
+  let industryPrompt = '';
+  if (customer.industry_template_id) {
+    const { data, error } = await sb.from('industry_templates')
+      .select('prompt_block')
+      .eq('id', customer.industry_template_id)
+      .maybeSingle();
+    if (error) throw error;
+    industryPrompt = data?.prompt_block || '';
+  }
+
+  let assistantRole = 'die Assistentin';
+  if (customer.voice_id) {
+    const { data, error } = await sb.from('voxera_voices')
+      .select('gender')
+      .eq('voice_id', customer.voice_id)
+      .maybeSingle();
+    if (error) throw error;
+    if (data?.gender === 'male') assistantRole = 'der Assistent';
+  }
+
+  return {
+    masterPrompt: masterResult.data?.value || '',
+    operationalUpdates: operationalResult.data || [],
+    calendarSettings: calendarResult.data || null,
+    industryPrompt,
+    assistantRole
+  };
+}
+
+async function trimSyncLogs(sb, customerId) {
+  const { data: allLogs, error } = await sb.from('elevenlabs_sync_log')
+    .select('id')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false });
+  if (error || !allLogs || allLogs.length <= 10) return;
+  await sb.from('elevenlabs_sync_log').delete().in('id', allLogs.slice(10).map((row) => row.id));
+}
+
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
+  if (event.httpMethod !== 'POST') return response(405, { error: 'method_not_allowed' });
 
-  let body = {};
-  try { body = JSON.parse(event.body || '{}'); } catch(e) {
-    return { statusCode: 400, body: 'Invalid JSON' };
-  }
+  let body;
+  try { body = JSON.parse(event.body || '{}'); }
+  catch (_error) { return response(400, { error: 'invalid_json' }); }
 
-  const { customer_id, agent_id, triggered_by = 'admin_save', prev_values = {} } = body;
+  const {
+    customer_id,
+    agent_id,
+    triggered_by = 'admin_save',
+    prev_values = {}
+  } = body;
+  void prev_values;
+
   if (!customer_id || !agent_id) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'customer_id and agent_id required' }) };
+    return response(400, { error: 'customer_id_and_agent_id_required' });
   }
-
   if (!ELEVENLABS_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SUPABASE_ANON_KEY) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'Missing env vars' }) };
+    return response(500, { error: 'missing_environment_configuration' });
   }
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
@@ -43,72 +118,60 @@ exports.handler = async (event) => {
     sbAdmin: sb,
     requestedCustomerId: customer_id
   });
-  if (!guard.ok) {
-    return { statusCode: guard.statusCode, body: JSON.stringify(guard.body) };
+  if (!guard.ok) return response(guard.statusCode, guard.body);
+
+  const { data: customer, error: customerError } = await sb.from('customers')
+    .select('*')
+    .eq('id', customer_id)
+    .maybeSingle();
+  if (customerError || !customer) return response(404, { error: 'customer_not_found' });
+  if (String(customer.elevenlabs_agent_id || '').trim() && String(customer.elevenlabs_agent_id) !== String(agent_id)) {
+    return response(409, { error: 'agent_customer_mapping_mismatch' });
   }
 
-  // Lade Kundendaten
-  const { data: customer, error: custErr } = await sb
-    .from('customers').select('*').eq('id', customer_id).maybeSingle();
-
-  if (custErr || !customer) {
-    return { statusCode: 404, body: JSON.stringify({ error: 'Customer not found' }) };
-  }
-
-  // Prompt Builder V2: one deterministic compiler for preview, provisioning and sync.
-  const { data: l1Row } = await sb.from('system_config').select('value')
-    .eq('key', 'prompt_master_l1').maybeSingle();
-
-  let industryPrompt = '';
-  if (customer.industry_template_id) {
-    const { data: tplRow } = await sb.from('industry_templates')
-      .select('prompt_block').eq('id', customer.industry_template_id).maybeSingle();
-    industryPrompt = tplRow?.prompt_block || '';
-  }
-
-  let assistantRole = 'die Assistentin';
-  if (customer.voice_id) {
-    const { data: voiceRow } = await sb.from('voxera_voices')
-      .select('gender').eq('voice_id', customer.voice_id).maybeSingle();
-    if (voiceRow?.gender === 'male') assistantRole = 'der Assistent';
-  }
-
-  const nowIso = new Date().toISOString();
-  const { data: operationalUpdates, error: operationalError } = await sb
-    .from('customer_operational_updates')
-    .select('id,type,title,message,behavior,starts_at,ends_at,status')
-    .eq('customer_id', customer_id)
-    .eq('status', 'published')
-    .gt('ends_at', nowIso)
-    .order('starts_at', { ascending: true })
-    .limit(20);
-  if (operationalError) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'Operational updates could not be loaded', error_code: 'operational_updates_lookup_failed' }) };
-  }
-
-  const compiled = buildPromptV2({
-    customer,
-    masterPrompt: l1Row?.value || '',
-    industryPrompt,
-    assistantRole,
-    operationalUpdates: operationalUpdates || []
-  });
-  const fullPrompt = compiled.prompt;
-  const autoGreeting = compiled.firstMessage;
-
-  // Push zu ElevenLabs
+  let fullPrompt = '';
+  let compiled = null;
   let syncStatus = 'success';
-  let syncError  = null;
+  let syncError = null;
+  let calendarToolId = null;
+  let calendarToolStatus = 'not_configured';
 
   try {
-    const elRes = await fetch(`${ELEVENLABS_BASE}/${agent_id}`, {
+    const inputs = await loadPromptInputs(sb, customer_id, customer);
+    compiled = buildPromptV2({
+      customer,
+      masterPrompt: inputs.masterPrompt,
+      industryPrompt: inputs.industryPrompt,
+      assistantRole: inputs.assistantRole,
+      operationalUpdates: inputs.operationalUpdates
+    });
+
+    const calendarBlock = calendarPromptBlock(inputs.calendarSettings || {});
+    fullPrompt = [compiled.prompt, calendarBlock].filter(Boolean).join('\n\n');
+
+    let toolIds;
+    if (calendarToolProvisioningConfigured()) {
+      calendarToolId = await ensureWorkspaceTool();
+      toolIds = await mergedAgentToolIds(agent_id, calendarToolId);
+      calendarToolStatus = 'configured';
+    } else if (calendarBlock) {
+      throw new Error('calendar_tool_provisioning_configuration_missing');
+    }
+
+    const promptPatch = { prompt: fullPrompt };
+    if (toolIds) promptPatch.tool_ids = toolIds;
+
+    const elRes = await fetch(`${ELEVENLABS_BASE}/${encodeURIComponent(agent_id)}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'xi-api-key': ELEVENLABS_API_KEY },
+      headers: {
+        'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY
+      },
       body: JSON.stringify({
         conversation_config: {
           agent: {
-            prompt: { prompt: fullPrompt },
-            first_message: autoGreeting
+            prompt: promptPatch,
+            first_message: compiled.firstMessage
           },
           tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined
         },
@@ -121,34 +184,28 @@ exports.handler = async (event) => {
         }
       })
     });
+
     if (!elRes.ok) {
       const errText = await elRes.text();
-      throw new Error(`ElevenLabs ${elRes.status}: ${errText.substring(0, 200)}`);
+      throw new Error(`ElevenLabs ${elRes.status}: ${errText.substring(0, 300)}`);
     }
-  } catch(e) {
+  } catch (error) {
     syncStatus = 'failed';
-    syncError  = e.message;
+    syncError = error?.message || String(error);
   }
 
-  // Log schreiben
   await sb.from('elevenlabs_sync_log').insert({
-    customer_id, agent_id,
-    status: syncStatus, triggered_by,
+    customer_id,
+    agent_id,
+    status: syncStatus,
+    triggered_by,
     prompt_snapshot: syncStatus === 'success' ? fullPrompt : null,
     prompt_length: fullPrompt.length,
     error_message: syncError,
     created_at: new Date().toISOString()
   });
+  await trimSyncLogs(sb, customer_id);
 
-  // Max 10 Logs
-  const { data: allLogs } = await sb.from('elevenlabs_sync_log')
-    .select('id').eq('customer_id', customer_id)
-    .order('created_at', { ascending: false });
-  if (allLogs && allLogs.length > 10) {
-    await sb.from('elevenlabs_sync_log').delete().in('id', allLogs.slice(10).map(r => r.id));
-  }
-
-  // Customer aktualisieren
   await sb.from('customers').update({
     elevenlabs_last_sync_at: new Date().toISOString(),
     elevenlabs_sync_status: syncStatus,
@@ -157,36 +214,20 @@ exports.handler = async (event) => {
   }).eq('id', customer_id);
 
   if (syncStatus === 'failed') {
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: syncError }) };
+    return response(500, {
+      success: false,
+      error: syncError,
+      calendar_tool_status: calendarToolStatus
+    });
   }
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ success: true, agent_id, promptLength: fullPrompt.length, promptVersion: compiled.version, quality: compiled.quality })
-  };
+  return response(200, {
+    success: true,
+    agent_id,
+    promptLength: fullPrompt.length,
+    promptVersion: compiled?.version,
+    quality: compiled?.quality,
+    calendar_tool_status: calendarToolStatus,
+    calendar_tool_id: calendarToolId
+  });
 };
-
-function buildGreeting(name, type, personName, firmName, lang) {
-  // Gesprochener Name: Einzelperson/Berater = personName, Firma = firmName
-  const spokenName = (type === 'company') ? firmName : (personName || firmName);
-
-  if (lang === 'fr') {
-    if (type === 'company')    return `Bonjour, ici ${name} de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    if (type === 'consultant') return `Bonjour, ici ${name}, l'assistante de ${spokenName} chez ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    return `Bonjour, ici ${name}, l'assistante de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-  }
-  if (lang === 'it') {
-    if (type === 'company')    return `Buongiorno, sono ${name} di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
-    if (type === 'consultant') return `Buongiorno, sono ${name}, l'assistente di ${spokenName} presso ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
-    return `Buongiorno, sono ${name}, l'assistente di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
-  }
-  if (lang === 'en') {
-    if (type === 'company')    return `Hello, this is ${name} from ${spokenName}. This call is being recorded. How may I help you?`;
-    if (type === 'consultant') return `Hello, this is ${name}, assistant to ${spokenName} at ${firmName}. This call is being recorded. How may I help you?`;
-    return `Hello, this is ${name}, assistant to ${spokenName}. This call is being recorded. How may I help you?`;
-  }
-  if (type === 'company')    return `Grüezi, hier ist ${name} von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  if (type === 'consultant') return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName} bei ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-}
-
