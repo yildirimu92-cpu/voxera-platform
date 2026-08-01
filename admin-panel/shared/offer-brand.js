@@ -39,7 +39,8 @@
     '/shared/admin-runtime-plan-input-cleanup.js?v=20260801-1',
     '/shared/admin-runtime-plan-input-render-fix.js?v=20260801-1',
     '/shared/admin-runtime-plan-placeholder-visibility.js?v=20260801-1',
-    '/shared/admin-runtime-billing-ui-consolidated.js?v=20260801-2'
+    '/shared/admin-runtime-billing-ui-consolidated.js?v=20260801-2',
+    '/shared/admin-runtime-twilio-number-assignment.js?v=20260801-1'
   ].forEach((src, index) => {
     const id = `voxera-admin-runtime-${index}`;
     if (document.getElementById(id)) return;
