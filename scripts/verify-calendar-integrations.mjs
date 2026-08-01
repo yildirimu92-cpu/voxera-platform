@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const files = {
   migration: 'supabase/migrations/2026-08-01_calendar_integrations_foundation.sql',
   crypto: 'customer-dashboard/netlify/functions/_lib/calendar-crypto.js',
+  rollout: 'customer-dashboard/netlify/functions/_lib/calendar-rollout.js',
   providers: 'customer-dashboard/netlify/functions/_lib/calendar-providers.js',
   connections: 'customer-dashboard/netlify/functions/calendar-connections.js',
   callback: 'customer-dashboard/netlify/functions/calendar-oauth-callback.js',
@@ -17,7 +18,7 @@ const files = {
 const source = Object.fromEntries(Object.entries(files).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')]));
 const failures = [];
 
-for (const key of ['crypto','providers','connections','callback','tool','runtime','loader']) {
+for (const key of ['crypto','rollout','providers','connections','callback','tool','runtime','loader']) {
   try { new vm.Script(source[key], { filename: files[key] }); }
   catch (error) { failures.push(error.message); }
 }
@@ -35,6 +36,12 @@ try {
 
 for (const token of ['calendar_connections','calendar_settings','calendar_oauth_states','calendar_booking_audit','customer_id, request_id','enable row level security']) {
   if (!source.migration.includes(token)) failures.push('Migration missing: ' + token);
+}
+for (const token of ['CALENDAR_INTEGRATION_ENABLED','CALENDAR_ROLLOUT_CUSTOMER_IDS',"allowed.has('*')"]) {
+  if (!source.rollout.includes(token)) failures.push('Calendar rollout guard missing: ' + token);
+}
+for (const key of ['connections','callback','tool']) {
+  if (!source[key].includes('calendarEnabledForCustomer')) failures.push('Calendar customer guard missing in ' + files[key]);
 }
 for (const token of ["google:", "microsoft:", 'calendar.calendarlist.readonly', 'Calendars.ReadWrite', 'ensureAccessToken', 'checkAvailability', 'createEvent', 'updateEvent', 'deleteEvent']) {
   if (!source.providers.includes(token)) failures.push('Provider adapter missing: ' + token);
