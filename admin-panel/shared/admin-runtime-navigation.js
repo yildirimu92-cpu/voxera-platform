@@ -39,6 +39,8 @@
     const renderContractsOriginal = typeof renderContracts === 'function' ? renderContracts : null;
 
     function offer() { return (state.offers || []).find(x => same(x.id, state.selectedOfferId)); }
+    function offerCustomerId(row) { return String(row?.customerId || row?.customer_id || row?.raw?.customerId || row?.raw?.customer_id || ''); }
+    function offerContractId(row) { return String(row?.contractId || row?.contract_id || row?.raw?.contractId || row?.raw?.contract_id || ''); }
     function invoiceCustomerId(row) { return String(row?.customer_id || row?.customerId || row?.raw?.customer_id || row?.raw?.customerId || ''); }
     function contractCustomerId(row) { return String(row?.customer_id || row?.customerId || row?.raw?.customer_id || row?.raw?.customerId || ''); }
     function customerName(id) { const c = typeof customerById === 'function' ? customerById(id) : null; return c?.name || c?.email || id; }
@@ -148,8 +150,34 @@
     };
 
     w.openCustomerProfile = id => openCustomerWorkspace(id);
-    w.openLinkedCustomerFromOffer = function () { const o = offer(); if (o?.customerId) openCustomerWorkspace(o.customerId); else if (typeof showToast === 'function') showToast('Kein verknüpfter Kunde vorhanden.'); };
-    w.openOfferContract = function () { const o = offer(); if (o?.contractId) contract(o.contractId); else if (typeof showToast === 'function') showToast('Kein Vertrag verknüpft.'); };
+    w.openLinkedCustomerFromOffer = function () {
+      const customerId = offerCustomerId(offer());
+      if (customerId) openCustomerWorkspace(customerId);
+      else if (typeof showToast === 'function') showToast('Kein verknüpfter Kunde vorhanden.');
+    };
+    w.openOfferContract = function () {
+      const contractId = offerContractId(offer());
+      if (contractId) contract(contractId);
+      else if (typeof showToast === 'function') showToast('Kein Vertrag verknüpft.');
+    };
+
+    function bindOfferMetaLink(span, { prefix, label, href, targetId, open }) {
+      if (!span || !targetId) return;
+      let link = span.querySelector('a');
+      if (!link) {
+        span.textContent = prefix + ' ';
+        link = document.createElement('a');
+        span.appendChild(link);
+      }
+      link.textContent = label;
+      link.href = href;
+      link.dataset.voxTargetId = String(targetId);
+      link.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        open();
+      };
+    }
 
     function patchOffer() {
       const shell = document.getElementById('offer-detail-shell'); if (!shell) return;
@@ -166,11 +194,31 @@
         actions.appendChild(b);
       }
       const o = offer(), meta = document.getElementById('offer-header-meta');
-      if (o && meta) [...meta.querySelectorAll('span')].forEach(span => {
-        const t = span.textContent.trim();
-        if (t.startsWith('Kunde:') && o.customerId) { span.innerHTML = 'Kunde: <a href="#">Kunde verknüpft</a>'; span.querySelector('a').onclick = e => { e.preventDefault(); openCustomerWorkspace(o.customerId); }; }
-        if (t.startsWith('Vertrag:') && o.contractId) { span.innerHTML = 'Vertrag: <a href="#offers">verknüpft</a>'; span.querySelector('a').onclick = e => { e.preventDefault(); contract(o.contractId); }; }
-      });
+      if (o && meta) {
+        const customerId = offerCustomerId(o);
+        const contractId = offerContractId(o);
+        [...meta.querySelectorAll('span')].forEach(span => {
+          const t = span.textContent.trim();
+          if (t.startsWith('Kunde:') && customerId) {
+            bindOfferMetaLink(span, {
+              prefix: 'Kunde:',
+              label: 'Kunde verknüpft',
+              href: '#customer-workspace',
+              targetId: customerId,
+              open: () => openCustomerWorkspace(customerId)
+            });
+          }
+          if (t.startsWith('Vertrag:') && contractId) {
+            bindOfferMetaLink(span, {
+              prefix: 'Vertrag:',
+              label: 'verknüpft',
+              href: '#offers',
+              targetId: contractId,
+              open: () => contract(contractId)
+            });
+          }
+        });
+      }
     }
 
     function patchWorkspace(id) {
