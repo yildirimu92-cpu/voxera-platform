@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { buildInvoiceMailCopy, formatDateCh, formatMoneyCh } = require('./_lib/invoice-mail-copy');
+const { evaluateInvoiceDunning } = require('./_lib/invoice-dunning');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +50,18 @@ exports.handler = async event => {
   const state = invoiceState(invoice);
   if (state === 'paid') return respond(409, { error:'Eine bezahlte Rechnung kann nicht gemahnt oder erneut versendet werden.' });
   if (state === 'cancelled') return respond(409, { error:'Eine stornierte Rechnung darf nicht versendet werden.' });
+  const type = requestedType(body);
+  const requestedLevel = type === 'reminder_final_email' ? 2 : type === 'reminder_email' ? 1 : null;
+  const dunning = requestedLevel
+    ? evaluateInvoiceDunning(invoice, { requestedLevel })
+    : null;
+  if (dunning && !dunning.can_remind) {
+    return respond(409, {
+      error:dunning.reason,
+      step_failed:dunning.reason_code,
+      dunning
+    });
+  }
   if (!trim(invoice.pdf_url) || !trim(invoice.qr_payload) || Number(invoice.pdf_version || 0) < 1) {
     return respond(409, { error:'Die Rechnung wurde noch nicht als PDF erstellt.', step_failed:'invoice_pdf_missing' });
   }
@@ -56,7 +69,6 @@ exports.handler = async event => {
   if (customerResult.error) return respond(500, { error:customerResult.error.message });
   const customer = customerResult.data;
   if (!customer) return respond(404, { error:'Kunde zur Rechnung nicht gefunden.' });
-  const type = requestedType(body);
   const copy = buildInvoiceMailCopy(type, invoice, customer);
   const recipientEmail = trim(body?.overrides?.to_email || customer.email);
   const filename = `Voxera-Rechnung-${invoice.invoice_number || invoice.id}.pdf`;
@@ -80,6 +92,7 @@ exports.handler = async event => {
     recipient:preview.recipient,
     invoice:preview.invoice,
     attachments:[preview.attachment],
+    dunning,
     data:preview
   });
 };
