@@ -18,7 +18,8 @@
   ],
   "legacy_invoice_only_types": [
     "subscription_payment_email",
-    "setup_fee_email"
+    "setup_fee_email",
+    "overage_email"
   ],
   "required_payloads": {
     "offer_email": ["recipient.email", "offer.pdf_url"],
@@ -33,7 +34,7 @@
     "ai_change_request": ["customer_id", "message"]
   },
   "notes": {
-    "legacy_invoice_only_types": "These payment-link events are retained only for compatibility detection. The current Swiss invoice-only flow must use invoice_email and the QR invoice PDF instead.",
+    "legacy_invoice_only_types": "These payment-link or pre-QR overage events are retained only for compatibility detection. The current Swiss invoice-only flow must use invoice_email and the QR invoice PDF instead.",
     "contract_signed_email": "A PDF is attached when contract.signed_pdf_url is available; otherwise the signed page link remains the fallback."
   }
 }
