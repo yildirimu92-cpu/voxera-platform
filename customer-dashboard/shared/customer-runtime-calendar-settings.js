@@ -209,10 +209,10 @@
     document.getElementById('mehr-main').style.display = 'block';
   }
 
-  root.addEventListener('message', (event) => {
+  root.addEventListener('message', async (event) => {
     if (event.origin !== root.location.origin || event.data?.type !== 'voxera-calendar-oauth') return;
     if (event.data.payload?.ok) {
-      load();
+      await load();
       setStatus('✓ Kalender wurde verbunden.', 'success');
     } else {
       setStatus(event.data.payload?.error || 'OAuth-Verbindung fehlgeschlagen.', 'error');
