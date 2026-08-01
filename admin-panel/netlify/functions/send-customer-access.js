@@ -12,8 +12,10 @@ const corsHeaders = {
 };
 
 const REQUIRED_FIELDS = ['customer_name', 'email', 'street', 'zip', 'city', 'country', 'plan'];
+const ACCESS_INVITE_REQUIRED_FIELDS = ['email'];
 const AI_REQUIRED_FIELDS = ['ai_business_description', 'ai_services', 'ai_instructions', 'ai_fallback_escalation'];
 const ACCESS_ENABLED_CONTRACT_STATUSES = new Set(['active', 'signed']);
+const ACCESS_INVITE_CUSTOMER_STATUSES = new Set([STATUS.customer.ONBOARDING, STATUS.customer.READY]);
 
 function response(statusCode, payload) {
   return { statusCode, headers: corsHeaders, body: JSON.stringify(payload) };
@@ -34,6 +36,10 @@ function missingRequiredCustomerFields(customer) {
     if (field === 'plan') return !normalizePlanCode(customer?.plan_code || customer?.plan || '');
     return !String(customer?.[field] || '').trim();
   });
+}
+
+function missingAccessInviteFields(customer) {
+  return ACCESS_INVITE_REQUIRED_FIELDS.filter((field) => !String(customer?.[field] || '').trim());
 }
 
 async function findAuthUserByEmail(sbAdmin, email) {
@@ -227,41 +233,48 @@ async function resolveContractGate(sbAdmin, customerId) {
 async function buildCommercialAccessGate({ sbAdmin, customer, customerId, onboardingRow }) {
   const hardBlockers = [];
   const warnings = [];
-  const missingFields = missingRequiredCustomerFields(customer);
+  const missingFields = missingAccessInviteFields(customer);
+  const missingSetupFields = missingRequiredCustomerFields(customer).filter((field) => !missingFields.includes(field));
 
   if (missingFields.length) {
-    hardBlockers.push(`Pflicht-Stammdaten fehlen: ${missingFields.join(', ')}`);
+    hardBlockers.push(`Für den Zugangsversand fehlt: ${missingFields.join(', ')}`);
+  }
+  if (missingSetupFields.length) {
+    warnings.push(`Setup-Stammdaten noch offen: ${missingSetupFields.join(', ')}`);
   }
 
   const contractGate = await resolveContractGate(sbAdmin, customerId);
   if (!contractGate.ok) {
-    hardBlockers.push(...(contractGate.payload?.hard_blockers || []));
+    warnings.push(...(contractGate.payload?.hard_blockers || []));
   }
 
   const customerStatus = normalizeCustomerStatus(customer.status);
-  if (customerStatus !== STATUS.customer.READY) {
-    hardBlockers.push(`Kundenstatus muss vor dem Versand „ready“ sein (aktuell: ${customerStatus || 'unklar'}).`);
+  if (!ACCESS_INVITE_CUSTOMER_STATUSES.has(customerStatus)) {
+    hardBlockers.push(`Zugang kann im Kundenstatus „${customerStatus || 'unklar'}“ nicht erstmalig gesendet werden.`);
+  } else if (customerStatus === STATUS.customer.ONBOARDING) {
+    warnings.push('Einrichtung läuft noch. Der Portalzugang kann bereits gesendet werden.');
   }
+
   if (!customer.go_live_approved_at || !customer.go_live_approved_by) {
-    hardBlockers.push('Dokumentierte Admin-Freigabe fehlt.');
+    warnings.push('Admin-Freigabe für den späteren Go-live fehlt noch.');
   }
 
   if (!onboardingRow) {
-    hardBlockers.push('Onboarding-Datensatz fehlt.');
+    warnings.push('Onboarding-Datensatz fehlt noch.');
   } else {
     const onboardingStatus = normalizeOnboardingStatus(onboardingRow.status);
     if (onboardingStatus === STATUS.onboarding.BLOCKED) {
-      hardBlockers.push('Onboarding ist blockiert.');
-    } else if (onboardingStatus !== STATUS.onboarding.READY) {
-      hardBlockers.push(`Onboarding muss vor dem Versand „ready“ sein (aktuell: ${onboardingStatus}).`);
+      warnings.push('Onboarding ist derzeit blockiert; der Portalzugang darf trotzdem gesendet werden.');
+    } else if (onboardingStatus !== STATUS.onboarding.READY && onboardingStatus !== STATUS.onboarding.COMPLETED) {
+      warnings.push(`Onboarding ist noch nicht bereit (aktuell: ${onboardingStatus}).`);
     }
   }
 
-  if (!hasAssignedNumber(customer)) hardBlockers.push('Voxera-Rufnummer ist nicht zugewiesen.');
-  if (!String(customer.elevenlabs_agent_id || '').trim()) hardBlockers.push('ElevenLabs Agent-ID fehlt.');
+  if (!hasAssignedNumber(customer)) warnings.push('Voxera-Rufnummer ist noch nicht zugewiesen.');
+  if (!String(customer.elevenlabs_agent_id || '').trim()) warnings.push('ElevenLabs Agent-ID fehlt noch.');
   if (!hasAssistantBasics(customer)) {
     const missingAi = AI_REQUIRED_FIELDS.filter((field) => !String(customer?.[field] || '').trim());
-    hardBlockers.push(`Kritische AI-Konfiguration fehlt: ${missingAi.join(', ')}`);
+    warnings.push(`AI-Konfiguration noch offen: ${missingAi.join(', ')}`);
   }
 
   const setupFeeState = await loadSetupFeeState(sbAdmin, customerId);
@@ -270,7 +283,7 @@ async function buildCommercialAccessGate({ sbAdmin, customer, customerId, onboar
   return {
     allow: hardBlockers.length === 0,
     hard_blockers: hardBlockers,
-    warnings,
+    warnings: [...new Set(warnings.filter(Boolean))],
     missing_fields: missingFields,
     setup_fee_state: setupFeeState,
     contract_gate: contractGate
@@ -287,7 +300,7 @@ async function loadSetupFeeState(sbAdmin, customerId) {
       warningOnly: true,
       hasAnySetupFee: false,
       hasUnpaidSetupFee: false,
-      message: 'Setup-Fee-Status konnte nicht geladen werden. Zugang ist trotzdem erlaubt.',
+      message: 'Setup-Fee-Status konnte nicht geladen werden. Der Zugangsversand bleibt trotzdem erlaubt.',
       diagnostics: { db_message: error.message || null, db_code: error.code || null }
     };
   }
@@ -300,8 +313,8 @@ async function loadSetupFeeState(sbAdmin, customerId) {
     hasAnySetupFee,
     hasUnpaidSetupFee,
     message: hasUnpaidSetupFee
-      ? 'Warnung: Setup-Fee-Rechnung ist noch offen. Aktivierung wurde dennoch erlaubt.'
-      : (!hasAnySetupFee ? 'Warnung: Keine Setup-Fee-Rechnung gefunden. Aktivierung wurde dennoch erlaubt.' : null),
+      ? 'Warnung: Setup-Fee-Rechnung ist noch offen. Der Zugangsversand bleibt erlaubt.'
+      : (!hasAnySetupFee ? 'Warnung: Keine Setup-Fee-Rechnung gefunden. Der Zugangsversand bleibt erlaubt.' : null),
     diagnostics: null
   };
 }
@@ -500,10 +513,9 @@ exports.handler = async (event) => {
     });
   }
 
-  // Passwort-Reset benötigt nur die E-Mail; der Erstzugang durchläuft den vollständigen Gate.
-  const missingFields = action === 'reset_password'
-    ? (String(customer.email || '').trim() ? [] : ['email'])
-    : missingRequiredCustomerFields(customer);
+  // Passwort-Reset und Erstzugang benötigen nur eine erreichbare Kunden-E-Mail.
+  // Einrichtung und Go-live-Readiness werden separat geprüft und blockieren die Einladung nicht.
+  const missingFields = String(customer.email || '').trim() ? [] : ['email'];
 
   if (missingFields.length > 0) {
     return response(400, {
@@ -588,7 +600,7 @@ exports.handler = async (event) => {
     customer_id: customerId,
     assistant_ready: hasAssistantBasics(customer),
     customer_status: normalizedCustomerStatus,
-    admin_approved: true
+    admin_approved: Boolean(customer.go_live_approved_at && customer.go_live_approved_by)
   }));
 
   const setupFeeState = gate.setup_fee_state || await loadSetupFeeState(sbAdmin, customerId);
@@ -642,10 +654,11 @@ exports.handler = async (event) => {
       customer: freshCustomer
     });
   }
-  if (freshStatus !== STATUS.customer.READY) {
+  if (!ACCESS_INVITE_CUSTOMER_STATUSES.has(freshStatus)) {
     return response(409, {
-      error: 'Zugang kann nur aus dem freigegebenen Status „ready“ gesendet werden.',
-      customer_status: freshStatus
+      error: 'Zugang kann in diesem Lifecycle-Status nicht erstmalig gesendet werden.',
+      customer_status: freshStatus,
+      allowed_statuses: [...ACCESS_INVITE_CUSTOMER_STATUSES]
     });
   }
 
@@ -654,7 +667,7 @@ exports.handler = async (event) => {
     .from('customers')
     .update({ invite_status: 'sending', updated_at: claimTs })
     .eq('id', customerId)
-    .eq('status', STATUS.customer.READY);
+    .eq('status', freshCustomer.status);
 
   claimQuery = freshCustomer.invite_status == null
     ? claimQuery.is('invite_status', null)
