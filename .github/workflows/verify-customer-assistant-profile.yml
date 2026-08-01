@@ -1,0 +1,34 @@
+name: Verify Customer Assistant Profile
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'customer-dashboard/netlify/functions/customer-assistant-profile.js'
+      - 'customer-dashboard/netlify/functions/customer-update-assistant.js'
+      - 'customer-dashboard/netlify/functions/preview-voice.js'
+      - 'customer-dashboard/netlify/functions/get-available-voices.js'
+      - 'scripts/verify-customer-assistant-profile.mjs'
+      - '.github/workflows/verify-customer-assistant-profile.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'customer-dashboard/netlify/functions/customer-assistant-profile.js'
+      - 'customer-dashboard/netlify/functions/customer-update-assistant.js'
+      - 'customer-dashboard/netlify/functions/preview-voice.js'
+      - 'customer-dashboard/netlify/functions/get-available-voices.js'
+      - 'scripts/verify-customer-assistant-profile.mjs'
+      - '.github/workflows/verify-customer-assistant-profile.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-customer-assistant-profile.mjs
