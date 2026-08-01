@@ -31,9 +31,10 @@ async function resolveCustomerByNumber(sbAdmin, rawNumber) {
   const normalizedInput = normalizePhoneE164(rawNumber).normalized;
   if (!normalizedInput) return { customer: null, normalizedInput: null, strategy: null };
 
+  const columns = 'id, customer_name, contact_name, email, voxera_number, notification_active, notification_mode, new_log_email_active, missed_call_email_active';
   const exact = await sbAdmin
     .from('customers')
-    .select('id, customer_name, contact_name, email, voxera_number, notification_active, notification_mode, new_log_email_active, missed_call_email_active')
+    .select(columns)
     .eq('voxera_number', normalizedInput)
     .maybeSingle();
 
@@ -42,20 +43,26 @@ async function resolveCustomerByNumber(sbAdmin, rawNumber) {
 
   const candidates = await sbAdmin
     .from('customers')
-    .select('id, customer_name, contact_name, email, voxera_number, notification_active, notification_mode, new_log_email_active, missed_call_email_active')
+    .select(columns)
     .not('voxera_number', 'is', null)
     .limit(5000);
 
   if (candidates.error) throw candidates.error;
 
-  const customer = (candidates.data || []).find(row => {
+  const matches = (candidates.data || []).filter(row => {
     return normalizePhoneE164(row.voxera_number).normalized === normalizedInput;
-  }) || null;
+  });
+
+  if (matches.length > 1) {
+    const error = new Error('Mehrere Kunden verwenden dieselbe normalisierte Voxera-Nummer.');
+    error.code = 'AMBIGUOUS_NUMBER';
+    throw error;
+  }
 
   return {
-    customer,
+    customer: matches[0] || null,
     normalizedInput,
-    strategy: customer ? 'normalized_scan' : null
+    strategy: matches[0] ? 'normalized_scan' : null
   };
 }
 
@@ -120,12 +127,16 @@ exports.handler = async event => {
       missed_call_email_active: customer.missed_call_email_active === true
     });
   } catch (error) {
+    const isAmbiguous = error?.code === 'AMBIGUOUS_NUMBER';
     console.error(JSON.stringify({
       level: 'error',
       event: 'call_intake_customer_resolve_failed',
       called_number: calledNumber,
+      error_code: error?.code || null,
       error_message: error?.message || String(error)
     }));
-    return respond(500, { error: 'Customer resolution failed.' });
+    return respond(isAmbiguous ? 409 : 500, {
+      error: isAmbiguous ? 'Voxera-Nummer ist mehreren Kunden zugeordnet.' : 'Customer resolution failed.'
+    });
   }
 };
