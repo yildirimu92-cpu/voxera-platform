@@ -37,3 +37,8 @@ test('resolver rejects ambiguous normalized assignments', () => {
   assert.match(source, /AMBIGUOUS_NUMBER/);
   assert.match(source, /Voxera-Nummer ist mehreren Kunden zugeordnet/);
 });
+
+test('resolver blocks notification delivery without customer email', () => {
+  assert.match(source, /Kunde hat keine Benachrichtigungs-E-Mail/);
+  assert.match(source, /return respond\(422/);
+});
