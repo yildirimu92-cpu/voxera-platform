@@ -12,6 +12,7 @@ const paths = {
   postflight: new URL('../supabase/verification/p0_security_post_migration.sql', import.meta.url),
   adminIndex: new URL('../admin-panel/index.html', import.meta.url),
   adminSync: new URL('../admin-panel/netlify/functions/trigger-elevenlabs-sync.js', import.meta.url),
+  adminPromptSyncGuard: new URL('../admin-panel/netlify/functions/_lib/require-prompt-sync-caller.js', import.meta.url),
   adminProvision: new URL('../admin-panel/netlify/functions/elevenlabs-provision-agent.js', import.meta.url),
   adminAiApply: new URL('../admin-panel/netlify/functions/ai-apply-change.js', import.meta.url),
   adminScrape: new URL('../admin-panel/netlify/functions/scrape-website.js', import.meta.url),
@@ -30,6 +31,7 @@ const [
   postflight,
   adminIndex,
   adminSync,
+  adminPromptSyncGuard,
   adminProvision,
   adminAiApply,
   adminScrape,
@@ -52,7 +54,19 @@ const isAdminBody = taggedBody(migration, 'is_admin');
 const directProtectedAudioSrc = /(?:<audio[^>]+src|audio\.src\s*=)[^\n>]*elevenlabs-conversation-audio/i;
 
 const checks = [
-  ['admin sync requires authorized customer write', /requireAdminCaller/.test(adminSync) && /requiredCapability: 'customer:write'/.test(adminSync)],
+  ['admin sync requires authorized customer write',
+    /requirePromptSyncCaller/.test(adminSync)
+      && /requestedCustomerId:\s*customer_id/.test(adminSync)
+      && /requireAdminCaller/.test(adminPromptSyncGuard)
+      && /requiredCapability:\s*'customer:write'/.test(adminPromptSyncGuard)
+  ],
+  ['customer prompt sync is tenant-bound',
+    /auth\.getUser\(token\)/.test(adminPromptSyncGuard)
+      && /\.from\('users'\)/.test(adminPromptSyncGuard)
+      && /\.eq\('id', userId\)/.test(adminPromptSyncGuard)
+      && /customerId !== String\(requestedCustomerId \|\| ''\)\.trim\(\)/.test(adminPromptSyncGuard)
+      && /guard_customer_mismatch/.test(adminPromptSyncGuard)
+  ],
   ['admin provisioning requires authorized customer write', /requireAdminCaller/.test(adminProvision) && /requiredCapability: 'customer:write'/.test(adminProvision)],
   ['admin provisioning propagates auth to internal sync', /'Authorization': authHeader/.test(adminProvision)],
   ['admin AI change generation requires authorized customer write', /requireAdminCaller/.test(adminAiApply) && /requiredCapability: 'customer:write'/.test(adminAiApply)],
