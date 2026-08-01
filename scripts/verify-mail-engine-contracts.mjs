@@ -36,7 +36,10 @@ function relative(file) {
   return path.relative(root, file).split(path.sep).join('/');
 }
 
-const literalPattern = /\b(?:mail_type|event_type)\s*:\s*['"]([a-z0-9_]+)['"]/g;
+// Only mail_type is a Make routing contract. event_type is also used for
+// internal audit events such as accepted/opened/send_failed and must not be
+// treated as a mail-template identifier.
+const literalPattern = /\bmail_type\s*:\s*['"]([a-z0-9_]+)['"]/g;
 const occurrences = [];
 
 for (const file of scanRoots.flatMap(directory => walk(directory))) {
@@ -64,10 +67,10 @@ const countersignPath = path.join(
   'contract-countersign.js'
 );
 const countersignSource = fs.readFileSync(countersignPath, 'utf8');
-if (!countersignSource.includes("mail_type: 'contract_signed_email'")) {
+if (!/mail_type\s*:\s*['"]contract_signed_email['"]/.test(countersignSource)) {
   failures.push('contract-countersign.js must emit contract_signed_email.');
 }
-if (countersignSource.includes("mail_type: 'countersign_email'")) {
+if (/mail_type\s*:\s*['"]countersign_email['"]/.test(countersignSource)) {
   failures.push('contract-countersign.js still emits the retired countersign_email alias.');
 }
 if (!countersignSource.includes('process.env.MAKE_MAIL_WEBHOOK')) {
@@ -96,12 +99,12 @@ const aiNotifyPath = path.join(
   'ai-change-notify.js'
 );
 const aiNotifySource = fs.readFileSync(aiNotifyPath, 'utf8');
-if (!aiNotifySource.includes("mail_type: 'ai_change_request'")) {
+if (!/mail_type\s*:\s*['"]ai_change_request['"]/.test(aiNotifySource)) {
   failures.push('ai-change-notify.js must emit ai_change_request.');
 }
 
 console.log(`Mail contract manifest v${manifest.version}`);
-console.log(`Scanned ${occurrences.length} literal mail/event declarations.`);
+console.log(`Scanned ${occurrences.length} literal mail_type declarations.`);
 console.log(`Recognized types: ${[...new Set(occurrences.map(entry => entry.type))].sort().join(', ') || 'none'}`);
 
 if (legacy.length) {
