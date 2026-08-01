@@ -20,6 +20,7 @@ Set these in the **voxera-dashboard** Netlify site for Functions and all require
 
 ```
 CALENDAR_INTEGRATION_ENABLED=false
+CALENDAR_ROLLOUT_CUSTOMER_IDS=
 CALENDAR_DASHBOARD_ORIGIN=https://dashboard.voxera.ch
 CALENDAR_OAUTH_REDIRECT_URI=https://dashboard.voxera.ch/.netlify/functions/calendar-oauth-callback
 CALENDAR_TOKEN_ENCRYPTION_KEY=<32 random bytes, base64 encoded>
@@ -33,6 +34,8 @@ MICROSOFT_CALENDAR_CLIENT_SECRET=
 ```
 
 Keep `CALENDAR_INTEGRATION_ENABLED=false` until database migration, OAuth app setup, preview tests, a permanent test customer, and ElevenLabs tool tests are complete.
+
+For controlled testing, set `CALENDAR_ROLLOUT_CUSTOMER_IDS` to the exact test customer ID before enabling the global flag. Multiple IDs are comma-separated. An empty value denies every customer; use `*` only for an intentional broad rollout.
 
 Generate independent secrets. Do not reuse Supabase, Twilio, or OAuth client secrets.
 
@@ -114,7 +117,7 @@ Before changing the feature flag to `true`:
 2. Configure both OAuth applications and secrets.
 3. Connect one Google and one Microsoft test calendar.
 4. Verify calendar selection and token refresh.
-5. Configure a permanent test customer and ElevenLabs agent.
+5. Configure a permanent test customer and ElevenLabs agent, then add only that customer to `CALENDAR_ROLLOUT_CUSTOMER_IDS`.
 6. Test availability, book, reschedule, and cancel.
 7. Verify audit rows and cross-customer isolation.
 8. Test disconnect and expired-consent recovery.
