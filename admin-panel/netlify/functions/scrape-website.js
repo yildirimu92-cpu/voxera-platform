@@ -31,6 +31,12 @@ const INDUSTRIES = new Set([
   'anwalt', 'baeckerei', 'digitalmarketing'
 ]);
 const LANGUAGES = new Set(['de', 'fr', 'it', 'en']);
+const ASSISTANT_FUNCTIONS = new Set([
+  'information', 'consulting', 'lead', 'appointment',
+  'quote', 'callback', 'support', 'transfer'
+]);
+const APPOINTMENT_MODES = new Set(['none', 'request', 'direct']);
+const UNKNOWN_HANDLING = new Set(['transparent', 'callback', 'human']);
 
 class ScrapeError extends Error {
   constructor(statusCode, code, message) {
@@ -307,14 +313,30 @@ function parseAiJson(text) {
 function cleanResult(input) {
   const value = input && typeof input === 'object' ? input : {};
   const read = (key, max = 2000) => String(value[key] || '').trim().slice(0, max);
+  const readList = (key, allowed, maxItems = 8) => {
+    const raw = Array.isArray(value[key])
+      ? value[key]
+      : String(value[key] || '').split(/[,;\n]+/);
+    return [...new Set(raw.map(item => String(item || '').trim().toLowerCase()).filter(item => allowed.has(item)))].slice(0, maxItems);
+  };
   const industry = read('industry_guess', 40).toLowerCase();
   const language = read('language', 10).toLowerCase();
+  const appointmentMode = read('appointment_mode', 20).toLowerCase();
+  const unknownHandling = read('unknown_handling', 20).toLowerCase();
   return {
     company_name: read('company_name', 200),
     industry_guess: INDUSTRIES.has(industry) ? industry : 'generic',
-    short_description: read('short_description', 1000),
+    short_description: read('short_description', 1200),
+    target_groups: read('target_groups', 1200),
     services: read('services', 3000),
     location_hours: read('location_hours', 2000),
+    frequent_questions: read('frequent_questions', 2500),
+    assistant_functions: readList('assistant_functions', ASSISTANT_FUNCTIONS),
+    function_instructions: read('function_instructions', 3000),
+    required_information: read('required_information', 2000),
+    success_definition: read('success_definition', 1200),
+    appointment_mode: APPOINTMENT_MODES.has(appointmentMode) ? appointmentMode : 'request',
+    unknown_handling: UNKNOWN_HANDLING.has(unknownHandling) ? unknownHandling : 'callback',
     address: read('address', 500),
     phone: read('phone', 100),
     language: LANGUAGES.has(language) ? language : 'de'
@@ -383,9 +405,17 @@ async function handler(event) {
     '{',
     '  "company_name": "Firmenname",',
     '  "industry_guess": "eine von: generic, versicherung, facharzt, zahnarzt, physiotherapie, garage, hotel, restaurant, coiffeur, kosmetik, treuhand, immobilien, handwerk, reinigung, it-support, fitness, anwalt, baeckerei, digitalmarketing",',
-    '  "short_description": "1-2 Sätze Beschreibung",',
-    '  "services": "Hauptleistungen, kommagetrennt",',
-    '  "location_hours": "Öffnungszeiten und Adresse falls vorhanden",',
+    '  "short_description": "2-4 Sätze: Unternehmen, Nutzen und Positionierung; nur belegte Website-Angaben",',
+    '  "target_groups": "Zielgruppen und typische Interessenten; sonst leer",',
+    '  "services": "Konkrete Angebote und Hauptleistungen, eine pro Zeile",',
+    '  "location_hours": "Öffnungszeiten, Einsatzgebiet und Adresse falls vorhanden",',
+    '  "frequent_questions": "Häufige belegte Fragen und Antworten, eine pro Zeile; sonst leer",',
+    '  "assistant_functions": ["eine oder mehrere von: information, consulting, lead, appointment, quote, callback, support, transfer"],',
+    '  "function_instructions": "Konkrete Regeln, wie der Telefonassistent die erkannten Funktionen für dieses Unternehmen ausführen soll. Keine erfundenen Preise oder Zusagen.",',
+    '  "required_information": "Welche Angaben der Assistent je nach Anliegen erfassen soll, eine pro Zeile",',
+    '  "success_definition": "Wann ein Gespräch für dieses Unternehmen erfolgreich abgeschlossen ist",',
+    '  "appointment_mode": "none, request oder direct. direct nur wenn die Website eine echte direkte Online-Buchung klar belegt",',
+    '  "unknown_handling": "transparent, callback oder human",',
     '  "address": "Adresse falls vorhanden, sonst leer",',
     '  "phone": "Telefonnummer falls vorhanden, sonst leer",',
     '  "language": "de, fr, it oder en — Hauptsprache der Website"',
@@ -402,7 +432,7 @@ async function handler(event) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 900,
+        max_tokens: 1500,
         messages: [{ role: 'user', content: prompt }]
       })
     });
