@@ -12,6 +12,7 @@ const paths = {
   loader:'admin-panel/shared/offer-brand.js'
 };
 const source = Object.fromEntries(Object.entries(paths).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')]));
+const adminIndex = fs.readFileSync('admin-panel/index.html', 'utf8');
 let failed = 0;
 
 function check(name, fn) {
@@ -111,7 +112,6 @@ check('preview remains admin protected and uncached', () => {
 });
 check('wizard collects operational decisions and persists a structured marker', () => {
   assert.match(source.runtime, /agent_auftrag/);
-  assert.match(source.runtime, /prompt_check/);
   assert.match(source.runtime, /wz-prompt-functions/);
   assert.match(source.runtime, /Mehrfachauswahl/);
   assert.match(source.runtime, /functionInstructions/);
@@ -120,8 +120,27 @@ check('wizard collects operational decisions and persists a structured marker', 
   assert.match(source.runtime, /_promptProfilePersisted/);
   assert.match(source.runtime, /_promptProfileUserEdited/);
 });
+check('quality check and summary form one useful final step', () => {
+  assert.ok(!source.runtime.includes("id:'prompt_check'"));
+  assert.match(source.runtime, /renderFinalReview/);
+  assert.match(source.runtime, /Prüfen & Agent erstellen/);
+  assert.match(source.runtime, /summary\.collect = persistProfileToConfig/);
+  assert.match(source.runtime, /wizard-review-chips/);
+});
+check('unavailable forwarding and extra top-level branch steps are removed', () => {
+  assert.match(source.runtime, /step\.id !== 'weiterleitungen'/);
+  assert.match(source.runtime, /branchDetailSteps/);
+  assert.match(source.runtime, /profileStep\.collect/);
+});
+check('wizard chrome is compact, sticky and free of duplicate controls', () => {
+  assert.match(adminIndex, /wizard-progress-track/);
+  assert.match(adminIndex, /ai-wizard-shell/);
+  assert.match(adminIndex, /Speichern & synchronisieren/);
+  assert.equal((adminIndex.match(/id="wz-ai-btn-regeln"/g) || []).length, 1);
+  assert.equal((adminIndex.match(/id="wz-greeting-preview"/g) || []).length, 0);
+});
 check('admin preview requests the productive server prompt', () => assert.match(source.runtime, /callAdminFunction\('prompt-preview'/));
-check('runtime is loaded by admin bootstrap', () => assert.match(source.loader, /admin-runtime-prompt-builder-v2\.js\?v=20260801-3/));
+check('runtime is loaded by admin bootstrap', () => assert.match(source.loader, /admin-runtime-prompt-builder-v2\.js\?v=20260801-4/));
 
 if (failed) {
   console.error(`Prompt Builder V2 verification failed: ${failed}`);
