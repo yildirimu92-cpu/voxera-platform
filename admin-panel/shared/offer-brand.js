@@ -34,7 +34,8 @@
     '/shared/admin-runtime-invoice-only-ch.js?v=20260801-1',
     '/shared/admin-runtime-invoice-mail-routing-fix.js?v=20260801-2',
     '/shared/admin-runtime-billing-actions-compact.js?v=20260801-1',
-    '/shared/admin-runtime-admin-ui-cleanup.js?v=20260801-1'
+    '/shared/admin-runtime-admin-ui-cleanup.js?v=20260801-1',
+    '/shared/admin-runtime-design-system-v3.js?v=20260801-1'
   ].forEach((src, index) => {
     const id = `voxera-admin-runtime-${index}`;
     if (document.getElementById(id)) return;
