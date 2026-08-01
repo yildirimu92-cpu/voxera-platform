@@ -33,6 +33,9 @@ jobs:
       - name: Verify Billing mail controls
         run: node scripts/verify-billing-mail-controls.mjs
 
+      - name: Verify canonical invoice dunning workflow
+        run: node scripts/verify-invoice-dunning-workflow.mjs
+
       - name: Verify admin runtime patches
         run: node scripts/verify-admin-runtime-patches.mjs
 
