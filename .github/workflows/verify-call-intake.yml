@@ -47,6 +47,8 @@ jobs:
           grep -q "timingSafeEqual" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
           grep -q "notification_active" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
           grep -q "missed_call_email_active" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
+          grep -q "AMBIGUOUS_NUMBER" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
+          grep -q "Kunde hat keine Benachrichtigungs-E-Mail" customer-dashboard/netlify/functions/call-intake-resolve-customer.js
       - name: Verify call intake migration invariants
         shell: bash
         run: |
