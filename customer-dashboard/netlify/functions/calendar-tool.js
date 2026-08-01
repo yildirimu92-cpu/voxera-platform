@@ -94,11 +94,14 @@ exports.handler = async (event) => {
   const allowedActions = ['availability', 'book', 'reschedule', 'cancel'];
   if (!allowedActions.includes(action)) return reply(400, { ok: false, error: 'calendar_action_unsupported' });
   const requestId = String(body.request_id || '').trim() || null;
+  let claimedAuditId = null;
 
   try {
     if (requestId) {
       const { data: previous } = await sb.from('calendar_booking_audit').select('status,details').eq('request_id', requestId).maybeSingle();
       if (previous?.status === 'success' && previous.details?.response) return reply(200, previous.details.response);
+      if (previous?.status === 'processing') return reply(409, { ok: false, error: 'calendar_request_in_progress' });
+      if (previous?.status === 'failed') return reply(409, { ok: false, error: 'calendar_request_id_already_failed' });
     }
 
     const customerId = await resolveCustomer(sb, body);
@@ -110,22 +113,62 @@ exports.handler = async (event) => {
     if (connectionError) throw connectionError;
     if (!connection?.selected_calendar_id) return reply(409, { ok: false, error: 'calendar_connection_not_ready' });
 
-    const token = await ensureAccessToken(sb, connection);
-    const start = body.start ? iso(body.start, 'start') : null;
-    const end = body.end ? iso(body.end, 'end') : null;
-    let responsePayload;
     let externalEventId = String(body.external_event_id || '').trim() || null;
+    if (['reschedule', 'cancel'].includes(action)) {
+      if (!externalEventId) throw new Error('external_event_id_required');
+      const { data: managedEvents, error: managedError } = await sb.from('calendar_booking_audit')
+        .select('id')
+        .eq('customer_id', customerId)
+        .eq('provider', connection.provider)
+        .eq('external_event_id', externalEventId)
+        .in('action', ['book', 'reschedule'])
+        .eq('status', 'success')
+        .limit(1);
+      if (managedError) throw managedError;
+      if (!managedEvents?.length) return reply(403, { ok: false, error: 'calendar_event_not_managed_by_voxera' });
+    }
+
+    if (requestId) {
+      const { data: claim, error: claimError } = await sb.from('calendar_booking_audit').insert({
+        request_id: requestId,
+        customer_id: customerId,
+        connection_id: connection.id,
+        provider: connection.provider,
+        action,
+        actor_type: 'assistant',
+        external_event_id: externalEventId,
+        status: 'processing',
+        details: { claimed_at: new Date().toISOString() }
+      }).select('id').maybeSingle();
+      if (claimError?.code === '23505') {
+        const { data: existing } = await sb.from('calendar_booking_audit').select('status,details').eq('request_id', requestId).maybeSingle();
+        if (existing?.status === 'success' && existing.details?.response) return reply(200, existing.details.response);
+        return reply(409, { ok: false, error: existing?.status === 'processing' ? 'calendar_request_in_progress' : 'calendar_request_id_already_used' });
+      }
+      if (claimError) throw claimError;
+      claimedAuditId = claim?.id || null;
+    }
+
+    const token = await ensureAccessToken(sb, connection);
+    const startIso = body.start ? iso(body.start, 'start') : null;
+    const endIso = body.end ? iso(body.end, 'end') : null;
+    let responsePayload;
 
     if (action === 'availability') {
-      validateWindow(start, end, settings);
-      const bufferedStart = new Date(new Date(start).getTime() - Number(settings.buffer_before_minutes || 0) * 60000).toISOString();
-      const bufferedEnd = new Date(new Date(end).getTime() + Number(settings.buffer_after_minutes || 0) * 60000).toISOString();
+      validateWindow(startIso, endIso, settings);
+      const bufferedStart = new Date(new Date(startIso).getTime() - Number(settings.buffer_before_minutes || 0) * 60000).toISOString();
+      const bufferedEnd = new Date(new Date(endIso).getTime() + Number(settings.buffer_after_minutes || 0) * 60000).toISOString();
       const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, bufferedStart, bufferedEnd);
-      responsePayload = { ok: true, action, available: result.available, requested_start: start, requested_end: end, busy: result.busy };
+      responsePayload = { ok: true, action, available: result.available, requested_start: startIso, requested_end: endIso, busy: result.busy };
     } else if (action === 'book') {
       const input = eventInput(body, settings);
       const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, input.start, input.end);
-      if (!availability.available) return reply(409, { ok: false, error: 'calendar_slot_unavailable', busy: availability.busy });
+      if (!availability.available) {
+        const conflict = new Error('calendar_slot_unavailable');
+        conflict.status = 409;
+        conflict.details = { busy: availability.busy };
+        throw conflict;
+      }
       const eventRecord = await createEvent(connection.provider, token.accessToken, connection.selected_calendar_id, input);
       externalEventId = String(eventRecord.id || '').trim();
       responsePayload = {
@@ -134,10 +177,14 @@ exports.handler = async (event) => {
         start: input.start, end: input.end, timezone: input.timezone
       };
     } else if (action === 'reschedule') {
-      if (!externalEventId) throw new Error('external_event_id_required');
       const input = eventInput(body, settings);
-      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, input.start, input.end);
-      if (!availability.available) return reply(409, { ok: false, error: 'calendar_slot_unavailable', busy: availability.busy });
+      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, input.start, input.end, externalEventId);
+      if (!availability.available) {
+        const conflict = new Error('calendar_slot_unavailable');
+        conflict.status = 409;
+        conflict.details = { busy: availability.busy };
+        throw conflict;
+      }
       const eventRecord = await updateEvent(connection.provider, token.accessToken, connection.selected_calendar_id, externalEventId, input);
       responsePayload = {
         ok: true, action, external_event_id: externalEventId,
@@ -145,28 +192,47 @@ exports.handler = async (event) => {
         start: input.start, end: input.end, timezone: input.timezone
       };
     } else {
-      if (!externalEventId) throw new Error('external_event_id_required');
       await deleteEvent(connection.provider, token.accessToken, connection.selected_calendar_id, externalEventId);
       responsePayload = { ok: true, action, external_event_id: externalEventId, cancelled: true };
     }
 
-    await audit(sb, {
-      request_id: requestId,
-      customer_id: customerId,
-      connection_id: connection.id,
-      provider: connection.provider,
-      action,
-      actor_type: 'assistant',
-      external_event_id: externalEventId,
-      status: 'success',
-      details: { response: responsePayload }
-    });
+    if (claimedAuditId) {
+      const { error } = await sb.from('calendar_booking_audit').update({
+        external_event_id: externalEventId,
+        status: 'success',
+        details: { response: responsePayload, completed_at: new Date().toISOString() }
+      }).eq('id', claimedAuditId);
+      if (error) throw error;
+    } else {
+      await audit(sb, {
+        request_id: null,
+        customer_id: customerId,
+        connection_id: connection.id,
+        provider: connection.provider,
+        action,
+        actor_type: 'assistant',
+        external_event_id: externalEventId,
+        status: 'success',
+        details: { response: responsePayload }
+      });
+    }
     return reply(200, responsePayload);
   } catch (error) {
+    if (claimedAuditId) {
+      await sb.from('calendar_booking_audit').update({
+        status: 'failed',
+        details: {
+          error: error?.message || 'calendar_tool_failed',
+          ...(error?.details || {}),
+          failed_at: new Date().toISOString()
+        }
+      }).eq('id', claimedAuditId);
+    }
     console.error('[calendar-tool] failed', { action, request_id: requestId, error: error?.message || String(error) });
     return reply(error.status >= 400 && error.status < 600 ? error.status : 400, {
       ok: false,
-      error: error?.message || 'calendar_tool_failed'
+      error: error?.message || 'calendar_tool_failed',
+      ...(error?.details || {})
     });
   }
 };
