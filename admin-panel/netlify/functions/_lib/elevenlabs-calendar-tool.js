@@ -84,20 +84,14 @@ function llmProperty(type, description, extra = {}) {
   return {
     type,
     description,
-    value_type: 'llm_prompt',
-    dynamic_variable: '',
-    constant_value: '',
     ...extra
   };
 }
 
-function dynamicProperty(type, description, variable) {
+function dynamicProperty(type, variable) {
   return {
     type,
-    description,
-    value_type: 'dynamic_variable',
-    dynamic_variable: variable,
-    constant_value: ''
+    dynamic_variable: variable
   };
 }
 
@@ -114,10 +108,6 @@ function buildToolConfig(secretId) {
       url: toolUrl,
       method: 'POST',
       path_params_schema: {},
-      query_params_schema: {
-        properties: {},
-        required: []
-      },
       request_body_schema: {
         type: 'object',
         description: 'Kalenderaktion für den aktuell sprechenden Voxera-Agenten.',
@@ -125,9 +115,9 @@ function buildToolConfig(secretId) {
           action: llmProperty('string', 'Aktion: availability prüft einen Zeitraum, book erstellt einen bestätigten Termin, reschedule verschiebt einen von Voxera erstellten Termin, cancel storniert einen von Voxera erstellten Termin.', {
             enum: ['availability', 'book', 'reschedule', 'cancel']
           }),
-          agent_id: dynamicProperty('string', 'Automatische ElevenLabs-Agent-ID zur sicheren Kundenzuordnung.', 'system__agent_id'),
-          conversation_id: dynamicProperty('string', 'Automatische ElevenLabs-Konversations-ID für idempotente Schreibvorgänge.', 'system__conversation_id'),
-          agent_turns: dynamicProperty('number', 'Automatische Anzahl bisheriger Agentenantworten für einen stabilen Request-Schlüssel.', 'system__agent_turns'),
+          agent_id: dynamicProperty('string', 'system__agent_id'),
+          conversation_id: dynamicProperty('string', 'system__conversation_id'),
+          agent_turns: dynamicProperty('number', 'system__agent_turns'),
           start: llmProperty('string', 'Beginn als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset, zum Beispiel 2026-08-05T10:00:00+02:00. Erforderlich für availability, book und reschedule.'),
           end: llmProperty('string', 'Ende als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset. Erforderlich für availability, book und reschedule.'),
           title: llmProperty('string', 'Kurzer Kalendertitel für book oder reschedule.'),
