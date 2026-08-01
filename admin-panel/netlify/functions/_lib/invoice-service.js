@@ -1084,6 +1084,8 @@ async function markInvoicePaid(sbAdmin, invoiceId, {
     status: 'paid',
     paid_at: toIso(paidAt, new Date().toISOString()),
     paid_source: paidSource || 'manual',
+    dunning_status: 'closed_paid',
+    dunning_updated_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
   const normalizedPaidAmount = Number(paidAmount);
