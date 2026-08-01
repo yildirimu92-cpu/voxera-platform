@@ -54,7 +54,7 @@
           <div class="vx-empty-state" style="min-height:250px;align-items:flex-start;text-align:left;padding:28px">
             <span class="badge badge-amber">Einrichtung erforderlich</span>
             <strong style="font-size:18px;color:var(--vx-admin-ink)">Swiss QR-Rechnungen sind noch nicht eingerichtet</strong>
-            <span>Hinterlege einmalig das Voxera-Empfangskonto. Danach können Rechnungen mit korrekten Zahlungsinformationen erstellt werden.</span>
+            <span>Hinterlege einmalig das Voxera-Empfangskonto. Danach können Rechnungen mit korrekten Zahlungsinformationen erstellt und versendet werden.</span>
             <button class="btn btn-primary" type="button" id="vx-payment-account-create">Zahlungskonto einrichten</button>
           </div>
           <div class="card" style="margin:0;padding:20px;box-shadow:none">
@@ -65,7 +65,7 @@
               <div>③ Rechnungsstandard</div>
               <div>④ Aktivieren</div>
             </div>
-            <p class="muted" style="margin-top:18px;font-size:12px">Stripe bleibt standardmässig deaktiviert. QR-Rechnung und Zahlungsfrist können im Formular festgelegt werden.</p>
+            <p class="muted" style="margin-top:18px;font-size:12px">QR-Rechnung, Referenzart und Zahlungsfrist werden direkt für künftige Rechnungen übernommen.</p>
           </div>
         </div>`;
       content.querySelector('#vx-payment-account-create')?.addEventListener('click', () => renderForm(null));
@@ -88,7 +88,7 @@
             <div><small class="muted">Währung</small><div>${esc(account.currency)}</div></div>
             <div><small class="muted">Zahlungsfrist</small><div>${Number(account.payment_terms_days || 0)} Tage</div></div>
             <div><small class="muted">QR-Rechnung</small><div>${account.qr_enabled ? 'Aktiviert' : 'Deaktiviert'}</div></div>
-            <div><small class="muted">Stripe-Link</small><div>${account.stripe_link_enabled ? 'Aktiviert' : 'Deaktiviert'}</div></div>
+            <div><small class="muted">Zahlungsart</small><div>Rechnung / Banküberweisung</div></div>
           </div>
         </div>
         <button class="btn btn-primary" type="button" id="vx-payment-account-edit">Bearbeiten</button>
@@ -105,7 +105,7 @@
   function renderForm(account) {
     const root = ensureShell();
     const content = root.querySelector('#vx-payment-account-content');
-    const a = account || { currency:'CHF', reference_type:'NON', payment_terms_days:30, creditor_country:'CH', qr_enabled:true, stripe_link_enabled:false, is_default:true, is_active:true };
+    const a = account || { currency:'CHF', reference_type:'NON', payment_terms_days:30, creditor_country:'CH', qr_enabled:true, is_default:true, is_active:true };
     content.innerHTML = `
       <form id="vx-payment-account-form">
         <input type="hidden" name="id" value="${esc(a.id || '')}">
@@ -120,7 +120,7 @@
           ${field('creditor_country','Land (ISO)',a.creditor_country || 'CH',{required:true})}
           ${field('bank_name','Bankname',a.bank_name)}
           ${field('iban','IBAN',a.iban,{required:true,placeholder:'CH…'})}
-          ${field('qr_iban','QR-IBAN',a.qr_iban,{placeholder:'Optional, für QR-Referenz'})}
+          ${field('qr_iban','QR-IBAN',a.qr_iban,{placeholder:'Optional, nur für QR-Referenz'})}
           ${field('bic','BIC / SWIFT',a.bic)}
           <label class="form-group"><span>Währung *</span><select name="currency"><option value="CHF" ${a.currency==='CHF'?'selected':''}>CHF</option><option value="EUR" ${a.currency==='EUR'?'selected':''}>EUR</option></select></label>
           <label class="form-group"><span>Referenzart *</span><select name="reference_type"><option value="NON" ${a.reference_type==='NON'?'selected':''}>Ohne strukturierte Referenz</option><option value="SCOR" ${a.reference_type==='SCOR'?'selected':''}>SCOR-Referenz</option><option value="QRR" ${a.reference_type==='QRR'?'selected':''}>QR-Referenz</option></select></label>
@@ -131,7 +131,6 @@
         </div>
         <div style="display:flex;gap:18px;flex-wrap:wrap;margin:14px 0">
           <label><input type="checkbox" name="qr_enabled" ${a.qr_enabled!==false?'checked':''}> QR-Rechnung aktivieren</label>
-          <label><input type="checkbox" name="stripe_link_enabled" ${a.stripe_link_enabled?'checked':''}> Stripe-Link anzeigen</label>
           <label><input type="checkbox" name="is_default" ${a.is_default!==false?'checked':''}> Als Standardkonto verwenden</label>
           <label><input type="checkbox" name="is_active" ${a.is_active!==false?'checked':''}> Konto aktiv</label>
         </div>
@@ -158,7 +157,8 @@
     const fd = new FormData(form);
     const payload = Object.fromEntries(fd.entries());
     payload.payment_terms_days = Number(payload.payment_terms_days || 30);
-    ['qr_enabled','stripe_link_enabled','is_default','is_active'].forEach((key) => { payload[key] = fd.has(key); });
+    ['qr_enabled','is_default','is_active'].forEach((key) => { payload[key] = fd.has(key); });
+    payload.stripe_link_enabled = false;
     try {
       const result = await api('POST', payload);
       if (!result?.success) throw new Error(result?.error || 'Speichern fehlgeschlagen.');
