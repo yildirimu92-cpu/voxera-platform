@@ -39,14 +39,16 @@ exports.handler = async (event) => {
   const providerError = String(params.error_description || params.error || '').trim();
   if (!state) return html(400, { ok: false, error: 'oauth_state_missing' }, fallbackOrigin);
 
-  const { data: stateRow, error: stateError } = await sb.from('calendar_oauth_states').select('*').eq('state_hash', hashState(state)).maybeSingle();
-  if (stateError || !stateRow) return html(400, { ok: false, error: 'oauth_state_invalid' }, fallbackOrigin);
+  const now = new Date().toISOString();
+  const { data: stateRow, error: stateError } = await sb.from('calendar_oauth_states')
+    .update({ used_at: now })
+    .eq('state_hash', hashState(state))
+    .is('used_at', null)
+    .gt('expires_at', now)
+    .select('*')
+    .maybeSingle();
+  if (stateError || !stateRow) return html(400, { ok: false, error: 'oauth_state_invalid_or_expired' }, fallbackOrigin);
   const origin = stateRow.return_origin || fallbackOrigin;
-  if (stateRow.used_at || new Date(stateRow.expires_at).getTime() <= Date.now()) {
-    return html(400, { ok: false, error: 'oauth_state_expired' }, origin);
-  }
-
-  await sb.from('calendar_oauth_states').update({ used_at: new Date().toISOString() }).eq('state_hash', stateRow.state_hash);
   if (providerError || !code) return html(400, { ok: false, error: providerError || 'oauth_code_missing' }, origin);
 
   try {
