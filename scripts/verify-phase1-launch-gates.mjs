@@ -95,8 +95,11 @@ const checks = [
       && !/checklist:\[[^\]]*'test call completed'/.test(frontend)
       && /'activation sent':'Zugang an Kunden gesendet'/.test(frontend)
       && /operationalOnboardingStatus=missingSteps\.length===0/.test(frontend)
-      && /Kundeneinrichtung abwarten/.test(frontend)
-      && /Kundeneinrichtung und Test begleiten/.test(frontend)
+      && /Portalaktivierung und Rufumleitung abwarten/.test(frontend)
+      && /Rufumleitung durch Kunden abwarten/.test(frontend)
+      && /Optionalen Verbindungstest anbieten/.test(frontend)
+      && /snapshot\.customer\?\.forwarding_setup_completed/.test(frontend)
+      && !/Kundeneinrichtung und Test begleiten/.test(frontend)
   ],
   [
     'onboarding completion cannot promote customer lifecycle to live',
