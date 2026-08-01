@@ -117,9 +117,11 @@ check('wizard collects operational decisions and persists a structured marker', 
   assert.match(source.runtime, /functionInstructions/);
   assert.match(source.runtime, /appointmentMode/);
   assert.match(source.runtime, /upsertProfile/);
+  assert.match(source.runtime, /_promptProfilePersisted/);
+  assert.match(source.runtime, /_promptProfileUserEdited/);
 });
 check('admin preview requests the productive server prompt', () => assert.match(source.runtime, /callAdminFunction\('prompt-preview'/));
-check('runtime is loaded by admin bootstrap', () => assert.match(source.loader, /admin-runtime-prompt-builder-v2\.js\?v=20260801-2/));
+check('runtime is loaded by admin bootstrap', () => assert.match(source.loader, /admin-runtime-prompt-builder-v2\.js\?v=20260801-3/));
 
 if (failed) {
   console.error(`Prompt Builder V2 verification failed: ${failed}`);
