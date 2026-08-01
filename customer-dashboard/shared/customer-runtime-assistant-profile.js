@@ -1,6 +1,7 @@
 (function initVoxeraAssistantProfile(root) {
   'use strict';
   if (!root || !root.document || root.__vxAssistantProfileInstalled) return;
+  if (/\/activate(?:\.html)?$/i.test(String(root.location?.pathname || ''))) return;
   root.__vxAssistantProfileInstalled = true;
 
   let profile = null;
@@ -10,6 +11,8 @@
   let pendingVoiceId = '';
   let activeAudio = null;
   let activeAudioUrl = '';
+  let bootAttempts = 0;
+  const pageStatus = { assistant: null, business: null };
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
@@ -139,10 +142,16 @@
   }
 
   function setStatus(page, message, tone) {
+    pageStatus[page] = message ? { message, tone: tone || 'loading' } : null;
     const node = document.getElementById(page === 'business' ? 'vx-business-profile-status' : 'vx-assistant-profile-status');
     if (!node) return;
     node.textContent = message || '';
     node.className = 'vx-ap-status' + (message ? ' ' + (tone || 'loading') : '');
+  }
+
+  function restoreStatus(page) {
+    const current = pageStatus[page];
+    if (current) setStatus(page, current.message, current.tone);
   }
 
   function genderKey(value) {
@@ -187,6 +196,7 @@
       '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Kommunikationsstil</span><span class="vx-ap-summary-value">' + esc(profile.assistant?.tone || 'Professionell und freundlich') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Ansprache</span><span class="vx-ap-summary-value">' + esc(profile.assistant?.address_form || 'Sie') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Technischer Agent</span><span class="vx-ap-summary-value">' + (profile.assistant?.has_agent ? 'Eingerichtet' : 'Noch nicht eingerichtet') + '</span></div></div></section>' +
       '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Geschäftswissen</div><div class="vx-ap-meta">Dauerhafte Informationen werden zentral im Geschäftsprofil gepflegt.</div></div><span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div><div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Unternehmen</span><span class="vx-ap-summary-value">' + esc(business.company_name || 'Nicht angegeben') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Leistungen</span><span class="vx-ap-summary-value">' + esc(business.services ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Öffnungszeiten / Standort</span><span class="vx-ap-summary-value">' + esc(business.location_hours ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil öffnen</button></div></section></div>';
     bindAssistant();
+    restoreStatus('assistant');
   }
 
   function renderBusiness() {
@@ -199,6 +209,7 @@
     const data = profile.business_profile || {};
     body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören weiterhin in „Aktuelle Betriebsinfos“.</div></div><span class="vx-ap-pill">' + esc(profile.plan_code || '') + '</span></div><div class="vx-ap-grid"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div></div>';
     document.getElementById('vx-business-profile-save')?.addEventListener('click', saveBusiness);
+    restoreStatus('business');
   }
 
   function bindAssistant() {
@@ -222,6 +233,8 @@
       profile = profileResult;
       voices = Array.isArray(voiceResult.voices) ? voiceResult.voices : [];
       if (!profile.assistant.voice_id && voiceResult.selected_voice_id) profile.assistant.voice_id = voiceResult.selected_voice_id;
+      pageStatus.assistant = null;
+      pageStatus.business = null;
       renderAssistant();
       renderBusiness();
     } catch (error) {
@@ -238,25 +251,31 @@
     busy = true;
     page === 'business' ? renderBusiness() : renderAssistant();
     setStatus(page, loadingMessage, 'loading');
+    let result = null;
+    let finalMessage = '';
+    let finalTone = 'success';
     try {
-      const result = await request('customer-update-assistant', { method: 'POST', body: payload });
+      result = await request('customer-update-assistant', { method: 'POST', body: payload });
       await reloadProfile();
       const syncStatus = String(result.sync_status || '');
       if (syncStatus === 'failed') {
-        setStatus(page, 'Gespeichert, aber noch nicht mit dem Assistenten synchronisiert. Bitte später erneut versuchen.', 'warning');
+        finalMessage = 'Gespeichert, aber noch nicht mit dem Assistenten synchronisiert. Bitte später erneut versuchen.';
+        finalTone = 'warning';
       } else if (syncStatus === 'skipped_no_agent') {
-        setStatus(page, 'Gespeichert. Der technische Assistent ist noch nicht eingerichtet.', 'warning');
+        finalMessage = 'Gespeichert. Der technische Assistent ist noch nicht eingerichtet.';
+        finalTone = 'warning';
       } else {
-        setStatus(page, '✓ Änderung gespeichert und verarbeitet.', 'success');
+        finalMessage = '✓ Änderung gespeichert und verarbeitet.';
       }
-      return result;
     } catch (error) {
-      setStatus(page, error?.message || 'Änderung konnte nicht gespeichert werden.', 'error');
-      return null;
+      finalMessage = error?.message || 'Änderung konnte nicht gespeichert werden.';
+      finalTone = 'error';
     } finally {
       busy = false;
       page === 'business' ? renderBusiness() : renderAssistant();
+      setStatus(page, finalMessage, finalTone);
     }
+    return result;
   }
 
   async function reloadProfile() {
@@ -337,10 +356,11 @@
 
   function boot() {
     if (!inject()) {
-      window.setTimeout(boot, 250);
+      bootAttempts += 1;
+      if (bootAttempts < 80) root.setTimeout(boot, 250);
       return;
     }
-    window.addEventListener('beforeunload', stopAudio, { once: true });
+    root.addEventListener('beforeunload', stopAudio, { once: true });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
