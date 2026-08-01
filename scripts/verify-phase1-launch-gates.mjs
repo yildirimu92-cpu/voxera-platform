@@ -11,7 +11,8 @@ const paths = {
   onboarding: new URL('../admin-panel/netlify/functions/onboarding-update.js', import.meta.url),
   statusUpdate: new URL('../admin-panel/netlify/functions/customer-status-update.js', import.meta.url),
   subscription: new URL('../admin-panel/netlify/functions/activate-subscription.js', import.meta.url),
-  access: new URL('../admin-panel/netlify/functions/send-customer-access.js', import.meta.url)
+  access: new URL('../admin-panel/netlify/functions/send-customer-access.js', import.meta.url),
+  statusModel: new URL('../admin-panel/netlify/functions/_lib/status-model.js', import.meta.url)
 };
 
 const [
@@ -22,7 +23,8 @@ const [
   onboarding,
   statusUpdate,
   subscription,
-  access
+  access,
+  statusModel
 ] = await Promise.all(Object.values(paths).map(path => readFile(path, 'utf8')));
 
 const checks = [
@@ -81,9 +83,11 @@ const checks = [
       && /Kunde live schalten/.test(frontend)
   ],
   [
-    'customer access UI requires documented approval',
-    /go_live_approved_at/.test(frontend)
-      && /Kunde ist noch nicht im freigegebenen Status „Bereit“/.test(frontend)
+    'customer access UI separates early portal invite from protected go-live',
+    /ACCESS_INVITE_REQUIRED_FIELDS=\['email'\]/.test(frontend)
+      && /Einrichtung und der Go-live bleiben separate Schritte/.test(frontend)
+      && /showApproval:!approved/.test(frontend)
+      && /showSendAccess:true/.test(frontend)
   ],
   [
     'onboarding completion cannot promote customer lifecycle to live',
@@ -104,10 +108,14 @@ const checks = [
       && !/status:\s*['"]live['"]/.test(subscription)
   ],
   [
-    'customer access requires approval and exact ready-state claim',
-    /Dokumentierte Admin-Freigabe fehlt/.test(access)
-      && /\.eq\('status', STATUS\.customer\.READY\)/.test(access)
+    'customer access invite is allowed during setup while lifecycle claim stays exact',
+    /ACCESS_INVITE_CUSTOMER_STATUSES/.test(access)
+      && /STATUS\.customer\.ONBOARDING/.test(access)
+      && /STATUS\.customer\.READY/.test(access)
+      && /warnings\.push\('Admin-Freigabe für den späteren Go-live fehlt noch\.'\)/.test(access)
+      && /\.eq\('status', freshCustomer\.status\)/.test(access)
       && /invite_status:\s*'sending'/.test(access)
+      && /\[STATUS\.customer\.READY, STATUS\.customer\.INVITED/.test(statusModel)
   ],
   [
     'customer access does not mutate subscriptions',

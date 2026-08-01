@@ -51,6 +51,9 @@ jobs:
       - name: Verify launch sync and website flows
         run: node scripts/verify-launch-sync-website.mjs
 
+      - name: Verify Prompt Builder V2
+        run: node scripts/verify-prompt-builder-v2.mjs
+
       - name: Verify launch readiness gate
         run: node scripts/verify-launch-readiness-gate.mjs
 
@@ -68,3 +71,4 @@ jobs:
 
       - name: Verify invoice payment snapshots
         run: node scripts/verify-invoice-payment-snapshots.mjs
+

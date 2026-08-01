@@ -25,6 +25,7 @@
     '/shared/admin-runtime-cases-state-hotfix.js?v=20260731-1',
     '/shared/admin-runtime-cases-usability-fix.js?v=20260731-2',
     '/shared/admin-runtime-launch-p0.js?v=20260801-3',
+    '/shared/admin-runtime-prompt-builder-v2.js?v=20260801-2',
     '/shared/admin-runtime-data-integrity.js?v=20260731-1',
     '/shared/admin-runtime-contract-termination.js?v=20260731-1',
     '/shared/admin-runtime-invoice-adjustments.js?v=20260731-1',

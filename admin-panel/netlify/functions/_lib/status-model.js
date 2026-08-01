@@ -44,7 +44,7 @@ const LEGACY_CUSTOMER_STATUS_ALIASES = Object.freeze({
 });
 
 const CUSTOMER_TRANSITIONS = Object.freeze({
-  [STATUS.customer.ONBOARDING]: new Set([STATUS.customer.READY, STATUS.customer.DELETED]),
+  [STATUS.customer.ONBOARDING]: new Set([STATUS.customer.READY, STATUS.customer.INVITED, STATUS.customer.DELETED]),
   [STATUS.customer.READY]: new Set([STATUS.customer.INVITED, STATUS.customer.DELETED]),
   [STATUS.customer.INVITED]: new Set([STATUS.customer.ACTIVATED, STATUS.customer.DELETED]),
   [STATUS.customer.ACTIVATED]: new Set([STATUS.customer.LIVE, STATUS.customer.DELETED]),
