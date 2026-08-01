@@ -1,0 +1,38 @@
+name: Verify ElevenLabs Calendar Tool Provisioning
+
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/netlify/functions/_lib/elevenlabs-calendar-tool.js'
+      - 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js'
+      - 'customer-dashboard/netlify/functions/calendar-agent-tool.js'
+      - 'customer-dashboard/netlify/functions/calendar-tool.js'
+      - 'scripts/verify-elevenlabs-calendar-tool-provisioning.mjs'
+      - '.github/workflows/verify-elevenlabs-calendar-tool-provisioning.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin-panel/netlify/functions/_lib/elevenlabs-calendar-tool.js'
+      - 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js'
+      - 'customer-dashboard/netlify/functions/calendar-agent-tool.js'
+      - 'customer-dashboard/netlify/functions/calendar-tool.js'
+      - 'scripts/verify-elevenlabs-calendar-tool-provisioning.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin-panel/netlify/functions/_lib/elevenlabs-calendar-tool.js
+          node --check admin-panel/netlify/functions/trigger-elevenlabs-sync.js
+          node --check customer-dashboard/netlify/functions/calendar-agent-tool.js
+      - name: Verify scalable calendar tool provisioning
+        run: node scripts/verify-elevenlabs-calendar-tool-provisioning.mjs
