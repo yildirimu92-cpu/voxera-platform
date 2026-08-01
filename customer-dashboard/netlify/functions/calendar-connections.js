@@ -3,12 +3,12 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { randomState, hashState } = require('./_lib/calendar-crypto');
+const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
 const { providerConfig, authorizationUrl, ensureAccessToken, accountSnapshot } = require('./_lib/calendar-providers');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
 const reply = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
 const providers = ['google', 'microsoft'];
-const enabled = () => process.env.CALENDAR_INTEGRATION_ENABLED === 'true';
 
 function safeProvider(value) {
   const provider = String(value || '').trim().toLowerCase();
@@ -44,7 +44,7 @@ async function loadStatus(sb, customerId) {
   if (connectionError) throw connectionError;
   if (settingsError) throw settingsError;
   return {
-    enabled: enabled(),
+    enabled: calendarEnabledForCustomer(customerId),
     provider_configured: Object.fromEntries(providers.map((provider) => [provider, providerReadiness(provider)])),
     connections: connections || [],
     settings: settings || {
@@ -83,7 +83,7 @@ exports.handler = async (event) => {
 
   try {
     if (action === 'status') return reply(200, { ok: true, ...(await loadStatus(sb, caller.customerId)) });
-    if (!enabled()) return reply(503, { ok: false, error: 'calendar_integration_disabled' });
+    if (!calendarEnabledForCustomer(caller.customerId)) return reply(503, { ok: false, error: 'calendar_integration_disabled' });
 
     if (action === 'oauth_start') {
       const provider = safeProvider(body.provider);
