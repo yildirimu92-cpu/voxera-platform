@@ -48,7 +48,7 @@ Response:
 }
 ```
 
-The resolver uses the service role only server-side and requires a timing-safe shared-secret comparison. It normalizes Swiss national, `0041...`, and E.164 phone formats before matching.
+The resolver uses the service role only server-side and requires a timing-safe shared-secret comparison. It normalizes Swiss national, `0041...`, and E.164 phone formats before matching. Ambiguous normalized assignments return HTTP 409 instead of routing a notification to an arbitrary customer.
 
 ## Make notification rules
 
