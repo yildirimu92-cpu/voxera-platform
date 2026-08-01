@@ -37,6 +37,133 @@
     if (button) button.disabled = false;
   }
 
+  const WEBSITE_TEMPLATE_FIELDS = Object.freeze([
+    'businessDescription', 'services', 'locationHours', 'bookingFaq',
+    'instructions', 'fallbackEscalation', 'responseConstraints'
+  ]);
+
+  const wizardText = value => String(value ?? '').trim();
+  const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value || {}, key);
+
+  function canReplaceWizardValue(data, field, defaults, persistedValue) {
+    if (wizardText(persistedValue)) return false;
+    const current = wizardText(data[field]);
+    if (hasOwn(data._scrapedValues, field)) {
+      return current === wizardText(data._scrapedValues[field]);
+    }
+    const defaultValue = wizardText(defaults?.[field]);
+    return !current || current === defaultValue;
+  }
+
+  function rememberScrapedValue(data, field, value) {
+    data._scrapedFields = Array.isArray(data._scrapedFields) ? data._scrapedFields : [];
+    data._scrapedValues = data._scrapedValues && typeof data._scrapedValues === 'object' ? data._scrapedValues : {};
+    if (!data._scrapedFields.includes(field)) data._scrapedFields.push(field);
+    data._scrapedValues[field] = value;
+  }
+
+  function rebaseWizardTemplate(data, previousDefaults, nextDefaults, config) {
+    WEBSITE_TEMPLATE_FIELDS.forEach(field => {
+      if (wizardText(config?.[field])) return;
+      const current = wizardText(data[field]);
+      if (hasOwn(data._scrapedValues, field) && current === wizardText(data._scrapedValues[field])) return;
+      const previousValue = wizardText(previousDefaults?.[field]);
+      if (!current || current === previousValue) data[field] = wizardText(nextDefaults?.[field]);
+    });
+  }
+
+  function seedDynamicDefaults(data, defaults) {
+    (defaults?.extraSteps || []).forEach(stepDef => {
+      (stepDef.fields || []).forEach(field => {
+        if (field.type === 'radio' && !data[field.key] && Array.isArray(field.options) && field.options[0]) {
+          data[field.key] = field.options[0].val;
+        } else if (field.type !== 'radio' && data[field.key] === undefined) {
+          data[field.key] = '';
+        }
+      });
+    });
+  }
+
+  function mergeWebsiteAnalysis(data, scraped, options) {
+    const config = options?.config || {};
+    const customer = options?.customer || {};
+    const templateResolver = options?.templateResolver;
+    const previousTemplateId = String(data.templateId || 'generic');
+    const previousDefaults = typeof templateResolver === 'function' ? (templateResolver(previousTemplateId) || {}) : {};
+    const applied = [];
+    const preserved = [];
+
+    const apply = (field, rawValue, persistedValue, defaults = previousDefaults) => {
+      const value = wizardText(rawValue);
+      if (!value) return;
+      if (canReplaceWizardValue(data, field, defaults, persistedValue)) {
+        data[field] = value;
+        rememberScrapedValue(data, field, value);
+        applied.push(field);
+      } else {
+        preserved.push(field);
+      }
+    };
+
+    apply('businessDescription', scraped.short_description, config.businessDescription);
+    apply('shortDescription', scraped.short_description, customer.ai_short_description, { shortDescription:'' });
+    apply('services', scraped.services, config.services);
+    if ((data.customerType || 'company') === 'company') {
+      apply('locationHours', scraped.location_hours, config.locationHours);
+    }
+
+    const detectedTemplate = String(scraped.industry_guess || '').trim().toLowerCase();
+    if (detectedTemplate && detectedTemplate !== 'generic' && detectedTemplate !== previousTemplateId) {
+      const nextDefaults = typeof templateResolver === 'function' ? (templateResolver(detectedTemplate) || {}) : {};
+      rebaseWizardTemplate(data, previousDefaults, nextDefaults, config);
+      seedDynamicDefaults(data, nextDefaults);
+      data.templateId = detectedTemplate;
+      applied.push('templateId');
+    }
+
+    if (scraped.language && !wizardText(data.language)) {
+      data.language = wizardText(scraped.language);
+      applied.push('language');
+    }
+    if (scraped.company_name && !wizardText(data._customerDisplayName)) {
+      data._customerDisplayName = wizardText(scraped.company_name);
+      applied.push('_customerDisplayName');
+    }
+
+    return { applied:[...new Set(applied)], preserved:[...new Set(preserved)] };
+  }
+
+  function installWizardTemplateTransition() {
+    const original = w.wizardNext;
+    if (typeof original !== 'function' || original.__voxLaunchP0Template) return;
+
+    const wrapped = async function () {
+      const wizard = typeof state !== 'undefined' ? state.aiWizard : null;
+      const step = wizard?.steps?.[wizard.step];
+      if (wizard && step?.id === 'branche') {
+        const previousTemplateId = String(wizard.data.templateId || 'generic');
+        step.collect(wizard.data);
+        const nextTemplateId = String(wizard.data.templateId || 'generic');
+        if (nextTemplateId !== previousTemplateId) {
+          const config = state.aiConfigs?.[wizard.customerId] || {};
+          const previousDefaults = typeof getTemplateDefaults === 'function' ? (getTemplateDefaults(previousTemplateId) || {}) : {};
+          const nextDefaults = typeof getTemplateDefaults === 'function' ? (getTemplateDefaults(nextTemplateId) || {}) : {};
+          rebaseWizardTemplate(wizard.data, previousDefaults, nextDefaults, config);
+          seedDynamicDefaults(wizard.data, nextDefaults);
+          if (typeof getWizardSteps === 'function') {
+            wizard.steps = getWizardSteps(nextTemplateId);
+            const branchIndex = wizard.steps.findIndex(item => item.id === 'branche');
+            if (branchIndex >= 0) wizard.step = branchIndex;
+          }
+        }
+      }
+      return original.apply(this, arguments);
+    };
+    wrapped.__voxLaunchP0Template = true;
+    wrapped.__voxOriginal = original;
+    w.wizardNext = wrapped;
+  }
+
   function installWebsiteExtraction() {
     if (typeof w.wizardScrapeWebsite !== 'function' || w.wizardScrapeWebsite.__voxLaunchP0Website) return;
 
@@ -62,45 +189,26 @@
         if (!json?.success || !json?.data) throw new Error(json?.error || 'Website-Auslesung fehlgeschlagen.');
         if (typeof state === 'undefined' || !state.aiWizard?.data) throw new Error('Wizard-Daten sind nicht verfügbar.');
 
-        const data = state.aiWizard.data;
+        const wizard = state.aiWizard;
+        const data = wizard.data;
         const scraped = json.data || {};
-        let count = 0;
-
-        if (scraped.short_description && !data.businessDescription) {
-          data.shortDescription = scraped.short_description;
-          data.businessDescription = scraped.short_description;
-          addScrapedField(data, 'businessDescription');
-          count += 1;
-        }
-        if (scraped.services && !data.services) {
-          data.services = scraped.services;
-          addScrapedField(data, 'services');
-          count += 1;
-        }
-        if (scraped.location_hours && !data.locationHours && (data.customerType || 'company') === 'company') {
-          data.locationHours = scraped.location_hours;
-          addScrapedField(data, 'locationHours');
-          count += 1;
-        }
-        if (scraped.language && !data.language) {
-          data.language = scraped.language;
-          count += 1;
-        }
-        if (scraped.industry_guess && scraped.industry_guess !== 'generic') {
-          data.templateId = scraped.industry_guess;
-          count += 1;
-        }
-        if (scraped.company_name && !data._customerDisplayName) {
-          data._customerDisplayName = scraped.company_name;
-          count += 1;
-        }
+        const customer = typeof customerById === 'function' ? customerById(wizard.customerId) : null;
+        const config = state.aiConfigs?.[wizard.customerId] || {};
+        const merged = mergeWebsiteAnalysis(data, scraped, {
+          customer,
+          config,
+          templateResolver: typeof getTemplateDefaults === 'function' ? getTemplateDefaults : null
+        });
 
         data.websiteUrl = json.source_url || rawUrl;
-        if (typeof getWizardSteps === 'function') state.aiWizard.steps = getWizardSteps(data.templateId || 'generic');
+        if (typeof getWizardSteps === 'function') wizard.steps = getWizardSteps(data.templateId || 'generic');
         if (typeof renderWizardModal === 'function') renderWizardModal();
 
-        const message = count > 0
-          ? `✓ ${count} Angaben übernommen – bitte in den nächsten Schritten prüfen.`
+        const preservedText = merged.preserved.length
+          ? ' · ' + merged.preserved.length + ' manuelle/bestehende Angaben beibehalten'
+          : '';
+        const message = merged.applied.length > 0
+          ? '✓ ' + merged.applied.length + ' Angaben übernommen' + preservedText + ' – bitte in den nächsten Schritten prüfen.'
           : '✓ Website gelesen. Bestehende Angaben wurden nicht überschrieben.';
         setWebsiteFeedback(message, true);
         const freshInput = document.getElementById('wz-website-url');
@@ -263,6 +371,7 @@
 
   function install() {
     installFunctionRouting();
+    installWizardTemplateTransition();
     installWebsiteExtraction();
     installGoLiveReadiness();
   }
