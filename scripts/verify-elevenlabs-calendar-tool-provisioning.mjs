@@ -27,7 +27,6 @@ for (const token of [
   "method: 'POST'",
   'request_headers: {',
   'path_params_schema: {}',
-  'query_params_schema: {',
   'dynamic_variable: variable',
   "'system__agent_id'",
   "'system__conversation_id'",
@@ -36,6 +35,15 @@ for (const token of [
   'new Set'
 ]) {
   if (!source.helper.includes(token)) failures.push('Provisioning helper missing: ' + token);
+}
+
+for (const forbidden of [
+  'query_params_schema: {',
+  "value_type: 'llm_prompt'",
+  "value_type: 'dynamic_variable'",
+  "constant_value: ''"
+]) {
+  if (source.helper.includes(forbidden)) failures.push('Provisioning helper contains invalid ElevenLabs schema token: ' + forbidden);
 }
 
 for (const token of [
@@ -76,13 +84,19 @@ try {
   assert.equal(config.name, 'manage_voxera_calendar');
   assert.equal(config.api_schema.method, 'POST');
   assert.deepEqual(config.api_schema.path_params_schema, {});
-  assert.deepEqual(config.api_schema.query_params_schema, { properties: {}, required: [] });
+  assert.equal(Object.hasOwn(config.api_schema, 'query_params_schema'), false);
   assert.equal(Array.isArray(config.api_schema.request_headers), false);
   assert.equal(config.api_schema.request_headers.Authorization.secret_id, 'sec_test');
   assert.equal(config.api_schema.request_headers['Content-Type'], 'application/json');
-  assert.equal(config.api_schema.request_body_schema.properties.agent_id.dynamic_variable, 'system__agent_id');
-  assert.equal(config.api_schema.request_body_schema.properties.conversation_id.dynamic_variable, 'system__conversation_id');
-  assert.equal(config.api_schema.request_body_schema.properties.agent_turns.dynamic_variable, 'system__agent_turns');
+
+  const props = config.api_schema.request_body_schema.properties;
+  assert.deepEqual(props.agent_id, { type: 'string', dynamic_variable: 'system__agent_id' });
+  assert.deepEqual(props.conversation_id, { type: 'string', dynamic_variable: 'system__conversation_id' });
+  assert.deepEqual(props.agent_turns, { type: 'number', dynamic_variable: 'system__agent_turns' });
+  assert.equal(Object.hasOwn(props.action, 'value_type'), false);
+  assert.equal(Object.hasOwn(props.attendees, 'constant_value'), false);
+  assert.deepEqual(props.attendees.items, { type: 'string' });
+
   assert.match(helper.calendarPromptBlock({
     feature_enabled: true,
     active_provider: 'google',
