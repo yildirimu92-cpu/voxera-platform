@@ -7,6 +7,7 @@ on:
       - 'customer-dashboard/netlify/functions/elevenlabs-post-call.js'
       - 'customer-dashboard/netlify/functions/call-intake-resolve-customer.js'
       - 'customer-dashboard/tests/phone-normalize.test.cjs'
+      - 'customer-dashboard/tests/call-intake-resolver-contract.test.cjs'
       - 'supabase/sql/2026-08-01_call_intake_idempotency.sql'
       - '.github/workflows/verify-call-intake.yml'
   push:
@@ -17,6 +18,7 @@ on:
       - 'customer-dashboard/netlify/functions/elevenlabs-post-call.js'
       - 'customer-dashboard/netlify/functions/call-intake-resolve-customer.js'
       - 'customer-dashboard/tests/phone-normalize.test.cjs'
+      - 'customer-dashboard/tests/call-intake-resolver-contract.test.cjs'
       - 'supabase/sql/2026-08-01_call_intake_idempotency.sql'
 
 permissions:
@@ -34,8 +36,10 @@ jobs:
         run: |
           node --check customer-dashboard/netlify/functions/_lib/phone-normalize.js
           node --check customer-dashboard/netlify/functions/call-intake-resolve-customer.js
-      - name: Run phone normalization tests
-        run: node --test customer-dashboard/tests/phone-normalize.test.cjs
+      - name: Run call intake tests
+        run: |
+          node --test customer-dashboard/tests/phone-normalize.test.cjs
+          node --test customer-dashboard/tests/call-intake-resolver-contract.test.cjs
       - name: Verify resolver security contract
         shell: bash
         run: |
