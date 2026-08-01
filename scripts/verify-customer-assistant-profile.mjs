@@ -33,7 +33,10 @@ for (const token of [
   "data-vx-filter=\"male\"",
   'Stimme übernehmen?',
   'Technische Sprachparameter bleiben geschützt',
-  'sync_status'
+  'sync_status',
+  'restoreStatus',
+  'bootAttempts < 80',
+  '/\\/activate(?:\\.html)?$/'
 ]) {
   if (!source.runtime.includes(token)) failures.push(`runtime missing: ${token}`);
 }
@@ -55,6 +58,8 @@ assert.match(source.profile, /ai_business_description/);
 assert.match(source.profile, /ai_booking_faq/);
 assert.match(source.preview, /requireCustomerCaller/);
 assert.match(source.preview, /voice_not_available_on_plan/);
+assert.match(source.preview, /text: PREVIEW_TEXT/);
+assert.doesNotMatch(source.preview, /body\.text/);
 assert.match(source.update, /voice_not_available_on_plan/);
 assert.match(source.update, /from\('voxera_voices'\)/);
 assert.match(source.update, /PLAN_TIERS/);
