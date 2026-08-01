@@ -13,7 +13,7 @@ const checks = [
   ['invoice mail endpoint is admin protected', mail.includes('requireAdminCaller')],
   ['invoice mail requires a generated QR PDF', mail.includes('qr_invoice_missing') && mail.includes('invoice.pdf_url') && mail.includes('invoice.qr_payload')],
   ['invoice PDF is exposed as an attachment', mail.includes('attachments: [{') && mail.includes("content_type: 'application/pdf'")],
-  ['invoice mail has no payment-link payload', !mail.includes('payment_link:')],
+  ['invoice mail has no payment-link payload', !/\bpayment_link\s*:/.test(mail)],
   ['invoice mail is explicitly invoice-only', mail.includes("billing_provider: 'invoice'") && mail.includes("payment_method: 'swiss_qr_invoice'")],
   ['invoice mail uses Swiss locale and timezone', mail.includes("locale: 'de-CH'") && mail.includes("timezone: 'Europe/Zurich'")],
   ['legacy invoice mail calls are redirected', runtime.includes("original('invoice-mail-dispatch'")],
