@@ -81,17 +81,36 @@ function buildSwissQrPayload(invoice) {
   return lines.join('\r\n');
 }
 
+function numberCh(value, options = {}) {
+  const amount = Number(value || 0);
+  return new Intl.NumberFormat('de-CH', {
+    minimumFractionDigits: options.minimumFractionDigits ?? 2,
+    maximumFractionDigits: options.maximumFractionDigits ?? 2
+  }).format(Number.isFinite(amount) ? amount : 0);
+}
+
 function money(value, currency = 'CHF') {
   const amount = Number(value || 0);
   const sign = amount < 0 ? '-' : '';
-  return `${sign}${currency} ${Math.abs(amount).toFixed(2)}`;
+  return `${sign}${String(currency || 'CHF').toUpperCase()} ${numberCh(Math.abs(amount))}`;
+}
+
+function quantity(value) {
+  const amount = Number(value || 0);
+  const decimals = Number.isInteger(amount) ? 0 : 2;
+  return numberCh(amount, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 function displayDate(value) {
   if (!value) return '—';
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return clean(String(value), 20);
-  return new Intl.DateTimeFormat('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(parsed);
+  return new Intl.DateTimeFormat('de-CH', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Europe/Zurich'
+  }).format(parsed);
 }
 
 function drawText(page, font, text, x, y, size = 9, boldFont = null, bold = false, color = rgb(0, 0, 0)) {
@@ -137,13 +156,13 @@ function drawWrappedText(page, font, text, x, y, size, maxWidth, options = {}) {
 }
 
 function normalizeItem(item, index) {
-  const quantity = Number(item?.quantity || 1) || 1;
+  const itemQuantity = Number(item?.quantity || 1) || 1;
   const unitPrice = Number(item?.unit_price ?? item?.unitPrice ?? 0);
-  const lineTotal = Number(item?.line_total ?? item?.lineTotal ?? (quantity * unitPrice));
+  const lineTotal = Number(item?.line_total ?? item?.lineTotal ?? (itemQuantity * unitPrice));
   return {
     title: clean(item?.title || 'Voxera Dienstleistung', 160),
     description: clean(item?.description || '', 500),
-    quantity,
+    quantity: itemQuantity,
     unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0,
     lineTotal: Number.isFinite(lineTotal) ? lineTotal : 0,
     sortOrder: Number(item?.sort_order ?? item?.sortOrder ?? index + 1)
@@ -235,11 +254,11 @@ async function generateSwissQrInvoicePdf({ invoice, items = [] }) {
       const rowTop = y;
       drawWrappedText(page, bold, item.title, left + 8, y, 9, 260, { maxLines: 2, lineHeight: 11 });
       const titleLines = wrapText(bold, item.title, 9, 260, 2).length || 1;
-      let descriptionY = y - titleLines * 11;
+      const descriptionY = y - titleLines * 11;
       const descriptionLines = item.description ? wrapText(font, item.description, 7.5, 275, 2) : [];
       descriptionLines.forEach((descriptionLine, index) => drawText(page, font, descriptionLine, left + 8, descriptionY - index * 9, 7.5, null, false, grey));
 
-      drawRightText(page, font, String(item.quantity), 405, rowTop, 9);
+      drawRightText(page, font, quantity(item.quantity), 405, rowTop, 9);
       drawRightText(page, font, money(item.unitPrice, currency), 485, rowTop, 9);
       drawRightText(page, font, money(item.lineTotal, currency), right - 8, rowTop, 9, bold, item.lineTotal < 0);
 
@@ -279,7 +298,7 @@ async function generateSwissQrInvoicePdf({ invoice, items = [] }) {
   drawText(page, font, account.creditor_name || '', 5 * MM, paymentTop - 30 * MM, 8);
   drawText(page, font, `${account.creditor_postal_code || ''} ${account.creditor_city || ''}`, 5 * MM, paymentTop - 35 * MM, 8);
   drawText(page, font, 'Betrag', 5 * MM, 18 * MM, 7, bold, true);
-  drawText(page, font, `${currency} ${Number(invoice.total_amount || 0).toFixed(2)}`, 5 * MM, 12 * MM, 9, bold, true);
+  drawText(page, font, money(invoice.total_amount, currency), 5 * MM, 12 * MM, 9, bold, true);
 
   const mainX = receiptWidth + 6 * MM;
   drawText(page, font, 'Zahlteil', mainX, paymentTop - 10 * MM, 10, bold, true);
@@ -299,7 +318,7 @@ async function generateSwissQrInvoicePdf({ invoice, items = [] }) {
   drawWrappedText(page, font, invoice.payment_reference || `Rechnung ${invoice.invoice_number || ''}`, infoX, infoY, 8, 43 * MM, { maxLines: 2, lineHeight: 9 });
   infoY -= 10 * MM;
   drawText(page, font, 'Betrag', infoX, infoY, 7, bold, true); infoY -= 5 * MM;
-  drawText(page, font, `${currency} ${Number(invoice.total_amount || 0).toFixed(2)}`, infoX, infoY, 10, bold, true);
+  drawText(page, font, money(invoice.total_amount, currency), infoX, infoY, 10, bold, true);
 
   const bytes = await pdf.save();
   return { buffer: Buffer.from(bytes), payload };
