@@ -164,13 +164,21 @@
 
   async function save() {
     if (busy) return;
+    const startValue = document.getElementById('vx-ops-start')?.value || '';
+    const endValue = document.getElementById('vx-ops-end')?.value || '';
+    const startDate = new Date(startValue);
+    const endDate = new Date(endValue);
+    if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || endDate <= startDate) {
+      setStatus('Bitte einen gültigen Zeitraum wählen. Das Ende muss nach dem Beginn liegen.', 'error');
+      return;
+    }
     const update = {
       type: document.getElementById('vx-ops-type')?.value,
       title: document.getElementById('vx-ops-title')?.value,
       message: document.getElementById('vx-ops-message')?.value,
       behavior: document.getElementById('vx-ops-behavior')?.value,
-      starts_at: new Date(document.getElementById('vx-ops-start')?.value || '').toISOString(),
-      ends_at: new Date(document.getElementById('vx-ops-end')?.value || '').toISOString()
+      starts_at: startDate.toISOString(),
+      ends_at: endDate.toISOString()
     };
     if (!update.title.trim() || !update.message.trim()) {
       setStatus('Bitte Titel und Information ausfüllen.', 'error');
