@@ -1,6 +1,6 @@
 'use strict';
 
-const PROMPT_BUILDER_VERSION = '2.0';
+const PROMPT_BUILDER_VERSION = '2.1';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -99,6 +99,31 @@ function buildGreeting(name, type, personName, firmName, language) {
   return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
 }
 
+function formatOperationalUpdates(updates) {
+  const labels = {
+    closure: 'Ferien / geschlossen',
+    special_hours: 'Geänderte Öffnungszeiten',
+    absence: 'Abwesenheit',
+    temporary_contact: 'Temporäre Kontaktperson',
+    appointment_pause: 'Terminannahme pausieren',
+    notice: 'Temporärer Hinweis'
+  };
+  const entries = (Array.isArray(updates) ? updates : [])
+    .filter(item => item && item.status !== 'cancelled' && text(item.title) && text(item.message) && item.starts_at && item.ends_at)
+    .slice(0, 20);
+  if (!entries.length) return '';
+  const lines = entries.map(item => {
+    const type = labels[item.type] || 'Betriebsinformation';
+    const behavior = text(item.behavior) ? ` Gewünschtes Verhalten: ${text(item.behavior)}` : '';
+    return `- [${type}] ${text(item.title)} | gültig ab ${text(item.starts_at)} bis ${text(item.ends_at)} (Europe/Zurich): ${text(item.message)}${behavior}`;
+  });
+  return [
+    'Diese Angaben haben Vorrang vor den Standardinformationen, aber nur innerhalb des angegebenen Zeitfensters.',
+    'Vor Beginn und nach Ablauf gilt wieder die dauerhafte Agenten-Konfiguration. Erfinde keine Verlängerung.',
+    ...lines
+  ].join('\n');
+}
+
 function operationalLines(wizard) {
   const lines = [];
   if (wizard.termin_modus === 'aufnehmen') lines.push('Terminanfragen: Daten aufnehmen; die Bestätigung erfolgt durch das Unternehmen.');
@@ -146,11 +171,11 @@ function qualityReport(customer, profile, industryPrompt) {
     ready: blockers.length === 0,
     checks,
     blockers,
-    note: 'Der Qualitätscheck prüft die Prompt-Konfiguration. Ein realer Testanruf bleibt vor dem Go-live erforderlich.'
+    note: 'Der Qualitätscheck prüft die Prompt-Konfiguration. Voxera prüft den Assistenten intern; ein zusätzlicher Kundentest bleibt optional.'
   };
 }
 
-function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', assistantRole = 'die Assistentin' } = {}) {
+function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
   const profile = parsePromptProfile(customer.ai_internal_notes);
   const wizard = parseMarkedJson(customer.ai_internal_notes, WIZARD_MARKER);
   const assistantName = text(customer.assistant_name) || 'Lara';
@@ -199,6 +224,8 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   add('LEISTUNGEN', customer.ai_services);
   add('STANDORT & ERREICHBARKEIT', customer.ai_location_hours);
   add('TERMINLOGIK & FAQ', customer.ai_booking_faq);
+  const currentOperations = formatOperationalUpdates(operationalUpdates);
+  if (currentOperations) customerParts.push(`## AKTUELLE BETRIEBSINFORMATIONEN\n${currentOperations}`);
   customerParts.push(...buildPromptProfileSections(profile));
   const ops = operationalLines(wizard);
   if (ops.length) customerParts.push(`## BETRIEBLICHE KONFIGURATION\n${ops.join('\n')}`);
@@ -243,5 +270,6 @@ module.exports = {
   parsePromptProfile,
   buildPromptV2,
   buildGreeting,
-  qualityReport
+  qualityReport,
+  formatOperationalUpdates
 };
