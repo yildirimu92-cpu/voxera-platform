@@ -15,7 +15,7 @@
     ONBOARDING:'onboarding', READY:'ready', INVITED:'invited', ACTIVATED:'activated', LIVE:'live', PAUSED:'paused', DELETED:'deleted'
   });
   [
-    '/shared/admin-runtime-ui.js?v=20260731-3',
+    '/shared/admin-runtime-ui.js?v=20260801-1',
     '/shared/admin-runtime-navigation.js?v=20260731-3',
     '/shared/admin-runtime-sync.js?v=20260731-4',
     '/shared/admin-runtime-cases.js?v=20260731-3',
@@ -32,8 +32,8 @@
     '/shared/admin-runtime-design-system-v2.js?v=20260731-1',
     '/shared/admin-runtime-payment-account.js?v=20260801-2',
     '/shared/admin-runtime-billing-inline-qr.js?v=20260801-2',
-    '/shared/admin-runtime-invoice-only-ch.js?v=20260801-1',
-    '/shared/admin-runtime-invoice-mail-routing-fix.js?v=20260801-2',
+    '/shared/admin-runtime-invoice-only-ch.js?v=20260801-2',
+    '/shared/admin-runtime-invoice-mail-routing-fix.js?v=20260801-3',
     '/shared/admin-runtime-admin-ui-cleanup.js?v=20260801-1',
     '/shared/admin-runtime-design-system-v3.js?v=20260801-2',
     '/shared/admin-runtime-v3-regression-fix.js?v=20260801-1',

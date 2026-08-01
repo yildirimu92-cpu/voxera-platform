@@ -141,9 +141,20 @@
     });
   }
 
+  function hasAdminApiWrapper(fn, marker) {
+    const seen = new Set();
+    let current = fn;
+    while (typeof current === 'function' && !seen.has(current)) {
+      if (current[marker]) return true;
+      seen.add(current);
+      current = current.__voxeraOriginal || current.__voxOriginal;
+    }
+    return false;
+  }
+
   function wrapAdminApi() {
     const current = w.callAdminFunction;
-    if (typeof current !== 'function' || current.__voxeraInvoiceOnly) return;
+    if (typeof current !== 'function' || hasAdminApiWrapper(current, '__voxeraInvoiceOnly')) return;
     const original = current.bind(w);
     const wrapped = function (functionName, payload, ...rest) {
       const body = payload && typeof payload === 'object' ? payload : {};
