@@ -31,11 +31,12 @@ async function elevenLabsRequest(path, { method = 'GET', body } = {}) {
   const text = await response.text();
   let payload = {};
   try { payload = text ? JSON.parse(text) : {}; }
-  catch (_error) { payload = { raw: text.slice(0, 500) }; }
+  catch (_error) { payload = { raw: text.slice(0, 2000) }; }
 
   if (!response.ok) {
     const detail = payload.detail || payload.error || payload.raw || 'unknown_error';
-    const error = new Error(`ElevenLabs ${response.status}: ${typeof detail === 'string' ? detail : JSON.stringify(detail).slice(0, 500)}`);
+    const serialized = typeof detail === 'string' ? detail : JSON.stringify(detail);
+    const error = new Error(`ElevenLabs ${response.status}: ${serialized.slice(0, 2000)}`);
     error.status = response.status;
     error.payload = payload;
     throw error;
@@ -48,7 +49,9 @@ async function listAll(path, key) {
   let cursor = '';
   do {
     const separator = path.includes('?') ? '&' : '?';
-    const payload = await elevenLabsRequest(path + separator + 'page_size=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''));
+    const payload = await elevenLabsRequest(
+      path + separator + 'page_size=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '')
+    );
     items.push(...(Array.isArray(payload[key]) ? payload[key] : []));
     cursor = String(payload.next_cursor || '').trim();
   } while (cursor);
@@ -101,6 +104,7 @@ function dynamicProperty(type, description, variable) {
 function buildToolConfig(secretId) {
   const toolUrl = String(process.env.CALENDAR_AGENT_TOOL_URL || DEFAULT_TOOL_URL).trim();
   if (!/^https:\/\//i.test(toolUrl)) throw new Error('calendar_agent_tool_url_invalid');
+  if (!String(secretId || '').trim()) throw new Error('elevenlabs_calendar_secret_id_missing');
 
   return {
     type: 'webhook',
@@ -109,8 +113,11 @@ function buildToolConfig(secretId) {
     api_schema: {
       url: toolUrl,
       method: 'POST',
-      path_params_schema: [],
-      query_params_schema: [],
+      path_params_schema: {},
+      query_params_schema: {
+        properties: {},
+        required: []
+      },
       request_body_schema: {
         type: 'object',
         description: 'Kalenderaktion für den aktuell sprechenden Voxera-Agenten.',
@@ -132,10 +139,10 @@ function buildToolConfig(secretId) {
         },
         required: ['action', 'agent_id', 'conversation_id']
       },
-      request_headers: [
-        { type: 'secret', name: 'Authorization', secret_id: secretId },
-        { type: 'value', name: 'Content-Type', value: 'application/json' }
-      ],
+      request_headers: {
+        Authorization: { secret_id: String(secretId).trim() },
+        'Content-Type': 'application/json'
+      },
       content_type: 'application/json',
       auth_connection: null
     },
