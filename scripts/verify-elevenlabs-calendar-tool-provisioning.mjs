@@ -95,7 +95,10 @@ try {
   assert.deepEqual(props.agent_turns, { type: 'number', dynamic_variable: 'system__agent_turns' });
   assert.equal(Object.hasOwn(props.action, 'value_type'), false);
   assert.equal(Object.hasOwn(props.attendees, 'constant_value'), false);
-  assert.deepEqual(props.attendees.items, { type: 'string' });
+  assert.deepEqual(props.attendees.items, {
+    type: 'string',
+    description: 'Bestätigte E-Mail-Adresse eines Teilnehmers.'
+  });
 
   assert.match(helper.calendarPromptBlock({
     feature_enabled: true,
