@@ -6,7 +6,7 @@ This integration is disabled by default. Merge and deploy the foundation without
 
 - Customer-authenticated settings API: `calendar-connections`
 - OAuth callback: `calendar-oauth-callback`
-- Signed ElevenLabs tool endpoint: `calendar-tool`
+- Authenticated ElevenLabs tool endpoint: `calendar-tool`
 - Provider adapters: Google Calendar API and Microsoft Graph
 - Tenant isolation: provider connections are resolved from the authenticated customer or mapped ElevenLabs agent
 - Token storage: AES-256-GCM encrypted before Supabase persistence
@@ -82,14 +82,20 @@ Official references:
 
 ## ElevenLabs tool security
 
-The tool request must be an exact JSON POST body. Send:
+Configure the ElevenLabs webhook tool with Bearer authentication:
 
-- `X-Voxera-Timestamp`: current Unix timestamp in seconds
-- `X-Voxera-Signature`: hex HMAC-SHA256 of `<timestamp>.<raw request body>` using `CALENDAR_TOOL_WEBHOOK_SECRET`
+1. Add an `Authorization` header to the tool.
+2. Select `Secret` as the header value type.
+3. With the built-in Bearer-token connection, store the raw `CALENDAR_TOOL_WEBHOOK_SECRET`. If a custom header is used instead, store the complete value `Bearer <CALENDAR_TOOL_WEBHOOK_SECRET>`.
+4. Send the request as a JSON POST body.
 
-Requests older than five minutes or with an invalid signature are rejected.
+The endpoint performs a timing-safe comparison of the bearer token. Trusted internal callers may alternatively send `X-Voxera-Timestamp` and `X-Voxera-Signature`, where the signature is the hex HMAC-SHA256 of `<timestamp>.<raw request body>`; those requests expire after five minutes.
 
 The default contract requires `agent_id`; Voxera resolves the customer from `customers.elevenlabs_agent_id`. Direct `customer_id` use remains disabled unless `CALENDAR_TOOL_ALLOW_CUSTOMER_ID=true`, which must not be enabled in production.
+
+Official reference:
+
+- https://elevenlabs.io/docs/eleven-agents/customization/tools/webhook-tools#supported-authentication-methods
 
 Supported actions:
 
