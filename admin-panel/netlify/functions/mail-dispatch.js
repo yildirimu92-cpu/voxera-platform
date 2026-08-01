@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
+const { evaluateInvoiceDunning, dunningPatchForLevel } = require('./_lib/invoice-dunning');
 const { normalizePlanCode, loadPlanByCode, isSalesPlanCode } = require('./_lib/plan-config');
 const { trimOrNull, ensureOfferPublicToken, derivePublicOfferAcceptanceUrl, derivePublicOfferPdfUrl, resolvePublicExpiryFromOffer } = require('./_lib/offer-public');
 const { recordOfferEvent } = require('./_lib/offer-events');
@@ -75,6 +76,24 @@ function invoiceMailStateError(invoice, mailType) {
   }
   return null;
 }
+async function persistDunningState(sbAdmin, context, outboxId) {
+  if (!context?.invoice || !context?.level) return null;
+  const now = new Date();
+  const patch = dunningPatchForLevel(context.level, { now, outboxId });
+  const marker = `[REMINDER L${context.level} ${now.toISOString()}]`;
+  const auditNote = [marker, trimOrNull(context.note)].filter(Boolean).join(' · ');
+  const combinedNotes = [trimOrNull(context.invoice.notes), auditNote].filter(Boolean).join('\n');
+  patch.notes = combinedNotes.length > 8000 ? combinedNotes.slice(0, 7997) + '...' : combinedNotes;
+  const { data, error } = await sbAdmin
+    .from('invoices')
+    .update(patch)
+    .eq('id', context.invoice.id)
+    .select('*')
+    .single();
+  if (error) throw new Error(`Mahnstatus konnte nicht gespeichert werden: ${error.message}`);
+  return data;
+}
+
 function canonicalPlanValue(value) {
   const key = String(value || '').trim().toLowerCase();
   if (key === 'starter') return 'Starter';
@@ -520,6 +539,19 @@ async function loadInvoicePayload(sbAdmin, body, mailType = 'invoice_email') {
 
   const stateError = invoiceMailStateError(invoice, mailType);
   if (stateError) return stateError;
+  const requestedLevel = mailType === 'reminder_final_email' ? 2 : mailType === 'reminder_email' ? 1 : null;
+  const dunning = requestedLevel
+    ? evaluateInvoiceDunning(invoice, { requestedLevel })
+    : null;
+  if (dunning && !dunning.can_remind) {
+    return {
+      ok: false,
+      statusCode: 409,
+      error: dunning.reason,
+      details: dunning.reason_code,
+      dunning
+    };
+  }
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
@@ -625,12 +657,17 @@ async function loadInvoicePayload(sbAdmin, body, mailType = 'invoice_email') {
     eventType: mailType,
     payload,
     payloadSummary: `invoice_email -> ${recipientEmail}`,
-    dedupeKey: dispatchDedupeKey(body, `${mailType}:${invoice.id}`),
+    dedupeKey: requestedLevel
+      ? `${mailType}:${invoice.id}:level:${requestedLevel}`
+      : dispatchDedupeKey(body, `${mailType}:${invoice.id}`),
+    dunning,
+    dunningContext: requestedLevel ? { invoice, level: requestedLevel, note: body.notes || null } : null,
     responseData: {
       invoice_id: invoice.id,
       customer_id: customer.id,
       sent_to_email: recipientEmail,
-      invoice_number: invoice.invoice_number || null
+      invoice_number: invoice.invoice_number || null,
+      dunning
     }
   };
 }
@@ -689,7 +726,9 @@ exports.handler = async (event) => {
   const dispatch = await buildDispatchPayload(sbAdmin, parsed.body);
   if (!dispatch.ok) return response(dispatch.statusCode || 400, {
     error: dispatch.error,
-    details: dispatch.details || null
+    details: dispatch.details || null,
+    dunning: dispatch.dunning || null,
+    step_failed: dispatch.dunning?.reason_code || null
   });
 
   const eventType = dispatch.eventType; // = mail_type
@@ -732,13 +771,25 @@ exports.handler = async (event) => {
       requested_by: caller.userId || null
     });
     if (duplicateStatus === 'sent') {
-      return response(200, {
+      let updatedInvoice = null;
+      let persistenceWarning = null;
+      if (dispatch.dunningContext) {
+        try {
+          updatedInvoice = await persistDunningState(sbAdmin, dispatch.dunningContext, outbox.id);
+        } catch (error) {
+          persistenceWarning = error?.message || 'Mahnstatus muss abgeglichen werden.';
+        }
+      }
+      return response(persistenceWarning ? 202 : 200, {
         success: true,
         duplicate: true,
         accepted: true,
         delivery_confirmed: false,
         event_type: eventType,
         outbox_id: outbox.id,
+        invoice: updatedInvoice,
+        dunning: dispatch.dunning || null,
+        persistence_warning: persistenceWarning,
         data: dispatch.responseData
       });
     }
@@ -799,7 +850,16 @@ exports.handler = async (event) => {
     }
 
     await markOutboxSent(sbAdmin, outbox.id);
-    log('info', 'webhook_send_succeeded', { event_type: eventType, outbox_id: outbox.id });
+    let updatedInvoice = null;
+    let persistenceWarning = null;
+    if (dispatch.dunningContext) {
+      try {
+        updatedInvoice = await persistDunningState(sbAdmin, dispatch.dunningContext, outbox.id);
+      } catch (error) {
+        persistenceWarning = error?.message || 'Mahnstatus muss abgeglichen werden.';
+      }
+    }
+    log('info', 'webhook_send_succeeded', { event_type: eventType, outbox_id: outbox.id, persistence_warning: persistenceWarning });
     if (eventType === 'offer_email') {
       await recordOfferEvent(sbAdmin,{
         offer_id: dispatch.responseData.offer_id,
@@ -811,12 +871,15 @@ exports.handler = async (event) => {
       });
     }
 
-    return response(200, {
+    return response(persistenceWarning ? 202 : 200, {
       success: true,
       accepted: true,
       delivery_confirmed: false,
       event_type: eventType,
       outbox_id: outbox.id,
+      invoice: updatedInvoice,
+      dunning: dispatch.dunning || null,
+      persistence_warning: persistenceWarning,
       data: dispatch.responseData
     });
   } catch (err) {

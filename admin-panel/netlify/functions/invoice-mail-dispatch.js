@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 const { buildInvoiceMailCopy, formatDateCh, formatMoneyCh } = require('./_lib/invoice-mail-copy');
+const { evaluateInvoiceDunning, dunningPatchForLevel } = require('./_lib/invoice-dunning');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +29,22 @@ function requestedType(body) {
   if (raw === 'reminder_email') return 'reminder_email';
   return 'invoice_email';
 }
+async function persistDunningState(sbAdmin, invoice, level, outboxId, now, note) {
+  const patch = dunningPatchForLevel(level, { now, outboxId });
+  const marker = `[REMINDER L${level} ${now.toISOString()}]`;
+  const auditNote = [marker, trim(note)].filter(Boolean).join(' · ');
+  const combinedNotes = [trim(invoice?.notes), auditNote].filter(Boolean).join('\n');
+  patch.notes = combinedNotes.length > 8000 ? combinedNotes.slice(0, 7997) + '...' : combinedNotes;
+  const { data, error } = await sbAdmin
+    .from('invoices')
+    .update(patch)
+    .eq('id', invoice.id)
+    .select('*')
+    .single();
+  if (error) throw new Error(`Mahnstatus konnte nicht gespeichert werden: ${error.message}`);
+  return data;
+}
+
 async function resolveInvoice(sbAdmin, body) {
   const invoiceId = trim(body.invoice_id);
   if (invoiceId) {
@@ -67,6 +84,18 @@ exports.handler = async event => {
     const state = invoiceState(invoice);
     if (state === 'paid') return respond(409,{error:'Eine bezahlte Rechnung wird nicht erneut versendet.'});
     if (state === 'cancelled') return respond(409,{error:'Eine stornierte Rechnung darf nicht versendet werden.'});
+    const type = requestedType(body);
+    const requestedLevel = type === 'reminder_final_email' ? 2 : type === 'reminder_email' ? 1 : null;
+    const dunning = requestedLevel
+      ? evaluateInvoiceDunning(invoice, { requestedLevel })
+      : null;
+    if (dunning && !dunning.can_remind) {
+      return respond(409,{
+        error:dunning.reason,
+        step_failed:dunning.reason_code,
+        dunning
+      });
+    }
     if (!trim(invoice.pdf_url) || !trim(invoice.qr_payload) || Number(invoice.pdf_version || 0) < 1) {
       return respond(409,{error:'Die Rechnung wurde noch nicht als PDF erstellt.',invoice_id:invoice.id,step_failed:'invoice_pdf_missing'});
     }
@@ -75,7 +104,6 @@ exports.handler = async event => {
     if (!customer) return respond(404,{error:'Kunde zur Rechnung nicht gefunden.'});
     const recipientEmail = trim(body?.overrides?.to_email || customer.email);
     if (!isValidEmail(recipientEmail)) return respond(400,{error:'Die Empfänger-E-Mail ist ungültig.'});
-    const type = requestedType(body);
     const copy = buildInvoiceMailCopy(type, invoice, customer);
     const filename = `Voxera-Rechnung-${invoice.invoice_number || invoice.id}.pdf`;
     const now = new Date().toISOString();
@@ -96,8 +124,31 @@ exports.handler = async event => {
       meta:{ source:'admin_panel', requested_at:now, requested_by:caller.userId || null, locale:'de-CH', timezone:'Europe/Zurich', invoice_only:true, stripe_disabled:true }
     };
     const requestId = trim(body.request_id);
-    const dedupeKey = requestId ? `${type}:${invoice.id}:request:${requestId}` : `${type}:${invoice.id}:pdf:${invoice.pdf_version || 1}:${Date.now()}`;
+    const dedupeKey = requestedLevel
+      ? `${type}:${invoice.id}:level:${requestedLevel}`
+      : requestId
+        ? `${type}:${invoice.id}:request:${requestId}`
+        : `${type}:${invoice.id}:pdf:${invoice.pdf_version || 1}:${Date.now()}`;
     const outbox = await createOutboxEvent(sbAdmin,{eventType:type,payload,payloadSummary:`${type} -> ${recipientEmail}`,dedupeKey});
+    if (outbox.duplicate) {
+      const duplicateStatus = String(outbox.status || '').toLowerCase();
+      if (duplicateStatus === 'sent') {
+        let updatedInvoice = invoice;
+        let persistenceWarning = null;
+        if (requestedLevel) {
+          try {
+            updatedInvoice = await persistDunningState(sbAdmin, invoice, requestedLevel, outbox.id, new Date(), body.notes);
+          } catch (error) {
+            persistenceWarning = error?.message || 'Mahnstatus muss abgeglichen werden.';
+          }
+        }
+        return respond(persistenceWarning?202:200,{success:true,duplicate:true,accepted:true,delivery_confirmed:false,event_type:type,outbox_id:outbox.id,dunning,invoice:updatedInvoice,persistence_warning:persistenceWarning,data:{invoice_id:invoice.id,invoice_number:invoice.invoice_number || null,sent_to_email:recipientEmail,pdf_url:invoice.pdf_url,payment_method:'invoice'}});
+      }
+      if (duplicateStatus === 'pending') {
+        return respond(202,{success:true,duplicate:true,accepted:true,delivery_confirmed:false,event_type:type,outbox_id:outbox.id,dunning});
+      }
+      return respond(409,{error:'Ein identischer Mahnversand ist bereits fehlgeschlagen. Bitte den Versandstatus prüfen.',step_failed:'duplicate_dispatch_failed',outbox_id:outbox.id,dunning});
+    }
     const webhookUrl = process.env.MAKE_MAIL_WEBHOOK;
     if (!webhookUrl) {
       await markOutboxFailed(sbAdmin,outbox.id,'MAKE_MAIL_WEBHOOK not configured');
@@ -110,8 +161,20 @@ exports.handler = async event => {
       return respond(502,{error:'Rechnungs-E-Mail konnte nicht übergeben werden.',details:message,outbox_id:outbox.id});
     }
     await markOutboxSent(sbAdmin,outbox.id);
-    if (type === 'invoice_email') await sbAdmin.from('invoices').update({status:'sent',sent_at:now,updated_at:now}).eq('id',invoice.id);
-    return respond(200,{success:true,accepted:true,delivery_confirmed:false,event_type:type,outbox_id:outbox.id,data:{invoice_id:invoice.id,invoice_number:invoice.invoice_number || null,sent_to_email:recipientEmail,pdf_url:invoice.pdf_url,payment_method:'invoice'}});
+    let updatedInvoice = invoice;
+    let persistenceWarning = null;
+    if (type === 'invoice_email') {
+      const updateResult = await sbAdmin.from('invoices').update({status:'sent',sent_at:now,updated_at:now}).eq('id',invoice.id).select('*').single();
+      if (updateResult.error) persistenceWarning = `Rechnungsstatus konnte nicht gespeichert werden: ${updateResult.error.message}`;
+      else updatedInvoice = updateResult.data;
+    } else if (requestedLevel) {
+      try {
+        updatedInvoice = await persistDunningState(sbAdmin, invoice, requestedLevel, outbox.id, new Date(now), body.notes);
+      } catch (error) {
+        persistenceWarning = error?.message || 'Mahnstatus muss abgeglichen werden.';
+      }
+    }
+    return respond(persistenceWarning?202:200,{success:true,accepted:true,delivery_confirmed:false,event_type:type,outbox_id:outbox.id,dunning,invoice:updatedInvoice,persistence_warning:persistenceWarning,data:{invoice_id:invoice.id,invoice_number:invoice.invoice_number || null,sent_to_email:recipientEmail,pdf_url:invoice.pdf_url,payment_method:'invoice'}});
   } catch (error) {
     return respond(500,{error:error?.message || 'Rechnungs-E-Mail konnte nicht vorbereitet werden.'});
   }

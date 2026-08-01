@@ -147,41 +147,32 @@
   }
 
   function reminderInfo(invoice) {
-    const notes = String(invoice?.notes || invoice?.raw?.notes || '');
-    const l1 = [...notes.matchAll(/\[REMINDER L1 ([^\]]+)\]/g)].pop()?.[1] || null;
-    const l2 = [...notes.matchAll(/\[(?:REMINDER L2|REMINDER_FINAL) ([^\]]+)\]/g)].pop()?.[1] || null;
-    return { notes, l1, l2, finalSent:Boolean(l2) };
+    const level = Number(invoice?.reminder_level || 0);
+    return {
+      level,
+      l1: invoice?.reminder_1_sent_at || null,
+      l2: invoice?.final_reminder_sent_at || null,
+      finalSent: level >= 2
+    };
   }
 
   function normalizeReminderNotes() {
-    (w.state?.invoices || []).forEach(invoice => {
-      const notes = String(invoice.notes || invoice.raw?.notes || '');
-      if (notes.includes('[REMINDER_FINAL')) return;
-      const match = [...notes.matchAll(/\[REMINDER L2 ([^\]]+)\]/g)].pop();
-      if (!match) return;
-      const normalized = `${notes}\n[REMINDER_FINAL ${match[1]}]`.trim();
-      invoice.notes = normalized;
-      if (invoice.raw && typeof invoice.raw === 'object') invoice.raw.notes = normalized;
-    });
+    // Dunning state is canonical DB data. Human notes remain audit text only.
+  }
+
+  function dunningState(invoice) {
+    if (typeof w.getInvoiceDunningEligibility === 'function') {
+      return w.getInvoiceDunningEligibility(invoice);
+    }
+    return { canRemind:false, stage:'unavailable' };
   }
 
   function reminderDue(invoice) {
-    const status = lower(invoice?.status || invoice?.payment_status);
-    if (!['open','sent','overdue'].includes(status)) return false;
-    const due = new Date(invoice?.due_at || invoice?.due_date || invoice?.invoice_due_date || '');
-    if (Number.isNaN(due.getTime())) return false;
-    const info = reminderInfo(invoice);
-    if (info.finalSent) return false;
-    if (!info.l1) return Date.now() - due.getTime() >= 7 * 86400000;
-    const l1 = new Date(info.l1);
-    return !Number.isNaN(l1.getTime()) && Date.now() - l1.getTime() >= 7 * 86400000;
+    return Boolean(dunningState(invoice).canRemind);
   }
 
   function finalWarnings() {
-    return (w.state?.invoices || []).filter(invoice => {
-      const status = lower(invoice?.status || invoice?.payment_status);
-      return !['paid','cancelled','void'].includes(status) && reminderInfo(invoice).finalSent;
-    });
+    return (w.state?.invoices || []).filter(invoice => dunningState(invoice).stage === 'suspension_review');
   }
 
   function setText(node, value) {
@@ -233,6 +224,7 @@
     if (existing?.dataset.signature === signature) return;
     existing?.remove();
     if (!finals.length) return;
+    queue.querySelectorAll('.bf-empty,.vx-empty-state').forEach(node => node.remove());
     const box = document.createElement('div'); box.dataset.voxEscalations = '1'; box.dataset.signature = signature; box.className = 'vox-escalation-box';
     box.innerHTML = `<div style="font-weight:750;color:#991B1B;margin-bottom:6px">Letzte Warnung versendet · Sperrung prüfen (${finals.length})</div>${finals.map(invoice => {
       const customerId = String(invoice.customer_id || invoice.customerId || invoice.raw?.customer_id || '');

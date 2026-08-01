@@ -103,9 +103,10 @@ const checks = [
     /callAdminFunction\('mail-dispatch',payload\)/.test(invoiceSend)
   ],
   [
-    'reminder preview happens before reminder recording',
-    reminderSend.indexOf('dry_run: true') >= 0
-      && reminderSend.indexOf('dry_run: true') < reminderSend.indexOf("action: 'record_invoice_reminder'")
+    'reminder preview and dispatch use the canonical mail endpoint without a separate state write',
+    reminderSend.indexOf('dry_run:true') >= 0
+      && (reminderSend.match(/callAdminFunction\('mail-dispatch'/g) || []).length >= 2
+      && !/record_invoice_reminder/.test(reminderSend)
   ],
   [
     'scheduled runner never calls Make or auto-sends invoice/reminder mail',

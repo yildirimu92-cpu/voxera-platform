@@ -1,17 +1,26 @@
 import fs from 'node:fs';
+import vm from 'node:vm';
 
-const runtime = fs.readFileSync('admin-panel/shared/admin-runtime-qr-invoice-controls.js','utf8');
-const loader = fs.readFileSync('admin-panel/shared/offer-brand.js','utf8');
-const required = [
+const adminIndex=fs.readFileSync('admin-panel/index.html','utf8');
+const runtime=fs.readFileSync('admin-panel/shared/admin-runtime-billing-inline-qr.js','utf8');
+const loader=fs.readFileSync('admin-panel/shared/offer-brand.js','utf8');
+
+new vm.Script(runtime,{filename:'admin-runtime-billing-inline-qr.js'});
+
+const required=[
+  'id="invoice-detail-pdf"',
+  'id="invoice-detail-pdf-generate"',
   'QR-Rechnung erstellen',
-  'QR-Rechnung öffnen',
-  'Neu generieren',
   "callAdminFunction('admin-invoice-qr-pdf'",
-  'Versandstatus ohne PDF',
-  'Die Rechnung bleibt bestehen',
-  'admin-runtime-qr-invoice-controls.js'
+  "document.querySelectorAll('.vx-inline-qr-actions').forEach(node => node.remove())",
+  '/shared/admin-runtime-billing-inline-qr.js?v=20260801-3'
 ];
-for (const token of required) {
-  if (!runtime.includes(token) && !loader.includes(token)) throw new Error(`Missing QR invoice control invariant: ${token}`);
+for(const token of required){
+  if(!adminIndex.includes(token)&&!runtime.includes(token)&&!loader.includes(token)){
+    throw new Error(`Missing QR invoice control invariant: ${token}`);
+  }
 }
-console.log('QR invoice visibility and retry controls verified.');
+if(runtime.includes('cell.appendChild(controls)')){
+  throw new Error('Inline QR actions must not be mounted in the invoice table.');
+}
+console.log('QR controls are limited to invoice detail and draft recovery.');
