@@ -19,7 +19,8 @@ const PROTECTED_FIELDS = new Set([
   'activated_at', 'activation_completed_at', 'invited_at', 'live_at', 'paused_at',
   'go_live_approved_at', 'go_live_approved_by', 'go_live_approval_note', 'go_live_checks',
   'billing_status', 'billing_cycle', 'monthly_price', 'mrr',
-  'contract_id', 'offer_id'
+  'contract_id', 'offer_id',
+  'voxera_number', 'voxera', 'elevenlabs_agent_id'
 ]);
 
 function response(statusCode, payload) {

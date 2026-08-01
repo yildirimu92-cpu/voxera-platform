@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const querystring = require('querystring');
 const { createClient } = require('@supabase/supabase-js');
 const { normalizePhoneE164 } = require('./_lib/phone-normalize');
@@ -96,6 +97,32 @@ function parseBody(event) {
   return querystring.parse(body);
 }
 
+function requestHeader(event, name) {
+  const headers = event.headers || {};
+  const match = Object.keys(headers).find((key) => key.toLowerCase() === name.toLowerCase());
+  return match ? String(headers[match] || '').trim() : '';
+}
+function resolveTwilioRequestUrl(event) {
+  const configured = toStringOrEmpty(process.env.TWILIO_INBOUND_WEBHOOK_URL);
+  if (configured) return configured;
+  if (event.rawUrl) return String(event.rawUrl);
+  const host = requestHeader(event, 'host');
+  return host ? 'https://' + host + (event.path || '/.netlify/functions/twilio-inbound-router') : '';
+}
+function validateTwilioSignature(event, payload) {
+  const authToken = toStringOrEmpty(process.env.TWILIO_AUTH_TOKEN);
+  const provided = requestHeader(event, 'X-Twilio-Signature');
+  const requestUrl = resolveTwilioRequestUrl(event);
+  if (!authToken || !provided || !requestUrl) return false;
+  const suffix = Object.keys(payload || {}).sort().map((key) => {
+    const value = payload[key];
+    return (Array.isArray(value) ? value : [value]).map((item) => key + String(item ?? '')).join('');
+  }).join('');
+  const expected = crypto.createHmac('sha1', authToken).update(requestUrl + suffix, 'utf8').digest('base64');
+  const expectedBuffer = Buffer.from(expected);
+  const providedBuffer = Buffer.from(provided);
+  return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
 function toStringOrEmpty(value) {
   if (value == null) return '';
   return String(value).trim();
@@ -156,6 +183,16 @@ exports.handler = async (event) => {
   }
 
   const payload = parseBody(event);
+  const signatureEnforcementEnabled = process.env.TWILIO_WEBHOOK_SIGNATURE_ENFORCEMENT_ENABLED !== 'false';
+  if (signatureEnforcementEnabled && !validateTwilioSignature(event, payload)) {
+    console.warn('[twilio-inbound-router] invalid Twilio signature');
+    return {
+      statusCode: 403,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+      body: 'Forbidden'
+    };
+  }
+
   const callSid = toStringOrEmpty(payload.CallSid);
   const fromRaw = toStringOrEmpty(payload.From);
   const toRaw = toStringOrEmpty(payload.To);

@@ -1,0 +1,39 @@
+name: Verify Twilio Number Assignment
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/netlify/functions/admin-twilio-number-assignment.js'
+      - 'admin-panel/shared/admin-runtime-twilio-number-assignment.js'
+      - 'admin-panel/shared/offer-brand.js'
+      - 'admin-panel/netlify/functions/admin-customer-update.js'
+      - 'customer-dashboard/netlify/functions/twilio-inbound-router.js'
+      - 'supabase/migrations/2026-08-01_twilio_number_assignments.sql'
+      - 'supabase/migrations/2026-08-01_fix_twilio_assignment_customer_schema.sql'
+      - 'scripts/verify-twilio-number-assignment.mjs'
+      - '.github/workflows/verify-twilio-number-assignment.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin-panel/netlify/functions/admin-twilio-number-assignment.js'
+      - 'admin-panel/shared/admin-runtime-twilio-number-assignment.js'
+      - 'customer-dashboard/netlify/functions/twilio-inbound-router.js'
+      - 'supabase/migrations/2026-08-01_twilio_number_assignments.sql'
+      - 'supabase/migrations/2026-08-01_fix_twilio_assignment_customer_schema.sql'
+      - 'scripts/verify-twilio-number-assignment.mjs'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin-panel/netlify/functions/admin-twilio-number-assignment.js
+          node --check admin-panel/shared/admin-runtime-twilio-number-assignment.js
+          node --check customer-dashboard/netlify/functions/twilio-inbound-router.js
+      - name: Verify Twilio assignment contracts
+        run: node scripts/verify-twilio-number-assignment.mjs
