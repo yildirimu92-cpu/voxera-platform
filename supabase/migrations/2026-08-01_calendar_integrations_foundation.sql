@@ -71,7 +71,7 @@ create table if not exists public.calendar_booking_audit (
 );
 
 create unique index if not exists calendar_booking_audit_request_id_idx
-  on public.calendar_booking_audit(request_id)
+  on public.calendar_booking_audit(customer_id, request_id)
   where request_id is not null;
 
 alter table public.calendar_connections enable row level security;
