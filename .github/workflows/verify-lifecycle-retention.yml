@@ -1,0 +1,36 @@
+name: Verify Lifecycle Retention
+
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/netlify/functions/lifecycle-runner.js'
+      - 'admin-panel/netlify.toml'
+      - 'customer-dashboard/netlify/functions/enforce-data-retention.js'
+      - 'customer-dashboard/netlify.toml'
+      - 'scripts/verify-lifecycle-retention.mjs'
+      - '.github/workflows/verify-lifecycle-retention.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'admin-panel/netlify/functions/lifecycle-runner.js'
+      - 'admin-panel/netlify.toml'
+      - 'customer-dashboard/netlify/functions/enforce-data-retention.js'
+      - 'customer-dashboard/netlify.toml'
+      - 'scripts/verify-lifecycle-retention.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check lifecycle syntax
+        run: node --check admin-panel/netlify/functions/lifecycle-runner.js
+      - name: Verify lifecycle and retention contracts
+        run: node scripts/verify-lifecycle-retention.mjs
