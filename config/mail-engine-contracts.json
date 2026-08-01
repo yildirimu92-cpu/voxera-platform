@@ -1,0 +1,39 @@
+{
+  "version": 5,
+  "webhook_env": "MAKE_MAIL_WEBHOOK",
+  "canonical_mail_types": [
+    "offer_email",
+    "invoice_email",
+    "reminder_email",
+    "reminder_final_email",
+    "contract_expired_email",
+    "contract_signed_email",
+    "password_changed_email",
+    "assistant_updated_email",
+    "ai_change_request"
+  ],
+  "accepted_aliases": [
+    "welcome",
+    "password_reset"
+  ],
+  "legacy_invoice_only_types": [
+    "subscription_payment_email",
+    "setup_fee_email"
+  ],
+  "required_payloads": {
+    "offer_email": ["recipient.email", "offer.pdf_url"],
+    "invoice_email": ["recipient.email", "invoice.pdf_url"],
+    "reminder_email": ["recipient.email", "invoice.pdf_url"],
+    "reminder_final_email": ["recipient.email", "invoice.pdf_url"],
+    "contract_signed_email": ["recipient.email", "contract.signed_page_url"],
+    "welcome": ["email", "activation_link"],
+    "password_reset": ["email", "activation_link"],
+    "password_changed_email": ["recipient.email"],
+    "assistant_updated_email": ["recipient.email"],
+    "ai_change_request": ["customer_id", "message"]
+  },
+  "notes": {
+    "legacy_invoice_only_types": "These payment-link events are retained only for compatibility detection. The current Swiss invoice-only flow must use invoice_email and the QR invoice PDF instead.",
+    "contract_signed_email": "A PDF is attached when contract.signed_pdf_url is available; otherwise the signed page link remains the fallback."
+  }
+}
