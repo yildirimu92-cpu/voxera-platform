@@ -6,6 +6,7 @@ const paths = {
   syncCoordinator: 'admin-panel/netlify/functions/trigger-elevenlabs-sync-v2.js',
   syncStatus: 'admin-panel/netlify/functions/elevenlabs-sync-status.js',
   scrapeCoordinator: 'admin-panel/netlify/functions/scrape-website-v2.js',
+  scrapeBase: 'admin-panel/netlify/functions/scrape-website.js',
   syncRuntime: 'admin-panel/shared/admin-runtime-sync.js',
   launchRuntime: 'admin-panel/shared/admin-runtime-launch-p0.js',
   loader: 'admin-panel/shared/offer-brand.js'
@@ -63,14 +64,24 @@ async function verifyWebsiteWizardMerge() {
     source_url:'https://voxera-test.example/',
     data:{
       company_name:'Voxera Test AG',
-      short_description:'Individuelles Profil der Website',
-      services:'Individuelle Leistungen der Website',
+      short_description:'AI-Telefonassistenz für Schweizer KMU.',
+      target_groups:'KMU mit hohem Anrufvolumen',
+      services:'Starter, Professional und Business Telefonassistenten',
       location_hours:'Luzern, Montag bis Freitag',
+      frequent_questions:'Welche Pakete gibt es?\nWie läuft die Einrichtung ab?',
+      assistant_functions:['information','consulting','lead','appointment','quote'],
+      function_instructions:'Berate anhand von Teamgrösse, Sprachen und Anrufvolumen.',
+      required_information:'Name\nFirma\nTelefonnummer\nBedarf',
+      success_definition:'Bedarf geklärt und nächster Schritt vereinbart.',
+      appointment_mode:'request',
+      unknown_handling:'callback',
       language:'de',
       industry_guess:'garage'
     }
   };
   let renderCount = 0;
+  let finishCount = 0;
+  let confirmResult = false;
   const state = {
     aiConfigs:{ customer_1:{} },
     aiWizard:{
@@ -89,7 +100,13 @@ async function verifyWebsiteWizardMerge() {
         websiteUrl:'',
         language:'de',
         customerType:'company',
-        _customerDisplayName:'Voxera Test AG'
+        _customerDisplayName:'Voxera Test AG',
+        _promptFunctions:['information'],
+        _promptRequiredInformation:'Standardangaben',
+        _promptSuccessDefinition:'Standardziel',
+        _promptAppointmentMode:'request',
+        _promptUnknownHandling:'callback',
+        _promptProfilePersisted:false
       },
       steps:[]
     }
@@ -113,15 +130,17 @@ async function verifyWebsiteWizardMerge() {
     clearTimeout:() => {},
     callAdminFunction:async () => scrapePayload,
     wizardScrapeWebsite:async () => {},
+    wizardFinish:async () => { finishCount += 1; },
     wizardNext:async () => {
       const wizard = state.aiWizard;
       wizard.steps[wizard.step]?.collect(wizard.data);
       if (wizard.step < wizard.steps.length - 1) wizard.step += 1;
     },
+    voxConfirm:async () => confirmResult,
     getTemplateDefaults:id => templates[id] || generic,
     getWizardSteps:id => makeSteps(id),
     renderWizardModal:() => { renderCount += 1; },
-    customerById:() => ({ id:'customer_1', name:'Voxera Test AG' })
+    customerById:() => ({ id:'customer_1', name:'Voxera Test AG', ai_internal_notes:'Interne Notiz' })
   };
   vm.createContext(context);
   vm.runInContext(source.launchRuntime, context);
@@ -129,42 +148,73 @@ async function verifyWebsiteWizardMerge() {
   await context.wizardScrapeWebsite();
   const data = state.aiWizard.data;
   const expected = {
-    businessDescription:'Individuelles Profil der Website',
-    shortDescription:'Individuelles Profil der Website',
-    services:'Individuelle Leistungen der Website',
+    businessDescription:'AI-Telefonassistenz für Schweizer KMU.\nZielgruppen: KMU mit hohem Anrufvolumen',
+    shortDescription:'AI-Telefonassistenz für Schweizer KMU.',
+    services:'Starter, Professional und Business Telefonassistenten',
     locationHours:'Luzern, Montag bis Freitag',
     templateId:'garage',
-    bookingFaq:'Garage Terminlogik',
+    bookingFaq:'Welche Pakete gibt es?\nWie läuft die Einrichtung ab?',
     instructions:'Garage Regeln',
     fallbackEscalation:'Garage Eskalation',
     responseConstraints:'Garage Grenzen',
-    pannendienst:'yes'
+    pannendienst:'yes',
+    _promptFunctionInstructions:'Berate anhand von Teamgrösse, Sprachen und Anrufvolumen.',
+    _promptRequiredInformation:'Name\nFirma\nTelefonnummer\nBedarf',
+    _promptSuccessDefinition:'Bedarf geklärt und nächster Schritt vereinbart.',
+    _promptAppointmentMode:'request',
+    _promptUnknownHandling:'callback'
   };
   for (const [field, value] of Object.entries(expected)) {
     if (data[field] !== value) throw new Error(`website merge mismatch for ${field}: ${data[field]}`);
+  }
+  if (JSON.stringify(data._promptFunctions) !== JSON.stringify(scrapePayload.data.assistant_functions)) {
+    throw new Error('website agent functions were not transferred into the wizard');
+  }
+  if (!data._websiteAnalysis || data._websiteAnalysis.sourceUrl !== scrapePayload.source_url) {
+    throw new Error('structured website analysis is missing');
   }
   if (renderCount < 1 || !elements['wz-scrape-feedback'].textContent.includes('Angaben übernommen')) {
     throw new Error('website merge feedback/render missing');
   }
 
+  await context.wizardFinish();
+  if (finishCount !== 1 || !state.aiConfigs.customer_1.internalNotes.includes('[WEBSITE_ANALYSIS]')) {
+    throw new Error('website analysis marker was not persisted before wizard finish');
+  }
+
   data.services = 'Manuell angepasste Leistungen';
+  data._promptFunctions = ['support'];
+  data._promptProfileUserEdited = true;
+  state.aiConfigs.customer_1.services = 'Manuell angepasste Leistungen';
   scrapePayload = {
     ...scrapePayload,
-    data:{ ...scrapePayload.data, services:'Zweiter Website-Wert', industry_guess:'garage' }
+    data:{
+      ...scrapePayload.data,
+      services:'Zweiter Website-Wert',
+      assistant_functions:['information','quote'],
+      industry_guess:'garage'
+    }
   };
+  confirmResult = false;
   await context.wizardScrapeWebsite();
-  if (data.services !== 'Manuell angepasste Leistungen') {
-    throw new Error('manual wizard value was overwritten by a repeated scrape');
+  if (data.services !== 'Manuell angepasste Leistungen' || JSON.stringify(data._promptFunctions) !== JSON.stringify(['support'])) {
+    throw new Error('existing wizard/profile values were overwritten without confirmation');
+  }
+
+  confirmResult = true;
+  await context.wizardScrapeWebsite();
+  if (data.services !== 'Zweiter Website-Wert' || JSON.stringify(data._promptFunctions) !== JSON.stringify(['information','quote'])) {
+    throw new Error('confirmed website overwrite did not replace saved values');
   }
 
   state.aiWizard.step = 1;
   state.aiWizard.steps = makeSteps('restaurant');
   await context.wizardNext();
-  if (data.templateId !== 'restaurant' || data.bookingFaq !== 'Restaurant Terminlogik' || data.instructions !== 'Restaurant Regeln') {
+  if (data.templateId !== 'restaurant' || data.instructions !== 'Restaurant Regeln') {
     throw new Error('branch step did not rebase untouched template defaults');
   }
-  if (data.businessDescription !== 'Individuelles Profil der Website' || data.services !== 'Manuell angepasste Leistungen') {
-    throw new Error('branch step overwrote website or manual values');
+  if (data.businessDescription !== expected.businessDescription || data.services !== 'Zweiter Website-Wert' || data.bookingFaq !== expected.bookingFaq) {
+    throw new Error('branch step overwrote website values');
   }
 }
 
@@ -185,8 +235,12 @@ const checks = [
   ['sync runtime no longer queries sync log directly', /elevenlabs-sync-status/.test(source.syncRuntime) && !/authClient\.from\('elevenlabs_sync_log'\)/.test(source.syncRuntime)],
   ['sync runtime exposes manual retry', /Jetzt synchronisieren/.test(source.syncRuntime) && /trigger-elevenlabs-sync/.test(source.syncRuntime)],
   ['website coordinator retries scheme safely', /https:\/\//.test(source.scrapeCoordinator) && /http:\/\//.test(source.scrapeCoordinator) && /FALLBACK_CODES/.test(source.scrapeCoordinator)],
+  ['website extraction returns offer, FAQ and agent profile', /target_groups/.test(source.scrapeBase) && /frequent_questions/.test(source.scrapeBase) && /assistant_functions/.test(source.scrapeBase) && /success_definition/.test(source.scrapeBase)],
   ['launch runtime routes stable endpoints', /trigger-elevenlabs-sync-v2/.test(source.launchRuntime) && /scrape-website-v2/.test(source.launchRuntime)],
   ['website defaults are replaceable but persisted values are protected', /canReplaceWizardValue/.test(source.launchRuntime) && /config\.businessDescription/.test(source.launchRuntime) && /_scrapedValues/.test(source.launchRuntime)],
+  ['saved values require an explicit website overwrite choice', /hasWebsiteConflicts/.test(source.launchRuntime) && /voxConfirm/.test(source.launchRuntime) && /Website-Daten übernehmen/.test(source.launchRuntime)],
+  ['structured website analysis is persisted', /WEBSITE_ANALYSIS/.test(source.launchRuntime) && /installWebsiteAnalysisPersistence/.test(source.launchRuntime)],
+  ['website analysis maps combined agent functions', /_promptFunctions/.test(source.launchRuntime) && /function_instructions/.test(source.launchRuntime) && /required_information/.test(source.launchRuntime)],
   ['detected and manually selected templates rebase untouched defaults', /rebaseWizardTemplate/.test(source.launchRuntime) && /installWizardTemplateTransition/.test(source.launchRuntime)],
   ['website feedback survives wizard rerender', /renderWizardModal/.test(source.launchRuntime) && /setWebsiteFeedback\(message, true\)/.test(source.launchRuntime)],
   ['launch runtime is loaded last', /admin-runtime-launch-p0\.js/.test(source.loader) && source.loader.indexOf('admin-runtime-launch-p0.js') > source.loader.indexOf('admin-runtime-sync.js')]

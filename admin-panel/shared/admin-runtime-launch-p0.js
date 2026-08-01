@@ -41,11 +41,17 @@
     'businessDescription', 'services', 'locationHours', 'bookingFaq',
     'instructions', 'fallbackEscalation', 'responseConstraints'
   ]);
+  const WEBSITE_PROMPT_FUNCTIONS = Object.freeze([
+    'information', 'consulting', 'lead', 'appointment',
+    'quote', 'callback', 'support', 'transfer'
+  ]);
+  const WEBSITE_ANALYSIS_MARKER = '[WEBSITE_ANALYSIS]';
 
   const wizardText = value => String(value ?? '').trim();
   const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value || {}, key);
 
-  function canReplaceWizardValue(data, field, defaults, persistedValue) {
+  function canReplaceWizardValue(data, field, defaults, persistedValue, replacePersisted) {
+    if (replacePersisted) return true;
     if (wizardText(persistedValue)) return false;
     const current = wizardText(data[field]);
     if (hasOwn(data._scrapedValues, field)) {
@@ -59,16 +65,16 @@
     data._scrapedFields = Array.isArray(data._scrapedFields) ? data._scrapedFields : [];
     data._scrapedValues = data._scrapedValues && typeof data._scrapedValues === 'object' ? data._scrapedValues : {};
     if (!data._scrapedFields.includes(field)) data._scrapedFields.push(field);
-    data._scrapedValues[field] = value;
+    data._scrapedValues[field] = Array.isArray(value) ? [...value] : value;
   }
 
-  function rebaseWizardTemplate(data, previousDefaults, nextDefaults, config) {
+  function rebaseWizardTemplate(data, previousDefaults, nextDefaults, config, replacePersisted) {
     WEBSITE_TEMPLATE_FIELDS.forEach(field => {
-      if (wizardText(config?.[field])) return;
+      if (!replacePersisted && wizardText(config?.[field])) return;
       const current = wizardText(data[field]);
-      if (hasOwn(data._scrapedValues, field) && current === wizardText(data._scrapedValues[field])) return;
+      if (!replacePersisted && hasOwn(data._scrapedValues, field) && current === wizardText(data._scrapedValues[field])) return;
       const previousValue = wizardText(previousDefaults?.[field]);
-      if (!current || current === previousValue) data[field] = wizardText(nextDefaults?.[field]);
+      if (replacePersisted || !current || current === previousValue) data[field] = wizardText(nextDefaults?.[field]);
     });
   }
 
@@ -84,19 +90,74 @@
     });
   }
 
+  function websiteBusinessDescription(scraped) {
+    const description = wizardText(scraped?.short_description);
+    const targetGroups = wizardText(scraped?.target_groups);
+    return [description, targetGroups ? 'Zielgruppen: ' + targetGroups : ''].filter(Boolean).join('\n');
+  }
+
+  function websitePromptFunctions(scraped) {
+    const values = Array.isArray(scraped?.assistant_functions) ? scraped.assistant_functions : [];
+    return [...new Set(values.map(value => wizardText(value).toLowerCase()).filter(value => WEBSITE_PROMPT_FUNCTIONS.includes(value)))];
+  }
+
+  function hasWebsiteConflicts(data, scraped, options) {
+    const config = options?.config || {};
+    const customer = options?.customer || {};
+    const templateResolver = options?.templateResolver;
+    const defaults = typeof templateResolver === 'function'
+      ? (templateResolver(String(data.templateId || 'generic')) || {})
+      : {};
+    const candidates = [
+      ['businessDescription', websiteBusinessDescription(scraped), config.businessDescription, defaults],
+      ['shortDescription', scraped.short_description, customer.ai_short_description, { shortDescription:'' }],
+      ['services', scraped.services, config.services, defaults],
+      ['locationHours', (data.customerType || 'company') === 'company' ? scraped.location_hours : '', config.locationHours, defaults],
+      ['bookingFaq', scraped.frequent_questions, config.bookingFaq, defaults]
+    ];
+    const basicConflict = candidates.some(([field, rawValue, persistedValue, fieldDefaults]) => {
+      const value = wizardText(rawValue);
+      if (!value) return false;
+      if (wizardText(data[field]) === value) return false;
+      return !canReplaceWizardValue(data, field, fieldDefaults, persistedValue, false);
+    });
+    const promptSuggestion = websitePromptFunctions(scraped).length > 0 ||
+      Boolean(wizardText(scraped.function_instructions) || wizardText(scraped.required_information) ||
+        wizardText(scraped.success_definition) || wizardText(scraped.appointment_mode) ||
+        wizardText(scraped.unknown_handling));
+    const promptConflict = promptSuggestion && Boolean(data._promptProfilePersisted || data._promptProfileUserEdited);
+    const detectedTemplate = wizardText(scraped.industry_guess).toLowerCase();
+    const persistedTemplate = wizardText(config.industryTemplateId || customer.industry_template_id).toLowerCase();
+    const templateConflict = Boolean(detectedTemplate && detectedTemplate !== 'generic' && persistedTemplate && persistedTemplate !== detectedTemplate);
+    return basicConflict || promptConflict || templateConflict;
+  }
+
   function mergeWebsiteAnalysis(data, scraped, options) {
     const config = options?.config || {};
     const customer = options?.customer || {};
     const templateResolver = options?.templateResolver;
+    const replaceExisting = options?.replaceExisting === true;
     const previousTemplateId = String(data.templateId || 'generic');
     const previousDefaults = typeof templateResolver === 'function' ? (templateResolver(previousTemplateId) || {}) : {};
     const applied = [];
     const preserved = [];
 
-    const apply = (field, rawValue, persistedValue, defaults = previousDefaults) => {
+    const detectedTemplate = String(scraped.industry_guess || '').trim().toLowerCase();
+    if (detectedTemplate && detectedTemplate !== 'generic' && detectedTemplate !== previousTemplateId) {
+      const nextDefaults = typeof templateResolver === 'function' ? (templateResolver(detectedTemplate) || {}) : {};
+      rebaseWizardTemplate(data, previousDefaults, nextDefaults, config, replaceExisting);
+      seedDynamicDefaults(data, nextDefaults);
+      data.templateId = detectedTemplate;
+      applied.push('templateId');
+    }
+
+    const activeDefaults = typeof templateResolver === 'function'
+      ? (templateResolver(String(data.templateId || 'generic')) || previousDefaults)
+      : previousDefaults;
+    const apply = (field, rawValue, persistedValue, defaults = activeDefaults) => {
       const value = wizardText(rawValue);
       if (!value) return;
-      if (canReplaceWizardValue(data, field, defaults, persistedValue)) {
+      if (canReplaceWizardValue(data, field, defaults, persistedValue, replaceExisting)) {
         data[field] = value;
         rememberScrapedValue(data, field, value);
         applied.push(field);
@@ -105,32 +166,96 @@
       }
     };
 
-    apply('businessDescription', scraped.short_description, config.businessDescription);
+    apply('businessDescription', websiteBusinessDescription(scraped), config.businessDescription);
     apply('shortDescription', scraped.short_description, customer.ai_short_description, { shortDescription:'' });
     apply('services', scraped.services, config.services);
     if ((data.customerType || 'company') === 'company') {
       apply('locationHours', scraped.location_hours, config.locationHours);
     }
+    apply('bookingFaq', scraped.frequent_questions, config.bookingFaq);
 
-    const detectedTemplate = String(scraped.industry_guess || '').trim().toLowerCase();
-    if (detectedTemplate && detectedTemplate !== 'generic' && detectedTemplate !== previousTemplateId) {
-      const nextDefaults = typeof templateResolver === 'function' ? (templateResolver(detectedTemplate) || {}) : {};
-      rebaseWizardTemplate(data, previousDefaults, nextDefaults, config);
-      seedDynamicDefaults(data, nextDefaults);
-      data.templateId = detectedTemplate;
-      applied.push('templateId');
-    }
+    const promptProtected = Boolean(data._promptProfilePersisted || data._promptProfileUserEdited);
+    const applyPrompt = (field, rawValue) => {
+      const value = Array.isArray(rawValue) ? rawValue.filter(Boolean) : wizardText(rawValue);
+      if (Array.isArray(value) ? value.length === 0 : !value) return;
+      if (replaceExisting || !promptProtected) {
+        data[field] = Array.isArray(value) ? [...value] : value;
+        rememberScrapedValue(data, field, value);
+        applied.push(field);
+      } else {
+        preserved.push(field);
+      }
+    };
+    applyPrompt('_promptFunctions', websitePromptFunctions(scraped));
+    applyPrompt('_promptFunctionInstructions', scraped.function_instructions);
+    applyPrompt('_promptRequiredInformation', scraped.required_information);
+    applyPrompt('_promptSuccessDefinition', scraped.success_definition);
+    applyPrompt('_promptAppointmentMode', scraped.appointment_mode);
+    applyPrompt('_promptUnknownHandling', scraped.unknown_handling);
 
-    if (scraped.language && !wizardText(data.language)) {
+    if (scraped.language && (!wizardText(data.language) || replaceExisting)) {
       data.language = wizardText(scraped.language);
       applied.push('language');
     }
-    if (scraped.company_name && !wizardText(data._customerDisplayName)) {
+    if (scraped.company_name && (!wizardText(data._customerDisplayName) || replaceExisting)) {
       data._customerDisplayName = wizardText(scraped.company_name);
       applied.push('_customerDisplayName');
     }
 
     return { applied:[...new Set(applied)], preserved:[...new Set(preserved)] };
+  }
+
+  function upsertWebsiteAnalysis(notes, analysis) {
+    const clean = wizardText(notes).replace(/^\[WEBSITE_ANALYSIS\].*$/gm, '').trim();
+    const block = WEBSITE_ANALYSIS_MARKER + ' ' + JSON.stringify(analysis);
+    return [block, clean].filter(Boolean).join('\n');
+  }
+
+  function parseWebsiteAnalysis(notes) {
+    const match = wizardText(notes).match(/^\[WEBSITE_ANALYSIS\]\s+(.+)$/m);
+    if (!match) return null;
+    try {
+      const parsed = JSON.parse(match[1]);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function installWebsiteAnalysisHydration() {
+    const original = w.openAiWizard;
+    if (typeof original !== 'function' || original.__voxWebsiteAnalysisHydration) return;
+    const wrapped = async function () {
+      const result = await original.apply(this, arguments);
+      if (typeof state === 'undefined' || !state.aiWizard?.data || !state.aiWizard?.customerId) return result;
+      const id = state.aiWizard.customerId;
+      const cfgNotes = state.aiConfigs?.[id]?.internalNotes;
+      const customerNotes = typeof customerById === 'function' ? customerById(id)?.ai_internal_notes : '';
+      const analysis = parseWebsiteAnalysis(cfgNotes || customerNotes);
+      if (analysis) state.aiWizard.data._websiteAnalysis = analysis;
+      return result;
+    };
+    wrapped.__voxWebsiteAnalysisHydration = true;
+    wrapped.__voxOriginal = original;
+    w.openAiWizard = wrapped;
+  }
+
+  function installWebsiteAnalysisPersistence() {
+    const original = w.wizardFinish;
+    if (typeof original !== 'function' || original.__voxWebsiteAnalysisPersistence) return;
+    const wrapped = async function () {
+      if (typeof state !== 'undefined' && state.aiWizard?.customerId && state.aiWizard?.data?._websiteAnalysis) {
+        const id = state.aiWizard.customerId;
+        const cfg = state.aiConfigs?.[id] || {};
+        const customerNotes = typeof customerById === 'function' ? customerById(id)?.ai_internal_notes : '';
+        cfg.internalNotes = upsertWebsiteAnalysis(cfg.internalNotes || customerNotes, state.aiWizard.data._websiteAnalysis);
+        state.aiConfigs[id] = cfg;
+      }
+      return original.apply(this, arguments);
+    };
+    wrapped.__voxWebsiteAnalysisPersistence = true;
+    wrapped.__voxOriginal = original;
+    w.wizardFinish = wrapped;
   }
 
   function installWizardTemplateTransition() {
@@ -194,28 +319,47 @@
         const scraped = json.data || {};
         const customer = typeof customerById === 'function' ? customerById(wizard.customerId) : null;
         const config = state.aiConfigs?.[wizard.customerId] || {};
-        const merged = mergeWebsiteAnalysis(data, scraped, {
+        const mergeOptions = {
           customer,
           config,
           templateResolver: typeof getTemplateDefaults === 'function' ? getTemplateDefaults : null
-        });
+        };
+        let replaceExisting = false;
+        if (hasWebsiteConflicts(data, scraped, mergeOptions) && typeof w.voxConfirm === 'function') {
+          replaceExisting = (await w.voxConfirm({
+            title:'Website-Daten übernehmen?',
+            message:'Für diesen Kunden sind bereits Angaben gespeichert oder manuell angepasst. Soll die neue Website-Analyse diese Werte und die vorgeschlagenen Agent-Funktionen überschreiben?',
+            confirmText:'Website-Daten übernehmen',
+            cancelText:'Bestehende Angaben behalten'
+          })) === true;
+        }
+        const merged = mergeWebsiteAnalysis(data, scraped, { ...mergeOptions, replaceExisting });
 
         data.websiteUrl = json.source_url || rawUrl;
+        data._websiteAnalysis = {
+          version:1,
+          sourceUrl:data.websiteUrl,
+          analyzedAt:new Date().toISOString(),
+          extracted:scraped,
+          applied:merged.applied,
+          preserved:merged.preserved,
+          replacedExisting:replaceExisting
+        };
         if (typeof getWizardSteps === 'function') wizard.steps = getWizardSteps(data.templateId || 'generic');
         if (typeof renderWizardModal === 'function') renderWizardModal();
 
         const preservedText = merged.preserved.length
-          ? ' · ' + merged.preserved.length + ' manuelle/bestehende Angaben beibehalten'
+          ? ' · ' + merged.preserved.length + ' bestehende Angaben beibehalten'
           : '';
         const message = merged.applied.length > 0
-          ? '✓ ' + merged.applied.length + ' Angaben übernommen' + preservedText + ' – bitte in den nächsten Schritten prüfen.'
+          ? '✓ ' + merged.applied.length + ' Angaben übernommen' + preservedText + ' – Angebot, FAQ und Agent-Auftrag bitte prüfen.'
           : '✓ Website gelesen. Bestehende Angaben wurden nicht überschrieben.';
         setWebsiteFeedback(message, true);
         const freshInput = document.getElementById('wz-website-url');
         if (freshInput) freshInput.value = data.websiteUrl;
       } catch (error) {
         const message = String(error?.message || 'Website konnte nicht ausgewertet werden.');
-        setWebsiteFeedback(`${message} Manuelles Ausfüllen bleibt möglich.`, false);
+        setWebsiteFeedback(message + ' Manuelles Ausfüllen bleibt möglich.', false);
       } finally {
         const currentButton = document.getElementById('wz-scrape-btn');
         if (currentButton) currentButton.disabled = false;
@@ -373,6 +517,8 @@
     installFunctionRouting();
     installWizardTemplateTransition();
     installWebsiteExtraction();
+    installWebsiteAnalysisHydration();
+    installWebsiteAnalysisPersistence();
     installGoLiveReadiness();
   }
 

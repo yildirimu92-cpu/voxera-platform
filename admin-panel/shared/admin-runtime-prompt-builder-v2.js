@@ -45,6 +45,13 @@
   }
 
   function hydrateData(data, profile) {
+    const profileKeys = profile && typeof profile === 'object' ? Object.keys(profile) : [];
+    const hasPersistedProfile = profileKeys.some(key => key !== 'version' && (
+      (Array.isArray(profile[key]) && profile[key].length > 0) ||
+      (!Array.isArray(profile[key]) && text(profile[key]))
+    ));
+    if (hasPersistedProfile) data._promptProfilePersisted = true;
+    else if (typeof data._promptProfilePersisted !== 'boolean') data._promptProfilePersisted = false;
     const legacyFunction = {service:'information',lead:'lead',appointment:'appointment',callback:'callback',support:'support'}[profile.goal];
     data._promptFunctions = Array.isArray(profile.functions) && profile.functions.length
       ? [...profile.functions]
@@ -111,6 +118,7 @@
   }
 
   function collectAssignment(data) {
+    data._promptProfileUserEdited = true;
     data._promptFunctions = Array.from(document.querySelectorAll('input[name="wz-prompt-functions"]:checked')).map(input => input.value);
     data._promptFunctionInstructions = document.getElementById('wz-prompt-function-instructions')?.value.trim() || '';
     data._promptRequiredInformation = document.getElementById('wz-prompt-required')?.value.trim() || '';

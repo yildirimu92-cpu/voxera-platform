@@ -7764,7 +7764,27 @@ function collectWizardStepBranche(data){
 
 
 function renderWizardStepWebsite(data){
-  return `<div class="wizard-field"><label>Website URL</label><input class="input" id="wz-website-url" value="${esc(data.websiteUrl||'')}" placeholder="https://...">
+  const analysis=data._websiteAnalysis&&typeof data._websiteAnalysis==='object'?data._websiteAnalysis:null;
+  const extracted=analysis?.extracted||{};
+  const applied=Array.isArray(analysis?.applied)?analysis.applied:[];
+  const imported=[
+    (applied.includes('businessDescription')||applied.includes('services'))?'Angebot':null,
+    applied.includes('bookingFaq')?'FAQ':null,
+    applied.some(key=>String(key).startsWith('_prompt'))?'Agent-Funktionen':null,
+    applied.includes('locationHours')?'Erreichbarkeit':null
+  ].filter(Boolean);
+  const functions=Array.isArray(extracted.assistant_functions)?extracted.assistant_functions:[];
+  const analysisCard=analysis?`
+    <div style="margin:0 0 14px;padding:12px 14px;border:1px solid #A7F3D0;background:#F0FDF4;border-radius:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <strong style="font-size:12px;color:#047857;">✓ Website analysiert</strong>
+        <span style="font-size:10px;color:#64748B;">${analysis.analyzedAt?esc(new Date(analysis.analyzedAt).toLocaleString('de-CH')):''}</span>
+      </div>
+      <div style="font-size:12px;color:var(--ink);margin-top:6px;">${esc(extracted.company_name||data._customerDisplayName||'Unternehmen')}${extracted.industry_guess?' · '+esc(extracted.industry_guess):''}</div>
+      <div style="font-size:11px;color:var(--slate2);margin-top:5px;">${imported.length?'Übernommen: '+esc(imported.join(', ')):'Analyse gespeichert; bestehende Angaben wurden beibehalten.'}</div>
+      ${functions.length?`<div style="font-size:11px;color:var(--slate2);margin-top:3px;">Vorgeschlagene Funktionen: ${esc(functions.join(', '))}</div>`:''}
+    </div>`:''; 
+  return `${analysisCard}<div class="wizard-field"><label>Website URL</label><input class="input" id="wz-website-url" value="${esc(data.websiteUrl||'')}" placeholder="https://...">
   <div style="margin-top:8px;"><button type="button" class="btn btn-secondary btn-sm" onclick="wizardScrapeWebsite()" id="wz-scrape-btn">Automatisch auslesen</button><span id="wz-scrape-feedback" style="margin-left:8px;font-size:12px;color:var(--slate2);"></span></div></div>
   <div class="wizard-field"><label>Kurzbeschreibung</label><textarea class="textarea" id="wz-short-description">${escNl(data.shortDescription||'')}</textarea></div>`;
 }
