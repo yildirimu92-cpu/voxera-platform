@@ -5088,8 +5088,12 @@ function deriveOperationalNextStep(snapshot){
   // Lifecycle-aware: erst nach Status filtern, dann nach Checklist
   if(lifecycle==='live') return 'Live-Betrieb begleiten';
   if(lifecycle==='paused') return 'Reaktivierung prüfen';
-  if(lifecycle==='activated') return 'Kundeneinrichtung und Test begleiten';
-  if(lifecycle==='invited') return 'Kundeneinrichtung abwarten';
+  if(lifecycle==='activated'){
+    return snapshot.customer?.forwarding_setup_completed
+      ? 'Optionalen Verbindungstest anbieten'
+      : 'Rufumleitung durch Kunden abwarten';
+  }
+  if(lifecycle==='invited') return 'Portalaktivierung und Rufumleitung abwarten';
   if(!isPaymentPaid(snapshot.customer)) return 'Setup-Gebühr bestätigen';
   if(snapshot.missingSet?.has('Voxera number assigned')) return 'Rufnummer zuweisen';
   if(snapshot.missingSet?.has('AI basics configured')) return 'AI fertig einrichten';
