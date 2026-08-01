@@ -123,7 +123,7 @@ function buildToolConfig(secretId) {
           title: llmProperty('string', 'Kurzer Kalendertitel für book oder reschedule.'),
           description: llmProperty('string', 'Optionale sachliche Terminbeschreibung mit Name, Telefonnummer und Anliegen.'),
           attendees: llmProperty('array', 'Optionale Liste bestätigter E-Mail-Adressen für Einladungen.', {
-            items: { type: 'string' }
+            items: llmProperty('string', 'Bestätigte E-Mail-Adresse eines Teilnehmers.')
           }),
           external_event_id: llmProperty('string', 'Von Voxera zurückgegebene Kalendertermin-ID. Für reschedule und cancel zwingend; niemals erfinden.')
         },
