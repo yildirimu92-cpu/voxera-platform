@@ -90,6 +90,18 @@ const checks = [
       && /showSendAccess:true/.test(frontend)
   ],
   [
+    'internal onboarding ends with customer handoff while go-live remains separate',
+    /checklist:\['customer created','Voxera number assigned','AI basics configured','agent configured','activation sent'\]/.test(frontend)
+      && !/checklist:\[[^\]]*'test call completed'/.test(frontend)
+      && /'activation sent':'Zugang an Kunden gesendet'/.test(frontend)
+      && /operationalOnboardingStatus=missingSteps\.length===0/.test(frontend)
+      && /Portalaktivierung und Rufumleitung abwarten/.test(frontend)
+      && /Rufumleitung durch Kunden abwarten/.test(frontend)
+      && /Optionalen Verbindungstest anbieten/.test(frontend)
+      && /snapshot\.customer\?\.forwarding_setup_completed/.test(frontend)
+      && !/Kundeneinrichtung und Test begleiten/.test(frontend)
+  ],
+  [
     'onboarding completion cannot promote customer lifecycle to live',
     /only customer-go-live may do that/.test(onboarding)
       && !/STATUS\.customer\.LIVE/.test(onboarding)
