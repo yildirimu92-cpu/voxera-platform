@@ -1,0 +1,49 @@
+name: Verify Calendar Integrations
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/netlify/functions/_lib/calendar-crypto.js'
+      - 'customer-dashboard/netlify/functions/_lib/calendar-providers.js'
+      - 'customer-dashboard/netlify/functions/calendar-connections.js'
+      - 'customer-dashboard/netlify/functions/calendar-oauth-callback.js'
+      - 'customer-dashboard/netlify/functions/calendar-tool.js'
+      - 'customer-dashboard/shared/customer-runtime-calendar-settings.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'supabase/migrations/2026-08-01_calendar_integrations_foundation.sql'
+      - 'scripts/verify-calendar-integrations.mjs'
+      - '.github/workflows/verify-calendar-integrations.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/netlify/functions/_lib/calendar-crypto.js'
+      - 'customer-dashboard/netlify/functions/_lib/calendar-providers.js'
+      - 'customer-dashboard/netlify/functions/calendar-connections.js'
+      - 'customer-dashboard/netlify/functions/calendar-oauth-callback.js'
+      - 'customer-dashboard/netlify/functions/calendar-tool.js'
+      - 'customer-dashboard/shared/customer-runtime-calendar-settings.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'supabase/migrations/2026-08-01_calendar_integrations_foundation.sql'
+      - 'scripts/verify-calendar-integrations.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check JavaScript syntax
+        run: |
+          node --check customer-dashboard/netlify/functions/_lib/calendar-crypto.js
+          node --check customer-dashboard/netlify/functions/_lib/calendar-providers.js
+          node --check customer-dashboard/netlify/functions/calendar-connections.js
+          node --check customer-dashboard/netlify/functions/calendar-oauth-callback.js
+          node --check customer-dashboard/netlify/functions/calendar-tool.js
+          node --check customer-dashboard/shared/customer-runtime-calendar-settings.js
+      - name: Verify calendar security and provider contracts
+        run: node scripts/verify-calendar-integrations.mjs
