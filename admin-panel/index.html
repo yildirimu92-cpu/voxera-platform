@@ -3606,6 +3606,7 @@ body,.main{background:#F7F8FC;}
         <div class="invoice-detail-technical-row"><span>Interne ID</span><strong id="invoice-detail-id">—</strong></div>
       </details>
       <div class="invoice-detail-actions">
+        <button class="btn btn-quiet" id="invoice-detail-pdf-generate" type="button" data-vx-qr-generate="" data-vx-qr-mode="create" style="display:none;">QR-Rechnung erstellen</button>
         <a class="btn btn-quiet" id="invoice-detail-pdf" href="#" target="_blank" rel="noopener" style="display:none;">PDF öffnen</a>
         <button class="btn btn-quiet" id="invoice-detail-remind" type="button" onclick="remindInvoiceFromDetail()">Mahnung</button>
         <button class="btn btn-secondary" id="invoice-detail-paid-action" type="button" onclick="markInvoicePaidFromDetail()">Als bezahlt</button>
@@ -5257,18 +5258,90 @@ function computeOverdueDays(dueDate){
   if(dueStart>=startOfToday) return 0;
   return Math.floor((startOfToday-dueStart)/86400000);
 }
-function detectReminderLevel(invoice,status,dueDate){
-  const directLevel=Number(invoice.reminder_level ?? invoice.dunning_level ?? invoice.mahnstufe ?? invoice.followup_level);
-  if(Number.isFinite(directLevel) && directLevel>0) return Math.min(3,Math.floor(directLevel));
-  const notes=String(invoice.notes||'');
-  const noteMatch=notes.match(/\b(?:REMINDER|MAHNUNG)\s*L(\d)\b/i);
-  if(noteMatch) return Math.min(3,Number(noteMatch[1])||1);
-  if(status==='paid') return 0;
-  const overdueDays=computeOverdueDays(dueDate);
-  if(overdueDays>=30) return 3;
-  if(overdueDays>=14) return 2;
-  if(overdueDays>=1) return 1;
+const VOXERA_DUNNING_POLICY=Object.freeze({
+  graceDays:3,
+  finalReminderDelayDays:7,
+  suspensionReviewDelayDays:7
+});
+function billingDateOnly(value){
+  if(!value) return null;
+  const raw=String(value);
+  const match=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(match) return `${match[1]}-${match[2]}-${match[3]}`;
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime())) return null;
+  const year=date.getFullYear();
+  const month=String(date.getMonth()+1).padStart(2,'0');
+  const day=String(date.getDate()).padStart(2,'0');
+  return `${year}-${month}-${day}`;
+}
+function billingDayNumber(value){
+  const key=billingDateOnly(value);
+  if(!key) return null;
+  const [year,month,day]=key.split('-').map(Number);
+  return Math.floor(Date.UTC(year,month-1,day)/86400000);
+}
+function billingDaysBetween(fromValue,toValue){
+  const from=billingDayNumber(fromValue);
+  const to=billingDayNumber(toValue);
+  return Number.isFinite(from)&&Number.isFinite(to)?to-from:null;
+}
+function billingAddDays(value,days){
+  const base=billingDayNumber(value);
+  if(!Number.isFinite(base)) return null;
+  return new Date((base+Number(days||0))*86400000).toISOString().slice(0,10);
+}
+function detectReminderLevel(invoice){
+  if(Object.prototype.hasOwnProperty.call(invoice||{},'reminder_level')){
+    const direct=Number(invoice.reminder_level);
+    return Number.isFinite(direct)?Math.max(0,Math.min(2,Math.floor(direct))):0;
+  }
+  if(invoice?.final_reminder_sent_at) return 2;
+  if(invoice?.reminder_1_sent_at) return 1;
   return 0;
+}
+function getInvoiceDunningEligibility(invoice,options={}){
+  const now=options.now instanceof Date?options.now:new Date(options.now||Date.now());
+  const dueDate=invoice?.due_at||invoice?.due_date||invoice?.invoice_due_date||options.dueDate||null;
+  const status=normalizeInvoiceStatus(invoice?.status||invoice?.payment_status,dueDate,invoice?.paid_at||invoice?.payment_date||null);
+  const currentLevel=detectReminderLevel(invoice);
+  const overdueDays=billingDaysBetween(dueDate,now);
+  const result={
+    status,
+    currentLevel,
+    overdueDays,
+    canRemind:false,
+    eligibleLevel:null,
+    stage:'open',
+    reason:'Mahnung ist aktuell nicht verfügbar.',
+    nextEligibleOn:null,
+    suspensionReviewOn:null
+  };
+  if(status==='paid'){result.stage='closed_paid';result.reason='Die Rechnung ist bezahlt.';return result;}
+  if(status==='cancelled'){result.stage='closed_cancelled';result.reason='Die Rechnung ist storniert.';return result;}
+  if(!['open','sent','overdue'].includes(status)){result.reason='Nur offene oder überfällige Rechnungen können gemahnt werden.';return result;}
+  if(!Number.isFinite(overdueDays)){result.reason='Fälligkeitsdatum fehlt.';return result;}
+  if(currentLevel>=2){
+    result.suspensionReviewOn=billingAddDays(invoice?.final_reminder_sent_at,VOXERA_DUNNING_POLICY.suspensionReviewDelayDays);
+    const daysSinceFinal=billingDaysBetween(invoice?.final_reminder_sent_at,now);
+    result.stage=Number.isFinite(daysSinceFinal)&&daysSinceFinal>=VOXERA_DUNNING_POLICY.suspensionReviewDelayDays?'suspension_review':'final_sent';
+    result.reason='Die letzte Mahnung wurde bereits versendet.';
+    return result;
+  }
+  if(currentLevel===0){
+    result.nextEligibleOn=billingAddDays(dueDate,VOXERA_DUNNING_POLICY.graceDays);
+    if(overdueDays<=0){result.reason='Die Rechnung ist noch nicht überfällig.';return result;}
+    if(overdueDays<VOXERA_DUNNING_POLICY.graceDays){result.stage='grace_period';result.reason='Die Rechnung befindet sich noch in der Kulanzfrist.';return result;}
+    result.stage='reminder_due';result.canRemind=true;result.eligibleLevel=1;result.reason='Erste Zahlungserinnerung senden.';return result;
+  }
+  const firstSentAt=invoice?.reminder_1_sent_at;
+  if(!firstSentAt){result.stage='state_inconsistent';result.reason='Versandzeitpunkt der ersten Mahnung fehlt.';return result;}
+  const daysSinceFirst=billingDaysBetween(firstSentAt,now);
+  result.nextEligibleOn=billingAddDays(firstSentAt,VOXERA_DUNNING_POLICY.finalReminderDelayDays);
+  if(!Number.isFinite(daysSinceFirst)||daysSinceFirst<VOXERA_DUNNING_POLICY.finalReminderDelayDays){
+    result.stage='reminder_sent';result.reason='Wartefrist nach der ersten Mahnung läuft.';return result;
+  }
+  result.stage='final_due';result.canRemind=true;result.eligibleLevel=2;result.reason='Letzte Mahnung senden.';return result;
 }
 function reminderBadge(level,overdueDays){
   if(level>=3) return `<span class="badge badge-red">L3 Eskalation${overdueDays?` · ${overdueDays}d`:''}</span>`;
@@ -5421,56 +5494,50 @@ async function sendAllDrafts(type) {
 }
 
 async function sendAllReminders(level) {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const threshold7 = new Date(today); threshold7.setDate(threshold7.getDate() - 7);
-  const threshold14 = new Date(today); threshold14.setDate(threshold14.getDate() - 14);
-  const rows = (state.invoices||[]).filter(i => {
-    const s = String(i.status||i.raw?.status||'').toLowerCase();
-    if (!['open','sent','overdue'].includes(s)) return false;
-    const due = i.due_at || i.due_date || i.raw?.due_at;
-    if (!due) return false;
-    const dueDate = new Date(due);
-    const notes = String(i.notes || i.raw?.notes || '');
-    if (level === 2) {
-      return dueDate <= threshold14 && !notes.includes('[REMINDER_FINAL');
-    }
-    return dueDate <= threshold7 && !notes.includes('[REMINDER L1') && !notes.includes('[REMINDER_FINAL');
+  const numericLevel=Number(level);
+  const rows=(state.invoices||[]).filter(invoice=>{
+    const dunning=getInvoiceDunningEligibility(invoice);
+    return dunning.canRemind && dunning.eligibleLevel===numericLevel;
   });
-  if (!rows.length) { showToast('Keine fälligen Mahnungen vorhanden.'); return; }
-  const labelTxt = level === 2 ? 'Letzte Warnungen (L2)' : 'Mahnungen L1';
-  const mailType = level >= 2 ? 'reminder_final_email' : 'reminder_email';
+  if(!rows.length){showToast('Keine fälligen Mahnungen vorhanden.');return;}
+  const labelTxt=numericLevel===2?'Letzte Mahnungen':'Zahlungserinnerungen';
+  const mailType=numericLevel===2?'reminder_final_email':'reminder_email';
   voxDialog({
-    title: `${rows.length} ${labelTxt} senden`,
-    message: `${rows.length} ${level === 2 ? 'finale Warnungen' : 'Erstmahnungen'} jetzt protokollieren und per Mail versenden?`,
-    confirmText: 'Jetzt senden',
-    cancelText: 'Abbrechen',
-    danger: level >= 2,
-    onConfirm: async () => {
-      let sent = 0;
-      const failures = [];
-      let skipped = 0;
-      for (const inv of rows) {
-        const customerId = inv.customer_id || inv.customerId || inv.raw?.customer_id;
-        const invId = String(inv.id||'').trim();
-        if(!invId){ skipped++; continue; }
-        try {
-          await callCustomerBillingUpdate({ customer_id: customerId, action: 'record_invoice_reminder', invoice_id: invId, reminder_level: level, notes: `Auto-Batch Reminder L${level}` });
-          try { await callAdminFunction('mail-dispatch', { mail_type: mailType, invoice_id: invId, request_id:(window.crypto?.randomUUID?.()||`batch-reminder-${invId}-${Date.now()}`) }); } catch(mailErr) {
-            console.warn('[billing] sendAllReminders mail failed:', invId, mailErr?.message);
+    title:`${rows.length} ${labelTxt} senden`,
+    message:`${rows.length} geprüfte ${numericLevel===2?'letzte Mahnungen':'Zahlungserinnerungen'} jetzt versenden?`,
+    confirmText:'Jetzt senden',
+    cancelText:'Abbrechen',
+    danger:numericLevel===2,
+    onConfirm:async()=>{
+      let sent=0;
+      const failures=[];
+      for(const invoice of rows){
+        const invoiceId=String(invoice.id||'').trim();
+        if(!invoiceId) continue;
+        try{
+          const json=await callAdminFunction('mail-dispatch',{
+            mail_type:mailType,
+            invoice_id:invoiceId,
+            notes:`Manueller Sammelversand L${numericLevel}`,
+            request_id:(window.crypto?.randomUUID?.()||`batch-reminder-${invoiceId}-${Date.now()}`)
+          });
+          if(!json?.success) throw new Error(json?.error||'Mahnversand fehlgeschlagen.');
+          if(json.invoice){
+            const index=state.invoices.findIndex(row=>idsEq(row.id,invoiceId));
+            if(index>=0) state.invoices[index]=json.invoice;
           }
           sent++;
-        } catch(err) {
-          failures.push({ invoice_id: invId, error: err?.message||String(err) });
-          console.warn('[billing] sendAllReminders reminder failed:', invId, err?.message);
+        }catch(error){
+          failures.push({invoice_id:invoiceId,error:error?.message||String(error)});
+          console.warn('[billing] dunning batch failed:',invoiceId,error?.message);
         }
       }
       await loadDataFromSupabase();
       renderAll();
       if(failures.length){
-        showToast(`⚠ ${sent} gesendet, ${failures.length} fehlgeschlagen${skipped?`, ${skipped} übersprungen`:''}. Details in Konsole.`);
-      } else {
-        showToast(`✓ ${sent} Mahnung${sent > 1 ? 'en' : ''} gesendet${skipped?` (${skipped} übersprungen)`:''}. `);
+        showToast(`⚠ ${sent} gesendet, ${failures.length} fehlgeschlagen. Details in der Konsole.`);
+      }else{
+        showToast(`✓ ${sent} Mahnung${sent>1?'en':''} gesendet.`);
       }
     }
   });
@@ -5488,24 +5555,14 @@ function renderActionQueue() {
     const notes = String(inv.notes || '');
     const due = inv.due_at || inv.due_date || null;
     const dueDate = due ? new Date(due) : null;
-    const today = new Date(); today.setHours(0,0,0,0);
-    const threshold7 = new Date(today); threshold7.setDate(threshold7.getDate() - 7);
-    const threshold14 = new Date(today); threshold14.setDate(threshold14.getDate() - 14);
-    return { id: inv.id, raw: inv, customerId, customerName: customer?.name || '–', type, status, amount, due, dueDate, notes, threshold7, threshold14 };
+    const dunning = getInvoiceDunningEligibility(inv);
+    return { id: inv.id, raw: inv, customerId, customerName: customer?.name || '–', type, status, amount, due, dueDate, notes, dunning };
   });
 
   const setupDrafts = invoiceRows.filter(i => i.type === 'setup_fee' && i.status === 'draft');
   const recurringDrafts = invoiceRows.filter(i => i.type === 'recurring' && i.status === 'draft');
-  const reminder1Due = invoiceRows.filter(i => {
-    if (!['open','sent','overdue'].includes(i.status)) return false;
-    if (!i.dueDate) return false;
-    return i.dueDate <= i.threshold7 && !i.notes.includes('[REMINDER L1') && !i.notes.includes('[REMINDER_FINAL');
-  });
-  const reminder2Due = invoiceRows.filter(i => {
-    if (!['open','sent','overdue'].includes(i.status)) return false;
-    if (!i.dueDate) return false;
-    return i.dueDate <= i.threshold14 && !i.notes.includes('[REMINDER_FINAL');
-  });
+  const reminder1Due = invoiceRows.filter(i => i.dunning.canRemind && i.dunning.eligibleLevel === 1);
+  const reminder2Due = invoiceRows.filter(i => i.dunning.canRemind && i.dunning.eligibleLevel === 2);
   const overdue = invoiceRows.filter(i => i.status === 'overdue' || (i.dueDate && i.dueDate < new Date() && !['paid','cancelled'].includes(i.status)));
 
   let html = '';
@@ -5566,7 +5623,7 @@ function renderActionQueue() {
   );
 
   if (!html) {
-    html = `<div class="bf-empty"><div class="bf-empty-icon">✓</div><div class="bf-empty-title">Alles erledigt</div><div class="bf-empty-sub">Keine offenen Aufgaben. System läuft automatisch.</div></div>`;
+    html = `<div class="bf-empty"><div class="bf-empty-title">Alles erledigt</div><div class="bf-empty-sub">Keine offenen Aufgaben. System läuft automatisch.</div></div>`;
   }
 
   root.innerHTML = html;
@@ -5617,7 +5674,8 @@ function renderBillingFinance(){
     const paidAt=inv.paid_at || inv.payment_date || inv.paid_date || null;
     const status=normalizeInvoiceStatus(inv.status || inv.payment_status,dueDate,paidAt);
     const overdueDays=computeOverdueDays(dueDate);
-    const reminderLevel=detectReminderLevel(inv,status,dueDate);
+    const dunning=getInvoiceDunningEligibility(inv,{dueDate});
+    const reminderLevel=dunning.currentLevel;
     const type=classifyInvoiceType(inv.invoice_type || inv.type || inv.category || inferredType);
     const customerId=String(inv.customer_id || inv.customerId || '');
     const customer=customerById(customerId);
@@ -5634,7 +5692,8 @@ function renderBillingFinance(){
       invoiceNo:inv.invoice_number || inv.number || inv.external_invoice_no || '—',
       reminderLevel,
       overdueDays,
-      followupNeeded:status!=='paid' && (overdueDays>0 || reminderLevel>0)
+      dunning,
+      followupNeeded:dunning.canRemind || dunning.stage==='suspension_review'
     };
   });
   console.log('[finance_debug] load_start', {
@@ -5830,6 +5889,10 @@ function renderBillingFinance(){
   rootInvoiceBody.innerHTML=filtered.map(i=>{
     const canAct = i.id && i.customerId && i.status !== 'paid' && i.status !== 'cancelled';
     const canSend = i.id && i.status !== 'paid' && i.status !== 'cancelled';
+    const canRemind = Boolean(canAct && i.dunning?.canRemind);
+    const remindTitle = i.dunning?.nextEligibleOn
+      ? `${i.dunning.reason} Möglich ab ${formatDate(i.dunning.nextEligibleOn)}.`
+      : (i.dunning?.reason || 'Mahnung ist aktuell nicht verfügbar.');
     const isSent = ['open','sent','overdue'].includes(String(i.status||'').toLowerCase()) || ['open','sent','overdue'].includes(String(i.raw?.status||'').toLowerCase());
     const histId = 'hist-' + String(i.id||'').replace(/[^a-z0-9]/gi,'');
     return `<tr class="bf-invoice-row" onclick="toggleBfHistory('${jsStr(i.id)}')" style="cursor:pointer;">
@@ -5847,7 +5910,7 @@ function renderBillingFinance(){
           </div>
           <div class="bf-actions-row">
             <button class="btn btn-primary btn-sm" ${canAct?`onclick="markInvoicePaid('${jsStr(i.customerId)}','${jsStr(i.id)}')"` :'disabled'}>Bezahlt</button>
-            <button class="btn btn-quiet btn-sm" ${canAct?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.reminderLevel||0})"` :'disabled'}>Mahnen</button>
+            <button class="btn btn-quiet btn-sm" ${canRemind?`onclick="recordInvoiceReminder('${jsStr(i.customerId)}','${jsStr(i.id)}',${i.dunning.eligibleLevel})"`:'disabled'} title="${esc(remindTitle)}">Mahnen</button>
           </div>
         </div>
       </td>
@@ -13059,6 +13122,7 @@ function buildInvoiceOperationalData(invoiceId,customerIdHint){
   const paidAt=raw.paid_at||raw.payment_date||raw.paid_date||null;
   const issuedAt=raw.issued_at||raw.created_at||raw.invoice_date||null;
   const status=normalizeInvoiceStatus(raw.status||raw.payment_status,dueDate,paidAt);
+  const dunning=getInvoiceDunningEligibility(raw,{dueDate});
   const inferredType=items[0]?.type||items[0]?.item_type||items[0]?.category||'';
   const type=classifyInvoiceType(raw.invoice_type||raw.type||raw.category||inferredType);
   const customerId=String(raw.customer_id||raw.customerId||customerIdHint||'');
@@ -13078,7 +13142,8 @@ function buildInvoiceOperationalData(invoiceId,customerIdHint){
     customerName:customer?.name||raw.customer_name||'—',
     customerEmail:customer?.email||raw.customer_email||'—',
     invoiceNo:raw.invoice_number||raw.number||raw.external_invoice_no||String(raw.id||invoiceId||'—'),
-    reminderLevel:detectReminderLevel(raw,status,dueDate),
+    reminderLevel:dunning.currentLevel,
+    dunning,
     pdfUrl:String(raw.pdf_url||raw.invoice_pdf_url||'').trim()
   };
 }
@@ -13140,8 +13205,22 @@ function openInvoiceOperational(invoiceId,customerId){
     pdfEl.style.display=validPdf?'inline-flex':'none';
     pdfEl.href=validPdf?data.pdfUrl:'#';
   }
+  const pdfGenerateEl=document.getElementById('invoice-detail-pdf-generate');
+  if(pdfGenerateEl){
+    const canGenerate=data.status==='draft'&&!validPdf;
+    pdfGenerateEl.style.display=canGenerate?'inline-flex':'none';
+    pdfGenerateEl.dataset.vxQrGenerate=data.id;
+    pdfGenerateEl.dataset.vxQrMode='create';
+  }
   const remindBtn=document.getElementById('invoice-detail-remind');
-  if(remindBtn) remindBtn.style.display=['open','sent','overdue'].includes(data.status)?'inline-flex':'none';
+  if(remindBtn){
+    const reminderStateAllowed=['open','sent','overdue'].includes(data.status);
+    remindBtn.style.display=reminderStateAllowed?'inline-flex':'none';
+    remindBtn.disabled=!data.dunning.canRemind;
+    remindBtn.title=data.dunning.nextEligibleOn
+      ? `${data.dunning.reason} Möglich ab ${formatDate(data.dunning.nextEligibleOn)}.`
+      : data.dunning.reason;
+  }
   const paidBtn=document.getElementById('invoice-detail-paid-action');
   if(paidBtn) paidBtn.style.display=['paid','cancelled'].includes(data.status)?'none':'inline-flex';
   const sendBtn=document.getElementById('invoice-detail-send');
@@ -13187,14 +13266,19 @@ function openReminderModal(customerId, invoiceId, currentLevel) {
     showToast('Mahnung konnte nicht vorbereitet werden.');
     return;
   }
-  const baseLevel = Number.isFinite(Number(currentLevel)) ? Number(currentLevel) : Number(data.reminderLevel || 0);
-  const suggestedLevel = Math.max(1, Math.min(2, baseLevel + 1));
+  const dunning=data.dunning||getInvoiceDunningEligibility(data.raw);
+  if(!dunning.canRemind||!dunning.eligibleLevel){
+    showToast(dunning.reason||'Mahnung ist aktuell nicht verfügbar.');
+    return;
+  }
+  const suggestedLevel=dunning.eligibleLevel;
   state.reminderModal = {
-    customerId: data.customerId,
-    invoiceId: data.id,
-    level: suggestedLevel,
-    pending: false,
-    recorded: false
+    customerId:data.customerId,
+    invoiceId:data.id,
+    level:suggestedLevel,
+    pending:false,
+    recorded:false,
+    dunning
   };
 
   const customerEl = document.getElementById('reminder-modal-customer');
@@ -13211,9 +13295,10 @@ function openReminderModal(customerId, invoiceId, currentLevel) {
   if (statusEl) statusEl.innerHTML = bfStatusBadge(data.status);
 
   document.querySelectorAll('.reminder-level-btn').forEach(btn => {
-    const selected = Number(btn.dataset.level) === suggestedLevel;
-    btn.classList.toggle('active', selected);
-    btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    const selected=Number(btn.dataset.level)===suggestedLevel;
+    btn.classList.toggle('active',selected);
+    btn.disabled=!selected;
+    btn.setAttribute('aria-pressed',selected?'true':'false');
   });
 
   const noteEl = document.getElementById('reminder-modal-note');
@@ -13238,8 +13323,7 @@ function closeReminderModal() {
 }
 
 function selectReminderLevel(level) {
-  if (!state.reminderModal || state.reminderModal.recorded) return;
-  state.reminderModal.level = level;
+  if (!state.reminderModal || state.reminderModal.recorded || Number(level)!==Number(state.reminderModal.level)) return;
   document.querySelectorAll('.reminder-level-btn').forEach(btn => {
     const selected = Number(btn.dataset.level) === level;
     btn.classList.toggle('active', selected);
@@ -13248,84 +13332,62 @@ function selectReminderLevel(level) {
 }
 
 async function submitReminderModal() {
-  if (!state.reminderModal || state.reminderModal.pending || state.reminderModal.recorded) return;
-  const { customerId, invoiceId, level } = state.reminderModal;
-  const note = String(document.getElementById('reminder-modal-note')?.value || '').trim();
-  const fb = document.getElementById('reminder-modal-feedback');
-  const submitBtn = document.getElementById('reminder-modal-submit');
-  const mailType = level >= 2 ? 'reminder_final_email' : 'reminder_email';
-  const mailPayload = {
-    mail_type: mailType,
-    invoice_id: invoiceId,
+  if(!state.reminderModal||state.reminderModal.pending||state.reminderModal.recorded)return;
+  const {customerId,invoiceId,level}=state.reminderModal;
+  const note=String(document.getElementById('reminder-modal-note')?.value||'').trim();
+  const fb=document.getElementById('reminder-modal-feedback');
+  const submitBtn=document.getElementById('reminder-modal-submit');
+  const invoice=(state.invoices||[]).find(row=>idsEq(row.id,invoiceId));
+  const dunning=getInvoiceDunningEligibility(invoice||{});
+  if(!dunning.canRemind||dunning.eligibleLevel!==level){
+    const message=dunning.reason||'Mahnung ist aktuell nicht mehr zulässig.';
+    if(fb){fb.className='modal-feedback error';fb.textContent=message;}
+    showToast(message);
+    return;
+  }
+  const mailType=level===2?'reminder_final_email':'reminder_email';
+  const mailPayload={
+    mail_type:mailType,
+    invoice_id:invoiceId,
+    notes:note||(`Manueller Reminder L${level}`),
     request_id:(window.crypto?.randomUUID?.()||`reminder-${Date.now()}-${Math.random().toString(16).slice(2)}`)
   };
-  let reminderRecorded = false;
-  let mailSent = false;
 
-  state.reminderModal.pending = true;
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Wird geprüft…';
-  }
-  if (fb) {
-    fb.className = 'modal-feedback';
-    fb.textContent = '';
-  }
+  state.reminderModal.pending=true;
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Wird geprüft…';}
+  if(fb){fb.className='modal-feedback';fb.textContent='';}
 
-  try {
-    const previewJson = await callAdminFunction('mail-dispatch', {
-      ...mailPayload,
-      dry_run: true
-    });
-    if (!previewJson?.success || !previewJson?.dry_run) {
-      throw new Error(previewJson?.error || 'Mahnung konnte vor dem Versand nicht geprüft werden.');
+  try{
+    const previewJson=await callAdminFunction('mail-dispatch',{...mailPayload,dry_run:true});
+    if(!previewJson?.success||!previewJson?.dry_run){
+      throw new Error(previewJson?.error||'Mahnung konnte vor dem Versand nicht geprüft werden.');
     }
-
-    if (submitBtn) submitBtn.textContent = 'Wird gesendet…';
-    const json = await callCustomerBillingUpdate({
-      customer_id: customerId,
-      action: 'record_invoice_reminder',
-      invoice_id: invoiceId,
-      reminder_level: level,
-      notes: note || ('Manueller Reminder L' + level)
-    });
-    if (!json?.success || !json?.invoice) throw new Error(json?.error || 'Reminder-Update fehlgeschlagen.');
-    reminderRecorded = true;
-    if (state.reminderModal) state.reminderModal.recorded = true;
-    const idx = state.invoices.findIndex(inv => idsEq(inv.id, invoiceId));
-    if (idx >= 0) state.invoices[idx] = json.invoice;
-
-    const mailJson = await callAdminFunction('mail-dispatch', mailPayload);
-    if (!mailJson?.success) throw new Error(mailJson?.error || 'Mailversand fehlgeschlagen.');
-    mailSent = true;
-
-    if (fb) {
-      fb.className = 'modal-feedback success';
-      fb.textContent = 'Mahnung L' + level + ' wurde protokolliert und an die E-Mail-Automation übergeben.';
+    if(submitBtn)submitBtn.textContent='Wird gesendet…';
+    const mailJson=await callAdminFunction('mail-dispatch',mailPayload);
+    if(!mailJson?.success)throw new Error(mailJson?.error||'Mailversand fehlgeschlagen.');
+    if(mailJson.invoice){
+      const index=state.invoices.findIndex(row=>idsEq(row.id,invoiceId));
+      if(index>=0)state.invoices[index]=mailJson.invoice;
     }
-    showToast('✓ Mahnung L' + level + ' protokolliert und übergeben.');
+    if(state.reminderModal)state.reminderModal.recorded=true;
+    if(fb){
+      fb.className='modal-feedback success';
+      fb.textContent=level===2?'Letzte Mahnung wurde versendet und protokolliert.':'Zahlungserinnerung wurde versendet und protokolliert.';
+    }
+    showToast(level===2?'✓ Letzte Mahnung versendet.':'✓ Zahlungserinnerung versendet.');
+    await loadDataFromSupabase();
     renderAll();
-    setTimeout(() => closeReminderModal(), 700);
-  } catch (err) {
-    const payload = err?.payload || {};
-    const message = payload?.error || err?.message || 'Mahnung konnte nicht verarbeitet werden.';
-    if (reminderRecorded && !mailSent) {
-      if (fb) {
-        fb.className = 'modal-feedback warning';
-        fb.textContent = 'Die Mahnung wurde protokolliert, aber die E-Mail konnte nicht versendet werden. Bitte nicht erneut protokollieren; den Versand manuell prüfen.';
-      }
-      showToast('⚠ Mahnung protokolliert — E-Mail-Versand fehlgeschlagen.');
-      renderAll();
-    } else if (fb) {
-      fb.className = 'modal-feedback error';
-      fb.textContent = message;
-    }
-  } finally {
-    if (state.reminderModal) {
-      state.reminderModal.pending = false;
-      if (submitBtn) {
-        submitBtn.disabled = Boolean(state.reminderModal.recorded);
-        submitBtn.textContent = state.reminderModal.recorded ? 'Bereits protokolliert' : 'Protokollieren & senden';
+    setTimeout(()=>closeReminderModal(),700);
+  }catch(error){
+    const payload=error?.payload||{};
+    const message=payload?.error||error?.message||'Mahnung konnte nicht verarbeitet werden.';
+    if(fb){fb.className='modal-feedback error';fb.textContent=message;}
+  }finally{
+    if(state.reminderModal){
+      state.reminderModal.pending=false;
+      if(submitBtn){
+        submitBtn.disabled=Boolean(state.reminderModal.recorded);
+        submitBtn.textContent=state.reminderModal.recorded?'Versendet':'Protokollieren & senden';
       }
     }
   }
