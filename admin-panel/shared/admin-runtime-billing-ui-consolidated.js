@@ -69,20 +69,8 @@
   }
 
   function normalizeRows(){
-    const root=document.getElementById(ROOT_ID)||document.querySelector('[data-section="billing-finance"]');
-    if(!root)return;
-    root.querySelectorAll('tr,.invoice-row,[data-invoice-id]').forEach(row=>{
-      if(row.dataset.vxBillingConsolidated==='2')return;
-      const actions=dedupe([...row.querySelectorAll('button,a,.btn')].filter(el=>ACTION_RE.test(labelOf(el))));
-      if(actions.length<3)return;
-      const open=actions.find(action=>/^öffnen$/i.test(labelOf(action)))||actions[0];
-      const rest=actions.filter(action=>action!==open);
-      const cell=findActionCell(row,actions);if(!cell)return;
-      const bar=document.createElement('div');bar.className='vx-billing-actionbar';
-      bar.append(open,makeMenu(rest));
-      cell.replaceChildren(bar);
-      row.dataset.vxBillingConsolidated='2';
-    });
+    // The canonical invoice table already renders the four approved actions.
+    // Do not move or wrap them in secondary runtime menus.
   }
 
   function cleanEmptyState(){
@@ -117,21 +105,8 @@
     if(lastReminderLevel==='L2'&&l2)l2.classList.add('vx-reminder-disabled');
   }
 
-  function normalizeInvoiceDetail(modal){
-    const text=String(modal.textContent||'').toLowerCase();
-    if(!text.includes('billing')&&!/vx-\d{4}-/i.test(text))return;
-    if(modal.dataset.vxBillingModal==='2')return;
-    const actions=dedupe([...modal.querySelectorAll('button,a,.btn')].filter(el=>ACTION_RE.test(labelOf(el))));
-    if(actions.length<3)return;
-    const footer=actions.map(action=>action.closest('.modal-footer')||action.parentElement).find(Boolean);if(!footer)return;
-    const resend=actions.find(action=>/erneut senden/i.test(labelOf(action)));
-    const pdf=actions.find(action=>/pdf öffnen|qr öffnen/i.test(labelOf(action)));
-    const reminder=actions.find(action=>/^mahnung$/i.test(labelOf(action)));
-    const visible=[pdf,reminder,resend].filter(Boolean);
-    const hidden=actions.filter(action=>!visible.includes(action));hidden.forEach(action=>action.remove());
-    const bar=document.createElement('div');bar.className='vx-billing-modal-actions';bar.append(...visible);
-    footer.replaceChildren(bar);
-    modal.dataset.vxBillingModal='2';
+  function normalizeInvoiceDetail(_modal){
+    // Invoice detail actions are rendered canonically in index.html.
   }
 
   let scheduled=false;
