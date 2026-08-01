@@ -248,8 +248,8 @@ function microsoftEvent(input) {
   return {
     subject: input.title,
     body: { contentType: 'text', content: input.description || '' },
-    start: { dateTime: input.start, timeZone: input.timezone },
-    end: { dateTime: input.end, timeZone: input.timezone },
+    start: { dateTime: input.start, timeZone: 'UTC' },
+    end: { dateTime: input.end, timeZone: 'UTC' },
     attendees: (input.attendees || []).filter(Boolean).map((address) => ({
       emailAddress: { address }, type: 'required'
     }))
