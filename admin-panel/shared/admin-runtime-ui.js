@@ -65,15 +65,22 @@
 
     const lifecycleOriginal = typeof w.getCustomerLifecycleStatus === 'function' ? w.getCustomerLifecycleStatus : null;
     if (lifecycleOriginal && !lifecycleOriginal.__voxOperationalSetup) {
+      let operationalLifecycleDepth = 0;
       const wrappedLifecycle = function (customer, onboarding) {
         const base = lifecycleOriginal.apply(this, arguments);
-        const snapshot = customer?.id && typeof w.deriveOnboardingSnapshot === 'function'
-          ? w.deriveOnboardingSnapshot(customer.id)
-          : null;
-        if (snapshot?.operationalComplete && !['live', 'paused', 'deleted'].includes(String(base || '').toLowerCase())) {
-          return 'activated';
+        if (operationalLifecycleDepth > 0) return base;
+        operationalLifecycleDepth += 1;
+        try {
+          const snapshot = customer?.id && typeof w.deriveOnboardingSnapshot === 'function'
+            ? w.deriveOnboardingSnapshot(customer.id)
+            : null;
+          if (snapshot?.operationalComplete && !['live', 'paused', 'deleted'].includes(String(base || '').toLowerCase())) {
+            return 'activated';
+          }
+          return base;
+        } finally {
+          operationalLifecycleDepth -= 1;
         }
-        return base;
       };
       wrappedLifecycle.__voxOperationalSetup = true;
       w.getCustomerLifecycleStatus = wrappedLifecycle;
