@@ -109,6 +109,13 @@ const checks = [
       && !/record_invoice_reminder/.test(reminderSend)
   ],
   [
+    'reminder dialog scrolls independently and invoice detail has no duplicate reminder action',
+    /#reminder-modal \.reminder-dialog\{[^}]*overflow:hidden!important/.test(adminIndex)
+      && /#reminder-modal \.billing-dialog-body\{[^}]*flex:1 1 auto[^}]*overflow-y:auto!important/.test(adminIndex)
+      && !/id=["']invoice-detail-remind["']/.test(adminIndex)
+      && !/function remindInvoiceFromDetail/.test(adminIndex)
+  ],
+  [
     'scheduled runner never calls Make or auto-sends invoice/reminder mail',
     !/MAKE_MAIL_WEBHOOK/.test(billingRunner.replace('therefore never calls MAKE_MAIL_WEBHOOK.', ''))
       && !/AUTO_SEND_DRAFTS/.test(billingRunner)
