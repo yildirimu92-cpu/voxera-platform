@@ -1,0 +1,40 @@
+name: Verify Call Intake
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/netlify/functions/_lib/phone-normalize.js'
+      - 'customer-dashboard/netlify/functions/elevenlabs-post-call.js'
+      - 'customer-dashboard/tests/phone-normalize.test.cjs'
+      - 'supabase/sql/2026-08-01_call_intake_idempotency.sql'
+      - '.github/workflows/verify-call-intake.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'customer-dashboard/netlify/functions/_lib/phone-normalize.js'
+      - 'customer-dashboard/netlify/functions/elevenlabs-post-call.js'
+      - 'customer-dashboard/tests/phone-normalize.test.cjs'
+      - 'supabase/sql/2026-08-01_call_intake_idempotency.sql'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check phone normalizer syntax
+        run: node --check customer-dashboard/netlify/functions/_lib/phone-normalize.js
+      - name: Run phone normalization tests
+        run: node --test customer-dashboard/tests/phone-normalize.test.cjs
+      - name: Verify call intake migration invariants
+        shell: bash
+        run: |
+          grep -q "uq_calls_elevenlabs_conversation_id" supabase/sql/2026-08-01_call_intake_idempotency.sql
+          grep -q "idx_calls_phone_pair_created_at" supabase/sql/2026-08-01_call_intake_idempotency.sql
+          grep -q "WHERE elevenlabs_conversation_id IS NOT NULL" supabase/sql/2026-08-01_call_intake_idempotency.sql
