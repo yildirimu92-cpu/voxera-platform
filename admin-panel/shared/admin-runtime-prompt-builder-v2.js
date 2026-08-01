@@ -26,7 +26,8 @@
   function profileFromData(data) {
     return {
       version: 2,
-      goal: text(data._promptGoal) || 'service',
+      functions: Array.isArray(data._promptFunctions) ? [...new Set(data._promptFunctions.filter(Boolean))] : [],
+      functionInstructions: text(data._promptFunctionInstructions),
       requiredInformation: text(data._promptRequiredInformation),
       successDefinition: text(data._promptSuccessDefinition),
       appointmentMode: text(data._promptAppointmentMode) || 'request',
@@ -44,7 +45,11 @@
   }
 
   function hydrateData(data, profile) {
-    data._promptGoal = profile.goal || data._promptGoal || 'service';
+    const legacyFunction = {service:'information',lead:'lead',appointment:'appointment',callback:'callback',support:'support'}[profile.goal];
+    data._promptFunctions = Array.isArray(profile.functions) && profile.functions.length
+      ? [...profile.functions]
+      : (Array.isArray(data._promptFunctions) && data._promptFunctions.length ? data._promptFunctions : [legacyFunction || 'information']);
+    data._promptFunctionInstructions = profile.functionInstructions || data._promptFunctionInstructions || '';
     data._promptRequiredInformation = profile.requiredInformation || data._promptRequiredInformation || 'Name und Rückrufnummer\nKonkretes Anliegen\nGewünschter nächster Schritt';
     data._promptSuccessDefinition = profile.successDefinition || data._promptSuccessDefinition || 'Das Anliegen ist verstanden, alle nötigen Angaben sind erfasst und der nächste Schritt wurde eindeutig zusammengefasst.';
     data._promptAppointmentMode = profile.appointmentMode || data._promptAppointmentMode || 'request';
@@ -58,19 +63,34 @@
     </label>`;
   }
 
+  function checkbox(value, selected, label, hint) {
+    const checked = selected.includes(value);
+    return `<label class="wizard-radio-opt${checked ? ' selected' : ''}">
+      <input type="checkbox" name="wz-prompt-functions" value="${esc(value)}" ${checked ? 'checked' : ''}>
+      <div><div class="wizard-radio-label">${esc(label)}</div>${hint ? `<div class="wizard-radio-sub">${esc(hint)}</div>` : ''}</div>
+    </label>`;
+  }
+
   function renderAssignment(data) {
     hydrateData(data, {});
     return `
       <div style="padding:12px 14px;margin-bottom:14px;border:1px solid #BFDBFE;background:var(--blue-soft,#EEF5FF);border-radius:10px;font-size:12px;line-height:1.55;color:var(--ink)">
-        Diese Angaben werden als verbindliche Arbeitsanweisung in den Agent-Prompt übersetzt. Formuliere betriebliche Regeln – keine technischen Prompt-Befehle.
+        Wähle alle Funktionen, die dieser Kunde benötigt. Der Agent kombiniert sie abhängig vom Anliegen des Anrufers. Formuliere betriebliche Regeln – keine technischen Prompt-Befehle.
       </div>
-      <div class="wizard-field"><label>Primäre Aufgabe des Agenten</label><div class="wizard-radio-group">
-        ${radio('wz-prompt-goal','service',data._promptGoal,'Auskunft & Anliegen','Fragen beantworten und Anliegen vollständig erfassen.')}
-        ${radio('wz-prompt-goal','lead',data._promptGoal,'Lead qualifizieren','Interesse und Voraussetzungen für die Beratung klären.')}
-        ${radio('wz-prompt-goal','appointment',data._promptGoal,'Termin vorbereiten','Anliegen klären und den passenden Terminschritt einleiten.')}
-        ${radio('wz-prompt-goal','callback',data._promptGoal,'Rückruf aufnehmen','Eine vollständige und priorisierte Rückrufanfrage erfassen.')}
-        ${radio('wz-prompt-goal','support',data._promptGoal,'Support-Triage','Supportanliegen aufnehmen, priorisieren und weiterleiten.')}
+      <div class="wizard-field"><label>Funktionen des Agenten <span style="font-weight:500;color:var(--slate2)">(Mehrfachauswahl)</span></label><div class="wizard-radio-group">
+        ${checkbox('information',data._promptFunctions,'Information & FAQ','Fragen anhand der hinterlegten Unternehmensdaten beantworten.')}
+        ${checkbox('consulting',data._promptFunctions,'Beratung','Bedarf verstehen und passende dokumentierte Leistungen erklären.')}
+        ${checkbox('lead',data._promptFunctions,'Lead qualifizieren','Interesse, Bedarf und Voraussetzungen für die Beratung klären.')}
+        ${checkbox('appointment',data._promptFunctions,'Termine','Terminanfrage aufnehmen oder mit angebundenem Kalender buchen.')}
+        ${checkbox('quote',data._promptFunctions,'Offertenanfrage','Anforderungen für ein Angebot strukturiert erfassen.')}
+        ${checkbox('callback',data._promptFunctions,'Rückruf aufnehmen','Eine vollständige und priorisierte Rückrufanfrage erfassen.')}
+        ${checkbox('support',data._promptFunctions,'Support-Triage','Supportanliegen aufnehmen, priorisieren und weiterleiten.')}
+        ${checkbox('transfer',data._promptFunctions,'Weiterleiten','Gemäss konfigurierten Regeln an die richtige Person übergeben.')}
       </div></div>
+      <div class="wizard-field"><label>Spezifische Regeln für die gewählten Funktionen</label>
+        <textarea class="textarea" id="wz-prompt-function-instructions" style="min-height:110px" placeholder="Beispiel:\nBeratung: Starter für kleine Teams, Business bei mehreren Sprachen erklären.\nLead: Branche, Teamgrösse und Anrufvolumen erfragen.\nOfferte: Keine Preise zusagen; Beratungstermin anbieten.">${esc(data._promptFunctionInstructions)}</textarea>
+        <div class="wizard-hint">Hier kann jeder Kunde bestimmen, wie die gewählten Funktionen konkret ausgeführt werden.</div>
+      </div>
       <div class="wizard-field"><label>Welche Angaben müssen erfasst werden?</label>
         <textarea class="textarea" id="wz-prompt-required" style="min-height:105px" placeholder="Eine Angabe pro Zeile">${esc(data._promptRequiredInformation)}</textarea>
         <div class="wizard-hint">Nur Informationen eintragen, die für den nächsten Prozessschritt wirklich benötigt werden.</div>
@@ -91,7 +111,8 @@
   }
 
   function collectAssignment(data) {
-    data._promptGoal = document.querySelector('input[name="wz-prompt-goal"]:checked')?.value || data._promptGoal || 'service';
+    data._promptFunctions = Array.from(document.querySelectorAll('input[name="wz-prompt-functions"]:checked')).map(input => input.value);
+    data._promptFunctionInstructions = document.getElementById('wz-prompt-function-instructions')?.value.trim() || '';
     data._promptRequiredInformation = document.getElementById('wz-prompt-required')?.value.trim() || '';
     data._promptSuccessDefinition = document.getElementById('wz-prompt-success')?.value.trim() || '';
     data._promptAppointmentMode = document.querySelector('input[name="wz-prompt-appointment"]:checked')?.value || data._promptAppointmentMode || 'request';
@@ -102,7 +123,7 @@
     return [
       ['Geschäftsprofil', Boolean(text(data.businessDescription)), 'Der Agent kennt das Unternehmen.'],
       ['Leistungen', Boolean(text(data.services)), 'Der Agent kennt das tatsächliche Angebot.'],
-      ['Hauptauftrag', Boolean(text(data._promptGoal)), 'Das Gespräch verfolgt ein eindeutiges Ziel.'],
+      ['Agent-Funktionen', Array.isArray(data._promptFunctions) && data._promptFunctions.length > 0, 'Mindestens eine kombinierbare Funktion ist ausgewählt.'],
       ['Pflichtinformationen', Boolean(text(data._promptRequiredInformation)), 'Notwendige Angaben sind festgelegt.'],
       ['Terminbefugnis', Boolean(text(data._promptAppointmentMode)), 'Buchungszusagen sind klar begrenzt.'],
       ['Fallback', Boolean(text(data._promptUnknownHandling) && text(data.fallbackEscalation)), 'Unsicherheit und Eskalation sind geregelt.'],
