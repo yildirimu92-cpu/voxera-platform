@@ -133,16 +133,17 @@
     busy = true;
     render();
     setStatus(message, 'loading');
+    let finalMessage = '✓ Änderung gespeichert.';
+    let finalTone = 'success';
     try {
       state = await operation();
-      render();
-      setStatus('✓ Änderung gespeichert.', 'success');
     } catch (error) {
-      render();
-      setStatus(error?.message || 'Aktion fehlgeschlagen.', 'error');
+      finalMessage = error?.message || 'Aktion fehlgeschlagen.';
+      finalTone = 'error';
     } finally {
       busy = false;
       render();
+      setStatus(finalMessage, finalTone);
     }
   }
 
@@ -157,11 +158,14 @@
       if (!popup) throw new Error('Popup wurde blockiert. Bitte Popups für Voxera erlauben.');
       setStatus('Anmeldung wurde in einem neuen Fenster geöffnet.', 'loading');
     } catch (error) {
-      setStatus(error?.message || 'Verbindung konnte nicht gestartet werden.', 'error');
-    } finally {
       busy = false;
       render();
+      setStatus(error?.message || 'Verbindung konnte nicht gestartet werden.', 'error');
+      return;
     }
+    busy = false;
+    render();
+    setStatus('Anmeldung wurde in einem neuen Fenster geöffnet.', 'loading');
   }
 
   function test(provider) {
