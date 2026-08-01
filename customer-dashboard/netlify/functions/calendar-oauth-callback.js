@@ -2,6 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { hashState, encryptSecret } = require('./_lib/calendar-crypto');
+const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
 const { exchangeAuthorizationCode, tokenExpiry, accountSnapshot } = require('./_lib/calendar-providers');
 
 function html(statusCode, payload, origin) {
@@ -49,6 +50,9 @@ exports.handler = async (event) => {
     .maybeSingle();
   if (stateError || !stateRow) return html(400, { ok: false, error: 'oauth_state_invalid_or_expired' }, fallbackOrigin);
   const origin = stateRow.return_origin || fallbackOrigin;
+  if (!calendarEnabledForCustomer(stateRow.customer_id)) {
+    return html(403, { ok: false, error: 'calendar_customer_not_enabled' }, origin);
+  }
   if (providerError || !code) return html(400, { ok: false, error: providerError || 'oauth_code_missing' }, origin);
 
   try {
