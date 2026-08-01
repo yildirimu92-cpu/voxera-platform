@@ -38,8 +38,9 @@ function relative(file) {
 
 // Only mail_type is a Make routing contract. event_type is also used for
 // internal audit events such as accepted/opened/send_failed and must not be
-// treated as a mail-template identifier.
-const literalPattern = /\bmail_type\s*:\s*['"]([a-z0-9_]+)['"]/g;
+// treated as a mail-template identifier. The prefix guard prevents matching
+// metadata keys such as legacy_mail_type.
+const literalPattern = /(?:^|[^A-Za-z0-9_])mail_type\s*:\s*['"]([a-z0-9_]+)['"]/gm;
 const occurrences = [];
 
 for (const file of scanRoots.flatMap(directory => walk(directory))) {
@@ -67,10 +68,12 @@ const countersignPath = path.join(
   'contract-countersign.js'
 );
 const countersignSource = fs.readFileSync(countersignPath, 'utf8');
-if (!/mail_type\s*:\s*['"]contract_signed_email['"]/.test(countersignSource)) {
+const canonicalContractPattern = /(?:^|[^A-Za-z0-9_])mail_type\s*:\s*['"]contract_signed_email['"]/m;
+const retiredContractPattern = /(?:^|[^A-Za-z0-9_])mail_type\s*:\s*['"]countersign_email['"]/m;
+if (!canonicalContractPattern.test(countersignSource)) {
   failures.push('contract-countersign.js must emit contract_signed_email.');
 }
-if (/mail_type\s*:\s*['"]countersign_email['"]/.test(countersignSource)) {
+if (retiredContractPattern.test(countersignSource)) {
   failures.push('contract-countersign.js still emits the retired countersign_email alias.');
 }
 if (!countersignSource.includes('process.env.MAKE_MAIL_WEBHOOK')) {
@@ -99,7 +102,8 @@ const aiNotifyPath = path.join(
   'ai-change-notify.js'
 );
 const aiNotifySource = fs.readFileSync(aiNotifyPath, 'utf8');
-if (!/mail_type\s*:\s*['"]ai_change_request['"]/.test(aiNotifySource)) {
+const aiChangePattern = /(?:^|[^A-Za-z0-9_])mail_type\s*:\s*['"]ai_change_request['"]/m;
+if (!aiChangePattern.test(aiNotifySource)) {
   failures.push('ai-change-notify.js must emit ai_change_request.');
 }
 
