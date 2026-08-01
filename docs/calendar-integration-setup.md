@@ -91,7 +91,7 @@ Configure the ElevenLabs webhook tool with Bearer authentication:
 
 The endpoint performs a timing-safe comparison of the bearer token. Trusted internal callers may alternatively send `X-Voxera-Timestamp` and `X-Voxera-Signature`, where the signature is the hex HMAC-SHA256 of `<timestamp>.<raw request body>`; those requests expire after five minutes.
 
-The default contract requires `agent_id`; Voxera resolves the customer from `customers.elevenlabs_agent_id`. Direct `customer_id` use remains disabled unless `CALENDAR_TOOL_ALLOW_CUSTOMER_ID=true`, which must not be enabled in production.
+The default contract requires `agent_id`; Voxera resolves the customer from `customers.elevenlabs_agent_id`. In ElevenLabs, bind this field to the protected dynamic value `system__agent_id` rather than an LLM-generated value. Direct `customer_id` use remains disabled unless `CALENDAR_TOOL_ALLOW_CUSTOMER_ID=true`, which must not be enabled in production.
 
 Official reference:
 
@@ -104,7 +104,7 @@ Supported actions:
 - `reschedule`
 - `cancel`
 
-Every write should include a unique `request_id` for idempotency.
+`book`, `reschedule`, and `cancel` require a unique `request_id`. Idempotency is scoped to the resolved customer, so retries cannot collide across tenants.
 
 ## Activation gate
 
