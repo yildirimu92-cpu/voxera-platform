@@ -1,0 +1,24 @@
+name: Verify customer operational updates
+
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js'
+      - 'admin-panel/netlify/functions/_lib/require-prompt-sync-caller.js'
+      - 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js'
+      - 'customer-dashboard/netlify/functions/customer-operational-updates.js'
+      - 'customer-dashboard/shared/customer-runtime-operational-updates.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'supabase/migrations/2026-08-01_customer_operational_updates.sql'
+      - 'scripts/verify-customer-operational-updates.mjs'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-customer-operational-updates.mjs

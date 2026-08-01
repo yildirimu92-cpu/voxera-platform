@@ -160,9 +160,10 @@ exports.handler = async (event) => {
   if (hasNonForwardingChange && customer?.elevenlabs_agent_id) {
     try {
       const adminUrl = process.env.ADMIN_URL || 'https://admin.voxera.ch';
+      const authorization = event.headers?.authorization || event.headers?.Authorization || '';
       const syncRes = await fetch(`${adminUrl}/.netlify/functions/trigger-elevenlabs-sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: authorization },
         body: JSON.stringify({ customer_id: caller.customerId, agent_id: customer.elevenlabs_agent_id, triggered_by: 'customer_self_edit' })
       });
       if (!syncRes.ok) {

@@ -5,7 +5,7 @@
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
 exports.handler = async (event) => {
@@ -34,9 +34,10 @@ exports.handler = async (event) => {
 
   const adminUrl = process.env.ADMIN_URL || 'https://admin.voxera.ch';
   try {
+    const authorization = event.headers?.authorization || event.headers?.Authorization || '';
     const upstreamRes = await fetch(`${adminUrl}/.netlify/functions/trigger-elevenlabs-sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: authorization },
       body: JSON.stringify({ customer_id, agent_id, triggered_by, prev_values })
     });
     const upstreamBody = await upstreamRes.text();
