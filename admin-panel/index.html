@@ -708,7 +708,9 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .billing-dialog-head .modal-sub{color:rgba(255,255,255,.66);margin-top:5px;}
 .billing-dialog-head .modal-icon-close{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);color:#fff;}
 .billing-dialog-head .modal-icon-close:hover{background:rgba(255,255,255,.18);}
-.billing-dialog-body{padding:22px 24px 4px;overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch;}
+.billing-dialog-body{padding:22px 24px 4px;flex:1 1 auto;overflow-y:auto!important;overflow-x:hidden;min-height:0;overscroll-behavior:contain;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;}
+#reminder-modal .reminder-dialog{overflow:hidden!important;min-height:0;}
+#reminder-modal .billing-dialog-body{flex:1 1 auto;overflow-y:auto!important;min-height:0;overscroll-behavior:contain;}
 .billing-dialog-summary{display:grid;grid-template-columns:1fr 1fr;gap:1px;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--line);margin-bottom:18px;}
 .billing-dialog-summary-item{padding:13px 15px;background:#F8FAFD;min-width:0;}
 .billing-dialog-summary-k{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);margin-bottom:4px;}
@@ -3608,7 +3610,6 @@ body,.main{background:#F7F8FC;}
       <div class="invoice-detail-actions">
         <button class="btn btn-quiet" id="invoice-detail-pdf-generate" type="button" data-vx-qr-generate="" data-vx-qr-mode="create" style="display:none;">QR-Rechnung erstellen</button>
         <a class="btn btn-quiet" id="invoice-detail-pdf" href="#" target="_blank" rel="noopener" style="display:none;">PDF öffnen</a>
-        <button class="btn btn-quiet" id="invoice-detail-remind" type="button" onclick="remindInvoiceFromDetail()">Mahnung</button>
         <button class="btn btn-secondary" id="invoice-detail-paid-action" type="button" onclick="markInvoicePaidFromDetail()">Als bezahlt</button>
         <button class="btn btn-primary" id="invoice-detail-send" type="button" onclick="sendInvoiceFromDetail(this)">Rechnung senden</button>
       </div>
@@ -13212,15 +13213,6 @@ function openInvoiceOperational(invoiceId,customerId){
     pdfGenerateEl.dataset.vxQrGenerate=data.id;
     pdfGenerateEl.dataset.vxQrMode='create';
   }
-  const remindBtn=document.getElementById('invoice-detail-remind');
-  if(remindBtn){
-    const reminderStateAllowed=['open','sent','overdue'].includes(data.status);
-    remindBtn.style.display=reminderStateAllowed?'inline-flex':'none';
-    remindBtn.disabled=!data.dunning.canRemind;
-    remindBtn.title=data.dunning.nextEligibleOn
-      ? `${data.dunning.reason} Möglich ab ${formatDate(data.dunning.nextEligibleOn)}.`
-      : data.dunning.reason;
-  }
   const paidBtn=document.getElementById('invoice-detail-paid-action');
   if(paidBtn) paidBtn.style.display=['paid','cancelled'].includes(data.status)?'none':'inline-flex';
   const sendBtn=document.getElementById('invoice-detail-send');
@@ -13248,14 +13240,6 @@ function markInvoicePaidFromDetail(){
   if(!target.invoiceId||!target.customerId) return;
   closeInvoiceDetailModal();
   openInvoicePaidModal(target.customerId,target.invoiceId);
-}
-
-function remindInvoiceFromDetail(){
-  const target={...state.invoiceDetailModal};
-  if(!target.invoiceId||!target.customerId) return;
-  const data=buildInvoiceOperationalData(target.invoiceId,target.customerId);
-  closeInvoiceDetailModal();
-  openReminderModal(target.customerId,target.invoiceId,data?.reminderLevel||0);
 }
 
 // ── Reminder Modal State ────────────────────────────────────────
