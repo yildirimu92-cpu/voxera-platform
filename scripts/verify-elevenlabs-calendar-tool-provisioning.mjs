@@ -25,8 +25,10 @@ for (const token of [
   "'/tools'",
   "method: 'PATCH'",
   "method: 'POST'",
-  "type: 'secret'",
-  "dynamic_variable: variable",
+  'request_headers: {',
+  'path_params_schema: {}',
+  'query_params_schema: {',
+  'dynamic_variable: variable',
   "'system__agent_id'",
   "'system__conversation_id'",
   "'system__agent_turns'",
@@ -73,7 +75,11 @@ try {
   const config = helper.buildToolConfig('sec_test');
   assert.equal(config.name, 'manage_voxera_calendar');
   assert.equal(config.api_schema.method, 'POST');
-  assert.equal(config.api_schema.request_headers[0].secret_id, 'sec_test');
+  assert.deepEqual(config.api_schema.path_params_schema, {});
+  assert.deepEqual(config.api_schema.query_params_schema, { properties: {}, required: [] });
+  assert.equal(Array.isArray(config.api_schema.request_headers), false);
+  assert.equal(config.api_schema.request_headers.Authorization.secret_id, 'sec_test');
+  assert.equal(config.api_schema.request_headers['Content-Type'], 'application/json');
   assert.equal(config.api_schema.request_body_schema.properties.agent_id.dynamic_variable, 'system__agent_id');
   assert.equal(config.api_schema.request_body_schema.properties.conversation_id.dynamic_variable, 'system__conversation_id');
   assert.equal(config.api_schema.request_body_schema.properties.agent_turns.dynamic_variable, 'system__agent_turns');
