@@ -32,3 +32,8 @@ test('resolver normalizes before comparing customer numbers', () => {
   assert.match(source, /normalizePhoneE164\(rawNumber\)/);
   assert.match(source, /normalizePhoneE164\(row\.voxera_number\)/);
 });
+
+test('resolver rejects ambiguous normalized assignments', () => {
+  assert.match(source, /AMBIGUOUS_NUMBER/);
+  assert.match(source, /Voxera-Nummer ist mehreren Kunden zugeordnet/);
+});
