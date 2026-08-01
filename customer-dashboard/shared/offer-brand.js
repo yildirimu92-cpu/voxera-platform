@@ -261,3 +261,13 @@
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+
+(function loadCustomerOperationalUpdates(root) {
+  if (!root || !root.document || root.__voxeraCustomerOperationalUpdatesLoaded) return;
+  root.__voxeraCustomerOperationalUpdatesLoaded = true;
+  const script = root.document.createElement('script');
+  script.src = '/shared/customer-runtime-operational-updates.js?v=20260801-1';
+  script.async = false;
+  root.document.head.appendChild(script);
+})(typeof globalThis !== 'undefined' ? globalThis : this);
