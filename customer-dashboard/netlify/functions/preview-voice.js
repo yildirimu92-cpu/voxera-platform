@@ -39,10 +39,7 @@ exports.handler = async (event) => {
   catch { return json(400, { error: 'invalid_body' }); }
 
   const voiceId = String(body.voice_id || '').trim();
-  const requestText = String(body.text || '').trim();
-  const previewText = requestText || PREVIEW_TEXT;
   if (!voiceId) return json(400, { error: 'voice_id_required' });
-  if (previewText.length > 300) return json(400, { error: 'preview_text_too_long' });
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
@@ -76,7 +73,7 @@ exports.handler = async (event) => {
           Accept: 'audio/mpeg'
         },
         body: JSON.stringify({
-          text: previewText,
+          text: PREVIEW_TEXT,
           model_id: 'eleven_multilingual_v2',
           voice_settings: { stability: 0.5, similarity_boost: 0.75 }
         })
