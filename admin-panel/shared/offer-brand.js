@@ -31,7 +31,8 @@
     '/shared/admin-runtime-design-system-v2.js?v=20260731-1',
     '/shared/admin-runtime-payment-account.js?v=20260801-2',
     '/shared/admin-runtime-billing-inline-qr.js?v=20260801-2',
-    '/shared/admin-runtime-invoice-only-ch.js?v=20260801-1'
+    '/shared/admin-runtime-invoice-only-ch.js?v=20260801-1',
+    '/shared/admin-runtime-invoice-mail-routing-fix.js?v=20260801-1'
   ].forEach((src, index) => {
     const id = `voxera-admin-runtime-${index}`;
     if (document.getElementById(id)) return;
