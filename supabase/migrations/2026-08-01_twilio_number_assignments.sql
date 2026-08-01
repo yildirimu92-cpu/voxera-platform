@@ -23,9 +23,9 @@ declare v_other text;v_previous_customer text;v_previous_number text;v_now times
 begin
  if p_customer_id is null or nullif(trim(p_number_sid),'') is null or nullif(trim(p_phone_e164),'') is null then raise exception 'customer_and_number_required';end if;
  perform pg_advisory_xact_lock(hashtext(trim(p_phone_e164)));
- perform 1 from public.customers where id=p_customer_id and deleted_at is null;
+ perform 1 from public.customers where id=p_customer_id;
  if not found then raise exception 'customer_not_found';end if;
- select id into v_other from public.customers where trim(coalesce(voxera_number,''))=trim(p_phone_e164) and id<>p_customer_id and deleted_at is null limit 1 for update;
+ select id into v_other from public.customers where trim(coalesce(voxera_number,''))=trim(p_phone_e164) and id<>p_customer_id limit 1 for update;
  if v_other is not null then raise exception 'twilio_number_already_assigned';end if;
  select voxera_number into v_previous_number from public.customers where id=p_customer_id for update;
  select customer_id into v_previous_customer from public.telephony_numbers where provider_number_sid=trim(p_number_sid) for update;
