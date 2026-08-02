@@ -39,17 +39,17 @@ const lineCount = (value) => value.split(/\r?\n/).length;
 assert.ok(lineCount(runtime) <= 50, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
 assert.ok(lineCount(assistantCss) <= 800, 'assistant component CSS exceeded its consolidated size budget');
-assert.ok(lineCount(statusCss) <= 220, 'assistant status CSS exceeded its size budget');
+assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
-assert.ok(lineCount(navigationCss) <= 140, 'navigation component CSS exceeded its size budget');
+assert.ok(lineCount(navigationCss) <= 110, 'navigation component CSS exceeded its reduced size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260803-1',
   '/shared/customer-assistant-components.css?v=20260803-1',
-  '/shared/customer-assistant-status.css?v=20260802-1',
+  '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-support-components.css?v=20260802-2',
-  '/shared/customer-navigation-components.css?v=20260802-2',
+  '/shared/customer-navigation-components.css?v=20260803-1',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -135,10 +135,24 @@ for (const token of [
   '.vx-as-cap-grid',
   '.vx-as-icon.attention',
   '.vx-as-state::before',
+  '.vx-as-capabilities-simple:not(.is-expanded) .vx-as-extra-capability',
+  '.vx-as-capability-toggle',
+  '.vx-nav-status-summary',
+  '.vx-nav-status-details',
   '.vx-as-tech-row',
-  '@media (max-width: 720px)'
+  '@media (max-width: 720px)',
+  '@media (max-width: 390px)'
 ]) {
   assert.ok(statusCss.includes(token), `assistant status CSS missing: ${token}`);
+}
+
+for (const forbidden of [
+  '.vx-nav-status-summary',
+  '.vx-nav-status-details',
+  '.vx-as-capabilities-simple',
+  '.vx-as-capability-toggle'
+]) {
+  assert.ok(!navigationCss.includes(forbidden), `navigation CSS still owns assistant status styling: ${forbidden}`);
 }
 
 for (const token of [
@@ -157,9 +171,10 @@ for (const token of [
 
 for (const token of [
   '#tab-assistent > :not(#vx-assistant-root-switch):not(#vx-assistant-root-host)',
-  '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])'
+  '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])',
+  '.vx-nav-voice-details'
 ]) {
-  assert.ok(navigationCss.includes(token), `navigation CSS missing loading guard: ${token}`);
+  assert.ok(navigationCss.includes(token), `navigation CSS missing: ${token}`);
 }
 
 for (const token of [
@@ -175,12 +190,21 @@ for (const token of [
 
 for (const token of [
   'Fähigkeiten',
-  'Der aktuelle Zustand der wichtigsten Verbindungen.',
+  'Betriebsstatus',
+  'Nur Abweichungen werden hervorgehoben. Technische Details bleiben optional.',
+  'function technicalSummary',
+  'function capabilityToggleHtml',
+  'data-vx-capability-toggle',
+  'type="button"',
+  'vx-as-capabilities-simple',
+  'vx-as-extra-capability',
+  'vx-nav-status-summary',
+  'vx-nav-status-details',
   "technicalRow('Telefonie'",
   "technicalRow('Stimme & Einstellungen'",
   'statusObserver.observe(body, { childList: true, subtree: true })'
 ]) {
-  assert.ok(statusRuntime.includes(token), `assistant status cleanup missing: ${token}`);
+  assert.ok(statusRuntime.includes(token), `assistant status runtime missing final structure: ${token}`);
 }
 
 for (const token of [
@@ -286,7 +310,8 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260803-1/);
+assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260803-2/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
