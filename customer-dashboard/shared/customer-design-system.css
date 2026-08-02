@@ -97,7 +97,7 @@ body.vx-customer-design-foundation .vx-page-header-title {
   letter-spacing: -0.025em;
 }
 
-body.vx-customer-design-foundation :where(h1, h2, h3, h4, .vx-ap-title, .vx-ops-title) {
+body.vx-customer-design-foundation :where(h1, h2, h3, h4, .vx-ap-title) {
   color: var(--vx-ink);
   font-family: var(--vx-font-ui);
   letter-spacing: -0.015em;
@@ -121,50 +121,34 @@ body.vx-customer-design-foundation h3 {
   line-height: 1.3;
 }
 
-body.vx-customer-design-foundation :where(p, .vx-ap-meta, .vx-ops-sub, .vx-ops-help) {
+body.vx-customer-design-foundation :where(p, .vx-ap-meta) {
   color: var(--vx-muted);
   line-height: 1.55;
 }
 
 body.vx-customer-design-foundation :where(
   .vx-ap-card,
-  .vx-ops-card,
-  .vx-as-cap,
-  .vx-ops-item,
-  .vx-ops-section,
-  .vx-ops-preview
+  .vx-as-cap
 ) {
   border-color: var(--vx-line);
   border-radius: var(--vx-radius-card);
   box-shadow: var(--vx-shadow-card);
 }
 
-body.vx-customer-design-foundation :where(.vx-ap-card, .vx-ops-card) {
+body.vx-customer-design-foundation .vx-ap-card {
   padding: 20px;
 }
 
-body.vx-customer-design-foundation .vx-ap-title,
-body.vx-customer-design-foundation .vx-ops-title {
+body.vx-customer-design-foundation .vx-ap-title {
   font-size: 18px;
   font-weight: 730;
   line-height: 1.3;
 }
 
-body.vx-customer-design-foundation .vx-ap-meta,
-body.vx-customer-design-foundation .vx-ops-sub {
+body.vx-customer-design-foundation .vx-ap-meta {
   margin-top: 4px;
   font-size: 14px;
   line-height: 1.55;
-}
-
-body.vx-customer-design-foundation .vx-ops-message {
-  font-size: 15px;
-  line-height: 1.55;
-}
-
-body.vx-customer-design-foundation .vx-ops-meta {
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 body.vx-customer-design-foundation :where(
@@ -239,7 +223,7 @@ body.vx-customer-design-foundation textarea {
   letter-spacing: 0;
 }
 
-body.vx-customer-design-foundation :where(label, .vx-ops-field label) {
+body.vx-customer-design-foundation label {
   color: var(--vx-muted);
   font-size: 13px;
   font-weight: 700;
@@ -340,7 +324,7 @@ body.vx-customer-design-foundation :where(
     font-size: 24px;
   }
 
-  body.vx-customer-design-foundation :where(.vx-ap-card, .vx-ops-card) {
+  body.vx-customer-design-foundation .vx-ap-card {
     padding: 18px;
     border-radius: 16px;
   }
@@ -370,17 +354,6 @@ body.vx-customer-design-foundation :where(
     padding: 10px 14px;
   }
 
-  body.vx-customer-design-foundation .vx-ops-layout,
-  body.vx-customer-design-foundation .vx-ops-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  body.vx-customer-design-foundation .vx-ops-rule {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 3px;
-  }
-
-  body.vx-customer-design-foundation .vx-ops-item,
   body.vx-customer-design-foundation .vx-as-cap {
     padding: 16px;
   }
