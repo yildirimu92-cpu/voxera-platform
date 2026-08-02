@@ -30,22 +30,24 @@ for (const token of [
   "mobile: 'mnav-auswertung'",
   "desktop: 'nav-mehr'",
   "mobile: 'mnav-mehr'",
-  "label: 'Assistent'",
-  "label: 'Einstellungen'",
-  '#nav-assistent.nav-item,#mnav-assistent.mobile-nav-btn{display:flex!important}',
+  "pageId: 'mehr-sub-assistant-profile'",
+  "pageId: 'mehr-sub-business-profile'",
+  "pageId: 'mehr-sub-betriebsinfos'",
+  "label: 'Geschäftsprofil'",
+  '#tab-assistent.vx-unified-assistant-root>:not(#vx-assistant-root-switch):not(#vx-assistant-root-host)',
+  '#vx-assistant-root-host>[data-vx-assistant-managed-page]{display:none!important}',
+  'vx-assistant-root-host',
+  'data-vx-assistant-view',
+  'hideArchiveRootNavigation',
+  "findSettingsEntryByTitle('Bericht')",
+  "textLabel(heading) !== 'Verbindungen'",
+  'vx-unified-hidden-entry',
   'dedupeAndOrderMobileNavigation',
-  'vxDuplicateRootNav',
-  "document.getElementById('tab-assistent')",
-  "document.getElementById('mehr-sub-assistant-profile')",
-  "document.getElementById('mehr-sub-betriebsinfos')",
-  "document.getElementById('vx-assistant-profile-entry')?.remove()",
-  "document.getElementById('vx-operational-entry')?.remove()",
-  "section.textContent = 'Geschäft'",
-  'vx-assistant-root-switch',
-  'Aktuelle Infos',
-  'vxOperationalUpdatesOpen',
-  'restoreSettingsRoot',
-  'Zum Assistent-Bereich',
+  'currentOrder.join',
+  'desiredOrder.join',
+  'vx-root-nav-active',
+  'installShowTabBridge',
+  'setStableRootActive',
   'Andere Stimme wählen',
   'weitere Fähigkeiten anzeigen',
   'Technische Details',
@@ -55,12 +57,19 @@ for (const token of [
   assert.ok(source.navigation.includes(token), `navigation missing: ${token}`);
 }
 
-assert.match(source.navigation, /ROOT_NAV\.forEach\(\(item\) => \{[\s\S]*container\.appendChild\(node\)/);
-assert.match(source.navigation, /assistantTab\.appendChild\(operationalPage\)/);
-assert.match(source.navigation, /showAssistantView\('profile', false\)/);
+assert.match(source.navigation, /ASSISTANT_VIEWS[\s\S]*profile[\s\S]*business[\s\S]*updates/);
+assert.match(source.navigation, /shell\.host\.appendChild\(page\)/);
+assert.match(source.navigation, /page\.style\.display = item\.key === selected \? 'block' : 'none'/);
+assert.match(source.navigation, /triggerViewLoad\(selected\)/);
+assert.match(source.navigation, /root\.vxOperationalUpdatesOpen\(\)/);
+assert.match(source.navigation, /entry\.click\(\)/);
+assert.match(source.navigation, /document\.addEventListener\('click',[\s\S]*true\)/);
+assert.match(source.navigation, /#nav-archiv,#mnav-archiv/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-2/);
+
 assert.match(source.assistant, /mehr-sub-assistant-profile/);
-assert.match(source.assistant, /vx-assistant-profile-entry/);
+assert.match(source.assistant, /mehr-sub-business-profile/);
+assert.match(source.assistant, /vx-business-profile-entry/);
 assert.match(source.status, /vx-assistant-status-extension/);
 assert.match(source.menu, /vx-assistant-business-section/);
 assert.match(source.operational, /mehr-sub-betriebsinfos/);
@@ -71,5 +80,6 @@ assert.doesNotMatch(source.navigation, /ELEVENLABS_API_KEY/);
 assert.doesNotMatch(source.navigation, /ai_instructions/);
 assert.doesNotMatch(source.navigation, /innerHTML\s*=\s*document\.documentElement/);
 assert.doesNotMatch(source.navigation, /localStorage/);
+assert.doesNotMatch(source.navigation, /assistantTab\.appendChild\(operationalPage\)/);
 
 console.log('Unified customer dashboard navigation verification passed.');
