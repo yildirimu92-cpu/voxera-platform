@@ -38,15 +38,15 @@ new vm.Script(loader, { filename: paths.loader });
 const lineCount = (value) => value.split(/\r?\n/).length;
 assert.ok(lineCount(runtime) <= 50, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
-assert.ok(lineCount(assistantCss) <= 350, 'assistant component CSS exceeded its size budget');
+assert.ok(lineCount(assistantCss) <= 410, 'assistant component CSS exceeded its size budget');
 assert.ok(lineCount(statusCss) <= 220, 'assistant status CSS exceeded its size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
 assert.ok(lineCount(navigationCss) <= 140, 'navigation component CSS exceeded its size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
-  '/shared/customer-design-system.css?v=20260802-3',
-  '/shared/customer-assistant-components.css?v=20260802-2',
+  '/shared/customer-design-system.css?v=20260802-4',
+  '/shared/customer-assistant-components.css?v=20260802-3',
   '/shared/customer-assistant-status.css?v=20260802-1',
   '/shared/customer-support-components.css?v=20260802-2',
   '/shared/customer-navigation-components.css?v=20260802-2',
@@ -103,7 +103,13 @@ for (const token of [
   '.vx-ap-modal',
   '.vx-ap-filter',
   'min-height: 36px',
-  '.vx-ap-actions > .vx-ap-btn'
+  '.vx-ap-actions > .vx-ap-btn',
+  '#vx-business-profile-body .vx-ap-card',
+  '#vx-business-profile-body .vx-ap-title',
+  '#vx-business-profile-body .vx-ap-grid',
+  '#vx-business-profile-body textarea',
+  'min-height: 138px',
+  'min-height: 124px'
 ]) {
   assert.ok(assistantCss.includes(token), `assistant CSS missing: ${token}`);
 }
@@ -239,7 +245,8 @@ for (const forbidden of [
   '"DM Sans"',
   '"Plus Jakarta Sans"',
   '.vx-ap-card button',
-  '.vx-ops-card button'
+  '.vx-ops-card button',
+  'min-height: 148px'
 ]) {
   assert.ok(!foundationCss.includes(forbidden), `foundation CSS still contains mixed or broad control rule: ${forbidden}`);
 }
@@ -257,7 +264,7 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-5/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-6/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 

@@ -345,10 +345,6 @@ body.vx-customer-design-foundation :where(
     border-radius: 16px;
   }
 
-  body.vx-customer-design-foundation textarea {
-    min-height: 148px;
-  }
-
   body.vx-customer-design-foundation .vx-assistant-root-switch {
     position: sticky;
     top: 0;
