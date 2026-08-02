@@ -210,7 +210,9 @@ for (const [name, css] of [
   assert.equal((css.match(/!important/g) || []).length, 0, `${name} CSS must not add !important overrides`);
 }
 
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-1/);
+assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-2/);
+assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
 console.log('Customer dashboard design foundation verification passed.');
