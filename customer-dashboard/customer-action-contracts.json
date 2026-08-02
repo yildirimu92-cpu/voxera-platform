@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "scope": "customer-dashboard runtime actions",
+  "actions": [
+    {
+      "id": "root-navigation",
+      "area": "navigation",
+      "source": "customer-dashboard/shared/customer-runtime-unified-navigation.js",
+      "event": "click",
+      "triggerTokens": ["data-vx-root-tab"],
+      "handlerTokens": ["setStableRootActive(key)"]
+    },
+    {
+      "id": "assistant-subview-tabs",
+      "area": "navigation",
+      "source": "customer-dashboard/shared/customer-runtime-unified-navigation.js",
+      "event": "click",
+      "triggerTokens": ["data-vx-assistant-view"],
+      "handlerTokens": ["showAssistantView(button.dataset.vxAssistantView, true)"]
+    },
+    {
+      "id": "business-profile-shortcut",
+      "area": "navigation",
+      "source": "customer-dashboard/shared/customer-runtime-unified-navigation.js",
+      "event": "click",
+      "triggerTokens": ["#vx-open-business-profile"],
+      "handlerTokens": ["showAssistantView('business', false)"],
+      "canonicalRoute": "assistant/business"
+    },
+    {
+      "id": "voice-preview",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["data-vx-preview"],
+      "handlerTokens": ["previewVoice(node.dataset.vxPreview, node)"]
+    },
+    {
+      "id": "voice-select",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["data-vx-select-voice"],
+      "handlerTokens": ["openVoiceModal(node.dataset.vxSelectVoice)"]
+    },
+    {
+      "id": "voice-filter",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["data-vx-filter"],
+      "handlerTokens": ["voiceFilter = node.dataset.vxFilter", "renderAssistant()"]
+    },
+    {
+      "id": "voice-change-cancel",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["data-vx-voice-cancel"],
+      "handlerTokens": ["closeVoiceModal"]
+    },
+    {
+      "id": "voice-change-confirm",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["data-vx-voice-confirm"],
+      "handlerTokens": ["confirmVoiceChange"]
+    },
+    {
+      "id": "assistant-name-save",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["vx-assistant-name-save"],
+      "handlerTokens": ["saveName"]
+    },
+    {
+      "id": "business-profile-save",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["vx-business-profile-save"],
+      "handlerTokens": ["saveBusiness"]
+    },
+    {
+      "id": "calendar-settings-open",
+      "area": "calendar",
+      "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
+      "event": "click",
+      "triggerTokens": ["vx-calendar-settings-entry"],
+      "handlerTokens": ["entry.addEventListener('click', open)"]
+    },
+    {
+      "id": "calendar-settings-back",
+      "area": "calendar",
+      "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
+      "event": "click",
+      "triggerTokens": ["data-cal-back"],
+      "handlerTokens": ["addEventListener('click', back)"]
+    },
+    {
+      "id": "calendar-connect",
+      "area": "calendar",
+      "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
+      "event": "click",
+      "triggerTokens": ["data-calendar-connect"],
+      "handlerTokens": ["connect(node.dataset.calendarConnect)"]
+    },
+    {
+      "id": "calendar-test",
+      "area": "calendar",
+      "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
+      "event": "click",
+      "triggerTokens": ["data-calendar-test"],
+      "handlerTokens": ["test(node.dataset.calendarTest)"]
+    },
+    {
+      "id": "calendar-disconnect",
+      "area": "calendar",
+      "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
+      "event": "click",
+      "triggerTokens": ["data-calendar-disconnect"],
+      "handlerTokens": ["disconnect(node.dataset.calendarDisconnect)"],
+      "destructive": true,
+      "confirmationTokens": ["root.confirm", "wirklich trennen"]
+    },
+    {
+      "id": "calendar-select",
+      "area": "calendar",
+      "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
+      "event": "change",
+      "triggerTokens": ["data-calendar-select"],
+      "handlerTokens": ["selectCalendar(node.dataset.calendarSelect, node.value)"]
+    },
+    {
+      "id": "calendar-settings-save",
+      "area": "calendar",
+      "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
+      "event": "click",
+      "triggerTokens": ["vx-calendar-save"],
+      "handlerTokens": ["addEventListener('click', save)"]
+    },
+    {
+      "id": "current-info-open",
+      "area": "current-info",
+      "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
+      "event": "click",
+      "triggerTokens": ["vx-operational-entry"],
+      "handlerTokens": ["entry.addEventListener('click', open)"]
+    },
+    {
+      "id": "current-info-back",
+      "area": "current-info",
+      "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
+      "event": "click",
+      "triggerTokens": ["data-ops-back"],
+      "handlerTokens": ["addEventListener('click', back)"]
+    },
+    {
+      "id": "current-info-save",
+      "area": "current-info",
+      "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
+      "event": "click",
+      "triggerTokens": ["vx-ops-save"],
+      "handlerTokens": ["addEventListener('click',save)"]
+    },
+    {
+      "id": "current-info-edit-cancel",
+      "area": "current-info",
+      "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
+      "event": "click",
+      "triggerTokens": ["vx-ops-reset"],
+      "handlerTokens": ["addEventListener('click',resetForm)"]
+    },
+    {
+      "id": "current-info-edit",
+      "area": "current-info",
+      "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
+      "event": "click",
+      "triggerTokens": ["data-ops-edit"],
+      "handlerTokens": ["edit(node.dataset.opsEdit)"]
+    },
+    {
+      "id": "current-info-withdraw",
+      "area": "current-info",
+      "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
+      "event": "click",
+      "triggerTokens": ["data-ops-cancel"],
+      "handlerTokens": ["cancel(node.dataset.opsCancel)"],
+      "destructive": true,
+      "confirmationTokens": ["root.confirm", "wirklich zurückziehen"]
+    },
+    {
+      "id": "support-modal-close-icon",
+      "area": "support",
+      "source": "customer-dashboard/shared/customer-runtime-case-intake.js",
+      "event": "click",
+      "triggerTokens": ["vox-support-close"],
+      "handlerTokens": ["onclick = close"]
+    },
+    {
+      "id": "support-modal-cancel",
+      "area": "support",
+      "source": "customer-dashboard/shared/customer-runtime-case-intake.js",
+      "event": "click",
+      "triggerTokens": ["data-close"],
+      "handlerTokens": ["onclick = close"]
+    },
+    {
+      "id": "support-request-submit",
+      "area": "support",
+      "source": "customer-dashboard/shared/customer-runtime-case-intake.js",
+      "event": "click",
+      "triggerTokens": ["vox-support-submit"],
+      "handlerTokens": ["authPost('support-request-create'", "button.disabled = true"]
+    },
+    {
+      "id": "help-route",
+      "area": "support",
+      "source": "customer-dashboard/shared/customer-runtime-help-route.js",
+      "event": "click",
+      "triggerTokens": ["interceptHelpClick"],
+      "handlerTokens": ["findSettingsHelpEntry", "root.showTab('mehr')", "root.requestSupport()"]
+    },
+    {
+      "id": "protected-audio-fetch",
+      "area": "requests",
+      "source": "customer-dashboard/shared/offer-brand.js",
+      "event": "click",
+      "triggerTokens": ["onclick=\"vxTryLoadElevenLabsAudioFromDashboard(this)\""],
+      "handlerTokens": ["vxTryLoadElevenLabsAudioFromDashboard = async function"]
+    }
+  ]
+}
