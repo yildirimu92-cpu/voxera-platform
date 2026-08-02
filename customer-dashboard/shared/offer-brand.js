@@ -297,7 +297,7 @@
   if (!root || !root.document || root.__voxeraCustomerUnifiedNavigationLoaded) return;
   root.__voxeraCustomerUnifiedNavigationLoaded = true;
   const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-unified-navigation.js?v=20260802-1';
+  script.src = '/shared/customer-runtime-unified-navigation.js?v=20260802-2';
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
