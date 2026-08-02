@@ -59,8 +59,8 @@ for (const token of [
 
 for (const token of [
   'Fähigkeiten',
+  '<div class="vx-ap-title">Einrichtung</div>',
   'Der aktuelle Zustand der wichtigsten Verbindungen.',
-  "technicalRow('Einrichtung'",
   "technicalRow('Telefonie'",
   "technicalRow('Stimme & Einstellungen'",
   'statusObserver.observe(body, { childList: true, subtree: true })'
