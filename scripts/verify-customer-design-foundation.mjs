@@ -49,7 +49,7 @@ for (const token of [
   '/shared/customer-assistant-components.css?v=20260802-1',
   '/shared/customer-assistant-status.css?v=20260802-1',
   '/shared/customer-support-components.css?v=20260802-1',
-  '/shared/customer-navigation-components.css?v=20260802-1',
+  '/shared/customer-navigation-components.css?v=20260802-2',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -115,6 +115,13 @@ for (const token of [
   '@media (max-width: 520px)'
 ]) {
   assert.ok(supportCss.includes(token), `support CSS missing: ${token}`);
+}
+
+for (const token of [
+  '#tab-assistent > :not(#vx-assistant-root-switch):not(#vx-assistant-root-host)',
+  '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])'
+]) {
+  assert.ok(navigationCss.includes(token), `navigation CSS missing loading guard: ${token}`);
 }
 
 for (const token of [
@@ -218,7 +225,7 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-3/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-4/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
