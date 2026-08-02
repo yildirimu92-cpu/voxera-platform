@@ -95,7 +95,7 @@
 
       const blob = await response.blob();
       const objectUrl = urlApi.createObjectURL(blob);
-      const previousObjectUrl = String(request.previousObjectUrl || '').trim();
+      const previousObjectUrl = String(input.previousObjectUrl || '').trim();
       if (previousObjectUrl && previousObjectUrl !== objectUrl) urlApi.revokeObjectURL(previousObjectUrl);
       return { objectUrl, blob };
     }
@@ -278,6 +278,16 @@
   root.__voxeraCustomerAssistantProfileLoaded = true;
   const script = root.document.createElement('script');
   script.src = '/shared/customer-runtime-assistant-profile.js?v=20260802-1';
+  script.async = false;
+  root.document.head.appendChild(script);
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+
+(function loadCustomerAssistantBusinessMenu(root) {
+  if (!root || !root.document || root.__voxeraCustomerAssistantBusinessMenuLoaded) return;
+  root.__voxeraCustomerAssistantBusinessMenuLoaded = true;
+  const script = root.document.createElement('script');
+  script.src = '/shared/customer-runtime-assistant-business-menu.js?v=20260802-1';
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
