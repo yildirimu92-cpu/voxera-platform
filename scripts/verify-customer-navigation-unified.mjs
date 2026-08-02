@@ -7,7 +7,6 @@ const files = {
   loader: 'customer-dashboard/shared/offer-brand.js',
   assistant: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   status: 'customer-dashboard/shared/customer-runtime-assistant-status.js',
-  menu: 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js',
   operational: 'customer-dashboard/shared/customer-runtime-operational-updates.js',
   helpRoute: 'customer-dashboard/shared/customer-runtime-help-route.js'
 };
@@ -70,18 +69,21 @@ assert.match(source.navigation, /entry\.click\(\)/);
 assert.match(source.navigation, /document\.addEventListener\('click',[\s\S]*true\)/);
 assert.match(source.navigation, /businessProfileShortcut[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*showAssistantView\('business', false\)/);
 assert.match(source.navigation, /#nav-archiv,#mnav-archiv/);
-assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-2/);
+assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-3/);
+assert.match(source.loader, /customer-runtime-help-route\.js\?v=20260802-1/);
+assert.match(source.loader, /__vxCustomerHelpRouteLoaderInstalled/);
+assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 
 assert.match(source.assistant, /mehr-sub-assistant-profile/);
 assert.match(source.assistant, /mehr-sub-business-profile/);
 assert.match(source.assistant, /vx-business-profile-entry/);
 assert.match(source.assistant, /id=\"vx-open-business-profile\"/);
 assert.match(source.status, /vx-assistant-status-extension/);
-assert.match(source.menu, /vx-assistant-business-section/);
-assert.match(source.menu, /customer-runtime-help-route\.js\?v=20260802-1/);
-assert.match(source.menu, /__vxCustomerHelpRouteLoaderInstalled/);
 assert.match(source.operational, /mehr-sub-betriebsinfos/);
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
+assert.doesNotMatch(source.operational, /vx-operational-entry/);
+assert.doesNotMatch(source.operational, /data-ops-back/);
+assert.doesNotMatch(source.operational, /function back\(/);
 
 assert.match(source.helpRoute, /findSettingsHelpEntry/);
 assert.match(source.helpRoute, /textLabel\(node\) !== 'Hilfe'/);
