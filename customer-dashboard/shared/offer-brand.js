@@ -95,7 +95,7 @@
 
       const blob = await response.blob();
       const objectUrl = urlApi.createObjectURL(blob);
-      const previousObjectUrl = String(input.previousObjectUrl || '').trim();
+      const previousObjectUrl = String(request.previousObjectUrl || '').trim();
       if (previousObjectUrl && previousObjectUrl !== objectUrl) urlApi.revokeObjectURL(previousObjectUrl);
       return { objectUrl, blob };
     }
