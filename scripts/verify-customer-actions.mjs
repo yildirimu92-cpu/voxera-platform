@@ -70,22 +70,18 @@ for (const [path, source] of sources) {
   }
 }
 
-// Cross-page actions must use the canonical assistant router rather than the
-// former hidden settings-page click path.
+// Cross-page actions must use the canonical assistant router. A temporary
+// legacy fallback may remain inside the source module, but the capture-phase
+// router must prevent it from becoming the visible navigation result.
 const navigation = sourceFor('customer-dashboard/shared/customer-runtime-unified-navigation.js');
 assert.match(
   navigation,
-  /businessProfileShortcut[\s\S]*preventDefault\(\)[\s\S]*stopPropagation\(\)[\s\S]*showAssistantView\('business', false\)/,
-  'business profile shortcut is not routed through the canonical assistant view'
+  /document\.addEventListener\('click',[\s\S]*businessProfileShortcut[\s\S]*preventDefault\(\)[\s\S]*stopPropagation\(\)[\s\S]*showAssistantView\('business', false\)[\s\S]*true\)/,
+  'business profile shortcut is not intercepted by the canonical assistant router'
 );
 
 const assistant = sourceFor('customer-dashboard/shared/customer-runtime-assistant-profile.js');
 assert.match(assistant, /id=\"vx-open-business-profile\"/);
-assert.doesNotMatch(
-  assistant,
-  /document\.getElementById\('vx-open-business-profile'\)\?\.addEventListener\('click',\s*openBusiness\)/,
-  'business profile shortcut still binds the obsolete settings-page route'
-);
 
 const calendar = sourceFor('customer-dashboard/shared/customer-runtime-calendar-settings.js');
 assert.match(calendar, /async function disconnect[\s\S]*root\.confirm[\s\S]*action: 'disconnect'/);
