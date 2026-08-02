@@ -4,6 +4,7 @@
   if (/\/activate(?:\.html)?$/i.test(String(root.location?.pathname || ''))) return;
   root.__vxCustomerDesignFoundationInstalled = true;
 
+  // Styling lives exclusively in customer-design-system.css.
   const href = '/shared/customer-design-system.css?v=20260802-2';
   if (!root.document.querySelector(`link[data-vx-customer-design-system="${href}"]`)) {
     const link = root.document.createElement('link');
