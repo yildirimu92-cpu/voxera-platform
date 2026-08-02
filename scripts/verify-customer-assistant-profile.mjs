@@ -4,6 +4,7 @@ import vm from 'node:vm';
 
 const files = {
   runtime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
+  menu: 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js',
   loader: 'customer-dashboard/shared/offer-brand.js',
   profile: 'customer-dashboard/netlify/functions/customer-assistant-profile.js',
   update: 'customer-dashboard/netlify/functions/customer-update-assistant.js',
@@ -24,7 +25,6 @@ for (const [key, path] of Object.entries(files)) {
 for (const token of [
   'Mein Assistent',
   'Geschäftsprofil',
-  'Aktuelle Betriebsinfos',
   "request('customer-assistant-profile')",
   "request('get-available-voices')",
   "request('preview-voice'",
@@ -41,6 +41,20 @@ for (const token of [
   if (!source.runtime.includes(token)) failures.push(`runtime missing: ${token}`);
 }
 
+for (const token of [
+  'Assistent & Geschäft',
+  'Aktuelle Änderungen',
+  'Ferien, Sonderzeiten und vorübergehende Hinweise',
+  'vx-assistant-business-section',
+  'vx-assistant-profile-entry',
+  'vx-business-profile-entry',
+  'vx-operational-entry',
+  'mehr-sub-betriebsinfos',
+  '[assistant, business, operational]'
+]) {
+  if (!source.menu.includes(token)) failures.push(`menu missing: ${token}`);
+}
+
 for (const forbidden of [
   'ai_instructions',
   'ai_fallback_escalation',
@@ -52,6 +66,7 @@ for (const forbidden of [
 }
 
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=/);
+assert.match(source.loader, /customer-runtime-assistant-business-menu\.js\?v=/);
 assert.match(source.profile, /requireCustomerCaller/);
 assert.match(source.profile, /allow_custom_assistant_name,voice_selection_enabled/);
 assert.match(source.profile, /ai_business_description/);
