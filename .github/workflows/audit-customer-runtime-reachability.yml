@@ -1,0 +1,24 @@
+name: Audit Customer Runtime Reachability
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/**'
+      - 'scripts/audit-customer-runtime-reachability.mjs'
+      - '.github/workflows/audit-customer-runtime-reachability.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/**'
+      - 'scripts/audit-customer-runtime-reachability.mjs'
+      - '.github/workflows/audit-customer-runtime-reachability.yml'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/audit-customer-runtime-reachability.mjs
