@@ -7,8 +7,10 @@ const paths = {
   foundationCss: 'customer-dashboard/shared/customer-design-system.css',
   assistantCss: 'customer-dashboard/shared/customer-assistant-components.css',
   statusCss: 'customer-dashboard/shared/customer-assistant-status.css',
+  supportCss: 'customer-dashboard/shared/customer-support-components.css',
   assistantRuntime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   statusRuntime: 'customer-dashboard/shared/customer-runtime-assistant-status.js',
+  supportRuntime: 'customer-dashboard/shared/customer-runtime-case-intake.js',
   loader: 'customer-dashboard/shared/offer-brand.js'
 };
 
@@ -16,13 +18,16 @@ const runtime = fs.readFileSync(paths.runtime, 'utf8');
 const foundationCss = fs.readFileSync(paths.foundationCss, 'utf8');
 const assistantCss = fs.readFileSync(paths.assistantCss, 'utf8');
 const statusCss = fs.readFileSync(paths.statusCss, 'utf8');
+const supportCss = fs.readFileSync(paths.supportCss, 'utf8');
 const assistantRuntime = fs.readFileSync(paths.assistantRuntime, 'utf8');
 const statusRuntime = fs.readFileSync(paths.statusRuntime, 'utf8');
+const supportRuntime = fs.readFileSync(paths.supportRuntime, 'utf8');
 const loader = fs.readFileSync(paths.loader, 'utf8');
 
 new vm.Script(runtime, { filename: paths.runtime });
 new vm.Script(assistantRuntime, { filename: paths.assistantRuntime });
 new vm.Script(statusRuntime, { filename: paths.statusRuntime });
+new vm.Script(supportRuntime, { filename: paths.supportRuntime });
 new vm.Script(loader, { filename: paths.loader });
 
 const lineCount = (value) => value.split(/\r?\n/).length;
@@ -30,12 +35,14 @@ assert.ok(lineCount(runtime) <= 50, `design runtime is too large: ${lineCount(ru
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
 assert.ok(lineCount(assistantCss) <= 350, 'assistant component CSS exceeded its size budget');
 assert.ok(lineCount(statusCss) <= 220, 'assistant status CSS exceeded its size budget');
+assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260802-2',
   '/shared/customer-assistant-components.css?v=20260802-1',
   '/shared/customer-assistant-status.css?v=20260802-1',
+  '/shared/customer-support-components.css?v=20260802-1',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -93,6 +100,17 @@ for (const token of [
 }
 
 for (const token of [
+  '#vox-support-request-overlay',
+  '.vox-support-modal',
+  'html.vx-support-modal-open',
+  '.vx-feedback-error',
+  '.vx-feedback-success',
+  '@media (max-width: 520px)'
+]) {
+  assert.ok(supportCss.includes(token), `support CSS missing: ${token}`);
+}
+
+for (const token of [
   "entry.className = 'vx-settings-entry'",
   'vx-settings-entry-icon',
   'vx-page-header--with-back',
@@ -112,6 +130,16 @@ for (const token of [
   'statusObserver.observe(body, { childList: true, subtree: true })'
 ]) {
   assert.ok(statusRuntime.includes(token), `assistant status cleanup missing: ${token}`);
+}
+
+for (const token of [
+  'function setFeedback',
+  "document.documentElement.classList.add('vx-support-modal-open')",
+  "document.documentElement.classList.remove('vx-support-modal-open')",
+  "overlay.addEventListener('keydown'",
+  'overlay.vxOpenSupportModal = open'
+]) {
+  assert.ok(supportRuntime.includes(token), `support runtime cleanup missing: ${token}`);
 }
 
 for (const forbidden of [
@@ -159,10 +187,23 @@ for (const forbidden of [
   assert.ok(!statusRuntime.includes(forbidden), `assistant status runtime still contains legacy code: ${forbidden}`);
 }
 
+for (const forbidden of [
+  "createElement('style')",
+  'style.textContent',
+  'document.head.appendChild(style)',
+  '.style.color',
+  '.style.display',
+  'document.documentElement.style.overflow',
+  ' style="'
+]) {
+  assert.ok(!supportRuntime.includes(forbidden), `support runtime still owns presentation: ${forbidden}`);
+}
+
 for (const [name, css] of [
   ['foundation', foundationCss],
   ['assistant', assistantCss],
-  ['status', statusCss]
+  ['status', statusCss],
+  ['support', supportCss]
 ]) {
   assert.ok(!css.includes('<style'), `${name} CSS must not contain an embedded style tag`);
   assert.ok(!css.includes('javascript:'), `${name} CSS must not contain JavaScript URLs`);
