@@ -142,22 +142,6 @@
       "handlerTokens": ["addEventListener('click', save)"]
     },
     {
-      "id": "current-info-open",
-      "area": "current-info",
-      "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
-      "event": "click",
-      "triggerTokens": ["vx-operational-entry"],
-      "handlerTokens": ["entry.addEventListener('click', open)"]
-    },
-    {
-      "id": "current-info-back",
-      "area": "current-info",
-      "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
-      "event": "click",
-      "triggerTokens": ["data-ops-back"],
-      "handlerTokens": ["addEventListener('click', back)"]
-    },
-    {
       "id": "current-info-save",
       "area": "current-info",
       "source": "customer-dashboard/shared/customer-runtime-operational-updates.js",
