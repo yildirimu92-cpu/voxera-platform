@@ -71,12 +71,11 @@ jobs:
           node scripts/verify-customer-design-foundation.mjs
           node scripts/verify-customer-assistant-profile.mjs
           node scripts/audit-customer-runtime-reachability.mjs
-      - name: Commit final cleanup
+      - name: Commit source cleanup
         run: |
           rm scripts/apply-delete-hidden-assistant-settings-bridge.mjs
-          git rm scripts/.bridge-script.b64.part-*
-          git rm .github/workflows/apply-delete-hidden-assistant-settings-bridge.yml
-          git add -A
+          git checkout -- .github/workflows
+          git add customer-dashboard scripts
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Delete hidden assistant settings bridge"
