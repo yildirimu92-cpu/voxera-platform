@@ -30,7 +30,7 @@ exports.handler = async (event) => {
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
     .select([
-      'id', 'company_name', 'plan', 'plan_code', 'assistant_name', 'voice_id',
+      'id', 'customer_name', 'plan', 'plan_code', 'assistant_name', 'voice_id',
       'ai_tone', 'ai_address_form', 'ai_business_description', 'ai_services',
       'ai_location_hours', 'ai_booking_faq', 'elevenlabs_agent_id', 'updated_at'
     ].join(','))
@@ -66,7 +66,7 @@ exports.handler = async (event) => {
       has_agent: Boolean(customer.elevenlabs_agent_id)
     },
     business_profile: {
-      company_name: customer.company_name || null,
+      company_name: customer.customer_name || null,
       description: customer.ai_business_description || null,
       services: customer.ai_services || null,
       location_hours: customer.ai_location_hours || null,
