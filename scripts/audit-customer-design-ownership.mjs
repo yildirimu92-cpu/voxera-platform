@@ -81,9 +81,13 @@ const runtimeStyling = rows.filter((row) => row.type === 'js' && (row.styleEleme
 const typographyOwners = rows.filter((row) => row.fontFamily || row.fontSize);
 const importantOwners = rows.filter((row) => row.important);
 const inlineOwners = rows.filter((row) => row.inlineStyleAttributes || row.directStyleWrites);
-const topDebt = [...rows].filter((row) => debt(row)).sort((a, b) => debt(b) - debt(a)).slice(0, 20);
+const topDebt = [...rows]
+  .filter((row) => debt(row))
+  .map((row) => ({ ...row, debtScore: debt(row) }))
+  .sort((a, b) => b.debtScore - a.debtScore)
+  .slice(0, 20);
 
-const report = `# Customer Dashboard Design Ownership Inventory\n\n` +
+const output = `# Customer Dashboard Design Ownership Inventory\n\n` +
 `Scope: frontend files below \`customer-dashboard\`; Netlify Functions and generated build directories are excluded.\n\n` +
 `## Summary\n\n` +
 `| Metric | Count |\n|---|---:|\n` +
@@ -108,14 +112,7 @@ const report = `# Customer Dashboard Design Ownership Inventory\n\n` +
 `## !important owners\n\n` +
 `${table(importantOwners, [['uses', 'important']])}\n\n` +
 `## Highest migration debt\n\n` +
-`${table(topDebt, [['debt score', '__debt'], ['lines', 'lines']].map(([label, key]) => [label, key]))}\n`;
-
-for (const row of topDebt) row.__debt = debt(row);
-
-const output = report.replace(
-  `${table(topDebt, [['debt score', '__debt'], ['lines', 'lines']].map(([label, key]) => [label, key]))}`,
-  table(topDebt, [['debt score', '__debt'], ['lines', 'lines']])
-);
+`${table(topDebt, [['debt score', 'debtScore'], ['lines', 'lines']])}\n`;
 
 console.log(output);
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, output);
