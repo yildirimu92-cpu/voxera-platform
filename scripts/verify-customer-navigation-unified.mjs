@@ -58,13 +58,13 @@ assert.match(source.navigation, /function showAssistantView[\s\S]*mountManagedPa
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
 assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=20260803-1/);
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-4/);
+assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-5/);
-assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260803-1/);
+assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260803-2/);
 assert.match(source.css, /#tab-assistent > :not\(#vx-assistant-root-switch\):not\(#vx-assistant-root-host\)/);
 assert.match(source.css, /#vx-assistant-root-host > \[data-vx-assistant-managed-page\]:not\(\[hidden\]\)/);
 assert.match(source.css, /vx-nav-voice-details/);
-assert.match(source.css, /vx-nav-status-details/);
-assert.match(source.css, /vx-as-capability-toggle/);
+assert.doesNotMatch(source.css, /vx-nav-status-details|vx-nav-status-summary|vx-as-capability-toggle|vx-as-capabilities-simple/);
 assert.doesNotMatch(source.css, /!important/);
 
 console.log('Unified customer dashboard navigation verification passed.');
