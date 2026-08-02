@@ -31,7 +31,7 @@
     '/shared/admin-runtime-invoice-adjustments.js?v=20260731-1',
     '/shared/admin-runtime-design-system-v2.js?v=20260731-1',
     '/shared/admin-runtime-payment-account.js?v=20260801-2',
-    '/shared/admin-runtime-voices.js?v=20260802-1',
+    '/shared/admin-runtime-voices.js?v=20260802-2',
     '/shared/admin-runtime-billing-inline-qr.js?v=20260801-3',
     '/shared/admin-runtime-invoice-only-ch.js?v=20260801-2',
     '/shared/admin-runtime-invoice-mail-routing-fix.js?v=20260801-3',
