@@ -36,6 +36,7 @@ function inspect(file) {
   const source = fs.readFileSync(file, 'utf8');
   const rel = relative(file);
   const extension = path.extname(file);
+  const styleElementCreation = count(source, /createElement\(\s*['"]style['"]\s*\)/gi);
   return {
     file: rel,
     type: extension.slice(1),
@@ -45,8 +46,8 @@ function inspect(file) {
     fontSize: count(source, /font-size\s*:/gi),
     important: count(source, /!important/gi),
     styleTags: count(source, /<style\b/gi),
-    styleElementCreation: count(source, /createElement\(\s*['"]style['"]\s*\)/gi),
-    styleTextWrites: count(source, /\b(?:style|node)\.(?:textContent|innerHTML)\s*=/g),
+    styleElementCreation,
+    styleTextWrites: styleElementCreation ? count(source, /\b(?:style|styleNode|styleElement|node)\.(?:textContent|innerHTML)\s*=/g) : 0,
     inlineStyleAttributes: count(source, /\bstyle\s*=\s*['"]/gi),
     directStyleWrites: count(source, /\.style\.(?:[a-zA-Z_$][\w$]*|setProperty|removeProperty)\s*(?:=|\()/g),
     buttonSelectors: extension === '.css' ? count(source, /(?:^|[,{\s])[^{}]*(?:\.btn\b|\.vx-[\w-]*btn\b|button\b)[^{]*\{/gim) : 0,
