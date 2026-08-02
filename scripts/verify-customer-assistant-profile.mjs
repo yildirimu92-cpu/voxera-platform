@@ -60,8 +60,6 @@ for (const token of [
 for (const token of [
   'Aktive Fähigkeiten',
   'Systemstatus',
-  'Anrufe entgegennehmen',
-  'Bestehende Termine bearbeiten',
   'Rufnummer & Weiterleitung',
   'Konfiguration & Stimme',
   'Letzte erfolgreiche Synchronisierung',
@@ -70,6 +68,17 @@ for (const token of [
   'vx-operational-entry'
 ]) {
   if (!source.statusRuntime.includes(token)) failures.push(`status runtime missing: ${token}`);
+}
+
+for (const token of [
+  'Anrufe entgegennehmen',
+  'Rückrufwünsche aufnehmen',
+  'Termine vereinbaren',
+  'Bestehende Termine bearbeiten',
+  'An zuständige Person weiterleiten',
+  'Benachrichtigungen versenden'
+]) {
+  if (!source.profile.includes(token)) failures.push(`profile capability missing: ${token}`);
 }
 
 for (const forbidden of [
