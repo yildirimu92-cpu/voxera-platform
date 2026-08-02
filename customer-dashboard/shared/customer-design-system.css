@@ -1,5 +1,13 @@
 :root {
-  --vx-font-ui: Inter, "DM Sans", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --vx-font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --vx-font-size-body: 15px;
+  --vx-font-size-body-mobile: 16px;
+  --vx-font-size-button: 15px;
+  --vx-line-height-button: 1.25;
+  --vx-control-min-height: 46px;
+  --vx-control-padding-block: 10px;
+  --vx-control-padding-inline: 18px;
+  --vx-control-gap: 8px;
   --vx-ink: #101828;
   --vx-muted: #667085;
   --vx-subtle: #8a98ae;
@@ -26,7 +34,7 @@ body.vx-customer-design-foundation {
   background: var(--vx-canvas);
   color: var(--vx-ink);
   font-family: var(--vx-font-ui);
-  font-size: 15px;
+  font-size: var(--vx-font-size-body);
   line-height: 1.5;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -161,16 +169,54 @@ body.vx-customer-design-foundation .vx-ops-meta {
 
 body.vx-customer-design-foundation :where(
   .btn,
+  .vx-ap-btn,
   .vx-ops-btn,
-  .vx-as-capability-toggle,
-  .vx-ap-card button,
-  .vx-ops-card button
+  .vx-as-capability-toggle
 ) {
-  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vx-control-gap);
+  box-sizing: border-box;
+  width: auto;
+  max-width: 100%;
+  min-height: var(--vx-control-min-height);
+  padding: var(--vx-control-padding-block) var(--vx-control-padding-inline);
   border-radius: var(--vx-radius-control);
-  font-size: 15px;
+  font-family: var(--vx-font-ui);
+  font-size: var(--vx-font-size-button);
   font-weight: 700;
-  line-height: 1.2;
+  line-height: var(--vx-line-height-button);
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body.vx-customer-design-foundation :where(
+  .btn,
+  .vx-ap-btn,
+  .vx-ops-btn,
+  .vx-as-capability-toggle
+) > i {
+  flex: 0 0 auto;
+  font-size: 1.05em;
+}
+
+body.vx-customer-design-foundation :where(
+  .btn,
+  .vx-ap-btn,
+  .vx-ops-btn,
+  .vx-as-capability-toggle
+):disabled,
+body.vx-customer-design-foundation :where(
+  .btn,
+  .vx-ap-btn,
+  .vx-ops-btn,
+  .vx-as-capability-toggle
+)[aria-disabled="true"] {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 body.vx-customer-design-foundation :where(input, select, textarea) {
@@ -211,11 +257,19 @@ body.vx-customer-design-foundation .vx-assistant-root-switch {
 }
 
 body.vx-customer-design-foundation .vx-assistant-root-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   min-height: 42px;
   padding: 10px 15px;
   border-radius: 11px;
+  font-family: var(--vx-font-ui);
   font-size: 14px;
   font-weight: 680;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
 }
 
 body.vx-customer-design-foundation .vx-assistant-root-switch button.active {
@@ -246,10 +300,14 @@ body.vx-customer-design-foundation :where(
 }
 
 @media (max-width: 720px) {
+  :root {
+    --vx-control-min-height: 48px;
+  }
+
   body.vx-customer-design-foundation {
     min-height: 100svh;
     min-height: 100dvh;
-    font-size: 16px;
+    font-size: var(--vx-font-size-body-mobile);
   }
 
   body.vx-customer-design-foundation :where(input, select, textarea) {
@@ -287,16 +345,6 @@ body.vx-customer-design-foundation :where(
     border-radius: 16px;
   }
 
-  body.vx-customer-design-foundation :where(
-    .btn,
-    .vx-ops-btn,
-    .vx-as-capability-toggle,
-    .vx-ap-card button,
-    .vx-ops-card button
-  ) {
-    min-height: 46px;
-  }
-
   body.vx-customer-design-foundation textarea {
     min-height: 148px;
   }
@@ -324,7 +372,6 @@ body.vx-customer-design-foundation :where(
   body.vx-customer-design-foundation .vx-assistant-root-switch button {
     min-height: 44px;
     padding: 10px 14px;
-    white-space: nowrap;
   }
 
   body.vx-customer-design-foundation .vx-ops-layout,
