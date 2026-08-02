@@ -20,6 +20,7 @@ assert.ok(runtimeLines <= 40, `design runtime is too large: ${runtimeLines} line
 assert.ok(css.split(/\r?\n/).length <= 500, 'design system CSS exceeded the initial size budget');
 
 for (const token of [
+  'Styling lives exclusively in customer-design-system.css.',
   '/shared/customer-design-system.css?v=20260802-2',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
