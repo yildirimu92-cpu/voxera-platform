@@ -4,6 +4,7 @@ import vm from 'node:vm';
 
 const files = {
   runtime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
+  statusRuntime: 'customer-dashboard/shared/customer-runtime-assistant-status.js',
   menu: 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js',
   loader: 'customer-dashboard/shared/offer-brand.js',
   profile: 'customer-dashboard/netlify/functions/customer-assistant-profile.js',
@@ -50,9 +51,25 @@ for (const token of [
   'vx-business-profile-entry',
   'vx-operational-entry',
   'mehr-sub-betriebsinfos',
-  '[assistant, business, operational]'
+  '[assistant, business, operational]',
+  'customer-runtime-assistant-status.js?v=20260802-1'
 ]) {
   if (!source.menu.includes(token)) failures.push(`menu missing: ${token}`);
+}
+
+for (const token of [
+  'Aktive Fähigkeiten',
+  'Systemstatus',
+  'Anrufe entgegennehmen',
+  'Bestehende Termine bearbeiten',
+  'Rufnummer & Weiterleitung',
+  'Konfiguration & Stimme',
+  'Letzte erfolgreiche Synchronisierung',
+  'vx-assistant-operational-summary',
+  'vx-calendar-settings-entry',
+  'vx-operational-entry'
+]) {
+  if (!source.statusRuntime.includes(token)) failures.push(`status runtime missing: ${token}`);
 }
 
 for (const forbidden of [
@@ -63,6 +80,7 @@ for (const forbidden of [
   'stability'
 ]) {
   if (source.runtime.includes(forbidden)) failures.push(`runtime exposes protected field: ${forbidden}`);
+  if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=/);
@@ -73,6 +91,19 @@ assert.doesNotMatch(source.profile, /'company_name'/);
 assert.match(source.profile, /allow_custom_assistant_name,voice_selection_enabled/);
 assert.match(source.profile, /ai_business_description/);
 assert.match(source.profile, /ai_booking_faq/);
+assert.match(source.profile, /promptProfile/);
+assert.match(source.profile, /from\('calendar_settings'\)/);
+assert.match(source.profile, /from\('calendar_connections'\)/);
+assert.match(source.profile, /from\('customer_operational_updates'\)/);
+assert.match(source.profile, /buildCapabilities/);
+assert.match(source.profile, /buildTechnicalStatus/);
+assert.match(source.profile, /notification_mode/);
+assert.match(source.profile, /forwarding_status/);
+assert.match(source.profile, /elevenlabs_sync_status/);
+assert.match(source.profile, /status_version: 1/);
+assert.match(source.statusRuntime, /cache: 'no-store'/);
+assert.match(source.statusRuntime, /snapshot = null/);
+assert.match(source.statusRuntime, /new MutationObserver/);
 assert.match(source.preview, /requireCustomerCaller/);
 assert.match(source.preview, /voice_not_available_on_plan/);
 assert.match(source.preview, /preview_url,preview_text/);
