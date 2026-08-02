@@ -45,6 +45,10 @@ for (const token of [
   "querySelectorAll('[data-vx-preview]')",
   "cache: 'no-store'",
   'X-Voxera-Preview-Notice',
+  'let loadPromise = null',
+  'let loadSequence = 0',
+  'if (loadPromise) return loadPromise',
+  'sequence !== loadSequence',
   '/\\/activate(?:\\.html)?$/'
 ]) {
   if (!source.runtime.includes(token)) failures.push(`runtime missing: ${token}`);
@@ -106,7 +110,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-3/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-4/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260802-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);

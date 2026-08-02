@@ -252,13 +252,9 @@
 
   function showAssistantView(view, shouldLoad) {
     const selected = ASSISTANT_VIEWS.some((item) => item.key === view) ? view : 'profile';
-    if (shouldLoad) triggerViewLoad(selected);
     mountManagedPages();
     applyAssistantView(selected);
-    root.requestAnimationFrame?.(() => {
-      mountManagedPages();
-      applyAssistantView(selected);
-    });
+    if (shouldLoad) triggerViewLoad(selected);
   }
 
   function restoreSettingsRoot() {
@@ -383,9 +379,9 @@
       const key = ROOT_NAV.some((item) => item.key === tabName) ? tabName : '';
       if (key) setStableRootActive(key);
       const result = original.apply(this, arguments);
-      if (key === 'assistent') root.setTimeout(() => showAssistantView('profile', true), 0);
-      if (key === 'mehr') root.setTimeout(restoreSettingsRoot, 0);
-      if (key) root.requestAnimationFrame?.(() => setStableRootActive(key));
+      if (key === 'assistent') showAssistantView('profile', true);
+      if (key === 'mehr') restoreSettingsRoot();
+      if (key) setStableRootActive(key);
       return result;
     };
     root.__vxUnifiedShowTabWrapped = true;
