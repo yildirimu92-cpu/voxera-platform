@@ -159,3 +159,13 @@
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function loadVoxeraCustomerHelpRoute(root) {
+  'use strict';
+  if (!root || !root.document || root.__vxCustomerHelpRouteLoaderInstalled) return;
+  root.__vxCustomerHelpRouteLoaderInstalled = true;
+  const script = root.document.createElement('script');
+  script.src = '/shared/customer-runtime-help-route.js?v=20260802-1';
+  script.async = false;
+  root.document.head.appendChild(script);
+})(typeof globalThis !== 'undefined' ? globalThis : this);

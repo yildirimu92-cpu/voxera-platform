@@ -8,7 +8,8 @@ const files = {
   assistant: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   status: 'customer-dashboard/shared/customer-runtime-assistant-status.js',
   menu: 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js',
-  operational: 'customer-dashboard/shared/customer-runtime-operational-updates.js'
+  operational: 'customer-dashboard/shared/customer-runtime-operational-updates.js',
+  helpRoute: 'customer-dashboard/shared/customer-runtime-help-route.js'
 };
 
 const source = Object.fromEntries(
@@ -72,8 +73,20 @@ assert.match(source.assistant, /mehr-sub-business-profile/);
 assert.match(source.assistant, /vx-business-profile-entry/);
 assert.match(source.status, /vx-assistant-status-extension/);
 assert.match(source.menu, /vx-assistant-business-section/);
+assert.match(source.menu, /customer-runtime-help-route\.js\?v=20260802-1/);
+assert.match(source.menu, /__vxCustomerHelpRouteLoaderInstalled/);
 assert.match(source.operational, /mehr-sub-betriebsinfos/);
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
+
+assert.match(source.helpRoute, /findSettingsHelpEntry/);
+assert.match(source.helpRoute, /textLabel\(node\) !== 'Hilfe'/);
+assert.match(source.helpRoute, /node\.closest\('#tab-mehr'\)/);
+assert.match(source.helpRoute, /root\.showTab\('mehr'\)/);
+assert.match(source.helpRoute, /entry\.click\(\)/);
+assert.match(source.helpRoute, /root\.requestSupport\(\)/);
+assert.match(source.helpRoute, /event\.preventDefault\(\)/);
+assert.match(source.helpRoute, /event\.stopImmediatePropagation\(\)/);
+assert.match(source.helpRoute, /document\.addEventListener\('click', interceptHelpClick, true\)/);
 
 assert.doesNotMatch(source.navigation, /SUPABASE_SERVICE_ROLE_KEY/);
 assert.doesNotMatch(source.navigation, /ELEVENLABS_API_KEY/);
@@ -81,5 +94,8 @@ assert.doesNotMatch(source.navigation, /ai_instructions/);
 assert.doesNotMatch(source.navigation, /innerHTML\s*=\s*document\.documentElement/);
 assert.doesNotMatch(source.navigation, /localStorage/);
 assert.doesNotMatch(source.navigation, /assistantTab\.appendChild\(operationalPage\)/);
+assert.doesNotMatch(source.helpRoute, /SUPABASE_SERVICE_ROLE_KEY/);
+assert.doesNotMatch(source.helpRoute, /ELEVENLABS_API_KEY/);
+assert.doesNotMatch(source.helpRoute, /localStorage/);
 
 console.log('Unified customer dashboard navigation verification passed.');
