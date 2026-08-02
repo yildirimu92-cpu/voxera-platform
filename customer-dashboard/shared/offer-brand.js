@@ -254,7 +254,7 @@
     ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260802-1'],
     ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260802-1'],
     ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260802-5'],
-    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260802-4']
+    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260802-5']
   ].forEach(([flag, src]) => {
     if (root[flag]) return;
     root[flag] = true;
