@@ -11,6 +11,35 @@
     return main?.querySelector('.vx-page-header')?.nextElementSibling || null;
   }
 
+  function normalizeVisibleCopy(container) {
+    if (!container || typeof document.createTreeWalker !== 'function') return;
+    const replacements = [
+      ['Aktuelle Betriebsinfos', 'Aktuelle Änderungen'],
+      ['Betriebsinfos werden geladen', 'Aktuelle Änderungen werden geladen'],
+      ['Betriebsinfos konnten nicht geladen werden', 'Aktuelle Änderungen konnten nicht geladen werden'],
+      ['Noch keine Betriebsinfo erfasst', 'Noch keine aktuelle Änderung erfasst'],
+      ['Betriebsinfo bearbeiten', 'Aktuelle Änderung bearbeiten'],
+      ['Neue Betriebsinfo', 'Neue aktuelle Änderung'],
+      ['Betriebsinfo zuerst erwähnen', 'Aktuelle Änderung zuerst erwähnen'],
+      ['auf die Betriebsinfo hinweisen', 'auf die aktuelle Änderung hinweisen']
+    ];
+    const walker = document.createTreeWalker(container, 4);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      let value = String(node.nodeValue || '');
+      replacements.forEach(([before, after]) => { value = value.replaceAll(before, after); });
+      if (value !== node.nodeValue) node.nodeValue = value;
+    });
+  }
+
+  function observeVisibleCopy(container) {
+    if (!container || container.dataset.vxAssistantCopyObserved || typeof MutationObserver !== 'function') return;
+    container.dataset.vxAssistantCopyObserved = '1';
+    const observer = new MutationObserver(() => normalizeVisibleCopy(container));
+    observer.observe(container, { childList: true, characterData: true, subtree: true });
+  }
+
   function normalizeOperationalLabels() {
     const entry = document.getElementById('vx-operational-entry');
     if (entry) {
@@ -42,6 +71,14 @@
       const subtitle = page.querySelector('.vx-page-header-title + div');
       if (title) title.textContent = 'Aktuelle Änderungen';
       if (subtitle) subtitle.textContent = 'Zeitlich begrenzte Abweichungen vom Geschäftsprofil.';
+      normalizeVisibleCopy(page);
+      observeVisibleCopy(page);
+    }
+
+    const businessBody = document.getElementById('vx-business-profile-body');
+    if (businessBody) {
+      normalizeVisibleCopy(businessBody);
+      observeVisibleCopy(businessBody);
     }
   }
 
@@ -83,8 +120,8 @@
     const anchor = calendar || help || null;
 
     list.insertBefore(heading, anchor);
-    [assistant, business, operational].filter(Boolean).forEach((entry) => {
-      list.insertBefore(entry, anchor);
+    [assistant, business, operational].filter(Boolean).forEach((menuEntry) => {
+      list.insertBefore(menuEntry, anchor);
     });
 
     return Boolean(operational);
