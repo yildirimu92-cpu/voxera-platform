@@ -1,0 +1,26 @@
+name: Verify Customer Design Foundation
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/shared/customer-runtime-design-foundation.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'scripts/verify-customer-design-foundation.mjs'
+      - '.github/workflows/verify-customer-design-foundation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/shared/customer-runtime-design-foundation.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'scripts/verify-customer-design-foundation.mjs'
+      - '.github/workflows/verify-customer-design-foundation.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-customer-design-foundation.mjs
