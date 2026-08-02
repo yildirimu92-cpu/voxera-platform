@@ -110,11 +110,6 @@ body.vx-customer-design-foundation .vx-ap-btn.ghost {
   color: #475569;
 }
 
-body.vx-customer-design-foundation .vx-ap-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 body.vx-customer-design-foundation .vx-ap-filters {
   display: flex;
   flex-wrap: wrap;
@@ -123,13 +118,21 @@ body.vx-customer-design-foundation .vx-ap-filters {
 }
 
 body.vx-customer-design-foundation .vx-ap-filter {
-  padding: 7px 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 7px 12px;
   border: 1px solid var(--vx-line);
   border-radius: 999px;
   background: #ffffff;
   color: #64748b;
-  font-size: 12px;
+  font-family: var(--vx-font-ui);
+  font-size: 13px;
   font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -339,5 +342,12 @@ body.vx-customer-design-foundation .vx-page-header-subtitle {
   body.vx-customer-design-foundation .vx-ap-head,
   body.vx-customer-design-foundation .vx-ap-current {
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 390px) {
+  body.vx-customer-design-foundation .vx-ap-actions > .vx-ap-btn {
+    flex: 1 1 100%;
+    width: 100%;
   }
 }
