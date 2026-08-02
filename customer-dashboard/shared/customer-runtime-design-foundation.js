@@ -6,8 +6,8 @@
 
   // Styling lives exclusively in explicit CSS modules.
   const stylesheets = [
-    '/shared/customer-design-system.css?v=20260802-4',
-    '/shared/customer-assistant-components.css?v=20260802-3',
+    '/shared/customer-design-system.css?v=20260803-1',
+    '/shared/customer-assistant-components.css?v=20260803-1',
     '/shared/customer-assistant-status.css?v=20260802-1',
     '/shared/customer-navigation-components.css?v=20260802-2',
     '/shared/customer-support-components.css?v=20260802-2'

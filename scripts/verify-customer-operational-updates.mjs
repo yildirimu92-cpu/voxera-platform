@@ -8,6 +8,7 @@ const files = {
   migration: 'supabase/migrations/2026-08-01_customer_operational_updates.sql',
   api: 'customer-dashboard/netlify/functions/customer-operational-updates.js',
   runtime: 'customer-dashboard/shared/customer-runtime-operational-updates.js',
+  components: 'customer-dashboard/shared/customer-assistant-components.css',
   loader: 'customer-dashboard/shared/offer-brand.js',
   prompt: 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js',
   trigger: 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
@@ -30,11 +31,34 @@ for (const token of ['requireCustomerCaller','allowedTypes','parseWindow',".eq('
 for (const token of ['Aktuelle Änderungen werden geladen','Ferien / geschlossen','Geänderte Öffnungszeiten','Temporäre Angaben dürfen keine dauerhaften Leistungen, Preise','customer-operational-updates']) {
   if (!source.runtime.includes(token)) failures.push('Operational UI missing: ' + token);
 }
-for (const token of ['Empfohlene Gesprächslogik','Bestehende Termine','Notfälle','Termine nach dem Zeitraum anbieten']) {
+for (const token of ['Empfohlene Gesprächslogik','Bestehende Termine','Notfälle','Termine nach dem Zeitraum anbieten','vx-ops-details-body','page.hidden = true']) {
   if (!source.runtime.includes(token)) failures.push('Guided operational UI missing: ' + token);
 }
+for (const token of [
+  '#vx-operational-page-body',
+  '.vx-ops-layout',
+  '.vx-ops-card',
+  '.vx-ops-title',
+  '.vx-ops-field textarea',
+  '.vx-ops-details-body',
+  '.vx-ops-status.loading',
+  '@media (max-width: 820px)'
+]) {
+  if (!source.components.includes(token)) failures.push('Operational component CSS missing: ' + token);
+}
+for (const forbidden of [
+  'function addStyle',
+  "createElement('style')",
+  'vx-ops-style',
+  'style.textContent',
+  'document.head.appendChild(node)',
+  ' style="',
+  '.style.display'
+]) {
+  if (source.runtime.includes(forbidden)) failures.push('Operational runtime still owns presentation: ' + forbidden);
+}
 assert.doesNotMatch(source.runtime, /Aktuelle Betriebsinfos/);
-if (!source.loader.includes('/shared/customer-runtime-operational-updates.js')) failures.push('Runtime loader missing');
+assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=20260803-1/);
 for (const key of ['api','assistant','proxy']) {
   if (!source[key].includes('Authorization')) failures.push('Customer authorization forwarding missing in ' + files[key]);
 }
