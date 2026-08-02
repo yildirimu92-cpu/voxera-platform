@@ -1,0 +1,41 @@
+name: Verify Admin Voice Catalog
+
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/shared/admin-runtime-voices.js'
+      - 'admin-panel/shared/offer-brand.js'
+      - 'admin-panel/netlify/functions/admin-voices.js'
+      - 'customer-dashboard/netlify/functions/preview-voice.js'
+      - 'supabase/migrations/2026-08-02_admin_voice_catalog_previews.sql'
+      - 'scripts/verify-admin-voices.mjs'
+      - '.github/workflows/verify-admin-voices.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin-panel/shared/admin-runtime-voices.js'
+      - 'admin-panel/shared/offer-brand.js'
+      - 'admin-panel/netlify/functions/admin-voices.js'
+      - 'customer-dashboard/netlify/functions/preview-voice.js'
+      - 'supabase/migrations/2026-08-02_admin_voice_catalog_previews.sql'
+      - 'scripts/verify-admin-voices.mjs'
+      - '.github/workflows/verify-admin-voices.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin-panel/shared/admin-runtime-voices.js
+          node --check admin-panel/netlify/functions/admin-voices.js
+          node --check customer-dashboard/netlify/functions/preview-voice.js
+      - name: Verify voice catalog contracts
+        run: node scripts/verify-admin-voices.mjs

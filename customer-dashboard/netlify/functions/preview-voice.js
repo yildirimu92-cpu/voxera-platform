@@ -3,7 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 
-const PREVIEW_TEXT = 'Guten Tag, hier ist Ihr persönlicher Assistent von Voxera. Wie kann ich Ihnen helfen?';
+const DEFAULT_PREVIEW_TEXT = 'Grüezi, ich bin Ihre digitale Telefonassistenz von Voxera. Ich nehme Ihre Anrufe freundlich und zuverlässig entgegen. Wie kann ich Ihnen helfen?';
 const PLAN_TIERS = { starter: 1, business: 2, professional: 3 };
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 const DEFAULT_PREVIEW_HOSTS = new Set([
@@ -25,12 +25,18 @@ const json = (statusCode, payload) => ({
   body: JSON.stringify(payload)
 });
 
+function environmentHost(value) {
+  try { return new URL(String(value || '')).hostname.toLowerCase(); }
+  catch { return ''; }
+}
+
 function allowedPreviewHosts() {
   const configured = String(process.env.VOICE_PREVIEW_ALLOWED_HOSTS || '')
     .split(',')
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
-  return new Set([...DEFAULT_PREVIEW_HOSTS, ...configured]);
+  const supabaseHost = environmentHost(process.env.SUPABASE_URL);
+  return new Set([...DEFAULT_PREVIEW_HOSTS, ...configured, ...(supabaseHost ? [supabaseHost] : [])]);
 }
 
 function validatedPreviewUrl(value) {
@@ -166,7 +172,8 @@ async function loadElevenLabsMetadataPreview(voiceId, apiKey) {
   return loadCatalogPreview(previewUrl, 'elevenlabs-metadata');
 }
 
-async function synthesizePreview(voiceId, apiKey, metadataFailure) {
+async function synthesizePreview(voiceId, apiKey, metadataFailure, previewText) {
+  const safePreviewText = String(previewText || DEFAULT_PREVIEW_TEXT).trim().slice(0, 500) || DEFAULT_PREVIEW_TEXT;
   const response = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
     {
@@ -177,7 +184,7 @@ async function synthesizePreview(voiceId, apiKey, metadataFailure) {
         Accept: 'audio/mpeg'
       },
       body: JSON.stringify({
-        text: PREVIEW_TEXT,
+        text: safePreviewText,
         model_id: 'eleven_multilingual_v2',
         voice_settings: { stability: 0.5, similarity_boost: 0.75 }
       })
@@ -251,7 +258,7 @@ exports.handler = async (event) => {
 
   const { data: voice, error: voiceError } = await sbAdmin
     .from('voxera_voices')
-    .select('voice_id,available_from_plan,preview_url')
+    .select('voice_id,available_from_plan,preview_url,preview_text')
     .eq('voice_id', voiceId)
     .eq('is_active', true)
     .maybeSingle();
@@ -296,7 +303,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    return await synthesizePreview(voiceId, apiKey, metadataFailure);
+    return await synthesizePreview(voiceId, apiKey, metadataFailure, voice.preview_text);
   } catch (error) {
     console.error('[preview-voice] preview_failed', {
       voice_id: voiceId,
@@ -305,3 +312,5 @@ exports.handler = async (event) => {
     return json(502, { error: 'voice_preview_unavailable', reason: 'provider_request_failed' });
   }
 };
+
+exports._test = { environmentHost, allowedPreviewHosts, validatedPreviewUrl, detectAudioContentType, resolveAudioContentType };
