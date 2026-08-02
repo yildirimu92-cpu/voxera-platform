@@ -28,7 +28,7 @@ for (const token of [
   'Geschäftsprofil',
   "request('customer-assistant-profile')",
   "request('get-available-voices')",
-  "request('preview-voice'",
+  "fetch('/.netlify/functions/preview-voice'",
   "request('customer-update-assistant'",
   "data-vx-filter=\"female\"",
   "data-vx-filter=\"male\"",
@@ -37,6 +37,14 @@ for (const token of [
   'sync_status',
   'restoreStatus',
   'bootAttempts < 80',
+  'previewLoading = false',
+  'previewErrorMessage',
+  'custom-preview-pending',
+  'Vorläufige Standardvorschau',
+  'payment_required',
+  "querySelectorAll('[data-vx-preview]')",
+  "cache: 'no-store'",
+  'X-Voxera-Preview-Notice',
   '/\\/activate(?:\\.html)?$/'
 ]) {
   if (!source.runtime.includes(token)) failures.push(`runtime missing: ${token}`);
@@ -98,9 +106,13 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-2/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260802-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
+assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
+assert.doesNotMatch(source.loader, /__vxVoicePreviewFallbackLoaderInstalled/);
+assert.doesNotMatch(source.runtime, /stopImmediatePropagation/);
+assert.doesNotMatch(source.runtime, /__vxVoicePreviewFallbackInstalled/);
 assert.match(source.profile, /requireCustomerCaller/);
 assert.match(source.profile, /customer_name/);
 assert.doesNotMatch(source.profile, /'company_name'/);
@@ -124,8 +136,18 @@ assert.doesNotMatch(source.statusRuntime, /observer\.observe\(document\.document
 assert.match(source.preview, /requireCustomerCaller/);
 assert.match(source.preview, /voice_not_available_on_plan/);
 assert.match(source.preview, /preview_url,preview_text/);
+assert.match(source.preview, /Access-Control-Expose-Headers/);
+assert.match(source.preview, /X-Voxera-Preview-Notice/);
+assert.match(source.preview, /custom-preview-pending/);
+assert.match(source.preview, /elevenlabs-provider-fallback/);
+assert.match(source.preview, /Customer clicks must never consume TTS credits/);
 assert.match(source.preview, /loadCatalogPreview/);
 assert.match(source.preview, /loadElevenLabsMetadataPreview/);
+assert.doesNotMatch(
+  source.preview,
+  /if \(hasManagedPreviewText\)[\s\S]{0,900}synthesizePreview\(/,
+  'Managed customer previews must not trigger paid TTS generation.'
+);
 assert.match(source.preview, /\/v1\/voices\/\$\{encodeURIComponent\(voiceId\)\}/);
 assert.match(source.preview, /elevenlabs_voice_preview_lookup_failed/);
 assert.match(source.preview, /isAcceptedAudioContentType/);
