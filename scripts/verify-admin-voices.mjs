@@ -71,7 +71,10 @@ assert.match(source.customerPreview, /hasManagedPreviewText/);
 assert.match(source.customerPreview, /isManagedPreviewUrl/);
 assert.match(source.customerPreview, /isLegacyManagedPreviewUrl/);
 assert.match(source.customerPreview, /ignored_non_versioned_or_provider_preview/);
-assert.match(source.customerPreview, /managed_preview_missing_and_tts_unavailable/);
+assert.match(source.customerPreview, /managed_preview_not_generated/);
+assert.match(source.customerPreview, /elevenlabs-provider-fallback/);
+assert.match(source.customerPreview, /custom-preview-pending/);
+assert.match(source.customerPreview, /Customer clicks must never consume TTS credits/);
 assert.match(source.customerPreview, /'Cache-Control': 'no-store'/);
 
 assert.match(source.migration, /add column if not exists preview_text text/);
