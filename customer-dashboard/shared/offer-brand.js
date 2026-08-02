@@ -301,3 +301,13 @@
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+
+(function loadCustomerDesignFoundation(root) {
+  if (!root || !root.document || root.__voxeraCustomerDesignFoundationLoaded) return;
+  root.__voxeraCustomerDesignFoundationLoaded = true;
+  const script = root.document.createElement('script');
+  script.src = '/shared/customer-runtime-design-foundation.js?v=20260802-1';
+  script.async = false;
+  root.document.head.appendChild(script);
+})(typeof globalThis !== 'undefined' ? globalThis : this);
