@@ -27,12 +27,13 @@ for (const token of ['customer_id text','ends_at > starts_at',"status in ('publi
 for (const token of ['requireCustomerCaller','allowedTypes','parseWindow',".eq('customer_id', caller.customerId)",'Authorization: authorization','sync_status']) {
   if (!source.api.includes(token)) failures.push('Customer API guard missing: ' + token);
 }
-for (const token of ['Aktuelle Betriebsinfos','Ferien / geschlossen','Geänderte Öffnungszeiten','Temporäre Angaben dürfen keine dauerhaften Leistungen, Preise','customer-operational-updates']) {
+for (const token of ['Aktuelle Änderungen werden geladen','Ferien / geschlossen','Geänderte Öffnungszeiten','Temporäre Angaben dürfen keine dauerhaften Leistungen, Preise','customer-operational-updates']) {
   if (!source.runtime.includes(token)) failures.push('Operational UI missing: ' + token);
 }
 for (const token of ['Empfohlene Gesprächslogik','Bestehende Termine','Notfälle','Termine nach dem Zeitraum anbieten']) {
   if (!source.runtime.includes(token)) failures.push('Guided operational UI missing: ' + token);
 }
+assert.doesNotMatch(source.runtime, /Aktuelle Betriebsinfos/);
 if (!source.loader.includes('/shared/customer-runtime-operational-updates.js')) failures.push('Runtime loader missing');
 for (const key of ['api','assistant','proxy']) {
   if (!source[key].includes('Authorization')) failures.push('Customer authorization forwarding missing in ' + files[key]);
