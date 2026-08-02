@@ -52,6 +52,29 @@ function validatedPreviewUrl(value) {
   }
 }
 
+function isManagedPreviewUrl(value) {
+  try {
+    const parsed = new URL(String(value || ''));
+    const supabaseHost = environmentHost(process.env.SUPABASE_URL);
+    return Boolean(
+      supabaseHost &&
+      parsed.hostname.toLowerCase() === supabaseHost &&
+      parsed.pathname.includes('/storage/v1/object/public/voice-previews/')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isLegacyManagedPreviewUrl(value) {
+  try {
+    const parsed = new URL(String(value || ''));
+    return isManagedPreviewUrl(parsed.toString()) && /\/preview\.mp3$/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
 function normalizedAudioContentType(value) {
   return String(value || '').split(';')[0].trim().toLowerCase();
 }
@@ -88,7 +111,7 @@ function audioResponse(buffer, contentType, source) {
     headers: {
       ...headers,
       'Content-Type': contentType,
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'no-store',
       'X-Voxera-Preview-Source': source
     },
     body: buffer.toString('base64'),
@@ -215,7 +238,7 @@ async function synthesizePreview(voiceId, apiKey, metadataFailure, previewText) 
     });
   }
 
-  return audioResponse(buffer, resolvedType, 'generated');
+  return audioResponse(buffer, resolvedType, 'generated-managed-text');
 }
 
 exports.handler = async (event) => {
@@ -267,19 +290,47 @@ exports.handler = async (event) => {
   const requiredTier = PLAN_TIERS[String(voice?.available_from_plan || 'starter').toLowerCase()] || PLAN_TIERS.starter;
   if (!voice || requiredTier > customerTier) return json(403, { error: 'voice_not_available_on_plan' });
 
+  const managedPreviewText = String(voice.preview_text || '').trim();
+  const hasManagedPreviewText = managedPreviewText.length >= 20;
   const catalogPreviewUrl = validatedPreviewUrl(voice.preview_url);
-  if (catalogPreviewUrl) {
+  const usableManagedPreview = Boolean(
+    catalogPreviewUrl &&
+    (!hasManagedPreviewText || (isManagedPreviewUrl(catalogPreviewUrl) && !isLegacyManagedPreviewUrl(catalogPreviewUrl)))
+  );
+
+  if (usableManagedPreview) {
     try {
-      return await loadCatalogPreview(catalogPreviewUrl);
+      return await loadCatalogPreview(catalogPreviewUrl, hasManagedPreviewText ? 'managed-catalog' : 'catalog');
     } catch (error) {
       console.warn('[preview-voice] catalog_preview_fetch_failed', {
         voice_id: voiceId,
         message: error?.message || String(error)
       });
     }
+  } else if (catalogPreviewUrl && hasManagedPreviewText) {
+    console.warn('[preview-voice] ignored_non_versioned_or_provider_preview', {
+      voice_id: voiceId,
+      managed_preview: isManagedPreviewUrl(catalogPreviewUrl),
+      legacy_path: isLegacyManagedPreviewUrl(catalogPreviewUrl)
+    });
   }
 
   const apiKey = String(process.env.ELEVENLABS_API_KEY || '').trim();
+
+  // Once Voxera manages the preview text, never substitute ElevenLabs' unrelated provider sample.
+  if (hasManagedPreviewText) {
+    if (!apiKey) return json(503, { error: 'voice_preview_unavailable', reason: 'managed_preview_missing_and_tts_unavailable' });
+    try {
+      return await synthesizePreview(voiceId, apiKey, null, managedPreviewText);
+    } catch (error) {
+      console.error('[preview-voice] managed_preview_generation_failed', {
+        voice_id: voiceId,
+        message: error?.message || String(error)
+      });
+      return json(502, { error: 'voice_preview_unavailable', reason: 'managed_preview_generation_failed' });
+    }
+  }
+
   let metadataFailure = null;
   try {
     return await loadElevenLabsMetadataPreview(voiceId, apiKey);
@@ -303,7 +354,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    return await synthesizePreview(voiceId, apiKey, metadataFailure, voice.preview_text);
+    return await synthesizePreview(voiceId, apiKey, metadataFailure, DEFAULT_PREVIEW_TEXT);
   } catch (error) {
     console.error('[preview-voice] preview_failed', {
       voice_id: voiceId,
@@ -313,4 +364,12 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { environmentHost, allowedPreviewHosts, validatedPreviewUrl, detectAudioContentType, resolveAudioContentType };
+exports._test = {
+  environmentHost,
+  allowedPreviewHosts,
+  validatedPreviewUrl,
+  isManagedPreviewUrl,
+  isLegacyManagedPreviewUrl,
+  detectAudioContentType,
+  resolveAudioContentType
+};
