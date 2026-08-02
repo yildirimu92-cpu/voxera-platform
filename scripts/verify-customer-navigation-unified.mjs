@@ -38,7 +38,8 @@ for (const forbidden of [
   'vx-assistant-profile-entry', 'vx-business-profile-entry', 'vx-operational-entry',
   "showAssistantView('business', false)", 'SUPABASE_SERVICE_ROLE_KEY',
   'ELEVENLABS_API_KEY', 'localStorage',
-  "root.setTimeout(() => showAssistantView('profile', true), 0)"
+  "root.setTimeout(() => showAssistantView('profile', true), 0)",
+  "root.requestAnimationFrame?.(() => {\n      mountManagedPages();"
 ]) assert.ok(!source.navigation.includes(forbidden), 'navigation still contains legacy token: ' + forbidden);
 
 for (const token of [
@@ -54,7 +55,6 @@ assert.match(source.navigation, /ASSISTANT_VIEWS[\s\S]*profile[\s\S]*business[\s
 assert.match(source.navigation, /shell\.host\.appendChild\(page\)/);
 assert.match(source.navigation, /page\.hidden = !active[\s\S]*page\.style\.display = active \? 'block' : 'none'/);
 assert.match(source.navigation, /function showAssistantView[\s\S]*mountManagedPages\(\)[\s\S]*applyAssistantView\(selected\)[\s\S]*triggerViewLoad\(selected\)/);
-assert.doesNotMatch(source.navigation, /function showAssistantView[\s\S]*requestAnimationFrame/);
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-4/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-5/);
