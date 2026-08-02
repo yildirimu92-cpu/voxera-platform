@@ -37,7 +37,7 @@ for (const token of [
   "document.getElementById('vx-assistant-profile-entry')?.remove()",
   "section.textContent = 'Geschäft'",
   'Andere Stimme wählen',
-  '4 weitere Fähigkeiten',
+  'weitere Fähigkeiten anzeigen',
   'Technische Details',
   'MutationObserver',
   '/\\/activate(?:\\.html)?$/'
