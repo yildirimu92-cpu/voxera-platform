@@ -3,6 +3,7 @@ name: Verify Customer Design Foundation
 on:
   pull_request:
     paths:
+      - 'customer-dashboard/shared/customer-design-system.css'
       - 'customer-dashboard/shared/customer-runtime-design-foundation.js'
       - 'customer-dashboard/shared/offer-brand.js'
       - 'scripts/verify-customer-design-foundation.mjs'
@@ -10,6 +11,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'customer-dashboard/shared/customer-design-system.css'
       - 'customer-dashboard/shared/customer-runtime-design-foundation.js'
       - 'customer-dashboard/shared/offer-brand.js'
       - 'scripts/verify-customer-design-foundation.mjs'
