@@ -68,6 +68,9 @@ for (const forbidden of [
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=/);
 assert.match(source.loader, /customer-runtime-assistant-business-menu\.js\?v=/);
 assert.match(source.profile, /requireCustomerCaller/);
+assert.match(source.profile, /'customer_name'/);
+assert.match(source.profile, /company_name:\s*customer\.customer_name/);
+assert.doesNotMatch(source.profile, /'company_name'/);
 assert.match(source.profile, /allow_custom_assistant_name,voice_selection_enabled/);
 assert.match(source.profile, /ai_business_description/);
 assert.match(source.profile, /ai_booking_faq/);
