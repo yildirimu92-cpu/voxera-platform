@@ -27,7 +27,8 @@ for (const token of [
   'hideArchiveRootNavigation', 'dedupeAndOrderMobileNavigation',
   'installShowTabBridge', 'setStableRootActive',
   'installAssistantObserver', "root.vxAssistantProfileOpen?.(view)",
-  "showAssistantView('business', true)", 'root.vxShowAssistantView = showAssistantView'
+  "showAssistantView('business', true)", 'root.vxShowAssistantView = showAssistantView',
+  'page.hidden = !active'
 ]) assert.ok(source.navigation.includes(token), 'navigation missing: ' + token);
 
 for (const forbidden of [
@@ -49,7 +50,7 @@ for (const forbidden of ['function listContainer', 'function createEntry', 'func
 
 assert.match(source.navigation, /ASSISTANT_VIEWS[\s\S]*profile[\s\S]*business[\s\S]*updates/);
 assert.match(source.navigation, /shell\.host\.appendChild\(page\)/);
-assert.match(source.navigation, /page\.style\.display = item\.key === selected \? 'block' : 'none'/);
+assert.match(source.navigation, /page\.hidden = !active[\s\S]*page\.style\.display = active \? 'block' : 'none'/);
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-3/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-4/);
