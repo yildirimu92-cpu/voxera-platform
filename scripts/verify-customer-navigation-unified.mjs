@@ -58,7 +58,7 @@ assert.match(source.navigation, /function showAssistantView[\s\S]*mountManagedPa
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-4/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-5/);
-assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260802-5/);
+assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260802-6/);
 assert.match(source.css, /#tab-assistent > :not\(#vx-assistant-root-switch\):not\(#vx-assistant-root-host\)/);
 assert.match(source.css, /#vx-assistant-root-host > \[data-vx-assistant-managed-page\]:not\(\[hidden\]\)/);
 assert.match(source.css, /vx-nav-voice-details/);
