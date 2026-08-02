@@ -3,9 +3,21 @@
   display: flex;
 }
 
+#tab-assistent > :not(#vx-assistant-root-switch):not(#vx-assistant-root-host) {
+  display: none;
+}
+
 #vx-assistant-root-host {
   display: block;
   min-width: 0;
+}
+
+#vx-assistant-root-host > [data-vx-assistant-managed-page] {
+  display: none;
+}
+
+#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden]) {
+  display: block;
 }
 
 #vx-assistant-root-host > [data-vx-assistant-managed-page] > .vx-page-header,
