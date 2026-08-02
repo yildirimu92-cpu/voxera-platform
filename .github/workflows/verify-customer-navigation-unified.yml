@@ -1,0 +1,32 @@
+name: Verify Unified Customer Navigation
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/shared/customer-runtime-unified-navigation.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-status.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'scripts/verify-customer-navigation-unified.mjs'
+      - '.github/workflows/verify-customer-navigation-unified.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/shared/customer-runtime-unified-navigation.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-status.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js'
+      - 'customer-dashboard/shared/offer-brand.js'
+      - 'scripts/verify-customer-navigation-unified.mjs'
+      - '.github/workflows/verify-customer-navigation-unified.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-customer-navigation-unified.mjs
