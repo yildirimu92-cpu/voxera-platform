@@ -275,64 +275,6 @@ body.vx-customer-design-foundation .vx-ap-empty {
   text-align: center;
 }
 
-body.vx-customer-design-foundation .vx-settings-entry {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--vx-line);
-  cursor: pointer;
-}
-
-body.vx-customer-design-foundation .vx-settings-entry-icon {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: #eef4ff;
-  color: #1a6fe8;
-  font-size: 17px;
-}
-
-body.vx-customer-design-foundation .vx-settings-entry-copy {
-  flex: 1;
-  min-width: 0;
-}
-
-body.vx-customer-design-foundation .vx-settings-entry-title {
-  color: var(--vx-ink);
-  font-size: 14px;
-  font-weight: 650;
-}
-
-body.vx-customer-design-foundation .vx-settings-entry-subtitle {
-  color: var(--vx-muted);
-  font-size: 12px;
-}
-
-body.vx-customer-design-foundation .vx-settings-entry-caret {
-  color: var(--vx-muted);
-  font-size: 15px;
-}
-
-body.vx-customer-design-foundation .vx-page-header--with-back {
-  align-items: center;
-  gap: 12px;
-}
-
-body.vx-customer-design-foundation .vx-page-header-copy {
-  flex: 1;
-  min-width: 0;
-}
-
-body.vx-customer-design-foundation .vx-page-header-subtitle {
-  margin-top: 3px;
-  font-size: 13px;
-}
-
 @media (max-width: 720px) {
   body.vx-customer-design-foundation .vx-ap-voices,
   body.vx-customer-design-foundation .vx-ap-grid {
