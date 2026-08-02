@@ -13,58 +13,15 @@
   ];
 
   const ASSISTANT_VIEWS = [
-    { key: 'profile', pageId: 'mehr-sub-assistant-profile', entryId: 'vx-assistant-profile-entry', label: 'Assistent' },
-    { key: 'business', pageId: 'mehr-sub-business-profile', entryId: 'vx-business-profile-entry', label: 'Geschäftsprofil' },
-    { key: 'updates', pageId: 'mehr-sub-betriebsinfos', entryId: 'vx-operational-entry', label: 'Aktuelle Infos' }
+    { key: 'profile', pageId: 'mehr-sub-assistant-profile', label: 'Assistent' },
+    { key: 'business', pageId: 'mehr-sub-business-profile', label: 'Geschäftsprofil' },
+    { key: 'updates', pageId: 'mehr-sub-betriebsinfos', label: 'Aktuelle Infos' }
   ];
 
   let bootAttempts = 0;
-  let managedObserver = null;
-  let settingsObserver = null;
+  let assistantObserver = null;
   let stableRootKey = '';
   let initialAssistantLoadDone = false;
-
-  function addStyles() {
-    if (document.getElementById('vx-unified-customer-navigation-style')) return;
-    const style = document.createElement('style');
-    style.id = 'vx-unified-customer-navigation-style';
-    style.textContent = `
-      #nav-assistent.nav-item,#mnav-assistent.mobile-nav-btn{display:flex!important}
-      #nav-archiv,#mnav-archiv,[data-vx-hidden-root-nav="archive"]{display:none!important}
-      .vx-unified-hidden-entry{display:none!important}
-      #tab-assistent.vx-unified-assistant-root>:not(#vx-assistant-root-switch):not(#vx-assistant-root-host){display:none!important}
-      #vx-assistant-root-host{display:block;min-width:0}
-      #vx-assistant-root-host>[data-vx-assistant-managed-page]{display:none!important}
-      #tab-assistent[data-vx-assistant-view="profile"] #mehr-sub-assistant-profile,
-      #tab-assistent[data-vx-assistant-view="business"] #mehr-sub-business-profile,
-      #tab-assistent[data-vx-assistant-view="updates"] #mehr-sub-betriebsinfos{display:block!important}
-      #vx-assistant-root-host>[data-vx-assistant-managed-page]>.vx-page-header{display:none!important}
-      #tab-assistent [data-vx-ap-back],#tab-assistent [data-ops-back]{display:none!important}
-      .vx-assistant-root-switch{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 0 14px;margin-bottom:14px;border-bottom:.5px solid var(--line,#e4e8f0)}
-      .vx-assistant-root-switch::-webkit-scrollbar{display:none}
-      .vx-assistant-root-switch button{flex:0 0 auto;border:0;border-radius:10px;background:#f1f5f9;color:#64748b;padding:10px 14px;min-height:40px;font:650 12px inherit;cursor:pointer;white-space:nowrap}
-      .vx-assistant-root-switch button.active{background:#0d1f3c;color:#fff}
-      .nav-item.vx-root-nav-active{background:#3478ed!important;color:#fff!important}
-      .nav-item.vx-root-nav-active i,.nav-item.vx-root-nav-active .nav-icon{color:#fff!important}
-      .mobile-nav-btn.vx-root-nav-active{color:#1a6fe8!important}
-      .mobile-nav-btn.vx-root-nav-active .mobile-nav-icon-wrap{color:#1a6fe8!important;background:#eef4ff!important}
-      .vx-nav-voice-details,.vx-nav-status-details{margin-top:12px;border-top:.5px solid var(--line,#e4e8f0);padding-top:10px}
-      .vx-nav-voice-details>summary,.vx-nav-status-details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#1a6fe8;font-size:12px;font-weight:700;padding:4px 0}
-      .vx-nav-voice-details>summary::-webkit-details-marker,.vx-nav-status-details>summary::-webkit-details-marker{display:none}
-      .vx-nav-voice-details>summary:after,.vx-nav-status-details>summary:after{content:'+';font-size:17px;font-weight:500;color:#64748b}
-      .vx-nav-voice-details[open]>summary:after,.vx-nav-status-details[open]>summary:after{content:'–'}
-      .vx-nav-status-summary{margin-top:12px;padding:11px 12px;border-radius:11px;background:#ecfdf5;color:#047857;font-size:12px;line-height:1.45}
-      .vx-nav-status-summary.attention{background:#fff7ed;color:#9a3412}.vx-nav-status-summary.error{background:#fef2f2;color:#b91c1c}
-      .vx-as-capabilities-simple:not(.is-expanded) .vx-as-extra-capability{display:none!important}
-      .vx-as-capability-toggle{margin-top:10px;border:0;background:#f1f5f9;color:#475569;border-radius:9px;padding:8px 11px;font:650 11px inherit;cursor:pointer}
-      @media(max-width:720px){
-        #vx-assistant-root-host>[data-vx-assistant-managed-page]{padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))}
-        .vx-assistant-root-switch{position:sticky;top:0;z-index:8;background:var(--surface,#fff);padding-top:4px;margin-bottom:12px}
-        .vx-assistant-root-switch button{min-height:42px}
-      }
-    `;
-    document.head.appendChild(style);
-  }
 
   function textLabel(node) {
     return String(node?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -126,6 +83,7 @@
     ].filter(Boolean);
 
     candidates.forEach((node) => {
+      node.hidden = true;
       node.dataset.vxHiddenRootNav = 'archive';
       node.setAttribute('aria-hidden', 'true');
       node.setAttribute('tabindex', '-1');
@@ -182,11 +140,11 @@
       if (!key) return;
       if (canonicalIds.has(node.id) && !seenKeys.has(key)) {
         seenKeys.add(key);
-        node.classList.remove('vx-unified-hidden-entry');
+        node.hidden = false;
         node.removeAttribute('aria-hidden');
         return;
       }
-      node.classList.add('vx-unified-hidden-entry');
+      node.hidden = true;
       node.setAttribute('aria-hidden', 'true');
       node.dataset.vxDuplicateRootNav = '1';
     });
@@ -238,41 +196,6 @@
     return { assistantTab, switcher, host };
   }
 
-  function hideSettingsEntry(entry) {
-    if (!entry) return;
-    entry.classList.add('vx-unified-hidden-entry');
-    entry.setAttribute('aria-hidden', 'true');
-    entry.setAttribute('tabindex', '-1');
-  }
-
-  function settingsList() {
-    const main = document.getElementById('mehr-main');
-    return main?.querySelector('.vx-page-header')?.nextElementSibling || null;
-  }
-
-  function findSettingsEntryByTitle(title) {
-    const list = settingsList();
-    if (!list) return null;
-    return Array.from(list.children).find((entry) => {
-      const directText = Array.from(entry.querySelectorAll('div'))
-        .filter((node) => node.children.length === 0)
-        .map((node) => textLabel(node));
-      return directText.includes(title);
-    }) || null;
-  }
-
-  function cleanupSettingsEntries() {
-    ASSISTANT_VIEWS.forEach((view) => hideSettingsEntry(document.getElementById(view.entryId)));
-    hideSettingsEntry(findSettingsEntryByTitle('Bericht'));
-
-    Array.from(document.querySelectorAll('#tab-mehr button')).forEach((button) => {
-      if (textLabel(button) === 'Zum Assistent-Bereich') hideSettingsEntry(button);
-    });
-
-    const heading = document.getElementById('vx-assistant-business-section');
-    if (heading && textLabel(heading) !== 'Verbindungen') heading.textContent = 'Verbindungen';
-  }
-
   function mountManagedPages() {
     const shell = ensureAssistantShell();
     if (!shell) return false;
@@ -286,10 +209,8 @@
       }
       page.dataset.vxAssistantManagedPage = view.key;
       if (page.parentElement !== shell.host) shell.host.appendChild(page);
-      page.querySelector('[data-vx-ap-back],[data-ops-back]')?.setAttribute('aria-hidden', 'true');
     });
 
-    cleanupSettingsEntries();
     const selected = shell.assistantTab.dataset.vxAssistantView || 'profile';
     applyAssistantView(selected);
     return complete;
@@ -304,8 +225,7 @@
       return;
     }
 
-    const entry = document.getElementById(config.entryId);
-    if (entry && typeof entry.click === 'function') entry.click();
+    root.vxAssistantProfileOpen?.(view);
   }
 
   function applyAssistantView(view) {
@@ -344,7 +264,6 @@
     document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => {
       node.style.display = 'none';
     });
-    cleanupSettingsEntries();
   }
 
   function simplifyVoiceSelection() {
@@ -470,37 +389,26 @@
     return true;
   }
 
-  function applyManagedEnhancements() {
-    mountManagedPages();
+  function applyAssistantEnhancements() {
     simplifyVoiceSelection();
     simplifyCapabilities();
     simplifyTechnicalStatus();
-    cleanupSettingsEntries();
   }
 
-  function installObservers() {
-    if (!managedObserver) {
-      managedObserver = new MutationObserver(() => {
-        root.requestAnimationFrame?.(applyManagedEnhancements);
-      });
-      managedObserver.observe(document.body, { childList: true, subtree: true });
-    }
-
-    const settings = document.getElementById('tab-mehr');
-    if (settings && !settingsObserver) {
-      settingsObserver = new MutationObserver(() => {
-        cleanupSettingsEntries();
-        mountManagedPages();
-      });
-      settingsObserver.observe(settings, { childList: true, subtree: true });
-    }
+  function installAssistantObserver() {
+    const body = document.getElementById('vx-assistant-profile-body');
+    if (!body || assistantObserver || typeof MutationObserver !== 'function') return;
+    assistantObserver = new MutationObserver(() => {
+      root.requestAnimationFrame?.(applyAssistantEnhancements);
+    });
+    assistantObserver.observe(body, { childList: true, subtree: true });
   }
 
   function boot() {
-    addStyles();
     normalizeRootNavigation();
     installShowTabBridge();
-    applyManagedEnhancements();
+    mountManagedPages();
+    applyAssistantEnhancements();
     if (!stableRootKey) setStableRootActive(initialRootKey());
 
     bootAttempts += 1;
@@ -513,7 +421,7 @@
       root.setTimeout(boot, 250);
       return;
     }
-    installObservers();
+    installAssistantObserver();
   }
 
   function install() {
@@ -522,7 +430,7 @@
       if (businessProfileShortcut) {
         event.preventDefault();
         event.stopPropagation();
-        showAssistantView('business', false);
+        showAssistantView('business', true);
         return;
       }
 
@@ -536,6 +444,7 @@
     boot();
   }
 
+  root.vxShowAssistantView = showAssistantView;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
   else install();
 })(typeof globalThis !== 'undefined' ? globalThis : this);

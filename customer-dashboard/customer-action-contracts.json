@@ -24,7 +24,7 @@
       "source": "customer-dashboard/shared/customer-runtime-unified-navigation.js",
       "event": "click",
       "triggerTokens": ["#vx-open-business-profile"],
-      "handlerTokens": ["showAssistantView('business', false)"],
+      "handlerTokens": ["showAssistantView('business', true)"],
       "canonicalRoute": "assistant/business"
     },
     {

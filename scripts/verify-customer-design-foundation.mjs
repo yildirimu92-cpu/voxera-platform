@@ -8,6 +8,8 @@ const paths = {
   assistantCss: 'customer-dashboard/shared/customer-assistant-components.css',
   statusCss: 'customer-dashboard/shared/customer-assistant-status.css',
   supportCss: 'customer-dashboard/shared/customer-support-components.css',
+  navigationCss: 'customer-dashboard/shared/customer-navigation-components.css',
+  navigationRuntime: 'customer-dashboard/shared/customer-runtime-unified-navigation.js',
   assistantRuntime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   statusRuntime: 'customer-dashboard/shared/customer-runtime-assistant-status.js',
   supportRuntime: 'customer-dashboard/shared/customer-runtime-case-intake.js',
@@ -19,6 +21,8 @@ const foundationCss = fs.readFileSync(paths.foundationCss, 'utf8');
 const assistantCss = fs.readFileSync(paths.assistantCss, 'utf8');
 const statusCss = fs.readFileSync(paths.statusCss, 'utf8');
 const supportCss = fs.readFileSync(paths.supportCss, 'utf8');
+const navigationCss = fs.readFileSync(paths.navigationCss, 'utf8');
+const navigationRuntime = fs.readFileSync(paths.navigationRuntime, 'utf8');
 const assistantRuntime = fs.readFileSync(paths.assistantRuntime, 'utf8');
 const statusRuntime = fs.readFileSync(paths.statusRuntime, 'utf8');
 const supportRuntime = fs.readFileSync(paths.supportRuntime, 'utf8');
@@ -28,6 +32,7 @@ new vm.Script(runtime, { filename: paths.runtime });
 new vm.Script(assistantRuntime, { filename: paths.assistantRuntime });
 new vm.Script(statusRuntime, { filename: paths.statusRuntime });
 new vm.Script(supportRuntime, { filename: paths.supportRuntime });
+new vm.Script(navigationRuntime, { filename: paths.navigationRuntime });
 new vm.Script(loader, { filename: paths.loader });
 
 const lineCount = (value) => value.split(/\r?\n/).length;
@@ -36,6 +41,7 @@ assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial 
 assert.ok(lineCount(assistantCss) <= 350, 'assistant component CSS exceeded its size budget');
 assert.ok(lineCount(statusCss) <= 220, 'assistant status CSS exceeded its size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
+assert.ok(lineCount(navigationCss) <= 140, 'navigation component CSS exceeded its size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
@@ -43,6 +49,7 @@ for (const token of [
   '/shared/customer-assistant-components.css?v=20260802-1',
   '/shared/customer-assistant-status.css?v=20260802-1',
   '/shared/customer-support-components.css?v=20260802-1',
+  '/shared/customer-navigation-components.css?v=20260802-1',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -111,9 +118,8 @@ for (const token of [
 }
 
 for (const token of [
-  "entry.className = 'vx-settings-entry'",
-  'vx-settings-entry-icon',
-  'vx-page-header--with-back',
+  "document.getElementById('tab-assistent')",
+  'root.vxAssistantProfileOpen = open',
   'vx-ap-actions--push',
   'toneLabel',
   'addressLabel',
@@ -203,7 +209,8 @@ for (const [name, css] of [
   ['foundation', foundationCss],
   ['assistant', assistantCss],
   ['status', statusCss],
-  ['support', supportCss]
+  ['support', supportCss],
+  ['navigation', navigationCss]
 ]) {
   assert.ok(!css.includes('<style'), `${name} CSS must not contain an embedded style tag`);
   assert.ok(!css.includes('javascript:'), `${name} CSS must not contain JavaScript URLs`);
@@ -211,8 +218,10 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-2/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-3/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
 console.log('Customer dashboard design foundation verification passed.');
+
+assert.doesNotMatch(navigationRuntime, /function addStyles|createElement\('style'\)|style\.textContent/);
