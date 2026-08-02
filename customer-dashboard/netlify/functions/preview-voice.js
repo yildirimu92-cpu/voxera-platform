@@ -46,9 +46,18 @@ function validatedPreviewUrl(value) {
   }
 }
 
+function normalizedAudioContentType(value) {
+  return String(value || '').split(';')[0].trim().toLowerCase();
+}
+
+function isAcceptedAudioContentType(value) {
+  const type = normalizedAudioContentType(value);
+  return type.startsWith('audio/') || type === 'application/octet-stream';
+}
+
 function audioContentType(value) {
-  const type = String(value || '').split(';')[0].trim().toLowerCase();
-  return type.startsWith('audio/') || type === 'application/octet-stream' ? type : 'audio/mpeg';
+  const type = normalizedAudioContentType(value);
+  return isAcceptedAudioContentType(type) ? type : 'audio/mpeg';
 }
 
 function audioResponse(buffer, contentType, source) {
@@ -65,18 +74,73 @@ function audioResponse(buffer, contentType, source) {
   };
 }
 
-async function loadCatalogPreview(url) {
+function providerErrorCode(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  const detail = payload.detail;
+  if (detail && typeof detail === 'object') {
+    return String(detail.status || detail.code || '').trim();
+  }
+  return String(payload.status || payload.code || '').trim();
+}
+
+async function readProviderError(response) {
+  let payload = null;
+  let text = '';
+  try {
+    text = String(await response.text()).slice(0, 500);
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = null;
+  }
+  return {
+    provider_status: response.status,
+    provider_code: providerErrorCode(payload) || null,
+    provider_error: text || null
+  };
+}
+
+async function loadCatalogPreview(url, source = 'catalog') {
   const response = await fetch(url, {
     method: 'GET',
     headers: { Accept: 'audio/mpeg, audio/*, application/octet-stream' }
   });
   if (!response.ok) throw new Error(`catalog_preview_http_${response.status}`);
+
+  const contentType = response.headers.get('content-type');
+  if (!isAcceptedAudioContentType(contentType)) {
+    throw new Error(`catalog_preview_invalid_content_type_${normalizedAudioContentType(contentType) || 'missing'}`);
+  }
+
   const buffer = Buffer.from(await response.arrayBuffer());
   if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) throw new Error('catalog_preview_invalid_size');
-  return audioResponse(buffer, response.headers.get('content-type'), 'catalog');
+  return audioResponse(buffer, contentType, source);
 }
 
-async function synthesizePreview(voiceId, apiKey) {
+async function loadElevenLabsMetadataPreview(voiceId, apiKey) {
+  const requestHeaders = { Accept: 'application/json' };
+  if (apiKey) requestHeaders['xi-api-key'] = apiKey;
+
+  const response = await fetch(
+    `https://api.elevenlabs.io/v1/voices/${encodeURIComponent(voiceId)}`,
+    { method: 'GET', headers: requestHeaders }
+  );
+
+  if (!response.ok) {
+    const error = new Error(`elevenlabs_voice_lookup_http_${response.status}`);
+    error.provider = await readProviderError(response);
+    throw error;
+  }
+
+  let payload = {};
+  try { payload = await response.json(); }
+  catch { throw new Error('elevenlabs_voice_lookup_invalid_json'); }
+
+  const previewUrl = validatedPreviewUrl(payload.preview_url);
+  if (!previewUrl) throw new Error('elevenlabs_voice_preview_url_missing');
+  return loadCatalogPreview(previewUrl, 'elevenlabs-metadata');
+}
+
+async function synthesizePreview(voiceId, apiKey, metadataFailure) {
   const response = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
     {
@@ -95,12 +159,20 @@ async function synthesizePreview(voiceId, apiKey) {
   );
 
   if (!response.ok) {
-    let providerError = '';
-    try { providerError = String(await response.text()).slice(0, 300); } catch { providerError = ''; }
+    const provider = await readProviderError(response);
     return json(502, {
       error: 'elevenlabs_tts_failed',
-      provider_status: response.status,
-      provider_error: providerError || null
+      ...provider,
+      metadata_status: metadataFailure?.provider?.provider_status || null,
+      metadata_code: metadataFailure?.provider?.provider_code || null
+    });
+  }
+
+  const contentType = response.headers.get('content-type');
+  if (!isAcceptedAudioContentType(contentType)) {
+    return json(502, {
+      error: 'elevenlabs_tts_invalid_content_type',
+      provider_content_type: normalizedAudioContentType(contentType) || null
     });
   }
 
@@ -108,7 +180,7 @@ async function synthesizePreview(voiceId, apiKey) {
   if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) {
     return json(502, { error: 'elevenlabs_tts_invalid_audio' });
   }
-  return audioResponse(buffer, response.headers.get('content-type'), 'generated');
+  return audioResponse(buffer, contentType, 'generated');
 }
 
 exports.handler = async (event) => {
@@ -173,15 +245,30 @@ exports.handler = async (event) => {
   }
 
   const apiKey = String(process.env.ELEVENLABS_API_KEY || '').trim();
+  let metadataFailure = null;
+  try {
+    return await loadElevenLabsMetadataPreview(voiceId, apiKey);
+  } catch (error) {
+    metadataFailure = error;
+    console.warn('[preview-voice] elevenlabs_voice_preview_lookup_failed', {
+      voice_id: voiceId,
+      message: error?.message || String(error),
+      provider_status: error?.provider?.provider_status || null,
+      provider_code: error?.provider?.provider_code || null
+    });
+  }
+
   if (!apiKey) {
     return json(503, {
       error: 'voice_preview_unavailable',
-      reason: catalogPreviewUrl ? 'catalog_preview_failed' : 'preview_source_missing'
+      reason: catalogPreviewUrl ? 'catalog_preview_failed' : 'preview_source_missing',
+      metadata_status: metadataFailure?.provider?.provider_status || null,
+      metadata_code: metadataFailure?.provider?.provider_code || null
     });
   }
 
   try {
-    return await synthesizePreview(voiceId, apiKey);
+    return await synthesizePreview(voiceId, apiKey, metadataFailure);
   } catch (error) {
     console.error('[preview-voice] preview_failed', {
       voice_id: voiceId,
