@@ -55,9 +55,25 @@ function isAcceptedAudioContentType(value) {
   return type.startsWith('audio/') || type === 'application/octet-stream';
 }
 
-function audioContentType(value) {
-  const type = normalizedAudioContentType(value);
-  return isAcceptedAudioContentType(type) ? type : 'audio/mpeg';
+function detectAudioContentType(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 4) return '';
+
+  if (buffer.subarray(0, 3).toString('ascii') === 'ID3') return 'audio/mpeg';
+  if (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0) return 'audio/mpeg';
+  if (buffer.subarray(0, 4).toString('ascii') === 'OggS') return 'audio/ogg';
+  if (buffer.subarray(0, 4).toString('ascii') === 'fLaC') return 'audio/flac';
+  if (buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WAVE') return 'audio/wav';
+  if (buffer.length >= 12 && buffer.subarray(4, 8).toString('ascii') === 'ftyp') return 'audio/mp4';
+  if (buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'FORM') return 'audio/aiff';
+
+  return '';
+}
+
+function resolveAudioContentType(headerValue, buffer) {
+  const detected = detectAudioContentType(buffer);
+  if (detected) return detected;
+  const declared = normalizedAudioContentType(headerValue);
+  return isAcceptedAudioContentType(declared) ? declared : '';
 }
 
 function audioResponse(buffer, contentType, source) {
@@ -65,7 +81,7 @@ function audioResponse(buffer, contentType, source) {
     statusCode: 200,
     headers: {
       ...headers,
-      'Content-Type': audioContentType(contentType),
+      'Content-Type': contentType,
       'Cache-Control': 'private, max-age=3600',
       'X-Voxera-Preview-Source': source
     },
@@ -106,14 +122,24 @@ async function loadCatalogPreview(url, source = 'catalog') {
   });
   if (!response.ok) throw new Error(`catalog_preview_http_${response.status}`);
 
-  const contentType = response.headers.get('content-type');
-  if (!isAcceptedAudioContentType(contentType)) {
-    throw new Error(`catalog_preview_invalid_content_type_${normalizedAudioContentType(contentType) || 'missing'}`);
-  }
-
   const buffer = Buffer.from(await response.arrayBuffer());
   if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) throw new Error('catalog_preview_invalid_size');
-  return audioResponse(buffer, contentType, source);
+
+  const declaredType = response.headers.get('content-type');
+  const resolvedType = resolveAudioContentType(declaredType, buffer);
+  if (!resolvedType) {
+    throw new Error(`catalog_preview_invalid_content_type_${normalizedAudioContentType(declaredType) || 'missing'}`);
+  }
+
+  if (!isAcceptedAudioContentType(declaredType) && detectAudioContentType(buffer)) {
+    console.warn('[preview-voice] catalog_preview_mislabeled_content_type', {
+      source,
+      declared_content_type: normalizedAudioContentType(declaredType) || null,
+      detected_content_type: resolvedType
+    });
+  }
+
+  return audioResponse(buffer, resolvedType, source);
 }
 
 async function loadElevenLabsMetadataPreview(voiceId, apiKey) {
@@ -168,19 +194,21 @@ async function synthesizePreview(voiceId, apiKey, metadataFailure) {
     });
   }
 
-  const contentType = response.headers.get('content-type');
-  if (!isAcceptedAudioContentType(contentType)) {
-    return json(502, {
-      error: 'elevenlabs_tts_invalid_content_type',
-      provider_content_type: normalizedAudioContentType(contentType) || null
-    });
-  }
-
   const buffer = Buffer.from(await response.arrayBuffer());
   if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) {
     return json(502, { error: 'elevenlabs_tts_invalid_audio' });
   }
-  return audioResponse(buffer, contentType, 'generated');
+
+  const declaredType = response.headers.get('content-type');
+  const resolvedType = resolveAudioContentType(declaredType, buffer);
+  if (!resolvedType) {
+    return json(502, {
+      error: 'elevenlabs_tts_invalid_content_type',
+      provider_content_type: normalizedAudioContentType(declaredType) || null
+    });
+  }
+
+  return audioResponse(buffer, resolvedType, 'generated');
 }
 
 exports.handler = async (event) => {
