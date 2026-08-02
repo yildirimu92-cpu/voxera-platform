@@ -6,29 +6,36 @@ const paths = {
   runtime: 'customer-dashboard/shared/customer-runtime-design-foundation.js',
   foundationCss: 'customer-dashboard/shared/customer-design-system.css',
   assistantCss: 'customer-dashboard/shared/customer-assistant-components.css',
+  statusCss: 'customer-dashboard/shared/customer-assistant-status.css',
   assistantRuntime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
+  statusRuntime: 'customer-dashboard/shared/customer-runtime-assistant-status.js',
   loader: 'customer-dashboard/shared/offer-brand.js'
 };
 
 const runtime = fs.readFileSync(paths.runtime, 'utf8');
 const foundationCss = fs.readFileSync(paths.foundationCss, 'utf8');
 const assistantCss = fs.readFileSync(paths.assistantCss, 'utf8');
+const statusCss = fs.readFileSync(paths.statusCss, 'utf8');
 const assistantRuntime = fs.readFileSync(paths.assistantRuntime, 'utf8');
+const statusRuntime = fs.readFileSync(paths.statusRuntime, 'utf8');
 const loader = fs.readFileSync(paths.loader, 'utf8');
 
 new vm.Script(runtime, { filename: paths.runtime });
 new vm.Script(assistantRuntime, { filename: paths.assistantRuntime });
+new vm.Script(statusRuntime, { filename: paths.statusRuntime });
 new vm.Script(loader, { filename: paths.loader });
 
 const lineCount = (value) => value.split(/\r?\n/).length;
 assert.ok(lineCount(runtime) <= 50, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
 assert.ok(lineCount(assistantCss) <= 350, 'assistant component CSS exceeded its size budget');
+assert.ok(lineCount(statusCss) <= 220, 'assistant status CSS exceeded its size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260802-2',
   '/shared/customer-assistant-components.css?v=20260802-1',
+  '/shared/customer-assistant-status.css?v=20260802-1',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -76,6 +83,16 @@ for (const token of [
 }
 
 for (const token of [
+  '.vx-as-cap-grid',
+  '.vx-as-icon.attention',
+  '.vx-as-state::before',
+  '.vx-as-tech-row',
+  '@media (max-width: 720px)'
+]) {
+  assert.ok(statusCss.includes(token), `assistant status CSS missing: ${token}`);
+}
+
+for (const token of [
   "entry.className = 'vx-settings-entry'",
   'vx-settings-entry-icon',
   'vx-page-header--with-back',
@@ -85,6 +102,16 @@ for (const token of [
   'Aktuelle Infos'
 ]) {
   assert.ok(assistantRuntime.includes(token), `assistant runtime migration missing: ${token}`);
+}
+
+for (const token of [
+  'Fähigkeiten',
+  'Der aktuelle Zustand der wichtigsten Verbindungen.',
+  "technicalRow('Telefonie'",
+  "technicalRow('Stimme & Einstellungen'",
+  'statusObserver.observe(body, { childList: true, subtree: true })'
+]) {
+  assert.ok(statusRuntime.includes(token), `assistant status cleanup missing: ${token}`);
 }
 
 for (const forbidden of [
@@ -117,9 +144,25 @@ for (const forbidden of [
   assert.ok(!assistantRuntime.includes(forbidden), `assistant runtime still owns presentation: ${forbidden}`);
 }
 
+for (const forbidden of [
+  'function addStyles',
+  "createElement('style')",
+  'style.textContent',
+  'vx-assistant-status-style',
+  'observer.observe(document.documentElement',
+  'vx-assistant-operational-summary',
+  'openOperational',
+  'openCalendar',
+  'Letzte erfolgreiche Synchronisierung',
+  ' style="'
+]) {
+  assert.ok(!statusRuntime.includes(forbidden), `assistant status runtime still contains legacy code: ${forbidden}`);
+}
+
 for (const [name, css] of [
   ['foundation', foundationCss],
-  ['assistant', assistantCss]
+  ['assistant', assistantCss],
+  ['status', statusCss]
 ]) {
   assert.ok(!css.includes('<style'), `${name} CSS must not contain an embedded style tag`);
   assert.ok(!css.includes('javascript:'), `${name} CSS must not contain JavaScript URLs`);

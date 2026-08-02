@@ -1,0 +1,147 @@
+body.vx-customer-design-foundation .vx-as-cap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 14px;
+}
+
+body.vx-customer-design-foundation .vx-as-cap {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--vx-line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+body.vx-customer-design-foundation .vx-as-icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 15px;
+}
+
+body.vx-customer-design-foundation .vx-as-icon.active {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+body.vx-customer-design-foundation .vx-as-icon.attention {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+body.vx-customer-design-foundation .vx-as-icon.error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+body.vx-customer-design-foundation .vx-as-cap-title {
+  color: var(--vx-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+body.vx-customer-design-foundation .vx-as-cap-detail {
+  margin-top: 3px;
+  color: var(--vx-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body.vx-customer-design-foundation .vx-as-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+body.vx-customer-design-foundation .vx-as-state::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+  content: "";
+}
+
+body.vx-customer-design-foundation .vx-as-state.active {
+  color: #047857;
+}
+
+body.vx-customer-design-foundation .vx-as-state.active::before {
+  background: #10b981;
+}
+
+body.vx-customer-design-foundation .vx-as-state.attention {
+  color: #b45309;
+}
+
+body.vx-customer-design-foundation .vx-as-state.attention::before {
+  background: #f59e0b;
+}
+
+body.vx-customer-design-foundation .vx-as-state.error {
+  color: #b91c1c;
+}
+
+body.vx-customer-design-foundation .vx-as-state.error::before {
+  background: #ef4444;
+}
+
+body.vx-customer-design-foundation .vx-as-tech {
+  display: grid;
+  gap: 0;
+  margin-top: 13px;
+}
+
+body.vx-customer-design-foundation .vx-as-tech-row {
+  display: grid;
+  grid-template-columns: minmax(145px, 0.8fr) minmax(120px, 0.55fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--vx-line);
+}
+
+body.vx-customer-design-foundation .vx-as-tech-row:last-child {
+  border-bottom: 0;
+}
+
+body.vx-customer-design-foundation .vx-as-tech-name {
+  color: var(--vx-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+body.vx-customer-design-foundation .vx-as-tech-detail {
+  color: var(--vx-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation .vx-as-cap-grid,
+  body.vx-customer-design-foundation .vx-as-tech-row {
+    grid-template-columns: 1fr;
+  }
+
+  body.vx-customer-design-foundation .vx-as-tech-row {
+    gap: 4px;
+  }
+
+  body.vx-customer-design-foundation .vx-as-tech-row .vx-as-state {
+    margin-top: 0;
+  }
+}

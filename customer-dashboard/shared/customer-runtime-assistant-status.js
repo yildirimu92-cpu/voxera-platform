@@ -7,31 +7,12 @@
   let snapshot = null;
   let loading = false;
   let scheduled = false;
-  let hadExtension = false;
+  let statusObserver = null;
+  let bootAttempts = 0;
 
   const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
   }[char]));
-
-  function addStyles() {
-    if (document.getElementById('vx-assistant-status-style')) return;
-    const style = document.createElement('style');
-    style.id = 'vx-assistant-status-style';
-    style.textContent = `
-      .vx-as-cap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}
-      .vx-as-cap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;padding:12px;border:.5px solid var(--line,#e4e8f0);border-radius:12px;background:#fff;min-width:0}
-      .vx-as-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:15px;background:#f1f5f9;color:#64748b}
-      .vx-as-icon.active{background:#ecfdf5;color:#047857}.vx-as-icon.attention{background:#fff7ed;color:#b45309}.vx-as-icon.error{background:#fef2f2;color:#b91c1c}
-      .vx-as-cap-title{font-size:12px;font-weight:700;color:var(--ink,#0d1f3c);line-height:1.35}.vx-as-cap-detail{font-size:11px;color:var(--slate2,#7a8599);line-height:1.45;margin-top:3px}
-      .vx-as-state{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:750;margin-top:6px;color:#64748b}.vx-as-state:before{content:'';width:6px;height:6px;border-radius:50%;background:#94a3b8}
-      .vx-as-state.active{color:#047857}.vx-as-state.active:before{background:#10b981}.vx-as-state.attention{color:#b45309}.vx-as-state.attention:before{background:#f59e0b}.vx-as-state.error{color:#b91c1c}.vx-as-state.error:before{background:#ef4444}
-      .vx-as-tech{display:grid;gap:0;margin-top:13px}.vx-as-tech-row{display:grid;grid-template-columns:minmax(145px,.8fr) minmax(120px,.55fr) minmax(0,1.4fr);gap:12px;align-items:center;padding:11px 0;border-bottom:.5px solid var(--line,#e4e8f0)}.vx-as-tech-row:last-child{border-bottom:0}
-      .vx-as-tech-name{font-size:12px;font-weight:650;color:var(--ink,#0d1f3c)}.vx-as-tech-detail{font-size:11px;color:var(--slate2,#7a8599);line-height:1.45}
-      .vx-as-ops{margin-top:13px;padding:12px;border-radius:12px;background:#f8fafc;border:.5px solid var(--line,#e4e8f0);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.vx-as-ops-copy{font-size:11px;color:var(--slate2,#7a8599);line-height:1.5}.vx-as-ops-copy strong{display:block;color:var(--ink,#0d1f3c);font-size:12px;margin-bottom:2px}
-      @media(max-width:720px){.vx-as-cap-grid{grid-template-columns:1fr}.vx-as-tech-row{grid-template-columns:1fr;gap:4px}.vx-as-tech-row .vx-as-state{margin-top:0}}
-    `;
-    document.head.appendChild(style);
-  }
 
   async function token() {
     const client = typeof root.getSupabaseAuthClient === 'function' ? root.getSupabaseAuthClient() : root._sb;
@@ -84,31 +65,6 @@
     return `<div class="vx-as-tech-row"><div class="vx-as-tech-name">${esc(title)}</div><div class="vx-as-state ${tone}">${esc(item?.label || 'Nicht verfügbar')}</div><div class="vx-as-tech-detail">${esc(item?.detail || '')}</div></div>`;
   }
 
-  function formatDate(value) {
-    if (!value) return 'Noch keine erfolgreiche Synchronisierung';
-    const date = new Date(value);
-    if (!Number.isFinite(date.getTime())) return 'Zeitpunkt nicht verfügbar';
-    try {
-      return new Intl.DateTimeFormat('de-CH', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-    } catch (_error) {
-      return date.toLocaleString('de-CH');
-    }
-  }
-
-  function openBusiness() {
-    document.getElementById('vx-open-business-profile')?.click();
-  }
-
-  function openOperational() {
-    const entry = document.getElementById('vx-operational-entry');
-    if (entry) entry.click();
-  }
-
-  function openCalendar() {
-    const entry = document.getElementById('vx-calendar-settings-entry');
-    if (entry) entry.click();
-  }
-
   function render() {
     const body = document.getElementById('vx-assistant-profile-body');
     const stack = body?.querySelector('.vx-ap-stack');
@@ -116,7 +72,6 @@
 
     const capabilities = Array.isArray(snapshot.capabilities) ? snapshot.capabilities : [];
     const technical = snapshot.technical_status || {};
-    const updates = snapshot.operational_updates || {};
     const businessCard = Array.from(stack.querySelectorAll('.vx-ap-card')).find((card) =>
       /Geschäftswissen/.test(card.querySelector('.vx-ap-title')?.textContent || '')
     );
@@ -124,31 +79,16 @@
     const capabilitiesCard = document.createElement('section');
     capabilitiesCard.id = 'vx-assistant-capabilities-card';
     capabilitiesCard.className = 'vx-ap-card';
-    capabilitiesCard.innerHTML = `<div class="vx-ap-head"><div><div class="vx-ap-title">Aktive Fähigkeiten</div><div class="vx-ap-meta">Was Ihr Assistent aktuell übernehmen kann. Die Anzeige basiert auf der freigegebenen Gesprächslogik und den verbundenen Diensten.</div></div></div><div class="vx-as-cap-grid">${capabilities.length ? capabilities.map(capabilityHtml).join('') : '<div class="vx-ap-empty">Fähigkeiten konnten nicht ermittelt werden.</div>'}</div>`;
+    capabilitiesCard.innerHTML = `<div class="vx-ap-head"><div><div class="vx-ap-title">Fähigkeiten</div><div class="vx-ap-meta">Die wichtigsten Aufgaben, die Ihr Assistent aktuell übernimmt.</div></div></div><div class="vx-as-cap-grid">${capabilities.length ? capabilities.map(capabilityHtml).join('') : '<div class="vx-ap-empty">Fähigkeiten konnten nicht ermittelt werden.</div>'}</div>`;
 
     const technicalCard = document.createElement('section');
     technicalCard.id = 'vx-assistant-status-extension';
     technicalCard.className = 'vx-ap-card';
-    technicalCard.innerHTML = `<div class="vx-ap-head"><div><div class="vx-ap-title">Systemstatus</div><div class="vx-ap-meta">Vereinfachte Betriebsanzeige ohne technische IDs oder Promptdetails.</div></div></div><div class="vx-as-tech">${technicalRow('Assistent', technical.assistant)}${technicalRow('Rufnummer & Weiterleitung', technical.forwarding)}${technicalRow('Konfiguration & Stimme', technical.voice_sync)}${technicalRow('Kalender', technical.calendar)}</div><div class="vx-ap-meta" style="margin-top:10px">Letzte erfolgreiche Synchronisierung: <strong style="color:var(--ink,#0d1f3c)">${esc(formatDate(technical.last_successful_sync_at))}</strong></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-assistant-open-calendar">Kalender öffnen</button></div>`;
+    technicalCard.innerHTML = `<div class="vx-ap-head"><div><div class="vx-ap-title">Einrichtung</div><div class="vx-ap-meta">Der aktuelle Zustand der wichtigsten Verbindungen.</div></div></div><div class="vx-as-tech">${technicalRow('Assistent', technical.assistant)}${technicalRow('Telefonie', technical.forwarding)}${technicalRow('Stimme & Einstellungen', technical.voice_sync)}${technicalRow('Kalender', technical.calendar)}</div>`;
 
     if (businessCard) stack.insertBefore(capabilitiesCard, businessCard);
     else stack.appendChild(capabilitiesCard);
     stack.appendChild(technicalCard);
-
-    if (businessCard && !businessCard.querySelector('#vx-assistant-operational-summary')) {
-      const active = Number(updates.active_count || 0);
-      const planned = Number(updates.planned_count || 0);
-      const failed = Number(updates.sync_attention_count || 0);
-      const ops = document.createElement('div');
-      ops.id = 'vx-assistant-operational-summary';
-      ops.className = 'vx-as-ops';
-      ops.innerHTML = `<div class="vx-as-ops-copy"><strong>Aktuelle Änderungen</strong>${active} aktiv · ${planned} geplant${failed ? ` · ${failed} nicht synchronisiert` : ''}</div><button type="button" class="vx-ap-btn secondary" id="vx-assistant-open-operational">Öffnen</button>`;
-      businessCard.appendChild(ops);
-    }
-
-    document.getElementById('vx-assistant-open-operational')?.addEventListener('click', openOperational);
-    document.getElementById('vx-assistant-open-calendar')?.addEventListener('click', openCalendar);
-    hadExtension = true;
   }
 
   async function refresh() {
@@ -158,6 +98,7 @@
       render();
       return;
     }
+
     loading = true;
     try {
       snapshot = await loadSnapshot();
@@ -185,18 +126,28 @@
     }, 60);
   }
 
-  function install() {
-    addStyles();
-    const observer = new MutationObserver(() => {
-      const body = document.getElementById('vx-assistant-profile-body');
-      const hasExtension = Boolean(body?.querySelector('#vx-assistant-status-extension'));
-      if (hadExtension && !hasExtension && body?.querySelector('.vx-ap-stack')) snapshot = null;
-      hadExtension = hasExtension;
+  function observeStatusBody(body) {
+    if (statusObserver || typeof MutationObserver !== 'function') return;
+    statusObserver = new MutationObserver(() => {
+      if (!body.querySelector('#vx-assistant-status-extension') && body.querySelector('.vx-ap-stack')) {
+        snapshot = null;
+      }
       schedule();
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    statusObserver.observe(body, { childList: true, subtree: true });
+  }
+
+  function boot() {
+    const body = document.getElementById('vx-assistant-profile-body');
+    if (!body) {
+      bootAttempts += 1;
+      if (bootAttempts < 80) root.setTimeout(boot, 250);
+      return;
+    }
+
+    observeStatusBody(body);
     document.addEventListener('click', (event) => {
-      if (event.target?.closest?.('#vx-assistant-profile-entry')) {
+      if (event.target?.closest?.('#vx-assistant-profile-entry,[data-vx-root-tab="assistent"]')) {
         snapshot = null;
         root.setTimeout(schedule, 100);
       }
@@ -204,6 +155,6 @@
     schedule();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
-  else install();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
 })(typeof globalThis !== 'undefined' ? globalThis : this);
