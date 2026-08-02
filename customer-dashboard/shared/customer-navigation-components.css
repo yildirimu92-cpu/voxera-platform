@@ -44,13 +44,13 @@ body.vx-customer-design-foundation .mobile-nav-btn.vx-root-nav-active .mobile-na
   color: #1a6fe8;
 }
 
-body.vx-customer-design-foundation :where(.vx-nav-voice-details, .vx-nav-status-details) {
+body.vx-customer-design-foundation .vx-nav-voice-details {
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid var(--vx-line);
 }
 
-body.vx-customer-design-foundation :where(.vx-nav-voice-details, .vx-nav-status-details) > summary {
+body.vx-customer-design-foundation .vx-nav-voice-details > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -63,53 +63,17 @@ body.vx-customer-design-foundation :where(.vx-nav-voice-details, .vx-nav-status-
   cursor: pointer;
 }
 
-body.vx-customer-design-foundation :where(.vx-nav-voice-details, .vx-nav-status-details) > summary::-webkit-details-marker {
+body.vx-customer-design-foundation .vx-nav-voice-details > summary::-webkit-details-marker {
   display: none;
 }
 
-body.vx-customer-design-foundation :where(.vx-nav-voice-details, .vx-nav-status-details) > summary::after {
+body.vx-customer-design-foundation .vx-nav-voice-details > summary::after {
   color: var(--vx-muted);
   font-size: 17px;
   font-weight: 500;
   content: "+";
 }
 
-body.vx-customer-design-foundation :where(.vx-nav-voice-details, .vx-nav-status-details)[open] > summary::after {
+body.vx-customer-design-foundation .vx-nav-voice-details[open] > summary::after {
   content: "–";
-}
-
-body.vx-customer-design-foundation .vx-nav-status-summary {
-  margin-top: 12px;
-  padding: 11px 12px;
-  border-radius: 11px;
-  background: #ecfdf5;
-  color: #047857;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-body.vx-customer-design-foundation .vx-nav-status-summary.attention {
-  background: #fff7ed;
-  color: #9a3412;
-}
-
-body.vx-customer-design-foundation .vx-nav-status-summary.error {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-body.vx-customer-design-foundation .vx-as-capabilities-simple:not(.is-expanded) .vx-as-extra-capability {
-  display: none;
-}
-
-body.vx-customer-design-foundation .vx-as-capability-toggle {
-  margin-top: 10px;
-  padding: 8px 11px;
-  border: 0;
-  border-radius: 9px;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
 }

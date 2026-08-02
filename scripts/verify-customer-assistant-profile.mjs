@@ -66,8 +66,16 @@ for (const token of [
 
 for (const token of [
   'Fähigkeiten',
-  '<div class="vx-ap-title">Einrichtung</div>',
-  'Der aktuelle Zustand der wichtigsten Verbindungen.',
+  '<div class="vx-ap-title">Betriebsstatus</div>',
+  'Nur Abweichungen werden hervorgehoben. Technische Details bleiben optional.',
+  'function technicalSummary',
+  'function capabilityToggleHtml',
+  'data-vx-capability-toggle',
+  'type="button"',
+  'vx-as-capabilities-simple',
+  'vx-as-extra-capability',
+  'vx-nav-status-summary',
+  'vx-nav-status-details',
   "technicalRow('Telefonie'",
   "technicalRow('Stimme & Einstellungen'",
   'statusObserver.observe(body, { childList: true, subtree: true })'
@@ -111,7 +119,7 @@ for (const forbidden of [
 }
 
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-4/);
-assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260802-1/);
+assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
 assert.doesNotMatch(source.loader, /__vxVoicePreviewFallbackLoaderInstalled/);
@@ -137,6 +145,7 @@ assert.match(source.statusRuntime, /cache: 'no-store'/);
 assert.match(source.statusRuntime, /snapshot = null/);
 assert.match(source.statusRuntime, /new MutationObserver/);
 assert.doesNotMatch(source.statusRuntime, /observer\.observe\(document\.documentElement/);
+assert.doesNotMatch(source.statusRuntime, /createElement\('style'\)|style\.textContent| style="/);
 assert.match(source.preview, /requireCustomerCaller/);
 assert.match(source.preview, /voice_not_available_on_plan/);
 assert.match(source.preview, /preview_url,preview_text/);
