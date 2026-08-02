@@ -16,6 +16,7 @@ const DEFAULT_PREVIEW_HOSTS = new Set([
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Expose-Headers': 'X-Voxera-Preview-Source, X-Voxera-Preview-Notice',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
@@ -105,14 +106,15 @@ function resolveAudioContentType(headerValue, buffer) {
   return isAcceptedAudioContentType(declared) ? declared : '';
 }
 
-function audioResponse(buffer, contentType, source) {
+function audioResponse(buffer, contentType, source, notice = '') {
   return {
     statusCode: 200,
     headers: {
       ...headers,
       'Content-Type': contentType,
       'Cache-Control': 'no-store',
-      'X-Voxera-Preview-Source': source
+      'X-Voxera-Preview-Source': source,
+      ...(notice ? { 'X-Voxera-Preview-Notice': notice } : {})
     },
     body: buffer.toString('base64'),
     isBase64Encoded: true
@@ -144,7 +146,7 @@ async function readProviderError(response) {
   };
 }
 
-async function loadCatalogPreview(url, source = 'catalog') {
+async function loadCatalogPreview(url, source = 'catalog', notice = '') {
   const response = await fetch(url, {
     method: 'GET',
     headers: { Accept: 'audio/mpeg, audio/*, application/octet-stream' }
@@ -168,10 +170,10 @@ async function loadCatalogPreview(url, source = 'catalog') {
     });
   }
 
-  return audioResponse(buffer, resolvedType, source);
+  return audioResponse(buffer, resolvedType, source, notice);
 }
 
-async function loadElevenLabsMetadataPreview(voiceId, apiKey) {
+async function loadElevenLabsMetadataPreview(voiceId, apiKey, source = 'elevenlabs-metadata', notice = '') {
   const requestHeaders = { Accept: 'application/json' };
   if (apiKey) requestHeaders['xi-api-key'] = apiKey;
 
@@ -192,7 +194,7 @@ async function loadElevenLabsMetadataPreview(voiceId, apiKey) {
 
   const previewUrl = validatedPreviewUrl(payload.preview_url);
   if (!previewUrl) throw new Error('elevenlabs_voice_preview_url_missing');
-  return loadCatalogPreview(previewUrl, 'elevenlabs-metadata');
+  return loadCatalogPreview(previewUrl, source, notice);
 }
 
 async function synthesizePreview(voiceId, apiKey, metadataFailure, previewText) {
@@ -238,7 +240,7 @@ async function synthesizePreview(voiceId, apiKey, metadataFailure, previewText) 
     });
   }
 
-  return audioResponse(buffer, resolvedType, 'generated-managed-text');
+  return audioResponse(buffer, resolvedType, 'generated');
 }
 
 exports.handler = async (event) => {
@@ -317,17 +319,29 @@ exports.handler = async (event) => {
 
   const apiKey = String(process.env.ELEVENLABS_API_KEY || '').trim();
 
-  // Once Voxera manages the preview text, never substitute ElevenLabs' unrelated provider sample.
+  // Customer clicks must never consume TTS credits. Until the managed audio file exists,
+  // play ElevenLabs' provider sample and mark it visibly as a temporary fallback.
   if (hasManagedPreviewText) {
-    if (!apiKey) return json(503, { error: 'voice_preview_unavailable', reason: 'managed_preview_missing_and_tts_unavailable' });
     try {
-      return await synthesizePreview(voiceId, apiKey, null, managedPreviewText);
+      return await loadElevenLabsMetadataPreview(
+        voiceId,
+        apiKey,
+        'elevenlabs-provider-fallback',
+        'custom-preview-pending'
+      );
     } catch (error) {
-      console.error('[preview-voice] managed_preview_generation_failed', {
+      console.warn('[preview-voice] managed_preview_fallback_failed', {
         voice_id: voiceId,
-        message: error?.message || String(error)
+        message: error?.message || String(error),
+        provider_status: error?.provider?.provider_status || null,
+        provider_code: error?.provider?.provider_code || null
       });
-      return json(502, { error: 'voice_preview_unavailable', reason: 'managed_preview_generation_failed' });
+      return json(503, {
+        error: 'voice_preview_unavailable',
+        reason: 'managed_preview_not_generated',
+        provider_status: error?.provider?.provider_status || null,
+        provider_code: error?.provider?.provider_code || null
+      });
     }
   }
 
