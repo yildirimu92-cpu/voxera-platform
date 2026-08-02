@@ -4,15 +4,20 @@
   if (/\/activate(?:\.html)?$/i.test(String(root.location?.pathname || ''))) return;
   root.__vxCustomerDesignFoundationInstalled = true;
 
-  // Styling lives exclusively in customer-design-system.css.
-  const href = '/shared/customer-design-system.css?v=20260802-2';
-  if (!root.document.querySelector(`link[data-vx-customer-design-system="${href}"]`)) {
+  // Styling lives exclusively in explicit CSS modules.
+  const stylesheets = [
+    '/shared/customer-design-system.css?v=20260802-2',
+    '/shared/customer-assistant-components.css?v=20260802-1'
+  ];
+
+  stylesheets.forEach((href) => {
+    if (root.document.querySelector(`link[data-vx-customer-stylesheet="${href}"]`)) return;
     const link = root.document.createElement('link');
     link.rel = 'stylesheet';
     link.href = href;
-    link.dataset.vxCustomerDesignSystem = href;
+    link.dataset.vxCustomerStylesheet = href;
     root.document.head.appendChild(link);
-  }
+  });
 
   const markDocument = () => {
     root.document.documentElement.classList.add('vx-customer-design-foundation-html');
