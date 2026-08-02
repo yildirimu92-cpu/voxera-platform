@@ -158,26 +158,19 @@ async function updateVoice(sbAdmin, caller, body) {
   return respond(200, { success: true, voice });
 }
 
-async function generatePreview(sbAdmin, caller, body) {
-  const voiceId = text(body.voice_id, 80);
-  const previewText = normalizePreviewText(body.preview_text);
-  if (!validVoiceId(voiceId)) return respond(400, { success: false, error: 'Die Voice-ID ist ungültig.' });
-  if (previewText.length < 20) return respond(400, { success: false, error: 'Der Vorschautext muss mindestens 20 Zeichen enthalten.' });
-
-  const { data: voice, error: voiceError } = await sbAdmin
+async function ensureVoiceExists(sbAdmin, voiceId) {
+  const { data, error } = await sbAdmin
     .from('voxera_voices')
     .select('voice_id,display_name')
     .eq('voice_id', voiceId)
     .maybeSingle();
-  if (voiceError) return respond(500, { success: false, error: voiceError.message });
-  if (!voice) return respond(404, { success: false, error: 'Stimme wurde nicht gefunden.' });
+  return { voice: data || null, error };
+}
 
-  const apiKey = text(process.env.ELEVENLABS_API_KEY, 500);
-  if (!apiKey) return respond(500, { success: false, error: 'ELEVENLABS_API_KEY fehlt.' });
-
-  let ttsResponse;
+async function synthesizeMp3(voiceId, previewText, apiKey) {
+  let response;
   try {
-    ttsResponse = await fetch(
+    response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
       {
         method: 'POST',
@@ -194,32 +187,78 @@ async function generatePreview(sbAdmin, caller, body) {
       }
     );
   } catch (error) {
-    return respond(502, { success: false, error: 'ElevenLabs ist momentan nicht erreichbar.', detail: error.message });
+    return { error: { statusCode: 502, payload: { success: false, error: 'ElevenLabs ist momentan nicht erreichbar.', detail: error.message } } };
   }
 
-  if (!ttsResponse.ok) {
-    return respond(502, { success: false, error: 'ElevenLabs konnte die Vorschau nicht erzeugen.', ...(await providerError(ttsResponse)) });
+  if (!response.ok) {
+    return {
+      error: {
+        statusCode: 502,
+        payload: { success: false, error: 'ElevenLabs konnte die Vorschau nicht erzeugen.', ...(await providerError(response)) }
+      }
+    };
   }
 
-  const audio = Buffer.from(await ttsResponse.arrayBuffer());
+  const audio = Buffer.from(await response.arrayBuffer());
   if (!audio.length || audio.length > MAX_AUDIO_BYTES || !detectMp3(audio)) {
-    return respond(502, { success: false, error: 'ElevenLabs hat keine gültige MP3-Vorschau geliefert.' });
+    return { error: { statusCode: 502, payload: { success: false, error: 'ElevenLabs hat keine gültige MP3-Vorschau geliefert.' } } };
   }
+  return { audio };
+}
 
-  const objectPath = `${voiceId}/preview.mp3`;
+async function testPreview(sbAdmin, body) {
+  const voiceId = text(body.voice_id, 80);
+  const previewText = normalizePreviewText(body.preview_text);
+  if (!validVoiceId(voiceId)) return respond(400, { success: false, error: 'Die Voice-ID ist ungültig.' });
+  if (previewText.length < 20) return respond(400, { success: false, error: 'Der Vorschautext muss mindestens 20 Zeichen enthalten.' });
+
+  const lookup = await ensureVoiceExists(sbAdmin, voiceId);
+  if (lookup.error) return respond(500, { success: false, error: lookup.error.message });
+  if (!lookup.voice) return respond(404, { success: false, error: 'Stimme wurde nicht gefunden.' });
+
+  const apiKey = text(process.env.ELEVENLABS_API_KEY, 500);
+  if (!apiKey) return respond(500, { success: false, error: 'ELEVENLABS_API_KEY fehlt.' });
+
+  const result = await synthesizeMp3(voiceId, previewText, apiKey);
+  if (result.error) return respond(result.error.statusCode, result.error.payload);
+  return respond(200, {
+    success: true,
+    voice_id: voiceId,
+    content_type: 'audio/mpeg',
+    audio_base64: result.audio.toString('base64')
+  });
+}
+
+async function generatePreview(sbAdmin, caller, body) {
+  const voiceId = text(body.voice_id, 80);
+  const previewText = normalizePreviewText(body.preview_text);
+  if (!validVoiceId(voiceId)) return respond(400, { success: false, error: 'Die Voice-ID ist ungültig.' });
+  if (previewText.length < 20) return respond(400, { success: false, error: 'Der Vorschautext muss mindestens 20 Zeichen enthalten.' });
+
+  const lookup = await ensureVoiceExists(sbAdmin, voiceId);
+  if (lookup.error) return respond(500, { success: false, error: lookup.error.message });
+  if (!lookup.voice) return respond(404, { success: false, error: 'Stimme wurde nicht gefunden.' });
+
+  const apiKey = text(process.env.ELEVENLABS_API_KEY, 500);
+  if (!apiKey) return respond(500, { success: false, error: 'ELEVENLABS_API_KEY fehlt.' });
+
+  const result = await synthesizeMp3(voiceId, previewText, apiKey);
+  if (result.error) return respond(result.error.statusCode, result.error.payload);
+
+  // A unique object path prevents Supabase/CDN caches from serving the previous audio.
+  const objectPath = `${voiceId}/preview-${Date.now()}.mp3`;
   const { error: uploadError } = await sbAdmin.storage
     .from(BUCKET)
-    .upload(objectPath, audio, {
+    .upload(objectPath, result.audio, {
       contentType: 'audio/mpeg',
-      cacheControl: '31536000',
-      upsert: true
+      cacheControl: '86400',
+      upsert: false
     });
   if (uploadError) return respond(500, { success: false, error: `Vorschau konnte nicht gespeichert werden: ${uploadError.message}` });
 
   const publicResult = sbAdmin.storage.from(BUCKET).getPublicUrl(objectPath);
-  const baseUrl = String(publicResult?.data?.publicUrl || '').trim();
-  if (!baseUrl) return respond(500, { success: false, error: 'Öffentliche Vorschau-URL konnte nicht erzeugt werden.' });
-  const previewUrl = `${baseUrl}?v=${Date.now()}`;
+  const previewUrl = String(publicResult?.data?.publicUrl || '').trim();
+  if (!previewUrl) return respond(500, { success: false, error: 'Öffentliche Vorschau-URL konnte nicht erzeugt werden.' });
 
   const { data: updated, error: updateError } = await sbAdmin
     .from('voxera_voices')
@@ -232,7 +271,8 @@ async function generatePreview(sbAdmin, caller, body) {
   await audit(sbAdmin, caller, 'voice_catalog.preview.generate', {
     voice_id: voiceId,
     preview_text_length: previewText.length,
-    storage_bucket: BUCKET
+    storage_bucket: BUCKET,
+    storage_path: objectPath
   });
 
   return respond(200, { success: true, voice: updated, preview_url: previewUrl });
@@ -268,6 +308,7 @@ exports.handler = async (event) => {
     return respond(200, { success: true, voices: result.data, default_preview_text: DEFAULT_PREVIEW_TEXT });
   }
   if (action === 'update') return updateVoice(sbAdmin, caller, body);
+  if (action === 'test_preview') return testPreview(sbAdmin, body);
   if (action === 'generate_preview') return generatePreview(sbAdmin, caller, body);
 
   return respond(400, { success: false, error: 'Unbekannte Aktion.' });
