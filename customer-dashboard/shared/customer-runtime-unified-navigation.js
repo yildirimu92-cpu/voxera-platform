@@ -236,7 +236,10 @@
 
     ASSISTANT_VIEWS.forEach((item) => {
       const page = document.getElementById(item.pageId);
-      if (page) page.style.display = item.key === selected ? 'block' : 'none';
+      if (!page) return;
+      const active = item.key === selected;
+      page.hidden = !active;
+      page.style.display = active ? 'block' : 'none';
     });
 
     shell.switcher.querySelectorAll('[data-vx-assistant-view]').forEach((button) => {
