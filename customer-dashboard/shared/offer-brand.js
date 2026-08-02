@@ -247,7 +247,7 @@
   if (!root || !root.document || root.__voxeraCustomerCaseIntakeLoaded) return;
   root.__voxeraCustomerCaseIntakeLoaded = true;
   const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-case-intake.js?v=20260731-1';
+  script.src = '/shared/customer-runtime-case-intake.js?v=20260802-2';
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -307,7 +307,7 @@
   if (!root || !root.document || root.__voxeraCustomerDesignFoundationLoaded) return;
   root.__voxeraCustomerDesignFoundationLoaded = true;
   const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-design-foundation.js?v=20260802-1';
+  script.src = '/shared/customer-runtime-design-foundation.js?v=20260802-2';
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
