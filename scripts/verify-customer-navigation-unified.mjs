@@ -58,7 +58,7 @@ for (const token of [
 assert.match(source.navigation, /ROOT_NAV\.forEach\(\(item\) => \{[\s\S]*container\.appendChild\(node\)/);
 assert.match(source.navigation, /assistantTab\.appendChild\(operationalPage\)/);
 assert.match(source.navigation, /showAssistantView\('profile', false\)/);
-assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-1/);
+assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-2/);
 assert.match(source.assistant, /mehr-sub-assistant-profile/);
 assert.match(source.assistant, /vx-assistant-profile-entry/);
 assert.match(source.status, /vx-assistant-status-extension/);
