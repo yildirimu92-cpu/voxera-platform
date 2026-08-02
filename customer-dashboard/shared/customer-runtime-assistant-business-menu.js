@@ -139,3 +139,13 @@
     boot();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function loadVoxeraAssistantStatus(root) {
+  'use strict';
+  if (!root || !root.document || root.__vxAssistantStatusLoaderInstalled) return;
+  root.__vxAssistantStatusLoaderInstalled = true;
+  const script = root.document.createElement('script');
+  script.src = '/shared/customer-runtime-assistant-status.js?v=20260802-1';
+  script.async = false;
+  root.document.head.appendChild(script);
+})(typeof globalThis !== 'undefined' ? globalThis : this);
