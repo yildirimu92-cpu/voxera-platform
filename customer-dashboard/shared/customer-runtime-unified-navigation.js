@@ -77,7 +77,9 @@
     ));
     if (textNodes.length) {
       const target = textNodes[textNodes.length - 1];
-      if (String(target.nodeValue || '').trim() !== label) target.nodeValue = `\n        ${label}\n      `;
+      if (String(target.nodeValue || '').trim() !== label) target.nodeValue = `
+        ${label}
+      `;
       return;
     }
     let labelNode = node.querySelector('.vx-root-nav-label');
@@ -516,6 +518,14 @@
 
   function install() {
     document.addEventListener('click', (event) => {
+      const businessProfileShortcut = event.target?.closest?.('#vx-open-business-profile');
+      if (businessProfileShortcut) {
+        event.preventDefault();
+        event.stopPropagation();
+        showAssistantView('business', false);
+        return;
+      }
+
       const rootButton = event.target?.closest?.('[data-vx-root-tab]');
       if (rootButton) {
         const key = rootButton.dataset.vxRootTab;
