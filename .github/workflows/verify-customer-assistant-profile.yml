@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js'
+      - 'customer-dashboard/shared/customer-runtime-operational-updates.js'
       - 'customer-dashboard/shared/offer-brand.js'
       - 'customer-dashboard/netlify/functions/customer-assistant-profile.js'
       - 'customer-dashboard/netlify/functions/customer-update-assistant.js'
@@ -15,6 +17,8 @@ on:
     branches: [main]
     paths:
       - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js'
+      - 'customer-dashboard/shared/customer-runtime-operational-updates.js'
       - 'customer-dashboard/shared/offer-brand.js'
       - 'customer-dashboard/netlify/functions/customer-assistant-profile.js'
       - 'customer-dashboard/netlify/functions/customer-update-assistant.js'
