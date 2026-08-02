@@ -243,71 +243,25 @@
   };
 });
 
-(function loadCustomerCaseIntake(root) {
-  if (!root || !root.document || root.__voxeraCustomerCaseIntakeLoaded) return;
-  root.__voxeraCustomerCaseIntakeLoaded = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-case-intake.js?v=20260802-2';
-  script.async = false;
-  root.document.head.appendChild(script);
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+(function loadCustomerRuntimes(root) {
+  if (!root || !root.document) return;
 
-
-(function loadCustomerCalendarSettings(root) {
-  if (!root || !root.document || root.__voxeraCustomerCalendarSettingsLoaded) return;
-  root.__voxeraCustomerCalendarSettingsLoaded = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-calendar-settings.js?v=20260801-1';
-  script.async = false;
-  root.document.head.appendChild(script);
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-
-(function loadCustomerOperationalUpdates(root) {
-  if (!root || !root.document || root.__voxeraCustomerOperationalUpdatesLoaded) return;
-  root.__voxeraCustomerOperationalUpdatesLoaded = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-operational-updates.js?v=20260801-1';
-  script.async = false;
-  root.document.head.appendChild(script);
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-
-(function loadCustomerAssistantProfile(root) {
-  if (!root || !root.document || root.__voxeraCustomerAssistantProfileLoaded) return;
-  root.__voxeraCustomerAssistantProfileLoaded = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-assistant-profile.js?v=20260802-1';
-  script.async = false;
-  root.document.head.appendChild(script);
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-
-(function loadCustomerAssistantBusinessMenu(root) {
-  if (!root || !root.document || root.__voxeraCustomerAssistantBusinessMenuLoaded) return;
-  root.__voxeraCustomerAssistantBusinessMenuLoaded = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-assistant-business-menu.js?v=20260802-1';
-  script.async = false;
-  root.document.head.appendChild(script);
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-
-(function loadCustomerUnifiedNavigation(root) {
-  if (!root || !root.document || root.__voxeraCustomerUnifiedNavigationLoaded) return;
-  root.__voxeraCustomerUnifiedNavigationLoaded = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-unified-navigation.js?v=20260802-2';
-  script.async = false;
-  root.document.head.appendChild(script);
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-
-(function loadCustomerDesignFoundation(root) {
-  if (!root || !root.document || root.__voxeraCustomerDesignFoundationLoaded) return;
-  root.__voxeraCustomerDesignFoundationLoaded = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-design-foundation.js?v=20260802-2';
-  script.async = false;
-  root.document.head.appendChild(script);
+  [
+    ['__voxeraCustomerCaseIntakeLoaded', '/shared/customer-runtime-case-intake.js?v=20260802-2'],
+    ['__voxeraCustomerCalendarSettingsLoaded', '/shared/customer-runtime-calendar-settings.js?v=20260801-1'],
+    ['__voxeraCustomerOperationalUpdatesLoaded', '/shared/customer-runtime-operational-updates.js?v=20260802-2'],
+    ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260802-1'],
+    ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260802-1'],
+    ['__vxVoicePreviewFallbackLoaderInstalled', '/shared/customer-runtime-voice-preview-fallback.js?v=20260802-1'],
+    ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260802-1'],
+    ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260802-3'],
+    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260802-2']
+  ].forEach(([flag, src]) => {
+    if (root[flag]) return;
+    root[flag] = true;
+    const script = root.document.createElement('script');
+    script.src = src;
+    script.async = false;
+    root.document.head.appendChild(script);
+  });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
