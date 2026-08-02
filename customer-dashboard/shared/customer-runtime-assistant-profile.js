@@ -8,6 +8,7 @@
   let voices = [];
   let voiceFilter = 'all';
   let busy = false;
+  let previewLoading = false;
   let pendingVoiceId = '';
   let activeAudio = null;
   let activeAudioUrl = '';
@@ -120,14 +121,52 @@
       },
       body: options.body ? JSON.stringify(options.body) : undefined
     });
-    if (options.blob) {
-      if (!response.ok) throw new Error('Sprachvorschau konnte nicht geladen werden.');
-      return response.blob();
-    }
     let payload = {};
     try { payload = await response.json(); } catch { payload = {}; }
     if (!response.ok) throw new Error(payload.detail || payload.error || 'Aktion fehlgeschlagen.');
     return payload;
+  }
+
+  function previewErrorMessage(payload, status) {
+    const code = String(payload?.provider_code || payload?.metadata_code || payload?.error || '').trim();
+    const reason = String(payload?.reason || '').trim();
+    if (['payment_required', 'quota_exceeded', 'credits_exhausted'].includes(code)) {
+      return 'Für die individuelle Sprachvorschau ist ein aktives ElevenLabs-Abonnement oder Guthaben erforderlich.';
+    }
+    if (code === 'missing_permissions') {
+      return 'Der ElevenLabs-Schlüssel benötigt Lesezugriff auf Stimmen.';
+    }
+    if (reason === 'managed_preview_not_generated') {
+      return 'Die individuelle Vorschau wurde noch nicht erzeugt. Bis dahin ist keine Ersatzvorschau verfügbar.';
+    }
+    if (status === 401) return 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.';
+    if (status === 403) return 'Diese Stimme ist in Ihrem Paket nicht verfügbar.';
+    return 'Sprachvorschau konnte nicht geladen werden.';
+  }
+
+  async function loadVoicePreview(voiceId) {
+    const accessToken = await token();
+    const response = await fetch('/.netlify/functions/preview-voice', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+        Accept: 'audio/mpeg, audio/*, application/octet-stream'
+      },
+      body: JSON.stringify({ voice_id: voiceId }),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      let payload = {};
+      try { payload = await response.json(); } catch (_error) {}
+      throw new Error(previewErrorMessage(payload, response.status));
+    }
+
+    return {
+      blob: await response.blob(),
+      notice: String(response.headers.get('X-Voxera-Preview-Notice') || '')
+    };
   }
 
   function setStatus(page, message, tone) {
@@ -176,7 +215,7 @@
 
   function voiceCard(voice) {
     const selected = voice.voice_id === profile?.assistant?.voice_id;
-    return '<div class="vx-ap-voice' + (selected ? ' selected' : '') + '"><div class="vx-ap-voice-top"><div><div class="vx-ap-voice-name">' + esc(voice.display_name || 'Stimme') + '</div><div class="vx-ap-meta">' + esc(genderLabel(voice.gender)) + (voice.language ? ' · ' + esc(voice.language) : '') + '</div></div>' + (selected ? '<span class="vx-ap-pill selected">Aktuell</span>' : '<span class="vx-ap-pill">' + esc(voice.available_from_plan || '') + '</span>') + '</div><div class="vx-ap-meta">' + esc(voice.description || 'Kuratierte Voxera-Stimme') + '</div><div class="vx-ap-actions vx-ap-actions--push"><button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(voice.voice_id) + '"' + (busy ? ' disabled' : '') + '><i class="ph-bold ph-play" aria-hidden="true"></i> Anhören</button>' + (selected ? '' : '<button type="button" class="vx-ap-btn" data-vx-select-voice="' + esc(voice.voice_id) + '"' + (!profile?.permissions?.can_change_voice || busy ? ' disabled' : '') + '>Auswählen</button>') + '</div></div>';
+    return '<div class="vx-ap-voice' + (selected ? ' selected' : '') + '"><div class="vx-ap-voice-top"><div><div class="vx-ap-voice-name">' + esc(voice.display_name || 'Stimme') + '</div><div class="vx-ap-meta">' + esc(genderLabel(voice.gender)) + (voice.language ? ' · ' + esc(voice.language) : '') + '</div></div>' + (selected ? '<span class="vx-ap-pill selected">Aktuell</span>' : '<span class="vx-ap-pill">' + esc(voice.available_from_plan || '') + '</span>') + '</div><div class="vx-ap-meta">' + esc(voice.description || 'Kuratierte Voxera-Stimme') + '</div><div class="vx-ap-actions vx-ap-actions--push"><button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(voice.voice_id) + '"' + (busy || previewLoading ? ' disabled' : '') + '><i class="ph-bold ph-play" aria-hidden="true"></i> Anhören</button>' + (selected ? '' : '<button type="button" class="vx-ap-btn" data-vx-select-voice="' + esc(voice.voice_id) + '"' + (!profile?.permissions?.can_change_voice || busy ? ' disabled' : '') + '>Auswählen</button>') + '</div></div>';
   }
 
   function renderAssistant() {
@@ -192,7 +231,7 @@
     const completed = Number(business.completed_fields || 0);
     const total = Number(business.total_fields || 4);
     body.innerHTML = '<div id="vx-assistant-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-stack">' +
-      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Stimme</div><div class="vx-ap-meta">Wählen Sie aus kuratierten Stimmen. Technische Sprachparameter bleiben geschützt.</div></div></div><div class="vx-ap-current"><div class="vx-ap-avatar"><i class="ph-bold ph-waveform" aria-hidden="true"></i></div><div class="vx-ap-current-copy"><div class="vx-ap-title">' + esc(current?.display_name || 'Standardstimme') + '</div><div class="vx-ap-meta">' + esc(current ? genderLabel(current.gender) : 'Von Voxera eingerichtet') + '</div></div>' + (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '">Anhören</button>' : '') + '</div>' +
+      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Stimme</div><div class="vx-ap-meta">Wählen Sie aus kuratierten Stimmen. Technische Sprachparameter bleiben geschützt.</div></div></div><div class="vx-ap-current"><div class="vx-ap-avatar"><i class="ph-bold ph-waveform" aria-hidden="true"></i></div><div class="vx-ap-current-copy"><div class="vx-ap-title">' + esc(current?.display_name || 'Standardstimme') + '</div><div class="vx-ap-meta">' + esc(current ? genderLabel(current.gender) : 'Von Voxera eingerichtet') + '</div></div>' + (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '"' + (previewLoading ? ' disabled' : '') + '>Anhören</button>' : '') + '</div>' +
       (profile.permissions?.can_change_voice ? '<div class="vx-ap-filters"><button type="button" class="vx-ap-filter' + (voiceFilter === 'all' ? ' active' : '') + '" data-vx-filter="all">Alle</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'female' ? ' active' : '') + '" data-vx-filter="female">Weiblich</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'male' ? ' active' : '') + '" data-vx-filter="male">Männlich</button></div><div class="vx-ap-voices">' + (filtered.length ? filtered.map(voiceCard).join('') : '<div class="vx-ap-empty">Für diesen Filter sind keine Stimmen freigeschaltet.</div>') + '</div>' : '<div class="vx-ap-status warning vx-ap-status--inline">Die Stimmenauswahl ist in Ihrem aktuellen Paket nicht freigeschaltet.</div>') + '</section>' +
       '<section class="vx-ap-card"><div class="vx-ap-title">Name und Auftreten</div><div class="vx-ap-meta">Der Name ist die Bezeichnung, mit der sich der Assistent meldet.</div>' +
       (profile.permissions?.can_change_name ? '<div class="vx-ap-field"><label>Name des Assistenten</label><input id="vx-assistant-name" maxlength="40" value="' + esc(profile.assistant?.name || '') + '" placeholder="z. B. Lea"></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-assistant-name-save"' + (busy ? ' disabled' : '') + '>Name speichern</button></div>' : '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Name</span><span class="vx-ap-summary-value">' + esc(profile.assistant?.name || 'Von Voxera eingerichtet') + '</span></div></div>') +
@@ -328,32 +367,37 @@
       activeAudio = null;
     }
     if (activeAudioUrl) {
-      URL.revokeObjectURL(activeAudioUrl);
+      root.URL.revokeObjectURL(activeAudioUrl);
       activeAudioUrl = '';
     }
   }
 
   async function previewVoice(voiceId, button) {
-    if (!voiceId || busy) return;
+    if (!voiceId || busy || previewLoading) return;
+    previewLoading = true;
     stopAudio();
+    setStatus('assistant', '', '');
+
     const original = button?.innerHTML;
-    if (button) {
-      button.disabled = true;
-      button.textContent = 'Wird geladen …';
-    }
+    const previewButtons = Array.from(document.querySelectorAll('[data-vx-preview]'));
+    previewButtons.forEach((node) => { node.disabled = true; });
+    if (button) button.textContent = 'Wird geladen …';
+
     try {
-      const blob = await request('preview-voice', { method: 'POST', body: { voice_id: voiceId }, blob: true });
-      activeAudioUrl = URL.createObjectURL(blob);
+      const result = await loadVoicePreview(voiceId);
+      activeAudioUrl = root.URL.createObjectURL(result.blob);
       activeAudio = new Audio(activeAudioUrl);
       activeAudio.addEventListener('ended', stopAudio, { once: true });
       await activeAudio.play();
+      if (result.notice === 'custom-preview-pending') {
+        setStatus('assistant', 'Vorläufige Standardvorschau. Der individuelle Voxera-Text wird verfügbar, sobald er im Admin erzeugt wurde.', 'warning');
+      }
     } catch (error) {
       setStatus('assistant', error?.message || 'Sprachvorschau konnte nicht abgespielt werden.', 'error');
     } finally {
-      if (button) {
-        button.disabled = false;
-        button.innerHTML = original || 'Anhören';
-      }
+      previewLoading = false;
+      previewButtons.forEach((node) => { node.disabled = false; });
+      if (button) button.innerHTML = original || 'Anhören';
     }
   }
 
