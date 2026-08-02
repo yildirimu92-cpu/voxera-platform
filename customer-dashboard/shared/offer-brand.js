@@ -250,11 +250,11 @@
     ['__voxeraCustomerCaseIntakeLoaded', '/shared/customer-runtime-case-intake.js?v=20260802-2'],
     ['__voxeraCustomerCalendarSettingsLoaded', '/shared/customer-runtime-calendar-settings.js?v=20260801-1'],
     ['__voxeraCustomerOperationalUpdatesLoaded', '/shared/customer-runtime-operational-updates.js?v=20260802-2'],
-    ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260802-3'],
+    ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260802-4'],
     ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260802-1'],
     ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260802-1'],
-    ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260802-4'],
-    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260802-3']
+    ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260802-5'],
+    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260802-4']
   ].forEach(([flag, src]) => {
     if (root[flag]) return;
     root[flag] = true;
