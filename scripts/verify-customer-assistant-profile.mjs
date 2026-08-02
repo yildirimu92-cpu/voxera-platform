@@ -106,7 +106,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-2/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-3/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260802-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);

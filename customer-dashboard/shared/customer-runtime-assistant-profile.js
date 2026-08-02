@@ -19,45 +19,23 @@
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
   }[char]));
 
-  function listContainer() {
-    const main = document.getElementById('mehr-main');
-    return main?.querySelector('.vx-page-header')?.nextElementSibling || null;
-  }
-
-  function createEntry(id, icon, title, subtitle, handler) {
-    if (document.getElementById(id)) return;
-    const list = listContainer();
-    if (!list) return;
-    const entry = document.createElement('div');
-    entry.id = id;
-    entry.className = 'vx-settings-entry';
-    entry.innerHTML = '<div class="vx-settings-entry-icon"><i class="ph-bold ' + icon + '" aria-hidden="true"></i></div><div class="vx-settings-entry-copy"><div class="vx-settings-entry-title">' + esc(title) + '</div><div class="vx-settings-entry-subtitle">' + esc(subtitle) + '</div></div><i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>';
-    entry.addEventListener('click', handler);
-    const calendar = document.getElementById('vx-calendar-settings-entry');
-    const help = Array.from(list.children).find((child) => /Hilfe/.test(child.textContent || ''));
-    list.insertBefore(entry, calendar || help || null);
-  }
-
-  function createPage(id, title, subtitle, bodyId, backHandler) {
-    if (document.getElementById(id)) return;
-    const tab = document.getElementById('tab-mehr');
-    if (!tab) return;
-    const page = document.createElement('div');
-    page.id = id;
-    page.style.display = 'none';
-    page.innerHTML = '<div class="vx-page-header vx-page-header--with-back"><button type="button" class="vx-back-btn" data-vx-ap-back><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><div class="vx-page-header-copy"><div class="vx-page-header-title">' + esc(title) + '</div><div class="vx-page-header-subtitle">' + esc(subtitle) + '</div></div></div><div id="' + bodyId + '"></div>';
-    tab.appendChild(page);
-    page.querySelector('[data-vx-ap-back]').addEventListener('click', backHandler);
+  function ensurePage(id, bodyId, label) {
+    const tab = document.getElementById('tab-assistent');
+    if (!tab) return false;
+    if (!document.getElementById(id)) {
+      const page = document.createElement('div');
+      page.id = id;
+      page.hidden = true;
+      page.setAttribute('aria-label', label);
+      page.innerHTML = '<div id="' + bodyId + '"></div>';
+      tab.appendChild(page);
+    }
+    return true;
   }
 
   function inject() {
-    const main = document.getElementById('mehr-main');
-    const tab = document.getElementById('tab-mehr');
-    if (!main || !tab || !listContainer()) return false;
-    createEntry('vx-assistant-profile-entry', 'ph-user-sound', 'Mein Assistent', 'Stimme, Name und Auftreten', openAssistant);
-    createEntry('vx-business-profile-entry', 'ph-buildings', 'Geschäftsprofil', 'Dauerhaftes Wissen des Assistenten', openBusiness);
-    createPage('mehr-sub-assistant-profile', 'Mein Assistent', 'Nur die wichtigsten und sicheren Anpassungen.', 'vx-assistant-profile-body', back);
-    createPage('mehr-sub-business-profile', 'Geschäftsprofil', 'Dauerhafte Angaben zu Ihrem Unternehmen.', 'vx-business-profile-body', back);
+    if (!ensurePage('mehr-sub-assistant-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
+    if (!ensurePage('mehr-sub-business-profile', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
     if (!document.getElementById('vx-assistant-voice-modal')) {
       const modal = document.createElement('div');
       modal.id = 'vx-assistant-voice-modal';
@@ -71,34 +49,11 @@
     return true;
   }
 
-  function showPage(id) {
-    const tab = document.getElementById('tab-mehr');
-    const main = document.getElementById('mehr-main');
-    if (!tab || !main) return;
-    main.style.display = 'none';
-    tab.querySelectorAll('[id^="mehr-sub-"]').forEach((node) => { node.style.display = 'none'; });
-    const target = document.getElementById(id);
-    if (target) target.style.display = 'block';
-  }
-
-  function openAssistant() {
-    showPage('mehr-sub-assistant-profile');
-    renderAssistant();
+  function open(view) {
+    if (!inject()) return;
+    if (view === 'business') renderBusiness();
+    else renderAssistant();
     if (!profile) load();
-  }
-
-  function openBusiness() {
-    showPage('mehr-sub-business-profile');
-    renderBusiness();
-    if (!profile) load();
-  }
-
-  function back() {
-    stopAudio();
-    const tab = document.getElementById('tab-mehr');
-    tab?.querySelectorAll('[id^="mehr-sub-"]').forEach((node) => { node.style.display = 'none'; });
-    const main = document.getElementById('mehr-main');
-    if (main) main.style.display = '';
   }
 
   async function token() {
@@ -262,7 +217,7 @@
     document.querySelectorAll('[data-vx-preview]').forEach((node) => node.addEventListener('click', () => previewVoice(node.dataset.vxPreview, node)));
     document.querySelectorAll('[data-vx-select-voice]').forEach((node) => node.addEventListener('click', () => openVoiceModal(node.dataset.vxSelectVoice)));
     document.getElementById('vx-assistant-name-save')?.addEventListener('click', saveName);
-    document.getElementById('vx-open-business-profile')?.addEventListener('click', openBusiness);
+    document.getElementById('vx-open-business-profile')?.addEventListener('click', () => root.vxShowAssistantView?.('business', true));
   }
 
   async function load() {
@@ -410,6 +365,7 @@
     root.addEventListener('beforeunload', stopAudio, { once: true });
   }
 
+  root.vxAssistantProfileOpen = open;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
 })(typeof globalThis !== 'undefined' ? globalThis : this);
