@@ -1,0 +1,46 @@
+name: Apply Delete Hidden Assistant Bridge
+
+on:
+  push:
+    branches:
+      - agent/delete-hidden-assistant-settings-bridge
+    paths:
+      - 'scripts/.bridge-script.b64.part-*'
+      - '.github/workflows/apply-delete-hidden-assistant-settings-bridge.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/delete-hidden-assistant-settings-bridge
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Rebuild migration script
+        run: cat scripts/.bridge-script.b64.part-* | base64 --decode > scripts/apply-delete-hidden-assistant-settings-bridge.mjs
+      - name: Apply migration
+        run: node scripts/apply-delete-hidden-assistant-settings-bridge.mjs
+      - name: Verify changed customer runtimes
+        run: |
+          node --check customer-dashboard/shared/customer-runtime-assistant-profile.js
+          node --check customer-dashboard/shared/customer-runtime-unified-navigation.js
+          node scripts/verify-customer-navigation-unified.mjs
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/verify-customer-assistant-profile.mjs
+          node scripts/audit-customer-runtime-reachability.mjs
+      - name: Commit final cleanup
+        run: |
+          rm scripts/apply-delete-hidden-assistant-settings-bridge.mjs
+          git rm scripts/.bridge-script.b64.part-*
+          git rm .github/workflows/apply-delete-hidden-assistant-settings-bridge.yml
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Delete hidden assistant settings bridge"
+          git push origin HEAD:agent/delete-hidden-assistant-settings-bridge
