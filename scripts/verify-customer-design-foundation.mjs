@@ -45,10 +45,10 @@ assert.ok(lineCount(navigationCss) <= 140, 'navigation component CSS exceeded it
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
-  '/shared/customer-design-system.css?v=20260802-2',
-  '/shared/customer-assistant-components.css?v=20260802-1',
+  '/shared/customer-design-system.css?v=20260802-3',
+  '/shared/customer-assistant-components.css?v=20260802-2',
   '/shared/customer-assistant-status.css?v=20260802-1',
-  '/shared/customer-support-components.css?v=20260802-1',
+  '/shared/customer-support-components.css?v=20260802-2',
   '/shared/customer-navigation-components.css?v=20260802-2',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
@@ -59,7 +59,11 @@ for (const token of [
 }
 
 for (const token of [
-  '--vx-font-ui',
+  '--vx-font-ui: "Inter", -apple-system',
+  '--vx-font-size-button',
+  '--vx-control-min-height',
+  '--vx-control-padding-inline',
+  '--vx-control-gap',
   '--vx-radius-card',
   '--vx-mobile-nav-space',
   'env(safe-area-inset-bottom, 0px)',
@@ -77,7 +81,14 @@ for (const token of [
   '#mnav-mehr',
   '.vx-assistant-root-switch',
   '.vx-page-header',
-  'font-size: 16px',
+  '.vx-ap-btn',
+  '.vx-ops-btn',
+  '.vx-as-capability-toggle',
+  'display: inline-flex',
+  'padding: var(--vx-control-padding-block) var(--vx-control-padding-inline)',
+  'white-space: normal',
+  'overflow-wrap: anywhere',
+  'font-size: var(--vx-font-size-body-mobile)',
   'prefers-reduced-motion'
 ]) {
   assert.ok(foundationCss.includes(token), `foundation CSS missing: ${token}`);
@@ -90,10 +101,19 @@ for (const token of [
   '.vx-ap-actions--end',
   '.vx-ap-voices',
   '.vx-ap-modal',
-  '.vx-settings-entry',
-  '.vx-page-header--with-back'
+  '.vx-ap-filter',
+  'min-height: 36px',
+  '.vx-ap-actions > .vx-ap-btn'
 ]) {
   assert.ok(assistantCss.includes(token), `assistant CSS missing: ${token}`);
+}
+
+for (const forbidden of [
+  '.vx-settings-entry',
+  '.vx-page-header--with-back',
+  '.vx-page-header-copy'
+]) {
+  assert.ok(!assistantCss.includes(forbidden), `assistant CSS still contains obsolete selector: ${forbidden}`);
 }
 
 for (const token of [
@@ -110,6 +130,9 @@ for (const token of [
   '#vox-support-request-overlay',
   '.vox-support-modal',
   'html.vx-support-modal-open',
+  '.vox-support-close',
+  'width: 40px',
+  'height: 40px',
   '.vx-feedback-error',
   '.vx-feedback-success',
   '@media (max-width: 520px)'
@@ -212,6 +235,15 @@ for (const forbidden of [
   assert.ok(!supportRuntime.includes(forbidden), `support runtime still owns presentation: ${forbidden}`);
 }
 
+for (const forbidden of [
+  '"DM Sans"',
+  '"Plus Jakarta Sans"',
+  '.vx-ap-card button',
+  '.vx-ops-card button'
+]) {
+  assert.ok(!foundationCss.includes(forbidden), `foundation CSS still contains mixed or broad control rule: ${forbidden}`);
+}
+
 for (const [name, css] of [
   ['foundation', foundationCss],
   ['assistant', assistantCss],
@@ -225,7 +257,7 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-4/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260802-5/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
