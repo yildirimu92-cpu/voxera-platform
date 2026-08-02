@@ -49,7 +49,8 @@ const designRuntimes = [
   path.join(sharedRoot, 'customer-runtime-assistant-profile.js'),
   path.join(sharedRoot, 'customer-runtime-assistant-status.js'),
   path.join(sharedRoot, 'customer-runtime-case-intake.js'),
-  path.join(sharedRoot, 'customer-runtime-design-foundation.js')
+  path.join(sharedRoot, 'customer-runtime-design-foundation.js'),
+  path.join(sharedRoot, 'customer-runtime-operational-updates.js')
 ];
 
 for (const file of designRuntimes) {
