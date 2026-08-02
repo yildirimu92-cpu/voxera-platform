@@ -39,9 +39,9 @@
 
   function setVisible(node) {
     if (!node) return;
-    node.hidden = false;
-    node.removeAttribute('aria-hidden');
-    node.style.removeProperty('display');
+    if (node.hidden) node.hidden = false;
+    if (node.hasAttribute('aria-hidden')) node.removeAttribute('aria-hidden');
+    if (node.style.display) node.style.removeProperty('display');
   }
 
   function setLabel(node, label) {
@@ -50,9 +50,11 @@
       child.nodeType === 3 && String(child.nodeValue || '').trim()
     ));
     if (textNodes.length) {
-      textNodes[textNodes.length - 1].nodeValue = `\n        ${label}\n      `;
+      const target = textNodes[textNodes.length - 1];
+      if (String(target.nodeValue || '').trim() !== label) target.nodeValue = `\n        ${label}\n      `;
       return;
     }
+    if (node.querySelector('.vx-root-nav-label')) return;
     const text = document.createElement('span');
     text.className = 'vx-root-nav-label';
     text.textContent = label;
@@ -64,11 +66,11 @@
     const icon = node.querySelector('i');
     if (!icon) return;
     Array.from(icon.classList).forEach((name) => {
-      if (name.startsWith('ph-') && !['ph-light', 'ph-bold', 'ph-fill'].includes(name)) {
+      if (name.startsWith('ph-') && !['ph-light', 'ph-bold', 'ph-fill'].includes(name) && name !== iconName) {
         icon.classList.remove(name);
       }
     });
-    icon.classList.add(iconName);
+    if (!icon.classList.contains(iconName)) icon.classList.add(iconName);
   }
 
   function normalizeRootNavigation() {
@@ -84,20 +86,30 @@
       setIcon(desktop, item.icon);
       setIcon(mobile, item.icon);
       [desktop, mobile].filter(Boolean).forEach((node) => {
-        node.dataset.vxRootTab = item.key;
-        node.setAttribute('aria-label', item.label);
+        if (node.dataset.vxRootTab !== item.key) node.dataset.vxRootTab = item.key;
+        if (node.getAttribute('aria-label') !== item.label) node.setAttribute('aria-label', item.label);
       });
     });
 
     const assistantDesktop = document.getElementById('nav-assistent');
     const reportDesktop = document.getElementById('nav-auswertung');
-    if (assistantDesktop && reportDesktop && assistantDesktop.parentElement === reportDesktop.parentElement) {
+    if (
+      assistantDesktop &&
+      reportDesktop &&
+      assistantDesktop.parentElement === reportDesktop.parentElement &&
+      assistantDesktop.nextElementSibling !== reportDesktop
+    ) {
       reportDesktop.parentElement.insertBefore(assistantDesktop, reportDesktop);
     }
 
     const assistantMobile = document.getElementById('mnav-assistent');
     const reportMobile = document.getElementById('mnav-auswertung');
-    if (assistantMobile && reportMobile && assistantMobile.parentElement === reportMobile.parentElement) {
+    if (
+      assistantMobile &&
+      reportMobile &&
+      assistantMobile.parentElement === reportMobile.parentElement &&
+      assistantMobile.nextElementSibling !== reportMobile
+    ) {
       reportMobile.parentElement.insertBefore(assistantMobile, reportMobile);
     }
   }
@@ -109,18 +121,19 @@
 
     assistantTab.classList.add('vx-unified-assistant-root');
     if (assistantPage.parentElement !== assistantTab) assistantTab.appendChild(assistantPage);
-    assistantPage.style.display = 'block';
+    if (assistantPage.style.display !== 'block') assistantPage.style.display = 'block';
 
     const backButton = assistantPage.querySelector('[data-vx-ap-back]');
-    if (backButton) backButton.style.display = 'none';
+    if (backButton && backButton.style.display !== 'none') backButton.style.display = 'none';
     const title = assistantPage.querySelector('.vx-page-header-title');
-    if (title) title.textContent = 'Assistent';
+    if (title && String(title.textContent || '').trim() !== 'Assistent') title.textContent = 'Assistent';
     const subtitle = title?.parentElement?.querySelector('div:nth-child(2)');
-    if (subtitle) subtitle.textContent = 'Stimme, Auftreten und die wichtigsten Funktionen.';
+    const subtitleCopy = 'Stimme, Auftreten und die wichtigsten Funktionen.';
+    if (subtitle && String(subtitle.textContent || '').trim() !== subtitleCopy) subtitle.textContent = subtitleCopy;
 
     document.getElementById('vx-assistant-profile-entry')?.remove();
     const section = document.getElementById('vx-assistant-business-section');
-    if (section) section.textContent = 'Geschäft';
+    if (section && String(section.textContent || '').trim() !== 'Geschäft') section.textContent = 'Geschäft';
     return true;
   }
 
@@ -150,9 +163,10 @@
     if (!card) return;
     card.classList.add('vx-as-capabilities-simple');
     const title = card.querySelector('.vx-ap-title');
-    if (title) title.textContent = 'Fähigkeiten';
+    if (title && String(title.textContent || '').trim() !== 'Fähigkeiten') title.textContent = 'Fähigkeiten';
     const meta = card.querySelector('.vx-ap-meta');
-    if (meta) meta.textContent = 'Die wichtigsten Aufgaben, die Ihr Assistent aktuell übernimmt.';
+    const metaCopy = 'Die wichtigsten Aufgaben, die Ihr Assistent aktuell übernimmt.';
+    if (meta && String(meta.textContent || '').trim() !== metaCopy) meta.textContent = metaCopy;
 
     const capabilities = Array.from(card.querySelectorAll('.vx-as-cap'));
     capabilities.forEach((item, index) => item.classList.toggle('vx-as-extra-capability', index >= 4));
@@ -242,7 +256,7 @@
   function install() {
     apply();
     const observer = new MutationObserver(schedule);
-    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
     document.addEventListener('click', (event) => {
       if (event.target?.closest?.('[data-vx-root-tab]')) root.setTimeout(syncActiveNavigation, 0);
     });
