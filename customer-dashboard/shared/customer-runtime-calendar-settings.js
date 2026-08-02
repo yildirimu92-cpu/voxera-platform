@@ -223,6 +223,7 @@
     const main = document.getElementById('mehr-main');
     const page = document.getElementById('mehr-sub-kalender');
     if (!main || !page) return;
+    page.removeAttribute('style');
     main.hidden = true;
     page.hidden = false;
     render();
