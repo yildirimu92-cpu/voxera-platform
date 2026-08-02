@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - 'customer-dashboard/shared/customer-design-system.css'
+      - 'customer-dashboard/shared/customer-assistant-components.css'
       - 'customer-dashboard/shared/customer-runtime-design-foundation.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
       - 'customer-dashboard/shared/offer-brand.js'
       - 'scripts/verify-customer-design-foundation.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
@@ -12,7 +14,9 @@ on:
     branches: [main]
     paths:
       - 'customer-dashboard/shared/customer-design-system.css'
+      - 'customer-dashboard/shared/customer-assistant-components.css'
       - 'customer-dashboard/shared/customer-runtime-design-foundation.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
       - 'customer-dashboard/shared/offer-brand.js'
       - 'scripts/verify-customer-design-foundation.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
