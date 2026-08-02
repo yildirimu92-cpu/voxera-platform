@@ -3,26 +3,20 @@ name: Verify Customer Design Foundation
 on:
   pull_request:
     paths:
-      - 'customer-dashboard/shared/customer-design-system.css'
-      - 'customer-dashboard/shared/customer-assistant-components.css'
-      - 'customer-dashboard/shared/customer-assistant-status.css'
-      - 'customer-dashboard/shared/customer-runtime-design-foundation.js'
-      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
-      - 'customer-dashboard/shared/customer-runtime-assistant-status.js'
-      - 'customer-dashboard/shared/offer-brand.js'
+      - 'customer-dashboard/**/*.css'
+      - 'customer-dashboard/**/*.html'
+      - 'customer-dashboard/shared/**/*.js'
       - 'scripts/verify-customer-design-foundation.mjs'
+      - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
   push:
     branches: [main]
     paths:
-      - 'customer-dashboard/shared/customer-design-system.css'
-      - 'customer-dashboard/shared/customer-assistant-components.css'
-      - 'customer-dashboard/shared/customer-assistant-status.css'
-      - 'customer-dashboard/shared/customer-runtime-design-foundation.js'
-      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
-      - 'customer-dashboard/shared/customer-runtime-assistant-status.js'
-      - 'customer-dashboard/shared/offer-brand.js'
+      - 'customer-dashboard/**/*.css'
+      - 'customer-dashboard/**/*.html'
+      - 'customer-dashboard/shared/**/*.js'
       - 'scripts/verify-customer-design-foundation.mjs'
+      - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
 
 jobs:
@@ -34,3 +28,5 @@ jobs:
         with:
           node-version: '20'
       - run: node scripts/verify-customer-design-foundation.mjs
+      - name: Inventory design ownership
+        run: node scripts/audit-customer-design-ownership.mjs
