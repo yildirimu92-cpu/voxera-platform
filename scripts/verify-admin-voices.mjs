@@ -21,13 +21,23 @@ for (const key of ['runtime', 'endpoint', 'loader', 'customerPreview']) {
 for (const token of [
   'Stimmenkatalog',
   'Vorschautext',
-  'Vorschau neu erzeugen',
+  'Vorschau erzeugen und speichern',
+  'Test anhören',
   "callAdminFunction('admin-voices'",
+  "action: 'test_preview'",
   "action: 'generate_preview'",
   'assigned_customers',
   'Im Kundenportal aktiv',
-  'Standardstimme'
+  'Standardstimme',
+  'section-ai-setup',
+  'ai-tab-voices',
+  'ai-panel-voices'
 ]) assert.match(source.runtime, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+
+assert.doesNotMatch(source.runtime, /getElementById\('section-settings'\)/);
+assert.match(source.runtime, /root\.aiShowTab/);
+assert.match(source.runtime, /audio_base64/);
+assert.match(source.runtime, /URL\.createObjectURL/);
 
 assert.match(source.endpoint, /requireAdminCaller/);
 assert.match(source.endpoint, /requiredCapability: 'plan:write'/);
@@ -37,14 +47,23 @@ assert.match(source.endpoint, /storage\s*\.from\(BUCKET\)\s*\.upload/);
 assert.match(source.endpoint, /output_format=mp3_44100_128/);
 assert.match(source.endpoint, /text: previewText/);
 assert.match(source.endpoint, /detectMp3/);
+assert.match(source.endpoint, /action === 'test_preview'/);
+assert.match(source.endpoint, /audio_base64: result\.audio\.toString\('base64'\)/);
+assert.match(source.endpoint, /preview-\$\{Date\.now\(\)\}\.mp3/);
+assert.match(source.endpoint, /upsert: false/);
 assert.match(source.endpoint, /voice_catalog\.preview\.generate/);
 assert.doesNotMatch(source.endpoint, /delete\(\)/);
 assert.doesNotMatch(source.endpoint, /body\.api_key/);
 
-assert.match(source.loader, /admin-runtime-voices\.js\?v=20260802-1/);
+assert.match(source.loader, /admin-runtime-voices\.js\?v=20260802-2/);
 assert.match(source.customerPreview, /environmentHost\(process\.env\.SUPABASE_URL\)/);
 assert.match(source.customerPreview, /preview_url,preview_text/);
-assert.match(source.customerPreview, /voice\.preview_text/);
+assert.match(source.customerPreview, /hasManagedPreviewText/);
+assert.match(source.customerPreview, /isManagedPreviewUrl/);
+assert.match(source.customerPreview, /isLegacyManagedPreviewUrl/);
+assert.match(source.customerPreview, /ignored_non_versioned_or_provider_preview/);
+assert.match(source.customerPreview, /managed_preview_missing_and_tts_unavailable/);
+assert.match(source.customerPreview, /'Cache-Control': 'no-store'/);
 
 assert.match(source.migration, /add column if not exists preview_text text/);
 assert.match(source.migration, /voice-previews/);
