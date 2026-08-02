@@ -7,6 +7,12 @@ on:
     paths:
       - 'scripts/.bridge-script.b64.part-*'
       - '.github/workflows/apply-delete-hidden-assistant-settings-bridge.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/.bridge-script.b64.part-*'
+      - '.github/workflows/apply-delete-hidden-assistant-settings-bridge.yml'
 
 permissions:
   contents: write
