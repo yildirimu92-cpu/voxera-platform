@@ -4,6 +4,7 @@ import vm from 'node:vm';
 
 const files = {
   runtime: 'admin-panel/shared/admin-runtime-voices.js',
+  errorRuntime: 'admin-panel/shared/admin-runtime-voice-errors.js',
   endpoint: 'admin-panel/netlify/functions/admin-voices.js',
   loader: 'admin-panel/shared/offer-brand.js',
   customerPreview: 'customer-dashboard/netlify/functions/preview-voice.js',
@@ -14,7 +15,7 @@ const source = Object.fromEntries(
   Object.entries(files).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')])
 );
 
-for (const key of ['runtime', 'endpoint', 'loader', 'customerPreview']) {
+for (const key of ['runtime', 'errorRuntime', 'endpoint', 'loader', 'customerPreview']) {
   new vm.Script(source[key], { filename: files[key] });
 }
 
@@ -39,6 +40,13 @@ assert.match(source.runtime, /root\.aiShowTab/);
 assert.match(source.runtime, /audio_base64/);
 assert.match(source.runtime, /URL\.createObjectURL/);
 
+assert.match(source.errorRuntime, /payment_required/);
+assert.match(source.errorRuntime, /aktives ElevenLabs-Abonnement/);
+assert.match(source.errorRuntime, /missing_permissions/);
+assert.match(source.errorRuntime, /quota_exceeded/);
+assert.match(source.errorRuntime, /name === 'admin-voices'/);
+assert.match(source.errorRuntime, /root\.callAdminFunction = async function/);
+
 assert.match(source.endpoint, /requireAdminCaller/);
 assert.match(source.endpoint, /requiredCapability: 'plan:write'/);
 assert.match(source.endpoint, /from\('voxera_voices'\)/);
@@ -56,6 +64,7 @@ assert.doesNotMatch(source.endpoint, /delete\(\)/);
 assert.doesNotMatch(source.endpoint, /body\.api_key/);
 
 assert.match(source.loader, /admin-runtime-voices\.js\?v=20260802-2/);
+assert.match(source.loader, /admin-runtime-voice-errors\.js\?v=20260802-1/);
 assert.match(source.customerPreview, /environmentHost\(process\.env\.SUPABASE_URL\)/);
 assert.match(source.customerPreview, /preview_url,preview_text/);
 assert.match(source.customerPreview, /hasManagedPreviewText/);
