@@ -58,16 +58,27 @@ for (const token of [
 }
 
 for (const token of [
+  'Fähigkeiten',
+  'Der aktuelle Zustand der wichtigsten Verbindungen.',
+  "technicalRow('Einrichtung'",
+  "technicalRow('Telefonie'",
+  "technicalRow('Stimme & Einstellungen'",
+  'statusObserver.observe(body, { childList: true, subtree: true })'
+]) {
+  if (!source.statusRuntime.includes(token)) failures.push(`status runtime missing: ${token}`);
+}
+
+for (const token of [
   'Aktive Fähigkeiten',
   'Systemstatus',
   'Rufnummer & Weiterleitung',
   'Konfiguration & Stimme',
   'Letzte erfolgreiche Synchronisierung',
   'vx-assistant-operational-summary',
-  'vx-calendar-settings-entry',
-  'vx-operational-entry'
+  'openOperational',
+  'openCalendar'
 ]) {
-  if (!source.statusRuntime.includes(token)) failures.push(`status runtime missing: ${token}`);
+  if (source.statusRuntime.includes(token)) failures.push(`status runtime still contains removed legacy token: ${token}`);
 }
 
 for (const token of [
@@ -113,6 +124,7 @@ assert.match(source.profile, /status_version: 1/);
 assert.match(source.statusRuntime, /cache: 'no-store'/);
 assert.match(source.statusRuntime, /snapshot = null/);
 assert.match(source.statusRuntime, /new MutationObserver/);
+assert.doesNotMatch(source.statusRuntime, /observer\.observe\(document\.documentElement/);
 assert.match(source.preview, /requireCustomerCaller/);
 assert.match(source.preview, /voice_not_available_on_plan/);
 assert.match(source.preview, /preview_url,preview_text/);
