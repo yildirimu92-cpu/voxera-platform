@@ -13,6 +13,9 @@
   let activeAudio = null;
   let activeAudioUrl = '';
   let bootAttempts = 0;
+  let activeView = 'assistant';
+  let loadPromise = null;
+  let loadSequence = 0;
   const pageStatus = { assistant: null, business: null };
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -50,10 +53,11 @@
   }
 
   function open(view) {
-    if (!inject()) return;
-    if (view === 'business') renderBusiness();
+    if (!inject()) return null;
+    activeView = view === 'business' ? 'business' : 'assistant';
+    if (activeView === 'business') renderBusiness();
     else renderAssistant();
-    if (!profile) load();
+    return profile ? Promise.resolve(profile) : load();
   }
 
   async function token() {
@@ -221,26 +225,39 @@
   }
 
   async function load() {
-    setStatus('assistant', 'Assistent wird geladen …', 'loading');
-    try {
-      const [profileResult, voiceResult] = await Promise.all([
-        request('customer-assistant-profile'),
-        request('get-available-voices')
-      ]);
-      profile = profileResult;
-      voices = Array.isArray(voiceResult.voices) ? voiceResult.voices : [];
-      if (!profile.assistant.voice_id && voiceResult.selected_voice_id) profile.assistant.voice_id = voiceResult.selected_voice_id;
-      pageStatus.assistant = null;
-      pageStatus.business = null;
-      renderAssistant();
-      renderBusiness();
-    } catch (error) {
-      const message = error?.message || 'Assistent konnte nicht geladen werden.';
-      const assistantBody = document.getElementById('vx-assistant-profile-body');
-      const businessBody = document.getElementById('vx-business-profile-body');
-      if (assistantBody) assistantBody.innerHTML = '<div class="vx-ap-status error">' + esc(message) + '</div>';
-      if (businessBody) businessBody.innerHTML = '<div class="vx-ap-status error">' + esc(message) + '</div>';
-    }
+    if (loadPromise) return loadPromise;
+    const sequence = ++loadSequence;
+    activeView === 'business' ? renderBusiness() : renderAssistant();
+
+    loadPromise = (async () => {
+      try {
+        const [profileResult, voiceResult] = await Promise.all([
+          request('customer-assistant-profile'),
+          request('get-available-voices')
+        ]);
+        if (sequence !== loadSequence) return null;
+        profile = profileResult;
+        voices = Array.isArray(voiceResult.voices) ? voiceResult.voices : [];
+        if (!profile.assistant.voice_id && voiceResult.selected_voice_id) profile.assistant.voice_id = voiceResult.selected_voice_id;
+        pageStatus.assistant = null;
+        pageStatus.business = null;
+        renderAssistant();
+        renderBusiness();
+        return profile;
+      } catch (error) {
+        if (sequence !== loadSequence) return null;
+        const message = error?.message || 'Assistent konnte nicht geladen werden.';
+        const assistantBody = document.getElementById('vx-assistant-profile-body');
+        const businessBody = document.getElementById('vx-business-profile-body');
+        if (assistantBody) assistantBody.innerHTML = '<div class="vx-ap-status error">' + esc(message) + '</div>';
+        if (businessBody) businessBody.innerHTML = '<div class="vx-ap-status error">' + esc(message) + '</div>';
+        return null;
+      } finally {
+        if (sequence === loadSequence) loadPromise = null;
+      }
+    })();
+
+    return loadPromise;
   }
 
   async function updateAssistant(payload, page, loadingMessage) {
