@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const files = {
   endpoint: 'customer-dashboard/netlify/functions/preview-voice.js',
   runtime: 'customer-dashboard/shared/customer-runtime-voice-preview-fallback.js',
-  loader: 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js'
+  loader: 'customer-dashboard/shared/offer-brand.js'
 };
 
 const source = Object.fromEntries(
@@ -39,5 +39,6 @@ assert.match(source.runtime, /cache: 'no-store'/);
 
 assert.match(source.loader, /customer-runtime-voice-preview-fallback\.js\?v=20260802-1/);
 assert.match(source.loader, /__vxVoicePreviewFallbackLoaderInstalled/);
+assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 
 console.log('Customer voice preview fallback verification passed.');

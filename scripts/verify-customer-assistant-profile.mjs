@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const files = {
   runtime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   statusRuntime: 'customer-dashboard/shared/customer-runtime-assistant-status.js',
-  menu: 'customer-dashboard/shared/customer-runtime-assistant-business-menu.js',
+  operational: 'customer-dashboard/shared/customer-runtime-operational-updates.js',
   loader: 'customer-dashboard/shared/offer-brand.js',
   profile: 'customer-dashboard/netlify/functions/customer-assistant-profile.js',
   update: 'customer-dashboard/netlify/functions/customer-update-assistant.js',
@@ -43,18 +43,13 @@ for (const token of [
 }
 
 for (const token of [
-  'Assistent & Geschäft',
-  'Aktuelle Änderungen',
-  'Ferien, Sonderzeiten und vorübergehende Hinweise',
-  'vx-assistant-business-section',
-  'vx-assistant-profile-entry',
-  'vx-business-profile-entry',
-  'vx-operational-entry',
+  'Aktuelle Änderungen werden geladen',
+  'Noch keine aktuelle Änderung erfasst',
+  'Neue aktuelle Änderung',
   'mehr-sub-betriebsinfos',
-  '[assistant, business, operational]',
-  'customer-runtime-assistant-status.js?v=20260802-1'
+  'root.vxOperationalUpdatesOpen=open'
 ]) {
-  if (!source.menu.includes(token)) failures.push(`menu missing: ${token}`);
+  if (!source.operational.includes(token)) failures.push(`operational runtime missing: ${token}`);
 }
 
 for (const token of [
@@ -104,7 +99,8 @@ for (const forbidden of [
 }
 
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=/);
-assert.match(source.loader, /customer-runtime-assistant-business-menu\.js\?v=/);
+assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260802-1/);
+assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.match(source.profile, /requireCustomerCaller/);
 assert.match(source.profile, /customer_name/);
 assert.doesNotMatch(source.profile, /'company_name'/);
