@@ -45,7 +45,7 @@ assert.ok(lineCount(navigationCss) <= 140, 'navigation component CSS exceeded it
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
-  '/shared/customer-design-system.css?v=20260802-3',
+  '/shared/customer-design-system.css?v=20260802-4',
   '/shared/customer-assistant-components.css?v=20260802-3',
   '/shared/customer-assistant-status.css?v=20260802-1',
   '/shared/customer-support-components.css?v=20260802-2',
@@ -245,7 +245,8 @@ for (const forbidden of [
   '"DM Sans"',
   '"Plus Jakarta Sans"',
   '.vx-ap-card button',
-  '.vx-ops-card button'
+  '.vx-ops-card button',
+  'min-height: 148px'
 ]) {
   assert.ok(!foundationCss.includes(forbidden), `foundation CSS still contains mixed or broad control rule: ${forbidden}`);
 }
