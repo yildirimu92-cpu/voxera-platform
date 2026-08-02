@@ -52,6 +52,9 @@ for (const token of [
   'Andere Stimme wählen',
   'weitere Fähigkeiten anzeigen',
   'Technische Details',
+  'businessProfileShortcut',
+  "closest?.('#vx-open-business-profile')",
+  "showAssistantView('business', false)",
   'MutationObserver',
   '/\\/activate(?:\\.html)?$/'
 ]) {
@@ -65,12 +68,14 @@ assert.match(source.navigation, /triggerViewLoad\(selected\)/);
 assert.match(source.navigation, /root\.vxOperationalUpdatesOpen\(\)/);
 assert.match(source.navigation, /entry\.click\(\)/);
 assert.match(source.navigation, /document\.addEventListener\('click',[\s\S]*true\)/);
+assert.match(source.navigation, /businessProfileShortcut[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*showAssistantView\('business', false\)/);
 assert.match(source.navigation, /#nav-archiv,#mnav-archiv/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-2/);
 
 assert.match(source.assistant, /mehr-sub-assistant-profile/);
 assert.match(source.assistant, /mehr-sub-business-profile/);
 assert.match(source.assistant, /vx-business-profile-entry/);
+assert.match(source.assistant, /id=\"vx-open-business-profile\"/);
 assert.match(source.status, /vx-assistant-status-extension/);
 assert.match(source.menu, /vx-assistant-business-section/);
 assert.match(source.menu, /customer-runtime-help-route\.js\?v=20260802-1/);
