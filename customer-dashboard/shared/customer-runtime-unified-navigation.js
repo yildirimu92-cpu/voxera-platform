@@ -72,7 +72,17 @@
   }
 
 
+
+  // Delete stale archive root buttons that may survive in cached or injected legacy markup.
+  function hideArchiveRootNavigation() {
+    [
+      document.getElementById('nav-archiv'),
+      document.getElementById('mnav-archiv')
+    ].filter(Boolean).forEach((node) => node.remove());
+  }
+
   function normalizeRootNavigation() {
+    hideArchiveRootNavigation();
     ROOT_NAV.forEach((item) => {
       const desktop = document.getElementById(item.desktop);
       const mobile = document.getElementById(item.mobile);
