@@ -411,28 +411,6 @@
 .vxfb-chip{height:26px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;border:0.5px solid var(--vx-border-md);color:var(--vx-text3);background:var(--vx-surface);cursor:pointer;white-space:nowrap;font-family:inherit;}
 .vxfb-chip--active,.vxfb-chip.vxfb-chip--active{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
 .vxfb-chip--active:hover,.vxfb-chip.vxfb-chip--active:hover{background:#1A6FE8;color:#fff;border-color:#1A6FE8;}
-
-
-.vx-anf-row{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border-bottom:0.5px solid var(--vx-border);cursor:pointer;background:var(--vx-surface);transition:background .1s;}
-.vx-anf-row:hover{background:var(--vx-bg);}
-.vx-anf-row.is-active{background:var(--vx-row-act);border-left:2px solid var(--vx-row-act-bd);}
-.vx-anf-dot{width:6px;height:6px;border-radius:50%;background:var(--vx-blue);flex-shrink:0;margin-top:5px;}
-.vx-anf-dot-empty{width:6px;flex-shrink:0;}
-.vx-anf-icon{width:28px;height:28px;border-radius:8px;background:var(--vx-pill-bg);border:0.5px solid var(--vx-pill-bd);display:flex;align-items:center;justify-content:center;color:var(--vx-pill-text);flex-shrink:0;font-size:13px;}
-.vx-anf-icon.is-call{background:var(--vx-blue-light);border-color:var(--vx-blue-bd);color:var(--vx-blue);}
-.vx-anf-body{flex:1;min-width:0;}
-.vx-anf-top{display:flex;justify-content:space-between;gap:4px;}
-.vx-anf-name{font-size:14px;font-weight:600;color:var(--vx-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.vx-anf-row.is-active .vx-anf-name,.vx-anf-row.is-unread .vx-anf-name{color:var(--vx-text);font-weight:500;}
-.vx-anf-time{font-size:10px;color:var(--vx-text3);flex-shrink:0;}
-.vx-anf-pills{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;}
-.vx-anf-pill{font-size:9px;padding:2px 6px;border-radius:4px;border:0.5px solid var(--vx-pill-bd);color:var(--vx-pill-text);background:var(--vx-pill-bg);font-weight:500;}
-.vx-anf-pill.is-hot{background:var(--vx-red-light);border-color:var(--vx-red-bd);color:var(--vx-red);}
-.vx-anf-pill.is-new{background:var(--vx-blue-light);border-color:var(--vx-blue-bd);color:var(--vx-blue);}
-.vx-anf-pill.is-done{background:var(--vx-green-light);border-color:var(--vx-green-bd);color:var(--vx-green);}
-.vx-anf-pill.is-planned{background:var(--vx-gold-light);border-color:var(--vx-gold-bd);color:#B45309;}
-
-.vx-anf-preview{font-size:10px;color:var(--vx-text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .vx-date-sep{padding:5px 12px;background:var(--vx-bg);border-bottom:0.5px solid var(--vx-border);font-size:9px;font-weight:600;color:var(--vx-text3);text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:4px;}
 
 .vx-detail-header{background:var(--vx-kpi-bg);padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid rgba(255,255,255,.06);flex-shrink:0;}
@@ -4761,58 +4739,6 @@ body,.main{background:var(--vx-bg);}
   #dash-priority-list .dpr-row{padding:8px 12px;min-height:48px;}
   #dash-priority-list .dpr-type-pill{font-size:10px;height:20px;padding:0 7px;}
 }
-
-
-/* ═══════════════════════════════════════
-   PATCH v2.7 — Anrufe Command Center Rows
-   Ziel: gleiche Designsprache wie Heute > Jetzt wichtig.
-═══════════════════════════════════════ */
-#anrufe-list.dpr-command-center{
-  background:#fff;
-  border:0.5px solid var(--line);
-  border-radius:14px;
-  overflow:hidden;
-}
-#anrufe-list.dpr-command-center .anrufe-date-sep{
-  display:flex;align-items:center;gap:8px;
-  padding:12px 20px 8px;
-  background:#FBFCFF;
-  border-top:0.5px solid var(--line);
-  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;
-  color:#94A3B8;
-}
-#anrufe-list.dpr-command-center .anrufe-date-sep:first-child{border-top:none;}
-#anrufe-list.dpr-command-center .dpr-card{border-bottom:0.5px solid var(--line);background:#fff;}
-#anrufe-list.dpr-command-center .dpr-card:last-child{border-bottom:none;}
-#anrufe-list.dpr-command-center .dpr-row{
-  min-height:60px;
-  gap:14px;
-  padding:13px 20px;
-  display:grid;
-  grid-template-columns:48px minmax(0,1.4fr) minmax(130px,.55fr) minmax(132px,.55fr) 22px;
-  align-items:center;
-}
-#anrufe-list.dpr-command-center .dpr-type-icon{
-  width:32px;height:32px;border-radius:9px;
-  display:flex;align-items:center;justify-content:center;
-  border:1px solid transparent;flex-shrink:0;
-}
-#anrufe-list.dpr-command-center .dpr-type-icon i{width:20px;height:20px;stroke-width:2;}
-#anrufe-list.dpr-command-center .dpr-kind-callback{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
-#anrufe-list.dpr-command-center .dpr-kind-offer{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
-#anrufe-list.dpr-command-center .dpr-kind-appointment{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
-#anrufe-list.dpr-command-center .dpr-kind-task{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
-#anrufe-list.dpr-command-center .dpr-kind-incoming{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
-#anrufe-list.dpr-command-center .dpr-kind-default{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
-#anrufe-list.dpr-command-center .dpr-body{min-width:0;}
-#anrufe-list.dpr-command-center .dpr-name{font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--ink);}
-#anrufe-list.dpr-command-center .dpr-task-line{display:flex;align-items:center;gap:7px;margin-top:4px;min-width:0;}
-#anrufe-list.dpr-command-center .dpr-type-pill{
-  display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;
-  font-size:11px;font-weight:500;border:1px solid currentColor;white-space:nowrap;
-}
-#anrufe-list.dpr-command-center .dpr-desc{font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-#anrufe-list.dpr-command-center .dpr-meta-line{font-size:11px;color:var(--slate2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 /* [v2.56] Split-Panel: Detail-Header */
 #anrufe-split-right #call-detail-banner.vx-page-header {
   padding: 10px 14px !important;
@@ -4903,31 +4829,6 @@ body,.main{background:var(--vx-bg);}
   border-radius: 0;
   overflow-y: auto;
 }
-
-/* [v2.56] Split-Panel: kompaktes Layout für 220px linke Spalte */
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-row{
-  display:flex !important;
-  min-height:44px;padding:7px 12px;gap:8px;align-items:center;
-}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-type-icon{
-  width:28px;height:28px;border-radius:8px;font-size:13px;
-}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-due-cell{display:none !important;width:0;overflow:hidden;}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-action-cell{display:none !important;width:0;overflow:hidden;}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-chevron{display:none !important;}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-name{font-size:14px;font-weight:600;color:var(--ink);letter-spacing:-.01em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
-/* [v2.70] Split-liste kompakter */
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-row { min-height:52px !important; padding:8px 12px !important; }
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-type-icon { width:32px !important; height:32px !important; border-radius:8px !important; }
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-type-icon i { font-size:13px !important; }
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-task-line{margin-top:2px;}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-type-pill{font-size:9px;height:18px;padding:0 6px;}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-desc{display:none !important;}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-meta-line{display:none !important;}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-preview{display:none !important;}
-#anrufe-split-left #anrufe-list.dpr-command-center .va-exp-panel{display:none !important;}
-#anrufe-split-left #anrufe-list.dpr-command-center .dpr-chevron{font-size:12px;color:var(--slate2);}
-#anrufe-split-left .anrufe-date-sep{font-size:9px !important;padding:5px 12px !important;}
 /* [PR-A/B] Apple-like Selection — einzige Quelle, kein Balken */
 .dpr-card.sp-active,
 .dpr-card.sp-active .dpr-row,
@@ -4936,49 +4837,8 @@ body,.main{background:var(--vx-bg);}
   background:rgba(26,111,232,0.08) !important;
   border-left:none !important;
 }
-#anrufe-list.dpr-command-center .dpr-due-cell{display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-width:0;}
-#anrufe-list.dpr-command-center .dpr-due-label{display:none;}
-#anrufe-list.dpr-command-center .dpr-due-value{font-size:12px;font-weight:500;color:var(--ink2);white-space:nowrap;}
-#anrufe-list.dpr-command-center .dpr-due-cell.is-overdue .dpr-due-label,
-#anrufe-list.dpr-command-center .dpr-due-cell.is-overdue .dpr-due-value{color:#DC2626;}
-#anrufe-list.dpr-command-center .dpr-due-cell.is-today .dpr-due-label,
-#anrufe-list.dpr-command-center .dpr-due-cell.is-today .dpr-due-value{color:#B45309;}
-#anrufe-list.dpr-command-center .dpr-due-cell.is-planned .dpr-due-label,
-#anrufe-list.dpr-command-center .dpr-due-cell.is-planned .dpr-due-value{color:#1A6FE8;}
-#anrufe-list.dpr-command-center .dpr-action-cell{display:flex;justify-content:flex-end;align-items:center;}
-#anrufe-list.dpr-command-center .dpr-row-action{
-  height:34px;min-width:112px;padding:0 13px;border-radius:9px;
-  display:inline-flex;align-items:center;justify-content:center;gap:7px;
-  font-size:12px;font-weight:800;
-}
-#anrufe-list.dpr-command-center .dpr-row-action i{width:14px;height:14px;}
-#anrufe-list.dpr-command-center .dpr-row-action.is-soft-red{background:#fff;border-color:#FECACA;color:#DC2626;}
-#anrufe-list.dpr-command-center .dpr-row-action.is-soft-red:hover{background:#FEF2F2;border-color:#FCA5A5;color:#B91C1C;}
-#anrufe-list.dpr-command-center .dpr-row-action.is-soft-blue{background:#fff;border-color:#BFDBFE;color:#1A6FE8;}
-#anrufe-list.dpr-command-center .dpr-row-action.is-soft-blue:hover{background:#EFF6FF;border-color:#93C5FD;color:#1560C8;}
-#anrufe-list.dpr-command-center .dpr-exp{background:#FBFCFF;}
-#anrufe-list.dpr-command-center .dpr-exp-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px;}
-#anrufe-list.dpr-command-center .dpr-exp-chip{padding:9px 11px;border:0.5px solid var(--line);border-radius:10px;background:#fff;font-size:12px;color:var(--ink2);}
-#anrufe-list.dpr-command-center .dpr-exp-chip span{display:block;font-size:10px;font-weight:800;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;}
 @media(max-width:900px){
-  #anrufe-list.dpr-command-center .dpr-row{
-    grid-template-columns:32px minmax(0,1fr) auto 16px;
-    grid-template-areas:"icon body due chev";
-    align-items:center;
-    min-height:48px;
-    padding:8px 14px;
-  }
-  #anrufe-list.dpr-command-center .dpr-type-icon{grid-area:icon;width:32px;height:32px;border-radius:8px;}
-  #anrufe-list.dpr-command-center .dpr-body{grid-area:body;}
-  #anrufe-list.dpr-command-center .dpr-due-cell{grid-area:due;align-items:flex-end;}
-  #anrufe-list.dpr-command-center .dpr-action-cell{grid-area:action;justify-content:flex-start;margin-top:8px;}
-  #anrufe-list.dpr-command-center .dpr-row-action{min-width:0;height:32px;}
-  #anrufe-list.dpr-command-center .dpr-chevron{grid-area:chev;}
-  #anrufe-list.dpr-command-center .dpr-exp-meta{grid-template-columns:1fr;}
 }
-
-#anrufe-list { background: #fff; border: none; border-radius: 14px; overflow: hidden; }
-#anrufe-list .call-row { border-left: none !important; }
 #rueckrufe-list .call-row,
 
 /* ═══════════════════════════════════════
@@ -6469,7 +6329,6 @@ body,.main{background:var(--vx-bg);}
 #anrufe-list.dpr-command-center .va-exp-actions,
 /* [v2.70] dpr-exp panel minimal — buttons via inline styles */
 #dash-priority-list .dpr-exp { padding:0 0 10px; }
-#anrufe-list.dpr-command-center .dpr-exp { padding:0 0 10px; }
 
 
 
@@ -7155,52 +7014,52 @@ body,.main{background:var(--vx-bg);}
 
         <!-- ANFRAGEN TAB -->
         <div class="tab-page" id="tab-anrufe">
-
-          <!-- vx-page-header — konsistent mit Bericht und Assistent -->
-          <div class="vx-page-header">
-            <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
-              <div class="vx-page-header-title">Anfragen</div>
-              <div id="anrufe-split-count" style="font-size:12px;color:rgba(255,255,255,.72);">–</div>
+          <section class="vx-page-header">
+            <div class="vx-ap-head">
+              <div>
+                <div class="vx-page-header-title">Anfragen</div>
+                <div id="anrufe-split-count" class="vx-page-header-subtitle">–</div>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <!-- ── SPLIT PANEL v3.0 ── -->
-          <div id="anrufe-split" class="vx-split">
+          <div id="anrufe-split" class="vx-requests-layout">
+            <section id="anrufe-split-left" class="vx-ops-card vx-requests-panel" aria-label="Anfragenliste">
+              <div class="vx-ap-filters vx-requests-filters" role="tablist" aria-label="Anfragestatus">
+                <button class="vx-ap-filter vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
+                <button class="vx-ap-filter vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
+                <button class="vx-ap-filter vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
+              </div>
 
-            <!-- LINKS -->
-            <div id="anrufe-split-left" class="vx-split-left">
-              <div class="vx-split-filters">
-                <button class="vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
-                <button class="vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
-                <button class="vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
+              <div class="vx-requests-subfilters" id="anrufe-inbox-subfilters">
+                <button class="vx-ap-filter vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
+                <div class="vx-selection-controls" id="anrufe-selection-controls" hidden></div>
               </div>
-              <div class="vx-split-filters vx-split-filters--compact" id="anrufe-inbox-subfilters" style="margin-top:4px;">
-                <button class="vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
-                <div class="vx-selection-controls" id="anrufe-selection-controls" style="display:none;"></div>
-              </div>
+
               <div id="vx-inbox-selection-toolbar"></div>
-              <div class="vx-split-search">
-                <div class="vxfb-search-box" id="fb-anrufe-searchbox">
-                  <i class="ph-bold ph-magnifying-glass vxfb-search-icon" aria-hidden="true"></i>
-                  <input class="vxfb-search-input" id="fb-anrufe-input" placeholder="Suchen…" oninput="vxFbSearch('anrufe',this.value)" onkeydown="if(event.key==='Escape'){vxFbClearSearch('anrufe');}">
-                  <button class="vxfb-search-clear" id="fb-anrufe-clear" onclick="vxFbClearSearch('anrufe')" style="display:none;" aria-label="Suche leeren"><i class="ph-bold ph-x"></i></button>
+
+              <div class="vx-requests-search">
+                <div class="vx-requests-search-box vxfb-search-box" id="fb-anrufe-searchbox">
+                  <i class="ph-bold ph-magnifying-glass vx-requests-search-icon" aria-hidden="true"></i>
+                  <input class="vx-requests-search-input vxfb-search-input" id="fb-anrufe-input" placeholder="Suchen…" aria-label="Anfragen durchsuchen" oninput="vxFbSearch('anrufe',this.value)" onkeydown="if(event.key==='Escape'){vxFbClearSearch('anrufe');}">
+                  <button class="vx-requests-search-clear vxfb-search-clear" id="fb-anrufe-clear" onclick="vxFbClearSearch('anrufe')" style="display:none;" aria-label="Suche leeren"><i class="ph-bold ph-x" aria-hidden="true"></i></button>
                 </div>
               </div>
-              <div id="anrufe-sub-offen" class="vx-split-scroll">
-                <div class="call-list" id="anrufe-list"></div>
-              </div>
-            </div>
 
-            <!-- RECHTS -->
-            <div id="anrufe-split-resizer" title="Ziehen zum Anpassen"></div>
-            <div id="anrufe-split-right" class="vx-split-right">
-              <div id="anrufe-split-empty" class="vx-split-empty">
-                <i class="ph-bold ph-tray" style="font-size:28px;opacity:.2;" aria-hidden="true"></i>
-                <div class="vx-split-empty-text">Wähle eine Anfrage aus, um Details zu sehen.</div>
+              <div id="anrufe-sub-offen" class="vx-requests-scroll">
+                <div class="vx-ops-list vx-requests-list" id="anrufe-list"></div>
               </div>
-              <div id="requests-detail-v2" style="display:none;flex:1;overflow:auto;"></div>
-            </div>
+            </section>
 
+            <div id="anrufe-split-resizer" class="vx-requests-resizer" title="Ziehen zum Anpassen"></div>
+
+            <aside id="anrufe-split-right" class="vx-ops-card vx-requests-detail-panel" aria-label="Anfragedetails">
+              <div id="anrufe-split-empty" class="vx-ops-empty vx-requests-detail-empty">
+                <i class="ph-bold ph-tray" aria-hidden="true"></i>
+                <span>Wähle eine Anfrage aus, um Details zu sehen.</span>
+              </div>
+              <div id="requests-detail-v2" class="vx-requests-detail" style="display:none;flex:1;overflow:auto;"></div>
+            </aside>
           </div>
         </div>
 
@@ -10458,9 +10317,9 @@ function vxHandleDprButtonClick(e) {
   if (e.stopPropagation) e.stopPropagation();
   if (e.stopImmediatePropagation) e.stopImmediatePropagation();
   var exp = btn.closest('.dpr-exp');
-  var card = btn.closest('.dpr-card');
+  var card = btn.closest('.vx-requests-item, .vx-ops-item, .dpr-card');
   var row = btn.closest('.dpr-row');
-  var vxRow = btn.closest ? (btn.closest('.vx-heute-row') || btn.closest('.vx-anf-row')) : null;
+  var vxRow = btn.closest ? (btn.closest('.vx-requests-row') || btn.closest('.vx-heute-row') || btn.closest('.vx-anf-row')) : null;
   var menuPortal = btn.closest ? btn.closest('#vx-row-menu-portal') : null;
   var recId = (btn.dataset && btn.dataset.recId) || (btn.dataset && btn.dataset.id) || (menuPortal && menuPortal.dataset && menuPortal.dataset.recId) || (exp && exp.dataset.recId) || (row && row.dataset && row.dataset.id) || (card && card.dataset.id) || (vxRow && vxRow.dataset && vxRow.dataset.id) || '';
   var phone = (btn.dataset && btn.dataset.phone) || (menuPortal && menuPortal.dataset && menuPortal.dataset.phone) || (exp && exp.dataset.phone) || (card && card.dataset.phone) || (vxRow && vxRow.dataset && vxRow.dataset.phone) || '';
@@ -10982,7 +10841,7 @@ function vxMarkRowAsRead(rowEl) {
 
 function vxMarkRowAsUnread(rowEl) {
   if (!rowEl) return;
-  var card = rowEl.closest('.dpr-card') || rowEl;
+  var card = rowEl.closest('.vx-requests-item, .vx-ops-item, .dpr-card') || rowEl;
   var id = card && card.dataset ? card.dataset.id : null;
   if (!id) return;
   vxMarkRequestAsUnread(id);
@@ -10995,21 +10854,15 @@ function vxSetActiveRequestRow(recordId) {
   var activeId = recordId == null ? '' : String(recordId).trim();
   window._vxActiveRecordId = activeId || null;
   var selectors = [
-    '#anrufe-list .dpr-card',
-    '#anrufe-list .vx-heute-row',
-    '#anrufe-list .vx-anf-row',
-    '#anrufe-split-left .dpr-card',
-    '#anrufe-split-left .vx-heute-row',
-    '#anrufe-split-left .vx-anf-row',
+    '#anrufe-list .vx-requests-item',
+    '#anrufe-list .vx-requests-row',
     '#dash-priority-list .vx-ops-item'
   ].join(',');
   document.querySelectorAll(selectors).forEach(function(el) {
     var id = '';
-    if (el && el.dataset) {
-      id = String(el.dataset.id || el.dataset.recordId || '');
-    }
+    if (el && el.dataset) id = String(el.dataset.id || el.dataset.recordId || '');
     if (!id && el && el.closest) {
-      var card = el.closest('.dpr-card, .vx-ops-item');
+      var card = el.closest('.vx-requests-item, .vx-ops-item');
       id = card && card.dataset ? String(card.dataset.id || card.dataset.recordId || '') : '';
     }
     el.classList.toggle('sp-active', !!activeId && id === activeId);
@@ -11041,7 +10894,7 @@ function dprOpenAnfragenDetailFromRow(rowEl) {
   // vx-anf-row hat data-id direkt; dpr-card als Fallback
   var recId = (rowEl.dataset && rowEl.dataset.id) || null;
   if (!recId) {
-    var card = rowEl.closest('.dpr-card');
+    var card = rowEl.closest('.vx-requests-item, .vx-ops-item, .dpr-card');
     recId = card ? card.dataset.id : null;
   }
   if (!recId) return false;
@@ -14271,7 +14124,7 @@ function vxGetAnfragenActiveFilter(nextFilter) {
 }
 function vxSyncAnfragenFilterChips(activeFilter) {
   var filter = vxGetAnfragenActiveFilter(activeFilter);
-  var container = document.querySelector('#anrufe-split-left .vx-split-filters');
+  var container = document.querySelector('#anrufe-split-left .vx-requests-filters');
   if (container) {
     container.querySelectorAll('button[data-filter]').forEach(function(btn) {
       var btnFilter = String(btn.getAttribute('data-filter') || '').trim().toLowerCase();
@@ -14290,7 +14143,7 @@ function anrufeChipFilter(filter, btn) {
   if (typeof vxSplitClearDetail === 'function') vxSplitClearDetail();
   var activeFilter = vxGetAnfragenActiveFilter(filter || 'alle');
   // Alle Filter-Buttons in diesem Container bereinigen
-  var container = btn ? btn.closest('.vx-split-filters') : document.querySelector('#anrufe-split-left .vx-split-filters');
+  var container = btn ? btn.closest('.vx-requests-filters') : document.querySelector('#anrufe-split-left .vx-requests-filters');
   if (container) {
     container.querySelectorAll('button').forEach(function(c) {
       c.classList.remove('vx-chip--active', 'vxfb-chip--active');
@@ -21622,7 +21475,7 @@ function vxGoToAnfragenFilter(filter, subfilter) {
     if (subfilter) _anrufeInboxSubfilter = subfilter;
     var search = document.getElementById('fb-anrufe-input');
     if (search) search.value = '';
-    var filterBtns = document.querySelectorAll('#anrufe-split-left .vx-split-filters button');
+    var filterBtns = document.querySelectorAll('#anrufe-split-left .vx-requests-filters button');
     filterBtns.forEach(function(b){
       var active = b.getAttribute('data-filter') === _anrufeFilter;
       b.classList.toggle('vx-chip--active', active);
@@ -21657,7 +21510,7 @@ function vxHeuteKpiOpenTodayCalls() {
   setTimeout(function(){
     window._vxAnfragenTodayOnly = true;
     _anrufeFilter = 'offen';
-    var filterBtns = document.querySelectorAll('#anrufe-split-left .vx-split-filters button');
+    var filterBtns = document.querySelectorAll('#anrufe-split-left .vx-requests-filters button');
     filterBtns.forEach(function(b){ b.classList.remove('vx-chip--active','vxfb-chip--active'); });
     var offenBtn = document.querySelector('#anrufe-split-left button[data-filter="offen"]');
     if (offenBtn) { offenBtn.classList.add('vx-chip--active','vxfb-chip--active'); }
@@ -23339,7 +23192,7 @@ function vxUpdateAnfragenCount() {
   var countEl = document.getElementById('anrufe-split-count');
   if (countEl) countEl.textContent = counts.new + ' offen · ' + counts.planned + ' geplant · ' + counts.done + ' erledigt';
 
-  var mainWrap = document.querySelector('#anrufe-split-left .vx-split-filters');
+  var mainWrap = document.querySelector('#anrufe-split-left .vx-requests-filters');
   if (mainWrap) {
     var inboxBtn = mainWrap.querySelector('[data-filter="offen"]');
     var plannedBtn = mainWrap.querySelector('[data-filter="geplant"]');
@@ -23448,293 +23301,276 @@ function vxIsExcludedNormalCall(rec, liveCallIds) {
 }
 
 function renderAnrufeInbox(containerId, records, activeFilter) {
-
   var el = document.getElementById(containerId);
   if (!el) return;
-  el.classList.add('dpr-command-center');
+
+  el.classList.remove('dpr-command-center', 'call-list');
+  el.classList.add('vx-ops-list', 'vx-requests-list');
+
   var filter = vxGetAnfragenActiveFilter(activeFilter);
-  var _selectionMode = false;
-
-  if (!records || records.length === 0) {
-    var emptyLabel = vxInquiryFilterEmptyText(filter);
-    el.innerHTML = '<div style="padding:24px 20px;text-align:center;color:var(--slate2);font-size:13px;background:#fff;border-radius:0 0 14px 14px;">' +
-      '<i class="ph-bold ph-tray" style="color:#1A6FE8;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;"></i>' +
-      _esc(emptyLabel) + '</div>';
-    vxRenderInboxSelectionToolbar();
-    refreshLucideIcons();
-    return;
-  }
-
+  var sourceRecords = Array.isArray(records) ? records : [];
   var liveCallIds = vxGetLiveCallIdSet(allRecords || []);
-  var visibleRecords = (records || []).filter(function(rec) {
+  var visibleRecords = sourceRecords.filter(function(rec) {
     return !vxIsExcludedNormalCall(rec, liveCallIds);
   });
 
+  function renderEmpty() {
+    var emptyLabel = vxInquiryFilterEmptyText(filter);
+    el.innerHTML = '<div class="vx-ops-empty vx-requests-empty">'
+      + '<i class="ph-bold ph-tray" aria-hidden="true"></i>'
+      + '<span>' + _esc(emptyLabel) + '</span>'
+      + '</div>';
+    vxRenderInboxSelectionToolbar();
+    vxUpdateAnfragenCount();
+  }
+
+  if (!visibleRecords.length) {
+    renderEmpty();
+    return;
+  }
+
   var groups = {};
   var groupOrder = [];
-  var _rtz = 'Europe/Zurich';
-  var _rfd = function(d) { return new Intl.DateTimeFormat('de-CH',{timeZone:_rtz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(d)); };
-  var _rtdk = _rfd(new Date()); var _ryek = _rfd(new Date(Date.now()-86400000));
+  var timezone = 'Europe/Zurich';
+  var formatDayKey = function(value) {
+    return new Intl.DateTimeFormat('de-CH', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date(value));
+  };
+  var todayKey = formatDayKey(new Date());
+  var yesterdayKey = formatDayKey(new Date(Date.now() - 86400000));
 
   visibleRecords.forEach(function(rec) {
-    var f = (rec && rec.fields) || {};
+    var fields = (rec && rec.fields) || {};
     var isDone = vxInquiryIsCompleted(rec) || vxInquiryIsArchived(rec);
-    var ts = (isDone && (f.completed_at || f.closed_at || f.done_at)) ? (f.completed_at || f.closed_at || f.done_at) : getRecordTimestamp(rec);
-    var d = ts ? parseCallTimestamp(ts) : null;
-    var label;
-    if (!d) { label = 'Unbekannt'; }
-    else {
-      var dk = _rfd(d);
-      if (dk === _rtdk) label = 'Heute';
-      else if (dk === _ryek) label = 'Gestern';
-      else label = d.toLocaleDateString('de-CH', {day:'numeric',month:'short',year:'numeric',timeZone:_rtz});
+    var timestamp = isDone
+      ? (fields.completed_at || fields.closed_at || fields.done_at || fields.archived_at || getRecordTimestamp(rec))
+      : getRecordTimestamp(rec);
+    var date = timestamp ? parseCallTimestamp(timestamp) : null;
+    var label = 'Unbekannt';
+    if (date) {
+      var dayKey = formatDayKey(date);
+      if (dayKey === todayKey) label = 'Heute';
+      else if (dayKey === yesterdayKey) label = 'Gestern';
+      else label = date.toLocaleDateString('de-CH', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: timezone
+      });
     }
-    if (!groups[label]) { groups[label] = []; groupOrder.push(label); }
+    if (!groups[label]) {
+      groups[label] = [];
+      groupOrder.push(label);
+    }
     groups[label].push(rec);
   });
 
-  function buildInquiryDueMeta(rec, linkedTasks) {
-    var f = (rec && rec.fields) || {};
-    if (vxInquiryIsArchived(rec)) {
-      var tsArchived = f.completed_at || f.closed_at || f.done_at || f.archived_at || getRecordTimestamp(rec);
-      return { label: 'Erledigt', value: tsArchived ? fmtExactDateTime(tsArchived) : 'erledigt', state: 'incoming', group: 'calls' };
-    }
-    if (vxInquiryIsCompleted(rec)) {
-      var tsClosed = f.completed_at || f.closed_at || f.done_at || getRecordTimestamp(rec);
-      return { label: 'Erledigt', value: tsClosed ? fmtExactDateTime(tsClosed) : 'erledigt', state: 'incoming', group: 'calls' };
+  function resolveDueText(rec) {
+    var fields = (rec && rec.fields) || {};
+    if (vxInquiryIsArchived(rec) || vxInquiryIsCompleted(rec)) {
+      var completedAt = fields.completed_at || fields.closed_at || fields.done_at || fields.archived_at || getRecordTimestamp(rec);
+      return completedAt ? fmtExactDateTime(completedAt) : 'Erledigt';
     }
     if (vxInquiryIsPlanned(rec)) {
-      var due = f.follow_up_at || f.followup_at || f.followUpAt || '';
-      return { label: 'Geplant', value: due ? fmtExactDateTime(due) : 'geplant', state: 'planned', group: 'calls' };
+      var dueAt = fields.follow_up_at || fields.followup_at || fields.followUpAt || '';
+      return dueAt ? fmtExactDateTime(dueAt) : 'Geplant';
     }
-    if (vxInquiryIsNew(rec)) {
-      var tsNew = getRecordTimestamp(rec);
-      return { label: 'Offen', value: tsNew ? _formatRelativeTime(tsNew) : 'offen', state: 'today', group: 'calls' };
-    }
-    var ts = getRecordTimestamp(rec);
-    return { label: 'Eingegangen', value: ts ? _formatRelativeTime(ts) : '', state: 'incoming', group: 'calls' };
-  }
-
-  function buildInquiryDescription(rec, linkedTasks, category, summary) {
-    var f = (rec && rec.fields) || {};
-    // Primär: Kategorie oder next_action — das ist der aussagekräftigste Inhalt
-    var mainContent = '';
-    if (f.callback_requested === true || f.callback_requested === 'true') {
-      mainContent = 'Rückruf erbeten';
-    } else if (f.next_action && !vxDashIsGenericLabel(f.next_action)) {
-      mainContent = String(f.next_action).trim();
-    } else if (category && !isDashLikePlaceholder(category)) {
-      mainContent = category;
-    } else if (summary) {
-      mainContent = String(summary).slice(0, 60).trim() + (summary.length > 60 ? '…' : '');
-    } else {
-      mainContent = 'Eingehender Anruf';
-    }
-    // Aufgaben-Hinweis kompakt
-    var taskHint = '';
-    if (linkedTasks.length === 1) taskHint = '· 1 Aufgabe offen';
-    else if (linkedTasks.length > 1) taskHint = '· ' + linkedTasks.length + ' Aufgaben offen';
-    return mainContent + (taskHint ? ' ' + taskHint : '');
-  }
-
-  function buildInquiryMeta(record, linkedTasks) {
-    var status = vxGetEntryLifecycleStatus(record);
-    var out = [];
-    if (status === 'archived') out.push('Archiviert');
-    else if (status === 'done') out.push('Erledigt');
-    else if (status === 'planned') out.push('Geplant');
-    else out.push('Offen');
-    if (linkedTasks.length > 0) out.push('mit Aufgabe');
-    return out.join(' · ');
+    var timestamp = getRecordTimestamp(rec);
+    return timestamp ? _formatRelativeTime(timestamp) : '';
   }
 
   var html = '';
   groupOrder.forEach(function(label) {
-    html += '<div class="vx-date-sep"><i class="ph-bold ph-calendar-dots" aria-hidden="true"></i>' + _esc(label) + '</div>';
+    html += '<div class="vx-ops-meta vx-requests-date">'
+      + '<i class="ph-bold ph-calendar-dots" aria-hidden="true"></i>'
+      + _esc(label)
+      + '</div>';
+
     groups[label].forEach(function(rec) {
-      var f = rec.fields || {};
-      var phone = String(f.caller_phone || f.phone || f.tel_link || '').trim();
-      var urgencyVal = String(f.urgency || '').toLowerCase().trim();
-      var urgencyBadge = '';
-      if (urgencyVal === 'sofort') {
-        urgencyBadge = '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#FEF2F2;color:#DC2626;border:0.5px solid #FECACA;margin-left:4px;"><i class=\"ph-bold ph-warning-circle\" style=\"font-size:10px;\"></i>Sofort</span>';
-      } else if (urgencyVal === 'heute') {
-        urgencyBadge = '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#FFFBEB;color:#B45309;border:0.5px solid #E8C547;margin-left:4px;"><i class=\"ph-bold ph-clock\" style=\"font-size:10px;\"></i>Heute</span>';
-      }
+      var fields = (rec && rec.fields) || {};
+      var recordId = String((rec && rec.id) || '').trim();
+      var phone = String(fields.caller_phone || fields.phone || fields.phone_number || fields.tel_link || '').trim();
       var linkedTasks = vxFindOpenManualTasksForPhone(phone);
-      var dueMeta = buildInquiryDueMeta(rec, linkedTasks);
       var name = vxDashResolveWorkTitle(rec);
-      var company = (f.company_name && f.caller_name && f.company_name !== f.caller_name) ? f.company_name : '';
-      // [v2.69] Einheitliche Beschreibung via vxDashGetTaskDescription
-      var _typeMeta2 = vxDashGetCommandTypeMeta(rec);
-      var description = vxDashGetTaskDescription(rec, _typeMeta2, name);
-      // Meta-Zeile: nur Telefon
-      var metaLine = (phone && name !== phone) ? _esc(phone) : '';
-      var action = 'detail';
-      var actionLabel = vxInquiryIsNew(rec) ? 'Prüfen' : 'Details';
-      var actionIcon = vxInquiryIsNew(rec) ? 'check-circle' : 'caret-right';
-      var actionClass = 'is-soft-blue';
-      if ((f.callback_requested === true || f.callback_requested === 'true') && phone && linkedTasks.length === 0 && !vxInquiryIsCompleted(rec)) {
-        action = 'call'; actionLabel = 'Jetzt anrufen'; actionIcon = 'phone-call'; actionClass = 'is-call';
-      }
-      // [v2.67] Typ-Pill statt Status-Pill — einheitlich mit Heute-Tab
-      var _typeMeta = vxDashGetCommandTypeMeta(rec);
-      var _stateMeta = (typeof vxGetCallDisplayState === 'function' ? vxGetCallDisplayState(rec) : null) || vxGetDefaultCallDisplayState();
-      var iconClass = _typeMeta.pillClass;
-      var iconName = _typeMeta.icon;
-      var _archOrDone = vxInquiryIsArchived(rec) || vxInquiryIsCompleted(rec);
-      var _isOnToday = typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(rec);
-      var _isCallback2 = f.callback_requested === true || f.callback_requested === 'true';
-      var _railAnfragen = _archOrDone ? 'done'
-        : urgencyVal === 'sofort' ? 'urgent'
-        : (_isOnToday || vxInquiryIsPlanned(rec)) ? 'planned'
-        : _isCallback2 ? 'callback'
-        : 'new';
-      // Beschreibung: KI-Zusammenfassung / Notiz via einheitliche Funktion
-      var _unifiedDesc = vxDashGetTaskDescription(rec, _typeMeta, name);
-      // Pill-Label: für erledigte/archivierte Records Status zeigen, sonst Typ
-      var _pillLabel = vxInquiryIsArchived(rec) ? 'Archiviert'
-        : vxInquiryIsCompleted(rec) ? 'Erledigt'
-        : (_stateMeta.state === 'live' ? 'LIVE' : (_stateMeta.state === 'processing' ? 'Wird verarbeitet' : (_stateMeta.state === 'checking' ? 'Wird geprüft' : _typeMeta.label)));
-      var _pillClass = vxInquiryIsArchived(rec) ? 'dpr-kind-default'
-        : vxInquiryIsCompleted(rec) ? 'dpr-kind-done'
-        : _typeMeta.pillClass;
-      // Meta-Zeile: nur Telefon
-      var _metaSimple = (phone && name !== phone) ? _esc(phone) : '';
-      // [v3.0] Outlook-Pattern mit vx-* Klassen
-      var _isUnread = (typeof vxIsUnreadRecord === 'function') ? vxIsUnreadRecord(rec) : (!isManualTaskRecord(rec) && !f.read_at);
-      var _isDoneOrArch = vxInquiryIsCompleted(rec) || vxInquiryIsArchived(rec);
-      var _isCallIcon = _typeMeta.kind === 'callback' || _typeMeta.kind === 'incoming';
-      var _rowOpacity = '';
-
-      // Status-Pill
-      var _statusPillClass = 'vx-anf-pill';
-      var _statusLabel = dueMeta.label;
-      if (_isDoneOrArch) _statusPillClass += ' is-done';
-      else if (vxInquiryIsPlanned(rec)) _statusPillClass += ' is-planned';
-      else if (_isUnread) _statusPillClass += ' is-new';
-
-      // Lead quality pill
-      var _leadQ = String((rec.fields||{}).lead_quality||'').toLowerCase();
-      var _leadPill = '';
-      if (_leadQ === 'hot') _leadPill = '<span class="vx-anf-pill is-hot">Hot</span>';
-      else if (_leadQ === 'warm') _leadPill = '<span class="vx-anf-pill" style="background:var(--vx-gold-light);border-color:var(--vx-gold-bd);color:#B45309;">Warm</span>';
-
-      // Archiv: Lösch-Warnung (90-Tage-Regel)
-      var _expiryPill = '';
-      if (vxInquiryIsArchived(rec) && f.updated_at) {
-        var _archivedAt = parseCallTimestamp(f.updated_at);
-        if (_archivedAt) {
-          var _daysLeft = Math.ceil(((_archivedAt.getTime() + 90*86400000) - Date.now()) / 86400000);
-          if (_daysLeft <= 30 && _daysLeft > 0) {
-            var _expiryClass = _daysLeft <= 7 ? 'vx-archive-expiry' : 'vx-archive-expiry is-near';
-            _expiryPill = '<span class="'+_expiryClass+'">⏱ '+_daysLeft+'d</span>';
-          } else if (_daysLeft <= 0) {
-            _expiryPill = '<span class="vx-archive-expiry">Läuft ab</span>';
-          }
-        }
-      }
-
-      // Preview text
-      var _preview = '';
-      if (_stateMeta.state === 'live') _preview = 'Lara nimmt den Anruf gerade entgegen.';
-      else if (_stateMeta.state === 'processing') _preview = 'Zusammenfassung wird erstellt.';
-      else if (_stateMeta.state === 'checking') _preview = 'Zusammenfassung wird erstellt.';
-      else { _preview = String(f.call_summary || f.summary || f.note || '').trim(); if (_preview.length > 65) _preview = _preview.slice(0,62) + '…'; }
-
-      var _activeRenderId = String(window._vxActiveRecordId || window._vxLastAnfragenRecordId || window._vxCurrentCallId || window._vxCurrentTaskId || '');
-      var _activeClass = (_activeRenderId && String(rec.id) === _activeRenderId) ? ' sp-active' : '';
-      var _isSelected = vxInboxIsSelected(rec.id);
-      html += '<div class="dpr-card'+_activeClass+'" data-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" data-kind="inquiry" data-rail="'+_railAnfragen+'" data-filter-new="'+(_isUnread?'1':'0')+'" data-filter-task="'+(linkedTasks.length>0?'1':'0')+'" data-filter-planned="'+((_isOnToday||vxInquiryIsPlanned(rec))?'1':'0')+'" data-filter-checked="'+(_isDoneOrArch?'1':'0')+'" data-filter-archived="'+(vxInquiryIsArchived(rec)?'1':'0')+'">';
-      var _rowRailClass = _railAnfragen === 'urgent' ? 'rail-overdue' : (_railAnfragen === 'planned' ? 'rail-planned' : 'rail-today');
-      html += '<div class="vx-heute-row '+_rowRailClass+(_isUnread?' is-unread':'')+(_selectionMode?' is-selection-mode':'')+(_isSelected?' is-selected':'')+'"'+_rowOpacity+' onclick="dprToggleClick(event,this)" ontouchstart="dprToggleTouchStart(event,this)" ontouchmove="dprToggleTouchMove(event)" ontouchend="dprToggleTouchEnd(event,this)" data-id="'+_esc(rec.id)+'" data-record-id="'+_esc(rec.id)+'">';
-      if (_selectionMode) html += '<span class="vx-inbox-select-dot" aria-hidden="true"><i class="ph-bold ph-check" style="font-size:10px;"></i></span>';
-      html += '<div class="vx-row-icon'+(_isCallIcon?' is-call':'')+'"><i class="ph-bold ph-'+iconName+'" aria-hidden="true"></i></div>';
-      html += '<div class="vx-row-body">';
-      html += '<div class="vx-row-name" style="'+(_isUnread?'font-weight:700;':'')+'">'+(_isUnread?'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#1A6FE8;margin-right:7px;vertical-align:middle;"></span>':'')+_esc(name)+(company?'<span class="dpr-co">'+_esc(company)+'</span>':'')+(_isUnread?'<span class="vx-row-pill" style="background:#DBEAFE;color:#1A6FE8;border-color:#BFDBFE;">Neu</span>':'')+'<span class="vx-row-pill">'+_esc(_pillLabel)+'</span></div>';
-      if (dueMeta && dueMeta.value) html += '<div class="vx-row-time">'+_esc(dueMeta.value)+'</div>';
-      if (_preview) html += '<div class="vx-row-summary">'+_esc(_preview)+'</div>';
-      html += '</div>';
-      // [v3.3] Anfragen-Aktionslogik: gleiche Hierarchie wie Heute.
-      // Sichtbar bleibt nur eine Hauptaktion + Overflow; Status-, Planungs- und Archivaktionen liegen im Menü.
-      var _primaryAnfrage = (typeof vxTodayGetPrimaryAction === 'function')
-        ? vxTodayGetPrimaryAction(rec, _typeMeta, phone)
-        : { action:(phone ? 'call' : 'open'), title:(phone ? 'Anrufen' : 'Öffnen'), icon:(phone ? 'phone-call' : 'arrow-square-out') };
-      var _primaryActionAnfrage = _primaryAnfrage.action;
-      var _primaryTitleAnfrage = _primaryAnfrage.title;
-      var _primaryIconAnfrage = _primaryAnfrage.icon;
-      var _primaryClassAnfrage = 'vx-ibtn vx-ibtn-main ' + (_primaryActionAnfrage === 'done' ? 'is-open' : (_primaryActionAnfrage === 'call' ? 'is-ghost-call' : 'is-open'));
-      html += '<div class="vx-row-btns vx-row-btns--single">';
-      html += '<button type="button" class="'+_primaryClassAnfrage+'" data-action="'+_primaryActionAnfrage+'" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="'+_esc(_primaryTitleAnfrage)+'" aria-label="'+_esc(_primaryTitleAnfrage)+'"><i class="ph-bold ph-'+_primaryIconAnfrage+'" aria-hidden="true"></i></button>';
-      html += '<button type="button" class="vx-ibtn is-overflow" data-action="overflow" data-rec-id="'+_esc(rec.id)+'" data-phone="'+_esc(phone)+'" title="Mehr"><i class="ph-bold ph-dots-three"></i></button>';
-      html += '<div class="vx-row-menu" id="vx-row-menu-'+_esc(rec.id)+'">';
-      html += (typeof vxAnfragenBuildRowMenuHtml === 'function')
-        ? vxAnfragenBuildRowMenuHtml(rec, phone, _typeMeta)
-        : '<button type="button" data-action="fulldetail" data-rec-id="'+_esc(rec.id)+'">Details öffnen</button>';
-      html += '</div>';
-      html += '</div>';
-      html += '</div>';
-      // Expanded Panel bleibt für Touch-Long-Press (sekundär)
-      var isCallback = (f.callback_requested === true || f.callback_requested === 'true');
-      var isDone = vxInquiryIsCompleted(rec);
+      var company = (fields.company_name && fields.caller_name && fields.company_name !== fields.caller_name)
+        ? String(fields.company_name).trim()
+        : '';
+      var typeMeta = vxDashGetCommandTypeMeta(rec);
+      var stateMeta = (typeof vxGetCallDisplayState === 'function' ? vxGetCallDisplayState(rec) : null) || vxGetDefaultCallDisplayState();
       var isArchived = vxInquiryIsArchived(rec);
-      html += '</div>'; // /dpr-card
+      var isDone = vxInquiryIsCompleted(rec);
+      var isPlanned = vxInquiryIsPlanned(rec);
+      var isUnread = typeof vxIsUnreadRecord === 'function'
+        ? vxIsUnreadRecord(rec)
+        : (!isManualTaskRecord(rec) && !fields.read_at);
+      var isOnToday = typeof vxCallIsOnToday === 'function' && vxCallIsOnToday(rec);
+      var urgency = String(fields.urgency || '').toLowerCase().trim();
+      var rail = (isArchived || isDone) ? 'done'
+        : urgency === 'sofort' ? 'urgent'
+        : (isOnToday || isPlanned) ? 'planned'
+        : (fields.callback_requested === true || fields.callback_requested === 'true') ? 'callback'
+        : 'new';
+      var preview = '';
+      if (stateMeta.state === 'live') preview = 'Lara nimmt den Anruf gerade entgegen.';
+      else if (stateMeta.state === 'processing' || stateMeta.state === 'checking') preview = 'Zusammenfassung wird erstellt.';
+      else preview = String(fields.call_summary || fields.summary || fields.note || '').trim();
+      if (!preview) preview = vxDashGetTaskDescription(rec, typeMeta, name);
+      if (preview.length > 110) preview = preview.slice(0, 107) + '…';
+
+      var statusLabel = isArchived ? 'Archiviert'
+        : isDone ? 'Erledigt'
+        : isPlanned ? 'Geplant'
+        : stateMeta.state === 'live' ? 'Live'
+        : stateMeta.state === 'processing' || stateMeta.state === 'checking' ? 'Wird verarbeitet'
+        : isUnread ? 'Neu'
+        : 'Offen';
+      var statusClass = isArchived || isDone ? ' is-done'
+        : isPlanned ? ' is-planned'
+        : stateMeta.state === 'live' ? ' active'
+        : isUnread ? ' is-new'
+        : '';
+      var leadQuality = String(fields.lead_quality || '').toLowerCase();
+      var leadPill = leadQuality === 'hot'
+        ? '<span class="vx-ops-pill vx-requests-pill is-hot">Hot</span>'
+        : leadQuality === 'warm'
+          ? '<span class="vx-ops-pill vx-requests-pill is-warm">Warm</span>'
+          : '';
+      var primary = typeof vxTodayGetPrimaryAction === 'function'
+        ? vxTodayGetPrimaryAction(rec, typeMeta, phone)
+        : { action: phone ? 'call' : 'open', title: phone ? 'Anrufen' : 'Öffnen', icon: phone ? 'phone-call' : 'arrow-square-out' };
+      var primaryClass = primary.action === 'call' ? ' is-call' : primary.action === 'done' ? ' is-done' : '';
+      var menuHtml = typeof vxAnfragenBuildRowMenuHtml === 'function'
+        ? vxAnfragenBuildRowMenuHtml(rec, phone, typeMeta)
+        : '<button type="button" data-action="fulldetail" data-rec-id="' + _esc(recordId) + '">Details öffnen</button>';
+      var activeClass = String(window._vxActiveRecordId || window._vxLastAnfragenRecordId || '') === recordId ? ' sp-active' : '';
+      var unreadClass = isUnread ? ' is-unread' : '';
+      var dueText = resolveDueText(rec);
+      var taskText = linkedTasks.length === 1 ? '1 offene Aufgabe' : linkedTasks.length > 1 ? linkedTasks.length + ' offene Aufgaben' : '';
+
+      html += '<article class="vx-ops-item vx-requests-item' + activeClass + unreadClass + '"'
+        + ' data-id="' + _esc(recordId) + '"'
+        + ' data-record-id="' + _esc(recordId) + '"'
+        + ' data-phone="' + _esc(phone) + '"'
+        + ' data-kind="inquiry"'
+        + ' data-rail="' + _esc(rail) + '"'
+        + ' data-filter-new="' + (isUnread ? '1' : '0') + '"'
+        + ' data-filter-task="' + (linkedTasks.length > 0 ? '1' : '0') + '"'
+        + ' data-filter-planned="' + ((isOnToday || isPlanned) ? '1' : '0') + '"'
+        + ' data-filter-checked="' + ((isDone || isArchived) ? '1' : '0') + '"'
+        + ' data-filter-archived="' + (isArchived ? '1' : '0') + '">';
+      html += '<div class="vx-requests-row" role="button" tabindex="0"'
+        + ' data-id="' + _esc(recordId) + '" data-record-id="' + _esc(recordId) + '"'
+        + ' onclick="dprToggleClick(event,this)"'
+        + ' ontouchstart="dprToggleTouchStart(event,this)"'
+        + ' ontouchmove="dprToggleTouchMove(event)"'
+        + ' ontouchend="dprToggleTouchEnd(event,this)">';
+      html += '<div class="vx-ap-avatar vx-requests-icon' + ((typeMeta.kind === 'callback' || typeMeta.kind === 'incoming') ? ' is-call' : '') + '">'
+        + '<i class="ph-bold ph-' + _esc(typeMeta.icon || 'phone-incoming') + '" aria-hidden="true"></i>'
+        + '</div>';
+      html += '<div class="vx-requests-copy">';
+      html += '<div class="vx-requests-title-line">'
+        + '<div class="vx-ops-title vx-requests-title">' + _esc(name) + '</div>'
+        + (dueText ? '<div class="vx-ops-meta vx-requests-time">' + _esc(dueText) + '</div>' : '')
+        + '</div>';
+      if (company) html += '<div class="vx-ops-meta vx-requests-company">' + _esc(company) + '</div>';
+      html += '<div class="vx-requests-pills">'
+        + '<span class="vx-ops-pill vx-requests-pill' + statusClass + '">' + _esc(statusLabel) + '</span>'
+        + leadPill
+        + '</div>';
+      if (preview) html += '<div class="vx-ops-message vx-requests-preview">' + _esc(preview) + '</div>';
+      var metaParts = [];
+      if (phone && name !== phone) metaParts.push(phone);
+      if (taskText) metaParts.push(taskText);
+      if (metaParts.length) html += '<div class="vx-ops-meta vx-requests-meta">' + _esc(metaParts.join(' · ')) + '</div>';
+      html += '</div>';
+      html += '<div class="vx-requests-actions">';
+      html += '<button type="button" class="vx-requests-icon-action' + primaryClass + '"'
+        + ' data-action="' + _esc(primary.action) + '"'
+        + ' data-rec-id="' + _esc(recordId) + '"'
+        + ' data-phone="' + _esc(phone) + '"'
+        + ' title="' + _esc(primary.title) + '" aria-label="' + _esc(primary.title) + '">'
+        + '<i class="ph-bold ph-' + _esc(primary.icon) + '" aria-hidden="true"></i>'
+        + '</button>';
+      html += '<button type="button" class="vx-requests-icon-action is-overflow"'
+        + ' data-action="overflow" data-rec-id="' + _esc(recordId) + '" data-phone="' + _esc(phone) + '"'
+        + ' title="Mehr" aria-label="Weitere Aktionen">'
+        + '<i class="ph-bold ph-dots-three" aria-hidden="true"></i>'
+        + '</button>';
+      html += '<div class="vx-row-menu" id="vx-row-menu-' + _esc(recordId) + '">' + menuHtml + '</div>';
+      html += '</div>';
+      html += '</div>';
+      html += '</article>';
     });
   });
+
   el.innerHTML = html;
 
-  // Aktive Row wiederherstellen nach Re-Render
-  var _activeId = window._vxActiveRecordId || window._vxCurrentCallId || window._vxCurrentTaskId;
-  if (_activeId) {
-    el.querySelectorAll('.dpr-card').forEach(function(c) {
-      c.classList.toggle('sp-active', String(c.dataset.id) === String(_activeId));
-    });
-  }
+  if (!el.dataset.requestsClickBound) {
+    el.addEventListener('click', function(event) {
+      var target = event.target;
+      var row = target && target.closest ? target.closest('.vx-requests-row') : null;
 
-  if (!el.dataset.boundClick) {
-    el.addEventListener('click', function(e) {
-      var rowEl = e.target.closest('.vx-heute-row');
-      if (window._vxInboxSelectionMode && rowEl) {
-        var rowId = vxInboxResolveRowRecordId(e.target) || vxInboxResolveRowRecordId(rowEl);
+      if (window._vxInboxSelectionMode && row) {
+        var rowId = vxInboxResolveRowRecordId(target) || vxInboxResolveRowRecordId(row);
         if (rowId) {
-          e.preventDefault();
-          e.stopPropagation();
+          event.preventDefault();
+          event.stopPropagation();
           vxInboxToggleSelected(rowId);
           renderAnrufe();
           return;
         }
-        var blockedActionBtn = e.target.closest('button, [data-action]');
-        if (blockedActionBtn) {
-          e.preventDefault();
-          e.stopPropagation();
+        var blockedAction = target && target.closest ? target.closest('button, [data-action]') : null;
+        if (blockedAction) {
+          event.preventDefault();
+          event.stopPropagation();
           return;
         }
       }
-      var overflowBtn = e.target.closest('[data-action="overflow"]');
-      if (overflowBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        var menu = overflowBtn.parentElement && overflowBtn.parentElement.querySelector('.vx-row-menu');
-        if (menu) vxOpenFloatingRowMenu(overflowBtn, menu);
+
+      var overflowButton = target && target.closest ? target.closest('[data-action="overflow"]') : null;
+      if (overflowButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        var menu = overflowButton.parentElement && overflowButton.parentElement.querySelector('.vx-row-menu');
+        if (menu) vxOpenFloatingRowMenu(overflowButton, menu);
         return;
       }
-      var card = e.target.closest('.dpr-card');
-      if (!card || e.target.closest('.dpr-btn, .va-exp-panel, button')) return;
-      var recId = card.dataset.id;
-      if (!recId) return;
-      if (typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(recId);
-      var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
-      if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); }
-      else if (typeof showCallDetail === 'function') showCallDetail(recId);
+
+      var item = target && target.closest ? target.closest('.vx-requests-item') : null;
+      if (!item || target.closest('button, [data-action], .vx-row-menu')) return;
+      var recordId = item.dataset && item.dataset.id ? item.dataset.id : '';
+      if (!recordId) return;
+      if (typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(recordId);
+      var record = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recordId) : null;
+      if (record && typeof isManualTaskRecord === 'function' && isManualTaskRecord(record)) {
+        if (typeof showTaskDetail === 'function') showTaskDetail(recordId);
+      } else if (typeof showCallDetail === 'function') {
+        showCallDetail(recordId);
+      }
     });
-    el.dataset.boundClick = '1';
+    el.dataset.requestsClickBound = '1';
+  }
+
+  if (!el.dataset.requestsKeyboardBound) {
+    el.addEventListener('keydown', function(event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      var row = event.target && event.target.closest ? event.target.closest('.vx-requests-row') : null;
+      if (!row || event.target.closest('button, [data-action]')) return;
+      event.preventDefault();
+      row.click();
+    });
+    el.dataset.requestsKeyboardBound = '1';
   }
 
   vxRenderInboxSelectionToolbar();
   vxUpdateAnfragenCount();
-  /* phosphor: no init needed */
-  dprRestoreOpen('anrufe-list');
-  if (window._vxActiveRecordId && typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(window._vxActiveRecordId);
+  if (window._vxActiveRecordId && typeof vxSetActiveRequestRow === 'function') {
+    vxSetActiveRequestRow(window._vxActiveRecordId);
+  }
   vxApplyPendingRowHighlight();
 }
 
@@ -23885,7 +23721,7 @@ function vxInboxResolveRowRecordId(target) {
   if (!target || !target.closest) return '';
   var recNode = target.closest('[data-record-id]');
   if (!recNode) recNode = target.closest('[data-id]');
-  if (!recNode) recNode = target.closest('.vx-heute-row, .dpr-card');
+  if (!recNode) recNode = target.closest('.vx-requests-row, .vx-requests-item, .vx-ops-item, .vx-heute-row, .dpr-card');
   if (!recNode) return '';
   return String(
     (recNode.getAttribute && recNode.getAttribute('data-record-id')) ||
@@ -31238,17 +31074,6 @@ function toggleCallRow(event, row) {
 #dash-priority-list .dpr-card.sp-active .vx-heute-row {
   background: rgba(26,111,232,.06) !important;
 }
-#anrufe-list .vx-anf-dot {
-  display: none !important;
-}
-#anrufe-list .vx-anf-dot-empty {
-  width: 6px !important;
-  height: 6px !important;
-  flex-shrink: 0 !important;
-  margin-top: 5px !important;
-  background: transparent !important;
-  border-radius: 50% !important;
-}
 
 
 
@@ -33245,26 +33070,6 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
     transform:none;
   }
 }
-
-/* Anfragen-Page: List-Container, Datumstrenner und Row-Typografie gemäss Design-System. */
-#anrufe-list.dpr-command-center .anrufe-date-sep{
-  display:flex;
-  align-items:center;
-  gap:var(--space-2);
-  padding:12px 16px 8px;
-  background:var(--surface2);
-  border-top:0.5px solid var(--line);
-  color:var(--slate);
-  font-size:var(--text-xs);
-  font-weight:var(--fw-bold);
-  line-height:1.2;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
-#anrufe-list.dpr-command-center .anrufe-date-sep:first-child{border-top:none;}
-#anrufe-list.dpr-command-center .dpr-row{
-  grid-template-columns:44px minmax(0,1.45fr) minmax(124px,.5fr) minmax(132px,.52fr) 20px;
-}
 #anrufe-list.dpr-command-center .dpr-type-icon,
 #dash-priority-list .dpr-type-icon{
   width:44px;
@@ -33703,13 +33508,6 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 #anrufe-list{
   background:var(--surface)!important;
   border-color:var(--line)!important;
-}
-#anrufe-list.dpr-command-center,
-#anrufe-list{
-  border:0.5px solid var(--line)!important;
-  border-radius:var(--r-lg)!important;
-  box-shadow:var(--shadow-card)!important;
-  overflow:hidden!important;
 }
 #dash-priority-list .dpr-card,
 #anrufe-list.dpr-command-center .dpr-card{
@@ -34292,21 +34090,6 @@ textarea:focus-visible {
   border-left-color: var(--line) !important;
   opacity: .7;
 }
-/* Anfragen: Farbe nach Status überschreiben */
-#anrufe-list.dpr-command-center .dpr-card[data-filter-new="1"] {
-  border-left-color: var(--blue) !important;
-}
-#anrufe-list.dpr-command-center .dpr-card[data-filter-planned="1"] {
-  border-left-color: var(--amber) !important;
-}
-#anrufe-list.dpr-command-center .dpr-card[data-filter-checked="1"] {
-  border-left-color: var(--green) !important;
-  opacity: .65;
-}
-#anrufe-list.dpr-command-center .dpr-card[data-filter-archived="1"] {
-  border-left-color: var(--line) !important;
-  opacity: .45;
-}
 
 /* ── Expanded Panel Variante A ── */
 .va-exp-panel {
@@ -34406,10 +34189,6 @@ textarea:focus-visible {
 #anrufe-list.dpr-command-center .dpr-card[data-filter-checked="1"] {
   opacity: .65;
   border-left-color: var(--green) !important;
-}
-#anrufe-list.dpr-command-center .dpr-card[data-filter-archived="1"] {
-  opacity: .45;
-  border-left-color: var(--line) !important;
 }
 
 /* ── PHOSPHOR ICON SYSTEM — Voxera v2.30 ──────────────────────
@@ -34537,14 +34316,6 @@ textarea:focus-visible {
   font-size: 12px !important;
   padding: 0 12px !important;
   border-radius: 8px !important;
-}
-
-/* Anfragen-Liste: ohne Row-Action Button */
-#anrufe-list.dpr-command-center .dpr-action-cell {
-  display: none !important;
-}
-#anrufe-list.dpr-command-center .dpr-chevron {
-  margin-left: 4px !important;
 }
 
 /* [PATCH v2.40 Fix C] Farbige Linien links entfernen
@@ -35533,11 +35304,6 @@ button.vx-cd-qa-success:hover,
   }
   #anrufe-split-right,
   #anrufe-split-resizer { display:none !important; }
-  #anrufe-split-left {
-    width:100% !important;
-    max-width:100% !important;
-    border-right:none !important;
-  }
 }
 
 
@@ -36106,34 +35872,6 @@ button.vx-cd-qa-success:hover,
   }
 }
 
-
-/* v5.3 Anfragen cleanup — read/unread uses one marker only, no duplicated left rails */
-#anrufe-list .dpr-card.sp-active,
-#anrufe-list .sp-active,
-#anrufe-split-left .dpr-card.sp-active {
-  border-left:0 !important;
-}
-#anrufe-list .dpr-card.sp-active .vx-heute-row,
-#anrufe-list .dpr-card.sp-active .vx-anf-row,
-#anrufe-list .sp-active .vx-heute-row,
-#anrufe-list .sp-active .vx-anf-row {
-  background:rgba(26,111,232,.06) !important;
-  border-color:rgba(26,111,232,.24) !important;
-}
-#anrufe-list .vx-heute-row.is-unread::before,
-#anrufe-list .vx-anf-row.is-unread::before {
-  display:none !important;
-}
-#anrufe-list .vx-heute-row.rail-today,
-#anrufe-list .vx-heute-row.rail-planned,
-#anrufe-list .vx-heute-row.rail-overdue {
-  border-left:1px solid rgba(15,33,63,.09) !important;
-}
-#anrufe-list .vx-heute-row.is-unread {
-  background:rgba(26,111,232,.06) !important;
-  border-color:rgba(26,111,232,.24) !important;
-}
-
 /* ── Mobile notifications compact Voxera polish ───────────────────── */
 @media(max-width:768px){
   .vx-notif-mobile-shell{
@@ -36685,174 +36423,13 @@ button.vx-cd-qa-success:hover,
 
 <!-- PATCH: Anfragen action hierarchy aligned with Heute -->
 <style id="vx-anfragen-actions-aligned">
-#anrufe-list.dpr-command-center .vx-row-btns--single{
-  display:flex !important;
-  align-items:center !important;
-  justify-content:flex-end !important;
-  gap:8px !important;
-  flex-wrap:nowrap !important;
-  min-width:max-content !important;
-}
-#anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn-main{
-  width:auto !important;
-  min-width:104px !important;
-  max-width:none !important;
-  height:38px !important;
-  min-height:38px !important;
-  padding:0 14px !important;
-  border-radius:12px !important;
-  display:inline-flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  gap:8px !important;
-  white-space:nowrap !important;
-  overflow:visible !important;
-  flex:0 0 auto !important;
-  font-size:12px !important;
-  font-weight:600 !important;
-  line-height:1 !important;
-  box-shadow:none !important;
-}
-#anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn-main span{
-  display:inline-block !important;
-  min-width:0 !important;
-  text-align:center !important;
-  white-space:nowrap !important;
-  overflow:visible !important;
-  line-height:1 !important;
-}
-#anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn-main i{
-  flex:0 0 auto !important;
-  font-size:15px !important;
-  line-height:1 !important;
-}
-#anrufe-list.dpr-command-center .vx-ibtn-main.is-ghost-call{
-  min-width:112px !important;
-  background:#F7FAFF !important;
-  border-color:#D7E7FF !important;
-  color:var(--vx-blue) !important;
-}
-#anrufe-list.dpr-command-center .vx-ibtn-main.is-ghost-call:hover{
-  background:#EEF5FF !important;
-  border-color:#BFDBFE !important;
-  color:#1560C8 !important;
-}
-#anrufe-list.dpr-command-center .vx-ibtn-main.is-open{
-  min-width:104px !important;
-  background:#fff !important;
-  border-color:var(--surface-border) !important;
-  color:var(--ink2) !important;
-}
-#anrufe-list.dpr-command-center .vx-row-btns--single .is-overflow{
-  width:40px !important;
-  min-width:40px !important;
-  max-width:40px !important;
-  height:38px !important;
-  min-height:38px !important;
-  flex:0 0 40px !important;
-  padding:0 !important;
-  background:#fff !important;
-  border-color:#E2E8F0 !important;
-  color:#94A3B8 !important;
-  box-shadow:none !important;
-}
 @media(max-width:768px){
-  #anrufe-list.dpr-command-center,
-  #anrufe-list.dpr-command-center .dpr-card,
-  #anrufe-list.dpr-command-center .vx-heute-row{
-    max-width:100% !important;
-    overflow-x:hidden !important;
-    box-sizing:border-box !important;
-  }
-  #anrufe-list.dpr-command-center .vx-heute-row{
-    grid-template-columns:38px minmax(0,1fr) !important;
-    column-gap:10px !important;
-    padding:13px 14px !important;
-    align-items:start !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-btns--single{
-    grid-column:2 / -1 !important;
-    width:100% !important;
-    min-width:0 !important;
-    max-width:100% !important;
-    justify-content:flex-start !important;
-    margin-top:10px !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn-main{
-    flex:1 1 auto !important;
-    width:auto !important;
-    min-width:0 !important;
-    max-width:calc(100% - 52px) !important;
-    height:42px !important;
-    min-height:42px !important;
-    padding:0 14px !important;
-    overflow:hidden !important;
-    text-overflow:ellipsis !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn-main span{
-    overflow:hidden !important;
-    text-overflow:ellipsis !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn.is-overflow{
-    flex:0 0 44px !important;
-    width:44px !important;
-    min-width:44px !important;
-    max-width:44px !important;
-    height:42px !important;
-    min-height:42px !important;
-    border-radius:12px !important;
-  }
 }
 
 /* PATCH: Mobile Anfragen row actions aligned with Heute tab
    Root cause: previous mobile rule made actions full-width in grid column 2,
    so the overflow button was rendered below/inside the text column. */
 @media(max-width:768px){
-  #anrufe-list.dpr-command-center .vx-heute-row{
-    display:grid !important;
-    grid-template-columns:42px minmax(0,1fr) 52px !important;
-    column-gap:10px !important;
-    align-items:center !important;
-    padding:10px 12px !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-icon{
-    grid-column:1 !important;
-    grid-row:1 !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-body{
-    grid-column:2 !important;
-    grid-row:1 !important;
-    min-width:0 !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-btns--single{
-    grid-column:3 !important;
-    grid-row:1 !important;
-    width:44px !important;
-    min-width:44px !important;
-    max-width:44px !important;
-    margin-top:0 !important;
-    justify-self:end !important;
-    align-self:center !important;
-    display:flex !important;
-    align-items:center !important;
-    justify-content:flex-end !important;
-    gap:0 !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn-main{
-    display:none !important;
-  }
-  #anrufe-list.dpr-command-center .vx-row-btns--single .vx-ibtn.is-overflow{
-    display:flex !important;
-    flex:0 0 44px !important;
-    width:44px !important;
-    min-width:44px !important;
-    max-width:44px !important;
-    height:44px !important;
-    min-height:44px !important;
-    margin:0 !important;
-    padding:0 !important;
-    border-radius:14px !important;
-  }
 }
 
 
@@ -42133,121 +41710,9 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 .vx-heute-row {
   transition: none !important;
 }
-
-/* 2. Nur dpr-card als Rahmen-Träger, nicht die innere Row */
-#anrufe-list .vx-anf-row,
-#anrufe-list .vx-heute-row {
-  border-bottom: none !important;
-}
-#anrufe-list .dpr-card {
-  border-bottom: 0.5px solid var(--vx-border) !important;
-}
-#anrufe-list .dpr-card:last-child {
-  border-bottom: none !important;
-}
-
-/* 3. sp-active: kein border-bottom auf der Karte selbst */
-#anrufe-list .dpr-card.sp-active {
-  border-bottom: 0.5px solid transparent !important;
-}
-
-/* 4. Archiv-Rows (kein dpr-card) direkte sp-active Färbung */
-#anrufe-list .vx-anf-row.sp-active,
-#anrufe-list .vx-heute-row.sp-active {
-  background: rgba(26,111,232,0.08) !important;
-  border-left: none !important;
-}
-
-/* 5. vx-heute-row im Split: keine border-left rails */
-#anrufe-list .vx-heute-row.rail-today,
-#anrufe-list .vx-heute-row.rail-planned,
-#anrufe-list .vx-heute-row.rail-overdue {
-  border-left: none !important;
-}
 </style>
 
 <style id="vx-row-state-cleanup-pr-d-e">
-/* PR-D/E 2026-05-23 — Anfragen-Inbox: Mail-like Row-State, eine Selection-Quelle.
-   Scope bewusst eng: nur #anrufe-list / #anrufe-split-left, nicht Heute-Tab. */
-#anrufe-list .dpr-card,
-#anrufe-split-left .dpr-card{
-  background:#fff !important;
-  border-left:none !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-}
-#anrufe-list .vx-heute-row,
-#anrufe-list .vx-anf-row,
-#anrufe-split-left .vx-heute-row,
-#anrufe-split-left .vx-anf-row{
-  background:#fff !important;
-  border-left:none !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-  transition:none !important;
-}
-#anrufe-list .vx-heute-row.is-done-row,
-#anrufe-list .vx-anf-row.is-done-row,
-#anrufe-split-left .vx-heute-row.is-done-row,
-#anrufe-split-left .vx-anf-row.is-done-row{
-  background:#fff !important;
-  opacity:1 !important;
-  filter:none !important;
-}
-#anrufe-list .vx-heute-row.rail-today,
-#anrufe-list .vx-heute-row.rail-planned,
-#anrufe-list .vx-heute-row.rail-overdue,
-#anrufe-list .vx-anf-row.rail-today,
-#anrufe-list .vx-anf-row.rail-planned,
-#anrufe-list .vx-anf-row.rail-overdue,
-#anrufe-split-left .vx-heute-row.rail-today,
-#anrufe-split-left .vx-heute-row.rail-planned,
-#anrufe-split-left .vx-heute-row.rail-overdue{
-  border-left:none !important;
-}
-#anrufe-list .vx-heute-row.is-unread,
-#anrufe-list .vx-anf-row.is-unread,
-#anrufe-split-left .vx-heute-row.is-unread,
-#anrufe-split-left .vx-anf-row.is-unread{
-  background:#fff !important;
-  border-color:transparent !important;
-}
-#anrufe-list .vx-heute-row.is-unread::before,
-#anrufe-list .vx-anf-row.is-unread::before,
-#anrufe-split-left .vx-heute-row.is-unread::before,
-#anrufe-split-left .vx-anf-row.is-unread::before{
-  content:none !important;
-  display:none !important;
-}
-#anrufe-list .sp-active,
-#anrufe-split-left .sp-active,
-#anrufe-list .dpr-card.sp-active,
-#anrufe-split-left .dpr-card.sp-active{
-  background:rgba(26,111,232,0.08) !important;
-  border-left:none !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-}
-#anrufe-list .dpr-card.sp-active .vx-heute-row,
-#anrufe-list .dpr-card.sp-active .vx-anf-row,
-#anrufe-split-left .dpr-card.sp-active .vx-heute-row,
-#anrufe-split-left .dpr-card.sp-active .vx-anf-row,
-#anrufe-list .vx-heute-row.sp-active,
-#anrufe-list .vx-anf-row.sp-active,
-#anrufe-split-left .vx-heute-row.sp-active,
-#anrufe-split-left .vx-anf-row.sp-active{
-  background:rgba(26,111,232,0.08) !important;
-  border-left:none !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-  transition:none !important;
-}
-#anrufe-list .dpr-card.sp-active .vx-heute-row.is-unread,
-#anrufe-list .dpr-card.sp-active .vx-anf-row.is-unread,
-#anrufe-split-left .dpr-card.sp-active .vx-heute-row.is-unread,
-#anrufe-split-left .dpr-card.sp-active .vx-anf-row.is-unread{
-  background:rgba(26,111,232,0.08) !important;
-}
 </style>
 
 <style id="vx-inbox-mail-like-final-2026-05-23">
@@ -42302,261 +41767,8 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
   border-color:#1A6FE8 !important;
 }
 
-#anrufe-list.dpr-command-center{
-  background:#fff !important;
-}
-
-
-
-#anrufe-list .dpr-card,
-#anrufe-split-left .dpr-card{
-  position:relative !important;
-  background:#fff !important;
-  border:0 !important;
-  border-bottom:0.5px solid rgba(0,0,0,.07) !important;
-  border-radius:0 !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-  overflow:visible !important;
-}
-
-#anrufe-list .dpr-card:last-child,
-#anrufe-split-left .dpr-card:last-child{
-  border-bottom:0 !important;
-}
-
-#anrufe-list .vx-heute-row,
-#anrufe-list .vx-anf-row,
-#anrufe-split-left .vx-heute-row,
-#anrufe-split-left .vx-anf-row{
-  display:grid !important;
-  grid-template-columns:28px minmax(0,1fr) auto !important;
-  align-items:flex-start !important;
-  column-gap:9px !important;
-  min-height:56px !important;
-  padding:10px 12px !important;
-  background:transparent !important;
-  border:0 !important;
-  border-left:0 !important;
-  border-radius:0 !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-  filter:none !important;
-  transition:none !important;
-}
-
-#anrufe-list .vx-heute-row:hover,
-#anrufe-list .vx-anf-row:hover,
-#anrufe-split-left .vx-heute-row:hover,
-#anrufe-split-left .vx-anf-row:hover{
-  background:#F7F8FA !important;
-}
-
-#anrufe-list .vx-row-icon,
-#anrufe-split-left .vx-row-icon,
-#anrufe-list .vx-anf-icon,
-#anrufe-split-left .vx-anf-icon{
-  width:28px !important;
-  height:28px !important;
-  border-radius:8px !important;
-  background:#E6F1FB !important;
-  border:0 !important;
-  color:#1A6FE8 !important;
-  font-size:14px !important;
-}
-
-#anrufe-list .vx-row-icon:not(.is-call),
-#anrufe-split-left .vx-row-icon:not(.is-call){
-  background:#F1EFE8 !important;
-  color:#5F5E5A !important;
-}
-
-#anrufe-list .vx-row-name,
-#anrufe-split-left .vx-row-name,
-#anrufe-list .vx-anf-name,
-#anrufe-split-left .vx-anf-name{
-  font-size:13px !important;
-  font-weight:500 !important;
-  line-height:1.25 !important;
-  color:#0D1F3C !important;
-  white-space:nowrap !important;
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
-}
-
-#anrufe-list .vx-row-time,
-#anrufe-split-left .vx-row-time,
-#anrufe-list .vx-anf-time,
-#anrufe-split-left .vx-anf-time{
-  font-size:11px !important;
-  color:#94A3B8 !important;
-  font-weight:400 !important;
-  white-space:nowrap !important;
-}
-
-#anrufe-list .vx-row-summary,
-#anrufe-split-left .vx-row-summary,
-#anrufe-list .vx-anf-preview,
-#anrufe-split-left .vx-anf-preview{
-  font-size:11px !important;
-  color:#7A8599 !important;
-  line-height:1.35 !important;
-  margin-top:2px !important;
-  white-space:nowrap !important;
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
-}
-
-#anrufe-list .vx-row-pill,
-#anrufe-split-left .vx-row-pill,
-#anrufe-list .vx-anf-pill,
-#anrufe-split-left .vx-anf-pill{
-  font-size:9px !important;
-  line-height:1.2 !important;
-  padding:2px 6px !important;
-  border-radius:4px !important;
-  font-weight:500 !important;
-  margin-top:5px !important;
-  text-transform:none !important;
-}
-
-#anrufe-list .vx-row-pill.is-hot,
-#anrufe-split-left .vx-row-pill.is-hot,
-#anrufe-list .vx-anf-pill.is-hot,
-#anrufe-split-left .vx-anf-pill.is-hot{
-  background:#FCEBEB !important;
-  color:#A32D2D !important;
-  border-color:#FCEBEB !important;
-}
-
-#anrufe-list .vx-row-btns,
-#anrufe-split-left .vx-row-btns{
-  position:absolute !important;
-  right:8px !important;
-  top:50% !important;
-  transform:translateY(-50%) !important;
-  display:flex !important;
-  gap:4px !important;
-  opacity:0 !important;
-  pointer-events:none !important;
-  transition:opacity .08s linear !important;
-  z-index:4 !important;
-  background:linear-gradient(90deg,rgba(255,255,255,0),#fff 18px) !important;
-  padding-left:22px !important;
-}
-
-#anrufe-list .dpr-card:hover .vx-row-btns,
-#anrufe-list .dpr-card:focus-within .vx-row-btns,
-#anrufe-list .dpr-card.sp-active .vx-row-btns,
-#anrufe-split-left .dpr-card:hover .vx-row-btns,
-#anrufe-split-left .dpr-card:focus-within .vx-row-btns,
-#anrufe-split-left .dpr-card.sp-active .vx-row-btns{
-  opacity:1 !important;
-  pointer-events:auto !important;
-}
-
-#anrufe-list .vx-ibtn,
-#anrufe-split-left .vx-ibtn{
-  width:26px !important;
-  min-width:26px !important;
-  height:26px !important;
-  min-height:26px !important;
-  border-radius:7px !important;
-  padding:0 !important;
-  font-size:13px !important;
-  border:0.5px solid rgba(0,0,0,.11) !important;
-  background:#fff !important;
-  color:#64748B !important;
-  box-shadow:none !important;
-}
-
-#anrufe-list .vx-ibtn span,
-#anrufe-split-left .vx-ibtn span{
-  display:none !important;
-}
-
-#anrufe-list .vx-ibtn.is-call,
-#anrufe-list .vx-ibtn.is-ghost-call,
-#anrufe-split-left .vx-ibtn.is-call,
-#anrufe-split-left .vx-ibtn.is-ghost-call{
-  background:#1A6FE8 !important;
-  border-color:#1A6FE8 !important;
-  color:#fff !important;
-}
-
-#anrufe-list .vx-ibtn.is-done,
-#anrufe-split-left .vx-ibtn.is-done{
-  color:#059669 !important;
-}
-
-/* Alte Status-Visuals konsequent entfernen */
-#anrufe-list .vx-heute-row.is-done-row,
-#anrufe-list .vx-anf-row.is-done-row,
-#anrufe-split-left .vx-heute-row.is-done-row,
-#anrufe-split-left .vx-anf-row.is-done-row,
-#anrufe-list .call-row.done,
-#anrufe-split-left .call-row.done{
-  background:transparent !important;
-  opacity:1 !important;
-  filter:none !important;
-}
-
-#anrufe-list .vx-heute-row.rail-today,
-#anrufe-list .vx-heute-row.rail-planned,
-#anrufe-list .vx-heute-row.rail-overdue,
-#anrufe-split-left .vx-heute-row.rail-today,
-#anrufe-split-left .vx-heute-row.rail-planned,
-#anrufe-split-left .vx-heute-row.rail-overdue{
-  border-left:0 !important;
-}
-
-#anrufe-list .vx-heute-row.is-unread,
-#anrufe-split-left .vx-heute-row.is-unread{
-  background:transparent !important;
-}
-
-#anrufe-list .vx-heute-row.is-unread::before,
-#anrufe-split-left .vx-heute-row.is-unread::before{
-  content:none !important;
-  display:none !important;
-}
-
-/* Apple-like Selection: finale Quelle, nur Background-Tint */
-#anrufe-list .dpr-card.sp-active,
-#anrufe-split-left .dpr-card.sp-active{
-  background:rgba(26,111,232,0.08) !important;
-  border-left:0 !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-}
-
-#anrufe-list .dpr-card.sp-active .vx-heute-row,
-#anrufe-list .dpr-card.sp-active .vx-anf-row,
-#anrufe-split-left .dpr-card.sp-active .vx-heute-row,
-#anrufe-split-left .dpr-card.sp-active .vx-anf-row,
-#anrufe-list .vx-heute-row.sp-active,
-#anrufe-list .vx-anf-row.sp-active,
-#anrufe-split-left .vx-heute-row.sp-active,
-#anrufe-split-left .vx-anf-row.sp-active{
-  background:transparent !important;
-  border-left:0 !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-  transition:none !important;
-}
-
-#anrufe-list .dpr-card.sp-active .vx-row-btns,
-#anrufe-split-left .dpr-card.sp-active .vx-row-btns{
-  background:linear-gradient(90deg,rgba(26,111,232,0),rgba(232,243,255,1) 18px) !important;
-}
-
 /* Tablet/Mobile: keine Hover-Abhängigkeit */
 @media (hover:none), (max-width:1099px){
-  #anrufe-list .vx-row-btns,
-  #anrufe-split-left .vx-row-btns{
-    opacity:1 !important;
-    pointer-events:auto !important;
-  }
 }
 
 @media(max-width:1099px){
@@ -42583,14 +41795,6 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 #tab-anrufe .vx-split{
   gap:0 !important;
   align-items:stretch !important;
-}
-#tab-anrufe .vx-split #anrufe-split-left,
-#anrufe-split-left{
-  width:var(--vx-split-left-w, 440px) !important;
-  min-width:390px !important;
-  max-width:55% !important;
-  flex:0 0 var(--vx-split-left-w, 440px) !important;
-  border-radius:10px 0 0 10px !important;
 }
 #anrufe-split-resizer{
   display:block !important;
@@ -42689,120 +41893,6 @@ body:has(#tab-archiv.active) .content{
   body:has(#tab-archiv.active) .content{overflow:auto !important;}
 }
 
-/* 2) Row Layout: aktive Selection darf nicht automatisch die Row-Actions einblenden.
-      Im Mockup ist die aktive Row ruhig: nur Background-Tint. Actions erscheinen auf Hover/Focus. */
-#anrufe-list .dpr-card.sp-active .vx-row-btns,
-#anrufe-split-left .dpr-card.sp-active .vx-row-btns{
-  opacity:0 !important;
-  pointer-events:none !important;
-}
-#anrufe-list .dpr-card.sp-active:hover .vx-row-btns,
-#anrufe-list .dpr-card.sp-active:focus-within .vx-row-btns,
-#anrufe-split-left .dpr-card.sp-active:hover .vx-row-btns,
-#anrufe-split-left .dpr-card.sp-active:focus-within .vx-row-btns{
-  opacity:1 !important;
-  pointer-events:auto !important;
-}
-
-/* 3) Row-Actions hart auf Icon-Buttons begrenzen.
-      Verhindert Regression mit breitem "Öffnen"-Button und überlappender Textspalte. */
-#anrufe-list .vx-row-btns,
-#anrufe-split-left .vx-row-btns{
-  right:8px !important;
-  top:50% !important;
-  transform:translateY(-50%) !important;
-  gap:4px !important;
-  max-width:64px !important;
-}
-#anrufe-list .vx-row-btns button,
-#anrufe-split-left .vx-row-btns button,
-#anrufe-list .vx-row-btns .vx-ibtn,
-#anrufe-split-left .vx-row-btns .vx-ibtn{
-  width:26px !important;
-  min-width:26px !important;
-  max-width:26px !important;
-  height:26px !important;
-  min-height:26px !important;
-  max-height:26px !important;
-  padding:0 !important;
-  border-radius:7px !important;
-  overflow:hidden !important;
-  white-space:nowrap !important;
-  font-size:0 !important;
-  line-height:1 !important;
-  display:inline-flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-}
-#anrufe-list .vx-row-btns button span,
-#anrufe-split-left .vx-row-btns button span,
-#anrufe-list .vx-row-btns .vx-ibtn span,
-#anrufe-split-left .vx-row-btns .vx-ibtn span{
-  display:none !important;
-}
-#anrufe-list .vx-row-btns button i,
-#anrufe-split-left .vx-row-btns button i,
-#anrufe-list .vx-row-btns .vx-ibtn i,
-#anrufe-split-left .vx-row-btns .vx-ibtn i{
-  font-size:13px !important;
-  line-height:1 !important;
-}
-
-/* 4) Row-Inhalt: Textspalte darf nicht von Aktionen verschoben werden.
-      Die dritte Grid-Spalte wird entfernt; Actions sind absolut positioniert. */
-#anrufe-list .vx-heute-row,
-#anrufe-list .vx-anf-row,
-#anrufe-split-left .vx-heute-row,
-#anrufe-split-left .vx-anf-row{
-  grid-template-columns:28px minmax(0,1fr) !important;
-  column-gap:9px !important;
-  padding:10px 12px !important;
-}
-#anrufe-list .vx-heute-row.is-selection-mode,
-#anrufe-split-left .vx-heute-row.is-selection-mode{
-  grid-template-columns:24px 40px minmax(0,1fr) !important;
-  column-gap:10px !important;
-}
-#anrufe-list .vx-row-body,
-#anrufe-split-left .vx-row-body,
-#anrufe-list .vx-anf-body,
-#anrufe-split-left .vx-anf-body{
-  min-width:0 !important;
-  overflow:hidden !important;
-  padding-right:0 !important;
-}
-#anrufe-list .vx-heute-row.is-selection-mode .vx-row-body,
-#anrufe-split-left .vx-heute-row.is-selection-mode .vx-row-body{
-  max-width:none !important;
-  padding-right:0 !important;
-}
-#anrufe-list .vx-heute-row.is-selection-mode .vx-row-btns,
-#anrufe-split-left .vx-heute-row.is-selection-mode .vx-row-btns{
-  display:none !important;
-  width:0 !important;
-  min-width:0 !important;
-  max-width:0 !important;
-  pointer-events:none !important;
-}
-#anrufe-list .dpr-card:hover .vx-row-body,
-#anrufe-list .dpr-card:focus-within .vx-row-body,
-#anrufe-split-left .dpr-card:hover .vx-row-body,
-#anrufe-split-left .dpr-card:focus-within .vx-row-body{
-  padding-right:68px !important;
-}
-
-/* 5) Active tint bleibt auf der Card, nicht auf innerer Row. */
-#anrufe-list .dpr-card.sp-active,
-#anrufe-split-left .dpr-card.sp-active{
-  background:rgba(26,111,232,0.08) !important;
-}
-#anrufe-list .dpr-card.sp-active .vx-heute-row,
-#anrufe-list .dpr-card.sp-active .vx-anf-row,
-#anrufe-split-left .dpr-card.sp-active .vx-heute-row,
-#anrufe-split-left .dpr-card.sp-active .vx-anf-row{
-  background:transparent !important;
-}
-
 @media(max-width:1099px){
   #tab-anrufe .vx-split,
   #anrufe-split{
@@ -42819,26 +41909,9 @@ body:has(#tab-archiv.active) .content{
     max-width:0 !important;
     flex:0 0 auto !important;
   }
-  #tab-anrufe .vx-split #anrufe-split-left,
-  #anrufe-split-left{
-    width:100% !important;
-    min-width:0 !important;
-    max-width:none !important;
-    flex:1 1 auto !important;
-    border-radius:10px !important;
-  }
   #anrufe-split-resizer{display:none !important;}
 }
 @media (hover:none){
-  #anrufe-list .vx-row-btns,
-  #anrufe-split-left .vx-row-btns{
-    opacity:1 !important;
-    pointer-events:auto !important;
-  }
-  #anrufe-list .vx-row-body,
-  #anrufe-split-left .vx-row-body{
-    padding-right:68px !important;
-  }
 }
 </style>
 
@@ -42983,235 +42056,6 @@ body:has(#tab-archiv.active) .content{
 
 
 <style id="vx-row-stabilisierung-v3-2026-05-23">
-/* Row-Stabilisierung v3 — Scope: Anfragen-Inbox links. Ziel: eine Row-Box, kein Flicker, resize-taugliche Filter. */
-#anrufe-split-left,
-#anrufe-split-left *{ box-sizing:border-box !important; }
-
-#anrufe-split-left .vx-split-filters,
-#anrufe-split-left .vx-split-search{
-  width:100% !important;
-  max-width:100% !important;
-  margin-left:0 !important;
-  margin-right:0 !important;
-  flex-shrink:0 !important;
-}
-#anrufe-split-left .vx-split-filters{
-  background:#fff !important;
-  overflow-x:auto !important;
-  scrollbar-width:none !important;
-}
-#anrufe-split-left .vx-split-search{ background:#fff !important; }
-#anrufe-split-left .vxfb-search-box{ width:100% !important; }
-
-/* Eine visuelle Box: die innere Row trägt Background/Selection, die dpr-card ist nur Struktur. */
-#anrufe-list .dpr-card,
-#anrufe-split-left .dpr-card{
-  background:transparent !important;
-  border-left:0 !important;
-  border-right:0 !important;
-  border-top:0 !important;
-  border-bottom:0.5px solid rgba(13,31,60,.08) !important;
-  border-radius:0 !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-  overflow:visible !important;
-  transform:none !important;
-}
-#anrufe-list .dpr-card::before,
-#anrufe-split-left .dpr-card::before{ content:none !important; display:none !important; }
-
-#anrufe-list .vx-heute-row,
-#anrufe-list .vx-anf-row,
-#anrufe-split-left .vx-heute-row,
-#anrufe-split-left .vx-anf-row{
-  display:grid !important;
-  grid-template-columns:36px minmax(0,1fr) !important;
-  column-gap:10px !important;
-  align-items:center !important;
-  min-height:64px !important;
-  width:100% !important;
-  padding:10px 12px !important;
-  margin:0 !important;
-  background:#fff !important;
-  border:0 !important;
-  border-left:0 !important;
-  border-radius:0 !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-  filter:none !important;
-  transition:none !important;
-}
-
-#anrufe-list .dpr-card:hover .vx-heute-row,
-#anrufe-list .dpr-card:hover .vx-anf-row,
-#anrufe-split-left .dpr-card:hover .vx-heute-row,
-#anrufe-split-left .dpr-card:hover .vx-anf-row{
-  background:#F7F8FA !important;
-}
-
-/* Apple-like Selection: keine Card-Fläche + innere Row sofort blau. Dadurch kein Weiss->Blau-Flackern. */
-#anrufe-list .dpr-card.sp-active,
-#anrufe-split-left .dpr-card.sp-active{
-  background:transparent !important;
-  border-left:0 !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-}
-#anrufe-list .dpr-card.sp-active .vx-heute-row,
-#anrufe-list .dpr-card.sp-active .vx-anf-row,
-#anrufe-split-left .dpr-card.sp-active .vx-heute-row,
-#anrufe-split-left .dpr-card.sp-active .vx-anf-row,
-#anrufe-list .vx-heute-row.sp-active,
-#anrufe-list .vx-anf-row.sp-active,
-#anrufe-split-left .vx-heute-row.sp-active,
-#anrufe-split-left .vx-anf-row.sp-active{
-  background:rgba(26,111,232,0.10) !important;
-  border:0 !important;
-  box-shadow:none !important;
-  opacity:1 !important;
-  transition:none !important;
-}
-#anrufe-list .dpr-card.sp-active:hover .vx-heute-row,
-#anrufe-list .dpr-card.sp-active:hover .vx-anf-row,
-#anrufe-split-left .dpr-card.sp-active:hover .vx-heute-row,
-#anrufe-split-left .dpr-card.sp-active:hover .vx-anf-row{
-  background:rgba(26,111,232,0.10) !important;
-}
-
-/* Alte Status-Optik vollständig neutralisieren. Status bleibt nur Badge/Text. */
-#anrufe-list .vx-heute-row.is-done-row,
-#anrufe-list .vx-anf-row.is-done-row,
-#anrufe-split-left .vx-heute-row.is-done-row,
-#anrufe-split-left .vx-anf-row.is-done-row,
-#anrufe-list .call-row.done,
-#anrufe-split-left .call-row.done{
-  background:inherit !important;
-  opacity:1 !important;
-  filter:none !important;
-}
-#anrufe-list .vx-heute-row.rail-today,
-#anrufe-list .vx-heute-row.rail-planned,
-#anrufe-list .vx-heute-row.rail-overdue,
-#anrufe-split-left .vx-heute-row.rail-today,
-#anrufe-split-left .vx-heute-row.rail-planned,
-#anrufe-split-left .vx-heute-row.rail-overdue{
-  border-left:0 !important;
-}
-#anrufe-list .vx-heute-row.is-unread,
-#anrufe-split-left .vx-heute-row.is-unread{ background:inherit !important; }
-#anrufe-list .vx-heute-row.is-unread::before,
-#anrufe-split-left .vx-heute-row.is-unread::before{ content:none !important; display:none !important; }
-
-/* Abstände analog Heute-Row: Icon/Avatar 36px, Text sauber neben Icon. */
-#anrufe-list .vx-row-icon,
-#anrufe-list .vx-anf-icon,
-#anrufe-split-left .vx-row-icon,
-#anrufe-split-left .vx-anf-icon{
-  width:36px !important;
-  height:36px !important;
-  min-width:36px !important;
-  min-height:36px !important;
-  border-radius:10px !important;
-  align-self:center !important;
-  margin:0 !important;
-}
-#anrufe-list .vx-row-body,
-#anrufe-list .vx-anf-body,
-#anrufe-split-left .vx-row-body,
-#anrufe-split-left .vx-anf-body{
-  min-width:0 !important;
-  overflow:hidden !important;
-  padding-right:0 !important;
-}
-#anrufe-list .vx-row-name,
-#anrufe-list .vx-anf-name,
-#anrufe-split-left .vx-row-name,
-#anrufe-split-left .vx-anf-name{
-  font-size:13px !important;
-  line-height:1.28 !important;
-  margin:0 !important;
-}
-#anrufe-list .vx-row-time,
-#anrufe-list .vx-anf-time,
-#anrufe-split-left .vx-row-time,
-#anrufe-split-left .vx-anf-time{
-  font-size:11px !important;
-  line-height:1.25 !important;
-  margin-top:2px !important;
-}
-#anrufe-list .vx-row-summary,
-#anrufe-list .vx-anf-preview,
-#anrufe-split-left .vx-row-summary,
-#anrufe-split-left .vx-anf-preview{
-  font-size:11px !important;
-  line-height:1.35 !important;
-  margin-top:3px !important;
-}
-
-/* Actions: nicht Teil der Row-Box, nur Overlay auf Hover. Kein breiter Öffnen-Button. */
-#anrufe-list .vx-row-btns,
-#anrufe-split-left .vx-row-btns{
-  position:absolute !important;
-  right:8px !important;
-  top:50% !important;
-  transform:translateY(-50%) !important;
-  display:flex !important;
-  gap:4px !important;
-  opacity:0 !important;
-  pointer-events:none !important;
-  z-index:6 !important;
-  max-width:64px !important;
-  padding:0 !important;
-  background:transparent !important;
-  transition:none !important;
-}
-#anrufe-list .dpr-card:hover .vx-row-btns,
-#anrufe-list .dpr-card:focus-within .vx-row-btns,
-#anrufe-split-left .dpr-card:hover .vx-row-btns,
-#anrufe-split-left .dpr-card:focus-within .vx-row-btns{
-  opacity:1 !important;
-  pointer-events:auto !important;
-}
-#anrufe-list .dpr-card:hover .vx-row-body,
-#anrufe-list .dpr-card:focus-within .vx-row-body,
-#anrufe-split-left .dpr-card:hover .vx-row-body,
-#anrufe-split-left .dpr-card:focus-within .vx-row-body{
-  padding-right:62px !important;
-}
-#anrufe-list .vx-row-btns button,
-#anrufe-list .vx-row-btns .vx-ibtn,
-#anrufe-split-left .vx-row-btns button,
-#anrufe-split-left .vx-row-btns .vx-ibtn{
-  width:26px !important;
-  min-width:26px !important;
-  max-width:26px !important;
-  height:26px !important;
-  min-height:26px !important;
-  max-height:26px !important;
-  padding:0 !important;
-  border-radius:7px !important;
-  font-size:0 !important;
-  line-height:1 !important;
-  display:inline-flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  overflow:hidden !important;
-  white-space:nowrap !important;
-}
-#anrufe-list .vx-row-btns span,
-#anrufe-split-left .vx-row-btns span{
-  position:absolute !important;
-  width:1px !important;
-  height:1px !important;
-  padding:0 !important;
-  margin:-1px !important;
-  overflow:hidden !important;
-  clip:rect(0,0,0,0) !important;
-  white-space:nowrap !important;
-  border:0 !important;
-}
-#anrufe-list .vx-row-btns i,
-#anrufe-split-left .vx-row-btns i{ font-size:13px !important; }
 
 /* Aktiver Filter-Banner gemäss Mockup */
 #anrufe-active-filter-banner{
@@ -43239,10 +42083,6 @@ body:has(#tab-archiv.active) .content{
 }
 
 @media (hover:none){
-  #anrufe-list .vx-row-btns,
-  #anrufe-split-left .vx-row-btns{ opacity:1 !important; pointer-events:auto !important; }
-  #anrufe-list .vx-row-body,
-  #anrufe-split-left .vx-row-body{ padding-right:62px !important; }
 }
 </style>
 
@@ -43339,104 +42179,6 @@ body:has(#tab-archiv.active) .content{
 
 
 <style id="vx-pr-h-inbox-row-final-2026-05-23">
-/* PR-H — Inbox Rows finalisieren: resize-stabil, kompakte Actions, reduziertes Menü. */
-#anrufe-split-left{
-  width:360px;
-  min-width:320px !important;
-  max-width:min(520px,55vw) !important;
-  flex:0 0 auto !important;
-}
-#anrufe-split-left .vx-split-filters{
-  display:flex !important;
-  flex-wrap:nowrap !important;
-  gap:6px !important;
-  padding:10px 12px !important;
-  width:100% !important;
-  min-width:0 !important;
-  overflow-x:auto !important;
-  overflow-y:hidden !important;
-  overscroll-behavior-x:contain !important;
-  -webkit-overflow-scrolling:touch !important;
-  scrollbar-width:none !important;
-}
-#anrufe-split-left .vx-split-filters::-webkit-scrollbar{display:none !important;}
-#anrufe-split-left .vx-chip,
-#anrufe-split-left .vxfb-chip{
-  flex:0 0 auto !important;
-  white-space:nowrap !important;
-  min-width:max-content !important;
-}
-#anrufe-split-left .vx-split-search{
-  width:100% !important;
-  min-width:0 !important;
-  padding:8px 12px !important;
-}
-#anrufe-split-left .vxfb-search-box,
-#anrufe-split-left .vxfb-search-box input{
-  width:100% !important;
-  min-width:0 !important;
-}
-#anrufe-list .dpr-card,
-#anrufe-split-left .dpr-card{
-  border-left:0 !important;
-  opacity:1 !important;
-}
-#anrufe-list .dpr-card[data-filter-checked="1"],
-#anrufe-split-left .dpr-card[data-filter-checked="1"],
-#anrufe-list .dpr-card[data-filter-archived="1"],
-#anrufe-split-left .dpr-card[data-filter-archived="1"]{
-  opacity:1 !important;
-  border-left:0 !important;
-}
-#anrufe-list .vx-row-btns,
-#anrufe-split-left .vx-row-btns{
-  width:auto !important;
-  max-width:none !important;
-  right:8px !important;
-  gap:4px !important;
-}
-#anrufe-list .vx-row-btns .vx-ibtn-main.is-open,
-#anrufe-split-left .vx-row-btns .vx-ibtn-main.is-open,
-#anrufe-list .vx-row-btns [data-action="open"],
-#anrufe-list .vx-row-btns [data-action="fulldetail"],
-#anrufe-split-left .vx-row-btns [data-action="open"],
-#anrufe-split-left .vx-row-btns [data-action="fulldetail"]{
-  display:none !important;
-}
-#anrufe-list .vx-row-btns .vx-ibtn,
-#anrufe-split-left .vx-row-btns .vx-ibtn,
-#anrufe-list .vx-row-btns button,
-#anrufe-split-left .vx-row-btns button{
-  flex:0 0 26px !important;
-  width:26px !important;
-  min-width:26px !important;
-  max-width:26px !important;
-  height:26px !important;
-  min-height:26px !important;
-  max-height:26px !important;
-  padding:0 !important;
-  border-radius:7px !important;
-  font-size:0 !important;
-  line-height:1 !important;
-  box-shadow:0 1px 3px rgba(13,31,60,.08) !important;
-}
-#anrufe-list .vx-row-btns i,
-#anrufe-split-left .vx-row-btns i{
-  font-size:13px !important;
-  line-height:1 !important;
-}
-#anrufe-list .dpr-card:hover .vx-row-body,
-#anrufe-list .dpr-card:focus-within .vx-row-body,
-#anrufe-split-left .dpr-card:hover .vx-row-body,
-#anrufe-split-left .dpr-card:focus-within .vx-row-body{
-  padding-right:34px !important;
-}
-#anrufe-list .dpr-card:has(.vx-ibtn-main:not(.is-open)):hover .vx-row-body,
-#anrufe-list .dpr-card:has(.vx-ibtn-main:not(.is-open)):focus-within .vx-row-body,
-#anrufe-split-left .dpr-card:has(.vx-ibtn-main:not(.is-open)):hover .vx-row-body,
-#anrufe-split-left .dpr-card:has(.vx-ibtn-main:not(.is-open)):focus-within .vx-row-body{
-  padding-right:64px !important;
-}
 #vx-row-menu-portal,
 #anrufe-list .vx-row-menu,
 #anrufe-split-left .vx-row-menu{
@@ -43454,7 +42196,6 @@ body:has(#tab-archiv.active) .content{
   border-radius:9px !important;
 }
 @media(max-width:767px){
-  #anrufe-split-left{width:100% !important;min-width:0 !important;max-width:none !important;}
 }
 </style>
 
@@ -43582,38 +42323,6 @@ body:has(#tab-archiv.active) .content{
 /* PR-I2 — Unread source-of-truth + mobile overflow positioning. */
 #anrufe-inbox-subfilters[data-hidden="true"]{display:none!important;}
 @media(max-width:767px), (hover:none){
-  #anrufe-list .dpr-card,
-  #anrufe-split-left .dpr-card{position:relative!important;}
-  #anrufe-list .vx-heute-row,
-  #anrufe-split-left .vx-heute-row{position:relative!important;}
-  #anrufe-list .vx-row-btns,
-  #anrufe-split-left .vx-row-btns{
-    position:absolute!important;
-    right:10px!important;
-    top:50%!important;
-    transform:translateY(-50%)!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:flex-end!important;
-    gap:4px!important;
-    width:auto!important;
-    max-width:none!important;
-    opacity:1!important;
-    pointer-events:auto!important;
-    z-index:5!important;
-  }
-  #anrufe-list .vx-row-btns .vx-ibtn,
-  #anrufe-split-left .vx-row-btns .vx-ibtn,
-  #anrufe-list .vx-row-btns button,
-  #anrufe-split-left .vx-row-btns button{
-    width:28px!important;min-width:28px!important;max-width:28px!important;
-    height:28px!important;min-height:28px!important;max-height:28px!important;
-    padding:0!important;border-radius:8px!important;font-size:0!important;
-  }
-  #anrufe-list .vx-row-btns i,
-  #anrufe-split-left .vx-row-btns i{font-size:14px!important;}
-  #anrufe-list .vx-row-body,
-  #anrufe-split-left .vx-row-body{padding-right:74px!important;}
 }
 </style>
 <script id="vx-pr-i2-unread-source-of-truth-2026-05-23">
@@ -44045,37 +42754,6 @@ body:has(#tab-archiv.active) .content{
 <style id="vx-pr-j4-stability-polish-css">
 /* Filter bleiben auch bei schmaler Split-Spalte sichtbar/bedienbar */
 @media(min-width:1100px){
-  #anrufe-split-left.vx-split-left,
-  .vx-split-left#anrufe-split-left{
-    min-width:390px!important;
-    width:max(390px, var(--vx-anfragen-left-width, 440px))!important;
-  }
-}
-#anrufe-split-left .vx-split-filters{
-  display:flex!important;
-  flex-wrap:nowrap!important;
-  gap:6px!important;
-  overflow-x:auto!important;
-  overflow-y:hidden!important;
-  scrollbar-width:thin!important;
-  -webkit-overflow-scrolling:touch!important;
-  min-width:0!important;
-  padding-right:14px!important;
-}
-#anrufe-split-left .vx-split-filters button{
-  flex:0 0 auto!important;
-  min-width:auto!important;
-  white-space:nowrap!important;
-  padding:0 12px!important;
-}
-#anrufe-split-left .vx-split-search{min-width:0!important;}
-#anrufe-split-left .vx-split-search input{min-width:0!important;}
-
-/* Row-Fallback: unbekannter Name wirkt nicht wie eine Telefonnummer als Name */
-#anrufe-list .vx-row-name.vx-name-fallback,
-#anrufe-list .vx-anf-name.vx-name-fallback{
-  color:var(--vx-text)!important;
-  font-weight:600!important;
 }
 
 /* Floating Menüs zuverlässiger schliessen und visuell ruhiger */
@@ -44130,10 +42808,6 @@ body:has(#tab-archiv.active) .content{
 #manual-task-overlay .modal-footer .btn{height:48px!important;min-height:48px!important;}
 
 @media(max-width:768px){
-  #anrufe-split-left.vx-split-left,
-  .vx-split-left#anrufe-split-left{
-    width:100%!important;min-width:0!important;max-width:none!important;
-  }
   #followup-overlay .modal,
   #manual-task-overlay .modal{
     max-width:100%!important;
@@ -44236,7 +42910,7 @@ body:has(#tab-archiv.active) .content{
 
   /* Filter-Reihenfolge: Alle, Offen, Geplant, Erledigt. */
   function normalizeFilterOrder(){
-    var wrap = document.querySelector('#anrufe-split-left .vx-split-filters');
+    var wrap = document.querySelector('#anrufe-split-left .vx-requests-filters');
     if (!wrap) return;
     var order = ['alle','offen','geplant','abgeschlossen'];
     order.forEach(function(key){
@@ -46372,13 +45046,6 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   Desktop >768px bleibt unberührt.
 */
 @media (max-width: 768px) {
-  #tab-anrufe .vx-split #anrufe-split-left {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    flex: 1 1 auto !important;
-    border-radius: 0 !important;
-  }
 }
 </style>
 <script id="vx-pr-v2-task-call-detail-validation">
