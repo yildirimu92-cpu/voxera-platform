@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Temporary dashboard source inspection
+      - name: Temporary focused dashboard source inspection
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -33,27 +33,40 @@ jobs:
           source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
           lines = source.splitlines()
 
-          def show(title, start, end):
-              print(f'\n===== {title} lines {start + 1}-{end} =====')
-              for index in range(start, min(end, len(lines))):
-                  print(f'{index + 1:06d}: {lines[index]}')
+          def show(title, first_line, last_line):
+              print(f'\n===== {title} lines {first_line}-{last_line} =====')
+              for line_number in range(first_line, min(last_line, len(lines)) + 1):
+                  print(f'{line_number:06d}: {lines[line_number - 1]}')
 
-          marker_index = next(i for i, line in enumerate(lines) if 'DASHBOARD V2 PREMIUM' in line)
-          next_marker = next((i for i in range(marker_index + 1, len(lines)) if '/* ──' in lines[i]), marker_index + 700)
-          show('DASHBOARD CSS BLOCK', marker_index, next_marker)
+          show('ACTIVE DASHBOARD FOUNDATION CSS', 130, 230)
+          show('DASHBOARD PRIORITY RENDERER', 10170, 10340)
+          show('DASHBOARD ACTIVITY RENDERER', 21840, 22040)
+          show('LATE DASHBOARD OVERRIDES A', 31380, 31720)
+          show('LATE DASHBOARD OVERRIDES B', 39880, 40120)
+          show('LATEST DASHBOARD OVERRIDES', 45380, 45780)
 
-          dash_start = next(i for i, line in enumerate(lines) if 'id="tab-dashboard"' in line)
-          dash_end = next(i for i in range(dash_start + 1, len(lines)) if 'id="tab-anrufe"' in lines[i])
-          show('DASHBOARD MARKUP', dash_start, dash_end)
+          print('\n===== LEGACY CLASS COUNTS =====')
+          tokens = [
+              'vx-greeting-block', 'vx-greeting-top', 'vx-greeting-left',
+              'vx-greeting-title', 'vx-greeting-sub', 'vx-greeting-date',
+              'vx-kpi-strip', 'vx-kpi-cell', 'vx-kpi-label', 'vx-kpi-val', 'vx-kpi-note',
+              'vx-jetzt-section', 'vx-jetzt-header', 'vx-jetzt-title',
+              'vx-jetzt-link', 'vx-jetzt-list', 'vx-jetzt-more',
+              'vx-activity-row', 'vx-activity-time', 'vx-activity-title',
+              'vx-activity-sub', 'vx-activity-icon', 'vx-activity-note'
+          ]
+          for token in tokens:
+              print(f'{token}: {source.count(token)}')
 
-          assistant_start = next(i for i, line in enumerate(lines) if 'id="tab-assistent"' in line)
-          assistant_end = next(i for i in range(assistant_start + 1, len(lines)) if 'class="tab-page"' in lines[i] and 'id="tab-assistent"' not in lines[i])
-          show('ASSISTANT TAB HOST MARKUP', assistant_start, assistant_end)
-
-          print('\n===== DASHBOARD SELECTOR INVENTORY =====')
-          for index, line in enumerate(lines):
-              if re.search(r'\.(?:dash-|vx-jetzt|dpr-|vx-group-|vx-activity)', line):
-                  print(f'{index + 1:06d}: {line}')
+          print('\n===== FUNCTION LOCATIONS =====')
+          for pattern in [
+              r'function renderDashPriorityList',
+              r'function vxHeuteRenderActivityList',
+              r'function vxHeuteRenderScopedList',
+              r'function renderDashboard'
+          ]:
+              for match in re.finditer(pattern, source):
+                  print(pattern, source.count('\n', 0, match.start()) + 1)
           PY
       - uses: actions/setup-node@v4
         with:
