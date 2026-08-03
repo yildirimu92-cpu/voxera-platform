@@ -7,11 +7,13 @@ const paths = {
   foundationCss: 'customer-dashboard/shared/customer-design-system.css',
   assistantCss: 'customer-dashboard/shared/customer-assistant-components.css',
   statusCss: 'customer-dashboard/shared/customer-assistant-status.css',
+  settingsCss: 'customer-dashboard/shared/customer-settings-components.css',
   supportCss: 'customer-dashboard/shared/customer-support-components.css',
   navigationCss: 'customer-dashboard/shared/customer-navigation-components.css',
   navigationRuntime: 'customer-dashboard/shared/customer-runtime-unified-navigation.js',
   assistantRuntime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   statusRuntime: 'customer-dashboard/shared/customer-runtime-assistant-status.js',
+  calendarRuntime: 'customer-dashboard/shared/customer-runtime-calendar-settings.js',
   supportRuntime: 'customer-dashboard/shared/customer-runtime-case-intake.js',
   loader: 'customer-dashboard/shared/offer-brand.js'
 };
@@ -20,26 +22,30 @@ const runtime = fs.readFileSync(paths.runtime, 'utf8');
 const foundationCss = fs.readFileSync(paths.foundationCss, 'utf8');
 const assistantCss = fs.readFileSync(paths.assistantCss, 'utf8');
 const statusCss = fs.readFileSync(paths.statusCss, 'utf8');
+const settingsCss = fs.readFileSync(paths.settingsCss, 'utf8');
 const supportCss = fs.readFileSync(paths.supportCss, 'utf8');
 const navigationCss = fs.readFileSync(paths.navigationCss, 'utf8');
 const navigationRuntime = fs.readFileSync(paths.navigationRuntime, 'utf8');
 const assistantRuntime = fs.readFileSync(paths.assistantRuntime, 'utf8');
 const statusRuntime = fs.readFileSync(paths.statusRuntime, 'utf8');
+const calendarRuntime = fs.readFileSync(paths.calendarRuntime, 'utf8');
 const supportRuntime = fs.readFileSync(paths.supportRuntime, 'utf8');
 const loader = fs.readFileSync(paths.loader, 'utf8');
 
 new vm.Script(runtime, { filename: paths.runtime });
 new vm.Script(assistantRuntime, { filename: paths.assistantRuntime });
 new vm.Script(statusRuntime, { filename: paths.statusRuntime });
+new vm.Script(calendarRuntime, { filename: paths.calendarRuntime });
 new vm.Script(supportRuntime, { filename: paths.supportRuntime });
 new vm.Script(navigationRuntime, { filename: paths.navigationRuntime });
 new vm.Script(loader, { filename: paths.loader });
 
 const lineCount = (value) => value.split(/\r?\n/).length;
-assert.ok(lineCount(runtime) <= 50, `design runtime is too large: ${lineCount(runtime)} lines`);
+assert.ok(lineCount(runtime) <= 55, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
 assert.ok(lineCount(assistantCss) <= 800, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
+assert.ok(lineCount(settingsCss) <= 360, 'settings component CSS exceeded its initial size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
 assert.ok(lineCount(navigationCss) <= 110, 'navigation component CSS exceeded its reduced size budget');
 
@@ -48,6 +54,7 @@ for (const token of [
   '/shared/customer-design-system.css?v=20260803-1',
   '/shared/customer-assistant-components.css?v=20260803-1',
   '/shared/customer-assistant-status.css?v=20260803-1',
+  '/shared/customer-settings-components.css?v=20260803-1',
   '/shared/customer-support-components.css?v=20260802-2',
   '/shared/customer-navigation-components.css?v=20260803-1',
   "link.rel = 'stylesheet'",
@@ -156,6 +163,27 @@ for (const forbidden of [
 }
 
 for (const token of [
+  '.vx-cal-entry',
+  '.vx-cal-entry-icon',
+  '.vx-cal-page-header',
+  '.vx-cal-back',
+  '#vx-calendar-page-body',
+  '.vx-cal-grid',
+  '.vx-cal-card',
+  '.vx-cal-provider',
+  '.vx-cal-pill.ok',
+  '.vx-cal-banner.ok',
+  '.vx-cal-status.loading',
+  '.vx-cal-form',
+  '.vx-cal-checkbox',
+  '.vx-cal-actions > .vx-cal-btn',
+  '@media (max-width: 720px)',
+  '@media (max-width: 390px)'
+]) {
+  assert.ok(settingsCss.includes(token), `settings CSS missing calendar component: ${token}`);
+}
+
+for (const token of [
   '#vox-support-request-overlay',
   '.vox-support-modal',
   'html.vx-support-modal-open',
@@ -205,6 +233,20 @@ for (const token of [
   'statusObserver.observe(body, { childList: true, subtree: true })'
 ]) {
   assert.ok(statusRuntime.includes(token), `assistant status runtime missing final structure: ${token}`);
+}
+
+for (const token of [
+  'vx-calendar-settings-entry',
+  'vx-cal-entry',
+  'vx-cal-page-header',
+  'vx-cal-rules-card',
+  'vx-cal-checkbox',
+  "page.removeAttribute('style')",
+  'entry.hidden = !(state.enabled && providers.length)',
+  'main.hidden = true',
+  'page.hidden = false'
+]) {
+  assert.ok(calendarRuntime.includes(token), `calendar runtime missing semantic structure: ${token}`);
 }
 
 for (const token of [
@@ -265,6 +307,17 @@ for (const forbidden of [
 for (const forbidden of [
   "createElement('style')",
   'style.textContent',
+  'vx-calendar-settings-style',
+  'entry.style.cssText',
+  '.style.display',
+  ' style="'
+]) {
+  assert.ok(!calendarRuntime.includes(forbidden), `calendar runtime still owns presentation: ${forbidden}`);
+}
+
+for (const forbidden of [
+  "createElement('style')",
+  'style.textContent',
   'document.head.appendChild(style)',
   '.style.color',
   '.style.display',
@@ -292,7 +345,10 @@ for (const forbidden of [
   '.vx-ops-section',
   '.vx-ops-preview',
   '.vx-ops-help',
-  '.vx-ops-field label'
+  '.vx-ops-field label',
+  '.vx-cal-card',
+  '.vx-cal-provider',
+  '.vx-cal-form'
 ]) {
   assert.ok(!foundationCss.includes(forbidden), `foundation CSS still contains mixed, broad or component-owned rule: ${forbidden}`);
 }
@@ -301,6 +357,7 @@ for (const [name, css] of [
   ['foundation', foundationCss],
   ['assistant', assistantCss],
   ['status', statusCss],
+  ['settings', settingsCss],
   ['support', supportCss],
   ['navigation', navigationCss]
 ]) {
@@ -310,8 +367,9 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
+assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260803-1/);
 assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260803-2/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260803-3/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 

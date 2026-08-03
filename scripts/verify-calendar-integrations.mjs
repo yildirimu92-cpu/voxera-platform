@@ -12,13 +12,15 @@ const files = {
   callback: 'customer-dashboard/netlify/functions/calendar-oauth-callback.js',
   tool: 'customer-dashboard/netlify/functions/calendar-tool.js',
   runtime: 'customer-dashboard/shared/customer-runtime-calendar-settings.js',
+  css: 'customer-dashboard/shared/customer-settings-components.css',
   loader: 'customer-dashboard/shared/offer-brand.js',
+  designLoader: 'customer-dashboard/shared/customer-runtime-design-foundation.js',
   docs: 'docs/calendar-integration-setup.md'
 };
 const source = Object.fromEntries(Object.entries(files).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')]));
 const failures = [];
 
-for (const key of ['crypto','rollout','providers','connections','callback','tool','runtime','loader']) {
+for (const key of ['crypto','rollout','providers','connections','callback','tool','runtime','loader','designLoader']) {
   try { new vm.Script(source[key], { filename: files[key] }); }
   catch (error) { failures.push(error.message); }
 }
@@ -74,10 +76,51 @@ for (const token of ['hashState(state)',".is('used_at', null)",".gt('expires_at'
 for (const token of ['Authorization','Bearer','verifyToolAuth','X-Voxera-Timestamp','X-Voxera-Signature','calendar_agent_id_required','calendar_request_id_required',".eq('customer_id', customerId)",'bufferedWindow','request_id','availability','reschedule','cancel']) {
   if (!source.tool.includes(token)) failures.push('Calendar tool contract missing: ' + token);
 }
-for (const token of ['Google Calendar','Microsoft 365 / Outlook','visibleProviders()',"state.enabled && providers.length",'vxCalendarOpen']) {
+for (const token of [
+  'Google Calendar',
+  'Microsoft 365 / Outlook',
+  'visibleProviders()',
+  'state.enabled && providers.length',
+  'vxCalendarOpen',
+  "entry.addEventListener('click', open)",
+  'data-cal-back',
+  'vx-cal-entry',
+  'vx-cal-rules-card',
+  'vx-cal-checkbox',
+  "page.removeAttribute('style')",
+  'entry.hidden = !(state.enabled && providers.length)'
+]) {
   if (!source.runtime.includes(token)) failures.push('Calendar UI missing: ' + token);
 }
-if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js')) failures.push('Calendar runtime loader missing');
+for (const token of [
+  '.vx-cal-entry',
+  '.vx-cal-page-header',
+  '.vx-cal-grid',
+  '.vx-cal-card',
+  '.vx-cal-provider',
+  '.vx-cal-pill.ok',
+  '.vx-cal-banner.ok',
+  '.vx-cal-status.loading',
+  '.vx-cal-form',
+  '.vx-cal-checkbox',
+  '@media (max-width: 720px)',
+  '@media (max-width: 390px)'
+]) {
+  if (!source.css.includes(token)) failures.push('Calendar component CSS missing: ' + token);
+}
+for (const forbidden of [
+  "createElement('style')",
+  'style.textContent',
+  'vx-calendar-settings-style',
+  'entry.style.cssText',
+  '.style.display',
+  ' style="'
+]) {
+  if (source.runtime.includes(forbidden)) failures.push('Calendar runtime still owns presentation: ' + forbidden);
+}
+if ((source.css.match(/!important/g) || []).length) failures.push('Calendar component CSS must not use !important');
+if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js?v=20260803-1')) failures.push('Calendar runtime cache version missing');
+if (!source.designLoader.includes('/shared/customer-settings-components.css?v=20260803-1')) failures.push('Calendar component stylesheet loader missing');
 
 for (const key of ['connections','callback','tool']) {
   if (/console\.(log|warn|error)\([^\n]*(access_token|refresh_token|client_secret)/i.test(source[key])) {
@@ -91,4 +134,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Calendar integration verification passed with optional providers.');
+console.log('Calendar integration verification passed with canonical design ownership.');

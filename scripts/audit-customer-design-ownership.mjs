@@ -9,6 +9,7 @@ const CANONICAL_CSS = new Set([
   'shared/customer-assistant-components.css',
   'shared/customer-assistant-status.css',
   'shared/customer-navigation-components.css',
+  'shared/customer-settings-components.css',
   'shared/customer-support-components.css'
 ]);
 
