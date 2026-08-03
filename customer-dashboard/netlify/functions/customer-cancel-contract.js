@@ -1,3 +1,5 @@
+'use strict';
+
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 
@@ -24,24 +26,51 @@ exports.handler = async (event) => {
   }
 
   const sbAdmin = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const caller = await requireCustomerCaller({ event, sbUrl, sbAnonKey, sbAdmin, requireActiveContract: true, functionName: 'customer-cancel-contract' });
+  const caller = await requireCustomerCaller({
+    event,
+    sbUrl,
+    sbAnonKey,
+    sbAdmin,
+    requireActiveContract: true,
+    functionName: 'customer-cancel-contract'
+  });
   if (!caller.ok) return response(caller.statusCode, caller.body);
 
   let body;
-  try { body = JSON.parse(event.body || '{}'); } catch (_e) { return response(400, { error: 'Ungueltiger Request Body' }); }
-
-  const action = String((body && body.action) || '').trim().toLowerCase();
-  if (!['cancel', 'reactivate'].includes(action)) return response(400, { error: 'action muss cancel oder reactivate sein' });
-
-  const activeContract = (caller.contractState && caller.contractState.effectiveContract) || null;
-  if (!activeContract || !activeContract.id || String(activeContract.status || '').toLowerCase() !== 'active') {
-    return response(409, { error: 'Kein aktiver Vertrag gefunden.' });
+  try {
+    body = JSON.parse(event.body || '{}');
+  } catch (_error) {
+    return response(400, { error: 'Ungueltiger Request Body' });
   }
 
-  const updatePayload = {};
+  const action = String((body && body.action) || '').trim().toLowerCase();
+  if (!['cancel', 'reactivate'].includes(action)) {
+    return response(400, { error: 'action muss cancel oder reactivate sein' });
+  }
+
+  const activeContract = (caller.contractState && caller.contractState.activeContract)
+    || (caller.contractState && caller.contractState.effectiveContract)
+    || null;
+  if (!activeContract || !activeContract.id || !['active', 'signed'].includes(String(activeContract.status || '').toLowerCase())) {
+    return response(409, { error: 'Kein aktiver Vertrag gefunden.', code: 'active_contract_missing' });
+  }
+
+  const hasCancellation = !!(activeContract.cancellation_date || activeContract.termination_type || activeContract.termination_reason);
+  if (action === 'reactivate' && !hasCancellation) {
+    return response(409, {
+      error: 'Für diesen Vertrag ist keine offene Kündigung vorhanden.',
+      code: 'cancellation_not_pending'
+    });
+  }
+
+  const updatePayload = { updated_at: new Date().toISOString() };
   if (action === 'cancel') {
     const reason = String((body && body.termination_reason) || '').trim();
     if (!reason) return response(400, { error: 'termination_reason ist erforderlich.' });
+    if (hasCancellation) {
+      return response(409, { error: 'Für diesen Vertrag wurde bereits eine Kündigung eingereicht.', code: 'cancellation_already_pending' });
+    }
+
     const noticeMatch = String(activeContract.cancellation_notice || '').match(/(\d+)/);
     const noticeDays = noticeMatch ? Math.max(0, Number(noticeMatch[1])) : 30;
     const cancellationDate = new Date(Date.now() + (noticeDays || 30) * 24 * 60 * 60 * 1000);
@@ -54,14 +83,38 @@ exports.handler = async (event) => {
     updatePayload.termination_type = null;
   }
 
-  const { error: updateError } = await sbAdmin
+  const { data: updatedContract, error: updateError } = await sbAdmin
     .from('contracts')
     .update(updatePayload)
     .eq('id', activeContract.id)
     .eq('customer_id', caller.customerId)
-    .eq('status', 'active');
+    .in('status', ['active', 'signed'])
+    .select('*')
+    .maybeSingle();
 
-  if (updateError) return response(500, { error: 'Vertrag konnte nicht aktualisiert werden.' });
+  if (updateError) {
+    console.error('[customer-cancel-contract] update failed', {
+      customerId: caller.customerId,
+      contractId: activeContract.id,
+      action,
+      code: updateError.code,
+      message: updateError.message
+    });
+    return response(500, { error: 'Vertrag konnte nicht aktualisiert werden.', code: 'contract_update_failed' });
+  }
+  if (!updatedContract) {
+    return response(409, {
+      error: 'Der Vertragsstatus hat sich zwischenzeitlich geändert. Bitte laden Sie die Seite neu.',
+      code: 'contract_update_conflict'
+    });
+  }
 
-  return response(200, { success: true, action });
+  return response(200, {
+    success: true,
+    action,
+    contract: updatedContract,
+    message: action === 'reactivate'
+      ? 'Die Kündigung wurde zurückgezogen. Ihr Vertrag läuft weiter.'
+      : 'Die Kündigung wurde eingereicht.'
+  });
 };
