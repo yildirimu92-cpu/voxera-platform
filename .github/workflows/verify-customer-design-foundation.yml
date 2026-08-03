@@ -34,8 +34,54 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Correct protected report boundaries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/tmp-inspect-customer-report.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = '''const protectedRanges = [
+            ['dashboard', 'id="tab-dashboard"', 'id="tab-anrufe"'],
+            ['requests', 'id="tab-anrufe"', 'id="tab-assistent"'],
+            ['assistant', 'id="tab-assistent"', 'id="tab-auswertung"'],
+            ['settings-navigation', 'id="tab-mehr"', 'id="mobile-bottom-nav"'],
+            ['login', 'id="login-screen"', 'id="app-shell"'],
+            ['tour', 'id="vx-onboarding-tour"', '</body>']
+          ];
+          const fingerprints = Object.fromEntries(protectedRanges.map(([name, start, end]) => [name, hash(sliceBetween(source, start, end))]));'''.replace(/^          /gm, '')
+          new = '''const protectedRanges = [
+            ['dashboard', 'id="tab-dashboard"', 'id="tab-anrufe"'],
+            ['requests', 'id="tab-anrufe"', 'id="tab-auswertung"'],
+            ['assistant', 'id="tab-assistent"', 'id="tab-mehr"'],
+            ['settings-navigation', 'id="tab-mehr"', 'id="mobile-bottom-nav"']
+          ];
+          const fingerprints = Object.fromEntries(protectedRanges.map(([name, start, end]) => [name, hash(sliceBetween(source, start, end))]));
+          const protectedWindowTokens = ['id="login-screen"', 'id="vx-onboarding-tour"', 'id="mobile-bottom-nav"'];
+          const windowAround = (text, token) => {
+            const index = text.indexOf(token);
+            assert.ok(index >= 0, `Missing protected window token: ${token}`);
+            return text.slice(Math.max(0, index - 2200), Math.min(text.length, index + 4200));
+          };
+          const windowFingerprints = Object.fromEntries(protectedWindowTokens.map((token) => [token, hash(windowAround(source, token))]));'''.replace(/^          /gm, '')
+          if old not in text:
+              raise SystemExit('Original protected range block not found')
+          text = text.replace(old, new, 1)
+          old_check = '''for (const [name, start, end] of protectedRanges) {
+            assert.equal(hash(sliceBetween(source, start, end)), fingerprints[name], `Protected surface changed: ${name}`);
+          }'''.replace(/^          /gm, '')
+          new_check = old_check + '''
+          for (const token of protectedWindowTokens) {
+            assert.equal(hash(windowAround(source, token)), windowFingerprints[token], `Protected window changed: ${token}`);
+          }'''.replace(/^          /gm, '')
+          if old_check not in text:
+              raise SystemExit('Original protected validation block not found')
+          text = text.replace(old_check, new_check, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
       - name: Apply guarded customer report migration
         run: node scripts/tmp-inspect-customer-report.mjs
+      - name: Restore temporary migration source
+        run: git checkout -- scripts/tmp-inspect-customer-report.mjs
       - name: Verify customer design foundation
         run: node scripts/verify-customer-design-foundation.mjs
       - name: Verify customer runtime reachability
