@@ -24,11 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Temporary focused dashboard source inspection
+      - name: Temporary final dashboard source inspection
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
           lines = source.splitlines()
@@ -38,35 +37,8 @@ jobs:
               for line_number in range(first_line, min(last_line, len(lines)) + 1):
                   print(f'{line_number:06d}: {lines[line_number - 1]}')
 
-          show('ACTIVE DASHBOARD FOUNDATION CSS', 130, 230)
-          show('DASHBOARD PRIORITY RENDERER', 10170, 10340)
-          show('DASHBOARD ACTIVITY RENDERER', 21840, 22040)
-          show('LATE DASHBOARD OVERRIDES A', 31380, 31720)
-          show('LATE DASHBOARD OVERRIDES B', 39880, 40120)
-          show('LATEST DASHBOARD OVERRIDES', 45380, 45780)
-
-          print('\n===== LEGACY CLASS COUNTS =====')
-          tokens = [
-              'vx-greeting-block', 'vx-greeting-top', 'vx-greeting-left',
-              'vx-greeting-title', 'vx-greeting-sub', 'vx-greeting-date',
-              'vx-kpi-strip', 'vx-kpi-cell', 'vx-kpi-label', 'vx-kpi-val', 'vx-kpi-note',
-              'vx-jetzt-section', 'vx-jetzt-header', 'vx-jetzt-title',
-              'vx-jetzt-link', 'vx-jetzt-list', 'vx-jetzt-more',
-              'vx-activity-row', 'vx-activity-time', 'vx-activity-title',
-              'vx-activity-sub', 'vx-activity-icon', 'vx-activity-note'
-          ]
-          for token in tokens:
-              print(f'{token}: {source.count(token)}')
-
-          print('\n===== FUNCTION LOCATIONS =====')
-          for pattern in [
-              r'function renderDashPriorityList',
-              r'function vxHeuteRenderActivityList',
-              r'function vxHeuteRenderScopedList',
-              r'function renderDashboard'
-          ]:
-              for match in re.finditer(pattern, source):
-                  print(pattern, source.count('\n', 0, match.start()) + 1)
+          show('DASHBOARD MARKUP', 7050, 7240)
+          show('PRIORITY RENDERER CONTINUATION', 10320, 10540)
           PY
       - uses: actions/setup-node@v4
         with:
