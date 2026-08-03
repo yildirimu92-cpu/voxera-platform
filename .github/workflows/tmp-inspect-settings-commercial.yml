@@ -1,4 +1,4 @@
-name: Temporary Subscription Block Inspection
+name: Temporary Profile Notification Inspection
 
 on:
   pull_request:
@@ -16,16 +16,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-settings-commercial-flows
-      - name: Print subscription block and related function names
+      - name: Print profile and notification contracts
         run: |
           python - <<'PY'
           from pathlib import Path
           text = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
           lines = text.splitlines()
           for start, end, label in [
-            (7500, 7810, 'subscription markup'),
-            (15220, 15640, 'subscription runtime'),
-            (16980, 17230, 'legacy commercial runtime')
+            (7315, 7520, 'profile and notification markup'),
+            (14620, 15120, 'profile and notification runtime')
           ]:
             print(f'=== {label}: {start}-{end} ===')
             for i in range(start - 1, min(end, len(lines))):
