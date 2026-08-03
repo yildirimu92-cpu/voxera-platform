@@ -14,26 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect navigation markup and insertion points
+      - name: Inspect mobile navigation layout ownership
         run: |
           python - <<'PY'
           from pathlib import Path
 
           lines = Path('customer-dashboard/index.html').read_text(encoding='utf-8').splitlines()
+          needles = [
+              '.mobile-nav-inner', '.mobile-nav-btn', '.mobile-nav {',
+              'grid-template-columns', 'justify-content:space-around',
+              'justify-content: space-around', 'safe-area-inset-bottom'
+          ]
 
-          def show(start, end, title):
-              print(f'\n===== {title}: lines {start}-{end} =====')
-              for n in range(start - 1, min(end, len(lines))):
-                  print(f'{n + 1}: {lines[n]}')
-
-          show(6570, 6725, 'desktop navigation and requests start')
-          show(7300, 7360, 'settings list')
-          show(8140, 8200, 'mobile navigation')
-          show(5585, 5625, 'mobile nav force-show CSS')
-
-          for needle in ['function showTab', '<div class="tab-page" id="tab-anrufe"', 'id="anrufe-split"']:
+          shown = set()
+          for needle in needles:
               matches = [i for i, line in enumerate(lines) if needle in line]
               print(f'\n===== {needle}: {len(matches)} match(es) =====')
-              for i in matches[:5]:
-                  show(max(1, i - 20), min(len(lines), i + 50), needle)
+              for i in matches:
+                  start = max(0, i - 8)
+                  end = min(len(lines), i + 18)
+                  key = (start, end)
+                  if key in shown:
+                      continue
+                  shown.add(key)
+                  print(f'--- lines {start + 1}-{end} ---')
+                  for n in range(start, end):
+                      print(f'{n + 1}: {lines[n]}')
           PY
