@@ -34,27 +34,53 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Narrow dashboard fingerprint to Heute only
+      - name: Narrow protected surface fingerprints
         if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path('scripts/tmp-migrate-customer-requests-design.mjs')
           text = path.read_text(encoding='utf-8')
-          old_entry = "  ['dashboard', hash(windowAround(dashboard, 'id=\"tab-dashboard\"', 200, 9000))],\n"
-          if text.count(old_entry) != 1:
+
+          dashboard_entry = "  ['dashboard', hash(windowAround(dashboard, 'id=\"tab-dashboard\"', 200, 9000))],\n"
+          if text.count(dashboard_entry) != 1:
               raise SystemExit('dashboard fingerprint entry mismatch')
-          text = text.replace(old_entry, '', 1)
+          text = text.replace(dashboard_entry, '', 1)
+
+          for old, new, label in [
+              (
+                  "  ['report', hash(windowAround(dashboard, 'id=\"tab-auswertung\"', 200, 12000))],",
+                  "  ['report', hash(windowAround(dashboard, 'id=\"tab-auswertung\"', 0, 3000))],",
+                  'report fingerprint entry',
+              ),
+              (
+                  "  ['settings', hash(windowAround(dashboard, 'id=\"tab-mehr\"', 200, 10000))]",
+                  "  ['settings', hash(windowAround(dashboard, 'id=\"tab-mehr\"', 0, 3000))]",
+                  'settings fingerprint entry',
+              ),
+          ]:
+              if text.count(old) != 1:
+                  raise SystemExit(f'{label} mismatch')
+              text = text.replace(old, new, 1)
+
           anchor = "]);\n\nconst protectedFunctions"
           addition = "]);\n\nconst dashboardSurfaceStart = dashboard.indexOf('id=\"tab-dashboard\"');\nconst dashboardSurfaceEnd = dashboard.indexOf('        <!-- ANFRAGEN TAB -->', dashboardSurfaceStart);\nassert.ok(dashboardSurfaceStart >= 0 && dashboardSurfaceEnd > dashboardSurfaceStart, 'dashboard surface bounds missing');\nconst protectedDashboardSurfaceHash = hash(dashboard.slice(dashboardSurfaceStart, dashboardSurfaceEnd));\n\nconst protectedFunctions"
           if text.count(anchor) != 1:
               raise SystemExit('protected function anchor mismatch')
           text = text.replace(anchor, addition, 1)
+
           verify_anchor = "for (const [name, expectedHash] of protectedWindows) {"
           verification = "const migratedDashboardSurfaceStart = dashboard.indexOf('id=\"tab-dashboard\"');\nconst migratedDashboardSurfaceEnd = dashboard.indexOf('        <!-- ANFRAGEN TAB -->', migratedDashboardSurfaceStart);\nassert.ok(migratedDashboardSurfaceStart >= 0 && migratedDashboardSurfaceEnd > migratedDashboardSurfaceStart, 'migrated dashboard surface bounds missing');\nassert.equal(\n  hash(dashboard.slice(migratedDashboardSurfaceStart, migratedDashboardSurfaceEnd)),\n  protectedDashboardSurfaceHash,\n  'protected surface changed: dashboard'\n);\n\nfor (const [name, expectedHash] of protectedWindows) {"
           if text.count(verify_anchor) != 1:
               raise SystemExit('protected window verification anchor mismatch')
           text = text.replace(verify_anchor, verification, 1)
+
+          old_bounds = "  const before = name === 'loading' ? 2200 : 200;\n  const after = name === 'loading' ? 6200 : name === 'report' ? 12000 : name === 'settings' ? 10000 : 9000;"
+          new_bounds = "  const before = name === 'loading' ? 2200 : 0;\n  const after = name === 'loading' ? 6200 : 3000;"
+          if text.count(old_bounds) != 1:
+              raise SystemExit('protected window bounds mismatch')
+          text = text.replace(old_bounds, new_bounds, 1)
+
           path.write_text(text, encoding='utf-8')
           PY
       - name: Apply guarded requests migration
