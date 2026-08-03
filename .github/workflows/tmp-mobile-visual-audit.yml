@@ -1,11 +1,10 @@
 name: Temporary Mobile Visual Audit
 
 on:
-  push:
-    branches:
-      - codex/customer-dashboard-assistant-migration-v2
+  pull_request:
     paths:
       - '.github/workflows/tmp-mobile-visual-audit.yml'
+      - 'customer-dashboard/index.html'
 
 permissions:
   contents: read
@@ -43,7 +42,7 @@ jobs:
           show('ARCHIVE MARKUP', ['Noch keine archivierten Einträge', 'Diese Woche', 'Dieser Monat', 'Archiv'], radius=18, max_hits=12)
           show('ARCHIVE CSS', ['archive-filter', 'archiv-filter', 'archive-tabs', 'archiv-tabs', 'retention', 'archive-empty', 'archiv-empty'], radius=12, max_hits=20)
           show('MOBILE NAV MARKUP', ['mobile-nav', 'bottom-nav', 'mob-nav', 'mnav'], radius=10, max_hits=30)
-          show('TAB SWITCHING', ['function showTab', 'classList.add(\'active\')', 'classList.toggle(\'active\')', 'data-tab'], radius=18, max_hits=30)
+          show('TAB SWITCHING', ['function showTab', "classList.add('active')", "classList.toggle('active')", 'data-tab'], radius=18, max_hits=30)
           show('DASHBOARD MOBILE', ['dash-greeting-block', 'dash-datetime-label', 'dash-reach-warning', 'dash-recent-more', 'Alle offenen Punkte anzeigen'], radius=14, max_hits=20)
           show('ASSISTANT COMPONENT CSS', ['.vx-page-header', '.vx-ap-head', '.vx-ap-btn', '.vx-ap-actions', '.vx-ops-status'], radius=10, max_hits=30)
           PY
