@@ -8,6 +8,7 @@ on:
       - 'customer-dashboard/shared/**/*.js'
       - 'scripts/verify-customer-design-foundation.mjs'
       - 'scripts/audit-customer-design-ownership.mjs'
+      - 'scripts/tmp-inspect-customer-report.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
   push:
     branches: [main]
@@ -27,6 +28,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Inspect customer report ownership
+        run: node scripts/tmp-inspect-customer-report.mjs
       - run: node scripts/verify-customer-design-foundation.mjs
       - name: Inventory design ownership
         run: node scripts/audit-customer-design-ownership.mjs
