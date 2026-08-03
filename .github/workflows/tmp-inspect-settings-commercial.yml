@@ -1,4 +1,4 @@
-name: Temporary Profile Notification Inspection
+name: Temporary Notification Save Inspection
 
 on:
   pull_request:
@@ -16,17 +16,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-settings-commercial-flows
-      - name: Print profile and notification contracts
+      - name: Print exact notification functions
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           text = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
           lines = text.splitlines()
-          for start, end, label in [
-            (7315, 7520, 'profile and notification markup'),
-            (14620, 15120, 'profile and notification runtime')
-          ]:
-            print(f'=== {label}: {start}-{end} ===')
-            for i in range(start - 1, min(end, len(lines))):
-              print(f'{i+1}: {lines[i]}')
+          for fn in ['vxInitBenachrichtigungen', 'vxSaveBenachrichtigungen']:
+            match = re.search(r'(?:async\s+)?function\s+' + re.escape(fn) + r'\s*\(', text)
+            print('===', fn, '===')
+            if not match:
+              print('NOT FOUND')
+              continue
+            start = text[:match.start()].count('\n')
+            depth = 0
+            opened = False
+            for i in range(start, min(len(lines), start + 500)):
+              line = lines[i]
+              print(f'{i+1}: {line}')
+              for ch in line:
+                if ch == '{': depth += 1; opened = True
+                elif ch == '}': depth -= 1
+              if opened and depth == 0:
+                break
           PY
