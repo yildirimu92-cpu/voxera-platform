@@ -1,4 +1,4 @@
-name: Temporary Settings Commercial Inspection
+name: Temporary Settings Markup Inspection
 
 on:
   pull_request:
@@ -16,84 +16,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-settings-commercial-flows
-      - name: Inspect exact commercial owners
+      - name: Print exact settings ranges
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
+          text = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          lines = text.splitlines()
 
-          index_path = Path('customer-dashboard/index.html')
-          index = index_path.read_text(encoding='utf-8')
-          lines = index.splitlines()
-
-          names = [
-            'vxAboUpgrade', 'vxAboMinuten', 'requestUpgrade', 'requestExtraMinutes',
-            'vxRequestAddon', 'vxInitAbonnement', 'vxRenderAbonnement',
-            'vxCancelContract', 'vxReactivateContract', 'customer-cancel-contract',
-            'abo-addons-list', 'abo-cancellation-action'
+          ranges = [
+            (7320, 7570, 'profile notifications subscription markup'),
+            (7700, 7820, 'legacy settings duplicate'),
+            (8240, 8420, 'help page markup'),
+            (14500, 15720, 'settings runtime and commercial functions'),
+            (16650, 17210, 'legacy commercial modals and functions')
           ]
+          for start, end, label in ranges:
+            print(f'=== {label}: {start}-{end} ===')
+            for i in range(start - 1, min(end, len(lines))):
+              print(f'{i+1}: {lines[i]}')
 
-          print('=== EXACT FRONTEND OWNERS ===')
-          for name in names:
-            print(f'### {name}')
-            hits = [i for i, line in enumerate(lines) if name in line]
-            print('hits:', [i + 1 for i in hits])
-            for i in hits[:8]:
-              start = max(0, i - 10)
-              end = min(len(lines), i + 42)
-              print(f'--- lines {start+1}-{end} ---')
-              for j in range(start, end):
-                print(f'{j+1}: {lines[j]}')
-
-          print('=== FUNCTION DEFINITIONS ===')
-          function_names = [
-            'vxAboUpgrade', 'vxAboMinuten', 'requestUpgrade', 'requestExtraMinutes',
-            'vxRequestAddon', 'vxInitAbonnement', 'vxRenderAbonnement',
-            'vxCancelContract', 'vxReactivateContract'
-          ]
-          for fn in function_names:
-            patterns = [
-              rf'async\s+function\s+{re.escape(fn)}\s*\(',
-              rf'function\s+{re.escape(fn)}\s*\(',
-              rf'(?:const|let|var)\s+{re.escape(fn)}\s*='
-            ]
-            match = None
-            for pattern in patterns:
-              match = re.search(pattern, index)
-              if match:
-                break
-            print(f'### function {fn}:', 'FOUND' if match else 'NOT FOUND')
-            if match:
-              start_line = index[:match.start()].count('\n')
-              for j in range(start_line, min(len(lines), start_line + 150)):
-                print(f'{j+1}: {lines[j]}')
-                if j > start_line + 12 and re.match(r'^}\s*$', lines[j]):
-                  break
-
-          print('=== COMMERCIAL ENDPOINT INVENTORY ===')
-          keywords = ['upgrade', 'extra minute', 'extra_minutes', 'additional_minutes', 'addon', 'subscription', 'commercial', 'checkout', 'invoice', 'order', 'request']
-          for path in sorted(Path('customer-dashboard/netlify/functions').rglob('*.js')):
-            text = path.read_text(encoding='utf-8', errors='ignore')
-            lower = text.lower()
-            matched = [kw for kw in keywords if kw in lower]
-            if matched:
-              print(f'{path}: {", ".join(matched)}')
-
-          print('=== REQUIRE CUSTOMER CONTRACT STATE ===')
-          require_path = Path('customer-dashboard/netlify/functions/_lib/require-customer.js')
-          if require_path.exists():
-            print(require_path.read_text(encoding='utf-8'))
-
-          print('=== PLAN / ADDON / BILLING SCHEMA FILES ===')
-          schema_terms = ['voxera_plans', 'voxera_addons', 'customer_addons', 'extra_minutes', 'upgrade_request', 'commercial_request', 'cancellation_date']
-          for root in [Path('supabase'), Path('customer-dashboard/netlify/functions')]:
-            if not root.exists():
-              continue
-            for path in sorted(root.rglob('*')):
-              if not path.is_file() or path.suffix not in {'.sql', '.js'}:
-                continue
-              text = path.read_text(encoding='utf-8', errors='ignore')
-              hits = [term for term in schema_terms if term.lower() in text.lower()]
-              if hits:
-                print(f'{path}: {", ".join(hits)}')
+          print('=== OVERLAY IDS ===')
+          for i, line in enumerate(lines):
+            if any(token in line for token in ['upgrade-overlay', 'minutes-overlay', 'vx-upgrade-overlay', 'vx-minutes-overlay']):
+              print(f'{i+1}: {line}')
           PY
