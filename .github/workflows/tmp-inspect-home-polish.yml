@@ -46,7 +46,10 @@ jobs:
           pos=css.find(marker)
           if pos < 0: raise SystemExit('home premium CSS marker missing')
           prefix=css[:pos].rstrip()
-          block=re.sub(r'\s+', ' ', css[pos:]).strip()
+          block=css[pos:].replace(' !important', '').replace('!important', '')
+          block=re.sub(r'\s+', ' ', block).strip()
+          if '!important' in block:
+            raise SystemExit('home premium owner still contains important overrides')
           css_path.write_text(prefix + '\n' + block + '\n', encoding='utf-8')
           PY
       - name: Verify existing customer contracts
@@ -95,6 +98,8 @@ jobs:
           if missing: raise SystemExit('missing home CSS tokens: ' + ', '.join(missing))
           if css.count('Customer home: premium assistant-aligned workspace.') != 1:
             raise SystemExit('home CSS owner must exist exactly once')
+          if '!important' in css:
+            raise SystemExit('assistant owner must not contain important overrides')
           if len(css.splitlines()) > 800:
             raise SystemExit('assistant owner size budget exceeded')
           PY
