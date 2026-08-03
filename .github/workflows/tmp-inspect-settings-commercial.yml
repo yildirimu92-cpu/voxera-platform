@@ -23,6 +23,21 @@ jobs:
           node-version: '20'
       - name: Apply guarded migration
         run: python scripts/tmp_migrate_settings_commercial.py
+      - name: Compact the new settings component block
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('customer-dashboard/shared/customer-settings-components.css')
+          text = path.read_text(encoding='utf-8')
+          marker = '/* Consolidated customer settings forms and commercial flows. */'
+          pos = text.find(marker)
+          if pos < 0:
+            raise SystemExit('settings component marker missing')
+          prefix = text[:pos].rstrip()
+          block = re.sub(r'\s+', ' ', text[pos:]).strip()
+          path.write_text(prefix + '\n' + block + '\n', encoding='utf-8')
+          PY
       - name: Validate JavaScript
         run: |
           node --check customer-dashboard/netlify/functions/customer-commercial-request.js
@@ -73,9 +88,10 @@ jobs:
 
           if index.count('id="vx-commercial-overlay"') != 1:
             raise SystemExit('commercial overlay must exist exactly once')
-          if 'Authorization' not in cancellation or '.select(\'*\')' not in cancellation:
+          if 'Authorization' not in cancellation or ".select('*')" not in cancellation:
             raise SystemExit('cancellation endpoint is not authenticated and verified')
-          if 'Authorization' not in index[index.find('function vxSubmitCancellationRequest'):index.find('function vxSubmitCancellationRequest') + 6000]:
+          cancel_block = index[index.find('function vxSubmitCancellationRequest'):index.find('function vxSubmitCancellationRequest') + 6000]
+          if 'Authorization' not in cancel_block:
             raise SystemExit('cancellation frontend does not send bearer authentication')
           if 'window.open(VX_' in index or 'mailto:info@voxera.ch?subject=Plan' in index:
             raise SystemExit('unsafe legacy purchase flow remains')
