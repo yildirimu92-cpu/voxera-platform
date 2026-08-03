@@ -23,10 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Diagnose command-center ownership
-        run: |
-          grep -n -C 5 "el.classList.add('dpr-command-center')" customer-dashboard/index.html || true
-      - name: Scope card selector migration to exact handlers
+      - name: Scope dashboard selector migration
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -61,7 +58,14 @@ jobs:
           '''
           if source.count(old) != 1:
               raise SystemExit('expected migration helper block not found exactly once')
-          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          source = source.replace(old, new, 1)
+
+          command_guard = '''    "el.classList.add('dpr-command-center')",\n'''
+          if source.count(command_guard) != 1:
+              raise SystemExit('expected command-center forbidden guard not found exactly once')
+          source = source.replace(command_guard, '', 1)
+
+          path.write_text(source, encoding='utf-8')
           PY
       - name: Apply guarded dashboard-local migration
         run: python scripts/tmp_migrate_dashboard_to_assistant_v2.py
@@ -76,6 +80,8 @@ jobs:
           grep -q 'id="dash-activity-section" class="vx-ops-card"' customer-dashboard/index.html
           ! grep -q 'class="vx-greeting-block"' customer-dashboard/index.html
           ! grep -q 'class="vx-jetzt-section' customer-dashboard/index.html
+          test "$(grep -c "el.classList.add('dpr-command-center')" customer-dashboard/index.html)" -eq 1
+          grep -q 'function renderAnrufeInbox' customer-dashboard/index.html
       - name: Commit migrated dashboard
         run: |
           git config user.name "github-actions[bot]"
