@@ -14,30 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect mobile navigation layout ownership
+      - name: Inspect exact navigation owners
         run: |
           python - <<'PY'
           from pathlib import Path
 
           lines = Path('customer-dashboard/index.html').read_text(encoding='utf-8').splitlines()
           needles = [
-              '.mobile-nav-inner', '.mobile-nav-btn', '.mobile-nav {',
-              'grid-template-columns', 'justify-content:space-around',
-              'justify-content: space-around', 'safe-area-inset-bottom'
+              'id="nav-archiv"',
+              'id="mnav-archiv"',
+              'id="nav-assistent"',
+              'id="mnav-assistent"',
+              'id="mnav-auswertung"',
+              'onclick="showTab(\'auswertung\')"',
+              'data-filter="done"',
+              '.mobile-nav-inner{',
+              '.mobile-nav-btn{'
           ]
 
-          shown = set()
           for needle in needles:
               matches = [i for i, line in enumerate(lines) if needle in line]
-              print(f'\n===== {needle}: {len(matches)} match(es) =====')
-              for i in matches:
-                  start = max(0, i - 8)
-                  end = min(len(lines), i + 18)
-                  key = (start, end)
-                  if key in shown:
-                      continue
-                  shown.add(key)
-                  print(f'--- lines {start + 1}-{end} ---')
+              print(f'\n===== {needle}: {len(matches)} =====')
+              for i in matches[:5]:
+                  start = max(0, i - 3)
+                  end = min(len(lines), i + 7)
                   for n in range(start, end):
                       print(f'{n + 1}: {lines[n]}')
           PY
