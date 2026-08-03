@@ -386,19 +386,13 @@ priority = re.sub(
     count=1,
 )
 priority = priority.replace("var _iconClass = _isCallType ? 'vx-row-icon is-call' : 'vx-row-icon';", "var _iconClass = 'vx-ap-avatar';")
-priority = re.sub(
-    r"html \+= '<div class=\"vx-ops-title\" style=\"'\+\(_isUnreadCall\?'font-weight:700;':''\)\+'\">'.*?;</div>';",
-    "",
-    priority,
-)
-# Replace the remaining original identity line exactly by its stable prefix/suffix.
-identity_pattern = re.compile(r"\s*html \+= '<div class=\"vx-ops-title\" style=.*?;</div>';", re.S)
-priority = identity_pattern.sub('', priority, count=1)
-old_identity_line = "      html += '<div class=\"vx-row-name\" style=\"'+(_isUnreadCall?'font-weight:700;':'')+'\">'+(_isUnreadCall?'<span style=\"display:inline-block;width:4px;height:4px;border-radius:50%;background:#1A6FE8;margin-right:6px;vertical-align:middle;\"></span>':'')+_esc(name)+'<span class=\"vx-row-pill\">'+_esc(typeMeta.label)+'</span>'+(company ? '<span class=\"dpr-co\">'+_esc(company)+'</span>' : '')+'</div>';"
 new_identity_lines = "      html += '<div class=\"vx-ops-head\"><div class=\"vx-ops-title\">'+_esc(name)+'</div><span class=\"vx-ops-pill'+(_isUnreadCall?' active':'')+'\">'+_esc(typeMeta.label)+'</span></div>';\n      var _identityMeta = [company, (phone && name !== phone ? phone : '')].filter(Boolean).join(' · ');\n      if (_identityMeta) html += '<div class=\"vx-ops-meta\">'+_esc(_identityMeta)+'</div>';"
-if old_identity_line in priority:
-    priority = priority.replace(old_identity_line, new_identity_lines, 1)
-else:
+identity_pattern = re.compile(
+    r'^\s*html \+= \'<div class="vx-ops-title" style=.*?</div>\';$',
+    re.MULTILINE,
+)
+priority, identity_count = identity_pattern.subn(new_identity_lines, priority, count=1)
+if identity_count != 1:
     raise AssertionError('Priority identity line not found')
 priority = priority.replace('class="vx-row-time"', 'class="vx-ops-meta"')
 priority = priority.replace('class="vx-row-summary"', 'class="vx-ops-message"')
