@@ -8,41 +8,42 @@ on:
       - 'customer-dashboard/shared/**/*.js'
       - 'scripts/verify-customer-design-foundation.mjs'
       - 'scripts/audit-customer-design-ownership.mjs'
+      - 'scripts/tmp_replace_dashboard_legacy.py'
       - '.github/workflows/verify-customer-design-foundation.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'customer-dashboard/**/*.css'
-      - 'customer-dashboard/**/*.html'
-      - 'customer-dashboard/shared/**/*.js'
-      - 'scripts/verify-customer-design-foundation.mjs'
-      - 'scripts/audit-customer-design-ownership.mjs'
-      - '.github/workflows/verify-customer-design-foundation.yml'
+
+permissions:
+  contents: write
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Temporary final dashboard source inspection
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
-          lines = source.splitlines()
-
-          def show(title, first_line, last_line):
-              print(f'\n===== {title} lines {first_line}-{last_line} =====')
-              for line_number in range(first_line, min(last_line, len(lines)) + 1):
-                  print(f'{line_number:06d}: {lines[line_number - 1]}')
-
-          show('DASHBOARD MARKUP', 7050, 7240)
-          show('PRIORITY RENDERER CONTINUATION', 10320, 10540)
-          PY
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: node scripts/verify-customer-design-foundation.mjs
-      - name: Inventory design ownership
-        run: node scripts/audit-customer-design-ownership.mjs
+      - name: Replace dashboard legacy presentation
+        run: python scripts/tmp_replace_dashboard_legacy.py
+      - name: Verify migration diff
+        run: |
+          git diff --check
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/audit-customer-design-ownership.mjs >/tmp/design-ownership.txt
+          grep -q 'id="dash-greeting-block" class="vx-page-header"' customer-dashboard/index.html
+          grep -q 'id="dash-kpi-strip" class="vx-ap-grid"' customer-dashboard/index.html
+          grep -q 'id="dash-priority-section" class="vx-ops-card"' customer-dashboard/index.html
+          grep -q 'id="dash-activity-section" class="vx-ops-card"' customer-dashboard/index.html
+      - name: Commit migrated dashboard
+        run: |
+          if git diff --quiet -- customer-dashboard/index.html; then
+            echo "No migration diff to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-dashboard/index.html
+          git commit -m "refactor(customer): replace dashboard legacy with assistant design"
+          git push origin HEAD:${{ github.head_ref }}
