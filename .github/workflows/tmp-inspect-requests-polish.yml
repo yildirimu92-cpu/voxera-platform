@@ -1,0 +1,54 @@
+name: Temporary Inspect Requests Polish
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tmp-inspect-requests-polish.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/customer-requests-premium-polish
+      - name: Inspect request visual owners
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          index=Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          lines=index.splitlines()
+          css_path=Path('customer-dashboard/shared/customer-assistant-components.css')
+          css=css_path.read_text(encoding='utf-8')
+          css_lines=css.splitlines()
+
+          def show(source, term, before=8, after=28, limit=8, label='INDEX'):
+            hits=[i for i,l in enumerate(source) if term.lower() in l.lower()][:limit]
+            print(f'\n## {label} {term!r} hits={len(hits)}')
+            for i in hits:
+              lo=max(0,i-before); hi=min(len(source),i+after+1)
+              print(f'-- {lo+1}-{hi} --')
+              for n in range(lo,hi): print(f'{n+1}: {source[n]}')
+
+          for term in [
+            'id="tab-anfragen"', 'id="requests-list"', 'id="calls-list"',
+            'requests-filter', 'request-filter', 'anfragen-filter',
+            'is-selected', 'is-active', 'aria-selected',
+            'function renderRequests', 'function renderCalls',
+            'vx-requests', 'vx-request', 'inbox', 'split-view'
+          ]:
+            show(lines, term)
+
+          for term in [
+            '#tab-anfragen', '.vx-request', '.vx-requests', '.vx-filter',
+            '.is-selected', '.is-active', '.vx-ops-item', '.vx-ap-card',
+            'background: #fff', 'background: white'
+          ]:
+            show(css_lines, term, before=5, after=24, label='ASSISTANT_CSS')
+
+          print('\n## ASSISTANT CSS LINES', len(css_lines))
+          PY
