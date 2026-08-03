@@ -2200,13 +2200,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .modal-actions .btn--secondary,
   .modal-actions .btn--primary{width:100%;flex:unset;}
 }
-@media(max-width:480px){
-  #abo-addons-list > div[style*="grid-template-columns:1fr 1fr"] {
-    grid-template-columns: 1fr !important;
-  }
-}
-.addon-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-@media(max-width:600px){.addon-grid{grid-template-columns:1fr;}}
 
 /* ── DASHBOARD V2 PREMIUM (UI-only refresh) ─────────────────────────────── */
 .dash-top{display:grid;gap:12px;margin-bottom:14px;}
@@ -5914,12 +5907,6 @@ body,.main{background:var(--vx-bg);}
     padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
   }
 
-  /* ── Mehr-Tab Hauptliste ──────────────────────────── */
-  #mehr-main [onclick] {
-    padding: 12px;
-    border-radius: 12px;
-  }
-
   /* ── Assistent Accordions ─────────────────────────── */
   .vx-acc-header {
     padding: 12px 14px;
@@ -7786,38 +7773,37 @@ body,.main{background:var(--vx-bg);}
         <!-- MEHR TAB -->
         <div class="tab-page" id="tab-mehr">
           <!-- Mehr: Haupt-Liste (default) -->
-          <div id="mehr-main" style="margin-bottom:10px;">
+          <div id="mehr-main" class="vx-settings-main">
             <div class="vx-page-header">
               <div class="vx-page-header-title">Einstellungen</div>
             </div>
 
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;">
-              <div onclick="showTab('auswertung')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
-                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-chart-bar" style="color:#1A6FE8;font-size:17px;" aria-hidden="true"></i></div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Bericht</div><div style="font-size:11px;color:var(--slate2);">Anrufstatistiken & Auswertung</div></div>
-                <i class="ph-bold ph-caret-right" style="color:var(--slate2);font-size:15px;" aria-hidden="true"></i>
-              </div>
-              <div onclick="vxMehrShow('profil')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
-                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-user" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Profil</div><div id="mehr-profil-sub" style="font-size:11px;color:var(--slate2);">Name, E-Mail, Passwort</div></div>
-                <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
-              </div>
-              <div onclick="vxMehrShow('benachrichtigungen')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
-                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-bell" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Benachrichtigungen</div><div style="font-size:11px;color:var(--slate2);">E-Mail, SMS, Browser</div></div>
-                <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
-              </div>
-              <div onclick="vxMehrShow('abonnement')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);">
-                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-credit-card" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Abonnement & Add-ons</div><div id="mehr-plan-label" style="font-size:11px;color:var(--slate2);">Ihr aktueller Plan</div></div>
-                <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
-              </div>
-
-              <div onclick="vxMehrShow('hilfe')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;">
-                <div style="width:36px;height:36px;background:#EEF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-question" style="color:#1A6FE8;" style="font-size:17px;" aria-hidden="true"></i></div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Hilfe</div><div style="font-size:11px;color:var(--slate2);">FAQ, Support kontaktieren</div></div>
-                <i class="ph-bold ph-caret-right" style="color:var(--slate2);" style="font-size:15px;" aria-hidden="true"></i>
-              </div>
+            <div class="vx-settings-list" aria-label="Einstellungsbereiche">
+              <button type="button" class="vx-settings-entry" onclick="showTab('auswertung')">
+                <span class="vx-settings-entry-icon"><i class="ph-bold ph-chart-bar" aria-hidden="true"></i></span>
+                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Bericht</span><span class="vx-settings-entry-subtitle">Anrufstatistiken &amp; Auswertung</span></span>
+                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="vx-settings-entry" onclick="vxMehrShow('profil')">
+                <span class="vx-settings-entry-icon"><i class="ph-bold ph-user" aria-hidden="true"></i></span>
+                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Profil</span><span id="mehr-profil-sub" class="vx-settings-entry-subtitle">Name, E-Mail, Passwort</span></span>
+                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="vx-settings-entry" onclick="vxMehrShow('benachrichtigungen')">
+                <span class="vx-settings-entry-icon"><i class="ph-bold ph-bell" aria-hidden="true"></i></span>
+                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Benachrichtigungen</span><span class="vx-settings-entry-subtitle">E-Mail, SMS, Browser</span></span>
+                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="vx-settings-entry" onclick="vxMehrShow('abonnement')">
+                <span class="vx-settings-entry-icon"><i class="ph-bold ph-credit-card" aria-hidden="true"></i></span>
+                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Abonnement &amp; Add-ons</span><span id="mehr-plan-label" class="vx-settings-entry-subtitle">Ihr aktueller Plan</span></span>
+                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="vx-settings-entry" onclick="vxMehrShow('hilfe')">
+                <span class="vx-settings-entry-icon"><i class="ph-bold ph-question" aria-hidden="true"></i></span>
+                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Hilfe</span><span class="vx-settings-entry-subtitle">FAQ, Support kontaktieren</span></span>
+                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+              </button>
             </div>
           </div>
 
@@ -8054,69 +8040,52 @@ body,.main{background:var(--vx-bg);}
           </div>
 
           <!-- ABONNEMENT -->
-          <div id="mehr-sub-abonnement" style="display:none;">
-            <div class="vx-page-header" style="align-items:center;gap:12px;">
-              <button onclick="vxMehrBack()" class="vx-back-btn"><i class="ph-bold ph-arrow-left"  style="font-size:18px;" aria-hidden="true"></i></button>
-              <div style="flex:1;"><div class="vx-page-header-title">Abonnement</div></div>
+          <div id="mehr-sub-abonnement" class="vx-settings-subpage" style="display:none;">
+            <div class="vx-page-header vx-settings-subpage-header">
+              <button type="button" onclick="vxMehrBack()" class="vx-back-btn vx-settings-back" aria-label="Zurück zu Einstellungen"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button>
+              <div class="vx-settings-header-copy"><div class="vx-page-header-title">Abonnement</div><div class="vx-page-header-subtitle">Plan, Nutzung und Vertragsdetails.</div></div>
             </div>
 
-            <!-- Aktueller Plan -->
-            <div style="background:#0D1F3C;border-radius:var(--r-lg);padding:16px;margin-bottom:12px;">
-              <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Aktueller Plan</div>
-              <div style="display:flex;align-items:baseline;gap:8px;">
-                <div id="abo-plan-name" style="font-size:20px;font-weight:700;color:#fff;">–</div>
-                <div id="abo-plan-price" style="font-size:13px;color:rgba(255,255,255,.6);">–</div>
+            <section class="vx-abo-hero" aria-labelledby="abo-plan-heading">
+              <div id="abo-plan-heading" class="vx-abo-eyebrow">Aktueller Plan</div>
+              <div class="vx-abo-plan-row">
+                <div id="abo-plan-name" class="vx-abo-plan-name">–</div>
+                <div id="abo-plan-price" class="vx-abo-plan-price">–</div>
               </div>
-            </div>
+            </section>
 
-            <!-- Vertragsdetails -->
-            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Vertragsdetails</span></div>
-              <div id="abo-contract-details" style="padding:12px 14px;"></div>
-            </div>
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Vertragsdetails</h2><p class="vx-settings-card-meta">Laufzeit, Betrag und aktueller Vertragsstatus.</p></div></div>
+              <div id="abo-contract-details" class="vx-settings-card-body"></div>
+            </section>
 
-            <!-- Minutenverbrauch -->
-            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:13px;font-weight:700;color:#fff;">Minutenverbrauch</span>
-                <span id="abo-minutes-text" style="font-size:12px;color:rgba(255,255,255,.6);">– / – Min</span>
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head vx-settings-card-head--split"><div><h2 class="vx-settings-card-title">Minutenverbrauch</h2><p class="vx-settings-card-meta">Aktuelle Nutzung im laufenden Abrechnungszeitraum.</p></div><span id="abo-minutes-text" class="vx-abo-minutes-text">– / – Min</span></div>
+              <div class="vx-settings-card-body">
+                <progress id="abo-minutes-bar" class="vx-abo-progress" max="100" value="0" aria-label="Verbrauch des Minutenkontingents"></progress>
+                <div id="abo-minutes-warning" class="vx-abo-warning" hidden>Über 80% des Kontingents verbraucht</div>
               </div>
-              <div style="padding:12px 16px;">
-                <div style="height:6px;background:#F1F5F9;border-radius:999px;overflow:hidden;margin-bottom:6px;">
-                  <div id="abo-minutes-bar" style="height:100%;background:#1A6FE8;border-radius:999px;width:0%;transition:width .4s;"></div>
-                </div>
-                <div id="abo-minutes-warning" style="display:none;font-size:11px;color:#D97706;">⚠ Über 80% des Kontingents verbraucht</div>
-              </div>
+            </section>
+
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Add-ons</h2><p class="vx-settings-card-meta">Aktive Erweiterungen und verfügbare Zusatzleistungen.</p></div></div>
+              <div id="abo-addons-list" class="vx-settings-card-body"></div>
+            </section>
+
+            <div class="vx-abo-primary-actions" aria-label="Abonnement-Aktionen">
+              <button type="button" onclick="vxAboUpgrade()" class="btn vx-abo-btn">Plan upgraden</button>
+              <button type="button" onclick="vxAboMinuten()" class="btn vx-abo-btn secondary">Zusatzminuten kaufen</button>
             </div>
 
-            <!-- Add-ons -->
-            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Add-ons</span></div>
-              <div id="abo-addons-list" style="padding:8px 14px;">
-              <!-- Dynamisch befüllt -->
-              </div>
-            </div>
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Rechnungen</h2><p class="vx-settings-card-meta">Ihre Abrechnungsdokumente an einem Ort.</p></div></div>
+              <div id="abo-invoices-list" class="vx-settings-card-body"><div class="vx-abo-empty">Rechnungen werden hier angezeigt, sobald sie verfügbar sind.</div></div>
+            </section>
 
-            <!-- Aktionen -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-              <button onclick="vxAboUpgrade()" style="background:#1A6FE8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Plan upgraden</button>
-              <button onclick="vxAboMinuten()" style="background:var(--surface);color:var(--ink);border:0.5px solid var(--line);border-radius:10px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">+ Minuten kaufen</button>
-            </div>
-
-            <!-- Rechnungen -->
-            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Rechnungen</span></div>
-              <div id="abo-invoices-list" style="padding:14px 16px;">
-              <div style="font-size:13px;color:var(--slate2);text-align:center;">Rechnungen werden hier angezeigt sobald verfügbar.</div>
-            </div>
-            </div>
-
-            <!-- Kündigung -->
-            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);padding:14px 16px;">
-              <div style="font-size:12px;font-weight:600;color:#94A3B8;margin-bottom:8px;">Vertrag kündigen</div>
-              <div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:12px;">Sie können Ihren Vertrag unter Einhaltung der Kündigungsfrist kündigen. Die Kündigung wird von unserem Team bearbeitet.</div>
-              <div id="abo-cancellation-action"></div>
-            </div>
+            <section class="vx-settings-card vx-abo-cancellation-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Vertrag kündigen</h2><p class="vx-settings-card-meta">Eine Kündigung wird unter Einhaltung der Vertragsfrist durch unser Team bearbeitet.</p></div></div>
+              <div id="abo-cancellation-action" class="vx-settings-card-body"></div>
+            </section>
           </div>
 
 
@@ -15878,8 +15847,12 @@ async function vxInitAbonnement() {
     const barEl = document.getElementById('abo-minutes-bar');
     const warnEl = document.getElementById('abo-minutes-warning');
     if (textEl) textEl.textContent = used + ' / ' + total + ' Min';
-    if (barEl) { barEl.style.width = pct + '%'; barEl.style.background = pct >= 80 ? '#D97706' : '#1A6FE8'; }
-    if (warnEl) warnEl.style.display = pct >= 80 ? 'block' : 'none';
+    if (barEl) {
+      barEl.value = pct;
+      barEl.classList.toggle('warning', pct >= 80);
+      barEl.setAttribute('aria-valuenow', String(pct));
+    }
+    if (warnEl) warnEl.hidden = pct < 80;
   } catch(e) {}
 
   vxRenderContractDetails();
@@ -15926,26 +15899,22 @@ function vxRenderContractDetails() {
   const nextRenewal = vxComputeNextRenewal(ct.start_date, ct.duration_months);
   const status = String(ct.status || '').toLowerCase();
   const statusLabel = status === 'cancelled' ? 'Gekündigt' : (status === 'active' ? 'Aktiv' : (ct.status || 'Unbekannt'));
-  const statusStyle = status === 'cancelled'
-    ? 'background:#FEF2F2;color:#DC2626;border:0.5px solid #FECACA;'
-    : 'background:#ECFDF5;color:#059669;border:0.5px solid #BBF7D0;';
+  const statusClass = status === 'cancelled' ? 'is-cancelled' : (status === 'active' ? 'is-active' : 'is-neutral');
 
-  let warningHtml = '';
-  if (ct.cancellation_date) {
-    warningHtml = '<div style="grid-column:1/-1;background:#FFFBEB;color:#B45309;border:0.5px solid #FDE68A;border-radius:10px;padding:8px 10px;font-size:12px;">Kündigung eingereicht per ' + vxFmtDate(ct.cancellation_date) + '</div>';
-  }
+  const warningHtml = ct.cancellation_date
+    ? '<div class="vx-abo-contract-warning">Kündigung eingereicht per ' + vxFmtDate(ct.cancellation_date) + '</div>'
+    : '';
 
-  el.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;">
-      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Vertragsbeginn</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${vxFmtDate(ct.start_date)}</div></div>
-      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Vertragsdauer</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${durationText}</div></div>
-      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Monatlicher Betrag</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${vxFmtChf(ct.recurring_amount_monthly)}</div></div>
-      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Nächste Verlängerung</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${nextRenewal ? vxFmtDate(nextRenewal) : '–'}</div></div>
-      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Kündigungsfrist</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${ct.cancellation_notice || '30 Tage'}</div></div>
-      <div><div style="font-size:11px;color:var(--slate2);margin-bottom:2px;">Status</div><span style="display:inline-flex;font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;${statusStyle}">${statusLabel}</span></div>
-      ${warningHtml}
-    </div>
-  `;
+  el.innerHTML =
+    '<div class="vx-abo-contract-grid">' +
+      '<div class="vx-abo-contract-item"><div class="vx-abo-contract-label">Vertragsbeginn</div><div class="vx-abo-contract-value">' + vxFmtDate(ct.start_date) + '</div></div>' +
+      '<div class="vx-abo-contract-item"><div class="vx-abo-contract-label">Vertragsdauer</div><div class="vx-abo-contract-value">' + durationText + '</div></div>' +
+      '<div class="vx-abo-contract-item"><div class="vx-abo-contract-label">Monatlicher Betrag</div><div class="vx-abo-contract-value">' + vxFmtChf(ct.recurring_amount_monthly) + '</div></div>' +
+      '<div class="vx-abo-contract-item"><div class="vx-abo-contract-label">Nächste Verlängerung</div><div class="vx-abo-contract-value">' + (nextRenewal ? vxFmtDate(nextRenewal) : '–') + '</div></div>' +
+      '<div class="vx-abo-contract-item"><div class="vx-abo-contract-label">Kündigungsfrist</div><div class="vx-abo-contract-value">' + (ct.cancellation_notice || '30 Tage') + '</div></div>' +
+      '<div class="vx-abo-contract-item"><div class="vx-abo-contract-label">Status</div><span class="vx-abo-status ' + statusClass + '">' + statusLabel + '</span></div>' +
+      warningHtml +
+    '</div>';
 }
 
 async function vxRenderAboAddons() {
@@ -15961,26 +15930,25 @@ async function vxRenderAboAddons() {
     const loadedAddons = Array.isArray(customerMeta.customerAddons) ? customerMeta.customerAddons : [];
     const activeSet = new Set(loadedAddons.filter(a => a && a.active).map(a => String(a.addon_code || '').toLowerCase()));
 
-    listEl.innerHTML = '<div class="addon-grid">' + cards.map(function(a) {
+    listEl.innerHTML = '<div class="vx-abo-addon-grid">' + cards.map(function(a) {
       const isActive = activeSet.has(String(a.addon_code).toLowerCase());
       const usageInfo = isActive && a.addon_code === 'minutes_block'
-        ? '<div style="font-size:11px;color:var(--slate2);margin-top:4px;">Aktive Blöcke: ' + loadedAddons.filter(function(x){return x && x.active && String(x.addon_code||'').toLowerCase()==='minutes_block';}).length + '</div>'
+        ? '<div class="vx-abo-addon-usage">Aktive Blöcke: ' + loadedAddons.filter(function(x){return x && x.active && String(x.addon_code||'').toLowerCase()==='minutes_block';}).length + '</div>'
         : '';
       const badge = isActive
-        ? '<span style="font-size:11px;font-weight:700;color:#059669;background:#ECFDF5;border:0.5px solid #BBF7D0;border-radius:999px;padding:3px 10px;">Aktiv</span>'
-        : '<span style="font-size:11px;font-weight:600;color:#64748B;background:#F1F5F9;border:0.5px solid #E2E8F0;border-radius:999px;padding:3px 10px;">' + (a.soonText || 'Coming Soon') + '</span>';
-      return '<div style="border-radius:14px;border:0.5px solid var(--line);background:#fff;padding:14px;">'
-        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'
-        + '<div style=\"display:flex;gap:10px;\">'
-        + '<div style="width:36px;height:36px;border-radius:10px;background:#0D1F3C;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-' + a.icon + '" style="color:#fff;"></i></div>'
-        + '<div><div style="font-size:13px;font-weight:600;color:var(--ink);line-height:1.35;">' + a.display_name + '</div><div style="font-size:11px;color:var(--slate2);margin-top:2px;">' + a.price + '</div>' + usageInfo + '</div>'
+        ? '<span class="vx-abo-status is-active">Aktiv</span>'
+        : '<span class="vx-abo-status is-neutral">' + (a.soonText || 'Coming Soon') + '</span>';
+      return '<article class="vx-abo-addon">'
+        + '<div class="vx-abo-addon-head">'
+        + '<div class="vx-abo-addon-main">'
+        + '<div class="vx-abo-addon-icon"><i class="ph-bold ph-' + a.icon + '" aria-hidden="true"></i></div>'
+        + '<div><div class="vx-abo-addon-name">' + a.display_name + '</div><div class="vx-abo-addon-price">' + a.price + '</div>' + usageInfo + '</div>'
         + '</div>' + badge + '</div>'
-        + (a.teaser ? '<div style="font-size:11px;color:var(--slate2);margin-top:8px;">' + a.teaser + '</div>' : '')
-        + '</div>';
-    }).join('');
-    /* phosphor: no init needed */
+        + (a.teaser ? '<div class="vx-abo-addon-teaser">' + a.teaser + '</div>' : '')
+        + '</article>';
+    }).join('') + '</div>';
   } catch(e) {
-    listEl.innerHTML = '<div style="font-size:13px;color:var(--slate2);">Fehler beim Laden.</div>';
+    listEl.innerHTML = '<div class="vx-abo-empty">Fehler beim Laden.</div>';
   }
 }
 
@@ -15990,16 +15958,15 @@ function vxRenderCancellationSection() {
   const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
   const isActive = String(ct.status || '').toLowerCase() === 'active';
   if ((ct.cancellation_date || ct.termination_type) && isActive) {
-    el.innerHTML = ''
-      + '<div style="font-size:12px;color:var(--slate2);margin-bottom:10px;">Kündigung bereits eingereicht</div>'
-      + '<button onclick="vxSubmitReactivationRequest()" style="background:transparent;border:0.5px solid #1A6FE8;color:#1A6FE8;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Kündigung zurückziehen</button>';
+    el.innerHTML = '<div class="vx-abo-cancellation-note">Kündigung bereits eingereicht</div>'
+      + '<button type="button" onclick="vxSubmitReactivationRequest()" class="btn vx-abo-btn secondary">Kündigung zurückziehen</button>';
     return;
   }
   if (ct.cancellation_date || ct.termination_type) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Kündigung bereits eingereicht</div>';
+    el.innerHTML = '<div class="vx-abo-cancellation-note">Kündigung bereits eingereicht</div>';
     return;
   }
-  el.innerHTML = '<button onclick="vxSubmitCancellationRequest()" style="background:transparent;border:0.5px solid #FCA5A5;color:#DC2626;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Kündigung einreichen</button>';
+  el.innerHTML = '<button type="button" onclick="vxSubmitCancellationRequest()" class="btn vx-abo-btn danger">Kündigung einreichen</button>';
 }
 
 async function vxSubmitCancellationRequest() {
