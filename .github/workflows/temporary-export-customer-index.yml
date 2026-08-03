@@ -1,9 +1,9 @@
 name: Temporary export customer index
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/consolidate-settings-subscription-design
+      - main
 
 permissions:
   contents: read
