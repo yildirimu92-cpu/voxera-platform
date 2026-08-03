@@ -23,6 +23,32 @@ jobs:
           node-version: 20
       - name: Apply guarded home migration
         run: python scripts/tmp_migrate_home_premium.py
+      - name: Consolidate existing design ownership
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          index_path=Path('customer-dashboard/index.html')
+          index=index_path.read_text(encoding='utf-8')
+          start='  /* ── KPI Strip: 2×2 Grid statt 4 Spalten ─────────────────── */'
+          end='  /* ── Call-Row Header (cr-head): kompakter auf Mobile ─────── */'
+          if index.count(start) != 1 or index.count(end) != 1:
+            raise SystemExit('legacy KPI mobile block boundary mismatch')
+          lo=index.index(start)
+          hi=index.index(end, lo)
+          index=index[:lo] + index[hi:]
+          index_path.write_text(index, encoding='utf-8')
+
+          css_path=Path('customer-dashboard/shared/customer-assistant-components.css')
+          css=css_path.read_text(encoding='utf-8')
+          marker='/* Customer home: premium assistant-aligned workspace. */'
+          pos=css.find(marker)
+          if pos < 0: raise SystemExit('home premium CSS marker missing')
+          prefix=css[:pos].rstrip()
+          block=re.sub(r'\s+', ' ', css[pos:]).strip()
+          css_path.write_text(prefix + '\n' + block + '\n', encoding='utf-8')
+          PY
       - name: Verify existing customer contracts
         run: |
           node scripts/verify-customer-design-foundation.mjs
@@ -51,10 +77,11 @@ jobs:
             "kpiCallbacksNote.textContent = 'Eingänge seit Tagesbeginn'",
             "kpiTodayNote.textContent = 'Nicht bearbeitet'",
             "kpiDoneNote.textContent = 'Priorisiert oder überfällig'",
-            "kpiReachLabel.textContent = 'Heute abgeschlossen'"
+            "kpiReachLabel.textContent = 'Heute abgeschlossen'",
+            'KPI Strip: 2×2 Grid statt 4 Spalten'
           ]
           present=[token for token in forbidden if token in index]
-          if present: raise SystemExit('redundant KPI copy remains: ' + ', '.join(present))
+          if present: raise SystemExit('legacy KPI presentation remains: ' + ', '.join(present))
           required_css=[
             'Customer home: premium assistant-aligned workspace.',
             '#dash-kpi-strip',
@@ -68,6 +95,8 @@ jobs:
           if missing: raise SystemExit('missing home CSS tokens: ' + ', '.join(missing))
           if css.count('Customer home: premium assistant-aligned workspace.') != 1:
             raise SystemExit('home CSS owner must exist exactly once')
+          if len(css.splitlines()) > 800:
+            raise SystemExit('assistant owner size budget exceeded')
           PY
           git diff --check
       - name: Commit product migration
