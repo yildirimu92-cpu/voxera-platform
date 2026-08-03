@@ -16,28 +16,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Inspect dashboard-local markup, renderers and selectors
+      - name: Inspect dashboard-local boundaries
         run: |
           python - <<'PY'
           from pathlib import Path
           import hashlib
           import re
 
-          path = Path('customer-dashboard/index.html')
-          source = path.read_text(encoding='utf-8')
-          lines = source.splitlines()
+          source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
 
           def line_no(offset):
               return source.count('\n', 0, offset) + 1
-
-          def print_block(title, start, end, max_chars=80000):
-              block = source[start:end]
-              print(f'\n===== {title} | lines {line_no(start)}-{line_no(end)} | chars {len(block)} =====')
-              if len(block) > max_chars:
-                  print(block[:max_chars])
-                  print(f'\n...[TRUNCATED {len(block) - max_chars} CHARS]...')
-              else:
-                  print(block)
 
           def matching_brace(start):
               depth = 0
@@ -48,13 +37,14 @@ jobs:
               i = start
               while i < len(source):
                   ch = source[i]
-                  nxt = source[i:i+2]
+                  pair = source[i:i + 2]
                   if line_comment:
-                      if ch == '\n': line_comment = False
+                      if ch == '\n':
+                          line_comment = False
                       i += 1
                       continue
                   if block_comment:
-                      if nxt == '*/':
+                      if pair == '*/':
                           block_comment = False
                           i += 2
                       else:
@@ -69,11 +59,11 @@ jobs:
                           quote = None
                       i += 1
                       continue
-                  if nxt == '//':
+                  if pair == '//':
                       line_comment = True
                       i += 2
                       continue
-                  if nxt == '/*':
+                  if pair == '/*':
                       block_comment = True
                       i += 2
                       continue
@@ -90,15 +80,18 @@ jobs:
 
           dash_start = source.index('<div class="tab-page active" id="tab-dashboard">')
           dash_end = source.index('<!-- ANFRAGEN TAB -->', dash_start)
-          print_block('DASHBOARD HOST MARKUP', dash_start, dash_end)
+          dashboard = source[dash_start:dash_end]
 
-          print('\n===== MATCHING DASHBOARD FUNCTIONS =====')
+          print('===== DASHBOARD HOST =====')
+          print(f'start_line={line_no(dash_start)} end_line={line_no(dash_end)} chars={len(dashboard)}')
+          for rel_no, line in enumerate(dashboard.splitlines(), line_no(dash_start)):
+              compact = line.strip()
+              if compact and any(token in compact for token in ('id=', 'class=', 'style=', '<button', '<h1', '<h2', '<h3')):
+                  print(f'{rel_no}: {compact[:700]}')
+
+          print('\n===== DASHBOARD FUNCTIONS =====')
           function_pattern = re.compile(r'(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{')
-          dashboard_terms = (
-              'dash-priority', 'dash-activity', 'dash-kpi', 'dash-greeting',
-              'vx-activity', 'vx-group', 'vx-jetzt', 'renderDashboard'
-          )
-          seen = set()
+          terms = ('dash-priority', 'dash-activity', 'dash-kpi', 'dash-greeting', 'vx-activity', 'vx-group', 'vx-jetzt', 'renderDashboard')
           for match in function_pattern.finditer(source):
               brace = source.index('{', match.start())
               try:
@@ -106,31 +99,30 @@ jobs:
               except RuntimeError:
                   continue
               body = source[match.start():end]
-              if any(term in body for term in dashboard_terms):
-                  key = (match.group(1), match.start())
-                  if key in seen:
-                      continue
-                  seen.add(key)
-                  print_block(f'FUNCTION {match.group(1)}', match.start(), end, max_chars=45000)
+              if not any(term in body for term in terms):
+                  continue
+              print(f'FUNCTION {match.group(1)} lines={line_no(match.start())}-{line_no(end)} chars={len(body)}')
+              for rel_no, line in enumerate(body.splitlines(), line_no(match.start())):
+                  compact = line.strip()
+                  if compact and any(token in compact for token in ('innerHTML', 'insertAdjacentHTML', 'class=', 'style=', 'dash-', 'vx-')):
+                      print(f'  {rel_no}: {compact[:850]}')
 
-          print('\n===== DASHBOARD SELECTOR RULES =====')
+          print('\n===== DASHBOARD SELECTOR INDEX =====')
           style_pattern = re.compile(r'<style\b[^>]*>(.*?)</style>', re.S | re.I)
-          selector_terms = (
-              '#tab-dashboard', '#dash-', '.dash-', '.vx-greeting-', '.vx-kpi-',
-              '.vx-jetzt-', '.vx-activity-', '.vx-group-', '.dpr-command-center', '.fse-'
-          )
+          selector_terms = ('#tab-dashboard', '#dash-', '.dash-', '.vx-greeting-', '.vx-kpi-', '.vx-jetzt-', '.vx-activity-', '.vx-group-', '.dpr-command-center', '.fse-')
           rule_pattern = re.compile(r'([^{}]+)\{([^{}]*)\}', re.S)
-          count = 0
+          selectors = []
           for style_index, style in enumerate(style_pattern.finditer(source), 1):
               css = style.group(1)
               for rule in rule_pattern.finditer(css):
-                  selector = rule.group(1).strip()
+                  selector = ' '.join(rule.group(1).split())
                   if any(term in selector for term in selector_terms):
-                      count += 1
                       absolute = style.start(1) + rule.start()
-                      print(f'\n--- RULE {count} | style {style_index} | line {line_no(absolute)} ---')
-                      print(selector + ' {' + rule.group(2) + '}')
-          print(f'\nTOTAL DASHBOARD-MATCHING RULES: {count}')
+                      mixed = any(token in selector.lower() for token in ('login', 'loading', 'sidebar', 'mobile-nav', 'bottom-nav', 'tour', 'modal'))
+                      selectors.append((line_no(absolute), style_index, mixed, selector))
+          print(f'total={len(selectors)}')
+          for number, style_index, mixed, selector in selectors:
+              print(f'line={number} style={style_index} mixed_shared={str(mixed).lower()} selector={selector[:1200]}')
 
           print('\n===== SHARED SURFACE FINGERPRINTS =====')
           shared_terms = {
@@ -140,20 +132,18 @@ jobs:
               'mobile_navigation': ('mobile-nav', 'bottom-nav', 'mobile-bottom'),
               'tour': ('tour', 'onboarding-modal', 'tour-modal'),
           }
-          for name, terms in shared_terms.items():
+          for name, needles in shared_terms.items():
               relevant = []
               for style in style_pattern.finditer(source):
                   css = style.group(1)
                   for rule in rule_pattern.finditer(css):
-                      selector = rule.group(1).strip()
-                      if any(term in selector.lower() for term in terms):
+                      selector = ' '.join(rule.group(1).split())
+                      if any(needle in selector.lower() for needle in needles):
                           relevant.append(selector + '{' + rule.group(2) + '}')
               payload = '\n'.join(relevant)
               print(f'{name}: rules={len(relevant)} sha256={hashlib.sha256(payload.encode()).hexdigest()}')
 
-          print('\n===== INLINE STYLE OCCURRENCES IN DASHBOARD HOST =====')
-          dash = source[dash_start:dash_end]
-          for m in re.finditer(r'style="[^"]*"', dash):
-              absolute = dash_start + m.start()
-              print(f'line {line_no(absolute)}: {m.group(0)}')
+          print('\n===== DASHBOARD HOST INLINE STYLES =====')
+          for match in re.finditer(r'style="[^"]*"', dashboard):
+              print(f'line={line_no(dash_start + match.start())} value={match.group(0)}')
           PY
