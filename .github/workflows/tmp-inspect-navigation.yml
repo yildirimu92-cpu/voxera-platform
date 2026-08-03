@@ -1,0 +1,41 @@
+name: Inspect Customer Navigation
+
+on:
+  push:
+    branches:
+      - codex/customer-navigation-five-root
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect navigation markup and legacy paths
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('customer-dashboard/index.html')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          needles = [
+              'mnav-archiv', 'nav-archiv', 'tab-archiv',
+              'mnav-auswertung', 'nav-auswertung',
+              "showTab('archiv')", 'showTab("archiv")',
+              'Bericht', 'Archiv',
+          ]
+
+          seen = set()
+          for needle in needles:
+              matches = [i for i, line in enumerate(lines) if needle in line]
+              print(f'\n===== {needle}: {len(matches)} match(es) =====')
+              for i in matches[:30]:
+                  start = max(0, i - 5)
+                  end = min(len(lines), i + 6)
+                  key = (start, end)
+                  if key in seen:
+                      continue
+                  seen.add(key)
+                  print(f'--- lines {start + 1}-{end} ---')
+                  for n in range(start, end):
+                      print(f'{n + 1}: {lines[n]}')
+          PY
