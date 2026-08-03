@@ -23,20 +23,31 @@ jobs:
           node-version: '20'
       - name: Apply guarded migration
         run: python scripts/tmp_migrate_settings_commercial.py
-      - name: Compact the new settings component block
+      - name: Preserve canonical settings ownership
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
-          path = Path('customer-dashboard/shared/customer-settings-components.css')
-          text = path.read_text(encoding='utf-8')
+
+          index_path = Path('customer-dashboard/index.html')
+          index = index_path.read_text(encoding='utf-8')
+          old = 'class="vx-commercial-entry-list"'
+          new = 'class="vx-abo-addon-grid vx-commercial-entry-list"'
+          if old in index:
+            index = index.replace(old, new, 1)
+            index_path.write_text(index, encoding='utf-8')
+          elif new not in index:
+            raise SystemExit('commercial settings grid owner missing')
+
+          css_path = Path('customer-dashboard/shared/customer-settings-components.css')
+          css = css_path.read_text(encoding='utf-8')
           marker = '/* Consolidated customer settings forms and commercial flows. */'
-          pos = text.find(marker)
+          pos = css.find(marker)
           if pos < 0:
             raise SystemExit('settings component marker missing')
-          prefix = text[:pos].rstrip()
-          block = re.sub(r'\s+', ' ', text[pos:]).strip()
-          path.write_text(prefix + '\n' + block + '\n', encoding='utf-8')
+          prefix = css[:pos].rstrip()
+          block = re.sub(r'\s+', ' ', css[pos:]).strip()
+          css_path.write_text(prefix + '\n' + block + '\n', encoding='utf-8')
           PY
       - name: Validate JavaScript
         run: |
@@ -61,7 +72,7 @@ jobs:
 
           required = [
             'class="vx-settings-choice-list"',
-            'class="vx-commercial-entry-list"',
+            'vx-abo-addon-grid vx-commercial-entry-list',
             'id="vx-commercial-overlay"',
             "fetch('/.netlify/functions/customer-commercial-request'",
             'Consolidated customer settings forms and commercial flows.',
