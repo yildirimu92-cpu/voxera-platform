@@ -119,7 +119,12 @@ jobs:
         if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
         run: |
           node scripts/audit-customer-runtime-reachability.mjs
-          test "$(git diff --name-only | sort | tr '\n' ' ')" = "customer-dashboard/index.html customer-dashboard/shared/customer-assistant-components.css "
+          mapfile -t changed_files < <(git diff --name-only | sort)
+          printf 'Changed product files:\n'
+          printf ' - %s\n' "${changed_files[@]}"
+          test "${#changed_files[@]}" -eq 2
+          test "${changed_files[0]}" = "customer-dashboard/index.html"
+          test "${changed_files[1]}" = "customer-dashboard/shared/customer-assistant-components.css"
           grep -q 'class="vx-requests-layout"' customer-dashboard/index.html
           grep -q 'vx-requests-item' customer-dashboard/index.html
           grep -q 'Customer requests: assistant-aligned canonical component owner.' customer-dashboard/shared/customer-assistant-components.css
