@@ -14124,7 +14124,7 @@ function vxGetAnfragenActiveFilter(nextFilter) {
 }
 function vxSyncAnfragenFilterChips(activeFilter) {
   var filter = vxGetAnfragenActiveFilter(activeFilter);
-  var container = document.querySelector('#anrufe-split-left .vx-split-filters');
+  var container = document.querySelector('#anrufe-split-left .vx-requests-filters');
   if (container) {
     container.querySelectorAll('button[data-filter]').forEach(function(btn) {
       var btnFilter = String(btn.getAttribute('data-filter') || '').trim().toLowerCase();
@@ -14143,7 +14143,7 @@ function anrufeChipFilter(filter, btn) {
   if (typeof vxSplitClearDetail === 'function') vxSplitClearDetail();
   var activeFilter = vxGetAnfragenActiveFilter(filter || 'alle');
   // Alle Filter-Buttons in diesem Container bereinigen
-  var container = btn ? btn.closest('.vx-split-filters') : document.querySelector('#anrufe-split-left .vx-split-filters');
+  var container = btn ? btn.closest('.vx-requests-filters') : document.querySelector('#anrufe-split-left .vx-requests-filters');
   if (container) {
     container.querySelectorAll('button').forEach(function(c) {
       c.classList.remove('vx-chip--active', 'vxfb-chip--active');
@@ -21475,7 +21475,7 @@ function vxGoToAnfragenFilter(filter, subfilter) {
     if (subfilter) _anrufeInboxSubfilter = subfilter;
     var search = document.getElementById('fb-anrufe-input');
     if (search) search.value = '';
-    var filterBtns = document.querySelectorAll('#anrufe-split-left .vx-split-filters button');
+    var filterBtns = document.querySelectorAll('#anrufe-split-left .vx-requests-filters button');
     filterBtns.forEach(function(b){
       var active = b.getAttribute('data-filter') === _anrufeFilter;
       b.classList.toggle('vx-chip--active', active);
@@ -21510,7 +21510,7 @@ function vxHeuteKpiOpenTodayCalls() {
   setTimeout(function(){
     window._vxAnfragenTodayOnly = true;
     _anrufeFilter = 'offen';
-    var filterBtns = document.querySelectorAll('#anrufe-split-left .vx-split-filters button');
+    var filterBtns = document.querySelectorAll('#anrufe-split-left .vx-requests-filters button');
     filterBtns.forEach(function(b){ b.classList.remove('vx-chip--active','vxfb-chip--active'); });
     var offenBtn = document.querySelector('#anrufe-split-left button[data-filter="offen"]');
     if (offenBtn) { offenBtn.classList.add('vx-chip--active','vxfb-chip--active'); }
@@ -23192,7 +23192,7 @@ function vxUpdateAnfragenCount() {
   var countEl = document.getElementById('anrufe-split-count');
   if (countEl) countEl.textContent = counts.new + ' offen · ' + counts.planned + ' geplant · ' + counts.done + ' erledigt';
 
-  var mainWrap = document.querySelector('#anrufe-split-left .vx-split-filters');
+  var mainWrap = document.querySelector('#anrufe-split-left .vx-requests-filters');
   if (mainWrap) {
     var inboxBtn = mainWrap.querySelector('[data-filter="offen"]');
     var plannedBtn = mainWrap.querySelector('[data-filter="geplant"]');
@@ -42910,7 +42910,7 @@ body:has(#tab-archiv.active) .content{
 
   /* Filter-Reihenfolge: Alle, Offen, Geplant, Erledigt. */
   function normalizeFilterOrder(){
-    var wrap = document.querySelector('#anrufe-split-left .vx-split-filters');
+    var wrap = document.querySelector('#anrufe-split-left .vx-requests-filters');
     if (!wrap) return;
     var order = ['alle','offen','geplant','abgeschlossen'];
     order.forEach(function(key){
