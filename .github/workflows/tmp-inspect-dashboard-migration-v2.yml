@@ -71,7 +71,9 @@ jobs:
         run: python scripts/tmp_migrate_dashboard_to_assistant_v2.py
       - name: Verify migration scope and foundations
         run: |
+          git checkout -- scripts/tmp_migrate_dashboard_to_assistant_v2.py
           echo '[1/11] migration touches only index.html'
+          echo "changed files: $(git diff --name-only | tr '\n' ' ')"
           test "$(git diff --name-only | tr -d '\r')" = "customer-dashboard/index.html"
           echo 'PASS 1'
           echo '[2/11] customer design foundation'
