@@ -19,9 +19,6 @@ on:
       - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
 
-permissions:
-  contents: read
-
 jobs:
   verify:
     runs-on: ubuntu-latest
