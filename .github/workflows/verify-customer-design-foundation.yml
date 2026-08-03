@@ -45,7 +45,7 @@ jobs:
       - name: Verify mobile polish scope
         run: |
           test "$(git diff --name-only)" = "customer-dashboard/shared/customer-assistant-components.css"
-          grep -q "Customer report mobile visual QA polish" customer-dashboard/shared/customer-assistant-components.css
+          grep -q "min-height:124px" customer-dashboard/shared/customer-assistant-components.css
       - name: Commit customer report mobile polish
         run: |
           if git diff --quiet; then exit 0; fi
