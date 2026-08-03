@@ -386,7 +386,7 @@ for (const forbidden of [
   '#abo-addons-list > div[style*="grid-template-columns:1fr 1fr"]',
   '<div id="mehr-main" style=',
   '<div id="abo-plan-name" style=',
-  'barEl.style.width',
+  "if (barEl) { barEl.style.width = pct + '%'; barEl.style.background = pct >= 80 ? '#D97706' : '#1A6FE8'; }",
   'statusStyle ='
 ]) {
   assert.ok(!dashboard.includes(forbidden), `dashboard still contains legacy settings presentation: ${forbidden}`);
