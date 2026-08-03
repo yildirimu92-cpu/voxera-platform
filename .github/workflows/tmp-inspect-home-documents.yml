@@ -16,78 +16,52 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-settings-commercial-flows
-      - name: Print compact home and document inventory
+      - name: Print subscription runtime and reusable owners
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
 
-          def context(lines, term, before=5, after=12, limit=3):
-              matches = [i for i, line in enumerate(lines) if term.lower() in line.lower()][:limit]
-              print(f'\n## TERM {term!r} matches={len(matches)}')
+          index=Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          lines=index.splitlines()
+
+          def context(term, before=12, after=40, limit=5):
+              matches=[i for i,l in enumerate(lines) if term.lower() in l.lower()][:limit]
+              print(f'\n## {term} matches={len(matches)}')
               for i in matches:
                   lo=max(0,i-before); hi=min(len(lines),i+after+1)
-                  print(f'-- lines {lo+1}-{hi} --')
+                  print(f'-- {lo+1}-{hi} --')
                   for n in range(lo,hi): print(f'{n+1}: {lines[n]}')
 
-          index_path=Path('customer-dashboard/index.html')
-          index=index_path.read_text(encoding='utf-8')
-          lines=index.splitlines()
-          print('INDEX_LINES', len(lines))
           for term in [
-              'Offene Aufgaben', 'Nicht bearbeitet', 'Aufmerksamkeit',
-              'vx-ap-grid', 'vx-ap-card', 'Rechnungen werden hier angezeigt',
-              '>Rechnungen<', 'Vertrag kündigen', 'Kündigung zurückziehen',
-              "from('invoices')", "from('contracts')", 'invoice_number',
-              'pdf_url', 'signature_data', 'contract_text'
+              'function vxMehrOpenSub',
+              'function vxRenderAbo',
+              'function vxRenderCancellationAction',
+              'function vxSubmitReactivationRequest',
+              'customerContractMeta =',
+              'customerContractState =',
+              'loadCustomerContract',
+              "auth.getSession()",
+              "Authorization: `Bearer",
+              'abo-invoices-list'
           ]:
-              context(lines, term)
+              context(term)
 
-          print('\n## STATIC ID COUNTS')
-          for token in ['vx-dashboard-kpi', 'vx-ap-card', 'vx-abo-invoice', 'invoice', 'contract']:
-              print(token, index.lower().count(token.lower()))
+          css=Path('customer-dashboard/shared/customer-settings-components.css').read_text(encoding='utf-8')
+          print('\n## CSS REUSABLE SELECTORS')
+          for selector in ['.vx-commercial-entry', '.vx-settings-card-body', '.vx-abo-empty', '.vx-settings-list', '.vx-abo-btn']:
+              pos=css.find(selector)
+              print(selector, 'FOUND' if pos>=0 else 'MISSING')
+              if pos>=0: print(css[pos:pos+500])
 
-          schema_paths=[
-              'supabase/sql/2026-04-11_invoice_system_v1.sql',
-              'supabase/sql/2026-04-03_add_subscriptions_and_contracts.sql',
-              'supabase/sql/2026-04-11_offer_system_v1.sql'
-          ]
-          for path in schema_paths:
-              p=Path(path)
-              if not p.exists():
-                  print(f'\n## MISSING {path}')
-                  continue
-              text=p.read_text(encoding='utf-8')
-              slines=text.splitlines()
-              print(f'\n## SCHEMA {path} lines={len(slines)}')
-              for term in ['create table', 'invoices', 'contracts', 'offers', 'pdf', 'signature', 'document', 'storage', 'customer_id']:
-                  hits=[i for i,l in enumerate(slines) if term in l.lower()][:8]
-                  if hits:
-                      print(f'### {term}: {len(hits)} shown')
-                      for i in hits:
-                          print(f'{i+1}: {slines[i]}')
-
-          service=Path('admin-panel/netlify/functions/_lib/invoice-service.js')
-          if service.exists():
-              slines=service.read_text(encoding='utf-8').splitlines()
-              print(f'\n## INVOICE SERVICE lines={len(slines)}')
-              for term in ['pdf', 'storage', 'invoice_number', 'customer_id', 'render', 'generate']:
-                  hits=[i for i,l in enumerate(slines) if term in l.lower()][:10]
-                  print(f'### {term}: {len(hits)} shown')
-                  for i in hits: print(f'{i+1}: {slines[i]}')
-
-          print('\n## CONTRACT-RELATED FILES')
+          print('\n## CONTRACT FIELD OCCURRENCES')
+          terms=['signed_pdf_url','contract_pdf_url','contract_public_token','countersigned_at','signature_data']
           for p in sorted(Path('.').rglob('*')):
-              if not p.is_file() or any(part in {'.git','node_modules','dist','build'} for part in p.parts):
-                  continue
-              name=str(p).lower()
-              if not any(k in name for k in ['contract','offer']):
-                  continue
-              if p.suffix.lower() not in {'.js','.mjs','.sql','.html','.ts'}:
-                  continue
+              if not p.is_file() or p.suffix.lower() not in {'.js','.sql','.html','.mjs'}: continue
+              if any(part in {'.git','node_modules','dist','build'} for part in p.parts): continue
               try: text=p.read_text(encoding='utf-8')
               except Exception: continue
-              if any(k in text.lower() for k in ['signature_data','signed_pdf','pdf_url','contract_text']):
-                  terms=[k for k in ['signature_data','signed_pdf','pdf_url','contract_text'] if k in text.lower()]
-                  print(str(p), ','.join(terms))
+              found=[term for term in terms if term in text]
+              if found:
+                  print(str(p), ','.join(found))
           PY
