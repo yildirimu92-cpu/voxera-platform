@@ -6598,17 +6598,13 @@ body,.main{background:var(--vx-bg);}
           Anfragen
           <span class="nav-badge blue" id="badge-anrufe" style="display:none">–</span>
         </div>
-        <div class="nav-item" id="nav-assistent" onclick="showTab('assistent',this)" style="display:none;">
+        <div class="nav-item" id="nav-assistent" onclick="showTab('assistent',this)">
           <i class="ph-light ph-robot nav-icon" aria-hidden="true"></i>
           Assistent
         </div>
         <div class="nav-item" id="nav-auswertung" onclick="showTab('auswertung',this)">
           <i class="ph-light ph-chart-bar nav-icon" aria-hidden="true"></i>
           Bericht
-        </div>
-        <div class="nav-item" id="nav-archiv" onclick="showTab('archiv',this)">
-          <i class="ph-light ph-archive nav-icon" aria-hidden="true"></i>
-          Archiv
         </div>
         <div class="nav-item" id="nav-mehr" onclick="showTab('mehr',this)">
           <i class="ph-light ph-gear nav-icon" aria-hidden="true"></i>
@@ -6801,6 +6797,10 @@ body,.main{background:var(--vx-bg);}
                 <div class="vx-page-header-title">Anfragen</div>
                 <div id="anrufe-split-count" class="vx-page-header-subtitle">–</div>
               </div>
+              <button type="button" class="vx-ap-filter" id="vx-requests-open-archive" onclick="showTab('archiv',document.getElementById('nav-anrufe'))" aria-label="Archiv öffnen">
+                <i class="ph-bold ph-archive" aria-hidden="true"></i>
+                <span>Archiv</span>
+              </button>
             </div>
           </section>
 
@@ -7335,11 +7335,6 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <div class="vx-settings-list" aria-label="Einstellungsbereiche">
-              <button type="button" class="vx-settings-entry" onclick="showTab('auswertung')">
-                <span class="vx-settings-entry-icon"><i class="ph-bold ph-chart-bar" aria-hidden="true"></i></span>
-                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Bericht</span><span class="vx-settings-entry-subtitle">Anrufstatistiken &amp; Auswertung</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
-              </button>
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('profil')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-user" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Profil</span><span id="mehr-profil-sub" class="vx-settings-entry-subtitle">Name, E-Mail, Passwort</span></span>
@@ -8160,29 +8155,23 @@ body,.main{background:var(--vx-bg);}
         </span>
         Anfragen
       </button>
-      <button class="mobile-nav-btn" id="mnav-assistent" onclick="showTab('assistent',this)" style="display:none;">
+      <button class="mobile-nav-btn" id="mnav-assistent" onclick="showTab('assistent',this)">
         <span class="mobile-nav-icon-wrap">
           <i class="ph-bold ph-robot" aria-hidden="true"></i>
         </span>
         Assistent
       </button>
-      <button class="mobile-nav-btn" id="mnav-auswertung" onclick="showTab('auswertung',this)" style="display:none;">
+      <button class="mobile-nav-btn" id="mnav-auswertung" onclick="showTab('auswertung',this)">
         <span class="mobile-nav-icon-wrap">
           <i class="ph-bold ph-chart-bar" aria-hidden="true"></i>
         </span>
         Bericht
       </button>
-      <button class="mobile-nav-btn" id="mnav-archiv" onclick="showTab('archiv',this)">
-        <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-archive" aria-hidden="true"></i>
-        </span>
-        Archiv
-      </button>
       <button class="mobile-nav-btn" id="mnav-mehr" onclick="showTab('mehr',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-dots-three" aria-hidden="true"></i>
+          <i class="ph-bold ph-gear" aria-hidden="true"></i>
         </span>
-        Mehr
+        Einstellungen
       </button>
       <!-- Hidden compat -->
       <button id="mnav-konto" style="display:none" onclick="showTab('einstellungen',this);openAccount()"></button>

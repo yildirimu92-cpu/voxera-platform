@@ -71,36 +71,17 @@
     return ROOT_NAV.find((item) => item.label === label)?.key || '';
   }
 
-  function hideArchiveRootNavigation() {
-    const candidates = [
-      document.getElementById('nav-archiv'),
-      document.getElementById('mnav-archiv'),
-      ...Array.from(document.querySelectorAll('.nav-item,.mobile-nav-btn')).filter((node) => {
-        const label = textLabel(node);
-        const onclick = String(node.getAttribute('onclick') || '');
-        return label === 'Archiv' || /showTab\(['"]archiv/.test(onclick);
-      })
-    ].filter(Boolean);
-
-    candidates.forEach((node) => {
-      node.hidden = true;
-      node.dataset.vxHiddenRootNav = 'archive';
-      node.setAttribute('aria-hidden', 'true');
-      node.setAttribute('tabindex', '-1');
-    });
-  }
 
   function normalizeRootNavigation() {
     ROOT_NAV.forEach((item) => {
       const desktop = document.getElementById(item.desktop);
       const mobile = document.getElementById(item.mobile);
-      if (item.key === 'assistent') {
-        [desktop, mobile].filter(Boolean).forEach((node) => {
-          node.hidden = false;
-          node.removeAttribute('aria-hidden');
-          node.style.removeProperty('display');
-        });
-      }
+      [desktop, mobile].filter(Boolean).forEach((node) => {
+        node.hidden = false;
+        node.removeAttribute('aria-hidden');
+        node.removeAttribute('tabindex');
+        node.style.removeProperty('display');
+      });
       setLabel(desktop, item.label);
       setLabel(mobile, item.label);
       setIcon(desktop, item.icon);
@@ -111,7 +92,6 @@
       });
     });
 
-    hideArchiveRootNavigation();
     orderDesktopNavigation();
     dedupeAndOrderMobileNavigation();
   }
@@ -366,8 +346,18 @@
     if (active) return active.key;
 
     const query = new URLSearchParams(root.location?.search || '');
-    const raw = String(query.get('tab') || '').toLowerCase();
-    const aliases = { today: 'dashboard', requests: 'anrufe', assistant: 'assistent', report: 'auswertung', more: 'mehr' };
+    const queryTab = String(query.get('tab') || '').toLowerCase();
+    const hashTab = String(root.location?.hash || '').replace(/^#(?:tab-)?/, '').toLowerCase();
+    const raw = queryTab || hashTab;
+    const aliases = {
+      today: 'dashboard',
+      requests: 'anrufe',
+      assistant: 'assistent',
+      report: 'auswertung',
+      more: 'mehr',
+      archiv: 'anrufe',
+      archive: 'anrufe'
+    };
     return ROOT_NAV.some((item) => item.key === raw) ? raw : aliases[raw] || 'dashboard';
   }
 
@@ -376,7 +366,10 @@
     if (typeof root.showTab !== 'function') return false;
     const original = root.showTab;
     root.showTab = function unifiedShowTab(tabName) {
-      const key = ROOT_NAV.some((item) => item.key === tabName) ? tabName : '';
+      const requested = String(tabName || '').toLowerCase();
+      const key = requested === 'archiv'
+        ? 'anrufe'
+        : ROOT_NAV.some((item) => item.key === requested) ? requested : '';
       if (key) setStableRootActive(key);
       const result = original.apply(this, arguments);
       if (key === 'assistent') showAssistantView('profile', true);
