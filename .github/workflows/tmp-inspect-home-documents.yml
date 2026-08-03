@@ -1,67 +1,77 @@
-name: Temporary Inspect Home Documents
+name: Temporary Migrate Customer Documents
 
 on:
   pull_request:
     paths:
       - .github/workflows/tmp-inspect-home-documents.yml
+      - scripts/tmp_migrate_customer_documents.py
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  migrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-settings-commercial-flows
-      - name: Print subscription runtime and reusable owners
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply guarded document migration
+        run: python scripts/tmp_migrate_customer_documents.py
+      - name: Validate customer document endpoint
+        run: node --check customer-dashboard/netlify/functions/customer-documents.js
+      - name: Verify existing customer contracts
+        run: |
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/audit-customer-design-ownership.mjs
+          node scripts/audit-customer-runtime-reachability.mjs
+          node scripts/verify-customer-actions.mjs
+          node scripts/verify-p0-security-foundation.mjs
+          node scripts/verify-calendar-integrations.mjs
+      - name: Verify tenant-bound documents
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
-
           index=Path('customer-dashboard/index.html').read_text(encoding='utf-8')
-          lines=index.splitlines()
-
-          def context(term, before=12, after=40, limit=5):
-              matches=[i for i,l in enumerate(lines) if term.lower() in l.lower()][:limit]
-              print(f'\n## {term} matches={len(matches)}')
-              for i in matches:
-                  lo=max(0,i-before); hi=min(len(lines),i+after+1)
-                  print(f'-- {lo+1}-{hi} --')
-                  for n in range(lo,hi): print(f'{n+1}: {lines[n]}')
-
-          for term in [
-              'function vxMehrOpenSub',
-              'function vxRenderAbo',
-              'function vxRenderCancellationAction',
-              'function vxSubmitReactivationRequest',
-              'customerContractMeta =',
-              'customerContractState =',
-              'loadCustomerContract',
-              "auth.getSession()",
-              "Authorization: `Bearer",
-              'abo-invoices-list'
-          ]:
-              context(term)
-
-          css=Path('customer-dashboard/shared/customer-settings-components.css').read_text(encoding='utf-8')
-          print('\n## CSS REUSABLE SELECTORS')
-          for selector in ['.vx-commercial-entry', '.vx-settings-card-body', '.vx-abo-empty', '.vx-settings-list', '.vx-abo-btn']:
-              pos=css.find(selector)
-              print(selector, 'FOUND' if pos>=0 else 'MISSING')
-              if pos>=0: print(css[pos:pos+500])
-
-          print('\n## CONTRACT FIELD OCCURRENCES')
-          terms=['signed_pdf_url','contract_pdf_url','contract_public_token','countersigned_at','signature_data']
-          for p in sorted(Path('.').rglob('*')):
-              if not p.is_file() or p.suffix.lower() not in {'.js','.sql','.html','.mjs'}: continue
-              if any(part in {'.git','node_modules','dist','build'} for part in p.parts): continue
-              try: text=p.read_text(encoding='utf-8')
-              except Exception: continue
-              found=[term for term in terms if term in text]
-              if found:
-                  print(str(p), ','.join(found))
+          endpoint=Path('customer-dashboard/netlify/functions/customer-documents.js').read_text(encoding='utf-8')
+          required_index=[
+            'id="abo-contract-documents"',
+            'id="abo-invoices-list"',
+            'function vxLoadCustomerDocuments',
+            "callDashboardFunction('customer-documents'",
+            "await vxLoadCustomerDocuments();",
+            'Unterzeichneter Vertrag'
+          ]
+          missing=[token for token in required_index if token not in index]
+          if missing: raise SystemExit('missing dashboard document tokens: ' + ', '.join(missing))
+          if index.count('id="abo-contract-documents"') != 1: raise SystemExit('contract document owner must exist once')
+          if index.count('id="abo-invoices-list"') != 1: raise SystemExit('invoice document owner must exist once')
+          if 'Rechnungen werden hier angezeigt, sobald sie verfügbar sind.' in index: raise SystemExit('legacy invoice placeholder remains')
+          required_endpoint=[
+            "requireActiveContract: false",
+            ".from('invoices')",
+            ".from('contracts')",
+            ".eq('customer_id', guard.customerId)",
+            "functionName: 'customer-documents'"
+          ]
+          missing=[token for token in required_endpoint if token not in endpoint]
+          if missing: raise SystemExit('missing endpoint security tokens: ' + ', '.join(missing))
+          if endpoint.count(".eq('customer_id', guard.customerId)") != 2: raise SystemExit('both document queries must be tenant-bound')
           PY
+          git diff --check
+      - name: Commit product migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-dashboard/index.html
+          if git diff --cached --quiet; then
+            echo "No product changes to commit"
+          else
+            git commit -m "feat: show customer invoices and signed contract"
+            git push origin HEAD:codex/customer-settings-commercial-flows
+          fi
