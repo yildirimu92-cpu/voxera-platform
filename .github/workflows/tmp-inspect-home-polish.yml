@@ -1,0 +1,51 @@
+name: Temporary Inspect Home Polish
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tmp-inspect-home-polish.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/customer-home-premium-polish
+      - name: Inspect home visual owners
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          index=Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          lines=index.splitlines()
+          css=Path('customer-dashboard/shared/customer-assistant-components.css').read_text(encoding='utf-8')
+          css_lines=css.splitlines()
+
+          def show(source_lines, term, before=8, after=24, limit=5, label='INDEX'):
+              hits=[i for i,l in enumerate(source_lines) if term.lower() in l.lower()][:limit]
+              print(f'\n## {label} {term!r} hits={len(hits)}')
+              for i in hits:
+                  lo=max(0,i-before); hi=min(len(source_lines),i+after+1)
+                  print(f'-- {lo+1}-{hi} --')
+                  for n in range(lo,hi): print(f'{n+1}: {source_lines[n]}')
+
+          for term in [
+              'id="tab-dashboard"', 'id="tab-assistent"', 'id="tab-anfragen"',
+              'id="dash-kpi-strip"', 'id="dash-priority-section"',
+              'function vxSetHeuteKpiCell', "kpiTodayNote.textContent", "kpiCallbacksNote.textContent",
+              "kpiDoneNote.textContent", "kpiReachLabel.textContent",
+              '#tab-dashboard', '#tab-assistent', '#tab-anfragen', '#dash-kpi-strip',
+              '#dash-priority-section', '.vx-ap-card', '.vx-ops-card'
+          ]:
+              show(lines, term)
+
+          for term in ['.vx-ap-grid', '.vx-ap-card', '.vx-ops-card', '@media (max-width', ':hover', ':focus-visible']:
+              show(css_lines, term, before=4, after=20, limit=8, label='ASSISTANT_CSS')
+
+          print('\n## CSS SIZE', len(css_lines))
+          PY
