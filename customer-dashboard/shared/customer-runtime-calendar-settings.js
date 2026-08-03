@@ -218,24 +218,34 @@
     }
   }
 
-  function open() {
-    if (!inject()) return;
+  function setCalendarPageOpen(isOpen) {
     const main = document.getElementById('mehr-main');
     const page = document.getElementById('mehr-sub-kalender');
-    if (!main || !page) return;
-    page.removeAttribute('style');
-    main.hidden = true;
-    page.hidden = false;
+    if (!main || !page) return false;
+
+    document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => {
+      node.hidden = true;
+    });
+
+    if (isOpen) {
+      page.removeAttribute('style');
+      main.hidden = true;
+      page.hidden = false;
+    } else {
+      page.hidden = true;
+      main.hidden = false;
+    }
+    return true;
+  }
+
+  function open() {
+    if (!inject() || !setCalendarPageOpen(true)) return;
     render();
     load();
   }
 
   function back() {
-    const main = document.getElementById('mehr-main');
-    const page = document.getElementById('mehr-sub-kalender');
-    if (!main || !page) return;
-    page.hidden = true;
-    main.hidden = false;
+    setCalendarPageOpen(false);
   }
 
   root.addEventListener('message', async (event) => {

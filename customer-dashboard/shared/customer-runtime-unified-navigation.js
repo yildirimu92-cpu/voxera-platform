@@ -22,6 +22,7 @@
   let assistantObserver = null;
   let stableRootKey = '';
   let initialAssistantLoadDone = false;
+  let voiceSelectionExpanded = false;
 
   function textLabel(node) {
     return String(node?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -249,8 +250,12 @@
 
   function restoreSettingsRoot() {
     const main = document.getElementById('mehr-main');
-    if (main) main.style.display = '';
+    if (main) {
+      main.hidden = false;
+      main.style.display = '';
+    }
     document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => {
+      node.hidden = true;
       node.style.display = 'none';
     });
   }
@@ -268,6 +273,10 @@
 
     const details = document.createElement('details');
     details.className = 'vx-nav-voice-details';
+    details.open = voiceSelectionExpanded;
+    details.addEventListener('toggle', () => {
+      voiceSelectionExpanded = details.open;
+    });
     const summary = document.createElement('summary');
     summary.textContent = 'Andere Stimme wählen';
     details.appendChild(summary);
@@ -279,27 +288,13 @@
   function simplifyCapabilities() {
     const card = document.getElementById('vx-assistant-capabilities-card');
     if (!card) return;
-    card.classList.add('vx-as-capabilities-simple');
     const title = card.querySelector('.vx-ap-title');
     const meta = card.querySelector('.vx-ap-meta');
     if (title && textLabel(title) !== 'Fähigkeiten') title.textContent = 'Fähigkeiten';
     if (meta) meta.textContent = 'Die wichtigsten Aufgaben, die Ihr Assistent aktuell übernimmt.';
-
-    const capabilities = Array.from(card.querySelectorAll('.vx-as-cap'));
-    capabilities.forEach((item, index) => item.classList.toggle('vx-as-extra-capability', index >= 4));
-    if (capabilities.length <= 4 || card.querySelector('.vx-as-capability-toggle')) return;
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'vx-as-capability-toggle';
-    button.setAttribute('aria-expanded', 'false');
-    button.textContent = `${capabilities.length - 4} weitere Fähigkeiten anzeigen`;
-    button.addEventListener('click', () => {
-      const expanded = card.classList.toggle('is-expanded');
-      button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      button.textContent = expanded ? 'Weniger anzeigen' : `${capabilities.length - 4} weitere Fähigkeiten anzeigen`;
-    });
-    card.appendChild(button);
+    card.classList.remove('vx-as-capabilities-simple', 'is-expanded');
+    card.querySelectorAll('.vx-as-cap').forEach((item) => item.classList.remove('vx-as-extra-capability'));
+    card.querySelector('.vx-as-capability-toggle')?.remove();
   }
 
   function simplifyTechnicalStatus() {
@@ -371,17 +366,35 @@
     return ROOT_NAV.some((item) => item.key === raw) ? raw : aliases[raw] || 'dashboard';
   }
 
+  function showArchiveInsideRequests() {
+    const button = document.querySelector('#tab-anrufe [data-filter="archiv"]');
+    if (!button) return;
+    if (typeof root.anrufeChipFilter === 'function') {
+      root.anrufeChipFilter('archiv', button);
+      return;
+    }
+    button.click();
+  }
+
   function installShowTabBridge() {
     if (root.__vxUnifiedShowTabWrapped) return true;
     if (typeof root.showTab !== 'function') return false;
     const original = root.showTab;
     root.showTab = function unifiedShowTab(tabName) {
       const requested = String(tabName || '').toLowerCase();
-      const key = requested === 'archiv'
-        ? 'anrufe'
-        : ROOT_NAV.some((item) => item.key === requested) ? requested : '';
+      const archiveRequested = requested === 'archiv' || requested === 'archive';
+      const key = archiveRequested ? 'anrufe' : ROOT_NAV.some((item) => item.key === requested) ? requested : '';
       if (key) setStableRootActive(key);
-      const result = original.apply(this, arguments);
+      let result;
+      if (archiveRequested) {
+        const args = Array.from(arguments);
+        args[0] = 'anrufe';
+        args[1] = document.getElementById('nav-anrufe');
+        result = original.apply(this, args);
+        showArchiveInsideRequests();
+      } else {
+        result = original.apply(this, arguments);
+      }
       if (key === 'assistent') showAssistantView('profile', true);
       if (key === 'mehr') restoreSettingsRoot();
       if (key) setStableRootActive(key);
