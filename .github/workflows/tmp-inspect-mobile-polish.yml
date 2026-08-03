@@ -1,57 +1,109 @@
-name: Temporary Mobile Polish Inspection
+name: Temporary Mobile Polish Migration
 
 on:
   pull_request:
     paths:
-      - 'customer-dashboard/**'
-      - 'scripts/tmp-mobile-polish-trigger.txt'
       - '.github/workflows/tmp-inspect-mobile-polish.yml'
+      - 'scripts/tmp-mobile-polish-trigger.txt'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  migrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-navigation-five-root
-      - name: Print relevant owners
+          fetch-depth: 0
+      - name: Apply corrections
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
-          targets = [
-              ('customer-dashboard/index.html', ['Aufmerksamkeit', 'Heute passiert', 'mehr-main', 'vxMehrShow', 'vxCalendarOpen', 'mobile-nav-btn', 'mobile-nav-icon-wrap', 'minimum_notice_minutes']),
-              ('customer-dashboard/shared/customer-runtime-unified-navigation.js', ['restoreSettingsRoot', 'mehr-main', 'mehr-sub-', 'mobile-nav']),
-              ('customer-dashboard/shared/customer-runtime-calendar-settings.js', ['setCalendarPageOpen', 'Mindestvorlauf', 'vx-cal-banner', 'minimum_notice_minutes']),
-              ('customer-dashboard/shared/customer-design-system.css', ['mobile-nav', 'mnav-', 'vx-cal-']),
-              ('customer-dashboard/shared/customer-assistant-components.css', ['dash-priority', 'dash-content', 'vx-report-stack']),
-          ]
+          def change(path, transform):
+              p = Path(path)
+              old = p.read_text(encoding='utf-8')
+              new = transform(old)
+              if new != old:
+                  p.write_text(new, encoding='utf-8')
 
-          for file_name, needles in targets:
-              path = Path(file_name)
-              text = path.read_text(encoding='utf-8')
-              lines = text.splitlines()
-              print(f'\n===== {file_name} =====')
-              seen = set()
-              for needle in needles:
-                  print(f'\n--- {needle} ---')
-                  found = False
-                  for idx, line in enumerate(lines):
-                      if needle.lower() not in line.lower():
-                          continue
-                      found = True
-                      start = max(0, idx - 8)
-                      end = min(len(lines), idx + 13)
-                      key = (start, end)
-                      if key in seen:
-                          continue
-                      seen.add(key)
-                      for line_no in range(start, end):
-                          print(f'{line_no + 1:05d}: {lines[line_no]}')
-                      print('...')
-                  if not found:
-                      print('(not found)')
+          def once(text, old, new, label):
+              if old in text:
+                  return text.replace(old, new, 1)
+              if new in text:
+                  return text
+              raise SystemExit('missing target: ' + label)
+
+          def patch_index(text):
+              text = text.replace('''\n                <div class="vx-ap-meta vx-archive-retention" role="note">\n                  Aufbewahrung: vollständige Transkripte werden nach <strong>90 Tagen</strong> entfernt, Archiveinträge nach <strong>180 Tagen</strong>.\n                </div>\n''', '\n', 1)
+              old = '''function vxMehrShow(sub) {\n  document.getElementById('mehr-main').style.display = 'none';\n  document.querySelectorAll('[id^="mehr-sub-"]').forEach(el => el.style.display = 'none');\n  const el = document.getElementById('mehr-sub-' + sub);\n  if (el) {\n    el.style.display = 'block';'''
+              new = '''function vxMehrShow(sub) {\n  const tab = document.getElementById('tab-mehr');\n  const main = document.getElementById('mehr-main');\n  if (!main) return;\n  if (tab) delete tab.dataset.vxSettingsSubpageOpen;\n  main.hidden = true;\n  main.style.display = 'none';\n  document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach(el => { el.hidden = true; el.style.display = 'none'; });\n  const el = document.getElementById('mehr-sub-' + sub);\n  if (el) {\n    el.hidden = false;\n    el.style.display = 'block';'''
+              text = once(text, old, new, 'vxMehrShow')
+              old = '''function vxMehrBack() {\n  document.querySelectorAll('[id^="mehr-sub-"]').forEach(el => el.style.display = 'none');\n  document.getElementById('mehr-main').style.display = 'block';\n}'''
+              new = '''function vxMehrBack() {\n  const tab = document.getElementById('tab-mehr');\n  const main = document.getElementById('mehr-main');\n  if (tab) delete tab.dataset.vxSettingsSubpageOpen;\n  document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach(el => { el.hidden = true; el.style.display = 'none'; });\n  if (main) { main.hidden = false; main.style.display = 'block'; }\n}'''
+              text = once(text, old, new, 'vxMehrBack')
+              text = re.sub(r'/\* Pill hinter aktivem Icon \*/\s*\.mobile-nav-btn\.active \.mobile-nav-icon-wrap::before\{.*?\}\s*@keyframes navPillIn\{.*?\}\s*/\* Icon leicht größer wenn aktiv \*/\s*\.mobile-nav-btn\.active svg,\s*\.mobile-nav-btn\.active \.lucide\{.*?\}\s*', '', text, count=1, flags=re.S)
+              text = text.replace('.mobile-nav-btn.active{color:#fff;font-weight:700;}\n', '')
+              return text
+
+          def patch_assistant_css(text):
+              rule = 'body.vx-customer-design-foundation #dash-content.vx-report-stack{display:grid!important;gap:16px!important;}\n'
+              marker = '/* Customer report: assistant-aligned canonical component owner. */\n'
+              return text if rule in text else once(text, marker, rule + marker, 'dashboard gap owner')
+
+          def patch_nav_css(text):
+              old = '''body.vx-customer-design-foundation .mobile-nav-btn.vx-root-nav-active {\n  color: #1a6fe8;\n}\n\nbody.vx-customer-design-foundation .mobile-nav-btn.vx-root-nav-active .mobile-nav-icon-wrap {\n  background: #eef4ff;\n  color: #1a6fe8;\n}\n'''
+              new = '''body.vx-customer-design-foundation .mobile-nav-btn { gap:5px; padding-right:2px; padding-left:2px; color:rgba(255,255,255,.5); }\nbody.vx-customer-design-foundation .mobile-nav-btn .mobile-nav-icon-wrap { width:34px; height:28px; border-radius:10px; background:transparent; color:inherit; }\nbody.vx-customer-design-foundation .mobile-nav-btn .mobile-nav-icon-wrap::before { display:none!important; content:none!important; }\nbody.vx-customer-design-foundation .mobile-nav-btn:is(.active,.vx-root-nav-active) { color:#5b9cff!important; font-weight:700; }\nbody.vx-customer-design-foundation .mobile-nav-btn:is(.active,.vx-root-nav-active) .mobile-nav-icon-wrap { background:rgba(52,120,237,.18)!important; color:#5b9cff!important; }\nbody.vx-customer-design-foundation .mobile-nav-btn:is(.active,.vx-root-nav-active) :where(i,svg,.lucide) { color:#5b9cff!important; stroke:#5b9cff!important; }\n'''
+              return once(text, old, new, 'mobile navigation active state')
+
+          def patch_calendar(text):
+              anchor = '''  function visibleProviders() {\n    const configured = state?.provider_configured || {};\n    const announced = Array.isArray(state?.available_providers) ? state.available_providers : Object.keys(providerLabels);\n    return announced.filter((provider) => providerLabels[provider] && (configured[provider] === true || connection(provider)));\n  }\n'''
+              helper = anchor + '''\n  function noticeOptions(value) {\n    const selected = Number(value || 120);\n    const presets = [[30,'30 Minuten'],[60,'1 Stunde'],[120,'2 Stunden'],[360,'6 Stunden'],[720,'12 Stunden'],[1440,'24 Stunden'],[2880,'2 Tage'],[4320,'3 Tage'],[5760,'4 Tage'],[10080,'7 Tage']];\n    if (!presets.some(([minutes]) => minutes === selected)) presets.unshift([selected, selected + ' Minuten']);\n    return presets.map(([minutes,label]) => '<option value="' + minutes + '"' + (minutes === selected ? ' selected' : '') + '>' + label + '</option>').join('');\n  }\n'''
+              if 'function noticeOptions(value)' not in text:
+                  text = once(text, anchor, helper, 'notice presets')
+              old = '''    body.innerHTML =\n      '<div class="vx-cal-banner ' + (state.enabled ? 'ok' : '') + '">' +\n      (state.enabled ? 'Kalenderintegration ist freigeschaltet. Verbindungen bleiben kundenspezifisch.' : 'Sicher vorbereitet, aber noch nicht produktiv aktiviert. Verbindungen und Buchungen sind gesperrt.') +\n      '</div><div id="vx-calendar-status" class="vx-cal-status" role="status" aria-live="polite"></div>' +'''
+              new = '''    const availabilityBanner = state.enabled ? '' : '<div class="vx-cal-banner">Sicher vorbereitet, aber noch nicht produktiv aktiviert. Verbindungen und Buchungen sind gesperrt.</div>';\n\n    body.innerHTML =\n      availabilityBanner + '<div id="vx-calendar-status" class="vx-cal-status" role="status" aria-live="polite"></div>' +'''
+              text = once(text, old, new, 'calendar banner')
+              old = '''      '<div class="vx-cal-field"><label>Mindestvorlauf (Min.)</label><input id="vx-cal-notice" type="number" min="0" max="10080" value="' + esc(settings.minimum_notice_minutes || 120) + '"></div>' +'''
+              new = '''      '<div class="vx-cal-field"><label>Mindestvorlauf</label><select id="vx-cal-notice">' + noticeOptions(settings.minimum_notice_minutes || 120) + '</select></div>' +'''
+              text = once(text, old, new, 'minimum notice dropdown')
+              pattern = re.compile(r'  function setCalendarPageOpen\(isOpen\) \{.*?\n  \}\n\n  function open\(\)', re.S)
+              replacement = '''  function setCalendarPageOpen(isOpen) {\n    const tab = document.getElementById('tab-mehr');\n    const main = document.getElementById('mehr-main');\n    const page = document.getElementById('mehr-sub-kalender');\n    if (!tab || !main || !page) return false;\n    document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => { node.hidden = true; node.style.display = 'none'; });\n    if (isOpen) {\n      tab.dataset.vxSettingsSubpageOpen = 'kalender';\n      main.hidden = true; main.style.display = 'none';\n      page.hidden = false; page.style.display = 'block';\n    } else {\n      delete tab.dataset.vxSettingsSubpageOpen;\n      page.hidden = true; page.style.display = 'none';\n      main.hidden = false; main.style.display = 'block';\n    }\n    return true;\n  }\n\n  function open()'''
+              text, count = pattern.subn(replacement, text, count=1)
+              if count != 1 and 'tab.dataset.vxSettingsSubpageOpen' not in text:
+                  raise SystemExit('missing target: calendar state')
+              return text
+
+          def patch_unified(text):
+              old = '''  function restoreSettingsRoot() {\n    const main = document.getElementById('mehr-main');\n    if (main) {\n      main.hidden = false;\n      main.style.display = '';\n    }'''
+              new = '''  function restoreSettingsRoot() {\n    const tab = document.getElementById('tab-mehr');\n    const main = document.getElementById('mehr-main');\n    if (tab) delete tab.dataset.vxSettingsSubpageOpen;\n    if (main) {\n      main.hidden = false;\n      main.style.display = 'block';\n    }'''
+              return once(text, old, new, 'restore settings root')
+
+          def patch_settings_css(text):
+              rules = '\nbody.vx-customer-design-foundation #tab-mehr[data-vx-settings-subpage-open="kalender"] #mehr-main{display:none!important;}\nbody.vx-customer-design-foundation #tab-mehr[data-vx-settings-subpage-open="kalender"] #mehr-sub-kalender{display:block!important;}\n'
+              return text if 'data-vx-settings-subpage-open="kalender"' in text else text.rstrip() + rules
+
+          change('customer-dashboard/index.html', patch_index)
+          change('customer-dashboard/shared/customer-assistant-components.css', patch_assistant_css)
+          change('customer-dashboard/shared/customer-navigation-components.css', patch_nav_css)
+          change('customer-dashboard/shared/customer-runtime-calendar-settings.js', patch_calendar)
+          change('customer-dashboard/shared/customer-runtime-unified-navigation.js', patch_unified)
+          change('customer-dashboard/shared/customer-settings-components.css', patch_settings_css)
           PY
+      - name: Validate JavaScript and focused contracts
+        run: |
+          node --check customer-dashboard/shared/customer-runtime-calendar-settings.js
+          node --check customer-dashboard/shared/customer-runtime-unified-navigation.js
+          node scripts/verify-calendar-integrations.mjs
+          node scripts/verify-customer-design-foundation.mjs
+      - name: Commit product corrections
+        run: |
+          git config user.name 'OpenAI Codex'
+          git config user.email 'codex@openai.com'
+          git add customer-dashboard/index.html customer-dashboard/shared/customer-assistant-components.css customer-dashboard/shared/customer-navigation-components.css customer-dashboard/shared/customer-runtime-calendar-settings.js customer-dashboard/shared/customer-runtime-unified-navigation.js customer-dashboard/shared/customer-settings-components.css
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix: polish mobile dashboard and calendar states'
+          git push origin HEAD:codex/customer-navigation-five-root
