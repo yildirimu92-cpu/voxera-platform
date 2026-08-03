@@ -1,46 +1,59 @@
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const source = fs.readFileSync('customer-dashboard/index.html', 'utf8');
+const path = 'customer-dashboard/index.html';
+const source = fs.readFileSync(path, 'utf8');
+const oldScopedSelector = '#anrufe-split-left .vx-split-filters';
+const newScopedSelector = '#anrufe-split-left .vx-requests-filters';
+const oldClosest = ".closest('.vx-split-filters')";
+const newClosest = ".closest('.vx-requests-filters')";
 
-function functionRange(name) {
-  const marker = `function ${name}(`;
-  const start = source.indexOf(marker);
-  if (start < 0) throw new Error(`missing ${name}`);
-  const brace = source.indexOf('{', start);
-  let depth = 0;
-  let quote = '';
-  let escaped = false;
-  let lineComment = false;
-  let blockComment = false;
-  for (let i = brace; i < source.length; i += 1) {
-    const ch = source[i];
-    const next = source[i + 1];
-    if (lineComment) { if (ch === '\n') lineComment = false; continue; }
-    if (blockComment) { if (ch === '*' && next === '/') { blockComment = false; i += 1; } continue; }
-    if (quote) { if (escaped) escaped = false; else if (ch === '\\') escaped = true; else if (ch === quote) quote = ''; continue; }
-    if (ch === '/' && next === '/') { lineComment = true; i += 1; continue; }
-    if (ch === '/' && next === '*') { blockComment = true; i += 1; continue; }
-    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
-    if (ch === '{') depth += 1;
-    if (ch === '}') { depth -= 1; if (depth === 0) return source.slice(start, i + 1); }
-  }
-  throw new Error(`unterminated ${name}`);
-}
+const scriptPattern = /<script\b[^>]*>[\s\S]*?<\/script>/gi;
+let selectorCount = 0;
+let closestCount = 0;
+let scriptBlocks = 0;
 
-for (const name of ['anrufeChipFilter', 'anrufeInboxSubFilter', 'renderAnrufe']) {
-  console.log(`\n===== ${name} =====\n`);
-  console.log(functionRange(name));
-}
+const updated = source.replace(scriptPattern, (block) => {
+  scriptBlocks += 1;
+  selectorCount += block.split(oldScopedSelector).length - 1;
+  closestCount += block.split(oldClosest).length - 1;
+  return block
+    .split(oldScopedSelector).join(newScopedSelector)
+    .split(oldClosest).join(newClosest);
+});
 
-const terms = ['vx-chip--active', "classList.add('active')", "classList.remove('active')", '.vx-split-filters', '.vx-requests-filters'];
-for (const term of terms) {
-  console.log(`\n===== OCCURRENCES ${term} =====`);
-  let pos = 0;
-  let count = 0;
-  while ((pos = source.indexOf(term, pos)) >= 0 && count < 30) {
-    console.log(source.slice(Math.max(0, pos - 180), Math.min(source.length, pos + term.length + 220)).replace(/\n/g, ' '));
-    pos += term.length;
-    count += 1;
-  }
-  console.log(`count shown=${count}`);
-}
+assert.ok(scriptBlocks > 0, 'no script blocks found');
+assert.equal(selectorCount, 6, `expected 6 obsolete requests selectors in JavaScript, found ${selectorCount}`);
+assert.equal(closestCount, 1, `expected one obsolete closest() selector, found ${closestCount}`);
+assert.notEqual(updated, source, 'filter state migration produced no change');
+
+const updatedScriptBlocks = updated.match(scriptPattern) || [];
+const updatedScripts = updatedScriptBlocks.join('\n');
+assert.equal(updatedScripts.includes(oldScopedSelector), false, 'obsolete requests selector remains in JavaScript');
+assert.equal(updatedScripts.includes(oldClosest), false, 'obsolete closest selector remains in JavaScript');
+assert.equal(
+  updatedScripts.split(newScopedSelector).length - 1,
+  6,
+  'canonical requests selector count mismatch in JavaScript'
+);
+assert.equal(
+  updatedScripts.split(newClosest).length - 1,
+  1,
+  'canonical closest selector count mismatch in JavaScript'
+);
+
+const hostStart = updated.indexOf('<!-- ANFRAGEN TAB -->');
+const hostEnd = updated.indexOf('<!-- AUSWERTUNG TAB -->', hostStart);
+assert.ok(hostStart >= 0 && hostEnd > hostStart, 'requests host bounds missing');
+const host = updated.slice(hostStart, hostEnd);
+const mainFilterButtons = host.match(/<button[^>]+data-filter="(?:offen|geplant|abgeschlossen)"[^>]*>/g) || [];
+assert.equal(mainFilterButtons.length, 3, 'requests main filter button count mismatch');
+assert.equal(
+  mainFilterButtons.filter((button) => button.includes('vx-chip--active')).length,
+  1,
+  'exactly one requests main filter must be active in initial markup'
+);
+
+fs.writeFileSync(path, updated, 'utf8');
+console.log('Requests filter state migration passed.');
+console.log(`Updated ${selectorCount} scoped selectors and ${closestCount} closest() selector.`);
