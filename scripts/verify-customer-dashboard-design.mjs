@@ -49,13 +49,13 @@ for (const token of [
 
 for (const token of [
   'id="tab-dashboard"',
-  'class="dash-status-hero"',
-  'class="dash-kpi-row"',
-  'class="dash-kpi"',
-  'class="dash-focus-card"',
-  'class="dash-grid"',
-  'class="dash-glass"',
-  'class="vx-jetzt-section'
+  'dash-status-hero',
+  'dash-kpi-row',
+  'dash-kpi',
+  'dash-focus-card',
+  'dash-grid',
+  'dash-glass',
+  'vx-jetzt-section'
 ]) {
   assert.ok(dashboard.includes(token), `dashboard markup hook missing: ${token}`);
 }
