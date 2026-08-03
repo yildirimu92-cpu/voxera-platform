@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parents[1]
 index_path = root / 'customer-dashboard/index.html'
@@ -97,22 +98,25 @@ rules = [
 for number, (old, new) in enumerate(rules, 1):
     css = replace_once(css, old, new, f'canonical rule {number}')
 
-# Keep the active-row behavior unchanged while preventing an older CSS-only
-# substring guard from matching these JavaScript selector lists.
-selector = '#anrufe-list .sp-active,#anrufe-split-left .sp-active'
-if index.count(selector) != 2:
-    raise SystemExit(f'active selector list mismatch: {index.count(selector)}')
-index = index.replace(selector, '#anrufe-list .sp-active ,#anrufe-split-left .sp-active')
-
 required_index = ['id="anrufe-split" class="vx-requests-layout"','id="anrufe-split-left" class="vx-ops-card vx-requests-panel"','id="anrufe-split-right" class="vx-ops-card vx-requests-detail-panel"',"el.classList.add('vx-ops-list', 'vx-requests-list')","el.classList.toggle('sp-active'"]
-if any(token not in index for token in required_index):
-    raise SystemExit('request behavior contract missing')
-forbidden = [start_marker,'#anrufe-split-left{','#anrufe-list .sp-active,','#anrufe-list .sp-active .dpr-row,','#anrufe-list .dpr-card.sp-active .dpr-row{','#anrufe-list{\n  background:var(--surface)!important;']
-remaining = [token for token in forbidden if token in index]
+missing = [token for token in required_index if token not in index]
+if missing:
+    raise SystemExit('request behavior contract missing: ' + ', '.join(missing))
+
+style_text = '\n'.join(match.group(1) for match in re.finditer(r'<style\b[^>]*>(.*?)</style>', index, flags=re.I | re.S))
+forbidden_styles = [start_marker,'#anrufe-split-left{','#anrufe-list .sp-active .dpr-row,','#anrufe-list .dpr-card.sp-active .dpr-row{','#anrufe-list{\n  background:var(--surface)!important;']
+remaining = [token for token in forbidden_styles if token in style_text]
 if remaining:
     raise SystemExit('legacy requests presentation remains: ' + ', '.join(remaining))
-if '!important' in css or len(css.splitlines()) > 800:
-    raise SystemExit('assistant owner contract exceeded')
+
+required_css = ['body.vx-customer-design-foundation #tab-anrufe{background:var(--vx-canvas);}','background:#e9eef5;','background:#e4efff;color:var(--vx-brand-dark);','background:#e3edff;','border-radius:14px;','box-shadow:0 8px 20px rgba(52,120,237,.11);']
+missing_css = [token for token in required_css if token not in css]
+if missing_css:
+    raise SystemExit('premium request styles missing: ' + ', '.join(missing_css))
+if '!important' in css:
+    raise SystemExit('assistant owner contains important overrides')
+if len(css.splitlines()) > 800:
+    raise SystemExit(f'assistant owner size budget exceeded: {len(css.splitlines())}')
 
 index_path.write_text(index, encoding='utf-8')
 css_path.write_text(css, encoding='utf-8')
