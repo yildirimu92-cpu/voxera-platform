@@ -2040,7 +2040,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
   font-weight:500;position:relative;border:none;background:none;font-family:inherit;
   transition:color .18s ease;min-width:44px;min-height:44px;justify-content:center;
 }
-.mobile-nav-btn.active{color:#fff;font-weight:700;}
 .mobile-nav-btn:focus-visible{
   outline:2px solid rgba(147,197,253,.95);
   outline-offset:2px;
@@ -4019,24 +4018,6 @@ body,.main{background:var(--vx-bg);}
 .mobile-nav-btn.active{
   color:#fff;
   font-weight:700;
-}
-/* Pill hinter aktivem Icon */
-.mobile-nav-btn.active .mobile-nav-icon-wrap::before{
-  content:'';
-  position:absolute;
-  inset:-5px -8px;
-  background:rgba(255,255,255,.10);
-  border-radius:10px;
-  animation:navPillIn .22s var(--ease) both;
-}
-@keyframes navPillIn{
-  from{opacity:0;transform:scale(0.7);}
-  to{opacity:1;transform:scale(1);}
-}
-/* Icon leicht größer wenn aktiv */
-.mobile-nav-btn.active svg,
-.mobile-nav-btn.active .lucide{
-  stroke-width:2.3;
 }
 /* Badge */
 .mobile-nav-badge{
@@ -6598,17 +6579,13 @@ body,.main{background:var(--vx-bg);}
           Anfragen
           <span class="nav-badge blue" id="badge-anrufe" style="display:none">–</span>
         </div>
-        <div class="nav-item" id="nav-assistent" onclick="showTab('assistent',this)" style="display:none;">
+        <div class="nav-item" id="nav-assistent" onclick="showTab('assistent',this)">
           <i class="ph-light ph-robot nav-icon" aria-hidden="true"></i>
           Assistent
         </div>
         <div class="nav-item" id="nav-auswertung" onclick="showTab('auswertung',this)">
           <i class="ph-light ph-chart-bar nav-icon" aria-hidden="true"></i>
           Bericht
-        </div>
-        <div class="nav-item" id="nav-archiv" onclick="showTab('archiv',this)">
-          <i class="ph-light ph-archive nav-icon" aria-hidden="true"></i>
-          Archiv
         </div>
         <div class="nav-item" id="nav-mehr" onclick="showTab('mehr',this)">
           <i class="ph-light ph-gear nav-icon" aria-hidden="true"></i>
@@ -6700,7 +6677,7 @@ body,.main{background:var(--vx-bg);}
               </div>
             </div>
           </div>
-          <div id="dash-content" class="vx-ap-stack" style="display:none">
+          <div id="dash-content" class="vx-ap-stack vx-report-stack" style="display:none">
             <div id="live-hero" data-state="" hidden style="display:none!important;" aria-hidden="true">
               <span id="live-hero-state-label"></span><span id="live-hero-title"></span><span id="live-hero-sub"></span><span id="live-hero-counter"></span><span id="live-hero-counter-label"></span>
             </div>
@@ -6810,6 +6787,7 @@ body,.main{background:var(--vx-bg);}
                 <button class="vx-ap-filter vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
                 <button class="vx-ap-filter vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
                 <button class="vx-ap-filter vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
+                <button class="vx-ap-filter vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiv</button>
               </div>
 
               <div class="vx-requests-subfilters" id="anrufe-inbox-subfilters">
@@ -6854,9 +6832,8 @@ body,.main{background:var(--vx-bg);}
                   <div class="vx-page-header-subtitle">Anrufstatistiken und Entwicklungen</div>
                 </div>
                 <div class="vx-report-periods" id="au-period-row" role="tablist" aria-label="Berichtszeitraum">
-                  <button type="button" class="vx-ap-filter vx-report-period" data-report-period="today" aria-selected="false" onclick="auSetPeriod('today',this)">Heute</button>
-                  <button type="button" class="vx-ap-filter vx-report-period active" data-report-period="week" aria-selected="true" onclick="auSetPeriod('week',this)">Woche</button>
-                  <button type="button" class="vx-ap-filter vx-report-period" data-report-period="month" aria-selected="false" onclick="auSetPeriod('month',this)">Monat</button>
+                  <button type="button" class="vx-ap-filter vx-report-period active" data-report-period="week" aria-selected="true" onclick="auSetPeriod('week',this)">7 Tage</button>
+                  <button type="button" class="vx-ap-filter vx-report-period" data-report-period="month" aria-selected="false" onclick="auSetPeriod('month',this)">30 Tage</button>
                   <button type="button" class="vx-ap-filter vx-report-period" data-report-period="all" aria-selected="false" onclick="auSetPeriod('all',this)">Gesamt</button>
                 </div>
               </div>
@@ -6944,59 +6921,7 @@ body,.main{background:var(--vx-bg);}
         </div>
         <!-- EINSTELLUNGEN TAB -->
 
-        <!-- ARCHIV TAB -->
-        <div class="tab-page" id="tab-archiv">
-
-          <!-- Header identisch zu Anfragen -->
-          <div class="vx-page-header">
-            <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
-              <div class="vx-page-header-title">Archiv</div>
-              <div id="archiv-stats-sub" style="font-size:12px;color:rgba(255,255,255,.72);">–</div>
-            </div>
-            <button id="archiv-export-btn" onclick="exportArchiv()" style="display:none;height:36px;padding:0 14px;border-radius:10px;background:rgba(255,255,255,.12);border:0.5px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;align-items:center;gap:6px;flex-shrink:0;"><i class="ph-bold ph-download-simple" style="font-size:13px;" aria-hidden="true"></i>Exportieren</button>
-          </div>
-
-          <!-- Split Panel identisch zu Anfragen -->
-          <div id="archiv-split" class="vx-split">
-
-            <div id="archiv-split-left" class="vx-split-left">
-
-              <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid var(--vx-border);background:#FEF9EC;flex-shrink:0;">
-                <i class="ph-bold ph-clock" style="color:#D97706;font-size:13px;flex-shrink:0;" aria-hidden="true"></i>
-                <div style="font-size:10px;color:#92400E;line-height:1.4;">Audio und vollständige Transkripte werden nach <strong>90 Tagen</strong>, Archiveinträge nach <strong>180 Tagen</strong> gelöscht.</div>
-              </div>
-
-              <div class="vx-split-filters">
-                <button class="vx-chip vx-chip--active" data-archiv-filter="all" onclick="filterArchiv('all',this)">Alle</button>
-                <button class="vx-chip" data-archiv-filter="today" onclick="filterArchiv('today',this)">Heute</button>
-                <button class="vx-chip" data-archiv-filter="week" onclick="filterArchiv('week',this)">Diese Woche</button>
-                <button class="vx-chip" data-archiv-filter="month" onclick="filterArchiv('month',this)">Dieser Monat</button>
-              </div>
-
-              <div class="vx-split-scroll">
-                <div class="call-list" id="archiv-list"></div>
-              </div>
-            </div>
-
-            <div id="archiv-split-resizer" title="Ziehen zum Anpassen"></div>
-            <div id="archiv-split-right" class="vx-split-right">
-              <div id="archiv-split-empty" class="vx-split-empty">
-                <i class="ph-bold ph-archive" style="font-size:28px;opacity:.2;" aria-hidden="true"></i>
-                <div class="vx-split-empty-text">Wähle einen Eintrag aus, um Details zu sehen.</div>
-              </div>
-              <div id="archiv-detail-v2" style="display:none;flex:1;overflow:auto;"></div>
-            </div>
-          </div>
-
-          <div style="display:none;">
-            <div id="archiv-stats"></div>
-            <div id="archiv-stat-count"></div>
-            <div id="archiv-stat-time"></div>
-            <div id="archiv-stat-followups"></div>
-            <div id="archiv-kpi-strip"></div>
-          </div>
-
-        </div><!-- ARCHIV TAB -->
+<!-- ARCHIV TAB -->
 
         <!-- MEIN ASSISTENT TAB -->
         <div class="tab-page" id="tab-assistent">
@@ -7335,11 +7260,6 @@ body,.main{background:var(--vx-bg);}
             </div>
 
             <div class="vx-settings-list" aria-label="Einstellungsbereiche">
-              <button type="button" class="vx-settings-entry" onclick="showTab('auswertung')">
-                <span class="vx-settings-entry-icon"><i class="ph-bold ph-chart-bar" aria-hidden="true"></i></span>
-                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Bericht</span><span class="vx-settings-entry-subtitle">Anrufstatistiken &amp; Auswertung</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
-              </button>
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('profil')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-user" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Profil</span><span id="mehr-profil-sub" class="vx-settings-entry-subtitle">Name, E-Mail, Passwort</span></span>
@@ -8160,29 +8080,23 @@ body,.main{background:var(--vx-bg);}
         </span>
         Anfragen
       </button>
-      <button class="mobile-nav-btn" id="mnav-assistent" onclick="showTab('assistent',this)" style="display:none;">
+      <button class="mobile-nav-btn" id="mnav-assistent" onclick="showTab('assistent',this)">
         <span class="mobile-nav-icon-wrap">
           <i class="ph-bold ph-robot" aria-hidden="true"></i>
         </span>
         Assistent
       </button>
-      <button class="mobile-nav-btn" id="mnav-auswertung" onclick="showTab('auswertung',this)" style="display:none;">
+      <button class="mobile-nav-btn" id="mnav-auswertung" onclick="showTab('auswertung',this)">
         <span class="mobile-nav-icon-wrap">
           <i class="ph-bold ph-chart-bar" aria-hidden="true"></i>
         </span>
         Bericht
       </button>
-      <button class="mobile-nav-btn" id="mnav-archiv" onclick="showTab('archiv',this)">
-        <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-archive" aria-hidden="true"></i>
-        </span>
-        Archiv
-      </button>
       <button class="mobile-nav-btn" id="mnav-mehr" onclick="showTab('mehr',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-dots-three" aria-hidden="true"></i>
+          <i class="ph-bold ph-gear" aria-hidden="true"></i>
         </span>
-        Mehr
+        Einstellungen
       </button>
       <!-- Hidden compat -->
       <button id="mnav-konto" style="display:none" onclick="showTab('einstellungen',this);openAccount()"></button>
@@ -13885,7 +13799,7 @@ function vxInquiryFilterEmptyText(filter) {
   if (filter === 'geplant') return 'Keine geplanten Anfragen.';
   if (filter === 'neu') return 'Keine offenen Anfragen — Lara legt neue Kontakte hier ab.';
   if (filter === 'abgeschlossen' || filter === 'geprueft') return 'Keine erledigten Anfragen.';
-  if (filter === 'archiv') return 'Archiv ist leer. Audio und vollständige Transkripte werden nach 90 Tagen, Archiveinträge nach 180 Tagen gelöscht.';
+  if (filter === 'archiv') return 'Archiv ist leer. Audio und vollständige Transkripte werden nach <strong>90 Tagen</strong> entfernt, Archiveinträge nach <strong>180 Tagen</strong> gelöscht.';
   return 'Keine Anfragen.';
 }
 function vxGetAnfragenActiveFilter(nextFilter) {
@@ -15068,11 +14982,14 @@ function vxUpdateAccordionStatuses() {
 // Plan-Label im Mehr-Tab
 // ── Mehr Tab Navigation ───────────────────────────────────────────────────────
 function vxMehrShow(sub) {
-  document.getElementById('mehr-main').style.display = 'none';
-  document.querySelectorAll('[id^="mehr-sub-"]').forEach(el => el.style.display = 'none');
+  const main = document.getElementById('mehr-main');
+  if (!main) return;
+  main.removeAttribute('style');
+  main.hidden = true;
+  document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach(el => { el.removeAttribute('style'); el.hidden = true; });
   const el = document.getElementById('mehr-sub-' + sub);
   if (el) {
-    el.style.display = 'block';
+    el.hidden = false;
     if (sub === 'profil') vxInitProfil();
     if (sub === 'benachrichtigungen') vxInitBenachrichtigungen();
     if (sub === 'abonnement') vxInitAbonnement();
@@ -15083,8 +15000,9 @@ function vxMehrShow(sub) {
 }
 
 function vxMehrBack() {
-  document.querySelectorAll('[id^="mehr-sub-"]').forEach(el => el.style.display = 'none');
-  document.getElementById('mehr-main').style.display = 'block';
+  document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach(el => { el.removeAttribute('style'); el.hidden = true; });
+  const main = document.getElementById('mehr-main');
+  if (main) { main.removeAttribute('style'); main.hidden = false; }
 }
 
 // ── Profil ────────────────────────────────────────────────────────────────────
@@ -17847,7 +17765,7 @@ function _auFilterRecords(records) {
   } else if (_auPeriod === 'week') {
     start = new Date(now.getTime() - 7 * 86400000);
   } else if (_auPeriod === 'month') {
-    start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start = new Date(now.getTime() - 30 * 86400000);
   } else {
     return records;
   }
@@ -17934,8 +17852,8 @@ function _auPrevPeriodRecords(all) {
     end = new Date(now.getTime() - 7*86400000);
     start = new Date(end.getTime() - 7*86400000);
   } else if (_auPeriod === 'month') {
-    end = new Date(now.getFullYear(), now.getMonth(), 1);
-    start = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    end = new Date(now.getTime() - 30 * 86400000);
+    start = new Date(now.getTime() - 60 * 86400000);
   } else { return []; }
   return all.filter(function(r) {
     var ts = getRecordTimestamp(r); if (!ts) return false;
@@ -17962,7 +17880,7 @@ function _auBuildSparkCalls(all) {
 function _auAiSummary(records, total, hotCount, closed) {
   var el = document.getElementById('au2-ai-text');
   if (!el) return;
-  var periodLabel = {today:'heute', week:'diese Woche', month:'diesen Monat', all:'insgesamt'}[_auPeriod] || '';
+  var periodLabel = {week:'in den letzten 7 Tagen', month:'in den letzten 30 Tagen', all:'insgesamt'}[_auPeriod] || '';
   if (!total) {
     el.textContent = 'Noch keine Anrufe ' + periodLabel + '.';
     _auEl('au2-top-cat', '–'); _auEl('au2-top-cat-sub', '–');

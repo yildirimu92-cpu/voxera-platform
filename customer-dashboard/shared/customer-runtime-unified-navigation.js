@@ -22,6 +22,7 @@
   let assistantObserver = null;
   let stableRootKey = '';
   let initialAssistantLoadDone = false;
+  let voiceSelectionExpanded = false;
 
   function textLabel(node) {
     return String(node?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -71,36 +72,27 @@
     return ROOT_NAV.find((item) => item.label === label)?.key || '';
   }
 
-  function hideArchiveRootNavigation() {
-    const candidates = [
-      document.getElementById('nav-archiv'),
-      document.getElementById('mnav-archiv'),
-      ...Array.from(document.querySelectorAll('.nav-item,.mobile-nav-btn')).filter((node) => {
-        const label = textLabel(node);
-        const onclick = String(node.getAttribute('onclick') || '');
-        return label === 'Archiv' || /showTab\(['"]archiv/.test(onclick);
-      })
-    ].filter(Boolean);
 
-    candidates.forEach((node) => {
-      node.hidden = true;
-      node.dataset.vxHiddenRootNav = 'archive';
-      node.setAttribute('aria-hidden', 'true');
-      node.setAttribute('tabindex', '-1');
-    });
+
+  // Delete stale archive root buttons that may survive in cached or injected legacy markup.
+  function hideArchiveRootNavigation() {
+    [
+      document.getElementById('nav-archiv'),
+      document.getElementById('mnav-archiv')
+    ].filter(Boolean).forEach((node) => node.remove());
   }
 
   function normalizeRootNavigation() {
+    hideArchiveRootNavigation();
     ROOT_NAV.forEach((item) => {
       const desktop = document.getElementById(item.desktop);
       const mobile = document.getElementById(item.mobile);
-      if (item.key === 'assistent') {
-        [desktop, mobile].filter(Boolean).forEach((node) => {
-          node.hidden = false;
-          node.removeAttribute('aria-hidden');
-          node.style.removeProperty('display');
-        });
-      }
+      [desktop, mobile].filter(Boolean).forEach((node) => {
+        node.hidden = false;
+        node.removeAttribute('aria-hidden');
+        node.removeAttribute('tabindex');
+        node.style.removeProperty('display');
+      });
       setLabel(desktop, item.label);
       setLabel(mobile, item.label);
       setIcon(desktop, item.icon);
@@ -111,7 +103,6 @@
       });
     });
 
-    hideArchiveRootNavigation();
     orderDesktopNavigation();
     dedupeAndOrderMobileNavigation();
   }
@@ -259,10 +250,8 @@
 
   function restoreSettingsRoot() {
     const main = document.getElementById('mehr-main');
-    if (main) main.style.display = '';
-    document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => {
-      node.style.display = 'none';
-    });
+    if (main) { main.removeAttribute('style'); main.hidden = false; }
+    document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => { node.removeAttribute('style'); node.hidden = true; });
   }
 
   function simplifyVoiceSelection() {
@@ -278,6 +267,10 @@
 
     const details = document.createElement('details');
     details.className = 'vx-nav-voice-details';
+    details.open = voiceSelectionExpanded;
+    details.addEventListener('toggle', () => {
+      voiceSelectionExpanded = details.open;
+    });
     const summary = document.createElement('summary');
     summary.textContent = 'Andere Stimme wählen';
     details.appendChild(summary);
@@ -289,27 +282,13 @@
   function simplifyCapabilities() {
     const card = document.getElementById('vx-assistant-capabilities-card');
     if (!card) return;
-    card.classList.add('vx-as-capabilities-simple');
     const title = card.querySelector('.vx-ap-title');
     const meta = card.querySelector('.vx-ap-meta');
     if (title && textLabel(title) !== 'Fähigkeiten') title.textContent = 'Fähigkeiten';
     if (meta) meta.textContent = 'Die wichtigsten Aufgaben, die Ihr Assistent aktuell übernimmt.';
-
-    const capabilities = Array.from(card.querySelectorAll('.vx-as-cap'));
-    capabilities.forEach((item, index) => item.classList.toggle('vx-as-extra-capability', index >= 4));
-    if (capabilities.length <= 4 || card.querySelector('.vx-as-capability-toggle')) return;
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'vx-as-capability-toggle';
-    button.setAttribute('aria-expanded', 'false');
-    button.textContent = `${capabilities.length - 4} weitere Fähigkeiten anzeigen`;
-    button.addEventListener('click', () => {
-      const expanded = card.classList.toggle('is-expanded');
-      button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      button.textContent = expanded ? 'Weniger anzeigen' : `${capabilities.length - 4} weitere Fähigkeiten anzeigen`;
-    });
-    card.appendChild(button);
+    card.classList.remove('vx-as-capabilities-simple', 'is-expanded');
+    card.querySelectorAll('.vx-as-cap').forEach((item) => item.classList.remove('vx-as-extra-capability'));
+    card.querySelector('.vx-as-capability-toggle')?.remove();
   }
 
   function simplifyTechnicalStatus() {
@@ -366,9 +345,29 @@
     if (active) return active.key;
 
     const query = new URLSearchParams(root.location?.search || '');
-    const raw = String(query.get('tab') || '').toLowerCase();
-    const aliases = { today: 'dashboard', requests: 'anrufe', assistant: 'assistent', report: 'auswertung', more: 'mehr' };
+    const queryTab = String(query.get('tab') || '').toLowerCase();
+    const hashTab = String(root.location?.hash || '').replace(/^#(?:tab-)?/, '').toLowerCase();
+    const raw = queryTab || hashTab;
+    const aliases = {
+      today: 'dashboard',
+      requests: 'anrufe',
+      assistant: 'assistent',
+      report: 'auswertung',
+      more: 'mehr',
+      archiv: 'anrufe',
+      archive: 'anrufe'
+    };
     return ROOT_NAV.some((item) => item.key === raw) ? raw : aliases[raw] || 'dashboard';
+  }
+
+  function showArchiveInsideRequests() {
+    const button = document.querySelector('#tab-anrufe [data-filter="archiv"]');
+    if (!button) return;
+    if (typeof root.anrufeChipFilter === 'function') {
+      root.anrufeChipFilter('archiv', button);
+      return;
+    }
+    button.click();
   }
 
   function installShowTabBridge() {
@@ -376,9 +375,20 @@
     if (typeof root.showTab !== 'function') return false;
     const original = root.showTab;
     root.showTab = function unifiedShowTab(tabName) {
-      const key = ROOT_NAV.some((item) => item.key === tabName) ? tabName : '';
+      const requested = String(tabName || '').toLowerCase();
+      const archiveRequested = requested === 'archiv' || requested === 'archive';
+      const key = archiveRequested ? 'anrufe' : ROOT_NAV.some((item) => item.key === requested) ? requested : '';
       if (key) setStableRootActive(key);
-      const result = original.apply(this, arguments);
+      let result;
+      if (archiveRequested) {
+        const args = Array.from(arguments);
+        args[0] = 'anrufe';
+        args[1] = document.getElementById('nav-anrufe');
+        result = original.apply(this, args);
+        showArchiveInsideRequests();
+      } else {
+        result = original.apply(this, arguments);
+      }
       if (key === 'assistent') showAssistantView('profile', true);
       if (key === 'mehr') restoreSettingsRoot();
       if (key) setStableRootActive(key);
