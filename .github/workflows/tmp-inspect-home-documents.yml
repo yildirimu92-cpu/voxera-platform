@@ -16,43 +16,78 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-settings-commercial-flows
-      - name: Inspect current customer portal blocks
+      - name: Print compact home and document inventory
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('customer-dashboard/index.html')
-          lines = p.read_text(encoding='utf-8').splitlines()
-          terms = [
-            'Aufmerksamkeit', 'Heute passiert', 'Offene Aufgaben', 'Nicht bearbeitet',
-            'vx-ap-card', 'Rechnungen', 'Vertrag kündigen', 'contract_document',
-            "from('invoices')", 'from("invoices")', "from('contracts')", 'from("contracts")',
-            'invoice_number', 'pdf_url', 'signature_data', 'contract_text'
-          ]
-          hits = []
-          for i, line in enumerate(lines, 1):
-            if any(term in line for term in terms):
-              hits.append(i)
-          print('INDEX_LINES', len(lines))
-          for i in hits:
-            lo=max(1,i-8); hi=min(len(lines),i+14)
-            print(f'\n--- INDEX {lo}-{hi} hit {i} ---')
-            for n in range(lo,hi+1):
-              print(f'{n}: {lines[n-1]}')
+          import re
 
-          for path in [
-            'supabase/sql/2026-04-11_invoice_system_v1.sql',
-            'supabase/sql/2026-04-03_add_subscriptions_and_contracts.sql',
-            'supabase/sql/2026-04-11_offer_system_v1.sql',
-            'admin-panel/netlify/functions/_lib/invoice-service.js'
+          def context(lines, term, before=5, after=12, limit=3):
+              matches = [i for i, line in enumerate(lines) if term.lower() in line.lower()][:limit]
+              print(f'\n## TERM {term!r} matches={len(matches)}')
+              for i in matches:
+                  lo=max(0,i-before); hi=min(len(lines),i+after+1)
+                  print(f'-- lines {lo+1}-{hi} --')
+                  for n in range(lo,hi): print(f'{n+1}: {lines[n]}')
+
+          index_path=Path('customer-dashboard/index.html')
+          index=index_path.read_text(encoding='utf-8')
+          lines=index.splitlines()
+          print('INDEX_LINES', len(lines))
+          for term in [
+              'Offene Aufgaben', 'Nicht bearbeitet', 'Aufmerksamkeit',
+              'vx-ap-grid', 'vx-ap-card', 'Rechnungen werden hier angezeigt',
+              '>Rechnungen<', 'Vertrag kündigen', 'Kündigung zurückziehen',
+              "from('invoices')", "from('contracts')", 'invoice_number',
+              'pdf_url', 'signature_data', 'contract_text'
           ]:
-            q=Path(path)
-            if not q.exists():
-              continue
-            qlines=q.read_text(encoding='utf-8').splitlines()
-            print(f'\n=== FILE {path} lines={len(qlines)} ===')
-            for i,line in enumerate(qlines,1):
-              if any(term in line.lower() for term in ['pdf','invoice','contract','signature','document','customer_id']):
-                lo=max(1,i-3); hi=min(len(qlines),i+6)
-                print(f'--- {lo}-{hi} hit {i} ---')
-                for n in range(lo,hi+1): print(f'{n}: {qlines[n-1]}')
+              context(lines, term)
+
+          print('\n## STATIC ID COUNTS')
+          for token in ['vx-dashboard-kpi', 'vx-ap-card', 'vx-abo-invoice', 'invoice', 'contract']:
+              print(token, index.lower().count(token.lower()))
+
+          schema_paths=[
+              'supabase/sql/2026-04-11_invoice_system_v1.sql',
+              'supabase/sql/2026-04-03_add_subscriptions_and_contracts.sql',
+              'supabase/sql/2026-04-11_offer_system_v1.sql'
+          ]
+          for path in schema_paths:
+              p=Path(path)
+              if not p.exists():
+                  print(f'\n## MISSING {path}')
+                  continue
+              text=p.read_text(encoding='utf-8')
+              slines=text.splitlines()
+              print(f'\n## SCHEMA {path} lines={len(slines)}')
+              for term in ['create table', 'invoices', 'contracts', 'offers', 'pdf', 'signature', 'document', 'storage', 'customer_id']:
+                  hits=[i for i,l in enumerate(slines) if term in l.lower()][:8]
+                  if hits:
+                      print(f'### {term}: {len(hits)} shown')
+                      for i in hits:
+                          print(f'{i+1}: {slines[i]}')
+
+          service=Path('admin-panel/netlify/functions/_lib/invoice-service.js')
+          if service.exists():
+              slines=service.read_text(encoding='utf-8').splitlines()
+              print(f'\n## INVOICE SERVICE lines={len(slines)}')
+              for term in ['pdf', 'storage', 'invoice_number', 'customer_id', 'render', 'generate']:
+                  hits=[i for i,l in enumerate(slines) if term in l.lower()][:10]
+                  print(f'### {term}: {len(hits)} shown')
+                  for i in hits: print(f'{i+1}: {slines[i]}')
+
+          print('\n## CONTRACT-RELATED FILES')
+          for p in sorted(Path('.').rglob('*')):
+              if not p.is_file() or any(part in {'.git','node_modules','dist','build'} for part in p.parts):
+                  continue
+              name=str(p).lower()
+              if not any(k in name for k in ['contract','offer']):
+                  continue
+              if p.suffix.lower() not in {'.js','.mjs','.sql','.html','.ts'}:
+                  continue
+              try: text=p.read_text(encoding='utf-8')
+              except Exception: continue
+              if any(k in text.lower() for k in ['signature_data','signed_pdf','pdf_url','contract_text']):
+                  terms=[k for k in ['signature_data','signed_pdf','pdf_url','contract_text'] if k in text.lower()]
+                  print(str(p), ','.join(terms))
           PY
