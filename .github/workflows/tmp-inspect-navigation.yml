@@ -1,9 +1,10 @@
 name: Apply Customer Navigation Migration
 
 on:
-  push:
-    branches:
-      - codex/customer-navigation-five-root
+  pull_request:
+    paths:
+      - 'customer-dashboard/**'
+      - '.github/workflows/tmp-inspect-navigation.yml'
 
 permissions:
   contents: write
