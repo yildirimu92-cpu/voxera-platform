@@ -1,0 +1,159 @@
+name: Temporary Dashboard Migration V2 Inspection
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tmp-inspect-dashboard-migration-v2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect dashboard-local markup, renderers and selectors
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import re
+
+          path = Path('customer-dashboard/index.html')
+          source = path.read_text(encoding='utf-8')
+          lines = source.splitlines()
+
+          def line_no(offset):
+              return source.count('\n', 0, offset) + 1
+
+          def print_block(title, start, end, max_chars=80000):
+              block = source[start:end]
+              print(f'\n===== {title} | lines {line_no(start)}-{line_no(end)} | chars {len(block)} =====')
+              if len(block) > max_chars:
+                  print(block[:max_chars])
+                  print(f'\n...[TRUNCATED {len(block) - max_chars} CHARS]...')
+              else:
+                  print(block)
+
+          def matching_brace(start):
+              depth = 0
+              quote = None
+              escaped = False
+              line_comment = False
+              block_comment = False
+              i = start
+              while i < len(source):
+                  ch = source[i]
+                  nxt = source[i:i+2]
+                  if line_comment:
+                      if ch == '\n': line_comment = False
+                      i += 1
+                      continue
+                  if block_comment:
+                      if nxt == '*/':
+                          block_comment = False
+                          i += 2
+                      else:
+                          i += 1
+                      continue
+                  if quote:
+                      if escaped:
+                          escaped = False
+                      elif ch == '\\':
+                          escaped = True
+                      elif ch == quote:
+                          quote = None
+                      i += 1
+                      continue
+                  if nxt == '//':
+                      line_comment = True
+                      i += 2
+                      continue
+                  if nxt == '/*':
+                      block_comment = True
+                      i += 2
+                      continue
+                  if ch in ('\"', "'", '`'):
+                      quote = ch
+                  elif ch == '{':
+                      depth += 1
+                  elif ch == '}':
+                      depth -= 1
+                      if depth == 0:
+                          return i + 1
+                  i += 1
+              raise RuntimeError('unbalanced braces')
+
+          dash_start = source.index('<div class="tab-page active" id="tab-dashboard">')
+          dash_end = source.index('<!-- ANFRAGEN TAB -->', dash_start)
+          print_block('DASHBOARD HOST MARKUP', dash_start, dash_end)
+
+          print('\n===== MATCHING DASHBOARD FUNCTIONS =====')
+          function_pattern = re.compile(r'(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{')
+          dashboard_terms = (
+              'dash-priority', 'dash-activity', 'dash-kpi', 'dash-greeting',
+              'vx-activity', 'vx-group', 'vx-jetzt', 'renderDashboard'
+          )
+          seen = set()
+          for match in function_pattern.finditer(source):
+              brace = source.index('{', match.start())
+              try:
+                  end = matching_brace(brace)
+              except RuntimeError:
+                  continue
+              body = source[match.start():end]
+              if any(term in body for term in dashboard_terms):
+                  key = (match.group(1), match.start())
+                  if key in seen:
+                      continue
+                  seen.add(key)
+                  print_block(f'FUNCTION {match.group(1)}', match.start(), end, max_chars=45000)
+
+          print('\n===== DASHBOARD SELECTOR RULES =====')
+          style_pattern = re.compile(r'<style\b[^>]*>(.*?)</style>', re.S | re.I)
+          selector_terms = (
+              '#tab-dashboard', '#dash-', '.dash-', '.vx-greeting-', '.vx-kpi-',
+              '.vx-jetzt-', '.vx-activity-', '.vx-group-', '.dpr-command-center', '.fse-'
+          )
+          rule_pattern = re.compile(r'([^{}]+)\{([^{}]*)\}', re.S)
+          count = 0
+          for style_index, style in enumerate(style_pattern.finditer(source), 1):
+              css = style.group(1)
+              for rule in rule_pattern.finditer(css):
+                  selector = rule.group(1).strip()
+                  if any(term in selector for term in selector_terms):
+                      count += 1
+                      absolute = style.start(1) + rule.start()
+                      print(f'\n--- RULE {count} | style {style_index} | line {line_no(absolute)} ---')
+                      print(selector + ' {' + rule.group(2) + '}')
+          print(f'\nTOTAL DASHBOARD-MATCHING RULES: {count}')
+
+          print('\n===== SHARED SURFACE FINGERPRINTS =====')
+          shared_terms = {
+              'login': ('login', 'auth-card', 'login-card'),
+              'loading': ('loading', 'splash', 'boot'),
+              'sidebar': ('sidebar', 'side-nav'),
+              'mobile_navigation': ('mobile-nav', 'bottom-nav', 'mobile-bottom'),
+              'tour': ('tour', 'onboarding-modal', 'tour-modal'),
+          }
+          for name, terms in shared_terms.items():
+              relevant = []
+              for style in style_pattern.finditer(source):
+                  css = style.group(1)
+                  for rule in rule_pattern.finditer(css):
+                      selector = rule.group(1).strip()
+                      if any(term in selector.lower() for term in terms):
+                          relevant.append(selector + '{' + rule.group(2) + '}')
+              payload = '\n'.join(relevant)
+              print(f'{name}: rules={len(relevant)} sha256={hashlib.sha256(payload.encode()).hexdigest()}')
+
+          print('\n===== INLINE STYLE OCCURRENCES IN DASHBOARD HOST =====')
+          dash = source[dash_start:dash_end]
+          for m in re.finditer(r'style="[^"]*"', dash):
+              absolute = dash_start + m.start()
+              print(f'line {line_no(absolute)}: {m.group(0)}')
+          PY
