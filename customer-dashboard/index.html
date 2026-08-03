@@ -2040,7 +2040,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
   font-weight:500;position:relative;border:none;background:none;font-family:inherit;
   transition:color .18s ease;min-width:44px;min-height:44px;justify-content:center;
 }
-.mobile-nav-btn.active{color:#fff;font-weight:700;}
 .mobile-nav-btn:focus-visible{
   outline:2px solid rgba(147,197,253,.95);
   outline-offset:2px;
@@ -4019,24 +4018,6 @@ body,.main{background:var(--vx-bg);}
 .mobile-nav-btn.active{
   color:#fff;
   font-weight:700;
-}
-/* Pill hinter aktivem Icon */
-.mobile-nav-btn.active .mobile-nav-icon-wrap::before{
-  content:'';
-  position:absolute;
-  inset:-5px -8px;
-  background:rgba(255,255,255,.10);
-  border-radius:10px;
-  animation:navPillIn .22s var(--ease) both;
-}
-@keyframes navPillIn{
-  from{opacity:0;transform:scale(0.7);}
-  to{opacity:1;transform:scale(1);}
-}
-/* Icon leicht größer wenn aktiv */
-.mobile-nav-btn.active svg,
-.mobile-nav-btn.active .lucide{
-  stroke-width:2.3;
 }
 /* Badge */
 .mobile-nav-badge{
@@ -6808,9 +6789,6 @@ body,.main{background:var(--vx-bg);}
                 <button class="vx-ap-filter vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
                 <button class="vx-ap-filter vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiv</button>
               </div>
-                <div class="vx-ap-meta vx-archive-retention" role="note">
-                  Aufbewahrung: vollständige Transkripte werden nach <strong>90 Tagen</strong> entfernt, Archiveinträge nach <strong>180 Tagen</strong>.
-                </div>
 
               <div class="vx-requests-subfilters" id="anrufe-inbox-subfilters">
                 <button class="vx-ap-filter vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
@@ -15004,11 +14982,14 @@ function vxUpdateAccordionStatuses() {
 // Plan-Label im Mehr-Tab
 // ── Mehr Tab Navigation ───────────────────────────────────────────────────────
 function vxMehrShow(sub) {
-  document.getElementById('mehr-main').style.display = 'none';
-  document.querySelectorAll('[id^="mehr-sub-"]').forEach(el => el.style.display = 'none');
+  const main = document.getElementById('mehr-main');
+  if (!main) return;
+  main.removeAttribute('style');
+  main.hidden = true;
+  document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach(el => { el.removeAttribute('style'); el.hidden = true; });
   const el = document.getElementById('mehr-sub-' + sub);
   if (el) {
-    el.style.display = 'block';
+    el.hidden = false;
     if (sub === 'profil') vxInitProfil();
     if (sub === 'benachrichtigungen') vxInitBenachrichtigungen();
     if (sub === 'abonnement') vxInitAbonnement();
@@ -15019,8 +15000,9 @@ function vxMehrShow(sub) {
 }
 
 function vxMehrBack() {
-  document.querySelectorAll('[id^="mehr-sub-"]').forEach(el => el.style.display = 'none');
-  document.getElementById('mehr-main').style.display = 'block';
+  document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach(el => { el.removeAttribute('style'); el.hidden = true; });
+  const main = document.getElementById('mehr-main');
+  if (main) { main.removeAttribute('style'); main.hidden = false; }
 }
 
 // ── Profil ────────────────────────────────────────────────────────────────────

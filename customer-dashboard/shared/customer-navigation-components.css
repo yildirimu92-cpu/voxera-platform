@@ -35,13 +35,34 @@ body.vx-customer-design-foundation .nav-item.vx-root-nav-active :where(i, .nav-i
   color: #ffffff;
 }
 
-body.vx-customer-design-foundation .mobile-nav-btn.vx-root-nav-active {
-  color: #1a6fe8;
+body.vx-customer-design-foundation .mobile-nav-btn {
+  gap: 5px;
+  padding-right: 2px;
+  padding-left: 2px;
+  color: rgba(255, 255, 255, 0.5);
 }
 
-body.vx-customer-design-foundation .mobile-nav-btn.vx-root-nav-active .mobile-nav-icon-wrap {
-  background: #eef4ff;
-  color: #1a6fe8;
+body.vx-customer-design-foundation .mobile-nav-btn .mobile-nav-icon-wrap {
+  width: 34px;
+  height: 28px;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+}
+
+body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-active) {
+  color: #5b9cff;
+  font-weight: 700;
+}
+
+body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-active) .mobile-nav-icon-wrap {
+  background: rgba(52, 120, 237, 0.18);
+  color: #5b9cff;
+}
+
+body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-active) :where(i, svg, .lucide) {
+  color: #5b9cff;
+  stroke: #5b9cff;
 }
 
 body.vx-customer-design-foundation .vx-nav-voice-details {

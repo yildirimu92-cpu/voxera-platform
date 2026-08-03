@@ -60,6 +60,13 @@
     return announced.filter((provider) => providerLabels[provider] && (configured[provider] === true || connection(provider)));
   }
 
+  function noticeOptions(value) {
+    const selected = Number(value || 120);
+    const presets = [[30, '30 Minuten'], [60, '1 Stunde'], [120, '2 Stunden'], [360, '6 Stunden'], [720, '12 Stunden'], [1440, '24 Stunden'], [2880, '2 Tage'], [4320, '3 Tage'], [5760, '4 Tage'], [10080, '7 Tage']];
+    if (!presets.some(([minutes]) => minutes === selected)) presets.unshift([selected, selected + ' Minuten']);
+    return presets.map(([minutes, label]) => '<option value="' + minutes + '"' + (minutes === selected ? ' selected' : '') + '>' + label + '</option>').join('');
+  }
+
   function providerCard(provider) {
     const item = connection(provider);
     const configured = state?.provider_configured?.[provider] === true;
@@ -94,16 +101,16 @@
       : '<div class="vx-cal-card"><div class="vx-cal-provider">Kein Kalenderanbieter verfügbar</div><div class="vx-cal-meta">Die OAuth-Konfiguration ist noch nicht vollständig.</div></div>';
     const providerSummary = providers.map((provider) => providerLabels[provider]).join(' und ');
 
+    const availabilityBanner = state.enabled ? '' : '<div class="vx-cal-banner">Sicher vorbereitet, aber noch nicht produktiv aktiviert. Verbindungen und Buchungen sind gesperrt.</div>';
+
     body.innerHTML =
-      '<div class="vx-cal-banner ' + (state.enabled ? 'ok' : '') + '">' +
-      (state.enabled ? 'Kalenderintegration ist freigeschaltet. Verbindungen bleiben kundenspezifisch.' : 'Sicher vorbereitet, aber noch nicht produktiv aktiviert. Verbindungen und Buchungen sind gesperrt.') +
-      '</div><div id="vx-calendar-status" class="vx-cal-status" role="status" aria-live="polite"></div>' +
+      availabilityBanner + '<div id="vx-calendar-status" class="vx-cal-status" role="status" aria-live="polite"></div>' +
       '<div class="vx-cal-grid' + (providers.length === 1 ? ' single' : '') + '">' + providerCards + '</div>' +
       '<div class="vx-cal-card vx-cal-rules-card"><div class="vx-cal-provider">Buchungsregeln</div><div class="vx-cal-meta">Diese Regeln gelten unabhängig vom verbundenen Anbieter.</div><div class="vx-cal-form vx-cal-form--spaced">' +
       '<div class="vx-cal-field"><label>Aktiver Anbieter</label><select id="vx-cal-active-provider"><option value="">Nicht aktiv</option>' + activeOptions + '</select></div>' +
       '<div class="vx-cal-field"><label>Zeitzone</label><select id="vx-cal-timezone"><option value="Europe/Zurich"' + (settings.timezone === 'Europe/Zurich' ? ' selected' : '') + '>Europe/Zurich</option><option value="UTC"' + (settings.timezone === 'UTC' ? ' selected' : '') + '>UTC</option></select></div>' +
       '<div class="vx-cal-field"><label>Termindauer (Min.)</label><input id="vx-cal-duration" type="number" min="10" max="240" value="' + esc(settings.appointment_duration_minutes || 30) + '"></div>' +
-      '<div class="vx-cal-field"><label>Mindestvorlauf (Min.)</label><input id="vx-cal-notice" type="number" min="0" max="10080" value="' + esc(settings.minimum_notice_minutes || 120) + '"></div>' +
+      '<div class="vx-cal-field"><label>Mindestvorlauf</label><select id="vx-cal-notice">' + noticeOptions(settings.minimum_notice_minutes || 120) + '</select></div>' +
       '<div class="vx-cal-field"><label>Puffer vorher (Min.)</label><input id="vx-cal-buffer-before" type="number" min="0" max="180" value="' + esc(settings.buffer_before_minutes || 0) + '"></div>' +
       '<div class="vx-cal-field"><label>Puffer nachher (Min.)</label><input id="vx-cal-buffer-after" type="number" min="0" max="180" value="' + esc(settings.buffer_after_minutes || 10) + '"></div>' +
       '<div class="vx-cal-field"><label>Buchungshorizont (Tage)</label><input id="vx-cal-horizon" type="number" min="1" max="365" value="' + esc(settings.booking_horizon_days || 60) + '"></div>' +
@@ -222,13 +229,9 @@
     const main = document.getElementById('mehr-main');
     const page = document.getElementById('mehr-sub-kalender');
     if (!main || !page) return false;
-
-    document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => {
-      node.hidden = true;
-    });
-
+    document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => { node.hidden = true; });
+    page.removeAttribute('style');
     if (isOpen) {
-      page.removeAttribute('style');
       main.hidden = true;
       page.hidden = false;
     } else {

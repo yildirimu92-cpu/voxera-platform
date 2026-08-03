@@ -250,14 +250,8 @@
 
   function restoreSettingsRoot() {
     const main = document.getElementById('mehr-main');
-    if (main) {
-      main.hidden = false;
-      main.style.display = '';
-    }
-    document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => {
-      node.hidden = true;
-      node.style.display = 'none';
-    });
+    if (main) { main.removeAttribute('style'); main.hidden = false; }
+    document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => { node.removeAttribute('style'); node.hidden = true; });
   }
 
   function simplifyVoiceSelection() {
