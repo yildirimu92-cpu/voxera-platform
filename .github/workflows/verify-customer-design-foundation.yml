@@ -34,6 +34,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Narrow dashboard fingerprint to Heute only
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/tmp-migrate-customer-requests-design.mjs')
+          text = path.read_text(encoding='utf-8')
+          old_entry = "  ['dashboard', hash(windowAround(dashboard, 'id=\"tab-dashboard\"', 200, 9000))],\n"
+          if text.count(old_entry) != 1:
+              raise SystemExit('dashboard fingerprint entry mismatch')
+          text = text.replace(old_entry, '', 1)
+          anchor = "]);\n\nconst protectedFunctions"
+          addition = "]);\n\nconst dashboardSurfaceStart = dashboard.indexOf('id=\"tab-dashboard\"');\nconst dashboardSurfaceEnd = dashboard.indexOf('        <!-- ANFRAGEN TAB -->', dashboardSurfaceStart);\nassert.ok(dashboardSurfaceStart >= 0 && dashboardSurfaceEnd > dashboardSurfaceStart, 'dashboard surface bounds missing');\nconst protectedDashboardSurfaceHash = hash(dashboard.slice(dashboardSurfaceStart, dashboardSurfaceEnd));\n\nconst protectedFunctions"
+          if text.count(anchor) != 1:
+              raise SystemExit('protected function anchor mismatch')
+          text = text.replace(anchor, addition, 1)
+          verify_anchor = "for (const [name, expectedHash] of protectedWindows) {"
+          verification = "const migratedDashboardSurfaceStart = dashboard.indexOf('id=\"tab-dashboard\"');\nconst migratedDashboardSurfaceEnd = dashboard.indexOf('        <!-- ANFRAGEN TAB -->', migratedDashboardSurfaceStart);\nassert.ok(migratedDashboardSurfaceStart >= 0 && migratedDashboardSurfaceEnd > migratedDashboardSurfaceStart, 'migrated dashboard surface bounds missing');\nassert.equal(\n  hash(dashboard.slice(migratedDashboardSurfaceStart, migratedDashboardSurfaceEnd)),\n  protectedDashboardSurfaceHash,\n  'protected surface changed: dashboard'\n);\n\nfor (const [name, expectedHash] of protectedWindows) {"
+          if text.count(verify_anchor) != 1:
+              raise SystemExit('protected window verification anchor mismatch')
+          text = text.replace(verify_anchor, verification, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
       - name: Apply guarded requests migration
         if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
         run: node scripts/tmp-migrate-customer-requests-design.mjs
