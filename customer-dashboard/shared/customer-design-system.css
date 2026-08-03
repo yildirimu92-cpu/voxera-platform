@@ -283,9 +283,9 @@ body.vx-customer-design-foundation :where(
   line-height: 1.2;
 }
 
-/* Native hidden state must win over component display declarations. */
-body.vx-customer-design-foundation [hidden] {
-  display: none !important;
+/* Native hidden state wins over component display declarations by specificity. */
+body.vx-customer-design-foundation [hidden][hidden][hidden] {
+  display: none;
 }
 
 /* The dashboard keeps one clear action hierarchy. */
@@ -293,40 +293,23 @@ body.vx-customer-design-foundation
   #dash-priority-section
   > .vx-ap-head
   > .vx-ap-btn[onclick*="vxDashShowAllImportant"] {
-  display: none !important;
+  display: none;
 }
 
 @media (max-width: 768px) {
-  body.vx-customer-design-foundation #tab-archiv .vx-split {
-    display: block !important;
-    width: 100% !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-
-  body.vx-customer-design-foundation #archiv-split-left,
-  body.vx-customer-design-foundation #tab-archiv .vx-split #archiv-split-left {
-    width: 100% !important;
-    max-width: none !important;
-    min-width: 0 !important;
-    flex: 1 1 auto !important;
-    align-self: stretch !important;
-    border-right: 0 !important;
-  }
-
   body.vx-customer-design-foundation #tab-archiv .vx-split-filters {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-    overflow: visible !important;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    overflow: visible;
   }
 
   body.vx-customer-design-foundation #tab-archiv .vx-split-filters .vx-chip {
-    width: 100% !important;
-    min-width: 0 !important;
-    padding-right: 8px !important;
-    padding-left: 8px !important;
-    text-align: center !important;
+    width: 100%;
+    min-width: 0;
+    padding-right: 8px;
+    padding-left: 8px;
+    text-align: center;
   }
 }
 
