@@ -1,0 +1,59 @@
+name: Temporary Retention Copy Correction
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tmp-fix-retention-copy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/customer-navigation-five-root
+      - name: Keep retention note only in archive empty state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('customer-dashboard/index.html')
+          text = path.read_text(encoding='utf-8')
+          replacement = 'Archiv ist leer. Vollständige Transkripte werden nach <strong>90 Tagen</strong> entfernt, Archiveinträge nach <strong>180 Tagen</strong>.'
+          patterns = [
+              r'Archiv ist leer\.\s*Audio und vollständige Transkripte werden nach 90 Tagen,\s*Archiveinträge nach 180 Tagen gelöscht\.',
+              r'Archiv ist leer\.\s*Vollständige Transkripte werden nach 90 Tagen,\s*Archiveinträge nach 180 Tagen gelöscht\.',
+              r'Audio und vollständige Transkripte werden nach 90 Tagen,\s*Archiveinträge nach 180 Tagen gelöscht\.'
+          ]
+          changed = False
+          for pattern in patterns:
+              text, count = re.subn(pattern, replacement, text, count=1)
+              if count:
+                  changed = True
+                  break
+          required = [
+              'vollständige Transkripte werden nach <strong>90 Tagen</strong>',
+              'Archiveinträge nach <strong>180 Tagen</strong>'
+          ]
+          if not all(token in text for token in required):
+              raise SystemExit('archive retention empty-state copy not found')
+          if changed:
+              path.write_text(text, encoding='utf-8')
+          PY
+      - name: Validate retention and product contracts
+        run: |
+          node scripts/verify-p0-security-foundation.mjs
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/verify-calendar-integrations.mjs
+      - name: Commit correction
+        run: |
+          git config user.name 'OpenAI Codex'
+          git config user.email 'codex@openai.com'
+          git add customer-dashboard/index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix: keep retention copy in archive empty state'
+          git push origin HEAD:codex/customer-navigation-five-root
