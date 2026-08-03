@@ -6,6 +6,7 @@ const EXCLUDED_DIRS = new Set(['node_modules', '.netlify', 'netlify']);
 const INCLUDED_EXTENSIONS = new Set(['.css', '.html', '.js', '.mjs']);
 const CANONICAL_CSS = new Set([
   'shared/customer-design-system.css',
+  'shared/customer-dashboard-components.css',
   'shared/customer-assistant-components.css',
   'shared/customer-assistant-status.css',
   'shared/customer-navigation-components.css',
