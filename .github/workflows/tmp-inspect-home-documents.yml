@@ -1,9 +1,7 @@
 name: Temporary Inspect Home Documents
 
 on:
-  push:
-    branches:
-      - codex/customer-settings-commercial-flows
+  pull_request:
     paths:
       - .github/workflows/tmp-inspect-home-documents.yml
   workflow_dispatch:
