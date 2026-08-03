@@ -1,0 +1,183 @@
+LINES 7055-7235
+
+<div class="tab-page active" id="tab-dashboard">
+          <!-- FSE card removed – first-login goes directly to Einrichtung tab -->
+          <div id="dashboard-fse" style="display:none!important;">
+            <div id="dashboard-fse-note"></div>
+            <button id="dashboard-fse-primary" style="display:none;"></button>
+            <button id="dashboard-fse-secondary" style="display:none;"></button>
+            <li id="fse-progress-forwarding" style="display:none;"></li>
+            <li id="fse-progress-testcall" style="display:none;"></li>
+            <li id="fse-progress-ready" style="display:none;"></li>
+          </div>
+          <div id="dash-loading" class="loading-wrap">
+            <div class="loading-card">
+              <div class="skel-wrap" style="padding:0;">
+                <!-- Skeleton Hero -->
+                <div class="skel skel-hero" style="border-radius:20px 20px 0 0;"></div>
+                <!-- Skeleton KPI Row -->
+                <div class="skel-kpi-row" style="padding:14px 14px 0;">
+                  <div class="skel skel-kpi"></div>
+                  <div class="skel skel-kpi"></div>
+                  <div class="skel skel-kpi"></div>
+                  <div class="skel skel-kpi"></div>
+                </div>
+                <!-- Skeleton Recent Rows -->
+                <div class="skel-glass skel-rows" style="margin:14px 14px 14px;border-radius:var(--r-lg);">
+                  <div class="skel-hd">
+                    <div class="skel skel-hd-title"></div>
+                    <div class="skel skel-hd-link"></div>
+                  </div>
+                  <div class="skel-row">
+                    <div class="skel skel-avatar"></div>
+                    <div class="skel-body">
+                      <div class="skel skel-line-a"></div>
+                      <div class="skel skel-line-b"></div>
+                    </div>
+                    <div class="skel skel-badge"></div>
+                  </div>
+                  <div class="skel-row">
+                    <div class="skel skel-avatar"></div>
+                    <div class="skel-body">
+                      <div class="skel skel-line-a" style="width:42%;"></div>
+                      <div class="skel skel-line-b" style="width:28%;"></div>
+                    </div>
+                    <div class="skel skel-badge"></div>
+                  </div>
+                  <div class="skel-row">
+                    <div class="skel skel-avatar"></div>
+                    <div class="skel-body">
+                      <div class="skel skel-line-a" style="width:63%;"></div>
+                      <div class="skel skel-line-b" style="width:38%;"></div>
+                    </div>
+                    <div class="skel skel-badge"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="dash-content" style="display:none">
+
+            <!-- LIVE HERO — versteckt, IDs bleiben für JS-Kompatibilität -->
+            <div id="live-hero" data-state="" hidden style="display:none!important;" aria-hidden="true">
+              <span id="live-hero-state-label"></span>
+              <span id="live-hero-title"></span>
+              <span id="live-hero-sub"></span>
+              <span id="live-hero-counter"></span>
+              <span id="live-hero-counter-label"></span>
+            </div>
+
+            <!-- activation card removed – handled in Einrichtung tab -->
+            <div id="dash-activation-card" style="display:none!important;">
+              <div id="dash-activation-title"></div>
+              <div id="dash-activation-text"></div>
+              <div><a id="dash-activation-primary" style="display:none;"></a></div>
+            </div>
+
+            <!-- ── GREETING + KPI BLOCK v3.0 ── -->
+            <div id="dash-greeting-block" class="vx-greeting-block">
+              <div class="vx-greeting-top">
+                <div class="vx-greeting-left">
+                  <div id="dash-greeting-title" class="vx-greeting-title"></div>
+                  <div id="dash-greeting-sub" class="vx-greeting-sub"></div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;flex-shrink:0;">
+                  <div id="dash-datetime-label" class="vx-greeting-date"></div>
+                </div>
+              </div>
+              <div id="dash-kpi-strip" class="vx-kpi-strip">
+                <div class="vx-kpi-cell" id="kpi-cell-callbacks">
+                  <div id="kpi-callbacks-label" class="vx-kpi-label">Neue Anfragen</div>
+                  <div id="kpi-callbacks-new" class="vx-kpi-val" style="color:var(--vx-blue);">–</div>
+                  <div id="kpi-callbacks-note" class="vx-kpi-note">ungeprüft</div>
+                </div>
+                <div class="vx-kpi-cell" id="kpi-cell-today">
+                  <div id="kpi-today-label" class="vx-kpi-label">Offene Anfragen</div>
+                  <div id="kpi-today-new" class="vx-kpi-val" style="color:var(--vx-red);">–</div>
+                  <div id="kpi-today-note" class="vx-kpi-note">zu erledigen</div>
+                </div>
+                <div class="vx-kpi-cell" id="kpi-cell-due">
+                  <div id="kpi-due-bar-new" style="display:none;"></div>
+                  <div id="kpi-done-label" class="vx-kpi-label">Heute fällig</div>
+                  <div id="kpi-done-new" class="vx-kpi-val" style="color:var(--vx-gold);">–</div>
+                  <div id="kpi-done-note" class="vx-kpi-note">Anfragen</div>
+                </div>
+                <div class="vx-kpi-cell" id="kpi-cell-completed">
+                  <div id="kpi-reach-bar-new" style="display:none;"></div>
+                  <div class="vx-kpi-label">Erledigt heute</div>
+                  <div id="kpi-reach-val" class="vx-kpi-val">–</div>
+                  <div id="kpi-reach-label" class="vx-kpi-note"></div>
+                </div>
+              </div>
+            </div>
+
+              <!-- Tagesbericht entfernt: Heute ist jetzt ein Arbeits-Cockpit, kein Textbericht. -->
+              <div id="dash-daily-report" class="vx-report-card" style="display:none!important;">
+                <div id="dash-daily-report-text" class="vx-report-text"></div>
+              </div>
+
+            <!-- Zone 2: Focus-Card -->
+            <div id="dash-focus-zone" style="display:none;"></div>
+
+            <!-- JETZT WICHTIG — Fokus-Karte + Card-Stack -->
+            <div id="dash-priority-section" class="vx-jetzt-section vx-work-section">
+              <div class="vx-jetzt-header">
+                <div class="vx-jetzt-title"><i class="ph-bold ph-lightning" aria-hidden="true"></i>Aufmerksamkeit <span>einmalig priorisiert</span></div>
+                <span class="vx-jetzt-link" onclick="vxDashShowAllImportant(event);">Alle →</span>
+              </div>
+              <div id="dash-priority-list" class="vx-jetzt-list"></div>
+              <button id="dash-recent-more" onclick="vxDashShowAllImportant(event);" class="vx-jetzt-more" style="display:none;">Alle offenen Punkte anzeigen</button>
+            </div>
+
+            <!-- HEUTE: Verlauf statt zweite Arbeitsliste -->
+            <div id="dash-activity-section" class="vx-jetzt-section">
+              <div class="vx-jetzt-header">
+                <div class="vx-jetzt-title"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i>Heute passiert</div>
+                <span id="dash-activity-count" class="vx-jetzt-link">0</span>
+              </div>
+              <div id="dash-activity-list" class="vx-jetzt-list"></div>
+              <div class="vx-activity-note">Chronologischer Verlauf. Die Arbeitsentscheidung passiert oben unter Aufmerksamkeit.</div>
+            </div>
+
+            <!-- HEUTE: Anrufe heute — Zielbereich für KPI, keine versteckten Anfragen-Filter -->
+            <div id="dash-today-calls-section" class="vx-jetzt-section" style="display:none;">
+              <div class="vx-jetzt-header">
+                <div class="vx-jetzt-title"><i class="ph-bold ph-phone-incoming" aria-hidden="true"></i>Anrufe heute</div>
+                <span id="dash-today-calls-count" class="vx-jetzt-link">0</span>
+              </div>
+              <div id="dash-today-calls-list" class="vx-jetzt-list"></div>
+            </div>
+
+            <!-- HEUTE: Heute erledigt — Zielbereich für KPI, nicht historischer Erledigt-Ordner -->
+            <div id="dash-today-done-section" class="vx-jetzt-section" style="display:none;">
+              <div class="vx-jetzt-header">
+                <div class="vx-jetzt-title"><i class="ph-bold ph-check-circle" aria-hidden="true"></i>Heute erledigt</div>
+                <span id="dash-today-done-count" class="vx-jetzt-link">0</span>
+              </div>
+              <div id="dash-today-done-list" class="vx-jetzt-list"></div>
+            </div>
+
+            <!-- Sparkline -->
+            <div class="dash-glass" id="dash-sparkline-section" style="display:none;padding:12px 14px;">
+              <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.08em;margin-bottom:6px;background:#0D1F3C;margin:-12px -14px 12px;padding:8px 14px;text-transform:uppercase;">Anrufvolumen diese Woche</div>
+              <div id="dash-sparkline" style="display:flex;align-items:flex-end;gap:4px;height:40px;margin-top:16px;"></div>
+              <div id="dash-sparkline-labels" style="display:flex;gap:4px;margin-top:3px;"></div>
+            </div>
+
+            <!-- Hidden compat IDs for old callback/recent list code -->
+            <div style="display:none;">
+              <div id="dash-callback-list"></div>
+              <div id="dash-recent-list"></div>
+              <div id="dash-sparkline-block"></div>
+            </div>
+
+            <!-- HIDDEN: keep existing focus card IDs for backward compat -->
+            <div style="display:none;">
+              <div id="dash-status-hero"><div id="dash-status-title"></div><div id="dash-status-text"></div><span id="dash-status-chip-primary"></span><span id="dash-status-chip-secondary"></span></div>
+              <div id="dash-focus-card"><div id="dash-focus-label"></div><div id="dash-focus-datetime"></div><div id="dash-focus-number"></div><div id="dash-focus-hint"></div><div id="dash-focus-text"></div><div id="dash-focus-next"></div><div id="dash-focus-status"></div></div>
+            </div>
+
+          </div>
+        </div>
+
+        
