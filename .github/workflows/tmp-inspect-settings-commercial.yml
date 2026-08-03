@@ -1,9 +1,7 @@
 name: Temporary Settings Commercial Inspection
 
 on:
-  push:
-    branches:
-      - codex/customer-settings-commercial-flows
+  pull_request:
     paths:
       - '.github/workflows/tmp-inspect-settings-commercial.yml'
       - 'scripts/tmp-settings-commercial-trigger.txt'
@@ -22,11 +20,9 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           index = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
           lines = index.splitlines()
-
           terms = [
             'Benachrichtigungen', 'Profil', 'Add-ons', 'Plan upgraden',
             'Zusatzminuten', 'Vertrag kündigen', 'Kündigung',
@@ -35,18 +31,17 @@ jobs:
           ]
 
           print('=== INDEX MATCHES ===')
-          seen = set()
+          emitted = 0
           for i, line in enumerate(lines):
               if any(term.lower() in line.lower() for term in terms):
-                  start = max(0, i - 8)
-                  end = min(len(lines), i + 18)
-                  key = (start, end)
-                  if key in seen:
-                      continue
-                  seen.add(key)
+                  start = max(0, i - 7)
+                  end = min(len(lines), i + 16)
                   print(f'--- lines {start+1}-{end} ---')
                   for j in range(start, end):
                       print(f'{j+1}: {lines[j]}')
+                  emitted += 1
+                  if emitted >= 80:
+                      break
 
           print('=== RELATED CUSTOMER FILES ===')
           for path in sorted(Path('customer-dashboard').rglob('*')):
