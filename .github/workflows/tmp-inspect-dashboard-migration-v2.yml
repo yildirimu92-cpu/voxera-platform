@@ -6,24 +6,30 @@ on:
       - '.github/workflows/tmp-inspect-dashboard-migration-v2.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Inspect dashboard-local boundaries
+      - name: Extract exact dashboard-owned sources
         run: |
           python - <<'PY'
           from pathlib import Path
           import hashlib
           import re
 
-          source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          source_path = Path('customer-dashboard/index.html')
+          source = source_path.read_text(encoding='utf-8')
+          out = Path('tmp/dashboard-migration-v2')
+          out.mkdir(parents=True, exist_ok=True)
 
           def line_no(offset):
               return source.count('\n', 0, offset) + 1
@@ -81,17 +87,18 @@ jobs:
           dash_start = source.index('<div class="tab-page active" id="tab-dashboard">')
           dash_end = source.index('<!-- ANFRAGEN TAB -->', dash_start)
           dashboard = source[dash_start:dash_end]
+          (out / 'host.txt').write_text(
+              f'LINES {line_no(dash_start)}-{line_no(dash_end)}\n\n' + dashboard,
+              encoding='utf-8'
+          )
 
-          print('===== DASHBOARD HOST =====')
-          print(f'start_line={line_no(dash_start)} end_line={line_no(dash_end)} chars={len(dashboard)}')
-          for rel_no, line in enumerate(dashboard.splitlines(), line_no(dash_start)):
-              compact = line.strip()
-              if compact and any(token in compact for token in ('id=', 'class=', 'style=', '<button', '<h1', '<h2', '<h3')):
-                  print(f'{rel_no}: {compact[:700]}')
-
-          print('\n===== DASHBOARD FUNCTIONS =====')
           function_pattern = re.compile(r'(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{')
-          terms = ('dash-priority', 'dash-activity', 'dash-kpi', 'dash-greeting', 'vx-activity', 'vx-group', 'vx-jetzt', 'renderDashboard')
+          terms = (
+              'dash-priority', 'dash-activity', 'dash-kpi', 'dash-greeting',
+              'vx-activity', 'vx-group', 'vx-jetzt', 'renderDashboard'
+          )
+          function_parts = []
+          seen = set()
           for match in function_pattern.finditer(source):
               brace = source.index('{', match.start())
               try:
@@ -101,30 +108,42 @@ jobs:
               body = source[match.start():end]
               if not any(term in body for term in terms):
                   continue
-              print(f'FUNCTION {match.group(1)} lines={line_no(match.start())}-{line_no(end)} chars={len(body)}')
-              for rel_no, line in enumerate(body.splitlines(), line_no(match.start())):
-                  compact = line.strip()
-                  if compact and any(token in compact for token in ('innerHTML', 'insertAdjacentHTML', 'class=', 'style=', 'dash-', 'vx-')):
-                      print(f'  {rel_no}: {compact[:850]}')
+              key = (match.group(1), match.start())
+              if key in seen:
+                  continue
+              seen.add(key)
+              function_parts.append(
+                  f'===== {match.group(1)} | LINES {line_no(match.start())}-{line_no(end)} =====\n{body}\n'
+              )
+          (out / 'functions.txt').write_text('\n'.join(function_parts), encoding='utf-8')
 
-          print('\n===== DASHBOARD SELECTOR INDEX =====')
           style_pattern = re.compile(r'<style\b[^>]*>(.*?)</style>', re.S | re.I)
-          selector_terms = ('#tab-dashboard', '#dash-', '.dash-', '.vx-greeting-', '.vx-kpi-', '.vx-jetzt-', '.vx-activity-', '.vx-group-', '.dpr-command-center', '.fse-')
+          selector_terms = (
+              '#tab-dashboard', '#dash-', '.dash-', '.vx-greeting-', '.vx-kpi-',
+              '.vx-jetzt-', '.vx-activity-', '.vx-group-', '.dpr-command-center', '.fse-'
+          )
           rule_pattern = re.compile(r'([^{}]+)\{([^{}]*)\}', re.S)
-          selectors = []
+          css_parts = []
+          selector_count = 0
+          mixed_count = 0
           for style_index, style in enumerate(style_pattern.finditer(source), 1):
               css = style.group(1)
               for rule in rule_pattern.finditer(css):
-                  selector = ' '.join(rule.group(1).split())
-                  if any(term in selector for term in selector_terms):
-                      absolute = style.start(1) + rule.start()
-                      mixed = any(token in selector.lower() for token in ('login', 'loading', 'sidebar', 'mobile-nav', 'bottom-nav', 'tour', 'modal'))
-                      selectors.append((line_no(absolute), style_index, mixed, selector))
-          print(f'total={len(selectors)}')
-          for number, style_index, mixed, selector in selectors:
-              print(f'line={number} style={style_index} mixed_shared={str(mixed).lower()} selector={selector[:1200]}')
+                  selector = rule.group(1).strip()
+                  if not any(term in selector for term in selector_terms):
+                      continue
+                  selector_count += 1
+                  absolute = style.start(1) + rule.start()
+                  mixed = any(token in selector.lower() for token in (
+                      'login', 'loading', 'splash', 'sidebar', 'side-nav',
+                      'mobile-nav', 'bottom-nav', 'mobile-bottom', 'tour', 'modal'
+                  ))
+                  mixed_count += int(mixed)
+                  css_parts.append(
+                      f'===== RULE {selector_count} | STYLE {style_index} | LINE {line_no(absolute)} | MIXED_SHARED={str(mixed).lower()} =====\n'
+                      + selector + ' {' + rule.group(2) + '}\n'
+                  )
 
-          print('\n===== SHARED SURFACE FINGERPRINTS =====')
           shared_terms = {
               'login': ('login', 'auth-card', 'login-card'),
               'loading': ('loading', 'splash', 'boot'),
@@ -132,6 +151,7 @@ jobs:
               'mobile_navigation': ('mobile-nav', 'bottom-nav', 'mobile-bottom'),
               'tour': ('tour', 'onboarding-modal', 'tour-modal'),
           }
+          fingerprints = []
           for name, needles in shared_terms.items():
               relevant = []
               for style in style_pattern.finditer(source):
@@ -141,9 +161,32 @@ jobs:
                       if any(needle in selector.lower() for needle in needles):
                           relevant.append(selector + '{' + rule.group(2) + '}')
               payload = '\n'.join(relevant)
-              print(f'{name}: rules={len(relevant)} sha256={hashlib.sha256(payload.encode()).hexdigest()}')
+              fingerprints.append(
+                  f'{name}: rules={len(relevant)} sha256={hashlib.sha256(payload.encode()).hexdigest()}'
+              )
 
-          print('\n===== DASHBOARD HOST INLINE STYLES =====')
-          for match in re.finditer(r'style="[^"]*"', dashboard):
-              print(f'line={line_no(dash_start + match.start())} value={match.group(0)}')
+          header = (
+              f'DASHBOARD_SELECTOR_RULES={selector_count}\n'
+              f'MIXED_SHARED_RULES={mixed_count}\n'
+              + '\n'.join(fingerprints)
+              + '\n\n'
+          )
+          (out / 'css.txt').write_text(header + '\n'.join(css_parts), encoding='utf-8')
+
+          inline = [
+              f'line={line_no(dash_start + match.start())} {match.group(0)}'
+              for match in re.finditer(r'style="[^"]*"', dashboard)
+          ]
+          (out / 'inline-styles.txt').write_text('\n'.join(inline) + '\n', encoding='utf-8')
           PY
+      - name: Commit inspection reports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/dashboard-migration-v2
+          if git diff --cached --quiet; then
+            echo "Reports unchanged."
+            exit 0
+          fi
+          git commit -m "chore: capture dashboard migration boundaries"
+          git push origin HEAD:${{ github.head_ref }}
