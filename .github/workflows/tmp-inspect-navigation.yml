@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - codex/customer-navigation-five-root
+  pull_request:
+    paths:
+      - 'customer-dashboard/**'
+      - '.github/workflows/tmp-inspect-navigation.yml'
 
 jobs:
   inspect:
