@@ -23,6 +23,43 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Scope card selector migration to exact handlers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/tmp_migrate_dashboard_to_assistant_v2.py')
+          source = path.read_text(encoding='utf-8')
+          old = '''source = replace_once(source, old_active_row, new_active_row, 'active row selector')
+          source = replace_once(source, "rowEl.closest('.dpr-card')", "rowEl.closest('.dpr-card, .vx-ops-item')", 'click card lookup')
+          source = replace_once(source, "rowEl.closest('.dpr-card')", "rowEl.closest('.dpr-card, .vx-ops-item')", 'touch card lookup')
+          '''
+          new = '''source = replace_once(source, old_active_row, new_active_row, 'active row selector')
+
+          old_toggle_click = read_report_body(REPORT_ROOT / 'functions' / 'dprToggleClick-1.txt')
+          new_toggle_click = old_toggle_click.replace(
+              "rowEl.closest('.dpr-card')",
+              "rowEl.closest('.dpr-card, .vx-ops-item')",
+              1,
+          )
+          if new_toggle_click == old_toggle_click:
+              raise AssertionError('click card lookup was not updated')
+          source = replace_once(source, old_toggle_click, new_toggle_click, 'click card lookup')
+
+          old_touch_end = read_report_body(REPORT_ROOT / 'functions' / 'dprToggleTouchEnd-1.txt')
+          new_touch_end = old_touch_end.replace(
+              "rowEl.closest('.dpr-card')",
+              "rowEl.closest('.dpr-card, .vx-ops-item')",
+              1,
+          )
+          if new_touch_end == old_touch_end:
+              raise AssertionError('touch card lookup was not updated')
+          source = replace_once(source, old_touch_end, new_touch_end, 'touch card lookup')
+          '''
+          if source.count(old) != 1:
+              raise SystemExit('expected migration helper block not found exactly once')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Apply guarded dashboard-local migration
         run: python scripts/tmp_migrate_dashboard_to_assistant_v2.py
       - name: Verify migration scope and foundations
