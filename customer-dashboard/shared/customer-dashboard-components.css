@@ -1,0 +1,398 @@
+/* Canonical customer dashboard presentation.
+   Data, routing and interaction handlers remain owned by customer-dashboard/index.html. */
+
+body.vx-customer-design-foundation #tab-dashboard[data-customer-surface="dashboard"] {
+  --vx-dashboard-gap: 16px;
+  --vx-dashboard-card-padding: 20px;
+  display: grid;
+  gap: var(--vx-dashboard-gap);
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-page,
+body.vx-customer-design-foundation #tab-dashboard .dash-top {
+  display: grid;
+  gap: var(--vx-dashboard-gap);
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 88% 14%, rgba(93, 150, 255, 0.34), transparent 34%),
+    linear-gradient(135deg, #102548 0%, #183a70 58%, #245aa7 100%);
+  box-shadow: 0 18px 42px rgba(15, 35, 71, 0.16);
+  color: #ffffff;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-hero::after {
+  position: absolute;
+  z-index: -1;
+  right: -68px;
+  bottom: -92px;
+  width: 230px;
+  height: 230px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  content: "";
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-label {
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-title {
+  max-width: 760px;
+  color: #ffffff;
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 780;
+  line-height: 1.14;
+  letter-spacing: -0.035em;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-sub {
+  max-width: 720px;
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 15px;
+  line-height: 1.58;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-chip.ok {
+  border-color: rgba(117, 226, 168, 0.34);
+  background: rgba(22, 163, 74, 0.2);
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-status-chip.alert {
+  border-color: rgba(255, 205, 112, 0.4);
+  background: rgba(217, 119, 6, 0.22);
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-kpi {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 132px;
+  padding: 18px;
+  border: 1px solid var(--vx-line);
+  border-radius: 18px;
+  background: var(--vx-surface);
+  box-shadow: var(--vx-shadow-card);
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-kpi:hover {
+  border-color: rgba(52, 120, 237, 0.35);
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.08);
+  transform: translateY(-2px);
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-kpi-label {
+  color: var(--vx-muted);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.025em;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-kpi-val {
+  margin-top: 12px;
+  color: var(--vx-ink);
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 790;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+body.vx-customer-design-foundation #tab-dashboard :where(.dash-kpi-trend, .dash-kpi-leads) {
+  min-height: 18px;
+  margin-top: 10px;
+  color: var(--vx-subtle);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-focus-card {
+  display: grid;
+  gap: 12px;
+  padding: 20px 22px;
+  border: 1px solid rgba(52, 120, 237, 0.2);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(52, 120, 237, 0.08), rgba(52, 120, 237, 0.025));
+  box-shadow: var(--vx-shadow-card);
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-focus-label {
+  color: var(--vx-brand);
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-focus-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-focus-number {
+  color: var(--vx-brand-dark);
+  font-size: 32px;
+  font-weight: 790;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--vx-dashboard-gap);
+  align-items: start;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dash-col {
+  display: grid;
+  gap: var(--vx-dashboard-gap);
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation #tab-dashboard :where(
+  .dash-glass,
+  .vx-jetzt-section
+) {
+  min-width: 0;
+  padding: var(--vx-dashboard-card-padding);
+  border: 1px solid var(--vx-line);
+  border-radius: var(--vx-radius-card);
+  background: var(--vx-surface);
+  box-shadow: var(--vx-shadow-card);
+}
+
+body.vx-customer-design-foundation #tab-dashboard :where(
+  .dash-glass-hd,
+  .vx-jetzt-header,
+  .vx-group-head
+) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+body.vx-customer-design-foundation #tab-dashboard :where(
+  .dash-glass-title,
+  .vx-jetzt-title
+) {
+  min-width: 0;
+  color: var(--vx-ink);
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .vx-jetzt-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .vx-jetzt-title > span {
+  color: var(--vx-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+body.vx-customer-design-foundation #tab-dashboard :where(
+  .dash-glass-link,
+  .vx-jetzt-link
+) {
+  flex: 0 0 auto;
+  color: var(--vx-brand);
+  font-size: 12px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+body.vx-customer-design-foundation #tab-dashboard :where(
+  .dash-glass-link,
+  .vx-jetzt-link
+):hover {
+  color: var(--vx-brand-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body.vx-customer-design-foundation #tab-dashboard :where(
+  .vx-jetzt-list,
+  .call-list,
+  #dash-callback-list
+) {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .dpr-group + .dpr-group {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--vx-line);
+}
+
+body.vx-customer-design-foundation #tab-dashboard .vx-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--vx-muted);
+  font-size: 12px;
+  font-weight: 730;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .vx-group-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--vx-canvas);
+  color: var(--vx-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+body.vx-customer-design-foundation #tab-dashboard .vx-activity-note {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vx-line);
+  color: var(--vx-subtle);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body.vx-customer-design-foundation #tab-dashboard [data-customer-action="dashboard"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 980px) {
+  body.vx-customer-design-foundation #tab-dashboard .dash-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation #tab-dashboard[data-customer-surface="dashboard"] {
+    --vx-dashboard-gap: 12px;
+    --vx-dashboard-card-padding: 16px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-status-hero {
+    padding: 22px 18px;
+    border-radius: 20px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-status-title {
+    font-size: 26px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-status-sub {
+    font-size: 14px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-kpi {
+    min-height: 116px;
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-kpi-val {
+    font-size: 31px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-focus-card {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard :where(
+    .dash-glass,
+    .vx-jetzt-section
+  ) {
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 390px) {
+  body.vx-customer-design-foundation #tab-dashboard .dash-kpi-row {
+    gap: 10px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-kpi {
+    min-height: 110px;
+    padding: 14px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-kpi-label {
+    font-size: 11px;
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard .dash-kpi-val {
+    font-size: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.vx-customer-design-foundation #tab-dashboard .dash-kpi {
+    transition: none;
+  }
+}
