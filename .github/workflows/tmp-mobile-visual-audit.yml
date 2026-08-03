@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Inspect exact mobile UI owners
+      - name: Inspect focused mobile UI owners
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -25,24 +25,26 @@ jobs:
           source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
           lines = source.splitlines()
 
-          def show(label, needles, radius=12, max_hits=8):
+          def show_hits(label, needles, radius=8, max_hits=12):
               print(f'\n===== {label} =====')
-              hits = []
-              for idx, line in enumerate(lines):
-                  if any(needle in line for needle in needles):
-                      hits.append(idx)
+              hits = [i for i, line in enumerate(lines) if any(needle in line for needle in needles)]
               print('hits:', [i + 1 for i in hits[:max_hits]], 'total=', len(hits))
               for idx in hits[:max_hits]:
                   start = max(0, idx - radius)
                   end = min(len(lines), idx + radius + 1)
-                  print(f'--- lines {start + 1}-{end} around {idx + 1} ---')
+                  print(f'--- {start + 1}-{end} ---')
                   for pos in range(start, end):
                       print(f'{pos + 1:05d}: {lines[pos]}')
 
-          show('ARCHIVE MARKUP', ['Noch keine archivierten Einträge', 'Diese Woche', 'Dieser Monat', 'Archiv'], radius=18, max_hits=12)
-          show('ARCHIVE CSS', ['archive-filter', 'archiv-filter', 'archive-tabs', 'archiv-tabs', 'retention', 'archive-empty', 'archiv-empty'], radius=12, max_hits=20)
-          show('MOBILE NAV MARKUP', ['mobile-nav', 'bottom-nav', 'mob-nav', 'mnav'], radius=10, max_hits=30)
-          show('TAB SWITCHING', ['function showTab', "classList.add('active')", "classList.toggle('active')", 'data-tab'], radius=18, max_hits=30)
-          show('DASHBOARD MOBILE', ['dash-greeting-block', 'dash-datetime-label', 'dash-reach-warning', 'dash-recent-more', 'Alle offenen Punkte anzeigen'], radius=14, max_hits=20)
-          show('ASSISTANT COMPONENT CSS', ['.vx-page-header', '.vx-ap-head', '.vx-ap-btn', '.vx-ap-actions', '.vx-ops-status'], radius=10, max_hits=30)
+          def show_range(label, start, end):
+              print(f'\n===== {label} {start}-{end} =====')
+              for pos in range(start - 1, min(end, len(lines))):
+                  print(f'{pos + 1:05d}: {lines[pos]}')
+
+          show_hits('BOTTOM NAV HTML', ['id="mnav-'], radius=5, max_hits=20)
+          show_hits('BOTTOM NAV ACTIVE CSS', ['.mobile-nav-btn.active', '.mobile-nav-icon-wrap::before', '.mobile-nav-btn:focus', '.mobile-nav-btn:active'], radius=5, max_hits=30)
+          show_hits('ARCHIVE SPLIT CSS', ['.vx-split{', '.vx-split-left{', '.vx-split-filters{', '#archiv-split', '#archiv-split-left'], radius=7, max_hits=30)
+          show_hits('HIDDEN AND DASH COMPONENT CSS', ['[hidden]', '.vx-ops-status', '.vx-ap-actions', '.vx-ap-btn{'], radius=5, max_hits=35)
+          show_range('DASHBOARD DATE RENDER', 21950, 21995)
+          show_range('SHOW TAB', 27290, 27310)
           PY
