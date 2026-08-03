@@ -1,0 +1,60 @@
+name: Inspect Customer Feedback Owners
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/**'
+      - '.github/workflows/tmp-inspect-customer-feedback.yml'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect exact UI and runtime owners
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          roots = [Path('customer-dashboard/index.html')]
+          roots += sorted(Path('customer-dashboard/shared').glob('*.js'))
+          roots += sorted(Path('customer-dashboard/shared').glob('*.css'))
+
+          needles = [
+              'Aufmerksamkeit',
+              'Heute passiert',
+              'vx-requests-open-archive',
+              'tab-archiv',
+              "showTab('archiv'",
+              'Heute</button>',
+              'Woche</button>',
+              'Monat</button>',
+              'Gesamt</button>',
+              'Kalenderintegration',
+              'mehr-sub-calendar',
+              'mehr-sub-kalender',
+              "vxMehrShow('kalender'",
+              "vxMehrShow('calendar'",
+              'restoreSettingsRoot',
+              'openCalendar',
+              'calendar-settings'
+          ]
+
+          for needle in needles:
+              hits = []
+              for path in roots:
+                  try:
+                      lines = path.read_text(encoding='utf-8').splitlines()
+                  except Exception:
+                      continue
+                  for index, line in enumerate(lines):
+                      if needle in line:
+                          hits.append((path, lines, index))
+              print(f'\n===== {needle}: {len(hits)} hit(s) =====')
+              for path, lines, index in hits[:12]:
+                  print(f'--- {path}:{index + 1} ---')
+                  start = max(0, index - 8)
+                  end = min(len(lines), index + 13)
+                  for number in range(start, end):
+                      print(f'{number + 1}: {lines[number]}')
+          PY
