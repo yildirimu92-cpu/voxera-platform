@@ -84,7 +84,7 @@ for (const token of [
   'vxCalendarOpen',
   "entry.addEventListener('click', open)",
   'data-cal-back',
-  'vx-cal-entry',
+  'vx-settings-entry vx-settings-entry--calendar',
   'vx-cal-rules-card',
   'vx-cal-checkbox',
   "page.removeAttribute('style')",
@@ -93,7 +93,7 @@ for (const token of [
   if (!source.runtime.includes(token)) failures.push('Calendar UI missing: ' + token);
 }
 for (const token of [
-  '.vx-cal-entry',
+  '.vx-settings-entry',
   '.vx-cal-page-header',
   '.vx-cal-grid',
   '.vx-cal-card',
@@ -119,8 +119,8 @@ for (const forbidden of [
   if (source.runtime.includes(forbidden)) failures.push('Calendar runtime still owns presentation: ' + forbidden);
 }
 if ((source.css.match(/!important/g) || []).length) failures.push('Calendar component CSS must not use !important');
-if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js?v=20260803-1')) failures.push('Calendar runtime cache version missing');
-if (!source.designLoader.includes('/shared/customer-settings-components.css?v=20260803-1')) failures.push('Calendar component stylesheet loader missing');
+if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js?v=20260803-2')) failures.push('Calendar runtime cache version missing');
+if (!source.designLoader.includes('/shared/customer-settings-components.css?v=20260803-2')) failures.push('Calendar component stylesheet loader missing');
 
 for (const key of ['connections','callback','tool']) {
   if (/console\.(log|warn|error)\([^\n]*(access_token|refresh_token|client_secret)/i.test(source[key])) {
