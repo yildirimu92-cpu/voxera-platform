@@ -1,0 +1,69 @@
+name: Temporary Settings Commercial Inspection
+
+on:
+  push:
+    branches:
+      - codex/customer-settings-commercial-flows
+    paths:
+      - '.github/workflows/tmp-inspect-settings-commercial.yml'
+      - 'scripts/tmp-settings-commercial-trigger.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/customer-settings-commercial-flows
+      - name: Inspect customer settings and commercial flows
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          index = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          lines = index.splitlines()
+
+          terms = [
+            'Benachrichtigungen', 'Profil', 'Add-ons', 'Plan upgraden',
+            'Zusatzminuten', 'Vertrag kündigen', 'Kündigung',
+            'customer-manage-addon', 'customer-cancel-contract',
+            'reactivate', 'termination_reason', 'upgrade'
+          ]
+
+          print('=== INDEX MATCHES ===')
+          seen = set()
+          for i, line in enumerate(lines):
+              if any(term.lower() in line.lower() for term in terms):
+                  start = max(0, i - 8)
+                  end = min(len(lines), i + 18)
+                  key = (start, end)
+                  if key in seen:
+                      continue
+                  seen.add(key)
+                  print(f'--- lines {start+1}-{end} ---')
+                  for j in range(start, end):
+                      print(f'{j+1}: {lines[j]}')
+
+          print('=== RELATED CUSTOMER FILES ===')
+          for path in sorted(Path('customer-dashboard').rglob('*')):
+              if not path.is_file() or path.suffix not in {'.js', '.css', '.html'}:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except Exception:
+                  continue
+              hits = [term for term in terms if term.lower() in text.lower()]
+              if hits:
+                  print(f'{path}: {", ".join(hits)}')
+
+          print('=== CUSTOMER FUNCTION FILES ===')
+          for name in ['customer-manage-addon.js', 'customer-cancel-contract.js']:
+              path = Path('customer-dashboard/netlify/functions') / name
+              if path.exists():
+                  print(f'--- {path} ---')
+                  print(path.read_text(encoding='utf-8'))
+          PY
