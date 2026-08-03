@@ -10,7 +10,7 @@
     '/shared/customer-assistant-components.css?v=20260803-1',
     '/shared/customer-assistant-status.css?v=20260803-1',
     '/shared/customer-navigation-components.css?v=20260803-1',
-    '/shared/customer-settings-components.css?v=20260803-1',
+    '/shared/customer-settings-components.css?v=20260803-2',
     '/shared/customer-support-components.css?v=20260802-2'
   ];
 
