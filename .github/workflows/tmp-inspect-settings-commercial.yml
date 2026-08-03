@@ -31,16 +31,17 @@ jobs:
 
           index_path = Path('customer-dashboard/index.html')
           index = index_path.read_text(encoding='utf-8')
-          old = 'class="vx-commercial-entry-list"'
-          new = 'class="vx-abo-addon-grid vx-commercial-entry-list"'
-          if old in index:
-            index = index.replace(old, new, 1)
-            index_path.write_text(index, encoding='utf-8')
-          elif new not in index:
-            raise SystemExit('commercial settings grid owner missing')
+          for old in ['class="vx-commercial-entry-list"', 'class="vx-abo-addon-grid vx-commercial-entry-list"']:
+            if old in index:
+              index = index.replace(old, 'class="vx-abo-addon-grid"', 1)
+              break
+          if 'class="vx-abo-addon-grid"' not in index:
+            raise SystemExit('canonical commercial settings grid owner missing')
+          index_path.write_text(index, encoding='utf-8')
 
           css_path = Path('customer-dashboard/shared/customer-settings-components.css')
           css = css_path.read_text(encoding='utf-8')
+          css = css.replace('.vx-commercial-entry-list', '.vx-abo-addon-grid')
           marker = '/* Consolidated customer settings forms and commercial flows. */'
           pos = css.find(marker)
           if pos < 0:
@@ -72,7 +73,7 @@ jobs:
 
           required = [
             'class="vx-settings-choice-list"',
-            'vx-abo-addon-grid vx-commercial-entry-list',
+            'class="vx-abo-addon-grid"',
             'id="vx-commercial-overlay"',
             "fetch('/.netlify/functions/customer-commercial-request'",
             'Consolidated customer settings forms and commercial flows.',
