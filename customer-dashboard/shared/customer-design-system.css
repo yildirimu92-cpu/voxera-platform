@@ -283,6 +283,53 @@ body.vx-customer-design-foundation :where(
   line-height: 1.2;
 }
 
+/* Native hidden state must win over component display declarations. */
+body.vx-customer-design-foundation [hidden] {
+  display: none !important;
+}
+
+/* The dashboard keeps one clear action hierarchy. */
+body.vx-customer-design-foundation
+  #dash-priority-section
+  > .vx-ap-head
+  > .vx-ap-btn[onclick*="vxDashShowAllImportant"] {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  body.vx-customer-design-foundation #tab-archiv .vx-split {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.vx-customer-design-foundation #archiv-split-left,
+  body.vx-customer-design-foundation #tab-archiv .vx-split #archiv-split-left {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    align-self: stretch !important;
+    border-right: 0 !important;
+  }
+
+  body.vx-customer-design-foundation #tab-archiv .vx-split-filters {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    overflow: visible !important;
+  }
+
+  body.vx-customer-design-foundation #tab-archiv .vx-split-filters .vx-chip {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding-right: 8px !important;
+    padding-left: 8px !important;
+    text-align: center !important;
+  }
+}
+
 @media (max-width: 720px) {
   :root {
     --vx-control-min-height: 48px;
@@ -322,6 +369,22 @@ body.vx-customer-design-foundation :where(
 
   body.vx-customer-design-foundation .vx-page-header-title {
     font-size: 24px;
+  }
+
+  body.vx-customer-design-foundation #dash-greeting-block > .vx-ap-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  body.vx-customer-design-foundation
+    #dash-greeting-block
+    > .vx-ap-head
+    > .vx-page-header-subtitle {
+    margin-top: 0;
+    font-size: 12px;
+    text-align: left;
+    white-space: nowrap;
   }
 
   body.vx-customer-design-foundation .vx-ap-card {
