@@ -3,53 +3,91 @@ name: Verify Customer Design Foundation
 on:
   pull_request:
     paths:
-      - 'scripts/tmp_replace_dashboard_legacy.py'
+      - 'customer-dashboard/**/*.css'
+      - 'customer-dashboard/**/*.html'
+      - 'customer-dashboard/shared/**/*.js'
+      - 'scripts/verify-customer-design-foundation.mjs'
+      - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
-
-permissions:
-  contents: write
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/**/*.css'
+      - 'customer-dashboard/**/*.html'
+      - 'customer-dashboard/shared/**/*.js'
+      - 'scripts/verify-customer-design-foundation.mjs'
+      - 'scripts/audit-customer-design-ownership.mjs'
+      - '.github/workflows/verify-customer-design-foundation.yml'
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Replace dashboard legacy presentation
+      - run: node scripts/verify-customer-design-foundation.mjs
+      - name: Verify dashboard uses assistant components
         run: |
-          python - <<'PY'
-          from pathlib import Path
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const source = fs.readFileSync('customer-dashboard/index.html', 'utf8');
+          const styles = Array.from(source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi), (match) => match[1])
+            .join('\n')
+            .replace(/\/\*[\s\S]*?\*\//g, '');
 
-          path = Path('scripts/tmp_replace_dashboard_legacy.py')
-          source = path.read_text(encoding='utf-8')
-          old = "style_text = '\\n'.join(re.findall(r'<style\\b[^>]*>(.*?)</style>', source, flags=re.S | re.I))"
-          new = "style_text = re.sub(r'/\\*.*?\\*/', '', '\\n'.join(re.findall(r'<style\\b[^>]*>(.*?)</style>', source, flags=re.S | re.I)), flags=re.S)"
-          if old not in source:
-              raise SystemExit('style-text safety anchor not found')
-          path.write_text(source.replace(old, new, 1), encoding='utf-8')
-          PY
-          python scripts/tmp_replace_dashboard_legacy.py
-      - name: Verify migrated dashboard
-        run: |
-          node scripts/verify-customer-design-foundation.mjs
-          node scripts/audit-customer-design-ownership.mjs >/tmp/design-ownership.txt
-          grep -q 'id="dash-greeting-block" class="vx-page-header"' customer-dashboard/index.html
-          grep -q 'id="dash-kpi-strip" class="vx-ap-grid"' customer-dashboard/index.html
-          grep -q 'id="dash-priority-section" class="vx-ops-card"' customer-dashboard/index.html
-          grep -q 'id="dash-activity-section" class="vx-ops-card"' customer-dashboard/index.html
-      - name: Commit migrated dashboard
-        run: |
-          if git diff --quiet -- customer-dashboard/index.html; then
-            echo "No migration diff to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add customer-dashboard/index.html
-          git commit -m "refactor(customer): replace dashboard legacy with assistant design"
-          git push origin HEAD:${{ github.head_ref }}
+          for (const token of [
+            'id="dash-greeting-block" class="vx-page-header"',
+            'id="dash-kpi-strip" class="vx-ap-grid"',
+            'id="dash-priority-section" class="vx-ops-card"',
+            'id="dash-priority-list" class="vx-ops-list"',
+            'id="dash-activity-section" class="vx-ops-card"',
+            'id="dash-activity-list" class="vx-ops-list"',
+            'class="dpr-card vx-ops-item"',
+            'class="vx-ops-actions"',
+            'class="vx-ap-empty"'
+          ]) {
+            assert.ok(source.includes(token), `dashboard missing assistant component: ${token}`);
+          }
+
+          for (const token of [
+            '.vx-greeting-', '.vx-kpi-', '.vx-jetzt-', '.vx-work-section',
+            '.vx-activity-', '.vx-group-', '.dpr-command-center',
+            '#dash-priority-list', '#dash-greeting', '#dash-kpi', '#kpi-cell-',
+            '#kpi-callbacks', '#kpi-today', '#kpi-done', '#kpi-reach',
+            '.dash-top', '.dash-status-', '.dash-focus-', '.dash-kpi',
+            '.dash-cb-', '.dash-glass', '.dash-side-', '.dash-empty',
+            '.dash-activation-', '.fse-'
+          ]) {
+            assert.ok(!styles.includes(token), `legacy dashboard selector returned: ${token}`);
+          }
+
+          for (const id of [
+            'dash-status-hero', 'dash-focus-card', 'dash-priority-list',
+            'dash-activity-list', 'kpi-callbacks-new', 'kpi-today-new',
+            'kpi-done-new', 'kpi-reach-val'
+          ]) {
+            const count = (source.match(new RegExp(`id=["']${id}["']`, 'g')) || []).length;
+            assert.equal(count, 1, `compatibility id count changed: ${id}`);
+          }
+
+          function functionSlice(startToken, endToken) {
+            const start = source.indexOf(startToken);
+            const end = source.indexOf(endToken, start + startToken.length);
+            assert.ok(start >= 0 && end > start, `renderer boundary missing: ${startToken}`);
+            return source.slice(start, end);
+          }
+
+          const priority = functionSlice('function renderDashPriorityList() {', '\nfunction vxOpenFloatingRowMenu(');
+          const activity = functionSlice('function vxHeuteRenderActivityList(records) {', '// ═══════════════════════════════════════════\n//  RENDER DASHBOARD');
+          assert.ok(!priority.includes('style="'), 'priority renderer still owns inline presentation');
+          assert.ok(!activity.includes('style="'), 'activity renderer still owns inline presentation');
+          assert.ok(priority.includes('vx-ops-item'), 'priority renderer does not use assistant item component');
+          assert.ok(activity.includes('vx-ops-item'), 'activity renderer does not use assistant item component');
+
+          console.log('Dashboard legacy removal and assistant component reuse verified.');
+          NODE
+      - name: Inventory design ownership
+        run: node scripts/audit-customer-design-ownership.mjs
