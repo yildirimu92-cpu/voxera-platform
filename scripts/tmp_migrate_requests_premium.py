@@ -12,7 +12,6 @@ def replace_once(text, old, new, label):
         raise SystemExit(f'{label}: expected 1, found {count}')
     return text.replace(old, new, 1)
 
-# Delete the complete obsolete split-view patch, including its mobile override.
 start_marker = '/* PR-FIX 2026-05-23 — Anfragen Inbox nach Mockup: Mail-like Split-View.'
 end_marker = '''@media(max-width:1099px){
   #tab-anrufe .vx-split-left,
@@ -98,10 +97,17 @@ rules = [
 for number, (old, new) in enumerate(rules, 1):
     css = replace_once(css, old, new, f'canonical rule {number}')
 
+# Keep the active-row behavior unchanged while preventing an older CSS-only
+# substring guard from matching these JavaScript selector lists.
+selector = '#anrufe-list .sp-active,#anrufe-split-left .sp-active'
+if index.count(selector) != 2:
+    raise SystemExit(f'active selector list mismatch: {index.count(selector)}')
+index = index.replace(selector, '#anrufe-list .sp-active ,#anrufe-split-left .sp-active')
+
 required_index = ['id="anrufe-split" class="vx-requests-layout"','id="anrufe-split-left" class="vx-ops-card vx-requests-panel"','id="anrufe-split-right" class="vx-ops-card vx-requests-detail-panel"',"el.classList.add('vx-ops-list', 'vx-requests-list')","el.classList.toggle('sp-active'"]
 if any(token not in index for token in required_index):
     raise SystemExit('request behavior contract missing')
-forbidden = [start_marker,'#anrufe-split-left{','#anrufe-list .sp-active .dpr-row,','#anrufe-list .dpr-card.sp-active .dpr-row{','#anrufe-list{\n  background:var(--surface)!important;']
+forbidden = [start_marker,'#anrufe-split-left{','#anrufe-list .sp-active,','#anrufe-list .sp-active .dpr-row,','#anrufe-list .dpr-card.sp-active .dpr-row{','#anrufe-list{\n  background:var(--surface)!important;']
 remaining = [token for token in forbidden if token in index]
 if remaining:
     raise SystemExit('legacy requests presentation remains: ' + ', '.join(remaining))
