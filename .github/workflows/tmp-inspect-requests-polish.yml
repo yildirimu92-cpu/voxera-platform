@@ -17,21 +17,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-requests-premium-polish
-      - name: Inspect canonical request markup
+      - name: Inspect legacy request overrides
         run: |
           python - <<'PY'
           from pathlib import Path
           lines=Path('customer-dashboard/index.html').read_text(encoding='utf-8').splitlines()
-          keys=['vx-requests-layout','vx-requests-panel','vx-requests-detail-panel','vx-requests-filters','vx-requests-scroll','vx-requests-list']
+          print('## LEGACY DESIGN PASS')
+          for lo,hi in [(33125,33245)]:
+            hi=min(hi,len(lines))
+            for n in range(lo,hi+1): print(f'{n}: {lines[n-1]}')
+          terms=['#anrufe-list', '#tab-anrufe', '.vxfb-chip--active', '.vx-requests-item', '.vx-requests-panel']
           lowered=[line.lower() for line in lines]
-          shown=set()
-          for key in keys:
-            hits=[i for i,line in enumerate(lowered) if key in line][:6]
-            print(f'\n## {key} hits={len(hits)}')
+          for term in terms:
+            hits=[i for i,line in enumerate(lowered) if term.lower() in line][:20]
+            print(f'\n## {term} hits={len(hits)}')
             for i in hits:
-              lo=max(0,i-12); hi=min(len(lines),i+30)
-              if (lo,hi) in shown: continue
-              shown.add((lo,hi))
+              lo=max(0,i-3); hi=min(len(lines),i+9)
               print(f'-- {lo+1}-{hi} --')
               for n in range(lo,hi): print(f'{n+1}: {lines[n]}')
           PY
