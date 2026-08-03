@@ -1,0 +1,21 @@
+name: Temporary export customer index
+
+on:
+  push:
+    branches:
+      - agent/consolidate-settings-subscription-design
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: customer-dashboard-index
+          path: customer-dashboard/index.html
+          if-no-files-found: error
+          retention-days: 1
