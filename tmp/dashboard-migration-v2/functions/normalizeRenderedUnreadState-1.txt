@@ -1,0 +1,10 @@
+FUNCTION normalizeRenderedUnreadState
+LINES 42292-42297
+TERMS dash-priority
+
+function normalizeRenderedUnreadState(){
+    qsa('#anrufe-list .dpr-card[data-filter-planned="1"], #dash-priority-list .dpr-card[data-rail="planned"]').forEach(function(card){
+      card.setAttribute('data-filter-new','0');
+      qsa('.is-unread', card).forEach(function(row){ row.classList.remove('is-unread'); });
+    });
+  }

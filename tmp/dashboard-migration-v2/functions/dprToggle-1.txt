@@ -1,0 +1,36 @@
+FUNCTION dprToggle
+LINES 11363-11394
+TERMS dash-priority
+
+function dprToggle(rowEl) {
+  var card = rowEl.closest('.dpr-card');
+  if (!card) return;
+  var exp = card.querySelector('.dpr-exp');
+  if (!exp) return;
+  var isOpen = exp.style.display !== 'none';
+
+  // Alle anderen schliessen
+  if (!isOpen) {
+    var container = card.closest('#dash-priority-list, #anrufe-list, .call-list');
+    if (container) {
+      container.querySelectorAll('.dpr-exp').forEach(function(e) {
+        e.style.display = 'none';
+      });
+      container.querySelectorAll('.dpr-row').forEach(function(r) {
+        r.style.background = '';
+        r.style.borderColor = '';
+        var c = r.querySelector('[class="ph-bold ph-caret-right"]');
+        if (c) { c.style.transform = ''; c.style.color = ''; }
+      });
+    }
+  }
+
+  exp.style.display = isOpen ? 'none' : 'block';
+  var chev = rowEl.querySelector('[class="ph-bold ph-caret-right"]');
+  if (chev) {
+    chev.style.transform = isOpen ? '' : 'rotate(90deg)';
+    chev.style.color = isOpen ? 'var(--slate2)' : 'var(--blue)';
+  }
+  rowEl.style.background = isOpen ? '' : '#F7F9FF';
+  rowEl.style.borderColor = isOpen ? '' : 'var(--blue-mid, #B9D4FF)';
+}

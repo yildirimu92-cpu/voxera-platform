@@ -1,0 +1,31 @@
+FUNCTION dprToggleTouchEnd
+LINES 11273-11299
+TERMS dash-priority
+
+function dprToggleTouchEnd(e, rowEl) {
+  if (_dprTouchMoved) return; // War ein Scroll — ignorieren
+  if (window._vxInboxSelectionMode && rowEl && rowEl.closest && rowEl.closest('#anrufe-list, #anrufe-split-left')) return;
+  if (e.target.closest('.dpr-btn, .dpr-quick-btn, .vx-ibtn, button')) return;
+  // [v2.65 FIX] Long-Press hat Context-Menu geöffnet — Card-Aktion unterdrücken
+  if (window._vxLongPressActive) return;
+  _dprLastTouch = Date.now();
+  var _touchedCard = rowEl && rowEl.closest ? rowEl.closest('.dpr-card') : null;
+  var _touchedId = (rowEl && rowEl.dataset && (rowEl.dataset.id || rowEl.dataset.recordId)) || (_touchedCard && _touchedCard.dataset ? _touchedCard.dataset.id : '');
+  if (_touchedId && typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(_touchedId);
+  if (_dprToggleLock) return;
+  _dprToggleLock = true;
+  setTimeout(function(){ _dprToggleLock = false; }, 600);
+  // Als gelesen markieren — Punkt entfernen
+  vxMarkRowAsRead(rowEl);
+  if (dprOpenAnfragenDetailFromRow(rowEl)) {
+    try { e.preventDefault(); } catch(_e) {}
+    return;
+  }
+  // [v3.0] Heute-Tab → immer Detail-Seite (kein Expand)
+  var inHeuteList = rowEl.closest('#dash-priority-list');
+  if (inHeuteList) {
+    var recId = rowEl.dataset.id || rowEl.getAttribute('data-record-id');
+    if (recId && vxOpenPriorityRecord(recId)) { try { e.preventDefault(); } catch(_e) {} return; }
+  }
+  _dprToggleExec(rowEl);
+}

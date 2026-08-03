@@ -1,0 +1,20 @@
+FUNCTION _dprToggleExec
+LINES 11301-11316
+TERMS dash-priority
+
+function _dprToggleExec(rowEl) {
+  var id = rowEl.dataset.id;
+  var container = rowEl.closest('#dash-priority-list, #anrufe-list, .call-list');
+  var containerId = container ? (container.id || 'default') : 'default';
+  var currentOpen = _dprOpenIds[containerId];
+  if (currentOpen === id) {
+    dprCloseAll(container);
+    _dprOpenIds[containerId] = null;
+    _dprOpenId = null;
+  } else {
+    dprCloseAll(container);
+    dprOpen(rowEl);
+    _dprOpenIds[containerId] = id;
+    _dprOpenId = id;
+  }
+}

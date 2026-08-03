@@ -1,0 +1,12 @@
+FUNCTION vxRefreshOperationalViews
+LINES 24576-24583
+TERMS renderDashboard
+
+function vxRefreshOperationalViews(records, manualRecords) {
+  var callRecords = records || allRecords || [];
+  var taskRecords = manualRecords || allManualTaskRecords || [];
+  try { if (typeof renderDashboard === 'function') renderDashboard(callRecords, taskRecords); } catch(e) { console.warn('[Voxera SaveFlow] renderDashboard skipped', e); }
+  try { if (typeof renderAnrufe === 'function') renderAnrufe(); } catch(e) { console.warn('[Voxera SaveFlow] renderAnrufe skipped', e); }
+  try { if (typeof renderRueckrufe === 'function') renderRueckrufe(callRecords, taskRecords); } catch(e) { console.warn('[Voxera SaveFlow] renderRueckrufe skipped', e); }
+  try { if (typeof renderDashPriorityList === 'function') renderDashPriorityList(callRecords, taskRecords); } catch(e) { console.warn('[Voxera SaveFlow] renderDashPriorityList skipped', e); }
+}

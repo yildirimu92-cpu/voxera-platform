@@ -1,0 +1,87 @@
+FUNCTION saveFollowUp
+LINES 21290-21372
+TERMS renderDashboard
+
+function saveFollowUp(callId) {
+  var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
+  if (!sb) { showToast('⚠️ Authentifizierung erforderlich'); return; }
+  const call = (state && state.calls) ? state.calls.find(function(c){ return c.id === callId; }) : null;
+  if (!call) { showToast('⚠️ Anruf nicht gefunden'); return; }
+  const callback = document.getElementById('followup-callback') && document.getElementById('followup-callback').checked;
+  const email = document.getElementById('followup-email') && document.getElementById('followup-email').checked;
+  const task = document.getElementById('followup-task') && document.getElementById('followup-task').checked;
+  const dueDateInput = document.getElementById('followup-date') ? document.getElementById('followup-date').value : '';
+  if (!callback && !email && !task) { showToast('⚠️ Bitte mindestens eine Aktion wählen'); return; }
+  if (!dueDateInput) { showToast('⚠️ Bitte Datum/Uhrzeit wählen'); return; }
+  // Determine task type (callback > email > task)
+  const taskType = callback ? 'callback' : (email ? 'email' : 'task');
+  const taskTitle = callback ? 'Rückruf' : (email ? 'E-Mail senden' : 'Aufgabe');
+  
+  // customer_tasks DB schema: id, customer_id, type, title, note, phone, due_at, status, created_at
+  const legacyFollowUpValue = normalizeFollowUpLocalValue(dueDateInput) || String(dueDateInput || '').trim();
+  const legacyFollowUpDueAt = legacyFollowUpValue.slice(0, 10);
+  const legacyFollowUpDueTime = normalizeManualTaskDueTime(legacyFollowUpValue.slice(11, 16));
+  if (!legacyFollowUpDueAt || !legacyFollowUpDueTime) { showToast('⚠️ Bitte Datum und Uhrzeit wählen'); return; }
+  const taskData = {
+    customer_id: call.customer_id,
+    phone: call.caller_phone || call.phone_number || '',
+    type: taskType,
+    title: taskTitle + (call.caller_name ? ': ' + call.caller_name : ''),
+    note: '',
+    due_at: legacyFollowUpDueAt,
+    due_time: legacyFollowUpDueTime,
+    status: 'new'
+  };
+  sb.from('customer_tasks').insert([taskData]).then(function(r) {
+    if (r.error) {
+      showToast('⚠️ Fehler beim Speichern');
+    } else {
+      showToast('✓ Nachfassen gespeichert');
+      ['followup-callback', 'followup-email', 'followup-task'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+      });
+      const dateEl = document.getElementById('followup-date');
+      if (dateEl) dateEl.value = '';
+
+      // [PATCH 2026-05-13 v2.3 — Rückruf-Konsolidierung (Weg 2: DB-seitig)]
+      // Wenn der ursprüngliche Anruf "callback_requested=true" hatte UND
+      // eine konkretere Folge-Aufgabe angelegt wurde (Offerte/Termin/Info/Task),
+      // wird der Rückruf-Status am Anruf ausgeschaltet — die Folge-Aufgabe
+      // übernimmt jetzt die operative Verantwortung. Damit verschwindet die
+      // Doppelzählung (1x als Rückruf am Call + 1x als Folge-Aufgabe).
+      //
+      // Bedingung: nur ausschalten wenn die Folge-Aufgabe KEIN Rückruf ist
+      //   (sonst würden wir uns selbst widersprechen).
+      var isCallbackFollowup = (taskType === 'callback');
+      var hadCallbackRequest = (call.callback_requested === true || call.callback_requested === 'true');
+      if (!isCallbackFollowup && hadCallbackRequest) {
+        sb.from('calls')
+          .update({ callback_requested: false })
+          .eq('id', call.id)
+          .then(function(rr) {
+            if (rr.error) {
+              console.warn('[v2.3] callback_requested-Reset fehlgeschlagen:', rr.error);
+            } else {
+              // Lokal sofort aktualisieren, damit UI sich richtig zeigt
+              if (call.fields) call.fields.callback_requested = false;
+              call.callback_requested = false;
+              // UI neu rendern
+              if (typeof renderDashboard === 'function' && typeof allRecords !== 'undefined') {
+                try { renderDashboard(allRecords, allManualTaskRecords); } catch(e) {}
+              }
+              if (typeof renderAnrufe === 'function' && typeof allRecords !== 'undefined') {
+                try { renderAnrufe(); } catch(e) {}
+              }
+              // [PATCH v2.44] Assistent-Tab Init
+              if (tabId === 'assistent') {
+                setTimeout(function() {
+                  if (typeof vxInitAssistentRufumleitung === 'function') vxInitAssistentRufumleitung();
+                }, 50);
+              }
+            }
+          });
+      }
+    }
+  });
+}

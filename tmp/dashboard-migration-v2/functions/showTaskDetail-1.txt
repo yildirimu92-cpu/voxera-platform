@@ -1,0 +1,99 @@
+FUNCTION showTaskDetail
+LINES 26397-26491
+TERMS dash-priority
+
+function showTaskDetail(taskId) {
+  taskId = String(taskId || '').trim();
+  if (!taskId) {
+    console.warn('[detail] blocked open without id', { source: 'showTaskDetail' });
+    if (typeof vxForceCloseCallDetail === 'function') vxForceCloseCallDetail('showTaskDetail:missing-id');
+    return;
+  }
+  var rec = vxFindManualTaskRecord(taskId);
+  if (!rec) { vxTaskDetailNotify('Aufgabe nicht gefunden', 'warning'); return; }
+  var page = document.getElementById('call-detail-page');
+  if (!page) return;
+  if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
+  window._vxCurrentDetailType = 'task';
+  window._vxCurrentCallId = null;
+  window._vxCurrentTaskId = String(taskId);
+  window._vxActiveRecordId = String(taskId);
+  page.classList.add('is-open');
+  page.dataset.vxDetailType = 'task';
+  page.dataset.vxDetailId = String(taskId);
+
+  // [v2.66] Dieselbe Split-Logik wie showCallDetail:
+  // Im Anfragen-Tab auf Desktop → Split-Panel, sonst Fullscreen
+  var splitRight = document.getElementById('anrufe-split-right');
+  var splitEmpty = document.getElementById('anrufe-split-empty');
+  var anrufeTabActive = document.getElementById('tab-anrufe') &&
+    document.getElementById('tab-anrufe').classList.contains('active');
+  var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
+
+  if (useSplitDetail) {
+    if (!splitRight.contains(page)) splitRight.appendChild(page);
+    page.classList.remove('is-fullscreen');
+    if (splitEmpty) splitEmpty.style.display = 'none';
+    page.style.position = 'absolute';
+    page.style.top = '0';
+    page.style.left = '0';
+    page.style.right = '0';
+    page.style.bottom = '0';
+    page.style.zIndex = '10';
+    page.style.display = 'block';
+    page.style.overflow = 'hidden';
+    page.style.overflowY = '';
+    var _swSplit = document.getElementById('call-detail-scroll-wrap');
+    if (_swSplit) {
+      _swSplit.style.overflowY = 'auto';
+      _swSplit.style.overflowX = 'hidden';
+      _swSplit.style.height = '100%';
+      _swSplit.style.boxSizing = 'border-box';
+      _swSplit.style.width = '100%';
+    }
+  } else {
+    // App-Shell Detailmodus (Header/Nav bleiben sichtbar)
+    if (splitRight && splitRight.contains(page)) document.body.appendChild(page);
+    page.classList.add('is-fullscreen');
+    page.style.position = 'fixed';
+    if (window.innerWidth < 768) {
+      page.style.top = '60px';
+      page.style.left = '0';
+      page.style.right = '0';
+      page.style.bottom = 'calc(72px + env(safe-area-inset-bottom))';
+      page.style.zIndex = '44';
+    } else {
+      page.style.top = '0';
+      page.style.left = '232px';
+      page.style.right = '0';
+      page.style.bottom = '0';
+      page.style.zIndex = '39';
+    }
+    page.style.display = 'block';
+    page.style.overflow = 'hidden';
+    page.style.overflowY = 'hidden';
+    var _swFull = document.getElementById('call-detail-scroll-wrap');
+    if (_swFull) { _swFull.style.minHeight = ''; _swFull.style.height = '100%'; _swFull.style.overflowY = 'auto'; _swFull.style.boxSizing = 'border-box'; _swFull.style.width = '100%'; }
+    vxSetScrollLock('call-detail-page', true);
+  }
+
+  page.scrollTop = 0;
+  var wrap = document.getElementById('call-detail-scroll-wrap');
+  if (wrap) wrap.scrollTop = 0;
+  var contentEl = document.getElementById('call-detail-content');
+  if (contentEl) contentEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
+  var phone = vxTaskDetailPhone(rec.fields || {});
+  if (phone && typeof buildCallHistory === 'function') {
+    buildCallHistory(phone).then(function(history) { renderTaskDetailPage(rec, history || []); }).catch(function(err) {
+      console.warn('[task-detail] history error:', err);
+      renderTaskDetailPage(rec, []);
+    });
+  } else {
+    renderTaskDetailPage(rec, []);
+  }
+  // [v2.67] sp-active auf anrufe-list UND dash-priority-list
+  document.querySelectorAll('#anrufe-list .dpr-card, #dash-priority-list .dpr-card').forEach(function(c) {
+    c.classList.toggle('sp-active', c.dataset.id === String(taskId));
+  });
+  try { window.location.hash = '#task/' + encodeURIComponent(String(taskId)); } catch(e) {}
+}

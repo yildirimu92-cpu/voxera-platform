@@ -1,0 +1,44 @@
+FUNCTION vxArchivRestore
+LINES 24399-24438
+TERMS renderDashboard
+
+async function vxArchivRestore(recordId) {
+  if (!recordId) return;
+
+  var btn = document.querySelector('[data-restore-id="'+recordId+'"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner" style="font-size:11px;"></i>'; }
+
+  try {
+    // Muss über Netlify Function gehen — direkter Supabase-Call scheitert an RLS + DB-Constraint
+    var result = await callDashboardFunction('call-update-status', {
+      call_id: recordId,
+      status: 'closed'
+    });
+
+    if (result && result.error) throw new Error(result.error);
+
+    // Lokalen State aktualisieren
+    var records = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
+    var rec = records.find(function(r) { return String((r && r.id) || '') === String(recordId); });
+    if (rec && rec.fields) {
+      rec.fields.dashboard_status = 'closed';
+      rec.fields.completed_at = null;
+    }
+
+    if (typeof showToast === 'function') showToast('✓ Eintrag wiederhergestellt');
+    else if (typeof toast === 'function') toast('Eintrag wiederhergestellt', 'success');
+
+    renderArchiv(records);
+    if (typeof renderAnrufe === 'function') renderAnrufe();
+    if (typeof renderDashboard === 'function') renderDashboard(records, []);
+
+  } catch(e) {
+    console.error('[vxArchivRestore]', e);
+    if (typeof showToast === 'function') showToast('⚠ Fehler: ' + (e.message || 'Unbekannter Fehler'));
+    var btn2 = document.querySelector('[data-restore-id="'+recordId+'"]');
+    if (btn2) {
+      btn2.disabled = false;
+      btn2.innerHTML = '<i class="ph-bold ph-arrow-u-up-left" aria-hidden="true"></i>';
+    }
+  }
+}

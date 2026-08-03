@@ -1,0 +1,5 @@
+FUNCTION vxHeuteKpiScrollImportant
+LINES 21824-21824
+TERMS dash-priority
+
+function vxHeuteKpiScrollImportant() { vxHeuteScrollToSection('dash-priority-section'); }

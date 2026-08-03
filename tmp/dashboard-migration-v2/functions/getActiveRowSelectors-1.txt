@@ -1,0 +1,15 @@
+FUNCTION getActiveRowSelectors
+LINES 41958-41968
+TERMS dash-priority
+
+function getActiveRowSelectors(){
+    return [
+      '#dash-priority-list .dpr-card.sp-active',
+      '#anrufe-list .dpr-card.sp-active',
+      '#anrufe-split-left .dpr-card.sp-active',
+      '#anrufe-split-right .dpr-card.sp-active',
+      '#dash-priority-list .sp-active',
+      '#anrufe-list .sp-active',
+      '#anrufe-split-left .sp-active'
+    ].join(',');
+  }

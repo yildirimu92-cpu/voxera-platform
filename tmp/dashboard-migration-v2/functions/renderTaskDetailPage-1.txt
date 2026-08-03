@@ -1,0 +1,2794 @@
+FUNCTION renderTaskDetailPage
+LINES 26161-28950
+TERMS dash-priority, renderDashboard
+
+function renderTaskDetailPage(taskRecord, history) {
+  if (!taskRecord || !taskRecord.id) return;
+  var f = taskRecord.fields || {};
+  var meta = getTaskTypeUiMeta(f.type);
+  var visual = vxTaskDetailIconMeta(meta);
+  var phone = vxTaskDetailPhone(f);
+  var relatedCall = vxTaskDetailRelatedCall(f);
+  var contact = vxGetTaskContactDisplayName(f);
+  var dueLabel = formatTaskDueLabel(f, { emptyLabel: 'Ohne Fälligkeit' });
+  var statusText = (typeof vxGetInquiryDisplayStatus === 'function')
+    ? vxGetInquiryDisplayStatus(taskRecord)
+    : statusLabel(f.dashboard_status || f.status || 'new');
+  var sourceText = relatedCall ? 'Aus Anruf' : 'Manuell';
+  var titleText = meta.sectionTitle || meta.primary || meta.label || 'Aufgabe';
+  var rawTitle = String(f.title || '').trim();
+  var rawNote = String(f.note || f.notes || '').trim();
+  var meaningfulTitle = (!vxDashIsGenericLabel(rawTitle) && rawTitle !== contact && rawTitle.indexOf(':') < 0) ? rawTitle : '';
+  var description = rawNote || meaningfulTitle || meta.descriptionFallback || 'Keine Beschreibung vorhanden.';
+  var infoHint = meta.emptyNote || '';
+  var createdAt = getRecordTimestamp(taskRecord) || f.created_at || '';
+  var dateRight = dueLabel && dueLabel !== 'Ohne Fälligkeit' ? dueLabel : (createdAt ? fmtDate(createdAt) : '');
+  var safeTaskId = escHtml(taskRecord.id);
+
+  window._vxCurrentDetailType = 'task';
+  window._vxCurrentTaskId = String(taskRecord.id);
+  window._vxCurrentCallId = null;
+  window._vxActiveRecordId = String(taskRecord.id);
+  window._vxLastAnfragenRecordId = String(taskRecord.id);
+
+  // ── Voxera Detail Header für Task (clean-rebuild 2026-05-17) ──
+  // Tasks teilen sich die Detail-Shell mit Anrufen, brauchen aber einen eigenen,
+  // schlankeren Header. Hier wird das Banner mit dem .vxd-header-Layout befüllt.
+  try {
+    var _bannerTask = document.getElementById('call-detail-banner');
+    if (_bannerTask) {
+      var _escT = (typeof escapeHtml === 'function') ? escapeHtml : function(v){
+        return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){
+          return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] || c;
+        });
+      };
+      var _tIsFocus = !!(document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode'));
+      var _tFocusLabel = _tIsFocus ? 'Split' : 'Fokus';
+      var _tFocusTitle = _tIsFocus ? 'Zur Split-Ansicht wechseln' : 'Fokusmodus öffnen';
+      var _tFocusIcon = _tIsFocus ? 'ph-arrows-in' : 'ph-arrows-out';
+      var _tMetaParts = [];
+      _tMetaParts.push(_escT(meta.label || 'Aufgabe'));
+      if (phone) _tMetaParts.push(_escT(phone));
+      if (dueLabel && dueLabel !== 'Ohne Fälligkeit') _tMetaParts.push(_escT(dueLabel));
+      var _tMeta = _tMetaParts.join(' · ');
+      var _tMetaHtml = _tMetaParts.map(function(part){
+        return '<span class="vxd-meta-item">' + _escT(part) + '</span>';
+      }).join('');
+
+      // Status-Pill für Task
+      var _tIsDone = (f.status === 'closed' || f.dashboard_status === 'closed');
+      var _tStatusPillColor = _tIsDone ? '#059669' : '#1A6FE8';
+      var _tPillsHtml = '<span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;line-height:1;color:' + _tStatusPillColor + ';background:' + _tStatusPillColor + '14;border:0.5px solid ' + _tStatusPillColor + '33;">' + _escT(statusText) + '</span>';
+
+      var _tSecondaryLabel = phone ? 'Rückruf' : (typeText || 'Aufgabe');
+      var _tPillHtml = '<span class="vxdr-pill' + (_tIsDone ? ' vxdr-pill--success' : ' vxdr-pill--status') + '">' + _escT(statusText) + '</span>'
+        + (_tSecondaryLabel ? '<span class="vxdr-pill vxdr-pill--context">' + _escT(_tSecondaryLabel) + '</span>' : '');
+      var _tPageForFocus = document.getElementById('call-detail-page');
+      var _tIsEmbeddedSplit = !!(_tPageForFocus && document.getElementById('anrufe-split-right') && document.getElementById('anrufe-split-right').contains(_tPageForFocus));
+      var _tFocusMode = !!((document.body && document.body.classList && document.body.classList.contains('vx-requests-focus-mode')) || (_tPageForFocus && !_tIsEmbeddedSplit && (_tPageForFocus.classList.contains('is-fullscreen') || _tPageForFocus.classList.contains('vx-detail-focus'))));
+      var _tLayoutClass = _tFocusMode ? 'vxdr-focus' : 'vxdr-split';
+      var _tPrimaryLabel = phone ? 'Anrufen' : 'Erledigen';
+      var _tPrimaryIcon = phone ? 'ph-phone' : 'ph-check';
+      var _tPrimaryId = phone ? 'vx-cd-qa-call' : 'vx-cd-qa-done';
+      var _tPrimaryAction = phone ? "vxTaskDetailCall('" + safeTaskId + "')" : "vxTaskDetailDone('" + safeTaskId + "')";
+      _bannerTask.className = 'vxdr-banner';
+      _bannerTask.removeAttribute('style');
+      _bannerTask.innerHTML = ''
+        + '<section class="vxdr-header ' + _tLayoutClass + '" aria-label="Aufgabendetails">'
+        +   '<button type="button" class="vxdr-back" aria-label="Zurück zu Anfragen" onclick="event.stopPropagation();vxHandleDetailBack();"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i><span>Anfragen</span></button>'
+        +   '<div class="vxdr-identity">'
+        +     '<div class="vxdr-avatar" id="call-detail-avatar"><i class="ph-bold ph-' + _escT(visual.icon) + '" aria-hidden="true"></i></div>'
+        +     '<div class="vxdr-copy">'
+        +       '<div class="vxdr-title-row"><div class="vxdr-title" id="call-detail-title">' + _escT(contact) + '</div></div>'
+        +       '<div class="vxdr-meta" id="call-detail-subtitle" aria-label="' + _escT(_tMeta) + '">' + _tMetaHtml + '</div>'
+        +       '<div class="vxdr-pills">' + _tPillHtml + '</div>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="vxdr-actions">'
+        +     '<button type="button" class="vxdr-btn vxdr-primary" id="' + _tPrimaryId + '" onclick="event.stopPropagation();' + _tPrimaryAction + ';" title="' + _escT(_tPrimaryLabel) + '"><i class="ph-bold ' + _tPrimaryIcon + '" aria-hidden="true"></i><span class="vxdr-btn-label">' + _escT(_tPrimaryLabel) + '</span></button>'
+        +     (_tFocusMode
+        ? '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="Ansicht verkleinern" title="Ansicht verkleinern"><i class="ph-bold ph-arrows-in" aria-hidden="true"></i></button>'
+        : '<button type="button" class="vxdr-iconbtn vxdr-focus-toggle" id="vx-cd-qa-expand" onclick="event.stopPropagation();vxCallDetailExpand();" aria-label="' + _escT(_tFocusTitle) + '" title="' + _escT(_tFocusTitle) + '"><i class="ph-bold ' + _tFocusIcon + '" aria-hidden="true"></i></button>')
+        +     '<button type="button" class="vxdr-iconbtn" id="vxd-menu-trigger" onclick="event.stopPropagation();vxdToggleMenu(event);" aria-haspopup="menu" aria-expanded="false" aria-label="Weitere Aktionen" title="Weitere Aktionen"><i class="ph-bold ph-dots-three-vertical" aria-hidden="true"></i></button>'
+        +   '</div>'
+        +   '<div class="vxdr-menu" id="vxd-menu" role="menu" hidden>'
+        +     '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxTaskDetailOpenEdit(\'' + safeTaskId + '\',\'edit\');"><i class="ph-bold ph-pencil-simple" aria-hidden="true"></i><span>Bearbeiten</span></button>'
+        +     (phone && !_isDoneEarly() ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxTaskDetailDone(\'' + safeTaskId + '\');"><i class="ph-bold ph-check" aria-hidden="true"></i><span>Als erledigt markieren</span></button>' : '')
+        +     (relatedCall ? '<button type="button" role="menuitem" onclick="event.stopPropagation();vxdCloseMenu();vxTaskDetailOpenRelated(\'' + safeTaskId + '\');"><i class="ph-bold ph-phone-transfer" aria-hidden="true"></i><span>Originalanruf anzeigen</span></button>' : '')
+        +   '</div>'
+        + '</section>';
+    }
+  } catch (_taskHeaderErr) {
+    console.warn('[voxera] task detail header render skipped', _taskHeaderErr);
+  }
+
+  // Legacy-Anker: einige existierende Funktionen referenzieren diese einzelnen IDs.
+  // Sie werden jetzt vom neuen .vxd-header bereitgestellt — der Block unten bleibt
+  // als Sicherheitsnetz, falls etwas im DOM bereits aktualisiert wurde.
+  var avatarEl = document.getElementById('call-detail-avatar');
+  if (avatarEl && !avatarEl.classList.contains('vxdr-avatar')) {
+    avatarEl.style.background = 'rgba(255,255,255,.12)';
+    avatarEl.style.border = '1px solid rgba(255,255,255,.2)';
+    avatarEl.style.borderRadius = '10px';
+    avatarEl.innerHTML = '<i class="ph-bold ph-' + visual.icon + '" style="color:#fff;font-size:18px;" aria-hidden="true"></i>';
+  }
+  var titleEl = document.getElementById('call-detail-title');
+  if (titleEl) titleEl.textContent = contact;
+  var subtitleEl = document.getElementById('call-detail-subtitle');
+  if (subtitleEl) subtitleEl.textContent = meta.label + (phone ? ' · ' + phone : '');
+  var dateEl = document.getElementById('call-detail-banner-date');
+  if (dateEl) dateEl.textContent = dateRight;
+
+  var statsEl = document.getElementById('call-detail-stats');
+  if (statsEl) {
+    var _tKpi = function(label, value, valueColor, accentGradient, sub) {
+      return '<div style="background:#0D1F3C;padding:12px 14px;position:relative;overflow:hidden;">'
+        + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:' + accentGradient + ';"></div>'
+        + '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">' + label + '</div>'
+        + '<div style="font-size:clamp(14px,2.8vw,18px);font-weight:800;color:' + valueColor + ';line-height:1.1;letter-spacing:-.02em;font-family:var(--font-display);word-break:break-word;">' + value + '</div>'
+        + '<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:4px;">' + sub + '</div>'
+        + '</div>';
+    };
+    var _taskBucket = (typeof vxGetInquiryBucket === 'function') ? vxGetInquiryBucket(taskRecord) : 'open';
+    var _tStatusColor = _taskBucket === 'done' ? '#34D399' : (_taskBucket === 'planned' ? '#E8C547' : (_taskBucket === 'archived' ? '#94A3B8' : '#4B9FFF'));
+    var _tStatusGrad = _taskBucket === 'done' ? 'linear-gradient(90deg,#059669,#047857)'
+      : (_taskBucket === 'planned' ? 'linear-gradient(90deg,#E8C547,#B45309)'
+        : (_taskBucket === 'archived' ? 'linear-gradient(90deg,#94A3B8,#64748B)' : 'linear-gradient(90deg,#1A6FE8,#1560C8)'));
+    statsEl.innerHTML =
+      _tKpi('Typ', escHtml(meta.label), 'rgba(255,255,255,.9)', 'rgba(255,255,255,.12)', 'Aufgabe') +
+      _tKpi('Fälligkeit', escHtml(dueLabel), 'rgba(255,255,255,.9)', 'rgba(255,255,255,.1)', 'Zeitpunkt') +
+      _tKpi('Status', escHtml(statusText), _tStatusColor, _tStatusGrad, 'aktuell') +
+      _tKpi('Quelle', escHtml(sourceText), 'rgba(148,163,184,.9)', 'linear-gradient(90deg,#94a3b8,#64748b)', 'Herkunft');
+  }
+
+  // [v3.0] Premium Task-Detail: sauber, keine Dopplungen, alle Bugs behoben
+  var _isDone = f.status === 'closed' || f.dashboard_status === 'closed';
+
+  // ─── Beschreibungs-Card ───
+  var html = '';
+  html += vxRenderDetailBackLinkHtml();
+  html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;">';
+  html +=   '<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:0.5px solid var(--line);background:var(--vx-bg);">';
+  html +=     '<i class="ph-bold ph-' + visual.icon + '" style="color:' + visual.color + ';font-size:15px;flex-shrink:0;" aria-hidden="true"></i>';
+  html +=     '<div style="font-size:10px;font-weight:700;color:var(--vx-text2);text-transform:uppercase;letter-spacing:.08em;flex:1;">' + escHtml(titleText) + '</div>';
+  html +=     '<span style="font-size:11px;font-weight:600;color:' + visual.color + ';background:rgba(71,85,105,.08);border:0.5px solid rgba(71,85,105,.2);border-radius:6px;padding:2px 8px;">' + escHtml(meta.label) + '</span>';
+  html +=   '</div>';
+  html +=   '<div style="padding:12px 14px;">';
+  html +=     '<p style="margin:0;font-size:13px;color:var(--ink2);line-height:1.7;">' + escHtml(description) + '</p>';
+  if (!rawNote && infoHint) {
+    html +=   '<div style="margin-top:10px;padding:10px 12px;background:var(--surface2);border:0.5px solid var(--line);border-radius:8px;font-size:11px;color:var(--slate);line-height:1.55;">' + escHtml(infoHint) + '</div>';
+  }
+  html +=   '</div>';
+  html += '</div>';
+
+  // ─── Aktionen ───
+  var _abtn = 'display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:1px solid transparent;box-sizing:border-box;';
+  html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">';
+  // Anrufen (primary wenn Nummer da, sonst deaktiviert)
+  if (phone) {
+    html += '<button type="button" style="' + _abtn + 'background:#1A6FE8;color:#fff;border-color:#1A6FE8;width:100%;" onclick="event.stopPropagation();vxTaskDetailCall(\'' + safeTaskId + '\')">';
+    html +=   '<i class="ph-bold ph-phone-call" style="font-size:16px;opacity:.9;" aria-hidden="true"></i>Anrufen';
+    html += '</button>';
+  } else {
+    html += '<button type="button" style="' + _abtn + 'background:#1A6FE8;color:#fff;border-color:#1A6FE8;width:100%;opacity:.35;cursor:default;" disabled>';
+    html +=   '<i class="ph-bold ph-phone-call" style="font-size:16px;" aria-hidden="true"></i>Anrufen';
+    html += '</button>';
+  }
+  // Bearbeiten + Erledigt nebeneinander
+  html += '<div style="display:flex;gap:8px;">';
+  html +=   '<button type="button" style="' + _abtn + 'background:var(--surface);color:var(--ink2);border-color:var(--line);flex:1;" onclick="event.stopPropagation();vxTaskDetailOpenEdit(\'' + safeTaskId + '\',\'edit\')">';
+  html +=     '<i class="ph-bold ph-pencil-simple" style="font-size:15px;opacity:.75;" aria-hidden="true"></i>Bearbeiten';
+  html +=   '</button>';
+  if (_isDone) {
+    html += '<button type="button" style="' + _abtn + 'background:var(--surface);color:var(--slate2);border-color:var(--line);flex:1;opacity:.4;cursor:default;" disabled>';
+    html +=   '<i class="ph-bold ph-check" style="font-size:15px;" aria-hidden="true"></i>Erledigt';
+    html += '</button>';
+  } else {
+    html += '<button type="button" style="' + _abtn + 'background:var(--surface);color:var(--ink2);border-color:var(--line);flex:1;" onclick="event.stopPropagation();vxTaskDetailDone(\'' + safeTaskId + '\')">';
+    html +=   '<i class="ph-bold ph-check" style="font-size:15px;color:#059669;opacity:.9;" aria-hidden="true"></i>Erledigt';
+    html += '</button>';
+  }
+  html += '</div>';
+  // Originalanruf-Link (nur wenn vorhanden)
+  if (relatedCall) {
+    html += '<button type="button" style="' + _abtn + 'background:var(--surface);color:var(--ink2);border-color:var(--line);width:100%;" onclick="event.stopPropagation();vxTaskDetailOpenRelated(\'' + safeTaskId + '\')">';
+    html +=   '<i class="ph-bold ph-phone-transfer" style="font-size:15px;color:#1A6FE8;opacity:.9;" aria-hidden="true"></i>Originalanruf anzeigen';
+    html += '</button>';
+  }
+  html += '</div>';
+
+  // ─── Verknüpfter Anruf (Zusammenfassung) ───
+  if (relatedCall) {
+    var rf = relatedCall.fields || {};
+    var rfSummary = vxGetCallSummary(rf);
+    html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;">';
+    html +=   '<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:0.5px solid var(--line);background:var(--vx-bg);">';
+    html +=     '<i class="ph-bold ph-phone-transfer" style="color:#1A6FE8;font-size:15px;" aria-hidden="true"></i>';
+    html +=     '<div style="font-size:10px;font-weight:700;color:var(--vx-text2);text-transform:uppercase;letter-spacing:.08em;">Verknüpfter Anruf</div>';
+    html +=   '</div>';
+    html +=   '<div style="padding:12px 14px;font-size:13px;color:var(--ink2);line-height:1.65;">' + escHtml(rfSummary || 'Dieser Aufgabe ist ein Originalanruf zugeordnet.') + '</div>';
+    html += '</div>';
+  }
+
+  html += renderTimelineHTML(history || []);
+
+  var contentEl = document.getElementById('call-detail-content');
+  if (contentEl) contentEl.innerHTML = html;
+
+  var callBtn = document.getElementById('vx-cd-qa-call');
+  if (callBtn) { callBtn.style.display = ''; callBtn.disabled = !phone; callBtn.title = phone ? ('Anrufen: ' + phone) : 'Keine Telefonnummer'; }
+  var mailBtn = document.getElementById('vx-cd-qa-mail');
+  if (mailBtn) { mailBtn.disabled = true; mailBtn.style.opacity = '0.35'; mailBtn.title = 'Für diese Aufgabe ist keine E-Mail-Aktion hinterlegt'; }
+  var doneBtn = document.getElementById('vx-cd-qa-done');
+  if (doneBtn) {
+    if (_isDone) {
+      doneBtn.disabled = true;
+      doneBtn.setAttribute('aria-disabled', 'true');
+      doneBtn.classList.remove('is-success');
+      doneBtn.title = 'Diese Aufgabe ist bereits erledigt';
+    } else {
+      doneBtn.disabled = false;
+      doneBtn.setAttribute('aria-disabled', 'false');
+      doneBtn.classList.remove('is-success');
+      doneBtn.title = 'Aufgabe als erledigt markieren';
+    }
+  }
+
+  /* phosphor: no init needed */
+  vxSetupMorphingBanner();
+}
+
+function showTaskDetail(taskId) {
+  taskId = String(taskId || '').trim();
+  if (!taskId) {
+    console.warn('[detail] blocked open without id', { source: 'showTaskDetail' });
+    if (typeof vxForceCloseCallDetail === 'function') vxForceCloseCallDetail('showTaskDetail:missing-id');
+    return;
+  }
+  var rec = vxFindManualTaskRecord(taskId);
+  if (!rec) { vxTaskDetailNotify('Aufgabe nicht gefunden', 'warning'); return; }
+  var page = document.getElementById('call-detail-page');
+  if (!page) return;
+  if (typeof vxResetCallDetailViewState === 'function') vxResetCallDetailViewState();
+  window._vxCurrentDetailType = 'task';
+  window._vxCurrentCallId = null;
+  window._vxCurrentTaskId = String(taskId);
+  window._vxActiveRecordId = String(taskId);
+  page.classList.add('is-open');
+  page.dataset.vxDetailType = 'task';
+  page.dataset.vxDetailId = String(taskId);
+
+  // [v2.66] Dieselbe Split-Logik wie showCallDetail:
+  // Im Anfragen-Tab auf Desktop → Split-Panel, sonst Fullscreen
+  var splitRight = document.getElementById('anrufe-split-right');
+  var splitEmpty = document.getElementById('anrufe-split-empty');
+  var anrufeTabActive = document.getElementById('tab-anrufe') &&
+    document.getElementById('tab-anrufe').classList.contains('active');
+  var useSplitDetail = anrufeTabActive && splitRight && window.innerWidth >= 768;
+
+  if (useSplitDetail) {
+    if (!splitRight.contains(page)) splitRight.appendChild(page);
+    page.classList.remove('is-fullscreen');
+    if (splitEmpty) splitEmpty.style.display = 'none';
+    page.style.position = 'absolute';
+    page.style.top = '0';
+    page.style.left = '0';
+    page.style.right = '0';
+    page.style.bottom = '0';
+    page.style.zIndex = '10';
+    page.style.display = 'block';
+    page.style.overflow = 'hidden';
+    page.style.overflowY = '';
+    var _swSplit = document.getElementById('call-detail-scroll-wrap');
+    if (_swSplit) {
+      _swSplit.style.overflowY = 'auto';
+      _swSplit.style.overflowX = 'hidden';
+      _swSplit.style.height = '100%';
+      _swSplit.style.boxSizing = 'border-box';
+      _swSplit.style.width = '100%';
+    }
+  } else {
+    // App-Shell Detailmodus (Header/Nav bleiben sichtbar)
+    if (splitRight && splitRight.contains(page)) document.body.appendChild(page);
+    page.classList.add('is-fullscreen');
+    page.style.position = 'fixed';
+    if (window.innerWidth < 768) {
+      page.style.top = '60px';
+      page.style.left = '0';
+      page.style.right = '0';
+      page.style.bottom = 'calc(72px + env(safe-area-inset-bottom))';
+      page.style.zIndex = '44';
+    } else {
+      page.style.top = '0';
+      page.style.left = '232px';
+      page.style.right = '0';
+      page.style.bottom = '0';
+      page.style.zIndex = '39';
+    }
+    page.style.display = 'block';
+    page.style.overflow = 'hidden';
+    page.style.overflowY = 'hidden';
+    var _swFull = document.getElementById('call-detail-scroll-wrap');
+    if (_swFull) { _swFull.style.minHeight = ''; _swFull.style.height = '100%'; _swFull.style.overflowY = 'auto'; _swFull.style.boxSizing = 'border-box'; _swFull.style.width = '100%'; }
+    vxSetScrollLock('call-detail-page', true);
+  }
+
+  page.scrollTop = 0;
+  var wrap = document.getElementById('call-detail-scroll-wrap');
+  if (wrap) wrap.scrollTop = 0;
+  var contentEl = document.getElementById('call-detail-content');
+  if (contentEl) contentEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
+  var phone = vxTaskDetailPhone(rec.fields || {});
+  if (phone && typeof buildCallHistory === 'function') {
+    buildCallHistory(phone).then(function(history) { renderTaskDetailPage(rec, history || []); }).catch(function(err) {
+      console.warn('[task-detail] history error:', err);
+      renderTaskDetailPage(rec, []);
+    });
+  } else {
+    renderTaskDetailPage(rec, []);
+  }
+  // [v2.67] sp-active auf anrufe-list UND dash-priority-list
+  document.querySelectorAll('#anrufe-list .dpr-card, #dash-priority-list .dpr-card').forEach(function(c) {
+    c.classList.toggle('sp-active', c.dataset.id === String(taskId));
+  });
+  try { window.location.hash = '#task/' + encodeURIComponent(String(taskId)); } catch(e) {}
+}
+window.showTaskDetail = showTaskDetail;
+
+function openDetail(recordId) {
+  const recForRouting = allRecords.find(r => r.id === recordId) || allManualTaskRecords.find(r => r.id === recordId);
+  if (!recForRouting) return;
+  if (isManualTaskRecord(recForRouting)) { showTaskDetail(recordId); return; }
+  if (typeof showCallDetail === 'function') { showCallDetail(recordId); return; }
+  rememberOverlayFocusReturn('detail-overlay');
+  const rec = allRecords.find(r => r.id === recordId) || allManualTaskRecords.find(r => r.id === recordId);
+  if (!rec) return;
+  const f = rec.fields || {};
+  const isManual = isManualTaskRecord(rec);
+  const phone = (f.phone_number || f.caller_phone || '').trim();
+  const tel = (f.tel_link || (phone ? ('tel:' + phone.replace(/\s/g,'')) : '')).trim();
+  const detailMetaParts = [];
+  if (f.company_name && !isDashLikePlaceholder(f.company_name)) detailMetaParts.push(f.company_name);
+  const createdLabel = fmtDate(getRecordTimestamp(rec));
+  if (createdLabel) detailMetaParts.push(createdLabel);
+  const renderDetailLine = function(label, value) {
+    const text = String(value == null ? '' : value).trim();
+    if (!text || isDashLikePlaceholder(text)) return '';
+    return '<div class="detail-line"><span>' + escHtml(label) + '</span><span>' + escHtml(text) + '</span></div>';
+  };
+  document.getElementById('detail-heading').textContent = isManual ? (f.title || 'Aufgabe') : (getCallDisplayName(f) || 'Call-Detail');
+  document.getElementById('detail-sub').textContent = detailMetaParts.join(' · ');
+  const infoTitle = isManual ? 'Aufgabe' : 'Zusammenfassung';
+  const infoText = isManual ? (f.note || f.call_summary || 'Keine Notiz vorhanden.') : (f.call_summary || 'Keine Zusammenfassung vorhanden.');
+  document.getElementById('detail-content').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+
+      <!-- Badges + Summary -->
+      <div style="padding:0;">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${callCardBadgeHtml(rec, { includeMetaQuality: true })}</div>
+        <div style="font-size:13px;color:var(--slate2);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">${escHtml(infoTitle)}</div>
+        <div style="font-size:14px;color:var(--ink);line-height:1.65;">${escHtml(infoText)}</div>
+        ${f.notes_customer_voxera ? `<div style="margin-top:10px;padding:12px 14px;background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;font-size:13px;line-height:1.55;color:var(--ink2)"><span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--slate2);display:block;margin-bottom:4px;">Interne Notiz</span>${escHtml(f.notes_customer_voxera)}</div>` : ''}
+      </div>
+
+      <!-- Aktionen -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:12px;border-top:0.5px solid var(--line);">
+        ${tel ? `<a class="btn btn--primary" href="${tel}" onclick="directCall('${rec.id}','${encodeURIComponent(tel)}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+          Anrufen
+        </a>` : ''}
+        ${!isManual ? `<button class="btn btn--secondary" onclick="closeDetail(); openFollowupDirect('${rec.id}')">Nachfassen</button>` : ''}
+        ${!isManual ? `<button class="btn btn--secondary" onclick="closeDetail(); openNotiz('${rec.id}','${encodeURIComponent(f.notes_customer_voxera||'')}','${encodeURIComponent(f.caller_name||'')}')">Notiz</button>` : ''}
+        ${!isManual ? `<button class="btn btn--secondary" onclick="vxEmailForward('${rec.id}')">E-Mail</button>` : ''}
+        ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn btn--secondary" onclick="closeDetail(); openManualTaskEditModal('${rec.id}')">Bearbeiten</button>` : ''}
+        ${isManual && !isClosedStatus(f.dashboard_status) ? `<button class="btn btn--secondary" onclick="closeDetail(); confirmTaskDone('${rec.id}', null, 'detail-view-button')">Erledigen</button>` : ''}
+      </div>
+
+      <!-- Call Infos Grid -->
+      <div style="padding-top:12px;border-top:0.5px solid var(--line);">
+        <div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Call-Infos</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          ${phone ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Telefon</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(phone)}</div></div>` : ''}
+          ${!isManual ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Kategorie</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(getCallCategoryDisplayLabel(rec))}</div></div>` : ''}
+          ${!isManual && f.lead_quality ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Lead-Qualität</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(f.lead_quality)}</div></div>` : ''}
+          ${!isManual && f.duration_seconds ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Gesprächsdauer</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(formatDurationForDisplay(f.duration_seconds))}</div></div>` : ''}
+          <div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Status</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(statusLabel(f.dashboard_status))}</div></div>
+          ${f.callback_requested ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Rückruf</div><div style="font-size:13px;font-weight:600;color:#DC2626;">Ja</div></div>` : ''}
+          ${resolveTaskDueAt(f) ? `<div style="background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Nachfassen</div><div style="font-size:13px;font-weight:600;color:var(--ink);">${escHtml(formatFollowUpDueLabel(rec, new Date()) || 'Nachfassen')}</div><div style="font-size:12px;color:var(--slate2);margin-top:2px;">${escHtml(getFollowUpActionLabel(rec))}</div></div>` : ''}
+        </div>
+      </div>
+
+    </div>`;
+  document.getElementById('detail-overlay').classList.add('open');
+  setOverlayAriaHidden('detail-overlay', false);
+  syncOverlayScrollLock();
+}
+function closeDetail(){ document.getElementById('detail-overlay').classList.remove('open'); setOverlayAriaHidden('detail-overlay', true); syncOverlayScrollLock(); restoreOverlayFocus('detail-overlay'); }
+
+
+// ═══════════════════════════════════════════
+//  NOTIZ
+// ═══════════════════════════════════════════
+function openNotizFromBtn(btn) {
+  const id = btn.getAttribute('data-id');
+  const notiz = decodeURIComponent(btn.getAttribute('data-notiz') || '');
+  const name = decodeURIComponent(btn.getAttribute('data-name') || '');
+  openNotiz(id, notiz, name);
+}
+
+function openNotiz(recordId, existingNotiz, callerName) {
+  rememberOverlayFocusReturn('notiz-overlay');
+  notizRecordId = recordId;
+  let safeName = callerName || '';
+  let safeNotiz = existingNotiz || '';
+  try { safeName = decodeURIComponent(safeName); } catch(e) {}
+  try { safeNotiz = decodeURIComponent(safeNotiz); } catch(e) {}
+  document.getElementById('notiz-sub').textContent = safeName ? 'Anrufer: ' + safeName : '';
+  const existEl = document.getElementById('notiz-existing');
+  const text = (safeNotiz || '').trim();
+  if (text) {
+    existEl.innerHTML = '<strong>Aktuelle Notiz:</strong> ' + text;
+    existEl.style.display = 'block';
+  } else {
+    existEl.style.display = 'none';
+  }
+  const input = document.getElementById('notiz-input');
+  input.value = text;
+  document.getElementById('notiz-save-btn').disabled = false;
+  document.getElementById('notiz-save-btn').textContent = 'Speichern';
+  document.getElementById('notiz-overlay').classList.add('open');
+  setOverlayAriaHidden('notiz-overlay', false);
+  syncOverlayScrollLock();
+  setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }, 150);
+}
+
+function closeNotiz() {
+  vxSetActionButtonLoading(document.getElementById('notiz-save-btn'), false);
+  document.getElementById('notiz-overlay').classList.remove('open');
+  setOverlayAriaHidden('notiz-overlay', true);
+  syncOverlayScrollLock();
+  document.getElementById('notiz-input').value = '';
+  document.getElementById('notiz-existing').style.display = 'none';
+  notizRecordId = null;
+  restoreOverlayFocus('notiz-overlay');
+}
+
+async function saveNotiz() {
+  if (!notizRecordId) return;
+  const btn = document.getElementById('notiz-save-btn');
+  if (vxIsActionButtonSaving(btn)) return;
+  const text = document.getElementById('notiz-input').value.trim();
+  vxSetActionButtonLoading(btn, true, 'Speichern...');
+  const recordId = notizRecordId;
+  const rec = (allRecords || []).find(function(r){ return r && String(r.id) === String(recordId); });
+  const currentStatus = rec && rec.fields ? normalizeStatus(rec.fields.dashboard_status) : CALL_STATUS.NEW;
+  try {
+    await patchCallRecord(recordId, { notes_customer_voxera: text });
+    vxUpdateLocalCallRecord(recordId, { notes_customer_voxera: text });
+    if (currentStatus === CALL_STATUS.NEW) {
+      await applyStatusTransition(recordId, currentStatus, CALL_STATUS.IN_PROGRESS);
+      vxUpdateLocalCallRecord(recordId, { dashboard_status: CALL_STATUS.IN_PROGRESS });
+    }
+    vxRefreshOperationalViews(allRecords, allManualTaskRecords);
+    closeNotiz();
+    toast('Notiz gespeichert');
+    vxScheduleSingleDataRefresh(600);
+  } catch(e) {
+    const detail = e && e.message ? String(e.message) : '';
+    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen');
+    // Error contract: keep modal open and preserve inputs.
+  } finally {
+    vxSetActionButtonLoading(btn, false);
+  }
+}
+
+document.getElementById('notiz-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.metaKey) saveNotiz();
+});
+
+(function initOverlayEscapeHandling(){
+  if (window.__VOXERA_OVERLAY_ESC_BOUND__) return;
+  window.__VOXERA_OVERLAY_ESC_BOUND__ = true;
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape') return;
+    var active = document.activeElement;
+    if (active && active.tagName === 'TEXTAREA') {
+      active.blur();
+      e.preventDefault();
+      return;
+    }
+    if (confirmModalBusy && document.getElementById('confirm-overlay').classList.contains('open')) return;
+    if (document.getElementById('confirm-overlay').classList.contains('open')) { closeConfirmModal(); return; }
+    if (document.getElementById('manual-task-overlay').classList.contains('open')) { closeManualTaskModal(); return; }
+    if (document.getElementById('followup-overlay').classList.contains('open')) { closeFollowup(); return; }
+    if (document.getElementById('notiz-overlay').classList.contains('open')) { closeNotiz(); return; }
+    if (document.getElementById('detail-overlay').classList.contains('open')) { closeDetail(); }
+  });
+})();
+
+// ═══════════════════════════════════════════
+//  ACCOUNT SETTINGS
+// ═══════════════════════════════════════════
+function openAccount() {
+  // Populate profile/settings account data - email from customer metadata
+  var emailEl = document.getElementById('account-email');
+  if (emailEl) {
+    if (customerMeta.customerEmail) {
+      emailEl.textContent = customerMeta.customerEmail;
+    } else {
+      // Fallback to Supabase auth email
+      const sb = getSupabaseAuthClient();
+      if (sb) {
+        sb.auth.getUser().then(function(r) {
+          if (r.data && r.data.user) emailEl.textContent = r.data.user.email || '–';
+        }).catch(function(e) {
+          console.error('[voxera-dashboard] getUser fallback failed:', e);
+          emailEl.textContent = '–';
+        });
+      }
+    }
+  }
+  var nameEl = document.getElementById('profile-customer-name');
+  if (nameEl) nameEl.textContent = customerMeta.customerName || (customerMeta.customerId ? '–' : 'Lädt…');
+  var telEl = document.getElementById('profile-customer-tel');
+  if (telEl) telEl.textContent = customerMeta.telNr || (customerMeta.customerId ? '–' : 'Lädt…');
+  var pn = document.getElementById('pw-new'); if(pn) pn.value = '';
+  var pc = document.getElementById('pw-confirm'); if(pc) pc.value = '';
+  var pe = document.getElementById('pw-error'); if(pe) pe.style.display = 'none';
+  var ps = document.getElementById('pw-success'); if(ps) ps.style.display = 'none';
+  var ns = document.getElementById('notif-success'); if(ns) ns.style.display = 'none';
+  loadNotifSettings();
+}
+
+function renderSystemStatusInSettings() {
+  var sysEl = document.getElementById('settings-system-status');
+  if(!sysEl) return;
+  var latest = getLatestCallDate(allRecords);
+  var hasRecent = latest && ((new Date() - latest) / (1000*60*60) < 72);
+  sysEl.textContent = hasRecent ? 'Aktiv – Anrufe werden empfangen' : allRecords.length > 0 ? 'Bereit – letzter Anruf vor über 7 Tagen' : 'Warte auf ersten Anruf';
+}
+
+function renderSystemVoxeraNumbers(meta) {
+  var numEl = document.getElementById('settings-voxera-nr');
+  if(numEl) numEl.textContent = meta.voxeraNumber || '–';
+  renderForwardingCodes();
+  vxDebugInfo('[voxera-dashboard] settings rendered numbers', {
+    voxeraNumber: numEl ? numEl.textContent : null
+  });
+}
+
+function syncSystemVoxeraSettings() {
+  loadCustomerMeta().then(function(meta){
+    renderUsage(allRecords||[]);
+    renderSystemVoxeraNumbers(meta || customerMeta);
+    renderSystemStatusInSettings();
+  }).catch(function(){});
+}
+
+function resolveNotificationMode(customer) {
+  if (!customer) return 'none';
+  if (customer.notification_mode === 'none' || customer.notification_mode === 'callback_only' || customer.notification_mode === 'all_calls') {
+    return customer.notification_mode;
+  }
+  return 'none';
+}
+
+var _notifSaveTimer = null;
+var _notifSaveInFlight = null;
+var _notifSaveSeq = 0;
+
+function notifDebugLog(event, details) {
+  if (!window.__VOXERA_NOTIF_DEBUG__) return;
+  try {
+    vxDebugInfo('[notif-settings]', event, details || {});
+  } catch(_) {}
+}
+
+function selectNotifCard(mode, opts) {
+  var options = opts || {};
+  var shouldAutosave = options.autosave !== false;
+  if (isContractRestrictedState() && shouldAutosave) {
+    toast('Benachrichtigungen sind ohne aktiven Vertrag schreibgeschützt.', 'warning');
+    return;
+  }
+  var source = options.source || 'ui';
+  var cards = {none:'notif-card-none', callback_only:'notif-card-callback', all_calls:'notif-card-all'};
+  var dots  = {none:'notif-dot-none', callback_only:'notif-dot-callback', all_calls:'notif-dot-all'};
+  Object.keys(cards).forEach(function(m) {
+    var card = document.getElementById(cards[m]);
+    var dot  = document.getElementById(dots[m]);
+    if (!card) return;
+    var active = m === mode;
+    card.style.borderColor = active ? 'var(--blue-mid)' : 'var(--line)';
+    card.style.background  = active ? 'var(--blue-light)' : 'var(--surface)';
+    var titleEl = card.querySelector('div > div:first-child');
+    if (titleEl) titleEl.style.color = active ? '#1A6FE8' : 'var(--ink)';
+    if (dot) {
+      dot.style.background = active ? '#1A6FE8' : 'transparent';
+      dot.style.border = active ? 'none' : '1.5px solid var(--line)';
+      dot.innerHTML = '';
+    }
+  });
+  var hidden = document.getElementById('notification-mode-hidden');
+  if (hidden) hidden.value = mode;
+  // Sync neue Radio-Buttons in Mehr → Benachrichtigungen
+  document.querySelectorAll('input[name="notif-email"]').forEach(function(r) {
+    r.checked = r.value === mode;
+  });
+  notifDebugLog('mode-selected', {
+    source: source,
+    mode: mode,
+    autosave: shouldAutosave
+  });
+  if (shouldAutosave) {
+    if (_notifSaveTimer) clearTimeout(_notifSaveTimer);
+    _notifSaveTimer = setTimeout(function() {
+      saveNotifSettings({ source: source + ':autosave' });
+    }, 600);
+  }
+}
+
+function selectSound(type, silent) {
+  var sounds = ['subtle','warm','crisp'];
+  sounds.forEach(function(s) {
+    var card = document.getElementById('sound-card-' + s);
+    var dot  = document.getElementById('sound-dot-' + s);
+    if (!card) return;
+    var active = s === type;
+    card.style.borderColor = active ? 'var(--blue-mid)' : 'var(--line)';
+    card.style.background  = active ? 'var(--blue-light)' : 'var(--surface)';
+    var titleEl = card.querySelector('div > div:first-child');
+    if (titleEl) titleEl.style.color = active ? '#1A6FE8' : 'var(--ink)';
+    if (dot) {
+      dot.style.background = active ? '#1A6FE8' : 'transparent';
+      dot.style.border = active ? 'none' : '1.5px solid var(--line)';
+      dot.innerHTML = '';
+    }
+  });
+  vxSafeLocalStorageSet('voxera_sound_type', type);
+  if (!silent) previewSound(type);
+}
+
+function previewSound(type) {
+  if (localStorage.getItem('voxera_sound_off') === '1') return;
+  try {
+    var ctx = getAudioCtx();
+    function note(freq, delay, duration, vol, waveType) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = waveType || 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + duration);
+    }
+    if (type === 'subtle') {
+      note(1200, 0, 0.06, 0.12, 'sine');
+    } else if (type === 'warm') {
+      note(660, 0, 0.05, 0.45, 'triangle');
+      note(660, 0, 0.55, 0.32, 'sine');
+      note(990, 0.08, 0.40, 0.18, 'sine');
+    } else if (type === 'crisp') {
+      note(900, 0, 0.1, 0.28, 'sine');
+      note(1200, 0.14, 0.1, 0.28, 'sine');
+    }
+  } catch(e) {}
+}
+
+function applyNotificationModeToInputs(mode) {
+  var selectedMode = mode || 'none';
+  selectNotifCard(selectedMode, { autosave: false, source: 'load' });
+  var setupNone = document.getElementById('setup-notif-mode-none');
+  var setupCallbackOnly = document.getElementById('setup-notif-mode-callback-only');
+  var setupAllCalls = document.getElementById('setup-notif-mode-all-calls');
+  if (setupNone) setupNone.checked = selectedMode === 'none';
+  if (setupCallbackOnly) setupCallbackOnly.checked = selectedMode === 'callback_only';
+  if (setupAllCalls) setupAllCalls.checked = selectedMode === 'all_calls';
+}
+
+function getSelectedNotificationMode(name) {
+  if (name === 'notification-mode') {
+    var hidden = document.getElementById('notification-mode-hidden');
+    return hidden ? hidden.value : 'none';
+  }
+  var selected = document.querySelector('input[name="' + name + '"]:checked');
+  return selected ? selected.value : null;
+}
+
+async function loadNotifSettings() {
+  const context = await resolveCustomerContext();
+  const rec = context.customerRecord;
+  if (!rec) return;
+  try {
+    const notificationMode = resolveNotificationMode(rec);
+    applyNotificationModeToInputs(notificationMode);
+    document.getElementById('account-overlay').dataset.customerRecordId = rec.id;
+    notifDebugLog('load-complete', {
+      recordId: rec.id,
+      notificationMode: notificationMode
+    });
+  } catch(e) { console.error('Notif load error:', e); }
+}
+
+async function saveNotifSettings(opts) {
+  if (isContractRestrictedState()) {
+    toast('Benachrichtigungen können ohne aktiven Vertrag nicht gespeichert werden.', 'warning');
+    return;
+  }
+  var options = opts || {};
+  var source = options.source || 'unknown';
+  var requestId = ++_notifSaveSeq;
+  if (_notifSaveInFlight) {
+    notifDebugLog('save-skipped-inflight', {
+      source: source,
+      requestId: requestId
+    });
+    return;
+  }
+  _notifSaveInFlight = requestId;
+  const recordId = document.getElementById('account-overlay').dataset.customerRecordId;
+  if (!recordId) {
+    // Try to get record ID if not loaded yet
+    try {
+      const context = await resolveCustomerContext();
+      if (context.customerRecord && context.customerRecord.id) {
+        document.getElementById('account-overlay').dataset.customerRecordId = context.customerRecord.id;
+      }
+    } catch(e) {}
+    var rid = document.getElementById('account-overlay').dataset.customerRecordId;
+    if (!rid) {
+      notifDebugLog('save-abort-no-record', {
+        source: source,
+        requestId: requestId
+      });
+      _notifSaveInFlight = null;
+      toast('Fehler: Kundendaten nicht geladen');
+      return;
+    }
+  }
+  var finalRecordId = document.getElementById('account-overlay').dataset.customerRecordId;
+  var notificationMode = getSelectedNotificationMode('notification-mode') || 'none';
+  var payload = { notification_mode: notificationMode };
+  notifDebugLog('save-request-start', {
+    source: source,
+    requestId: requestId,
+    recordId: finalRecordId,
+    notificationMode: notificationMode,
+    payload: payload
+  });
+  try {
+    await patchCustomerRecord(finalRecordId, payload);
+    notifDebugLog('save-request-success', {
+      source: source,
+      requestId: requestId,
+      recordId: finalRecordId
+    });
+    const s = document.getElementById('notif-success');
+    s.textContent = 'Gespeichert';
+    s.style.display = 'block';
+    setTimeout(() => s.style.display = 'none', 2000);
+  } catch(e) {
+    notifDebugLog('save-request-error', {
+      source: source,
+      requestId: requestId,
+      recordId: finalRecordId,
+      error: e && e.message ? e.message : String(e)
+    });
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Benachrichtigungen') : 'Fehler beim Speichern der Benachrichtigungen');
+    console.error('Notif save error:', e);
+  } finally {
+    _notifSaveInFlight = null;
+  }
+}
+
+function closeAccount() {
+  // No-op - modal replaced by settings tab
+  restoreMobileActiveTab();
+}
+
+function toggleUserMenu(event) {
+  if (event) event.stopPropagation();
+  var menu = document.getElementById('sidebar-user-menu');
+  var card = document.getElementById('sidebar-user-card');
+  if (!menu || !card) return;
+  var shouldOpen = !menu.classList.contains('open');
+  menu.classList.toggle('open', shouldOpen);
+  card.classList.toggle('open', shouldOpen);
+}
+
+function closeUserMenu() {
+  var menu = document.getElementById('sidebar-user-menu');
+  var card = document.getElementById('sidebar-user-card');
+  if (menu) menu.classList.remove('open');
+  if (card) card.classList.remove('open');
+}
+
+function toggleMobileUserMenu(event) {
+  if (event) event.stopPropagation();
+  var menu = document.getElementById('mobile-user-menu');
+  if (!menu) return;
+  var shouldOpen = !menu.classList.contains('open');
+  closeUserMenu();
+  menu.classList.toggle('open', shouldOpen);
+  if (shouldOpen) {
+    var nameEl = document.getElementById('mobile-menu-name');
+    var emailEl = document.getElementById('mobile-menu-email');
+    if (nameEl) nameEl.textContent = customerMeta.customerName || customerMeta.contactFirstName || '–';
+    if (emailEl) emailEl.textContent = customerMeta.customerEmail || (currentUser && currentUser.email) || '–';
+    if (typeof refreshLucideIcons === 'function') setTimeout(refreshLucideIcons, 30);
+  }
+}
+
+function closeMobileUserMenu() {
+  var menu = document.getElementById('mobile-user-menu');
+  if (menu) menu.classList.remove('open');
+}
+
+function mobileLogoutAction() {
+  closeMobileUserMenu();
+  openConfirmModal({
+    title: 'Wirklich abmelden?',
+    text: 'Sie werden aus dem Voxera Portal abgemeldet.',
+    confirmLabel: 'Abmelden',
+    loadingLabel: 'Melde ab...',
+    tone: 'danger',
+    onConfirm: function() {
+      doLogout();
+      return true;
+    }
+  });
+}
+
+document.addEventListener('click', function(event) {
+  var menu = document.getElementById('sidebar-user-menu');
+  var card = document.getElementById('sidebar-user-card');
+  if (menu && card && !card.contains(event.target)) closeUserMenu();
+
+  var mobileMenu = document.getElementById('mobile-user-menu');
+  var mobileAvatar = document.getElementById('mobile-header-avatar');
+  if (mobileMenu && mobileAvatar && !mobileMenu.contains(event.target) && !mobileAvatar.contains(event.target)) {
+    closeMobileUserMenu();
+  }
+});
+
+function normalizeHelpAnchorId(anchorId) {
+  if (!anchorId) return '';
+  var raw = String(anchorId).trim().toLowerCase();
+  if (!raw) return '';
+  var aliasMap = {
+    forwarding: 'help-einrichtung',
+    smartphone: 'help-smartphone',
+    festnetz: 'help-festnetz',
+    support: 'help-support',
+    probleme: 'help-probleme',
+    einrichtung: 'help-einrichtung',
+    anrufe: 'help-anrufe',
+    konto: 'help-konto'
+  };
+  return aliasMap[raw] || raw;
+}
+
+function openActivationSection(options) {
+  var cfg = options || {};
+  // Neue Navigation: Mehr → Rufumleitung
+  var mehrNav = document.getElementById('nav-mehr') || document.querySelector('.nav-item[onclick*="mehr"]');
+  if (mehrNav) showTab('mehr', mehrNav);
+  setTimeout(function() { if (typeof vxMehrShow === 'function') vxMehrShow('rufumleitung'); }, 100);
+  safeMountActivationV2({ reason: cfg.reason || 'activation-entry', softGate: false });
+  if (cfg.scrollTop) {
+    window.requestAnimationFrame(function() {
+      var shell = document.getElementById('activation-v2-shell');
+      if (shell) shell.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+}
+
+function openHelpSection(anchorId) {
+  showTab('hilfe');
+  var normalizedAnchorId = normalizeHelpAnchorId(anchorId);
+  if (!normalizedAnchorId) return;
+  window.requestAnimationFrame(function() {
+    var target = document.getElementById(normalizedAnchorId);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function openActivationInlineHelp(event) {
+  if (event) event.stopPropagation();
+  openSetupHelpOverlay(event, 'forwarding');
+}
+
+function getDialableVoxeraNumber() {
+  var raw = (customerMeta && customerMeta.voxeraNumber) ? String(customerMeta.voxeraNumber) : '';
+  var clean = raw.replace(/\s+/g, '').trim();
+  return clean;
+}
+
+function resolveForwardingCode(template) {
+  var num = getDialableVoxeraNumber();
+  if (!template || !num) return '';
+  return template.replace('{voxera_number}', num);
+}
+
+function renderForwardingCodes() {
+  var num = getDialableVoxeraNumber();
+  var hasNumber = !!num;
+  var ua = String((window.navigator && window.navigator.userAgent) || '').toLowerCase();
+  var isPhoneLikeUa = /iphone|android.+mobile|windows phone|ipod/.test(ua);
+  var isNarrowViewport = !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
+  var isTouchPrimary = !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+  var canDialDirectOnThisDevice = isPhoneLikeUa || (isTouchPrimary && isNarrowViewport);
+  var fallbackEl = document.getElementById('forwarding-code-fallback');
+  if (fallbackEl) fallbackEl.style.display = hasNumber ? 'none' : 'inline-flex';
+
+  document.querySelectorAll('code[data-code-template]').forEach(function(codeEl) {
+    var template = codeEl.getAttribute('data-code-template') || '';
+    var resolved = resolveForwardingCode(template);
+    codeEl.textContent = resolved || 'Nicht verfügbar';
+  });
+
+  document.querySelectorAll('button[data-code-template], button[data-fixed-code]').forEach(function(btn) {
+    btn.disabled = !hasNumber;
+    btn.style.opacity = hasNumber ? '' : '.55';
+    btn.style.cursor = hasNumber ? '' : 'not-allowed';
+  });
+
+  document.querySelectorAll('.help-direct-btn').forEach(function(linkEl) {
+    var fixedCode = linkEl.getAttribute('data-fixed-code') || '';
+    var template = linkEl.getAttribute('data-code-template') || '';
+    var resolved = fixedCode || resolveForwardingCode(template);
+    var needsVoxeraNumber = !fixedCode;
+    var hasRequiredData = needsVoxeraNumber ? hasNumber : true;
+    var canUseDirect = !!resolved && hasRequiredData && canDialDirectOnThisDevice;
+    linkEl.style.display = canDialDirectOnThisDevice ? '' : 'none';
+    linkEl.setAttribute('href', canUseDirect ? ('tel:' + encodeURIComponent(resolved)) : 'javascript:void(0)');
+    linkEl.setAttribute('aria-disabled', canUseDirect ? 'false' : 'true');
+    linkEl.setAttribute('data-code', resolved || '');
+    linkEl.setAttribute('data-direct-reason', (!hasRequiredData ? 'missing_number' : (!canDialDirectOnThisDevice ? 'device_unsupported' : 'ready')));
+    var noteRoot = linkEl.closest('.help-forwarding-card') || linkEl.closest('.setup-help-card');
+    var noteEl = noteRoot ? noteRoot.querySelector('.help-dialer-note') : null;
+    if (noteEl) noteEl.style.display = (!canDialDirectOnThisDevice && !!resolved) ? 'block' : 'none';
+  });
+}
+
+function copyForwardingTemplateCode(event, btnEl) {
+  if (event) event.stopPropagation();
+  var template = btnEl && btnEl.getAttribute('data-code-template');
+  var code = resolveForwardingCode(template);
+  if (!code) {
+    toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
+    return;
+  }
+  return copyForwardingCode(event, code);
+}
+
+function openSetupHelpOverlay(event, sectionId) {
+  if (event) event.stopPropagation();
+  var overlay = document.getElementById('setup-help-overlay');
+  var target = document.getElementById('setup-help-content');
+  if (!overlay || !target) return;
+
+  var sections = {
+    forwarding: {
+      title: 'Rufumleitung einrichten',
+      sub: 'Kurz-Anleitung für Smartphone-Weiterleitung',
+      html: '' +
+        '<div class="setup-help-grid">' +
+          '<div class="setup-help-card"><div class="setup-help-card-title">1) Empfohlen: Bei Nichterreichbarkeit</div><div class="setup-help-card-text">Ideal, wenn Sie selbst erreichbar bleiben möchten und Voxera nur bei verpassten Anrufen übernimmt.</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**62*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**62*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**62*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+          '</div>' +
+          '<div class="setup-help-card"><div class="setup-help-card-title">2) Bei Besetzt</div><div class="setup-help-card-text">Nützlich, wenn Ihre Leitung bereits belegt ist.</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**67*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**67*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**67*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+          '</div>' +
+          '<div class="setup-help-card"><div class="setup-help-card-title">3) Alle Anrufe weiterleiten</div><div class="setup-help-card-text">Wenn Voxera vorübergehend alle Anrufe übernehmen soll.</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**21*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**21*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**21*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+          '</div>' +
+          '<div class="setup-help-card"><div class="setup-help-card-title">Weiterleitung ausschalten</div><div class="setup-help-card-text">Setzt aktive Umleitungen zurück.</div>' +
+            '<div class="setup-help-code-row"><code>##002#</code><div class="help-code-actions"><button class="btn btn--secondary" data-fixed-code="##002#" onclick="copyForwardingCode(event,\'##002#\')">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="help-chip badge-amber" id="setup-forwarding-fallback" style="display:none;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>',
+      anchor: 'smartphone'
+    },
+    testcall: {
+      title: 'Testanruf Hilfe',
+      sub: 'So prüfen Sie den Ablauf in unter 1 Minute',
+      html: '<div class="setup-help-grid"><div class="setup-help-card"><div class="setup-help-card-title">Ablauf</div><div class="setup-help-card-text">Rufen Sie Ihre Geschäftsnummer von einem anderen Telefon aus an. Die Rufumleitung sollte an Voxera übergeben. Prüfen Sie danach den Eintrag im Dashboard.</div></div></div>',
+      anchor: 'forwarding'
+    },
+    notifications: {
+      title: 'Benachrichtigungen Hilfe',
+      sub: 'Wählen Sie den passenden Modus für Ihr Team',
+      html: '<div class="setup-help-grid"><div class="setup-help-card"><div class="setup-help-card-title">Keine Benachrichtigungen</div><div class="setup-help-card-text">Alles nur im Dashboard.</div></div><div class="setup-help-card"><div class="setup-help-card-title">Nur Rückruf-Anfragen</div><div class="setup-help-card-text">Fokus auf dringende Rückrufe.</div></div><div class="setup-help-card"><div class="setup-help-card-title">Bei jedem Anruf</div><div class="setup-help-card-text">Maximale Transparenz in Echtzeit.</div></div></div>',
+      anchor: 'forwarding'
+    },
+    support: {
+      title: 'Support Hilfe',
+      sub: 'Schnell die richtige Anlaufstelle finden',
+      html: '<div class="setup-help-grid"><div class="setup-help-card"><div class="setup-help-card-title">Direkt im Dashboard</div><div class="setup-help-card-text">In den Einstellungen finden Sie Support-Kontakt und alle wichtigen Kontodaten.</div></div></div>',
+      anchor: 'forwarding'
+    }
+  };
+
+  var section = sections[sectionId] || sections.forwarding;
+  target.innerHTML =
+    '<div class="setup-help-header">' +
+      '<div><div class="setup-help-title">' + section.title + '</div><div class="setup-help-sub">' + section.sub + '</div></div>' +
+      '<button class="btn btn--secondary" onclick="closeSetupHelpOverlay()">Schliessen</button>' +
+    '</div>' +
+    section.html +
+    '<div class="setup-help-footer">' +
+      '<a class="btn btn--secondary" href="javascript:void(0)" onclick="openFullHelpFromWizard(\'' + section.anchor + '\')">Alle Anleitungen anzeigen</a>' +
+    '</div>';
+
+  overlay.style.display = 'flex';
+  renderForwardingCodes();
+  var overlayFallback = document.getElementById('setup-forwarding-fallback');
+  if (overlayFallback) overlayFallback.style.display = getDialableVoxeraNumber() ? 'none' : 'inline-flex';
+}
+
+function closeSetupHelpOverlay() {
+  var overlay = document.getElementById('setup-help-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function openFullHelpFromWizard(anchorId) {
+  closeSetupHelpOverlay();
+  openHelpSection(anchorId);
+}
+
+async function copyForwardingCode(event, code) {
+  if (event) event.stopPropagation();
+  if (!code) {
+    toast('Code nicht verfügbar');
+    return;
+  }
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(code);
+    } else {
+      var temp = document.createElement('textarea');
+      temp.value = code;
+      temp.setAttribute('readonly', '');
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.focus();
+      temp.select();
+      var copied = document.execCommand('copy');
+      document.body.removeChild(temp);
+      if (!copied) throw new Error('Clipboard API unavailable');
+    }
+    announceCopyFeedback('Code kopiert', 'success');
+  } catch (e) {
+    announceCopyFeedback('Kopieren fehlgeschlagen', 'error');
+  }
+}
+
+function announceCopyFeedback(message, type) {
+  var liveEl = document.getElementById('copy-feedback-live');
+  if (liveEl) liveEl.textContent = message || '';
+  toast(message || 'Aktion ausgeführt', type || 'success');
+}
+
+function applyForwarding(code) {
+  if (!code) return false;
+  var encodedCode = encodeURIComponent(code);
+  window.location.href = 'tel:' + encodedCode;
+  return true;
+}
+
+function applyForwardingCode(event, linkEl) {
+  if (event) event.stopPropagation();
+  if (!linkEl) return;
+  var code = linkEl.getAttribute('data-code') || '';
+  var disabled = linkEl.getAttribute('aria-disabled') === 'true';
+  var reason = linkEl.getAttribute('data-direct-reason') || '';
+  if (disabled || !code) {
+    if (event) event.preventDefault();
+    if (reason === 'missing_number') toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
+    else toast('Direktes Anwenden ist auf diesem Gerät nicht verfügbar. Bitte Code kopieren.');
+    return;
+  }
+  applyForwarding(code);
+}
+
+async function changePassword() {
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
+  const pw = document.getElementById('pw-new').value;
+  const pw2 = document.getElementById('pw-confirm').value;
+  const btn = document.getElementById('pw-save-btn');
+  const errEl = document.getElementById('pw-error');
+  const succEl = document.getElementById('pw-success');
+
+  errEl.style.display = 'none';
+  succEl.style.display = 'none';
+
+  if (!pw || pw.length < 8) {
+    errEl.textContent = 'Passwort muss mindestens 8 Zeichen haben.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (pw !== pw2) {
+    errEl.textContent = 'Passwörter stimmen nicht überein.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Speichern...';
+  try {
+    const { error } = await sb.auth.updateUser({ password: pw });
+    if (error) throw error;
+    succEl.textContent = 'Passwort erfolgreich geändert';
+    succEl.style.display = 'block';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+    toast('Passwort geändert');
+  } catch (error) {
+    errEl.textContent = error?.message || 'Fehler beim Speichern.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Passwort speichern';
+  }
+}
+
+// ═══════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════
+const MAIN_NAV_HISTORY_TABS = new Set(['dashboard','anrufe','rueckrufe','archiv','einstellungen','hilfe','assistent','auswertung','mehr']);
+const MAIN_NAV_DEFAULT_TAB = 'dashboard';
+const MAIN_NAV_URL_PARAM = 'tab';
+const MAIN_NAV_TAB_TO_URL = {
+  dashboard: 'overview',
+  anrufe: 'requests',
+  rueckrufe: 'tasks',
+  archiv: 'history',
+  einstellungen: 'settings',
+  hilfe: 'help',
+  assistent: 'assistant',
+  auswertung: 'stats',
+  mehr: 'more'
+};
+const MAIN_NAV_URL_TO_TAB = Object.fromEntries(
+  Object.entries(MAIN_NAV_TAB_TO_URL).map(([tab,urlTab])=>[urlTab,tab])
+);
+
+function isMainNavHistoryTab(tabName){
+  return MAIN_NAV_HISTORY_TABS.has(String(tabName||'').trim());
+}
+
+function getCurrentTabName(){
+  const active=document.querySelector('.tab-page.active');
+  if(!active||!active.id) return '';
+  return active.id.replace(/^tab-/,'');
+}
+
+function getRequestedMainNavTabFromUrl(){
+  const params=new URLSearchParams(location.search||'');
+  if(!params.has(MAIN_NAV_URL_PARAM)) return {hasParam:false, tab:MAIN_NAV_DEFAULT_TAB, isValid:false};
+  const raw=String(params.get(MAIN_NAV_URL_PARAM)||'').trim().toLowerCase();
+  const mappedTab=MAIN_NAV_URL_TO_TAB[raw]||(isMainNavHistoryTab(raw)?raw:'');
+  if(isMainNavHistoryTab(mappedTab)) return {hasParam:true, tab:mappedTab, isValid:true};
+  return {hasParam:true, tab:MAIN_NAV_DEFAULT_TAB, isValid:false};
+}
+
+function getMainNavFromStateOrUrl(eventState){
+  const stateTab=eventState&&isMainNavHistoryTab(eventState.mainTab)?eventState.mainTab:'';
+  if(stateTab) return stateTab;
+  return getRequestedMainNavTabFromUrl().tab;
+}
+
+function writeMainNavHistory(tabName, mode){
+  if(!isMainNavHistoryTab(tabName)) return;
+  const params=new URLSearchParams(location.search||'');
+  params.set(MAIN_NAV_URL_PARAM,MAIN_NAV_TAB_TO_URL[tabName]||MAIN_NAV_TAB_TO_URL[MAIN_NAV_DEFAULT_TAB]);
+  const query=params.toString();
+  const nextUrl=`${location.pathname}${query?`?${query}`:''}${location.hash||''}`;
+  const statePayload={ ...(history.state||{}), mainTab:tabName };
+  if(mode==='replace') history.replaceState(statePayload,'',nextUrl);
+  else history.pushState(statePayload,'',nextUrl);
+}
+
+function findTabNavElement(tabName){
+  return document.getElementById('nav-' + tabName) ||
+         document.querySelector(`.nav-item[onclick*="'${tabName}'"]`) ||
+         document.getElementById('mnav-' + tabName);
+}
+
+function renderVertrag() {
+  if (!document.getElementById('vertrag-card')) return;
+  var ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract));
+  var fmt = function(v){ return v ? new Date(v).toLocaleDateString('de-CH', {timeZone:'Europe/Zurich'}) : '–'; };
+  var money = function(v){ var n=Number(v||0); return n>0?'CHF '+n.toFixed(2):'Inbegriffen'; };
+
+  var card = document.getElementById('vertrag-card');
+  if (!ct) {
+    if(card) card.style.display = 'none';
+    return;
+  }
+  if(card) card.style.display = 'block';
+
+  // Header
+  var planRaw = ct.plan || ct.plan_code || '';
+  var planLabel = planRaw ? planRaw.charAt(0).toUpperCase()+planRaw.slice(1) : 'Voxera';
+  // title handled by card header
+  var statusRaw = String(ct.status||'').toLowerCase();
+  var statusLabel = statusRaw==='active'?'Aktiv':statusRaw==='signed'?'Unterzeichnet':statusRaw==='pending_review'?'In Prüfung':'Verarbeitung';
+  var statusColor = statusRaw==='active'?'#059669':statusRaw==='signed'?'#1A6FE8':'#E8C547';
+  var statusBg = statusRaw==='active'?'#ECFDF5':statusRaw==='signed'?'#EFF6FF':'#FFFBEB';
+  var statusBorder = statusRaw==='active'?'#A7F3D0':statusRaw==='signed'?'#BFDBFE':'#FDE68A';
+  var el_vertrag_sub=document.getElementById('vertrag-sub'); if(el_vertrag_sub) el_vertrag_sub.textContent=planLabel+' · '+statusLabel;
+  var badge = document.getElementById('vertrag-status-badge');
+  if(badge){
+    badge.textContent = statusLabel;
+    badge.style.color = statusColor;
+    badge.style.background = statusBg;
+    badge.style.borderColor = statusBorder;
+  }
+  var _sw=document.getElementById('vertrag-status-wrap'); if(_sw) _sw.style.display='block';
+
+  // Details
+  var cycle = String(ct.billing_cycle||'').toLowerCase();
+  var el_vertrag_plan=document.getElementById('vertrag-plan'); if(el_vertrag_plan) el_vertrag_plan.textContent=planLabel;
+  var el_vertrag_billing=document.getElementById('vertrag-billing'); if(el_vertrag_billing) el_vertrag_billing.textContent=cycle==='yearly'?'Jährlich':'Monatlich';
+  var el_vertrag_start=document.getElementById('vertrag-start'); if(el_vertrag_start) el_vertrag_start.textContent=fmt(ct.start_date);
+  var el_vertrag_end=document.getElementById('vertrag-end'); if(el_vertrag_end) el_vertrag_end.textContent=fmt(ct.end_date);
+  var el_vertrag_duration=document.getElementById('vertrag-duration'); if(el_vertrag_duration) el_vertrag_duration.textContent=(ct.duration_months||ct.months||'–')+' Monate';
+  // Cancellation: end_date - 30 days
+  if(ct.end_date){
+    var cancelDeadline = new Date(ct.end_date);
+    cancelDeadline.setDate(cancelDeadline.getDate()-30);
+    var el_vertrag_cancel=document.getElementById('vertrag-cancel'); if(el_vertrag_cancel) el_vertrag_cancel.textContent=fmt(cancelDeadline.toISOString());
+  } else {
+    var el_vertrag_cancel=document.getElementById('vertrag-cancel'); if(el_vertrag_cancel) el_vertrag_cancel.textContent='–';
+  }
+
+  // Leistungsumfang
+  var el_vertrag_minutes=document.getElementById('vertrag-minutes'); if(el_vertrag_minutes) el_vertrag_minutes.textContent=ct.included_minutes!=null?ct.included_minutes+' Min.':'–';
+  var el_vertrag_overage=document.getElementById('vertrag-overage'); if(el_vertrag_overage) el_vertrag_overage.textContent=ct.overage_rate_per_minute!=null?'CHF '+Number(ct.overage_rate_per_minute).toFixed(4)+'/Min.':'–';
+  var recurringPrice = cycle==='yearly'?ct.recurring_amount_yearly:ct.recurring_amount_monthly;
+  var el_vertrag_price=document.getElementById('vertrag-price'); if(el_vertrag_price) el_vertrag_price.textContent=recurringPrice>0?'CHF '+Number(recurringPrice).toFixed(2):'–';
+  var el_vertrag_setup=document.getElementById('vertrag-setup'); if(el_vertrag_setup) el_vertrag_setup.textContent=money(ct.setup_fee_amount);
+
+  // Dokumente
+  var docsList = document.getElementById('vertrag-docs-list');
+  if(docsList){
+    var docs = [];
+    // Try to get from offer via contract — fallback to generic
+    docs.push({ label:'Allgemeine Geschäftsbedingungen', version:'v2.0', url:'https://voxera.ch/agb' });
+    docs.push({ label:'Auftragsverarbeitungsvertrag (AVV)', version:'v1.0', url:null });
+    docs.push({ label:'Datenschutzerklärung', version:'v2.0', url:'https://voxera.ch/datenschutz' });
+    docsList.innerHTML = docs.map(function(d){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray50);border:0.5px solid var(--line);border-radius:10px;">'
+        +'<div style="display:flex;align-items:center;gap:8px;">'
+        +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        +'<span style="font-size:13px;font-weight:600;color:var(--ink);">'+d.label+'</span>'
+        +'<span style="font-size:11px;color:var(--slate2);">'+d.version+'</span>'
+        +'</div>'
+        +(d.url?'<a href="'+d.url+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:600;color:#1A6FE8;text-decoration:none;">Lesen →</a>':'<span style="font-size:12px;color:var(--slate2);">Per E-Mail erhalten</span>')
+        +'</div>';
+    }).join('');
+  }
+
+  // Vertragskopie
+  var token = ct.contract_public_token;
+  var copyWrap = document.getElementById('vertrag-copy-wrap');
+  var copyLink = document.getElementById('vertrag-copy-link');
+  if(token && copyWrap && copyLink){
+    copyLink.href = 'https://voxera.ch/contract-signed.html?token='+encodeURIComponent(token);
+    copyWrap.style.display = 'block';
+  } else if(copyWrap){
+    copyWrap.style.display = 'none';
+  }
+}
+
+
+const VX_ROOT_TABS = new Set(['dashboard','anrufe','assistent','auswertung','einstellungen','hilfe','archiv']);
+const VX_NAV_AUDIT = [
+  { view: 'call-detail', parent: 'anrufe/dashboard', back: 'vxHandleDetailBack' },
+  { view: 'task-detail', parent: 'anrufe/dashboard', back: 'vxHandleDetailBack' },
+  { view: 'contact-history-detail', parent: 'call-detail|task-detail', back: 'vxHandleDetailBack' },
+  { view: 'notifications-mobile-page', parent: 'previous-root-tab', back: 'vxBellPageBack' },
+  { view: 'mehr-subviews (profil/benachrichtigungen/abonnement/darstellung/hilfe/rufumleitung)', parent: 'mehr-main', back: 'vxMehrBack' },
+  { view: 'activation-v2 drilldowns', parent: 'einrichtung-root', back: 'activationV2SetStep / action-back' },
+  { view: 'modal/sheet overlays', parent: 'active-tab', back: 'modal-close-btn|backdrop|Escape' },
+  { view: 'hash routes #call/:id #task/:id', parent: 'anrufe/dashboard', back: 'hashchange + vxHandleDetailBack/hideCallDetail' }
+];
+
+function vxCloseTransientViewsForRootTab(nextTab) {
+  if (!VX_ROOT_TABS.has(String(nextTab || ''))) return;
+  try {
+    vxBellClose();
+    _vxBellOpen = false;
+  } catch(e) {}
+  try {
+    if (String(nextTab) !== 'mehr' && typeof vxMehrBack === 'function') vxMehrBack();
+  } catch(e) {}
+  try {
+    document.querySelectorAll('.overlay.open').forEach(function(el){ el.classList.remove('open'); });
+    if (typeof syncOverlayScrollLock === 'function') syncOverlayScrollLock();
+  } catch(e) {}
+  try {
+    if (typeof vxSetScrollLock === 'function') vxSetScrollLock('detail-v2', false);
+    if (typeof vxSyncScrollLock === 'function') vxSyncScrollLock();
+  } catch(e) {}
+}
+
+function showTab(name, el, options) {
+  if (!name) return;
+  const opts = (options && typeof options === 'object') ? options : {};
+  vxCloseTransientViewsForRootTab(name);
+  
+  // ─── FIX: Call-Detail Page nur bei EXPLIZITEN Tab-Wechseln schließen ───
+  // (nicht bei internen showTab-Aufrufen ohne Click-Element wie Polling/Refresh)
+  var callDetailPage = document.getElementById('call-detail-page');
+  if (callDetailPage && callDetailPage.style.display === 'block') {
+    var isExplicitUserAction = !!el || opts.historyMode === 'push';
+    if (isExplicitUserAction) {
+      window._vxLastAnfragenRecordId = window._vxActiveRecordId || window._vxLastAnfragenRecordId || window._vxCurrentCallId || window._vxCurrentTaskId || '';
+      if (typeof hideCallDetail === 'function') {
+        hideCallDetail();
+      } else {
+        callDetailPage.style.display = 'none';
+        vxSetScrollLock('call-detail-page', false);
+        vxSyncScrollLock();
+      }
+    }
+  }
+  
+  const previousTab = getCurrentTabName();
+  if (previousTab === 'dashboard' && name !== 'dashboard') dashRecentExpanded = false;
+  if (previousTab === 'anrufe' && name !== 'anrufe') {
+    // Anfragen-Position bewusst behalten: Filter und aktiver Eintrag bleiben erhalten.
+    window._vxLastAnfragenRecordId = window._vxActiveRecordId || window._vxLastAnfragenRecordId || window._vxCurrentCallId || window._vxCurrentTaskId || '';
+  }
+  if (name === 'assistent') { setTimeout(loadAssistentRequests, 100); }
+  if (name === 'archiv') { setTimeout(function(){ if (typeof renderArchiv === 'function') renderArchiv(allRecords || []); }, 50); }
+  if (previousTab === 'rueckrufe' && name !== 'rueckrufe') { _rueckrufeFilter = 'alle'; }
+  closeUserMenu();
+  closeMobileUserMenu();
+  var targetTab = document.getElementById('tab-' + name);
+  if (!targetTab) return;
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
+  targetTab.classList.add('active');
+  injectSortButtons();
+  var navEl = el || document.getElementById('nav-' + name) || document.getElementById('mnav-' + name);
+  if (navEl) navEl.classList.add('active');
+  const mnav = document.getElementById('mnav-'+name);
+  if (mnav) mnav.classList.add('active');
+  if (name === 'vertrag') renderVertrag();
+  if (name === 'einrichtung') renderEinrichtungTab();
+  if (name === 'anrufe') {
+    markVisibleCallsAsSeen((allRecords || []).filter(function(r) { return !isClosedStatus(((r && r.fields) || {}).dashboard_status); }));
+    renderDashboard(allRecords || [], allManualTaskRecords || []);
+    setTimeout(function(){
+      var lastId = String(window._vxLastAnfragenRecordId || window._vxActiveRecordId || '').trim();
+      if (!lastId || window.innerWidth < 768) return;
+      var rec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(lastId) : null;
+      if (!rec) return;
+      window._vxActiveRecordId = lastId;
+      if (typeof renderAnrufe === 'function') renderAnrufe();
+      setTimeout(function(){
+        if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) {
+          if (typeof showTaskDetail === 'function') showTaskDetail(lastId);
+        } else if (typeof showCallDetail === 'function') showCallDetail(lastId, { fromBackStack: true });
+      }, 60);
+    }, 120);
+  }
+  if (isMainNavHistoryTab(name)) {
+    const mode = opts.historyMode || 'push';
+    const shouldWrite = mode !== 'none' && (mode === 'replace' || previousTab !== name);
+    if (shouldWrite) writeMainNavHistory(name, mode === 'replace' ? 'replace' : 'push');
+  }
+  // Onboarding zurückbringen wenn Kunde zu Haupt-Tabs navigiert
+  if (window._vxOnboardingPendingReturn && typeof customerMeta !== 'undefined' && !customerMeta.onboardingCompleted &&
+      (name === 'dashboard' || name === 'mehr')) {
+    window._vxOnboardingPendingReturn = false;
+    setTimeout(function() {
+      if (typeof vxOnboardingUpdateSteps === 'function') vxOnboardingUpdateSteps();
+      const overlay = document.getElementById('vx-onboarding-overlay');
+      if (overlay) overlay.style.display = 'flex';
+    }, 400);
+  }
+
+  try {
+    // PRODUKTREGEL: Nach First-Login darf 'einrichtung' nicht mehr persistent gespeichert werden
+    const setupFinished = localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));
+    if (!setupFinished || name !== 'einrichtung') {
+      vxSafeSessionStorageSet('voxera_tab', name);
+      if (name !== 'einrichtung') {
+        vxSafeSessionStorageSet('voxera_last_non_setup_tab', name);
+      }
+    }
+  } catch(e){}
+  if (name === 'einstellungen' || name === 'profil') {
+    syncSystemVoxeraSettings();
+    openAccount();
+  }
+  try {
+    if (typeof vxEnsureNoOrphanDetailView === 'function') vxEnsureNoOrphanDetailView('showTab:' + name);
+  } catch(e) {}
+}
+
+function consumeForceDashboardAfterLogin() {
+  var shouldForce = !!window._vxForceDashboardAfterLogin || !!forceDashboardOnNextRestore;
+  if (!shouldForce) return false;
+  window._vxForceDashboardAfterLogin = false;
+  forceDashboardOnNextRestore = false;
+  window._vxActiveRecordId = null;
+  window._vxCurrentCallId = null;
+  window._vxCurrentTaskId = null;
+  _anrufeFilter = 'offen';
+  try {
+    vxSafeSessionStorageSet('voxera_tab', 'dashboard');
+    vxSafeSessionStorageSet('voxera_last_non_setup_tab', 'dashboard');
+    vxSafeLocalStorageSet('voxera_tab', 'dashboard');
+    vxSafeLocalStorageSet('currentTab', 'dashboard');
+    vxSafeLocalStorageSet('activeTab', 'dashboard');
+  } catch(e) {}
+  if (typeof hideCallDetail === 'function') hideCallDetail();
+  if (typeof closeDetail === 'function') closeDetail();
+  if (typeof vxCloseDetailV2 === 'function') vxCloseDetailV2();
+
+  try {
+    history.replaceState({ ...(history.state||{}), mainTab: MAIN_NAV_DEFAULT_TAB }, '', location.pathname + location.search);
+  } catch(e) {}
+  showTab(MAIN_NAV_DEFAULT_TAB, findTabNavElement(MAIN_NAV_DEFAULT_TAB), { historyMode: 'replace' });
+  return true;
+}
+
+function restoreTab() {
+  try {
+    if (consumeForceDashboardAfterLogin()) return;
+
+    const urlState = getRequestedMainNavTabFromUrl();
+    if (urlState.hasParam) {
+      const navEl = findTabNavElement(urlState.tab);
+      if (navEl) {
+        showTab(urlState.tab, navEl, { historyMode: 'replace' });
+        return;
+      }
+    }
+
+    const saved = sessionStorage.getItem('voxera_tab');
+    if (!saved || saved === 'dashboard') {
+      showTab(MAIN_NAV_DEFAULT_TAB, findTabNavElement(MAIN_NAV_DEFAULT_TAB), { historyMode: 'replace' });
+      return;
+    }
+
+    // PRODUKTREGEL: Nach First-Login darf 'einrichtung' niemals mehr automatisch restored werden
+    if (saved === 'einrichtung') {
+      // Neues Design: Rufumleitung ist unter Mehr → Rufumleitung
+      const mehrNavEl = findTabNavElement('mehr');
+      if (mehrNavEl) {
+        showTab('mehr', mehrNavEl, { historyMode: 'replace' });
+        setTimeout(function() { vxMehrShow('rufumleitung'); }, 100);
+        return;
+      }
+    }
+
+    const navEl = findTabNavElement(saved);
+    if (navEl) showTab(saved, navEl, { historyMode: isMainNavHistoryTab(saved) ? 'replace' : 'none' });
+  } catch(e){}
+}
+
+window.addEventListener('popstate', function(event){
+  // ─── Wenn Hash #call/... oder #task/... ist, ist die Detail-Page der aktive View ───
+  // → Kein showTab aufrufen (das würde die Detail-Page schließen)
+  if (window.location.hash.indexOf('#call/') === 0 || window.location.hash.indexOf('#task/') === 0) {
+    return;
+  }
+  
+  // ─── Wenn vorher Detail-Hash war und jetzt nicht mehr: Detail-Page schließen ───
+  var callDetailPage = document.getElementById('call-detail-page');
+  if (callDetailPage && callDetailPage.style.display === 'block') {
+    if (typeof hideCallDetail === 'function') hideCallDetail();
+    else {
+      callDetailPage.style.display = 'none';
+      vxSetScrollLock('call-detail-page', false);
+      vxSyncScrollLock();
+    }
+  }
+  
+  const requestedTab = getMainNavFromStateOrUrl(event && event.state);
+  if (!isMainNavHistoryTab(requestedTab)) return;
+  const navEl = findTabNavElement(requestedTab);
+  if (!navEl) return;
+  showTab(requestedTab, navEl, { historyMode: 'none' });
+  try { if (typeof vxEnsureNoOrphanDetailView === 'function') vxEnsureNoOrphanDetailView('popstate'); } catch(e) {}
+});
+
+window.addEventListener('hashchange', function() {
+  try {
+    if (typeof vxEnsureNoOrphanDetailView === 'function' && !vxIsDetailHash()) {
+      vxEnsureNoOrphanDetailView('hashchange');
+    }
+  } catch(e) {}
+});
+
+function filterList(listId, type, btn) {
+  if (btn) {
+    btn.closest('.filter-tabs').querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  // Filter-State speichern
+  if (listId === 'anrufe-list') _anrufeFilter = type;
+  if (listId === 'rueckrufe-list') _rueckrufeFilter = type;
+  // Gruppen-Header immer erst entfernen
+  var listEl = document.getElementById(listId);
+  if (listEl) listEl.querySelectorAll('.task-section-header').forEach(function(h) { h.remove(); });
+  document.querySelectorAll('#'+listId+' .call-row').forEach(row => {
+    if (type === 'alle') { row.classList.remove('hidden'); return; }
+    if (type === 'offen') { row.classList.toggle('hidden', row.dataset.open !== '1'); return; }
+    if (type === 'dringend') { row.classList.toggle('hidden', row.dataset.priority !== 'urgent'); return; }
+    if (type === 'inbearbeitung') { row.classList.toggle('hidden', !['in_progress','follow_up_scheduled'].includes(row.dataset.status)); return; }
+    if (type === 'neu') { row.classList.toggle('hidden', row.dataset.status !== 'new'); return; }
+    row.classList.toggle('hidden', row.dataset.qual !== type);
+  });
+  // Gruppen-Header neu einsetzen wenn Aufgaben-Liste und Filter "alle"
+  if (listId === 'rueckrufe-list' && type === 'alle' && typeof injectTaskGroupHeaders === 'function') {
+    injectTaskGroupHeaders('rueckrufe-list');
+  }
+}
+
+function searchList(listId, query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('#'+listId+' .call-row').forEach(row => {
+    row.classList.toggle('hidden', q !== '' && !row.textContent.toLowerCase().includes(q));
+  });
+}
+
+function openAccountFromMobile(el) {
+  document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  openAccount();
+}
+
+function manualRefresh() {
+  loadData();
+}
+
+function openSetupWizardFromCta(event, stepId) {
+  if (event) event.preventDefault();
+  if (isContractRestrictedState()) {
+    toast('Erreichbarkeit ist ohne aktiven Vertrag nicht verfügbar.', 'warning');
+    return;
+  }
+  openActivationSection({ reason: 'settings-cta', scrollTop: true });
+}
+
+function isForwardingSetupCompleted() {
+  return !!(customerMeta && customerMeta.forwardingSetupCompleted === true);
+}
+
+function isActivationPathSelectedByDeviceType() {
+  var dt = customerMeta && customerMeta.setupDeviceType;
+  return dt === 'mobile' || dt === 'landline';
+}
+
+function isForwardingActivated() {
+  return isForwardingSetupCompleted();
+}
+
+// Resets the activation test state when the user changes setup during pending_test.
+async function resetActivationTestContext(recId, context) {
+  stopActivationPolling();
+  clearActivationFreshRunTracking();
+  candidateCall = null;
+  activationFlowSuccessToken = '';
+  await patchCustomerRecord(recId, { forwarding_status: 'not_started', activation_started_at: null, activation_test_mode: null, activation_test_candidate_call_id: null });
+  customerMeta.forwardingStatus = 'not_started';
+  customerMeta.activationStartedAt = null;
+    customerMeta.activationTestMode = null;
+    customerMeta.activationTestOutboundCallId = null;
+  if (context && context.customerRecord) {
+    context.customerRecord.forwarding_status = 'not_started';
+    context.customerRecord.activation_started_at = null;
+    context.customerRecord.activation_test_mode = null;
+    context.customerRecord.activation_test_candidate_call_id = null;
+  }
+  toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.');
+  renderActivationV2();
+}
+
+async function persistSetupDeviceType(type) {
+  var normalized = type === 'mobile' ? 'mobile' : type === 'landline' ? 'landline' : null;
+  if (!normalized) {
+    toast('Ungültiger Aktivierungsweg.');
+    return null;
+  }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return null; }
+    // Reset activation test context if currently in pending_test
+    if (customerMeta.forwardingStatus === 'pending_test') {
+      await resetActivationTestContext(recId, context);
+    }
+    await patchCustomerRecord(recId, { setup_device_type: normalized });
+    customerMeta.setupDeviceType = normalized;
+    if (context && context.customerRecord) context.customerRecord.setup_device_type = normalized;
+    return normalized;
+  } catch(e) {
+    console.error('setup_device_type save failed', e);
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Aktivierung') : 'Aktivierungsweg konnte nicht gespeichert werden.');
+    return null;
+  }
+}
+
+async function persistForwardingSetupCompleted() {
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    await patchCustomerRecord(recId, { forwarding_setup_completed: true });
+    customerMeta.forwardingSetupCompleted = true;
+    if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
+    return true;
+  } catch(e) {
+    console.error('forwarding_setup_completed save failed', e);
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Rufumleitungsstatus konnte nicht gespeichert werden.');
+    return false;
+  }
+}
+
+async function persistForwardingMode(mode) {
+  var validModes = ['no_answer', 'unreachable', 'always', 'busy'];
+  if (!validModes.includes(mode)) {
+    console.error('persistForwardingMode: ungültiger Modus', mode);
+    toast('Ungültiger Weiterleitungsmodus.');
+    return false;
+  }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    // Reset activation test context if currently in pending_test
+    if (customerMeta.forwardingStatus === 'pending_test') {
+      await resetActivationTestContext(recId, context);
+    }
+    await patchCustomerRecord(recId, { forwarding_mode: mode });
+    customerMeta.forwardingMode = mode;
+    if (context && context.customerRecord) context.customerRecord.forwarding_mode = mode;
+    return true;
+  } catch(e) {
+    console.error('forwarding_mode save failed', e);
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Weiterleitungsmodus konnte nicht gespeichert werden.');
+    return false;
+  }
+}
+
+function getForwardingCode(mode, voxeraNumber) {
+  return { code: "", label: "" };
+}
+
+function getForwardingDisableCode(mode) {
+  var codes = { always: '#21#', no_answer: '#61#', unreachable: '#62#', busy: '#67#' };
+  return codes[mode] || '';
+}
+
+function getForwardingModeLabel(mode) {
+  var labels = {
+    always: 'Immer weiterleiten',
+    no_answer: 'Wenn ich nicht antworte',
+    unreachable: 'Wenn ich nicht erreichbar bin',
+    busy: 'Wenn besetzt'
+  };
+  return labels[mode] || mode || '';
+}
+
+function getForwardingModeGuide(mode) {
+  var copy = {
+    no_answer: { title: 'Empfohlen: Keine Antwort', text: 'Voxera übernimmt nur, wenn Sie nicht abnehmen.' },
+    unreachable: { title: 'Nicht erreichbar', text: 'Ideal, wenn Ihr Handy ausgeschaltet ist oder kein Netz hat.' },
+    busy: { title: 'Bei Besetzt', text: 'Wenn Sie bereits telefonieren, wird an Voxera weitergeleitet.' },
+    always: { title: 'Alle Anrufe', text: 'Leitet jeden Anruf direkt an Voxera weiter.' }
+  };
+  return copy[mode] || { title: getForwardingModeLabel(mode) || 'Weiterleitung', text: '' };
+}
+
+function showDashboard() {
+  // Atomar: dash-loading verstecken und dash-content zeigen im selben Aufruf
+  var loadingEl = document.getElementById('dash-loading');
+  var dashEl = document.getElementById('dash-content');
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (dashEl) dashEl.style.display = 'block';
+}
+
+function showSetupExperience() {
+  // FSE card removed from dashboard – always show dash-content
+  // Atomar: dash-loading verstecken und dash-content zeigen im selben Aufruf
+  var loadingEl = document.getElementById('dash-loading');
+  var dashEl = document.getElementById('dash-content');
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (dashEl) dashEl.style.display = 'block';
+}
+
+function syncSetupExperienceButtons() {
+  var hasNumber = !!getDialableVoxeraNumber();
+  var primaryBtn = document.getElementById('dashboard-fse-primary');
+  var secondaryBtn = document.getElementById('dashboard-fse-secondary');
+  var noteEl = document.getElementById('dashboard-fse-note');
+  [primaryBtn, secondaryBtn].forEach(function(btn){
+    if (!btn) return;
+    btn.disabled = !hasNumber;
+    btn.style.opacity = hasNumber ? '' : '.55';
+    btn.style.cursor = hasNumber ? '' : 'not-allowed';
+  });
+  if (noteEl) noteEl.classList.toggle('show', !hasNumber);
+}
+
+function updateSetupExperienceProgress() {
+  var forwardingDone = isForwardingSetupCompleted();
+  var testCallDone = !!setupDone.s2;
+  var readyDone = isForwardingSetupCompleted();
+  var map = [
+    { id: 'fse-progress-forwarding', done: forwardingDone, label: 'Rufumleitung aktivieren' },
+    { id: 'fse-progress-testcall', done: testCallDone, label: 'Testanruf durchführen' },
+    { id: 'fse-progress-ready', done: readyDone, label: 'Bereit' }
+  ];
+  map.forEach(function(entry){
+    var el = document.getElementById(entry.id);
+    if (!el) return;
+    el.textContent = (entry.done ? ' ' : ' ') + entry.label;
+    el.classList.toggle('done', !!entry.done);
+  });
+}
+
+function routeDashboardFirstSessionExperience() {
+  updateSetupExperienceProgress();
+  syncSetupExperienceButtons();
+  if (!isForwardingActivated()) {
+    showSetupExperience();
+    return;
+  }
+  showDashboard();
+}
+
+function handleSetupExperiencePrimaryCta(event) {
+  if (event) event.preventDefault();
+  const mehrNavEl = findTabNavElement('mehr');
+  if (mehrNavEl) {
+    showTab('mehr', mehrNavEl);
+    setTimeout(function() { vxMehrShow('rufumleitung'); }, 100);
+  }
+}
+
+function handleSetupExperienceWizardCta(event) {
+  if (event) event.preventDefault();
+  if (!getDialableVoxeraNumber()) return;
+  openSetupWizardFromCta(event, 's1');
+}
+
+// ═══════════════════════════════════════════
+//  ACTIVATION MODULE
+// ═══════════════════════════════════════════
+
+function getActivationUiState(meta) {
+  var status = meta && meta.forwardingStatus;
+  var deviceType = meta && meta.setupDeviceType;
+  if (status === 'active') return 'active';
+  if (status === 'inactive') return 'inactive';
+  if (status === 'pending_test') return 'pending_test';
+  if (deviceType && status !== 'active' && status !== 'inactive') return 'in_progress';
+  return 'not_started';
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderActivationInstructions(deviceType) {
+  return "";
+}
+
+function renderActivationModule() {
+  return;
+}
+
+function renderActivationActionCard(meta) {
+  return;
+}
+
+async function activationCopyCode(event, code) {
+  if (event) event.stopPropagation();
+  if (!code) { toast('Kein Code verfügbar.'); return; }
+  await copyForwardingCode(event, code);
+}
+
+function canSkipActivationTest(meta) {
+  // Business rule: activation may only switch to active after persisted test-call detection.
+  // Skip shortcuts are intentionally disabled.
+  if (!meta) return false;
+  return false;
+}
+
+async function activationSkipTest(event) {
+  if (event) event.stopPropagation();
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird aktiviert…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; } return; }
+    await patchCustomerRecord(recId, {
+      forwarding_status: 'active',
+      forwarding_setup_completed: true,
+      last_confirmed_setup_device_type: customerMeta.setupDeviceType,
+      last_confirmed_forwarding_mode: customerMeta.forwardingMode,
+      activation_test_mode: customerMeta.activationTestMode || 'system_call',
+      activation_test_candidate_call_id: customerMeta.activationTestOutboundCallId || null
+    });
+    customerMeta.forwardingStatus = 'active';
+    customerMeta.forwardingSetupCompleted = true;
+    customerMeta.lastConfirmedSetupDeviceType = customerMeta.setupDeviceType;
+    customerMeta.lastConfirmedForwardingMode = customerMeta.forwardingMode;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'active';
+      context.customerRecord.forwarding_setup_completed = true;
+      context.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
+      context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
+      context.customerRecord.activation_test_mode = customerMeta.activationTestMode || 'system_call';
+      context.customerRecord.activation_test_candidate_call_id = customerMeta.activationTestOutboundCallId || null;
+    }
+    clearActivationFreshRunTracking();
+    candidateCall = null;
+    activationFlowSuccessToken = '';
+    stopActivationPolling();
+    toast('Rufumleitung erfolgreich aktiviert.');
+    renderActivationV2();
+    scrollToStatusCard();
+    triggerStatusHighlight('success');
+  } catch(e) {
+    console.error('activationSkipTest failed', e);
+    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; }
+  }
+}
+
+function activationSkipToTest(event) {
+  if (event) event.stopPropagation();
+  // Hide the skip shortcut block and scroll to the normal test section
+  var skipBlockEl = document.getElementById('act-skip-shortcut-block');
+  if (skipBlockEl) skipBlockEl.style.display = 'none';
+  var actionSect = document.getElementById('act-action-section');
+  if (actionSect) {
+    actionSect.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function renderDeactivationSection(meta) {
+  return;
+}
+
+function activationMobileDeactivate(event) {
+  // Do NOT set forwarding_status = 'inactive' here.
+  // Just show the next-step helper box and allow the dialer to open.
+  var nextStep = document.getElementById('act-deact-mobile-nextstep');
+  if (nextStep) nextStep.style.display = 'block';
+  toast('Deaktivierung gestartet. Bitte testen Sie jetzt Ihre Nummer.');
+}
+
+function openActivationDeactivateSection() {
+  var nav = document.getElementById('nav-einrichtung');
+  if (nav) showTab('einrichtung', nav);
+  var section = document.getElementById('act-deactivation-section');
+  if (section) {
+    section.style.display = 'block';
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+async function activationSelectDevice(event, type) {
+  if (event) event.stopPropagation();
+  var result = await persistSetupDeviceType(type);
+  if (result) renderActivationV2();
+  return !!result;
+}
+
+async function activationSelectMode(event, mode) {
+  if (event) event.stopPropagation();
+  var ok = await persistForwardingMode(mode);
+  if (ok) renderActivationV2();
+  return !!ok;
+}
+
+function activationDeactivationCheckboxChanged() {
+  var checkbox = document.getElementById('act-deact-checkbox');
+  var btn = document.getElementById('act-deact-btn');
+  if (btn) btn.disabled = !(checkbox && checkbox.checked);
+}
+
+async function activationConfirmDeactivation(event) {
+  if (event) event.preventDefault();
+  var checkbox = document.getElementById('act-deact-checkbox');
+  if (!checkbox || !checkbox.checked) { toast('Bitte bestätigen Sie das Ergebnis.'); return; }
+  var btn = document.getElementById('act-deact-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert...'; }
+  var ok = await persistForwardingStatus('inactive');
+  if (ok) {
+    toast('Rufumleitung erfolgreich deaktiviert.');
+    renderActivationV2();
+    scrollToStatusCard();
+    triggerStatusHighlight('neutral');
+  } else {
+    if (btn) { btn.disabled = false; btn.textContent = 'Verknüpfung deaktivieren'; }
+  }
+}
+
+async function persistForwardingStatus(status) {
+  var validStatuses = ['not_started', 'pending_test', 'active', 'inactive'];
+  if (!validStatuses.includes(status)) {
+    console.error('persistForwardingStatus: ungültiger Status', status);
+    toast('Ungültiger Weiterleitungsstatus.');
+    return false;
+  }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    await patchCustomerRecord(recId, { forwarding_status: status });
+    customerMeta.forwardingStatus = status;
+    if (context && context.customerRecord) context.customerRecord.forwarding_status = status;
+    return true;
+  } catch(e) {
+    console.error('persistForwardingStatus failed', e);
+    toast('Weiterleitungsstatus konnte nicht gespeichert werden.');
+    return false;
+  }
+}
+
+// Placeholder for backend-detected candidate call (integration point for call-detection automation)
+var candidateCall = null;
+var activationPollingInterval = null;
+var activationFlowGuideToken = '';
+var activationFlowSuccessToken = '';
+var ACTIVATION_TEST_POLL_MS = 4000;
+var ACTIVATION_TEST_TIMEOUT_MS = 15 * 60 * 1000;
+var ACTIVATION_OUTBOUND_START_GRACE_MS = 90 * 1000;
+var activationSystemCallPending = false;
+var activationSystemCallError = '';
+var activationSystemCallTriggerInFlight = false;
+var activationSystemCallSessionLock = '';
+var activationStartTriggerInFlight = false;
+var activationConfirmInFlight = false;
+var activationAutoConfirmInFlight = false;
+var activationAutoConfirmToken = '';
+var activationRunStartLocalIso = '';
+var activationFreshRunState = {
+  startedAt: '',
+  awaitingPersistence: false
+};
+
+// ── Concurrency Guard: verhindert parallele loadData()-Laeufe ────────────────
+// Ohne diesen Guard koennen Realtime, Polling, focus und confirm gleichzeitig
+// loadData() starten. Der langsamere Lauf ueberschreibt dann customerMeta /
+// candidateCall des schnelleren -> State Drift und falsche UI-Zustaende.
+var loadDataInFlight = false;
+var loadDataPending = false; // true = ein Aufruf kam waehrend loadData lief -> nach Abschluss wiederholen
+
+// ── Activation Confirm Quiet Period ──────────────────────────────────────────
+// Nach confirmActivationTestCall() schreibt patchCustomerRecord() forwarding_status='active'
+// in die DB. Der anschliessende loadData()-Aufruf (via Realtime oder Polling)
+// kann diesen Write noch nicht sehen wenn die DB-Propagation noch laeuft.
+// Resultat: loadData liest 'pending_test' -> ueberschreibt customerMeta.forwardingStatus
+// -> activationAutoConfirmToken wird geleert -> zweiter Auto-Confirm startet.
+// Fix: nach erfolgreichem Confirm blockiert loadData() das Ueberschreiben von
+// forwardingStatus fuer 2500ms (ACTIVATION_CONFIRM_QUIET_MS).
+var ACTIVATION_CONFIRM_QUIET_MS = 10000; // 10s – reicht für loadData + DB-Propagation
+// Globaler Override: wenn gesetzt, wird forwardingStatus IMMER auf diesen Wert gezwungen
+// Wird nach Deaktivierung gesetzt und nach 30s oder nach erstem bestätigten DB-Read geleert
+var _forwardingStatusOverride = null; // { status: 'inactive', until: timestamp }
+function setForwardingStatusOverride(status, durationMs) {
+  _forwardingStatusOverride = { status: status, until: Date.now() + (durationMs || 30000) };
+}
+function getForwardingStatusOverride() {
+  if (!_forwardingStatusOverride) return null;
+  if (Date.now() > _forwardingStatusOverride.until) { _forwardingStatusOverride = null; return null; }
+  return _forwardingStatusOverride.status;
+}
+function clearForwardingStatusOverride() { _forwardingStatusOverride = null; }
+var activationConfirmQuietUntil = 0; // Timestamp (ms), 0 = kein Block aktiv
+
+function getActivationSessionLockKey() {
+  if (!customerMeta || !customerMeta.activationStartedAt) return '';
+  return 'session:' + String(customerMeta.activationStartedAt);
+}
+
+function getCandidateCallToken(call) {
+  if (!call) return '';
+  if (call.id) return String(call.id);
+  if (call.fields && call.fields.id) return String(call.fields.id);
+  if (call.fields && call.fields.created_at) return 'ts:' + String(call.fields.created_at);
+  return '';
+}
+
+function hasDetectedActivationTestCall() {
+  var customerCandidateId = customerMeta && customerMeta.activationTestOutboundCallId
+    ? String(customerMeta.activationTestOutboundCallId)
+    : '';
+  if (customerCandidateId && !customerCandidateId.startsWith('pending:')) return true;
+  var callToken = getCandidateCallToken(candidateCall);
+  if (!callToken) return false;
+  return !callToken.startsWith('pending:');
+}
+
+function closeActivationFlowModal() {
+  var overlay = document.getElementById('activation-flow-overlay');
+  if (overlay) overlay.classList.remove('open');
+  syncOverlayScrollLock();
+}
+
+function openActivationFlowModal(type) {
+  var overlay = document.getElementById('activation-flow-overlay');
+  var content = document.getElementById('activation-flow-content');
+  if (!overlay || !content) return;
+  var modeLabel = getForwardingModeLabel(customerMeta && customerMeta.forwardingMode);
+  if (type === 'success') {
+    content.innerHTML = ''
+      + '<div class="activation-flow-step">Schritt 2 von 2 · Verbindung wird bestätigt</div>'
+      + '<h3>Verbindung wird final bestätigt…</h3>'
+      + '<div class="activation-flow-lead">Der Testanruf wurde erkannt. Voxera übernimmt jetzt automatisch die finale Aktivierung.</div>'
+      + '<ul class="activation-flow-list">'
+      + '<li><strong>Was wurde erkannt?</strong>Der eingegangene Testanruf wurde dem Aktivierungsprozess eindeutig zugeordnet.</li>'
+      + '<li><strong>Was ist jetzt zu tun?</strong>In der Regel nichts – die Aktivierung wird automatisch übernommen.</li>'
+      + '<li><strong>Nächster Schritt</strong>Der Status wechselt direkt auf <strong>Aktiv</strong>.</li>'
+      + '</ul>'
+      + '<div class="modal-actions">'
+      + '<button class="btn btn--secondary" type="button" onclick="closeActivationFlowModal()">Später</button>'
+      + '<button class="btn btn--primary" type="button" onclick="closeActivationFlowModal();confirmActivationTestCall(event);">Jetzt aktualisieren</button>'
+      + '</div>';
+  } else {
+    content.innerHTML = ''
+      + '<div class="activation-flow-step">Schritt 1 von 2 · Testanruf starten</div>'
+      + '<h3>Testanruf durchführen</h3>'
+      + '<div class="activation-flow-lead">Die Aktivierung wurde gestartet' + (modeLabel ? ' (<strong>' + escapeHtml(modeLabel) + '</strong>)' : '') + '. Wir rufen jetzt Ihre hinterlegte Hauptnummer an.</div>'
+      + '<ul class="activation-flow-list">'
+      + '<li><strong>Was passiert gerade?</strong>Wir prüfen automatisch, ob Ihre Weiterleitung den Testanruf korrekt zu Voxera übergibt.</li>'
+      + '<li><strong>Was ist jetzt zu tun?</strong>Sie müssen keinen eigenen Testanruf starten.</li>'
+      + '<li><strong>Nächster Schritt</strong>Sobald der Test erkannt wurde, erscheint die Bestätigung im Dashboard.</li>'
+      + '</ul>'
+      + '<div class="activation-flow-success">Hinweis: Der Testanruf erscheint erst nach Gesprächsende im Dashboard.</div>'
+      + '<div class="modal-actions">'
+      + '<button class="btn btn--secondary" type="button" onclick="closeActivationFlowModal()">Später</button>'
+      + '<button class="btn btn--primary" type="button" onclick="closeActivationFlowModal();scrollToStatusCard();">Testanruf starten</button>'
+      + '</div>';
+  }
+  overlay.classList.add('open');
+  syncOverlayScrollLock();
+}
+
+function maybeOpenActivationGuideModal() {
+  var token = [customerMeta && customerMeta.setupDeviceType, customerMeta && customerMeta.forwardingMode, customerMeta && customerMeta.activationStartedAt].join('|');
+  if (!token || token === activationFlowGuideToken) return;
+  activationFlowGuideToken = token;
+  openActivationFlowModal('guide');
+}
+
+function maybeOpenActivationSuccessModal() {
+  if (!hasDetectedActivationTestCall()) return;
+  var token = getCandidateCallToken(candidateCall);
+  if (!token || token === activationFlowSuccessToken) return;
+  activationFlowSuccessToken = token;
+  openActivationFlowModal('success');
+}
+
+function maybeAutoConfirmActivationFromDetectedCall(detectedCall) {
+  // Auto-Confirm deaktiviert. User bestätigt manuell.
+  // candidateCall ist gesetzt -> renderActivationV2 zeigt grünen Button.
+  void detectedCall;
+}
+
+function logActivationDetectionDiagnostics(label, payload){
+  return;
+}
+
+function resetActivationTestRunState(){
+  candidateCall = null;
+  activationFlowSuccessToken = '';
+  activationSystemCallError = '';
+  customerMeta.activationTestOutboundCallId = null;
+}
+
+function clearActivationToastState(){
+  var el = document.getElementById('toast');
+  if (!el) return;
+  try { clearTimeout(el._toastTimer); } catch(e) {}
+  el.classList.remove('show');
+}
+
+function clearActivationRunErrorStorage(){
+  var keys = [
+    getSetupStorageKey('voxera_activation_error'),
+    getSetupStorageKey('voxera_activation_retry_flag'),
+    getSetupStorageKey('voxera_activation_recovery_flag'),
+    'voxera_activation_error',
+    'voxera_activation_retry_flag',
+    'voxera_activation_recovery_flag'
+  ];
+  [window.localStorage, window.sessionStorage].forEach(function(storage){
+    if (!storage) return;
+    try { keys.forEach(function(key){ storage.removeItem(key); }); } catch(e) {}
+  });
+}
+
+function clearActivationStateForRunStart(){
+  clearActivationStateForNewRunStart();
+  clearActivationTransientState();
+  clearActivationRunErrorStorage();
+  clearActivationToastState();
+  activationSystemCallSessionLock = '';
+  activationFreshRunState.startedAt = '';
+  activationFreshRunState.awaitingPersistence = false;
+  // Wichtig: customerMeta Cache leeren damit startSystemActivationTestCall
+  // nicht den alten outbound call wiederverwendet (Zeile 9605 Guard)
+  if (customerMeta) {
+    customerMeta.activationTestOutboundCallId = null;
+    customerMeta.activationStartedAt = null;
+  }
+}
+
+function markActivationFreshRunStarted(startedAtIso){
+  activationFreshRunState.startedAt = startedAtIso || '';
+  activationFreshRunState.awaitingPersistence = true;
+}
+
+function markActivationFreshRunPersisted(){
+  activationFreshRunState.awaitingPersistence = false;
+}
+
+function clearActivationFreshRunTracking(){
+  activationFreshRunState.startedAt = '';
+  activationFreshRunState.awaitingPersistence = false;
+}
+
+function clearActivationStateForNewRunStart(){
+  resetActivationTestRunState();
+  stopActivationPolling();
+  activationAutoConfirmToken = '';
+  activationAutoConfirmInFlight = false;
+  activationFlowGuideToken = '';
+  activationResetFlowState.open = false;
+  activationResetFlowState.stage = 'choice';
+}
+
+function normalizeActivationDirection(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function resolveActivationCreatedAtMs(fields) {
+  var createdAtRaw = fields && fields.created_at ? String(fields.created_at) : '';
+  var createdAtMs = createdAtRaw ? new Date(createdAtRaw).getTime() : NaN;
+  return {
+    raw: createdAtRaw,
+    ms: createdAtMs,
+    parsedSuccessfully: Number.isFinite(createdAtMs)
+  };
+}
+
+// Returns the first qualifying outbound test marker for the current run.
+function findActivationOutboundTestCall(calls, activationStartedAt) {
+  if (!activationStartedAt || !Array.isArray(calls) || !calls.length) {
+    logActivationDetectionDiagnostics('outbound_missing_inputs', {
+      activation_started_at: activationStartedAt || null,
+      calls_count: Array.isArray(calls) ? calls.length : 0
+    });
+    return null;
+  }
+  var activationStartMs = new Date(activationStartedAt).getTime();
+  if (!Number.isFinite(activationStartMs)) {
+    logActivationDetectionDiagnostics('outbound_invalid_activation_started_at', {
+      activation_started_at: activationStartedAt
+    });
+    return null;
+  }
+  var currentCustomerId = String((customerMeta && customerMeta.customerId) || '').trim();
+  var best = null;
+  var timeoutDeadlineMs = activationStartMs + ACTIVATION_TEST_TIMEOUT_MS;
+  logActivationDetectionDiagnostics('outbound_scan_started', {
+    activation_started_at: activationStartedAt,
+    timeout_deadline: new Date(timeoutDeadlineMs).toISOString(),
+    customer_id: currentCustomerId || null
+  });
+  for (var i = 0; i < calls.length; i++) {
+    var call = calls[i];
+    var fields = (call && call.fields) || {};
+    var callCustomerId = String(fields.customer_id || '').trim();
+    if (currentCustomerId && callCustomerId && callCustomerId !== currentCustomerId) continue;
+
+    var direction = String(fields.direction || fields.call_direction || '').trim().toLowerCase();
+    if (direction !== 'outbound') continue;
+
+    var category = String(fields.category || '').trim().toLowerCase();
+    if (category !== 'activation_test_outbound') continue;
+
+    var createdAtRaw = fields.created_at || '';
+    if (!createdAtRaw) continue;
+    var createdAtMs = new Date(createdAtRaw).getTime();
+    if (!Number.isFinite(createdAtMs)) continue;
+    if (createdAtMs < (activationStartMs - ACTIVATION_OUTBOUND_START_GRACE_MS)) continue;
+    if (createdAtMs > timeoutDeadlineMs) continue;
+
+    if (!best || createdAtMs < new Date(best.fields.created_at || 0).getTime()) best = call;
+  }
+  logActivationDetectionDiagnostics('outbound_marker_found', {
+    found: !!best,
+    outbound_call_id: best ? String(best.fields.call_id || best.id || '') : null,
+    outbound_created_at: best ? (best.fields.created_at || null) : null
+  });
+  return best || null;
+}
+
+function findActivationCandidateCall(calls, activationStartedAt) {
+  if (!activationStartedAt || !Array.isArray(calls) || !calls.length) return null;
+  var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
+  if (!isPendingTest) return null;
+
+  var outbound = findActivationOutboundTestCall(calls, activationStartedAt);
+  var outboundCreatedMs = outbound ? new Date(((outbound.fields || {}).created_at) || '').getTime() : NaN;
+  var hasValidOutboundMarker = Number.isFinite(outboundCreatedMs);
+
+  var activationStartMs = new Date(activationStartedAt).getTime();
+  if (!Number.isFinite(activationStartMs)) {
+    logActivationDetectionDiagnostics('candidate_scan_invalid_activation_started_at', {
+      activation_started_at: activationStartedAt
+    });
+    return null;
+  }
+  var timeoutDeadlineMs = activationStartMs + ACTIVATION_TEST_TIMEOUT_MS;
+
+  var currentCustomerId = String((customerMeta && customerMeta.customerId) || '').trim();
+  var bestInbound = null;
+  for (var i = 0; i < calls.length; i++) {
+    var call = calls[i];
+    var fields = (call && call.fields) || {};
+    var candidateCallId = String(fields.call_id || call.id || '');
+    var callCustomerId = String(fields.customer_id || '').trim();
+    var direction = normalizeActivationDirection(fields.direction || fields.call_direction);
+    var category = String(fields.category || '').trim().toLowerCase();
+    var createdMeta = resolveActivationCreatedAtMs(fields);
+    var createdAtMs = createdMeta.ms;
+
+    var customerMatch = !(currentCustomerId && callCustomerId && callCustomerId !== currentCustomerId);
+    // direction wird NICHT als Filter verwendet.
+    // Grund: Voxera-Calls kommen via Twilio-Webhook und haben direction='outbound'
+    // auch wenn sie fuer den Kunden eingehende Weiterleitungen sind.
+    // Der korrekte Filter ist category: nur 'activation_test_outbound' wird ausgeschlossen.
+    // directionMatch = immer true (direction-Feld ist nicht zuverlaessig).
+    var directionMatch = true;
+    var categoryMatch = category !== 'activation_test_outbound';
+    var createdAtParsed = createdMeta.parsedSuccessfully;
+    // 30s Grace vor activation_started_at für Clock-Skew zwischen Client/DB
+    var afterActivationStartedAt = createdAtParsed && createdAtMs >= (activationStartMs - 30000);
+    var afterOutboundMarker = createdAtParsed && (!hasValidOutboundMarker || createdAtMs >= outboundCreatedMs);
+    var withinTimeout = createdAtParsed && createdAtMs <= timeoutDeadlineMs;
+    var persistedActivationInbound = category === 'activation_test_inbound';
+    var withinTimeoutOrPersistedDetection = withinTimeout || persistedActivationInbound;
+
+    var rejectReason = '';
+    if (!customerMatch) rejectReason = 'customer_mismatch';
+    else if (!directionMatch) rejectReason = 'direction_mismatch';
+    else if (!categoryMatch) rejectReason = 'category_mismatch_outbound_marker';
+    else if (!createdAtParsed) rejectReason = 'created_at_parse_failed';
+    else if (!afterActivationStartedAt) rejectReason = 'before_activation_started_at';
+    // afterOutboundMarker nur ablehnen wenn Outbound-Marker in DB vorhanden
+    else if (hasValidOutboundMarker && !afterOutboundMarker) rejectReason = 'before_outbound_marker';
+    else if (!withinTimeoutOrPersistedDetection) rejectReason = 'after_timeout';
+
+    var accepted = !rejectReason;
+    logActivationDetectionDiagnostics('pending_test_candidate_evaluated', {
+      candidate_call_id: candidateCallId || null,
+      customer_match: customerMatch,
+      direction_raw: fields.direction || fields.call_direction || null,
+      direction_normalized: direction || null,
+      direction_match: directionMatch,
+      category_match: categoryMatch,
+      created_at_parsed_successfully: createdAtParsed,
+      after_activation_started_at: afterActivationStartedAt,
+      after_outbound_marker: afterOutboundMarker,
+      within_timeout: withinTimeout,
+      persisted_activation_inbound: persistedActivationInbound,
+      within_timeout_or_persisted_detection: withinTimeoutOrPersistedDetection,
+      final_accepted: accepted,
+      reject_reason: rejectReason || null,
+      customer_id: callCustomerId || null,
+      direction: direction || null,
+      category: category || null,
+      created_at: createdMeta.raw || null,
+      called_number: fields.called_number || null,
+      voxera_number: fields.voxera_number || null
+    });
+
+    if (!accepted) continue;
+    if (!bestInbound || createdAtMs < new Date(bestInbound.fields.created_at || 0).getTime()) bestInbound = call;
+  }
+
+  logActivationDetectionDiagnostics('inbound_candidate_found', {
+    found: !!bestInbound,
+    inbound_call_id: bestInbound ? String(bestInbound.fields.call_id || bestInbound.id || '') : null,
+    inbound_created_at: bestInbound ? (bestInbound.fields.created_at || null) : null,
+    outbound_marker_call_id: outbound ? String(outbound.fields.call_id || outbound.id || '') : null,
+    outbound_marker_present: hasValidOutboundMarker
+  });
+
+  if (bestInbound) {
+    customerMeta.activationTestMode = 'system_call';
+    customerMeta.activationTestOutboundCallId = outbound ? String(outbound.fields.call_id || outbound.id || '') : null;
+  }
+  return bestInbound || null;
+}
+
+function isActivationTestTimedOut() {
+  return false;
+}
+
+function startActivationPolling() {
+  // [legacy] activation polling disabled
+  return;
+}
+
+function stopActivationPolling() {
+  return;
+}
+
+async function activationStartSmartphone(event, code) {
+  if (event) event.stopPropagation();
+  if (activationStartTriggerInFlight) return;
+  activationStartTriggerInFlight = true;
+  var btn = event && event.currentTarget;
+  var previousStatus = customerMeta.forwardingStatus;
+  var previousStartedAt = customerMeta.activationStartedAt;
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
+    var now = new Date().toISOString();
+    clearActivationStateForRunStart();
+    markActivationFreshRunStarted(now);
+    activationRunStartLocalIso = now;
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationStartedAt = now;
+    renderActivationV2();
+    // Step 1: persist state before opening dialer
+    await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now, activation_test_mode: 'system_call', activation_test_candidate_call_id: null });
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationStartedAt = now;
+    customerMeta.activationTestMode = 'system_call';
+    customerMeta.activationTestOutboundCallId = null;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'pending_test';
+      context.customerRecord.activation_started_at = now;
+      context.customerRecord.activation_test_mode = 'system_call';
+      context.customerRecord.activation_test_candidate_call_id = null;
+    }
+    markActivationFreshRunPersisted();
+    activationRunStartLocalIso = '';
+    // Step 2: rerender UI (pending_test card is now shown)
+    renderActivationV2();
+    // Step 3: start lightweight polling to detect the candidate call
+    startActivationPolling();
+    // Step 4: only after state is safely persisted, open the dialer
+    if (code) window.location.href = 'tel:' + code;
+  } catch(e) {
+    console.error('activationStartSmartphone failed', e);
+    clearActivationFreshRunTracking();
+    activationRunStartLocalIso = '';
+    customerMeta.forwardingStatus = previousStatus;
+    customerMeta.activationStartedAt = previousStartedAt;
+    toast('Aktivierung konnte nicht gestartet werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Jetzt aktivieren'; }
+    renderActivationV2();
+  } finally {
+    activationStartTriggerInFlight = false;
+  }
+}
+
+// Landline test-start flow: enters pending_test. The user has already configured
+// forwarding manually; this starts the test-call detection.
+async function activationStartLandlineTest(event) {
+  if (event) event.stopPropagation();
+  if (activationStartTriggerInFlight) return;
+  activationStartTriggerInFlight = true;
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird gestartet…'; }
+  var previousStatus = customerMeta.forwardingStatus;
+  var previousStartedAt = customerMeta.activationStartedAt;
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
+    var now = new Date().toISOString();
+    clearActivationStateForRunStart();
+    markActivationFreshRunStarted(now);
+    activationRunStartLocalIso = now;
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationStartedAt = now;
+    renderActivationV2();
+    await patchCustomerRecord(recId, { forwarding_status: 'pending_test', activation_started_at: now, activation_test_mode: 'system_call', activation_test_candidate_call_id: null });
+    customerMeta.forwardingStatus = 'pending_test';
+    customerMeta.activationStartedAt = now;
+    customerMeta.activationTestMode = 'system_call';
+    customerMeta.activationTestOutboundCallId = null;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'pending_test';
+      context.customerRecord.activation_started_at = now;
+      context.customerRecord.activation_test_mode = 'system_call';
+      context.customerRecord.activation_test_candidate_call_id = null;
+    }
+    markActivationFreshRunPersisted();
+    activationRunStartLocalIso = '';
+    renderActivationV2();
+    startActivationPolling();
+  } catch(e) {
+    console.error('activationStartLandlineTest failed', e);
+    clearActivationFreshRunTracking();
+    activationRunStartLocalIso = '';
+    customerMeta.forwardingStatus = previousStatus;
+    customerMeta.activationStartedAt = previousStartedAt;
+    toast('Aktivierung konnte nicht gestartet werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; }
+    renderActivationV2();
+  } finally {
+    activationStartTriggerInFlight = false;
+  }
+}
+
+async function confirmActivationTestCall(event) {
+  if (event) event.stopPropagation();
+  if (activationConfirmInFlight) return;
+  activationConfirmInFlight = true;
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird aktiviert…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; } return false; }
+    // Aktivierung erlauben wenn: automatisch erkannt ODER User hat manuell bestätigt
+    // (forwarding_status = pending_test = User hat Code eingegeben und Testanruf gemacht)
+    var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
+    if (!isPendingTest) {
+      toast('Aktivierung ist nur im Status "Wird geprüft" möglich.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; }
+      return false;
+    }
+    var activatedAtNow = new Date().toISOString();
+    await patchCustomerRecord(recId, {
+      forwarding_status: 'active',
+      forwarding_setup_completed: true,
+      activated_at: activatedAtNow,
+      last_confirmed_setup_device_type: customerMeta.setupDeviceType,
+      last_confirmed_forwarding_mode: customerMeta.forwardingMode,
+      activation_test_mode: customerMeta.activationTestMode || 'system_call',
+      activation_test_candidate_call_id: customerMeta.activationTestOutboundCallId || null
+    });
+    customerMeta.forwardingStatus = 'active';
+    customerMeta.forwardingSetupCompleted = true;
+    customerMeta.activatedAt = activatedAtNow;
+    customerMeta.lastConfirmedSetupDeviceType = customerMeta.setupDeviceType;
+    customerMeta.lastConfirmedForwardingMode = customerMeta.forwardingMode;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'active';
+      context.customerRecord.forwarding_setup_completed = true;
+      context.customerRecord.activated_at = customerMeta.activatedAt;
+      context.customerRecord.last_confirmed_setup_device_type = customerMeta.setupDeviceType;
+      context.customerRecord.last_confirmed_forwarding_mode = customerMeta.forwardingMode;
+      context.customerRecord.activation_test_mode = customerMeta.activationTestMode || 'system_call';
+      context.customerRecord.activation_test_candidate_call_id = customerMeta.activationTestOutboundCallId || null;
+    }
+    clearActivationFreshRunTracking();
+    candidateCall = null;
+    activationFlowSuccessToken = '';
+    stopActivationPolling();
+    // ── Quiet Period setzen ────────────────────────────────────────────────
+    // Blockiert loadData() fuer ACTIVATION_CONFIRM_QUIET_MS (2500ms) davon,
+    // forwardingStatus aus der DB zu ueberschreiben. Verhindert das Zurueck-
+    // fallen auf 'pending_test' wenn die DB-Propagation noch laeuft und
+    // Realtime/Polling schneller feuert als der Write committed ist.
+    activationConfirmQuietUntil = Date.now() + ACTIVATION_CONFIRM_QUIET_MS;
+    // State explizit setzen – Active Guard in renderActivationV2 greift zwar auch,
+    // aber direkte Zuweisung verhindert jeden Edge Case.
+    erreichbarkeitCurrentState = 'overview';
+    // Deactivation-State zurücksetzen – verhindert Flicker auf deactivation_success
+    // falls der User in einer früheren Session deaktiviert hatte.
+    erreichbarkeitDeactivationDoneAt = '';
+    toast('Rufumleitung erfolgreich aktiviert.');
+    renderActivationV2();
+    // Nochmals nach kurzem Delay rendern falls ein paralleler loadData-Lauf
+    // den State zwischenzeitlich überschrieben hat.
+    setTimeout(function() {
+      if (customerMeta && customerMeta.forwardingStatus === 'active') {
+        erreichbarkeitCurrentState = 'overview';
+        renderActivationV2();
+        updateSidebarStatus();
+      }
+    }, 600);
+    scrollToStatusCard();
+    triggerStatusHighlight('success');
+    return true;
+  } catch(e) {
+    console.error('confirmActivationTestCall failed', e);
+    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; }
+    return false;
+  } finally {
+    activationConfirmInFlight = false;
+  }
+}
+
+function rejectActivationTestCall(event) {
+  if (event) event.stopPropagation();
+  candidateCall = null;
+  activationFlowSuccessToken = '';
+  // Keep polling – user wants to retry the test call
+  renderActivationV2();
+}
+
+async function startSystemActivationTestCall(event) {
+  // [legacy] handled by checkTestCall now
+  return false;
+}
+
+async function startActivationTestFromManualCta(event) {
+  if (event) event.stopPropagation();
+  // Wenn Polling läuft aber User drückt explizit → Flags clearen und neu starten
+  if (activationSystemCallPending || activationSystemCallTriggerInFlight) {
+    activationSystemCallPending = false;
+    activationSystemCallTriggerInFlight = false;
+    activationSystemCallError = '';
+  }
+  var btn = event && event.currentTarget;
+  if (btn && typeof btn.disabled !== 'undefined') {
+    btn.disabled = true;
+    btn.textContent = 'Testanruf wird vorbereitet…';
+    btn.setAttribute('aria-busy', 'true');
+  }
+  var sessionLockKey = getActivationSessionLockKey();
+  if (sessionLockKey && activationSystemCallSessionLock === sessionLockKey) {
+    activationSystemCallPending = true;
+    activationSystemCallError = '';
+    startActivationPolling();
+    renderActivationV2();
+    return;
+  }
+  if (customerMeta && customerMeta.activationTestOutboundCallId) {
+    activationSystemCallError = '';
+    if (sessionLockKey) activationSystemCallSessionLock = sessionLockKey;
+    startActivationPolling();
+    renderActivationV2();
+    toast('Wir warten bereits auf die Erkennung des Testanrufs auf Ihrer hinterlegten Hauptnummer.');
+    return;
+  }
+  var started = await startSystemActivationTestCall(event);
+  if (!started && btn && typeof btn.disabled !== 'undefined') {
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+    btn.textContent = 'Testanruf starten';
+  }
+}
+
+async function activationDeactivateFast(event) {
+  if (event) event.stopPropagation();
+  if (activationSystemCallPending || activationSystemCallTriggerInFlight) return;
+  var btn = event && event.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird deaktiviert…'; }
+  try {
+    const context = await resolveCustomerContext();
+    var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
+    if (!recId) throw new Error('customer record missing');
+    await patchCustomerRecord(recId, {
+      forwarding_status: 'inactive',
+      forwarding_setup_completed: false,
+      activation_started_at: null,
+      activated_at: null,
+      activation_test_mode: null,
+      activation_test_candidate_call_id: null
+    });
+    customerMeta.forwardingStatus = 'inactive';
+    customerMeta.forwardingSetupCompleted = false;
+    customerMeta.activationStartedAt = null;
+    customerMeta.activatedAt = null;
+    customerMeta.activationTestMode = null;
+    customerMeta.activationTestOutboundCallId = null;
+    if (context && context.customerRecord) {
+      context.customerRecord.forwarding_status = 'inactive';
+      context.customerRecord.forwarding_setup_completed = false;
+      context.customerRecord.activation_started_at = null;
+      context.customerRecord.activated_at = null;
+      context.customerRecord.activation_test_mode = null;
+      context.customerRecord.activation_test_candidate_call_id = null;
+    }
+    candidateCall = null;
+    clearActivationFreshRunTracking();
+    stopActivationPolling();
+    toast('Weiterleitung deaktiviert.');
+    renderActivationV2();
+    return;
+  } catch (e) {
+    console.error('activationDeactivateFast failed', e);
+    toast('Weiterleitung konnte nicht deaktiviert werden.');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Weiterleitung deaktivieren'; }
+}
+
+async function activationCopyOwnNumber(event) {
+  if (event) event.stopPropagation();
+  var nr = customerMeta && customerMeta.telNr;
+  if (!nr) { toast('Keine Nummer verfügbar.'); return; }
+  await copyForwardingCode(event, nr);
+}
+
+function renderPendingTestCard(meta) {
+  return;
+}
+
+function getDeviceModeTestGuidance(deviceType, mode, telNr) {
+  var safeTelNr = escapeHtml(telNr || '\u2013');
+  var isMobile = deviceType === 'mobile';
+
+  var guides = {
+    mobile: {
+      always: {
+        title: 'Testanruf \u2013 Sofortweiterleitung (Smartphone)',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
+        steps: [
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei korrekter Sofortweiterleitung wird der Testanruf direkt zu Voxera übergeben.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird sofort weitergeleitet und im Dashboard erkannt.'
+      },
+      no_answer: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Smartphone)',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
+        steps: [
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Lassen Sie den eingehenden Testanruf kurz laufen, ohne ihn anzunehmen.',
+          'Nach der konfigurierten Klingelzeit sollte die Weiterleitung zu Voxera greifen.'
+        ],
+        expect: 'Erwartetes Ergebnis: Nach Nichtannahme wird der Testanruf weitergeleitet und im Dashboard erkannt.'
+      },
+      unreachable: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Smartphone)',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
+        steps: [
+          'Schalten Sie Ihr Smartphone in den Flugmodus oder schalten Sie es aus.',
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei korrekter Konfiguration wird der Testanruf wegen Nicht-Erreichbarkeit zu Voxera weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird bei Nicht-Erreichbarkeit weitergeleitet und im Dashboard erkannt.'
+      },
+      busy: {
+        title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Smartphone)',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
+        steps: [
+          'Starten Sie auf Ihrem Smartphone einen aktiven Anruf (z.\u00A0B. eine beliebige Nummer anrufen).',
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei besetzter Leitung sollte der Testanruf an Voxera weitergeleitet werden.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird bei Besetzt weitergeleitet und im Dashboard erkannt.'
+      }
+    },
+    landline: {
+      always: {
+        title: 'Testanruf \u2013 Sofortweiterleitung (Festnetz / Anlage)',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
+        steps: [
+          'Stellen Sie sicher, dass die Rufumleitung in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage eingerichtet ist.',
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei korrekter Konfiguration sollte der Testanruf sofort an Voxera weitergeleitet werden.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird sofort weitergeleitet und im Dashboard erkannt.'
+      },
+      no_answer: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nichtannahme (Festnetz / Anlage)',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
+        steps: [
+          'Stellen Sie sicher, dass die Rufumleitung bei Nichtannahme in Ihrem Anbieter-Portal oder an Ihrer Telefonanlage konfiguriert ist.',
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Lassen Sie den eingehenden Testanruf kurz laufen, ohne ihn anzunehmen.',
+          'Nach der konfigurierten Klingelzeit sollte der Testanruf weitergeleitet werden.'
+        ],
+        expect: 'Erwartetes Ergebnis: Nach Nichtannahme wird der Testanruf weitergeleitet und im Dashboard erkannt.'
+      },
+      unreachable: {
+        title: 'Testanruf \u2013 Weiterleitung bei Nicht-Erreichbarkeit (Festnetz / Anlage)',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
+        steps: [
+          'Nicht-Erreichbarkeit bei Festnetz oder Telefonanlagen ist anbieter- und ger\u00E4teabh\u00E4ngig.',
+          'Folgen Sie den Anweisungen Ihres Anbieters, um das Ger\u00E4t in einen nicht erreichbaren Zustand zu versetzen (z.\u00A0B. Leitung belegt, Ger\u00E4t ausgesteckt oder Anlage in DND-Modus).',
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Bei korrekter Konfiguration wird der Testanruf an Voxera weitergeleitet.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird bei Nicht-Erreichbarkeit weitergeleitet und im Dashboard erkannt.'
+      },
+      busy: {
+        title: 'Testanruf \u2013 Weiterleitung bei Besetzt (Festnetz / Anlage)',
+        subtitle: 'Ihre hinterlegte Hauptnummer wird jetzt automatisch angerufen.',
+        steps: [
+          'Halten Sie die Hauptleitung mit einem aktiven Gespr\u00E4ch besetzt.',
+          'Die angerufene Nummer ist Ihre hinterlegte Hauptnummer: <strong>' + safeTelNr + '</strong>.',
+          'Sie müssen keinen separaten Selbstanruf starten.',
+          'Ob und wie schnell der Testanruf weitergeleitet wird, hängt von Ihrem Anbieter oder Ihrer Telefonanlage ab.'
+        ],
+        expect: 'Erwartetes Ergebnis: Der Testanruf wird bei Besetzt weitergeleitet und im Dashboard erkannt (abhängig von Anbieter-Einstellungen).'
+      }
+    }
+  };
+
+  var deviceKey = isMobile ? 'mobile' : 'landline';
+  var guide = guides[deviceKey] && guides[deviceKey][mode];
+  return guide || {
+    title: 'Testanruf durchf\u00FChren',
+    subtitle: 'Rufen Sie jetzt Ihre eigene Nummer mit einem zweiten Telefon an.',
+    steps: [
+      'Nehmen Sie ein zweites Telefon.',
+      'W\u00E4hlen Sie Ihre eigene Nummer: <strong>' + safeTelNr + '</strong>'
+    ],
+    expect: 'Erwartetes Ergebnis: Der Anruf wird an den KI-Assistenten weitergeleitet.'
+  };
+}
+
+// ═══════════════════════════════════════════
+//  SETUP WIZARD
+// ═══════════════════════════════════════════
+var setupDone = {};
+var setupSkipped = {};
+var setupStateCustomerId = '';
+var selectedSetupNotificationOption = null;
+// Compat stubs — Wizard deaktiviert, aber Referenzen noch vorhanden
+var SETUP_LABELS = {s1:'Rufumleitung einrichten',s2:'Weiterleitung aktivieren & testen',s3:'Benachrichtigungen einrichten',s4:'Assistent konfigurieren',s5:'Fertig'};
+var selectedSetupDevice = null;
+function isSetupComplete(){ var steps = Array.isArray(SETUP_STEPS) ? SETUP_STEPS : []; return steps.every(function(k){return setupDone[k];}); }
+function getSetupCount(){ var steps = Array.isArray(SETUP_STEPS) ? SETUP_STEPS : []; return steps.filter(function(k){return setupDone[k];}).length; }
+function getOpenSteps(){ var steps = Array.isArray(SETUP_STEPS) ? SETUP_STEPS : []; return steps.filter(function(k){return !setupDone[k];}); }
+function getSetupStorageCustomerId(){
+  return (customerMeta && customerMeta.customerId) || (customerContext && customerContext.customerId) || (currentUser && currentUser.id) || 'anonymous';
+}
+function getSetupStorageKey(prefix){
+  return prefix + '_' + getSetupStorageCustomerId();
+}
+function resetSetupSessionState(){
+  setupDone = {};
+  setupSkipped = {};
+  selectedSetupDevice = null;
+}
+function updateSettingsWizardEntryLabel(){
+  var btn = document.getElementById('settings-wizard-btn');
+  if(!btn) return;
+  btn.textContent = isSetupComplete() ? 'Erneut öffnen' : 'Einrichtungsassistent öffnen';
+}
+
+function updateSetupProgress(){
+  var count = getSetupCount();
+  var el = document.getElementById('setup-progress-fill');
+  var txt = document.getElementById('setup-progress-text');
+  if(el) el.style.width = (count/5*100)+'%';
+  if(txt) txt.textContent = count+' / 5';
+  updateSettingsWizardEntryLabel();
+  updateOpenSummary();
+  updateDashboardReminder();
+}
+
+function updateOpenSummary(){
+  var open = getOpenSteps();
+  var box = document.getElementById('setup-open-summary');
+  var list = document.getElementById('setup-open-list');
+  if(!box||!list) return;
+  if(open.length === 0 || open.length === 5){ box.classList.remove('show'); return; }
+  box.classList.add('show');
+  list.innerHTML = open.map(function(id){ return '<li><a onclick="toggleSetupStep(\''+id+'\');window.scrollTo({top:document.getElementById(\'setup-'+id+'\').offsetTop-100,behavior:\'smooth\'})">'+SETUP_LABELS[id]+'</a></li>'; }).join('');
+}

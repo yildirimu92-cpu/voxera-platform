@@ -1,0 +1,27 @@
+FUNCTION cleanupTodayRows
+LINES 45845-45867
+TERMS dash-priority
+
+function cleanupTodayRows(){
+    var root = document.getElementById('dash-priority-list');
+    if (!root) return;
+    root.querySelectorAll('.vx-row-pill').forEach(function(pill){
+      var next = human(pill.textContent || '');
+      if (next) pill.textContent = next;
+    });
+    root.querySelectorAll('.vx-row-name').forEach(function(nameEl){
+      var text = String(nameEl.childNodes && nameEl.childNodes.length ? nameEl.childNodes[0].textContent : nameEl.textContent || '').trim();
+      if (isPhoneLike(text)) {
+        if (nameEl.childNodes && nameEl.childNodes.length) nameEl.childNodes[0].textContent = 'Unbekannter Anrufer';
+        else nameEl.textContent = 'Unbekannter Anrufer';
+      }
+    });
+    // Row-Menüs: technische/alte Detail-Aktionen in Heute nicht wieder sichtbar machen.
+    root.querySelectorAll('.vx-row-menu button').forEach(function(btn){
+      var raw = String(btn.textContent || '').trim();
+      var normalized = raw.toLowerCase();
+      if (normalized === 'details kopieren' || normalized === 'wieder öffnen') btn.remove();
+      else if (normalized === 'details öffnen') btn.textContent = 'Öffnen';
+      else if (raw.indexOf('_') >= 0) btn.textContent = human(raw);
+    });
+  }

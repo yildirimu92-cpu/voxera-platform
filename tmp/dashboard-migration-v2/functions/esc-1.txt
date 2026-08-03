@@ -1,0 +1,811 @@
+FUNCTION esc
+LINES 44019-44825
+TERMS renderDashboard
+
+function esc(v){
+    try { if (typeof _esc === 'function') return _esc(v == null ? '' : String(v)); } catch(e) {}
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; });
+  }
+  function label(v){
+    try { if (typeof vxLabel === 'function') return vxLabel(v); } catch(e) {}
+    return String(v == null ? '' : v);
+  }
+  function fmtTs(v){
+    try { if (v && typeof fmtDate === 'function') return fmtDate(v); } catch(e) {}
+    return v ? String(v) : '';
+  }
+  function duration(v){
+    try { if (v != null && v !== '' && !isNaN(Number(v)) && typeof _formatDuration === 'function') return _formatDuration(v); } catch(e) {}
+    if (v == null || v === '' || isNaN(Number(v))) return '';
+    var n = Number(v);
+    if (n < 60) return Math.round(n) + ' Sek.';
+    return Math.floor(n / 60) + ' Min. ' + Math.round(n % 60) + ' Sek.';
+  }
+  function truthy(v){
+    if (v === true) return true;
+    var s = String(v == null ? '' : v).trim().toLowerCase();
+    return ['true','1','yes','ja','y'].indexOf(s) !== -1;
+  }
+  function firstNonEmpty(){
+    for (var i=0;i<arguments.length;i++){
+      var v = arguments[i];
+      if (v != null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+  }
+  function getRecordFields(record){
+    return (record && record.fields) ? record.fields : (record || {});
+  }
+  function getSummary(record, f){
+    try { if (typeof vxGetCallSummary === 'function') return String(vxGetCallSummary(record) || '').trim(); } catch(e) {}
+    return firstNonEmpty(f.call_summary, f.summary, f.ai_summary, f.description, record && record.summary);
+  }
+  function getTranscript(f){
+    return firstNonEmpty(f.transcript, f.call_transcript, f.conversation_transcript, f.raw_transcript, f.conversation, f.messages_text);
+  }
+  function isCompleted(record, f){
+    try { if (typeof vxInquiryIsCompleted === 'function') return !!vxInquiryIsCompleted(record); } catch(e) {}
+    var s = String(firstNonEmpty(f.dashboard_status, f.status, f.state)).toLowerCase();
+    return ['erledigt','abgeschlossen','completed','done','archived','archiviert'].indexOf(s) !== -1;
+  }
+  function isPlanned(record, f){
+    try { if (typeof vxInquiryIsPlanned === 'function') return !!vxInquiryIsPlanned(record); } catch(e) {}
+    return !!firstNonEmpty(f.followup_at, f.due_at, f.next_action_at);
+  }
+  function inferActionMeta(record, f){
+    var category = String(firstNonEmpty(f.category, f.type)).toLowerCase();
+    var summary = String(getSummary(record, f)).toLowerCase();
+    var followupAt = firstNonEmpty(f.followup_at, f.due_at, f.next_action_at);
+    var callback = truthy(f.callback_requested) || category.indexOf('rückruf') !== -1 || category.indexOf('callback') !== -1;
+    var appointment = category.indexOf('termin') !== -1 || summary.indexOf('termin') !== -1;
+    var offer = category.indexOf('offerte') !== -1 || category.indexOf('angebot') !== -1 || summary.indexOf('offerte') !== -1 || summary.indexOf('angebot') !== -1;
+    var done = isCompleted(record, f);
+    if (done) return { tone:'done', title:'Bereits erledigt', text:'Dieser Eintrag ist abgeschlossen. Weitere Schritte sind nur nötig, wenn du ihn wieder aktiv bearbeiten möchtest.', meta:'Status aus dem Eintrag übernommen.' };
+    if (followupAt) return { tone:'planned', title:'Rückruf / Aufgabe geplant', text:'Für diesen Eintrag ist ein nächster Zeitpunkt hinterlegt: ' + fmtTs(followupAt) + '.', meta:'Aus followup_at / due_at abgeleitet.' };
+    if (callback) return { tone:'callback', title:'Rückruf empfohlen', text:'Der Eintrag enthält ein Rückrufsignal. Prüfe den Kontakt und plane bei Bedarf einen Rückruf.', meta:'Aus callback_requested oder Kategorie erkannt.' };
+    if (offer) return { tone:'offer', title:'Offertenanfrage erkannt', text:'Der Eintrag wirkt wie eine Anfrage zu einer Offerte. Prüfe die Zusammenfassung und kontaktiere den Kunden bei Bedarf.', meta:'Aus Kategorie oder Zusammenfassung abgeleitet.' };
+    if (appointment) return { tone:'appointment', title:'Terminbezug erkannt', text:'Der Eintrag enthält einen Terminbezug. Prüfe, ob ein Rückruf oder eine Terminbestätigung notwendig ist.', meta:'Aus Kategorie oder Zusammenfassung abgeleitet.' };
+    return { tone:'neutral', title:'Kein konkreter nächster Schritt erkannt', text:'Im aktuellen Datensatz ist kein klarer Handlungsbedarf hinterlegt.', meta:'Keine Rückruf-, Termin- oder Offertensignale erkannt.' };
+  }
+  function chipHtml(text, kind){
+    var palette = {
+      status:'background:var(--vx-bg);color:var(--vx-text2);border-color:var(--vx-border-md);',
+      blue:'background:var(--vx-blue-light);color:var(--vx-blue);border-color:var(--vx-blue-bd);',
+      red:'background:var(--vx-red-light);color:var(--vx-red);border-color:var(--vx-red-bd);',
+      gold:'background:var(--vx-gold-light);color:#B45309;border-color:var(--vx-gold-bd);',
+      green:'background:var(--vx-green-light);color:var(--vx-green);border-color:var(--vx-green-bd);'
+    };
+    return '<span class="vx-dv2-chip" style="'+(palette[kind]||palette.status)+'">'+esc(text)+'</span>';
+  }
+  function detailItem(labelText, valueText, subText){
+    if (!valueText) valueText = '—';
+    var html = '<div class="vx-dv2-info-item"><div class="vx-dv2-info-label">'+esc(labelText)+'</div><div class="vx-dv2-info-value">'+esc(valueText)+'</div>';
+    if (subText) html += '<div class="vx-dv2-info-sub">'+esc(subText)+'</div>';
+    html += '</div>';
+    return html;
+  }
+  function safeRecordId(record, f){
+    return firstNonEmpty(record && record.id, f.id, f.call_id, f.task_id);
+  }
+  function renderTranscript(transcript){
+    if (!transcript) {
+      return '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-file-text"></i> Gesprächsverlauf</div><span>Nicht verfügbar</span></div><div class="vx-dv2-muted">Für diesen Eintrag ist kein Gesprächsverlauf im Datensatz vorhanden.</div></div>';
+    }
+    try { if (typeof vxRenderTranscriptCardHtml === 'function') return vxRenderTranscriptCardHtml(transcript); } catch(e) {}
+    return '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-file-text"></i> Gesprächsverlauf</div><span>Rohtext</span></div><div class="vx-dv2-transcript-raw">'+esc(transcript)+'</div></div>';
+  }
+  function ensureStyles(){
+    if (document.getElementById('vx-pr-j1-detail-v2-style')) return;
+    var style = document.createElement('style');
+    style.id = 'vx-pr-j1-detail-v2-style';
+    style.textContent = '\n' +
+      '#requests-detail-v2 .vx-dv2-shell{overflow-y:auto;height:100%;background:var(--vx-bg);}\n' +
+      '#requests-detail-v2 .vx-dv2-header{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 12px;border-bottom:0.5px solid var(--vx-border);background:var(--vx-bg);}\n' +
+      '#requests-detail-v2 .vx-dv2-avatar{flex-shrink:0;width:44px;height:44px;border-radius:50%;background:var(--vx-night);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;}\n' +
+      '#requests-detail-v2 .vx-dv2-title{font-weight:600;font-size:15px;color:var(--vx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}\n' +
+      '#requests-detail-v2 .vx-dv2-phone{color:var(--vx-blue);font-size:13px;margin-top:1px;}\n' +
+      '#requests-detail-v2 .vx-dv2-meta{color:var(--vx-text3);font-size:12px;margin-top:2px;}\n' +
+      '#requests-detail-v2 .vx-dv2-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}\n' +
+      '#requests-detail-v2 .vx-dv2-chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;border:0.5px solid;}\n' +
+      '#requests-detail-v2 .vx-dv2-actions{display:flex;gap:8px;padding:12px 16px;background:var(--vx-bg);border-bottom:0.5px solid var(--vx-border);flex-wrap:wrap;}\n' +
+      '#requests-detail-v2 .vx-dv2-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:0.5px solid var(--vx-border-md);background:var(--vx-surface);color:var(--vx-text);}\n' +
+      '#requests-detail-v2 .vx-dv2-btn-primary{background:var(--vx-night);color:#fff;border-color:var(--vx-night);}\n' +
+      '#requests-detail-v2 .vx-dv2-btn-done{background:var(--vx-green-light);color:var(--vx-green);border-color:var(--vx-green-bd);}\n' +
+      '#requests-detail-v2 .vx-dv2-body{display:flex;flex-direction:column;gap:10px;padding:14px;}\n' +
+      '#requests-detail-v2 .vx-dv2-card{background:var(--vx-surface);border-radius:12px;border:0.5px solid var(--vx-border);padding:14px;}\n' +
+      '#requests-detail-v2 .vx-dv2-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-14px -14px 12px;padding:12px 14px;border-bottom:0.5px solid var(--vx-border);font-weight:600;font-size:13px;color:var(--vx-text);}\n' +
+      '#requests-detail-v2 .vx-dv2-card-head>div{display:flex;align-items:center;gap:7px;}\n' +
+      '#requests-detail-v2 .vx-dv2-card-head span{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--vx-text3);}\n' +
+      '#requests-detail-v2 .vx-dv2-text{font-size:13px;line-height:1.6;color:var(--vx-text2);}\n' +
+      '#requests-detail-v2 .vx-dv2-muted{font-size:12px;color:var(--vx-text3);line-height:1.55;}\n' +
+      '#requests-detail-v2 .vx-dv2-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px;}\n' +
+      '#requests-detail-v2 .vx-dv2-info-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--vx-text3);margin-bottom:4px;}\n' +
+      '#requests-detail-v2 .vx-dv2-info-value{font-size:13px;font-weight:600;color:var(--vx-text);line-height:1.35;}\n' +
+      '#requests-detail-v2 .vx-dv2-info-sub{font-size:11px;color:var(--vx-text3);margin-top:3px;line-height:1.4;}\n' +
+      '#requests-detail-v2 .vx-dv2-action-card{display:flex;gap:12px;align-items:flex-start;}\n' +
+      '#requests-detail-v2 .vx-dv2-action-icon{width:36px;height:36px;border-radius:10px;background:var(--vx-blue-light);color:var(--vx-blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;}\n' +
+      '#requests-detail-v2 .vx-dv2-action-title{font-size:14px;font-weight:700;color:var(--vx-text);margin-bottom:4px;}\n' +
+      '#requests-detail-v2 .vx-dv2-action-text{font-size:13px;line-height:1.55;color:var(--vx-text2);}\n' +
+      '#requests-detail-v2 .vx-dv2-action-meta{font-size:11px;color:var(--vx-text3);margin-top:6px;}\n' +
+      '#requests-detail-v2 .vx-dv2-transcript-raw{white-space:pre-wrap;font-size:13px;line-height:1.6;color:var(--vx-text2);}\n' +
+      '#requests-detail-v2 .vx-dv2-note{width:100%;min-height:90px;padding:10px 12px;border:0.5px solid var(--vx-border-md);border-radius:10px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;background:var(--vx-bg);color:var(--vx-text);line-height:1.6;}\n' +
+      '@media(max-width:1180px){#requests-detail-v2 .vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}\n' +
+      '@media(max-width:760px){#requests-detail-v2 .vx-dv2-info-grid{grid-template-columns:1fr;}#requests-detail-v2 .vx-dv2-actions{position:sticky;top:0;z-index:2;}}\n';
+    style.textContent += style.textContent.replace(/#requests-detail-v2/g, '#archiv-detail-v2');
+    document.head.appendChild(style);
+  }
+
+  window.vxRenderRequestsDetailV2 = function(record, options) {
+    options = options || {};
+    var host = options.hostEl || document.getElementById('requests-detail-v2');
+    if (!host) return;
+    ensureStyles();
+
+    var f = getRecordFields(record);
+    var name = firstNonEmpty(f.caller_name, f.name, record && record.name);
+    var phone = firstNonEmpty(f.phone, f.caller_phone, f.phone_number, f.tel_link, record && record.phone, record && record.caller_phone);
+    var rawDate = firstNonEmpty(f.created_at, f.received_at, f.started_at, record && record.created_at);
+    var date = fmtTs(rawDate);
+    var status = firstNonEmpty(f.status, f.dashboard_status, f.state);
+    var category = firstNonEmpty(f.category, f.intent, f.topic);
+    var leadQual = firstNonEmpty(f.lead_quality, f.lead_quality_label, f.priority);
+    var source = firstNonEmpty(f.source, f.channel, f.direction) || 'Telefonanruf';
+    var dur = duration(firstNonEmpty(f.duration_seconds, f.duration, f.call_duration_seconds));
+    var summary = getSummary(record, f);
+    var note = firstNonEmpty(f.notes_customer_voxera, f.customer_note, f.note, f.notes);
+    var transcript = getTranscript(f);
+    var done = isCompleted(record, f);
+    var planned = isPlanned(record, f);
+    var callback = truthy(f.callback_requested);
+    var followupAt = firstNonEmpty(f.followup_at, f.due_at, f.next_action_at);
+    var actionMeta = inferActionMeta(record, f);
+    var displayName = name || phone || 'Unbekannte Nummer';
+    var initials = name ? name.trim().split(/\s+/).slice(0,2).map(function(w){return (w[0]||'').toUpperCase();}).join('') : (phone ? phone.replace(/\D/g,'').slice(-2) : '?');
+    var displayMeta = [date, dur].filter(Boolean).join(' · ') || '—';
+
+    var leadKind = String(leadQual).toLowerCase() === 'hot' || String(leadQual).toLowerCase() === 'heiss' ? 'red' : (String(leadQual).toLowerCase() === 'warm' ? 'gold' : 'status');
+    var chips = [];
+    if (status) chips.push(chipHtml(label(status), done ? 'green' : 'status'));
+    if (category) chips.push(chipHtml(label(category), 'blue'));
+    if (leadQual) chips.push(chipHtml(label(leadQual), leadKind));
+    if (planned && followupAt) chips.push(chipHtml('Geplant', 'gold'));
+    if (callback) chips.push(chipHtml('Rückruf', 'blue'));
+
+    var html = '';
+    html += '<div class="vx-dv2-shell" data-record-id="'+esc(safeRecordId(record, f))+'">';
+    html +=   '<div class="vx-dv2-header">';
+    html +=     '<div class="vx-dv2-avatar">'+esc(initials)+'</div>';
+    html +=     '<div style="flex:1;min-width:0;">';
+    html +=       '<div class="vx-dv2-title">'+esc(displayName)+'</div>';
+    if (phone) html += '<div class="vx-dv2-phone">'+esc(phone)+'</div>';
+    html +=       '<div class="vx-dv2-meta">'+esc(displayMeta)+'</div>';
+    if (chips.length) html += '<div class="vx-dv2-chips">'+chips.join('')+'</div>';
+    html +=     '</div>';
+    html +=   '</div>';
+
+    html +=   '<div class="vx-dv2-actions">';
+    if (phone) html += '<button class="vx-dv2-btn vx-dv2-btn-primary" onclick="vxCallDetailAnrufen()"><i class="ph-bold ph-phone"></i>Anrufen</button>';
+    html +=     '<button class="vx-dv2-btn" onclick="vxCallDetailFaelligkeit()"><i class="ph-bold ph-calendar-plus"></i>Rückruf planen</button>';
+    if (!done) html += '<button class="vx-dv2-btn vx-dv2-btn-done" onclick="vxCallDetailErledigt()"><i class="ph-bold ph-check"></i>Erledigt</button>';
+    html +=   '</div>';
+
+    html +=   '<div class="vx-dv2-body">';
+    html +=     '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-sparkle"></i> Anliegen</div><span>Automatisch erstellt</span></div>';
+    html +=       summary ? '<div class="vx-dv2-text">'+esc(summary)+'</div>' : '<div class="vx-dv2-muted">Keine Zusammenfassung verfügbar.</div>';
+    html +=     '</div>';
+
+    html +=     '<div class="vx-dv2-card"><div class="vx-dv2-action-card"><div class="vx-dv2-action-icon"><i class="ph-bold ph-flag"></i></div><div style="flex:1;min-width:0;"><div class="vx-dv2-action-title">'+esc(actionMeta.title)+'</div><div class="vx-dv2-action-text">'+esc(actionMeta.text)+'</div><div class="vx-dv2-action-meta">'+esc(actionMeta.meta)+'</div></div></div></div>';
+
+    html +=     '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-info"></i> Anrufdetails</div><span>Übersicht</span></div><div class="vx-dv2-info-grid">';
+    html +=       detailItem('Kategorie', category ? label(category) : '—');
+    html +=       detailItem('Relevanz', leadQual ? label(leadQual) : 'Nicht bewertet');
+    html +=       detailItem('Status', status ? label(status) : (done ? 'Erledigt' : 'Offen'));
+    html +=       detailItem('Handlungsbedarf', actionMeta.tone === 'neutral' ? 'Nein' : 'Ja', actionMeta.title);
+    html +=       detailItem('Dauer', dur || '—');
+    html +=       detailItem('Zeitpunkt', date || '—');
+    html +=       detailItem('Quelle', source || '—');
+    html +=       detailItem('Rückruf', callback ? 'Ja' : 'Nein', followupAt ? ('Geplant: ' + fmtTs(followupAt)) : '');
+    html +=       detailItem('Eintrag', safeRecordId(record, f) ? 'Vorhanden' : 'Ohne ID');
+    html +=     '</div></div>';
+
+    html +=     '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-user"></i> Kontakt</div><span>Stammdaten</span></div><div class="vx-dv2-info-grid">';
+    html +=       detailItem('Name', name || '—');
+    html +=       detailItem('Telefon', phone || '—');
+    html +=       detailItem('Eingang', date || '—');
+    html +=     '</div></div>';
+
+    html +=     (typeof vxRenderCallAudioCardHtml === 'function') ? vxRenderCallAudioCardHtml(record) : '';
+    html +=     renderTranscript(transcript);
+
+    html +=     '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-pencil-simple"></i> Persönliche Notiz</div><span>Manuell</span></div>';
+    html +=       '<textarea id="vx-dv2-note" class="vx-dv2-note" placeholder="Notiz hinzufügen...">'+esc(note)+'</textarea>';
+    html +=       '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;"><button class="vx-dv2-btn vx-dv2-btn-primary" onclick="vxDv2SaveNote()">Speichern</button><span class="vx-dv2-muted">Speichert im aktuellen Eintrag.</span></div>';
+    html +=     '</div>';
+
+    html +=   '</div>';
+    html += '</div>';
+    host.innerHTML = html;
+  };
+})();
+</script>
+
+
+
+<!-- Removed by PR-P12 native modal recovery: vx-pr-j2-action-modal-polish -->
+
+
+<!-- Removed by PR-P12 native modal recovery: vx-pr-j2-action-specific-modal-logic -->
+
+
+
+
+
+<!-- Removed by PR-P12 native modal recovery: vx-pr-j3-unified-action-modals-2026-05-23 -->
+
+
+
+<!-- Removed by PR-P12 native modal recovery: vx-pr-j3-unified-action-modals-2026-05-23 -->
+
+
+
+<!-- PR-J4 — Detail-V2/Modal/Inbox Stabilisierung: 2026-05-23 -->
+<style id="vx-pr-j4-stability-polish-css">
+/* Filter bleiben auch bei schmaler Split-Spalte sichtbar/bedienbar */
+@media(min-width:1100px){
+  #anrufe-split-left.vx-split-left,
+  .vx-split-left#anrufe-split-left{
+    min-width:390px!important;
+    width:max(390px, var(--vx-anfragen-left-width, 440px))!important;
+  }
+}
+#anrufe-split-left .vx-split-filters{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  gap:6px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  scrollbar-width:thin!important;
+  -webkit-overflow-scrolling:touch!important;
+  min-width:0!important;
+  padding-right:14px!important;
+}
+#anrufe-split-left .vx-split-filters button{
+  flex:0 0 auto!important;
+  min-width:auto!important;
+  white-space:nowrap!important;
+  padding:0 12px!important;
+}
+#anrufe-split-left .vx-split-search{min-width:0!important;}
+#anrufe-split-left .vx-split-search input{min-width:0!important;}
+
+/* Row-Fallback: unbekannter Name wirkt nicht wie eine Telefonnummer als Name */
+#anrufe-list .vx-row-name.vx-name-fallback,
+#anrufe-list .vx-anf-name.vx-name-fallback{
+  color:var(--vx-text)!important;
+  font-weight:600!important;
+}
+
+/* Floating Menüs zuverlässiger schliessen und visuell ruhiger */
+#vx-row-menu-portal.vx-row-menu.is-open{
+  min-width:220px!important;
+  border-radius:14px!important;
+  box-shadow:0 20px 44px rgba(13,31,60,.18)!important;
+}
+#vx-row-menu-portal button{font-size:13px!important;padding:10px 12px!important;}
+
+/* Unified Action Modals — kompakter, kein verstecktes Notizfeld hinter Footer */
+#followup-overlay .modal,
+#manual-task-overlay .modal{
+  max-width:860px!important;
+  max-height:min(92vh,820px)!important;
+}
+#followup-overlay .modal-body,
+#manual-task-overlay .modal-body{
+  padding:22px 30px 18px!important;
+  overflow-y:auto!important;
+  max-height:calc(92vh - 206px)!important;
+}
+#followup-overlay .modal-field,
+#manual-task-overlay .modal-field{margin-bottom:12px!important;}
+#followup-overlay textarea,
+#manual-task-overlay textarea{
+  min-height:72px!important;
+  max-height:96px!important;
+  resize:vertical!important;
+}
+#followup-overlay .vx-action-quick,
+#manual-task-overlay .vx-action-quick{margin-bottom:12px!important;}
+#followup-overlay .vx-action-chip-row,
+#manual-task-overlay .vx-action-chip-row{gap:8px!important;}
+#followup-overlay .vx-action-chip,
+#manual-task-overlay .vx-action-chip{
+  height:40px!important;
+  border-radius:14px!important;
+  padding:0 14px!important;
+  font-size:13px!important;
+}
+#followup-overlay .modal-grid,
+#manual-task-overlay .modal-grid{gap:14px!important;margin-bottom:8px!important;}
+#followup-overlay .modal-footer,
+#manual-task-overlay .modal-footer{
+  position:relative!important;
+  z-index:2!important;
+  padding:14px 30px 18px!important;
+  background:#fff!important;
+}
+#followup-overlay .modal-footer .btn,
+#manual-task-overlay .modal-footer .btn{height:48px!important;min-height:48px!important;}
+
+@media(max-width:768px){
+  #anrufe-split-left.vx-split-left,
+  .vx-split-left#anrufe-split-left{
+    width:100%!important;min-width:0!important;max-width:none!important;
+  }
+  #followup-overlay .modal,
+  #manual-task-overlay .modal{
+    max-width:100%!important;
+    max-height:calc(100dvh - 8px)!important;
+    border-radius:22px 22px 0 0!important;
+  }
+  #followup-overlay .modal-body,
+  #manual-task-overlay .modal-body{
+    padding:16px 18px 12px!important;
+    max-height:calc(100dvh - 230px)!important;
+    overflow-y:auto!important;
+  }
+  #followup-overlay .modal-grid,
+  #manual-task-overlay .modal-grid{grid-template-columns:1fr!important;gap:0!important;}
+  #followup-overlay .vx-action-chip-row,
+  #manual-task-overlay .vx-action-chip-row{grid-template-columns:1fr 1fr!important;}
+  #followup-overlay .modal-footer,
+  #manual-task-overlay .modal-footer{
+    padding:12px 18px calc(14px + env(safe-area-inset-bottom))!important;
+    grid-template-columns:1fr!important;
+  }
+}
+</style>
+
+<script id="vx-pr-j4-stability-polish-2026-05-23">
+(function(){
+  'use strict';
+  if (window.__VX_PR_J4_STABILITY_POLISH__) return;
+  window.__VX_PR_J4_STABILITY_POLISH__ = true;
+
+  function isClosedStatusJ4(v){
+    var s = String(v || '').trim().toLowerCase();
+    return ['closed','resolved','completed','done','cancelled','archived','deleted','erledigt','archiviert'].indexOf(s) >= 0;
+  }
+  function getFields(rec){ return (rec && rec.fields) || rec || {}; }
+  function getId(rec){ var f=getFields(rec); return String((rec && rec.id) || f.id || f.task_id || f.case_id || f.call_id || '').trim(); }
+  function isManual(rec){ try { return typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec); } catch(e) { return false; } }
+  function isOpenTaskLike(rec){
+    if (!rec) return false;
+    var f = getFields(rec);
+    if (!isManual(rec) && !String(f.task_entity_id || f.case_id || f.type || '').match(/task|callback|general|appointment|offerte/i)) return false;
+    var st = f.status || f.dashboard_status || '';
+    return !isClosedStatusJ4(st) && !f.completed_at && !f.archived_at && !f.deleted_at;
+  }
+  function unique(arr){
+    var seen = new Set(), out=[];
+    (arr||[]).forEach(function(r){
+      var id = getId(r) || JSON.stringify(getFields(r)).slice(0,120);
+      if (!id || seen.has(id)) return;
+      seen.add(id); out.push(r);
+    });
+    return out;
+  }
+  function getOpenTasksUnified(){
+    var list=[];
+    try { list = list.concat(window.allManualTaskRecords || (typeof allManualTaskRecords !== 'undefined' ? allManualTaskRecords : []) || []); } catch(e) {}
+    try { list = list.concat((window.allRecords || (typeof allRecords !== 'undefined' ? allRecords : []) || []).filter(isManual)); } catch(e) {}
+    return unique(list.filter(isOpenTaskLike));
+  }
+
+  /* Eine zentrale, robuste Aufgaben-Zählung für Heute-KPI und Header. */
+  window.vxGetOpenTasksUnified = getOpenTasksUnified;
+  var prevGetOpenTaskCount = window.getOpenTaskCount;
+  window.getOpenTaskCount = getOpenTaskCount = function(){
+    var n = getOpenTasksUnified().length;
+    if (n > 0) return n;
+    return (typeof prevGetOpenTaskCount === 'function') ? prevGetOpenTaskCount() : 0;
+  };
+
+  var prevHeuteKpis = window.vxGetHeuteKpiCounts;
+  window.vxGetHeuteKpiCounts = vxGetHeuteKpiCounts = function(records, manualTasks){
+    var base = (typeof prevHeuteKpis === 'function') ? prevHeuteKpis(records, manualTasks) : {callsToday:0, callbacksOpen:0, importantNow:0, doneToday:0};
+    var ops = null;
+    try { if (typeof vxGetAnfragenOperationalCounts === 'function') ops = vxGetAnfragenOperationalCounts(records || [], manualTasks || (window.allManualTaskRecords || [])); } catch(e) {}
+    var openTaskCount = getOpenTasksUnified().length;
+    // Offene Anfragen im Heute-KPI müssen mit dem Anfragen-Tab konsistent sein.
+    base.callbacksOpen = ops && typeof ops.inbox === 'number' ? ops.inbox : Math.max(base.callbacksOpen || 0, openTaskCount);
+    base.importantNow = Math.max(base.importantNow || 0, openTaskCount);
+    return base;
+  };
+
+  function syncHeuteKpis(){
+    try {
+      var recs = window.allRecords || (typeof allRecords !== 'undefined' ? allRecords : []) || [];
+      var tasks = window.allManualTaskRecords || (typeof allManualTaskRecords !== 'undefined' ? allManualTaskRecords : []) || [];
+      var c = window.vxGetHeuteKpiCounts(recs, tasks);
+      var kpiTd = document.getElementById('kpi-today-new');
+      var kpiDn = document.getElementById('kpi-done-new');
+      if (kpiTd) { kpiTd.textContent = String(c.callbacksOpen || 0); kpiTd.style.color = (c.callbacksOpen || 0) > 0 ? '#DC2626' : '#94A3B8'; }
+      if (kpiDn) { kpiDn.textContent = String(c.importantNow || 0); kpiDn.style.color = (c.importantNow || 0) > 0 ? '#D97706' : '#94A3B8'; }
+    } catch(e) {}
+  }
+
+  var prevRenderDashboard = window.renderDashboard;
+  if (typeof prevRenderDashboard === 'function' && !prevRenderDashboard._vxJ4Wrapped) {
+    var wrappedDash = function(){ var r = prevRenderDashboard.apply(this, arguments); setTimeout(syncHeuteKpis, 0); return r; };
+    wrappedDash._vxJ4Wrapped = true;
+    window.renderDashboard = renderDashboard = wrappedDash;
+  }
+
+  /* Filter-Reihenfolge: Alle, Offen, Geplant, Erledigt. */
+  function normalizeFilterOrder(){
+    var wrap = document.querySelector('#anrufe-split-left .vx-split-filters');
+    if (!wrap) return;
+    var order = ['alle','offen','geplant','abgeschlossen'];
+    order.forEach(function(key){
+      var btn = wrap.querySelector('button[data-filter="'+key+'"]');
+      if (btn) wrap.appendChild(btn);
+    });
+  }
+
+  function unknownNamePolish(root){
+    root = root || document;
+    root.querySelectorAll('#anrufe-list .vx-row-name, #anrufe-list .vx-anf-name').forEach(function(el){
+      var txt = String(el.textContent || '').trim();
+      if (!txt || /^\+?[0-9\s().-]{6,}$/.test(txt) || txt === '—') {
+        el.dataset.vxOriginalPhone = txt;
+        el.textContent = 'Unbekannter Anrufer';
+        el.classList.add('vx-name-fallback');
+      }
+    });
+  }
+
+  function closeAllRowMenus(){
+    try { if (typeof vxCloseFloatingRowMenus === 'function') vxCloseFloatingRowMenus(); } catch(e) {}
+    try { if (window.vxContextMenu && typeof window.vxContextMenu.close === 'function') window.vxContextMenu.close(); } catch(e) {}
+    document.querySelectorAll('#vx-row-menu-portal,.vx-context-menu,.vx-row-menu.is-open').forEach(function(m){
+      if (m.id === 'vx-row-menu-portal' || m.classList.contains('vx-context-menu')) m.remove();
+      else m.classList.remove('is-open','is-floating');
+    });
+  }
+
+  // Menüs schliessen bei Klick ausserhalb — Capture-Phase, vor alten Handlern.
+  ['pointerdown','mousedown','click','touchstart'].forEach(function(evt){
+    document.addEventListener(evt, function(e){
+      var t = e.target;
+      if (t && t.closest && (t.closest('#vx-row-menu-portal') || t.closest('.vx-row-menu') || t.closest('[data-action="overflow"]'))) return;
+      closeAllRowMenus();
+    }, true);
+  });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeAllRowMenus(); }, true);
+
+  var prevRenderAnrufe = window.renderAnrufe;
+  if (typeof prevRenderAnrufe === 'function' && !prevRenderAnrufe._vxJ4Wrapped) {
+    var wrappedAnrufe = function(){
+      var r = prevRenderAnrufe.apply(this, arguments);
+      setTimeout(function(){ normalizeFilterOrder(); unknownNamePolish(document); }, 0);
+      return r;
+    };
+    wrappedAnrufe._vxJ4Wrapped = true;
+    window.renderAnrufe = renderAnrufe = wrappedAnrufe;
+  }
+
+  // Detail-V2 Fallback: wenn Name fehlt, nicht Telefonnummer als Name zeigen.
+  var prevDetail = window.vxRenderRequestsDetailV2;
+  if (typeof prevDetail === 'function' && !prevDetail._vxJ4Wrapped) {
+    var wrappedDetail = function(record, options){
+      var f = (record && record.fields) || {};
+      var hadName = !!String(f.caller_name || '').trim();
+      var r = prevDetail.apply(this, arguments);
+      if (!hadName) {
+        setTimeout(function(){
+          var host = (options && options.hostEl) || document.getElementById('requests-detail-v2');
+          if (!host) return;
+          var phone = String(f.phone || f.caller_phone || f.tel_link || '').trim();
+          host.querySelectorAll('div').forEach(function(el){
+            if (String(el.textContent || '').trim() === phone) {
+              el.textContent = 'Unbekannter Anrufer';
+            }
+          });
+        }, 0);
+      }
+      return r;
+    };
+    wrappedDetail._vxJ4Wrapped = true;
+    window.vxRenderRequestsDetailV2 = vxRenderRequestsDetailV2 = wrappedDetail;
+  }
+
+  function boot(){ normalizeFilterOrder(); unknownNamePolish(document); syncHeuteKpis(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  setTimeout(boot, 600);
+})();
+</script>
+
+
+
+
+<!-- PR-M — Status Source of Truth Cleanup: 2026-05-23 -->
+<script id="vx-pr-m-status-source-of-truth-cleanup-2026-05-23">
+(function(){
+  'use strict';
+  if (window.__VX_PR_M_STATUS_SOT_CLEANUP__) return;
+  window.__VX_PR_M_STATUS_SOT_CLEANUP__ = true;
+
+  function fieldsOf(record){ return (record && record.fields) || {}; }
+  function field(record,key){
+    var f = fieldsOf(record);
+    if (record && Object.prototype.hasOwnProperty.call(record,key)) return record[key];
+    return f[key];
+  }
+
+  function cloneForVisualStatus(record){
+    if (!record || typeof window.vxGetEntryLifecycleStatus !== 'function') return record;
+    var status = window.vxGetEntryLifecycleStatus(record);
+    var clone = Object.assign({}, record || {});
+    var f = Object.assign({}, fieldsOf(record));
+    var dbStatus = status === 'archived' ? 'archiviert' : status === 'done' ? 'erledigt' : status === 'planned' ? 'geplant' : 'neu';
+    f.dashboard_status = dbStatus;
+    f.status = dbStatus;
+    clone.dashboard_status = dbStatus;
+    clone.status = dbStatus;
+    clone.fields = f;
+    return clone;
+  }
+
+  // Detail-V2 may still read raw legacy fields internally. Feed it a normalized clone only for display.
+  var prevDetail = window.vxRenderRequestsDetailV2;
+  if (typeof prevDetail === 'function' && !prevDetail._vxPrMWrapped) {
+    var wrapped = function(record, options){
+      return prevDetail.call(this, cloneForVisualStatus(record), options || {});
+    };
+    wrapped._vxPrMWrapped = true;
+    window.vxRenderRequestsDetailV2 = vxRenderRequestsDetailV2 = wrapped;
+  }
+
+  // Keep existing global helper name, but make it lifecycle-based.
+  window.vxGetVisualDashboardStatus = function(record){
+    if (typeof window.vxGetEntryLifecycleStatus !== 'function') return field(record,'dashboard_status') || field(record,'status') || 'neu';
+    var s = window.vxGetEntryLifecycleStatus(record);
+    if (s === 'archived') return 'archiviert';
+    if (s === 'done') return 'erledigt';
+    if (s === 'planned') return 'geplant';
+    return 'neu';
+  };
+
+  // Safety refresh after load: recalculates counts and current list using the central status function.
+  function boot(){
+    try { if (typeof window.vxUpdateAnfragenCount === 'function') window.vxUpdateAnfragenCount(); } catch(e) {}
+    try { if (typeof window.renderAnrufe === 'function') window.renderAnrufe(); } catch(e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot,0); });
+  else setTimeout(boot,0);
+})();
+</script>
+
+
+<!-- PR-N — Badge/Label Cleanup ohne Renderer-Umbau: 2026-05-23 -->
+<script id="vx-pr-n-badge-label-cleanup-2026-05-23">
+(function(){
+  'use strict';
+  if (window.__VX_PR_N_BADGE_LABEL_CLEANUP__) return;
+  window.__VX_PR_N_BADGE_LABEL_CLEANUP__ = true;
+
+  function esc(v){
+    try { if (typeof _esc === 'function') return _esc(v == null ? '' : String(v)); } catch(e) {}
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; });
+  }
+  function normKey(v){
+    var s = String(v == null ? '' : v).trim();
+    if (!s) return '';
+    return s
+      .replace(/[\u2010-\u2015]/g, '-')
+      .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/Ä/g,'ae').replace(/Ö/g,'oe').replace(/Ü/g,'ue')
+      .toLowerCase()
+      .replace(/[\s\-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+  }
+  function isPhoneLike(v){ return /^\+?[0-9\s().-]{6,}$/.test(String(v || '').trim()); }
+  function fieldsOf(record){ return (record && record.fields) || {}; }
+  function firstNonEmpty(){
+    for (var i=0;i<arguments.length;i++){
+      var v = String(arguments[i] == null ? '' : arguments[i]).trim();
+      if (v) return v;
+    }
+    return '';
+  }
+  function lifecycle(record){
+    try { if (typeof window.vxGetEntryLifecycleStatus === 'function') return window.vxGetEntryLifecycleStatus(record); } catch(e) {}
+    var f = fieldsOf(record);
+    var s = normKey(firstNonEmpty(f.dashboard_status, f.status, record && record.dashboard_status, record && record.status));
+    if (s.indexOf('archiv') >= 0) return 'archived';
+    if (s.indexOf('erledigt') >= 0 || s.indexOf('done') >= 0 || s.indexOf('completed') >= 0 || f.completed_at) return 'done';
+    if (f.followup_at || f.follow_up_at || f.due_at || f.due_date) return 'planned';
+    return 'open';
+  }
+
+  var LABELS = {
+    'open':'Offen','offen':'Offen','new':'Offen','neu':'Offen',
+    'planned':'Geplant','geplant':'Geplant','followup':'Geplant','follow_up':'Geplant',
+    'done':'Erledigt','closed':'Erledigt','completed':'Erledigt','complete':'Erledigt','erledigt':'Erledigt','abgeschlossen':'Erledigt',
+    'archived':'Archiviert','archive':'Archiviert','archiviert':'Archiviert','archiv':'Archiviert',
+
+    'hot':'Heiss','heiss':'Heiss','warm':'Warm','cold':'Kalt','kalt':'Kalt','high':'Hoch','medium':'Mittel','low':'Niedrig',
+
+    'rueckruf':'Rückruf','rueckrufanfrage':'Rückruf','callback':'Rückruf','callback_requested':'Rückruf',
+    'termin':'Termin','terminanfrage':'Terminanfrage','appointment':'Termin',
+    'offerte':'Offerte','offer':'Offerte','offertenanfrage':'Offertenanfrage',
+    'information':'Information','informationsanfrage':'Informationsanfrage',
+    'allgemeine_frage':'Allgemeine Frage','frage':'Allgemeine Frage',
+    'sonstiges':'Sonstiges','inbound':'Eingehender Anruf','eingehender_anruf':'Eingehender Anruf',
+    'notfall':'Notfall','pannenhilfe':'Pannenhilfe',
+    'beschwerde':'Beschwerde',
+    'aenderung_kuendigung':'Änderung / Kündigung','vertrags_aenderung':'Vertragsänderung','vertrags_anderung':'Vertragsänderung',
+    'kuendigung':'Kündigung','kündigung':'Kündigung',
+    'schadenmeldung_akut':'Schadenmeldung dringend','schadenmeldung_nicht_akut':'Schadenmeldung',
+    'activation_test_outbound':'Systemtest','activation_test_inbound':'Systemtest'
+  };
+
+  window.vxHumanLabel = function(value){
+    var raw = String(value == null ? '' : value).trim();
+    if (!raw) return '';
+    var k = normKey(raw);
+    if (LABELS[k]) return LABELS[k];
+    // Fallback: technische Schreibweisen enduser-tauglich machen.
+    return raw
+      .replace(/_/g, ' ')
+      .replace(/\b[a-zäöü]/gi, function(m){ return m.toUpperCase(); })
+      .replace(/Ae/g,'Ä').replace(/Oe/g,'Ö').replace(/Ue/g,'Ü')
+      .replace(/ae/g,'ä').replace(/oe/g,'ö').replace(/ue/g,'ü');
+  };
+
+  var prevVxLabel = window.vxLabel;
+  window.vxLabel = vxLabel = function(value){
+    var human = window.vxHumanLabel(value);
+    if (human) return human;
+    return (typeof prevVxLabel === 'function') ? prevVxLabel(value) : '';
+  };
+
+  if (typeof window.getCategoryLabel === 'function' || typeof getCategoryLabel === 'function') {
+    var prevGetCategoryLabel = window.getCategoryLabel || getCategoryLabel;
+    window.getCategoryLabel = getCategoryLabel = function(category){
+      var human = window.vxHumanLabel(category);
+      if (human) return human;
+      return prevGetCategoryLabel(category);
+    };
+  }
+  if (typeof window.getCallCategoryDisplayLabel === 'function' || typeof getCallCategoryDisplayLabel === 'function') {
+    var prevCatDisplay = window.getCallCategoryDisplayLabel || getCallCategoryDisplayLabel;
+    window.getCallCategoryDisplayLabel = getCallCategoryDisplayLabel = function(record){
+      var label = prevCatDisplay(record);
+      return window.vxHumanLabel(label || ((record && record.fields && record.fields.category) || '')) || label || 'Anruf';
+    };
+  }
+
+  // Row-Titel: wenn kein echter Name vorhanden ist, nicht die Telefonnummer als Name verwenden.
+  if (typeof window.vxDashResolveWorkTitle === 'function' || typeof vxDashResolveWorkTitle === 'function') {
+    var prevWorkTitle = window.vxDashResolveWorkTitle || vxDashResolveWorkTitle;
+    window.vxDashResolveWorkTitle = vxDashResolveWorkTitle = function(record){
+      var f = fieldsOf(record);
+      var rawName = firstNonEmpty(f.caller_name, f.name, f.contact_name, f.customer_name);
+      if (rawName && !isPhoneLike(rawName)) return rawName;
+      var title = prevWorkTitle(record);
+      if (!title || isPhoneLike(title) || normKey(title) === 'unbekannte_nummer') return 'Unbekannter Anrufer';
+      return title;
+    };
+  }
+
+  function cloneForDetailDisplay(record){
+    if (!record || typeof record !== 'object') return record;
+    var clone = Object.assign({}, record);
+    var f = Object.assign({}, fieldsOf(record));
+    var phone = firstNonEmpty(f.phone, f.caller_phone, f.phone_number, f.tel_link);
+    var rawName = firstNonEmpty(f.caller_name, f.name, f.contact_name, f.customer_name);
+    if (!rawName || isPhoneLike(rawName) || normKey(rawName) === 'unbekannte_nummer') {
+      f.caller_name = 'Unbekannter Anrufer';
+      // Phone muss erhalten bleiben, damit die zweite Headerzeile nicht wieder zum Fallback wird.
+      if (phone) { f.phone = phone; f.caller_phone = f.caller_phone || phone; }
+    }
+    var lc = lifecycle(record);
+    f.status = lc;
+    f.dashboard_status = lc;
+    if (f.category) f.category = window.vxHumanLabel(f.category);
+    if (f.subcategory) f.subcategory = window.vxHumanLabel(f.subcategory);
+    if (f.lead_quality) f.lead_quality = window.vxHumanLabel(f.lead_quality);
+    clone.status = lc;
+    clone.dashboard_status = lc;
+    clone.fields = f;
+    return clone;
+  }
+
+  function sanitizeVisibleLabels(root){
+    root = root || document;
+    var roots = [];
+    ['requests-detail-v2','anrufe-list'].forEach(function(id){ var el = document.getElementById(id); if (el) roots.push(el); });
+    if (!roots.length && root !== document) roots = [root];
+    var tokens = Object.keys(LABELS).filter(function(k){ return k.indexOf('_') >= 0 || k.indexOf('ue') >= 0 || k.indexOf('ae') >= 0; });
+    roots.forEach(function(base){
+      try {
+        var walker = document.createTreeWalker(base, NodeFilter.SHOW_TEXT, null);
+        var node;
+        while ((node = walker.nextNode())) {
+          var txt = node.nodeValue;
+          if (!txt || txt.length > 220) continue;
+          var next = txt;
+          tokens.forEach(function(k){
+            var label = LABELS[k];
+            var re = new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            next = next.replace(re, label);
+          });
+          // Spezialfälle mit Schreibweise aus alten Records.
+          next = next.replace(/Aenderung[\s_-]*kuendigung/gi, 'Änderung / Kündigung')
+                     .replace(/Rueckrufanfrage/gi, 'Rückruf')
+                     .replace(/rueckrufanfrage/gi, 'Rückruf');
+          if (next !== txt) node.nodeValue = next;
+        }
+      } catch(e) {}
+    });
+  }
+
+  var prevDetail = window.vxRenderRequestsDetailV2;
+  if (typeof prevDetail === 'function' && !prevDetail._vxPrNWrapped) {
+    var wrappedDetail = function(record, options){
+      var r = prevDetail.call(this, cloneForDetailDisplay(record), options || {});
+      setTimeout(function(){ sanitizeVisibleLabels((options && options.hostEl) || document.getElementById('requests-detail-v2')); }, 0);
+      return r;
+    };
+    wrappedDetail._vxPrNWrapped = true;
+    window.vxRenderRequestsDetailV2 = vxRenderRequestsDetailV2 = wrappedDetail;
+  }
+
+  // Bestehende Renderpfade nachziehen, damit Rows/Badges ohne Reload humanisierte Labels nutzen.
+  var prevRenderAnrufe = window.renderAnrufe;
+  if (typeof prevRenderAnrufe === 'function' && !prevRenderAnrufe._vxPrNWrapped) {
+    var wrappedRenderAnrufe = function(){
+      var r = prevRenderAnrufe.apply(this, arguments);
+      setTimeout(function(){ sanitizeVisibleLabels(document); }, 0);
+      return r;
+    };
+    wrappedRenderAnrufe._vxPrNWrapped = true;
+    window.renderAnrufe = renderAnrufe = wrappedRenderAnrufe;
+  }
+
+  function boot(){
+    sanitizeVisibleLabels(document);
+    try { if (typeof window.renderAnrufe === 'function') window.renderAnrufe(); } catch(e) {}
+    try {
+      var id = window._vxActiveRecordId || window._vxCurrentCallId || window._vxLastAnfragenRecordId;
+      if (id && typeof window.showCallDetail === 'function') window.showCallDetail(id);
+    } catch(e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot,0); });
+  else setTimeout(boot,0);
+})();
+</script>
+
+
+<script>
+/* PR-O — Unified Detail-V2 Routing (Heute + Mobile)
+   Scope: routing only. No row redesign, no timeline, no DB changes. */
+(function(){
+  'use strict';
+  if (window.__VX_PR_O_UNIFIED_DETAIL_V2_ROUTING__) return;
+  window.__VX_PR_O_UNIFIED_DETAIL_V2_ROUTING__ = true;
+
+  var legacyShowCallDetail = window.showCallDetail;
+  var legacyShowTaskDetail = window.showTaskDetail;
+  var legacyHideCallDetail = window.hideCallDetail;
+
+  window.__vxLegacyShowCallDetail = window.__vxLegacyShowCallDetail || legacyShowCallDetail;
+  window.__vxLegacyShowTaskDetail = window.__vxLegacyShowTaskDetail || legacyShowTaskDetail;
+  window.__vxLegacyHideCallDetail = window.__vxLegacyHideCallDetail || legacyHideCallDetail;
+
+  function esc(v){
+    try { if (typeof _esc === 'function') return _esc(v == null ? '' : String(v)); } catch(e) {}
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; });
+  }

@@ -1,0 +1,807 @@
+FUNCTION exportArchiv
+LINES 24441-25243
+TERMS renderDashboard
+
+function exportArchiv() {
+  var done = _archivAllDone.length ? _archivAllDone :
+    (allRecords||[]).filter(function(r){ return normalizeStatus((r.fields||{}).dashboard_status) === CALL_STATUS.ARCHIVED; });
+  if (!done.length) { toast('Keine Einträge zum Exportieren'); return; }
+  var rows = [['Name','Telefon','Kategorie','Datum','Uhrzeit','Zusammenfassung','Nachfassen','Notiz']];
+  done.forEach(function(r) {
+    var f = r.fields || {};
+    var ts = getRecordTimestamp(r) || '';
+    var d = ts ? parseCallTimestamp(ts) : null;
+    var date = d ? d.toLocaleDateString('de-CH', {timeZone:'Europe/Zurich'}) : '';
+    var time = d ? d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Zurich'}) : '';
+    var followUp = resolveFollowUpAt(f) ? fmtFollowUpDateTime(resolveFollowUpAt(f)) : '';
+    rows.push([
+      f.caller_name||'',
+      f.caller_phone||f.phone_number||'',
+      f.category||'',
+      date, time,
+      (f.call_summary||'').replace(/\n/g,' '),
+      followUp,
+      (f.notes_customer_voxera||'').replace(/\n/g,' ')
+    ]);
+  });
+  var csv = rows.map(function(row){
+    return row.map(function(cell){
+      var s = String(cell||'').replace(/"/g,'""');
+      return (s.includes(',')||s.includes('"')||s.includes('\n')) ? '"'+s+'"' : s;
+    }).join(',');
+  }).join('\r\n');
+  var blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'voxera-archiv-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('CSV exportiert ('+done.length+' Einträge)');
+}
+
+function activateTab(name) {
+  const preferred = document.getElementById('nav-' + name) || document.getElementById('mnav-' + name);
+  if (preferred) {
+    showTab(name, preferred);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════
+var confirmModalAction = null;
+var confirmModalBusy = false;
+var overlayFocusReturnMap = {};
+
+function rememberOverlayFocusReturn(overlayId) {
+  if (!overlayId) return;
+  var active = document.activeElement;
+  if (active && typeof active.focus === 'function') overlayFocusReturnMap[overlayId] = active;
+}
+
+function restoreOverlayFocus(overlayId) {
+  var el = overlayFocusReturnMap[overlayId];
+  delete overlayFocusReturnMap[overlayId];
+  if (el && el.isConnected && !el.disabled && el.getAttribute('aria-hidden') !== 'true') {
+    try { el.focus({ preventScroll: true }); } catch(e) { try { el.focus(); } catch(_) {} }
+  }
+}
+
+function setOverlayAriaHidden(overlayId, hidden) {
+  var overlay = document.getElementById(overlayId);
+  if (overlay) overlay.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+}
+
+
+window.vxScrollLocks = window.vxScrollLocks || new Set();
+
+function vxApplyScrollLock() {
+  var locked = !!(window.vxScrollLocks && window.vxScrollLocks.size);
+  var value = locked ? 'hidden' : '';
+  if (document.body) document.body.style.overflow = value;
+  if (document.documentElement) document.documentElement.style.overflow = value;
+  if (window.VOXERA_DEBUG_SCROLL) {
+    vxDebugLog('[scroll-lock] apply', locked, Array.from(window.vxScrollLocks || []));
+  }
+}
+
+function vxSetScrollLock(reason, locked) {
+  if (!window.vxScrollLocks) window.vxScrollLocks = new Set();
+  if (!reason) reason = 'unknown';
+  if (locked) window.vxScrollLocks.add(String(reason));
+  else window.vxScrollLocks.delete(String(reason));
+  vxApplyScrollLock();
+}
+
+function vxClearAllScrollLocks() {
+  if (!window.vxScrollLocks) window.vxScrollLocks = new Set();
+  window.vxScrollLocks.clear();
+  vxApplyScrollLock();
+}
+
+function vxSyncScrollLock() {
+  var hasOverlay = !!document.querySelector('.overlay.open, .detail-overlay.open, .account-overlay.open');
+  var callDetail = document.getElementById('call-detail-page');
+  var callDetailOpen = !!(callDetail && callDetail.style.display === 'block');
+  var detailV2 = document.getElementById('vx-detail-v2');
+  var detailV2Open = !!(detailV2 && detailV2.style.display !== 'none');
+  vxSetScrollLock('overlay', hasOverlay);
+  vxSetScrollLock('call-detail-page', callDetailOpen);
+  vxSetScrollLock('detail-v2', detailV2Open);
+}
+function syncOverlayScrollLock() {
+  vxSyncScrollLock();
+}
+
+// [VX 2026-05-17] Interaction Reliability helpers.
+// Small, local UI safeguards only: no schema changes, no business-logic changes.
+function vxSetActionButtonLoading(button, isLoading, loadingLabel) {
+  if (!button) return;
+  if (isLoading) {
+    if (!button.dataset.vxOriginalText) button.dataset.vxOriginalText = button.textContent || '';
+    button.dataset.vxSaving = '1';
+    button.disabled = true;
+    button.setAttribute('aria-disabled', 'true');
+    button.textContent = loadingLabel || 'Speichern...';
+  } else {
+    button.dataset.vxSaving = '0';
+    button.disabled = false;
+    button.setAttribute('aria-disabled', 'false');
+    if (button.dataset.vxOriginalText) button.textContent = button.dataset.vxOriginalText;
+    delete button.dataset.vxOriginalText;
+  }
+}
+
+function vxIsActionButtonSaving(button) {
+  return !!(button && button.dataset && button.dataset.vxSaving === '1');
+}
+
+function vxRefreshOperationalViews(records, manualRecords) {
+  var callRecords = records || allRecords || [];
+  var taskRecords = manualRecords || allManualTaskRecords || [];
+  try { if (typeof renderDashboard === 'function') renderDashboard(callRecords, taskRecords); } catch(e) { console.warn('[Voxera SaveFlow] renderDashboard skipped', e); }
+  try { if (typeof renderAnrufe === 'function') renderAnrufe(); } catch(e) { console.warn('[Voxera SaveFlow] renderAnrufe skipped', e); }
+  try { if (typeof renderRueckrufe === 'function') renderRueckrufe(callRecords, taskRecords); } catch(e) { console.warn('[Voxera SaveFlow] renderRueckrufe skipped', e); }
+  try { if (typeof renderDashPriorityList === 'function') renderDashPriorityList(callRecords, taskRecords); } catch(e) { console.warn('[Voxera SaveFlow] renderDashPriorityList skipped', e); }
+}
+
+function vxUpdateLocalCallRecord(recordId, fields) {
+  var rec = (allRecords || []).find(function(r) { return r && String(r.id) === String(recordId); });
+  if (rec && rec.fields && fields && typeof fields === 'object') Object.assign(rec.fields, fields);
+  return rec || null;
+}
+
+function vxScheduleSingleDataRefresh(delayMs) {
+  if (window.__vxSaveFlowReloadTimer) clearTimeout(window.__vxSaveFlowReloadTimer);
+  window.__vxSaveFlowReloadTimer = setTimeout(function(){
+    window.__vxSaveFlowReloadTimer = null;
+    try { if (typeof loadData === 'function') loadData(); } catch(e) { console.warn('[Voxera SaveFlow] loadData skipped', e); }
+  }, typeof delayMs === 'number' ? delayMs : 500);
+}
+
+// [v5.8.2] Modal lifecycle helpers.
+// Centralizes safe closing after successful actions without changing business logic.
+function vxCloseOverlayById(id) {
+  var overlay = document.getElementById(id);
+  if (!overlay) return false;
+  overlay.classList.remove('open');
+  overlay.style.display = overlay.classList.contains('vx-custom-overlay') ? 'none' : overlay.style.display;
+  setOverlayAriaHidden(id, true);
+  return true;
+}
+
+function vxCloseAllActionModals() {
+  ['confirm-overlay','followup-overlay','manual-task-overlay','detail-overlay'].forEach(function(id) {
+    vxCloseOverlayById(id);
+  });
+  try { if (typeof closeManualTaskModal === 'function') closeManualTaskModal(); } catch(e) {}
+  try { if (typeof closeFollowup === 'function') closeFollowup(); } catch(e) {}
+  syncOverlayScrollLock();
+}
+
+function vxCloseAfterSuccessfulCompletion() {
+  try { if (typeof hideCallDetail === 'function') hideCallDetail(); } catch(e) {}
+  try { vxCloseAllActionModals(); } catch(e) {}
+  try { vxClearAllScrollLocks(); } catch(e) { syncOverlayScrollLock(); }
+}
+window.vxCloseAfterSuccessfulCompletion = vxCloseAfterSuccessfulCompletion;
+
+window._vxPendingHighlightRecordId = window._vxPendingHighlightRecordId || null;
+
+function vxApplyPendingRowHighlight() {
+  var targetId = String(window._vxPendingHighlightRecordId || '').trim();
+  if (!targetId) return;
+  var row = document.querySelector('.vx-heute-row[data-record-id="' + CSS.escape(targetId) + '"]')
+    || document.querySelector('.vx-heute-row[data-id="' + CSS.escape(targetId) + '"]')
+    || document.querySelector('.dpr-card[data-id="' + CSS.escape(targetId) + '"] .vx-heute-row');
+  if (!row) return;
+  row.classList.remove('vx-row-highlight');
+  void row.offsetWidth;
+  row.classList.add('vx-row-highlight');
+  window._vxPendingHighlightRecordId = null;
+  setTimeout(function() { row.classList.remove('vx-row-highlight'); }, 1600);
+}
+
+function vxRefreshActiveDetailAfterAction(options) {
+  var opts = options || {};
+  var activeType = String(window._vxCurrentDetailType || '').trim().toLowerCase();
+  var currentActiveId = String(window._vxActiveRecordId || '').trim();
+  var targetId = String(opts.recordId || '').trim();
+  var createdId = String(opts.createdRecordId || '').trim();
+  var primaryId = createdId || targetId;
+  var detailId = '';
+
+  if (activeType === 'task' && (primaryId || currentActiveId)) {
+    detailId = primaryId || currentActiveId;
+  } else if (activeType === 'call' && (primaryId || currentActiveId)) {
+    detailId = primaryId || currentActiveId;
+  } else if (!activeType && (primaryId || currentActiveId)) {
+    detailId = primaryId || currentActiveId;
+  }
+
+  if (!detailId) return;
+
+  var isTask = (typeof vxIsManualTaskRecordId === 'function')
+    ? vxIsManualTaskRecordId(detailId)
+    : String(detailId || '').indexOf('case:') === 0;
+
+  if (isTask) {
+    if (typeof showTaskDetail === 'function') showTaskDetail(detailId);
+  } else {
+    if (typeof showCallDetail === 'function') showCallDetail(detailId);
+  }
+}
+
+function vxAfterActionSuccess(options) {
+  var opts = options || {};
+  var targetId = String(opts.createdRecordId || opts.recordId || '').trim();
+  if (targetId) {
+    window._vxActiveRecordId = targetId;
+    window._vxPendingHighlightRecordId = targetId;
+  }
+  if (opts.closeModal !== false) {
+    if (opts.modal === 'manual-task' && typeof closeManualTaskModal === 'function') closeManualTaskModal();
+    else if (opts.modal === 'followup' && typeof closeFollowup === 'function') closeFollowup();
+  }
+  if (typeof vxRefreshOperationalViews === 'function') vxRefreshOperationalViews(allRecords, allManualTaskRecords);
+  else {
+    if (typeof renderDashboard === 'function') renderDashboard(allRecords, allManualTaskRecords);
+    if (typeof renderAnrufe === 'function') renderAnrufe();
+    if (typeof renderRueckrufe === 'function') renderRueckrufe(allRecords, allManualTaskRecords);
+  }
+  try { vxRefreshActiveDetailAfterAction({ recordId: opts.recordId || '', createdRecordId: opts.createdRecordId || '' }); } catch(e) {}
+  if (targetId && typeof vxSetActiveRequestRow === 'function') {
+    setTimeout(function(){ try { vxSetActiveRequestRow(targetId); } catch(e) {} }, 0);
+  }
+}
+
+
+(function initOverlayScrollLock(){
+  document.addEventListener('click', function(){ setTimeout(vxSyncScrollLock, 0); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') setTimeout(vxSyncScrollLock, 0); });
+})();
+
+function openConfirmModal(config) {
+  rememberOverlayFocusReturn('confirm-overlay');
+  confirmModalBusy = false;
+  const titleEl = document.getElementById('confirm-title');
+  const subEl = document.getElementById('confirm-sub');
+  const okBtn = document.getElementById('confirm-ok-btn');
+  const modalEl = document.getElementById('confirm-modal');
+  const checkboxWrap = document.getElementById('confirm-checkbox-wrap');
+  const checkboxEl = document.getElementById('confirm-checkbox');
+  const checkboxLabel = document.getElementById('confirm-checkbox-label');
+  if (titleEl) titleEl.textContent = (config && config.title) || 'Bitte bestätigen';
+  if (subEl) subEl.textContent = (config && config.text) || 'Sind Sie sicher?';
+  if (modalEl) {
+    modalEl.classList.remove('confirm-tone-danger', 'confirm-tone-neutral', 'confirm-tone-primary');
+    modalEl.classList.add('confirm-tone-' + ((config && config.tone) || 'primary'));
+  }
+  if (checkboxWrap && checkboxEl && checkboxLabel) {
+    var hasCheckbox = !!(config && config.checkboxLabel);
+    checkboxWrap.style.display = hasCheckbox ? 'flex' : 'none';
+    checkboxEl.checked = !!(config && config.checkboxDefault);
+    checkboxLabel.textContent = hasCheckbox ? String(config.checkboxLabel || '') : '';
+  }
+  if (okBtn) {
+    okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+    okBtn.classList.remove('danger', 'neutral', 'btn--primary', 'btn--danger', 'btn--neutral');
+    if (config && config.tone === 'danger') okBtn.classList.add('btn--danger');
+    else if (config && config.tone === 'neutral') okBtn.classList.add('btn--neutral');
+    else okBtn.classList.add('btn--primary');
+    okBtn.dataset.loadingLabel = (config && config.loadingLabel) || 'Bitte warten...';
+    okBtn.disabled = false;
+    okBtn.setAttribute('aria-disabled', 'false');
+  }
+  confirmModalAction = (config && typeof config.onConfirm === 'function') ? function() {
+    var checked = !!(document.getElementById('confirm-checkbox') && document.getElementById('confirm-checkbox').checked);
+    return config.onConfirm({ checkboxChecked: checked, archiveAfterClose: checked });
+  } : null;
+  const overlay = document.getElementById('confirm-overlay');
+  if (overlay) overlay.classList.add('open');
+  setOverlayAriaHidden('confirm-overlay', false);
+  syncOverlayScrollLock();
+}
+
+function closeConfirmModal() {
+  if (confirmModalBusy) return;
+  const overlay = document.getElementById('confirm-overlay');
+  if (overlay) overlay.classList.remove('open');
+  setOverlayAriaHidden('confirm-overlay', true);
+  syncOverlayScrollLock();
+  restoreOverlayFocus('confirm-overlay');
+  confirmModalBusy = false;
+  confirmModalAction = null;
+  var checkboxWrap = document.getElementById('confirm-checkbox-wrap');
+  var checkboxEl = document.getElementById('confirm-checkbox');
+  if (checkboxWrap) checkboxWrap.style.display = 'none';
+  if (checkboxEl) checkboxEl.checked = false;
+  // [PATCH v2.40] is-loading auf Header-Buttons zurücksetzen beim Abbrechen
+  var doneBtn = document.getElementById('vx-cd-qa-done');
+  if (doneBtn && doneBtn.classList.contains('is-loading')) {
+    doneBtn.classList.remove('is-loading');
+  }
+}
+
+async function runConfirmModalAction() {
+  if (confirmModalBusy) return;
+  const fn = confirmModalAction;
+  if (typeof fn !== 'function') {
+    closeConfirmModal();
+    return;
+  }
+  const okBtn = document.getElementById('confirm-ok-btn');
+  const originalLabel = okBtn ? okBtn.textContent : '';
+  if (okBtn) {
+    okBtn.disabled = true;
+    okBtn.setAttribute('aria-disabled', 'true');
+    okBtn.textContent = okBtn.dataset.loadingLabel || 'Bitte warten...';
+  }
+  confirmModalBusy = true;
+  try {
+    logManualTaskDoneFlow('confirm.submit', { hasAction: true });
+    const result = await fn();
+    if (result !== false) {
+      confirmModalBusy = false;
+      closeConfirmModal();
+    }
+  } catch (e) {
+    toast(' ' + toManualTaskUserMessage(e, 'Aktion konnte nicht gespeichert werden.'));
+  } finally {
+    confirmModalBusy = false;
+    if (okBtn) {
+      okBtn.disabled = false;
+    okBtn.setAttribute('aria-disabled', 'false');
+      okBtn.textContent = originalLabel || 'Bestätigen';
+    }
+  }
+}
+
+function confirmClose(recordId, newStatus, rowElement) {
+  if (normalizeStatus(newStatus) === CALL_STATUS.CLOSED) {
+    confirmTaskDone(recordId, rowElement, 'status-dropdown');
+    return;
+  }
+  openConfirmModal({
+    title: 'Status aktualisieren?',
+    text: 'Der Status dieses Eintrags wird aktualisiert.',
+    confirmLabel: 'Speichern',
+    loadingLabel: 'Speichere...',
+    tone: 'primary',
+    onConfirm: async function() {
+      return await doStatusChange(recordId, newStatus, rowElement || null);
+    }
+  });
+}
+
+// kept for backward compat (cb-row dashboard buttons still reference this name)
+function confirmCloseWithDropdownPreservation(recordId, newStatus, rowElement) {
+  confirmClose(recordId, newStatus, rowElement);
+}
+
+async function doStatusChange(recordId, newStatus, rowElement) {
+  if (hasKnownInactiveContract()) {
+    toast(getRestrictedContractMessage('Aufgaben'), 'warning');
+    logManualTaskDoneFlow('guard.blocked.contract-inactive', {
+      recordId: String(recordId || ''),
+      contractState: customerContractState
+    });
+    return false;
+  }
+  const normalizedStatus = normalizeStatus(newStatus);
+  const isManualTask = (typeof vxIsManualTaskRecordId === 'function') ? vxIsManualTaskRecordId(recordId) : String(recordId || '').startsWith('case:');
+  if (isManualTask) {
+    logManualTaskDoneFlow('status-change.start', {
+      recordId: String(recordId || ''),
+      requestedStatus: String(newStatus || ''),
+      normalizedStatus,
+      isManualTask: true
+    });
+  }
+  const row = rowElement || null;
+  const sourceRecords = isManualTask ? (allManualTaskRecords || []) : (allRecords || []);
+  const cached = (typeof vxResolveDprRecord === 'function')
+    ? vxResolveDprRecord(recordId)
+    : sourceRecords.find(r => String(r.id) === String(recordId));
+  const currentStatus = normalizeStatus(cached && cached.fields ? (cached.fields.dashboard_status || cached.fields.status) : CALL_STATUS.NEW);
+
+  if (currentStatus === normalizedStatus) {
+    if (cached && cached.fields) cached.fields.dashboard_status = normalizedStatus;
+    renderDashboard(allRecords, allManualTaskRecords);
+    renderAnrufe();
+    renderRueckrufe(allRecords, allManualTaskRecords);
+    renderArchiv(allRecords);
+    toast('Status bereits gesetzt');
+    return true;
+  }
+
+  if (row) {
+    row.style.transition = 'all .3s ease';
+    if (isClosedStatus(normalizedStatus)) {
+      row.style.opacity = '.5';
+      row.style.background = '#F0FDF4';
+      row.style.borderColor = '#BBF7D0';
+    } else if ([CALL_STATUS.IN_PROGRESS, CALL_STATUS.FOLLOW_UP_SCHEDULED].includes(normalizedStatus)) {
+      row.style.background = '#FFFBEB';
+      row.style.borderColor = '#FDE68A';
+    } else {
+      row.style.opacity = '1';
+      row.style.background = '';
+      row.style.borderColor = '';
+    }
+    const secRow = row.querySelector('.call-secondary');
+    if (secRow) {
+      secRow.querySelectorAll('.chip').forEach(c => c.remove());
+      const original = sourceRecords.find(r => String(r.id) === String(recordId));
+      if (original && original.fields) {
+        original.fields.dashboard_status = normalizedStatus;
+        secRow.innerHTML = callCardBadgeHtml(original);
+      }
+    }
+  }
+
+  const icons = {
+    [CALL_STATUS.NEW]:'Neu',
+    [CALL_STATUS.IN_PROGRESS]:'In Bearbeitung',
+    [CALL_STATUS.FOLLOW_UP_SCHEDULED]:'In Bearbeitung',
+    [CALL_STATUS.CLOSED]:'Erledigt',
+    [CALL_STATUS.ARCHIVED]:'Archiviert'
+  };
+  try {
+    realtimeSuppressUntil = Date.now() + 2000; // Realtime unterdrücken VOR API-Call
+    if (isManualTask) {
+      const caseStatus = mapDashboardStatusToManualTaskDbStatus(normalizedStatus);
+      logManualTaskDoneFlow('status-change.manual-mapping', {
+        recordId: String(recordId || ''),
+        normalizedStatus,
+        mappedCaseStatus: caseStatus
+      });
+      const updated = await updateManualTaskStatus(recordId, caseStatus);
+      const updatedRawId = String((updated && updated.fields && updated.fields.task_entity_id) || '').trim();
+      const idx = (allManualTaskRecords || []).findIndex(function(r) {
+        var f = (r && r.fields) || {};
+        return String(r.id) === String(recordId) || String(f.task_entity_id || '') === String(recordId).replace(/^case:/,'') || (updatedRawId && String(f.task_entity_id || '') === updatedRawId);
+      });
+      if (idx >= 0) allManualTaskRecords[idx] = updated;
+      var taskLifecyclePatch = { updated_at: new Date().toISOString() };
+      if (caseStatus === 'closed') {
+        taskLifecyclePatch.completed_at = new Date().toISOString();
+        taskLifecyclePatch.archived_at = null;
+      } else if (caseStatus === 'archived') {
+        taskLifecyclePatch.archived_at = new Date().toISOString();
+      } else if (caseStatus === 'new') {
+        taskLifecyclePatch.completed_at = null;
+        taskLifecyclePatch.archived_at = null;
+      }
+      await vxBestEffortPatchTaskLifecycle(recordId, taskLifecyclePatch);
+    } else {
+      await applyStatusTransition(recordId, currentStatus, normalizedStatus);
+      if (cached && cached.fields) {
+        cached.fields.dashboard_status = normalizedStatus;
+        if (isClosedStatus(normalizedStatus)) cached.fields.follow_up_at = null;
+      }
+    }
+    renderDashboard(allRecords, allManualTaskRecords);
+    renderAnrufe();
+    renderRueckrufe(allRecords, allManualTaskRecords);
+    renderArchiv(allRecords);
+    toast(icons[normalizedStatus] || 'Status aktualisiert', isClosedStatus(normalizedStatus) ? 'success' : 'info');
+    if (isClosedStatus(normalizedStatus) || normalizedStatus === CALL_STATUS.ARCHIVED) {
+      if (typeof vxCloseAfterSuccessfulCompletion === 'function') setTimeout(vxCloseAfterSuccessfulCompletion, 120);
+    }
+    return true;
+  } catch(e) {
+    // [PATCH v2.21 — illegal call transition explizit abfangen]
+    // Das Backend lehnt bestimmte Status-Übergänge mit 422 / "illegal call transition" ab.
+    // Statt generischem Fehlertext: klare Erklärung + Reload-Option anbieten.
+    var errMsg = String(e && e.message ? e.message : '').toLowerCase();
+    var isIllegalTransition = errMsg.includes('illegal') || errMsg.includes('transition') ||
+                              errMsg.includes('422') || errMsg.includes('cannot archive') ||
+                              errMsg.includes('invalid status');
+    if (isIllegalTransition) {
+      toast('Status kann nicht geändert werden — bitte Seite neu laden.', 'warning');
+      // Lokalen Status zurücksetzen damit UI nicht inkonsistent bleibt
+      if (cached && cached.fields) {
+        cached.fields.dashboard_status = currentStatus;
+      }
+    } else {
+      toast('⚠ ' + toManualTaskUserMessage(e, 'Fehler beim Status-Update'));
+    }
+    if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
+    return false;
+  }
+}
+
+
+function directCall(recordId, encodedTarget) {
+  const raw = decodeURIComponent(encodedTarget || '').trim();
+  if (!raw) {
+    toast('Keine Telefonnummer vorhanden');
+    return;
+  }
+  pendingFollowupRecordId = recordId;
+  pendingFollowupStartedAt = Date.now();
+  pendingFollowupStatus = '';
+  const href = /^tel:/i.test(raw) ? raw : ('tel:' + raw.replace(/\s/g,''));
+  window.location.href = href;
+}
+
+function maybeOpenFollowup() {
+  if (!pendingFollowupRecordId) return;
+  if (Date.now() - pendingFollowupStartedAt > 10 * 60 * 1000) {
+    pendingFollowupRecordId = null;
+    return;
+  }
+  const rec = allRecords.find(r => r.id === pendingFollowupRecordId);
+  if (!rec) return;
+  openFollowup(rec.id, (rec.fields.caller_name || '').trim(), (rec.fields.notes_customer_voxera || '').trim(), rec.fields.dashboard_status || '', rec.fields.next_action || '', rec.fields.follow_up_at || '');
+  pendingFollowupRecordId = null;
+}
+
+function openFollowupDirect(recordId, options) {
+  // [v2.65] Auch Tasks (case:-Prefix) auflösen
+  var rec = (typeof vxResolveDprRecord === 'function')
+    ? vxResolveDprRecord(recordId)
+    : allRecords.find(function(r){ return r.id === recordId; });
+  if (!rec) return;
+  var f = rec.fields || {};
+  openFollowup(recordId, (f.caller_name || f.title || '').trim(), (f.notes_customer_voxera || f.note || f.notes || '').trim(), f.dashboard_status || '', f.next_action || '', f.follow_up_at || '', options || null);
+}
+
+function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAction, followUpAt, options) {
+  rememberOverlayFocusReturn('followup-overlay');
+  notizRecordId = recordId;
+  followupCallerName = String(callerName || '').trim();
+  var opts = options || {};
+  var mode = String(opts.mode || 'callback').toLowerCase();
+  if (mode !== 'due') mode = 'callback';
+  followupModalMode = mode;
+  const done = isClosedStatus(currentStatus);
+  var hasExistingDue = !!String(followUpAt || '').trim();
+  var titleEl = document.getElementById('followup-title');
+  if (titleEl) titleEl.textContent = (mode === 'due') ? (hasExistingDue ? 'Fälligkeit ändern' : 'Fälligkeit setzen') : 'Nachfassen planen';
+  var subtitleEl = document.getElementById('followup-sub');
+  if (subtitleEl) {
+    subtitleEl.textContent = (mode === 'due')
+      ? 'Lege fest, wann dieser Eintrag wieder fällig ist.'
+      : 'Plane einen Rückruf oder Folgekontakt.';
+  }
+  document.getElementById('followup-input').value = existingNotiz || '';
+  document.getElementById('followup-next-action').value = (mode === 'due') ? '' : (nextAction || '');
+  document.getElementById('followup-datetime').value = fmtDateTimeLocal(followUpAt || '');
+  var nextActionField = document.getElementById('followup-next-action-field');
+  if (nextActionField) nextActionField.style.display = (mode === 'due') ? 'none' : '';
+  const markComplete = document.getElementById('followup-mark-complete');
+  if (markComplete) {
+    markComplete.checked = false;
+    var markRow = document.getElementById('followup-mark-row') || markComplete.closest('.followup-mark-row');
+    if (markRow) markRow.style.display = (mode === 'due' || done) ? 'none' : '';
+  }
+  const lockWarning = document.getElementById('followup-locked-warning');
+  const editableSection = document.getElementById('followup-editable');
+  const saveBtn = document.getElementById('followup-save-btn');
+  if (done) {
+    // Erledigte Einträge bleiben abgeschlossen; ein neuer Rückruf wird als separate Aufgabe geplant.
+    if (lockWarning) {
+      lockWarning.style.display = 'block';
+      lockWarning.childNodes[0].nodeValue = mode === 'due'
+        ? 'Dieser Eintrag bleibt erledigt. Die Fälligkeit wird als neue geplante Aufgabe erstellt. '
+        : 'Dieser Eintrag bleibt erledigt. Der Rückruf wird als neue geplante Aufgabe erstellt. ';
+    }
+  } else if (lockWarning) {
+    lockWarning.style.display = 'none';
+  }
+  if (editableSection) {
+    editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = false; });
+  }
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    if (mode === 'due') saveBtn.textContent = 'Fälligkeit speichern';
+    else saveBtn.textContent = done ? 'Rückruf erstellen' : 'Nachfassen speichern';
+  }
+  document.getElementById('followup-overlay').classList.add('open');
+  setOverlayAriaHidden('followup-overlay', false);
+  syncOverlayScrollLock();
+}
+
+function _completedWarningDismissed(recordId) {
+  try { return !!localStorage.getItem('voxera_warn_dismissed_' + recordId); } catch(e) { return false; }
+}
+
+
+function rerenderFollowupMetaForCallRow(recordId) {
+  if (!recordId) return;
+  var rec = (allRecords || []).find(function(r) { return r && r.id === recordId; });
+  if (!rec || !rec.fields) return;
+  var followUpMetaText = buildFollowUpMetaText(rec, new Date());
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.call-row[data-id]')).filter(function(row) {
+    return row && row.dataset && row.dataset.id === recordId;
+  });
+  rows.forEach(function(row) {
+    var body = row.querySelector('.cr-body');
+    if (!body) return;
+    var summaryEl = body.querySelector('.call-summary');
+    var existingLines = body.querySelectorAll('.followup-meta-line');
+    existingLines.forEach(function(el) {
+      if (!el.textContent || el.textContent.indexOf('Erledigt am') !== 0) el.remove();
+    });
+    if (!followUpMetaText) return;
+    var metaEl = document.createElement('div');
+    metaEl.className = 'followup-meta-line';
+    metaEl.textContent = followUpMetaText;
+    if (summaryEl) {
+      var summaryParent = summaryEl.parentNode;
+      if (summaryParent === body && summaryEl.nextSibling && summaryEl.nextSibling.parentNode === body) body.insertBefore(metaEl, summaryEl.nextSibling);
+      else if (summaryParent && summaryEl.nextSibling && summaryEl.nextSibling.parentNode === summaryParent) summaryParent.insertBefore(metaEl, summaryEl.nextSibling);
+      else if (summaryParent) summaryParent.appendChild(metaEl);
+      else if (body && body.firstChild && body.firstChild.parentNode === body) body.insertBefore(metaEl, body.firstChild);
+      else if (body) body.appendChild(metaEl);
+    } else if (body && body.firstChild && body.firstChild.parentNode === body) body.insertBefore(metaEl, body.firstChild);
+    else if (body) body.appendChild(metaEl);
+  });
+}
+
+function dismissCompletedWarning() {
+  const w = document.getElementById('followup-locked-warning');
+  if (w) w.style.display = 'none';
+  if (notizRecordId) {
+    try { vxSafeLocalStorageSet('voxera_warn_dismissed_' + notizRecordId, '1'); } catch(e) {}
+  }
+}
+
+function closeFollowup() {
+  vxSetActionButtonLoading(document.getElementById('followup-save-btn'), false);
+  document.getElementById('followup-overlay').classList.remove('open');
+  setOverlayAriaHidden('followup-overlay', true);
+  syncOverlayScrollLock();
+  document.getElementById('followup-input').value = '';
+  document.getElementById('followup-next-action').value = '';
+  document.getElementById('followup-datetime').value = '';
+  followupCallerName = '';
+  followupModalMode = 'callback';
+  const mc = document.getElementById('followup-mark-complete');
+  if (mc) {
+    mc.checked = false;
+    var mcRow = document.getElementById('followup-mark-row') || mc.closest('.followup-mark-row');
+    if (mcRow) mcRow.style.display = '';
+  }
+  var nextActionField = document.getElementById('followup-next-action-field');
+  if (nextActionField) nextActionField.style.display = '';
+  const editableSection = document.getElementById('followup-editable');
+  if (editableSection) {
+    editableSection.querySelectorAll('input,select,textarea').forEach(function(el){ el.disabled = false; });
+  }
+  restoreOverlayFocus('followup-overlay');
+}
+
+async function saveFollowup() {
+  if (!notizRecordId) return;
+  const btn = document.getElementById('followup-save-btn');
+  if (vxIsActionButtonSaving(btn)) return;
+  const text = document.getElementById('followup-input').value.trim();
+  const nextAction = document.getElementById('followup-next-action').value;
+  const _followUpAtRaw = document.getElementById('followup-datetime').value;
+  // [BUG FIX v2.52b] T00:00 bedeutet: Nutzer hat Datum gewählt aber keine Uhrzeit gesetzt.
+  // Default-Zeit auf 09:00 setzen damit hasMeaningfulDueTime() die Uhrzeit erkennt
+  // und in der Übersicht "Morgen, 09:00" statt nur "Morgen" anzeigt.
+  const followUpAt = _followUpAtRaw && /T00:00$/.test(_followUpAtRaw)
+    ? _followUpAtRaw.replace(/T00:00$/, 'T09:00')
+    : _followUpAtRaw;
+  const markComplete = document.getElementById('followup-mark-complete');
+  vxSetActionButtonLoading(btn, true, 'Speichern...');
+
+  const fields = {
+    notes_customer_voxera: text,
+    next_action: nextAction || null,
+    follow_up_at: serializeFollowUpLocal(followUpAt) || null,
+    mark_complete: !!(markComplete && markComplete.checked)
+  };
+  if (fields.mark_complete) fields.follow_up_at = null;
+
+  try {
+    var recordId = notizRecordId;
+    var sourceRec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(recordId) : null;
+    if (!sourceRec && Array.isArray(allRecords)) {
+      sourceRec = allRecords.find(function(r){ return r && String(r.id) === String(recordId); });
+    }
+    var sourceFields = (sourceRec && sourceRec.fields) || {};
+    var sourceLifecycle = (sourceRec && typeof vxGetEntryLifecycleStatus === 'function') ? vxGetEntryLifecycleStatus(sourceRec) : '';
+    var sourceIsDone = sourceLifecycle === 'done' || sourceLifecycle === 'archived' || isClosedStatus(sourceFields.dashboard_status || sourceFields.status || currentStatus || '');
+    if (sourceIsDone && followUpAt && !fields.mark_complete) {
+      var dueAt = String(followUpAt || '').slice(0, 10);
+      var dueTime = String(followUpAt || '').slice(11, 16) || '09:00';
+      var caller = String(sourceFields.caller_name || sourceFields.company_name || followupCallerName || '').trim();
+      var phone = String(sourceFields.caller_phone || sourceFields.phone_number || sourceFields.tel_link || '').trim();
+      var createdTask = await createManualTask({
+        title: caller ? ('Rückruf für ' + caller) : 'Rückruf planen',
+        type: 'callback',
+        due_at: dueAt,
+        due_time: dueTime,
+        status: 'new',
+        note: text || nextAction || sourceFields.call_summary || sourceFields.notes_customer_voxera || null,
+        phone: phone || null,
+        source_type: 'call',
+        source_call_id: String(recordId || '')
+      });
+      if (createdTask) {
+        allManualTaskRecords = Array.isArray(allManualTaskRecords) ? allManualTaskRecords : [];
+        allManualTaskRecords.unshift(createdTask);
+        window.allManualTaskRecords = allManualTaskRecords;
+      }
+      vxAfterActionSuccess({
+        createdRecordId: createdTask && createdTask.id ? String(createdTask.id) : '',
+        modal: 'followup'
+      });
+      notizRecordId = null;
+      toast('Rückruf als neue Aufgabe geplant');
+      vxScheduleSingleDataRefresh(500);
+      return;
+    }
+    await patchCallRecord(recordId, fields);
+    vxNotifMarkReadByRecord(recordId);
+
+    var localFields = {
+      notes_customer_voxera: fields.notes_customer_voxera,
+      next_action: fields.next_action,
+      follow_up_at: fields.follow_up_at
+    };
+    if (fields.mark_complete) localFields.follow_up_at = null;
+    var localRec = vxUpdateLocalCallRecord(recordId, localFields);
+
+    if (fields.mark_complete) {
+      await applyStatusTransition(recordId, CALL_STATUS.NEW, CALL_STATUS.CLOSED);
+      vxUpdateLocalCallRecord(recordId, {
+        dashboard_status: CALL_STATUS.CLOSED,
+        completed_at: (localRec && localRec.fields && localRec.fields.completed_at) || new Date().toISOString(),
+        follow_up_at: null
+      });
+    }
+
+    rerenderFollowupMetaForCallRow(recordId);
+    vxAfterActionSuccess({ recordId: recordId, modal: 'followup' });
+    notizRecordId = null;
+
+    toast(fields.mark_complete ? 'Erledigt' : followUpAt ? 'Rückruf geplant' : 'Gespeichert');
+
+    if (fields.mark_complete && typeof vxCloseAfterSuccessfulCompletion === 'function') vxCloseAfterSuccessfulCompletion();
+    vxScheduleSingleDataRefresh(500);
+  } catch(e) {
+    const detail = e && e.message ? String(e.message) : '';
+    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen');
+    // Error contract: keep modal open and preserve inputs.
+  } finally {
+    vxSetActionButtonLoading(btn, false);
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    setTimeout(maybeOpenFollowup, 250);
+    safeLoadData();
+  }
+});
+window.addEventListener('focus', () => {
+  setTimeout(maybeOpenFollowup, 250);
+  safeLoadData();
+});
+window.addEventListener('online', () => safeLoadData());
+
+// Session-safe data loader - checks session before loading, avoids false logouts
+async function safeLoadData() {
+  if (document.getElementById('app').style.display === 'none') return; // not logged in
+  if (realtimeSuppressUntil > 0 && Date.now() < realtimeSuppressUntil) return; // Mutation läuft gerade
+  const sb = getSupabaseAuthClient();
+  if (!sb) return;
+  try {
+    var result = await sb.auth.getSession();
+    if (!result.data.session) {
+      // Session expired - try to recover silently
+      vxDebugLog('Session check: no active session');
+      return; // Don't force logout - Supabase will auto-refresh if possible
+    }
+    loadData();
+  } catch(e) {
+    vxDebugLog('Session check error:', e.message);
+  }
+}

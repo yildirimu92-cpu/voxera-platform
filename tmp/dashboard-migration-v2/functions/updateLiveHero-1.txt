@@ -1,0 +1,88 @@
+FUNCTION updateLiveHero
+LINES 18177-18260
+TERMS dash-priority
+
+function updateLiveHero(records) {
+  var source = Array.isArray(records) ? records : (allRecords || []);
+  var rec = source
+    .filter(function(r) {
+      if (!r || !r.fields) return false;
+      var f = r.fields || {};
+      if (isActivationCallCategory(f.category)) return false;
+      var liveStatus = String(f.live_status || '').toLowerCase();
+      var isLiveCandidate = liveStatus === 'incoming' || liveStatus === 'active';
+      return isLiveCandidate && !CALL_LIVE_TERMINAL_STATES.has(liveStatus);
+    })
+    .sort(function(a, b) {
+      var pa = (typeof parseCallTimestamp === 'function') ? parseCallTimestamp((a.fields || {}).created_at) : null;
+      var pb = (typeof parseCallTimestamp === 'function') ? parseCallTimestamp((b.fields || {}).created_at) : null;
+      var ta = pa ? pa.getTime() : 0;
+      var tb = pb ? pb.getTime() : 0;
+      return tb - ta;
+    })[0] || null;
+  var priorityList = document.getElementById('dash-priority-list');
+
+  // Alten Live-Row entfernen
+  var existing = document.getElementById('live-call-row');
+  if (existing) existing.remove();
+
+  if (!rec) {
+    if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
+    _liveHeroCurrentId = null;
+    return;
+  }
+
+  var f = rec.fields || {};
+  var caller = (typeof getCallDisplayName === 'function' ? getCallDisplayName(f) : null)
+               || f.caller_name || f.phone_number || f.caller_phone || 'Unbekannte Nummer';
+  var company = f.company_name || '';
+
+  // Live-Row erstellen — v3.0 Design
+  var row = document.createElement('div');
+  row.id = 'live-call-row';
+  row.dataset.recordId = rec.id;
+  row.innerHTML = [
+    '<div class="vx-live-avatar-wrap">',
+      '<div class="vx-live-pulse"></div>',
+      '<div class="vx-live-avatar">' + (caller.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?') + '</div>',
+    '</div>',
+    '<div class="vx-live-body">',
+      '<div class="vx-live-name">' + (company ? _esc(company) : _esc(caller)) + '</div>',
+      '<div class="vx-live-sub">',
+        '<span class="vx-live-sub-dot"></span>',
+        'Anruf läuft gerade · wird verarbeitet',
+      '</div>',
+    '</div>',
+    '<div class="vx-live-badge">LIVE</div>'
+  ].join('');
+  row.onclick = function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+    // Live calls are intentionally excluded from the Anfragen worklist until the call is finalized.
+    // Keep the user on Heute and avoid navigating to an empty filtered/detail state.
+    if (typeof vxToast === 'function') {
+      vxToast({ type:'call', title:'Live-Anruf läuft', sub:'Details erscheinen nach Gesprächsende automatisch in den Anfragen.' });
+    } else if (typeof toast === 'function') {
+      toast('Live-Anruf läuft. Details erscheinen nach Gesprächsende.', 'info');
+    }
+  };
+
+  if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
+
+  var recStableId = vxGetCallStableId(rec);
+  if (recStableId && !_liveHeroNotified.has(recStableId)) {
+    _liveHeroNotified.add(recStableId);
+    notifyLiveCall(caller, company, rec.id);
+    vxToast({ type: 'call', title: 'Eingehender Anruf', sub: company ? company + ' · ' + caller : caller });
+    vxBellAdd({ type: 'call', title: 'Eingehender Anruf', sub: company ? company + ' · ' + caller : caller, recId: rec.id });
+    vxMaybePlayLiveCallSound(rec, 'live-hero');
+  }
+
+  // Live-Call nur auf Heute-Tab zeigen (Jetzt wichtig)
+  // Anfragen-Liste zeigt nur abgeschlossene Anrufe
+  if (priorityList) {
+    priorityList.insertBefore(row, priorityList.firstChild);
+  }
+
+  _liveHeroCurrentId = rec.id;
+}

@@ -1,0 +1,12 @@
+FUNCTION getRowSelectors
+LINES 41970-41977
+TERMS dash-priority
+
+function getRowSelectors(){
+    return [
+      '#dash-priority-list .dpr-card',
+      '#anrufe-list .dpr-card',
+      '#anrufe-split-left .dpr-card',
+      '#anrufe-split-right .dpr-card'
+    ].join(',');
+  }

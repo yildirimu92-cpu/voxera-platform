@@ -1,0 +1,45 @@
+FUNCTION vxHeuteRenderActivityList
+LINES 21870-21910
+TERMS dash-activity, vx-activity
+
+function vxHeuteRenderActivityList(records) {
+  var section = document.getElementById('dash-activity-section');
+  var list = document.getElementById('dash-activity-list');
+  var countEl = document.getElementById('dash-activity-count');
+  if (!section || !list) return;
+  var rows = vxHeuteDedupeByStableId(records || []).filter(Boolean).sort(function(a,b){
+    return (new Date(vxHeuteActivityTimestamp(b) || 0).getTime() || 0) - (new Date(vxHeuteActivityTimestamp(a) || 0).getTime() || 0);
+  }).slice(0, 25);
+  section.style.display = '';
+  if (countEl) countEl.textContent = String(rows.length || 0);
+  if (!rows.length) {
+    vxSetHtmlIfChanged(list, '<div class="dash-empty">Heute gibt es noch keinen Verlauf.</div>');
+    return;
+  }
+  var html = rows.map(function(rec){
+    var id = String((rec && rec.id) || vxHeuteGetRecordValue(rec, ['id','call_id']) || '');
+    var label = vxHeuteActivityLabel(rec);
+    var title = vxHeuteRecordTitle(rec);
+    var summary = vxHeuteRecordSummary(rec);
+    var time = vxHeuteActivityTime(rec);
+    var isDone = label === 'Erledigt';
+    var icon = isDone ? 'check-circle' : (label.indexOf('Rückruf') >= 0 ? 'bell-ringing' : (vxHeuteIsManualTask(rec) ? 'calendar-check' : 'phone-incoming'));
+    var iconClass = isDone ? 'vx-activity-icon is-done' : (!vxHeuteIsManualTask(rec) ? 'vx-activity-icon is-call' : 'vx-activity-icon');
+    return '<div class="vx-activity-row" data-id="'+_esc(id)+'" data-record-id="'+_esc(id)+'">'
+      + '<div class="vx-activity-time">'+_esc(time || '–')+'</div>'
+      + '<div style="min-width:0;"><div class="vx-activity-title">'+_esc(title)+'</div>'
+      + '<div class="vx-activity-sub">'+_esc(label)+(summary ? ' · '+_esc(summary) : '')+'</div></div>'
+      + '<div class="'+iconClass+'"><i class="ph-bold ph-'+icon+'"></i></div>'
+      + '</div>';
+  }).join('');
+  vxSetHtmlIfChanged(list, html);
+  list.querySelectorAll('.vx-activity-row').forEach(function(row){
+    row.addEventListener('click', function(){
+      var recId = row.dataset.recordId || row.dataset.id;
+      var rec = typeof vxResolveDprRecord === 'function' ? vxResolveDprRecord(recId) : null;
+      if (rec && isManualTaskRecord(rec)) { if (typeof showTaskDetail === 'function') showTaskDetail(recId); }
+      else if (typeof showCallDetail === 'function') showCallDetail(recId);
+    });
+  });
+  refreshLucideIcons();
+}

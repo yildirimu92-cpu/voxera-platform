@@ -1,0 +1,17 @@
+FUNCTION vxDashShowAllImportant
+LINES 10243-10255
+TERMS dash-priority
+
+function vxDashShowAllImportant(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  if (event && event.stopPropagation) event.stopPropagation();
+  if (typeof vxGoToAnfragenFilter === 'function') {
+    vxGoToAnfragenFilter('offen', 'all');
+  } else {
+    dashPriorityExpanded = true;
+    try { renderDashPriorityList(); } catch(e) {}
+    var section = document.getElementById('dash-priority-section');
+    if (section && section.scrollIntoView) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  return false;
+}

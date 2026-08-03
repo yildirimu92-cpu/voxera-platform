@@ -1,0 +1,14 @@
+FUNCTION setActiveRequestRow
+LINES 41066-41075
+TERMS dash-priority
+
+function setActiveRequestRow(id){
+    if(!id) return;
+    qsa('#dash-priority-list .dpr-card.sp-active,#anrufe-list .dpr-card.sp-active,#anrufe-split-left .dpr-card.sp-active').forEach(function(el){
+      if(String(el.dataset.id || el.dataset.recordId || '') !== String(id)) el.classList.remove('sp-active');
+    });
+    qsa('#dash-priority-list .dpr-card,#anrufe-list .dpr-card,#anrufe-split-left .dpr-card').forEach(function(card){
+      var cid = String(card.dataset.id || card.dataset.recordId || '');
+      if(cid === String(id)) card.classList.add('sp-active');
+    });
+  }

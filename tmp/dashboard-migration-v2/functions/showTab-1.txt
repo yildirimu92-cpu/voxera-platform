@@ -1,0 +1,101 @@
+FUNCTION showTab
+LINES 27478-27574
+TERMS renderDashboard
+
+function showTab(name, el, options) {
+  if (!name) return;
+  const opts = (options && typeof options === 'object') ? options : {};
+  vxCloseTransientViewsForRootTab(name);
+  
+  // ─── FIX: Call-Detail Page nur bei EXPLIZITEN Tab-Wechseln schließen ───
+  // (nicht bei internen showTab-Aufrufen ohne Click-Element wie Polling/Refresh)
+  var callDetailPage = document.getElementById('call-detail-page');
+  if (callDetailPage && callDetailPage.style.display === 'block') {
+    var isExplicitUserAction = !!el || opts.historyMode === 'push';
+    if (isExplicitUserAction) {
+      window._vxLastAnfragenRecordId = window._vxActiveRecordId || window._vxLastAnfragenRecordId || window._vxCurrentCallId || window._vxCurrentTaskId || '';
+      if (typeof hideCallDetail === 'function') {
+        hideCallDetail();
+      } else {
+        callDetailPage.style.display = 'none';
+        vxSetScrollLock('call-detail-page', false);
+        vxSyncScrollLock();
+      }
+    }
+  }
+  
+  const previousTab = getCurrentTabName();
+  if (previousTab === 'dashboard' && name !== 'dashboard') dashRecentExpanded = false;
+  if (previousTab === 'anrufe' && name !== 'anrufe') {
+    // Anfragen-Position bewusst behalten: Filter und aktiver Eintrag bleiben erhalten.
+    window._vxLastAnfragenRecordId = window._vxActiveRecordId || window._vxLastAnfragenRecordId || window._vxCurrentCallId || window._vxCurrentTaskId || '';
+  }
+  if (name === 'assistent') { setTimeout(loadAssistentRequests, 100); }
+  if (name === 'archiv') { setTimeout(function(){ if (typeof renderArchiv === 'function') renderArchiv(allRecords || []); }, 50); }
+  if (previousTab === 'rueckrufe' && name !== 'rueckrufe') { _rueckrufeFilter = 'alle'; }
+  closeUserMenu();
+  closeMobileUserMenu();
+  var targetTab = document.getElementById('tab-' + name);
+  if (!targetTab) return;
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
+  targetTab.classList.add('active');
+  injectSortButtons();
+  var navEl = el || document.getElementById('nav-' + name) || document.getElementById('mnav-' + name);
+  if (navEl) navEl.classList.add('active');
+  const mnav = document.getElementById('mnav-'+name);
+  if (mnav) mnav.classList.add('active');
+  if (name === 'vertrag') renderVertrag();
+  if (name === 'einrichtung') renderEinrichtungTab();
+  if (name === 'anrufe') {
+    markVisibleCallsAsSeen((allRecords || []).filter(function(r) { return !isClosedStatus(((r && r.fields) || {}).dashboard_status); }));
+    renderDashboard(allRecords || [], allManualTaskRecords || []);
+    setTimeout(function(){
+      var lastId = String(window._vxLastAnfragenRecordId || window._vxActiveRecordId || '').trim();
+      if (!lastId || window.innerWidth < 768) return;
+      var rec = (typeof vxResolveDprRecord === 'function') ? vxResolveDprRecord(lastId) : null;
+      if (!rec) return;
+      window._vxActiveRecordId = lastId;
+      if (typeof renderAnrufe === 'function') renderAnrufe();
+      setTimeout(function(){
+        if (rec && typeof isManualTaskRecord === 'function' && isManualTaskRecord(rec)) {
+          if (typeof showTaskDetail === 'function') showTaskDetail(lastId);
+        } else if (typeof showCallDetail === 'function') showCallDetail(lastId, { fromBackStack: true });
+      }, 60);
+    }, 120);
+  }
+  if (isMainNavHistoryTab(name)) {
+    const mode = opts.historyMode || 'push';
+    const shouldWrite = mode !== 'none' && (mode === 'replace' || previousTab !== name);
+    if (shouldWrite) writeMainNavHistory(name, mode === 'replace' ? 'replace' : 'push');
+  }
+  // Onboarding zurückbringen wenn Kunde zu Haupt-Tabs navigiert
+  if (window._vxOnboardingPendingReturn && typeof customerMeta !== 'undefined' && !customerMeta.onboardingCompleted &&
+      (name === 'dashboard' || name === 'mehr')) {
+    window._vxOnboardingPendingReturn = false;
+    setTimeout(function() {
+      if (typeof vxOnboardingUpdateSteps === 'function') vxOnboardingUpdateSteps();
+      const overlay = document.getElementById('vx-onboarding-overlay');
+      if (overlay) overlay.style.display = 'flex';
+    }, 400);
+  }
+
+  try {
+    // PRODUKTREGEL: Nach First-Login darf 'einrichtung' nicht mehr persistent gespeichert werden
+    const setupFinished = localStorage.getItem(getSetupStorageKey('voxera_setup_finished'));
+    if (!setupFinished || name !== 'einrichtung') {
+      vxSafeSessionStorageSet('voxera_tab', name);
+      if (name !== 'einrichtung') {
+        vxSafeSessionStorageSet('voxera_last_non_setup_tab', name);
+      }
+    }
+  } catch(e){}
+  if (name === 'einstellungen' || name === 'profil') {
+    syncSystemVoxeraSettings();
+    openAccount();
+  }
+  try {
+    if (typeof vxEnsureNoOrphanDetailView === 'function') vxEnsureNoOrphanDetailView('showTab:' + name);
+  } catch(e) {}
+}
