@@ -92,6 +92,26 @@ jobs:
       - name: Apply guarded requests migration
         if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
         run: node scripts/tmp-migrate-customer-requests-design.mjs
+      - name: Compact requests component block
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('customer-dashboard/shared/customer-assistant-components.css')
+          text = path.read_text(encoding='utf-8')
+          marker = '/* Customer requests: assistant-aligned canonical component owner. */'
+          if text.count(marker) != 1:
+              raise SystemExit('requests component marker mismatch')
+          prefix, block = text.split(marker, 1)
+          block = marker + block
+          block = re.sub(r'\s+', ' ', block).strip()
+          block = re.sub(r'\s*([{}:;,])\s*', r'\1', block)
+          block = block.replace('}', '}\n').strip()
+          path.write_text(prefix.rstrip() + '\n\n' + block + '\n', encoding='utf-8')
+          PY
+          git checkout -- scripts/tmp-migrate-customer-requests-design.mjs
       - run: node scripts/verify-customer-design-foundation.mjs
       - name: Inventory design ownership
         run: node scripts/audit-customer-design-ownership.mjs
