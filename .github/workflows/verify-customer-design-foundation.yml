@@ -143,9 +143,9 @@ jobs:
           for token in required_dashboard:
               if token not in dashboard:
                   raise SystemExit(f'missing requests dashboard token: {token}')
-          marker = 'Customer requests: assistant-aligned canonical component owner.'
-          if marker not in assistant:
-              raise SystemExit('missing canonical requests CSS owner marker')
+          owner_selector = 'body.vx-customer-design-foundation .vx-requests-layout'
+          if owner_selector not in assistant:
+              raise SystemExit('missing canonical requests CSS owner selector')
           if '!important' in assistant:
               raise SystemExit('canonical assistant CSS contains !important')
           print('Requests migration scope verification passed.')
