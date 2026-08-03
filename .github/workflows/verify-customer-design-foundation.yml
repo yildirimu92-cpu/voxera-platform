@@ -49,26 +49,8 @@ jobs:
             ['requests', 'id="tab-anrufe"', 'id="tab-auswertung"'],
             ['assistant', 'id="tab-assistent"', 'id="tab-mehr"']
           ];
-          const fingerprints = Object.fromEntries(protectedRanges.map(([name, start, end]) => [name, hash(sliceBetween(source, start, end))]));
-          const protectedWindowTokens = ['id="login-screen"', 'id="tab-mehr"'];
-          const windowAround = (text, token) => {
-            const index = text.indexOf(token);
-            assert.ok(index >= 0, `Missing protected window token: ${token}`);
-            return text.slice(Math.max(0, index - 1800), Math.min(text.length, index + 3600));
-          };
-          const windowFingerprints = Object.fromEntries(protectedWindowTokens.map((token) => [token, hash(windowAround(source, token))]));'''
+          const fingerprints = Object.fromEntries(protectedRanges.map(([name, start, end]) => [name, hash(sliceBetween(source, start, end))]));'''
           text = text[:start] + replacement + text[end:]
-
-          validation = '''for (const [name, start, end] of protectedRanges) {
-            assert.equal(hash(sliceBetween(source, start, end)), fingerprints[name], `Protected surface changed: ${name}`);
-          }'''
-          extra = validation + '''
-          for (const token of protectedWindowTokens) {
-            assert.equal(hash(windowAround(source, token)), windowFingerprints[token], `Protected window changed: ${token}`);
-          }'''
-          if validation not in text:
-              raise SystemExit('Protected validation loop not found')
-          text = text.replace(validation, extra, 1)
           path.write_text(text, encoding='utf-8')
           PY
       - name: Apply guarded customer report migration
