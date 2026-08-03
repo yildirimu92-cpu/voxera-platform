@@ -7,6 +7,7 @@ on:
       - 'customer-dashboard/**/*.html'
       - 'customer-dashboard/shared/**/*.js'
       - 'scripts/verify-customer-design-foundation.mjs'
+      - 'scripts/verify-customer-dashboard-design.mjs'
       - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
   push:
@@ -16,6 +17,7 @@ on:
       - 'customer-dashboard/**/*.html'
       - 'customer-dashboard/shared/**/*.js'
       - 'scripts/verify-customer-design-foundation.mjs'
+      - 'scripts/verify-customer-dashboard-design.mjs'
       - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
 
@@ -28,5 +30,6 @@ jobs:
         with:
           node-version: '20'
       - run: node scripts/verify-customer-design-foundation.mjs
+      - run: node scripts/verify-customer-dashboard-design.mjs
       - name: Inventory design ownership
         run: node scripts/audit-customer-design-ownership.mjs
