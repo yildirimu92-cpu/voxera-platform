@@ -372,7 +372,7 @@ for (const token of [
   'class="vx-abo-contract-grid"',
   'class="vx-abo-addon-grid"',
   "barEl.classList.toggle('warning'",
-  "onclick="vxMehrShow('abonnement')"",
+  "onclick=\"vxMehrShow('abonnement')\"",
   'onclick="vxAboUpgrade()"',
   'onclick="vxAboMinuten()"',
   'onclick="vxSubmitCancellationRequest()"'
