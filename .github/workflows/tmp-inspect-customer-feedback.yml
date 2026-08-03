@@ -11,50 +11,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect exact UI and runtime owners
+      - name: Inspect request, report and settings owners
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          roots = [Path('customer-dashboard/index.html')]
-          roots += sorted(Path('customer-dashboard/shared').glob('*.js'))
-          roots += sorted(Path('customer-dashboard/shared').glob('*.css'))
+          index_path = Path('customer-dashboard/index.html')
+          index = index_path.read_text(encoding='utf-8').splitlines()
 
-          needles = [
-              'Aufmerksamkeit',
-              'Heute passiert',
-              'vx-requests-open-archive',
-              'tab-archiv',
-              "showTab('archiv'",
-              'Heute</button>',
-              'Woche</button>',
-              'Monat</button>',
-              'Gesamt</button>',
-              'Kalenderintegration',
-              'mehr-sub-calendar',
-              'mehr-sub-kalender',
-              "vxMehrShow('kalender'",
-              "vxMehrShow('calendar'",
-              'restoreSettingsRoot',
-              'openCalendar',
-              'calendar-settings'
-          ]
+          def show_range(title, lines, start, end):
+              print(f'\n===== {title} =====')
+              for number in range(start - 1, min(end, len(lines))):
+                  print(f'{number + 1}: {lines[number]}')
 
-          for needle in needles:
-              hits = []
-              for path in roots:
-                  try:
-                      lines = path.read_text(encoding='utf-8').splitlines()
-                  except Exception:
-                      continue
-                  for index, line in enumerate(lines):
-                      if needle in line:
-                          hits.append((path, lines, index))
-              print(f'\n===== {needle}: {len(hits)} hit(s) =====')
-              for path, lines, index in hits[:12]:
-                  print(f'--- {path}:{index + 1} ---')
-                  start = max(0, index - 8)
-                  end = min(len(lines), index + 13)
+          show_range('today markup', index, 6700, 6792)
+          show_range('requests markup', index, 6792, 6848)
+          show_range('archive markup', index, 6945, 7005)
+
+          for needle in [
+              'function anrufeChipFilter',
+              'function renderAnrufe',
+              'function auSetPeriod',
+              'function showTab',
+              '_anrufeFilter',
+              'CALL_STATUS.ARCHIVED'
+          ]:
+              matches = [i for i, line in enumerate(index) if needle in line]
+              print(f'\n===== {needle}: {len(matches)} hit(s) =====')
+              for i in matches[:8]:
+                  start = max(0, i - 12)
+                  end = min(len(index), i + 70)
+                  print(f'--- {index_path}:{i + 1} ---')
                   for number in range(start, end):
-                      print(f'{number + 1}: {lines[number]}')
+                      print(f'{number + 1}: {index[number]}')
+
+          for path in [
+              Path('customer-dashboard/shared/customer-runtime-calendar-settings.js'),
+              Path('customer-dashboard/shared/customer-settings-components.css')
+          ]:
+              lines = path.read_text(encoding='utf-8').splitlines()
+              show_range(str(path), lines, 1, len(lines))
           PY
