@@ -1,50 +1,25 @@
-name: Apply Customer Feedback Corrections
+name: Inspect Exact Report Filter
 
 on:
   pull_request:
     paths:
-      - 'customer-dashboard/**'
-      - 'scripts/tmp_apply_customer_feedback_round.py'
+      - 'customer-dashboard/index.html'
       - '.github/workflows/tmp-inspect-customer-feedback.yml'
 
-permissions:
-  contents: write
-
 jobs:
-  migrate:
+  inspect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: codex/customer-navigation-five-root
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Apply requested customer corrections
-        run: python scripts/tmp_apply_customer_feedback_round.py
-      - name: Verify customer runtime and design owners
+      - name: Show exact report filter
         run: |
-          node --check customer-dashboard/shared/customer-runtime-unified-navigation.js
-          node --check customer-dashboard/shared/customer-runtime-calendar-settings.js
-          node scripts/verify-customer-navigation-unified.mjs
-          node scripts/verify-customer-design-foundation.mjs
-          node scripts/audit-customer-runtime-reachability.mjs
-          node scripts/audit-customer-design-ownership.mjs
-      - name: Commit product corrections
-        run: |
-          changed="$(git diff --name-only)"
-          expected=$'customer-dashboard/index.html\ncustomer-dashboard/shared/customer-assistant-components.css\ncustomer-dashboard/shared/customer-runtime-calendar-settings.js\ncustomer-dashboard/shared/customer-runtime-unified-navigation.js'
-          if [ -z "$changed" ]; then
-            echo "Customer corrections already committed."
-            exit 0
-          fi
-          test "$changed" = "$expected"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add customer-dashboard/index.html \
-            customer-dashboard/shared/customer-assistant-components.css \
-            customer-dashboard/shared/customer-runtime-calendar-settings.js \
-            customer-dashboard/shared/customer-runtime-unified-navigation.js
-          git commit -m "fix: resolve customer mobile feedback"
-          git push origin HEAD:codex/customer-navigation-five-root
+          python - <<'PY'
+          from pathlib import Path
+          lines = Path('customer-dashboard/index.html').read_text(encoding='utf-8').splitlines()
+          for needle in ['function _auFilterRecords', "_auPeriod === 'month'"]:
+              matches = [i for i, line in enumerate(lines) if needle in line]
+              print(f'===== {needle}: {len(matches)} =====')
+              for i in matches[:5]:
+                  for n in range(max(0, i - 12), min(len(lines), i + 32)):
+                      print(f'{n + 1}: {lines[n]}')
+          PY
