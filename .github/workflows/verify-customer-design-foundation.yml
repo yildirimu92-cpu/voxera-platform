@@ -26,7 +26,27 @@ jobs:
         with:
           node-version: '20'
       - name: Replace dashboard legacy presentation
-        run: python scripts/tmp_replace_dashboard_legacy.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/tmp_replace_dashboard_legacy.py')
+          source = path.read_text(encoding='utf-8')
+          anchor = 'priority = priority.replace("var _iconClass = _isCallType'
+          start = source.index('\npriority = re.sub(', source.index(anchor)) + 1
+          end = source.index("priority = priority.replace('class=\"vx-row-time\"'", start)
+          replacement = '''new_identity_lines = "      html += '<div class=\\\"vx-ops-head\\\"><div class=\\\"vx-ops-title\\\">'+_esc(name)+'</div><span class=\\\"vx-ops-pill'+(_isUnreadCall?' active':'')+'\\\">'+_esc(typeMeta.label)+'</span></div>';\\n      var _identityMeta = [company, (phone && name !== phone ? phone : '')].filter(Boolean).join(' · ');\\n      if (_identityMeta) html += '<div class=\\\"vx-ops-meta\\\">'+_esc(_identityMeta)+'</div>';"
+identity_pattern = re.compile(
+    r'^\\s*html \\+= \'<div class="vx-ops-title" style=.*?</div>\';$',
+    re.MULTILINE,
+)
+priority, identity_count = identity_pattern.subn(new_identity_lines, priority, count=1)
+if identity_count != 1:
+    raise AssertionError('Priority identity line not found')
+'''
+          path.write_text(source[:start] + replacement + source[end:], encoding='utf-8')
+          PY
+          python scripts/tmp_replace_dashboard_legacy.py
       - name: Verify migration diff
         run: |
           git diff --check
