@@ -16,39 +16,53 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-requests-premium-polish
-      - name: Inspect request visual owners
+      - name: Inspect exact request owners
         run: |
           python - <<'PY'
           from pathlib import Path
-          index=Path('customer-dashboard/index.html').read_text(encoding='utf-8')
-          lines=index.splitlines()
-          css_path=Path('customer-dashboard/shared/customer-assistant-components.css')
-          css=css_path.read_text(encoding='utf-8')
-          css_lines=css.splitlines()
+          import re
 
-          def show(source, term, before=8, after=28, limit=8, label='INDEX'):
-            hits=[i for i,l in enumerate(source) if term.lower() in l.lower()][:limit]
-            print(f'\n## {label} {term!r} hits={len(hits)}')
+          index_path=Path('customer-dashboard/index.html')
+          lines=index_path.read_text(encoding='utf-8').splitlines()
+          css_lines=Path('customer-dashboard/shared/customer-assistant-components.css').read_text(encoding='utf-8').splitlines()
+
+          def ranges(source, requested, label):
+            print(f'\n## {label}')
+            for lo,hi in requested:
+              lo=max(1,lo); hi=min(len(source),hi)
+              print(f'-- {lo}-{hi} --')
+              for n in range(lo,hi+1): print(f'{n}: {source[n-1]}')
+
+          ranges(lines, [(4990,5085),(5165,5245),(6515,6595),(26280,26460),(27660,27830)], 'EXACT INDEX RANGES')
+
+          terms=[
+            "classList.add('selected')", 'classList.add("selected")',
+            "classList.toggle('selected'", 'is-selected', 'selected-row',
+            'active-call', 'openCallDetail', 'openCall', 'renderCalls',
+            'vx-call-list', 'io-list-card', 'io-toolbar-card',
+            'split-detail', 'split-shell', 'filter-chip'
+          ]
+          for term in terms:
+            hits=[i for i,l in enumerate(lines) if term.lower() in l.lower()][:12]
+            if not hits: continue
+            print(f'\n## TERM {term!r} hits={len(hits)}')
             for i in hits:
-              lo=max(0,i-before); hi=min(len(source),i+after+1)
+              lo=max(0,i-5); hi=min(len(lines),i+13)
               print(f'-- {lo+1}-{hi} --')
-              for n in range(lo,hi): print(f'{n+1}: {source[n]}')
+              for n in range(lo,hi): print(f'{n+1}: {lines[n]}')
 
-          for term in [
-            'id="tab-anfragen"', 'id="requests-list"', 'id="calls-list"',
-            'requests-filter', 'request-filter', 'anfragen-filter',
-            'is-selected', 'is-active', 'aria-selected',
-            'function renderRequests', 'function renderCalls',
-            'vx-requests', 'vx-request', 'inbox', 'split-view'
-          ]:
-            show(lines, term)
+          print('\n## REQUEST-RELATED STYLE BLOCK HEADERS')
+          text='\n'.join(lines)
+          for match in re.finditer(r'([^{}]*(?:#tab-anfragen|filter-chip|calls-list|split-detail|split-shell|io-list-card|io-toolbar-card|is-selected|\.selected)[^{}]*)\{', text, flags=re.I):
+            selector=' '.join(match.group(1).split())
+            if len(selector) > 260: selector=selector[-260:]
+            print(selector)
 
-          for term in [
-            '#tab-anfragen', '.vx-request', '.vx-requests', '.vx-filter',
-            '.is-selected', '.is-active', '.vx-ops-item', '.vx-ap-card',
-            'background: #fff', 'background: white'
-          ]:
-            show(css_lines, term, before=5, after=24, label='ASSISTANT_CSS')
-
-          print('\n## ASSISTANT CSS LINES', len(css_lines))
+          print('\n## ASSISTANT CSS REQUEST SELECTORS')
+          for i,line in enumerate(css_lines,1):
+            if any(term in line.lower() for term in ['request','anfragen','filter-chip','calls-list','split-detail','selected','io-list','io-toolbar']):
+              lo=max(1,i-3); hi=min(len(css_lines),i+12)
+              print(f'-- {lo}-{hi} --')
+              for n in range(lo,hi+1): print(f'{n}: {css_lines[n-1]}')
+          print('\nASSISTANT_CSS_LINES', len(css_lines))
           PY
