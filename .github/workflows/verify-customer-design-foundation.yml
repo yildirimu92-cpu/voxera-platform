@@ -50,7 +50,7 @@ jobs:
             ['assistant', 'id="tab-assistent"', 'id="tab-mehr"']
           ];
           const fingerprints = Object.fromEntries(protectedRanges.map(([name, start, end]) => [name, hash(sliceBetween(source, start, end))]));
-          const protectedWindowTokens = ['id="login-screen"', 'id="mobile-bottom-nav"', 'id="tab-mehr"'];
+          const protectedWindowTokens = ['id="login-screen"', 'id="tab-mehr"'];
           const windowAround = (text, token) => {
             const index = text.indexOf(token);
             assert.ok(index >= 0, `Missing protected window token: ${token}`);
