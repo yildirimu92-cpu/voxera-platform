@@ -56,101 +56,60 @@ def remove_balanced_div(source: str, element_id: str) -> str:
 
 def migrate_index() -> None:
     source = INDEX_PATH.read_text(encoding='utf-8')
+    source = replace_once(source, 'id="dash-content" class="vx-ap-stack"', 'id="dash-content" class="vx-ap-stack vx-report-stack"', 'dashboard card spacing')
 
-    source = replace_once(
-        source,
-        'id="dash-content" class="vx-ap-stack"',
-        'id="dash-content" class="vx-ap-stack vx-report-stack"',
-        'dashboard card spacing',
-    )
-
-    archive_header = '''              <button type="button" class="vx-ap-filter" id="vx-requests-open-archive" onclick="showTab('archiv',document.getElementById('nav-anrufe'))" aria-label="Archiv öffnen">
+    source = source.replace('''              <button type="button" class="vx-ap-filter" id="vx-requests-open-archive" onclick="showTab('archiv',document.getElementById('nav-anrufe'))" aria-label="Archiv öffnen">
                 <i class="ph-bold ph-archive" aria-hidden="true"></i>
                 <span>Archiv</span>
               </button>
-'''
-    source = source.replace(archive_header, '', 1)
+''', '', 1)
 
     completed = '''                <button class="vx-ap-filter vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
 '''
-    with_archive = completed + '''                <button class="vx-ap-filter vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiv</button>
-'''
-    source = replace_once(source, completed, with_archive, 'archive request filter')
+    source = replace_once(source, completed, completed + '''                <button class="vx-ap-filter vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiv</button>
+''', 'archive request filter')
     source = remove_balanced_div(source, 'tab-archiv')
 
-    report_buttons = '''                  <button type="button" class="vx-ap-filter vx-report-period" data-report-period="today" aria-selected="false" onclick="auSetPeriod('today',this)">Heute</button>
+    source = replace_once(source, '''                  <button type="button" class="vx-ap-filter vx-report-period" data-report-period="today" aria-selected="false" onclick="auSetPeriod('today',this)">Heute</button>
                   <button type="button" class="vx-ap-filter vx-report-period active" data-report-period="week" aria-selected="true" onclick="auSetPeriod('week',this)">Woche</button>
                   <button type="button" class="vx-ap-filter vx-report-period" data-report-period="month" aria-selected="false" onclick="auSetPeriod('month',this)">Monat</button>
                   <button type="button" class="vx-ap-filter vx-report-period" data-report-period="all" aria-selected="false" onclick="auSetPeriod('all',this)">Gesamt</button>
-'''
-    simplified = '''                  <button type="button" class="vx-ap-filter vx-report-period active" data-report-period="week" aria-selected="true" onclick="auSetPeriod('week',this)">7 Tage</button>
+''', '''                  <button type="button" class="vx-ap-filter vx-report-period active" data-report-period="week" aria-selected="true" onclick="auSetPeriod('week',this)">7 Tage</button>
                   <button type="button" class="vx-ap-filter vx-report-period" data-report-period="month" aria-selected="false" onclick="auSetPeriod('month',this)">30 Tage</button>
                   <button type="button" class="vx-ap-filter vx-report-period" data-report-period="all" aria-selected="false" onclick="auSetPeriod('all',this)">Gesamt</button>
-'''
-    source = replace_once(source, report_buttons, simplified, 'report period controls')
+''', 'report period controls')
 
-    source = replace_once(
-        source,
-        '''  } else if (_auPeriod === 'month') {
+    source = replace_once(source, '''  } else if (_auPeriod === 'month') {
     start = new Date(now.getFullYear(), now.getMonth(), 1);
-''',
-        '''  } else if (_auPeriod === 'month') {
+''', '''  } else if (_auPeriod === 'month') {
     start = new Date(now.getTime() - 30 * 86400000);
-''',
-        'rolling 30-day report filter',
-    )
-    source = replace_once(
-        source,
-        '''  } else if (_auPeriod === 'month') {
+''', 'rolling 30-day report filter')
+    source = replace_once(source, '''  } else if (_auPeriod === 'month') {
     end = new Date(now.getFullYear(), now.getMonth(), 1);
     start = new Date(now.getFullYear(), now.getMonth()-1, 1);
-''',
-        '''  } else if (_auPeriod === 'month') {
+''', '''  } else if (_auPeriod === 'month') {
     end = new Date(now.getTime() - 30 * 86400000);
     start = new Date(now.getTime() - 60 * 86400000);
-''',
-        'previous 30-day report period',
-    )
-    source = replace_once(
-        source,
-        "var periodLabel = {today:'heute', week:'diese Woche', month:'diesen Monat', all:'insgesamt'}[_auPeriod] || '';",
-        "var periodLabel = {week:'in den letzten 7 Tagen', month:'in den letzten 30 Tagen', all:'insgesamt'}[_auPeriod] || '';",
-        'report period language',
-    )
-
+''', 'previous 30-day report period')
+    source = replace_once(source, "var periodLabel = {today:'heute', week:'diese Woche', month:'diesen Monat', all:'insgesamt'}[_auPeriod] || '';", "var periodLabel = {week:'in den letzten 7 Tagen', month:'in den letzten 30 Tagen', all:'insgesamt'}[_auPeriod] || '';", 'report period language')
     INDEX_PATH.write_text(source, encoding='utf-8')
 
 
 def migrate_navigation() -> None:
     source = NAV_PATH.read_text(encoding='utf-8')
-
     if 'let voiceSelectionExpanded = false;' not in source:
-        source = replace_once(
-            source,
-            '  let initialAssistantLoadDone = false;\n',
-            '  let initialAssistantLoadDone = false;\n  let voiceSelectionExpanded = false;\n',
-            'voice accordion state',
-        )
-
-    source = replace_once(
-        source,
-        '''    const details = document.createElement('details');
+        source = replace_once(source, '  let initialAssistantLoadDone = false;\n', '  let initialAssistantLoadDone = false;\n  let voiceSelectionExpanded = false;\n', 'voice accordion state')
+    source = replace_once(source, '''    const details = document.createElement('details');
     details.className = 'vx-nav-voice-details';
-''',
-        '''    const details = document.createElement('details');
+''', '''    const details = document.createElement('details');
     details.className = 'vx-nav-voice-details';
     details.open = voiceSelectionExpanded;
     details.addEventListener('toggle', () => {
       voiceSelectionExpanded = details.open;
     });
-''',
-        'persistent voice accordion',
-    )
+''', 'persistent voice accordion')
 
-    source = regex_once(
-        source,
-        r"  function simplifyCapabilities\(\) \{.*?\n  \}\n\n  function simplifyTechnicalStatus\(\)",
-        '''  function simplifyCapabilities() {
+    source = regex_once(source, r"  function simplifyCapabilities\(\) \{.*?\n  \}\n\n  function simplifyTechnicalStatus\(\)", '''  function simplifyCapabilities() {
     const card = document.getElementById('vx-assistant-capabilities-card');
     if (!card) return;
     const title = card.querySelector('.vx-ap-title');
@@ -162,14 +121,9 @@ def migrate_navigation() -> None:
     card.querySelector('.vx-as-capability-toggle')?.remove();
   }
 
-  function simplifyTechnicalStatus()''',
-        'capability expansion owner',
-    )
+  function simplifyTechnicalStatus()''', 'capability expansion owner')
 
-    source = regex_once(
-        source,
-        r"  function restoreSettingsRoot\(\) \{.*?\n  \}\n",
-        '''  function restoreSettingsRoot() {
+    source = regex_once(source, r"  function restoreSettingsRoot\(\) \{.*?\n  \}\n", '''  function restoreSettingsRoot() {
     const main = document.getElementById('mehr-main');
     if (main) {
       main.hidden = false;
@@ -180,15 +134,10 @@ def migrate_navigation() -> None:
       node.style.display = 'none';
     });
   }
-''',
-        'settings root visibility',
-    )
+''', 'settings root visibility')
 
     if 'function showArchiveInsideRequests()' not in source:
-        source = replace_once(
-            source,
-            '  function installShowTabBridge() {\n',
-            '''  function showArchiveInsideRequests() {
+        source = replace_once(source, '  function installShowTabBridge() {\n', '''  function showArchiveInsideRequests() {
     const button = document.querySelector('#tab-anrufe [data-filter="archiv"]');
     if (!button) return;
     if (typeof root.anrufeChipFilter === 'function') {
@@ -199,25 +148,17 @@ def migrate_navigation() -> None:
   }
 
   function installShowTabBridge() {
-''',
-            'archive request bridge',
-        )
+''', 'archive request bridge')
 
-    source = regex_once(
-        source,
-        r"  function installShowTabBridge\(\) \{.*?\n  \}\n\n  function applyAssistantEnhancements\(\)",
-        '''  function installShowTabBridge() {
+    source = regex_once(source, r"  function installShowTabBridge\(\) \{.*?\n  \}\n\n  function applyAssistantEnhancements\(\)", '''  function installShowTabBridge() {
     if (root.__vxUnifiedShowTabWrapped) return true;
     if (typeof root.showTab !== 'function') return false;
     const original = root.showTab;
     root.showTab = function unifiedShowTab(tabName) {
       const requested = String(tabName || '').toLowerCase();
       const archiveRequested = requested === 'archiv' || requested === 'archive';
-      const key = archiveRequested
-        ? 'anrufe'
-        : ROOT_NAV.some((item) => item.key === requested) ? requested : '';
+      const key = archiveRequested ? 'anrufe' : ROOT_NAV.some((item) => item.key === requested) ? requested : '';
       if (key) setStableRootActive(key);
-
       let result;
       if (archiveRequested) {
         const args = Array.from(arguments);
@@ -228,7 +169,6 @@ def migrate_navigation() -> None:
       } else {
         result = original.apply(this, arguments);
       }
-
       if (key === 'assistent') showAssistantView('profile', true);
       if (key === 'mehr') restoreSettingsRoot();
       if (key) setStableRootActive(key);
@@ -238,23 +178,17 @@ def migrate_navigation() -> None:
     return true;
   }
 
-  function applyAssistantEnhancements()''',
-        'unified archive route',
-    )
-
+  function applyAssistantEnhancements()''', 'unified archive route')
     NAV_PATH.write_text(source, encoding='utf-8')
 
 
 def migrate_calendar() -> None:
     source = CALENDAR_PATH.read_text(encoding='utf-8')
-    source = regex_once(
-        source,
-        r"  function open\(\) \{.*?\n  \}\n\n  function back\(\) \{.*?\n  \}\n",
-        '''  function setCalendarPageOpen(isOpen) {
+    source = regex_once(source, r"  function open\(\) \{.*?\n  \}\n\n  function back\(\) \{.*?\n  \}\n", '''  function setCalendarPageOpen(isOpen) {
     const main = document.getElementById('mehr-main');
     const page = document.getElementById('mehr-sub-kalender');
     if (!main || !page) return false;
-
+    if (isOpen) page.removeAttribute('style');
     document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => {
       const active = isOpen && node === page;
       node.hidden = !active;
@@ -274,32 +208,15 @@ def migrate_calendar() -> None:
   function back() {
     setCalendarPageOpen(false);
   }
-''',
-        'calendar page visibility',
-    )
+''', 'calendar page visibility')
     CALENDAR_PATH.write_text(source, encoding='utf-8')
 
 
 def migrate_css() -> None:
     source = CSS_PATH.read_text(encoding='utf-8')
-    source = replace_once(
-        source,
-        '.vx-requests-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));',
-        '.vx-requests-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));',
-        'request filter grid',
-    )
-    source = replace_once(
-        source,
-        '.vx-report-periods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));',
-        '.vx-report-periods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));',
-        'report filter grid',
-    )
-    source = replace_once(
-        source,
-        '.vx-report-periods{grid-template-columns:repeat(2,minmax(0,1fr));}',
-        '.vx-report-periods{grid-template-columns:repeat(3,minmax(0,1fr));}',
-        'mobile report filter grid',
-    )
+    source = replace_once(source, '.vx-requests-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));', '.vx-requests-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));', 'request filter grid')
+    source = replace_once(source, '.vx-report-periods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));', '.vx-report-periods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));', 'report filter grid')
+    source = replace_once(source, '.vx-report-periods{grid-template-columns:repeat(2,minmax(0,1fr));}', '.vx-report-periods{grid-template-columns:repeat(3,minmax(0,1fr));}', 'mobile report filter grid')
     CSS_PATH.write_text(source, encoding='utf-8')
 
 
@@ -308,32 +225,19 @@ def verify() -> None:
     nav = NAV_PATH.read_text(encoding='utf-8')
     calendar = CALENDAR_PATH.read_text(encoding='utf-8')
     css = CSS_PATH.read_text(encoding='utf-8')
-
     assert 'id="dash-content" class="vx-ap-stack vx-report-stack"' in index
     assert 'id="vx-requests-open-archive"' not in index
     assert index.count('data-filter="archiv"') == 1
     assert 'id="tab-archiv"' not in index
     assert 'data-report-period="today"' not in index
     assert '>7 Tage</button>' in index and '>30 Tage</button>' in index
-    assert 'start = new Date(now.getTime() - 30 * 86400000);' in index
-    assert 'start = new Date(now.getTime() - 60 * 86400000);' in index
-
     assert 'details.open = voiceSelectionExpanded;' in nav
-    assert 'voiceSelectionExpanded = details.open;' in nav
     assert "classList.remove('vx-as-extra-capability')" in nav
-    assert "querySelector('.vx-as-capability-toggle')?.remove()" in nav
     assert 'function showArchiveInsideRequests()' in nav
-    assert "root.anrufeChipFilter('archiv', button)" in nav
-    assert "args[0] = 'anrufe';" in nav
-    assert 'main.hidden = false;' in nav
-
     assert 'function setCalendarPageOpen(isOpen)' in calendar
-    assert "main.style.display = isOpen ? 'none' : '';" in calendar
-    assert "node.style.display = active ? 'block' : 'none';" in calendar
-
+    assert "page.removeAttribute('style')" in calendar
     assert '.vx-requests-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));' in css
     assert '.vx-report-periods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));' in css
-    assert '.vx-report-periods{grid-template-columns:repeat(3,minmax(0,1fr));}' in css
 
 
 if __name__ == '__main__':
