@@ -1,0 +1,57 @@
+name: Temporary Mobile Polish Inspection
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/**'
+      - 'scripts/tmp-mobile-polish-trigger.txt'
+      - '.github/workflows/tmp-inspect-mobile-polish.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/customer-navigation-five-root
+      - name: Print relevant owners
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          targets = [
+              ('customer-dashboard/index.html', ['Aufmerksamkeit', 'Heute passiert', 'mehr-main', 'vxMehrShow', 'vxCalendarOpen', 'mobile-nav-btn', 'mobile-nav-icon-wrap', 'minimum_notice_minutes']),
+              ('customer-dashboard/shared/customer-runtime-unified-navigation.js', ['restoreSettingsRoot', 'mehr-main', 'mehr-sub-', 'mobile-nav']),
+              ('customer-dashboard/shared/customer-runtime-calendar-settings.js', ['setCalendarPageOpen', 'Mindestvorlauf', 'vx-cal-banner', 'minimum_notice_minutes']),
+              ('customer-dashboard/shared/customer-design-system.css', ['mobile-nav', 'mnav-', 'vx-cal-']),
+              ('customer-dashboard/shared/customer-assistant-components.css', ['dash-priority', 'dash-content', 'vx-report-stack']),
+          ]
+
+          for file_name, needles in targets:
+              path = Path(file_name)
+              text = path.read_text(encoding='utf-8')
+              lines = text.splitlines()
+              print(f'\n===== {file_name} =====')
+              seen = set()
+              for needle in needles:
+                  print(f'\n--- {needle} ---')
+                  found = False
+                  for idx, line in enumerate(lines):
+                      if needle.lower() not in line.lower():
+                          continue
+                      found = True
+                      start = max(0, idx - 8)
+                      end = min(len(lines), idx + 13)
+                      key = (start, end)
+                      if key in seen:
+                          continue
+                      seen.add(key)
+                      for line_no in range(start, end):
+                          print(f'{line_no + 1:05d}: {lines[line_no]}')
+                      print('...')
+                  if not found:
+                      print('(not found)')
+          PY
