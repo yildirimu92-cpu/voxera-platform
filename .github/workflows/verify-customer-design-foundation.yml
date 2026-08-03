@@ -8,6 +8,7 @@ on:
       - 'customer-dashboard/shared/**/*.js'
       - 'scripts/verify-customer-design-foundation.mjs'
       - 'scripts/audit-customer-design-ownership.mjs'
+      - 'scripts/tmp-polish-customer-report-mobile.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
   push:
     branches: [main]
@@ -19,14 +20,37 @@ on:
       - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
 
+permissions:
+  contents: write
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: node scripts/verify-customer-design-foundation.mjs
+      - name: Apply customer report mobile polish
+        run: node scripts/tmp-polish-customer-report-mobile.mjs
+      - name: Verify customer design foundation
+        run: node scripts/verify-customer-design-foundation.mjs
+      - name: Verify customer runtime reachability
+        run: node scripts/audit-customer-runtime-reachability.mjs
       - name: Inventory design ownership
         run: node scripts/audit-customer-design-ownership.mjs
+      - name: Verify mobile polish scope
+        run: |
+          test "$(git diff --name-only)" = "customer-dashboard/shared/customer-assistant-components.css"
+          grep -q "Customer report mobile visual QA polish" customer-dashboard/shared/customer-assistant-components.css
+      - name: Commit customer report mobile polish
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-dashboard/shared/customer-assistant-components.css
+          git commit -m "fix(customer): compact report on mobile"
+          git push origin HEAD:${{ github.head_ref }}
