@@ -1,51 +1,83 @@
-name: Temporary Inspect Home Polish
+name: Temporary Migrate Home Premium
 
 on:
   pull_request:
     paths:
       - .github/workflows/tmp-inspect-home-polish.yml
+      - scripts/tmp_migrate_home_premium.py
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  migrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-home-premium-polish
-      - name: Inspect home visual owners
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply guarded home migration
+        run: python scripts/tmp_migrate_home_premium.py
+      - name: Verify existing customer contracts
+        run: |
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/audit-customer-design-ownership.mjs
+          node scripts/audit-customer-runtime-reachability.mjs
+          node scripts/verify-customer-actions.mjs
+          node scripts/verify-p0-security-foundation.mjs
+          node scripts/verify-calendar-integrations.mjs
+      - name: Verify premium home scope
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
           index=Path('customer-dashboard/index.html').read_text(encoding='utf-8')
-          lines=index.splitlines()
           css=Path('customer-dashboard/shared/customer-assistant-components.css').read_text(encoding='utf-8')
-          css_lines=css.splitlines()
-
-          def show(source_lines, term, before=8, after=24, limit=5, label='INDEX'):
-              hits=[i for i,l in enumerate(source_lines) if term.lower() in l.lower()][:limit]
-              print(f'\n## {label} {term!r} hits={len(hits)}')
-              for i in hits:
-                  lo=max(0,i-before); hi=min(len(source_lines),i+after+1)
-                  print(f'-- {lo+1}-{hi} --')
-                  for n in range(lo,hi): print(f'{n+1}: {source_lines[n]}')
-
-          for term in [
-              'id="tab-dashboard"', 'id="tab-assistent"', 'id="tab-anfragen"',
-              'id="dash-kpi-strip"', 'id="dash-priority-section"',
-              'function vxSetHeuteKpiCell', "kpiTodayNote.textContent", "kpiCallbacksNote.textContent",
-              "kpiDoneNote.textContent", "kpiReachLabel.textContent",
-              '#tab-dashboard', '#tab-assistent', '#tab-anfragen', '#dash-kpi-strip',
-              '#dash-priority-section', '.vx-ap-card', '.vx-ops-card'
-          ]:
-              show(lines, term)
-
-          for term in ['.vx-ap-grid', '.vx-ap-card', '.vx-ops-card', '@media (max-width', ':hover', ':focus-visible']:
-              show(css_lines, term, before=4, after=20, limit=8, label='ASSISTANT_CSS')
-
-          print('\n## CSS SIZE', len(css_lines))
+          required_index=[
+            'id="kpi-callbacks-note" class="vx-ap-meta" hidden',
+            'id="kpi-today-note" class="vx-ap-meta" hidden',
+            'id="kpi-done-note" class="vx-ap-meta" hidden',
+            'id="kpi-reach-label" class="vx-ap-meta" hidden',
+            "cell.setAttribute('role', canOpen ? 'button' : 'group')",
+            "ev.key === 'Enter' || ev.key === ' '"
+          ]
+          missing=[token for token in required_index if token not in index]
+          if missing: raise SystemExit('missing home tokens: ' + ', '.join(missing))
+          forbidden=[
+            "kpiCallbacksNote.textContent = 'Eingänge seit Tagesbeginn'",
+            "kpiTodayNote.textContent = 'Nicht bearbeitet'",
+            "kpiDoneNote.textContent = 'Priorisiert oder überfällig'",
+            "kpiReachLabel.textContent = 'Heute abgeschlossen'"
+          ]
+          present=[token for token in forbidden if token in index]
+          if present: raise SystemExit('redundant KPI copy remains: ' + ', '.join(present))
+          required_css=[
+            'Customer home: premium assistant-aligned workspace.',
+            '#dash-kpi-strip',
+            'grid-template-columns: repeat(4, minmax(0, 1fr));',
+            'background: #eef4ff;',
+            '#dash-priority-section',
+            'margin-bottom: 20px;',
+            '#tab-dashboard .vx-ops-item'
+          ]
+          missing=[token for token in required_css if token not in css]
+          if missing: raise SystemExit('missing home CSS tokens: ' + ', '.join(missing))
+          if css.count('Customer home: premium assistant-aligned workspace.') != 1:
+            raise SystemExit('home CSS owner must exist exactly once')
           PY
+          git diff --check
+      - name: Commit product migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-dashboard/index.html customer-dashboard/shared/customer-assistant-components.css
+          if git diff --cached --quiet; then
+            echo "No product changes to commit"
+          else
+            git commit -m "polish: refine customer home hierarchy"
+            git push origin HEAD:codex/customer-home-premium-polish
+          fi
