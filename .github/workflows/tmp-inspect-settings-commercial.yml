@@ -1,43 +1,90 @@
-name: Temporary Notification Save Inspection
+name: Temporary Settings Commercial Migration
 
 on:
   pull_request:
     paths:
       - '.github/workflows/tmp-inspect-settings-commercial.yml'
       - 'scripts/tmp-settings-commercial-trigger.txt'
+      - 'scripts/tmp_migrate_settings_commercial.py'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  migrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-settings-commercial-flows
-      - name: Print exact notification functions
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply guarded migration
+        run: python scripts/tmp_migrate_settings_commercial.py
+      - name: Validate JavaScript
+        run: |
+          node --check customer-dashboard/netlify/functions/customer-commercial-request.js
+          node --check customer-dashboard/netlify/functions/customer-cancel-contract.js
+      - name: Verify design and runtime contracts
+        run: |
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/audit-customer-design-ownership.mjs
+          node scripts/audit-customer-runtime-reachability.mjs
+          node scripts/verify-customer-actions.mjs
+          node scripts/verify-p0-security-foundation.mjs
+          node scripts/verify-calendar-integrations.mjs
+      - name: Verify settings commercial scope
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
-          text = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
-          lines = text.splitlines()
-          for fn in ['vxInitBenachrichtigungen', 'vxSaveBenachrichtigungen']:
-            match = re.search(r'(?:async\s+)?function\s+' + re.escape(fn) + r'\s*\(', text)
-            print('===', fn, '===')
-            if not match:
-              print('NOT FOUND')
-              continue
-            start = text[:match.start()].count('\n')
-            depth = 0
-            opened = False
-            for i in range(start, min(len(lines), start + 500)):
-              line = lines[i]
-              print(f'{i+1}: {line}')
-              for ch in line:
-                if ch == '{': depth += 1; opened = True
-                elif ch == '}': depth -= 1
-              if opened and depth == 0:
-                break
+          index = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          css = Path('customer-dashboard/shared/customer-settings-components.css').read_text(encoding='utf-8')
+          endpoint = Path('customer-dashboard/netlify/functions/customer-commercial-request.js').read_text(encoding='utf-8')
+          cancellation = Path('customer-dashboard/netlify/functions/customer-cancel-contract.js').read_text(encoding='utf-8')
+
+          required = [
+            'class="vx-settings-choice-list"',
+            'class="vx-commercial-entry-list"',
+            'id="vx-commercial-overlay"',
+            "fetch('/.netlify/functions/customer-commercial-request'",
+            'Consolidated customer settings forms and commercial flows.',
+            "requireCustomerCaller({",
+            "insertOperationalCase(sbAdmin"
+          ]
+          combined = index + css + endpoint
+          missing = [token for token in required if token not in combined]
+          if missing:
+            raise SystemExit('missing required tokens: ' + ', '.join(missing))
+
+          forbidden = [
+            'VX_PLAN_LINKS', 'VX_MINUTES_LINKS',
+            'id="vx-upgrade-overlay"', 'id="vx-minutes-overlay"',
+            'id="upgrade-overlay"', 'id="minutes-overlay"',
+            "vxRequestAddon('sms_notify_kunde')",
+            "vxRequestAddon('sms_confirm_caller')",
+            'SMS Benachrichtigungen', 'SMS an Anrufer',
+            'Coming Soon', 'Coming soon'
+          ]
+          present = [token for token in forbidden if token in index]
+          if present:
+            raise SystemExit('legacy commercial tokens remain: ' + ', '.join(present))
+
+          if index.count('id="vx-commercial-overlay"') != 1:
+            raise SystemExit('commercial overlay must exist exactly once')
+          if 'Authorization' not in cancellation or '.select(\'*\')' not in cancellation:
+            raise SystemExit('cancellation endpoint is not authenticated and verified')
+          if 'Authorization' not in index[index.find('function vxSubmitCancellationRequest'):index.find('function vxSubmitCancellationRequest') + 6000]:
+            raise SystemExit('cancellation frontend does not send bearer authentication')
+          if 'window.open(VX_' in index or 'mailto:info@voxera.ch?subject=Plan' in index:
+            raise SystemExit('unsafe legacy purchase flow remains')
           PY
+      - name: Commit product migration
+        run: |
+          git config user.name 'OpenAI Codex'
+          git config user.email 'codex@openai.com'
+          git add customer-dashboard/index.html customer-dashboard/shared/customer-settings-components.css
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'refactor: consolidate customer settings commercial flows'
+          git push origin HEAD:codex/customer-settings-commercial-flows
