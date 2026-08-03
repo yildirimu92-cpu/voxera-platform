@@ -37,13 +37,13 @@ styles = '''
   display:block;
 }
 '''
-if '.vx-archive-retention{' not in css:
+if '\n.vx-archive-retention{\n' not in css:
     css = css.rstrip() + styles
 
 assert html.count('class="vx-archive-retention"') == 1
 assert 'vollständige Transkripte werden nach <strong>90 Tagen</strong>' in html
 assert 'Archiveinträge nach <strong>180 Tagen</strong>' in html
-assert css.count('.vx-archive-retention{') == 1
+assert css.count('\n.vx-archive-retention{\n') == 1
 assert ':has([data-filter="archiv"].vx-chip--active)' in css
 
 INDEX_PATH.write_text(html, encoding='utf-8')
