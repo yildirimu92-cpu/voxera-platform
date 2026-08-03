@@ -4257,39 +4257,9 @@ body,.main{background:var(--vx-bg);}
 .task-section-header.sgh--blue .tsh-count{background:#EFF6FF;color:#1A6FE8;border:1px solid rgba(29,78,216,0.18);}
 .task-section-header.sgh--gray .tsh-label{color:#64748B;}
 .task-section-header.sgh--gray .tsh-count{background:var(--surface2);color:#64748B;border:0.5px solid var(--line);}
-
-/* ═══════════════════════════════════════════
-   AUSWERTUNG TAB
-═══════════════════════════════════════════ */
-.au-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.08);border-radius:10px;overflow:hidden;margin-bottom:16px;}
-.au-kpi{background:#0D1F3C;padding:10px 14px;position:relative;overflow:hidden;}
-.au-kpi-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px;}
-.au-kpi-body{padding:0;}
-.au-kpi-val{font-family:var(--font-display);font-size:26px;font-weight:800;letter-spacing:-.03em;color:#1A6FE8;line-height:1;margin-bottom:3px;font-variant-numeric:tabular-nums;}
-.au-kpi-val--red{color:#DC2626;}
-.au-kpi-val,.au-kpi-sub{padding-top:0;}
-.au-kpi-sub{font-size:11px;color:rgba(255,255,255,.35);font-weight:500;}
-.au-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px;}
-.au-card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-card);}
-.au-card-hd{display:flex;align-items:center;justify-content:space-between;background:#0D1F3C;padding:10px 18px;border-radius:0;}
-.au-card-title{font-family:var(--font-display);font-size:12px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:.01em;}
-.au-chart-wrap{width:100%;overflow:hidden;}
-.au-chart-wrap svg{width:100%;height:auto;display:block;}
-.au-donut-row{display:flex;align-items:center;gap:14px;}
-.au-donut{flex-shrink:0;width:110px;height:110px;}
-.au-donut svg{width:100%;height:100%;}
-.au-legend{flex:1;min-width:0;}
-.au-bar-item{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
-.au-bar-item:last-child{margin-bottom:0;}
-.au-bar-label{font-size:12px;font-weight:500;color:#94A3B8;flex-shrink:0;width:84px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.au-bar-track{flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden;}
-.au-bar-fill{height:100%;border-radius:999px;background:var(--blue);transition:width .5s var(--ease);}
-.au-bar-count{font-size:11px;font-weight:700;color:#64748B;width:28px;text-align:right;flex-shrink:0;}
-.au-plan-card{margin-top:0;}
-.au-plan-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:0;}
-@media(max-width:900px){.au-grid{grid-template-columns:1fr;}}
-@media(max-width:768px){.au-kpi-row{grid-template-columns:repeat(2,1fr);}.au-plan-row{grid-template-columns:repeat(2,1fr);}.au-kpi-val{font-size:22px;}}
-@media(max-width:480px){.au-kpi-row{gap:8px;}.au-donut-row{flex-direction:column;align-items:flex-start;}.au-plan-row{grid-template-columns:1fr 1fr;}}
+@media(max-width:900px){}
+@media(max-width:768px){}
+@media(max-width:480px){}
 
 /* ═══════════════════════════════════════════
    VERLAUF-TAB POLISH
@@ -5709,23 +5679,6 @@ body,.main{background:var(--vx-bg);}
     font-size: 9px;
   }
 
-  /* ── Analyse KPI Strip ────────────────────────────── */
-  .au-kpi-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .au-kpi-val {
-    font-size: 22px;
-  }
-  .au-kpi {
-    padding: 12px 14px;
-  }
-  .au-grid {
-    grid-template-columns: 1fr;
-  }
-  .au-plan-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   /* ── Modals als Bottom Sheet ──────────────────────── */
   .overlay.overlay--sheet {
     padding: 0;
@@ -5769,9 +5722,6 @@ body,.main{background:var(--vx-bg);}
   .dpr-btn {
     font-size: 11px;
     padding: 6px 10px;
-  }
-  .au-kpi-val {
-    font-size: 20px;
   }
   .vx-page-header-title {
     font-size: 15px;
@@ -6029,71 +5979,9 @@ body,.main{background:var(--vx-bg);}
 }
 .vx-acc-group-label:first-of-type { padding-top:4px; }
 #tab-assistent .vx-acc-header .vx-acc-status{color:rgba(255,255,255,.45)!important;}
-
-/* ══════════════════════════════════════════════
-   ANALYSE 2.0
-══════════════════════════════════════════════ */
-.au-period-btn{padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:0.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);font-family:inherit;transition:all .12s;white-space:nowrap;}
-.au-period-active{background:rgba(255,255,255,.2)!important;color:#fff!important;border-color:rgba(255,255,255,.35)!important;}
-.au2-kpi-strip{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
-.au2-kpi{background:#0D1F3C;border-radius:12px;padding:13px 14px;}
-.au2-kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.35);margin-bottom:5px;}
-.au2-kpi-val{font-size:26px;font-weight:800;letter-spacing:-.04em;color:#4B9FFF;line-height:1;}
-.au2-green{color:#34D399!important;}
-.au2-gold{color:#E8C547!important;}
-.au2-red{color:#F87171!important;}
-.au2-kpi-trend{font-size:10px;font-weight:600;margin-top:5px;color:rgba(255,255,255,.3);}
-.au2-kpi-trend.up{color:#34D399;}
-.au2-kpi-trend.down{color:#F87171;}
-.au2-spark{display:flex;align-items:flex-end;gap:2px;height:22px;margin-top:6px;}
-.au2-spark-bar{flex:1;border-radius:2px 2px 0 0;min-height:3px;}
-.au2-card{background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;}
-.au2-night-head{background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;}
-.au2-night-title{font-size:12px;font-weight:700;color:#fff;}
-.au2-night-badge{font-size:10px;font-weight:700;color:rgba(255,255,255,.6);background:rgba(255,255,255,.1);padding:2px 8px;border-radius:6px;}
-.au2-ai-summary{padding:12px 14px;font-size:13px;color:var(--ink2);line-height:1.7;border-bottom:0.5px solid var(--line);}
-.au2-ai-highlights{display:grid;grid-template-columns:1fr 1fr;}
-.au2-ai-hl{padding:11px 14px;}
-.au2-ai-hl-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--slate2);margin-bottom:4px;}
-.au2-ai-hl-val{font-size:14px;font-weight:700;color:var(--ink);}
-.au2-ai-hl-sub{font-size:11px;color:var(--slate2);margin-top:1px;}
-.au2-insight{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border-radius:10px;}
-.au2-insight-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.au2-insight-text{font-size:12px;line-height:1.55;}
-.au2-week-chart{display:flex;align-items:flex-end;gap:4px;height:70px;padding:0 14px;}
-.au2-wk-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
-.au2-wk-bar{width:100%;border-radius:4px 4px 0 0;min-height:4px;background:#E8EEF8;}
-.au2-wk-bar.today{background:#1A6FE8;}
-.au2-wk-count{font-size:9px;color:var(--slate2);}
-.au2-wk-label{font-size:9px;font-weight:600;color:var(--slate2);}
-.au2-wk-label.today{color:#1A6FE8;font-weight:800;}
-.au2-week-foot{display:flex;justify-content:space-between;padding:6px 14px 10px;font-size:11px;color:var(--slate2);border-top:0.5px solid var(--line);margin-top:6px;}
-.au2-bar-row{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
-.au2-bar-row:last-child{margin:0;}
-.au2-bar-label{font-size:11px;color:var(--ink2);width:58px;flex-shrink:0;}
-.au2-bar-track{flex:1;height:6px;background:#F1F5F9;border-radius:999px;overflow:hidden;}
-.au2-bar-fill{height:100%;border-radius:999px;}
-.au2-bar-count{font-size:11px;font-weight:700;color:var(--ink);width:18px;text-align:right;flex-shrink:0;}
-.au2-lead-row{display:flex;align-items:center;padding:10px 14px;border-bottom:0.5px solid var(--line);gap:9px;}
-.au2-lead-row:last-child{border:none;}
-.au2-lead-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.au2-lead-label{flex:1;font-size:13px;color:var(--ink2);}
-.au2-lead-track{width:54px;height:5px;background:#F1F5F9;border-radius:999px;overflow:hidden;}
-.au2-lead-count{font-size:12px;font-weight:700;color:var(--ink);width:20px;text-align:right;}
-.au2-lead-pct{font-size:11px;color:var(--slate2);width:28px;text-align:right;}
 @media(max-width:600px){
-  .au2-kpi-strip{grid-template-columns:1fr 1fr;}
-  .au2-ai-highlights{grid-template-columns:1fr 1fr;}
-  .au2-kpi-val{font-size:22px;}
-  .au2-card{border-radius:12px;}
-  #tab-auswertung [style*="grid-template-columns:1fr 1fr"]:not(.au2-kpi-strip):not(.au2-ai-highlights){grid-template-columns:1fr!important;}
-  .au2-lead-track{width:40px;}
-  .au-period-btn{font-size:10px;padding:7px 0;}
 }
 @media(max-width:400px){
-  .au2-kpi-strip{grid-template-columns:1fr 1fr;}
-  .au2-kpi-val{font-size:20px;}
-  .au2-week-chart{height:55px;}
 }
 
 /* ══════════════════════════════════════════════
@@ -6101,15 +5989,7 @@ body,.main{background:var(--vx-bg);}
    L1  Page header title:  17px 700  (vx-page-header-title)
    L2  Card/section head:  13px 700  (.vx-card-head, night card spans)
    L3  Label uppercase:    10px 700  uppercase .vx-label
-   L4  List item title:    14px 600  (dpr-name, acc-header span)
-   L5  Body text:          13px 400
-   L6  Meta / sub:         12px 400
-   L7  Micro:              11px 400
-══════════════════════════════════════════════ */
-
-/* Unified Night Card Header text */
-.au2-night-title{font-size:13px!important;font-weight:700!important;}
-.au2-night-badge{font-size:11px!important;}
+   L4  List item title:    14px 600  (dpr-name{font-size:13px!important;font-weight:700!important;}
 
 /* Accordion header text */
 .vx-acc-header{font-size:13px;font-weight:600;}
@@ -6576,101 +6456,9 @@ body,.main{background:var(--vx-bg);}
   .vx-transcript-turn{grid-template-columns:1fr;gap:6px;padding:9px;border-radius:11px;}
   .vx-transcript-meta{display:none;}
 }
-
-
-
-/* === VOXERA PATCH: Bericht Filter Header Consistency 2026-05-17 === */
-/* Scope: Bericht tab period filters only. Keeps all business logic untouched. */
-#tab-auswertung .vx-page-header{
-  gap:12px!important;
-}
-#tab-auswertung #au-period-row{
-  display:grid!important;
-  grid-template-columns:repeat(4,minmax(0,1fr))!important;
-  gap:6px!important;
-  align-items:center!important;
-  justify-content:end!important;
-  flex:0 0 auto!important;
-  min-width:min(360px,48vw)!important;
-}
-#tab-auswertung .au-period-btn,
-#tab-auswertung .au-period-btn.btn,
-#tab-auswertung .au-period-btn.btn--secondary,
-#tab-auswertung .au-period-btn.btn--sm{
-  width:100%!important;
-  min-width:0!important;
-  min-height:34px!important;
-  height:34px!important;
-  padding:0 10px!important;
-  border-radius:10px!important;
-  border:0.5px solid rgba(255,255,255,.22)!important;
-  background:rgba(255,255,255,.08)!important;
-  color:rgba(255,255,255,.68)!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  text-align:center!important;
-  white-space:nowrap!important;
-  overflow:hidden!important;
-  text-overflow:ellipsis!important;
-  line-height:1!important;
-  font-size:11px!important;
-  font-weight:700!important;
-  letter-spacing:-.01em!important;
-  box-shadow:none!important;
-  transform:none!important;
-}
-#tab-auswertung .au-period-btn:hover{
-  background:rgba(255,255,255,.14)!important;
-  color:#fff!important;
-  border-color:rgba(255,255,255,.32)!important;
-}
-#tab-auswertung .au-period-btn.au-period-active{
-  background:#fff!important;
-  color:var(--vx-night)!important;
-  border-color:#fff!important;
-  box-shadow:0 2px 8px rgba(0,0,0,.12)!important;
-}
-#tab-auswertung .au-period-btn:focus-visible{
-  outline:2px solid rgba(147,197,253,.95)!important;
-  outline-offset:2px!important;
-}
 @media(max-width:768px){
-  #tab-auswertung .vx-page-header{
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:stretch!important;
-    min-height:auto!important;
-    padding:13px 14px!important;
-  }
-  #tab-auswertung .vx-page-header-title{
-    width:100%!important;
-    line-height:1.2!important;
-  }
-  #tab-auswertung #au-period-row{
-    width:100%!important;
-    min-width:0!important;
-    flex:none!important;
-  }
-  #tab-auswertung .au-period-btn,
-  #tab-auswertung .au-period-btn.btn,
-  #tab-auswertung .au-period-btn.btn--secondary,
-  #tab-auswertung .au-period-btn.btn--sm{
-    height:36px!important;
-    min-height:36px!important;
-    padding:0 6px!important;
-    font-size:10.5px!important;
-    border-radius:9px!important;
-  }
 }
 @media(max-width:360px){
-  #tab-auswertung .au-period-btn,
-  #tab-auswertung .au-period-btn.btn,
-  #tab-auswertung .au-period-btn.btn--secondary,
-  #tab-auswertung .au-period-btn.btn--sm{
-    font-size:10px!important;
-    padding:0 4px!important;
-  }
 }
 /* === END VOXERA PATCH: Bericht Filter Header Consistency === */
 </style>
@@ -7065,108 +6853,103 @@ body,.main{background:var(--vx-bg);}
 
         <!-- AUSWERTUNG TAB -->
         <div class="tab-page" id="tab-auswertung">
-
-          <!-- Header mit Period Selector -->
-          <div class="vx-page-header">
-            <div class="vx-page-header-title">Bericht</div>
-            <div class="vx-page-header-action" id="au-period-row" style="display:flex;gap:5px;">
-              <button class="btn btn--secondary btn--sm au-period-btn" onclick="auSetPeriod('today',this)">Heute</button>
-              <button class="au-period-btn au-period-active" onclick="auSetPeriod('week',this)">Woche</button>
-              <button class="btn btn--secondary btn--sm au-period-btn" onclick="auSetPeriod('month',this)">Monat</button>
-              <button class="btn btn--secondary btn--sm au-period-btn" onclick="auSetPeriod('all',this)">Gesamt</button>
-            </div>
-          </div>
-
-          <!-- KPI Strip -->
-          <div class="au2-kpi-strip">
-            <div class="au2-kpi">
-              <div class="au2-kpi-label">Anrufe</div>
-              <div class="au2-kpi-val" id="au2-calls">–</div>
-              <div class="au2-kpi-trend" id="au2-calls-trend"></div>
-              <div class="au2-spark" id="au2-spark-calls"></div>
-            </div>
-            <div class="au2-kpi">
-              <div class="au2-kpi-label">Ø Dauer</div>
-              <div class="au2-kpi-val au2-green" id="au2-dur">–</div>
-              <div class="au2-kpi-trend" id="au2-dur-trend"></div>
-            </div>
-            <div class="au2-kpi">
-              <div class="au2-kpi-label">Hot Leads</div>
-              <div class="au2-kpi-val au2-gold" id="au2-hot">–</div>
-              <div class="au2-kpi-trend" id="au2-hot-trend"></div>
-            </div>
-            <div class="au2-kpi">
-              <div class="au2-kpi-label">Erledigt</div>
-              <div class="au2-kpi-val au2-green" id="au2-rate">–</div>
-              <div class="au2-kpi-trend" id="au2-rate-trend"></div>
-            </div>
-          </div>
-
-          <!-- Lara's Zusammenfassung -->
-          <div class="au2-card" style="margin:8px 0 0;">
-            <div class="au2-night-head">
-              <span class="au2-night-title">✦ Laras Zusammenfassung</span>
-              <span class="au2-night-badge">Automatisch erstellt</span>
-            </div>
-            <div class="au2-ai-summary" id="au2-ai-text">Daten werden geladen…</div>
-            <div class="au2-ai-highlights">
-              <div class="au2-ai-hl">
-                <div class="au2-ai-hl-label">Top Kategorie</div>
-                <div class="au2-ai-hl-val" id="au2-top-cat">–</div>
-                <div class="au2-ai-hl-sub" id="au2-top-cat-sub">–</div>
+          <div class="vx-report-stack">
+            <section class="vx-page-header">
+              <div class="vx-ap-head vx-report-header">
+                <div>
+                  <div class="vx-page-header-title">Bericht</div>
+                  <div class="vx-page-header-subtitle">Anrufstatistiken und Entwicklungen</div>
+                </div>
+                <div class="vx-report-periods" id="au-period-row" role="tablist" aria-label="Berichtszeitraum">
+                  <button type="button" class="vx-ap-filter vx-report-period" data-report-period="today" aria-selected="false" onclick="auSetPeriod('today',this)">Heute</button>
+                  <button type="button" class="vx-ap-filter vx-report-period active" data-report-period="week" aria-selected="true" onclick="auSetPeriod('week',this)">Woche</button>
+                  <button type="button" class="vx-ap-filter vx-report-period" data-report-period="month" aria-selected="false" onclick="auSetPeriod('month',this)">Monat</button>
+                  <button type="button" class="vx-ap-filter vx-report-period" data-report-period="all" aria-selected="false" onclick="auSetPeriod('all',this)">Gesamt</button>
+                </div>
               </div>
-              <div class="au2-ai-hl" style="border-left:0.5px solid var(--line);">
-                <div class="au2-ai-hl-label">Stosszeit</div>
-                <div class="au2-ai-hl-val" id="au2-best-time">–</div>
-                <div class="au2-ai-hl-sub" id="au2-best-time-sub">–</div>
+            </section>
+
+            <section class="vx-ap-grid vx-report-kpis" aria-label="Kennzahlen">
+              <article class="vx-ap-card vx-report-kpi">
+                <div class="vx-report-label">Anrufe</div>
+                <div class="vx-report-value" id="au2-calls">–</div>
+                <div class="vx-report-trend" id="au2-calls-trend"></div>
+                <div class="vx-report-spark" id="au2-spark-calls" aria-label="Anrufverlauf der letzten sieben Tage"></div>
+              </article>
+              <article class="vx-ap-card vx-report-kpi">
+                <div class="vx-report-label">Ø Dauer</div>
+                <div class="vx-report-value tone-green" id="au2-dur">–</div>
+                <div class="vx-report-trend" id="au2-dur-trend"></div>
+              </article>
+              <article class="vx-ap-card vx-report-kpi">
+                <div class="vx-report-label">Hot Leads</div>
+                <div class="vx-report-value tone-gold" id="au2-hot">–</div>
+                <div class="vx-report-trend" id="au2-hot-trend"></div>
+              </article>
+              <article class="vx-ap-card vx-report-kpi">
+                <div class="vx-report-label">Erledigt</div>
+                <div class="vx-report-value tone-green" id="au2-rate">–</div>
+                <div class="vx-report-trend" id="au2-rate-trend"></div>
+              </article>
+            </section>
+
+            <section class="vx-ops-card vx-report-section">
+              <div class="vx-ops-head">
+                <div>
+                  <div class="vx-ops-title">Laras Zusammenfassung</div>
+                  <div class="vx-ops-message" id="au2-ai-text">Daten werden geladen…</div>
+                </div>
+                <span class="vx-ops-pill">Automatisch erstellt</span>
               </div>
-            </div>
-          </div>
-
-          <!-- Handlungsbedarf -->
-          <div class="au2-card" style="margin:8px 0 0;" id="au2-insights-card">
-            <div class="au2-night-head">
-              <span class="au2-night-title">Handlungsbedarf</span>
-              <span class="au2-night-badge" id="au2-insight-badge">0 Hinweise</span>
-            </div>
-            <div style="padding:12px 14px;display:flex;flex-direction:column;gap:6px;" id="au2-insights-list">
-              <div style="font-size:12px;color:var(--slate2);text-align:center;padding:8px 0;">Keine offenen Hinweise.</div>
-            </div>
-          </div>
-
-          <!-- Wochenverlauf -->
-          <div class="au2-card" style="margin:8px 0 0;">
-            <div class="au2-night-head">
-              <span class="au2-night-title" id="au2-chart-title">Anrufe diese Woche</span>
-            </div>
-            <div style="padding-top:10px;">
-              <div class="au2-week-chart" id="au2-week-chart"></div>
-              <div class="au2-week-foot">
-                <span id="au2-chart-foot-l">–</span>
-                <span id="au2-chart-foot-r">–</span>
+              <div class="vx-report-highlights">
+                <div class="vx-ops-section vx-report-highlight">
+                  <div class="vx-report-label">Top Kategorie</div>
+                  <div class="vx-report-highlight-value" id="au2-top-cat">–</div>
+                  <div class="vx-ops-meta" id="au2-top-cat-sub">–</div>
+                </div>
+                <div class="vx-ops-section vx-report-highlight">
+                  <div class="vx-report-label">Stosszeit</div>
+                  <div class="vx-report-highlight-value" id="au2-best-time">–</div>
+                  <div class="vx-ops-meta" id="au2-best-time-sub">–</div>
+                </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- 2-col: Kategorien + Tageszeiten -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 0;">
-            <div class="au2-card" style="margin:0;">
-              <div class="au2-night-head"><span class="au2-night-title" style="font-size:11px;">Kategorien</span></div>
-              <div style="padding:12px 14px;" id="au2-categories"></div>
-            </div>
-            <div class="au2-card" style="margin:0;">
-              <div class="au2-night-head"><span class="au2-night-title" style="font-size:11px;">Tageszeiten</span></div>
-              <div style="padding:12px 14px;" id="au2-call-times"></div>
-            </div>
-          </div>
+            <section class="vx-ops-card vx-report-section" id="au2-insights-card">
+              <div class="vx-ops-head">
+                <div>
+                  <div class="vx-ops-title">Handlungsbedarf</div>
+                  <div class="vx-ops-sub">Hinweise aus Anrufen, Rückrufen und Nachfrageverlauf.</div>
+                </div>
+                <span class="vx-ops-pill" id="au2-insight-badge">0 Hinweise</span>
+              </div>
+              <div class="vx-ops-list" id="au2-insights-list"><div class="vx-ops-empty">Keine offenen Hinweise.</div></div>
+            </section>
 
-          <!-- Lead Qualität -->
-          <div class="au2-card" style="margin:8px 0 16px;">
-            <div class="au2-night-head"><span class="au2-night-title">Lead-Qualität</span></div>
-            <div id="au2-lead-quality"></div>
-          </div>
+            <section class="vx-ops-card vx-report-section">
+              <div class="vx-ops-head"><div class="vx-ops-title" id="au2-chart-title">Anrufe diese Woche</div></div>
+              <div class="vx-report-week-chart" id="au2-week-chart"></div>
+              <div class="vx-report-week-foot"><span id="au2-chart-foot-l">–</span><span id="au2-chart-foot-r">–</span></div>
+            </section>
 
-        </div><!-- EINSTELLUNGEN TAB -->
+            <div class="vx-report-breakdowns">
+              <section class="vx-ops-card vx-report-section">
+                <div class="vx-ops-head"><div class="vx-ops-title">Kategorien</div></div>
+                <div class="vx-report-bars" id="au2-categories"></div>
+              </section>
+              <section class="vx-ops-card vx-report-section">
+                <div class="vx-ops-head"><div class="vx-ops-title">Tageszeiten</div></div>
+                <div class="vx-report-bars" id="au2-call-times"></div>
+              </section>
+            </div>
+
+            <section class="vx-ops-card vx-report-section">
+              <div class="vx-ops-head"><div class="vx-ops-title">Lead-Qualität</div></div>
+              <div class="vx-report-leads" id="au2-lead-quality"></div>
+            </section>
+          </div>
+        </div>
+        <!-- EINSTELLUNGEN TAB -->
 
         <!-- ARCHIV TAB -->
         <div class="tab-page" id="tab-archiv">
@@ -18051,8 +17834,15 @@ var _auPeriodRecords = null;
 
 function auSetPeriod(period, btn) {
   _auPeriod = period;
-  document.querySelectorAll('.au-period-btn').forEach(function(b){ b.classList.remove('au-period-active'); });
-  if (btn) btn.classList.add('au-period-active');
+  document.querySelectorAll('#au-period-row .vx-report-period').forEach(function(button) {
+    var active = button.getAttribute('data-report-period') === period;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  if (btn && !btn.classList.contains('active')) {
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+  }
   renderAuswertung();
 }
 
@@ -18136,9 +17926,9 @@ function _auEl(id, val) { var el = document.getElementById(id); if (el) el.textC
 function _auTrend(id, diff, suffix) {
   var el = document.getElementById(id);
   if (!el) return;
-  if (!diff && diff !== 0) { el.textContent = ''; el.className = 'au2-kpi-trend'; return; }
-  el.className = 'au2-kpi-trend ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
-  el.textContent = (diff > 0 ? '↑ +' : diff < 0 ? '↓ ' : '→ ') + (diff !== 0 ? Math.abs(diff) : '') + ' ' + (suffix||'');
+  if (!diff && diff !== 0) { el.textContent = ''; el.className = 'vx-report-trend'; return; }
+  el.className = 'vx-report-trend ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
+  el.textContent = (diff > 0 ? '↑ +' : diff < 0 ? '↓ ' : '→ ') + (diff !== 0 ? Math.abs(diff) : '') + ' ' + (suffix || '');
 }
 
 function _auPrevPeriodRecords(all) {
@@ -18163,18 +17953,16 @@ function _auPrevPeriodRecords(all) {
 function _auBuildSparkCalls(all) {
   var el = document.getElementById('au2-spark-calls');
   if (!el) return;
-  var days = 7, now = new Date();
-  var counts = [];
-  for (var i = days-1; i >= 0; i--) {
-    var d = new Date(now.getFullYear(), now.getMonth(), now.getDate()-i);
-    var nd = new Date(d.getTime()+86400000);
-    counts.push(all.filter(function(r){ var ts=getRecordTimestamp(r); if(!ts) return false; var rd=parseCallTimestamp(ts); return rd&&rd>=d&&rd<nd; }).length);
+  var days = 7, now = new Date(), counts = [];
+  for (var i = days - 1; i >= 0; i--) {
+    var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    var nd = new Date(d.getTime() + 86400000);
+    counts.push(all.filter(function(r) { var ts = getRecordTimestamp(r); if (!ts) return false; var rd = parseCallTimestamp(ts); return rd && rd >= d && rd < nd; }).length);
   }
   var max = Math.max.apply(null, counts) || 1;
-  el.innerHTML = counts.map(function(c, i) {
-    var h = Math.max(3, Math.round(c/max*22));
-    var isToday = (i === counts.length-1);
-    return '<div class="au2-spark-bar" style="height:'+h+'px;background:'+(isToday?'#4B9FFF':'rgba(96,165,250,'+(0.2+i*0.05)+')')+';"></div>';
+  el.innerHTML = counts.map(function(count, index) {
+    var level = Math.max(1, Math.min(10, Math.round(count / max * 10)));
+    return '<span class="vx-report-level level-' + level + ' vx-report-spark-bar' + (index === counts.length - 1 ? ' current' : '') + '" aria-label="' + count + ' Anrufe"></span>';
   }).join('');
 }
 
@@ -18183,33 +17971,23 @@ function _auAiSummary(records, total, hotCount, closed) {
   if (!el) return;
   var periodLabel = {today:'heute', week:'diese Woche', month:'diesen Monat', all:'insgesamt'}[_auPeriod] || '';
   if (!total) {
-    el.innerHTML = 'Noch keine Anrufe ' + periodLabel + '.';
+    el.textContent = 'Noch keine Anrufe ' + periodLabel + '.';
     _auEl('au2-top-cat', '–'); _auEl('au2-top-cat-sub', '–');
     _auEl('au2-best-time', '–'); _auEl('au2-best-time-sub', '–');
     return;
   }
-  // Top category
   var cats = {};
-  records.forEach(function(r){ var c=(r.fields||{}).category||'Sonstiges'; cats[c]=(cats[c]||0)+1; });
-  var topCatRaw = Object.keys(cats).sort(function(a,b){ return cats[b]-cats[a]; })[0] || '–';
-  var topCat = (typeof getCallCategoryDisplayLabel === 'function' && topCatRaw !== '–')
-    ? (getCallCategoryDisplayLabel({fields:{category:topCatRaw}}) || topCatRaw)
-    : topCatRaw;
+  records.forEach(function(r) { var c = (r.fields || {}).category || 'Sonstiges'; cats[c] = (cats[c] || 0) + 1; });
+  var topCatRaw = Object.keys(cats).sort(function(a,b) { return cats[b] - cats[a]; })[0] || '–';
+  var topCat = (typeof getCallCategoryDisplayLabel === 'function' && topCatRaw !== '–') ? (getCallCategoryDisplayLabel({fields:{category:topCatRaw}}) || topCatRaw) : topCatRaw;
   var topCatCount = cats[topCatRaw] || 0;
-  // Best time
   var timeBuckets = [{label:'6–9',r:[6,9],c:0},{label:'9–12',r:[9,12],c:0},{label:'12–14',r:[12,14],c:0},{label:'14–18',r:[14,18],c:0},{label:'18+',r:[18,30],c:0}];
-  records.forEach(function(r){ var ts=getRecordTimestamp(r); if(!ts) return; var d=parseCallTimestamp(ts); if(!d) return; var h=d.getHours(); var ah=h<6?h+24:h; for(var i=0;i<timeBuckets.length;i++){ if(ah>=timeBuckets[i].r[0]&&ah<timeBuckets[i].r[1]){timeBuckets[i].c++;break;} } });
-  var bestBucket = timeBuckets.reduce(function(best,b){ return b.c>best.c?b:best; }, timeBuckets[0]);
-  var bestTimePct = total ? Math.round(bestBucket.c/total*100) : 0;
-  _auEl('au2-top-cat', topCat);
-  _auEl('au2-top-cat-sub', topCatCount+' von '+total+' Anrufen');
-  _auEl('au2-best-time', bestBucket.label+' Uhr');
-  _auEl('au2-best-time-sub', bestTimePct+'% aller Anrufe');
-  var openHot = hotCount;
-  el.innerHTML = 'Lara hat '+periodLabel+' <strong style="color:var(--ink);">'+total+' Anruf'+(total!==1?'e':'')+
-    '</strong> entgegengenommen'+(hotCount?' — <strong style="color:#DC2626;">'+hotCount+' Hot Lead'+(hotCount!==1?'s':'')+
-    '</strong>':'')+(closed?' — '+closed+' erledigt':'')+
-    '. Top-Kategorie: <strong style="color:#1A6FE8;">'+topCat+'</strong>. Stosszeit: <strong style="color:var(--ink);">'+bestBucket.label+' Uhr</strong>.';
+  records.forEach(function(r) { var ts = getRecordTimestamp(r); if (!ts) return; var d = parseCallTimestamp(ts); if (!d) return; var h = d.getHours(); var ah = h < 6 ? h + 24 : h; for (var i = 0; i < timeBuckets.length; i++) { if (ah >= timeBuckets[i].r[0] && ah < timeBuckets[i].r[1]) { timeBuckets[i].c++; break; } } });
+  var bestBucket = timeBuckets.reduce(function(best,b) { return b.c > best.c ? b : best; }, timeBuckets[0]);
+  var bestTimePct = total ? Math.round(bestBucket.c / total * 100) : 0;
+  _auEl('au2-top-cat', topCat); _auEl('au2-top-cat-sub', topCatCount + ' von ' + total + ' Anrufen');
+  _auEl('au2-best-time', bestBucket.label + ' Uhr'); _auEl('au2-best-time-sub', bestTimePct + '% aller Anrufe');
+  el.textContent = 'Lara hat ' + periodLabel + ' ' + total + ' Anruf' + (total !== 1 ? 'e' : '') + ' entgegengenommen' + (hotCount ? ' — ' + hotCount + ' Hot Lead' + (hotCount !== 1 ? 's' : '') : '') + (closed ? ' — ' + closed + ' erledigt' : '') + '. Top-Kategorie: ' + topCat + '. Stosszeit: ' + bestBucket.label + ' Uhr.';
 }
 
 function _auInsights(all, filtered) {
@@ -18217,35 +17995,22 @@ function _auInsights(all, filtered) {
   var badge = document.getElementById('au2-insight-badge');
   if (!list) return;
   var insights = [];
-  // Open callbacks
-  var openCallbacks = all.filter(function(r){ var f=r.fields||{}; return (f.callback_requested===true||f.callback_requested==='true') && !isClosedStatus(f.dashboard_status); });
+  var openCallbacks = all.filter(function(r) { var f = r.fields || {}; return (f.callback_requested === true || f.callback_requested === 'true') && !isClosedStatus(f.dashboard_status); });
   if (openCallbacks.length > 0) {
-    var oldest = openCallbacks.reduce(function(oldest, r){ var ts=getRecordTimestamp(r); return (!oldest||ts<getRecordTimestamp(oldest))?r:oldest; }, null);
-    var daysOld = oldest ? Math.floor((Date.now()-parseCallTimestamp(getRecordTimestamp(oldest)).getTime())/86400000) : 0;
-    insights.push({bg:'#FFF7ED', iconBg:'#D97706', icon:'phone-call', textColor:'#92400E', text:'<strong>'+openCallbacks.length+' offene Rückruf-Anfrage'+(openCallbacks.length!==1?'n':'')+' </strong> — älteste ist '+daysOld+' Tag'+(daysOld!==1?'e':'')+' alt.'});
+    var oldest = openCallbacks.reduce(function(value, r) { var ts = getRecordTimestamp(r); return (!value || ts < getRecordTimestamp(value)) ? r : value; }, null);
+    var daysOld = oldest ? Math.floor((Date.now() - parseCallTimestamp(getRecordTimestamp(oldest)).getTime()) / 86400000) : 0;
+    insights.push({tone:'warning', icon:'phone-call', text:openCallbacks.length + ' offene Rückruf-Anfrage' + (openCallbacks.length !== 1 ? 'n' : '') + ' — älteste ist ' + daysOld + ' Tag' + (daysOld !== 1 ? 'e' : '') + ' alt.'});
   }
-  // Peak time
   var timeBuckets = [{label:'6–9',r:[6,9],c:0},{label:'9–12',r:[9,12],c:0},{label:'12–14',r:[12,14],c:0},{label:'14–18',r:[14,18],c:0},{label:'18+',r:[18,30],c:0}];
-  filtered.forEach(function(r){ var ts=getRecordTimestamp(r); if(!ts) return; var d=parseCallTimestamp(ts); if(!d) return; var h=d.getHours(); var ah=h<6?h+24:h; for(var i=0;i<timeBuckets.length;i++){ if(ah>=timeBuckets[i].r[0]&&ah<timeBuckets[i].r[1]){timeBuckets[i].c++;break;} } });
-  var best = timeBuckets.reduce(function(b,x){ return x.c>b.c?x:b; }, timeBuckets[0]);
-  var pct = filtered.length ? Math.round(best.c/filtered.length*100) : 0;
-  if (pct >= 30) insights.push({bg:'#EEF4FF', iconBg:'#1A6FE8', icon:'clock', textColor:'#1a6fe8', text:'<strong>Stosszeit '+best.label+' Uhr</strong> — '+pct+'% aller Anrufe kommen dann. Sicher erreichbar?'});
-  // Hot leads trend
-  var hotCount = filtered.filter(function(r){ return qualKey((r.fields||{}).lead_quality)==='hot'; }).length;
-  if (hotCount > 0) insights.push({bg:'#ECFDF5', iconBg:'#059669', icon:'trending-up', textColor:'#065f46', text:'<strong>'+hotCount+' Hot Lead'+(hotCount!==1?'s':'')+'</strong> identifiziert — '+Math.round(hotCount/Math.max(filtered.length,1)*100)+'% aller Anrufe.'});
-
-  if (badge) badge.textContent = insights.length + ' Hinweis' + (insights.length!==1?'e':'');
-  if (!insights.length) {
-    list.innerHTML = '<div style="font-size:12px;color:var(--slate2);text-align:center;padding:10px 0;">Keine offenen Hinweise.</div>';
-    return;
-  }
-  list.innerHTML = insights.map(function(ins) {
-    return '<div class="au2-insight" style="background:'+ins.bg+';margin-bottom:6px;">'+
-      '<div class="au2-insight-icon" style="background:'+ins.iconBg+';"><i class="ph-bold ph-'+ins.icon+'" style="color:#fff;" style="font-size:13px;" aria-hidden="true"></i></div>'+
-      '<div class="au2-insight-text" style="color:'+ins.textColor+';">'+ins.text+'</div>'+
-      '</div>';
-  }).join('');
-  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
+  filtered.forEach(function(r) { var ts = getRecordTimestamp(r); if (!ts) return; var d = parseCallTimestamp(ts); if (!d) return; var h = d.getHours(); var ah = h < 6 ? h + 24 : h; for (var i = 0; i < timeBuckets.length; i++) { if (ah >= timeBuckets[i].r[0] && ah < timeBuckets[i].r[1]) { timeBuckets[i].c++; break; } } });
+  var best = timeBuckets.reduce(function(value, item) { return item.c > value.c ? item : value; }, timeBuckets[0]);
+  var pct = filtered.length ? Math.round(best.c / filtered.length * 100) : 0;
+  if (pct >= 30) insights.push({tone:'info', icon:'clock', text:'Stosszeit ' + best.label + ' Uhr — ' + pct + '% aller Anrufe kommen dann. Sicher erreichbar?'});
+  var hotCount = filtered.filter(function(r) { return qualKey((r.fields || {}).lead_quality) === 'hot'; }).length;
+  if (hotCount > 0) insights.push({tone:'success', icon:'trending-up', text:hotCount + ' Hot Lead' + (hotCount !== 1 ? 's' : '') + ' identifiziert — ' + Math.round(hotCount / Math.max(filtered.length, 1) * 100) + '% aller Anrufe.'});
+  if (badge) badge.textContent = insights.length + ' Hinweis' + (insights.length !== 1 ? 'e' : '');
+  if (!insights.length) { list.innerHTML = '<div class="vx-ops-empty">Keine offenen Hinweise.</div>'; return; }
+  list.innerHTML = insights.map(function(insight) { return '<div class="vx-ops-item vx-report-insight tone-' + insight.tone + '"><span class="vx-report-insight-icon"><i class="ph-bold ph-' + insight.icon + '" aria-hidden="true"></i></span><span>' + insight.text + '</span></div>'; }).join('');
 }
 
 function _auWeekChart2(records) {
@@ -18253,84 +18018,48 @@ function _auWeekChart2(records) {
   var footL = document.getElementById('au2-chart-foot-l');
   var footR = document.getElementById('au2-chart-foot-r');
   if (!el) return;
-  var now = new Date();
-  var dayNames = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-  var days = [];
+  var now = new Date(), dayNames = ['So','Mo','Di','Mi','Do','Fr','Sa'], days = [];
   for (var i = 6; i >= 0; i--) {
-    var d = new Date(now.getFullYear(), now.getMonth(), now.getDate()-i);
-    var nd = new Date(d.getTime()+86400000);
-    var count = records.filter(function(r){ var ts=getRecordTimestamp(r); if(!ts) return false; var rd=parseCallTimestamp(ts); return rd&&rd>=d&&rd<nd; }).length;
-    days.push({label:dayNames[d.getDay()], count:count, today:i===0});
+    var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    var nd = new Date(d.getTime() + 86400000);
+    var count = records.filter(function(r) { var ts = getRecordTimestamp(r); if (!ts) return false; var rd = parseCallTimestamp(ts); return rd && rd >= d && rd < nd; }).length;
+    days.push({label:dayNames[d.getDay()], count:count, today:i === 0});
   }
-  var maxC = Math.max.apply(null, days.map(function(d){ return d.count; })) || 1;
-  var total = days.reduce(function(s,d){ return s+d.count; }, 0);
-  var avg = total ? (total/7).toFixed(1) : '0';
-  el.innerHTML = days.map(function(day) {
-    var h = Math.max(4, Math.round(day.count/maxC*60));
-    return '<div class="au2-wk-col">'+
-      '<div class="au2-wk-count">'+(day.count||'')+'</div>'+
-      '<div class="au2-wk-bar'+(day.today?' today':'')+'" style="height:'+h+'px;"></div>'+
-      '<div class="au2-wk-label'+(day.today?' today':'')+'">'+day.label+'</div>'+
-      '</div>';
-  }).join('');
-  if (footL) footL.textContent = 'Total: '+total+' Anrufe';
-  if (footR) footR.textContent = 'Ø '+avg+' / Tag';
+  var max = Math.max.apply(null, days.map(function(day) { return day.count; })) || 1;
+  var total = days.reduce(function(sum, day) { return sum + day.count; }, 0);
+  var avg = total ? (total / 7).toFixed(1) : '0';
+  el.innerHTML = days.map(function(day) { var level = Math.max(1, Math.min(10, Math.round(day.count / max * 10))); return '<div class="vx-report-week-col"><div class="vx-report-week-count">' + (day.count || '') + '</div><div class="vx-report-level level-' + level + ' vx-report-week-bar' + (day.today ? ' current' : '') + '"></div><div class="vx-report-week-label' + (day.today ? ' current' : '') + '">' + day.label + '</div></div>'; }).join('');
+  if (footL) footL.textContent = 'Total: ' + total + ' Anrufe';
+  if (footR) footR.textContent = 'Ø ' + avg + ' / Tag';
 }
 
 function _auCategories2(records, total) {
   var el = document.getElementById('au2-categories');
   if (!el) return;
-  var colors = {Termin:'#1A6FE8',Anfrage:'#1A6FE8',Offerte:'#E8C547',Notfall:'#DC2626',Rückruf:'#DC2626',Sonstiges:'#94A3B8'};
   var counts = {};
-  records.forEach(function(r){ var c=(r.fields||{}).category||'Sonstiges'; counts[c]=(counts[c]||0)+1; });
-  var sorted = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; }).slice(0,5);
-  var maxC = sorted.length ? counts[sorted[0]] : 1;
-  if (!sorted.length) { el.innerHTML = '<div style="font-size:12px;color:var(--slate2);">Keine Daten.</div>'; return; }
-  el.innerHTML = sorted.map(function(cat) {
-    var n = counts[cat], pct = Math.round(n/maxC*100);
-    return '<div class="au2-bar-row"><div class="au2-bar-label">'+cat+'</div>'+
-      '<div class="au2-bar-track"><div class="au2-bar-fill" style="width:'+pct+'%;background:'+(colors[cat]||'#94A3B8')+';"></div></div>'+
-      '<div class="au2-bar-count">'+n+'</div></div>';
-  }).join('');
+  records.forEach(function(r) { var c = (r.fields || {}).category || 'Sonstiges'; counts[c] = (counts[c] || 0) + 1; });
+  var sorted = Object.keys(counts).sort(function(a,b) { return counts[b] - counts[a]; }).slice(0,5);
+  var max = sorted.length ? counts[sorted[0]] : 1;
+  if (!sorted.length) { el.innerHTML = '<div class="vx-ops-empty">Keine Daten.</div>'; return; }
+  el.innerHTML = sorted.map(function(category, index) { var count = counts[category], pct = Math.round(count / max * 100); var tone = index === 0 ? 'blue' : 'soft'; return '<div class="vx-report-bar-row"><div class="vx-report-bar-label">' + category + '</div><progress class="vx-report-progress tone-' + tone + '" max="100" value="' + pct + '" aria-label="' + category + ': ' + count + '"></progress><div class="vx-report-bar-count">' + count + '</div></div>'; }).join('');
 }
 
 function _auCallTimes2(records, total) {
   var el = document.getElementById('au2-call-times');
   if (!el) return;
   var buckets = [{label:'6–9',r:[6,9],c:0},{label:'9–12',r:[9,12],c:0},{label:'12–14',r:[12,14],c:0},{label:'14–18',r:[14,18],c:0},{label:'18+',r:[18,30],c:0}];
-  records.forEach(function(r){ var ts=getRecordTimestamp(r); if(!ts) return; var d=parseCallTimestamp(ts); if(!d) return; var h=d.getHours(); var ah=h<6?h+24:h; for(var i=0;i<buckets.length;i++){ if(ah>=buckets[i].r[0]&&ah<buckets[i].r[1]){buckets[i].c++;break;} } });
-  var maxC = Math.max.apply(null, buckets.map(function(b){ return b.c; })) || 1;
-  el.innerHTML = buckets.map(function(b) {
-    var pct = Math.round(b.c/maxC*100);
-    var color = pct>=80?'#1A6FE8':pct>=50?'#93C5FD':'#BFDBFE';
-    return '<div class="au2-bar-row"><div class="au2-bar-label">'+b.label+'</div>'+
-      '<div class="au2-bar-track"><div class="au2-bar-fill" style="width:'+pct+'%;background:'+color+';"></div></div>'+
-      '<div class="au2-bar-count">'+b.c+'</div></div>';
-  }).join('');
+  records.forEach(function(r) { var ts = getRecordTimestamp(r); if (!ts) return; var d = parseCallTimestamp(ts); if (!d) return; var h = d.getHours(); var ah = h < 6 ? h + 24 : h; for (var i = 0; i < buckets.length; i++) { if (ah >= buckets[i].r[0] && ah < buckets[i].r[1]) { buckets[i].c++; break; } } });
+  var max = Math.max.apply(null, buckets.map(function(bucket) { return bucket.c; })) || 1;
+  el.innerHTML = buckets.map(function(bucket) { var pct = Math.round(bucket.c / max * 100); return '<div class="vx-report-bar-row"><div class="vx-report-bar-label">' + bucket.label + '</div><progress class="vx-report-progress tone-blue" max="100" value="' + pct + '" aria-label="' + bucket.label + ' Uhr: ' + bucket.c + '"></progress><div class="vx-report-bar-count">' + bucket.c + '</div></div>'; }).join('');
 }
 
 function _auLeadQuality(total, hot, warm, kalt, unknown) {
   var el = document.getElementById('au2-lead-quality');
   if (!el) return;
-  var t = total || 1;
-  var rows = [
-    {label:'Hot', count:hot, color:'#DC2626'},
-    {label:'Warm', count:warm, color:'#E8C547'},
-    {label:'Kalt', count:kalt, color:'#94A3B8'},
-    {label:'Unbekannt', count:unknown, color:'#E3EAF4'},
-  ];
-  var maxC = Math.max.apply(null, rows.map(function(r){ return r.count; })) || 1;
-  el.innerHTML = rows.map(function(row) {
-    var pct = Math.round(row.count/t*100);
-    var barW = Math.round(row.count/maxC*100);
-    return '<div class="au2-lead-row">'+
-      '<div class="au2-lead-dot" style="background:'+row.color+';"></div>'+
-      '<div class="au2-lead-label">'+row.label+'</div>'+
-      '<div class="au2-lead-track"><div style="height:100%;width:'+barW+'%;background:'+row.color+';border-radius:999px;"></div></div>'+
-      '<div class="au2-lead-count">'+row.count+'</div>'+
-      '<div class="au2-lead-pct">'+pct+'%</div>'+
-      '</div>';
-  }).join('');
+  var denominator = total || 1;
+  var rows = [{label:'Hot',count:hot,tone:'hot'},{label:'Warm',count:warm,tone:'warm'},{label:'Kalt',count:kalt,tone:'cold'},{label:'Unbekannt',count:unknown,tone:'soft'}];
+  var max = Math.max.apply(null, rows.map(function(row) { return row.count; })) || 1;
+  el.innerHTML = rows.map(function(row) { var pct = Math.round(row.count / denominator * 100); var width = Math.round(row.count / max * 100); return '<div class="vx-report-lead-row"><span class="vx-report-dot tone-' + row.tone + '"></span><span class="vx-report-lead-label">' + row.label + '</span><progress class="vx-report-progress tone-' + row.tone + '" max="100" value="' + width + '" aria-label="' + row.label + ': ' + row.count + '"></progress><strong>' + row.count + '</strong><span>' + pct + '%</span></div>'; }).join('');
 }
 
 // ═══════════════════════════════════════════
@@ -31317,14 +31046,7 @@ function toggleCallRow(event, row) {
 
 /* — 1. Token-Refinement: ink3 heller für bessere Lesbarkeit von Sub-Texten —
        Wirkt automatisch auf alle Stellen die var(--ink3) nutzen
-       (call-meta, settings-card-lead, kpi-label, dash-side-meta, etc.) — */
-
-
-/* — 2. Auswertung-KPIs (.au-kpi Z.3731 hardcoded #fff — andere Klasse als .kpi!) — */
-
-
-
-/* .au-kpi-val behält den Brand-Blue/Red-Akzent absichtlich (lesbar, eye-catching) */
+       (call-meta, settings-card-lead, kpi-label, dash-side-meta, eye-catching) */
 
 /* — 3. Modale (.modal Z.1101, .detail-modal Z.1399 — beide nutzen var(--white)) — */
 
@@ -33920,9 +33642,7 @@ textarea { border-radius: 8px !important; }
 /* Cards immer 14px (var(--r-lg)) */
 .settings-card,
 .vx-section,
-.dash-glass,
-.au2-card,
-.au-card { border-radius: var(--r-lg) !important; }
+.dash-glass{ border-radius: var(--r-lg) !important; }
 
 /* Overlays/Modals immer 16px (var(--r-xl)) */
 .modal,
