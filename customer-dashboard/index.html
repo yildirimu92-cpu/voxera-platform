@@ -6808,6 +6808,9 @@ body,.main{background:var(--vx-bg);}
                 <button class="vx-ap-filter vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
                 <button class="vx-ap-filter vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiv</button>
               </div>
+                <div class="vx-ap-meta vx-archive-retention" role="note">
+                  Aufbewahrung: vollständige Transkripte werden nach <strong>90 Tagen</strong> entfernt, Archiveinträge nach <strong>180 Tagen</strong>.
+                </div>
 
               <div class="vx-requests-subfilters" id="anrufe-inbox-subfilters">
                 <button class="vx-ap-filter vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
