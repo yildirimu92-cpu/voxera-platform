@@ -1,9 +1,12 @@
 name: Apply Customer Feedback Corrections
 
 on:
-  push:
-    branches:
-      - codex/customer-navigation-five-root
+  pull_request:
+    paths:
+      - 'customer-dashboard/**'
+      - 'scripts/tmp_apply_customer_feedback_round.py'
+      - 'scripts/tmp_customer_feedback_trigger.txt'
+      - '.github/workflows/tmp-inspect-customer-feedback.yml'
 
 permissions:
   contents: write
