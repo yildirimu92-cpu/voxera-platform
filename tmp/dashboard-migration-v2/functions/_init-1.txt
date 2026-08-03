@@ -1,8 +1,0 @@
-FUNCTION _init
-LINES 23018-23021
-TERMS dash-priority
-
-function _init() {
-    _attachToContainer('dash-priority-list');
-    _attachToContainer('anrufe-list');
-  }

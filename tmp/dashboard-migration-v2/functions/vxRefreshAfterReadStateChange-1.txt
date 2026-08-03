@@ -1,9 +1,0 @@
-FUNCTION vxRefreshAfterReadStateChange
-LINES 19340-19344
-TERMS renderDashboard
-
-function vxRefreshAfterReadStateChange() {
-  if (typeof renderDashboard === 'function') renderDashboard(allRecords || [], allManualTaskRecords || []);
-  if (typeof renderAnrufe === 'function') renderAnrufe();
-  if (typeof renderDashPriorityList === 'function') renderDashPriorityList();
-}
