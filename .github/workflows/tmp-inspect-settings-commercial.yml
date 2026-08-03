@@ -1,4 +1,4 @@
-name: Temporary Settings Boundary Inspection
+name: Temporary Subscription Block Inspection
 
 on:
   pull_request:
@@ -16,23 +16,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-settings-commercial-flows
-      - name: Print exact help and modal boundaries
+      - name: Print subscription block and related function names
         run: |
           python - <<'PY'
           from pathlib import Path
           text = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
           lines = text.splitlines()
           for start, end, label in [
-            (7805, 8245, 'help tab and first commercial modal'),
-            (8100, 8300, 'commercial modal markup'),
-            (8625, 8705, 'duplicate sheet commercial modals')
+            (7500, 7810, 'subscription markup'),
+            (15220, 15640, 'subscription runtime'),
+            (16980, 17230, 'legacy commercial runtime')
           ]:
             print(f'=== {label}: {start}-{end} ===')
             for i in range(start - 1, min(end, len(lines))):
               print(f'{i+1}: {lines[i]}')
-
-          print('=== STRUCTURAL COMMENTS ===')
-          for i, line in enumerate(lines):
-            if 7780 <= i + 1 <= 8720 and '<!--' in line:
-              print(f'{i+1}: {line}')
           PY
