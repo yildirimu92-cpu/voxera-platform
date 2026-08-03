@@ -1,15 +1,16 @@
-name: Temporary Dashboard Migration V2 Inspection
+name: Temporary Dashboard Migration V2
 
 on:
   pull_request:
     paths:
+      - 'scripts/tmp_migrate_dashboard_to_assistant_v2.py'
       - '.github/workflows/tmp-inspect-dashboard-migration-v2.yml'
 
 permissions:
   contents: write
 
 jobs:
-  inspect:
+  migrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,174 +20,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Split exact dashboard inventories
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply guarded dashboard-local migration
+        run: python scripts/tmp_migrate_dashboard_to_assistant_v2.py
+      - name: Verify migration scope and foundations
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          import hashlib
-          import re
-
-          source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
-          out = Path('tmp/dashboard-migration-v2')
-          functions_dir = out / 'functions'
-          functions_dir.mkdir(parents=True, exist_ok=True)
-
-          def line_no(offset):
-              return source.count('\n', 0, offset) + 1
-
-          def matching_brace(start):
-              depth = 0
-              quote = None
-              escaped = False
-              line_comment = False
-              block_comment = False
-              i = start
-              while i < len(source):
-                  ch = source[i]
-                  pair = source[i:i + 2]
-                  if line_comment:
-                      if ch == '\n':
-                          line_comment = False
-                      i += 1
-                      continue
-                  if block_comment:
-                      if pair == '*/':
-                          block_comment = False
-                          i += 2
-                      else:
-                          i += 1
-                      continue
-                  if quote:
-                      if escaped:
-                          escaped = False
-                      elif ch == '\\':
-                          escaped = True
-                      elif ch == quote:
-                          quote = None
-                      i += 1
-                      continue
-                  if pair == '//':
-                      line_comment = True
-                      i += 2
-                      continue
-                  if pair == '/*':
-                      block_comment = True
-                      i += 2
-                      continue
-                  if ch in ('\"', "'", '`'):
-                      quote = ch
-                  elif ch == '{':
-                      depth += 1
-                  elif ch == '}':
-                      depth -= 1
-                      if depth == 0:
-                          return i + 1
-                  i += 1
-              raise RuntimeError('unbalanced braces')
-
-          function_pattern = re.compile(r'(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{')
-          terms = (
-              'dash-priority', 'dash-activity', 'dash-kpi', 'dash-greeting',
-              'vx-activity', 'vx-group', 'vx-jetzt', 'renderDashboard'
-          )
-          index_lines = []
-          used_names = {}
-          for match in function_pattern.finditer(source):
-              brace = source.index('{', match.start())
-              try:
-                  end = matching_brace(brace)
-              except RuntimeError:
-                  continue
-              body = source[match.start():end]
-              matched_terms = [term for term in terms if term in body]
-              if not matched_terms:
-                  continue
-              name = match.group(1)
-              occurrence = used_names.get(name, 0) + 1
-              used_names[name] = occurrence
-              filename = f'{name}-{occurrence}.txt'
-              (functions_dir / filename).write_text(
-                  f'FUNCTION {name}\nLINES {line_no(match.start())}-{line_no(end)}\nTERMS {", ".join(matched_terms)}\n\n{body}\n',
-                  encoding='utf-8'
-              )
-              index_lines.append(
-                  f'{filename}\t{name}\tlines={line_no(match.start())}-{line_no(end)}\tchars={len(body)}\tterms={",".join(matched_terms)}'
-              )
-          (out / 'function-index.txt').write_text('\n'.join(index_lines) + '\n', encoding='utf-8')
-
-          style_pattern = re.compile(r'<style\b[^>]*>(.*?)</style>', re.S | re.I)
-          rule_pattern = re.compile(r'([^{}]+)\{([^{}]*)\}', re.S)
-          dashboard_terms = (
-              '#tab-dashboard', '#dash-', '.dash-', '.vx-greeting-', '.vx-kpi-',
-              '.vx-jetzt-', '.vx-activity-', '.vx-group-', '.dpr-command-center', '.fse-'
-          )
-          shared_terms = (
-              'login', 'auth-card', 'login-card', 'loading', 'splash', 'boot',
-              'sidebar', 'side-nav', 'mobile-nav', 'bottom-nav', 'mobile-bottom',
-              'tour', 'onboarding-modal', 'tour-modal'
-          )
-          style_index = []
-          mixed_rules = []
-          group_counts = {}
-          for number, style in enumerate(style_pattern.finditer(source), 1):
-              css = style.group(1)
-              rules = list(rule_pattern.finditer(css))
-              dashboard_rules = []
-              shared_rules = []
-              for rule in rules:
-                  selector = ' '.join(rule.group(1).split())
-                  if any(term in selector for term in dashboard_terms):
-                      dashboard_rules.append(selector)
-                      for term in dashboard_terms:
-                          if term in selector:
-                              group_counts[(number, term)] = group_counts.get((number, term), 0) + 1
-                      if any(term in selector.lower() for term in shared_terms):
-                          mixed_rules.append(
-                              f'STYLE {number} LINE {line_no(style.start(1) + rule.start())}\n{selector} {{{rule.group(2)}}}\n'
-                          )
-                  if any(term in selector.lower() for term in shared_terms):
-                      shared_rules.append(selector)
-              comments = [' '.join(value.split())[:180] for value in re.findall(r'/\*(.*?)\*/', css, flags=re.S)[:4]]
-              style_index.append(
-                  f'STYLE {number}\tlines={line_no(style.start())}-{line_no(style.end())}\tchars={len(css)}\trules={len(rules)}\tdashboard={len(dashboard_rules)}\tshared={len(shared_rules)}\tdashboard_only={str(bool(dashboard_rules) and not shared_rules and len(dashboard_rules) == len(rules)).lower()}\theadings={" | ".join(comments)}'
-              )
-          (out / 'style-block-index.txt').write_text('\n'.join(style_index) + '\n', encoding='utf-8')
-          (out / 'mixed-shared-rules.txt').write_text('\n'.join(mixed_rules) + '\n', encoding='utf-8')
-          (out / 'selector-group-counts.txt').write_text(
-              '\n'.join(
-                  f'STYLE {style}\t{term}\t{count}'
-                  for (style, term), count in sorted(group_counts.items())
-              ) + '\n',
-              encoding='utf-8'
-          )
-
-          fingerprints = []
-          fingerprint_groups = {
-              'login': ('login', 'auth-card', 'login-card'),
-              'loading': ('loading', 'splash', 'boot'),
-              'sidebar': ('sidebar', 'side-nav'),
-              'mobile_navigation': ('mobile-nav', 'bottom-nav', 'mobile-bottom'),
-              'tour': ('tour', 'onboarding-modal', 'tour-modal'),
-          }
-          for name, needles in fingerprint_groups.items():
-              relevant = []
-              for style in style_pattern.finditer(source):
-                  for rule in rule_pattern.finditer(style.group(1)):
-                      selector = ' '.join(rule.group(1).split())
-                      if any(needle in selector.lower() for needle in needles):
-                          relevant.append(selector + '{' + rule.group(2) + '}')
-              payload = '\n'.join(relevant)
-              fingerprints.append(f'{name}: rules={len(relevant)} sha256={hashlib.sha256(payload.encode()).hexdigest()}')
-          (out / 'shared-fingerprints.txt').write_text('\n'.join(fingerprints) + '\n', encoding='utf-8')
-          PY
-      - name: Commit inspection reports
+          test "$(git diff --name-only | tr -d '\r')" = "customer-dashboard/index.html"
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/audit-customer-design-ownership.mjs >/tmp/customer-design-ownership.txt
+          grep -q 'id="dash-greeting-block" class="vx-page-header"' customer-dashboard/index.html
+          grep -q 'id="dash-kpi-strip" class="vx-ap-grid"' customer-dashboard/index.html
+          grep -q 'id="dash-priority-section" class="vx-ops-card"' customer-dashboard/index.html
+          grep -q 'id="dash-activity-section" class="vx-ops-card"' customer-dashboard/index.html
+          ! grep -q 'class="vx-greeting-block"' customer-dashboard/index.html
+          ! grep -q 'class="vx-jetzt-section' customer-dashboard/index.html
+      - name: Commit migrated dashboard
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tmp/dashboard-migration-v2
-          if git diff --cached --quiet; then
-            echo "Reports unchanged."
-            exit 0
-          fi
-          git commit -m "chore: split dashboard migration inventory"
+          git add customer-dashboard/index.html
+          git commit -m "refactor(customer): migrate dashboard to assistant components"
           git push origin HEAD:${{ github.head_ref }}
