@@ -21,14 +21,15 @@ jobs:
         run: |
           node scripts/temporary-migrate-settings-subscription.mjs
           node scripts/temporary-migrate-calendar-settings-entry.mjs
-      - name: Commit generated dashboard source
+          node scripts/temporary-write-settings-components.mjs
+      - name: Commit generated customer settings
         run: |
-          if git diff --quiet -- customer-dashboard/index.html customer-dashboard/shared/customer-runtime-calendar-settings.js; then
+          if git diff --quiet -- customer-dashboard/index.html customer-dashboard/shared/customer-runtime-calendar-settings.js customer-dashboard/shared/customer-settings-components.css customer-dashboard/shared/customer-runtime-design-foundation.js customer-dashboard/shared/offer-brand.js; then
             echo "No migration changes required."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add customer-dashboard/index.html customer-dashboard/shared/customer-runtime-calendar-settings.js
-          git commit -m "Migrate settings and subscription ownership"
+          git add customer-dashboard/index.html customer-dashboard/shared/customer-runtime-calendar-settings.js customer-dashboard/shared/customer-settings-components.css customer-dashboard/shared/customer-runtime-design-foundation.js customer-dashboard/shared/offer-brand.js
+          git commit -m "Consolidate settings and subscription components"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
