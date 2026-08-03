@@ -12,6 +12,7 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,49 +21,43 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
-          index_path=Path('customer-dashboard/index.html')
-          lines=index_path.read_text(encoding='utf-8').splitlines()
+          lines=Path('customer-dashboard/index.html').read_text(encoding='utf-8').splitlines()
           css_lines=Path('customer-dashboard/shared/customer-assistant-components.css').read_text(encoding='utf-8').splitlines()
 
-          def ranges(source, requested, label):
-            print(f'\n## {label}')
-            for lo,hi in requested:
-              lo=max(1,lo); hi=min(len(source),hi)
-              print(f'-- {lo}-{hi} --')
-              for n in range(lo,hi+1): print(f'{n}: {source[n-1]}')
-
-          ranges(lines, [(4990,5085),(5165,5245),(6515,6595),(26280,26460),(27660,27830)], 'EXACT INDEX RANGES')
+          print('## EXACT INDEX RANGES')
+          for lo,hi in [(4990,5085),(5165,5245),(6515,6595),(26280,26460),(27660,27830)]:
+            hi=min(hi,len(lines))
+            print(f'-- {lo}-{hi} --')
+            for n in range(lo,hi+1): print(f'{n}: {lines[n-1]}')
 
           terms=[
             "classList.add('selected')", 'classList.add("selected")',
             "classList.toggle('selected'", 'is-selected', 'selected-row',
-            'active-call', 'openCallDetail', 'openCall', 'renderCalls',
-            'vx-call-list', 'io-list-card', 'io-toolbar-card',
-            'split-detail', 'split-shell', 'filter-chip'
+            'active-call', 'openCallDetail', 'renderCalls', 'vx-call-list',
+            'io-list-card', 'io-toolbar-card', 'split-detail', 'split-shell', 'filter-chip'
           ]
+          lowered=[line.lower() for line in lines]
           for term in terms:
-            hits=[i for i,l in enumerate(lines) if term.lower() in l.lower()][:12]
+            key=term.lower()
+            hits=[i for i,line in enumerate(lowered) if key in line][:8]
             if not hits: continue
             print(f'\n## TERM {term!r} hits={len(hits)}')
             for i in hits:
-              lo=max(0,i-5); hi=min(len(lines),i+13)
+              lo=max(0,i-4); hi=min(len(lines),i+10)
               print(f'-- {lo+1}-{hi} --')
               for n in range(lo,hi): print(f'{n+1}: {lines[n]}')
 
-          print('\n## REQUEST-RELATED STYLE BLOCK HEADERS')
-          text='\n'.join(lines)
-          for match in re.finditer(r'([^{}]*(?:#tab-anfragen|filter-chip|calls-list|split-detail|split-shell|io-list-card|io-toolbar-card|is-selected|\.selected)[^{}]*)\{', text, flags=re.I):
-            selector=' '.join(match.group(1).split())
-            if len(selector) > 260: selector=selector[-260:]
-            print(selector)
-
           print('\n## ASSISTANT CSS REQUEST SELECTORS')
-          for i,line in enumerate(css_lines,1):
-            if any(term in line.lower() for term in ['request','anfragen','filter-chip','calls-list','split-detail','selected','io-list','io-toolbar']):
-              lo=max(1,i-3); hi=min(len(css_lines),i+12)
-              print(f'-- {lo}-{hi} --')
-              for n in range(lo,hi+1): print(f'{n}: {css_lines[n-1]}')
-          print('\nASSISTANT_CSS_LINES', len(css_lines))
+          keys=['request','anfragen','filter-chip','calls-list','split-detail','selected','io-list','io-toolbar']
+          shown=set()
+          for i,line in enumerate(css_lines):
+            if not any(key in line.lower() for key in keys): continue
+            lo=max(0,i-2); hi=min(len(css_lines),i+8)
+            signature=(lo,hi)
+            if signature in shown: continue
+            shown.add(signature)
+            print(f'-- {lo+1}-{hi} --')
+            for n in range(lo,hi): print(f'{n+1}: {css_lines[n]}')
+          print('ASSISTANT_CSS_LINES', len(css_lines))
           PY
