@@ -71,17 +71,40 @@ jobs:
         run: python scripts/tmp_migrate_dashboard_to_assistant_v2.py
       - name: Verify migration scope and foundations
         run: |
+          echo '[1/11] migration touches only index.html'
           test "$(git diff --name-only | tr -d '\r')" = "customer-dashboard/index.html"
+          echo 'PASS 1'
+          echo '[2/11] customer design foundation'
           node scripts/verify-customer-design-foundation.mjs
+          echo 'PASS 2'
+          echo '[3/11] customer design ownership audit'
           node scripts/audit-customer-design-ownership.mjs >/tmp/customer-design-ownership.txt
+          echo 'PASS 3'
+          echo '[4/11] assistant page header'
           grep -q 'id="dash-greeting-block" class="vx-page-header"' customer-dashboard/index.html
+          echo 'PASS 4'
+          echo '[5/11] assistant KPI grid'
           grep -q 'id="dash-kpi-strip" class="vx-ap-grid"' customer-dashboard/index.html
+          echo 'PASS 5'
+          echo '[6/11] assistant priority card'
           grep -q 'id="dash-priority-section" class="vx-ops-card"' customer-dashboard/index.html
+          echo 'PASS 6'
+          echo '[7/11] assistant activity card'
           grep -q 'id="dash-activity-section" class="vx-ops-card"' customer-dashboard/index.html
+          echo 'PASS 7'
+          echo '[8/11] old greeting markup absent'
           ! grep -q 'class="vx-greeting-block"' customer-dashboard/index.html
+          echo 'PASS 8'
+          echo '[9/11] old priority markup absent'
           ! grep -q 'class="vx-jetzt-section' customer-dashboard/index.html
+          echo 'PASS 9'
+          echo '[10/11] exactly one command-center owner remains'
+          echo "command-center count=$(grep -c "el.classList.add('dpr-command-center')" customer-dashboard/index.html)"
           test "$(grep -c "el.classList.add('dpr-command-center')" customer-dashboard/index.html)" -eq 1
+          echo 'PASS 10'
+          echo '[11/11] anfragen renderer remains'
           grep -q 'function renderAnrufeInbox' customer-dashboard/index.html
+          echo 'PASS 11'
       - name: Commit migrated dashboard
         run: |
           git config user.name "github-actions[bot]"
