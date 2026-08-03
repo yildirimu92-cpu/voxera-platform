@@ -19,17 +19,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Extract exact dashboard-owned sources
+      - name: Split exact dashboard inventories
         run: |
           python - <<'PY'
           from pathlib import Path
           import hashlib
           import re
 
-          source_path = Path('customer-dashboard/index.html')
-          source = source_path.read_text(encoding='utf-8')
+          source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
           out = Path('tmp/dashboard-migration-v2')
-          out.mkdir(parents=True, exist_ok=True)
+          functions_dir = out / 'functions'
+          functions_dir.mkdir(parents=True, exist_ok=True)
 
           def line_no(offset):
               return source.count('\n', 0, offset) + 1
@@ -84,21 +84,13 @@ jobs:
                   i += 1
               raise RuntimeError('unbalanced braces')
 
-          dash_start = source.index('<div class="tab-page active" id="tab-dashboard">')
-          dash_end = source.index('<!-- ANFRAGEN TAB -->', dash_start)
-          dashboard = source[dash_start:dash_end]
-          (out / 'host.txt').write_text(
-              f'LINES {line_no(dash_start)}-{line_no(dash_end)}\n\n' + dashboard,
-              encoding='utf-8'
-          )
-
           function_pattern = re.compile(r'(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{')
           terms = (
               'dash-priority', 'dash-activity', 'dash-kpi', 'dash-greeting',
               'vx-activity', 'vx-group', 'vx-jetzt', 'renderDashboard'
           )
-          function_parts = []
-          seen = set()
+          index_lines = []
+          used_names = {}
           for match in function_pattern.finditer(source):
               brace = source.index('{', match.start())
               try:
@@ -106,78 +98,86 @@ jobs:
               except RuntimeError:
                   continue
               body = source[match.start():end]
-              if not any(term in body for term in terms):
+              matched_terms = [term for term in terms if term in body]
+              if not matched_terms:
                   continue
-              key = (match.group(1), match.start())
-              if key in seen:
-                  continue
-              seen.add(key)
-              function_parts.append(
-                  f'===== {match.group(1)} | LINES {line_no(match.start())}-{line_no(end)} =====\n{body}\n'
+              name = match.group(1)
+              occurrence = used_names.get(name, 0) + 1
+              used_names[name] = occurrence
+              filename = f'{name}-{occurrence}.txt'
+              (functions_dir / filename).write_text(
+                  f'FUNCTION {name}\nLINES {line_no(match.start())}-{line_no(end)}\nTERMS {", ".join(matched_terms)}\n\n{body}\n',
+                  encoding='utf-8'
               )
-          (out / 'functions.txt').write_text('\n'.join(function_parts), encoding='utf-8')
+              index_lines.append(
+                  f'{filename}\t{name}\tlines={line_no(match.start())}-{line_no(end)}\tchars={len(body)}\tterms={",".join(matched_terms)}'
+              )
+          (out / 'function-index.txt').write_text('\n'.join(index_lines) + '\n', encoding='utf-8')
 
           style_pattern = re.compile(r'<style\b[^>]*>(.*?)</style>', re.S | re.I)
-          selector_terms = (
+          rule_pattern = re.compile(r'([^{}]+)\{([^{}]*)\}', re.S)
+          dashboard_terms = (
               '#tab-dashboard', '#dash-', '.dash-', '.vx-greeting-', '.vx-kpi-',
               '.vx-jetzt-', '.vx-activity-', '.vx-group-', '.dpr-command-center', '.fse-'
           )
-          rule_pattern = re.compile(r'([^{}]+)\{([^{}]*)\}', re.S)
-          css_parts = []
-          selector_count = 0
-          mixed_count = 0
-          for style_index, style in enumerate(style_pattern.finditer(source), 1):
+          shared_terms = (
+              'login', 'auth-card', 'login-card', 'loading', 'splash', 'boot',
+              'sidebar', 'side-nav', 'mobile-nav', 'bottom-nav', 'mobile-bottom',
+              'tour', 'onboarding-modal', 'tour-modal'
+          )
+          style_index = []
+          mixed_rules = []
+          group_counts = {}
+          for number, style in enumerate(style_pattern.finditer(source), 1):
               css = style.group(1)
-              for rule in rule_pattern.finditer(css):
-                  selector = rule.group(1).strip()
-                  if not any(term in selector for term in selector_terms):
-                      continue
-                  selector_count += 1
-                  absolute = style.start(1) + rule.start()
-                  mixed = any(token in selector.lower() for token in (
-                      'login', 'loading', 'splash', 'sidebar', 'side-nav',
-                      'mobile-nav', 'bottom-nav', 'mobile-bottom', 'tour', 'modal'
-                  ))
-                  mixed_count += int(mixed)
-                  css_parts.append(
-                      f'===== RULE {selector_count} | STYLE {style_index} | LINE {line_no(absolute)} | MIXED_SHARED={str(mixed).lower()} =====\n'
-                      + selector + ' {' + rule.group(2) + '}\n'
-                  )
+              rules = list(rule_pattern.finditer(css))
+              dashboard_rules = []
+              shared_rules = []
+              for rule in rules:
+                  selector = ' '.join(rule.group(1).split())
+                  if any(term in selector for term in dashboard_terms):
+                      dashboard_rules.append(selector)
+                      for term in dashboard_terms:
+                          if term in selector:
+                              group_counts[(number, term)] = group_counts.get((number, term), 0) + 1
+                      if any(term in selector.lower() for term in shared_terms):
+                          mixed_rules.append(
+                              f'STYLE {number} LINE {line_no(style.start(1) + rule.start())}\n{selector} {{{rule.group(2)}}}\n'
+                          )
+                  if any(term in selector.lower() for term in shared_terms):
+                      shared_rules.append(selector)
+              comments = [' '.join(value.split())[:180] for value in re.findall(r'/\*(.*?)\*/', css, flags=re.S)[:4]]
+              style_index.append(
+                  f'STYLE {number}\tlines={line_no(style.start())}-{line_no(style.end())}\tchars={len(css)}\trules={len(rules)}\tdashboard={len(dashboard_rules)}\tshared={len(shared_rules)}\tdashboard_only={str(bool(dashboard_rules) and not shared_rules and len(dashboard_rules) == len(rules)).lower()}\theadings={" | ".join(comments)}'
+              )
+          (out / 'style-block-index.txt').write_text('\n'.join(style_index) + '\n', encoding='utf-8')
+          (out / 'mixed-shared-rules.txt').write_text('\n'.join(mixed_rules) + '\n', encoding='utf-8')
+          (out / 'selector-group-counts.txt').write_text(
+              '\n'.join(
+                  f'STYLE {style}\t{term}\t{count}'
+                  for (style, term), count in sorted(group_counts.items())
+              ) + '\n',
+              encoding='utf-8'
+          )
 
-          shared_terms = {
+          fingerprints = []
+          fingerprint_groups = {
               'login': ('login', 'auth-card', 'login-card'),
               'loading': ('loading', 'splash', 'boot'),
               'sidebar': ('sidebar', 'side-nav'),
               'mobile_navigation': ('mobile-nav', 'bottom-nav', 'mobile-bottom'),
               'tour': ('tour', 'onboarding-modal', 'tour-modal'),
           }
-          fingerprints = []
-          for name, needles in shared_terms.items():
+          for name, needles in fingerprint_groups.items():
               relevant = []
               for style in style_pattern.finditer(source):
-                  css = style.group(1)
-                  for rule in rule_pattern.finditer(css):
+                  for rule in rule_pattern.finditer(style.group(1)):
                       selector = ' '.join(rule.group(1).split())
                       if any(needle in selector.lower() for needle in needles):
                           relevant.append(selector + '{' + rule.group(2) + '}')
               payload = '\n'.join(relevant)
-              fingerprints.append(
-                  f'{name}: rules={len(relevant)} sha256={hashlib.sha256(payload.encode()).hexdigest()}'
-              )
-
-          header = (
-              f'DASHBOARD_SELECTOR_RULES={selector_count}\n'
-              f'MIXED_SHARED_RULES={mixed_count}\n'
-              + '\n'.join(fingerprints)
-              + '\n\n'
-          )
-          (out / 'css.txt').write_text(header + '\n'.join(css_parts), encoding='utf-8')
-
-          inline = [
-              f'line={line_no(dash_start + match.start())} {match.group(0)}'
-              for match in re.finditer(r'style="[^"]*"', dashboard)
-          ]
-          (out / 'inline-styles.txt').write_text('\n'.join(inline) + '\n', encoding='utf-8')
+              fingerprints.append(f'{name}: rules={len(relevant)} sha256={hashlib.sha256(payload.encode()).hexdigest()}')
+          (out / 'shared-fingerprints.txt').write_text('\n'.join(fingerprints) + '\n', encoding='utf-8')
           PY
       - name: Commit inspection reports
         run: |
@@ -188,5 +188,5 @@ jobs:
             echo "Reports unchanged."
             exit 0
           fi
-          git commit -m "chore: capture dashboard migration boundaries"
+          git commit -m "chore: split dashboard migration inventory"
           git push origin HEAD:${{ github.head_ref }}
