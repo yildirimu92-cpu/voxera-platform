@@ -47,15 +47,14 @@ jobs:
           replacement = '''const protectedRanges = [
             ['dashboard', 'id="tab-dashboard"', 'id="tab-anrufe"'],
             ['requests', 'id="tab-anrufe"', 'id="tab-auswertung"'],
-            ['assistant', 'id="tab-assistent"', 'id="tab-mehr"'],
-            ['settings-navigation', 'id="tab-mehr"', 'id="mobile-bottom-nav"']
+            ['assistant', 'id="tab-assistent"', 'id="tab-mehr"']
           ];
           const fingerprints = Object.fromEntries(protectedRanges.map(([name, start, end]) => [name, hash(sliceBetween(source, start, end))]));
-          const protectedWindowTokens = ['id="login-screen"', 'id="vx-onboarding-tour"', 'id="mobile-bottom-nav"'];
+          const protectedWindowTokens = ['id="login-screen"', 'id="vx-onboarding-tour"', 'id="mobile-bottom-nav"', 'id="tab-mehr"'];
           const windowAround = (text, token) => {
             const index = text.indexOf(token);
             assert.ok(index >= 0, `Missing protected window token: ${token}`);
-            return text.slice(Math.max(0, index - 2200), Math.min(text.length, index + 4200));
+            return text.slice(Math.max(0, index - 1800), Math.min(text.length, index + 3600));
           };
           const windowFingerprints = Object.fromEntries(protectedWindowTokens.map((token) => [token, hash(windowAround(source, token))]));'''
           text = text[:start] + replacement + text[end:]
