@@ -8,6 +8,7 @@ on:
       - 'customer-dashboard/shared/**/*.js'
       - 'scripts/verify-customer-design-foundation.mjs'
       - 'scripts/audit-customer-design-ownership.mjs'
+      - 'scripts/tmp-migrate-customer-requests-design.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
   push:
     branches: [main]
@@ -19,14 +20,41 @@ on:
       - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
 
+permissions:
+  contents: write
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Apply guarded requests migration
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
+        run: node scripts/tmp-migrate-customer-requests-design.mjs
       - run: node scripts/verify-customer-design-foundation.mjs
       - name: Inventory design ownership
         run: node scripts/audit-customer-design-ownership.mjs
+      - name: Verify requests migration scope
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
+        run: |
+          node scripts/audit-customer-runtime-reachability.mjs
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "customer-dashboard/index.html customer-dashboard/shared/customer-assistant-components.css "
+          grep -q 'class="vx-requests-layout"' customer-dashboard/index.html
+          grep -q 'vx-requests-item' customer-dashboard/index.html
+          grep -q 'Customer requests: assistant-aligned canonical component owner.' customer-dashboard/shared/customer-assistant-components.css
+          ! grep -q '!important' customer-dashboard/shared/customer-assistant-components.css
+      - name: Commit requests migration
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-requests-assistant-design'
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-dashboard/index.html customer-dashboard/shared/customer-assistant-components.css
+          git commit -m "refactor(customer): migrate requests to assistant design"
+          git push origin HEAD:${{ github.head_ref }}
