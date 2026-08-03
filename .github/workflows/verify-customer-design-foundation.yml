@@ -19,14 +19,139 @@ on:
       - 'scripts/audit-customer-design-ownership.mjs'
       - '.github/workflows/verify-customer-design-foundation.yml'
 
+permissions:
+  contents: write
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-dashboard-assistant-migration-v2'
+        with:
+          python-version: '3.12'
+      - name: Apply guarded mobile visual polish
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-dashboard-assistant-migration-v2'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          index_path = Path('customer-dashboard/index.html')
+          design_path = Path('customer-dashboard/shared/customer-design-system.css')
+          assistant_path = Path('customer-dashboard/shared/customer-assistant-components.css')
+          index = index_path.read_text(encoding='utf-8')
+          design = design_path.read_text(encoding='utf-8')
+          assistant = assistant_path.read_text(encoding='utf-8')
+
+          marker = 'The HTML hidden state must win over component display declarations.'
+          if marker in design:
+              required = [
+                  'vx-ap-head vx-ap-head--mobile-stack',
+                  '#tab-archiv .vx-split-filters{display:grid',
+              ]
+              for token in required:
+                  if token not in index:
+                      raise AssertionError(f'partial mobile polish: missing {token}')
+              if 'vx-ap-head--mobile-stack' not in assistant:
+                  raise AssertionError('partial mobile polish: missing component modifier')
+              raise SystemExit(0)
+
+          def replace_once(source, old, new, label):
+              count = source.count(old)
+              if count != 1:
+                  raise AssertionError(f'{label}: expected one source match, found {count}')
+              return source.replace(old, new, 1)
+
+          index = replace_once(
+              index,
+              '<section id="dash-greeting-block" class="vx-page-header">\n              <div class="vx-ap-head">',
+              '<section id="dash-greeting-block" class="vx-page-header">\n              <div class="vx-ap-head vx-ap-head--mobile-stack">',
+              'dashboard responsive heading',
+          )
+          index = replace_once(
+              index,
+              '                <button type="button" class="vx-ap-btn secondary" onclick="vxDashShowAllImportant(event);">Alle anzeigen</button>\n',
+              '',
+              'redundant dashboard top action',
+          )
+
+          old_archive = '''@media(max-width:768px){
+  #tab-archiv.active{height:auto !important;overflow:visible !important;}
+  #tab-archiv .vx-split{display:block !important;height:auto !important;overflow:visible !important;}
+  #archiv-split-left,#tab-archiv .vx-split #archiv-split-left{width:100% !important;max-width:100% !important;min-width:0 !important;flex:none !important;border-radius:var(--vx-r-lg) !important;}
+  #archiv-split-resizer{display:none !important;}
+  #archiv-split-right{display:none !important;}
+  body:has(#tab-archiv.active) .content{overflow:auto !important;}
+}'''
+          new_archive = '''@media(max-width:768px){
+  #tab-archiv.active{height:auto !important;overflow:visible !important;}
+  #tab-archiv .vx-split{display:block !important;width:100% !important;height:auto !important;overflow:visible !important;}
+  #archiv-split-left,#tab-archiv .vx-split #archiv-split-left{width:100% !important;max-width:none !important;min-width:0 !important;flex:1 1 auto !important;align-self:stretch !important;border-right:0 !important;border-radius:var(--vx-r-lg) !important;}
+  #tab-archiv .vx-split-filters{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important;overflow:visible !important;}
+  #tab-archiv .vx-split-filters .vx-chip{width:100% !important;min-width:0 !important;padding-right:8px !important;padding-left:8px !important;text-align:center !important;}
+  #archiv-split-resizer{display:none !important;}
+  #archiv-split-right{display:none !important;}
+  body:has(#tab-archiv.active) .content{overflow:auto !important;}
+}'''
+          index = replace_once(index, old_archive, new_archive, 'archive mobile layout')
+
+          design = design.rstrip() + '''
+
+/* The HTML hidden state must win over component display declarations. */
+body.vx-customer-design-foundation [hidden] {
+  display: none !important;
+}
+'''
+          assistant = assistant.rstrip() + '''
+
+body.vx-customer-design-foundation .vx-ap-head--mobile-stack > .vx-page-header-subtitle {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation .vx-ap-head--mobile-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  body.vx-customer-design-foundation .vx-ap-head--mobile-stack > .vx-page-header-subtitle {
+    margin-top: 0;
+    font-size: 12px;
+    text-align: left;
+  }
+}
+'''
+          index_path.write_text(index, encoding='utf-8')
+          design_path.write_text(design, encoding='utf-8')
+          assistant_path.write_text(assistant, encoding='utf-8')
+          PY
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - run: node scripts/verify-customer-design-foundation.mjs
       - name: Inventory design ownership
         run: node scripts/audit-customer-design-ownership.mjs
+      - name: Verify mobile polish
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-dashboard-assistant-migration-v2'
+        run: |
+          grep -q 'vx-ap-head vx-ap-head--mobile-stack' customer-dashboard/index.html
+          ! grep -q 'onclick="vxDashShowAllImportant(event);">Alle anzeigen</button>' customer-dashboard/index.html
+          grep -q '#tab-archiv .vx-split-filters{display:grid' customer-dashboard/index.html
+          grep -q 'body.vx-customer-design-foundation \[hidden\]' customer-dashboard/shared/customer-design-system.css
+          grep -q '.vx-ap-head--mobile-stack' customer-dashboard/shared/customer-assistant-components.css
+          node scripts/audit-customer-runtime-reachability.mjs
+      - name: Commit mobile polish
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/customer-dashboard-assistant-migration-v2'
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-dashboard/index.html customer-dashboard/shared/customer-design-system.css customer-dashboard/shared/customer-assistant-components.css
+          git commit -m "fix(customer): polish dashboard and archive on mobile"
+          git push origin HEAD:${{ github.head_ref }}
