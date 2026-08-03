@@ -4257,9 +4257,6 @@ body,.main{background:var(--vx-bg);}
 .task-section-header.sgh--blue .tsh-count{background:#EFF6FF;color:#1A6FE8;border:1px solid rgba(29,78,216,0.18);}
 .task-section-header.sgh--gray .tsh-label{color:#64748B;}
 .task-section-header.sgh--gray .tsh-count{background:var(--surface2);color:#64748B;border:0.5px solid var(--line);}
-@media(max-width:900px){}
-@media(max-width:768px){}
-@media(max-width:480px){}
 
 /* ═══════════════════════════════════════════
    VERLAUF-TAB POLISH
@@ -5979,17 +5976,17 @@ body,.main{background:var(--vx-bg);}
 }
 .vx-acc-group-label:first-of-type { padding-top:4px; }
 #tab-assistent .vx-acc-header .vx-acc-status{color:rgba(255,255,255,.45)!important;}
-@media(max-width:600px){
-}
-@media(max-width:400px){
-}
 
 /* ══════════════════════════════════════════════
    VOXERA TYPOGRAPHY SYSTEM
    L1  Page header title:  17px 700  (vx-page-header-title)
    L2  Card/section head:  13px 700  (.vx-card-head, night card spans)
    L3  Label uppercase:    10px 700  uppercase .vx-label
-   L4  List item title:    14px 600  (dpr-name{font-size:13px!important;font-weight:700!important;}
+   L4  List item title:    14px 600  (dpr-name, acc-header span)
+   L5  Body text:          13px 400
+   L6  Meta / sub:         12px 400
+   L7  Micro:              11px 400
+══════════════════════════════════════════════ */
 
 /* Accordion header text */
 .vx-acc-header{font-size:13px;font-weight:600;}
@@ -6455,10 +6452,6 @@ body,.main{background:var(--vx-bg);}
   .vx-transcript-list{max-height:300px;padding:8px;gap:7px;}
   .vx-transcript-turn{grid-template-columns:1fr;gap:6px;padding:9px;border-radius:11px;}
   .vx-transcript-meta{display:none;}
-}
-@media(max-width:768px){
-}
-@media(max-width:360px){
 }
 /* === END VOXERA PATCH: Bericht Filter Header Consistency === */
 </style>
@@ -31046,9 +31039,10 @@ function toggleCallRow(event, row) {
 
 /* — 1. Token-Refinement: ink3 heller für bessere Lesbarkeit von Sub-Texten —
        Wirkt automatisch auf alle Stellen die var(--ink3) nutzen
-       (call-meta, settings-card-lead, kpi-label, dash-side-meta, eye-catching) */
+       (call-meta, settings-card-lead, kpi-label, dash-side-meta, etc.) — */
 
-/* — 3. Modale (.modal Z.1101, .detail-modal Z.1399 — beide nutzen var(--white)) — */
+
+/* — 3. Modale/* — 3. Modale (.modal Z.1101, .detail-modal Z.1399 — beide nutzen var(--white)) — */
 
 
 
