@@ -81,6 +81,12 @@ jobs:
               raise SystemExit('protected window bounds mismatch')
           text = text.replace(old_bounds, new_bounds, 1)
 
+          old_forbidden = "  'dpr-command-center',\n  'class=\"dpr-card',"
+          new_forbidden = "  'class=\"dpr-command-center',\n  'class=\"dpr-card',"
+          if text.count(old_forbidden) != 1:
+              raise SystemExit('legacy renderer assertion mismatch')
+          text = text.replace(old_forbidden, new_forbidden, 1)
+
           path.write_text(text, encoding='utf-8')
           PY
       - name: Apply guarded requests migration
