@@ -1,38 +1,81 @@
-name: Temporary Inspect Requests Polish
+name: Temporary Migrate Requests Premium
 
 on:
   pull_request:
     paths:
       - .github/workflows/tmp-inspect-requests-polish.yml
+      - scripts/tmp_migrate_requests_premium.py
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  migrate:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/customer-requests-premium-polish
-      - name: Inspect legacy request overrides
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply guarded requests migration
+        run: python scripts/tmp_migrate_requests_premium.py
+      - name: Verify existing customer contracts
+        run: |
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/audit-customer-design-ownership.mjs
+          node scripts/audit-customer-runtime-reachability.mjs
+          node scripts/verify-customer-actions.mjs
+          node scripts/verify-p0-security-foundation.mjs
+          node scripts/verify-calendar-integrations.mjs
+      - name: Verify premium requests scope
         run: |
           python - <<'PY'
           from pathlib import Path
-          lines=Path('customer-dashboard/index.html').read_text(encoding='utf-8').splitlines()
-          print('## LEGACY DESIGN PASS')
-          for lo,hi in [(33125,33245)]:
-            hi=min(hi,len(lines))
-            for n in range(lo,hi+1): print(f'{n}: {lines[n-1]}')
-          terms=['#anrufe-list', '#tab-anrufe', '.vxfb-chip--active', '.vx-requests-item', '.vx-requests-panel']
-          lowered=[line.lower() for line in lines]
-          for term in terms:
-            hits=[i for i,line in enumerate(lowered) if term.lower() in line][:20]
-            print(f'\n## {term} hits={len(hits)}')
-            for i in hits:
-              lo=max(0,i-3); hi=min(len(lines),i+9)
-              print(f'-- {lo+1}-{hi} --')
-              for n in range(lo,hi): print(f'{n+1}: {lines[n]}')
+          index=Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          css=Path('customer-dashboard/shared/customer-assistant-components.css').read_text(encoding='utf-8')
+          required_index=[
+            'id="anrufe-split" class="vx-requests-layout"',
+            'id="anrufe-split-left" class="vx-ops-card vx-requests-panel"',
+            'id="anrufe-split-right" class="vx-ops-card vx-requests-detail-panel"',
+            "el.classList.add('vx-ops-list', 'vx-requests-list')",
+            "el.classList.toggle('sp-active'"
+          ]
+          missing=[token for token in required_index if token not in index]
+          if missing: raise SystemExit('missing requests behavior tokens: ' + ', '.join(missing))
+          forbidden_index=[
+            'PR-FIX 2026-05-23 — Anfragen Inbox nach Mockup',
+            '#anrufe-split-left{',
+            '#anrufe-list .sp-active,',
+            '#anrufe-list{\n  background:var(--surface)!important;'
+          ]
+          present=[token for token in forbidden_index if token in index]
+          if present: raise SystemExit('legacy requests owners remain: ' + ', '.join(present))
+          required_css=[
+            'body.vx-customer-design-foundation #tab-anrufe{background:var(--vx-canvas);}',
+            'background:#e9eef5;',
+            'background:#e4efff;color:var(--vx-brand-dark);',
+            'background:#e3edff;',
+            'border-radius:14px;',
+            'box-shadow:0 8px 20px rgba(52,120,237,.11);'
+          ]
+          missing=[token for token in required_css if token not in css]
+          if missing: raise SystemExit('missing requests premium styles: ' + ', '.join(missing))
+          if '!important' in css: raise SystemExit('assistant owner must not contain important overrides')
+          if len(css.splitlines()) > 800: raise SystemExit('assistant owner size budget exceeded')
           PY
+          git diff --check
+      - name: Commit product migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-dashboard/index.html customer-dashboard/shared/customer-assistant-components.css
+          if git diff --cached --quiet; then
+            echo "No product changes to commit"
+          else
+            git commit -m "polish: align customer requests with assistant canvas"
+            git push origin HEAD:codex/customer-requests-premium-polish
+          fi
