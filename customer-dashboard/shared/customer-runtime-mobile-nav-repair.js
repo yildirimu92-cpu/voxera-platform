@@ -143,12 +143,18 @@
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
-(function loadSubscriptionStabilityRuntime(root) {
+(function loadCustomerSupplementalRuntimes(root) {
   'use strict';
-  if (!root || !root.document || root.__vxSubscriptionStabilityLoaderInstalled) return;
-  root.__vxSubscriptionStabilityLoaderInstalled = true;
-  const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-subscription-stability.js?v=20260804-2';
-  script.async = false;
-  root.document.head.appendChild(script);
+  if (!root || !root.document || root.__vxCustomerSupplementalRuntimeLoaderInstalled) return;
+  root.__vxCustomerSupplementalRuntimeLoaderInstalled = true;
+
+  [
+    '/shared/customer-runtime-subscription-stability.js?v=20260804-2',
+    '/shared/customer-runtime-settings-polish.js?v=20260804-1'
+  ].forEach(function(src) {
+    const script = root.document.createElement('script');
+    script.src = src;
+    script.async = false;
+    root.document.head.appendChild(script);
+  });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
