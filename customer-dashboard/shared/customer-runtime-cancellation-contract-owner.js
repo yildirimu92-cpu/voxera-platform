@@ -47,8 +47,10 @@
     return '';
   }
 
-  function isCancellationDialog(overlay) {
-    return !!overlay && /kündigung bestätigen/i.test(String(overlay.textContent || ''));
+  function isFinalCancellationDialog(overlay) {
+    if (!overlay) return false;
+    const text = String(overlay.textContent || '').replace(/\s+/g, ' ');
+    return /Kündigung bestätigen/i.test(text) && /Vertragsende\s*:/i.test(text);
   }
 
   function replaceContractEndRow(overlay, date) {
@@ -66,19 +68,27 @@
     return false;
   }
 
-  function ensureSingleNotice(overlay, date) {
-    const body = overlay.querySelector('.vx-modal-body,.modal-body,[data-confirm-body]')
-      || Array.from(overlay.children).find(function(child) { return child.querySelector && child.querySelector('button'); })
-      || overlay;
+  function findExactLegacyWarning(overlay) {
+    return Array.from(overlay.querySelectorAll('div,p,span')).find(function(element) {
+      if (element.children.length > 0) return false;
+      const text = String(element.textContent || '').replace(/\s+/g, ' ').trim();
+      return /^Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert\.?$/i.test(text)
+        || /^Ihr Vertrag bleibt bis zum \d{1,2}\.\d{1,2}\.\d{4} aktiv und endet anschliessend automatisch\.?$/i.test(text);
+    }) || null;
+  }
 
-    Array.from(overlay.querySelectorAll('[data-vx-contract-cancellation-note="1"], .vx-cancellation-term-note')).forEach(function(node) {
+  function ensureSingleNotice(overlay, date) {
+    if (!isFinalCancellationDialog(overlay)) return;
+
+    Array.from(overlay.querySelectorAll('[data-vx-contract-cancellation-note="1"]')).forEach(function(node) {
       node.remove();
     });
 
-    const oldWarning = Array.from(overlay.querySelectorAll('div,p,span')).find(function(element) {
-      return /Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert|Ihr Vertrag bleibt bis zum .* aktiv und endet anschliessend automatisch/i.test(String(element.textContent || ''));
-    });
-    if (oldWarning) oldWarning.remove();
+    const oldWarning = findExactLegacyWarning(overlay);
+    const host = oldWarning && oldWarning.parentElement
+      ? oldWarning.parentElement
+      : overlay.querySelector('.vx-modal-body,.modal-body,[data-confirm-body]');
+    if (!host) return;
 
     const note = root.document.createElement('div');
     note.dataset.vxContractCancellationNote = '1';
@@ -100,14 +110,18 @@
       fontSize: '14px',
       lineHeight: '1.5'
     });
-    const footer = body.querySelector('.vx-modal-footer,.modal-footer');
-    if (footer && footer.parentElement === body) body.insertBefore(note, footer);
-    else body.appendChild(note);
+
+    if (oldWarning && oldWarning.parentElement) oldWarning.replaceWith(note);
+    else {
+      const footer = host.querySelector('.vx-modal-footer,.modal-footer');
+      if (footer && footer.parentElement === host) host.insertBefore(note, footer);
+      else host.appendChild(note);
+    }
   }
 
   function repairDialog() {
     const overlay = root.document.getElementById('confirm-overlay');
-    if (!isCancellationDialog(overlay)) return;
+    if (!isFinalCancellationDialog(overlay)) return;
     const date = contractEndDate();
     if (!date) return;
     replaceContractEndRow(overlay, date);
