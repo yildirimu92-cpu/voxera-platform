@@ -1,3 +1,5 @@
+/* Customer settings component owner.
+   Uses only primitives defined in customer-design-system.css. */
 body.vx-customer-design-foundation #vx-calendar-settings-entry[hidden],
 body.vx-customer-design-foundation #mehr-sub-kalender[hidden],
 body.vx-customer-design-foundation .vx-abo-warning[hidden] {
@@ -5,21 +7,21 @@ body.vx-customer-design-foundation .vx-abo-warning[hidden] {
 }
 
 body.vx-customer-design-foundation .vx-settings-main {
-  margin-bottom: 10px;
+  margin-bottom: var(--vx-space-3);
 }
 
 body.vx-customer-design-foundation .vx-settings-list {
   overflow: hidden;
   border: 1px solid var(--vx-line);
-  border-radius: var(--vx-radius-card);
+  border-radius: var(--vx-radius-panel);
   background: var(--vx-surface);
-  box-shadow: var(--vx-shadow-card);
+  box-shadow: var(--vx-shadow-panel);
 }
 
 body.vx-customer-design-foundation .vx-settings-entry {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--vx-space-4);
   box-sizing: border-box;
   width: 100%;
   min-height: 74px;
@@ -39,11 +41,11 @@ body.vx-customer-design-foundation .vx-settings-entry:last-child {
 }
 
 body.vx-customer-design-foundation .vx-settings-entry:hover {
-  background: #f8fafc;
+  background: var(--vx-surface-soft);
 }
 
 body.vx-customer-design-foundation .vx-settings-entry:active {
-  background: #f1f5f9;
+  background: var(--vx-surface-soft);
 }
 
 body.vx-customer-design-foundation .vx-settings-entry-icon {
@@ -54,7 +56,7 @@ body.vx-customer-design-foundation .vx-settings-entry-icon {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: #eef4ff;
+  background: color-mix(in srgb, var(--vx-brand) 9%, white);
   color: var(--vx-brand);
   font-size: 19px;
 }
@@ -89,7 +91,7 @@ body.vx-customer-design-foundation .vx-settings-subpage-header,
 body.vx-customer-design-foundation .vx-cal-page-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--vx-space-3);
 }
 
 body.vx-customer-design-foundation .vx-settings-header-copy,
@@ -129,7 +131,7 @@ body.vx-customer-design-foundation #vx-calendar-page-body {
 body.vx-customer-design-foundation .vx-cal-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--vx-space-4);
 }
 
 body.vx-customer-design-foundation .vx-cal-grid.single {
@@ -138,22 +140,22 @@ body.vx-customer-design-foundation .vx-cal-grid.single {
 
 body.vx-customer-design-foundation .vx-cal-card {
   min-width: 0;
-  padding: 20px;
+  padding: var(--vx-space-5);
   border: 1px solid var(--vx-line);
-  border-radius: var(--vx-radius-card);
+  border-radius: var(--vx-radius-panel);
   background: var(--vx-surface);
-  box-shadow: var(--vx-shadow-card);
+  box-shadow: var(--vx-shadow-panel);
 }
 
 body.vx-customer-design-foundation .vx-cal-rules-card {
-  margin-top: 14px;
+  margin-top: var(--vx-space-4);
 }
 
 body.vx-customer-design-foundation .vx-cal-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--vx-space-3);
 }
 
 body.vx-customer-design-foundation .vx-cal-provider {
@@ -177,7 +179,7 @@ body.vx-customer-design-foundation .vx-cal-pill {
   align-items: center;
   padding: 5px 9px;
   border-radius: 999px;
-  background: #f1f5f9;
+  background: var(--vx-surface-soft);
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
@@ -185,15 +187,15 @@ body.vx-customer-design-foundation .vx-cal-pill {
 }
 
 body.vx-customer-design-foundation .vx-cal-pill.ok {
-  background: #ecfdf5;
-  color: #047857;
+  background: color-mix(in srgb, var(--vx-success) 9%, white);
+  color: var(--vx-success);
 }
 
 body.vx-customer-design-foundation .vx-cal-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+  gap: var(--vx-space-2);
+  margin-top: var(--vx-space-4);
 }
 
 body.vx-customer-design-foundation .vx-cal-btn,
@@ -206,31 +208,31 @@ body.vx-customer-design-foundation .vx-abo-btn {
 
 body.vx-customer-design-foundation .vx-cal-btn.secondary,
 body.vx-customer-design-foundation .vx-abo-btn.secondary {
-  background: #eef4ff;
-  color: #1a6fe8;
+  background: color-mix(in srgb, var(--vx-brand) 9%, white);
+  color: var(--vx-brand);
 }
 
 body.vx-customer-design-foundation .vx-cal-btn.danger,
 body.vx-customer-design-foundation .vx-abo-btn.danger {
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  border: 1px solid color-mix(in srgb, var(--vx-danger) 28%, white);
+  background: color-mix(in srgb, var(--vx-danger) 8%, white);
+  color: var(--vx-danger);
 }
 
 body.vx-customer-design-foundation .vx-cal-banner {
-  margin-bottom: 14px;
+  margin-bottom: var(--vx-space-4);
   padding: 13px 14px;
   border-radius: 12px;
-  background: #fff7ed;
-  color: #9a3412;
+  background: color-mix(in srgb, var(--vx-warning) 9%, white);
+  color: var(--vx-warning);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
 }
 
 body.vx-customer-design-foundation .vx-cal-banner.ok {
-  background: #ecfdf5;
-  color: #047857;
+  background: color-mix(in srgb, var(--vx-success) 9%, white);
+  color: var(--vx-success);
 }
 
 body.vx-customer-design-foundation .vx-cal-status {
@@ -250,13 +252,13 @@ body.vx-customer-design-foundation .vx-cal-status.error {
 }
 
 body.vx-customer-design-foundation .vx-cal-status.loading {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: color-mix(in srgb, var(--vx-brand) 8%, white);
+  color: var(--vx-brand);
 }
 
 body.vx-customer-design-foundation .vx-cal-status.success {
-  background: #ecfdf5;
-  color: #047857;
+  background: color-mix(in srgb, var(--vx-success) 9%, white);
+  color: var(--vx-success);
 }
 
 body.vx-customer-design-foundation .vx-cal-status.error {
@@ -267,21 +269,21 @@ body.vx-customer-design-foundation .vx-cal-status.error {
 body.vx-customer-design-foundation .vx-cal-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--vx-space-4);
 }
 
 body.vx-customer-design-foundation .vx-cal-form--spaced {
-  margin-top: 16px;
+  margin-top: var(--vx-space-4);
 }
 
 body.vx-customer-design-foundation .vx-cal-field {
   display: grid;
   min-width: 0;
-  gap: 7px;
+  gap: var(--vx-space-2);
 }
 
 body.vx-customer-design-foundation .vx-cal-field--spaced {
-  margin-top: 16px;
+  margin-top: var(--vx-space-4);
 }
 
 body.vx-customer-design-foundation .vx-cal-field :where(input, select) {
@@ -317,8 +319,8 @@ body.vx-customer-design-foundation .vx-settings-subpage {
 }
 
 body.vx-customer-design-foundation .vx-abo-hero {
-  margin-bottom: 14px;
-  padding: 20px;
+  margin-bottom: var(--vx-space-4);
+  padding: var(--vx-space-5);
   border-radius: var(--vx-radius-card);
   background: var(--vx-brand-dark);
   color: #ffffff;
@@ -339,7 +341,7 @@ body.vx-customer-design-foundation .vx-abo-plan-row {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--vx-space-2);
 }
 
 body.vx-customer-design-foundation .vx-abo-plan-name {
@@ -358,23 +360,23 @@ body.vx-customer-design-foundation .vx-abo-plan-price {
 
 body.vx-customer-design-foundation .vx-settings-card {
   min-width: 0;
-  margin-bottom: 14px;
+  margin-bottom: var(--vx-space-4);
   overflow: hidden;
   border: 1px solid var(--vx-line);
-  border-radius: var(--vx-radius-card);
+  border-radius: var(--vx-radius-panel);
   background: var(--vx-surface);
-  box-shadow: var(--vx-shadow-card);
+  box-shadow: var(--vx-shadow-panel);
 }
 
 body.vx-customer-design-foundation .vx-settings-card-head {
-  padding: 18px 20px 0;
+  padding: 18px var(--vx-space-5) 0;
 }
 
 body.vx-customer-design-foundation .vx-settings-card-head--split {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: var(--vx-space-4);
 }
 
 body.vx-customer-design-foundation .vx-settings-card-title {
@@ -394,14 +396,14 @@ body.vx-customer-design-foundation .vx-settings-card-meta {
 }
 
 body.vx-customer-design-foundation .vx-settings-card-body {
-  padding: 16px 20px 20px;
+  padding: var(--vx-space-4) var(--vx-space-5) var(--vx-space-5);
 }
 
 body.vx-customer-design-foundation .vx-abo-minutes-text {
   flex: 0 0 auto;
   padding: 5px 9px;
   border-radius: 999px;
-  background: #f1f5f9;
+  background: var(--vx-surface-soft);
   color: #475569;
   font-size: 12px;
   font-weight: 700;
@@ -432,7 +434,7 @@ body.vx-customer-design-foundation .vx-abo-progress::-webkit-progress-value {
 }
 
 body.vx-customer-design-foundation .vx-abo-progress.warning::-webkit-progress-value {
-  background: #d97706;
+  background: var(--vx-warning);
 }
 
 body.vx-customer-design-foundation .vx-abo-progress::-moz-progress-bar {
@@ -441,12 +443,12 @@ body.vx-customer-design-foundation .vx-abo-progress::-moz-progress-bar {
 }
 
 body.vx-customer-design-foundation .vx-abo-progress.warning::-moz-progress-bar {
-  background: #d97706;
+  background: var(--vx-warning);
 }
 
 body.vx-customer-design-foundation .vx-abo-warning {
   margin-top: 9px;
-  color: #b45309;
+  color: var(--vx-warning);
   font-size: 13px;
   font-weight: 650;
   line-height: 1.45;
@@ -487,7 +489,7 @@ body.vx-customer-design-foundation .vx-abo-status {
   padding: 4px 9px;
   border: 1px solid #e2e8f0;
   border-radius: 999px;
-  background: #f1f5f9;
+  background: var(--vx-surface-soft);
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
@@ -496,8 +498,8 @@ body.vx-customer-design-foundation .vx-abo-status {
 
 body.vx-customer-design-foundation .vx-abo-status.is-active {
   border-color: #bbf7d0;
-  background: #ecfdf5;
-  color: #047857;
+  background: color-mix(in srgb, var(--vx-success) 9%, white);
+  color: var(--vx-success);
 }
 
 body.vx-customer-design-foundation .vx-abo-status.is-cancelled {
@@ -521,7 +523,7 @@ body.vx-customer-design-foundation .vx-abo-contract-warning {
 body.vx-customer-design-foundation .vx-abo-addon-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--vx-space-3);
 }
 
 body.vx-customer-design-foundation .vx-abo-addon {
@@ -589,7 +591,7 @@ body.vx-customer-design-foundation .vx-abo-primary-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: var(--vx-space-4);
 }
 
 body.vx-customer-design-foundation .vx-abo-primary-actions .vx-abo-btn {
@@ -609,7 +611,7 @@ body.vx-customer-design-foundation .vx-abo-empty {
 }
 
 body.vx-customer-design-foundation .vx-abo-cancellation-note {
-  margin-bottom: 10px;
+  margin-bottom: var(--vx-space-3);
 }
 
 body.vx-customer-design-foundation .vx-abo-cancellation-card {
