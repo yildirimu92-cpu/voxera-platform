@@ -5066,33 +5066,6 @@ body,.main{background:var(--vx-bg);}
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
 
-  /* ── KPI Strip: 2×2 Grid statt 4 Spalten ─────────────────── */
-  #dash-kpi-strip {
-    grid-template-columns: 1fr 1fr !important;
-  }
-  #dash-kpi-strip > div {
-    border-right: none !important;
-    border-bottom: 1px solid rgba(255,255,255,.08) !important;
-  }
-  #dash-kpi-strip > div:nth-child(odd) {
-    border-right: 1px solid rgba(255,255,255,.08) !important;
-  }
-  #dash-kpi-strip > div:nth-child(3),
-  #dash-kpi-strip > div:nth-child(4) {
-    border-bottom: none !important;
-  }
-  #dash-kpi-strip > div {
-    padding: 12px 14px !important;
-  }
-  #kpi-callbacks-new,
-  #kpi-today-new,
-  #kpi-done-new,
-  #kpi-reach-val {
-    font-size: 24px !important;
-    line-height: 1 !important;
-    margin-top: 0 !important;
-  }
-
   /* ── Call-Row Header (cr-head): kompakter auf Mobile ─────── */
   .cr-head {
     padding: 9px 12px;
@@ -6701,24 +6674,24 @@ body,.main{background:var(--vx-bg);}
               <div class="vx-ap-card" id="kpi-cell-callbacks">
                 <div id="kpi-callbacks-label" class="vx-ap-meta">Anrufe heute</div>
                 <div id="kpi-callbacks-new" class="vx-ap-title">–</div>
-                <div id="kpi-callbacks-note" class="vx-ap-meta">Eingänge seit Tagesbeginn</div>
+                <div id="kpi-callbacks-note" class="vx-ap-meta" hidden></div>
               </div>
               <div class="vx-ap-card" id="kpi-cell-today">
                 <div id="kpi-today-label" class="vx-ap-meta">Offene Anfragen</div>
                 <div id="kpi-today-new" class="vx-ap-title">–</div>
-                <div id="kpi-today-note" class="vx-ap-meta">Nicht bearbeitet</div>
+                <div id="kpi-today-note" class="vx-ap-meta" hidden></div>
               </div>
               <div class="vx-ap-card" id="kpi-cell-due">
                 <div id="kpi-due-bar-new" hidden></div>
                 <div id="kpi-done-label" class="vx-ap-meta">Wichtig jetzt</div>
                 <div id="kpi-done-new" class="vx-ap-title">–</div>
-                <div id="kpi-done-note" class="vx-ap-meta">Priorisiert oder überfällig</div>
+                <div id="kpi-done-note" class="vx-ap-meta" hidden></div>
               </div>
               <div class="vx-ap-card" id="kpi-cell-completed">
                 <div id="kpi-reach-bar-new" hidden></div>
                 <div id="kpi-completed-label" class="vx-ap-meta">Erledigt heute</div>
                 <div id="kpi-reach-val" class="vx-ap-title">–</div>
-                <div id="kpi-reach-label" class="vx-ap-meta">Heute abgeschlossen</div>
+                <div id="kpi-reach-label" class="vx-ap-meta" hidden></div>
               </div>
             </div>
 
@@ -20538,12 +20511,19 @@ function vxGetHeuteKpiCounts(records, manualTasks) {
 }
 function vxSetHeuteKpiCell(cell, interactive, handlerName) {
   if (!cell) return;
-  cell.classList.toggle('is-interactive', !!interactive);
-  cell.classList.toggle('is-static', !interactive);
-  cell.style.cursor = interactive ? 'pointer' : 'default';
-  cell.onclick = interactive && handlerName ? function(ev) {
+  var canOpen = !!interactive && !!handlerName;
+  var activate = canOpen ? function(ev) {
     if (ev) { ev.preventDefault(); ev.stopPropagation(); }
     if (typeof window[handlerName] === 'function') window[handlerName]();
+  } : null;
+  cell.classList.toggle('is-interactive', canOpen);
+  cell.classList.toggle('is-static', !canOpen);
+  cell.setAttribute('role', canOpen ? 'button' : 'group');
+  cell.setAttribute('aria-disabled', canOpen ? 'false' : 'true');
+  cell.tabIndex = canOpen ? 0 : -1;
+  cell.onclick = activate;
+  cell.onkeydown = canOpen ? function(ev) {
+    if (ev && (ev.key === 'Enter' || ev.key === ' ')) activate(ev);
   } : null;
 }
 function vxGoToAnfragenFilter(filter, subfilter) {
@@ -20955,24 +20935,24 @@ function renderDashboard(records, manualTasks) {
   var kpiCellCompleted = document.getElementById('kpi-cell-completed');
 
   if (kpiCallbacksLabel) kpiCallbacksLabel.textContent = 'Anrufe heute';
-  if (kpiCallbacksNote) kpiCallbacksNote.textContent = 'Eingänge seit Tagesbeginn';
+  if (kpiCallbacksNote) { kpiCallbacksNote.textContent = ''; kpiCallbacksNote.hidden = true; }
   if (kpiCb) kpiCb.textContent = String(heuteTodayCallRecords.length || 0);
   if (typeof vxSetHeuteKpiCell === 'function') vxSetHeuteKpiCell(kpiCellCallbacks, true, 'vxHeuteKpiOpenTodayCalls');
 
   if (kpiTodayLabel) kpiTodayLabel.textContent = 'Offene Anfragen';
-  if (kpiTodayNote) kpiTodayNote.textContent = 'Nicht bearbeitet';
+  if (kpiTodayNote) { kpiTodayNote.textContent = ''; kpiTodayNote.hidden = true; }
   if (kpiTd) kpiTd.textContent = String(heuteKpis.callbacksOpen || 0);
   if (typeof vxSetHeuteKpiCell === 'function') vxSetHeuteKpiCell(kpiCellToday, true, 'vxHeuteKpiOpenPlanned');
 
   if (kpiDoneLabel) kpiDoneLabel.textContent = 'Wichtig jetzt';
-  if (kpiDoneNote) kpiDoneNote.textContent = 'Priorisiert oder überfällig';
+  if (kpiDoneNote) { kpiDoneNote.textContent = ''; kpiDoneNote.hidden = true; }
   if (kpiDn) kpiDn.textContent = String(heuteKpis.importantNow || 0);
   if (typeof vxSetHeuteKpiCell === 'function') vxSetHeuteKpiCell(kpiCellDue, true, 'vxHeuteKpiScrollImportant');
 
   var kpiCompletedLabel = document.getElementById('kpi-completed-label');
   if (kpiCompletedLabel) kpiCompletedLabel.textContent = 'Erledigt heute';
   if (kpiReachVal) kpiReachVal.textContent = String(heuteDoneRecords.length || 0);
-  if (kpiReachLabel) kpiReachLabel.textContent = 'Heute abgeschlossen';
+  if (kpiReachLabel) { kpiReachLabel.textContent = ''; kpiReachLabel.hidden = true; }
   if (typeof vxSetHeuteKpiCell === 'function') vxSetHeuteKpiCell(kpiCellCompleted, heuteDoneRecords.length > 0, 'vxHeuteKpiOpenDone');
 
   var heuteActivityRecords = [].concat(heuteTodayCallRecords || [], heuteDoneRecords || []);
