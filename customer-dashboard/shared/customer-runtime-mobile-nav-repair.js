@@ -11,6 +11,19 @@
     'mnav-mehr'
   ];
 
+  const GLOBAL_LAYER_IDS = [
+    'vx-commercial-overlay',
+    'vx-upgrade-overlay',
+    'vx-minutes-overlay',
+    'upgrade-overlay',
+    'minutes-overlay',
+    'confirm-overlay',
+    'notification-panel',
+    'notifications-panel',
+    'notification-popover',
+    'notifications-popover'
+  ];
+
   function ensureVisibleStyles(container) {
     if (!container) return;
     container.dataset.vxMobileNavigation = '1';
@@ -88,26 +101,39 @@
     }
   }
 
-  function repair() {
-    const nodes = MOBILE_NAV_IDS.map((id) => root.document.getElementById(id)).filter(Boolean);
-    const container = nodes[0]?.parentElement;
-    if (!container || !nodes.every((node) => node.parentElement === container)) return false;
+  function moveOutsideSettings(node, settingsTab, globalHost) {
+    if (!node || !settingsTab || !globalHost || !settingsTab.contains(node)) return false;
+    globalHost.insertBefore(node, settingsTab.nextSibling);
+    node.dataset.vxContainmentRepaired = '1';
+    return true;
+  }
 
+  function repairKnownGlobalLayers(settingsTab, globalHost) {
+    GLOBAL_LAYER_IDS.forEach(function (id) {
+      moveOutsideSettings(root.document.getElementById(id), settingsTab, globalHost);
+    });
+  }
+
+  function repair() {
     const settingsTab = root.document.getElementById('tab-einstellungen') || root.document.getElementById('tab-mehr');
-    if (settingsTab && settingsTab.contains(container)) {
-      const globalHost = settingsTab.parentElement;
-      if (!globalHost) return false;
-      globalHost.insertBefore(container, settingsTab.nextSibling);
-      container.dataset.vxNavigationContainmentRepaired = '1';
+    const globalHost = settingsTab && settingsTab.parentElement;
+    if (!settingsTab || !globalHost) return false;
+
+    const nodes = MOBILE_NAV_IDS.map((id) => root.document.getElementById(id)).filter(Boolean);
+    const container = nodes[0] && nodes[0].parentElement;
+    if (container && nodes.length === MOBILE_NAV_IDS.length && nodes.every((node) => node.parentElement === container)) {
+      if (moveOutsideSettings(container, settingsTab, globalHost)) {
+        container.dataset.vxNavigationContainmentRepaired = '1';
+      }
+      ensureVisibleStyles(container);
     }
 
-    ensureVisibleStyles(container);
+    repairKnownGlobalLayers(settingsTab, globalHost);
     return true;
   }
 
   function boot() {
-    if (repair()) return;
-    root.setTimeout(boot, 100);
+    if (!repair()) root.setTimeout(boot, 100);
   }
 
   if (root.document.readyState === 'loading') {
