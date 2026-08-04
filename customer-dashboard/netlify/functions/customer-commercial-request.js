@@ -55,7 +55,10 @@ exports.handler = async function handler(event) {
 
   const type = clean(body.type, 40).toLowerCase();
   const requestId = clean(body.request_id, 100) || crypto.randomUUID();
-  const currentPlan = clean(body.current_plan, 60).toLowerCase() || 'unbekannt';
+  const activeContract = (guard.contractState && guard.contractState.activeContract)
+    || (guard.contractState && guard.contractState.effectiveContract)
+    || null;
+  const currentPlan = clean(activeContract && activeContract.plan, 60).toLowerCase() || 'unbekannt';
   let title = '';
   let note = '';
 
@@ -82,18 +85,14 @@ exports.handler = async function handler(event) {
     if (!ALLOWED_MINUTES.has(minutes)) {
       return response(400, { error: 'Ungültiges Minutenpaket', code: 'invalid_minutes_package' });
     }
-    const estimate = Number(body.estimated_amount);
-    const estimateLine = Number.isFinite(estimate) && estimate >= 0
-      ? `Voraussichtlicher Betrag: CHF ${estimate.toFixed(2)}`
-      : 'Betrag: gemäss gültiger Vertragskondition prüfen';
 
     title = `${minutes} Zusatzminuten anfragen`;
     note = [
       'Kundenanfrage aus dem Customer Portal',
       `Plan: ${currentPlan}`,
       `Gewünschtes Paket: ${minutes} Minuten`,
-      estimateLine,
-      'Der Kunde hat die Zusammenfassung im Portal bestätigt. Gutschrift und Verrechnung intern prüfen und bestätigen.'
+      'Betrag: gemäss gültiger Vertragskondition serverseitig bzw. intern prüfen',
+      'Der Kunde hat die Zusammenfassung im Portal bestätigt. Verrechnung intern prüfen und bestätigen.'
     ].join('\n');
   } else {
     return response(400, { error: 'Ungültiger Anfragetyp', code: 'invalid_request_type' });
