@@ -14,6 +14,66 @@ function response(statusCode, payload) {
   return { statusCode, headers, body: JSON.stringify(payload) };
 }
 
+function validDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addMonths(date, months) {
+  const result = new Date(date.getTime());
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
+}
+
+function resolveTermMonths(contract) {
+  const candidates = [
+    contract.duration_months,
+    contract.contract_duration_months,
+    contract.initial_term_months,
+    contract.term_months,
+    contract.duration
+  ];
+  for (const candidate of candidates) {
+    const numeric = Number(candidate);
+    if (Number.isFinite(numeric) && numeric > 0 && numeric <= 120) return Math.round(numeric);
+    const match = String(candidate || '').match(/(\d+)/);
+    if (match) {
+      const parsed = Number(match[1]);
+      if (parsed > 0 && parsed <= 120) return parsed;
+    }
+  }
+  return 12;
+}
+
+function resolveNoticeDays(contract) {
+  const raw = String(contract.cancellation_notice || contract.notice_period || '').toLowerCase();
+  const match = raw.match(/(\d+)/);
+  const value = match ? Number(match[1]) : 30;
+  if (/monat/.test(raw)) return Math.max(0, value * 30);
+  return Math.max(0, value);
+}
+
+function resolveCancellationDate(contract, now = new Date()) {
+  const termMonths = resolveTermMonths(contract);
+  const noticeDays = resolveNoticeDays(contract);
+  const noticeDeadline = new Date(now.getTime() + noticeDays * 24 * 60 * 60 * 1000);
+  const startDate = validDate(contract.start_date || contract.contract_start_date || contract.accepted_at || contract.created_at);
+  let termEnd = validDate(contract.end_date || contract.contract_end_date || contract.next_renewal_date || contract.renewal_date);
+
+  if (!termEnd && startDate) termEnd = addMonths(startDate, termMonths);
+  if (!termEnd) throw new Error('contract_end_date_missing');
+
+  while (termEnd.getTime() < noticeDeadline.getTime()) {
+    termEnd = addMonths(termEnd, termMonths);
+  }
+  return termEnd;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -71,9 +131,22 @@ exports.handler = async (event) => {
       return response(409, { error: 'Für diesen Vertrag wurde bereits eine Kündigung eingereicht.', code: 'cancellation_already_pending' });
     }
 
-    const noticeMatch = String(activeContract.cancellation_notice || '').match(/(\d+)/);
-    const noticeDays = noticeMatch ? Math.max(0, Number(noticeMatch[1])) : 30;
-    const cancellationDate = new Date(Date.now() + (noticeDays || 30) * 24 * 60 * 60 * 1000);
+    let cancellationDate;
+    try {
+      cancellationDate = resolveCancellationDate(activeContract);
+    } catch (error) {
+      console.error('[customer-cancel-contract] cancellation date unresolved', {
+        contractId: activeContract.id,
+        startDate: activeContract.start_date || null,
+        endDate: activeContract.end_date || null,
+        duration: activeContract.duration_months || activeContract.contract_duration || null
+      });
+      return response(409, {
+        error: 'Der nächstmögliche Kündigungstermin konnte nicht sicher bestimmt werden. Bitte kontaktieren Sie Voxera.',
+        code: 'cancellation_date_unresolved'
+      });
+    }
+
     updatePayload.cancellation_date = cancellationDate.toISOString();
     updatePayload.termination_reason = reason;
     updatePayload.termination_type = 'customer_request';
@@ -113,8 +186,9 @@ exports.handler = async (event) => {
     success: true,
     action,
     contract: updatedContract,
+    cancellation_date: updatedContract.cancellation_date || null,
     message: action === 'reactivate'
       ? 'Die Kündigung wurde zurückgezogen. Ihr Vertrag läuft weiter.'
-      : 'Die Kündigung wurde eingereicht.'
+      : 'Die Kündigung wurde zum nächstmöglichen vertraglichen Termin eingereicht.'
   });
 };
