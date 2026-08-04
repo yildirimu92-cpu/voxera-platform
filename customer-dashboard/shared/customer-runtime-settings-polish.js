@@ -39,6 +39,34 @@
       #tab-hilfe .vx-help-faq { margin:0;padding:20px 22px 22px; }
       #tab-hilfe .vx-help-faq details { padding:16px 0;border-bottom:1px solid #e5ebf2; }
       #tab-hilfe .vx-help-faq details:last-child { border-bottom:0; }
+
+      .vx-commercial-choice .vx-commercial-radio {
+        display:block !important;
+        flex:0 0 22px !important;
+        width:22px !important;
+        min-width:22px !important;
+        height:22px !important;
+        min-height:22px !important;
+        aspect-ratio:1 / 1 !important;
+        box-sizing:border-box !important;
+        border:3px solid #cbd5e1 !important;
+        border-radius:50% !important;
+        background:#fff !important;
+        padding:0 !important;
+        overflow:hidden !important;
+      }
+      .vx-commercial-choice.is-selected .vx-commercial-radio {
+        border:7px solid #3478ed !important;
+        border-radius:50% !important;
+        background:#fff !important;
+      }
+      .vx-commercial-status[data-state="success"] {
+        gap:5px !important;
+      }
+      .vx-commercial-status[data-state="success"] strong {
+        font-size:16px;
+      }
+
       @media(max-width:600px){
         #mehr-sub-profil .vx-page-header,#tab-hilfe .vx-page-header{margin:0 0 16px;padding:20px;border-radius:18px;}
         #tab-hilfe .vx-help-action-grid{grid-template-columns:1fr;padding:16px;}
@@ -54,7 +82,7 @@
     if (!text) return '';
     if (text.includes('enterprise')) return 'enterprise';
     if (text.includes('professional') || text === 'pro') return 'professional';
-    if (text.includes('business')) return 'business';
+    if (text.includes('business') || text.includes('standard')) return 'business';
     if (text.includes('starter') || text.includes('basic')) return 'starter';
     return '';
   }
@@ -122,8 +150,8 @@
     if (!options.length) {
       options.push({
         value: 'enterprise',
-        title: 'Enterprise-Beratung',
-        meta: 'Ihr aktueller Vertrag wird vor einer individuellen Empfehlung geprüft'
+        title: 'Enterprise',
+        meta: 'Wir prüfen Ihren aktuellen Bedarf und melden uns persönlich bei Ihnen.'
       });
     }
 
@@ -136,6 +164,79 @@
     };
     root.vxCommercialRender();
     root.vxCommercialOpen();
+    return true;
+  }
+
+  function commercialCopy() {
+    const state = root.vxCommercialState || {};
+    const isPlan = state.type === 'plan_upgrade';
+    const isEnterprise = isPlan && String(state.selected || '').toLowerCase() === 'enterprise';
+    if (isEnterprise) {
+      return {
+        summary: 'Wir haben Ihre Anfrage erhalten. Unser Team meldet sich persönlich bei Ihnen.',
+        successTitle: 'Anfrage erhalten',
+        successText: 'Wir melden uns persönlich bei Ihnen.'
+      };
+    }
+    if (isPlan) {
+      return {
+        summary: 'Wir haben Ihre Bestellung erhalten. Ihr neuer Plan wird innerhalb von 24 Stunden aufgeschaltet.',
+        successTitle: 'Bestellung erhalten',
+        successText: 'Ihr neuer Plan wird innerhalb von 24 Stunden aufgeschaltet.'
+      };
+    }
+    return {
+      summary: 'Wir haben Ihre Bestellung erhalten. Die Zusatzminuten werden innerhalb von 24 Stunden aufgeschaltet.',
+      successTitle: 'Bestellung erhalten',
+      successText: 'Die Zusatzminuten werden innerhalb von 24 Stunden aufgeschaltet.'
+    };
+  }
+
+  function applyCommercialCopy() {
+    const state = root.vxCommercialState || {};
+    const subtitle = root.document.getElementById('vx-commercial-subtitle');
+    if (subtitle && state.type === 'plan_upgrade') subtitle.textContent = 'Wählen Sie den gewünschten Plan.';
+
+    const summary = root.document.querySelector('#vx-commercial-body .vx-commercial-summary');
+    if (summary) {
+      const copy = commercialCopy();
+      summary.innerHTML = '<strong>So funktioniert es</strong><p>' + copy.summary + '</p>';
+    }
+  }
+
+  function installCommercialRenderOwner() {
+    const current = root.vxCommercialRender;
+    if (typeof current !== 'function') return false;
+    if (current.__vxCopyOwner) return true;
+
+    function ownedCommercialRender() {
+      const result = current.apply(this, arguments);
+      applyCommercialCopy();
+      return result;
+    }
+    ownedCommercialRender.__vxCopyOwner = true;
+    root.vxCommercialRender = ownedCommercialRender;
+    return true;
+  }
+
+  function installCommercialSubmitOwner() {
+    const current = root.vxCommercialSubmit;
+    if (typeof current !== 'function') return false;
+    if (current.__vxCopyOwner) return true;
+
+    async function ownedCommercialSubmit() {
+      const result = await current.apply(this, arguments);
+      const status = root.document.getElementById('vx-commercial-status');
+      if (status && status.dataset.state === 'success') {
+        const copy = commercialCopy();
+        status.innerHTML = '<strong>' + copy.successTitle + '</strong><small>' + copy.successText + '</small>';
+        const submit = root.document.getElementById('vx-commercial-submit');
+        if (submit) submit.textContent = 'Erhalten';
+      }
+      return result;
+    }
+    ownedCommercialSubmit.__vxCopyOwner = true;
+    root.vxCommercialSubmit = ownedCommercialSubmit;
     return true;
   }
 
@@ -159,13 +260,19 @@
     }, true);
   }
 
+  function installRuntimeOwners() {
+    installEnterpriseUpgrade();
+    installCommercialRenderOwner();
+    installCommercialSubmitOwner();
+  }
+
   function boot() {
     ensureDesignOwner();
     installStyles();
     installUpgradeClickOwner();
-    installEnterpriseUpgrade();
-    root.setTimeout(installEnterpriseUpgrade, 600);
-    root.setTimeout(installEnterpriseUpgrade, 1800);
+    installRuntimeOwners();
+    root.setTimeout(installRuntimeOwners, 600);
+    root.setTimeout(installRuntimeOwners, 1800);
   }
 
   if (root.document.readyState === 'loading') {
