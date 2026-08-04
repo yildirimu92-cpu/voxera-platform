@@ -1264,6 +1264,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-kpi-strip {
   gap: var(--vx-space-3);
 }
 
+body.vx-customer-design-foundation #tab-dashboard #dash-priority-section {
+  margin-top: var(--vx-space-4);
+}
+
 body.vx-customer-design-foundation #tab-dashboard #dash-kpi-strip > .vx-ap-card {
   display: flex;
   flex-direction: column;
@@ -1348,6 +1352,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 @media (max-width: 720px) {
   body.vx-customer-design-foundation #tab-dashboard #dash-content {
     gap: var(--vx-space-3);
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard #dash-priority-section {
+    margin-top: var(--vx-space-3);
   }
 
   body.vx-customer-design-foundation #tab-dashboard #dash-kpi-strip {
