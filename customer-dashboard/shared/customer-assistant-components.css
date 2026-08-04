@@ -1268,6 +1268,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-priority-section {
   margin-top: var(--vx-space-4);
 }
 
+body.vx-customer-design-foundation #tab-dashboard #dash-activity-section {
+  margin-top: var(--vx-space-4);
+}
+
 body.vx-customer-design-foundation #tab-dashboard #dash-kpi-strip > .vx-ap-card {
   display: flex;
   flex-direction: column;
@@ -1355,6 +1359,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
   }
 
   body.vx-customer-design-foundation #tab-dashboard #dash-priority-section {
+    margin-top: var(--vx-space-3);
+  }
+
+  body.vx-customer-design-foundation #tab-dashboard #dash-activity-section {
     margin-top: var(--vx-space-3);
   }
 
