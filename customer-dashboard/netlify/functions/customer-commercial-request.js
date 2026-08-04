@@ -12,7 +12,7 @@ const headers = {
   'Content-Type': 'application/json'
 };
 
-const ALLOWED_PLANS = new Set(['starter', 'business', 'professional']);
+const ALLOWED_PLANS = new Set(['starter', 'business', 'professional', 'enterprise']);
 const ALLOWED_MINUTES = new Set([50, 100, 250, 500]);
 
 function response(statusCode, body) {
@@ -71,14 +71,24 @@ exports.handler = async function handler(event) {
       return response(409, { error: 'Dieser Plan ist bereits aktiv', code: 'plan_already_active' });
     }
 
-    const planLabels = { starter: 'Starter', business: 'Business', professional: 'Professional' };
-    title = `Planwechsel auf ${planLabels[targetPlan]}`;
+    const planLabels = {
+      starter: 'Starter',
+      business: 'Business',
+      professional: 'Professional',
+      enterprise: 'Enterprise'
+    };
+    const isEnterprise = targetPlan === 'enterprise';
+    title = isEnterprise ? 'Enterprise-Beratung anfragen' : `Planwechsel auf ${planLabels[targetPlan]}`;
     note = [
       'Kundenanfrage aus dem Customer Portal',
       `Aktueller Plan: ${planLabels[currentPlan] || currentPlan}`,
-      `Gewünschter Plan: ${planLabels[targetPlan]}`,
-      `Abrechnungsrhythmus beibehalten: ${body.keep_billing_cycle === false ? 'Nein' : 'Ja'}`,
-      'Der Kunde hat die Zusammenfassung im Portal bestätigt. Vertrags- und Rechnungsänderung intern prüfen und bestätigen.'
+      `Gewünschte Lösung: ${planLabels[targetPlan]}`,
+      isEnterprise
+        ? 'Bedarf: höheres Volumen oder individuelle Anforderungen. Beratung zu Volumen, Standorten, Integrationen, Support und Konditionen durchführen.'
+        : `Abrechnungsrhythmus beibehalten: ${body.keep_billing_cycle === false ? 'Nein' : 'Ja'}`,
+      isEnterprise
+        ? 'Enterprise wird nicht automatisch aktiviert. Kunde kontaktieren, Bedarf qualifizieren und individuelles Angebot erstellen.'
+        : 'Der Kunde hat die Zusammenfassung im Portal bestätigt. Vertrags- und Rechnungsänderung intern prüfen und bestätigen.'
     ].join('\n');
   } else if (type === 'extra_minutes') {
     const minutes = Number(body.minutes);
