@@ -5,6 +5,13 @@ on:
     branches:
       - codex/customer-settings-commercial-flows
     paths:
+      - 'customer-dashboard/**'
+      - 'scripts/tmp_fix_customer_requests_split.py'
+      - '.github/workflows/verify-customer-design-foundation.yml'
+  pull_request:
+    paths:
+      - 'customer-dashboard/**'
+      - 'scripts/tmp_fix_customer_requests_split.py'
       - '.github/workflows/verify-customer-design-foundation.yml'
 
 permissions:
@@ -18,18 +25,60 @@ jobs:
         with:
           ref: codex/customer-settings-commercial-flows
           fetch-depth: 0
-      - name: Diagnose guarded requests split repair
+
+      - name: Apply requests split source repair
+        run: python scripts/tmp_fix_customer_requests_split.py
+
+      - name: Restore permanent workflow and clean temporary files
+        shell: python
+        run: |
+          from pathlib import Path
+          root = Path('.')
+          (root / '.github/workflows/verify-customer-design-foundation.yml').write_text("""name: Verify Customer Design Foundation
+
+on:
+  push:
+    paths:
+      - 'customer-dashboard/**'
+      - '.github/workflows/verify-customer-design-foundation.yml'
+  pull_request:
+    paths:
+      - 'customer-dashboard/**'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify customer design foundation
+        run: node scripts/verify-customer-design-foundation.mjs
+""", encoding='utf-8')
+          for path in [
+              root / '.github/workflows/tmp-fix-customer-requests-split.yml',
+              root / 'scripts/tmp_fix_customer_requests_split.py',
+              root / 'scripts/tmp_fix_customer_requests_split.log',
+          ]:
+              if path.exists():
+                  path.unlink()
+
+      - name: Verify permanent source
         shell: bash
         run: |
-          set +e
-          python scripts/tmp_fix_customer_requests_split.py > /tmp/repair.log 2>&1
-          status=$?
-          {
-            echo "exit_status=$status"
-            cat /tmp/repair.log
-          } > scripts/tmp_fix_customer_requests_split.log
+          set -euo pipefail
+          grep -Fq '<div id="anrufe-split" class="vx-split vx-requests-layout">' customer-dashboard/index.html
+          grep -Fq 'var DEFAULT_W = 380, MIN_W = 320, MAX_RATIO = 0.6;' customer-dashboard/index.html
+          grep -Fq 'vx_split_w' customer-dashboard/index.html
+          test ! -e customer-dashboard/shared/customer-runtime-requests-layout-owner.js
+          test ! -e customer-dashboard/shared/customer-requests-layout.css
+          node scripts/verify-customer-design-foundation.mjs
+
+      - name: Commit permanent repair
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/tmp_fix_customer_requests_split.log
-          git commit -m "chore: capture requests split repair diagnostic"
+          git add -A
+          git commit -m "fix(customer): restore requests desktop split pane"
           git push origin HEAD:codex/customer-settings-commercial-flows
