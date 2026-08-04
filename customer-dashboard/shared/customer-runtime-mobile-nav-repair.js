@@ -21,14 +21,36 @@
       style.id = 'vx-mobile-nav-visibility-repair';
       style.textContent = `
         @media (max-width: 768px) {
+          html {
+            scroll-padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+          }
+
+          body {
+            padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+          }
+
           [data-vx-mobile-navigation="1"] {
-            background: rgba(255, 255, 255, 0.97) !important;
+            position: fixed !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
+            padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+            background: rgba(255, 255, 255, 0.98) !important;
             border-top: 1px solid rgba(148, 163, 184, 0.24) !important;
             box-shadow: 0 -8px 24px rgba(15, 35, 71, 0.08) !important;
             opacity: 1 !important;
             filter: none !important;
+            transform: translateZ(0);
             isolation: isolate;
             z-index: 1200 !important;
+          }
+
+          [data-vx-mobile-navigation="1"] .mobile-nav-btn {
+            min-height: 56px !important;
           }
 
           #mnav-dashboard,
