@@ -60,6 +60,19 @@
   }
 
   function resolveCurrentPlan() {
+    const visiblePlanNodes = [
+      root.document.querySelector('.vx-abo-plan-name'),
+      root.document.getElementById('abo-plan-name'),
+      root.document.getElementById('subscription-plan-name'),
+      root.document.querySelector('[data-current-plan]'),
+      root.document.querySelector('.vx-abo-hero')
+    ].filter(Boolean);
+
+    for (const node of visiblePlanNodes) {
+      const resolved = normalizePlan((node.dataset && node.dataset.currentPlan) || node.textContent);
+      if (resolved) return resolved;
+    }
+
     try {
       if (typeof root.getUpgradeModalState === 'function') {
         const state = root.getUpgradeModalState();
@@ -67,16 +80,6 @@
         if (resolved) return resolved;
       }
     } catch (_error) {}
-
-    const planNodes = [
-      root.document.getElementById('abo-plan-name'),
-      root.document.getElementById('subscription-plan-name'),
-      root.document.querySelector('[data-current-plan]')
-    ].filter(Boolean);
-    for (const node of planNodes) {
-      const resolved = normalizePlan(node.dataset?.currentPlan || node.textContent);
-      if (resolved) return resolved;
-    }
 
     try {
       const meta = root.customerMeta;
@@ -86,61 +89,83 @@
     return '';
   }
 
-  function installEnterpriseUpgrade() {
-    if (root.__vxEnterpriseUpgradeInstalled) return true;
+  function openEnterpriseAwareUpgrade() {
     if (typeof root.vxCommercialRender !== 'function' || typeof root.vxCommercialOpen !== 'function') return false;
 
-    root.vxAboUpgrade = function openUpgradeWithEnterprise() {
-      const currentPlan = resolveCurrentPlan();
-      const order = ['starter', 'business', 'professional'];
-      const catalog = {
-        starter: { title: 'Starter', price: 149, minutes: 60 },
-        business: { title: 'Business', price: 249, minutes: 150 },
-        professional: { title: 'Professional', price: 399, minutes: 350 }
-      };
-      const currentIndex = order.indexOf(currentPlan);
-      const options = [];
-
-      if (currentIndex >= 0) {
-        order.forEach(function(plan, index) {
-          if (index <= currentIndex) return;
-          const item = catalog[plan];
-          options.push({
-            value: plan,
-            title: item.title,
-            meta: 'CHF ' + item.price + ' / Mt · ' + item.minutes + ' Min. inklusive'
-          });
-        });
-      }
-
-      if (currentPlan === 'professional' || currentPlan === 'enterprise' || options.length === 0) {
-        options.length = 0;
-        options.push({
-          value: 'enterprise',
-          title: 'Enterprise',
-          meta: 'Individuelles Volumen, mehrere Standorte, Integrationen und erweiterter Support'
-        });
-      }
-
-      root.vxCommercialState = {
-        type: 'plan_upgrade',
-        selected: '',
-        options: options,
-        estimatedAmount: null,
-        submitting: false
-      };
-      root.vxCommercialRender();
-      root.vxCommercialOpen();
+    const currentPlan = resolveCurrentPlan();
+    const order = ['starter', 'business', 'professional'];
+    const catalog = {
+      business: { title: 'Business', price: 249, minutes: 150 },
+      professional: { title: 'Professional', price: 399, minutes: 350 }
     };
+    const currentIndex = order.indexOf(currentPlan);
+    const options = [];
 
-    root.__vxEnterpriseUpgradeInstalled = true;
+    if (currentPlan === 'professional' || currentPlan === 'enterprise') {
+      options.push({
+        value: 'enterprise',
+        title: 'Enterprise',
+        meta: 'Individuelles Volumen, mehrere Standorte, Integrationen und erweiterter Support'
+      });
+    } else if (currentIndex >= 0) {
+      order.forEach(function(plan, index) {
+        if (index <= currentIndex || !catalog[plan]) return;
+        const item = catalog[plan];
+        options.push({
+          value: plan,
+          title: item.title,
+          meta: 'CHF ' + item.price + ' / Mt · ' + item.minutes + ' Min. inklusive'
+        });
+      });
+    }
+
+    if (!options.length) {
+      options.push({
+        value: 'enterprise',
+        title: 'Enterprise-Beratung',
+        meta: 'Ihr aktueller Vertrag wird vor einer individuellen Empfehlung geprüft'
+      });
+    }
+
+    root.vxCommercialState = {
+      type: 'plan_upgrade',
+      selected: '',
+      options: options,
+      estimatedAmount: null,
+      submitting: false
+    };
+    root.vxCommercialRender();
+    root.vxCommercialOpen();
     return true;
+  }
+
+  function installEnterpriseUpgrade() {
+    root.vxAboUpgrade = openEnterpriseAwareUpgrade;
+    return typeof root.vxCommercialRender === 'function' && typeof root.vxCommercialOpen === 'function';
+  }
+
+  function installUpgradeClickOwner() {
+    if (root.__vxEnterpriseUpgradeClickOwnerInstalled) return;
+    root.__vxEnterpriseUpgradeClickOwnerInstalled = true;
+    root.document.addEventListener('click', function(event) {
+      const target = event.target && event.target.closest ? event.target.closest('button, a') : null;
+      if (!target) return;
+      const inlineHandler = String(target.getAttribute('onclick') || '');
+      const label = String(target.textContent || '').trim().toLowerCase();
+      if (!inlineHandler.includes('vxAboUpgrade') && !label.includes('plan wechseln')) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openEnterpriseAwareUpgrade();
+    }, true);
   }
 
   function boot() {
     ensureDesignOwner();
     installStyles();
-    if (!installEnterpriseUpgrade()) root.setTimeout(boot, 120);
+    installUpgradeClickOwner();
+    installEnterpriseUpgrade();
+    root.setTimeout(installEnterpriseUpgrade, 600);
+    root.setTimeout(installEnterpriseUpgrade, 1800);
   }
 
   if (root.document.readyState === 'loading') {
