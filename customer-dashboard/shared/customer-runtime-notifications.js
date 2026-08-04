@@ -1,30 +1,17 @@
 (function installCustomerNotificationBridge(root) {
   'use strict';
-  if (!root || !root.document || root.__vxCustomerNotificationBridgeInstalledV4) return;
-  root.__vxCustomerNotificationBridgeInstalledV4 = true;
+  if (!root || !root.document || root.__vxCustomerNotificationBridgeInstalledV5) return;
+  root.__vxCustomerNotificationBridgeInstalledV5 = true;
 
   const doc = root.document;
-  let previousPageId = '';
+  let previousPageId = 'tab-dashboard';
   const EXPLICIT_SELECTOR = [
-    '[data-notifications-trigger]',
-    '[data-notification-trigger]',
-    '#notification-button',
-    '#notifications-button',
-    '#notification-bell',
-    '#notifications-bell',
-    '[aria-label*="Benachrichtigung" i]',
-    '[title*="Benachrichtigung" i]',
-    '[aria-label*="notification" i]',
-    '[title*="notification" i]'
+    '[data-notifications-trigger]','[data-notification-trigger]','#notification-button','#notifications-button',
+    '#notification-bell','#notifications-bell','[aria-label*="Benachrichtigung" i]',
+    '[title*="Benachrichtigung" i]','[aria-label*="notification" i]','[title*="notification" i]'
   ].join(',');
   const BELL_ICON_SELECTOR = '[class*="ph-bell" i],[data-lucide*="bell" i],svg[class*="bell" i],i[class*="bell" i]';
   const BACK_ICON_SELECTOR = '[class*="ph-arrow-left" i],[data-lucide*="arrow-left" i],svg[class*="arrow-left" i],i[class*="arrow-left" i]';
-
-  function containsBellIcon(node) {
-    if (!node || node.nodeType !== 1) return false;
-    if (node.matches && node.matches(BELL_ICON_SELECTOR)) return true;
-    return !!(node.querySelector && node.querySelector(BELL_ICON_SELECTOR));
-  }
 
   function getPath(event) {
     if (event && typeof event.composedPath === 'function') return event.composedPath();
@@ -45,12 +32,26 @@
 
   function resolveTrigger(event) {
     const path = getPath(event);
-    for (let index = 0; index < path.length; index += 1) {
-      const node = path[index];
-      const trigger = resolveTriggerFromNode(node);
+    for (let i = 0; i < path.length; i += 1) {
+      const trigger = resolveTriggerFromNode(path[i]);
       if (trigger) return trigger;
     }
     return null;
+  }
+
+  function clearLegacyVisibilityOverrides() {
+    doc.querySelectorAll('.tab-page').forEach(function (page) {
+      page.style.removeProperty('display');
+      page.removeAttribute('hidden');
+      page.removeAttribute('aria-hidden');
+    });
+  }
+
+  function rememberCurrentPage() {
+    const active = Array.from(doc.querySelectorAll('.tab-page.active')).find(function (page) {
+      return page.id !== 'tab-benachrichtigungen';
+    });
+    if (active && active.id) previousPageId = active.id;
   }
 
   function prepareNativePage() {
@@ -59,66 +60,39 @@
     if (typeof root.vxBellPageRender === 'function') root.vxBellPageRender();
   }
 
-  function rememberCurrentPage() {
-    const active = Array.from(doc.querySelectorAll('.tab-page')).find(function (item) {
-      return item.id !== 'tab-benachrichtigungen' && (item.classList.contains('active') || (!item.hidden && item.style.display !== 'none'));
-    });
-    if (active && active.id) previousPageId = active.id;
-    if (!previousPageId) previousPageId = 'tab-dashboard';
-  }
-
-  function activateOnly(page) {
+  function navigateTo(tabName, trigger) {
+    clearLegacyVisibilityOverrides();
+    if (typeof root.showTab === 'function') {
+      try {
+        root.showTab(tabName, trigger || undefined);
+        return true;
+      } catch (error) {
+        console.error('[customer-notifications] showTab failed', error);
+      }
+    }
+    const page = doc.getElementById('tab-' + tabName);
     if (!page) return false;
-    doc.querySelectorAll('.tab-page').forEach(function (item) {
-      const active = item === page;
-      item.classList.toggle('active', active);
-      item.style.display = active ? '' : 'none';
-      item.hidden = !active;
-      item.setAttribute('aria-hidden', active ? 'false' : 'true');
-    });
-    page.classList.add('active');
-    page.style.display = '';
-    page.hidden = false;
-    page.setAttribute('aria-hidden', 'false');
+    doc.querySelectorAll('.tab-page').forEach(function (item) { item.classList.toggle('active', item === page); });
     return true;
   }
 
   function openNativeNotifications(trigger) {
     rememberCurrentPage();
     prepareNativePage();
-    const page = doc.getElementById('tab-benachrichtigungen');
-    if (!page) {
-      console.error('[customer-notifications] native page missing');
-      return false;
-    }
-
-    if (typeof root.showTab === 'function') {
-      try { root.showTab('benachrichtigungen', trigger || undefined); }
-      catch (error) { console.error('[customer-notifications] showTab failed', error); }
-    }
-
-    activateOnly(page);
+    if (!doc.getElementById('tab-benachrichtigungen')) return false;
+    const opened = navigateTo('benachrichtigungen', trigger);
     if (typeof root.scrollTo === 'function') root.scrollTo({ top: 0, behavior: 'auto' });
-    return true;
+    return opened;
   }
 
   function restorePreviousPage() {
-    const fallbackIds = [previousPageId, 'tab-dashboard', 'tab-heute', 'tab-home'];
+    const candidates = [previousPageId, 'tab-dashboard', 'tab-heute', 'tab-home'];
     let page = null;
-    for (let index = 0; index < fallbackIds.length && !page; index += 1) {
-      if (fallbackIds[index]) page = doc.getElementById(fallbackIds[index]);
-    }
-    if (!page) page = Array.from(doc.querySelectorAll('.tab-page')).find(function (item) { return item.id !== 'tab-benachrichtigungen'; });
+    for (let i = 0; i < candidates.length && !page; i += 1) page = candidates[i] && doc.getElementById(candidates[i]);
     if (!page) return false;
-
-    const tabName = String(page.id || '').replace(/^tab-/, '');
-    if (typeof root.showTab === 'function' && tabName) {
-      try { root.showTab(tabName); }
-      catch (error) { console.error('[customer-notifications] restore showTab failed', error); }
-    }
-    activateOnly(page);
+    const restored = navigateTo(String(page.id).replace(/^tab-/, ''));
     if (typeof root.scrollTo === 'function') root.scrollTo({ top: 0, behavior: 'auto' });
-    return true;
+    return restored;
   }
 
   function isNotificationBackAction(event) {
@@ -128,12 +102,12 @@
     const control = target.closest && target.closest('button,a,[role="button"],[tabindex],div');
     if (!control || !page.contains(control)) return false;
     const label = String(control.getAttribute('aria-label') || control.getAttribute('title') || control.textContent || '').trim();
-    return /zurück|back/i.test(label) || !!(control.matches && control.matches(BACK_ICON_SELECTOR)) || !!(control.querySelector && control.querySelector(BACK_ICON_SELECTOR));
+    return /zurück|back/i.test(label) || (control.matches && control.matches(BACK_ICON_SELECTOR)) || !!(control.querySelector && control.querySelector(BACK_ICON_SELECTOR));
   }
 
   function bindTrigger(trigger) {
-    if (!trigger || trigger.dataset.vxNotificationsBound === 'native-v4') return;
-    trigger.dataset.vxNotificationsBound = 'native-v4';
+    if (!trigger || trigger.dataset.vxNotificationsBound === 'native-v5') return;
+    trigger.dataset.vxNotificationsBound = 'native-v5';
     trigger.setAttribute('role', trigger.getAttribute('role') || 'button');
     trigger.setAttribute('tabindex', trigger.getAttribute('tabindex') || '0');
     trigger.setAttribute('aria-label', trigger.getAttribute('aria-label') || 'Benachrichtigungen öffnen');
@@ -150,14 +124,13 @@
       if (trigger) candidates.add(trigger);
     });
     candidates.forEach(bindTrigger);
-    return candidates.size > 0;
   }
 
   function handleActivation(event) {
     if (isNotificationBackAction(event)) {
       event.preventDefault();
       event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
       restorePreviousPage();
       return;
     }
@@ -166,7 +139,7 @@
     bindTrigger(trigger);
     event.preventDefault();
     event.stopPropagation();
-    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
     openNativeNotifications(trigger);
   }
 
@@ -174,17 +147,16 @@
   doc.addEventListener('click', handleActivation, true);
   doc.addEventListener('touchend', handleActivation, true);
   doc.addEventListener('keydown', function (event) {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    handleActivation(event);
+    if (event.key === 'Enter' || event.key === ' ') handleActivation(event);
   }, true);
 
   root.vxOpenCustomerNotifications = openNativeNotifications;
   root.vxCloseCustomerNotifications = restorePreviousPage;
 
   function boot() {
+    clearLegacyVisibilityOverrides();
     prepareTriggers();
-    const observer = new MutationObserver(function () { prepareTriggers(); });
-    observer.observe(doc.documentElement, { childList: true, subtree: true });
+    new MutationObserver(prepareTriggers).observe(doc.documentElement, { childList: true, subtree: true });
   }
 
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', boot, { once: true });
