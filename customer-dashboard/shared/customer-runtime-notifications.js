@@ -8,7 +8,7 @@
     const ownClass=String(node.className&&node.className.baseVal||node.className||'');
     if(/(?:^|\s)ph(?:-[a-z]+)*-bell(?:-[a-z]+)*(?:\s|$)/i.test(ownClass))return true;
     if(/bell/i.test(String(node.getAttribute&&node.getAttribute('data-lucide')||'')))return true;
-    return !!node.matches?.('[class*="ph-bell" i],[class~="ph-bell"],svg[data-lucide*="bell" i],svg[class*="bell" i]');
+    return !!node.querySelector?.('[class*="ph-bell" i],svg[data-lucide*="bell" i],svg[class*="bell" i]');
   }
 
   function findBell(){
@@ -22,16 +22,7 @@
       const found=root.document.querySelector(selector);
       if(found)return found.closest?.('button,a,[role="button"],[tabindex]')||found;
     }
-    return Array.from(root.document.querySelectorAll('button,a,[role="button"],[tabindex]')).find(function(node){
-      return containsBellIcon(node)||!!node.querySelector?.('[class*="ph-bell" i],svg[data-lucide*="bell" i]');
-    })||null;
-  }
-
-  function strictTrigger(event){
-    const bell=findBell();
-    const target=event&&event.target&&event.target.nodeType===1?event.target:null;
-    if(!bell||!target)return null;
-    return target===bell||bell.contains(target)?bell:null;
+    return Array.from(root.document.querySelectorAll('button,a,[role="button"],[tabindex]')).find(containsBellIcon)||null;
   }
 
   function ensureStyles(){
@@ -79,6 +70,7 @@
     root.document.documentElement.style.overflow='hidden';
     root.setTimeout(function(){overlay.querySelector('.vx-notifications-close')?.focus();},0);
   }
+
   function close(){
     const overlay=root.document.getElementById('vx-customer-notifications');
     if(!overlay)return;
@@ -87,36 +79,39 @@
     root.document.documentElement.style.overflow='';
   }
 
-  function prepareBell(bell){
-    if(!bell)return false;
+  function bindBell(){
+    const bell=findBell();
+    if(!bell||bell.dataset.vxNotificationsBound==='1')return false;
     bell.dataset.vxNotificationsBound='1';
     bell.setAttribute?.('aria-label',bell.getAttribute?.('aria-label')||'Benachrichtigungen öffnen');
     if(bell.tagName!=='BUTTON'&&bell.tagName!=='A'&&!bell.hasAttribute?.('tabindex'))bell.setAttribute?.('tabindex','0');
     if(bell.style)bell.style.pointerEvents='auto';
+    bell.addEventListener('click',function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      open();
+    });
+    bell.addEventListener('keydown',function(event){
+      if(event.key!=='Enter'&&event.key!==' ')return;
+      event.preventDefault();
+      event.stopPropagation();
+      open();
+    });
     return true;
   }
 
   function start(){
     ensureStyles();
-    prepareBell(findBell());
-    root.document.addEventListener('click',function(event){
-      if(event.target?.closest?.('#vx-customer-notifications'))return;
-      const trigger=strictTrigger(event);
-      if(!trigger)return;
-      event.preventDefault();
-      event.stopPropagation();
-      prepareBell(trigger);
-      open();
-    },true);
+    bindBell();
     root.document.addEventListener('keydown',function(event){
-      if(event.key==='Escape'&&root.document.getElementById('vx-customer-notifications')?.classList.contains('is-open')){close();return;}
-      if((event.key==='Enter'||event.key===' ')&&strictTrigger(event)){
-        event.preventDefault();
-        event.stopPropagation();
-        open();
-      }
-    },true);
-    new MutationObserver(function(){prepareBell(findBell());}).observe(root.document.documentElement,{childList:true,subtree:true});
+      if(event.key==='Escape'&&root.document.getElementById('vx-customer-notifications')?.classList.contains('is-open'))close();
+    });
+    let scheduled=false;
+    new MutationObserver(function(){
+      if(scheduled)return;
+      scheduled=true;
+      root.requestAnimationFrame(function(){scheduled=false;bindBell();});
+    }).observe(root.document.documentElement,{childList:true,subtree:true});
   }
 
   if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',start,{once:true});else start();
