@@ -6781,7 +6781,7 @@ body,.main{background:var(--vx-bg);}
             </div>
           </section>
 
-          <div id="anrufe-split" class="vx-requests-layout">
+          <div id="anrufe-split" class="vx-split vx-requests-layout">
             <section id="anrufe-split-left" class="vx-ops-card vx-requests-panel" aria-label="Anfragenliste">
               <div class="vx-ap-filters vx-requests-filters" role="tablist" aria-label="Anfragestatus">
                 <button class="vx-ap-filter vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
@@ -7333,189 +7333,69 @@ body,.main{background:var(--vx-bg);}
           </div>
 
           <!-- PROFIL -->
-          <div id="mehr-sub-profil" style="display:none;">
-            <div class="vx-page-header" style="align-items:center;gap:12px;">
-              <button onclick="vxMehrBack()" class="vx-back-btn"><i class="ph-bold ph-arrow-left"  style="font-size:18px;" aria-hidden="true"></i></button>
-              <div style="flex:1;"><div class="vx-page-header-title">Profil</div></div>
+          <div id="mehr-sub-profil" class="vx-settings-subpage" hidden>
+            <div class="vx-page-header vx-settings-subpage-header">
+              <button type="button" onclick="vxMehrBack()" class="vx-back-btn vx-settings-back" aria-label="Zurück zu Einstellungen"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button>
+              <div class="vx-settings-header-copy"><div class="vx-page-header-title">Profil</div><div class="vx-page-header-subtitle">Persönliche Daten und Zugang verwalten.</div></div>
             </div>
 
-            <!-- Konto -->
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:10px;">
-                <div id="profil-avatar-preview" style="width:30px;height:30px;border-radius:50%;background:#1A6FE8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;">U</div>
-                <div>
-                  <div id="profil-name-display" style="font-size:13px;font-weight:700;color:#fff;line-height:1.2;">–</div>
-                  <div id="profil-email-display" style="font-size:11px;color:rgba(255,255,255,.45);">–</div>
-                </div>
+            <section class="vx-settings-card">
+              <div class="vx-settings-identity">
+                <div id="profil-avatar-preview" class="vx-settings-avatar">U</div>
+                <div><div id="profil-name-display" class="vx-settings-identity-name">–</div><div id="profil-email-display" class="vx-settings-card-meta">–</div></div>
               </div>
-              <div style="padding:12px 16px;border-bottom:0.5px solid var(--line);">
-                <div style="font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Name</div>
-                <input id="profil-name-input" type="text" placeholder="Ihr Name" style="width:100%;border:none;background:transparent;font-size:14px;color:var(--ink);outline:none;font-family:inherit;">
+              <div class="vx-settings-card-body vx-settings-form">
+                <label class="vx-settings-field"><span class="vx-settings-field-label">Name</span><input id="profil-name-input" type="text" autocomplete="name" placeholder="Ihr Name"></label>
+                <label class="vx-settings-field"><span class="vx-settings-field-label">E-Mail</span><input id="profil-email-input" type="email" autocomplete="email" placeholder="ihre@email.ch"></label>
+                <label class="vx-settings-field"><span class="vx-settings-field-label">Portalsprache</span><select id="profil-lang-select" disabled><option value="de">Deutsch</option><option value="fr">Français</option><option value="it">Italiano</option><option value="en">English</option></select><span class="vx-settings-field-help">Weitere Portalsprachen werden schrittweise freigeschaltet.</span></label>
               </div>
-              <div style="padding:12px 16px;border-bottom:0.5px solid var(--line);">
-                <div style="font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">E-Mail</div>
-                <input id="profil-email-input" type="email" placeholder="ihre@email.ch" style="width:100%;border:none;background:transparent;font-size:14px;color:var(--ink);outline:none;font-family:inherit;">
-              </div>
-              <div style="padding:12px 16px;">
-                <div style="font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Sprache</div>
-                <select id="profil-lang-select" style="width:100%;border:none;background:transparent;font-size:14px;color:var(--ink);outline:none;font-family:inherit;">
-                  <option value="de">Deutsch</option>
-                  <option value="fr">Français</option>
-                  <option value="it">Italiano</option>
-                  <option value="en">English</option>
-                </select>
-              </div>
-            </div>
-            <button onclick="vxSaveProfil()" style="width:100%;background:#1A6FE8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:4px;">Speichern</button>
-            <div id="fb-profil-page" style="font-size:12px;text-align:center;margin-bottom:10px;color:#059669;"></div>
+            </section>
+            <div class="vx-settings-actions"><button type="button" onclick="vxSaveProfil()" class="btn vx-abo-btn">Profil speichern</button></div>
+            <div id="fb-profil-page" class="vx-settings-feedback" role="status" aria-live="polite"></div>
 
-            <!-- Passwort -->
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#fff;">Passwort ändern</span></div>
-              <div style="padding:12px 16px;border-bottom:0.5px solid var(--line);">
-                <div style="font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Neues Passwort</div>
-                <input id="profil-pw-new" type="password" placeholder="Mindestens 8 Zeichen" style="width:100%;border:none;background:transparent;font-size:14px;color:var(--ink);outline:none;font-family:inherit;">
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Passwort ändern</h2><p class="vx-settings-card-meta">Verwenden Sie mindestens acht Zeichen.</p></div></div>
+              <div class="vx-settings-card-body vx-settings-form">
+                <label class="vx-settings-field"><span class="vx-settings-field-label">Neues Passwort</span><input id="profil-pw-new" type="password" autocomplete="new-password" placeholder="Mindestens 8 Zeichen"></label>
+                <label class="vx-settings-field"><span class="vx-settings-field-label">Passwort bestätigen</span><input id="profil-pw-confirm" type="password" autocomplete="new-password" placeholder="Passwort wiederholen"></label>
               </div>
-              <div style="padding:12px 16px;">
-                <div style="font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Passwort bestätigen</div>
-                <input id="profil-pw-confirm" type="password" placeholder="Wiederholen" style="width:100%;border:none;background:transparent;font-size:14px;color:var(--ink);outline:none;font-family:inherit;">
-              </div>
-            </div>
-            <button onclick="vxSavePassword()" style="width:100%;background:#fff;color:var(--ink);border:0.5px solid var(--line);border-radius:10px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:4px;">Passwort speichern</button>
-            <div id="fb-password" style="font-size:12px;text-align:center;margin-bottom:10px;color:#059669;"></div>
+            </section>
+            <div class="vx-settings-actions"><button type="button" onclick="vxSavePassword()" class="btn vx-abo-btn secondary">Passwort speichern</button></div>
+            <div id="fb-password" class="vx-settings-feedback" role="status" aria-live="polite"></div>
           </div>
 
-          <!-- BENACHRICHTIGUNGEN -->
-          <div id="mehr-sub-benachrichtigungen" style="display:none;">
-            <div class="vx-page-header" style="align-items:center;gap:12px;">
-              <button onclick="vxMehrBack()" class="vx-back-btn"><i class="ph-bold ph-arrow-left"  style="font-size:18px;" aria-hidden="true"></i></button>
-              <div style="flex:1;"><div class="vx-page-header-title">Benachrichtigungen</div></div>
+        <!-- BENACHRICHTIGUNGEN -->
+          <div id="mehr-sub-benachrichtigungen" class="vx-settings-subpage" hidden>
+            <div class="vx-page-header vx-settings-subpage-header">
+              <button type="button" onclick="vxMehrBack()" class="vx-back-btn vx-settings-back" aria-label="Zurück zu Einstellungen"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button>
+              <div class="vx-settings-header-copy"><div class="vx-page-header-title">Benachrichtigungen</div><div class="vx-page-header-subtitle">Legen Sie fest, welche Hinweise Sie erhalten.</div></div>
             </div>
 
-            <!-- E-Mail Karte -->
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;">
-                <i class="ph-bold ph-envelope-simple" style="color:rgba(255,255,255,.7);" style="font-size:15px;" aria-hidden="true"></i>
-                <span style="font-size:13px;font-weight:700;color:#fff;">E-Mail Benachrichtigungen</span>
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">E-Mail</h2><p class="vx-settings-card-meta">Wählen Sie, wann Voxera Sie per E-Mail informiert.</p></div></div>
+              <div id="notif-email-options" class="vx-settings-choice-list">
+                <label class="vx-settings-choice"><span class="vx-settings-choice-copy"><strong>Keine E-Mails</strong><small>Anfragen bleiben im Dashboard sichtbar.</small></span><input type="radio" name="notif-email" value="none"></label>
+                <label class="vx-settings-choice"><span class="vx-settings-choice-copy"><strong>Nur bei Rückruf-Anfragen</strong><small>Für Anfragen, die eine Rückmeldung benötigen.</small></span><input type="radio" name="notif-email" value="callback_only"></label>
+                <label class="vx-settings-choice"><span class="vx-settings-choice-copy"><strong>Bei jedem Anruf</strong><small>Eine E-Mail nach jedem abgeschlossenen Gespräch.</small></span><input type="radio" name="notif-email" value="all_calls"></label>
               </div>
-              <div id="notif-email-options" style="display:flex;flex-direction:column;">
-                <label style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);" onclick="document.querySelector('input[name=notif-email][value=none]').click()">
-                  <div>
-                    <div style="font-size:13px;font-weight:500;color:var(--ink);">Keine</div>
-                    <div style="font-size:11px;color:var(--slate2);">Nur im Dashboard sichtbar</div>
-                  </div>
-                  <input type="radio" name="notif-email" value="none" style="accent-color:#1A6FE8;width:18px;height:18px;">
-                </label>
-                <label style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;border-bottom:0.5px solid var(--line);" onclick="document.querySelector('input[name=notif-email][value=callback_only]').click()">
-                  <div>
-                    <div style="font-size:13px;font-weight:500;color:var(--ink);">Nur bei Rückruf-Anfragen</div>
-                    <div style="font-size:11px;color:var(--slate2);">Fokus auf dringende Rückrufe</div>
-                  </div>
-                  <input type="radio" name="notif-email" value="callback_only" style="accent-color:#1A6FE8;width:18px;height:18px;">
-                </label>
-                <label style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;" onclick="document.querySelector('input[name=notif-email][value=all_calls]').click()">
-                  <div>
-                    <div style="font-size:13px;font-weight:500;color:var(--ink);">Bei jedem Anruf</div>
-                    <div style="font-size:11px;color:var(--slate2);">Maximale Transparenz</div>
-                  </div>
-                  <input type="radio" name="notif-email" value="all_calls" style="accent-color:#1A6FE8;width:18px;height:18px;">
-                </label>
+              <div class="vx-settings-card-body vx-settings-form">
+                <label class="vx-settings-field"><span class="vx-settings-field-label">Empfänger</span><input id="notif-email-address" type="email" readonly><span class="vx-settings-field-help">Die Adresse wird aus Ihrem Profil übernommen.</span></label>
               </div>
-              <div style="padding:12px 16px;border-top:0.5px solid var(--line);">
-                <div style="font-size:11px;font-weight:600;color:var(--slate2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">E-Mail Adresse</div>
-                <input id="notif-email-address" type="email" placeholder="ihre@email.ch" style="width:100%;height:36px;border:0.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;background:var(--surface);color:var(--ink);font-family:inherit;outline:none;box-sizing:border-box;">
-              </div>
-            </div>
+            </section>
 
-            <!-- SMS Karte -->
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <i class="ph-bold ph-chat-square" style="color:rgba(255,255,255,.7);" style="font-size:15px;" aria-hidden="true"></i>
-                  <span style="font-size:13px;font-weight:700;color:#fff;">SMS Benachrichtigungen</span>
-                </div>
-                <span id="sms-notify-addon-badge" style="font-size:10px;font-weight:700;color:#E8C547;background:rgba(232,197,71,.15);border-radius:6px;padding:2px 8px;">CHF 9 / Mt</span>
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Im Dashboard</h2><p class="vx-settings-card-meta">Steuern Sie die Hinweise in der Glocke.</p></div></div>
+              <div class="vx-settings-switch-list">
+                <label class="vx-settings-switch-row"><span><strong>Wichtige Anfragen</strong><small>Hot Leads und dringende Anliegen.</small></span><input id="inapp-setting-important-requests" type="checkbox"></label>
+                <label class="vx-settings-switch-row"><span><strong>Rückrufe und Aufgaben</strong><small>Geplante Rückmeldungen und offene Aufgaben.</small></span><input id="inapp-setting-callbacks-and-tasks" type="checkbox"></label>
+                <label class="vx-settings-switch-row is-locked"><span><strong>Systemhinweise</strong><small>Wichtige Meldungen zur Erreichbarkeit und Einrichtung.</small></span><input id="inapp-setting-system" type="checkbox" checked disabled></label>
               </div>
-              <div id="sms-notify-locked" style="padding:14px 16px;">
-                <div style="font-size:13px;color:var(--ink);margin-bottom:4px;">Nie wieder einen wichtigen Anruf verpassen.</div>
-                <div style="font-size:12px;color:var(--slate2);margin-bottom:12px;">Erhalten Sie eine SMS direkt auf Ihr Handy — sofort wenn Lara einen Anruf entgegennimmt.</div>
-                <button onclick="vxRequestAddon('sms_notify_kunde')" style="background:#0D1F3C;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Add-on anfragen · CHF 9/Mt</button>
-              </div>
-              <div id="sms-notify-settings" style="display:none;padding:14px 16px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-                  <span style="font-size:13px;font-weight:500;color:var(--ink);">SMS aktiv</span>
-                  <div onclick="vxToggleNotifSms('notify')" id="sms-notify-toggle2" style="width:44px;height:24px;border-radius:12px;background:var(--line);position:relative;cursor:pointer;transition:background .2s;">
-                    <div id="sms-notify-knob2" style="width:18px;height:18px;border-radius:50%;background:var(--surface);position:absolute;top:3px;left:3px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
-                  </div>
-                </div>
-                <div id="sms-notify-detail" style="display:none;">
-                  <div style="margin-bottom:10px;">
-                    <div style="font-size:11px;font-weight:600;color:var(--slate2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Mobilnummer</div>
-                    <input id="sms-notify-number2" type="tel" placeholder="+41 79 XXX XX XX" style="width:100%;height:36px;border:0.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;background:var(--surface);color:var(--ink);font-family:inherit;outline:none;box-sizing:border-box;">
-                  </div>
-                  <div>
-                    <div style="font-size:11px;font-weight:600;color:var(--slate2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Wann benachrichtigen</div>
-                    <select id="sms-notify-trigger2" style="width:100%;height:36px;border:0.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;background:var(--surface);color:var(--ink);font-family:inherit;outline:none;">
-                      <option value="all">Nach jedem Anruf</option>
-                      <option value="callback_only">Nur bei Rückruf-Anfragen</option>
-                      <option value="missed_only">Nur verpasste Anrufe</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <button onclick="vxSaveBenachrichtigungen()" style="width:100%;background:#1A6FE8;color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:6px;letter-spacing:-.01em;">Speichern</button>
-            <div id="fb-benachrichtigungen" style="font-size:12px;text-align:center;margin-top:4px;"></div>
-
-            <!-- AN ANRUFER -->
-            <div style="font-size:10px;font-weight:700;color:var(--slate2);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;padding:0 2px;">An Anrufer</div>
-
-            <!-- SMS Bestätigung — Add-on -->
-            <div style="background:#fff;border-radius:var(--r-lg);border:0.5px solid var(--line);overflow:hidden;margin-bottom:10px;">
-              <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--line);">
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="width:34px;height:34px;border-radius:10px;background:var(--blue-subtle);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="ph-bold ph-chat-circle" style="color:#1A6FE8;" style="font-size:16px;" aria-hidden="true"></i>
-                  </div>
-                  <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--ink);">SMS an Anrufer</div>
-                    <div style="font-size:11px;color:var(--slate2);">Automatische Bestätigung</div>
-                  </div>
-                </div>
-                <span id="sms-caller-addon-badge" style="font-size:11px;font-weight:600;color:#1A6FE8;background:var(--blue-subtle);border-radius:8px;padding:4px 10px;white-space:nowrap;">CHF 19 / Mt</span>
-              </div>
-              <div id="sms-caller-locked" style="padding:14px 16px;">
-                <div style="font-size:13px;color:var(--ink);margin-bottom:4px;">Hinterlassen Sie einen professionellen Eindruck.</div>
-                <div style="font-size:12px;color:var(--slate2);margin-bottom:12px;">Nach dem Anruf erhält der Anrufer automatisch eine SMS — mit Ihrer persönlichen Nachricht und Rückruf-Bestätigung.</div>
-                <button onclick="vxRequestAddon('sms_confirm_caller')" style="background:#0D1F3C;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Add-on anfragen · CHF 19/Mt</button>
-              </div>
-              <div id="sms-caller-settings" style="display:none;padding:14px 16px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-                  <span style="font-size:13px;font-weight:500;color:var(--ink);">SMS aktiv</span>
-                  <div onclick="vxToggleNotifSms('caller')" id="sms-caller-toggle2" style="width:44px;height:24px;border-radius:12px;background:var(--line);position:relative;cursor:pointer;transition:background .2s;">
-                    <div id="sms-caller-knob2" style="width:18px;height:18px;border-radius:50%;background:var(--surface);position:absolute;top:3px;left:3px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
-                  </div>
-                </div>
-                <div id="sms-caller-detail" style="display:none;">
-                  <div style="margin-bottom:10px;">
-                    <div style="font-size:11px;font-weight:600;color:var(--slate2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Wann senden</div>
-                    <select id="sms-caller-trigger2" style="width:100%;height:36px;border:0.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;background:var(--surface);color:var(--ink);font-family:inherit;outline:none;">
-                      <option value="callback_only">Nur bei zugesagtem Rückruf</option>
-                      <option value="all">Nach jedem Anruf</option>
-                    </select>
-                  </div>
-                  <div>
-                    <div style="font-size:11px;font-weight:600;color:var(--slate2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">SMS-Text</div>
-                    <div style="font-size:11px;color:var(--slate2);margin-bottom:5px;">Verwenden Sie {{name}} für den Namen des Anrufers</div>
-                    <textarea id="sms-caller-template2" style="width:100%;border:0.5px solid var(--line);border-radius:8px;padding:10px;font-size:13px;font-family:inherit;min-height:80px;resize:vertical;outline:none;box-sizing:border-box;background:var(--surface);color:var(--ink);line-height:1.5;" placeholder="Guten Tag {{name}}, vielen Dank für Ihren Anruf. Wir melden uns baldmöglichst bei Ihnen."></textarea>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </section>
+            <div class="vx-settings-actions"><button type="button" onclick="vxSaveBenachrichtigungen()" class="btn vx-abo-btn">Benachrichtigungen speichern</button></div>
+            <div id="fb-benachrichtigungen" class="vx-settings-feedback" role="status" aria-live="polite"></div>
           </div>
 
-          <!-- ABONNEMENT -->
+        <!-- ABONNEMENT -->
           <div id="mehr-sub-abonnement" class="vx-settings-subpage" style="display:none;">
             <div class="vx-page-header vx-settings-subpage-header">
               <button type="button" onclick="vxMehrBack()" class="vx-back-btn vx-settings-back" aria-label="Zurück zu Einstellungen"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button>
@@ -7542,20 +7422,22 @@ body,.main{background:var(--vx-bg);}
                 <div id="abo-minutes-warning" class="vx-abo-warning" hidden>Über 80% des Kontingents verbraucht</div>
               </div>
             </section>
-
             <section class="vx-settings-card">
-              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Add-ons</h2><p class="vx-settings-card-meta">Aktive Erweiterungen und verfügbare Zusatzleistungen.</p></div></div>
-              <div id="abo-addons-list" class="vx-settings-card-body"></div>
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Plan & Optionen</h2><p class="vx-settings-card-meta">Planwechsel und zusätzliches Gesprächsvolumen zentral anfragen.</p></div></div>
+              <div class="vx-abo-addon-grid">
+                <button type="button" class="vx-commercial-entry" onclick="vxAboUpgrade()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-trend-up" aria-hidden="true"></i></span><span><strong>Plan wechseln</strong><small>Verfügbare höhere Pläne vergleichen und verbindlich anfragen.</small></span><i class="ph-bold ph-caret-right" aria-hidden="true"></i></button>
+                <button type="button" class="vx-commercial-entry" onclick="vxAboMinuten()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-plus-circle" aria-hidden="true"></i></span><span><strong>Zusatzminuten</strong><small>Ein einmaliges Minutenpaket für Spitzenzeiten anfragen.</small></span><i class="ph-bold ph-caret-right" aria-hidden="true"></i></button>
+              </div>
             </section>
 
-            <div class="vx-abo-primary-actions" aria-label="Abonnement-Aktionen">
-              <button type="button" onclick="vxAboUpgrade()" class="btn vx-abo-btn">Plan upgraden</button>
-              <button type="button" onclick="vxAboMinuten()" class="btn vx-abo-btn secondary">Zusatzminuten kaufen</button>
-            </div>
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Vertrag</h2><p class="vx-settings-card-meta">Ihr vollständig unterzeichneter Voxera-Vertrag.</p></div></div>
+              <div id="abo-contract-documents" class="vx-abo-addon-grid"><div class="vx-abo-empty">Vertrag wird geladen…</div></div>
+            </section>
 
             <section class="vx-settings-card">
-              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Rechnungen</h2><p class="vx-settings-card-meta">Ihre Abrechnungsdokumente an einem Ort.</p></div></div>
-              <div id="abo-invoices-list" class="vx-settings-card-body"><div class="vx-abo-empty">Rechnungen werden hier angezeigt, sobald sie verfügbar sind.</div></div>
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Rechnungen</h2><p class="vx-settings-card-meta">Ihre ausgestellten Abrechnungsdokumente an einem Ort.</p></div></div>
+              <div id="abo-invoices-list" class="vx-abo-addon-grid"><div class="vx-abo-empty">Rechnungen werden geladen…</div></div>
             </section>
 
             <section class="vx-settings-card vx-abo-cancellation-card">
@@ -7809,240 +7691,39 @@ body,.main{background:var(--vx-bg);}
 
         <!-- HILFE TAB -->
         <div class="tab-page" id="tab-hilfe">
-          <div class="vx-page-wrap">
-          <div class="help-page">
-
-            <!-- Header -->
-            <div class="vx-page-header" style="align-items:center;gap:12px;">
-              <button onclick="showTab('mehr',document.getElementById('nav-mehr')||document.getElementById('mnav-mehr'))" class="vx-back-btn mobile-only-back" aria-label="Zurück" style="display:none;">
-                <i class="ph-bold ph-arrow-left"  style="font-size:18px;" aria-hidden="true"></i>
-              </button>
-              <div style="flex:1;">
-                <div class="vx-page-header-title">Hilfe & Support</div>
-                <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:1px;">Alles was Sie über Voxera wissen müssen.</div>
-              </div>
-            </div>
-
-            <!-- Schnellzugriff -->
-            <div class="help-quickstart-grid" style="margin-bottom:20px;">
-              <a class="help-quickstart-card" href="#help-start">
-                <div class="help-quickstart-icon"><i class="ph-bold ph-lightning" style="color:#1A6FE8;" style="font-size:18px;" aria-hidden="true"></i></div>
-                <div class="help-quickstart-title">Erste Schritte</div>
-                <div class="help-quickstart-sub">Rufumleitung einrichten</div>
-              </a>
-              <a class="help-quickstart-card" href="#help-assistent" style="display:none;">
-                <div class="help-quickstart-icon"><i class="ph-bold ph-robot" style="color:#1A6FE8;" style="font-size:18px;" aria-hidden="true"></i></div>
-                <div class="help-quickstart-title">Mein Assistent</div>
-                <div class="help-quickstart-sub">Lara konfigurieren</div>
-              </a>
-              <a class="help-quickstart-card" href="#help-anrufe">
-                <div class="help-quickstart-icon"><i class="ph-bold ph-phone" style="color:#1A6FE8;" style="font-size:18px;" aria-hidden="true"></i></div>
-                <div class="help-quickstart-title">Anfragen & Analyse</div>
-                <div class="help-quickstart-sub">Anfragen verwalten</div>
-              </a>
-            </div>
-
-            <!-- Themenblock: Erste Schritte -->
-            <div class="help-topic" id="help-start">
-              <div class="help-topic-title">Erste Schritte</div>
-              <div class="help-steps">
-                <div class="help-step">
-                  <div class="help-step-num">1</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Rufumleitung einrichten</div>
-                    <div class="help-step-text">Kontaktieren Sie uns für die Einrichtung der Rufumleitung. Wir helfen Ihnen dabei, den Code für «Bei Nichterreichbarkeit» einzurichten. So bleibt Lara erreichbar wenn Sie nicht abnehmen können.</div>
-                  </div>
-                </div>
-                <div class="help-step">
-                  <div class="help-step-num">2</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Lara kennt Ihr Unternehmen</div>
-                    <div class="help-step-text">Lara wurde mit Ihrem Geschäftsprofil, Leistungen und Erreichbarkeit eingerichtet. Diese Angaben nutzt Lara in jedem Gespräch. Bei Änderungswünschen kontaktieren Sie uns.</div>
-                  </div>
-                </div>
-                <div class="help-step">
-                  <div class="help-step-num">3</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Testanruf machen</div>
-                    <div class="help-step-text">Rufen Sie Ihre Geschäftsnummer von einem anderen Gerät an. Lara sollte sich melden und die Anfrage erscheint danach unter <strong>Anfragen</strong> im Dashboard.</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Weiterleitungscodes -->
-              <div style="margin-top:20px;border-top:1px solid var(--line);padding-top:16px;">
-                <div class="help-section-title">Weiterleitungscodes</div>
-                <div class="help-chip badge-amber" id="forwarding-code-fallback" style="display:none;">Ihre Voxera-Nummer ist noch nicht verfügbar.</div>
-                <div id="help-smartphone">
-                  <div class="help-forwarding-grid">
-                    <div class="help-forwarding-card recommended">
-                      <div class="help-forwarding-head">
-                        <div class="help-forwarding-title">Bei Nichterreichbarkeit</div>
-                        <span class="help-forwarding-reco">Empfohlen</span>
-                      </div>
-                      <div class="help-forwarding-desc">Leitet weiter wenn Sie nicht abnehmen.</div>
-                      <div class="help-code-row">
-                        <code data-code-template="**62*{voxera_number}#">Wird geladen...</code>
-                        <div class="help-code-actions">
-                          <button class="btn btn--primary" data-code-template="**62*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Kopieren</button>
-                          <a class="btn btn--secondary help-direct-btn" data-code-template="**62*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Anwenden</a>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="help-forwarding-card">
-                      <div class="help-forwarding-head"><div class="help-forwarding-title">Bei Besetzt</div></div>
-                      <div class="help-forwarding-desc">Leitet weiter wenn Sie bereits telefonieren.</div>
-                      <div class="help-code-row">
-                        <code data-code-template="**67*{voxera_number}#">Wird geladen...</code>
-                        <div class="help-code-actions">
-                          <button class="btn btn--primary" data-code-template="**67*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Kopieren</button>
-                          <a class="btn btn--secondary help-direct-btn" data-code-template="**67*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Anwenden</a>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="help-forwarding-card">
-                      <div class="help-forwarding-head"><div class="help-forwarding-title">Alle Anrufe</div></div>
-                      <div class="help-forwarding-desc">Lara übernimmt alle eingehenden Anrufe.</div>
-                      <div class="help-code-row">
-                        <code data-code-template="**21*{voxera_number}#">Wird geladen...</code>
-                        <div class="help-code-actions">
-                          <button class="btn btn--primary" data-code-template="**21*{voxera_number}#" onclick="copyForwardingTemplateCode(event,this)">Kopieren</button>
-                          <a class="btn btn--secondary help-direct-btn" data-code-template="**21*{voxera_number}#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Anwenden</a>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="help-forwarding-card">
-                      <div class="help-forwarding-head"><div class="help-forwarding-title">Weiterleitung deaktivieren</div></div>
-                      <div class="help-forwarding-desc">Wieder direkt erreichbar sein.</div>
-                      <div class="help-code-row">
-                        <code>##002#</code>
-                        <div class="help-code-actions">
-                          <button class="btn btn--primary" data-fixed-code="##002#" onclick="copyForwardingCode(event,'##002#')">Kopieren</button>
-                          <a class="btn btn--secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Anwenden</a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Themenblock: Mein Assistent -->
-            <div class="help-topic" id="help-assistent" style="display:none;">
-              <div class="help-topic-title">Mein Assistent (Lara)</div>
-              <div class="help-steps">
-                <div class="help-step">
-                  <div class="help-step-num">1</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Geschäftsprofil & Leistungen</div>
-                    <div class="help-step-text">Tragen Sie ein was Ihr Unternehmen macht und welche Leistungen Sie anbieten. Lara nutzt diese Infos um Anrufern präzise Auskunft zu geben.</div>
-                  </div>
-                </div>
-                <div class="help-step">
-                  <div class="help-step-num">2</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Erreichbarkeit eintragen</div>
-                    <div class="help-step-text">Definieren Sie Ihre telefonischen Zeiten, Bürozeiten und Terminzeiten getrennt. So weiss Lara wann Sie zurückrufen können und wann Termine möglich sind.</div>
-                  </div>
-                </div>
-                <div class="help-step">
-                  <div class="help-step-num">3</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Stimme & Name wählen</div>
-                    <div class="help-step-text">Ab dem Business-Paket können Sie den Namen und die Stimme von Lara anpassen. Wählen Sie aus mehreren Schweizer Stimmen.</div>
-                  </div>
-                </div>
-                <div class="help-step">
-                  <div class="help-step-num">4</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Weiterleitungen</div>
-                    <div class="help-step-text">Ab Professional können Sie definieren an wen Lara bei bestimmten Anliegen weiterleiten soll — z.B. Schadenhotline oder interne Abteilungen.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Themenblock: Anrufe & Analyse -->
-            <div class="help-topic" id="help-anrufe">
-              <div class="help-topic-title">Anfragen & Analyse</div>
-              <div class="help-steps">
-                <div class="help-step">
-                  <div class="help-step-num">1</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Neue Anrufe sehen</div>
-                    <div class="help-step-text">Im Tab <strong>Heute</strong> sehen Sie die wichtigsten Anrufe sofort. Unter <strong>Anfragen</strong> finden Sie die vollständige Liste mit Zusammenfassungen, Kategorien und Lead-Qualität.</div>
-                  </div>
-                </div>
-                <div class="help-step">
-                  <div class="help-step-num">2</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Benachrichtigungen einrichten</div>
-                    <div class="help-step-text">Unter <strong>Mehr → Benachrichtigungen</strong> stellen Sie ein wann Sie per E-Mail informiert werden. Mit dem SMS Add-on erhalten Sie Benachrichtigungen direkt aufs Handy.</div>
-                  </div>
-                </div>
-                <div class="help-step">
-                  <div class="help-step-num">3</div>
-                  <div class="help-step-body">
-                    <div class="help-step-title">Auswertungen nutzen</div>
-                    <div class="help-step-text">Der Tab <strong>Analyse</strong> zeigt Ihnen Anrufvolumen, Minutenverbrauch, Lead-Qualität und Top-Kategorien — damit Sie den Überblick behalten.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- FAQ -->
-            <div class="help-topic">
-              <div class="help-topic-title">Häufige Fragen</div>
-              <div style="display:flex;flex-direction:column;gap:8px;">
-                <details style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;">
-                  <summary style="font-size:13px;font-weight:600;color:var(--ink);list-style:none;display:flex;justify-content:space-between;align-items:center;">Was hört der Anrufer wenn Lara antwortet? <i class="ph-bold ph-caret-down" style="color:var(--slate2);flex-shrink:0;" style="font-size:16px;" aria-hidden="true"></i></summary>
-                  <div style="font-size:13px;color:var(--slate2);margin-top:10px;line-height:1.6;">Lara begrüsst den Anrufer mit Ihrem Firmennamen, weist auf die Aufzeichnung hin und nimmt das Anliegen auf. Die Begrüssung ist konfigurierbar.</div>
-                </details>
-                <details style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;">
-                  <summary style="font-size:13px;font-weight:600;color:var(--ink);list-style:none;display:flex;justify-content:space-between;align-items:center;">Kann Lara Termine buchen? <i class="ph-bold ph-caret-down" style="color:var(--slate2);flex-shrink:0;" style="font-size:16px;" aria-hidden="true"></i></summary>
-                  <div style="font-size:13px;color:var(--slate2);margin-top:10px;line-height:1.6;">Lara nimmt Terminwünsche auf und leitet diese direkt an Sie weiter. Eine direkte Kalenderintegration ist in Planung.</div>
-                </details>
-                <details style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;">
-                  <summary style="font-size:13px;font-weight:600;color:var(--ink);list-style:none;display:flex;justify-content:space-between;align-items:center;">Was passiert wenn jemand Schweizerdeutsch spricht? <i class="ph-bold ph-caret-down" style="color:var(--slate2);flex-shrink:0;" style="font-size:16px;" aria-hidden="true"></i></summary>
-                  <div style="font-size:13px;color:var(--slate2);margin-top:10px;line-height:1.6;">Lara antwortet auf Schweizer Hochdeutsch, versteht aber auch Dialekt. Bei undeutlicher Sprache fragt Lara höflich nach.</div>
-                </details>
-                <details style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;">
-                  <summary style="font-size:13px;font-weight:600;color:var(--ink);list-style:none;display:flex;justify-content:space-between;align-items:center;">Kann ich meinen Plan upgraden? <i class="ph-bold ph-caret-down" style="color:var(--slate2);flex-shrink:0;" style="font-size:16px;" aria-hidden="true"></i></summary>
-                  <div style="font-size:13px;color:var(--slate2);margin-top:10px;line-height:1.6;">Ja — unter <strong>Mehr → Abonnement</strong> finden Sie den Button "Plan upgraden". Ein Upgrade wird sofort aktiviert.</div>
-                </details>
-                <details style="background:var(--surface);border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;">
-                  <summary style="font-size:13px;font-weight:600;color:var(--ink);list-style:none;display:flex;justify-content:space-between;align-items:center;">Wie funktioniert das SMS Add-on? <i class="ph-bold ph-caret-down" style="color:var(--slate2);flex-shrink:0;" style="font-size:16px;" aria-hidden="true"></i></summary>
-                  <div style="font-size:13px;color:var(--slate2);margin-top:10px;line-height:1.6;">Nach jedem Anruf (oder nur bei Rückruf-Anfragen) erhalten Sie eine SMS auf Ihr Handy. Unter <strong>Mehr → Benachrichtigungen</strong> können Sie das Add-on anfragen und konfigurieren.</div>
-                </details>
-              </div>
-            </div>
-
-            <!-- Einrichtung neu starten -->
-            <div style="background:var(--surface);border-radius:var(--r-xl);border:0.5px solid var(--line);padding:16px 20px;margin-top:8px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:14px;">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px;">Einrichtungs-Assistent</div>
-                <div style="font-size:12px;color:var(--slate2);">Schritt-für-Schritt durch die Einrichtung</div>
-              </div>
-              <button onclick="vxOnboardingRestart()" style="background:#0D1F3C;color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Starten</button>
-            </div>
-
-            <!-- Support -->
-            <div style="background:#0D1F3C;border-radius:var(--r-xl);padding:20px;margin-top:8px;margin-bottom:16px;text-align:center;">
-              <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;">Noch Fragen?</div>
-              <div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:16px;">Unser Team hilft Ihnen gerne weiter.</div>
-              <a href="mailto:info@voxera.ch" style="display:inline-block;background:#1A6FE8;color:#fff;text-decoration:none;border-radius:10px;padding:10px 24px;font-size:13px;font-weight:600;">info@voxera.ch</a>
-            </div>
-
+          <div class="vx-page-header vx-settings-subpage-header">
+            <button type="button" onclick="showTab('mehr',document.getElementById('nav-mehr'))" class="vx-back-btn vx-settings-back" aria-label="Zurück zu Einstellungen"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button>
+            <div class="vx-settings-header-copy"><div class="vx-page-header-title">Hilfe & Support</div><div class="vx-page-header-subtitle">Schnelle Antworten und direkter Kontakt.</div></div>
           </div>
-        
-          
 
-<!-- Call-Detail Page wurde nach unten verschoben (außerhalb tab-page) -->
+          <section class="vx-settings-card">
+            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Direkte Hilfe</h2><p class="vx-settings-card-meta">Wählen Sie den passenden nächsten Schritt.</p></div></div>
+            <div class="vx-help-action-grid">
+              <button type="button" class="vx-help-action" onclick="requestSupport()"><span><i class="ph-bold ph-envelope-simple" aria-hidden="true"></i></span><strong>E-Mail</strong><small>Support kontaktieren</small></button>
+              <button type="button" class="vx-help-action" onclick="window.open('https://voxera.ch','_blank','noopener')"><span><i class="ph-bold ph-globe" aria-hidden="true"></i></span><strong>Website</strong><small>Informationen öffnen</small></button>
+              <button type="button" class="vx-help-action" onclick="vxOnboardingRestart()"><span><i class="ph-bold ph-play-circle" aria-hidden="true"></i></span><strong>Einrichtung</strong><small>Assistent erneut starten</small></button>
+            </div>
+          </section>
 
-</div><!-- /vx-page-wrap -->
+          <section class="vx-settings-card">
+            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Erste Schritte</h2><p class="vx-settings-card-meta">Die wichtigsten Punkte für einen zuverlässigen Betrieb.</p></div></div>
+            <ol class="vx-help-step-list">
+              <li class="vx-help-step"><span>1</span><div><strong>Rufumleitung einrichten</strong><small>Ihre Geschäftsnummer wird sicher mit Voxera verbunden.</small></div></li>
+              <li class="vx-help-step"><span>2</span><div><strong>Assistent konfigurieren</strong><small>Name, Stimme und Geschäftswissen im Bereich Assistent prüfen.</small></div></li>
+              <li class="vx-help-step"><span>3</span><div><strong>Testanruf durchführen</strong><small>Die Geschäftsnummer anrufen und den Eintrag unter Anfragen kontrollieren.</small></div></li>
+            </ol>
+          </section>
+
+          <section class="vx-settings-card">
+            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Häufige Fragen</h2></div></div>
+            <div class="vx-help-faq">
+              <details><summary>Wie schnell sind Änderungen aktiv?</summary><p>Gespeicherte Assistenten-Einstellungen werden normalerweise innerhalb weniger Sekunden synchronisiert.</p></details>
+              <details><summary>Welche Sprachen erkennt Lara?</summary><p>Deutsch, Französisch, Italienisch und Englisch werden automatisch erkannt.</p></details>
+              <details><summary>Was mache ich bei Ferien oder Schliesszeiten?</summary><p>Temporäre Änderungen können im Assistenten unter „Aktuelle Infos“ erfasst werden.</p></details>
+              <details><summary>Wo finde ich gebuchte Termine?</summary><p>Durch Voxera erstellte Termine erscheinen unter Anfragen im Status „Geplant“.</p></details>
+            </div>
+          </section>
         </div>
-
-        </div><!-- /tab-einstellungen: close before global/mobile structures -->
 
         <!-- ── BENACHRICHTIGUNGEN — Mobile Vollseite ── -->
         <div class="tab-page" id="tab-benachrichtigungen">
@@ -8130,170 +7811,24 @@ body,.main{background:var(--vx-bg);}
 <!-- ═══ TOAST CONTAINER ═══ -->
 <div id="vx-toast-container"></div>
 
-<!-- PLAN UPGRADE MODAL -->
-<div id="vx-upgrade-overlay" onclick="if(event.target===this)vxCloseUpgradeModal()" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.5);backdrop-filter:blur(8px);z-index:9001;align-items:center;justify-content:center;padding:20px;" class="vx-custom-overlay">
-  <div style="background:var(--surface);border-radius:var(--r-xl);width:100%;max-width:520px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.18);max-height:88vh;overflow-y:auto;">
-    <div style="background:#0D1F3C;padding:14px 20px 16px;display:flex;flex-direction:column;gap:10px;">
-      <div style="width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:999px;margin:0 auto;"></div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-trend-up" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-        <div style="flex:1;">
-          <div style="font-size:17px;font-weight:700;color:#fff;letter-spacing:-.02em;font-family:var(--font-display);">Plan upgraden</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:1px;">Wählen Sie Ihr neues Paket</div>
+<!-- COMMERCIAL REQUEST MODAL -->
+    <div class="overlay overlay--sheet vx-commercial-overlay" id="vx-commercial-overlay" aria-hidden="true">
+      <div class="modal modal--wide vx-commercial-modal" role="dialog" aria-modal="true" aria-labelledby="vx-commercial-title">
+        <div class="modal-shell">
+          <div class="modal-head">
+            <div><div id="vx-commercial-title" class="modal-title">Plan & Optionen</div><div id="vx-commercial-subtitle" class="modal-sub">Auswahl prüfen und verbindlich übermitteln.</div></div>
+            <button type="button" class="modal-close" onclick="vxCommercialClose()" aria-label="Schliessen"><i class="ph-bold ph-x" aria-hidden="true"></i></button>
+          </div>
+          <div id="vx-commercial-body" class="vx-commercial-body"></div>
+          <div class="modal-actions vx-commercial-actions">
+            <button type="button" class="modal-btn modal-btn-s" onclick="vxCommercialClose()">Abbrechen</button>
+            <button type="button" class="modal-btn modal-btn-p" id="vx-commercial-submit" onclick="vxCommercialSubmit()" disabled>Anfrage übermitteln</button>
+          </div>
         </div>
-        <button onclick="vxCloseUpgradeModal()" style="width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" aria-label="Schliessen">
-          <i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i>
-        </button>
       </div>
     </div>
 
-    <!-- Billing Toggle -->
-    <div style="padding:16px 24px 0;">
-      <div style="display:flex;align-items:center;justify-content:center;gap:0;background:var(--surface2);border-radius:10px;padding:3px;">
-        <button id="vx-billing-monthly" onclick="vxSetBilling('monthly')" style="flex:1;padding:8px;border-radius:8px;border:none;background:#1A6FE8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;">Monatlich</button>
-        <button id="vx-billing-yearly" onclick="vxSetBilling('yearly')" style="flex:1;padding:8px;border-radius:8px;border:none;background:transparent;color:var(--slate2);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;">Jährlich <span style="font-size:10px;background:#059669;color:#fff;border-radius:20px;padding:1px 6px;margin-left:4px;">-10%</span></button>
-      </div>
-    </div>
-
-    <!-- Plans -->
-    <div style="padding:16px 24px;display:flex;flex-direction:column;gap:10px;">
-
-      <!-- Starter -->
-      <div id="vx-plan-starter" style="border:1.5px solid var(--line);border-radius:var(--r-lg);padding:16px;opacity:.5;cursor:default;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--ink);">Starter</div>
-            <div style="font-size:12px;color:var(--slate2);margin-top:2px;">60 Min · CHF 0.50/Min extra</div>
-          </div>
-          <div style="text-align:right;">
-            <div id="vx-starter-price" style="font-size:18px;font-weight:800;color:var(--ink);">CHF 149</div>
-            <div style="font-size:10px;color:var(--slate2);">/Monat</div>
-          </div>
-        </div>
-        <div style="margin-top:10px;font-size:11px;color:var(--slate2);">Ihr aktueller Plan</div>
-      </div>
-
-      <!-- Business -->
-      <div id="vx-plan-business" onclick="vxSelectUpgradePlan('business')" style="border:1.5px solid var(--line);border-radius:var(--r-lg);padding:16px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#1A6FE8'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--line)'">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--ink);">Business</div>
-            <div style="font-size:12px;color:var(--slate2);margin-top:2px;">150 Min · CHF 0.38/Min extra</div>
-          </div>
-          <div style="text-align:right;">
-            <div id="vx-business-price" style="font-size:18px;font-weight:800;color:#1A6FE8;">CHF 249</div>
-            <div style="font-size:10px;color:var(--slate2);">/Monat</div>
-          </div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
-          <span style="font-size:11px;background:var(--blue-subtle);color:#1A6FE8;border-radius:20px;padding:2px 8px;">Stimme & Name wählbar</span>
-          <span style="font-size:11px;background:var(--blue-subtle);color:#1A6FE8;border-radius:20px;padding:2px 8px;">4 Stimmen</span>
-          <span style="font-size:11px;background:var(--blue-subtle);color:#1A6FE8;border-radius:20px;padding:2px 8px;">Priority Support</span>
-        </div>
-      </div>
-
-      <!-- Professional -->
-      <div id="vx-plan-professional" onclick="vxSelectUpgradePlan('professional')" style="border:1.5px solid #E8C547;border-radius:var(--r-lg);padding:16px;cursor:pointer;transition:all .15s;background:rgba(232,197,71,.04);" onmouseover="this.style.borderColor='#1A6FE8'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='#E8C547'">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:14px;font-weight:700;color:var(--ink);">Professional</span>
-                <span style="font-size:10px;font-weight:700;background:#E8C547;color:var(--ink);border-radius:20px;padding:2px 8px;">Empfohlen</span>
-              </div>
-              <div style="font-size:12px;color:var(--slate2);margin-top:2px;">350 Min · CHF 0.28/Min extra</div>
-            </div>
-          </div>
-          <div style="text-align:right;">
-            <div id="vx-professional-price" style="font-size:18px;font-weight:800;color:#1A6FE8;">CHF 399</div>
-            <div style="font-size:10px;color:var(--slate2);">/Monat</div>
-          </div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
-          <span style="font-size:11px;background:rgba(232,197,71,.15);color:#92400E;border-radius:20px;padding:2px 8px;">Custom Voice</span>
-          <span style="font-size:11px;background:rgba(232,197,71,.15);color:#92400E;border-radius:20px;padding:2px 8px;">Weiterleitungen</span>
-          <span style="font-size:11px;background:rgba(232,197,71,.15);color:#92400E;border-radius:20px;padding:2px 8px;">DE+FR+IT+EN</span>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- CTA -->
-    <div style="padding:0 24px 20px;">
-      <button id="vx-upgrade-cta" onclick="vxConfirmUpgrade()" class="btn btn--primary" style="width:100%;height:48px;border-radius:10px;font-size:15px;" disabled>Plan wählen →</button>
-      <div style="font-size:11px;color:var(--slate2);text-align:center;margin-top:8px;">Upgrade wird sofort aktiv · Zahlung via Stripe · Kündigung 30 Tage</div>
-    </div>
-  </div>
-</div>
-
-<!-- ZUSATZMINUTEN MODAL -->
-<div id="vx-minutes-overlay" onclick="if(event.target===this)vxCloseMinutesModal()" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.5);backdrop-filter:blur(8px);z-index:9001;align-items:center;justify-content:center;padding:20px;" class="vx-custom-overlay">
-  <div style="background:var(--surface);border-radius:var(--r-xl);width:100%;max-width:420px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.18);">
-    <div style="background:#0D1F3C;padding:14px 20px 16px;display:flex;flex-direction:column;gap:10px;">
-      <div style="width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:999px;margin:0 auto;"></div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-clock" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-        <div style="flex:1;">
-          <div style="font-size:17px;font-weight:700;color:#fff;letter-spacing:-.02em;font-family:var(--font-display);">Zusatzminuten</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:1px;">Einmalig · sofort verfügbar</div>
-        </div>
-        <button onclick="vxCloseMinutesModal()" style="width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" aria-label="Schliessen">
-          <i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- Packages -->
-    <div style="padding:16px 24px;display:flex;flex-direction:column;gap:10px;">
-
-      <div onclick="vxSelectMinutesPkg('50')" id="vx-min-50" style="border:1.5px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;">
-        <div>
-          <div style="font-size:15px;font-weight:700;color:var(--ink);">50 Minuten</div>
-          <div style="font-size:12px;color:var(--slate2);">CHF 0.30 / Min</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:20px;font-weight:800;color:#1A6FE8;">CHF 15</div>
-          <div style="font-size:10px;color:var(--slate2);">einmalig</div>
-        </div>
-      </div>
-
-      <div onclick="vxSelectMinutesPkg('100')" id="vx-min-100" style="border:1.5px solid #E8C547;border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;background:rgba(232,197,71,.04);">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:15px;font-weight:700;color:var(--ink);">100 Minuten</span>
-            <span style="font-size:10px;font-weight:700;background:#E8C547;color:var(--ink);border-radius:20px;padding:1px 7px;">Beliebt</span>
-          </div>
-          <div style="font-size:12px;color:var(--slate2);">CHF 0.25 / Min</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:20px;font-weight:800;color:#1A6FE8;">CHF 25</div>
-          <div style="font-size:10px;color:var(--slate2);">einmalig</div>
-        </div>
-      </div>
-
-      <div onclick="vxSelectMinutesPkg('200')" id="vx-min-200" style="border:1.5px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;">
-        <div>
-          <div style="font-size:15px;font-weight:700;color:var(--ink);">200 Minuten</div>
-          <div style="font-size:12px;color:var(--slate2);">CHF 0.225 / Min</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:20px;font-weight:800;color:#1A6FE8;">CHF 45</div>
-          <div style="font-size:10px;color:var(--slate2);">einmalig</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- CTA -->
-    <div style="padding:0 24px 20px;">
-      <button id="vx-minutes-cta" onclick="vxConfirmMinutes()" class="btn btn--primary" style="width:100%;height:48px;border-radius:10px;font-size:15px;" disabled>Paket wählen →</button>
-      <div style="font-size:11px;color:var(--slate2);text-align:center;margin-top:8px;">Stripe-Zahlung · Minuten werden sofort gutgeschrieben</div>
-      <div id="vx-minutes-stripe-note" style="display:none;font-size:12px;color:#059669;text-align:center;margin-top:6px;font-weight:600;">✓ Stripe-Link wird in Kürze verfügbar</div>
-    </div>
-  </div>
-</div>
-
-<!-- ONBOARDING MODAL -->
+        <!-- ONBOARDING MODAL -->
 <div id="vx-onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.6);backdrop-filter:blur(4px);z-index:9000;display:none;align-items:center;justify-content:center;padding:16px;">
   <div style="background:var(--surface);border-radius:20px;width:100%;max-width:480px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);">
     <!-- Header -->
@@ -8653,45 +8188,9 @@ body,.main{background:var(--vx-bg);}
   </div>
 </div>
 
-<!-- UPGRADE MODAL -->
-<div class="overlay overlay--sheet" id="upgrade-overlay" onclick="if(event.target===this)document.getElementById('upgrade-overlay').classList.remove('open');syncOverlayScrollLock()">
-  <div class="modal modal--compact">
-    <div class="modal-shell">
-      <div class="modal-head with-divider">
-        <h3>Plan-Upgrade anfragen</h3>
-        <div class="modal-sub">Wählen Sie den gewünschten Plan:</div>
-      </div>
-      <div class="modal-body">
-        <div id="upgrade-options" style="display:flex;flex-direction:column;gap:8px;"></div>
-      </div>
-      <div class="modal-footer modal-actions">
-        <button class="btn btn--secondary" onclick="document.getElementById('upgrade-overlay').classList.remove('open');syncOverlayScrollLock()">Abbrechen</button>
-        <button class="btn btn--primary" id="upgrade-send-btn" onclick="sendUpgradeRequest()">Anfrage senden</button>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- COMMERCIAL LEGACY MODALS REMOVED -->
 
-<!-- EXTRA MINUTES MODAL -->
-<div class="overlay overlay--sheet" id="minutes-overlay" onclick="if(event.target===this)document.getElementById('minutes-overlay').classList.remove('open');syncOverlayScrollLock()">
-  <div class="modal modal--compact">
-    <div class="modal-shell">
-      <div class="modal-head with-divider">
-        <h3>Zusatzminuten anfragen</h3>
-        <div class="modal-sub">Wählen Sie ein Paket:</div>
-      </div>
-      <div class="modal-body">
-        <div id="minutes-options" style="display:flex;flex-direction:column;gap:8px;"></div>
-      </div>
-      <div class="modal-footer modal-actions">
-        <button class="btn btn--secondary" onclick="document.getElementById('minutes-overlay').classList.remove('open');syncOverlayScrollLock()">Abbrechen</button>
-        <button class="btn btn--primary" id="minutes-send-btn" onclick="sendMinutesRequest()">Anfrage senden</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- TOAST -->
+        <!-- TOAST -->
 <div class="toast" id="toast"><div class="toast-icon success" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg></div><span id="toast-text"></span></div>
 <div id="copy-feedback-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
@@ -10969,6 +10468,7 @@ function vxNormalizeInAppNotificationSettings(raw) {
   };
 }
 let customerContractMeta = null;
+let customerDocumentsState = { loading: false, loaded: false, invoices: [], contract: null, error: null };
 let customerContractState = {
   status: 'unknown',
   resolution: 'unresolved',
@@ -13799,7 +13299,7 @@ function vxInquiryFilterEmptyText(filter) {
   if (filter === 'geplant') return 'Keine geplanten Anfragen.';
   if (filter === 'neu') return 'Keine offenen Anfragen — Lara legt neue Kontakte hier ab.';
   if (filter === 'abgeschlossen' || filter === 'geprueft') return 'Keine erledigten Anfragen.';
-  if (filter === 'archiv') return 'Archiv ist leer. Audio und vollständige Transkripte werden nach <strong>90 Tagen</strong> entfernt, Archiveinträge nach <strong>180 Tagen</strong> gelöscht.';
+  if (filter === 'archiv') return 'Archiv ist leer. Audio und vollständige Transkripte werden nach 90 Tagen entfernt, Archiveinträge nach 180 Tagen gelöscht.';
   return 'Keine Anfragen.';
 }
 function vxGetAnfragenActiveFilter(nextFilter) {
@@ -15068,47 +14568,60 @@ async function vxSavePassword() {
 
 // ── Benachrichtigungen ────────────────────────────────────────────────────────
 function vxInitBenachrichtigungen() {
-  // E-Mail Mode
   const mode = customerMeta.notificationMode || 'none';
-  const radios = document.querySelectorAll('input[name="notif-email"]');
-  radios.forEach(r => { r.checked = r.value === mode; });
+  document.querySelectorAll('input[name="notif-email"]').forEach(function(radio) {
+    radio.checked = radio.value === mode;
+  });
   const emailAddr = document.getElementById('notif-email-address');
   if (emailAddr) emailAddr.value = customerMeta.customerEmail || '';
 
-  // SMS Notify Add-on Status
-  const hasNotify = customerMeta.smsNotifyAddon === true;
-  document.getElementById('sms-notify-locked').style.display = hasNotify ? 'none' : 'block';
-  document.getElementById('sms-notify-settings').style.display = hasNotify ? 'block' : 'none';
-  if (hasNotify) {
-    vxSetToggle2('notify', customerMeta.smsNotifyEnabled);
-    const num = document.getElementById('sms-notify-number2');
-    const trig = document.getElementById('sms-notify-trigger2');
-    if (num) num.value = customerMeta.smsNotifyNumber || '';
-    if (trig) trig.value = customerMeta.smsNotifyTrigger || 'all';
-    document.getElementById('sms-notify-detail').style.display = customerMeta.smsNotifyEnabled ? 'block' : 'none';
-  }
-
-  // SMS Caller Add-on Status
-  const hasCaller = customerMeta.smsCallerAddon === true;
-  document.getElementById('sms-caller-locked').style.display = hasCaller ? 'none' : 'block';
-  document.getElementById('sms-caller-settings').style.display = hasCaller ? 'block' : 'none';
-  if (hasCaller) {
-    vxSetToggle2('caller', customerMeta.smsCallerEnabled);
-    const trig2 = document.getElementById('sms-caller-trigger2');
-    const tpl = document.getElementById('sms-caller-template2');
-    if (trig2) trig2.value = customerMeta.smsCallerTrigger || 'callback_only';
-    if (tpl) tpl.value = customerMeta.smsCallerTemplate || '';
-    document.getElementById('sms-caller-detail').style.display = customerMeta.smsCallerEnabled ? 'block' : 'none';
-  }
-  var inAppSettings = vxNormalizeInAppNotificationSettings(customerMeta.inAppNotificationSettings || VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS);
+  const inAppSettings = vxNormalizeInAppNotificationSettings(customerMeta.inAppNotificationSettings || VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS);
   customerMeta.inAppNotificationSettings = inAppSettings;
-  var importantToggle = document.getElementById('inapp-setting-important-requests');
-  var callbacksToggle = document.getElementById('inapp-setting-callbacks-and-tasks');
-  var systemToggle = document.getElementById('inapp-setting-system');
+  const importantToggle = document.getElementById('inapp-setting-important-requests');
+  const callbacksToggle = document.getElementById('inapp-setting-callbacks-and-tasks');
+  const systemToggle = document.getElementById('inapp-setting-system');
   if (importantToggle) importantToggle.checked = inAppSettings.important_requests === true;
   if (callbacksToggle) callbacksToggle.checked = inAppSettings.callbacks_and_tasks === true;
   if (systemToggle) systemToggle.checked = true;
 }
+
+async function vxSaveBenachrichtigungen() {
+  const feedback = document.getElementById('fb-benachrichtigungen');
+  if (feedback) { feedback.textContent = 'Wird gespeichert …'; feedback.dataset.state = 'loading'; }
+  try {
+    const client = getSupabaseAuthClient();
+    const { data: { session } } = await client.auth.getSession();
+    if (!session?.access_token) throw new Error('Sitzung abgelaufen. Bitte melden Sie sich erneut an.');
+
+    const selected = document.querySelector('input[name="notif-email"]:checked');
+    const mode = selected ? selected.value : 'none';
+    const settingsResponse = await fetch('/.netlify/functions/customer-update-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ notification_mode: mode })
+    });
+    const settingsJson = await settingsResponse.json().catch(function(){ return {}; });
+    if (!settingsResponse.ok) throw new Error(settingsJson.error || 'E-Mail-Benachrichtigungen konnten nicht gespeichert werden.');
+
+    const inAppSettings = vxNormalizeInAppNotificationSettings({
+      important_requests: !!document.getElementById('inapp-setting-important-requests')?.checked,
+      callbacks_and_tasks: !!document.getElementById('inapp-setting-callbacks-and-tasks')?.checked,
+      system: true
+    });
+    const { error: inAppError } = await client.from('customers').update({ in_app_notification_settings: inAppSettings }).eq('id', customerMeta.customerId);
+    if (inAppError) throw new Error(inAppError.message || 'Dashboard-Hinweise konnten nicht gespeichert werden.');
+
+    customerMeta.notificationMode = mode;
+    customerMeta.inAppNotificationSettings = inAppSettings;
+    vxBellUpdateBadge();
+    vxBellRender();
+    vxBellPageRender();
+    if (feedback) { feedback.textContent = 'Benachrichtigungen gespeichert.'; feedback.dataset.state = 'success'; }
+  } catch (error) {
+    if (feedback) { feedback.textContent = error.message || 'Speichern fehlgeschlagen.'; feedback.dataset.state = 'error'; }
+  }
+}
+
 
 function vxSetToggle2(type, enabled) {
   const toggle = document.getElementById('sms-' + type + '-toggle2');
@@ -15118,70 +14631,7 @@ function vxSetToggle2(type, enabled) {
   knob.style.left = enabled ? '20px' : '2px';
 }
 
-function vxToggleNotifSms(type) {
-  const key = type === 'notify' ? 'smsNotifyEnabled' : 'smsCallerEnabled';
-  const detailId = 'sms-' + type + '-detail';
-  customerMeta[key] = !customerMeta[key];
-  vxSetToggle2(type, customerMeta[key]);
-  const detail = document.getElementById(detailId);
-  if (detail) detail.style.display = customerMeta[key] ? 'block' : 'none';
-}
 
-async function vxSaveBenachrichtigungen() {
-  const fb = document.getElementById('fb-benachrichtigungen');
-  if (fb) { fb.textContent = 'Speichern…'; fb.style.color = 'var(--slate2)'; }
-  try {
-    const _sb = getSupabaseAuthClient();
-    const { data: { session } } = await _sb.auth.getSession();
-
-    // E-Mail notification_mode
-    const checkedRadio = document.querySelector('input[name="notif-email"]:checked');
-    const mode = checkedRadio ? checkedRadio.value : 'none';
-
-    const payload = {
-      notification_mode: mode,
-      in_app_notification_settings: {
-        important_requests: !!document.getElementById('inapp-setting-important-requests')?.checked,
-        callbacks_and_tasks: !!document.getElementById('inapp-setting-callbacks-and-tasks')?.checked,
-        system: true
-      },
-      sms_notify_enabled:  customerMeta.smsNotifyEnabled,
-      sms_notify_trigger:  document.getElementById('sms-notify-trigger2')?.value || 'all',
-      sms_notify_number:   document.getElementById('sms-notify-number2')?.value.trim() || '',
-      sms_caller_enabled:  customerMeta.smsCallerEnabled,
-      sms_caller_trigger:  document.getElementById('sms-caller-trigger2')?.value || 'callback_only',
-      sms_caller_template: document.getElementById('sms-caller-template2')?.value.trim() || ''
-    };
-
-    const res = await fetch('/.netlify/functions/customer-update-assistant', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
-      body: JSON.stringify(payload)
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.error || 'Fehler');
-    const inAppSettings = vxNormalizeInAppNotificationSettings(payload.in_app_notification_settings);
-    const { error: inAppSettingsError } = await _sb
-      .from('customers')
-      .update({ in_app_notification_settings: inAppSettings })
-      .eq('id', customerMeta.customerId);
-    if (inAppSettingsError) throw new Error(inAppSettingsError.message || 'In-App-Benachrichtigungen konnten nicht gespeichert werden.');
-
-    customerMeta.notificationMode = mode;
-    customerMeta.smsNotifyTrigger = payload.sms_notify_trigger;
-    customerMeta.smsNotifyNumber = payload.sms_notify_number;
-    customerMeta.smsCallerTrigger = payload.sms_caller_trigger;
-    customerMeta.smsCallerTemplate = payload.sms_caller_template;
-    customerMeta.inAppNotificationSettings = inAppSettings;
-    vxBellUpdateBadge();
-    vxBellRender();
-    vxBellPageRender();
-
-    if (fb) { const ux = vxBuildAssistantSaveFeedback(json); fb.style.color = ux.color; fb.textContent = ux.text; }
-  } catch(e) {
-    if (fb) { fb.style.color = '#DC2626'; fb.textContent = 'Fehler: ' + (e.message || ''); }
-  }
-}
 
 // ── Abonnement ────────────────────────────────────────────────────────────────
 async function vxInitAbonnement() {
@@ -15249,8 +14699,6 @@ async function vxInitAbonnement() {
   } catch(e) {}
 
   vxRenderContractDetails();
-  // Add-ons laden
-  vxRenderAboAddons();
   vxRenderCancellationSection();
 }
 
@@ -15310,40 +14758,6 @@ function vxRenderContractDetails() {
     '</div>';
 }
 
-async function vxRenderAboAddons() {
-  const listEl = document.getElementById('abo-addons-list');
-  if (!listEl) return;
-
-  try {
-    const cards = [
-      { addon_code: 'sms_notify_kunde', display_name: 'SMS Benachrichtigungen', price: 'CHF 9/Mt', icon: 'message-square', teaser: '' },
-      { addon_code: 'sms_confirm_caller', display_name: 'SMS an Anrufer', price: 'CHF 19/Mt', icon: 'message-circle', teaser: '' },
-      { addon_code: 'minutes_block', display_name: 'Zusatzminuten (+50 Min)', price: 'CHF 19', icon: 'plus-circle', teaser: 'Ihr Stripe-Link wird hier erscheinen', soonText: 'In Kürze' }
-    ];
-    const loadedAddons = Array.isArray(customerMeta.customerAddons) ? customerMeta.customerAddons : [];
-    const activeSet = new Set(loadedAddons.filter(a => a && a.active).map(a => String(a.addon_code || '').toLowerCase()));
-
-    listEl.innerHTML = '<div class="vx-abo-addon-grid">' + cards.map(function(a) {
-      const isActive = activeSet.has(String(a.addon_code).toLowerCase());
-      const usageInfo = isActive && a.addon_code === 'minutes_block'
-        ? '<div class="vx-abo-addon-usage">Aktive Blöcke: ' + loadedAddons.filter(function(x){return x && x.active && String(x.addon_code||'').toLowerCase()==='minutes_block';}).length + '</div>'
-        : '';
-      const badge = isActive
-        ? '<span class="vx-abo-status is-active">Aktiv</span>'
-        : '<span class="vx-abo-status is-neutral">' + (a.soonText || 'Coming Soon') + '</span>';
-      return '<article class="vx-abo-addon">'
-        + '<div class="vx-abo-addon-head">'
-        + '<div class="vx-abo-addon-main">'
-        + '<div class="vx-abo-addon-icon"><i class="ph-bold ph-' + a.icon + '" aria-hidden="true"></i></div>'
-        + '<div><div class="vx-abo-addon-name">' + a.display_name + '</div><div class="vx-abo-addon-price">' + a.price + '</div>' + usageInfo + '</div>'
-        + '</div>' + badge + '</div>'
-        + (a.teaser ? '<div class="vx-abo-addon-teaser">' + a.teaser + '</div>' : '')
-        + '</article>';
-    }).join('') + '</div>';
-  } catch(e) {
-    listEl.innerHTML = '<div class="vx-abo-empty">Fehler beim Laden.</div>';
-  }
-}
 
 function vxRenderCancellationSection() {
   const el = document.getElementById('abo-cancellation-action');
@@ -15444,15 +14858,19 @@ async function vxSubmitCancellationRequest() {
     onConfirm: async function() {
       if (step === 1) { step = 2; renderStep(); return false; }
       const reasonText = selectedReason === 'Sonstiges' ? customReason.trim() : selectedReason;
+      const _sb = getSupabaseAuthClient();
+      const { data: { session } } = await _sb.auth.getSession();
+      if (!session?.access_token) throw new Error('Sitzung abgelaufen. Bitte melden Sie sich erneut an.');
       const cancelRes = await fetch('/.netlify/functions/customer-cancel-contract', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({ action: 'cancel', termination_reason: reasonText })
       });
-      if (!cancelRes.ok) throw new Error('Kündigung konnte nicht eingereicht werden.');
+      const cancelJson = await cancelRes.json().catch(function(){ return {}; });
+      if (!cancelRes.ok) throw new Error(cancelJson.error || 'Kündigung konnte nicht eingereicht werden.');
       await fetch('/.netlify/functions/ai-change-notify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({
           mail_type: 'cancellation_request',
           customer_id: customerMeta.customerId || null,
@@ -15478,18 +14896,152 @@ async function vxSubmitCancellationRequest() {
   renderStep();
 }
 
+
+function vxEscapeDocumentText(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function vxFormatDocumentDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+}
+
+function vxFormatDocumentAmount(amount, currency) {
+  const numeric = Number(amount || 0);
+  return new Intl.NumberFormat('de-CH', {
+    style: 'currency',
+    currency: String(currency || 'CHF').toUpperCase(),
+    minimumFractionDigits: 2
+  }).format(Number.isFinite(numeric) ? numeric : 0);
+}
+
+function vxDocumentStatusLabel(status) {
+  const labels = { paid: 'Bezahlt', overdue: 'Überfällig', sent: 'Offen' };
+  return labels[String(status || '').toLowerCase()] || 'Ausgestellt';
+}
+
+function vxOpenCustomerDocument(key) {
+  const state = customerDocumentsState || {};
+  let documentUrl = '';
+  if (key === 'contract') {
+    documentUrl = state.contract && state.contract.document_url ? state.contract.document_url : '';
+  } else if (String(key || '').startsWith('invoice:')) {
+    const invoiceId = String(key).slice(8);
+    const invoice = (state.invoices || []).find(function(item) { return String(item.id || '') === invoiceId; });
+    documentUrl = invoice && invoice.pdf_url ? invoice.pdf_url : '';
+  }
+  if (!documentUrl) {
+    toast('Dieses Dokument ist noch nicht als PDF verfügbar.', 'info');
+    return;
+  }
+  const opened = window.open(documentUrl, '_blank', 'noopener,noreferrer');
+  if (opened) opened.opener = null;
+}
+
+function vxRenderCustomerDocuments() {
+  const contractEl = document.getElementById('abo-contract-documents');
+  const invoicesEl = document.getElementById('abo-invoices-list');
+  if (!contractEl && !invoicesEl) return;
+
+  const state = customerDocumentsState || {};
+  if (state.loading) {
+    if (contractEl) contractEl.innerHTML = '<div class="vx-abo-empty">Vertrag wird geladen…</div>';
+    if (invoicesEl) invoicesEl.innerHTML = '<div class="vx-abo-empty">Rechnungen werden geladen…</div>';
+    return;
+  }
+  if (state.error) {
+    const errorText = '<div class="vx-abo-empty">Dokumente konnten nicht geladen werden. Bitte versuchen Sie es später erneut.</div>';
+    if (contractEl) contractEl.innerHTML = errorText;
+    if (invoicesEl) invoicesEl.innerHTML = errorText;
+    return;
+  }
+
+  const contract = state.contract || null;
+  if (contractEl) {
+    if (!contract) {
+      contractEl.innerHTML = '<div class="vx-abo-empty">Ein vollständig unterzeichneter Vertrag ist noch nicht verfügbar.</div>';
+    } else {
+      const signedDate = vxFormatDocumentDate(contract.countersigned_at || contract.accepted_at);
+      const contractMeta = [contract.plan ? vxEscapeDocumentText(contract.plan) : '', signedDate ? 'Unterzeichnet am ' + signedDate : 'Vollständig unterzeichnet'].filter(Boolean).join(' · ');
+      contractEl.innerHTML = '<button type="button" class="vx-commercial-entry" onclick="vxOpenCustomerDocument(\'contract\')">'
+        + '<span class="vx-commercial-entry-icon"><i class="ph-bold ph-file-text" aria-hidden="true"></i></span>'
+        + '<span><strong>Unterzeichneter Vertrag</strong><small>' + contractMeta + '</small></span>'
+        + '<i class="ph-bold ph-arrow-square-out" aria-hidden="true"></i></button>';
+    }
+  }
+
+  if (invoicesEl) {
+    const invoices = Array.isArray(state.invoices) ? state.invoices : [];
+    if (!invoices.length) {
+      invoicesEl.innerHTML = '<div class="vx-abo-empty">Noch keine ausgestellten Rechnungen vorhanden.</div>';
+    } else {
+      invoicesEl.innerHTML = invoices.map(function(invoice) {
+        const number = vxEscapeDocumentText(invoice.invoice_number || 'Rechnung');
+        const date = vxFormatDocumentDate(invoice.issued_at);
+        const amount = vxEscapeDocumentText(vxFormatDocumentAmount(invoice.total_amount, invoice.currency));
+        const status = vxEscapeDocumentText(vxDocumentStatusLabel(invoice.status));
+        const meta = [date, amount, status].filter(Boolean).join(' · ');
+        const key = 'invoice:' + vxEscapeDocumentText(invoice.id || '');
+        const available = !!invoice.pdf_url;
+        return '<button type="button" class="vx-commercial-entry" onclick="vxOpenCustomerDocument(\'' + key + '\')"' + (available ? '' : ' disabled') + '>'
+          + '<span class="vx-commercial-entry-icon"><i class="ph-bold ph-file-pdf" aria-hidden="true"></i></span>'
+          + '<span><strong>Rechnung ' + number + '</strong><small>' + meta + (available ? '' : ' · PDF wird vorbereitet') + '</small></span>'
+          + '<i class="ph-bold ' + (available ? 'ph-arrow-square-out' : 'ph-clock') + '" aria-hidden="true"></i></button>';
+      }).join('');
+    }
+  }
+  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
+}
+
+async function vxLoadCustomerDocuments(forceReload) {
+  if (customerDocumentsState.loading) return customerDocumentsState;
+  if (customerDocumentsState.loaded && !forceReload) {
+    vxRenderCustomerDocuments();
+    return customerDocumentsState;
+  }
+
+  customerDocumentsState = { loading: true, loaded: false, invoices: [], contract: null, error: null };
+  vxRenderCustomerDocuments();
+  try {
+    const result = await callDashboardFunction('customer-documents', {});
+    customerDocumentsState = {
+      loading: false,
+      loaded: true,
+      invoices: Array.isArray(result && result.invoices) ? result.invoices : [],
+      contract: result && result.contract ? result.contract : null,
+      error: null
+    };
+  } catch (error) {
+    console.error('[customer-documents] load failed', error);
+    customerDocumentsState = { loading: false, loaded: false, invoices: [], contract: null, error: error || new Error('documents_load_failed') };
+  }
+  vxRenderCustomerDocuments();
+  return customerDocumentsState;
+}
+
 async function vxSubmitReactivationRequest() {
   openConfirmModal({
     title: 'Möchten Sie Ihre Kündigung wirklich zurückziehen?',
     text: '',
     confirmLabel: 'Ja, zurückziehen',
     onConfirm: async function() {
+      const _sb = getSupabaseAuthClient();
+      const { data: { session } } = await _sb.auth.getSession();
+      if (!session?.access_token) throw new Error('Sitzung abgelaufen. Bitte melden Sie sich erneut an.');
       const res = await fetch('/.netlify/functions/customer-cancel-contract', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({ action: 'reactivate' })
       });
-      if (!res.ok) throw new Error('Kündigung konnte nicht zurückgezogen werden.');
+      const responseJson = await res.json().catch(function(){ return {}; });
+      if (!res.ok) throw new Error(responseJson.error || 'Kündigung konnte nicht zurückgezogen werden.');
       const ct = customerContractMeta || (customerContractState && (customerContractState.effectiveContract || customerContractState.latestContract)) || {};
       ct.cancellation_date = null;
       ct.termination_reason = null;
@@ -15507,199 +15059,15 @@ async function vxSubmitReactivationRequest() {
   });
 }
 
-// ── Stripe Links aus plan_config ─────────────────────────────────────────────
-var VX_PLAN_LINKS = {
-  starter:      { monthly: 'https://buy.stripe.com/aFa9AV6Lu7ai3tccza3cc05', yearly: 'https://buy.stripe.com/cNi28t0n666efbU8iU3cc04' },
-  business:     { monthly: 'https://buy.stripe.com/7sYfZjc5O1PYe7QgPq3cc06', yearly: 'https://buy.stripe.com/14AfZjfi01PY3tc1Uw3cc07' },
-  professional: { monthly: 'https://buy.stripe.com/dRmdRb9XG52a3tc2YA3cc08', yearly: 'https://buy.stripe.com/fZu8wR9XG3Y66FofLm3cc09' }
-};
-// Überpreise pro Minute (günstiger als Überpreis → Zusatzminuten kaufen)
-var VX_EXTRA_RATES = { starter: 0.50, business: 0.38, professional: 0.28 };
-var VX_MINUTES_LINKS = {
-  '50':  null, // Stripe-Link folgt
-  '100': null,
-  '200': null
-};
-var _vxSelectedPlan = null;
-var _vxSelectedBilling = 'monthly';
-var _vxSelectedMinutes = null;
 
-function vxAboUpgrade() {
-  const plan = String(customerMeta.plan || '').toLowerCase();
-  // Aktuellen Plan als disabled markieren, Upgrade-Optionen anzeigen
-  _vxSelectedPlan = null;
-  _vxSelectedBilling = 'monthly';
 
-  // Plan-Karten anpassen je nach aktuellem Plan
-  const planOrder = ['starter', 'business', 'professional'];
-  const currentIdx = planOrder.indexOf(plan);
 
-  planOrder.forEach(function(p, i) {
-    const el = document.getElementById('vx-plan-' + p);
-    if (!el) return;
-    if (i <= currentIdx) {
-      el.style.opacity = '.45';
-      el.style.cursor = 'default';
-      el.onclick = null;
-      const note = el.querySelector('[data-plan-note]');
-      if (!note) {
-        const n = document.createElement('div');
-        n.setAttribute('data-plan-note', '1');
-        n.style.cssText = 'margin-top:10px;font-size:11px;color:var(--slate2);';
-        n.textContent = i === currentIdx ? 'Ihr aktueller Plan' : 'Nicht verfügbar';
-        el.appendChild(n);
-      }
-    } else {
-      el.style.opacity = '1';
-      el.style.cursor = 'pointer';
-      el.onclick = function() { vxSelectUpgradePlan(p); };
-    }
-  });
 
-  vxSetBilling('monthly');
-  const overlay = document.getElementById('vx-upgrade-overlay');
-  if (overlay) { overlay.style.display = 'flex'; /* phosphor: no init needed */ }
-}
 
-function vxCloseUpgradeModal() {
-  const overlay = document.getElementById('vx-upgrade-overlay');
-  if (overlay) overlay.style.display = 'none';
-  _vxSelectedPlan = null;
-}
 
-function vxSetBilling(cycle) {
-  _vxSelectedBilling = cycle;
-  const mBtn = document.getElementById('vx-billing-monthly');
-  const yBtn = document.getElementById('vx-billing-yearly');
-  if (mBtn) { mBtn.style.background = cycle === 'monthly' ? '#1A6FE8' : 'transparent'; mBtn.style.color = cycle === 'monthly' ? '#fff' : 'var(--slate2)'; }
-  if (yBtn) { yBtn.style.background = cycle === 'yearly' ? '#1A6FE8' : 'transparent'; yBtn.style.color = cycle === 'yearly' ? '#fff' : 'var(--slate2)'; }
 
-  // Preise aktualisieren
-  var prices = {
-    starter:      { monthly: 149, yearly: 134 },
-    business:     { monthly: 249, yearly: 224 },
-    professional: { monthly: 399, yearly: 359 }
-  };
-  Object.keys(prices).forEach(function(p) {
-    var el = document.getElementById('vx-' + p + '-price');
-    if (el) el.textContent = 'CHF ' + prices[p][cycle];
-  });
-}
 
-function vxSelectUpgradePlan(plan) {
-  _vxSelectedPlan = plan;
-  ['starter','business','professional'].forEach(function(p) {
-    var el = document.getElementById('vx-plan-' + p);
-    if (!el) return;
-    el.classList.remove('selected');
-    if (p !== plan) {
-      el.style.borderColor = p === 'professional' ? '#E8C547' : 'var(--line)';
-      el.style.background = p === 'professional' ? 'rgba(232,197,71,.04)' : '';
-    }
-  });
-  var sel = document.getElementById('vx-plan-' + plan);
-  if (sel) { sel.style.borderColor = '#1A6FE8'; sel.style.background = 'var(--blue-subtle)'; sel.classList.add('selected'); }
 
-  var cta = document.getElementById('vx-upgrade-cta');
-  if (cta) {
-    cta.disabled = false;
-    var prices = { starter: {monthly:149,yearly:134}, business: {monthly:249,yearly:224}, professional: {monthly:399,yearly:359} };
-    var price = prices[plan] ? prices[plan][_vxSelectedBilling] : '';
-    var names = { starter:'Starter', business:'Business', professional:'Professional' };
-    cta.textContent = 'Zu ' + (names[plan]||plan) + ' upgraden — CHF ' + price + '/Mt →';
-  }
-}
-
-function vxConfirmUpgrade() {
-  if (!_vxSelectedPlan) return;
-  var links = VX_PLAN_LINKS[_vxSelectedPlan];
-  var link = links ? links[_vxSelectedBilling] : null;
-  if (link) {
-    window.open(link, '_blank');
-    vxCloseUpgradeModal();
-  } else {
-    alert('Link nicht verfügbar. Bitte kontaktieren Sie info@voxera.ch.');
-  }
-}
-
-function vxAboMinuten() {
-  _vxSelectedMinutes = null;
-  // Default: 100 Min vorauswählen
-  vxSelectMinutesPkg('100');
-  var overlay = document.getElementById('vx-minutes-overlay');
-  if (overlay) { overlay.style.display = 'flex'; /* phosphor: no init needed */ }
-}
-
-function vxCloseMinutesModal() {
-  var overlay = document.getElementById('vx-minutes-overlay');
-  if (overlay) overlay.style.display = 'none';
-  _vxSelectedMinutes = null;
-}
-
-function vxSelectMinutesPkg(pkg) {
-  _vxSelectedMinutes = pkg;
-  ['50','100','200'].forEach(function(p) {
-    var el = document.getElementById('vx-min-' + p);
-    if (!el) return;
-    if (p === pkg) {
-      el.style.borderColor = '#1A6FE8';
-      el.style.background = 'var(--blue-subtle)';
-    } else {
-      el.style.borderColor = p === '100' ? '#E8C547' : 'var(--line)';
-      el.style.background = p === '100' ? 'rgba(232,197,71,.04)' : '';
-    }
-  });
-
-  var prices = { '50': 15, '100': 25, '200': 45 };
-  var cta = document.getElementById('vx-minutes-cta');
-  if (cta) {
-    cta.disabled = false;
-    cta.textContent = pkg + ' Min kaufen — CHF ' + (prices[pkg]||'') + ' →';
-  }
-}
-
-function vxConfirmMinutes() {
-  if (!_vxSelectedMinutes) return;
-  var link = VX_MINUTES_LINKS[_vxSelectedMinutes];
-  if (link) {
-    window.open(link, '_blank');
-    vxCloseMinutesModal();
-  } else {
-    // Noch kein Stripe-Link — Anfrage per E-Mail
-    var prices = { '50':'CHF 15', '100':'CHF 25', '200':'CHF 45' };
-    var note = document.getElementById('vx-minutes-stripe-note');
-    if (note) note.style.display = 'block';
-    var cta = document.getElementById('vx-minutes-cta');
-    // Fallback: E-Mail-Anfrage senden
-    vxRequestAddon('extra_minutes_' + _vxSelectedMinutes);
-  }
-}
-
-async function vxRequestAddon(addonCode) {
-  const addonNames = {
-    sms_notify_kunde: 'SMS Benachrichtigungen (CHF 9/Mt)',
-    sms_confirm_caller: 'SMS Bestätigung an Anrufer (CHF 19/Mt)',
-    extra_minutes_50: 'Zusatzminuten kaufen — 50 Min. für CHF 15.00 einmalig',
-    plan_upgrade: 'Plan-Upgrade anfragen — aktueller Plan: ' + (customerMeta.plan || 'unbekannt')
-  };
-  const name = addonNames[addonCode] || addonCode;
-  try {
-    const _sb = getSupabaseAuthClient();
-    const { data: { session } } = await _sb.auth.getSession();
-    await fetch('/.netlify/functions/customer-change-request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
-      body: JSON.stringify({
-        mail_type: 'addon_request',
-        addon_code: addonCode,
-        message: `Add-on Anfrage: ${name}`
-      })
-    });
-    alert('✓ Anfrage gesendet. Wir aktivieren das Add-on und informieren Sie per E-Mail.');
-  } catch(e) {
-    alert('Fehler beim Senden der Anfrage.');
-  }
-}
 
 
 // [PATCH v2.44] Smart Routing Toggle entfernt — feste Logik in vxCallIsOnToday()
@@ -16841,6 +16209,7 @@ async function loadCustomerMeta() {
   if (!rec) return customerMeta;
   const f = rec || {};
   await loadCustomerContractMeta(context.customerId || f.id || '', f.subscription_id || null);
+  await vxLoadCustomerDocuments();
   const commercialContract = selectCommercialContractRow();
   const contractUsage = resolveContractUsageConfig(commercialContract);
   const planFallback = getPlanConfigEntryForPlan(contractUsage.plan || f.plan || customerMeta.plan || '') || PLAN_CONFIG['Business'] || { monthlyPrice: 0, minutes: 0, extraRate: 0 };
@@ -17117,83 +16486,155 @@ function renderUsage(records) {
   if (addCopy) addCopy.textContent = over > 0 ? `Aktuell ca. ${over} Zusatzminuten über dem Paket. Zusatzvolumen kann kurzfristig ergänzt werden.` : `Zusatzminuten sind ideal für Kampagnen, saisonale Peaks oder kurze Lastspitzen.`;
 }
 
-var selectedUpgradePlan = '';
-var selectedMinutesPkg = '';
 
-function requestUpgrade() {
-  selectedUpgradePlan = '';
-  var state = getUpgradeModalState();
-  var current = state.currentPlan;
-  var plans = state.upgrades;
-  var html = plans.map(function(p){
-    var monthlyPrice = Number(p.monthlyPrice || 0);
-    var minutes = Number(p.minutes || 0);
-    var priceLabel = monthlyPrice > 0 ? (monthlyPrice + ' CHF/Mt') : 'Preis auf Anfrage';
-    var minLabel = minutes > 0 ? (minutes + ' Min') : 'ohne Minutenlimit';
-    return '<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--line);border-radius:10px;cursor:pointer;transition:all .15s;" onclick="this.querySelector(\'input\').checked=true;selectedUpgradePlan=\''+p.key+'\';document.querySelectorAll(\'#upgrade-options label\').forEach(function(l){l.style.borderColor=\'var(--line)   \';l.style.background=\'\'});this.style.borderColor=\'var(--blue)\';this.style.background=\'var(--blue-light)\'">'
-      +'<input type="radio" name="upgrade-plan" value="'+p.key+'" style="accent-color:#1A6FE8;width:16px;height:16px;">'
-      +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+p.label+'</div><div style="font-size:12px;color:var(--slate2);">'+priceLabel+' · '+minLabel+' inkl.</div></div>'
-      +'</label>';
-  }).join('');
-  if (!html) html = '<div style="font-size:13px;color:var(--slate);line-height:1.5;padding:6px 2px;">' + state.infoMessage + '</div>';
-  var subEl = document.querySelector('#upgrade-overlay .modal-sub');
-  if (subEl) subEl.textContent = state.modalSub;
-  var sendBtn = document.getElementById('upgrade-send-btn');
-  if (sendBtn) {
-    sendBtn.textContent = state.ctaLabel;
-    sendBtn.disabled = state.sendEnabled !== true;
-    sendBtn.style.opacity = state.sendEnabled ? '1' : '.55';
-    sendBtn.style.cursor = state.sendEnabled ? 'pointer' : 'not-allowed';
-  }
-  document.getElementById('upgrade-options').innerHTML = '<div style="font-size:12px;color:var(--slate2);margin-bottom:4px;">Aktuell: <strong>'+current+'</strong></div>' + html;
-  document.getElementById('upgrade-overlay').classList.add('open');
+
+
+
+var vxCommercialState = { type: '', selected: '', options: [], estimatedAmount: null, submitting: false };
+
+function vxCommercialPlanLabel(value) {
+  const labels = { starter: 'Starter', business: 'Business', professional: 'Professional' };
+  return labels[String(value || '').toLowerCase()] || String(value || '–');
+}
+
+function vxCommercialOpen() {
+  const overlay = document.getElementById('vx-commercial-overlay');
+  if (!overlay) return;
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
   syncOverlayScrollLock();
 }
 
-function sendUpgradeRequest() {
-  var state = getUpgradeModalState();
-  if (!state.sendEnabled) {
-    toast('Upgrade-Optionen sind aktuell nicht verfügbar');
-    return;
-  }
-  if (!selectedUpgradePlan) { toast('Bitte Plan auswählen'); return; }
-  var subject = encodeURIComponent('Voxera Upgrade auf ' + selectedUpgradePlan + ' - ' + (customerMeta.customerName || 'Kunde'));
-  var body = encodeURIComponent('Hallo Voxera-Team,\r\n\r\nich möchte auf den Plan "' + selectedUpgradePlan + '" upgraden.\r\n\r\nKunde: ' + (customerMeta.customerName || '-') + '\r\nCustomer ID: ' + (customerMeta.customerId || '-') + '\r\nAktueller Plan: ' + (customerMeta.plan || '-') + '\r\nGewünschter Plan: ' + selectedUpgradePlan + '\r\n\r\nBitte kontaktiert mich.\r\n');
-  window.location.href = 'mailto:info@voxera.ch?subject=' + subject + '&body=' + body;
-  document.getElementById('upgrade-overlay').classList.remove('open');syncOverlayScrollLock();
-  toast('Upgrade-Anfrage gesendet');
-}
-
-function requestExtraMinutes() {
-  selectedMinutesPkg = '';
-  var currentCfg = getPlanConfigEntryForPlan(customerMeta.plan) || { extraRate: 0 };
-  var ratePerMinute = Number(currentCfg.extraRate || 0);
-  var bundles = [50, 100, 250, 500];
-  var html = bundles.map(function(minutes){
-    var key = String(minutes);
-    var priceValue = ratePerMinute > 0 ? (Math.round(ratePerMinute * minutes * 100) / 100) : 0;
-    var priceLabel = ratePerMinute > 0 ? ('ca. ' + priceValue.toFixed(2) + ' CHF') : 'Preis auf Anfrage';
-    return '<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--line);border-radius:10px;cursor:pointer;transition:all .15s;" onclick="this.querySelector(\'input\').checked=true;selectedMinutesPkg=\''+key+'\';document.querySelectorAll(\'#minutes-options label\').forEach(function(l){l.style.borderColor=\'var(--line)   \';l.style.background=\'\';});this.style.borderColor=\'var(--blue)\';this.style.background=\'var(--blue-light)\'">'
-      +'<input type="radio" name="minutes-pkg" value="'+key+'" style="accent-color:#1A6FE8;width:16px;height:16px;">'
-      +'<div style="flex:1"><div style="font-size:14px;font-weight:700;">'+minutes+' Minuten</div><div style="font-size:12px;color:var(--slate2);">'+priceLabel+'</div></div>'
-      +'</label>';
-  }).join('');
-  var info = ratePerMinute > 0
-    ? '<div style="font-size:12px;color:var(--slate);margin-bottom:6px;">Basis: ' + ratePerMinute.toFixed(2) + ' CHF pro Zusatzminute gemäss Plan-Konfiguration.</div>'
-    : '<div style="font-size:12px;color:var(--slate);margin-bottom:6px;">Zusatzminuten-Preise sind für diesen Plan nicht in der Konfiguration hinterlegt.</div>';
-  document.getElementById('minutes-options').innerHTML = info + html;
-  document.getElementById('minutes-overlay').classList.add('open');
+function vxCommercialClose() {
+  const overlay = document.getElementById('vx-commercial-overlay');
+  if (overlay) { overlay.classList.remove('open'); overlay.setAttribute('aria-hidden', 'true'); }
+  vxCommercialState = { type: '', selected: '', options: [], estimatedAmount: null, submitting: false };
   syncOverlayScrollLock();
 }
 
-function sendMinutesRequest() {
-  if (!selectedMinutesPkg) { toast('Bitte Paket auswählen'); return; }
-  var subject = encodeURIComponent('Voxera Zusatzminuten ' + selectedMinutesPkg + ' Min - ' + (customerMeta.customerName || 'Kunde'));
-  var body = encodeURIComponent('Hallo Voxera-Team,\r\n\r\nich möchte ' + selectedMinutesPkg + ' Zusatzminuten buchen.\r\n\r\nKunde: ' + (customerMeta.customerName || '-') + '\r\nCustomer ID: ' + (customerMeta.customerId || '-') + '\r\nPlan: ' + (customerMeta.plan || '-') + '\r\nGewünschtes Paket: ' + selectedMinutesPkg + ' Minuten\r\n\r\nBitte kontaktiert mich.\r\n');
-  window.location.href = 'mailto:info@voxera.ch?subject=' + subject + '&body=' + body;
-  document.getElementById('minutes-overlay').classList.remove('open');syncOverlayScrollLock();
-  toast('Anfrage gesendet');
+function vxCommercialRender() {
+  const body = document.getElementById('vx-commercial-body');
+  const title = document.getElementById('vx-commercial-title');
+  const subtitle = document.getElementById('vx-commercial-subtitle');
+  const submit = document.getElementById('vx-commercial-submit');
+  if (!body || !title || !subtitle || !submit) return;
+
+  const isPlan = vxCommercialState.type === 'plan_upgrade';
+  title.textContent = isPlan ? 'Plan wechseln' : 'Zusatzminuten';
+  subtitle.textContent = isPlan
+    ? 'Wählen Sie den gewünschten höheren Plan.'
+    : 'Wählen Sie ein einmaliges Minutenpaket.';
+
+  body.innerHTML = '<div class="vx-commercial-choice-grid">' + vxCommercialState.options.map(function(option) {
+    const selected = String(vxCommercialState.selected) === String(option.value);
+    return '<button type="button" class="vx-commercial-choice' + (selected ? ' is-selected' : '') + '" onclick="vxCommercialSelect(\'' + option.value + '\')">'
+      + '<span><strong>' + option.title + '</strong><small>' + option.meta + '</small></span>'
+      + '<span class="vx-commercial-radio" aria-hidden="true"></span>'
+      + '</button>';
+  }).join('') + '</div>'
+    + '<div class="vx-commercial-summary">'
+    + '<strong>So funktioniert es</strong>'
+    + '<p>Nach Ihrer Bestätigung wird eine verbindliche Änderungsanfrage mit Referenznummer erstellt. Voxera prüft Vertrags- und Abrechnungsdaten und bestätigt die Umsetzung separat. Es wird kein zweites Abonnement angelegt.</p>'
+    + '</div>'
+    + '<div id="vx-commercial-status" class="vx-commercial-status" role="status" aria-live="polite"></div>';
+  submit.disabled = !vxCommercialState.selected || vxCommercialState.submitting;
+  submit.textContent = vxCommercialState.submitting ? 'Wird übermittelt …' : 'Anfrage verbindlich übermitteln';
 }
+
+function vxCommercialSelect(value) {
+  vxCommercialState.selected = String(value || '');
+  const option = vxCommercialState.options.find(function(item){ return String(item.value) === vxCommercialState.selected; });
+  vxCommercialState.estimatedAmount = option && Number.isFinite(Number(option.estimatedAmount)) ? Number(option.estimatedAmount) : null;
+  vxCommercialRender();
+}
+
+function vxAboUpgrade() {
+  const state = typeof getUpgradeModalState === 'function' ? getUpgradeModalState() : { upgrades: [] };
+  const options = (state.upgrades || []).map(function(plan) {
+    const price = Number(plan.monthlyPrice || 0);
+    const minutes = Number(plan.minutes || 0);
+    return {
+      value: String(plan.key || '').toLowerCase(),
+      title: plan.label || vxCommercialPlanLabel(plan.key),
+      meta: (price > 0 ? ('CHF ' + price + ' / Mt') : 'Preis wird geprüft') + (minutes > 0 ? (' · ' + minutes + ' Min. inklusive') : '')
+    };
+  });
+  if (!options.length) { toast('Für Ihren aktuellen Plan ist kein höherer Plan verfügbar.'); return; }
+  vxCommercialState = { type: 'plan_upgrade', selected: '', options, estimatedAmount: null, submitting: false };
+  vxCommercialRender();
+  vxCommercialOpen();
+}
+
+function vxAboMinuten() {
+  const config = getPlanConfigEntryForPlan(customerMeta.plan) || { extraRate: 0 };
+  const rate = Number(config.extraRate || 0);
+  const options = [50, 100, 250, 500].map(function(minutes) {
+    const estimate = rate > 0 ? Math.round(rate * minutes * 100) / 100 : null;
+    return {
+      value: String(minutes),
+      title: minutes + ' Minuten',
+      meta: estimate != null ? ('Voraussichtlich CHF ' + estimate.toFixed(2)) : 'Betrag gemäss Vertrag',
+      estimatedAmount: estimate
+    };
+  });
+  vxCommercialState = { type: 'extra_minutes', selected: '', options, estimatedAmount: null, submitting: false };
+  vxCommercialRender();
+  vxCommercialOpen();
+}
+
+async function vxCommercialSubmit() {
+  if (!vxCommercialState.type || !vxCommercialState.selected || vxCommercialState.submitting) return;
+  const submit = document.getElementById('vx-commercial-submit');
+  const status = document.getElementById('vx-commercial-status');
+  vxCommercialState.submitting = true;
+  if (submit) { submit.disabled = true; submit.textContent = 'Wird übermittelt …'; }
+  if (status) { status.textContent = ''; status.dataset.state = 'loading'; }
+
+  try {
+    const client = getSupabaseAuthClient();
+    const { data: { session } } = await client.auth.getSession();
+    if (!session?.access_token) throw new Error('Sitzung abgelaufen. Bitte melden Sie sich erneut an.');
+    const requestId = (window.crypto && typeof window.crypto.randomUUID === 'function')
+      ? window.crypto.randomUUID()
+      : ('commercial-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+    const payload = {
+      type: vxCommercialState.type,
+      request_id: requestId,
+      current_plan: String(customerMeta.plan || '').toLowerCase(),
+      keep_billing_cycle: true
+    };
+    if (vxCommercialState.type === 'plan_upgrade') payload.target_plan = vxCommercialState.selected;
+    if (vxCommercialState.type === 'extra_minutes') {
+      payload.minutes = Number(vxCommercialState.selected);
+      payload.estimated_amount = vxCommercialState.estimatedAmount;
+    }
+
+    const response = await fetch('/.netlify/functions/customer-commercial-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify(payload)
+    });
+    const json = await response.json().catch(function(){ return {}; });
+    if (!response.ok) throw new Error(json.error || 'Anfrage konnte nicht übermittelt werden.');
+
+    const reference = json.reference || json.request_id || requestId;
+    if (status) {
+      status.dataset.state = 'success';
+      status.innerHTML = '<strong>Anfrage übermittelt</strong><span>Referenz: ' + reference + '</span><small>Voxera bestätigt die Vertrags- oder Abrechnungsänderung separat.</small>';
+    }
+    if (submit) { submit.textContent = 'Übermittelt'; submit.disabled = true; }
+    toast('Anfrage verbindlich übermittelt.');
+  } catch (error) {
+    vxCommercialState.submitting = false;
+    if (status) { status.dataset.state = 'error'; status.textContent = error.message || 'Übermittlung fehlgeschlagen.'; }
+    if (submit) { submit.textContent = 'Erneut versuchen'; submit.disabled = false; }
+  }
+}
+
+function requestUpgrade() { vxAboUpgrade(); }
+function requestExtraMinutes() { vxAboMinuten(); }
+function sendUpgradeRequest() { vxCommercialSubmit(); }
+function sendMinutesRequest() { vxCommercialSubmit(); }
 
 function requestSupport() {
   var subject = encodeURIComponent('Voxera Support Anfrage - ' + (customerMeta.customerName || 'Kunde'));
@@ -30704,10 +30145,13 @@ function toggleCallRow(event, row) {
 #dash-priority-list .vx-heute-row.rail-overdue {
   border-left: none !important;
 }
+#anrufe-list .dpr-card.sp-active,
 #dash-priority-list .dpr-card.sp-active,
+#anrufe-list .sp-active,
 #dash-priority-list .sp-active {
   border-left: 3px solid var(--blue) !important;
 }
+#anrufe-list .dpr-card.sp-active .vx-anf-row,
 #dash-priority-list .dpr-card.sp-active .vx-heute-row {
   background: rgba(26,111,232,.06) !important;
 }
@@ -33134,7 +32578,9 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 ═══════════════════════════════════════ */
 
 /* Lists / Row containers: Design-System List-Container */
-#dash-priority-list{
+#dash-priority-list,
+#anrufe-list.dpr-command-center,
+#anrufe-list{
   background:var(--surface)!important;
   border-color:var(--line)!important;
 }
@@ -35373,11 +34819,15 @@ button.vx-cd-qa-success:hover,
   background:var(--surface2) !important;
 }
 #dash-priority-list .sp-active .dpr-row,
-#dash-priority-list .dpr-card.sp-active .dpr-row{
+#anrufe-list .sp-active .dpr-row,
+#dash-priority-list .dpr-card.sp-active .dpr-row,
+#anrufe-list .dpr-card.sp-active .dpr-row{
   background:rgba(26,111,232,.05) !important;
 }
 #dash-priority-list .sp-active,
-#dash-priority-list .dpr-card.sp-active{
+#anrufe-list .sp-active,
+#dash-priority-list .dpr-card.sp-active,
+#anrufe-list .dpr-card.sp-active{
   border-left:3px solid var(--blue) !important;
 }
 
@@ -41221,18 +40671,31 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 <style id="vx-row-state-followup-read-fix">
 /* [PR-A/B] Apple-like Selection — kein Balken, nur Background-Tint */
 #dash-priority-list .dpr-card.sp-active,
-#dash-priority-list .sp-active{
+#anrufe-list .dpr-card.sp-active,
+#anrufe-split-left .dpr-card.sp-active,
+#dash-priority-list .sp-active,
+#anrufe-list .sp-active{
   border-left:none !important;
   box-shadow:none !important;
 }
 #dash-priority-list .dpr-card.sp-active .dpr-row,
+#anrufe-list .dpr-card.sp-active .dpr-row,
 #dash-priority-list .sp-active .dpr-row,
-#dash-priority-list .dpr-card.sp-active .vx-heute-row{
+#anrufe-list .sp-active .dpr-row,
+#dash-priority-list .dpr-card.sp-active .vx-heute-row,
+#anrufe-list .dpr-card.sp-active .vx-heute-row,
+#anrufe-list .dpr-card.sp-active .vx-anf-row,
+#anrufe-list .sp-active .vx-heute-row,
+#anrufe-list .sp-active .vx-anf-row,
+.vx-anf-row.is-active{
   background:rgba(26,111,232,0.08) !important;
   border-left:none !important;
 }
 #dash-priority-list .dpr-card.sp-active .dpr-row:hover,
-#dash-priority-list .dpr-card.sp-active .vx-heute-row:hover{
+#anrufe-list .dpr-card.sp-active .dpr-row:hover,
+#dash-priority-list .dpr-card.sp-active .vx-heute-row:hover,
+#anrufe-list .dpr-card.sp-active .vx-heute-row:hover,
+#anrufe-list .dpr-card.sp-active .vx-anf-row:hover{
   background:rgba(26,111,232,0.12) !important;
 }
 /* Planned/follow-up rows must never display unread visuals; planning is already an operational state. */
@@ -41326,6 +40789,70 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
 </style>
 
 <style id="vx-inbox-mail-like-final-2026-05-23">
+/* PR-FIX 2026-05-23 — Anfragen Inbox nach Mockup: Mail-like Split-View.
+   Reiner UI-Layer. Keine Detail-V2-Änderung, keine DB-Änderung. */
+
+#tab-anrufe .vx-split{
+  background:#F7F8FA !important;
+  border-radius:12px !important;
+  border:0.5px solid rgba(0,0,0,.07) !important;
+  gap:10px !important;
+  padding:0 !important;
+}
+
+#tab-anrufe .vx-split-left,
+#anrufe-split-left{
+  width:280px !important;
+  min-width:280px !important;
+  max-width:280px !important;
+  background:#fff !important;
+  border-right:0.5px solid rgba(0,0,0,.07) !important;
+  border-radius:10px 0 0 10px !important;
+  overflow:hidden !important;
+}
+
+#tab-anrufe .vx-split-filters{
+  padding:10px 12px 8px !important;
+  gap:4px !important;
+  background:#fff !important;
+  border-bottom:0.5px solid rgba(0,0,0,.07) !important;
+}
+
+#tab-anrufe .vx-chip,
+#tab-anrufe .vxfb-chip{
+  height:24px !important;
+  padding:0 8px !important;
+  border-radius:14px !important;
+  font-size:11px !important;
+  font-weight:500 !important;
+  letter-spacing:0 !important;
+  background:#F7F8FA !important;
+  color:#4A5568 !important;
+  border:0.5px solid rgba(0,0,0,.07) !important;
+}
+
+#tab-anrufe .vx-chip--active,
+#tab-anrufe .vxfb-chip--active,
+#tab-anrufe .vx-chip.vx-chip--active,
+#tab-anrufe .vxfb-chip.vxfb-chip--active{
+  background:#1A6FE8 !important;
+  color:#fff !important;
+  border-color:#1A6FE8 !important;
+}
+
+/* Tablet/Mobile: keine Hover-Abhängigkeit */
+@media (hover:none), (max-width:1099px){
+}
+
+@media(max-width:1099px){
+  #tab-anrufe .vx-split-left,
+  #anrufe-split-left{
+    width:100% !important;
+    min-width:0 !important;
+    max-width:none !important;
+    border-radius:10px !important;
+  }
+}
 </style>
 
 
@@ -41497,7 +41024,7 @@ body:has(#tab-archiv.active) .content{
     window._vxActiveRecordId = id;
     window._vxLastAnfragenRecordId = id;
 
-    qsa('#anrufe-list :is(.sp-active),#anrufe-split-left .sp-active').forEach(function(el){
+    qsa('#anrufe-list .sp-active,#anrufe-split-left .sp-active').forEach(function(el){
       el.classList.remove('sp-active');
     });
 
@@ -41651,7 +41178,7 @@ body:has(#tab-archiv.active) .content{
     if(!id) return;
     window._vxActiveRecordId = id;
     window._vxLastAnfragenRecordId = id;
-    qsa('#anrufe-list :is(.sp-active),#anrufe-split-left .sp-active').forEach(function(el){ el.classList.remove('sp-active'); });
+    qsa('#anrufe-list .sp-active,#anrufe-split-left .sp-active').forEach(function(el){ el.classList.remove('sp-active'); });
     qsa('#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row').forEach(function(el){
       if(rowId(el) === id) el.classList.add('sp-active');
     });
