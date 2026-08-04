@@ -59,7 +59,6 @@
   root.__vxCustomerSupplementalRuntimeLoaderInstalled = true;
   [
     '/shared/customer-runtime-notifications.js?v=20260804-5',
-    '/shared/customer-runtime-notifications-design.js?v=20260804-3',
     '/shared/customer-runtime-commercial-controller.js?v=20260804-2',
     '/shared/customer-runtime-settings-navigation.js?v=20260804-1',
     '/shared/customer-runtime-modal-cancellation.js?v=20260804-2',
