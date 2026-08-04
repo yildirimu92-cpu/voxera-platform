@@ -84,7 +84,6 @@ jobs:
           ranges = {element_id: div_range_by_id(source, element_id) for element_id in ids}
           snippets = {element_id: source[a:b] for element_id, (a, b) in ranges.items()}
 
-          # Preserve the existing three source-owned panes while removing their current placements.
           marked = source
           markers = {
               'anrufe-split-left': '__VX_REQUESTS_LEFT__',
@@ -112,7 +111,6 @@ jobs:
               marked = marked.replace(marker, '')
           source = marked
 
-          # Reuse and tune the existing resize owner. No parallel implementation.
           source = re.sub(
               r'var\s+DEFAULT_W\s*=\s*\d+\s*,\s*MIN_W\s*=\s*\d+\s*,\s*MAX_RATIO\s*=\s*0?\.\d+\s*;',
               'var DEFAULT_W = 380, MIN_W = 320, MAX_RATIO = 0.6;',
@@ -125,7 +123,6 @@ jobs:
           source = re.sub(r'--vx-anfragen-left-width,\s*440px', '--vx-anfragen-left-width, 380px', source)
           source = re.sub(r'--vx-anfragen-left-width,\s*360px', '--vx-anfragen-left-width, 380px', source)
 
-          # Keep the original empty state, but remove orphan loading indicators from the right pane source.
           right_start, right_end = div_range_by_id(source, 'anrufe-split-right')
           right = source[right_start:right_end]
           loader_patterns = [
@@ -136,11 +133,9 @@ jobs:
               right = re.sub(pattern, '', right, flags=re.I | re.S)
           source = source[:right_start] + right + source[right_end:]
 
-          # Remove references to the failed runtime/CSS workaround from the large source file.
           source = re.sub(r'^.*customer-runtime-requests-layout-owner\.js.*\n?', '', source, flags=re.M)
           source = re.sub(r'^.*customer-requests-layout\.css.*\n?', '', source, flags=re.M)
 
-          # Guardrails: one owner, one shared parent, existing resize/localStorage logic retained.
           for element_id in ids:
               count = len(re.findall(r'\bid=["\']' + re.escape(element_id) + r'["\']', source))
               if count != 1:
@@ -158,7 +153,6 @@ jobs:
 
           index_path.write_text(source, encoding='utf-8')
 
-          # Remove failed parallel workaround ownership.
           design_path = root / 'customer-dashboard/shared/customer-runtime-design-foundation.js'
           design = design_path.read_text(encoding='utf-8')
           design = re.sub(r'^.*customer-requests-layout\.css.*\n?', '', design, flags=re.M)
@@ -199,3 +193,5 @@ jobs:
                   .github/workflows/tmp-fix-customer-requests-split.yml
           git commit -m "fix(customer): restore requests split pane owner"
           git push origin HEAD:codex/customer-settings-commercial-flows
+
+# trigger: guarded-repair-2026-08-04
