@@ -1,37 +1,54 @@
 (function installCustomerNotificationBridge(root) {
   'use strict';
-  if (!root || !root.document || root.__vxCustomerNotificationBridgeInstalled) return;
-  root.__vxCustomerNotificationBridgeInstalled = true;
+  if (!root || !root.document || root.__vxCustomerNotificationBridgeInstalledV3) return;
+  root.__vxCustomerNotificationBridgeInstalledV3 = true;
 
-  const TRIGGER_SELECTOR = [
+  const doc = root.document;
+  const EXPLICIT_SELECTOR = [
     '[data-notifications-trigger]',
     '[data-notification-trigger]',
     '#notification-button',
     '#notifications-button',
     '#notification-bell',
     '#notifications-bell',
-    'button[aria-label*="Benachrichtigung" i]',
-    '[role="button"][aria-label*="Benachrichtigung" i]',
-    'button[title*="Benachrichtigung" i]',
-    'button[aria-label*="notification" i]',
-    '[role="button"][aria-label*="notification" i]'
+    '[aria-label*="Benachrichtigung" i]',
+    '[title*="Benachrichtigung" i]',
+    '[aria-label*="notification" i]',
+    '[title*="notification" i]'
   ].join(',');
+  const BELL_ICON_SELECTOR = '[class*="ph-bell" i],[data-lucide*="bell" i],svg[class*="bell" i],i[class*="bell" i]';
 
   function containsBellIcon(node) {
     if (!node || node.nodeType !== 1) return false;
-    const ownClass = String((node.className && node.className.baseVal) || node.className || '');
-    const lucide = String(node.getAttribute && node.getAttribute('data-lucide') || '');
-    if (/(?:^|\s)ph(?:-[a-z]+)*-bell(?:-[a-z]+)*(?:\s|$)/i.test(ownClass)) return true;
-    if (/bell/i.test(lucide)) return true;
-    return !!(node.querySelector && node.querySelector('[class*="ph-bell" i],svg[data-lucide*="bell" i],svg[class*="bell" i],i[class*="bell" i]'));
+    if (node.matches && node.matches(BELL_ICON_SELECTOR)) return true;
+    return !!(node.querySelector && node.querySelector(BELL_ICON_SELECTOR));
   }
 
-  function resolveTrigger(target) {
-    if (!target || !target.closest) return null;
-    const explicit = target.closest(TRIGGER_SELECTOR);
+  function getPath(event) {
+    if (event && typeof event.composedPath === 'function') return event.composedPath();
+    const path = [];
+    let node = event && event.target;
+    while (node) { path.push(node); node = node.parentNode; }
+    return path;
+  }
+
+  function resolveTriggerFromNode(node) {
+    if (!node || node.nodeType !== 1) return null;
+    const explicit = node.closest && node.closest(EXPLICIT_SELECTOR);
     if (explicit) return explicit.closest('button,a,[role="button"],[tabindex]') || explicit;
-    const interactive = target.closest('button,a,[role="button"],[tabindex]');
-    return interactive && containsBellIcon(interactive) ? interactive : null;
+    const icon = node.matches && node.matches(BELL_ICON_SELECTOR) ? node : (node.closest && node.closest(BELL_ICON_SELECTOR));
+    if (!icon) return null;
+    return icon.closest('button,a,[role="button"],[tabindex],div,span') || icon;
+  }
+
+  function resolveTrigger(event) {
+    const path = getPath(event);
+    for (let index = 0; index < path.length; index += 1) {
+      const node = path[index];
+      const trigger = resolveTriggerFromNode(node);
+      if (trigger) return trigger;
+    }
+    return null;
   }
 
   function prepareNativePage() {
@@ -42,22 +59,18 @@
 
   function openNativeNotifications(trigger) {
     prepareNativePage();
-
-    const page = root.document.getElementById('tab-benachrichtigungen');
+    const page = doc.getElementById('tab-benachrichtigungen');
     if (!page) {
       console.error('[customer-notifications] native page missing');
       return false;
     }
 
     if (typeof root.showTab === 'function') {
-      try {
-        root.showTab('benachrichtigungen', trigger || undefined);
-      } catch (error) {
-        console.error('[customer-notifications] showTab failed', error);
-      }
+      try { root.showTab('benachrichtigungen', trigger || undefined); }
+      catch (error) { console.error('[customer-notifications] showTab failed', error); }
     }
 
-    root.document.querySelectorAll('.tab-page').forEach(function (item) {
+    doc.querySelectorAll('.tab-page').forEach(function (item) {
       const active = item === page;
       item.classList.toggle('active', active);
       item.style.display = active ? '' : 'none';
@@ -69,48 +82,58 @@
     page.style.display = '';
     page.hidden = false;
     page.setAttribute('aria-hidden', 'false');
-    root.scrollTo({ top: 0, behavior: 'auto' });
+    if (typeof root.scrollTo === 'function') root.scrollTo({ top: 0, behavior: 'auto' });
     return true;
   }
 
+  function bindTrigger(trigger) {
+    if (!trigger || trigger.dataset.vxNotificationsBound === 'native-v3') return;
+    trigger.dataset.vxNotificationsBound = 'native-v3';
+    trigger.setAttribute('role', trigger.getAttribute('role') || 'button');
+    trigger.setAttribute('tabindex', trigger.getAttribute('tabindex') || '0');
+    trigger.setAttribute('aria-label', trigger.getAttribute('aria-label') || 'Benachrichtigungen öffnen');
+    trigger.style.setProperty('pointer-events', 'auto', 'important');
+    trigger.style.setProperty('cursor', 'pointer', 'important');
+    trigger.style.setProperty('position', trigger.style.position || 'relative', 'important');
+    trigger.style.setProperty('z-index', '1301', 'important');
+  }
+
   function prepareTriggers() {
-    const candidates = Array.from(root.document.querySelectorAll('button,a,[role="button"],[tabindex]'))
-      .filter(function (node) { return node.matches(TRIGGER_SELECTOR) || containsBellIcon(node); });
-    candidates.forEach(function (trigger) {
-      trigger.dataset.vxNotificationsBound = 'native-v1';
-      trigger.setAttribute('aria-label', trigger.getAttribute('aria-label') || 'Benachrichtigungen öffnen');
-      trigger.setAttribute('aria-haspopup', 'true');
+    const candidates = new Set();
+    doc.querySelectorAll(EXPLICIT_SELECTOR + ',' + BELL_ICON_SELECTOR).forEach(function (node) {
+      const trigger = resolveTriggerFromNode(node) || node;
+      if (trigger) candidates.add(trigger);
     });
-    return candidates.length > 0;
+    candidates.forEach(bindTrigger);
+    return candidates.size > 0;
   }
 
-  function boot(attempt) {
-    if (prepareTriggers()) return;
-    if (attempt < 80) root.setTimeout(function () { boot(attempt + 1); }, 100);
-  }
-
-  root.document.addEventListener('click', function (event) {
-    const trigger = resolveTrigger(event.target);
+  function handleActivation(event) {
+    const trigger = resolveTrigger(event);
     if (!trigger) return;
+    bindTrigger(trigger);
     event.preventDefault();
-    event.stopImmediatePropagation();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     openNativeNotifications(trigger);
-  }, true);
+  }
 
-  root.document.addEventListener('keydown', function (event) {
+  doc.addEventListener('pointerdown', handleActivation, true);
+  doc.addEventListener('click', handleActivation, true);
+  doc.addEventListener('touchend', handleActivation, true);
+  doc.addEventListener('keydown', function (event) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
-    const trigger = resolveTrigger(event.target);
-    if (!trigger) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    openNativeNotifications(trigger);
+    handleActivation(event);
   }, true);
 
   root.vxOpenCustomerNotifications = openNativeNotifications;
 
-  if (root.document.readyState === 'loading') {
-    root.document.addEventListener('DOMContentLoaded', function () { boot(0); }, { once: true });
-  } else {
-    boot(0);
+  function boot() {
+    prepareTriggers();
+    const observer = new MutationObserver(function () { prepareTriggers(); });
+    observer.observe(doc.documentElement, { childList: true, subtree: true });
   }
+
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
 })(typeof globalThis !== 'undefined' ? globalThis : this);
