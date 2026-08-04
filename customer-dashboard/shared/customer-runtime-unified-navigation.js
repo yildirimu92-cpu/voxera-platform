@@ -159,6 +159,14 @@
     if (!assistantTab) return null;
     assistantTab.classList.add('vx-unified-assistant-root');
 
+    let header = document.getElementById('vx-assistant-root-header');
+    if (!header) {
+      header = document.createElement('header');
+      header.id = 'vx-assistant-root-header';
+      header.className = 'vx-assistant-root-header';
+      header.innerHTML = '<div class="vx-assistant-root-title">Assistent</div><div class="vx-assistant-root-subtitle">Stimme, Geschäftswissen und aktuelle Änderungen verwalten</div>';
+    }
+
     let switcher = document.getElementById('vx-assistant-root-switch');
     if (!switcher) {
       switcher = document.createElement('div');
@@ -182,9 +190,10 @@
       host.id = 'vx-assistant-root-host';
     }
 
-    if (switcher.parentElement !== assistantTab) assistantTab.insertBefore(switcher, assistantTab.firstChild);
+    if (header.parentElement !== assistantTab) assistantTab.insertBefore(header, assistantTab.firstChild);
+    if (switcher.parentElement !== assistantTab) assistantTab.insertBefore(switcher, header.nextSibling);
     if (host.parentElement !== assistantTab) assistantTab.insertBefore(host, switcher.nextSibling);
-    return { assistantTab, switcher, host };
+    return { assistantTab, header, switcher, host };
   }
 
   function mountManagedPages() {
