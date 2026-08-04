@@ -4,7 +4,7 @@
   root.__vxMobileNavigationContainmentRepairInstalled = true;
 
   const MOBILE_NAV_IDS = ['mnav-dashboard','mnav-anrufe','mnav-assistent','mnav-auswertung','mnav-mehr'];
-  const GLOBAL_LAYER_IDS = ['vx-commercial-overlay','vx-upgrade-overlay','vx-minutes-overlay','upgrade-overlay','minutes-overlay','confirm-overlay','notification-panel','notifications-panel','notification-popover','notifications-popover'];
+  const GLOBAL_LAYER_IDS = ['tab-benachrichtigungen','vx-commercial-overlay','vx-upgrade-overlay','vx-minutes-overlay','upgrade-overlay','minutes-overlay','confirm-overlay','notification-panel','notifications-panel','notification-popover','notifications-popover'];
 
   function ensureVisibleStyles(container) {
     if (!container) return;
