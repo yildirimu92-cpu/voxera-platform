@@ -296,39 +296,6 @@ body.vx-customer-design-foundation
   display: none;
 }
 
-/* Desktop requests use a stable master-detail split instead of a stretched mobile stack. */
-@media (min-width: 769px) {
-  body.vx-customer-design-foundation #tab-archiv:has(.vx-split-filters) {
-    display: grid !important;
-    grid-template-columns: minmax(360px, 420px) minmax(0, 1fr) !important;
-    grid-auto-flow: column;
-    align-items: stretch;
-    gap: 24px;
-    width: 100%;
-  }
-
-  body.vx-customer-design-foundation #tab-archiv:has(.vx-split-filters) > :first-child {
-    grid-column: 1;
-    min-width: 0;
-    width: 100%;
-    max-width: none;
-  }
-
-  body.vx-customer-design-foundation #tab-archiv:has(.vx-split-filters) > :nth-child(2) {
-    grid-column: 2;
-    min-width: 0;
-    width: 100%;
-    max-width: none;
-  }
-
-  body.vx-customer-design-foundation #tab-archiv:has(.vx-split-filters) > :nth-child(n + 3) {
-    grid-column: 2;
-    min-width: 0;
-    width: 100%;
-    max-width: none;
-  }
-}
-
 @media (max-width: 768px) {
   body.vx-customer-design-foundation #tab-archiv .vx-split-filters {
     display: grid;
