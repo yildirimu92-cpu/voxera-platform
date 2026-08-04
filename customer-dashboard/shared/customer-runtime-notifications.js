@@ -1,9 +1,10 @@
 (function installCustomerNotificationBridge(root) {
   'use strict';
-  if (!root || !root.document || root.__vxCustomerNotificationBridgeInstalledV3) return;
-  root.__vxCustomerNotificationBridgeInstalledV3 = true;
+  if (!root || !root.document || root.__vxCustomerNotificationBridgeInstalledV4) return;
+  root.__vxCustomerNotificationBridgeInstalledV4 = true;
 
   const doc = root.document;
+  let previousPageId = '';
   const EXPLICIT_SELECTOR = [
     '[data-notifications-trigger]',
     '[data-notification-trigger]',
@@ -17,6 +18,7 @@
     '[title*="notification" i]'
   ].join(',');
   const BELL_ICON_SELECTOR = '[class*="ph-bell" i],[data-lucide*="bell" i],svg[class*="bell" i],i[class*="bell" i]';
+  const BACK_ICON_SELECTOR = '[class*="ph-arrow-left" i],[data-lucide*="arrow-left" i],svg[class*="arrow-left" i],i[class*="arrow-left" i]';
 
   function containsBellIcon(node) {
     if (!node || node.nodeType !== 1) return false;
@@ -57,7 +59,32 @@
     if (typeof root.vxBellPageRender === 'function') root.vxBellPageRender();
   }
 
+  function rememberCurrentPage() {
+    const active = Array.from(doc.querySelectorAll('.tab-page')).find(function (item) {
+      return item.id !== 'tab-benachrichtigungen' && (item.classList.contains('active') || (!item.hidden && item.style.display !== 'none'));
+    });
+    if (active && active.id) previousPageId = active.id;
+    if (!previousPageId) previousPageId = 'tab-dashboard';
+  }
+
+  function activateOnly(page) {
+    if (!page) return false;
+    doc.querySelectorAll('.tab-page').forEach(function (item) {
+      const active = item === page;
+      item.classList.toggle('active', active);
+      item.style.display = active ? '' : 'none';
+      item.hidden = !active;
+      item.setAttribute('aria-hidden', active ? 'false' : 'true');
+    });
+    page.classList.add('active');
+    page.style.display = '';
+    page.hidden = false;
+    page.setAttribute('aria-hidden', 'false');
+    return true;
+  }
+
   function openNativeNotifications(trigger) {
+    rememberCurrentPage();
     prepareNativePage();
     const page = doc.getElementById('tab-benachrichtigungen');
     if (!page) {
@@ -70,25 +97,43 @@
       catch (error) { console.error('[customer-notifications] showTab failed', error); }
     }
 
-    doc.querySelectorAll('.tab-page').forEach(function (item) {
-      const active = item === page;
-      item.classList.toggle('active', active);
-      item.style.display = active ? '' : 'none';
-      item.hidden = !active;
-      item.setAttribute('aria-hidden', active ? 'false' : 'true');
-    });
-
-    page.classList.add('active');
-    page.style.display = '';
-    page.hidden = false;
-    page.setAttribute('aria-hidden', 'false');
+    activateOnly(page);
     if (typeof root.scrollTo === 'function') root.scrollTo({ top: 0, behavior: 'auto' });
     return true;
   }
 
+  function restorePreviousPage() {
+    const fallbackIds = [previousPageId, 'tab-dashboard', 'tab-heute', 'tab-home'];
+    let page = null;
+    for (let index = 0; index < fallbackIds.length && !page; index += 1) {
+      if (fallbackIds[index]) page = doc.getElementById(fallbackIds[index]);
+    }
+    if (!page) page = Array.from(doc.querySelectorAll('.tab-page')).find(function (item) { return item.id !== 'tab-benachrichtigungen'; });
+    if (!page) return false;
+
+    const tabName = String(page.id || '').replace(/^tab-/, '');
+    if (typeof root.showTab === 'function' && tabName) {
+      try { root.showTab(tabName); }
+      catch (error) { console.error('[customer-notifications] restore showTab failed', error); }
+    }
+    activateOnly(page);
+    if (typeof root.scrollTo === 'function') root.scrollTo({ top: 0, behavior: 'auto' });
+    return true;
+  }
+
+  function isNotificationBackAction(event) {
+    const page = doc.getElementById('tab-benachrichtigungen');
+    const target = event && event.target;
+    if (!page || !target || !page.contains(target)) return false;
+    const control = target.closest && target.closest('button,a,[role="button"],[tabindex],div');
+    if (!control || !page.contains(control)) return false;
+    const label = String(control.getAttribute('aria-label') || control.getAttribute('title') || control.textContent || '').trim();
+    return /zurück|back/i.test(label) || !!(control.matches && control.matches(BACK_ICON_SELECTOR)) || !!(control.querySelector && control.querySelector(BACK_ICON_SELECTOR));
+  }
+
   function bindTrigger(trigger) {
-    if (!trigger || trigger.dataset.vxNotificationsBound === 'native-v3') return;
-    trigger.dataset.vxNotificationsBound = 'native-v3';
+    if (!trigger || trigger.dataset.vxNotificationsBound === 'native-v4') return;
+    trigger.dataset.vxNotificationsBound = 'native-v4';
     trigger.setAttribute('role', trigger.getAttribute('role') || 'button');
     trigger.setAttribute('tabindex', trigger.getAttribute('tabindex') || '0');
     trigger.setAttribute('aria-label', trigger.getAttribute('aria-label') || 'Benachrichtigungen öffnen');
@@ -109,6 +154,13 @@
   }
 
   function handleActivation(event) {
+    if (isNotificationBackAction(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      restorePreviousPage();
+      return;
+    }
     const trigger = resolveTrigger(event);
     if (!trigger) return;
     bindTrigger(trigger);
@@ -127,6 +179,7 @@
   }, true);
 
   root.vxOpenCustomerNotifications = openNativeNotifications;
+  root.vxCloseCustomerNotifications = restorePreviousPage;
 
   function boot() {
     prepareTriggers();
