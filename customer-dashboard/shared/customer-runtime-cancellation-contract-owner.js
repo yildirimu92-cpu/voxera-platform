@@ -129,6 +129,24 @@
     overlay.dataset.vxContractEnd = date;
   }
 
+  function repairWithdrawDialog() {
+    const overlay = root.document.getElementById('confirm-overlay');
+    if (!overlay) return;
+    const text = String(overlay.textContent || '').replace(/\s+/g, ' ');
+    if (!/Kündigung wirklich zurückziehen/i.test(text)) return;
+
+    const target = Array.from(overlay.querySelectorAll('p,div,span')).find(function(node) {
+      return node.children.length === 0 && /^Sind Sie sicher\??$/i.test(String(node.textContent || '').trim());
+    });
+    if (target) {
+      target.textContent = 'Ihre vorgemerkte Kündigung wird entfernt. Ihr Vertrag läuft unverändert weiter und verlängert sich gemäss den Vertragsbedingungen automatisch.';
+    }
+
+    Array.from(overlay.querySelectorAll('[data-vx-contract-cancellation-note="1"]')).forEach(function(node) {
+      node.remove();
+    });
+  }
+
   function repairNoticeLabel() {
     const nodes = Array.from(root.document.querySelectorAll('*'));
     for (const node of nodes) {
@@ -147,8 +165,10 @@
     if (!date) return;
     const nodes = Array.from(root.document.querySelectorAll('*'));
     for (const node of nodes) {
+      if (node.children.length > 0) continue;
       const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
-      if (/^Kündigung eingereicht per\s+\d{1,2}\.\d{1,2}\.\d{4}$/i.test(text)) {
+      if (/^Kündigung eingereicht per\s+\d{1,2}\.\d{1,2}\.\d{4}$/i.test(text)
+        || /^Kündigung bereits eingereicht$/i.test(text)) {
         node.textContent = 'Kündigung vorgemerkt · Vertragsende ' + date;
       }
     }
@@ -157,6 +177,7 @@
   function repair() {
     repairNoticeLabel();
     repairDialog();
+    repairWithdrawDialog();
     repairStatus();
   }
 
