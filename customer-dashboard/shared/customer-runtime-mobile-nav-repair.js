@@ -126,3 +126,13 @@
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function loadCommercialModalLayoutRuntime(root) {
+  'use strict';
+  if (!root || !root.document || root.__voxeraCommercialModalLayoutLoaded) return;
+  root.__voxeraCommercialModalLayoutLoaded = true;
+  const script = root.document.createElement('script');
+  script.src = '/shared/customer-runtime-commercial-modal-layout.js?v=20260804-1';
+  script.async = false;
+  root.document.head.appendChild(script);
+})(typeof globalThis !== 'undefined' ? globalThis : this);
