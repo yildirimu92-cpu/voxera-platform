@@ -48,8 +48,7 @@
   }
 
   function isCancellationDialog(overlay) {
-    if (!overlay) return false;
-    return /kündigung bestätigen/i.test(String(overlay.textContent || ''));
+    return !!overlay && /kündigung bestätigen/i.test(String(overlay.textContent || ''));
   }
 
   function replaceContractEndRow(overlay, date) {
@@ -57,39 +56,50 @@
     for (const element of elements) {
       const text = String(element.textContent || '').replace(/\s+/g, ' ').trim();
       if (!/^Vertragsende\s*:/i.test(text)) continue;
-
       const dateNode = Array.from(element.querySelectorAll('*')).find(function(child) {
         return /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(String(child.textContent || '').trim());
       });
-      if (dateNode) {
-        dateNode.textContent = date;
-      } else {
-        element.innerHTML = 'Vertragsende: <strong>' + date + '</strong>';
-      }
+      if (dateNode) dateNode.textContent = date;
+      else element.innerHTML = 'Vertragsende: <strong>' + date + '</strong>';
       return true;
     }
     return false;
   }
 
-  function replaceWarning(overlay, date) {
-    const elements = Array.from(overlay.querySelectorAll('div,p,span'));
-    const target = elements.find(function(element) {
-      return /Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert/i.test(String(element.textContent || ''));
-    });
-    if (!target) return false;
-    target.textContent = 'Ihr Vertrag bleibt bis zum ' + date + ' aktiv und endet anschliessend automatisch.';
-    return true;
-  }
-
-  function ensureNotice(overlay, date) {
-    if (overlay.querySelector('[data-vx-contract-cancellation-note="1"]')) return;
+  function ensureSingleNotice(overlay, date) {
     const body = overlay.querySelector('.vx-modal-body,.modal-body,[data-confirm-body]')
       || Array.from(overlay.children).find(function(child) { return child.querySelector && child.querySelector('button'); })
       || overlay;
+
+    Array.from(overlay.querySelectorAll('[data-vx-contract-cancellation-note="1"], .vx-cancellation-term-note')).forEach(function(node) {
+      node.remove();
+    });
+
+    const oldWarning = Array.from(overlay.querySelectorAll('div,p,span')).find(function(element) {
+      return /Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert|Ihr Vertrag bleibt bis zum .* aktiv und endet anschliessend automatisch/i.test(String(element.textContent || ''));
+    });
+    if (oldWarning) oldWarning.remove();
+
     const note = root.document.createElement('div');
     note.dataset.vxContractCancellationNote = '1';
     note.className = 'vx-cancellation-term-note';
-    note.textContent = 'Die Kündigungsfrist beträgt 1 Monat vor Vertragsende. Ihr Zugang bleibt bis zum ' + date + ' vollständig aktiv.';
+    note.innerHTML = '<strong>Hinweis</strong><span>Ihr Vertrag bleibt bis zum <b>' + date + '</b> aktiv. Die Kündigung wird auf dieses Datum vorgemerkt; die Kündigungsfrist beträgt 1 Monat vor Vertragsende.</span>';
+    Object.assign(note.style, {
+      display: 'grid',
+      gridTemplateColumns: '1fr',
+      gap: '6px',
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      margin: '16px 0 0',
+      padding: '14px 16px',
+      border: '1px solid #d8e1ec',
+      borderRadius: '14px',
+      background: '#f6f8fb',
+      color: '#475569',
+      fontSize: '14px',
+      lineHeight: '1.5'
+    });
     const footer = body.querySelector('.vx-modal-footer,.modal-footer');
     if (footer && footer.parentElement === body) body.insertBefore(note, footer);
     else body.appendChild(note);
@@ -101,8 +111,7 @@
     const date = contractEndDate();
     if (!date) return;
     replaceContractEndRow(overlay, date);
-    replaceWarning(overlay, date);
-    ensureNotice(overlay, date);
+    ensureSingleNotice(overlay, date);
     overlay.dataset.vxContractEnd = date;
   }
 
