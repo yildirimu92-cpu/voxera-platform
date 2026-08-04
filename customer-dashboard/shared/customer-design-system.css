@@ -14,11 +14,28 @@
   --vx-brand: #3478ed;
   --vx-brand-dark: #0f2347;
   --vx-surface: #ffffff;
+  --vx-surface-soft: #f9fbfd;
   --vx-canvas: #f6f8fb;
   --vx-line: #e4eaf2;
+  --vx-line-strong: #d5deea;
+  --vx-focus-ring: rgba(52, 120, 237, 0.24);
+  --vx-overlay: rgba(15, 35, 71, 0.42);
+  --vx-success: #178a55;
+  --vx-warning: #b76a00;
+  --vx-danger: #c83c4a;
   --vx-radius-card: 18px;
+  --vx-radius-panel: 18px;
   --vx-radius-control: 12px;
   --vx-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --vx-shadow-panel: 0 8px 28px rgba(15, 35, 71, 0.06);
+  --vx-space-1: 4px;
+  --vx-space-2: 8px;
+  --vx-space-3: 12px;
+  --vx-space-4: 16px;
+  --vx-space-5: 20px;
+  --vx-space-6: 24px;
+  --vx-space-8: 32px;
+  --vx-page-max-width: 1480px;
   --vx-mobile-nav-space: 112px;
 }
 
@@ -45,7 +62,7 @@ body.vx-customer-design-foundation :where(button, input, select, textarea) {
 }
 
 body.vx-customer-design-foundation :where(button, [role="button"], a, input, select, textarea):focus-visible {
-  outline: 3px solid rgba(52, 120, 237, 0.24);
+  outline: 3px solid var(--vx-focus-ring);
   outline-offset: 2px;
 }
 
@@ -209,7 +226,7 @@ body.vx-customer-design-foundation :where(input, select, textarea) {
   padding: 11px 13px;
   border-color: var(--vx-line);
   border-radius: var(--vx-radius-control);
-  background: #ffffff;
+  background: var(--vx-surface);
   color: var(--vx-ink);
   font-size: 15px;
   line-height: 1.45;
@@ -281,6 +298,91 @@ body.vx-customer-design-foundation :where(
 ) .vx-root-nav-label {
   font-size: 12px;
   line-height: 1.2;
+}
+
+/* Canonical reusable primitives. Component files may compose these classes,
+   but must not redefine their global visual contract. */
+body.vx-customer-design-foundation .vx-page-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--vx-page-max-width);
+  margin-inline: auto;
+}
+
+body.vx-customer-design-foundation :where(.vx-panel, .vx-card, .vx-empty-state) {
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid var(--vx-line);
+  border-radius: var(--vx-radius-panel);
+  background: var(--vx-surface);
+  color: var(--vx-ink);
+}
+
+body.vx-customer-design-foundation .vx-panel {
+  padding: var(--vx-space-6);
+  box-shadow: var(--vx-shadow-panel);
+}
+
+body.vx-customer-design-foundation .vx-card {
+  padding: var(--vx-space-5);
+  box-shadow: var(--vx-shadow-card);
+}
+
+body.vx-customer-design-foundation .vx-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vx-space-3);
+  min-height: 220px;
+  padding: var(--vx-space-8) var(--vx-space-6);
+  text-align: center;
+}
+
+body.vx-customer-design-foundation .vx-empty-state > :where(p, small) {
+  max-width: 42ch;
+  margin: 0;
+}
+
+body.vx-customer-design-foundation .vx-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vx-space-2);
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation .vx-field-stack {
+  display: grid;
+  gap: var(--vx-space-2);
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation .vx-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vx-space-2);
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation .vx-chip {
+  box-sizing: border-box;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid var(--vx-line);
+  border-radius: 999px;
+  background: var(--vx-surface);
+  color: var(--vx-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+body.vx-customer-design-foundation .vx-chip:is(.is-active, [aria-pressed="true"]) {
+  border-color: var(--vx-brand);
+  background: var(--vx-brand);
+  color: #ffffff;
 }
 
 /* Native hidden state wins over component display declarations by specificity. */
