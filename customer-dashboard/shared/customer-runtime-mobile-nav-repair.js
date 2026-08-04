@@ -62,7 +62,7 @@
     '/shared/customer-runtime-settings-navigation.js?v=20260804-1',
     '/shared/customer-runtime-modal-cancellation.js?v=20260804-2',
     '/shared/customer-runtime-cancellation-contract-owner.js?v=20260804-4',
-    '/shared/customer-runtime-notifications.js?v=20260804-4'
+    '/shared/customer-runtime-notifications.js?v=20260804-5'
   ].forEach(function(src){
     const script=root.document.createElement('script');
     script.src=src;
