@@ -148,7 +148,7 @@
   if (!root || !root.document || root.__vxSubscriptionStabilityLoaderInstalled) return;
   root.__vxSubscriptionStabilityLoaderInstalled = true;
   const script = root.document.createElement('script');
-  script.src = '/shared/customer-runtime-subscription-stability.js?v=20260804-1';
+  script.src = '/shared/customer-runtime-subscription-stability.js?v=20260804-2';
   script.async = false;
   root.document.head.appendChild(script);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
