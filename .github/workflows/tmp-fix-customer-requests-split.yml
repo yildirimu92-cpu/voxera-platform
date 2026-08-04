@@ -1,0 +1,201 @@
+name: Temporary guarded customer requests split repair
+
+on:
+  push:
+    branches:
+      - codex/customer-settings-commercial-flows
+    paths:
+      - .github/workflows/tmp-fix-customer-requests-split.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/customer-settings-commercial-flows
+          fetch-depth: 0
+
+      - name: Repair Anfragen source ownership
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          index_path = root / 'customer-dashboard/index.html'
+          source = index_path.read_text(encoding='utf-8')
+
+          def div_range_by_id(text, element_id):
+              start_match = re.search(
+                  r'<div\b[^>]*\bid=["\']' + re.escape(element_id) + r'["\'][^>]*>',
+                  text,
+                  flags=re.I,
+              )
+              if not start_match:
+                  raise SystemExit(f'missing div #{element_id}')
+              token_re = re.compile(r'<div\b[^>]*>|</div\s*>', re.I)
+              depth = 0
+              for token in token_re.finditer(text, start_match.start()):
+                  if token.start() < start_match.start():
+                      continue
+                  if token.group(0).lower().startswith('</div'):
+                      depth -= 1
+                      if depth == 0:
+                          return start_match.start(), token.end()
+                  else:
+                      depth += 1
+              raise SystemExit(f'unclosed div #{element_id}')
+
+          def containing_split_range(text, marker_pos):
+              token_re = re.compile(r'<div\b[^>]*>|</div\s*>', re.I)
+              stack = []
+              candidates = []
+              for token in token_re.finditer(text):
+                  if token.start() >= marker_pos:
+                      break
+                  raw = token.group(0)
+                  if raw.lower().startswith('</div'):
+                      if stack:
+                          stack.pop()
+                  else:
+                      stack.append((token.start(), token.end(), raw))
+              for item in reversed(stack):
+                  if re.search(r'\bclass=["\'][^"\']*\bvx-split\b', item[2], re.I) or re.search(r'\bid=["\']anrufe-split["\']', item[2], re.I):
+                      candidates.append(item)
+              if not candidates:
+                  raise SystemExit('missing source-owned .vx-split ancestor for #anrufe-split-left')
+              open_start, open_end, _ = candidates[0]
+              token_re = re.compile(r'<div\b[^>]*>|</div\s*>', re.I)
+              depth = 0
+              for token in token_re.finditer(text, open_start):
+                  if token.group(0).lower().startswith('</div'):
+                      depth -= 1
+                      if depth == 0:
+                          return open_start, open_end, token.start(), token.end()
+                  else:
+                      depth += 1
+              raise SystemExit('unclosed .vx-split ancestor')
+
+          ids = ['anrufe-split-left', 'anrufe-split-resizer', 'anrufe-split-right']
+          ranges = {element_id: div_range_by_id(source, element_id) for element_id in ids}
+          snippets = {element_id: source[a:b] for element_id, (a, b) in ranges.items()}
+
+          # Preserve the existing three source-owned panes while removing their current placements.
+          marked = source
+          markers = {
+              'anrufe-split-left': '__VX_REQUESTS_LEFT__',
+              'anrufe-split-resizer': '__VX_REQUESTS_RESIZER__',
+              'anrufe-split-right': '__VX_REQUESTS_RIGHT__',
+          }
+          for element_id, (start, end) in sorted(ranges.items(), key=lambda item: item[1][0], reverse=True):
+              marked = marked[:start] + markers[element_id] + marked[end:]
+
+          left_marker_pos = marked.find(markers['anrufe-split-left'])
+          if left_marker_pos < 0:
+              raise SystemExit('left marker placement failed')
+          split_start, split_open_end, split_close_start, split_end = containing_split_range(marked, left_marker_pos)
+          split_open = marked[split_start:split_open_end]
+
+          replacement = (
+              split_open + '\n'
+              + snippets['anrufe-split-left'] + '\n'
+              + snippets['anrufe-split-resizer'] + '\n'
+              + snippets['anrufe-split-right'] + '\n'
+              + '</div>'
+          )
+          marked = marked[:split_start] + replacement + marked[split_end:]
+          for marker in markers.values():
+              marked = marked.replace(marker, '')
+          source = marked
+
+          # Reuse and tune the existing resize owner. No parallel implementation.
+          source = re.sub(
+              r'var\s+DEFAULT_W\s*=\s*\d+\s*,\s*MIN_W\s*=\s*\d+\s*,\s*MAX_RATIO\s*=\s*0?\.\d+\s*;',
+              'var DEFAULT_W = 380, MIN_W = 320, MAX_RATIO = 0.6;',
+              source,
+              count=1,
+          )
+          source = source.replace('var MIN_W = 220, MAX_RATIO = 0.6;', 'var DEFAULT_W = 380, MIN_W = 320, MAX_RATIO = 0.6;', 1)
+          source = re.sub(r'--vx-split-left-w,\s*440px', '--vx-split-left-w, 380px', source)
+          source = re.sub(r'--vx-split-left-w,\s*300px', '--vx-split-left-w, 380px', source)
+          source = re.sub(r'--vx-anfragen-left-width,\s*440px', '--vx-anfragen-left-width, 380px', source)
+          source = re.sub(r'--vx-anfragen-left-width,\s*360px', '--vx-anfragen-left-width, 380px', source)
+
+          # Keep the original empty state, but remove orphan loading indicators from the right pane source.
+          right_start, right_end = div_range_by_id(source, 'anrufe-split-right')
+          right = source[right_start:right_end]
+          loader_patterns = [
+              r'<div\b[^>]*(?:class=["\'][^"\']*(?:loader|loading|spinner)[^"\']*["\']|data-vx-loader\b|aria-busy=["\']true["\'])[^>]*>\s*</div>',
+              r'<span\b[^>]*(?:class=["\'][^"\']*(?:loader|loading|spinner)[^"\']*["\']|data-vx-loader\b|aria-busy=["\']true["\'])[^>]*>\s*</span>',
+          ]
+          for pattern in loader_patterns:
+              right = re.sub(pattern, '', right, flags=re.I | re.S)
+          source = source[:right_start] + right + source[right_end:]
+
+          # Remove references to the failed runtime/CSS workaround from the large source file.
+          source = re.sub(r'^.*customer-runtime-requests-layout-owner\.js.*\n?', '', source, flags=re.M)
+          source = re.sub(r'^.*customer-requests-layout\.css.*\n?', '', source, flags=re.M)
+
+          # Guardrails: one owner, one shared parent, existing resize/localStorage logic retained.
+          for element_id in ids:
+              count = len(re.findall(r'\bid=["\']' + re.escape(element_id) + r'["\']', source))
+              if count != 1:
+                  raise SystemExit(f'expected exactly one #{element_id}, found {count}')
+          if 'vx_split_w' not in source:
+              raise SystemExit('existing vx_split_w persistence owner missing')
+          if "getElementById('anrufe-split-resizer')" not in source and 'getElementById("anrufe-split-resizer")' not in source:
+              raise SystemExit('existing resizer owner missing')
+
+          left_start, left_end = div_range_by_id(source, 'anrufe-split-left')
+          split_start, split_open_end, split_close_start, split_end = containing_split_range(source, left_start)
+          split_fragment = source[split_start:split_end]
+          if not all(f'id="{element_id}"' in split_fragment or f"id='{element_id}'" in split_fragment for element_id in ids):
+              raise SystemExit('list, resizer and detail are not in the same source parent')
+
+          index_path.write_text(source, encoding='utf-8')
+
+          # Remove failed parallel workaround ownership.
+          design_path = root / 'customer-dashboard/shared/customer-runtime-design-foundation.js'
+          design = design_path.read_text(encoding='utf-8')
+          design = re.sub(r'^.*customer-requests-layout\.css.*\n?', '', design, flags=re.M)
+          design_path.write_text(design, encoding='utf-8')
+
+          for path in [
+              root / 'customer-dashboard/shared/customer-runtime-requests-layout-owner.js',
+              root / 'customer-dashboard/shared/customer-requests-layout.css',
+          ]:
+              if path.exists():
+                  path.unlink()
+
+      - name: Validate guarded repair
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          assert source.count('id="anrufe-split-left"') + source.count("id='anrufe-split-left'") == 1
+          assert source.count('id="anrufe-split-resizer"') + source.count("id='anrufe-split-resizer'") == 1
+          assert source.count('id="anrufe-split-right"') + source.count("id='anrufe-split-right'") == 1
+          assert 'vx_split_w' in source
+          assert 'customer-runtime-requests-layout-owner.js' not in source
+          assert 'customer-requests-layout.css' not in Path('customer-dashboard/shared/customer-runtime-design-foundation.js').read_text(encoding='utf-8')
+          assert not Path('customer-dashboard/shared/customer-runtime-requests-layout-owner.js').exists()
+          assert not Path('customer-dashboard/shared/customer-requests-layout.css').exists()
+          print('guarded requests split repair validated')
+          PY
+
+      - name: Commit repair and remove temporary workflow
+        run: |
+          rm .github/workflows/tmp-fix-customer-requests-split.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-dashboard/index.html \
+                  customer-dashboard/shared/customer-runtime-design-foundation.js \
+                  customer-dashboard/shared/customer-runtime-requests-layout-owner.js \
+                  customer-dashboard/shared/customer-requests-layout.css \
+                  .github/workflows/tmp-fix-customer-requests-split.yml
+          git commit -m "fix(customer): restore requests split pane owner"
+          git push origin HEAD:codex/customer-settings-commercial-flows
