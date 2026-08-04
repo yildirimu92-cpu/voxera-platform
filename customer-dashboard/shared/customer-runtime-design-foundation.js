@@ -7,16 +7,11 @@
   // Styling lives exclusively in explicit CSS modules.
   const stylesheets = [
     '/shared/customer-design-system.css?v=20260804-1',
-    '/shared/customer-requests-layout.css?v=20260804-1',
     '/shared/customer-assistant-components.css?v=20260803-1',
     '/shared/customer-assistant-status.css?v=20260803-1',
     '/shared/customer-navigation-components.css?v=20260803-1',
     '/shared/customer-settings-components.css?v=20260803-2',
     '/shared/customer-support-components.css?v=20260802-2'
-  ];
-
-  const scripts = [
-    '/shared/customer-runtime-requests-layout-owner.js?v=20260804-1'
   ];
 
   stylesheets.forEach((href) => {
@@ -26,15 +21,6 @@
     link.href = href;
     link.dataset.vxCustomerStylesheet = href;
     root.document.head.appendChild(link);
-  });
-
-  scripts.forEach((src) => {
-    if (root.document.querySelector(`script[data-vx-customer-runtime="${src}"]`)) return;
-    const script = root.document.createElement('script');
-    script.src = src;
-    script.defer = true;
-    script.dataset.vxCustomerRuntime = src;
-    root.document.head.appendChild(script);
   });
 
   const markDocument = () => {
