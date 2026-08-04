@@ -14,6 +14,9 @@
       style = root.document.createElement('style');
       style.id = 'vx-mobile-nav-visibility-repair';
       style.textContent = `
+        @media (min-width:769px){
+          [data-vx-mobile-navigation="1"]{display:none!important;}
+        }
         @media (max-width:768px){
           html{scroll-padding-bottom:calc(88px + env(safe-area-inset-bottom,0px));}
           body{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;}
