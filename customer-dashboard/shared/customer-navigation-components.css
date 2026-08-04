@@ -8,8 +8,6 @@
 }
 
 body.vx-customer-design-foundation #tab-assistent.vx-unified-assistant-root {
-  display: grid;
-  gap: var(--vx-space-4);
   min-width: 0;
   padding-bottom: var(--vx-space-6);
 }
@@ -18,6 +16,7 @@ body.vx-customer-design-foundation .vx-assistant-root-header {
   display: grid;
   gap: 4px;
   min-width: 0;
+  margin-bottom: var(--vx-space-4);
   padding: 26px 30px;
   border-radius: var(--vx-radius-panel);
   background: var(--vx-brand-dark);
@@ -43,6 +42,7 @@ body.vx-customer-design-foundation #vx-assistant-root-switch {
   display: inline-grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: min(560px, 100%);
+  margin-bottom: var(--vx-space-4);
   padding: 4px;
   border: 1px solid var(--vx-line);
   border-radius: 14px;
@@ -180,12 +180,12 @@ body.vx-customer-design-foundation .vx-nav-voice-details[open] > summary::after 
 
 @media (max-width: 720px) {
   body.vx-customer-design-foundation #tab-assistent.vx-unified-assistant-root {
-    gap: var(--vx-space-3);
     padding-bottom: calc(110px + env(safe-area-inset-bottom));
   }
 
   body.vx-customer-design-foundation .vx-assistant-root-header {
     gap: 6px;
+    margin-bottom: var(--vx-space-3);
     padding: 22px 20px;
     border-radius: 22px;
   }
@@ -200,6 +200,7 @@ body.vx-customer-design-foundation .vx-nav-voice-details[open] > summary::after 
 
   body.vx-customer-design-foundation #vx-assistant-root-switch {
     width: 100%;
+    margin-bottom: var(--vx-space-3);
     padding: 3px;
     border-radius: 13px;
   }
