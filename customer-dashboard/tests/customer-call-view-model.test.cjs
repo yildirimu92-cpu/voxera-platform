@@ -118,11 +118,25 @@ test('matching typed identities dedupe and legacy conversation alias maps to can
   assert.equal(byConversationId.length, 1);
 });
 
-test('terminal workflow state cannot be downgraded by follow-up data or a fresher stale duplicate', () => {
+test('terminal workflow state cannot be downgraded by analysis, follow-up data or a fresher stale duplicate', () => {
   assert.equal(model.lifecycle({
     dashboard_status: 'done',
     follow_up_at: '2026-08-06T08:00:00Z'
   }), 'done');
+
+  assert.equal(model.lifecycle({
+    live_status: 'completed',
+    conversation_provider_id: 'conv-1',
+    dashboard_status: 'done',
+    call_summary: ''
+  }), 'done');
+
+  assert.equal(model.lifecycle({
+    live_status: 'completed',
+    conversation_provider_id: 'conv-1',
+    dashboard_status: 'archived',
+    call_summary: ''
+  }), 'archived');
 
   const selected = model.dedupe([
     {
@@ -141,8 +155,8 @@ test('terminal workflow state cannot be downgraded by follow-up data or a freshe
   assert.equal(model.lifecycle(selected[0]), 'done');
 });
 
-test('lifecycle follows call-intake progression before workflow state', () => {
-  assert.equal(model.lifecycle({ live_status: 'started' }), 'live');
+test('lifecycle prioritizes active telephony, then terminal workflow, then analysis and open workflow states', () => {
+  assert.equal(model.lifecycle({ live_status: 'started', dashboard_status: 'done' }), 'live');
   assert.equal(model.lifecycle({ live_status: 'in_progress' }), 'live');
   assert.equal(model.lifecycle({
     live_status: 'completed',
@@ -157,6 +171,67 @@ test('lifecycle follows call-intake progression before workflow state', () => {
   assert.equal(model.lifecycle({ dashboard_status: 'open', read_at: '2026-08-05T10:00:00Z' }), 'working');
   assert.equal(model.lifecycle({ dashboard_status: 'planned' }), 'planned');
   assert.equal(model.lifecycle({ dashboard_status: 'archived' }), 'archived');
+});
+
+test('read and unread derive only from persisted read_at and lifecycle eligibility', () => {
+  const finishedNew = model.build({
+    live_status: 'completed',
+    dashboard_status: 'new',
+    call_summary: 'Fertig'
+  });
+  assert.equal(finishedNew.readAt, null);
+  assert.equal(finishedNew.unreadEligible, true);
+  assert.equal(finishedNew.isUnread, true);
+
+  const finishedRead = model.build({
+    live_status: 'completed',
+    dashboard_status: 'new',
+    call_summary: 'Fertig',
+    read_at: '2026-08-05T10:00:00Z'
+  });
+  assert.equal(finishedRead.readAt, '2026-08-05T10:00:00Z');
+  assert.equal(finishedRead.unreadEligible, true);
+  assert.equal(finishedRead.isUnread, false);
+
+  const wrappedPersistedUnread = model.build({
+    read_at: '2026-08-05T08:00:00Z',
+    fields: {
+      live_status: 'completed',
+      dashboard_status: 'new',
+      call_summary: 'Fertig',
+      read_at: null
+    }
+  });
+  assert.equal(wrappedPersistedUnread.readAt, null);
+  assert.equal(wrappedPersistedUnread.unreadEligible, true);
+  assert.equal(wrappedPersistedUnread.isUnread, true);
+
+  const live = model.build({ live_status: 'started' });
+  assert.equal(live.readAt, null);
+  assert.equal(live.unreadEligible, false);
+  assert.equal(live.isUnread, false);
+
+  const analysing = model.build({
+    live_status: 'completed',
+    conversation_provider_id: 'conv-1'
+  });
+  assert.equal(analysing.readAt, null);
+  assert.equal(analysing.unreadEligible, false);
+  assert.equal(analysing.isUnread, false);
+
+  for (const status of ['done', 'archived']) {
+    const terminalUnread = model.build({ dashboard_status: status });
+    assert.equal(terminalUnread.unreadEligible, true);
+    assert.equal(terminalUnread.isUnread, true);
+
+    const terminalRead = model.build({
+      dashboard_status: status,
+      read_at: '2026-08-05T11:00:00Z'
+    });
+    assert.equal(terminalRead.readAt, '2026-08-05T11:00:00Z');
+    assert.equal(terminalRead.unreadEligible, true);
+    assert.equal(terminalRead.isUnread, false);
+  }
 });
 
 test('category, lead quality and outcome remain semantic rather than raw provider labels', () => {

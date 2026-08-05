@@ -72,6 +72,7 @@
   const PLANNED_STATUSES = new Set(['planned', 'scheduled', 'follow_up', 'callback_planned']);
   const WORKING_STATUSES = new Set(['open', 'in_progress', 'processing']);
   const TERMINAL_LIFECYCLES = new Set(['done', 'archived']);
+  const UNREAD_INELIGIBLE_LIFECYCLES = new Set(['live', 'analysing']);
   const LIFECYCLE_RANK = Object.freeze({ live: 1, analysing: 2, new: 3, working: 4, planned: 5, done: 6, archived: 7 });
 
   const text = (value) => String(value == null ? '' : value).trim();
@@ -172,14 +173,36 @@
     if (ARCHIVED_STATUSES.has(status)) return 'archived';
     if (DONE_STATUSES.has(status)) return 'done';
     if (PLANNED_STATUSES.has(status) || text(firstByPrecedence(record, FIELD_PRECEDENCE.followUpAt))) return 'planned';
-    if (text(firstByPrecedence(record, FIELD_PRECEDENCE.readAt)) || WORKING_STATUSES.has(status)) return 'working';
+    if (readAt(record) || WORKING_STATUSES.has(status)) return 'working';
     return 'new';
   }
 
   function lifecycle(record) {
     if (isLive(record)) return 'live';
+    const workflow = workflowState(record || {});
+    if (TERMINAL_LIFECYCLES.has(workflow)) return workflow;
     if (isAnalysisPending(record)) return 'analysing';
-    return workflowState(record || {});
+    return workflow;
+  }
+
+  function readAt(record) {
+    const fields = nestedFields(record);
+    if (Object.prototype.hasOwnProperty.call(fields, 'read_at')) return text(fields.read_at) || null;
+    return text(record && record.read_at) || null;
+  }
+
+  function unreadEligibleForLifecycle(state) {
+    // Workflow state never synthesizes read state. A finished terminal call
+    // remains unread until persisted read_at says otherwise.
+    return !UNREAD_INELIGIBLE_LIFECYCLES.has(state);
+  }
+
+  function unreadEligible(record) {
+    return unreadEligibleForLifecycle(lifecycle(record));
+  }
+
+  function isUnread(record) {
+    return unreadEligible(record) && !readAt(record);
   }
 
   const LIFECYCLE_META = Object.freeze({
@@ -349,6 +372,8 @@
   function build(record) {
     const source = record || {};
     const state = lifecycle(source);
+    const canonicalReadAt = readAt(source);
+    const canBeUnread = unreadEligibleForLifecycle(state);
     return {
       id: canonicalId(source),
       identityKeys: identityKeys(source),
@@ -362,6 +387,9 @@
       outcome: outcome(source),
       durationSeconds: durationSeconds(source),
       timestamp: timestamp(source),
+      readAt: canonicalReadAt,
+      unreadEligible: canBeUnread,
+      isUnread: canBeUnread && !canonicalReadAt,
       direction: lower(firstByPrecedence(source, FIELD_PRECEDENCE.direction)) || null
     };
   }
@@ -375,6 +403,9 @@
     canonicalIdentity,
     canonicalId,
     lifecycle,
+    readAt,
+    unreadEligible,
+    isUnread,
     category,
     leadQuality,
     outcome,
