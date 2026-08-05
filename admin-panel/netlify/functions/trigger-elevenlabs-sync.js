@@ -9,6 +9,7 @@ const {
   mergedAgentToolIds,
   calendarPromptBlock
 } = require('./_lib/elevenlabs-calendar-tool');
+const { ensureAgentPhoneNumber } = require('./_lib/elevenlabs-phone-number');
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -135,6 +136,9 @@ exports.handler = async (event) => {
   let syncError = null;
   let calendarToolId = null;
   let calendarToolStatus = 'not_configured';
+  let phoneNumberStatus = 'not_attempted';
+  let phoneNumberId = null;
+  let phoneNumber = null;
 
   try {
     const inputs = await loadPromptInputs(sb, customer_id, customer);
@@ -189,6 +193,15 @@ exports.handler = async (event) => {
       const errText = await elRes.text();
       throw new Error(`ElevenLabs ${elRes.status}: ${errText.substring(0, 300)}`);
     }
+
+    const phoneAssignment = await ensureAgentPhoneNumber({
+      apiKey: ELEVENLABS_API_KEY,
+      agentId: agent_id,
+      customer
+    });
+    phoneNumberStatus = phoneAssignment.status;
+    phoneNumberId = phoneAssignment.phone_number_id;
+    phoneNumber = phoneAssignment.phone_number;
   } catch (error) {
     syncStatus = 'failed';
     syncError = error?.message || String(error);
@@ -217,7 +230,10 @@ exports.handler = async (event) => {
     return response(500, {
       success: false,
       error: syncError,
-      calendar_tool_status: calendarToolStatus
+      calendar_tool_status: calendarToolStatus,
+      phone_number_status: phoneNumberStatus,
+      phone_number_id: phoneNumberId,
+      phone_number: phoneNumber
     });
   }
 
@@ -228,6 +244,9 @@ exports.handler = async (event) => {
     promptVersion: compiled?.version,
     quality: compiled?.quality,
     calendar_tool_status: calendarToolStatus,
-    calendar_tool_id: calendarToolId
+    calendar_tool_id: calendarToolId,
+    phone_number_status: phoneNumberStatus,
+    phone_number_id: phoneNumberId,
+    phone_number: phoneNumber
   });
 };
