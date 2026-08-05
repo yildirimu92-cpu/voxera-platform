@@ -7,6 +7,13 @@
   'use strict';
 
   const ZURICH_TIME_ZONE = 'Europe/Zurich';
+  const LIVE_STATUSES = new Set([
+    'incoming', 'ringing', 'queued', 'in_progress', 'active', 'live',
+    'ongoing', 'started', 'läuft', 'laufend'
+  ]);
+  const ANALYSING_STATUSES = new Set([
+    'analyzing', 'analysing', 'processing', 'transcribing', 'pending_analysis'
+  ]);
   const TERMINAL_STATUSES = new Set(['done', 'completed', 'ended', 'failed', 'aborted', 'interrupted', 'beendet']);
   const ARCHIVED_STATUSES = new Set(['archived', 'archiviert']);
   const DONE_STATUSES = new Set(['done', 'completed', 'resolved', 'erledigt', 'abgeschlossen']);
@@ -18,24 +25,36 @@
   const lower = (value) => text(value).toLowerCase();
   const truthy = (value) => value === true || ['true', '1', 'yes', 'ja'].includes(lower(value));
 
+  function fields(record) {
+    return record && record.fields && typeof record.fields === 'object' ? record.fields : {};
+  }
+
+  function read(record, key) {
+    if (record && record[key] !== undefined && record[key] !== null && text(record[key]) !== '') return record[key];
+    const nested = fields(record);
+    if (nested[key] !== undefined && nested[key] !== null && text(nested[key]) !== '') return nested[key];
+    return '';
+  }
+
   function first(record, keys) {
     for (const key of keys) {
-      const value = record && record[key];
-      if (value !== undefined && value !== null && text(value)) return value;
+      const value = read(record, key);
+      if (value !== '') return value;
     }
     return '';
   }
 
   function isLive(record) {
-    const live = lower(first(record, ['live_status', 'call_status', 'status']));
-    if (['ringing', 'queued', 'in_progress', 'active', 'ongoing', 'started', 'läuft', 'laufend'].includes(live)) return true;
-    if (TERMINAL_STATUSES.has(live) || ARCHIVED_STATUSES.has(live)) return false;
-    return truthy(record && record.is_live);
+    const live = lower(first(record, ['live_status', 'call_status', 'telephony_status', 'status']));
+    if (LIVE_STATUSES.has(live)) return true;
+    if (TERMINAL_STATUSES.has(live) || ANALYSING_STATUSES.has(live) || ARCHIVED_STATUSES.has(live)) return false;
+    return truthy(read(record, 'is_live'));
   }
 
   function isAnalysisPending(record) {
     if (isLive(record)) return false;
-    const live = lower(first(record, ['live_status', 'call_status']));
+    const live = lower(first(record, ['live_status', 'call_status', 'telephony_status']));
+    if (ANALYSING_STATUSES.has(live)) return true;
     const summary = text(first(record, ['call_summary', 'summary', 'call_summary_short']));
     const conversationId = text(first(record, ['elevenlabs_conversation_id', 'conversation_id']));
     return Boolean(conversationId && TERMINAL_STATUSES.has(live) && !summary);
@@ -44,9 +63,9 @@
   function workflowState(record) {
     const dashboard = lower(first(record, ['dashboard_status', 'workflow_status', 'status']));
     if (ARCHIVED_STATUSES.has(dashboard)) return 'archived';
-    if (PLANNED_STATUSES.has(dashboard) || text(record && record.follow_up_at)) return 'planned';
+    if (PLANNED_STATUSES.has(dashboard) || text(read(record, 'follow_up_at'))) return 'planned';
     if (DONE_STATUSES.has(dashboard)) return 'done';
-    if (WORKING_STATUSES.has(dashboard) || text(record && record.read_at)) return 'working';
+    if (WORKING_STATUSES.has(dashboard) || text(read(record, 'read_at'))) return 'working';
     if (OPEN_STATUSES.has(dashboard) || !dashboard) return 'new';
     return 'new';
   }
@@ -89,7 +108,7 @@
   }
 
   function outcome(record) {
-    if (truthy(record && record.callback_requested)) return 'Rückruf empfohlen';
+    if (truthy(read(record, 'callback_requested'))) return 'Rückruf empfohlen';
     const next = lower(first(record, ['next_action', 'action_required']));
     if (/rückruf|rueckruf|callback|zurückrufen|zurueckrufen|erneut versuchen/.test(next)) return 'Rückruf empfohlen';
     if (/termin|appointment/.test(next)) return 'Termin prüfen';
@@ -103,7 +122,7 @@
   }
 
   function phone(record) {
-    return text(first(record, ['caller_phone', 'phone_number', 'from_number'])) || null;
+    return text(first(record, ['caller_phone', 'caller_number', 'phone_number', 'from_number'])) || null;
   }
 
   function summary(record) {
@@ -134,7 +153,7 @@
   function build(record) {
     const state = lifecycle(record || {});
     return {
-      id: text(first(record, ['id', 'call_id', 'elevenlabs_conversation_id'])) || null,
+      id: text(first(record, ['id', 'call_id', 'elevenlabs_conversation_id', 'conversation_id'])) || null,
       lifecycle: state,
       lifecycleMeta: LIFECYCLE_META[state],
       name: displayName(record),
@@ -151,7 +170,10 @@
 
   return Object.freeze({
     ZURICH_TIME_ZONE,
+    LIVE_STATUSES,
+    ANALYSING_STATUSES,
     LIFECYCLE_META,
+    read,
     lifecycle,
     category,
     leadQuality,
