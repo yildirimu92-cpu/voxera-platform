@@ -325,7 +325,7 @@ unified = unified.replace(old_loader, new_loader, 1)
 old_css_contract = """assert.match(source.css, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
 assert.match(source.css, /#vx-assistant-root-host > \\[data-vx-assistant-managed-page\\]:not\\(\\[hidden\\]\\)/);
 assert.match(source.css, /vx-nav-voice-details/);"""
-new_css_contract = """assert.match(source.assistantCss, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\):not\\(\\.vx-assistant-root-header\\)/);
+new_css_contract = """assert.match(source.assistantCss, /#tab-assistent > :not\\(#vx-assistant-root-header\\):not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
 assert.match(source.assistantCss, /#vx-assistant-root-host > \\[data-vx-assistant-managed-page\\]:not\\(\\[hidden\\]\\)/);
 assert.match(source.assistantCss, /vx-nav-voice-details/);
 assert.doesNotMatch(source.css, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
