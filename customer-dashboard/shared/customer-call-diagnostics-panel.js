@@ -104,9 +104,34 @@
     return traces[traces.length - 1];
   }
 
+  function visibleDetailHost() {
+    var mobilePage = root.document.getElementById('call-detail-page');
+    if (mobilePage && mobilePage.classList.contains('show')) {
+      return {
+        mode: 'mobile-fullscreen',
+        host: root.document.getElementById('call-detail-content') || mobilePage,
+        meta: mobilePage.querySelector('.vx-call-detail-lite__meta')
+      };
+    }
+
+    var split = root.document.getElementById('requests-detail-v2');
+    if (split) {
+      var style = root.getComputedStyle ? root.getComputedStyle(split) : null;
+      var visible = !style || (style.display !== 'none' && style.visibility !== 'hidden');
+      if (visible && text(split.textContent)) {
+        return {
+          mode: 'desktop-split',
+          host: split,
+          meta: split.querySelector('.vx-call-detail-lite__meta')
+        };
+      }
+    }
+    return null;
+  }
+
   function renderPanel() {
-    var page = root.document.getElementById('call-detail-page');
-    if (!page || !page.classList.contains('show')) return;
+    var target = visibleDetailHost();
+    if (!target || !target.host) return;
 
     var original = findOriginalRecord();
     var trace = latestTrace();
@@ -114,19 +139,18 @@
     var formatted = formattedTimestamp(timestamp);
     var ids = currentCallIds();
 
-    var panel = root.document.getElementById('vx-call-diagnostics-panel');
+    var panel = target.host.querySelector('#vx-call-diagnostics-panel');
     if (!panel) {
       panel = root.document.createElement('section');
       panel.id = 'vx-call-diagnostics-panel';
       panel.style.cssText = 'margin:18px 24px 160px;padding:16px;border:3px solid #e6a700;border-radius:16px;background:#fff8d6;box-shadow:0 8px 24px rgba(16,33,63,.12);';
-      var host = root.document.getElementById('call-detail-content') || page;
-      host.appendChild(panel);
+      target.host.appendChild(panel);
     }
 
     panel.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">' +
       '<div><strong style="display:block;font-size:16px;color:#10213f;">Temporäre Call-Diagnose</strong>' +
-      '<span style="display:block;margin-top:3px;font-size:12px;color:#6b5a16;">Diese Karte muss sichtbar sein. Screenshot vollständig senden.</span></div>' +
-      '<span style="padding:5px 8px;border-radius:999px;background:#e6a700;color:#10213f;font-size:11px;font-weight:800;">DEBUG</span></div>' +
+      '<span style="display:block;margin-top:3px;font-size:12px;color:#6b5a16;">Diese Karte vollständig fotografieren.</span></div>' +
+      '<span style="padding:5px 8px;border-radius:999px;background:#e6a700;color:#10213f;font-size:11px;font-weight:800;">' + escapeHtml(target.mode) + '</span></div>' +
       row('Current IDs', ids.length ? ids.join('\n') : 'KEINE CURRENT CALL ID') +
       row('allRecords', Array.isArray(root.allRecords) ? String(root.allRecords.length) : 'nicht vorhanden') +
       row('Original gefunden', original ? 'JA' : 'NEIN') +
@@ -138,7 +162,7 @@
       row('updated_at', original ? valuePair(value(original, 'updated_at')) : '—') +
       row('Canonical timestamp', timestamp || '—') +
       row('Canonical Zürich', formatted || '—') +
-      row('Detail header', text((root.document.querySelector('.vx-call-detail-lite__meta') || {}).textContent || '—')) +
+      row('Detail header', text(target.meta && target.meta.textContent || '—')) +
       row('Trace vorhanden', trace ? 'JA: ' + text(trace.view) : 'NEIN') +
       row('Trace canonical', trace ? text(trace.canonicalTimestamp || '—') : '—') +
       row('Trace Zürich', trace ? text(trace.formattedZurich || '—') : '—');
