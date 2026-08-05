@@ -1,9 +1,23 @@
 # Voxera Make-Szenarien
 
-Die Blueprint-Dateien in diesem Verzeichnis sind versionierte, sanitierte Vorlagen. Produktive Secrets werden nicht im Repository gespeichert.
+Produktive Make-Secrets und exportierte Szenarien mit Verbindungs-IDs werden nicht im Repository gespeichert.
 
-## Call Intake
+## Call Intake – Secure Resolver
 
-`01-call-intake-audited-v4.1-secure-resolver.blueprint.json` behebt den fehlenden Resolver-Request-Body. Vor dem Import muss der Platzhalter `REPLACE_WITH_ROTATED_CALL_INTAKE_RESOLVER_SECRET` durch den aktuellen Netlify-Wert `CALL_INTAKE_RESOLVER_SECRET` ersetzt werden.
+Das Szenario `01 Call Intake Audited v4 Secure Resolver` muss im HTTP-Modul 2 einen JSON-Body an `call-intake-resolve-customer` senden:
 
-Das Szenario bleibt deaktiviert, bis ein echter Testanruf erfolgreich durchgelaufen ist.
+```json
+{
+  "called_number": "{{ifempty(1.called_number; 1.voxera_number)}}"
+}
+```
+
+Erforderliche Einstellungen:
+
+- Methode: `POST`
+- Body content type: `application/json`
+- Body input method: `JSON string`
+- Header: `X-Call-Intake-Secret` mit dem Netlify-Wert `CALL_INTAKE_RESOLVER_SECRET`
+- keine fest eingetragene Telefonnummer
+
+Der bisher exportierte Secret-Wert gilt als offengelegt und muss rotiert werden. Das Szenario bleibt deaktiviert, bis ein echter Anruf an eine Voxera-Nummer erfolgreich `resolved: true` liefert.
