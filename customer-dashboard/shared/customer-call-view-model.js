@@ -64,6 +64,17 @@
     return '';
   }
 
+  function firstCanonicalField(record, keys) {
+    const nested = fields(record);
+    for (const key of keys) {
+      if (nested[key] !== undefined && nested[key] !== null && text(nested[key]) !== '') return nested[key];
+    }
+    for (const key of keys) {
+      if (record && record[key] !== undefined && record[key] !== null && text(record[key]) !== '') return record[key];
+    }
+    return '';
+  }
+
   function allValues(record, keys) {
     const nested = fields(record);
     const result = [];
@@ -206,9 +217,11 @@
   }
 
   function timestamp(record) {
-    const startedAt = text(first(record, ['started_at', 'call_started_at', 'start_time']));
-    const createdAt = text(first(record, ['created_at']));
-    if (!startedAt) return createdAt || text(first(record, ['updated_at'])) || null;
+    // `record.fields` is the persisted call row. Top-level timestamp values can be
+    // display wrappers produced by the legacy dashboard and may already be shifted.
+    const startedAt = text(firstCanonicalField(record, ['started_at', 'call_started_at', 'start_time']));
+    const createdAt = text(firstCanonicalField(record, ['created_at']));
+    if (!startedAt) return createdAt || text(firstCanonicalField(record, ['updated_at'])) || null;
     if (hasExplicitOffset(startedAt)) return startedAt;
 
     const localCandidate = qualifyZurichLocalTimestamp(startedAt);
