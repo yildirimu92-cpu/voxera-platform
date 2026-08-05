@@ -12,6 +12,7 @@ assert.equal(model.lifecycle({ dashboard_status: 'open', call_summary: 'Fertig' 
 assert.equal(model.lifecycle({ dashboard_status: 'Offen', read_at: '2026-08-05T10:00:00Z' }), 'working');
 assert.equal(model.lifecycle({ dashboard_status: 'Geplant' }), 'planned');
 assert.equal(model.lifecycle({ dashboard_status: 'Abgeschlossen' }), 'done');
+assert.equal(model.lifecycle({ dashboard_status: 'closed' }), 'done');
 assert.equal(model.lifecycle({ dashboard_status: 'Archiviert' }), 'archived');
 
 // Nested canonical state wins over stale top-level wrapper values.
@@ -89,6 +90,14 @@ const canonicalTimestamp = model.timestamp({
 });
 assert.equal(canonicalTimestamp, '2026-08-05T07:44:00Z');
 assert.match(model.formatZurichDateTime(canonicalTimestamp), /09:44/);
+
+const localSummerStart = model.timestamp({ fields: { started_at: '2026-08-05 09:44:00' } });
+assert.match(localSummerStart, /\+02:00$/);
+assert.match(model.formatZurichDateTime(localSummerStart), /09:44/);
+
+const localWinterStart = model.timestamp({ fields: { started_at: '2026-01-05 09:44:00' } });
+assert.match(localWinterStart, /\+01:00$/);
+assert.match(model.formatZurichDateTime(localWinterStart), /09:44/);
 
 const zurich = model.formatZurichDateTime('2026-08-05T09:00:00Z');
 assert.match(zurich, /11:00/);
