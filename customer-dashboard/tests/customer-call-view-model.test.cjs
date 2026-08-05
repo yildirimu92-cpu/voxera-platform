@@ -123,6 +123,29 @@ const providerUtcWithoutOffset = model.timestamp({
 assert.equal(providerUtcWithoutOffset, '2026-08-05T12:07:05Z');
 assert.match(model.formatZurichDateTime(providerUtcWithoutOffset), /14:07/);
 
+// Legacy Today wrappers can contain shifted top-level timestamps. Persisted
+// nested call fields remain the source of truth for both old and new rows.
+const wrappedLegacyCall = model.timestamp({
+  started_at: '2026-08-05 09:44:00',
+  created_at: '2026-08-05T09:44:00Z',
+  fields: {
+    started_at: '2026-08-05 09:44:00',
+    created_at: '2026-08-05T07:44:05Z'
+  }
+});
+assert.match(model.formatZurichDateTime(wrappedLegacyCall), /09:44/);
+
+const wrappedProviderCall = model.timestamp({
+  started_at: '2026-08-05 12:07:00',
+  created_at: '2026-08-05T10:07:00Z',
+  fields: {
+    started_at: '2026-08-05 12:07:00',
+    created_at: '2026-08-05T12:07:04Z'
+  }
+});
+assert.equal(wrappedProviderCall, '2026-08-05T12:07:04Z');
+assert.match(model.formatZurichDateTime(wrappedProviderCall), /14:07/);
+
 const explicitStartStillWins = model.timestamp({
   fields: {
     started_at: '2026-08-05T12:07:00Z',
