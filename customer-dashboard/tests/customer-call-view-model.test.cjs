@@ -91,13 +91,46 @@ const canonicalTimestamp = model.timestamp({
 assert.equal(canonicalTimestamp, '2026-08-05T07:44:00Z');
 assert.match(model.formatZurichDateTime(canonicalTimestamp), /09:44/);
 
-const localSummerStart = model.timestamp({ fields: { started_at: '2026-08-05 09:44:00' } });
+// Legacy rows store an offsetless Europe/Zurich wall-clock start. Its qualified
+// instant agrees with the UTC creation time and must stay at 09:44 local.
+const localSummerStart = model.timestamp({
+  fields: {
+    started_at: '2026-08-05 09:44:00',
+    created_at: '2026-08-05T07:44:10Z'
+  }
+});
 assert.match(localSummerStart, /\+02:00$/);
 assert.match(model.formatZurichDateTime(localSummerStart), /09:44/);
 
-const localWinterStart = model.timestamp({ fields: { started_at: '2026-01-05 09:44:00' } });
+const localWinterStart = model.timestamp({
+  fields: {
+    started_at: '2026-01-05 09:44:00',
+    created_at: '2026-01-05T08:44:10Z'
+  }
+});
 assert.match(localWinterStart, /\+01:00$/);
 assert.match(model.formatZurichDateTime(localWinterStart), /09:44/);
+
+// New provider snapshots can expose the UTC wall-clock without a trailing Z.
+// When interpreting it as Zurich time would conflict with the UTC row creation,
+// created_at is canonical and 12:07 UTC must display as 14:07 in Zurich.
+const providerUtcWithoutOffset = model.timestamp({
+  fields: {
+    started_at: '2026-08-05 12:07:00',
+    created_at: '2026-08-05T12:07:05Z'
+  }
+});
+assert.equal(providerUtcWithoutOffset, '2026-08-05T12:07:05Z');
+assert.match(model.formatZurichDateTime(providerUtcWithoutOffset), /14:07/);
+
+const explicitStartStillWins = model.timestamp({
+  fields: {
+    started_at: '2026-08-05T12:07:00Z',
+    created_at: '2026-08-05T12:08:00Z'
+  }
+});
+assert.equal(explicitStartStillWins, '2026-08-05T12:07:00Z');
+assert.match(model.formatZurichDateTime(explicitStartStillWins), /14:07/);
 
 const zurich = model.formatZurichDateTime('2026-08-05T09:00:00Z');
 assert.match(zurich, /11:00/);
