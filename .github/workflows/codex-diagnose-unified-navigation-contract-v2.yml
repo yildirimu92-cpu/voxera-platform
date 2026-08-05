@@ -1,0 +1,70 @@
+name: Codex Diagnose Unified Navigation Contract V2
+
+on:
+  push:
+    branches:
+      - codex/tmp-complete-customer-baseline-20260806
+    paths:
+      - .github/workflows/codex-diagnose-unified-navigation-contract-v2.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-unified-navigation:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: b555e9896e8bbd66b86ce24ad20edb48f3d204d1
+    steps:
+      - name: Full checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize transformed ten-file workspace
+        run: |
+          set -euo pipefail
+          cp .github/scripts/apply-final-customer-baseline.py /tmp/apply-final-customer-baseline.py
+          git switch -C unified-diagnostic "$BASE_SHA"
+          git reset --hard "$BASE_SHA"
+          git clean -ffd
+          git checkout "$BASE_SHA" -- .
+          python /tmp/apply-final-customer-baseline.py
+          test "$(git diff --name-only | wc -l)" -eq 10
+          echo 'ASSISTANT_OWNER_SELECTORS'
+          grep -n -C 1 '#tab-assistent >' customer-dashboard/shared/customer-assistant-components.css || true
+          echo 'NAVIGATION_OWNER_SELECTORS'
+          grep -n -C 1 '#tab-assistent >' customer-dashboard/shared/customer-navigation-components.css || true
+
+      - name: Evaluate every unified navigation assertion
+        run: |
+          set -euo pipefail
+          mkdir -p audit-output
+          cat >/tmp/unified-assert-collector.mjs <<'JS'
+          import fs from 'node:fs';
+          const results=[];
+          function record(ok,message,method){results.push({index:results.length+1,result:ok?'PASS':'FAIL',method,reason:String(message||method)});return ok;}
+          const assert={ok(v,m){return record(Boolean(v),m,'ok')},match(v,r,m){return record(r.test(String(v)),m||String(r),'match')},doesNotMatch(v,r,m){return record(!r.test(String(v)),m||String(r),'doesNotMatch')}};
+          process.on('beforeExit',()=>{const summary={total:results.length,pass:results.filter(x=>x.result==='PASS').length,fail:results.filter(x=>x.result==='FAIL').length};fs.writeFileSync('audit-output/unified-assertions-v2.json',JSON.stringify(results,null,2));fs.writeFileSync('audit-output/unified-summary-v2.json',JSON.stringify(summary,null,2));console.log('UNIFIED_ASSERTION_SUMMARY',JSON.stringify(summary));for(const row of results.filter(x=>x.result==='FAIL'))console.log('UNIFIED_ASSERTION_FAIL',JSON.stringify(row));});
+          export default assert;
+          JS
+          python - <<'PY'
+          from pathlib import Path
+          source=Path('scripts/verify-customer-navigation-unified.mjs').read_text(encoding='utf-8')
+          old="import assert from 'node:assert/strict';"
+          assert source.count(old)==1
+          Path('/tmp/verify-customer-navigation-unified-audit.mjs').write_text(source.replace(old,"import assert from 'file:///tmp/unified-assert-collector.mjs';",1),encoding='utf-8')
+          PY
+          node /tmp/verify-customer-navigation-unified-audit.mjs
+          node - <<'JS'
+          const s=require('./audit-output/unified-summary-v2.json'); if(s.fail!==0) throw new Error(JSON.stringify(s));
+          JS
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-navigation-contract-diagnostic-v2
+          path: audit-output
+          if-no-files-found: error
+          retention-days: 7
