@@ -15,7 +15,6 @@ assert.equal(model.lifecycle({ dashboard_status: 'Abgeschlossen' }), 'done');
 assert.equal(model.lifecycle({ dashboard_status: 'closed' }), 'done');
 assert.equal(model.lifecycle({ dashboard_status: 'Archiviert' }), 'archived');
 
-// Nested canonical state wins over stale top-level wrapper values.
 assert.equal(model.lifecycle({
   dashboard_status: 'Offen',
   read_at: '2026-08-05T10:00:00Z',
@@ -91,8 +90,15 @@ const canonicalTimestamp = model.timestamp({
 assert.equal(canonicalTimestamp, '2026-08-05T07:44:00Z');
 assert.match(model.formatZurichDateTime(canonicalTimestamp), /09:44/);
 
-// Legacy rows store an offsetless Europe/Zurich wall-clock start. Its qualified
-// instant agrees with the UTC creation time and must stay at 09:44 local.
+// Supabase created_at is UTC even when an API wrapper strips the trailing Z.
+const diagnosedOffsetlessCreatedAt = model.timestamp({
+  fields: {
+    created_at: '2026-08-05T12:07:20.187'
+  }
+});
+assert.equal(diagnosedOffsetlessCreatedAt, '2026-08-05T12:07:20.187Z');
+assert.match(model.formatZurichDateTime(diagnosedOffsetlessCreatedAt), /14:07/);
+
 const localSummerStart = model.timestamp({
   fields: {
     started_at: '2026-08-05 09:44:00',
@@ -111,20 +117,15 @@ const localWinterStart = model.timestamp({
 assert.match(localWinterStart, /\+01:00$/);
 assert.match(model.formatZurichDateTime(localWinterStart), /09:44/);
 
-// New provider snapshots can expose the UTC wall-clock without a trailing Z.
-// When interpreting it as Zurich time would conflict with the UTC row creation,
-// created_at is canonical and 12:07 UTC must display as 14:07 in Zurich.
 const providerUtcWithoutOffset = model.timestamp({
   fields: {
     started_at: '2026-08-05 12:07:00',
     created_at: '2026-08-05T12:07:05Z'
   }
 });
-assert.equal(providerUtcWithoutOffset, '2026-08-05T12:07:05Z');
+assert.equal(providerUtcWithoutOffset, '2026-08-05T12:07:00Z');
 assert.match(model.formatZurichDateTime(providerUtcWithoutOffset), /14:07/);
 
-// Legacy Today wrappers can contain shifted top-level timestamps. Persisted
-// nested call fields remain the source of truth for both old and new rows.
 const wrappedLegacyCall = model.timestamp({
   started_at: '2026-08-05 09:44:00',
   created_at: '2026-08-05T09:44:00Z',
@@ -143,11 +144,9 @@ const wrappedProviderCall = model.timestamp({
     created_at: '2026-08-05T12:07:04Z'
   }
 });
-assert.equal(wrappedProviderCall, '2026-08-05T12:07:04Z');
+assert.equal(wrappedProviderCall, '2026-08-05T12:07:00Z');
 assert.match(model.formatZurichDateTime(wrappedProviderCall), /14:07/);
 
-// Today/detail can receive a flattened wrapper without nested fields. Resolve
-// the persisted Anfragen row by stable ID before choosing the timestamp.
 globalThis.allRecords = [{
   id: 'call_current',
   fields: {
@@ -164,7 +163,7 @@ const flattenedTodayWrapper = {
   created_at: '2026-08-05T10:07:00Z'
 };
 const resolvedWrapperTimestamp = model.timestamp(flattenedTodayWrapper);
-assert.equal(resolvedWrapperTimestamp, '2026-08-05T12:07:04Z');
+assert.equal(resolvedWrapperTimestamp, '2026-08-05T12:07:00Z');
 assert.match(model.formatZurichDateTime(resolvedWrapperTimestamp), /14:07/);
 delete globalThis.allRecords;
 
