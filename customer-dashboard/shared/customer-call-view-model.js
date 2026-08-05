@@ -7,14 +7,16 @@
   'use strict';
 
   const ZURICH_TIME_ZONE = 'Europe/Zurich';
-  const TERMINAL_STATUSES = new Set(['done', 'completed', 'ended', 'failed', 'aborted', 'interrupted']);
-  const ARCHIVED_STATUSES = new Set(['archived']);
-  const DONE_STATUSES = new Set(['done', 'completed', 'resolved']);
-  const PLANNED_STATUSES = new Set(['planned', 'scheduled', 'follow_up', 'callback_planned']);
+  const TERMINAL_STATUSES = new Set(['done', 'completed', 'ended', 'failed', 'aborted', 'interrupted', 'beendet']);
+  const ARCHIVED_STATUSES = new Set(['archived', 'archiviert']);
+  const DONE_STATUSES = new Set(['done', 'completed', 'resolved', 'erledigt', 'abgeschlossen']);
+  const PLANNED_STATUSES = new Set(['planned', 'scheduled', 'follow_up', 'callback_planned', 'geplant', 'rückruf geplant', 'rueckruf geplant']);
+  const WORKING_STATUSES = new Set(['in_progress', 'processing', 'working', 'in bearbeitung', 'bearbeitung']);
+  const OPEN_STATUSES = new Set(['open', 'offen', 'new', 'neu']);
 
   const text = (value) => String(value == null ? '' : value).trim();
   const lower = (value) => text(value).toLowerCase();
-  const truthy = (value) => value === true || ['true', '1', 'yes'].includes(lower(value));
+  const truthy = (value) => value === true || ['true', '1', 'yes', 'ja'].includes(lower(value));
 
   function first(record, keys) {
     for (const key of keys) {
@@ -26,7 +28,7 @@
 
   function isLive(record) {
     const live = lower(first(record, ['live_status', 'call_status', 'status']));
-    if (['ringing', 'queued', 'in_progress', 'active', 'ongoing', 'started'].includes(live)) return true;
+    if (['ringing', 'queued', 'in_progress', 'active', 'ongoing', 'started', 'läuft', 'laufend'].includes(live)) return true;
     if (TERMINAL_STATUSES.has(live) || ARCHIVED_STATUSES.has(live)) return false;
     return truthy(record && record.is_live);
   }
@@ -44,7 +46,8 @@
     if (ARCHIVED_STATUSES.has(dashboard)) return 'archived';
     if (PLANNED_STATUSES.has(dashboard) || text(record && record.follow_up_at)) return 'planned';
     if (DONE_STATUSES.has(dashboard)) return 'done';
-    if (text(record && record.read_at) || ['open', 'in_progress', 'processing'].includes(dashboard)) return 'working';
+    if (WORKING_STATUSES.has(dashboard) || text(record && record.read_at)) return 'working';
+    if (OPEN_STATUSES.has(dashboard) || !dashboard) return 'new';
     return 'new';
   }
 
@@ -88,9 +91,10 @@
   function outcome(record) {
     if (truthy(record && record.callback_requested)) return 'Rückruf empfohlen';
     const next = lower(first(record, ['next_action', 'action_required']));
-    if (/rückruf|callback/.test(next)) return 'Rückruf empfohlen';
+    if (/rückruf|rueckruf|callback|zurückrufen|zurueckrufen|erneut versuchen/.test(next)) return 'Rückruf empfohlen';
     if (/termin|appointment/.test(next)) return 'Termin prüfen';
     if (/offerte|angebot|quote/.test(next)) return 'Offerte prüfen';
+    if (/information senden/.test(next)) return 'Information senden';
     return null;
   }
 
