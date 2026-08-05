@@ -6,8 +6,8 @@
     root.VoxeraCustomerCallViewModel = api;
     root.vxGetCanonicalCallTimestamp = api.timestamp;
 
-    // Compatibility bridge for the existing detail renderer in index.html.
-    // The canonical call timestamp owner prefers the real call start over record creation time.
+    // Temporary compatibility for legacy index.html callers. New call surfaces
+    // use VoxeraCustomerCallViewModel directly.
     const installTimestampBridge = () => {
       if (typeof root.getRecordTimestamp !== 'function') return false;
       root.getRecordTimestamp = api.timestamp;
@@ -79,12 +79,8 @@
     const nested = fields(record);
     const result = [];
     [
-      'id',
-      'call_id',
-      'elevenlabs_conversation_id',
-      'conversation_id',
-      'provider_call_id',
-      'external_call_id'
+      'id', 'call_id', 'source_call_id', 'provider_call_id', 'external_call_id',
+      'elevenlabs_conversation_id', 'conversation_id'
     ].forEach((key) => {
       [record && record[key], nested[key]].forEach((value) => {
         const normalized = text(value);
@@ -98,12 +94,9 @@
     if (!record || typeof record !== 'object') return -1;
     const nested = fields(record);
     let score = Object.keys(nested).length ? 100 : 0;
-    const nestedCreatedAt = text(nested.created_at);
-    const nestedStartedAt = text(nested.started_at || nested.call_started_at || nested.start_time);
-    if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(nestedCreatedAt)) score += 20;
-    if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(nestedStartedAt)) score += 10;
-    if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(text(record.created_at))) score += 5;
     score += identityKeys(record).length;
+    if (text(nested.created_at)) score += 20;
+    if (text(nested.started_at || nested.call_started_at || nested.start_time)) score += 10;
     return score;
   }
 
@@ -131,21 +124,15 @@
     const nested = fields(record);
     const result = [];
     for (const key of keys) {
-      if (record && record[key] !== undefined && record[key] !== null && text(record[key]) !== '') {
-        result.push(lower(record[key]));
-      }
-      if (nested[key] !== undefined && nested[key] !== null && text(nested[key]) !== '') {
-        result.push(lower(nested[key]));
-      }
+      if (record && record[key] !== undefined && record[key] !== null && text(record[key]) !== '') result.push(lower(record[key]));
+      if (nested[key] !== undefined && nested[key] !== null && text(nested[key]) !== '') result.push(lower(nested[key]));
     }
     return result;
   }
 
   function isLive(record) {
     const states = allValues(record, ['live_status', 'call_status', 'telephony_status']);
-    if (states.some((state) => TERMINAL_STATUSES.has(state) || ANALYSING_STATUSES.has(state) || ARCHIVED_STATUSES.has(state))) {
-      return false;
-    }
+    if (states.some((state) => TERMINAL_STATUSES.has(state) || ANALYSING_STATUSES.has(state) || ARCHIVED_STATUSES.has(state))) return false;
     if (states.some((state) => LIVE_STATUSES.has(state))) return true;
     return truthy(read(record, 'is_live'));
   }
@@ -154,16 +141,13 @@
     if (isLive(record)) return false;
     const states = allValues(record, ['live_status', 'call_status', 'telephony_status']);
     if (states.some((state) => ANALYSING_STATUSES.has(state))) return true;
-    const summary = text(first(record, ['call_summary', 'summary', 'call_summary_short']));
+    const summaryValue = text(first(record, ['call_summary', 'summary', 'call_summary_short']));
     const conversationId = text(first(record, ['elevenlabs_conversation_id', 'conversation_id']));
-    return Boolean(conversationId && states.some((state) => TERMINAL_STATUSES.has(state)) && !summary);
+    return Boolean(conversationId && states.some((state) => TERMINAL_STATUSES.has(state)) && !summaryValue);
   }
 
   function workflowState(record) {
     const states = allValues(record, ['dashboard_status', 'workflow_status', 'status']);
-
-    // A terminal customer workflow state must win over stale wrapper values such as
-    // top-level "Offen" or "In Bearbeitung".
     if (states.some((state) => ARCHIVED_STATUSES.has(state))) return 'archived';
     if (states.some((state) => DONE_STATUSES.has(state))) return 'done';
     if (states.some((state) => PLANNED_STATUSES.has(state)) || text(first(record, ['follow_up_at', 'callback_at', 'due_at']))) return 'planned';
@@ -243,12 +227,20 @@
     return /[Zz]$/.test(raw) || /[+-]\d{2}:?\d{2}$/.test(raw);
   }
 
+  // Supabase/Postgres timestamps from created_at and updated_at are UTC.
+  // Some legacy API wrappers remove the trailing Z; restore it deterministically.
+  function qualifyDatabaseUtcTimestamp(value) {
+    const raw = text(value);
+    if (!raw || hasExplicitOffset(raw)) return raw;
+    if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(raw)) return raw;
+    return raw.replace(' ', 'T') + 'Z';
+  }
+
   function qualifyZurichLocalTimestamp(value) {
     const raw = text(value);
-    if (!raw) return '';
-    if (hasExplicitOffset(raw)) return raw;
+    if (!raw || hasExplicitOffset(raw)) return raw;
 
-    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/);
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(\.\d+)?)?$/);
     if (!match) return raw;
 
     const probe = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0));
@@ -260,7 +252,8 @@
     if (!offsetMatch) return raw;
 
     const seconds = match[6] || '00';
-    return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${seconds}${offsetMatch[1]}`;
+    const fraction = match[7] || '';
+    return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${seconds}${fraction}${offsetMatch[1]}`;
   }
 
   function parsedTime(value) {
@@ -269,28 +262,29 @@
   }
 
   function timestamp(record) {
-    // Today/detail can receive flattened display wrappers. Resolve the persisted
-    // source row first so all dashboard surfaces use the same timestamp as Anfragen.
     const source = canonicalRecord(record) || record;
-    const startedAt = text(firstCanonicalField(source, ['started_at', 'call_started_at', 'start_time']));
-    const createdAt = text(firstCanonicalField(source, ['created_at']));
-    if (!startedAt) return createdAt || text(firstCanonicalField(source, ['updated_at'])) || null;
-    if (hasExplicitOffset(startedAt)) return startedAt;
+    const startedRaw = text(firstCanonicalField(source, ['started_at', 'call_started_at', 'start_time']));
+    const createdUtc = qualifyDatabaseUtcTimestamp(firstCanonicalField(source, ['created_at']));
+    const updatedUtc = qualifyDatabaseUtcTimestamp(firstCanonicalField(source, ['updated_at']));
 
-    const localCandidate = qualifyZurichLocalTimestamp(startedAt);
-    if (!createdAt) return localCandidate || startedAt;
+    if (!startedRaw) return createdUtc || updatedUtc || null;
+    if (hasExplicitOffset(startedRaw)) return startedRaw;
 
+    const localCandidate = qualifyZurichLocalTimestamp(startedRaw);
+    const utcCandidate = qualifyDatabaseUtcTimestamp(startedRaw);
+    if (!createdUtc) return localCandidate || utcCandidate || startedRaw;
+
+    const createdTime = parsedTime(createdUtc);
     const localTime = parsedTime(localCandidate);
-    const createdTime = parsedTime(createdAt);
-    if (!Number.isFinite(localTime) || !Number.isFinite(createdTime)) return localCandidate || createdAt;
+    const utcTime = parsedTime(utcCandidate);
+    if (!Number.isFinite(createdTime)) return localCandidate || utcCandidate || startedRaw;
 
-    // Legacy call rows stored offsetless start values as Europe/Zurich wall-clock.
-    // New provider snapshots can expose the same UTC clock value without its trailing Z.
-    // The calls table creates its row at call start in UTC, so a matching instant confirms
-    // the local interpretation; a two-hour mismatch means created_at is the safe source.
-    return Math.abs(localTime - createdTime) <= START_CREATED_AT_TOLERANCE_MS
-      ? localCandidate
-      : createdAt;
+    const localDelta = Number.isFinite(localTime) ? Math.abs(localTime - createdTime) : Infinity;
+    const utcDelta = Number.isFinite(utcTime) ? Math.abs(utcTime - createdTime) : Infinity;
+
+    if (localDelta <= START_CREATED_AT_TOLERANCE_MS && localDelta <= utcDelta) return localCandidate;
+    if (utcDelta <= START_CREATED_AT_TOLERANCE_MS) return utcCandidate;
+    return createdUtc;
   }
 
   function formatZurichDateTime(value, options) {
@@ -306,19 +300,20 @@
   }
 
   function build(record) {
-    const state = lifecycle(record || {});
+    const source = canonicalRecord(record || {}) || record || {};
+    const state = lifecycle(source);
     return {
-      id: text(first(record, ['id', 'call_id', 'elevenlabs_conversation_id', 'conversation_id'])) || null,
+      id: text(first(source, ['id', 'call_id', 'elevenlabs_conversation_id', 'conversation_id'])) || null,
       lifecycle: state,
       lifecycleMeta: LIFECYCLE_META[state],
-      name: displayName(record),
-      phone: phone(record),
-      summary: summary(record),
-      category: category(record),
-      leadQuality: leadQuality(record),
-      outcome: outcome(record),
-      durationSeconds: durationSeconds(record),
-      timestamp: timestamp(record),
+      name: displayName(source),
+      phone: phone(source),
+      summary: summary(source),
+      category: category(source),
+      leadQuality: leadQuality(source),
+      outcome: outcome(source),
+      durationSeconds: durationSeconds(source),
+      timestamp: timestamp(source),
       direction: 'inbound'
     };
   }
@@ -334,6 +329,7 @@
     leadQuality,
     outcome,
     canonicalRecord,
+    qualifyDatabaseUtcTimestamp,
     timestamp,
     formatZurichDateTime,
     build
