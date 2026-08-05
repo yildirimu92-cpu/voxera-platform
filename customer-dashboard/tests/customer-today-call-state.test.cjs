@@ -53,4 +53,26 @@ assert.equal(empty.kind, 'empty');
 assert.equal(empty.title, 'Alles erledigt');
 assert.equal(empty.message, 'Lara nimmt neue Anrufe entgegen.');
 
+const stabilise = today.createStabilizer({ liveGraceMs: 4500 });
+const firstLive = stabilise(attention, 1000);
+assert.equal(firstLive.changed, true);
+assert.equal(firstLive.state.kind, 'live');
+
+const temporaryEmpty = stabilise(empty, 2500);
+assert.equal(temporaryEmpty.changed, false);
+assert.equal(temporaryEmpty.held, true);
+assert.equal(temporaryEmpty.state.kind, 'live');
+
+const repeatedLive = stabilise(attention, 3000);
+assert.equal(repeatedLive.changed, false);
+assert.equal(repeatedLive.held, false);
+
+const analysisAfterCall = stabilise(analysing, 6000);
+assert.equal(analysisAfterCall.changed, true);
+assert.equal(analysisAfterCall.state.kind, 'analysing');
+
+const stableAnalysis = stabilise(analysing, 6500);
+assert.equal(stableAnalysis.changed, false);
+assert.equal(stableAnalysis.state.kind, 'analysing');
+
 console.log('customer-today-call-state: ok');
