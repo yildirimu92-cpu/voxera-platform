@@ -1,0 +1,101 @@
+name: Codex Update Unified Navigation Contract
+
+on:
+  push:
+    branches:
+      - codex/tmp-complete-customer-baseline-20260806
+    paths:
+      - .github/workflows/codex-update-unified-navigation-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-contract-and-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout temporary branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extend validated transform with unified navigation contract
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "codex/tmp-complete-customer-baseline-20260806"
+          test -s .github/scripts/apply-final-customer-baseline.py
+          test -s .github/workflows/codex-complete-customer-baseline-v2.yml
+          ! grep -q 'unified_path = P("scripts/verify-customer-navigation-unified.mjs")' .github/scripts/apply-final-customer-baseline.py
+          cat >> .github/scripts/apply-final-customer-baseline.py <<'PYEXT'
+
+unified_path = P("scripts/verify-customer-navigation-unified.mjs")
+unified = unified_path.read_text(encoding="utf-8")
+
+files_anchor = """  css: 'customer-dashboard/shared/customer-navigation-components.css'
+};"""
+files_replacement = """  css: 'customer-dashboard/shared/customer-navigation-components.css',
+  assistantCss: 'customer-dashboard/shared/customer-assistant-components.css'
+};"""
+assert unified.count(files_anchor) == 1
+unified = unified.replace(files_anchor, files_replacement, 1)
+
+old_loader = """assert.match(source.loader, /customer-runtime-design-foundation\\.js\\?v=20260803-4/);"""
+new_loader = """assert.match(source.loader, /customer-runtime-design-foundation\\.js\\?v=20260805-1/);
+assert.doesNotMatch(source.loader, /customer-runtime-design-foundation\\.js\\?v=20260803-4/);"""
+assert unified.count(old_loader) == 1
+unified = unified.replace(old_loader, new_loader, 1)
+
+old_css_contract = """assert.match(source.css, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
+assert.match(source.css, /#vx-assistant-root-host > \\[data-vx-assistant-managed-page\\]:not\\(\\[hidden\\]\\)/);
+assert.match(source.css, /vx-nav-voice-details/);"""
+new_css_contract = """assert.match(source.assistantCss, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
+assert.match(source.assistantCss, /#vx-assistant-root-host > \\[data-vx-assistant-managed-page\\]:not\\(\\[hidden\\]\\)/);
+assert.match(source.assistantCss, /vx-nav-voice-details/);
+assert.doesNotMatch(source.css, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
+assert.doesNotMatch(source.css, /#vx-assistant-root-host > \\[data-vx-assistant-managed-page\\]:not\\(\\[hidden\\]\\)/);
+assert.doesNotMatch(source.css, /vx-nav-voice-details/);"""
+assert unified.count(old_css_contract) == 1
+unified = unified.replace(old_css_contract, new_css_contract, 1)
+
+unified_path.write_text(unified, encoding="utf-8")
+PYEXT
+          python -m py_compile .github/scripts/apply-final-customer-baseline.py
+
+      - name: Update existing completion workflow to ten files
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/codex-complete-customer-baseline-v2.yml')
+          text = path.read_text(encoding='utf-8')
+          replacements = [
+              ('Apply nine-file transform', 'Apply ten-file transform'),
+              ('Commit and push nine source files', 'Commit and push ten source files'),
+              ("'scripts/verify-p0-security-foundation.mjs'])", "'scripts/verify-p0-security-foundation.mjs','scripts/verify-customer-navigation-unified.mjs'])"),
+              ('node --check scripts/verify-p0-security-foundation.mjs', 'node --check scripts/verify-p0-security-foundation.mjs\n          node --check scripts/verify-customer-navigation-unified.mjs'),
+              ('scripts/verify-customer-design-foundation.mjs scripts/verify-p0-security-foundation.mjs', 'scripts/verify-customer-design-foundation.mjs scripts/verify-p0-security-foundation.mjs scripts/verify-customer-navigation-unified.mjs'),
+              ('-eq 9', '-eq 10'),
+              ('complete-customer-baseline-evidence-v2', 'complete-customer-baseline-evidence-v3'),
+          ]
+          for old, new in replacements:
+              assert text.count(old) == 1, old
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          grep -q 'Apply ten-file transform' .github/workflows/codex-complete-customer-baseline-v2.yml
+          grep -q "scripts/verify-customer-navigation-unified.mjs" .github/workflows/codex-complete-customer-baseline-v2.yml
+          grep -q 'wc -l)" -eq 10' .github/workflows/codex-complete-customer-baseline-v2.yml
+
+      - name: Commit temporary workflow updates
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' .github/scripts/apply-final-customer-baseline.py .github/workflows/codex-complete-customer-baseline-v2.yml | sort)"
+          test "$changed" = "$expected"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/scripts/apply-final-customer-baseline.py .github/workflows/codex-complete-customer-baseline-v2.yml
+          git diff --cached --name-status
+          git diff --cached --stat
+          git commit -m "chore: update unified navigation contract and ten-file workflow"
+          git push origin HEAD:codex/tmp-complete-customer-baseline-20260806
