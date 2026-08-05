@@ -23,6 +23,31 @@
     root.document.head.appendChild(link);
   });
 
+  const loadSequentialScripts = (sources) => {
+    const next = (index) => {
+      if (index >= sources.length) return;
+      const source = sources[index];
+      if (root.document.querySelector(`script[data-vx-customer-runtime="${source}"]`)) {
+        next(index + 1);
+        return;
+      }
+      const script = root.document.createElement('script');
+      script.src = source;
+      script.async = false;
+      script.dataset.vxCustomerRuntime = source;
+      script.onload = () => next(index + 1);
+      script.onerror = () => next(index + 1);
+      root.document.head.appendChild(script);
+    };
+    next(0);
+  };
+
+  loadSequentialScripts([
+    '/shared/customer-call-view-model.js?v=20260805-1',
+    '/shared/customer-call-log-model.js?v=20260805-1',
+    '/shared/customer-runtime-call-log-owner.js?v=20260805-1'
+  ]);
+
   const markDocument = () => {
     root.document.documentElement.classList.add('vx-customer-design-foundation-html');
     root.document.body?.classList.add('vx-customer-design-foundation');
