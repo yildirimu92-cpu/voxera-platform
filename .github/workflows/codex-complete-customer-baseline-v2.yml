@@ -20,12 +20,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Preserve transform
+
+      - name: Preserve validated transform
         run: |
           set -euo pipefail
+          git rev-parse HEAD
+          git status --short
+          git sparse-checkout list || true
+          test -s .github/scripts/apply-final-customer-baseline.py
           python -m py_compile .github/scripts/apply-final-customer-baseline.py
           cp .github/scripts/apply-final-customer-baseline.py /tmp/apply-final-customer-baseline.py
-      - name: Verify baseline and PR 803
+          python -m py_compile /tmp/apply-final-customer-baseline.py
+
+      - name: Verify remote baseline and PR 803
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -35,12 +42,13 @@ jobs:
           test "$(git rev-parse origin/$TARGET_BRANCH)" = "$BASE_SHA"
           pr="$(gh api repos/${GITHUB_REPOSITORY}/pulls/803)"
           test "$(jq -r .head.sha <<<"$pr")" = "472c3a93ef1883d52ac452c436bbe5ab56b21094"
-          test "$(jq -r .state <<<"$pr")" = open
-          test "$(jq -r .draft <<<"$pr")" = true
-          test "$(jq -r .merged <<<"$pr")" = false
-          test "$(jq -r .mergeable <<<"$pr")" = true
-          test "$(gh api repos/${GITHUB_REPOSITORY}/pulls/803/files --paginate | jq -s 'add|length')" = 2
-      - name: Materialize full baseline
+          test "$(jq -r .state <<<"$pr")" = "open"
+          test "$(jq -r .draft <<<"$pr")" = "true"
+          test "$(jq -r .merged <<<"$pr")" = "false"
+          test "$(jq -r .mergeable <<<"$pr")" = "true"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/pulls/803/files --paginate | jq -s 'add|length')" = "2"
+
+      - name: Materialize complete target baseline
         run: |
           set -euo pipefail
           git switch -C "$TARGET_BRANCH" "$BASE_SHA"
@@ -48,67 +56,154 @@ jobs:
           git clean -ffd
           git sparse-checkout disable 2>/dev/null || true
           git checkout "$BASE_SHA" -- .
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
           test -z "$(git status --short)"
-          for f in customer-dashboard/shared/customer-assistant-status.css customer-dashboard/shared/customer-settings-components.css customer-dashboard/shared/customer-support-components.css customer-dashboard/shared/customer-runtime-calendar-settings.js customer-dashboard/shared/customer-runtime-design-foundation.js customer-dashboard/shared/customer-design-system.css customer-dashboard/shared/customer-assistant-components.css customer-dashboard/shared/customer-navigation-components.css customer-dashboard/shared/offer-brand.js customer-dashboard/index.html scripts/verify-customer-design-foundation.mjs scripts/audit-customer-runtime-reachability.mjs scripts/verify-p0-security-foundation.mjs scripts/verify-customer-navigation-unified.mjs; do test -f "$f"; done
-          test "$(git hash-object customer-dashboard/shared/customer-assistant-status.css)" = cd1967881716a41d9a586de889306e1766cc9620
-          test "$(git hash-object customer-dashboard/shared/customer-settings-components.css)" = c036e4f1dadfb520ad5a1a21a7636695ca86b55d
-          test "$(git hash-object customer-dashboard/shared/customer-support-components.css)" = 17f38fb6ef66f613205a10646f246318559305a4
-          test "$(git hash-object customer-dashboard/shared/customer-runtime-calendar-settings.js)" = 7bf7933cc7981949edf31403e59b76ad6f51f358
-      - name: Apply nine-file transform
-        run: python /tmp/apply-final-customer-baseline.py
-      - name: Verify exact scope and structure
+          required_files=(
+            customer-dashboard/shared/customer-assistant-status.css
+            customer-dashboard/shared/customer-settings-components.css
+            customer-dashboard/shared/customer-support-components.css
+            customer-dashboard/shared/customer-runtime-calendar-settings.js
+            customer-dashboard/shared/customer-runtime-design-foundation.js
+            customer-dashboard/shared/customer-design-system.css
+            customer-dashboard/shared/customer-assistant-components.css
+            customer-dashboard/shared/customer-navigation-components.css
+            customer-dashboard/shared/offer-brand.js
+            customer-dashboard/index.html
+            scripts/verify-customer-design-foundation.mjs
+            scripts/audit-customer-runtime-reachability.mjs
+            scripts/verify-p0-security-foundation.mjs
+            scripts/verify-customer-navigation-unified.mjs
+          )
+          for file in "${required_files[@]}"; do test -f "$file"; done
+          test "$(git hash-object customer-dashboard/shared/customer-assistant-status.css)" = "cd1967881716a41d9a586de889306e1766cc9620"
+          test "$(git hash-object customer-dashboard/shared/customer-settings-components.css)" = "c036e4f1dadfb520ad5a1a21a7636695ca86b55d"
+          test "$(git hash-object customer-dashboard/shared/customer-support-components.css)" = "17f38fb6ef66f613205a10646f246318559305a4"
+          test "$(git hash-object customer-dashboard/shared/customer-runtime-calendar-settings.js)" = "7bf7933cc7981949edf31403e59b76ad6f51f358"
+
+      - name: Apply validated ten-file transform
+        run: |
+          set -euo pipefail
+          python /tmp/apply-final-customer-baseline.py
+          git status --short
+          git diff --name-status
+          git diff --stat
+
+      - name: Verify exact source scope and structure
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           import re, subprocess
-          expected=sorted(['customer-dashboard/index.html','customer-dashboard/shared/customer-assistant-components.css','customer-dashboard/shared/customer-design-system.css','customer-dashboard/shared/customer-navigation-components.css','customer-dashboard/shared/customer-runtime-design-foundation.js','customer-dashboard/shared/customer-runtime-notifications-design.js','customer-dashboard/shared/offer-brand.js','scripts/verify-customer-design-foundation.mjs','scripts/verify-p0-security-foundation.mjs'])
+          expected=sorted([
+            'customer-dashboard/index.html',
+            'customer-dashboard/shared/customer-assistant-components.css',
+            'customer-dashboard/shared/customer-design-system.css',
+            'customer-dashboard/shared/customer-navigation-components.css',
+            'customer-dashboard/shared/customer-runtime-design-foundation.js',
+            'customer-dashboard/shared/customer-runtime-notifications-design.js',
+            'customer-dashboard/shared/offer-brand.js',
+            'scripts/verify-customer-design-foundation.mjs',
+            'scripts/verify-p0-security-foundation.mjs',
+            'scripts/verify-customer-navigation-unified.mjs',
+          ])
           changed=sorted(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())
           assert changed==expected,(changed,expected)
-          for p in ['customer-dashboard/shared/customer-runtime-calendar-settings.js','customer-dashboard/shared/customer-assistant-status.css','customer-dashboard/shared/customer-settings-components.css','customer-dashboard/shared/customer-support-components.css','customer-dashboard/netlify.toml']:
-            assert subprocess.call(['git','diff','--quiet','--',p])==0,p
-          for p,c,l in [('customer-dashboard/shared/customer-design-system.css',498,499),('customer-dashboard/shared/customer-assistant-components.css',967,968),('customer-dashboard/shared/customer-navigation-components.css',120,121)]:
-            t=Path(p).read_text(); assert len(t.splitlines())==c; assert len(re.split(r'\r?\n',t))==l; assert t.endswith('\n') and not t.endswith('\n\n'); assert t.count('{')==t.count('}')
-          d=Path('customer-dashboard/index.html').read_text(); assert len(re.findall(r'<style\b',d,re.I))==48; assert len(re.findall(r'</style\s*>',d,re.I))==48
-          blocks=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>',d,re.I); assert len(blocks)==33
-          for i,b in enumerate(blocks):
-            p=Path('/tmp')/f'i{i}.js'; p.write_text(b); subprocess.run(['node','--check',str(p)],check=True)
+          assert not any(p.startswith('.github/') for p in changed)
+          untouched=[
+            'customer-dashboard/shared/customer-runtime-calendar-settings.js',
+            'customer-dashboard/shared/customer-assistant-status.css',
+            'customer-dashboard/shared/customer-settings-components.css',
+            'customer-dashboard/shared/customer-support-components.css',
+            'customer-dashboard/netlify.toml',
+          ]
+          for path in untouched:
+            assert subprocess.call(['git','diff','--quiet','--',path])==0,path
+          for path,content_lines,line_count in [
+            ('customer-dashboard/shared/customer-design-system.css',498,499),
+            ('customer-dashboard/shared/customer-assistant-components.css',967,968),
+            ('customer-dashboard/shared/customer-navigation-components.css',120,121),
+          ]:
+            text=Path(path).read_text(encoding='utf-8')
+            assert len(text.splitlines())==content_lines,path
+            assert len(re.split(r'\r?\n',text))==line_count,path
+            assert text.endswith('\n') and not text.endswith('\n\n'),path
+            assert text.count('{')==text.count('}'),path
+          dashboard=Path('customer-dashboard/index.html').read_text(encoding='utf-8')
+          assert len(re.findall(r'<style\b',dashboard,re.I))==48
+          assert len(re.findall(r'</style\s*>',dashboard,re.I))==48
+          blocks=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>',dashboard,re.I)
+          assert len(blocks)==33,len(blocks)
+          for i,block in enumerate(blocks):
+            p=Path('/tmp')/f'inline-{i}.js'; p.write_text(block,encoding='utf-8')
+            subprocess.run(['node','--check',str(p)],check=True)
+          print('INLINE_SCRIPT_CHECKS=33/33')
           PY
+          test ! -e customer-dashboard/shared/customer-runtime-notifications-design.js
           node --check customer-dashboard/shared/offer-brand.js
           node --check customer-dashboard/shared/customer-runtime-design-foundation.js
           node --check scripts/verify-p0-security-foundation.mjs
+          node --check scripts/verify-customer-navigation-unified.mjs
+
       - name: Verify cache chain
         run: |
+          set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          d=Path('customer-dashboard/index.html').read_text(); l=Path('customer-dashboard/shared/offer-brand.js').read_text(); r=Path('customer-dashboard/shared/customer-runtime-design-foundation.js').read_text()
-          assert '<script src="/shared/offer-brand.js?v=20260805-1"></script>' in d
-          assert '/shared/customer-runtime-design-foundation.js?v=20260805-1' in l
-          o=['/shared/customer-design-system.css?v=20260805-1','/shared/customer-assistant-components.css?v=20260805-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260805-1','/shared/customer-settings-components.css?v=20260803-2','/shared/customer-support-components.css?v=20260802-2']
-          p=[r.index(x) for x in o]; assert p==sorted(p)
+          dashboard=Path('customer-dashboard/index.html').read_text()
+          loader=Path('customer-dashboard/shared/offer-brand.js').read_text()
+          runtime=Path('customer-dashboard/shared/customer-runtime-design-foundation.js').read_text()
+          assert '<script src="/shared/offer-brand.js?v=20260805-1"></script>' in dashboard
+          assert '/shared/customer-runtime-design-foundation.js?v=20260805-1' in loader
+          order=[
+            '/shared/customer-design-system.css?v=20260805-1',
+            '/shared/customer-assistant-components.css?v=20260805-1',
+            '/shared/customer-assistant-status.css?v=20260803-1',
+            '/shared/customer-navigation-components.css?v=20260805-1',
+            '/shared/customer-settings-components.css?v=20260803-2',
+            '/shared/customer-support-components.css?v=20260802-2',
+          ]
+          pos=[runtime.index(x) for x in order]
+          assert pos==sorted(pos)
+          print('CACHE_CHAIN=PASS')
           PY
-      - name: Design verifier
+
+      - name: Run design foundation verifier
         run: node scripts/verify-customer-design-foundation.mjs
-      - name: Reachability audit
+
+      - name: Run runtime reachability audit
         run: node scripts/audit-customer-runtime-reachability.mjs
-      - name: P0 security verifier
+
+      - name: Run P0 security verifier
         run: node scripts/verify-p0-security-foundation.mjs
-      - name: Unified navigation verifier
+
+      - name: Run unified navigation verifier
         run: node scripts/verify-customer-navigation-unified.mjs
-      - name: 292 assertion recheck
+
+      - name: Run non-fail-fast 292 assertion recheck
         run: |
           set -euo pipefail
           mkdir -p audit-output
           cat >/tmp/assert-collector.mjs <<'JS'
-          import fs from 'node:fs'; const r=[]; const rec=(ok,m,x)=>(r.push({result:ok?'PASS':'FAIL',reason:String(m||x)}),ok); const assert={ok:(v,m)=>rec(!!v,m,'ok'),equal:(a,b,m)=>rec(Object.is(a,b),m,'equal'),strictEqual:(a,b,m)=>rec(Object.is(a,b),m,'strictEqual'),deepEqual:(a,b,m)=>rec(JSON.stringify(a)===JSON.stringify(b),m,'deepEqual'),match:(a,x,m)=>rec(x.test(String(a)),m,'match'),doesNotMatch:(a,x,m)=>rec(!x.test(String(a)),m,'doesNotMatch'),fail:m=>rec(false,m,'fail')}; process.on('beforeExit',()=>{const s={total:r.length,pass:r.filter(x=>x.result==='PASS').length,fail:r.filter(x=>x.result==='FAIL').length};fs.writeFileSync('audit-output/assertions.json',JSON.stringify(r,null,2));fs.writeFileSync('audit-output/summary.json',JSON.stringify(s,null,2));}); export default assert;
+          import fs from 'node:fs';
+          const results=[];
+          function record(ok,message,method){results.push({index:results.length+1,result:ok?'PASS':'FAIL',reason:String(message||method),method});return ok;}
+          const assert={ok(v,m){return record(Boolean(v),m,'ok')},equal(a,b,m){return record(Object.is(a,b),m,'equal')},strictEqual(a,b,m){return record(Object.is(a,b),m,'strictEqual')},deepEqual(a,b,m){return record(JSON.stringify(a)===JSON.stringify(b),m,'deepEqual')},match(a,r,m){return record(r.test(String(a)),m||String(r),'match')},doesNotMatch(a,r,m){return record(!r.test(String(a)),m||String(r),'doesNotMatch')},fail(m){return record(false,m,'fail')}};
+          process.on('beforeExit',()=>{const summary={total:results.length,pass:results.filter(x=>x.result==='PASS').length,fail:results.filter(x=>x.result==='FAIL').length};fs.writeFileSync('audit-output/assertions.json',JSON.stringify(results,null,2));fs.writeFileSync('audit-output/summary.json',JSON.stringify(summary,null,2));});
+          export default assert;
           JS
           python - <<'PY'
           from pathlib import Path
-          s=Path('scripts/verify-customer-design-foundation.mjs').read_text(); old="import assert from 'node:assert/strict';"; assert s.count(old)==1; Path('/tmp/v.mjs').write_text(s.replace(old,"import assert from 'file:///tmp/assert-collector.mjs';",1))
+          s=Path('scripts/verify-customer-design-foundation.mjs').read_text()
+          old="import assert from 'node:assert/strict';"
+          assert s.count(old)==1
+          Path('/tmp/verify-customer-design-foundation-audit.mjs').write_text(s.replace(old,"import assert from 'file:///tmp/assert-collector.mjs';",1))
           PY
-          node /tmp/v.mjs
-          node -e "const s=require('./audit-output/summary.json');if(s.total!==292||s.pass!==292||s.fail!==0)throw Error(JSON.stringify(s));console.log(s)"
-      - name: Commit and push nine source files
+          node /tmp/verify-customer-design-foundation-audit.mjs
+          node - <<'JS'
+          const s=require('./audit-output/summary.json'); console.log(s); if(s.total!==292||s.pass!==292||s.fail!==0) throw new Error(JSON.stringify(s));
+          JS
+
+      - name: Commit and push exactly ten source files
         run: |
           set -euo pipefail
           git fetch origin main "$TARGET_BRANCH"
@@ -116,18 +211,30 @@ jobs:
           test "$(git rev-parse origin/$TARGET_BRANCH)" = "$BASE_SHA"
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add customer-dashboard/index.html customer-dashboard/shared/customer-assistant-components.css customer-dashboard/shared/customer-design-system.css customer-dashboard/shared/customer-navigation-components.css customer-dashboard/shared/customer-runtime-design-foundation.js customer-dashboard/shared/customer-runtime-notifications-design.js customer-dashboard/shared/offer-brand.js scripts/verify-customer-design-foundation.mjs scripts/verify-p0-security-foundation.mjs
+          git add \
+            customer-dashboard/index.html \
+            customer-dashboard/shared/customer-assistant-components.css \
+            customer-dashboard/shared/customer-design-system.css \
+            customer-dashboard/shared/customer-navigation-components.css \
+            customer-dashboard/shared/customer-runtime-design-foundation.js \
+            customer-dashboard/shared/customer-runtime-notifications-design.js \
+            customer-dashboard/shared/offer-brand.js \
+            scripts/verify-customer-design-foundation.mjs \
+            scripts/verify-p0-security-foundation.mjs \
+            scripts/verify-customer-navigation-unified.mjs
           git diff --cached --name-status
           git diff --cached --stat
-          test "$(git diff --cached --name-only | wc -l)" -eq 9
+          test "$(git diff --cached --name-only | wc -l)" -eq 10
           git commit -m "chore: restore mandatory customer launch checks"
           git push origin HEAD:refs/heads/codex/restore-customer-launch-checks
+          mkdir -p audit-output
           git rev-parse HEAD | tee audit-output/source-head-sha.txt
-      - name: Upload evidence
+
+      - name: Upload verification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: complete-customer-baseline-evidence-v2
+          name: complete-customer-baseline-evidence-v3
           path: audit-output
           if-no-files-found: ignore
           retention-days: 7
