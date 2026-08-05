@@ -2,8 +2,7 @@
   'use strict';
   const api = factory(root && root.VoxeraCustomerCallViewModel);
   if (typeof module === 'object' && module.exports) {
-    api.withViewModel = factory;
-    module.exports = api;
+    module.exports = Object.assign({}, api, { withViewModel: factory });
   }
   if (root) root.VoxeraCustomerCallLogModel = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createCustomerCallLogModel(viewModel) {
@@ -12,6 +11,25 @@
   const text = (value) => String(value == null ? '' : value).trim();
   const FOLLOW_UP_LIFECYCLES = new Set(['new', 'working', 'planned']);
 
+  function fields(record) {
+    return record && record.fields && typeof record.fields === 'object' ? record.fields : {};
+  }
+
+  function read(record, key) {
+    if (record && record[key] !== undefined && record[key] !== null && text(record[key]) !== '') return record[key];
+    const nested = fields(record);
+    if (nested[key] !== undefined && nested[key] !== null && text(nested[key]) !== '') return nested[key];
+    return '';
+  }
+
+  function first(record, keys) {
+    for (const key of keys) {
+      const value = read(record, key);
+      if (value !== '') return value;
+    }
+    return '';
+  }
+
   function requireViewModel() {
     if (!viewModel || typeof viewModel.build !== 'function') {
       throw new Error('VoxeraCustomerCallViewModel is required.');
@@ -19,21 +37,21 @@
   }
 
   function canonicalId(record) {
-    return text(record && (
-      record.elevenlabs_conversation_id ||
-      record.conversation_id ||
-      record.call_id ||
-      record.id
-    ));
+    return text(first(record, [
+      'elevenlabs_conversation_id',
+      'conversation_id',
+      'call_id',
+      'id'
+    ]));
   }
 
   function timestamp(record) {
-    const value = record && (
-      record.started_at ||
-      record.call_started_at ||
-      record.created_at ||
-      record.updated_at
-    );
+    const value = first(record, [
+      'started_at',
+      'call_started_at',
+      'created_at',
+      'updated_at'
+    ]);
     const time = value ? new Date(value).getTime() : 0;
     return Number.isFinite(time) ? time : 0;
   }
@@ -68,9 +86,10 @@
     if (!FOLLOW_UP_LIFECYCLES.has(entry.model.lifecycle)) return false;
     return Boolean(
       entry.model.outcome ||
-      text(entry.record && entry.record.next_action) ||
-      text(entry.record && entry.record.follow_up_at) ||
-      entry.record && entry.record.callback_requested === true
+      text(first(entry.record, ['next_action', 'action_required'])) ||
+      text(first(entry.record, ['follow_up_at', 'callback_at', 'due_at'])) ||
+      read(entry.record, 'callback_requested') === true ||
+      String(read(entry.record, 'callback_requested')).toLowerCase() === 'true'
     );
   }
 
@@ -107,14 +126,30 @@
     };
   }
 
+  function entrySignature(entry) {
+    if (!entry || !entry.model) return '';
+    const model = entry.model;
+    return [
+      canonicalId(entry.record) || model.id || '',
+      model.lifecycle || '',
+      model.name || '',
+      model.phone || '',
+      model.summary || '',
+      model.outcome || '',
+      model.category || '',
+      model.leadQuality || '',
+      model.timestamp || ''
+    ].join('|');
+  }
+
   function signature(state) {
     const source = state || {};
-    const ids = (items) => (items || []).map((entry) => canonicalId(entry.record) || entry.model.id || '').join(',');
+    const items = (entriesList) => (entriesList || []).map(entrySignature).join(',');
     return JSON.stringify({
-      active: source.active ? canonicalId(source.active.record) || source.active.model.id : '',
-      analysing: source.analysing ? canonicalId(source.analysing.record) || source.analysing.model.id : '',
-      tasks: ids(source.tasks),
-      history: ids(source.history)
+      active: entrySignature(source.active),
+      analysing: entrySignature(source.analysing),
+      tasks: items(source.tasks),
+      history: items(source.history)
     });
   }
 
@@ -130,7 +165,7 @@
       let next = build(records);
 
       if (next.active) liveSeenAt = at;
-      else if (lastState && lastState.active && at - liveSeenAt <= liveGraceMs) {
+      else if (!next.analysing && lastState && lastState.active && at - liveSeenAt <= liveGraceMs) {
         next = {
           ...next,
           active: lastState.active,
