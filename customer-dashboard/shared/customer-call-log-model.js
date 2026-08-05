@@ -84,12 +84,14 @@
   function hasAction(entry) {
     if (!entry || !entry.model) return false;
     if (!FOLLOW_UP_LIFECYCLES.has(entry.model.lifecycle)) return false;
+    const callbackRequested = read(entry.record, 'callback_requested') === true ||
+      String(read(entry.record, 'callback_requested')).toLowerCase() === 'true';
+    const scheduledAt = text(first(entry.record, ['follow_up_at', 'callback_at', 'due_at']));
     return Boolean(
+      entry.model.lifecycle === 'planned' ||
       entry.model.outcome ||
-      text(first(entry.record, ['next_action', 'action_required'])) ||
-      text(first(entry.record, ['follow_up_at', 'callback_at', 'due_at'])) ||
-      read(entry.record, 'callback_requested') === true ||
-      String(read(entry.record, 'callback_requested')).toLowerCase() === 'true'
+      scheduledAt ||
+      callbackRequested
     );
   }
 
