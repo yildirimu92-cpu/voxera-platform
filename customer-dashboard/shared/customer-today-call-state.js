@@ -109,6 +109,52 @@
     };
   }
 
+  function stateSignature(state) {
+    if (!state) return '';
+    const model = state.model || {};
+    return [
+      state.kind || '',
+      recordId(state.record),
+      state.title || '',
+      state.message || '',
+      state.badge || '',
+      model.lifecycle || '',
+      model.summary || '',
+      model.phone || ''
+    ].join('|');
+  }
+
+  function createStabilizer(options) {
+    const config = options || {};
+    const liveGraceMs = Number.isFinite(Number(config.liveGraceMs)) ? Number(config.liveGraceMs) : 4500;
+    let current = null;
+    let signature = '';
+    let lastLiveSeenAt = 0;
+
+    return function stabilise(nextState, nowValue) {
+      const now = Number.isFinite(Number(nowValue)) ? Number(nowValue) : Date.now();
+      const next = nextState || null;
+
+      if (next && next.kind === 'live') lastLiveSeenAt = now;
+
+      if (
+        current && current.kind === 'live' &&
+        (!next || next.kind === 'empty' || next.kind === 'action') &&
+        now - lastLiveSeenAt < liveGraceMs
+      ) {
+        return { state: current, changed: false, held: true, signature };
+      }
+
+      const nextSignature = stateSignature(next);
+      const changed = nextSignature !== signature;
+      if (changed) {
+        current = next;
+        signature = nextSignature;
+      }
+      return { state: current, changed, held: false, signature };
+    };
+  }
+
   function buildTimeline(records, attentionRecord) {
     const attentionId = recordId(attentionRecord);
     return sortedModels(records)
@@ -124,6 +170,8 @@
     uniqueCalls,
     selectAttention,
     buildAttentionState,
+    stateSignature,
+    createStabilizer,
     buildTimeline
   });
 });
