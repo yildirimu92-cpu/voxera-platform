@@ -48,6 +48,28 @@
     }).format(date);
   }
 
+  function buildEntry(record) {
+    var viewModel = root.VoxeraCustomerCallViewModel;
+    if (!record || !viewModel || typeof viewModel.build !== 'function') return null;
+    return { record: record, model: viewModel.build(record) };
+  }
+
+  function taskEntries(state) {
+    var excluded = new Set();
+    [state.active, state.analysing].filter(Boolean).forEach(function (entry) {
+      excluded.add(recordId(entry.record));
+    });
+    var seen = new Set();
+    return priorityRecords().map(buildEntry).filter(function (entry) {
+      if (!entry || !entry.model) return false;
+      var id = recordId(entry.record) || String(entry.model.id || '');
+      if (!id || excluded.has(id) || seen.has(id)) return false;
+      if (entry.model.lifecycle === 'done' || entry.model.lifecycle === 'archived') return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
   function metadata(model) {
     return [model.category, model.outcome].filter(Boolean).map(function (item) {
       return '<span class="vx-ops-pill">' + esc(item) + '</span>';
@@ -62,29 +84,27 @@
     return '<section class="vx-ops-card" data-vx-call-log-section="active">' +
       '<div class="vx-ap-head"><div><div class="vx-ops-title">' + label + '</div><div class="vx-ops-sub">' + detail + '</div></div>' +
       '<span class="vx-ops-pill active">' + (analysing ? 'Analyse' : 'Live') + '</span></div>' +
-      '<div class="vx-ops-list"><div class="vx-ops-row"><div class="vx-ops-row-main"><div class="vx-ops-row-title">' + esc(model.name) + '</div>' +
-      '<div class="vx-ops-row-meta">' + esc(model.phone || 'Nummer wird ermittelt') + (formatTime(model) ? ' · ' + esc(formatTime(model)) : '') + '</div></div></div></div></section>';
+      '<div class="vx-ops-list"><div class="vx-ops-item"><div class="vx-ops-head"><div><div class="vx-ops-message">' + esc(model.name) + '</div>' +
+      '<div class="vx-ops-meta">' + esc(model.phone || 'Nummer wird ermittelt') + (formatTime(model) ? ' · ' + esc(formatTime(model)) : '') + '</div></div></div></div></div></section>';
   }
 
   function taskRows(entries) {
     return list(entries).map(function (entry) {
       var model = entry.model;
-      return '<button type="button" class="vx-ops-row" data-vx-call-id="' + esc(model.id || recordId(entry.record)) + '">' +
-        '<div class="vx-ops-row-main"><div class="vx-ops-row-title">' + esc(model.name) + '</div>' +
-        '<div class="vx-ops-row-meta">' + esc(model.outcome || model.lifecycleMeta.label) + (model.phone ? ' · ' + esc(model.phone) : '') + '</div>' +
-        (model.summary ? '<div class="vx-ops-row-summary">' + esc(model.summary) + '</div>' : '') + '</div>' +
-        '<span class="vx-ops-pill">' + esc(model.lifecycleMeta.label) + '</span></button>';
+      return '<div class="vx-ops-item" role="button" tabindex="0" data-vx-call-id="' + esc(model.id || recordId(entry.record)) + '">' +
+        '<div class="vx-ops-head"><div><div class="vx-ops-message">' + esc(model.name) + '</div>' +
+        '<div class="vx-ops-meta">' + esc(model.outcome || 'Bearbeitung erforderlich') + (model.phone ? ' · ' + esc(model.phone) : '') + '</div></div>' +
+        '<span class="vx-ops-pill">' + esc(model.lifecycleMeta.label) + '</span></div></div>';
     }).join('');
   }
 
   function historyRows(entries) {
     return list(entries).slice(0, 10).map(function (entry) {
       var model = entry.model;
-      return '<button type="button" class="vx-ops-row" data-vx-call-id="' + esc(model.id || recordId(entry.record)) + '">' +
-        '<div class="vx-ops-row-main"><div class="vx-ops-row-title">' + esc(model.name) + '</div>' +
-        '<div class="vx-ops-row-meta">' + esc(formatTime(model)) + (model.phone ? ' · ' + esc(model.phone) : '') + '</div>' +
-        (model.summary ? '<div class="vx-ops-row-summary">' + esc(model.summary) + '</div>' : '') + '</div>' +
-        '<div class="vx-ops-row-tags">' + metadata(model) + '<span class="vx-ops-pill">' + esc(model.lifecycleMeta.label) + '</span></div></button>';
+      return '<div class="vx-ops-item" role="button" tabindex="0" data-vx-call-id="' + esc(model.id || recordId(entry.record)) + '">' +
+        '<div class="vx-ops-head"><div><div class="vx-ops-message">' + esc(model.name) + '</div>' +
+        '<div class="vx-ops-meta">' + esc(formatTime(model)) + (model.phone ? ' · ' + esc(model.phone) : '') + '</div></div>' +
+        '<div>' + metadata(model) + '<span class="vx-ops-pill">' + esc(model.lifecycleMeta.label) + '</span></div></div></div>';
     }).join('');
   }
 
@@ -121,6 +141,19 @@
     } catch (_error) {}
   }
 
+  function bindRows(host) {
+    host.querySelectorAll('[data-vx-call-id]').forEach(function (row) {
+      function activate() { openCall(row.getAttribute('data-vx-call-id')); }
+      row.addEventListener('click', activate);
+      row.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          activate();
+        }
+      });
+    });
+  }
+
   function render() {
     var modelApi = root.VoxeraCustomerCallLogModel;
     if (!modelApi || typeof modelApi.createStableStore !== 'function') return;
@@ -128,17 +161,18 @@
     var update = store.update(mergeRecords());
     if (!update.changed && root.document.getElementById('vx-customer-call-log')) return;
     var state = update.state;
+    var tasks = taskEntries(state);
+    var taskIds = new Set(tasks.map(function (entry) { return recordId(entry.record); }).filter(Boolean));
+    var history = state.history.filter(function (entry) { return !taskIds.has(recordId(entry.record)); });
     var markup = activeCard(state.active || state.analysing, Boolean(state.analysing)) +
-      section('Offene Aufgaben', 'Nur Anrufe mit einem konkreten nächsten Schritt.', state.tasks, taskRows(state.tasks), 'Keine offenen Aufgaben aus Anrufen.', 'tasks') +
-      section('Letzte Anrufe', 'Chronologisch, ohne doppelte Darstellung.', state.history, historyRows(state.history), 'Heute sind noch keine abgeschlossenen Anrufe vorhanden.', 'history');
+      section('Offene Aufgaben', 'Priorisierte Anrufe, die noch bearbeitet werden müssen.', tasks, taskRows(tasks), 'Keine offenen Aufgaben aus Anrufen.', 'tasks') +
+      section('Letzte Anrufe', 'Chronologisch und kompakt.', history, historyRows(history), 'Keine weiteren Anrufe für den Verlauf.', 'history');
     if (markup === lastMarkup && root.document.getElementById('vx-customer-call-log')) return;
     var host = ensureHost();
     if (!host) return;
     host.innerHTML = markup;
     lastMarkup = markup;
-    host.querySelectorAll('[data-vx-call-id]').forEach(function (button) {
-      button.addEventListener('click', function () { openCall(button.getAttribute('data-vx-call-id')); });
-    });
+    bindRows(host);
     try { if (typeof root.refreshLucideIcons === 'function') root.refreshLucideIcons(); } catch (_error) {}
   }
 
