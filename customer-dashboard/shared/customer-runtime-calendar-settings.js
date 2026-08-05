@@ -23,7 +23,7 @@
         entry.type = 'button';
         entry.id = 'vx-calendar-settings-entry';
         entry.className = 'vx-settings-entry vx-settings-entry--calendar';
-        entry.hidden = true;
+        entry.hidden = false;
         entry.innerHTML = '<span class="vx-settings-entry-icon"><i class="ph-bold ph-calendar-dots" aria-hidden="true"></i></span><span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Kalender</span><span id="vx-calendar-entry-sub" class="vx-settings-entry-subtitle">Kalender verbinden</span></span><i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>';
         entry.addEventListener('click', open);
         const help = Array.from(list.children).find((child) => /Hilfe/.test(child.textContent || ''));
@@ -92,7 +92,7 @@
 
     const providers = visibleProviders();
     const entry = document.getElementById('vx-calendar-settings-entry');
-    if (entry) entry.hidden = !(state.enabled && providers.length);
+    if (entry) entry.hidden = false;
     const settings = state.settings || {};
     const connectedProviders = (state.connections || []).filter((item) => item.status === 'connected');
     const activeOptions = connectedProviders.map((item) => '<option value="' + item.provider + '"' + (settings.active_provider === item.provider ? ' selected' : '') + '>' + providerLabels[item.provider] + '</option>').join('');
