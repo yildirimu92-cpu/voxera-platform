@@ -101,6 +101,32 @@ assert.deepEqual(
 );
 assert.equal(state.counts.total, 7);
 
+// A stale duplicate must not downgrade a completed call back to working.
+const completedCanonical = {
+  id: 'call-status-conflict',
+  fields: {
+    live_status: 'completed',
+    dashboard_status: 'done',
+    call_summary: 'Abgeschlossen',
+    started_at: '2026-08-05T07:44:00Z',
+    updated_at: '2026-08-05T08:10:00Z'
+  }
+};
+const staleWorkingDuplicate = {
+  id: 'call-status-conflict',
+  fields: {
+    live_status: 'completed',
+    dashboard_status: 'working',
+    call_summary: 'Abgeschlossen',
+    started_at: '2026-08-05T07:44:00Z',
+    updated_at: '2026-08-05T08:20:00Z'
+  }
+};
+const conflictState = log.build([completedCanonical, staleWorkingDuplicate]);
+assert.equal(conflictState.history.length, 1);
+assert.equal(conflictState.history[0].model.lifecycle, 'done');
+assert.equal(conflictState.history[0].record.fields.dashboard_status, 'done');
+
 const store = log.createStableStore({ liveGraceMs: 12000 });
 const first = store.update([live], 1000);
 assert.equal(first.changed, true);
