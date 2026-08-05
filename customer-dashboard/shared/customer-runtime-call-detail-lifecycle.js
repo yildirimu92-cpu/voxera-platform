@@ -6,6 +6,7 @@
   var ownedDetailRenderer = null;
   var ownedSplitRenderer = null;
   var navigationInstalled = false;
+  var recordRegistry = new Map();
 
   function text(value) {
     return String(value == null ? '' : value).trim();
@@ -30,45 +31,56 @@
     return result;
   }
 
-  function appendUnique(result, collection) {
-    (Array.isArray(collection) ? collection : []).forEach(function (record) {
-      if (record && result.indexOf(record) === -1) result.push(record);
+  function isManual(record) {
+    try { return typeof root.isManualTaskRecord === 'function' && root.isManualTaskRecord(record); }
+    catch (_error) { return false; }
+  }
+
+  function registerRecord(record) {
+    if (!record || typeof record !== 'object') return;
+    identityKeys(record).forEach(function (key) {
+      recordRegistry.set(key, record);
     });
   }
 
-  function allCallRecords() {
-    var result = [];
-    appendUnique(result, root.allRecords);
-    appendUnique(result, root.allManualTaskRecords);
-    appendUnique(result, root.latestActivityRecords);
+  function registerRecords(collection) {
+    (Array.isArray(collection) ? collection : []).forEach(registerRecord);
+    return collection;
+  }
+
+  root.vxRegisterCustomerCallRecords = registerRecords;
+
+  function collectKnownRecords() {
+    registerRecords(root.allRecords);
+    registerRecords(root.allManualTaskRecords);
+    registerRecords(root.latestActivityRecords);
 
     try {
       if (typeof root.vxGetAnfragenSourceRecords === 'function') {
-        appendUnique(result, root.vxGetAnfragenSourceRecords());
+        registerRecords(root.vxGetAnfragenSourceRecords());
       }
     } catch (_error) {}
 
     try {
-      if (typeof _dashPriorityAllRecords !== 'undefined') appendUnique(result, _dashPriorityAllRecords);
+      if (typeof _dashPriorityAllRecords !== 'undefined') registerRecords(_dashPriorityAllRecords);
     } catch (_error2) {}
 
     try {
-      if (typeof heuteTodayCallRecords !== 'undefined') appendUnique(result, heuteTodayCallRecords);
+      if (typeof heuteTodayCallRecords !== 'undefined') registerRecords(heuteTodayCallRecords);
     } catch (_error3) {}
 
     try {
-      if (typeof heuteActivityRecords !== 'undefined') appendUnique(result, heuteActivityRecords);
+      if (typeof heuteActivityRecords !== 'undefined') registerRecords(heuteActivityRecords);
     } catch (_error4) {}
-
-    return result;
   }
 
   function findOriginalRecord(callId) {
     var normalizedId = text(callId);
     if (!normalizedId) return null;
-    return allCallRecords().find(function (record) {
-      return identityKeys(record).indexOf(normalizedId) !== -1;
-    }) || null;
+    var registered = recordRegistry.get(normalizedId);
+    if (registered) return registered;
+    collectKnownRecords();
+    return recordRegistry.get(normalizedId) || null;
   }
 
   function isMobileViewport() {
@@ -145,9 +157,10 @@
     var page = root.document.getElementById('call-detail-page');
     if (!page) return false;
     page.classList.add('show');
+    page.classList.add('is-open');
     page.classList.add('is-fullscreen');
     page.setAttribute('aria-hidden', 'false');
-    page.style.display = '';
+    page.style.display = 'block';
     root.document.documentElement.classList.add('vx-call-detail-open');
     if (root.document.body) root.document.body.classList.add('vx-call-detail-open');
     return true;
@@ -158,11 +171,15 @@
     if (!page) return;
     page.classList.remove('show');
     page.classList.remove('is-open');
+    page.classList.remove('is-fullscreen');
     page.setAttribute('aria-hidden', 'true');
     page.style.display = 'none';
+    root.document.documentElement.classList.remove('vx-call-detail-open');
+    if (root.document.body) root.document.body.classList.remove('vx-call-detail-open');
   }
 
   function rememberCurrentRecord(record) {
+    registerRecord(record);
     var ids = identityKeys(record);
     var canonicalId = ids[0] || '';
     if (!canonicalId) return;
@@ -174,14 +191,17 @@
   function renderCanonicalFullscreen(record) {
     rememberCanonicalOwners();
     restoreCanonicalOwners();
+    registerRecord(record);
     if (!record || !ownedDetailRenderer) return false;
+
     try {
+      if (!ensureFullscreenVisible()) return false;
       ownedDetailRenderer(record, []);
       rememberCurrentRecord(record);
-      ensureFullscreenVisible();
       resetRenderedDetailState(root.document.getElementById('call-detail-page'));
       return true;
     } catch (error) {
+      hideFullscreenDetail();
       try { root.console.error('[call-detail] canonical fullscreen render failed', error); } catch (_error) {}
       return false;
     }
@@ -190,6 +210,7 @@
   function renderCanonicalSplit(record) {
     rememberCanonicalOwners();
     restoreCanonicalOwners();
+    registerRecord(record);
     if (!record || !ownedSplitRenderer) return false;
 
     var host = root.document.getElementById('requests-detail-v2');
@@ -213,26 +234,43 @@
     }
   }
 
-  function openCanonicalDetail(callId, sourceRow) {
-    var original = findOriginalRecord(callId);
-    if (!original) return false;
+  function openCanonicalDetail(recordOrId, sourceRow, options) {
+    options = options || {};
+    var record = recordOrId && typeof recordOrId === 'object'
+      ? recordOrId
+      : findOriginalRecord(recordOrId);
+    if (!record) return false;
+
+    registerRecord(record);
+
+    if (isManual(record)) {
+      var taskId = identityKeys(record)[0] || text(recordOrId);
+      try {
+        if (typeof root.showTaskDetail === 'function') {
+          root.showTaskDetail(taskId);
+          return true;
+        }
+        if (typeof root.openManualTaskDetail === 'function') {
+          root.openManualTaskDetail(record);
+          return true;
+        }
+      } catch (_error) {}
+      return false;
+    }
+
+    if (options.forceFullscreen) return renderCanonicalFullscreen(record);
+    if (options.forceSplit) return renderCanonicalSplit(record);
 
     var requestsRow = !!(sourceRow && sourceRow.closest && sourceRow.closest('#anrufe-list, #anrufe-split-left'));
     if (!isMobileViewport() && requestsRow && isRequestsSurfaceActive()) {
-      return renderCanonicalSplit(original);
+      return renderCanonicalSplit(record);
     }
-    return renderCanonicalFullscreen(original);
+    return renderCanonicalFullscreen(record);
   }
 
   root.vxOpenCustomerRecordDetail = function vxOpenCustomerRecordDetail(recordOrId, options) {
     options = options || {};
-    var record = recordOrId && typeof recordOrId === 'object' ? recordOrId : findOriginalRecord(recordOrId);
-    if (!record) return false;
-    var id = identityKeys(record)[0] || text(recordOrId);
-    var sourceRow = options.sourceRow || null;
-    if (options.forceFullscreen) return renderCanonicalFullscreen(record);
-    if (options.forceSplit) return renderCanonicalSplit(record);
-    return openCanonicalDetail(id, sourceRow);
+    return openCanonicalDetail(recordOrId, options.sourceRow || null, options);
   };
 
   function resolveRow(target) {
@@ -282,11 +320,14 @@
       var row = resolveRow(event.target);
       if (!row || isInteractiveControl(event.target, row)) return;
       var callId = rowCallId(row);
-      if (!callId || !findOriginalRecord(callId)) return;
+      if (!callId) return;
+      var record = findOriginalRecord(callId);
+      if (!record) return;
 
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openCanonicalDetail(callId, row);
+      if (openCanonicalDetail(record, row, {})) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
     }, true);
 
     root.document.addEventListener('keydown', function (event) {
@@ -294,12 +335,33 @@
       var row = resolveRow(event.target);
       if (!row || isInteractiveControl(event.target, row)) return;
       var callId = rowCallId(row);
-      if (!callId || !findOriginalRecord(callId)) return;
+      if (!callId) return;
+      var record = findOriginalRecord(callId);
+      if (!record) return;
 
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openCanonicalDetail(callId, row);
+      if (openCanonicalDetail(record, row, {})) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
     }, true);
+  }
+
+  function installSourceBridge(name, recordsArgumentIndex) {
+    var current = root[name];
+    if (typeof current !== 'function' || current._vxCallDetailSourceBridge) return;
+
+    var wrapped = function customerCallDetailSourceBridge() {
+      registerRecords(arguments[recordsArgumentIndex]);
+      return current.apply(this, arguments);
+    };
+    wrapped._vxCallDetailSourceBridge = true;
+    wrapped._vxPrevious = current;
+    root[name] = wrapped;
+
+    try {
+      if (name === 'renderAnrufeInbox') renderAnrufeInbox = wrapped;
+      if (name === 'vxHeuteRenderActivityList') vxHeuteRenderActivityList = wrapped;
+    } catch (_error) {}
   }
 
   function removeUnreadControl() {
@@ -351,6 +413,9 @@
     attempts += 1;
     rememberCanonicalOwners();
     restoreCanonicalOwners();
+    collectKnownRecords();
+    installSourceBridge('vxHeuteRenderActivityList', 0);
+    installSourceBridge('renderAnrufeInbox', 1);
     installResetBridge();
     installTaskBridge();
     removeUnreadControl();
