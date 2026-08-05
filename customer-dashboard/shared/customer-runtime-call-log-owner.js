@@ -19,7 +19,22 @@
   function list(value) { return Array.isArray(value) ? value.filter(Boolean) : []; }
 
   function fields(record) {
-    return record && record.fields ? record.fields : record || {};
+    return record && record.fields && typeof record.fields === 'object' ? record.fields : {};
+  }
+
+  function read(record, key) {
+    if (record && record[key] !== undefined && record[key] !== null && text(record[key]) !== '') return record[key];
+    var nested = fields(record);
+    if (nested[key] !== undefined && nested[key] !== null && text(nested[key]) !== '') return nested[key];
+    return '';
+  }
+
+  function first(record, keys) {
+    for (var i = 0; i < keys.length; i += 1) {
+      var value = read(record, keys[i]);
+      if (value !== '') return value;
+    }
+    return '';
   }
 
   function isManual(record) {
@@ -27,15 +42,21 @@
     catch (_error) { return false; }
   }
 
-  function isActiveCallRecord(record) {
+  function lifecycle(record) {
+    var viewModel = root.VoxeraCustomerCallViewModel;
+    if (viewModel && typeof viewModel.lifecycle === 'function') {
+      try { return viewModel.lifecycle(record); } catch (_error) {}
+    }
+    var liveState = lower(first(record, ['live_status', 'call_status', 'telephony_status']));
+    if (['incoming', 'ringing', 'queued', 'in_progress', 'active', 'live', 'ongoing', 'started', 'läuft', 'laufend'].indexOf(liveState) !== -1) return 'live';
+    if (['analyzing', 'analysing', 'processing', 'transcribing', 'pending_analysis'].indexOf(liveState) !== -1) return 'analysing';
+    return '';
+  }
+
+  function isUnreadExcludedRecord(record) {
     if (!record || isManual(record)) return false;
-    var f = fields(record);
-    if (record.is_live === true || f.is_live === true) return true;
-    var liveState = lower(
-      record.live_status || f.live_status ||
-      record.call_status || f.call_status
-    );
-    return ['ringing', 'queued', 'in_progress', 'active', 'ongoing', 'started', 'läuft', 'laufend'].indexOf(liveState) !== -1;
+    var state = lifecycle(record);
+    return state === 'live' || state === 'analysing';
   }
 
   function priorityRecords() {
@@ -46,21 +67,16 @@
   }
 
   function recordId(record) {
-    return text(record && (
-      record.elevenlabs_conversation_id ||
-      record.conversation_id ||
-      record.call_id ||
-      record.id
-    ));
+    return text(first(record, [
+      'elevenlabs_conversation_id',
+      'conversation_id',
+      'call_id',
+      'id'
+    ]));
   }
 
   function detailId(record) {
-    var f = fields(record);
-    return text(
-      record && (record.id || record.call_id || record.task_id) ||
-      f.id || f.call_id || f.task_id ||
-      recordId(record)
-    );
+    return text(first(record, ['id', 'call_id', 'task_id'])) || recordId(record);
   }
 
   function allRecords() {
@@ -82,8 +98,7 @@
   }
 
   function manualEntry(record) {
-    var f = fields(record);
-    var plannedAt = record && (record.follow_up_at || record.due_at || record.scheduled_at) || f.follow_up_at || f.due_at || f.scheduled_at;
+    var plannedAt = first(record, ['follow_up_at', 'due_at', 'scheduled_at']);
     var planned = Boolean(plannedAt);
     return {
       record: record,
@@ -93,43 +108,43 @@
         lifecycleMeta: planned
           ? { label: 'Geplant', tone: 'attention' }
           : { label: 'Offen', tone: 'info' },
-        name: text(record && (record.title || record.task_title || record.next_action) || f.title || f.task_title || f.next_action) || 'Aufgabe',
-        phone: null,
-        summary: text(record && (record.note || record.notes || record.description) || f.note || f.notes || f.description),
+        name: text(first(record, ['title', 'task_title', 'next_action'])) || 'Aufgabe',
+        phone: text(first(record, ['phone', 'caller_phone', 'phone_number'])) || null,
+        summary: text(first(record, ['note', 'notes', 'description'])),
         category: null,
         outcome: 'Manuelle Aufgabe',
-        timestamp: plannedAt || record && (record.created_at || record.updated_at) || f.created_at || f.updated_at
+        timestamp: plannedAt || first(record, ['created_at', 'updated_at'])
       }
     };
   }
 
-  function buildEntry(record) {
-    if (!record) return null;
-    if (isManual(record)) return manualEntry(record);
-    var viewModel = root.VoxeraCustomerCallViewModel;
-    if (!viewModel || typeof viewModel.build !== 'function') return null;
-    return { record: record, model: viewModel.build(record) };
-  }
-
   function taskEntries(state) {
-    var excluded = new Set();
-    [state.active, state.analysing].filter(Boolean).forEach(function (entry) {
-      excluded.add(recordId(entry.record));
-    });
-
     var seen = new Set();
-    return priorityRecords().map(buildEntry).filter(function (entry) {
+    var calls = list(state && state.tasks);
+    var manual = priorityRecords().filter(isManual).map(manualEntry);
+    return calls.concat(manual).filter(function (entry) {
       if (!entry || !entry.model) return false;
       var id = recordId(entry.record) || detailId(entry.record) || text(entry.model.id);
-      if (!id || excluded.has(id) || seen.has(id)) return false;
-      if (entry.model.lifecycle === 'done' || entry.model.lifecycle === 'archived') return false;
+      if (!id || seen.has(id)) return false;
       seen.add(id);
       return true;
     });
   }
 
+  var ICONS = {
+    'clipboard-check': '<path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="m9 14 2 2 4-4"/>',
+    'phone-incoming': '<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.28-1.28a2 2 0 0 1 2.11-.45c.9.32 1.84.55 2.8.68A2 2 0 0 1 22 16.92Z"/>',
+    'phone-call': '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.28-1.28a2 2 0 0 1 2.11-.45c.9.32 1.84.55 2.8.68A2 2 0 0 1 22 16.92Z"/><path d="M14.05 2a9 9 0 0 1 8 8"/><path d="M14.05 6A5 5 0 0 1 18 10"/>',
+    'audio-lines': '<path d="M2 10v4"/><path d="M6 6v12"/><path d="M10 3v18"/><path d="M14 8v8"/><path d="M18 5v14"/><path d="M22 10v4"/>',
+    'chevron-right': '<path d="m9 18 6-6-6-6"/>'
+  };
+
+  function svg(name) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
+  }
+
   function icon(name) {
-    return '<span class="vx-call-log-icon" aria-hidden="true"><i data-lucide="' + esc(name) + '"></i></span>';
+    return '<span class="vx-call-log-icon" aria-hidden="true">' + svg(name) + '</span>';
   }
 
   function status(model) {
@@ -138,7 +153,7 @@
   }
 
   function chevron() {
-    return '<span class="vx-call-log-chevron" aria-hidden="true"><i data-lucide="chevron-right"></i></span>';
+    return '<span class="vx-call-log-chevron" aria-hidden="true">' + svg('chevron-right') + '</span>';
   }
 
   function row(entry, mode) {
@@ -151,15 +166,16 @@
       : formatTime(model);
     var secondaryMeta = model.phone || '';
     var metaLine = [primaryMeta, secondaryMeta].filter(Boolean).join(' · ');
-    var summary = taskMode && model.summary
-      ? '<div class="vx-call-log-row__summary">' + esc(model.summary) + '</div>'
+    var summaryText = text(model.summary);
+    var summary = summaryText
+      ? '<div class="vx-call-log-row__summary">' + esc(summaryText) + '</div>'
       : '';
 
     return '<div class="vx-call-log-row" role="button" tabindex="0" data-vx-call-id="' + esc(id) + '">' +
       icon(manual ? 'clipboard-check' : 'phone-incoming') +
       '<div class="vx-call-log-row__main">' +
         '<div class="vx-call-log-row__title">' + esc(model.name) + '</div>' +
-        '<div class="vx-call-log-row__meta">' + esc(metaLine || 'Anruf') + '</div>' +
+        '<div class="vx-call-log-row__meta">' + esc(metaLine || (taskMode ? 'Nächster Schritt' : 'Anruf')) + '</div>' +
         summary +
       '</div>' +
       '<div class="vx-call-log-row__aside">' + status(model) + chevron() + '</div>' +
@@ -260,7 +276,7 @@
     if (typeof previousEligible !== 'function' || previousEligible._vxCallLogOwnerWrapped) return;
 
     var wrapped = function customerCallLogUnreadEligibility(record) {
-      if (isActiveCallRecord(record)) return false;
+      if (isUnreadExcludedRecord(record)) return false;
       return previousEligible(record);
     };
     wrapped._vxCallLogOwnerWrapped = true;
@@ -277,18 +293,13 @@
     if (!store) store = modelApi.createStableStore({ liveGraceMs: 12000 });
 
     var update = store.update(mergeCallRecords());
-    if (!update.changed && root.document.getElementById('vx-customer-call-log')) return;
-
     var state = update.state;
     var tasks = taskEntries(state);
-    var taskIds = new Set(tasks.map(function (entry) { return recordId(entry.record) || detailId(entry.record); }).filter(Boolean));
-    var history = state.history.filter(function (entry) {
-      return !taskIds.has(recordId(entry.record)) && !taskIds.has(detailId(entry.record));
-    });
+    var history = list(state.history);
 
     var markup = activeCard(state.active || state.analysing, Boolean(state.analysing)) +
       section('Offene Aufgaben', 'Priorisierte Rückrufe und nächste Schritte.', tasks, 'task', '', 'tasks', true) +
-      section('Letzte Anrufe', 'Die neuesten Gespräche auf einen Blick.', history.slice(0, 8), 'history', 'Heute sind noch keine abgeschlossenen Anrufe vorhanden.', 'history', false);
+      section('Letzte Anrufe', 'Die neuesten Gespräche auf einen Blick.', history.slice(0, 5), 'history', 'Heute sind noch keine abgeschlossenen Anrufe vorhanden.', 'history', false);
 
     if (markup === lastMarkup && root.document.getElementById('vx-customer-call-log')) return;
     var host = ensureHost();
@@ -297,7 +308,6 @@
     host.innerHTML = markup;
     lastMarkup = markup;
     bindRows(host);
-    try { if (typeof root.refreshLucideIcons === 'function') root.refreshLucideIcons(); } catch (_error) {}
   }
 
   function installOverrides() {
