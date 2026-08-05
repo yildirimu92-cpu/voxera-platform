@@ -1,0 +1,297 @@
+/* Customer call log: canonical component owner for Today. */
+body.vx-customer-design-foundation #vx-customer-call-log {
+  display: grid;
+  gap: var(--vx-space-4);
+  min-width: 0;
+  margin-top: var(--vx-space-4);
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--vx-line);
+  border-radius: var(--vx-radius-panel);
+  background: var(--vx-surface);
+  box-shadow: var(--vx-shadow-panel);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vx-space-3);
+  padding: 20px 22px 16px;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__title {
+  color: var(--vx-ink);
+  font-family: var(--vx-font-ui);
+  font-size: 20px;
+  font-weight: 760;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__subtitle {
+  margin-top: 4px;
+  color: var(--vx-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-count,
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: var(--vx-brand);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status[data-tone="live"] {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status[data-tone="attention"] {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status[data-tone="success"] {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status[data-tone="muted"] {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-list {
+  border-top: 1px solid var(--vx-line);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 14px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--vx-line);
+  border-radius: 0;
+  background: var(--vx-surface);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .14s ease, box-shadow .14s ease;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row:last-child {
+  border-bottom: 0;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row:hover {
+  background: var(--vx-surface-soft);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--vx-focus-ring);
+  outline-offset: -3px;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: #eef4ff;
+  color: var(--vx-brand);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-icon svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 2;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__main {
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__title {
+  overflow: hidden;
+  color: var(--vx-ink);
+  font-size: 16px;
+  font-weight: 740;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__meta {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--vx-muted);
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__summary {
+  display: -webkit-box;
+  margin-top: 6px;
+  overflow: hidden;
+  color: #52627b;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__aside {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--vx-surface-soft);
+  color: var(--vx-subtle);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-chevron svg {
+  width: 17px;
+  height: 17px;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-empty {
+  padding: 18px 22px 22px;
+  border-top: 1px solid var(--vx-line);
+  color: var(--vx-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log [data-vx-call-log-section="active"] {
+  border-color: #bfd4f5;
+  background: linear-gradient(135deg, #f8fbff 0%, #ffffff 72%);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log [data-vx-call-log-section="active"] .vx-call-log-icon {
+  background: var(--vx-brand-dark);
+  color: #ffffff;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log [data-vx-call-log-section="tasks"]:has(.vx-call-log-empty) {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation #vx-customer-call-log {
+    gap: 12px;
+    margin-top: 12px;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom));
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card {
+    border-radius: 18px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__head {
+    align-items: center;
+    padding: 16px 16px 13px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__title {
+    font-size: 18px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__subtitle {
+    font-size: 13px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 12px;
+    min-height: 82px;
+    padding: 12px 14px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__title {
+    font-size: 15px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__meta,
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__summary {
+    font-size: 12px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__aside {
+    gap: 5px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status {
+    max-width: 98px;
+    padding: 5px 8px;
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-chevron {
+    width: 30px;
+    height: 30px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-empty {
+    padding: 15px 16px 18px;
+  }
+}
+
+@media (max-width: 390px) {
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row {
+    grid-template-columns: 42px minmax(0, 1fr) 30px;
+    gap: 10px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status {
+    display: none;
+  }
+}
