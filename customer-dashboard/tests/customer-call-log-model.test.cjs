@@ -127,6 +127,36 @@ assert.equal(conflictState.history.length, 1);
 assert.equal(conflictState.history[0].model.lifecycle, 'done');
 assert.equal(conflictState.history[0].record.fields.dashboard_status, 'done');
 
+// The same call can arrive through different providers with different primary IDs.
+// Any shared identity alias must collapse the snapshots and preserve the terminal state.
+const workingByConversation = {
+  id: 'row-working',
+  fields: {
+    conversation_id: 'conv-shared',
+    live_status: 'completed',
+    dashboard_status: 'working',
+    call_summary: 'Testanruf',
+    started_at: '2026-08-05 09:44:00',
+    updated_at: '2026-08-05T10:00:00Z'
+  }
+};
+const doneBySourceAlias = {
+  id: 'row-done',
+  fields: {
+    source_call_id: 'conv-shared',
+    live_status: 'completed',
+    dashboard_status: 'closed',
+    call_summary: 'Testanruf',
+    started_at: '2026-08-05 09:44:00',
+    updated_at: '2026-08-05T09:55:00Z'
+  }
+};
+const aliasState = log.build([workingByConversation, doneBySourceAlias]);
+assert.equal(aliasState.counts.total, 1);
+assert.equal(aliasState.history.length, 1);
+assert.equal(aliasState.history[0].model.lifecycle, 'done');
+assert.match(aliasState.history[0].model.timestamp, /\+02:00$/);
+
 const store = log.createStableStore({ liveGraceMs: 12000 });
 const first = store.update([live], 1000);
 assert.equal(first.changed, true);
