@@ -1,0 +1,866 @@
+/* Customer call log: canonical component owner for Today. */
+body.vx-customer-design-foundation #vx-customer-call-log {
+  display: grid;
+  gap: var(--vx-space-4);
+  min-width: 0;
+  margin-top: var(--vx-space-4);
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--vx-line);
+  border-radius: var(--vx-radius-panel);
+  background: var(--vx-surface);
+  box-shadow: var(--vx-shadow-panel);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vx-space-3);
+  padding: 20px 22px 16px;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__title {
+  color: var(--vx-ink);
+  font-family: var(--vx-font-ui);
+  font-size: 20px;
+  font-weight: 760;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__subtitle {
+  margin-top: 4px;
+  color: var(--vx-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-count,
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: var(--vx-brand);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status[data-tone="live"] {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status[data-tone="attention"] {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status[data-tone="success"] {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status[data-tone="muted"] {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-list {
+  border-top: 1px solid var(--vx-line);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 14px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--vx-line);
+  border-radius: 0;
+  background: var(--vx-surface);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .14s ease, box-shadow .14s ease;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row:last-child {
+  border-bottom: 0;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row:hover {
+  background: var(--vx-surface-soft);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--vx-focus-ring);
+  outline-offset: -3px;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: #eef4ff;
+  color: var(--vx-brand);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-icon svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 2;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__main {
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__title {
+  overflow: hidden;
+  color: var(--vx-ink);
+  font-size: 16px;
+  font-weight: 740;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__meta {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--vx-muted);
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__summary {
+  display: -webkit-box;
+  margin-top: 6px;
+  overflow: hidden;
+  color: #52627b;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__aside {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--vx-surface-soft);
+  color: var(--vx-subtle);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-chevron svg {
+  width: 17px;
+  height: 17px;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-empty {
+  padding: 18px 22px 22px;
+  border-top: 1px solid var(--vx-line);
+  color: var(--vx-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log [data-vx-call-log-section="active"] {
+  border-color: #bfd4f5;
+  background: linear-gradient(135deg, #f8fbff 0%, #ffffff 72%);
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log [data-vx-call-log-section="active"] .vx-call-log-icon {
+  background: var(--vx-brand-dark);
+  color: #ffffff;
+}
+
+body.vx-customer-design-foundation #vx-customer-call-log [data-vx-call-log-section="tasks"]:has(.vx-call-log-empty) {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation #vx-customer-call-log {
+    gap: 12px;
+    margin-top: 12px;
+    padding-bottom: calc(156px + env(safe-area-inset-bottom));
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card {
+    border-radius: 18px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__head {
+    align-items: center;
+    padding: 16px 16px 13px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__title {
+    font-size: 18px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-card__subtitle {
+    font-size: 13px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row {
+    grid-template-areas:
+      "icon main chevron"
+      "icon status chevron";
+    grid-template-columns: 44px minmax(0, 1fr) 30px;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    row-gap: 7px;
+    min-height: 88px;
+    padding: 12px 14px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-icon {
+    grid-area: icon;
+    align-self: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__main {
+    grid-area: main;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__title {
+    font-size: 15px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__meta,
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__summary {
+    font-size: 12px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row__aside {
+    display: contents;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-status {
+    grid-area: status;
+    justify-self: start;
+    max-width: 100%;
+    min-height: 24px;
+    padding: 4px 8px;
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-chevron {
+    grid-area: chevron;
+    align-self: center;
+    width: 30px;
+    height: 30px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-empty {
+    padding: 15px 16px 18px;
+  }
+}
+
+@media (max-width: 390px) {
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-row {
+    grid-template-columns: 42px minmax(0, 1fr) 28px;
+    column-gap: 10px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  body.vx-customer-design-foundation #vx-customer-call-log .vx-call-log-chevron {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* Call detail: compact canonical owner for fullscreen and desktop split. */
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite {
+  background: #f4f6f9 !important;
+  color: var(--vx-ink, #0d1f3c) !important;
+}
+
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-scroll-wrap.vx-call-detail-lite__scroll {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  background: #f4f6f9 !important;
+}
+
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-scroll-wrap > .vx-page-wrap {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-banner.vx-call-detail-lite__topbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: env(safe-area-inset-top) 0 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #0d1f3c !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite .vx-call-detail-lite__topbar-inner {
+  display: grid !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-height: 76px !important;
+  padding: 12px 18px !important;
+  box-sizing: border-box !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__nav {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 44px !important;
+  height: 44px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 13px !important;
+  background: rgba(255,255,255,.08) !important;
+  color: #fff !important;
+  cursor: pointer !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__nav i {
+  font-size: 20px !important;
+  line-height: 1 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__topbar-copy {
+  min-width: 0 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__topbar-copy span,
+body.vx-customer-design-foundation .vx-call-detail-lite__topbar-copy strong {
+  display: block !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__topbar-copy span {
+  margin-bottom: 2px !important;
+  color: rgba(255,255,255,.55) !important;
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  letter-spacing: .12em !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__topbar-copy strong {
+  overflow: hidden !important;
+  color: #fff !important;
+  font-size: 16px !important;
+  font-weight: 750 !important;
+  line-height: 1.25 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__topbar-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-stats-wrap,
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #vx-cd-bottom-bar {
+  display: none !important;
+}
+
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-content.vx-call-detail-lite__content {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #f4f6f9 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__shell {
+  width: min(760px, 100%) !important;
+  margin: 0 auto !important;
+  padding: 22px 18px calc(34px + env(safe-area-inset-bottom)) !important;
+  box-sizing: border-box !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__shell--embedded {
+  width: 100% !important;
+  max-width: none !important;
+  padding: 20px !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__identity {
+  display: grid !important;
+  grid-template-columns: 58px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+  padding: 20px !important;
+  border: 1px solid #e2e7ef !important;
+  border-radius: 20px !important;
+  background: #fff !important;
+  box-shadow: 0 10px 28px rgba(13,31,60,.06) !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__avatar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: #0d1f3c !important;
+  color: #fff !important;
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  letter-spacing: .02em !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__identity-copy {
+  min-width: 0 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__identity h1 {
+  margin: 0 !important;
+  overflow: hidden !important;
+  color: #0d1f3c !important;
+  font-size: 21px !important;
+  font-weight: 780 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -.02em !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__phone {
+  display: inline-block !important;
+  max-width: 100% !important;
+  margin-top: 5px !important;
+  overflow: hidden !important;
+  color: var(--vx-brand, #2563eb) !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  line-height: 1.3 !important;
+  text-decoration: none !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__meta {
+  margin-top: 5px !important;
+  color: #7b879c !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__status {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 28px !important;
+  padding: 5px 10px !important;
+  border-radius: 999px !important;
+  background: #eef4ff !important;
+  color: var(--vx-brand, #2563eb) !important;
+  font-size: 11px !important;
+  font-weight: 760 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__status[data-tone="success"],
+body.vx-customer-design-foundation .vx-call-detail-lite__status[data-tone="live"] {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__status[data-tone="attention"] {
+  background: #fff7ed !important;
+  color: #9a3412 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__status[data-tone="muted"],
+body.vx-customer-design-foundation .vx-call-detail-lite__status[data-tone="neutral"] {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin-top: 14px !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__action {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  min-height: 48px !important;
+  padding: 11px 14px !important;
+  border: 1px solid #dfe5ee !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  color: #0d1f3c !important;
+  font: inherit !important;
+  font-size: 14px !important;
+  font-weight: 720 !important;
+  line-height: 1.2 !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 14px rgba(13,31,60,.04) !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__action i {
+  font-size: 18px !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__action--primary {
+  border-color: #0d1f3c !important;
+  background: #0d1f3c !important;
+  color: #fff !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__action--quiet {
+  grid-column: 1 / -1 !important;
+  min-height: 42px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: #52627b !important;
+  box-shadow: none !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__body {
+  display: grid !important;
+  gap: 12px !important;
+  margin-top: 18px !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__card,
+body.vx-customer-design-foundation .vx-call-detail-lite__details {
+  overflow: hidden !important;
+  border: 1px solid #e2e7ef !important;
+  border-radius: 18px !important;
+  background: #fff !important;
+  box-shadow: 0 6px 20px rgba(13,31,60,.035) !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__card--next {
+  border-color: #cfe0fb !important;
+  background: #f8fbff !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__card-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 16px 18px 12px !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__card-head h2 {
+  margin: 0 !important;
+  color: #0d1f3c !important;
+  font-size: 15px !important;
+  font-weight: 760 !important;
+  line-height: 1.3 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__card-head span {
+  color: #98a4b7 !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  letter-spacing: .1em !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__card-body {
+  padding: 0 18px 18px !important;
+  color: #52627b !important;
+  font-size: 15px !important;
+  line-height: 1.58 !important;
+  white-space: pre-line !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__details summary {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  min-height: 54px !important;
+  padding: 0 18px !important;
+  color: #0d1f3c !important;
+  font-size: 14px !important;
+  font-weight: 740 !important;
+  line-height: 1.3 !important;
+  list-style: none !important;
+  cursor: pointer !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__details summary::-webkit-details-marker {
+  display: none !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__details summary i {
+  color: #7b879c !important;
+  font-size: 16px !important;
+  transition: transform .16s ease !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__details[open] summary i {
+  transform: rotate(180deg) !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__details-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  padding: 0 18px 14px !important;
+  border-top: 1px solid #edf0f5 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__detail-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+  padding: 14px 12px 12px 0 !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__detail-row span {
+  color: #98a4b7 !important;
+  font-size: 10px !important;
+  font-weight: 780 !important;
+  letter-spacing: .08em !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__detail-row strong {
+  overflow: hidden !important;
+  color: #0d1f3c !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  text-overflow: ellipsis !important;
+}
+
+body.vx-customer-design-foundation .vx-call-detail-lite__archive {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  min-height: 40px !important;
+  margin: 2px auto 0 !important;
+  padding: 8px 14px !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: #7b879c !important;
+  font: inherit !important;
+  font-size: 13px !important;
+  font-weight: 680 !important;
+  cursor: pointer !important;
+}
+
+body.vx-customer-design-foundation #requests-detail-v2.vx-call-detail-lite-host {
+  display: block;
+  height: 100%;
+  overflow: auto;
+  background: #f4f6f9 !important;
+}
+
+body.vx-customer-design-foundation #requests-detail-v2.vx-call-detail-lite-host .vx-call-detail-lite__identity {
+  border-radius: 16px !important;
+}
+
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite .vx-call-detail-lite__topbar-inner {
+    min-height: 72px !important;
+    padding: 10px 14px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__shell {
+    padding: 16px 14px calc(30px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__identity {
+    grid-template-columns: 52px minmax(0, 1fr) !important;
+    grid-template-areas:
+      "avatar copy"
+      "status status" !important;
+    gap: 12px !important;
+    padding: 17px !important;
+    border-radius: 18px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__avatar {
+    grid-area: avatar !important;
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    min-height: 52px !important;
+    border-radius: 16px !important;
+    font-size: 16px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__identity-copy {
+    grid-area: copy !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__identity h1 {
+    font-size: 19px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__status {
+    grid-area: status !important;
+    justify-self: start !important;
+    min-height: 26px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__actions {
+    margin-top: 12px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__action {
+    min-height: 46px !important;
+    padding: 10px 9px !important;
+    font-size: 13px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__card-head {
+    padding: 15px 16px 11px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__card-body {
+    padding: 0 16px 16px !important;
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  body.vx-customer-design-foundation .vx-call-detail-lite__topbar-copy strong {
+    font-size: 15px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__shell {
+    padding-right: 12px !important;
+    padding-left: 12px !important;
+  }
+
+  body.vx-customer-design-foundation .vx-call-detail-lite__details-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Defeat legacy ID-level mobile detail rules from the monolithic page stylesheet. */
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-content.vx-call-detail-lite__content #call-detail-avatar.vx-call-detail-lite__avatar {
+  display: flex !important;
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  max-width: 58px !important;
+  max-height: 58px !important;
+  margin: 0 !important;
+  border-radius: 18px !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-content.vx-call-detail-lite__content #call-detail-title {
+  display: block !important;
+  margin: 0 !important;
+  color: #0d1f3c !important;
+  font-size: 21px !important;
+  font-weight: 780 !important;
+  line-height: 1.2 !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-content.vx-call-detail-lite__content #call-detail-subtitle {
+  display: block !important;
+  margin-top: 5px !important;
+  color: #7b879c !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.35 !important;
+  opacity: 1 !important;
+  white-space: normal !important;
+  transform: none !important;
+}
+
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-content.vx-call-detail-lite__content #call-detail-avatar.vx-call-detail-lite__avatar {
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    min-height: 52px !important;
+    max-width: 52px !important;
+    max-height: 52px !important;
+    border-radius: 16px !important;
+  }
+
+  body.vx-customer-design-foundation #call-detail-page.vx-call-detail-lite #call-detail-content.vx-call-detail-lite__content #call-detail-title {
+    font-size: 19px !important;
+  }
+}
