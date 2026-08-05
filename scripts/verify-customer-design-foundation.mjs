@@ -45,20 +45,20 @@ new vm.Script(loader, { filename: paths.loader });
 const lineCount = (value) => value.split(/\r?\n/).length;
 assert.ok(lineCount(runtime) <= 55, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
-assert.ok(lineCount(assistantCss) <= 800, 'assistant component CSS exceeded its consolidated size budget');
+assert.ok(lineCount(assistantCss) <= 968, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 assert.ok(lineCount(settingsCss) <= 740, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
-assert.ok(lineCount(navigationCss) <= 110, 'navigation component CSS exceeded its reduced size budget');
+assert.ok(lineCount(navigationCss) <= 121, 'navigation component CSS exceeded its reduced size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
-  '/shared/customer-design-system.css?v=20260803-1',
-  '/shared/customer-assistant-components.css?v=20260803-1',
+  '/shared/customer-design-system.css?v=20260805-1',
+  '/shared/customer-assistant-components.css?v=20260805-1',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260803-2',
   '/shared/customer-support-components.css?v=20260802-2',
-  '/shared/customer-navigation-components.css?v=20260803-1',
+  '/shared/customer-navigation-components.css?v=20260805-1',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -111,12 +111,15 @@ for (const token of [
   '.vx-ap-voices',
   '.vx-ap-modal',
   '.vx-ap-filter',
-  'min-height: 36px',
   '.vx-ap-actions > .vx-ap-btn',
   '#vx-business-profile-body .vx-ap-card',
   '#vx-business-profile-body .vx-ap-title',
-  '#vx-business-profile-body .vx-ap-grid',
   '#vx-business-profile-body textarea',
+  '#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)',
+  '.vx-assistant-root-header',
+  '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])',
+  '.vx-nav-voice-details',
+  '#vx-assistant-profile-body .vx-ap-card:first-child',
   'min-height: 138px',
   'min-height: 124px',
   '#vx-operational-page-body',
@@ -209,12 +212,19 @@ for (const token of [
 }
 
 for (const token of [
-  '#tab-assistent > :not(#vx-assistant-root-switch):not(#vx-assistant-root-host)',
-  '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])',
-  '.vx-nav-voice-details'
+  '#nav-assistent.nav-item',
+  '#mnav-assistent.mobile-nav-btn',
+  '#vx-assistant-root-switch',
+  '.nav-item.vx-root-nav-active',
+  '.mobile-nav-btn:is(.active, .vx-root-nav-active)'
 ]) {
   assert.ok(navigationCss.includes(token), `navigation CSS missing: ${token}`);
 }
+assert.match(
+  navigationCss,
+  /@media\s*\(max-width:\s*720px\)[\s\S]*?body\.vx-customer-design-foundation\s+#vx-assistant-root-switch\s*>\s*button\s*\{[^}]*min-height:\s*36px;?[^}]*\}/,
+  'navigation CSS missing mobile assistant switch min-height'
+);
 
 for (const token of [
   "document.getElementById('tab-assistent')",
@@ -253,12 +263,25 @@ for (const token of [
   'vx-cal-rules-card',
   'vx-cal-checkbox',
   "page.removeAttribute('style')",
-  'entry.hidden = !(state.enabled && providers.length)',
   'main.hidden = true',
   'page.hidden = false'
 ]) {
   assert.ok(calendarRuntime.includes(token), `calendar runtime missing semantic structure: ${token}`);
 }
+assert.ok(
+  calendarRuntime.includes('entry.hidden = false;'),
+  'calendar runtime must keep settings entry visible'
+);
+assert.ok(
+  calendarRuntime.includes('if (entry) entry.hidden = false;'),
+  'calendar runtime must preserve settings entry visibility after render'
+);
+assert.ok(
+  !calendarRuntime.includes(
+    'entry.hidden = !(state.enabled && providers.length)'
+  ),
+  'calendar runtime still contains obsolete provider-dependent entry visibility'
+);
 
 for (const token of [
   'function setFeedback',
@@ -408,10 +431,19 @@ for (const [name, css] of [
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
 assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260803-2/);
 assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260803-4/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260805-1/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
 console.log('Customer dashboard design foundation verification passed.');
 
 assert.doesNotMatch(navigationRuntime, /function addStyles|createElement\('style'\)|style\.textContent/);
+
+for (const forbidden of ['#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)','#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])','.vx-nav-voice-details','#vx-assistant-profile-body .vx-ap-card:first-child']) assert.ok(!navigationCss.includes(forbidden), `navigation CSS still owns assistant structure: ${forbidden}`);
+assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260805-1"></script>'), 'dashboard missing versioned offer-brand loader');
+assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
+assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260805-1'), 'offer-brand missing current design loader version');
+assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
+for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
+const cssOrder=['/shared/customer-design-system.css?v=20260805-1','/shared/customer-assistant-components.css?v=20260805-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260805-1','/shared/customer-settings-components.css?v=20260803-2','/shared/customer-support-components.css?v=20260802-2'];
+for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

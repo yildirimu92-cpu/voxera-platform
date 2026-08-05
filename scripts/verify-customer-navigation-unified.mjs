@@ -7,7 +7,8 @@ const files = {
   loader: 'customer-dashboard/shared/offer-brand.js',
   assistant: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   operational: 'customer-dashboard/shared/customer-runtime-operational-updates.js',
-  css: 'customer-dashboard/shared/customer-navigation-components.css'
+  css: 'customer-dashboard/shared/customer-navigation-components.css',
+  assistantCss: 'customer-dashboard/shared/customer-assistant-components.css'
 };
 const source = Object.fromEntries(Object.entries(files).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')]));
 for (const [key, path] of Object.entries(files)) {
@@ -61,10 +62,14 @@ assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=2026080
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-4/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260802-5/);
-assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260803-4/);
-assert.match(source.css, /#tab-assistent > :not\(#vx-assistant-root-switch\):not\(#vx-assistant-root-host\)/);
-assert.match(source.css, /#vx-assistant-root-host > \[data-vx-assistant-managed-page\]:not\(\[hidden\]\)/);
-assert.match(source.css, /vx-nav-voice-details/);
+assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260805-1/);
+assert.doesNotMatch(source.loader, /customer-runtime-design-foundation\.js\?v=20260803-4/);
+assert.match(source.assistantCss, /#tab-assistent > :not\(#vx-assistant-root-header\):not\(#vx-assistant-root-switch\):not\(#vx-assistant-root-host\)/);
+assert.match(source.assistantCss, /#vx-assistant-root-host > \[data-vx-assistant-managed-page\]:not\(\[hidden\]\)/);
+assert.match(source.assistantCss, /vx-nav-voice-details/);
+assert.doesNotMatch(source.css, /#tab-assistent > :not\(#vx-assistant-root-switch\):not\(#vx-assistant-root-host\)/);
+assert.doesNotMatch(source.css, /#vx-assistant-root-host > \[data-vx-assistant-managed-page\]:not\(\[hidden\]\)/);
+assert.doesNotMatch(source.css, /vx-nav-voice-details/);
 assert.doesNotMatch(source.css, /vx-nav-status-details|vx-nav-status-summary|vx-as-capability-toggle|vx-as-capabilities-simple/);
 assert.doesNotMatch(source.css, /!important/);
 
