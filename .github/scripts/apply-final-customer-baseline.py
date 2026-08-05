@@ -304,3 +304,34 @@ new_bootstrap = """  ['dashboard synchronously loads secure shared bootstrap', /
 assert p0verifier.count(old_bootstrap) == 1
 p0verifier = p0verifier.replace(old_bootstrap, new_bootstrap, 1)
 P(p0p).write_text(p0verifier, encoding="utf-8")
+
+unified_path = P("scripts/verify-customer-navigation-unified.mjs")
+unified = unified_path.read_text(encoding="utf-8")
+
+files_anchor = """  css: 'customer-dashboard/shared/customer-navigation-components.css'
+};"""
+files_replacement = """  css: 'customer-dashboard/shared/customer-navigation-components.css',
+  assistantCss: 'customer-dashboard/shared/customer-assistant-components.css'
+};"""
+assert unified.count(files_anchor) == 1
+unified = unified.replace(files_anchor, files_replacement, 1)
+
+old_loader = """assert.match(source.loader, /customer-runtime-design-foundation\\.js\\?v=20260803-4/);"""
+new_loader = """assert.match(source.loader, /customer-runtime-design-foundation\\.js\\?v=20260805-1/);
+assert.doesNotMatch(source.loader, /customer-runtime-design-foundation\\.js\\?v=20260803-4/);"""
+assert unified.count(old_loader) == 1
+unified = unified.replace(old_loader, new_loader, 1)
+
+old_css_contract = """assert.match(source.css, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
+assert.match(source.css, /#vx-assistant-root-host > \\[data-vx-assistant-managed-page\\]:not\\(\\[hidden\\]\\)/);
+assert.match(source.css, /vx-nav-voice-details/);"""
+new_css_contract = """assert.match(source.assistantCss, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
+assert.match(source.assistantCss, /#vx-assistant-root-host > \\[data-vx-assistant-managed-page\\]:not\\(\\[hidden\\]\\)/);
+assert.match(source.assistantCss, /vx-nav-voice-details/);
+assert.doesNotMatch(source.css, /#tab-assistent > :not\\(#vx-assistant-root-switch\\):not\\(#vx-assistant-root-host\\)/);
+assert.doesNotMatch(source.css, /#vx-assistant-root-host > \\[data-vx-assistant-managed-page\\]:not\\(\\[hidden\\]\\)/);
+assert.doesNotMatch(source.css, /vx-nav-voice-details/);"""
+assert unified.count(old_css_contract) == 1
+unified = unified.replace(old_css_contract, new_css_contract, 1)
+
+unified_path.write_text(unified, encoding="utf-8")
