@@ -110,10 +110,12 @@
   function outcome(record) {
     if (truthy(read(record, 'callback_requested'))) return 'Rückruf empfohlen';
     const next = lower(first(record, ['next_action', 'action_required']));
+    if (!next) return null;
+    if (/^(keine?|nicht|ohne)\b|kein(?:e|en|er|es)?\s+(?:aktion|handlungsbedarf|nächster schritt)|nichts zu tun|nicht erforderlich/.test(next)) return null;
     if (/rückruf|rueckruf|callback|zurückrufen|zurueckrufen|erneut versuchen/.test(next)) return 'Rückruf empfohlen';
     if (/termin|appointment/.test(next)) return 'Termin prüfen';
     if (/offerte|angebot|quote/.test(next)) return 'Offerte prüfen';
-    if (/information senden/.test(next)) return 'Information senden';
+    if (/information|info\b|e-?mail|unterlagen|dokument|nachricht|zusenden|senden/.test(next)) return 'Information senden';
     return null;
   }
 
