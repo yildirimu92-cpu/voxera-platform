@@ -146,6 +146,28 @@ const wrappedProviderCall = model.timestamp({
 assert.equal(wrappedProviderCall, '2026-08-05T12:07:04Z');
 assert.match(model.formatZurichDateTime(wrappedProviderCall), /14:07/);
 
+// Today/detail can receive a flattened wrapper without nested fields. Resolve
+// the persisted Anfragen row by stable ID before choosing the timestamp.
+globalThis.allRecords = [{
+  id: 'call_current',
+  fields: {
+    id: 'call_current',
+    call_id: 'CA_CURRENT',
+    started_at: '2026-08-05 12:07:00',
+    created_at: '2026-08-05T12:07:04Z'
+  }
+}];
+const flattenedTodayWrapper = {
+  id: 'call_current',
+  call_id: 'CA_CURRENT',
+  started_at: '2026-08-05 12:07:00',
+  created_at: '2026-08-05T10:07:00Z'
+};
+const resolvedWrapperTimestamp = model.timestamp(flattenedTodayWrapper);
+assert.equal(resolvedWrapperTimestamp, '2026-08-05T12:07:04Z');
+assert.match(model.formatZurichDateTime(resolvedWrapperTimestamp), /14:07/);
+delete globalThis.allRecords;
+
 const explicitStartStillWins = model.timestamp({
   fields: {
     started_at: '2026-08-05T12:07:00Z',
