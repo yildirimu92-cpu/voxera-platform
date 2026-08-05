@@ -2,7 +2,13 @@
   'use strict';
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  if (root) root.VoxeraCustomerCallViewModel = api;
+  if (root) {
+    root.VoxeraCustomerCallViewModel = api;
+    root.vxGetCanonicalCallTimestamp = api.timestamp;
+    // Compatibility bridge for the existing detail renderer in index.html.
+    // The canonical call timestamp owner prefers the real call start over record creation time.
+    if (typeof root.getRecordTimestamp === 'function') root.getRecordTimestamp = api.timestamp;
+  }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createCustomerCallViewModel() {
   'use strict';
 
@@ -44,29 +50,48 @@
     return '';
   }
 
+  function allValues(record, keys) {
+    const nested = fields(record);
+    const result = [];
+    for (const key of keys) {
+      if (record && record[key] !== undefined && record[key] !== null && text(record[key]) !== '') {
+        result.push(lower(record[key]));
+      }
+      if (nested[key] !== undefined && nested[key] !== null && text(nested[key]) !== '') {
+        result.push(lower(nested[key]));
+      }
+    }
+    return result;
+  }
+
   function isLive(record) {
-    const live = lower(first(record, ['live_status', 'call_status', 'telephony_status', 'status']));
-    if (LIVE_STATUSES.has(live)) return true;
-    if (TERMINAL_STATUSES.has(live) || ANALYSING_STATUSES.has(live) || ARCHIVED_STATUSES.has(live)) return false;
+    const states = allValues(record, ['live_status', 'call_status', 'telephony_status']);
+    if (states.some((state) => TERMINAL_STATUSES.has(state) || ANALYSING_STATUSES.has(state) || ARCHIVED_STATUSES.has(state))) {
+      return false;
+    }
+    if (states.some((state) => LIVE_STATUSES.has(state))) return true;
     return truthy(read(record, 'is_live'));
   }
 
   function isAnalysisPending(record) {
     if (isLive(record)) return false;
-    const live = lower(first(record, ['live_status', 'call_status', 'telephony_status']));
-    if (ANALYSING_STATUSES.has(live)) return true;
+    const states = allValues(record, ['live_status', 'call_status', 'telephony_status']);
+    if (states.some((state) => ANALYSING_STATUSES.has(state))) return true;
     const summary = text(first(record, ['call_summary', 'summary', 'call_summary_short']));
     const conversationId = text(first(record, ['elevenlabs_conversation_id', 'conversation_id']));
-    return Boolean(conversationId && TERMINAL_STATUSES.has(live) && !summary);
+    return Boolean(conversationId && states.some((state) => TERMINAL_STATUSES.has(state)) && !summary);
   }
 
   function workflowState(record) {
-    const dashboard = lower(first(record, ['dashboard_status', 'workflow_status', 'status']));
-    if (ARCHIVED_STATUSES.has(dashboard)) return 'archived';
-    if (PLANNED_STATUSES.has(dashboard) || text(read(record, 'follow_up_at'))) return 'planned';
-    if (DONE_STATUSES.has(dashboard)) return 'done';
-    if (WORKING_STATUSES.has(dashboard) || text(read(record, 'read_at'))) return 'working';
-    if (OPEN_STATUSES.has(dashboard) || !dashboard) return 'new';
+    const states = allValues(record, ['dashboard_status', 'workflow_status', 'status']);
+
+    // A terminal customer workflow state must win over stale wrapper values such as
+    // top-level "Offen" or "In Bearbeitung".
+    if (states.some((state) => ARCHIVED_STATUSES.has(state))) return 'archived';
+    if (states.some((state) => DONE_STATUSES.has(state))) return 'done';
+    if (states.some((state) => PLANNED_STATUSES.has(state)) || text(first(record, ['follow_up_at', 'callback_at', 'due_at']))) return 'planned';
+    if (states.some((state) => WORKING_STATUSES.has(state)) || text(read(record, 'read_at'))) return 'working';
+    if (states.some((state) => OPEN_STATUSES.has(state)) || !states.length) return 'new';
     return 'new';
   }
 
@@ -137,7 +162,13 @@
   }
 
   function timestamp(record) {
-    return first(record, ['started_at', 'created_at', 'call_started_at', 'updated_at']) || null;
+    return first(record, [
+      'started_at',
+      'call_started_at',
+      'start_time',
+      'created_at',
+      'updated_at'
+    ]) || null;
   }
 
   function formatZurichDateTime(value, options) {
@@ -180,6 +211,7 @@
     category,
     leadQuality,
     outcome,
+    timestamp,
     formatZurichDateTime,
     build
   });
