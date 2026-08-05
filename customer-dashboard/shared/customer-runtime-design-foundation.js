@@ -44,8 +44,8 @@
   };
 
   loadSequentialScripts([
-    '/shared/customer-call-view-model.js?v=20260805-6',
-    '/shared/customer-call-log-model.js?v=20260805-5',
+    '/shared/customer-call-view-model.js?v=20260805-7',
+    '/shared/customer-call-log-model.js?v=20260805-6',
     '/shared/customer-runtime-call-log-owner.js?v=20260805-4'
   ]);
 
