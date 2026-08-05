@@ -7,21 +7,76 @@
     return String(value == null ? '' : value).trim();
   }
 
-  function latestRelevantTrace() {
-    if (typeof root.vxGetCallDiagnostics !== 'function') return null;
-    var traces = root.vxGetCallDiagnostics();
-    if (!Array.isArray(traces) || !traces.length) return null;
-    var currentId = text(root._vxCurrentCallId || root._vxCurrentCallRecordId || '');
-    for (var index = traces.length - 1; index >= 0; index -= 1) {
-      var item = traces[index];
-      if (!currentId) return item;
-      var identities = Array.isArray(item && item.identities) ? item.identities : [];
-      var originalIdentities = item && item.matchedOriginal && Array.isArray(item.matchedOriginal.identities)
-        ? item.matchedOriginal.identities
-        : [];
-      if (identities.indexOf(currentId) !== -1 || originalIdentities.indexOf(currentId) !== -1) return item;
-    }
-    return traces[traces.length - 1];
+  function fields(record) {
+    return record && record.fields && typeof record.fields === 'object' ? record.fields : {};
+  }
+
+  function value(record, key) {
+    var nested = fields(record);
+    return {
+      top: record && record[key] != null ? record[key] : null,
+      nested: nested[key] != null ? nested[key] : null
+    };
+  }
+
+  function identityKeys(record) {
+    var nested = fields(record);
+    var result = [];
+    [
+      'id', 'call_id', 'source_call_id', 'provider_call_id', 'external_call_id',
+      'elevenlabs_conversation_id', 'conversation_id'
+    ].forEach(function (key) {
+      [record && record[key], nested[key]].forEach(function (candidate) {
+        var normalized = text(candidate);
+        if (normalized && result.indexOf(normalized) === -1) result.push(normalized);
+      });
+    });
+    return result;
+  }
+
+  function currentCallIds() {
+    var result = [];
+    [root._vxCurrentCallId, root._vxCurrentCallRecordId].forEach(function (candidate) {
+      var normalized = text(candidate);
+      if (normalized && result.indexOf(normalized) === -1) result.push(normalized);
+    });
+    return result;
+  }
+
+  function matchesCurrent(record, ids) {
+    if (!record || !ids.length) return false;
+    return identityKeys(record).some(function (key) { return ids.indexOf(key) !== -1; });
+  }
+
+  function findOriginalRecord() {
+    var ids = currentCallIds();
+    var all = Array.isArray(root.allRecords) ? root.allRecords : [];
+    return all.find(function (record) { return matchesCurrent(record, ids); }) || null;
+  }
+
+  function canonicalTimestamp(record) {
+    try {
+      if (root.VoxeraCustomerCallViewModel && typeof root.VoxeraCustomerCallViewModel.timestamp === 'function') {
+        return root.VoxeraCustomerCallViewModel.timestamp(record);
+      }
+    } catch (_error) {}
+    return null;
+  }
+
+  function formattedTimestamp(timestamp) {
+    try {
+      if (root.VoxeraCustomerCallViewModel && typeof root.VoxeraCustomerCallViewModel.formatZurichDateTime === 'function') {
+        return root.VoxeraCustomerCallViewModel.formatZurichDateTime(timestamp);
+      }
+    } catch (_error) {}
+    return null;
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '—' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   function valuePair(pair) {
@@ -29,58 +84,70 @@
     return 'top=' + text(pair.top || '—') + '\nfields=' + text(pair.nested || '—');
   }
 
-  function row(label, value) {
-    return '<div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;padding:7px 0;border-bottom:1px solid #e6ebf2;">' +
-      '<strong style="font-size:11px;color:#66738a;">' + label + '</strong>' +
-      '<pre style="margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;color:#10213f;">' +
-      String(value == null ? '—' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre></div>';
+  function row(label, data) {
+    return '<div style="display:grid;grid-template-columns:132px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid #e5d79a;">' +
+      '<strong style="font-size:11px;color:#6b5a16;">' + escapeHtml(label) + '</strong>' +
+      '<pre style="margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#10213f;">' +
+      escapeHtml(data) + '</pre></div>';
+  }
+
+  function latestTrace() {
+    if (typeof root.vxGetCallDiagnostics !== 'function') return null;
+    var traces = root.vxGetCallDiagnostics();
+    if (!Array.isArray(traces) || !traces.length) return null;
+    var ids = currentCallIds();
+    for (var index = traces.length - 1; index >= 0; index -= 1) {
+      var trace = traces[index] || {};
+      var traceIds = Array.isArray(trace.identities) ? trace.identities : [];
+      if (!ids.length || traceIds.some(function (id) { return ids.indexOf(id) !== -1; })) return trace;
+    }
+    return traces[traces.length - 1];
   }
 
   function renderPanel() {
-    var page = root.document.querySelector('.vx-call-detail-lite, #call-detail-page');
-    if (!page) return;
-    var trace = latestRelevantTrace();
-    if (!trace) return;
+    var page = root.document.getElementById('call-detail-page');
+    if (!page || !page.classList.contains('show')) return;
 
-    var existing = root.document.getElementById('vx-call-diagnostics-panel');
-    if (!existing) {
-      existing = root.document.createElement('section');
-      existing.id = 'vx-call-diagnostics-panel';
-      existing.style.cssText = 'margin:16px 24px 140px;padding:16px;border:2px solid #e6a700;border-radius:16px;background:#fff8dc;box-shadow:0 8px 24px rgba(16,33,63,.08);';
-      page.appendChild(existing);
+    var original = findOriginalRecord();
+    var trace = latestTrace();
+    var timestamp = original ? canonicalTimestamp(original) : null;
+    var formatted = formattedTimestamp(timestamp);
+    var ids = currentCallIds();
+
+    var panel = root.document.getElementById('vx-call-diagnostics-panel');
+    if (!panel) {
+      panel = root.document.createElement('section');
+      panel.id = 'vx-call-diagnostics-panel';
+      panel.style.cssText = 'margin:18px 24px 160px;padding:16px;border:3px solid #e6a700;border-radius:16px;background:#fff8d6;box-shadow:0 8px 24px rgba(16,33,63,.12);';
+      var host = root.document.getElementById('call-detail-content') || page;
+      host.appendChild(panel);
     }
 
-    var original = trace.matchedOriginal || {};
-    existing.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">' +
-      '<div><strong style="display:block;font-size:15px;color:#10213f;">Temporäre Call-Diagnose</strong>' +
-      '<span style="font-size:12px;color:#66738a;">Screenshot dieser Karte senden</span></div>' +
-      '<button type="button" onclick="vxCopyCallDiagnostics()" style="border:1px solid #d4dae4;background:#fff;border-radius:10px;padding:8px 10px;font-weight:700;">JSON kopieren</button></div>' +
-      row('View', trace.view + ' / ' + trace.activeSurface) +
-      row('IDs', (trace.identities || []).join('\n')) +
-      row('Input shape', trace.recordShape) +
-      row('Input started_at', valuePair(trace.raw && trace.raw.started_at)) +
-      row('Input created_at', valuePair(trace.raw && trace.raw.created_at)) +
-      row('Input updated_at', valuePair(trace.raw && trace.raw.updated_at)) +
-      row('Input canonical', trace.canonicalTimestamp) +
-      row('Input Zürich', trace.formattedZurich) +
-      row('Original shape', original.recordShape) +
-      row('Original started_at', valuePair(original.started_at)) +
-      row('Original created_at', valuePair(original.created_at)) +
-      row('Original updated_at', valuePair(original.updated_at)) +
-      row('Original canonical', original.canonicalTimestamp) +
-      row('Original Zürich', original.formattedZurich) +
-      row('Status input', JSON.stringify(trace.raw && {
-        dashboard_status: trace.raw.dashboard_status,
-        workflow_status: trace.raw.workflow_status,
-        status: trace.raw.status,
-        live_status: trace.raw.live_status
-      }, null, 2));
+    panel.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">' +
+      '<div><strong style="display:block;font-size:16px;color:#10213f;">Temporäre Call-Diagnose</strong>' +
+      '<span style="display:block;margin-top:3px;font-size:12px;color:#6b5a16;">Diese Karte muss sichtbar sein. Screenshot vollständig senden.</span></div>' +
+      '<span style="padding:5px 8px;border-radius:999px;background:#e6a700;color:#10213f;font-size:11px;font-weight:800;">DEBUG</span></div>' +
+      row('Current IDs', ids.length ? ids.join('\n') : 'KEINE CURRENT CALL ID') +
+      row('allRecords', Array.isArray(root.allRecords) ? String(root.allRecords.length) : 'nicht vorhanden') +
+      row('Original gefunden', original ? 'JA' : 'NEIN') +
+      row('Original IDs', original ? identityKeys(original).join('\n') : '—') +
+      row('started_at', original ? valuePair(value(original, 'started_at')) : '—') +
+      row('call_started_at', original ? valuePair(value(original, 'call_started_at')) : '—') +
+      row('start_time', original ? valuePair(value(original, 'start_time')) : '—') +
+      row('created_at', original ? valuePair(value(original, 'created_at')) : '—') +
+      row('updated_at', original ? valuePair(value(original, 'updated_at')) : '—') +
+      row('Canonical timestamp', timestamp || '—') +
+      row('Canonical Zürich', formatted || '—') +
+      row('Detail header', text((root.document.querySelector('.vx-call-detail-lite__meta') || {}).textContent || '—')) +
+      row('Trace vorhanden', trace ? 'JA: ' + text(trace.view) : 'NEIN') +
+      row('Trace canonical', trace ? text(trace.canonicalTimestamp || '—') : '—') +
+      row('Trace Zürich', trace ? text(trace.formattedZurich || '—') : '—');
   }
 
   var attempts = 0;
   var timer = root.setInterval(function () {
     attempts += 1;
     renderPanel();
-    if (attempts > 1200) root.clearInterval(timer);
+    if (attempts > 2400) root.clearInterval(timer);
   }, 250);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
