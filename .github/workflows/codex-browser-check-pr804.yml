@@ -1,0 +1,220 @@
+name: Codex Browser Check PR 804
+
+on:
+  push:
+    branches:
+      - codex/tmp-complete-customer-baseline-20260806
+    paths:
+      - .github/workflows/codex-browser-check-pr804.yml
+
+permissions:
+  contents: read
+  statuses: read
+
+jobs:
+  browser-check:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_HEAD: 809839882ffc4dea9484ed8197b603bce9590a2a
+      PREVIEW_URL: https://deploy-preview-804--voxera-dashboard.netlify.app
+    steps:
+      - name: Verify preview belongs to exact source head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          status="$(gh api repos/${GITHUB_REPOSITORY}/commits/${SOURCE_HEAD}/status)"
+          jq -e --arg url "$PREVIEW_URL" '
+            .sha == env.SOURCE_HEAD and
+            any(.statuses[];
+              .context == "netlify/voxera-dashboard/deploy-preview" and
+              .state == "success" and
+              .description == "Deploy Preview ready!" and
+              .target_url == $url
+            )
+          ' <<<"$status"
+          jq -e '
+            any(.statuses[];
+              .context == "netlify/voxera-admin/deploy-preview" and
+              .state == "success" and
+              .description == "Deploy Preview canceled."
+            )
+          ' <<<"$status"
+
+      - name: Verify preview HTTP response
+        run: |
+          set -euo pipefail
+          mkdir -p browser-output
+          curl --fail --location --silent --show-error \
+            --output /tmp/preview.html \
+            --write-out '{"http_code":%{http_code},"url_effective":"%{url_effective}","content_type":"%{content_type},"size_download":%{size_download}}\n' \
+            "$PREVIEW_URL" | tee browser-output/http.json
+          test "$(jq -r .http_code browser-output/http.json)" = "200"
+          test "$(jq -r .url_effective browser-output/http.json)" = "$PREVIEW_URL/"
+
+      - name: Install browser driver
+        run: |
+          set -euo pipefail
+          google-chrome --version
+          mkdir -p /tmp/browser-check
+          cd /tmp/browser-check
+          npm init -y >/dev/null
+          npm install --silent puppeteer-core@24
+
+      - name: Capture desktop and mobile evidence
+        run: |
+          set -euo pipefail
+          cat >/tmp/browser-check/check.mjs <<'JS'
+          import fs from 'node:fs';
+          import puppeteer from 'puppeteer-core';
+
+          const previewUrl = process.env.PREVIEW_URL;
+          const sourceHead = process.env.SOURCE_HEAD;
+          const outputDir = `${process.cwd()}/browser-output`;
+          fs.mkdirSync(outputDir, { recursive: true });
+
+          const viewports = [
+            { name: 'desktop-1440x900', width: 1440, height: 900, mobile: false },
+            { name: 'mobile-390x844', width: 390, height: 844, mobile: true },
+            { name: 'mobile-375x812', width: 375, height: 812, mobile: true },
+            { name: 'mobile-320x568', width: 320, height: 568, mobile: true },
+          ];
+
+          const browser = await puppeteer.launch({
+            executablePath: '/usr/bin/google-chrome',
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+          });
+
+          const results = [];
+          let failed = false;
+          try {
+            for (const viewport of viewports) {
+              const page = await browser.newPage();
+              await page.setViewport({
+                width: viewport.width,
+                height: viewport.height,
+                deviceScaleFactor: 1,
+                isMobile: viewport.mobile,
+                hasTouch: viewport.mobile,
+              });
+
+              const consoleErrors = [];
+              const pageErrors = [];
+              const requestFailures = [];
+              page.on('console', message => {
+                if (message.type() === 'error') consoleErrors.push(message.text());
+              });
+              page.on('pageerror', error => pageErrors.push(String(error)));
+              page.on('requestfailed', request => {
+                requestFailures.push({ url: request.url(), error: request.failure()?.errorText || 'unknown' });
+              });
+
+              const response = await page.goto(previewUrl, {
+                waitUntil: 'networkidle2',
+                timeout: 90000,
+              });
+              await new Promise(resolve => setTimeout(resolve, 3000));
+
+              const diagnostics = await page.evaluate(() => {
+                const html = document.documentElement;
+                const body = document.body;
+                const visible = element => {
+                  if (!element) return false;
+                  const style = getComputedStyle(element);
+                  const rect = element.getBoundingClientRect();
+                  return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+                };
+                const loginCandidates = [
+                  document.querySelector('#login-screen'),
+                  document.querySelector('[data-login-screen]'),
+                  document.querySelector('form input[type="email"]')?.closest('form'),
+                ].filter(Boolean);
+                const visibleDialogs = [...document.querySelectorAll('[role="dialog"], .modal, .vx-modal')]
+                  .filter(visible)
+                  .map(element => ({
+                    id: element.id || '',
+                    className: String(element.className || '').slice(0, 160),
+                    rect: element.getBoundingClientRect().toJSON(),
+                  }));
+                return {
+                  title: document.title,
+                  url: location.href,
+                  readyState: document.readyState,
+                  innerWidth: innerWidth,
+                  innerHeight: innerHeight,
+                  devicePixelRatio: devicePixelRatio,
+                  htmlClientWidth: html.clientWidth,
+                  htmlScrollWidth: html.scrollWidth,
+                  bodyClientWidth: body?.clientWidth || 0,
+                  bodyScrollWidth: body?.scrollWidth || 0,
+                  bodyScrollHeight: body?.scrollHeight || 0,
+                  horizontalOverflow: Math.max(html.scrollWidth, body?.scrollWidth || 0) > innerWidth + 1,
+                  visibleLoginCandidate: loginCandidates.some(visible),
+                  visibleDialogCount: visibleDialogs.length,
+                  visibleDialogs,
+                  bodyTextSample: String(body?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500),
+                };
+              });
+
+              const screenshot = `${outputDir}/${viewport.name}.png`;
+              await page.screenshot({ path: screenshot, fullPage: false });
+              const result = {
+                sourceHead,
+                previewUrl,
+                viewport,
+                responseStatus: response?.status() || 0,
+                responseUrl: response?.url() || '',
+                diagnostics,
+                consoleErrors,
+                pageErrors,
+                requestFailures,
+                screenshot: `${viewport.name}.png`,
+              };
+              results.push(result);
+
+              if (result.responseStatus !== 200 || diagnostics.horizontalOverflow || pageErrors.length > 0) {
+                failed = true;
+              }
+              await page.close();
+            }
+          } finally {
+            await browser.close();
+          }
+
+          const summary = {
+            sourceHead,
+            previewUrl,
+            total: results.length,
+            passed: results.filter(result => result.responseStatus === 200 && !result.diagnostics.horizontalOverflow && result.pageErrors.length === 0).length,
+            failed: results.filter(result => result.responseStatus !== 200 || result.diagnostics.horizontalOverflow || result.pageErrors.length > 0).length,
+            results,
+          };
+          fs.writeFileSync(`${outputDir}/browser-report.json`, JSON.stringify(summary, null, 2));
+          console.log(JSON.stringify({ total: summary.total, passed: summary.passed, failed: summary.failed }, null, 2));
+          if (failed) process.exit(1);
+          JS
+          NODE_PATH=/tmp/browser-check/node_modules node /tmp/browser-check/check.mjs
+
+      - name: Verify screenshot files
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s browser-output/browser-report.json
+          for image in \
+            browser-output/desktop-1440x900.png \
+            browser-output/mobile-390x844.png \
+            browser-output/mobile-375x812.png \
+            browser-output/mobile-320x568.png; do
+            test -s "$image"
+            file "$image"
+          done
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr804-browser-evidence
+          path: browser-output
+          if-no-files-found: error
+          retention-days: 14
