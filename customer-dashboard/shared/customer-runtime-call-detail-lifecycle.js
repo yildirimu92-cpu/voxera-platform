@@ -19,7 +19,7 @@
     var nested = fields(record);
     var result = [];
     [
-      'id', 'call_id', 'source_call_id', 'provider_call_id', 'external_call_id',
+      'id', 'call_id', 'task_id', 'source_call_id', 'provider_call_id', 'external_call_id',
       'elevenlabs_conversation_id', 'conversation_id'
     ].forEach(function (key) {
       [record && record[key], nested[key]].forEach(function (candidate) {
@@ -30,13 +30,36 @@
     return result;
   }
 
+  function appendUnique(result, collection) {
+    (Array.isArray(collection) ? collection : []).forEach(function (record) {
+      if (record && result.indexOf(record) === -1) result.push(record);
+    });
+  }
+
   function allCallRecords() {
     var result = [];
-    [root.allRecords, root.latestActivityRecords].forEach(function (collection) {
-      (Array.isArray(collection) ? collection : []).forEach(function (record) {
-        if (record && result.indexOf(record) === -1) result.push(record);
-      });
-    });
+    appendUnique(result, root.allRecords);
+    appendUnique(result, root.allManualTaskRecords);
+    appendUnique(result, root.latestActivityRecords);
+
+    try {
+      if (typeof root.vxGetAnfragenSourceRecords === 'function') {
+        appendUnique(result, root.vxGetAnfragenSourceRecords());
+      }
+    } catch (_error) {}
+
+    try {
+      if (typeof _dashPriorityAllRecords !== 'undefined') appendUnique(result, _dashPriorityAllRecords);
+    } catch (_error2) {}
+
+    try {
+      if (typeof heuteTodayCallRecords !== 'undefined') appendUnique(result, heuteTodayCallRecords);
+    } catch (_error3) {}
+
+    try {
+      if (typeof heuteActivityRecords !== 'undefined') appendUnique(result, heuteActivityRecords);
+    } catch (_error4) {}
+
     return result;
   }
 
@@ -201,12 +224,24 @@
     return renderCanonicalFullscreen(original);
   }
 
+  root.vxOpenCustomerRecordDetail = function vxOpenCustomerRecordDetail(recordOrId, options) {
+    options = options || {};
+    var record = recordOrId && typeof recordOrId === 'object' ? recordOrId : findOriginalRecord(recordOrId);
+    if (!record) return false;
+    var id = identityKeys(record)[0] || text(recordOrId);
+    var sourceRow = options.sourceRow || null;
+    if (options.forceFullscreen) return renderCanonicalFullscreen(record);
+    if (options.forceSplit) return renderCanonicalSplit(record);
+    return openCanonicalDetail(id, sourceRow);
+  };
+
   function resolveRow(target) {
     if (!target || typeof target.closest !== 'function') return null;
     return target.closest(
       '[data-vx-call-id], ' +
       '#anrufe-list [data-id], #anrufe-list [data-record-id], #anrufe-list [data-call-id], ' +
       '#anrufe-list .dpr-card, #anrufe-list .vx-requests-item, #anrufe-list .vx-requests-row, ' +
+      '#vx-customer-call-log .vx-call-log-row, ' +
       '#dash-priority-list [data-id], #dash-priority-list [data-record-id]'
     );
   }
@@ -267,6 +302,19 @@
     }, true);
   }
 
+  function removeUnreadControl() {
+    var unreadControls = root.document.querySelectorAll('[data-inbox-subfilter="unread"], #anrufe-inbox-subfilters');
+    unreadControls.forEach(function (node) { node.remove(); });
+
+    var notices = root.document.querySelectorAll('.vx-requests-active-filter, [data-vx-unread-filter-notice]');
+    notices.forEach(function (node) { node.remove(); });
+
+    try {
+      if (root.inboxSubfilter === 'unread') root.inboxSubfilter = 'all';
+      if (typeof inboxSubfilter !== 'undefined' && inboxSubfilter === 'unread') inboxSubfilter = 'all';
+    } catch (_error) {}
+  }
+
   function installResetBridge() {
     var previous = root.vxResetCallDetailViewState;
     if (typeof previous !== 'function' || previous._vxCallDetailLifecycleWrapped) return;
@@ -305,6 +353,7 @@
     restoreCanonicalOwners();
     installResetBridge();
     installTaskBridge();
-    if (attempts > 200) root.clearInterval(timer);
+    removeUnreadControl();
+    if (attempts > 240) root.clearInterval(timer);
   }, 50);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
