@@ -35,7 +35,7 @@
   ]);
   const TERMINAL_STATUSES = new Set(['done', 'completed', 'ended', 'failed', 'aborted', 'interrupted', 'beendet']);
   const ARCHIVED_STATUSES = new Set(['archived', 'archiviert']);
-  const DONE_STATUSES = new Set(['done', 'completed', 'resolved', 'erledigt', 'abgeschlossen']);
+  const DONE_STATUSES = new Set(['done', 'completed', 'resolved', 'erledigt', 'abgeschlossen', 'closed']);
   const PLANNED_STATUSES = new Set(['planned', 'scheduled', 'follow_up', 'callback_planned', 'geplant', 'rückruf geplant', 'rueckruf geplant']);
   const WORKING_STATUSES = new Set(['in_progress', 'processing', 'working', 'in bearbeitung', 'bearbeitung']);
   const OPEN_STATUSES = new Set(['open', 'offen', 'new', 'neu']);
@@ -174,14 +174,32 @@
     return Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
   }
 
+  function qualifyZurichLocalTimestamp(value) {
+    const raw = text(value);
+    if (!raw) return '';
+    if (/[Zz]$/.test(raw) || /[+-]\d{2}:?\d{2}$/.test(raw)) return raw;
+
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/);
+    if (!match) return raw;
+
+    // started_at values without an offset are stored as Europe/Zurich wall-clock
+    // values. Qualify them before the generic detail parser can treat them as UTC.
+    const probe = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0));
+    const zoneName = new Intl.DateTimeFormat('en-US', {
+      timeZone: ZURICH_TIME_ZONE,
+      timeZoneName: 'longOffset'
+    }).formatToParts(probe).find((part) => part.type === 'timeZoneName');
+    const offsetMatch = zoneName && /^GMT([+-]\d{2}:\d{2})$/.exec(zoneName.value);
+    if (!offsetMatch) return raw;
+
+    const seconds = match[6] || '00';
+    return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${seconds}${offsetMatch[1]}`;
+  }
+
   function timestamp(record) {
-    return first(record, [
-      'started_at',
-      'call_started_at',
-      'start_time',
-      'created_at',
-      'updated_at'
-    ]) || null;
+    const startedAt = first(record, ['started_at', 'call_started_at', 'start_time']);
+    if (startedAt) return qualifyZurichLocalTimestamp(startedAt);
+    return first(record, ['created_at', 'updated_at']) || null;
   }
 
   function formatZurichDateTime(value, options) {
