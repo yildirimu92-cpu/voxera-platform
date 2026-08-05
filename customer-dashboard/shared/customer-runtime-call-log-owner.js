@@ -5,6 +5,8 @@
 
   var latestActivityRecords = [];
   var installed = false;
+  var detailInstalled = false;
+  var splitDetailInstalled = false;
   var store = null;
   var lastMarkup = '';
 
@@ -381,6 +383,242 @@
     bindRows(host);
   }
 
+  function sameZurichDay(a, b) {
+    return Boolean(a && b && dateKey(a) === dateKey(b));
+  }
+
+  function formatDetailTimestamp(value) {
+    if (!value) return '';
+    var date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+
+    var now = new Date();
+    var yesterday = new Date(now.getTime() - 86400000);
+    var time = new Intl.DateTimeFormat('de-CH', {
+      timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit'
+    }).format(date);
+    if (sameZurichDay(date, now)) return 'Heute, ' + time;
+    if (sameZurichDay(date, yesterday)) return 'Gestern, ' + time;
+    return new Intl.DateTimeFormat('de-CH', {
+      timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit', year: 'numeric'
+    }).format(date) + ', ' + time;
+  }
+
+  function formatDuration(seconds) {
+    var value = Number(seconds);
+    if (!Number.isFinite(value) || value < 0) return '';
+    value = Math.round(value);
+    if (value < 60) return value + ' Sek.';
+    var minutes = Math.floor(value / 60);
+    var remainder = value % 60;
+    return remainder ? minutes + ' Min. ' + remainder + ' Sek.' : minutes + ' Min.';
+  }
+
+  function initials(name) {
+    var parts = text(name).split(/\s+/).filter(Boolean);
+    if (!parts.length || /^unbekannter anrufer$/i.test(text(name))) return 'UA';
+    return parts.map(function (part) { return text(part).charAt(0).toUpperCase(); }).join('').slice(0, 2) || 'UA';
+  }
+
+  function detailModel(record) {
+    var vm = root.VoxeraCustomerCallViewModel;
+    if (vm && typeof vm.build === 'function') {
+      try { return vm.build(record || {}); } catch (_error) {}
+    }
+    var timestamp = '';
+    try {
+      timestamp = typeof root.getRecordTimestamp === 'function'
+        ? root.getRecordTimestamp(record)
+        : first(record, ['started_at', 'call_started_at', 'start_time', 'created_at', 'updated_at']);
+    } catch (_error2) {
+      timestamp = first(record, ['started_at', 'call_started_at', 'start_time', 'created_at', 'updated_at']);
+    }
+    return {
+      id: detailId(record),
+      lifecycle: lifecycle(record) || 'new',
+      lifecycleMeta: { label: 'Neu', tone: 'info' },
+      name: text(first(record, ['caller_name', 'contact_name', 'name'])) || 'Unbekannter Anrufer',
+      phone: text(first(record, ['caller_phone', 'caller_number', 'phone_number', 'from_number'])) || null,
+      summary: text(first(record, ['call_summary_short', 'call_summary', 'summary'])),
+      category: text(first(record, ['category', 'intent', 'request_type'])) || null,
+      leadQuality: text(first(record, ['lead_quality', 'relevance'])) || null,
+      outcome: null,
+      durationSeconds: Number(first(record, ['duration_seconds', 'duration', 'call_duration_secs'])) || null,
+      timestamp: timestamp
+    };
+  }
+
+  function meaningfulNextAction(record, model) {
+    var raw = text(first(record, ['next_action', 'action_required', 'recommended_action']));
+    var normalized = lower(raw);
+    if (/^(keine?|nicht|ohne)\b/.test(normalized) || /kein(?:e|en|er|es)?\s+(?:aktion|handlungsbedarf|nächster schritt)|nichts zu tun|nicht erforderlich/.test(normalized)) raw = '';
+    if (raw) return { title: text(model && model.outcome) || 'Nächster Schritt', text: raw };
+    if (model && model.outcome) return { title: model.outcome, text: 'Die Anfrage benötigt eine konkrete Folgeaktion.' };
+    return null;
+  }
+
+  function detailTone(model) {
+    var meta = model && model.lifecycleMeta || {};
+    return text(meta.tone || 'info');
+  }
+
+  function actionMarkup(model) {
+    var lifecycleState = text(model && model.lifecycle);
+    var phoneButton = model && model.phone
+      ? '<button type="button" class="vx-call-detail-lite__action vx-call-detail-lite__action--primary" onclick="vxCallDetailAnrufen()"><i class="ph-bold ph-phone" aria-hidden="true"></i><span>Anrufen</span></button>'
+      : '';
+    var callbackButton = '<button type="button" class="vx-call-detail-lite__action' + (phoneButton ? '' : ' vx-call-detail-lite__action--primary') + '" onclick="vxCallDetailFaelligkeit({ mode: \'callback\' })"><i class="ph-bold ph-calendar-plus" aria-hidden="true"></i><span>Rückruf planen</span></button>';
+    var doneButton = lifecycleState !== 'done' && lifecycleState !== 'archived'
+      ? '<button type="button" class="vx-call-detail-lite__action vx-call-detail-lite__action--quiet" onclick="vxCallDetailErledigt()"><i class="ph-bold ph-check" aria-hidden="true"></i><span>Erledigen</span></button>'
+      : '';
+    return '<div class="vx-call-detail-lite__actions">' + phoneButton + callbackButton + doneButton + '</div>';
+  }
+
+  function detailCard(title, eyebrow, body, modifier) {
+    if (!text(body)) return '';
+    return '<section class="vx-call-detail-lite__card' + (modifier ? ' ' + modifier : '') + '">' +
+      '<div class="vx-call-detail-lite__card-head"><h2>' + esc(title) + '</h2>' +
+      (eyebrow ? '<span>' + esc(eyebrow) + '</span>' : '') + '</div>' +
+      '<div class="vx-call-detail-lite__card-body">' + esc(body) + '</div>' +
+    '</section>';
+  }
+
+  function detailBodyMarkup(record, options) {
+    options = options || {};
+    var model = detailModel(record);
+    var stateMeta = model.lifecycleMeta || { label: 'Neu', tone: 'info' };
+    var timestamp = formatDetailTimestamp(model.timestamp);
+    var duration = formatDuration(model.durationSeconds);
+    var meta = [timestamp, duration].filter(Boolean).join(' · ');
+    var nextAction = meaningfulNextAction(record, model);
+    var summary = text(model.summary);
+    if (!summary && model.lifecycle === 'analysing') summary = 'Das Gespräch wird noch ausgewertet. Die Zusammenfassung erscheint automatisch, sobald die Analyse abgeschlossen ist.';
+    if (!summary) summary = 'Für dieses Gespräch ist keine Zusammenfassung verfügbar.';
+
+    var details = [
+      { label: 'Kategorie', value: model.category || 'Nicht erkannt' },
+      { label: 'Relevanz', value: model.leadQuality || 'Nicht bewertet' },
+      { label: 'Status', value: stateMeta.label || 'Neu' },
+      { label: 'Dauer', value: duration || 'Nicht verfügbar' }
+    ];
+
+    var detailRows = details.map(function (item) {
+      return '<div class="vx-call-detail-lite__detail-row"><span>' + esc(item.label) + '</span><strong>' + esc(item.value) + '</strong></div>';
+    }).join('');
+
+    var avatarId = options.embedded ? '' : ' id="call-detail-avatar"';
+    var titleId = options.embedded ? '' : ' id="call-detail-title"';
+    var subtitleId = options.embedded ? '' : ' id="call-detail-subtitle"';
+    var archiveAction = model.lifecycle === 'archived' ? '' :
+      '<button type="button" class="vx-call-detail-lite__archive" onclick="vxCallDetailArchivieren()"><i class="ph-bold ph-archive" aria-hidden="true"></i><span>Archivieren</span></button>';
+
+    return '<div class="vx-call-detail-lite__shell' + (options.embedded ? ' vx-call-detail-lite__shell--embedded' : '') + '">' +
+      '<section class="vx-call-detail-lite__identity">' +
+        '<div class="vx-call-detail-lite__avatar"' + avatarId + '>' + esc(initials(model.name)) + '</div>' +
+        '<div class="vx-call-detail-lite__identity-copy">' +
+          '<h1' + titleId + '>' + esc(model.name || 'Unbekannter Anrufer') + '</h1>' +
+          (model.phone ? '<a class="vx-call-detail-lite__phone" href="tel:' + esc(model.phone) + '">' + esc(model.phone) + '</a>' : '') +
+          '<div class="vx-call-detail-lite__meta"' + subtitleId + '>' + esc(meta || 'Anruf') + '</div>' +
+        '</div>' +
+        '<span class="vx-call-detail-lite__status" data-tone="' + esc(detailTone(model)) + '">' + esc(stateMeta.label || 'Neu') + '</span>' +
+      '</section>' +
+      actionMarkup(model) +
+      '<div class="vx-call-detail-lite__body">' +
+        detailCard('Zusammenfassung', 'Automatisch erstellt', summary, '') +
+        (nextAction ? detailCard(nextAction.title, 'Empfehlung', nextAction.text, 'vx-call-detail-lite__card--next') : '') +
+        '<details class="vx-call-detail-lite__details">' +
+          '<summary><span>Weitere Details</span><i class="ph-bold ph-caret-down" aria-hidden="true"></i></summary>' +
+          '<div class="vx-call-detail-lite__details-grid">' + detailRows + '</div>' +
+        '</details>' +
+        archiveAction +
+      '</div>' +
+    '</div>';
+  }
+
+  function topbarMarkup() {
+    return '<div class="vx-call-detail-lite__topbar-inner">' +
+      '<button type="button" class="vx-call-detail-lite__nav" aria-label="Zurück zu Anfragen" onclick="event.stopPropagation();vxHandleDetailBack();">' +
+        '<i class="ph-bold ph-arrow-left" aria-hidden="true"></i>' +
+      '</button>' +
+      '<div class="vx-call-detail-lite__topbar-copy"><span>Anfrage</span><strong>Anrufdetails</strong></div>' +
+      '<div id="call-detail-quick-actions" class="vx-call-detail-lite__topbar-actions">' +
+        '<button type="button" class="vx-call-detail-lite__nav" aria-label="Detail schliessen" onclick="event.stopPropagation();vxHandleDetailBack();"><i class="ph-bold ph-x" aria-hidden="true"></i></button>' +
+      '</div>' +
+      '<span id="call-detail-banner-date" hidden></span>' +
+    '</div>';
+  }
+
+  function renderOwnedCallDetail(record) {
+    if (!record) return;
+    var page = root.document.getElementById('call-detail-page');
+    if (!page) return;
+    var pageOpen = page.classList.contains('is-open') || page.style.display === 'block' || page.style.display === 'flex';
+    if (!pageOpen) return;
+
+    var banner = root.document.getElementById('call-detail-banner');
+    var content = root.document.getElementById('call-detail-content');
+    var statsWrap = root.document.getElementById('call-detail-stats-wrap');
+    var scrollWrap = root.document.getElementById('call-detail-scroll-wrap');
+    var bottomBar = root.document.getElementById('vx-cd-bottom-bar');
+
+    page.classList.add('vx-call-detail-lite');
+    if (scrollWrap) scrollWrap.classList.add('vx-call-detail-lite__scroll');
+    if (banner) {
+      banner.className = 'vx-call-detail-lite__topbar';
+      banner.removeAttribute('style');
+      banner.innerHTML = topbarMarkup();
+    }
+    if (statsWrap) statsWrap.style.display = 'none';
+    if (bottomBar) bottomBar.style.display = 'none';
+    if (content) {
+      content.className = 'vx-call-detail-lite__content';
+      content.innerHTML = detailBodyMarkup(record, { embedded: false });
+    }
+  }
+
+  function renderOwnedSplitDetail(record, options) {
+    options = options || {};
+    var host = options.hostEl || root.document.getElementById('requests-detail-v2');
+    if (!host || !record) return;
+    host.classList.add('vx-call-detail-lite-host');
+    host.innerHTML = detailBodyMarkup(record, { embedded: true });
+  }
+
+  function installDetailOwner() {
+    var current = root.renderCallDetailPage;
+    if (typeof current !== 'function') return false;
+    if (current._vxCallLogDetailOwner) {
+      detailInstalled = true;
+      return true;
+    }
+    var owned = function customerCallLogDetailOwner(call) {
+      return renderOwnedCallDetail(call);
+    };
+    owned._vxCallLogDetailOwner = true;
+    owned._vxPrevious = current;
+    root.renderCallDetailPage = owned;
+    detailInstalled = true;
+    return true;
+  }
+
+  function installSplitDetailOwner() {
+    var current = root.vxRenderRequestsDetailV2;
+    if (typeof current !== 'function') return false;
+    if (current._vxCallLogSplitDetailOwner) {
+      splitDetailInstalled = true;
+      return true;
+    }
+    var owned = function customerCallLogSplitDetailOwner(record, options) {
+      return renderOwnedSplitDetail(record, options);
+    };
+    owned._vxCallLogSplitDetailOwner = true;
+    owned._vxPrevious = current;
+    root.vxRenderRequestsDetailV2 = owned;
+    try { vxRenderRequestsDetailV2 = owned; } catch (_error) {}
+    splitDetailInstalled = true;
+    return true;
+  }
+
   function installOverrides() {
     if (installed) return;
     if (typeof root.vxHeuteRenderActivityList !== 'function' || typeof root.renderDashPriorityList !== 'function') return;
@@ -407,7 +645,9 @@
   var attempts = 0;
   var timer = root.setInterval(function () {
     attempts += 1;
+    installDetailOwner();
+    installSplitDetailOwner();
     installOverrides();
-    if (installed || attempts > 160) root.clearInterval(timer);
+    if ((installed && detailInstalled && splitDetailInstalled) || attempts > 200) root.clearInterval(timer);
   }, 50);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
