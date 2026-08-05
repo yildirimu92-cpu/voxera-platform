@@ -149,6 +149,26 @@
     return Boolean(dueKey && todayKey && dueKey <= todayKey);
   }
 
+  function canonicalImportantNowCount() {
+    var state = store && typeof store.current === 'function' ? store.current() : null;
+    if (!state) return null;
+    return taskEntries(state).filter(isImportantNow).length;
+  }
+
+  function installTodayKpiRule() {
+    var previousCounts = root.vxGetHeuteKpiCounts;
+    if (typeof previousCounts !== 'function' || previousCounts._vxCallLogOwnerWrapped) return;
+
+    var wrapped = function customerCallLogKpiCounts(records, manualTasks) {
+      var base = previousCounts(records, manualTasks) || {};
+      var importantNowCount = canonicalImportantNowCount();
+      if (importantNowCount !== null) base.importantNow = importantNowCount;
+      return base;
+    };
+    wrapped._vxCallLogOwnerWrapped = true;
+    root.vxGetHeuteKpiCounts = wrapped;
+  }
+
   function readVisibleCount(id) {
     var node = root.document.getElementById(id);
     var value = node ? parseInt(text(node.textContent), 10) : 0;
@@ -181,8 +201,8 @@
 
   var ICONS = {
     'clipboard-check': '<path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="m9 14 2 2 4-4"/>',
-    'phone-incoming': '<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.28-1.28a2 2 0 0 1 2.11-.45c.9.32 1.84.55 2.8.68A2 2 0 0 1 22 16.92Z"/>',
-    'phone-call': '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.28-1.28a2 2 0 0 1 2.11-.45c.9.32 1.84.55 2.8.68A2 2 0 0 1 22 16.92Z"/><path d="M14.05 2a9 9 0 0 1 8 8"/><path d="M14.05 6A5 5 0 0 1 18 10"/>',
+    'phone-incoming': '<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.28-1.28a2 2 0 0 1 2.11-.45c.9.32 1.84.55 2.8.68A2 2 0 0 1 22 16.92Z"/>',
+    'phone-call': '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.28-1.28a2 2 0 0 1 2.11-.45c.9.32 1.84.55 2.8.68A2 2 0 0 1 22 16.92Z"/><path d="M14.05 2a9 9 0 0 1 8 8"/><path d="M14.05 6A5 5 0 0 1 18 10"/>',
     'audio-lines': '<path d="M2 10v4"/><path d="M6 6v12"/><path d="M10 3v18"/><path d="M14 8v8"/><path d="M18 5v14"/><path d="M22 10v4"/>',
     'chevron-right': '<path d="m9 18 6-6-6-6"/>'
   };
@@ -345,6 +365,7 @@
     var tasks = taskEntries(state);
     var history = list(state.history);
 
+    installTodayKpiRule();
     syncTodayMetrics(tasks);
 
     var markup = activeCard(state.active || state.analysing, Boolean(state.analysing)) +
@@ -366,9 +387,11 @@
     installed = true;
 
     installInboxBadgeRule();
+    installTodayKpiRule();
     root.vxHeuteRenderActivityList = function customerCallLogActivityOwner(records) {
       latestActivityRecords = list(records);
       installInboxBadgeRule();
+      installTodayKpiRule();
       render();
     };
     root.vxHeuteRenderScopedList = function customerCallLogScopedOwner() { render(); };
