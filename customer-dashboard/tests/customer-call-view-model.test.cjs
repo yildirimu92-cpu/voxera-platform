@@ -23,6 +23,9 @@ assert.equal(model.outcome({ callback_requested: true }), 'Rückruf empfohlen');
 assert.equal(model.outcome({ fields: { callback_requested: true } }), 'Rückruf empfohlen');
 assert.equal(model.outcome({ next_action: 'Zurückrufen' }), 'Rückruf empfohlen');
 assert.equal(model.outcome({ fields: { next_action: 'Information senden' } }), 'Information senden');
+assert.equal(model.outcome({ fields: { next_action: 'Unterlagen per E-Mail senden' } }), 'Information senden');
+assert.equal(model.outcome({ fields: { next_action: 'Keine Aktion erforderlich' } }), null);
+assert.equal(model.outcome({ fields: { next_action: 'Bearbeitung erforderlich' } }), null);
 
 const built = model.build({
   id: 'call_1',
