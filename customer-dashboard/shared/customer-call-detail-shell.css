@@ -1,0 +1,55 @@
+/* Canonical mobile shell for customer call details.
+   The detail route owns the full viewport; the global app chrome remains behind it. */
+
+@media (max-width: 760px) {
+  html.vx-call-detail-open,
+  html.vx-call-detail-open body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body.vx-customer-design-foundation.vx-call-detail-open #call-detail-page.vx-call-detail-lite {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    box-sizing: border-box;
+    display: block;
+    width: 100vw;
+    min-width: 0;
+    max-width: none;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+    background: var(--vx-color-surface-subtle, #f5f7fb);
+  }
+
+  body.vx-customer-design-foundation.vx-call-detail-open #call-detail-page.vx-call-detail-lite #call-detail-scroll-wrap.vx-call-detail-lite__scroll {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.vx-customer-design-foundation.vx-call-detail-open #call-detail-page.vx-call-detail-lite .vx-call-detail-lite__topbar {
+    top: 0;
+    width: 100%;
+  }
+
+  body.vx-customer-design-foundation.vx-call-detail-open #call-detail-page.vx-call-detail-lite .vx-call-detail-lite__content {
+    min-height: calc(100dvh - 112px);
+    padding-bottom: calc(48px + env(safe-area-inset-bottom));
+  }
+}
