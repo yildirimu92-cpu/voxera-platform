@@ -5,9 +5,22 @@
   if (root) {
     root.VoxeraCustomerCallViewModel = api;
     root.vxGetCanonicalCallTimestamp = api.timestamp;
+
     // Compatibility bridge for the existing detail renderer in index.html.
     // The canonical call timestamp owner prefers the real call start over record creation time.
-    if (typeof root.getRecordTimestamp === 'function') root.getRecordTimestamp = api.timestamp;
+    const installTimestampBridge = () => {
+      if (typeof root.getRecordTimestamp !== 'function') return false;
+      root.getRecordTimestamp = api.timestamp;
+      return true;
+    };
+
+    if (!installTimestampBridge() && root.document && typeof root.setInterval === 'function') {
+      let attempts = 0;
+      const timer = root.setInterval(() => {
+        attempts += 1;
+        if (installTimestampBridge() || attempts > 160) root.clearInterval(timer);
+      }, 50);
+    }
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createCustomerCallViewModel() {
   'use strict';
