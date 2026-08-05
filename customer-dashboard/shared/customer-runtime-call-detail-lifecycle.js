@@ -5,7 +5,7 @@
 
   var ownedDetailRenderer = null;
   var ownedSplitRenderer = null;
-  var mobileNavigationInstalled = false;
+  var navigationInstalled = false;
 
   function text(value) {
     return String(value == null ? '' : value).trim();
@@ -30,18 +30,32 @@
     return result;
   }
 
+  function allCallRecords() {
+    var result = [];
+    [root.allRecords, root.latestActivityRecords].forEach(function (collection) {
+      (Array.isArray(collection) ? collection : []).forEach(function (record) {
+        if (record && result.indexOf(record) === -1) result.push(record);
+      });
+    });
+    return result;
+  }
+
   function findOriginalRecord(callId) {
     var normalizedId = text(callId);
     if (!normalizedId) return null;
-    var records = Array.isArray(root.allRecords) ? root.allRecords : [];
-    return records.find(function (record) {
+    return allCallRecords().find(function (record) {
       return identityKeys(record).indexOf(normalizedId) !== -1;
     }) || null;
   }
 
   function isMobileViewport() {
-    try { return root.matchMedia('(max-width: 768px)').matches; }
-    catch (_error) { return (root.innerWidth || 0) <= 768; }
+    try { return root.matchMedia('(max-width: 767px)').matches; }
+    catch (_error) { return (root.innerWidth || 0) < 768; }
+  }
+
+  function isRequestsSurfaceActive() {
+    var tab = root.document.getElementById('tab-anrufe');
+    return !!(tab && tab.classList.contains('active'));
   }
 
   function clearOwnedDetailState() {
@@ -70,6 +84,7 @@
   function restoreCanonicalOwners() {
     if (ownedDetailRenderer && root.renderCallDetailPage !== ownedDetailRenderer) {
       root.renderCallDetailPage = ownedDetailRenderer;
+      try { renderCallDetailPage = ownedDetailRenderer; } catch (_error) {}
     }
     if (ownedSplitRenderer && root.vxRenderRequestsDetailV2 !== ownedSplitRenderer) {
       root.vxRenderRequestsDetailV2 = ownedSplitRenderer;
@@ -81,71 +96,144 @@
     var page = root.document.getElementById('call-detail-page');
     if (!page) return false;
     page.classList.add('show');
+    page.classList.add('is-fullscreen');
     page.setAttribute('aria-hidden', 'false');
-    if (page.style.display === 'none') page.style.display = '';
+    page.style.display = '';
     root.document.documentElement.classList.add('vx-call-detail-open');
     if (root.document.body) root.document.body.classList.add('vx-call-detail-open');
     return true;
   }
 
-  function openCanonicalMobileDetail(callId) {
-    if (!isMobileViewport()) return false;
-    var original = findOriginalRecord(callId);
-    var canonicalId = original ? (identityKeys(original)[0] || text(callId)) : text(callId);
-
-    try {
-      if (typeof root.showCallDetail === 'function') {
-        root.showCallDetail(canonicalId, { forceFullscreen: true });
-      } else if (original && ownedDetailRenderer) {
-        ownedDetailRenderer(original, []);
-      } else {
-        return false;
-      }
-    } catch (_error) {
-      if (original && ownedDetailRenderer) {
-        try { ownedDetailRenderer(original, []); } catch (_renderError) { return false; }
-      } else {
-        return false;
-      }
-    }
-
-    root.setTimeout(function () {
-      var page = root.document.getElementById('call-detail-page');
-      var visible = page && (page.classList.contains('show') || page.getAttribute('aria-hidden') === 'false');
-      if (!visible && original && ownedDetailRenderer) {
-        try { ownedDetailRenderer(original, []); } catch (_error) {}
-      }
-      ensureFullscreenVisible();
-    }, 0);
-    return true;
+  function hideFullscreenDetail() {
+    var page = root.document.getElementById('call-detail-page');
+    if (!page) return;
+    page.classList.remove('show');
+    page.classList.remove('is-open');
+    page.setAttribute('aria-hidden', 'true');
+    page.style.display = 'none';
   }
 
-  function installMobileNavigation() {
-    if (mobileNavigationInstalled) return;
-    mobileNavigationInstalled = true;
+  function rememberCurrentRecord(record) {
+    var ids = identityKeys(record);
+    var canonicalId = ids[0] || '';
+    if (!canonicalId) return;
+    root._vxCurrentCallId = canonicalId;
+    root._vxCurrentCallRecordId = canonicalId;
+    root._vxCurrentDetailType = 'call';
+  }
+
+  function renderCanonicalFullscreen(record) {
+    rememberCanonicalOwners();
+    restoreCanonicalOwners();
+    if (!record || !ownedDetailRenderer) return false;
+    try {
+      ownedDetailRenderer(record, []);
+      rememberCurrentRecord(record);
+      ensureFullscreenVisible();
+      return true;
+    } catch (error) {
+      try { root.console.error('[call-detail] canonical fullscreen render failed', error); } catch (_error) {}
+      return false;
+    }
+  }
+
+  function renderCanonicalSplit(record) {
+    rememberCanonicalOwners();
+    restoreCanonicalOwners();
+    if (!record || !ownedSplitRenderer) return false;
+
+    var host = root.document.getElementById('requests-detail-v2');
+    var empty = root.document.getElementById('anrufe-split-empty');
+    if (!host) return false;
+
+    try {
+      hideFullscreenDetail();
+      if (empty) empty.style.display = 'none';
+      host.style.display = 'block';
+      ownedSplitRenderer(record, { hostEl: host });
+      rememberCurrentRecord(record);
+      if (typeof root.vxSetActiveRequestRow === 'function') {
+        root.vxSetActiveRequestRow(identityKeys(record)[0] || '');
+      }
+      return true;
+    } catch (error) {
+      try { root.console.error('[call-detail] canonical split render failed', error); } catch (_error) {}
+      return false;
+    }
+  }
+
+  function openCanonicalDetail(callId, sourceRow) {
+    var original = findOriginalRecord(callId);
+    if (!original) return false;
+
+    var requestsRow = !!(sourceRow && sourceRow.closest && sourceRow.closest('#anrufe-list, #anrufe-split-left'));
+    if (!isMobileViewport() && requestsRow && isRequestsSurfaceActive()) {
+      return renderCanonicalSplit(original);
+    }
+    return renderCanonicalFullscreen(original);
+  }
+
+  function resolveRow(target) {
+    if (!target || typeof target.closest !== 'function') return null;
+    return target.closest(
+      '[data-vx-call-id], ' +
+      '#anrufe-list [data-id], #anrufe-list [data-record-id], #anrufe-list [data-call-id], ' +
+      '#anrufe-list .dpr-card, #anrufe-list .vx-requests-item, #anrufe-list .vx-requests-row, ' +
+      '#dash-priority-list [data-id], #dash-priority-list [data-record-id]'
+    );
+  }
+
+  function rowCallId(row) {
+    if (!row) return '';
+    var candidates = [
+      row.getAttribute && row.getAttribute('data-vx-call-id'),
+      row.getAttribute && row.getAttribute('data-id'),
+      row.getAttribute && row.getAttribute('data-record-id'),
+      row.getAttribute && row.getAttribute('data-call-id'),
+      row.dataset && row.dataset.vxCallId,
+      row.dataset && row.dataset.id,
+      row.dataset && row.dataset.recordId,
+      row.dataset && row.dataset.callId
+    ];
+    for (var index = 0; index < candidates.length; index += 1) {
+      var candidate = text(candidates[index]);
+      if (candidate) return candidate;
+    }
+
+    var parent = row.closest && row.closest('[data-vx-call-id], [data-id], [data-record-id], [data-call-id]');
+    if (parent && parent !== row) return rowCallId(parent);
+    return '';
+  }
+
+  function isInteractiveControl(target) {
+    return !!(target && target.closest && target.closest('button, a, input, textarea, select, [role="button"], .dpr-quick-btn, .vx-ibtn'));
+  }
+
+  function installCanonicalNavigation() {
+    if (navigationInstalled) return;
+    navigationInstalled = true;
 
     root.document.addEventListener('click', function (event) {
-      if (!isMobileViewport()) return;
-      var row = event.target && event.target.closest ? event.target.closest('[data-vx-call-id]') : null;
-      if (!row) return;
-      var callId = text(row.getAttribute('data-vx-call-id'));
-      if (!callId) return;
+      var row = resolveRow(event.target);
+      if (!row || isInteractiveControl(event.target)) return;
+      var callId = rowCallId(row);
+      if (!callId || !findOriginalRecord(callId)) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
-      openCanonicalMobileDetail(callId);
+      openCanonicalDetail(callId, row);
     }, true);
 
     root.document.addEventListener('keydown', function (event) {
-      if (!isMobileViewport() || (event.key !== 'Enter' && event.key !== ' ')) return;
-      var row = event.target && event.target.closest ? event.target.closest('[data-vx-call-id]') : null;
-      if (!row) return;
-      var callId = text(row.getAttribute('data-vx-call-id'));
-      if (!callId) return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      var row = resolveRow(event.target);
+      if (!row || isInteractiveControl(event.target)) return;
+      var callId = rowCallId(row);
+      if (!callId || !findOriginalRecord(callId)) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
-      openCanonicalMobileDetail(callId);
+      openCanonicalDetail(callId, row);
     }, true);
   }
 
@@ -178,7 +266,7 @@
     try { showTaskDetail = wrapped; } catch (_error) {}
   }
 
-  installMobileNavigation();
+  installCanonicalNavigation();
 
   var attempts = 0;
   var timer = root.setInterval(function () {
