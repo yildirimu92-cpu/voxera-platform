@@ -33,21 +33,19 @@
   }
 
   function mergeRecords() {
-    var seen = new Set();
     return priorityRecords().concat(latestActivityRecords).filter(function (record) {
-      if (!record || isManual(record)) return false;
-      var id = recordId(record);
-      if (!id) return true;
-      if (seen.has(id)) return false;
-      seen.add(id);
-      return true;
+      return Boolean(record) && !isManual(record);
     });
   }
 
   function formatTime(model) {
-    var formatter = root.VoxeraCustomerCallViewModel;
-    if (!formatter || typeof formatter.formatZurichDateTime !== 'function') return '';
-    return formatter.formatZurichDateTime(model.timestamp, { year: undefined, month: undefined, day: undefined });
+    var value = model && model.timestamp;
+    if (!value) return '';
+    var date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return new Intl.DateTimeFormat('de-CH', {
+      timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit'
+    }).format(date);
   }
 
   function metadata(model) {
@@ -99,13 +97,13 @@
 
   function ensureHost() {
     var priority = root.document.getElementById('dash-priority-section');
-    if (!priority || !priority.parentNode) return null;
     var host = root.document.getElementById('vx-customer-call-log');
-    if (!host) {
+    if (!host && priority && priority.parentNode) {
       host = root.document.createElement('div');
       host.id = 'vx-customer-call-log';
       priority.parentNode.insertBefore(host, priority);
     }
+    if (!host) return null;
     ['dash-priority-section','dash-activity-section','dash-today-calls-section','dash-today-done-section'].forEach(function (id) {
       var node = root.document.getElementById(id);
       if (node) node.remove();
@@ -133,7 +131,7 @@
     var markup = activeCard(state.active || state.analysing, Boolean(state.analysing)) +
       section('Offene Aufgaben', 'Nur Anrufe mit einem konkreten nächsten Schritt.', state.tasks, taskRows(state.tasks), 'Keine offenen Aufgaben aus Anrufen.', 'tasks') +
       section('Letzte Anrufe', 'Chronologisch, ohne doppelte Darstellung.', state.history, historyRows(state.history), 'Heute sind noch keine abgeschlossenen Anrufe vorhanden.', 'history');
-    if (markup === lastMarkup) return;
+    if (markup === lastMarkup && root.document.getElementById('vx-customer-call-log')) return;
     var host = ensureHost();
     if (!host) return;
     host.innerHTML = markup;
@@ -155,8 +153,8 @@
     root.vxHeuteRenderScopedList = function customerCallLogScopedOwner() { render(); };
     root.renderDashPriorityList = function customerCallLogPriorityOwner() { render(); };
     root.vxDashShowAllImportant = function customerCallLogOpenTasks() {
-      var section = root.document.querySelector('[data-vx-call-log-section="tasks"]');
-      if (section && section.scrollIntoView) section.scrollIntoView({ behavior:'smooth', block:'start' });
+      var target = root.document.querySelector('[data-vx-call-log-section="tasks"]');
+      if (target && target.scrollIntoView) target.scrollIntoView({ behavior:'smooth', block:'start' });
       return false;
     };
     render();
