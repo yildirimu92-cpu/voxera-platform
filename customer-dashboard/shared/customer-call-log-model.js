@@ -10,6 +10,15 @@
 
   const text = (value) => String(value == null ? '' : value).trim();
   const FOLLOW_UP_LIFECYCLES = new Set(['new', 'working', 'planned']);
+  const LIFECYCLE_RANK = Object.freeze({
+    live: 1,
+    analysing: 2,
+    new: 3,
+    working: 4,
+    planned: 5,
+    done: 6,
+    archived: 7
+  });
 
   function fields(record) {
     return record && record.fields && typeof record.fields === 'object' ? record.fields : {};
@@ -56,6 +65,46 @@
     return Number.isFinite(time) ? time : 0;
   }
 
+  function freshnessTimestamp(record) {
+    const value = first(record, [
+      'updated_at',
+      'completed_at',
+      'closed_at',
+      'archived_at',
+      'read_at',
+      'created_at',
+      'started_at',
+      'call_started_at'
+    ]);
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  function lifecycleRank(record) {
+    requireViewModel();
+    const state = viewModel.lifecycle(record);
+    return LIFECYCLE_RANK[state] || 0;
+  }
+
+  function preferredRecord(current, candidate) {
+    const currentRank = lifecycleRank(current);
+    const candidateRank = lifecycleRank(candidate);
+    const currentTerminal = currentRank >= LIFECYCLE_RANK.done;
+    const candidateTerminal = candidateRank >= LIFECYCLE_RANK.done;
+
+    // Completed or archived workflow states must not be downgraded by a stale
+    // duplicate from another dashboard source.
+    if (currentTerminal !== candidateTerminal) {
+      return candidateTerminal ? candidate : current;
+    }
+    if (currentTerminal && candidateTerminal && candidateRank !== currentRank) {
+      return candidateRank > currentRank ? candidate : current;
+    }
+
+    // During live/analysis/open progression, the freshest provider record wins.
+    return freshnessTimestamp(candidate) >= freshnessTimestamp(current) ? candidate : current;
+  }
+
   function dedupe(records) {
     const byId = new Map();
     const withoutId = [];
@@ -68,7 +117,7 @@
         return;
       }
       const current = byId.get(id);
-      if (!current || timestamp(record) >= timestamp(current)) byId.set(id, record);
+      byId.set(id, current ? preferredRecord(current, record) : record);
     });
 
     return [...byId.values(), ...withoutId];
