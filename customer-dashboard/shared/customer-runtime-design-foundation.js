@@ -12,7 +12,7 @@
     '/shared/customer-navigation-components.css?v=20260803-1',
     '/shared/customer-settings-components.css?v=20260803-2',
     '/shared/customer-support-components.css?v=20260802-2',
-    '/shared/customer-call-log-components.css?v=20260805-2'
+    '/shared/customer-call-log-components.css?v=20260805-3'
   ];
 
   stylesheets.forEach((href) => {
@@ -46,7 +46,7 @@
   loadSequentialScripts([
     '/shared/customer-call-view-model.js?v=20260805-7',
     '/shared/customer-call-log-model.js?v=20260805-6',
-    '/shared/customer-runtime-call-log-owner.js?v=20260805-4'
+    '/shared/customer-runtime-call-log-owner.js?v=20260805-5'
   ]);
 
   const markDocument = () => {
