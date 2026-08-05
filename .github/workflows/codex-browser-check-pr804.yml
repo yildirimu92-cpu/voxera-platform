@@ -47,7 +47,7 @@ jobs:
           mkdir -p browser-output
           curl --fail --location --silent --show-error \
             --output /tmp/preview.html \
-            --write-out '{"http_code":%{http_code},"url_effective":"%{url_effective}","content_type":"%{content_type},"size_download":%{size_download}}\n' \
+            --write-out '%{json}\n' \
             "$PREVIEW_URL" | tee browser-output/http.json
           test "$(jq -r .http_code browser-output/http.json)" = "200"
           test "$(jq -r .url_effective browser-output/http.json)" = "$PREVIEW_URL/"
@@ -141,9 +141,9 @@ jobs:
                   title: document.title,
                   url: location.href,
                   readyState: document.readyState,
-                  innerWidth: innerWidth,
-                  innerHeight: innerHeight,
-                  devicePixelRatio: devicePixelRatio,
+                  innerWidth,
+                  innerHeight,
+                  devicePixelRatio,
                   htmlClientWidth: html.clientWidth,
                   htmlScrollWidth: html.scrollWidth,
                   bodyClientWidth: body?.clientWidth || 0,
@@ -194,7 +194,8 @@ jobs:
           console.log(JSON.stringify({ total: summary.total, passed: summary.passed, failed: summary.failed }, null, 2));
           if (failed) process.exit(1);
           JS
-          NODE_PATH=/tmp/browser-check/node_modules node /tmp/browser-check/check.mjs
+          cd "$GITHUB_WORKSPACE"
+          node /tmp/browser-check/check.mjs
 
       - name: Verify screenshot files
         if: always()
