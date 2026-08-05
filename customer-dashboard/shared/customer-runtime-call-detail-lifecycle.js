@@ -5,6 +5,44 @@
 
   var ownedDetailRenderer = null;
   var ownedSplitRenderer = null;
+  var mobileNavigationInstalled = false;
+
+  function text(value) {
+    return String(value == null ? '' : value).trim();
+  }
+
+  function fields(record) {
+    return record && record.fields && typeof record.fields === 'object' ? record.fields : {};
+  }
+
+  function identityKeys(record) {
+    var nested = fields(record);
+    var result = [];
+    [
+      'id', 'call_id', 'source_call_id', 'provider_call_id', 'external_call_id',
+      'elevenlabs_conversation_id', 'conversation_id'
+    ].forEach(function (key) {
+      [record && record[key], nested[key]].forEach(function (candidate) {
+        var normalized = text(candidate);
+        if (normalized && result.indexOf(normalized) === -1) result.push(normalized);
+      });
+    });
+    return result;
+  }
+
+  function findOriginalRecord(callId) {
+    var normalizedId = text(callId);
+    if (!normalizedId) return null;
+    var records = Array.isArray(root.allRecords) ? root.allRecords : [];
+    return records.find(function (record) {
+      return identityKeys(record).indexOf(normalizedId) !== -1;
+    }) || null;
+  }
+
+  function isMobileViewport() {
+    try { return root.matchMedia('(max-width: 768px)').matches; }
+    catch (_error) { return (root.innerWidth || 0) <= 768; }
+  }
 
   function clearOwnedDetailState() {
     var page = root.document.getElementById('call-detail-page');
@@ -39,6 +77,78 @@
     }
   }
 
+  function ensureFullscreenVisible() {
+    var page = root.document.getElementById('call-detail-page');
+    if (!page) return false;
+    page.classList.add('show');
+    page.setAttribute('aria-hidden', 'false');
+    if (page.style.display === 'none') page.style.display = '';
+    root.document.documentElement.classList.add('vx-call-detail-open');
+    if (root.document.body) root.document.body.classList.add('vx-call-detail-open');
+    return true;
+  }
+
+  function openCanonicalMobileDetail(callId) {
+    if (!isMobileViewport()) return false;
+    var original = findOriginalRecord(callId);
+    var canonicalId = original ? (identityKeys(original)[0] || text(callId)) : text(callId);
+
+    try {
+      if (typeof root.showCallDetail === 'function') {
+        root.showCallDetail(canonicalId, { forceFullscreen: true });
+      } else if (original && ownedDetailRenderer) {
+        ownedDetailRenderer(original, []);
+      } else {
+        return false;
+      }
+    } catch (_error) {
+      if (original && ownedDetailRenderer) {
+        try { ownedDetailRenderer(original, []); } catch (_renderError) { return false; }
+      } else {
+        return false;
+      }
+    }
+
+    root.setTimeout(function () {
+      var page = root.document.getElementById('call-detail-page');
+      var visible = page && (page.classList.contains('show') || page.getAttribute('aria-hidden') === 'false');
+      if (!visible && original && ownedDetailRenderer) {
+        try { ownedDetailRenderer(original, []); } catch (_error) {}
+      }
+      ensureFullscreenVisible();
+    }, 0);
+    return true;
+  }
+
+  function installMobileNavigation() {
+    if (mobileNavigationInstalled) return;
+    mobileNavigationInstalled = true;
+
+    root.document.addEventListener('click', function (event) {
+      if (!isMobileViewport()) return;
+      var row = event.target && event.target.closest ? event.target.closest('[data-vx-call-id]') : null;
+      if (!row) return;
+      var callId = text(row.getAttribute('data-vx-call-id'));
+      if (!callId) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openCanonicalMobileDetail(callId);
+    }, true);
+
+    root.document.addEventListener('keydown', function (event) {
+      if (!isMobileViewport() || (event.key !== 'Enter' && event.key !== ' ')) return;
+      var row = event.target && event.target.closest ? event.target.closest('[data-vx-call-id]') : null;
+      if (!row) return;
+      var callId = text(row.getAttribute('data-vx-call-id'));
+      if (!callId) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openCanonicalMobileDetail(callId);
+    }, true);
+  }
+
   function installResetBridge() {
     var previous = root.vxResetCallDetailViewState;
     if (typeof previous !== 'function' || previous._vxCallDetailLifecycleWrapped) return;
@@ -67,6 +177,8 @@
     root.showTaskDetail = wrapped;
     try { showTaskDetail = wrapped; } catch (_error) {}
   }
+
+  installMobileNavigation();
 
   var attempts = 0;
   var timer = root.setInterval(function () {
