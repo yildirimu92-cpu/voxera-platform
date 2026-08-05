@@ -157,13 +157,31 @@ loader = loader.replace(old, new, 1)
 P(op).write_text(loader, encoding="utf-8")
 
 verifier = P(vp).read_text(encoding="utf-8")
-verifier = verifier.replace("lineCount(assistantCss) <= 800", "lineCount(assistantCss) <= 968")
-verifier = verifier.replace("lineCount(navigationCss) <= 110", "lineCount(navigationCss) <= 121")
+verifier = verifier.replace(
+    "lineCount(assistantCss) <= 800",
+    "lineCount(assistantCss) <= 968",
+)
+verifier = verifier.replace(
+    "lineCount(navigationCss) <= 110",
+    "lineCount(navigationCss) <= 121",
+)
 for old, new in [
-    ("/shared/customer-design-system.css?v=20260803-1", "/shared/customer-design-system.css?v=20260805-1"),
-    ("/shared/customer-assistant-components.css?v=20260803-1", "/shared/customer-assistant-components.css?v=20260805-1"),
-    ("/shared/customer-navigation-components.css?v=20260803-1", "/shared/customer-navigation-components.css?v=20260805-1"),
-    ("customer-runtime-design-foundation\\.js\\?v=20260803-4", "customer-runtime-design-foundation\\.js\\?v=20260805-1"),
+    (
+        "/shared/customer-design-system.css?v=20260803-1",
+        "/shared/customer-design-system.css?v=20260805-1",
+    ),
+    (
+        "/shared/customer-assistant-components.css?v=20260803-1",
+        "/shared/customer-assistant-components.css?v=20260805-1",
+    ),
+    (
+        "/shared/customer-navigation-components.css?v=20260803-1",
+        "/shared/customer-navigation-components.css?v=20260805-1",
+    ),
+    (
+        "customer-runtime-design-foundation\\.js\\?v=20260803-4",
+        "customer-runtime-design-foundation\\.js\\?v=20260805-1",
+    ),
 ]:
     assert old in verifier
     verifier = verifier.replace(old, new)
@@ -172,20 +190,29 @@ old = """  '#tab-assistent > :not(#vx-assistant-root-switch):not(#vx-assistant-r
   '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])',
   '.vx-nav-voice-details'"""
 assert old in verifier
-verifier = verifier.replace(old, """  '#nav-assistent.nav-item',
+verifier = verifier.replace(
+    old,
+    """  '#nav-assistent.nav-item',
   '#mnav-assistent.mobile-nav-btn',
   '#vx-assistant-root-switch',
   '.nav-item.vx-root-nav-active',
-  '.mobile-nav-btn:is(.active, .vx-root-nav-active)'""", 1)
+  '.mobile-nav-btn:is(.active, .vx-root-nav-active)'""",
+    1,
+)
 
 anchor = "  '#vx-business-profile-body textarea',"
 assert anchor in verifier
-verifier = verifier.replace(anchor, anchor + """
+verifier = verifier.replace(
+    anchor,
+    anchor
+    + """
   '#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)',
   '.vx-assistant-root-header',
   '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])',
   '.vx-nav-voice-details',
-  '#vx-assistant-profile-body .vx-ap-card:first-child',""", 1)
+  '#vx-assistant-profile-body .vx-ap-card:first-child',""",
+    1,
+)
 
 for token in ["  'min-height: 36px',\n", "  '#vx-business-profile-body .vx-ap-grid',\n"]:
     assert verifier.count(token) == 1, token
@@ -202,12 +229,17 @@ navigation_anchor = """for (const token of [
 }
 """
 assert verifier.count(navigation_anchor) == 1
-verifier = verifier.replace(navigation_anchor, navigation_anchor + """assert.match(
+verifier = verifier.replace(
+    navigation_anchor,
+    navigation_anchor
+    + """assert.match(
   navigationCss,
   /@media\\s*\\(max-width:\\s*720px\\)[\\s\\S]*?body\\.vx-customer-design-foundation\\s+#vx-assistant-root-switch\\s*>\\s*button\\s*\\{[^}]*min-height:\\s*36px;?[^}]*\\}/,
   'navigation CSS missing mobile assistant switch min-height'
 );
-""", 1)
+""",
+    1,
+)
 
 old_calendar = "  'entry.hidden = !(state.enabled && providers.length)',\n"
 assert verifier.count(old_calendar) == 1
@@ -227,7 +259,10 @@ calendar_anchor = """for (const token of [
 }
 """
 assert verifier.count(calendar_anchor) == 1
-verifier = verifier.replace(calendar_anchor, calendar_anchor + """assert.ok(
+verifier = verifier.replace(
+    calendar_anchor,
+    calendar_anchor
+    + """assert.ok(
   calendarRuntime.includes('entry.hidden = false;'),
   'calendar runtime must keep settings entry visible'
 );
@@ -236,10 +271,14 @@ assert.ok(
   'calendar runtime must preserve settings entry visibility after render'
 );
 assert.ok(
-  !calendarRuntime.includes('entry.hidden = !(state.enabled && providers.length)'),
+  !calendarRuntime.includes(
+    'entry.hidden = !(state.enabled && providers.length)'
+  ),
   'calendar runtime still contains obsolete provider-dependent entry visibility'
 );
-""", 1)
+""",
+    1,
+)
 
 verifier += """
 for (const forbidden of ['#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)','#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])','.vx-nav-voice-details','#vx-assistant-profile-body .vx-ap-card:first-child']) assert.ok(!navigationCss.includes(forbidden), `navigation CSS still owns assistant structure: ${forbidden}`);
@@ -251,26 +290,17 @@ for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/
 const cssOrder=['/shared/customer-design-system.css?v=20260805-1','/shared/customer-assistant-components.css?v=20260805-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260805-1','/shared/customer-settings-components.css?v=20260803-2','/shared/customer-support-components.css?v=20260802-2'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);
 """
+
 P(vp).write_text(verifier, encoding="utf-8")
 P("customer-dashboard/shared/customer-runtime-notifications-design.js").unlink()
 
 p0verifier = P(p0p).read_text(encoding="utf-8")
-old_retention = """['customer retention messaging distinguishes 90 and 180 days',
-  /vollständige Transkripte werden nach <strong>90 Tagen<\\/strong>/.test(dashboard)
-    && /Archiveinträge nach <strong>180 Tagen<\\/strong>/.test(dashboard)
-],"""
-new_retention = """['customer retention messaging distinguishes 90 and 180 days',
-  /vollständige Transkripte werden nach\\s*<strong>\\s*90 Tagen\\s*<\\/strong>/.test(dashboard)
-    && /Archiveinträge nach\\s*<strong>\\s*180 Tagen\\s*<\\/strong>/.test(dashboard)
-],"""
+old_retention = """  ['customer retention messaging distinguishes 90 and 180 days', /vollständige Transkripte werden nach <strong>90 Tagen<\/strong>/.test(dashboard) && /Archiveinträge nach <strong>180 Tagen<\/strong>/.test(dashboard)],"""
+new_retention = """  ['customer retention messaging distinguishes 90 and 180 days', /vollständige Transkripte werden nach\s*<strong>\s*90 Tagen\s*<\/strong>/.test(dashboard) && /Archiveinträge nach\s*<strong>\s*180 Tagen\s*<\/strong>/.test(dashboard)],"""
 assert p0verifier.count(old_retention) == 1
 p0verifier = p0verifier.replace(old_retention, new_retention, 1)
-old_bootstrap = """['dashboard synchronously loads secure shared bootstrap',
-  /<script\\s+src=["']\\/shared\\/offer-brand\\.js["']><\\/script>/i.test(dashboard)
-],"""
-new_bootstrap = """['dashboard synchronously loads secure shared bootstrap',
-  /<script\\s+src=["']\\/shared\\/offer-brand\\.js(?:\\?v=[0-9]{8}-[0-9]+)?["']><\\/script>/i.test(dashboard)
-],"""
+old_bootstrap = """  ['dashboard synchronously loads secure shared bootstrap', /<script\s+src=["']\/shared\/offer-brand\.js["']><\/script>/i.test(dashboard)],"""
+new_bootstrap = """  ['dashboard synchronously loads secure shared bootstrap', /<script\s+src=["']\/shared\/offer-brand\.js(?:\?v=[0-9]{8}-[0-9]+)?["']><\/script>/i.test(dashboard)],"""
 assert p0verifier.count(old_bootstrap) == 1
 p0verifier = p0verifier.replace(old_bootstrap, new_bootstrap, 1)
 P(p0p).write_text(p0verifier, encoding="utf-8")
