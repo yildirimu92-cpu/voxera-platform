@@ -14,6 +14,31 @@ assert.equal(model.lifecycle({ dashboard_status: 'Geplant' }), 'planned');
 assert.equal(model.lifecycle({ dashboard_status: 'Abgeschlossen' }), 'done');
 assert.equal(model.lifecycle({ dashboard_status: 'Archiviert' }), 'archived');
 
+// Nested canonical state wins over stale top-level wrapper values.
+assert.equal(model.lifecycle({
+  dashboard_status: 'Offen',
+  read_at: '2026-08-05T10:00:00Z',
+  fields: { dashboard_status: 'Erledigt' }
+}), 'done');
+assert.equal(model.lifecycle({
+  dashboard_status: 'In Bearbeitung',
+  fields: { dashboard_status: 'Archiviert' }
+}), 'archived');
+assert.equal(model.lifecycle({
+  fields: {
+    dashboard_status: 'Erledigt',
+    follow_up_at: '2026-08-10T10:00:00Z'
+  }
+}), 'done');
+assert.equal(model.lifecycle({
+  status: 'in_progress',
+  fields: {
+    live_status: 'completed',
+    dashboard_status: 'Erledigt',
+    call_summary: 'Fertig'
+  }
+}), 'done');
+
 assert.equal(model.category({ category: 'inbound' }), null);
 assert.equal(model.category({ fields: { category: 'inbound' } }), null);
 assert.equal(model.category({ category: 'appointment' }), 'Terminanfrage');
@@ -55,6 +80,15 @@ assert.deepEqual(
     summary: 'Termin gewünscht'
   }
 );
+
+const canonicalTimestamp = model.timestamp({
+  fields: {
+    started_at: '2026-08-05T07:44:00Z',
+    created_at: '2026-08-05T09:44:00Z'
+  }
+});
+assert.equal(canonicalTimestamp, '2026-08-05T07:44:00Z');
+assert.match(model.formatZurichDateTime(canonicalTimestamp), /09:44/);
 
 const zurich = model.formatZurichDateTime('2026-08-05T09:00:00Z');
 assert.match(zurich, /11:00/);
