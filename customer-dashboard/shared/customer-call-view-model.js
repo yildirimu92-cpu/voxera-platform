@@ -1,6 +1,6 @@
 (function initCustomerCallViewModel(root, factory) {
   'use strict';
-  const api = factory();
+  const api = factory(root);
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) {
     root.VoxeraCustomerCallViewModel = api;
@@ -22,7 +22,7 @@
       }, 50);
     }
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function createCustomerCallViewModel() {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function createCustomerCallViewModel(root) {
   'use strict';
 
   const ZURICH_TIME_ZONE = 'Europe/Zurich';
@@ -73,6 +73,58 @@
       if (record && record[key] !== undefined && record[key] !== null && text(record[key]) !== '') return record[key];
     }
     return '';
+  }
+
+  function identityKeys(record) {
+    const nested = fields(record);
+    const result = [];
+    [
+      'id',
+      'call_id',
+      'elevenlabs_conversation_id',
+      'conversation_id',
+      'provider_call_id',
+      'external_call_id'
+    ].forEach((key) => {
+      [record && record[key], nested[key]].forEach((value) => {
+        const normalized = text(value);
+        if (normalized && !result.includes(normalized)) result.push(normalized);
+      });
+    });
+    return result;
+  }
+
+  function canonicalRecordScore(record) {
+    if (!record || typeof record !== 'object') return -1;
+    const nested = fields(record);
+    let score = Object.keys(nested).length ? 100 : 0;
+    const nestedCreatedAt = text(nested.created_at);
+    const nestedStartedAt = text(nested.started_at || nested.call_started_at || nested.start_time);
+    if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(nestedCreatedAt)) score += 20;
+    if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(nestedStartedAt)) score += 10;
+    if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(text(record.created_at))) score += 5;
+    score += identityKeys(record).length;
+    return score;
+  }
+
+  function canonicalRecord(record) {
+    if (!record || !root || !Array.isArray(root.allRecords) || !root.allRecords.length) return record;
+    const keys = identityKeys(record);
+    if (!keys.length) return record;
+
+    let best = record;
+    let bestScore = canonicalRecordScore(record);
+    root.allRecords.forEach((candidate) => {
+      if (!candidate || candidate === record) return;
+      const candidateKeys = identityKeys(candidate);
+      if (!candidateKeys.some((key) => keys.includes(key))) return;
+      const candidateScore = canonicalRecordScore(candidate);
+      if (candidateScore > bestScore) {
+        best = candidate;
+        bestScore = candidateScore;
+      }
+    });
+    return best;
   }
 
   function allValues(record, keys) {
@@ -217,11 +269,12 @@
   }
 
   function timestamp(record) {
-    // `record.fields` is the persisted call row. Top-level timestamp values can be
-    // display wrappers produced by the legacy dashboard and may already be shifted.
-    const startedAt = text(firstCanonicalField(record, ['started_at', 'call_started_at', 'start_time']));
-    const createdAt = text(firstCanonicalField(record, ['created_at']));
-    if (!startedAt) return createdAt || text(firstCanonicalField(record, ['updated_at'])) || null;
+    // Today/detail can receive flattened display wrappers. Resolve the persisted
+    // source row first so all dashboard surfaces use the same timestamp as Anfragen.
+    const source = canonicalRecord(record) || record;
+    const startedAt = text(firstCanonicalField(source, ['started_at', 'call_started_at', 'start_time']));
+    const createdAt = text(firstCanonicalField(source, ['created_at']));
+    if (!startedAt) return createdAt || text(firstCanonicalField(source, ['updated_at'])) || null;
     if (hasExplicitOffset(startedAt)) return startedAt;
 
     const localCandidate = qualifyZurichLocalTimestamp(startedAt);
@@ -280,6 +333,7 @@
     category,
     leadQuality,
     outcome,
+    canonicalRecord,
     timestamp,
     formatZurichDateTime,
     build
