@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Voxera Admin Portal v2</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --blue:#1A56DB;--blue-dark:#1340B0;--blue-light:#EFF3FE;--blue-mid:#C7D9F8;
+  --green:#16A34A;--green-light:#ECFDF5;--green-mid:#BBF7D0;
+  --red:#DC2626;--red-light:#FEF2F2;
+  --amber:#D97706;--amber-light:#FFFBEB;--amber-mid:#FDE68A;
+  --gray50:#F8FAFC;--gray100:#F1F5F9;--gray200:#E2E8F0;
+  --gray400:#94A3B8;--gray600:#475569;--gray700:#334155;--gray900:#0F172A;
+  --white:#FFFFFF;
+  --headline-font:'Manrope','DM Sans','Helvetica Neue',sans-serif;
+  --body-font:'DM Sans','Helvetica Neue',sans-serif;
+  --radius:10px;--radius-lg:14px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.04),0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md:0 2px 8px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.06);
+  --shadow-blue:0 4px 14px rgba(26,86,219,0.18);
+  --shadow-card:0 1px 3px rgba(0,0,0,0.03),0 1px 2px rgba(0,0,0,0.04);
+  --transition-fast:0.15s cubic-bezier(0.4,0,0.2,1);
+}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+body{font-family:var(--body-font);font-size:14px;color:var(--gray900);background:#F4F6FA;min-height:100vh;overflow-x:hidden;letter-spacing:-0.01em;line-height:1.5;}
+
+.app{display:flex;min-height:100vh;}
+.sidebar{width:232px;flex-shrink:0;background:var(--white);border-right:1px solid var(--gray200);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:40;}
+.sidebar-logo{padding:24px 24px 20px;border-bottom:1px solid var(--gray100);}
+.sidebar-logo-text{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--blue);letter-spacing:-.02em;}
+.sidebar-logo-sub{font-size:11px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.1em;}
+.nav{padding:12px 0;flex:1;overflow:auto;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;cursor:pointer;font-size:13.5px;color:var(--gray600);font-weight:500;border-left:3px solid transparent;transition:all var(--transition-fast);user-select:none;margin:1px 0;text-decoration:none;}
+.nav-item:hover{color:var(--gray900);background:var(--gray50);}
+.nav-item.active{color:var(--blue);background:var(--blue-light);border-left-color:var(--blue);font-weight:600;}
+.nav-badge{margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;min-width:20px;text-align:center;background:rgba(26,86,219,.08);color:#1A56DB;}
+.sidebar-footer{padding:18px 24px;border-top:1px solid var(--gray100);font-size:12px;color:var(--gray400);}
+.sidebar-user{font-size:13px;font-weight:600;color:var(--gray900);margin-bottom:3px;}
+.btn-logout{margin-top:10px;width:100%;padding:9px;background:var(--white);border:1px solid var(--gray200);border-radius:10px;font-size:12px;font-weight:500;color:var(--gray600);cursor:pointer;font-family:inherit;transition:all var(--transition-fast);}
+.btn-logout:hover{background:var(--red-light);color:var(--red);border-color:#FECACA;}
+
+.main{flex:1;margin-left:232px;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{padding:24px 32px 20px;background:var(--white);border-bottom:1px solid var(--gray200);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;z-index:30;}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.35px;color:var(--gray900);font-family:var(--headline-font);}
+.page-sub{font-size:13px;color:var(--gray400);margin-top:4px;}
+.status-pill{display:flex;align-items:center;gap:6px;background:var(--green-light);border:1px solid var(--green-mid);padding:6px 14px;border-radius:20px;font-size:12px;color:var(--green);font-weight:600;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.content{padding:28px 32px;flex:1;max-width:1320px;}
+
+.section{display:none;animation:fadeIn .2s ease;}
+.section.active{display:block;}
+@keyframes fadeIn{from{opacity:.75;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.card{background:var(--white);border:1px solid var(--gray200);border-radius:var(--radius-lg);padding:22px;box-shadow:var(--shadow-card);}
+.card-title{font-size:11.5px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;}
+.card-head h3{font-family:var(--headline-font);font-size:16px;letter-spacing:-.2px;}
+.grid-2{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.kpi{background:var(--white);border:1px solid var(--gray200);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-card);transition:all var(--transition-fast);}
+.kpi:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);}
+.kpi-label{font-size:11px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;}
+.kpi-value{font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:800;line-height:1;}
+.kpi-sub{font-size:11px;color:var(--gray400);margin-top:7px;}
+
+.table-wrap{overflow:auto;border:1px solid var(--gray200);border-radius:12px;background:var(--white);}
+.data-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.data-table th,.data-table td{padding:10px 12px;border-bottom:1px solid var(--gray200);text-align:left;vertical-align:top;white-space:nowrap;}
+.data-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray400);font-weight:700;background:var(--gray50);position:sticky;top:0;z-index:1;}
+.data-table tr:hover td{background:#FBFDFF;}
+.data-table td.wrap{white-space:normal;}
+
+.toolbar{display:grid;grid-template-columns:minmax(0,1.3fr) repeat(4,minmax(0,1fr)) auto;gap:10px;margin-bottom:14px;align-items:center;}
+.input,.select,.textarea{padding:10px 16px;border:1.5px solid var(--gray200);border-radius:12px;font-size:13px;font-family:inherit;color:var(--gray900);background:var(--gray50);outline:none;transition:all var(--transition-fast);width:100%;}
+.textarea{min-height:96px;resize:vertical;}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 3px rgba(26,86,219,.06);}
+.btn{padding:8px 16px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);display:inline-flex;align-items:center;gap:6px;border:none;white-space:nowrap;height:36px;}
+.btn-primary{background:var(--blue);color:var(--white);box-shadow:0 1px 3px rgba(26,86,219,.12);}
+.btn-primary:hover{background:var(--blue-dark);transform:translateY(-0.5px);}
+.btn-secondary{background:var(--white);color:var(--gray600);border:1px solid var(--gray200);}
+.btn-secondary:hover{background:var(--gray50);border-color:var(--gray400);}
+.btn-quiet{background:var(--gray50);color:var(--gray600);border:1px solid var(--gray200);}
+.btn-quiet:hover{background:var(--gray100);}
+.btn-sm{height:30px;padding:6px 10px;font-size:11.5px;}
+
+.badge{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;}
+.badge-blue{background:var(--blue-light);color:var(--blue);}
+.badge-green{background:var(--green-light);color:var(--green);}
+.badge-amber{background:var(--amber-light);color:var(--amber);border:1px solid var(--amber-mid);}
+.badge-red{background:var(--red-light);color:var(--red);}
+.badge-gray{background:var(--gray100);color:var(--gray600);}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+
+.list{display:flex;flex-direction:column;gap:10px;}
+.list-item{padding:14px 16px;border:1px solid var(--gray200);border-radius:12px;background:var(--white);display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}
+.list-main{font-size:13px;font-weight:600;}
+.list-sub{font-size:11.5px;color:var(--gray400);margin-top:4px;}
+
+.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--gray100);padding:4px;border-radius:12px;width:fit-content;border:1px solid var(--gray200);}
+.tab-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--gray600);font-family:inherit;transition:all var(--transition-fast);}
+.tab-btn.active{background:var(--white);color:var(--gray900);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+.empty{padding:24px;text-align:center;border:1px dashed var(--gray200);border-radius:12px;color:var(--gray400);font-size:12.5px;background:var(--gray50);}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);backdrop-filter:blur(6px);z-index:100;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--white);border-radius:20px;padding:26px;width:min(980px,100%);max-height:92vh;overflow:auto;box-shadow:0 16px 48px rgba(0,0,0,.12);animation:fadeUp .25s cubic-bezier(.16,1,.3,1) both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.modal-title{font-family:var(--headline-font);font-size:20px;font-weight:700;letter-spacing:-.2px;}
+.modal-sub{font-size:12.5px;color:var(--gray400);margin-top:4px;}
+.modal-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:18px;}
+
+.profile-tabs{display:flex;gap:4px;background:var(--gray100);border:1px solid var(--gray200);padding:4px;border-radius:12px;margin-bottom:14px;width:fit-content;}
+.profile-tab{padding:7px 12px;border:none;border-radius:8px;background:transparent;font-size:12px;font-weight:600;color:var(--gray600);cursor:pointer;}
+.profile-tab.active{background:var(--white);color:var(--gray900);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.profile-panel{display:none;}
+.profile-panel.active{display:block;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.detail-item{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--gray100);padding:9px 0;font-size:12.5px;}
+.detail-k{color:var(--gray400);font-weight:600;}
+.detail-v{color:var(--gray900);font-weight:600;text-align:right;}
+.action-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.alert-stack{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.alert-item{padding:10px 12px;border-radius:10px;font-size:12px;border:1px solid var(--gray200);background:var(--gray50);}
+.alert-item.warn{background:var(--amber-light);border-color:var(--amber-mid);color:#92400E;}
+.alert-item.critical{background:var(--red-light);border-color:#FECACA;color:var(--red);}
+.table-action{display:flex;gap:6px;flex-wrap:wrap;}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.mini-field{padding:12px;border:1px solid var(--gray200);border-radius:10px;background:var(--gray50);}
+.mini-label{font-size:10.5px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.mini-value{font-size:13px;font-weight:600;color:var(--gray900);}
+.note-edit{display:flex;gap:8px;align-items:flex-start;width:100%;}
+.note-edit textarea{min-height:72px;}
+.progress-track{height:8px;background:var(--gray100);border-radius:999px;overflow:hidden;min-width:120px;}
+.progress-fill{height:100%;background:var(--blue);border-radius:999px;transition:width .2s ease;}
+.missing-steps{display:flex;gap:6px;flex-wrap:wrap;}
+.step-chip{font-size:10.5px;padding:3px 8px;border-radius:999px;background:var(--amber-light);border:1px solid var(--amber-mid);color:#92400E;font-weight:600;}
+.priority-flag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:700;}
+.priority-dot{width:7px;height:7px;border-radius:50%;}
+.priority-critical{background:var(--red-light);color:var(--red);}
+.priority-critical .priority-dot{background:var(--red);}
+.priority-high{background:var(--amber-light);color:#92400E;}
+.priority-high .priority-dot{background:var(--amber);}
+.priority-medium{background:var(--blue-light);color:var(--blue);}
+.priority-medium .priority-dot{background:var(--blue);}
+.priority-low{background:var(--gray100);color:var(--gray600);}
+.priority-low .priority-dot{background:var(--gray400);}
+.timeline-wrap{display:flex;flex-direction:column;gap:14px;}
+.timeline-group{background:var(--white);border:1px solid var(--gray200);border-radius:12px;padding:14px 16px;}
+.timeline-group-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.timeline-group-title{font-size:12px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;}
+.timeline-item{display:grid;grid-template-columns:84px 110px minmax(0,1fr);gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--gray100);}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-time{font-size:11.5px;color:var(--gray400);font-weight:600;}
+.timeline-label{font-size:10.5px;padding:3px 8px;border-radius:999px;font-weight:700;justify-self:start;}
+.label-calls{background:var(--blue-light);color:var(--blue);}
+.label-onboarding{background:var(--amber-light);color:#92400E;}
+.label-cases{background:var(--red-light);color:var(--red);}
+.label-customers{background:var(--green-light);color:var(--green);}
+.timeline-main{font-size:13px;font-weight:600;color:var(--gray900);}
+.timeline-sub{font-size:11.5px;color:var(--gray400);margin-top:3px;line-height:1.5;}
+
+@media (max-width:1100px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .toolbar{grid-template-columns:1fr 1fr;}
+  .grid-2,.grid-3,.detail-grid{grid-template-columns:1fr;}
+}
+@media (max-width:920px){
+  .sidebar{display:none;}
+  .main{margin-left:0;}
+  .topbar,.content{padding-left:18px;padding-right:18px;}
+}
+
+/* ── Onboarding Workspace panel ── */
+.ob-overlay{display:none;position:fixed;inset:0;z-index:49;background:rgba(15,23,42,.25);backdrop-filter:blur(2px);}
+.ob-overlay.open{display:block;}
+.ob-workspace{position:fixed;top:0;right:-520px;height:100vh;width:min(520px,100vw);background:var(--white);border-left:1px solid var(--gray200);box-shadow:-6px 0 32px rgba(0,0,0,.1);z-index:50;display:flex;flex-direction:column;transition:right .28s cubic-bezier(.16,1,.3,1);overflow:hidden;}
+.ob-workspace.open{right:0;}
+.ob-workspace-inner{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+.ob-ws-header{padding:20px 20px 16px;border-bottom:1px solid var(--gray100);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-shrink:0;}
+.ob-ws-title{font-family:var(--headline-font);font-size:17px;font-weight:700;letter-spacing:-.2px;}
+.ob-ws-sub{font-size:12px;color:var(--gray400);margin-top:3px;}
+.ob-ws-close{background:var(--gray100);border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:15px;color:var(--gray600);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all var(--transition-fast);line-height:1;}
+.ob-ws-close:hover{background:var(--gray200);}
+.ob-ws-body{flex:1;overflow-y:auto;padding:18px 20px 24px;}
+
+/* Context grid */
+.ob-context{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;}
+.ob-field{padding:10px 12px;border:1px solid var(--gray200);border-radius:10px;background:var(--gray50);}
+.ob-field-label{font-size:10px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.ob-field-value{font-size:13px;font-weight:600;color:var(--gray900);}
+
+/* Next action banner */
+.ob-next{background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:12px;padding:13px 14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.ob-next-label{font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.ob-next-action{font-size:13px;font-weight:600;color:var(--gray900);}
+.ob-blocked-banner{background:var(--red-light);border:1px solid #FECACA;border-radius:12px;padding:13px 14px;margin-bottom:18px;}
+.ob-blocked-label{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.ob-blocked-text{font-size:12.5px;color:var(--red);font-weight:600;}
+
+/* Step list */
+.ob-section-title{font-size:10.5px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;}
+.ob-step-list{display:flex;flex-direction:column;gap:7px;margin-bottom:20px;}
+.ob-step{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:10px;border:1px solid var(--gray200);background:var(--white);}
+.ob-step.done{border-color:var(--green-mid);background:var(--green-light);}
+.ob-step.blocked{border-color:#FECACA;background:var(--red-light);opacity:.75;}
+.ob-step.available{border-color:var(--blue-mid);background:var(--blue-light);}
+.ob-step-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px;}
+.ob-step.done .ob-step-icon{background:var(--green);color:var(--white);}
+.ob-step.blocked .ob-step-icon{background:#FCA5A5;color:var(--red);}
+.ob-step.available .ob-step-icon{background:var(--blue);color:var(--white);}
+.ob-step:not(.done):not(.blocked):not(.available) .ob-step-icon{background:var(--gray200);color:var(--gray400);}
+.ob-step-info{flex:1;min-width:0;}
+.ob-step-label{font-size:13px;font-weight:600;color:var(--gray900);}
+.ob-step.done .ob-step-label{color:var(--green);}
+.ob-step.blocked .ob-step-label{color:var(--red);}
+.ob-step-dep{font-size:11px;color:var(--gray400);margin-top:3px;line-height:1.4;}
+.ob-step.blocked .ob-step-dep{color:#DC2626;}
+.ob-step-actions{display:flex;gap:6px;margin-top:8px;}
+
+/* Readiness block */
+.ob-readiness{border-radius:12px;padding:14px 16px;border:1px solid var(--gray200);}
+.ob-readiness.ready{background:var(--green-light);border-color:var(--green-mid);}
+.ob-readiness.partial{background:var(--amber-light);border-color:var(--amber-mid);}
+.ob-readiness.blocked-state{background:var(--red-light);border-color:#FECACA;}
+.ob-readiness-title{font-size:13px;font-weight:700;margin-bottom:4px;}
+.ob-readiness.ready .ob-readiness-title{color:var(--green);}
+.ob-readiness.partial .ob-readiness-title{color:var(--amber);}
+.ob-readiness.blocked-state .ob-readiness-title{color:var(--red);}
+.ob-readiness-sub{font-size:12px;color:var(--gray600);}
+
+/* Onboarding queue toolbar */
+.ob-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.ob-toolbar .input{flex:1;min-width:180px;}
+
+/* Mobile: onboarding table → stacked cards */
+@media (max-width:768px){
+  .ob-table-wrap{overflow:visible!important;border:none!important;background:transparent!important;}
+  .ob-data-table{display:block;border:none;}
+  .ob-data-table thead{display:none;}
+  .ob-data-table tbody{display:flex;flex-direction:column;gap:10px;}
+  .ob-data-table tr{display:flex;flex-direction:column;gap:7px;padding:14px 16px;border:1px solid var(--gray200);border-radius:12px;background:var(--white);box-shadow:var(--shadow-card);}
+  .ob-data-table td{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0;border:none!important;font-size:12.5px;white-space:normal;}
+  .ob-data-table td[data-label]::before{content:attr(data-label);font-size:10px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;min-width:88px;}
+  .ob-data-table td.ob-td-full{flex-direction:column;align-items:flex-start;}
+  .ob-data-table td.ob-td-full[data-label]::before{margin-bottom:5px;}
+  .ob-workspace{width:100vw;right:-100vw;}
+  .ob-context{grid-template-columns:1fr 1fr;}
+  .ob-ws-header{padding:16px;}
+  .ob-ws-body{padding:14px 16px 20px;}
+}
+@media (max-width:480px){
+  .ob-context{grid-template-columns:1fr;}
+  .ob-toolbar{gap:8px;}
+  .ob-toolbar .input,.ob-toolbar .select{min-width:0;}
+  .ob-data-table td{flex-wrap:wrap;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">Voxera</div>
+      <div class="sidebar-logo-sub">Admin Portal v2</div>
+    </div>
+    <nav class="nav" id="main-nav">
+      <a href="#overview" class="nav-item" data-route="overview">Übersicht</a>
+      <a href="#customers" class="nav-item" data-route="customers">Kunden <span class="nav-badge" id="badge-customers">0</span></a>
+      <a href="#onboarding" class="nav-item" data-route="onboarding">Onboarding <span class="nav-badge" id="badge-onboarding">0</span></a>
+      <a href="#ai-setup" class="nav-item" data-route="ai-setup">AI Setup</a>
+      <a href="#cases" class="nav-item" data-route="cases">Cases <span class="nav-badge" id="badge-cases">0</span></a>
+      <a href="#activity" class="nav-item" data-route="activity">Aktivität</a>
+      <a href="#insights" class="nav-item" data-route="insights">Insights</a>
+      <a href="#settings" class="nav-item" data-route="settings">Einstellungen</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user" id="sidebar-user">Admin geladen …</div>
+      <div>Internal Operations Workspace</div>
+      <button class="btn-logout" id="logout-btn">Abmelden</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="page-title" id="page-title">Übersicht</div>
+        <div class="page-sub" id="page-sub">Operatives Cockpit für den täglichen Betrieb.</div>
+      </div>
+      <div class="status-pill"><span class="status-dot"></span>System live</div>
+    </header>
+
+    <div class="content">
+      <section id="section-overview" class="section active">
+        <div class="kpi-grid" id="overview-kpis"></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h3>Neueste Aktivität</h3><span class="badge badge-blue">Cross-Customer Feed</span></div>
+            <div class="list" id="overview-activity-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Kunden mit Handlungsbedarf</h3><span class="badge badge-red">Priorisiert</span></div>
+            <div class="list" id="overview-attention-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="section-customers" class="section">
+        <div class="section-head">
+          <h3 style="font-family:var(--headline-font);font-size:18px">Kundenverwaltung</h3>
+          <button class="btn btn-primary">+ Kunde anlegen</button>
+        </div>
+        <div class="toolbar">
+          <input class="input" id="customer-search" placeholder="Suche nach Firmenname, Kontakt, Nummer …">
+          <select class="select" id="customer-plan-filter"><option value="all">Plan: Alle</option></select>
+          <select class="select" id="customer-status-filter"><option value="all">Status: Alle</option></select>
+          <select class="select" id="customer-progress-filter"><option value="all">Setup: Alle</option><option value="0-39">0–39%</option><option value="40-79">40–79%</option><option value="80-100">80–100%</option></select>
+          <select class="select" id="customer-case-filter"><option value="all">Cases: Alle</option><option value="0">Keine offenen</option><option value="1+">Mind. 1 offen</option></select>
+          <button class="btn btn-secondary" id="customer-reset">Filter zurücksetzen</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Kunde</th><th>Plan</th><th>Status</th><th>Setup-Fortschritt</th><th>Letzte Aktivität</th><th>Offene Cases</th><th>Quick Actions</th></tr></thead>
+            <tbody id="customers-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="section-onboarding" class="section">
+        <div class="section-head">
+          <h3 style="font-family:var(--headline-font);font-size:18px">Onboarding Pipeline</h3>
+          <span class="badge badge-amber">End-to-End Workflow</span>
+        </div>
+        <div class="ob-toolbar">
+          <input class="input" id="ob-search" placeholder="Suche nach Kundenname …">
+          <select class="select" id="ob-filter" style="width:auto;">
+            <option value="all">Filter: Alle</option>
+            <option value="in-progress">In Arbeit</option>
+            <option value="blocked">Blockiert</option>
+            <option value="launch-ready">Launch Ready</option>
+            <option value="completed">Completed</option>
+          </select>
+          <select class="select" id="onboarding-sort" style="width:auto;">
+            <option value="incomplete">Unvollständig zuerst</option>
+            <option value="progress-asc">Progress aufsteigend</option>
+            <option value="progress-desc">Progress absteigend</option>
+          </select>
+        </div>
+        <div class="table-wrap ob-table-wrap">
+          <table class="data-table ob-data-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Current Stage</th>
+                <th>Readiness</th>
+                <th>Blocker</th>
+                <th>Next Action</th>
+                <th>Launch Ready</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="onboarding-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="section-ai-setup" class="section">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h3>Global Master Prompt</h3><span class="badge badge-blue">Policy-Layer</span></div>
+            <textarea class="textarea" rows="10">Du bist Voxera, ein professioneller Voice Assistant für Schweizer KMU. Priorisiere Präzision, Datenschutz, höfliche Gesprächsführung, und klare Übergaben in kritischen Fällen.</textarea>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Response Constraints</h3><span class="badge badge-gray">Runtime Guardrails</span></div>
+            <div class="list">
+              <div class="list-item"><div class="list-main">Keine rechtliche/medizinische Beratung</div><span class="badge badge-red">Hart</span></div>
+              <div class="list-item"><div class="list-main">Tonality: professionell, ruhig, lösungsorientiert</div><span class="badge badge-blue">Standard</span></div>
+              <div class="list-item"><div class="list-main">Antwortlänge auf 40 Sek. Speech begrenzen</div><span class="badge badge-amber">Wichtig</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:16px;">
+          <div class="card">
+            <div class="card-head"><h3>Customer Instructions</h3><span class="badge badge-green">Tenant Overrides</span></div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Kunde</th><th>Business Knowledge</th><th>Fallback Logik</th><th>Escalation Rules</th></tr></thead>
+                <tbody id="ai-customer-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Recent Changes / Version Notes</h3><span class="badge badge-gray">Audit</span></div>
+            <div class="list" id="ai-changes-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="section-cases" class="section">
+        <div class="section-head" style="margin-bottom:10px;">
+          <h3 style="font-family:var(--headline-font);font-size:18px">Cases Workflow</h3>
+          <span class="badge badge-blue">Statusfluss: new → in progress → waiting → done</span>
+        </div>
+        <div class="tabs" id="cases-tabs">
+          <button class="tab-btn active" data-tab="callbacks">Rückrufe</button>
+          <button class="tab-btn" data-tab="followups">Follow-ups</button>
+          <button class="tab-btn" data-tab="all">Alle Cases</button>
+        </div>
+        <div class="tab-panel active" data-panel="callbacks"><div class="table-wrap"><table class="data-table"><thead><tr><th>Case</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th><th>Aktionen</th></tr></thead><tbody id="cases-callbacks"></tbody></table></div></div>
+        <div class="tab-panel" data-panel="followups"><div class="table-wrap"><table class="data-table"><thead><tr><th>Case</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>History</th><th>Aktionen</th></tr></thead><tbody id="cases-followups"></tbody></table></div></div>
+        <div class="tab-panel" data-panel="all"><div class="table-wrap"><table class="data-table"><thead><tr><th>Typ</th><th>Case</th><th>Priorität</th><th>Status</th><th>Owner</th><th>Kunde</th><th>Latest Update</th><th>Notizen</th><th>Aktionen</th></tr></thead><tbody id="cases-all"></tbody></table></div></div>
+      </section>
+
+      <section id="section-activity" class="section">
+        <div class="card">
+          <div class="card-head">
+            <h3>System Timeline</h3>
+            <span class="badge badge-blue">Calls · Onboarding · Cases · Customer Changes</span>
+          </div>
+          <div class="timeline-wrap" id="activity-timeline"></div>
+        </div>
+      </section>
+
+      <section id="section-insights" class="section">
+        <div class="grid-2">
+          <div class="card"><div class="card-head"><h3>Customer Count by Plan</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Plan</th><th>Kunden</th><th>Anteil</th></tr></thead><tbody id="insight-plan-split"></tbody></table></div></div>
+          <div class="card"><div class="card-head"><h3>Callback Patterns</h3></div><div id="insight-callback-patterns"></div></div>
+        </div>
+        <div class="grid-2" style="margin-top:16px;">
+          <div class="card"><div class="card-head"><h3>Calls over Time (7 Tage)</h3></div><div id="insight-calls-time"></div></div>
+          <div class="card"><div class="card-head"><h3>Operational Trends</h3></div><div id="insight-trends"></div></div>
+        </div>
+      </section>
+
+      <section id="section-settings" class="section">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-head"><h3>Admin Management</h3><button class="btn btn-secondary btn-sm">+ Admin</button></div>
+            <div class="list">
+              <div class="list-item"><div><div class="list-main">Lea Baumann</div><div class="list-sub">super-admin · lea@voxera.ch</div></div><span class="badge badge-green">Aktiv</span></div>
+              <div class="list-item"><div><div class="list-main">Noah Keller</div><div class="list-sub">admin · noah@voxera.ch</div></div><span class="badge badge-green">Aktiv</span></div>
+              <div class="list-item"><div><div class="list-main">Mia Vogel</div><div class="list-sub">support · mia@voxera.ch</div></div><span class="badge badge-amber">MFA offen</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Feature Flags</h3><span class="badge badge-blue">Rollout</span></div>
+            <div class="list">
+              <div class="list-item"><div><div class="list-main">AI Escalation v2</div><div class="list-sub">Pilot bei 3 Kunden</div></div><span class="badge badge-green">ON</span></div>
+              <div class="list-item"><div><div class="list-main">Automatisierte Billing Mails</div><div class="list-sub">Geplant für Q2</div></div><span class="badge badge-gray">OFF</span></div>
+              <div class="list-item"><div><div class="list-main">Live Call Quality Scoring</div><div class="list-sub">Interner Canary</div></div><span class="badge badge-amber">PARTIAL</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>System Defaults</h3><span class="badge badge-gray">Config</span></div>
+            <div class="detail-item"><span class="detail-k">Default Sprache</span><span class="detail-v">de-CH</span></div>
+            <div class="detail-item"><span class="detail-k">Callback SLA</span><span class="detail-v">30 Minuten</span></div>
+            <div class="detail-item"><span class="detail-k">Escalation Kanal</span><span class="detail-v">Ops Slack + E-Mail</span></div>
+            <div class="detail-item"><span class="detail-k">Retention Calls</span><span class="detail-v">180 Tage</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Onboarding Workspace -->
+<div class="ob-overlay" id="ob-overlay" role="button" tabindex="0" aria-label="Close onboarding workspace" onclick="closeOnboardingWorkspace()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();closeOnboardingWorkspace();}"></div>
+<div class="ob-workspace" id="ob-workspace" role="dialog" aria-modal="true" aria-labelledby="ob-ws-title">
+  <div class="ob-workspace-inner">
+    <div class="ob-ws-header">
+      <div>
+        <div class="ob-ws-title" id="ob-ws-title"></div>
+        <div class="ob-ws-sub" id="ob-ws-sub"></div>
+      </div>
+      <button class="ob-ws-close" aria-label="Close workspace" onclick="closeOnboardingWorkspace()">✕</button>
+    </div>
+    <div class="ob-ws-body">
+      <div id="ob-ws-context"></div>
+      <div id="ob-ws-banner"></div>
+      <div id="ob-ws-steps"></div>
+      <div id="ob-ws-readiness"></div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--gray100);display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="openCustomerProfile(state.activeOnboardingId)">Full Profile öffnen</button>
+        <button class="btn btn-quiet btn-sm" onclick="closeOnboardingWorkspace()">Schließen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="customer-profile-modal" onclick="if(event.target===this)closeCustomerProfile()">
+  <div class="modal">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title" id="profile-title">Kundenprofil</div>
+        <div class="modal-sub" id="profile-sub">Operational 360°</div>
+      </div>
+      <button class="btn btn-secondary" onclick="closeCustomerProfile()">Schließen</button>
+    </div>
+
+    <div class="profile-tabs" id="profile-tabs">
+      <button class="profile-tab active" data-profile-tab="overview">Overview</button>
+      <button class="profile-tab" data-profile-tab="calls">Calls</button>
+      <button class="profile-tab" data-profile-tab="cases">Cases</button>
+      <button class="profile-tab" data-profile-tab="billing">Billing</button>
+      <button class="profile-tab" data-profile-tab="notes">Notes</button>
+    </div>
+
+    <div class="profile-panel active" data-profile-panel="overview">
+      <div class="action-row">
+        <button class="btn btn-secondary btn-sm" onclick="setCustomerStatus('Paused')">Pausieren</button>
+        <button class="btn btn-secondary btn-sm" onclick="setCustomerStatus('Aktiv')">Aktivieren</button>
+        <button class="btn btn-secondary btn-sm" onclick="profileAction('edit')">Bearbeiten</button>
+        <button class="btn btn-secondary btn-sm" onclick="profileAction('onboarding')">Onboarding öffnen</button>
+      </div>
+      <div id="profile-setup-highlight"></div>
+      <div class="detail-grid" id="profile-overview-grid"></div>
+      <div class="card" style="margin-top:12px;padding:14px 16px;">
+        <div class="card-title">Internal Summary</div>
+        <div id="profile-summary" style="font-size:13px;color:var(--gray700);"></div>
+      </div>
+      <div class="alert-stack" id="profile-alerts"></div>
+    </div>
+    <div class="profile-panel" data-profile-panel="calls"><div class="table-wrap"><table class="data-table"><thead><tr><th>Zeit</th><th>Kategorie / Qualität</th><th>Callback</th><th>Summary</th><th>Aktionen</th></tr></thead><tbody id="profile-calls"></tbody></table></div></div>
+    <div class="profile-panel" data-profile-panel="cases">
+      <div class="action-row"><button class="btn btn-primary btn-sm" onclick="createCaseForCurrentCustomer()">+ Neuer Case</button></div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>Status</th><th>Priorität</th><th>Owner</th><th>Latest Update</th><th>Notizen</th></tr></thead><tbody id="profile-cases"></tbody></table></div>
+    </div>
+    <div class="profile-panel" data-profile-panel="billing"><div class="detail-grid" id="profile-billing"></div></div>
+    <div class="profile-panel" data-profile-panel="notes">
+      <div class="action-row">
+        <textarea class="textarea" id="profile-note-input" placeholder="Interne Notiz erfassen …"></textarea>
+        <button class="btn btn-primary" onclick="addProfileNote()">Notiz hinzufügen</button>
+      </div>
+      <div class="list" id="profile-notes"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const SB_URL='https://ulcofbgrovgcvowdjrge.supabase.co';
+const SB_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
+const supabaseLib=window.supabase;
+const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SB_URL,SB_ANON_KEY):null;
+
+const VOXERA_NUMBER_PREFIX='+41 58 100 20';
+const VOXERA_ID_PAD=2;
+
+const state={
+  route:'overview',
+  selectedCustomer:null,
+  customers:[
+    {id:1,name:'Meyer Sanitär AG',contact:'Lukas Meyer',email:'info@meyer-sanitaer.ch',phone:'+41 44 500 10 10',plan:'Growth',status:'Aktiv',voxera:'+41 44 520 00 10',progress:95,readiness:'Ready',latest:'Heute · 09:42',openCases:1,summary:'Sehr stabiler Betrieb, hoher Anrufdurchsatz am Morgen, Callback SLA im grünen Bereich.',notes:['Q2 Ziel: Terminbuchung tiefer integrieren.','Hohe Qualität bei Notfallklassifizierung.']},
+    {id:2,name:'Keller Dentalpraxis',contact:'Dr. Anna Keller',email:'praxis@kellerdental.ch',phone:'+41 31 200 22 11',plan:'Pro',status:'Onboarding',voxera:'Zuweisung offen',progress:68,readiness:'Konfiguration offen',latest:'Heute · 08:14',openCases:2,summary:'Onboarding läuft, Nummernzuweisung in Klärung, Greeting-Review steht aus.',notes:['Test-Call für Dienstag geplant.','Business-Öffnungszeiten prüfen.']},
+    {id:3,name:'Alpin Treuhand GmbH',contact:'Marco Frei',email:'kontakt@alpin-treuhand.ch',phone:'+41 61 777 55 40',plan:'Starter',status:'Aktiv',voxera:'+41 61 600 00 44',progress:100,readiness:'Live',latest:'Gestern · 17:50',openCases:0,summary:'Ruhiger Betrieb, kaum Eskalationen, Updates nur monatlich notwendig.',notes:['Upsell auf Growth bei steigendem Volumen prüfen.']},
+    {id:4,name:'Hotel Seeblick Luzern',contact:'Sina Widmer',email:'frontdesk@seeblick.ch',phone:'+41 41 300 11 88',plan:'Enterprise',status:'Aktiv',voxera:'+41 41 770 88 11',progress:88,readiness:'Fast ready',latest:'Heute · 10:18',openCases:3,summary:'Hohe Last am Wochenende, mehrere Follow-ups zu Gruppenbuchungen.',notes:['Mehrsprachige Begrüßung finalisieren.','Escalation to night desk sauber.']},
+    {id:5,name:'Berg Apotheke AG',contact:'Reto Schmid',email:'team@bergapo.ch',phone:'+41 52 900 44 66',plan:'Growth',status:'Paused',voxera:'+41 52 640 12 19',progress:54,readiness:'Training nötig',latest:'Heute · 07:55',openCases:1,summary:'Temporär pausiert wegen interner Umstellung, Wissensdaten müssen aktualisiert werden.',notes:['Prompt-Review nach Sortimentwechsel.']}
+  ],
+  calls:[
+    {id:'CL-201',customerId:1,time:'2026-04-06 09:42',cat:'Termin · Qualität A',callback:false,summary:'Termin für Serviceeinsatz automatisch erfasst.',done:false,note:''},
+    {id:'CL-202',customerId:1,time:'2026-04-06 08:58',cat:'Notfall · Qualität A',callback:true,summary:'Wasserleck gemeldet, sofort an Bereitschaft weitergegeben.',done:false,note:''},
+    {id:'CL-203',customerId:2,time:'2026-04-06 08:14',cat:'Neupatient · Qualität B',callback:true,summary:'Rückruf wegen Versicherungsfrage angefordert.',done:false,note:''},
+    {id:'CL-204',customerId:4,time:'2026-04-06 10:18',cat:'Reservierung · Qualität A',callback:false,summary:'Gruppenreservierung mit Sonderwunsch dokumentiert.',done:true,note:'Bestätigung im PMS erfolgt.'},
+    {id:'CL-205',customerId:5,time:'2026-04-06 07:55',cat:'Produktfrage · Qualität B',callback:false,summary:'Öffnungszeiten und Verfügbarkeit mitgeteilt.',done:false,note:''}
+  ],
+  cases:[
+    {id:'C-101',type:'Rückruf',priority:'Kritisch',status:'new',owner:'Lea',customerId:4,latest:'Vor 18 Min',notes:'VIP Anfrage ohne Finalisierung.'},
+    {id:'C-102',type:'Follow-up',priority:'Hoch',status:'in progress',owner:'Noah',customerId:2,latest:'Vor 42 Min',notes:'Aktivierungslink erneut senden.'},
+    {id:'C-103',type:'Rückruf',priority:'Mittel',status:'new',owner:'Mia',customerId:1,latest:'Vor 65 Min',notes:'Notfallrückruf bestätigen.'},
+    {id:'C-104',type:'Follow-up',priority:'Niedrig',status:'waiting',owner:'Lea',customerId:4,latest:'Heute 07:50',notes:'Mehrsprachigkeit prüfen.'},
+    {id:'C-105',type:'Rückruf',priority:'Mittel',status:'new',owner:'Noah',customerId:5,latest:'Heute 07:59',notes:'Produktberatung intern klären.'}
+  ],
+  onboarding:[
+    {customerId:2,status:'In Arbeit',owner:'Noah',latest:'Heute · 08:14',steps:{customerCreated:true,activationSent:false,dashboardActive:false,numberAssigned:false,agentConnected:false,forwardingConfigured:false,businessInfoDone:true,openingHoursAdded:false,greetingReviewed:false,aiBasicsConfigured:false,testCallCompleted:false,readyForGoLive:false,fullyCompleted:false}},
+    {customerId:5,status:'In Arbeit',owner:'Lea',latest:'Heute · 07:55',steps:{customerCreated:true,activationSent:true,dashboardActive:true,numberAssigned:true,agentConnected:true,forwardingConfigured:false,businessInfoDone:false,openingHoursAdded:false,greetingReviewed:false,aiBasicsConfigured:false,testCallCompleted:false,readyForGoLive:false,fullyCompleted:false}},
+    {customerId:4,status:'In Arbeit',owner:'Mia',latest:'Heute · 10:18',steps:{customerCreated:true,activationSent:true,dashboardActive:true,numberAssigned:true,agentConnected:true,forwardingConfigured:true,businessInfoDone:true,openingHoursAdded:true,greetingReviewed:false,aiBasicsConfigured:false,testCallCompleted:false,readyForGoLive:false,fullyCompleted:false}}
+  ],
+  events:[
+    '10:25 · Case C-101 auf Kritisch gesetzt',
+    '10:18 · Hotel Seeblick: neue Reservierungsanfrage',
+    '09:42 · Meyer Sanitär: Termin erfolgreich klassifiziert',
+    '09:10 · AI Setup Änderung für Berg Apotheke veröffentlicht',
+    '08:14 · Keller Dental: Callback erstellt'
+  ],
+  activityTimeline:[
+    {time:'10:32',type:'calls',title:'Meyer Sanitär · Notfallanruf klassifiziert',detail:'Callback angefordert, Priorität hoch, SLA gestartet.'},
+    {time:'10:28',type:'cases',title:'Case C-101 auf in progress gesetzt',detail:'Owner Lea hat Rückruf übernommen.'},
+    {time:'10:21',type:'onboarding',title:'Keller Dental · Activation triggern',detail:'Aktivierungslink versendet und verifiziert.'},
+    {time:'10:12',type:'customers',title:'Hotel Seeblick · Kundenstammdaten aktualisiert',detail:'Neue Kontaktperson + Eskalationsnummer gespeichert.'},
+    {time:'09:58',type:'cases',title:'Case C-104 auf waiting gesetzt',detail:'Wartet auf Kundenrückmeldung zu Mehrsprachigkeit.'},
+    {time:'09:45',type:'calls',title:'Berg Apotheke · Produktanfrage protokolliert',detail:'Kein Callback nötig, Notiz ergänzt.'},
+    {time:'09:30',type:'onboarding',title:'Hotel Seeblick · Test-Call erledigt',detail:'Audioqualität bestätigt, Routing stabil.'},
+    {time:'09:14',type:'customers',title:'Alpin Treuhand · Planreview markiert',detail:'Upsell-Potenzial für Growth erfasst.'}
+  ],
+  checklist:['Customer created','Activation sent','Dashboard active','Voxera number assigned','Agent connected','Forwarding configured','Business info completed','Opening hours added','Greeting reviewed','AI basics configured','Test call completed','Ready for go-live','Fully completed'],
+  customerNotes:{},
+  activeOnboardingId:null
+};
+
+const routes=['overview','customers','onboarding','ai-setup','cases','activity','insights','settings'];
+
+const ONBOARDING_STEPS=[
+  {key:'customerCreated',      label:'Customer created',          required:true,  deps:[]},
+  {key:'activationSent',       label:'Activation sent',           required:true,  deps:['customerCreated']},
+  {key:'dashboardActive',      label:'Dashboard / access active', required:false, deps:['activationSent']},
+  {key:'numberAssigned',       label:'Voxera number assigned',    required:true,  deps:['customerCreated']},
+  {key:'agentConnected',       label:'Agent connected',           required:true,  deps:['numberAssigned']},
+  {key:'forwardingConfigured', label:'Forwarding configured',     required:true,  deps:['numberAssigned']},
+  {key:'businessInfoDone',     label:'Business info completed',   required:true,  deps:[]},
+  {key:'openingHoursAdded',    label:'Opening hours added',       required:true,  deps:['businessInfoDone']},
+  {key:'greetingReviewed',     label:'Greeting reviewed',         required:true,  deps:['businessInfoDone']},
+  {key:'aiBasicsConfigured',   label:'AI basics configured',      required:true,  deps:['businessInfoDone']},
+  {key:'testCallCompleted',    label:'Test call completed',       required:true,  deps:['numberAssigned','forwardingConfigured','agentConnected']},
+  {key:'readyForGoLive',       label:'Ready for go-live',         required:true,  deps:['activationSent','numberAssigned','agentConnected','forwardingConfigured','businessInfoDone','openingHoursAdded','greetingReviewed','aiBasicsConfigured','testCallCompleted']},
+  {key:'fullyCompleted',       label:'Fully completed',           required:true,  deps:['readyForGoLive','dashboardActive']}
+];
+const routeMeta={
+  'overview':['Übersicht','Operatives Cockpit für den täglichen Betrieb.'],
+  'customers':['Kunden','Kundenstamm mit Setup-, Aktivitäts- und Case-Kontrolle.'],
+  'onboarding':['Onboarding','Setup Readiness und Checklisten-Fortschritt.'],
+  'ai-setup':['AI Setup','Master Prompt, Eskalation und Wissenssteuerung.'],
+  'cases':['Cases','Rückrufe, Follow-ups und Workflow-Verantwortung.'],
+  'activity':['Aktivität','Cross-Customer Echtzeit-Transparenz.'],
+  'insights':['Insights','Planverteilung, Trends und Pattern.'],
+  'settings':['Einstellungen','Adminverwaltung, Flags und Systemdefaults.']
+};
+
+function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function customerById(id){return state.customers.find(c=>c.id===id);}
+function toneBadge(val){
+  const v=(val||'').toLowerCase();
+  const cls=v.includes('krit')||v.includes('offen')?'badge-red':v.includes('hoch')||v.includes('arbeit')?'badge-amber':v.includes('aktiv')||v.includes('ready')||v.includes('live')?'badge-green':v.includes('growth')||v.includes('pro')||v.includes('enterprise')?'badge-blue':'badge-gray';
+  return `<span class="badge ${cls}">${esc(val)}</span>`;
+}
+
+function priorityIndicator(priority){
+  const p=(priority||'').toLowerCase();
+  const cls=p==='kritisch'?'priority-critical':p==='hoch'?'priority-high':p==='mittel'?'priority-medium':'priority-low';
+  return `<span class="priority-flag ${cls}"><span class="priority-dot"></span>${esc(priority)}</span>`;
+}
+
+function statusBadge(status){
+  const map={new:'badge-blue','in progress':'badge-amber',waiting:'badge-gray',done:'badge-green'};
+  return `<span class="badge ${map[status]||'badge-gray'}">${esc(status)}</span>`;
+}
+
+function computeOnboardingState(entry){
+  const steps=entry.steps||{};
+  const completed=[];
+  const available=[];
+  const blocked=[];
+  ONBOARDING_STEPS.forEach(step=>{
+    const done=!!steps[step.key];
+    if(done){ completed.push(step.key); return; }
+    const unmetDeps=step.deps.filter(dep=>!steps[dep]);
+    if(unmetDeps.length>0){
+      blocked.push({key:step.key,label:step.label,blockedBy:unmetDeps});
+    } else {
+      available.push({key:step.key,label:step.label});
+    }
+  });
+  const progress=Math.round((completed.length/ONBOARDING_STEPS.length)*100);
+  const isFullyCompleted=!!steps['fullyCompleted'];
+  const isLaunchReady=!!steps['readyForGoLive'];
+  const actionable=available.filter(s=>s.key!=='readyForGoLive'&&s.key!=='fullyCompleted');
+  const nextAction=actionable[0]||available[0]||null;
+  const allBlockers=[...new Set(blocked.flatMap(b=>b.blockedBy))];
+  let currentStage='Not started';
+  if(isFullyCompleted) currentStage='Fully Completed';
+  else if(isLaunchReady) currentStage='Launch Ready';
+  else if(completed.length>0){
+    const last=[...ONBOARDING_STEPS].reverse().find(s=>completed.includes(s.key));
+    currentStage=last?last.label:'Customer created';
+  }
+  const isOperationallyBlocked=available.length===0&&blocked.length>0&&!isLaunchReady&&!isFullyCompleted;
+  return {completed,available,blocked,progress,isFullyCompleted,isLaunchReady,nextAction,allBlockers,currentStage,isOperationallyBlocked};
+}
+
+function onboardingProgress(entry){
+  return computeOnboardingState(entry).progress;
+}
+
+function onboardingStatus(entry){
+  const cs=computeOnboardingState(entry);
+  if(cs.isFullyCompleted) return 'Completed';
+  if(cs.isLaunchReady) return 'Launch Ready';
+  if(cs.isOperationallyBlocked) return 'Blocked';
+  return 'In Progress';
+}
+
+function onboardingMissingSteps(entry){
+  const cs=computeOnboardingState(entry);
+  return ONBOARDING_STEPS.filter(s=>s.required&&!entry.steps[s.key]).map(s=>s.label);
+}
+
+function logActivity(type,title,detail){
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mm=String(now.getMinutes()).padStart(2,'0');
+  state.activityTimeline.unshift({time:`${hh}:${mm}`,type,title,detail});
+  state.activityTimeline=state.activityTimeline.slice(0,40);
+}
+
+function renderOverview(){
+  const customers=state.customers;
+  const openCases=state.cases.filter(c=>c.status!=='done').length;
+  const active=customers.filter(c=>c.status==='Aktiv').length;
+  const openOnboarding=state.onboarding.filter(o=>onboardingProgress(o)<100).length;
+  const callsToday=state.calls.length;
+  const callbacks=state.calls.filter(c=>c.callback).length;
+  const recent=state.events.length;
+  const attention=customers.filter(c=>c.openCases>0||c.progress<80).length;
+  const criticalCases=state.cases.filter(c=>c.priority==='Kritisch').length;
+  const kpis=[
+    ['Active Customers',active,'live Mandanten'],
+    ['Open Onboardings',openOnboarding,'mit offenen Tasks'],
+    ['Open/Critical Cases',`${openCases} / ${criticalCases}`,'offen / kritisch'],
+    ['Calls Today',callsToday,'global eingegangen'],
+    ['Callback Requests Today',callbacks,'SLA-relevant'],
+    ['Recent Activity Items',recent,'letzte 2 Stunden'],
+    ['Customers Needing Attention',attention,'Priorisierung nötig'],
+    ['Setup Readiness Ø',`${Math.round(customers.reduce((a,c)=>a+c.progress,0)/customers.length)}%`,'durch alle Kunden']
+  ];
+  document.getElementById('overview-kpis').innerHTML=kpis.map(([l,v,s])=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
+  document.getElementById('overview-activity-list').innerHTML=state.events.slice(0,6).map(e=>`<div class="list-item"><div><div class="list-main">${esc(e)}</div><div class="list-sub">Auto-aggregated operational event</div></div></div>`).join('');
+  document.getElementById('overview-attention-list').innerHTML=customers.filter(c=>c.openCases>0||c.progress<80).map(c=>`<div class="list-item"><div><div class="list-main">${esc(c.name)}</div><div class="list-sub">${c.openCases} offene Cases · Setup ${c.progress}%</div></div><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile(${c.id})">Profil</button></div>`).join('')||'<div class="empty">Keine Kunden mit Handlungsbedarf.</div>';
+}
+
+function renderCustomers(){
+  const search=(document.getElementById('customer-search').value||'').toLowerCase().trim();
+  const p=document.getElementById('customer-plan-filter').value;
+  const s=document.getElementById('customer-status-filter').value;
+  const prog=document.getElementById('customer-progress-filter').value;
+  const cfilter=document.getElementById('customer-case-filter').value;
+
+  let rows=[...state.customers];
+  if(search) rows=rows.filter(c=>[c.name,c.contact,c.email,c.voxera].join(' ').toLowerCase().includes(search));
+  if(p!=='all') rows=rows.filter(c=>c.plan===p);
+  if(s!=='all') rows=rows.filter(c=>c.status===s);
+  if(prog!=='all'){
+    if(prog==='0-39') rows=rows.filter(c=>c.progress<40);
+    if(prog==='40-79') rows=rows.filter(c=>c.progress>=40&&c.progress<80);
+    if(prog==='80-100') rows=rows.filter(c=>c.progress>=80);
+  }
+  if(cfilter==='0') rows=rows.filter(c=>c.openCases===0);
+  if(cfilter==='1+') rows=rows.filter(c=>c.openCases>0);
+
+  document.getElementById('customers-table-body').innerHTML=rows.map(c=>`<tr>
+    <td class="wrap"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11.5px;margin-top:4px">${esc(c.contact)} · ${esc(c.email)}</div></td>
+    <td>${toneBadge(c.plan)}</td>
+    <td>${toneBadge(c.status)}</td>
+    <td>${c.progress}%</td>
+    <td>${esc(c.latest)}</td>
+    <td>${c.openCases}</td>
+    <td><button class="btn btn-quiet btn-sm" onclick="openCustomerProfile(${c.id})">Profil</button> <button class="btn btn-secondary btn-sm">Case</button></td>
+  </tr>`).join('')||'<tr><td colspan="7"><div class="empty">Keine Kunden für aktuelle Filter.</div></td></tr>';
+}
+
+function renderOnboarding(){
+  const search=(document.getElementById('ob-search')?.value||'').toLowerCase().trim();
+  const filter=document.getElementById('ob-filter')?.value||'all';
+  const mode=document.getElementById('onboarding-sort')?.value||'incomplete';
+
+  let rows=[...state.onboarding];
+
+  if(search) rows=rows.filter(o=>{
+    const c=customerById(o.customerId);
+    return c&&(c.name+' '+c.contact).toLowerCase().includes(search);
+  });
+
+  if(filter==='blocked') rows=rows.filter(o=>computeOnboardingState(o).isOperationallyBlocked);
+  if(filter==='in-progress') rows=rows.filter(o=>{const cs=computeOnboardingState(o);return cs.progress>0&&!cs.isFullyCompleted;});
+  if(filter==='completed') rows=rows.filter(o=>computeOnboardingState(o).isFullyCompleted);
+  if(filter==='launch-ready') rows=rows.filter(o=>{const cs=computeOnboardingState(o);return cs.isLaunchReady&&!cs.isFullyCompleted;});
+
+  rows.sort((a,b)=>{
+    const pa=computeOnboardingState(a).progress,pb=computeOnboardingState(b).progress;
+    if(mode==='progress-asc') return pa-pb;
+    if(mode==='progress-desc') return pb-pa;
+    const ia=pa<100?0:1,ib=pb<100?0:1;
+    if(ia!==ib) return ia-ib;
+    return pa-pb;
+  });
+
+  document.getElementById('onboarding-table-body').innerHTML=rows.map(o=>{
+    const c=customerById(o.customerId);
+    const cs=computeOnboardingState(o);
+    const progressColor=cs.progress>=80?'var(--green)':cs.progress>=50?'var(--amber)':'var(--blue)';
+    const launchBadge=cs.isFullyCompleted?'<span class="badge badge-green">✓ Completed</span>':cs.isLaunchReady?'<span class="badge badge-blue">✓ Launch Ready</span>':'<span class="badge badge-gray">Pending</span>';
+    const lastStepKey=ONBOARDING_STEPS[ONBOARDING_STEPS.length-1].key;
+    const blockerHtml=cs.isOperationallyBlocked&&cs.blocked.length>0&&cs.blocked[0].key!==lastStepKey?`<span class="step-chip">${esc(cs.blocked[0].label)}</span>`:'<span class="badge badge-green">None</span>';
+    const nextHtml=cs.nextAction?`<span style="font-size:12px;color:var(--blue);font-weight:600">${esc(cs.nextAction.label)}</span>`:'<span class="badge badge-green">All done</span>';
+    return `<tr style="cursor:pointer;" tabindex="0" role="row" aria-label="${esc(c.name)} onboarding workspace" onclick="openOnboardingWorkspace(${o.customerId})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openOnboardingWorkspace(${o.customerId});}">
+      <td data-label="Customer" class="ob-td-full"><strong>${esc(c.name)}</strong><div style="color:var(--gray400);font-size:11px;margin-top:3px">${esc(c.contact)}</div></td>
+      <td data-label="Stage">${esc(cs.currentStage)}</td>
+      <td data-label="Readiness"><div style="display:flex;align-items:center;gap:8px;min-width:100px;"><div class="progress-track" style="flex:1;min-width:56px"><div class="progress-fill" style="background:${progressColor};width:${cs.progress}%"></div></div><strong>${cs.progress}%</strong></div></td>
+      <td data-label="Blocker">${blockerHtml}</td>
+      <td data-label="Next Action">${nextHtml}</td>
+      <td data-label="Launch Ready">${launchBadge}</td>
+      <td data-label="Actions" class="ob-td-full"><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openOnboardingWorkspace(${o.customerId})">Öffnen</button><button class="btn btn-quiet btn-sm" onclick="event.stopPropagation();openCustomerProfile(${c.id})">Profil</button></div></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7"><div class="empty">Keine Einträge für aktuelle Filter.</div></td></tr>';
+}
+
+function renderAiSetup(){
+  document.getElementById('ai-customer-body').innerHTML=state.customers.map(c=>`<tr><td>${esc(c.name)}</td><td class="wrap">Öffnungszeiten, Services, regionale Hinweise</td><td class="wrap">Bei Unsicherheit: Rückrufslot anbieten + Ticket erstellen</td><td class="wrap">Kritisch: direkt an Owner · Hoch: Callback Queue</td></tr>`).join('');
+  document.getElementById('ai-changes-list').innerHTML=[
+    'v2.14 · Eskalation für Notfallanfragen verschärft',
+    'v2.13 · Mehrsprachige Begrüßung für Hospitality verbessert',
+    'v2.12 · Fallback-Intent für fehlende Kundendaten ergänzt'
+  ].map(i=>`<div class="list-item"><div><div class="list-main">${esc(i)}</div><div class="list-sub">Dokumentiert im operativen Changelog</div></div></div>`).join('');
+}
+
+function renderCases(){
+  const callbacks=state.cases.filter(c=>c.type==='Rückruf');
+  const followups=state.cases.filter(c=>c.type==='Follow-up');
+  const row=c=>`<tr>
+    <td>${esc(c.id)}</td>
+    <td>${priorityIndicator(c.priority)}<div style="margin-top:6px"><select class="select" onchange="updateCaseField('${c.id}','priority',this.value)"><option ${c.priority==='Kritisch'?'selected':''}>Kritisch</option><option ${c.priority==='Hoch'?'selected':''}>Hoch</option><option ${c.priority==='Mittel'?'selected':''}>Mittel</option><option ${c.priority==='Niedrig'?'selected':''}>Niedrig</option></select></div></td>
+    <td>${statusBadge(c.status)}<div style="margin-top:6px"><select class="select" onchange="updateCaseField('${c.id}','status',this.value)"><option value="new" ${c.status==='new'?'selected':''}>new</option><option value="in progress" ${c.status==='in progress'?'selected':''}>in progress</option><option value="waiting" ${c.status==='waiting'?'selected':''}>waiting</option><option value="done" ${c.status==='done'?'selected':''}>done</option></select></div></td>
+    <td><select class="select" onchange="updateCaseField('${c.id}','owner',this.value)"><option ${c.owner==='Lea'?'selected':''}>Lea</option><option ${c.owner==='Noah'?'selected':''}>Noah</option><option ${c.owner==='Mia'?'selected':''}>Mia</option><option ${c.owner==='Ops Queue'?'selected':''}>Ops Queue</option></select></td>
+    <td>${esc(customerById(c.customerId).name)}</td>
+    <td>${esc(c.latest)}</td>
+    <td class="wrap">${esc(c.notes)}</td>
+    <td><button class="btn btn-quiet btn-sm" onclick="updateCaseField('${c.id}','status','done')">Als done</button></td>
+  </tr>`;
+  document.getElementById('cases-callbacks').innerHTML=callbacks.map(row).join('');
+  document.getElementById('cases-followups').innerHTML=followups.map(row).join('');
+  document.getElementById('cases-all').innerHTML=state.cases.map(c=>`<tr><td>${esc(c.type)}</td>${row(c).replace('<tr>','').replace('</tr>','')}</tr>`).join('');
+}
+
+function renderActivity(){
+  const groups=[
+    {key:'calls',label:'Calls',css:'label-calls'},
+    {key:'onboarding',label:'Onboarding',css:'label-onboarding'},
+    {key:'cases',label:'Cases',css:'label-cases'},
+    {key:'customers',label:'Customer Changes',css:'label-customers'}
+  ];
+  const groupedHtml=groups.map(group=>{
+    const items=state.activityTimeline.filter(i=>i.type===group.key);
+    return `<div class="timeline-group">
+      <div class="timeline-group-head">
+        <div class="timeline-group-title">${group.label}</div>
+        <span class="badge badge-gray">${items.length} Einträge</span>
+      </div>
+      ${items.map(item=>`<div class="timeline-item">
+        <div class="timeline-time">${esc(item.time)}</div>
+        <div class="timeline-label ${group.css}">${group.label}</div>
+        <div>
+          <div class="timeline-main">${esc(item.title)}</div>
+          <div class="timeline-sub">${esc(item.detail)}</div>
+        </div>
+      </div>`).join('')||'<div class="empty">Keine Einträge in dieser Gruppe.</div>'}
+    </div>`;
+  }).join('');
+  document.getElementById('activity-timeline').innerHTML=groupedHtml;
+}
+
+function openOnboardingWorkspace(customerId){
+  const entry=state.onboarding.find(o=>o.customerId===customerId);
+  const c=customerById(customerId);
+  if(!entry||!c) return;
+  state.activeOnboardingId=customerId;
+  renderOnboardingWorkspace();
+  document.getElementById('ob-workspace').classList.add('open');
+  document.getElementById('ob-overlay').classList.add('open');
+}
+
+function closeOnboardingWorkspace(){
+  document.getElementById('ob-workspace').classList.remove('open');
+  document.getElementById('ob-overlay').classList.remove('open');
+  state.activeOnboardingId=null;
+}
+
+function renderOnboardingWorkspace(){
+  const customerId=state.activeOnboardingId;
+  const entry=state.onboarding.find(o=>o.customerId===customerId);
+  const c=customerById(customerId);
+  if(!entry||!c) return;
+  const cs=computeOnboardingState(entry);
+
+  document.getElementById('ob-ws-title').textContent=c.name;
+  document.getElementById('ob-ws-sub').textContent=`${c.plan} · ${c.contact}`;
+
+  document.getElementById('ob-ws-context').innerHTML=`
+    <div class="ob-context">
+      <div class="ob-field"><div class="ob-field-label">Status</div><div class="ob-field-value">${esc(c.status)}</div></div>
+      <div class="ob-field"><div class="ob-field-label">Plan</div><div class="ob-field-value">${esc(c.plan)}</div></div>
+      <div class="ob-field"><div class="ob-field-label">Voxera Number</div><div class="ob-field-value">${esc(c.voxera)}</div></div>
+      <div class="ob-field"><div class="ob-field-label">Progress</div><div class="ob-field-value">${cs.progress}% &nbsp;(${cs.completed.length}/${ONBOARDING_STEPS.length})</div></div>
+      <div class="ob-field"><div class="ob-field-label">Owner</div><div class="ob-field-value">${esc(entry.owner)}</div></div>
+      <div class="ob-field"><div class="ob-field-label">Last Update</div><div class="ob-field-value">${esc(entry.latest||c.latest)}</div></div>
+    </div>`;
+
+  const progressColor=cs.progress>=80?'var(--green)':cs.progress>=50?'var(--amber)':'var(--blue)';
+  let bannerHtml='';
+  if(cs.isFullyCompleted){
+    bannerHtml=`<div class="ob-readiness ready" style="margin-bottom:18px;"><div class="ob-readiness-title">🎉 Fully Completed</div><div class="ob-readiness-sub">This customer is fully onboarded and operationally live.</div></div>`;
+  } else if(cs.isLaunchReady){
+    bannerHtml=`<div class="ob-next" style="margin-bottom:18px;"><div><div class="ob-next-label">Ready for Go-Live</div><div class="ob-next-action">All critical steps done. Confirm full completion.</div></div><button class="btn btn-primary btn-sm" onclick="runOnboardingStep(${customerId},'fullyCompleted')">Mark Fully Completed</button></div>`;
+  } else if(cs.isOperationallyBlocked){
+    const blockerLabel=cs.blocked[0]?.label||'Unknown step';
+    bannerHtml=`<div class="ob-blocked-banner"><div class="ob-blocked-label">⚠ Blocked</div><div class="ob-blocked-text">Waiting on: ${esc(blockerLabel)}</div></div>`;
+  } else if(cs.nextAction){
+    bannerHtml=`<div class="ob-next"><div><div class="ob-next-label">Next Recommended Action</div><div class="ob-next-action">${esc(cs.nextAction.label)}</div></div><button class="btn btn-primary btn-sm" onclick="runOnboardingStep(${customerId},'${cs.nextAction.key}')">Als erledigt markieren</button></div>`;
+  }
+  document.getElementById('ob-ws-banner').innerHTML=bannerHtml;
+
+  const stepsHtml=ONBOARDING_STEPS.map((step,idx)=>{
+    const done=!!entry.steps[step.key];
+    const unmetDeps=step.deps.filter(dep=>!entry.steps[dep]);
+    const isBlocked=!done&&unmetDeps.length>0;
+    const isAvailable=!done&&!isBlocked;
+    const cls=done?'done':isBlocked?'blocked':isAvailable?'available':'';
+    const icon=done?'✓':isBlocked?'⊘':(idx+1).toString();
+    const depText=isBlocked
+      ?`Needs: ${unmetDeps.map(k=>ONBOARDING_STEPS.find(s=>s.key===k)?.label||k).join(', ')}`
+      :(step.deps.length>0&&done)?'':'';
+    const actionBtn=isAvailable?`<button class="btn btn-primary btn-sm" onclick="runOnboardingStep(${customerId},'${step.key}')">Als erledigt markieren</button>`:'';
+    return `<div class="ob-step ${cls}">
+      <div class="ob-step-icon">${icon}</div>
+      <div class="ob-step-info">
+        <div class="ob-step-label">${esc(step.label)}${step.required?'':' <span style="font-size:10px;color:var(--gray400);font-weight:400">(optional)</span>'}</div>
+        ${depText?`<div class="ob-step-dep">${esc(depText)}</div>`:''}
+        ${actionBtn?`<div class="ob-step-actions">${actionBtn}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('ob-ws-steps').innerHTML=`
+    <div class="ob-section-title">Onboarding Steps &nbsp;(${cs.completed.length}/${ONBOARDING_STEPS.length})</div>
+    <div style="margin-bottom:14px"><div class="progress-track"><div class="progress-fill" style="background:${progressColor};width:${cs.progress}%"></div></div></div>
+    <div class="ob-step-list">${stepsHtml}</div>`;
+
+  let readinessHtml='';
+  if(cs.isFullyCompleted){
+    readinessHtml=`<div class="ob-readiness ready"><div class="ob-readiness-title">✓ Onboarding Complete</div><div class="ob-readiness-sub">Customer is fully operational.</div></div>`;
+  } else if(cs.isLaunchReady){
+    readinessHtml=`<div class="ob-readiness ready"><div class="ob-readiness-title">✓ Launch Ready</div><div class="ob-readiness-sub">All critical steps complete. Mark "Fully completed" to finalise.</div></div>`;
+  } else if(cs.isOperationallyBlocked){
+    readinessHtml=`<div class="ob-readiness blocked-state"><div class="ob-readiness-title">Blocked</div><div class="ob-readiness-sub">Unblock required steps to continue onboarding.</div></div>`;
+  } else {
+    const remaining=ONBOARDING_STEPS.filter(s=>s.required&&!entry.steps[s.key]).length;
+    readinessHtml=`<div class="ob-readiness partial"><div class="ob-readiness-title">In Progress · ${cs.progress}%</div><div class="ob-readiness-sub">${remaining} required step${remaining!==1?'s':''} remaining before launch-ready.</div></div>`;
+  }
+  document.getElementById('ob-ws-readiness').innerHTML=readinessHtml;
+}
+
+function runOnboardingStep(customerId,stepKey){
+  const entry=state.onboarding.find(o=>o.customerId===customerId);
+  if(!entry) return;
+  const stepDef=ONBOARDING_STEPS.find(s=>s.key===stepKey);
+  if(stepDef){
+    const unmet=stepDef.deps.filter(dep=>!entry.steps[dep]);
+    if(unmet.length>0){
+      const labels=unmet.map(k=>ONBOARDING_STEPS.find(s=>s.key===k)?.label||k).join(', ');
+      alert(`"${stepDef.label}" kann noch nicht abgeschlossen werden.\n\nFehlende Voraussetzungen: ${labels}`);
+      return;
+    }
+  }
+  entry.steps[stepKey]=true;
+  entry.latest='Gerade aktualisiert';
+  const cs=computeOnboardingState(entry);
+  if(cs.isFullyCompleted) entry.status='Completed';
+  else if(cs.isLaunchReady) entry.status='Launch Ready';
+  else entry.status='In Arbeit';
+  const customer=customerById(customerId);
+  if(customer){
+    customer.progress=cs.progress;
+    customer.latest='Onboarding aktualisiert';
+    if(stepKey==='numberAssigned'&&String(customer.voxera).toLowerCase().includes('offen')){
+      customer.voxera=VOXERA_NUMBER_PREFIX+' '+String(customerId).padStart(VOXERA_ID_PAD,'0');
+    }
+    if(cs.isLaunchReady) customer.readiness='Launch Ready';
+    if(cs.isFullyCompleted){customer.status='Aktiv';customer.readiness='Live';}
+  }
+  logActivity('onboarding',`${customer?.name||'Customer'} · ${stepDef?.label||stepKey}`,'Onboarding-Schritt abgeschlossen');
+  updateBadges();
+  renderOverview();
+  renderCustomers();
+  renderOnboarding();
+  renderActivity();
+  if(state.activeOnboardingId===customerId) renderOnboardingWorkspace();
+}
+
+function renderInsights(){
+  const plans=[...new Set(state.customers.map(c=>c.plan))];
+  document.getElementById('insight-plan-split').innerHTML=plans.map(pl=>{
+    const count=state.customers.filter(c=>c.plan===pl).length;
+    const pct=Math.round((count/state.customers.length)*100);
+    return `<tr><td>${esc(pl)}</td><td>${count}</td><td>${pct}%</td></tr>`;
+  }).join('');
+  const cb=[['08:00–10:00',4],['10:00–12:00',2],['12:00–14:00',1],['14:00–18:00',3]];
+  document.getElementById('insight-callback-patterns').innerHTML=cb.map(([label,v])=>`<div class="detail-item"><span class="detail-k">${label}</span><span class="detail-v">${v} Callbacks</span></div>`).join('');
+  const calls=[12,9,14,16,11,15,18];
+  document.getElementById('insight-calls-time').innerHTML=calls.map((n,i)=>`<div class="detail-item"><span class="detail-k">Tag ${i+1}</span><span class="detail-v">${n} Calls</span></div>`).join('');
+  document.getElementById('insight-trends').innerHTML='\n    <div class="detail-item"><span class="detail-k">Setup Completion</span><span class="detail-v">+9% vs. Vorwoche</span></div>\n    <div class="detail-item"><span class="detail-k">Kritische Cases</span><span class="detail-v">-2 im 7-Tage Trend</span></div>\n    <div class="detail-item"><span class="detail-k">Callback SLA Treffer</span><span class="detail-v">94%</span></div>\n    <div class="empty" style="margin-top:10px;">Chart-Integrationen folgen mit Live-Datenbindung.</div>';
+}
+
+function hydrateFilters(){
+  const plans=[...new Set(state.customers.map(c=>c.plan))];
+  const statuses=[...new Set(state.customers.map(c=>c.status))];
+  document.getElementById('customer-plan-filter').innerHTML='<option value="all">Plan: Alle</option>'+plans.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  document.getElementById('customer-status-filter').innerHTML='<option value="all">Status: Alle</option>'+statuses.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+}
+
+function updateBadges(){
+  document.getElementById('badge-customers').textContent=state.customers.length;
+  document.getElementById('badge-onboarding').textContent=state.onboarding.filter(o=>onboardingProgress(o)<100).length;
+  document.getElementById('badge-cases').textContent=state.cases.filter(c=>c.status!=='done').length;
+}
+
+function setRoute(route,replaceHash=false){
+  if(!routes.includes(route)) route='overview';
+  state.route=route;
+  routes.forEach(r=>document.getElementById('section-'+r)?.classList.toggle('active',r===route));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.route===route));
+  const [title,sub]=routeMeta[route];
+  document.getElementById('page-title').textContent=title;
+  document.getElementById('page-sub').textContent=sub;
+  if(location.hash!==`#${route}`){
+    if(replaceHash) history.replaceState(null,'',`#${route}`);
+    else location.hash=route;
+  }
+}
+
+function onHashRoute(){
+  const route=location.hash.replace('#','')||'overview';
+  setRoute(route,true);
+}
+
+function getCurrentCustomer(){
+  return customerById(state.selectedCustomer);
+}
+
+function getCustomerNotes(customer){
+  if(!state.customerNotes[customer.id]) state.customerNotes[customer.id]=[...customer.notes];
+  return state.customerNotes[customer.id];
+}
+
+function renderProfileSetupAndAlerts(customer){
+  const setupClass=customer.progress>=90?'badge-green':customer.progress>=70?'badge-amber':'badge-red';
+  document.getElementById('profile-setup-highlight').innerHTML=`<div class="card" style="padding:14px 16px;margin-bottom:12px;"><div class="card-title">Setup Status</div><div class="field-grid"><div class="mini-field"><div class="mini-label">Readiness</div><div class="mini-value">${customer.readiness}</div></div><div class="mini-field"><div class="mini-label">Progress</div><div class="mini-value"><span class="badge ${setupClass}">${customer.progress}%</span></div></div></div></div>`;
+  const alerts=[];
+  if(customer.progress<80) alerts.push({type:'warn',text:'Setup unvollständig: Bitte offene Onboarding-Schritte abschließen.'});
+  if(String(customer.voxera).toLowerCase().includes('offen')) alerts.push({type:'critical',text:'Voxera Nummer noch nicht aktiv – Routing unvollständig.'});
+  if(customer.status!=='Aktiv') alerts.push({type:'warn',text:`Kundenstatus ist ${customer.status}. Prüfen, ob Betrieb aktiv sein sollte.`});
+  if(customer.openCases>1) alerts.push({type:'critical',text:`${customer.openCases} offene Cases benötigen Priorisierung.`});
+  document.getElementById('profile-alerts').innerHTML=alerts.length?alerts.map(a=>`<div class="alert-item ${a.type}">${esc(a.text)}</div>`).join(''):'<div class="alert-item">Keine operativen Warnungen für diesen Kunden.</div>';
+}
+
+function renderProfileNotes(customer){
+  const notes=getCustomerNotes(customer);
+  document.getElementById('profile-notes').innerHTML=notes.map((note,idx)=>`<div class="list-item"><div style="flex:1"><div class="note-edit"><textarea class="textarea" id="note-edit-${idx}">${esc(note)}</textarea><button class="btn btn-secondary btn-sm" onclick="saveEditedNote(${idx})">Speichern</button></div><div class="list-sub">Interne operative Notiz #${idx+1}</div></div></div>`).join('')||'<div class="empty">Noch keine Notizen.</div>';
+}
+
+function openCustomerProfile(id){
+  const c=customerById(id); if(!c) return;
+  state.selectedCustomer=id;
+  document.getElementById('profile-title').textContent=c.name;
+  document.getElementById('profile-sub').textContent=`${c.contact} · ${c.email}`;
+  const details=[
+    ['Company',c.name],['Kontakt',`${c.contact} · ${c.phone}`],['Plan',c.plan],['Status',c.status],['Voxera Nummer',c.voxera],['Onboarding Progress',`${c.progress}%`],['Setup Readiness',c.readiness],['Latest Activity',c.latest]
+  ];
+  document.getElementById('profile-overview-grid').innerHTML=details.map(([k,v])=>`<div class="card" style="padding:14px 16px;"><div class="detail-item"><span class="detail-k">${esc(k)}</span><span class="detail-v">${esc(v)}</span></div></div>`).join('');
+  document.getElementById('profile-summary').textContent=c.summary;
+  renderProfileSetupAndAlerts(c);
+  document.getElementById('profile-calls').innerHTML=state.calls.filter(x=>x.customerId===id).map(call=>`<tr><td>${esc(call.time)}</td><td>${esc(call.cat)}</td><td>${call.callback?toneBadge('Ja'):toneBadge('Nein')}</td><td class="wrap">${esc(call.summary)}${call.note?`<div class=\"list-sub\" style=\"margin-top:6px\">📝 ${esc(call.note)}</div>`:''}</td><td><div class="table-action"><button class="btn btn-quiet btn-sm" onclick="markCallDone('${call.id}')">${call.done?'Erledigt':'Als erledigt'}</button><button class="btn btn-secondary btn-sm" onclick="createCaseFromCall('${call.id}')">Case erstellen</button><button class="btn btn-secondary btn-sm" onclick="addCallNote('${call.id}')">Notiz</button></div></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Anrufe vorhanden.</div></td></tr>';
+  document.getElementById('profile-cases').innerHTML=state.cases.filter(x=>x.customerId===id).map(ca=>`<tr><td>${statusBadge(ca.status)}<div style="margin-top:6px"><select class="select" onchange="updateCaseField('${ca.id}','status',this.value)"><option value="new" ${ca.status==='new'?'selected':''}>new</option><option value="in progress" ${ca.status==='in progress'?'selected':''}>in progress</option><option value="waiting" ${ca.status==='waiting'?'selected':''}>waiting</option><option value="done" ${ca.status==='done'?'selected':''}>done</option></select></div></td><td>${priorityIndicator(ca.priority)}<div style="margin-top:6px"><select class="select" onchange="updateCaseField('${ca.id}','priority',this.value)"><option ${ca.priority==='Kritisch'?'selected':''}>Kritisch</option><option ${ca.priority==='Hoch'?'selected':''}>Hoch</option><option ${ca.priority==='Mittel'?'selected':''}>Mittel</option><option ${ca.priority==='Niedrig'?'selected':''}>Niedrig</option></select></div></td><td><select class="select" onchange="updateCaseField('${ca.id}','owner',this.value)"><option ${ca.owner==='Lea'?'selected':''}>Lea</option><option ${ca.owner==='Noah'?'selected':''}>Noah</option><option ${ca.owner==='Mia'?'selected':''}>Mia</option><option ${ca.owner==='Ops Queue'?'selected':''}>Ops Queue</option></select></td><td>${esc(ca.latest)}</td><td class="wrap">${esc(ca.notes)}</td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">Keine Cases vorhanden.</div></td></tr>';
+  document.getElementById('profile-billing').innerHTML=`
+    <div class="card" style="padding:14px 16px;">
+      <div class="card-title">Plan & Pricing</div>
+      <div class="detail-item"><span class="detail-k">Plan</span><span class="detail-v">${esc(c.plan)}</span></div>
+      <div class="detail-item"><span class="detail-k">Monatspreis</span><span class="detail-v">CHF ${c.plan==='Starter'?'149':c.plan==='Pro'?'299':c.plan==='Growth'?'499':'899'}</span></div>
+      <div class="detail-item"><span class="detail-k">Setup Fee</span><span class="detail-v">CHF ${c.progress<100?'490':'0'}</span></div>
+    </div>
+    <div class="card" style="padding:14px 16px;">
+      <div class="card-title">Contract & Billing Metadata</div>
+      <div class="detail-item"><span class="detail-k">Vertragsstart</span><span class="detail-v">Placeholder · API Feld</span></div>
+      <div class="detail-item"><span class="detail-k">Abrechnungsintervall</span><span class="detail-v">Placeholder · monthly/annual</span></div>
+      <div class="detail-item"><span class="detail-k">Rechnungsreferenz</span><span class="detail-v">Placeholder · ERP ref</span></div>
+      <div class="detail-item"><span class="detail-k">Nächste Rechnung</span><span class="detail-v">Placeholder · Date</span></div>
+    </div>`;
+  renderProfileNotes(c);
+
+  document.querySelectorAll('.profile-tab').forEach((tab,i)=>tab.classList.toggle('active',i===0));
+  document.querySelectorAll('.profile-panel').forEach((p,i)=>p.classList.toggle('active',i===0));
+  document.getElementById('customer-profile-modal').classList.add('open');
+}
+function closeCustomerProfile(){document.getElementById('customer-profile-modal').classList.remove('open');}
+
+function profileAction(type){
+  const customer=getCurrentCustomer(); if(!customer) return;
+  if(type==='edit') alert(`Kunde bearbeiten: ${customer.name}\\n\\n(Platzhalter für Edit-Flow / Modal-Form).`);
+  if(type==='onboarding') location.hash='onboarding';
+}
+
+function setCustomerStatus(nextStatus){
+  const customer=getCurrentCustomer(); if(!customer) return;
+  customer.status=nextStatus;
+  customer.latest='Gerade eben';
+  logActivity('customers',`${customer.name} · Status geändert`,`Neuer Status: ${nextStatus}`);
+  renderCustomers();
+  renderActivity();
+  openCustomerProfile(customer.id);
+}
+
+function markCallDone(callId){
+  const call=state.calls.find(c=>c.id===callId); if(!call) return;
+  if(call.done) return;
+  call.done=true;
+  call.summary=`${call.summary} (erledigt)`;
+  logActivity('calls',`${customerById(call.customerId).name} · Call als done markiert`,call.cat);
+  renderActivity();
+  openCustomerProfile(call.customerId);
+}
+
+function createCaseFromCall(callId){
+  const call=state.calls.find(c=>c.id===callId); if(!call) return;
+  const newId='C-'+String(100+state.cases.length+1);
+  state.cases.unshift({id:newId,type:'Follow-up',priority:call.callback?'Hoch':'Mittel',status:'new',owner:'Ops Queue',customerId:call.customerId,latest:'Gerade erstellt',notes:`Auto-case aus ${call.id}: ${call.summary}`});
+  const customer=customerById(call.customerId);
+  if(customer) customer.openCases+=1;
+  logActivity('cases',`Case ${newId} aus Call ${call.id} erstellt`,customer?customer.name:'Unbekannter Kunde');
+  renderCustomers();
+  renderCases();
+  renderActivity();
+  openCustomerProfile(call.customerId);
+}
+
+function addCallNote(callId){
+  const call=state.calls.find(c=>c.id===callId); if(!call) return;
+  const note=window.prompt('Notiz zum Call hinzufügen:',call.note||'');
+  if(note===null) return;
+  call.note=note.trim();
+  openCustomerProfile(call.customerId);
+}
+
+function createCaseForCurrentCustomer(){
+  const customer=getCurrentCustomer(); if(!customer) return;
+  const note=window.prompt('Kurze Case-Beschreibung:','Neuer operativer Case');
+  if(!note) return;
+  const newId='C-'+String(100+state.cases.length+1);
+  state.cases.unshift({id:newId,type:'Follow-up',priority:'Mittel',status:'new',owner:'Ops Queue',customerId:customer.id,latest:'Gerade erstellt',notes:note});
+  customer.openCases+=1;
+  logActivity('cases',`Case ${newId} für ${customer.name} erstellt`,note);
+  renderCases();
+  renderCustomers();
+  renderActivity();
+  openCustomerProfile(customer.id);
+}
+
+function updateCaseField(caseId,field,value){
+  const item=state.cases.find(c=>c.id===caseId); if(!item) return;
+  item[field]=value;
+  item.latest='Gerade aktualisiert';
+  state.customers.forEach(c=>{
+    c.openCases=state.cases.filter(s=>s.customerId===c.id&&s.status!=='done').length;
+  });
+  logActivity('cases',`Case ${item.id} aktualisiert`,`${field}: ${value}`);
+  renderCustomers();
+  renderCases();
+  renderActivity();
+}
+
+function addProfileNote(){
+  const customer=getCurrentCustomer(); if(!customer) return;
+  const input=document.getElementById('profile-note-input');
+  const value=(input.value||'').trim();
+  if(!value) return;
+  const notes=getCustomerNotes(customer);
+  notes.unshift(value);
+  input.value='';
+  renderProfileNotes(customer);
+}
+
+function saveEditedNote(index){
+  const customer=getCurrentCustomer(); if(!customer) return;
+  const notes=getCustomerNotes(customer);
+  const el=document.getElementById(`note-edit-${index}`);
+  if(!el) return;
+  notes[index]=el.value.trim()||notes[index];
+  renderProfileNotes(customer);
+}
+
+function runOnboardingAction(customerId,stepKey){
+  const keyMap={forwardingDone:'forwardingConfigured',testCallComplete:'testCallCompleted',dashboardReady:'dashboardActive'};
+  runOnboardingStep(customerId,keyMap[stepKey]||stepKey);
+}
+
+function wireUi(){
+  document.getElementById('main-nav').addEventListener('click',e=>{
+    const link=e.target.closest('.nav-item');
+    if(!link) return;
+    e.preventDefault();
+    setRoute(link.dataset.route);
+  });
+  ['customer-search','customer-plan-filter','customer-status-filter','customer-progress-filter','customer-case-filter'].forEach(id=>document.getElementById(id).addEventListener('input',renderCustomers));
+  document.getElementById('customer-reset').addEventListener('click',()=>{
+    document.getElementById('customer-search').value='';
+    document.getElementById('customer-plan-filter').value='all';
+    document.getElementById('customer-status-filter').value='all';
+    document.getElementById('customer-progress-filter').value='all';
+    document.getElementById('customer-case-filter').value='all';
+    renderCustomers();
+  });
+  document.getElementById('cases-tabs').addEventListener('click',e=>{
+    const btn=e.target.closest('.tab-btn'); if(!btn) return;
+    document.querySelectorAll('#cases-tabs .tab-btn').forEach(b=>b.classList.toggle('active',b===btn));
+    document.querySelectorAll('#section-cases .tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===btn.dataset.tab));
+  });
+  document.getElementById('profile-tabs').addEventListener('click',e=>{
+    const btn=e.target.closest('.profile-tab'); if(!btn) return;
+    document.querySelectorAll('.profile-tab').forEach(b=>b.classList.toggle('active',b===btn));
+    document.querySelectorAll('.profile-panel').forEach(p=>p.classList.toggle('active',p.dataset.profilePanel===btn.dataset.profileTab));
+  });
+  window.addEventListener('hashchange',onHashRoute);
+  document.getElementById('onboarding-sort').addEventListener('change',renderOnboarding);
+  document.getElementById('ob-search').addEventListener('input',renderOnboarding);
+  document.getElementById('ob-filter').addEventListener('change',renderOnboarding);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.activeOnboardingId!=null)closeOnboardingWorkspace();});
+
+  document.getElementById('logout-btn').addEventListener('click',async()=>{
+    if(authClient&&authClient.auth){
+      try{await authClient.auth.signOut();}catch(_e){}
+    }
+    window.location.href='login.html';
+  });
+}
+
+async function hydrateAdminInfo(){
+  if(!(authClient&&authClient.auth)){
+    document.getElementById('sidebar-user').textContent='Admin (local mode)';
+    return;
+  }
+  try{
+    const {data:{session}}=await authClient.auth.getSession();
+    const email=session?.user?.email||'admin@voxera.ch';
+    document.getElementById('sidebar-user').textContent=email;
+    if(!session){
+      // Keep accessible in local preview; login redirect can be enabled later.
+      console.info('No live session found, continuing in preview mode.');
+    }
+  }catch(_e){
+    document.getElementById('sidebar-user').textContent='Admin';
+  }
+}
+
+function init(){
+  hydrateFilters();
+  updateBadges();
+  renderOverview();
+  renderCustomers();
+  renderOnboarding();
+  renderAiSetup();
+  renderCases();
+  renderActivity();
+  renderInsights();
+  wireUi();
+  onHashRoute();
+  hydrateAdminInfo();
+}
+
+init();
+</script>
+</body>
+</html>
