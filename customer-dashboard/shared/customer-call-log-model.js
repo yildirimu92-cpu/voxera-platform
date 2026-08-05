@@ -45,22 +45,34 @@
     }
   }
 
-  function canonicalId(record) {
-    return text(first(record, [
+  function identityKeys(record) {
+    const nested = fields(record);
+    const result = [];
+    [
       'elevenlabs_conversation_id',
       'conversation_id',
       'call_id',
+      'source_call_id',
+      'provider_call_id',
+      'external_call_id',
       'id'
-    ]));
+    ].forEach((key) => {
+      [record && record[key], nested[key]].forEach((value) => {
+        const normalized = text(value);
+        if (normalized && !result.includes(normalized)) result.push(normalized);
+      });
+    });
+    return result;
+  }
+
+  function canonicalId(record) {
+    return identityKeys(record)[0] || '';
   }
 
   function timestamp(record) {
-    const value = first(record, [
-      'started_at',
-      'call_started_at',
-      'created_at',
-      'updated_at'
-    ]);
+    const value = viewModel && typeof viewModel.timestamp === 'function'
+      ? viewModel.timestamp(record)
+      : first(record, ['started_at', 'call_started_at', 'created_at', 'updated_at']);
     const time = value ? new Date(value).getTime() : 0;
     return Number.isFinite(time) ? time : 0;
   }
@@ -106,21 +118,38 @@
   }
 
   function dedupe(records) {
-    const byId = new Map();
+    const groups = [];
     const withoutId = [];
 
     (Array.isArray(records) ? records : []).forEach((record) => {
       if (!record || typeof record !== 'object') return;
-      const id = canonicalId(record);
-      if (!id) {
+      const aliases = identityKeys(record);
+      if (!aliases.length) {
         withoutId.push(record);
         return;
       }
-      const current = byId.get(id);
-      byId.set(id, current ? preferredRecord(current, record) : record);
+
+      const matching = groups.filter((group) => aliases.some((alias) => group.aliases.has(alias)));
+      if (!matching.length) {
+        groups.push({ record, aliases: new Set(aliases) });
+        return;
+      }
+
+      const primary = matching[0];
+      let chosen = preferredRecord(primary.record, record);
+      aliases.forEach((alias) => primary.aliases.add(alias));
+
+      matching.slice(1).forEach((group) => {
+        chosen = preferredRecord(chosen, group.record);
+        group.aliases.forEach((alias) => primary.aliases.add(alias));
+        const index = groups.indexOf(group);
+        if (index >= 0) groups.splice(index, 1);
+      });
+
+      primary.record = chosen;
     });
 
-    return [...byId.values(), ...withoutId];
+    return [...groups.map((group) => group.record), ...withoutId];
   }
 
   function entries(records) {
@@ -148,18 +177,19 @@
     const all = entries(records);
     const active = all.find((entry) => entry.model.lifecycle === 'live') || null;
     const analysing = active ? null : all.find((entry) => entry.model.lifecycle === 'analysing') || null;
-    const excludedId = canonicalId((active || analysing || {}).record);
+    const excludedAliases = new Set(identityKeys((active || analysing || {}).record));
 
     const remaining = all.filter((entry) => {
-      if (!excludedId) return true;
-      return canonicalId(entry.record) !== excludedId;
+      if (!excludedAliases.size) return true;
+      return !identityKeys(entry.record).some((alias) => excludedAliases.has(alias));
     });
 
     const tasks = remaining.filter(hasAction);
-    const taskIds = new Set(tasks.map((entry) => canonicalId(entry.record)).filter(Boolean));
+    const taskAliases = new Set();
+    tasks.forEach((entry) => identityKeys(entry.record).forEach((alias) => taskAliases.add(alias)));
     const history = remaining.filter((entry) => {
-      const id = canonicalId(entry.record);
-      return !id || !taskIds.has(id);
+      const aliases = identityKeys(entry.record);
+      return !aliases.length || !aliases.some((alias) => taskAliases.has(alias));
     });
 
     return {
@@ -181,7 +211,7 @@
     if (!entry || !entry.model) return '';
     const model = entry.model;
     return [
-      canonicalId(entry.record) || model.id || '',
+      identityKeys(entry.record).join('~') || model.id || '',
       model.lifecycle || '',
       model.name || '',
       model.phone || '',
@@ -211,6 +241,11 @@
     let lastSignature = '';
     let liveSeenAt = 0;
 
+    function sharesIdentity(left, right) {
+      const leftAliases = new Set(identityKeys(left));
+      return identityKeys(right).some((alias) => leftAliases.has(alias));
+    }
+
     function update(records, now) {
       const at = Number.isFinite(now) ? now : Date.now();
       let next = build(records);
@@ -221,8 +256,8 @@
           ...next,
           active: lastState.active,
           analysing: null,
-          tasks: next.tasks.filter((entry) => canonicalId(entry.record) !== canonicalId(lastState.active.record)),
-          history: next.history.filter((entry) => canonicalId(entry.record) !== canonicalId(lastState.active.record))
+          tasks: next.tasks.filter((entry) => !sharesIdentity(entry.record, lastState.active.record)),
+          history: next.history.filter((entry) => !sharesIdentity(entry.record, lastState.active.record))
         };
         next.counts = {
           ...next.counts,
@@ -245,5 +280,5 @@
     return Object.freeze({ update, current: () => lastState, signature: () => lastSignature });
   }
 
-  return Object.freeze({ canonicalId, dedupe, build, signature, createStableStore });
+  return Object.freeze({ identityKeys, canonicalId, dedupe, build, signature, createStableStore });
 });
