@@ -26,6 +26,7 @@
   'use strict';
 
   const ZURICH_TIME_ZONE = 'Europe/Zurich';
+  const START_CREATED_AT_TOLERANCE_MS = 15 * 60 * 1000;
   const LIVE_STATUSES = new Set([
     'incoming', 'ringing', 'queued', 'in_progress', 'active', 'live',
     'ongoing', 'started', 'läuft', 'laufend'
@@ -174,16 +175,19 @@
     return Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
   }
 
+  function hasExplicitOffset(value) {
+    const raw = text(value);
+    return /[Zz]$/.test(raw) || /[+-]\d{2}:?\d{2}$/.test(raw);
+  }
+
   function qualifyZurichLocalTimestamp(value) {
     const raw = text(value);
     if (!raw) return '';
-    if (/[Zz]$/.test(raw) || /[+-]\d{2}:?\d{2}$/.test(raw)) return raw;
+    if (hasExplicitOffset(raw)) return raw;
 
     const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/);
     if (!match) return raw;
 
-    // started_at values without an offset are stored as Europe/Zurich wall-clock
-    // values. Qualify them before the generic detail parser can treat them as UTC.
     const probe = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0));
     const zoneName = new Intl.DateTimeFormat('en-US', {
       timeZone: ZURICH_TIME_ZONE,
@@ -196,10 +200,31 @@
     return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${seconds}${offsetMatch[1]}`;
   }
 
+  function parsedTime(value) {
+    const time = value ? new Date(value).getTime() : NaN;
+    return Number.isFinite(time) ? time : NaN;
+  }
+
   function timestamp(record) {
-    const startedAt = first(record, ['started_at', 'call_started_at', 'start_time']);
-    if (startedAt) return qualifyZurichLocalTimestamp(startedAt);
-    return first(record, ['created_at', 'updated_at']) || null;
+    const startedAt = text(first(record, ['started_at', 'call_started_at', 'start_time']));
+    const createdAt = text(first(record, ['created_at']));
+    if (!startedAt) return createdAt || text(first(record, ['updated_at'])) || null;
+    if (hasExplicitOffset(startedAt)) return startedAt;
+
+    const localCandidate = qualifyZurichLocalTimestamp(startedAt);
+    if (!createdAt) return localCandidate || startedAt;
+
+    const localTime = parsedTime(localCandidate);
+    const createdTime = parsedTime(createdAt);
+    if (!Number.isFinite(localTime) || !Number.isFinite(createdTime)) return localCandidate || createdAt;
+
+    // Legacy call rows stored offsetless start values as Europe/Zurich wall-clock.
+    // New provider snapshots can expose the same UTC clock value without its trailing Z.
+    // The calls table creates its row at call start in UTC, so a matching instant confirms
+    // the local interpretation; a two-hour mismatch means created_at is the safe source.
+    return Math.abs(localTime - createdTime) <= START_CREATED_AT_TOLERANCE_MS
+      ? localCandidate
+      : createdAt;
   }
 
   function formatZurichDateTime(value, options) {
