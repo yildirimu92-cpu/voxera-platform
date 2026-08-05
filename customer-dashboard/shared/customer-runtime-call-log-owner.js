@@ -97,6 +97,14 @@
     }).format(date);
   }
 
+  function dateKey(value) {
+    var date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Zurich', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(date);
+  }
+
   function manualEntry(record) {
     var plannedAt = first(record, ['follow_up_at', 'due_at', 'scheduled_at']);
     var planned = Boolean(plannedAt);
@@ -129,6 +137,46 @@
       seen.add(id);
       return true;
     });
+  }
+
+  function isImportantNow(entry) {
+    if (!entry || !entry.model) return false;
+    if (entry.model.lifecycle !== 'planned') return true;
+    var due = first(entry.record, ['follow_up_at', 'callback_at', 'due_at', 'scheduled_at']);
+    if (!due) return false;
+    var dueKey = dateKey(due);
+    var todayKey = dateKey(new Date());
+    return Boolean(dueKey && todayKey && dueKey <= todayKey);
+  }
+
+  function readVisibleCount(id) {
+    var node = root.document.getElementById(id);
+    var value = node ? parseInt(text(node.textContent), 10) : 0;
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  }
+
+  function syncTodayMetrics(tasks) {
+    var entries = list(tasks);
+    var plannedCount = entries.filter(function (entry) {
+      return entry && entry.model && entry.model.lifecycle === 'planned';
+    }).length;
+    var importantNowCount = entries.filter(isImportantNow).length;
+    var openCount = readVisibleCount('kpi-today-new');
+
+    var importantValue = root.document.getElementById('kpi-done-new');
+    if (importantValue) importantValue.textContent = String(importantNowCount);
+
+    var importantNote = root.document.getElementById('kpi-done-note');
+    if (importantNote) importantNote.textContent = importantNowCount > 0 ? 'Konkrete nächste Schritte' : 'Aktuell nichts dringend';
+
+    var greetingSub = root.document.getElementById('dash-greeting-sub');
+    if (greetingSub) {
+      var parts = [];
+      if (openCount > 0) parts.push(openCount + ' offen');
+      if (plannedCount > 0) parts.push(plannedCount + ' geplant');
+      if (importantNowCount > 0) parts.push(importantNowCount + ' priorisiert');
+      greetingSub.textContent = parts.length ? parts.join(' · ') : 'Keine offenen Anfragen oder Aufgaben';
+    }
   }
 
   var ICONS = {
@@ -296,6 +344,8 @@
     var state = update.state;
     var tasks = taskEntries(state);
     var history = list(state.history);
+
+    syncTodayMetrics(tasks);
 
     var markup = activeCard(state.active || state.analysing, Boolean(state.analysing)) +
       section('Offene Aufgaben', 'Priorisierte Rückrufe und nächste Schritte.', tasks, 'task', '', 'tasks', true) +
