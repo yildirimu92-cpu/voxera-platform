@@ -31,6 +31,36 @@ const callback = {
     created_at: '2026-08-05T09:00:00Z'
   }
 };
+const information = {
+  id: 'call-information',
+  fields: {
+    live_status: 'completed',
+    call_summary: 'Unterlagen gewünscht',
+    next_action: 'Unterlagen per E-Mail senden',
+    dashboard_status: 'working',
+    created_at: '2026-08-05T08:45:00Z'
+  }
+};
+const genericWorking = {
+  id: 'call-generic-working',
+  fields: {
+    live_status: 'completed',
+    call_summary: 'Kein konkreter nächster Schritt',
+    next_action: 'Bearbeitung erforderlich',
+    dashboard_status: 'working',
+    created_at: '2026-08-05T08:40:00Z'
+  }
+};
+const negativeAction = {
+  id: 'call-negative-action',
+  fields: {
+    live_status: 'completed',
+    call_summary: 'Kein Handlungsbedarf',
+    next_action: 'Keine Aktion erforderlich',
+    dashboard_status: 'new',
+    created_at: '2026-08-05T08:35:00Z'
+  }
+};
 const noAction = {
   id: 'call-no-action',
   fields: {
@@ -50,14 +80,26 @@ const completed = {
   }
 };
 
-const state = log.build([duplicateCompleted, callback, live, noAction, completed]);
+const state = log.build([
+  duplicateCompleted,
+  callback,
+  information,
+  genericWorking,
+  negativeAction,
+  live,
+  noAction,
+  completed
+]);
 assert.equal(state.active.model.lifecycle, 'live');
 assert.equal(state.active.model.name, 'Anna Muster');
-assert.equal(state.tasks.length, 1);
-assert.equal(state.tasks[0].record.id, 'call-callback');
-assert.equal(state.history.length, 2);
-assert.deepEqual(state.history.map((entry) => entry.record.id), ['call-no-action', 'call-history']);
-assert.equal(state.counts.total, 4);
+assert.equal(state.tasks.length, 2);
+assert.deepEqual(state.tasks.map((entry) => entry.record.id), ['call-callback', 'call-information']);
+assert.equal(state.history.length, 4);
+assert.deepEqual(
+  state.history.map((entry) => entry.record.id),
+  ['call-generic-working', 'call-negative-action', 'call-no-action', 'call-history']
+);
+assert.equal(state.counts.total, 7);
 
 const store = log.createStableStore({ liveGraceMs: 12000 });
 const first = store.update([live], 1000);
