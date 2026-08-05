@@ -72,6 +72,32 @@
     if (splitHost) splitHost.classList.remove('vx-call-detail-lite-host');
   }
 
+  function resetRenderedDetailState(scope) {
+    if (!scope) return;
+
+    var reset = function () {
+      var scrollers = [scope];
+      var nestedScroller = scope.querySelector && scope.querySelector('#call-detail-scroll-wrap');
+      if (nestedScroller && scrollers.indexOf(nestedScroller) === -1) scrollers.push(nestedScroller);
+
+      scrollers.forEach(function (node) {
+        if (!node) return;
+        try { node.scrollTop = 0; } catch (_error) {}
+        try { node.scrollLeft = 0; } catch (_error2) {}
+      });
+
+      if (scope.querySelectorAll) {
+        scope.querySelectorAll('.vx-call-detail-lite__details[open]').forEach(function (details) {
+          details.removeAttribute('open');
+        });
+      }
+    };
+
+    reset();
+    if (typeof root.requestAnimationFrame === 'function') root.requestAnimationFrame(reset);
+    else root.setTimeout(reset, 0);
+  }
+
   function rememberCanonicalOwners() {
     if (typeof root.renderCallDetailPage === 'function' && root.renderCallDetailPage._vxCallLogDetailOwner) {
       ownedDetailRenderer = root.renderCallDetailPage;
@@ -130,6 +156,7 @@
       ownedDetailRenderer(record, []);
       rememberCurrentRecord(record);
       ensureFullscreenVisible();
+      resetRenderedDetailState(root.document.getElementById('call-detail-page'));
       return true;
     } catch (error) {
       try { root.console.error('[call-detail] canonical fullscreen render failed', error); } catch (_error) {}
@@ -151,6 +178,7 @@
       if (empty) empty.style.display = 'none';
       host.style.display = 'block';
       ownedSplitRenderer(record, { hostEl: host });
+      resetRenderedDetailState(host);
       rememberCurrentRecord(record);
       if (typeof root.vxSetActiveRequestRow === 'function') {
         root.vxSetActiveRequestRow(identityKeys(record)[0] || '');
@@ -205,8 +233,10 @@
     return '';
   }
 
-  function isInteractiveControl(target) {
-    return !!(target && target.closest && target.closest('button, a, input, textarea, select, [role="button"], .dpr-quick-btn, .vx-ibtn'));
+  function isInteractiveControl(target, row) {
+    if (!target || !target.closest) return false;
+    var control = target.closest('button, a, input, textarea, select, [role="button"], .dpr-quick-btn, .vx-ibtn');
+    return !!(control && control !== row);
   }
 
   function installCanonicalNavigation() {
@@ -215,7 +245,7 @@
 
     root.document.addEventListener('click', function (event) {
       var row = resolveRow(event.target);
-      if (!row || isInteractiveControl(event.target)) return;
+      if (!row || isInteractiveControl(event.target, row)) return;
       var callId = rowCallId(row);
       if (!callId || !findOriginalRecord(callId)) return;
 
@@ -227,7 +257,7 @@
     root.document.addEventListener('keydown', function (event) {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       var row = resolveRow(event.target);
-      if (!row || isInteractiveControl(event.target)) return;
+      if (!row || isInteractiveControl(event.target, row)) return;
       var callId = rowCallId(row);
       if (!callId || !findOriginalRecord(callId)) return;
 
