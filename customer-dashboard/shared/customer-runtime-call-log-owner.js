@@ -15,11 +15,27 @@
   }
 
   function text(value) { return String(value == null ? '' : value).trim(); }
+  function lower(value) { return text(value).toLowerCase(); }
   function list(value) { return Array.isArray(value) ? value.filter(Boolean) : []; }
+
+  function fields(record) {
+    return record && record.fields ? record.fields : record || {};
+  }
 
   function isManual(record) {
     try { return typeof root.isManualTaskRecord === 'function' && root.isManualTaskRecord(record); }
     catch (_error) { return false; }
+  }
+
+  function isActiveCallRecord(record) {
+    if (!record || isManual(record)) return false;
+    var f = fields(record);
+    if (record.is_live === true || f.is_live === true) return true;
+    var liveState = lower(
+      record.live_status || f.live_status ||
+      record.call_status || f.call_status
+    );
+    return ['ringing', 'queued', 'in_progress', 'active', 'ongoing', 'started', 'läuft', 'laufend'].indexOf(liveState) !== -1;
   }
 
   function priorityRecords() {
@@ -36,6 +52,15 @@
       record.call_id ||
       record.id
     ));
+  }
+
+  function detailId(record) {
+    var f = fields(record);
+    return text(
+      record && (record.id || record.call_id || record.task_id) ||
+      f.id || f.call_id || f.task_id ||
+      recordId(record)
+    );
   }
 
   function allRecords() {
@@ -57,21 +82,23 @@
   }
 
   function manualEntry(record) {
-    var planned = Boolean(record && (record.follow_up_at || record.due_at || record.scheduled_at));
+    var f = fields(record);
+    var plannedAt = record && (record.follow_up_at || record.due_at || record.scheduled_at) || f.follow_up_at || f.due_at || f.scheduled_at;
+    var planned = Boolean(plannedAt);
     return {
       record: record,
       model: {
-        id: recordId(record),
+        id: detailId(record),
         lifecycle: planned ? 'planned' : 'working',
         lifecycleMeta: planned
           ? { label: 'Geplant', tone: 'attention' }
           : { label: 'Offen', tone: 'info' },
-        name: text(record && (record.title || record.task_title || record.next_action)) || 'Aufgabe',
+        name: text(record && (record.title || record.task_title || record.next_action) || f.title || f.task_title || f.next_action) || 'Aufgabe',
         phone: null,
-        summary: text(record && (record.note || record.notes || record.description)),
+        summary: text(record && (record.note || record.notes || record.description) || f.note || f.notes || f.description),
         category: null,
         outcome: 'Manuelle Aufgabe',
-        timestamp: record && (record.follow_up_at || record.due_at || record.created_at || record.updated_at)
+        timestamp: plannedAt || record && (record.created_at || record.updated_at) || f.created_at || f.updated_at
       }
     };
   }
@@ -93,7 +120,7 @@
     var seen = new Set();
     return priorityRecords().map(buildEntry).filter(function (entry) {
       if (!entry || !entry.model) return false;
-      var id = recordId(entry.record) || text(entry.model.id);
+      var id = recordId(entry.record) || detailId(entry.record) || text(entry.model.id);
       if (!id || excluded.has(id) || seen.has(id)) return false;
       if (entry.model.lifecycle === 'done' || entry.model.lifecycle === 'archived') return false;
       seen.add(id);
@@ -116,7 +143,7 @@
 
   function row(entry, mode) {
     var model = entry.model;
-    var id = model.id || recordId(entry.record);
+    var id = detailId(entry.record) || model.id || recordId(entry.record);
     var taskMode = mode === 'task';
     var manual = isManual(entry.record);
     var primaryMeta = taskMode
@@ -197,18 +224,21 @@
   function openRecord(id) {
     if (!id) return;
     var record = allRecords().find(function (item) {
-      return recordId(item) === id || text(item && item.id) === id;
+      return detailId(item) === id || recordId(item) === id;
     });
     if (!record) return;
 
+    var targetId = detailId(record) || id;
     try {
       if (isManual(record)) {
-        if (typeof root.openManualTaskDetail === 'function') root.openManualTaskDetail(record);
+        if (typeof root.showTaskDetail === 'function') root.showTaskDetail(targetId);
+        else if (typeof root.openManualTaskDetail === 'function') root.openManualTaskDetail(record);
         else if (typeof root.openTaskDetail === 'function') root.openTaskDetail(record);
         return;
       }
-      if (typeof root.openCallDetail === 'function') root.openCallDetail(record);
-      else if (typeof root.openInquiryDetail === 'function') root.openInquiryDetail(record.id || id);
+      if (typeof root.showCallDetail === 'function') root.showCallDetail(targetId, { forceFullscreen: true });
+      else if (typeof root.openCallDetail === 'function') root.openCallDetail(record);
+      else if (typeof root.openInquiryDetail === 'function') root.openInquiryDetail(targetId);
     } catch (_error) {}
   }
 
@@ -225,6 +255,22 @@
     });
   }
 
+  function installInboxBadgeRule() {
+    var previousEligible = root.vxIsUnreadEligibleRecord;
+    if (typeof previousEligible !== 'function' || previousEligible._vxCallLogOwnerWrapped) return;
+
+    var wrapped = function customerCallLogUnreadEligibility(record) {
+      if (isActiveCallRecord(record)) return false;
+      return previousEligible(record);
+    };
+    wrapped._vxCallLogOwnerWrapped = true;
+    root.vxIsUnreadEligibleRecord = wrapped;
+
+    try {
+      if (typeof root.vxUpdateAnfragenNavBadges === 'function') root.vxUpdateAnfragenNavBadges();
+    } catch (_error) {}
+  }
+
   function render() {
     var modelApi = root.VoxeraCustomerCallLogModel;
     if (!modelApi || typeof modelApi.createStableStore !== 'function') return;
@@ -235,9 +281,9 @@
 
     var state = update.state;
     var tasks = taskEntries(state);
-    var taskIds = new Set(tasks.map(function (entry) { return recordId(entry.record); }).filter(Boolean));
+    var taskIds = new Set(tasks.map(function (entry) { return recordId(entry.record) || detailId(entry.record); }).filter(Boolean));
     var history = state.history.filter(function (entry) {
-      return !taskIds.has(recordId(entry.record));
+      return !taskIds.has(recordId(entry.record)) && !taskIds.has(detailId(entry.record));
     });
 
     var markup = activeCard(state.active || state.analysing, Boolean(state.analysing)) +
@@ -259,8 +305,10 @@
     if (typeof root.vxHeuteRenderActivityList !== 'function' || typeof root.renderDashPriorityList !== 'function') return;
     installed = true;
 
+    installInboxBadgeRule();
     root.vxHeuteRenderActivityList = function customerCallLogActivityOwner(records) {
       latestActivityRecords = list(records);
+      installInboxBadgeRule();
       render();
     };
     root.vxHeuteRenderScopedList = function customerCallLogScopedOwner() { render(); };
