@@ -80,7 +80,7 @@ for (const token of [
   'Google Calendar',
   'Microsoft 365 / Outlook',
   'visibleProviders()',
-  'state.enabled && providers.length',
+  'entry.hidden = false;',
   'vxCalendarOpen',
   "entry.addEventListener('click', open)",
   'data-cal-back',
@@ -88,9 +88,12 @@ for (const token of [
   'vx-cal-rules-card',
   'vx-cal-checkbox',
   "page.removeAttribute('style')",
-  'entry.hidden = !(state.enabled && providers.length)'
+  'if (entry) entry.hidden = false;'
 ]) {
   if (!source.runtime.includes(token)) failures.push('Calendar UI missing: ' + token);
+}
+if (source.runtime.includes('entry.hidden = !(state.enabled && providers.length)')) {
+  failures.push('Calendar UI contains stale conditional entry visibility');
 }
 for (const token of [
   '.vx-settings-entry',
