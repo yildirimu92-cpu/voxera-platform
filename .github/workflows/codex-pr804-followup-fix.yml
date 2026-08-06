@@ -1,0 +1,319 @@
+name: Codex PR 804 Follow-up Fix
+
+on:
+  push:
+    branches:
+      - codex/tmp-pr804-followup-20260806
+
+permissions:
+  contents: write
+  actions: read
+  checks: read
+  statuses: read
+  pull-requests: read
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: b555e9896e8bbd66b86ce24ad20edb48f3d204d1
+      OLD_HEAD: 809839882ffc4dea9484ed8197b603bce9590a2a
+      TARGET_BRANCH: codex/restore-customer-launch-checks
+    steps:
+      - name: Checkout isolated workflow branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify immutable starting state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main "$TARGET_BRANCH"
+          test "$(git rev-parse origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse "origin/$TARGET_BRANCH")" = "$OLD_HEAD"
+          git switch -C pr804-followup "origin/$TARGET_BRANCH"
+          test "$(git rev-list --count "$BASE_SHA"..HEAD)" -eq 1
+          test -z "$(git status --porcelain)"
+
+      - name: Apply exact four-file follow-up
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, value):
+              Path(path).write_text(value, encoding='utf-8')
+
+          # 1. Complete the mobile greeting transfer in index.html.
+          index_path = 'customer-dashboard/index.html'
+          index = read(index_path)
+          comment = "/* Customer baseline ownership migration:\n   legacy page-specific modules. */"
+          comment_at = index.index(comment)
+          greeting_marker = "body.vx-customer-design-foundation\n    #dash-greeting-block\n    > .vx-ap-head {"
+          greeting_at = index.rfind(greeting_marker, 0, comment_at)
+          assert greeting_at >= 0, 'mobile greeting fragment not found'
+          title_marker = 'body.vx-customer-design-foundation .vx-page-header-title {'
+          fragment_start = index.rfind(title_marker, 0, greeting_at)
+          assert fragment_start >= 0, 'orphaned mobile title fragment not found'
+          fragment = index[fragment_start:comment_at]
+          for token in (
+              'font-size: 24px;',
+              '#dash-greeting-block',
+              'grid-template-columns: minmax(0, 1fr);',
+              'font-size: 12px;',
+              'text-align: left;',
+              'white-space: nowrap;'
+          ):
+              assert token in fragment, f'malformed greeting fragment missing expected token: {token}'
+          assert '@media (max-width: 720px)' not in fragment, 'fragment unexpectedly already wrapped'
+          assert fragment.rstrip().endswith('white-space: nowrap;'), 'fragment no longer ends at the known open subtitle block'
+
+          greeting_block = """@media (max-width: 720px) {
+            body.vx-customer-design-foundation
+              #dash-greeting-block
+              > .vx-ap-head {
+              display: grid;
+              grid-template-columns: minmax(0, 1fr);
+              gap: 9px;
+            }
+
+            body.vx-customer-design-foundation
+              #dash-greeting-block
+              > .vx-ap-head
+              > .vx-page-header-subtitle {
+              margin-top: 0;
+              font-size: 12px;
+              text-align: left;
+              white-space: nowrap;
+            }
+          }
+
+          /* Customer baseline ownership migration:
+             legacy page-specific modules. */"""
+          index = index[:fragment_start] + greeting_block + index[comment_at + len(comment):]
+          assert index.count(greeting_block) == 1
+          write(index_path, index)
+
+          # 2. Restore the global mobile title property without changing its line count.
+          foundation_path = 'customer-dashboard/shared/customer-design-system.css'
+          foundation = read(foundation_path)
+          old_title = """body.vx-customer-design-foundation .vx-page-header-title {
+              white-space: nowrap;
+            }"""
+          new_title = """body.vx-customer-design-foundation .vx-page-header-title {
+              font-size: 24px;
+            }"""
+          assert foundation.count(old_title) == 1, 'expected one stale mobile title rule'
+          foundation = foundation.replace(old_title, new_title, 1)
+          assert old_title not in foundation
+          write(foundation_path, foundation)
+
+          # 3. Lock the design verifier to the complete mobile CSS contract.
+          design_path = 'scripts/verify-customer-design-foundation.mjs'
+          design = read(design_path)
+          anchor = """  assert.ok(foundationCss.includes(token), `foundation CSS missing: ${token}`);
+          }
+
+          for (const token of [
+            '.vx-ap-stack',"""
+          insertion = r"""  assert.ok(foundationCss.includes(token), `foundation CSS missing: ${token}`);
+          }
+
+          assert.match(
+            foundationCss,
+            /@media\s*\(max-width:\s*720px\)\s*\{[\s\S]*?body\.vx-customer-design-foundation\s+\.vx-page-header-title\s*\{\s*font-size:\s*24px;\s*\}/,
+            'foundation mobile page-header title must use 24px'
+          );
+
+          assert.match(
+            dashboard,
+            /@media\s*\(max-width:\s*720px\)\s*\{\s*body\.vx-customer-design-foundation\s+#dash-greeting-block\s*>\s*\.vx-ap-head\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*minmax\(0,\s*1fr\);\s*gap:\s*9px;\s*\}\s*body\.vx-customer-design-foundation\s+#dash-greeting-block\s*>\s*\.vx-ap-head\s*>\s*\.vx-page-header-subtitle\s*\{\s*margin-top:\s*0;\s*font-size:\s*12px;\s*text-align:\s*left;\s*white-space:\s*nowrap;\s*\}\s*\}/,
+            'dashboard mobile greeting block must be complete'
+          );
+
+          assert.doesNotMatch(
+            dashboard,
+            /body\.vx-customer-design-foundation \.vx-page-header-title\s*\{\s*font-size:\s*24px;\s*\}\s*body\.vx-customer-design-foundation\s+#dash-greeting-block/,
+            'dashboard must not contain an orphaned mobile title fragment before the greeting block'
+          );
+
+          for (const token of [
+            '.vx-ap-stack',"""
+          assert design.count(anchor) == 1, 'design verifier insertion anchor changed'
+          design = design.replace(anchor, insertion, 1)
+          write(design_path, design)
+
+          # 4. Update only the stale Calendar UI visibility contract.
+          calendar_path = 'scripts/verify-calendar-integrations.mjs'
+          calendar = read(calendar_path)
+          old_required = """    'state.enabled && providers.length',
+              'entry.hidden = !(state.enabled && providers.length)',"""
+          new_required = """    'entry.hidden = false;',
+              'if (entry) entry.hidden = false;',"""
+          assert calendar.count(old_required) == 1, 'calendar required-token anchor changed'
+          calendar = calendar.replace(old_required, new_required, 1)
+          forbidden_anchor = """  'hardFail: false',
+            'Calendar API request failed'"""
+          forbidden_replacement = """  'hardFail: false',
+            'Calendar API request failed',
+            'entry.hidden = !(state.enabled && providers.length)'"""
+          assert calendar.count(forbidden_anchor) == 1, 'calendar forbidden-token anchor changed'
+          calendar = calendar.replace(forbidden_anchor, forbidden_replacement, 1)
+          assert "'state.enabled && providers.length'" not in calendar
+          write(calendar_path, calendar)
+          PY
+
+          expected_worktree=$(cat <<'EOF'
+          customer-dashboard/index.html
+          customer-dashboard/shared/customer-design-system.css
+          scripts/verify-calendar-integrations.mjs
+          scripts/verify-customer-design-foundation.mjs
+          EOF
+          )
+          actual_worktree="$(git diff --name-only | sort)"
+          test "$actual_worktree" = "$(printf '%s\n' "$expected_worktree" | sort)"
+          git diff --check
+
+      - name: Verify exact eleven-file PR scope and structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_scope=$(cat <<'EOF'
+          customer-dashboard/index.html
+          customer-dashboard/shared/customer-assistant-components.css
+          customer-dashboard/shared/customer-design-system.css
+          customer-dashboard/shared/customer-navigation-components.css
+          customer-dashboard/shared/customer-runtime-design-foundation.js
+          customer-dashboard/shared/customer-runtime-notifications-design.js
+          customer-dashboard/shared/offer-brand.js
+          scripts/verify-calendar-integrations.mjs
+          scripts/verify-customer-design-foundation.mjs
+          scripts/verify-customer-navigation-unified.mjs
+          scripts/verify-p0-security-foundation.mjs
+          EOF
+          )
+          actual_scope="$(git diff --name-only "$BASE_SHA" | sort)"
+          test "$actual_scope" = "$(printf '%s\n' "$expected_scope" | sort)"
+          test "$(printf '%s\n' "$actual_scope" | wc -l)" -eq 11
+          ! printf '%s\n' "$actual_scope" | grep -q '^\.github/'
+          ! printf '%s\n' "$actual_scope" | grep -q 'customer-runtime-calendar-settings\.js'
+
+          node - <<'JS'
+          const fs = require('node:fs');
+          const lineCount = (path) => fs.readFileSync(path, 'utf8').split(/\r?\n/).length;
+          const expected = new Map([
+            ['customer-dashboard/shared/customer-design-system.css', 499],
+            ['customer-dashboard/shared/customer-assistant-components.css', 968],
+            ['customer-dashboard/shared/customer-navigation-components.css', 121]
+          ]);
+          for (const [path, count] of expected) {
+            const actual = lineCount(path);
+            if (actual !== count) throw new Error(`${path}: expected ${count}, got ${actual}`);
+          }
+          const html = fs.readFileSync('customer-dashboard/index.html', 'utf8');
+          const styleOpen = (html.match(/<style\b/gi) || []).length;
+          const styleClose = (html.match(/<\/style>/gi) || []).length;
+          if (styleOpen !== 48 || styleClose !== 48) throw new Error(`style tags ${styleOpen}/${styleClose}`);
+          const inline = [...html.matchAll(/<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi)];
+          if (inline.length !== 33) throw new Error(`inline JavaScript expected 33, got ${inline.length}`);
+          fs.mkdirSync('/tmp/pr804-inline', { recursive: true });
+          inline.forEach((match, index) => fs.writeFileSync(`/tmp/pr804-inline/${String(index + 1).padStart(2, '0')}.js`, match[1]));
+          console.log(`STRUCTURE foundation=499 assistant=968 navigation=121 styles=${styleOpen}/${styleClose} inline=${inline.length}/33`);
+          JS
+          for file in /tmp/pr804-inline/*.js; do node --check "$file"; done
+          node --check customer-dashboard/shared/customer-runtime-design-foundation.js
+          node --check customer-dashboard/shared/offer-brand.js
+
+          python - <<'PY'
+          from pathlib import Path
+          for path in (
+              'customer-dashboard/shared/customer-design-system.css',
+              'customer-dashboard/shared/customer-assistant-components.css',
+              'customer-dashboard/shared/customer-navigation-components.css'
+          ):
+              value = Path(path).read_text(encoding='utf-8')
+              assert value.count('{') == value.count('}'), f'unbalanced CSS braces: {path}'
+          print('CSS_BRACES PASS')
+          PY
+
+      - name: Run complete required verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/audit-customer-runtime-reachability.mjs
+          node scripts/verify-p0-security-foundation.mjs
+          node scripts/verify-customer-navigation-unified.mjs
+          node scripts/verify-calendar-integrations.mjs
+
+      - name: Run non-fail-fast design recheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/assert-collector.mjs <<'JS'
+          const rows = [];
+          const record = (ok, method, message) => {
+            rows.push({ result: ok ? 'PASS' : 'FAIL', method, message: String(message || method) });
+            return ok;
+          };
+          const same = (a, b) => Object.is(a, b);
+          const deep = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+          const assert = {
+            ok(value, message) { return record(Boolean(value), 'ok', message); },
+            equal(a, b, message) { return record(a == b, 'equal', message); },
+            strictEqual(a, b, message) { return record(same(a, b), 'strictEqual', message); },
+            deepEqual(a, b, message) { return record(deep(a, b), 'deepEqual', message); },
+            deepStrictEqual(a, b, message) { return record(deep(a, b), 'deepStrictEqual', message); },
+            match(value, regex, message) { return record(regex.test(String(value)), 'match', message || regex); },
+            doesNotMatch(value, regex, message) { return record(!regex.test(String(value)), 'doesNotMatch', message || regex); }
+          };
+          process.on('beforeExit', () => {
+            const summary = {
+              total: rows.length,
+              pass: rows.filter((row) => row.result === 'PASS').length,
+              fail: rows.filter((row) => row.result === 'FAIL').length
+            };
+            console.log('DESIGN_RECHECK', JSON.stringify(summary));
+            for (const row of rows.filter((item) => item.result === 'FAIL')) console.log('DESIGN_RECHECK_FAIL', JSON.stringify(row));
+            if (summary.fail) process.exitCode = 1;
+          });
+          export default assert;
+          JS
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('scripts/verify-customer-design-foundation.mjs').read_text(encoding='utf-8')
+          old = "import assert from 'node:assert/strict';"
+          assert source.count(old) == 1
+          Path('scripts/.tmp-pr804-design-recheck.mjs').write_text(
+              source.replace(old, "import assert from 'file:///tmp/assert-collector.mjs';", 1),
+              encoding='utf-8'
+          )
+          PY
+          trap 'rm -f scripts/.tmp-pr804-design-recheck.mjs' EXIT
+          node scripts/.tmp-pr804-design-recheck.mjs
+          rm -f scripts/.tmp-pr804-design-recheck.mjs
+          test -z "$(git status --porcelain --untracked-files=all | grep 'tmp-pr804' || true)"
+
+      - name: Commit and push exact follow-up
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$OLD_HEAD"
+          test "$(git rev-parse "origin/$TARGET_BRANCH")" = "$OLD_HEAD"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            customer-dashboard/index.html \
+            customer-dashboard/shared/customer-design-system.css \
+            scripts/verify-customer-design-foundation.mjs \
+            scripts/verify-calendar-integrations.mjs
+          test "$(git diff --cached --name-only | wc -l)" -eq 4
+          git commit -m 'fix: complete customer baseline verification'
+          test "$(git rev-list --count "$BASE_SHA"..HEAD)" -eq 2
+          git push origin "HEAD:$TARGET_BRANCH"
+          echo "FOLLOWUP_HEAD=$(git rev-parse HEAD)"
