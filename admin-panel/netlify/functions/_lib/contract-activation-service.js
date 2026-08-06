@@ -66,6 +66,13 @@ async function activateContractSafely({ sbAdmin, actor, contractId, requestedCus
   if (requestedCustomerId && String(requestedCustomerId) !== customerId) throw Object.assign(new Error('customer_id stimmt nicht mit dem Vertrag überein.'), { step_failed: 'validate_contract_customer' });
 
   const recovery = status === 'active';
+  // Erstaktivierung erfordert eine erfasste Gegenzeichnung (contract-countersign.js
+  // setzt countersigned_at, ändert aber contracts.status nicht). Eine bereits aktive
+  // Vertragsrezidive (recovery) darf weiterlaufen, auch falls historische Verträge
+  // vor Einführung dieser Prüfung ohne Gegenzeichnung aktiviert wurden.
+  if (!recovery && !previous.countersigned_at) {
+    throw Object.assign(new Error('Vertrag kann nicht aktiviert werden: Gegenzeichnung fehlt (countersigned_at ist nicht gesetzt).'), { step_failed: 'validate_contract_countersigned' });
+  }
   const updatedResult = await updateContractWithSchemaFallback({
     sbAdmin,
     contractId,
