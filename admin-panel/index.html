@@ -4123,6 +4123,7 @@ body,.main{background:#F7F8FC;}
     </div>
 
     <!-- Footer Aktionen -->
+    <div id="view-contract-countersign-hint" class="modal-feedback" style="display:none;margin-top:14px;">Kundensignatur liegt vor. Bitte jetzt gegenzeichnen, damit der Vertrag abgeschlossen wird und der Kunde automatisch per E-Mail benachrichtigt wird.</div>
     <div class="inline-actions" style="margin-top:14px;justify-content:flex-end;">
       <button class="btn btn-primary" id="view-contract-countersign-btn" onclick="openCountersignModal()" style="display:none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -10401,19 +10402,8 @@ async function submitContractWizard() {
     await loadDataFromSupabase();
     renderContracts();
     updateBadges();
-    showToast('\u2713 Vertrag gespeichert.');
-    // FIX 4: Notify via webhook
-    var cust4 = customerById(d.customerId);
-    callAdminFunction('contract-signed', {
-      contract_id: newId,
-      customer_id: d.customerId,
-      customer_email: cust4 ? (cust4.email || '') : '',
-      customer_name: d.customerName,
-      plan: d.plan,
-      contract_text: contractText,
-      signed_at: new Date().toISOString()
-    }).catch(function(e) { console.warn('[contract-signed]', e.message); });
     closeContractWizard();
+    afterSignatureCaptured(newId);
   } catch(err) {
     fb.className = 'modal-feedback error'; fb.style.display = 'block';
     fb.textContent = 'Fehler: ' + (err.message || err);
@@ -10551,14 +10541,28 @@ function viewContract(id, opts) {
   modalEl.classList.add('open');
   // Gegenzeichnen-Button: nur sichtbar wenn Kunde unterschrieben hat aber noch nicht gegengezeichnet
   var countersignBtn = document.getElementById('view-contract-countersign-btn');
+  var countersignHint = document.getElementById('view-contract-countersign-hint');
+  var countersignPending = false;
   if (countersignBtn) {
     var customerSigned = !!(ct.signatureData || (acc && acc.signatureData));
     var alreadyCountersigned = !!ct.countersignedAt;
-    countersignBtn.style.display = (customerSigned && !alreadyCountersigned) ? 'inline-flex' : 'none';
+    countersignPending = customerSigned && !alreadyCountersigned;
+    countersignBtn.style.display = countersignPending ? 'inline-flex' : 'none';
     if (alreadyCountersigned) {
       countersignBtn.textContent = '✓ Gegengezeichnet';
       countersignBtn.disabled = true;
     }
+  }
+  if (countersignHint) countersignHint.style.display = countersignPending ? 'block' : 'none';
+  if(opts.focusCountersign && countersignPending){
+    requestAnimationFrame(()=>{
+      var btn = document.getElementById('view-contract-countersign-btn');
+      if(btn){
+        btn.scrollIntoView({behavior:'smooth', block:'center'});
+        btn.classList.add('btn-pulse');
+        setTimeout(()=>btn.classList.remove('btn-pulse'), 2000);
+      }
+    });
   }
   if(opts.focusCheckpoint){
     requestAnimationFrame(()=>{
@@ -10574,6 +10578,19 @@ function viewContract(id, opts) {
 
 function closeViewContractModal() {
   document.getElementById('view-contract-modal').classList.remove('open');
+}
+
+// Shared post-signature UX for the "Neuer Vertrag"-Wizard und das separate
+// Signatur-Modal: beide erfassen nur die Kundensignatur. Damit ein Vertrag
+// als abgeschlossen gilt, dem Kunden eine Vertragskopie zugestellt wird und
+// die Abrechnung starten kann, muss danach noch gegengezeichnet werden
+// (siehe contract-activation-service.js: countersigned_at ist Pflicht).
+// Diese Funktion öffnet die Vertragsdetailansicht und lenkt den Blick direkt
+// auf den "Gegenzeichnen"-Button, statt den Nutzer mit einem abschliessend
+// wirkenden Toast allein zu lassen.
+function afterSignatureCaptured(contractId) {
+  showToast('✓ Kundensignatur erfasst — bitte jetzt gegenzeichnen, damit der Vertrag abgeschlossen und der Kunde per E-Mail benachrichtigt wird.');
+  viewContract(contractId, { focusCountersign: true });
 }
 
 // ── COUNTERSIGN ───────────────────────────────────────────────────────────
@@ -10847,6 +10864,15 @@ async function saveSignature() {
     return;
   }
 
+  if (ct.signatureData) {
+    var overwriteConfirmed = confirm(
+      'Für diesen Vertrag ist bereits eine Kundensignatur hinterlegt (z.B. aus der digitalen Offerten-Annahme).\n\n' +
+      'Mit "OK" wird diese durch die hier neu erfasste Signatur ersetzt. Bitte nur bestätigen, wenn der Kunde jetzt tatsächlich erneut/vor Ort unterschreibt.\n\n' +
+      'Bestehende Signatur überschreiben?'
+    );
+    if (!overwriteConfirmed) return;
+  }
+
   var canvas = document.getElementById('sig-canvas-sign');
   var signatureData = canvas ? canvas.toDataURL('image/png') : null;
 
@@ -10856,19 +10882,8 @@ async function saveSignature() {
     await loadDataFromSupabase();
     renderContracts();
     updateBadges();
-    showToast('\u2713 Vertrag unterzeichnet.');
-    // FIX 4: Notify via webhook
-    var cust4s = customerById(ct.customerId);
-    callAdminFunction('contract-signed', {
-      contract_id: String(id),
-      customer_id: ct.customerId,
-      customer_email: cust4s ? (cust4s.email || '') : '',
-      customer_name: ct.customerName,
-      plan: ct.plan,
-      contract_text: ct.contractText || '',
-      signed_at: new Date().toISOString()
-    }).catch(function(e) { console.warn('[contract-signed]', e.message); });
     closeSignatureModal();
+    afterSignatureCaptured(id);
   } catch(err) {
     if (fb) { fb.className = 'modal-feedback error'; fb.style.display = 'block'; fb.textContent = 'Fehler: ' + (err.message || err); }
   } finally {
