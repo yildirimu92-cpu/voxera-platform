@@ -103,6 +103,24 @@ for (const token of [
   assert.ok(foundationCss.includes(token), `foundation CSS missing: ${token}`);
 }
 
+assert.match(
+  foundationCss,
+  /@media\s*\(max-width:\s*720px\)\s*\{[\s\S]*?body\.vx-customer-design-foundation\s+\.vx-page-header-title\s*\{\s*font-size:\s*24px;\s*\}/,
+  'foundation mobile page-header title must use 24px'
+);
+
+assert.match(
+  dashboard,
+  /@media\s*\(max-width:\s*720px\)\s*\{\s*body\.vx-customer-design-foundation\s+#dash-greeting-block\s*>\s*\.vx-ap-head\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*minmax\(0,\s*1fr\);\s*gap:\s*9px;\s*\}\s*body\.vx-customer-design-foundation\s+#dash-greeting-block\s*>\s*\.vx-ap-head\s*>\s*\.vx-page-header-subtitle\s*\{\s*margin-top:\s*0;\s*font-size:\s*12px;\s*text-align:\s*left;\s*white-space:\s*nowrap;\s*\}\s*\}/,
+  'dashboard mobile greeting block must be complete'
+);
+
+assert.doesNotMatch(
+  dashboard,
+  /(?:^|\n)\s*font-size:\s*24px;\s*\}\s*body\.vx-customer-design-foundation\s+#dash-greeting-block/,
+  'dashboard must not contain an orphaned top-level mobile title fragment before the greeting block'
+);
+
 for (const token of [
   '.vx-ap-stack',
   '.vx-ap-status.loading',

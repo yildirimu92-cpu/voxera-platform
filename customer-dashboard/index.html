@@ -6510,10 +6510,10 @@ body.vx-customer-design-foundation
   }
 }
 
-    font-size: 24px;
-  }
-
-  body.vx-customer-design-foundation #dash-greeting-block > .vx-ap-head {
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation
+    #dash-greeting-block
+    > .vx-ap-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 9px;
@@ -6526,8 +6526,12 @@ body.vx-customer-design-foundation
     margin-top: 0;
     font-size: 12px;
     text-align: left;
+    white-space: nowrap;
+  }
+}
 
-/* Customer baseline ownership migration: legacy page-specific modules. */
+/* Customer baseline ownership migration:
+   legacy page-specific modules. */
 
 /* Customer requests: assistant-aligned canonical component owner. */
 body.vx-customer-design-foundation .vx-requests-layout{
