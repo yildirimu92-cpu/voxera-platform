@@ -232,7 +232,10 @@ async function createInvoiceWithItems(sbAdmin, payload) {
         sort_order: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : (idx + 1),
         item_type: item.itemType || 'manual',
         title: item.title || 'Position',
-        description: item.description || null,
+        // invoice_items.description is NOT NULL in production (see
+        // 2026-08-06_invoice_items_title_tax_rate_drift_fix.sql); fall back to
+        // '' rather than null so a caller that omits it doesn't fail the insert.
+        description: item.description || '',
         quantity,
         unit_price: unitPrice,
         line_total: lineTotal,
@@ -901,7 +904,9 @@ async function ensureDraftInvoiceWithItems({
       items: [{
         itemType: lineItem.itemType || 'manual',
         title: lineItem.title,
-        description: lineItem.description || null,
+        // invoice_items.description is NOT NULL in production; see the same
+        // note in createInvoiceWithItems above.
+        description: lineItem.description || '',
         quantity: qty,
         unitPrice: unit,
         lineTotal: total,
