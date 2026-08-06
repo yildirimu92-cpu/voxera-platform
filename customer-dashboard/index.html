@@ -23167,6 +23167,26 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
     return !vxIsExcludedNormalCall(rec, liveCallIds);
   });
 
+  // B-P1-01: if the record currently open in the detail panel no longer
+  // matches the active search/filter -- or fell out via a live data change,
+  // e.g. a realtime status update -- close the detail instead of leaving a
+  // stale record shown on the right while the left list has already moved
+  // on. Gated to the Anfragen tab because #requests-detail-v2 is only ever
+  // the visible detail view there (useDetailV2 requires anrufeTabActive,
+  // see index.html ~19100); this render also runs in the background for
+  // every poll/realtime refresh regardless of which tab is active, and must
+  // not close a detail legitimately open elsewhere (e.g. from Heute).
+  if (
+    typeof getCurrentTabName === 'function' && getCurrentTabName() === 'anrufe' &&
+    window._vxActiveRecordId &&
+    !visibleRecords.some(function(rec) { return rec && String(rec.id) === String(window._vxActiveRecordId); })
+  ) {
+    if (typeof vxForceCloseCallDetail === 'function') vxForceCloseCallDetail('active-record-filtered-out');
+    if (typeof vxToast === 'function') {
+      vxToast({ type: 'info', title: 'Auswahl aufgehoben', sub: 'Die geöffnete Anfrage ist im aktuellen Filter nicht mehr sichtbar.' });
+    }
+  }
+
   function renderEmpty() {
     var emptyLabel = vxInquiryFilterEmptyText(filter);
     el.innerHTML = '<div class="vx-ops-empty vx-requests-empty">'
