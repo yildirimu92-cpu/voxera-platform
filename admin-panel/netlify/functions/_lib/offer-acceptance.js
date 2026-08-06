@@ -94,6 +94,18 @@ async function updateContractWithPreferredPendingStatus({ sbAdmin, contractId, p
 async function insertContractWithPreferredPendingStatus({ sbAdmin, contractPayload }) {
   const pendingReviewRes = await sbAdmin.from('contracts').insert({ ...contractPayload, status: 'pending_review' }).select('*').single();
   if (!pendingReviewRes.error) return pendingReviewRes.data;
+  if (String(pendingReviewRes.error.code || '') === '23505' && contractPayload.offer_id) {
+    // Backstop against uq_contracts_offer_id: under normal operation the
+    // acceptOfferAndEnsureContract() claim lock already prevents two concurrent inserts
+    // for the same offer, but if this constraint is ever hit anyway, self-heal by
+    // returning the contract that won the race instead of failing the whole acceptance.
+    const raceWinner = await sbAdmin.from('contracts').select('*').eq('offer_id', contractPayload.offer_id).maybeSingle();
+    if (!raceWinner.error && raceWinner.data) return raceWinner.data;
+    console.error('ensureContractForOffer: unique offer_id violation but race-winner lookup failed', {
+      offer_id: contractPayload.offer_id,
+      db_error: raceWinner.error ? { message: raceWinner.error.message, code: raceWinner.error.code } : 'no row found'
+    });
+  }
   if (isInvalidContractStatusError(pendingReviewRes.error)) {
     console.error('ensureContractForOffer: pending_review status rejected by DB', {
       offer_id: contractPayload.offer_id || null,
@@ -453,9 +465,14 @@ async function ensureInitialInvoiceForOffer({ sbAdmin, offer, contractId, nowIso
   };
 }
 
-async function ensureOpsReviewTask({ sbAdmin, customerId, contractId, offerId, nowIso }) {
-  if (!customerId || !contractId) return null;
-  const key = `ops_contract_review:${contractId}`;
+async function ensureOpsReviewTask({ sbAdmin, customerId, contractId, offerId, nowIso, failureReason = null }) {
+  // Failure case: contract creation did not succeed, but we still want a visible admin
+  // task -- otherwise the only trace of the failure is a Netlify function log line.
+  const isFailureCase = !contractId && Boolean(failureReason);
+  if (!customerId) return null;
+  if (!contractId && !isFailureCase) return null;
+
+  const key = isFailureCase ? `ops_contract_review_failed:${offerId}` : `ops_contract_review:${contractId}`;
   const { data: existing } = await sbAdmin
     .from('cases')
     .select('id, status, note, notes')
@@ -465,17 +482,24 @@ async function ensureOpsReviewTask({ sbAdmin, customerId, contractId, offerId, n
     .maybeSingle();
   if (existing?.id) return { id: existing.id, duplicate: true };
 
-  const note = `[${key}] Angebot akzeptiert – Vertrag operativ prüfen, Start bestätigen, Rechnungen freigeben. Offer=${offerId || 'n/a'} Contract=${contractId}`;
+  const title = isFailureCase ? 'Vertragserstellung fehlgeschlagen – manuelle Nacharbeit nötig' : 'Contract review required';
+  const note = isFailureCase
+    ? `[${key}] Angebot akzeptiert, Vertragserstellung fehlgeschlagen – Vertrag manuell nachziehen. Offer=${offerId || 'n/a'} Fehler=${String(failureReason).slice(0, 300)}`
+    : `[${key}] Angebot akzeptiert – Vertrag operativ prüfen, Start bestätigen, Rechnungen freigeben. Offer=${offerId || 'n/a'} Contract=${contractId}`;
+
+  const casePayload = {
+    customer_id: customerId,
+    title,
+    note,
+    status: 'open',
+    created_at: nowIso,
+    updated_at: nowIso
+  };
+  if (isFailureCase) casePayload.priority = 'high';
+
   const { data: created, error } = await sbAdmin
     .from('cases')
-    .insert({
-      customer_id: customerId,
-      title: 'Contract review required',
-      note,
-      status: 'open',
-      created_at: nowIso,
-      updated_at: nowIso
-    })
+    .insert(casePayload)
     .select('id')
     .single();
   if (error) throw new OfferAcceptanceError(500, 'Ops task creation failed.', error.message);
@@ -534,69 +558,146 @@ async function syncPostAcceptanceLifecycle({ sbAdmin, offer, nowIso }) {
   }).eq('id', onboarding.id);
 }
 
-async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptanceMeta = null, allowContractFailure = false }) {
+function applyAcceptanceMetaToPatch(patch, acceptanceMeta) {
+  if (!acceptanceMeta || typeof acceptanceMeta !== 'object') return patch;
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'accepted_by_name')) patch.accepted_by_name = acceptanceMeta.accepted_by_name;
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'accepted_by_email')) patch.accepted_by_email = acceptanceMeta.accepted_by_email;
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'accepted_ip')) patch.accepted_ip = acceptanceMeta.accepted_ip;
+  // Legal document acceptances (3-checkbox flow)
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'agb_accepted')) patch.agb_accepted = acceptanceMeta.agb_accepted;
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'agb_version'))  patch.agb_version  = acceptanceMeta.agb_version;
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'avv_accepted')) patch.avv_accepted = acceptanceMeta.avv_accepted;
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'avv_version'))  patch.avv_version  = acceptanceMeta.avv_version;
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'dse_accepted')) patch.dse_accepted = acceptanceMeta.dse_accepted;
+  if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'dse_version'))  patch.dse_version  = acceptanceMeta.dse_version;
+  return patch;
+}
+
+// Compare-and-swap claim on offers.status + offers.accept_claim_key, mirroring the
+// invite_status='sending' claim pattern in send-customer-access.js. A caller-supplied
+// idempotencyKey lets a genuine retry (same key) re-enter the claim it already holds,
+// while a different concurrent request (different key) is rejected instead of racing
+// through customer/contract/invoice creation a second time.
+async function claimOfferForAcceptance({ sbAdmin, offer, claimKey, nowIso }) {
+  let claimQuery = sbAdmin
+    .from('offers')
+    .update({ accept_claim_key: claimKey, updated_at: nowIso })
+    .eq('id', offer.id)
+    .eq('status', offer.status);
+  claimQuery = offer.accept_claim_key == null
+    ? claimQuery.is('accept_claim_key', null)
+    : claimQuery.eq('accept_claim_key', offer.accept_claim_key);
+
+  const { data: claimRows, error: claimError } = await claimQuery.select('id');
+  if (claimError) {
+    throw new OfferAcceptanceError(500, 'Idempotenz-Claim für Angebotsannahme fehlgeschlagen.', claimError.message);
+  }
+  if (Array.isArray(claimRows) && claimRows.length > 0) {
+    return { claimed: true };
+  }
+
+  // Claim lost: someone else changed status/claim key between our read and this write.
+  // Re-read and decide instead of blindly retrying/erroring.
+  const { data: latest, error: latestErr } = await sbAdmin
+    .from('offers')
+    .select('*')
+    .eq('id', offer.id)
+    .maybeSingle();
+  if (latestErr) {
+    throw new OfferAcceptanceError(500, 'Angebotsstatus konnte nach Claim-Konflikt nicht erneut geladen werden.', latestErr.message);
+  }
+  if (latest?.accepted_at && latest?.contract_id) {
+    return { claimed: false, alreadyAccepted: true, latest };
+  }
+  const latestStatus = String(latest?.status || '').trim().toLowerCase();
+  if (latestStatus === 'rejected') {
+    return { claimed: false, terminalError: new OfferAcceptanceError(409, 'Offerte wurde bereits abgelehnt.') };
+  }
+  if (latestStatus === 'expired') {
+    return { claimed: false, terminalError: new OfferAcceptanceError(409, 'Offerte ist abgelaufen.') };
+  }
+  return { claimed: false, latest };
+}
+
+async function buildDuplicateAcceptedResult({ sbAdmin, offer, nowIso }) {
+  let initialInvoice = { invoiceId: null, duplicate: false };
+  let invoiceError = null;
+  let lifecycleError = null;
+
+  try {
+    initialInvoice = await ensureInitialInvoiceForOffer({
+      sbAdmin,
+      offer,
+      contractId: String(offer.contract_id),
+      nowIso
+    });
+  } catch (err) {
+    invoiceError = err;
+    console.error('acceptOfferAndEnsureContract: initial invoice ensure failed for already accepted offer', {
+      offer_id: offer.id,
+      contract_id: offer.contract_id,
+      error: err?.message || String(err),
+      details: err?.details || null
+    });
+  }
+
+  try {
+    await syncPostAcceptanceLifecycle({ sbAdmin, offer, nowIso });
+  } catch (err) {
+    lifecycleError = err;
+    console.error('acceptOfferAndEnsureContract: lifecycle sync failed for already accepted offer', {
+      offer_id: offer.id,
+      customer_id: offer?.customer_id || null,
+      error: err?.message || String(err)
+    });
+  }
+
+  return {
+    duplicate: true,
+    offerId: String(offer.id),
+    contractId: String(offer.contract_id),
+    acceptedAt: offer.accepted_at,
+    invoiceError: invoiceError
+      ? diagnosticFromError('ensure_initial_invoice_for_offer', invoiceError, {
+        contract_id: offer?.contract_id || null,
+        customer_id: offer?.customer_id || null,
+        subscription_id: null,
+        setup_fee_invoice_id: initialInvoice?.invoiceId || null,
+        month_1_invoice_id: initialInvoice?.recurringInvoiceId || null
+      })
+      : null,
+    lifecycleError: lifecycleError
+      ? {
+        message: lifecycleError.message || 'Post-acceptance lifecycle sync failed.'
+      }
+      : null,
+    invoiceId: initialInvoice.invoiceId,
+    recurringInvoiceId: initialInvoice.recurringInvoiceId || null,
+    invoiceDuplicate: initialInvoice.duplicate
+  };
+}
+
+async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptanceMeta = null, allowContractFailure = false, idempotencyKey = null }) {
   const status = String(offer.status || '').toLowerCase();
   if (status === 'rejected') throw new OfferAcceptanceError(409, 'Offerte wurde bereits abgelehnt.');
   if (status === 'expired') throw new OfferAcceptanceError(409, 'Offerte ist abgelaufen.');
 
   const offerWithCustomer = await resolveOrCreateCustomerForOffer({ sbAdmin, offer, nowIso });
 
-  let initialInvoice = { invoiceId: null, duplicate: false };
-  let invoiceError = null;
-  let lifecycleError = null;
-
   if (offerWithCustomer.accepted_at && offerWithCustomer.contract_id) {
-    try {
-      initialInvoice = await ensureInitialInvoiceForOffer({
-        sbAdmin,
-        offer: offerWithCustomer,
-        contractId: String(offerWithCustomer.contract_id),
-        nowIso
-      });
-    } catch (err) {
-      invoiceError = err;
-      console.error('acceptOfferAndEnsureContract: initial invoice ensure failed for already accepted offer', {
-        offer_id: offer.id,
-        contract_id: offerWithCustomer.contract_id,
-        error: err?.message || String(err),
-        details: err?.details || null
-      });
-    }
+    return buildDuplicateAcceptedResult({ sbAdmin, offer: offerWithCustomer, nowIso });
+  }
 
-    try {
-      await syncPostAcceptanceLifecycle({ sbAdmin, offer: offerWithCustomer, nowIso });
-    } catch (err) {
-      lifecycleError = err;
-      console.error('acceptOfferAndEnsureContract: lifecycle sync failed for already accepted offer', {
-        offer_id: offer.id,
-        customer_id: offerWithCustomer?.customer_id || null,
-        error: err?.message || String(err)
-      });
-    }
-
-    return {
-      duplicate: true,
-      offerId: String(offerWithCustomer.id),
-      contractId: String(offerWithCustomer.contract_id),
-      acceptedAt: offerWithCustomer.accepted_at,
-      invoiceError: invoiceError
-        ? diagnosticFromError('ensure_initial_invoice_for_offer', invoiceError, {
-          contract_id: offerWithCustomer?.contract_id || null,
-          customer_id: offerWithCustomer?.customer_id || null,
-          subscription_id: null,
-          setup_fee_invoice_id: initialInvoice?.invoiceId || null,
-          month_1_invoice_id: initialInvoice?.recurringInvoiceId || null
-        })
-        : null,
-      lifecycleError: lifecycleError
-        ? {
-          message: lifecycleError.message || 'Post-acceptance lifecycle sync failed.'
-        }
-        : null,
-      invoiceId: initialInvoice.invoiceId,
-      recurringInvoiceId: initialInvoice.recurringInvoiceId || null,
-      invoiceDuplicate: initialInvoice.duplicate
-    };
+  const claimKey = String(idempotencyKey || `offer_accept:${offerWithCustomer.id}`).trim();
+  const claim = await claimOfferForAcceptance({ sbAdmin, offer: offerWithCustomer, claimKey, nowIso });
+  if (!claim.claimed) {
+    if (claim.alreadyAccepted) return buildDuplicateAcceptedResult({ sbAdmin, offer: claim.latest, nowIso });
+    if (claim.terminalError) throw claim.terminalError;
+    throw new OfferAcceptanceError(409, 'Angebotsannahme wird bereits parallel verarbeitet. Bitte kurz erneut versuchen.', {
+      reason: 'claim_conflict',
+      offer_id: offerWithCustomer.id,
+      current_status: claim.latest?.status || null
+    });
   }
 
   let contractId = null;
@@ -604,7 +705,6 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
   try {
     contractId = await ensureContractForOffer({ sbAdmin, offer: offerWithCustomer, nowIso, acceptanceMeta });
   } catch (err) {
-    if (!allowContractFailure) throw err;
     contractError = err;
     console.error('acceptOfferAndEnsureContract: contract creation/sync failed after acceptance intent', {
       offer_id: offer.id,
@@ -613,51 +713,111 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
     });
   }
 
-  const offerPatch = {
+  if (contractError) {
+    // Consent/signature was captured -- record it -- but never mark the offer finally
+    // 'accepted' without a contract. 'contract_failed' is retry-capable: the next accept
+    // attempt (same claim key or a new one) re-enters this function and retries contract
+    // creation, since the duplicate short-circuit above requires contract_id too.
+    const failurePatch = applyAcceptanceMetaToPatch({
+      status: 'contract_failed',
+      accepted_at: offer.accepted_at || nowIso,
+      accept_claim_key: null,
+      updated_at: nowIso
+    }, acceptanceMeta);
+
+    const failedOfferRes = await sbAdmin
+      .from('offers')
+      .update(failurePatch)
+      .eq('id', offerWithCustomer.id)
+      .eq('accept_claim_key', claimKey)
+      .select('*')
+      .maybeSingle();
+    if (failedOfferRes.error) {
+      console.error('acceptOfferAndEnsureContract: failed to persist contract_failed state', {
+        offer_id: offer.id,
+        error: failedOfferRes.error.message || String(failedOfferRes.error)
+      });
+    }
+
+    let opsTask = null;
+    try {
+      opsTask = await ensureOpsReviewTask({
+        sbAdmin,
+        customerId: offerWithCustomer?.customer_id || null,
+        contractId: null,
+        offerId: offerWithCustomer?.id || null,
+        nowIso,
+        failureReason: contractError.message || String(contractError)
+      });
+    } catch (caseErr) {
+      console.error('acceptOfferAndEnsureContract: failure ops task create failed', {
+        offer_id: offer.id,
+        customer_id: offerWithCustomer?.customer_id || null,
+        error: caseErr?.message || String(caseErr)
+      });
+    }
+
+    if (!allowContractFailure) throw contractError;
+
+    const failedOffer = failedOfferRes.data || { ...offerWithCustomer, ...failurePatch };
+    return {
+      duplicate: false,
+      offerId: String(offerWithCustomer.id),
+      contractId: null,
+      contractError: {
+        message: contractError.message || 'Contract creation failed.',
+        details: contractError.details || null
+      },
+      invoiceError: null,
+      lifecycleError: null,
+      acceptedAt: failedOffer.accepted_at || nowIso,
+      offer: failedOffer,
+      invoiceId: null,
+      recurringInvoiceId: null,
+      billingDiagnostics: null,
+      invoiceDuplicate: false,
+      opsTask,
+      contractPending: true
+    };
+  }
+
+  const offerPatch = applyAcceptanceMetaToPatch({
     status: 'accepted',
     accepted_at: offer.accepted_at || nowIso,
+    contract_id: contractId,
+    accept_claim_key: null,
     updated_at: nowIso
-  };
-  if (contractId) offerPatch.contract_id = contractId;
-  if (acceptanceMeta && typeof acceptanceMeta === 'object') {
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'accepted_by_name')) offerPatch.accepted_by_name = acceptanceMeta.accepted_by_name;
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'accepted_by_email')) offerPatch.accepted_by_email = acceptanceMeta.accepted_by_email;
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'accepted_ip')) offerPatch.accepted_ip = acceptanceMeta.accepted_ip;
-    // Legal document acceptances (3-checkbox flow)
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'agb_accepted')) offerPatch.agb_accepted = acceptanceMeta.agb_accepted;
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'agb_version'))  offerPatch.agb_version  = acceptanceMeta.agb_version;
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'avv_accepted')) offerPatch.avv_accepted = acceptanceMeta.avv_accepted;
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'avv_version'))  offerPatch.avv_version  = acceptanceMeta.avv_version;
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'dse_accepted')) offerPatch.dse_accepted = acceptanceMeta.dse_accepted;
-    if (Object.prototype.hasOwnProperty.call(acceptanceMeta, 'dse_version'))  offerPatch.dse_version  = acceptanceMeta.dse_version;
-  }
+  }, acceptanceMeta);
 
   const offerRes = await sbAdmin
     .from('offers')
     .update(offerPatch)
     .eq('id', offerWithCustomer.id)
+    .eq('accept_claim_key', claimKey)
     .select('*')
     .single();
 
   if (offerRes.error) throw new OfferAcceptanceError(500, 'Offerte konnte nicht akzeptiert werden.', offerRes.error.message);
 
-  if (contractId) {
-    try {
-      initialInvoice = await ensureInitialInvoiceForOffer({
-        sbAdmin,
-        offer: offerRes.data,
-        contractId,
-        nowIso
-      });
-    } catch (err) {
-      invoiceError = err;
-      console.error('acceptOfferAndEnsureContract: initial invoice creation failed after acceptance commit', {
-        offer_id: offer.id,
-        contract_id: contractId,
-        error: err?.message || String(err),
-        details: err?.details || null
-      });
-    }
+  let initialInvoice = { invoiceId: null, duplicate: false };
+  let invoiceError = null;
+  let lifecycleError = null;
+
+  try {
+    initialInvoice = await ensureInitialInvoiceForOffer({
+      sbAdmin,
+      offer: offerRes.data,
+      contractId,
+      nowIso
+    });
+  } catch (err) {
+    invoiceError = err;
+    console.error('acceptOfferAndEnsureContract: initial invoice creation failed after acceptance commit', {
+      offer_id: offer.id,
+      contract_id: contractId,
+      error: err?.message || String(err),
+      details: err?.details || null
+    });
   }
 
   try {
@@ -672,36 +832,29 @@ async function acceptOfferAndEnsureContract({ sbAdmin, offer, nowIso, acceptance
   }
 
   let opsTask = null;
-  if (contractId) {
-    try {
-      opsTask = await ensureOpsReviewTask({
-        sbAdmin,
-        customerId: offerRes.data?.customer_id || offerWithCustomer?.customer_id || null,
-        contractId,
-        offerId: offerRes.data?.id || offerWithCustomer?.id || null,
-        nowIso
-      });
-    } catch (err) {
-      lifecycleError = lifecycleError || err;
-      console.error('acceptOfferAndEnsureContract: ops task create failed', {
-        offer_id: offer.id,
-        customer_id: offerRes.data?.customer_id || null,
-        contract_id: contractId,
-        error: err?.message || String(err)
-      });
-    }
+  try {
+    opsTask = await ensureOpsReviewTask({
+      sbAdmin,
+      customerId: offerRes.data?.customer_id || offerWithCustomer?.customer_id || null,
+      contractId,
+      offerId: offerRes.data?.id || offerWithCustomer?.id || null,
+      nowIso
+    });
+  } catch (err) {
+    lifecycleError = lifecycleError || err;
+    console.error('acceptOfferAndEnsureContract: ops task create failed', {
+      offer_id: offer.id,
+      customer_id: offerRes.data?.customer_id || null,
+      contract_id: contractId,
+      error: err?.message || String(err)
+    });
   }
 
   return {
     duplicate: false,
     offerId: String(offerWithCustomer.id),
     contractId,
-    contractError: contractError
-      ? {
-        message: contractError.message || 'Contract creation failed.',
-        details: contractError.details || null
-      }
-      : null,
+    contractError: null,
     invoiceError: invoiceError
       ? diagnosticFromError('ensure_initial_invoice_for_offer', invoiceError, {
         contract_id: contractId || null,
