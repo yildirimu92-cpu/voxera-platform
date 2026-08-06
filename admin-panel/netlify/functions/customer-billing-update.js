@@ -358,7 +358,9 @@ exports.handler = async (event) => {
       sort_order: 1,
       item_type: 'manual',
       title,
-      description: body.description || null,
+      // invoice_items.description is NOT NULL in production; '' rather than
+      // null so an admin-supplied invoice without a description doesn't fail.
+      description: body.description || '',
       quantity: 1,
       unit_price: Number(amount.toFixed(2)),
       line_total: Number(amount.toFixed(2)),
