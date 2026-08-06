@@ -4905,6 +4905,9 @@ function getCustomerQuickActionState(customer,onboarding){
     sendAccessDisabled:true,
     sendAccessTooltip:'',
     showSendAccess:false,
+    showMarkActivated:false,
+    markActivatedLabel:'Zugang aktivieren',
+    markActivatedTooltip:'',
     showApproval:false,
     approvalLabel:approved?'Freigabe aktualisieren':'Admin-Freigabe prüfen',
     approvalDisabled:false,
@@ -4930,7 +4933,24 @@ function getCustomerQuickActionState(customer,onboarding){
         : blockedReason
     };
   }
-  if(lifecycleStatus===CUSTOMER_STATUS.INVITED) return {...base,showInvitationSent:true};
+  if(lifecycleStatus===CUSTOMER_STATUS.INVITED){
+    // Voraussetzungen spiegeln die server-seitige Hartprüfung in
+    // send-customer-access.js (action:'mark_activated'): welcome_sent,
+    // invite_status==='sent' und eine dokumentierte Go-live-Freigabe müssen
+    // vorliegen, bevor der Aktivieren-Button überhaupt sichtbar wird. Der
+    // Server prüft das beim Klick ohnehin erneut hart nach.
+    const canMarkActivated=Boolean(customer?.welcome_sent)
+      &&String(customer?.invite_status||'').trim().toLowerCase()==='sent'
+      &&Boolean(customer?.go_live_approved_at&&customer?.go_live_approved_by);
+    return {
+      ...base,
+      showInvitationSent:true,
+      showMarkActivated:canMarkActivated,
+      markActivatedTooltip:canMarkActivated
+        ?'Als aktiviert markieren, sobald sich der Kunde erfolgreich im Portal eingeloggt hat.'
+        :''
+    };
+  }
   if(lifecycleStatus===CUSTOMER_STATUS.ACTIVATED){
     return {...base,showActivated:true,showGoLive:true};
   }
@@ -6110,6 +6130,8 @@ function renderCustomerWorkspace(id) {
       primaryAction = '<button class="btn btn-secondary btn-sm" type="button" data-go-live-trigger data-go-live-action="approve" data-customer-id="' + jsStr(id) + '" title="' + esc(actionState.approvalTooltip||'Admin-Freigabe dokumentieren') + '">' + esc(actionState.approvalLabel) + '</button>';
     } else if (actionState.showSendAccess) {
       primaryAction = '<button class="btn btn-primary btn-sm" type="button" data-send-access-trigger data-send-access-source="workspace" data-customer-id="' + jsStr(id) + '"' + (actionState.sendAccessDisabled ? ' data-send-access-blocked="1"' : '') + ' title="' + esc(actionState.sendAccessTooltip||'Kundenzugang senden') + '">' + esc(actionState.sendAccessLabel) + '</button>';
+    } else if (actionState.showMarkActivated) {
+      primaryAction = '<button class="btn btn-primary btn-sm" type="button" data-mark-activated-trigger data-customer-id="' + jsStr(id) + '" title="' + esc(actionState.markActivatedTooltip||'Kundenzugang als aktiviert markieren') + '">' + esc(actionState.markActivatedLabel) + '</button>';
     } else if (actionState.showGoLive) {
       primaryAction = '<button class="btn btn-primary btn-sm" type="button" data-go-live-trigger data-go-live-action="go_live" data-customer-id="' + jsStr(id) + '" title="' + esc(actionState.goLiveTooltip||'Kunde kontrolliert live schalten') + '">' + esc(actionState.goLiveLabel) + '</button>';
     } else {
@@ -8421,10 +8443,21 @@ const OFFER_STATUS_META={
   accepted:['Akzeptiert','badge-green'],
   declined:['Abgelehnt','badge-red'],
   active:['Aktiv','badge-green'],
-  expired:['Abgelaufen','badge-amber']
+  expired:['Abgelaufen','badge-amber'],
+  contract_failed:['Vertragserstellung fehlgeschlagen','badge-red']
 };
 const OFFER_STATUS_OPTIONS=['draft','sent','viewed','accepted','declined','active','expired'];
 const OFFER_FINAL_STATUSES=new Set(['accepted','declined','active','expired']);
+// contract_failed ist kein echtes Enddatum: die Annahme wurde erfasst, aber
+// _lib/offer-acceptance.js konnte keinen Vertrag anlegen. Reparatur läuft
+// ausschliesslich über "Vertrag wiederherstellen" (erneuter Accept-Versuch),
+// nie über das normale Status-Dropdown — sonst würde der Fehlerzustand
+// stillschweigend auf "draft" zurückfallen, siehe offerStatusBadge/
+// hydrateOfferStatusSelect unten.
+const OFFER_DROPDOWN_LOCKED_STATUSES=new Set([...OFFER_FINAL_STATUSES,'contract_failed']);
+function isOfferStatusDropdownLocked(status){
+  return OFFER_DROPDOWN_LOCKED_STATUSES.has(String(status||'').toLowerCase());
+}
 
 
 const OFFER_EVENT_LABELS={created:'Erstellt',saved:'Gespeichert',sent:'Gesendet',resend:'Erneut gesendet',send_failed:'Senden fehlgeschlagen',opened:'Geöffnet',accepted:'Akzeptiert / Signiert',declined:'Abgelehnt',expired:'Abgelaufen'};
@@ -8520,16 +8553,27 @@ function offerStatusBadge(status){
 function hydrateOfferStatusSelect(value){
   const el=document.getElementById('offer-status-select');
   if(!el) return;
+  const current=String(value||'').toLowerCase();
+  if(current==='contract_failed'){
+    // Kein Fallback auf "draft": die einzige wählbare Option ist der
+    // Fehlerzustand selbst, damit er weder verschwindet noch überschrieben
+    // werden kann. Reparatur läuft über den "Vertrag wiederherstellen"-Button.
+    el.innerHTML=`<option value="contract_failed">${esc(OFFER_STATUS_META.contract_failed[0])}</option>`;
+    el.value='contract_failed';
+    return;
+  }
   el.innerHTML=OFFER_STATUS_OPTIONS.map(key=>`<option value="${key}">${esc((OFFER_STATUS_META[key]||OFFER_STATUS_META.draft)[0])}</option>`).join('');
-  el.value=OFFER_STATUS_OPTIONS.includes(value)?value:'draft';
+  el.value=OFFER_STATUS_OPTIONS.includes(current)?current:'draft';
 }
 async function offerStatusChanged(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
   const next=String(document.getElementById('offer-status-select')?.value||'draft').toLowerCase();
   if(!OFFER_STATUS_OPTIONS.includes(next)) return;
-  if(isFinalOfferStatus(offer.status)&&next!==offer.status){
-    alert('Finale Offerten können nicht mehr umgestellt werden. Bitte Offerte duplizieren für einen neuen Zyklus.');
+  if(isOfferStatusDropdownLocked(offer.status)&&next!==offer.status){
+    alert(String(offer.status||'').toLowerCase()==='contract_failed'
+      ? 'Vertragserstellung ist fehlgeschlagen. Der Status kann hier nicht manuell geändert werden – bitte über „Vertrag wiederherstellen“ erneut versuchen.'
+      : 'Finale Offerten können nicht mehr umgestellt werden. Bitte Offerte duplizieren für einen neuen Zyklus.');
     hydrateOfferStatusSelect(offer.status);
     return;
   }
@@ -8548,8 +8592,10 @@ async function offerStatusChanged(){
   openOfferDetail(offer.id,true);
 }
 function applyOfferReadonlyState(offer){
-  const locked=isFinalOfferStatus(offer?.status);
-  const accepted=String(offer?.status||'').toLowerCase()==='accepted';
+  const locked=isOfferStatusDropdownLocked(offer?.status);
+  const statusKey=String(offer?.status||'').toLowerCase();
+  const accepted=statusKey==='accepted';
+  const contractFailed=statusKey==='contract_failed';
   const hasContract=Boolean(offer?.contractId);
   const controls=[...document.querySelectorAll('#offer-detail-shell input, #offer-detail-shell select, #offer-detail-shell textarea')];
   controls.forEach(el=>{
@@ -8570,16 +8616,17 @@ function applyOfferReadonlyState(offer){
   if(contractBtn) contractBtn.disabled=!accepted||hasContract;
   const meta=document.getElementById('offer-final-state-hint');
   if(meta){
-    if(accepted&&hasContract) meta.innerHTML='🔒 Final: Akzeptiert. <strong>Vertrag verknüpft.</strong>';
+    if(contractFailed) meta.innerHTML='⚠️ <strong>Vertragserstellung fehlgeschlagen.</strong> Die Annahme wurde erfasst, der Vertrag konnte aber nicht angelegt werden (siehe Case „Vertragserstellung fehlgeschlagen“). Bitte <strong>Wiederherstellen</strong> ausführen.';
+    else if(accepted&&hasContract) meta.innerHTML='🔒 Final: Akzeptiert. <strong>Vertrag verknüpft.</strong>';
     else if(accepted&&!hasContract) meta.innerHTML='⚠️ Final: Akzeptiert, aber kein Vertrag verknüpft. Bitte <strong>Wiederherstellen</strong> ausführen.';
-    else if(String(offer?.status||'').toLowerCase()==='declined') meta.innerHTML='🔒 Final: Abgelehnt. Für neuen Zyklus bitte Offerte duplizieren.';
+    else if(statusKey==='declined') meta.innerHTML='🔒 Final: Abgelehnt. Für neuen Zyklus bitte Offerte duplizieren.';
     else meta.innerHTML='';
   }
   const openContractBtn=document.getElementById('offer-open-contract-btn');
   if(openContractBtn) openContractBtn.style.display=(accepted&&hasContract)?'inline-flex':'none';
   const recoverBtn=document.getElementById('offer-recover-contract-btn');
   if(recoverBtn){
-    recoverBtn.style.display=(accepted&&!hasContract)?'inline-flex':'none';
+    recoverBtn.style.display=((accepted&&!hasContract)||contractFailed)?'inline-flex':'none';
     recoverBtn.disabled=Boolean(offer?.__recoverPending);
     recoverBtn.textContent=offer?.__recoverPending?'Wiederherstellen...':'Vertrag wiederherstellen';
   }
@@ -8915,8 +8962,9 @@ function openOfferContract(){
 async function recoverAcceptedOfferContract(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
-  if(String(offer.status||'').toLowerCase()!=='accepted'){
-    alert('Wiederherstellung ist nur für akzeptierte Offerten verfügbar.');
+  const statusKey=String(offer.status||'').toLowerCase();
+  if(statusKey!=='accepted'&&statusKey!=='contract_failed'){
+    alert('Wiederherstellung ist nur für akzeptierte oder fehlgeschlagene Offerten verfügbar.');
     return;
   }
   offer.__recoverPending=true;
@@ -8925,7 +8973,11 @@ async function recoverAcceptedOfferContract(){
     const json=await callAdminFunction('offer-status-update',{offer_id:offer.id,status:'accepted'});
     if(json?.offer) Object.assign(offer,mapDbOfferToUi(json.offer));
     openOfferDetail(offer.id,true);
-    showToast('✓ Vertrag erfolgreich verknüpft.');
+    if(String(offer.status||'').toLowerCase()==='contract_failed'){
+      alert('Vertragserstellung ist erneut fehlgeschlagen. Details siehe Case „Vertragserstellung fehlgeschlagen“ zu dieser Offerte.');
+    }else{
+      showToast('✓ Vertrag erfolgreich verknüpft.');
+    }
   }catch(e){
     alert('Vertrag konnte nicht wiederhergestellt werden: '+(e?.message||e));
   }finally{
@@ -11788,12 +11840,17 @@ function openCustomerProfile(id){
   const openCases=customerCases.filter(ca=>String(ca.status||'').toLowerCase()!==CASE_STATUS.DONE).length;
   const canSend=actionState.showSendAccess&&!actionState.sendAccessDisabled;
   const accessTerminalLabel=customerAccessTerminalLabel(actionState);
+  const markActivatedBtnHtml=`<button class="btn btn-primary" type="button" data-mark-activated-trigger data-customer-id="${jsStr(id)}" title="${esc(actionState.markActivatedTooltip||'Kundenzugang als aktiviert markieren')}">${esc(actionState.markActivatedLabel)}</button>`;
   const accessActionHeader=actionState.showSendAccess
     ? `<button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>`
-    : `<span class="badge badge-green">${esc(accessTerminalLabel)}</span>`;
+    : actionState.showMarkActivated
+      ? markActivatedBtnHtml
+      : `<span class="badge badge-green">${esc(accessTerminalLabel)}</span>`;
   const accessActionSecondary=actionState.showSendAccess
     ? `<button class="btn btn-primary" type="button" data-send-access-trigger data-send-access-source="customer-profile" data-customer-id="${jsStr(id)}" data-send-access-blocked="${canSend?'0':'1'}" title="${canSend?'':esc(actionState.sendAccessTooltip||'Pflichtdaten fehlen')}">Zugang senden</button>`
-    : `<span class="badge badge-green">${esc(accessTerminalLabel)}</span>`;
+    : actionState.showMarkActivated
+      ? markActivatedBtnHtml
+      : `<span class="badge badge-green">${esc(accessTerminalLabel)}</span>`;
 
   const header=document.getElementById('profile-header');
   if(header) header.innerHTML=`
@@ -12654,6 +12711,59 @@ function applyAccessSendResult(customerId,customerPatch,nextStep){
           }
     renderCustomers(); renderOverview(); updateBadges();
   }).catch(()=>{});
+}
+
+function applyMarkActivatedResult(customerId,customerPatch){
+  const c=customerById(customerId);
+  if(!c) return;
+  // Optimistic update first for instant UI feedback
+  c.status='activated';
+  c.invite_status='activated';
+  c.activated_at=customerPatch?.activated_at||new Date().toISOString();
+  c.latest=`${nowStamp()} · Zugang aktiviert`;
+
+  // Background re-fetch to sync full row from DB (resolves status divergence on other pages)
+  authClient.from('customers').select('*').eq('id',customerId).single().then(({data:freshRow})=>{
+    if(!freshRow) return;
+    const idx=state.customers.findIndex(cu=>idsEq(cu.id,customerId));
+    if(idx>-1){
+      const r=freshRow;
+      Object.assign(state.customers[idx],{
+        status:normalizeCustomerLifecycleStatus(r.status),
+        invite_status:r.invite_status||null,
+        activated_at:r.activated_at||null,
+        go_live_approved_at:r.go_live_approved_at||null,
+        go_live_approved_by:r.go_live_approved_by||null
+      });
+    }
+    renderCustomers(); renderOnboarding(); renderOverview(); updateBadges();
+  }).catch(()=>{});
+}
+
+async function markCustomerActivated(customerId){
+  const customer=customerById(customerId);
+  if(!customer){alert('Kunde nicht gefunden.');return;}
+  const onboarding=onboardingForCustomer(customerId);
+  const actionState=getCustomerQuickActionState(customer,onboarding);
+  if(!actionState.showMarkActivated){
+    alert('Voraussetzungen für die Aktivierung sind (noch) nicht erfüllt. Bitte Kunde neu laden.');
+    return;
+  }
+  if(!confirm(`Zugang für „${customer.name||customer.customer_name||'diesen Kunden'}“ als aktiviert markieren?\n\nBitte nur bestätigen, wenn der Kunde sich erfolgreich im Portal eingeloggt hat.`)) return;
+  try{
+    const json=await callAdminFunction('send-customer-access',{customer_id:customerId,action:'mark_activated'});
+    if(!json?.success) throw new Error(json?.error||'Aktivierung fehlgeschlagen.');
+    applyMarkActivatedResult(customerId,json.customer);
+    state.events.unshift(`${nowStamp()} · ${customer.name}: Zugang als aktiviert markiert`);
+    showToast(json?.duplicate?'Zugang war bereits aktiviert.':'✓ Zugang aktiviert.');
+    renderCustomers(); renderOnboarding(); renderOverview(); renderActivity(); updateBadges();
+    if(idsEq(state.selectedCustomer,customerId)) openCustomerProfile(customerId);
+  }catch(error){
+    const payload=error?.payload||{};
+    const reasons=[payload?.error||error?.message||'Fehler bei der Aktivierung.'];
+    if(Array.isArray(payload?.hard_blockers)&&payload.hard_blockers.length) reasons.push(payload.hard_blockers.join(' · '));
+    alert(reasons.join('\n'));
+  }
 }
 
 async function submitSendAccess(){
@@ -15163,6 +15273,14 @@ document.addEventListener('click',event=>{
     }
     if(source==='customer-profile') closeCustomerProfile();
     triggerSendAccessFromUi(customerId,source);
+    return;
+  }
+  const markActivatedBtn=event.target.closest('[data-mark-activated-trigger]');
+  if(markActivatedBtn){
+    event.preventDefault();
+    event.stopPropagation();
+    const customerId=markActivatedBtn.getAttribute('data-customer-id')||'';
+    markCustomerActivated(customerId);
     return;
   }
   const toggleBtn=event.target.closest('[data-customer-menu-toggle]');
