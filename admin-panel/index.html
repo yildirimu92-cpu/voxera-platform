@@ -2808,9 +2808,9 @@ body,.main{background:#F7F8FC;}
             </button>
           </div>
           <div id="sales-action-contracts" style="display:none;">
-            <button class="btn btn-primary" onclick="openContractWizard()">
+            <button class="btn btn-primary" onclick="openContractCloseChooser()">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
-              Neuer Vertrag
+              Vertrag abschliessen
             </button>
           </div>
         </div>
@@ -2914,6 +2914,7 @@ body,.main{background:#F7F8FC;}
         </div><!-- /sales-panel-offers -->
 
         <div id="sales-panel-contracts" style="display:none;">
+          <div id="contracts-pending-banner-inline" style="display:none;"></div>
           <div class="toolbar" style="margin-bottom:10px;">
             <input class="input" id="contracts-search-inline" placeholder="Suche Vertrags-ID, Kunde, Plan, Status …">
             <button class="btn btn-quiet" id="contracts-reset-inline">Zurücksetzen</button>
@@ -2934,11 +2935,12 @@ body,.main{background:#F7F8FC;}
       <section id="section-contracts" class="section">
         <div class="section-head">
           <h3 style="font-size:17px;font-weight:700;letter-spacing:-.03em;">Verträge</h3>
-          <button class="btn btn-primary" onclick="openContractWizard()">
+          <button class="btn btn-primary" onclick="openContractCloseChooser()">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
-            Neuer Vertrag
+            Vertrag abschliessen
           </button>
         </div>
+        <div id="contracts-pending-banner" style="display:none;"></div>
         <div class="toolbar" style="margin-bottom:10px;">
           <input class="input" id="contracts-search" placeholder="Suche Vertrags-ID, Kunde, Plan, Status, Offerte …">
           <button class="btn btn-quiet" id="contracts-reset">Zurücksetzen</button>
@@ -3540,7 +3542,7 @@ body,.main{background:#F7F8FC;}
     <!-- TAB: VERTRÄGE -->
     <div class="profile-panel" data-profile-panel="vertraege">
       <div class="inline-actions" style="margin-bottom:12px;">
-        <button class="btn btn-primary btn-sm" id="profile-contract-create-btn">+ Neuer Vertrag</button>
+        <button class="btn btn-primary btn-sm" id="profile-contract-create-btn">+ Vertrag abschliessen</button>
       </div>
       <div class="table-wrap">
         <table class="data-table">
@@ -3785,6 +3787,33 @@ body,.main{background:#F7F8FC;}
 </div>
 
 <!-- CONTRACT WIZARD MODAL -->
+<!-- ONSITE CHOOSER MODAL -->
+<div class="modal-overlay" id="onsite-chooser-modal" onclick="if(event.target===this)closeOnsiteChooserModal()">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title">Vertrag abschliessen</div>
+        <div class="modal-sub">Ist der Kunde gerade hier?</div>
+      </div>
+      <button class="btn btn-quiet" type="button" onclick="closeOnsiteChooserModal()">✕</button>
+    </div>
+    <div style="display:grid;gap:10px;margin-top:6px;">
+      <button class="btn btn-primary" type="button" style="justify-content:flex-start;padding:14px 16px;height:auto;" onclick="chooseOnsiteFlow(true)">
+        <div style="text-align:left;">
+          <div style="font-weight:700;">Ja, Kunde ist hier</div>
+          <div style="font-weight:400;font-size:11.5px;opacity:.85;margin-top:2px;">Signatur + Startdatum jetzt erfassen — Vertrag wird sofort aktiv, Kunde erhält sofort die Bestätigung.</div>
+        </div>
+      </button>
+      <button class="btn btn-secondary" type="button" style="justify-content:flex-start;padding:14px 16px;height:auto;" onclick="chooseOnsiteFlow(false)">
+        <div style="text-align:left;">
+          <div style="font-weight:700;">Nein, per Mail</div>
+          <div style="font-weight:400;font-size:11.5px;opacity:.85;margin-top:2px;">Offerte erstellen &amp; senden — Kunde unterschreibt später remote.</div>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="contract-wizard-modal" onclick="if(event.target===this)closeContractWizard()">
   <div class="modal" style="max-width:640px;">
     <div class="modal-top">
@@ -4086,9 +4115,9 @@ body,.main{background:#F7F8FC;}
       <img id="view-contract-sig-img" style="border:1px solid var(--line);border-radius:var(--r);max-width:100%;max-height:120px;object-fit:contain;" alt="Signatur">
     </div>
 
-    <!-- Gegenzeichnung Status -->
+    <!-- Bestätigung Status (Mail-Fall: digital/remote unterschriebener Vertrag) -->
     <div id="view-contract-countersign-status" style="display:none;margin-top:16px;">
-      <div style="margin-bottom:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate2);">Gegenzeichnung Voxera</div>
+      <div style="margin-bottom:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate2);">Bestätigung Voxera</div>
       <div id="view-contract-countersign-meta" class="contract-detail-grid"></div>
     </div>
 
@@ -4123,11 +4152,11 @@ body,.main{background:#F7F8FC;}
     </div>
 
     <!-- Footer Aktionen -->
-    <div id="view-contract-countersign-hint" class="modal-feedback" style="display:none;margin-top:14px;">Kundensignatur liegt vor. Bitte jetzt gegenzeichnen, damit der Vertrag abgeschlossen wird und der Kunde automatisch per E-Mail benachrichtigt wird.</div>
+    <div id="view-contract-countersign-hint" class="modal-feedback" style="display:none;margin-top:14px;">Kunde hat digital/remote unterschrieben. Bitte jetzt prüfen und bestätigen, damit der Vertrag abgeschlossen wird und der Kunde automatisch per E-Mail benachrichtigt wird.</div>
     <div class="inline-actions" style="margin-top:14px;justify-content:flex-end;">
       <button class="btn btn-primary" id="view-contract-countersign-btn" onclick="openCountersignModal()" style="display:none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Vertrag gegenzeichnen
+        Vertrag bestätigen & Kunde informieren
       </button>
       <button class="btn btn-secondary" onclick="printCurrentContractFromDetail()">Druckbare Version</button>
       <button class="btn btn-quiet" onclick="closeViewContractModal()">Schließen</button>
@@ -4135,19 +4164,19 @@ body,.main{background:#F7F8FC;}
   </div>
 </div>
 
-<!-- COUNTERSIGN CONTRACT MODAL -->
+<!-- COUNTERSIGN CONTRACT MODAL (Mail-Fall: Vertrag bestätigen & Kunde informieren) -->
 <div class="modal-overlay" id="countersign-modal" style="z-index:380;" onclick="if(event.target===this)closeCountersignModal()">
   <div class="modal" style="max-width:520px;">
     <div class="modal-top">
       <div>
-        <div class="modal-title">Vertrag gegenzeichnen</div>
-        <div class="modal-sub" id="countersign-modal-sub">Digitale Gegenzeichnung durch Voxera</div>
+        <div class="modal-title">Vertrag bestätigen</div>
+        <div class="modal-sub" id="countersign-modal-sub">Bestätigung durch Voxera — Kunde hat digital/remote unterschrieben</div>
       </div>
       <button class="btn btn-quiet" onclick="closeCountersignModal()">✕</button>
     </div>
 
     <div style="margin-bottom:14px;">
-      <label class="muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Unterzeichner (Voxera)</label>
+      <label class="muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Bestätigt durch (Voxera)</label>
       <input class="input" id="countersign-name-input" type="text" value="Umut Yildirim, Voxera" placeholder="Name des Unterzeichners">
     </div>
 
@@ -4168,7 +4197,7 @@ body,.main{background:#F7F8FC;}
       <button class="btn btn-quiet" onclick="closeCountersignModal()">Abbrechen</button>
       <button class="btn btn-primary" id="countersign-submit-btn" onclick="submitCountersign()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Gegenzeichnen & E-Mail senden
+        Bestätigen & Kunde informieren
       </button>
     </div>
   </div>
@@ -4190,9 +4219,19 @@ body,.main{background:#F7F8FC;}
     <div class="inline-actions" style="margin-top:10px;margin-bottom:16px;">
       <button class="btn btn-quiet btn-sm" type="button" onclick="clearSigCanvas('sig-canvas-sign')">Löschen</button>
     </div>
+    <div class="grid-2" style="margin-bottom:16px;">
+      <div>
+        <label class="muted">Startdatum *</label>
+        <input class="input" type="date" id="sign-start-date">
+      </div>
+      <div>
+        <label class="muted">Laufzeit (Monate) *</label>
+        <input class="input" type="number" min="1" step="1" id="sign-months" value="12">
+      </div>
+    </div>
     <div class="inline-actions" style="justify-content:flex-end;">
       <button class="btn btn-quiet" type="button" onclick="closeSignatureModal()">Abbrechen</button>
-      <button class="btn btn-primary" type="button" id="sign-submit-btn" onclick="saveSignature()">Signatur speichern</button>
+      <button class="btn btn-primary" type="button" id="sign-submit-btn" onclick="saveSignature()">Vertrag abschliessen</button>
     </div>
   </div>
 </div>
@@ -5223,10 +5262,17 @@ function renderOverview(){
 
   // Accepted offers without contract
   const acceptedOffers=state.offers.filter(o=>String(o.status||'').toLowerCase()==='accepted').length;
-  // Contracts pending countersignature (signed by customer, awaiting Voxera)
+  // Verträge, die digital/remote akzeptiert wurden und auf die bewusste
+  // Admin-Bestätigung warten (Mail-Fall, Business-Szenario A): Signatur liegt
+  // vor, aber noch keine Gegenzeichnung. 'pending_review' ist der Status, den
+  // offer-acceptance.js beim digitalen Vertragsabschluss per Link setzt;
+  // 'signed' deckt evtl. verbleibende Altfälle ab. Feldname bewusst camelCase
+  // (ct.countersignedAt) - state.contracts ist über mapDbContractToUi gemappt,
+  // ct.countersigned_at wäre hier immer undefined und hätte den Zähler
+  // permanent falsch (zu hoch) gemeldet.
   const contractsPendingCountersign=(state.contracts||[]).filter(ct=>{
     const status=String(ct.status||'').toLowerCase();
-    return status==='signed' && !ct.countersigned_at;
+    return ['signed','pending_review'].includes(status) && !ct.countersignedAt;
   }).length;
 
   // ── KPI STRIP: 3 key numbers ──────────────────────────────────
@@ -5292,8 +5338,8 @@ function renderOverview(){
   const wartetItems=[];
   if(contractsPendingCountersign>0) wartetItems.push(`
     <div class="list-item overview-task-item">
-      <div><div class="list-main">${contractsPendingCountersign} Vertrag${contractsPendingCountersign>1?'verträge':''} zur Gegenzeichnung</div>
-      <div class="list-sub">Kunde hat unterschrieben — Voxera muss gegenzeichnen</div></div>
+      <div><div class="list-main">${contractsPendingCountersign} Vertrag${contractsPendingCountersign>1?'e warten':' wartet'} auf Ihre Bestätigung</div>
+      <div class="list-sub">Kunde hat digital/remote unterschrieben — bitte prüfen und bestätigen, damit der Kunde informiert wird</div></div>
       <button class="btn btn-quiet btn-sm" onclick="setRoute('contracts')">Öffnen</button>
     </div>`);
   if(acceptedOffers>0) wartetItems.push(`
@@ -6222,7 +6268,7 @@ function renderCustomerWorkspace(id) {
       + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Verträge</div><div style="font-size:13px;color:#475569;">' + activeContracts.length + ' aktiv · ' + contracts.length + ' total</div></div>'
       + '<div style="grid-column:1/-1;display:flex;gap:8px;margin-top:6px;">'
       + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" onclick="setRoute(\'billing-finance\')">Billing</button>'
-      + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" onclick="openContractWizard&&openContractWizard()">Neuer Vertrag</button>'
+      + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" onclick="openContractCloseChooser&&openContractCloseChooser()">Vertrag abschliessen</button>'
       + '</div>';
   }
 
@@ -10080,9 +10126,41 @@ function generateContractText(data) {
   ].join('\n');
 }
 
+// Verträge, die digital/remote akzeptiert wurden und auf bewusste
+// Admin-Bestätigung warten (Mail-Fall). Gleiche Filterlogik wie in
+// renderOverview() - siehe dortiger Kommentar zum countersignedAt-Feldnamen.
+function contractsAwaitingConfirmation() {
+  return (state.contracts || []).filter(function(ct) {
+    var status = String(ct.status || '').toLowerCase();
+    return ['signed', 'pending_review'].includes(status) && !ct.countersignedAt;
+  });
+}
+
+function updateContractsPendingBanner() {
+  var count = contractsAwaitingConfirmation().length;
+  var html = count > 0
+    ? '<div class="modal-feedback" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;background:var(--amber-light);border:1px solid var(--amber-mid);color:var(--amber);">'
+      + '<span>' + count + ' Vertrag' + (count > 1 ? 'e warten' : ' wartet') + ' auf Ihre Bestätigung (per Mail digital unterschrieben)</span>'
+      + '<button class="btn btn-quiet btn-sm" onclick="focusFirstPendingContract()">Ansehen</button>'
+      + '</div>'
+    : '';
+  ['contracts-pending-banner', 'contracts-pending-banner-inline'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = html;
+    el.style.display = count > 0 ? '' : 'none';
+  });
+}
+
+function focusFirstPendingContract() {
+  var pending = contractsAwaitingConfirmation();
+  if (pending[0]) viewContract(pending[0].id, { focusCountersign: true });
+}
+
 function renderContracts() {
   const tbody = document.getElementById('contracts-table-body');
   const cards = document.getElementById('contracts-cards');
+  updateContractsPendingBanner();
   if (!tbody) return;
   const search=(document.getElementById('contracts-search')?.value||'').toLowerCase().trim();
   const rows=search
@@ -10227,6 +10305,39 @@ function isSigCanvasEmpty(canvasId) {
     if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) return false;
   }
   return true;
+}
+
+// ─── Vertrag abschliessen: einheitlicher Einstieg ─────────────────────────
+// Ersetzt die früheren zwei gleichrangigen CTAs "Neuer Vertrag" / "Unterschreiben"
+// durch einen einzigen primären Einstieg. "Neuer Vertrag"-Wizard und
+// "Unterschreiben"-Modal bleiben technisch bestehen (siehe openContractWizard /
+// openSignatureModal weiter unten), werden aber nicht mehr als zwei separate
+// Optionen im UI angeboten.
+var _onsiteChooserCtx = null;
+
+function openContractCloseChooser(preselectedCustomerId, existingContractId) {
+  _onsiteChooserCtx = { customerId: preselectedCustomerId || null, contractId: existingContractId || null };
+  var modal = document.getElementById('onsite-chooser-modal');
+  if (modal) modal.classList.add('open');
+}
+
+function closeOnsiteChooserModal() {
+  var modal = document.getElementById('onsite-chooser-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function chooseOnsiteFlow(isOnsite) {
+  var ctx = _onsiteChooserCtx || {};
+  closeOnsiteChooserModal();
+  if (!isOnsite) {
+    openOfferWizard();
+    return;
+  }
+  if (ctx.contractId) {
+    openSignatureModal(ctx.contractId);
+  } else {
+    openContractWizard(ctx.customerId);
+  }
 }
 
 // ─── Contract Wizard ───────────────────────────────────────────────────────
@@ -10403,7 +10514,7 @@ async function submitContractWizard() {
     renderContracts();
     updateBadges();
     closeContractWizard();
-    afterSignatureCaptured(newId);
+    await completeContractOnsiteAndShowResult(newId, { signatureData: signatureData, startDate: d.startDate, months: d.months });
   } catch(err) {
     fb.className = 'modal-feedback error'; fb.style.display = 'block';
     fb.textContent = 'Fehler: ' + (err.message || err);
@@ -10499,14 +10610,14 @@ function viewContract(id, opts) {
     sigWrap.style.display = 'none';
   }
 
-  // Gegenzeichnung Status
+  // Bestätigung Status
   var csStatusWrap = document.getElementById('view-contract-countersign-status');
   var csMeta = document.getElementById('view-contract-countersign-meta');
   if (csStatusWrap && csMeta) {
     if (ct.countersignedAt) {
       csMeta.innerHTML = [
-        renderContractDetailStat('Gegengezeichnet am', formatDateDE(ct.countersignedAt)),
-        renderContractDetailStat('Unterzeichner', ct.countersignName || 'Voxera')
+        renderContractDetailStat('Bestätigt am', formatDateDE(ct.countersignedAt)),
+        renderContractDetailStat('Bestätigt durch', ct.countersignName || 'Voxera')
       ].join('');
       csStatusWrap.style.display = '';
     } else {
@@ -10539,7 +10650,10 @@ function viewContract(id, opts) {
   }
   modalEl.dataset.contractId = ct.id;
   modalEl.classList.add('open');
-  // Gegenzeichnen-Button: nur sichtbar wenn Kunde unterschrieben hat aber noch nicht gegengezeichnet
+  // "Vertrag bestätigen"-Button: nur sichtbar wenn Kunde unterschrieben hat
+  // aber Voxera noch nicht bestätigt hat. Im Vor-Ort-Flow (contract-onsite-complete)
+  // sind Signatur und Bestätigung bereits atomar erledigt, wenn diese Ansicht
+  // öffnet - der Button bleibt dann verborgen (kein zweiter Klick nötig).
   var countersignBtn = document.getElementById('view-contract-countersign-btn');
   var countersignHint = document.getElementById('view-contract-countersign-hint');
   var countersignPending = false;
@@ -10549,7 +10663,7 @@ function viewContract(id, opts) {
     countersignPending = customerSigned && !alreadyCountersigned;
     countersignBtn.style.display = countersignPending ? 'inline-flex' : 'none';
     if (alreadyCountersigned) {
-      countersignBtn.textContent = '✓ Gegengezeichnet';
+      countersignBtn.textContent = '✓ Bestätigt';
       countersignBtn.disabled = true;
     }
   }
@@ -10580,17 +10694,77 @@ function closeViewContractModal() {
   document.getElementById('view-contract-modal').classList.remove('open');
 }
 
-// Shared post-signature UX for the "Neuer Vertrag"-Wizard und das separate
-// Signatur-Modal: beide erfassen nur die Kundensignatur. Damit ein Vertrag
-// als abgeschlossen gilt, dem Kunden eine Vertragskopie zugestellt wird und
-// die Abrechnung starten kann, muss danach noch gegengezeichnet werden
-// (siehe contract-activation-service.js: countersigned_at ist Pflicht).
-// Diese Funktion öffnet die Vertragsdetailansicht und lenkt den Blick direkt
-// auf den "Gegenzeichnen"-Button, statt den Nutzer mit einem abschliessend
-// wirkenden Toast allein zu lassen.
-function afterSignatureCaptured(contractId) {
-  showToast('✓ Kundensignatur erfasst — bitte jetzt gegenzeichnen, damit der Vertrag abgeschlossen und der Kunde per E-Mail benachrichtigt wird.');
-  viewContract(contractId, { focusCountersign: true });
+// ─── Vor-Ort One-Click-Abschluss ───────────────────────────────────────────
+// Gemeinsame Ziellogik für den "Neuer Vertrag"-Wizard und das "Unterschreiben"-
+// Modal (beide sind jetzt nur noch technische Grundlage des einheitlichen
+// Vor-Ort-Flows, siehe openContractCloseChooser). Ruft contract-onsite-complete
+// auf, das serverseitig Signatur speichern → Gegenzeichnen → Vertragsstart
+// bestätigen in einem Rutsch verkettet (kein zweiter Klick nötig).
+
+// Erzeugt eine simple "getippte" Bild-Signatur für die Voxera-Gegenzeichnung,
+// damit der Vor-Ort-Flow keine zweite manuelle Unterschrift verlangt.
+function renderTypedStampDataUrl(text) {
+  var canvas = document.createElement('canvas');
+  canvas.width = 480; canvas.height = 120;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = "italic 30px 'Brush Script MT', cursive, serif";
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(text || 'Voxera').slice(0, 40), 16, canvas.height / 2);
+  return canvas.toDataURL('image/png');
+}
+
+async function completeContractOnsite(contractId, opts) {
+  opts = opts || {};
+  var ct = state.contracts.find(function(c) { return idsEq(c.id, contractId); });
+  if (!ct) return null;
+
+  var updatedCt = await ensureContractBillingAmounts(String(contractId));
+  if (!updatedCt) return null; // Nutzer hat Betrag-Prompt abgebrochen
+
+  var sessionRes = await authClient.auth.getSession();
+  var adminName = (sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.email) || 'Voxera Team';
+
+  return callAdminFunction('contract-onsite-complete', {
+    contract_id: String(contractId),
+    signature_data: opts.signatureData,
+    countersign_name: adminName,
+    countersignature_data: renderTypedStampDataUrl(adminName),
+    start_date: opts.startDate,
+    term_months: opts.months,
+    customer_id: String(ct.customerId || ''),
+    notes: opts.notes || ct.notes || ''
+  });
+}
+
+async function completeContractOnsiteAndShowResult(contractId, opts) {
+  try {
+    var result = await completeContractOnsite(contractId, opts);
+    await loadDataFromSupabase();
+    renderContracts();
+    updateBadges();
+    if (!result) {
+      // Betrag-Prompt abgebrochen: Vertrag bleibt als Draft/Signed liegen, Admin
+      // kann später über "Vertragsstart bestätigen" fortfahren.
+      viewContract(contractId, { focusCheckpoint: true });
+      return;
+    }
+    if (result.activation && result.activation.success) {
+      showToast('✓ Vertrag abgeschlossen und aktiv — Kunde wurde per E-Mail informiert.');
+      viewContract(contractId);
+    } else {
+      var reason = (result.activation && result.activation.error) || 'unbekannter Fehler';
+      showToast('Kunde wurde per E-Mail informiert. Aktivierung (Rechnungen/Abo) konnte nicht automatisch abgeschlossen werden: ' + reason + ' — bitte unten "Vertragsstart bestätigen" erneut versuchen.');
+      viewContract(contractId, { focusCheckpoint: true });
+    }
+  } catch (err) {
+    await loadDataFromSupabase();
+    renderContracts();
+    showToast('Fehler beim Vertragsabschluss: ' + (err.message || err) + ' — bitte Vertrag öffnen und erneut versuchen.');
+    viewContract(contractId, { focusCheckpoint: true });
+  }
 }
 
 // ── COUNTERSIGN ───────────────────────────────────────────────────────────
@@ -10674,7 +10848,7 @@ async function submitCountersign() {
     if (!res.ok) throw new Error(json.error || 'Fehler beim Speichern.');
 
     fb.className = 'modal-feedback ok';
-    fb.textContent = '✓ Gegenzeichnung gespeichert. E-Mail wird versendet…';
+    fb.textContent = '✓ Bestätigt. E-Mail wird versendet…';
 
     // State aktualisieren
     var ct = state.contracts.find(function(c) { return idsEq(c.id, contractId); });
@@ -10686,7 +10860,7 @@ async function submitCountersign() {
 
     setTimeout(async function() {
       closeCountersignModal();
-      showToast('Vertrag gegengezeichnet. Kunde wird per E-Mail informiert.');
+      showToast('Vertrag bestätigt. Kunde wird per E-Mail informiert.');
       // Automatisch Vertragsstart-Checkpoint aufrufen
       await loadDataFromSupabase();
       renderContracts();
@@ -10702,7 +10876,7 @@ async function submitCountersign() {
     }, 1200);
   } catch(err) {
     fb.className = 'modal-feedback err';
-    fb.textContent = err.message || 'Fehler beim Gegenzeichnen.';
+    fb.textContent = err.message || 'Fehler bei der Bestätigung.';
     btn.disabled = false;
   }
 }
@@ -10837,6 +11011,10 @@ function openSignatureModal(contractId) {
   if (subEl) subEl.textContent = ct.customerName || '';
   var fb = document.getElementById('sign-contract-feedback');
   if (fb) { fb.className = 'modal-feedback'; fb.textContent = ''; }
+  var startEl = document.getElementById('sign-start-date');
+  var monthsEl = document.getElementById('sign-months');
+  if (startEl) startEl.value = ct.startDate || new Date().toISOString().slice(0, 10);
+  if (monthsEl) monthsEl.value = String(ct.months || 12);
   document.getElementById('sign-contract-modal').classList.add('open');
   setTimeout(function() { initSigCanvas('sig-canvas-sign'); }, 50);
 }
@@ -10875,19 +11053,21 @@ async function saveSignature() {
 
   var canvas = document.getElementById('sig-canvas-sign');
   var signatureData = canvas ? canvas.toDataURL('image/png') : null;
+  var startDate = (document.getElementById('sign-start-date') || {}).value || '';
+  var months = Math.max(1, parseInt((document.getElementById('sign-months') || {}).value || '0', 10) || 0);
+  if (!startDate) {
+    if (fb) { fb.className = 'modal-feedback error'; fb.style.display = 'block'; fb.textContent = 'Bitte ein Startdatum angeben.'; }
+    return;
+  }
 
-  if (btn) { btn.disabled = true; btn.textContent = 'Speichern\u2026'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird abgeschlossen\u2026'; }
   try {
-    await callAdminFunction('admin-mutate', { action:'contracts.update', contract_id: id, payload: {signature_data: signatureData, status: 'signed'} });
-    await loadDataFromSupabase();
-    renderContracts();
-    updateBadges();
     closeSignatureModal();
-    afterSignatureCaptured(id);
+    await completeContractOnsiteAndShowResult(id, { signatureData: signatureData, startDate: startDate, months: months });
   } catch(err) {
     if (fb) { fb.className = 'modal-feedback error'; fb.style.display = 'block'; fb.textContent = 'Fehler: ' + (err.message || err); }
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Signatur speichern'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Vertrag abschliessen'; }
   }
 }
 
@@ -12163,7 +12343,7 @@ function openCustomerProfile(id){
     }).join('')||'<tr><td colspan="5"><div class="empty">Keine Verträge.</div></td></tr>';
   }
   const contractCreateBtn=document.getElementById('profile-contract-create-btn');
-  if(contractCreateBtn) contractCreateBtn.onclick=()=>{ closeCustomerProfile(); openContractWizard(id); };
+  if(contractCreateBtn) contractCreateBtn.onclick=()=>{ closeCustomerProfile(); openContractCloseChooser(id); };
 
   document.querySelectorAll('#customer-profile-modal .profile-tab').forEach(tab=>{
     tab.onclick=()=>{
