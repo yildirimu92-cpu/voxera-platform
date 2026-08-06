@@ -76,6 +76,10 @@ exports.handler = async (event) => {
         sbAdmin,
         offer,
         nowIso,
+        // Deterministic per offer (not per request) so that a repeated admin click or a
+        // network-retry re-enters the same claim instead of racing a concurrent accept
+        // attempt on the same offer (public link, another admin tab, etc.).
+        idempotencyKey: `offer_admin_accept:${offer.id}`,
         acceptanceMeta: {
           accepted_by_name: offer.accepted_by_name || 'Admin',
           accepted_by_email: offer.accepted_by_email || null,

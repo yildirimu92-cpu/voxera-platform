@@ -71,12 +71,19 @@ exports.handler = async (event) => {
 
   if (isOfferExpired(offer)) return response(409, { error: 'Offerte ist abgelaufen.' });
   const offerStatus = String(offer.status || '').toLowerCase();
-  if (offerStatus === 'accepted' || offer.accepted_at) {
+  // Same idempotency key for a given (offer, token) pair regardless of which branch below
+  // handles the request -- this is what acceptOfferAndEnsureContract() enforces as the
+  // compare-and-swap claim on offers.accept_claim_key, so a browser retry / double-click
+  // reusing this key re-enters the same in-flight or already-finished attempt instead of
+  // racing a second customer/contract/invoice creation.
+  const idempotencyKey = String(event.headers['x-idempotency-key'] || '').trim() || `offer_accept:${offer.id}:${token}`;
+  if (offerStatus === 'accepted' || offerStatus === 'contract_failed' || offer.accepted_at) {
     const accepted = await acceptOfferAndEnsureContract({
       sbAdmin,
       offer,
       nowIso: new Date().toISOString(),
-      allowContractFailure: true
+      allowContractFailure: true,
+      idempotencyKey
     });
     const followUpIssues = [];
     if (accepted.contractError) followUpIssues.push('contract');
@@ -87,6 +94,7 @@ exports.handler = async (event) => {
       already_accepted: true,
       duplicate: true,
       offer_id: accepted.offerId,
+      offer_status: accepted.offer?.status || null,
       contract_id: accepted.contractId,
       contract_pending: !accepted.contractId,
       accepted_at: accepted.acceptedAt,
@@ -109,7 +117,6 @@ exports.handler = async (event) => {
   }
 
   const nowIso = new Date().toISOString();
-  const idempotencyKey = String(event.headers['x-idempotency-key'] || '').trim() || `offer_accept:${offer.id}:${token}`;
   const ip = String(event.headers['x-nf-client-connection-ip'] || event.headers['x-forwarded-for'] || '').split(',')[0].trim() || null;
   const userAgent = String(event.headers['user-agent'] || '').trim() || null;
   console.log('[offer_public_accept] start', JSON.stringify({
@@ -144,6 +151,7 @@ exports.handler = async (event) => {
       offer,
       nowIso,
       allowContractFailure: true,
+      idempotencyKey,
       acceptanceMeta: {
         accepted_by_name:  signerName,
         accepted_by_email: signerEmail || null,
@@ -168,6 +176,7 @@ exports.handler = async (event) => {
       success: true,
       duplicate: Boolean(accepted.duplicate),
       offer_id: accepted.offerId,
+      offer_status: accepted.offer?.status || null,
       contract_id: accepted.contractId,
       contract_pending: !accepted.contractId,
       accepted_at: accepted.acceptedAt,
