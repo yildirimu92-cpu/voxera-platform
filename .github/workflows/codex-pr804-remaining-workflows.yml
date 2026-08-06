@@ -1,0 +1,32 @@
+name: Codex PR 804 Remaining Workflow Contracts
+
+on:
+  push:
+    branches:
+      - codex/tmp-pr804-followup-20260806
+
+permissions:
+  contents: read
+
+jobs:
+  verify-remaining:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_HEAD: a4e45bf2bcbd86d3b1a17ff43ff183a7b5f9e62b
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Materialize exact PR head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "$SOURCE_HEAD"
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -z "$(git status --porcelain)"
+      - name: Verify Customer Actions
+        run: node scripts/verify-customer-actions.mjs
+      - name: Verify Customer Assistant Profile
+        run: node scripts/verify-customer-assistant-profile.mjs
+      - name: Verify customer operational updates
+        run: node scripts/verify-customer-operational-updates.mjs
