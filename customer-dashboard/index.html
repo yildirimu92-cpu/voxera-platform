@@ -6455,6 +6455,13 @@ body.vx-customer-design-foundation
     gap: 0 !important;
     align-items: stretch !important;
     width: 100% !important;
+    /* B-P0-01: bind the panel to the viewport instead of letting the grid
+       row size itself off #anrufe-split-left's content. 130.5px (not the
+       118px used by the -- unreachable, dead-markup -- Archiv tab) is the
+       real header/topbar/page-header offset for #tab-anrufe, measured via
+       Playwright: split.getBoundingClientRect().top is a constant 130.5px
+       across viewport heights (900/800/1024px all confirmed identical). */
+    height: calc(100vh - 130.5px) !important;
   }
 
   body.vx-customer-design-foundation #anrufe-split-left {
@@ -6466,7 +6473,16 @@ body.vx-customer-design-foundation
   }
 
   body.vx-customer-design-foundation #anrufe-split-right {
-    display: block !important;
+    /* B-P0-01: must be flex (not block) so #requests-detail-v2's inline
+       flex:1 actually stretches it to this panel's height -- otherwise
+       .vx-dv2-shell's height:100% has no definite height to resolve
+       against and grows to its own content instead, which is why the
+       detail panel wasn't reaching its own internal scrollbar at all.
+       Confirmed via Playwright: before this change .vx-dv2-shell measured
+       1279px tall (unbounded, scrollHeight === clientHeight, no scroll)
+       against a 780px-tall panel; after, it's capped and scrolls. */
+    display: flex !important;
+    flex-direction: column !important;
     grid-column: 2 !important;
     grid-row: 1 !important;
     width: 100% !important;
