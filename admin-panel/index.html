@@ -4881,6 +4881,16 @@ function getCustomerLifecycleBadge(customer,onboarding){
   else if(status===CUSTOMER_STATUS.DELETED) cls='badge-gray';
   return `<span class="badge ${cls}">${esc(label)}</span>`;
 }
+// Auth-User-Vorhandensein: gleiche Prüfung wie ensureAuthAndUserMapping in
+// send-customer-access.js — auth_user_id auf dem Kunden ist die einzige
+// verlässliche Quelle dafür, ob der manuelle "Zugang senden"-Schritt je lief.
+function customerHasAuthUser(customer){
+  return Boolean(String(customer?.auth_user_id||'').trim());
+}
+function getCustomerAuthAccessBadge(customer){
+  if(customerHasAuthUser(customer)) return '';
+  return `<span class="badge badge-amber" title="Für diesen Kunden wurde noch kein Auth-User/Login angelegt – der Schritt „Zugang senden“ wurde noch nicht ausgeführt.">Zugang noch nicht gesendet</span>`;
+}
 function getCustomerQuickActionState(customer,onboarding){
   const lifecycleStatus=resolveCustomerLifecycle(customer);
   const gate=resolveAccessGate(customer,onboarding);
@@ -6090,7 +6100,7 @@ function renderCustomerWorkspace(id) {
   if (g('cw-name')) g('cw-name').textContent = cu.name || '—';
   if (g('cw-meta')) g('cw-meta').textContent = (cu.email||'') + (cu.tel_nr ? ' · ' + cu.tel_nr : '') + (cu.city ? ' · ' + cu.city : '');
   if (g('cw-breadcrumb')) g('cw-breadcrumb').textContent = cu.name || '';
-  if (g('cw-badges')) g('cw-badges').innerHTML = getCustomerLifecycleBadge(cu, onboard) + ' ' + paymentStatusBadge(cu.payment_status);
+  if (g('cw-badges')) g('cw-badges').innerHTML = getCustomerLifecycleBadge(cu, onboard) + ' ' + paymentStatusBadge(cu.payment_status) + ' ' + getCustomerAuthAccessBadge(cu);
 
 // Actions
   if (g('cw-actions')) {
@@ -6274,7 +6284,7 @@ function renderCustomers(){
       :'';
     return `<tr>
     <td class="wrap"><strong>${esc(c.name)}</strong><div class="muted" style="margin-top:2px">${esc(contactDisplay(c))} · ${esc(c.email)}</div></td>
-    <td>${getCustomerLifecycleBadge(c,onboarding)}</td>
+    <td>${getCustomerLifecycleBadge(c,onboarding)} ${getCustomerAuthAccessBadge(c)}</td>
     <td>${esc(setupColumnLabel)}<div class="progress-bar"><div class="progress-fill ${progressClass}" style="width:${setupProgress}%"></div></div><div class="muted" style="margin-top:6px;">Nächster Schritt: ${esc(nextStepLabel)}</div>${blockerLabel?`<div class="muted" style="margin-top:4px;color:var(--red);">Blocker: ${esc(blockerLabel)}</div>`:''}</td>
     <td>${esc(c.latest)}</td>
     <td>
@@ -6320,6 +6330,7 @@ function renderCustomers(){
           <div>
             <div style="font-size:13px;font-weight:700;color:#fff;letter-spacing:-.01em;">${esc(c.name||'—')}</div>
             <div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:1px;">${esc(contactDisplay(c)||'—')} · ${esc(c.email||'—')}</div>
+            ${customerHasAuthUser(c)?'':'<div style="font-size:10px;color:#FCA5A5;margin-top:3px;font-weight:600;" title="Für diesen Kunden wurde noch kein Auth-User/Login angelegt.">⚠ Zugang noch nicht gesendet</div>'}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
@@ -11793,6 +11804,7 @@ function openCustomerProfile(id){
         ${getCustomerLifecycleBadge(c,onboard)}
         ${paymentStatusBadge(c.payment_status)}
         ${toneBadge(inviteStatusLabel(c.invite_status||'not_sent'))}
+        ${getCustomerAuthAccessBadge(c)}
       </div>
       <div class="profile-meta-line">${esc(contactDisplay(c)||'Kein Kontakt')} · ${esc(c.tel_nr||'Kein Telefon')} · ${esc(c.city||'—')}</div>
     </div>
@@ -14562,6 +14574,7 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
     go_live_approval_note: dbRow.go_live_approval_note || null,
     go_live_checks: dbRow.go_live_checks && typeof dbRow.go_live_checks === 'object' ? dbRow.go_live_checks : {},
     live_at: dbRow.live_at || null,
+    auth_user_id: dbRow.auth_user_id || null,
     // Voxera
     voxera:        dbRow.voxera_number || 'Zuweisung offen',
     dashboard_id:  dbRow.dashboard_id  || null,
