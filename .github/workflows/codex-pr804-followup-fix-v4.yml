@@ -1,0 +1,168 @@
+name: Codex PR 804 Follow-up Fix V4
+
+on:
+  push:
+    branches:
+      - codex/tmp-pr804-followup-20260806
+
+permissions:
+  contents: write
+  actions: read
+  checks: read
+  statuses: read
+  pull-requests: read
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: b555e9896e8bbd66b86ce24ad20edb48f3d204d1
+      OLD_HEAD: 809839882ffc4dea9484ed8197b603bce9590a2a
+      TARGET_BRANCH: codex/restore-customer-launch-checks
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify start and apply exact follow-up
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .github/scripts/apply-pr804-followup.py /tmp/apply-pr804-followup.py
+          git fetch origin main "$TARGET_BRANCH"
+          test "$(git rev-parse origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse "origin/$TARGET_BRANCH")" = "$OLD_HEAD"
+          git switch -C pr804-followup "origin/$TARGET_BRANCH"
+          test "$(git rev-list --count "$BASE_SHA"..HEAD)" -eq 1
+          test -z "$(git status --porcelain)"
+          python /tmp/apply-pr804-followup.py
+          expected=$(cat <<'EOF'
+          customer-dashboard/index.html
+          customer-dashboard/shared/customer-design-system.css
+          scripts/verify-calendar-integrations.mjs
+          scripts/verify-customer-design-foundation.mjs
+          EOF
+          )
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' "$expected" | sort)"
+          git diff --check
+
+      - name: Verify exact eleven-file source scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=$(cat <<'EOF'
+          customer-dashboard/index.html
+          customer-dashboard/shared/customer-assistant-components.css
+          customer-dashboard/shared/customer-design-system.css
+          customer-dashboard/shared/customer-navigation-components.css
+          customer-dashboard/shared/customer-runtime-design-foundation.js
+          customer-dashboard/shared/customer-runtime-notifications-design.js
+          customer-dashboard/shared/offer-brand.js
+          scripts/verify-calendar-integrations.mjs
+          scripts/verify-customer-design-foundation.mjs
+          scripts/verify-customer-navigation-unified.mjs
+          scripts/verify-p0-security-foundation.mjs
+          EOF
+          )
+          actual="$(git diff --name-only "$BASE_SHA" | sort)"
+          test "$actual" = "$(printf '%s\n' "$expected" | sort)"
+          test "$(printf '%s\n' "$actual" | wc -l)" -eq 11
+          ! printf '%s\n' "$actual" | grep -q '^\.github/'
+          ! printf '%s\n' "$actual" | grep -q 'customer-runtime-calendar-settings\.js'
+          git diff --quiet "$OLD_HEAD" -- customer-dashboard/shared/customer-runtime-calendar-settings.js
+
+      - name: Verify structure and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'JS'
+          const fs = require('node:fs');
+          const lineCount = path => fs.readFileSync(path, 'utf8').split(/\r?\n/).length;
+          for (const [path, expected] of [
+            ['customer-dashboard/shared/customer-design-system.css', 499],
+            ['customer-dashboard/shared/customer-assistant-components.css', 968],
+            ['customer-dashboard/shared/customer-navigation-components.css', 121]
+          ]) {
+            const actual = lineCount(path);
+            if (actual !== expected) throw new Error(`${path}: ${actual} !== ${expected}`);
+          }
+          const html = fs.readFileSync('customer-dashboard/index.html', 'utf8');
+          const opens = (html.match(/<style\b/gi) || []).length;
+          const closes = (html.match(/<\/style>/gi) || []).length;
+          if (opens !== 48 || closes !== 48) throw new Error(`style tags ${opens}/${closes}`);
+          const inline = [...html.matchAll(/<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi)];
+          if (inline.length !== 33) throw new Error(`inline scripts ${inline.length}/33`);
+          fs.mkdirSync('/tmp/pr804-inline-v4', { recursive: true });
+          inline.forEach((match, index) => fs.writeFileSync(`/tmp/pr804-inline-v4/${String(index + 1).padStart(2, '0')}.js`, match[1]));
+          console.log(`STRUCTURE foundation=499 assistant=968 navigation=121 styles=${opens}/${closes} inline=${inline.length}/33`);
+          JS
+          for file in /tmp/pr804-inline-v4/*.js; do node --check "$file"; done
+          node --check customer-dashboard/shared/customer-runtime-design-foundation.js
+          node --check customer-dashboard/shared/offer-brand.js
+          python - <<'PY'
+          from pathlib import Path
+          for path in (
+              'customer-dashboard/shared/customer-design-system.css',
+              'customer-dashboard/shared/customer-assistant-components.css',
+              'customer-dashboard/shared/customer-navigation-components.css',
+          ):
+              value = Path(path).read_text(encoding='utf-8')
+              assert value.count('{') == value.count('}'), path
+          print('CSS_BRACES PASS')
+          PY
+
+      - name: Run five required verifiers
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-customer-design-foundation.mjs
+          node scripts/audit-customer-runtime-reachability.mjs
+          node scripts/verify-p0-security-foundation.mjs
+          node scripts/verify-customer-navigation-unified.mjs
+          node scripts/verify-calendar-integrations.mjs
+
+      - name: Run non-fail-fast design recheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/assert-collector-v4.mjs <<'JS'
+          const rows = [];
+          const record = (ok, method, message) => { rows.push({result: ok ? 'PASS' : 'FAIL', method, message: String(message || method)}); return ok; };
+          const deep = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+          const assert = {
+            ok(v,m){return record(Boolean(v),'ok',m)},
+            equal(a,b,m){return record(a==b,'equal',m)},
+            strictEqual(a,b,m){return record(Object.is(a,b),'strictEqual',m)},
+            deepEqual(a,b,m){return record(deep(a,b),'deepEqual',m)},
+            deepStrictEqual(a,b,m){return record(deep(a,b),'deepStrictEqual',m)},
+            match(v,r,m){return record(r.test(String(v)),'match',m||r)},
+            doesNotMatch(v,r,m){return record(!r.test(String(v)),'doesNotMatch',m||r)}
+          };
+          process.on('beforeExit',()=>{const summary={total:rows.length,pass:rows.filter(x=>x.result==='PASS').length,fail:rows.filter(x=>x.result==='FAIL').length};console.log('DESIGN_RECHECK',JSON.stringify(summary));for(const row of rows.filter(x=>x.result==='FAIL')) console.log('DESIGN_RECHECK_FAIL',JSON.stringify(row));if(summary.fail)process.exitCode=1;});
+          export default assert;
+          JS
+          python - <<'PY'
+          from pathlib import Path
+          source=Path('scripts/verify-customer-design-foundation.mjs').read_text(encoding='utf-8')
+          old="import assert from 'node:assert/strict';"
+          assert source.count(old)==1
+          Path('scripts/.tmp-pr804-design-recheck-v4.mjs').write_text(source.replace(old,"import assert from 'file:///tmp/assert-collector-v4.mjs';",1),encoding='utf-8')
+          PY
+          trap 'rm -f scripts/.tmp-pr804-design-recheck-v4.mjs' EXIT
+          node scripts/.tmp-pr804-design-recheck-v4.mjs
+          rm -f scripts/.tmp-pr804-design-recheck-v4.mjs
+
+      - name: Commit and push second commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$OLD_HEAD"
+          test "$(git rev-parse "origin/$TARGET_BRANCH")" = "$OLD_HEAD"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add customer-dashboard/index.html customer-dashboard/shared/customer-design-system.css scripts/verify-customer-design-foundation.mjs scripts/verify-calendar-integrations.mjs
+          test "$(git diff --cached --name-only | wc -l)" -eq 4
+          git commit -m 'fix: complete customer baseline verification'
+          test "$(git rev-list --count "$BASE_SHA"..HEAD)" -eq 2
+          git push origin "HEAD:$TARGET_BRANCH"
+          echo "FOLLOWUP_HEAD=$(git rev-parse HEAD)"
