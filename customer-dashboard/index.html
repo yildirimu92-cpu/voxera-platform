@@ -17510,6 +17510,7 @@ function flagIncomingRecords(records) {
 var _liveHeroTimer = null;
 var _liveHeroCurrentId = null;
 var _liveHeroNotified = new Set();
+var _liveHeroLastFingerprint = null; // content signature of what's currently rendered in #live-call-row
 var _staleLiveRecordIds = new Set(); // verhindert, dass einmal als stale erkannte Live-Records erneut im Hero auftauchen, bis ein neueres updated_at eintrifft
 var _staleLiveRecordUpdatedAtMs = new Map();
 var TEMP_CALL_POLL_INTERVAL_MS = 9000;
@@ -17751,14 +17752,14 @@ function updateLiveHero(records) {
       return tb - ta;
     })[0] || null;
   var priorityList = document.getElementById('dash-priority-list');
-
-  // Alten Live-Row entfernen
   var existing = document.getElementById('live-call-row');
-  if (existing) existing.remove();
 
   if (!rec) {
+    // Kein Live-Anruf (mehr) -> Row entfernen, falls vorhanden.
+    if (existing) existing.remove();
     if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
     _liveHeroCurrentId = null;
+    _liveHeroLastFingerprint = null;
     return;
   }
 
@@ -17766,6 +17767,36 @@ function updateLiveHero(records) {
   var caller = (typeof getCallDisplayName === 'function' ? getCallDisplayName(f) : null)
                || f.caller_name || f.phone_number || f.caller_phone || 'Unbekannte Nummer';
   var company = f.company_name || '';
+  var fingerprint = rec.id + '|' + caller + '|' + company;
+
+  // A-P0-01 fix: updateLiveHero() is triggered both by the ~9s poll
+  // (TEMP_CALL_POLL_INTERVAL_MS) and by the Supabase realtime channel
+  // (setupDashboardRealtime()), often multiple times per minute. Previously
+  // every call unconditionally removed and rebuilt #live-call-row, which
+  // restarted its CSS animations (vxLiveBar, vxLiveRing, liveDotPulse) even
+  // when the displayed call and its content hadn't changed at all -- that's
+  // the permanent flicker from the design audit (PR #804). Same call, same
+  // rendered content already on screen -> do nothing.
+  if (existing && rec.id === _liveHeroCurrentId && fingerprint === _liveHeroLastFingerprint) {
+    return;
+  }
+
+  // Same call still live, but its displayed name/company changed (e.g. the
+  // caller name resolved mid-call) -> patch the existing node's text in
+  // place instead of destroying/recreating it, so the pulse/bar/dot
+  // animations keep running uninterrupted.
+  if (existing && rec.id === _liveHeroCurrentId) {
+    var nameEl = existing.querySelector('.vx-live-name');
+    var avatarEl = existing.querySelector('.vx-live-avatar');
+    if (nameEl) nameEl.textContent = company || caller;
+    if (avatarEl) avatarEl.textContent = caller.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase() || '?';
+    _liveHeroLastFingerprint = fingerprint;
+    return;
+  }
+
+  // A different call became live (or this is the first render, or the row
+  // was lost some other way) -> full rebuild.
+  if (existing) existing.remove();
 
   // Live-Row erstellen — v3.0 Design
   var row = document.createElement('div');
@@ -17815,6 +17846,7 @@ function updateLiveHero(records) {
   }
 
   _liveHeroCurrentId = rec.id;
+  _liveHeroLastFingerprint = fingerprint;
 }
 
 function handleLiveHeroClick() {}
