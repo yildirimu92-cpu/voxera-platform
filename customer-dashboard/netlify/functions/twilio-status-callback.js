@@ -1,5 +1,6 @@
 const querystring = require('querystring');
 const { createClient } = require('@supabase/supabase-js');
+const { validateTwilioSignature, resolveStatusCallbackUrl } = require('./_lib/twilio-signature');
 
 const DEBUG_TWILIO_STATUS = process.env.DEBUG_TWILIO_STATUS === 'true';
 const STATUS_MAP = Object.freeze({
@@ -73,6 +74,21 @@ exports.handler = async (event) => {
   if (DEBUG_TWILIO_STATUS) {
     console.log('[twilio-status-callback] payload', payload);
   }
+
+  // Same enforcement flag as twilio-inbound-router.js so one setting governs
+  // both Twilio webhooks; requestUrl must be the exact StatusCallback URL
+  // attachTwilioStatusCallback() registered with Twilio for the signature to
+  // ever validate -- it cannot be reconstructed from the incoming request.
+  const signatureEnforcementEnabled = process.env.TWILIO_WEBHOOK_SIGNATURE_ENFORCEMENT_ENABLED !== 'false';
+  if (signatureEnforcementEnabled && !validateTwilioSignature(event, payload, resolveStatusCallbackUrl())) {
+    console.warn('[twilio-status-callback] invalid Twilio signature');
+    return {
+      statusCode: 403,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+      body: 'Forbidden'
+    };
+  }
+
   const callSid = toStr(payload.CallSid);
   const twilioStatus = toStr(payload.CallStatus).toLowerCase();
   const mappedStatus = STATUS_MAP[twilioStatus] || '';
