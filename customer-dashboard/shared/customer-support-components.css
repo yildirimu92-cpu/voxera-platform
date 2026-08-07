@@ -23,7 +23,7 @@ html.vx-support-modal-open {
   max-height: calc(100dvh - 36px);
   overflow: auto;
   background: #fff;
-  border-radius: 18px;
+  border-radius: var(--vx-radius-modal, 18px);
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
 }
 
@@ -34,7 +34,7 @@ html.vx-support-modal-open {
   gap: 16px;
   padding: 22px 24px;
   color: #fff;
-  background: #0d2a52;
+  background: var(--vx-color-night, #0D1F3C);
 }
 
 .vox-support-head h2 {

@@ -1,4 +1,8 @@
--- READ ONLY: run after 2026-08-06_p0_rls_tenant_isolation_hardening.sql.
+-- READ ONLY: run after 2026-08-06_p0_rls_tenant_isolation_hardening.sql and
+-- 2026-08-07_customers_onboarding_completed_column_grant.sql (the latter
+-- extended the customers column allowlist by one column that the original
+-- hardening migration's grep-based audit missed -- see that migration's
+-- header comment for the incident it fixes).
 -- Every FAIL must be resolved before enabling a production deployment.
 
 with checks as (
@@ -20,13 +24,13 @@ with checks as (
          to_regclass('public.customers') is null
          or not pg_catalog.has_table_privilege('authenticated', 'public.customers', 'UPDATE')
   union all
-  select 'customers authenticated column UPDATE allowlist matches exactly 3 columns',
+  select 'customers authenticated column UPDATE allowlist matches exactly 4 columns',
          to_regclass('public.customers') is null
-         or 3 = (
+         or 4 = (
            select count(*) from information_schema.column_privileges
            where table_schema = 'public' and table_name = 'customers'
              and grantee = 'authenticated' and privilege_type = 'UPDATE'
-             and column_name in ('contact_first_name', 'in_app_notification_settings', 'updated_at')
+             and column_name in ('contact_first_name', 'in_app_notification_settings', 'updated_at', 'onboarding_completed')
          )
   union all
   select 'customers.ai_instructions not authenticated-updatable',

@@ -43,6 +43,13 @@ CREATE TABLE IF NOT EXISTS public.customers (
   invite_status text NOT NULL DEFAULT 'not_sent',
   welcome_sent boolean NOT NULL DEFAULT false,
   welcome_sent_at timestamptz,
+
+  -- ✅ sicher (customer-dashboard "Willkommen bei Voxera" modal dismissal;
+  -- actual column + authenticated-role grant added by
+  -- 2026-08-07_customers_onboarding_completed_column_grant.sql -- this
+  -- CREATE TABLE IF NOT EXISTS block does not retroactively add columns to
+  -- the already-existing live table, it only documents them)
+  onboarding_completed boolean NOT NULL DEFAULT false,
   payment_status text NOT NULL DEFAULT 'none',
   setup_fee_amount numeric(10,2),
   payment_link text,
