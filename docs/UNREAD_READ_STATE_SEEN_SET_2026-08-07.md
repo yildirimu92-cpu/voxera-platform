@@ -135,9 +135,38 @@ Das ist gewollt ehrlicher, aber eine Verhaltensänderung.
 soll, ist eine Produktentscheidung und bewusst auf nach dem Pilot vertagt. Die
 Badge müsste dann anders zählen.
 
-**Separater Fund, hier nicht behoben:** Das Filter-Banner über der Liste
-(`#anrufe-active-filter-banner`) zählt per `qsa('#anrufe-list .dpr-card')`.
-Die Inbox-Zeilen tragen aber `vx-ops-item vx-requests-item`; `.dpr-card` trifft
-dort nichts. Das Banner zeigt deshalb unabhängig vom Inhalt „· 0 Einträge" —
-auch schon auf `main`, ohne Zusammenhang mit dem Seen-Set. Eigene Ursache,
-eigener Fix (ein Selektor), bewusst nicht in diesen Commit gemischt.
+---
+
+## 8. Nachtrag: Filter-Banner zählte immer 0 (zweiter Commit)
+
+Beim Verifizieren aufgefallen und auf Wunsch im selben PR behoben — gleiche
+sichtbare Funktion („Nur ungelesene"-Anzeige), getrennt zu lassen wäre beim
+Testen verwirrend. **Andere Ursache**, deshalb ein eigener Commit.
+
+Das Banner über der Liste (`#anrufe-active-filter-banner`) zählte per
+`qsa('#anrufe-list .dpr-card')`. Die Inbox-Zeilen rendert
+`renderAnrufeInbox()` aber als `<article class="vx-ops-item vx-requests-item">`
+— `.dpr-card` trifft dort nichts. Auf `main` gemessen: 0 Treffer bei 4
+vorhandenen Zeilen. Das Banner zeigte deshalb unabhängig vom Inhalt
+„· 0 Einträge", schon lange vor diesem PR und ohne Zusammenhang mit dem
+Seen-Set.
+
+Der Zähler nutzt jetzt `.vx-requests-item` — denselben kanonischen
+Zeilen-Selektor wie `vxSetActiveRequestRow()`. `.dpr-card` bleibt als Fallback
+für ältere Kartenzeilen stehen; `querySelectorAll` liefert pro Element nur
+einen Treffer, doppelt gezählt wird nichts.
+
+Headless verifiziert, mit Datensätzen über zwei Tage (erzeugt Datums-Trenner,
+die nicht mitzählen dürfen):
+
+| | vorher (`main`) | nachher |
+|---|---|---|
+| 3 ungelesene Zeilen, 2 Datums-Trenner | „· 0 Einträge" | „· 3 Einträge" |
+| nach Öffnen einer davon | „· 0 Einträge" | „· 2 Einträge" |
+| genau ein Eintrag | „· 0 Einträge" | „· 1 Eintrag" (Singular korrekt) |
+
+Der Regressionstest bindet die drei Stellen aneinander — was
+`renderAnrufeInbox()` rendert, was das Banner zählt und was
+`vxSetActiveRequestRow()` als Zeile ansieht — plus eine Gegenprobe, dass der
+Datums-Trenner die Zeilenklasse nicht trägt. Ein Markup-Rename bricht damit
+den Test statt still den Zähler.

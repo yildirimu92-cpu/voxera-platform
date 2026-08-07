@@ -161,6 +161,38 @@ test('das Seen-Set bleibt für die Badge-Semantik erhalten', () => {
   assert.match(dashboard, /markVisibleCallsAsSeen\(\(allRecords \|\| \[\]\)/);
 });
 
+test('die Banner-Zahl zählt die Zeilen, die die Liste tatsächlich rendert', () => {
+  // Der Zähler stand unabhängig vom Inhalt auf 0, weil er `.dpr-card` suchte,
+  // die Inbox-Zeilen aber `.vx-requests-item` tragen. Diese drei Stellen
+  // müssen dieselbe Zeilenklasse meinen — sonst bricht ein Markup-Rename den
+  // Zähler wieder still.
+  const ROW_CLASS = 'vx-requests-item';
+
+  assert.match(
+    dashboard,
+    new RegExp("html \\+= '<article class=\"vx-ops-item " + ROW_CLASS + "'"),
+    'renderAnrufeInbox rendert die Zeile nicht mehr als .' + ROW_CLASS
+  );
+
+  const bannerStart = dashboard.indexOf('window.vxUpdateAnfragenActiveFilterBanner = function()');
+  assert.notEqual(bannerStart, -1, 'Banner-Funktion nicht gefunden');
+  const bannerBody = dashboard.slice(bannerStart, dashboard.indexOf('\n  };', bannerStart));
+  const countLine = bannerBody.split('\n').find((l) => /var count = qsa\(/.test(l));
+  assert.ok(countLine, 'Zählzeile des Banners nicht gefunden');
+  assert.ok(
+    countLine.includes('#anrufe-list .' + ROW_CLASS),
+    'Das Filter-Banner zählt nicht die real gerenderte Zeilenklasse .' + ROW_CLASS +
+    ' — es zeigt dann wieder "0 Einträge" neben sichtbaren Zeilen'
+  );
+
+  // Gegenprobe: der Datums-Trenner darf nicht dieselbe Klasse tragen,
+  // sonst würden Trenner als Einträge mitgezählt.
+  assert.ok(
+    !/class="vx-ops-meta vx-requests-date[^"]*vx-requests-item/.test(dashboard),
+    'Datums-Trenner trägt die Zeilenklasse und würde mitgezählt'
+  );
+});
+
 test('read_at wird ausschliesslich beim Öffnen gesetzt', () => {
   const calls = dashboard.match(/vxMarkCallAsRead\(/g) || [];
   // eine Definition + die Aufrufe in den Detail-Öffnungspfaden

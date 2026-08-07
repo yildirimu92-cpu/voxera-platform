@@ -41442,7 +41442,15 @@ body:has(#tab-archiv.active) .content{
     var banner = ensureFilterBanner();
     if(!banner) return;
     var span = banner.querySelector('span');
-    var count = qsa('#anrufe-list .dpr-card').length;
+    // Die Zeilen in #anrufe-list sind <article class="vx-ops-item
+    // vx-requests-item"> (renderAnrufeInbox). Der frühere Selektor .dpr-card
+    // trifft dort nichts — der Zähler stand deshalb unabhängig vom Inhalt
+    // immer auf 0 ("Filter: Nur ungelesene · 0 Einträge" neben sichtbaren
+    // Zeilen). .vx-requests-item ist der kanonische Zeilen-Selektor, den auch
+    // vxSetActiveRequestRow() verwendet; .dpr-card bleibt als Fallback für
+    // ältere Kartenzeilen stehen. querySelectorAll liefert pro Element nur
+    // einen Treffer, doppelt gezählt wird also nichts.
+    var count = qsa('#anrufe-list .vx-requests-item, #anrufe-list .dpr-card').length;
     var text = '';
     if(window._vxAnfragenTodayOnly){ text = 'Filter: Heute · ' + count + ' ' + (count === 1 ? 'Eintrag' : 'Einträge'); }
     else if(typeof _anrufeInboxSubfilter !== 'undefined' && _anrufeInboxSubfilter === 'unread'){ text = 'Filter: Nur ungelesene · ' + count + ' ' + (count === 1 ? 'Eintrag' : 'Einträge'); }
