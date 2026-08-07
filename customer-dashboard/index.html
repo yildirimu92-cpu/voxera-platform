@@ -7220,6 +7220,26 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
              unverändert — vx-ui-card-* Tokens werden weiterverwendet. */
           #dash-content { --vx-font-serif: 'Newsreader', Fraunces, Georgia, 'Times New Roman', serif; }
 
+          /* Alt-Sektionen aus dem Vor-Redesign bleiben im DOM (bestehendes
+             Render-/Event-Wiring greift noch darauf zu), dürfen aber nie mehr
+             sichtbar werden. Mehrere Legacy-Renderfunktionen setzen bei jedem
+             Re-Render "el.style.display = ''" auf einigen dieser Elemente
+             (z.B. vxHeuteRenderActivityList, vxHeuteRenderScopedList) — ein
+             reines inline "display:none" auf dem Element wird dadurch bei
+             jedem Datenupdate wieder aufgehoben. Eine !important-Regel im
+             Stylesheet gewinnt gegen ein spätere nicht-!important Inline-Style
+             und hält die Sektionen zuverlässig versteckt. */
+          #dash-greeting-block,
+          #dash-kpi-strip,
+          #dash-priority-section,
+          #dash-activity-section,
+          #dash-today-calls-section,
+          #dash-today-done-section,
+          #dash-daily-report,
+          #dash-focus-zone {
+            display: none !important;
+          }
+
           .vx-lara-message { display:flex; align-items:flex-start; gap:12px; }
           .vx-lara-avatar {
             flex:0 0 auto; width:40px; height:40px; border-radius:50%;
