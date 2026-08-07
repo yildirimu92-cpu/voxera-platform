@@ -7292,6 +7292,24 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             padding:14px 16px;
             font-family:var(--vx-font-handover-ui);
           }
+          /* Ganze Karte klickbar (führt zur Detailansicht) — Zurückrufen-
+             Button behält seinen eigenen Klick-Handler und stoppt die
+             Weiterleitung an die Karte, siehe vxHeuteCardClick(). */
+          .vx-handover-card--needs,
+          .vx-handover-card--resolved {
+            cursor:pointer;
+            transition:box-shadow .15s ease, border-color .15s ease;
+          }
+          .vx-handover-card--needs:hover,
+          .vx-handover-card--resolved:hover {
+            border-color:#C4CCDA;
+            box-shadow:0 2px 10px rgba(13,31,60,0.08);
+          }
+          .vx-handover-card--needs:focus-visible,
+          .vx-handover-card--resolved:focus-visible {
+            outline:2px solid var(--vx-color-night,#0D1F3C);
+            outline-offset:2px;
+          }
           .vx-handover-card-body { display:flex; align-items:flex-start; gap:12px; }
           .vx-handover-card-icon {
             flex:0 0 auto; width:36px; height:36px; border-radius:50%;
@@ -7313,12 +7331,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             flex:0 0 auto; background:var(--vx-color-night,#0D1F3C); border-color:var(--vx-color-night,#0D1F3C); color:#fff;
           }
           .vx-handover-btn--primary:hover { background:#132a52; }
-          .vx-handover-detail-link {
-            flex:0 0 auto; font-size:13px; font-weight:600; color:var(--vx-color-night,#0D1F3C);
-            text-decoration:underline; text-underline-offset:2px; cursor:pointer;
-            font-family:var(--vx-font-handover-ui);
-          }
-          .vx-handover-detail-link:hover { color:#132a52; }
 
           .vx-handover-cards { display:flex; flex-direction:column; gap:10px; }
           .vx-handover-card--resolved { opacity:.72; }
@@ -21356,27 +21368,39 @@ function vxHeuteHandoverCardHtml(rec, variant) {
   var summary = vxHeuteHandoverDescription(rec);
   var time = vxHeuteActivityTime(rec);
   if (variant === 'needs') {
-    return '<article class="vx-handover-card vx-handover-card--needs" data-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">'
+    return '<article class="vx-handover-card vx-handover-card--needs" data-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'"'
+      + ' role="button" tabindex="0" onclick="vxHeuteCardClick(event,this);">'
       + '<div class="vx-handover-card-body">'
       + '<div class="vx-handover-card-icon" aria-hidden="true"><i class="ph-bold ph-phone"></i></div>'
       + '<div class="vx-handover-card-main">'
       + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
       + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
       + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
-      + '<div class="vx-handover-card-actions">'
-      + (phone ? '<button type="button" class="vx-handover-btn vx-handover-btn--primary" data-action="call" data-rec-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">Zurückrufen</button>' : '')
-      + '<a href="#" class="vx-handover-detail-link" data-action="detail" data-rec-id="'+_esc(id)+'">Details</a>'
-      + '</div></div></div></article>';
+      + (phone ? '<div class="vx-handover-card-actions">'
+        + '<button type="button" class="vx-handover-btn vx-handover-btn--primary" data-action="call" data-rec-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">Zurückrufen</button>'
+        + '</div>' : '')
+      + '</div></div></article>';
   }
-  return '<article class="vx-handover-card vx-handover-card--resolved" data-id="'+_esc(id)+'">'
+  return '<article class="vx-handover-card vx-handover-card--resolved" data-id="'+_esc(id)+'"'
+    + ' role="button" tabindex="0" onclick="vxHeuteCardClick(event,this);">'
     + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
     + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
     + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
     + '</article>';
 }
-// Klicks auf .vx-handover-btn[data-action] laufen bereits über die globale
-// dprAction()-Delegation (document.addEventListener('click', vxHandleDprButtonClick, true)),
-// solange data-action/data-rec-id/data-phone gesetzt sind — kein eigener Listener nötig.
+// Ganze Karte klickbar → Detailansicht. Der "Zurückrufen"-Button innerhalb
+// der Karte behält seinen eigenen data-action="call"-Handler: Klicks darauf
+// laufen bereits über die globale dprAction()-Delegation
+// (document.addEventListener('click', vxHandleDprButtonClick, true)), die
+// per closest()-Auflösung die Karten-Navigation gar nicht erst erreicht.
+// Der Guard unten ist zusätzliche, explizite Absicherung (Äquivalent zu
+// stopPropagation), falls sich diese Delegation künftig ändert.
+function vxHeuteCardClick(event, cardEl) {
+  if (event && event.target && event.target.closest && event.target.closest('button, a')) return;
+  var recId = cardEl && cardEl.dataset ? cardEl.dataset.id : '';
+  if (!recId) return;
+  if (typeof dprAction === 'function') dprAction('detail', recId);
+}
 function vxHeuteScrollToAnfragen(event) {
   if (event) event.preventDefault();
   vxGoToAnfragenFilter('alle');
