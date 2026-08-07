@@ -19,7 +19,7 @@
 
 
 
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
 <link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260807-3">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
@@ -7214,6 +7214,88 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 </div>
 
         <!-- DASHBOARD TAB -->
+        <style id="vx-lara-handover-styles">
+          /* ── Lara-Übergabe: Heute-Screen Redesign ────────────────────────
+             Card-Grundwerte (12px Radius, 0.5px Border) aus Etappe 1 bleiben
+             unverändert — vx-ui-card-* Tokens werden weiterverwendet. */
+          #dash-content { --vx-font-serif: 'Newsreader', Fraunces, Georgia, 'Times New Roman', serif; }
+
+          .vx-lara-message { display:flex; align-items:flex-start; gap:12px; }
+          .vx-lara-avatar {
+            flex:0 0 auto; width:40px; height:40px; border-radius:50%;
+            background:var(--vx-color-night,#0D1F3C); color:#fff;
+            display:flex; align-items:center; justify-content:center;
+            font-family:var(--vx-font-serif); font-size:16px; font-weight:600;
+          }
+          .vx-lara-bubble {
+            flex:1; min-width:0; background:#EEF1F6;
+            border-left:3px solid var(--vx-color-night,#0D1F3C);
+            border-radius:var(--vx-ui-card-radius,12px);
+            padding:16px 18px;
+          }
+          .vx-lara-text {
+            font-family:var(--vx-font-serif); font-weight:400; font-size:18px;
+            line-height:1.48; color:var(--vx-color-night,#0D1F3C); margin:0;
+          }
+          .vx-lara-meta { margin-top:10px; font-size:12px; color:#8A93A6; font-family:var(--vx-font-body,inherit); }
+
+          .vx-handover-section { margin-top:22px; }
+          .vx-handover-eyebrow {
+            display:flex; align-items:center; gap:8px; margin-bottom:10px;
+            font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          }
+          .vx-handover-eyebrow.is-danger { color:#DC2626; }
+          .vx-handover-eyebrow.is-success { color:#059669; }
+          .vx-handover-count {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:18px; height:18px; padding:0 5px; border-radius:9px; font-size:11px; font-weight:700;
+          }
+          .vx-handover-eyebrow.is-danger .vx-handover-count { background:#FEF2F2; color:#DC2626; }
+          .vx-handover-eyebrow.is-success .vx-handover-count { background:#ECFDF5; color:#059669; }
+
+          .vx-handover-rail { position:relative; padding-left:16px; display:flex; flex-direction:column; gap:12px; }
+          .vx-handover-rail::before {
+            content:''; position:absolute; left:0; top:2px; bottom:2px; width:3px;
+            background:var(--vx-color-night,#0D1F3C); border-radius:2px;
+          }
+
+          .vx-handover-card {
+            background:var(--vx-ui-card-bg,#fff);
+            border:var(--vx-ui-card-border-width,0.5px) solid var(--vx-ui-card-border-color,#D9E1EC);
+            border-radius:var(--vx-ui-card-radius,12px);
+            padding:14px 16px;
+          }
+          .vx-handover-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+          .vx-handover-card-title { font-weight:700; font-size:14px; color:var(--vx-color-night,#0D1F3C); }
+          .vx-handover-card-time { font-size:12px; color:#8A93A6; white-space:nowrap; flex:0 0 auto; }
+          .vx-handover-card-desc { margin-top:4px; font-size:13px; color:#5B6472; line-height:1.42; }
+          .vx-handover-card-actions { display:flex; gap:8px; margin-top:12px; }
+          .vx-handover-btn {
+            border-radius:999px; min-height:38px; font-size:13px; font-weight:700;
+            border:1px solid transparent; cursor:pointer; padding:0 16px;
+          }
+          .vx-handover-btn--primary {
+            flex:1; background:var(--vx-color-night,#0D1F3C); border-color:var(--vx-color-night,#0D1F3C); color:#fff;
+          }
+          .vx-handover-btn--primary:hover { background:#132a52; }
+          .vx-handover-btn--secondary { flex:0 0 auto; background:#fff; border-color:var(--vx-ui-card-border-color,#D9E1EC); color:var(--vx-color-night,#0D1F3C); }
+          .vx-handover-btn--secondary:hover { background:#F7F8FA; }
+
+          .vx-handover-cards { display:flex; flex-direction:column; gap:10px; }
+          .vx-handover-card--resolved { opacity:.72; }
+          .vx-handover-card--resolved .vx-handover-card-title { font-weight:600; }
+
+          .vx-all-clear { text-align:center; padding:34px 16px 6px; }
+          .vx-all-clear-icon {
+            width:56px; height:56px; border-radius:50%; background:#E7F8EE; color:#059669;
+            display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:22px;
+          }
+          body.vx-customer-design-foundation .vx-all-clear-title { font-family:var(--vx-font-serif); font-weight:600; font-size:25px; color:var(--vx-color-night,#0D1F3C); margin:0 0 8px; }
+          .vx-all-clear-text { font-size:14px; color:#5B6472; max-width:320px; margin:0 auto; line-height:1.5; }
+
+          .vx-handover-footlink { margin-top:18px; font-size:12px; color:#8A93A6; text-align:center; }
+          .vx-handover-footlink a { color:var(--vx-color-night,#0D1F3C); font-weight:600; text-decoration:underline; cursor:pointer; }
+        </style>
         <div class="tab-page active" id="tab-dashboard">
           <header class="vx-appbar"><h1 class="vx-appbar-title">Heute</h1></header>
           <!-- FSE card removed – first-login goes directly to Einrichtung tab -->
@@ -7265,7 +7347,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
             <div id="dash-reach-warning" class="vx-ops-status warning" hidden></div>
 
-            <div id="dash-kpi-strip" class="vx-ap-grid">
+            <div id="dash-kpi-strip" class="vx-ap-grid" hidden style="display:none!important;" aria-hidden="true">
               <div class="vx-ap-card" id="kpi-cell-callbacks">
                 <div id="kpi-callbacks-label" class="vx-ap-meta">Anrufe heute</div>
                 <div id="kpi-callbacks-new" class="vx-ap-title">–</div>
@@ -7293,7 +7375,43 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <div id="dash-daily-report" hidden style="display:none!important;" aria-hidden="true"><div id="dash-daily-report-text"></div></div>
             <div id="dash-focus-zone" hidden style="display:none;" aria-hidden="true"></div>
 
-            <section id="dash-priority-section" class="vx-ops-card">
+            <!-- Lara-Übergabe: ersetzt KPI-Kacheln + "Heute passiert"-Chronologie.
+                 Die Chronologie lebt vollständig in Anfragen weiter; die alten
+                 Sektionen darunter bleiben im DOM (hidden), damit bestehende
+                 Render-/Event-Wiring nicht bricht. -->
+            <section id="dash-lara-message" class="vx-lara-message">
+              <div class="vx-lara-avatar" aria-hidden="true">L</div>
+              <div class="vx-lara-bubble">
+                <p id="dash-lara-text" class="vx-lara-text"></p>
+                <div id="dash-lara-meta" class="vx-lara-meta"></div>
+              </div>
+            </section>
+
+            <section id="dash-needs-you-section" class="vx-handover-section" hidden>
+              <div class="vx-handover-eyebrow is-danger">
+                <span>Braucht dich</span>
+                <span id="dash-needs-you-count" class="vx-handover-count">0</span>
+              </div>
+              <div id="dash-needs-you-list" class="vx-handover-rail"></div>
+            </section>
+
+            <section id="dash-all-clear-section" class="vx-all-clear" hidden>
+              <div class="vx-all-clear-icon" aria-hidden="true"><i class="ph-bold ph-check"></i></div>
+              <h2 class="vx-all-clear-title">Alles im Griff</h2>
+              <p class="vx-all-clear-text">Nichts wartet auf dich. Ich melde mich, sobald etwas deine Aufmerksamkeit braucht.</p>
+            </section>
+
+            <section id="dash-resolved-section" class="vx-handover-section vx-handover-section--muted" hidden>
+              <div class="vx-handover-eyebrow is-success">
+                <span>Hat sich erledigt</span>
+                <span id="dash-resolved-count" class="vx-handover-count">0</span>
+              </div>
+              <div id="dash-resolved-list" class="vx-handover-cards"></div>
+            </section>
+
+            <div id="dash-anfragen-link" class="vx-handover-footlink" hidden>Vollständige Chronologie unter <a href="#" onclick="vxHeuteScrollToAnfragen(event);">Anfragen</a>.</div>
+
+            <section id="dash-priority-section" class="vx-ops-card" hidden style="display:none!important;" aria-hidden="true">
               <div class="vx-ap-head">
                 <div>
                   <div class="vx-ops-title">Aufmerksamkeit</div>
@@ -7307,7 +7425,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               </div>
             </section>
 
-            <section id="dash-activity-section" class="vx-ops-card">
+            <section id="dash-activity-section" class="vx-ops-card" hidden style="display:none!important;" aria-hidden="true">
               <div class="vx-ap-head">
                 <div>
                   <div class="vx-ops-title">Heute passiert</div>
@@ -21041,6 +21159,145 @@ function vxHeuteRenderActivityList(records) {
   refreshLucideIcons();
 }
 
+// ── Lara-Übergabe ("Heute"-Redesign) ──────────────────────────────────
+// Ersetzt KPI-Kacheln + "Heute passiert"-Chronologie durch eine Delta-
+// Nachricht von Lara ("seit deinem letzten Besuch …") plus zwei Sektionen:
+// "Braucht dich" (offen) und "Hat sich erledigt" (heute abgeschlossen).
+var _vxHeuteVisitStamped = false;
+var _vxHeuteVisitRef = null;
+function vxHeuteGetStoredVisitAt() {
+  try {
+    var stored = localStorage.getItem('vxHeuteLastVisitAt');
+    return stored ? vxHeuteParseDate(stored) : null;
+  } catch (e) { return null; }
+}
+function vxHeuteStampVisitNow() {
+  try { localStorage.setItem('vxHeuteLastVisitAt', new Date().toISOString()); } catch (e) {}
+}
+// Liest den Zeitpunkt des letzten Besuchs genau einmal pro Seitenaufruf
+// (nicht bei jedem Re-Render) und schreibt danach sofort den aktuellen
+// Zeitpunkt zurück, damit der nächste Besuch ab hier zählt.
+function vxHeuteResolveVisitReference() {
+  if (_vxHeuteVisitStamped) return _vxHeuteVisitRef;
+  _vxHeuteVisitStamped = true;
+  _vxHeuteVisitRef = vxHeuteGetStoredVisitAt();
+  vxHeuteStampVisitNow();
+  return _vxHeuteVisitRef;
+}
+function vxHeuteSpellNumber(n) {
+  var words = ['null','ein','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn','elf','zwölf'];
+  return (n >= 0 && n < words.length) ? words[n] : String(n);
+}
+function vxHeuteFormatVisitTime(d) {
+  if (!d) return null;
+  try { return TIME_FORMAT_CH.format(d); } catch (e) {
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+}
+function vxHeuteGetSinceVisitCalls(sourceRecords, visitRef) {
+  var source = Array.isArray(sourceRecords) ? sourceRecords : [];
+  return vxHeuteDedupeByStableId(source).filter(function(r) {
+    if (vxHeuteIsManualTask(r)) return false;
+    if (typeof isCustomerVisibleCall === 'function' && !isCustomerVisibleCall(r)) return false;
+    if (vxHeuteIsOutboundOrTestRecord(r)) return false;
+    var created = vxHeuteGetTimestamp(r, ['created_at','inserted_at']);
+    var d = vxHeuteParseDate(created);
+    if (!d) return false;
+    return visitRef ? (d.getTime() > visitRef.getTime()) : vxHeuteIsToday(created);
+  });
+}
+function vxHeuteCapitalize(word) {
+  return word ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+}
+function vxHeuteBuildLaraMessage(visitRef, total, resolvedCount, needsCount) {
+  var timeStr = vxHeuteFormatVisitTime(visitRef);
+  var intro = timeStr ? ('Seit deinem letzten Besuch um ' + timeStr) : 'Seit Tagesbeginn';
+  if (total === 0) return intro + ' ist noch nichts Neues eingegangen.';
+  var callPhrase = total === 1 ? 'ist ein Anruf' : 'sind ' + vxHeuteSpellNumber(total) + ' Anrufe';
+  var msg = intro + ' ' + callPhrase + ' eingegangen. ';
+  if (needsCount === 0) {
+    msg += (resolvedCount === total ? 'Alle habe ich erledigt' : vxHeuteCapitalize(vxHeuteSpellNumber(resolvedCount)) + ' habe ich erledigt') + ' – nichts braucht dich.';
+  } else if (resolvedCount === 0) {
+    msg += 'Bei ' + (needsCount === 1 ? 'einem' : vxHeuteSpellNumber(needsCount)) + ' brauche ich dich kurz.';
+  } else {
+    msg += (resolvedCount === 1 ? 'Einen' : vxHeuteCapitalize(vxHeuteSpellNumber(resolvedCount))) + ' habe ich selbst erledigt – bei ' + (needsCount === 1 ? 'einem' : vxHeuteSpellNumber(needsCount)) + ' brauche ich dich kurz.';
+  }
+  return msg;
+}
+function vxHeuteHandoverCardHtml(rec, variant) {
+  var id = String((rec && rec.id) || vxHeuteGetRecordValue(rec, ['id','call_id']) || '');
+  var phone = String(vxHeuteGetRecordValue(rec, ['caller_phone','phone_number','phone']) || '').trim();
+  var title = vxHeuteRecordTitle(rec);
+  var summary = vxHeuteRecordSummary(rec);
+  var time = vxHeuteActivityTime(rec);
+  if (variant === 'needs') {
+    return '<article class="vx-handover-card vx-handover-card--needs" data-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">'
+      + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
+      + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
+      + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
+      + '<div class="vx-handover-card-actions">'
+      + (phone ? '<button type="button" class="vx-handover-btn vx-handover-btn--primary" data-action="call" data-rec-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">Zurückrufen</button>' : '')
+      + '<button type="button" class="vx-handover-btn vx-handover-btn--secondary" data-action="detail" data-rec-id="'+_esc(id)+'">Details</button>'
+      + '</div></article>';
+  }
+  return '<article class="vx-handover-card vx-handover-card--resolved" data-id="'+_esc(id)+'">'
+    + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
+    + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
+    + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
+    + '</article>';
+}
+// Klicks auf .vx-handover-btn[data-action] laufen bereits über die globale
+// dprAction()-Delegation (document.addEventListener('click', vxHandleDprButtonClick, true)),
+// solange data-action/data-rec-id/data-phone gesetzt sind — kein eigener Listener nötig.
+function vxHeuteScrollToAnfragen(event) {
+  if (event) event.preventDefault();
+  vxGoToAnfragenFilter('alle');
+}
+function vxHeuteRenderLaraHandover(sourceRecords) {
+  var msgEl = document.getElementById('dash-lara-text');
+  var metaEl = document.getElementById('dash-lara-meta');
+  var needsSection = document.getElementById('dash-needs-you-section');
+  var needsList = document.getElementById('dash-needs-you-list');
+  var needsCountEl = document.getElementById('dash-needs-you-count');
+  var allClearSection = document.getElementById('dash-all-clear-section');
+  var resolvedSection = document.getElementById('dash-resolved-section');
+  var resolvedList = document.getElementById('dash-resolved-list');
+  var resolvedCountEl = document.getElementById('dash-resolved-count');
+  var footLink = document.getElementById('dash-anfragen-link');
+  if (!msgEl) return;
+
+  var visitRef = vxHeuteResolveVisitReference();
+  var sinceVisit = vxHeuteGetSinceVisitCalls(sourceRecords, visitRef);
+  var needsRecords = sinceVisit.filter(function(r) { return !vxHeuteIsDoneRecord(r); })
+    .sort(function(a,b){ return (new Date(vxHeuteGetTimestamp(b,['created_at','inserted_at'])||0).getTime()) - (new Date(vxHeuteGetTimestamp(a,['created_at','inserted_at'])||0).getTime()); });
+  var resolvedRecords = sinceVisit.filter(vxHeuteIsDoneRecord)
+    .sort(function(a,b){ return (new Date(vxHeuteActivityTimestamp(b)||0).getTime()) - (new Date(vxHeuteActivityTimestamp(a)||0).getTime()); });
+
+  msgEl.textContent = vxHeuteBuildLaraMessage(visitRef, sinceVisit.length, resolvedRecords.length, needsRecords.length);
+  if (metaEl) {
+    var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
+    metaEl.textContent = assistantName + ' · gerade eben';
+  }
+
+  var hasNeeds = needsRecords.length > 0;
+  if (needsSection) needsSection.hidden = !hasNeeds;
+  if (allClearSection) allClearSection.hidden = hasNeeds;
+  if (hasNeeds && needsList) {
+    if (needsCountEl) needsCountEl.textContent = String(needsRecords.length);
+    vxSetHtmlIfChanged(needsList, needsRecords.map(function(r){ return vxHeuteHandoverCardHtml(r, 'needs'); }).join(''));
+  }
+
+  var hasResolved = resolvedRecords.length > 0;
+  if (resolvedSection) resolvedSection.hidden = !hasResolved;
+  if (hasResolved && resolvedList) {
+    if (resolvedCountEl) resolvedCountEl.textContent = String(resolvedRecords.length);
+    vxSetHtmlIfChanged(resolvedList, resolvedRecords.map(function(r){ return vxHeuteHandoverCardHtml(r, 'resolved'); }).join(''));
+  }
+
+  if (footLink) footLink.hidden = !(hasNeeds || hasResolved);
+  refreshLucideIcons();
+}
+
 function vxGetHeuteTodayCallRecords(sourceRecords) {
   var source = Array.isArray(sourceRecords) ? sourceRecords : [];
   return vxHeuteDedupeByStableId(source).filter(function(r) {
@@ -21335,6 +21592,7 @@ function renderDashboard(records, manualTasks) {
     vxHeuteRenderScopedList('dash-today-calls-list','dash-today-calls-section','dash-today-calls-count', heuteTodayCallRecords, 'Heute gab es noch keine Anrufe.');
     vxHeuteRenderScopedList('dash-today-done-list','dash-today-done-section','dash-today-done-count', heuteDoneRecords, 'Heute wurde noch nichts erledigt.');
   }
+  if (typeof vxHeuteRenderLaraHandover === 'function') vxHeuteRenderLaraHandover(heuteViewSource);
 
   var reach = getReachabilityStatus(records);
 
