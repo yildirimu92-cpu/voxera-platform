@@ -62,7 +62,7 @@ assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=2026080
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-4/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260807-2/);
-assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260807-2/);
+assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260807-3/);
 assert.doesNotMatch(source.loader, /customer-runtime-design-foundation\.js\?v=20260803-4/);
 assert.match(source.assistantCss, /#tab-assistent > :not\(#vx-assistant-root-header\):not\(#vx-assistant-root-switch\):not\(#vx-assistant-root-host\)/);
 assert.match(source.assistantCss, /#vx-assistant-root-host > \[data-vx-assistant-managed-page\]:not\(\[hidden\]\)/);

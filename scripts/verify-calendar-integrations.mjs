@@ -132,7 +132,7 @@ for (const forbidden of [
 }
 if ((source.css.match(/!important/g) || []).length) failures.push('Calendar component CSS must not use !important');
 if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js?v=20260807-2')) failures.push('Calendar runtime cache version missing');
-if (!source.designLoader.includes('/shared/customer-settings-components.css?v=20260807-2')) failures.push('Calendar component stylesheet loader missing');
+if (!source.designLoader.includes('/shared/customer-settings-components.css?v=20260807-3')) failures.push('Calendar component stylesheet loader missing');
 
 for (const key of ['connections','callback','tool']) {
   if (/console\.(log|warn|error)\([^\n]*(access_token|refresh_token|client_secret)/i.test(source[key])) {

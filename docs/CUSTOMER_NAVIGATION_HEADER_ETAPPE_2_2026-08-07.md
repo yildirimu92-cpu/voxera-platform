@@ -19,7 +19,7 @@ visual contract in `--vx-ui-appbar-*` tokens.
 
 - white surface, `0.5px` divider `#E5E8EE` at the bottom, no radius, no
   shadow;
-- one title, 17px / 500, Night `#0D1F3C`;
+- one title, 17px / 600 in the display face, Night `#0D1F3C`;
 - optional back arrow to the left of the title;
 - nothing else, identical on every screen.
 
@@ -137,4 +137,51 @@ change.
   sub-screens, including the tab-switch case.
 
 Auth, API, data loading and routing behaviour were not changed. Asset cache
-versions were bumped to `20260807-2` for every file touched.
+versions were bumped for every file touched (`20260807-2`, then
+`20260807-3` for the review round below).
+
+## Nachbesserung nach Preview-Review (2026-08-07)
+
+Vier Punkte aus dem Review vor dem Merge:
+
+1. **Header-Titel wirkte ungestaltet.** 17px/500 in der Body-Schrift las sich
+   wie unformatierter Text. Der Titel trägt jetzt die Display-Schrift,
+   Gewicht 600 und `-0.02em` Tracking; die Leiste wuchs auf 56px Höhe und
+   16px Innenabstand. Die Grösse bleibt bei 17px.
+
+2. **Meta-Card auf Anfragen las sich nicht als Card.** Die Card-Hülle war
+   technisch korrekt — kanonische `.vx-ui-card`, 0.5px Rahmen, 12px Radius —
+   aber der Inhalt war eine einzelne 13px-Zeile in gedämpftem Grau im
+   kompakten Inset, und damit ohne Präsenz. Die Meta-Cards nutzen jetzt das
+   normale Card-Inset statt `--compact`, und der Zähler ist die
+   Inhaltszeile der Card (`.vx-screen-meta-title`, Display-Schrift, Ink)
+   statt eine gedämpfte Nebenzeile. Die Hülle selbst bleibt unverändert die
+   kanonische Card.
+
+3. **Profil: dunkles Night-Band unter dem hellen Header.** Die
+   Identitäts-Zeile (`.vx-settings-identity`) war eine zweite, dunkle
+   Kopfzeile direkt unter der neuen Leiste. Sie ist jetzt ein Card-Head wie
+   jeder andere; der Avatar bleibt in Brand-Blau. Die `#10213f`-Überschreibung
+   aus `customer-runtime-settings-polish.js` wurde entfernt.
+
+4. **Radio-Buttons und Checkboxen waren native Controls.** Etappe 1 hatte
+   sie bewusst aus dem Formularfeld-Vertrag ausgenommen und nur mit
+   `accent-color` eingefärbt — Box, Haken, Fokusring und Disabled-Zustand
+   blieben damit browserabhängig. Sie bekommen jetzt einen eigenen
+   kanonischen Vertrag in `customer-ui-components.css` (Block 8,
+   `--vx-ui-choice-*`): eine Box für beide, nur Radius und Marke
+   unterscheiden sich, gleicher Akzent und gleicher Fokusring wie überall
+   sonst. Die Grössen- und `accent-color`-Deklarationen für
+   `.vx-settings-choice input[type="radio"]` und
+   `.vx-settings-switch-row input` wurden aus
+   `customer-settings-components.css` gelöscht.
+
+   Beim Aufbau ist die `:where()`-Falle aufgetreten und wurde behoben:
+   `:where()` trägt keine Spezifität bei, deshalb verlor die
+   `:checked::before { opacity: 1 }`-Regel in ihrer `:where()`-Form gegen die
+   Basisregel — die Marke blieb unsichtbar. Die Checked-Regel ist bewusst
+   ohne `:where()` geschrieben.
+
+Erweiterte Prüfungen in `scripts/verify-customer-design-foundation.mjs`:
+Choice-Control-Tokens vorhanden, `appearance: none` für Checkbox und Radio,
+und das Settings-Modul darf kein `accent-color` mehr enthalten.

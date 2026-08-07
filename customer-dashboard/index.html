@@ -21,10 +21,10 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
-<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260807-2">
+<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260807-3">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
 <script src="/shared/customer-ui-components.js?v=20260807-2"></script>
-<script src="/shared/offer-brand.js?v=20260807-2"></script>
+<script src="/shared/offer-brand.js?v=20260807-3"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/light/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
@@ -1984,7 +1984,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .followup-section.followup-section-note{padding-top:10px;}
 .followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:4px;padding:5px 9px;border:1px solid var(--surface2);border-radius:9px;background:#FBFDFF;}
 .followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);color:var(--slate);}
-.followup-mark-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--green);}
+/* Choice control box owned by shared/customer-ui-components.css */
 #followup-overlay .modal,
 #followup-overlay .modal-shell,
 #followup-overlay .modal-body,
@@ -2332,7 +2332,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .activation-deactivation-steps{margin:0 0 14px 18px;}
 .activation-deactivation-steps li{font-size:13px;color:var(--gray700);margin-bottom:6px;line-height:1.55;}
 .activation-confirm-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;padding:12px 14px;background:var(--surface2);border:0.5px solid var(--line);border-radius:10px;}
-.activation-confirm-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--blue);flex-shrink:0;margin-top:2px;}
+.activation-confirm-row input[type=checkbox]{flex-shrink:0;margin-top:2px;}
 .activation-confirm-row label{font-size:13px;color:var(--gray700);line-height:1.55;cursor:pointer;}
 .activation-deactivate-btn{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);}
 .activation-deactivate-btn:hover:not(:disabled){background:#B91C1C;transform:translateY(-0.5px);}
@@ -6028,11 +6028,7 @@ body,.main{background:var(--vx-bg);}
   cursor:pointer;
   user-select:none;
 }
-.dpr-archive-option input{
-  width:16px;
-  height:16px;
-  accent-color:var(--blue);
-}
+/* Choice control box owned by shared/customer-ui-components.css */
 .confirm-checkbox-wrap{
   align-items:center;
   gap:8px;
@@ -6048,9 +6044,6 @@ body,.main{background:var(--vx-bg);}
   cursor:pointer;
 }
 .confirm-checkbox-wrap input{
-  width:16px;
-  height:16px;
-  accent-color:var(--blue);
   flex-shrink:0;
 }
 @media(max-width:900px){
@@ -7262,7 +7255,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <!-- Greeting and date left the header in Etappe 2 and live here as
                  the first card of the content area — ordinary card, no
                  special treatment. -->
-            <section id="dash-greeting-block" class="vx-ui-card vx-ui-card--compact vx-screen-meta">
+            <section id="dash-greeting-block" class="vx-ui-card vx-screen-meta">
               <div class="vx-screen-meta-main">
                 <div id="dash-greeting-title" class="vx-screen-meta-title"></div>
                 <div id="dash-greeting-sub" class="vx-screen-meta-text"></div>
@@ -7350,8 +7343,8 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <header class="vx-appbar"><h1 class="vx-appbar-title">Anfragen</h1></header>
 
           <!-- "0 offen · 1 geplant · 0 erledigt" left the header in Etappe 2. -->
-          <section class="vx-ui-card vx-ui-card--compact vx-screen-meta">
-            <div id="anrufe-split-count" class="vx-screen-meta-text">–</div>
+          <section class="vx-ui-card vx-screen-meta">
+            <div id="anrufe-split-count" class="vx-screen-meta-title">–</div>
           </section>
 
           <div id="anrufe-split" class="vx-split vx-requests-layout">
@@ -7408,7 +7401,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <div class="vx-report-stack">
             <!-- The 7 Tage / 30 Tage / Gesamt switch left the header in
                  Etappe 2 and is the first card of the content area. -->
-            <section class="vx-ui-card vx-ui-card--compact vx-screen-meta">
+            <section class="vx-ui-card vx-screen-meta">
               <div class="vx-report-periods" id="au-period-row" role="tablist" aria-label="Berichtszeitraum">
                 <button type="button" class="vx-ui-tab vx-report-period active" data-report-period="week" aria-selected="true" onclick="auSetPeriod('week',this)">7 Tage</button>
                 <button type="button" class="vx-ui-tab vx-report-period" data-report-period="month" aria-selected="false" onclick="auSetPeriod('month',this)">30 Tage</button>
@@ -8128,21 +8121,21 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                     <div style="font-size:13px;color:var(--ink2);font-weight:600;">Wichtige Anfragen</div>
                     <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Hot Leads und dringende Anfragen.</div>
                   </div>
-                  <input id="inapp-setting-important-requests" type="checkbox" style="width:18px;height:18px;accent-color:#1A6FE8;cursor:pointer;">
+                  <input id="inapp-setting-important-requests" type="checkbox">
                 </label>
                 <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
                   <div>
                     <div style="font-size:13px;color:var(--ink2);font-weight:600;">Rückrufe</div>
                     <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Rückrufwünsche.</div>
                   </div>
-                  <input id="inapp-setting-callbacks-and-tasks" type="checkbox" style="width:18px;height:18px;accent-color:#1A6FE8;cursor:pointer;">
+                  <input id="inapp-setting-callbacks-and-tasks" type="checkbox">
                 </label>
                 <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;opacity:.72;cursor:not-allowed;">
                   <div>
                     <div style="font-size:13px;color:var(--ink2);font-weight:600;">Systemhinweise</div>
                     <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Wichtige Hinweise zur Erreichbarkeit und Einrichtung.</div>
                   </div>
-                  <input id="inapp-setting-system" type="checkbox" checked disabled style="width:18px;height:18px;accent-color:#1A6FE8;cursor:not-allowed;">
+                  <input id="inapp-setting-system" type="checkbox" checked disabled>
                 </label>
               </div>
             </div>
@@ -8285,7 +8278,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück" onclick="vxScreenBack('vxBellPageBack')"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Benachrichtigungen</h1></header>
 
             <!-- "Alle gelesen" left the header in Etappe 2. -->
-            <section class="vx-ui-card vx-ui-card--compact vx-screen-meta">
+            <section class="vx-ui-card vx-screen-meta">
               <button type="button" class="vx-screen-meta-action" onclick="vxBellMarkAll()">Alle gelesen</button>
             </section>
             <div id="vx-notif-page-list" class="vx-notif-mobile-list">
@@ -8516,7 +8509,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf…" style="min-height:72px;"></textarea>
           </div>
           <div class="followup-mark-row vx-modal-check-row" id="followup-mark-row">
-            <input type="checkbox" id="followup-mark-complete" style="width:16px;height:16px;accent-color:#1A6FE8;">
+            <input type="checkbox" id="followup-mark-complete">
             <span>Als erledigt markieren</span>
           </div>
         </div>
@@ -31459,11 +31452,7 @@ function toggleCallRow(event, row) {
   cursor:pointer;
   user-select:none;
 }
-.dpr-archive-option input{
-  width:16px;
-  height:16px;
-  accent-color:var(--blue);
-}
+/* Choice control box owned by shared/customer-ui-components.css */
 .confirm-checkbox-wrap{
   align-items:center;
   gap:8px;
@@ -31479,9 +31468,6 @@ function toggleCallRow(event, row) {
   cursor:pointer;
 }
 .confirm-checkbox-wrap input{
-  width:16px;
-  height:16px;
-  accent-color:var(--blue);
   flex-shrink:0;
 }
 @media(max-width:900px){
@@ -32623,11 +32609,7 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
   cursor:pointer;
   user-select:none;
 }
-.dpr-archive-option input{
-  width:16px;
-  height:16px;
-  accent-color:var(--blue);
-}
+/* Choice control box owned by shared/customer-ui-components.css */
 .confirm-checkbox-wrap{
   align-items:center;
   gap:8px;
@@ -32643,9 +32625,6 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
   cursor:pointer;
 }
 .confirm-checkbox-wrap input{
-  width:16px;
-  height:16px;
-  accent-color:var(--blue);
   flex-shrink:0;
 }
 @media(max-width:900px){
@@ -42841,7 +42820,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-modal-chip:hover,.vx-modal-chip.is-active {border-color:var(--vx-blue);background:var(--vx-blue-light);color:var(--vx-blue);}
 .vx-modal-check-row {display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:var(--vx-r-lg);border:1.5px solid var(--line);background:var(--vx-bg);cursor:pointer;transition:border-color 0.15s;}
 .vx-modal-check-row:hover { border-color: var(--vx-blue); }
-.vx-modal-check-row input[type="checkbox"] {width:16px;height:16px;border-radius:4px;accent-color:var(--vx-blue);margin:0;flex-shrink:0;}
+/* Box, mark and states owned by the choice control in shared/customer-ui-components.css */
 .vx-modal-check-row span {font-size:13px;color:var(--vx-text2);font-weight:500;}
 .vx-modal-alert {border-radius:var(--vx-r-lg);padding:10px 13px;font-size:13px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;}
 .vx-modal-alert-warn {background:#FFFBEB;border:1.5px solid #FDE68A;color:#92400E;}

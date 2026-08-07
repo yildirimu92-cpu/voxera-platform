@@ -47,6 +47,7 @@ migration.
 This file is the only owner for the shared building blocks:
 
 - the card shell and its inset;
+- checkbox and radio (the choice control);
 - pill tabs, including the "Anfragen" status filters and the "Assistent"
   section switch;
 - loading skeletons — no screen may render a text loading hint;
@@ -81,7 +82,8 @@ Every screen in the authenticated dashboard opens with the same bar:
 
 - white surface, a hairline `0.5px` divider at the bottom, no radius, no
   shadow;
-- exactly one title, 17px / 500, Night `#0D1F3C`;
+- exactly one title, 17px / 600 in the display face, Night `#0D1F3C` — a
+  screen name, not body text;
 - an optional back arrow to the left of the title.
 
 The bar carries nothing else. No subline, no counter, no badge, no period
@@ -159,8 +161,14 @@ Local font-family declarations are not allowed outside explicitly independent do
 - Standard control height: 46px desktop, 48px mobile.
 - Form fields: 10px radius, 1px border, 44px height desktop / 48px mobile.
   Mobile font-size must stay at 16px or above so iOS does not zoom on focus.
-- Checkbox, radio, range and file inputs keep their intrinsic box and are
-  explicitly excluded from the field contract.
+- Range and file inputs keep their intrinsic box and are excluded from the
+  field contract.
+- Checkbox and radio are excluded from the *field* contract but have their
+  own: 20px box, 1.5px border, 6px radius (circle for radio), brand accent
+  when checked, drawn mark, shared focus ring. Tinting the native widget
+  with `accent-color` is not a design system and must fail review — the
+  box, the mark, the focus ring and the disabled state all stayed
+  browser-specific under it.
 - Standard page/card spacing must be token-based and shared.
 - Decorative shadows must remain subtle and must not replace structural borders.
 

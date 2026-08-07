@@ -56,10 +56,10 @@ for (const token of [
   '/shared/customer-design-system.css?v=20260807-2',
   '/shared/customer-assistant-components.css?v=20260807-2',
   '/shared/customer-assistant-status.css?v=20260803-1',
-  '/shared/customer-settings-components.css?v=20260807-2',
+  '/shared/customer-settings-components.css?v=20260807-3',
   '/shared/customer-support-components.css?v=20260802-2',
-  '/shared/customer-navigation-components.css?v=20260807-2',
-  '/shared/customer-ui-components.css?v=20260807-1',
+  '/shared/customer-navigation-components.css?v=20260807-3',
+  '/shared/customer-ui-components.css?v=20260807-3',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -120,9 +120,16 @@ assert.ok(!dashboard.includes('vx-back-btn'), 'the dashboard must not carry the 
 // The greeting and the date left the header and are the first card of Heute.
 assert.match(
   dashboard,
-  /<section id="dash-greeting-block" class="vx-ui-card vx-ui-card--compact vx-screen-meta">/,
+  /<section id="dash-greeting-block" class="vx-ui-card vx-screen-meta">/,
   'the Heute greeting must be an ordinary card in the content area'
 );
+
+// The meta cards use the canonical shell unchanged — no screen may give the
+// card that receives the header's content its own surface treatment.
+for (const forbidden of ['vx-screen-meta {\n  background', '.vx-screen-meta{background']) {
+  assert.ok(!navigationCss.includes(forbidden), 'the meta card must not redeclare the card shell');
+}
+
 
 // One bar per screen, and each of the five top-level screens has exactly one
 // without a back arrow.
@@ -499,7 +506,7 @@ for (const [name, css] of [
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
 assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260807-2/);
 assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260807-2/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260807-3/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
@@ -513,7 +520,7 @@ new vm.Script(uiComponentsJs, { filename: 'customer-dashboard/shared/customer-ui
 for (const token of [
   '--vx-ui-appbar-divider-color: #E5E8EE',
   '--vx-ui-appbar-title-size: 17px',
-  '--vx-ui-appbar-title-weight: 500',
+  '--vx-ui-appbar-title-weight: 600',
   '--vx-ui-appbar-title-color: #0D1F3C',
   '--vx-ui-card-border-width: 0.5px',
   '--vx-ui-card-radius: 12px',
@@ -582,6 +589,25 @@ assert.match(
   /:where\(select, \.vx-ui-select\)\s*\{[^}]*appearance:\s*none/,
   'select must reset appearance so it stops rendering as the native widget'
 );
+// Checkbox and radio have their own contract instead of a tinted native widget.
+for (const token of [
+  '--vx-ui-choice-size',
+  '--vx-ui-choice-accent',
+  '--vx-ui-choice-border-width',
+  '--vx-ui-choice-disabled-bg'
+]) {
+  assert.ok(designTokens.includes(token), `choice control token missing: ${token}`);
+}
+assert.match(
+  uiComponentsCss,
+  /input\[type="checkbox"\],\s*\n\s*input\[type="radio"\]\s*\n\)\s*\{[^}]*appearance:\s*none/,
+  'checkbox and radio must reset appearance so they stop rendering as native widgets'
+);
+assert.ok(
+  !settingsCss.includes('accent-color'),
+  'the settings module must not tint native controls; the choice control owns them'
+);
+
 // Checkboxes, radios and range inputs must keep their intrinsic box.
 for (const excluded of ['checkbox', 'radio', 'range', 'file']) {
   assert.ok(
@@ -690,10 +716,10 @@ console.log('Customer dashboard design foundation verification passed.');
 assert.doesNotMatch(navigationRuntime, /function addStyles|createElement\('style'\)|style\.textContent/);
 
 for (const forbidden of ['#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)','#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])','.vx-nav-voice-details','#vx-assistant-profile-body .vx-ap-card:first-child']) assert.ok(!navigationCss.includes(forbidden), `navigation CSS still owns assistant structure: ${forbidden}`);
-assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-2"></script>'), 'dashboard missing versioned offer-brand loader');
+assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-3"></script>'), 'dashboard missing versioned offer-brand loader');
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
-assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260807-2'), 'offer-brand missing current design loader version');
+assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260807-3'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
 for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260807-2','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-2','/shared/customer-settings-components.css?v=20260807-2','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-1'];
+const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260807-2','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

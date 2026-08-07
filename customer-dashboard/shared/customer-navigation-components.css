@@ -11,7 +11,7 @@
 
      - white surface, hairline divider at the bottom, no radius,
        no shadow, no background of its own beyond white;
-     - one 17px/500 Night title, nothing else;
+     - one 17px/600 Night title in the display face, nothing else;
      - an optional back arrow to the left of the title, shown
        only on screens that were opened from a top-level screen.
 
@@ -84,10 +84,10 @@ body.vx-customer-design-foundation .vx-appbar-title {
   margin: 0;
   overflow: hidden;
   color: var(--vx-ui-appbar-title-color);
-  font-family: var(--vx-font-body);
+  font-family: var(--vx-ui-appbar-title-font);
   font-size: var(--vx-ui-appbar-title-size);
   font-weight: var(--vx-ui-appbar-title-weight);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--vx-ui-appbar-title-tracking);
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -136,8 +136,10 @@ body.vx-customer-design-foundation .vx-screen-meta-main {
 
 body.vx-customer-design-foundation .vx-screen-meta-title {
   color: var(--vx-color-text);
+  font-family: var(--vx-font-display);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   line-height: 1.35;
 }
 

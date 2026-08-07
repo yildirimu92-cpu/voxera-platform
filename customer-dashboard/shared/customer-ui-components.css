@@ -10,6 +10,7 @@
      5. .vx-ui-empty     — one "keine Daten" pattern
      6. .vx-ui-field     — one input / select / textarea contract
      7. .vx-ui-spinner   — inline busy affordance for actions
+     8. choice control  — one checkbox / radio box, no native widget
 
    Every value resolves from the component contract tokens in
    customer-design-tokens.css. This module must never introduce a
@@ -689,5 +690,129 @@ body.vx-customer-design-foundation .vx-ui-spinner {
   ) {
     min-height: var(--vx-ui-field-height-mobile);
     font-size: var(--vx-ui-field-font-size-mobile);
+  }
+}
+
+/* ============================================================
+   8. CHOICE CONTROL (checkbox / radio)
+   ============================================================
+   Etappe 1 excluded checkbox and radio from the text-field
+   contract and left them as native widgets tinted with
+   accent-color. Tinting a native widget is not a design system:
+   the box, the mark, the focus ring and the disabled state all
+   stayed browser-specific. They get their own contract here —
+   same accent and same focus ring as every other control, one
+   box for both, only the radius and the mark differ.
+
+   Took ownership of: the size/accent-color declarations for
+   `.vx-settings-choice input[type="radio"]` and
+   `.vx-settings-switch-row input`, deleted from
+   customer-settings-components.css in the same change.
+   ============================================================ */
+
+body.vx-customer-design-foundation :where(
+  input[type="checkbox"],
+  input[type="radio"]
+) {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--vx-ui-choice-size);
+  height: var(--vx-ui-choice-size);
+  min-width: var(--vx-ui-choice-size);
+  min-height: var(--vx-ui-choice-size);
+  margin: 0;
+  padding: 0;
+  border: var(--vx-ui-choice-border-width) solid var(--vx-ui-choice-border);
+  border-radius: var(--vx-ui-choice-radius);
+  background: var(--vx-ui-choice-bg);
+  color: var(--vx-ui-choice-mark);
+  cursor: pointer;
+  transition: background var(--vx-duration-fast) var(--vx-ease),
+              border-color var(--vx-duration-fast) var(--vx-ease);
+}
+
+body.vx-customer-design-foundation input[type="radio"] {
+  border-radius: 50%;
+}
+
+body.vx-customer-design-foundation :where(
+  input[type="checkbox"],
+  input[type="radio"]
+):hover:not(:disabled) {
+  border-color: var(--vx-ui-choice-hover-border);
+}
+
+body.vx-customer-design-foundation :where(
+  input[type="checkbox"],
+  input[type="radio"]
+):checked {
+  border-color: var(--vx-ui-choice-accent);
+  background: var(--vx-ui-choice-accent);
+}
+
+body.vx-customer-design-foundation :where(
+  input[type="checkbox"],
+  input[type="radio"]
+):focus-visible {
+  outline: 3px solid var(--vx-ui-field-focus-ring);
+  outline-offset: 2px;
+}
+
+/* The mark is drawn, not a glyph, so it never depends on an icon font. */
+body.vx-customer-design-foundation input[type="checkbox"]::before {
+  width: 10px;
+  height: 6px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-right: 0;
+  transform: translateY(-1px) rotate(-45deg);
+  opacity: 0;
+  content: "";
+}
+
+body.vx-customer-design-foundation input[type="radio"]::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  content: "";
+}
+
+/* Written without :where() on purpose — :where() contributes no specificity,
+   so the zeroed form loses to the base ::before rule above and the mark
+   never appears. */
+body.vx-customer-design-foundation input[type="checkbox"]:checked::before,
+body.vx-customer-design-foundation input[type="radio"]:checked::before {
+  opacity: 1;
+}
+
+body.vx-customer-design-foundation :where(
+  input[type="checkbox"],
+  input[type="radio"]
+):disabled {
+  border-color: var(--vx-ui-choice-disabled-border);
+  background: var(--vx-ui-choice-disabled-bg);
+  cursor: not-allowed;
+}
+
+body.vx-customer-design-foundation :where(
+  input[type="checkbox"],
+  input[type="radio"]
+):disabled:checked {
+  border-color: var(--vx-ui-choice-disabled-border);
+  background: var(--vx-ui-choice-disabled-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.vx-customer-design-foundation :where(
+    input[type="checkbox"],
+    input[type="radio"]
+  ) {
+    transition: none;
   }
 }
