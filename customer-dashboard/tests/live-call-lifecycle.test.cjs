@@ -305,6 +305,25 @@ test('the hint disappears on hangup', () => {
   assert.equal(ambientHost.children.length, 0, 'hangup ends the ambient phase — the record becomes an entry');
 });
 
+test('a missing announcement channel does not stop the hint from rendering', () => {
+  // vxToast() is documented in index.html but implemented nowhere in the repo,
+  // so calling it throws a ReferenceError. Before this was guarded, that throw
+  // landed in the middle of updateLiveHero() on the first tick of every new
+  // call — no bell, no sound, and the row only appeared one tick later.
+  const { sandbox, ambientHost } = buildSandbox();
+  delete sandbox.vxToast;
+  vm.runInContext('vxToast = undefined;', sandbox);
+
+  sandbox.updateLiveHero([call('call-1', 'active')]);
+  assert.equal(ambientHost.children.length, 1, 'the hint must render even when an announcement channel is missing');
+  assert.equal(sandbox.announced.toasts, 0, 'the missing channel is skipped');
+  assert.deepEqual(
+    { bells: sandbox.announced.bells, notifications: sandbox.announced.notifications },
+    { bells: 1, notifications: 1 },
+    'the channels that do exist still fire — one missing one must not take the others down'
+  );
+});
+
 test('each call is announced once, not once per render tick', () => {
   const { sandbox } = buildSandbox();
   const live = call('call-1', 'active');

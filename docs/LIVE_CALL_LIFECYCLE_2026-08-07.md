@@ -183,7 +183,55 @@ CI: `.github/workflows/verify-live-call-lifecycle.yml`.
 
 ---
 
-## 6. Testplan Deploy-Preview
+## 6. Gegenprüfung im echten Browser (Nachtrag)
+
+Die Deploy-Preview `deploy-preview-823--voxera-dashboard.netlify.app` ist aus dieser
+Session **nicht erreichbar** — die Egress-Policy der Umgebung lehnt den Host ab
+(`403 CONNECT`, nur GitHub ist freigegeben). Deshalb ersatzweise: die **komplette,
+unveränderte `index.html`** über einen lokalen HTTP-Server in echtem Chromium,
+inklusive `/shared/*.css`, also mit aufgelösten Design-Tokens und echtem Layout.
+Da `netlify.toml` `publish = "."` und einen No-Op-Build (`echo`) verwendet, ist die
+ausgelieferte Datei byte-identisch mit der Repo-Datei; der verbleibende Unterschied
+zur Preview ist nur die fehlende Supabase-Session.
+
+Gleicher Harness, sechs echte Render-Ticks (`renderDashPriorityList()` +
+`updateLiveHero()`), Anrufername und Firma werden mitten im Gespräch nachgeliefert:
+
+| | vor dem Fix (`main` @ 9221de9) | nach dem Fix |
+|---|---|---|
+| distinkte `#live-call-row`-Knoten über 6 Ticks | **7** | **1** |
+| `liveRowEnter` je Tick | zurück auf **0** (Einblendung startet neu) | konstant **300** (beendet) |
+| `opacity` je Tick | **0** (Beginn der Einblendung) | konstant **1** |
+| `liveDotPulse` | jedes Mal **0** | monoton 600 → 1000 → 1400 → 1800 → 2200 → 2600 |
+| Position | *innerhalb* der Aufmerksamkeit-Liste | eigene Karte darüber |
+
+Die Vorher-Spalte ist der Flacker-Effekt in Zahlen: der Knoten wird pro Tick ersetzt,
+die 0.3s-Einblendung startet jedes Mal von `opacity: 0` neu.
+
+Visuell bestätigt: der Hinweis steht als eigene Karte über „Aufmerksamkeit" (roter
+Akzent links, „Ein Anruf läuft gerade" + „Der Eintrag erscheint, sobald das Gespräch
+beendet ist.", Live-Badge), während „Aufmerksamkeit" darunter „Alles erledigt" zeigt
+— kein Karten-Eintrag für das laufende Gespräch.
+
+### Nebenbefund: `vxToast()` existiert nicht
+
+Der Lauf gegen den Vor-Fix-Stand brach mit `ReferenceError: vxToast is not defined`
+in `updateLiveHero()` ab. `vxToast()` wird in `index.html` an drei Stellen aufgerufen
+und im Kommentarblock „VOXERA NOTIFICATION SYSTEM v1.0" dokumentiert, ist aber
+**nirgends im Repo implementiert** — weder in `index.html`, noch in den per
+`<script src>` geladenen Dateien, noch irgendwo in der Git-History.
+
+Bestandsfehler, keine Regression dieses PRs, aber im selben Code-Pfad. Konsequenz im
+alten Code: der Wurf landete zwischen `_liveHeroNotified.add()` und dem
+`insertBefore()`, also lief beim ersten Tick eines neuen Anrufs weder `vxBellAdd()`
+noch `vxMaybePlayLiveCallSound()`, und die Row erschien erst beim zweiten Tick.
+
+Hier nur der Absturz abgesichert: die Meldewege sind einzeln `typeof`-geguardet und
+gekapselt, ein fehlender Kanal nimmt die übrigen und den Hinweis nicht mehr mit.
+Ob Toast für eingehende Anrufe überhaupt (wieder) existieren soll, ist eine
+Produktentscheidung und in diesem PR bewusst nicht getroffen.
+
+## 7. Testplan Deploy-Preview
 
 - [ ] Während eines laufenden Anrufs: Hinweis blendet einmal ein und steht danach ruhig
 - [ ] Kein Karten-Eintrag in "Aufmerksamkeit", "Anrufe heute", "Heute passiert", Anfragen
