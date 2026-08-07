@@ -19,7 +19,7 @@
 
 
 
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
 <link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260807-3">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
@@ -7219,6 +7219,139 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 </div>
 
         <!-- DASHBOARD TAB -->
+        <style id="vx-lara-handover-styles">
+          /* ── Lara-Übergabe: Heute-Screen Redesign ────────────────────────
+             Card-Grundwerte (12px Radius, 0.5px Border) aus Etappe 1 bleiben
+             unverändert — vx-ui-card-* Tokens werden weiterverwendet. */
+          #dash-content {
+            --vx-font-serif: 'Newsreader', Fraunces, Georgia, 'Times New Roman', serif;
+            --vx-font-handover-ui: 'Plus Jakarta Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+          }
+
+          /* Alt-Sektionen aus dem Vor-Redesign bleiben im DOM (bestehendes
+             Render-/Event-Wiring greift noch darauf zu), dürfen aber nie mehr
+             sichtbar werden. Mehrere Legacy-Renderfunktionen setzen bei jedem
+             Re-Render "el.style.display = ''" auf einigen dieser Elemente
+             (z.B. vxHeuteRenderActivityList, vxHeuteRenderScopedList) — ein
+             reines inline "display:none" auf dem Element wird dadurch bei
+             jedem Datenupdate wieder aufgehoben. Eine !important-Regel im
+             Stylesheet gewinnt gegen ein spätere nicht-!important Inline-Style
+             und hält die Sektionen zuverlässig versteckt. */
+          #dash-greeting-block,
+          #dash-kpi-strip,
+          #dash-priority-section,
+          #dash-activity-section,
+          #dash-today-calls-section,
+          #dash-today-done-section,
+          #dash-daily-report,
+          #dash-focus-zone {
+            display: none !important;
+          }
+
+          .vx-lara-message { display:flex; align-items:flex-start; gap:12px; }
+          .vx-lara-avatar {
+            flex:0 0 auto; width:40px; height:40px; border-radius:50%;
+            background:var(--vx-color-night,#0D1F3C); color:#fff;
+            display:flex; align-items:center; justify-content:center;
+            font-family:var(--vx-font-serif); font-size:16px; font-weight:600;
+          }
+          .vx-lara-bubble {
+            flex:1; min-width:0; background:#EEF1F6;
+            border-left:3px solid var(--vx-color-night,#0D1F3C);
+            border-radius:var(--vx-ui-card-radius,12px);
+            padding:16px 18px;
+          }
+          .vx-lara-text {
+            font-family:var(--vx-font-serif); font-weight:400; font-size:18px;
+            line-height:1.48; color:var(--vx-color-night,#0D1F3C); margin:0;
+          }
+          .vx-lara-meta { margin-top:10px; font-size:12px; color:#8A93A6; font-family:var(--vx-font-handover-ui); }
+
+          .vx-handover-section { margin-top:22px; }
+          .vx-handover-eyebrow {
+            display:flex; align-items:center; gap:7px; margin-bottom:10px;
+            font-family:var(--vx-font-handover-ui);
+            font-size:12px; font-weight:600; color:#8A93A6; letter-spacing:0; text-transform:none;
+          }
+          .vx-handover-eyebrow-dot {
+            flex:0 0 auto; width:7px; height:7px; border-radius:50%;
+          }
+          .vx-handover-eyebrow.is-danger .vx-handover-eyebrow-dot { background:#DC2626; }
+          .vx-handover-eyebrow.is-success .vx-handover-eyebrow-dot { background:#059669; }
+          .vx-handover-count {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:16px; height:16px; padding:0 5px; border-radius:8px;
+            font-size:11px; font-weight:600; color:#8A93A6; background:#F0F1F4;
+          }
+
+          .vx-handover-rail { position:relative; padding-left:16px; display:flex; flex-direction:column; gap:12px; }
+          .vx-handover-rail::before {
+            content:''; position:absolute; left:0; top:2px; bottom:2px; width:3px;
+            background:var(--vx-color-night,#0D1F3C); border-radius:2px;
+          }
+
+          .vx-handover-card {
+            background:var(--vx-ui-card-bg,#fff);
+            border:var(--vx-ui-card-border-width,0.5px) solid var(--vx-ui-card-border-color,#D9E1EC);
+            border-radius:var(--vx-ui-card-radius,12px);
+            padding:14px 16px;
+            font-family:var(--vx-font-handover-ui);
+          }
+          /* Ganze Karte klickbar (führt zur Detailansicht) — Zurückrufen-
+             Button behält seinen eigenen Klick-Handler und stoppt die
+             Weiterleitung an die Karte, siehe vxHeuteCardClick(). */
+          .vx-handover-card--needs,
+          .vx-handover-card--resolved {
+            cursor:pointer;
+            transition:box-shadow .15s ease, border-color .15s ease;
+          }
+          .vx-handover-card--needs:hover,
+          .vx-handover-card--resolved:hover {
+            border-color:#C4CCDA;
+            box-shadow:0 2px 10px rgba(13,31,60,0.08);
+          }
+          .vx-handover-card--needs:focus-visible,
+          .vx-handover-card--resolved:focus-visible {
+            outline:2px solid var(--vx-color-night,#0D1F3C);
+            outline-offset:2px;
+          }
+          .vx-handover-card-body { display:flex; align-items:flex-start; gap:12px; }
+          .vx-handover-card-icon {
+            flex:0 0 auto; width:36px; height:36px; border-radius:50%;
+            background:#F1F5F9; color:#94A3B8;
+            display:flex; align-items:center; justify-content:center; font-size:15px;
+          }
+          .vx-handover-card-main { flex:1; min-width:0; }
+          .vx-handover-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+          .vx-handover-card-title { font-weight:700; font-size:14px; color:var(--vx-color-night,#0D1F3C); }
+          .vx-handover-card-time { font-size:12px; color:#8A93A6; white-space:nowrap; flex:0 0 auto; }
+          .vx-handover-card-desc { margin-top:4px; font-size:13px; color:#5B6472; line-height:1.42; }
+          .vx-handover-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:16px; margin-top:12px; }
+          .vx-handover-btn {
+            border-radius:999px; min-height:38px; font-size:13px; font-weight:700;
+            border:1px solid transparent; cursor:pointer; padding:0 16px;
+            font-family:var(--vx-font-handover-ui);
+          }
+          .vx-handover-btn--primary {
+            flex:0 0 auto; background:var(--vx-color-night,#0D1F3C); border-color:var(--vx-color-night,#0D1F3C); color:#fff;
+          }
+          .vx-handover-btn--primary:hover { background:#132a52; }
+
+          .vx-handover-cards { display:flex; flex-direction:column; gap:10px; }
+          .vx-handover-card--resolved { opacity:.72; }
+          .vx-handover-card--resolved .vx-handover-card-title { font-weight:600; }
+
+          .vx-all-clear { text-align:center; padding:34px 16px 6px; font-family:var(--vx-font-handover-ui); }
+          .vx-all-clear-icon {
+            width:56px; height:56px; border-radius:50%; background:#E7F8EE; color:#059669;
+            display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:22px;
+          }
+          body.vx-customer-design-foundation .vx-all-clear-title { font-family:var(--vx-font-serif); font-weight:600; font-size:25px; color:var(--vx-color-night,#0D1F3C); margin:0 0 8px; }
+          .vx-all-clear-text { font-size:14px; color:#5B6472; max-width:320px; margin:0 auto; line-height:1.5; }
+
+          .vx-handover-footlink { margin-top:18px; font-size:12px; color:#8A93A6; text-align:center; font-family:var(--vx-font-handover-ui); }
+          .vx-handover-footlink a { color:var(--vx-color-night,#0D1F3C); font-weight:600; text-decoration:underline; cursor:pointer; }
+        </style>
         <div class="tab-page active" id="tab-dashboard">
           <header class="vx-appbar"><h1 class="vx-appbar-title">Heute</h1></header>
           <!-- FSE card removed – first-login goes directly to Einrichtung tab -->
@@ -7270,7 +7403,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
             <div id="dash-reach-warning" class="vx-ops-status warning" hidden></div>
 
-            <div id="dash-kpi-strip" class="vx-ap-grid">
+            <div id="dash-kpi-strip" class="vx-ap-grid" hidden style="display:none!important;" aria-hidden="true">
               <div class="vx-ap-card" id="kpi-cell-callbacks">
                 <div id="kpi-callbacks-label" class="vx-ap-meta">Anrufe heute</div>
                 <div id="kpi-callbacks-new" class="vx-ap-title">–</div>
@@ -7301,10 +7434,51 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <!-- Ambient-Hinweis fuer laufende Gespraeche. Eigener, stabiler
                  Host: keine Listen-Render-Funktion ersetzt hier jemals das
                  innerHTML, deshalb kann der Hinweis nicht mehr im Renderzyklus
-                 zerstoert und neu aufgebaut werden. -->
+                 zerstoert und neu aufgebaut werden.
+                 Steht bewusst VOR der Lara-Uebergabe: der Hinweis sagt, was
+                 gerade in dieser Sekunde passiert, die Uebergabe sagt, was
+                 seither liegen geblieben ist. -->
             <div id="dash-live-ambient" role="status" aria-live="polite"></div>
 
-            <section id="dash-priority-section" class="vx-ops-card">
+            <!-- Lara-Übergabe: ersetzt KPI-Kacheln + "Heute passiert"-Chronologie.
+                 Die Chronologie lebt vollständig in Anfragen weiter; die alten
+                 Sektionen darunter bleiben im DOM (hidden), damit bestehende
+                 Render-/Event-Wiring nicht bricht. -->
+            <section id="dash-lara-message" class="vx-lara-message">
+              <div class="vx-lara-avatar" aria-hidden="true">L</div>
+              <div class="vx-lara-bubble">
+                <p id="dash-lara-text" class="vx-lara-text"></p>
+                <div id="dash-lara-meta" class="vx-lara-meta"></div>
+              </div>
+            </section>
+
+            <section id="dash-needs-you-section" class="vx-handover-section" hidden>
+              <div class="vx-handover-eyebrow is-danger">
+                <span class="vx-handover-eyebrow-dot" aria-hidden="true"></span>
+                <span>Braucht dich</span>
+                <span id="dash-needs-you-count" class="vx-handover-count">0</span>
+              </div>
+              <div id="dash-needs-you-list" class="vx-handover-rail"></div>
+            </section>
+
+            <section id="dash-all-clear-section" class="vx-all-clear" hidden>
+              <div class="vx-all-clear-icon" aria-hidden="true"><i class="ph-bold ph-check"></i></div>
+              <h2 class="vx-all-clear-title">Alles im Griff</h2>
+              <p class="vx-all-clear-text">Nichts wartet auf dich. Ich melde mich, sobald etwas deine Aufmerksamkeit braucht.</p>
+            </section>
+
+            <section id="dash-resolved-section" class="vx-handover-section vx-handover-section--muted" hidden>
+              <div class="vx-handover-eyebrow is-success">
+                <span class="vx-handover-eyebrow-dot" aria-hidden="true"></span>
+                <span>Hat sich erledigt</span>
+                <span id="dash-resolved-count" class="vx-handover-count">0</span>
+              </div>
+              <div id="dash-resolved-list" class="vx-handover-cards"></div>
+            </section>
+
+            <div id="dash-anfragen-link" class="vx-handover-footlink" hidden>Vollständige Chronologie unter <a href="#" onclick="vxHeuteScrollToAnfragen(event);">Anfragen</a>.</div>
+
+            <section id="dash-priority-section" class="vx-ops-card" hidden style="display:none!important;" aria-hidden="true">
               <div class="vx-ap-head">
                 <div>
                   <div class="vx-ops-title">Aufmerksamkeit</div>
@@ -7318,7 +7492,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               </div>
             </section>
 
-            <section id="dash-activity-section" class="vx-ops-card">
+            <section id="dash-activity-section" class="vx-ops-card" hidden style="display:none!important;" aria-hidden="true">
               <div class="vx-ap-head">
                 <div>
                   <div class="vx-ops-title">Heute passiert</div>
@@ -20842,10 +21016,33 @@ function vxHeuteGetTimestamp(record, keys) {
   if (!v && typeof getRecordTimestamp === 'function') v = getRecordTimestamp(record);
   return v || '';
 }
+// [BUGFIX] War zuvor "new Date(value)" — der zweite, tiefere Teil des
+// gemeldeten Zeitzonen-Bugs (die Feldpräferenz-Korrektur von letzter Runde
+// war real, aber nicht die Ursache des in Produktion weiter beobachteten
+// 2h-Versatzes). Supabase liefert created_at/completed_at/etc. immer als
+// UTC — teils aber OHNE 'Z'-Suffix (z.B. "2026-08-07 18:57:00"). Für einen
+// String ohne Zeitzonen-Offset behandelt JS eine ISO-artige Form ("...T...")
+// per Spezifikation als LOKALE Zeit des Browsers, nicht als UTC. Läuft der
+// Browser in Europe/Zurich, wurde "18:57" (eigentlich UTC = 20:57 Zürich)
+// fälschlich als "18:57 Zürich" interpretiert — exakt der beobachtete
+// 2-Stunden-Versatz, und zwar unabhängig vom gewählten Feld (updated_at vs.
+// created_at), weshalb der synthetische Test mit einem sauberen
+// "...Z"-String das reale Problem nicht reproduzierte.
+//
+// parseCallTimestamp() ist die bereits an anderer Stelle im Code verwendete
+// Lösung dafür (siehe pickLiveCall(), buildLiveCallMatcher()): erkennt
+// Timestamps ohne Zeitzonen-Angabe und hängt vor dem Parsen explizit 'Z' an,
+// damit sie korrekt als UTC interpretiert werden. vxHeuteParseDate()
+// delegiert jetzt dorthin, statt eine eigene (falsche) Parsing-Annahme zu
+// treffen — dieselbe Quelle, die Anfragen bereits korrekt verwendet.
 function vxHeuteParseDate(value) {
   if (!value) return null;
   var d;
-  try { d = (value instanceof Date) ? value : new Date(value); } catch(e) { return null; }
+  try {
+    if (value instanceof Date) d = value;
+    else if (typeof parseCallTimestamp === 'function') d = parseCallTimestamp(value);
+    else d = new Date(value);
+  } catch (e) { return null; }
   if (!d || Number.isNaN(d.getTime())) return null;
   return d;
 }
@@ -21056,6 +21253,25 @@ function vxHeuteRecordSummary(record) {
   if (!raw) return '';
   return raw.length > 72 ? raw.slice(0, 69).trim() + '…' : raw;
 }
+// Manche Anrufe haben (noch) keine Zusammenfassung: aufgelegt bevor etwas
+// gesagt wurde (short_abandoned) oder die Auswertung läuft noch. Statt einer
+// leeren Karte wird der Zustand benannt — Labels kommen aus der bestehenden
+// getCallCategoryDisplayLabel()-Logik, es wird kein neuer Text erfunden.
+function vxHeuteHandoverDescription(record) {
+  var summary = vxHeuteRecordSummary(record);
+  if (summary) return summary;
+  var state = '';
+  try { if (typeof getCallDisplayState === 'function') state = String(getCallDisplayState(record) || ''); } catch (e) {}
+  if (state === 'processing' || state === 'checking') return 'Zusammenfassung wird noch erstellt.';
+  if (state === 'short_abandoned') return 'Kurzer Anruf – es wurde nichts besprochen.';
+  try {
+    if (typeof getCallCategoryDisplayLabel === 'function') {
+      var label = String(getCallCategoryDisplayLabel(record) || '').trim();
+      if (label) return label + ' – keine Zusammenfassung vorhanden.';
+    }
+  } catch (e) {}
+  return 'Keine Zusammenfassung vorhanden.';
+}
 function vxHeuteRecordTypeLabel(record) {
   if (vxHeuteIsManualTask(record)) return 'Aufgabe';
   if (vxHeuteGetRecordValue(record, ['callback_requested']) === true || String(vxHeuteGetRecordValue(record, ['callback_requested'])).toLowerCase() === 'true') return 'Rückruf';
@@ -21115,6 +21331,262 @@ function vxHeuteRenderActivityList(records) {
       else if (typeof showCallDetail === 'function') showCallDetail(recId);
     });
   });
+  refreshLucideIcons();
+}
+
+// ── Lara-Übergabe ("Heute"-Redesign) ──────────────────────────────────
+// Ersetzt KPI-Kacheln + "Heute passiert"-Chronologie durch eine Delta-
+// Nachricht von Lara ("seit deinem letzten Besuch …") plus zwei Sektionen:
+// "Braucht dich" (offen) und "Hat sich erledigt" (heute abgeschlossen).
+var _vxHeuteVisitStamped = false;
+var _vxHeuteVisitWritten = false;
+var _vxHeuteVisitRef = null;
+function vxHeuteGetStoredVisitAt() {
+  try {
+    var stored = localStorage.getItem('vxHeuteLastVisitAt');
+    return stored ? vxHeuteParseDate(stored) : null;
+  } catch (e) { return null; }
+}
+function vxHeuteStampVisitNow() {
+  try { localStorage.setItem('vxHeuteLastVisitAt', new Date().toISOString()); } catch (e) {}
+}
+// Liest den Zeitpunkt des letzten Besuchs genau einmal pro Seitenaufruf
+// (nicht bei jedem Re-Render).
+//
+// [BUGFIX] Der Zeitstempel darf NUR fortgeschrieben werden, wenn der Nutzer
+// den Heute-Tab tatsächlich sieht. renderDashboard() läuft bei jedem
+// Seitenaufruf — auch bei einem Deep-Link-Einstieg auf #call/<id>, bei dem
+// Heute nie angezeigt wird. Wurde dabei blind "jetzt" gestempelt, rutschte
+// die Referenz an einem frisch eingegangenen Anruf vorbei und dieser war
+// danach dauerhaft nicht mehr auf Heute sichtbar (auch nach Reload).
+function vxHeuteIsHeuteTabVisible() {
+  var tab = document.getElementById('tab-dashboard');
+  if (!tab) return false;
+  if (!tab.classList.contains('active')) return false;
+  return tab.offsetParent !== null || tab.getClientRects().length > 0;
+}
+function vxHeuteResolveVisitReference() {
+  if (!_vxHeuteVisitStamped) {
+    _vxHeuteVisitStamped = true;
+    _vxHeuteVisitRef = vxHeuteGetStoredVisitAt();
+  }
+  // Erst stempeln, wenn Heute wirklich sichtbar war. _vxHeuteVisitRef bleibt
+  // für diesen Seitenaufruf eingefroren, damit die Anzeige nicht mitwandert.
+  if (!_vxHeuteVisitWritten && vxHeuteIsHeuteTabVisible()) {
+    _vxHeuteVisitWritten = true;
+    vxHeuteStampVisitNow();
+  }
+  return _vxHeuteVisitRef;
+}
+function vxHeuteSpellNumber(n) {
+  var words = ['null','ein','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn','elf','zwölf'];
+  return (n >= 0 && n < words.length) ? words[n] : String(n);
+}
+function vxHeuteFormatVisitTime(d) {
+  if (!d) return null;
+  try { return TIME_FORMAT_CH.format(d); } catch (e) {
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+}
+// [BUGFIX] Die Sektionen dürfen NICHT am "seit letztem Besuch"-Fenster
+// hängen. Ein Anruf, der vor dem letzten Stempel eingegangen ist, wäre sonst
+// dauerhaft unsichtbar — genau der gemeldete Fehler ("Anfragen zeigt den
+// Anruf, Heute sagt 'Alles im Griff'"). Grundmenge ist deshalb der heutige
+// Tag; das Besuchsfenster steuert nur noch den Wortlaut der Delta-Nachricht.
+//
+// Für die Task-Erkennung wird bewusst isManualTaskRecord() (die
+// massgebliche Prüfung) verwendet und nicht die lose Heuristik
+// vxHeuteIsManualTask(), die jeden Anruf mit gesetztem due_at/owner
+// fälschlich als Aufgabe einstuft und damit aus Heute entfernen würde.
+function vxHeuteIsHandoverCall(record) {
+  if (!record) return false;
+  try { if (typeof isManualTaskRecord === 'function' && isManualTaskRecord(record)) return false; } catch (e) {}
+  if (typeof isCustomerVisibleCall === 'function' && !isCustomerVisibleCall(record)) return false;
+  if (vxHeuteIsOutboundOrTestRecord(record)) return false;
+  return true;
+}
+function vxHeuteGetHandoverCalls(sourceRecords) {
+  var source = Array.isArray(sourceRecords) ? sourceRecords : [];
+  return vxHeuteDedupeByStableId(source).filter(function(r) {
+    if (!vxHeuteIsHandoverCall(r)) return false;
+    // Offene Anrufe von heute UND heute abgeschlossene Anrufe.
+    return vxHeuteRecordCreatedToday(r) || vxHeuteRecordCompletedToday(r);
+  });
+}
+function vxHeuteCountSinceVisit(calls, visitRef) {
+  if (!visitRef) return (calls || []).length;
+  return (calls || []).filter(function(r) {
+    var d = vxHeuteParseDate(vxHeuteGetTimestamp(r, ['created_at','inserted_at']));
+    return !!d && d.getTime() > visitRef.getTime();
+  }).length;
+}
+function vxHeuteCapitalize(word) {
+  return word ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+}
+// Die Nachricht muss in jeder Kombination zu den sichtbaren Karten passen.
+// Heikel ist der Fall "0 neu, aber N weiterhin offen": ein Zustandssatz im
+// Stil von "bei drei brauche ich dich kurz" liest sich dort so, als wären
+// die drei gerade erst eingegangen. Deshalb wird bei 0 neuen Anrufen
+// ausdrücklich von "weiterhin offen" gesprochen.
+//
+// Ebenso darf die Erledigt-Zahl nicht als Teilmenge der neuen Anrufe
+// klingen (erledigt zählt den ganzen Tag, neu nur seit dem Besuch) —
+// daher "warten auf dich" statt "davon … erledigt".
+function vxHeuteCallPhrase(count) {
+  return count === 1 ? 'ist ein Anruf' : 'sind ' + vxHeuteSpellNumber(count) + ' Anrufe';
+}
+function vxHeuteOpenPhrase(needsCount) {
+  return needsCount === 1
+    ? 'ein Punkt, der dich braucht'
+    : vxHeuteSpellNumber(needsCount) + ' Punkte, die dich brauchen';
+}
+function vxHeuteBuildLaraMessage(visitRef, todayTotal, newCount, resolvedCount, needsCount) {
+  // Nichts von heute — echter Leerzustand.
+  if (todayTotal === 0) return 'Heute ist noch nichts eingegangen. Ich melde mich, sobald ein Anruf reinkommt.';
+
+  var timeStr = vxHeuteFormatVisitTime(visitRef);
+  var since = timeStr ? ('Seit deinem letzten Besuch um ' + timeStr) : 'Heute';
+
+  // Keine neuen Anrufe seit dem letzten Besuch.
+  if (newCount === 0) {
+    var head = timeStr ? 'Nichts Neues seit deinem letzten Besuch um ' + timeStr + '.' : 'Heute ist nichts Neues eingegangen.';
+    if (needsCount === 0) return head + ' Alles von heute ist erledigt – nichts braucht dich.';
+    return head + ' Weiterhin offen: ' + vxHeuteOpenPhrase(needsCount) + '.';
+  }
+
+  // Neue Anrufe seit dem letzten Besuch.
+  var intro = since + ' ' + vxHeuteCallPhrase(newCount) + ' eingegangen.';
+  if (needsCount === 0) {
+    return intro + ' ' + (newCount === 1 ? 'Den habe ich' : 'Alle habe ich') + ' selbst erledigt – nichts braucht dich.';
+  }
+  var waiting = needsCount === 1 ? 'Einer wartet' : vxHeuteCapitalize(vxHeuteSpellNumber(needsCount)) + ' warten';
+  if (resolvedCount === 0) return intro + ' ' + waiting + ' auf dich.';
+  return intro + ' ' + waiting + ' auf dich, '
+    + (resolvedCount === 1 ? 'einen' : vxHeuteSpellNumber(resolvedCount)) + ' habe ich selbst erledigt.';
+}
+// [BUGFIX] vxHeuteActivityTime()/vxHeuteActivityTimestamp() (verwendet von
+// der alten, jetzt versteckten "Heute passiert"-Chronologie) ziehen
+// "updated_at" VOR "created_at" in die Zeitpräferenz. Anfragen tut das nicht
+// — offene Einträge zeigen dort ausschliesslich getRecordTimestamp()
+// (= fields.created_at), abgeschlossene nur completed_at/closed_at/done_at/
+// archived_at, sonst created_at (siehe renderAnrufeInbox()). Wich ein
+// Backend-Prozess "updated_at" auf einen Zeitpunkt in einer anderen
+// Zeitzone-Repräsentation setzt, zeigte die Braucht-dich/Hat-sich-erledigt-
+// Karte dadurch eine andere Uhrzeit als Anfragen für denselben Anruf — nicht
+// weil die Formatierung falsch war (beide nutzen TIME_FORMAT_CH/Europe
+// Zürich), sondern weil das falsche Feld gewählt wurde. Diese Funktion
+// spiegelt exakt die Feldpräferenz von Anfragen.
+function vxHeuteHandoverCardTimestamp(record, variant) {
+  if (variant === 'resolved') {
+    return vxHeuteGetTimestamp(record, ['completed_at','closed_at','done_at','archived_at','created_at','inserted_at']);
+  }
+  return vxHeuteGetTimestamp(record, ['created_at','inserted_at']);
+}
+function vxHeuteHandoverCardTime(record, variant) {
+  var d = vxHeuteParseDate(vxHeuteHandoverCardTimestamp(record, variant));
+  if (!d) return '';
+  try { return TIME_FORMAT_CH.format(d); } catch (e) {
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+}
+function vxHeuteHandoverCardHtml(rec, variant) {
+  var id = String((rec && rec.id) || vxHeuteGetRecordValue(rec, ['id','call_id']) || '');
+  var phone = String(vxHeuteGetRecordValue(rec, ['caller_phone','phone_number','phone']) || '').trim();
+  var title = vxHeuteRecordTitle(rec);
+  var summary = vxHeuteHandoverDescription(rec);
+  var time = vxHeuteHandoverCardTime(rec, variant);
+  if (variant === 'needs') {
+    return '<article class="vx-handover-card vx-handover-card--needs" data-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'"'
+      + ' role="button" tabindex="0" onclick="vxHeuteCardClick(event,this);">'
+      + '<div class="vx-handover-card-body">'
+      + '<div class="vx-handover-card-icon" aria-hidden="true"><i class="ph-bold ph-phone"></i></div>'
+      + '<div class="vx-handover-card-main">'
+      + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
+      + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
+      + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
+      + (phone ? '<div class="vx-handover-card-actions">'
+        + '<button type="button" class="vx-handover-btn vx-handover-btn--primary" data-action="call" data-rec-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">Zurückrufen</button>'
+        + '</div>' : '')
+      + '</div></div></article>';
+  }
+  return '<article class="vx-handover-card vx-handover-card--resolved" data-id="'+_esc(id)+'"'
+    + ' role="button" tabindex="0" onclick="vxHeuteCardClick(event,this);">'
+    + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
+    + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
+    + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
+    + '</article>';
+}
+// Ganze Karte klickbar → Detailansicht. Der "Zurückrufen"-Button innerhalb
+// der Karte behält seinen eigenen data-action="call"-Handler: Klicks darauf
+// laufen bereits über die globale dprAction()-Delegation
+// (document.addEventListener('click', vxHandleDprButtonClick, true)), die
+// per closest()-Auflösung die Karten-Navigation gar nicht erst erreicht.
+// Der Guard unten ist zusätzliche, explizite Absicherung (Äquivalent zu
+// stopPropagation), falls sich diese Delegation künftig ändert.
+function vxHeuteCardClick(event, cardEl) {
+  if (event && event.target && event.target.closest && event.target.closest('button, a')) return;
+  var recId = cardEl && cardEl.dataset ? cardEl.dataset.id : '';
+  if (!recId) return;
+  if (typeof dprAction === 'function') dprAction('detail', recId);
+}
+function vxHeuteScrollToAnfragen(event) {
+  if (event) event.preventDefault();
+  vxGoToAnfragenFilter('alle');
+}
+function vxHeuteRenderLaraHandover(sourceRecords) {
+  var msgEl = document.getElementById('dash-lara-text');
+  var metaEl = document.getElementById('dash-lara-meta');
+  var needsSection = document.getElementById('dash-needs-you-section');
+  var needsList = document.getElementById('dash-needs-you-list');
+  var needsCountEl = document.getElementById('dash-needs-you-count');
+  var allClearSection = document.getElementById('dash-all-clear-section');
+  var resolvedSection = document.getElementById('dash-resolved-section');
+  var resolvedList = document.getElementById('dash-resolved-list');
+  var resolvedCountEl = document.getElementById('dash-resolved-count');
+  var footLink = document.getElementById('dash-anfragen-link');
+  if (!msgEl) return;
+
+  var visitRef = vxHeuteResolveVisitReference();
+  var todayCalls = vxHeuteGetHandoverCalls(sourceRecords);
+  var needsRecords = todayCalls.filter(function(r) { return !vxHeuteIsDoneRecord(r); })
+    .sort(function(a,b){ return (new Date(vxHeuteGetTimestamp(b,['created_at','inserted_at'])||0).getTime()) - (new Date(vxHeuteGetTimestamp(a,['created_at','inserted_at'])||0).getTime()); });
+  var resolvedRecords = todayCalls.filter(vxHeuteIsDoneRecord)
+    .sort(function(a,b){ return (new Date(vxHeuteHandoverCardTimestamp(b,'resolved')||0).getTime()) - (new Date(vxHeuteHandoverCardTimestamp(a,'resolved')||0).getTime()); });
+  var newCount = vxHeuteCountSinceVisit(todayCalls, visitRef);
+
+  if (typeof vxDebugLog === 'function') {
+    vxDebugLog('[heute:handover]', {
+      source: (sourceRecords || []).length,
+      todayCalls: todayCalls.length,
+      needs: needsRecords.length,
+      resolved: resolvedRecords.length,
+      newSinceVisit: newCount,
+      visitRef: visitRef ? visitRef.toISOString() : null
+    });
+  }
+
+  msgEl.textContent = vxHeuteBuildLaraMessage(visitRef, todayCalls.length, newCount, resolvedRecords.length, needsRecords.length);
+  if (metaEl) {
+    var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
+    metaEl.textContent = assistantName + ' · gerade eben';
+  }
+
+  var hasNeeds = needsRecords.length > 0;
+  if (needsSection) needsSection.hidden = !hasNeeds;
+  if (allClearSection) allClearSection.hidden = hasNeeds;
+  if (hasNeeds && needsList) {
+    if (needsCountEl) needsCountEl.textContent = String(needsRecords.length);
+    vxSetHtmlIfChanged(needsList, needsRecords.map(function(r){ return vxHeuteHandoverCardHtml(r, 'needs'); }).join(''));
+  }
+
+  var hasResolved = resolvedRecords.length > 0;
+  if (resolvedSection) resolvedSection.hidden = !hasResolved;
+  if (hasResolved && resolvedList) {
+    if (resolvedCountEl) resolvedCountEl.textContent = String(resolvedRecords.length);
+    vxSetHtmlIfChanged(resolvedList, resolvedRecords.map(function(r){ return vxHeuteHandoverCardHtml(r, 'resolved'); }).join(''));
+  }
+
+  if (footLink) footLink.hidden = !(hasNeeds || hasResolved);
   refreshLucideIcons();
 }
 
@@ -21413,6 +21885,7 @@ function renderDashboard(records, manualTasks) {
     vxHeuteRenderScopedList('dash-today-calls-list','dash-today-calls-section','dash-today-calls-count', heuteTodayCallRecords, 'Heute gab es noch keine Anrufe.');
     vxHeuteRenderScopedList('dash-today-done-list','dash-today-done-section','dash-today-done-count', heuteDoneRecords, 'Heute wurde noch nichts erledigt.');
   }
+  if (typeof vxHeuteRenderLaraHandover === 'function') vxHeuteRenderLaraHandover(heuteViewSource);
 
   var reach = getReachabilityStatus(records);
 
@@ -22544,10 +23017,22 @@ function vxGetAnfragenSourceRecords() {
     return isManualTaskRecord(r) || isCustomerVisibleCall(r);
   });
 }
+// [BUGFIX] Laufende Anrufe (Live-Phase) sollen laut Lebenszyklus-Definition
+// noch nicht als eigenes Datenobjekt zählen — vxGetEntryCounts() kannte
+// diese Ausnahme nicht, wodurch die Nav-Badge z.B. "1" zeigte, obwohl beim
+// Öffnen von Anfragen nichts Neues sichtbar war (die Liste selbst filtert
+// Live-Calls bereits korrekt heraus, die Zähler aber nicht). Gleiche
+// Filterung wie in den bereits korrekten vxHeute*-Funktionen
+// (vxGetHeuteTodayCallRecords → vxHeuteDedupeByStableId → vxIsLiveCall).
+function vxGetAnfragenCountSourceRecords() {
+  var source = vxGetAnfragenSourceRecords();
+  if (typeof vxIsLiveCall !== 'function') return source;
+  return source.filter(function(r) { return !vxIsLiveCall(r); });
+}
 
 // [v3.4] Anfragen-Nav-Badge folgt dem echten Ungelesen-State (read_at), nicht nur dem alten Seen-Storage.
 function vxUpdateAnfragenNavBadges(countsOverride) {
-  var source = (typeof vxGetAnfragenSourceRecords === 'function') ? vxGetAnfragenSourceRecords() : [];
+  var source = (typeof vxGetAnfragenCountSourceRecords === 'function') ? vxGetAnfragenCountSourceRecords() : [];
   var counts = countsOverride || ((typeof vxGetEntryCounts === 'function') ? vxGetEntryCounts(source) : null) || {};
   var unreadCount = Number(counts.unreadNew || 0);
   var badgeA = document.getElementById('badge-anrufe');
@@ -22559,7 +23044,7 @@ function vxUpdateAnfragenNavBadges(countsOverride) {
 
 // [v2.64] Header-Zähler für Unified Inbox — zählt Calls UND Tasks
 function vxUpdateAnfragenCount() {
-  var source = (typeof vxGetAnfragenSourceRecords === 'function') ? vxGetAnfragenSourceRecords() : [];
+  var source = (typeof vxGetAnfragenCountSourceRecords === 'function') ? vxGetAnfragenCountSourceRecords() : [];
   var counts = (typeof vxGetEntryCounts === 'function') ? vxGetEntryCounts(source) : { new:0, planned:0, done:0, unreadNew:0, total:0 };
 
   vxDebugLog('[anfragen:entry-count-source]', {
@@ -41322,6 +41807,11 @@ body:has(#tab-archiv.active) .content{
   window.vxIsUnreadEligibleRecord = function(record){
     if (!record) return false;
     try { if (typeof window.isManualTaskRecord === 'function' && window.isManualTaskRecord(record)) return false; } catch(e) {}
+    // [BUGFIX] Laufende Anrufe (Live-Phase) sollen laut Lebenszyklus-Definition
+    // noch nicht als Datenobjekt zählen. Direkt hier geprüft (nicht nur an der
+    // Quelle in getSource()), damit die Regel unabhängig davon gilt, welcher
+    // Aufrufer diese Funktion mit welchen Records erreicht.
+    try { if (typeof window.vxIsLiveCall === 'function' && window.vxIsLiveCall(record)) return false; } catch(e) {}
     if (isDoneOrArchived(record)) return false;
     if (isPlanned(record)) return false;
     return true;
@@ -41356,6 +41846,14 @@ body:has(#tab-archiv.active) .content{
   };
 
   function getSource(){
+    // [BUGFIX] Dieses PR-I2-Patch überschreibt window.vxUpdateAnfragenNavBadges
+    // weiter unten komplett — der Live-Call-Ausschluss in
+    // vxGetAnfragenCountSourceRecords() (siehe vxGetAnfragenSourceRecords())
+    // griff dadurch nie, weil getSource() bislang die ungefilterte
+    // vxGetAnfragenSourceRecords() direkt aufrief. Die Badge zeigte deshalb
+    // weiterhin "1", solange ein Anruf noch lief. vxGetAnfragenCountSourceRecords()
+    // hat zur Laufzeit garantiert Vorrang (definiert deutlich früher im Script).
+    try { if (typeof window.vxGetAnfragenCountSourceRecords === 'function') return window.vxGetAnfragenCountSourceRecords() || []; } catch(e) {}
     try { if (typeof window.vxGetAnfragenSourceRecords === 'function') return window.vxGetAnfragenSourceRecords() || []; } catch(e) {}
     var calls=[]; var tasks=[];
     try { calls = Array.isArray(window.allRecords) ? window.allRecords : []; } catch(e) {}
