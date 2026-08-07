@@ -41722,6 +41722,11 @@ body:has(#tab-archiv.active) .content{
   window.vxIsUnreadEligibleRecord = function(record){
     if (!record) return false;
     try { if (typeof window.isManualTaskRecord === 'function' && window.isManualTaskRecord(record)) return false; } catch(e) {}
+    // [BUGFIX] Laufende Anrufe (Live-Phase) sollen laut Lebenszyklus-Definition
+    // noch nicht als Datenobjekt zählen. Direkt hier geprüft (nicht nur an der
+    // Quelle in getSource()), damit die Regel unabhängig davon gilt, welcher
+    // Aufrufer diese Funktion mit welchen Records erreicht.
+    try { if (typeof window.vxIsLiveCall === 'function' && window.vxIsLiveCall(record)) return false; } catch(e) {}
     if (isDoneOrArchived(record)) return false;
     if (isPlanned(record)) return false;
     return true;
@@ -41756,6 +41761,14 @@ body:has(#tab-archiv.active) .content{
   };
 
   function getSource(){
+    // [BUGFIX] Dieses PR-I2-Patch überschreibt window.vxUpdateAnfragenNavBadges
+    // weiter unten komplett — der Live-Call-Ausschluss in
+    // vxGetAnfragenCountSourceRecords() (siehe vxGetAnfragenSourceRecords())
+    // griff dadurch nie, weil getSource() bislang die ungefilterte
+    // vxGetAnfragenSourceRecords() direkt aufrief. Die Badge zeigte deshalb
+    // weiterhin "1", solange ein Anruf noch lief. vxGetAnfragenCountSourceRecords()
+    // hat zur Laufzeit garantiert Vorrang (definiert deutlich früher im Script).
+    try { if (typeof window.vxGetAnfragenCountSourceRecords === 'function') return window.vxGetAnfragenCountSourceRecords() || []; } catch(e) {}
     try { if (typeof window.vxGetAnfragenSourceRecords === 'function') return window.vxGetAnfragenSourceRecords() || []; } catch(e) {}
     var calls=[]; var tasks=[];
     try { calls = Array.isArray(window.allRecords) ? window.allRecords : []; } catch(e) {}
