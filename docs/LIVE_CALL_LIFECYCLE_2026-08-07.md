@@ -294,15 +294,14 @@ Anrufe nicht als „Braucht dich"-Karte erscheinen, hängt allein daran, dass di
 Übergabe mit der bereits gefilterten `vxGetAnfragenSourceRecords()` gespeist wird.
 Durch einen Test festgehalten.
 
-### Offener Widerspruch: zwei Prädikate für dieselbe Regel
+### Widerspruch behoben: ein Prädikat für die Regel (Nachtrag Live-Test)
 
-#822 filtert laufende Anrufe über `vxIsLiveCall()` (in
-`vxGetAnfragenCountSourceRecords()` und `vxIsUnreadEligibleRecord()`), dieser PR
-über `vxIsCallInLivePhase()`. Die beiden ziehen die Grenze unterschiedlich:
-`vxIsLiveCall()` zählt auch `processing` und `in_progress` mit, also die Phase
-**nach** dem Auflegen.
+#822 filterte laufende Anrufe über `vxIsLiveCall()` (in
+`vxGetAnfragenCountSourceRecords()` und `vxIsUnreadEligibleRecord()`), dieser PR über
+`vxIsCallInLivePhase()`. Die beiden zogen die Grenze unterschiedlich: `vxIsLiveCall()`
+zählt auch `processing` und `in_progress` mit, also die Phase **nach** dem Auflegen.
 
-Gemessen am gemergten Stand:
+Vor der Korrektur, gemessen am gemergten Stand:
 
 | Phase | Anfragen-Liste | „Braucht dich" | Zähler/Badge | unread |
 |---|---|---|---|---|
@@ -310,14 +309,84 @@ Gemessen am gemergten Stand:
 | `processing` (aufgelegt) | **1** | **1** | **0** | **false** |
 | `completed` | 1 | 1 | 1 | true |
 
-In der `processing`-Phase ist der Eintrag also sichtbar, wird aber nicht gezählt —
-dieselbe Klasse von Fehler, die #822 beheben wollte, nur umgekehrt. Nach der
-Lebenszyklus-Definition („Eintrag entsteht beim Auflegen") müsste `processing`
-zählen; die Auflösung wäre, #822s beide Filter auf `vxIsCallInLivePhase()` zu
-ziehen. Das ändert jedoch das ausgelieferte Verhalten von #822 und ist deshalb
-hier **bewusst nicht** vorgenommen, sondern zur Entscheidung gestellt.
+In der `processing`-Phase war der Eintrag sichtbar, wurde aber nicht gezählt —
+dieselbe Fehlerklasse, die #822 beheben wollte, nur umgekehrt.
 
-## 8. Testplan Deploy-Preview
+**Auf Wunsch nachgezogen statt zurückgestellt:** beide Stellen ziehen jetzt
+`vxIsCallInLivePhase()` statt `vxIsLiveCall()` —
+`vxGetAnfragenCountSourceRecords()` (`index.html:23054`) und
+`vxIsUnreadEligibleRecord()` (`index.html:41834`, PR-I2-Block). Nach der
+Korrektur, gleiche Messung:
+
+| Phase | Anfragen-Liste | „Braucht dich" | Zähler/Badge | unread |
+|---|---|---|---|---|
+| `active` | 0 | 0 | 0 | false |
+| `processing` | 1 | 1 | **1** | **true** |
+| `completed` | 1 | 1 | 1 | true |
+
+Konsistent in allen drei Phasen. `vxIsLiveCall()` selbst bleibt unverändert und wird
+weiterhin an anderer Stelle für einen anderen Zweck verwendet — Deduplizierung
+mehrerer Datensatz-Fragmente desselben physischen Anrufs
+(`vxGetLiveCallIdSet()`/`vxIsExcludedNormalCall()`/`vxHeuteDedupeByStableId()`) und
+die Ton-Gate in `vxMaybePlayLiveCallSound()`. Das ist eine andere Frage als „ist das
+ein Eintrag" und bewusst nicht angefasst.
+
+Regressionstest `the Anfragen nav badge counts exactly what the list and the
+handover show` hält fest: `vxGetAnfragenCountSourceRecords()` muss Element für
+Element mit `vxGetAnfragenSourceRecords()` übereinstimmen.
+
+## 8. Nachträge aus dem Live-Test
+
+### 8.1 „Neuer Anruf"-Banner: verankert statt frei schwebend
+
+Der im Live-Test gesehene Hinweis mit Namen und grünem Punkt ist `#incoming-banner`
+(nicht `vxToast()`, das weiterhin nirgends implementiert ist — siehe Abschnitt 6).
+Er stand `position:fixed; top:16px; left:50%` — zentriert auf den **vollen Viewport
+inklusive der 232px breiten Sidebar**. Dadurch:
+
+- horizontal versetzt gegenüber dem eigentlichen Content-Bereich (Zentrum bei 640px
+  Viewportmitte statt 756px Content-Mitte bei 1280px Breite),
+- vertikal überlappend mit dem `.vx-appbar`-Titel („Heute" o.ä.), da `top:16px` mitten
+  in die Appbar-Zeile fiel (Appbar: `top:24px`, Höhe 56px),
+- ohne Bezug zu einem festen Element — die Glocke sitzt links oben in der Sidebar
+  (`#vx-sidebar-bell-item`), ganz woanders.
+
+**Fix:** horizontal auf den Content-Bereich zentriert (`calc(232px + (100vw -
+232px) / 2)`), vertikal unterhalb der Appbar verankert (`top:96px`, Appbar endet bei
+80px). Die beiden Breakpoints, in denen die Sidebar durch den 60px hohen
+`.mobile-header` ersetzt wird (`max-width:768px`, `max-height:500px` + Querformat),
+docken entsprechend um (`left:50%`, `top:76px` bzw. `68px`).
+
+Verifiziert in echtem Chromium nach Animationsende (`Animation.finished`), drei
+Breakpoints:
+
+| Breakpoint | Sidebar | Banner-Position | Überlappt Header |
+|---|---|---|---|
+| Desktop 1280×800 | sichtbar | zentriert auf Content, 0px Differenz | nein |
+| Mobile 390×844 (Portrait) | ausgeblendet | zentriert auf vollen Viewport, 0px Differenz | nein |
+| Mobile 844×390 (Querformat) | ausgeblendet | zentriert auf vollen Viewport, 0px Differenz | nein |
+
+Der Banner überlappt weiterhin Inhalte **unterhalb** der Appbar (z. B. die
+Lara-Nachricht) — das ist normales Toast-Verhalten (Overlay mit Schatten,
+`z-index:9990`, 8s Auto-Dismiss) und nicht Teil der gemeldeten Beobachtung, die sich
+konkret auf die Überlappung mit dem Header und die fehlende Verankerung bezog.
+
+### 8.2 Zahlen-Badge auf „Anfragen": eingeplant, jetzt korrekt
+
+Der Sidebar-Badge auf „Anfragen" (`#badge-anrufe`) ist kein Nebeneffekt dieses PRs,
+sondern ein bestehendes Feature: er zeigt die Anzahl ungelesener (`read_at`
+unbesetzt) Einträge in Anfragen, gespeist von `vxIsUnreadRecord()` /
+`vxIsUnreadEligibleRecord()` — Teil des PR-I2-„unread-Source-of-truth"-Blocks aus
+einer früheren Iteration, nicht aus #822 oder diesem PR.
+
+Was tatsächlich mit diesem Fenster zusammenhängt: `vxIsUnreadEligibleRecord()`
+enthält seit #822 denselben Live-Phasen-Ausschluss wie oben beschrieben und war von
+demselben `vxIsLiveCall()`/`vxIsCallInLivePhase()`-Widerspruch betroffen — ein
+gerade aufgelegter Anruf zählte nicht als „ungelesen", obwohl er in Liste und
+Übergabe bereits sichtbar war. Mit der Korrektur in 7. behoben, siehe Tabelle dort
+(Spalte „unread").
+
+## 9. Testplan Deploy-Preview
 
 - [ ] Während eines laufenden Anrufs: Hinweis blendet einmal ein und steht danach ruhig
 - [ ] Kein Karten-Eintrag in "Aufmerksamkeit", "Anrufe heute", "Heute passiert", Anfragen

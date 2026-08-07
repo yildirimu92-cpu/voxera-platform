@@ -157,6 +157,7 @@ function buildSandbox() {
     'vxHeuteDedupeByStableId',
     'vxHeuteIsHandoverCall',
     'vxHeuteGetHandoverCalls',
+    'vxGetAnfragenCountSourceRecords',
     'vxGetLivePhaseCalls',
     'vxAnnounceLivePhaseCalls',
     'updateLiveHero',
@@ -224,6 +225,28 @@ test('no entry list contains a call that is still on the line', () => {
     const ids = Array.from(got, (r) => r.id);
     assert.deepEqual(ids, ['call-ended', 'call-done'], name + ' must drop live-phase calls and keep ended ones');
   }
+});
+
+test('the Anfragen nav badge counts exactly what the list and the handover show', () => {
+  // PR #822 introduced vxGetAnfragenCountSourceRecords() (feeding the sidebar nav
+  // badge / header counts) as a second filter alongside vxGetAnfragenSourceRecords()
+  // (feeding the list and the handover cards), but built it on vxIsLiveCall() —
+  // which also covers processing/in_progress, i.e. the phase AFTER hangup. That made
+  // a just-ended call visible in the list and the "Braucht dich" card while the
+  // counter stayed at 0 for it: the same class of bug #822 was fixing, mirrored.
+  // Both must now walk the same vxIsCallInLivePhase() boundary.
+  const { sandbox } = buildSandbox();
+  const records = [
+    call('call-live', 'active'),
+    call('call-ended', 'processing'),
+    call('call-done', 'completed'),
+  ];
+  sandbox.allRecords = records;
+
+  const listIds = Array.from(sandbox.vxGetAnfragenSourceRecords(), (r) => r.id);
+  const countIds = Array.from(sandbox.vxGetAnfragenCountSourceRecords(), (r) => r.id);
+  assert.deepEqual(listIds, ['call-ended', 'call-done']);
+  assert.deepEqual(countIds, listIds, 'the count source must match the list source exactly — same predicate, same boundary');
 });
 
 test('the Lara handover ("Braucht dich") shows no card while the line is open', () => {

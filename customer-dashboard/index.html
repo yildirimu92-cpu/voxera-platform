@@ -1281,8 +1281,17 @@ body{
   color:var(--blue);
 }
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 2s infinite;}
+/* [2026-08-07] War zentriert auf den vollen Viewport (left:50%), obwohl die
+   232px breite Sidebar nur auf Desktop existiert -- der Banner schwebte
+   dadurch ueber den Content, teils ueberlappend mit dem "Heute"-Appbar-Titel,
+   und ohne Bezug zu einem festen Element (Glocke sitzt links oben in der
+   Sidebar, ganz woanders). Jetzt ueber dem Content-Bereich zentriert (rechts
+   der Sidebar) und unterhalb des Appbars verankert; die beiden Breakpoints
+   unten, in denen die Sidebar durch den Mobile-Header ersetzt wird, docken
+   entsprechend um. */
 .incoming-banner{
-  display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  display:none;position:fixed;top:96px;
+  left:calc(232px + (100vw - 232px) / 2);transform:translateX(-50%);
   z-index:9990;
   background:rgba(17,24,39,0.92);
   border:0.5px solid rgba(255,255,255,0.12);
@@ -2110,6 +2119,10 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .topbar{padding:12px 16px!important;}
   .topbar-right{display:none;}
   .content{padding:18px;padding-bottom:110px;}
+  /* Sidebar entfaellt hier zugunsten von .mobile-header (60px hoch) --
+     Banner wieder auf den vollen Viewport zentrieren und unter diesem
+     Header andocken statt unter dem (hier ausgeblendeten) Desktop-Appbar. */
+  .incoming-banner{left:50%;top:76px;}
   .kpi-grid{grid-template-columns:1fr;gap:10px;}
   .kpi{padding:16px;}
   .kpi-val{font-size:28px;}
@@ -2451,6 +2464,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .main{margin-left:0!important;}
   .mobile-nav{display:block!important;}
   .content{padding-bottom:80px!important;}
+  /* Landscape-Mobile-Header ist hier 52px hoch (siehe .mobile-header-Regel
+     im selben Breakpoint weiter unten). */
+  .incoming-banner{left:50%;top:68px;}
 }
 
 
@@ -23021,13 +23037,24 @@ function vxGetAnfragenSourceRecords() {
 // noch nicht als eigenes Datenobjekt zählen — vxGetEntryCounts() kannte
 // diese Ausnahme nicht, wodurch die Nav-Badge z.B. "1" zeigte, obwohl beim
 // Öffnen von Anfragen nichts Neues sichtbar war (die Liste selbst filtert
-// Live-Calls bereits korrekt heraus, die Zähler aber nicht). Gleiche
-// Filterung wie in den bereits korrekten vxHeute*-Funktionen
-// (vxGetHeuteTodayCallRecords → vxHeuteDedupeByStableId → vxIsLiveCall).
+// Live-Calls bereits korrekt heraus, die Zähler aber nicht).
+//
+// [2026-08-07] Prädikat auf vxIsCallInLivePhase() gezogen. Vorher stand hier
+// vxIsLiveCall(), das auch processing/in_progress mitzählt — also die Phase
+// NACH dem Auflegen. Dadurch war ein aufgelegter Anruf in Liste und
+// "Braucht dich"-Karte sichtbar, wurde aber nicht gezählt: derselbe
+// Widerspruch, den dieser Filter beheben sollte, nur umgekehrt. Liste,
+// Karten und Zähler benutzen jetzt dieselbe Definition von "live", und die
+// Grenze liegt dort, wo die Lebenszyklus-Definition sie zieht — beim
+// Auflegen.
+//
+// Die Filterung ist seit vxGetAnfragenSourceRecords() ohnehin an der Quelle
+// erledigt; dieser zweite Durchlauf bleibt als Absicherung für Aufrufer, die
+// die Funktion direkt erreichen.
 function vxGetAnfragenCountSourceRecords() {
   var source = vxGetAnfragenSourceRecords();
-  if (typeof vxIsLiveCall !== 'function') return source;
-  return source.filter(function(r) { return !vxIsLiveCall(r); });
+  if (typeof vxIsCallInLivePhase !== 'function') return source;
+  return source.filter(function(r) { return !vxIsCallInLivePhase(r); });
 }
 
 // [v3.4] Anfragen-Nav-Badge folgt dem echten Ungelesen-State (read_at), nicht nur dem alten Seen-Storage.
@@ -41811,7 +41838,13 @@ body:has(#tab-archiv.active) .content{
     // noch nicht als Datenobjekt zählen. Direkt hier geprüft (nicht nur an der
     // Quelle in getSource()), damit die Regel unabhängig davon gilt, welcher
     // Aufrufer diese Funktion mit welchen Records erreicht.
-    try { if (typeof window.vxIsLiveCall === 'function' && window.vxIsLiveCall(record)) return false; } catch(e) {}
+    // [2026-08-07] vxIsLiveCall() -> vxIsCallInLivePhase(): vxIsLiveCall()
+    // zählt auch processing/in_progress mit, also nach dem Auflegen, und war
+    // damit strenger als die Lebenszyklus-Definition selbst — ein bereits
+    // aufgelegter Anruf blieb "ungelesen"-unfähig, obwohl er längst als
+    // Eintrag existierte. Dieselbe Definition wie überall sonst im
+    // Lebenszyklus: die Grenze liegt beim Auflegen, nicht danach.
+    try { if (typeof window.vxIsCallInLivePhase === 'function' && window.vxIsCallInLivePhase(record)) return false; } catch(e) {}
     if (isDoneOrArchived(record)) return false;
     if (isPlanned(record)) return false;
     return true;
