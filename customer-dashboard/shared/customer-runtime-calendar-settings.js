@@ -17,7 +17,7 @@
     if (!main || !tab) return false;
 
     if (!document.getElementById('vx-calendar-settings-entry')) {
-      const list = main.querySelector('.vx-page-header')?.nextElementSibling;
+      const list = main.querySelector('.vx-settings-list') || main.querySelector('.vx-appbar')?.nextElementSibling;
       if (list) {
         const entry = document.createElement('button');
         entry.type = 'button';
@@ -36,9 +36,17 @@
       page.id = 'mehr-sub-kalender';
       page.className = 'vx-cal-page';
       page.hidden = true;
-      page.innerHTML = '<div class="vx-page-header vx-cal-page-header"><button type="button" class="vx-back-btn vx-cal-back" data-cal-back aria-label="Zurück zu Einstellungen"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><div class="vx-cal-header-copy"><div class="vx-page-header-title">Kalenderintegration</div><div class="vx-page-header-subtitle vx-cal-header-subtitle">Kalender sicher mit Voxera verbinden.</div></div></div><div id="vx-calendar-page-body"></div>';
+      page.innerHTML = (root.VoxeraUI
+        ? root.VoxeraUI.appBar({ title: 'Kalenderintegration', back: { label: 'Zurück zu Einstellungen' } })
+        : '<header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Kalenderintegration</h1></header>'
+      ) + '<div id="vx-calendar-page-body"></div>';
       tab.appendChild(page);
-      page.querySelector('[data-cal-back]').addEventListener('click', back);
+      const backButton = page.querySelector('.vx-appbar-back');
+      backButton.setAttribute('data-cal-back', '');
+      backButton.addEventListener('click', () => {
+        if (typeof root.vxScreenBack === 'function') root.vxScreenBack(back);
+        else back();
+      });
     }
     return true;
   }
@@ -240,6 +248,10 @@
       page.hidden = true;
       main.hidden = false;
     }
+    // The calendar page opens outside vxMehrShow, so it registers itself with
+    // the shared sub-screen history that the .vx-appbar back arrow uses.
+    if (isOpen) root.vxScreenNav?.enter('mehr:kalender');
+    else root.vxScreenNav?.exit('mehr:kalender');
     return true;
   }
 

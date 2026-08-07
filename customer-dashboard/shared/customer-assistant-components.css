@@ -835,31 +835,9 @@ body.vx-customer-design-foundation #tab-assistent.vx-unified-assistant-root {
   padding-bottom: var(--vx-space-6);
 }
 
-body.vx-customer-design-foundation .vx-assistant-root-header {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  margin-bottom: var(--vx-space-4);
-  padding: 26px 30px;
-  border-radius: var(--vx-radius-panel);
-  background: var(--vx-brand-dark);
-  color: #ffffff;
-  box-shadow: var(--vx-shadow-panel);
-}
-
-body.vx-customer-design-foundation .vx-assistant-root-title {
-  font-family: var(--vx-font-ui);
-  font-size: 30px;
-  font-weight: 780;
-  line-height: 1.1;
-  letter-spacing: -0.025em;
-}
-
-body.vx-customer-design-foundation .vx-assistant-root-subtitle {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 15px;
-  line-height: 1.45;
-}
+/* The assistant root header is the shared .vx-appbar (owned by
+   customer-navigation-components.css). The dark panel it used to be — and
+   its title/subtitle pair — was deleted with Navigation Etappe 2. */
 
 #vx-assistant-root-host {
   display: block;
@@ -874,7 +852,10 @@ body.vx-customer-design-foundation .vx-assistant-root-subtitle {
   display: block;
 }
 
-#vx-assistant-root-host > [data-vx-assistant-managed-page] > .vx-page-header,
+/* The assistant views are sections of the assistant root screen, reached
+   through the switch below the app bar — they never render a header or a
+   back arrow of their own. */
+#vx-assistant-root-host > [data-vx-assistant-managed-page] > .vx-appbar,
 #tab-assistent [data-vx-ap-back],
 #tab-assistent [data-ops-back] {
   display: none;
@@ -919,18 +900,4 @@ body.vx-customer-design-foundation .vx-nav-voice-details[open] > summary::after 
     padding-bottom: calc(110px + env(safe-area-inset-bottom));
   }
 
-  body.vx-customer-design-foundation .vx-assistant-root-header {
-    gap: 5px;
-    margin-bottom: var(--vx-space-3);
-    padding: 18px 18px;
-    border-radius: 20px;
-  }
-
-  body.vx-customer-design-foundation .vx-assistant-root-title {
-    font-size: 27px;
-  }
-
-  body.vx-customer-design-foundation .vx-assistant-root-subtitle {
-    font-size: 14px;
-  }
 }

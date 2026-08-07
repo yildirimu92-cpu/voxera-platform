@@ -87,42 +87,9 @@ body.vx-customer-design-foundation .vx-settings-entry-caret {
   font-size: 17px;
 }
 
-body.vx-customer-design-foundation .vx-settings-subpage-header,
-body.vx-customer-design-foundation .vx-cal-page-header {
-  display: flex;
-  align-items: center;
-  gap: var(--vx-space-3);
-}
-
-body.vx-customer-design-foundation .vx-settings-header-copy,
-body.vx-customer-design-foundation .vx-cal-header-copy {
-  flex: 1;
-  min-width: 0;
-}
-
-body.vx-customer-design-foundation .vx-cal-header-subtitle {
-  margin-top: 3px;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-body.vx-customer-design-foundation .vx-cal-back {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  width: 42px;
-  height: 42px;
-  min-height: 42px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  font-size: 18px;
-  cursor: pointer;
-}
+/* Settings sub-pages and the calendar page use the shared .vx-appbar
+   (customer-navigation-components.css). Their own header row, header copy,
+   subtitle and back button were deleted with Navigation Etappe 2. */
 
 body.vx-customer-design-foundation #vx-calendar-page-body {
   min-width: 0;

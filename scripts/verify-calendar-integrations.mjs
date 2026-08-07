@@ -13,6 +13,7 @@ const files = {
   tool: 'customer-dashboard/netlify/functions/calendar-tool.js',
   runtime: 'customer-dashboard/shared/customer-runtime-calendar-settings.js',
   css: 'customer-dashboard/shared/customer-settings-components.css',
+  navigationCss: 'customer-dashboard/shared/customer-navigation-components.css',
   loader: 'customer-dashboard/shared/offer-brand.js',
   designLoader: 'customer-dashboard/shared/customer-runtime-design-foundation.js',
   docs: 'docs/calendar-integration-setup.md'
@@ -85,6 +86,7 @@ for (const token of [
   "entry.addEventListener('click', open)",
   'data-cal-back',
   'vx-settings-entry vx-settings-entry--calendar',
+  'vx-appbar',
   'vx-cal-rules-card',
   'vx-cal-checkbox',
   "page.removeAttribute('style')",
@@ -97,7 +99,6 @@ if (source.runtime.includes('entry.hidden = !(state.enabled && providers.length)
 }
 for (const token of [
   '.vx-settings-entry',
-  '.vx-cal-page-header',
   '.vx-cal-grid',
   '.vx-cal-card',
   '.vx-cal-provider',
@@ -111,6 +112,14 @@ for (const token of [
 ]) {
   if (!source.css.includes(token)) failures.push('Calendar component CSS missing: ' + token);
 }
+// The calendar page header is the shared app bar, owned by the navigation
+// module — the settings module must not grow a second one.
+for (const token of ['.vx-appbar', '.vx-appbar-back', '.vx-appbar-title']) {
+  if (!source.navigationCss.includes(token)) failures.push('Screen header component missing: ' + token);
+}
+for (const forbidden of ['.vx-cal-page-header', '.vx-cal-back', '.vx-cal-header-subtitle']) {
+  if (source.css.includes(forbidden)) failures.push('Settings CSS still owns a calendar page header: ' + forbidden);
+}
 for (const forbidden of [
   "createElement('style')",
   'style.textContent',
@@ -122,8 +131,8 @@ for (const forbidden of [
   if (source.runtime.includes(forbidden)) failures.push('Calendar runtime still owns presentation: ' + forbidden);
 }
 if ((source.css.match(/!important/g) || []).length) failures.push('Calendar component CSS must not use !important');
-if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js?v=20260803-2')) failures.push('Calendar runtime cache version missing');
-if (!source.designLoader.includes('/shared/customer-settings-components.css?v=20260803-2')) failures.push('Calendar component stylesheet loader missing');
+if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js?v=20260807-2')) failures.push('Calendar runtime cache version missing');
+if (!source.designLoader.includes('/shared/customer-settings-components.css?v=20260807-2')) failures.push('Calendar component stylesheet loader missing');
 
 for (const key of ['connections','callback','tool']) {
   if (/console\.(log|warn|error)\([^\n]*(access_token|refresh_token|client_secret)/i.test(source[key])) {

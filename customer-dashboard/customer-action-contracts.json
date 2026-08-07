@@ -97,7 +97,7 @@
       "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
       "event": "click",
       "triggerTokens": ["data-cal-back"],
-      "handlerTokens": ["addEventListener('click', back)"]
+      "handlerTokens": ["root.vxScreenBack(back)", "else back();"]
     },
     {
       "id": "calendar-connect",

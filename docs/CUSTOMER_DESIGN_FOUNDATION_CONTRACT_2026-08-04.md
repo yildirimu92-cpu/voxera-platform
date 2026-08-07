@@ -31,8 +31,8 @@ This file is the only owner for:
 This file is the only owner for color tokens, the spacing scale, radii,
 shadows and the component contract tokens (`--vx-ui-card-*`,
 `--vx-ui-tab-*`, `--vx-ui-badge-*`, `--vx-ui-skeleton-*`,
-`--vx-ui-empty-*`, `--vx-ui-field-*`). Every other module resolves its
-values from here.
+`--vx-ui-empty-*`, `--vx-ui-field-*`, `--vx-ui-appbar-*`). Every other
+module resolves its values from here.
 
 Known deviation: `customer-design-system.css` still declares its own
 `:root` block with conflicting values for `--vx-muted`, `--vx-surface` and
@@ -66,11 +66,49 @@ The following modules may own only their named component domain:
 
 - `customer-assistant-components.css` — assistant-specific component layout and states;
 - `customer-assistant-status.css` — assistant capability and technical status presentation;
-- `customer-navigation-components.css` — root and local navigation presentation;
+- `customer-navigation-components.css` — root and local navigation
+  presentation, and the single screen header (`.vx-appbar`) together with the
+  meta card that receives what the header gives up (`.vx-screen-meta`);
 - `customer-settings-components.css` — settings-specific component layout;
 - `customer-support-components.css` — support modal and support-state presentation.
 
 Component modules must not introduce a second generic button, card, input, typography or page-layout system, and must not redeclare the card, tab, skeleton, badge, empty-state or form-field contract owned by `customer-ui-components.css`. They may compose those classes and add layout or placement around them.
+
+### Screen header
+
+`customer-navigation-components.css` is the only owner of the screen header.
+Every screen in the authenticated dashboard opens with the same bar:
+
+- white surface, a hairline `0.5px` divider at the bottom, no radius, no
+  shadow;
+- exactly one title, 17px / 500, Night `#0D1F3C`;
+- an optional back arrow to the left of the title.
+
+The bar carries nothing else. No subline, no counter, no badge, no period
+filter, no page action. Anything a screen wants to say beyond its own name
+goes into the first card of its content area as an ordinary card — same
+shell, same border, same radius as every other card, no special treatment.
+
+The back arrow appears only on screens that were opened from a top-level
+screen. The five top-level screens — Heute, Anfragen, Assistent, Bericht,
+Einstellungen — never show one. The arrow is never a hard-coded destination:
+it resolves the real origin through history (`vxScreenBack`, backed by
+`customer-runtime-screen-navigation.js`) or, for the request detail, through
+the detail's own origin stack (`vxHandleDetailBack`). Browser back, gesture
+back and the arrow are therefore the same operation.
+
+A screen-scoped override of `.vx-appbar` defeats the component's only
+purpose and must fail review. The single exception in the product is the
+request detail inside the Anfragen split, where the detail is a pane of the
+Anfragen screen rather than a screen of its own and its bar is suppressed.
+
+Markup comes from `VoxeraUI.appBar()`; static screens spell out the same
+structure in `index.html`.
+
+Superseded: `.vx-page-header` (the Night bar), `.vx-back-btn`,
+`.vx-assistant-root-header`, `.vx-settings-subpage-header`,
+`.vx-cal-page-header` and `.vx-notif-mobile-head`. All of them were deleted
+with Navigation Etappe 2 (2026-08-07), not layered over.
 
 ## Legacy owner
 
@@ -171,7 +209,7 @@ A design migration pull request must fail review if it introduces:
 5. Assistant.
 6. Report.
 7. Calendar and operational updates runtime styling.
-8. Navigation alignment.
+8. Navigation alignment. — done, Etappe 2 (2026-08-07).
 9. Activation route as an independent surface.
 
 Each screen migration must be complete enough that the old declarations can be deleted instead of covered by another layer.

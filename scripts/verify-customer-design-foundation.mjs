@@ -49,16 +49,16 @@ assert.ok(lineCount(assistantCss) <= 968, 'assistant component CSS exceeded its 
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 assert.ok(lineCount(settingsCss) <= 740, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
-assert.ok(lineCount(navigationCss) <= 121, 'navigation component CSS exceeded its reduced size budget');
+assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded its size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
-  '/shared/customer-design-system.css?v=20260805-1',
-  '/shared/customer-assistant-components.css?v=20260805-1',
+  '/shared/customer-design-system.css?v=20260807-2',
+  '/shared/customer-assistant-components.css?v=20260807-2',
   '/shared/customer-assistant-status.css?v=20260803-1',
-  '/shared/customer-settings-components.css?v=20260803-2',
+  '/shared/customer-settings-components.css?v=20260807-2',
   '/shared/customer-support-components.css?v=20260802-2',
-  '/shared/customer-navigation-components.css?v=20260805-1',
+  '/shared/customer-navigation-components.css?v=20260807-2',
   '/shared/customer-ui-components.css?v=20260807-1',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
@@ -90,7 +90,6 @@ for (const token of [
   '#mnav-auswertung',
   '#mnav-mehr',
   '.vx-assistant-root-switch',
-  '.vx-page-header',
   '.vx-ap-btn',
   '.vx-ops-btn',
   '.vx-as-capability-toggle',
@@ -104,22 +103,69 @@ for (const token of [
   assert.ok(foundationCss.includes(token), `foundation CSS missing: ${token}`);
 }
 
-assert.match(
-  foundationCss,
-  /@media\s*\(max-width:\s*720px\)\s*\{[\s\S]*?body\.vx-customer-design-foundation\s+\.vx-page-header-title\s*\{\s*font-size:\s*24px;\s*\}/,
-  'foundation mobile page-header title must use 24px'
-);
+// Navigation Etappe 2: the Night page header is gone. No module outside the
+// navigation component may declare a screen header again.
+for (const [name, css] of [
+  ['foundation', foundationCss],
+  ['assistant', assistantCss],
+  ['settings', settingsCss],
+  ['support', supportCss]
+]) {
+  assert.ok(!css.includes('.vx-page-header'), `${name} CSS still owns the replaced page header`);
+  assert.ok(!css.includes('.vx-appbar {'), `${name} CSS must not redeclare the screen header`);
+}
+assert.ok(!dashboard.includes('vx-page-header'), 'the dashboard must not carry the replaced page header any more');
+assert.ok(!dashboard.includes('vx-back-btn'), 'the dashboard must not carry the replaced back button any more');
 
+// The greeting and the date left the header and are the first card of Heute.
 assert.match(
   dashboard,
-  /@media\s*\(max-width:\s*720px\)\s*\{\s*body\.vx-customer-design-foundation\s+#dash-greeting-block\s*>\s*\.vx-ap-head\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*minmax\(0,\s*1fr\);\s*gap:\s*9px;\s*\}\s*body\.vx-customer-design-foundation\s+#dash-greeting-block\s*>\s*\.vx-ap-head\s*>\s*\.vx-page-header-subtitle\s*\{\s*margin-top:\s*0;\s*font-size:\s*12px;\s*text-align:\s*left;\s*white-space:\s*nowrap;\s*\}\s*\}/,
-  'dashboard mobile greeting block must be complete'
+  /<section id="dash-greeting-block" class="vx-ui-card vx-ui-card--compact vx-screen-meta">/,
+  'the Heute greeting must be an ordinary card in the content area'
 );
 
-assert.doesNotMatch(
+// One bar per screen, and each of the five top-level screens has exactly one
+// without a back arrow.
+for (const [screen, title] of [
+  ['tab-dashboard', 'Heute'],
+  ['tab-anrufe', 'Anfragen'],
+  ['tab-auswertung', 'Bericht']
+]) {
+  assert.ok(
+    dashboard.includes(`<header class="vx-appbar"><h1 class="vx-appbar-title">${title}</h1></header>`),
+    `${screen} must open with a back-arrow-free app bar titled "${title}"`
+  );
+}
+assert.ok(
+  dashboard.includes('<header class="vx-appbar"><h1 class="vx-appbar-title">Einstellungen</h1></header>'),
+  'Einstellungen must open with a back-arrow-free app bar'
+);
+assert.ok(
+  navigationRuntime.includes('<h1 class="vx-appbar-title">Assistent</h1>'),
+  'the assistant root must open with the shared app bar'
+);
+assert.ok(
+  !navigationRuntime.includes('vx-assistant-root-subtitle'),
+  'the assistant header subtitle must stay deleted — the bar carries a title only'
+);
+
+// Sub-screens keep an arrow, and no arrow may hard-code its destination:
+// every static one routes through vxScreenBack (browser history), and the
+// request detail routes through vxHandleDetailBack (its own origin stack).
+const staticBackArrows = (dashboard.match(/onclick="vxScreenBack\(/g) || []).length;
+assert.ok(
+  staticBackArrows >= 8,
+  `expected the settings sub-screens, help and notifications to carry a back arrow, found ${staticBackArrows}`
+);
+assert.equal(
+  (dashboard.match(/class="vx-appbar-back"/g) || []).length,
+  staticBackArrows + 1,
+  'the only back arrow outside vxScreenBack is the request detail, which uses vxHandleDetailBack'
+);
+assert.match(
   dashboard,
-  /(?:^|\n)\s*font-size:\s*24px;\s*\}\s*body\.vx-customer-design-foundation\s+#dash-greeting-block/,
-  'dashboard must not contain an orphaned top-level mobile title fragment before the greeting block'
+  /function vxDetailAppBarHtml[\s\S]{0,400}?vxHandleDetailBack\(\);/,
+  'the request detail app bar must resolve its origin through vxHandleDetailBack'
 );
 
 for (const token of [
@@ -135,7 +181,6 @@ for (const token of [
   '#vx-business-profile-body .vx-ap-title',
   '#vx-business-profile-body textarea',
   '#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)',
-  '.vx-assistant-root-header',
   '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])',
   '.vx-nav-voice-details',
   '#vx-assistant-profile-body .vx-ap-card:first-child',
@@ -192,8 +237,6 @@ for (const token of [
   '.vx-settings-entry-icon',
   '.vx-settings-entry-title',
   '.vx-settings-entry-subtitle',
-  '.vx-cal-page-header',
-  '.vx-cal-back',
   '#vx-calendar-page-body',
   '.vx-cal-grid',
   '.vx-cal-card',
@@ -231,6 +274,11 @@ for (const token of [
 }
 
 for (const token of [
+  '.vx-appbar',
+  '.vx-appbar-back',
+  '.vx-appbar-title',
+  'var(--vx-ui-appbar-divider-color)',
+  'var(--vx-ui-appbar-title-size)',
   '#nav-assistent.nav-item',
   '#mnav-assistent.mobile-nav-btn',
   '#vx-assistant-root-switch',
@@ -278,7 +326,8 @@ for (const token of [
 for (const token of [
   'vx-calendar-settings-entry',
   'vx-settings-entry vx-settings-entry--calendar',
-  'vx-cal-page-header',
+  'vx-appbar',
+  'data-cal-back',
   'vx-cal-rules-card',
   'vx-cal-checkbox',
   "page.removeAttribute('style')",
@@ -448,9 +497,9 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
-assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260803-2/);
+assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260807-2/);
 assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260805-1/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260807-2/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
@@ -462,6 +511,10 @@ const designTokens = fs.readFileSync('customer-dashboard/shared/customer-design-
 new vm.Script(uiComponentsJs, { filename: 'customer-dashboard/shared/customer-ui-components.js' });
 
 for (const token of [
+  '--vx-ui-appbar-divider-color: #E5E8EE',
+  '--vx-ui-appbar-title-size: 17px',
+  '--vx-ui-appbar-title-weight: 500',
+  '--vx-ui-appbar-title-color: #0D1F3C',
   '--vx-ui-card-border-width: 0.5px',
   '--vx-ui-card-radius: 12px',
   '--vx-ui-card-padding',
@@ -615,7 +668,7 @@ for (const token of [
   assert.ok(assistantRuntime.includes(token), `inline save feedback missing: ${token}`);
 }
 
-for (const token of ['skeleton:', 'badge:', 'badgeTone:', 'emptyState:', 'card:', 'tabs:', 'root.VoxeraUI =']) {
+for (const token of ['skeleton:', 'badge:', 'badgeTone:', 'emptyState:', 'card:', 'appBar:', 'tabs:', 'root.VoxeraUI =']) {
   assert.ok(uiComponentsJs.includes(token), `VoxeraUI factory missing: ${token}`);
 }
 for (const forbidden of ["createElement('style')", 'style.textContent', 'document.head.appendChild', 'setTimeout', 'MutationObserver', 'fetch(']) {
@@ -628,7 +681,7 @@ assert.ok(!navigationCss.includes('grid-template-columns: repeat(3, minmax(0, 1f
 assert.ok(!foundationCss.includes('.vx-assistant-root-switch button.active'), 'assistant tab active state must stay owned by the tab component');
 assert.ok(!assistantCss.includes('.vx-ops-pill {'), 'status pills must stay owned by the badge component');
 assert.ok(!assistantCss.includes('.vx-ops-empty {'), 'empty states must stay owned by the empty-state component');
-assert.ok(dashboard.includes('/shared/customer-ui-components.js?v=20260807-1'), 'dashboard must load the VoxeraUI markup factory');
+assert.ok(dashboard.includes('/shared/customer-ui-components.js?v=20260807-2'), 'dashboard must load the VoxeraUI markup factory');
 assert.ok(!/wird geladen|werden geladen/i.test(calendarRuntime), 'calendar runtime must use the skeleton component, not loading text');
 assert.ok(!/wird geladen …/i.test(assistantRuntime), 'assistant runtime must use the skeleton component, not loading text');
 
@@ -637,10 +690,10 @@ console.log('Customer dashboard design foundation verification passed.');
 assert.doesNotMatch(navigationRuntime, /function addStyles|createElement\('style'\)|style\.textContent/);
 
 for (const forbidden of ['#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)','#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])','.vx-nav-voice-details','#vx-assistant-profile-body .vx-ap-card:first-child']) assert.ok(!navigationCss.includes(forbidden), `navigation CSS still owns assistant structure: ${forbidden}`);
-assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260805-1"></script>'), 'dashboard missing versioned offer-brand loader');
+assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-2"></script>'), 'dashboard missing versioned offer-brand loader');
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
-assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260805-1'), 'offer-brand missing current design loader version');
+assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260807-2'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
 for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260805-1','/shared/customer-assistant-components.css?v=20260805-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260805-1','/shared/customer-settings-components.css?v=20260803-2','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-1'];
+const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260807-2','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-2','/shared/customer-settings-components.css?v=20260807-2','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-1'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

@@ -252,6 +252,25 @@
   --vx-ui-card-gap: 12px;
   --vx-ui-card-shadow: 0 1px 2px rgba(13, 31, 60, .04);
 
+  /* ---- Screen header (app bar) -------------------------------- */
+  /* One bar for every screen: white, a single 17px/500 Night title,
+     an optional back arrow and a hairline divider. No screen may
+     add a subline, a badge or a counter to it. */
+  --vx-ui-appbar-bg: #FFFFFF;
+  --vx-ui-appbar-divider-width: 0.5px;
+  --vx-ui-appbar-divider-color: #E5E8EE;
+  --vx-ui-appbar-min-height: 52px;
+  --vx-ui-appbar-padding-x: 14px;
+  --vx-ui-appbar-gap: 2px;
+  --vx-ui-appbar-margin-bottom: 16px;
+  --vx-ui-appbar-title-size: 17px;
+  --vx-ui-appbar-title-weight: 500;
+  --vx-ui-appbar-title-color: #0D1F3C;
+  --vx-ui-appbar-back-size: 40px;
+  --vx-ui-appbar-back-radius: 10px;
+  --vx-ui-appbar-back-color: #0D1F3C;
+  --vx-ui-appbar-back-hover-bg: rgba(13, 31, 60, .06);
+
   /* ---- Tabs (pill) ------------------------------------------- */
   --vx-ui-tab-accent: #1A6FE8;
   --vx-ui-tab-accent-text: #FFFFFF;

@@ -12,7 +12,7 @@
 
   function settingsList() {
     const main = document.getElementById('mehr-main');
-    return main?.querySelector('.vx-page-header')?.nextElementSibling || null;
+    return main?.querySelector('.vx-settings-list') || main?.querySelector('.vx-appbar')?.nextElementSibling || null;
   }
 
   function findSettingsHelpEntry() {

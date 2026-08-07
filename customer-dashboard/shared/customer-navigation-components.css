@@ -1,3 +1,167 @@
+/* ============================================================
+   Screen header — .vx-appbar (Navigation Etappe 2)
+   ============================================================
+   The single header for every screen in the customer dashboard.
+   It replaces the dark full-width bars this module took over:
+   .vx-page-header (Heute, Anfragen, Bericht, Einstellungen and
+   every settings sub-page), .vx-assistant-root-header
+   (Assistent) and the Night banner of the request detail.
+
+   Contract — identical on every screen, no exceptions:
+
+     - white surface, hairline divider at the bottom, no radius,
+       no shadow, no background of its own beyond white;
+     - one 17px/500 Night title, nothing else;
+     - an optional back arrow to the left of the title, shown
+       only on screens that were opened from a top-level screen.
+
+   Anything a screen wants to say beyond its name — counters,
+   period filters, greetings, status lines — belongs in the
+   first card of the content area, not here. Screens must not
+   restyle this component; adding a screen-scoped override to
+   .vx-appbar defeats its only purpose.
+
+   Markup comes from VoxeraUI.appBar() in
+   customer-ui-components.js; static screens spell it out in
+   index.html with the same structure.
+   ============================================================ */
+
+body.vx-customer-design-foundation .vx-appbar {
+  display: flex;
+  align-items: center;
+  gap: var(--vx-ui-appbar-gap);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--vx-ui-appbar-min-height);
+  margin: 0 0 var(--vx-ui-appbar-margin-bottom);
+  padding: 6px var(--vx-ui-appbar-padding-x);
+  border: 0;
+  border-bottom: var(--vx-ui-appbar-divider-width) solid var(--vx-ui-appbar-divider-color);
+  border-radius: 0;
+  background: var(--vx-ui-appbar-bg);
+  box-shadow: none;
+}
+
+/* The arrow sits flush with the content edge, so its optical box is
+   pulled back over the bar's padding. */
+body.vx-customer-design-foundation .vx-appbar-back {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--vx-ui-appbar-back-size);
+  height: var(--vx-ui-appbar-back-size);
+  margin-left: calc(var(--vx-ui-appbar-padding-x) * -1 + 2px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--vx-ui-appbar-back-radius);
+  background: transparent;
+  color: var(--vx-ui-appbar-back-color);
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body.vx-customer-design-foundation .vx-appbar-back > i {
+  font-size: 19px;
+  line-height: 1;
+}
+
+body.vx-customer-design-foundation .vx-appbar-back:hover {
+  background: var(--vx-ui-appbar-back-hover-bg);
+}
+
+body.vx-customer-design-foundation .vx-appbar-back:focus-visible {
+  outline: 3px solid var(--vx-focus-ring);
+  outline-offset: 2px;
+}
+
+body.vx-customer-design-foundation .vx-appbar-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--vx-ui-appbar-title-color);
+  font-family: var(--vx-font-body);
+  font-size: var(--vx-ui-appbar-title-size);
+  font-weight: var(--vx-ui-appbar-title-weight);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.vx-customer-design-foundation .vx-appbar-back + .vx-appbar-title {
+  padding-left: 4px;
+}
+
+/* The only place an app bar is suppressed: inside the Anfragen split, the
+   request detail is a pane of the Anfragen screen, not a screen of its own —
+   the screen's own bar is already at the top of the tab. Expressed in CSS
+   rather than at render time so it follows #call-detail-page as it moves
+   between the split pane and full screen. */
+body.vx-customer-design-foundation #anrufe-split-right #call-detail-banner > .vx-appbar {
+  display: none;
+}
+
+/* ------------------------------------------------------------
+   .vx-screen-meta — what the header gave up
+   ------------------------------------------------------------
+   The counters, greetings, period switches and page actions that
+   used to live inside the Night bar are now the first card of
+   the content area. The card shell itself is the canonical
+   .vx-ui-card; this class only lays its content out in a row.
+   ------------------------------------------------------------ */
+
+body.vx-customer-design-foundation .vx-screen-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  min-width: 0;
+  margin-bottom: 14px;
+}
+
+/* Inside a grid stack the stack's own gap already separates the cards. */
+body.vx-customer-design-foundation :where(.vx-report-stack, .vx-ap-stack) > .vx-screen-meta {
+  margin-bottom: 0;
+}
+
+body.vx-customer-design-foundation .vx-screen-meta-main {
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation .vx-screen-meta-title {
+  color: var(--vx-color-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+body.vx-customer-design-foundation .vx-screen-meta-text {
+  color: var(--vx-color-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+body.vx-customer-design-foundation .vx-screen-meta-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vx-ui-tab-accent);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+body.vx-customer-design-foundation .vx-screen-meta-action:hover {
+  text-decoration: underline;
+}
+
 #nav-assistent.nav-item,
 #mnav-assistent.mobile-nav-btn {
   display: flex;
