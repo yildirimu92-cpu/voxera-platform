@@ -13,6 +13,8 @@
      VoxeraUI.badge('Termin', 'info')
      VoxeraUI.emptyState({ icon: 'ph-tray', title: '…', text: '…' })
      VoxeraUI.card('<p>…</p>', { variant: 'compact' })
+     VoxeraUI.appBar({ title: 'Anfragen' })
+     VoxeraUI.appBar({ title: 'Profil', back: { label: 'Zurück zu Einstellungen', onclick: 'vxScreenBack()' } })
      VoxeraUI.tabs([{ key: 'offen', label: 'Offen' }], 'offen')
    ============================================================ */
 
@@ -138,6 +140,32 @@
       + '</' + (config.tag === 'article' ? 'article' : 'div') + '>';
   }
 
+  /* ---- Screen header (app bar) --------------------------------- */
+
+  // One bar per screen: an optional back arrow, then the screen name.
+  // Anything else a screen wants to show goes into the first card of
+  // its content area — see customer-navigation-components.css.
+  function appBar(options) {
+    var config = options || {};
+    var classes = ['vx-appbar'];
+    if (config.className) classes.push(String(config.className));
+
+    var back = '';
+    if (config.back) {
+      var backConfig = config.back === true ? {} : config.back;
+      back = '<button type="button" class="vx-appbar-back"'
+        + ' aria-label="' + esc(backConfig.label || 'Zurück') + '"'
+        + (backConfig.onclick ? ' onclick="' + esc(backConfig.onclick) + '"' : '')
+        + '><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button>';
+    }
+
+    return '<header class="' + esc(classes.join(' ')) + '"'
+      + (config.id ? ' id="' + esc(config.id) + '"' : '')
+      + '>' + back
+      + '<h1 class="vx-appbar-title">' + esc(config.title) + '</h1>'
+      + '</header>';
+  }
+
   /* ---- Tabs --------------------------------------------------- */
 
   function tabs(items, activeKey, options) {
@@ -167,6 +195,7 @@
     badgeTone: badgeTone,
     emptyState: emptyState,
     card: card,
+    appBar: appBar,
     tabs: tabs
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

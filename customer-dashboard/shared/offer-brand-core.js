@@ -157,13 +157,32 @@
       };
     }
 
+    // #vx-call-audio-card is not a unique id: the split panel, the legacy
+    // full-page view and the v2 fullscreen shell can each render one, and
+    // hiding one of those hosts does not always clear it (see
+    // hideLegacyDetail() in index.html). A document-wide re-query after the
+    // fetch resolves can therefore hydrate a stale card from a different,
+    // possibly hidden host instead of the one actually being loaded. Building
+    // the replacement node directly and swapping it in with replaceWith()
+    // keeps a real reference to the right element throughout, so nothing
+    // downstream needs to re-find it by id.
+    function mountCardHtml(card, html) {
+      const wrapper = documentRef.createElement('div');
+      wrapper.innerHTML = html;
+      const next = wrapper.firstElementChild;
+      if (next) card.replaceWith(next);
+      return next;
+    }
+
     browser.vxTryLoadElevenLabsAudioFromDashboard = async function secureConversationAudioLoad(btn) {
       const card = btn && typeof btn.closest === 'function'
         ? btn.closest('#vx-call-audio-card')
         : documentRef.getElementById('vx-call-audio-card');
       const status = card ? card.querySelector('.vx-audio-fetch-status') : null;
       const conversationId = card ? String(card.getAttribute('data-conversation-id') || '').trim() : '';
-      if (!conversationId) return;
+      if (!conversationId || !card) return;
+      if (card.getAttribute('data-vx-audio-loading') === '1') return;
+      card.setAttribute('data-vx-audio-loading', '1');
 
       if (btn) btn.disabled = true;
       if (status) status.textContent = 'Audio wird sicher abgerufen…';
@@ -180,23 +199,23 @@
         });
         activeObjectUrl = result.objectUrl;
 
-        if (!card || typeof browser.vxRenderModernAudioPlayerHtml !== 'function') {
+        if (typeof browser.vxRenderModernAudioPlayerHtml !== 'function') {
           browser.URL.revokeObjectURL(activeObjectUrl);
           activeObjectUrl = '';
           throw new ConversationAudioError('audio_player_unavailable', 500);
         }
 
-        card.outerHTML = '<div class="vx-transcript-card" id="vx-call-audio-card" data-vx-object-url="' +
+        const nextCard = mountCardHtml(card, '<div class="vx-transcript-card" id="vx-call-audio-card" data-vx-object-url="' +
           escapeAttr(activeObjectUrl) + '"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' +
-          browser.vxRenderModernAudioPlayerHtml(activeObjectUrl, 'Gerade sicher abgerufen') + '</div></div>';
+          browser.vxRenderModernAudioPlayerHtml(activeObjectUrl, 'Gerade sicher abgerufen') + '</div></div>');
 
-        const renderedCard = documentRef.getElementById('vx-call-audio-card');
-        if (renderedCard && typeof browser.vxHydrateModernAudioPlayers === 'function') {
-          browser.vxHydrateModernAudioPlayers(renderedCard);
+        if (nextCard && typeof browser.vxHydrateModernAudioPlayers === 'function') {
+          browser.vxHydrateModernAudioPlayers(nextCard);
         }
       } catch (error) {
         if (status) status.textContent = getAudioErrorMessage(error);
       } finally {
+        if (card) card.removeAttribute('data-vx-audio-loading');
         if (btn) btn.disabled = false;
       }
     };

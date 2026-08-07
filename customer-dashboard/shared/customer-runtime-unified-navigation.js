@@ -163,8 +163,11 @@
     if (!header) {
       header = document.createElement('header');
       header.id = 'vx-assistant-root-header';
-      header.className = 'vx-assistant-root-header';
-      header.innerHTML = '<div class="vx-assistant-root-title">Assistent</div><div class="vx-assistant-root-subtitle">Stimme, Geschäftswissen und aktuelle Änderungen verwalten</div>';
+      // Etappe 2: the assistant root uses the same bar as every other screen.
+      // Its old subtitle ("Stimme, Geschäftswissen ...") was a header subline
+      // and is gone; the section switch below already names the three areas.
+      header.className = 'vx-appbar';
+      header.innerHTML = '<h1 class="vx-appbar-title">Assistent</h1>';
     }
 
     let switcher = document.getElementById('vx-assistant-root-switch');

@@ -252,6 +252,43 @@
   --vx-ui-card-gap: 12px;
   --vx-ui-card-shadow: 0 1px 2px rgba(13, 31, 60, .04);
 
+  /* ---- Screen header (app bar) -------------------------------- */
+  /* One bar for every screen: white, a single 17px/500 Night title,
+     an optional back arrow and a hairline divider. No screen may
+     add a subline, a badge or a counter to it. */
+  --vx-ui-appbar-bg: #FFFFFF;
+  --vx-ui-appbar-divider-width: 0.5px;
+  --vx-ui-appbar-divider-color: #E5E8EE;
+  --vx-ui-appbar-min-height: 56px;
+  --vx-ui-appbar-padding-x: 16px;
+  --vx-ui-appbar-gap: 2px;
+  --vx-ui-appbar-margin-bottom: 16px;
+  /* The title is the screen's name, so it carries the display face and a
+     section-title weight — 17px/500 in the body face read as unstyled text. */
+  --vx-ui-appbar-title-font: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+  --vx-ui-appbar-title-size: 17px;
+  --vx-ui-appbar-title-weight: 600;
+  --vx-ui-appbar-title-tracking: -0.02em;
+  --vx-ui-appbar-title-color: #0D1F3C;
+  --vx-ui-appbar-back-size: 40px;
+  --vx-ui-appbar-back-radius: 10px;
+  --vx-ui-appbar-back-color: #0D1F3C;
+  --vx-ui-appbar-back-hover-bg: rgba(13, 31, 60, .06);
+
+  /* ---- Choice controls (checkbox / radio) --------------------- */
+  /* Checkboxes and radios keep their own contract instead of the text-field
+     one — same accent, same focus ring, no native widget. */
+  --vx-ui-choice-size: 20px;
+  --vx-ui-choice-bg: #FFFFFF;
+  --vx-ui-choice-border: #C3CEDD;
+  --vx-ui-choice-border-width: 1.5px;
+  --vx-ui-choice-radius: 6px;
+  --vx-ui-choice-accent: #1A6FE8;
+  --vx-ui-choice-mark: #FFFFFF;
+  --vx-ui-choice-hover-border: #1A6FE8;
+  --vx-ui-choice-disabled-bg: #F1F4F9;
+  --vx-ui-choice-disabled-border: #D9E1EC;
+
   /* ---- Tabs (pill) ------------------------------------------- */
   --vx-ui-tab-accent: #1A6FE8;
   --vx-ui-tab-accent-text: #FFFFFF;

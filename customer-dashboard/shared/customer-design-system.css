@@ -90,29 +90,8 @@ body.vx-customer-design-foundation :where(
   max-width: 100%;
 }
 
-body.vx-customer-design-foundation .vx-page-header {
-  box-sizing: border-box;
-  margin-bottom: 16px;
-  padding: 22px 24px;
-  border-radius: var(--vx-radius-card);
-  box-shadow: none;
-}
-
-body.vx-customer-design-foundation .vx-page-header,
-body.vx-customer-design-foundation .vx-page-header :where(h1, h2, h3, h4, strong, b, .vx-page-header-title) {
-  color: #ffffff;
-}
-
-body.vx-customer-design-foundation .vx-page-header :where(p, small, span, .vx-page-header-subtitle) {
-  color: rgba(255, 255, 255, 0.74);
-}
-
-body.vx-customer-design-foundation .vx-page-header-title {
-  font-size: 25px;
-  font-weight: 750;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-}
+/* The Night page header is gone. Every screen now opens with the shared
+   .vx-appbar, owned by customer-navigation-components.css. */
 
 body.vx-customer-design-foundation :where(h1, h2, h3, h4, .vx-ap-title) {
   color: var(--vx-ink);
@@ -362,16 +341,6 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     padding-bottom: calc(var(--vx-mobile-nav-space) + env(safe-area-inset-bottom, 0px) + 34px);
     padding-left: 14px;
     scroll-padding-bottom: calc(var(--vx-mobile-nav-space) + env(safe-area-inset-bottom, 0px) + 28px);
-  }
-
-  body.vx-customer-design-foundation .vx-page-header {
-    margin-bottom: 14px;
-    padding: 18px;
-    border-radius: 16px;
-  }
-
-  body.vx-customer-design-foundation .vx-page-header-title {
-    font-size: 24px;
   }
 
   body.vx-customer-design-foundation .vx-assistant-root-switch {

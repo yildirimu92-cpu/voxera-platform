@@ -112,24 +112,44 @@
         return originalRenderCallAudioCard.call(this, callOrFields);
       };
     }
+    // #vx-call-audio-card is not a unique id: the split panel, the legacy
+    // full-page view and the v2 fullscreen shell can each render one, and
+    // hiding one of those hosts does not always clear it (see
+    // hideLegacyDetail() in index.html). A document-wide re-query after the
+    // fetch resolves can therefore hydrate a stale card from a different,
+    // possibly hidden host instead of the one actually being loaded. Building
+    // the replacement node directly and swapping it in with replaceWith()
+    // keeps a real reference to the right element throughout, so nothing
+    // downstream needs to re-find it by id.
+    function mountCardHtml(card, html) {
+      const wrapper = documentRef.createElement('div');
+      wrapper.innerHTML = html;
+      const next = wrapper.firstElementChild;
+      if (next) card.replaceWith(next);
+      return next;
+    }
     browser.vxTryLoadElevenLabsAudioFromDashboard = async function secureConversationAudioLoad(btn) {
       const card = btn && typeof btn.closest === 'function' ? btn.closest('#vx-call-audio-card') : documentRef.getElementById('vx-call-audio-card');
       const status = card ? card.querySelector('.vx-audio-fetch-status') : null;
       const conversationId = card ? String(card.getAttribute('data-conversation-id') || '').trim() : '';
-      if (!conversationId) return;
+      if (!conversationId || !card) return;
+      if (card.getAttribute('data-vx-audio-loading') === '1') return;
+      card.setAttribute('data-vx-audio-loading', '1');
       if (btn) btn.disabled = true;
       if (status) status.textContent = 'Audio wird sicher abgerufen…';
       try {
         const client = createConversationAudioClient({ authClient: getAuthClient(), fetchFn: browser.fetch.bind(browser), urlApi: browser.URL });
         const result = await client.loadAudio({ conversationId, previousObjectUrl: activeObjectUrl });
         activeObjectUrl = result.objectUrl;
-        if (!card || typeof browser.vxRenderModernAudioPlayerHtml !== 'function') throw new ConversationAudioError('audio_player_unavailable', 500);
-        card.outerHTML = '<div class="vx-transcript-card" id="vx-call-audio-card" data-vx-object-url="' + escapeAttr(activeObjectUrl) + '"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + browser.vxRenderModernAudioPlayerHtml(activeObjectUrl, 'Gerade sicher abgerufen') + '</div></div>';
-        const renderedCard = documentRef.getElementById('vx-call-audio-card');
-        if (renderedCard && typeof browser.vxHydrateModernAudioPlayers === 'function') browser.vxHydrateModernAudioPlayers(renderedCard);
+        if (typeof browser.vxRenderModernAudioPlayerHtml !== 'function') throw new ConversationAudioError('audio_player_unavailable', 500);
+        const nextCard = mountCardHtml(card, '<div class="vx-transcript-card" id="vx-call-audio-card" data-vx-object-url="' + escapeAttr(activeObjectUrl) + '"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + browser.vxRenderModernAudioPlayerHtml(activeObjectUrl, 'Gerade sicher abgerufen') + '</div></div>');
+        if (nextCard && typeof browser.vxHydrateModernAudioPlayers === 'function') browser.vxHydrateModernAudioPlayers(nextCard);
       } catch (error) {
         if (status) status.textContent = getAudioErrorMessage(error);
-      } finally { if (btn) btn.disabled = false; }
+      } finally {
+        if (card) card.removeAttribute('data-vx-audio-loading');
+        if (btn) btn.disabled = false;
+      }
     };
     if (typeof browser.addEventListener === 'function') browser.addEventListener('beforeunload', function () { if (activeObjectUrl) browser.URL.revokeObjectURL(activeObjectUrl); }, { once: true });
     browser.__vxSecureConversationAudioInstalled = true;
@@ -151,16 +171,17 @@
 (function loadCustomerRuntimes(root) {
   if (!root || !root.document) return;
   [
+    ['__voxeraCustomerScreenNavigationLoaded', '/shared/customer-runtime-screen-navigation.js?v=20260807-2'],
     ['__voxeraCustomerCaseIntakeLoaded', '/shared/customer-runtime-case-intake.js?v=20260802-2'],
-    ['__voxeraCustomerCalendarSettingsLoaded', '/shared/customer-runtime-calendar-settings.js?v=20260803-2'],
+    ['__voxeraCustomerCalendarSettingsLoaded', '/shared/customer-runtime-calendar-settings.js?v=20260807-2'],
     ['__voxeraCustomerOperationalUpdatesLoaded', '/shared/customer-runtime-operational-updates.js?v=20260803-1'],
     ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260802-4'],
     ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260803-1'],
-    ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260802-1'],
+    ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260807-2'],
     ['__voxeraCustomerMobileNavRepairLoaded', '/shared/customer-runtime-mobile-nav-repair.js?v=20260804-3'],
-    ['__vxCustomerSettingsPolishLoaded', '/shared/customer-runtime-settings-polish.js?v=20260804-3'],
-    ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260802-5'],
-    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260805-1']
+    ['__vxCustomerSettingsPolishLoaded', '/shared/customer-runtime-settings-polish.js?v=20260807-3'],
+    ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260807-2'],
+    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260807-3']
   ].forEach(([flag, src]) => {
     if (root[flag]) return;
     root[flag] = true;
