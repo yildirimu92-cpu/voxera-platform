@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260807-3">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
 <script src="/shared/customer-ui-components.js?v=20260807-2"></script>
-<script src="/shared/offer-brand.js?v=20260807-3"></script>
+<script src="/shared/offer-brand.js?v=20260807-4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/light/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
@@ -42267,6 +42267,16 @@ body:has(#tab-archiv.active) .content{
     page.style.display = 'none';
     try { document.body.classList.remove('vx-requests-focus-mode'); } catch(e) {}
     try { if (typeof vxSetScrollLock === 'function') vxSetScrollLock('call-detail-page', false); } catch(e) {}
+    // closeSplitV2() clears #requests-detail-v2's innerHTML on close; this branch
+    // only ever toggled display:none, leaving whatever the legacy renderer last put
+    // in #call-detail-content (including a still-loading #vx-call-audio-card,
+    // since that id is not unique across the legacy/split/v2-fullscreen hosts).
+    // A later v2 open can then race a genuinely stale, hidden fetch and, on the
+    // one lookup in the audio bridge that re-queries by that id instead of
+    // holding a direct node reference, hydrate the wrong host. Clearing content
+    // here removes the stale host instead of relying on that lookup to skip it.
+    var content = document.getElementById('call-detail-content');
+    if (content) content.innerHTML = '';
   }
   function closeSplitV2(){
     var host = document.getElementById('requests-detail-v2');

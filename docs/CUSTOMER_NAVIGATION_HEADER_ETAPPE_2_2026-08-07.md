@@ -185,3 +185,69 @@ Vier Punkte aus dem Review vor dem Merge:
 Erweiterte Prüfungen in `scripts/verify-customer-design-foundation.mjs`:
 Choice-Control-Tokens vorhanden, `appearance: none` für Checkbox und Radio,
 und das Settings-Modul darf kein `accent-color` mehr enthalten.
+
+## Audio-Player-Bug: "Audio wird sicher abgerufen…" hängt in Heute-Vollbild (2026-08-07)
+
+Gemeldet als vermutlich derselbe Scoping-Fehler wie PR #819 (der damals nur
+den Split-View-Pfad erreichte, nicht den Vollbild-Pfad). Die Live-Preview
+war aus dieser Sandbox nicht erreichbar (kein Netzwerkzugriff auf
+netlify.app), daher wurde per statischer Analyse plus Headless-Chromium-
+Reproduktion mehrerer realistischer Szenarien untersucht (Auto-Load mit
+reiner `conversation_id`, „geschützte" absolute Audio-URL mit manuellem
+Klick, jeweils Split und Vollbild) — alle liefen in dieser Umgebung
+fehlerfrei durch. Das exakte Live-Symptom liess sich damit nicht
+reproduzieren.
+
+Bei der Untersuchung wurden zwei konkrete, für sich genommen echte Bugs
+gefunden, die genau zur beschriebenen Fehlerklasse passen — etwas, das den
+Split-Pfad korrekt erreicht, aber im Vollbild-Pfad brüchig wird, weil
+`id="vx-call-audio-card"` **nicht eindeutig** ist: Split-Panel
+(`#requests-detail-v2`), Legacy-Vollseite (`#call-detail-content`) und
+v2-Vollbild-Shell (`#vx-detail-v2-full-content`) können alle gleichzeitig
+eine eigene Karte mit dieser ID rendern.
+
+1. **`hideLegacyDetail()` hat nie aufgeräumt.** `closeSplitV2()` leert
+   `#requests-detail-v2` beim Schliessen (`innerHTML = ''`);
+   `hideLegacyDetail()` (aufgerufen von sowohl `openFullscreenV2()` als auch
+   `openSplitV2()`) hat die Legacy-Seite nur per `display:none` versteckt,
+   `#call-detail-content` aber nie geleert. Sobald der Legacy-Pfad einmal in
+   einer Session gerendert hat (z.B. wenn `resolveEntryRecord()` eine ID
+   nicht auflösen kann und auf `forceLegacy` zurückfällt), blieb eine
+   möglicherweise noch ladende Audio-Karte dauerhaft im DOM — unsichtbar,
+   aber vorhanden. `hideLegacyDetail()` leert jetzt `#call-detail-content`
+   beim Verstecken, symmetrisch zu `closeSplitV2()`.
+
+2. **Die "sichere" Audio-Bridge hatte keine Reentrancy-Sperre.** Der Loader
+   in `index.html` selbst schützt sich mit `data-vx-audio-loading` gegen
+   überlappende Aufrufe für dieselbe Karte; die Bridge in
+   `shared/offer-brand.js`/`offer-brand-core.js` (die den eigentlich
+   laufenden Loader ersetzt — daher der Text "Audio wird sicher
+   abgerufen…") hatte diese Sperre nicht. Ein zweiter, sich überschneidender
+   Trigger auf derselben Karte (z.B. durch den globalen MutationObserver,
+   der bei jeder DOM-Änderung neu scannt) konnte einen zweiten,
+   redundanten Fetch auslösen. Per Headless-Test bestätigt: eine
+   liegengebliebene Karte löste real einen zweiten Fetch aus. Die Sperre
+   ist jetzt auch dort vorhanden.
+
+3. **Die Bridge suchte die fertig geladene Karte nach dem Fetch erneut per
+   `document.getElementById('vx-call-audio-card')`.** Bei einer
+   liegengebliebenen Dublette (Punkt 1) landet dieser globale, ungescopte
+   Lookup potenziell auf der FALSCHEN, alten Karte statt der gerade
+   geladenen — mit der Folge, dass `vxHydrateModernAudioPlayers()` das
+   falsche Element hydriert. Der Ersatz der Lade-Skeleton-Karte läuft jetzt
+   über einen direkten Node-Bau plus `Element.replaceWith()`, sodass die
+   Referenz auf die richtige Karte durchgehend erhalten bleibt und kein
+   Codepfad mehr per ID danach suchen muss.
+
+Regressionstest: `customer-dashboard/tests/audio-bridge-dom-safety.test.cjs`
+baut ein minimales Fake-DOM mit genau der Dubletten-Situation (Stale-Karte
+vor der echten Karte in Dokumentreihenfolge) und installiert die echte
+Bridge dagegen — bestätigt fehlschlagend gegen den unveränderten Code
+(zweiter Fetch feuert) und grün gegen den Fix.
+
+**Offen:** Da sich das exakte Live-Symptom nicht reproduzieren liess, ist
+nicht zu 100 % gesichert, dass dies die alleinige Ursache war. Sollte das
+Verhalten auf der aktualisierten Preview weiterhin auftreten, braucht es
+für die weitere Eingrenzung konkretere Reproduktionsdaten (Konsole/Network-
+Tab beim Auftreten, oder ob vorher eine Legacy-Detailansicht geöffnet
+war).
