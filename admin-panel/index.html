@@ -2547,7 +2547,7 @@ body,.main{background:#F7F8FC;}
               <div class="inline-actions" style="margin-top:10px;">
                 <button class="btn btn-secondary" id="ai-preview-btn" onclick="openAiPreview()">Prompt-Vorschau</button>
                 <button class="btn btn-secondary" id="ai-generate-btn" onclick="openAiGenerateModal()">✦ Mit AI ausfüllen</button>
-                <button class="btn btn-primary" id="ai-save-customer" onclick="saveCustomerAiConfig()">AI Konfiguration speichern</button>
+                <button class="btn btn-primary" id="ai-save-customer">AI Konfiguration speichern</button>
                 <div id="ai-sync-status" style="font-size:11px;color:var(--slate2);margin-top:8px;display:none;"></div>
               </div>
             </div>
@@ -7721,7 +7721,16 @@ async function wizardFinish(){
         ai_address_form:  d.addressForm||null,
         ai_tone:          d.tone||null,
         ai_language:      d.language||null,
-        ai_greeting:      d.greeting||null,
+        ai_greeting:      (()=>{
+          const value=String(d.greeting||'').trim();
+          if(!value) return null;
+          // Eine unveraenderte Auto-Begruessung wird nicht persistiert. Sonst
+          // friert sie den Assistenznamen zum Generierungszeitpunkt ein und die
+          // erste Nachricht nennt spaeter einen anderen Namen als der Prompt.
+          // Ohne gespeicherten Wert erzeugt der Prompt-Builder sie dynamisch.
+          if(value===buildAutoGreeting(d)) return null;
+          return value;
+        })(),
         voice_id:         d.voiceId || null,
         selected_languages: (() => {
           if (d._planCode === 'business') return ['de', d.secondLanguage || 'fr'];
@@ -8231,15 +8240,15 @@ async function saveCustomerAiConfig(){
         ai_internal_notes: cfg.internalNotes||null,
         ai_summary: cfg.summary||null,
         industry_template_id: cfg.industryTemplateId||null,
-        // Neue Wizard-Felder
-        assistant_name:   cfg.assistantName||null,
-        ai_customer_type: cfg.customerType||null,
-        ai_address_form:  cfg.addressForm||null,
-        ai_tone:          cfg.tone||null,
-        ai_language:      cfg.language||null,
-        ai_greeting:      cfg.greeting||null,
         updated_at: new Date().toISOString()
       };
+      // Identitaets- und Persoenlichkeitsfelder (assistant_name, ai_customer_type,
+      // ai_address_form, ai_tone, ai_language, ai_greeting) werden hier bewusst
+      // NICHT geschrieben. Dieses Panel besitzt keine Eingabefelder dafuer, und
+      // state.aiConfigs fuehrt die zugehoerigen Schluessel nie - der frueher hier
+      // stehende Patch schrieb daher bei jedem Speichern NULL in sechs
+      // Produktionsfelder. Eigentuemer dieser Felder sind der Setup-Wizard und
+      // das Customer Dashboard.
       await callAdminFunction('admin-mutate',{action:'customers.update',id,patch});
       console.log('[AI Summary] saved successfully');
       // Sync prompt to ElevenLabs automatically

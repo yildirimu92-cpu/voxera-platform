@@ -46,9 +46,11 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); }
   catch { return response(400, buildContractPayload({ error: 'invalid_body' })); }
 
+  // Vollständiger Datensatz, damit die Werte vor dem Schreiben als prev_values
+  // an den Sync gehen und dort in elevenlabs_sync_log.changed_fields landen.
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
-    .select('plan,plan_code,elevenlabs_agent_id')
+    .select('*')
     .eq('id', caller.customerId)
     .maybeSingle();
   if (customerError || !customer) return response(500, buildContractPayload({ error: 'customer_load_failed' }));
@@ -198,7 +200,12 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           customer_id: caller.customerId,
           agent_id: customer.elevenlabs_agent_id,
-          triggered_by: 'customer_self_edit'
+          triggered_by: 'customer_self_edit',
+          changed_fields: patchKeys,
+          prev_values: patchKeys.reduce((acc, key) => {
+            if (Object.prototype.hasOwnProperty.call(customer, key)) acc[key] = customer[key];
+            return acc;
+          }, {})
         })
       });
       if (!syncRes.ok) {

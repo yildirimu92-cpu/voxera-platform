@@ -10,6 +10,8 @@ const {
   calendarPromptBlock
 } = require('./_lib/elevenlabs-calendar-tool');
 const { ensureAgentPhoneNumber } = require('./_lib/elevenlabs-phone-number');
+const { resolveAssistantVoice } = require('./_lib/assistant-voice');
+const { buildChangedFields } = require('./_lib/sync-change-log');
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -58,22 +60,14 @@ async function loadPromptInputs(sb, customerId, customer) {
     industryPrompt = data?.prompt_block || '';
   }
 
-  let assistantRole = 'die Assistentin';
-  if (customer.voice_id) {
-    const { data, error } = await sb.from('voxera_voices')
-      .select('gender')
-      .eq('voice_id', customer.voice_id)
-      .maybeSingle();
-    if (error) throw error;
-    if (data?.gender === 'male') assistantRole = 'der Assistent';
-  }
+  const voice = await resolveAssistantVoice(sb, customer);
 
   return {
     masterPrompt: masterResult.data?.value || '',
     operationalUpdates: operationalResult.data || [],
     calendarSettings: calendarResult.data || null,
     industryPrompt,
-    assistantRole
+    voice
   };
 }
 
@@ -97,9 +91,9 @@ exports.handler = async (event) => {
     customer_id,
     agent_id,
     triggered_by = 'admin_save',
-    prev_values = {}
+    prev_values = {},
+    changed_fields: changedFieldsHint = null
   } = body;
-  void prev_values;
 
   if (!customer_id || !agent_id) {
     return response(400, { error: 'customer_id_and_agent_id_required' });
@@ -139,14 +133,16 @@ exports.handler = async (event) => {
   let phoneNumberStatus = 'not_attempted';
   let phoneNumberId = null;
   let phoneNumber = null;
+  let voice = { voiceId: null, gender: 'female', displayName: null, source: 'not_resolved' };
 
   try {
     const inputs = await loadPromptInputs(sb, customer_id, customer);
+    voice = inputs.voice;
     compiled = buildPromptV2({
       customer,
       masterPrompt: inputs.masterPrompt,
       industryPrompt: inputs.industryPrompt,
-      assistantRole: inputs.assistantRole,
+      assistantGender: voice.gender,
       operationalUpdates: inputs.operationalUpdates
     });
 
@@ -175,9 +171,14 @@ exports.handler = async (event) => {
         conversation_config: {
           agent: {
             prompt: promptPatch,
-            first_message: compiled.firstMessage
+            first_message: compiled.firstMessage,
+            // Wurde bisher nur bei der Erstprovisionierung gesetzt; spätere
+            // Änderungen an ai_language erreichten den Agenten nie.
+            language: compiled.language
           },
-          tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined
+          // Immer explizit setzen. Ein weggelassener tts-Block liess den Agenten
+          // auf einer beliebigen früheren Stimme stehen.
+          tts: voice.voiceId ? { voice_id: voice.voiceId } : undefined
         },
         platform_settings: {
           privacy: {
@@ -215,6 +216,7 @@ exports.handler = async (event) => {
     prompt_snapshot: syncStatus === 'success' ? fullPrompt : null,
     prompt_length: fullPrompt.length,
     error_message: syncError,
+    changed_fields: buildChangedFields(prev_values, customer, changedFieldsHint),
     created_at: new Date().toISOString()
   });
   await trimSyncLogs(sb, customer_id);
@@ -243,6 +245,11 @@ exports.handler = async (event) => {
     promptLength: fullPrompt.length,
     promptVersion: compiled?.version,
     quality: compiled?.quality,
+    voice_id: voice.voiceId,
+    voice_source: voice.source,
+    assistant_gender: voice.gender,
+    agent_language: compiled?.language,
+    agent_languages: compiled?.languages,
     calendar_tool_status: calendarToolStatus,
     calendar_tool_id: calendarToolId,
     phone_number_status: phoneNumberStatus,
