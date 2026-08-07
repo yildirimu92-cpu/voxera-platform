@@ -21361,12 +21361,37 @@ function vxHeuteBuildLaraMessage(visitRef, todayTotal, newCount, resolvedCount, 
   return intro + ' ' + waiting + ' auf dich, '
     + (resolvedCount === 1 ? 'einen' : vxHeuteSpellNumber(resolvedCount)) + ' habe ich selbst erledigt.';
 }
+// [BUGFIX] vxHeuteActivityTime()/vxHeuteActivityTimestamp() (verwendet von
+// der alten, jetzt versteckten "Heute passiert"-Chronologie) ziehen
+// "updated_at" VOR "created_at" in die Zeitpräferenz. Anfragen tut das nicht
+// — offene Einträge zeigen dort ausschliesslich getRecordTimestamp()
+// (= fields.created_at), abgeschlossene nur completed_at/closed_at/done_at/
+// archived_at, sonst created_at (siehe renderAnrufeInbox()). Wich ein
+// Backend-Prozess "updated_at" auf einen Zeitpunkt in einer anderen
+// Zeitzone-Repräsentation setzt, zeigte die Braucht-dich/Hat-sich-erledigt-
+// Karte dadurch eine andere Uhrzeit als Anfragen für denselben Anruf — nicht
+// weil die Formatierung falsch war (beide nutzen TIME_FORMAT_CH/Europe
+// Zürich), sondern weil das falsche Feld gewählt wurde. Diese Funktion
+// spiegelt exakt die Feldpräferenz von Anfragen.
+function vxHeuteHandoverCardTimestamp(record, variant) {
+  if (variant === 'resolved') {
+    return vxHeuteGetTimestamp(record, ['completed_at','closed_at','done_at','archived_at','created_at','inserted_at']);
+  }
+  return vxHeuteGetTimestamp(record, ['created_at','inserted_at']);
+}
+function vxHeuteHandoverCardTime(record, variant) {
+  var d = vxHeuteParseDate(vxHeuteHandoverCardTimestamp(record, variant));
+  if (!d) return '';
+  try { return TIME_FORMAT_CH.format(d); } catch (e) {
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+}
 function vxHeuteHandoverCardHtml(rec, variant) {
   var id = String((rec && rec.id) || vxHeuteGetRecordValue(rec, ['id','call_id']) || '');
   var phone = String(vxHeuteGetRecordValue(rec, ['caller_phone','phone_number','phone']) || '').trim();
   var title = vxHeuteRecordTitle(rec);
   var summary = vxHeuteHandoverDescription(rec);
-  var time = vxHeuteActivityTime(rec);
+  var time = vxHeuteHandoverCardTime(rec, variant);
   if (variant === 'needs') {
     return '<article class="vx-handover-card vx-handover-card--needs" data-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'"'
       + ' role="button" tabindex="0" onclick="vxHeuteCardClick(event,this);">'
@@ -21423,7 +21448,7 @@ function vxHeuteRenderLaraHandover(sourceRecords) {
   var needsRecords = todayCalls.filter(function(r) { return !vxHeuteIsDoneRecord(r); })
     .sort(function(a,b){ return (new Date(vxHeuteGetTimestamp(b,['created_at','inserted_at'])||0).getTime()) - (new Date(vxHeuteGetTimestamp(a,['created_at','inserted_at'])||0).getTime()); });
   var resolvedRecords = todayCalls.filter(vxHeuteIsDoneRecord)
-    .sort(function(a,b){ return (new Date(vxHeuteActivityTimestamp(b)||0).getTime()) - (new Date(vxHeuteActivityTimestamp(a)||0).getTime()); });
+    .sort(function(a,b){ return (new Date(vxHeuteHandoverCardTimestamp(b,'resolved')||0).getTime()) - (new Date(vxHeuteHandoverCardTimestamp(a,'resolved')||0).getTime()); });
   var newCount = vxHeuteCountSinceVisit(todayCalls, visitRef);
 
   if (typeof vxDebugLog === 'function') {
