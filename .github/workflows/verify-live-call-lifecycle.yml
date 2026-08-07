@@ -1,0 +1,23 @@
+name: Verify live call lifecycle
+
+# Guards the Anruf-Lebenszyklus rule (Definition 2026-08-07): while a call is
+# on the line there is no card entry anywhere, only the ambient hint. Breaking
+# that rule is what produced the visible flicker on the Heute screen.
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/tests/live-call-lifecycle.test.cjs'
+      - '.github/workflows/verify-live-call-lifecycle.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --test customer-dashboard/tests/live-call-lifecycle.test.cjs
