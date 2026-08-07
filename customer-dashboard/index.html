@@ -329,15 +329,19 @@
    laufender Animationen (Ring + Balken-Puls + Punkt-Puls). Der Live-Status
    bleibt erkennbar über einen einzigen dezenten Punkt im Badge und eine
    statische Akzentlinie, statt über Bewegung und gesättigtes Rot zu schreien. */
+/* Ambient-Hinweis, kein Karten-Eintrag: waehrend des Gespraechs existiert
+   bewusst kein Objekt mit Anruf-Daten. Der Hinweis wird beim Klingeln einmal
+   eingeblendet und bleibt bis zum Auflegen unveraendert stehen. */
+#dash-live-ambient:empty{display:none;}
 #live-call-row{
   display:flex;align-items:center;gap:10px;
   padding:12px 14px;background:var(--vx-color-card-bg);
-  border-bottom:1px solid var(--vx-color-border);
+  border:1px solid var(--vx-color-border);
   border-left:2px solid var(--vx-color-danger);
+  border-radius:var(--vx-ui-card-radius, 12px);
   cursor:default;position:relative;
   animation:liveRowEnter .3s cubic-bezier(.16,1,.3,1) both;
 }
-#live-call-row:hover{background:var(--vx-color-canvas);}
 .vx-live-avatar{width:34px;height:34px;border-radius:var(--vx-radius-md);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--vx-color-text-on-dark);background:var(--vx-color-night);flex-shrink:0;}
 .vx-live-body{flex:1;min-width:0;}
 .vx-live-name{font-size:13px;font-weight:700;color:var(--vx-color-text);line-height:1.3;}
@@ -1277,8 +1281,17 @@ body{
   color:var(--blue);
 }
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 2s infinite;}
+/* [2026-08-07] War zentriert auf den vollen Viewport (left:50%), obwohl die
+   232px breite Sidebar nur auf Desktop existiert -- der Banner schwebte
+   dadurch ueber den Content, teils ueberlappend mit dem "Heute"-Appbar-Titel,
+   und ohne Bezug zu einem festen Element (Glocke sitzt links oben in der
+   Sidebar, ganz woanders). Jetzt ueber dem Content-Bereich zentriert (rechts
+   der Sidebar) und unterhalb des Appbars verankert; die beiden Breakpoints
+   unten, in denen die Sidebar durch den Mobile-Header ersetzt wird, docken
+   entsprechend um. */
 .incoming-banner{
-  display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  display:none;position:fixed;top:96px;
+  left:calc(232px + (100vw - 232px) / 2);transform:translateX(-50%);
   z-index:9990;
   background:rgba(17,24,39,0.92);
   border:0.5px solid rgba(255,255,255,0.12);
@@ -2106,6 +2119,10 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .topbar{padding:12px 16px!important;}
   .topbar-right{display:none;}
   .content{padding:18px;padding-bottom:110px;}
+  /* Sidebar entfaellt hier zugunsten von .mobile-header (60px hoch) --
+     Banner wieder auf den vollen Viewport zentrieren und unter diesem
+     Header andocken statt unter dem (hier ausgeblendeten) Desktop-Appbar. */
+  .incoming-banner{left:50%;top:76px;}
   .kpi-grid{grid-template-columns:1fr;gap:10px;}
   .kpi{padding:16px;}
   .kpi-val{font-size:28px;}
@@ -2447,6 +2464,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .main{margin-left:0!important;}
   .mobile-nav{display:block!important;}
   .content{padding-bottom:80px!important;}
+  /* Landscape-Mobile-Header ist hier 52px hoch (siehe .mobile-header-Regel
+     im selben Breakpoint weiter unten). */
+  .incoming-banner{left:50%;top:68px;}
 }
 
 
@@ -4434,7 +4454,8 @@ body,.main{background:var(--vx-bg);}
 /* Priority list inside dash-glass */
 #dash-priority-list { padding: 0; display: flex; flex-direction: column; gap: 0; background: #fff; }
 #dash-priority-list .call-row { border-left: none !important; }
-#live-call-row { border-bottom: 0.5px solid rgba(255,255,255,.08); }
+/* Die frueher hier stehende #live-call-row-Regel ist entfallen: der Hinweis
+   ist kein Kind der Priority-Liste mehr, sondern steht in #dash-live-ambient. */
 
 /* Variante A — Priority Cards */
 .dpr-card { border-bottom: 0.5px solid var(--line); border-radius: 0; overflow: hidden; }
@@ -7426,6 +7447,15 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <div id="dash-daily-report" hidden style="display:none!important;" aria-hidden="true"><div id="dash-daily-report-text"></div></div>
             <div id="dash-focus-zone" hidden style="display:none;" aria-hidden="true"></div>
 
+            <!-- Ambient-Hinweis fuer laufende Gespraeche. Eigener, stabiler
+                 Host: keine Listen-Render-Funktion ersetzt hier jemals das
+                 innerHTML, deshalb kann der Hinweis nicht mehr im Renderzyklus
+                 zerstoert und neu aufgebaut werden.
+                 Steht bewusst VOR der Lara-Uebergabe: der Hinweis sagt, was
+                 gerade in dieser Sekunde passiert, die Uebergabe sagt, was
+                 seither liegen geblieben ist. -->
+            <div id="dash-live-ambient" role="status" aria-live="polite"></div>
+
             <!-- Lara-Übergabe: ersetzt KPI-Kacheln + "Heute passiert"-Chronologie.
                  Die Chronologie lebt vollständig in Anfragen weiter; die alten
                  Sektionen darunter bleiben im DOM (hidden), damit bestehende
@@ -9499,6 +9529,32 @@ var CALL_LIVE_ACTIVE_FRESHNESS_MS = 20 * 1000;
 var CALL_LIVE_TERMINAL_STATES = new Set(['completed', 'processing', 'failed', 'abandoned']);
 var SETUP_STEPS = ['s1','s2','s3','s4','s5'];
 
+// ═══════════════════════════════════════════
+//  ANRUF-LEBENSZYKLUS — Definition 2026-08-07
+//  Ein Anruf ist waehrend des Gespraechs KEIN Eintrag. Solange die Leitung
+//  steht, existiert kein Karten-Objekt, das laufend neu befuellt werden
+//  muesste — es gibt nur den dezenten Ambient-Hinweis (updateLiveHero()).
+//  Der Eintrag entsteht erst beim Auflegen: ab dann laeuft er durch die
+//  bekannten Zustaende processing -> ready.
+//
+//  vxIsCallInLivePhase() ist die einzige Stelle, die "Leitung steht"
+//  definiert. Bewusst NICHT deckungsgleich mit vxIsLiveCall(), das auch
+//  Nach-Hangup-Zustaende (processing/in_progress) mitzaehlt.
+// ═══════════════════════════════════════════
+var CALL_LIVE_PHASE_STATES = new Set(['incoming', 'ringing', 'active', 'live']);
+
+function vxIsCallInLivePhase(record) {
+  if (!record) return false;
+  try { if (typeof isManualTaskRecord === 'function' && isManualTaskRecord(record)) return false; } catch (e) {}
+  var f = (record && record.fields) || {};
+  var raw = (f.live_status !== undefined ? f.live_status : record.live_status);
+  var liveStatus = String(raw || '').trim().toLowerCase();
+  if (!liveStatus) return false;
+  if (CALL_LIVE_TERMINAL_STATES.has(liveStatus)) return false;
+  return CALL_LIVE_PHASE_STATES.has(liveStatus);
+}
+if (typeof window !== 'undefined') window.vxIsCallInLivePhase = vxIsCallInLivePhase;
+
 function isDueOrOverdueFollowUp(fields) {
   var due = parseFollowUpDate(resolveTaskDueAt(fields || {}));
   if (!due || Number.isNaN(due.getTime())) return false;
@@ -10031,8 +10087,9 @@ function renderDashPriorityList() {
   });
 
   vxUpdateAnfragenCount();
-  var existingLive = document.getElementById('live-call-row');
-  if (existingLive && existingLive.parentNode === el) el.insertBefore(existingLive, el.firstChild);
+  // Der Live-Hinweis wird hier nicht mehr eingehaengt. Er lebt in seinem
+  // eigenen Host (#dash-live-ambient) und ist damit dem innerHTML-Austausch
+  // dieser Liste entzogen — siehe updateLiveHero().
   refreshLucideIcons();
 }
 
@@ -12211,6 +12268,9 @@ function vxTodayCallRelevanceReasons(record) {
   return reasons;
 }
 function vxTodayIsRelevantCallForAttention(record) {
+  // Lebenszyklus 2026-08-07: ein laufendes Gespraech ist noch kein Eintrag und
+  // gehoert damit auch nicht in "Aufmerksamkeit".
+  if (vxIsCallInLivePhase(record)) return false;
   if (!vxTodayIsOpenCallForAttention(record)) return false;
   if (vxTodayIsIgnorableCall(record)) return false;
   return vxTodayCallRelevanceReasons(record).length > 0;
@@ -13462,6 +13522,10 @@ function getUnifiedOpenTasks(records) {
   const uniqueById = new Map();
   (records || []).forEach(function(record) {
     if (!record || !record.id || uniqueById.has(record.id)) return;
+    // Lebenszyklus 2026-08-07: aus einem laufenden Gespraech entsteht noch
+    // keine Aufgabe. Sonst taucht ein Anruf, bei dem mitten im Gespraech
+    // callback_requested gesetzt wird, als Aufgaben-Eintrag auf.
+    if (vxIsCallInLivePhase(record)) return;
     uniqueById.set(record.id, record);
   });
 
@@ -13513,8 +13577,12 @@ function getUnifiedOpenTasks(records) {
 
 function deriveDashboardCallBuckets(records) {
   const uniqueById = new Map();
+  // Lebenszyklus 2026-08-07: jeder dieser Buckets ist eine Eintrags-Liste.
+  // Ein laufendes Gespraech ist noch kein Eintrag und darf in keinem davon
+  // auftauchen — auch nicht in den daraus abgeleiteten Zaehlungen.
   (records || []).forEach(function(r) {
     if (!r || !r.id || uniqueById.has(r.id)) return;
+    if (vxIsCallInLivePhase(r)) return;
     uniqueById.set(r.id, r);
   });
 
@@ -17690,16 +17758,35 @@ function buildLiveCallMatcher(liveRecord) {
   };
 }
 
-function updateLiveHero(records) {
+// ═══════════════════════════════════════════
+//  AMBIENT-HINWEIS FUER LAUFENDE GESPRAECHE
+//  Lebenszyklus-Definition 2026-08-07: waehrend ein Gespraech laeuft gibt es
+//  keinen Karten-Eintrag, sondern nur diesen Hinweis. Zwei Eigenschaften
+//  machen ihn flackerfrei — und beide sind strukturell, nicht kosmetisch:
+//
+//  1. Eigener Host (#dash-live-ambient). Frueher lebte #live-call-row als
+//     Kind von #dash-priority-list. renderDashPriorityList() setzt dort das
+//     innerHTML neu — und weil der Hinweis nie Teil des generierten HTML-
+//     Strings war, hat vxSetHtmlIfChanged() *immer* eine Differenz gesehen
+//     und die Liste samt Hinweis ersetzt. updateLiveHero() hat den Hinweis
+//     danach neu aufgebaut, inklusive liveRowEnter-Einblendung. Das war der
+//     sichtbare Flacker-Effekt, einmal pro Poll-/Realtime-Tick.
+//  2. Inhalt ohne veraenderliche Anruf-Daten. Der Text haengt nur davon ab,
+//     *ob* und *wie viele* Gespraeche laufen — nicht an Name, Firma oder
+//     Zeitstempel. Damit gibt es waehrend eines Gespraechs nichts mehr
+//     nachzubefuellen, der Knoten bleibt vom Klingeln bis zum Auflegen
+//     derselbe.
+//
+//  Wer anruft, meldet weiterhin Toast, Glocke und Browser-Notification —
+//  einmal je Anruf, nicht bei jedem Renderzyklus.
+// ═══════════════════════════════════════════
+function vxGetLivePhaseCalls(records) {
   var source = Array.isArray(records) ? records : (allRecords || []);
-  var rec = source
+  return source
     .filter(function(r) {
       if (!r || !r.fields) return false;
-      var f = r.fields || {};
-      if (isActivationCallCategory(f.category)) return false;
-      var liveStatus = String(f.live_status || '').toLowerCase();
-      var isLiveCandidate = liveStatus === 'incoming' || liveStatus === 'active';
-      return isLiveCandidate && !CALL_LIVE_TERMINAL_STATES.has(liveStatus);
+      if (isActivationCallCategory((r.fields || {}).category)) return false;
+      return vxIsCallInLivePhase(r);
     })
     .sort(function(a, b) {
       var pa = (typeof parseCallTimestamp === 'function') ? parseCallTimestamp((a.fields || {}).created_at) : null;
@@ -17707,96 +17794,105 @@ function updateLiveHero(records) {
       var ta = pa ? pa.getTime() : 0;
       var tb = pb ? pb.getTime() : 0;
       return tb - ta;
-    })[0] || null;
-  var priorityList = document.getElementById('dash-priority-list');
+    });
+}
+
+// Der In-App-Hinweis auf einen eingehenden Anruf ist NICHT Aufgabe dieser
+// Funktion — das leistet bereits der bestehende #incoming-banner: er wird von
+// flagIncomingRecords() ausgeloest, sobald in loadData() eine neue Record-ID
+// auftaucht, also waehrend das Gespraech laeuft, und zeigt "Neuer Anruf" mit
+// Anrufername, gruenem Puls-Punkt und Ton. Frueher standen hier zusaetzlich
+// vxToast() und vxBellAdd() — vxToast() ist im Repo aber nur dokumentiert und
+// nirgends implementiert, vxBellAdd() ruft ausschliesslich vxToast() auf. Beide
+// warfen damit einen ReferenceError mitten in updateLiveHero(). Ersatzlos
+// entfernt statt neu gebaut: der Banner deckt diesen Fall vollstaendig ab.
+//
+// Was hier bleibt, ergaenzt den Banner und dupliziert ihn nicht:
+//   notifyLiveCall()           — OS-Notification, nur wenn der Tab NICHT sichtbar
+//                                ist; der Banner ist rein in-app.
+//   vxMaybePlayLiveCallSound() — der Banner spielt den Ton nur bei genau einem
+//                                neuen Anruf; hier je Anruf. Global dedupliziert
+//                                ueber vxPlayedLiveSoundIds, daher kein Doppelton.
+// Meldewege bleiben trotzdem gekapselt: sie sind Beiwerk und duerfen den
+// Hinweis nie verhindern.
+function vxAnnounceLivePhaseCalls(liveRecs) {
+  (liveRecs || []).forEach(function(rec) {
+    var stableId = vxGetCallStableId(rec);
+    if (!stableId || _liveHeroNotified.has(stableId)) return;
+    _liveHeroNotified.add(stableId);
+    var f = rec.fields || {};
+    var caller = (typeof getCallDisplayName === 'function' ? getCallDisplayName(f) : null)
+                 || f.caller_name || f.phone_number || f.caller_phone || 'Unbekannte Nummer';
+    var company = f.company_name || '';
+    try {
+      if (typeof notifyLiveCall === 'function') notifyLiveCall(caller, company, rec.id);
+      if (typeof vxMaybePlayLiveCallSound === 'function') vxMaybePlayLiveCallSound(rec, 'live-hero');
+    } catch (err) {
+      console.warn('[live-hero] announcement failed', err);
+    }
+  });
+}
+
+function updateLiveHero(records) {
+  var liveRecs = vxGetLivePhaseCalls(records);
+  var host = document.getElementById('dash-live-ambient');
   var existing = document.getElementById('live-call-row');
 
-  if (!rec) {
-    // Kein Live-Anruf (mehr) -> Row entfernen, falls vorhanden.
+  vxAnnounceLivePhaseCalls(liveRecs);
+
+  if (!liveRecs.length) {
+    // Aufgelegt -> Hinweis verschwindet. Der Eintrag entsteht jetzt in den
+    // regulaeren Listen, weil vxIsCallInLivePhase() nicht mehr greift.
     if (existing) existing.remove();
     if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
     _liveHeroCurrentId = null;
     _liveHeroLastFingerprint = null;
     return;
   }
+  if (!host) return;
 
-  var f = rec.fields || {};
-  var caller = (typeof getCallDisplayName === 'function' ? getCallDisplayName(f) : null)
-               || f.caller_name || f.phone_number || f.caller_phone || 'Unbekannte Nummer';
-  var company = f.company_name || '';
-  var fingerprint = rec.id + '|' + caller + '|' + company;
+  // Der Fingerprint kennt bewusst nur die Anzahl. Solange dieselbe Menge an
+  // Gespraechen laeuft, aendert sich am Hinweis nichts — auch dann nicht,
+  // wenn mitten im Gespraech ein Anrufername nachgeliefert wird.
+  var fingerprint = 'live:' + liveRecs.length;
+  if (existing && existing.parentNode === host && fingerprint === _liveHeroLastFingerprint) return;
 
-  // A-P0-01 fix: updateLiveHero() is triggered both by the ~9s poll
-  // (TEMP_CALL_POLL_INTERVAL_MS) and by the Supabase realtime channel
-  // (setupDashboardRealtime()), often multiple times per minute. Previously
-  // every call unconditionally removed and rebuilt #live-call-row, which
-  // restarted its CSS animations (vxLiveBar, vxLiveRing, liveDotPulse) even
-  // when the displayed call and its content hadn't changed at all -- that's
-  // the permanent flicker from the design audit (PR #804). Same call, same
-  // rendered content already on screen -> do nothing.
-  if (existing && rec.id === _liveHeroCurrentId && fingerprint === _liveHeroLastFingerprint) {
-    return;
-  }
+  var label = liveRecs.length === 1
+    ? 'Ein Anruf läuft gerade'
+    : liveRecs.length + ' Anrufe laufen gerade';
+  var sub = 'Der Eintrag erscheint, sobald das Gespräch beendet ist.';
 
-  // Same call still live, but its displayed name/company changed (e.g. the
-  // caller name resolved mid-call) -> patch the existing node's text in
-  // place instead of destroying/recreating it, so the pulse/bar/dot
-  // animations keep running uninterrupted.
-  if (existing && rec.id === _liveHeroCurrentId) {
+  // Gleiche Anzahl-Klasse, aber der Knoten haengt noch woanders (oder der
+  // Text hat sich durch einen zweiten Anruf geaendert) -> Text im Knoten
+  // patchen statt ihn zu ersetzen, damit die Einblendung nicht neu startet.
+  if (existing && existing.parentNode === host) {
     var nameEl = existing.querySelector('.vx-live-name');
-    var avatarEl = existing.querySelector('.vx-live-avatar');
-    if (nameEl) nameEl.textContent = company || caller;
-    if (avatarEl) avatarEl.textContent = caller.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase() || '?';
+    var subEl = existing.querySelector('.vx-live-sub');
+    if (nameEl) nameEl.textContent = label;
+    if (subEl) subEl.textContent = sub;
     _liveHeroLastFingerprint = fingerprint;
+    _liveHeroCurrentId = liveRecs[0].id;
     return;
   }
 
-  // A different call became live (or this is the first render, or the row
-  // was lost some other way) -> full rebuild.
   if (existing) existing.remove();
 
-  // Live-Row erstellen — v3.0 Design
+  // Kein eigenes role/aria-live: die Live-Region ist der Host #dash-live-ambient,
+  // sonst kuendigt der Screenreader denselben Hinweis doppelt an.
   var row = document.createElement('div');
   row.id = 'live-call-row';
-  row.dataset.recordId = rec.id;
   row.innerHTML = [
-    '<div class="vx-live-avatar">' + (caller.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?') + '</div>',
     '<div class="vx-live-body">',
-      '<div class="vx-live-name">' + (company ? _esc(company) : _esc(caller)) + '</div>',
-      '<div class="vx-live-sub">Anruf läuft gerade · wird verarbeitet</div>',
+      '<div class="vx-live-name">' + _esc(label) + '</div>',
+      '<div class="vx-live-sub">' + _esc(sub) + '</div>',
     '</div>',
     '<div class="vx-live-badge"><span class="vx-live-badge-dot"></span>Live</div>'
   ].join('');
-  row.onclick = function(e) {
-    if (e && e.preventDefault) e.preventDefault();
-    if (e && e.stopPropagation) e.stopPropagation();
-    // Live calls are intentionally excluded from the Anfragen worklist until the call is finalized.
-    // Keep the user on Heute and avoid navigating to an empty filtered/detail state.
-    if (typeof vxToast === 'function') {
-      vxToast({ type:'call', title:'Live-Anruf läuft', sub:'Details erscheinen nach Gesprächsende automatisch in den Anfragen.' });
-    } else if (typeof toast === 'function') {
-      toast('Live-Anruf läuft. Details erscheinen nach Gesprächsende.', 'info');
-    }
-  };
 
   if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
 
-  var recStableId = vxGetCallStableId(rec);
-  if (recStableId && !_liveHeroNotified.has(recStableId)) {
-    _liveHeroNotified.add(recStableId);
-    notifyLiveCall(caller, company, rec.id);
-    vxToast({ type: 'call', title: 'Eingehender Anruf', sub: company ? company + ' · ' + caller : caller });
-    vxBellAdd({ type: 'call', title: 'Eingehender Anruf', sub: company ? company + ' · ' + caller : caller, recId: rec.id });
-    vxMaybePlayLiveCallSound(rec, 'live-hero');
-  }
-
-  // Live-Call nur auf Heute-Tab zeigen (Jetzt wichtig)
-  // Anfragen-Liste zeigt nur abgeschlossene Anrufe
-  if (priorityList) {
-    priorityList.insertBefore(row, priorityList.firstChild);
-  }
-
-  _liveHeroCurrentId = rec.id;
+  host.appendChild(row);
+  _liveHeroCurrentId = liveRecs[0].id;
   _liveHeroLastFingerprint = fingerprint;
 }
 
@@ -21514,6 +21610,7 @@ function vxGetHeuteTodayCallRecords(sourceRecords) {
   var source = Array.isArray(sourceRecords) ? sourceRecords : [];
   return vxHeuteDedupeByStableId(source).filter(function(r) {
     return !vxHeuteIsManualTask(r)
+      && !vxIsCallInLivePhase(r)
       && (typeof isCustomerVisibleCall !== 'function' || isCustomerVisibleCall(r))
       && vxHeuteRecordCreatedToday(r)
       && !vxHeuteIsOutboundOrTestRecord(r);
@@ -22929,6 +23026,10 @@ function vxGetAnfragenSourceRecords() {
   var calls = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
   var tasks = (typeof allManualTaskRecords !== 'undefined' && allManualTaskRecords) ? allManualTaskRecords : (window.allManualTaskRecords || []);
   return [].concat(calls || [], tasks || []).filter(Boolean).filter(function(r) {
+    // Lebenszyklus 2026-08-07: waehrend das Gespraech laeuft existiert noch
+    // kein Eintrag. Dieser Filter ist die zentrale Stelle dafuer — Heute-View,
+    // Anfragen-Inbox, KPIs und Nav-Badges lesen alle aus dieser Quelle.
+    if (vxIsCallInLivePhase(r)) return false;
     return isManualTaskRecord(r) || isCustomerVisibleCall(r);
   });
 }
@@ -22936,13 +23037,24 @@ function vxGetAnfragenSourceRecords() {
 // noch nicht als eigenes Datenobjekt zählen — vxGetEntryCounts() kannte
 // diese Ausnahme nicht, wodurch die Nav-Badge z.B. "1" zeigte, obwohl beim
 // Öffnen von Anfragen nichts Neues sichtbar war (die Liste selbst filtert
-// Live-Calls bereits korrekt heraus, die Zähler aber nicht). Gleiche
-// Filterung wie in den bereits korrekten vxHeute*-Funktionen
-// (vxGetHeuteTodayCallRecords → vxHeuteDedupeByStableId → vxIsLiveCall).
+// Live-Calls bereits korrekt heraus, die Zähler aber nicht).
+//
+// [2026-08-07] Prädikat auf vxIsCallInLivePhase() gezogen. Vorher stand hier
+// vxIsLiveCall(), das auch processing/in_progress mitzählt — also die Phase
+// NACH dem Auflegen. Dadurch war ein aufgelegter Anruf in Liste und
+// "Braucht dich"-Karte sichtbar, wurde aber nicht gezählt: derselbe
+// Widerspruch, den dieser Filter beheben sollte, nur umgekehrt. Liste,
+// Karten und Zähler benutzen jetzt dieselbe Definition von "live", und die
+// Grenze liegt dort, wo die Lebenszyklus-Definition sie zieht — beim
+// Auflegen.
+//
+// Die Filterung ist seit vxGetAnfragenSourceRecords() ohnehin an der Quelle
+// erledigt; dieser zweite Durchlauf bleibt als Absicherung für Aufrufer, die
+// die Funktion direkt erreichen.
 function vxGetAnfragenCountSourceRecords() {
   var source = vxGetAnfragenSourceRecords();
-  if (typeof vxIsLiveCall !== 'function') return source;
-  return source.filter(function(r) { return !vxIsLiveCall(r); });
+  if (typeof vxIsCallInLivePhase !== 'function') return source;
+  return source.filter(function(r) { return !vxIsCallInLivePhase(r); });
 }
 
 // [v3.4] Anfragen-Nav-Badge folgt dem echten Ungelesen-State (read_at), nicht nur dem alten Seen-Storage.
@@ -41726,7 +41838,13 @@ body:has(#tab-archiv.active) .content{
     // noch nicht als Datenobjekt zählen. Direkt hier geprüft (nicht nur an der
     // Quelle in getSource()), damit die Regel unabhängig davon gilt, welcher
     // Aufrufer diese Funktion mit welchen Records erreicht.
-    try { if (typeof window.vxIsLiveCall === 'function' && window.vxIsLiveCall(record)) return false; } catch(e) {}
+    // [2026-08-07] vxIsLiveCall() -> vxIsCallInLivePhase(): vxIsLiveCall()
+    // zählt auch processing/in_progress mit, also nach dem Auflegen, und war
+    // damit strenger als die Lebenszyklus-Definition selbst — ein bereits
+    // aufgelegter Anruf blieb "ungelesen"-unfähig, obwohl er längst als
+    // Eintrag existierte. Dieselbe Definition wie überall sonst im
+    // Lebenszyklus: die Grenze liegt beim Auflegen, nicht danach.
+    try { if (typeof window.vxIsCallInLivePhase === 'function' && window.vxIsCallInLivePhase(record)) return false; } catch(e) {}
     if (isDoneOrArchived(record)) return false;
     if (isPlanned(record)) return false;
     return true;
@@ -43788,6 +43906,11 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
       }
     }
     return vxRDedupe(source).filter(function(r){
+      // Lebenszyklus 2026-08-07: laufende Gespraeche sind noch keine Eintraege
+      // und duerfen in keinen Bucket (und damit in keine Zaehlung) einfliessen.
+      try {
+        if (typeof vxIsCallInLivePhase === 'function' && vxIsCallInLivePhase(r)) return false;
+      } catch(e) {}
       try {
         if (typeof isManualTaskRecord === 'function' && isManualTaskRecord(r)) return true;
       } catch(e) {}
