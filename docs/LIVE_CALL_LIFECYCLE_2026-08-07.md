@@ -263,7 +263,61 @@ gesamter Rumpf der tote Aufruf ist) und in `renderAnrufeInbox()` für die Meldun
 Beide gehören zu anderen Features; ob dort eine Meldung erscheinen soll, ist deren
 Entscheidung, nicht die dieses PRs.
 
-## 7. Testplan Deploy-Preview
+## 7. Zusammenführung mit PR #822 (Etappe-3-Redesign, Lara-Übergabe)
+
+`main` @ `4608352`. Als Merge zusammengeführt, nicht als Rebase: ein Konflikt in
+einer 2-MB-Einzeldatei einmal auflösen statt dreimal, und kein Force-Push auf den
+offenen PR.
+
+**Ein Konflikt, strukturell.** #822 versteckt `#dash-priority-section`
+(„Aufmerksamkeit") vollständig und ersetzt den Heute-Screen durch die Lara-Übergabe
+(`#dash-lara-message`, `#dash-needs-you-section`, `#dash-all-clear-section`,
+`#dash-resolved-section`). Beide Seiten übernommen; der Ambient-Hinweis steht jetzt
+vor der Lara-Nachricht: er sagt, was in dieser Sekunde passiert, die Übergabe sagt,
+was seither liegen geblieben ist. **Die Platzierung ist die einzige Design-Setzung
+dieses Merges** und im finalen Live-Test bewusst zu bestätigen.
+
+**Der Fix trägt das neue Design.** Sechs echte Renderzyklen über den kompletten
+`renderDashboard()`-Pfad des neuen Screens: derselbe Knoten, `liveRowEnter` konstant
+bei 300, keine Wiederholung. Die Übergabe-Karten zeigen ausschliesslich den
+beendeten Anruf, der Lara-Text zählt den laufenden nicht mit.
+
+**Zwei Stellen greifen ineinander, eine davon widersprüchlich:**
+
+`vxHeuteHandoverCardTimestamp()` bevorzugt bewusst `created_at` bzw.
+`completed_at` und meidet `updated_at` — das war #822s Zeitzonen-Fix. Für das
+Flackern ist das ein Glücksfall: anders als das alte `vxHeuteActivityTimestamp()`
+ändern sich die Karten-Zeitstempel während eines Gesprächs nicht. Kein Konflikt.
+
+`vxHeuteIsHandoverCall()` hat **keine eigene** Live-Phasen-Prüfung. Dass laufende
+Anrufe nicht als „Braucht dich"-Karte erscheinen, hängt allein daran, dass die
+Übergabe mit der bereits gefilterten `vxGetAnfragenSourceRecords()` gespeist wird.
+Durch einen Test festgehalten.
+
+### Offener Widerspruch: zwei Prädikate für dieselbe Regel
+
+#822 filtert laufende Anrufe über `vxIsLiveCall()` (in
+`vxGetAnfragenCountSourceRecords()` und `vxIsUnreadEligibleRecord()`), dieser PR
+über `vxIsCallInLivePhase()`. Die beiden ziehen die Grenze unterschiedlich:
+`vxIsLiveCall()` zählt auch `processing` und `in_progress` mit, also die Phase
+**nach** dem Auflegen.
+
+Gemessen am gemergten Stand:
+
+| Phase | Anfragen-Liste | „Braucht dich" | Zähler/Badge | unread |
+|---|---|---|---|---|
+| `active` (Leitung offen) | 0 | 0 | 0 | false |
+| `processing` (aufgelegt) | **1** | **1** | **0** | **false** |
+| `completed` | 1 | 1 | 1 | true |
+
+In der `processing`-Phase ist der Eintrag also sichtbar, wird aber nicht gezählt —
+dieselbe Klasse von Fehler, die #822 beheben wollte, nur umgekehrt. Nach der
+Lebenszyklus-Definition („Eintrag entsteht beim Auflegen") müsste `processing`
+zählen; die Auflösung wäre, #822s beide Filter auf `vxIsCallInLivePhase()` zu
+ziehen. Das ändert jedoch das ausgelieferte Verhalten von #822 und ist deshalb
+hier **bewusst nicht** vorgenommen, sondern zur Entscheidung gestellt.
+
+## 8. Testplan Deploy-Preview
 
 - [ ] Während eines laufenden Anrufs: Hinweis blendet einmal ein und steht danach ruhig
 - [ ] Kein Karten-Eintrag in "Aufmerksamkeit", "Anrufe heute", "Heute passiert", Anfragen
