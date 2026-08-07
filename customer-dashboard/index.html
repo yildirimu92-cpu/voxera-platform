@@ -19524,64 +19524,26 @@ function renderCallDetailPage(call, history) {
     : statusVal === 'follow_up_scheduled' ? '#E8C547'
     : '#1A6FE8';
   
-  // ─── BODY CONTENT (Card-Patterns wie Dashboard) ───
-  const callId = call.id;
-  const stateMeta = (typeof vxGetCallDisplayState === 'function' ? vxGetCallDisplayState(call) : null) || vxGetDefaultCallDisplayState();
-  const summary = vxGetCallSummary(call);
-  const callTranscript = vxGetCallTranscript(call);
-  const noteVal = call.notes_customer_voxera || call.notes || '';
-  
+  // ─── BODY CONTENT ─── shared with the split-pane detail (vxRenderDetailBodyHtml)
+  // instead of a second parallel card set — see "zwei Code-Pfade" consolidation.
   let html = '';
   html += vxRenderDetailBackLinkHtml();
   var durStr = dur >= 60 ? Math.floor(dur/60) + ':' + String(dur%60).padStart(2,'0') : (dur || '0') + 's';
-  var safeCategory = (typeof getCallCategoryDisplayLabel === 'function') ? (getCallCategoryDisplayLabel({ id: call.id, fields: call }) || 'Anruf') : (call.category || 'Anruf');
-  var nextActionRaw = String(call.next_action || '').trim();
-  var nextActionNorm = nextActionRaw.toLowerCase();
-  var isNoAction = !nextActionRaw || nextActionNorm === 'keine aktion nötig' || nextActionNorm === 'keine aktion' || nextActionNorm.indexOf('keine aktion') >= 0 || nextActionNorm.indexOf('kein handlungsbedarf') >= 0;
-  var isCallback = !!call.callback_requested || String(call.category || '').toLowerCase().indexOf('rückruf') >= 0 || nextActionNorm.indexOf('rückruf') >= 0 || nextActionNorm.indexOf('zurückruf') >= 0 || nextActionNorm.indexOf('anrufen') >= 0;
-  var isTest = String(call.category || '').toLowerCase().indexOf('test') >= 0 || String(summary || '').toLowerCase().indexOf('testanruf') >= 0;
-  var priorityNorm = String(call.priority || call.urgency || '').toLowerCase();
-  var categoryNorm = String(call.category || '').toLowerCase();
-  var relevanceLabel = leadQ === 'hot' ? 'Hohe Relevanz' : (leadQ === 'warm' ? 'Mittlere Relevanz' : (leadQ === 'cold' ? 'Niedrige Relevanz' : (priorityNorm ? priorityNorm.charAt(0).toUpperCase() + priorityNorm.slice(1) : 'Nicht bewertet')));
+  var actionMeta = (typeof vxInferDetailActionMeta === 'function')
+    ? vxInferDetailActionMeta({ id: call.id, fields: call })
+    : { tone:'neutral', title:'Nächsten Schritt prüfen', text:'Anfrage prüfen und den passenden nächsten Schritt festlegen.', meta:'' };
+  var isCallback = actionMeta.tone === 'callback';
+  var isOffer = actionMeta.tone === 'offer';
+  var isAppointment = actionMeta.tone === 'appointment';
+  var isNoAction = actionMeta.tone === 'neutral';
+  var isTest = actionMeta.tone === 'test';
   var statusBusinessLabel = statusVal === 'closed' || statusVal === 'done' ? 'Erledigt'
     : (statusVal === 'archived' || statusVal === 'archiviert' ? 'Archiviert'
       : (call.follow_up_at ? 'Geplant' : 'Offen'));
-  var isOffer = categoryNorm.indexOf('offerte') >= 0 || categoryNorm.indexOf('angebot') >= 0 || nextActionNorm.indexOf('offerte') >= 0 || nextActionNorm.indexOf('angebot') >= 0;
-  var isAppointment = categoryNorm.indexOf('termin') >= 0 || nextActionNorm.indexOf('termin') >= 0;
-  var hasConcreteAction = !!nextActionRaw && !isNoAction;
-  var hasHandlungsbedarf = !isNoAction && !isTest && (isCallback || isOffer || isAppointment || hasConcreteAction || leadQ === 'hot' || leadQ === 'warm');
-  var actionTitle = 'Nächsten Schritt prüfen';
-  var actionText = 'Anfrage prüfen und den passenden nächsten Schritt festlegen.';
-  var actionHint = 'Voxera hat eine offene Anfrage erkannt.';
-  if (isNoAction || isTest) {
-    actionTitle = 'Kein Handlungsbedarf erkannt';
-    actionText = 'Der Anruf enthält kein konkretes Anliegen. Du kannst ihn abschliessen oder archivieren.';
-    actionHint = isTest ? 'Testanruf oder nicht verwertbarer Inhalt erkannt.' : 'Kein konkreter nächster Schritt erkannt.';
-  } else if (isCallback) {
-    actionTitle = 'Rückruf empfohlen';
-    actionText = nextActionRaw || 'Die Anruferin oder der Anrufer möchte zurückgerufen werden. Rufe direkt an oder plane einen Follow-up.';
-    actionHint = 'Rückrufsignal erkannt.';
-  } else if (isOffer) {
-    actionTitle = 'Anfrage prüfen';
-    actionText = nextActionRaw || 'Es handelt sich wahrscheinlich um eine Offertenanfrage. Prüfe die Zusammenfassung und erstelle bei Bedarf eine Aufgabe.';
-    actionHint = 'Offerten- oder Angebotsbezug erkannt.';
-  } else if (isAppointment) {
-    actionTitle = 'Termin klären';
-    actionText = nextActionRaw || 'Der Anruf betrifft wahrscheinlich einen Termin. Prüfe die Angaben und plane bei Bedarf einen Follow-up.';
-    actionHint = 'Terminbezug erkannt.';
-  } else if (hasConcreteAction) {
-    actionTitle = 'Nächster Schritt erkannt';
-    actionText = nextActionRaw;
-    actionHint = 'KI-Empfehlung aus dem Gespräch.';
-  }
-  var actionTitleSafe = (typeof escapeHtml === 'function') ? escapeHtml(actionTitle) : actionTitle;
-  var actionTextSafe = (typeof escapeHtml === 'function') ? escapeHtml(actionText) : actionText;
-  var actionHintSafe = (typeof escapeHtml === 'function') ? escapeHtml(actionHint) : actionHint;
-  var dateLong = timestamp ? vxFormatDateTimeCH(timestamp, { dateOnly: true }) : '';
   var timeShort = timestamp ? vxFormatDateTimeCH(timestamp, { timeOnly: true }) : '';
 
   // ─── HEADER PILLS — max. 2: Status + Handlungsbedarf/Rückruf
-  // Relevanz lebt NICHT im Header (sie steht in der Details-Karte).
+  // Relevanz lebt NICHT im Header (sie steht in der Anliegen-Karte).
   var _pillBase = 'font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;line-height:1;';
   var _detailPills = [];
   function _addDetailPill(label, style) {
@@ -19685,7 +19647,7 @@ function renderCallDetailPage(call, history) {
       else if (isNoAction || isTest) _secondaryHeaderLabel = 'Kein Handlungsbedarf';
       else if (isOffer) _secondaryHeaderLabel = 'Anfrage prüfen';
       else if (isAppointment) _secondaryHeaderLabel = 'Terminbezug';
-      else if (hasConcreteAction) _secondaryHeaderLabel = 'Handlungsbedarf';
+      else if (actionMeta.tone === 'suggested') _secondaryHeaderLabel = 'Handlungsbedarf';
 
       var _statusPillClass = (statusBusinessLabel === 'Erledigt' || statusBusinessLabel === 'Archiviert') ? ' vxdr-pill--success' : ' vxdr-pill--status';
       var _pillHtml = '<span class="vxdr-pill' + _statusPillClass + '">' + _esc(statusBusinessLabel) + '</span>'
@@ -19737,104 +19699,17 @@ function renderCallDetailPage(call, history) {
     console.warn('[voxera] detail header render skipped', _headerErr);
   }
 
-  // ─── CARD: Nächster Schritt — primary action cockpit ───
-  html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;box-shadow:0 10px 28px rgba(15,23,42,.04);">';
-  html +=   '<div style="display:flex;gap:14px;align-items:flex-start;padding:15px 16px 12px;">';
-  html +=     '<div style="width:34px;height:34px;border-radius:12px;background:#EEF4FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph-bold ph-flag" style="font-size:17px;color:#1A6FE8;" aria-hidden="true"></i></div>';
-  html +=     '<div style="min-width:0;flex:1;">';
-  html +=       '<div style="font-size:15px;font-weight:800;color:#0D1F3C;letter-spacing:-.02em;margin-bottom:4px;">' + actionTitleSafe + '</div>';
-  html +=       '<div style="font-size:13px;color:#465670;line-height:1.55;">' + actionTextSafe + '</div>';
-  html +=       '<div style="font-size:11px;color:#94A3B8;margin-top:5px;">' + actionHintSafe + '</div>';
-  html +=     '</div>';
-  html +=   '</div>';
-  html +=   '<div style="display:flex;align-items:center;gap:8px;padding:0 16px 15px;flex-wrap:wrap;">';
-  if (isNoAction || isTest) {
-    html += '<button onclick="vxCallDetailErledigt()" style="height:36px;padding:0 14px;border-radius:10px;border:0.5px solid #D7DEEA;background:#fff;color:#0D1F3C;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"><i class="ph-bold ph-check" aria-hidden="true"></i>Als erledigt markieren</button>';
-    html += '<button onclick="vxCallDetailArchivieren()" style="height:36px;padding:0 14px;border-radius:10px;border:0.5px solid #E2E8F0;background:#F8FAFC;color:#64748B;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"><i class="ph-bold ph-archive" aria-hidden="true"></i>Archivieren</button>';
-  } else {
-    if (isCallback && displayPhone) html += '<button onclick="vxCallDetailAnrufen()" style="height:38px;padding:0 16px;border-radius:10px;border:none;background:#1A6FE8;color:#fff;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 18px rgba(26,111,232,.18);"><i class="ph-bold ph-phone" aria-hidden="true"></i>Anrufen</button>';
-    html += '<button onclick="vxCallDetailFaelligkeit()" style="height:38px;padding:0 16px;border-radius:10px;border:0.5px solid #D7DEEA;background:#fff;color:#0D1F3C;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"><i class="ph-bold ph-calendar-plus" aria-hidden="true"></i>Follow-up planen</button>';
-    html += '<button onclick="vxCallDetailErledigt()" style="height:38px;padding:0 16px;border-radius:10px;border:0.5px solid #D7DEEA;background:#fff;color:#0D1F3C;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"><i class="ph-bold ph-check" aria-hidden="true"></i>Als erledigt markieren</button>';
-  }
-  html +=   '</div>';
-  html += '</div>';
+  if (typeof vxEnsureDetailStyles === 'function') vxEnsureDetailStyles();
+  html += (typeof vxRenderDetailBodyHtml === 'function') ? vxRenderDetailBodyHtml({ id: call.id, fields: call }) : '';
 
-  // ─── CARD: Zusammenfassung (KI) ───
-  html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;">';
-  html +=   '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--line);">';
-  html +=     '<i class="ph-bold ph-sparkle" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i>';
-  html +=     '<div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Zusammenfassung</div>';
-  html += summary ? '<div style="font-size:10px;font-weight:700;color:#64748B;margin-left:auto;text-transform:uppercase;letter-spacing:.07em;">Automatisch erstellt</div>' : '';
-  html +=   '</div>';
-  html +=   '<div style="padding:13px 14px;">';
-  if (!stateMeta.isTemporary && summary) {
-    html += '<div style="font-size:13px;color:#37415A;line-height:1.7;">' + summary + '</div>';
-  } else {
-    html += '<div style="text-align:center;padding:10px 0;">';
-    html +=   '<div style="font-size:13px;color:var(--slate);font-style:italic;">' + (callTranscript ? 'Gesprächsverlauf vorhanden — Zusammenfassung wird noch erstellt.' : 'Keine Zusammenfassung vorhanden.') + '</div>';
-    html +=   '<div style="font-size:11px;color:var(--slate2);margin-top:4px;">Vermutlich wurde aufgelegt oder der Anruf war zu kurz.</div>';
-    html += '</div>';
-  }
-  html +=   '</div>';
-  html += '</div>';
-
-  // ─── CARD: Details grid ───
-  html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;">';
-  html +=   '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--line);">';
-  html +=     '<i class="ph-bold ph-info" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i>';
-  html +=     '<div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Anrufdetails</div>';
-  html +=   '</div>';
-  html +=   '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding:12px 14px;">';
-  function _cdMeta(label, value, sub) { return '<div style="padding:7px 12px 7px 0;min-width:0;"><div style="font-size:10px;font-weight:750;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">' + label + '</div><div style="font-size:13px;font-weight:700;color:#0D1F3C;line-height:1.35;word-break:break-word;">' + (value || '–') + '</div>' + (sub ? '<div style="font-size:11px;color:#64748B;margin-top:2px;">' + sub + '</div>' : '') + '</div>'; }
-  html += _cdMeta('Kategorie', safeCategory, null);
-  html += _cdMeta('Relevanz', relevanceLabel, priorityNorm ? ('Dringlichkeit: ' + priorityNorm) : null);
-  html += _cdMeta('Status', statusBusinessLabel, null);
-  html += _cdMeta('Handlungsbedarf', hasHandlungsbedarf ? 'Ja' : 'Nein', actionTitle);
-  html += _cdMeta('Dauer', durStr, null);
-  html += _cdMeta('Zeitpunkt', timeShort, dateLong);
-  html += _cdMeta('Quelle', 'Telefonanruf', displayPhone || null);
-  html +=   '</div>';
-  html += '</div>';
-
-  // ─── CARD: Audioaufnahme + Transkript (secondary accordion, geordnet nach Sprecher/Abschnitten) ───
-  html += (typeof vxRenderCallAudioCardHtml === 'function') ? vxRenderCallAudioCardHtml(call) : '';
-  html += (typeof vxRenderTranscriptCardHtml === 'function')
-    ? vxRenderTranscriptCardHtml(callTranscript)
-    : '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;"><div style="display:flex;align-items:center;gap:10px;padding:11px 14px;"><i class="ph-bold ph-file-text" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i><div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Gesprächsverlauf</div></div><div style="border-top:0.5px solid var(--line);padding:12px 14px;font-size:12px;line-height:1.7;color:var(--ink2);white-space:pre-wrap;max-height:320px;overflow-y:auto;">' + escapeHtml(callTranscript || 'Kein Gesprächsverlauf vorhanden.') + '</div></div>';
-
-  // ─── CARD: Notiz ───
-  html += '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;">';
-  html +=   '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--line);">';
-  html +=     '<i class="ph-bold ph-pencil-simple" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i>';
-  html +=     '<div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Persönliche Notiz</div>';
-  html +=     '<div id="vx-cd-save-indicator" class="vx-cd-save-indicator" style="margin-left:auto;opacity:0;">';
-  html +=       '<span class="dot"></span><span class="indicator-text"></span>';
-  html +=     '</div>';
-  html +=   '</div>';
-  html +=   '<div style="padding:12px 14px;">';
-  html +=     '<textarea id="call-detail-notes" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;resize:vertical;min-height:74px;background:var(--vx-bg,#F7F8FA);color:var(--ink,#1A1A2E);box-sizing:border-box;line-height:1.6;outline:none;" placeholder="Notiz hinzufügen...">' + noteVal + '</textarea>';
-  html +=     '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">';
-  html +=       '<span style="font-size:11px;color:var(--slate);">Speichert automatisch · Strg+S für sofortiges Speichern</span>';
-  html +=     '</div>';
-  html +=   '</div>';
-  html += '</div>';
-
-  // ─── Kontakt-Historie ───
-  html += renderTimelineHTML(history);
-  
   const contentEl = document.getElementById('call-detail-content');
   if (contentEl) contentEl.innerHTML = html;
 
   // Lucide icons re-initialize
   /* phosphor: no init needed */
-  
+
   // ─── Morphing-Banner Scroll Listener ───
   vxSetupMorphingBanner();
-  
-  // ─── ELITE: Auto-Save für Notizen aktivieren ───
-  if (typeof vxSetupNotesAutoSave === 'function') {
-    vxSetupNotesAutoSave(callId);
-  }
 
   // [PATCH v2.20 — Follow-up Default: Morgen 09:00 vorauswählen]
   // Pflichtdatum: Nutzer muss nicht mehr manuell auf einen Quick-Chip klicken.
@@ -19849,7 +19724,7 @@ function renderCallDetailPage(call, history) {
       defaultInput.value = vxFormatLocalDateTimeForInput ? vxFormatLocalDateTimeForInput(tomorrow9) : '';
     }
   }, 50);
-  
+
 
   // ─── VOXERA: Header-actions are rendered as a stable mockup-aligned group ───
   // Keep all further action logic in the content cards to avoid header crowding/overlap.
@@ -19858,18 +19733,6 @@ function renderCallDetailPage(call, history) {
     headerCallBtn.disabled = true;
     headerCallBtn.style.opacity = '0.45';
     headerCallBtn.style.cursor = 'not-allowed';
-  }
-
-  // ─── ELITE: Strg+S für manuelles Speichern ───
-  var notesEl = document.getElementById('call-detail-notes');
-  if (notesEl && !notesEl._vxKbdSetup) {
-    notesEl._vxKbdSetup = true;
-    notesEl.addEventListener('keydown', function(e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        saveCallNotes(callId);
-      }
-    });
   }
 }
 
@@ -20472,82 +20335,6 @@ function toggleTranscript(id) {
   const e = document.getElementById(id);
   if (e) e.style.display = e.style.display === 'none' ? 'block' : 'none';
 }
-
-function saveCallNotes(callId, options) {
-  options = options || {};
-  var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
-  if (!sb) { 
-    showToast('⚠️ Authentifizierung erforderlich');
-    return Promise.resolve({ error: true });
-  }
-  
-  const notesEl = document.getElementById('call-detail-notes');
-  const notes = notesEl ? notesEl.value : '';
-  
-  // Save-Indicator setzen
-  vxSetSaveIndicator('saving', 'Speichern…');
-  
-  return sb.from('calls').update({ 
-    notes_customer_voxera: notes, 
-    updated_at: new Date().toISOString() 
-  }).eq('id', callId).then(function(r) {
-    if (r.error) {
-      console.error('saveCallNotes error:', r.error);
-      vxSetSaveIndicator('error', 'Fehler beim Speichern');
-      if (!options.silent) showToast('⚠️ Fehler beim Speichern');
-      return r;
-    }
-    
-    // ─── ELITE: Lokalen Cache aktualisieren ───
-    var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
-    var rec = recordsSource.find(function(x) { return x.id === callId; });
-    if (rec && rec.fields) {
-      rec.fields.notes_customer_voxera = notes;
-    }
-    
-    vxSetSaveIndicator('saved', 'Gespeichert');
-    if (!options.silent) showToast('✓ Notiz gespeichert');
-    
-    // Save-Indicator nach 3 Sek. ausblenden
-    setTimeout(function() { vxSetSaveIndicator('idle', ''); }, 3000);
-    return r;
-  });
-}
-window.saveCallNotes = saveCallNotes;
-
-// Save-Indicator Helper
-function vxSetSaveIndicator(state, text) {
-  var el = document.getElementById('vx-cd-save-indicator');
-  if (!el) return;
-  el.className = 'vx-cd-save-indicator ' + (state === 'idle' ? '' : state);
-  el.style.opacity = state === 'idle' ? '0' : '1';
-  var textEl = el.querySelector('.indicator-text');
-  if (textEl) textEl.textContent = text;
-}
-window.vxSetSaveIndicator = vxSetSaveIndicator;
-
-// ─── Auto-Save für Notizen (debounced) ───
-var _vxNotesSaveTimer = null;
-var _vxNotesLastValue = '';
-function vxSetupNotesAutoSave(callId) {
-  var el = document.getElementById('call-detail-notes');
-  if (!el || el._vxAutoSaveSetup) return;
-  el._vxAutoSaveSetup = true;
-  _vxNotesLastValue = el.value;
-  
-  el.addEventListener('input', function() {
-    // Debounce: erst nach 1.2 Sek ohne Tipp-Aktivität speichern
-    if (_vxNotesSaveTimer) clearTimeout(_vxNotesSaveTimer);
-    vxSetSaveIndicator('saving', 'Tippen…');
-    
-    _vxNotesSaveTimer = setTimeout(function() {
-      if (el.value === _vxNotesLastValue) return;
-      _vxNotesLastValue = el.value;
-      saveCallNotes(callId, { silent: true });
-    }, 1200);
-  });
-}
-window.vxSetupNotesAutoSave = vxSetupNotesAutoSave;
 
 // ═══ QUICK ACTIONS ═══
 
@@ -32567,26 +32354,6 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
   box-shadow: 0 4px 16px rgba(13,31,60,0.18);
 }
 
-/* Save-Indicator Animation */
-.vx-cd-save-indicator {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; color: var(--slate);
-  transition: opacity 0.3s ease;
-}
-.vx-cd-save-indicator.saving { color: var(--vx-blue, #1A6FE8); }
-.vx-cd-save-indicator.saved { color: var(--green, #059669); }
-.vx-cd-save-indicator.error { color: var(--red, #DC2626); }
-.vx-cd-save-indicator .dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: currentColor;
-  animation: vx-pulse 1.4s ease-in-out infinite;
-}
-.vx-cd-save-indicator.saved .dot { animation: none; }
-@keyframes vx-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.7); }
-}
-
 /* ─── Pills (Nachfassen) — system-konform, KEINE Verzerrung ─── */
 /* Folgt .btn-Spec: fixe Höhe 44px, kein vertikales Padding, white-space:nowrap */
 .vx-cd-pill {
@@ -36348,7 +36115,6 @@ button.vx-cd-qa-success:hover,
   #call-detail-content > div[style*="grid-template-columns:repeat(3"]{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
-  #call-detail-content textarea#call-detail-notes{min-height:92px!important;}
 }
 
 
@@ -37081,7 +36847,6 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
   #call-detail-content > div[style*="grid-template-columns:repeat(3"]{
     grid-template-columns:1fr!important;
   }
-  #call-detail-content textarea#call-detail-notes{min-height:92px!important;}
 }
 </style>
 
@@ -37373,7 +37138,6 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
     width:100%!important;max-width:none!important;
   }
   #call-detail-content > div[style*="grid-template-columns:repeat(3"]{grid-template-columns:1fr!important;}
-  #call-detail-content textarea#call-detail-notes{min-height:92px!important;}
 }
 
 
@@ -42262,6 +42026,9 @@ body:has(#tab-archiv.active) .content{
     try { if (typeof vxInquiryIsPlanned === 'function') return !!vxInquiryIsPlanned(record); } catch(e) {}
     return !!firstNonEmpty(f.followup_at, f.due_at, f.next_action_at);
   }
+  // Single source of truth for "what's the next step" across every detail
+  // surface (split-pane and fullscreen previously ran two independent
+  // implementations of this inference with different signals and copy).
   function inferActionMeta(record, f){
     var category = String(firstNonEmpty(f.category, f.type)).toLowerCase();
     var summary = String(getSummary(record, f)).toLowerCase();
@@ -42269,12 +42036,16 @@ body:has(#tab-archiv.active) .content{
     var callback = truthy(f.callback_requested) || category.indexOf('rückruf') !== -1 || category.indexOf('callback') !== -1;
     var appointment = category.indexOf('termin') !== -1 || summary.indexOf('termin') !== -1;
     var offer = category.indexOf('offerte') !== -1 || category.indexOf('angebot') !== -1 || summary.indexOf('offerte') !== -1 || summary.indexOf('angebot') !== -1;
+    var isTest = category.indexOf('test') !== -1 || summary.indexOf('testanruf') !== -1;
     var done = isCompleted(record, f);
     if (done) return { tone:'done', title:'Bereits erledigt', text:'Dieser Eintrag ist abgeschlossen. Weitere Schritte sind nur nötig, wenn du ihn wieder aktiv bearbeiten möchtest.', meta:'Status aus dem Eintrag übernommen.' };
+    if (isTest) return { tone:'test', title:'Kein Handlungsbedarf erkannt', text:'Testanruf oder nicht verwertbarer Inhalt erkannt. Du kannst den Eintrag abschliessen oder archivieren.', meta:'Testanruf erkannt.' };
     if (followupAt) return { tone:'planned', title:'Rückruf / Aufgabe geplant', text:'Für diesen Eintrag ist ein nächster Zeitpunkt hinterlegt: ' + fmtTs(followupAt) + '.', meta:'Aus followup_at / due_at abgeleitet.' };
     if (callback) return { tone:'callback', title:'Rückruf empfohlen', text:'Der Eintrag enthält ein Rückrufsignal. Prüfe den Kontakt und plane bei Bedarf einen Rückruf.', meta:'Aus callback_requested oder Kategorie erkannt.' };
     if (offer) return { tone:'offer', title:'Offertenanfrage erkannt', text:'Der Eintrag wirkt wie eine Anfrage zu einer Offerte. Prüfe die Zusammenfassung und kontaktiere den Kunden bei Bedarf.', meta:'Aus Kategorie oder Zusammenfassung abgeleitet.' };
     if (appointment) return { tone:'appointment', title:'Terminbezug erkannt', text:'Der Eintrag enthält einen Terminbezug. Prüfe, ob ein Rückruf oder eine Terminbestätigung notwendig ist.', meta:'Aus Kategorie oder Zusammenfassung abgeleitet.' };
+    var nextActionRaw = firstNonEmpty(f.next_action);
+    if (nextActionRaw) return { tone:'suggested', title:'Nächster Schritt erkannt', text: nextActionRaw, meta:'KI-Empfehlung aus dem Gespräch.' };
     return { tone:'neutral', title:'Kein konkreter nächster Schritt erkannt', text:'Im aktuellen Datensatz ist kein klarer Handlungsbedarf hinterlegt.', meta:'Keine Rückruf-, Termin- oder Offertensignale erkannt.' };
   }
   function chipHtml(text, kind){
@@ -42342,7 +42113,88 @@ body:has(#tab-archiv.active) .content{
       '@media(max-width:1180px){#requests-detail-v2 .vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}\n' +
       '@media(max-width:760px){#requests-detail-v2 .vx-dv2-info-grid{grid-template-columns:1fr;}#requests-detail-v2 .vx-dv2-actions{position:sticky;top:0;z-index:2;}}\n';
     style.textContent += style.textContent.replace(/#requests-detail-v2/g, '#archiv-detail-v2');
+    style.textContent += style.textContent.replace(/#requests-detail-v2/g, '#call-detail-content');
+    // #vx-detail-v2-full-content: the PR-O fullscreen shell (openFullscreenV2)
+    // that showCallDetail()/showTaskDetail() actually route to today for
+    // Heute + mobile. It already called vxRenderRequestsDetailV2() for its
+    // content, but this stylesheet never scoped to it — the shared .vx-dv2-*
+    // markup rendered there with no styling at all. That gap, not a second
+    // parallel implementation, was the "Heute vs. Anfragen look different"
+    // bug: both paths use the same renderer, only one had its CSS attached.
+    style.textContent += style.textContent.replace(/#requests-detail-v2/g, '#vx-detail-v2-full-content');
     document.head.appendChild(style);
+  }
+
+  // Shared detail body: consolidated Anliegen+Nächster-Schritt card plus
+  // collapsed Audio&Transkript/Notiz/Verlauf sections and the optional
+  // multi-step status line. This is the ONE implementation of "what a
+  // request detail body looks like" — used both by the split-pane
+  // (vxRenderRequestsDetailV2, below) and by the fullscreen page
+  // (renderCallDetailPage) instead of each maintaining its own copy.
+  function buildDetailBodyHtml(record){
+    var f = getRecordFields(record);
+    var phone = firstNonEmpty(f.phone, f.caller_phone, f.phone_number, f.tel_link, record && record.phone, record && record.caller_phone);
+    var rawDate = firstNonEmpty(f.created_at, f.received_at, f.started_at, record && record.created_at);
+    var summary = getSummary(record, f);
+    var note = firstNonEmpty(f.notes_customer_voxera, f.customer_note, f.note, f.notes);
+    var transcript = getTranscript(f);
+    var done = isCompleted(record, f);
+    var planned = isPlanned(record, f);
+    var actionMeta = inferActionMeta(record, f);
+
+    var html = '<div class="vx-dv2-body">';
+
+    html +=     '<div class="vx-dv2-card">';
+    html +=       '<div class="vx-dv2-card-head"><div><i class="ph-bold ph-sparkle"></i> Anliegen</div><span>Automatisch erstellt</span></div>';
+    html +=       (summary ? '<div class="vx-dv2-text">'+esc(summary)+'</div>' : '<div class="vx-dv2-muted">Keine Zusammenfassung verfügbar.</div>');
+    html +=       '<div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--vx-border);">';
+    html +=         '<div class="vx-dv2-info-label" style="margin-bottom:4px;">Nächster Schritt</div>';
+    html +=         '<div class="vx-dv2-text">'+esc(actionMeta.text)+'</div>';
+    html +=       '</div>';
+    html +=     '</div>';
+
+    var hasAudio = !!((typeof vxGetCallAudioUrl === 'function' && vxGetCallAudioUrl(record)) ||
+      (typeof vxGetElevenLabsConversationId === 'function' && vxGetElevenLabsConversationId(record)));
+    if (hasAudio || transcript) {
+      html += '<details class="vx-summary-acc"><summary>' +
+        '<span class="vx-summary-acc-label"><i class="ph-bold ph-waveform" aria-hidden="true"></i><span>Audio &amp; Transkript</span></span>' +
+        '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
+        '</summary><div class="vx-summary-acc-body" style="display:flex;flex-direction:column;gap:10px;">';
+      if (hasAudio && typeof vxRenderCallAudioCardHtml === 'function') html += vxRenderCallAudioCardHtml(record);
+      if (transcript) html += renderTranscript(transcript);
+      html += '</div></details>';
+    }
+
+    html += '<details class="vx-summary-acc"><summary>' +
+      '<span class="vx-summary-acc-label"><i class="ph-bold ph-note-pencil" aria-hidden="true"></i><span>Notiz</span></span>' +
+      '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
+      '</summary><div class="vx-summary-acc-body">';
+    html +=   '<textarea id="vx-dv2-note" class="vx-dv2-note" placeholder="Notiz hinzufügen...">'+esc(note)+'</textarea>';
+    html +=   '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;"><button class="vx-dv2-btn vx-dv2-btn-primary" id="vx-dv2-save-btn" onclick="vxDv2SaveNote()">Speichern</button><span class="vx-dv2-muted">Speichert im aktuellen Eintrag.</span></div>';
+    html += '</div></details>';
+
+    if (phone) {
+      html += '<details class="vx-summary-acc" ontoggle="vxDv2LoadHistory(this)"><summary>' +
+        '<span class="vx-summary-acc-label"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i><span>Verlauf</span></span>' +
+        '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
+        '</summary><div class="vx-summary-acc-body" data-phone="' + esc(phone) + '">Wird geladen, sobald geöffnet…</div></details>';
+    }
+
+    var steps = [];
+    if (planned) {
+      if (rawDate) steps.push({ label: 'Eingegangen', current: false });
+      steps.push({ label: 'Rückruf geplant', current: !done });
+      if (done) steps.push({ label: 'Erledigt', current: true });
+    }
+    if (steps.length > 1) {
+      html += '<div class="vx-summary-steps">' + steps.map(function(step, idx) {
+        var sep = idx > 0 ? '<span class="vx-summary-step-sep" aria-hidden="true"></span>' : '';
+        return sep + '<span class="vx-summary-step' + (step.current ? ' is-current' : '') + '"><span class="vx-summary-step-dot" aria-hidden="true"></span>' + esc(step.label) + '</span>';
+      }).join('') + '</div>';
+    }
+
+    html += '</div>';
+    return html;
   }
 
   window.vxRenderRequestsDetailV2 = function(record, options) {
@@ -42359,16 +42211,11 @@ body:has(#tab-archiv.active) .content{
     var status = firstNonEmpty(f.status, f.dashboard_status, f.state);
     var category = firstNonEmpty(f.category, f.intent, f.topic);
     var leadQual = firstNonEmpty(f.lead_quality, f.lead_quality_label, f.priority);
-    var source = firstNonEmpty(f.source, f.channel, f.direction) || 'Telefonanruf';
     var dur = duration(firstNonEmpty(f.duration_seconds, f.duration, f.call_duration_seconds));
-    var summary = getSummary(record, f);
-    var note = firstNonEmpty(f.notes_customer_voxera, f.customer_note, f.note, f.notes);
-    var transcript = getTranscript(f);
     var done = isCompleted(record, f);
     var planned = isPlanned(record, f);
     var callback = truthy(f.callback_requested);
     var followupAt = firstNonEmpty(f.followup_at, f.due_at, f.next_action_at);
-    var actionMeta = inferActionMeta(record, f);
     var displayName = name || phone || 'Unbekannte Nummer';
     var initials = name ? name.trim().split(/\s+/).slice(0,2).map(function(w){return (w[0]||'').toUpperCase();}).join('') : (phone ? phone.replace(/\D/g,'').slice(-2) : '?');
     var displayMeta = [date, dur].filter(Boolean).join(' · ') || '—';
@@ -42399,65 +42246,7 @@ body:has(#tab-archiv.active) .content{
     if (!done) html += '<button class="vx-dv2-btn vx-dv2-btn-done" onclick="vxCallDetailErledigt()"><i class="ph-bold ph-check"></i>Erledigt</button>';
     html +=   '</div>';
 
-    html +=   '<div class="vx-dv2-body">';
-
-    // Konsolidierter Summary-Block ("Was" + "Nächster Schritt") — EIN Block
-    // statt separater Anliegen-/Handlungsbedarf-/Anrufdetails-/Kontakt-Karten.
-    html +=     '<div class="vx-dv2-card">';
-    html +=       '<div class="vx-dv2-card-head"><div><i class="ph-bold ph-sparkle"></i> Anliegen</div><span>Automatisch erstellt</span></div>';
-    html +=       (summary ? '<div class="vx-dv2-text">'+esc(summary)+'</div>' : '<div class="vx-dv2-muted">Keine Zusammenfassung verfügbar.</div>');
-    html +=       '<div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--vx-border);">';
-    html +=         '<div class="vx-dv2-info-label" style="margin-bottom:4px;">Nächster Schritt</div>';
-    html +=         '<div class="vx-dv2-text">'+esc(actionMeta.text)+'</div>';
-    html +=       '</div>';
-    html +=     '</div>';
-
-    // Eingeklappte Sektionen: Audio & Transkript / Notiz / Verlauf
-    var hasAudio = !!((typeof vxGetCallAudioUrl === 'function' && vxGetCallAudioUrl(record)) ||
-      (typeof vxGetElevenLabsConversationId === 'function' && vxGetElevenLabsConversationId(record)));
-    if (hasAudio || transcript) {
-      html += '<details class="vx-summary-acc"><summary>' +
-        '<span class="vx-summary-acc-label"><i class="ph-bold ph-waveform" aria-hidden="true"></i><span>Audio &amp; Transkript</span></span>' +
-        '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
-        '</summary><div class="vx-summary-acc-body" style="display:flex;flex-direction:column;gap:10px;">';
-      if (hasAudio && typeof vxRenderCallAudioCardHtml === 'function') html += vxRenderCallAudioCardHtml(record);
-      if (transcript) html += renderTranscript(transcript);
-      html += '</div></details>';
-    }
-
-    html += '<details class="vx-summary-acc"><summary>' +
-      '<span class="vx-summary-acc-label"><i class="ph-bold ph-note-pencil" aria-hidden="true"></i><span>Notiz</span></span>' +
-      '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
-      '</summary><div class="vx-summary-acc-body">';
-    html +=   '<textarea id="vx-dv2-note" class="vx-dv2-note" placeholder="Notiz hinzufügen...">'+esc(note)+'</textarea>';
-    html +=   '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;"><button class="vx-dv2-btn vx-dv2-btn-primary" onclick="vxDv2SaveNote()">Speichern</button><span class="vx-dv2-muted">Speichert im aktuellen Eintrag.</span></div>';
-    html += '</div></details>';
-
-    if (phone) {
-      html += '<details class="vx-summary-acc" ontoggle="vxDv2LoadHistory(this)"><summary>' +
-        '<span class="vx-summary-acc-label"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i><span>Verlauf</span></span>' +
-        '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
-        '</summary><div class="vx-summary-acc-body" data-phone="' + esc(phone) + '">Wird geladen, sobald geöffnet…</div></details>';
-    }
-
-    // Schmale Statuszeile — nur bei mehrstufigen Fällen (z.B. Eingegangen →
-    // Rückruf geplant). Ein Fall, der direkt als erledigt markiert wird ohne
-    // je eine Zwischenstation (Rückruf/Planung) durchlaufen zu haben, zählt
-    // als einstufig (die Mehrheit) und bleibt ohne Statuszeile.
-    var steps = [];
-    if (planned) {
-      if (rawDate) steps.push({ label: 'Eingegangen', current: false });
-      steps.push({ label: 'Rückruf geplant', current: !done });
-      if (done) steps.push({ label: 'Erledigt', current: true });
-    }
-    if (steps.length > 1) {
-      html += '<div class="vx-summary-steps">' + steps.map(function(step, idx) {
-        var sep = idx > 0 ? '<span class="vx-summary-step-sep" aria-hidden="true"></span>' : '';
-        return sep + '<span class="vx-summary-step' + (step.current ? ' is-current' : '') + '"><span class="vx-summary-step-dot" aria-hidden="true"></span>' + esc(step.label) + '</span>';
-      }).join('') + '</div>';
-    }
-
-    html +=   '</div>';
+    html += buildDetailBodyHtml(record);
     html += '</div>';
     host.innerHTML = html;
   };
@@ -42480,6 +42269,13 @@ body:has(#tab-archiv.active) .content{
     });
   }
   window.vxDv2LoadHistory = vxDv2LoadHistory;
+
+  // Exported so renderCallDetailPage() (fullscreen) can reuse the exact same
+  // body markup instead of maintaining its own parallel card set — see
+  // "zwei Code-Pfade" consolidation.
+  window.vxRenderDetailBodyHtml = buildDetailBodyHtml;
+  window.vxInferDetailActionMeta = function(record){ return inferActionMeta(record, getRecordFields(record)); };
+  window.vxEnsureDetailStyles = ensureStyles;
 })();
 </script>
 
