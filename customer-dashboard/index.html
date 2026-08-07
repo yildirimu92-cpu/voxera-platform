@@ -21205,6 +21205,7 @@ function vxHeuteRenderActivityList(records) {
 // Nachricht von Lara ("seit deinem letzten Besuch …") plus zwei Sektionen:
 // "Braucht dich" (offen) und "Hat sich erledigt" (heute abgeschlossen).
 var _vxHeuteVisitStamped = false;
+var _vxHeuteVisitWritten = false;
 var _vxHeuteVisitRef = null;
 function vxHeuteGetStoredVisitAt() {
   try {
@@ -21216,13 +21217,31 @@ function vxHeuteStampVisitNow() {
   try { localStorage.setItem('vxHeuteLastVisitAt', new Date().toISOString()); } catch (e) {}
 }
 // Liest den Zeitpunkt des letzten Besuchs genau einmal pro Seitenaufruf
-// (nicht bei jedem Re-Render) und schreibt danach sofort den aktuellen
-// Zeitpunkt zurück, damit der nächste Besuch ab hier zählt.
+// (nicht bei jedem Re-Render).
+//
+// [BUGFIX] Der Zeitstempel darf NUR fortgeschrieben werden, wenn der Nutzer
+// den Heute-Tab tatsächlich sieht. renderDashboard() läuft bei jedem
+// Seitenaufruf — auch bei einem Deep-Link-Einstieg auf #call/<id>, bei dem
+// Heute nie angezeigt wird. Wurde dabei blind "jetzt" gestempelt, rutschte
+// die Referenz an einem frisch eingegangenen Anruf vorbei und dieser war
+// danach dauerhaft nicht mehr auf Heute sichtbar (auch nach Reload).
+function vxHeuteIsHeuteTabVisible() {
+  var tab = document.getElementById('tab-dashboard');
+  if (!tab) return false;
+  if (!tab.classList.contains('active')) return false;
+  return tab.offsetParent !== null || tab.getClientRects().length > 0;
+}
 function vxHeuteResolveVisitReference() {
-  if (_vxHeuteVisitStamped) return _vxHeuteVisitRef;
-  _vxHeuteVisitStamped = true;
-  _vxHeuteVisitRef = vxHeuteGetStoredVisitAt();
-  vxHeuteStampVisitNow();
+  if (!_vxHeuteVisitStamped) {
+    _vxHeuteVisitStamped = true;
+    _vxHeuteVisitRef = vxHeuteGetStoredVisitAt();
+  }
+  // Erst stempeln, wenn Heute wirklich sichtbar war. _vxHeuteVisitRef bleibt
+  // für diesen Seitenaufruf eingefroren, damit die Anzeige nicht mitwandert.
+  if (!_vxHeuteVisitWritten && vxHeuteIsHeuteTabVisible()) {
+    _vxHeuteVisitWritten = true;
+    vxHeuteStampVisitNow();
+  }
   return _vxHeuteVisitRef;
 }
 function vxHeuteSpellNumber(n) {
@@ -21235,35 +21254,66 @@ function vxHeuteFormatVisitTime(d) {
     return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   }
 }
-function vxHeuteGetSinceVisitCalls(sourceRecords, visitRef) {
+// [BUGFIX] Die Sektionen dürfen NICHT am "seit letztem Besuch"-Fenster
+// hängen. Ein Anruf, der vor dem letzten Stempel eingegangen ist, wäre sonst
+// dauerhaft unsichtbar — genau der gemeldete Fehler ("Anfragen zeigt den
+// Anruf, Heute sagt 'Alles im Griff'"). Grundmenge ist deshalb der heutige
+// Tag; das Besuchsfenster steuert nur noch den Wortlaut der Delta-Nachricht.
+//
+// Für die Task-Erkennung wird bewusst isManualTaskRecord() (die
+// massgebliche Prüfung) verwendet und nicht die lose Heuristik
+// vxHeuteIsManualTask(), die jeden Anruf mit gesetztem due_at/owner
+// fälschlich als Aufgabe einstuft und damit aus Heute entfernen würde.
+function vxHeuteIsHandoverCall(record) {
+  if (!record) return false;
+  try { if (typeof isManualTaskRecord === 'function' && isManualTaskRecord(record)) return false; } catch (e) {}
+  if (typeof isCustomerVisibleCall === 'function' && !isCustomerVisibleCall(record)) return false;
+  if (vxHeuteIsOutboundOrTestRecord(record)) return false;
+  return true;
+}
+function vxHeuteGetHandoverCalls(sourceRecords) {
   var source = Array.isArray(sourceRecords) ? sourceRecords : [];
   return vxHeuteDedupeByStableId(source).filter(function(r) {
-    if (vxHeuteIsManualTask(r)) return false;
-    if (typeof isCustomerVisibleCall === 'function' && !isCustomerVisibleCall(r)) return false;
-    if (vxHeuteIsOutboundOrTestRecord(r)) return false;
-    var created = vxHeuteGetTimestamp(r, ['created_at','inserted_at']);
-    var d = vxHeuteParseDate(created);
-    if (!d) return false;
-    return visitRef ? (d.getTime() > visitRef.getTime()) : vxHeuteIsToday(created);
+    if (!vxHeuteIsHandoverCall(r)) return false;
+    // Offene Anrufe von heute UND heute abgeschlossene Anrufe.
+    return vxHeuteRecordCreatedToday(r) || vxHeuteRecordCompletedToday(r);
   });
+}
+function vxHeuteCountSinceVisit(calls, visitRef) {
+  if (!visitRef) return (calls || []).length;
+  return (calls || []).filter(function(r) {
+    var d = vxHeuteParseDate(vxHeuteGetTimestamp(r, ['created_at','inserted_at']));
+    return !!d && d.getTime() > visitRef.getTime();
+  }).length;
 }
 function vxHeuteCapitalize(word) {
   return word ? word.charAt(0).toUpperCase() + word.slice(1) : word;
 }
-function vxHeuteBuildLaraMessage(visitRef, total, resolvedCount, needsCount) {
-  var timeStr = vxHeuteFormatVisitTime(visitRef);
-  var intro = timeStr ? ('Seit deinem letzten Besuch um ' + timeStr) : 'Seit Tagesbeginn';
-  if (total === 0) return intro + ' ist noch nichts Neues eingegangen.';
-  var callPhrase = total === 1 ? 'ist ein Anruf' : 'sind ' + vxHeuteSpellNumber(total) + ' Anrufe';
-  var msg = intro + ' ' + callPhrase + ' eingegangen. ';
+// Der Zustandssatz beschreibt IMMER die sichtbaren Karten (heutiger Stand).
+// Sonst widerspricht die Nachricht ("nichts Neues") den darunter
+// angezeigten offenen Karten.
+function vxHeuteStateClause(resolvedCount, needsCount) {
   if (needsCount === 0) {
-    msg += (resolvedCount === total ? 'Alle habe ich erledigt' : vxHeuteCapitalize(vxHeuteSpellNumber(resolvedCount)) + ' habe ich erledigt') + ' – nichts braucht dich.';
-  } else if (resolvedCount === 0) {
-    msg += 'Bei ' + (needsCount === 1 ? 'einem' : vxHeuteSpellNumber(needsCount)) + ' brauche ich dich kurz.';
-  } else {
-    msg += (resolvedCount === 1 ? 'Einen' : vxHeuteCapitalize(vxHeuteSpellNumber(resolvedCount))) + ' habe ich selbst erledigt – bei ' + (needsCount === 1 ? 'einem' : vxHeuteSpellNumber(needsCount)) + ' brauche ich dich kurz.';
+    return resolvedCount > 0 ? 'Alles habe ich selbst erledigt – nichts braucht dich.' : 'Nichts braucht dich.';
   }
-  return msg;
+  var needsPhrase = 'bei ' + (needsCount === 1 ? 'einem' : vxHeuteSpellNumber(needsCount)) + ' brauche ich dich kurz.';
+  if (resolvedCount === 0) return vxHeuteCapitalize(needsPhrase);
+  return (resolvedCount === 1 ? 'Einen' : vxHeuteCapitalize(vxHeuteSpellNumber(resolvedCount)))
+    + ' habe ich selbst erledigt – ' + needsPhrase;
+}
+function vxHeuteBuildLaraMessage(visitRef, todayTotal, newCount, resolvedCount, needsCount) {
+  if (todayTotal === 0) return 'Heute ist noch nichts eingegangen. Ich melde mich, sobald ein Anruf reinkommt.';
+  var timeStr = vxHeuteFormatVisitTime(visitRef);
+  var state = vxHeuteStateClause(resolvedCount, needsCount);
+  if (!timeStr) {
+    var todayPhrase = todayTotal === 1 ? 'ist ein Anruf' : 'sind ' + vxHeuteSpellNumber(todayTotal) + ' Anrufe';
+    return 'Heute ' + todayPhrase + ' eingegangen. ' + state;
+  }
+  if (newCount === 0) {
+    return 'Seit deinem letzten Besuch um ' + timeStr + ' ist nichts Neues eingegangen. ' + state;
+  }
+  var callPhrase = newCount === 1 ? 'ist ein Anruf' : 'sind ' + vxHeuteSpellNumber(newCount) + ' Anrufe';
+  return 'Seit deinem letzten Besuch um ' + timeStr + ' ' + callPhrase + ' eingegangen. ' + state;
 }
 function vxHeuteHandoverCardHtml(rec, variant) {
   var id = String((rec && rec.id) || vxHeuteGetRecordValue(rec, ['id','call_id']) || '');
@@ -21311,13 +21361,25 @@ function vxHeuteRenderLaraHandover(sourceRecords) {
   if (!msgEl) return;
 
   var visitRef = vxHeuteResolveVisitReference();
-  var sinceVisit = vxHeuteGetSinceVisitCalls(sourceRecords, visitRef);
-  var needsRecords = sinceVisit.filter(function(r) { return !vxHeuteIsDoneRecord(r); })
+  var todayCalls = vxHeuteGetHandoverCalls(sourceRecords);
+  var needsRecords = todayCalls.filter(function(r) { return !vxHeuteIsDoneRecord(r); })
     .sort(function(a,b){ return (new Date(vxHeuteGetTimestamp(b,['created_at','inserted_at'])||0).getTime()) - (new Date(vxHeuteGetTimestamp(a,['created_at','inserted_at'])||0).getTime()); });
-  var resolvedRecords = sinceVisit.filter(vxHeuteIsDoneRecord)
+  var resolvedRecords = todayCalls.filter(vxHeuteIsDoneRecord)
     .sort(function(a,b){ return (new Date(vxHeuteActivityTimestamp(b)||0).getTime()) - (new Date(vxHeuteActivityTimestamp(a)||0).getTime()); });
+  var newCount = vxHeuteCountSinceVisit(todayCalls, visitRef);
 
-  msgEl.textContent = vxHeuteBuildLaraMessage(visitRef, sinceVisit.length, resolvedRecords.length, needsRecords.length);
+  if (typeof vxDebugLog === 'function') {
+    vxDebugLog('[heute:handover]', {
+      source: (sourceRecords || []).length,
+      todayCalls: todayCalls.length,
+      needs: needsRecords.length,
+      resolved: resolvedRecords.length,
+      newSinceVisit: newCount,
+      visitRef: visitRef ? visitRef.toISOString() : null
+    });
+  }
+
+  msgEl.textContent = vxHeuteBuildLaraMessage(visitRef, todayCalls.length, newCount, resolvedRecords.length, needsRecords.length);
   if (metaEl) {
     var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
     metaEl.textContent = assistantName + ' · gerade eben';
