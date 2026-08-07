@@ -7303,14 +7303,14 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           .vx-handover-card-title { font-weight:700; font-size:14px; color:var(--vx-color-night,#0D1F3C); }
           .vx-handover-card-time { font-size:12px; color:#8A93A6; white-space:nowrap; flex:0 0 auto; }
           .vx-handover-card-desc { margin-top:4px; font-size:13px; color:#5B6472; line-height:1.42; }
-          .vx-handover-card-actions { display:flex; align-items:center; gap:16px; margin-top:12px; }
+          .vx-handover-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:16px; margin-top:12px; }
           .vx-handover-btn {
             border-radius:999px; min-height:38px; font-size:13px; font-weight:700;
             border:1px solid transparent; cursor:pointer; padding:0 16px;
             font-family:var(--vx-font-handover-ui);
           }
           .vx-handover-btn--primary {
-            flex:1; background:var(--vx-color-night,#0D1F3C); border-color:var(--vx-color-night,#0D1F3C); color:#fff;
+            flex:0 0 auto; background:var(--vx-color-night,#0D1F3C); border-color:var(--vx-color-night,#0D1F3C); color:#fff;
           }
           .vx-handover-btn--primary:hover { background:#132a52; }
           .vx-handover-detail-link {
@@ -21138,6 +21138,25 @@ function vxHeuteRecordSummary(record) {
   if (!raw) return '';
   return raw.length > 72 ? raw.slice(0, 69).trim() + '…' : raw;
 }
+// Manche Anrufe haben (noch) keine Zusammenfassung: aufgelegt bevor etwas
+// gesagt wurde (short_abandoned) oder die Auswertung läuft noch. Statt einer
+// leeren Karte wird der Zustand benannt — Labels kommen aus der bestehenden
+// getCallCategoryDisplayLabel()-Logik, es wird kein neuer Text erfunden.
+function vxHeuteHandoverDescription(record) {
+  var summary = vxHeuteRecordSummary(record);
+  if (summary) return summary;
+  var state = '';
+  try { if (typeof getCallDisplayState === 'function') state = String(getCallDisplayState(record) || ''); } catch (e) {}
+  if (state === 'processing' || state === 'checking') return 'Zusammenfassung wird noch erstellt.';
+  if (state === 'short_abandoned') return 'Kurzer Anruf – es wurde nichts besprochen.';
+  try {
+    if (typeof getCallCategoryDisplayLabel === 'function') {
+      var label = String(getCallCategoryDisplayLabel(record) || '').trim();
+      if (label) return label + ' – keine Zusammenfassung vorhanden.';
+    }
+  } catch (e) {}
+  return 'Keine Zusammenfassung vorhanden.';
+}
 function vxHeuteRecordTypeLabel(record) {
   if (vxHeuteIsManualTask(record)) return 'Aufgabe';
   if (vxHeuteGetRecordValue(record, ['callback_requested']) === true || String(vxHeuteGetRecordValue(record, ['callback_requested'])).toLowerCase() === 'true') return 'Rückruf';
@@ -21289,37 +21308,52 @@ function vxHeuteCountSinceVisit(calls, visitRef) {
 function vxHeuteCapitalize(word) {
   return word ? word.charAt(0).toUpperCase() + word.slice(1) : word;
 }
-// Der Zustandssatz beschreibt IMMER die sichtbaren Karten (heutiger Stand).
-// Sonst widerspricht die Nachricht ("nichts Neues") den darunter
-// angezeigten offenen Karten.
-function vxHeuteStateClause(resolvedCount, needsCount) {
-  if (needsCount === 0) {
-    return resolvedCount > 0 ? 'Alles habe ich selbst erledigt – nichts braucht dich.' : 'Nichts braucht dich.';
-  }
-  var needsPhrase = 'bei ' + (needsCount === 1 ? 'einem' : vxHeuteSpellNumber(needsCount)) + ' brauche ich dich kurz.';
-  if (resolvedCount === 0) return vxHeuteCapitalize(needsPhrase);
-  return (resolvedCount === 1 ? 'Einen' : vxHeuteCapitalize(vxHeuteSpellNumber(resolvedCount)))
-    + ' habe ich selbst erledigt – ' + needsPhrase;
+// Die Nachricht muss in jeder Kombination zu den sichtbaren Karten passen.
+// Heikel ist der Fall "0 neu, aber N weiterhin offen": ein Zustandssatz im
+// Stil von "bei drei brauche ich dich kurz" liest sich dort so, als wären
+// die drei gerade erst eingegangen. Deshalb wird bei 0 neuen Anrufen
+// ausdrücklich von "weiterhin offen" gesprochen.
+//
+// Ebenso darf die Erledigt-Zahl nicht als Teilmenge der neuen Anrufe
+// klingen (erledigt zählt den ganzen Tag, neu nur seit dem Besuch) —
+// daher "warten auf dich" statt "davon … erledigt".
+function vxHeuteCallPhrase(count) {
+  return count === 1 ? 'ist ein Anruf' : 'sind ' + vxHeuteSpellNumber(count) + ' Anrufe';
+}
+function vxHeuteOpenPhrase(needsCount) {
+  return needsCount === 1
+    ? 'ein Punkt, der dich braucht'
+    : vxHeuteSpellNumber(needsCount) + ' Punkte, die dich brauchen';
 }
 function vxHeuteBuildLaraMessage(visitRef, todayTotal, newCount, resolvedCount, needsCount) {
+  // Nichts von heute — echter Leerzustand.
   if (todayTotal === 0) return 'Heute ist noch nichts eingegangen. Ich melde mich, sobald ein Anruf reinkommt.';
+
   var timeStr = vxHeuteFormatVisitTime(visitRef);
-  var state = vxHeuteStateClause(resolvedCount, needsCount);
-  if (!timeStr) {
-    var todayPhrase = todayTotal === 1 ? 'ist ein Anruf' : 'sind ' + vxHeuteSpellNumber(todayTotal) + ' Anrufe';
-    return 'Heute ' + todayPhrase + ' eingegangen. ' + state;
-  }
+  var since = timeStr ? ('Seit deinem letzten Besuch um ' + timeStr) : 'Heute';
+
+  // Keine neuen Anrufe seit dem letzten Besuch.
   if (newCount === 0) {
-    return 'Seit deinem letzten Besuch um ' + timeStr + ' ist nichts Neues eingegangen. ' + state;
+    var head = timeStr ? 'Nichts Neues seit deinem letzten Besuch um ' + timeStr + '.' : 'Heute ist nichts Neues eingegangen.';
+    if (needsCount === 0) return head + ' Alles von heute ist erledigt – nichts braucht dich.';
+    return head + ' Weiterhin offen: ' + vxHeuteOpenPhrase(needsCount) + '.';
   }
-  var callPhrase = newCount === 1 ? 'ist ein Anruf' : 'sind ' + vxHeuteSpellNumber(newCount) + ' Anrufe';
-  return 'Seit deinem letzten Besuch um ' + timeStr + ' ' + callPhrase + ' eingegangen. ' + state;
+
+  // Neue Anrufe seit dem letzten Besuch.
+  var intro = since + ' ' + vxHeuteCallPhrase(newCount) + ' eingegangen.';
+  if (needsCount === 0) {
+    return intro + ' ' + (newCount === 1 ? 'Den habe ich' : 'Alle habe ich') + ' selbst erledigt – nichts braucht dich.';
+  }
+  var waiting = needsCount === 1 ? 'Einer wartet' : vxHeuteCapitalize(vxHeuteSpellNumber(needsCount)) + ' warten';
+  if (resolvedCount === 0) return intro + ' ' + waiting + ' auf dich.';
+  return intro + ' ' + waiting + ' auf dich, '
+    + (resolvedCount === 1 ? 'einen' : vxHeuteSpellNumber(resolvedCount)) + ' habe ich selbst erledigt.';
 }
 function vxHeuteHandoverCardHtml(rec, variant) {
   var id = String((rec && rec.id) || vxHeuteGetRecordValue(rec, ['id','call_id']) || '');
   var phone = String(vxHeuteGetRecordValue(rec, ['caller_phone','phone_number','phone']) || '').trim();
   var title = vxHeuteRecordTitle(rec);
-  var summary = vxHeuteRecordSummary(rec);
+  var summary = vxHeuteHandoverDescription(rec);
   var time = vxHeuteActivityTime(rec);
   if (variant === 'needs') {
     return '<article class="vx-handover-card vx-handover-card--needs" data-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">'
