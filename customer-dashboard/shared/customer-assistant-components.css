@@ -13,15 +13,12 @@ body.vx-customer-design-foundation #vx-business-profile-body {
 body.vx-customer-design-foundation #vx-assistant-profile-body .vx-ap-card,
 body.vx-customer-design-foundation #vx-business-profile-body .vx-ap-card {
   min-width: 0;
-  padding: var(--vx-space-5);
-  border: 1px solid var(--vx-line);
-  border-radius: var(--vx-radius-panel);
-  background: var(--vx-surface);
-  box-shadow: var(--vx-shadow-panel);
 }
 
+/* Kept as an explicit no-accent declaration: the previous dark top border on
+   the first card doubled up against the canonical card border. */
 body.vx-customer-design-foundation #vx-assistant-profile-body .vx-ap-card:first-child {
-  border-top: 1px solid var(--vx-brand-dark);
+  border-top-color: var(--vx-ui-card-border-color);
 }
 
 body.vx-customer-design-foundation .vx-ap-head {
@@ -499,13 +496,10 @@ body.vx-customer-design-foundation .vx-ops-layout {
   gap: 16px;
 }
 
+/* Card shell (surface, border, radius, padding) is owned by the canonical
+   card component in customer-ui-components.css. */
 body.vx-customer-design-foundation .vx-ops-card {
   min-width: 0;
-  padding: 20px;
-  border: 1px solid var(--vx-line);
-  border-radius: var(--vx-radius-card);
-  background: var(--vx-surface);
-  box-shadow: var(--vx-shadow-card);
 }
 
 body.vx-customer-design-foundation .vx-ops-title {
@@ -548,29 +542,9 @@ body.vx-customer-design-foundation .vx-ops-head {
   gap: 10px;
 }
 
-body.vx-customer-design-foundation .vx-ops-pill {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #eef4ff;
-  color: #1a6fe8;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-body.vx-customer-design-foundation .vx-ops-pill.active {
-  background: #ecfdf5;
-  color: #047857;
-}
-
-body.vx-customer-design-foundation .vx-ops-pill.expired,
-body.vx-customer-design-foundation .vx-ops-pill.cancelled {
-  background: #f1f5f9;
-  color: #64748b;
-}
+/* Status pills are owned by the canonical badge component
+   (customer-ui-components.css), including the .active / .expired /
+   .cancelled tones. */
 
 body.vx-customer-design-foundation .vx-ops-message {
   margin-top: 9px;
@@ -776,12 +750,7 @@ body.vx-customer-design-foundation .vx-ops-status.error {
   color: #b91c1c;
 }
 
-body.vx-customer-design-foundation .vx-ops-empty {
-  padding: 24px 12px;
-  color: var(--vx-muted);
-  font-size: 14px;
-  text-align: center;
-}
+/* Empty-state presentation is owned by the canonical empty-state component. */
 
 body.vx-customer-design-foundation .vx-ops-note {
   margin-top: 14px;

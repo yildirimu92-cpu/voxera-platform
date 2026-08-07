@@ -1,0 +1,693 @@
+/* ============================================================
+   Voxera Customer Dashboard — Unified UI Components (Etappe 1)
+   ============================================================
+   Canonical owner for the five shared building blocks:
+
+     1. .vx-ui-card      — one card shell for the whole product
+     2. .vx-ui-tabs      — one pill tab bar (Anfragen + Assistent)
+     3. .vx-ui-skeleton  — replaces every "wird geladen …" text
+     4. .vx-ui-badge     — one status pill (rot / blau / grau)
+     5. .vx-ui-empty     — one "keine Daten" pattern
+     6. .vx-ui-field     — one input / select / textarea contract
+     7. .vx-ui-spinner   — inline busy affordance for actions
+
+   Every value resolves from the component contract tokens in
+   customer-design-tokens.css. This module must never introduce a
+   literal color, radius or spacing value of its own.
+
+   The legacy class names listed alongside the canonical classes
+   are the families this module took ownership of. Their replaced
+   background / border / radius / padding declarations were
+   deleted from their previous owners in the same change, so this
+   file is a component owner, not an override layer.
+   ============================================================ */
+
+/* ============================================================
+   1. CARD
+   ============================================================
+   White surface, 0.5px border, 12px radius, defined padding.
+   Semantic surfaces (activation banners, selectable choice
+   cards, the login card) intentionally stay outside this family
+   because their background carries meaning.
+   ============================================================ */
+
+/* Shell — surface, border, radius, shadow. Applies to every card in the
+   product, including the ones that lay out their own head/body sections. */
+body.vx-customer-design-foundation :where(
+  .vx-ui-card,
+  .card,
+  .vx-ops-card,
+  .vx-ap-card,
+  .vx-cal-card,
+  .detail-card,
+  .focus-card,
+  .account-plan-card,
+  .help-info-card,
+  .help-quickstart-card,
+  .setup-help-card,
+  .vx-forwarding-card,
+  .fse-card,
+  .vx-settings-card,
+  .vx-report-card,
+  .vx-detail-card,
+  .vx-transcript-card
+) {
+  box-sizing: border-box;
+  min-width: 0;
+  border: var(--vx-ui-card-border-width) solid var(--vx-ui-card-border-color);
+  border-radius: var(--vx-ui-card-radius);
+  background: var(--vx-ui-card-bg);
+  color: var(--vx-color-text);
+  box-shadow: var(--vx-ui-card-shadow);
+}
+
+/* Padding — the single content inset for cards that hold content directly.
+   Cards with their own head/body sections (listed under "flush" below) are
+   deliberately excluded so their sections keep owning the inset. */
+body.vx-customer-design-foundation :where(
+  .vx-ui-card,
+  .card,
+  .vx-ops-card,
+  .vx-ap-card,
+  .vx-cal-card,
+  .detail-card,
+  .focus-card,
+  .account-plan-card,
+  .help-info-card,
+  .help-quickstart-card,
+  .setup-help-card,
+  .vx-forwarding-card,
+  .fse-card
+) {
+  padding: var(--vx-ui-card-padding);
+}
+
+/* Flush cards: full-bleed head/body sections own the inset. */
+body.vx-customer-design-foundation :where(
+  .vx-settings-card,
+  .vx-report-card,
+  .vx-detail-card,
+  .vx-transcript-card
+) {
+  padding: 0;
+  overflow: hidden;
+}
+
+body.vx-customer-design-foundation .vx-ui-card--compact {
+  padding: var(--vx-ui-card-padding-compact);
+}
+
+body.vx-customer-design-foundation .vx-ui-card--roomy {
+  padding: var(--vx-ui-card-padding-roomy);
+}
+
+/* Cards that host their own scroll panels or full-bleed headers. */
+body.vx-customer-design-foundation .vx-ui-card--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+body.vx-customer-design-foundation .vx-ui-card--stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vx-ui-card-gap);
+}
+
+body.vx-customer-design-foundation .vx-ui-card--interactive {
+  cursor: pointer;
+  transition: border-color var(--vx-duration-fast) var(--vx-ease),
+              box-shadow var(--vx-duration-fast) var(--vx-ease);
+}
+
+body.vx-customer-design-foundation .vx-ui-card--interactive:hover {
+  border-color: var(--vx-color-brand);
+  box-shadow: var(--vx-shadow-md);
+}
+
+/* ============================================================
+   2. TABS — pill style
+   ============================================================
+   Active: filled with the accent color, accent text.
+   Inactive: muted text, no background, no border.
+   Owns both the "Anfragen" status filters and the "Assistent"
+   section switch, which previously used two different systems.
+   ============================================================ */
+
+.vx-ui-tabs,
+body.vx-customer-design-foundation #vx-assistant-root-switch,
+body.vx-customer-design-foundation .vx-requests-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vx-ui-tab-gap);
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.vx-ui-tabs > button,
+body.vx-customer-design-foundation .vx-ui-tab,
+body.vx-customer-design-foundation #vx-assistant-root-switch > button,
+body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--vx-ui-tab-min-height);
+  padding: var(--vx-ui-tab-padding);
+  border: 0;
+  border-radius: var(--vx-ui-tab-radius);
+  background: none;
+  color: var(--vx-ui-tab-idle-text);
+  font-family: inherit;
+  font-size: var(--vx-ui-tab-font-size);
+  font-weight: var(--vx-ui-tab-font-weight);
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background var(--vx-duration-fast) var(--vx-ease),
+              color var(--vx-duration-fast) var(--vx-ease);
+}
+
+.vx-ui-tabs > button:hover,
+body.vx-customer-design-foundation .vx-ui-tab:hover,
+body.vx-customer-design-foundation #vx-assistant-root-switch > button:hover,
+body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter:hover {
+  background: var(--vx-ui-tab-hover-bg);
+  color: var(--vx-ui-tab-hover-text);
+}
+
+.vx-ui-tabs > button:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]),
+body.vx-customer-design-foundation .vx-ui-tab:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]),
+body.vx-customer-design-foundation #vx-assistant-root-switch > button:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]),
+body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]) {
+  background: var(--vx-ui-tab-accent);
+  color: var(--vx-ui-tab-accent-text);
+}
+
+.vx-ui-tabs > button:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]):hover,
+body.vx-customer-design-foundation .vx-ui-tab:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]):hover,
+body.vx-customer-design-foundation #vx-assistant-root-switch > button:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]):hover,
+body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]):hover {
+  background: var(--vx-ui-tab-accent);
+  color: var(--vx-ui-tab-accent-text);
+}
+
+/* ============================================================
+   3. SKELETON
+   ============================================================
+   Replaces "wird geladen …" / "Lädt…" text placeholders. The
+   visible element is decorative; the accessible name is carried
+   by role="status" + aria-label on the wrapper.
+   ============================================================ */
+
+body.vx-customer-design-foundation .vx-ui-skeleton {
+  display: grid;
+  gap: var(--vx-ui-skeleton-gap);
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+body.vx-customer-design-foundation .vx-ui-skeleton--inset {
+  padding: var(--vx-ui-card-padding);
+}
+
+body.vx-customer-design-foundation :where(.vx-ui-skeleton-line, .vx-ui-skeleton-block) {
+  display: block;
+  height: var(--vx-ui-skeleton-line-height);
+  border-radius: var(--vx-ui-skeleton-radius);
+  background-color: var(--vx-ui-skeleton-base);
+  background-image: linear-gradient(
+    90deg,
+    var(--vx-ui-skeleton-base) 0%,
+    var(--vx-ui-skeleton-highlight) 50%,
+    var(--vx-ui-skeleton-base) 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 220% 100%;
+  animation: vxUiSkeletonShimmer var(--vx-ui-skeleton-duration) linear infinite;
+}
+
+body.vx-customer-design-foundation .vx-ui-skeleton-block {
+  height: 72px;
+  border-radius: var(--vx-ui-card-radius);
+}
+
+/* Descending widths read as text rather than as bars. */
+body.vx-customer-design-foundation .vx-ui-skeleton-line--sm { width: 42%; }
+body.vx-customer-design-foundation .vx-ui-skeleton-line--md { width: 68%; }
+body.vx-customer-design-foundation .vx-ui-skeleton-line--lg { width: 88%; }
+
+@keyframes vxUiSkeletonShimmer {
+  from { background-position: 140% 0; }
+  to { background-position: -40% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.vx-customer-design-foundation :where(.vx-ui-skeleton-line, .vx-ui-skeleton-block) {
+    background-image: none;
+    animation: none;
+  }
+}
+
+/* ============================================================
+   4. STATUS BADGE
+   ============================================================
+   One size and shape for every status pill. Tone carries the
+   meaning: danger = rot, info = blau, neutral = grau.
+   ============================================================ */
+
+body.vx-customer-design-foundation :where(.vx-ui-badge, .vx-ops-pill, .vxdr-pill, .vx-requests-pill) {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vx-ui-badge-gap);
+  box-sizing: border-box;
+  min-height: var(--vx-ui-badge-min-height);
+  padding: var(--vx-ui-badge-padding);
+  border: 0;
+  border-radius: var(--vx-ui-badge-radius);
+  background: var(--vx-ui-badge-neutral-bg);
+  color: var(--vx-ui-badge-neutral-text);
+  font-family: inherit;
+  font-size: var(--vx-ui-badge-font-size);
+  font-weight: var(--vx-ui-badge-font-weight);
+  line-height: var(--vx-leading-badge);
+  white-space: nowrap;
+}
+
+body.vx-customer-design-foundation :where(
+  .vx-ui-badge--danger,
+  .vx-requests-pill.is-hot,
+  .vx-ops-pill.expired
+) {
+  background: var(--vx-ui-badge-danger-bg);
+  color: var(--vx-ui-badge-danger-text);
+}
+
+body.vx-customer-design-foundation :where(
+  .vx-ui-badge--info,
+  .vx-requests-pill.is-warm,
+  .vxdr-pill--status
+) {
+  background: var(--vx-ui-badge-info-bg);
+  color: var(--vx-ui-badge-info-text);
+}
+
+body.vx-customer-design-foundation :where(
+  .vx-ui-badge--neutral,
+  .vx-ops-pill.cancelled
+) {
+  background: var(--vx-ui-badge-neutral-bg);
+  color: var(--vx-ui-badge-neutral-text);
+}
+
+body.vx-customer-design-foundation :where(
+  .vx-ui-badge--success,
+  .vx-ops-pill.active,
+  .vxdr-pill--success
+) {
+  background: var(--vx-ui-badge-success-bg);
+  color: var(--vx-ui-badge-success-text);
+}
+
+body.vx-customer-design-foundation .vx-ui-badge--warning {
+  background: var(--vx-ui-badge-warning-bg);
+  color: var(--vx-ui-badge-warning-text);
+}
+
+body.vx-customer-design-foundation .vx-ui-badge-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ============================================================
+   5. EMPTY STATE
+   ============================================================
+   Icon + inviting sentence instead of a technical message.
+   ============================================================ */
+
+body.vx-customer-design-foundation :where(
+  .vx-ui-empty,
+  .empty,
+  .vx-ops-empty,
+  .vx-abo-empty,
+  .vx-notif-empty,
+  .vx-notif-mobile-empty,
+  .vx-transcript-empty,
+  .dash-side-empty
+) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vx-ui-empty-gap);
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--vx-ui-empty-padding);
+  color: var(--vx-ui-empty-text-color);
+  font-size: var(--vx-ui-empty-text-size);
+  line-height: var(--vx-leading-body);
+  text-align: center;
+}
+
+body.vx-customer-design-foundation :where(
+  .vx-ui-empty,
+  .empty,
+  .vx-ops-empty,
+  .vx-abo-empty,
+  .vx-notif-empty,
+  .vx-notif-mobile-empty
+) > i {
+  flex: 0 0 auto;
+  color: var(--vx-ui-empty-icon-color);
+  font-size: var(--vx-ui-empty-icon-size);
+  line-height: 1;
+}
+
+body.vx-customer-design-foundation .vx-ui-empty-title {
+  color: var(--vx-color-text);
+  font-size: var(--vx-ui-empty-title-size);
+  font-weight: var(--vx-weight-bold);
+  line-height: 1.35;
+}
+
+body.vx-customer-design-foundation .vx-ui-empty-text {
+  max-width: var(--vx-ui-empty-max-width);
+  margin: 0;
+  color: var(--vx-ui-empty-text-color);
+  font-size: var(--vx-ui-empty-text-size);
+  line-height: var(--vx-leading-body);
+}
+
+/* Legacy .empty markup (icon tile + title + subtitle) maps onto the same
+   canonical parts, so renderEmpty() output is visually identical to
+   VoxeraUI.emptyState() output. */
+body.vx-customer-design-foundation .empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--vx-ui-card-radius);
+  background: var(--vx-color-surface-soft);
+  color: var(--vx-ui-empty-icon-color);
+}
+
+body.vx-customer-design-foundation .empty-title {
+  color: var(--vx-color-text);
+  font-size: var(--vx-ui-empty-title-size);
+  font-weight: var(--vx-weight-bold);
+  line-height: 1.35;
+}
+
+body.vx-customer-design-foundation .empty-sub {
+  max-width: var(--vx-ui-empty-max-width);
+  margin: 0 auto;
+  color: var(--vx-ui-empty-text-color);
+  font-size: var(--vx-ui-empty-text-size);
+  line-height: var(--vx-leading-body);
+}
+
+body.vx-customer-design-foundation .vx-ui-empty--inline {
+  min-height: 0;
+  padding: var(--vx-ui-card-padding);
+}
+
+body.vx-customer-design-foundation .vx-ui-empty--fill {
+  flex: 1;
+  min-height: 200px;
+}
+
+/* ============================================================
+   6. FORM FIELD — input / select / textarea
+   ============================================================
+   Previously only `border-color` was set on these elements and
+   `appearance` was never reset, so every <select> fell back to
+   the native browser widget. This owns the full box: border,
+   radius, height, inset, typography, focus, disabled, invalid
+   and a custom chevron for selects.
+
+   TEXT_FIELDS below deliberately excludes checkbox, radio, range,
+   file and button-like inputs — those are not text fields and
+   must keep their intrinsic box.
+   ============================================================ */
+
+body.vx-customer-design-foundation .vx-ui-field {
+  display: grid;
+  gap: var(--vx-ui-field-gap);
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation :where(label, .vx-ui-label) {
+  color: var(--vx-ui-field-label-color);
+  font-size: var(--vx-ui-field-label-size);
+  font-weight: var(--vx-weight-bold);
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* --- Global element baseline (no width, so it is safe everywhere) ------ */
+body.vx-customer-design-foundation :where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="color"]),
+  select,
+  textarea,
+  .vx-ui-input,
+  .vx-ui-select,
+  .vx-ui-textarea
+) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--vx-ui-field-height);
+  padding: var(--vx-ui-field-padding-block) var(--vx-ui-field-padding-inline);
+  border: 1px solid var(--vx-ui-field-border);
+  border-radius: var(--vx-ui-field-radius);
+  background-color: var(--vx-ui-field-bg);
+  color: var(--vx-ui-field-text);
+  font-family: inherit;
+  font-size: var(--vx-ui-field-font-size);
+  line-height: 1.45;
+  outline: none;
+  box-shadow: none;
+  transition: border-color var(--vx-duration-fast) var(--vx-ease),
+              box-shadow var(--vx-duration-fast) var(--vx-ease);
+}
+
+/* --- Inside a field wrapper a control fills the available width -------- */
+body.vx-customer-design-foundation :where(
+  .vx-ui-field,
+  .vx-ap-field,
+  .vx-ops-field,
+  .vx-settings-field,
+  .vx-cal-form,
+  .vx-modal-field
+) :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+body.vx-customer-design-foundation :where(.vx-ui-input, .vx-ui-select, .vx-ui-textarea) {
+  width: 100%;
+}
+
+body.vx-customer-design-foundation :where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea
+):hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--vx-ui-field-border-hover);
+}
+
+body.vx-customer-design-foundation :where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea
+):focus {
+  border-color: var(--vx-ui-field-border-focus);
+  box-shadow: 0 0 0 3px var(--vx-ui-field-focus-ring);
+}
+
+body.vx-customer-design-foundation :where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea
+):disabled {
+  background-color: var(--vx-ui-field-bg-disabled);
+  color: var(--vx-ui-field-text-disabled);
+  cursor: not-allowed;
+}
+
+body.vx-customer-design-foundation :where(input, textarea)::placeholder {
+  color: var(--vx-ui-field-placeholder);
+  opacity: 1;
+}
+
+body.vx-customer-design-foundation :where(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+):is([aria-invalid="true"], .is-invalid) {
+  border-color: var(--vx-ui-field-border-invalid);
+}
+
+/* --- Select: replace the native widget with one shared chevron --------- */
+body.vx-customer-design-foundation :where(select, .vx-ui-select) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--vx-ui-field-chevron-space);
+  background-image: var(--vx-ui-field-chevron);
+  background-repeat: no-repeat;
+  background-position: right var(--vx-ui-field-chevron-inset) center;
+  cursor: pointer;
+}
+
+body.vx-customer-design-foundation :where(select, .vx-ui-select)::-ms-expand {
+  display: none;
+}
+
+body.vx-customer-design-foundation :where(textarea, .vx-ui-textarea) {
+  min-height: var(--vx-ui-field-textarea-min-height);
+  line-height: var(--vx-leading-body);
+  resize: vertical;
+}
+
+body.vx-customer-design-foundation .vx-ui-field-hint {
+  color: var(--vx-ui-field-label-color);
+  font-size: var(--vx-text-md);
+  line-height: var(--vx-leading-body);
+}
+
+body.vx-customer-design-foundation .vx-ui-field-hint.is-invalid {
+  color: var(--vx-ui-field-border-invalid);
+}
+
+/* ============================================================
+   7. INLINE SPINNER — action feedback
+   ============================================================
+   A skeleton stands in for content that is still arriving. An
+   action in flight ("Name wird gespeichert …") has no content to
+   stand in for, so it gets a spinner next to its message instead
+   of bare text. Rendered as a pseudo-element so the status nodes
+   can keep writing plain textContent.
+   ============================================================ */
+
+body.vx-customer-design-foundation .vx-ui-spinner,
+body.vx-customer-design-foundation :where(
+  .vx-ap-status,
+  .vx-ops-status,
+  .vx-cal-status,
+  .vx-ui-status
+).loading::before {
+  content: "";
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--vx-ui-spinner-size);
+  height: var(--vx-ui-spinner-size);
+  margin-right: var(--vx-ui-spinner-gap);
+  border: var(--vx-ui-spinner-width) solid var(--vx-ui-spinner-track);
+  border-top-color: var(--vx-ui-spinner-head);
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: vxUiSpin var(--vx-ui-spinner-duration) linear infinite;
+}
+
+body.vx-customer-design-foundation .vx-ui-spinner {
+  margin-right: 0;
+}
+
+@keyframes vxUiSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.vx-customer-design-foundation .vx-ui-spinner,
+  body.vx-customer-design-foundation :where(
+    .vx-ap-status,
+    .vx-ops-status,
+    .vx-cal-status,
+    .vx-ui-status
+  ).loading::before {
+    animation-duration: 2.4s;
+  }
+}
+
+/* ============================================================
+   Mobile
+   ============================================================ */
+
+@media (max-width: 720px) {
+  body.vx-customer-design-foundation :where(
+    .vx-ui-card,
+    .card,
+    .vx-ops-card,
+    .vx-ap-card,
+    .vx-cal-card,
+    .detail-card,
+    .focus-card,
+    .account-plan-card,
+    .help-info-card,
+    .help-quickstart-card,
+    .setup-help-card,
+    .vx-forwarding-card,
+    .fse-card
+  ) {
+    padding: var(--vx-ui-card-padding-compact);
+  }
+
+  body.vx-customer-design-foundation .vx-ui-card--flush {
+    padding: 0;
+  }
+
+  /* Tabs wrap on narrow viewports. They must never scroll horizontally by
+     default: a scrolled-off tab has no affordance and reads as missing, which
+     is how the "Anfragen" filters lost Geplant/Erledigt/Archiv on mobile.
+     Wrapping keeps every tab reachable without interaction. */
+  .vx-ui-tabs,
+  body.vx-customer-design-foundation #vx-assistant-root-switch,
+  body.vx-customer-design-foundation .vx-requests-filters {
+    flex-wrap: wrap;
+    row-gap: var(--vx-ui-tab-gap);
+  }
+
+  /* Opt-in only, for bars that genuinely cannot wrap. */
+  body.vx-customer-design-foundation .vx-ui-tabs--scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.vx-customer-design-foundation .vx-ui-tabs--scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .vx-ui-tabs > button,
+  body.vx-customer-design-foundation .vx-ui-tab,
+  body.vx-customer-design-foundation #vx-assistant-root-switch > button,
+  body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter {
+    min-height: 34px;
+    padding: 7px 13px;
+    font-size: 12.5px;
+  }
+  body.vx-customer-design-foundation :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+    select,
+    textarea,
+    .vx-ui-input,
+    .vx-ui-select,
+    .vx-ui-textarea
+  ) {
+    min-height: var(--vx-ui-field-height-mobile);
+    font-size: var(--vx-ui-field-font-size-mobile);
+  }
+}

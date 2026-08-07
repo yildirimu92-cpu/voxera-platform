@@ -93,10 +93,6 @@
     const style = root.document.createElement('style');
     style.id = 'vx-commercial-controller-polish';
     style.textContent = `
-      #vx-commercial-overlay .vx-commercial-loading{display:grid;gap:12px;padding:22px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;color:#64748b}
-      #vx-commercial-overlay .vx-commercial-loading-row{height:14px;border-radius:999px;background:linear-gradient(90deg,#e9eef5 25%,#f6f8fb 50%,#e9eef5 75%);background-size:200% 100%;animation:vxCommercialPulse 1.2s linear infinite}
-      #vx-commercial-overlay .vx-commercial-loading-row:nth-child(2){width:72%}
-      @keyframes vxCommercialPulse{to{background-position:-200% 0}}
       #vx-commercial-overlay .vx-commercial-pending{display:grid;gap:10px;padding:20px;border:1px solid #dce4ee;border-radius:16px;background:#f4f6f8;color:#334155}
       #vx-commercial-overlay .vx-commercial-pending-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
       #vx-commercial-overlay .vx-commercial-pending-title{font-size:17px;font-weight:760;color:#172033}
@@ -128,7 +124,9 @@
 
     if (s.loadingStatus) {
       subtitle.textContent = 'Planoptionen werden geprüft.';
-      body.innerHTML = '<div class="vx-commercial-loading" aria-label="Anfragestatus wird geladen"><div class="vx-commercial-loading-row"></div><div class="vx-commercial-loading-row"></div></div>';
+      body.innerHTML = root.VoxeraUI
+        ? root.VoxeraUI.skeleton({ lines: 2, label: 'Anfragestatus', inset: true })
+        : '';
       submit.disabled = true;
       submit.textContent = 'Bitte warten …';
       setActionMode(false);

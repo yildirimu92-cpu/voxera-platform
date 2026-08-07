@@ -86,7 +86,9 @@
     const body = document.getElementById('vx-calendar-page-body');
     if (!body) return;
     if (!state) {
-      body.innerHTML = '<div class="vx-cal-banner">Kalenderstatus wird geladen …</div>';
+      body.innerHTML = root.VoxeraUI
+        ? root.VoxeraUI.skeleton({ lines: 3, label: 'Kalenderintegration', inset: true, block: true })
+        : '';
       return;
     }
 
@@ -136,7 +138,7 @@
   }
 
   async function load() {
-    setStatus('Kalenderstatus wird geladen …', 'loading');
+    render();
     try {
       state = await call({ action: 'status' });
       render();

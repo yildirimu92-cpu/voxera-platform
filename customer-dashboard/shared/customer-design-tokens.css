@@ -233,6 +233,111 @@
   --fast: var(--vx-duration-fast) var(--vx-ease);
   --mid: var(--vx-duration-mid) var(--vx-ease);
 
+  /* ============================================================
+     Component contract tokens (Design-System Etappe 1).
+     Consumed exclusively by customer-ui-components.css. Every
+     unified component (card, tab, badge, skeleton, empty state)
+     resolves its visual contract from this block, so a single
+     value change here propagates to every screen.
+     ============================================================ */
+
+  /* ---- Card ------------------------------------------------- */
+  --vx-ui-card-bg: #FFFFFF;
+  --vx-ui-card-border-width: 0.5px;
+  --vx-ui-card-border-color: #D9E1EC;
+  --vx-ui-card-radius: 12px;
+  --vx-ui-card-padding: 16px;
+  --vx-ui-card-padding-compact: 12px;
+  --vx-ui-card-padding-roomy: 20px;
+  --vx-ui-card-gap: 12px;
+  --vx-ui-card-shadow: 0 1px 2px rgba(13, 31, 60, .04);
+
+  /* ---- Tabs (pill) ------------------------------------------- */
+  --vx-ui-tab-accent: #1A6FE8;
+  --vx-ui-tab-accent-text: #FFFFFF;
+  --vx-ui-tab-idle-text: #7A8599;
+  --vx-ui-tab-hover-bg: rgba(13, 31, 60, .05);
+  --vx-ui-tab-hover-text: #0D1F3C;
+  --vx-ui-tab-radius: 999px;
+  --vx-ui-tab-padding: 8px 14px;
+  --vx-ui-tab-min-height: 36px;
+  --vx-ui-tab-font-size: 13px;
+  --vx-ui-tab-font-weight: 650;
+  --vx-ui-tab-gap: 6px;
+
+  /* ---- Status badge ------------------------------------------ */
+  --vx-ui-badge-radius: 999px;
+  --vx-ui-badge-padding: 3px 9px;
+  --vx-ui-badge-font-size: 11px;
+  --vx-ui-badge-font-weight: 700;
+  --vx-ui-badge-min-height: 20px;
+  --vx-ui-badge-gap: 5px;
+  /* Rot / Blau / Grau — the product's established status scheme. */
+  --vx-ui-badge-danger-bg: #FEF2F2;
+  --vx-ui-badge-danger-text: #C0362C;
+  --vx-ui-badge-info-bg: #EEF4FF;
+  --vx-ui-badge-info-text: #1A6FE8;
+  --vx-ui-badge-neutral-bg: #F1F4F9;
+  --vx-ui-badge-neutral-text: #64748B;
+  --vx-ui-badge-success-bg: #ECFDF5;
+  --vx-ui-badge-success-text: #047857;
+  --vx-ui-badge-warning-bg: #FFFBEB;
+  --vx-ui-badge-warning-text: #B45309;
+
+  /* ---- Skeleton ---------------------------------------------- */
+  --vx-ui-skeleton-base: #E9EEF5;
+  --vx-ui-skeleton-highlight: #F6F8FB;
+  --vx-ui-skeleton-radius: 6px;
+  --vx-ui-skeleton-line-height: 12px;
+  --vx-ui-skeleton-gap: 9px;
+  --vx-ui-skeleton-duration: 1.25s;
+
+  /* ---- Form field (input / select / textarea) ----------------- */
+  --vx-ui-field-bg: #FFFFFF;
+  --vx-ui-field-bg-disabled: #F1F4F9;
+  --vx-ui-field-border: #D9E1EC;
+  --vx-ui-field-border-hover: #BFCDDF;
+  --vx-ui-field-border-focus: #1A6FE8;
+  --vx-ui-field-border-invalid: #DC2626;
+  --vx-ui-field-radius: 10px;
+  --vx-ui-field-height: 44px;
+  --vx-ui-field-height-mobile: 48px;
+  --vx-ui-field-padding-inline: 13px;
+  --vx-ui-field-padding-block: 10px;
+  --vx-ui-field-font-size: 15px;
+  --vx-ui-field-font-size-mobile: 16px; /* below 16px iOS zooms on focus */
+  --vx-ui-field-text: #0D1F3C;
+  --vx-ui-field-placeholder: #94A3B8;
+  --vx-ui-field-text-disabled: #7A8599;
+  --vx-ui-field-focus-ring: rgba(26, 111, 232, .18);
+  --vx-ui-field-label-color: #7A8599;
+  --vx-ui-field-label-size: 13px;
+  --vx-ui-field-gap: 7px;
+  --vx-ui-field-textarea-min-height: 120px;
+  /* Select chevron. Kept here so the component layer stays free of literal
+     values — the asset bakes its own color and cannot read a var(). */
+  --vx-ui-field-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%237A8599' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --vx-ui-field-chevron-inset: 13px;
+  --vx-ui-field-chevron-space: 36px;
+
+  /* ---- Inline spinner (action feedback) ----------------------- */
+  --vx-ui-spinner-size: 14px;
+  --vx-ui-spinner-track: rgba(13, 31, 60, .14);
+  --vx-ui-spinner-head: #1A6FE8;
+  --vx-ui-spinner-width: 2px;
+  --vx-ui-spinner-duration: .7s;
+  --vx-ui-spinner-gap: 8px;
+
+  /* ---- Empty state ------------------------------------------- */
+  --vx-ui-empty-padding: 32px 20px;
+  --vx-ui-empty-gap: 10px;
+  --vx-ui-empty-icon-size: 28px;
+  --vx-ui-empty-icon-color: #A7B4C8;
+  --vx-ui-empty-title-size: 14px;
+  --vx-ui-empty-text-size: 13px;
+  --vx-ui-empty-text-color: #7A8599;
+  --vx-ui-empty-max-width: 34ch;
+
   --vx-modal-radius: var(--vx-radius-modal);
   --vx-modal-head: var(--vx-color-night);
   --vx-modal-shadow: var(--vx-shadow-modal);
