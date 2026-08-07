@@ -292,6 +292,34 @@
   --vx-ui-skeleton-gap: 9px;
   --vx-ui-skeleton-duration: 1.25s;
 
+  /* ---- Form field (input / select / textarea) ----------------- */
+  --vx-ui-field-bg: #FFFFFF;
+  --vx-ui-field-bg-disabled: #F1F4F9;
+  --vx-ui-field-border: #D9E1EC;
+  --vx-ui-field-border-hover: #BFCDDF;
+  --vx-ui-field-border-focus: #1A6FE8;
+  --vx-ui-field-border-invalid: #DC2626;
+  --vx-ui-field-radius: 10px;
+  --vx-ui-field-height: 44px;
+  --vx-ui-field-height-mobile: 48px;
+  --vx-ui-field-padding-inline: 13px;
+  --vx-ui-field-padding-block: 10px;
+  --vx-ui-field-font-size: 15px;
+  --vx-ui-field-font-size-mobile: 16px; /* below 16px iOS zooms on focus */
+  --vx-ui-field-text: #0D1F3C;
+  --vx-ui-field-placeholder: #94A3B8;
+  --vx-ui-field-text-disabled: #7A8599;
+  --vx-ui-field-focus-ring: rgba(26, 111, 232, .18);
+  --vx-ui-field-label-color: #7A8599;
+  --vx-ui-field-label-size: 13px;
+  --vx-ui-field-gap: 7px;
+  --vx-ui-field-textarea-min-height: 120px;
+  /* Select chevron. Kept here so the component layer stays free of literal
+     values — the asset bakes its own color and cannot read a var(). */
+  --vx-ui-field-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%237A8599' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --vx-ui-field-chevron-inset: 13px;
+  --vx-ui-field-chevron-space: 36px;
+
   /* ---- Empty state ------------------------------------------- */
   --vx-ui-empty-padding: 32px 20px;
   --vx-ui-empty-gap: 10px;

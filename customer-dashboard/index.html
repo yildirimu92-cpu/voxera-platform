@@ -18444,11 +18444,17 @@ function vxRenderModernAudioPlayerHtml(audioUrl, metaText){
 }
 
 function vxRenderAudioStateCardHtml(state, message, conversationId){
+  // The card shell carries the mount hook the auto-loader looks for
+  // (#vx-call-audio-card + data-conversation-id + data-vx-audio-auto). It must
+  // exist in every state, including loading — otherwise the fetch never starts
+  // and the loading state never resolves into the player.
   var attr = conversationId ? ' data-conversation-id="'+vxAudioEscapeAttr(conversationId)+'" data-vx-audio-auto="1"' : '';
   var safeMessage = vxAudioEscapeText(message || '');
-  var loading = state === 'loading' ? '<div class="vx-audio-state__spinner" aria-hidden="true"></div>' : '';
   var retry = state === 'error' && conversationId ? '<button type="button" class="vx-audio-state__retry" onclick="vxTryLoadElevenLabsAudioFromDashboard(this)">Erneut versuchen</button>' : '';
-  return '<div class="vx-transcript-card vx-audio-state-card" id="vx-call-audio-card"'+attr+'><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div></div><div class="vx-audio-state vx-audio-state--'+state+'">'+loading+'<div>'+safeMessage+'</div>'+retry+'<div class="vx-audio-fetch-status" aria-live="polite"></div></div></div>';
+  var body = state === 'loading'
+    ? vxUiSkeleton({ lines: 2, label: 'Aufnahme', inset: true })
+    : '<div class="vx-audio-state vx-audio-state--'+state+'"><div>'+safeMessage+'</div>'+retry+'</div>';
+  return '<div class="vx-transcript-card vx-audio-state-card" id="vx-call-audio-card"'+attr+'><div class="vx-transcript-head"><i class="ph-bold ph-waveform" aria-hidden="true"></i><div class="vx-transcript-title">Audioaufnahme</div></div>'+body+'<div class="vx-audio-fetch-status" aria-live="polite"></div></div>';
 }
 
 function vxRenderCallAudioCardHtml(callOrFields) {
@@ -18458,7 +18464,7 @@ function vxRenderCallAudioCardHtml(callOrFields) {
     return '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(audioUrl, 'Bereit zum Abspielen') + '</div></div>';
   }
   if (conversationId) {
-    return vxUiSkeleton({ lines: 2, label: 'Aufnahme' });
+    return vxRenderAudioStateCardHtml('loading', 'Aufnahme wird geladen …', conversationId);
   }
   return vxRenderAudioStateCardHtml('empty', 'Für diesen Eintrag ist keine Aufnahme verfügbar.', '');
 }
@@ -44455,9 +44461,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 /* === Voxera Audio Player UX V2 — premium compact SaaS layout === */
 .vx-audio-state-card .vx-transcript-head{border-bottom:0.5px solid var(--line,rgba(15,23,42,.08));}
 .vx-audio-state{display:flex;align-items:center;justify-content:center;gap:10px;min-height:96px;padding:22px 18px;color:#7c8798;font-size:13px;font-weight:650;text-align:center;}
-.vx-audio-state__spinner{width:18px;height:18px;border-radius:50%;border:2px solid #dbeafe;border-top-color:#2563eb;animation:vxAudioSpin .8s linear infinite;}
 .vx-audio-state__retry{margin-left:8px;border:1px solid #dbe4f0;background:#fff;color:#0f172a;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;}
-@keyframes vxAudioSpin{to{transform:rotate(360deg)}}
 .vx-audio-modern{
   --vx-audio-navy:#071833;
   --vx-audio-blue:#2f6df6;

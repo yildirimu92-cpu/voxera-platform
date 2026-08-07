@@ -498,6 +498,71 @@ assert.equal((uiComponentsCss.match(/!important/g) || []).length, 0, 'UI compone
 assert.ok(!uiComponentsCss.includes('<style'), 'UI component CSS must not contain an embedded style tag');
 assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(uiComponentsCss.replace(/#vx-assistant-root-switch/g, '')), 'UI component CSS must not hardcode colors; use the tokens');
 
+// --- Block 7: form field contract ------------------------------------------
+for (const token of [
+  '--vx-ui-field-border',
+  '--vx-ui-field-radius',
+  '--vx-ui-field-height',
+  '--vx-ui-field-focus-ring',
+  '--vx-ui-field-chevron'
+]) {
+  assert.ok(designTokens.includes(token), `field contract token missing: ${token}`);
+}
+
+for (const token of [
+  '.vx-ui-field',
+  '.vx-ui-input',
+  '.vx-ui-select',
+  '.vx-ui-textarea',
+  'appearance: none',
+  '-webkit-appearance: none',
+  'var(--vx-ui-field-chevron)',
+  'var(--vx-ui-field-focus-ring)'
+]) {
+  assert.ok(uiComponentsCss.includes(token), `field component missing: ${token}`);
+}
+
+// A select without an appearance reset falls back to the native widget — the
+// exact defect block 7 exists to remove.
+assert.match(
+  uiComponentsCss,
+  /:where\(select, \.vx-ui-select\)\s*\{[^}]*appearance:\s*none/,
+  'select must reset appearance so it stops rendering as the native widget'
+);
+// Checkboxes, radios and range inputs must keep their intrinsic box.
+for (const excluded of ['checkbox', 'radio', 'range', 'file']) {
+  assert.ok(
+    uiComponentsCss.includes(`:not([type="${excluded}"])`),
+    `field baseline must exclude input[type=${excluded}]`
+  );
+}
+assert.ok(!foundationCss.includes('body.vx-customer-design-foundation :where(input, select, textarea) {'), 'field box model must stay owned by the field component');
+
+// --- Audio card: the loading state must keep the player mount hook ---------
+// The auto-loader finds the card by #vx-call-audio-card[data-vx-audio-auto="1"]
+// and reads data-conversation-id. A loading state without that shell never
+// starts the fetch and leaves the skeleton on screen forever.
+assert.match(
+  dashboard,
+  /if \(conversationId\) \{\s*return vxRenderAudioStateCardHtml\('loading'/,
+  'audio loading state must render the card shell, not a bare skeleton'
+);
+assert.match(
+  dashboard,
+  /function vxRenderAudioStateCardHtml[\s\S]{0,1200}?data-vx-audio-auto="1"[\s\S]{0,1200}?vxUiSkeleton/,
+  'audio card must keep the auto-load hook and render the skeleton inside it'
+);
+
+// --- Save feedback must be reachable from the field being edited ----------
+for (const token of [
+  'vx-assistant-name-status',
+  'vx-business-save-status',
+  "scrollIntoView({ block: 'nearest'",
+  'function paintStatus'
+]) {
+  assert.ok(assistantRuntime.includes(token), `inline save feedback missing: ${token}`);
+}
+
 for (const token of ['skeleton:', 'badge:', 'badgeTone:', 'emptyState:', 'card:', 'tabs:', 'root.VoxeraUI =']) {
   assert.ok(uiComponentsJs.includes(token), `VoxeraUI factory missing: ${token}`);
 }

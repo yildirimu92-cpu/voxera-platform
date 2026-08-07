@@ -213,34 +213,9 @@ body.vx-customer-design-foundation :where(
   cursor: not-allowed;
 }
 
-body.vx-customer-design-foundation :where(input, select, textarea) {
-  box-sizing: border-box;
-  min-height: 44px;
-  padding: 11px 13px;
-  border-color: var(--vx-line);
-  border-radius: var(--vx-radius-control);
-  background: var(--vx-surface);
-  color: var(--vx-ink);
-  font-size: 15px;
-  line-height: 1.45;
-}
-
-body.vx-customer-design-foundation textarea {
-  min-height: 120px;
-  resize: vertical;
-  font-family: var(--vx-font-ui);
-  line-height: 1.55;
-  letter-spacing: 0;
-}
-
-body.vx-customer-design-foundation label {
-  color: var(--vx-muted);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.35;
-  letter-spacing: 0;
-  text-transform: none;
-}
+/* Input, select, textarea and label box models are owned by the canonical
+   field component (customer-ui-components.css). This module only sets the
+   font family, which belongs to the global typography contract. */
 
 /* Tab shape and states are owned by the canonical pill tab component
    (customer-ui-components.css); this primitive keeps only block spacing. */
@@ -371,10 +346,6 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     min-height: 100svh;
     min-height: 100dvh;
     font-size: var(--vx-font-size-body-mobile);
-  }
-
-  body.vx-customer-design-foundation :where(input, select, textarea) {
-    font-size: 16px;
   }
 
   body.vx-customer-design-foundation :where(

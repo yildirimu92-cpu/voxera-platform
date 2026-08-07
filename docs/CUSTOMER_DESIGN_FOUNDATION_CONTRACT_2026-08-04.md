@@ -21,8 +21,7 @@ This file is the only owner for:
 - page canvas and content width;
 - generic panels;
 - generic buttons;
-- generic inputs, selects and textareas;
-- shared focus and disabled states;
+- shared focus-visible treatment;
 - responsive primitive behavior.
 
 ### Token owner
@@ -32,7 +31,8 @@ This file is the only owner for:
 This file is the only owner for color tokens, the spacing scale, radii,
 shadows and the component contract tokens (`--vx-ui-card-*`,
 `--vx-ui-tab-*`, `--vx-ui-badge-*`, `--vx-ui-skeleton-*`,
-`--vx-ui-empty-*`). Every other module resolves its values from here.
+`--vx-ui-empty-*`, `--vx-ui-field-*`). Every other module resolves its
+values from here.
 
 Known deviation: `customer-design-system.css` still declares its own
 `:root` block with conflicting values for `--vx-muted`, `--vx-surface` and
@@ -44,14 +44,17 @@ migration.
 
 `customer-dashboard/shared/customer-ui-components.css`
 
-This file is the only owner for the five shared building blocks:
+This file is the only owner for the shared building blocks:
 
 - the card shell and its inset;
 - pill tabs, including the "Anfragen" status filters and the "Assistent"
   section switch;
 - loading skeletons — no screen may render a text loading hint;
 - status badges;
-- empty states.
+- empty states;
+- form fields: input, select, textarea and their labels, including the
+  `appearance` reset and chevron that stop selects from falling back to the
+  native browser widget.
 
 Its markup counterpart is `customer-ui-components.js`, which exposes the
 `VoxeraUI` factory. That module must stay a pure markup builder: no DOM
@@ -67,7 +70,7 @@ The following modules may own only their named component domain:
 - `customer-settings-components.css` — settings-specific component layout;
 - `customer-support-components.css` — support modal and support-state presentation.
 
-Component modules must not introduce a second generic button, card, input, typography or page-layout system, and must not redeclare the card, tab, skeleton, badge or empty-state contract owned by `customer-ui-components.css`. They may compose those classes and add layout or placement around them.
+Component modules must not introduce a second generic button, card, input, typography or page-layout system, and must not redeclare the card, tab, skeleton, badge, empty-state or form-field contract owned by `customer-ui-components.css`. They may compose those classes and add layout or placement around them.
 
 ## Legacy owner
 
@@ -114,8 +117,12 @@ Local font-family declarations are not allowed outside explicitly independent do
 - Card border: 0.5px, structural, never replaced by a shadow alone.
 - Card inset: 16px desktop, 12px mobile. Cards that lay out their own
   head/body sections keep `padding: 0` so those sections own the inset.
-- Controls: 12px radius.
+- Controls (buttons): 12px radius.
 - Standard control height: 46px desktop, 48px mobile.
+- Form fields: 10px radius, 1px border, 44px height desktop / 48px mobile.
+  Mobile font-size must stay at 16px or above so iOS does not zoom on focus.
+- Checkbox, radio, range and file inputs keep their intrinsic box and are
+  explicitly excluded from the field contract.
 - Standard page/card spacing must be token-based and shared.
 - Decorative shadows must remain subtle and must not replace structural borders.
 
@@ -149,7 +156,8 @@ A design migration pull request must fail review if it introduces:
 - new `!important` usage in canonical modules;
 - a new local font family;
 - a new generic button or input system outside `customer-design-system.css`;
-- a new card, tab, skeleton, badge or empty-state system outside `customer-ui-components.css`;
+- a new card, tab, skeleton, badge, empty-state or form-field system outside `customer-ui-components.css`;
+- a `<select>` without an `appearance` reset, which falls back to the native widget;
 - a text loading hint such as "wird geladen …" where a skeleton belongs;
 - a CSS file whose only purpose is to override another CSS file;
 - unrelated API, auth, data or routing changes.
