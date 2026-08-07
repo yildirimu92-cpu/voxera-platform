@@ -311,7 +311,7 @@ body.vx-customer-design-foundation .vx-ap-field input,
 body.vx-customer-design-foundation .vx-ap-field textarea {
   border: 1px solid var(--vx-line-strong);
   border-radius: var(--vx-radius-control);
-  background: var(--vx-surface);
+  background: var(--vx-surface); color: var(--vx-ink);
 }
 
 body.vx-customer-design-foundation .vx-ap-field input:focus,
