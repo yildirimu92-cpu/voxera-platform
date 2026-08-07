@@ -6465,12 +6465,23 @@ body.vx-customer-design-foundation .vx-requests-panel{
   border-right:1px solid var(--vx-line);
 }
 
+/* Filter-Pills und "Nur ungelesene" teilen sich jetzt eine Zeile statt zwei
+   getrennter Zeilen vor der Liste — .vx-requests-filter-row trägt die
+   gemeinsame Zeilen-Polsterung, die Kinder selbst sind ungepolstert. */
+body.vx-customer-design-foundation .vx-requests-filter-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:4px;
+  padding:10px 10px 10px;
+}
+
 body.vx-customer-design-foundation .vx-requests-filters{
   display:flex;
   flex-wrap:wrap;
   gap:6px;
   margin:0;
-  padding:14px 14px 8px;
+  padding:0;
 }
 
 body.vx-customer-design-foundation .vx-requests-filters [data-filter="offen"]{order:1;}
@@ -6485,19 +6496,36 @@ body.vx-customer-design-foundation .vx-requests-subfilters{
   display:flex;
   align-items:center;
   flex-wrap:wrap;
-  gap:var(--vx-space-2);
-  padding:0 14px 10px;
+  gap:4px;
+  padding:0;
 }
 
-body.vx-customer-design-foundation .vx-requests-subfilters [data-inbox-subfilter="unread"]{
-  min-height:34px;
-  padding:6px 11px;
-  background:var(--vx-surface-soft);
-  font-size:12px;
+/* Dünner Trenner vor "Nur ungelesene", statt einer eigenen Zeile. Als
+   Pseudo-Element, damit er automatisch mitverschwindet, wenn die Gruppe
+   selbst (per JS) auf display:none gesetzt wird. */
+body.vx-customer-design-foundation .vx-requests-subfilters::before{
+  content:"";
+  flex:0 0 auto;
+  width:1px;
+  height:16px;
+  margin-right:2px;
+  background:var(--vx-line);
 }
 
+/* Padding/Hintergrund/Schriftgrösse braucht dieser Chip nicht eigens: die
+   #tab-anrufe .vx-chip!important-Regel (weiter unten in dieser Datei) setzt
+   sie ohnehin für alle fünf Pills. min-height dagegen MUSS hier gesetzt
+   bleiben — height:24px!important dort wirkt nur auf height, nicht auf
+   min-height, und eine generische, unqualifizierte .vx-ap-filter-Regel
+   (customer-assistant-components.css, für Filter-Leisten ausserhalb von
+   Anfragen gedacht) setzt sonst min-height:38px, klammert die Box also auf
+   38px hoch — sichtbar unrund neben den vier Status-Pills, die ihrerseits
+   über die kanonische Pill-Komponente auf min-height:36px kommen (dieselbe
+   generische Regel kollidierte dort schon vor dieser Änderung, nur 2px
+   knapper). 36px hier angleicht alle fünf Pills auf dieselbe Höhe. */
 body.vx-customer-design-foundation .vx-requests-subfilters .vx-ap-filter{
   flex:0 1 auto;
+  min-height:36px;
 }
 
 body.vx-customer-design-foundation .vx-requests-search{
@@ -6563,7 +6591,11 @@ body.vx-customer-design-foundation .vx-requests-scroll{
   overscroll-behavior:contain;
 }
 
-body.vx-customer-design-foundation .vx-requests-list{
+/* Gleicher Grund wie bei .vx-requests-item: die generische .vx-ops-list
+   (display:grid;gap:12px;margin-top:16px) gewann bisher gegen diese Regel
+   und zeigte Zeilen als abgesetzte Karten mit Lücken statt als flache,
+   durch Haarlinien getrennte Liste. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-list{
   display:flex;
   flex:1;
   flex-direction:column;
@@ -6582,7 +6614,15 @@ body.vx-customer-design-foundation .vx-requests-date{
   font-weight:700;
 }
 
-body.vx-customer-design-foundation .vx-requests-item{
+/* .vx-requests-panel vorangestellt, um die generische .vx-ops-item-Kartenoptik
+   (padding:16px, border-radius:14px, eigener Rahmen — aus der älteren,
+   kontextfreien Listen-Komponente) zuverlässig zu schlagen: gleiche
+   Selektor-Spezifität, aber .vx-ops-item gewann bisher durch spätere
+   Deklaration. Die Zeile trug dadurch ihr Padding zweifach (Artikel UND die
+   innere .vx-requests-row), was zusammen mit den vormals 40px grossen
+   Aktions-Buttons den Namen auf wenige Zeichen zusammenquetschte — sichtbar
+   als "Unb..." statt "Unbekannter Anrufer" trotz korrektem CSS-Ellipsis. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item{
   padding:0;
   border:0;
   border-bottom:1px solid var(--vx-line);
@@ -6592,13 +6632,13 @@ body.vx-customer-design-foundation .vx-requests-item{
   transition:background .16s ease,box-shadow .16s ease;
 }
 
-body.vx-customer-design-foundation .vx-requests-item:last-child{border-bottom:0;}
-body.vx-customer-design-foundation .vx-requests-item:hover{background:var(--vx-surface-soft);}
-body.vx-customer-design-foundation .vx-requests-item.sp-active{
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item:last-child{border-bottom:0;}
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item:hover{background:var(--vx-surface-soft);}
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active{
   background:#eef4ff;
   box-shadow:inset 3px 0 0 var(--vx-brand);
 }
-body.vx-customer-design-foundation .vx-requests-item.is-unread{background:#fbfdff;}
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.is-unread{background:#fbfdff;}
 
 body.vx-customer-design-foundation .vx-requests-row{
   display:grid;
@@ -6682,23 +6722,29 @@ body.vx-customer-design-foundation .vx-requests-actions{
   padding-top:1px;
 }
 
+/* Dezente Icon-Buttons statt gefüllter 40px-Boxen: kein Rahmen, keine
+   Füllung im Ruhezustand, nur das Icon in Akzentfarbe — damit Haken und
+   Mehr-Menü neben Name/Zeit/Badges nicht mehr Gewicht ziehen als der Inhalt. */
 body.vx-customer-design-foundation .vx-requests-icon-action{
   display:inline-flex;
   align-items:center;
   justify-content:center;
   box-sizing:border-box;
-  width:40px;
-  height:40px;
+  width:28px;
+  height:28px;
   padding:0;
   border:0;
-  border-radius:var(--vx-radius-control);
-  background:#eef4ff;
+  border-radius:8px;
+  background:transparent;
   color:var(--vx-brand);
+  font-size:15px;
   cursor:pointer;
+  transition:background .12s ease;
 }
-body.vx-customer-design-foundation .vx-requests-icon-action.is-call{background:var(--vx-brand-dark);color:#fff;}
-body.vx-customer-design-foundation .vx-requests-icon-action.is-done{background:#ecfdf5;color:#047857;}
-body.vx-customer-design-foundation .vx-requests-icon-action.is-overflow{background:#f1f5f9;color:var(--vx-muted);}
+body.vx-customer-design-foundation .vx-requests-icon-action:hover{background:var(--vx-surface-soft);}
+body.vx-customer-design-foundation .vx-requests-icon-action.is-call{color:var(--vx-brand);}
+body.vx-customer-design-foundation .vx-requests-icon-action.is-done{color:var(--vx-green);}
+body.vx-customer-design-foundation .vx-requests-icon-action.is-overflow{color:var(--vx-subtle);}
 body.vx-customer-design-foundation .vx-requests-actions>.vx-row-menu{display:none;}
 
 body.vx-customer-design-foundation .vx-requests-empty{
@@ -6799,10 +6845,9 @@ body.vx-customer-design-foundation .vx-requests-resizer{display:none;}
      tab component. The previous two-column grid + width:100% belonged to the
      replaced layout and made every tab fill the row, so only the first one was
      reachable once the container became a flex row. */
-  body.vx-customer-design-foundation .vx-requests-filters{
-    padding:14px 14px 8px;
+  body.vx-customer-design-foundation .vx-requests-filter-row{
+    padding:14px 14px 10px;
   }
-  body.vx-customer-design-foundation .vx-requests-subfilters{padding:0 14px 12px;}
   body.vx-customer-design-foundation .vx-requests-search{padding:0 14px 14px;}
   body.vx-customer-design-foundation .vx-requests-row{
     grid-template-columns:auto minmax(0,1fr);
@@ -7543,18 +7588,23 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <div class="tab-page" id="tab-anrufe">
           <header class="vx-appbar"><h1 class="vx-appbar-title">Anfragen</h1></header>
 
-          <!-- "0 offen · 1 geplant · 0 erledigt" left the header in Etappe 2. -->
-          <section class="vx-ui-card vx-screen-meta">
-            <div id="anrufe-split-count" class="vx-screen-meta-title">–</div>
-          </section>
-
           <div id="anrufe-split" class="vx-split vx-requests-layout">
             <section id="anrufe-split-left" class="vx-ops-card vx-requests-panel" aria-label="Anfragenliste">
-              <div class="vx-ap-filters vx-requests-filters" role="tablist" aria-label="Anfragestatus">
-                <button class="vx-ap-filter vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
-                <button class="vx-ap-filter vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
-                <button class="vx-ap-filter vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
-                <button class="vx-ap-filter vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiv</button>
+              <!-- Die Zusammenfassungszeile ("7 offen · 1 geplant · 0 erledigt") ist
+                   entfernt: dieselben Zahlen stehen bereits in den Pill-Labels unten
+                   ("Offen (7)" etc., siehe vxUpdateAnfragenCount()). -->
+              <div class="vx-requests-filter-row">
+                <div class="vx-ap-filters vx-requests-filters" role="tablist" aria-label="Anfragestatus">
+                  <button class="vx-ap-filter vx-chip vx-chip--active" data-filter="offen" onclick="anrufeChipFilter('offen',this)">Offen</button>
+                  <button class="vx-ap-filter vx-chip" data-filter="geplant" onclick="anrufeChipFilter('geplant',this)">Geplant</button>
+                  <button class="vx-ap-filter vx-chip" data-filter="abgeschlossen" onclick="anrufeChipFilter('abgeschlossen',this)">Erledigt</button>
+                  <button class="vx-ap-filter vx-chip" data-filter="archiv" onclick="anrufeChipFilter('archiv',this)">Archiv</button>
+                </div>
+
+                <div class="vx-requests-subfilters" id="anrufe-inbox-subfilters">
+                  <button class="vx-ap-filter vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
+                  <div class="vx-selection-controls" id="anrufe-selection-controls" hidden></div>
+                </div>
               </div>
               <p
                 id="anrufe-retention-note"
@@ -7565,11 +7615,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <strong>90 Tagen</strong> entfernt, Archiveinträge nach
                 <strong>180 Tagen</strong> gelöscht.
               </p>
-
-              <div class="vx-requests-subfilters" id="anrufe-inbox-subfilters">
-                <button class="vx-ap-filter vx-chip" data-inbox-subfilter="unread" onclick="anrufeInboxSubFilter((_anrufeInboxSubfilter === 'unread' ? 'all' : 'unread'),this)">Nur ungelesene</button>
-                <div class="vx-selection-controls" id="anrufe-selection-controls" hidden></div>
-              </div>
 
               <div id="vx-inbox-selection-toolbar"></div>
 
@@ -22962,9 +23007,8 @@ function vxUpdateAnfragenCount() {
     }).filter(Boolean)
   });
 
-  var countEl = document.getElementById('anrufe-split-count');
-  if (countEl) countEl.textContent = counts.new + ' offen · ' + counts.planned + ' geplant · ' + counts.done + ' erledigt';
-
+  // Die separate Zusammenfassungszeile ("X offen · Y geplant · Z erledigt")
+  // ist entfernt — dieselben Zahlen stehen in den Pill-Labels unten.
   var mainWrap = document.querySelector('#anrufe-split-left .vx-requests-filters');
   if (mainWrap) {
     var inboxBtn = mainWrap.querySelector('[data-filter="offen"]');
@@ -23032,10 +23076,9 @@ function renderAnrufe() {
   }
   renderAnrufeInbox('anrufe-list', sorted, filter);
   if (window._vxActiveRecordId && typeof vxSetActiveRequestRow === 'function') vxSetActiveRequestRow(window._vxActiveRecordId);
-  if (window._vxAnfragenTodayOnly) {
-    var countEl = document.getElementById('anrufe-split-count');
-    if (countEl) countEl.textContent = sorted.length + ' Anrufe heute';
-  }
+  // "N Anrufe heute" stand hier in der entfernten Zusammenfassungszeile;
+  // dasselbe zeigt bereits das Filter-Banner ("Filter: Heute · N Einträge",
+  // vxUpdateAnfragenActiveFilterBanner()).
 }
 
 function vxGetCallStableId(record) {
@@ -40969,6 +41012,15 @@ body #call-detail-page.is-open.is-fullscreen #call-detail-content{
   padding:0 !important;
 }
 
+/* Dieser 280px-Wert ist auf Desktop-Breiten (>=769px) tot: die spezifischere
+   Regel body.vx-customer-design-foundation #anrufe-split.vx-requests-layout
+   (siehe @media(min-width:769px) weiter oben in dieser Datei) setzt dort
+   grid-template-columns:380px minmax(0,1fr)!important und gewinnt gegen
+   dieses #id-!important dank der zusätzlichen body-Klasse. 280px greift nur
+   unterhalb von 769px, wo #anrufe-split-left ohnehin per @media(max-width:
+   1099px) weiter unten in diesem Block auf 100% gesetzt wird — dieser Wert
+   ist also für keine Bildschirmbreite sichtbar wirksam. Nicht angefasst:
+   ihn zu entfernen ist eine Aufräumarbeit für sich, siehe PR-Beschreibung. */
 #tab-anrufe .vx-split-left,
 #anrufe-split-left{
   width:280px !important;
@@ -40990,7 +41042,7 @@ body #call-detail-page.is-open.is-fullscreen #call-detail-content{
 #tab-anrufe .vx-chip,
 #tab-anrufe .vxfb-chip{
   height:24px !important;
-  padding:0 8px !important;
+  padding:0 6px !important;
   border-radius:14px !important;
   font-size:11px !important;
   font-weight:500 !important;
@@ -41370,7 +41422,11 @@ body:has(#tab-archiv.active) .content{
       banner = document.createElement('div');
       banner.id = 'anrufe-active-filter-banner';
       banner.innerHTML = '<i class="ph-bold ph-funnel" aria-hidden="true"></i><span></span><button type="button" aria-label="Filter entfernen">×</button>';
-      subWrap.parentNode.insertBefore(banner, subWrap.nextSibling);
+      // Als eigene Zeile NACH der zusammengelegten Filter-/Unread-Zeile
+      // einhängen, nicht als weiteres Flex-Kind darin — sonst quetscht sich
+      // das Banner mit in die Pill-Reihe statt darunter zu stehen.
+      var filterRow = subWrap.closest('.vx-requests-filter-row') || subWrap.parentNode;
+      filterRow.parentNode.insertBefore(banner, filterRow.nextSibling);
       var btn = banner.querySelector('button');
       if(btn) btn.onclick = function(){
         window._vxAnfragenTodayOnly = false;
