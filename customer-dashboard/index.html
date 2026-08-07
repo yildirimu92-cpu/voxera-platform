@@ -7218,7 +7218,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           /* ── Lara-Übergabe: Heute-Screen Redesign ────────────────────────
              Card-Grundwerte (12px Radius, 0.5px Border) aus Etappe 1 bleiben
              unverändert — vx-ui-card-* Tokens werden weiterverwendet. */
-          #dash-content { --vx-font-serif: 'Newsreader', Fraunces, Georgia, 'Times New Roman', serif; }
+          #dash-content {
+            --vx-font-serif: 'Newsreader', Fraunces, Georgia, 'Times New Roman', serif;
+            --vx-font-handover-ui: 'Plus Jakarta Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+          }
 
           /* Alt-Sektionen aus dem Vor-Redesign bleiben im DOM (bestehendes
              Render-/Event-Wiring greift noch darauf zu), dürfen aber nie mehr
@@ -7257,21 +7260,24 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             font-family:var(--vx-font-serif); font-weight:400; font-size:18px;
             line-height:1.48; color:var(--vx-color-night,#0D1F3C); margin:0;
           }
-          .vx-lara-meta { margin-top:10px; font-size:12px; color:#8A93A6; font-family:var(--vx-font-body,inherit); }
+          .vx-lara-meta { margin-top:10px; font-size:12px; color:#8A93A6; font-family:var(--vx-font-handover-ui); }
 
           .vx-handover-section { margin-top:22px; }
           .vx-handover-eyebrow {
-            display:flex; align-items:center; gap:8px; margin-bottom:10px;
-            font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+            display:flex; align-items:center; gap:7px; margin-bottom:10px;
+            font-family:var(--vx-font-handover-ui);
+            font-size:12px; font-weight:600; color:#8A93A6; letter-spacing:0; text-transform:none;
           }
-          .vx-handover-eyebrow.is-danger { color:#DC2626; }
-          .vx-handover-eyebrow.is-success { color:#059669; }
+          .vx-handover-eyebrow-dot {
+            flex:0 0 auto; width:7px; height:7px; border-radius:50%;
+          }
+          .vx-handover-eyebrow.is-danger .vx-handover-eyebrow-dot { background:#DC2626; }
+          .vx-handover-eyebrow.is-success .vx-handover-eyebrow-dot { background:#059669; }
           .vx-handover-count {
             display:inline-flex; align-items:center; justify-content:center;
-            min-width:18px; height:18px; padding:0 5px; border-radius:9px; font-size:11px; font-weight:700;
+            min-width:16px; height:16px; padding:0 5px; border-radius:8px;
+            font-size:11px; font-weight:600; color:#8A93A6; background:#F0F1F4;
           }
-          .vx-handover-eyebrow.is-danger .vx-handover-count { background:#FEF2F2; color:#DC2626; }
-          .vx-handover-eyebrow.is-success .vx-handover-count { background:#ECFDF5; color:#059669; }
 
           .vx-handover-rail { position:relative; padding-left:16px; display:flex; flex-direction:column; gap:12px; }
           .vx-handover-rail::before {
@@ -7284,28 +7290,41 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             border:var(--vx-ui-card-border-width,0.5px) solid var(--vx-ui-card-border-color,#D9E1EC);
             border-radius:var(--vx-ui-card-radius,12px);
             padding:14px 16px;
+            font-family:var(--vx-font-handover-ui);
           }
+          .vx-handover-card-body { display:flex; align-items:flex-start; gap:12px; }
+          .vx-handover-card-icon {
+            flex:0 0 auto; width:36px; height:36px; border-radius:50%;
+            background:#F1F5F9; color:#94A3B8;
+            display:flex; align-items:center; justify-content:center; font-size:15px;
+          }
+          .vx-handover-card-main { flex:1; min-width:0; }
           .vx-handover-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
           .vx-handover-card-title { font-weight:700; font-size:14px; color:var(--vx-color-night,#0D1F3C); }
           .vx-handover-card-time { font-size:12px; color:#8A93A6; white-space:nowrap; flex:0 0 auto; }
           .vx-handover-card-desc { margin-top:4px; font-size:13px; color:#5B6472; line-height:1.42; }
-          .vx-handover-card-actions { display:flex; gap:8px; margin-top:12px; }
+          .vx-handover-card-actions { display:flex; align-items:center; gap:16px; margin-top:12px; }
           .vx-handover-btn {
             border-radius:999px; min-height:38px; font-size:13px; font-weight:700;
             border:1px solid transparent; cursor:pointer; padding:0 16px;
+            font-family:var(--vx-font-handover-ui);
           }
           .vx-handover-btn--primary {
             flex:1; background:var(--vx-color-night,#0D1F3C); border-color:var(--vx-color-night,#0D1F3C); color:#fff;
           }
           .vx-handover-btn--primary:hover { background:#132a52; }
-          .vx-handover-btn--secondary { flex:0 0 auto; background:#fff; border-color:var(--vx-ui-card-border-color,#D9E1EC); color:var(--vx-color-night,#0D1F3C); }
-          .vx-handover-btn--secondary:hover { background:#F7F8FA; }
+          .vx-handover-detail-link {
+            flex:0 0 auto; font-size:13px; font-weight:600; color:var(--vx-color-night,#0D1F3C);
+            text-decoration:underline; text-underline-offset:2px; cursor:pointer;
+            font-family:var(--vx-font-handover-ui);
+          }
+          .vx-handover-detail-link:hover { color:#132a52; }
 
           .vx-handover-cards { display:flex; flex-direction:column; gap:10px; }
           .vx-handover-card--resolved { opacity:.72; }
           .vx-handover-card--resolved .vx-handover-card-title { font-weight:600; }
 
-          .vx-all-clear { text-align:center; padding:34px 16px 6px; }
+          .vx-all-clear { text-align:center; padding:34px 16px 6px; font-family:var(--vx-font-handover-ui); }
           .vx-all-clear-icon {
             width:56px; height:56px; border-radius:50%; background:#E7F8EE; color:#059669;
             display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:22px;
@@ -7313,7 +7332,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           body.vx-customer-design-foundation .vx-all-clear-title { font-family:var(--vx-font-serif); font-weight:600; font-size:25px; color:var(--vx-color-night,#0D1F3C); margin:0 0 8px; }
           .vx-all-clear-text { font-size:14px; color:#5B6472; max-width:320px; margin:0 auto; line-height:1.5; }
 
-          .vx-handover-footlink { margin-top:18px; font-size:12px; color:#8A93A6; text-align:center; }
+          .vx-handover-footlink { margin-top:18px; font-size:12px; color:#8A93A6; text-align:center; font-family:var(--vx-font-handover-ui); }
           .vx-handover-footlink a { color:var(--vx-color-night,#0D1F3C); font-weight:600; text-decoration:underline; cursor:pointer; }
         </style>
         <div class="tab-page active" id="tab-dashboard">
@@ -7409,6 +7428,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
             <section id="dash-needs-you-section" class="vx-handover-section" hidden>
               <div class="vx-handover-eyebrow is-danger">
+                <span class="vx-handover-eyebrow-dot" aria-hidden="true"></span>
                 <span>Braucht dich</span>
                 <span id="dash-needs-you-count" class="vx-handover-count">0</span>
               </div>
@@ -7423,6 +7443,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
             <section id="dash-resolved-section" class="vx-handover-section vx-handover-section--muted" hidden>
               <div class="vx-handover-eyebrow is-success">
+                <span class="vx-handover-eyebrow-dot" aria-hidden="true"></span>
                 <span>Hat sich erledigt</span>
                 <span id="dash-resolved-count" class="vx-handover-count">0</span>
               </div>
@@ -21252,13 +21273,16 @@ function vxHeuteHandoverCardHtml(rec, variant) {
   var time = vxHeuteActivityTime(rec);
   if (variant === 'needs') {
     return '<article class="vx-handover-card vx-handover-card--needs" data-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">'
+      + '<div class="vx-handover-card-body">'
+      + '<div class="vx-handover-card-icon" aria-hidden="true"><i class="ph-bold ph-phone"></i></div>'
+      + '<div class="vx-handover-card-main">'
       + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
       + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
       + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
       + '<div class="vx-handover-card-actions">'
       + (phone ? '<button type="button" class="vx-handover-btn vx-handover-btn--primary" data-action="call" data-rec-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">Zurückrufen</button>' : '')
-      + '<button type="button" class="vx-handover-btn vx-handover-btn--secondary" data-action="detail" data-rec-id="'+_esc(id)+'">Details</button>'
-      + '</div></article>';
+      + '<a href="#" class="vx-handover-detail-link" data-action="detail" data-rec-id="'+_esc(id)+'">Details</a>'
+      + '</div></div></div></article>';
   }
   return '<article class="vx-handover-card vx-handover-card--resolved" data-id="'+_esc(id)+'">'
     + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
