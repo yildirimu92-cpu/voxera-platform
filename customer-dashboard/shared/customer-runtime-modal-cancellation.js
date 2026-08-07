@@ -10,9 +10,9 @@
     style.textContent = `
       #vx-commercial-overlay{position:fixed!important;inset:0!important;z-index:9800!important;display:none!important;align-items:center!important;justify-content:center!important;padding:20px!important;background:rgba(15,35,71,.48)!important;backdrop-filter:blur(10px)!important}
       #vx-commercial-overlay.open{display:flex!important}
-      #vx-commercial-overlay .vx-commercial-modal{position:relative!important;width:min(620px,100%)!important;max-width:620px!important;max-height:min(820px,calc(100dvh - 40px))!important;margin:0!important;overflow:hidden!important;border-radius:24px!important;background:#fff!important;box-shadow:0 28px 80px rgba(15,35,71,.28)!important}
+      #vx-commercial-overlay .vx-commercial-modal{position:relative!important;width:min(620px,100%)!important;max-width:620px!important;max-height:min(820px,calc(100dvh - 40px))!important;margin:0!important;overflow:hidden!important;border-radius:var(--vx-radius-modal,18px)!important;background:#fff!important;box-shadow:0 28px 80px rgba(15,35,71,.28)!important}
       #vx-commercial-overlay .modal-shell{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important;max-height:inherit!important;overflow:hidden!important}
-      #vx-commercial-overlay .modal-head{display:grid!important;grid-template-columns:minmax(0,1fr) 48px!important;align-items:start!important;gap:16px!important;padding:24px!important;border:0!important;background:#10213f!important}
+      #vx-commercial-overlay .modal-head{display:grid!important;grid-template-columns:minmax(0,1fr) 48px!important;align-items:start!important;gap:16px!important;padding:24px!important;border:0!important;background:var(--vx-color-night,#0D1F3C)!important}
       #vx-commercial-overlay .modal-title{margin:0!important;color:#fff!important;font-size:28px!important;font-weight:760!important;line-height:1.15!important;letter-spacing:-.03em!important}
       #vx-commercial-overlay .modal-sub{margin-top:7px!important;color:rgba(255,255,255,.68)!important;font-size:15px!important;line-height:1.45!important}
       #vx-commercial-overlay .modal-close{display:grid!important;place-items:center!important;width:48px!important;min-width:48px!important;height:48px!important;min-height:48px!important;margin:0!important;padding:0!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:14px!important;background:rgba(255,255,255,.10)!important;color:#fff!important}
@@ -24,7 +24,7 @@
       .vx-cancellation-term-note{margin-top:12px;padding:14px 16px;border:1px solid #d8e1ec;border-radius:14px;background:#f6f8fb;color:#475569;font-size:14px;line-height:1.5}
       @media(max-width:768px){
         #vx-commercial-overlay{align-items:flex-end!important;padding:0!important}
-        #vx-commercial-overlay .vx-commercial-modal{width:100%!important;max-width:none!important;max-height:calc(100dvh - 52px)!important;border-radius:24px 24px 0 0!important}
+        #vx-commercial-overlay .vx-commercial-modal{width:100%!important;max-width:none!important;max-height:calc(100dvh - 52px)!important;border-radius:var(--vx-radius-modal,18px) var(--vx-radius-modal,18px) 0 0!important}
         #vx-commercial-overlay .modal-head{grid-template-columns:minmax(0,1fr) 48px!important;padding:22px 20px 20px!important}
         #vx-commercial-overlay .modal-title{font-size:24px!important}
         #vx-commercial-overlay .modal-sub{font-size:14px!important}

@@ -6413,7 +6413,7 @@ body,.main{background:var(--vx-bg);}
    VOXERA FINAL MODAL + NOTIFICATION POLISH
    Unified modal surface and safer notification UX
 ═══════════════════════════════════════════ */
-:root{--vx-modal-radius:18px;--vx-modal-head:#0D1F3C;--vx-modal-shadow:0 24px 64px rgba(13,31,60,.18),0 8px 22px rgba(13,31,60,.10);}
+:root{--vx-modal-radius:var(--vx-radius-modal);--vx-modal-head:var(--vx-color-night);--vx-modal-shadow:var(--vx-shadow-modal);}
 .overlay .modal,.account-modal,.detail-modal,#vx-detail-v2>div{border-radius:var(--vx-modal-radius)!important;box-shadow:var(--vx-modal-shadow)!important;border:1px solid rgba(13,31,60,.08)!important;background:var(--surface)!important;overflow:hidden!important;}
 .overlay .modal .modal-head,.modal-head{background:var(--vx-modal-head)!important;padding:0!important;border-bottom:none!important;}
 .modal-head-top{background:var(--vx-modal-head)!important;padding:15px 20px!important;gap:8px!important;}
@@ -8594,9 +8594,9 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
         <!-- ONBOARDING MODAL -->
 <div id="vx-onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.6);backdrop-filter:blur(4px);z-index:9000;display:none;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--surface);border-radius:20px;width:100%;max-width:480px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);">
+  <div style="background:var(--surface);border-radius:var(--vx-radius-modal);width:100%;max-width:480px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);">
     <!-- Header -->
-    <div style="background:#0D1F3C;padding:24px 24px 20px;">
+    <div style="background:var(--vx-color-night);padding:24px 24px 20px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
         <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <i class="ph-bold ph-sparkle" style="color:#E8C547;" style="font-size:20px;" aria-hidden="true"></i>
@@ -8927,7 +8927,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
 <!-- CONFIRM MODAL -->
 <div class="overlay overlay--center confirm-variant" id="confirm-overlay" onclick="if(event.target===this)closeConfirmModal()" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-hidden="true">
-  <div class="modal modal--confirm modal--compact confirm-tone-primary" id="confirm-modal" style="border-radius:var(--r-xl);max-width:360px;" tabindex="-1">
+  <div class="modal modal--confirm modal--compact confirm-tone-primary" id="confirm-modal" style="border-radius:var(--vx-radius-modal);max-width:360px;" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top" style="padding:16px 20px;">
@@ -40280,8 +40280,8 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus.is-fullscreen #cal
    Scope: visual modal shell only. No business logic.
 ═══════════════════════════════════════════ */
 :root{
-  --vx-modal-shadow-final:0 24px 70px rgba(13,31,60,.22),0 8px 24px rgba(13,31,60,.12);
-  --vx-modal-sheet-shadow-final:0 -18px 50px rgba(13,31,60,.22),0 -2px 12px rgba(13,31,60,.10);
+  --vx-modal-shadow-final:var(--vx-shadow-modal);
+  --vx-modal-sheet-shadow-final:var(--vx-shadow-modal-sheet);
 }
 /* Remove the thin white/grey outer frame on modal containers. Keep input borders untouched. */
 .overlay .modal,
