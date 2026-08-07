@@ -129,6 +129,7 @@ function buildSandbox() {
     // list-side stubs that are not about live status
     vxHeuteIsManualTask: () => false,
     vxHeuteRecordCreatedToday: () => true,
+    vxHeuteRecordCompletedToday: () => false,
     vxHeuteIsOutboundOrTestRecord: () => false,
     vxHeuteGetRecordValue: () => '',
     vxTodayIsOpenCallForAttention: () => true,
@@ -154,6 +155,8 @@ function buildSandbox() {
     'deriveDashboardCallBuckets',
     'isCustomerVisibleCall',
     'vxHeuteDedupeByStableId',
+    'vxHeuteIsHandoverCall',
+    'vxHeuteGetHandoverCalls',
     'vxGetLivePhaseCalls',
     'vxAnnounceLivePhaseCalls',
     'updateLiveHero',
@@ -221,6 +224,24 @@ test('no entry list contains a call that is still on the line', () => {
     const ids = Array.from(got, (r) => r.id);
     assert.deepEqual(ids, ['call-ended', 'call-done'], name + ' must drop live-phase calls and keep ended ones');
   }
+});
+
+test('the Lara handover ("Braucht dich") shows no card while the line is open', () => {
+  // PR #822 replaced the Heute screen with the Lara handover. vxHeuteIsHandoverCall()
+  // has no live-phase check of its own — it relies entirely on being fed the already
+  // filtered vxGetAnfragenSourceRecords(). This test pins that contract down: if the
+  // handover is ever wired to a raw record source, a running call would surface as a
+  // "Braucht dich" card and the lifecycle rule would silently break.
+  const { sandbox } = buildSandbox();
+  const records = [call('call-live', 'active'), call('call-ended', 'processing')];
+  sandbox.allRecords = records;
+
+  const handover = sandbox.vxHeuteGetHandoverCalls(sandbox.vxGetAnfragenSourceRecords());
+  assert.deepEqual(
+    Array.from(handover, (r) => r.id),
+    ['call-ended'],
+    'a call still on the line must not reach the handover cards'
+  );
 });
 
 // ── 3. the ambient hint is stable for the whole call ───────────────────────
