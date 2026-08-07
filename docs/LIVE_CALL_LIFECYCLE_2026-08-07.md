@@ -226,10 +226,42 @@ alten Code: der Wurf landete zwischen `_liveHeroNotified.add()` und dem
 `insertBefore()`, also lief beim ersten Tick eines neuen Anrufs weder `vxBellAdd()`
 noch `vxMaybePlayLiveCallSound()`, und die Row erschien erst beim zweiten Tick.
 
-Hier nur der Absturz abgesichert: die Meldewege sind einzeln `typeof`-geguardet und
-gekapselt, ein fehlender Kanal nimmt die übrigen und den Hinweis nicht mehr mit.
-Ob Toast für eingehende Anrufe überhaupt (wieder) existieren soll, ist eine
-Produktentscheidung und in diesem PR bewusst nicht getroffen.
+**Auflösung: ersatzlos entfernt, nicht neu gebaut.** Die Benachrichtigung für
+eingehende Anrufe existiert bereits — der `#incoming-banner`, ausgelöst von
+`flagIncomingRecords()`. Der läuft in `loadData()` auf den rohen Records aus
+`loadCallRecords()`, also vor jeder Lebenszyklus-Filterung, und feuert, sobald eine
+neue Record-ID auftaucht. Bei einem eingehenden Anruf ist das während des Gesprächs.
+
+Im echten Browser gegen die komplette `index.html` verifiziert, mit
+`live_status: 'active'` und noch ohne Dauer:
+
+| | Messung |
+|---|---|
+| feuert während der Live-Phase | ja (`vxIsCallInLivePhase` = true) |
+| Titel / Unterzeile | „Neuer Anruf" / „Anna Muster" |
+| Punkt | `rgb(34, 197, 94)`, pulsierend (`dotPulse`) |
+| Ton | 1× |
+| zweiter Poll-Tick | feuert nicht erneut, kein zweiter Ton |
+| Eintrags-Listen währenddessen | leer — Lebenszyklus-Regel hält |
+
+`vxToast()` und `vxBellAdd()` sind damit in `updateLiveHero()` redundant und
+gestrichen. Was bleibt, ergänzt den Banner und dupliziert ihn nicht:
+
+- `notifyLiveCall()` — OS-Notification, ausschliesslich wenn der Tab **nicht**
+  sichtbar ist; der Banner ist rein in-app.
+- `vxMaybePlayLiveCallSound()` — der Banner spielt den Ton nur bei genau einem
+  neuen Anruf, hier je Anruf. Global über `vxPlayedLiveSoundIds` dedupliziert,
+  daher kein Doppelton; die Funktion hat mit `source` von Anfang an mehrere
+  Aufrufstellen vorgesehen (`'live-hero'`, `'incoming-banner'`).
+
+Die Kapselung bleibt: Meldewege sind Beiwerk und dürfen den Hinweis nie verhindern.
+
+**Offen, bewusst nicht angefasst:** zwei weitere tote `vxToast()`-Aufrufe ausserhalb
+dieses Pfads — in der Glocken-/Notification-Panel-Logik (`vxBellAdd()` selbst, dessen
+gesamter Rumpf der tote Aufruf ist) und in `renderAnrufeInbox()` für die Meldung
+„Auswahl aufgehoben" (dort bereits `typeof`-geguardet, also stumm wirkungslos).
+Beide gehören zu anderen Features; ob dort eine Meldung erscheinen soll, ist deren
+Entscheidung, nicht die dieses PRs.
 
 ## 7. Testplan Deploy-Preview
 

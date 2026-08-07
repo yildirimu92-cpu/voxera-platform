@@ -17607,11 +17607,24 @@ function vxGetLivePhaseCalls(records) {
     });
 }
 
-// Meldewege sind Beiwerk — sie duerfen den Hinweis nie verhindern. vxToast()
-// ist im Repo nur dokumentiert, nirgends implementiert; der Aufruf warf bisher
-// einen ReferenceError mitten in updateLiveHero(), wodurch beim ersten Tick
-// eines neuen Anrufs weder Glocke noch Ton liefen und die Row erst beim
-// zweiten Tick eingehaengt wurde. Deshalb hier einzeln guarden und kapseln.
+// Der In-App-Hinweis auf einen eingehenden Anruf ist NICHT Aufgabe dieser
+// Funktion — das leistet bereits der bestehende #incoming-banner: er wird von
+// flagIncomingRecords() ausgeloest, sobald in loadData() eine neue Record-ID
+// auftaucht, also waehrend das Gespraech laeuft, und zeigt "Neuer Anruf" mit
+// Anrufername, gruenem Puls-Punkt und Ton. Frueher standen hier zusaetzlich
+// vxToast() und vxBellAdd() — vxToast() ist im Repo aber nur dokumentiert und
+// nirgends implementiert, vxBellAdd() ruft ausschliesslich vxToast() auf. Beide
+// warfen damit einen ReferenceError mitten in updateLiveHero(). Ersatzlos
+// entfernt statt neu gebaut: der Banner deckt diesen Fall vollstaendig ab.
+//
+// Was hier bleibt, ergaenzt den Banner und dupliziert ihn nicht:
+//   notifyLiveCall()           — OS-Notification, nur wenn der Tab NICHT sichtbar
+//                                ist; der Banner ist rein in-app.
+//   vxMaybePlayLiveCallSound() — der Banner spielt den Ton nur bei genau einem
+//                                neuen Anruf; hier je Anruf. Global dedupliziert
+//                                ueber vxPlayedLiveSoundIds, daher kein Doppelton.
+// Meldewege bleiben trotzdem gekapselt: sie sind Beiwerk und duerfen den
+// Hinweis nie verhindern.
 function vxAnnounceLivePhaseCalls(liveRecs) {
   (liveRecs || []).forEach(function(rec) {
     var stableId = vxGetCallStableId(rec);
@@ -17621,11 +17634,8 @@ function vxAnnounceLivePhaseCalls(liveRecs) {
     var caller = (typeof getCallDisplayName === 'function' ? getCallDisplayName(f) : null)
                  || f.caller_name || f.phone_number || f.caller_phone || 'Unbekannte Nummer';
     var company = f.company_name || '';
-    var sub = company ? company + ' · ' + caller : caller;
     try {
       if (typeof notifyLiveCall === 'function') notifyLiveCall(caller, company, rec.id);
-      if (typeof vxToast === 'function') vxToast({ type: 'call', title: 'Eingehender Anruf', sub: sub });
-      if (typeof vxBellAdd === 'function') vxBellAdd({ type: 'call', title: 'Eingehender Anruf', sub: sub, recId: rec.id });
       if (typeof vxMaybePlayLiveCallSound === 'function') vxMaybePlayLiveCallSound(rec, 'live-hero');
     } catch (err) {
       console.warn('[live-hero] announcement failed', err);

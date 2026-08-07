@@ -116,7 +116,7 @@ function buildSandbox() {
     _liveHeroCurrentId: null,
     _liveHeroLastFingerprint: null,
     _liveHeroNotified: new Set(),
-    announced: { toasts: 0, bells: 0, notifications: 0 },
+    announced: { toasts: 0, bells: 0, notifications: 0, sounds: 0 },
 
     isManualTaskRecord: () => false,
     isActivationCallCategory: (c) => String(c || '').indexOf('activation') === 0,
@@ -143,7 +143,7 @@ function buildSandbox() {
   sandbox.vxToast = () => { sandbox.announced.toasts += 1; };
   sandbox.vxBellAdd = () => { sandbox.announced.bells += 1; };
   sandbox.notifyLiveCall = () => { sandbox.announced.notifications += 1; };
-  sandbox.vxMaybePlayLiveCallSound = () => false;
+  sandbox.vxMaybePlayLiveCallSound = () => { sandbox.announced.sounds += 1; return true; };
 
   vm.createContext(sandbox);
   vm.runInContext([
@@ -305,31 +305,44 @@ test('the hint disappears on hangup', () => {
   assert.equal(ambientHost.children.length, 0, 'hangup ends the ambient phase — the record becomes an entry');
 });
 
+test('the in-app incoming notice is left to #incoming-banner, not rebuilt here', () => {
+  // flagIncomingRecords() already shows #incoming-banner ("Neuer Anruf" + caller
+  // name + green pulsing dot + sound) the moment a new call record appears, which
+  // during a live call is while the line is open. updateLiveHero() must not put a
+  // second in-app notification on top of it. vxToast()/vxBellAdd() used to be
+  // called here; vxToast() is implemented nowhere in the repo and vxBellAdd() only
+  // forwards to it, so both threw — they are gone rather than reimplemented.
+  const { sandbox } = buildSandbox();
+  sandbox.updateLiveHero([call('call-1', 'active')]);
+  assert.deepEqual(
+    { toasts: sandbox.announced.toasts, bells: sandbox.announced.bells },
+    { toasts: 0, bells: 0 },
+    'no second in-app notification path may be introduced alongside #incoming-banner'
+  );
+});
+
 test('a missing announcement channel does not stop the hint from rendering', () => {
-  // vxToast() is documented in index.html but implemented nowhere in the repo,
-  // so calling it throws a ReferenceError. Before this was guarded, that throw
-  // landed in the middle of updateLiveHero() on the first tick of every new
-  // call — no bell, no sound, and the row only appeared one tick later.
+  // Announcements are incidental — a broken one must never cost the user the hint.
   const { sandbox, ambientHost } = buildSandbox();
-  delete sandbox.vxToast;
-  vm.runInContext('vxToast = undefined;', sandbox);
+  delete sandbox.notifyLiveCall;
+  vm.runInContext('notifyLiveCall = undefined;', sandbox);
 
   sandbox.updateLiveHero([call('call-1', 'active')]);
   assert.equal(ambientHost.children.length, 1, 'the hint must render even when an announcement channel is missing');
-  assert.equal(sandbox.announced.toasts, 0, 'the missing channel is skipped');
-  assert.deepEqual(
-    { bells: sandbox.announced.bells, notifications: sandbox.announced.notifications },
-    { bells: 1, notifications: 1 },
-    'the channels that do exist still fire — one missing one must not take the others down'
-  );
+  assert.equal(sandbox.announced.notifications, 0, 'the missing channel is skipped');
+  assert.equal(sandbox.announced.sounds, 1, 'the channels that do exist still fire');
 });
 
 test('each call is announced once, not once per render tick', () => {
   const { sandbox } = buildSandbox();
   const live = call('call-1', 'active');
   for (let i = 0; i < 5; i += 1) sandbox.updateLiveHero([live]);
-  assert.deepEqual(sandbox.announced, { toasts: 1, bells: 1, notifications: 1 });
+  assert.deepEqual(sandbox.announced, { toasts: 0, bells: 0, notifications: 1, sounds: 1 });
 
   sandbox.updateLiveHero([live, call('call-2', 'incoming')]);
-  assert.deepEqual(sandbox.announced, { toasts: 2, bells: 2, notifications: 2 }, 'a second call gets its own announcement');
+  assert.deepEqual(
+    sandbox.announced,
+    { toasts: 0, bells: 0, notifications: 2, sounds: 2 },
+    'a second call gets its own announcement'
+  );
 });
