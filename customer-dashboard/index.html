@@ -20936,10 +20936,33 @@ function vxHeuteGetTimestamp(record, keys) {
   if (!v && typeof getRecordTimestamp === 'function') v = getRecordTimestamp(record);
   return v || '';
 }
+// [BUGFIX] War zuvor "new Date(value)" — der zweite, tiefere Teil des
+// gemeldeten Zeitzonen-Bugs (die Feldpräferenz-Korrektur von letzter Runde
+// war real, aber nicht die Ursache des in Produktion weiter beobachteten
+// 2h-Versatzes). Supabase liefert created_at/completed_at/etc. immer als
+// UTC — teils aber OHNE 'Z'-Suffix (z.B. "2026-08-07 18:57:00"). Für einen
+// String ohne Zeitzonen-Offset behandelt JS eine ISO-artige Form ("...T...")
+// per Spezifikation als LOKALE Zeit des Browsers, nicht als UTC. Läuft der
+// Browser in Europe/Zurich, wurde "18:57" (eigentlich UTC = 20:57 Zürich)
+// fälschlich als "18:57 Zürich" interpretiert — exakt der beobachtete
+// 2-Stunden-Versatz, und zwar unabhängig vom gewählten Feld (updated_at vs.
+// created_at), weshalb der synthetische Test mit einem sauberen
+// "...Z"-String das reale Problem nicht reproduzierte.
+//
+// parseCallTimestamp() ist die bereits an anderer Stelle im Code verwendete
+// Lösung dafür (siehe pickLiveCall(), buildLiveCallMatcher()): erkennt
+// Timestamps ohne Zeitzonen-Angabe und hängt vor dem Parsen explizit 'Z' an,
+// damit sie korrekt als UTC interpretiert werden. vxHeuteParseDate()
+// delegiert jetzt dorthin, statt eine eigene (falsche) Parsing-Annahme zu
+// treffen — dieselbe Quelle, die Anfragen bereits korrekt verwendet.
 function vxHeuteParseDate(value) {
   if (!value) return null;
   var d;
-  try { d = (value instanceof Date) ? value : new Date(value); } catch(e) { return null; }
+  try {
+    if (value instanceof Date) d = value;
+    else if (typeof parseCallTimestamp === 'function') d = parseCallTimestamp(value);
+    else d = new Date(value);
+  } catch (e) { return null; }
   if (!d || Number.isNaN(d.getTime())) return null;
   return d;
 }
@@ -22909,10 +22932,22 @@ function vxGetAnfragenSourceRecords() {
     return isManualTaskRecord(r) || isCustomerVisibleCall(r);
   });
 }
+// [BUGFIX] Laufende Anrufe (Live-Phase) sollen laut Lebenszyklus-Definition
+// noch nicht als eigenes Datenobjekt zählen — vxGetEntryCounts() kannte
+// diese Ausnahme nicht, wodurch die Nav-Badge z.B. "1" zeigte, obwohl beim
+// Öffnen von Anfragen nichts Neues sichtbar war (die Liste selbst filtert
+// Live-Calls bereits korrekt heraus, die Zähler aber nicht). Gleiche
+// Filterung wie in den bereits korrekten vxHeute*-Funktionen
+// (vxGetHeuteTodayCallRecords → vxHeuteDedupeByStableId → vxIsLiveCall).
+function vxGetAnfragenCountSourceRecords() {
+  var source = vxGetAnfragenSourceRecords();
+  if (typeof vxIsLiveCall !== 'function') return source;
+  return source.filter(function(r) { return !vxIsLiveCall(r); });
+}
 
 // [v3.4] Anfragen-Nav-Badge folgt dem echten Ungelesen-State (read_at), nicht nur dem alten Seen-Storage.
 function vxUpdateAnfragenNavBadges(countsOverride) {
-  var source = (typeof vxGetAnfragenSourceRecords === 'function') ? vxGetAnfragenSourceRecords() : [];
+  var source = (typeof vxGetAnfragenCountSourceRecords === 'function') ? vxGetAnfragenCountSourceRecords() : [];
   var counts = countsOverride || ((typeof vxGetEntryCounts === 'function') ? vxGetEntryCounts(source) : null) || {};
   var unreadCount = Number(counts.unreadNew || 0);
   var badgeA = document.getElementById('badge-anrufe');
@@ -22924,7 +22959,7 @@ function vxUpdateAnfragenNavBadges(countsOverride) {
 
 // [v2.64] Header-Zähler für Unified Inbox — zählt Calls UND Tasks
 function vxUpdateAnfragenCount() {
-  var source = (typeof vxGetAnfragenSourceRecords === 'function') ? vxGetAnfragenSourceRecords() : [];
+  var source = (typeof vxGetAnfragenCountSourceRecords === 'function') ? vxGetAnfragenCountSourceRecords() : [];
   var counts = (typeof vxGetEntryCounts === 'function') ? vxGetEntryCounts(source) : { new:0, planned:0, done:0, unreadNew:0, total:0 };
 
   vxDebugLog('[anfragen:entry-count-source]', {
