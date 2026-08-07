@@ -17,10 +17,10 @@ const response = (statusCode, payload) => ({ statusCode, headers, body: JSON.str
 async function notifyAdminOfChangeRequest({ customerId, customerName, message }) {
   if (!MAKE_WEBHOOK) {
     console.warn('[ai-change-request-create] MAKE_MAIL_WEBHOOK not set, skipping admin notification');
-    return;
+    return { diagnostic: 'mail: webhook env var not set in this function runtime' };
   }
   try {
-    await fetch(MAKE_WEBHOOK, {
+    const res = await fetch(MAKE_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -32,8 +32,15 @@ async function notifyAdminOfChangeRequest({ customerId, customerName, message })
         admin_url: 'https://admin.voxera.ch/#ai-setup'
       })
     });
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => '');
+      console.warn('[ai-change-request-create] admin notification rejected', { status: res.status, bodyText });
+      return { diagnostic: `mail: webhook responded HTTP ${res.status}${bodyText ? ' — ' + bodyText.slice(0, 200) : ''}` };
+    }
+    return { diagnostic: `mail: webhook accepted (HTTP ${res.status})` };
   } catch (error) {
     console.warn('[ai-change-request-create] admin notification failed', { error: error.message });
+    return { diagnostic: `mail: fetch failed — ${String(error.message || error).slice(0, 200)}` };
   }
 }
 
@@ -82,11 +89,17 @@ exports.handler = async (event) => {
       .select('customer_name')
       .eq('id', caller.customerId)
       .maybeSingle();
-    await notifyAdminOfChangeRequest({
+    const notifyResult = await notifyAdminOfChangeRequest({
       customerId: caller.customerId,
       customerName: customerRow?.customer_name,
       message
     });
+    if (notifyResult?.diagnostic) {
+      await sbAdmin
+        .from('ai_change_requests')
+        .update({ admin_notes: notifyResult.diagnostic })
+        .eq('id', request.id);
+    }
 
     return response(200, { success: true, request, case: createdCase });
   } catch (error) {
