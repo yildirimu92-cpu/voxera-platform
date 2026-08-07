@@ -9446,6 +9446,8 @@ let autoRefreshTimer = null;
 let realtimeLoadDebounceTimer = null;
 let dashboardRealtimeChannel = null;
 let realtimeSuppressUntil = 0; // Nach Status-Mutation: Realtime-Reload kurz unterdrücken
+let _lastRealtimeTriggerAt = 0; // A-P0-01: letzter Realtime-Trigger -> naechster Poll-Tick kurz danach wird uebersprungen
+var POLL_REALTIME_COALESCE_MS = 3000; // < kuerzestes Poll-Intervall (9000ms), > Realtime-Debounce (250ms)
 let dashRecentExpanded = false; // Merkt ob User "Alle anzeigen" geklickt hat
 let dashboardRealtimeKey = '';
 let pendingFollowupRecordId = null;
@@ -11353,6 +11355,11 @@ function scheduleRealtimeLoad(reason) {
   if (realtimeLoadDebounceTimer) clearTimeout(realtimeLoadDebounceTimer);
   realtimeLoadDebounceTimer = setTimeout(function() {
     realtimeLoadDebounceTimer = null;
+    // A-P0-01: Realtime ist hier die primaere Quelle -- der naechste Poll-Tick
+    // (setInterval(safeLoadData, ...)) wird kurz unterdrueckt, damit Polling
+    // und Realtime nicht denselben updateLiveHero()-Rebuild kurz hintereinander
+    // ausloesen. Polling bleibt als Fallback aktiv, siehe safeLoadData().
+    _lastRealtimeTriggerAt = Date.now();
     loadData().catch(function(err) {
       console.error('[realtime-sync] loadData failed', { reason: reason || 'unknown', error: err && err.message ? err.message : err });
     });
@@ -24716,9 +24723,19 @@ window.addEventListener('focus', () => {
 window.addEventListener('online', () => safeLoadData());
 
 // Session-safe data loader - checks session before loading, avoids false logouts
-async function safeLoadData() {
+// opts.periodic: true nur wenn vom autoRefreshTimer-Tick aufgerufen (nicht bei
+// focus/visibilitychange/online) -- siehe A-P0-01 Coalescing unten.
+async function safeLoadData(opts) {
   if (document.getElementById('app').style.display === 'none') return; // not logged in
   if (realtimeSuppressUntil > 0 && Date.now() < realtimeSuppressUntil) return; // Mutation läuft gerade
+  // A-P0-01: Ein Realtime-Trigger hat gerade erst (oder gleich) denselben
+  // updateLiveHero()-Rebuild ausgeloest -- diesen periodischen Poll-Tick
+  // ueberspringen, damit nicht beide Mechanismen kurz hintereinander feuern.
+  // Nur periodische Ticks werden uebersprungen; ein expliziter Refresh
+  // (Tab-Fokus, online-Event, Klick) laeuft immer sofort durch.
+  if (opts && opts.periodic && _lastRealtimeTriggerAt > 0 && (Date.now() - _lastRealtimeTriggerAt) < POLL_REALTIME_COALESCE_MS) {
+    return;
+  }
   const sb = getSupabaseAuthClient();
   if (!sb) return;
   try {
@@ -24743,7 +24760,7 @@ function vxUpdateRefreshPolling(records) {
   var intervalMs = needsFast ? TEMP_CALL_POLL_INTERVAL_MS : 12000;
   if (!autoRefreshTimer || window._vxRefreshIntervalMs !== intervalMs) {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-    autoRefreshTimer = setInterval(safeLoadData, intervalMs);
+    autoRefreshTimer = setInterval(function() { safeLoadData({ periodic: true }); }, intervalMs);
     window._vxRefreshIntervalMs = intervalMs;
   }
 }
@@ -30414,7 +30431,7 @@ function showApp(user) {
   runInitialLoader(initialLoadSequence, { minVisibleMs: 1050 }).then(function() {
     document.getElementById('app').style.display = 'flex';
     window._vxRefreshIntervalMs = 12000;
-    autoRefreshTimer = setInterval(safeLoadData, 12000);
+    autoRefreshTimer = setInterval(function() { safeLoadData({ periodic: true }); }, 12000);
     showAppInProgress = false;
   }).catch(function() {
     showAppInProgress = false; // Guard freigeben bei Fehler
