@@ -1,0 +1,237 @@
+/* ============================================================
+   Voxera Customer Dashboard — Design Tokens 2.0
+   ============================================================
+   Single source of truth for typography, spacing and color
+   roles used across customer-dashboard/index.html.
+
+   Values below formalize the design checklist already in use
+   throughout the dashboard (Night #0D1F3C for card headers,
+   14px border-radius, #fff card backgrounds, 14/16/8px
+   padding/spacing) into a documented, reusable token set.
+
+   Naming: --vx-<category>-<role>[-<variant>]
+   Categories: color, font, text, weight, leading, spacing,
+   padding, radius, shadow, motion, z.
+
+   New markup should reference these tokens directly. The
+   legacy token names already scattered through index.html
+   (--vx-night, --ink, --line, --r-lg, --space-4, ...) are
+   aliased to this set further down so existing styles keep
+   resolving to the same values — nothing had to be rewritten
+   for this file to become the canonical source.
+   ============================================================ */
+
+:root {
+  /* ---- Color / brand -------------------------------------- */
+  --vx-color-night: #0D1F3C;        /* primary dark surface: card headers, KPI tiles, dark buttons */
+  --vx-color-brand: #1A6FE8;        /* primary interactive / accent blue */
+  --vx-color-brand-soft: #4B9FFF;   /* secondary accent, hover states */
+  --vx-color-gold: #E8C547;         /* highlight / plan / badge accent */
+  --vx-color-sand: #F5EDD0;
+
+  /* ---- Color / feedback ------------------------------------ */
+  --vx-color-success: #059669;
+  --vx-color-success-bg: #ECFDF5;
+  --vx-color-success-border: #A7F3D0;
+  --vx-color-warning: #D97706;
+  --vx-color-warning-bg: #FFFBEB;
+  --vx-color-warning-border: #FDE68A;
+  --vx-color-danger: #DC2626;
+  --vx-color-danger-bg: #FEF2F2;
+  --vx-color-danger-border: #FECACA;
+  --vx-color-info: #1A6FE8;
+  --vx-color-info-bg: #EFF6FF;
+  --vx-color-info-border: #BFDBFE;
+
+  /* ---- Color / surfaces ------------------------------------ */
+  --vx-color-canvas: #F7F8FA;          /* page background */
+  --vx-color-card-bg: #FFFFFF;         /* card / panel background */
+  --vx-color-card-header: #0D1F3C;     /* card header background ("Night") */
+  --vx-color-surface-soft: #F1F4F9;    /* recessed surface (inputs, search) */
+  --vx-color-border: rgba(13, 31, 60, .07);
+  --vx-color-border-strong: rgba(13, 31, 60, .11);
+  --vx-color-overlay: rgba(13, 31, 60, .42); /* modal/sheet backdrop */
+
+  /* ---- Color / text ----------------------------------------- */
+  --vx-color-text: #0D1F3C;
+  --vx-color-text-muted: #7A8599;
+  --vx-color-text-subtle: #94A3B8;
+  --vx-color-text-on-dark: #FFFFFF;
+  --vx-color-text-on-dark-muted: rgba(255, 255, 255, .74);
+
+  /* ---- Typography -------------------------------------------- */
+  --vx-font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --vx-font-display: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+
+  --vx-text-xs: 11px;
+  --vx-text-sm: 12px;
+  --vx-text-md: 13px;
+  --vx-text-base: 15px;
+  --vx-text-lg: 17px;
+  --vx-text-xl: 22px;
+  --vx-text-display: 32px;
+
+  --vx-weight-regular: 400;
+  --vx-weight-medium: 500;
+  --vx-weight-semibold: 600;
+  --vx-weight-bold: 700;
+  --vx-weight-extrabold: 800;
+
+  --vx-leading-tight: 1;
+  --vx-leading-badge: 1.2;
+  --vx-leading-body: 1.5;
+  --vx-leading-long: 1.6;
+
+  /* ---- Spacing (4px base scale) -------------------------------- */
+  --vx-spacing-xs: 4px;
+  --vx-spacing-sm: 8px;
+  --vx-spacing-md: 12px;
+  --vx-spacing-lg: 16px;
+  --vx-spacing-xl: 20px;
+  --vx-spacing-2xl: 24px;
+  --vx-spacing-3xl: 32px;
+
+  /* Padding presets called out in the design checklist (14/16/8px) */
+  --vx-padding-compact: 8px;
+  --vx-padding-default: 14px;
+  --vx-padding-roomy: 16px;
+
+  /* ---- Radius -------------------------------------------------- */
+  --vx-radius-sm: 8px;
+  --vx-radius-md: 10px;
+  --vx-radius-lg: 14px;   /* canonical card / panel radius */
+  --vx-radius-xl: 16px;
+  --vx-radius-pill: 999px;
+
+  /* ---- Shadow ---------------------------------------------------- */
+  --vx-shadow-xs: 0 1px 2px rgba(13, 31, 60, .04);
+  --vx-shadow-sm: 0 1px 3px rgba(13, 31, 60, .06), 0 1px 2px rgba(13, 31, 60, .04);
+  --vx-shadow-md: 0 4px 12px rgba(13, 31, 60, .06), 0 2px 4px rgba(13, 31, 60, .04);
+  --vx-shadow-lg: 0 12px 32px rgba(13, 31, 60, .08), 0 4px 8px rgba(13, 31, 60, .04);
+  --vx-shadow-modal: 0 24px 64px rgba(13, 31, 60, .18), 0 8px 22px rgba(13, 31, 60, .10);
+
+  /* ---- Motion ------------------------------------------------------ */
+  --vx-ease: cubic-bezier(.16, 1, .3, 1);
+  --vx-duration-fast: .12s;
+  --vx-duration-mid: .2s;
+
+  /* ============================================================
+     Backward-compat aliases.
+     Every legacy variable already used across index.html is
+     re-pointed at the tokens above so existing rules keep
+     rendering identically — this file can be adopted without a
+     risky mass find/replace across the 45k-line dashboard.
+     ============================================================ */
+  --vx-night: var(--vx-color-night);
+  --vx-blue: var(--vx-color-brand);
+  --vx-sky: var(--vx-color-brand-soft);
+  --vx-gold: var(--vx-color-gold);
+  --vx-sand: var(--vx-color-sand);
+  --vx-green: var(--vx-color-success);
+  --vx-red: var(--vx-color-danger);
+  --vx-muted: var(--vx-color-text-muted);
+
+  --vx-bg: var(--vx-color-canvas);
+  --vx-surface: var(--vx-color-card-bg);
+  --vx-card: var(--vx-color-card-bg);
+  --vx-ink: var(--vx-color-text);
+  --vx-border: var(--vx-color-border);
+  --vx-border-md: var(--vx-color-border-strong);
+  --vx-text: var(--vx-color-text);
+  --vx-text2: #4A5568;
+  --vx-text3: var(--vx-color-text-subtle);
+  --vx-search-bg: var(--vx-color-surface-soft);
+  --vx-kpi-bg: var(--vx-color-night);
+  --vx-detail-bg: var(--vx-color-canvas);
+  --vx-detail-ft: var(--vx-color-night);
+  --vx-btn-s-bg: rgba(13, 31, 60, .06);
+  --vx-btn-s-text: var(--vx-color-night);
+  --vx-btn-s-bd: rgba(13, 31, 60, .12);
+
+  --vx-red-light: var(--vx-color-danger-bg);
+  --vx-red-bd: var(--vx-color-danger-border);
+  --vx-blue-light: var(--vx-color-info-bg);
+  --vx-blue-bd: var(--vx-color-info-border);
+  --vx-green-light: var(--vx-color-success-bg);
+  --vx-green-bd: var(--vx-color-success-border);
+  --vx-gold-light: var(--vx-color-warning-bg);
+  --vx-gold-bd: var(--vx-color-warning-border);
+
+  --vx-font: var(--vx-font-body);
+  --vx-font-disp: var(--vx-font-display);
+
+  --vx-r-sm: var(--vx-radius-sm);
+  --vx-r-md: var(--vx-radius-md);
+  --vx-r-lg: var(--vx-radius-lg);
+  --vx-r-xl: var(--vx-radius-xl);
+  --vx-r-2xl: var(--vx-radius-xl);
+
+  --ink: var(--vx-color-text);
+  --slate: var(--vx-color-text-muted);
+  --slate2: var(--vx-color-text-subtle);
+  --line: var(--vx-color-border);
+  --bg: var(--vx-color-canvas);
+  --surface: var(--vx-color-card-bg);
+  --surface2: var(--vx-color-surface-soft);
+
+  --blue: var(--vx-color-brand);
+  --blue-light: var(--vx-color-info-bg);
+  --green: var(--vx-color-success);
+  --green-light: var(--vx-color-success-bg);
+  --red: var(--vx-color-danger);
+  --red-light: var(--vx-color-danger-bg);
+  --amber: var(--vx-color-warning);
+  --amber-light: var(--vx-color-warning-bg);
+
+  --font: var(--vx-font-body);
+  --font-display: var(--vx-font-display);
+  --headline-font: var(--vx-font-display);
+  --body-font: var(--vx-font-body);
+
+  --text-xs: var(--vx-text-xs);
+  --text-sm: var(--vx-text-sm);
+  --text-md: var(--vx-text-md);
+  --text-base: var(--vx-text-base);
+  --text-lg: var(--vx-text-lg);
+  --text-xl: var(--vx-text-xl);
+  --text-display: var(--vx-text-display);
+
+  --fw-regular: var(--vx-weight-regular);
+  --fw-medium: var(--vx-weight-medium);
+  --fw-semibold: var(--vx-weight-semibold);
+  --fw-bold: var(--vx-weight-bold);
+  --fw-extrabold: var(--vx-weight-extrabold);
+
+  --lh-tight: var(--vx-leading-tight);
+  --lh-badge: var(--vx-leading-badge);
+  --lh-body: var(--vx-leading-body);
+  --lh-long: var(--vx-leading-long);
+
+  --space-1: var(--vx-spacing-xs);
+  --space-2: var(--vx-spacing-sm);
+  --space-3: var(--vx-spacing-md);
+  --space-4: var(--vx-spacing-lg);
+  --space-5: var(--vx-spacing-xl);
+  --space-6: var(--vx-spacing-2xl);
+  --space-8: var(--vx-spacing-3xl);
+
+  --r-sm: var(--vx-radius-sm);
+  --r-md: var(--vx-radius-md);
+  --r-lg: var(--vx-radius-lg);
+  --r-xl: var(--vx-radius-xl);
+  --r-full: var(--vx-radius-pill);
+
+  --shadow-xs: var(--vx-shadow-xs);
+  --shadow-sm: var(--vx-shadow-sm);
+  --shadow-md: var(--vx-shadow-md);
+  --shadow-card: var(--vx-shadow-sm);
+  --shadow-lg: var(--vx-shadow-lg);
+
+  --ease: var(--vx-ease);
+  --fast: var(--vx-duration-fast) var(--vx-ease);
+  --mid: var(--vx-duration-mid) var(--vx-ease);
+
+  --vx-modal-radius: var(--vx-radius-xl);
+  --vx-modal-head: var(--vx-color-night);
+  --vx-modal-shadow: var(--vx-shadow-modal);
+}
