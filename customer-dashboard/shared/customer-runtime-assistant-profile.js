@@ -181,7 +181,9 @@
     const body = document.getElementById('vx-assistant-profile-body');
     if (!body) return;
     if (!profile) {
-      body.innerHTML = '<div class="vx-ap-status loading">Assistent wird geladen …</div>';
+      body.innerHTML = root.VoxeraUI
+        ? root.VoxeraUI.skeleton({ lines: 3, label: 'Assistent', inset: true, block: true })
+        : '';
       return;
     }
     const current = selectedVoice();
@@ -204,7 +206,9 @@
     const body = document.getElementById('vx-business-profile-body');
     if (!body) return;
     if (!profile) {
-      body.innerHTML = '<div class="vx-ap-status loading">Geschäftsprofil wird geladen …</div>';
+      body.innerHTML = root.VoxeraUI
+        ? root.VoxeraUI.skeleton({ lines: 3, label: 'Geschäftsprofil', inset: true, block: true })
+        : '';
       return;
     }
     const data = profile.business_profile || {};
@@ -353,7 +357,7 @@
     const original = button?.innerHTML;
     const previewButtons = Array.from(document.querySelectorAll('[data-vx-preview]'));
     previewButtons.forEach((node) => { node.disabled = true; });
-    if (button) button.textContent = 'Wird geladen …';
+    if (button) button.textContent = 'Wird vorbereitet …';
 
     try {
       const result = await loadVoicePreview(voiceId);

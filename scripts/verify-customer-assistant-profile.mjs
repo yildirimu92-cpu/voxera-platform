@@ -55,8 +55,8 @@ for (const token of [
 }
 
 for (const token of [
-  'Aktuelle Änderungen werden geladen',
-  'Noch keine aktuelle Änderung erfasst',
+  'showLoadingSkeleton',
+  'Noch keine aktuelle Änderung',
   'Neue aktuelle Änderung',
   'mehr-sub-betriebsinfos',
   'root.vxOperationalUpdatesOpen=open'

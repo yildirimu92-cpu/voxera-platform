@@ -22,6 +22,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
 <link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260807-1">
+<!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
+<script src="/shared/customer-ui-components.js?v=20260807-1"></script>
 <script src="/shared/offer-brand.js?v=20260805-1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/light/style.css">
@@ -195,7 +197,7 @@
 
 
 
-.vx-report-card{background:var(--vx-card);border:0.5px solid var(--vx-border-md);border-radius:var(--vx-r-lg);overflow:hidden;margin-bottom:14px;}
+.vx-report-card{margin-bottom:14px;} /* Card shell + inset owned by shared/customer-ui-components.css */
 .vx-report-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:0.5px solid var(--vx-border);}
 .vx-report-label{font-size:9px;font-weight:600;color:var(--vx-text3);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:5px;}
 .vx-report-label i{color:var(--vx-blue);font-size:12px;}
@@ -454,7 +456,7 @@
 .vx-dact.is-primary{background:var(--vx-blue);border-color:var(--vx-blue);color:#fff;}
 .vx-dact.is-success{background:#059669;border-color:#059669;color:#fff;}
 .vx-detail-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
-.vx-detail-card{background:var(--vx-card);border:0.5px solid var(--vx-border);border-radius:var(--vx-r-lg);overflow:hidden;}
+.vx-detail-card{overflow:hidden;} /* Card shell + inset owned by shared/customer-ui-components.css */
 .vx-detail-card-head{padding:8px 12px;border-bottom:0.5px solid var(--vx-border);display:flex;align-items:center;justify-content:space-between;}
 .vx-detail-card-label{font-size:9px;font-weight:600;color:var(--vx-text3);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:4px;}
 .vx-detail-card-body{padding:10px 12px;font-size:12px;color:var(--vx-text2);line-height:1.65;}
@@ -696,7 +698,7 @@ body{
 .help-hero{margin-bottom:28px;}
 .help-hero-sub{font-size:14px;color:var(--slate2);margin-top:5px;line-height:1.6;}
 .help-quickstart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
-.help-quickstart-card{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:20px 18px;text-decoration:none;transition:all var(--transition-fast);box-shadow:var(--shadow-card);}
+.help-quickstart-card{display:flex;flex-direction:column;gap:10px;text-decoration:none;transition:all var(--transition-fast);} /* Card shell + inset owned by shared/customer-ui-components.css */
 .help-quickstart-card:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);transform:translateY(-1px);}
 .help-quickstart-icon{width:36px;height:36px;background:var(--blue-light);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .help-quickstart-title{font-size:14px;font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1.3;}
@@ -720,7 +722,7 @@ body{
 .help-list{margin:0;padding-left:18px;color:var(--gray600);}
 .help-list li{font-size:13px;line-height:1.7;margin-bottom:6px;}
 .help-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.help-info-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:12px;padding:14px;transition:border-color var(--transition-fast);}
+.help-info-card{transition:border-color var(--transition-fast);} /* Card shell + inset owned by shared/customer-ui-components.css */
 .help-info-card:hover{border-color:var(--blue-mid);}
 .help-info-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .help-info-text{font-size:12px;color:var(--gray600);line-height:1.6;}
@@ -913,7 +915,7 @@ body{
 .setup-help-title{font-size:16px;font-weight:700;color:var(--gray900);font-family:var(--font-display);}
 .setup-help-sub{font-size:13px;color:var(--gray600);line-height:1.6;}
 .setup-help-grid{display:grid;gap:10px;margin:10px 0 14px;}
-.setup-help-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:12px;padding:12px 14px;}
+.setup-help-card{} /* Card shell + inset owned by shared/customer-ui-components.css */
 .setup-help-card-title{font-size:13px;font-weight:700;color:var(--gray900);margin-bottom:4px;}
 .setup-help-card-text{font-size:12px;color:var(--gray600);line-height:1.6;}
 .setup-help-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;}
@@ -1252,22 +1254,7 @@ body{
 .loading-sub{font-size:13px;color:#64748B;line-height:1.6;margin-top:5px;}
 .spinner{width:30px;height:30px;border:2.5px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:spin .9s linear infinite;margin:0 auto 2px;}
 @keyframes spin{to{transform:rotate(360deg)}}
-.empty{
-  text-align:center;
-  padding:34px 24px;
-  color:var(--slate);
-  font-size:13px;
-  margin:0;
-  width:100%;
-}
-.empty-icon{
-  width:44px;height:44px;margin:0 auto 12px;border-radius:12px;
-  display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(180deg,#F8FAFF 0%,#F1F5FF 100%);
-  border:0.5px solid var(--line);
-}
-.empty-title{font-size:14px;font-weight:700;color:#1A1A2E;}
-.empty-sub{font-size:13px;color:#64748B;line-height:1.58;margin-top:5px;}
+/* Empty states are owned by shared/customer-ui-components.css */
 .call-list > .empty,
 #dash-recent-list > .empty,
 #dash-callback-list > .empty{
@@ -1391,7 +1378,7 @@ body{
    CHARTS — V1
 ═══════════════════════════════════════════ */
 .charts-row{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:28px;}
-.card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:22px;box-shadow:var(--shadow-card);overflow:hidden;}
+.card{overflow:hidden;} /* Card shell + inset owned by shared/customer-ui-components.css */
 .card-title{font-size:12px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:18px;}
 .bar-wrap{display:flex;flex-direction:column;gap:10px;}
 .bar-row{display:flex;align-items:center;gap:10px;}
@@ -1992,7 +1979,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .toggle-switch.green input:checked + .toggle-slider{box-shadow:0 0 0 3px rgba(5,150,105,0.15);}
 
 
-.account-plan-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:18px;}
+.account-plan-card{} /* Card shell + inset owned by shared/customer-ui-components.css */
 .account-plan-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;}
 .account-plan-title{font-size:16px;font-weight:800;font-family:var(--font-display);color:var(--gray900);line-height:1.2;}
 .account-plan-sub{font-size:12px;color:var(--gray400);margin-top:4px;}
@@ -2016,7 +2003,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .priority-high{}
 .priority-normal{}
 .focus-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:-6px 0 28px;}
-.focus-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:var(--r-lg);padding:18px;}
+.focus-card{} /* Card shell + inset owned by shared/customer-ui-components.css */
 .focus-label{font-size:12px;color:var(--gray400);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
 .focus-value{font-size:24px;font-weight:800;font-family:var(--font-display);line-height:1.1;}
 .focus-meta{font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.5;}
@@ -2111,7 +2098,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .detail-body{padding:16px 24px 18px;overflow:auto;min-height:0;flex:1;}
 .detail-footer{padding:12px 24px calc(var(--space-3) + env(safe-area-inset-bottom));border-top:1px solid var(--surface2);display:flex;justify-content:flex-end;background:var(--surface);}
 .detail-layout{display:flex;flex-direction:column;gap:0;}
-.detail-card{background:var(--surface2);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:18px;}
+.detail-card{} /* Card shell + inset owned by shared/customer-ui-components.css */
 .detail-title{font-size:12px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;}
 .detail-section-title{font-size:12px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
 .detail-section-divider{height:1px;background:var(--line);margin:16px 0 12px;}
@@ -2138,7 +2125,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .detail-head{padding:14px 14px 10px;}
   .detail-body{padding:10px 12px 14px;}
   .detail-footer{padding:10px 12px calc(14px + env(safe-area-inset-bottom));}
-  .detail-card{padding:13px 12px;border-radius:13px;}
+
   .detail-line{display:grid;grid-template-columns:1fr;gap:2px;padding:8px 0;}
   .detail-line span:last-child{text-align:left;word-break:break-word;}
   .detail-actions,.detail-action-group{grid-template-columns:1fr;}
@@ -2240,7 +2227,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .dash-activation-card.info .dash-activation-text{color:#1560C8;}
 .dash-activation-card.success .dash-activation-text{color:#166534;}
 .dash-activation-actions{display:flex;gap:8px;flex-wrap:wrap;}
-.fse-card{display:none;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-xl);padding:28px;margin-bottom:18px;box-shadow:var(--shadow-card);}
+.fse-card{display:none;margin-bottom:18px;} /* Card shell + inset owned by shared/customer-ui-components.css */
 .fse-card.show{display:block;}
 .fse-title{font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--gray900);margin-bottom:10px;letter-spacing:-.02em;}
 .fse-sub{font-size:14px;color:var(--gray600);line-height:1.65;margin-bottom:20px;max-width:640px;}
@@ -3968,35 +3955,7 @@ body,.main{background:var(--vx-bg);}
   -webkit-backdrop-filter:blur(20px) saturate(180%);
 }
 
-/* — EMPTY STATES — */
-.empty{
-  text-align:center;
-  padding:40px 24px;
-  color:var(--slate);
-  font-size:13px;
-  width:100%;
-}
-.empty-icon{
-  width:48px;height:48px;margin:0 auto 14px;
-  border-radius:var(--r-lg);
-  display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(180deg,#F8FAFF 0%,#EFF4FF 100%);
-  border:1px solid #DDE8FA;
-  color:#93B4E8;
-  transition:transform .4s cubic-bezier(.34,1.56,.64,1);
-}
-.empty:hover .empty-icon{transform:scale(1.10);}
-.empty-title{
-  font-family:var(--font-display);
-  font-size:14px;font-weight:700;
-  color:#1A1A2E;
-  margin-bottom:5px;
-}
-.empty-sub{
-  font-size:13px;color:#94A3B8;
-  line-height:1.65;margin-top:0;
-  max-width:240px;margin-left:auto;margin-right:auto;
-}
+/* — EMPTY STATES — owned by shared/customer-ui-components.css */
 .call-list > .empty,
 #dash-recent-list > .empty,
 #dash-callback-list > .empty{
@@ -6449,7 +6408,7 @@ body,.main{background:var(--vx-bg);}
 
 
 /* ── Call Detail Transcript — Voxera polished transcript cards ── */
-.vx-transcript-card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;}
+.vx-transcript-card{margin-bottom:14px;} /* Card shell + inset owned by shared/customer-ui-components.css */
 .vx-transcript-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:0.5px solid var(--line);cursor:pointer;user-select:none;}
 .vx-transcript-head i:first-child{color:#1A6FE8;flex-shrink:0;font-size:16px;}
 .vx-transcript-title{font-size:10px;font-weight:700;color:#0D1F3C;text-transform:uppercase;letter-spacing:.07em;}
@@ -6630,31 +6589,8 @@ body.vx-customer-design-foundation .vx-requests-filters [data-filter="geplant"]{
 body.vx-customer-design-foundation .vx-requests-filters [data-filter="abgeschlossen"]{order:3;}
 body.vx-customer-design-foundation .vx-requests-filters [data-filter="archiv"]{order:4;}
 
-body.vx-customer-design-foundation #tab-anrufe .vx-ap-filter.vx-chip{
-  flex:0 1 auto;
-  min-width:0;
-  min-height:38px;
-  padding:8px 13px;
-  border:1px solid var(--vx-line-strong);
-  border-radius:999px;
-  background:var(--vx-surface);
-  color:var(--vx-muted);
-  font-size:13px;
-  font-weight:680;
-  box-shadow:none;
-}
-
-body.vx-customer-design-foundation #tab-anrufe .vx-ap-filter.vx-chip:hover{
-  border-color:#bfd0ea;
-  background:var(--vx-surface-soft);
-  color:var(--vx-ink);
-}
-
-body.vx-customer-design-foundation #tab-anrufe .vx-ap-filter.vx-chip.vx-chip--active{
-  border-color:var(--vx-brand);
-  background:var(--vx-brand);
-  color:#fff;
-}
+/* Shape, fill and active state of the "Anfragen" status tabs are owned by the
+   canonical pill tab component (shared/customer-ui-components.css). */
 
 body.vx-customer-design-foundation .vx-requests-subfilters{
   display:flex;
@@ -7641,7 +7577,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               <div class="vx-ops-head">
                 <div>
                   <div class="vx-ops-title">Laras Zusammenfassung</div>
-                  <div class="vx-ops-message" id="au2-ai-text">Daten werden geladen…</div>
+                  <div class="vx-ops-message" id="au2-ai-text"></div>
                 </div>
                 <span class="vx-ops-pill">Automatisch erstellt</span>
               </div>
@@ -7667,7 +7603,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 </div>
                 <span class="vx-ops-pill" id="au2-insight-badge">0 Hinweise</span>
               </div>
-              <div class="vx-ops-list" id="au2-insights-list"><div class="vx-ops-empty">Keine offenen Hinweise.</div></div>
+              <div class="vx-ops-list" id="au2-insights-list"></div>
             </section>
 
             <section class="vx-ops-card vx-report-section">
@@ -8206,12 +8142,12 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
             <section class="vx-settings-card">
               <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Vertrag</h2><p class="vx-settings-card-meta">Ihr vollständig unterzeichneter Voxera-Vertrag.</p></div></div>
-              <div id="abo-contract-documents" class="vx-abo-addon-grid"><div class="vx-abo-empty">Vertrag wird geladen…</div></div>
+              <div id="abo-contract-documents" class="vx-abo-addon-grid"></div>
             </section>
 
             <section class="vx-settings-card">
               <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Rechnungen</h2><p class="vx-settings-card-meta">Ihre ausgestellten Abrechnungsdokumente an einem Ort.</p></div></div>
-              <div id="abo-invoices-list" class="vx-abo-addon-grid"><div class="vx-abo-empty">Rechnungen werden geladen…</div></div>
+              <div id="abo-invoices-list" class="vx-abo-addon-grid"></div>
             </section>
 
             <section class="vx-settings-card vx-abo-cancellation-card">
@@ -9974,7 +9910,7 @@ function renderDashPriorityList() {
   var tempRecords = [];
 
   if (records.length === 0 && tempRecords.length === 0) {
-    vxSetHtmlIfChanged(el, '<div class="vx-ops-empty">Alles erledigt &mdash; ' + getAssistantName() + ' nimmt neue Anrufe entgegen.</div>');
+    vxSetHtmlIfChanged(el, vxUiEmptyState({ icon: 'ph-check-circle', title: 'Alles erledigt', text: getAssistantName() + ' nimmt weiterhin neue Anrufe für Sie entgegen.' }));
     refreshLucideIcons();
     return;
   }
@@ -14326,7 +14262,7 @@ function setPlayBtn(btn, state) {
 function vxRenderAssistantVoicesLoading() {
   const listEl = document.getElementById('assistant-voice-list');
   if (!listEl) return;
-  listEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;color:var(--gray400,#94A3B8);"><i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;display:inline-block;"></i> Stimmen werden geladen…</div>';
+  listEl.innerHTML = vxUiSkeleton({ lines: 3, label: 'Stimmen' });
 }
 
 function vxRenderAssistantVoicesError() {
@@ -15703,12 +15639,12 @@ function vxRenderCustomerDocuments() {
 
   const state = customerDocumentsState || {};
   if (state.loading) {
-    if (contractEl) contractEl.innerHTML = '<div class="vx-abo-empty">Vertrag wird geladen…</div>';
-    if (invoicesEl) invoicesEl.innerHTML = '<div class="vx-abo-empty">Rechnungen werden geladen…</div>';
+    if (contractEl) contractEl.innerHTML = vxUiSkeleton({ lines: 2, label: 'Vertrag' });
+    if (invoicesEl) invoicesEl.innerHTML = vxUiSkeleton({ lines: 3, label: 'Rechnungen' });
     return;
   }
   if (state.error) {
-    const errorText = '<div class="vx-abo-empty">Dokumente konnten nicht geladen werden. Bitte versuchen Sie es später erneut.</div>';
+    const errorText = vxUiEmptyState({ icon: 'ph-warning-circle', title: 'Dokumente nicht verfügbar', text: 'Die Dokumente konnten gerade nicht geladen werden. Bitte versuchen Sie es später erneut.' });
     if (contractEl) contractEl.innerHTML = errorText;
     if (invoicesEl) invoicesEl.innerHTML = errorText;
     return;
@@ -15717,7 +15653,7 @@ function vxRenderCustomerDocuments() {
   const contract = state.contract || null;
   if (contractEl) {
     if (!contract) {
-      contractEl.innerHTML = '<div class="vx-abo-empty">Ein vollständig unterzeichneter Vertrag ist noch nicht verfügbar.</div>';
+      contractEl.innerHTML = vxUiEmptyState({ icon: 'ph-file-text', title: 'Noch kein Vertrag hinterlegt', text: 'Sobald Ihr Vertrag beidseitig unterzeichnet ist, finden Sie ihn hier.' });
     } else {
       const signedDate = vxFormatDocumentDate(contract.countersigned_at || contract.accepted_at);
       const contractMeta = [contract.plan ? vxEscapeDocumentText(contract.plan) : '', signedDate ? 'Unterzeichnet am ' + signedDate : 'Vollständig unterzeichnet'].filter(Boolean).join(' · ');
@@ -15731,7 +15667,7 @@ function vxRenderCustomerDocuments() {
   if (invoicesEl) {
     const invoices = Array.isArray(state.invoices) ? state.invoices : [];
     if (!invoices.length) {
-      invoicesEl.innerHTML = '<div class="vx-abo-empty">Noch keine ausgestellten Rechnungen vorhanden.</div>';
+      invoicesEl.innerHTML = vxUiEmptyState({ icon: 'ph-receipt', title: 'Noch keine Rechnungen', text: 'Ihre Rechnungen erscheinen hier, sobald die erste ausgestellt wurde.' });
     } else {
       invoicesEl.innerHTML = invoices.map(function(invoice) {
         const number = vxEscapeDocumentText(invoice.invoice_number || 'Rechnung');
@@ -16415,7 +16351,7 @@ async function generateAiDailyReport(records, manualTasks, lastSignInAt) {
 
   // Legacy KI-Pfad bleibt im Code, wird aber aktuell bewusst nicht verwendet.
   // Grund: Tagesfokus und KPIs dürfen keine abweichenden Zählungen erzeugen.
-  _showAiReport('Wird geladen…', true);
+  _showAiReport(vxUiSkeleton({ lines: 4, label: 'Auswertung' }), true);
 
   try {
     var cachedStr = localStorage.getItem(cacheKey);
@@ -16503,6 +16439,14 @@ function _showAiReport(text, isLoading, generatedAtIso) {
   var reportText = document.getElementById('dash-daily-report-text');
   if (!reportBlock || !reportText) return;
   if (!text) { reportBlock.style.display = 'none'; return; }
+  if (isLoading) {
+    // Loading state is a skeleton component, not prose — render it as markup.
+    reportText.innerHTML = text;
+    reportBlock.style.display = '';
+    var loadingMeta = document.getElementById('dash-daily-report-meta');
+    if (loadingMeta) loadingMeta.style.display = 'none';
+    return;
+  }
   // [PATCH v2.19 — Markdown-Artefakte aus KI-Text entfernen]
   // Das KI-Modell gibt manchmal Markdown-Headings (# Aktuelle Situation) oder
   // fette/kursive Formatierungen zurück, die als Rohtext unschön aussehen.
@@ -16670,8 +16614,8 @@ function renderEmptyState(title, subtitle, iconType) {
   };
   var svgPath = icons[iconType] || icons.inbox;
   var svg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + svgPath + '</svg>';
-  return '<div class="empty"><div class="empty-icon">' + svg + '</div>'
-       + '<div class="empty-title">' + escHtml(title || 'Keine Einträge') + '</div>'
+  return '<div class="empty vx-ui-empty"><div class="empty-icon">' + svg + '</div>'
+       + '<div class="empty-title">' + escHtml(title || 'Noch nichts vorhanden') + '</div>'
        + '<div class="empty-sub">' + escHtml(subtitle || 'Sobald neue Daten vorliegen, erscheinen sie hier.') + '</div></div>';
 }
 
@@ -18104,7 +18048,7 @@ function _auInsights(all, filtered) {
   var hotCount = filtered.filter(function(r) { return qualKey((r.fields || {}).lead_quality) === 'hot'; }).length;
   if (hotCount > 0) insights.push({tone:'success', icon:'trending-up', text:hotCount + ' Hot Lead' + (hotCount !== 1 ? 's' : '') + ' identifiziert — ' + Math.round(hotCount / Math.max(filtered.length, 1) * 100) + '% aller Anrufe.'});
   if (badge) badge.textContent = insights.length + ' Hinweis' + (insights.length !== 1 ? 'e' : '');
-  if (!insights.length) { list.innerHTML = '<div class="vx-ops-empty">Keine offenen Hinweise.</div>'; return; }
+  if (!insights.length) { list.innerHTML = vxUiEmptyState({ icon: 'ph-lightbulb', title: 'Keine offenen Hinweise', text: 'Sobald Ihr Assistent etwas Auffälliges bemerkt, steht es hier.' }); return; }
   list.innerHTML = insights.map(function(insight) { return '<div class="vx-ops-item vx-report-insight tone-' + insight.tone + '"><span class="vx-report-insight-icon"><i class="ph-bold ph-' + insight.icon + '" aria-hidden="true"></i></span><span>' + insight.text + '</span></div>'; }).join('');
 }
 
@@ -18135,7 +18079,7 @@ function _auCategories2(records, total) {
   records.forEach(function(r) { var c = (r.fields || {}).category || 'Sonstiges'; counts[c] = (counts[c] || 0) + 1; });
   var sorted = Object.keys(counts).sort(function(a,b) { return counts[b] - counts[a]; }).slice(0,5);
   var max = sorted.length ? counts[sorted[0]] : 1;
-  if (!sorted.length) { el.innerHTML = '<div class="vx-ops-empty">Keine Daten.</div>'; return; }
+  if (!sorted.length) { el.innerHTML = vxUiEmptyState({ icon: 'ph-chart-bar', title: 'Noch keine Auswertung', text: 'Sobald die ersten Anrufe eingehen, sehen Sie hier Ihre Zahlen.' }); return; }
   el.innerHTML = sorted.map(function(category, index) { var count = counts[category], pct = Math.round(count / max * 100); var tone = index === 0 ? 'blue' : 'soft'; return '<div class="vx-report-bar-row"><div class="vx-report-bar-label">' + category + '</div><progress class="vx-report-progress tone-' + tone + '" max="100" value="' + pct + '" aria-label="' + category + ': ' + count + '"></progress><div class="vx-report-bar-count">' + count + '</div></div>'; }).join('');
 }
 
@@ -18371,7 +18315,7 @@ function vxRenderTranscriptCardHtml(rawTranscript) {
     });
     html += '</div>';
   } else {
-    html += '<div class="vx-transcript-empty">Kein lesbarer Gesprächsverlauf vorhanden.</div>';
+    html += vxUiEmptyState({ icon: 'ph-chat-dots', title: 'Kein Gesprächsverlauf', text: 'Für dieses Gespräch liegt kein lesbares Transkript vor.' });
   }
   html +=   '</div>';
   html += '</div>';
@@ -18514,7 +18458,7 @@ function vxRenderCallAudioCardHtml(callOrFields) {
     return '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(audioUrl, 'Bereit zum Abspielen') + '</div></div>';
   }
   if (conversationId) {
-    return vxRenderAudioStateCardHtml('loading', 'Aufnahme wird geladen …', conversationId);
+    return vxUiSkeleton({ lines: 2, label: 'Aufnahme' });
   }
   return vxRenderAudioStateCardHtml('empty', 'Für diesen Eintrag ist keine Aufnahme verfügbar.', '');
 }
@@ -19106,7 +19050,7 @@ function showCallDetail(callId, options) {
       if (rec) {
         vxRenderRequestsDetailV2(rec, { hostEl: detailV2El });
       } else if (detailV2El) {
-        detailV2El.innerHTML = '<div style="padding:2rem;color:#888;">Wird geladen...</div>';
+        detailV2El.innerHTML = vxUiSkeleton({ lines: 4, label: 'Anfrage', inset: true });
       }
     } else if (useSplitDetail) {
       // Detail in anrufe-split-right einbetten
@@ -19365,7 +19309,7 @@ async function loadAndRenderCallDetail(callId) {
   
   // Show loading state
   var loadingEl = document.getElementById('call-detail-content');
-  if (loadingEl) loadingEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
+  if (loadingEl) loadingEl.innerHTML = vxUiSkeleton({ lines: 4, label: 'Anfrage', inset: true });
   
   // Lokalen Record finden (schnell)
   var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
@@ -21194,7 +21138,7 @@ function vxHeuteRenderActivityList(records) {
   section.style.display = '';
   if (countEl) countEl.textContent = String(rows.length || 0);
   if (!rows.length) {
-    vxSetHtmlIfChanged(list, '<div class="vx-ops-empty">Heute gibt es noch keinen Verlauf.</div>');
+    vxSetHtmlIfChanged(list, vxUiEmptyState({ icon: 'ph-clock-counter-clockwise', title: 'Heute noch nichts passiert', text: 'Eingehende Anrufe und Aufgaben erscheinen hier, sobald sie eintreffen.' }));
     return;
   }
   var html = rows.map(function(rec){
@@ -22619,7 +22563,7 @@ function vxArchivRowClick(e, cardEl) {
   }
 
   if (!rec) {
-    detailHost.innerHTML = '<div style="padding:2rem;color:var(--slate2);font-size:13px;">Wird geladen…</div>';
+    detailHost.innerHTML = vxUiSkeleton({ lines: 4, label: 'Details', inset: true });
     if (splitEmpty) splitEmpty.style.display = 'none';
     detailHost.style.display = 'flex';
     return;
@@ -22818,10 +22762,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
 
   function renderEmpty() {
     var emptyLabel = vxInquiryFilterEmptyText(filter);
-    el.innerHTML = '<div class="vx-ops-empty vx-requests-empty">'
-      + '<i class="ph-bold ph-tray" aria-hidden="true"></i>'
-      + '<span>' + _esc(emptyLabel) + '</span>'
-      + '</div>';
+    el.innerHTML = vxUiEmptyState({ icon: 'ph-tray', title: emptyLabel, text: 'Neue Anfragen erscheinen hier automatisch, sobald ein Anruf eingeht.', className: 'vx-requests-empty' });
     vxRenderInboxSelectionToolbar();
     vxUpdateAnfragenCount();
   }
@@ -22930,16 +22871,16 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
         : stateMeta.state === 'processing' || stateMeta.state === 'checking' ? 'Wird verarbeitet'
         : isUnread ? 'Neu'
         : 'Offen';
-      var statusClass = isArchived || isDone ? ' is-done'
-        : isPlanned ? ' is-planned'
-        : stateMeta.state === 'live' ? ' active'
-        : isUnread ? ' is-new'
-        : '';
+      // Rot / Blau / Grau per the canonical status-badge scheme.
+      var statusTone = isArchived || isDone ? 'neutral'
+        : stateMeta.state === 'live' ? 'danger'
+        : isPlanned || isUnread ? 'info'
+        : 'info';
       var leadQuality = String(fields.lead_quality || '').toLowerCase();
       var leadPill = leadQuality === 'hot'
-        ? '<span class="vx-ops-pill vx-requests-pill is-hot">Hot</span>'
+        ? vxUiBadge('Heiss', 'danger')
         : leadQuality === 'warm'
-          ? '<span class="vx-ops-pill vx-requests-pill is-warm">Warm</span>'
+          ? vxUiBadge('Warm', 'warning')
           : '';
       var primary = typeof vxTodayGetPrimaryAction === 'function'
         ? vxTodayGetPrimaryAction(rec, typeMeta, phone)
@@ -22980,7 +22921,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
         + '</div>';
       if (company) html += '<div class="vx-ops-meta vx-requests-company">' + _esc(company) + '</div>';
       html += '<div class="vx-requests-pills">'
-        + '<span class="vx-ops-pill vx-requests-pill' + statusClass + '">' + _esc(statusLabel) + '</span>'
+        + vxUiBadge(statusLabel, statusTone)
         + leadPill
         + '</div>';
       if (preview) html += '<div class="vx-ops-message vx-requests-preview">' + _esc(preview) + '</div>';
@@ -24986,6 +24927,12 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+// Canonical UI component accessors (shared/customer-ui-components.js).
+// Every loading placeholder, status pill and empty state in this document
+// goes through these so the product renders one component system.
+function vxUiSkeleton(options) { return window.VoxeraUI ? window.VoxeraUI.skeleton(options) : ''; }
+function vxUiBadge(label, tone) { return window.VoxeraUI ? window.VoxeraUI.badge(label, tone) : '<span class="vx-ui-badge">' + label + '</span>'; }
+function vxUiEmptyState(options) { return window.VoxeraUI ? window.VoxeraUI.emptyState(options) : ''; }
 function escHtml(v){ return String(v||'').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 // PATCH v2.10 — CTA- und Task-Action-Stabilisierung
 function getTaskTypeUiMeta(rawType) {
@@ -25606,7 +25553,7 @@ function showTaskDetail(taskId) {
   var wrap = document.getElementById('call-detail-scroll-wrap');
   if (wrap) wrap.scrollTop = 0;
   var contentEl = document.getElementById('call-detail-content');
-  if (contentEl) contentEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--slate);">Lade…</div>';
+  if (contentEl) contentEl.innerHTML = vxUiSkeleton({ lines: 4, label: 'Inhalt', inset: true });
   var phone = vxTaskDetailPhone(rec.fields || {});
   if (phone && typeof buildCallHistory === 'function') {
     buildCallHistory(phone).then(function(history) { renderTaskDetailPage(rec, history || []); }).catch(function(err) {
@@ -26267,13 +26214,13 @@ function openSetupHelpOverlay(event, sectionId) {
       html: '' +
         '<div class="setup-help-grid">' +
           '<div class="setup-help-card"><div class="setup-help-card-title">1) Empfohlen: Bei Nichterreichbarkeit</div><div class="setup-help-card-text">Ideal, wenn Sie selbst erreichbar bleiben möchten und Voxera nur bei verpassten Anrufen übernimmt.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**62*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**62*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**62*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**62*{voxera_number}#\"><span class=\"vx-ui-skeleton-line vx-ui-skeleton-line--md\" aria-hidden=\"true\"></span></code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**62*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**62*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
           '<div class="setup-help-card"><div class="setup-help-card-title">2) Bei Besetzt</div><div class="setup-help-card-text">Nützlich, wenn Ihre Leitung bereits belegt ist.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**67*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**67*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**67*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**67*{voxera_number}#\"><span class=\"vx-ui-skeleton-line vx-ui-skeleton-line--md\" aria-hidden=\"true\"></span></code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**67*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**67*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
           '<div class="setup-help-card"><div class="setup-help-card-title">3) Alle Anrufe weiterleiten</div><div class="setup-help-card-text">Wenn Voxera vorübergehend alle Anrufe übernehmen soll.</div>' +
-            '<div class="setup-help-code-row"><code data-code-template=\"**21*{voxera_number}#\">Wird geladen...</code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**21*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**21*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
+            '<div class="setup-help-code-row"><code data-code-template=\"**21*{voxera_number}#\"><span class=\"vx-ui-skeleton-line vx-ui-skeleton-line--md\" aria-hidden=\"true\"></span></code><div class="help-code-actions"><button class="btn btn--secondary" data-code-template=\"**21*{voxera_number}#\" onclick=\"copyForwardingTemplateCode(event,this)\">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-code-template=\"**21*{voxera_number}#\" href=\"javascript:void(0)\" onclick=\"applyForwardingCode(event,this)\">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
           '</div>' +
           '<div class="setup-help-card"><div class="setup-help-card-title">Weiterleitung ausschalten</div><div class="setup-help-card-text">Setzt aktive Umleitungen zurück.</div>' +
             '<div class="setup-help-code-row"><code>##002#</code><div class="help-code-actions"><button class="btn btn--secondary" data-fixed-code="##002#" onclick="copyForwardingCode(event,\'##002#\')">Code kopieren</button><a class="btn btn--secondary help-direct-btn" data-fixed-code="##002#" href="javascript:void(0)" onclick="applyForwardingCode(event,this)">Direkt anwenden</a></div></div><div class="help-dialer-note">Nur auf dem Smartphone verfügbar</div>' +
@@ -31444,7 +31391,7 @@ function toggleCallRow(event, row) {
 #assistent-rufumleitung-shell .vx-forwarding-sub{font-size:13px;line-height:1.6;color:var(--slate);max-width:760px;}
 #assistent-rufumleitung-shell .vx-forwarding-status{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;font-size:11px;font-weight:700;line-height:1.2;padding:5px 10px;border-radius:var(--r-full);border:1px solid var(--line);background:var(--surface2);color:var(--ink2);white-space:nowrap;}
 #assistent-rufumleitung-shell .vx-forwarding-status.is-active{background:var(--green-light);border-color:var(--green-mid);color:var(--green-dark);}
-#assistent-rufumleitung-shell .vx-forwarding-card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-card);padding:16px 18px;}
+#assistent-rufumleitung-shell .vx-forwarding-card{} /* Card shell + inset owned by shared/customer-ui-components.css */
 #assistent-rufumleitung-shell .vx-forwarding-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;}
 #assistent-rufumleitung-shell .vx-forwarding-card-title{font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);line-height:1.2;}
 #assistent-rufumleitung-shell .vx-forwarding-card-sub{font-size:12px;color:var(--slate2);line-height:1.55;margin-top:4px;}
@@ -31480,7 +31427,7 @@ function toggleCallRow(event, row) {
 
 @media(max-width:768px){
   #assistent-rufumleitung-shell .vx-forwarding-intro{flex-direction:column;align-items:flex-start;padding:14px;}
-  #assistent-rufumleitung-shell .vx-forwarding-card{padding:14px;}
+
   #assistent-rufumleitung-shell .vx-forwarding-number-row{flex-direction:column;align-items:flex-start;gap:10px;}
   #assistent-rufumleitung-shell .vx-forwarding-number{font-size:24px;}
   #assistent-rufumleitung-shell .vx-forwarding-provider-grid{grid-template-columns:1fr 1fr;}
@@ -35296,29 +35243,7 @@ button.vx-cd-qa-success:hover,
   padding:12px 16px !important;
 }
 
-/* Empty states alignment */
-.empty,
-.vx-notif-empty,
-.vx-notif-mobile-empty{
-  padding:34px 24px !important;
-  font-size:13px !important;
-  color:var(--slate) !important;
-  text-align:center;
-}
-.empty-icon,
-.vx-notif-empty i,
-.vx-notif-mobile-empty i{
-  width:44px;
-  height:44px;
-  margin:0 auto 12px;
-  border-radius:12px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-.empty-title{font-size:14px;font-weight:700;}
-.empty-sub,
-.vx-notif-mobile-empty small{font-size:13px;line-height:1.58;}
+/* Empty states are owned by shared/customer-ui-components.css */
 
 /* Mobile normalization */
 @media (max-width:768px){
@@ -42177,7 +42102,7 @@ body:has(#tab-archiv.active) .content{
       html += '<details class="vx-summary-acc" ontoggle="vxDv2LoadHistory(this)"><summary>' +
         '<span class="vx-summary-acc-label"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i><span>Verlauf</span></span>' +
         '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
-        '</summary><div class="vx-summary-acc-body" data-phone="' + esc(phone) + '">Wird geladen, sobald geöffnet…</div></details>';
+        '</summary><div class="vx-summary-acc-body" data-phone="' + esc(phone) + '"></div></details>';
     }
 
     var steps = [];
@@ -42261,7 +42186,7 @@ body:has(#tab-archiv.active) .content{
       body.innerHTML = '<div class="vx-dv2-muted">Kein Verlauf verfügbar.</div>';
       return;
     }
-    body.innerHTML = '<div class="vx-dv2-muted">Verlauf wird geladen…</div>';
+    body.innerHTML = vxUiSkeleton({ lines: 3, label: 'Verlauf' });
     buildCallHistory(phone).then(function(history) {
       if (body.dataset.loaded === '1') body.innerHTML = renderTimelineHTML(history);
     }).catch(function() {

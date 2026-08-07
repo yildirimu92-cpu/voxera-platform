@@ -138,13 +138,10 @@ body.vx-customer-design-foundation .vx-cal-grid.single {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* Card shell (surface, border, radius, padding) is owned by the canonical
+   card component in customer-ui-components.css. */
 body.vx-customer-design-foundation .vx-cal-card {
   min-width: 0;
-  padding: var(--vx-space-5);
-  border: 1px solid var(--vx-line);
-  border-radius: var(--vx-radius-panel);
-  background: var(--vx-surface);
-  box-shadow: var(--vx-shadow-panel);
 }
 
 body.vx-customer-design-foundation .vx-cal-rules-card {
@@ -362,10 +359,6 @@ body.vx-customer-design-foundation .vx-settings-card {
   min-width: 0;
   margin-bottom: var(--vx-space-4);
   overflow: hidden;
-  border: 1px solid var(--vx-line);
-  border-radius: var(--vx-radius-panel);
-  background: var(--vx-surface);
-  box-shadow: var(--vx-shadow-panel);
 }
 
 body.vx-customer-design-foundation .vx-settings-card-head {
@@ -605,9 +598,9 @@ body.vx-customer-design-foundation .vx-abo-cancellation-note {
   line-height: 1.5;
 }
 
+/* Empty-state presentation is owned by the canonical empty-state component. */
 body.vx-customer-design-foundation .vx-abo-empty {
-  padding: 6px 0;
-  text-align: center;
+  min-height: 0;
 }
 
 body.vx-customer-design-foundation .vx-abo-cancellation-note {
@@ -636,15 +629,6 @@ body.vx-customer-design-foundation .vx-abo-cancellation-card {
   body.vx-customer-design-foundation .vx-cal-form,
   body.vx-customer-design-foundation .vx-abo-addon-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  body.vx-customer-design-foundation .vx-cal-card,
-  body.vx-customer-design-foundation .vx-settings-card {
-    border-radius: 16px;
-  }
-
-  body.vx-customer-design-foundation .vx-cal-card {
-    padding: 18px;
   }
 
   body.vx-customer-design-foundation .vx-cal-provider {

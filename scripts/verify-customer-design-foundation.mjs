@@ -59,6 +59,7 @@ for (const token of [
   '/shared/customer-settings-components.css?v=20260803-2',
   '/shared/customer-support-components.css?v=20260802-2',
   '/shared/customer-navigation-components.css?v=20260805-1',
+  '/shared/customer-ui-components.css?v=20260807-1',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -453,6 +454,67 @@ assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260805-1/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
+
+// --- Unified UI components (Design-System Etappe 1) ---------------------------
+const uiComponentsCss = fs.readFileSync('customer-dashboard/shared/customer-ui-components.css', 'utf8');
+const uiComponentsJs = fs.readFileSync('customer-dashboard/shared/customer-ui-components.js', 'utf8');
+const designTokens = fs.readFileSync('customer-dashboard/shared/customer-design-tokens.css', 'utf8');
+new vm.Script(uiComponentsJs, { filename: 'customer-dashboard/shared/customer-ui-components.js' });
+
+for (const token of [
+  '--vx-ui-card-border-width: 0.5px',
+  '--vx-ui-card-radius: 12px',
+  '--vx-ui-card-padding',
+  '--vx-ui-tab-accent',
+  '--vx-ui-badge-danger-bg',
+  '--vx-ui-badge-info-bg',
+  '--vx-ui-badge-neutral-bg',
+  '--vx-ui-skeleton-base',
+  '--vx-ui-empty-icon-color'
+]) {
+  assert.ok(designTokens.includes(token), `component contract token missing: ${token}`);
+}
+
+for (const token of [
+  '.vx-ui-card',
+  '.vx-ui-tabs',
+  '.vx-ui-tab',
+  '.vx-ui-skeleton',
+  '.vx-ui-badge',
+  '.vx-ui-empty',
+  'var(--vx-ui-card-border-width)',
+  'var(--vx-ui-card-radius)',
+  'var(--vx-ui-tab-accent)',
+  '#vx-assistant-root-switch > button',
+  '.vx-requests-filters > .vx-ap-filter',
+  '@keyframes vxUiSkeletonShimmer',
+  'prefers-reduced-motion'
+]) {
+  assert.ok(uiComponentsCss.includes(token), `UI component CSS missing: ${token}`);
+}
+
+// The component layer must resolve every value from the token contract.
+assert.equal((uiComponentsCss.match(/!important/g) || []).length, 0, 'UI component CSS must not add !important overrides');
+assert.ok(!uiComponentsCss.includes('<style'), 'UI component CSS must not contain an embedded style tag');
+assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(uiComponentsCss.replace(/#vx-assistant-root-switch/g, '')), 'UI component CSS must not hardcode colors; use the tokens');
+
+for (const token of ['skeleton:', 'badge:', 'badgeTone:', 'emptyState:', 'card:', 'tabs:', 'root.VoxeraUI =']) {
+  assert.ok(uiComponentsJs.includes(token), `VoxeraUI factory missing: ${token}`);
+}
+for (const forbidden of ["createElement('style')", 'style.textContent', 'document.head.appendChild', 'setTimeout', 'MutationObserver', 'fetch(']) {
+  assert.ok(!uiComponentsJs.includes(forbidden), `VoxeraUI factory must stay a pure markup builder: ${forbidden}`);
+}
+
+// The five components replaced their divergent predecessors — the old
+// declarations must stay deleted, not be re-added next to the canonical ones.
+assert.ok(!navigationCss.includes('grid-template-columns: repeat(3, minmax(0, 1fr))'), 'assistant switch must not return to a segmented control');
+assert.ok(!foundationCss.includes('.vx-assistant-root-switch button.active'), 'assistant tab active state must stay owned by the tab component');
+assert.ok(!assistantCss.includes('.vx-ops-pill {'), 'status pills must stay owned by the badge component');
+assert.ok(!assistantCss.includes('.vx-ops-empty {'), 'empty states must stay owned by the empty-state component');
+assert.ok(dashboard.includes('/shared/customer-ui-components.js?v=20260807-1'), 'dashboard must load the VoxeraUI markup factory');
+assert.ok(!/wird geladen|werden geladen/i.test(calendarRuntime), 'calendar runtime must use the skeleton component, not loading text');
+assert.ok(!/wird geladen …/i.test(assistantRuntime), 'assistant runtime must use the skeleton component, not loading text');
+
 console.log('Customer dashboard design foundation verification passed.');
 
 assert.doesNotMatch(navigationRuntime, /function addStyles|createElement\('style'\)|style\.textContent/);
@@ -463,5 +525,5 @@ assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'),
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260805-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
 for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260805-1','/shared/customer-assistant-components.css?v=20260805-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260805-1','/shared/customer-settings-components.css?v=20260803-2','/shared/customer-support-components.css?v=20260802-2'];
+const cssOrder=['/shared/customer-design-system.css?v=20260805-1','/shared/customer-assistant-components.css?v=20260805-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260805-1','/shared/customer-settings-components.css?v=20260803-2','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-1'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

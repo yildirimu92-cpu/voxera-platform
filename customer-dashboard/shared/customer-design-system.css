@@ -143,17 +143,10 @@ body.vx-customer-design-foundation :where(p, .vx-ap-meta) {
   line-height: 1.55;
 }
 
-body.vx-customer-design-foundation :where(
-  .vx-ap-card,
-  .vx-as-cap
-) {
+body.vx-customer-design-foundation .vx-as-cap {
   border-color: var(--vx-line);
   border-radius: var(--vx-radius-card);
   box-shadow: var(--vx-shadow-card);
-}
-
-body.vx-customer-design-foundation .vx-ap-card {
-  padding: 20px;
 }
 
 body.vx-customer-design-foundation .vx-ap-title {
@@ -249,33 +242,12 @@ body.vx-customer-design-foundation label {
   text-transform: none;
 }
 
+/* Tab shape and states are owned by the canonical pill tab component
+   (customer-ui-components.css); this primitive keeps only block spacing. */
 body.vx-customer-design-foundation .vx-assistant-root-switch {
   box-sizing: border-box;
-  gap: 8px;
   margin: 0 0 16px;
   padding: 4px 0 14px;
-  border-bottom: 1px solid var(--vx-line);
-}
-
-body.vx-customer-design-foundation .vx-assistant-root-switch button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  min-height: 42px;
-  padding: 10px 15px;
-  border-radius: 11px;
-  font-family: var(--vx-font-ui);
-  font-size: 14px;
-  font-weight: 680;
-  line-height: 1.2;
-  text-align: center;
-  white-space: nowrap;
-}
-
-body.vx-customer-design-foundation .vx-assistant-root-switch button.active {
-  background: var(--vx-brand-dark);
-  color: #ffffff;
 }
 
 body.vx-customer-design-foundation :where(
@@ -431,11 +403,6 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     font-size: 24px;
   }
 
-  body.vx-customer-design-foundation .vx-ap-card {
-    padding: 18px;
-    border-radius: 16px;
-  }
-
   body.vx-customer-design-foundation .vx-assistant-root-switch {
     position: sticky;
     top: 0;
@@ -454,11 +421,6 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
 
   body.vx-customer-design-foundation .vx-assistant-root-switch::-webkit-scrollbar {
     display: none;
-  }
-
-  body.vx-customer-design-foundation .vx-assistant-root-switch button {
-    min-height: 44px;
-    padding: 10px 14px;
   }
 
   body.vx-customer-design-foundation .vx-as-cap {
