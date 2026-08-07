@@ -1,0 +1,26 @@
+name: Verify Customer Request Detail Consolidation
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-design-tokens.css'
+      - 'scripts/verify-customer-detail-consolidation.mjs'
+      - '.github/workflows/verify-customer-detail-consolidation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-design-tokens.css'
+      - 'scripts/verify-customer-detail-consolidation.mjs'
+      - '.github/workflows/verify-customer-detail-consolidation.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-customer-detail-consolidation.mjs
