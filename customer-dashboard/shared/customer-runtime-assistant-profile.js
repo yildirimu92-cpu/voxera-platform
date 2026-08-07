@@ -194,10 +194,43 @@
       (profile.permissions?.can_change_voice ? '<div class="vx-ap-filters"><button type="button" class="vx-ap-filter' + (voiceFilter === 'all' ? ' active' : '') + '" data-vx-filter="all">Alle</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'female' ? ' active' : '') + '" data-vx-filter="female">Weiblich</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'male' ? ' active' : '') + '" data-vx-filter="male">Männlich</button></div><div class="vx-ap-voices">' + (filtered.length ? filtered.map(voiceCard).join('') : '<div class="vx-ap-empty">Für diesen Filter sind keine Stimmen freigeschaltet.</div>') + '</div>' : '<div class="vx-ap-status warning vx-ap-status--inline">Die Stimmenauswahl ist in Ihrem aktuellen Paket nicht freigeschaltet.</div>') + '</section>' +
       '<section class="vx-ap-card"><div class="vx-ap-title">Name und Auftreten</div><div class="vx-ap-meta">Der Name ist die Bezeichnung, mit der sich der Assistent meldet.</div>' +
       (profile.permissions?.can_change_name ? '<div class="vx-ap-field"><label>Name des Assistenten</label><input id="vx-assistant-name" maxlength="40" value="' + esc(profile.assistant?.name || '') + '" placeholder="z. B. Lea"></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-assistant-name-save"' + (busy ? ' disabled' : '') + '>Name speichern</button></div>' : '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Name</span><span class="vx-ap-summary-value">' + esc(profile.assistant?.name || 'Von Voxera eingerichtet') + '</span></div></div>') +
-      '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Kommunikationsstil</span><span class="vx-ap-summary-value">' + esc(toneLabel(profile.assistant?.tone)) + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Ansprache</span><span class="vx-ap-summary-value">' + esc(addressLabel(profile.assistant?.address_form)) + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Assistent</span><span class="vx-ap-summary-value">' + (profile.assistant?.has_agent ? 'Bereit' : 'Noch nicht aktiviert') + '</span></div></div></section>' +
-      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Geschäftswissen</div><div class="vx-ap-meta">Dauerhafte Informationen werden zentral im Geschäftsprofil gepflegt.</div></div><span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div><div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Unternehmen</span><span class="vx-ap-summary-value">' + esc(business.company_name || 'Nicht angegeben') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Leistungen</span><span class="vx-ap-summary-value">' + esc(business.services ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Öffnungszeiten / Standort</span><span class="vx-ap-summary-value">' + esc(business.location_hours ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil öffnen</button></div></section></div>';
+      '<div class="vx-ap-field"><label>Kommunikationsstil</label><select id="vx-assistant-tone">' +
+        ['professional', 'formal', 'casual'].map((value) => '<option value="' + value + '"' + (String(profile.assistant?.tone || 'professional') === value ? ' selected' : '') + '>' + esc(toneLabel(value)) + '</option>').join('') +
+      '</select></div>' +
+      '<div class="vx-ap-field"><label>Ansprache</label><select id="vx-assistant-address-form">' +
+        ['sie', 'du'].map((value) => '<option value="' + value + '"' + (String(profile.assistant?.address_form || 'sie') === value ? ' selected' : '') + '>' + esc(addressLabel(value)) + '</option>').join('') +
+      '</select></div>' +
+      '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-assistant-tone-save"' + (busy ? ' disabled' : '') + '>Ton &amp; Ansprache speichern</button></div>' +
+      '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Assistent</span><span class="vx-ap-summary-value">' + (profile.assistant?.has_agent ? 'Bereit' : 'Noch nicht aktiviert') + '</span></div></div></section>' +
+      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Geschäftswissen</div><div class="vx-ap-meta">Dauerhafte Informationen werden zentral im Geschäftsprofil gepflegt.</div></div><span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div><div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Unternehmen</span><span class="vx-ap-summary-value">' + esc(business.company_name || 'Nicht angegeben') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Leistungen</span><span class="vx-ap-summary-value">' + esc(business.services ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Öffnungszeiten / Standort</span><span class="vx-ap-summary-value">' + esc(business.location_hours ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil öffnen</button></div></section>' +
+      forwardingCardHtml() +
+      changeRequestCardHtml() +
+      '</div>';
     bindAssistant();
     restoreStatus('assistant');
+  }
+
+  function forwardingCardHtml() {
+    const canEdit = profile?.permissions?.can_edit_forwarding === true;
+    const fwd = profile?.forwarding || {};
+    if (!canEdit) {
+      return '<section class="vx-ap-card"><div class="vx-ap-title">Weiterleitungsziele</div><div class="vx-ap-meta">Weiterleitungsziele sind ab dem Professional-Paket verfügbar. Änderungen laufen über eine Änderungsanfrage an den Admin.</div></section>';
+    }
+    return '<section class="vx-ap-card"><div class="vx-ap-title">Weiterleitungsziele</div><div class="vx-ap-meta">Änderungen werden dem Admin zur Bestätigung gesendet, bevor sie live gehen.</div>' +
+      '<div class="vx-ap-grid"><div class="vx-ap-field"><label>Ziel 1 — Bezeichnung</label><input id="vx-fwd1-name" maxlength="120" value="' + esc(fwd.forwarding_1_name || '') + '" placeholder="z. B. Schadenhotline"></div>' +
+      '<div class="vx-ap-field"><label>Ziel 1 — Nummer</label><input id="vx-fwd1-number" maxlength="40" value="' + esc(fwd.forwarding_1_number || '') + '" placeholder="+41 44 XXX XX XX"></div>' +
+      '<div class="vx-ap-field"><label>Ziel 1 — Bei welchem Anliegen</label><input id="vx-fwd1-trigger" maxlength="500" value="' + esc(fwd.forwarding_1_trigger || '') + '" placeholder="z. B. Schadenmeldung"></div>' +
+      '<div class="vx-ap-field"><label>Ziel 2 — Bezeichnung (optional)</label><input id="vx-fwd2-name" maxlength="120" value="' + esc(fwd.forwarding_2_name || '') + '"></div>' +
+      '<div class="vx-ap-field"><label>Ziel 2 — Nummer (optional)</label><input id="vx-fwd2-number" maxlength="40" value="' + esc(fwd.forwarding_2_number || '') + '"></div>' +
+      '<div class="vx-ap-field"><label>Notfallnummer</label><input id="vx-fwd-emergency" maxlength="40" value="' + esc(fwd.emergency_number || '144') + '"></div></div>' +
+      '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-forwarding-save"' + (busy ? ' disabled' : '') + '>Weiterleitungsziele speichern</button></div></section>';
+  }
+
+  function changeRequestCardHtml() {
+    return '<section class="vx-ap-card"><div class="vx-ap-title">Admin kontaktieren</div><div class="vx-ap-meta">Für Anpassungen über Ihr Paket hinaus — z. B. Branchenwechsel, individuelle Konfigurationen oder neue Weiterleitungen.</div>' +
+      '<div class="vx-ap-field"><label>Ihre Anfrage</label><textarea id="assistent-change-msg" placeholder="Beschreiben Sie Ihre Wünsche…"></textarea></div>' +
+      '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="assistent-change-btn">Anfrage senden</button></div>' +
+      '<div id="assistent-change-feedback" class="vx-ap-meta" hidden></div></section>';
   }
 
   function renderBusiness() {
@@ -221,7 +254,10 @@
     document.querySelectorAll('[data-vx-preview]').forEach((node) => node.addEventListener('click', () => previewVoice(node.dataset.vxPreview, node)));
     document.querySelectorAll('[data-vx-select-voice]').forEach((node) => node.addEventListener('click', () => openVoiceModal(node.dataset.vxSelectVoice)));
     document.getElementById('vx-assistant-name-save')?.addEventListener('click', saveName);
+    document.getElementById('vx-assistant-tone-save')?.addEventListener('click', saveTone);
+    document.getElementById('vx-forwarding-save')?.addEventListener('click', saveForwarding);
     document.getElementById('vx-open-business-profile')?.addEventListener('click', () => root.vxShowAssistantView?.('business', true));
+    document.getElementById('assistent-change-btn')?.addEventListener('click', () => root.submitAssistentChange?.());
   }
 
   async function load() {
@@ -300,6 +336,24 @@
   async function saveName() {
     const value = String(document.getElementById('vx-assistant-name')?.value || '').trim();
     await updateAssistant({ assistant_name: value }, 'assistant', 'Name wird gespeichert …');
+  }
+
+  async function saveTone() {
+    const tone = String(document.getElementById('vx-assistant-tone')?.value || 'professional');
+    const addressForm = String(document.getElementById('vx-assistant-address-form')?.value || 'sie');
+    await updateAssistant({ ai_tone: tone, ai_address_form: addressForm }, 'assistant', 'Ton und Ansprache werden gespeichert …');
+  }
+
+  async function saveForwarding() {
+    const payload = {
+      ai_forwarding_1_name: document.getElementById('vx-fwd1-name')?.value.trim() || '',
+      ai_forwarding_1_number: document.getElementById('vx-fwd1-number')?.value.trim() || '',
+      ai_forwarding_1_trigger: document.getElementById('vx-fwd1-trigger')?.value.trim() || '',
+      ai_forwarding_2_name: document.getElementById('vx-fwd2-name')?.value.trim() || '',
+      ai_forwarding_2_number: document.getElementById('vx-fwd2-number')?.value.trim() || '',
+      ai_emergency_number: document.getElementById('vx-fwd-emergency')?.value.trim() || '144'
+    };
+    await updateAssistant(payload, 'assistant', 'Weiterleitungsziele werden gespeichert …');
   }
 
   async function saveBusiness() {

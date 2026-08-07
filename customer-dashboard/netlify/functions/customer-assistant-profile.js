@@ -210,7 +210,10 @@ exports.handler = async (event) => {
       'elevenlabs_agent_id', 'elevenlabs_sync_status', 'elevenlabs_last_sync_at',
       'status', 'voxera_number', 'forwarding_setup_completed', 'forwarding_status',
       'notification_mode', 'notification_active', 'new_log_email_active',
-      'missed_call_email_active', 'phone_notification_to', 'updated_at'
+      'missed_call_email_active', 'phone_notification_to', 'updated_at',
+      'ai_forwarding_1_name', 'ai_forwarding_1_number', 'ai_forwarding_1_trigger',
+      'ai_forwarding_2_name', 'ai_forwarding_2_number', 'ai_forwarding_2_trigger',
+      'ai_emergency_number'
     ].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();
@@ -314,9 +317,19 @@ exports.handler = async (event) => {
       total_fields: permanentFields.length,
       updated_at: customer.updated_at || null
     },
+    forwarding: {
+      forwarding_1_name: customer.ai_forwarding_1_name || null,
+      forwarding_1_number: customer.ai_forwarding_1_number || null,
+      forwarding_1_trigger: customer.ai_forwarding_1_trigger || null,
+      forwarding_2_name: customer.ai_forwarding_2_name || null,
+      forwarding_2_number: customer.ai_forwarding_2_number || null,
+      forwarding_2_trigger: customer.ai_forwarding_2_trigger || null,
+      emergency_number: customer.ai_emergency_number || '144'
+    },
     permissions: {
       can_change_voice: planConfig?.voice_selection_enabled === true,
-      can_change_name: planConfig?.allow_custom_assistant_name === true
+      can_change_name: planConfig?.allow_custom_assistant_name === true,
+      can_edit_forwarding: planCode === 'professional'
     },
     capabilities: buildCapabilities(customer, parsedProfile, calendarReady, calendarAttention),
     technical_status: buildTechnicalStatus(customer, calendarReady, calendarAttention, activeProvider),

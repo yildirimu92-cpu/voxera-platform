@@ -4,6 +4,8 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { insertOperationalCase } = require('./_lib/create-operational-case');
 
+const MAKE_WEBHOOK = process.env.MAKE_MAIL_WEBHOOK || '';
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -11,6 +13,29 @@ const headers = {
   'Content-Type': 'application/json'
 };
 const response = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
+
+async function notifyAdminOfChangeRequest({ customerId, customerName, message }) {
+  if (!MAKE_WEBHOOK) {
+    console.warn('[ai-change-request-create] MAKE_MAIL_WEBHOOK not set, skipping admin notification');
+    return;
+  }
+  try {
+    await fetch(MAKE_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mail_type: 'ai_change_request',
+        customer_id: customerId,
+        customer_name: customerName || 'Unbekannt',
+        message,
+        timestamp: new Date().toISOString(),
+        admin_url: 'https://admin.voxera.ch/#ai-setup'
+      })
+    });
+  } catch (error) {
+    console.warn('[ai-change-request-create] admin notification failed', { error: error.message });
+  }
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
@@ -51,6 +76,18 @@ exports.handler = async (event) => {
       requesterEmail: caller.email || null,
       priority: 'medium'
     });
+
+    const { data: customerRow } = await sbAdmin
+      .from('customers')
+      .select('customer_name')
+      .eq('id', caller.customerId)
+      .maybeSingle();
+    await notifyAdminOfChangeRequest({
+      customerId: caller.customerId,
+      customerName: customerRow?.customer_name,
+      message
+    });
+
     return response(200, { success: true, request, case: createdCase });
   } catch (error) {
     await sbAdmin.from('ai_change_requests').delete().eq('id', request.id);
