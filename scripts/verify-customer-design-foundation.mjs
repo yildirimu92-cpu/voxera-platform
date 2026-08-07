@@ -538,6 +538,58 @@ for (const excluded of ['checkbox', 'radio', 'range', 'file']) {
 }
 assert.ok(!foundationCss.includes('body.vx-customer-design-foundation :where(input, select, textarea) {'), 'field box model must stay owned by the field component');
 
+// --- Mobile tabs must stay reachable without horizontal scrolling ----------
+// The "Anfragen" filters lost Geplant/Erledigt/Archiv on mobile because the
+// legacy two-column grid rule (display:grid + width:100% on every chip) was
+// written for the layout the pill component replaced. Wrapping is the only
+// default: a scrolled-off tab has no affordance and reads as missing.
+assert.ok(
+  !dashboard.includes('grid-template-columns:repeat(2,minmax(0,1fr));\n    gap:var(--vx-space-2);\n    padding:14px 14px 8px;'),
+  'the replaced two-column grid layout for the request filters must stay deleted'
+);
+assert.ok(
+  !/#tab-anrufe \.vx-ap-filter\.vx-chip\{\s*width:100%/.test(dashboard),
+  'request filter chips must not be forced to full row width on mobile'
+);
+assert.match(
+  uiComponentsCss,
+  /@media \(max-width: 720px\)[\s\S]*?\.vx-requests-filters \{\s*flex-wrap: wrap;/,
+  'tabs must wrap on mobile so every tab stays reachable'
+);
+assert.ok(
+  !/@media \(max-width: 720px\)[\s\S]*?#vx-assistant-root-switch,[\s\S]{0,200}?flex-wrap: nowrap/.test(uiComponentsCss),
+  'mobile tabs must not default to nowrap + horizontal scrolling'
+);
+assert.ok(
+  uiComponentsCss.includes('.vx-ui-tabs--scroll'),
+  'horizontal scrolling must remain an explicit opt-in'
+);
+
+// --- Action feedback: spinner, not bare text -------------------------------
+for (const token of [
+  '--vx-ui-spinner-size',
+  '--vx-ui-spinner-head',
+  '--vx-ui-spinner-duration'
+]) {
+  assert.ok(designTokens.includes(token), `spinner token missing: ${token}`);
+}
+assert.ok(uiComponentsCss.includes('@keyframes vxUiSpin'), 'inline spinner animation missing');
+assert.match(
+  uiComponentsCss,
+  /\.vx-ap-status,[\s\S]{0,160}?\)\.loading::before/,
+  'loading statuses must render a spinner affordance'
+);
+
+// --- No second card system inside the assistant pages ----------------------
+assert.ok(
+  !assistantCss.includes('border-top: 1px solid var(--vx-brand-dark)'),
+  'the dark accent border above the first assistant card must stay removed'
+);
+assert.ok(
+  !/#vx-assistant-profile-body \.vx-ap-card,\s*body\.vx-customer-design-foundation #vx-business-profile-body \.vx-ap-card \{[^}]*box-shadow/.test(assistantCss),
+  'assistant pages must not redeclare the card shell'
+);
+
 // --- Audio card: the loading state must keep the player mount hook ---------
 // The auto-loader finds the card by #vx-call-audio-card[data-vx-audio-auto="1"]
 // and reads data-conversation-id. A loading state without that shell never

@@ -320,6 +320,14 @@
   --vx-ui-field-chevron-inset: 13px;
   --vx-ui-field-chevron-space: 36px;
 
+  /* ---- Inline spinner (action feedback) ----------------------- */
+  --vx-ui-spinner-size: 14px;
+  --vx-ui-spinner-track: rgba(13, 31, 60, .14);
+  --vx-ui-spinner-head: #1A6FE8;
+  --vx-ui-spinner-width: 2px;
+  --vx-ui-spinner-duration: .7s;
+  --vx-ui-spinner-gap: 8px;
+
   /* ---- Empty state ------------------------------------------- */
   --vx-ui-empty-padding: 32px 20px;
   --vx-ui-empty-gap: 10px;

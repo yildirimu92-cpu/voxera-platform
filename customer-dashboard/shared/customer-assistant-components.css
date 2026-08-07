@@ -13,15 +13,12 @@ body.vx-customer-design-foundation #vx-business-profile-body {
 body.vx-customer-design-foundation #vx-assistant-profile-body .vx-ap-card,
 body.vx-customer-design-foundation #vx-business-profile-body .vx-ap-card {
   min-width: 0;
-  padding: var(--vx-space-5);
-  border: 1px solid var(--vx-line);
-  border-radius: var(--vx-radius-panel);
-  background: var(--vx-surface);
-  box-shadow: var(--vx-shadow-panel);
 }
 
+/* Kept as an explicit no-accent declaration: the previous dark top border on
+   the first card doubled up against the canonical card border. */
 body.vx-customer-design-foundation #vx-assistant-profile-body .vx-ap-card:first-child {
-  border-top: 1px solid var(--vx-brand-dark);
+  border-top-color: var(--vx-ui-card-border-color);
 }
 
 body.vx-customer-design-foundation .vx-ap-head {

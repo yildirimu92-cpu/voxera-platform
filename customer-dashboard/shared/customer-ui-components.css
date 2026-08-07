@@ -9,6 +9,7 @@
      4. .vx-ui-badge     — one status pill (rot / blau / grau)
      5. .vx-ui-empty     — one "keine Daten" pattern
      6. .vx-ui-field     — one input / select / textarea contract
+     7. .vx-ui-spinner   — inline busy affordance for actions
 
    Every value resolves from the component contract tokens in
    customer-design-tokens.css. This module must never introduce a
@@ -570,6 +571,56 @@ body.vx-customer-design-foundation .vx-ui-field-hint.is-invalid {
 }
 
 /* ============================================================
+   7. INLINE SPINNER — action feedback
+   ============================================================
+   A skeleton stands in for content that is still arriving. An
+   action in flight ("Name wird gespeichert …") has no content to
+   stand in for, so it gets a spinner next to its message instead
+   of bare text. Rendered as a pseudo-element so the status nodes
+   can keep writing plain textContent.
+   ============================================================ */
+
+body.vx-customer-design-foundation .vx-ui-spinner,
+body.vx-customer-design-foundation :where(
+  .vx-ap-status,
+  .vx-ops-status,
+  .vx-cal-status,
+  .vx-ui-status
+).loading::before {
+  content: "";
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--vx-ui-spinner-size);
+  height: var(--vx-ui-spinner-size);
+  margin-right: var(--vx-ui-spinner-gap);
+  border: var(--vx-ui-spinner-width) solid var(--vx-ui-spinner-track);
+  border-top-color: var(--vx-ui-spinner-head);
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: vxUiSpin var(--vx-ui-spinner-duration) linear infinite;
+}
+
+body.vx-customer-design-foundation .vx-ui-spinner {
+  margin-right: 0;
+}
+
+@keyframes vxUiSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.vx-customer-design-foundation .vx-ui-spinner,
+  body.vx-customer-design-foundation :where(
+    .vx-ap-status,
+    .vx-ops-status,
+    .vx-cal-status,
+    .vx-ui-status
+  ).loading::before {
+    animation-duration: 2.4s;
+  }
+}
+
+/* ============================================================
    Mobile
    ============================================================ */
 
@@ -596,18 +647,27 @@ body.vx-customer-design-foundation .vx-ui-field-hint.is-invalid {
     padding: 0;
   }
 
+  /* Tabs wrap on narrow viewports. They must never scroll horizontally by
+     default: a scrolled-off tab has no affordance and reads as missing, which
+     is how the "Anfragen" filters lost Geplant/Erledigt/Archiv on mobile.
+     Wrapping keeps every tab reachable without interaction. */
   .vx-ui-tabs,
   body.vx-customer-design-foundation #vx-assistant-root-switch,
   body.vx-customer-design-foundation .vx-requests-filters {
+    flex-wrap: wrap;
+    row-gap: var(--vx-ui-tab-gap);
+  }
+
+  /* Opt-in only, for bars that genuinely cannot wrap. */
+  body.vx-customer-design-foundation .vx-ui-tabs--scroll {
     flex-wrap: nowrap;
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .vx-ui-tabs::-webkit-scrollbar,
-  body.vx-customer-design-foundation #vx-assistant-root-switch::-webkit-scrollbar,
-  body.vx-customer-design-foundation .vx-requests-filters::-webkit-scrollbar {
+  body.vx-customer-design-foundation .vx-ui-tabs--scroll::-webkit-scrollbar {
     display: none;
   }
 
