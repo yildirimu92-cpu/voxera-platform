@@ -60,24 +60,25 @@ if (unknown.length) {
   );
 }
 
-const countersignPath = path.join(
+const countersignServicePath = path.join(
   root,
   'admin-panel',
   'netlify',
   'functions',
-  'contract-countersign.js'
+  '_lib',
+  'contract-countersign-service.js'
 );
-const countersignSource = fs.readFileSync(countersignPath, 'utf8');
+const countersignSource = fs.readFileSync(countersignServicePath, 'utf8');
 const canonicalContractPattern = /(?:^|[^A-Za-z0-9_])mail_type\s*:\s*['"]contract_signed_email['"]/m;
 const retiredContractPattern = /(?:^|[^A-Za-z0-9_])mail_type\s*:\s*['"]countersign_email['"]/m;
 if (!canonicalContractPattern.test(countersignSource)) {
-  failures.push('contract-countersign.js must emit contract_signed_email.');
+  failures.push('contract-countersign-service.js must emit contract_signed_email.');
 }
 if (retiredContractPattern.test(countersignSource)) {
-  failures.push('contract-countersign.js still emits the retired countersign_email alias.');
+  failures.push('contract-countersign-service.js still emits the retired countersign_email alias.');
 }
 if (!countersignSource.includes('process.env.MAKE_MAIL_WEBHOOK')) {
-  failures.push('contract-countersign.js must prefer MAKE_MAIL_WEBHOOK.');
+  failures.push('contract-countersign-service.js must prefer MAKE_MAIL_WEBHOOK.');
 }
 
 const accessPath = path.join(
