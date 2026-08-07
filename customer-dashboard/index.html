@@ -323,27 +323,25 @@
 /* ══════════════════════════════════════════
    LIVE-CALL ROW v3.0 (Heute + Anfragen)
 ══════════════════════════════════════════ */
+/* Executive-Brief-Ton: EIN ruhiger Hinweis statt drei gleichzeitig
+   laufender Animationen (Ring + Balken-Puls + Punkt-Puls). Der Live-Status
+   bleibt erkennbar über einen einzigen dezenten Punkt im Badge und eine
+   statische Akzentlinie, statt über Bewegung und gesättigtes Rot zu schreien. */
 #live-call-row{
   display:flex;align-items:center;gap:10px;
-  padding:10px 14px;background:var(--vx-surface);
-  border-bottom:0.5px solid var(--vx-border);
-  /* Single live rail only: ::after draws the red bar. No extra border-left. */
-  border-left:none;
-  cursor:default;position:relative;overflow:hidden;
+  padding:12px 14px;background:var(--vx-color-card-bg);
+  border-bottom:1px solid var(--vx-color-border);
+  border-left:2px solid var(--vx-color-danger);
+  cursor:default;position:relative;
   animation:liveRowEnter .3s cubic-bezier(.16,1,.3,1) both;
 }
-#live-call-row:hover{background:var(--vx-bg);}
-#live-call-row::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#DC2626;animation:vxLiveBar 1.4s ease-in-out infinite;}
-@keyframes vxLiveBar{0%,100%{opacity:1;}50%{opacity:.25;}}
-.vx-live-avatar-wrap{position:relative;flex-shrink:0;width:34px;height:34px;}
-.vx-live-avatar{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;background:#DC2626;position:relative;z-index:1;}
-.vx-live-pulse{position:absolute;inset:-4px;border-radius:13px;border:1.5px solid rgba(220,38,38,.45);animation:vxLiveRing 1.5s ease-in-out infinite;}
-@keyframes vxLiveRing{0%{opacity:.9;transform:scale(1);}70%{opacity:0;transform:scale(1.4);}100%{opacity:0;transform:scale(1.4);}}
+#live-call-row:hover{background:var(--vx-color-canvas);}
+.vx-live-avatar{width:34px;height:34px;border-radius:var(--vx-radius-md);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--vx-color-text-on-dark);background:var(--vx-color-night);flex-shrink:0;}
 .vx-live-body{flex:1;min-width:0;}
-.vx-live-name{font-size:13px;font-weight:700;color:var(--vx-text);line-height:1.3;}
-.vx-live-sub{font-size:11px;color:var(--vx-text3);margin-top:1px;display:flex;align-items:center;gap:5px;}
-.vx-live-sub-dot{width:5px;height:5px;border-radius:50%;background:#DC2626;animation:liveDotPulse 1.2s ease-in-out infinite;flex-shrink:0;}
-.vx-live-badge{font-size:9px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:20px;background:#FEE2E2;color:#DC2626;border:0.5px solid #FECACA;flex-shrink:0;}
+.vx-live-name{font-size:13px;font-weight:700;color:var(--vx-color-text);line-height:1.3;}
+.vx-live-sub{font-size:12px;color:var(--vx-color-text-muted);margin-top:1px;}
+.vx-live-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:var(--vx-radius-pill);background:var(--vx-color-danger-bg);color:var(--vx-color-danger);flex-shrink:0;}
+.vx-live-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--vx-color-danger);animation:liveDotPulse 1.4s ease-in-out infinite;flex-shrink:0;}
 
 /* ══════════════════════════════════════════
    IN-APP TOAST v3.0 (Voxera CI)
@@ -395,22 +393,27 @@
 .vx-selection-controls{margin-left:auto;padding:0;border:0;}
 #vx-inbox-select-btn{height:22px;padding:0 10px;font-size:10px;font-weight:600;border-radius:999px;background:#fff;}
 .vx-heute-row.is-done-row{opacity:.85;background:#F8FAFC;}
-.vx-row-icon{width:36px;height:36px;border-radius:10px;background:var(--vx-pill-bg);border:0.5px solid var(--vx-pill-bd);display:flex;align-items:center;justify-content:center;color:var(--vx-pill-text);flex-shrink:0;font-size:16px;}
-.vx-row-icon.is-call{background:var(--vx-blue-light);border-color:var(--vx-blue-bd);color:var(--vx-blue);}
+/* Executive-Brief-Ton: der Typ-Hinweis ("Anruf"/"Archiviert" etc.) läuft als
+   ruhiger Text-Nachsatz statt als eigene umrandete Pille direkt am Titel —
+   ein Satz statt Kacheln. Schrift etwas grosszügiger (10px wirkte als
+   Randnotiz, nicht als gleichwertige Zeile). */
+.vx-row-icon{width:36px;height:36px;border-radius:var(--vx-radius-md);background:var(--vx-color-surface-soft);border:1px solid var(--vx-color-border-strong);display:flex;align-items:center;justify-content:center;color:var(--vx-color-text-muted);flex-shrink:0;font-size:16px;}
+.vx-row-icon.is-call{background:var(--vx-color-info-bg);border-color:var(--vx-color-info-border);color:var(--vx-color-info);}
 .vx-row-body{min-width:0;}
-.vx-row-name{font-size:14px;font-weight:600;color:var(--vx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.vx-row-pill{display:inline-block;font-size:9px;padding:1px 6px;border-radius:4px;border:0.5px solid var(--vx-pill-bd);color:var(--vx-pill-text);background:var(--vx-pill-bg);margin-left:5px;font-weight:500;}
-.vx-row-time{font-size:10px;color:var(--vx-text3);margin-top:2px;}
-.vx-row-summary{font-size:10px;color:var(--vx-text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vx-row-name{font-size:14px;font-weight:700;color:var(--vx-color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vx-row-pill{display:inline;font-size:12px;padding:0;border:0;color:var(--vx-color-text-subtle);background:none;margin-left:0;font-weight:500;}
+.vx-row-pill::before{content:'· ';}
+.vx-row-time{font-size:12px;color:var(--vx-color-text-subtle);margin-top:3px;}
+.vx-row-summary{font-size:13px;color:var(--vx-color-text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .vx-row-btns{display:flex;gap:6px;flex-shrink:0;}
-.vx-ibtn{width:40px;height:40px;border-radius:10px;border:0.5px solid var(--vx-border-md);background:var(--vx-surface);display:flex;align-items:center;justify-content:center;color:var(--vx-text3);flex-shrink:0;cursor:pointer;transition:all .12s;font-size:16px;}
-.vx-ibtn:hover{background:var(--vx-bg);color:var(--vx-text2);}
-.vx-ibtn.is-call{background:var(--vx-blue);border-color:var(--vx-blue);color:#fff;}
+.vx-ibtn{width:40px;height:40px;border-radius:var(--vx-radius-md);border:1px solid var(--vx-color-border-strong);background:var(--vx-color-card-bg);display:flex;align-items:center;justify-content:center;color:var(--vx-color-text-subtle);flex-shrink:0;cursor:pointer;transition:all .12s;font-size:16px;}
+.vx-ibtn:hover{background:var(--vx-color-canvas);color:var(--vx-color-text-muted);}
+.vx-ibtn.is-call{background:var(--vx-color-brand);border-color:var(--vx-color-brand);color:#fff;}
 .vx-ibtn.is-call:hover{background:#1560C8;}
-.vx-ibtn.is-ghost-call{background:var(--vx-blue-light);border-color:var(--vx-blue-bd);color:var(--vx-blue);}
-.vx-ibtn.is-ghost-call:hover{background:var(--vx-blue);color:#fff;}
-.vx-ibtn.is-done:hover{background:var(--vx-green-light);border-color:var(--vx-green-bd);color:var(--vx-green);}
-.vx-ibtn.is-overflow{background:#fff;color:#64748B;}
+.vx-ibtn.is-ghost-call{background:var(--vx-color-info-bg);border-color:var(--vx-color-info-border);color:var(--vx-color-info);}
+.vx-ibtn.is-ghost-call:hover{background:var(--vx-color-brand);color:#fff;}
+.vx-ibtn.is-done:hover{background:var(--vx-color-success-bg);border-color:var(--vx-color-success-border);color:var(--vx-color-success);}
+.vx-ibtn.is-overflow{background:#fff;color:var(--vx-color-text-muted);}
 .vx-row-menu{position:absolute;right:10px;top:46px;min-width:210px;background:#fff;border:1px solid rgba(15,33,63,.12);border-radius:12px;box-shadow:0 18px 36px rgba(13,31,60,.18);padding:6px;z-index:12050;display:none;pointer-events:auto;}
 .vx-row-menu.is-open{display:block;}
 /* Floating row menu: avoids clipping inside split/list rows */
@@ -4663,6 +4666,15 @@ body,.main{background:var(--vx-bg);}
 #dash-priority-list .dpr-kind-task{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
 #dash-priority-list .dpr-kind-incoming{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
 #dash-priority-list .dpr-kind-default{background:#F1F5F9;border-color:#CBD5E1;color:#94A3B8;}
+/* Generic type-label pills (Anruf/Rückruf/Termin/…) read as calmer plain
+   text next to the title, not as a boxed badge — status pills like
+   "Archiviert" (.dpr-kind-done) keep their color, they carry real meaning. */
+#dash-priority-list .vx-row-pill.dpr-kind-callback,
+#dash-priority-list .vx-row-pill.dpr-kind-offer,
+#dash-priority-list .vx-row-pill.dpr-kind-appointment,
+#dash-priority-list .vx-row-pill.dpr-kind-task,
+#dash-priority-list .vx-row-pill.dpr-kind-incoming,
+#dash-priority-list .vx-row-pill.dpr-kind-default{background:none;border:0;padding:0;color:var(--vx-color-text-subtle);}
 #dash-priority-list .dpr-body{min-width:0;}
 #dash-priority-list .dpr-name{font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--ink);}
 #dash-priority-list .dpr-task-line{display:flex;align-items:center;gap:7px;margin-top:4px;min-width:0;}
@@ -17784,18 +17796,12 @@ function updateLiveHero(records) {
   row.id = 'live-call-row';
   row.dataset.recordId = rec.id;
   row.innerHTML = [
-    '<div class="vx-live-avatar-wrap">',
-      '<div class="vx-live-pulse"></div>',
-      '<div class="vx-live-avatar">' + (caller.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?') + '</div>',
-    '</div>',
+    '<div class="vx-live-avatar">' + (caller.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?') + '</div>',
     '<div class="vx-live-body">',
       '<div class="vx-live-name">' + (company ? _esc(company) : _esc(caller)) + '</div>',
-      '<div class="vx-live-sub">',
-        '<span class="vx-live-sub-dot"></span>',
-        'Anruf läuft gerade · wird verarbeitet',
-      '</div>',
+      '<div class="vx-live-sub">Anruf läuft gerade · wird verarbeitet</div>',
     '</div>',
-    '<div class="vx-live-badge">LIVE</div>'
+    '<div class="vx-live-badge"><span class="vx-live-badge-dot"></span>Live</div>'
   ].join('');
   row.onclick = function(e) {
     if (e && e.preventDefault) e.preventDefault();
