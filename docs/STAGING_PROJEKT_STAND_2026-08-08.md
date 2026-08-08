@@ -88,32 +88,77 @@ Stammdaten übernommen:
 | `feature_flags` | 15 |
 | `kantonale_notfallnummern` | 14 |
 | `payment_accounts` | 1 |
-| `system_config` | 1 von 2 |
+| `system_config` | 2 von 2 |
 
-### Zwei bewusste Auslassungen
+`prompt_master_l1` (9 KB Prompt-Text) ist übertragen und **zeichengleich**: MD5
+`ea9c01673610bebf29df38a44202e577`, 9140 Zeichen auf beiden Seiten. Die Vorlage nutzt
+durchgängig CRLF; der Text wurde beim Einfügen entsprechend konvertiert, sonst hätte er sich
+in jeder Zeile um ein Byte unterschieden.
 
-**`industry_templates` — 0 von 19 Zeilen.** 88 KB Textinhalt; das passt nicht durch den
-Connector, über den dieser Aufbau lief. Nachzuholen mit direktem Zugang:
+### Eine offene Tabelle: `industry_templates`
 
-```bash
-supabase db dump --db-url "$PROD_URL" --data-only --table public.industry_templates \
-  | psql "$STAGING_URL" -v ON_ERROR_STOP=1
-```
+**0 von 19 Zeilen.** 88 KB Textinhalt — die einzige Tabelle, die nicht über den Connector
+übertragen wurde: der Inhalt müsste dafür vollständig durch die Agent-Sitzung fliessen,
+einmal beim Lesen und einmal beim Schreiben.
 
-Betrifft Onboarding-Tests mit Branchenvorlagen; alles andere funktioniert ohne.
+Nachzuholen **ohne Terminal**, mit zwei Kopiervorgängen im Supabase-Dashboard:
+`supabase/baseline/industry_templates_transfer.sql` enthält einen Generator, der auf
+Produktion ein fertiges INSERT-Skript ausgibt; das wird im SQL-Editor von Staging eingefügt.
+Anleitung und Gegenprobe stehen in der Datei.
 
-**`system_config` — nur `default_assistant_name`.** Der zweite Schlüssel `prompt_master_l1`
-ist 9 KB Prompt-Text und fehlt. Ohne ihn erzeugt der Prompt-Builder auf Staging keinen
-vollständigen Assistenten-Prompt. Gleicher Weg wie oben, `--table public.system_config`.
+Ohne diese Tabelle funktioniert Staging vollständig — nur Onboarding-Tests mit
+Branchenvorlagen greifen ins Leere, weil die Vorlagenliste leer bleibt.
 
-### Zum Mitdenken: `payment_accounts` enthält die echte IBAN
+### `payment_accounts` trägt eine Test-IBAN, nicht die echte
 
-Die Zeile wurde 1:1 übernommen, damit QR-Rechnungen auf Staging dasselbe Ergebnis liefern wie
-in Produktion. Das heisst aber auch: eine auf Staging erzeugte Test-Rechnung trägt die echten
-Zahlungsangaben von Voxera. Kein Datenschutzproblem — es sind eigene Daten, keine
-Kundendaten — aber es sollte niemand versehentlich so eine Rechnung verschicken.
+Ursprünglich 1:1 übernommen, damit QR-Rechnungen dasselbe Ergebnis liefern — womit eine auf
+Staging erzeugte Testrechnung aber gültige Zahlungsangaben von Voxera getragen hätte. Ersetzt:
+
+| Feld | Wert |
+| --- | --- |
+| `iban` | `CH9300762011623852957` |
+| `account_name` | `Voxera CHF (STAGING)` |
+| `creditor_name` | `Voxera STAGING - Testkonto` |
+
+`CH9300762011623852957` ist das ISO-13616-Beispiel für die Schweiz: gültige Prüfsumme, und
+bewusst **kein** QR-IBAN. Ein QR-IBAN (IID im Bereich 30000–31999) hätte `reference_type` von
+`NON` auf `QRR` gezwungen und damit einen anderen Codepfad getestet als in Produktion — die
+Trennung soll das Verhalten spiegeln, nicht verändern. Die Produktions-IBAN ist mit IID 08440
+ebenfalls kein QR-IBAN.
+
+Der `creditor_name` erscheint auf der QR-Rechnung als Zahlungsempfänger; so ist auf einen
+Blick erkennbar, dass ein Beleg aus Staging stammt.
+
 `created_by` und `updated_by` stehen auf NULL, weil `admins` auf Staging leer ist und der
 Fremdschlüssel sonst greift.
+
+---
+
+## Verhaltensprobe — die Härtung greift auch wirklich
+
+Der Katalog-Vergleich oben zeigt, dass die Rechte gleich *aussehen*. Diese Probe misst, was
+`anon` und `authenticated` tatsächlich *dürfen*. Ausgeführt auf Staging am 2026-08-08:
+
+| | Probe | Erwartet | Ergebnis |
+| --- | --- | --- | --- |
+| 1 | `anon` SELECT auf `customers` | verweigert `42501` | ✅ |
+| 2 | `anon` SELECT auf `invoices` | verweigert `42501` | ✅ |
+| 3 | `anon` EXECUTE `current_customer_id()` | verweigert `42501` | ✅ |
+| 4 | `authenticated` UPDATE `customers.plan` | verweigert `42501` | ✅ |
+| 5 | `authenticated` UPDATE `customers.onboarding_completed` | **erlaubt** | ✅ |
+| 6 | `authenticated` EXECUTE `is_admin()` | **erlaubt** | ✅ |
+
+Proben 5 und 6 sind die Gegenkontrolle und der eigentliche Punkt: eine Datenbank, die
+**alles** verbietet, bestünde 1 bis 4 mühelos und wäre trotzdem kaputt — Login und RLS würden
+nicht funktionieren. Dasselbe Prinzip wie in `docs/DB_SECURITY_CI_SETUP.md`.
+
+Probe 4 gegen 5 zeigt die Spalten-Allowlist im Betrieb: dieselbe Tabelle, dieselbe Rolle,
+dieselbe Anweisungsart — der Unterschied ist allein die Spalte.
+
+**Grenze dieser Probe:** Staging ist leer. Prüfungen der Art „Mandant sieht genau seine
+eigenen Zeilen" (Gruppe C des CI-Checks) sind hier nicht aussagekräftig, weil null sichtbare
+Zeilen auch bei kaputter Policy herauskämen. Deshalb wurden bewusst nur Rechtefehler geprüft —
+die sind auch bei leerer Tabelle eindeutig.
 
 ---
 
@@ -145,26 +190,77 @@ früheren, unabhängigen Durchlauf herauskam.
 
 ## Nächste Schritte
 
-1. **Netlify-Env auf Staging umstellen.** Für *Deploy previews* und *Branch deploys*:
+1. **Netlify-Env auf Staging umstellen.** Für *Deploy previews* und *Branch deploys*, auf
+   **beiden** Sites (voxera-dashboard und voxera-admin):
+
    ```
-   SUPABASE_URL       = https://hzqiyyqfchvfcmmbemvd.supabase.co
-   SUPABASE_ANON_KEY  = (Dashboard → voxera-staging → Settings → API → anon/public)
-   SUPABASE_SERVICE_ROLE_KEY = (ebenda, service_role)
+   SUPABASE_URL      = https://hzqiyyqfchvfcmmbemvd.supabase.co
+   SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6cWl5eXFmY2h2ZmNtbWJlbXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMTAzNTEsImV4cCI6MjEwMTc4NjM1MX0.ii6UOmP8inKoaYekYv9JdgGpw5qCcKST1FMe8pIF6WA
    ```
-   Damit greift die Laufzeit-Konfiguration aus PR #844 ohne weitere Codeänderung, und
-   Previews zeigen auf Staging statt auf nichts. Schritte in
-   `docs/RUNTIME_CONFIG_UND_PREVIEW_ISOLATION.md`.
 
-2. **Die beiden fehlenden Seed-Tabellen nachziehen** (siehe oben).
+   Der Anon-Key ist öffentlich — er steht im ausgelieferten Frontend und ist ohne RLS
+   wertlos. Der **Service-Role-Key** ist es nicht: den aus dem Dashboard holen
+   (voxera-staging → Settings → API) und nirgends notieren, wo er landen kann.
 
-3. **Migrations-Ledger auf Produktion in Ordnung bringen.** Dort stehen weiterhin nur 7
-   Einträge. **Schreibvorgang auf Produktion** — bewusst und einzeln ausführen.
+   Damit greift die Laufzeit-Konfiguration aus PR #844 ohne Codeänderung, und Previews zeigen
+   auf Staging statt auf nichts. Schritte in `docs/RUNTIME_CONFIG_UND_PREVIEW_ISOLATION.md`.
 
-4. **`verify-db-security-invariants` gegen Staging laufen lassen.** Der Katalog-Vergleich oben
-   zeigt, dass die Rechte gleich *aussehen*; der Check misst, was `anon` und `authenticated`
-   tatsächlich *dürfen*. Braucht auf Staging zuerst die Rolle `voxera_ci_verifier`
-   (`supabase/migrations/2026-08-08_ci_security_verifier_role.sql` und `…_census_v2.sql`,
-   dann Passwort setzen — siehe `docs/DB_SECURITY_CI_SETUP.md`). Deren beide Hilfsfunktionen
-   haben auf Staging bewusst noch kein `EXECUTE`-Grant, weil die Rolle fehlt.
+2. **`industry_templates` nachziehen** — `supabase/baseline/industry_templates_transfer.sql`,
+   zwei Kopiervorgänge im Dashboard, kein Terminal nötig.
+
+3. **Migrations-Ledger — siehe Abschnitt unten. Nicht als Einzeiler machbar.**
+
+4. **`verify-db-security-invariants` gegen Staging.** Die Verhaltensprobe oben deckt den Kern
+   bereits ab; der vollständige Check ist gründlicher (210 Invarianten). Braucht auf Staging
+   zuerst die Rolle `voxera_ci_verifier` (die beiden Migrationen
+   `2026-08-08_ci_security_verifier_role.sql` und `…_census_v2.sql`, dann Passwort setzen —
+   `docs/DB_SECURITY_CI_SETUP.md`) und einen Netzweg zur Datenbank, den die Agent-Umgebung
+   nicht hat. Deren beide Hilfsfunktionen haben auf Staging bewusst noch kein `EXECUTE`-Grant,
+   weil die Rolle fehlt — restriktiver als Produktion, nicht lockerer.
 
 5. **Erst danach den End-to-End-Test fahren** — auf Staging, nicht auf Produktion.
+
+---
+
+## Befund: Das Migrations-Ledger lässt sich nicht mit einer Zeile reparieren
+
+Der Plan war, die Baseline auf Produktion als angewandt einzutragen, damit ein späteres
+`supabase db push` sie nicht erneut einspielt. Beim Nachsehen zeigt sich, dass die Annahme
+dahinter nicht trägt.
+
+**Fakt:** Die sieben Ledger-Einträge tragen 14-stellige Versionen im CLI-Format
+(`20260808031625_ai_change_requests_tenant_isolation_reassert`). Sie stammen alle von
+`apply_migration`-Aufrufen, nicht von den Repo-Dateien.
+
+**Fakt:** Die 17 Dateien in `supabase/migrations/` heissen `YYYY-MM-DD_name.sql`, also
+`2026-08-08_p0_security_foundation_catchup.sql`. Auf die Ziffernfolge `2026` folgt ein
+Bindestrich, kein Unterstrich.
+
+**Wahrscheinlich** (aus der Supabase-Konvention hergeleitet, nicht mit der CLI nachgemessen —
+sie ist in dieser Umgebung nicht installiert): Die CLI erkennt Migrationsdateien am Muster
+`<Ziffern>_<Name>.sql`. Die Repo-Dateien erfüllen das nicht und wären für `supabase db push`
+schlicht unsichtbar.
+
+**Konsequenz:** Die befürchtete Gefahr — ein `db push` spielt alte Migrationen erneut ein —
+besteht so vermutlich gar nicht. Das eigentliche Problem ist ein anderes und grösser: der
+CLI-Migrationsworkflow funktioniert für dieses Repo **überhaupt nicht**. Genau deshalb wurde
+seit jeher von Hand im SQL-Editor eingespielt, und genau deshalb blieb das Ledger leer — die
+Ursachenkette, die zum P0-Vorfall geführt hat.
+
+**Warum hier nichts geschrieben wurde:** Ein Ledger-Eintrag für Dateien, die die CLI nicht
+sieht, ändert nichts und erzeugt den Eindruck, das Problem sei erledigt. Ein grüner Haken,
+der das Falsche misst — dieselbe Fehlerklasse wie beim P0-Check, der wochenlang grün war,
+während keine einzige Policy existierte.
+
+**Der tatsächliche Fix** ist ein eigener Arbeitsschritt:
+
+1. die 17 Dateien auf `YYYYMMDDHHMMSS_name.sql` umbenennen,
+2. das Ledger mit genau diesen Versionen befüllen (Schreibvorgang auf Produktion),
+3. **14 Dateien anpassen, die die Migrationen unter ihrem heutigen Namen referenzieren** —
+   4 Workflows (`verify-twilio-number-assignment`, `verify-customer-operational-updates`,
+   `verify-admin-voices`, `verify-calendar-integrations`) und 10 Verifizierer-Skripte,
+   darunter `verify-p0-security-foundation.mjs` und `verify-db-security-invariants.mjs`.
+
+Schritt 3 ist der Grund, warum das nicht nebenbei geht: Wird eine Referenz übersehen, wird
+ein Sicherheits-Check still wirkungslos, weil er eine Datei prüft, die es nicht mehr gibt.
+Das braucht einen eigenen Durchgang mit vollständiger CI-Gegenprobe.
