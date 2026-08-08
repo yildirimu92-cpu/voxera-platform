@@ -1,0 +1,857 @@
+<title>Etappe 5 — Player & Verlauf: drei Richtungen</title>
+<style>
+:root{
+  /* Dokument-Chrome: Night-Grund, damit die hellen Produktflächen als
+     Muster auf einem Tisch liegen statt in einer zweiten weissen Seite zu
+     verschwinden. Bewusst einthemig — die Muster MÜSSEN hell bleiben,
+     sie zeigen das Produkt. */
+  --doc-bg:#0B1930;
+  --doc-bg-2:#101F3A;
+  --doc-ink:#EEF3FA;
+  --doc-ink-2:#A9BAD4;
+  --doc-ink-3:#7D90AE;
+  --doc-line:rgba(174,196,228,.18);
+  --doc-line-strong:rgba(174,196,228,.30);
+  --gold:#E8C547;
+  --gold-quiet:rgba(232,197,71,.42);
+  --ok:#6EE7B7;
+  --warn:#FCD34D;
+  --bad:#FCA5A5;
+
+  /* Produkt-Tokens, 1:1 aus customer-design-tokens.css */
+  --night:#0D1F3C;
+  --p-gold:#E8C547;
+  --canvas:#F7F8FA;
+  --row-bg:#FFFFFF;
+  --line:#D9E1EC;
+  --meta:#697285;
+  --text2:#5B6472;
+  --icon-quiet:#7C8CA4;
+  --icon-bg:#F1F5F9;
+
+  --sans:'Plus Jakarta Sans','DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --serif:'Newsreader',Georgia,'Times New Roman',serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--doc-bg);
+  color:var(--doc-ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:56px 24px 96px;}
+
+/* ── Kopf ───────────────────────────────────────────────────────────── */
+.masthead{border-top:3px solid var(--gold);padding-top:26px;}
+.eyebrow{
+  font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--gold);margin:0 0 14px;
+}
+h1{
+  font-family:var(--serif);font-weight:500;font-size:clamp(34px,5.2vw,52px);
+  line-height:1.1;letter-spacing:-.015em;margin:0 0 16px;text-wrap:balance;
+}
+.standfirst{
+  font-family:var(--serif);font-size:clamp(18px,2.2vw,21px);line-height:1.55;
+  color:var(--doc-ink-2);max-width:60ch;margin:0;
+}
+.statusline{
+  display:flex;flex-wrap:wrap;gap:8px;margin-top:26px;
+}
+.tag{
+  font-size:12px;font-weight:600;letter-spacing:.02em;
+  border:1px solid var(--doc-line-strong);border-radius:999px;
+  padding:5px 12px;color:var(--doc-ink-2);
+}
+.tag--live{border-color:var(--gold-quiet);color:var(--gold);}
+
+/* ── Struktur ───────────────────────────────────────────────────────── */
+section{margin-top:72px;}
+.sec-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--doc-line);padding-bottom:12px;margin-bottom:28px;}
+.sec-head h2{
+  font-family:var(--serif);font-weight:500;font-size:30px;line-height:1.2;
+  letter-spacing:-.01em;margin:0;
+}
+.sec-head .sec-note{margin-left:auto;font-size:12px;color:var(--doc-ink-3);white-space:nowrap;}
+h3{font-size:19px;font-weight:700;line-height:1.3;margin:0 0 10px;letter-spacing:-.005em;}
+h4{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--doc-ink-3);margin:0 0 10px;}
+p{margin:0 0 14px;max-width:68ch;color:var(--doc-ink-2);}
+p.lead{color:var(--doc-ink);}
+strong{color:var(--doc-ink);font-weight:700;}
+code{font-family:var(--mono);font-size:.87em;color:var(--gold);background:rgba(232,197,71,.09);border-radius:4px;padding:1px 5px;}
+a{color:var(--gold);}
+
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;}
+@media(max-width:760px){.cols{grid-template-columns:1fr;}}
+
+ul.findings{list-style:none;margin:0;padding:0;display:grid;gap:14px;}
+ul.findings li{
+  display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;
+  font-size:15px;color:var(--doc-ink-2);line-height:1.55;max-width:74ch;
+}
+ul.findings li::before{
+  content:'';width:7px;height:7px;border-radius:50%;margin-top:9px;
+  background:var(--gold);opacity:.75;
+}
+ul.findings b{color:var(--doc-ink);font-weight:700;}
+
+.note{
+  border-left:2px solid var(--gold);padding:2px 0 2px 18px;margin:26px 0;
+  color:var(--doc-ink-2);font-size:15px;max-width:72ch;
+}
+.rulebox{
+  border:1px solid var(--doc-line-strong);border-radius:2px;
+  background:var(--doc-bg-2);padding:24px 26px;margin-top:24px;
+}
+.rulebox h4{color:var(--gold);}
+.rulebox p:last-child{margin-bottom:0;}
+
+/* ── Muster-Rahmen ──────────────────────────────────────────────────── */
+.specimen{
+  margin:26px 0 8px;
+  background:var(--doc-bg-2);
+  border:1px solid var(--doc-line);
+  border-radius:3px;
+  padding:26px;
+  overflow-x:auto;
+}
+.specimen-label{
+  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--doc-ink-3);margin:0 0 18px;display:flex;gap:10px;align-items:center;
+}
+.specimen-label::after{content:'';flex:1;height:1px;background:var(--doc-line);}
+.stage{
+  width:472px;min-width:472px;margin:0 auto;
+}
+.stage--wide{width:520px;min-width:520px;}
+.caption{
+  font-size:13px;color:var(--doc-ink-3);text-align:center;margin:16px auto 0;max-width:52ch;line-height:1.5;
+}
+
+/* ── Produktfläche: Panel-Ausschnitt ────────────────────────────────── */
+.panel{
+  background:var(--canvas);
+  border:0.5px solid var(--line);
+  border-radius:12px;
+  padding:12px 14px;
+  font-family:var(--sans);
+  color:var(--night);
+  display:flex;flex-direction:column;gap:8px;
+}
+.panel *{box-sizing:border-box;}
+
+/* Aufklapper wie .vx-summary-acc */
+.acc{background:var(--canvas);border:0.5px solid var(--line);border-radius:12px;overflow:hidden;}
+.acc--plain{background:var(--row-bg);}
+.acc-sum{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;font-size:13px;font-weight:700;color:var(--night);
+}
+.acc-sum .lbl{display:flex;align-items:center;gap:8px;}
+.acc-sum .st{font-size:12px;font-weight:600;color:var(--meta);}
+.acc-body{padding:0 12px 12px;}
+.chev{color:var(--icon-quiet);font-size:12px;}
+.gi{width:15px;height:15px;flex:0 0 auto;display:inline-block;}
+
+/* ── IST: aktueller Player ──────────────────────────────────────────── */
+.p0{background:var(--row-bg);border:0.5px solid var(--line);border-radius:12px;padding:12px 14px;}
+.p0-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--night);}
+.p0-sub{display:flex;align-items:center;gap:7px;margin-top:4px;font-size:12px;color:var(--meta);}
+.p0-dot{width:7px;height:7px;border-radius:50%;background:#047857;}
+.p0-surface{margin-top:10px;border:0.5px solid var(--line);border-radius:10px;background:var(--canvas);padding:12px;}
+.p0-ctrl{display:grid;grid-template-columns:38px 50px minmax(120px,1fr) 38px;align-items:center;gap:12px;}
+.p0-btn{width:38px;height:38px;border-radius:50%;background:var(--icon-bg);color:var(--night);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;}
+.p0-btn--pri{width:46px;height:46px;background:var(--night);color:#fff;font-size:17px;}
+.p0-wave{height:38px;display:flex;align-items:center;gap:3px;padding:0 4px;overflow:hidden;}
+.p0-wave span{width:3px;min-width:3px;border-radius:999px;background:var(--night);opacity:.28;}
+.p0-time{display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:var(--meta);font-variant-numeric:tabular-nums;margin-top:2px;}
+.p0-bottom{display:grid;grid-template-columns:minmax(100px,190px) auto minmax(90px,1fr);align-items:center;gap:12px;margin-top:10px;}
+.p0-vol{display:flex;align-items:center;gap:8px;color:var(--meta);font-size:13px;}
+.p0-vol .bar{flex:1;height:4px;border-radius:999px;background:var(--night);}
+.p0-speed{justify-self:center;display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:var(--icon-bg);}
+.p0-speed b{min-width:44px;text-align:center;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:700;color:var(--meta);}
+.p0-speed b.on{background:#fff;color:var(--night);box-shadow:0 1px 2px rgba(13,31,60,.10);}
+.p0-status{text-align:right;font-size:12px;color:var(--meta);}
+
+/* ── Gemeinsame neue Wellenform ─────────────────────────────────────── */
+.wave{position:relative;display:flex;align-items:center;gap:2px;width:100%;}
+.wave span{flex:1 1 auto;border-radius:999px;transition:none;}
+.wave .head{
+  position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:2px;
+  background:var(--p-gold);
+}
+.wave .head::after{
+  content:'';position:absolute;left:50%;top:-4px;transform:translateX(-50%);
+  width:6px;height:6px;border-radius:50%;background:var(--p-gold);
+}
+
+/* ── A: Stille Spur ─────────────────────────────────────────────────── */
+.pa{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:center;padding:4px 2px 2px;}
+.pa-play{
+  width:44px;height:44px;border-radius:50%;background:var(--night);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+}
+.pa-track{min-width:0;}
+.pa-wave{height:36px;}
+.pa-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:7px;}
+.pa-time{font-size:12px;font-weight:600;color:var(--meta);font-variant-numeric:tabular-nums;}
+.pa-time .cur{color:var(--night);}
+.pa-tools{display:flex;align-items:center;gap:2px;}
+.pa-tool{
+  display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 9px;border-radius:999px;
+  font-size:12px;font-weight:600;color:var(--meta);font-variant-numeric:tabular-nums;
+}
+.pa-tool.on{color:var(--night);background:var(--icon-bg);font-weight:700;}
+
+/* ── B: Night-Konsole ───────────────────────────────────────────────── */
+.pb{
+  position:relative;border-radius:12px;overflow:hidden;
+  background:var(--night);color:#fff;padding:16px 16px 14px;
+}
+.pb::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#E8C547 0%,rgba(232,197,71,.38) 46%,rgba(232,197,71,0) 100%);
+}
+.pb-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.pb-kicker{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--p-gold);}
+.pb-dur{font-size:12px;font-weight:600;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;}
+.pb-row{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:center;}
+.pb-play{
+  width:46px;height:46px;border-radius:50%;background:var(--p-gold);color:var(--night);
+  display:flex;align-items:center;justify-content:center;
+}
+.pb-wave{height:40px;}
+.pb-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;}
+.pb-time{font-size:12px;font-weight:600;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;}
+.pb-time .cur{color:#fff;}
+.pb-tools{display:flex;align-items:center;gap:2px;}
+.pb-tool{
+  display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 9px;border-radius:999px;
+  font-size:12px;font-weight:600;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;
+}
+.pb-tool.on{color:#fff;background:rgba(255,255,255,.12);font-weight:700;}
+
+/* ── C: Gesprächsspur ───────────────────────────────────────────────── */
+.pc{background:var(--row-bg);border:0.5px solid var(--line);border-radius:12px;padding:12px 14px;}
+.pc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.pc-legend{display:flex;align-items:center;gap:14px;font-size:11px;font-weight:600;color:var(--meta);}
+.pc-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+.pc-dur{font-size:12px;font-weight:600;color:var(--meta);font-variant-numeric:tabular-nums;}
+.pc-row{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:center;}
+.pc-play{width:44px;height:44px;border-radius:50%;background:var(--night);color:#fff;display:flex;align-items:center;justify-content:center;}
+.wave--split{align-items:stretch;height:48px;}
+.wave--split span{align-self:center;}
+.pc-lines{margin-top:12px;border-top:0.5px solid var(--line);padding-top:10px;display:grid;gap:8px;}
+.pc-line{display:grid;grid-template-columns:38px 1fr;gap:10px;font-size:13px;line-height:1.45;color:var(--text2);}
+.pc-line .ts{font-size:11px;font-weight:600;color:var(--meta);font-variant-numeric:tabular-nums;padding-top:2px;}
+.pc-line .who{font-weight:700;color:var(--night);}
+.pc-line.is-now{color:var(--night);}
+.pc-line.is-now .txt{
+  background:linear-gradient(90deg,rgba(232,197,71,.26) 0%,rgba(232,197,71,.26) 62%,transparent 62%);
+  border-radius:3px;
+}
+.pc-line.is-past{color:#8A93A6;}
+
+/* ── Verlauf-Muster ─────────────────────────────────────────────────── */
+.v0{background:var(--row-bg);border:0.5px solid var(--line);border-radius:12px;overflow:hidden;}
+.v0-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--line);font-size:13px;font-weight:700;color:var(--night);}
+.v0-head .cnt{margin-left:auto;font-size:12px;font-weight:600;color:var(--meta);}
+.v0-body{padding:14px 16px;}
+.v0-tl{position:relative;padding-left:24px;}
+.v0-tl::before{content:'';position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:var(--line);}
+.v0-item{position:relative;padding-bottom:16px;}
+.v0-dot{position:absolute;left:-23px;top:4px;width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #1A6FE8;box-shadow:0 0 0 2px #fff;}
+.v0-card{background:#F1F4F9;border-radius:8px;padding:10px 12px;}
+.v0-when{font-size:10px;color:var(--meta);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.v0-t{font-size:13px;font-weight:700;color:var(--night);margin-top:3px;}
+.v0-m{font-size:11px;color:var(--meta);margin-top:3px;}
+.v0-s{font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5;}
+.v0-link{font-size:10px;color:#1A6FE8;font-weight:600;}
+
+.v1{display:grid;gap:8px;}
+.v1-row{
+  display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:start;
+  background:var(--row-bg);border:0.5px solid var(--line);border-radius:12px;padding:12px 14px;
+}
+.v1-ic{width:36px;height:36px;border-radius:50%;background:var(--icon-bg);color:var(--icon-quiet);display:flex;align-items:center;justify-content:center;}
+.v1-ic--night{background:var(--night);color:var(--p-gold);}
+.v1-t{font-size:14px;font-weight:700;color:var(--night);line-height:1.3;}
+.v1-d{font-size:13px;line-height:1.42;color:var(--text2);margin-top:3px;}
+.v1-time{font-size:12px;font-weight:600;color:var(--meta);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.v1-sec{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--meta);margin:6px 2px 2px;}
+.v1-sec::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--line);}
+.v1-badge{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:700;background:#ECFDF5;color:#047857;margin-left:6px;}
+.v1-more{
+  align-self:start;font-size:12px;font-weight:700;color:var(--night);
+  border:0.5px solid var(--line);border-radius:999px;padding:6px 12px;background:#fff;text-align:center;
+}
+
+/* ── Bewertungstabelle ──────────────────────────────────────────────── */
+.matrix{width:100%;border-collapse:collapse;margin-top:26px;font-size:14px;}
+.matrix th,.matrix td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--doc-line);vertical-align:top;}
+.matrix thead th{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--doc-ink-3);border-bottom-color:var(--doc-line-strong);}
+.matrix td:first-child{font-weight:700;color:var(--doc-ink);white-space:nowrap;}
+.matrix td{color:var(--doc-ink-2);}
+.mark{font-weight:700;}
+.mark--y{color:var(--ok);} .mark--m{color:var(--warn);} .mark--n{color:var(--bad);}
+.tablewrap{overflow-x:auto;}
+
+.rec{
+  border:1px solid var(--gold-quiet);border-radius:3px;background:rgba(232,197,71,.06);
+  padding:26px 28px;margin-top:8px;
+}
+.rec h3{color:var(--gold);}
+.rec ol{margin:0;padding-left:22px;color:var(--doc-ink-2);max-width:70ch;}
+.rec ol li{margin-bottom:10px;}
+.rec ol li::marker{color:var(--gold);font-weight:700;}
+
+.ask{
+  margin-top:40px;border-top:1px solid var(--doc-line);padding-top:24px;
+}
+footer{margin-top:80px;border-top:3px solid var(--gold);padding-top:18px;font-size:12px;color:var(--doc-ink-3);}
+@media(prefers-reduced-motion:no-preference){}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Etappe 5 · Schritt 1 · Exploration</p>
+  <h1>Anfrage-Detail: Player &amp; Verlauf</h1>
+  <p class="standfirst">Drei Richtungen für die Komponente, die im Detail-Panel mehrfach als die generischste benannt wurde — plus zwei Vorschläge für den Verlauf. Kein Code, keine Entscheidung: Grundlage für die Freigabe von Schritt&nbsp;2.</p>
+  <div class="statusline">
+    <span class="tag tag--live">Freigabe ausstehend</span>
+    <span class="tag">Ein Renderer: <code>vxRenderEntryDetail</code></span>
+    <span class="tag">Tokens aus PR #848 gelten</span>
+    <span class="tag">Gold-Rampe bleibt Lead-Qualität</span>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head">
+    <h2>Was heute dasteht</h2>
+    <span class="sec-note">customer-dashboard/index.html · <code>vxRenderModernAudioPlayerHtml</code></span>
+  </div>
+
+  <p class="lead">Der Player funktioniert — die Kritik zielt nicht auf Fehler, sondern darauf, dass die Fläche nichts über Voxera aussagt. Beim Lesen des Markups kommen aber drei Punkte dazu, die keine Geschmacksfragen sind.</p>
+
+  <div class="specimen">
+    <p class="specimen-label">Ist-Zustand · Aufklapper „Audio &amp; Transkript“ mit Player darin</p>
+    <div class="stage">
+      <div class="panel">
+        <div class="acc">
+          <div class="acc-sum">
+            <span class="lbl"><svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#0D1F3C" stroke-width="2.2" stroke-linecap="round"><path d="M3 10v4M7 6v12M11 3v18M15 7v10M19 10v4"/></svg><span>Audio &amp; Transkript</span></span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="st">2:14</span><span class="chev">▾</span></span>
+          </div>
+          <div class="acc-body">
+            <div class="p0">
+              <div class="p0-title"><svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#7C8CA4" stroke-width="2" stroke-linecap="round"><path d="M3 10v4M7 7v10M11 4v16M15 8v8M19 11v2"/></svg>Audioaufnahme</div>
+              <div class="p0-sub"><span class="p0-dot"></span>Bereit zum Abspielen</div>
+              <div class="p0-surface">
+                <div class="p0-ctrl">
+                  <div class="p0-btn">↺</div>
+                  <div class="p0-btn p0-btn--pri">▶</div>
+                  <div>
+                    <div class="p0-wave" data-legacy-wave></div>
+                    <div class="p0-time"><span>0:00</span><span>2:14</span></div>
+                  </div>
+                  <div class="p0-btn">↻</div>
+                </div>
+                <div class="p0-bottom">
+                  <div class="p0-vol"><span>⌁</span><span class="bar"></span></div>
+                  <div class="p0-speed"><b class="on">1x</b><b>1.25x</b><b>1.5x</b></div>
+                  <div class="p0-status">Bereit zum Abspielen</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Nachbau aus dem laufenden Markup. Ohne die geladenen Produktschriften — Buchstabenformen bitte nicht bewerten, Proportionen und Farben stimmen.</p>
+  </div>
+
+  <ul class="findings">
+    <li><b>Die Wellenform behauptet einen Fortschritt, den sie nie hat.</b> <code>.vx-audio-modern__wave span:nth-child(-n+15)</code> hebt die ersten 15 von 42 Balken dauerhaft hervor — optisch exakt die Sprache „36&nbsp;% abgespielt“, konstant, auch bei einer nie gestarteten Aufnahme. Die Wellenform ist heute nicht nur Dekoration, sie ist eine falsche Anzeige. Der echte Fortschritt liegt auf einem unsichtbaren <code>&lt;input type="range"&gt;</code> mit <code>opacity:.01</code> darüber.</li>
+    <li><b>Derselbe Zustand steht zweimal.</b> „Bereit zum Abspielen“ erscheint oben neben dem grünen Punkt und unten rechts als <code>[data-vx-audio-status]</code>. Beide werden vom selben Zustand gespeist; beim Tempo-Wechsel driften sie auseinander (unten steht dann „1.25x“, oben weiter „Bereit zum Abspielen“).</li>
+    <li><b>Drei Rahmen um eine Sache.</b> Aufklapper → weisse Karte → Canvas-Fläche, jeweils mit eigener Linie und eigenem Radius. Der Kopf „Audioaufnahme“ wiederholt zusätzlich, was zwei Zeilen darüber schon steht.</li>
+    <li><b>Zeichen statt Icons.</b> <code>▶ Ⅱ ↺ ↻ ⌁</code> sind Textglyphen und rendern je nach Gerät unterschiedlich, während das ganze Panel Phosphor-Icons benutzt. „↺/↻“ nennt ausserdem den Sprung nicht (heute 10&nbsp;s).</li>
+    <li><b>Der Lautstärkeregler nimmt die breiteste Zelle der unteren Zeile</b> und dupliziert eine Systemfunktion. Sein Nutzen im Alltag: gering. Die Verstärkung, die tatsächlich hilft (<code>BOOST_GAIN&nbsp;1.7</code> über Web&nbsp;Audio), läuft unsichtbar und ungesteuert.</li>
+    <li><b>Kein Gold.</b> Die Fläche ist Navy/Weiss/Grau — genau der Punkt aus der „wirkt generisch“-Liste.</li>
+  </ul>
+
+  <div class="note">
+    Vorgemerkt aus der früheren Skizze (08.08.) und hier übernommen: Wellenform&nbsp;=&nbsp;Fortschritt, <em>eine</em> Zeitanzeige statt zweier Statustexte, Sprungweite als erkennbares 15-Sekunden-Muster, Tempo als kleiner Schalter statt Segment-Pille. Alle drei Richtungen unten enthalten das; sie unterscheiden sich in der <em>Haltung</em>, nicht in dieser Grundhygiene.
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Die Gold-Frage, vor den Richtungen</h2>
+    <span class="sec-note">entscheidet, wie weit Gold hier gehen darf</span>
+  </div>
+
+  <p class="lead">Der naheliegendste Premium-Griff wäre eine goldene Fortschrittsfüllung. Der ist durch die eigene Regel aus PR&nbsp;#848 gesperrt — und zwar zu Recht: eine Füllung, die mit dem Abspielstand wächst, macht Gold wieder zu einer Mengenangabe, direkt neben der Gold-Rampe, die „heiss/warm/kalt“ codiert. Zwei Bedeutungen, ein Farbton.</p>
+
+  <p>Ein Detail entkommt der Sperre allerdings sauber, und es ist genau das ausdrucksstärkste: <strong>der Abspielkopf.</strong> Er hat immer dieselbe Erscheinung, es gibt immer genau einen, er ist bei jedem Eintrag identisch. Was variiert, ist seine <em>Position</em>, nicht sein Aussehen und nicht seine Bedeutung. Er misst nichts, er zeigt einen Ort.</p>
+
+  <div class="rulebox">
+    <h4>Vorschlag zur Präzisierung der Regel</h4>
+    <p>In <code>customer-design-tokens.css</code> steht die Faustregel heute so: <em>„wenn der Wert je zwischen zwei Datensätzen auf demselben Screen abweichen könnte, gehört er zur Rampe“</em>. Ergänzung für den Player:</p>
+    <p style="margin-bottom:0;"><strong>Gold darf eine Stelle markieren, aber keine Menge füllen.</strong> Ein Abspielkopf, eine Kopfleiste, eine Initiale — feste Erscheinung, keine Abstufung — bleiben ornamental. Sobald Gold in seiner Fläche, Sättigung oder Länge mit einem Wert mitwächst, gehört es zur Rampe und ist hier gesperrt. Neues Token dafür: <code>--vx-ui-brand-playhead: var(--vx-color-gold)</code>, damit die Stelle benannt und nicht als Literal verstreut ist.</p>
+  </div>
+
+  <p style="margin-top:24px;">Der abgespielte Teil der Wellenform trägt in allen drei Richtungen deshalb <strong>Night</strong> (bzw. Weiss auf Night), der Rest ein stilles Grau. Gold sitzt am Kopf — und in Richtung&nbsp;B zusätzlich an zwei zustandsfreien Orten.</p>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Richtung A — „Stille Spur“</h2>
+    <span class="sec-note">Subtraktion · niedrigstes Risiko</span>
+  </div>
+
+  <p class="lead">These: Der Player wirkt nicht deshalb generisch, weil ihm etwas fehlt, sondern weil er zu viel trägt. Alles weg, was nicht Abspielen ist — die Spur wird der ganze Player, der Aufklapper ist der einzige Rahmen.</p>
+
+  <div class="specimen">
+    <p class="specimen-label">A · Wiedergabe bei 0:51 von 2:14</p>
+    <div class="stage">
+      <div class="panel">
+        <div class="acc">
+          <div class="acc-sum">
+            <span class="lbl"><svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#0D1F3C" stroke-width="2.2" stroke-linecap="round"><path d="M3 10v4M7 6v12M11 3v18M15 7v10M19 10v4"/></svg><span>Audio &amp; Transkript</span></span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="st">2:14</span><span class="chev">▾</span></span>
+          </div>
+          <div class="acc-body">
+            <div class="pa">
+              <div class="pa-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg></div>
+              <div class="pa-track">
+                <div class="wave pa-wave" data-wave data-n="62" data-progress="0.38" data-played="#0D1F3C" data-rest="#C9D4E3"></div>
+                <div class="pa-meta">
+                  <span class="pa-time"><span class="cur">0:51</span> / 2:14</span>
+                  <span class="pa-tools">
+                    <span class="pa-tool"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#697285" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9l5 4"/><path d="M6 9h7a5 5 0 0 1 0 10h-1"/></svg>15</span>
+                    <span class="pa-tool"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#697285" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 5 5 4-5 4"/><path d="M18 9h-7a5 5 0 0 0 0 10h1"/></svg>15</span>
+                    <span class="pa-tool on">1,0×</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Ein Rahmen statt drei. Keine zweite Statuszeile: der Zustand steht in der Spur und im Symbol.</p>
+  </div>
+
+  <div class="specimen">
+    <p class="specimen-label">A · Ruhezustand, noch nicht abgespielt</p>
+    <div class="stage">
+      <div class="panel">
+        <div class="acc">
+          <div class="acc-sum">
+            <span class="lbl"><svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#0D1F3C" stroke-width="2.2" stroke-linecap="round"><path d="M3 10v4M7 6v12M11 3v18M15 7v10M19 10v4"/></svg><span>Audio &amp; Transkript</span></span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="st">2:14</span><span class="chev">▾</span></span>
+          </div>
+          <div class="acc-body">
+            <div class="pa">
+              <div class="pa-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.5v13l11-6.5z"/></svg></div>
+              <div class="pa-track">
+                <div class="wave pa-wave" data-wave data-n="62" data-progress="0" data-played="#0D1F3C" data-rest="#C9D4E3" data-nohead="1"></div>
+                <div class="pa-meta">
+                  <span class="pa-time">2:14</span>
+                  <span class="pa-tools"><span class="pa-tool on">1,0×</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Im Ruhezustand kein Abspielkopf, keine Sprungtasten, eine Zahl: die Länge. Die Sprungtasten erscheinen erst beim ersten Start — sie sind vorher ohne Funktion.</p>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h4>Was das löst</h4>
+      <p>Alle sechs Befunde oben. Die Fläche wird ruhiger als jede andere im Panel und fügt sich vollständig in die Typo-Leiter. Reine Renderer-Änderung, keine neue Farbfamilie, kein neues Verhalten ausser der echten Fortschrittsspur.</p>
+    </div>
+    <div>
+      <h4>Was das nicht löst</h4>
+      <p>Die eigentliche Kritik. „Wirkt generisch“ wird durch Weglassen leiser, nicht beantwortet — am Ende steht ein sehr sauberer, sehr zurückhaltender Standard-Player. Gold erscheint nur als 2&nbsp;px-Kopf und ist bei angehaltener Wiedergabe fast unsichtbar.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Richtung B — „Night-Konsole“</h2>
+    <span class="sec-note">Aussage · mittleres Risiko · Empfehlung</span>
+  </div>
+
+  <p class="lead">These: Die Aufnahme ist das Wertvollste im Eintrag — sie ist der Beweis, dass Voxera das Gespräch geführt hat. Also bekommt sie die einzige dunkle Fläche im Panel und trägt die Marke sichtbar: Gold-Kopfleiste wie im Panel-Kopf, goldener Abspielknopf, goldener Abspielkopf. Drei Gold-Orte, alle drei zustandsfrei.</p>
+
+  <div class="specimen">
+    <p class="specimen-label">B · Wiedergabe bei 0:51 von 2:14</p>
+    <div class="stage">
+      <div class="panel">
+        <div class="acc">
+          <div class="acc-sum">
+            <span class="lbl"><svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#0D1F3C" stroke-width="2.2" stroke-linecap="round"><path d="M3 10v4M7 6v12M11 3v18M15 7v10M19 10v4"/></svg><span>Audio &amp; Transkript</span></span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="st">2:14</span><span class="chev">▾</span></span>
+          </div>
+          <div class="acc-body">
+            <div class="pb">
+              <div class="pb-head">
+                <span class="pb-kicker">Aufnahme</span>
+                <span class="pb-dur">Mitgeschnitten am 8. Aug., 09:12</span>
+              </div>
+              <div class="pb-row">
+                <div class="pb-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#0D1F3C"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg></div>
+                <div>
+                  <div class="wave pb-wave" data-wave data-n="64" data-progress="0.38" data-played="#FFFFFF" data-rest="rgba(255,255,255,.24)"></div>
+                  <div class="pb-meta">
+                    <span class="pb-time"><span class="cur">0:51</span> / 2:14</span>
+                    <span class="pb-tools">
+                      <span class="pb-tool"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9l5 4"/><path d="M6 9h7a5 5 0 0 1 0 10h-1"/></svg>15</span>
+                      <span class="pb-tool"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 5 5 4-5 4"/><path d="M18 9h-7a5 5 0 0 0 0 10h1"/></svg>15</span>
+                      <span class="pb-tool on">1,0×</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Dieselbe Anatomie wie A — nur invertiert und mit den drei Gold-Orten. Die Kopfleiste ist exakt <code>--vx-ui-brand-rule</code>, unverändert aus dem Panel-Kopf.</p>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h4>Warum das nicht aufgesetzt wirkt</h4>
+      <p>Night-Flächen mit Gold-Kicker gibt es im Produkt schon: <code>.activation-panel--night</code> im Assistenten arbeitet genau so. Und die Paarung Night&nbsp;+&nbsp;Gold ist im Panel bereits die Signatur — der Avatar im Kopf (<code>--vx-ui-brand-initials</code>) und seit PR&nbsp;#849 jede Listenzeile. Der Player übernimmt sie, er erfindet sie nicht.</p>
+      <h4 style="margin-top:22px;">Kontrast</h4>
+      <p>Weiss auf <code>#0D1F3C</code> = 15,3:1. Gold auf Night = 8,9:1 — derselbe geprüfte Wert wie bei den Avatar-Initialen. Die stille Zeile bei 62&nbsp;% Weiss liegt bei ≈7:1.</p>
+    </div>
+    <div>
+      <h4>Kosten &amp; Risiko</h4>
+      <p>Der Block ist die visuell lauteste Fläche im Panel. Öffnet jemand den Aufklapper auf dem Handy, füllt er einen guten Teil des Bildschirms — auf 390&nbsp;px muss die untere Zeile umbrechen dürfen, sonst kollidieren Zeit und Werkzeuge.</p>
+      <p>Zweites Risiko: Steht der Player im selben Aufklapper direkt über der hellen Transkript-Karte, treffen zwei sehr verschiedene Flächen aufeinander. Gegenmittel im Muster oben bereits angelegt — der Aufklapper-Grund bleibt Canvas, der Night-Block sitzt als Karte darin, mit Abstand zur Transkript-Karte darunter.</p>
+      <p>Der goldene Abspielknopf ist der Punkt, an dem am ehesten jemand widerspricht. Rückfallposition ohne Konzeptbruch: Knopf weiss auf Night, Gold nur an Leiste und Kopf.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Richtung C — „Gesprächsspur“</h2>
+    <span class="sec-note">Funktion · höchste Kosten · Datenvoraussetzung</span>
+  </div>
+
+  <p class="lead">These: Premium entsteht hier nicht durch Optik, sondern durch etwas, das ein Standard-Player nicht kann. Voxera hat Ton <em>und</em> Transkript für dasselbe Gespräch — heute stehen sie als zwei getrennte Karten untereinander. C macht daraus eine Sache: die Spur wird nach Sprecher geteilt, das Transkript läuft mit, ein Klick auf eine Zeile springt an die Stelle.</p>
+
+  <div class="specimen">
+    <p class="specimen-label">C · Wiedergabe bei 0:51 · Lara oben, Anrufer unten</p>
+    <div class="stage stage--wide">
+      <div class="panel">
+        <div class="acc">
+          <div class="acc-sum">
+            <span class="lbl"><svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#0D1F3C" stroke-width="2.2" stroke-linecap="round"><path d="M3 10v4M7 6v12M11 3v18M15 7v10M19 10v4"/></svg><span>Gespräch</span></span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="st">2:14 · 9 Abschnitte</span><span class="chev">▾</span></span>
+          </div>
+          <div class="acc-body">
+            <div class="pc">
+              <div class="pc-head">
+                <span class="pc-legend">
+                  <span><i style="background:#0D1F3C;"></i>Lara</span>
+                  <span><i style="background:#7C8CA4;"></i>Anrufer</span>
+                </span>
+                <span class="pc-dur"><span style="color:#0D1F3C;font-weight:700;">0:51</span> / 2:14</span>
+              </div>
+              <div class="pc-row">
+                <div class="pc-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg></div>
+                <div class="wave wave--split" data-wave data-n="70" data-progress="0.38" data-split="1" data-played="#0D1F3C" data-played-b="#7C8CA4" data-rest="#C9D4E3" data-rest-b="#DCE3EC"></div>
+              </div>
+              <div class="pc-lines">
+                <div class="pc-line is-past"><span class="ts">0:38</span><span><span class="who">Anrufer</span> — Guten Tag, ich hätte gern eine Offerte für eine Fassadensanierung.</span></div>
+                <div class="pc-line is-now"><span class="ts">0:47</span><span><span class="who">Lara</span> — <span class="txt">Sehr gerne. Damit ich das richtig weitergebe: Geht es um ein Einfamilienhaus?</span></span></div>
+                <div class="pc-line"><span class="ts">0:59</span><span><span class="who">Anrufer</span> — Ja, Baujahr 1994, rund 180 Quadratmeter Fassade.</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Die Balken über der Mitte gehören Lara, die darunter dem Anrufer. Auf einen Blick sichtbar: wer wie lange geredet hat — und wo im Gespräch man gerade ist.</p>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h4>Datenvoraussetzung — hier hakt es</h4>
+      <p>Das Transkript im Datensatz trägt nur <strong>Sprecher und Text</strong> (<code>vxParseTranscriptTurns</code>), keine Zeitstempel. Ohne <code>time_in_call_secs</code> je Turn gibt es weder Sprechertrennung auf der Spur noch Mitlauf noch Klick-zum-Springen. Die ElevenLabs-Conversation-API liefert diese Werte; heute holt <code>elevenlabs-conversation-audio</code> aber nur die Audio-URL. Das ist ein eigener Schritt an der Function und am gespeicherten Feld — nicht im Renderer erledigbar.</p>
+    </div>
+    <div>
+      <h4>Einschätzung</h4>
+      <p>Der stärkste Inhalt der drei, und der einzige, der die Kritik inhaltlich statt optisch beantwortet. Aber: fremder Zuständigkeitsbereich (Function + Datenmodell + Migration), unklarer Aufwand, und für Altbestände ohne Zeitstempel braucht es ohnehin einen Rückfall — nämlich A oder B.</p>
+      <p><strong>Vorschlag: nicht als Alternative behandeln, sondern als Etappe 5b</strong> auf Basis der dann gebauten Spur. A und B sind so geschnitten, dass die Sprechertrennung später nur eine zweite Balkenreihe ergänzt.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Verlauf: „Frühere Kontakte“</h2>
+    <span class="sec-note"><code>renderTimelineHTML</code> · unabhängig von der Player-Wahl</span>
+  </div>
+
+  <p class="lead">Der Verlauf ist beim Panel-Umbau nicht mitgezogen worden. Er wird von <code>renderTimelineHTML</code> gerendert — einer Funktion mit durchgehend inline gesetzten Stilen, die noch die alte Variablengeneration benutzt. Zwei Punkte darin sind harte Fehler, nicht Stil.</p>
+
+  <div class="specimen">
+    <p class="specimen-label">Ist-Zustand · Aufklapper „Verlauf“ mit Timeline darin</p>
+    <div class="stage">
+      <div class="panel">
+        <div class="acc acc--plain">
+          <div class="acc-sum">
+            <span class="lbl"><svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#7C8CA4" stroke-width="2" stroke-linecap="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg><span>Verlauf</span></span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="st">1 früherer Kontakt</span><span class="chev">▾</span></span>
+          </div>
+          <div class="acc-body">
+            <div class="v0">
+              <div class="v0-head">
+                <svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#7C8CA4" stroke-width="2" stroke-linecap="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+                Kontakt-Historie
+                <span class="cnt">2 Ereignisse</span>
+              </div>
+              <div class="v0-body">
+                <div class="v0-tl">
+                  <div class="v0-item">
+                    <div class="v0-dot"></div>
+                    <div class="v0-card">
+                      <div style="display:flex;justify-content:space-between;">
+                        <span class="v0-when">HEUTE · 09:12 UHR</span>
+                        <span class="v0-link">Detail →</span>
+                      </div>
+                      <div class="v0-t">Eingehender Anruf · 2 Min 14 Sek</div>
+                      <div class="v0-m">Offerte · Lead: Heiss</div>
+                      <div class="v0-s">Fassadensanierung Einfamilienhaus, Rückruf gewünscht.</div>
+                    </div>
+                  </div>
+                  <div class="v0-item" style="padding-bottom:0;">
+                    <div class="v0-dot" style="border-color:#059669;opacity:.6;"></div>
+                    <div class="v0-card" style="background:#fff;opacity:.75;">
+                      <div class="v0-when">12.07.2026 · 14:03 UHR</div>
+                      <div style="display:flex;align-items:center;gap:4px;"><span class="v0-t" style="margin-top:0;">Nachfassen: Rückruf</span><span class="v1-badge">✓ Erledigt</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Zwei Überschriften, zwei Zählungen, zwei Zahlen — die sich widersprechen.</p>
+  </div>
+
+  <ul class="findings">
+    <li><b>Die beiden Zählungen widersprechen sich systematisch.</b> Die Kopfzeile des Aufklappers rechnet den offenen Eintrag bewusst heraus (Fix aus Review&nbsp;#848), <code>renderTimelineHTML</code> zählt ihn mit. Ein Erstanrufer liest also „Keine früheren“ neben „1 Ereignis“. Kein Randfall — das passiert bei jedem Eintrag.</li>
+    <li><b>Doppelte Überschrift.</b> Der Aufklapper heisst „Verlauf“, die Karte darin nochmal „Kontakt-Historie“ — mitsamt eigenem Rahmen und eigenem Uhr-Icon im selben Grau.</li>
+    <li><b>Alte Werte.</b> <code>10px</code>-Versalien mit <code>letter-spacing:.05em</code> für die Datumszeile — genau die Sperrung, die die Leiter abgeschafft hat. Punkte und „Detail →“ in <code>#1A6FE8</code>, dem Blau, das die Liste beim Neubau verlassen hat. Farben aus <code>--slate/--ink/--ink2/--surface2</code> statt aus <code>--vx-ui-*</code>; <code>#8A93A6</code> liegt mit 3,09:1 unter AA.</li>
+    <li><b>Eigene Kartensprache.</b> <code>8px</code>-Radien und graue Füllungen statt <code>--vx-ui-row-radius</code> (12&nbsp;px) und weisser Karte mit 0,5&nbsp;px-Linie.</li>
+  </ul>
+
+  <h3 style="margin-top:40px;">Vorschlag V1 — die Zeitleiste bleibt, in der Panel-Sprache</h3>
+  <p>Konservativ: Struktur unverändert, alle Werte auf die Leiter gezogen, innere Karte und innere Zählung entfallen. Die Punkte codieren weiterhin den Typ, aber in den bestehenden Statusfarben statt im pensionierten Blau.</p>
+
+  <h3 style="margin-top:30px;">Vorschlag V2 — Kontaktzeilen statt Zeitleiste</h3>
+  <p>Der Verlauf ist eine Liste früherer Einträge. Genau dafür existiert seit PR&nbsp;#849 eine fertige, geprüfte Zeilenform in der Anfragen-Liste — inklusive Night-Avatar mit Gold. Statt einer zweiten Darstellung derselben Sache benutzt der Verlauf sie.</p>
+
+  <div class="specimen">
+    <p class="specimen-label">V2 · dieselben Daten in der Listenzeilen-Sprache</p>
+    <div class="stage">
+      <div class="panel">
+        <div class="acc acc--plain">
+          <div class="acc-sum">
+            <span class="lbl"><svg class="gi" viewBox="0 0 24 24" fill="none" stroke="#7C8CA4" stroke-width="2" stroke-linecap="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg><span>Verlauf</span></span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="st">2 frühere Kontakte</span><span class="chev">▾</span></span>
+          </div>
+          <div class="acc-body">
+            <div class="v1">
+              <div class="v1-sec">Diesen Monat</div>
+              <div class="v1-row">
+                <div class="v1-ic v1-ic--night"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E8C547" stroke-width="2.2" stroke-linecap="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></div>
+                <div>
+                  <div class="v1-t">Eingehender Anruf · 2:14</div>
+                  <div class="v1-d">Fassadensanierung Einfamilienhaus, Rückruf gewünscht.</div>
+                </div>
+                <div class="v1-time">12. Juli</div>
+              </div>
+              <div class="v1-row">
+                <div class="v1-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C8CA4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg></div>
+                <div>
+                  <div class="v1-t">Rückruf<span class="v1-badge">Erledigt</span></div>
+                  <div class="v1-d">„Kunde erreicht, Termin vor Ort vereinbart.“</div>
+                </div>
+                <div class="v1-time">12. Juli</div>
+              </div>
+              <div class="v1-sec">Älter</div>
+              <div class="v1-row">
+                <div class="v1-ic v1-ic--night"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E8C547" stroke-width="2.2" stroke-linecap="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></div>
+                <div>
+                  <div class="v1-t">Eingehender Anruf · 0:48</div>
+                  <div class="v1-d">Erstkontakt, allgemeine Frage zu Referenzen.</div>
+                </div>
+                <div class="v1-time">3. Mai</div>
+              </div>
+              <div class="v1-more">Alle 6 Ereignisse anzeigen</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Abschnitts-Label („Diesen Monat“ / „Älter“) in derselben Form wie „Braucht dich 2“ auf Heute — die Zeitleistenachse wird dadurch überflüssig, die Chronologie bleibt lesbar.</p>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h4>Für V1</h4>
+      <p>Die Achse zeigt Abstände zwischen Kontakten, die eine Liste nicht zeigt. Kleinster Eingriff, kein Risiko für andere Aufrufstellen.</p>
+    </div>
+    <div>
+      <h4>Für V2</h4>
+      <p>Eine Darstellung weniger im Produkt. Der Verlauf sieht dann aus wie das, was er ist: dieselben Einträge, die in der Anfragen-Liste stehen. Und ein früherer Kontakt ist mit demselben Blick lesbar wie ein aktueller.</p>
+      <p><strong>Geprüft:</strong> <code>renderTimelineHTML</code> hat genau eine Aufrufstelle — <code>vxDv2LoadHistory</code> im Panel. Ein Umbau trifft also keine zweite Fläche, obwohl die Funktion weit oben in der Datei zwischen den Alt-Renderern steht.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Gegenüberstellung</h2>
+    <span class="sec-note">gleiche Grundhygiene in allen drei</span>
+  </div>
+
+  <div class="tablewrap">
+    <table class="matrix">
+      <thead>
+        <tr><th>&nbsp;</th><th>A · Stille Spur</th><th>B · Night-Konsole</th><th>C · Gesprächsspur</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Beantwortet „wirkt generisch“</td><td><span class="mark mark--n">kaum</span> — leiser, nicht eigener</td><td><span class="mark mark--y">ja</span> — sichtbares Markenzeichen</td><td><span class="mark mark--y">ja</span> — über die Funktion</td></tr>
+        <tr><td>Gold sichtbar</td><td>Abspielkopf</td><td>Leiste, Knopf, Abspielkopf</td><td>Abspielkopf, Mitlauf-Marke</td></tr>
+        <tr><td>Gold-Regel eingehalten</td><td><span class="mark mark--y">ja</span></td><td><span class="mark mark--y">ja</span> — alle drei Orte zustandsfrei</td><td><span class="mark mark--y">ja</span></td></tr>
+        <tr><td>Neue Daten nötig</td><td>nein</td><td>nein</td><td><span class="mark mark--n">ja</span> — Zeitstempel je Turn</td></tr>
+        <tr><td>Nur ein Renderer</td><td><span class="mark mark--y">ja</span></td><td><span class="mark mark--y">ja</span></td><td><span class="mark mark--m">ja</span>, aber Function + Feld dazu</td></tr>
+        <tr><td>Risiko auf 390 px</td><td>gering</td><td>mittel — Block dominiert</td><td>hoch — zwei Spuren, enge Zeilen</td></tr>
+        <tr><td>Umfang Schritt 2</td><td>klein</td><td>klein–mittel</td><td>gross, mehrteilig</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Empfehlung</h2>
+    <span class="sec-note">Vorschlag, keine Entscheidung</span>
+  </div>
+
+  <div class="rec">
+    <h3>B, gebaut mit der Disziplin von A — und C als Etappe 5b</h3>
+    <ol>
+      <li><strong>Die Grundhygiene aus A ist in jeder Variante enthalten</strong> und nicht verhandelbar: echte Fortschrittsspur, eine Zeitangabe, ein Rahmen, Phosphor-Icons, 15-Sekunden-Sprünge, Lautstärkeregler raus, zweite Statuszeile raus.</li>
+      <li><strong>Die Haltung kommt von B.</strong> A allein macht die Fläche unauffällig, aber genau das war nie die Kritik — beanstandet wurde, dass Gold nur in kleinen Badges vorkommt statt als Markenzeichen. Der Player ist die visuell dominanteste Fläche im Panel und damit der richtige Ort, das zu ändern.</li>
+      <li><strong>Für den Verlauf: V2.</strong> Er beseitigt zugleich die widersprüchliche Zählung, die doppelte Überschrift und eine überflüssige zweite Darstellung. Die Funktion hat nur eine Aufrufstelle — der Umbau ist vollständig eingegrenzt.</li>
+      <li><strong>C bleibt vorgemerkt.</strong> Erst wenn Zeitstempel je Turn vorliegen; die Spur aus B nimmt die zweite Balkenreihe später ohne Umbau auf.</li>
+    </ol>
+  </div>
+
+  <div class="ask">
+    <h4>Was ich für Schritt 2 brauche</h4>
+    <ul class="findings">
+      <li><b>Richtung:</b> A, B oder B-ohne-Gold-Knopf (Rückfallposition).</li>
+      <li><b>Verlauf:</b> V1 oder V2.</li>
+      <li><b>Gold-Regel:</b> Einverständnis mit der Präzisierung „markieren, nicht füllen“ samt neuem Token <code>--vx-ui-brand-playhead</code>.</li>
+      <li><b>Wellenform-Quelle:</b> echte Amplituden per <code>decodeAudioData</code>, wo das Blob vorliegt (der ElevenLabs-Pfad erzeugt bereits eines), sonst eine aus der Datensatz-ID abgeleitete, pro Eintrag stabile Ersatzspur. Ich würde beides bauen und die Ersatzspur nicht als echte Messung ausgeben.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top:26px;">Sobald die Richtung steht, geht die Umsetzung ausschliesslich in <code>vxRenderModernAudioPlayerHtml</code> / <code>renderTimelineHTML</code> und den zugehörigen CSS-Block — beide werden von <code>vxRenderEntryDetail</code> aus einer Quelle gespeist und wirken damit gleichzeitig in Panel, Vollbild und Mobil. Keine zweite Implementierung.</p>
+</section>
+
+<footer>
+  Etappe 5, Schritt 1 · Exploration ohne Codeänderung · Muster als Nachbau aus dem laufenden Markup, ohne die geladenen Produktschriften
+</footer>
+
+</div>
+
+<script>
+(function(){
+  // Sprachähnliche, aber deterministische Hüllkurve — dieselbe Spur bei
+  // jedem Aufruf, damit die Muster vergleichbar bleiben.
+  function amp(i, n){
+    var a = Math.sin(i*0.71)*0.50 + Math.sin(i*0.23+1.3)*0.30 + Math.sin(i*1.91+0.7)*0.20;
+    var h = 0.30 + Math.abs(a)*0.70;
+    if (i % 19 === 4 || i % 19 === 5) h *= 0.22;      // Atempausen
+    if (i % 31 === 12) h *= 0.30;
+    var edge = Math.min(1, Math.min(i, n-1-i)/4 + 0.35);
+    return Math.max(0.14, Math.min(1, h*edge));
+  }
+  // Sprecherwechsel in Blöcken statt pro Balken
+  function speaker(i){ return Math.floor(i/7) % 2 === 0 ? 0 : 1; }
+
+  document.querySelectorAll('[data-wave]').forEach(function(el){
+    var n = parseInt(el.dataset.n, 10) || 56;
+    var prog = parseFloat(el.dataset.progress) || 0;
+    var split = el.dataset.split === '1';
+    var played = el.dataset.played, rest = el.dataset.rest;
+    var playedB = el.dataset.playedB || played, restB = el.dataset.restB || rest;
+    var cut = Math.round(n * prog);
+    var frag = document.createDocumentFragment();
+
+    for (var i = 0; i < n; i++){
+      var s = document.createElement('span');
+      var h = amp(i, n);
+      var isPast = i < cut;
+      if (split){
+        var who = speaker(i);
+        s.style.height = Math.round(h*20) + 'px';
+        s.style.alignSelf = who === 0 ? 'flex-start' : 'flex-end';
+        s.style.marginTop = who === 0 ? '4px' : '0';
+        s.style.marginBottom = who === 1 ? '4px' : '0';
+        s.style.background = isPast ? (who === 0 ? played : playedB) : (who === 0 ? rest : restB);
+      } else {
+        s.style.height = Math.round(h*100) + '%';
+        s.style.background = isPast ? played : rest;
+      }
+      frag.appendChild(s);
+    }
+    el.appendChild(frag);
+
+    if (prog > 0 && el.dataset.nohead !== '1'){
+      var head = document.createElement('i');
+      head.className = 'head';
+      head.style.left = 'calc(' + (prog*100).toFixed(2) + '% - 1px)';
+      el.appendChild(head);
+    }
+  });
+
+  // Ist-Zustand: exakt das heutige Muster, inkl. der dauerhaft
+  // hervorgehobenen ersten 15 von 42 Balken.
+  document.querySelectorAll('[data-legacy-wave]').forEach(function(el){
+    for (var i = 0; i < 42; i++){
+      var h = 18 + ((i*7) % 28);
+      if (i % 5 === 0) h += 12;
+      if (i > 24) h = Math.max(12, h - 10);
+      var s = document.createElement('span');
+      s.style.height = h + '%';
+      if (i < 15) s.style.opacity = '.8';
+      el.appendChild(s);
+    }
+  });
+})();
+</script>

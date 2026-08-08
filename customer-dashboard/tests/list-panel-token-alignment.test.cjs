@@ -96,12 +96,17 @@ test('das Detail-Panel bleibt auf dem geteilten --vx-ui-row-* Satz, nicht den Li
   assert.match(rule('.vx-dv2-action-title'), /font-size:var\(--vx-ui-row-title-size\)/);
 });
 
-test('der Audio-Player bleibt unangetastet (eigener Auftrag laut #848)', () => {
-  for (const selector of ['.vx-audio-modern__btn', '.vx-audio-modern__speed']) {
+// Diese Regel hiess bis Etappe 5 "der Audio-Player bleibt unangetastet
+// (eigener Auftrag laut #848)" und fixierte, dass .vx-audio-modern__btn /
+// __speed weiter --vx-ui-row-icon-bg ziehen. Der eigene Auftrag ist mit
+// Etappe 5 ausgefuehrt, die beiden Klassen existieren nicht mehr. Was
+// bleibt, ist der Grund der Regel: der Player darf sich nicht an den
+// Listen-Tokens bedienen — er ist eine Flaeche, keine Zeile.
+test('der Audio-Player zieht keine Listen-Tokens', () => {
+  for (const selector of ['.vx-audio-modern', '.vx-audio-modern__play', '.vx-audio-modern__tool']) {
     const decl = rule(selector);
     assert.ok(!/--vx-ui-list-/.test(decl),
       `${selector} zieht faelschlich einen Listen-Token`);
-    assert.match(decl, /var\(--vx-ui-row-icon-bg/, selector);
   }
 });
 
