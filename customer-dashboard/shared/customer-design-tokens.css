@@ -357,6 +357,23 @@
   --vx-ui-lead-warm: #D9A93A;
   --vx-ui-lead-cold: #94A3B8;
 
+  /* ---- Quiet text roles (single source for both screens) ------ */
+  /* Bis hierher stand #8A93A6 achtmal unverbunden im Code: fünfmal als
+     Literal im Heute-Block (Zeit, Abschnitts-Label, Zähler, Lara-Zeile,
+     Fusszeile) und dreimal als Kopie in den --vx-ui-* Tokens weiter unten.
+     Ein gemeinsames Token gab es nie — die beiden Screens hielten denselben
+     Wert nur zufällig.
+
+     #8A93A6 erreichte auf Weiss 3.09:1 und lag damit unter WCAG AA für
+     Fliesstext. --vx-ui-meta-color liegt bei 4.83:1 auf Weiss und 4.55:1
+     auf Canvas und bleibt sichtbar leichter als der Sekundärtext, sodass
+     die Hierarchie "Name → Beschreibung → Zeit" erhalten bleibt.
+
+     Wer eine ruhige Beschriftung braucht, nimmt eines dieser beiden Tokens
+     — kein neues Literal. */
+  --vx-ui-meta-color: #697285;       /* Zeit, Labels, Zähler: 4.83:1 auf Weiss */
+  --vx-ui-text-secondary: #5B6472;   /* Beschreibungs-/Fliesstext: 5.98:1 auf Weiss */
+
   /* ---- List row (Heute card language) ------------------------- */
   /* The "Braucht dich" cards on Heute are the agreed reference for every
      scannable list in the product. These tokens carry their measured
@@ -375,10 +392,10 @@
   --vx-ui-row-title-weight: 700;
   --vx-ui-row-title-color: #0D1F3C;
   --vx-ui-row-time-size: 12px;
-  --vx-ui-row-time-color: #8A93A6;
+  --vx-ui-row-time-color: var(--vx-ui-meta-color);
   --vx-ui-row-desc-size: 13px;
   --vx-ui-row-desc-leading: 1.42;
-  --vx-ui-row-desc-color: #5B6472;
+  --vx-ui-row-desc-color: var(--vx-ui-text-secondary);
   --vx-ui-row-icon-size: 36px;
   --vx-ui-row-icon-bg: #F1F5F9;
   --vx-ui-row-icon-color: #94A3B8;
@@ -386,10 +403,16 @@
   /* Section header: dot + label + count, exactly like "Braucht dich 2". */
   --vx-ui-section-label-size: 12px;
   --vx-ui-section-label-weight: 600;
-  --vx-ui-section-label-color: #8A93A6;
+  --vx-ui-section-label-color: var(--vx-ui-meta-color);
   --vx-ui-section-dot-size: 7px;
-  --vx-ui-section-count-bg: #F0F1F4;
-  --vx-ui-section-count-color: #8A93A6;
+  /* Weiss mit Haarlinie statt grauer Füllung: in der früheren #F0F1F4-Füllung
+     kam --vx-ui-meta-color nur auf 4.28:1. Ein Wert, der auch dort AA hält,
+     müsste so dunkel werden, dass er vom Beschreibungstext kaum noch zu
+     unterscheiden wäre — die Pille gibt stattdessen ihre Tönung auf und
+     übernimmt die Kartensprache (weiss + 0.5px Rahmen). */
+  --vx-ui-section-count-bg: #FFFFFF;
+  --vx-ui-section-count-border: #D9E1EC;
+  --vx-ui-section-count-color: var(--vx-ui-meta-color);
 
   /* ---- Skeleton ---------------------------------------------- */
   --vx-ui-skeleton-base: #E9EEF5;

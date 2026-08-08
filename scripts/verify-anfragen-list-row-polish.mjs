@@ -108,4 +108,72 @@ for (const forbidden of [
   '.vx-requests-icon-action.is-overflow{background:#f1f5f9'
 ]) assert.ok(!source.includes(forbidden), 'alte gefüllte Button-Variante ist zurück: ' + forbidden);
 
+// ── 5. Ruhige Textfarben: EIN Token für Heute und Anfragen ─────────────────
+// Die beiden Screens hielten #8A93A6 vorher nur zufällig gemeinsam — fünfmal
+// als Literal im Heute-Block, dreimal als Kopie in den Tokens. Diese Prüfung
+// hält die Kopplung fest UND den Kontrastwert selbst, damit weder ein neues
+// Literal noch ein aufgehellter Token unbemerkt durchrutscht.
+{
+  const TOKENS = 'customer-dashboard/shared/customer-design-tokens.css';
+  const tokens = fs.readFileSync(TOKENS, 'utf8');
+
+  // Kein Screen darf die Meta-Farbe wieder als Literal setzen. (Im
+  // Token-Kommentar steht #8A93A6 als Beleg der Historie und ist erlaubt.)
+  assert.ok(!/color\s*:\s*#8A93A6/i.test(source),
+    'ruhige Textfarbe steht wieder als Literal in index.html statt als --vx-ui-meta-color');
+  assert.ok(!/color\s*:\s*#8A93A6/i.test(tokens),
+    'ein Token setzt die ruhige Textfarbe wieder direkt statt über --vx-ui-meta-color');
+
+  // Beide Screens ziehen dieselbe Quelle.
+  for (const rule of [
+    '.vx-handover-card-time { font-size:12px; color:var(--vx-ui-meta-color);',
+    '.vx-handover-footlink { margin-top:18px; font-size:12px; color:var(--vx-ui-meta-color);'
+  ]) assert.ok(source.includes(rule), 'Heute-Screen zieht die ruhige Textfarbe nicht mehr aus dem Token: ' + rule);
+  for (const alias of [
+    '--vx-ui-row-time-color: var(--vx-ui-meta-color);',
+    '--vx-ui-section-label-color: var(--vx-ui-meta-color);',
+    '--vx-ui-section-count-color: var(--vx-ui-meta-color);',
+    '--vx-ui-row-desc-color: var(--vx-ui-text-secondary);'
+  ]) assert.ok(tokens.includes(alias), 'Anfragen-Token hängt nicht mehr am gemeinsamen Wert: ' + alias);
+
+  // WCAG AA (4.5:1) auf den Flächen, auf denen diese Rollen tatsächlich liegen.
+  const luminance = (hex) => {
+    const parts = hex.replace('#', '').match(/../g).map((pair) => parseInt(pair, 16) / 255)
+      .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * parts[0] + 0.7152 * parts[1] + 0.0722 * parts[2];
+  };
+  const ratio = (fg, bg) => {
+    const [a, b] = [luminance(fg), luminance(bg)];
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+  const value = (name) => {
+    const found = new RegExp(`${name}:\\s*(#[0-9A-Fa-f]{6})`).exec(tokens);
+    assert.ok(found, `Token ${name} nicht gefunden oder kein Hex-Wert`);
+    return found[1];
+  };
+
+  const meta = value('--vx-ui-meta-color');
+  const secondary = value('--vx-ui-text-secondary');
+  const countBg = value('--vx-ui-section-count-bg');
+  const CARD = '#FFFFFF';
+  const CANVAS = '#F7F8FA';
+  const LARA_BUBBLE = '#EEF1F6';
+
+  for (const [label, fg, bg] of [
+    ['Meta auf Karte', meta, CARD],
+    ['Meta auf Canvas', meta, CANVAS],
+    ['Meta in der Zähler-Pille', meta, countBg],
+    ['Sekundärtext auf Karte', secondary, CARD],
+    ['Lara-Signatur auf der Bubble', secondary, LARA_BUBBLE]
+  ]) {
+    const measured = ratio(fg, bg);
+    assert.ok(measured >= 4.5,
+      `${label}: ${fg} auf ${bg} erreicht nur ${measured.toFixed(2)}:1 — WCAG AA verlangt 4.5:1`);
+  }
+
+  // Die Hierarchie muss lesbar bleiben: Meta sichtbar leichter als Fliesstext.
+  assert.ok(luminance(meta) > luminance(secondary) * 1.25,
+    'ruhige Textfarbe ist so dunkel geworden, dass sie sich nicht mehr vom Sekundärtext abhebt');
+}
+
 console.log('Anfragen list row polish verification passed.');

@@ -6675,9 +6675,11 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-date-count{
   display:inline-flex;
   align-items:center;
   justify-content:center;
+  box-sizing:border-box;
   min-width:16px;
   height:16px;
   padding:0 5px;
+  border:0.5px solid var(--vx-ui-section-count-border);
   border-radius:8px;
   background:var(--vx-ui-section-count-bg);
   color:var(--vx-ui-section-count-color);
@@ -7510,13 +7512,17 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             font-family:var(--vx-font-serif); font-weight:400; font-size:18px;
             line-height:1.48; color:var(--vx-color-night,#0D1F3C); margin:0;
           }
-          .vx-lara-meta { margin-top:10px; font-size:12px; color:#8A93A6; font-family:var(--vx-font-handover-ui); }
+          /* Diese Zeile liegt als einzige Meta-Angabe auf der getoenten Bubble
+             (#EEF1F6), wo --vx-ui-meta-color nur 4.27:1 erreicht. Sie nimmt
+             deshalb die Sekundaer-Rolle (5.28:1 auf der Bubble) — inhaltlich
+             ist sie ohnehin die Signatur der Nachricht und keine Listenzeit. */
+          .vx-lara-meta { margin-top:10px; font-size:12px; color:var(--vx-ui-text-secondary); font-family:var(--vx-font-handover-ui); }
 
           .vx-handover-section { margin-top:22px; }
           .vx-handover-eyebrow {
             display:flex; align-items:center; gap:7px; margin-bottom:10px;
             font-family:var(--vx-font-handover-ui);
-            font-size:12px; font-weight:600; color:#8A93A6; letter-spacing:0; text-transform:none;
+            font-size:12px; font-weight:600; color:var(--vx-ui-meta-color); letter-spacing:0; text-transform:none;
           }
           .vx-handover-eyebrow-dot {
             flex:0 0 auto; width:7px; height:7px; border-radius:50%;
@@ -7526,7 +7532,9 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           .vx-handover-count {
             display:inline-flex; align-items:center; justify-content:center;
             min-width:16px; height:16px; padding:0 5px; border-radius:8px;
-            font-size:11px; font-weight:600; color:#8A93A6; background:#F0F1F4;
+            font-size:11px; font-weight:600; color:var(--vx-ui-section-count-color);
+            background:var(--vx-ui-section-count-bg);
+            border:0.5px solid var(--vx-ui-section-count-border);
           }
 
           .vx-handover-rail { position:relative; padding-left:16px; display:flex; flex-direction:column; gap:12px; }
@@ -7569,7 +7577,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           .vx-handover-card-main { flex:1; min-width:0; }
           .vx-handover-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
           .vx-handover-card-title { font-weight:700; font-size:14px; color:var(--vx-color-night,#0D1F3C); }
-          .vx-handover-card-time { font-size:12px; color:#8A93A6; white-space:nowrap; flex:0 0 auto; }
+          .vx-handover-card-time { font-size:12px; color:var(--vx-ui-meta-color); white-space:nowrap; flex:0 0 auto; }
           .vx-handover-card-desc { margin-top:4px; font-size:13px; color:#5B6472; line-height:1.42; }
           .vx-handover-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:16px; margin-top:12px; }
           .vx-handover-btn {
@@ -7594,7 +7602,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           body.vx-customer-design-foundation .vx-all-clear-title { font-family:var(--vx-font-serif); font-weight:600; font-size:25px; color:var(--vx-color-night,#0D1F3C); margin:0 0 8px; }
           .vx-all-clear-text { font-size:14px; color:#5B6472; max-width:320px; margin:0 auto; line-height:1.5; }
 
-          .vx-handover-footlink { margin-top:18px; font-size:12px; color:#8A93A6; text-align:center; font-family:var(--vx-font-handover-ui); }
+          .vx-handover-footlink { margin-top:18px; font-size:12px; color:var(--vx-ui-meta-color); text-align:center; font-family:var(--vx-font-handover-ui); }
           .vx-handover-footlink a { color:var(--vx-color-night,#0D1F3C); font-weight:600; text-decoration:underline; cursor:pointer; }
         </style>
         <div class="tab-page active" id="tab-dashboard">
