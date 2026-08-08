@@ -118,6 +118,11 @@ Einzelfelder wechseln.
 Actions → *DB Security Invariants (Produktion)* → **Run workflow**. Das Ergebnis
 steht als Tabelle in der Step Summary.
 
+Erster erfolgreicher Lauf am 2026-08-08 gegen die Produktions-DB:
+**210 Invarianten bestanden, 0 verletzt, 50 übersprungen** (übersprungen sind
+leere Tabellen, Tabellen ohne fremde Mandantenzeilen, die anon-INSERT-Pfade und
+die elf Migrationen ohne Ledger-Eintrag — jeweils mit Begründung im Bericht).
+
 ## Was geprüft wird
 
 | Gruppe | Prüft | Art |

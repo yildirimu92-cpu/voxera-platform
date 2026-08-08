@@ -31,12 +31,6 @@ on:
   push:
     branches:
       - main
-      # TEMPORAER, wird vor dem Merge entfernt: `workflow_dispatch` steht erst
-      # zur Verfuegung, wenn die Datei auf dem Default-Branch liegt, und der
-      # PR-Trigger ist aus gutem Grund weg (siehe oben). Ohne diese Zeile liesse
-      # sich der erste echte Lauf gar nicht beobachten -- und ein Check, der
-      # ungetestet gemergt wird, waere in diesem PR besonders unpassend.
-      - claude/ci-p0-security-db-check-phf4us
   # Der eigentliche Schutz: Drift entsteht auch OHNE Commit (manuelle Aenderung,
   # nie angewandte Migration, zurueckgesetzte Policy). Nur ein zeitgesteuerter
   # Lauf gegen die echte DB findet das.
