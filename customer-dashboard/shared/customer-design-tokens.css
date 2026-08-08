@@ -29,6 +29,25 @@
   --vx-color-gold: #E8C547;         /* highlight / plan / badge accent */
   --vx-color-sand: #F5EDD0;
 
+  /* ---- Color / bestaetigende Aktion ------------------------- */
+  /* Night ist die Farbe der primaeren, bestaetigenden Aktion — ueberall,
+     nicht nur in Dialogen. Brand-Blau bleibt Akzent: Links, Auswahl,
+     Chips, Fokusring, Fortschritt. Vor dieser Zusammenfuehrung trugen
+     Primaerbuttons drei verschiedene Werte (#1A6FE8 klassische Modals,
+     #0D1F3C Detail-Vollansicht, #0F2347 Assistent) und der Navy-Hover
+     zwei (#13284D, #132A52).
+     Primaerbuttons ziehen ihre Farbe ab hier ausschliesslich hierher. */
+  --vx-action-primary: var(--vx-color-night);
+  --vx-action-primary-hover: #13284D;
+  --vx-action-primary-text: #FFFFFF;
+  --vx-action-primary-shadow: 0 1px 3px rgba(13, 31, 60, .16);
+  /* Einzige sanktionierte Ausnahme: primaere Aktion auf Night-Grund, wo
+     Night auf Night unsichtbar waere (Assistent-Akkordeon-Body). Steht
+     hier als benannte Ausnahme statt als hartkodiertes Blau in einer
+     Override-Regel. */
+  --vx-action-primary-on-night: var(--vx-color-brand);
+  --vx-action-primary-on-night-hover: #1560C8;
+
   /* ---- Color / feedback ------------------------------------ */
   --vx-color-success: #059669;
   --vx-color-success-bg: #ECFDF5;

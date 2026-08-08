@@ -147,10 +147,10 @@ body.vx-customer-design-foundation .vx-ap-btn {
   gap: 7px;
   min-height: 40px;
   padding: 9px 14px;
-  border: 1px solid var(--vx-brand-dark);
+  border: 1px solid var(--vx-action-primary);
   border-radius: var(--vx-radius-control);
-  background: var(--vx-brand-dark);
-  color: #ffffff;
+  background: var(--vx-action-primary);
+  color: var(--vx-action-primary-text);
   font-family: var(--vx-font-ui);
   font-size: 14px;
   font-weight: 700;

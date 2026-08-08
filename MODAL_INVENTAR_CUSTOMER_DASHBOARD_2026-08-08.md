@@ -27,14 +27,22 @@ Einzelfall**, sondern die Regel für die gesamte klassische Modalfamilie. Die
 Detailansicht direkt dahinter zeigt gleichzeitig Night-Navy. Beide sind im
 selben Klick-Pfad sichtbar.
 
-Dazu kommen **vier Button-Geometrien**:
+Dazu kommen **drei Button-Geometrien** (gemessen, siehe Korrektur unten):
 
 | Klasse | Höhe | Radius | Vorkommen |
 |---|---|---|---|
 | `.btn` | 44px | 10px (`--btn-radius`) | klassische Modals |
-| `.modal-btn-p` / `.modal-btn-s` | 42px | 11px (`!important`-Override) | Plan & Optionen |
+| `.modal-btn-p` / `.modal-btn-s` | 44px | 10px | Plan & Optionen |
 | `.vx-ap-btn` | 40px | 12px (`--vx-radius-control`) | Assistent |
 | `.vx-dv2-btn` | 32px | 999px (Pille) | Detail-Vollansicht |
+
+> **Korrektur (bei S1 gemessen):** Diese Tabelle nannte zuerst vier Geometrien
+> mit `.modal-btn-p` auf 42px/11px — das ist der Wert, wie er in der CSS-Regel
+> steht. Eine spätere Regel erzwingt `min-height:44px; height:44px;
+> border-radius:10px` mit `!important` für `.modal-btn-p`, `.modal-btn-s` und
+> `.modal-btn-danger`. Im Browser sind es also 44px/10px, identisch mit `.btn`.
+> Der Umfang von S5 schrumpft entsprechend auf zwei zusammenzuführende
+> Geometrien statt drei.
 
 Der Modal-Radius selbst ist dagegen konsistent: **18px** (`--vx-radius-modal`)
 in allen Containern der klassischen Familie, im Support-Modal und im
@@ -282,7 +290,7 @@ bleibt Akzentfarbe für Links, Auswahl, Chips, Fokusring und Fortschritt.
 5. **`#0F2347` ist kein eigener Schritt mehr.** Es ist dieselbe Zeile wie die
    Token-Umstellung — der ursprüngliche Schritt 2 geht in Schritt 1 auf.
 
-### Phase 1 — Farbe und Wert
+### Phase 1 — Farbe und Wert — **erledigt**
 
 **S1 · Semantisches Token einführen und alle Primärbuttons darauf zeigen.**
 `--vx-action-primary: var(--vx-color-night)` und
@@ -292,10 +300,34 @@ bleibt Akzentfarbe für Links, Auswahl, Chips, Fokusring und Fortschritt.
 mitgezogen oder entfernt. `#132A52` wird auf `#13284D` vereinheitlicht.
 Blau bleibt unverändert als `--vx-color-brand` für Akzentrollen.
 
-**S2 · Sichtprüfung der 28 Nicht-Dialog-Stellen**, Desktop und Mobile.
-Erwarteter Sonderfall: Buttons auf dunklem Grund — der Accordion-Body unter
-`#tab-assistent` hat Blau genau deshalb festgeschrieben. Dort braucht es eine
-helle Variante, nicht Navy auf Navy.
+**S2 · Sichtprüfung der Nicht-Dialog-Stellen**, Desktop und Mobile.
+Erwarteter Sonderfall bestätigt: der Accordion-Body unter `#tab-assistent`
+steht selbst auf `#0D1F3C`. Er bleibt als einzige **benannte** Ausnahme blau,
+über `--vx-action-primary-on-night` statt über hartkodiertes Blau in einer
+Override-Regel.
+
+**Ergebnisse von S1/S2:**
+
+- Es waren **sechs** blau-festschreibende Regeln, nicht vier.
+  Die fünfte (`.modal-btn-p` mit `!important`, weiter unten im Dokument als die
+  bereits bekannte) wurde erst durch die Laufzeitmessung sichtbar: der Button
+  blieb blau, obwohl beide vorher gefundenen Regeln umgestellt waren. Die
+  sechste (`.dpr-btn-primary`, frühe Definition) wird von einer späteren
+  `!important`-Regel überstimmt und war deshalb in keiner Messung sichtbar —
+  sie wurde beim statischen Nachlauf gefunden und mit umgestellt, weil sie
+  sonst wieder greift, sobald jemand die `!important`-Regeln aufräumt.
+- Alle 14 geprüften Primärbutton-Kontexte liefern jetzt Grund `#0D1F3C`,
+  Hover `#13284D`, Text `#FFFFFF`. Die Night-auf-Night-Ausnahme greift
+  (`#1A6FE8` / Hover `#1560C8`).
+- Kontrastmessung über alle im DOM vorhandenen Primärbuttons: kein Button
+  verschwindet auf seinem Grund, Textkontrast überall ≥ 4.5:1
+  (Night auf hellen Flächen: 15–16:1). Die Messung deckt die statisch
+  vorhandenen Buttons ab; datenabhängig gerenderte Buttons nutzen dieselben
+  Klassen und damit dasselbe Token.
+- `--vx-brand-dark` ist jetzt Alias auf Night. Damit fällt `#0F2347` nicht nur
+  im Assistent-Button, sondern in allen sieben Flächen dieser Familie.
+- Akzentrollen unverändert: `.btn--secondary`, `.vx-modal-chip.is-active`,
+  Fokusring und Fortschritt tragen weiterhin Blau.
 
 ### Phase 2 — Barrierefreiheit *(unabhängig von Phase 1, eigener PR)*
 
@@ -333,10 +365,25 @@ klären: Toast über die Support-Anfrage (`100000`) heben oder Support senken.
 **S9 · `#vx-preview-modal` entkoppeln** und als tot dokumentieren.
 **S10 · Löschung als eigener Mini-PR.**
 
-### Offene Punkte
+### Entschieden
 
-- **Grün als Aktions- oder Zustandsfarbe.** `.vx-dv2-btn-done` („Erledigen“,
-  `#ECFDF5` auf `#047857`) löst den Bestätigen-Dialog aus, dessen Button nach
-  S1 navy ist. Soll die Bestätigung den Ton des Auslösers erben, oder ist Grün
-  ein Zustands- und kein Aktionston? Betrifft S6.
-- **Primärbuttons auf dunklem Grund** — Ergebnis von S2.
+- **Grün ist Zustandston, kein Aktionston.** `.vx-dv2-btn-done` („Erledigen“)
+  bleibt grün als Abschluss-/Erfolgssignal, der Bestätigen-Dialog dahinter
+  bleibt Night — die Bestätigung ist die primäre Handlung *in diesem Dialog*
+  und erbt nicht die Farbe ihres Auslösers. Andernfalls hinge die
+  Bestätigungsfarbe von der Auslöserfarbe ab, was die Zweiteilung nur an eine
+  neue Stelle verschöbe. Passt zum bestehenden Vier-Farben-System:
+  Night = Marke und primäre Aktion, Rot = Dringlichkeit, Gold = Lead-Qualität,
+  Grün = Abschluss. Gilt für S6.
+- **Primärbuttons auf dunklem Grund** — eine Fläche betroffen
+  (`#tab-assistent` Accordion-Body), als benannte Ausnahme gelöst.
+
+### Neu aufgefallen, ausserhalb des Umfangs
+
+- **Zwei Akzent-Blau nebeneinander:** `--vx-color-brand: #1A6FE8` (Tokendatei,
+  kanonisch) gegen `--vx-brand: #3478ed` (`customer-design-system.css`, 21
+  Nutzungen: Filter-Pillen, Auswahl-Rahmen, Icon-Flächen, Fokusring). Dieselbe
+  Drift-Mechanik wie bei `#0F2347`, nur eine Ebene weiter — diesmal in der
+  Akzent- statt in der Aktionsfarbe. Nicht Teil von S1, weil S1 die
+  Aktionsfarbe zusammenführt und Blau bewusst unberührt lässt. Kandidat für
+  einen eigenen Schritt nach Phase 3.
