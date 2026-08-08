@@ -18285,12 +18285,23 @@ window.vxEnsureNoOrphanDetailView = vxEnsureNoOrphanDetailView;
 window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
 
-async function buildCallHistory(phoneNumber) {
+// options.strict = true: Fehler werden geworfen statt als leere Liste
+// zurueckgegeben. Der Normalfall (ohne Option) bleibt unveraendert, weil die
+// Timeline eine leere Liste sauber rendert und dort kein Aufrufer zwischen
+// "nichts da" und "nicht geladen" unterscheiden muss. Wer eine Zaehlangabe
+// anzeigt, muss das sehr wohl — sonst meldet ein fehlgeschlagener Ladevorgang
+// "0 Kontakte".
+async function buildCallHistory(phoneNumber, options) {
+  var strict = !!(options && options.strict);
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
-  if (!sb) { return []; }
-  if (!phoneNumber || phoneNumber === 'undefined') { 
+  if (!sb) {
+    if (strict) throw new Error('buildCallHistory: kein Auth-Client verfügbar');
+    return [];
+  }
+  if (!phoneNumber || phoneNumber === 'undefined') {
     console.warn('buildCallHistory: phoneNumber is empty');
-    return []; 
+    if (strict) throw new Error('buildCallHistory: keine Telefonnummer');
+    return [];
   }
   try {
     // calls table only has 'caller_phone' field (no phone_number column)
@@ -18347,6 +18358,7 @@ async function buildCallHistory(phoneNumber) {
     return history;
   } catch (error) {
     console.error('Error building call history:', error);
+    if (strict) throw error;
     return [];
   }
 }
@@ -36784,12 +36796,24 @@ body:has(#tab-archiv.active) .content{
      auffälligste Unterschied, noch vor den Abständen. */
   font-family:var(--vx-ui-row-font);
 }
-.vx-dv2-header{display:flex;align-items:flex-start;gap:12px;padding:14px 14px 12px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-color-canvas,#F7F8FA);}
+/* Der Gold-Streifen (2026-08-08): das eine sichtbare Markenzeichen im Panel.
+   Er sitzt hier und nicht an einer Statusfläche, weil er KONSTANT ist —
+   jeder Eintrag trägt denselben Streifen. Sobald er sich je nach Zustand
+   ändern würde, konkurriert er mit der Gold-Rampe der Lead-Qualität, und
+   Gold trüge wieder zwei Bedeutungen. Siehe --vx-ui-brand-rule. */
+.vx-dv2-header{position:relative;display:flex;align-items:flex-start;gap:12px;padding:16px 14px 12px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-color-canvas,#F7F8FA);}
+.vx-dv2-header::before{content:'';position:absolute;top:0;left:0;right:0;height:var(--vx-ui-brand-rule-height,3px);background:var(--vx-ui-brand-rule);}
 /* 40px wie der Lara-Avatar auf Heute, statt 44px — zwischen dem 36px-Icon
-   der Listenzeile und dem alten Wert. */
-.vx-dv2-avatar{flex-shrink:0;width:40px;height:40px;border-radius:50%;background:var(--vx-color-night,#0D1F3C);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;}
+   der Listenzeile und dem alten Wert. Die Initialen tragen das Marken-Gold
+   auf Night (8.9:1), zweiter und letzter ornamentaler Gold-Ort im Panel. */
+.vx-dv2-avatar{flex-shrink:0;width:40px;height:40px;border-radius:50%;background:var(--vx-color-night,#0D1F3C);color:var(--vx-ui-brand-initials,#E8C547);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;letter-spacing:.01em;}
 .vx-dv2-identity{flex:1;min-width:0;}
-.vx-dv2-title{font-weight:var(--vx-ui-row-title-weight);font-size:15px;color:var(--vx-ui-row-title-color);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Erste Stufe der Typo-Leiter (2026-08-08): 20px statt 15px. Vorher lagen
+   Name, Anliegen, Kartenköpfe und Fliesstext alle zwischen 12 und 15px —
+   die Fläche hatte damit keinen Einstiegspunkt. Zwei Zeilen statt Ellipse,
+   weil Aufgabentitel ("Rückruf Herr Wyss — Termin bestätigen") sonst
+   schon im Panel abgeschnitten werden. */
+.vx-dv2-title{font-weight:var(--vx-ui-row-title-weight);font-size:20px;color:var(--vx-ui-row-title-color);line-height:1.25;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 /* Die Nummer stand als einziges Element im hellen #1A6FE8, das die Liste
    beim Neubau als Flächen- und Akzentfarbe verlassen hat. */
 .vx-dv2-phone{color:var(--vx-color-night,#0D1F3C);font-size:13px;font-weight:500;margin-top:1px;}
@@ -36811,7 +36835,16 @@ body:has(#tab-archiv.active) .content{
 /* Karte exakt wie die Listenzeile: 0.5px #D9E1EC statt der deutlich
    helleren rgba(13,31,60,.07), Polsterung 12px 14px statt 14px rundum. */
 .vx-dv2-card{background:var(--vx-ui-row-bg);border-radius:var(--vx-ui-row-radius);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);padding:var(--vx-ui-row-padding);}
-.vx-dv2-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-12px -14px 10px;padding:10px 14px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);font-weight:var(--vx-ui-row-title-weight);font-size:13px;color:var(--vx-ui-row-title-color);}
+/* Kartenkopf auf die Label-Stufe der Leiter (12px/600 in der Meta-Rolle)
+   statt 13px/700 in Night. Vorher stand er im selben Gewicht wie der Name
+   im Kopf und im selben Gewicht wie die Aufklapper darunter — drei Ebenen
+   in einer Stimme.
+
+   Die Farbe bleibt Night: die Feld-Labels IM Kartenkörper (.vx-dv2-info-label)
+   tragen dieselbe Grösse und dasselbe Gewicht in der Meta-Rolle, und ohne den
+   Farbunterschied wäre der Kartenkopf von den Labels darunter nicht mehr zu
+   unterscheiden. */
+.vx-dv2-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-12px -14px 10px;padding:10px 14px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);font-weight:var(--vx-ui-section-label-weight);font-size:var(--vx-ui-section-label-size);color:var(--vx-ui-row-title-color);}
 .vx-dv2-card-head>div{display:flex;align-items:center;gap:7px;}
 .vx-dv2-card-head i{color:var(--vx-ui-icon-quiet);}
 /* Abschnitts-Label ohne Versalien und Sperrung, in der Meta-Rolle der
@@ -36833,18 +36866,62 @@ body:has(#tab-archiv.active) .content{
 .vx-dv2-note{width:100%;min-height:84px;padding:10px 12px;border:var(--vx-ui-row-border-width) solid var(--vx-ui-field-border,#D9E1EC);border-radius:var(--vx-ui-field-radius,10px);font-size:13px;resize:vertical;box-sizing:border-box;font-family:var(--vx-ui-row-font);background:var(--vx-ui-field-bg,#fff);color:var(--vx-ui-row-title-color);line-height:1.55;}
 .vx-dv2-note:focus{outline:0;border-color:var(--vx-color-night,#0D1F3C);box-shadow:0 0 0 3px rgba(13,31,60,.10);}
 /* Aufgaben-Zweig (vorher eigener Style-Block der Task-Implementierung). */
-.vx-dv2-task-summary{font-size:var(--vx-ui-row-desc-size);line-height:1.6;color:var(--vx-ui-row-desc-color);}
+/* Die Typografie von .vx-dv2-task-summary steht weiter unten zusammen mit
+   .vx-dv2-concern — beide Zweige teilen sich denselben Stimmen-Ort. */
 .vx-dv2-task-due{display:flex;align-items:center;gap:8px;padding:10px 12px;border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);border-radius:var(--vx-ui-row-radius);background:var(--vx-color-canvas,#F7F8FA);font-weight:700;color:var(--vx-ui-row-title-color);}
 .vx-dv2-related-call{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:var(--vx-ui-row-padding);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);border-radius:var(--vx-ui-row-radius);background:var(--vx-color-canvas,#F7F8FA);}
 .vx-dv2-related-title{font-size:13px;font-weight:700;color:var(--vx-ui-row-title-color);margin-bottom:3px;}
 .vx-dv2-related-meta{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);line-height:1.45;}
 .vx-dv2-related-btn{min-height:30px;padding:0 12px;border-radius:var(--vx-radius-pill,999px);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-ui-row-bg);color:var(--vx-color-night,#0D1F3C);font-size:12px;font-weight:700;font-family:var(--vx-ui-row-font);cursor:pointer;white-space:nowrap;}
 .vx-dv2-task-note-empty{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);font-style:italic;}
-/* Anliegen in der Newsreader-Serife — gleiche Sprache wie der Heute-Screen. */
-.vx-dv2-concern{font-family:var(--vx-font-serif,'Newsreader',Georgia,serif);font-size:15px;line-height:1.6;color:var(--vx-ui-row-title-color);}
+/* Anliegen in der Newsreader-Serife — gleiche Sprache wie der Heute-Screen.
+   Die Serife stand hier schon vorher, aber auf 15px/400: nur 2px über dem
+   Fliesstext daneben und damit als eigene Stimme nicht lesbar. Auf 19px
+   gehoben — das ist die zweite Stufe der Leiter, direkt unter dem Namen.
+   Gilt auch für die Aufgaben-Zusammenfassung: EIN Stimmen-Ort pro Panel,
+   in beiden Zweigen derselbe, sonst hat der Aufgaben-Zweig gar keinen. */
+.vx-dv2-concern,
+.vx-dv2-task-summary{font-family:var(--vx-font-serif,'Newsreader',Georgia,serif);font-size:19px;line-height:1.55;color:var(--vx-ui-row-title-color);}
+/* Fehlt die Zusammenfassung, bleibt der Block trotzdem in der Stimme —
+   vorher fiel er auf 12px-Sans in Grau zurück und der Kopf des Panels
+   verlor seinen Ankerpunkt. */
+.vx-dv2-concern--empty{font-style:italic;font-size:17px;color:var(--vx-ui-meta-color);}
+/* Herkunft steht jetzt UNTER dem Text statt als Etikett darüber. */
+.vx-dv2-concern-origin{margin-top:8px;font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);}
 .vx-dv2-next-step{margin-top:10px;padding-top:10px;border-top:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);}
+/* Die Anliegen-Karte führt mit der Stimme, nicht mit einer Kopfleiste:
+   der Kopf verliert Trennlinie und Polsterung und wird zum leisen Wort
+   über dem Text. */
+.vx-dv2-card--concern>.vx-dv2-card-head{margin:0 0 6px;padding:0;border-bottom:0;}
+
+/* ── Die drei Aufklapper (2026-08-08) ────────────────────────────────────
+   Audio/Transkript, Notiz und Verlauf kamen aus derselben Funktion und
+   sahen deshalb identisch aus: gleiche weisse Karte, gleiche graue Icons,
+   gleiche Zeile, kein Hinweis darauf, ob überhaupt etwas drin ist. Drei
+   verschiedene Rollen in einer Form.
+
+   Ab hier trägt jede Kopfzeile rechts eine Zustandsangabe, und die Rolle
+   bestimmt Grund und Icon-Gewicht:
+     Notiz    = Handlungsfläche  → Night-Icon, offen wenn Inhalt da ist
+     Medien   = Beweismaterial   → ruhiger Canvas-Grund, weisse Karten drin
+     Verlauf  = Kontext          → bleibt am leisesten
+   Keine neue Farbfamilie, nur andere Gewichtung derselben Tokens. */
+.vx-summary-acc-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.vx-summary-acc-state{font-size:var(--vx-ui-row-time-size);font-weight:var(--vx-ui-section-label-weight);color:var(--vx-ui-meta-color);white-space:nowrap;}
+.vx-summary-acc--note>summary .vx-summary-acc-label i{color:var(--vx-color-night,#0D1F3C);}
+.vx-summary-acc--media{background:var(--vx-color-canvas,#F7F8FA);}
+.vx-summary-acc--media>summary .vx-summary-acc-label i{color:var(--vx-color-night,#0D1F3C);}
+.vx-summary-acc--media .vx-summary-acc-body{background:var(--vx-color-canvas,#F7F8FA);}
 @media(max-width:1180px){.vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:760px){.vx-dv2-info-grid{grid-template-columns:1fr;}.vx-dv2-actions{position:sticky;top:0;z-index:2;}}
+/* Auf 390px trägt die Leiter dieselben Verhältnisse, eine Stufe kleiner. */
+@media(max-width:430px){
+  .vx-dv2-title{font-size:18px;}
+  .vx-dv2-concern,.vx-dv2-task-summary{font-size:17px;}
+  .vx-dv2-concern--empty{font-size:16px;}
+  /* Kürzen statt ausblenden — die Zustandsangabe IST die Unterscheidung. */
+  .vx-summary-acc-state{max-width:104px;overflow:hidden;text-overflow:ellipsis;}
+}
 </style>
 
 <script id="vx-entry-detail-component">
@@ -37082,10 +37159,21 @@ body:has(#tab-archiv.active) .content{
     try { if (typeof vxRenderTranscriptCardHtml === 'function') return vxRenderTranscriptCardHtml(transcript); } catch(e) {}
     return '<div class="vx-dv2-card"><div class="vx-dv2-card-head"><div><i class="ph-bold ph-file-text"></i> Gesprächsverlauf</div><span>Rohtext</span></div><div class="vx-dv2-transcript-raw">'+esc(transcript)+'</div></div>';
   }
-  function accordion(icon, title, bodyHtml, extraAttr){
-    return '<details class="vx-summary-acc"' + (extraAttr || '') + '><summary>' +
+  // opts.kind  → Rolle des Aufklappers ('media' | 'note' | 'history'),
+  //              entscheidet über Grund und Icon-Gewicht.
+  // opts.state → kurze Zustandsangabe rechts in der Kopfzeile. Ohne sie
+  //              sahen alle drei gleich aus und man musste jeden öffnen,
+  //              um zu sehen, ob überhaupt Inhalt da ist.
+  // opts.open  → offen ausliefern (nur die Notiz, und nur wenn sie Inhalt hat).
+  function accordion(icon, title, bodyHtml, extraAttr, opts){
+    opts = opts || {};
+    var cls = 'vx-summary-acc' + (opts.kind ? ' vx-summary-acc--' + opts.kind : '');
+    var state = opts.state ? '<span class="vx-summary-acc-state">' + esc(opts.state) + '</span>' : '';
+    return '<details class="' + cls + '"' + (opts.open ? ' open' : '') + (extraAttr || '') + '><summary>' +
       '<span class="vx-summary-acc-label"><i class="ph-bold ph-' + icon + '" aria-hidden="true"></i><span>' + title + '</span></span>' +
-      '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
+      '<span class="vx-summary-acc-right">' + state +
+        '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
+      '</span>' +
       '</summary>' + bodyHtml + '</details>';
   }
 
@@ -37193,10 +37281,17 @@ body:has(#tab-archiv.active) .content{
     var planned = isPlanned(record);
     var actionMeta = inferActionMeta(record);
 
+    // Der Block führt mit der Stimme: leises Wort, dann der Serif-Text,
+    // dann die Herkunft. Vorher stand die Herkunft ("Automatisch erstellt")
+    // als zweites Etikett in derselben Kopfleiste und der Text kam erst
+    // danach — das Auge landete auf der Beschriftung, nicht auf dem Inhalt.
     var html = '<div class="vx-dv2-body">';
-    html +=   '<div class="vx-dv2-card">';
-    html +=     '<div class="vx-dv2-card-head"><div><i class="ph-bold ph-sparkle"></i> Anliegen</div><span>Automatisch erstellt</span></div>';
-    html +=     (summary ? '<div class="vx-dv2-concern">'+esc(summary)+'</div>' : '<div class="vx-dv2-muted">Keine Zusammenfassung verfügbar.</div>');
+    html +=   '<div class="vx-dv2-card vx-dv2-card--concern">';
+    html +=     '<div class="vx-dv2-card-head"><div><i class="ph-bold ph-sparkle"></i> Anliegen</div></div>';
+    html +=     (summary
+                  ? '<div class="vx-dv2-concern">'+esc(summary)+'</div>' +
+                    '<div class="vx-dv2-concern-origin">Automatisch aus dem Gespräch erstellt</div>'
+                  : '<div class="vx-dv2-concern vx-dv2-concern--empty">Keine Zusammenfassung verfügbar.</div>');
     html +=     '<div class="vx-dv2-next-step">';
     html +=       '<div class="vx-dv2-info-label" style="margin-bottom:4px;">Nächster Schritt</div>';
     html +=       '<div class="vx-dv2-text">'+esc(actionMeta.text)+'</div>';
@@ -37213,7 +37308,10 @@ body:has(#tab-archiv.active) .content{
       if (hasAudio && typeof vxRenderCallAudioCardHtml === 'function') mediaBody += vxRenderCallAudioCardHtml(record);
       if (transcript) mediaBody += renderTranscript(transcript);
       mediaBody += '</div>';
-      html += accordion('waveform', 'Audio &amp; Transkript', mediaBody);
+      // Zustandsangabe = Gesprächsdauer, sonst was überhaupt vorliegt.
+      var mediaState = duration(firstNonEmpty(f.duration_seconds, f.duration, f.call_duration_seconds));
+      if (!mediaState) mediaState = hasAudio ? (transcript ? 'Aufnahme + Text' : 'Aufnahme') : 'Nur Text';
+      html += accordion('waveform', 'Audio &amp; Transkript', mediaBody, '', { kind: 'media', state: mediaState });
     }
 
     var noteBody = '<div class="vx-summary-acc-body">' +
@@ -37222,12 +37320,20 @@ body:has(#tab-archiv.active) .content{
         '<button type="button" class="vx-dv2-btn vx-dv2-btn-primary" id="vx-dv2-save-btn" onclick="vxDv2SaveNote()">Speichern</button>' +
         '<span class="vx-dv2-muted">Speichert im aktuellen Eintrag.</span>' +
       '</div></div>';
-    html += accordion('note-pencil', 'Notiz', noteBody);
+    // Die Notiz ist die einzige Eingabefläche im Panel. Existiert eine, wird
+    // sie offen ausgeliefert — leere Einträge bleiben zu, damit das Panel
+    // nicht bei jedem Aufruf ein leeres Feld aufspannt.
+    html += accordion('note-pencil', 'Notiz', noteBody, '', {
+      kind: 'note',
+      state: note ? 'Notiz vorhanden' : 'Keine Notiz',
+      open: !!note
+    });
 
     if (phone) {
       html += accordion('clock-counter-clockwise', 'Verlauf',
         '<div class="vx-summary-acc-body" data-phone="' + esc(phone) + '"></div>',
-        ' ontoggle="vxDv2LoadHistory(this)"');
+        ' ontoggle="vxDv2LoadHistory(this)"',
+        { kind: 'history', state: 'Frühere Kontakte' });
     }
 
     var steps = [];
@@ -37263,8 +37369,11 @@ body:has(#tab-archiv.active) .content{
     var sourceCall = firstNonEmpty(f.source_call_id, f.related_call_id, f.call_id, f.parent_call_id);
     var note = noteOf(record);
 
+    // Derselbe Aufbau wie die Anliegen-Karte im Anfragen-Zweig: leises Wort,
+    // dann der Inhalt in der Serife. Sonst stünde der Aufgaben-Zweig als
+    // einziger Ort ohne Stimme daneben.
     var html = '<div class="vx-dv2-body">';
-    html +=   '<div class="vx-dv2-card">';
+    html +=   '<div class="vx-dv2-card vx-dv2-card--concern">';
     html +=     '<div class="vx-dv2-card-head"><div><i class="ph-bold ph-check-square"></i> Aufgabe</div><span>'+esc(taskType)+'</span></div>';
     html +=     '<div class="vx-dv2-task-summary">'+esc(firstNonEmpty(f.summary, f.description, f.note, f.notes,
                   isCallbackTask(record) ? 'Geplanter Rückruf zu diesem Eintrag.' : 'Diese Aufgabe ist mit einem Voxera-Eintrag verknüpft.'))+'</div>';
@@ -37402,11 +37511,36 @@ body:has(#tab-archiv.active) .content{
       body.innerHTML = '<div class="vx-dv2-muted">Kein Verlauf verfügbar.</div>';
       return;
     }
+    // Zustandsangabe in der Kopfzeile: vor dem Laden steht dort nur
+    // "Frühere Kontakte", danach die tatsächliche Zahl.
+    var stateEl = details.querySelector('.vx-summary-acc-state');
+    function setState(text) { if (stateEl) stateEl.textContent = text; }
+
+    // Der offene Eintrag selbst steckt mit in der Liste, die
+    // buildCallHistory() für diese Nummer liefert. Für die Timeline ist das
+    // richtig, für die Zählangabe nicht: ein Erstanrufer stünde sonst mit
+    // "1 Kontakt" da, gemeint ist aber der Eintrag, den man gerade liest.
+    var shell = details.closest ? details.closest('.vx-dv2-shell') : null;
+    var currentId = String((shell && shell.getAttribute('data-record-id')) || window._vxActiveRecordId || '').trim();
+    function isCurrentEntry(entry) {
+      if (!currentId || !entry) return false;
+      return String(entry.call_id || '') === currentId || String(entry.task_id || '') === currentId;
+    }
+
     body.innerHTML = vxUiSkeleton({ lines: 3, label: 'Verlauf' });
-    buildCallHistory(phone).then(function(history) {
-      if (body.dataset.loaded === '1') body.innerHTML = renderTimelineHTML(history);
+    setState('Wird geladen…');
+    // strict: sonst liefert der Helfer bei jedem Fehler eine leere Liste und
+    // die Kopfzeile meldete "Keine früheren" statt "Nicht geladen".
+    buildCallHistory(phone, { strict: true }).then(function(history) {
+      if (body.dataset.loaded !== '1') return;
+      body.innerHTML = renderTimelineHTML(history);
+      var n = (Array.isArray(history) ? history : []).filter(function(entry) {
+        return !isCurrentEntry(entry);
+      }).length;
+      setState(n === 0 ? 'Keine früheren' : (n === 1 ? '1 früherer Kontakt' : n + ' frühere Kontakte'));
     }).catch(function() {
       body.innerHTML = '<div class="vx-dv2-muted">Verlauf konnte nicht geladen werden.</div>';
+      setState('Nicht geladen');
     });
   }
 
