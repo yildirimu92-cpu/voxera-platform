@@ -29368,10 +29368,10 @@ async function checkTestCall() {
     } else if (e.message && e.message.toLowerCase().includes('failed to fetch')) {
       userMsg = 'Verbindungsfehler — die Testanruf-Funktion war nicht erreichbar. '
         + 'Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut. '
-        + 'Falls das Problem bleibt: <a href="mailto:support@voxera.ch" style="color:inherit;text-decoration:underline;">support@voxera.ch</a>';
+        + 'Falls das Problem bleibt: <a href="mailto:info@voxera.ch" style="color:inherit;text-decoration:underline;">info@voxera.ch</a>';
     } else {
       userMsg = (e.message || 'Unbekannter Fehler.')
-        + ' — Falls das Problem bleibt: <a href="mailto:support@voxera.ch" style="color:inherit;text-decoration:underline;">support@voxera.ch</a>';
+        + ' — Falls das Problem bleibt: <a href="mailto:info@voxera.ch" style="color:inherit;text-decoration:underline;">info@voxera.ch</a>';
     }
     _renderTestCallState('error', { message: userMsg });
   }

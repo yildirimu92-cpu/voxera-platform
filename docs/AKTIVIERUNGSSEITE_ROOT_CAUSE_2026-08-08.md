@@ -118,21 +118,28 @@ Der ursprüngliche Defekt hat den zweiten also verdeckt: Solange die Adresse als
 „[email protected]" gerendert wurde, fiel niemandem auf, dass die dahinterliegende
 Adresse ohnehin ins Leere geht.
 
-### `support@voxera.ch` steht an vier weiteren Stellen — nicht Teil dieses Fixes
+### `support@voxera.ch` stand an vier weiteren Stellen — alle korrigiert
 
-Die Adresse wurde bei dieser Gelegenheit im ganzen Repo gesucht:
+Die Adresse wurde bei dieser Gelegenheit im ganzen Repo gesucht und auf Entscheid des
+Betreibers durchgängig auf `info@voxera.ch` umgestellt:
 
 | Stelle | Text | Wirkung |
 | --- | --- | --- |
-| `customer-dashboard/index.html:29371` | „Falls das Problem bleibt: support@voxera.ch" | Fehlermeldung an Kunden |
+| `customer-dashboard/index.html:29371` | „Falls das Problem bleibt: …" | Fehlermeldung an Kunden |
 | `customer-dashboard/index.html:29374` | dieselbe Meldung, zweite Variante | Fehlermeldung an Kunden |
-| `admin-panel/index.html:10035` | „Kündigung schriftlich per E-Mail an support@voxera.ch." | **Vertrags-/Bedingungstext** |
-| `admin-panel/index.html:10105` | „Anfragen: support@voxera.ch" | **Vertrags-/Bedingungstext** |
+| `admin-panel/index.html:10035` | „Kündigung schriftlich per E-Mail an …" | Vertragstext, **§ 2 Laufzeit und Kündigung** |
+| `admin-panel/index.html:10105` | „Anfragen: …" | Vertragstext, **§ 13 Betroffenenrechte** |
 
-Die beiden Fehlermeldungen sind trivial zu korrigieren. Die beiden Stellen im Admin-Panel
-stehen in Vertrags- bzw. Bedingungstext — ein Kunde, der dort seine Kündigung hinschickt,
-erreicht niemanden. Das ist eine inhaltliche Änderung an Vertragstext und wurde deshalb
-**bewusst nicht** mit erledigt; sie braucht eine ausdrückliche Entscheidung.
+Die beiden Vertragsstellen wogen am schwersten. § 2 nennt die Adresse, an die ein Kunde
+seine **Kündigung** schicken soll — schriftlich und fristgebunden. § 13 nennt die
+Kontaktstelle für **Betroffenenrechte** nach DSG/DSGVO (Auskunft, Berichtigung, Löschung,
+Portabilität). Eine unerreichbare Adresse ist dort kein Schönheitsfehler, sondern ein
+Compliance-Problem: fristgebundene Erklärungen und gesetzliche Auskunftsbegehren wären ins
+Leere gelaufen.
+
+**Bestätigung nebenbei:** Das Customer Dashboard verwendete an drei weiteren Stellen
+(Support-Screen, Zeilen 8353, 8376, 17731) bereits `info@voxera.ch`. Die vier korrigierten
+Stellen waren die Ausreisser; die Adressen sind jetzt repo-weit konsistent.
 
 ## 6. Schutz gegen Wiederholung
 
