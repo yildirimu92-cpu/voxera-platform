@@ -147,6 +147,28 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
   ];
 }
 
+function buildUrgent(customer) {
+  const forwarding = [];
+  if (hasAssignedNumber(customer.ai_forwarding_1_number)) {
+    forwarding.push({
+      name: text(customer.ai_forwarding_1_name) || 'Weiterleitungsziel 1',
+      number: text(customer.ai_forwarding_1_number),
+      trigger: text(customer.ai_forwarding_1_trigger)
+    });
+  }
+  if (hasAssignedNumber(customer.ai_forwarding_2_number)) {
+    forwarding.push({
+      name: text(customer.ai_forwarding_2_name) || 'Weiterleitungsziel 2',
+      number: text(customer.ai_forwarding_2_number),
+      trigger: text(customer.ai_forwarding_2_trigger)
+    });
+  }
+  return {
+    emergency_number: text(customer.ai_emergency_number) || '144',
+    forwarding
+  };
+}
+
 function buildTechnicalStatus(customer, calendarReady, calendarAttention, calendarProvider) {
   const hasAgent = Boolean(text(customer.elevenlabs_agent_id));
   const hasNumber = hasAssignedNumber(customer.voxera_number);
@@ -210,7 +232,9 @@ exports.handler = async (event) => {
       'elevenlabs_agent_id', 'elevenlabs_sync_status', 'elevenlabs_last_sync_at',
       'status', 'voxera_number', 'forwarding_setup_completed', 'forwarding_status',
       'notification_mode', 'notification_active', 'new_log_email_active',
-      'missed_call_email_active', 'phone_notification_to', 'updated_at'
+      'missed_call_email_active', 'phone_notification_to', 'updated_at',
+      'ai_emergency_number', 'ai_forwarding_1_name', 'ai_forwarding_1_number', 'ai_forwarding_1_trigger',
+      'ai_forwarding_2_name', 'ai_forwarding_2_number', 'ai_forwarding_2_trigger'
     ].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();
@@ -320,6 +344,7 @@ exports.handler = async (event) => {
     },
     capabilities: buildCapabilities(customer, parsedProfile, calendarReady, calendarAttention),
     technical_status: buildTechnicalStatus(customer, calendarReady, calendarAttention, activeProvider),
+    urgent: buildUrgent(customer),
     operational_updates: {
       active_count: activeUpdates.length,
       planned_count: plannedUpdates.length,
@@ -336,5 +361,6 @@ exports._test = {
   hasAssignedNumber,
   notificationDetail,
   buildCapabilities,
-  buildTechnicalStatus
+  buildTechnicalStatus,
+  buildUrgent
 };
