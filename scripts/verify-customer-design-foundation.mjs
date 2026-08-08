@@ -58,7 +58,7 @@ assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded it
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260807-2',
-  '/shared/customer-assistant-components.css?v=20260807-2',
+  '/shared/customer-assistant-components.css?v=20260808-1',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260807-3',
   '/shared/customer-support-components.css?v=20260802-2',
@@ -511,10 +511,10 @@ for (const [name, css] of [
   assert.equal((css.match(/!important/g) || []).length, 0, `${name} CSS must not add !important overrides`);
 }
 
-assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
+assert.match(loader, /customer-runtime-case-intake\.js\?v=20260808-1/);
 assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260808-1/);
 assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260807-3/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260808-1/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
@@ -731,8 +731,8 @@ assert.doesNotMatch(navigationRuntime, /function addStyles|createElement\('style
 for (const forbidden of ['#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)','#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])','.vx-nav-voice-details','#vx-assistant-profile-body .vx-ap-card:first-child']) assert.ok(!navigationCss.includes(forbidden), `navigation CSS still owns assistant structure: ${forbidden}`);
 assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4"></script>'), 'dashboard missing versioned offer-brand loader');
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
-assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260807-3'), 'offer-brand missing current design loader version');
+assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260808-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
 for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260807-2','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
+const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

@@ -502,6 +502,33 @@ body.vx-customer-design-foundation .vx-ap-empty {
   text-align: center;
 }
 
+/* "Wenn es dringend wird" (Etappe 6, S4). Rot ist auf diesem Screen
+   ausschliesslich der Notfallnummer vorbehalten — keine linken
+   Akzentkanten, Trennung nur ueber die Kartengrenze selbst. */
+body.vx-customer-design-foundation .vx-ap-urgent-emergency .vx-ap-urgent-number {
+  color: var(--vx-color-danger);
+  font-weight: 720;
+}
+
+body.vx-customer-design-foundation .vx-ap-change-panel {
+  margin-top: var(--vx-space-4);
+  padding-top: var(--vx-space-4);
+  border-top: 1px solid var(--vx-line);
+}
+
+body.vx-customer-design-foundation .vx-ap-change-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vx-space-2);
+  margin-bottom: var(--vx-space-3);
+}
+
+body.vx-customer-design-foundation .vx-ap-urgent-feedback {
+  margin-top: var(--vx-space-3);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 @media (max-width: 720px) {
   body.vx-customer-design-foundation #vx-assistant-profile-body .vx-ap-card,
   body.vx-customer-design-foundation #vx-business-profile-body .vx-ap-card {

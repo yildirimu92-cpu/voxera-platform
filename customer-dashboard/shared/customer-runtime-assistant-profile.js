@@ -193,6 +193,76 @@
     return String(value || 'Sie');
   }
 
+  const CHANGE_PRESETS = [
+    ['Branche wechseln', 'Ich möchte die Branche wechseln auf: '],
+    ['Weiterleitung einrichten', 'Bitte eine Weiterleitung einrichten: '],
+    ['Individuelle Anpassung', 'Ich benötige eine individuelle Anpassung: '],
+    ['Sonstiges', 'Sonstige Anfrage: ']
+  ];
+
+  function urgentForwardingRow(item) {
+    return '<div class="vx-ap-summary-row"><span class="vx-ap-summary-key">' + esc(item.name) + '</span><span class="vx-ap-summary-value">' + esc(item.number) + (item.trigger ? ' · ' + esc(item.trigger) : '') + '</span></div>';
+  }
+
+  function urgentCard() {
+    const urgent = profile?.urgent || { emergency_number: '', forwarding: [] };
+    const forwarding = Array.isArray(urgent.forwarding) ? urgent.forwarding : [];
+    const hasEmergency = Boolean(urgent.emergency_number);
+    const hasForwarding = forwarding.length > 0;
+    // Notfallnummer hat serverseitig immer einen Default (144) — ein reines
+    // "irgendwas vorhanden?"-Flag würde die Weiterleitungs-Leerzeile deshalb
+    // nie zeigen. Beide Zustände unabhängig behandeln.
+    const body = (hasEmergency || hasForwarding)
+      ? '<div class="vx-ap-summary">'
+        + (hasEmergency ? '<div class="vx-ap-summary-row vx-ap-urgent-emergency"><span class="vx-ap-summary-key">Notfallnummer</span><span class="vx-ap-summary-value vx-ap-urgent-number">' + esc(urgent.emergency_number) + '</span></div>' : '')
+        + (hasForwarding
+          ? forwarding.map(urgentForwardingRow).join('')
+          : '<div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Weiterleitung</span><span class="vx-ap-summary-value">Noch nicht eingerichtet</span></div>')
+        + '</div>'
+      : (root.VoxeraUI
+        ? root.VoxeraUI.emptyState({ icon: 'ph-phone-transfer', title: 'Keine Weiterleitung eingerichtet', text: 'Notfallnummer und Weiterleitungsziele erscheinen hier, sobald sie eingerichtet sind.' })
+        : '<div class="vx-ap-empty">Keine Weiterleitung eingerichtet.</div>');
+    return '<section class="vx-ap-card" id="vx-assistant-urgent-card">'
+      + '<div class="vx-ap-head"><div><div class="vx-ap-title">Wenn es dringend wird</div><div class="vx-ap-meta">Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera vor der Aktivierung.</div></div></div>'
+      + body
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-urgent-change-toggle" aria-expanded="false" aria-controls="vx-urgent-change-panel">Änderung melden</button></div>'
+      + '<div id="vx-urgent-change-panel" class="vx-ap-change-panel" hidden>'
+      + '<div class="vx-ap-change-presets">' + CHANGE_PRESETS.map(([label, prefix]) => '<button type="button" class="vx-ap-btn ghost" data-vx-change-preset="' + esc(prefix) + '">' + esc(label) + '</button>').join('') + '</div>'
+      + '<div class="vx-ap-field"><label for="vx-urgent-change-msg">Ihre Änderungsanfrage</label><textarea id="vx-urgent-change-msg" maxlength="6000" placeholder="Beschreiben Sie Ihre Wünsche …"></textarea></div>'
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-urgent-change-submit">Anfrage senden</button></div>'
+      + '<div id="vx-urgent-change-feedback" class="vx-ap-urgent-feedback" role="status" aria-live="polite" hidden></div>'
+      + '</div>'
+      + '</section>';
+  }
+
+  function toggleUrgentChangePanel() {
+    const panel = document.getElementById('vx-urgent-change-panel');
+    const toggle = document.getElementById('vx-urgent-change-toggle');
+    if (!panel || !toggle) return;
+    const willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    if (willOpen) document.getElementById('vx-urgent-change-msg')?.focus();
+  }
+
+  function prefillUrgentChange(prefix) {
+    const panel = document.getElementById('vx-urgent-change-panel');
+    const toggle = document.getElementById('vx-urgent-change-toggle');
+    if (panel?.hidden) {
+      panel.hidden = false;
+      toggle?.setAttribute('aria-expanded', 'true');
+    }
+    const field = document.getElementById('vx-urgent-change-msg');
+    if (!field) return;
+    field.value = prefix || '';
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
+  }
+
+  async function submitUrgentChange() {
+    if (typeof root.submitAssistentChange === 'function') await root.submitAssistentChange();
+  }
+
   function selectedVoice() {
     const selectedId = profile?.assistant?.voice_id || '';
     return voices.find((voice) => voice.voice_id === selectedId) || null;
@@ -273,7 +343,8 @@
       '<section class="vx-ap-card"><div class="vx-ap-title">Name und Auftreten</div><div class="vx-ap-meta">Der Name ist die Bezeichnung, mit der sich der Assistent meldet.</div>' +
       (profile.permissions?.can_change_name ? '<div class="vx-ap-field"><label>Name des Assistenten</label><input id="vx-assistant-name" maxlength="40" value="' + esc(profile.assistant?.name || '') + '" placeholder="z. B. Lea"></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-assistant-name-save"' + (busy ? ' disabled' : '') + '>Name speichern</button></div><div id="vx-assistant-name-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>' : '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Name</span><span class="vx-ap-summary-value">' + esc(profile.assistant?.name || 'Von Voxera eingerichtet') + '</span></div></div>') +
       '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Kommunikationsstil</span><span class="vx-ap-summary-value">' + esc(toneLabel(profile.assistant?.tone)) + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Ansprache</span><span class="vx-ap-summary-value">' + esc(addressLabel(profile.assistant?.address_form)) + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Assistent</span><span class="vx-ap-summary-value">' + (profile.assistant?.has_agent ? 'Bereit' : 'Noch nicht aktiviert') + '</span></div></div></section>' +
-      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Geschäftswissen</div><div class="vx-ap-meta">Dauerhafte Informationen werden zentral im Geschäftsprofil gepflegt.</div></div><span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div><div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Unternehmen</span><span class="vx-ap-summary-value">' + esc(business.company_name || 'Nicht angegeben') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Leistungen</span><span class="vx-ap-summary-value">' + esc(business.services ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Öffnungszeiten / Standort</span><span class="vx-ap-summary-value">' + esc(business.location_hours ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil öffnen</button></div></section></div>';
+      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Geschäftswissen</div><div class="vx-ap-meta">Dauerhafte Informationen werden zentral im Geschäftsprofil gepflegt.</div></div><span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div><div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Unternehmen</span><span class="vx-ap-summary-value">' + esc(business.company_name || 'Nicht angegeben') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Leistungen</span><span class="vx-ap-summary-value">' + esc(business.services ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Öffnungszeiten / Standort</span><span class="vx-ap-summary-value">' + esc(business.location_hours ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil öffnen</button></div></section>' +
+      urgentCard() + '</div>';
     bindAssistant();
     restoreStatus('assistant');
   }
@@ -302,6 +373,9 @@
     document.querySelectorAll('[data-vx-select-voice]').forEach((node) => node.addEventListener('click', () => openVoiceModal(node.dataset.vxSelectVoice)));
     document.getElementById('vx-assistant-name-save')?.addEventListener('click', saveName);
     document.getElementById('vx-open-business-profile')?.addEventListener('click', () => root.vxShowAssistantView?.('business', true));
+    document.getElementById('vx-urgent-change-toggle')?.addEventListener('click', toggleUrgentChangePanel);
+    document.querySelectorAll('[data-vx-change-preset]').forEach((node) => node.addEventListener('click', () => prefillUrgentChange(node.dataset.vxChangePreset)));
+    document.getElementById('vx-urgent-change-submit')?.addEventListener('click', submitUrgentChange);
   }
 
   async function load() {

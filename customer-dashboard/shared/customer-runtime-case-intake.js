@@ -110,9 +110,12 @@
     };
 
     w.submitAssistentChange = async function () {
-      const msg = (document.getElementById('assistent-change-msg')?.value || '').trim();
-      const btn = document.getElementById('assistent-change-btn');
-      const fb = document.getElementById('assistent-change-feedback');
+      // IDs point at the "Wenn es dringend wird"-Karte (Etappe 6, S4). Der alte
+      // Alt-Block-Kanal (#assistent-change-msg/-btn/-feedback) ist bereits
+      // CSS-verdeckt und wird mit Etappe 6/S1 entfernt.
+      const msg = (document.getElementById('vx-urgent-change-msg')?.value || '').trim();
+      const btn = document.getElementById('vx-urgent-change-submit');
+      const fb = document.getElementById('vx-urgent-change-feedback');
       if (!msg) {
         setFeedback(fb, 'Bitte zuerst eine Beschreibung eingeben.', 'error');
         return;
@@ -124,7 +127,7 @@
       setFeedback(fb, '', '');
       try {
         await authPost('ai-change-request-create', { message: msg });
-        const input = document.getElementById('assistent-change-msg');
+        const input = document.getElementById('vx-urgent-change-msg');
         if (input) input.value = '';
         setFeedback(fb, '✓ Anfrage gesendet — sie wurde als interner Case erfasst.', 'success');
         if (typeof w.loadAssistentRequests === 'function') w.loadAssistentRequests();

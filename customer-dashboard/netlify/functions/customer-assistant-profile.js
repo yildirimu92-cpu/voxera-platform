@@ -148,6 +148,33 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
   ];
 }
 
+function buildUrgent(customer) {
+  // Selbe Bedingung wie prompt-builder-v2.js (Zeile ~236-238): der Agent nutzt
+  // ein Weiterleitungsziel nur, wenn Name UND Nummer gesetzt sind. Ein Ziel mit
+  // nur einer Nummer (moeglich durch unabhaengige Schreibzugriffe im
+  // Admin-Panel) darf hier nicht als konfiguriert erscheinen, sonst behauptet
+  // die Karte eine Sicherheitsfunktion, die der Assistent gar nicht kennt.
+  const forwarding = [];
+  if (text(customer.ai_forwarding_1_name) && hasAssignedNumber(customer.ai_forwarding_1_number)) {
+    forwarding.push({
+      name: text(customer.ai_forwarding_1_name),
+      number: text(customer.ai_forwarding_1_number),
+      trigger: text(customer.ai_forwarding_1_trigger)
+    });
+  }
+  if (text(customer.ai_forwarding_2_name) && hasAssignedNumber(customer.ai_forwarding_2_number)) {
+    forwarding.push({
+      name: text(customer.ai_forwarding_2_name),
+      number: text(customer.ai_forwarding_2_number),
+      trigger: text(customer.ai_forwarding_2_trigger)
+    });
+  }
+  return {
+    emergency_number: text(customer.ai_emergency_number) || '144',
+    forwarding
+  };
+}
+
 function buildTechnicalStatus(customer, calendarReady, calendarAttention, calendarProvider) {
   const hasAgent = Boolean(text(customer.elevenlabs_agent_id));
   const hasNumber = hasAssignedNumber(customer.voxera_number);
@@ -212,7 +239,9 @@ exports.handler = async (event) => {
       'elevenlabs_agent_id', 'elevenlabs_sync_status', 'elevenlabs_last_sync_at',
       'status', 'voxera_number', 'forwarding_setup_completed', 'forwarding_status',
       'notification_mode', 'notification_active', 'new_log_email_active',
-      'missed_call_email_active', 'phone_notification_to', 'updated_at'
+      'missed_call_email_active', 'phone_notification_to', 'updated_at',
+      'ai_emergency_number', 'ai_forwarding_1_name', 'ai_forwarding_1_number', 'ai_forwarding_1_trigger',
+      'ai_forwarding_2_name', 'ai_forwarding_2_number', 'ai_forwarding_2_trigger'
     ].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();
@@ -324,6 +353,7 @@ exports.handler = async (event) => {
     },
     capabilities: buildCapabilities(customer, parsedProfile, calendarReady, calendarAttention),
     technical_status: buildTechnicalStatus(customer, calendarReady, calendarAttention, activeProvider),
+    urgent: buildUrgent(customer),
     operational_updates: {
       active_count: activeUpdates.length,
       planned_count: plannedUpdates.length,
@@ -340,5 +370,6 @@ exports._test = {
   hasAssignedNumber,
   notificationDetail,
   buildCapabilities,
-  buildTechnicalStatus
+  buildTechnicalStatus,
+  buildUrgent
 };
