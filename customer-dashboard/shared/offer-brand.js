@@ -184,7 +184,7 @@
     ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260808-1'],
     ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260803-1'],
     ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260807-2'],
-    ['__voxeraCustomerMobileNavRepairLoaded', '/shared/customer-runtime-mobile-nav-repair.js?v=20260808-1'],
+    ['__voxeraCustomerMobileNavRepairLoaded', '/shared/customer-runtime-mobile-nav-repair.js?v=20260808-2'],
     ['__vxCustomerSettingsPolishLoaded', '/shared/customer-runtime-settings-polish.js?v=20260807-3'],
     ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260807-2'],
     ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260807-3']

@@ -14,6 +14,13 @@
   ].join(',');
   const BELL_ICON_SELECTOR = '[class*="ph-bell" i],[data-lucide*="bell" i],svg[class*="bell" i],i[class*="bell" i]';
   const BACK_ICON_SELECTOR = '[class*="ph-arrow-left" i],[data-lucide*="arrow-left" i],svg[class*="arrow-left" i],i[class*="arrow-left" i]';
+  // The notifications UI itself (anchored popover + its backdrop + the mobile
+  // full-page fallback) contains a bell icon and "Benachrichtigungen"
+  // aria-labels, so it matches EXPLICIT_SELECTOR/BELL_ICON_SELECTOR too.
+  // Without this guard, prepareTriggers()/bindTrigger() "hardens" the panel
+  // itself — forcing position:relative!important over its position:fixed —
+  // which tears it out of its viewport-anchored spot into the document flow.
+  const NOTIFICATIONS_UI_SELECTOR = '#vx-notif-panel,#vx-notif-backdrop,#tab-benachrichtigungen';
 
   function getPath(event) {
     if (event && typeof event.composedPath === 'function') return event.composedPath();
@@ -25,6 +32,7 @@
 
   function resolveTriggerFromNode(node) {
     if (!node || node.nodeType !== 1) return null;
+    if (node.closest && node.closest(NOTIFICATIONS_UI_SELECTOR)) return null;
     const explicit = node.closest && node.closest(EXPLICIT_SELECTOR);
     if (explicit) return explicit.closest('button,a,[role="button"],[tabindex]') || explicit;
     const icon = node.matches && node.matches(BELL_ICON_SELECTOR) ? node : (node.closest && node.closest(BELL_ICON_SELECTOR));
@@ -122,6 +130,7 @@
   function prepareTriggers() {
     const candidates = new Set();
     doc.querySelectorAll(EXPLICIT_SELECTOR + ',' + BELL_ICON_SELECTOR).forEach(function (node) {
+      if (node.closest && node.closest(NOTIFICATIONS_UI_SELECTOR)) return;
       const trigger = resolveTriggerFromNode(node) || node;
       if (trigger) candidates.add(trigger);
     });
