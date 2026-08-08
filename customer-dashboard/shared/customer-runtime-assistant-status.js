@@ -81,12 +81,13 @@
     return `<div class="vx-as-tech-row"><div class="vx-as-tech-name">${esc(title)}</div><div class="vx-as-state ${tone}">${esc(item?.label || 'Nicht verfügbar')}</div><div class="vx-as-tech-detail">${esc(detail)}</div></div>`;
   }
 
-  function technicalSummary(technical) {
-    const states = [technical.assistant, technical.forwarding, technical.voice_sync, technical.calendar]
-      .map((item) => safeTone(item?.status));
-    if (states.includes('error')) return { tone: 'error', text: 'Mindestens eine Verbindung ist aktuell nicht betriebsbereit.' };
-    if (states.includes('attention')) return { tone: 'attention', text: 'Mindestens eine Einrichtung benötigt noch Ihre Aufmerksamkeit.' };
-    return { tone: 'active', text: 'Die wichtigsten Verbindungen sind betriebsbereit.' };
+  // Etappe 6 / S2: Die Statusaussage steht im Kopfbereich (customer-runtime-
+  // assistant-profile.js, statusSummary()) — hier wird nur noch entschieden, ob
+  // es überhaupt etwas aufzuklappen gibt. Läuft alles, bleibt die Karte weg.
+  function hasDeviation(technical) {
+    return [technical.assistant, technical.forwarding, technical.voice_sync, technical.calendar]
+      .map((item) => safeTone(item?.status))
+      .some((tone) => tone === 'error' || tone === 'attention');
   }
 
   function bindCapabilityToggle(card, capabilityCount) {
@@ -115,11 +116,14 @@
     renderProfileNumber();
     const body = document.getElementById('vx-assistant-profile-body');
     const stack = body?.querySelector('.vx-ap-stack');
-    if (!stack || !snapshot || body.querySelector('#vx-assistant-status-extension')) return;
+    // Marker am Stack statt "Statuskarte vorhanden?": die Karte erscheint seit
+    // S2 nur noch bei Abweichungen, taugt also nicht mehr als Beleg dafür, dass
+    // bereits gerendert wurde. Ein neu aufgebauter Stack trägt den Marker nicht
+    // und wird dadurch korrekt erneut bestückt.
+    if (!stack || !snapshot || stack.dataset.vxStatusRendered === '1') return;
 
     const capabilities = Array.isArray(snapshot.capabilities) ? snapshot.capabilities : [];
     const technical = snapshot.technical_status || {};
-    const summary = technicalSummary(technical);
     const businessCard = Array.from(stack.querySelectorAll('.vx-ap-card')).find((card) =>
       /Geschäftswissen/.test(card.querySelector('.vx-ap-title')?.textContent || '')
     );
@@ -132,15 +136,20 @@
     capabilitiesCard.className = 'vx-ap-card vx-as-capabilities-simple';
     capabilitiesCard.innerHTML = `<div class="vx-ap-head"><div><div class="vx-ap-title">Fähigkeiten</div><div class="vx-ap-meta">Die wichtigsten Aufgaben, die Ihr Assistent aktuell übernimmt.</div></div></div><div class="vx-as-cap-grid">${capabilities.length ? capabilities.map(capabilityHtml).join('') : '<div class="vx-ap-empty">Fähigkeiten konnten nicht ermittelt werden.</div>'}</div>${capabilityToggleHtml(capabilities.length)}`;
 
+    if (businessCard) stack.insertBefore(capabilitiesCard, businessCard);
+    else stack.appendChild(capabilitiesCard);
+    bindCapabilityToggle(capabilitiesCard, capabilities.length);
+    stack.dataset.vxStatusRendered = '1';
+
+    // Ohne Abweichung sagt die Zeile im Kopfbereich bereits alles — dann bleibt
+    // die Karte weg, statt eine zweite Statusaussage danebenzustellen.
+    if (!hasDeviation(technical)) return;
+
     const technicalCard = document.createElement('section');
     technicalCard.id = 'vx-assistant-status-extension';
     technicalCard.className = 'vx-ap-card';
-    technicalCard.innerHTML = `<div class="vx-ap-head"><div><div class="vx-ap-title">Betriebsstatus</div><div class="vx-ap-meta">Nur Abweichungen werden hervorgehoben. Technische Details bleiben optional.</div></div></div><div class="vx-nav-status-summary${summary.tone === 'active' ? '' : ` ${summary.tone}`}">${esc(summary.text)}</div><details class="vx-nav-status-details"><summary>Technische Details</summary><div class="vx-as-tech">${technicalRow('Assistent', technical.assistant)}${technicalRow('Telefonie', technical.forwarding, phoneDetail)}${technicalRow('Stimme & Einstellungen', technical.voice_sync)}${technicalRow('Kalender', technical.calendar)}</div></details>`;
-
-    if (businessCard) stack.insertBefore(capabilitiesCard, businessCard);
-    else stack.appendChild(capabilitiesCard);
+    technicalCard.innerHTML = `<div class="vx-ap-head"><div><div class="vx-ap-title">Betriebsstatus</div><div class="vx-ap-meta">Diese Einrichtungen brauchen noch Ihre Aufmerksamkeit.</div></div></div><details class="vx-nav-status-details"><summary>Technische Details</summary><div class="vx-as-tech">${technicalRow('Assistent', technical.assistant)}${technicalRow('Telefonie', technical.forwarding, phoneDetail)}${technicalRow('Stimme & Einstellungen', technical.voice_sync)}${technicalRow('Kalender', technical.calendar)}</div></details>`;
     stack.appendChild(technicalCard);
-    bindCapabilityToggle(capabilitiesCard, capabilities.length);
   }
 
   async function refresh() {
@@ -160,12 +169,13 @@
       render();
     } catch (error) {
       const stack = body?.querySelector('.vx-ap-stack');
-      if (stack && !document.getElementById('vx-assistant-status-extension')) {
+      if (stack && stack.dataset.vxStatusRendered !== '1') {
         const card = document.createElement('section');
         card.id = 'vx-assistant-status-extension';
         card.className = 'vx-ap-card';
         card.innerHTML = `<div class="vx-ap-title">Status nicht verfügbar</div><div class="vx-ap-meta">${esc(error?.message || 'Die Statusinformationen konnten nicht geladen werden.')}</div>`;
         stack.appendChild(card);
+        stack.dataset.vxStatusRendered = '1';
       }
     } finally {
       loading = false;
@@ -184,7 +194,9 @@
   function observeStatusBody(body) {
     if (statusObserver || typeof MutationObserver !== 'function' || !body) return;
     statusObserver = new MutationObserver(() => {
-      if (!body.querySelector('#vx-assistant-status-extension') && body.querySelector('.vx-ap-stack')) snapshot = null;
+      // Ein frisch gerenderter Stack trägt den Marker nicht — das ist das
+      // Signal, dass die Assistent-Ansicht neu aufgebaut wurde.
+      if (body.querySelector('.vx-ap-stack:not([data-vx-status-rendered="1"])')) snapshot = null;
       schedule();
     });
     statusObserver.observe(body, { childList: true, subtree: true });

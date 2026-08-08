@@ -92,6 +92,12 @@
   /* ---- Typography -------------------------------------------- */
   --vx-font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   --vx-font-display: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+  /* Serife = Stimme/Inhalt, Sans = Bedienelemente (Design-System-Regel).
+     Die Serife war bisher nur lokal in #dash-content definiert, weshalb jeder
+     weitere Screen sie über eine eigene Fallback-Kette nachbauen musste. Hier
+     ist sie ein Token wie die übrigen Schriftrollen auch. Die ältere lokale
+     Definition im Heute-Screen ist wertgleich und bleibt vorerst bestehen. */
+  --vx-font-serif: 'Newsreader', Fraunces, Georgia, 'Times New Roman', serif;
 
   --vx-text-xs: 11px;
   --vx-text-sm: 12px;

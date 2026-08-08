@@ -45,7 +45,11 @@ new vm.Script(loader, { filename: paths.loader });
 const lineCount = (value) => value.split(/\r?\n/).length;
 assert.ok(lineCount(runtime) <= 55, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
-assert.ok(lineCount(assistantCss) <= 968, 'assistant component CSS exceeded its consolidated size budget');
+// Etappe 6 / S2: +83 Zeilen fuer den Kopfbereich "So meldet sich Ihr
+// Assistent" — eine neue Komponente, nicht Wildwuchs. Budget mit demselben
+// Spielraum wie zuvor (~65 Zeilen) neu gesetzt, damit der Waechter weiterhin
+// anschlaegt, bevor die Datei unbemerkt waechst.
+assert.ok(lineCount(assistantCss) <= 1050, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 assert.ok(lineCount(settingsCss) <= 740, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
@@ -314,14 +318,18 @@ for (const token of [
 for (const token of [
   'Fähigkeiten',
   'Betriebsstatus',
-  'Nur Abweichungen werden hervorgehoben. Technische Details bleiben optional.',
-  'function technicalSummary',
+  // Etappe 6 / S2: eine Statuszeile pro Screen. Die Zusammenfassung sitzt im
+  // Kopfbereich (customer-runtime-assistant-profile.js), die Betriebsstatus-
+  // Karte erscheint nur noch bei einer Abweichung und erzeugt deshalb kein
+  // vx-nav-status-summary mehr.
+  'Diese Einrichtungen brauchen noch Ihre Aufmerksamkeit.',
+  'function hasDeviation',
+  "stack.dataset.vxStatusRendered = '1'",
   'function capabilityToggleHtml',
   'data-vx-capability-toggle',
   'type="button"',
   'vx-as-capabilities-simple',
   'vx-as-extra-capability',
-  'vx-nav-status-summary',
   'vx-nav-status-details',
   "technicalRow('Telefonie'",
   "technicalRow('Stimme & Einstellungen'",
