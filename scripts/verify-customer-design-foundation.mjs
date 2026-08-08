@@ -504,7 +504,7 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
-assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260807-2/);
+assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260808-1/);
 assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
 assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260807-3/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
@@ -684,15 +684,20 @@ assert.match(
   'audio card must keep the auto-load hook and render the skeleton inside it'
 );
 
-// --- Save feedback must be reachable from the field being edited ----------
+// --- Save feedback must be reachable from the field being edited, without
+// forcing the page to scroll to it. The status nodes stay (used for
+// warnings/errors); the loading/success state moved onto the save button
+// itself via the shared vxInlineSaveStatus helper, and the page must never
+// scrollIntoView to reveal it.
 for (const token of [
   'vx-assistant-name-status',
   'vx-business-save-status',
-  "scrollIntoView({ block: 'nearest'",
-  'function paintStatus'
+  'function paintStatus',
+  'vxInlineSaveStatus'
 ]) {
   assert.ok(assistantRuntime.includes(token), `inline save feedback missing: ${token}`);
 }
+assert.ok(!assistantRuntime.includes('scrollIntoView'), 'assistant profile save must not force-scroll the page');
 
 for (const token of ['skeleton:', 'badge:', 'badgeTone:', 'emptyState:', 'card:', 'appBar:', 'tabs:', 'root.VoxeraUI =']) {
   assert.ok(uiComponentsJs.includes(token), `VoxeraUI factory missing: ${token}`);
