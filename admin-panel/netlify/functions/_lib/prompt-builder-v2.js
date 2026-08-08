@@ -1,8 +1,38 @@
 'use strict';
 
-const PROMPT_BUILDER_VERSION = '2.1';
+const PROMPT_BUILDER_VERSION = '2.2';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
+
+// Die Begrüssung wird niemals als eingefrorener Literal-String verwendet.
+// Ein gespeicherter ai_greeting durchläuft immer die Variablenauflösung, und
+// eine automatisch erzeugte Begrüssung wird gegen den aktuellen Assistenznamen
+// nachgeführt (siehe resolveFirstMessage). Der Sentinel markiert dabei die
+// Position des Namens in der generierten Vorlage.
+const GREETING_NAME_SENTINEL = 'VX_ASSISTANT_NAME';
+
+const ROLE_WORD = Object.freeze({
+  de: { female: 'die Assistentin', male: 'der Assistent' },
+  fr: { female: "l'assistante", male: "l'assistant" },
+  it: { female: "l'assistente", male: "l'assistente" },
+  en: { female: 'assistant', male: 'assistant' }
+});
+
+const LANGUAGE_NAMES = Object.freeze({
+  de: 'Deutsch',
+  fr: 'Französisch',
+  it: 'Italienisch',
+  en: 'Englisch'
+});
+
+// Historische Sammelwerte aus ai_language. Die UI schreibt heute einzelne
+// Sprachcodes (de|fr|it|en); diese Tabelle hält ältere Datensätze lesbar.
+const LEGACY_LANGUAGE_SETS = Object.freeze({
+  de: ['de'],
+  de_en: ['de', 'en'],
+  de_en_fr: ['de', 'en', 'fr'],
+  de_fr_it_en: ['de', 'fr', 'it', 'en']
+});
 
 const FUNCTION_TEXT = Object.freeze({
   information: 'Informationen und häufige Fragen anhand der hinterlegten Unternehmensdaten zuverlässig beantworten.',
@@ -71,32 +101,117 @@ function parsePromptProfile(notes) {
   };
 }
 
+// Trennt den Dokumentations-Header des Master-Prompts ab.
+//
+// Die frühere Suche nach dem Literal '\n---\n' traf bei CRLF-Zeilenenden nicht
+// zu. Der in der Produktion hinterlegte Master ist CRLF-kodiert, wodurch der
+// gesamte Meta-Block ausgeliefert wurde – inklusive der Zeilen, die
+// {{ASSISTANT_NAME}} mit dem Standardwert "Lara" dokumentieren und den
+// aufgelösten Begrüssungssatz zeigen. Der Agent las damit zwei zusätzliche
+// Namensnennungen, die nicht Teil seiner Instruktion sein sollten.
 function stripMasterMeta(value) {
   const source = String(value || '');
-  const separator = source.indexOf('\n---\n');
-  return (separator > 0 ? source.slice(separator + 5) : source).trim();
+  const separator = /\r?\n-{3,}[ \t]*\r?\n/.exec(source);
+  return (separator && separator.index > 0
+    ? source.slice(separator.index + separator[0].length)
+    : source).trim();
 }
 
-function buildGreeting(name, type, personName, firmName, language) {
+function roleWord(language, gender) {
+  const table = ROLE_WORD[language] || ROLE_WORD.de;
+  return gender === 'male' ? table.male : table.female;
+}
+
+// gender steuert die Rollenbezeichnung ("die Assistentin" / "der Assistent").
+// Ohne Angabe gilt weiterhin weiblich, damit bestehende Aufrufer unverändert
+// funktionieren.
+function buildGreeting(name, type, personName, firmName, language, gender = 'female') {
   const spokenName = type === 'company' ? firmName : (personName || firmName);
+  const role = roleWord(language, gender);
   if (language === 'fr') {
     if (type === 'company') return `Bonjour, ici ${name} de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    if (type === 'consultant') return `Bonjour, ici ${name}, l'assistante de ${spokenName} chez ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    return `Bonjour, ici ${name}, l'assistante de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
+    if (type === 'consultant') return `Bonjour, ici ${name}, ${role} de ${spokenName} chez ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
+    return `Bonjour, ici ${name}, ${role} de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
   }
   if (language === 'it') {
     if (type === 'company') return `Buongiorno, sono ${name} di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
-    if (type === 'consultant') return `Buongiorno, sono ${name}, l'assistente di ${spokenName} presso ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
-    return `Buongiorno, sono ${name}, l'assistente di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
+    if (type === 'consultant') return `Buongiorno, sono ${name}, ${role} di ${spokenName} presso ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
+    return `Buongiorno, sono ${name}, ${role} di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
   }
   if (language === 'en') {
     if (type === 'company') return `Hello, this is ${name} from ${spokenName}. This call is being recorded. How may I help you?`;
-    if (type === 'consultant') return `Hello, this is ${name}, assistant to ${spokenName} at ${firmName}. This call is being recorded. How may I help you?`;
-    return `Hello, this is ${name}, assistant to ${spokenName}. This call is being recorded. How may I help you?`;
+    if (type === 'consultant') return `Hello, this is ${name}, ${role} to ${spokenName} at ${firmName}. This call is being recorded. How may I help you?`;
+    return `Hello, this is ${name}, ${role} to ${spokenName}. This call is being recorded. How may I help you?`;
   }
   if (type === 'company') return `Grüezi, hier ist ${name} von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  if (type === 'consultant') return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName} bei ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
+  if (type === 'consultant') return `Grüezi, hier ist ${name}, ${role} von ${spokenName} bei ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
+  return `Grüezi, hier ist ${name}, ${role} von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
+}
+
+// Erkennt, ob ein gespeicherter Begrüssungstext aus der Auto-Generierung
+// stammt. Dazu wird die Vorlage mit einem Sentinel anstelle des Namens erzeugt
+// und der gespeicherte Text gegen Prefix/Suffix geprüft. Trifft das zu, ist der
+// enthaltene Name ein eingefrorener Altwert und darf neu gesetzt werden.
+function autoGreetingShape(context) {
+  const pattern = buildGreeting(
+    GREETING_NAME_SENTINEL,
+    context.customerType,
+    context.personName,
+    context.firmName,
+    context.language,
+    context.gender
+  );
+  const index = pattern.indexOf(GREETING_NAME_SENTINEL);
+  if (index < 0) return null;
+  return {
+    prefix: pattern.slice(0, index),
+    suffix: pattern.slice(index + GREETING_NAME_SENTINEL.length)
+  };
+}
+
+function isAutoGeneratedGreeting(stored, shape) {
+  if (!shape || !stored) return false;
+  if (!stored.startsWith(shape.prefix) || !stored.endsWith(shape.suffix)) return false;
+  return stored.length > shape.prefix.length + shape.suffix.length;
+}
+
+// Einzige Quelle der ersten Nachricht. Reihenfolge:
+//   1. kein gespeicherter Text            -> generieren
+//   2. gespeicherter Text mit Variablen   -> auflösen
+//   3. gespeicherter Text aus Auto-Gen.   -> mit aktuellem Namen neu generieren
+//   4. individuell formulierter Text      -> unverändert übernehmen
+function resolveFirstMessage(storedGreeting, context, resolve) {
+  const stored = text(storedGreeting);
+  if (!stored) return buildGreeting(context.assistantName, context.customerType, context.personName, context.firmName, context.language, context.gender);
+  const resolved = text(resolve(stored));
+  if (resolved !== stored) return resolved;
+  const shape = autoGreetingShape(context);
+  if (isAutoGeneratedGreeting(resolved, shape)) {
+    return buildGreeting(context.assistantName, context.customerType, context.personName, context.firmName, context.language, context.gender);
+  }
+  return resolved;
+}
+
+// ai_language hält heute einen einzelnen Sprachcode, historisch aber auch
+// Sammelwerte. selected_languages ergänzt die Zusatzsprachen aus dem Plan.
+function resolveLanguages(customer) {
+  const raw = text(customer.ai_language).toLowerCase() || 'de';
+  const legacySet = LEGACY_LANGUAGE_SETS[raw] || null;
+  const primary = legacySet ? legacySet[0] : (LANGUAGE_NAMES[raw] ? raw : 'de');
+  const selected = Array.isArray(customer.selected_languages)
+    ? customer.selected_languages.map(item => text(item).toLowerCase()).filter(item => LANGUAGE_NAMES[item])
+    : [];
+  const languages = [...new Set([primary, ...(legacySet || []), ...selected])];
+  return { primary, languages };
+}
+
+function languageInstruction(primary, languages) {
+  const primaryName = LANGUAGE_NAMES[primary] || primary;
+  const additional = languages.filter(item => item !== primary).map(item => LANGUAGE_NAMES[item] || item);
+  if (!additional.length) {
+    return `${primaryName} (Standard). Führe das Gespräch ausschliesslich auf ${primaryName}.`;
+  }
+  return `${primaryName} (Standard). Zusätzlich freigegeben: ${additional.join(', ')}. Wechsle automatisch in eine dieser Sprachen, sobald die anrufende Person durchgehend darin spricht, und bleibe danach in der gewählten Sprache. Wechsle in keine andere Sprache.`;
 }
 
 function formatOperationalUpdates(updates) {
@@ -175,30 +290,25 @@ function qualityReport(customer, profile, industryPrompt) {
   };
 }
 
-function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
+function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', assistantGender = 'female', operationalUpdates = [] } = {}) {
   const profile = parsePromptProfile(customer.ai_internal_notes);
   const wizard = parseMarkedJson(customer.ai_internal_notes, WIZARD_MARKER);
   const assistantName = text(customer.assistant_name) || 'Lara';
   const customerType = text(customer.ai_customer_type) || 'company';
   const addressForm = text(customer.ai_address_form) || 'sie';
   const tone = text(customer.ai_tone) || 'professional';
-  const language = text(customer.ai_language) || 'de';
+  const gender = assistantGender === 'male' ? 'male' : 'female';
+  const { primary: language, languages } = resolveLanguages(customer);
+  const assistantRole = roleWord('de', gender);
   const personName = text(customer.ai_person_name);
   const firmName = text(customer.customer_legal_name || customer.customer_name || customer.name);
   const displayName = text(customer.customer_display_name || customer.customer_name || customer.name || firmName);
   const isCompany = customerType === 'company';
-  const firstMessage = text(customer.ai_greeting) || buildGreeting(assistantName, customerType, personName, firmName, language);
 
   const toneMap = {
     formal: 'konservativ-formell. Formuliere höflich, ruhig und ohne Umgangssprache.',
     professional: 'warm-professionell. Formuliere klar, freundlich und lösungsorientiert.',
     casual: 'locker und direkt, aber weiterhin respektvoll und geschäftlich zuverlässig.'
-  };
-  const languageMap = {
-    de: 'Deutsch (Standard)',
-    de_en: 'Deutsch (Standard), Englisch bei englischsprachigen Anrufenden',
-    de_en_fr: 'Deutsch (Standard), Englisch und Französisch mit automatischem Wechsel',
-    de_fr_it_en: 'Deutsch, Französisch, Italienisch und Englisch mit automatischem Wechsel'
   };
   const variables = {
     ASSISTANT_NAME: assistantName,
@@ -209,14 +319,20 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
     WIR_MELDET_SICH: isCompany ? 'Wir melden uns' : 'Ich melde mich',
     TON: toneMap[tone] || toneMap.professional,
     ANREDE: addressForm === 'du' ? 'Sprich die anrufende Person konsequent mit du an.' : 'Sprich die anrufende Person konsequent mit Sie an.',
-    SPRACHE: languageMap[language] || language,
-    BEGRUESSUNG: firstMessage,
+    SPRACHE: languageInstruction(language, languages),
     assistant_name: assistantName,
     customer_display_name: displayName,
     customer_legal_name: firmName,
     ai_summary: text(customer.ai_summary)
   };
   const resolve = value => Object.entries(variables).reduce((result, [key, replacement]) => result.replace(new RegExp(`{{${key}}}`, 'g'), replacement), String(value || ''));
+
+  // Erst nach Aufbau der Variablen auflösbar, danach selbst als Variable
+  // verfügbar. Verhindert, dass eine gespeicherte Begrüssung den Namen einfriert.
+  const firstMessage = resolveFirstMessage(customer.ai_greeting, {
+    assistantName, customerType, personName, firmName, language, gender
+  }, resolve);
+  variables.BEGRUESSUNG = firstMessage;
 
   const customerParts = [];
   const add = (title, value) => { if (text(value)) customerParts.push(`## ${title}\n${text(value)}`); };
@@ -260,6 +376,9 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
     prompt: prompt.trim(),
     firstMessage,
     profile,
+    language,
+    languages,
+    assistantGender: gender,
     quality: qualityReport(customer, profile, industryPrompt)
   };
 }
@@ -267,9 +386,12 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
 module.exports = {
   PROMPT_BUILDER_VERSION,
   PROFILE_MARKER,
+  LANGUAGE_NAMES,
   parsePromptProfile,
   buildPromptV2,
   buildGreeting,
+  resolveLanguages,
+  languageInstruction,
   qualityReport,
   formatOperationalUpdates
 };

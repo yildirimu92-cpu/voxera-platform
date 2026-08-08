@@ -4,6 +4,8 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
+const { buildGreeting, resolveLanguages } = require('./_lib/prompt-builder-v2');
+const { resolveAssistantVoice } = require('./_lib/assistant-voice');
 
 const ELEVENLABS_API_KEY  = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL        = process.env.SUPABASE_URL;
@@ -181,16 +183,26 @@ exports.handler = async (event) => {
   // 3. Agent-Namen setzen
   const agentName = `Voxera – ${customer.customer_display_name || customer.customer_name || 'Unbekannt'}`;
 
-  // 4. Begrüssung aufbauen
-  const assistantName = customer.assistant_name || 'Lara';
-  const displayName   = customer.customer_display_name || customer.customer_name || '';
-  const language      = customer.ai_language || 'de';
-  const greeting      = customer.ai_greeting || buildDefaultGreeting(assistantName, displayName, language);
+  // 4. Stimme und Sprache über dieselben Quellen wie der Sync bestimmen,
+  //    damit Erstprovisionierung und spätere Syncs nicht auseinanderlaufen.
+  const voice = await resolveAssistantVoice(sb, customer);
+  const { primary: language } = resolveLanguages(customer);
 
-  // 5. Voice-ID aus Plan bestimmen
-  const voiceId = customer.voice_id || '1iF3vHdwHKuVKSPDK23Z'; // Default: Lara
+  // 5. Begrüssung aufbauen (wird direkt danach vom Sync überschrieben,
+  //    muss aber für den Zeitraum davor korrekt sein).
+  const assistantName = customer.assistant_name || 'Lara';
+  const firmName      = customer.customer_legal_name || customer.customer_name || customer.customer_display_name || '';
+  const greeting      = customer.ai_greeting || buildGreeting(
+    assistantName,
+    customer.ai_customer_type || 'company',
+    customer.ai_person_name || '',
+    firmName,
+    language,
+    voice.gender
+  );
 
   // 6. Template zusammenbauen
+  const voiceId = voice.voiceId || AGENT_TEMPLATE.conversation_config.tts.voice_id;
   const agentPayload = JSON.parse(JSON.stringify(AGENT_TEMPLATE)); // Deep clone
   agentPayload.name = agentName;
   agentPayload.conversation_config.agent.first_message = greeting;
@@ -263,14 +275,9 @@ exports.handler = async (event) => {
       agent_id: agentId,
       agent_name: agentName,
       voice_id: voiceId,
+      voice_source: voice.source,
+      agent_language: language,
       message: 'Agent erstellt und Prompt-Sync ausgelöst'
     })
   };
 };
-
-function buildDefaultGreeting(name, firmName, lang) {
-  if (lang === 'fr') return `Bonjour, ici ${name} de ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-  if (lang === 'it') return `Buongiorno, sono ${name} di ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
-  if (lang === 'en') return `Hello, this is ${name} from ${firmName}. This call is being recorded. How may I help you?`;
-  return `Grüezi, hier ist ${name} von ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-}

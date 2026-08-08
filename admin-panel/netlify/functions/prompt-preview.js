@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { buildPromptV2 } = require('./_lib/prompt-builder-v2');
+const { resolveAssistantVoice } = require('./_lib/assistant-voice');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -39,17 +40,15 @@ exports.handler = async event => {
     const { data:templateRow } = await sb.from('industry_templates').select('prompt_block').eq('id', customer.industry_template_id).maybeSingle();
     industryPrompt = templateRow?.prompt_block || '';
   }
-  let assistantRole = 'die Assistentin';
-  if (customer.voice_id) {
-    const { data:voice } = await sb.from('voxera_voices').select('gender').eq('voice_id', customer.voice_id).maybeSingle();
-    if (voice?.gender === 'male') assistantRole = 'der Assistent';
-  }
+  // Dieselbe Stimmenauflösung wie im Sync, damit die Vorschau die
+  // Rollenbezeichnung und die Stimme des produktiven Prompts abbildet.
+  const voice = await resolveAssistantVoice(sb, customer);
 
   const compiled = buildPromptV2({
     customer,
     masterPrompt:masterRow?.value || '',
     industryPrompt,
-    assistantRole
+    assistantGender:voice.gender
   });
 
   return {
@@ -61,6 +60,11 @@ exports.handler = async event => {
       prompt_version:compiled.version,
       prompt:compiled.prompt,
       first_message:compiled.firstMessage,
+      voice_id:voice.voiceId,
+      voice_source:voice.source,
+      assistant_gender:voice.gender,
+      agent_language:compiled.language,
+      agent_languages:compiled.languages,
       quality:compiled.quality
     })
   };
