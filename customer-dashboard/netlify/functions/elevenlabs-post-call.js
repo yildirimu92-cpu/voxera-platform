@@ -19,6 +19,53 @@ const POLL_MAX_ATTEMPTS = 5;
 const POLL_INTERVAL_MS = 3000;
 const POLL_INITIAL_DELAY_MS = 2000;
 
+// ─── Lebenszyklus-Schutz ─────────────────────────────────────────────────────
+// Beide Payload-Builder setzen dashboard_status bedingungslos auf 'new'. Fuer
+// einen frisch angelegten Datensatz ist das richtig. Auf einem bereits
+// vorhandenen Datensatz ist es ein Rueckwaerts-Sprung im Lebenszyklus, und der
+// passiert oefter als gedacht:
+//
+//   * ElevenLabs stellt denselben Post-Call-Webhook erneut zu (Retry, manuell
+//     ausgeloeste Wiederholung),
+//   * der Polling-Zweig schreibt WAEHREND EINES LAUFS bis zu fuenf weitere
+//     Updates auf denselben Datensatz,
+//   * der Tool-Call-Pfad trifft einen Datensatz, den der Post-Call-Pfad
+//     bereits angelegt hat.
+//
+// In allen drei Faellen wandert ein Eintrag, den jemand laengst bearbeitet,
+// geplant, abgeschlossen oder archiviert hat, zurueck in den Posteingang.
+//
+// Regel ab hier: der Webhook bewegt den Lebenszyklus vorwaerts oder gar nicht.
+// Inhaltsfelder (Zusammenfassung, Transkript, Kategorie, Lead-Qualitaet ...)
+// werden weiterhin unveraendert nachgezogen — nur dashboard_status faellt aus
+// dem Patch, wenn der Datensatz schon weiter ist.
+const LIFECYCLE_ADVANCED_STATUSES = new Set([
+  'in_progress',
+  'follow_up_scheduled',
+  'closed',
+  'archived'
+]);
+
+function stripDashboardStatus(payload, reason) {
+  if (!payload || !Object.prototype.hasOwnProperty.call(payload, 'dashboard_status')) return payload;
+  const next = { ...payload };
+  delete next.dashboard_status;
+  console.log('[elevenlabs-post-call] dashboard_status nicht geschrieben', {
+    reason,
+    suppressed: payload.dashboard_status
+  });
+  return next;
+}
+
+// Fuer Updates auf einem gematchten Datensatz: Status nur schreiben, solange
+// der Eintrag noch nicht weiter ist. Unbekannter/leerer Status gilt als "noch
+// nicht weiter" — dann bleibt das bisherige Verhalten.
+function withoutStatusDowngrade(payload, currentStatus) {
+  const current = String(currentStatus || '').trim().toLowerCase();
+  if (!LIFECYCLE_ADVANCED_STATUSES.has(current)) return payload;
+  return stripDashboardStatus(payload, 'lifecycle_advanced:' + current);
+}
+
 // ─── Supabase Notification Insert ────────────────────────────────────────────
 async function insertNotification(sbAdmin, { customerId, type, title, sub, callId }) {
   if (!customerId) return;
@@ -368,25 +415,33 @@ async function handleToolCall(body, event) {
   // Match existing call record
   let matchedId = null;
   let matchStrategy = null;
+  // Der Lebenszyklus des gematchten Datensatzes wird mitgelesen, damit der
+  // Patch ihn nicht zurueckdreht (siehe withoutStatusDowngrade).
+  let matchedStatus = null;
 
   // Strategy 1: by elevenlabs_conversation_id
   if (elevenLabsConvId) {
-    const { data: ex } = await sbAdmin.from('calls').select('id')
+    const { data: ex } = await sbAdmin.from('calls').select('id, dashboard_status')
       .eq('elevenlabs_conversation_id', elevenLabsConvId).maybeSingle();
-    if (ex?.id) { matchedId = ex.id; matchStrategy = 'conv_id'; }
+    if (ex?.id) { matchedId = ex.id; matchedStatus = ex.dashboard_status; matchStrategy = 'conv_id'; }
   }
 
   // Strategy 2: by caller_phone + called_number (recent)
   if (!matchedId && callerPhone && calledNumber) {
     const cutoff = new Date(Date.now() - 120 * 60 * 1000).toISOString();
-    const { data: candidates } = await sbAdmin.from('calls').select('id, created_at')
+    const { data: candidates } = await sbAdmin.from('calls').select('id, created_at, dashboard_status')
       .eq('caller_phone', callerPhone).eq('called_number', calledNumber)
       .gte('created_at', cutoff).order('created_at', { ascending: false }).limit(1);
-    if (candidates?.[0]?.id) { matchedId = candidates[0].id; matchStrategy = 'phone_match'; }
+    if (candidates?.[0]?.id) {
+      matchedId = candidates[0].id;
+      matchedStatus = candidates[0].dashboard_status;
+      matchStrategy = 'phone_match';
+    }
   }
 
   if (matchedId) {
-    const { error } = await sbAdmin.from('calls').update(updatePayload).eq('id', matchedId);
+    const { error } = await sbAdmin.from('calls')
+      .update(withoutStatusDowngrade(updatePayload, matchedStatus)).eq('id', matchedId);
     if (error) {
       console.error('[elevenlabs-post-call] tool-call update failed', { matchedId, error: error.message });
       return response(500, { error: 'Update failed' });
@@ -686,12 +741,17 @@ exports.handler = async (event) => {
   // ─── Match-Strategie (4-stufig) ─────────────────────────────────────────
   let matchedRecordId = null;
   let matchStrategy = null;
+  // Der Lebenszyklus des gematchten Datensatzes wird mitgelesen, damit der
+  // Patch ihn nicht zurueckdreht (siehe withoutStatusDowngrade). Strategy 1 ist
+  // der Fall, der in Produktion zaehlt: derselbe Webhook trifft ein zweites
+  // Mal ein und findet den Datensatz ueber die conversation_id wieder.
+  let matchedStatus = null;
 
   // Strategy 1: existing elevenlabs_conversation_id (idempotent retry)
   {
     const { data: existing, error } = await sbAdmin
       .from('calls')
-      .select('id')
+      .select('id, dashboard_status')
       .eq('elevenlabs_conversation_id', elevenLabsConvId)
       .maybeSingle();
     if (error) {
@@ -701,6 +761,7 @@ exports.handler = async (event) => {
     }
     if (existing?.id) {
       matchedRecordId = existing.id;
+      matchedStatus = existing.dashboard_status;
       matchStrategy = 'elevenlabs_conversation_id';
     }
   }
@@ -709,7 +770,7 @@ exports.handler = async (event) => {
   if (!matchedRecordId && twilioCallSid) {
     const { data: existing, error } = await sbAdmin
       .from('calls')
-      .select('id')
+      .select('id, dashboard_status')
       .eq('call_id', twilioCallSid)
       .is('elevenlabs_conversation_id', null)
       .maybeSingle();
@@ -720,6 +781,7 @@ exports.handler = async (event) => {
     }
     if (existing?.id) {
       matchedRecordId = existing.id;
+      matchedStatus = existing.dashboard_status;
       matchStrategy = 'twilio_call_sid';
     }
   }
@@ -731,7 +793,7 @@ exports.handler = async (event) => {
     ).toISOString();
     const { data: candidates, error } = await sbAdmin
       .from('calls')
-      .select('id, created_at')
+      .select('id, created_at, dashboard_status')
       .eq('caller_phone', callerPhone)
       .eq('called_number', calledNumber)
       .is('elevenlabs_conversation_id', null)
@@ -743,9 +805,11 @@ exports.handler = async (event) => {
       console.error('[elevenlabs-post-call] stub-match query failed', { error: error.message });
     } else if (candidates && candidates.length === 1) {
       matchedRecordId = candidates[0].id;
+      matchedStatus = candidates[0].dashboard_status;
       matchStrategy = 'twilio_stub';
     } else if (candidates && candidates.length > 1) {
       matchedRecordId = candidates[0].id;
+      matchedStatus = candidates[0].dashboard_status;
       matchStrategy = 'twilio_stub_ambiguous_picked_latest';
       console.warn('[elevenlabs-post-call] multiple stub candidates, picked latest', {
         elevenLabsConvId, callerPhone, calledNumber, candidateCount: candidates.length
@@ -759,7 +823,7 @@ exports.handler = async (event) => {
   if (matchedRecordId) {
     const { error: updateError } = await sbAdmin
       .from('calls')
-      .update(updatePayload)
+      .update(withoutStatusDowngrade(updatePayload, matchedStatus))
       .eq('id', matchedRecordId);
     if (updateError) {
       console.error('[elevenlabs-post-call] initial update failed', {
@@ -889,10 +953,16 @@ exports.handler = async (event) => {
           const liveStatus = complete ? 'completed' : 'analyzing';
           const polledPayload = buildUpdatePayloadFromData(apiResult.data, elevenLabsConvId, liveStatus);
 
-          // Sofortiges UPDATE — Dashboard sieht den Fortschritt live
+          // Sofortiges UPDATE — Dashboard sieht den Fortschritt live.
+          // dashboard_status faellt hier IMMER raus, nicht nur bei
+          // fortgeschrittenem Lebenszyklus: ueber den Status hat der Lauf
+          // bereits beim Initial-Update bzw. beim Insert entschieden. Jeder
+          // weitere Schreibvorgang darf nur noch Inhalt nachziehen, sonst
+          // ueberschreibt das Polling bis zu fuenf Mal eine Statusaenderung,
+          // die der Kunde waehrend der Auswertung vorgenommen hat.
           const { error: progressUpdateError } = await sbAdmin
             .from('calls')
-            .update(polledPayload)
+            .update(stripDashboardStatus(polledPayload, 'polling_progress_update'))
             .eq('id', recordId);
           if (progressUpdateError) {
             console.error('[elevenlabs-post-call] progress update failed', {
