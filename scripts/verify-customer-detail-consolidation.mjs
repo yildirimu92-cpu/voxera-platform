@@ -97,14 +97,36 @@ for (const hostScope of [
 ]) assert.ok(!source.includes(hostScope),
   'Detail-CSS ist wieder an einen Host gebunden statt an die Shell-Klasse: ' + hostScope);
 
-// Card-Radius über das kanonische Token der Design-System-Checkliste.
-assert.ok(source.includes('.vx-dv2-card{background:var(--vx-surface,#fff);border-radius:var(--vx-ui-card-radius,12px)'),
-  '.vx-dv2-card nutzt nicht den kanonischen Card-Radius-Token');
+// Karte über die kanonischen Tokens. Seit der Angleichung an die
+// Anfragen-Liste (2026-08-08) zieht das Panel Fläche, Rahmen und Radius aus
+// dem --vx-ui-row-* Satz — derselbe Kartenvertrag wie die Listenzeile, nur
+// über den Alias statt über --vx-ui-card-*. Geprüft wird deshalb, dass gar
+// kein Literal zurückkommt, und dass beide Radius-Tokens 12px bleiben.
 {
+  const rule = /\.vx-dv2-card\{([^}]*)\}/.exec(source);
+  assert.ok(rule, '.vx-dv2-card-Regel nicht gefunden');
+  assert.match(rule[1], /border-radius:var\(--vx-ui-(?:card|row)-radius\)/,
+    '.vx-dv2-card nutzt nicht den kanonischen Card-Radius-Token');
+  assert.match(rule[1], /background:var\(--vx-ui-row-bg\)|background:var\(--vx-surface/,
+    '.vx-dv2-card setzt die Kartenfläche wieder als Literal');
+  assert.match(rule[1], /border:var\(--vx-ui-row-border-width\) solid var\(--vx-ui-row-border-color\)/,
+    '.vx-dv2-card trägt nicht mehr dieselbe Haarlinie wie die Anfragen-Zeile');
+
   const tokens = fs.readFileSync('customer-dashboard/shared/customer-design-tokens.css', 'utf8');
   assert.match(tokens, /--vx-ui-card-radius:\s*12px/,
     'kanonischer Card-Radius im Token-Owner ist nicht mehr 12px');
+  assert.match(tokens, /--vx-ui-row-radius:\s*12px/,
+    'Zeilen-Radius im Token-Owner ist nicht mehr 12px — Liste und Detailpanel laufen auseinander');
 }
+
+// Das Panel darf keine zweite Badge-Familie mehr aufmachen: die Chips im
+// Kopf ziehen dieselbe Komponente wie die Listen-Badges. Die frühere
+// Inline-Palette (Umriss-Pillen in Gewicht 500) war der sichtbarste
+// Unterschied zwischen den beiden Spalten.
+assert.ok(source.includes("window.VoxeraUI.badge(text, tone || undefined, { className: 'vx-dv2-chip' })"),
+  'die Detail-Chips laufen wieder über eine eigene Palette statt über VoxeraUI.badge');
+assert.ok(!/\.vx-dv2-chip\{[^}]*border-radius:20px/.test(source),
+  'die alte Chip-Optik (20px-Umrisspille) ist zurück');
 
 // ── 4. Genau EIN Mount-Pfad in die Detailflächen ────────────────────────────
 assert.ok(source.includes('function mountDetail(record, hostEl, frame)'), 'zentraler Mount-Pfad fehlt');

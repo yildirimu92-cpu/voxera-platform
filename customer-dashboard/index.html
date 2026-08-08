@@ -165,22 +165,27 @@
    Konsolidierter Block (Wer/Was/Nächster-Schritt) + eingeklappte
    Audio/Notiz/Verlauf-Sektionen + optionale schmale Statuszeile.
    ═══════════════════════════════════════════════════════════ */
-.vx-summary-acc{border:1px solid var(--vx-color-border-strong);border-radius:var(--vx-radius-md);background:var(--vx-color-card-bg);overflow:hidden;}
-.vx-summary-acc+.vx-summary-acc{margin-top:var(--vx-spacing-sm);}
-.vx-summary-acc>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:var(--vx-spacing-sm);padding:11px 14px;font-size:var(--vx-text-md);font-weight:var(--vx-weight-semibold);color:var(--vx-color-text);user-select:none;}
+/* Die Akkordeons rahmen Audio, Notiz und Verlauf im Detailpanel und standen
+   als einzige Flächen dort auf 1px/--vx-color-border-strong bei 10px Radius,
+   während die Karten daneben 0.5px/#D9E1EC bei 12px tragen. Auf die
+   Kartenwerte gezogen (2026-08-08), damit im Panel nur noch eine Kartenform
+   vorkommt — dieselbe wie in der Liste. */
+.vx-summary-acc{border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);border-radius:var(--vx-ui-row-radius);background:var(--vx-ui-row-bg);overflow:hidden;}
+.vx-summary-acc+.vx-summary-acc{margin-top:var(--vx-ui-row-gap);}
+.vx-summary-acc>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:var(--vx-spacing-sm);padding:10px 14px;font-size:13px;font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);font-family:var(--vx-ui-row-font);user-select:none;}
 .vx-summary-acc>summary::-webkit-details-marker{display:none;}
-.vx-summary-acc-label{display:flex;align-items:center;gap:8px;min-width:0;}
-.vx-summary-acc-label i{color:var(--vx-color-text-subtle);font-size:15px;}
-.vx-summary-acc-chevron{color:var(--vx-color-text-subtle);font-size:13px;transition:transform var(--vx-duration-fast) var(--vx-ease);flex-shrink:0;}
+.vx-summary-acc-label{display:flex;align-items:center;gap:7px;min-width:0;}
+.vx-summary-acc-label i{color:var(--vx-ui-icon-quiet);font-size:15px;}
+.vx-summary-acc-chevron{color:var(--vx-ui-icon-quiet);font-size:13px;transition:transform var(--vx-duration-fast) var(--vx-ease);flex-shrink:0;}
 .vx-summary-acc[open]>summary .vx-summary-acc-chevron{transform:rotate(180deg);}
-.vx-summary-acc-body{padding:0 14px 14px;border-top:1px solid var(--vx-color-border);padding-top:var(--vx-spacing-md);}
+.vx-summary-acc-body{padding:12px 14px 14px;border-top:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);}
 
-.vx-summary-steps{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:var(--vx-spacing-md);padding-top:var(--vx-spacing-md);border-top:1px solid var(--vx-color-border);}
-.vx-summary-step{display:flex;align-items:center;gap:5px;font-size:var(--vx-text-xs);color:var(--vx-color-text-subtle);white-space:nowrap;}
-.vx-summary-step-dot{width:6px;height:6px;border-radius:var(--vx-radius-pill);background:var(--vx-color-text-subtle);flex-shrink:0;}
-.vx-summary-step.is-current{color:var(--vx-color-text);font-weight:var(--vx-weight-semibold);}
-.vx-summary-step.is-current .vx-summary-step-dot{background:var(--vx-color-brand);}
-.vx-summary-step-sep{width:14px;height:1px;background:var(--vx-color-border-strong);flex-shrink:0;}
+.vx-summary-steps{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:var(--vx-spacing-md);padding-top:var(--vx-spacing-md);border-top:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);}
+.vx-summary-step{display:flex;align-items:center;gap:5px;font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);white-space:nowrap;}
+.vx-summary-step-dot{width:6px;height:6px;border-radius:var(--vx-radius-pill);background:var(--vx-ui-icon-quiet);flex-shrink:0;}
+.vx-summary-step.is-current{color:var(--vx-ui-row-title-color);font-weight:var(--vx-weight-semibold);}
+.vx-summary-step.is-current .vx-summary-step-dot{background:var(--vx-color-night);}
+.vx-summary-step-sep{width:14px;height:1px;background:var(--vx-ui-row-border-color);flex-shrink:0;}
 
 /* ═══════════════════════════════════════════════════════════
    VOXERA DESIGN SYSTEM v3.0
@@ -327,25 +332,35 @@
 ══════════════════════════════════════════ */
 /* Executive-Brief-Ton: EIN ruhiger Hinweis statt drei gleichzeitig
    laufender Animationen (Ring + Balken-Puls + Punkt-Puls). Der Live-Status
-   bleibt erkennbar über einen einzigen dezenten Punkt im Badge und eine
-   statische Akzentlinie, statt über Bewegung und gesättigtes Rot zu schreien. */
+   bleibt erkennbar über einen einzigen dezenten Punkt im Badge. */
 /* Ambient-Hinweis, kein Karten-Eintrag: waehrend des Gespraechs existiert
    bewusst kein Objekt mit Anruf-Daten. Der Hinweis wird beim Klingeln einmal
    eingeblendet und bleibt bis zum Auflegen unveraendert stehen. */
+/* ── Akzentsprache (2026-08-08) ────────────────────────────────────────────
+   Die frühere rote 2px-Kante links ist entfallen. Sie war einer von drei
+   gleichzeitig gestapelten Akzent-Rändern auf Heute (rot hier, getönter
+   Night-Rand an der Lara-Blase, Night-Balken an der "Braucht dich"-Gruppe)
+   und der einzige Ort im Produkt, an dem Rot als Rahmen auftrat. Die
+   Anfragen-Liste hat die Frage beim Neubau bereits entschieden: eine linke
+   Kante bedeutet dort genau eine Sache — ausgewählt
+   (.vx-requests-item.sp-active). Zustand lebt im Badge, und das Live-Badge
+   rechts sagt bereits alles, was die Kante gesagt hat.
+   Der Hinweis ist damit eine gewöhnliche Karte aus den --vx-ui-row-* Werten,
+   dieselbe Fläche wie jede Zeile in Heute und Anfragen. */
 #dash-live-ambient:empty{display:none;}
 #live-call-row{
   display:flex;align-items:center;gap:10px;
-  padding:12px 14px;background:var(--vx-color-card-bg);
-  border:1px solid var(--vx-color-border);
-  border-left:2px solid var(--vx-color-danger);
-  border-radius:var(--vx-ui-card-radius, 12px);
+  padding:var(--vx-ui-row-padding);background:var(--vx-ui-row-bg);
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+  border-radius:var(--vx-ui-row-radius);
+  font-family:var(--vx-ui-row-font);
   cursor:default;position:relative;
   animation:liveRowEnter .3s cubic-bezier(.16,1,.3,1) both;
 }
 .vx-live-avatar{width:34px;height:34px;border-radius:var(--vx-radius-md);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--vx-color-text-on-dark);background:var(--vx-color-night);flex-shrink:0;}
 .vx-live-body{flex:1;min-width:0;}
-.vx-live-name{font-size:13px;font-weight:700;color:var(--vx-color-text);line-height:1.3;}
-.vx-live-sub{font-size:12px;color:var(--vx-color-text-muted);margin-top:1px;}
+.vx-live-name{font-size:13px;font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);line-height:1.3;}
+.vx-live-sub{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);margin-top:1px;}
 .vx-live-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:var(--vx-radius-pill);background:var(--vx-color-danger-bg);color:var(--vx-color-danger);flex-shrink:0;}
 .vx-live-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--vx-color-danger);animation:liveDotPulse 1.4s ease-in-out infinite;flex-shrink:0;}
 
@@ -6303,13 +6318,21 @@ body,.main{background:var(--vx-bg);}
 
 /* ── Call Detail Transcript — Voxera polished transcript cards ── */
 .vx-transcript-card{margin-bottom:14px;} /* Card shell + inset owned by shared/customer-ui-components.css */
-.vx-transcript-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:0.5px solid var(--line);cursor:pointer;user-select:none;}
-.vx-transcript-head i:first-child{color:#1A6FE8;flex-shrink:0;font-size:16px;}
-.vx-transcript-title{font-size:10px;font-weight:700;color:#0D1F3C;text-transform:uppercase;letter-spacing:.07em;}
-.vx-transcript-meta{margin-left:auto;font-size:10px;font-weight:600;color:#94A3B8;}
-.vx-transcript-chev{width:14px;height:14px;color:#94A3B8;transition:transform .2s;}
+/* Rahmenloser Host fuer den Player: .vx-audio-modern bringt seit der
+   Token-Angleichung selbst die Kartenrahmung mit. Vorher lag er zusaetzlich
+   in einer .vx-transcript-card samt Innenpolsterung — im Panel sichtbar als
+   doppelter Rahmen um denselben Block. */
+.vx-audio-host{display:block;}
+/* Kopfzeile im Abschnittsstil der Liste: kein Versalien-Mikrolabel mit
+   Sperrung mehr, kein blaues Icon, und Meta/Chevron aus der Meta-Rolle
+   statt #94A3B8 (3.09:1 auf Weiss). */
+.vx-transcript-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);cursor:pointer;user-select:none;}
+.vx-transcript-head i:first-child{color:var(--vx-ui-icon-quiet);flex-shrink:0;font-size:15px;}
+.vx-transcript-title{font-size:13px;font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);text-transform:none;letter-spacing:0;}
+.vx-transcript-meta{margin-left:auto;font-size:var(--vx-ui-row-time-size);font-weight:400;color:var(--vx-ui-meta-color);}
+.vx-transcript-chev{width:14px;height:14px;color:var(--vx-ui-icon-quiet);transition:transform .2s;}
 .vx-transcript-card.is-open .vx-transcript-chev{transform:rotate(90deg);}
-.vx-transcript-panel{display:none;background:linear-gradient(180deg,#FFFFFF 0%,#FBFCFF 100%);}
+.vx-transcript-panel{display:none;background:var(--vx-ui-row-bg,#fff);}
 .vx-transcript-card.is-open .vx-transcript-panel{display:block;}
 .vx-transcript-list{padding:10px 12px;display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;}
 .vx-transcript-turn{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;align-items:start;padding:10px 10px;border:0.5px solid #E6EBF3;border-radius:12px;background:#FFFFFF;}
@@ -7502,21 +7525,32 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             display:flex; align-items:center; justify-content:center;
             font-family:var(--vx-font-serif); font-size:16px; font-weight:600;
           }
+          /* ── Sprechblase wird Karte (2026-08-08) ──────────────────────────
+             Vorher: getoente Flaeche (#EEF1F6) plus 3px Night-Kante links.
+             Beides zusammen las sich als generische Chat-Blase und war der
+             zweite von drei gestapelten Akzent-Raendern auf diesem Screen.
+             Jetzt dieselbe Karte wie jede andere Flaeche in Heute und
+             Anfragen (--vx-ui-row-*). Die Stimme traegt allein die
+             Newsreader-Serife im Text — genau die Rollenverteilung, die
+             gelten soll: Serif = Stimme, Sans = UI. Der Night-Avatar bleibt
+             als Absenderzeichen und ist damit das einzige Signal, das die
+             Nachricht von einer Listenzeile unterscheidet. */
           .vx-lara-bubble {
-            flex:1; min-width:0; background:#EEF1F6;
-            border-left:3px solid var(--vx-color-night,#0D1F3C);
-            border-radius:var(--vx-ui-card-radius,12px);
-            padding:16px 18px;
+            flex:1; min-width:0;
+            background:var(--vx-ui-row-bg);
+            border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+            border-radius:var(--vx-ui-row-radius);
+            padding:14px 16px;
           }
           .vx-lara-text {
             font-family:var(--vx-font-serif); font-weight:400; font-size:18px;
             line-height:1.48; color:var(--vx-color-night,#0D1F3C); margin:0;
           }
-          /* Diese Zeile liegt als einzige Meta-Angabe auf der getoenten Bubble
-             (#EEF1F6), wo --vx-ui-meta-color nur 4.27:1 erreicht. Sie nimmt
-             deshalb die Sekundaer-Rolle (5.28:1 auf der Bubble) — inhaltlich
-             ist sie ohnehin die Signatur der Nachricht und keine Listenzeit. */
-          .vx-lara-meta { margin-top:10px; font-size:12px; color:var(--vx-ui-text-secondary); font-family:var(--vx-font-handover-ui); }
+          /* Auf der weissen Karte gilt wieder die regulaere Meta-Rolle
+             (4.83:1). Die frueher hier noetige Ausnahme auf die dunklere
+             Sekundaer-Rolle hing allein an der getoenten Flaeche, auf der
+             --vx-ui-meta-color nur 4.27:1 erreichte. */
+          .vx-lara-meta { margin-top:8px; font-size:var(--vx-ui-row-time-size); color:var(--vx-ui-meta-color); font-family:var(--vx-font-handover-ui); }
 
           .vx-handover-section { margin-top:22px; }
           .vx-handover-eyebrow {
@@ -7525,7 +7559,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             font-size:12px; font-weight:600; color:var(--vx-ui-meta-color); letter-spacing:0; text-transform:none;
           }
           .vx-handover-eyebrow-dot {
-            flex:0 0 auto; width:7px; height:7px; border-radius:50%;
+            flex:0 0 auto; width:var(--vx-ui-section-dot-size); height:var(--vx-ui-section-dot-size); border-radius:50%;
           }
           .vx-handover-eyebrow.is-danger .vx-handover-eyebrow-dot { background:#DC2626; }
           .vx-handover-eyebrow.is-success .vx-handover-eyebrow-dot { background:#059669; }
@@ -7537,18 +7571,27 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             border:0.5px solid var(--vx-ui-section-count-border);
           }
 
-          .vx-handover-rail { position:relative; padding-left:16px; display:flex; flex-direction:column; gap:12px; }
-          .vx-handover-rail::before {
-            content:''; position:absolute; left:0; top:2px; bottom:2px; width:3px;
-            background:var(--vx-color-night,#0D1F3C); border-radius:2px;
-          }
+          /* ── Balken entfallen (2026-08-08) ────────────────────────────────
+             Der frühere 3px-Night-Balken links der Gruppe war der dritte
+             gestapelte Akzent-Rand. Er sagte "diese Karten gehören zusammen"
+             — was der Abschnittskopf darüber (Punkt + "Braucht dich" +
+             Zähler) bereits sagt, und zwar in derselben Form, in der die
+             Anfragen-Liste ihre Datumsgruppen markiert. Auf 390px kostete
+             er zusätzlich 16px der ohnehin knappen Zeilenbreite.
+             Die Klasse bleibt als Container bestehen (das Markup zeigt
+             darauf), trägt aber nur noch den Listenabstand. */
+          .vx-handover-rail { display:flex; flex-direction:column; gap:var(--vx-ui-row-gap); }
 
+          /* Kartenwerte aus demselben Token-Satz wie die Anfragen-Zeile:
+             vorher 14px 16px Polsterung gegen 12px 14px in der Liste — bei
+             sonst identischer Karte war das der sichtbare Dichte-Unterschied
+             zwischen den beiden Screens. */
           .vx-handover-card {
-            background:var(--vx-ui-card-bg,#fff);
-            border:var(--vx-ui-card-border-width,0.5px) solid var(--vx-ui-card-border-color,#D9E1EC);
-            border-radius:var(--vx-ui-card-radius,12px);
-            padding:14px 16px;
-            font-family:var(--vx-font-handover-ui);
+            background:var(--vx-ui-row-bg);
+            border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+            border-radius:var(--vx-ui-row-radius);
+            padding:var(--vx-ui-row-padding);
+            font-family:var(--vx-ui-row-font);
           }
           /* Ganze Karte klickbar (führt zur Detailansicht) — Zurückrufen-
              Button behält seinen eigenen Klick-Handler und stoppt die
@@ -7560,8 +7603,8 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           }
           .vx-handover-card--needs:hover,
           .vx-handover-card--resolved:hover {
-            border-color:#C4CCDA;
-            box-shadow:0 2px 10px rgba(13,31,60,0.08);
+            border-color:var(--vx-ui-row-border-hover);
+            box-shadow:var(--vx-ui-row-shadow-hover);
           }
           .vx-handover-card--needs:focus-visible,
           .vx-handover-card--resolved:focus-visible {
@@ -7570,27 +7613,27 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           }
           .vx-handover-card-body { display:flex; align-items:flex-start; gap:12px; }
           .vx-handover-card-icon {
-            flex:0 0 auto; width:36px; height:36px; border-radius:50%;
-            background:var(--vx-ui-row-icon-bg); color:var(--vx-ui-icon-quiet);
-            display:flex; align-items:center; justify-content:center; font-size:15px;
+            flex:0 0 auto; width:var(--vx-ui-row-icon-size); height:var(--vx-ui-row-icon-size); border-radius:50%;
+            background:var(--vx-ui-row-icon-bg); color:var(--vx-ui-row-icon-color);
+            display:flex; align-items:center; justify-content:center; font-size:var(--vx-ui-row-icon-font-size);
           }
           .vx-handover-card-main { flex:1; min-width:0; }
           .vx-handover-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-          .vx-handover-card-title { font-weight:700; font-size:14px; color:var(--vx-color-night,#0D1F3C); }
-          .vx-handover-card-time { font-size:12px; color:var(--vx-ui-meta-color); white-space:nowrap; flex:0 0 auto; }
-          .vx-handover-card-desc { margin-top:4px; font-size:13px; color:#5B6472; line-height:1.42; }
-          .vx-handover-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:16px; margin-top:12px; }
+          .vx-handover-card-title { font-weight:var(--vx-ui-row-title-weight); font-size:var(--vx-ui-row-title-size); color:var(--vx-ui-row-title-color); line-height:1.35; }
+          .vx-handover-card-time { font-size:var(--vx-ui-row-time-size); color:var(--vx-ui-row-time-color); white-space:nowrap; flex:0 0 auto; }
+          .vx-handover-card-desc { margin-top:4px; font-size:var(--vx-ui-row-desc-size); color:var(--vx-ui-row-desc-color); line-height:var(--vx-ui-row-desc-leading); }
+          .vx-handover-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:16px; margin-top:10px; }
           .vx-handover-btn {
-            border-radius:999px; min-height:38px; font-size:13px; font-weight:700;
+            border-radius:var(--vx-radius-pill,999px); min-height:34px; font-size:13px; font-weight:700;
             border:1px solid transparent; cursor:pointer; padding:0 16px;
-            font-family:var(--vx-font-handover-ui);
+            font-family:var(--vx-ui-row-font);
           }
           .vx-handover-btn--primary {
             flex:0 0 auto; background:var(--vx-color-night,#0D1F3C); border-color:var(--vx-color-night,#0D1F3C); color:#fff;
           }
           .vx-handover-btn--primary:hover { background:#132a52; }
 
-          .vx-handover-cards { display:flex; flex-direction:column; gap:10px; }
+          .vx-handover-cards { display:flex; flex-direction:column; gap:var(--vx-ui-row-gap); }
           .vx-handover-card--resolved { opacity:.72; }
           .vx-handover-card--resolved .vx-handover-card-title { font-weight:600; }
 
@@ -7600,7 +7643,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:22px;
           }
           body.vx-customer-design-foundation .vx-all-clear-title { font-family:var(--vx-font-serif); font-weight:600; font-size:25px; color:var(--vx-color-night,#0D1F3C); margin:0 0 8px; }
-          .vx-all-clear-text { font-size:14px; color:#5B6472; max-width:320px; margin:0 auto; line-height:1.5; }
+          .vx-all-clear-text { font-size:14px; color:var(--vx-ui-text-secondary); max-width:320px; margin:0 auto; line-height:1.5; }
 
           .vx-handover-footlink { margin-top:18px; font-size:12px; color:var(--vx-ui-meta-color); text-align:center; font-family:var(--vx-font-handover-ui); }
           .vx-handover-footlink a { color:var(--vx-color-night,#0D1F3C); font-weight:600; text-decoration:underline; cursor:pointer; }
@@ -18868,7 +18911,7 @@ function vxRenderCallAudioCardHtml(callOrFields) {
   var audioUrl = vxGetCallAudioUrl(callOrFields);
   var conversationId = (typeof vxGetElevenLabsConversationId === 'function') ? vxGetElevenLabsConversationId(callOrFields) : '';
   if (audioUrl) {
-    return '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(audioUrl, 'Bereit zum Abspielen') + '</div></div>';
+    return '<div id="vx-call-audio-card" class="vx-audio-host">' + vxRenderModernAudioPlayerHtml(audioUrl, 'Bereit zum Abspielen') + '</div>';
   }
   if (conversationId) {
     return vxRenderAudioStateCardHtml('loading', 'Aufnahme wird geladen …', conversationId);
@@ -18902,7 +18945,7 @@ async function vxTryLoadElevenLabsAudioFromDashboard(trigger) {
         url = URL.createObjectURL(blob);
       }
       if (url && card) {
-        card.outerHTML = '<div class="vx-transcript-card" id="vx-call-audio-card"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' + vxRenderModernAudioPlayerHtml(url, 'Bereit zum Abspielen') + '</div></div>';
+        card.outerHTML = '<div id="vx-call-audio-card" class="vx-audio-host">' + vxRenderModernAudioPlayerHtml(url, 'Bereit zum Abspielen') + '</div>';
         if (window.vxHydrateModernAudioPlayers) window.vxHydrateModernAudioPlayers(document);
         return true;
       }
@@ -20573,11 +20616,15 @@ function renderTimelineHTML(history) {
     inner += '</div>'; // /padding
   }
 
-  let html = '<div style="background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:14px;box-shadow:0 10px 24px rgba(15,23,42,.035);">';
-  html +=   '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--line);">';
-  html +=     '<i class="ph-bold ph-clock-counter-clockwise" style="color:#1A6FE8;flex-shrink:0;font-size:16px;" aria-hidden="true"></i>';
-  html +=     '<div style="font-size:13px;font-weight:800;color:#0D1F3C;letter-spacing:-.01em;">Kontakt-Historie</div>';
-  html +=     '<span style="margin-left:auto;font-size:10px;font-weight:750;color:#64748B;text-transform:uppercase;letter-spacing:.07em;">' + eventCount + ' Ereignis' + (eventCount !== 1 ? 'se' : '') + '</span>';
+  // Karte und Kopfzeile ziehen dieselben Werte wie die Anfragen-Liste und der
+  // Rest des Detailpanels (2026-08-08): 0.5px/#D9E1EC bei 12px statt eigenem
+  // Schatten, Icon im stillen Grau statt #1A6FE8, und der Zähler ohne
+  // Versalien/Sperrung in der Meta-Rolle.
+  let html = '<div style="background:var(--vx-ui-row-bg);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);border-radius:var(--vx-ui-row-radius);overflow:hidden;">';
+  html +=   '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);">';
+  html +=     '<i class="ph-bold ph-clock-counter-clockwise" style="color:var(--vx-ui-icon-quiet);flex-shrink:0;font-size:15px;" aria-hidden="true"></i>';
+  html +=     '<div style="font-size:13px;font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);letter-spacing:0;">Kontakt-Historie</div>';
+  html +=     '<span style="margin-left:auto;font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);color:var(--vx-ui-section-label-color);text-transform:none;letter-spacing:0;">' + eventCount + ' Ereignis' + (eventCount !== 1 ? 'se' : '') + '</span>';
   html +=   '</div>';
   html +=   '<div style="background:var(--surface);">' + inner + '</div>';
   html += '</div>';
@@ -42191,51 +42238,86 @@ body:has(#tab-archiv.active) .content{
 /* An .vx-dv2-shell gebunden, NICHT an Host-IDs. Vorher existierte dieses
    Regelwerk vierfach (#requests-detail-v2, #archiv-detail-v2,
    #call-detail-content, #vx-detail-v2-full-content / #vx-detail-v2-fullscreen),
-   davon eine Kopie zur Laufzeit per String-Replace erzeugt. */
-.vx-dv2-shell{overflow-y:auto;height:100%;background:var(--vx-bg,#F7F8FA);color:var(--vx-text,#0D1F3C);}
-.vx-dv2-header{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 12px;border-bottom:0.5px solid var(--vx-border,#E5E7EB);background:var(--vx-bg,#F7F8FA);}
-.vx-dv2-avatar{flex-shrink:0;width:44px;height:44px;border-radius:50%;background:var(--vx-night,#0D1F3C);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;}
+   davon eine Kopie zur Laufzeit per String-Replace erzeugt.
+
+   ── Angleichung an die Anfragen-Liste (2026-08-08) ───────────────────────
+   Beim Listen-Neubau blieb das Panel bewusst unangetastet ("nur Farben/
+   Ränder"). Danach standen die beiden Spalten sichtbar in zwei Sprachen:
+   die Liste dicht in Plus Jakarta Sans auf 0.5px/#D9E1EC-Karten, das Panel
+   luftig in der geerbten Body-Schrift auf einer deutlich helleren Haarlinie
+   (rgba(13,31,60,.07)), mit Versalien-Mikrolabels und Metatexten in
+   #94A3B8 — dem Wert, den die Liste wegen 3.09:1 auf Weiss verlassen hat.
+
+   Ab hier zieht das Panel dieselben --vx-ui-row-*/--vx-ui-card-* Werte wie
+   die Liste. Struktur, Reihenfolge und Bestand der Blöcke sind unverändert;
+   es ändern sich Rahmung, Abstände und Farbrollen. Geschützt bleibt die
+   Newsreader-Serife im Anliegen (.vx-dv2-concern) — Serif = Stimme. */
+.vx-dv2-shell{
+  overflow-y:auto;height:100%;
+  background:var(--vx-color-canvas,#F7F8FA);color:var(--vx-ui-row-title-color,#0D1F3C);
+  /* Die Liste setzt ihre Schrift explizit auf Plus Jakarta Sans; das Panel
+     erbte bislang die Body-Schrift (DM Sans). Nebeneinander war das der
+     auffälligste Unterschied, noch vor den Abständen. */
+  font-family:var(--vx-ui-row-font);
+}
+.vx-dv2-header{display:flex;align-items:flex-start;gap:12px;padding:14px 14px 12px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-color-canvas,#F7F8FA);}
+/* 40px wie der Lara-Avatar auf Heute, statt 44px — zwischen dem 36px-Icon
+   der Listenzeile und dem alten Wert. */
+.vx-dv2-avatar{flex-shrink:0;width:40px;height:40px;border-radius:50%;background:var(--vx-color-night,#0D1F3C);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;}
 .vx-dv2-identity{flex:1;min-width:0;}
-.vx-dv2-title{font-weight:600;font-size:15px;color:var(--vx-text,#0D1F3C);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.vx-dv2-phone{color:var(--vx-blue,#1A6FE8);font-size:13px;margin-top:1px;}
-.vx-dv2-meta{color:var(--vx-text3,#94A3B8);font-size:12px;margin-top:2px;}
-.vx-dv2-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
-.vx-dv2-chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;border:0.5px solid;}
-.vx-dv2-actions{display:flex;gap:8px;padding:12px 16px;background:var(--vx-bg,#F7F8FA);border-bottom:0.5px solid var(--vx-border,#E5E7EB);flex-wrap:wrap;}
+.vx-dv2-title{font-weight:var(--vx-ui-row-title-weight);font-size:15px;color:var(--vx-ui-row-title-color);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Die Nummer stand als einziges Element im hellen #1A6FE8, das die Liste
+   beim Neubau als Flächen- und Akzentfarbe verlassen hat. */
+.vx-dv2-phone{color:var(--vx-color-night,#0D1F3C);font-size:13px;font-weight:500;margin-top:1px;}
+.vx-dv2-meta{color:var(--vx-ui-meta-color);font-size:var(--vx-ui-row-time-size);margin-top:2px;}
+.vx-dv2-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+/* Die Chip-Optik selbst kommt jetzt von .vx-ui-badge (dieselbe Komponente
+   wie in der Liste); diese Klasse ist nur noch ein Hook fuer die Zeile. */
+.vx-dv2-chip{flex:0 0 auto;}
+.vx-dv2-actions{display:flex;gap:8px;padding:10px 14px;background:var(--vx-color-canvas,#F7F8FA);border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);flex-wrap:wrap;}
 .vx-dv2-actions:empty{display:none;}
-.vx-dv2-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--vx-radius-sm,8px);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:0.5px solid var(--vx-border-md,#DDE5F0);background:var(--vx-surface,#fff);color:var(--vx-text,#0D1F3C);}
-.vx-dv2-btn-primary{background:var(--vx-night,#0D1F3C);color:#fff;border-color:var(--vx-night,#0D1F3C);}
-.vx-dv2-btn-done{background:var(--vx-green-light,#EAF3DE);color:var(--vx-green,#3B6D11);border-color:var(--vx-green-bd,#97C459);}
-.vx-dv2-body{display:flex;flex-direction:column;gap:10px;padding:14px;}
-/* Card-Radius aus dem kanonischen Token der Etappe-1-Checkliste. */
-.vx-dv2-card{background:var(--vx-surface,#fff);border-radius:var(--vx-ui-card-radius,12px);border:0.5px solid var(--vx-border,#E5E7EB);padding:14px;}
-.vx-dv2-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-14px -14px 12px;padding:12px 14px;border-bottom:0.5px solid var(--vx-border,#E5E7EB);font-weight:600;font-size:13px;color:var(--vx-text,#0D1F3C);}
+/* Pille statt 8px-Radius und Gewicht 700 statt 500 — dieselbe Button-Form
+   wie "Zurückrufen" auf Heute und die Filter-Pillen der Liste. */
+.vx-dv2-btn{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 14px;border-radius:var(--vx-radius-pill,999px);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--vx-ui-row-font);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-ui-row-bg);color:var(--vx-ui-row-title-color);}
+.vx-dv2-btn:hover{border-color:var(--vx-ui-row-border-hover);}
+.vx-dv2-btn-primary{background:var(--vx-color-night,#0D1F3C);color:#fff;border-color:var(--vx-color-night,#0D1F3C);}
+.vx-dv2-btn-done{background:var(--vx-ui-badge-success-bg,#ECFDF5);color:var(--vx-ui-badge-success-text,#047857);border-color:var(--vx-ui-badge-success-text,#047857);}
+.vx-dv2-body{display:flex;flex-direction:column;gap:var(--vx-ui-row-gap);padding:12px 14px 14px;}
+/* Karte exakt wie die Listenzeile: 0.5px #D9E1EC statt der deutlich
+   helleren rgba(13,31,60,.07), Polsterung 12px 14px statt 14px rundum. */
+.vx-dv2-card{background:var(--vx-ui-row-bg);border-radius:var(--vx-ui-row-radius);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);padding:var(--vx-ui-row-padding);}
+.vx-dv2-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-12px -14px 10px;padding:10px 14px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);font-weight:var(--vx-ui-row-title-weight);font-size:13px;color:var(--vx-ui-row-title-color);}
 .vx-dv2-card-head>div{display:flex;align-items:center;gap:7px;}
-.vx-dv2-card-head span{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--vx-text3,#94A3B8);}
-.vx-dv2-text{font-size:13px;line-height:1.6;color:var(--vx-text2,#37415A);}
-.vx-dv2-muted{font-size:12px;color:var(--vx-text3,#94A3B8);line-height:1.55;}
+.vx-dv2-card-head i{color:var(--vx-ui-icon-quiet);}
+/* Abschnitts-Label ohne Versalien und Sperrung, in der Meta-Rolle der
+   Liste — dort steht "Heute 2" in genau diesen Werten. */
+.vx-dv2-card-head span{font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);letter-spacing:0;text-transform:none;color:var(--vx-ui-section-label-color);}
+.vx-dv2-text{font-size:var(--vx-ui-row-desc-size);line-height:var(--vx-ui-row-desc-leading);color:var(--vx-ui-row-desc-color);}
+.vx-dv2-muted{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);line-height:1.5;}
 .vx-dv2-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px;}
-.vx-dv2-info-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--vx-text3,#94A3B8);margin-bottom:4px;}
-.vx-dv2-info-value{font-size:13px;font-weight:600;color:var(--vx-text,#0D1F3C);line-height:1.35;}
-.vx-dv2-info-sub{font-size:11px;color:var(--vx-text3,#94A3B8);margin-top:3px;line-height:1.4;}
+.vx-dv2-info-label{font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);letter-spacing:0;text-transform:none;color:var(--vx-ui-section-label-color);margin-bottom:3px;}
+.vx-dv2-info-value{font-size:13px;font-weight:600;color:var(--vx-ui-row-title-color);line-height:1.35;}
+.vx-dv2-info-sub{font-size:11px;color:var(--vx-ui-meta-color);margin-top:3px;line-height:1.4;}
 .vx-dv2-action-card{display:flex;gap:12px;align-items:flex-start;}
-.vx-dv2-action-icon{width:36px;height:36px;border-radius:var(--vx-radius-md,10px);background:var(--vx-blue-light,#EFF6FF);color:var(--vx-blue,#1A6FE8);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.vx-dv2-action-title{font-size:14px;font-weight:700;color:var(--vx-text,#0D1F3C);margin-bottom:4px;}
-.vx-dv2-action-text{font-size:13px;line-height:1.55;color:var(--vx-text2,#37415A);}
-.vx-dv2-action-meta{font-size:11px;color:var(--vx-text3,#94A3B8);margin-top:6px;}
-.vx-dv2-transcript-raw{white-space:pre-wrap;font-size:13px;line-height:1.6;color:var(--vx-text2,#37415A);}
-.vx-dv2-note{width:100%;min-height:90px;padding:10px 12px;border:0.5px solid var(--vx-border-md,#DDE5F0);border-radius:var(--vx-radius-md,10px);font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;background:var(--vx-bg,#F7F8FA);color:var(--vx-text,#0D1F3C);line-height:1.6;}
+/* Stiller Icon-Kreis wie in der Listenzeile, statt des blauen Quadrats. */
+.vx-dv2-action-icon{width:var(--vx-ui-row-icon-size);height:var(--vx-ui-row-icon-size);border-radius:50%;background:var(--vx-ui-row-icon-bg);color:var(--vx-ui-row-icon-color);display:flex;align-items:center;justify-content:center;font-size:var(--vx-ui-row-icon-font-size);flex-shrink:0;}
+.vx-dv2-action-title{font-size:var(--vx-ui-row-title-size);font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);margin-bottom:4px;}
+.vx-dv2-action-text{font-size:var(--vx-ui-row-desc-size);line-height:var(--vx-ui-row-desc-leading);color:var(--vx-ui-row-desc-color);}
+.vx-dv2-action-meta{font-size:11px;color:var(--vx-ui-meta-color);margin-top:6px;}
+.vx-dv2-transcript-raw{white-space:pre-wrap;font-size:var(--vx-ui-row-desc-size);line-height:1.6;color:var(--vx-ui-row-desc-color);}
+.vx-dv2-note{width:100%;min-height:84px;padding:10px 12px;border:var(--vx-ui-row-border-width) solid var(--vx-ui-field-border,#D9E1EC);border-radius:var(--vx-ui-field-radius,10px);font-size:13px;resize:vertical;box-sizing:border-box;font-family:var(--vx-ui-row-font);background:var(--vx-ui-field-bg,#fff);color:var(--vx-ui-row-title-color);line-height:1.55;}
+.vx-dv2-note:focus{outline:0;border-color:var(--vx-color-night,#0D1F3C);box-shadow:0 0 0 3px rgba(13,31,60,.10);}
 /* Aufgaben-Zweig (vorher eigener Style-Block der Task-Implementierung). */
-.vx-dv2-task-summary{font-size:13px;line-height:1.6;color:var(--vx-text2,#37415A);}
-.vx-dv2-task-due{display:flex;align-items:center;gap:8px;padding:10px 12px;border:0.5px solid var(--vx-border,#E5E7EB);border-radius:var(--vx-ui-card-radius,12px);background:var(--vx-bg,#F7F8FA);font-weight:700;color:var(--vx-text,#0D1F3C);}
-.vx-dv2-related-call{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px;border:0.5px solid var(--vx-border,#E5E7EB);border-radius:var(--vx-ui-card-radius,12px);background:var(--vx-bg,#F7F8FA);}
-.vx-dv2-related-title{font-size:13px;font-weight:700;color:var(--vx-text,#0D1F3C);margin-bottom:3px;}
-.vx-dv2-related-meta{font-size:12px;color:var(--vx-text3,#94A3B8);line-height:1.45;}
-.vx-dv2-related-btn{height:30px;padding:0 10px;border-radius:var(--vx-radius-sm,8px);border:0.5px solid var(--vx-border-md,#DDE5F0);background:var(--vx-surface,#fff);color:var(--vx-blue,#1A6FE8);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;}
-.vx-dv2-task-note-empty{font-size:12px;color:var(--vx-text3,#94A3B8);font-style:italic;}
+.vx-dv2-task-summary{font-size:var(--vx-ui-row-desc-size);line-height:1.6;color:var(--vx-ui-row-desc-color);}
+.vx-dv2-task-due{display:flex;align-items:center;gap:8px;padding:10px 12px;border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);border-radius:var(--vx-ui-row-radius);background:var(--vx-color-canvas,#F7F8FA);font-weight:700;color:var(--vx-ui-row-title-color);}
+.vx-dv2-related-call{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:var(--vx-ui-row-padding);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);border-radius:var(--vx-ui-row-radius);background:var(--vx-color-canvas,#F7F8FA);}
+.vx-dv2-related-title{font-size:13px;font-weight:700;color:var(--vx-ui-row-title-color);margin-bottom:3px;}
+.vx-dv2-related-meta{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);line-height:1.45;}
+.vx-dv2-related-btn{min-height:30px;padding:0 12px;border-radius:var(--vx-radius-pill,999px);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-ui-row-bg);color:var(--vx-color-night,#0D1F3C);font-size:12px;font-weight:700;font-family:var(--vx-ui-row-font);cursor:pointer;white-space:nowrap;}
+.vx-dv2-task-note-empty{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);font-style:italic;}
 /* Anliegen in der Newsreader-Serife — gleiche Sprache wie der Heute-Screen. */
-.vx-dv2-concern{font-family:var(--vx-font-serif,'Newsreader',Georgia,serif);font-size:15px;line-height:1.65;color:var(--vx-text,#0D1F3C);}
-.vx-dv2-next-step{margin-top:12px;padding-top:12px;border-top:0.5px solid var(--vx-border,#E5E7EB);}
+.vx-dv2-concern{font-family:var(--vx-font-serif,'Newsreader',Georgia,serif);font-size:15px;line-height:1.6;color:var(--vx-ui-row-title-color);}
+.vx-dv2-next-step{margin-top:10px;padding-top:10px;border-top:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);}
 @media(max-width:1180px){.vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:760px){.vx-dv2-info-grid{grid-template-columns:1fr;}.vx-dv2-actions{position:sticky;top:0;z-index:2;}}
 </style>
@@ -42432,21 +42514,35 @@ body:has(#tab-archiv.active) .content{
   }
 
   // ── Bausteine ───────────────────────────────────────────────────────────
+  /* Chips (2026-08-08): bis hierher eine dritte Badge-Familie — Umriss-Pillen
+     in Gewicht 500 mit eigener Inline-Palette, neben den Listen-Badges und
+     den Status-Pills. Sie ziehen jetzt denselben Komponenten-Vertrag wie die
+     Liste (VoxeraUI.badge): Status kühl und strukturell, Rot allein für
+     "Live", Gold-Rampe allein für Lead-Qualität, dort immer mit führendem
+     Punkt. Die Kind-Namen der Aufrufstellen bleiben unverändert und werden
+     hier nur auf die kanonischen Tonwerte abgebildet. */
+  var CHIP_TONE = {
+    // Leerer Ton = aus dem Label ableiten, exakt wie in der Liste: "Offen"
+    // wird leise, "Neu" Night, "Erledigt" grün, "Live" rot.
+    status: '',
+    blue: 'info',
+    red: 'danger',
+    // "Geplant"/"Fällig" sind Terminzustände, keine Lead-Qualität — sie
+    // dürfen die Gold-Rampe nicht mitbenutzen, sonst trägt Gold wieder zwei
+    // Bedeutungen.
+    gold: 'info',
+    green: 'success',
+    leadHot: 'lead-hot',
+    leadWarm: 'lead-warm',
+    leadCold: 'lead-cold'
+  };
   function chipHtml(text, kind){
-    var palette = {
-      status:'background:var(--vx-bg,#F7F8FA);color:var(--vx-text2,#37415A);border-color:var(--vx-border-md,#DDE5F0);',
-      blue:'background:var(--vx-blue-light,#EFF6FF);color:var(--vx-blue,#1A6FE8);border-color:var(--vx-blue-bd,#BFDBFE);',
-      red:'background:var(--vx-red-light,#FEF2F2);color:var(--vx-red,#DC2626);border-color:var(--vx-red-bd,#FECACA);',
-      gold:'background:var(--vx-gold-light,#FFFBEB);color:#B45309;border-color:var(--vx-gold-bd,#FDE68A);',
-      green:'background:var(--vx-green-light,#EAF3DE);color:var(--vx-green,#3B6D11);border-color:var(--vx-green-bd,#97C459);',
-      // Lead-Qualität teilt sich die Gold-Rampe mit den Listen-Badges
-      // (--vx-ui-badge-lead-*). Reine Farbangleichung — Aufbau und
-      // Typografie der Chip-Zeile bleiben unverändert.
-      leadHot:'background:var(--vx-ui-badge-lead-hot-bg,#E8C547);color:var(--vx-ui-badge-lead-hot-text,#0D1F3C);border-color:#D9B637;',
-      leadWarm:'background:var(--vx-ui-badge-lead-warm-bg,#FBF1D8);color:var(--vx-ui-badge-lead-warm-text,#7A5C00);border-color:#EFDDAE;',
-      leadCold:'background:var(--vx-ui-badge-lead-cold-bg,#EEF2F7);color:var(--vx-ui-badge-lead-cold-text,#5B6472);border-color:#DDE5F0;'
-    };
-    return '<span class="vx-dv2-chip" style="'+(palette[kind]||palette.status)+'">'+esc(text)+'</span>';
+    var tone = CHIP_TONE[kind];
+    if (tone === undefined) tone = '';
+    if (window.VoxeraUI && typeof window.VoxeraUI.badge === 'function') {
+      return window.VoxeraUI.badge(text, tone || undefined, { className: 'vx-dv2-chip' });
+    }
+    return '<span class="vx-ui-badge vx-dv2-chip">'+esc(text)+'</span>';
   }
   function detailItem(labelText, valueText, subText){
     var html = '<div class="vx-dv2-info-item"><div class="vx-dv2-info-label">'+esc(labelText)+'</div>' +
@@ -44750,52 +44846,59 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
    Regelwerks aus der Detailkomponente und sind dorthin zusammengeführt. */
 /* === Voxera Audio Player UX V2 — premium compact SaaS layout === */
 .vx-audio-state-card .vx-transcript-head{border-bottom:0.5px solid var(--line,rgba(15,23,42,.08));}
-.vx-audio-state{display:flex;align-items:center;justify-content:center;gap:10px;min-height:96px;padding:22px 18px;color:#7c8798;font-size:13px;font-weight:650;text-align:center;}
-.vx-audio-state__retry{margin-left:8px;border:1px solid #dbe4f0;background:#fff;color:#0f172a;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;}
+.vx-audio-state{display:flex;align-items:center;justify-content:center;gap:10px;min-height:96px;padding:22px 18px;color:var(--vx-ui-meta-color);font-size:13px;font-weight:650;text-align:center;}
+.vx-audio-state__retry{margin-left:8px;border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-ui-row-bg);color:var(--vx-ui-row-title-color);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;}
+/* ── Player im Detailpanel (2026-08-08) ───────────────────────────────────
+   Rahmen und Akzent auf den Token-Satz der Liste gezogen: 20px-Radius mit
+   Verlauf und 30px-Schatten liessen den Player als eigenständiges Widget
+   auf der Karte schweben, und #2f6df6 war der letzte grosse blaue Fleck im
+   sonst durchgehend Night-farbigen Panel. Aufbau, Bedienelemente und
+   Verhalten des Players sind unverändert — nur Rahmung und Akzentfarbe. */
 .vx-audio-modern{
-  --vx-audio-navy:#071833;
-  --vx-audio-blue:#2f6df6;
-  --vx-audio-soft:#f5f8fc;
-  --vx-audio-line:#e5eaf2;
-  width:100%;box-sizing:border-box;margin:0;padding:16px 18px;border:1px solid rgba(15,23,42,.08);border-radius:20px;background:linear-gradient(180deg,#fff 0%,#fbfcff 100%);box-shadow:0 12px 30px rgba(15,23,42,.055);color:#0f172a;font-family:inherit;
+  --vx-audio-navy:var(--vx-color-night,#0D1F3C);
+  --vx-audio-accent:var(--vx-color-night,#0D1F3C);
+  --vx-audio-soft:#F1F5F9;
+  --vx-audio-line:var(--vx-ui-row-border-color,#D9E1EC);
+  --vx-audio-meta:var(--vx-ui-meta-color,#697285);
+  width:100%;box-sizing:border-box;margin:0;padding:12px 14px;border:var(--vx-ui-row-border-width) solid var(--vx-audio-line);border-radius:var(--vx-ui-row-radius,12px);background:var(--vx-ui-row-bg,#fff);color:var(--vx-ui-row-title-color,#0D1F3C);font-family:var(--vx-ui-row-font);
 }
 .vx-audio-modern *{box-sizing:border-box;}
-.vx-audio-modern__top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px;}
-.vx-audio-modern__title{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:850;letter-spacing:.18em;text-transform:uppercase;color:#0f172a;line-height:1.2;}
-.vx-audio-modern__title:before{content:"";width:18px;height:18px;flex:0 0 auto;background:#2f6df6;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 10v4'/%3E%3Cpath d='M7 7v10'/%3E%3Cpath d='M11 4v16'/%3E%3Cpath d='M15 8v8'/%3E%3Cpath d='M19 11v2'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 10v4'/%3E%3Cpath d='M7 7v10'/%3E%3Cpath d='M11 4v16'/%3E%3Cpath d='M15 8v8'/%3E%3Cpath d='M19 11v2'/%3E%3C/svg%3E") center/contain no-repeat;}
-.vx-audio-modern__sub{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:12px;font-weight:700;color:#7c8798;}
-.vx-audio-modern__sub span{width:7px;height:7px;border-radius:50%;background:#28b070;box-shadow:0 0 0 3px rgba(40,176,112,.12);}
-.vx-audio-modern__surface{border:1px solid rgba(15,23,42,.065);border-radius:18px;background:#fff;padding:13px 14px 12px;}
+.vx-audio-modern__top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:10px;}
+.vx-audio-modern__title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:var(--vx-ui-row-title-weight);letter-spacing:0;text-transform:none;color:var(--vx-ui-row-title-color);line-height:1.3;}
+.vx-audio-modern__title:before{content:"";width:16px;height:16px;flex:0 0 auto;background:var(--vx-ui-icon-quiet);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 10v4'/%3E%3Cpath d='M7 7v10'/%3E%3Cpath d='M11 4v16'/%3E%3Cpath d='M15 8v8'/%3E%3Cpath d='M19 11v2'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 10v4'/%3E%3Cpath d='M7 7v10'/%3E%3Cpath d='M11 4v16'/%3E%3Cpath d='M15 8v8'/%3E%3Cpath d='M19 11v2'/%3E%3C/svg%3E") center/contain no-repeat;}
+.vx-audio-modern__sub{display:flex;align-items:center;gap:7px;margin-top:4px;font-size:var(--vx-ui-row-time-size);font-weight:400;color:var(--vx-audio-meta);}
+.vx-audio-modern__sub span{width:7px;height:7px;border-radius:50%;background:var(--vx-color-success,#047857);}
+.vx-audio-modern__surface{border:var(--vx-ui-row-border-width) solid var(--vx-audio-line);border-radius:10px;background:var(--vx-color-canvas,#F7F8FA);padding:12px;}
 .vx-audio-modern__controls{display:grid;grid-template-columns:38px 50px minmax(120px,1fr) 38px;align-items:center;gap:12px;}
-.vx-audio-modern__btn{appearance:none;-webkit-appearance:none;width:38px;height:38px;border:0;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;background:#f3f6fa;color:#334155;font-size:16px;font-weight:900;line-height:1;cursor:pointer;transition:transform .14s ease,background .14s ease,color .14s ease,box-shadow .14s ease;}
-.vx-audio-modern__btn:hover{background:#eaf0f7;color:#0f172a;}.vx-audio-modern__btn:active{transform:scale(.96);}
-.vx-audio-modern__btn--primary{width:50px;height:50px;border-radius:17px;background:linear-gradient(180deg,#10305f 0%,#071833 100%);color:#fff;font-size:18px;box-shadow:0 12px 26px rgba(7,24,51,.24);}
-.vx-audio-modern__btn--primary:hover{background:#0b1f42;color:#fff;}
+.vx-audio-modern__btn{appearance:none;-webkit-appearance:none;width:38px;height:38px;border:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--vx-ui-row-icon-bg,#F1F5F9);color:var(--vx-ui-row-title-color,#0D1F3C);font-size:16px;font-weight:900;line-height:1;cursor:pointer;transition:transform .14s ease,background .14s ease,color .14s ease;}
+.vx-audio-modern__btn:hover{background:#E4EAF2;}.vx-audio-modern__btn:active{transform:scale(.96);}
+.vx-audio-modern__btn--primary{width:46px;height:46px;border-radius:50%;background:var(--vx-audio-navy);color:#fff;font-size:17px;box-shadow:none;}
+.vx-audio-modern__btn--primary:hover{background:#132a52;color:#fff;}
 .vx-audio-modern__timeline{position:relative;min-width:0;width:100%;padding:1px 0 0;}
 .vx-audio-modern__wave{height:38px;display:flex;align-items:center;gap:3px;padding:0 4px;overflow:hidden;}
-.vx-audio-modern__wave span{width:3px;min-width:3px;border-radius:999px;background:linear-gradient(180deg,#2f6df6,#9ec1ff);opacity:.38;}
+.vx-audio-modern__wave span{width:3px;min-width:3px;border-radius:999px;background:var(--vx-audio-accent);opacity:.28;}
 .vx-audio-modern__wave span:nth-child(-n+15){opacity:.8;}
 .vx-audio-modern__range{appearance:none;-webkit-appearance:none;position:absolute;left:0;right:0;top:0;width:100%;height:38px;margin:0;background:transparent;cursor:pointer;opacity:.01;}
 .vx-audio-modern__range::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:38px;}.vx-audio-modern__range::-moz-range-thumb{width:22px;height:38px;border:0;background:transparent;}
-.vx-audio-modern__time{display:flex;justify-content:space-between;gap:12px;margin-top:2px;font-size:12px;font-weight:800;color:#8792a5;font-variant-numeric:tabular-nums;}
-.vx-audio-modern__bottom{display:grid;grid-template-columns:minmax(100px,190px) auto minmax(90px,1fr);align-items:center;gap:12px;margin-top:12px;}
-.vx-audio-modern__volume{display:flex;align-items:center;gap:8px;color:#64748b;}
-.vx-audio-modern__volume input{width:100%;accent-color:#2f6df6;}
-.vx-audio-modern__speed{justify-self:center;display:inline-flex;align-items:center;gap:3px;padding:4px;border-radius:999px;background:#f1f5f9;}
-.vx-audio-modern__speed-btn{appearance:none;-webkit-appearance:none;border:0;border-radius:999px;min-width:44px;padding:8px 11px;background:transparent;color:#64748b;font-size:12px;font-weight:850;line-height:1;cursor:pointer;}
-.vx-audio-modern__speed-btn.is-active{background:#fff;color:#071833;box-shadow:0 4px 12px rgba(15,23,42,.11);}
-.vx-audio-modern__status{text-align:right;font-size:12px;font-weight:750;color:#8792a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vx-audio-modern__time{display:flex;justify-content:space-between;gap:12px;margin-top:2px;font-size:12px;font-weight:600;color:var(--vx-audio-meta);font-variant-numeric:tabular-nums;}
+.vx-audio-modern__bottom{display:grid;grid-template-columns:minmax(100px,190px) auto minmax(90px,1fr);align-items:center;gap:12px;margin-top:10px;}
+.vx-audio-modern__volume{display:flex;align-items:center;gap:8px;color:var(--vx-audio-meta);}
+.vx-audio-modern__volume input{width:100%;accent-color:var(--vx-audio-accent);}
+.vx-audio-modern__speed{justify-self:center;display:inline-flex;align-items:center;gap:3px;padding:3px;border-radius:999px;background:var(--vx-ui-row-icon-bg,#F1F5F9);}
+.vx-audio-modern__speed-btn{appearance:none;-webkit-appearance:none;border:0;border-radius:999px;min-width:44px;padding:7px 11px;background:transparent;color:var(--vx-audio-meta);font-size:12px;font-weight:700;line-height:1;cursor:pointer;}
+.vx-audio-modern__speed-btn.is-active{background:var(--vx-ui-row-bg,#fff);color:var(--vx-ui-row-title-color,#0D1F3C);box-shadow:0 1px 2px rgba(13,31,60,.10);}
+.vx-audio-modern__status{text-align:right;font-size:12px;font-weight:400;color:var(--vx-audio-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-.vx-audio-modern__seek-feedback{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%) scale(.92);z-index:3;display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:32px;padding:0 12px;border-radius:999px;background:rgba(7,24,51,.92);color:#fff;font-size:12px;font-weight:900;letter-spacing:.01em;box-shadow:0 12px 26px rgba(7,24,51,.22);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;font-variant-numeric:tabular-nums;}
+.vx-audio-modern__seek-feedback{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%) scale(.92);z-index:3;display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:32px;padding:0 12px;border-radius:999px;background:rgba(13,31,60,.92);color:#fff;font-size:12px;font-weight:700;letter-spacing:.01em;box-shadow:0 6px 18px rgba(13,31,60,.20);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;font-variant-numeric:tabular-nums;}
 .vx-audio-modern__seek-feedback.is-visible{opacity:1;transform:translate(-50%,-52%) scale(1);}
 .vx-audio-modern__seek-feedback.is-back{left:36%;}
 .vx-audio-modern__seek-feedback.is-forward{left:64%;}
-.vx-audio-modern__btn.is-tap-feedback{background:#dfe8f4;color:#071833;box-shadow:0 8px 18px rgba(15,23,42,.12);}
-.vx-audio-modern__btn--primary.is-tap-feedback{background:#071833;color:#fff;}
+.vx-audio-modern__btn.is-tap-feedback{background:#DFE8F4;color:var(--vx-color-night,#0D1F3C);box-shadow:0 2px 8px rgba(13,31,60,.12);}
+.vx-audio-modern__btn--primary.is-tap-feedback{background:#132a52;color:#fff;}
 .vx-audio-modern__audio{position:absolute !important;width:1px !important;height:1px !important;opacity:0 !important;pointer-events:none !important;overflow:hidden !important;}
-@media (min-width:900px){.vx-audio-modern{max-width:820px;margin:0 auto;padding:16px 18px;}.vx-audio-modern__surface{padding:14px 16px 13px;}}
-@media (max-width:720px){.vx-audio-modern{padding:14px;border-radius:20px;box-shadow:0 8px 20px rgba(15,23,42,.045);}.vx-audio-modern__top{margin-bottom:11px;}.vx-audio-modern__title{font-size:11px;letter-spacing:.16em;}.vx-audio-modern__sub{font-size:12px;}.vx-audio-modern__surface{padding:12px;border-radius:17px;}.vx-audio-modern__controls{grid-template-columns:38px 50px minmax(0,1fr) 38px;gap:8px;}.vx-audio-modern__wave{height:34px;gap:2px;}.vx-audio-modern__wave span{width:2px;min-width:2px;}.vx-audio-modern__bottom{grid-template-columns:1fr;gap:10px;}.vx-audio-modern__speed{justify-self:start;}.vx-audio-modern__status{text-align:left;}.vx-audio-modern__volume input{max-width:160px;}}
-@media (max-width:420px){.vx-audio-modern__controls{grid-template-columns:36px 48px minmax(0,1fr) 36px;gap:7px;}.vx-audio-modern__btn{width:36px;height:36px;border-radius:13px;}.vx-audio-modern__btn--primary{width:48px;height:48px;border-radius:16px;}.vx-audio-modern__speed-btn{min-width:40px;padding:8px 10px;}}
+@media (min-width:900px){.vx-audio-modern{max-width:820px;margin:0 auto;padding:12px 14px;}.vx-audio-modern__surface{padding:12px 14px;}}
+@media (max-width:720px){.vx-audio-modern{padding:12px;border-radius:var(--vx-ui-row-radius,12px);box-shadow:none;}.vx-audio-modern__top{margin-bottom:10px;}.vx-audio-modern__title{font-size:13px;letter-spacing:0;}.vx-audio-modern__sub{font-size:12px;}.vx-audio-modern__surface{padding:11px;border-radius:10px;}.vx-audio-modern__controls{grid-template-columns:38px 50px minmax(0,1fr) 38px;gap:8px;}.vx-audio-modern__wave{height:34px;gap:2px;}.vx-audio-modern__wave span{width:2px;min-width:2px;}.vx-audio-modern__bottom{grid-template-columns:1fr;gap:10px;}.vx-audio-modern__speed{justify-self:start;}.vx-audio-modern__status{text-align:left;}.vx-audio-modern__volume input{max-width:160px;}}
+@media (max-width:420px){.vx-audio-modern__controls{grid-template-columns:36px 46px minmax(0,1fr) 36px;gap:7px;}.vx-audio-modern__btn{width:36px;height:36px;}.vx-audio-modern__btn--primary{width:44px;height:44px;}.vx-audio-modern__speed-btn{min-width:40px;padding:7px 10px;}}
 
 </style>
 

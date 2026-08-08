@@ -124,11 +124,17 @@ for (const forbidden of [
   assert.ok(!/color\s*:\s*#8A93A6/i.test(tokens),
     'ein Token setzt die ruhige Textfarbe wieder direkt statt über --vx-ui-meta-color');
 
-  // Beide Screens ziehen dieselbe Quelle.
-  for (const rule of [
-    '.vx-handover-card-time { font-size:12px; color:var(--vx-ui-meta-color);',
-    '.vx-handover-footlink { margin-top:18px; font-size:12px; color:var(--vx-ui-meta-color);'
-  ]) assert.ok(source.includes(rule), 'Heute-Screen zieht die ruhige Textfarbe nicht mehr aus dem Token: ' + rule);
+  // Beide Screens ziehen dieselbe Quelle. Geprüft wird die Kopplung, nicht
+  // der Wortlaut der Deklaration: seit der Akzent-Angleichung (2026-08-08)
+  // zieht die Kartenzeit über --vx-ui-row-time-color, das seinerseits auf
+  // --vx-ui-meta-color zeigt. Beide Wege sind zulässig, ein Literal nicht.
+  const META_SOURCES = /var\(--vx-ui-(?:meta-color|row-time-color|section-label-color)\)/;
+  for (const selector of ['.vx-handover-card-time', '.vx-handover-footlink']) {
+    const rule = new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(source);
+    assert.ok(rule, `Regel ${selector} nicht gefunden`);
+    assert.ok(META_SOURCES.test(rule[1]),
+      `Heute-Screen zieht die ruhige Textfarbe nicht mehr aus dem Token: ${selector}`);
+  }
   for (const alias of [
     '--vx-ui-row-time-color: var(--vx-ui-meta-color);',
     '--vx-ui-section-label-color: var(--vx-ui-meta-color);',
@@ -139,8 +145,14 @@ for (const forbidden of [
 
   // Ruhige Icons: dieselbe Kopplung, eigene Schwelle. Der Heute-Block trug
   // #94A3B8 als Literal, bevor beide Screens auf --vx-ui-icon-quiet liefen.
-  assert.ok(source.includes('background:var(--vx-ui-row-icon-bg); color:var(--vx-ui-icon-quiet);'),
-    'das Karten-Icon auf Heute zieht die ruhige Icon-Farbe nicht mehr aus dem Token');
+  // --vx-ui-row-icon-color ist der Alias darauf (oben mitgeprüft).
+  {
+    const rule = /\.vx-handover-card-icon\s*\{([^}]*)\}/.exec(source);
+    assert.ok(rule, '.vx-handover-card-icon-Regel nicht gefunden');
+    assert.ok(/background:var\(--vx-ui-row-icon-bg\)/.test(rule[1])
+      && /color:var\(--vx-ui-(?:icon-quiet|row-icon-color)\)/.test(rule[1]),
+      'das Karten-Icon auf Heute zieht die ruhige Icon-Farbe nicht mehr aus dem Token');
+  }
 
   // WCAG AA (4.5:1) auf den Flächen, auf denen diese Rollen tatsächlich liegen.
   const luminance = (hex) => {
@@ -163,14 +175,26 @@ for (const forbidden of [
   const countBg = value('--vx-ui-section-count-bg');
   const CARD = '#FFFFFF';
   const CANVAS = '#F7F8FA';
-  const LARA_BUBBLE = '#EEF1F6';
+
+  // Die Lara-Nachricht lag bis 2026-08-08 auf einer getönten Fläche
+  // (#EEF1F6), auf der --vx-ui-meta-color nur 4.27:1 erreichte — die
+  // Signatur musste deshalb in die dunklere Sekundär-Rolle ausweichen. Seit
+  // die Nachricht eine gewöhnliche weisse Karte ist, entfällt die Ausnahme;
+  // kehrt die Tönung zurück, muss auch die Ausnahme zurückkehren.
+  {
+    const rule = /\.vx-lara-bubble\s*\{([^}]*)\}/.exec(source);
+    assert.ok(rule, '.vx-lara-bubble-Regel nicht gefunden');
+    assert.ok(/background:var\(--vx-ui-row-bg\)/.test(rule[1]),
+      'die Lara-Nachricht trägt wieder eine eigene Fläche statt der Kartenfarbe — '
+      + 'dann greift der Kontrastwert der Signatur nicht mehr');
+  }
 
   for (const [label, fg, bg] of [
     ['Meta auf Karte', meta, CARD],
     ['Meta auf Canvas', meta, CANVAS],
     ['Meta in der Zähler-Pille', meta, countBg],
     ['Sekundärtext auf Karte', secondary, CARD],
-    ['Lara-Signatur auf der Bubble', secondary, LARA_BUBBLE]
+    ['Lara-Signatur auf der Karte', meta, CARD]
   ]) {
     const measured = ratio(fg, bg);
     assert.ok(measured >= 4.5,
