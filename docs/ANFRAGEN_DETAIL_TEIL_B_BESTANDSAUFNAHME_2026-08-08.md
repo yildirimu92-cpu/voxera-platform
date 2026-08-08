@@ -377,6 +377,53 @@ Existiert Feature 1, verlinkt die Option „Termin gebucht" auf den echten Termi
 * Abnahme: `customer-dashboard/tests/call-summary-correction.test.cjs` (17 Fälle),
   Workflow `verify-call-summary-correction.yml`.
 
+### Abnahme Feature 3 — Stand 08.08.2026
+
+Migration ist auf Produktion angewandt (Ledger-Eintrag `call_summary_correction`,
+Projekt `ulcofbgrovgcvowdjrge`). Prüfskript:
+`supabase/verification/call_summary_correction_post_migration.sql`.
+
+| # | Prüfung | Ergebnis |
+|---|---|---|
+| 1 | Drei Spalten vorhanden, `_at` als `timestamptz` | **grün** |
+| 2 | UPDATE-Recht `authenticated` unverändert bei vier Spalten | **grün** |
+| 3 | Korrekturspalten lesbar, aber nicht vom Browser schreibbar | **grün** |
+| 4a | Korrektur überlebt einen zweiten Post-Call-Webhook | **grün** |
+| 4b | Eintrag springt dabei nicht auf `new` zurück | **rot — Bestandsverhalten, siehe unten** |
+
+Zu 4a: der Webhook-Lauf überschrieb `call_summary`, `call_summary_corrected`
+und `call_summary_corrected_at` blieben zeichengenau stehen. Das ist der Kern
+der Entwurfsentscheidung und er hält.
+
+Zu 4b: **das Zurückspringen hat nichts mit Feature 3 zu tun.** Beide
+Payload-Builder des Webhooks setzen `dashboard_status = 'new'` bedingungslos —
+`elevenlabs-post-call.js:266` (Webhook-Pfad) und `:365` (Tool-Call-Pfad). Das
+passiert mit wie ohne Korrektur und trifft jeden Eintrag, dessen Webhook ein
+zweites Mal eintrifft: ein abgeschlossener Vorgang wandert zurück in den
+Posteingang. Die Korrektur macht diesen Bestandsfehler nur sichtbar.
+
+Minimaler Fix (**nicht umgesetzt, Entscheidung offen**): kein Downgrade des
+Lebenszyklus. Steht der Datensatz bereits auf `closed`, `archived` oder
+`follow_up_scheduled`, lässt der Webhook `dashboard_status` unangetastet und
+schreibt nur die Inhaltsfelder. Beide Pfade lesen den gematchten Datensatz
+ohnehin schon, der Status wäre im selben Zug mitzulesen. Betrifft das
+Lebenszyklus-Verhalten aller Anrufe, nicht nur korrigierte — deshalb eine
+eigene Entscheidung und ein eigener Commit.
+
+**Nicht live geprüft, mit Begründung:**
+
+* Der Webhook wurde nicht über HTTP gefeuert — `ELEVENLABS_WEBHOOK_SECRET`
+  liegt nicht in dieser Umgebung. Ausgeführt wurde der exakte Spaltensatz, den
+  `buildUpdatePayloadFromData()` schreibt, gegen die echte Produktionstabelle.
+  Die HMAC-Prüfung und das Payload-Mapping davor sind damit nicht abgedeckt.
+* `call-save-summary-correction` wurde nicht über HTTP aufgerufen: die Function
+  liegt auf dem Feature-Branch und ist noch nicht deployed. Ausgeführt wurde
+  ihr Patch-Objekt unverändert.
+* Die UI wurde nicht im Browser bedient — kein Deployment, keine Sitzung.
+
+Die Testzeile trug `customer_id = NULL` und war über RLS für keinen Kunden
+sichtbar; sie wurde nach dem Lauf gelöscht (Rückstandsprüfung: 0 Zeilen).
+
 ---
 
 ## Aufwand
