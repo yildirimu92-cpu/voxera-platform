@@ -39948,15 +39948,23 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-audio-modern:not(.has-peaks) .vx-audio-modern__playhead{top:50%;bottom:auto;height:18px;transform:translateY(-50%);}
 
 /* Der Regler bleibt die bedienbare Ebene (Tastatur, Screenreader), liegt
-   aber unsichtbar ueber der Spur. opacity:.01 statt 0, weil einzelne
-   Browser vollstaendig transparente Regler nicht mehr treffen lassen. */
+   aber unsichtbar ueber der Spur.
+   KEIN opacity auf dem Element: opacity wirkt auf den gesamten Teilbaum
+   einschliesslich der eigenen outline, und der Fokusring weiter unten waere
+   damit auf 1 % heruntergeblendet — auf dem dunklen Block praktisch nicht
+   mehr zu sehen. Unsichtbar wird der Regler stattdessen ueber transparente
+   Bahn und transparenten Griff; das Element selbst bleibt voll deckend und
+   damit auch sein Fokusring. (Codex-Review zu PR #850.) */
 .vx-audio-modern__range{
   appearance:none;-webkit-appearance:none;
   position:absolute;inset:0;width:100%;height:100%;
-  margin:0;padding:0;background:transparent;cursor:pointer;opacity:.01;
+  margin:0;padding:0;background:transparent;color:transparent;cursor:pointer;
 }
-.vx-audio-modern__range::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:40px;}
-.vx-audio-modern__range::-moz-range-thumb{width:24px;height:40px;border:0;background:transparent;}
+.vx-audio-modern__range::-webkit-slider-runnable-track{background:transparent;border:0;}
+.vx-audio-modern__range::-moz-range-track{background:transparent;border:0;}
+.vx-audio-modern__range::-moz-range-progress{background:transparent;}
+.vx-audio-modern__range::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:40px;background:transparent;border:0;box-shadow:none;}
+.vx-audio-modern__range::-moz-range-thumb{width:24px;height:40px;border:0;background:transparent;box-shadow:none;}
 
 .vx-audio-modern__meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;}
 .vx-audio-modern__time{
@@ -39976,9 +39984,20 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-audio-modern__tool:hover{color:#fff;background:rgba(255,255,255,.10);}
 .vx-audio-modern__tool--speed{color:#fff;background:rgba(255,255,255,.12);font-weight:700;}
 .vx-audio-modern__tool svg{display:block;}
+/* Der globale Fokus-Reset weiter oben ("FOCUS-RING EINHEITLICH") nimmt allen
+   Knoepfen und Eingaben per !important die outline und ersetzt sie durch
+   box-shadow:0 0 0 3px rgba(26,111,232,.18). Auf Weiss traegt das; auf dem
+   Night-Block ist ein Blau bei 18 % Deckkraft praktisch nicht zu sehen.
+   Die drei Bedienelemente holen sich hier ihren Ring zurueck — !important
+   ist dabei kein Stilmittel, sondern die einzige Moeglichkeit, den Reset zu
+   schlagen. Weiss auf Night steht bei 15,3:1. */
 .vx-audio-modern__play:focus-visible,
 .vx-audio-modern__tool:focus-visible,
-.vx-audio-modern__range:focus-visible{outline:2px solid #fff;outline-offset:2px;}
+.vx-audio-modern__range:focus-visible{
+  outline:2px solid #fff !important;
+  outline-offset:2px !important;
+  box-shadow:none !important;
+}
 
 .vx-audio-modern__feedback{
   position:absolute;left:50%;top:50%;z-index:3;

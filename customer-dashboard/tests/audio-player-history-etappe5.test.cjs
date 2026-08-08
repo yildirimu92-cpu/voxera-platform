@@ -134,6 +134,30 @@ test('die Spruenge nennen ihre Weite und sind 15 Sekunden', () => {
   assert.match(dashboard, /var SKIP_SECONDS = 15;/);
 });
 
+/* ── 3b. Der Fokusring des Reglers ueberlebt seine Unsichtbarkeit ───────── */
+
+test('der Seek-Regler wird nicht per opacity ausgeblendet', () => {
+  // opacity wirkt auf den gesamten Teilbaum inklusive der eigenen outline.
+  // Ein opacity:.01 auf dem Regler blendet damit auch den Fokusring auf 1 %
+  // herunter — auf dem Night-Block praktisch unsichtbar.
+  const decl = rule('.vx-audio-modern__range');
+  assert.doesNotMatch(decl, /opacity\s*:/,
+    'der Regler muss ueber transparente Bahn/Griff unsichtbar werden, nicht ueber opacity');
+  assert.match(decl, /background:transparent/);
+  assert.match(rule('.vx-audio-modern__range::-webkit-slider-thumb'), /background:transparent/);
+  assert.match(rule('.vx-audio-modern__range::-moz-range-thumb'), /background:transparent/);
+});
+
+test('Knopf, Werkzeuge und Regler haben einen sichtbaren Fokuszustand', () => {
+  // Gruppenselektor — die Reihenfolge darin darf sich aendern duerfen.
+  const focusRule = /([^{}]*:focus-visible[^{}]*)\{([^}]*outline:2px solid #fff[^}]*)\}/.exec(dashboard);
+  assert.ok(focusRule, 'es muss eine focus-visible-Regel mit weissem Ring geben');
+  for (const part of ['__play', '__tool', '__range']) {
+    assert.ok(focusRule[1].includes('.vx-audio-modern' + part + ':focus-visible'),
+      `.vx-audio-modern${part} braucht einen sichtbaren Fokuszustand auf dem dunklen Grund`);
+  }
+});
+
 /* ── 4. Befund 3: eine Zaehlung im Verlauf ──────────────────────────────── */
 
 function runTimeline(history, options) {
