@@ -211,9 +211,11 @@ test('freigeschaltet sind beide Felder bedienbar', () => {
 
 test('gesperrt bleibt der Ton lesbar, die Anrede aber aenderbar', () => {
   const html = renderHero(baseProfile({ can_change_tone: false }), [], { toneEditorOpen: true });
-  // Der Ton ist markiert und deaktiviert — nicht ausgegraut und nicht versteckt.
+  // Kein deaktiviertes Feld: das zoege die kanonischen Disabled-Tokens und
+  // faerbte grau, was lesbar bleiben soll. Der Wert steht als Text da.
+  assert.doesNotMatch(html, /id="vx-hero-tone"/);
+  assert.match(html, /vx-ap-hero-locked-value">warm-professionell</);
   assert.match(html, /vx-ap-plan-badge">ab Business</);
-  assert.match(html, /<select id="vx-hero-tone" disabled>/);
   assert.match(html, /ab dem Business-Paket/);
   // Die Anrede ist eine Frage der Grundhoeflichkeit und bleibt frei.
   assert.match(html, /<select id="vx-hero-address">/);
@@ -221,7 +223,15 @@ test('gesperrt bleibt der Ton lesbar, die Anrede aber aenderbar', () => {
 
 test('fehlende Berechtigungen sperren, statt versehentlich zu oeffnen', () => {
   const html = renderHero(baseProfile(), [], { toneEditorOpen: true });
-  assert.match(html, /<select id="vx-hero-tone" disabled>/);
+  assert.doesNotMatch(html, /id="vx-hero-tone"/);
+  assert.match(html, /vx-ap-hero-locked-value/);
+});
+
+test('der offene Editor bringt seinen eigenen Meldungsanker mit', () => {
+  // Ohne ihn landet ein Fehler am Namensfeld zwei Karten weiter unten.
+  const html = renderHero(baseProfile({ can_change_tone: true }), [], { toneEditorOpen: true });
+  assert.match(html, /id="vx-hero-tune-status"/);
+  assert.match(html, /id="vx-hero-tune-cancel"/);
 });
 
 test('die aktuellen Werte sind vorausgewaehlt', () => {

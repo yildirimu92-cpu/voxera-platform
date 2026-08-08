@@ -136,7 +136,12 @@
   function statusNodes(page) {
     return {
       page: document.getElementById(page === 'business' ? 'vx-business-profile-status' : 'vx-assistant-profile-status'),
-      anchorId: page === 'business' ? 'vx-business-save-status' : 'vx-assistant-name-status'
+      // Solange der Ansprache-/Ton-Editor offen ist, ist er die Stelle, an der
+      // gearbeitet wird — die Meldung gehoert dorthin und nicht ans Namensfeld
+      // zwei Karten tiefer.
+      anchorId: page === 'business'
+        ? 'vx-business-save-status'
+        : (toneEditorOpen ? 'vx-hero-tune-status' : 'vx-assistant-name-status')
     };
   }
 
@@ -314,18 +319,32 @@
     // Einzige Quelle fuer die Sperre. Kein Plan-Name im Frontend — sonst waere
     // ein Freischalten wieder ein Deploy statt eines DB-Updates.
     const canTone = profile?.permissions?.can_change_tone === true;
+    // Gesperrt wird als Wert gezeigt, nicht als deaktiviertes Feld: ein
+    // <select disabled> zieht die kanonischen Disabled-Tokens aus
+    // customer-ui-components.css und faerbt genau das grau, was hier lesbar
+    // bleiben soll. Der Gold-Hinweis markiert die Sperre, die Schrift bleibt.
+    const toneField = canTone
+      ? '<div class="vx-ap-field"><label for="vx-hero-tone">Ton</label>' +
+        '<select id="vx-hero-tone"' + (busy ? ' disabled' : '') + '>' + optionList(TONE_OPTIONS, profile?.assistant?.tone || 'professional') + '</select></div>'
+      : '<div class="vx-ap-field"><span class="vx-ap-field-label">Ton <span class="vx-ap-plan-badge">ab Business</span></span>' +
+        '<div class="vx-ap-hero-locked-value">' + esc(toneLabel(profile?.assistant?.tone)) + '</div></div>';
+
     return '<div class="vx-ap-hero-tune is-open">' +
       '<div class="vx-ap-hero-tune-grid">' +
       '<div class="vx-ap-field"><label for="vx-hero-address">Ansprache</label>' +
       '<select id="vx-hero-address"' + (busy ? ' disabled' : '') + '>' + optionList(ADDRESS_OPTIONS, profile?.assistant?.address_form || 'sie') + '</select></div>' +
-      '<div class="vx-ap-field"><label for="vx-hero-tone">Ton' + (canTone ? '' : ' <span class="vx-ap-plan-badge">ab Business</span>') + '</label>' +
-      '<select id="vx-hero-tone"' + (canTone && !busy ? '' : ' disabled') + '>' + optionList(TONE_OPTIONS, profile?.assistant?.tone || 'professional') + '</select></div>' +
+      toneField +
       '</div>' +
       (canTone ? '' : '<div class="vx-ap-hero-note">Den Ton können Sie ab dem Business-Paket selbst wählen. Die Ansprache bleibt jederzeit änderbar.</div>') +
       '<div class="vx-ap-actions">' +
       '<button type="button" class="vx-ap-btn" id="vx-hero-tune-save"' + (busy ? ' disabled' : '') + '>Übernehmen</button>' +
-      '<button type="button" class="vx-ap-btn ghost" data-vx-tone-cancel' + (busy ? ' disabled' : '') + '>Abbrechen</button>' +
-      '</div></div>';
+      '<button type="button" class="vx-ap-btn ghost" id="vx-hero-tune-cancel" data-vx-tone-cancel' + (busy ? ' disabled' : '') + '>Abbrechen</button>' +
+      '</div>' +
+      // Fehler gehoeren neben die Bedienelemente, die sie ausgeloest haben.
+      // Ohne diesen Anker landet die Meldung am Namensfeld zwei Karten weiter
+      // unten — ausserhalb des Blickfelds.
+      '<div id="vx-hero-tune-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>' +
+      '</div>';
   }
 
   function heroCard() {
@@ -415,7 +434,13 @@
     document.querySelectorAll('[data-vx-select-voice]').forEach((node) => node.addEventListener('click', () => openVoiceModal(node.dataset.vxSelectVoice)));
     document.getElementById('vx-assistant-name-save')?.addEventListener('click', saveName);
     document.querySelector('[data-vx-tone-edit]')?.addEventListener('click', () => { toneEditorOpen = true; renderAssistant(); });
-    document.querySelector('[data-vx-tone-cancel]')?.addEventListener('click', () => { toneEditorOpen = false; renderAssistant(); });
+    // Zweiter Riegel neben dem disabled-Attribut: ein Klick, der waehrend des
+    // Speicherns doch durchkommt, darf den Editor nicht schliessen.
+    document.querySelector('[data-vx-tone-cancel]')?.addEventListener('click', () => {
+      if (busy) return;
+      toneEditorOpen = false;
+      renderAssistant();
+    });
     document.getElementById('vx-hero-tune-save')?.addEventListener('click', saveTune);
     document.getElementById('vx-open-business-profile')?.addEventListener('click', () => root.vxShowAssistantView?.('business', true));
     document.getElementById('vx-urgent-change-toggle')?.addEventListener('click', toggleUrgentChangePanel);
@@ -466,7 +491,10 @@
   // second save can't be triggered mid-request and get silently dropped by
   // the `busy` check below.
   function setAssistantActionsDisabled(disabled) {
-    ['vx-assistant-name-save', 'vx-business-profile-save', 'vx-open-business-profile'].forEach((id) => {
+    // vx-hero-tune-cancel gehoert dazu: sonst laesst sich der Editor waehrend
+    // eines laufenden Speicherns wegklicken und der Zustand ist weg, obwohl der
+    // Request noch fehlschlagen kann.
+    ['vx-assistant-name-save', 'vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel'].forEach((id) => {
       const node = document.getElementById(id);
       if (node) node.disabled = disabled;
     });

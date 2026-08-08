@@ -109,6 +109,27 @@ body.vx-customer-design-foundation .vx-ap-hero-tune-grid {
   gap: var(--vx-space-3);
 }
 
+/* Gesperrt heisst lesbar: der Wert steht als Text, nicht als deaktiviertes
+   Feld. Ein <select disabled> zoege die kanonischen Disabled-Tokens und
+   faerbte grau, was hier gerade lesbar bleiben soll. */
+body.vx-customer-design-foundation .vx-ap-field-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--vx-ink);
+  font-family: var(--vx-font-display);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-locked-value {
+  min-height: var(--vx-control-min-height, 44px);
+  display: flex;
+  align-items: center;
+  color: var(--vx-ink);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 /* Gold ist im Tokenset die Plan-/Badge-Farbe — dieselbe Rolle wie beim
    bestehenden Plan-Hinweis. Gesperrtes wird markiert, nicht versteckt. */
 body.vx-customer-design-foundation .vx-ap-plan-badge {
