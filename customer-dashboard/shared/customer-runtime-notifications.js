@@ -140,6 +140,15 @@
     event.preventDefault();
     event.stopPropagation();
     if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    // IA-Entscheidung (Fahrplan 08.08.): Notifications als anchored Popover,
+    // nicht als Vollseite. Die native Glocke rendert/öffnet #vx-notif-panel;
+    // dieser Bridge-Handler bleibt nur für Keyboard-/ARIA-Härtung (bindTrigger)
+    // und den Fallback zuständig, falls vxBellToggle einmal fehlt.
+    if (typeof root.vxBellToggle === 'function') {
+      prepareNativePage();
+      root.vxBellToggle(event);
+      return;
+    }
     openNativeNotifications(trigger);
   }
 

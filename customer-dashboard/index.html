@@ -10821,15 +10821,13 @@ function _vxBellBuildHTML(items, clickFn) {
   var _tz = 'Europe/Zurich';
   var _isMobilePage = String(clickFn || '') === 'vxBellPageItemClick';
   var _fmtDay = function(d) { return new Intl.DateTimeFormat('de-CH', {timeZone:_tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d); };
-  var _today = new Date(); var _yesterday = new Date(_today.getTime() - 86400000);
-  var _todayKey = _fmtDay(_today); var _yesterdayKey = _fmtDay(_yesterday);
+  var _today = new Date();
+  var _todayKey = _fmtDay(_today);
   var groups = []; var currentLabel = null;
   items.forEach(function(n) {
     var d = new Date(n.ts);
     var dayKey = _fmtDay(d);
-    var label = dayKey === _todayKey ? 'Heute'
-      : dayKey === _yesterdayKey ? 'Gestern'
-      : d.toLocaleDateString('de-CH', {day:'numeric',month:'short',timeZone:_tz});
+    var label = dayKey === _todayKey ? 'Heute' : 'Älter';
     if (label !== currentLabel) { groups.push({label:label,items:[]}); currentLabel = label; }
     groups[groups.length-1].items.push(n);
   });
