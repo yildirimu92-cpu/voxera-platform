@@ -473,6 +473,25 @@
   --vx-ui-row-icon-bg: #F1F5F9;
   --vx-ui-row-icon-color: var(--vx-ui-icon-quiet);
   --vx-ui-row-icon-font-size: 15px;
+
+  /* ---- List-only overrides (Anfragen row + Heute handover card) --
+     Split out from --vx-ui-row-* on purpose: that shared block is also
+     read by .vx-dv2-action-title/-icon inside the request detail panel
+     and by the audio player (.vx-audio-modern__*). Changing title-size or
+     icon-bg/-color there to chase the panel's Etappe-4-Teil-B typo/gold
+     pass would silently reskin the panel and the audio player too — the
+     audio player is explicit out-of-scope for that pass. These three
+     tokens let the two live list surfaces (Anfragen rows, Heute handover
+     cards) pick up the panel's language without touching either. */
+  --vx-ui-list-title-size: 15px;
+  /* Night avatar, gold icon — same pairing as the panel's initials
+     (8.9:1 initials-on-Night, see --vx-ui-brand-initials above), applied
+     here to every row unconditionally. Ornamental gold may never depend on
+     a record's state, or it starts carrying a second meaning next to the
+     lead-quality ramp. */
+  --vx-ui-list-avatar-bg: var(--vx-color-night, #0D1F3C);
+  --vx-ui-list-avatar-color: var(--vx-color-gold);
+
   /* Section header: dot + label + count, exactly like "Braucht dich 2". */
   --vx-ui-section-label-size: 12px;
   --vx-ui-section-label-weight: 600;

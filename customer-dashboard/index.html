@@ -6601,23 +6601,25 @@ body.vx-customer-design-foundation .vx-requests-row:focus-visible{
   border-radius:var(--vx-ui-row-radius);
 }
 
+/* Night + Gold, angeglichen an die Initialen im Detail-Panel (#848). Gilt
+   unconditional fuer jede Zeile — ornamentales Gold darf laut #848 nie vom
+   Zustand eines Datensatzes abhaengen, sonst traegt es wieder zwei
+   Bedeutungen neben der Lead-Qualitaets-Rampe. Eigene Tokens statt
+   --vx-ui-row-icon-bg/-color, weil dieser Satz auch vom Audio-Player
+   gelesen wird (siehe customer-design-tokens.css). */
 body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon{
   width:var(--vx-ui-row-icon-size);
   height:var(--vx-ui-row-icon-size);
   margin-top:0;
   border-radius:50%;
-  background:var(--vx-ui-row-icon-bg);
-  color:var(--vx-ui-row-icon-color);
+  background:var(--vx-ui-list-avatar-bg);
+  color:var(--vx-ui-list-avatar-color);
   font-size:var(--vx-ui-row-icon-font-size);
   box-shadow:none;
 }
-
-/* Der Anruf-Typ bekommt keinen eigenen blauen Kreis mehr: auf Heute ist das
-   Icon durchgehend der stille graue Kreis, die Farbe in der Zeile gehört
-   den Badges. */
 body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon.is-call{
-  background:var(--vx-ui-row-icon-bg);
-  color:var(--vx-ui-row-icon-color);
+  background:var(--vx-ui-list-avatar-bg);
+  color:var(--vx-ui-list-avatar-color);
 }
 
 body.vx-customer-design-foundation .vx-requests-copy{min-width:0;}
@@ -6642,7 +6644,7 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-title{
   overflow:hidden;
   color:var(--vx-ui-row-title-color);
   font-family:var(--vx-ui-row-font);
-  font-size:var(--vx-ui-row-title-size);
+  font-size:var(--vx-ui-list-title-size);
   font-weight:var(--vx-ui-row-title-weight);
   line-height:1.35;
   letter-spacing:0;
@@ -6650,13 +6652,17 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-title{
   white-space:nowrap;
 }
 
+/* Gewicht auf die Panel-Label-Rolle (--vx-ui-section-label-weight, 600)
+   gehoben — vorher 400, zwei Stufen unter dem Panel-Meta ("Label/Meta
+   12px/600" aus #848). Groesse und Farbe bleiben am geteilten
+   --vx-ui-row-time-* Satz, der ist unveraendert uebertragbar. */
 body.vx-customer-design-foundation .vx-requests-panel .vx-requests-time{
   flex:0 0 auto;
   margin-top:0;
   color:var(--vx-ui-row-time-color);
   font-family:var(--vx-ui-row-font);
   font-size:var(--vx-ui-row-time-size);
-  font-weight:400;
+  font-weight:var(--vx-ui-section-label-weight);
   letter-spacing:0;
   white-space:nowrap;
 }
@@ -6665,6 +6671,7 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-company{
   color:var(--vx-ui-row-time-color);
   font-family:var(--vx-ui-row-font);
   font-size:var(--vx-ui-row-time-size);
+  font-weight:var(--vx-ui-section-label-weight);
   letter-spacing:0;
 }
 body.vx-customer-design-foundation .vx-requests-panel .vx-requests-pills{
@@ -6691,6 +6698,7 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-meta{
   color:var(--vx-ui-row-time-color);
   font-family:var(--vx-ui-row-font);
   font-size:var(--vx-ui-row-time-size);
+  font-weight:var(--vx-ui-section-label-weight);
   letter-spacing:0;
 }
 
@@ -7452,15 +7460,19 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             outline-offset:2px;
           }
           .vx-handover-card-body { display:flex; align-items:flex-start; gap:12px; }
+          /* Night + Gold wie die Anfragen-Zeile — eigene Tokens statt
+             --vx-ui-row-icon-bg/-color, siehe Kommentar dort. Gilt fuer
+             beide Varianten (needs UND resolved): ornamentales Gold darf
+             laut #848 nicht vom Zustand abhaengen. */
           .vx-handover-card-icon {
             flex:0 0 auto; width:var(--vx-ui-row-icon-size); height:var(--vx-ui-row-icon-size); border-radius:50%;
-            background:var(--vx-ui-row-icon-bg); color:var(--vx-ui-row-icon-color);
+            background:var(--vx-ui-list-avatar-bg); color:var(--vx-ui-list-avatar-color);
             display:flex; align-items:center; justify-content:center; font-size:var(--vx-ui-row-icon-font-size);
           }
           .vx-handover-card-main { flex:1; min-width:0; }
           .vx-handover-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-          .vx-handover-card-title { font-weight:var(--vx-ui-row-title-weight); font-size:var(--vx-ui-row-title-size); color:var(--vx-ui-row-title-color); line-height:1.35; }
-          .vx-handover-card-time { font-size:var(--vx-ui-row-time-size); color:var(--vx-ui-row-time-color); white-space:nowrap; flex:0 0 auto; }
+          .vx-handover-card-title { font-weight:var(--vx-ui-row-title-weight); font-size:var(--vx-ui-list-title-size); color:var(--vx-ui-row-title-color); line-height:1.35; }
+          .vx-handover-card-time { font-size:var(--vx-ui-row-time-size); font-weight:var(--vx-ui-section-label-weight); color:var(--vx-ui-row-time-color); white-space:nowrap; flex:0 0 auto; }
           .vx-handover-card-desc { margin-top:4px; font-size:var(--vx-ui-row-desc-size); color:var(--vx-ui-row-desc-color); line-height:var(--vx-ui-row-desc-leading); }
           .vx-handover-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:16px; margin-top:10px; }
           .vx-handover-btn {
@@ -20159,12 +20171,21 @@ function vxHeuteHandoverCardHtml(rec, variant) {
         + '</div>' : '')
       + '</div></div></article>';
   }
+  // Trug bisher kein Icon — als einzige der beiden Varianten. Jetzt
+  // dieselbe Night+Gold-Avatar-Struktur wie "needs", damit die beiden
+  // Handover-Karten nicht mehr auseinanderlaufen. Gleiches Icon (ph-phone):
+  // es benennt den Datensatztyp (Anruf), nicht den Status — der Status
+  // steht bereits im Abschnittskopf ("Hat sich erledigt") und in der
+  // reduzierten Deckkraft der Karte.
   return '<article class="vx-handover-card vx-handover-card--resolved" data-id="'+_esc(id)+'"'
     + ' role="button" tabindex="0" onclick="vxHeuteCardClick(event,this);">'
+    + '<div class="vx-handover-card-body">'
+    + '<div class="vx-handover-card-icon" aria-hidden="true"><i class="ph-bold ph-phone"></i></div>'
+    + '<div class="vx-handover-card-main">'
     + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
     + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
     + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
-    + '</article>';
+    + '</div></div></article>';
 }
 // Ganze Karte klickbar → Detailansicht. Der "Zurückrufen"-Button innerhalb
 // der Karte behält seinen eigenen data-action="call"-Handler: Klicks darauf
