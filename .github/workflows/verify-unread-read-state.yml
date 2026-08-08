@@ -1,0 +1,31 @@
+name: Verify unread read state
+
+# Guards die Regel "gelesen entsteht nur durch tatsächliches Öffnen".
+# read_at (gesetzt von vxMarkCallAsRead beim Öffnen der Detailansicht) ist die
+# alleinige Quelle. Das Seen-Set im localStorage wird schon beim Betreten des
+# Anfragen-Tabs befüllt und darf den Lesestatus nicht beeinflussen — sonst
+# läuft der Filter "Nur ungelesene" dauerhaft leer und die Sidebar-Badge auf 0.
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/tests/unread-read-state.test.cjs'
+      - '.github/workflows/verify-unread-read-state.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/tests/unread-read-state.test.cjs'
+      - '.github/workflows/verify-unread-read-state.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --test customer-dashboard/tests/unread-read-state.test.cjs

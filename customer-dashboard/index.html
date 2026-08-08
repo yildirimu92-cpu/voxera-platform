@@ -11713,10 +11713,12 @@ function vxIsUnreadRecord(record) {
   if (hasReadAt) {
     var readAt = hasOwn(record, 'read_at') ? record.read_at : f.read_at;
     if (readAt != null && String(readAt).trim() !== '') return false;
-    // Wenn read_at explizit null ist, gilt der Eintrag als ungelesen – ausser er ist lokal bereits gesehen.
-    try {
-      if (id && typeof getSeenCallIdsFromStorage === 'function' && getSeenCallIdsFromStorage().has(id)) return false;
-    } catch(e) {}
+    // Wenn read_at explizit null ist, gilt der Eintrag als ungelesen.
+    // Die frühere Zusatzbedingung "ausser er ist lokal bereits gesehen" ist
+    // entfernt — siehe die ausführliche Begründung an der aktiven Definition
+    // (window.vxIsUnreadRecord im PR-I2-Block). Diese Fassung hier wird zur
+    // Laufzeit von jener überschrieben und bleibt nur als Fallback bestehen;
+    // beide müssen dieselbe Regel abbilden.
     return true;
   }
 
@@ -41440,7 +41442,15 @@ body:has(#tab-archiv.active) .content{
     var banner = ensureFilterBanner();
     if(!banner) return;
     var span = banner.querySelector('span');
-    var count = qsa('#anrufe-list .dpr-card').length;
+    // Die Zeilen in #anrufe-list sind <article class="vx-ops-item
+    // vx-requests-item"> (renderAnrufeInbox). Der frühere Selektor .dpr-card
+    // trifft dort nichts — der Zähler stand deshalb unabhängig vom Inhalt
+    // immer auf 0 ("Filter: Nur ungelesene · 0 Einträge" neben sichtbaren
+    // Zeilen). .vx-requests-item ist der kanonische Zeilen-Selektor, den auch
+    // vxSetActiveRequestRow() verwendet; .dpr-card bleibt als Fallback für
+    // ältere Kartenzeilen stehen. querySelectorAll liefert pro Element nur
+    // einen Treffer, doppelt gezählt wird also nichts.
+    var count = qsa('#anrufe-list .vx-requests-item, #anrufe-list .dpr-card').length;
     var text = '';
     if(window._vxAnfragenTodayOnly){ text = 'Filter: Heute · ' + count + ' ' + (count === 1 ? 'Eintrag' : 'Einträge'); }
     else if(typeof _anrufeInboxSubfilter !== 'undefined' && _anrufeInboxSubfilter === 'unread'){ text = 'Filter: Nur ungelesene · ' + count + ' ' + (count === 1 ? 'Eintrag' : 'Einträge'); }
@@ -41720,11 +41730,32 @@ body:has(#tab-archiv.active) .content{
     }
 
     // read_at leer zählt nur bei offenen, eligible Records. Erledigt/Archiviert wurde oben bereits ausgeschlossen.
+    //
+    // read_at ist die EINZIGE Quelle für "gelesen". Gesetzt wird es allein von
+    // vxMarkCallAsRead() beim tatsächlichen Öffnen der Detailansicht.
+    //
+    // Hier stand zusätzlich eine Abfrage auf das Seen-Set aus dem
+    // localStorage (voxera_seen_calls_<customerId>). Dieses Set wird von
+    // markVisibleCallsAsSeen() befüllt, sobald der Anfragen-Tab betreten wird
+    // — ohne dass ein Eintrag geöffnet wurde. Ein einziger Klick auf
+    // "Anfragen" markierte damit jeden offenen Eintrag als gelesen und liess
+    // den Filter "Nur ungelesene" dauerhaft leer laufen (persistiert im
+    // localStorage, überlebt Reload).
+    //
+    // Betroffen war auch die Sidebar-Badge: renderDashboard() berechnet zwar
+    // einen eigenen Zähler aus dem Seen-Set, vxUpdateAnfragenNavBadges() (die
+    // Fassung weiter unten in diesem Block) überschreibt ihn aber direkt
+    // danach über unreadInboxCount() -> vxIsUnreadRecord. Die Badge hing damit
+    // ebenfalls am Seen-Set und stand dauerhaft auf 0.
+    //
+    // Das Seen-Set selbst bleibt unverändert bestehen (markVisibleCallsAsSeen,
+    // getSeenCallIdsFromStorage) — für den Lesestatus wird es hier nicht mehr
+    // herangezogen. Ob es zwei Gelesen-Systeme geben soll, ist eine offene
+    // Produktfrage, siehe docs/UNREAD_READ_STATE_SEEN_SET_2026-08-07.md.
     var hasReadAt = hasOwn(record,'read_at') || hasOwn(f,'read_at');
     if (hasReadAt) {
       var readAt = hasOwn(record,'read_at') ? record.read_at : f.read_at;
       if (readAt != null && str(readAt) !== '') return false;
-      try { if (id && typeof window.getSeenCallIdsFromStorage === 'function' && window.getSeenCallIdsFromStorage().has(id)) return false; } catch(e) {}
       return true;
     }
     return false;
