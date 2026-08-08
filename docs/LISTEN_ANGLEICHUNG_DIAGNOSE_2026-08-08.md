@@ -96,7 +96,8 @@ Audio-Player bleiben unberührt.
 
 ## Teil C — Was von #848 übertragbar ist, und was nicht
 
-Zielsprache aus #848: Name 20px/700 (18px mobil), Stimme 19px Newsreader, Fliesstext 13px,
+Zielsprache aus #848: Name 20px/700 (18px mobil), Stimme 19px Newsreader (seit
+2026-08-08: 20px/500 Sans, siehe `SANS_STIMMENROLLE_2026-08-08.md`), Fliesstext 13px,
 Label/Meta 12px/600; Gold-Verlaufsstreifen über der Kopfzeile, Gold-Initialen auf Night.
 
 | Entscheidung | Liste heute | Übertragbar? |
@@ -151,6 +152,11 @@ Der Vorschautext der Zeile ist ein auf 110 Zeichen gekürzter Auszug, keine „S
 Serife dort würde mit dem Panel konkurrieren, die Scanbarkeit der Liste senken und den
 Effekt entwerten, der im Panel gerade erst entstanden ist. Die Stimme sollte bleiben, wo
 der ganze Text steht.
+
+> **Nachtrag 2026-08-08:** die Frage hat sich erledigt — Newsreader ist aus dem
+> Produkt entfernt. Die Empfehlung gilt unverändert für die Nachfolgerin: die
+> Stimmenrolle `--vx-ui-voice-*` gehört nicht in die Liste, sondern dorthin, wo
+> der ganze Text steht. Siehe `SANS_STIMMENROLLE_2026-08-08.md`.
 
 ### C4. Gold-Verlaufsstreifen — einmal pro Abschnitt, nicht pro Zeile
 

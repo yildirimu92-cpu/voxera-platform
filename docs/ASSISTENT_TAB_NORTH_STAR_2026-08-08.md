@@ -5,6 +5,15 @@
 **Vorbild:** gleiches Vorgehen wie beim Heute-Screen (North Star „Executive Brief" vor Umsetzung)
 **Quellen:** voxera-fahrplan.html (Tabs „Fahrplan"/Etappe 6, „Masterassistent", „Design-System", „Seiten-Definitionen", „Sonstiges"/Strategische Zukunftsidee) + verifizierter Code-Stand `main` @ 5e3d960
 
+> **Teilrücknahme 2026-08-08 — Typografie.** Dieses Dokument argumentiert an
+> mehreren Stellen (F8, Abschnitt 3, Tabelle 2.4) mit der Regel „Serife
+> (Newsreader) = Stimme, Sans = Bedienelemente". Diese Regel ist aufgehoben:
+> das Produkt ist durchgehend Sans-Serif. Der Begrüssungssatz bleibt das
+> visuelle Zentrum des Screens und bleibt hervorgehoben — über Grösse,
+> Gewicht und Weissraum (`--vx-ui-voice-*`, 20px/500) statt über einen
+> Schriftwechsel. Alles Übrige an diesem Konzept gilt unverändert.
+> Siehe `SANS_STIMMENROLLE_2026-08-08.md`.
+
 ---
 
 ## 0. Kurzfassung
@@ -394,8 +403,8 @@ dringend wird" sagen — heute steht diese Erklärung nur im versteckten Alt-Blo
 
 | | Vorgabe |
 |---|---|
-| **Serife (Newsreader)** | Begrüssungssatz, Vorschau-Sätze („So informiert Voxera Anrufende"), Fliesstext-Zusammenfassungen — alles, was Stimme des Assistenten ist. |
-| **Sans (Plus Jakarta Sans)** | Alle Bedienelemente, Labels, Pills, Umschalter, Buttons. |
+| ~~**Serife (Newsreader)**~~ → **Stimmenrolle (`--vx-ui-voice-*`)** | Begrüssungssatz, Vorschau-Sätze („So informiert Voxera Anrufende"), Fliesstext-Zusammenfassungen — alles, was Stimme des Assistenten ist. Seit 2026-08-08 in Sans, 20px/500/1.5 statt Newsreader (siehe Teilrücknahme oben). |
+| **Sans (Plus Jakarta Sans)** | Alle Bedienelemente, Labels, Pills, Umschalter, Buttons — und seit 2026-08-08 auch die Stimme, eine Stufe grösser und schwerer gesetzt. |
 | **Night-Navy `#0D1F3C`** | Marke und primäre Aktion. |
 | **Gold `#E8C547`** | Plan-Hinweise („ab Business" bei Stimme und Name) — deckt sich mit `--vx-color-gold` („plan / badge accent") und mit dem bestehenden `.plan-badge`. |
 | **Rot** | ausschliesslich Notfall/Dringlichkeit — hier: Notfallnummer. |

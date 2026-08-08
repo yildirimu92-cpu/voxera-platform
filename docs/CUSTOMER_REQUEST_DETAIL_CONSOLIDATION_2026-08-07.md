@@ -124,7 +124,14 @@ entfallen. Eine weitere Fläche kostet damit keine CSS-Kopie mehr.
 
 Design-System-Checkliste: `.vx-dv2-card` nutzt `var(--vx-ui-card-radius)`
 (kanonisch 12px) statt eines hart geschriebenen Werts; die Anliegen-Karte nutzt
-`var(--vx-font-serif)` (Newsreader), gleiche Sprache wie der Heute-Screen.
+die Stimmenrolle, gleiche Sprache wie der Heute-Screen.
+
+> **Zurückgenommen am 2026-08-08:** die Anliegen-Karte trug hier
+> `var(--vx-font-serif)` (Newsreader, 19px). Die Regel „Serife = Stimme" ist
+> aufgehoben — das Produkt ist durchgehend Sans, die Stimme hebt sich über
+> `--vx-ui-voice-*` (20px/500, begrenzte Zeilenlänge) ab. Der Stimmen-Ort
+> selbst bleibt unverändert dort, wo ihn dieses Dokument gesetzt hat.
+> Siehe `SANS_STIMMENROLLE_2026-08-08.md`.
 
 ### Lebenszyklus
 

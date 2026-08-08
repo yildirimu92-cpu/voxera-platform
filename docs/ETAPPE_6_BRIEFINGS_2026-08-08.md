@@ -132,8 +132,11 @@ Baue in der Assistent-Ansicht (`vx-assistant-profile-body`, gerendert von
 **ersten Block** oberhalb der Stimme-Karte:
 
 1. **Begrüssungssatz** — der Satz, mit dem sich der Assistent bei Anrufenden meldet, gesetzt
-   in `var(--vx-font-serif)` (Newsreader). Das ist das visuelle Zentrum des Screens.
+   in der Stimmenrolle. Das ist das visuelle Zentrum des Screens.
    Kein Avatar-Kreis, keine Initiale — bewusst nicht.
+   > **Zurückgenommen am 2026-08-08:** hier stand ursprünglich `var(--vx-font-serif)`
+   > (Newsreader). Das Produkt ist jetzt durchgehend Sans; die Stimme trägt
+   > `--vx-ui-voice-*` (20px/500). Siehe `SANS_STIMMENROLLE_2026-08-08.md`.
 2. **Meta-Zeile** in Sans: `Stimme <Name> · <Sie-/Du-Form> · <Ton in Klartext>` plus
    Button „Anhören" (die bestehende `data-vx-preview`-Verdrahtung wiederverwenden, nicht
    neu bauen).

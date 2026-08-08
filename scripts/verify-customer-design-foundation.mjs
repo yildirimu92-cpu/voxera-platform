@@ -68,7 +68,7 @@ assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded it
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260807-2',
-  '/shared/customer-assistant-components.css?v=20260808-2',
+  '/shared/customer-assistant-components.css?v=20260808-3',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260807-3',
   '/shared/customer-support-components.css?v=20260802-2',
@@ -597,6 +597,76 @@ assert.equal((uiComponentsRules.match(/!important/g) || []).length, 0, 'UI compo
 assert.ok(!uiComponentsRules.includes('<style'), 'UI component CSS must not contain an embedded style tag');
 assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(uiComponentsRules.replace(/#vx-assistant-root-switch/g, '')), 'UI component CSS must not hardcode colors; use the tokens');
 
+// --- Block 6b: Sans-only + Stimmenrolle (2026-08-08) ------------------------
+// Die frühere Regel "Serife = Stimme, Sans = Bedienelemente" ist zurück-
+// genommen: das Kunden-Produkt ist durchgehend Sans. Die Stimme der
+// Assistentin hebt sich weiterhin ab, aber über --vx-ui-voice-* (Grösse,
+// Gewicht, Zeilenhöhe, Zeilenlänge) statt über einen Schriftwechsel.
+//
+// Ohne Wächter kriecht die Serife über die nächste Etappe zurück: sie stand
+// an sechs Stellen in drei Dateien, davon zwei rein ornamental, und die
+// Regel war nur in Kommentaren und Dokumenten festgehalten.
+for (const token of [
+  '--vx-ui-voice-font',
+  '--vx-ui-voice-size',
+  '--vx-ui-voice-size-sm',
+  '--vx-ui-voice-weight: 500',
+  '--vx-ui-voice-leading',
+  '--vx-ui-voice-measure'
+]) {
+  assert.ok(designTokens.includes(token), `voice role token missing: ${token}`);
+}
+
+// Verboten ist die DEKLARATION, nicht das Wort: die Kommentare, die den
+// Wechsel erklären, nennen die abgelöste Serife im Fliesstext und sollen
+// stehen bleiben dürfen. Ein Kommentar schreibt "Newsreader-Serife", eine
+// Regel schreibt 'Newsreader' in Anführungszeichen oder zieht das Token —
+// beides ist eindeutig unterscheidbar, und die Prüfung braucht damit kein
+// Kommentar-Stripping, das an den Regex-Literalen im Dashboard-JS ohnehin
+// nicht zuverlässig ist.
+const retiredSerif = [
+  [/--vx-font-serif\s*:/, '--vx-font-serif definition'],
+  [/var\(\s*--vx-font-serif/, 'var(--vx-font-serif) usage'],
+  [/['"]Newsreader['"]/, "quoted 'Newsreader' family"],
+  [/family=Newsreader/, 'Newsreader webfont request'],
+  // "sans-serif" endet auf serif und wuerde ohne den Lookbehind jede
+  // reguläre Sans-Kette melden.
+  [/font-family\s*:[^;}]*(?<!sans-)\bserif\b/, 'serif font-family declaration']
+];
+for (const [label, source] of [
+  ['design tokens', designTokens],
+  ['assistant CSS', assistantCss],
+  ['foundation CSS', foundationCss],
+  ['UI component CSS', uiComponentsCss],
+  ['dashboard', dashboard]
+]) {
+  for (const [pattern, what] of retiredSerif) {
+    assert.ok(!pattern.test(source), `${label} reintroduces the retired serif: ${what}`);
+  }
+}
+
+// Jeder Stimmen-Ort zieht die Rolle als Ganzes. Ein Ort, der nur die Grösse
+// übernimmt und Gewicht oder Zeilenhöhe selbst setzt, driftet als erster
+// wieder aus der gemeinsamen Rolle heraus.
+for (const [label, source, selectors] of [
+  ['dashboard', dashboard, ['.vx-lara-text', '.vx-report-voice .vx-ops-message', '.vx-dv2-task-summary']],
+  ['assistant CSS', assistantCss, ['.vx-ap-hero-greeting']]
+]) {
+  for (const selector of selectors) {
+    // Gelesen wird der Deklarationsblock, nicht ein Fenster ab dem ersten
+    // Vorkommen: die Klassennamen stehen auch in den Kommentaren daneben.
+    // Der Selektor-Teil darf deshalb kein * oder / enthalten — damit endet
+    // die Suche an einem Kommentar, statt über ihn hinweg den nächsten
+    // fremden Block einzufangen.
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = new RegExp(`${escaped}[^{};*/]*\\{([^}]*)\\}`).exec(source);
+    assert.ok(match, `${label} missing voice place: ${selector}`);
+    for (const prop of ['var(--vx-ui-voice-font)', 'var(--vx-ui-voice-size)', 'var(--vx-ui-voice-weight)', 'var(--vx-ui-voice-leading)']) {
+      assert.ok(match[1].includes(prop), `${label}: voice place ${selector} does not resolve ${prop}`);
+    }
+  }
+}
+
 // --- Block 7: form field contract ------------------------------------------
 for (const token of [
   '--vx-ui-field-border',
@@ -764,6 +834,6 @@ assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4">
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260808-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
-for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
+for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
+const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);
