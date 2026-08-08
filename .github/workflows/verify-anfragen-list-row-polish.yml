@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-design-tokens.css'
+      - 'customer-dashboard/tests/list-panel-token-alignment.test.cjs'
       - 'scripts/verify-anfragen-list-row-polish.mjs'
       - '.github/workflows/verify-anfragen-list-row-polish.yml'
   push:
     branches: [main]
     paths:
       - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-design-tokens.css'
+      - 'customer-dashboard/tests/list-panel-token-alignment.test.cjs'
       - 'scripts/verify-anfragen-list-row-polish.mjs'
       - '.github/workflows/verify-anfragen-list-row-polish.yml'
 
@@ -22,3 +26,4 @@ jobs:
         with:
           node-version: '20'
       - run: node scripts/verify-anfragen-list-row-polish.mjs
+      - run: node --test customer-dashboard/tests/list-panel-token-alignment.test.cjs
