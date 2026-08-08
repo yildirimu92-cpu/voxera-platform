@@ -201,15 +201,42 @@ for (const forbidden of [
     '--vx-ui-row-icon-color: var(--vx-ui-icon-quiet);'
   ]) assert.ok(tokens.includes(alias), 'Anfragen-Token hängt nicht mehr am gemeinsamen Wert: ' + alias);
 
-  // Ruhige Icons: dieselbe Kopplung, eigene Schwelle. Der Heute-Block trug
-  // #94A3B8 als Literal, bevor beide Screens auf --vx-ui-icon-quiet liefen.
-  // --vx-ui-row-icon-color ist der Alias darauf (oben mitgeprüft).
+  // Zeilen-Avatare: Night + Gold, EIN Token-Paar für Heute und Anfragen
+  // (Angleichung an das Detail-Panel aus #848, 2026-08-08). Löst die frühere
+  // "ruhiges Icon"-Invariante ab: die Karten trugen bis dahin bewusst den
+  // stillen grauen Kreis, damit Farbe in der Zeile allein den Badges gehört.
+  // Der neue Vertrag kehrt das um — das Icon selbst wird zur Marken-Signatur,
+  // deshalb gilt er unconditional: kein Zustand (gelesen/ungelesen, needs/
+  // resolved, is-call) darf die Avatar-Farbe abweichen lassen, sonst trägt
+  // Gold wieder zwei Bedeutungen neben der Lead-Qualitäts-Rampe.
   {
-    const rule = /\.vx-handover-card-icon\s*\{([^}]*)\}/.exec(source);
-    assert.ok(rule, '.vx-handover-card-icon-Regel nicht gefunden');
-    assert.ok(/background:var\(--vx-ui-row-icon-bg\)/.test(rule[1])
-      && /color:var\(--vx-ui-(?:icon-quiet|row-icon-color)\)/.test(rule[1]),
-      'das Karten-Icon auf Heute zieht die ruhige Icon-Farbe nicht mehr aus dem Token');
+    const AVATAR_BG = /background:var\(--vx-ui-list-avatar-bg\)/;
+    const AVATAR_FG = /color:var\(--vx-ui-list-avatar-color\)/;
+    for (const selector of [
+      '.vx-handover-card-icon',
+      'body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon',
+      'body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon.is-call'
+    ]) {
+      const escaped = selector.replace(/[.#]/g, '\\$&');
+      const rule = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source);
+      assert.ok(rule, `Regel ${selector} nicht gefunden`);
+      assert.ok(AVATAR_BG.test(rule[1]) && AVATAR_FG.test(rule[1]),
+        `Zeilen-Avatar zieht Night+Gold nicht mehr aus dem gemeinsamen Token: ${selector}`);
+    }
+    for (const alias of [
+      '--vx-ui-list-avatar-bg: var(--vx-color-night, #0D1F3C);',
+      '--vx-ui-list-avatar-color: var(--vx-color-gold);'
+    ]) assert.ok(tokens.includes(alias), 'Avatar-Token fehlt oder hängt nicht mehr an der Basisfarbe: ' + alias);
+
+    // Die alte ruhige Icon-Farbe darf für den Avatar-Kreis nicht zurückkehren
+    // — nur die separate Aktions-Icon-Rolle (Anrufen/Mehr) darf sie noch
+    // tragen, die ist hier nicht Gegenstand der Prüfung.
+    for (const selector of ['.vx-handover-card-icon', 'body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon']) {
+      const escaped = selector.replace(/[.#]/g, '\\$&');
+      const rule = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source);
+      assert.ok(!/var\(--vx-ui-row-icon-(?:bg|color)\)/.test(rule[1]),
+        `Zeilen-Avatar hängt noch am alten ruhigen Icon-Token statt am Avatar-Token: ${selector}`);
+    }
   }
 
   // WCAG AA (4.5:1) auf den Flächen, auf denen diese Rollen tatsächlich liegen.
@@ -283,6 +310,61 @@ for (const forbidden of [
   // Beiwerk mehr Aufmerksamkeit als der Inhalt daneben.
   assert.ok(luminance(icon) > luminance(meta),
     'ruhige Icon-Farbe ist dunkler als die Meta-Textfarbe geworden');
+
+  // Gold-auf-Night-Avatar: dieselbe Paarung wie die Initialen im Detail-
+  // Panel (#848 nennt dort 8.9:1). Symbolschwelle 3:1, da das Icon selbst
+  // Nicht-Text ist.
+  {
+    const night = value('--vx-color-night');
+    const gold = value('--vx-color-gold');
+    const measured = ratio(gold, night);
+    assert.ok(measured >= 3,
+      `Gold-Avatar-Icon auf Night: ${gold} auf ${night} erreicht nur ${measured.toFixed(2)}:1 — WCAG verlangt 3:1 für Nicht-Text`);
+  }
+}
+
+// ── 6. Typo-Angleichung an das Detail-Panel (#848, 2026-08-08) ─────────────
+// Titelgrösse und Meta-Gewicht wandern auf listen-eigene bzw. bereits
+// geteilte Panel-Tokens — siehe docs/LISTEN_ANGLEICHUNG_DIAGNOSE_2026-08-08.md
+// Teil B/C. Titel-FARBE und -GEWICHT bleiben bewusst am geteilten
+// --vx-ui-row-title-* Satz (unverändert übertragbar, keine Kollateralwirkung
+// auf das Panel oder den Audioplayer).
+{
+  const TOKENS = 'customer-dashboard/shared/customer-design-tokens.css';
+  const tokens = fs.readFileSync(TOKENS, 'utf8');
+  assert.match(tokens, /--vx-ui-list-title-size:\s*15px;/,
+    'Listen-Titelgrösse ist nicht mehr 15px — Panel-Leiter wäre 15/13/12 statt 14/13/12');
+
+  for (const selector of [
+    'body.vx-customer-design-foundation .vx-requests-panel .vx-requests-title',
+    '.vx-handover-card-title'
+  ]) {
+    const escaped = selector.replace(/[.#]/g, '\\$&');
+    const rule = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source);
+    assert.ok(rule, `Regel ${selector} nicht gefunden`);
+    assert.match(rule[1], /font-size:var\(--vx-ui-list-title-size\)/,
+      `Zeilentitel zieht die Grösse nicht mehr aus dem Listen-Token: ${selector}`);
+  }
+
+  // Label/Meta 12px/600 aus dem Panel — Grösse bleibt am geteilten
+  // --vx-ui-row-time-size, nur das Gewicht hebt sich von 400 auf 600.
+  for (const selector of [
+    'body.vx-customer-design-foundation .vx-requests-panel .vx-requests-time',
+    'body.vx-customer-design-foundation .vx-requests-panel .vx-requests-company',
+    'body.vx-customer-design-foundation .vx-requests-panel .vx-requests-meta',
+    '.vx-handover-card-time'
+  ]) {
+    const escaped = selector.replace(/[.#]/g, '\\$&');
+    const rule = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source);
+    assert.ok(rule, `Regel ${selector} nicht gefunden`);
+    assert.match(rule[1], /font-weight:var\(--vx-ui-section-label-weight\)/,
+      `Meta-Text ist nicht auf das Panel-Gewicht (600) gehoben: ${selector}`);
+  }
+
+  // Beide Handover-Varianten (needs UND resolved) tragen jetzt denselben
+  // Avatar — vorher hatte "resolved" gar kein Icon-Element.
+  assert.match(source, /vx-handover-card--resolved[\s\S]{0,40}data-id[\s\S]{0,120}vx-handover-card-body[\s\S]{0,80}vx-handover-card-icon/,
+    'die "resolved"-Handover-Karte hat wieder kein Avatar-Icon — Asymmetrie zu "needs" ist zurück');
 }
 
 console.log('Anfragen list row polish verification passed.');
