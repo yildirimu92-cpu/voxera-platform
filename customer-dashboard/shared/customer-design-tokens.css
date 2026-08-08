@@ -295,16 +295,28 @@
   --vx-ui-appbar-bg: #FFFFFF;
   --vx-ui-appbar-divider-width: 0.5px;
   --vx-ui-appbar-divider-color: #E5E8EE;
-  --vx-ui-appbar-min-height: 56px;
+  --vx-ui-appbar-min-height: 64px;
   --vx-ui-appbar-padding-x: 16px;
   --vx-ui-appbar-gap: 2px;
   --vx-ui-appbar-margin-bottom: 16px;
   /* The title is the screen's name, so it carries the display face and a
-     section-title weight — 17px/500 in the body face read as unstyled text. */
+     section-title weight — 17px/500 in the body face read as unstyled text.
+
+     Auf 24px/730 gehoben (2026-08-08). Bei 17px/600 war der Seitentitel die
+     KLEINSTE Ueberschrift im Produkt: Kartentitel stehen auf 18px/730, der
+     Datensatzname im Anfrage-Detail-Panel auf 20px/700. Der Name eines
+     einzelnen Anrufs war damit groesser und schwerer als der Name des
+     Screens, auf dem er steht — die Typo-Leiter aus PR #848 hatte oben eine
+     Stufe zu wenig.
+
+     24px setzt den Seitennamen eine klare Stufe ueber den Datensatznamen,
+     statt ihn nur mit ihm gleichzuziehen. Der Leisten-Vertrag bleibt
+     unangetastet: eine Zeile, kein Untertitel, kein Badge, kein Zaehler. */
   --vx-ui-appbar-title-font: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
-  --vx-ui-appbar-title-size: 17px;
-  --vx-ui-appbar-title-weight: 600;
-  --vx-ui-appbar-title-tracking: -0.02em;
+  --vx-ui-appbar-title-size: 24px;
+  --vx-ui-appbar-title-size-mobile: 21px;
+  --vx-ui-appbar-title-weight: 730;
+  --vx-ui-appbar-title-tracking: -0.03em;
   --vx-ui-appbar-title-color: #0D1F3C;
   --vx-ui-appbar-back-size: 40px;
   --vx-ui-appbar-back-radius: 10px;

@@ -1254,7 +1254,14 @@ body{
 }
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.content{padding:24px 28px;flex:1;}
+/* Die Einfassung des Inhaltsbereichs als benannter Wert. .content zieht sie
+   hier, die Screens neben .content weiter unten aus derselben Quelle — sonst
+   laufen die beiden Familien wieder auseinander. Die Mobil-Werte spiegeln,
+   was .content in seinen eigenen Mobil-Regeln effektiv bekommt (14px seitlich,
+   16px oben). */
+:root{--vx-screen-inset-x:28px;--vx-screen-inset-y:24px;}
+@media(max-width:768px){:root{--vx-screen-inset-x:14px;--vx-screen-inset-y:16px;}}
+.content{padding:var(--vx-screen-inset-y) var(--vx-screen-inset-x);flex:1;}
 .vx-page-wrap{max-width:860px;width:100%;}
 @media(max-width:768px){.vx-page-wrap{max-width:100%;}}
 
@@ -6180,7 +6187,13 @@ body.vx-customer-design-foundation
 
   body.vx-customer-design-foundation #anrufe-split.vx-requests-layout {
     display: grid !important;
-    grid-template-columns: 380px minmax(0, 1fr) !important;
+    /* 360px statt 380px (2026-08-08): das Detail-Panel traegt Player,
+       Anliegen und Verlauf und verdient den Raum mehr als das Anruf-Log.
+       360px ist die Untergrenze, bei der die vier Status-Pillen mit ihren
+       Zaehlern noch auf eine Zeile passen — gemessen brauchen sie 325px
+       plus 28px Zeilenpolsterung. Darunter waechst der Filterblock der
+       Liste auf drei Zeilen. */
+    grid-template-columns: 360px minmax(0, 1fr) !important;
     grid-template-rows: minmax(0, 1fr) !important;
     gap: 0 !important;
     align-items: stretch !important;
@@ -7836,7 +7849,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <div id="mehr-main" class="vx-settings-main">
             <header class="vx-appbar"><h1 class="vx-appbar-title">Einstellungen</h1></header>
 
-            <div class="vx-settings-list" aria-label="Einstellungsbereiche">
+            <div class="vx-settings-list vx-ui-brand-rule" aria-label="Einstellungsbereiche">
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('profil')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-user" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Profil</span><span id="mehr-profil-sub" class="vx-settings-entry-subtitle">Name, E-Mail, Passwort</span></span>
@@ -7942,7 +7955,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <div id="mehr-sub-benachrichtigungen" class="vx-settings-subpage" hidden>
             <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen" onclick="vxScreenBack('vxMehrBack')"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Benachrichtigungen</h1></header>
 
-            <section class="vx-settings-card">
+            <section class="vx-settings-card vx-ui-brand-rule">
               <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">E-Mail</h2><p class="vx-settings-card-meta">Wählen Sie, wann Voxera Sie per E-Mail informiert.</p></div></div>
               <div id="notif-email-options" class="vx-settings-choice-list">
                 <label class="vx-settings-choice"><span class="vx-settings-choice-copy"><strong>Keine E-Mails</strong><small>Anfragen bleiben im Dashboard sichtbar.</small></span><input type="radio" name="notif-email" value="none"></label>
@@ -36226,6 +36239,29 @@ body.vx-customer-design-foundation div#app .content:not(:has(> .tab-page.active)
   flex:0 0 auto;
   padding-top:0 !important;
   padding-bottom:0 !important;
+}
+
+/* Dieselbe Einfassung fuer die Screens neben .content (2026-08-08).
+
+   Gemessen bei 1280px: Heute, Anfragen und Bericht sitzen 28px von den
+   Seiten und 24px von oben eingerueckt — das ist die Polsterung von
+   .content. Einstellungen, die Einstellungen-Unterseiten und die
+   Benachrichtigungs-Vollseite hatten 0/0/0, weil sie durch das verirrte
+   </div> neben .content liegen und deren Polsterung nie sehen. Ihre Karten
+   mit 12-18px Radius standen damit buendig an der Fensterkante und an der
+   Sidebar.
+
+   Der Wert wird hier NICHT wiederholt, sondern aus derselben Quelle
+   gezogen wie .content, damit die beiden Familien nicht wieder
+   auseinanderlaufen. Die untere Polsterung bleibt, wie sie war: sie sorgt
+   fuer die Freihaltung ueber der Mobil-Navigation und ist an diesen
+   Screens bereits gesetzt. */
+body.vx-customer-design-foundation #tab-mehr,
+body.vx-customer-design-foundation #tab-einstellungen,
+body.vx-customer-design-foundation #tab-benachrichtigungen{
+  padding-top:var(--vx-screen-inset-y);
+  padding-right:var(--vx-screen-inset-x);
+  padding-left:var(--vx-screen-inset-x);
 }
 
 /* Content-Wrapper: kein Overflow wenn Archiv aktiv */
