@@ -124,6 +124,41 @@ Gesamtsuite: 95/95 grün.
 Ein echter HTTP-Durchlauf mit Signatur, ein echter ElevenLabs-Retry und ein
 Polling-Lauf gegen die echte API. Das braucht ein Deployment und die Secrets.
 
+## 13a. Offener Backlog-Punkt: Live-Verifikation nach dem Merge
+
+**Status: offen, nicht erledigt.** Nachzuholen, sobald ein Rechner mit
+Node/Terminal-Zugriff zur Verfügung steht — die Prüfumgebung dieser Session
+selbst kann kein Node installieren.
+
+**Werkzeug:** `scripts/live-check-postcall-webhook.mjs` (auf Branch
+`claude/anfragen-detail-features-plan-nxal72`, noch nicht auf `main`).
+Standard ist Trockenlauf, `--send` schickt tatsächlich ab. Secret kommt aus
+der Umgebung, wird nie ausgegeben; Signaturformat bereits gegen die echte
+`verifySignature()` geprüft.
+
+**Testkandidat:** `conv_7001kzfdvxm3e92870jmbd41ds8v` — Anruf bei „E2E Test AG“
+(`cust_1786034079785_z8voxt`), `dashboard_status = 'closed'` zum Zeitpunkt der
+Auswahl. Geeignet, weil er genau den Fix-Fall prüft (Status bereits
+fortgeschritten) und die einzige hinterlegte Benachrichtigungsadresse dieses
+Testkunden `yildirim.u92@gmail.com` ist — im Fallback-Fall der Make-Mail-Engine
+läuft es sonst auf `info@voxera.ch`. Keine echte Kundenadresse ist betroffen.
+
+**Aufruf:**
+```bash
+SITE_URL=https://<customer-dashboard-site> \
+ELEVENLABS_WEBHOOK_SECRET=<aus Netlify Env> \
+CONVERSATION_ID=conv_7001kzfdvxm3e92870jmbd41ds8v \
+node scripts/live-check-postcall-webhook.mjs --send
+```
+
+**Danach zu prüfen:**
+1. `select dashboard_status, updated_at from calls where elevenlabs_conversation_id = 'conv_7001kzfdvxm3e92870jmbd41ds8v';` — erwartet: bleibt `closed`.
+2. Make-Execution-Historie („09. Voxera Central Mail Engine“) bzw. Postfach
+   `yildirim.u92@gmail.com` / `info@voxera.ch` — es darf keine Mail an eine
+   andere Adresse als diese beiden gegangen sein.
+
+**Nicht als erledigt markieren, bevor beide Punkte bestätigt sind.**
+
 ## 14. Restrisiken
 
 * **Enges Rennen bleibt.** Der Status wird beim Match gelesen und beim
