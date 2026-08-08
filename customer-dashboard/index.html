@@ -8996,7 +8996,21 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
   </div>
 </div>
 
-<!-- ASSISTENT VORSCHAU MODAL -->
+<!-- ASSISTENT VORSCHAU MODAL — OHNE AUFRUFER (Stand 08.08.2026)
+     Kein Codepfad oeffnet diesen Dialog: nichts setzt .open, nichts ruft
+     setOverlayAriaHidden(..., false) dafuer. Nur die drei Bedienelemente
+     darin rufen vxClosePendingPreview().
+
+     Nicht zu verwechseln mit vxPendingPreview() — das ist eine aktive
+     Funktion am Button .vx-btn-preview im Assistent-Tab. Sie holt eine
+     Sprachprobe von /preview-voice und spielt sie ueber ein Audio-Objekt
+     ab; dieser Dialog kommt darin nicht vor. Die beiden Namen sehen wie
+     Oeffnen/Schliessen desselben Dialogs aus, haben aber nichts
+     miteinander zu tun.
+
+     Entkoppelt (S9): aus der Escape-Tabelle und aus _anyOverlayOpen()
+     entfernt. Die Loeschung von Markup und vxClosePendingPreview() ist ein
+     eigener Schritt. -->
 <div class="overlay overlay--sheet" id="vx-preview-modal" onclick="if(event.target===this)vxClosePendingPreview()" role="dialog" aria-modal="true" aria-labelledby="vx-preview-title" aria-hidden="true">
   <div class="modal followup-modal" tabindex="-1">
     <div class="modal-shell">
@@ -14953,6 +14967,9 @@ async function vxPendingPreview() {
   }
 }
 
+// Schliesst #vx-preview-modal — einen Dialog, den kein Codepfad oeffnet.
+// Siehe Kommentar am Markup. Bleibt vorerst stehen, damit die Loeschung ein
+// eigener, nachvollziehbarer Schritt ist.
 function vxClosePendingPreview() {
   var overlay = document.getElementById('vx-preview-modal');
   var wrap = document.getElementById('vx-preview-widget-wrap');
@@ -22231,19 +22248,23 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
   }
 
   // ── Guard: prüft ob ein Modal/Overlay/Detail-Page offen ist ─────────────
+  // Seit Phase 2 traegt jeder Dialog role="dialog" — eine Abfrage deckt alle ab
+  // und bleibt richtig, wenn einer dazukommt.
+  //
+  // Vorher stand hier eine feste Liste aus acht IDs. Vier davon existierten im
+  // Markup gar nicht mehr (detail-overlay, vx-detail-v2, vx-upgrade-modal,
+  // vx-minutes-modal), eine wird nie geoeffnet (vx-preview-modal) — und die
+  // meisten echten Dialoge fehlten. Bei offenem Nachfassen-, Aufgaben-,
+  // Support- oder Commercial-Dialog liess der Guard das Kontextmenue durch.
+  //
+  // Geprueft wird ueber getClientRects(): getComputedStyle liefert den eigenen
+  // display-Wert eines Elements auch dann, wenn ein Vorfahr display:none
+  // traegt — bei den Dialogen, deren role="dialog" am inneren .modal haengt,
+  // waere das immer "offen".
   function _anyOverlayOpen() {
-    var overlayIds = [
-      'detail-overlay', 'followup-overlay',
-      'confirm-overlay', 'vx-detail-v2', 'vx-onboarding-overlay',
-      'vx-preview-modal', 'vx-upgrade-modal', 'vx-minutes-modal'
-    ];
-    for (var i = 0; i < overlayIds.length; i++) {
-      var el = document.getElementById(overlayIds[i]);
-      if (!el) continue;
-      var s = el.style;
-      if (s.display === 'block' || s.display === 'flex') return true;
-      if (el.classList.contains('open')) return true;
-      if (el.getAttribute('aria-hidden') === 'false') return true;
+    var dialogs = document.querySelectorAll('[role="dialog"]');
+    for (var i = 0; i < dialogs.length; i++) {
+      if (dialogs[i].getClientRects().length) return true;
     }
     // call-detail-page: nur als Overlay werten wenn Fullscreen (nicht Split-Panel)
     var cdp = document.getElementById('call-detail-page');
@@ -25590,7 +25611,6 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
     { id: 'manual-request-overlay', close: function(){ closeManualRequestModal(); } },
     { id: 'followup-overlay', close: function(){ closeFollowup(); } },
     { id: 'notiz-overlay', close: function(){ closeNotiz(); } },
-    { id: 'vx-preview-modal', close: function(){ vxClosePendingPreview(); } },
     { id: 'vx-commercial-overlay', close: function(){ vxCommercialClose(); } },
     { id: 'setup-help-overlay', close: function(){ closeSetupHelpOverlay(); } },
     { id: 'activation-flow-overlay', close: function(){ closeActivationFlowModal(); } },
