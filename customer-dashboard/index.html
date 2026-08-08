@@ -6734,9 +6734,25 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item:hover{
   box-shadow:var(--vx-ui-row-shadow-hover);
 }
 
-/* Auswahl: Night-Rahmen plus Night-Kante links. Bewusst KEINE hellblaue
-   Füllung mehr — die Markierung sitzt auf dem Rahmen, damit sie auch dann
-   sichtbar bleibt, wenn die Zeile zusätzlich ungelesen ist.
+/* Auswahl: durchgehender Night-Rahmen rundherum. Bewusst KEINE hellblaue
+   Füllung — die Markierung sitzt allein auf dem Rahmen und bleibt damit auch
+   sichtbar, wenn die Zeile zusätzlich ungelesen ist.
+
+   ── Kante zu Vollrahmen (2026-08-08) ──────────────────────────────────────
+   Vorher lag zusätzlich eine 3px-Night-Kante links auf der Karte
+   (box-shadow:inset 3px 0 0). Sie war nach der Akzent-Angleichung des
+   Heute-Screens die letzte einseitige Akzent-Kante im gesamten Produkt —
+   ein Messlauf durch alle acht Tabs hat sie als einzigen verbliebenen
+   Treffer bestätigt. Damit stand sie allein und trug ihre eigene Sprache;
+   jetzt verstärkt die Auswahl schlicht die Haarlinie, die die Karte ohnehin
+   hat.
+
+   Umgesetzt als Rahmenfarbe PLUS umlaufendem 1px-Innenring statt über
+   border-width: zusammen ergibt das die gewünschten 1.5px Night, ohne dass
+   sich beim Auswählen irgendetwas verschiebt. Eine echte Verbreiterung des
+   Rahmens würde bei border-box den Innenraum um 1px pro Seite verkleinern
+   und Namen und Vorschautext neu umbrechen lassen — genau das, was die
+   frühere Kante vermeiden sollte.
 
    Drei ältere Regelblöcke weiter unten in dieser Datei greifen über
    #anrufe-list .sp-active auf dieselbe Klasse zu und hätten diese Markierung
@@ -6745,12 +6761,12 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item:hover{
    die sie gedacht sind — deshalb kommt diese Regel ohne !important aus. */
 body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active{
   border-color:var(--vx-color-night);
-  box-shadow:inset 3px 0 0 var(--vx-color-night);
+  box-shadow:inset 0 0 0 1px var(--vx-color-night);
   background:var(--vx-ui-row-bg);
 }
 body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active:hover{
   border-color:var(--vx-color-night);
-  box-shadow:inset 3px 0 0 var(--vx-color-night),var(--vx-ui-row-shadow-hover);
+  box-shadow:inset 0 0 0 1px var(--vx-color-night),var(--vx-ui-row-shadow-hover);
 }
 
 /* Ungelesen trägt keine eigene Flächenfarbe mehr — das Signal ist der
@@ -31140,11 +31156,12 @@ function toggleCallRow(event, row) {
 #dash-priority-list .vx-heute-row.rail-overdue {
   border-left: none !important;
 }
-/* Auswahl-Kante der aelteren Kartenzeilen. Night statt --blue (#1A6FE8):
-   dieselbe Akzentfarbe wie die aktive Filter-Pille und die primaeren Buttons.
+/* Auswahl-Kante der aelteren .dpr-card-Zeilen (Legacy). Night statt --blue
+   (#1A6FE8): dieselbe Akzentfarbe wie die aktive Filter-Pille.
    .vx-requests-item ist ausgenommen — die Anfragen-Karte markiert ihre
-   Auswahl ueber Rahmenfarbe + inset-Schatten (siehe .vx-requests-item.sp-active),
-   ein zusaetzlicher 3px-Rahmen wuerde ihren Inhalt beim Auswaehlen verschieben. */
+   Auswahl seit 2026-08-08 ueber einen umlaufenden Night-Rahmen (siehe
+   .vx-requests-item.sp-active), und eine zusaetzliche 3px-Kante links waere
+   genau das einseitige Muster, das dort aufgeloest wurde. */
 #anrufe-list .dpr-card.sp-active,
 #dash-priority-list .dpr-card.sp-active,
 #anrufe-list .sp-active:not(.vx-requests-item),
@@ -35191,8 +35208,8 @@ button.vx-cd-qa-success:hover,
 }
 
 .sp-active .dpr-row { background: rgba(26,111,232,0.08); }
-/* Gilt den aelteren .dpr-card-Zeilen; die Anfragen-Karte behaelt ihre
-   linke Rahmenkante, sonst fehlt der ausgewaehlten Karte eine Seite. */
+/* Gilt den aelteren .dpr-card-Zeilen; die Anfragen-Karte ist ausgenommen,
+   damit ihr umlaufender Auswahl-Rahmen nicht auf drei Seiten schrumpft. */
 .sp-active:not(.vx-requests-item) { border-left: none !important; }
 .vx-zone-label { font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#7A8599;margin-bottom:10px;display:flex;align-items:center;gap:8px; }
 .vx-zone-line { flex:1;height:0.5px;background:#E4E8F0; }
@@ -35652,9 +35669,8 @@ button.vx-cd-qa-success:hover,
   background:rgba(26,111,232,.05) !important;
 }
 /* Legacy-Auswahlkante der .dpr-card-Zeilen. Night statt --blue (#1A6FE8) und
-   ohne die Anfragen-Karte: die markiert ihre Auswahl selbst
-   (.vx-requests-item.sp-active), ein zusaetzlicher 3px-Rahmen wuerde ihren
-   Inhalt beim Auswaehlen verschieben. */
+   ohne die Anfragen-Karte: die markiert ihre Auswahl seit 2026-08-08 ueber
+   einen umlaufenden Night-Rahmen (.vx-requests-item.sp-active). */
 #dash-priority-list .sp-active:not(.vx-requests-item),
 #anrufe-list .sp-active:not(.vx-requests-item),
 #dash-priority-list .dpr-card.sp-active,

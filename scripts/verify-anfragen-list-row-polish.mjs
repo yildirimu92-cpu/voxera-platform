@@ -108,6 +108,64 @@ for (const forbidden of [
   '.vx-requests-icon-action.is-overflow{background:#f1f5f9'
 ]) assert.ok(!source.includes(forbidden), 'alte gefüllte Button-Variante ist zurück: ' + forbidden);
 
+// ── 4b. Auswahl: umlaufender Rahmen, keine einseitige Kante ───────────────
+// Die ausgewählte Zeile trug bis 2026-08-08 zusätzlich eine 3px-Night-Kante
+// links (box-shadow:inset 3px 0 0). Nach dem Abräumen der Akzent-Ränder auf
+// Heute war das die letzte einseitige Akzent-Kante im Produkt; ein Messlauf
+// durch alle acht Tabs hat sie als einzigen verbliebenen Treffer bestätigt.
+// Jetzt verstärkt die Auswahl die umlaufende Haarlinie: Rahmenfarbe Night
+// plus 1px-Innenring, zusammen die angepeilten 1.5px.
+{
+  const rule = /\.vx-requests-item\.sp-active\{([^}]*)\}/.exec(source);
+  assert.ok(rule, '.vx-requests-item.sp-active-Regel nicht gefunden');
+  assert.match(rule[1], /border-color:var\(--vx-color-night\)/,
+    'die ausgewählte Zeile trägt keinen Night-Rahmen mehr');
+  // Der Ring muss auf allen vier Seiten liegen: Offsets 0, nur Spread.
+  assert.match(rule[1], /box-shadow:inset 0 0 0 1px var\(--vx-color-night\)/,
+    'der umlaufende Auswahl-Ring fehlt oder ist wieder einseitig');
+
+  // Kein Regelblock darf die Auswahl der Anfragen-Karte wieder als einseitige
+  // Kante zeichnen. Geprüft wird pro Regel statt per Gesamt-Regex: die
+  // Legacy-Blöcke tragen ".sp-active:not(.vx-requests-item)" im Selektor und
+  // setzen dort zu Recht "border-left" — eine Regex über die ganze Datei kann
+  // beides nicht auseinanderhalten.
+  //
+  // Grundlage ist ausschliesslich echtes CSS: nur der Inhalt der
+  // <style>-Blöcke, ohne Kommentare. Beides ist nötig, sonst laufen die
+  // Prüfungen auf Text statt auf Regeln — die Kommentare hier nennen
+  // .vx-requests-item.sp-active ausdrücklich, und mehrere Skriptstellen
+  // führen '#anrufe-list .sp-active' als Query-String für querySelectorAll.
+  const cssOnly = [...source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)]
+    .map((m) => m[1])
+    .join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');
+  assert.ok(cssOnly.includes('.vx-requests-item.sp-active'),
+    'die Auswahl-Regel liegt nicht mehr in einem <style>-Block — die Prüfung greift ins Leere');
+  for (const [selectors, block] of [...cssOnly.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1], m[2]])) {
+    const targetsCard = selectors
+      .replace(/:not\([^)]*\)/g, '')          // :not(...)-Ausnahmen ausblenden
+      .includes('.vx-requests-item.sp-active');
+    if (!targetsCard) continue;
+    assert.ok(!/border-left\s*:/.test(block),
+      'die Auswahl-Markierung ist wieder eine einseitige Kante (border-left auf der Anfragen-Karte)');
+    assert.ok(!/box-shadow:\s*inset\s+(?!0\s+0\s+0\s)/.test(block),
+      'die Auswahl-Markierung ist wieder eine einseitige Kante (inset-Schatten mit Versatz)');
+  }
+
+  // Die Legacy-Regeln mit ihrer ID-Spezifität müssen weiterhin auf die
+  // .dpr-card-Zeilen eingegrenzt bleiben, sonst schlagen sie dem umlaufenden
+  // Rahmen wieder eine Seite heraus. Gemeint sind nur Regeln, die die
+  // ausgewählte KARTE selbst treffen — "#anrufe-list .sp-active .dpr-row"
+  // adressiert einen Nachfahren, den die Anfragen-Karte gar nicht enthält.
+  for (const sel of cssOnly.match(/#anrufe-list\s+\.sp-active[^,{]*/g) || []) {
+    const trimmed = sel.trim();
+    const targetsCardItself = /\.sp-active(:[a-z-]+(\([^)]*\))?)*$/.test(trimmed);
+    if (!targetsCardItself) continue;
+    assert.ok(/:not\(\.vx-requests-item\)/.test(trimmed),
+      'eine Legacy-Regel greift wieder ungefiltert auf die Anfragen-Karte zu: ' + trimmed);
+  }
+}
+
 // ── 5. Ruhige Textfarben: EIN Token für Heute und Anfragen ─────────────────
 // Die beiden Screens hielten #8A93A6 vorher nur zufällig gemeinsam — fünfmal
 // als Literal im Heute-Block, dreimal als Kopie in den Tokens. Diese Prüfung
