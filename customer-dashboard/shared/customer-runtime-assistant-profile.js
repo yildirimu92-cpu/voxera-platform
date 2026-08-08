@@ -128,10 +128,10 @@
     };
   }
 
-  // The page-level status node sits above the whole form. When the user edits a
-  // field further down, a message rendered there is off-screen. Actions that
-  // belong to a specific field therefore pass an inline anchor next to that
-  // field, and the message is scrolled into view either way.
+  // The save button itself carries the saving/done state (see
+  // vxInlineSaveStatus). These status nodes are reserved for messages that
+  // outlive that brief animation — sync warnings and errors — so they are
+  // written to, but the page is never scrolled to reveal them.
   function statusNodes(page) {
     return {
       page: document.getElementById(page === 'business' ? 'vx-business-profile-status' : 'vx-assistant-profile-status'),
@@ -155,9 +155,6 @@
     // Only one of the two ever carries the message.
     paintStatus(nodes.page, target === nodes.page ? message : '', tone, false);
     paintStatus(document.getElementById(nodes.anchorId), target === anchor ? message : '', tone, true);
-    if (message && target && typeof target.scrollIntoView === 'function') {
-      target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
   }
 
   function restoreStatus(page) {
@@ -177,11 +174,16 @@
     return key === 'female' ? 'Weiblich' : key === 'male' ? 'Männlich' : 'Neutral';
   }
 
+  // Wortlaut bewusst gleich wie im Prompt-Builder (toneMap in
+  // prompt-builder-v2.js) — der Kunde soll denselben Begriff lesen, nach dem
+  // sein Assistent tatsächlich spricht. Ohne 'formal'/'casual' stand hier bisher
+  // der rohe Datenbankwert.
   function toneLabel(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'professional') return 'Professionell';
-    if (normalized === 'friendly') return 'Freundlich';
-    return String(value || 'Professionell und freundlich');
+    if (normalized === 'professional') return 'warm-professionell';
+    if (normalized === 'formal') return 'konservativ-formell';
+    if (normalized === 'casual') return 'locker und direkt';
+    return normalized ? String(value) : 'warm-professionell';
   }
 
   function addressLabel(value) {
@@ -266,6 +268,55 @@
     return voices.find((voice) => voice.voice_id === selectedId) || null;
   }
 
+  function formatDay(value) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', dateStyle: 'long' }).format(date);
+  }
+
+  // Einzige Stelle, an der aus den vier Einzelzuständen ein Satz wird. Die
+  // Betriebsstatus-Karte rendert bewusst keine eigene Zusammenfassung mehr —
+  // ein Screen, eine Statuszeile.
+  function statusSummary(technical) {
+    const states = [technical?.assistant, technical?.forwarding, technical?.voice_sync, technical?.calendar]
+      .map((item) => String(item?.status || '').toLowerCase());
+    if (states.includes('error')) return { tone: 'error', text: 'Mindestens eine Verbindung ist aktuell nicht betriebsbereit.' };
+    if (states.includes('attention')) return { tone: 'attention', text: 'Mindestens eine Einrichtung benötigt noch Ihre Aufmerksamkeit.' };
+    return { tone: 'active', text: 'Die wichtigsten Verbindungen sind betriebsbereit.' };
+  }
+
+  // Kopfbereich: der Satz, den Anrufende hören, in der Serifen-Schrift —
+  // Serife = Stimme, Sans = Bedienung (Design-System, Etappe 3).
+  function heroCard() {
+    const greeting = profile?.greeting || { text: null, source: 'none' };
+    const current = selectedVoice();
+    const technical = profile?.technical_status || {};
+    const summary = statusSummary(technical);
+    const lastSync = formatDay(technical.last_successful_sync_at);
+
+    const voicePart = current ? 'Stimme ' + esc(current.display_name || 'Standardstimme') : 'Stimme von Voxera eingerichtet';
+    const addressPart = String(profile?.assistant?.address_form || '').toLowerCase() === 'du' ? 'Du-Form' : 'Sie-Form';
+    const meta = [voicePart, addressPart, esc(toneLabel(profile?.assistant?.tone))].join(' · ');
+
+    const spoken = greeting.text
+      ? '<p class="vx-ap-hero-greeting">„' + esc(greeting.text) + '"</p>'
+      : '<p class="vx-ap-hero-greeting is-pending">Der Begrüssungssatz entsteht, sobald Ihr Assistent aktiviert ist.</p>';
+    const notice = greeting.source === 'custom'
+      ? '<div class="vx-ap-hero-note">Noch nicht an den Assistenten übertragen.</div>'
+      : '';
+
+    const statusLine = summary.text + (lastSync ? ' · Zuletzt aktualisiert am ' + esc(lastSync) : '');
+
+    return '<section class="vx-ap-card vx-ap-hero">' +
+      '<div class="vx-ap-hero-label">So meldet sich Ihr Assistent</div>' +
+      spoken + notice +
+      '<div class="vx-ap-hero-foot"><div class="vx-ap-hero-meta">' + meta + '</div>' +
+      (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '"' + (previewLoading ? ' disabled' : '') + '><i class="ph-bold ph-play" aria-hidden="true"></i> Anhören</button>' : '') +
+      '</div>' +
+      '<div class="vx-ap-hero-status ' + summary.tone + '">' + statusLine + '</div>' +
+      '</section>';
+  }
+
   function voiceCard(voice) {
     const selected = voice.voice_id === profile?.assistant?.voice_id;
     return '<div class="vx-ap-voice' + (selected ? ' selected' : '') + '"><div class="vx-ap-voice-top"><div><div class="vx-ap-voice-name">' + esc(voice.display_name || 'Stimme') + '</div><div class="vx-ap-meta">' + esc(genderLabel(voice.gender)) + (voice.language ? ' · ' + esc(voice.language) : '') + '</div></div>' + (selected ? '<span class="vx-ap-pill selected">Aktuell</span>' : '<span class="vx-ap-pill">' + esc(voice.available_from_plan || '') + '</span>') + '</div><div class="vx-ap-meta">' + esc(voice.description || 'Kuratierte Voxera-Stimme') + '</div><div class="vx-ap-actions vx-ap-actions--push"><button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(voice.voice_id) + '"' + (busy || previewLoading ? ' disabled' : '') + '><i class="ph-bold ph-play" aria-hidden="true"></i> Anhören</button>' + (selected ? '' : '<button type="button" class="vx-ap-btn" data-vx-select-voice="' + esc(voice.voice_id) + '"' + (!profile?.permissions?.can_change_voice || busy ? ' disabled' : '') + '>Auswählen</button>') + '</div></div>';
@@ -286,7 +337,8 @@
     const completed = Number(business.completed_fields || 0);
     const total = Number(business.total_fields || 4);
     body.innerHTML = '<div id="vx-assistant-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-stack">' +
-      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Stimme</div><div class="vx-ap-meta">Wählen Sie aus kuratierten Stimmen. Technische Sprachparameter bleiben geschützt.</div></div></div><div class="vx-ap-current"><div class="vx-ap-avatar"><i class="ph-bold ph-waveform" aria-hidden="true"></i></div><div class="vx-ap-current-copy"><div class="vx-ap-title">' + esc(current?.display_name || 'Standardstimme') + '</div><div class="vx-ap-meta">' + esc(current ? genderLabel(current.gender) : 'Von Voxera eingerichtet') + '</div></div>' + (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '"' + (previewLoading ? ' disabled' : '') + '>Anhören</button>' : '') + '</div>' +
+      heroCard() +
+      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Stimme</div><div class="vx-ap-meta">Wählen Sie aus kuratierten Stimmen. Technische Sprachparameter bleiben geschützt.</div></div></div><div class="vx-ap-current"><div class="vx-ap-avatar"><i class="ph-bold ph-waveform" aria-hidden="true"></i></div><div class="vx-ap-current-copy"><div class="vx-ap-title">' + esc(current?.display_name || 'Standardstimme') + '</div><div class="vx-ap-meta">' + esc(current ? genderLabel(current.gender) : 'Von Voxera eingerichtet') + '</div></div>' + '</div>' +
       (profile.permissions?.can_change_voice ? '<div class="vx-ap-filters"><button type="button" class="vx-ap-filter' + (voiceFilter === 'all' ? ' active' : '') + '" data-vx-filter="all">Alle</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'female' ? ' active' : '') + '" data-vx-filter="female">Weiblich</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'male' ? ' active' : '') + '" data-vx-filter="male">Männlich</button></div><div class="vx-ap-voices">' + (filtered.length ? filtered.map(voiceCard).join('') : '<div class="vx-ap-empty">Für diesen Filter sind keine Stimmen freigeschaltet.</div>') + '</div>' : '<div class="vx-ap-status warning vx-ap-status--inline">Die Stimmenauswahl ist in Ihrem aktuellen Paket nicht freigeschaltet.</div>') + '</section>' +
       '<section class="vx-ap-card"><div class="vx-ap-title">Name und Auftreten</div><div class="vx-ap-meta">Der Name ist die Bezeichnung, mit der sich der Assistent meldet.</div>' +
       (profile.permissions?.can_change_name ? '<div class="vx-ap-field"><label>Name des Assistenten</label><input id="vx-assistant-name" maxlength="40" value="' + esc(profile.assistant?.name || '') + '" placeholder="z. B. Lea"></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-assistant-name-save"' + (busy ? ' disabled' : '') + '>Name speichern</button></div><div id="vx-assistant-name-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>' : '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Name</span><span class="vx-ap-summary-value">' + esc(profile.assistant?.name || 'Von Voxera eingerichtet') + '</span></div></div>') +
@@ -362,17 +414,38 @@
     return loadPromise;
   }
 
-  async function updateAssistant(payload, page, loadingMessage, anchored) {
+  // Without the full-page re-render that used to run at the start of every
+  // save, the `busy` guard on updateAssistant() no longer shows up as
+  // `disabled` on the *other* assistant controls (voice select/preview,
+  // the sibling save button). Toggle them directly so a voice change or a
+  // second save can't be triggered mid-request and get silently dropped by
+  // the `busy` check below.
+  function setAssistantActionsDisabled(disabled) {
+    ['vx-assistant-name-save', 'vx-business-profile-save', 'vx-open-business-profile'].forEach((id) => {
+      const node = document.getElementById(id);
+      if (node) node.disabled = disabled;
+    });
+    document.querySelectorAll('[data-vx-select-voice], [data-vx-preview]').forEach((node) => { node.disabled = disabled; });
+  }
+
+  // button: the save button to animate (Speichert … → Gespeichert ✓ → its
+  // original label). Pass null when the action has no persistent button of
+  // its own (e.g. the voice-change confirm dialog, which closes before the
+  // request completes) — the section still gets a brief, self-clearing
+  // inline note instead.
+  async function updateAssistant(payload, page, button, savingLabel) {
     if (busy) return null;
     busy = true;
-    page === 'business' ? renderBusiness() : renderAssistant();
-    setStatus(page, loadingMessage, 'loading', anchored);
+    setAssistantActionsDisabled(true);
     let result = null;
     let finalMessage = '';
-    let finalTone = 'success';
+    let finalTone = null;
     try {
-      result = await request('customer-update-assistant', { method: 'POST', body: payload });
-      await reloadProfile();
+      result = await root.vxInlineSaveStatus(button, async () => {
+        const response = await request('customer-update-assistant', { method: 'POST', body: payload });
+        await reloadProfile();
+        return response;
+      }, { savingLabel: savingLabel || 'Speichert …', doneLabel: 'Gespeichert ✓' });
       const syncStatus = String(result.sync_status || '');
       if (syncStatus === 'failed') {
         finalMessage = 'Gespeichert, aber noch nicht mit dem Assistenten synchronisiert. Bitte später erneut versuchen.';
@@ -380,8 +453,6 @@
       } else if (syncStatus === 'skipped_no_agent') {
         finalMessage = 'Gespeichert. Der Assistent ist noch nicht eingerichtet.';
         finalTone = 'warning';
-      } else {
-        finalMessage = '✓ Änderung gespeichert und verarbeitet.';
       }
     } catch (error) {
       finalMessage = error?.message || 'Änderung konnte nicht gespeichert werden.';
@@ -389,7 +460,19 @@
     } finally {
       busy = false;
       page === 'business' ? renderBusiness() : renderAssistant();
-      setStatus(page, finalMessage, finalTone, anchored);
+      if (finalTone) {
+        setStatus(page, finalMessage, finalTone, true);
+      } else if (button) {
+        // Clean, button-confirmed success: clear any stale error/warning
+        // left over from an earlier attempt so restoreStatus() (called by
+        // the render above) doesn't resurrect it.
+        setStatus(page, '', null, true);
+      } else {
+        setStatus(page, '✓ Gespeichert.', 'success', true);
+        root.setTimeout(() => {
+          if (pageStatus[page] && pageStatus[page].message === '✓ Gespeichert.') setStatus(page, '', null, true);
+        }, 2500);
+      }
     }
     return result;
   }
@@ -401,7 +484,7 @@
 
   async function saveName() {
     const value = String(document.getElementById('vx-assistant-name')?.value || '').trim();
-    await updateAssistant({ assistant_name: value }, 'assistant', 'Name wird gespeichert …', true);
+    await updateAssistant({ assistant_name: value }, 'assistant', document.getElementById('vx-assistant-name-save'));
   }
 
   async function saveBusiness() {
@@ -411,7 +494,7 @@
       ai_location_hours: document.getElementById('vx-business-location-hours')?.value || '',
       ai_booking_faq: document.getElementById('vx-business-booking-faq')?.value || ''
     };
-    await updateAssistant(payload, 'business', 'Geschäftsprofil wird gespeichert …', true);
+    await updateAssistant(payload, 'business', document.getElementById('vx-business-profile-save'));
   }
 
   function openVoiceModal(voiceId) {
@@ -432,7 +515,7 @@
     const voiceId = pendingVoiceId;
     closeVoiceModal();
     if (!voiceId) return;
-    await updateAssistant({ voice_id: voiceId }, 'assistant', 'Stimme wird übernommen …');
+    await updateAssistant({ voice_id: voiceId }, 'assistant', null);
   }
 
   function stopAudio() {

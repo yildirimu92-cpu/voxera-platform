@@ -134,10 +134,10 @@
 
   function bind() {
     document.querySelectorAll('[data-calendar-connect]').forEach((node) => node.addEventListener('click', () => connect(node.dataset.calendarConnect)));
-    document.querySelectorAll('[data-calendar-test]').forEach((node) => node.addEventListener('click', () => test(node.dataset.calendarTest)));
-    document.querySelectorAll('[data-calendar-disconnect]').forEach((node) => node.addEventListener('click', () => disconnect(node.dataset.calendarDisconnect)));
+    document.querySelectorAll('[data-calendar-test]').forEach((node) => node.addEventListener('click', () => test(node.dataset.calendarTest, node)));
+    document.querySelectorAll('[data-calendar-disconnect]').forEach((node) => node.addEventListener('click', () => disconnect(node.dataset.calendarDisconnect, node)));
     document.querySelectorAll('[data-calendar-select]').forEach((node) => node.addEventListener('change', () => selectCalendar(node.dataset.calendarSelect, node.value)));
-    document.getElementById('vx-calendar-save')?.addEventListener('click', save);
+    document.getElementById('vx-calendar-save')?.addEventListener('click', (event) => save(event.currentTarget));
   }
 
   async function call(payload) {
@@ -155,15 +155,19 @@
     }
   }
 
-  async function run(message, operation) {
+  // button: the element to animate (Speichert … → Gespeichert ✓ → its
+  // original label). Pass null for actions without one of their own (e.g. a
+  // <select> change) — those fall back to the small inline status line,
+  // which never scrolls the page.
+  async function run(button, message, operation) {
     if (busy) return;
     busy = true;
-    render();
-    setStatus(message, 'loading');
-    let finalMessage = '✓ Änderung gespeichert.';
-    let finalTone = 'success';
+    if (!button) setStatus(message, 'loading');
+    let finalMessage = '';
+    let finalTone = null;
     try {
-      state = await operation();
+      state = await root.vxInlineSaveStatus(button, operation, { savingLabel: message, doneLabel: '✓ Gespeichert' });
+      if (!button) { finalMessage = '✓ Gespeichert.'; finalTone = 'success'; }
     } catch (error) {
       finalMessage = error?.message || 'Aktion fehlgeschlagen.';
       finalTone = 'error';
@@ -195,20 +199,20 @@
     setStatus('Anmeldung wurde in einem neuen Fenster geöffnet.', 'loading');
   }
 
-  function test(provider) {
-    run('Verbindung wird geprüft …', () => call({ action: 'test', provider }));
+  function test(provider, button) {
+    run(button, 'Prüft …', () => call({ action: 'test', provider }));
   }
 
-  async function disconnect(provider) {
+  async function disconnect(provider, button) {
     if (!root.confirm(providerLabels[provider] + ' wirklich trennen?')) return;
-    run('Kalender wird getrennt …', () => call({ action: 'disconnect', provider }));
+    run(button, 'Trennt …', () => call({ action: 'disconnect', provider }));
   }
 
   function selectCalendar(provider, calendarId) {
-    run('Buchungskalender wird gespeichert …', () => call({ action: 'select_calendar', provider, calendar_id: calendarId }));
+    run(null, 'Buchungskalender wird gespeichert …', () => call({ action: 'select_calendar', provider, calendar_id: calendarId }));
   }
 
-  function save() {
+  function save(button) {
     const settings = {
       active_provider: document.getElementById('vx-cal-active-provider')?.value || null,
       timezone: document.getElementById('vx-cal-timezone')?.value || 'Europe/Zurich',
@@ -219,7 +223,7 @@
       booking_horizon_days: Number(document.getElementById('vx-cal-horizon')?.value || 60),
       feature_enabled: document.getElementById('vx-cal-customer-enabled')?.checked === true
     };
-    run('Einstellungen werden gespeichert …', () => call({ action: 'save_settings', settings }));
+    run(button, 'Speichert …', () => call({ action: 'save_settings', settings }));
   }
 
   async function preload(attempt = 0) {

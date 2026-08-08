@@ -45,6 +45,15 @@ for (const token of [
   "querySelectorAll('[data-vx-preview]')",
   "cache: 'no-store'",
   'X-Voxera-Preview-Notice',
+  // Etappe 6 / S2 — Kopfbereich "So meldet sich Ihr Assistent". Der
+  // Begruessungssatz kommt aus dem Endpoint, wird nicht im Dashboard erzeugt,
+  // und die eine Statuszeile des Screens entsteht hier statt in der
+  // Betriebsstatus-Karte.
+  'function heroCard',
+  'function statusSummary',
+  'vx-ap-hero-greeting',
+  'vx-ap-hero-status',
+  'sobald Ihr Assistent aktiviert ist',
   'let loadPromise = null',
   'let loadSequence = 0',
   'if (loadPromise) return loadPromise',
@@ -67,14 +76,23 @@ for (const token of [
 for (const token of [
   'Fähigkeiten',
   '<div class="vx-ap-title">Betriebsstatus</div>',
-  'Nur Abweichungen werden hervorgehoben. Technische Details bleiben optional.',
-  'function technicalSummary',
+  // Etappe 6 / S2: Die Statusaussage ist in den Kopfbereich gewandert. Die
+  // Betriebsstatus-Karte formuliert keine zweite Zusammenfassung mehr und
+  // erscheint nur noch bei einer Abweichung — deshalb steht hier jetzt
+  // hasDeviation() statt technicalSummary(), und vx-nav-status-summary wird
+  // von diesem Modul bewusst nicht mehr erzeugt (siehe runtime-Liste oben).
+  'Diese Einrichtungen brauchen noch Ihre Aufmerksamkeit.',
+  'function hasDeviation',
+  'if (!hasDeviation(technical)) return',
+  // Der Render-Guard haengt nicht mehr am Vorhandensein der Statuskarte,
+  // sondern an einem Marker am Stack. Ohne das erzeugt die nun optionale
+  // Karte eine Render- und Fetch-Schleife.
+  "stack.dataset.vxStatusRendered = '1'",
   'function capabilityToggleHtml',
   'data-vx-capability-toggle',
   'type="button"',
   'vx-as-capabilities-simple',
   'vx-as-extra-capability',
-  'vx-nav-status-summary',
   'vx-nav-status-details',
   "technicalRow('Telefonie'",
   "technicalRow('Stimme & Einstellungen'",
@@ -118,7 +136,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260802-4/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260808-3/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);

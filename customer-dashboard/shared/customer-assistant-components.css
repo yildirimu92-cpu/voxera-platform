@@ -21,6 +21,87 @@ body.vx-customer-design-foundation #vx-assistant-profile-body .vx-ap-card:first-
   border-top-color: var(--vx-ui-card-border-color);
 }
 
+/* ── Kopfbereich "So meldet sich Ihr Assistent" (Etappe 6 / S2) ──────────
+   Der Begruessungssatz ist das visuelle Zentrum des Screens: Serife, weil er
+   die Stimme des Assistenten ist. Alles Uebrige darum herum bleibt Sans.
+   Bewusst ohne linke Akzentkante — die gestapelten Akzentraender sind die
+   offene Layout-Kritik des Heute-Screens und werden hier nicht wiederholt. */
+body.vx-customer-design-foundation .vx-ap-hero-label {
+  color: var(--vx-muted);
+  font-family: var(--vx-font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-greeting {
+  margin: var(--vx-space-3) 0 0;
+  color: var(--vx-ink);
+  font-family: var(--vx-font-serif);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-greeting.is-pending {
+  color: var(--vx-muted);
+  font-style: italic;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-note {
+  margin-top: var(--vx-space-2);
+  color: var(--vx-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vx-space-3);
+  margin-top: var(--vx-space-4);
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-meta {
+  min-width: 0;
+  color: var(--vx-muted);
+  font-family: var(--vx-font-display);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-status {
+  margin-top: var(--vx-space-4);
+  padding-top: var(--vx-space-3);
+  border-top: 1px solid var(--vx-line);
+  color: var(--vx-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Nur Abweichungen bekommen Farbe — im Normalfall bleibt die Zeile ruhig. */
+body.vx-customer-design-foundation .vx-ap-hero-status.attention {
+  color: #9a3412;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-status.error {
+  color: #b91c1c;
+}
+
+@media (max-width: 560px) {
+  body.vx-customer-design-foundation .vx-ap-hero-greeting {
+    font-size: 18px;
+  }
+
+  body.vx-customer-design-foundation .vx-ap-hero .vx-ap-hero-foot > .vx-ap-btn {
+    width: 100%;
+  }
+}
+
 body.vx-customer-design-foundation .vx-ap-head {
   display: flex;
   align-items: flex-start;
@@ -90,9 +171,11 @@ body.vx-customer-design-foundation .vx-ap-status--inline {
   margin-bottom: 0;
 }
 
+/* Zwei Spalten seit Etappe 6 / S2: "Anhören" fuer die aktuelle Stimme sitzt
+   jetzt im Kopfbereich, hier stand sonst derselbe Button ein zweites Mal. */
 body.vx-customer-design-foundation .vx-ap-current {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--vx-space-3);
   margin-top: var(--vx-space-4);

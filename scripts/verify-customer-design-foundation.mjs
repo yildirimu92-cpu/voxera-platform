@@ -45,7 +45,11 @@ new vm.Script(loader, { filename: paths.loader });
 const lineCount = (value) => value.split(/\r?\n/).length;
 assert.ok(lineCount(runtime) <= 55, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
-assert.ok(lineCount(assistantCss) <= 968, 'assistant component CSS exceeded its consolidated size budget');
+// Etappe 6 / S2: +83 Zeilen fuer den Kopfbereich "So meldet sich Ihr
+// Assistent" — eine neue Komponente, nicht Wildwuchs. Budget mit demselben
+// Spielraum wie zuvor (~65 Zeilen) neu gesetzt, damit der Waechter weiterhin
+// anschlaegt, bevor die Datei unbemerkt waechst.
+assert.ok(lineCount(assistantCss) <= 1050, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 assert.ok(lineCount(settingsCss) <= 740, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
@@ -54,7 +58,7 @@ assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded it
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260807-2',
-  '/shared/customer-assistant-components.css?v=20260807-2',
+  '/shared/customer-assistant-components.css?v=20260808-1',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260807-3',
   '/shared/customer-support-components.css?v=20260802-2',
@@ -314,14 +318,18 @@ for (const token of [
 for (const token of [
   'Fähigkeiten',
   'Betriebsstatus',
-  'Nur Abweichungen werden hervorgehoben. Technische Details bleiben optional.',
-  'function technicalSummary',
+  // Etappe 6 / S2: eine Statuszeile pro Screen. Die Zusammenfassung sitzt im
+  // Kopfbereich (customer-runtime-assistant-profile.js), die Betriebsstatus-
+  // Karte erscheint nur noch bei einer Abweichung und erzeugt deshalb kein
+  // vx-nav-status-summary mehr.
+  'Diese Einrichtungen brauchen noch Ihre Aufmerksamkeit.',
+  'function hasDeviation',
+  "stack.dataset.vxStatusRendered = '1'",
   'function capabilityToggleHtml',
   'data-vx-capability-toggle',
   'type="button"',
   'vx-as-capabilities-simple',
   'vx-as-extra-capability',
-  'vx-nav-status-summary',
   'vx-nav-status-details',
   "technicalRow('Telefonie'",
   "technicalRow('Stimme & Einstellungen'",
@@ -503,10 +511,10 @@ for (const [name, css] of [
   assert.equal((css.match(/!important/g) || []).length, 0, `${name} CSS must not add !important overrides`);
 }
 
-assert.match(loader, /customer-runtime-case-intake\.js\?v=20260802-2/);
-assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260807-2/);
+assert.match(loader, /customer-runtime-case-intake\.js\?v=20260808-1/);
+assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260808-1/);
 assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260807-3/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260808-1/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
@@ -684,15 +692,20 @@ assert.match(
   'audio card must keep the auto-load hook and render the skeleton inside it'
 );
 
-// --- Save feedback must be reachable from the field being edited ----------
+// --- Save feedback must be reachable from the field being edited, without
+// forcing the page to scroll to it. The status nodes stay (used for
+// warnings/errors); the loading/success state moved onto the save button
+// itself via the shared vxInlineSaveStatus helper, and the page must never
+// scrollIntoView to reveal it.
 for (const token of [
   'vx-assistant-name-status',
   'vx-business-save-status',
-  "scrollIntoView({ block: 'nearest'",
-  'function paintStatus'
+  'function paintStatus',
+  'vxInlineSaveStatus'
 ]) {
   assert.ok(assistantRuntime.includes(token), `inline save feedback missing: ${token}`);
 }
+assert.ok(!assistantRuntime.includes('scrollIntoView'), 'assistant profile save must not force-scroll the page');
 
 for (const token of ['skeleton:', 'badge:', 'badgeTone:', 'emptyState:', 'card:', 'appBar:', 'tabs:', 'root.VoxeraUI =']) {
   assert.ok(uiComponentsJs.includes(token), `VoxeraUI factory missing: ${token}`);
@@ -718,8 +731,8 @@ assert.doesNotMatch(navigationRuntime, /function addStyles|createElement\('style
 for (const forbidden of ['#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)','#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])','.vx-nav-voice-details','#vx-assistant-profile-body .vx-ap-card:first-child']) assert.ok(!navigationCss.includes(forbidden), `navigation CSS still owns assistant structure: ${forbidden}`);
 assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4"></script>'), 'dashboard missing versioned offer-brand loader');
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
-assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260807-3'), 'offer-brand missing current design loader version');
+assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260808-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
 for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260807-2','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
+const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

@@ -2,6 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
+const { buildGreetingView } = require('./_lib/assistant-greeting');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -232,7 +233,8 @@ exports.handler = async (event) => {
     .from('customers')
     .select([
       'id', 'customer_name', 'plan', 'plan_code', 'assistant_name', 'voice_id',
-      'ai_tone', 'ai_address_form', 'ai_business_description', 'ai_services',
+      'ai_tone', 'ai_address_form', 'ai_greeting', 'ai_effective_greeting',
+      'ai_business_description', 'ai_services',
       'ai_location_hours', 'ai_booking_faq', 'ai_internal_notes', 'ai_fallback_escalation',
       'elevenlabs_agent_id', 'elevenlabs_sync_status', 'elevenlabs_last_sync_at',
       'status', 'voxera_number', 'forwarding_setup_completed', 'forwarding_status',
@@ -324,6 +326,7 @@ exports.handler = async (event) => {
   ];
   const completedFields = permanentFields.filter((value) => String(value || '').trim()).length;
   const parsedProfile = promptProfile(customer.ai_internal_notes);
+  const greeting = buildGreetingView(customer);
 
   return response(200, {
     assistant: {
@@ -333,6 +336,7 @@ exports.handler = async (event) => {
       address_form: customer.ai_address_form || null,
       has_agent: Boolean(customer.elevenlabs_agent_id)
     },
+    greeting,
     business_profile: {
       company_name: customer.customer_name || null,
       description: customer.ai_business_description || null,

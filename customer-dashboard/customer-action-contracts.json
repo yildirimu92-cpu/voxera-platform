@@ -113,7 +113,7 @@
       "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
       "event": "click",
       "triggerTokens": ["data-calendar-test"],
-      "handlerTokens": ["test(node.dataset.calendarTest)"]
+      "handlerTokens": ["test(node.dataset.calendarTest, node)"]
     },
     {
       "id": "calendar-disconnect",
@@ -121,7 +121,7 @@
       "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
       "event": "click",
       "triggerTokens": ["data-calendar-disconnect"],
-      "handlerTokens": ["disconnect(node.dataset.calendarDisconnect)"],
+      "handlerTokens": ["disconnect(node.dataset.calendarDisconnect, node)"],
       "destructive": true,
       "confirmationTokens": ["root.confirm", "wirklich trennen"]
     },
@@ -139,7 +139,7 @@
       "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
       "event": "click",
       "triggerTokens": ["vx-calendar-save"],
-      "handlerTokens": ["addEventListener('click', save)"]
+      "handlerTokens": ["addEventListener('click', (event) => save(event.currentTarget))"]
     },
     {
       "id": "current-info-save",

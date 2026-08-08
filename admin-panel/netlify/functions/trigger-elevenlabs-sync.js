@@ -219,12 +219,29 @@ exports.handler = async (event) => {
   });
   await trimSyncLogs(sb, customer_id);
 
-  await sb.from('customers').update({
+  const customerPatch = {
     elevenlabs_last_sync_at: new Date().toISOString(),
     elevenlabs_sync_status: syncStatus,
     elevenlabs_sync_error: syncError || null,
     updated_at: new Date().toISOString()
-  }).eq('id', customer_id);
+  };
+  // Etappe 6 / S2: Das Kunden-Dashboard zeigt die Begruessung an. Damit dort nie
+  // ein Satz steht, den der Agent nicht bekommen hat, wird die erste Nachricht
+  // nur nach einem erfolgreichen Sync festgehalten.
+  if (syncStatus === 'success' && compiled?.firstMessage) {
+    customerPatch.ai_effective_greeting = compiled.firstMessage;
+  }
+  const { error: customerPatchError } = await sb.from('customers')
+    .update(customerPatch)
+    .eq('id', customer_id);
+  // Der Sync selbst gilt weiterhin als erfolgreich: der Agent ist bereits
+  // aktualisiert. Ein fehlgeschlagener Patch darf das nicht umdeuten.
+  if (customerPatchError) {
+    console.warn('[trigger-elevenlabs-sync] customer_patch_failed', {
+      customer_id,
+      message: customerPatchError.message
+    });
+  }
 
   if (syncStatus === 'failed') {
     return response(500, {
