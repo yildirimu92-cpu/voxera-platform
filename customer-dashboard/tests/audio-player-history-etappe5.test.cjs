@@ -149,13 +149,44 @@ test('der Seek-Regler wird nicht per opacity ausgeblendet', () => {
 });
 
 test('Knopf, Werkzeuge und Regler haben einen sichtbaren Fokuszustand', () => {
-  // Gruppenselektor — die Reihenfolge darin darf sich aendern duerfen.
-  const focusRule = /([^{}]*:focus-visible[^{}]*)\{([^}]*outline:2px solid #fff[^}]*)\}/.exec(dashboard);
-  assert.ok(focusRule, 'es muss eine focus-visible-Regel mit weissem Ring geben');
+  // Seit der Umstellung auf die helle Karte ist der Ring Night statt weiss,
+  // und der Knopf hat eine eigene Regel, weil seine Night-Kontur ein
+  // box-shadow ist, das ein pauschales box-shadow:none abraeumen wuerde.
   for (const part of ['__play', '__tool', '__range']) {
-    assert.ok(focusRule[1].includes('.vx-audio-modern' + part + ':focus-visible'),
-      `.vx-audio-modern${part} braucht einen sichtbaren Fokuszustand auf dem dunklen Grund`);
+    const selector = '.vx-audio-modern' + part + ':focus-visible';
+    const idx = dashboard.indexOf(selector);
+    assert.notEqual(idx, -1, selector + ' fehlt');
+    const block = dashboard.slice(idx, dashboard.indexOf('}', idx));
+    assert.match(block, /outline:2px solid var\(--vx-color-night/,
+      selector + ' braucht einen Ring, der auf der hellen Karte sichtbar ist');
   }
+  // Die Night-Kontur des Knopfs darf im Fokus nicht verschwinden.
+  const playFocus = dashboard.slice(dashboard.indexOf('.vx-audio-modern__play:focus-visible'));
+  assert.match(playFocus.slice(0, playFocus.indexOf('}')), /box-shadow:inset 0 0 0 1\.5px/,
+    'der Fokuszustand des Knopfs muss seine Kontur behalten');
+});
+
+test('Gold traegt auf der hellen Karte nirgends allein die Abgrenzung', () => {
+  // Gold gegen Weiss steht bei 1,68:1. Wo Gold eine Flaeche oder Linie ist,
+  // die man finden koennen muss, braucht sie eine dunkle Kante.
+  assert.match(rule('.vx-audio-modern__play'), /box-shadow:inset 0 0 0 1\.5px var\(--vx-color-night/,
+    'der Gold-Knopf braucht eine Night-Kontur, sonst ist er als Bedienelement randlos');
+  assert.match(rule('.vx-audio-modern__playhead'), /box-shadow:0 0 0 1px rgba\(13,31,60/,
+    'der Gold-Abspielkopf braucht eine dunkle Kante gegen den hellen Teil der Spur');
+  // Gold als TEXT faellt auf Hell ganz aus.
+  assert.doesNotMatch(rule('.vx-audio-modern__kicker'), /brand-initials|E8C547/,
+    'das Etikett darf auf der hellen Karte nicht in Gold stehen (1,68:1)');
+});
+
+test('die helle Karte spricht die Kartensprache des Panels', () => {
+  const base = rule('.vx-audio-modern');
+  assert.match(base, /background:var\(--vx-ui-row-bg/);
+  assert.match(base, /border:var\(--vx-ui-row-border-width\) solid var\(--vx-ui-row-border-color\)/);
+  assert.doesNotMatch(base, /background:var\(--vx-color-night/,
+    'der grosse Block ist nicht mehr dunkel');
+  // Die kleinen Night-Kreise bleiben dagegen ausdruecklich dunkel.
+  assert.match(rule('.vx-vl-icon--call'), /background:var\(--vx-color-night/,
+    'der Anruf-Kreis im Verlauf bleibt Night mit Gold');
 });
 
 /* ── 4. Befund 3: eine Zaehlung im Verlauf ──────────────────────────────── */

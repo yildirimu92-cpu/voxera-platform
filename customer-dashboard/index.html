@@ -39991,22 +39991,34 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
    auf der Karte schweben, und #2f6df6 war der letzte grosse blaue Fleck im
    sonst durchgehend Night-farbigen Panel. Aufbau, Bedienelemente und
    Verhalten des Players sind unverändert — nur Rahmung und Akzentfarbe. */
-/* ── Audio-Player: Night-Konsole (Etappe 5, 2026-08-08) ──────────────────
-   Die Aufnahme ist die einzige dunkle Flaeche im Panel. Begruendung und die
-   drei zustandsfreien Gold-Orte stehen bei vxRenderModernAudioPlayerHtml().
+/* ── Audio-Player (Etappe 5, 2026-08-08) ─────────────────────────────────
+   Der Player war zuerst als Night-Block gebaut ("Night-Konsole"): die einzige
+   dunkle Flaeche im Panel. Gegen die hellere Gesamtrichtung des Produkts
+   wirkte der Block zu dominant — er traegt jetzt die Kartensprache der
+   uebrigen Flaechen im Panel, weiss mit 0.5px-Haarlinie. Die Aufnahme
+   unterscheidet sich ab hier durch ihr Instrument (Gold-Streifen, Gold-Knopf,
+   Spur), nicht durch eine dunkle Flaeche.
+
+   Warum weiss und nicht Canvas: im Aufklapper "Audio & Transkript" ist der
+   Grund bereits Canvas, und direkt darunter steht die weisse Transkript-
+   Karte. Auf Canvas wuerde die Aufnahme hinter ihrem eigenen Transkript
+   zuruecktreten.
 
    Vorher: weisse Karte -> Canvas-Flaeche -> Bedienzeile, drei Rahmen um
-   dieselbe Sache, dazu ein Aufklapper darum. Jetzt ein Block. */
+   dieselbe Sache, dazu ein Aufklapper darum. Jetzt eine Karte. */
 .vx-audio-modern{
-  --vx-audio-played:#FFFFFF;
-  --vx-audio-rest:rgba(255,255,255,.24);
-  --vx-audio-quiet:rgba(255,255,255,.62);   /* ≈7:1 auf Night */
+  /* Abgespielt = Night, Rest = ruhiges Grau. Kein Gold: der abgespielte Teil
+     ist eine MENGE, siehe die Standing Rule bei --vx-ui-brand-playhead. */
+  --vx-audio-played:var(--vx-color-night,#0D1F3C);
+  --vx-audio-rest:#C9D4E3;
+  --vx-audio-quiet:var(--vx-ui-meta-color,#697285);   /* 4,83:1 auf Weiss */
   --vx-audio-progress:0%;
   position:relative;width:100%;box-sizing:border-box;margin:0;
   padding:14px 16px 12px;
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
   border-radius:var(--vx-ui-row-radius,12px);
-  background:var(--vx-color-night,#0D1F3C);
-  color:#fff;
+  background:var(--vx-ui-row-bg,#fff);
+  color:var(--vx-ui-row-title-color,#0D1F3C);
   font-family:var(--vx-ui-row-font);
   overflow:hidden;
 }
@@ -40018,15 +40030,16 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   background:var(--vx-ui-brand-rule);
 }
 .vx-audio-modern__head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;}
-/* Bewusst OHNE Versalien und Sperrung, obwohl .activation-night-kicker das
-   auf Night so macht: PR #848 hat die Versalien-Mikrolabel abgeschafft, und
-   dieselbe Runde raeumt sie im Verlauf darunter gerade weg. Das Etikett
-   folgt der Label-Stufe der Leiter, nur in Gold statt in der Meta-Rolle. */
+/* Bewusst OHNE Versalien und Sperrung: PR #848 hat die Versalien-Mikrolabel
+   abgeschafft, und dieselbe Runde raeumt sie im Verlauf darunter weg.
+   Auf dem Night-Block stand das Wort in Gold (8,9:1). Auf der hellen Karte
+   erreicht Gold als TEXT nur 1,68:1 und faellt damit aus — das Etikett steht
+   in der Meta-Rolle. Gold traegt hier der Streifen darueber, nicht das Wort. */
 .vx-audio-modern__kicker{
   font-size:var(--vx-ui-section-label-size,12px);
   font-weight:var(--vx-ui-section-label-weight,600);
   letter-spacing:0;text-transform:none;
-  color:var(--vx-ui-brand-initials,#E8C547);
+  color:var(--vx-ui-section-label-color,#697285);
 }
 .vx-audio-modern__note{
   min-width:0;font-size:12px;font-weight:600;color:var(--vx-audio-quiet);
@@ -40039,14 +40052,18 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
    sichtbar unter der Spur. Der Versatz hebt ihn auf die Mitte der Spur —
    Knopf und Spur lesen sich als ein Instrument. */
 .vx-audio-modern__row{display:grid;grid-template-columns:46px minmax(0,1fr);gap:14px;align-items:start;}
-.vx-audio-modern__play{margin-top:-3px;}   /* (Spur 40 − Knopf 46) / 2 */
-/* Gold-Ort 2: der Abspielknopf. Gold auf Night = 8,9:1, derselbe geprüfte
-   Wert wie die Initialen im Panelkopf; das Symbol traegt Night auf Gold. */
+/* Gold-Ort 2: der Abspielknopf. Das Symbol traegt Night auf Gold (9,78:1).
+   Die Night-Kontur ist keine Zier, sondern Pflicht: die Goldfuellung selbst
+   steht gegen die weisse Karte nur bei 1,68:1 und waere als Bedienelement
+   fast randlos (Richtwert 3:1 fuer Bedienelemente). Auf dem frueheren
+   Night-Block trug die Fuellung diese Abgrenzung noch selbst. */
 .vx-audio-modern__play{
   appearance:none;-webkit-appearance:none;
   width:46px;height:46px;border:0;border-radius:50%;
+  margin-top:-3px;                          /* (Spur 40 − Knopf 46) / 2 */
   background:var(--vx-ui-brand-initials,#E8C547);
   color:var(--vx-color-night,#0D1F3C);
+  box-shadow:inset 0 0 0 1.5px var(--vx-color-night,#0D1F3C);
   display:inline-flex;align-items:center;justify-content:center;
   cursor:pointer;padding:0;
   transition:transform .14s ease,filter .14s ease;
@@ -40082,16 +40099,22 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 
 /* Gold-Ort 3: der Abspielkopf. Er markiert eine Stelle und misst nichts —
    siehe die Standing Rule bei --vx-ui-brand-playhead. */
+/* Die dunkle Kante ist derselbe Fall wie beim Knopf: Gold gegen die helle
+   Spur steht bei 1,68:1. Links liegt zwar der abgespielte Night-Teil, rechts
+   aber das Hellgrau — ohne Kante verschwindet der Kopf auf seiner rechten
+   Haelfte. Gold bleibt die Farbe, die Kante traegt die Abgrenzung. */
 .vx-audio-modern__playhead{
   position:absolute;top:-2px;bottom:-2px;left:var(--vx-audio-progress);
   width:2px;margin-left:-1px;border-radius:2px;
   background:var(--vx-ui-brand-playhead,#E8C547);
+  box-shadow:0 0 0 1px rgba(13,31,60,.45);
   opacity:0;pointer-events:none;transition:opacity .18s ease;
 }
 .vx-audio-modern__playhead::after{
   content:'';position:absolute;left:50%;top:-3px;transform:translateX(-50%);
   width:6px;height:6px;border-radius:50%;
   background:var(--vx-ui-brand-playhead,#E8C547);
+  box-shadow:0 0 0 1px rgba(13,31,60,.45);
 }
 .vx-audio-modern.is-active .vx-audio-modern__playhead{opacity:1;}
 /* Solange die glatte Platzhalter-Leiste steht, ist die Spur 4px hoch — ein
@@ -40124,7 +40147,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   font-size:12px;font-weight:600;color:var(--vx-audio-quiet);
   font-variant-numeric:tabular-nums;white-space:nowrap;
 }
-.vx-audio-modern__time [data-vx-audio-current]{color:#fff;}
+.vx-audio-modern__time [data-vx-audio-current]{color:var(--vx-ui-row-title-color,#0D1F3C);}
 .vx-audio-modern__tools{display:inline-flex;align-items:center;gap:2px;}
 .vx-audio-modern__tool{
   appearance:none;-webkit-appearance:none;border:0;background:transparent;
@@ -40134,22 +40157,31 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   line-height:1;cursor:pointer;font-variant-numeric:tabular-nums;
   transition:background .14s ease,color .14s ease;
 }
-.vx-audio-modern__tool:hover{color:#fff;background:rgba(255,255,255,.10);}
-.vx-audio-modern__tool--speed{color:#fff;background:rgba(255,255,255,.12);font-weight:700;}
+.vx-audio-modern__tool:hover{color:var(--vx-ui-row-title-color,#0D1F3C);background:var(--vx-ui-row-icon-bg,#F1F5F9);}
+.vx-audio-modern__tool--speed{color:var(--vx-ui-row-title-color,#0D1F3C);background:var(--vx-ui-row-icon-bg,#F1F5F9);font-weight:700;}
 .vx-audio-modern__tool svg{display:block;}
 /* Der globale Fokus-Reset weiter oben ("FOCUS-RING EINHEITLICH") nimmt allen
    Knoepfen und Eingaben per !important die outline und ersetzt sie durch
-   box-shadow:0 0 0 3px rgba(26,111,232,.18). Auf Weiss traegt das; auf dem
-   Night-Block ist ein Blau bei 18 % Deckkraft praktisch nicht zu sehen.
-   Die drei Bedienelemente holen sich hier ihren Ring zurueck — !important
-   ist dabei kein Stilmittel, sondern die einzige Moeglichkeit, den Reset zu
-   schlagen. Weiss auf Night steht bei 15,3:1. */
-.vx-audio-modern__play:focus-visible,
+   box-shadow:0 0 0 3px rgba(26,111,232,.18) — ein Blau bei 18 % Deckkraft,
+   das auf keiner Flaeche wirklich traegt. Die drei Bedienelemente holen sich
+   hier ihren Ring zurueck; !important ist dabei kein Stilmittel, sondern die
+   einzige Moeglichkeit, den Reset zu schlagen.
+   Der Ring ist Night (16,4:1 auf der weissen Karte). Auf dem frueheren
+   Night-Block war er weiss — mit der hellen Flaeche muss er mitkippen, sonst
+   ist er unsichtbar. */
 .vx-audio-modern__tool:focus-visible,
 .vx-audio-modern__range:focus-visible{
-  outline:2px solid #fff !important;
+  outline:2px solid var(--vx-color-night,#0D1F3C) !important;
   outline-offset:2px !important;
   box-shadow:none !important;
+}
+/* Der Knopf traegt seine Night-Kontur als box-shadow. Ein pauschales
+   box-shadow:none wie bei den beiden Regeln darueber wuerde sie im Fokus
+   abraeumen — der Ring wird also ergaenzt, nicht ersetzt. */
+.vx-audio-modern__play:focus-visible{
+  outline:2px solid var(--vx-color-night,#0D1F3C) !important;
+  outline-offset:2px !important;
+  box-shadow:inset 0 0 0 1.5px var(--vx-color-night,#0D1F3C) !important;
 }
 
 .vx-audio-modern__feedback{
@@ -40157,7 +40189,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   transform:translate(-50%,-50%) scale(.92);
   display:inline-flex;align-items:center;justify-content:center;
   min-width:56px;height:30px;padding:0 12px;border-radius:999px;
-  background:rgba(255,255,255,.18);color:#fff;
+  background:var(--vx-color-night,#0D1F3C);color:#fff;
   font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
   opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;
 }
