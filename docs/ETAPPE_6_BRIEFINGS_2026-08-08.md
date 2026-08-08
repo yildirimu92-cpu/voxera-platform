@@ -75,6 +75,23 @@ erst beim nächsten, unabhängig ausgelösten Sync — also zu einem nicht vorhe
 Zeitpunkt. Das entwertet die Funktion, die S1 löschen würde, erheblich und stützt die
 Entscheidung, in S4 auf **read-only + Änderung melden** zu gehen.
 
+**N7 — Eine gespeicherte Begrüssung überlebt die Umbenennung des Assistenten.**
+Aufgefallen bei der Vorbereitung der S2-Verifikation am einzigen Kunden mit Agent
+(`E2E Test AG`): `assistant_name` ist **Umut**, die gespeicherte `ai_greeting` lautet aber
+weiterhin „Grüezi, hier ist **Lara** von E2E Test AG. …". `buildPromptV2` bevorzugt
+`ai_greeting` gegenüber `buildGreeting()` — der Agent begrüsst Anrufende also mit einem
+Namen, den der Assistent nicht mehr trägt. Mit dem echten Builder gegen die echten Felder
+nachgerechnet: gespeichert ergibt „Lara", neu erzeugt würde „Umut" herauskommen.
+
+Das ist **dieselbe Fehlerklasse wie der Avatar-Initialen-Fund auf dem Heute-Screen**: eine
+Umbenennung zieht in den lebenden Pfaden mit, nicht aber in einem eingefrorenen, früher
+erzeugten Wert — hier allerdings an der Stelle, die Anrufende tatsächlich hören.
+
+**Auswirkung auf S2:** keine Korrektur nötig, im Gegenteil. Der Kopfbereich wird nach dem
+Deploy genau diesen Satz zeigen, prominent und in Serife. Das ist die Funktion, die
+arbeitet — sie macht eine bislang unsichtbare Dateninkonsistenz sichtbar. Wer den Screen
+prüft, sollte es aber wissen, sonst wirkt es wie ein Fehler in S2. Behebung siehe A4.
+
 ---
 
 ## 3. Reihenfolge und Fensterplanung
@@ -406,6 +423,7 @@ aufgefallen und sollten eigene Einträge bekommen.
 |---|---|---|
 | ~~A1~~ | **In S3 aufgegangen** (E7). Nummer bleibt vergeben, damit Querverweise gültig bleiben. | erledigt mit S3 |
 | **A2** | **Layer-Reihenfolge im Master-Prompt (N4).** `prompt_master_l1` enthält keine Platzhalter, deshalb landen Kundeneingaben am Prompt-Ende — gegenteilig zur Absicht der Leitplanken-Priorität. Entweder Platzhalter in Layer 1 ergänzen oder den Builder die Position erzwingen lassen. **Direkter Bezug zu Sicherheitspunkt P2-11.** | Hoch — Sicherheitsthema, Opus 5 / Hoch |
+| **A4** | **Eingefrorene Begrüssung nach Umbenennung (N7).** `ai_greeting` behält den alten Assistentennamen und schlägt `buildGreeting()`. Zu entscheiden: automatisch neu erzeugen, sobald `assistant_name` sich ändert und die Begrüssung nie manuell bearbeitet wurde — oder dem Kunden die Abweichung anzeigen und die Neuerzeugung anbieten. Gehört fachlich zum Avatar-Initialen-Fix, der bereits als eigenes Briefing wartet. | Mittel — betrifft, was Anrufende hören |
 | **A3** | **Branchenzuordnung nachziehen (N3).** 19 fertige Vorlagen, aber nur 1 von 4 Kunden hat `industry_template_id`. Die übrigen laufen ohne Branchen-Layer, obwohl eine passende Vorlage bereitliegt. Betriebs-, kein Code-Thema. | Mittel — schneller Qualitätsgewinn ohne Entwicklung |
 
 ---
