@@ -52,7 +52,16 @@ assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial 
 // unbemerkt waechst.
 assert.ok(lineCount(assistantCss) <= 1130, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
-assert.ok(lineCount(settingsCss) <= 740, 'settings component CSS exceeded its consolidated size budget');
+// Design-Nachzug 4 (2026-08-08): +46 Zeilen. Der groessere Teil davon ist
+// EIN Block — die Zuruecknahme der geerbten Feldbeschriftungs-Typografie auf
+// den <label>-Zeilen von Benachrichtigungen, Profil und Kalender. Der
+// Kommentar dort haelt fest, warum die Hierarchie vorher invertiert war
+// (Titel 15px/900, Untertexte 13px/700, Switch-Titel heller als sein eigener
+// Untertitel); ohne diese Herleitung sieht die Regel nach Geschmack aus. Der
+// Rest ist die Anbieter-Marke im Kalender. Budget behaelt denselben Spielraum
+// wie zuvor, damit der Waechter weiterhin anschlaegt, bevor die Datei
+// unbemerkt waechst.
+assert.ok(lineCount(settingsCss) <= 805, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
 assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded its size budget');
 
@@ -538,8 +547,13 @@ new vm.Script(uiComponentsJs, { filename: 'customer-dashboard/shared/customer-ui
 
 for (const token of [
   '--vx-ui-appbar-divider-color: #E5E8EE',
-  '--vx-ui-appbar-title-size: 17px',
-  '--vx-ui-appbar-title-weight: 600',
+  // Design-Nachzug 4 (2026-08-08): 17px/600 -> 24px/730. Der Seitentitel war
+  // gemessen die kleinste Ueberschrift im Produkt — Kartentitel stehen auf
+  // 18px/730, der Datensatzname im Detail-Panel auf 20px/700. Die Werte
+  // bleiben hier festgenagelt, damit die Leiste nicht unbemerkt driftet.
+  '--vx-ui-appbar-title-size: 24px',
+  '--vx-ui-appbar-title-size-mobile: 21px',
+  '--vx-ui-appbar-title-weight: 730',
   '--vx-ui-appbar-title-color: #0D1F3C',
   '--vx-ui-card-border-width: 0.5px',
   '--vx-ui-card-radius: 12px',

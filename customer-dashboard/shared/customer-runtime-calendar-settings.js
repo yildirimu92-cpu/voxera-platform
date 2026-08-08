@@ -4,6 +4,31 @@
   root.__vxCalendarSettingsInstalled = true;
 
   const providerLabels = { google: 'Google Calendar', microsoft: 'Microsoft 365 / Outlook' };
+
+  // Anbieter-Marken als Inline-SVG. Bewusst keine externen Bilddateien: die
+  // Seite laedt sonst fuer zwei kleine Marken zwei Anfragen, und ein
+  // fehlendes Asset erzeugt eine leere Flaeche mitten in der Kopfzeile.
+  // Die Markenfarben stehen als Literale — sie gehoeren Google und
+  // Microsoft und duerfen sich gerade NICHT mit unseren Tokens aendern.
+  const providerMarks = {
+    google: '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">'
+      + '<path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-2.8-.4-4H24v7.3h12.1c-.2 1.9-1.6 4.9-4.5 6.9l6.9 5.3c4.1-3.8 6.6-9.4 6.6-15.5z"/>'
+      + '<path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.3c-1.9 1.3-4.3 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-7.1 5.5C8.1 41.1 15.4 46 24 46z"/>'
+      + '<path fill="#FBBC05" d="M11.5 28.5c-.5-1.4-.7-2.9-.7-4.5s.3-3.1.7-4.5l-7.1-5.5C2.9 17 2 20.4 2 24s.9 7 2.4 10z"/>'
+      + '<path fill="#EA4335" d="M24 9.9c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 3.8 29.9 2 24 2 15.4 2 8.1 6.9 4.4 14l7.1 5.5C13.3 13.7 18.2 9.9 24 9.9z"/>'
+      + '</svg>',
+    microsoft: '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">'
+      + '<path fill="#F25022" d="M4 4h19v19H4z"/>'
+      + '<path fill="#7FBA00" d="M25 4h19v19H25z"/>'
+      + '<path fill="#00A4EF" d="M4 25h19v19H4z"/>'
+      + '<path fill="#FFB900" d="M25 25h19v19H25z"/>'
+      + '</svg>'
+  };
+
+  function providerMark(provider) {
+    const mark = providerMarks[provider];
+    return mark ? '<span class="vx-cal-provider-mark">' + mark + '</span>' : '';
+  }
   let state = null;
   let busy = false;
 
@@ -84,7 +109,7 @@
     const connected = item?.status === 'connected';
     const disabled = !state?.enabled || !configured || busy;
     const calendars = Array.isArray(item?.calendars) ? item.calendars.filter((calendar) => calendar.writable !== false) : [];
-    return '<div class="vx-cal-card' + (lead ? ' vx-ui-brand-rule' : '') + '"><div class="vx-cal-head"><div><div class="vx-cal-provider">' + esc(providerLabels[provider]) + '</div><div class="vx-cal-meta">' + (connected ? esc(item.account_email || item.account_label || 'Verbunden') : configured ? 'Bereit zur Verbindung' : 'OAuth-Konfiguration fehlt') + '</div></div><span class="vx-cal-pill ' + (connected ? 'ok' : '') + '">' + (connected ? 'Verbunden' : 'Nicht verbunden') + '</span></div>' +
+    return '<div class="vx-cal-card' + (lead ? ' vx-ui-brand-rule' : '') + '"><div class="vx-cal-head"><div><div class="vx-cal-provider">' + providerMark(provider) + '<span>' + esc(providerLabels[provider]) + '</span></div><div class="vx-cal-meta">' + (connected ? esc(item.account_email || item.account_label || 'Verbunden') : configured ? 'Bereit zur Verbindung' : 'OAuth-Konfiguration fehlt') + '</div></div><span class="vx-cal-pill ' + (connected ? 'ok' : '') + '">' + (connected ? 'Verbunden' : 'Nicht verbunden') + '</span></div>' +
       (connected ? '<div class="vx-cal-field vx-cal-field--spaced"><label>Buchungskalender</label><select data-calendar-select="' + provider + '">' + calendars.map((calendar) => '<option value="' + esc(calendar.id) + '"' + (calendar.id === item.selected_calendar_id ? ' selected' : '') + '>' + esc(calendar.name) + (calendar.primary ? ' · Standard' : '') + '</option>').join('') + '</select></div>' : '') +
       '<div class="vx-cal-actions">' +
       (connected
