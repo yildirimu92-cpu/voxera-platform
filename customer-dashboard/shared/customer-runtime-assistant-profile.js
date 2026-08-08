@@ -177,11 +177,16 @@
     return key === 'female' ? 'Weiblich' : key === 'male' ? 'Männlich' : 'Neutral';
   }
 
+  // Wortlaut bewusst gleich wie im Prompt-Builder (toneMap in
+  // prompt-builder-v2.js) — der Kunde soll denselben Begriff lesen, nach dem
+  // sein Assistent tatsächlich spricht. Ohne 'formal'/'casual' stand hier bisher
+  // der rohe Datenbankwert.
   function toneLabel(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'professional') return 'Professionell';
-    if (normalized === 'friendly') return 'Freundlich';
-    return String(value || 'Professionell und freundlich');
+    if (normalized === 'professional') return 'warm-professionell';
+    if (normalized === 'formal') return 'konservativ-formell';
+    if (normalized === 'casual') return 'locker und direkt';
+    return normalized ? String(value) : 'warm-professionell';
   }
 
   function addressLabel(value) {
@@ -194,6 +199,55 @@
   function selectedVoice() {
     const selectedId = profile?.assistant?.voice_id || '';
     return voices.find((voice) => voice.voice_id === selectedId) || null;
+  }
+
+  function formatDay(value) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', dateStyle: 'long' }).format(date);
+  }
+
+  // Einzige Stelle, an der aus den vier Einzelzuständen ein Satz wird. Die
+  // Betriebsstatus-Karte rendert bewusst keine eigene Zusammenfassung mehr —
+  // ein Screen, eine Statuszeile.
+  function statusSummary(technical) {
+    const states = [technical?.assistant, technical?.forwarding, technical?.voice_sync, technical?.calendar]
+      .map((item) => String(item?.status || '').toLowerCase());
+    if (states.includes('error')) return { tone: 'error', text: 'Mindestens eine Verbindung ist aktuell nicht betriebsbereit.' };
+    if (states.includes('attention')) return { tone: 'attention', text: 'Mindestens eine Einrichtung benötigt noch Ihre Aufmerksamkeit.' };
+    return { tone: 'active', text: 'Die wichtigsten Verbindungen sind betriebsbereit.' };
+  }
+
+  // Kopfbereich: der Satz, den Anrufende hören, in der Serifen-Schrift —
+  // Serife = Stimme, Sans = Bedienung (Design-System, Etappe 3).
+  function heroCard() {
+    const greeting = profile?.greeting || { text: null, source: 'none' };
+    const current = selectedVoice();
+    const technical = profile?.technical_status || {};
+    const summary = statusSummary(technical);
+    const lastSync = formatDay(technical.last_successful_sync_at);
+
+    const voicePart = current ? 'Stimme ' + esc(current.display_name || 'Standardstimme') : 'Stimme von Voxera eingerichtet';
+    const addressPart = String(profile?.assistant?.address_form || '').toLowerCase() === 'du' ? 'Du-Form' : 'Sie-Form';
+    const meta = [voicePart, addressPart, esc(toneLabel(profile?.assistant?.tone))].join(' · ');
+
+    const spoken = greeting.text
+      ? '<p class="vx-ap-hero-greeting">„' + esc(greeting.text) + '"</p>'
+      : '<p class="vx-ap-hero-greeting is-pending">Der Begrüssungssatz entsteht, sobald Ihr Assistent aktiviert ist.</p>';
+    const notice = greeting.source === 'custom'
+      ? '<div class="vx-ap-hero-note">Noch nicht an den Assistenten übertragen.</div>'
+      : '';
+
+    const statusLine = summary.text + (lastSync ? ' · Zuletzt aktualisiert am ' + esc(lastSync) : '');
+
+    return '<section class="vx-ap-card vx-ap-hero">' +
+      '<div class="vx-ap-hero-label">So meldet sich Ihr Assistent</div>' +
+      spoken + notice +
+      '<div class="vx-ap-hero-foot"><div class="vx-ap-hero-meta">' + meta + '</div>' +
+      (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '"' + (previewLoading ? ' disabled' : '') + '><i class="ph-bold ph-play" aria-hidden="true"></i> Anhören</button>' : '') +
+      '</div>' +
+      '<div class="vx-ap-hero-status ' + summary.tone + '">' + statusLine + '</div>' +
+      '</section>';
   }
 
   function voiceCard(voice) {
@@ -216,7 +270,8 @@
     const completed = Number(business.completed_fields || 0);
     const total = Number(business.total_fields || 4);
     body.innerHTML = '<div id="vx-assistant-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-stack">' +
-      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Stimme</div><div class="vx-ap-meta">Wählen Sie aus kuratierten Stimmen. Technische Sprachparameter bleiben geschützt.</div></div></div><div class="vx-ap-current"><div class="vx-ap-avatar"><i class="ph-bold ph-waveform" aria-hidden="true"></i></div><div class="vx-ap-current-copy"><div class="vx-ap-title">' + esc(current?.display_name || 'Standardstimme') + '</div><div class="vx-ap-meta">' + esc(current ? genderLabel(current.gender) : 'Von Voxera eingerichtet') + '</div></div>' + (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '"' + (previewLoading ? ' disabled' : '') + '>Anhören</button>' : '') + '</div>' +
+      heroCard() +
+      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Stimme</div><div class="vx-ap-meta">Wählen Sie aus kuratierten Stimmen. Technische Sprachparameter bleiben geschützt.</div></div></div><div class="vx-ap-current"><div class="vx-ap-avatar"><i class="ph-bold ph-waveform" aria-hidden="true"></i></div><div class="vx-ap-current-copy"><div class="vx-ap-title">' + esc(current?.display_name || 'Standardstimme') + '</div><div class="vx-ap-meta">' + esc(current ? genderLabel(current.gender) : 'Von Voxera eingerichtet') + '</div></div>' + '</div>' +
       (profile.permissions?.can_change_voice ? '<div class="vx-ap-filters"><button type="button" class="vx-ap-filter' + (voiceFilter === 'all' ? ' active' : '') + '" data-vx-filter="all">Alle</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'female' ? ' active' : '') + '" data-vx-filter="female">Weiblich</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'male' ? ' active' : '') + '" data-vx-filter="male">Männlich</button></div><div class="vx-ap-voices">' + (filtered.length ? filtered.map(voiceCard).join('') : '<div class="vx-ap-empty">Für diesen Filter sind keine Stimmen freigeschaltet.</div>') + '</div>' : '<div class="vx-ap-status warning vx-ap-status--inline">Die Stimmenauswahl ist in Ihrem aktuellen Paket nicht freigeschaltet.</div>') + '</section>' +
       '<section class="vx-ap-card"><div class="vx-ap-title">Name und Auftreten</div><div class="vx-ap-meta">Der Name ist die Bezeichnung, mit der sich der Assistent meldet.</div>' +
       (profile.permissions?.can_change_name ? '<div class="vx-ap-field"><label>Name des Assistenten</label><input id="vx-assistant-name" maxlength="40" value="' + esc(profile.assistant?.name || '') + '" placeholder="z. B. Lea"></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-assistant-name-save"' + (busy ? ' disabled' : '') + '>Name speichern</button></div><div id="vx-assistant-name-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>' : '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Name</span><span class="vx-ap-summary-value">' + esc(profile.assistant?.name || 'Von Voxera eingerichtet') + '</span></div></div>') +
