@@ -16430,15 +16430,21 @@ function vxOnboardingInit() {
   // vxOnboardingInit() durch nachfolgende Polls erneut aufgerufen wird.
   if (window._vxOnboardingDismissedThisSession) return;
 
-  // Modal zeigen
+  vxOnboardingShow();
+}
+
+// Einziger Weg, das Onboarding zu oeffnen. Vorher setzte jeder Einstieg das
+// display selbst — vxOnboardingRestart() (Hilfe → Einrichtung) liess dabei
+// aria-hidden="true" stehen und zeigte den Dialog sichtbar, aber fuer
+// Screenreader nicht vorhanden. Ein weiterer Einstieg soll das nicht
+// wiederholen koennen.
+function vxOnboardingShow() {
   const overlay = document.getElementById('vx-onboarding-overlay');
-  if (overlay) {
-    rememberOverlayFocusReturn('vx-onboarding-overlay');
-    overlay.style.display = 'flex';
-    setOverlayAriaHidden('vx-onboarding-overlay', false);
-    vxFocusDialog('vx-onboarding-overlay');
-    /* phosphor: no init needed */
-  }
+  if (!overlay) return;
+  rememberOverlayFocusReturn('vx-onboarding-overlay');
+  overlay.style.display = 'flex';
+  setOverlayAriaHidden('vx-onboarding-overlay', false);
+  vxFocusDialog('vx-onboarding-overlay');
 }
 
 function vxOnboardingSkip() {
@@ -16488,11 +16494,7 @@ function vxOnboardingRestart() {
   customerMeta.onboardingCompleted = false;
   window._vxOnboardingDismissedThisSession = false;
   try { window.localStorage.removeItem(vxOnboardingDismissedKey()); } catch(e) {}
-  const overlay = document.getElementById('vx-onboarding-overlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
-    /* phosphor: no init needed */
-  }
+  vxOnboardingShow();
 }
 
 // Dark Mode für Onboarding Modal
@@ -23770,25 +23772,25 @@ function vxEnsureFocusSentinels(root) {
   });
 })();
 
+// Synchron, ohne Verzoegerung: jede Aufrufstelle macht den Dialog vorher
+// sichtbar, also ist er hier fokussierbar. Hier stand eine Kette aus bis zu
+// vier Versuchen ueber 120 ms. Ihr Anlass war ein Dialog, der den Fokus nicht
+// annahm — die Ursache dafuer war aber eine andere: die Runtime ueberschreibt
+// vxCommercialOpen, weshalb dieser Helfer dort gar nicht aufgerufen wurde.
+// Nach der Behebung blieb die Kette ohne Grund stehen. Sie liess den Fokus
+// mindestens einen Task lang hinter dem Overlay und konnte ihn zurueckholen,
+// wenn inzwischen ein anderer Dialog oben lag.
+//
+// Ein Dialog, dessen Inhalt erst asynchron entsteht, ruft diesen Helfer nach
+// seinem eigenen Render auf — nicht der Helfer wartet auf ihn.
 function vxFocusDialog(overlayId, preferredSelector) {
   var overlay = document.getElementById(overlayId);
   if (!overlay) return;
   vxEnsureFocusSentinels(overlay);
-  // Mehrere Anlaeufe statt eines einzigen: ein focus() auf ein Element, das im
-  // selben Frame noch display:none traegt, verpufft folgenlos — und die Dialoge
-  // werden unterschiedlich sichtbar gemacht (Klasse, inline style, teils erst
-  // nach einem Render). Der Versuch endet, sobald der Fokus im Dialog liegt.
-  var attempts = 0;
-  function tryFocus() {
-    attempts++;
-    if (overlay.contains(document.activeElement) && document.activeElement !== document.body) return;
-    var target = preferredSelector ? overlay.querySelector(preferredSelector) : null;
-    if (!target) target = overlay.querySelector('[tabindex="-1"], .modal, [role="dialog"]');
-    if (!target) target = overlay;
-    try { target.focus({ preventScroll: true }); } catch(e) { try { target.focus(); } catch(_) {} }
-    if (!overlay.contains(document.activeElement) && attempts < 4) setTimeout(tryFocus, 40);
-  }
-  setTimeout(tryFocus, 0);
+  var target = preferredSelector ? overlay.querySelector(preferredSelector) : null;
+  if (!target) target = overlay.querySelector('[tabindex="-1"], .modal, [role="dialog"]');
+  if (!target) target = overlay;
+  try { target.focus({ preventScroll: true }); } catch(e) { try { target.focus(); } catch(_) {} }
 }
 window.vxFocusDialog = vxFocusDialog;
 window.vxEnsureFocusSentinels = vxEnsureFocusSentinels;

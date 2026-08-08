@@ -371,10 +371,21 @@ eigenes Escape mit und braucht nur die Rolle.
   CSS-`!important`-Regeln, nur in JavaScript: die sichtbare Definition ist
   nicht die wirksame. Der Dialog-Vertrag steht jetzt in der Runtime; die
   Fassung in `index.html` bleibt als Fallback konsistent gepflegt.
-- `focus()` in einem `requestAnimationFrame`-Callback läuft noch vor dem
-  Layout und verpufft auf einem gerade erst eingeblendeten Element.
-  `vxFocusDialog` versucht es deshalb über mehrere Ticks und hört auf, sobald
-  der Fokus im Dialog liegt.
+- `vxFocusDialog` setzt den Fokus **synchron**. Zwischenzeitlich stand hier
+  eine Kette aus bis zu vier Versuchen über 120 ms, eingebaut weil der
+  Commercial-Dialog den Fokus nicht annahm. Die Ursache war aber eine andere —
+  die Runtime überschreibt `vxCommercialOpen`, weshalb der Helfer dort gar
+  nicht aufgerufen wurde. Nach der Behebung blieb die Kette ohne Grund stehen;
+  ein Review hat darauf hingewiesen. Nachgemessen: der synchrone Versuch
+  greift bei allen Dialogen, weil jede Aufrufstelle den Dialog vorher sichtbar
+  macht.
+- **Ein Dialog hat zwei Einstiege.** `vxOnboardingRestart()` (Hilfe →
+  Einrichtung) setzte nur `display`, ohne `aria-hidden` zu räumen, Fokus zu
+  setzen oder ihn zurückzugeben. Nach der Einführung von `aria-hidden` in S3
+  war der Dialog auf diesem Weg **sichtbar, aber für Screenreader nicht
+  vorhanden** — für diesen Pfad schlechter als vorher. Beide Einstiege laufen
+  jetzt über `vxOnboardingShow()`. Ein Sweep über alle elf Dialoge zeigt: das
+  war die einzige solche Stelle.
 - `manual-task-overlay` und `manual-request-overlay` fehlte `tabindex="-1"` am
   `.modal`; ein `focus()` darauf lief ins Leere.
 - Die Detail-Vollansicht hat jetzt `role="dialog"`, `aria-modal`,
