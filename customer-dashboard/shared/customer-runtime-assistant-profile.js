@@ -285,6 +285,20 @@
     return loadPromise;
   }
 
+  // Without the full-page re-render that used to run at the start of every
+  // save, the `busy` guard on updateAssistant() no longer shows up as
+  // `disabled` on the *other* assistant controls (voice select/preview,
+  // the sibling save button). Toggle them directly so a voice change or a
+  // second save can't be triggered mid-request and get silently dropped by
+  // the `busy` check below.
+  function setAssistantActionsDisabled(disabled) {
+    ['vx-assistant-name-save', 'vx-business-profile-save', 'vx-open-business-profile'].forEach((id) => {
+      const node = document.getElementById(id);
+      if (node) node.disabled = disabled;
+    });
+    document.querySelectorAll('[data-vx-select-voice], [data-vx-preview]').forEach((node) => { node.disabled = disabled; });
+  }
+
   // button: the save button to animate (Speichert … → Gespeichert ✓ → its
   // original label). Pass null when the action has no persistent button of
   // its own (e.g. the voice-change confirm dialog, which closes before the
@@ -293,6 +307,7 @@
   async function updateAssistant(payload, page, button, savingLabel) {
     if (busy) return null;
     busy = true;
+    setAssistantActionsDisabled(true);
     let result = null;
     let finalMessage = '';
     let finalTone = null;
@@ -318,7 +333,12 @@
       page === 'business' ? renderBusiness() : renderAssistant();
       if (finalTone) {
         setStatus(page, finalMessage, finalTone, true);
-      } else if (!button) {
+      } else if (button) {
+        // Clean, button-confirmed success: clear any stale error/warning
+        // left over from an earlier attempt so restoreStatus() (called by
+        // the render above) doesn't resurrect it.
+        setStatus(page, '', null, true);
+      } else {
         setStatus(page, '✓ Gespeichert.', 'success', true);
         root.setTimeout(() => {
           if (pageStatus[page] && pageStatus[page].message === '✓ Gespeichert.') setStatus(page, '', null, true);
