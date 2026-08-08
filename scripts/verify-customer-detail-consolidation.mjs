@@ -121,9 +121,28 @@ assert.ok(source.includes("function openPanelV2(record, panel)") && source.inclu
     'die Komponente wird an ' + calls.length + ' Stellen direkt gemountet — erwartet: nur in mountDetail()');
 }
 
-// ── 5. Legacy-Vollseite ist entkoppelt ──────────────────────────────────────
-// Renderer A bleibt in diesem Schritt bewusst bestehen (Löschung folgt als
-// eigener Schritt), darf aber keine Detailfläche mehr bespielen.
+// ── 5. Legacy-Vollseite ist entfernt ────────────────────────────────────────
+// Renderer A war bis Etappe 4 Teil A entkoppelt, aber noch vorhanden; seit dem
+// Löschschritt gibt es ihn nicht mehr. Diese Prüfung stellt sicher, dass er
+// nicht in irgendeiner Form zurückkehrt — weder als aktive Detailfläche noch
+// als toter Code, den ein künftiger forceLegacy-Fallback wiederbeleben könnte.
+for (const token of [
+  'function showCallDetail(callId, options)',
+  'function hideCallDetail()',
+  'function loadAndRenderCallDetail(',
+  'function renderCallDetailPage(',
+  'function renderTaskDetailPage(',
+  'function showTaskDetail(',
+  'function vxSplitUpdateActionBar(',
+  'function closeDetail()',
+  'id="call-detail-page"',
+  'id="detail-overlay"',
+  '__vxLegacyShowCallDetail',
+  '__vxLegacyShowTaskDetail',
+  '__vxLegacyHideCallDetail',
+  'forceLegacy'
+]) assert.ok(!source.includes(token), 'Legacy Renderer A (oder ein Rest davon) ist wieder da: ' + token);
+
 assert.ok(!/vxRenderRequestsDetailV2\(rec, \{ hostEl: detailV2El \}\)/.test(source),
   'die Legacy-Seite rendert wieder in den Split-Host #requests-detail-v2');
 assert.ok(!/renderCallDetailPage\(rec\.fields \|\| rec, \[\]\)/.test(source),
@@ -137,6 +156,11 @@ assert.ok(!/renderCallDetailPage\(rec\.fields \|\| rec, \[\]\)/.test(source),
 // openDetail() ist nur noch Einstiegspunkt, kein eigenes Overlay-Template.
 assert.ok(!/document\.getElementById\('detail-content'\)\.innerHTML\s*=/.test(source),
   'openDetail() hat wieder ein eigenes Detail-Template');
+
+// Der ehemalige forceLegacy-Fallback (record nicht auflösbar) rendert jetzt
+// einen Empty-State über dieselbe Rahmung wie ein normaler Treffer.
+assert.ok(source.includes('function openNotFoundV2(preferredType, forceFullscreen)'),
+  'der Empty-State für nicht auflösbare Datensätze fehlt (Ersatz für forceLegacy)');
 
 // ── 6. Lebenszyklus: Live-Phase, nicht vxIsLiveCall ─────────────────────────
 assert.ok(/window\.vxIsCallInLivePhase\(record\)\) return false;/.test(source),
