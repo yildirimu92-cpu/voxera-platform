@@ -16,6 +16,21 @@ nur nötig, falls erneut zurückgesetzt werden muss.
 
 ---
 
+## Wo dieses Runbook laufen muss
+
+**Auf einem Rechner mit direktem Netzzugang — nicht in einer Claude-Code-Sitzung.**
+
+Nachgemessen am 2026-08-08: In der Agent-Umgebung löst
+`aws-0-eu-central-2.pooler.supabase.com` zwar auf (`51.96.34.188`, `16.62.212.215`), aber
+TCP auf Port 5432 läuft in beide Adressen in einen Timeout. Der Egress-Proxy dort leitet
+ausschliesslich HTTPS weiter; das Postgres-Protokoll kommt nicht durch. `psql` und `pg_dump`
+sind installiert, aber ohne Netzweg wertlos — auch mit gültigem Passwort.
+
+Was aus einer Agent-Sitzung **geht**, ist der Supabase-Connector (Management-API über HTTPS):
+Katalog lesen, DDL anwenden, Hashes vergleichen. Damit lässt sich derselbe Aufbau auch ohne
+CLI durchführen — nur langsamer, weil jede Anweisung durch die Sitzung muss. Das ist Weg B
+in `STAGING_PROJEKT_STAND_2026-08-08.md`.
+
 ## Vorbereitung — die zwei Stolpersteine
 
 **1. Der Direkt-Host ist IPv6-only.** `db.<ref>.supabase.co` ist über IPv4 nicht erreichbar.
