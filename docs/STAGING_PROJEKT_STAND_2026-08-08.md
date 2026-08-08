@@ -252,7 +252,26 @@ sieht, ändert nichts und erzeugt den Eindruck, das Problem sei erledigt. Ein gr
 der das Falsche misst — dieselbe Fehlerklasse wie beim P0-Check, der wochenlang grün war,
 während keine einzige Policy existierte.
 
-**Der tatsächliche Fix** ist ein eigener Arbeitsschritt:
+### Schritt 0 — die Annahme zuerst bestätigen. Vor jeder Umbenennung.
+
+Der Befund oben ist als **Wahrscheinlich** eingestuft, nicht als Fakt: die Supabase-CLI war in
+der Umgebung nicht installiert, das Namensmuster ist aus der Konvention hergeleitet und nicht
+nachgemessen. Bevor eine einzige Datei umbenannt wird:
+
+```bash
+supabase migration list --db-url "$PROD_URL"
+```
+
+Die Ausgabe stellt lokale Dateien den Ledger-Einträgen gegenüber. Zu erwarten ist, dass die 17
+Dateien mit Bindestrich-Namen **gar nicht** in der lokalen Spalte auftauchen. Tun sie es doch,
+ist die Herleitung falsch — dann sieht die CLI sie sehr wohl, die Gefahr eines erneuten
+Einspielens ist real, und der richtige Fix ist ein anderer (Ledger befüllen statt umbenennen).
+
+Der ganze Plan darunter hängt an dieser einen Ausgabe. Eine Umbenennung von 17 Dateien plus
+14 Referenzen auf einer unbestätigten Annahme wäre genau der Fehler, den dieses Dokument an
+anderer Stelle beschreibt.
+
+**Der tatsächliche Fix** — erst nach Schritt 0:
 
 1. die 17 Dateien auf `YYYYMMDDHHMMSS_name.sql` umbenennen,
 2. das Ledger mit genau diesen Versionen befüllen (Schreibvorgang auf Produktion),
