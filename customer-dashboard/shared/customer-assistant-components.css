@@ -1007,9 +1007,11 @@ body.vx-customer-design-foundation .vx-ops-note {
   }
 }
 
-#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host) {
-  display: none;
-}
+/* Die Ausblendregel fuer den Alt-Screen ist mit Etappe 6 / S1 entfallen: der
+   Alt-Block ist geloescht, #tab-assistent hat nur noch die drei verwalteten
+   Kinder. Eine pauschale display:none-Regel wuerde kuenftige Fehler tarnen
+   statt sie zu zeigen — genau so blieb die verwaiste Identitaetskarte
+   unentdeckt, deren Inline-display die Regel ohnehin ueberstimmte. */
 
 body.vx-customer-design-foundation #tab-assistent.vx-unified-assistant-root {
   min-width: 0;

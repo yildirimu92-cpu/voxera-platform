@@ -64,7 +64,12 @@ assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260803-1
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260807-2/);
 assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260808-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-design-foundation\.js\?v=20260803-4/);
-assert.match(source.assistantCss, /#tab-assistent > :not\(#vx-assistant-root-header\):not\(#vx-assistant-root-switch\):not\(#vx-assistant-root-host\)/);
+// Etappe 6 / S1: Der Alt-Screen ist geloescht, die pauschale Ausblendregel
+// damit ueberfluessig. Sie darf nicht zurueckkommen — eine display:none-Regel
+// ueber alle Kinder tarnt kuenftige Fehler, statt sie zu zeigen. Genau so blieb
+// die verwaiste Identitaetskarte unentdeckt, deren Inline-display die Regel
+// ohnehin ueberstimmte.
+assert.doesNotMatch(source.assistantCss, /#tab-assistent > :not\(/);
 assert.match(source.assistantCss, /#vx-assistant-root-host > \[data-vx-assistant-managed-page\]:not\(\[hidden\]\)/);
 assert.match(source.assistantCss, /vx-nav-voice-details/);
 assert.doesNotMatch(source.css, /#tab-assistent > :not\(#vx-assistant-root-switch\):not\(#vx-assistant-root-host\)/);
