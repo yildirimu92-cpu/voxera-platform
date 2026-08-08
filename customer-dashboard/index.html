@@ -7741,7 +7741,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                  Sektionen darunter bleiben im DOM (hidden), damit bestehende
                  Render-/Event-Wiring nicht bricht. -->
             <section id="dash-lara-message" class="vx-lara-message">
-              <div class="vx-lara-avatar" aria-hidden="true">L</div>
+              <div id="dash-lara-avatar" class="vx-lara-avatar" aria-hidden="true">L</div>
               <div class="vx-lara-bubble">
                 <p id="dash-lara-text" class="vx-lara-text"></p>
                 <div id="dash-lara-meta" class="vx-lara-meta"></div>
@@ -7917,7 +7917,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <section class="vx-ops-card vx-report-section">
               <div class="vx-ops-head">
                 <div>
-                  <div class="vx-ops-title">Laras Zusammenfassung</div>
+                  <div class="vx-ops-title" id="au2-ai-title">Laras Zusammenfassung</div>
                   <div class="vx-ops-message" id="au2-ai-text"></div>
                 </div>
                 <span class="vx-ops-pill">Automatisch erstellt</span>
@@ -8004,7 +8004,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <!-- Success Bar -->
           <div class="vx-success-bar" id="vx-success-bar">
             <div style="font-size:28px;margin-bottom:6px;color:#34D399;">✓</div>
-            <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;">Lara ist aktualisiert</div>
+            <div id="vx-success-bar-title" style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;">Lara ist aktualisiert</div>
             <div style="font-size:12px;color:rgba(255,255,255,.45);">Änderungen wurden gespeichert und werden synchronisiert.</div>
           </div>
 
@@ -8356,15 +8356,15 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;"><i class="ph-bold ph-lightning" style="color:rgba(255,255,255,.7);" style="font-size:14px;" aria-hidden="true"></i><span style="font-size:13px;font-weight:700;color:#fff;">Erste Schritte</span></div>
               <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
                 <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Rufumleitung einrichten — wir helfen Ihnen dabei beim Onboarding.</div></div>
-                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Lara ist eingerichtet und übernimmt Ihre Anrufe. Eingehende Anfragen erscheinen sofort im Dashboard.</div></div>
-                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Geschäftsnummer anrufen — Lara nimmt ab. Anruf erscheint im Dashboard.</div></div>
+                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</div><div id="vx-help-step2" style="font-size:12px;color:var(--ink2);line-height:1.55;">Lara ist eingerichtet und übernimmt Ihre Anrufe. Eingehende Anfragen erscheinen sofort im Dashboard.</div></div>
+                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</div><div id="vx-help-step3" style="font-size:12px;color:var(--ink2);line-height:1.55;">Geschäftsnummer anrufen — Lara nimmt ab. Anruf erscheint im Dashboard.</div></div>
               </div>
             </div>
             <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
               <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;"><i class="ph-bold ph-question" style="color:rgba(255,255,255,.7);" style="font-size:14px;" aria-hidden="true"></i><span style="font-size:13px;font-weight:700;color:#fff;">Häufige Fragen</span></div>
               <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
                 <div><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Wie schnell sind Änderungen aktiv?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Nach "Live schalten" sofort — innerhalb von Sekunden.</div></div>
-                <div><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Kann Lara mehrere Sprachen?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Ja — Deutsch, Französisch, Italienisch und Englisch automatisch erkannt.</div></div>
+                <div><div id="vx-help-faq-lang-q" style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Kann Lara mehrere Sprachen?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Ja — Deutsch, Französisch, Italienisch und Englisch automatisch erkannt.</div></div>
                 <div><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Was passiert bei Ferien?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Feiertage & Ferien-Modus kommt bald — kontaktieren Sie uns für eine manuelle Anpassung.</div></div>
               </div>
             </div>
@@ -8744,7 +8744,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Häufige Fragen</h2></div></div>
             <div class="vx-help-faq">
               <details><summary>Wie schnell sind Änderungen aktiv?</summary><p>Gespeicherte Assistenten-Einstellungen werden normalerweise innerhalb weniger Sekunden synchronisiert.</p></details>
-              <details><summary>Welche Sprachen erkennt Lara?</summary><p>Deutsch, Französisch, Italienisch und Englisch werden automatisch erkannt.</p></details>
+              <details><summary id="vx-settings-faq-lang-q">Welche Sprachen erkennt Lara?</summary><p>Deutsch, Französisch, Italienisch und Englisch werden automatisch erkannt.</p></details>
               <details><summary>Was mache ich bei Ferien oder Schliesszeiten?</summary><p>Temporäre Änderungen können im Assistenten unter „Aktuelle Infos“ erfasst werden.</p></details>
               <details><summary>Wo finde ich gebuchte Termine?</summary><p>Durch Voxera erstellte Termine erscheinen unter Anfragen im Status „Geplant“.</p></details>
             </div>
@@ -8875,7 +8875,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
     </div>
 
     <div class="vx-onboarding-body">
-      <p class="vx-onboarding-text">
+      <p class="vx-onboarding-text" id="vx-onboarding-copy">
         Lara nimmt Anrufe für Sie entgegen. Anfragen finden Sie unter <strong>Anfragen</strong>,
         Einstellungen zu Rufumleitung und Benachrichtigungen unter <strong>Mehr</strong>.
       </p>
@@ -10808,7 +10808,8 @@ function vxBellPageRender() {
   if (!list) return;
   var items = vxNotifFilterBySettings(vxNotifFilterVisible(_vxNotifCache)).filter(function(n){ return !!n && !!n.ts && (Date.now() - Number(n.ts || 0)) <= 7 * 86400000; });
   if (!items.length) {
-    vxSetHtmlIfChanged(list, '<div class="vx-notif-mobile-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i><div>Keine Benachrichtigungen</div><small>Lara informiert dich hier über neue Anrufe, Rückrufe und wichtige Hinweise.</small></div>');
+    var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
+    vxSetHtmlIfChanged(list, '<div class="vx-notif-mobile-empty"><i class="ph-bold ph-bell-slash" aria-hidden="true"></i><div>Keine Benachrichtigungen</div><small>' + _esc(assistantName) + ' informiert dich hier über neue Anrufe, Rückrufe und wichtige Hinweise.</small></div>');
     return;
   }
   var html = _vxBellBuildHTML(items, 'vxBellPageItemClick');
@@ -14391,9 +14392,10 @@ function vxGetEntryCounts(records) {
   return counts;
 }
 function vxInquiryFilterEmptyText(filter) {
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
   if (filter === 'offen') return 'Keine offenen Anfragen.';
   if (filter === 'geplant') return 'Keine geplanten Anfragen.';
-  if (filter === 'neu') return 'Keine offenen Anfragen — Lara legt neue Kontakte hier ab.';
+  if (filter === 'neu') return 'Keine offenen Anfragen — ' + assistantName + ' legt neue Kontakte hier ab.';
   if (filter === 'abgeschlossen' || filter === 'geprueft') return 'Keine erledigten Anfragen.';
   if (filter === 'archiv') return 'Archiv ist leer.';
   return 'Keine Anfragen.';
@@ -14981,6 +14983,8 @@ async function vxPendingSend(payload) {
     // Show success
     var successBar = document.getElementById('vx-success-bar');
     if (successBar) successBar.classList.add('visible');
+    var successBarTitle = document.getElementById('vx-success-bar-title');
+    if (successBarTitle) successBarTitle.textContent = (customerMeta.assistantName || 'Lara') + ' ist aktualisiert';
     var status = document.getElementById('vx-ass-status');
     if (status) { status.textContent = '● Aktiv — Keine Änderungen ausstehend'; status.className = 'vx-ass-status'; }
     if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
@@ -15074,7 +15078,8 @@ function vxShowLiveWarning(sectionId) {
   var fbId = 'fb-' + sectionId;
   var fb = document.getElementById(fbId);
   if (!fb) return;
-  fb.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:8px;font-size:12px;color:#92400E;"><i class="ph-bold ph-lightning" style="flex-shrink:0;" style="font-size:13px;" aria-hidden="true"></i>Lara wird sofort aktualisiert.</div>';
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
+  fb.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:8px;font-size:12px;color:#92400E;"><i class="ph-bold ph-lightning" style="flex-shrink:0;" style="font-size:13px;" aria-hidden="true"></i>' + _esc(assistantName) + ' wird sofort aktualisiert.</div>';
   if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
   setTimeout(function(){ fb.innerHTML = ''; }, 4000);
 }
@@ -16202,6 +16207,7 @@ function vxInitRufumleitung(shellId) {
 
   const nr = (customerMeta && customerMeta.voxeraNumber) ? String(customerMeta.voxeraNumber) : '–';
   const isActive = !!(customerMeta && customerMeta.forwardingSetupCompleted === true);
+  const assistantName = (customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
   const provKeys = ['swisscom','sunrise','salt','upc','other_mobile','landline'];
   const provLabels = {swisscom:'Swisscom',sunrise:'Sunrise',salt:'Salt',upc:'UPC / Quickline',other_mobile:'Anderer Anbieter',landline:'Festnetz'};
 
@@ -16215,7 +16221,7 @@ function vxInitRufumleitung(shellId) {
         + '<div>'
           + '<div class="vx-forwarding-kicker">Aktivierung</div>'
           + '<div class="vx-forwarding-title">Rufumleitung einrichten</div>'
-          + '<div class="vx-forwarding-sub">Leiten Sie Ihre Anrufe auf Lara weiter, damit der Assistent Gespräche übernehmen und im Dashboard dokumentieren kann.</div>'
+          + '<div class="vx-forwarding-sub">Leiten Sie Ihre Anrufe auf ' + _esc(assistantName) + ' weiter, damit der Assistent Gespräche übernehmen und im Dashboard dokumentieren kann.</div>'
         + '</div>'
         // [v2.69] Status-Div entfernt
       + '</div>'
@@ -16239,19 +16245,19 @@ function vxInitRufumleitung(shellId) {
 
       + '<div class="vx-forwarding-card" id="shell-instructions-card">'
         + '<div class="vx-forwarding-card-head">'
-          + '<div><div class="vx-forwarding-card-title" id="shell-instr-title">Anleitung</div><div class="vx-forwarding-card-sub">Empfohlen ist die Weiterleitung bei Nichtannahme. So bleibt Ihre Nummer erreichbar und Lara übernimmt, wenn Sie nicht abheben.</div></div>'
+          + '<div><div class="vx-forwarding-card-title" id="shell-instr-title">Anleitung</div><div class="vx-forwarding-card-sub">Empfohlen ist die Weiterleitung bei Nichtannahme. So bleibt Ihre Nummer erreichbar und ' + _esc(assistantName) + ' übernimmt, wenn Sie nicht abheben.</div></div>'
         + '</div>'
         + '<div id="shell-instr-body"></div>'
       + '</div>'
 
       + '<div class="vx-forwarding-card">'
         + '<div class="vx-forwarding-card-head">'
-          + '<div><div class="vx-forwarding-card-title">Weiterleitung testen</div><div class="vx-forwarding-card-sub">Rufen Sie Ihre hinterlegte Kundennummer an oder starten Sie den Test, um zu prüfen, ob Lara den Anruf übernimmt.</div></div>'
+          + '<div><div class="vx-forwarding-card-title">Weiterleitung testen</div><div class="vx-forwarding-card-sub">Rufen Sie Ihre hinterlegte Kundennummer an oder starten Sie den Test, um zu prüfen, ob ' + _esc(assistantName) + ' den Anruf übernimmt.</div></div>'
         + '</div>'
         + '<div class="vx-forwarding-steps">'
           + '<div class="vx-forwarding-step"><div class="vx-forwarding-step-num">1</div><div class="vx-forwarding-step-text">Klicken Sie auf <strong>Testanruf starten</strong>.</div></div>'
           + '<div class="vx-forwarding-step"><div class="vx-forwarding-step-num">2</div><div class="vx-forwarding-step-text">Voxera ruft Ihre hinterlegte Geschäftsnummer an.</div></div>'
-          + '<div class="vx-forwarding-step"><div class="vx-forwarding-step-num">3</div><div class="vx-forwarding-step-text"><strong>Nicht abnehmen</strong> — Lara sollte den Anruf automatisch übernehmen.</div></div>'
+          + '<div class="vx-forwarding-step"><div class="vx-forwarding-step-num">3</div><div class="vx-forwarding-step-text"><strong>Nicht abnehmen</strong> — ' + _esc(assistantName) + ' sollte den Anruf automatisch übernehmen.</div></div>'
         + '</div>'
         + '<div class="vx-forwarding-test-actions">'
           + '<button type="button" onclick="checkTestCall()" id="test-call-btn" class="btn btn--primary">Testanruf starten</button>'
@@ -17885,6 +17891,7 @@ if (typeof window !== 'undefined') window.vxGetDefaultCallDisplayState = vxGetDe
 
 function vxGetCallDisplayState(callOrFields) {
   var fallback = vxGetDefaultCallDisplayState();
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
   try {
     if (typeof window !== 'undefined') {
       window._vxCallDisplayStateCache = window._vxCallDisplayStateCache || {};
@@ -17944,13 +17951,13 @@ function vxGetCallDisplayState(callOrFields) {
         cacheEntry.stableUntil = now + CALL_DISPLAY_LIVE_STABLE_MS;
         cache[callId] = cacheEntry;
       }
-      return { state:'live', label:'LIVE', tone:'danger', title:'Live-Anruf', description:'Lara nimmt den Anruf gerade entgegen. Die Zusammenfassung erscheint nach Gesprächsende.', isTemporary:true };
+      return { state:'live', label:'LIVE', tone:'danger', title:'Live-Anruf', description:assistantName + ' nimmt den Anruf gerade entgegen. Die Zusammenfassung erscheint nach Gesprächsende.', isTemporary:true };
     }
 
     if (cacheEntry && cacheEntry.state === 'live' && Number(cacheEntry.stableUntil || 0) > now) {
       cacheEntry.lastSeenAt = now;
       cache[callId] = cacheEntry;
-      return { state:'live', label:'LIVE', tone:'danger', title:'Live-Anruf', description:'Lara nimmt den Anruf gerade entgegen. Die Zusammenfassung erscheint nach Gesprächsende.', isTemporary:true };
+      return { state:'live', label:'LIVE', tone:'danger', title:'Live-Anruf', description:assistantName + ' nimmt den Anruf gerade entgegen. Die Zusammenfassung erscheint nach Gesprächsende.', isTemporary:true };
     }
 
     if (!hasCompletedLikeState && !hasDuration && ageMs > CALL_DISPLAY_TEMP_STALE_MS && !hasSummary && !hasTranscript) {
@@ -18452,6 +18459,12 @@ function _auBuildSparkCalls(all) {
 function _auAiSummary(records, total, hotCount, closed) {
   var el = document.getElementById('au2-ai-text');
   if (!el) return;
+  var titleEl = document.getElementById('au2-ai-title');
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
+  if (titleEl) {
+    var possessive = /[sxzß]$/i.test(assistantName) ? assistantName + '’' : assistantName + 's';
+    titleEl.textContent = possessive + ' Zusammenfassung';
+  }
   var periodLabel = {week:'in den letzten 7 Tagen', month:'in den letzten 30 Tagen', all:'insgesamt'}[_auPeriod] || '';
   if (!total) {
     el.textContent = 'Noch keine Anrufe ' + periodLabel + '.';
@@ -18470,7 +18483,7 @@ function _auAiSummary(records, total, hotCount, closed) {
   var bestTimePct = total ? Math.round(bestBucket.c / total * 100) : 0;
   _auEl('au2-top-cat', topCat); _auEl('au2-top-cat-sub', topCatCount + ' von ' + total + ' Anrufen');
   _auEl('au2-best-time', bestBucket.label + ' Uhr'); _auEl('au2-best-time-sub', bestTimePct + '% aller Anrufe');
-  el.textContent = 'Lara hat ' + periodLabel + ' ' + total + ' Anruf' + (total !== 1 ? 'e' : '') + ' entgegengenommen' + (hotCount ? ' — ' + hotCount + ' Hot Lead' + (hotCount !== 1 ? 's' : '') : '') + (closed ? ' — ' + closed + ' erledigt' : '') + '. Top-Kategorie: ' + topCat + '. Stosszeit: ' + bestBucket.label + ' Uhr.';
+  el.textContent = assistantName + ' hat ' + periodLabel + ' ' + total + ' Anruf' + (total !== 1 ? 'e' : '') + ' entgegengenommen' + (hotCount ? ' — ' + hotCount + ' Hot Lead' + (hotCount !== 1 ? 's' : '') : '') + (closed ? ' — ' + closed + ' erledigt' : '') + '. Top-Kategorie: ' + topCat + '. Stosszeit: ' + bestBucket.label + ' Uhr.';
 }
 
 function _auInsights(all, filtered) {
@@ -21245,6 +21258,7 @@ function vxHeuteScrollToAnfragen(event) {
 function vxHeuteRenderLaraHandover(sourceRecords) {
   var msgEl = document.getElementById('dash-lara-text');
   var metaEl = document.getElementById('dash-lara-meta');
+  var avatarEl = document.getElementById('dash-lara-avatar');
   var needsSection = document.getElementById('dash-needs-you-section');
   var needsList = document.getElementById('dash-needs-you-list');
   var needsCountEl = document.getElementById('dash-needs-you-count');
@@ -21275,9 +21289,12 @@ function vxHeuteRenderLaraHandover(sourceRecords) {
   }
 
   msgEl.textContent = vxHeuteBuildLaraMessage(visitRef, todayCalls.length, newCount, resolvedRecords.length, needsRecords.length);
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
   if (metaEl) {
-    var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
     metaEl.textContent = assistantName + ' · gerade eben';
+  }
+  if (avatarEl) {
+    avatarEl.textContent = assistantName.charAt(0).toUpperCase();
   }
 
   var hasNeeds = needsRecords.length > 0;
@@ -21358,7 +21375,29 @@ function vxHeuteRenderScopedList(listId, sectionId, countId, records, emptyText)
 // ═══════════════════════════════════════════
 //  RENDER DASHBOARD
 // ═══════════════════════════════════════════
+// Statische Textstellen (Hilfe-Seite, Einstellungen-FAQ, Onboarding-Modal), die
+// den Assistentennamen nennen, aber nicht Teil eines datengetriebenen Renders
+// sind. renderDashboard() läuft bei jedem Poll (~9-12s) und nach jeder
+// Umbenennung, daher genügt ein Aufruf hier statt eines eigenen Zyklus.
+function vxSyncAssistantNameCopy() {
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
+  var step2 = document.getElementById('vx-help-step2');
+  if (step2) step2.textContent = assistantName + ' ist eingerichtet und übernimmt Ihre Anrufe. Eingehende Anfragen erscheinen sofort im Dashboard.';
+  var step3 = document.getElementById('vx-help-step3');
+  if (step3) step3.textContent = 'Geschäftsnummer anrufen — ' + assistantName + ' nimmt ab. Anruf erscheint im Dashboard.';
+  var helpFaqLangQ = document.getElementById('vx-help-faq-lang-q');
+  if (helpFaqLangQ) helpFaqLangQ.textContent = 'Kann ' + assistantName + ' mehrere Sprachen?';
+  var settingsFaqLangQ = document.getElementById('vx-settings-faq-lang-q');
+  if (settingsFaqLangQ) settingsFaqLangQ.textContent = 'Welche Sprachen erkennt ' + assistantName + '?';
+  var onboardingCopy = document.getElementById('vx-onboarding-copy');
+  if (onboardingCopy) {
+    onboardingCopy.innerHTML = _esc(assistantName) + ' nimmt Anrufe für Sie entgegen. Anfragen finden Sie unter <strong>Anfragen</strong>, '
+      + 'Einstellungen zu Rufumleitung und Benachrichtigungen unter <strong>Mehr</strong>.';
+  }
+}
+
 function renderDashboard(records, manualTasks) {
+  if (typeof vxSyncAssistantNameCopy === 'function') vxSyncAssistantNameCopy();
   var buckets = deriveDashboardCallBuckets(records || []);
   var autoTasks = getUnifiedOpenTasks(records || []);
   var manualOpenTasks = (typeof vxGetOpenManualTasks === 'function') ? vxGetOpenManualTasks() : (manualTasks || allManualTaskRecords || []).filter(function(r) {
@@ -22440,6 +22479,7 @@ function renderList(containerId, records, opts) {
   records = (records || []).filter(function(rec) {
     return isManualTaskRecord(rec) || isCustomerVisibleCall(rec);
   });
+  const assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
   const el = document.getElementById(containerId);
   const isMobileList = window.matchMedia('(max-width: 768px)').matches;
   const isTaskList = containerId === 'rueckrufe-list' || containerId === 'dash-callback-list';
@@ -22520,7 +22560,7 @@ function renderList(containerId, records, opts) {
     const ibxAvCls   = ibxUrgent ? 'ibx-av-red' : done ? 'ibx-av-gray' : 'ibx-av-blue';
     const ibxNameCls = done ? 'ibx-name-done' : '';
     // Subject: live state first, then priority, then category
-    const ibxSubj = isLiveCall ? 'Lara nimmt entgegen…'
+    const ibxSubj = isLiveCall ? (assistantName + ' nimmt entgegen…')
                   : isProcessingCall ? 'Zusammenfassung wird erstellt…'
                   : isShortAbandonedCall ? 'Der Anrufer hat aufgelegt, bevor eine Anfrage aufgenommen wurde.'
                   : f.callback_requested && !done ? 'Rückruf gewünscht'
@@ -22605,7 +22645,7 @@ function renderList(containerId, records, opts) {
           ${(!isManualTaskRecord(r) && customerMeta && customerMeta.smsCallerAddon) ? '<span class="call-meta-item" style="color:#059669;font-weight:600;">✓ SMS</span>' : ''}
         </div>
         ${taskDueLabel?`<div class="task-due-pill ${taskDueClass}" style="margin-top:6px;">${escHtml(taskDueLabel)}</div>`:''}
-        ${(isLiveCall || isProcessingCall || isShortAbandonedCall) && !callSummary ? `<div class="call-summary" style="color:#94A3B8;font-style:italic;">${isLiveCall ? 'Lara nimmt entgegen…' : (isProcessingCall ? 'Zusammenfassung wird erstellt…' : 'Der Anrufer hat aufgelegt, bevor eine Anfrage aufgenommen wurde.')}</div>` : (callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:'')}
+        ${(isLiveCall || isProcessingCall || isShortAbandonedCall) && !callSummary ? `<div class="call-summary" style="color:#94A3B8;font-style:italic;">${isLiveCall ? (escHtml(assistantName) + ' nimmt entgegen…') : (isProcessingCall ? 'Zusammenfassung wird erstellt…' : 'Der Anrufer hat aufgelegt, bevor eine Anfrage aufgenommen wurde.')}</div>` : (callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:'')}
         ${followUpMetaText?`<div class="followup-meta-line">${escHtml(followUpMetaText)}</div>`:''}
         ${done && closedAt ? `<div class="followup-meta-line">Erledigt am ${escHtml(fmtExactDateTime(closedAt) || fmtDate(closedAt))}</div>` : ''}
         ${callEndInfo && !opts.dashboardView ? `<div style="margin-top:4px;"><span class="chip ${callEndInfo.cls}" style="font-size:11px;">${callEndInfo.label}</span></div>` : ''}
@@ -22822,6 +22862,7 @@ function vxIsExcludedNormalCall(rec, liveCallIds) {
 function renderAnrufeInbox(containerId, records, activeFilter) {
   var el = document.getElementById(containerId);
   if (!el) return;
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
 
   el.classList.remove('dpr-command-center', 'call-list');
   el.classList.add('vx-ops-list', 'vx-requests-list');
@@ -22968,7 +23009,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
         : (fields.callback_requested === true || fields.callback_requested === 'true') ? 'callback'
         : 'new';
       var preview = '';
-      if (stateMeta.state === 'live') preview = 'Lara nimmt den Anruf gerade entgegen.';
+      if (stateMeta.state === 'live') preview = assistantName + ' nimmt den Anruf gerade entgegen.';
       else if (stateMeta.state === 'processing' || stateMeta.state === 'checking') preview = 'Zusammenfassung wird erstellt.';
       else preview = String(fields.call_summary || fields.summary || fields.note || '').trim();
       if (!preview) preview = vxDashGetTaskDescription(rec, typeMeta, name);
