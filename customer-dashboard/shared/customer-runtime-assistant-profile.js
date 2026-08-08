@@ -205,11 +205,17 @@
   function urgentCard() {
     const urgent = profile?.urgent || { emergency_number: '', forwarding: [] };
     const forwarding = Array.isArray(urgent.forwarding) ? urgent.forwarding : [];
-    const hasContent = Boolean(urgent.emergency_number) || forwarding.length > 0;
-    const body = hasContent
+    const hasEmergency = Boolean(urgent.emergency_number);
+    const hasForwarding = forwarding.length > 0;
+    // Notfallnummer hat serverseitig immer einen Default (144) — ein reines
+    // "irgendwas vorhanden?"-Flag würde die Weiterleitungs-Leerzeile deshalb
+    // nie zeigen. Beide Zustände unabhängig behandeln.
+    const body = (hasEmergency || hasForwarding)
       ? '<div class="vx-ap-summary">'
-        + (urgent.emergency_number ? '<div class="vx-ap-summary-row vx-ap-urgent-emergency"><span class="vx-ap-summary-key">Notfallnummer</span><span class="vx-ap-summary-value vx-ap-urgent-number">' + esc(urgent.emergency_number) + '</span></div>' : '')
-        + forwarding.map(urgentForwardingRow).join('')
+        + (hasEmergency ? '<div class="vx-ap-summary-row vx-ap-urgent-emergency"><span class="vx-ap-summary-key">Notfallnummer</span><span class="vx-ap-summary-value vx-ap-urgent-number">' + esc(urgent.emergency_number) + '</span></div>' : '')
+        + (hasForwarding
+          ? forwarding.map(urgentForwardingRow).join('')
+          : '<div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Weiterleitung</span><span class="vx-ap-summary-value">Noch nicht eingerichtet</span></div>')
         + '</div>'
       : (root.VoxeraUI
         ? root.VoxeraUI.emptyState({ icon: 'ph-phone-transfer', title: 'Keine Weiterleitung eingerichtet', text: 'Notfallnummer und Weiterleitungsziele erscheinen hier, sobald sie eingerichtet sind.' })
