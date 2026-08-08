@@ -59,13 +59,24 @@ const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL || '';
 // '/', '+' und '=', und je nachdem, welches davon wo landet, zerlegt libpq den
 // String falsch oder die Anmeldung scheitert. Dieser Weg hat das Problem nicht,
 // weil das Passwort ueber PGPASSWORD geht und nie geparst wird.
-const dbParts = {
+const rawParts = {
   host: process.env.SUPABASE_DB_HOST || '',
   port: process.env.SUPABASE_DB_PORT || '5432',
   user: process.env.SUPABASE_DB_USER || '',
   password: process.env.SUPABASE_DB_PASSWORD || '',
   dbname: process.env.SUPABASE_DB_NAME || 'postgres',
 };
+
+// Beim Kopieren in ein GitHub-Secret wandert leicht ein Zeilenumbruch oder ein
+// Leerzeichen mit. Das ist von aussen unsichtbar und sieht exakt aus wie ein
+// falsches Passwort. Deshalb wird getrimmt -- aber nicht stillschweigend: was
+// entfernt wurde, steht im Log, sonst waere es beim naechsten Mal wieder da.
+const trimmedFields = [];
+const dbParts = Object.fromEntries(Object.entries(rawParts).map(([k, v]) => {
+  const t = v.trim();
+  if (t !== v) trimmedFields.push(k);
+  return [k, t];
+}));
 const useParts = Boolean(dbParts.host && dbParts.user && dbParts.password);
 
 /** Das Passwort darf unter keinen Umstaenden im CI-Log landen. */
@@ -344,6 +355,11 @@ if (!dbUrl && !useParts) {
     cfg.push(`  Port: ${dbParts.port}${dbParts.port === '5432' ? ' (Session-Modus)'
       : ' -- erwartet 5432; die Proben brauchen SET LOCAL ROLE'}`);
     cfg.push(`  Passwortlaenge: ${dbParts.password.length} Zeichen`);
+    if (trimmedFields.length) {
+      cfg.push(`  ACHTUNG: Leerraum entfernt aus ${trimmedFields.join(', ')}`
+        + ' -- beim Kopieren ins Secret ist ein Zeilenumbruch mitgewandert.'
+        + ' Dieser Lauf laeuft trotzdem, aber das Secret sollte korrigiert werden.');
+    }
   } else {
     cfg.push('Zugang: SUPABASE_DB_URL (Connection-String)');
     try {
