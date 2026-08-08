@@ -1,0 +1,70 @@
+name: Verify Runtime Config Isolation
+
+# Haelt fest, dass die Supabase-Zugangsdaten nicht in den Quelltext zurueckwandern.
+# Reiner Repo-Datei-Check ohne Datenbankverbindung — laeuft deshalb gefahrlos auf PRs.
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/activate.html'
+      - 'customer-dashboard/netlify.toml'
+      - 'customer-dashboard/vx-runtime-config.js'
+      - 'customer-dashboard/tools/build-runtime-config.mjs'
+      - 'admin-panel/index.html'
+      - 'admin-panel/login.html'
+      - 'admin-panel/netlify.toml'
+      - 'admin-panel/vx-runtime-config.js'
+      - 'admin-panel/tools/build-runtime-config.mjs'
+      - 'contract-signed.html'
+      - 'scripts/runtime-config.mjs'
+      - 'scripts/verify-runtime-config-isolation.mjs'
+      - '.github/workflows/verify-runtime-config-isolation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/activate.html'
+      - 'customer-dashboard/netlify.toml'
+      - 'customer-dashboard/vx-runtime-config.js'
+      - 'customer-dashboard/tools/build-runtime-config.mjs'
+      - 'admin-panel/index.html'
+      - 'admin-panel/login.html'
+      - 'admin-panel/netlify.toml'
+      - 'admin-panel/vx-runtime-config.js'
+      - 'admin-panel/tools/build-runtime-config.mjs'
+      - 'contract-signed.html'
+      - 'scripts/runtime-config.mjs'
+      - 'scripts/verify-runtime-config-isolation.mjs'
+      - '.github/workflows/verify-runtime-config-isolation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check scripts/runtime-config.mjs
+          node --check customer-dashboard/tools/build-runtime-config.mjs
+          node --check admin-panel/tools/build-runtime-config.mjs
+          node --check customer-dashboard/vx-runtime-config.js
+          node --check admin-panel/vx-runtime-config.js
+
+      - name: Verify runtime config isolation
+        run: node scripts/verify-runtime-config-isolation.mjs
+
+      # Der Build-Schritt darf bei fehlenden Zugangsdaten NICHT abbrechen — sonst
+      # faerbt jede Deploy-Preview rot. Hier ohne gesetzte Variablen nachgemessen.
+      - name: Build step tolerates missing credentials
+        run: |
+          node customer-dashboard/tools/build-runtime-config.mjs
+          node admin-panel/tools/build-runtime-config.mjs
+          git diff --exit-code -- customer-dashboard/vx-runtime-config.js admin-panel/vx-runtime-config.js

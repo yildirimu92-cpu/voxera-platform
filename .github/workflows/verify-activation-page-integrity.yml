@@ -1,0 +1,32 @@
+name: Verify Activation Page Integrity
+
+# customer-dashboard/activate.html war ueber 20 Commits hinweg abgeschnitten und
+# damit vollstaendig funktionslos, ohne dass das im Browser eine Spur hinterliess.
+# Ursache war wiederholtes Herunterladen und Wiederhochladen der Datei.
+# Reiner Datei-Check ohne Netzwerk- oder Datenbankzugriff.
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/activate.html'
+      - 'scripts/verify-activation-page-integrity.mjs'
+      - '.github/workflows/verify-activation-page-integrity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/activate.html'
+      - 'scripts/verify-activation-page-integrity.mjs'
+      - '.github/workflows/verify-activation-page-integrity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-activation-page-integrity.mjs

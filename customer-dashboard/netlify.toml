@@ -1,7 +1,11 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = "echo 'Deploy successful'"
+  # Erzeugt vx-runtime-config.js aus den Netlify-Env-Variablen. Sind SUPABASE_URL
+  # und SUPABASE_ANON_KEY fuer den Kontext nicht gesetzt (Deploy-Preview), enthaelt
+  # die Datei bewusst keine Zugangsdaten und die Anwendung startet ohne
+  # Datenverbindung. Der Schritt bricht deshalb NICHT ab, wenn Variablen fehlen.
+  command = "node tools/build-runtime-config.mjs"
 
 [[headers]]
   for = "/*"

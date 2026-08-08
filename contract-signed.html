@@ -190,8 +190,9 @@
 
   <script>
   const token = new URLSearchParams(location.search).get('token') || '';
-  const SUPABASE_URL     = 'https://ulcofbgrovgcvowdjrge.supabase.co';
-  const SUPABASE_ANON_KEY = document.currentScript?.dataset?.anon || '';
+  // Kein Supabase-Client auf dieser Seite: der Vertrag wird ausschliesslich ueber
+  // /.netlify/functions/contract-public-get geladen. Die frueher hier stehenden
+  // Konstanten SUPABASE_URL/SUPABASE_ANON_KEY waren unbenutzt und sind entfernt.
 
   const fmt = v => v ? new Date(v).toLocaleDateString('de-CH', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
 

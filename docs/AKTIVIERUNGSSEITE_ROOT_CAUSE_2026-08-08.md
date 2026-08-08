@@ -1,0 +1,199 @@
+# `activate.html` — Root-Cause-Analyse und Fix
+
+**Datum:** 2026-08-08 · **Schweregrad:** Blockiert jeden echten Pilotkunden
+**Gefunden:** beiläufig beim Browser-Test zur Preview-Isolation (Option 3)
+
+---
+
+## 1. Beobachtetes Problem
+
+`customer-dashboard/activate.html` — die Seite, auf der ein eingeladener Kunde sein Passwort
+setzt und damit sein Konto aktiviert — hatte **keine funktionierende Logik**. Die Seite blieb
+dauerhaft auf „Aktivierungslink wird geprüft…" stehen.
+
+Ohne Fehlermeldung. Ohne Konsolen-Ausgabe. Ohne fehlgeschlagenen Request.
+
+## 2. Reproduktionspfad
+
+1. `customer-dashboard/` statisch ausliefern
+2. `/activate.html#access_token=…&type=invite` öffnen
+3. Erwartet: Passwort-Formular. Tatsächlich: „Aktivierungslink wird geprüft…", dauerhaft.
+
+Im Browser gemessen (Chromium, Supabase-Bibliothek gestubbt): `sb` ist `undefined`,
+`createClient` wird nie aufgerufen, `init` ist nicht definiert, **kein** `pageerror`.
+
+## 3. Root Cause — bewiesen
+
+Die Datei war **abgeschnitten**. Sie endete mitten in einem Kommentar:
+
+```
+// ── Start ───\xEF\xBF\xBD
+```
+
+`\xEF\xBF\xBD` ist U+FFFD (Replacement Character). Danach kam nichts mehr: kein `</script>`,
+kein `</body>`, kein `</html>`.
+
+Das Zeichen verrät den Mechanismus. Der Kommentar bestand aus `─` (U+2500), in UTF-8 drei
+Bytes. Der Schnitt landete **innerhalb** einer solchen Drei-Byte-Sequenz; beim erneuten
+Dekodieren wurde der Rest zu U+FFFD. Ein sauberer Schnitt an einer Zeilengrenze sieht anders
+aus — das hier ist ein Byte-Limit, kein Zeilen-Limit.
+
+Der HTML-Parser behandelt einen bei EOF noch offenen `<script>`-Block als Parse-Fehler und
+**führt ihn nicht aus**. Deshalb lief kein einziges Zeichen der Aktivierungslogik — und
+deshalb gab es auch keine Fehlermeldung: nicht ausgeführter Code wirft nicht.
+
+### Wann es passierte
+
+| Commit | Größe | `</html>` | |
+| --- | --- | --- | --- |
+| `05f8b3b0` „Refactor welcome-email flow" | 10 752 B | **ja** | letzte vollständige Fassung |
+| `caec33a1` | — | — | Datei gelöscht |
+| `70d8fc26` „Rename activate (2).html to activate.html" | 11 226 B | **nein** | **hier riss sie ab** |
+| `cf859dc1` „Rename activate (3).html…" | 11 396 B | nein | Schaden vererbt |
+| `41f2a1e3` „Rename activate (4).html…" | 12 034 B | nein | Schaden vererbt |
+| … 15 weitere Commits … | | nein | alle bauten auf der kaputten Datei auf |
+
+Die Commit-Namen benennen die Ursache selbst: die Datei wurde außerhalb des Repos bearbeitet
+— heruntergeladen als `activate (2).html`, geändert, wieder hochgeladen. Auf diesem Weg ging
+das Ende verloren. Danach hat niemand mehr das Ende angefasst, alle 20 Folge-Commits
+bearbeiteten die Mitte.
+
+Ein zweiter Beleg für denselben Weg: die Datei enthielt Cloudflare-Artefakte
+(`__cf_email__`, `/cdn-cgi/scripts/…/email-decode.min.js`) — die entstehen nur, wenn man eine
+über Cloudflare ausgelieferte Seite speichert. Siehe Abschnitt 5.
+
+## 4. Fix
+
+Nur der Schwanz fehlte. Belegt, nicht geraten: der aktuelle Inline-Block parst unverändert
+als gültiges JavaScript (`node --check`), es fehlte also kein Code in der Mitte. Und die
+vollständige Fassung `05f8b3b0` zeigt exakt, was am Ende stand:
+
+```js
+// ── Start ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
+```
+
+`init()` war die ganze Zeit definiert (heute Zeile 193) — nur nie aufgerufen. Die heutige
+Fassung ist gegenüber `05f8b3b0` weiterentwickelt (sie behandelt Implicit- **und**
+PKCE-Flow), hängt aber nur an `SUCCESS_REDIRECT_DELAY` und den vier View-IDs; alle vorhanden.
+
+Ergänzt wurde ein Guard `if (sb) init();`. Seit der Preview-Isolation kann `sb` null sein;
+ohne Guard würde `init()` dort eine uncaught `TypeError` werfen.
+
+### Verifikation im Browser (Chromium, Supabase gestubbt)
+
+| Szenario | Ergebnis |
+| --- | --- |
+| Produktion, Hash mit Token (`type=invite`) | `setSession` aufgerufen → **Passwort-Formular** |
+| Produktion, kein Hash (PKCE, keine Session) | `getSession` aufgerufen → „Link ungültig" |
+| Preview ohne Zugangsdaten | kein Aufruf, Hinweis-Overlay, keine Fehler |
+
+Vor dem Fix trat in keinem der drei Fälle irgendetwas davon ein.
+
+## 5. Zweiter Defekt, gleiche Ursache
+
+Die Support-Adresse auf der Fehlerseite war Cloudflare-verschleiert:
+
+```html
+<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ddaea8…">[email protected]</a>
+```
+
+Diese Verschleierung braucht einen Decoder unter `/cdn-cgi/scripts/…`, den Cloudflare
+zur Laufzeit einspielt. Das Dashboard läuft auf **Netlify** — der Pfad ist dort ein 404 (im
+Browser bestätigt: `REQFAIL /cdn-cgi/scripts/…/email-decode.min.js`).
+
+Ein Kunde mit abgelaufenem Link las also wörtlich: *„Bitte kontaktieren Sie den Support unter
+**[email protected]**"*.
+
+Die Adresse ließ sich aus `data-cfemail` deterministisch zurückrechnen (erstes Byte ist der
+Schlüssel, Rest XOR) und ergab **`support@voxera.ch`**.
+
+**Dieses Postfach existiert nicht** (bestätigt vom Betreiber, 2026-08-08). Es gibt nur
+`info@voxera.ch`. Der Link zeigt jetzt dorthin, der tote Decoder-Script-Tag ist entfernt.
+
+Der ursprüngliche Defekt hat den zweiten also verdeckt: Solange die Adresse als
+„[email protected]" gerendert wurde, fiel niemandem auf, dass die dahinterliegende
+Adresse ohnehin ins Leere geht.
+
+### `support@voxera.ch` stand an vier weiteren Stellen — alle korrigiert
+
+Die Adresse wurde bei dieser Gelegenheit im ganzen Repo gesucht und auf Entscheid des
+Betreibers durchgängig auf `info@voxera.ch` umgestellt:
+
+| Stelle | Text | Wirkung |
+| --- | --- | --- |
+| `customer-dashboard/index.html:29371` | „Falls das Problem bleibt: …" | Fehlermeldung an Kunden |
+| `customer-dashboard/index.html:29374` | dieselbe Meldung, zweite Variante | Fehlermeldung an Kunden |
+| `admin-panel/index.html:10035` | „Kündigung schriftlich per E-Mail an …" | Vertragstext, **§ 2 Laufzeit und Kündigung** |
+| `admin-panel/index.html:10105` | „Anfragen: …" | Vertragstext, **§ 13 Betroffenenrechte** |
+
+Die beiden Vertragsstellen wogen am schwersten. § 2 nennt die Adresse, an die ein Kunde
+seine **Kündigung** schicken soll — schriftlich und fristgebunden. § 13 nennt die
+Kontaktstelle für **Betroffenenrechte** nach DSG/DSGVO (Auskunft, Berichtigung, Löschung,
+Portabilität). Eine unerreichbare Adresse ist dort kein Schönheitsfehler, sondern ein
+Compliance-Problem: fristgebundene Erklärungen und gesetzliche Auskunftsbegehren wären ins
+Leere gelaufen.
+
+**Bestätigung nebenbei:** Das Customer Dashboard verwendete an drei weiteren Stellen
+(Support-Screen, Zeilen 8353, 8376, 17731) bereits `info@voxera.ch`. Die vier korrigierten
+Stellen waren die Ausreisser; die Adressen sind jetzt repo-weit konsistent.
+
+## 5b. Dritter Defekt — die Session kam nie beim Dashboard an
+
+Aus dem Codex-Review auf PR #844, nachgeprüft und bestätigt.
+
+Nachdem die Aktivierung wieder lief, wurde der nächste Schritt sichtbar: `setPassword()`
+setzt das Passwort, ruft dann `signOut()` und `signInWithPassword()` — erzeugt also eine
+**frische** Session — und leitet aufs Dashboard weiter.
+
+**Fakt:** Der Client in `activate.html` bekam weder `storageKey` noch `storage`. Damit
+greifen die Vorgaben von supabase-js: Schlüssel `sb-<projektref>-auth-token`, Speicher
+`localStorage`. `customer-dashboard/index.html` dagegen liest `CUSTOMER_AUTH_STORAGE_KEY`
+= `'voxera-auth'` aus `getPreferredAuthStorage()`, das **`sessionStorage` bevorzugt**.
+
+Zwei voneinander unabhängige Abweichungen — Schlüsselname *und* Speicher-Backend. Jede
+allein hätte gereicht. Der Kunde hätte sein Passwort erfolgreich gesetzt und wäre auf dem
+Login-Screen gelandet.
+
+**Dass das nicht so gedacht war, steht im Code:** `activate.html` setzt vor der Weiterleitung
+`sessionStorage['voxera_just_activated'] = '1'`, und `index.html:30113` liest dieses Flag
+aus. Die Übergabe war entworfen — sie konnte nur nie funktionieren.
+
+**Fix:** `activate.html` verwendet jetzt denselben Schlüssel und dieselbe Speicherwahl
+(`sessionStorage` vor `localStorage`) wie das Dashboard.
+
+**Verifikation (Chromium, zwei Schritte in einem Tab):** Der Client aus `activate.html`
+schreibt einen Testwert über seinen Storage — er landet in `sessionStorage['voxera-auth']`,
+`localStorage` bleibt leer. Nach Navigation zu `index.html` liest dessen Storage-Wrapper
+exakt diesen Wert zurück. Die Übergabe ist damit nicht hergeleitet, sondern gemessen.
+
+## 6. Schutz gegen Wiederholung
+
+`scripts/verify-activation-page-integrity.mjs` (Workflow *Verify Activation Page Integrity*,
+läuft auf PRs) prüft: schließende Tags vorhanden und Datei endet auf `</html>`; kein U+FFFD;
+`<script>`-Tags paarig; `init()` definiert **und** aufgerufen; keine Cloudflare-Artefakte;
+Inline-Block syntaktisch gültig; **Sitzungsschlüssel und Speicher-Backend identisch zum
+Dashboard**; jede via `showView()` angesteuerte Ansicht existiert im Markup.
+
+Gegen die tatsächlich kaputte Fassung (`1118adf`) gegengeprüft: **9 von 13 Prüfungen schlagen
+dort an.** Der Check hätte den Schaden bei `70d8fc26` sofort gemeldet. Der Abgleich des
+Sitzungsschlüssels wurde separat gegengeprüft, indem der Schlüssel in `activate.html`
+verändert wurde — der Check meldet die Abweichung mit beiden Werten im Klartext.
+
+## 7. Was offen bleibt
+
+- **Nicht verifiziert: die live ausgelieferte Fassung.** `dashboard.voxera.ch` ist aus dieser
+  Umgebung nicht erreichbar (Egress-Proxy blockt). Da Netlify aus genau diesem Repository
+  deployt, ist die ausgelieferte Datei mit hoher Wahrscheinlichkeit dieselbe kaputte — bewiesen
+  ist es nicht. **Nach dem Deploy einmal mit einem echten Einladungslink gegenprüfen.**
+- **Indizienlage stützt den Befund:** alle vier Kunden in der Produktions-Datenbank stehen auf
+  `invited` bzw. `onboarding`, keiner ist je über die Aktivierung hinausgekommen.
+- **Geprüft und sauber:** alle sechs HTML-Dateien des Repos wurden auf dieselbe Fehlerklasse
+  untersucht (endet auf `</html>`, `<script>`-Tags paarig, kein U+FFFD). `activate.html` war
+  die einzige betroffene Datei; `admin-panel/index.html` (35 script-Paare),
+  `admin-panel/login.html`, `admin-panel/offer-pdf.html`, `customer-dashboard/index.html` und
+  `contract-signed.html` sind vollständig. `__cf_email__` und `/cdn-cgi/` kommen im übrigen
+  Repo nicht vor.

@@ -7,6 +7,8 @@
 <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
 <link rel="apple-touch-icon" href="/brand/05-app-icon-512px.svg">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Laufzeit-Konfiguration (Supabase-Zugangsdaten), siehe scripts/runtime-config.mjs. -->
+<script src="/vx-runtime-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -4302,8 +4304,11 @@ body,.main{background:#F7F8FC;}
 <script>
 'use strict';
 
-const SUPABASE_URL='https://ulcofbgrovgcvowdjrge.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
+// Zugangsdaten aus /vx-runtime-config.js (zur Build-Zeit erzeugt), nicht hartkodiert.
+// Fehlen sie, bleibt authClient unten null und vx-runtime-config.js zeigt einen Hinweis.
+const VX_RUNTIME_CONFIG=window.__VX_RUNTIME_CONFIG__||{};
+const SUPABASE_URL=VX_RUNTIME_CONFIG.supabaseUrl||'';
+const SUPABASE_ANON_KEY=VX_RUNTIME_CONFIG.supabaseAnonKey||'';
 const supabaseLib=window.supabase;
 const ADMIN_AUTH_STORAGE_KEY='voxera-admin-session';
 function getPreferredAuthStorage(){
@@ -4320,7 +4325,7 @@ function getPreferredAuthStorage(){
   return undefined;
 }
 const authStorage=getPreferredAuthStorage();
-const authClient=(supabaseLib&&supabaseLib.createClient)?supabaseLib.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{
+const authClient=(supabaseLib&&supabaseLib.createClient&&SUPABASE_URL&&SUPABASE_ANON_KEY)?supabaseLib.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{
   auth:{
     persistSession:true,
     autoRefreshToken:true,
@@ -10027,7 +10032,7 @@ function generateContractText(data) {
     '  Kündigungsfrist:   ' + noticeLbl,
     '  Kündigung bis:     ' + formatDateDE(data.cancellationDate),
     '',
-    'Kündigung schriftlich per E-Mail an support@voxera.ch.',
+    'Kündigung schriftlich per E-Mail an info@voxera.ch.',
     'Das Abonnement verlängert sich automatisch um einen Monat,',
     'sofern es nicht rechtzeitig gekündigt wird.',
     '',
@@ -10097,7 +10102,7 @@ function generateContractText(data) {
     '',
     '§ 13  BETROFFENENRECHTE',
     'Auskunft, Berichtigung, Löschung, Einschränkung, Portabilität.',
-    'Anfragen: support@voxera.ch',
+    'Anfragen: info@voxera.ch',
     '',
     '───────────────────────────────────────────────────────────',
     'SCHLUSSBESTIMMUNGEN',

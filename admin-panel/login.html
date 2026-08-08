@@ -6,6 +6,8 @@
   <title>Voxera Admin – Login</title>
   <link rel="icon" type="image/svg+xml" href="/brand/05-app-icon-512px.svg">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <!-- Laufzeit-Konfiguration (Supabase-Zugangsdaten), siehe scripts/runtime-config.mjs. -->
+  <script src="/vx-runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
@@ -134,8 +136,10 @@
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
+    // Zugangsdaten aus /vx-runtime-config.js (zur Build-Zeit erzeugt), nicht hartkodiert.
+    const VX_RUNTIME_CONFIG = window.__VX_RUNTIME_CONFIG__ || {};
+    const SUPABASE_URL = VX_RUNTIME_CONFIG.supabaseUrl || '';
+    const SUPABASE_ANON_KEY = VX_RUNTIME_CONFIG.supabaseAnonKey || '';
     const ADMIN_AUTH_STORAGE_KEY = 'voxera-admin-session';
     function getPreferredAuthStorage() {
       const candidates = [window.sessionStorage, window.localStorage];
@@ -145,15 +149,18 @@
       }
       return undefined;
     }
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false,
-        storageKey: ADMIN_AUTH_STORAGE_KEY,
-        storage: getPreferredAuthStorage()
-      }
-    });
+    // Ohne Zugangsdaten kein Client — vx-runtime-config.js zeigt dazu den Hinweis.
+    const sb = (SUPABASE_URL && SUPABASE_ANON_KEY)
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: false,
+            storageKey: ADMIN_AUTH_STORAGE_KEY,
+            storage: getPreferredAuthStorage()
+          }
+        })
+      : null;
 
     function showError(msg) {
       const el = document.getElementById('login-error');
@@ -208,6 +215,9 @@
 
     // Auto-redirect if already logged in
     (async () => {
+      // Ohne Client gibt es keine Session zu pruefen. Der Hinweis aus
+      // vx-runtime-config.js steht dann bereits sichtbar auf der Seite.
+      if (!sb) return;
       const { data: { session } } = await sb.auth.getSession();
       if (session?.user) window.location.replace('/');
     })();

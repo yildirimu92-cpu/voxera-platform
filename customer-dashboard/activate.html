@@ -11,6 +11,8 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <script src="/shared/offer-brand.js"></script>
+<!-- Laufzeit-Konfiguration (Supabase-Zugangsdaten), siehe scripts/runtime-config.mjs. -->
+<script src="/vx-runtime-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <style>
@@ -126,25 +128,60 @@ body{
     <div class="title">Link ungültig</div>
     <div class="sub" style="margin-bottom:0;">
       Dieser Aktivierungslink ist abgelaufen oder wurde bereits verwendet.<br><br>
-      Bitte kontaktieren Sie den Support unter <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ddaea8adadb2afa99dabb2a5b8afbcf3beb5">[email&#160;protected]</a></strong>,
+      Bitte kontaktieren Sie den Support unter <strong><a href="mailto:info@voxera.ch">info@voxera.ch</a></strong>,
       um einen neuen Aktivierungslink zu erhalten.
     </div>
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 'use strict';
 
 const BRAND_LOGO_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_LOGO_PATH)||'/brand/05-app-icon-512px.svg';
 const BRAND_FAVICON_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_FAVICON_PATH)||BRAND_LOGO_PATH;
 
-// ── Supabase-Konfiguration (öffentliche Anon-Key, identisch mit Dashboard) ──
-const SUPABASE_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk';
+// ── Supabase-Konfiguration ──────────────────────────────────────────────────
+// Kommt aus /vx-runtime-config.js (zur Build-Zeit erzeugt), identisch mit Dashboard.
+const VX_RUNTIME_CONFIG = window.__VX_RUNTIME_CONFIG__ || {};
+const SUPABASE_URL = VX_RUNTIME_CONFIG.supabaseUrl || '';
+const SUPABASE_ANON_KEY = VX_RUNTIME_CONFIG.supabaseAnonKey || '';
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
-});
+// ── Sitzungsspeicher — muss exakt zum Dashboard passen ─────────────────────
+// setPassword() meldet den Nutzer ab und mit dem neuen Passwort wieder an,
+// erzeugt also eine frische Session, und leitet dann aufs Dashboard weiter.
+// Ohne diese beiden Angaben schriebe der Client sie unter dem Supabase-Default-
+// Schluessel in localStorage — index.html liest aber 'voxera-auth' aus dem
+// bevorzugten sessionStorage. Der Nutzer landete trotz erfolgreicher Aktivierung
+// auf dem Login-Screen. Schluessel und Speicherwahl daher identisch zu
+// index.html (CUSTOMER_AUTH_STORAGE_KEY / getPreferredAuthStorage).
+const CUSTOMER_AUTH_STORAGE_KEY = 'voxera-auth';
+function getPreferredAuthStorage() {
+  for (const storage of [window.sessionStorage, window.localStorage]) {
+    if (!storage) continue;
+    try {
+      const probe = '__voxera_customer_auth_probe__';
+      storage.setItem(probe, '1');
+      storage.removeItem(probe);
+      return storage;
+    } catch (_e) {}
+  }
+  return undefined;
+}
+
+// Ohne Zugangsdaten wird kein Client gebaut. vx-runtime-config.js zeigt dazu
+// bereits einen sichtbaren Hinweis; hier bleibt sb null, damit jeder Aufruf
+// darunter laut scheitert statt still gegen eine falsche Instanz zu laufen.
+const sb = (SUPABASE_URL && SUPABASE_ANON_KEY)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: getPreferredAuthStorage(),
+        storageKey: CUSTOMER_AUTH_STORAGE_KEY
+      }
+    })
+  : null;
 
 // ── Hilfsfunktionen zum Anzeigen der Ansichten ───────────────────────────────
 function showView(id) {
@@ -292,4 +329,10 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ── Start ───�
+// ── Start ────────────────────────────────────────────────────────────────────────────
+// Ohne Client gibt es keine Session zu pruefen. Der Hinweis aus
+// vx-runtime-config.js steht dann bereits sichtbar auf der Seite.
+if (sb) init();
+</script>
+</body>
+</html>
