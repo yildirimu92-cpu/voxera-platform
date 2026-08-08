@@ -84,7 +84,42 @@ if (!m) {
   }
 }
 
-// ── 7. Jede angesteuerte Ansicht existiert im Markup ───────────────────────
+// ── 7. Sitzungsspeicher stimmt mit dem Dashboard ueberein ──────────────────
+// setPassword() erzeugt per signOut + signInWithPassword eine frische Session
+// und leitet aufs Dashboard weiter. Weichen Schluessel oder Speicher-Backend ab,
+// findet index.html diese Session nicht und zeigt trotz erfolgreicher
+// Aktivierung den Login-Screen. Beide Seiten muessen deshalb dasselbe nutzen.
+const dashboard = readFileSync(resolve(repoRoot, 'customer-dashboard/index.html'), 'utf8');
+const keyOf = (src) => (src.match(/CUSTOMER_AUTH_STORAGE_KEY\s*=\s*'([^']+)'/) || [])[1];
+const actKey = keyOf(html);
+const dashKey = keyOf(dashboard);
+
+if (!dashKey) {
+  fail('CUSTOMER_AUTH_STORAGE_KEY in index.html nicht gefunden', 'Der Abgleich kann nicht geprueft werden.');
+} else if (actKey !== dashKey) {
+  fail(
+    `Sitzungsschluessel weichen ab: activate.html ${JSON.stringify(actKey)} vs. index.html ${JSON.stringify(dashKey)}`,
+    'Die bei der Aktivierung erzeugte Session waere fuer das Dashboard unsichtbar.'
+  );
+} else {
+  ok(`Sitzungsschluessel identisch zum Dashboard ('${actKey}')`);
+}
+
+// Das Backend muss ebenso passen: der Supabase-Default ist localStorage, das
+// Dashboard bevorzugt sessionStorage. Beide Seiten waehlen in derselben
+// Reihenfolge — sonst reicht ein uebereinstimmender Schluessel nicht.
+if (/storage:\s*getPreferredAuthStorage\(\)/.test(html)
+    && /\[\s*window\.sessionStorage\s*,\s*window\.localStorage\s*\]/.test(html)) {
+  ok('Speicher-Backend gewaehlt wie im Dashboard (sessionStorage bevorzugt)');
+} else {
+  fail(
+    'activate.html waehlt das Speicher-Backend nicht wie das Dashboard',
+    'Erwartet: storage: getPreferredAuthStorage() mit [sessionStorage, localStorage]. ' +
+    'Ohne Angabe nutzt Supabase localStorage, das Dashboard aber sessionStorage.'
+  );
+}
+
+// ── 8. Jede angesteuerte Ansicht existiert im Markup ───────────────────────
 const referenced = [...html.matchAll(/showView\('([^']+)'\)/g)].map(x => x[1]);
 const missing = [...new Set(referenced)].filter(id => !html.includes(`id="${id}"`));
 if (missing.length === 0) ok(`alle ${new Set(referenced).size} angesteuerten Ansichten existieren`);

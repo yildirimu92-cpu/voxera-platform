@@ -141,16 +141,47 @@ Leere gelaufen.
 (Support-Screen, Zeilen 8353, 8376, 17731) bereits `info@voxera.ch`. Die vier korrigierten
 Stellen waren die Ausreisser; die Adressen sind jetzt repo-weit konsistent.
 
+## 5b. Dritter Defekt — die Session kam nie beim Dashboard an
+
+Aus dem Codex-Review auf PR #844, nachgeprüft und bestätigt.
+
+Nachdem die Aktivierung wieder lief, wurde der nächste Schritt sichtbar: `setPassword()`
+setzt das Passwort, ruft dann `signOut()` und `signInWithPassword()` — erzeugt also eine
+**frische** Session — und leitet aufs Dashboard weiter.
+
+**Fakt:** Der Client in `activate.html` bekam weder `storageKey` noch `storage`. Damit
+greifen die Vorgaben von supabase-js: Schlüssel `sb-<projektref>-auth-token`, Speicher
+`localStorage`. `customer-dashboard/index.html` dagegen liest `CUSTOMER_AUTH_STORAGE_KEY`
+= `'voxera-auth'` aus `getPreferredAuthStorage()`, das **`sessionStorage` bevorzugt**.
+
+Zwei voneinander unabhängige Abweichungen — Schlüsselname *und* Speicher-Backend. Jede
+allein hätte gereicht. Der Kunde hätte sein Passwort erfolgreich gesetzt und wäre auf dem
+Login-Screen gelandet.
+
+**Dass das nicht so gedacht war, steht im Code:** `activate.html` setzt vor der Weiterleitung
+`sessionStorage['voxera_just_activated'] = '1'`, und `index.html:30113` liest dieses Flag
+aus. Die Übergabe war entworfen — sie konnte nur nie funktionieren.
+
+**Fix:** `activate.html` verwendet jetzt denselben Schlüssel und dieselbe Speicherwahl
+(`sessionStorage` vor `localStorage`) wie das Dashboard.
+
+**Verifikation (Chromium, zwei Schritte in einem Tab):** Der Client aus `activate.html`
+schreibt einen Testwert über seinen Storage — er landet in `sessionStorage['voxera-auth']`,
+`localStorage` bleibt leer. Nach Navigation zu `index.html` liest dessen Storage-Wrapper
+exakt diesen Wert zurück. Die Übergabe ist damit nicht hergeleitet, sondern gemessen.
+
 ## 6. Schutz gegen Wiederholung
 
 `scripts/verify-activation-page-integrity.mjs` (Workflow *Verify Activation Page Integrity*,
 läuft auf PRs) prüft: schließende Tags vorhanden und Datei endet auf `</html>`; kein U+FFFD;
 `<script>`-Tags paarig; `init()` definiert **und** aufgerufen; keine Cloudflare-Artefakte;
-Inline-Block syntaktisch gültig; jede via `showView()` angesteuerte Ansicht existiert im
-Markup.
+Inline-Block syntaktisch gültig; **Sitzungsschlüssel und Speicher-Backend identisch zum
+Dashboard**; jede via `showView()` angesteuerte Ansicht existiert im Markup.
 
-Gegen die tatsächlich kaputte Fassung (`1118adf`) gegengeprüft: **9 von 11 Prüfungen schlagen
-dort an.** Der Check hätte den Schaden bei `70d8fc26` sofort gemeldet.
+Gegen die tatsächlich kaputte Fassung (`1118adf`) gegengeprüft: **9 von 13 Prüfungen schlagen
+dort an.** Der Check hätte den Schaden bei `70d8fc26` sofort gemeldet. Der Abgleich des
+Sitzungsschlüssels wurde separat gegengeprüft, indem der Schlüssel in `activate.html`
+verändert wurde — der Check meldet die Abweichung mit beiden Werten im Klartext.
 
 ## 7. Was offen bleibt
 

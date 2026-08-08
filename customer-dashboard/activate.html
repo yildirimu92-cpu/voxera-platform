@@ -146,12 +146,40 @@ const VX_RUNTIME_CONFIG = window.__VX_RUNTIME_CONFIG__ || {};
 const SUPABASE_URL = VX_RUNTIME_CONFIG.supabaseUrl || '';
 const SUPABASE_ANON_KEY = VX_RUNTIME_CONFIG.supabaseAnonKey || '';
 
+// ── Sitzungsspeicher — muss exakt zum Dashboard passen ─────────────────────
+// setPassword() meldet den Nutzer ab und mit dem neuen Passwort wieder an,
+// erzeugt also eine frische Session, und leitet dann aufs Dashboard weiter.
+// Ohne diese beiden Angaben schriebe der Client sie unter dem Supabase-Default-
+// Schluessel in localStorage — index.html liest aber 'voxera-auth' aus dem
+// bevorzugten sessionStorage. Der Nutzer landete trotz erfolgreicher Aktivierung
+// auf dem Login-Screen. Schluessel und Speicherwahl daher identisch zu
+// index.html (CUSTOMER_AUTH_STORAGE_KEY / getPreferredAuthStorage).
+const CUSTOMER_AUTH_STORAGE_KEY = 'voxera-auth';
+function getPreferredAuthStorage() {
+  for (const storage of [window.sessionStorage, window.localStorage]) {
+    if (!storage) continue;
+    try {
+      const probe = '__voxera_customer_auth_probe__';
+      storage.setItem(probe, '1');
+      storage.removeItem(probe);
+      return storage;
+    } catch (_e) {}
+  }
+  return undefined;
+}
+
 // Ohne Zugangsdaten wird kein Client gebaut. vx-runtime-config.js zeigt dazu
 // bereits einen sichtbaren Hinweis; hier bleibt sb null, damit jeder Aufruf
 // darunter laut scheitert statt still gegen eine falsche Instanz zu laufen.
 const sb = (SUPABASE_URL && SUPABASE_ANON_KEY)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: getPreferredAuthStorage(),
+        storageKey: CUSTOMER_AUTH_STORAGE_KEY
+      }
     })
   : null;
 
