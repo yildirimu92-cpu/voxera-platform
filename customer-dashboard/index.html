@@ -8996,45 +8996,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
   </div>
 </div>
 
-<!-- ASSISTENT VORSCHAU MODAL — OHNE AUFRUFER (Stand 08.08.2026)
-     Kein Codepfad oeffnet diesen Dialog: nichts setzt .open, nichts ruft
-     setOverlayAriaHidden(..., false) dafuer. Nur die drei Bedienelemente
-     darin rufen vxClosePendingPreview().
-
-     Nicht zu verwechseln mit vxPendingPreview() — das ist eine aktive
-     Funktion am Button .vx-btn-preview im Assistent-Tab. Sie holt eine
-     Sprachprobe von /preview-voice und spielt sie ueber ein Audio-Objekt
-     ab; dieser Dialog kommt darin nicht vor. Die beiden Namen sehen wie
-     Oeffnen/Schliessen desselben Dialogs aus, haben aber nichts
-     miteinander zu tun.
-
-     Entkoppelt (S9): aus der Escape-Tabelle und aus _anyOverlayOpen()
-     entfernt. Die Loeschung von Markup und vxClosePendingPreview() ist ein
-     eigener Schritt. -->
-<div class="overlay overlay--sheet" id="vx-preview-modal" onclick="if(event.target===this)vxClosePendingPreview()" role="dialog" aria-modal="true" aria-labelledby="vx-preview-title" aria-hidden="true">
-  <div class="modal followup-modal" tabindex="-1">
-    <div class="modal-shell">
-      <div class="modal-head">
-        <div class="modal-head-top">
-          <div class="modal-drag"></div>
-          <div class="modal-head-row">
-            <div class="modal-head-icon"><i class="ph-bold ph-phone" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-            <h3 id="vx-preview-title">Vorschau</h3>
-            <button class="modal-close-btn" onclick="vxClosePendingPreview()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div id="vx-preview-text" style="font-size:13px;color:var(--ink2);line-height:1.6;margin-bottom:12px;"></div>
-        <div id="vx-preview-widget-wrap"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn--secondary" onclick="vxClosePendingPreview()">Schliessen</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- MANUELLE AUFGABE MODAL -->
 <div class="overlay overlay--sheet" id="manual-task-overlay" onclick="if(event.target===this)closeManualTaskModal()" role="dialog" aria-modal="true" aria-labelledby="manual-task-title-heading" aria-hidden="true">
   <div class="modal followup-modal" tabindex="-1">
@@ -14964,19 +14925,6 @@ async function vxPendingPreview() {
     window._vxPreviewAudio = null;
     if (btn) { btn.innerHTML = '<i class="ph-bold ph-play" style="margin-right:5px;" aria-hidden="true"></i>Vorschau'; }
     if (typeof showToast === 'function') showToast('⚠️ Vorschau konnte nicht geladen werden.');
-  }
-}
-
-// Schliesst #vx-preview-modal — einen Dialog, den kein Codepfad oeffnet.
-// Siehe Kommentar am Markup. Bleibt vorerst stehen, damit die Loeschung ein
-// eigener, nachvollziehbarer Schritt ist.
-function vxClosePendingPreview() {
-  var overlay = document.getElementById('vx-preview-modal');
-  var wrap = document.getElementById('vx-preview-widget-wrap');
-  if (wrap) wrap.innerHTML = '';
-  if (overlay) {
-    overlay.classList.remove('open');
-    setOverlayAriaHidden('vx-preview-modal', true);
   }
 }
 
@@ -22251,10 +22199,10 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
   // Seit Phase 2 traegt jeder Dialog role="dialog" — eine Abfrage deckt alle ab
   // und bleibt richtig, wenn einer dazukommt.
   //
-  // Vorher stand hier eine feste Liste aus acht IDs. Vier davon existierten im
-  // Markup gar nicht mehr (detail-overlay, vx-detail-v2, vx-upgrade-modal,
-  // vx-minutes-modal), eine wird nie geoeffnet (vx-preview-modal) — und die
-  // meisten echten Dialoge fehlten. Bei offenem Nachfassen-, Aufgaben-,
+  // Vorher stand hier eine feste Liste aus acht IDs. Fuenf davon zeigten ins
+  // Leere (detail-overlay, vx-detail-v2, vx-upgrade-modal, vx-minutes-modal
+  // und der inzwischen geloeschte vx-preview-modal) — und die meisten echten
+  // Dialoge fehlten. Bei offenem Nachfassen-, Aufgaben-,
   // Support- oder Commercial-Dialog liess der Guard das Kontextmenue durch.
   //
   // Geprueft wird ueber getClientRects(): getComputedStyle liefert den eigenen
