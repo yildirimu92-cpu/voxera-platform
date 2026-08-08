@@ -481,34 +481,51 @@ body{
    LOGIN — V1
 ═══════════════════════════════════════════ */
 /* ── LOGIN SCREEN — Voxera CI (identisch Admin Portal) ── */
+/* Heller Einstieg (2026-08-08).
+
+   Login und Splash waren die letzten beiden Vollflaechen im dunklen Navy.
+   Wer sich anmeldete, kam aus einem dunklen Vollbild in ein helles
+   Dashboard — der Bruch lag genau an der Stelle, an der das Produkt zum
+   ersten Mal gezeigt wird.
+
+   Der Grund traegt jetzt dieselbe Canvas wie jeder Screen dahinter. Die
+   beiden radialen Schleier bleiben als Markenpraesenz, nur in der
+   Lesart fuer helle Flaechen: Blau und Gold als Hauch statt als Leuchten
+   auf Dunkel. Night bleibt auf dieser Seite an zwei Orten — der
+   Logo-Kachel und dem Anmelde-Button. */
 #login-screen{
   display:flex;
   position:fixed;inset:0;z-index:var(--z-login);
-  background:linear-gradient(145deg,var(--vx-night) 0%,#122444 40%,#1A3060 100%);
+  background:var(--vx-color-canvas);
   align-items:center;justify-content:center;
   padding:20px;overflow:hidden;
 }
 #login-screen::before{
   content:'';position:absolute;top:-120px;right:-120px;
   width:400px;height:400px;border-radius:50%;
-  background:radial-gradient(circle,rgba(26,111,232,.18) 0%,transparent 70%);
+  background:radial-gradient(circle,rgba(26,111,232,.10) 0%,transparent 70%);
   pointer-events:none;
 }
 #login-screen::after{
   content:'';position:absolute;bottom:-100px;left:-80px;
   width:320px;height:320px;border-radius:50%;
-  background:radial-gradient(circle,rgba(232,197,71,.07) 0%,transparent 70%);
+  background:radial-gradient(circle,rgba(232,197,71,.16) 0%,transparent 70%);
   pointer-events:none;
 }
 #network-canvas{display:none;}
+/* Die Karte stand mit einem 30%-Schwarzschatten auf dem dunklen Grund. Auf
+   Canvas traegt sie die Kartensprache des Dashboards: Haarlinie, ruhiger
+   Night-Schatten. overflow:hidden, damit der Marken-Streifen an der
+   Oberkante dem Radius folgt. */
 .login-card{
   position:relative;z-index:2;
+  overflow:hidden;
   background:var(--surface);
-  border:1px solid var(--g200);
+  border:1px solid var(--vx-ui-card-border-color);
   border-radius:22px;
   padding:40px 36px 36px;
   max-width:400px;width:100%;
-  box-shadow:0 24px 64px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.8);
+  box-shadow:0 18px 44px rgba(13,31,60,.10),0 2px 8px rgba(13,31,60,.06);
   text-align:center;
   animation:fadeUp .45s var(--ease) both;
 }
@@ -519,7 +536,13 @@ body{
 .login-tag{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--g400);margin-bottom:0;}
 .login-sub{font-size:14px;color:var(--g600);margin-bottom:28px;line-height:1.55;}
 .login-form{display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-4);text-align:left;}
-.login-field label{display:block;font-size:var(--text-sm);font-weight:var(--fw-semibold);color:var(--slate);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+/* Label-Rolle wie im ganzen Produkt, keine Versalien mit Sperrung.
+   Ueber die Overlay-ID gescopt: die generische Feldbeschriftung in
+   customer-ui-components.css steht in :where(...) hinter dem
+   body-Praefix und traegt damit dieselbe Spezifitaet wie eine reine
+   Klassenregel hier — sie wuerde als spaeter geladenes Stylesheet
+   gewinnen. Dieselbe Mechanik, die das Modal-Inventar bei S7 notiert. */
+#login-screen .login-field label{display:block;font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);color:var(--vx-ui-meta-color);text-transform:none;letter-spacing:0;margin-bottom:6px;}
 .login-field input{
   width:100%;padding:12px 14px;
   background:var(--surface2);border:1.5px solid var(--line);
@@ -537,14 +560,18 @@ body{
   -webkit-text-fill-color:var(--g900) !important;
   transition:background-color 5000s ease-in-out 0s;
 }
+/* "Anmelden" ist die bestaetigende Aktion dieser Seite und traegt damit
+   Night wie jede andere im Produkt (--vx-action-primary, Phase 1 des
+   Modal-Inventars: kanonisch, nicht nur in Dialogen). Blau bleibt auf
+   dieser Seite den Links vorbehalten. */
 .login-btn{
   display:block;width:100%;padding:13px;
-  background:var(--blue);color:#FFFFFF;border:none;border-radius:12px;
+  background:var(--vx-action-primary);color:var(--vx-action-primary-text);border:none;border-radius:12px;
   font-family:'DM Sans',sans-serif;font-size:var(--text-base);font-weight:var(--fw-bold);
   cursor:pointer;letter-spacing:-.01em;
-  transition:all var(--transition-fast);box-shadow:0 4px 20px rgba(26,111,232,.3);
+  transition:all var(--transition-fast);box-shadow:0 4px 16px rgba(13,31,60,.20);
 }
-.login-btn:hover{background:#1560C8;transform:translateY(-1px);box-shadow:0 6px 24px rgba(26,111,232,.4);}
+.login-btn:hover{background:var(--vx-action-primary-hover);transform:translateY(-1px);box-shadow:0 6px 20px rgba(13,31,60,.26);}
 .login-btn:active{transform:translateY(0);}
 .login-btn:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none;}
 .login-note{font-size:var(--text-md);color:var(--g400);line-height:var(--lh-long);margin-top:2px;}
@@ -1801,15 +1828,15 @@ body.vx-detail-v2-open #confirm-overlay.open {
 }
 @keyframes modalIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
 .modal-shell{display:flex;flex-direction:column;min-height:0;max-height:inherit;}
-.modal-drag{display:none;width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:999px;margin:0 auto;}
-/* Night header */
+.modal-drag{display:none;width:36px;height:4px;background:var(--vx-modal-drag);border-radius:999px;margin:0 auto;}
+/* Dialogkopf — helle Flaeche, siehe --vx-modal-head weiter unten. */
 .modal-head{padding:0;border-bottom:none;display:flex;flex-direction:column;}
-.modal-head-top{background:var(--vx-night);padding:14px 20px 16px;display:flex;flex-direction:column;gap:10px;}
+.modal-head-top{background:var(--vx-modal-head);padding:14px 20px 16px;display:flex;flex-direction:column;gap:10px;}
 .modal-head-row{display:flex;align-items:center;gap:10px;}
-.modal-head-icon{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.modal-head h3{color:#fff;margin:0;font-size:var(--text-lg);font-weight:var(--fw-bold);letter-spacing:-.02em;flex:1;font-family:var(--font-display);}
-.modal-close-btn{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.1);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.modal-head-sub{font-size:var(--text-sm);color:rgba(255,255,255,.45);padding:0 2px;}
+.modal-head-icon{width:32px;height:32px;border-radius:10px;background:var(--vx-modal-head-icon-bg);color:var(--vx-modal-head-icon-fg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.modal-head h3{color:var(--vx-modal-head-title);margin:0;font-size:var(--text-lg);font-weight:var(--fw-bold);letter-spacing:-.02em;flex:1;font-family:var(--font-display);}
+.modal-close-btn{width:30px;height:30px;border-radius:8px;background:transparent;border:none;color:var(--vx-modal-head-close-fg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.modal-head-sub{font-size:var(--text-sm);color:var(--vx-modal-head-sub);padding:0 2px;}
 /* Body */
 .modal-body{padding:18px 20px;overflow:auto;overflow-x:hidden;min-height:0;flex:1;background:var(--surface);}
 /* Footer */
@@ -1818,7 +1845,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .modal-btn-s{height:42px;padding:0 16px;background:transparent;color:var(--slate2);border:0.5px solid var(--line);border-radius:var(--r-md);font-size:14px;font-weight:var(--fw-medium);cursor:pointer;font-family:inherit;}
 .modal-btn-danger{height:42px;padding:0 22px;background:var(--red);color:#fff;border:none;border-radius:var(--r-md);font-size:14px;font-weight:var(--fw-semibold);cursor:pointer;font-family:inherit;}
 /* Form elements inside modal */
-.modal-body label{display:block;font-size:var(--text-sm);font-weight:var(--fw-semibold);color:var(--slate2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
+/* Label-Stufe der Typo-Leiter (12px/600, Meta-Rolle) statt Versalien mit
+   Sperrung — dieselbe Beschriftung wie in Profil, Bericht und Kalender. */
+.modal-body label{display:block;font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);color:var(--vx-ui-meta-color);text-transform:none;letter-spacing:0;margin-bottom:5px;}
 .modal-body input,.modal-body select,.modal-body textarea{width:100%;border:0.5px solid var(--line);border-radius:var(--r-md);padding:10px 12px;font-size:var(--text-base);font-weight:var(--fw-medium);color:var(--ink);font-family:inherit;outline:none;background:var(--surface2);transition:all var(--transition-fast);}
 .modal-body input:focus,.modal-body select:focus,.modal-body textarea:focus{border-color:var(--blue);background:var(--surface);}
 .modal-body textarea{min-height:90px;resize:none;line-height:1.6;}
@@ -2585,9 +2614,13 @@ body.vx-detail-v2-open #confirm-overlay.open {
   border-top:0.5px solid rgba(26,111,232,0.1);
 }
 /* ─── Splash Screen ─────────────────────────────────────────── */
+/* Derselbe helle Grund wie der Login dahinter und das Dashboard danach —
+   der Ladebildschirm ist die erste Flaeche, die jemand sieht, und darf
+   nicht aus einer anderen Welt kommen. Die Logo-Kachel bleibt Night: die
+   Wortmarke im SVG ist weiss gezeichnet und braucht ihren dunklen Traeger. */
 #splash-screen{
   position:fixed;inset:0;z-index:9999;
-  background:var(--vx-night);
+  background:var(--vx-color-canvas);
   display:flex;flex-direction:column;
   align-items:center;justify-content:center;
   gap:14px;padding:24px;
@@ -2602,7 +2635,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
   top:-120px;right:-120px;
   width:400px;height:400px;
   border-radius:50%;
-  background:radial-gradient(circle,rgba(26,111,232,.18) 0%,transparent 70%);
+  background:radial-gradient(circle,rgba(26,111,232,.10) 0%,transparent 70%);
   pointer-events:none;
 }
 #splash-screen::after{
@@ -2611,38 +2644,38 @@ body.vx-detail-v2-open #confirm-overlay.open {
   bottom:-100px;left:-80px;
   width:320px;height:320px;
   border-radius:50%;
-  background:radial-gradient(circle,rgba(232,197,71,.07) 0%,transparent 70%);
+  background:radial-gradient(circle,rgba(232,197,71,.16) 0%,transparent 70%);
   pointer-events:none;
 }
 #splash-screen.visible{opacity:1;pointer-events:all;}
 #splash-screen.fading{opacity:0;}
 .splash-logo-icon{
   width:72px;height:72px;border-radius:20px;
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.12);
+  background:var(--vx-color-night);
+  border:1px solid var(--vx-color-night);
   display:flex;align-items:center;justify-content:center;
-  box-shadow:0 16px 48px rgba(0,0,0,.3);
+  box-shadow:0 12px 32px rgba(13,31,60,.22);
   animation:splashPulse 1.9s ease-in-out infinite;
   position:relative;z-index:1;
 }
 .splash-logo-image{width:100%;height:100%;object-fit:cover;display:block;}
 .splash-wordmark{
-  font-size:30px;font-weight:800;color:#ffffff;
+  font-size:30px;font-weight:800;color:var(--vx-color-night);
   letter-spacing:-.05em;font-family:var(--font-display);
   position:relative;z-index:1;
 }
 .splash-tagline{
-  font-size:13px;color:rgba(255,255,255,.55);font-weight:600;
+  font-size:13px;color:var(--vx-ui-text-secondary);font-weight:600;
   letter-spacing:.015em;font-family:var(--font-display);text-align:center;
   position:relative;z-index:1;
 }
 .splash-subtagline{
-  font-size:var(--text-sm);color:rgba(255,255,255,.35);font-weight:500;letter-spacing:.01em;
+  font-size:var(--text-sm);color:var(--vx-ui-meta-color);font-weight:500;letter-spacing:.01em;
   margin-top:-4px;text-align:center;
   position:relative;z-index:1;
 }
 .splash-bar-wrap{
-  width:min(120px,42vw);height:3px;background:rgba(255,255,255,.1);border-radius:999px;
+  width:min(120px,42vw);height:3px;background:rgba(13,31,60,.10);border-radius:999px;
   overflow:hidden;margin-top:14px;
   position:relative;z-index:1;
 }
@@ -2653,8 +2686,8 @@ body.vx-detail-v2-open #confirm-overlay.open {
   transition:width 1.3s cubic-bezier(0.4,0,0.2,1);
 }
 @keyframes splashPulse{
-  0%,100%{transform:translateY(0);box-shadow:0 16px 48px rgba(0,0,0,.25);}
-  50%{transform:translateY(-3px);box-shadow:0 20px 56px rgba(0,0,0,.35),0 0 0 10px rgba(26,111,232,.08);}
+  0%,100%{transform:translateY(0);box-shadow:0 12px 32px rgba(13,31,60,.18);}
+  50%{transform:translateY(-3px);box-shadow:0 16px 40px rgba(13,31,60,.26),0 0 0 10px rgba(26,111,232,.07);}
 }
 @media(prefers-reduced-motion:reduce){
   .splash-logo-icon{animation:none;}
@@ -4314,10 +4347,10 @@ body,.main{background:var(--vx-bg);}
   #archiv-stats{grid-template-columns:1fr!important;}
 }
 
-/* ── Voxera Night Modal Headers ───────────────────────────── */
-.modal-head{background:var(--vx-night)!important;padding:14px 18px!important;border-bottom:none!important;}
-.modal h3{color:#fff!important;font-size:15px!important;margin-bottom:0!important;letter-spacing:-.01em!important;}
-.modal-sub{color:rgba(255,255,255,.5)!important;margin-bottom:0!important;}
+/* ── Voxera Dialogkoepfe ──────────────────────────────────── */
+.modal-head{background:var(--vx-modal-head)!important;padding:14px 18px!important;border-bottom:none!important;}
+.modal h3{color:var(--vx-modal-head-title)!important;font-size:15px!important;margin-bottom:0!important;letter-spacing:-.01em!important;}
+.modal-sub{color:var(--vx-modal-head-sub)!important;margin-bottom:0!important;}
 .detail-head{background:var(--vx-night)!important;padding:14px 18px!important;}
 .detail-head h3,.detail-head .modal-sub{color:#fff!important;}
 
@@ -6031,16 +6064,45 @@ body,.main{background:var(--vx-bg);}
    VOXERA FINAL MODAL + NOTIFICATION POLISH
    Unified modal surface and safer notification UX
 ═══════════════════════════════════════════ */
-:root{--vx-modal-radius:var(--vx-radius-modal);--vx-modal-head:var(--vx-color-night);--vx-modal-shadow:var(--vx-shadow-modal);}
+:root{--vx-modal-radius:var(--vx-radius-modal);--vx-modal-shadow:var(--vx-shadow-modal);
+/* Der Dialogkopf ist eine helle Flaeche (2026-08-08).
+
+   --vx-modal-head trug bis hierher Night und malte damit das dunkle Band
+   ueber jedem Dialog der klassischen Familie. Das war das letzte Vorkommen
+   eines Musters, das .vx-appbar auf allen Screens bereits abgeloest hat:
+   "weisse Flaeche, Haarlinie unten, ein Night-Titel, sonst nichts" — der
+   Kommentar dort nennt ausdruecklich die dunklen Vollbreiten-Baender und
+   das Night-Banner der Detailansicht als das, was er ersetzt hat. Dialoge
+   waren der einzige Ort, an dem das Band ueberlebt hat.
+
+   Night bleibt im Dialog, aber nur noch an der einen Stelle, an der es
+   etwas bedeutet: der bestaetigenden Aktion (--vx-action-primary, Phase 1
+   des Modal-Inventars). Ein Kopfband in derselben Farbe hat Night zu einer
+   reinen Flaechenfarbe gemacht und diese Bedeutung verwaessert.
+
+   Alle Werte des Kopfs stehen hier, weil ihn drei Ebenen setzen — die
+   Basisregeln, "Voxera Night Modal Headers" und der "FINAL MODAL POLISH",
+   die letzten beiden mit !important. Sie zeigen jetzt alle hierher, statt
+   dass eine vierte Ebene sie ueberschreibt. */
+--vx-modal-head:var(--surface);
+--vx-modal-head-title:var(--vx-color-night);
+--vx-modal-head-sub:var(--vx-ui-meta-color);
+--vx-modal-head-divider:rgba(13,31,60,.10);
+--vx-modal-head-icon-bg:rgba(13,31,60,.06);
+--vx-modal-head-icon-fg:var(--vx-color-night);
+--vx-modal-head-close-fg:var(--vx-ui-icon-quiet);
+--vx-modal-head-close-hover-bg:rgba(13,31,60,.06);
+--vx-modal-head-close-hover-fg:var(--vx-color-night);
+--vx-modal-drag:rgba(13,31,60,.18);}
 .overlay .modal,.account-modal,.detail-modal,#vx-detail-v2>div{border-radius:var(--vx-modal-radius)!important;box-shadow:var(--vx-modal-shadow)!important;border:1px solid rgba(13,31,60,.08)!important;background:var(--surface)!important;overflow:hidden!important;}
 .overlay .modal .modal-head,.modal-head{background:var(--vx-modal-head)!important;padding:0!important;border-bottom:none!important;}
-.modal-head-top{background:var(--vx-modal-head)!important;padding:15px 20px!important;gap:8px!important;}
+.modal-head-top{background:var(--vx-modal-head)!important;padding:15px 20px!important;gap:8px!important;border-bottom:1px solid var(--vx-modal-head-divider)!important;}
 .modal-head-row{gap:10px!important;align-items:center!important;}
-.modal-head-icon{width:34px!important;height:34px!important;border-radius:10px!important;background:rgba(255,255,255,.10)!important;}
-.modal-head h3,.modal h3{font-family:var(--font-display)!important;font-size:16px!important;font-weight:800!important;letter-spacing:-.025em!important;color:#fff!important;margin:0!important;}
-.modal-head-sub{font-size:12px!important;color:rgba(255,255,255,.52)!important;line-height:1.45!important;}
-.modal-close-btn{width:32px!important;height:32px!important;border-radius:10px!important;background:rgba(255,255,255,.10)!important;color:rgba(255,255,255,.78)!important;}
-.modal-close-btn:hover{background:rgba(255,255,255,.16)!important;color:#fff!important;}
+.modal-head-icon{width:34px!important;height:34px!important;border-radius:10px!important;background:var(--vx-modal-head-icon-bg)!important;color:var(--vx-modal-head-icon-fg)!important;}
+.modal-head h3,.modal h3{font-family:var(--font-display)!important;font-size:16px!important;font-weight:800!important;letter-spacing:-.025em!important;color:var(--vx-modal-head-title)!important;margin:0!important;}
+.modal-head-sub{font-size:12px!important;color:var(--vx-modal-head-sub)!important;line-height:1.45!important;}
+.modal-close-btn{width:32px!important;height:32px!important;border-radius:10px!important;background:transparent!important;color:var(--vx-modal-head-close-fg)!important;}
+.modal-close-btn:hover{background:var(--vx-modal-head-close-hover-bg)!important;color:var(--vx-modal-head-close-hover-fg)!important;}
 .modal-body{padding:18px 20px!important;background:var(--surface)!important;}
 .modal-footer{padding:13px 20px calc(13px + env(safe-area-inset-bottom))!important;border-top:1px solid rgba(13,31,60,.08)!important;background:#fff!important;display:flex!important;gap:9px!important;justify-content:flex-end!important;}
 .modal-btn-p,.modal-btn-s,.modal-btn-danger{height:42px!important;border-radius:11px!important;font-size:13px!important;font-weight:700!important;}
@@ -6497,21 +6559,30 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item:hover{
    durch ihre ID-Spezifität wieder abgeräumt. Sie sind dort jeweils per
    :not(.vx-requests-item) auf die älteren .dpr-card-Zeilen eingegrenzt, für
    die sie gedacht sind — deshalb kommt diese Regel ohne !important aus. */
-body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active{
-  border-color:var(--vx-color-night);
-  box-shadow:inset 0 0 0 1px var(--vx-color-night);
-  background:var(--vx-ui-row-bg);
-}
-body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active:hover{
-  border-color:var(--vx-color-night);
-  box-shadow:inset 0 0 0 1px var(--vx-color-night),var(--vx-ui-row-shadow-hover);
-}
-
 /* Ungelesen trägt keine eigene Flächenfarbe mehr — das Signal ist der
    Night-Punkt vor dem Namen plus der "Neu"-Chip, beides in der Zeile
-   selbst. So kollidiert es nicht mit der Auswahl-Markierung. */
+   selbst. So kollidiert es nicht mit der Auswahl-Markierung.
+
+   Diese Regel steht bewusst VOR der Auswahl darunter: beide setzen jetzt
+   background bei gleicher Spezifitaet, und eine ausgewaehlte ungelesene
+   Zeile muss die Auswahl-Toenung behalten. Solange die Auswahl ueber
+   Rahmen und Schatten lief, war die Reihenfolge egal. */
 body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.is-unread{
   background:var(--vx-ui-row-bg);
+}
+
+/* Auswahl als Toenung, nicht als Rahmen (2026-08-08) — siehe
+   --vx-ui-row-selected-bg. Der Rahmen bleibt auf Hover-Staerke, damit die
+   ausgewaehlte Zeile auch dann noch die deutlichste Kante der Liste hat. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active{
+  border-color:var(--vx-ui-row-border-hover);
+  box-shadow:none;
+  background:var(--vx-ui-row-selected-bg);
+}
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active:hover{
+  border-color:var(--vx-ui-row-border-hover);
+  box-shadow:var(--vx-ui-row-shadow-hover);
+  background:var(--vx-ui-row-selected-bg);
 }
 
 body.vx-customer-design-foundation .vx-requests-row{
@@ -7071,7 +7142,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
 <div id="login-screen">
   <canvas id="network-canvas"></canvas>
-  <div class="login-card" id="login-card">
+  <div class="login-card vx-ui-brand-rule" id="login-card">
 
     <!-- Logo — identisch Admin Portal -->
     <div class="login-logo-wrap">
@@ -35381,6 +35452,14 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
 .modal-head-top{
   box-shadow:none!important;
 }
+/* Der Kopf-Trenner steht bewusst NACH der border:none-Sperre darueber:
+   die Sperre stammt aus der Zeit des Night-Kopfs, wo jede helle Haarlinie
+   ein Versehen war. Auf der hellen Flaeche ist die Linie das, was den Kopf
+   ueberhaupt als Kopf lesbar macht — dieselbe Rolle wie die Haarlinie unter
+   .vx-appbar. Gleiche Spezifitaet, spaetere Deklaration, also gewinnt sie. */
+.modal-head-top{
+  border-bottom:1px solid var(--vx-modal-head-divider)!important;
+}
 /* Footer separator should be subtle, not a visible frame. */
 .modal-footer{
   border-top:1px solid rgba(13,31,60,.06)!important;
@@ -38593,14 +38672,14 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 /* ═══════════════════════════════════════════
    VX MODAL REDESIGN — Einheitliche Modals
 ═══════════════════════════════════════════ */
-.vx-modal-icon {width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;color:rgba(255,255,255,0.85);}
+.vx-modal-icon {width:34px;height:34px;border-radius:9px;background:var(--vx-modal-head-icon-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;color:var(--vx-modal-head-icon-fg);}
 .vx-modal-head-copy {flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
-.vx-modal-title {font-family:var(--vx-font-disp)!important;font-size:16px!important;font-weight:800!important;color:#fff!important;letter-spacing:-0.025em!important;margin:0!important;}
-.vx-modal-sub {font-size:12px;color:rgba(255,255,255,0.48);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vx-modal-title {font-family:var(--vx-font-disp)!important;font-size:16px!important;font-weight:800!important;color:var(--vx-modal-head-title)!important;letter-spacing:-0.025em!important;margin:0!important;}
+.vx-modal-sub {font-size:12px;color:var(--vx-modal-head-sub);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .vx-modal-sub:empty { display:none; }
 .vx-modal-field {margin-bottom:14px;}
 .vx-modal-field:last-child {margin-bottom:0;}
-.vx-modal-field label {display:block;font-size:10px;font-weight:700;color:var(--vx-text3);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:6px;}
+.vx-modal-field label {display:block;font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);color:var(--vx-ui-meta-color);letter-spacing:0;text-transform:none;margin-bottom:6px;}
 .vx-modal-field input,.vx-modal-field select,.vx-modal-field textarea {width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--vx-r-lg);background:var(--vx-bg);color:var(--vx-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.15s;-webkit-appearance:none;}
 .vx-modal-field input:focus,.vx-modal-field select:focus,.vx-modal-field textarea:focus {border-color:var(--vx-blue);background:#fff;}
 .vx-modal-field textarea {min-height:80px;resize:none;line-height:1.5;}

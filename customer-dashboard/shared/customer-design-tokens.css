@@ -460,6 +460,15 @@
   --vx-ui-row-desc-size: 13px;
   --vx-ui-row-desc-leading: 1.42;
   --vx-ui-row-desc-color: var(--vx-ui-text-secondary);
+  /* Auswahl in der Anfragen-Liste: eine ruhige Toenung statt eines vollen
+     Rahmens. Vorher trug .sp-active einen Night-Rahmen PLUS einen
+     inset-Schatten in derselben Farbe — zusammen gelesen ein 1.5px starker
+     Vollrahmen, der lauter war als jedes andere Signal in der Zeile
+     (Ungelesen-Punkt, Status-Chip, Lead-Farbe) und mit der Karte selbst
+     konkurrierte. Die Flaeche traegt die Auswahl jetzt, der Rahmen bleibt
+     die normale Haarlinie. */
+  --vx-ui-row-selected-bg: #EEF1F6;
+
   --vx-ui-row-icon-size: 36px;
   --vx-ui-row-icon-bg: #F1F5F9;
   --vx-ui-row-icon-color: var(--vx-ui-icon-quiet);
