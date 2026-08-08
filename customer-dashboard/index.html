@@ -146,16 +146,34 @@
   --surface-shadow-soft:0 1px 4px rgba(13,31,60,0.04);
   --btn-height:44px;
   --btn-radius:10px;
-  /* Layering tokens */
+  /* ── Layering ────────────────────────────────────────────────────────────
+     Eine Ebene pro Rolle, von unten nach oben. Die Zahlen sind die bisher
+     tatsächlich gerenderten Werte — bewusst nicht auf eine kleine Skala
+     umnummeriert, weil im Dashboard weitere hartkodierte z-index-Werte
+     zwischen diesen Stufen liegen und ein Umnummerieren sie stillschweigend
+     nach oben schieben würde. Wer aufräumt, fängt bei diesen Namen an.
+
+     Vorher standen hier --z-overlay:200 und --z-overlay-detail:220, während
+     dieselben Overlays per !important auf 10200 lagen — die Tokens
+     beschrieben die Realität nicht mehr. --z-vx-overlay:9001 hatte keinen
+     einzigen Nutzer. */
   --z-mobile-nav:50;
-  --z-overlay:200;
-  --z-overlay-detail:220;
   --z-login:999;
-  /* Toast liegt über Modals (10200) und der Detail-Vollansicht (10040) —
-     sonst bleibt die Bestätigung nach dem Speichern unsichtbar. */
-  --z-toast:13060;
-  --z-vx-overlay:9001;
+  --z-onboarding:9000;
+  --z-commercial:9800;
   --z-tour:10000;
+  --z-detail-fullscreen:10040;
+  --z-overlay:10200;          /* Modalfamilie: alle .overlay-Dialoge */
+  --z-overlay-detail:10200;   /* Bestandsname, gleiche Ebene */
+  --z-row-menu:12050;
+  --z-row-menu-floating:13050;
+  --z-context-menu:13055;
+  --z-support:13058;
+  /* Der Toast liegt über allem: er bestätigt Aktionen, die aus jeder dieser
+     Ebenen ausgelöst werden. Vorher lag er auf 9000 und damit unter der
+     Detail-Vollansicht und der Support-Anfrage — die Bestätigung war dort
+     unsichtbar. */
+  --z-toast:13060;
 }
 
 /* ── Voxera Dark Mode Tokens ── */
@@ -394,10 +412,10 @@
 .vx-ibtn.is-ghost-call:hover{background:var(--vx-color-brand);color:#fff;}
 .vx-ibtn.is-done:hover{background:var(--vx-color-success-bg);border-color:var(--vx-color-success-border);color:var(--vx-color-success);}
 .vx-ibtn.is-overflow{background:#fff;color:var(--vx-color-text-muted);}
-.vx-row-menu{position:absolute;right:10px;top:46px;min-width:210px;background:#fff;border:1px solid rgba(15,33,63,.12);border-radius:12px;box-shadow:0 18px 36px rgba(13,31,60,.18);padding:6px;z-index:12050;display:none;pointer-events:auto;}
+.vx-row-menu{position:absolute;right:10px;top:46px;min-width:210px;background:#fff;border:1px solid rgba(15,33,63,.12);border-radius:12px;box-shadow:0 18px 36px rgba(13,31,60,.18);padding:6px;z-index:var(--z-row-menu);display:none;pointer-events:auto;}
 .vx-row-menu.is-open{display:block;}
 /* Floating row menu: avoids clipping inside split/list rows */
-.vx-row-menu.is-floating{position:fixed!important;right:auto!important;top:auto;z-index:13050;max-width:min(260px,calc(100vw - 24px));}
+.vx-row-menu.is-floating{position:fixed!important;right:auto!important;top:auto;z-index:var(--z-row-menu-floating);max-width:min(260px,calc(100vw - 24px));}
 .vx-row-menu button{width:100%;text-align:left;border:0;background:#fff;border-radius:9px;padding:9px 10px;font-size:12px;color:#23314D;cursor:pointer;font-family:inherit;}
 .vx-row-menu button:hover{background:#F2F7FF;}
 
@@ -1520,7 +1538,7 @@ body{
   align-items: center;
   gap: 5px;
   padding: 0 var(--space-4);
-  border-radius: var(--btn-radius);
+  border-radius: var(--vx-btn-radius);
   border: 1px solid transparent;
   font-size: var(--text-md);
   font-weight: var(--fw-semibold);
@@ -1529,7 +1547,7 @@ body{
   white-space: nowrap;
   text-decoration: none;
   transition: all var(--transition-fast);
-  min-height: var(--btn-height);
+  min-height: var(--vx-btn-height);
 }
 .btn:disabled {
   opacity: .45;
@@ -1611,17 +1629,10 @@ body{
   text-decoration-color: var(--gray400);
 }
 
-/* NEUTRAL (für modale Aktionen die weder primary noch danger sind) */
-.btn--neutral {
-  background: #94A3B8;
-  color: #fff;
-  border-color: #94A3B8;
-  box-shadow: 0 1px 3px rgba(71,85,105,.2);
-}
-.btn--neutral:hover:not(:disabled) {
-  background: #13284D;
-  border-color: #13284D;
-}
+/* .btn--neutral entfernt: einziger Nutzer war der Bestaetigen-Dialog, dessen
+   Tonwerte jetzt aus confirm-tone-* kommen. Sein Hover #13284D war zudem
+   identisch mit dem Primaer-Hover — ein grauer Button, der beim Ueberfahren
+   aussah wie die primaere Aktion. */
 
 /* UTILITIES */
 .btn--full {
@@ -1737,12 +1748,44 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .overlay.overlay--sheet{align-items:center;}
 .overlay.confirm-variant .modal{max-width:430px;}
 .confirm-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;}
-.confirm-icon{
-  width:38px;height:38px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  background:var(--blue-light);color:var(--blue);border:1px solid #CFE0FF;
+/* .confirm-icon entfernt: kein Element im Markup traegt diese Klasse. */
+
+/* ── Tonwerte des Bestaetigen-Dialogs ─────────────────────────────────────
+   Ein Steuerpfad: die Klasse confirm-tone-* am Modal faerbt den Button.
+   Vorher lief die Buttonfarbe ueber einen zweiten Zweig in
+   openConfirmModal(), waehrend die Tone-Klasse nur Symbolregeln trug —
+   die auf .confirm-icon zielten, eine Klasse, die das Symbol gar nicht hat
+   (es traegt id="confirm-icon" und die Klassen modal-head-icon
+   vx-modal-icon). Die Tone-Klasse steuerte damit faktisch nichts.
+
+   Das Symbol bleibt bewusst neutral: es sitzt im Night-Kopfbereich und ist
+   dort ein durchscheinendes weisses Feld. Eine rote oder graue Flaeche waere
+   auf Night falsch, und .modal-head-icon setzt den Hintergrund ohnehin mit
+   !important. Die Tonunterscheidung traegt der Button.
+
+   Gruen ist bewusst kein Ton dieses Dialogs: es bezeichnet den Abschluss
+   eines Eintrags, nicht eine Handlung. Der "Erledigen"-Button bleibt gruen,
+   die Bestaetigung darin bleibt Night — die bestaetigende Handlung erbt
+   nicht die Farbe ihres Ausloesers. */
+.confirm-tone-primary #confirm-ok-btn{
+  background:var(--vx-action-primary);color:var(--vx-action-primary-text);
+  border-color:var(--vx-action-primary);box-shadow:var(--vx-action-primary-shadow);
 }
-.confirm-tone-danger .confirm-icon{background:#FEF2F2;color:#DC2626;border-color:#FECACA;}
-.confirm-tone-neutral .confirm-icon{background:var(--surface2);color:#94A3B8;border-color:var(--surface-border);}
+.confirm-tone-primary #confirm-ok-btn:hover:not(:disabled){
+  background:var(--vx-action-primary-hover);border-color:var(--vx-action-primary-hover);
+}
+
+.confirm-tone-danger #confirm-ok-btn{
+  background:var(--vx-color-danger-bg);color:var(--vx-color-danger);
+  border-color:var(--vx-color-danger-border);box-shadow:none;
+}
+.confirm-tone-danger #confirm-ok-btn:hover:not(:disabled){background:#FEE2E2;border-color:var(--vx-color-danger);}
+
+.confirm-tone-neutral #confirm-ok-btn{
+  background:var(--surface2);color:var(--ink);
+  border-color:var(--surface-border);box-shadow:none;
+}
+.confirm-tone-neutral #confirm-ok-btn:hover:not(:disabled){background:var(--line2);border-color:var(--slate2);}
 .confirm-copy{flex:1;}
 .confirm-copy h3{margin-bottom:3px;}
 .modal{
@@ -8816,31 +8859,27 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 <!-- Willkommens-Hinweis: einmalig beim ersten Login, kein Tutorial/Deep-Links
      mehr — siehe Backlog "Onboarding-Wizard-Redesign" für eine vollständige
      Neugestaltung. Diese Version ist bewusst minimal. -->
-<div id="vx-onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.6);backdrop-filter:blur(4px);z-index:9000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)vxOnboardingSkip()" role="dialog" aria-modal="true" aria-labelledby="vx-onboarding-title" aria-hidden="true">
-  <div style="position:relative;background:var(--surface);border-radius:var(--vx-radius-modal);width:100%;max-width:440px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);" tabindex="-1">
-    <button type="button" onclick="vxOnboardingSkip()" aria-label="Schliessen" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+<div id="vx-onboarding-overlay" onclick="if(event.target===this)vxOnboardingSkip()" role="dialog" aria-modal="true" aria-labelledby="vx-onboarding-title" aria-hidden="true">
+  <div class="vx-onboarding-card" tabindex="-1">
+    <button type="button" class="vx-onboarding-close" onclick="vxOnboardingSkip()" aria-label="Schliessen">
       <i class="ph-bold ph-x" aria-hidden="true"></i>
     </button>
-    <!-- Header -->
-    <div style="background:var(--vx-color-night);padding:28px 52px 24px 24px;">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <i class="ph-bold ph-sparkle" style="color:#E8C547;font-size:20px;" aria-hidden="true"></i>
-        </div>
+    <div class="vx-onboarding-head">
+      <div class="vx-onboarding-head-row">
+        <div class="vx-onboarding-icon"><i class="ph-bold ph-sparkle" aria-hidden="true"></i></div>
         <div>
-          <h2 id="vx-onboarding-title" style="margin:0;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;">Willkommen bei Voxera</h2>
-          <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:1px;">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
+          <h2 id="vx-onboarding-title" class="vx-onboarding-title">Willkommen bei Voxera</h2>
+          <div class="vx-onboarding-sub">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
         </div>
       </div>
     </div>
 
-    <!-- Body -->
-    <div style="padding:20px 24px 24px;">
-      <p style="margin:0;font-size:14px;line-height:1.6;color:var(--slate2);">
+    <div class="vx-onboarding-body">
+      <p class="vx-onboarding-text">
         Lara nimmt Anrufe für Sie entgegen. Anfragen finden Sie unter <strong>Anfragen</strong>,
         Einstellungen zu Rufumleitung und Benachrichtigungen unter <strong>Mehr</strong>.
       </p>
-      <button onclick="vxOnboardingFinish()" style="width:100%;margin-top:20px;background:var(--vx-color-brand,#1A6FE8);color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Verstanden</button>
+      <button type="button" class="btn btn--primary btn--full" onclick="vxOnboardingFinish()">Verstanden</button>
     </div>
   </div>
 </div>
@@ -8887,7 +8926,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeNotiz()">Abbrechen</button>
+        <button class="btn btn--secondary" onclick="closeNotiz()">Abbrechen</button>
         <button class="btn btn--primary" id="notiz-save-btn" onclick="saveNotiz()">Speichern</button>
       </div>
     </div>
@@ -8950,7 +8989,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeFollowup()">Abbrechen</button>
+        <button class="btn btn--secondary" onclick="closeFollowup()">Abbrechen</button>
         <button class="btn btn--primary" id="followup-save-btn" onclick="saveFollowup()">Speichern</button>
       </div>
     </div>
@@ -8976,7 +9015,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <div id="vx-preview-widget-wrap"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="vxClosePendingPreview()">Schliessen</button>
+        <button class="btn btn--secondary" onclick="vxClosePendingPreview()">Schliessen</button>
       </div>
     </div>
   </div>
@@ -9048,7 +9087,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeManualTaskModal()">Abbrechen</button>
+        <button class="btn btn--secondary" onclick="closeManualTaskModal()">Abbrechen</button>
         <button class="btn btn--primary" id="manual-task-save-btn" onclick="saveManualTask()">Aufgabe erstellen</button>
       </div>
     </div>
@@ -9085,7 +9124,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <label class="vx-modal-check-row"><input id="manual-request-inbox" type="checkbox" checked><span>Direkt in Inbox anzeigen</span></label>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeManualRequestModal()">Abbrechen</button>
+        <button class="btn btn--secondary" onclick="closeManualRequestModal()">Abbrechen</button>
         <button class="btn btn--primary" id="manual-request-save-btn" onclick="saveManualRequest()">+ Neu anlegen</button>
       </div>
     </div>
@@ -9113,8 +9152,9 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <label id="confirm-checkbox-wrap" class="confirm-checkbox-wrap" style="display:none;"><input type="checkbox" id="confirm-checkbox"> <span id="confirm-checkbox-label"></span></label>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeConfirmModal()">Abbrechen</button>
-        <button class="btn btn--primary" id="confirm-ok-btn" onclick="runConfirmModalAction()">Bestätigen</button>
+        <button class="btn btn--secondary" onclick="closeConfirmModal()">Abbrechen</button>
+        <!-- Keine Variantenklasse: die Farbe kommt aus confirm-tone-* am Modal. -->
+        <button class="btn" id="confirm-ok-btn" onclick="runConfirmModalAction()">Bestätigen</button>
       </div>
     </div>
   </div>
@@ -21936,7 +21976,7 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
     el.setAttribute('role', 'menu');
     el.style.cssText = [
       'position:fixed',
-      'z-index:99999',
+      'z-index:var(--z-context-menu)',
       'min-width:200px',
       'background:#ffffff',
       'border:0.5px solid #E4E8F0',
@@ -23998,10 +24038,8 @@ function openConfirmModal(config) {
   }
   if (okBtn) {
     okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+    // Farbe kommt ausschliesslich ueber confirm-tone-* am Modal (siehe oben).
     okBtn.classList.remove('danger', 'neutral', 'btn--primary', 'btn--danger', 'btn--neutral');
-    if (config && config.tone === 'danger') okBtn.classList.add('btn--danger');
-    else if (config && config.tone === 'neutral') okBtn.classList.add('btn--neutral');
-    else okBtn.classList.add('btn--primary');
     okBtn.dataset.loadingLabel = (config && config.loadingLabel) || 'Bitte warten...';
     okBtn.disabled = false;
     okBtn.setAttribute('aria-disabled', 'false');
@@ -30156,31 +30194,112 @@ function toggleCallRow(event, row) {
 <!-- ═══════════════════════════════════════
      SPOTLIGHT TOUR
 ═══════════════════════════════════════ -->
-<div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:10000;pointer-events:none;" aria-hidden="true">
-  <canvas id="tour-canvas" style="position:absolute;inset:0;width:100%;height:100%;" aria-hidden="true"></canvas>
-  <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" tabindex="-1" style="
-    position:absolute;background:var(--surface);border-radius:20px;
-    padding:28px 28px 22px;max-width:320px;width:calc(100vw - 40px);
-    box-shadow:0 20px 60px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.15);
-    pointer-events:all;transition:top .35s cubic-bezier(.16,1,.3,1),left .35s cubic-bezier(.16,1,.3,1);
-    animation:tourCardIn .3s cubic-bezier(.16,1,.3,1);
-  ">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;">
-      <div id="tour-progress" style="font-size:12px;font-weight:700;color:#94A3B8;line-height:1.2;">1 / 7</div>
-      <button onclick="tourSkip()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#CBD5E1;padding:0;font-family:inherit;">Überspringen</button>
+<div id="tour-overlay" aria-hidden="true">
+  <canvas id="tour-canvas" aria-hidden="true"></canvas>
+  <!-- top/left setzt tourRender() zur Laufzeit; alles Uebrige kommt aus CSS. -->
+  <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" tabindex="-1">
+    <div class="vx-tour-head">
+      <div id="tour-progress" class="vx-tour-progress">1 / 7</div>
+      <button type="button" class="vx-tour-skip" onclick="tourSkip()">Überspringen</button>
     </div>
-    <div style="height:3px;background:#E2E8F0;border-radius:999px;margin-bottom:14px;overflow:hidden;"><div id="tour-progress-bar" style="height:100%;width:14%;background:#1A6FE8;border-radius:999px;transition:width .25s ease;"></div></div>
-    <div id="tour-icon" style="width:48px;height:48px;border-radius:14px;background:#EEF4FF;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"></div>
-    <div id="tour-title" style="font-size:17px;font-weight:800;color:#0D1F3C;letter-spacing:-0.02em;margin-bottom:8px;"></div>
-    <div id="tour-text" style="font-size:14px;color:#94A3B8;line-height:1.65;margin-bottom:18px;"></div>
-    <div style="display:flex;gap:8px;">
-      <button id="tour-back-btn" onclick="tourBack()" style="flex:0;padding:10px 14px;border-radius:10px;border:none;background:transparent;font-size:13px;font-weight:600;color:#94A3B8;cursor:pointer;font-family:inherit;display:none;">Zurück</button>
-      <button id="tour-next-btn" onclick="tourNext()" style="flex:1;padding:11px 16px;border-radius:12px;border:none;background:#0D1F3C;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Weiter</button>
+    <div class="vx-tour-bar"><div id="tour-progress-bar" class="vx-tour-bar-fill"></div></div>
+    <div id="tour-icon" class="vx-tour-icon"></div>
+    <div id="tour-title" class="vx-tour-title"></div>
+    <div id="tour-text" class="vx-tour-text"></div>
+    <div class="vx-tour-actions">
+      <button type="button" id="tour-back-btn" class="btn btn--secondary vx-tour-back" onclick="tourBack()">Zurück</button>
+      <button type="button" id="tour-next-btn" class="btn btn--primary vx-tour-next" onclick="tourNext()">Weiter</button>
     </div>
   </div>
 </div>
 <style>
 @keyframes tourCardIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+
+/* ── Onboarding und Tour: aus Inline-Stilen auf Klassen und Tokens ──────────
+   Beide Dialoge trugen ihre gesamte Gestaltung im style-Attribut und waren
+   damit die einzigen, die an keinem Token haengen: eigener Button-Radius,
+   eigene Hoehen, eigene Farbliterale. Die Werte bleiben, sie stehen nur
+   nicht mehr im Markup.
+
+   Alle Regeln sind ueber die Overlay-ID gescopt. Die Runtime-Stylesheets
+   werden erst zur Laufzeit an <head> gehaengt und liegen damit hinter diesem
+   Block; sie praefixen durchgehend mit body.vx-customer-design-foundation
+   und traegen dadurch (0,1,1). Eine reine Klassenregel hier (0,1,0) verlaere
+   gegen sie — die ID hebt uns auf (1,1,0). */
+#vx-onboarding-overlay{
+  display:none;position:fixed;inset:0;
+  background:var(--vx-color-overlay,rgba(13,31,60,.42));
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  z-index:var(--z-onboarding);
+  align-items:center;justify-content:center;padding:var(--vx-spacing-lg,16px);
+}
+#vx-onboarding-overlay .vx-onboarding-card{
+  position:relative;background:var(--surface);
+  border-radius:var(--vx-radius-modal);
+  width:100%;max-width:440px;overflow:hidden;
+  box-shadow:var(--vx-shadow-modal);
+}
+#vx-onboarding-overlay .vx-onboarding-close{
+  position:absolute;top:16px;right:16px;width:32px;height:32px;min-height:32px;
+  border:0;border-radius:var(--vx-btn-radius);
+  background:rgba(255,255,255,.12);color:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+#vx-onboarding-overlay .vx-onboarding-close:hover{background:rgba(255,255,255,.2);}
+#vx-onboarding-overlay .vx-onboarding-head{background:var(--vx-color-night);padding:28px 52px 24px 24px;}
+#vx-onboarding-overlay .vx-onboarding-head-row{display:flex;align-items:center;gap:12px;}
+#vx-onboarding-overlay .vx-onboarding-icon{
+  width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.1);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  color:var(--vx-color-gold);font-size:20px;
+}
+#vx-onboarding-overlay .vx-onboarding-title{margin:0;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;}
+#vx-onboarding-overlay .vx-onboarding-sub{font-size:12px;color:var(--vx-color-text-on-dark-muted);margin-top:1px;}
+#vx-onboarding-overlay .vx-onboarding-body{padding:20px 24px 24px;}
+#vx-onboarding-overlay .vx-onboarding-text{margin:0 0 20px;font-size:14px;line-height:1.6;color:var(--slate2);}
+#vx-onboarding-overlay .btn--full{width:100%;justify-content:center;}
+
+#tour-overlay{display:none;position:fixed;inset:0;z-index:var(--z-tour);pointer-events:none;}
+#tour-overlay #tour-canvas{position:absolute;inset:0;width:100%;height:100%;}
+#tour-overlay #tour-card{
+  position:absolute;background:var(--surface);
+  border-radius:var(--vx-radius-xl,16px);
+  padding:28px 28px 22px;max-width:320px;width:calc(100vw - 40px);
+  box-shadow:var(--vx-shadow-modal);
+  pointer-events:all;
+  transition:top .35s var(--vx-ease),left .35s var(--vx-ease);
+  animation:tourCardIn .3s var(--vx-ease);
+}
+#tour-overlay .vx-tour-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;}
+#tour-overlay .vx-tour-progress{font-size:12px;font-weight:700;color:var(--vx-color-text-subtle);line-height:1.2;}
+/* Sieht aus wie ein Textlink, bleibt aber ein Button: die globale
+   44px-Untergrenze wird bewusst nicht ueberschrieben, sonst schrumpft das
+   Tippziel auf Texthoehe. */
+#tour-overlay .vx-tour-skip{
+  display:inline-flex;align-items:center;
+  background:none;border:0;padding:0 2px;
+  font-size:11px;color:var(--vx-color-text-subtle);cursor:pointer;font-family:inherit;
+}
+#tour-overlay .vx-tour-skip:hover{color:var(--vx-color-text-muted);}
+#tour-overlay .vx-tour-bar{height:3px;background:var(--surface-border,#E2E8F0);border-radius:var(--vx-radius-pill);margin-bottom:14px;overflow:hidden;}
+#tour-overlay .vx-tour-bar-fill{height:100%;width:14%;background:var(--vx-color-brand);border-radius:var(--vx-radius-pill);transition:width .25s ease;}
+#tour-overlay .vx-tour-icon{
+  width:48px;height:48px;border-radius:14px;background:var(--vx-color-info-bg);
+  display:flex;align-items:center;justify-content:center;margin-bottom:12px;
+}
+#tour-overlay .vx-tour-title{font-size:17px;font-weight:800;color:var(--vx-color-text);letter-spacing:-.02em;margin-bottom:8px;}
+#tour-overlay .vx-tour-text{font-size:14px;color:var(--vx-color-text-subtle);line-height:1.65;margin-bottom:18px;}
+#tour-overlay .vx-tour-actions{display:flex;gap:8px;}
+#tour-overlay .vx-tour-back{flex:0 0 auto;display:none;}
+#tour-overlay .vx-tour-next{flex:1;justify-content:center;}
+
+/* Dialog-Container erhalten den Fokus nur programmatisch und sind kein
+   Tab-Stopp — ein Fokusring um die ganze Flaeche waere Rauschen. Die
+   Bedienelemente darin behalten ihren Ring. */
+.overlay [tabindex="-1"]:focus,
+#vx-onboarding-overlay [tabindex="-1"]:focus,
+#tour-overlay [tabindex="-1"]:focus,
+#vx-detail-v2-fullscreen:focus{outline:none;}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    FOCUS MODE — Single-task focus view
@@ -31492,7 +31611,7 @@ function tourRender() {
   tourPositionCard(rect, isMobile);
 
   var iconEl = document.getElementById('tour-icon');
-  if (iconEl) { iconEl.innerHTML = step.icon; iconEl.style.background = step.iconBg || '#EEF4FF'; }
+  if (iconEl) { iconEl.innerHTML = step.icon; iconEl.style.background = step.iconBg || 'var(--vx-color-info-bg)'; }
   if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
   document.getElementById('tour-title').textContent = step.title;
   var textEl = document.getElementById('tour-text');
@@ -38538,8 +38657,9 @@ body:has(#tab-archiv.active) .content{
   padding:14px 30px 18px!important;
   background:#fff!important;
 }
-#followup-overlay .modal-footer .btn,
-#manual-task-overlay .modal-footer .btn{height:48px!important;min-height:48px!important;}
+/* Entfernt: setzte die Footer-Buttons dieser beiden Dialoge auf 48px, waehrend
+   alle anderen 44px trugen — und hob dabei .btn--sm auf. Die Hoehe kommt jetzt
+   ueberall aus --vx-btn-height. */
 
 @media(max-width:768px){
   #followup-overlay .modal,
@@ -39273,7 +39393,7 @@ body:has(#tab-archiv.active) .content{
   display:none;
   position:fixed;
   inset:0;
-  z-index:10040;
+  z-index:var(--z-detail-fullscreen);
   background:var(--vx-bg,#F7F8FA);
   color:var(--vx-text,#0D1F3C);
   flex-direction:column;
@@ -39410,7 +39530,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 #manual-request-overlay.open,
 #notiz-overlay.open,
 #confirm-overlay.open{
-  z-index:10200!important;
+  z-index:var(--z-overlay)!important;
   pointer-events:auto!important;
 }
 #followup-overlay.open .modal,
@@ -39442,7 +39562,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-modal-grid {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
 @media (max-width: 480px) {.vx-modal-grid {grid-template-columns:1fr;}}
 .vx-modal-chips {display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;margin-bottom:14px;}
-.vx-modal-chip {padding:5px 11px;border-radius:7px;border:1.5px solid var(--line);background:var(--vx-surface);color:var(--vx-text2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+.vx-modal-chip {display:inline-flex;align-items:center;height:var(--vx-chip-height);min-height:var(--vx-chip-height);padding:0 11px;border-radius:var(--vx-chip-radius);border:1.5px solid var(--line);background:var(--vx-surface);color:var(--vx-text2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
 .vx-modal-chip:hover,.vx-modal-chip.is-active {border-color:var(--vx-blue);background:var(--vx-blue-light);color:var(--vx-blue);}
 .vx-modal-check-row {display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:var(--vx-r-lg);border:1.5px solid var(--line);background:var(--vx-bg);cursor:pointer;transition:border-color 0.15s;}
 .vx-modal-check-row:hover { border-color: var(--vx-blue); }

@@ -8,7 +8,7 @@
     const style = root.document.createElement('style');
     style.id = 'vx-modal-cancellation-owner-styles';
     style.textContent = `
-      #vx-commercial-overlay{position:fixed!important;inset:0!important;z-index:9800!important;display:none!important;align-items:center!important;justify-content:center!important;padding:20px!important;background:rgba(15,35,71,.48)!important;backdrop-filter:blur(10px)!important}
+      #vx-commercial-overlay{position:fixed!important;inset:0!important;z-index:var(--z-commercial,9800)!important;display:none!important;align-items:center!important;justify-content:center!important;padding:20px!important;background:rgba(15,35,71,.48)!important;backdrop-filter:blur(10px)!important}
       #vx-commercial-overlay.open{display:flex!important}
       #vx-commercial-overlay .vx-commercial-modal{position:relative!important;width:min(620px,100%)!important;max-width:620px!important;max-height:min(820px,calc(100dvh - 40px))!important;margin:0!important;overflow:hidden!important;border-radius:var(--vx-radius-modal,18px)!important;background:#fff!important;box-shadow:0 28px 80px rgba(15,35,71,.28)!important}
       #vx-commercial-overlay .modal-shell{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important;max-height:inherit!important;overflow:hidden!important}
@@ -18,7 +18,7 @@
       #vx-commercial-overlay .modal-close{display:grid!important;place-items:center!important;width:48px!important;min-width:48px!important;height:48px!important;min-height:48px!important;margin:0!important;padding:0!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:14px!important;background:rgba(255,255,255,.10)!important;color:#fff!important}
       #vx-commercial-overlay .vx-commercial-body{min-height:0!important;padding:22px 24px!important;overflow-x:hidden!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
       #vx-commercial-overlay .vx-commercial-actions{position:relative!important;z-index:2!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;padding:18px 24px 22px!important;border-top:1px solid #e4eaf2!important;background:#fff!important}
-      #vx-commercial-overlay .vx-commercial-actions .modal-btn{width:100%!important;min-height:52px!important;border-radius:14px!important}
+      #vx-commercial-overlay .vx-commercial-actions .modal-btn{width:100%!important;min-height:var(--vx-btn-height,44px)!important;height:var(--vx-btn-height,44px)!important;border-radius:var(--vx-btn-radius,10px)!important}
       #vx-commercial-overlay .vx-commercial-choice{box-sizing:border-box!important}
       #vx-commercial-overlay .vx-commercial-radio{flex:0 0 22px!important;width:22px!important;min-width:22px!important;height:22px!important;min-height:22px!important;aspect-ratio:1!important;border-radius:50%!important}
       .vx-cancellation-term-note{margin-top:12px;padding:14px 16px;border:1px solid #d8e1ec;border-radius:14px;background:#f6f8fb;color:#475569;font-size:14px;line-height:1.5}

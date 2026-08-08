@@ -1,7 +1,9 @@
 #vox-support-request-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100000;
+  /* War 100000 und lag damit ueber dem Toast — Bestaetigungen aus diesem
+     Dialog waren unsichtbar. Jetzt in der Skala, unter dem Toast. */
+  z-index: var(--z-support, 13058);
   display: none;
   align-items: center;
   justify-content: center;

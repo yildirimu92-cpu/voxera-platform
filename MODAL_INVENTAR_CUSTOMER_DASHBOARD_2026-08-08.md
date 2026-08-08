@@ -36,13 +36,16 @@ Dazu kommen **drei Button-Geometrien** (gemessen, siehe Korrektur unten):
 | `.vx-ap-btn` | 40px | 12px (`--vx-radius-control`) | Assistent |
 | `.vx-dv2-btn` | 32px | 999px (Pille) | Detail-Vollansicht |
 
-> **Korrektur (bei S1 gemessen):** Diese Tabelle nannte zuerst vier Geometrien
-> mit `.modal-btn-p` auf 42px/11px — das ist der Wert, wie er in der CSS-Regel
-> steht. Eine spätere Regel erzwingt `min-height:44px; height:44px;
-> border-radius:10px` mit `!important` für `.modal-btn-p`, `.modal-btn-s` und
-> `.modal-btn-danger`. Im Browser sind es also 44px/10px, identisch mit `.btn`.
-> Der Umfang von S5 schrumpft entsprechend auf zwei zusammenzuführende
-> Geometrien statt drei.
+> **Zweimal korrigiert — die Zahlen oben sind die Klassendefinitionen, nicht
+> das Gerenderte.** Erste Fassung: vier Geometrien aus dem Quelltext gelesen.
+> Zweite Fassung (bei S1): `.modal-btn-p` isoliert gemessen, dabei kam 44/10
+> heraus. Dritte und gültige Fassung (bei S5): **im echten Dialog** gemessen —
+> dort ist derselbe Button 52px hoch, weil die Commercial-Runtime ihn
+> überschreibt, und `btn btn--primary` rendert je nach Dialog 44, 48 oder 52px.
+>
+> Die Lehre für weitere Schritte: eine Klasse isoliert zu messen sagt nichts
+> darüber, wie sie an ihrem Einsatzort aussieht. Der Ist-Zustand steht in der
+> Ergebnisliste von S5 weiter unten.
 
 Der Modal-Radius selbst ist dagegen konsistent: **18px** (`--vx-radius-modal`)
 in allen Containern der klassischen Familie, im Support-Modal und im
@@ -421,21 +424,86 @@ Fokus wäre auf den Body gefallen — also genau wieder aus dem Dialog heraus.
   oberen Dialog; Escape schliesst den oberen zuerst und gibt den Fokus an den
   darunter zurück.
 
-### Phase 3 — Form und Struktur
+### Phase 3 — Form und Struktur — **erledigt**
 
-**S5 · Button-Geometrie zusammenführen.** 44/10, 42/11 und 40/12 auf ein Paar.
-Die Pillenform 32/999 der Detail-Aktionszeile bleibt bewusste Ausnahme.
+**S5 · Button-Geometrie zusammengeführt.**
 
-**S6 · `confirm-tone-*` und Buttonfarbe auf einen Steuerpfad legen**, damit
-Icon und Button nicht mehr getrennt gesetzt werden. `.btn--neutral` entfällt
-dabei: es hat keinen Aufrufer, und sein Hover `#13284D` kollidiert nach S1 mit
-dem Primär-Hover.
+Die Messung im echten Kontext ergab ein anderes Bild als die beiden früheren
+Zählungen: es waren nicht vier Familien mit je einer Geometrie, sondern
+**dieselbe Klasse mit vier verschiedenen Höhen, je nachdem in welchem Dialog
+sie steht**. `btn btn--primary` rendert 44px in Notiz, Neue Anfrage,
+Bestätigen und Support — aber 48px in Nachfassen und Aufgabe und 52px in
+Plan & Optionen.
 
-**S7 · Ad-hoc-Dialoge angleichen.** Onboarding und Tour von Inline-Stilen auf
-Klassen und Tokens. Beide werden in S3 ohnehin angefasst.
+- Ursache 1: `#followup-overlay .modal-footer .btn, #manual-task-overlay
+  .modal-footer .btn{height:48px!important}` — eine gescopte Regel für genau
+  zwei Dialoge, die dort auch `.btn--sm` aufhob.
+- Ursache 2: der Commercial-Dialog erzwang `min-height:52px;
+  border-radius:14px` in seiner Runtime-Datei.
+- Ursache 3: „Abbrechen" trug in fünf Dialogen `.btn--sm` (36px) und in drei
+  nicht — der Abbruch war mal kleiner als die Bestätigung, mal gleich gross.
+- Ursache 4: Chips standen in Nachfassen auf der globalen 44px-Untergrenze
+  für Buttons, in Aufgabe auf den 34px ihrer eigenen Klasse.
 
-**S8 · z-index als Token-Skala** neu vergeben, tote Tokens entfernen. Dabei zu
-klären: Toast über die Support-Anfrage (`100000`) heben oder Support senken.
+Neue Tokens `--vx-btn-height`, `--vx-btn-radius`, `--vx-chip-height`,
+`--vx-chip-radius`, `--vx-action-pill-height`. Alle vier Ursachen behoben,
+`.vx-ap-btn` von 40/12 auf die kanonische Geometrie gezogen.
+
+**Ergebnis, gemessen:** 24 Dialog-Aktionen über elf Dialoge auf 44/10, acht
+Chips auf 34/7, fünf Aktionen der Detailansicht auf der bewussten Pillenform
+32/999. Einzige weitere Abweichung ist der Textlink „Überspringen" der Tour —
+randlos ohne Radius, aber mit voller Tipphöhe.
+
+**S6 · `confirm-tone-*` ist jetzt der einzige Steuerpfad.**
+
+Dabei zeigte sich, dass die Tone-Klasse vorher **gar nichts** steuerte: die
+Buttonfarbe lief über einen zweiten Zweig in `openConfirmModal()`, und die
+Symbolregeln zielten auf `.confirm-icon` — eine Klasse, die das Symbol nicht
+trägt (es hat `id="confirm-icon"` und die Klassen `modal-head-icon
+vx-modal-icon`). Beide Tone-Regeln waren tot.
+
+- Die Tone-Klasse färbt jetzt den Bestätigen-Button; die Variantenklasse am
+  Button entfällt, das Markup trägt nur noch `.btn`.
+- Das Symbol bleibt bewusst neutral: es sitzt im Night-Kopfbereich als
+  durchscheinendes weisses Feld. Eine rote oder graue Fläche wäre dort falsch,
+  und `.modal-head-icon` setzt den Hintergrund ohnehin mit `!important`. Die
+  Tonunterscheidung trägt der Button.
+- `.btn--neutral` entfernt: einziger Nutzer war dieser Dialog, und sein Hover
+  `#13284D` war nach S1 identisch mit dem Primär-Hover — ein grauer Button,
+  der beim Überfahren aussah wie die primäre Aktion.
+- **Grün-Entscheidung umgesetzt:** kein grüner Ton in diesem Dialog. Der
+  „Erledigen"-Button bleibt grün als Abschluss-Signal, die Bestätigung darin
+  bleibt Night.
+
+**S7 · Onboarding und Tour auf Klassen und Tokens.** Beide trugen ihre
+gesamte Gestaltung im `style`-Attribut und hingen an keinem Token. Werte
+unverändert, jetzt in benannten Klassen.
+
+Dabei zwei Dinge gelernt:
+- Die Runtime-Stylesheets werden erst zur Laufzeit an `<head>` gehängt und
+  liegen damit **hinter** allen Inline-`<style>`-Blöcken. Sie präfixen
+  durchgehend mit `body.vx-customer-design-foundation` und tragen dadurch
+  (0,1,1). Eine reine Klassenregel im Dokument (0,1,0) verliert gegen sie —
+  die neuen Regeln sind deshalb über die Overlay-ID gescopt.
+- Ein `min-height:auto` auf dem Textlink „Überspringen" liess das Tippziel auf
+  12px schrumpfen. Die globale 44px-Untergrenze für Buttons wird dort jetzt
+  bewusst nicht überschrieben.
+
+**S8 · z-index als Token-Skala.** Eine Ebene pro Rolle:
+`--z-mobile-nav`, `--z-login`, `--z-onboarding`, `--z-commercial`, `--z-tour`,
+`--z-detail-fullscreen`, `--z-overlay`, `--z-row-menu`,
+`--z-row-menu-floating`, `--z-context-menu`, `--z-support`, `--z-toast`.
+
+- Die Zahlen bleiben die bisher gerenderten Werte. Bewusst **nicht** auf eine
+  kleine Skala umnummeriert: im Dashboard liegen weitere hartkodierte
+  z-index-Werte zwischen diesen Stufen, ein Umnummerieren würde sie
+  stillschweigend nach oben schieben. Wer aufräumt, fängt bei diesen Namen an.
+- Tote Tokens entfernt: `--z-overlay: 200` und `--z-overlay-detail: 220`
+  beschrieben die Realität nicht mehr (dieselben Overlays lagen per
+  `!important` auf 10200), `--z-vx-overlay: 9001` hatte keinen Nutzer.
+- Die Support-Anfrage lag auf `100000` und damit über dem Toast —
+  Bestätigungen aus diesem Dialog waren unsichtbar. Sie steht jetzt in der
+  Skala unter dem Toast. Gemessen: die Ebenenfolge ist lückenlos aufsteigend.
 
 ### Phase 4 — Aufräumen
 

@@ -48,6 +48,17 @@
   --vx-action-primary-on-night: var(--vx-color-brand);
   --vx-action-primary-on-night-hover: #1560C8;
 
+  /* ---- Bedienelemente / Groesse ---------------------------- */
+  /* Eine Geometrie fuer Dialog-Aktionen. Vorher trug dieselbe Klasse je nach
+     Dialog 44, 46, 48 oder 50px, weil einzelne Dialoge ihre Footer-Buttons
+     per !important nachjustiert hatten. Die Pillenform der Detail-Aktionszeile
+     ist die bewusste Ausnahme und steht separat. */
+  --vx-btn-height: 44px;
+  --vx-btn-radius: 10px;
+  --vx-chip-height: 34px;
+  --vx-chip-radius: 7px;
+  --vx-action-pill-height: 32px;
+
   /* ---- Color / feedback ------------------------------------ */
   --vx-color-success: #059669;
   --vx-color-success-bg: #ECFDF5;
