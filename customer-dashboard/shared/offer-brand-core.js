@@ -205,9 +205,14 @@
           throw new ConversationAudioError('audio_player_unavailable', 500);
         }
 
-        const nextCard = mountCardHtml(card, '<div class="vx-transcript-card" id="vx-call-audio-card" data-vx-object-url="' +
-          escapeAttr(activeObjectUrl) + '"><div style="padding:12px 14px;border-top:0.5px solid var(--line);">' +
-          browser.vxRenderModernAudioPlayerHtml(activeObjectUrl, 'Gerade sicher abgerufen') + '</div></div>');
+        // Rahmenloser Host wie im direkten URL-Pfad (index.html): der Player
+        // bringt seine Kartenrahmung selbst mit, ein zusätzliches
+        // .vx-transcript-card plus Innenpolsterung ergäbe einen doppelten
+        // Rahmen. Für geschützte Aufnahmen läuft der Mount ausschliesslich
+        // hier durch, deshalb muss die Struktur an beiden Stellen gleich sein.
+        const nextCard = mountCardHtml(card, '<div id="vx-call-audio-card" class="vx-audio-host" data-vx-object-url="' +
+          escapeAttr(activeObjectUrl) + '">' +
+          browser.vxRenderModernAudioPlayerHtml(activeObjectUrl, 'Gerade sicher abgerufen') + '</div>');
 
         if (nextCard && typeof browser.vxHydrateModernAudioPlayers === 'function') {
           browser.vxHydrateModernAudioPlayers(nextCard);

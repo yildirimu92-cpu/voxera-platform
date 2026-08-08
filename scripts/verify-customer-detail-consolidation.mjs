@@ -128,6 +128,43 @@ assert.ok(source.includes("window.VoxeraUI.badge(text, tone || undefined, { clas
 assert.ok(!/\.vx-dv2-chip\{[^}]*border-radius:20px/.test(source),
   'die alte Chip-Optik (20px-Umrisspille) ist zurück');
 
+// Der Audio-Player wird über ZWEI Pfade montiert: den direkten URL-Pfad in
+// index.html und — für geschützte ElevenLabs-Aufnahmen, also den Normalfall
+// in Produktion — den Bridge-Override in shared/offer-brand*.js. Beide müssen
+// dieselbe Struktur erzeugen. Als der Player selbst zur Karte wurde, hing der
+// doppelte Rahmen zunächst nur im Bridge-Pfad noch drin; genau weil dieser
+// Pfad einen Login und eine echte Conversation-ID braucht, fällt so etwas in
+// Screenshots gegen synthetische Datensätze nicht auf.
+{
+  const MOUNTERS = [
+    ['customer-dashboard/index.html', source],
+    ['customer-dashboard/shared/offer-brand.js', fs.readFileSync('customer-dashboard/shared/offer-brand.js', 'utf8')],
+    ['customer-dashboard/shared/offer-brand-core.js', fs.readFileSync('customer-dashboard/shared/offer-brand-core.js', 'utf8')]
+  ];
+  for (const [file, text] of MOUNTERS) {
+    const mounts = text.match(/vxRenderModernAudioPlayerHtml\([^;]*?\)/gs) || [];
+    assert.ok(mounts.length > 0, `kein Player-Mount in ${file} gefunden — Prüfung greift ins Leere`);
+  }
+  // Kein Mount-Pfad darf den Player wieder in eine eigene Karte wickeln.
+  // Geprüft wird pro Mount-Ausdruck, nicht pro Datei: die Platzhalter-Karte
+  // ("Audioaufnahme ist geschützt verfügbar" mit Abruf-Button) ist weiterhin
+  // zu Recht eine .vx-transcript-card mit Kopfzeile — nur der Player selbst
+  // darf keine zweite Rahmung mehr bekommen.
+  for (const [file, text] of MOUNTERS) {
+    for (const mount of text.match(/.{0,240}vxRenderModernAudioPlayerHtml\(/g) || []) {
+      assert.ok(!/vx-transcript-card/.test(mount),
+        `${file} montiert den Audio-Player wieder in einer .vx-transcript-card — doppelter Rahmen`);
+      assert.ok(!/padding:12px 14px;border-top/.test(mount),
+        `${file} wickelt den Audio-Player wieder in die alte Innenpolsterung`);
+    }
+  }
+  // Beide Bridge-Kopien tragen den rahmenlosen Host.
+  for (const file of ['customer-dashboard/shared/offer-brand.js', 'customer-dashboard/shared/offer-brand-core.js']) {
+    assert.ok(fs.readFileSync(file, 'utf8').includes('id="vx-call-audio-card" class="vx-audio-host"'),
+      `${file} montiert den Player nicht über den rahmenlosen .vx-audio-host`);
+  }
+}
+
 // ── 4. Genau EIN Mount-Pfad in die Detailflächen ────────────────────────────
 assert.ok(source.includes('function mountDetail(record, hostEl, frame)'), 'zentraler Mount-Pfad fehlt');
 assert.ok(source.includes('function releaseAllHostsExcept(keepEl)'),
