@@ -24,6 +24,8 @@
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
 <script src="/shared/customer-ui-components.js?v=20260807-2"></script>
 <script src="/shared/offer-brand.js?v=20260807-4"></script>
+<!-- Laufzeit-Konfiguration (Supabase-Zugangsdaten). Zur Build-Zeit aus den Netlify-Env-Variablen erzeugt, siehe scripts/runtime-config.mjs. Muss vor dem Inline-Skript stehen, das den Supabase-Client baut. -->
+<script src="/vx-runtime-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/light/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
@@ -9248,8 +9250,13 @@ window.vxClearLocalAuthAndReload = async function(){
 // ═══════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════
-const SUPABASE_URL = 'https://ulcofbgrovgcvowdjrge.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY29mYmdyb3ZnY3Zvd2RqcmdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDUzMzAsImV4cCI6MjA5MDUyMTMzMH0.AA9zTqp9WryVRG5TxbhE1ed9yBerDOBAanfWhKNfAyk'; // TODO: Ersetzen, falls weiterhin "Unregistered API key" erscheint
+// Zugangsdaten kommen aus /vx-runtime-config.js (zur Build-Zeit erzeugt), nicht mehr
+// hartkodiert. Fehlen sie — etwa in einer Deploy-Preview ohne Datenbankzugriff —
+// bleiben beide Werte leer, der Client wird unten bewusst nicht gebaut, und
+// vx-runtime-config.js zeigt dazu einen sichtbaren Hinweis.
+const VX_RUNTIME_CONFIG = window.__VX_RUNTIME_CONFIG__ || {};
+const SUPABASE_URL = VX_RUNTIME_CONFIG.supabaseUrl || '';
+const SUPABASE_ANON_KEY = VX_RUNTIME_CONFIG.supabaseAnonKey || '';
 // Customer param is read dynamically in loadData
 const CALLS_TABLE = 'calls';
 const CUSTOMERS_TABLE = 'customers';

@@ -1,6 +1,9 @@
 [build]
   publish = "."
   functions = "netlify/functions"
+  # Siehe customer-dashboard/netlify.toml — erzeugt vx-runtime-config.js aus den
+  # Netlify-Env-Variablen und bricht bei fehlenden Variablen bewusst nicht ab.
+  command = "node tools/build-runtime-config.mjs"
 
 [functions."outbox-retry-worker"]
   schedule = "*/5 * * * *"
