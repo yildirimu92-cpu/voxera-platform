@@ -128,13 +128,13 @@ body{
     <div class="title">Link ungültig</div>
     <div class="sub" style="margin-bottom:0;">
       Dieser Aktivierungslink ist abgelaufen oder wurde bereits verwendet.<br><br>
-      Bitte kontaktieren Sie den Support unter <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ddaea8adadb2afa99dabb2a5b8afbcf3beb5">[email&#160;protected]</a></strong>,
+      Bitte kontaktieren Sie den Support unter <strong><a href="mailto:support@voxera.ch">support@voxera.ch</a></strong>,
       um einen neuen Aktivierungslink zu erhalten.
     </div>
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 'use strict';
 
 const BRAND_LOGO_PATH=(window.VoxeraOfferBrand&&window.VoxeraOfferBrand.BRAND_LOGO_PATH)||'/brand/05-app-icon-512px.svg';
@@ -301,4 +301,10 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ── Start ───�
+// ── Start ────────────────────────────────────────────────────────────────────────────
+// Ohne Client gibt es keine Session zu pruefen. Der Hinweis aus
+// vx-runtime-config.js steht dann bereits sichtbar auf der Seite.
+if (sb) init();
+</script>
+</body>
+</html>
