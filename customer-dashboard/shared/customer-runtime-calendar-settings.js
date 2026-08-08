@@ -75,13 +75,16 @@
     return presets.map(([minutes, label]) => '<option value="' + minutes + '"' + (minutes === selected ? ' selected' : '') + '>' + label + '</option>').join('');
   }
 
-  function providerCard(provider) {
+  // lead: die fuehrende Karte des Screens traegt den Marken-Streifen
+  // (--vx-ui-brand-rule ueber .vx-ui-brand-rule). Genau eine pro Screen und
+  // zustandsunabhaengig — siehe customer-ui-components.css, Abschnitt 9.
+  function providerCard(provider, lead) {
     const item = connection(provider);
     const configured = state?.provider_configured?.[provider] === true;
     const connected = item?.status === 'connected';
     const disabled = !state?.enabled || !configured || busy;
     const calendars = Array.isArray(item?.calendars) ? item.calendars.filter((calendar) => calendar.writable !== false) : [];
-    return '<div class="vx-cal-card"><div class="vx-cal-head"><div><div class="vx-cal-provider">' + esc(providerLabels[provider]) + '</div><div class="vx-cal-meta">' + (connected ? esc(item.account_email || item.account_label || 'Verbunden') : configured ? 'Bereit zur Verbindung' : 'OAuth-Konfiguration fehlt') + '</div></div><span class="vx-cal-pill ' + (connected ? 'ok' : '') + '">' + (connected ? 'Verbunden' : 'Nicht verbunden') + '</span></div>' +
+    return '<div class="vx-cal-card' + (lead ? ' vx-ui-brand-rule' : '') + '"><div class="vx-cal-head"><div><div class="vx-cal-provider">' + esc(providerLabels[provider]) + '</div><div class="vx-cal-meta">' + (connected ? esc(item.account_email || item.account_label || 'Verbunden') : configured ? 'Bereit zur Verbindung' : 'OAuth-Konfiguration fehlt') + '</div></div><span class="vx-cal-pill ' + (connected ? 'ok' : '') + '">' + (connected ? 'Verbunden' : 'Nicht verbunden') + '</span></div>' +
       (connected ? '<div class="vx-cal-field vx-cal-field--spaced"><label>Buchungskalender</label><select data-calendar-select="' + provider + '">' + calendars.map((calendar) => '<option value="' + esc(calendar.id) + '"' + (calendar.id === item.selected_calendar_id ? ' selected' : '') + '>' + esc(calendar.name) + (calendar.primary ? ' · Standard' : '') + '</option>').join('') + '</select></div>' : '') +
       '<div class="vx-cal-actions">' +
       (connected
@@ -107,8 +110,8 @@
     const connectedProviders = (state.connections || []).filter((item) => item.status === 'connected');
     const activeOptions = connectedProviders.map((item) => '<option value="' + item.provider + '"' + (settings.active_provider === item.provider ? ' selected' : '') + '>' + providerLabels[item.provider] + '</option>').join('');
     const providerCards = providers.length
-      ? providers.map((provider) => providerCard(provider)).join('')
-      : '<div class="vx-cal-card"><div class="vx-cal-provider">Kein Kalenderanbieter verfügbar</div><div class="vx-cal-meta">Die OAuth-Konfiguration ist noch nicht vollständig.</div></div>';
+      ? providers.map((provider, index) => providerCard(provider, index === 0)).join('')
+      : '<div class="vx-cal-card vx-ui-brand-rule"><div class="vx-cal-provider">Kein Kalenderanbieter verfügbar</div><div class="vx-cal-meta">Die OAuth-Konfiguration ist noch nicht vollständig.</div></div>';
     const providerSummary = providers.map((provider) => providerLabels[provider]).join(' und ');
 
     const availabilityBanner = state.enabled ? '' : '<div class="vx-cal-banner">Sicher vorbereitet, aber noch nicht produktiv aktiviert. Verbindungen und Buchungen sind gesperrt.</div>';

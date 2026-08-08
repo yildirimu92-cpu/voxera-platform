@@ -108,21 +108,45 @@ for (const forbidden of [
   '.vx-requests-icon-action.is-overflow{background:#f1f5f9'
 ]) assert.ok(!source.includes(forbidden), 'alte gefüllte Button-Variante ist zurück: ' + forbidden);
 
-// ── 4b. Auswahl: umlaufender Rahmen, keine einseitige Kante ───────────────
-// Die ausgewählte Zeile trug bis 2026-08-08 zusätzlich eine 3px-Night-Kante
-// links (box-shadow:inset 3px 0 0). Nach dem Abräumen der Akzent-Ränder auf
-// Heute war das die letzte einseitige Akzent-Kante im Produkt; ein Messlauf
-// durch alle acht Tabs hat sie als einzigen verbliebenen Treffer bestätigt.
-// Jetzt verstärkt die Auswahl die umlaufende Haarlinie: Rahmenfarbe Night
-// plus 1px-Innenring, zusammen die angepeilten 1.5px.
+// ── 4b. Auswahl: Fläche statt Rahmen, keine einseitige Kante ─────────────
+// Historie in zwei Schritten. Bis 2026-08-08 trug die ausgewählte Zeile eine
+// 3px-Night-Kante links (box-shadow:inset 3px 0 0) — nach dem Abräumen der
+// Akzent-Ränder auf Heute die letzte einseitige Akzent-Kante im Produkt.
+// Sie wurde durch einen umlaufenden Night-Rahmen plus 1px-Innenring ersetzt,
+// zusammen rund 1.5px.
+//
+// Dieser Rahmen ist im selben Zug wieder gefallen: zusammengelesen war er
+// lauter als jedes andere Signal in der Zeile (Ungelesen-Punkt, Status-Chip,
+// Lead-Farbe) und konkurrierte mit der Karte selbst. Die Auswahl liegt jetzt
+// in der Fläche (--vx-ui-row-selected-bg), der Rahmen bleibt die Haarlinie
+// auf Hover-Stärke.
+//
+// Was diese Prüfung über beide Schritte hinweg festhält, ist nicht die
+// jeweilige Technik, sondern die Anforderung dahinter: die Markierung ist
+// umlaufend und nie wieder eine einseitige Kante.
 {
   const rule = /\.vx-requests-item\.sp-active\{([^}]*)\}/.exec(source);
   assert.ok(rule, '.vx-requests-item.sp-active-Regel nicht gefunden');
-  assert.match(rule[1], /border-color:var\(--vx-color-night\)/,
-    'die ausgewählte Zeile trägt keinen Night-Rahmen mehr');
-  // Der Ring muss auf allen vier Seiten liegen: Offsets 0, nur Spread.
-  assert.match(rule[1], /box-shadow:inset 0 0 0 1px var\(--vx-color-night\)/,
-    'der umlaufende Auswahl-Ring fehlt oder ist wieder einseitig');
+  assert.match(rule[1], /background:var\(--vx-ui-row-selected-bg\)/,
+    'die ausgewählte Zeile trägt nicht mehr die Auswahl-Tönung');
+  // Ein voller Night-Rahmen wäre der Rückfall in den vorigen Stand.
+  assert.ok(!/border-color:var\(--vx-color-night\)/.test(rule[1]),
+    'die Auswahl trägt wieder den vollen Night-Rahmen statt der Tönung');
+  assert.ok(!/box-shadow:inset/.test(rule[1]),
+    'die Auswahl trägt wieder einen Innenring zusätzlich zur Tönung');
+
+  // Die Tönung muss die Ungelesen-Regel schlagen. Beide setzen background bei
+  // gleicher Spezifität, also entscheidet die Reihenfolge: steht .is-unread
+  // hinter .sp-active, verliert eine ausgewählte ungelesene Zeile ihre
+  // Markierung vollständig. Genau das war beim Umbau der Fall und ist ohne
+  // Messung unsichtbar, weil beide Zustände einzeln richtig aussehen.
+  {
+    const unreadAt = source.indexOf('.vx-requests-item.is-unread{');
+    const activeAt = source.indexOf('.vx-requests-item.sp-active{');
+    assert.ok(unreadAt > 0 && activeAt > 0, 'Auswahl- oder Ungelesen-Regel nicht gefunden');
+    assert.ok(unreadAt < activeAt,
+      'die Ungelesen-Regel steht wieder hinter der Auswahl und überschreibt deren Tönung');
+  }
 
   // Kein Regelblock darf die Auswahl der Anfragen-Karte wieder als einseitige
   // Kante zeichnen. Geprüft wird pro Regel statt per Gesamt-Regex: die

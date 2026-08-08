@@ -571,6 +571,51 @@ Kontrastfehler.
   `--vx-ui-badge-info-bg` — gleicher Wert, keine sichtbare Änderung, nur ein
   Literal weniger.
 
+### S12 · Der dunkle Dialogkopf — **erledigt**
+
+Nachtrag vom selben Tag, aus dem Design-System-Token-Pass heraus gemeldet:
+„Nachfassen planen" und „Anfrage als erledigt markieren?" nutzen noch das
+Navy-Header-plus-weisser-Body-Muster.
+
+Der Befund stimmte, war aber nicht auf die zwei Dialoge beschränkt. Das Band
+kam aus `--vx-modal-head` und traf damit **jeden** Dialog der klassischen
+Familie; der Support-Dialog hielt sich in `customer-support-components.css`
+eine zweite, eigene Fassung davon. Nach S1 war Night gleichzeitig die Farbe
+der bestätigenden Aktion — Kopfband und Button trugen also denselben Wert in
+zwei verschiedenen Rollen, was die in S1 gewonnene Bedeutung wieder
+verwässerte.
+
+Der Kopf ist jetzt eine helle Fläche mit Haarlinie, Titel in Night, Symbol
+und Schliessen-Knopf in einer 6%-Night-Tönung. Damit liegt der Dialog auf
+derselben Linie wie `.vx-appbar`, deren Vertrag genau das schon festhält —
+sie hat die dunklen Vollbreiten-Bänder auf allen Screens abgelöst, inklusive
+dem Night-Banner der Detailansicht. Dialoge waren der letzte Ort, an dem das
+Band überlebt hat.
+
+- **Drei Ebenen setzten den Kopf**, zwei davon mit `!important`
+  (Basisregeln, „Voxera Night Modal Headers", „FINAL MODAL POLISH"). Sie
+  zeigen jetzt alle auf einen Tokensatz `--vx-modal-head*`, statt dass eine
+  vierte Ebene sie überschreibt.
+- **Der Trenner brauchte eine eigene Regel nach der `border:none`-Sperre**
+  weiter unten im Dokument. Die Sperre („Avoid accidental inner white
+  hairlines on modal headers") stammt aus der Zeit des Night-Kopfs, wo jede
+  helle Linie ein Versehen war; auf der hellen Fläche ist sie das, was den
+  Kopf als Kopf lesbar macht.
+- **Zwei weitere Label-Sprachen gefunden.** `.modal-body label` (Versalien,
+  gesperrt) und `.vx-modal-field label` (10px/700 auf `--vx-text3` = #94A3B8,
+  2.9:1 auf Weiss und damit unter AA). Beide auf die Label-Rolle
+  (12px/600, `--vx-ui-meta-color`, 4.83:1) gezogen; gemessen über vier
+  Dialoge, alle Beschriftungen identisch.
+- **Die S6-Begründung zum neutralen Symbol gilt weiter**, ihr Grund hat sich
+  aber geändert: Das Symbol war neutral, *weil* es auf Night sass. Jetzt ist
+  es neutral, weil die Tonunterscheidung weiterhin allein am Button hängt —
+  dieselbe Entscheidung, neue Herleitung.
+
+Geprüft: fünf Dialoge der klassischen Familie plus Support liefern Kopf
+`#FFFFFF`, Titel `#0D1F3C`, Symbolfläche `rgba(13,31,60,.06)`.
+`.detail-head` trägt seine Night-Regel noch, hat aber null Nutzer im Markup
+und wurde deshalb nicht angefasst.
+
 ### Noch offen
 
 - **Ein zweites Geometrie-Tokenpaar.** `--vx-control-min-height: 46px` und

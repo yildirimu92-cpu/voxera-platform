@@ -29,25 +29,30 @@ html.vx-support-modal-open {
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
 }
 
+/* Heller Kopf mit Haarlinie, wie die klassische Dialogfamilie seit
+   2026-08-08 (siehe --vx-modal-head in index.html). Der Support-Dialog war
+   das sechste eigene Stilsystem des Modal-Inventars und der letzte Ort
+   ausserhalb dieser Familie mit einem Night-Kopfband. */
 .vox-support-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   padding: 22px 24px;
-  color: #fff;
-  background: var(--vx-color-night, #0D1F3C);
+  border-bottom: 1px solid var(--vx-modal-head-divider, rgba(13, 31, 60, .10));
+  color: var(--vx-modal-head-title, #0D1F3C);
+  background: var(--vx-modal-head, #FFFFFF);
 }
 
 .vox-support-head h2 {
   margin: 0;
-  color: #fff;
+  color: var(--vx-modal-head-title, #0D1F3C);
   font-size: 21px;
 }
 
 .vox-support-head p {
   margin: 5px 0 0;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--vx-modal-head-sub, #697285);
   font-size: 13px;
 }
 
@@ -61,10 +66,10 @@ html.vx-support-modal-open {
   height: 40px;
   min-height: 40px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid transparent;
   border-radius: 10px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--vx-modal-head-close-fg, #7C8CA4);
+  background: transparent;
   font-family: var(--vx-font-ui);
   font-size: 20px;
   line-height: 1;
@@ -79,12 +84,13 @@ html.vx-support-modal-open {
   margin-bottom: 15px;
 }
 
+/* Label-Rolle wie in allen anderen Dialogen. */
 .vox-support-field label {
   display: block;
   margin-bottom: 6px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--vx-ui-meta-color);
+  font-size: var(--vx-ui-section-label-size);
+  font-weight: var(--vx-ui-section-label-weight);
 }
 
 .vox-support-field input,

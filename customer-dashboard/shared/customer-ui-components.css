@@ -853,3 +853,43 @@ body.vx-customer-design-foundation :where(
     transition: none;
   }
 }
+
+/* ============================================================
+   9. BRAND RULE — der Gold-Streifen als Klasse
+   ============================================================
+   PR #848 hat den Verlaufsstreifen als einziges konstantes
+   Marken-Ornament im Anfrage-Detail-Panel eingefuehrt
+   (.vx-dv2-header::before) und dafuer --vx-ui-brand-rule
+   angelegt. Er blieb dort ein Einzelfall: die Deklaration stand
+   direkt an der Panel-Kopfzeile, und jeder weitere Ort haette
+   sie kopieren muessen.
+
+   Diese Klasse ist derselbe Streifen als benennbare Rolle. Sie
+   traegt keine eigenen Werte — Hoehe und Verlauf kommen aus den
+   Tokens, die das Panel schon benutzt.
+
+   Regel fuer die Anwendung, damit Gold eine Bedeutung behaelt:
+   HOECHSTENS EINE Flaeche pro Screen, und zwar die fuehrende
+   Karte des Inhaltsbereichs. Der Streifen ist zustandsunabhaengig
+   — er darf nie davon abhaengen, wie ein Datensatz aussieht,
+   sonst konkurriert er mit der Gold-Rampe der Lead-Qualitaet
+   (--vx-ui-badge-lead-*).
+
+   Die oberen Ecken erben den Radius der Karte, damit der Streifen
+   auch auf Karten ohne overflow:hidden buendig sitzt. */
+body.vx-customer-design-foundation .vx-ui-brand-rule {
+  position: relative;
+}
+
+body.vx-customer-design-foundation .vx-ui-brand-rule::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--vx-ui-brand-rule-height);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  background: var(--vx-ui-brand-rule);
+  pointer-events: none;
+}
