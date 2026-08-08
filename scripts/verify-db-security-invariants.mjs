@@ -326,9 +326,45 @@ if (!dbUrl && !useParts) {
     + 'SUPABASE_DB_HOST / _USER / _PASSWORD (empfohlen, keine URL-Kodierung noetig).\n'
     + 'Einrichtung: docs/DB_SECURITY_CI_SETUP.md');
 }
-process.stderr.write(useParts
-  ? `Verbinde ueber Einzelfelder: ${dbParts.user}@${dbParts.host}:${dbParts.port}\n`
-  : 'Verbinde ueber SUPABASE_DB_URL\n');
+// Konfigurationsbefund vor dem ersten Verbindungsversuch.
+//
+// Warum abgeleitete Merkmale statt der Werte selbst: GitHub maskiert jeden
+// Secret-Wert im Log zu ***, auch Host und Benutzername. Eine Zeile wie
+// "Verbinde ueber ***@***:***" beantwortet keine einzige Frage. Diese Merkmale
+// verraten nichts Vertrauliches, entscheiden aber genau die Fragen, an denen
+// eine fehlgeschlagene Anmeldung typischerweise haengt.
+{
+  const cfg = [];
+  if (useParts) {
+    cfg.push('Zugang: Einzelfelder (SUPABASE_DB_HOST/_USER/_PASSWORD)');
+    cfg.push(`  Benutzername mit Projekt-Referenz (<rolle>.<ref>): ${
+      /^[^.]+\.[A-Za-z0-9]{16,}$/.test(dbParts.user) ? 'ja' : 'NEIN -- der Pooler braucht sie'}`);
+    cfg.push(`  Host ist ein Pooler-Host: ${
+      /pooler\.supabase\.com$/.test(dbParts.host) ? 'ja' : 'NEIN -- die Direktadresse ist IPv6-only'}`);
+    cfg.push(`  Port: ${dbParts.port}${dbParts.port === '5432' ? ' (Session-Modus)'
+      : ' -- erwartet 5432; die Proben brauchen SET LOCAL ROLE'}`);
+    cfg.push(`  Passwortlaenge: ${dbParts.password.length} Zeichen`);
+  } else {
+    cfg.push('Zugang: SUPABASE_DB_URL (Connection-String)');
+    try {
+      const u = new URL(dbUrl);
+      const pw = decodeURIComponent(u.password || '');
+      cfg.push(`  Benutzername mit Projekt-Referenz: ${
+        /^[^.]+\.[A-Za-z0-9]{16,}$/.test(decodeURIComponent(u.username)) ? 'ja' : 'NEIN'}`);
+      cfg.push(`  Host ist ein Pooler-Host: ${/pooler\.supabase\.com$/.test(u.hostname) ? 'ja' : 'NEIN'}`);
+      cfg.push(`  Port: ${u.port || '(nicht gesetzt)'}`);
+      cfg.push(`  Passwortlaenge: ${pw.length} Zeichen`);
+      const risky = [...new Set([...pw].filter((c) => '/@%:#?[]'.includes(c)))];
+      if (risky.length) {
+        cfg.push(`  URL-kritische Zeichen im Passwort: ${risky.join(' ')}`
+          + ' -- besser auf die Einzelfelder wechseln');
+      }
+    } catch {
+      cfg.push('  Der String liess sich nicht als URL lesen -- Tippfehler oder fehlendes Schema?');
+    }
+  }
+  process.stderr.write(`${cfg.join('\n')}\n`);
+}
 
 const baseline = JSON.parse(fs.readFileSync(BASELINE, 'utf8'));
 
