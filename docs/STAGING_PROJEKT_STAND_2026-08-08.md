@@ -1,7 +1,7 @@
-# Staging-Projekt — Stand und Fortsetzung
+# Staging-Projekt — Stand
 
 **Datum:** 2026-08-08 · **Bezug:** `STAGING_PRODUKTION_TRENNUNG_KONZEPT_2026-08-08.md`, Option 1
-**Status:** angefangen, nicht fertig. Genauer Stand unten.
+**Status:** Schema vollständig aufgebaut und gegen Produktion verifiziert.
 
 ---
 
@@ -11,177 +11,160 @@
 | --- | --- |
 | Name | `voxera-staging` |
 | Ref | `hzqiyyqfchvfcmmbemvd` |
+| API-URL | `https://hzqiyyqfchvfcmmbemvd.supabase.co` |
 | Region | `eu-central-2` (Zürich — dieselbe wie Produktion) |
-| Postgres | 17.6.1 |
+| Postgres | 17.6.1 (identisch zu Produktion) |
 | Organisation | Voxera (`kvjhyaevtjdupymdcxql`) |
 | **Kosten** | **~10 USD/Monat, laufend ab 2026-08-08** |
 
 Produktion bleibt `ulcofbgrovgcvowdjrge`.
 
-> Das Projekt kostet ab sofort Geld. Wenn Option 1 doch anders gelöst werden soll, muss es
-> aktiv pausiert oder gelöscht werden — es verschwindet nicht von selbst.
+> Das Projekt kostet ab sofort Geld. Wird es nicht mehr gebraucht, muss es aktiv pausiert
+> oder gelöscht werden — es verschwindet nicht von selbst.
 
 ---
 
-## Was steht — mit Nachweis
+## Verifikation — jede Kategorie per Katalog-Hash gegen Produktion gemessen
 
-Nicht behauptet, sondern per Katalog-Hash gegen Produktion gemessen:
+Nicht behauptet, sondern nachgerechnet. Beide Datenbanken liefern paarweise denselben Hash:
 
-| Objekt | Produktion | Staging | Nachweis |
-| --- | --- | --- | --- |
-| Tabellen / Spalten | 43 / 755 | 43 / 755 | Hash `be0946757f83a1e61d26ccbd6880a2b7` **identisch** |
-| Constraints (PK/UNIQUE/CHECK/FK) | 180 | 180 | Hash `ccdb9f8c1eeba8535836be4b59c7d5b9` **identisch** |
-| Sequenz `customer_code_seq` | ✓ | ✓ | |
-| Erweiterungen (`uuid-ossp`, `pgcrypto`) | ✓ | ✓ | |
-| Funktionen | 23 | **14** | unvollständig |
-
-Angewandte Migrationen auf Staging: `baseline_01` bis `baseline_07`.
-
-## Was fehlt
-
-| Objekt | Anzahl | Anmerkung |
+| Kategorie | Hash | Anzahl |
 | --- | --- | --- |
-| Funktionen | 9 | s. u. |
-| Indizes (nicht constraint-gestützt) | 81 | |
-| Trigger | 12 | brauchen die fehlenden Funktionen |
-| RLS aktivieren | 43 Tabellen | **ohne das greift keine Policy** |
-| Policies | 111 | brauchen `is_admin()`, `current_customer_id()` — beide vorhanden |
-| Grants für `anon` / `authenticated` / `service_role` | — | |
-| Storage-Buckets | 7 | `avatars`, `e-mail-asset`, `legal`, `Public`, `call-recordings`, `invoice-pdfs`, `voice-previews` |
-| Default auf `offers.offer_number` | 1 | bewusst weggelassen, s. u. |
+| Tabellen / Spalten | `be0946757f83a1e61d26ccbd6880a2b7` | 755 Spalten in 43 Tabellen |
+| Constraints (PK/UNIQUE/CHECK/FK) | `ccdb9f8c1eeba8535836be4b59c7d5b9` | 180 |
+| Indizes | `7763be67e1d695f0598147ef56dff0e3` | 143 |
+| Funktionen | `0bce02daa1b3823091bef01324def8ff` | 23 |
+| Trigger | `b617c33e52d84d072b57bb8a3f3d3d31` | 12 |
+| RLS-Policies | `1b4b57f9ad233e9f1431e33ec2d33ff0` | 111 |
+| RLS aktiviert | — | 43 von 43 Tabellen |
+| Tabellen-Grants | `f6fc8f8c8897283038d644f4d9cfa53b` | 797 |
+| **Spalten-Grants** | `30694cf2436942b60b4a55e458d04fef` | 9 |
+| Funktions-Grants | `dec508e42f3213ca8f4e6b10c962dff5` | 40 |
+| Storage-Buckets | `df90b8acc2f160c0d34efd50d0ba88b2` | 7 |
 
-**Fehlende Funktionen:** `admin_apply_invoice_financial_action_v1` (10,5 KB — die grösste),
-`next_credit_note_number_v1`, `next_invoice_number_v1`, `next_offer_number_v1`,
-`next_customer_code`, `set_updated_at`, `sync_ai_change_request_from_case`,
-`sync_notification_booleans`, `invoices_compat_normalize_v1` *(bereits angewandt — hier nicht mehr offen)*.
+Die Abfrage, die diese Werte erzeugt, steht in `docs/STAGING_AUFBAU_RUNBOOK.md`, Schritt 4.
 
-**Bewusste Abweichung:** `offers.offer_number` hat auf Produktion den Default
-`next_offer_number_v1()`. Die Funktion existierte beim Anlegen der Tabelle noch nicht, deshalb
-wurde die Spalte ohne Default erzeugt. Nach dem Nachziehen der Funktion:
+### Warum die Grants der wichtigste Teil sind
 
-```sql
-alter table public.offers alter column offer_number set default next_offer_number_v1();
-```
+Ein neues Supabase-Projekt gibt `anon` und `authenticated` standardmässig **alle** Rechte auf
+neue Tabellen im public-Schema. Produktion hat das durch die P0-Härtung stark eingeschränkt.
+Ein Staging mit Standardrechten hätte zwar dieselben Tabellen, aber eine völlig andere
+Sicherheitslage — und jeder Test dort wäre wertlos, weil er nicht misst, was in Produktion
+gilt. Deshalb wurden alle Rechte zuerst zurückgenommen und dann exakt nachgezogen.
 
-Bis dahin weicht Staging an dieser einen Stelle von Produktion ab.
+Drei Punkte, die dabei nur auffallen, wenn man den Katalog liest statt Tabellen zu zählen:
+
+1. **Spalten-Allowlists.** `authenticated` darf UPDATE nur auf genau diesen Spalten:
+   - `calls`: `dashboard_status`, `notes_customer_voxera`, `read_at`, `updated_at`
+   - `customers`: `contact_first_name`, `in_app_notification_settings`, `onboarding_completed`, `updated_at`
+   - `notifications`: `read_at`
+
+   Ohne sie könnte ein Kunde beliebige Spalten seiner eigenen Zeile ändern — etwa seinen Plan
+   oder die Zahlungsangaben. Die RLS-Policy erlaubt die Zeile, der Spalten-Grant begrenzt das Feld.
+
+2. **`anon` hat auf elf Tabellen gar keine Rechte mehr** (`calendar_*`,
+   `commercial_lifecycle_audit`, `contracts`, `customer_addons`,
+   `customer_operational_updates`, `customers`, `invoices`, `notifications`, `offers`,
+   `payment_accounts`, `subscriptions`).
+
+3. **`anon` hat kein `EXECUTE` auf `current_customer_id()` und `is_admin()`** —
+   `authenticated` und `service_role` schon. Fehlte das Recht für `authenticated`, bräche
+   jedes RLS-Prädikat und damit der Login.
 
 ---
 
-## Warum es nicht in einem Zug fertig wurde
+## Daten
 
-Diese Umgebung hat **keine direkte Datenbankverbindung** — kein Passwort, und der Egress-Proxy
-blockt `db.*.supabase.co`. Damit ist `pg_dump` / `supabase db dump` nicht verfügbar, und die
-gesamte DDL muss über den Supabase-Connector durch die Sitzung fliessen: einmal beim Auslesen
-aus dem Katalog, einmal beim Anwenden. Für 43 Tabellen, 180 Constraints, 111 Policies und
-23 Funktionen ist das machbar, aber es passt nicht in eine Sitzung.
+**Kundendaten: null.** `customers`, `calls`, `invoices`, `users`, `contracts`, `offers` sind
+leer und sollen es bleiben.
 
-Die Methode selbst ist nachweislich exakt — die beiden identischen Hashes oben sind der Beleg.
-Sie ist nur langsam.
+Stammdaten übernommen:
 
----
+| Tabelle | Zeilen |
+| --- | --- |
+| `plan_config` | 4 |
+| `voxera_voices` | 4 |
+| `voxera_addons` | 8 |
+| `feature_flags` | 15 |
+| `kantonale_notfallnummern` | 14 |
+| `payment_accounts` | 1 |
+| `system_config` | 1 von 2 |
 
-## Zwei Wege weiter
+### Zwei bewusste Auslassungen
 
-### Weg A — mit CLI und direkter Verbindung (empfohlen, schneller und vollständiger)
-
-Braucht das Datenbank-Passwort aus dem Supabase-Dashboard. Erfasst zusätzlich Dinge, die über
-den Katalog mühsam sind: Kommentare, Storage-Policies, Rollen-Grants.
+**`industry_templates` — 0 von 19 Zeilen.** 88 KB Textinhalt; das passt nicht durch den
+Connector, über den dieser Aufbau lief. Nachzuholen mit direktem Zugang:
 
 ```bash
-# 1. Schema aus Produktion ziehen (erzeugt zugleich die Repo-Baseline)
-supabase db dump --db-url "postgresql://postgres:<PW>@db.ulcofbgrovgcvowdjrge.supabase.co:5432/postgres" \
-  --schema public --schema-only > supabase/migrations/0000_baseline_2026-08-08.sql
-
-# 2. Staging zurücksetzen (der Teilstand oben würde sonst kollidieren)
-#    Dashboard → voxera-staging → Settings → General → Reset database
-#    oder: drop schema public cascade; create schema public;
-
-# 3. Einspielen
-psql "postgresql://postgres:<PW>@db.hzqiyyqfchvfcmmbemvd.supabase.co:5432/postgres" \
-  -f supabase/migrations/0000_baseline_2026-08-08.sql
+supabase db dump --db-url "$PROD_URL" --data-only --table public.industry_templates \
+  | psql "$STAGING_URL" -v ON_ERROR_STOP=1
 ```
 
-Storage-Buckets sind **nicht** Teil des Dumps und müssen separat angelegt werden (Liste oben).
+Betrifft Onboarding-Tests mit Branchenvorlagen; alles andere funktioniert ohne.
 
-### Weg B — im selben Verfahren weitermachen
+**`system_config` — nur `default_assistant_name`.** Der zweite Schlüssel `prompt_master_l1`
+ist 9 KB Prompt-Text und fehlt. Ohne ihn erzeugt der Prompt-Builder auf Staging keinen
+vollständigen Assistenten-Prompt. Gleicher Weg wie oben, `--table public.system_config`.
 
-Eine neue Sitzung mit vollem Kontext kann direkt an `baseline_08` anschliessen. Die
-Katalog-Abfragen, die die DDL erzeugen, stehen unten — sie sind der eigentliche Generator und
-funktionieren gegen jedes Supabase-Projekt.
+### Zum Mitdenken: `payment_accounts` enthält die echte IBAN
+
+Die Zeile wurde 1:1 übernommen, damit QR-Rechnungen auf Staging dasselbe Ergebnis liefern wie
+in Produktion. Das heisst aber auch: eine auf Staging erzeugte Test-Rechnung trägt die echten
+Zahlungsangaben von Voxera. Kein Datenschutzproblem — es sind eigene Daten, keine
+Kundendaten — aber es sollte niemand versehentlich so eine Rechnung verschicken.
+`created_by` und `updated_by` stehen auf NULL, weil `admins` auf Staging leer ist und der
+Fremdschlüssel sonst greift.
 
 ---
 
-## Generator-Abfragen
+## Angewandte Migrationen
 
-Gegen die Quell-Datenbank ausführen, Ergebnis auf das Ziel anwenden.
+`baseline_01` bis `baseline_15`, danach `seed_01` und `seed_02`. Reihenfolge:
+Erweiterungen und Sequenz → Tabellen → PK/UNIQUE → CHECK → FK → Funktionen →
+Indizes → Trigger und RLS → Policies → Grants → Funktions-Grants → Storage → Stammdaten.
 
-```sql
--- Indizes (ohne die, die ein Constraint mitbringt)
-select string_agg(indexdef || ';', E'\n' order by indexname) from pg_indexes i
-where schemaname='public' and not exists (
-  select 1 from pg_constraint pc join pg_class pcl on pcl.oid=pc.conindid
-  where pcl.relname=i.indexname);
-
--- Funktionen
-select string_agg(pg_get_functiondef(p.oid), E';\n\n') from pg_proc p
-join pg_namespace n on n.oid=p.pronamespace where n.nspname='public';
-
--- Trigger
-select string_agg(pg_get_triggerdef(t.oid) || ';', E'\n') from pg_trigger t
-join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace
-where n.nspname='public' and not t.tgisinternal;
-
--- RLS aktivieren
-select string_agg('alter table public.' || quote_ident(c.relname) || ' enable row level security;', E'\n')
-from pg_class c join pg_namespace n on n.oid=c.relnamespace
-where n.nspname='public' and c.relkind='r' and c.relrowsecurity;
-
--- Policies
-select string_agg(
-  'create policy ' || quote_ident(policyname) || ' on public.' || quote_ident(tablename)
-  || ' as ' || permissive || ' for ' || cmd
-  || ' to ' || array_to_string(roles, ', ')
-  || coalesce(' using (' || qual || ')', '')
-  || coalesce(' with check (' || with_check || ')', '') || ';', E'\n' order by tablename, policyname)
-from pg_policies where schemaname='public';
-
--- Grants auf Tabellen
-select string_agg('grant ' || privilege_type || ' on public.' || quote_ident(table_name)
-  || ' to ' || quote_ident(grantee) || ';', E'\n')
-from information_schema.role_table_grants
-where table_schema='public' and grantee in ('anon','authenticated','service_role');
-```
-
-**Verifikation nach jedem Schritt** — beide Seiten müssen denselben Hash liefern:
-
-```sql
--- Struktur
-select md5(string_agg(sig,'|' order by sig)), count(*) from (
-  select c.relname||'.'||a.attname||':'||format_type(a.atttypid,a.atttypmod)||':'||a.attnotnull::text as sig
-  from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  join pg_attribute a on a.attrelid=c.oid and a.attnum>0 and not a.attisdropped
-  where n.nspname='public' and c.relkind='r') x;
-
--- Policies
-select md5(string_agg(sig,'|' order by sig)), count(*) from (
-  select tablename||':'||policyname||':'||cmd||':'||coalesce(qual,'')||':'||coalesce(with_check,'')
-  from pg_policies where schemaname='public') x;
-```
+Die Reihenfolge ist nicht beliebig: `offers.offer_number` hat den Default
+`next_offer_number_v1()`, die Funktion muss also vor dem Default existieren. Sie wurde
+deshalb in `baseline_07` nachgezogen, nachdem die Tabelle stand.
 
 ---
 
-## Danach noch offen (nicht Teil des Schema-Abgleichs)
+## Wie es gebaut wurde
 
-1. **Migrations-Ledger auf Produktion in Ordnung bringen.** `supabase_migrations.schema_migrations`
-   kennt nur 7 Einträge; die Baseline muss dort als angewandt vermerkt werden, sonst versucht
-   ein späteres `supabase db push` sie erneut einzuspielen. **Das ist ein Schreibvorgang auf
-   Produktion** und sollte bewusst und einzeln erfolgen, nicht nebenbei.
-2. **`supabase/config.toml` anlegen** — fehlt bisher komplett, ohne sie gibt es keine
-   CLI-Projektbindung.
-3. **Seed-Daten für Staging** (Testkunden, Plan-Konfiguration, `industry_templates`,
-   `kantonale_notfallnummern`, `voxera_voices` — die vier letzten sind Stammdaten und sollten
-   aus Produktion übernommen werden).
-4. **Netlify-Env auf Staging umstellen** für die Preview-/Branch-Kontexte — damit greift die in
-   PR #844 gebaute Laufzeit-Konfiguration und Previews zeigen auf Staging statt auf nichts.
-5. **`verify-db-security-invariants` gegen Staging laufen lassen** — der Check ist der beste
-   verfügbare Beweis, dass die Sicherheitsschicht drüben genauso greift.
+Über den Supabase-Connector (Management-API via HTTPS), nicht mit `supabase db dump`. Die
+Agent-Umgebung hat keinen TCP-Zugang zu Port 5432 — nachgemessen: DNS löst auf, die
+Verbindung läuft in einen Timeout. Details in `docs/STAGING_AUFBAU_RUNBOOK.md`.
+
+Die DDL wurde aus dem Katalog von Produktion erzeugt (`pg_get_constraintdef`,
+`pg_get_functiondef`, `pg_get_triggerdef`, `pg_get_indexdef`, `aclexplode`) und auf Staging
+angewandt. Dass dieses Verfahren exakt ist und nicht nur ungefähr, zeigen die elf
+übereinstimmenden Hashes oben — insbesondere, weil derselbe Struktur-Hash schon bei einem
+früheren, unabhängigen Durchlauf herauskam.
+
+---
+
+## Nächste Schritte
+
+1. **Netlify-Env auf Staging umstellen.** Für *Deploy previews* und *Branch deploys*:
+   ```
+   SUPABASE_URL       = https://hzqiyyqfchvfcmmbemvd.supabase.co
+   SUPABASE_ANON_KEY  = (Dashboard → voxera-staging → Settings → API → anon/public)
+   SUPABASE_SERVICE_ROLE_KEY = (ebenda, service_role)
+   ```
+   Damit greift die Laufzeit-Konfiguration aus PR #844 ohne weitere Codeänderung, und
+   Previews zeigen auf Staging statt auf nichts. Schritte in
+   `docs/RUNTIME_CONFIG_UND_PREVIEW_ISOLATION.md`.
+
+2. **Die beiden fehlenden Seed-Tabellen nachziehen** (siehe oben).
+
+3. **Migrations-Ledger auf Produktion in Ordnung bringen.** Dort stehen weiterhin nur 7
+   Einträge. **Schreibvorgang auf Produktion** — bewusst und einzeln ausführen.
+
+4. **`verify-db-security-invariants` gegen Staging laufen lassen.** Der Katalog-Vergleich oben
+   zeigt, dass die Rechte gleich *aussehen*; der Check misst, was `anon` und `authenticated`
+   tatsächlich *dürfen*. Braucht auf Staging zuerst die Rolle `voxera_ci_verifier`
+   (`supabase/migrations/2026-08-08_ci_security_verifier_role.sql` und `…_census_v2.sql`,
+   dann Passwort setzen — siehe `docs/DB_SECURITY_CI_SETUP.md`). Deren beide Hilfsfunktionen
+   haben auf Staging bewusst noch kein `EXECUTE`-Grant, weil die Rolle fehlt.
+
+5. **Erst danach den End-to-End-Test fahren** — auf Staging, nicht auf Produktion.
