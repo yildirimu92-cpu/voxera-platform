@@ -7741,7 +7741,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                  Sektionen darunter bleiben im DOM (hidden), damit bestehende
                  Render-/Event-Wiring nicht bricht. -->
             <section id="dash-lara-message" class="vx-lara-message">
-              <div class="vx-lara-avatar" aria-hidden="true">L</div>
+              <div id="dash-lara-avatar" class="vx-lara-avatar" aria-hidden="true">L</div>
               <div class="vx-lara-bubble">
                 <p id="dash-lara-text" class="vx-lara-text"></p>
                 <div id="dash-lara-meta" class="vx-lara-meta"></div>
@@ -21245,6 +21245,7 @@ function vxHeuteScrollToAnfragen(event) {
 function vxHeuteRenderLaraHandover(sourceRecords) {
   var msgEl = document.getElementById('dash-lara-text');
   var metaEl = document.getElementById('dash-lara-meta');
+  var avatarEl = document.getElementById('dash-lara-avatar');
   var needsSection = document.getElementById('dash-needs-you-section');
   var needsList = document.getElementById('dash-needs-you-list');
   var needsCountEl = document.getElementById('dash-needs-you-count');
@@ -21275,9 +21276,12 @@ function vxHeuteRenderLaraHandover(sourceRecords) {
   }
 
   msgEl.textContent = vxHeuteBuildLaraMessage(visitRef, todayCalls.length, newCount, resolvedRecords.length, needsRecords.length);
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
   if (metaEl) {
-    var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
     metaEl.textContent = assistantName + ' · gerade eben';
+  }
+  if (avatarEl) {
+    avatarEl.textContent = assistantName.charAt(0).toUpperCase();
   }
 
   var hasNeeds = needsRecords.length > 0;
