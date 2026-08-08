@@ -1,0 +1,40 @@
+name: Verify call summary correction
+
+# Guards die Kundenkorrektur der KI-Zusammenfassung (Etappe 4 Teil B, Feature 3).
+#
+# Die teure Regression waere still: schriebe die Korrektur wieder nach
+# calls.call_summary, wuerde ein verspaeteter oder wiederholter Post-Call-
+# Webhook sie ueberschreiben und den Eintrag zusaetzlich auf
+# dashboard_status = 'new' zuruecksetzen. Ebenso still waere der Verlust des
+# Originals oder eine Korrektur, die nur im Detail gilt, waehrend Liste und
+# Heute weiter den alten Text zeigen.
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-call-view-model.js'
+      - 'customer-dashboard/netlify/functions/call-save-summary-correction.js'
+      - 'customer-dashboard/tests/call-summary-correction.test.cjs'
+      - 'supabase/sql/2026-08-08_call_summary_correction.sql'
+      - '.github/workflows/verify-call-summary-correction.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-call-view-model.js'
+      - 'customer-dashboard/netlify/functions/call-save-summary-correction.js'
+      - 'customer-dashboard/tests/call-summary-correction.test.cjs'
+      - 'supabase/sql/2026-08-08_call_summary_correction.sql'
+      - '.github/workflows/verify-call-summary-correction.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --test customer-dashboard/tests/call-summary-correction.test.cjs

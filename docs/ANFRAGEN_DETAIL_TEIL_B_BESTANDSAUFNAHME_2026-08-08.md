@@ -336,17 +336,46 @@ Existiert Feature 1, verlinkt die Option „Termin gebucht" auf den echten Termi
 
 ---
 
-## Teil D — Offene Entscheidungen vor Umsetzung
+## Teil D — Entscheidungen (getroffen am 08.08.2026)
 
-| # | Frage | Empfehlung |
+| # | Frage | Entscheidung |
 |---|---|---|
-| 1 | Reihenfolge | 3 → 1 → 2 (Alternative: 1 → 3 → 2) |
+| 1 | Reihenfolge | **3 → 1 → 2** |
 | 2 | E1: Termin als eigene Achse oder fünfter Zustand? | eigene Achse |
 | 3 | E2: eigene Tabelle `call_appointments` oder Spalten auf `calls`? | eigene Tabelle |
 | 4 | E3: `booking_mode` als Spalte oder `feature_enabled` umdeuten? | eigene Spalte |
-| 5 | Bestätigungsmail: woher kommt die Empfängeradresse? | **offen — `calls` hat keine E-Mail-Spalte** |
-| 6 | Ergebnis: Spalten an beiden Tabellen oder gemeinsame Tabelle? | hängt an der Fakturierungs-Anforderung |
+| 5 | Bestätigungsmail: woher kommt die Empfängeradresse? | **im Buchungsdialog erfassen** — eigene Spalte an `call_appointments`, damit die Mail auch greift, wenn Lara keine Adresse erfragt hat |
+| 6 | Ergebnis: Spalten an beiden Tabellen oder gemeinsame Tabelle? | **Spalten an `calls` und `customer_tasks`** — „Fakturierung" heisst belegen, nicht auswerten. Keine Tabelle `follow_up_outcomes` |
 | 7 | Fliesst die KI-Korrektur an ElevenLabs zurück? | nein, nicht in diesem Schritt |
+
+### Umsetzungsstand
+
+| Feature | Stand |
+|---|---|
+| 3 — KI-Zusammenfassung korrigieren | **umgesetzt** (siehe unten) |
+| 1 — Termin einbuchen | offen |
+| 2 — Rückruf-Ergebnis festhalten | offen |
+
+**Feature 3 — was gebaut wurde**
+
+* Migration `supabase/sql/2026-08-08_call_summary_correction.sql`: drei Spalten
+  `call_summary_corrected`, `call_summary_corrected_at`, `call_summary_corrected_by` an `calls`.
+  Bewusst **ohne** Erweiterung des spaltengenauen UPDATE-Rechts von `authenticated`.
+* Schreibpfad `customer-dashboard/netlify/functions/call-save-summary-correction.js`:
+  Service-Role, Ownership-Prüfung, schreibt ausschliesslich die drei Spalten. Leerer Text nimmt
+  die Korrektur zurück.
+* Lesepfad: `vxGetCallSummary()` und `customer-call-view-model.js` führen `call_summary_corrected`
+  an der Spitze. Zusätzlich wurden die Vorschautexte in Anfragen-Liste, Archiv, Heute,
+  Prioritätsliste, Tagesbericht, CSV-Export, Suche und E-Mail-Weiterleitung auf den kanonischen
+  Getter umgestellt — vorher lasen sie `f.call_summary` direkt, die Korrektur wäre dort unsichtbar
+  geblieben.
+* **Nicht umgestellt, mit Absicht:** `getCallDisplayState()`, die Testanruf-Heuristik und
+  `isAnalysisPending()` im View-Model. Sie fragen „hat die KI etwas geliefert" — eine Kundeneingabe
+  darf dort nicht als Analyse durchgehen, sonst verschwindet „Wird ausgewertet" zu früh.
+* UI: Anliegen-Karte mit zwei Zuständen, Inline-Bearbeitung, Aufklapper „Original ansehen",
+  „Korrektur entfernen". Kein neues Modal.
+* Abnahme: `customer-dashboard/tests/call-summary-correction.test.cjs` (17 Fälle),
+  Workflow `verify-call-summary-correction.yml`.
 
 ---
 

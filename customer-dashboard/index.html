@@ -9348,7 +9348,7 @@ function vxDashGetTaskDescription(record, typeMeta, contactName) {
     }
   } else {
     // Call: KI-Zusammenfassung zuerst — kein category-Fallback (verhindert company_name)
-    var summary = String(f.call_summary || f.summary || '').trim();
+    var summary = String(vxGetCallSummary(f) || '').trim();
     if (summary && !vxDashIsGenericLabel(summary)) {
       detail = summary.length > MAX ? summary.slice(0, MAX - 1).trim() + '…' : summary;
     } else if (f.callback_requested === true || f.callback_requested === 'true') {
@@ -9543,7 +9543,7 @@ function renderDashFocusCard() {
   var phone = f.phone || f.caller_phone || f.tel_link || '';
   var name = f.caller_name || f.name || phone || 'Unbekannt';
   var company = f.company_name || '';
-  var summary = String(f.call_summary || f.summary || f.note || f.notes || '').trim();
+  var summary = String(vxGetCallSummary(f) || f.note || f.notes || '').trim();
   var isCallback = f.callback_requested === true || f.callback_requested === 'true';
   var isDone = vxInquiryIsCompleted(rec);
   var isUrgent = String(f.urgency || '').toLowerCase() === 'sofort';
@@ -9703,7 +9703,7 @@ function renderDashPriorityList() {
       var phone = String(f.caller_phone || f.phone_number || f.phone || '').trim();
       var name = vxDashResolveWorkTitle(rec);
       var company = (f.company_name && f.caller_name && f.company_name !== f.caller_name) ? f.company_name : '';
-      var rawSummary = String(f.call_summary || f.summary || f.note || f.notes || '').trim();
+      var rawSummary = String(vxGetCallSummary(f) || f.note || f.notes || '').trim();
       var summary = rawSummary && !vxDashIsGenericLabel(rawSummary)
         ? (rawSummary.length > 120 ? rawSummary.slice(0, 117).trim() + '…' : rawSummary)
         : '';
@@ -10836,7 +10836,7 @@ function dprAction(action, recId, extra) {
   }
   if (action === 'copy-details') {
     var src = (sourceRec && sourceRec.fields) || {};
-    var txt = [src.caller_name || src.name || '', src.caller_phone || src.phone || '', src.call_summary || src.summary || src.note || ''].filter(Boolean).join('\n');
+    var txt = [src.caller_name || src.name || '', src.caller_phone || src.phone || '', vxGetCallSummary(src) || src.note || ''].filter(Boolean).join('\n');
     if (navigator.clipboard && txt) navigator.clipboard.writeText(txt).catch(function(){});
     return;
   }
@@ -13796,7 +13796,7 @@ function vxBuildEntryViewModel(record) {
     workBucket: workBucket,
     title: vxEntryTitle(record),
     phone: String((record && (record.phone || record.caller_phone || record.phone_number)) || f.phone || f.caller_phone || f.phone_number || '').trim(),
-    summary: String((record && (record.summary || record.call_summary || record.note || record.notes || record.transcript)) || f.summary || f.call_summary || f.note || f.notes || f.transcript || '').trim(),
+    summary: String((record && (record.call_summary_corrected || record.summary || record.call_summary || record.note || record.notes || record.transcript)) || f.call_summary_corrected || f.summary || f.call_summary || f.note || f.notes || f.transcript || '').trim(),
     createdAt: vxEntryCreatedAt(record),
     dueAt: (record && (record.callback_at || record.follow_up_at || record.followup_at || record.due_at || record.due_date)) || f.callback_at || f.follow_up_at || f.followup_at || f.due_at || f.due_date || '',
     completedAt: vxEntryCompletedAt(record),
@@ -15641,7 +15641,7 @@ async function generateAiDailyReport(records, manualTasks, lastSignInAt) {
   var callbacksSummary = openCallbacks.slice(0, 5).map(function(r) {
     var f = r.fields || {};
     var name = f.caller_name || f.company_name || 'Unbekannt';
-    var summary = f.summary || f.call_summary || '';
+    var summary = vxGetCallSummary(f) || '';
     return '- ' + name + (summary ? ': ' + String(summary).slice(0, 100) : '');
   }).join('\n');
 
@@ -17605,7 +17605,10 @@ function vxRenderTranscriptCardHtml(rawTranscript) {
 
 function vxGetCallSummary(callOrFields) {
   var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : (callOrFields || {});
-  var summaryKeys = ['call_summary', 'summary', 'call_summary_short', 'ai_summary', 'analysis_summary'];
+  // call_summary_corrected zuerst: hat der Kunde die KI-Ausgabe korrigiert,
+  // ist seine Fassung die gueltige. call_summary bleibt daneben als Original
+  // erhalten (vxGetCallSummaryOriginal).
+  var summaryKeys = ['call_summary_corrected', 'call_summary', 'summary', 'call_summary_short', 'ai_summary', 'analysis_summary'];
   for (var i = 0; i < summaryKeys.length; i++) {
     var val = src[summaryKeys[i]];
     if (val == null) continue;
@@ -17613,6 +17616,28 @@ function vxGetCallSummary(callOrFields) {
     if (text) return text;
   }
   return '';
+}
+
+// Die KI-Ausgabe, ohne Kundenkorrektur. Quelle fuer "Original ansehen" und
+// fuer den Textkoerper beim Start der Bearbeitung.
+function vxGetCallSummaryOriginal(callOrFields) {
+  var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : (callOrFields || {});
+  var keys = ['call_summary', 'summary', 'call_summary_short', 'ai_summary', 'analysis_summary'];
+  for (var i = 0; i < keys.length; i++) {
+    var val = src[keys[i]];
+    if (val == null) continue;
+    var text = String(val).trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+// Traegt der Eintrag eine Kundenkorrektur? Nur diese eine Spalte zaehlt —
+// nicht "corrected weicht von call_summary ab", denn eine Korrektur, die
+// zufaellig gleich lautet, ist trotzdem eine Korrektur.
+function vxHasCallSummaryCorrection(callOrFields) {
+  var src = (callOrFields && callOrFields.fields) ? callOrFields.fields : (callOrFields || {});
+  return String(src.call_summary_corrected == null ? '' : src.call_summary_corrected).trim() !== '';
 }
 
 function vxGetCallTranscript(callOrFields) {
@@ -18110,11 +18135,19 @@ function vxPatchLocalRecordReadState(recordId, isUnread, readAtIso) {
     });
   });
 }
-function vxRefreshAfterReadStateChange() {
+// Die drei Flaechen, die denselben Eintrag zeigen: Heute, Anfragen-Liste und
+// Prioritaetsliste. Jede Aenderung am sichtbaren Inhalt eines Eintrags muss
+// alle drei anfassen, sonst zeigt eine davon weiter den alten Stand.
+function vxRefreshRecordSurfaces() {
   if (typeof renderDashboard === 'function') renderDashboard(allRecords || [], allManualTaskRecords || []);
   if (typeof renderAnrufe === 'function') renderAnrufe();
   if (typeof renderDashPriorityList === 'function') renderDashPriorityList();
 }
+// Bestandsname der Lesezustands-Aufrufstellen — ab hier nur Alias.
+function vxRefreshAfterReadStateChange() {
+  return vxRefreshRecordSurfaces();
+}
+window.vxRefreshRecordSurfaces = vxRefreshRecordSurfaces;
 
 function vxMarkCallAsRead(callId) {
   if (!callId) return;
@@ -19794,7 +19827,7 @@ function vxHeuteRecordTitle(record) {
   return vxHeuteGetRecordValue(record, ['caller_name','name','company_name','title','phone','caller_phone','phone_number']) || 'Unbekannter Eintrag';
 }
 function vxHeuteRecordSummary(record) {
-  var raw = vxHeuteGetRecordValue(record, ['call_summary','summary','note','notes','transcript']) || '';
+  var raw = vxHeuteGetRecordValue(record, ['call_summary_corrected','call_summary','summary','note','notes','transcript']) || '';
   raw = String(raw || '').trim();
   if (!raw) return '';
   return raw.length > 72 ? raw.slice(0, 69).trim() + '…' : raw;
@@ -21341,7 +21374,7 @@ function renderList(containerId, records, opts) {
     const callTarget = phoneLink || phoneRaw.replace(/\s/g,'');
     const notizText = (f.notes_customer_voxera || '').trim();
     const showActions = opts.showActions !== false;
-    const summary = (f.call_summary || fallbackCallSummary(f) || '').trim();
+    const summary = (vxGetCallSummary(f) || fallbackCallSummary(f) || '').trim();
     const visibleSummary = isDashLikePlaceholder(summary) ? '' : summary;
     const categoryLabel = getCallCategoryDisplayLabel(r);
     const callSummary = opts.dashboardView ? visibleSummary.substring(0, 140) : visibleSummary;
@@ -21625,7 +21658,7 @@ function renderAnrufe() {
         r && r.name, r && r.caller_name, r && r.phone, r && r.caller_phone, r && r.phone_number,
         r && r.summary, r && r.transcript, r && r.category, r && r.lead_quality, r && r.dashboard_status,
         f.name, f.caller_name, f.phone, f.caller_phone, f.phone_number,
-        f.call_summary, f.summary, f.transcript, f.category, f.lead_quality, f.dashboard_status
+        f.call_summary_corrected, f.call_summary, f.summary, f.transcript, f.category, f.lead_quality, f.dashboard_status
       ].filter(function(v){ return v != null; }).map(function(v){ return String(v).toLowerCase(); }).join(' ');
       return haystack.indexOf(_searchQ) !== -1;
     });
@@ -21835,7 +21868,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
       var preview = '';
       if (stateMeta.state === 'live') preview = assistantName + ' nimmt den Anruf gerade entgegen.';
       else if (stateMeta.state === 'processing' || stateMeta.state === 'checking') preview = 'Zusammenfassung wird erstellt.';
-      else preview = String(fields.call_summary || fields.summary || fields.note || '').trim();
+      else preview = String(vxGetCallSummary(fields) || fields.note || '').trim();
       if (!preview) preview = vxDashGetTaskDescription(rec, typeMeta, name);
       if (preview.length > 110) preview = preview.slice(0, 107) + '…';
 
@@ -22331,7 +22364,7 @@ function renderArchivInbox(containerId, records) {
       var _typeMeta = (typeof vxDashGetCommandTypeMeta === 'function') ? vxDashGetCommandTypeMeta(rec) : {icon:'phone-incoming', label:'Anruf', pillClass:'dpr-kind-default', kind:'incoming'};
       var iconName = _typeMeta.icon || 'phone-incoming';
       var _isCallIcon = _typeMeta.kind === 'callback' || _typeMeta.kind === 'incoming';
-      var _preview = String(f.call_summary || f.summary || f.note || '').trim();
+      var _preview = String(vxGetCallSummary(f) || f.note || '').trim();
       if (_preview.length > 65) _preview = _preview.slice(0, 62) + '…';
       var ts2 = getRecordTimestamp(rec);
       var _timeStr = ts2 ? _formatRelativeTime(ts2) : '';
@@ -22498,7 +22531,7 @@ function exportArchiv() {
       f.caller_phone||f.phone_number||'',
       f.category||'',
       date, time,
-      (f.call_summary||'').replace(/\n/g,' '),
+      (vxGetCallSummary(f)||'').replace(/\n/g,' '),
       followUp,
       (f.notes_customer_voxera||'').replace(/\n/g,' ')
     ]);
@@ -23300,7 +23333,7 @@ async function saveFollowup() {
         due_at: dueAt,
         due_time: dueTime,
         status: 'new',
-        note: text || nextAction || sourceFields.call_summary || sourceFields.notes_customer_voxera || null,
+        note: text || nextAction || vxGetCallSummary(sourceFields) || sourceFields.notes_customer_voxera || null,
         phone: phone || null,
         source_type: 'call',
         source_call_id: String(recordId || '')
@@ -23421,7 +23454,7 @@ function openManualTaskFromCall(recordId) {
   if (titleEl) titleEl.value = callback
     ? ((caller || 'Kontakt') + ' zurückrufen')
     : ('Anfrage' + (caller ? ' von ' + caller : '') + ' prüfen');
-  if (noteEl) noteEl.value = String(f.call_summary || f.next_action || f.notes_customer_voxera || '').trim();
+  if (noteEl) noteEl.value = String(vxGetCallSummary(f) || f.next_action || f.notes_customer_voxera || '').trim();
   if (phoneEl) phoneEl.value = String(f.caller_phone || f.tel_link || '').trim();
 }
 window.openManualTaskFromCall = openManualTaskFromCall;
@@ -23750,7 +23783,7 @@ function vxEmailForward(recordId) {
   var phone = f.phone_number || f.caller_phone || '';
   var category = f.category || '';
   var duration = f.duration_seconds ? Math.round(Number(f.duration_seconds)/60) + ' Min.' : '';
-  var summary = f.call_summary || '';
+  var summary = vxGetCallSummary(f) || '';
   var notiz = f.notes_customer_voxera || '';
   var quality = f.lead_quality || '';
   var date = fmtExactDateTime(getRecordTimestamp(rec)) || '';
@@ -36842,6 +36875,20 @@ body:has(#tab-archiv.active) .content{
 .vx-dv2-task-note-empty{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);font-style:italic;}
 /* Anliegen in der Newsreader-Serife — gleiche Sprache wie der Heute-Screen. */
 .vx-dv2-concern{font-family:var(--vx-font-serif,'Newsreader',Georgia,serif);font-size:15px;line-height:1.6;color:var(--vx-ui-row-title-color);}
+/* Kundenkorrektur der Zusammenfassung. Kein eigener Farbton: eine korrigierte
+   Fassung ist kein Zustand des Eintrags, sondern nur eine andere Textquelle —
+   getragen wird der Unterschied vom Metatext in der Kopfzeile. */
+.vx-dv2-concern-stamp{font-size:11px;color:var(--vx-ui-meta-color);margin-top:6px;}
+.vx-dv2-concern-original{margin-top:8px;}
+.vx-dv2-concern-original>summary{cursor:pointer;font-size:var(--vx-ui-row-time-size);font-weight:700;color:var(--vx-color-night,#0D1F3C);list-style:none;}
+.vx-dv2-concern-original>summary::-webkit-details-marker{display:none;}
+.vx-dv2-concern-original-text{margin-top:6px;padding:10px 12px;border-radius:var(--vx-ui-row-radius);background:var(--vx-color-canvas,#F7F8FA);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);font-family:var(--vx-font-serif,'Newsreader',Georgia,serif);font-size:14px;line-height:1.6;color:var(--vx-ui-row-desc-color);}
+.vx-dv2-concern-tools{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;}
+.vx-dv2-concern-link{display:inline-flex;align-items:center;gap:5px;padding:0;border:0;background:none;cursor:pointer;font-family:var(--vx-ui-row-font);font-size:var(--vx-ui-row-time-size);font-weight:700;color:var(--vx-color-night,#0D1F3C);}
+.vx-dv2-concern-link:hover{text-decoration:underline;}
+.vx-dv2-concern-actions{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+/* hidden muss die Flex-Regeln der Kinder ueberstimmen. */
+.vx-dv2-concern-view[hidden],.vx-dv2-concern-edit[hidden]{display:none;}
 .vx-dv2-next-step{margin-top:10px;padding-top:10px;border-top:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);}
 @media(max-width:1180px){.vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:760px){.vx-dv2-info-grid{grid-template-columns:1fr;}.vx-dv2-actions{position:sticky;top:0;z-index:2;}}
@@ -36999,6 +37046,12 @@ body:has(#tab-archiv.active) .content{
   function getSummary(record){
     var f = getRecordFields(record);
     try { if (typeof vxGetCallSummary === 'function') return String(vxGetCallSummary(record) || '').trim(); } catch(e) {}
+    return firstNonEmpty(f.call_summary_corrected, f.call_summary, f.summary, f.ai_summary, f.description, record && record.summary);
+  }
+  // Die KI-Ausgabe ohne Kundenkorrektur — Quelle fuer "Original ansehen".
+  function getSummaryOriginal(record){
+    var f = getRecordFields(record);
+    try { if (typeof vxGetCallSummaryOriginal === 'function') return String(vxGetCallSummaryOriginal(record) || '').trim(); } catch(e) {}
     return firstNonEmpty(f.call_summary, f.summary, f.ai_summary, f.description, record && record.summary);
   }
   function getTranscript(record){
@@ -37181,27 +37234,163 @@ body:has(#tab-archiv.active) .content{
     return out.join('');
   }
 
+  // ── Anliegen-Karte: KI-Zusammenfassung und Kundenkorrektur ──────────────
+  // Die Karte traegt zwei Zustaende ("Automatisch erstellt" / "Von dir
+  // korrigiert") und wechselt zwischen Anzeige und Bearbeitung. Sie bekommt
+  // deshalb eine eigene Baufunktion: Erstaufbau und Neuzeichnen nach dem
+  // Speichern laufen beide durch genau diese Stelle, es gibt kein zweites
+  // Markup der Karte.
+  //
+  // Bewusst kein Modal (Teil C des Umsetzungsplans): die Dialoglinie S1–S11
+  // ist gerade erst abgeschlossen, jeder neue Dialog kostet Dialog-Vertrag,
+  // Fokusfalle, Escape-Eintrag und z-Ebene. Bearbeitet wird inline, nach dem
+  // Muster der Notiz-Karte weiter unten.
+  function buildConcernCardInnerHtml(record){
+    var f = getRecordFields(record);
+    var corrected = firstNonEmpty(f.call_summary_corrected);
+    var original = getSummaryOriginal(record);
+    var shown = corrected || original;
+    var correctedAt = firstNonEmpty(f.call_summary_corrected_at);
+    var actionMeta = inferActionMeta(record);
+
+    var html = '<div class="vx-dv2-card-head"><div><i class="ph-bold ph-sparkle"></i> Anliegen</div>' +
+               '<span>' + (corrected ? 'Von dir korrigiert' : 'Automatisch erstellt') + '</span></div>';
+
+    html += '<div class="vx-dv2-concern-view">';
+    html +=   shown
+      ? '<div class="vx-dv2-concern">' + esc(shown) + '</div>'
+      : '<div class="vx-dv2-muted">Keine Zusammenfassung verfügbar.</div>';
+    if (corrected && correctedAt) {
+      html += '<div class="vx-dv2-concern-stamp">Korrigiert am ' + esc(fmtTs(correctedAt)) + '</div>';
+    }
+    // Das Original bleibt erreichbar, solange eine Korrektur daruebersteht —
+    // sonst waere nicht mehr nachvollziehbar, was die KI verstanden hat.
+    if (corrected && original) {
+      html += '<details class="vx-dv2-concern-original">' +
+                '<summary>Original ansehen</summary>' +
+                '<div class="vx-dv2-concern-original-text">' + esc(original) + '</div>' +
+              '</details>';
+    }
+    html +=   '<div class="vx-dv2-concern-tools">';
+    html +=     '<button type="button" class="vx-dv2-concern-link" onclick="vxConcernStartEdit()">' +
+                  '<i class="ph-bold ph-pencil-simple" aria-hidden="true"></i>' +
+                  (corrected ? 'Korrektur bearbeiten' : (shown ? 'Korrigieren' : 'Zusammenfassung ergänzen')) +
+                '</button>';
+    if (corrected) {
+      html +=   '<button type="button" class="vx-dv2-concern-link" onclick="vxConcernReset()">Korrektur entfernen</button>';
+    }
+    html +=   '</div>';
+    html += '</div>';
+
+    html += '<div class="vx-dv2-concern-edit" hidden>';
+    html +=   '<textarea id="vx-dv2-concern-input" class="vx-dv2-note" aria-label="Zusammenfassung korrigieren" placeholder="Zusammenfassung in eigenen Worten…">' + esc(corrected || original) + '</textarea>';
+    html +=   '<div class="vx-dv2-concern-actions">';
+    html +=     '<button type="button" class="vx-dv2-btn vx-dv2-btn-primary" id="vx-dv2-concern-save" onclick="vxConcernSave()">Speichern</button>';
+    html +=     '<button type="button" class="vx-dv2-btn" onclick="vxConcernCancelEdit()">Abbrechen</button>';
+    html +=     '<span class="vx-dv2-muted">Die automatische Fassung bleibt erhalten.</span>';
+    html +=   '</div>';
+    html += '</div>';
+
+    html += '<div class="vx-dv2-next-step">';
+    html +=   '<div class="vx-dv2-info-label" style="margin-bottom:4px;">Nächster Schritt</div>';
+    html +=   '<div class="vx-dv2-text">' + esc(actionMeta.text) + '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function concernCardEl(){
+    return document.querySelector('.vx-dv2-shell [data-vx-concern-card]');
+  }
+  // Bestandsweg der Datensatzsuche — er kennt bereits alle Pools (window und
+  // lokale Bindung) und die Alt-IDs. Eine eigene Suche waere eine zweite
+  // Auflegung derselben Logik.
+  function currentCallRecord(){
+    var id = firstNonEmpty(window._vxCurrentCallId, window._vxActiveRecordId);
+    if (!id) return null;
+    try {
+      if (typeof window.vxFindRecordByIdSafe === 'function') return window.vxFindRecordByIdSafe(id);
+    } catch(e) {}
+    return null;
+  }
+  function setConcernMode(editing){
+    var card = concernCardEl();
+    if (!card) return;
+    var view = card.querySelector('.vx-dv2-concern-view');
+    var edit = card.querySelector('.vx-dv2-concern-edit');
+    if (!view || !edit) return;
+    view.hidden = !!editing;
+    edit.hidden = !editing;
+    if (!editing) return;
+    var input = card.querySelector('#vx-dv2-concern-input');
+    if (!input) return;
+    try { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } catch(e) {}
+  }
+  // Nur die Anliegen-Karte zeichnet sich neu, nicht die ganze Detailansicht:
+  // alles andere ist unveraendert, und ein Neuaufbau der Shell wuerde offene
+  // Akkordeons und die Scrollposition verlieren. Das Markup kommt aus
+  // derselben Baufunktion wie beim Erstaufbau.
+  function repaintConcernCard(){
+    var card = concernCardEl();
+    var rec = currentCallRecord();
+    if (!card || !rec) return false;
+    card.innerHTML = buildConcernCardInnerHtml(normalizeForDisplay(rec));
+    return true;
+  }
+  // nextValue === '' nimmt die Korrektur zurueck; danach gilt wieder die
+  // KI-Ausgabe.
+  function saveConcernCorrection(nextValue){
+    var rec = currentCallRecord();
+    var callId = firstNonEmpty(window._vxCurrentCallId, rec && rec.id);
+    if (!callId) return;
+    if (typeof window.callDashboardFunction !== 'function') {
+      try { if (typeof window.toast === 'function') window.toast('Verbindung fehlt.', 'error'); } catch(e) {}
+      return;
+    }
+    var card = concernCardEl();
+    var btn = card ? card.querySelector('#vx-dv2-concern-save') : null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Speichert…'; }
+
+    window.callDashboardFunction('call-save-summary-correction', {
+      call_id: String(callId),
+      corrected_summary: nextValue
+    }).then(function(json){
+      // Der Server ist die Quelle fuer Text, Zeitstempel und Urheber — der
+      // lokale Datensatz uebernimmt, was tatsaechlich geschrieben wurde.
+      var saved = (json && json.call) || null;
+      if (rec) {
+        if (!rec.fields) rec.fields = {};
+        rec.fields.call_summary_corrected = saved ? saved.call_summary_corrected : null;
+        rec.fields.call_summary_corrected_at = saved ? saved.call_summary_corrected_at : null;
+        rec.fields.call_summary_corrected_by = saved ? saved.call_summary_corrected_by : null;
+        if (saved && saved.updated_at) rec.fields.updated_at = saved.updated_at;
+      }
+      repaintConcernCard();
+      // Liste, Heute und Prioritaetsliste zeigen dieselbe Zusammenfassung.
+      try { if (typeof window.vxRefreshRecordSurfaces === 'function') window.vxRefreshRecordSurfaces(); } catch(e) {}
+      try {
+        if (typeof window.toast === 'function') {
+          window.toast(nextValue ? 'Zusammenfassung korrigiert' : 'Korrektur entfernt', 'success');
+        }
+      } catch(e) {}
+    }).catch(function(err){
+      if (btn) { btn.disabled = false; btn.textContent = 'Speichern'; }
+      var msg = (err && err.message) ? String(err.message) : 'Die Korrektur konnte nicht gespeichert werden.';
+      try { if (typeof window.toast === 'function') window.toast(msg, 'error'); } catch(e) {}
+    });
+  }
+
   // ── Body: Anfrage ───────────────────────────────────────────────────────
   function buildCallBodyHtml(record){
     var f = getRecordFields(record);
     var phone = phoneOf(record);
     var rawDate = firstNonEmpty(f.created_at, f.received_at, f.started_at, record && record.created_at);
-    var summary = getSummary(record);
     var note = noteOf(record);
     var transcript = getTranscript(record);
     var done = isCompleted(record);
     var planned = isPlanned(record);
-    var actionMeta = inferActionMeta(record);
 
     var html = '<div class="vx-dv2-body">';
-    html +=   '<div class="vx-dv2-card">';
-    html +=     '<div class="vx-dv2-card-head"><div><i class="ph-bold ph-sparkle"></i> Anliegen</div><span>Automatisch erstellt</span></div>';
-    html +=     (summary ? '<div class="vx-dv2-concern">'+esc(summary)+'</div>' : '<div class="vx-dv2-muted">Keine Zusammenfassung verfügbar.</div>');
-    html +=     '<div class="vx-dv2-next-step">';
-    html +=       '<div class="vx-dv2-info-label" style="margin-bottom:4px;">Nächster Schritt</div>';
-    html +=       '<div class="vx-dv2-text">'+esc(actionMeta.text)+'</div>';
-    html +=     '</div>';
-    html +=   '</div>';
+    html +=   '<div class="vx-dv2-card" data-vx-concern-card="1">' + buildConcernCardInnerHtml(record) + '</div>';
 
     var hasAudio = false;
     try {
@@ -37420,6 +37609,22 @@ body:has(#tab-archiv.active) .content{
   };
   window.vxIsTaskDetailV2Record = isTaskRecord;
   window.vxDv2LoadHistory = vxDv2LoadHistory;
+  // Anliegen-Karte: die vier Aktionen der Kundenkorrektur. Sie liegen hier
+  // und nicht im globalen Skriptbereich, weil sie dasselbe Markup bauen wie
+  // die Komponente — getrennt waeren es zwei Stellen, die es kennen.
+  window.vxConcernStartEdit = function(){ setConcernMode(true); };
+  window.vxConcernCancelEdit = function(){
+    // Neu zeichnen statt nur umschalten: sonst haelt die Textarea den
+    // verworfenen Text bis zum naechsten Rendern.
+    if (!repaintConcernCard()) setConcernMode(false);
+  };
+  window.vxConcernSave = function(){
+    var card = concernCardEl();
+    var input = card ? card.querySelector('#vx-dv2-concern-input') : null;
+    if (!input) return;
+    saveConcernCorrection(String(input.value || '').trim());
+  };
+  window.vxConcernReset = function(){ saveConcernCorrection(''); };
   window.vxRenderDetailBodyHtml = function(record){ return buildCallBodyHtml(normalizeForDisplay(record)); };
   window.vxRenderDetailV2Actions = function(record, context){ return buildActionRowHtml(normalizeForDisplay(record), context || {}); };
   window.vxInferDetailActionMeta = function(record){ return inferActionMeta(normalizeForDisplay(record)); };

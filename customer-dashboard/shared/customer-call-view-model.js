@@ -102,8 +102,11 @@
     return text(first(record, ['caller_phone', 'phone_number', 'from_number'])) || null;
   }
 
+  // call_summary_corrected schlaegt auch die Kurzfassung: hat der Kunde die
+  // Zusammenfassung korrigiert, ist seine Fassung die gueltige, sonst zeigt
+  // die Liste weiter den Text, den er gerade weggeraeumt hat.
   function summary(record) {
-    return text(first(record, ['call_summary_short', 'call_summary', 'summary'])) || '';
+    return text(first(record, ['call_summary_corrected', 'call_summary_short', 'call_summary', 'summary'])) || '';
   }
 
   function durationSeconds(record) {
