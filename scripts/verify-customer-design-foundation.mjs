@@ -192,7 +192,6 @@ for (const token of [
   '#vx-business-profile-body .vx-ap-card',
   '#vx-business-profile-body .vx-ap-title',
   '#vx-business-profile-body textarea',
-  '#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)',
   '#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])',
   '.vx-nav-voice-details',
   '#vx-assistant-profile-body .vx-ap-card:first-child',
