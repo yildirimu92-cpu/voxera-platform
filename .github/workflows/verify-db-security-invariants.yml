@@ -80,5 +80,14 @@ jobs:
 
       - name: Invarianten gegen die Produktions-DB pruefen
         env:
+          # Zwei Wege, das Skript nimmt was da ist. Die Einzelfelder haben
+          # Vorrang und sind der robustere Weg: beim Connection-String muessen
+          # Sonderzeichen im Passwort URL-kodiert werden, und "/" oder "@"
+          # zerlegen ihn falsch -- `openssl rand -base64 32` erzeugt genau
+          # solche Zeichen. Ueber PGPASSWORD wird nichts geparst.
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_CI_VERIFIER }}
         run: node scripts/verify-db-security-invariants.mjs

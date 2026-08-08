@@ -52,7 +52,16 @@ Passwort an — sie kann sich damit nicht anmelden. Einmalig auf der Datenbank:
 alter role voxera_ci_verifier password '<hier ein starkes Zufallspasswort>';
 ```
 
-Zum Beispiel mit `openssl rand -base64 32`.
+**Kein `openssl rand -base64 32`**, wenn der Connection-String-Weg genutzt wird:
+Base64 erzeugt `/`, `+` und `=`, und `/` oder `@` in einem Passwort zerlegen den
+URI falsch. Stattdessen ein URL-sicheres Alphabet:
+
+```bash
+LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 40
+```
+
+Beim empfohlenen Weg über Einzelfelder (siehe unten) spielt das keine Rolle —
+dort wird das Passwort nie geparst.
 
 ### 3. Connection-String als GitHub-Secret hinterlegen
 
@@ -62,20 +71,47 @@ läuft in einen Timeout. Und es muss der **Session**-Modus (Port 5432) sein, nic
 der Transaction-Modus (6543): die Proben brauchen `SET LOCAL ROLE` innerhalb
 einer Transaktion.
 
-Den Host im Supabase-Dashboard unter **Connect → Session pooler** ablesen und
-Benutzer sowie Passwort ersetzen (Pooler-Benutzerformat: `<rolle>.<projekt-ref>`):
+Den Host im Supabase-Dashboard unter **Connect → Session pooler** ablesen. Der
+Benutzername braucht dort zwingend die Projekt-Referenz: `<rolle>.<projekt-ref>`,
+also z. B. `voxera_ci_verifier.abcdefghijklmnop`. Der bloße Rollenname reicht
+nicht — der Pooler kann die Verbindung sonst keinem Projekt zuordnen.
+
+**Empfohlen: Einzelfelder.** Damit entfällt jede URL-Kodierung, und Sonderzeichen
+im Passwort können nichts kaputt machen. Im Environment `production-db-readonly`
+anlegen:
+
+| Secret | Wert |
+| --- | --- |
+| `SUPABASE_DB_HOST` | der Session-Pooler-Host aus dem Dashboard |
+| `SUPABASE_DB_PORT` | `5432` |
+| `SUPABASE_DB_USER` | `voxera_ci_verifier.<projekt-ref>` |
+| `SUPABASE_DB_PASSWORD` | das gesetzte Passwort, unverändert |
+
+**Alternativ: Connection-String** als `SUPABASE_DB_URL_CI_VERIFIER` im selben
+Environment. Dann müssen `/`, `@`, `%`, `:` und `#` im Passwort prozent-kodiert
+werden:
 
 ```
 postgresql://voxera_ci_verifier.<projekt-ref>:<passwort>@<pooler-host>:5432/postgres?sslmode=require
 ```
 
-Diesen String anlegen als:
-
-- **Environment:** `production-db-readonly`
-- **Secret:** `SUPABASE_DB_URL_CI_VERIFIER`
+Sind beide gesetzt, gewinnen die Einzelfelder.
 
 Das eigene Environment sorgt dafür, dass jeder Zugriff auf die Produktions-
 Zugangsdaten einzeln auditierbar ist und unabhängig entzogen werden kann.
+
+### Verbindung außerhalb von CI prüfen
+
+Wenn der Check `password authentication failed` meldet, ist meist der
+Connection-String schuld und nicht die Datenbank. Direkt nachprüfbar mit:
+
+```bash
+PGPASSWORD='<passwort>' psql -h <pooler-host> -p 5432 \
+  -U voxera_ci_verifier.<projekt-ref> -d postgres -c 'select current_user'
+```
+
+Klappt das und CI nicht, liegt es an der Kodierung im Secret — dann auf die
+Einzelfelder wechseln.
 
 ### 4. Probelauf
 

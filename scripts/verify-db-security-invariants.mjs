@@ -54,6 +54,20 @@ const add = (status, group, name, detail = '') => results.push({ status, group, 
 
 const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL || '';
 
+// Alternative zum Connection-String: Einzelfelder. Damit entfaellt die
+// URL-Kodierung komplett -- ein Passwort aus `openssl rand -base64 32` enthaelt
+// '/', '+' und '=', und je nachdem, welches davon wo landet, zerlegt libpq den
+// String falsch oder die Anmeldung scheitert. Dieser Weg hat das Problem nicht,
+// weil das Passwort ueber PGPASSWORD geht und nie geparst wird.
+const dbParts = {
+  host: process.env.SUPABASE_DB_HOST || '',
+  port: process.env.SUPABASE_DB_PORT || '5432',
+  user: process.env.SUPABASE_DB_USER || '',
+  password: process.env.SUPABASE_DB_PASSWORD || '',
+  dbname: process.env.SUPABASE_DB_NAME || 'postgres',
+};
+const useParts = Boolean(dbParts.host && dbParts.user && dbParts.password);
+
 /** Das Passwort darf unter keinen Umstaenden im CI-Log landen. */
 function redact(text) {
   if (!text) return '';
@@ -65,6 +79,7 @@ function redact(text) {
     })();
     if (pw && pw.length > 3) out = out.split(pw).join('<redacted>');
   }
+  if (dbParts.password.length > 3) out = out.split(dbParts.password).join('<redacted>');
   return out;
 }
 
@@ -73,8 +88,13 @@ function sleep(ms) {
 }
 
 function runPsql(sqlFile) {
+  const connectionArgs = useParts
+    ? ['--host', dbParts.host, '--port', dbParts.port,
+       '--username', dbParts.user, '--dbname', dbParts.dbname]
+    : [dbUrl];
+
   const args = [
-    dbUrl,
+    ...connectionArgs,
     '--no-psqlrc',
     '--quiet',
     '--no-align',
@@ -89,6 +109,9 @@ function runPsql(sqlFile) {
     PGCONNECT_TIMEOUT: '10',
     PGAPPNAME: 'voxera-ci-security-verifier',
     PGOPTIONS: '-c client_min_messages=warning',
+    // Passwort ueber die Umgebung, nie als Argument: Argumente stehen in der
+    // Prozessliste und landen in Fehlermeldungen.
+    ...(useParts ? { PGPASSWORD: dbParts.password, PGSSLMODE: process.env.PGSSLMODE || 'require' } : {}),
   };
 
   let last = null;
@@ -296,11 +319,16 @@ function report() {
 
 // ── Ablauf ──────────────────────────────────────────────────────────────────
 
-if (!dbUrl) {
+if (!dbUrl && !useParts) {
   fail(EXIT_UNVERIFIABLE,
-    'SUPABASE_DB_URL ist nicht gesetzt -- die Invarianten sind damit NICHT geprueft.\n'
+    'Keine Datenbank-Zugangsdaten gesetzt -- die Invarianten sind damit NICHT geprueft.\n'
+    + 'Entweder SUPABASE_DB_URL (Connection-String) oder die Einzelfelder\n'
+    + 'SUPABASE_DB_HOST / _USER / _PASSWORD (empfohlen, keine URL-Kodierung noetig).\n'
     + 'Einrichtung: docs/DB_SECURITY_CI_SETUP.md');
 }
+process.stderr.write(useParts
+  ? `Verbinde ueber Einzelfelder: ${dbParts.user}@${dbParts.host}:${dbParts.port}\n`
+  : 'Verbinde ueber SUPABASE_DB_URL\n');
 
 const baseline = JSON.parse(fs.readFileSync(BASELINE, 'utf8'));
 
@@ -315,6 +343,34 @@ for (const [label, file] of [['Katalog', CATALOG_SQL], ['Laufzeitverhalten', BEH
         'Die Proben-Helfer fehlen auf der Datenbank -- die Migration\n'
         + '  supabase/migrations/2026-08-08_ci_security_verifier_role.sql\n'
         + 'ist noch nicht angewandt. Bis dahin sind die Invarianten NICHT geprueft.\n'
+        + `\npsql:\n${stderr}`);
+    }
+    // Haeufigster Einrichtungsfehler, und die generische Meldung hilft dabei
+    // nicht weiter. Die DB-Seite ist in diesem Fall meist in Ordnung -- es
+    // liegt am Connection-String.
+    if (/password authentication failed|28P01/i.test(stderr)) {
+      fail(EXIT_UNVERIFIABLE,
+        'Die Anmeldung an der Datenbank wurde abgelehnt -- die Invarianten sind NICHT geprueft.\n'
+        + '\nDie drei haeufigsten Ursachen, in dieser Reihenfolge:\n'
+        + '\n1. Sonderzeichen im Passwort. Ueber den Pooler laeuft ein URI, und "/", "@", "%"\n'
+        + '   und ":" im Passwort zerlegen ihn falsch -- `openssl rand -base64 32` erzeugt\n'
+        + '   genau solche Zeichen. Loesung: die Einzelfelder verwenden statt des URI\n'
+        + '   (SUPABASE_DB_HOST / _PORT / _USER / _PASSWORD / _NAME). Dann wird das Passwort\n'
+        + '   nirgends geparst.\n'
+        + '\n2. Benutzername ohne Projekt-Referenz. Der Pooler braucht das Format\n'
+        + '   <rolle>.<projekt-ref>, also z.B. voxera_ci_verifier.abcdefghijklmnop --\n'
+        + '   der blosse Rollenname reicht nicht.\n'
+        + '\n3. Das Passwort im Secret weicht von dem auf der Rolle gesetzten ab. Neu setzen:\n'
+        + "   alter role voxera_ci_verifier password '...';\n"
+        + '\nNachpruefen laesst sich das ausserhalb von CI mit:\n'
+        + '   PGPASSWORD=... psql -h <pooler-host> -p 5432 -U <rolle>.<ref> -d postgres -c "select 1"\n'
+        + '\nEinrichtung: docs/DB_SECURITY_CI_SETUP.md\n'
+        + `\npsql:\n${stderr}`);
+    }
+    if (/Tenant or user not found/i.test(stderr)) {
+      fail(EXIT_UNVERIFIABLE,
+        'Der Pooler kennt den Benutzer nicht. Fast immer fehlt die Projekt-Referenz im\n'
+        + 'Benutzernamen -- der Pooler erwartet <rolle>.<projekt-ref>, nicht nur <rolle>.\n'
         + `\npsql:\n${stderr}`);
     }
     if (/permission denied|must be member of role/i.test(stderr)) {
