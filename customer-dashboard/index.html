@@ -26461,20 +26461,24 @@ function showTab(name, el, options) {
   const opts = (options && typeof options === 'object') ? options : {};
   vxCloseTransientViewsForRootTab(name);
   
-  // ─── FIX: Call-Detail Page nur bei EXPLIZITEN Tab-Wechseln schließen ───
-  // (nicht bei internen showTab-Aufrufen ohne Click-Element wie Polling/Refresh)
-  var callDetailPage = document.getElementById('call-detail-page');
-  if (callDetailPage && callDetailPage.style.display === 'block') {
+  // ─── FIX: Detail-V2 (Vollbild ODER Split-Panel) nur bei EXPLIZITEN
+  // Tab-Wechseln schließen (nicht bei internen showTab-Aufrufen ohne
+  // Click-Element wie Polling/Refresh).
+  // Prüft die tatsächlichen Single-Mount-Hosts (#vx-detail-v2-fullscreen,
+  // #requests-detail-v2) statt der seit PR #824 nicht mehr existenten
+  // Legacy-ID #call-detail-page — sonst bleibt die Detailansicht beim
+  // Wechsel zu einem dritten Bereich (z.B. Assistent) gemountet, weil sie
+  // nur beim Wechsel Heute↔Anfragen indirekt über den erneuten mountDetail()
+  // dort freigegeben wurde.
+  var detailShell = document.getElementById('vx-detail-v2-fullscreen');
+  var detailPanelHost = document.getElementById('requests-detail-v2');
+  var detailV2Open = !!(detailShell && detailShell.classList.contains('is-open')) ||
+    !!(detailPanelHost && detailPanelHost.style.display === 'block');
+  if (detailV2Open) {
     var isExplicitUserAction = !!el || opts.historyMode === 'push';
     if (isExplicitUserAction) {
       window._vxLastAnfragenRecordId = window._vxActiveRecordId || window._vxLastAnfragenRecordId || window._vxCurrentCallId || window._vxCurrentTaskId || '';
-      if (typeof hideCallDetail === 'function') {
-        hideCallDetail();
-      } else {
-        callDetailPage.style.display = 'none';
-        vxSetScrollLock('call-detail-page', false);
-        vxSyncScrollLock();
-      }
+      if (typeof hideCallDetail === 'function') hideCallDetail();
     }
   }
   
