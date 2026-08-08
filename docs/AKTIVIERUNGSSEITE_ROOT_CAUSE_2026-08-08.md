@@ -109,13 +109,30 @@ Ein Kunde mit abgelaufenem Link las also wörtlich: *„Bitte kontaktieren Sie d
 **[email protected]**"*.
 
 Die Adresse ließ sich aus `data-cfemail` deterministisch zurückrechnen (erstes Byte ist der
-Schlüssel, Rest XOR): **`support@voxera.ch`**. Sie ist jetzt als einfacher `mailto:`-Link
-eingesetzt, der tote Decoder-Script-Tag entfernt.
+Schlüssel, Rest XOR) und ergab **`support@voxera.ch`**.
 
-> **Offen:** Ob `support@voxera.ch` ein aktives Postfach ist, wurde **nicht** verifiziert.
-> Die Kommandozentrale führt „Support-Prozess für Pilotkunden" als ungeklärt. Die Adresse
-> stammt aus der Datei selbst, nicht aus einer Annahme — sollte aber vor Pilotstart geprüft
-> werden.
+**Dieses Postfach existiert nicht** (bestätigt vom Betreiber, 2026-08-08). Es gibt nur
+`info@voxera.ch`. Der Link zeigt jetzt dorthin, der tote Decoder-Script-Tag ist entfernt.
+
+Der ursprüngliche Defekt hat den zweiten also verdeckt: Solange die Adresse als
+„[email protected]" gerendert wurde, fiel niemandem auf, dass die dahinterliegende
+Adresse ohnehin ins Leere geht.
+
+### `support@voxera.ch` steht an vier weiteren Stellen — nicht Teil dieses Fixes
+
+Die Adresse wurde bei dieser Gelegenheit im ganzen Repo gesucht:
+
+| Stelle | Text | Wirkung |
+| --- | --- | --- |
+| `customer-dashboard/index.html:29371` | „Falls das Problem bleibt: support@voxera.ch" | Fehlermeldung an Kunden |
+| `customer-dashboard/index.html:29374` | dieselbe Meldung, zweite Variante | Fehlermeldung an Kunden |
+| `admin-panel/index.html:10035` | „Kündigung schriftlich per E-Mail an support@voxera.ch." | **Vertrags-/Bedingungstext** |
+| `admin-panel/index.html:10105` | „Anfragen: support@voxera.ch" | **Vertrags-/Bedingungstext** |
+
+Die beiden Fehlermeldungen sind trivial zu korrigieren. Die beiden Stellen im Admin-Panel
+stehen in Vertrags- bzw. Bedingungstext — ein Kunde, der dort seine Kündigung hinschickt,
+erreicht niemanden. Das ist eine inhaltliche Änderung an Vertragstext und wurde deshalb
+**bewusst nicht** mit erledigt; sie braucht eine ausdrückliche Entscheidung.
 
 ## 6. Schutz gegen Wiederholung
 
