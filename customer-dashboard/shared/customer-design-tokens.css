@@ -309,17 +309,123 @@
   --vx-ui-badge-font-weight: 700;
   --vx-ui-badge-min-height: 20px;
   --vx-ui-badge-gap: 5px;
-  /* Rot / Blau / Grau — the product's established status scheme. */
+  /* Two badge families, deliberately kept apart so a row never asks the
+     reader to guess whether a colour means "wo steht der Eintrag" or "wie
+     wertvoll ist er":
+
+     1. STATUS (below) — cool and structural. Blau = terminiert, Grün =
+        abgeschlossen, Grau = abgelegt, Night = neu/ungelesen. Rot bleibt
+        ausschliesslich dem Echtzeit-Zustand "Live" vorbehalten.
+     2. LEAD-QUALITÄT (further down) — the brand's gold ramp. "Heiss" used
+        to render in the danger red and therefore read like an error
+        message instead of the positive sales signal it is.
+
+     danger-/info-/neutral-text are a touch darker than before so every
+     tone clears 4.5:1 against its own background at the 11px badge size. */
   --vx-ui-badge-danger-bg: #FEF2F2;
   --vx-ui-badge-danger-text: #C0362C;
   --vx-ui-badge-info-bg: #EEF4FF;
-  --vx-ui-badge-info-text: #1A6FE8;
+  --vx-ui-badge-info-text: #1558BF;
   --vx-ui-badge-neutral-bg: #F1F4F9;
-  --vx-ui-badge-neutral-text: #64748B;
+  --vx-ui-badge-neutral-text: #5B6472;
   --vx-ui-badge-success-bg: #ECFDF5;
   --vx-ui-badge-success-text: #047857;
   --vx-ui-badge-warning-bg: #FFFBEB;
   --vx-ui-badge-warning-text: #B45309;
+  /* "Neu"/ungelesen: the one filled chip in the status family, in the same
+     Night the primary buttons use — it replaces the former bright blue. */
+  --vx-ui-badge-night-bg: #0D1F3C;
+  --vx-ui-badge-night-text: #FFFFFF;
+  /* Quiet default for "Offen": the most frequent state must be the calmest
+     thing in the row, otherwise every open request shouts. */
+  --vx-ui-badge-quiet-bg: #EEF1F6;
+  --vx-ui-badge-quiet-text: #5B6472;
+
+  /* ---- Lead quality badge (gold ramp) ------------------------- */
+  /* Heiss = the gold filled solid (highest value, and the only saturated
+     fill in a request row), Warm = the same gold as a tint, Kalt = a cool
+     grey. Built on --vx-color-gold so the ramp stays a brand statement. */
+  --vx-ui-badge-lead-hot-bg: #E8C547;
+  --vx-ui-badge-lead-hot-text: #0D1F3C;
+  --vx-ui-badge-lead-warm-bg: #FBF1D8;
+  --vx-ui-badge-lead-warm-text: #7A5C00;
+  --vx-ui-badge-lead-cold-bg: #EEF2F7;
+  --vx-ui-badge-lead-cold-text: #5B6472;
+  /* Same ramp for non-badge surfaces (report bars/dots), so "Heiss" is one
+     colour across the product instead of gold here and red there. */
+  --vx-ui-lead-hot: #C79A0B;
+  --vx-ui-lead-warm: #D9A93A;
+  --vx-ui-lead-cold: #94A3B8;
+
+  /* ---- Quiet text roles (single source for both screens) ------ */
+  /* Bis hierher stand #8A93A6 achtmal unverbunden im Code: fünfmal als
+     Literal im Heute-Block (Zeit, Abschnitts-Label, Zähler, Lara-Zeile,
+     Fusszeile) und dreimal als Kopie in den --vx-ui-* Tokens weiter unten.
+     Ein gemeinsames Token gab es nie — die beiden Screens hielten denselben
+     Wert nur zufällig.
+
+     #8A93A6 erreichte auf Weiss 3.09:1 und lag damit unter WCAG AA für
+     Fliesstext. --vx-ui-meta-color liegt bei 4.83:1 auf Weiss und 4.55:1
+     auf Canvas und bleibt sichtbar leichter als der Sekundärtext, sodass
+     die Hierarchie "Name → Beschreibung → Zeit" erhalten bleibt.
+
+     Wer eine ruhige Beschriftung braucht, nimmt eines dieser beiden Tokens
+     — kein neues Literal. */
+  --vx-ui-meta-color: #697285;       /* Zeit, Labels, Zähler: 4.83:1 auf Weiss */
+  --vx-ui-text-secondary: #5B6472;   /* Beschreibungs-/Fliesstext: 5.98:1 auf Weiss */
+
+  /* Ruhige Icons (Zeilen-Icon, Suche, Überlauf-Menü) — dieselbe Geschichte
+     wie bei --vx-ui-meta-color: #94A3B8 stand als Literal im Heute-Block und
+     als Kopie im Anfragen-Token, ohne Verbindung. Als Nicht-Text-Element
+     gilt hier die 3:1-Schwelle; #94A3B8 erreichte auf dem Icon-Kreis nur
+     2.34:1. #7C8CA4 liegt bei 3.10–3.42:1 auf allen vier Flächen, auf denen
+     diese Icons tatsächlich sitzen (Icon-Kreis, Suchfeld, Karte, Canvas).
+
+     Gilt NUR für die Icon-Rolle. --vx-color-text-subtle trägt denselben
+     Altwert für ganz andere Zwecke und bleibt bewusst unberührt — ein
+     globales Ersetzen von #94A3B8 würde rund hundert Stellen quer durch die
+     App treffen, die hier niemand geprüft hat. */
+  --vx-ui-icon-quiet: #7C8CA4;
+
+  /* ---- List row (Heute card language) ------------------------- */
+  /* The "Braucht dich" cards on Heute are the agreed reference for every
+     scannable list in the product. These tokens carry their measured
+     values so the Anfragen list resolves from the same source instead of
+     re-deriving a second, slightly different card. */
+  --vx-ui-row-font: 'Plus Jakarta Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --vx-ui-row-bg: #FFFFFF;
+  --vx-ui-row-border-width: 0.5px;
+  --vx-ui-row-border-color: #D9E1EC;
+  --vx-ui-row-border-hover: #C4CCDA;
+  --vx-ui-row-radius: 12px;
+  --vx-ui-row-padding: 12px 14px;
+  --vx-ui-row-gap: 8px;
+  --vx-ui-row-shadow-hover: 0 2px 10px rgba(13, 31, 60, .08);
+  --vx-ui-row-title-size: 14px;
+  --vx-ui-row-title-weight: 700;
+  --vx-ui-row-title-color: #0D1F3C;
+  --vx-ui-row-time-size: 12px;
+  --vx-ui-row-time-color: var(--vx-ui-meta-color);
+  --vx-ui-row-desc-size: 13px;
+  --vx-ui-row-desc-leading: 1.42;
+  --vx-ui-row-desc-color: var(--vx-ui-text-secondary);
+  --vx-ui-row-icon-size: 36px;
+  --vx-ui-row-icon-bg: #F1F5F9;
+  --vx-ui-row-icon-color: var(--vx-ui-icon-quiet);
+  --vx-ui-row-icon-font-size: 15px;
+  /* Section header: dot + label + count, exactly like "Braucht dich 2". */
+  --vx-ui-section-label-size: 12px;
+  --vx-ui-section-label-weight: 600;
+  --vx-ui-section-label-color: var(--vx-ui-meta-color);
+  --vx-ui-section-dot-size: 7px;
+  /* Weiss mit Haarlinie statt grauer Füllung: in der früheren #F0F1F4-Füllung
+     kam --vx-ui-meta-color nur auf 4.28:1. Ein Wert, der auch dort AA hält,
+     müsste so dunkel werden, dass er vom Beschreibungstext kaum noch zu
+     unterscheiden wäre — die Pille gibt stattdessen ihre Tönung auf und
+     übernimmt die Kartensprache (weiss + 0.5px Rahmen). */
+  --vx-ui-section-count-bg: #FFFFFF;
+  --vx-ui-section-count-border: #D9E1EC;
+  --vx-ui-section-count-color: var(--vx-ui-meta-color);
 
   /* ---- Skeleton ---------------------------------------------- */
   --vx-ui-skeleton-base: #E9EEF5;

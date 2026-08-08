@@ -58,25 +58,34 @@
 
   /* ---- Status badge ----------------------------------------- */
 
-  var BADGE_TONES = ['danger', 'info', 'neutral', 'success', 'warning'];
+  var BADGE_TONES = [
+    'danger', 'info', 'neutral', 'success', 'warning',
+    // Status family: the filled Night chip, and the quiet default state.
+    'night', 'quiet',
+    // Lead-quality family: the gold ramp. Kept separate from the status
+    // tones so "Heiss" can never be mistaken for an error again.
+    'lead-hot', 'lead-warm', 'lead-cold'
+  ];
 
-  // Maps the product's business labels onto the rot/blau/grau scheme.
+  // Maps the product's business labels onto the two families.
   var BADGE_TONE_BY_LABEL = {
-    'heiss': 'danger',
-    'heiß': 'danger',
-    'hot': 'danger',
+    'heiss': 'lead-hot',
+    'heiß': 'lead-hot',
+    'hot': 'lead-hot',
+    'warm': 'lead-warm',
+    'kalt': 'lead-cold',
+    'cold': 'lead-cold',
     'dringend': 'danger',
     'überfällig': 'danger',
     'ueberfaellig': 'danger',
-    'warm': 'warning',
     'termin': 'info',
     'geplant': 'info',
-    'offen': 'info',
-    'neu': 'info',
+    'offen': 'quiet',
+    'neu': 'night',
     'rückruf': 'info',
     'rueckruf': 'info',
-    'erledigt': 'neutral',
-    'abgeschlossen': 'neutral',
+    'erledigt': 'success',
+    'abgeschlossen': 'success',
     'archiviert': 'neutral',
     'archiv': 'neutral',
     'zurückgezogen': 'neutral',
@@ -84,6 +93,10 @@
     'aktiv': 'success',
     'live': 'danger'
   };
+
+  // Lead-quality badges always carry the leading dot: it is what tells the
+  // two families apart at a glance, so a caller cannot forget it.
+  var BADGE_TONES_WITH_DOT = { 'lead-hot': 1, 'lead-warm': 1, 'lead-cold': 1 };
 
   function badgeTone(label) {
     var key = String(label == null ? '' : label).trim().toLowerCase();
@@ -95,8 +108,9 @@
     var resolved = tone && BADGE_TONES.indexOf(String(tone)) !== -1 ? String(tone) : badgeTone(label);
     var classes = ['vx-ui-badge', 'vx-ui-badge--' + resolved];
     if (config.className) classes.push(String(config.className));
+    var dot = config.dot || BADGE_TONES_WITH_DOT[resolved] === 1;
     return '<span class="' + esc(classes.join(' ')) + '">'
-      + (config.dot ? '<span class="vx-ui-badge-dot" aria-hidden="true"></span>' : '')
+      + (dot ? '<span class="vx-ui-badge-dot" aria-hidden="true"></span>' : '')
       + esc(label) + '</span>';
   }
 

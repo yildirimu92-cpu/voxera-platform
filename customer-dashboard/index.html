@@ -6433,7 +6433,21 @@ body.vx-customer-design-foundation
 /* Customer baseline ownership migration:
    legacy page-specific modules. */
 
-/* Customer requests: assistant-aligned canonical component owner. */
+/* Customer requests: assistant-aligned canonical component owner.
+
+   ── Anfragen im Heute-Kartenstil (2026-08-08) ────────────────────────────
+   Die Anfragen-Liste war bis hierher eine flache, haarlinien-getrennte
+   Tabelle in einem zweiten Farb-/Typo-System: sie zog --vx-ink (#101828),
+   --vx-brand (#3478ed), --vx-line (#e4eaf2) und --vx-font-ui ("Inter") aus
+   shared/customer-design-system.css, während der Heute-Screen mit
+   --vx-color-night (#0D1F3C), Plus Jakarta Sans und den --vx-ui-card-*
+   Werten arbeitet. Zwei Screens, zwei Systeme, sichtbar unterschiedlich.
+
+   Ab hier bezieht die Liste ihre Werte aus den --vx-ui-row-* Tokens
+   (shared/customer-design-tokens.css), die exakt die gemessenen Werte der
+   "Braucht dich"-Karten tragen. Der Detailpanel-INHALT (.vx-dv2-*) bleibt
+   unangetastet — er lag im Live-Test bereits richtig und zieht seine Farben
+   ohnehin schon aus dem kanonischen Token-Satz. */
 body.vx-customer-design-foundation .vx-requests-layout{
   display:grid;
   grid-template-columns:minmax(360px,.92fr) minmax(0,1.08fr);
@@ -6442,12 +6456,16 @@ body.vx-customer-design-foundation .vx-requests-layout{
   min-width:0;
   min-height:620px;
   overflow:hidden;
-  border:1px solid var(--vx-line);
-  border-radius:var(--vx-radius-panel);
-  background:var(--vx-surface);
-  box-shadow:var(--vx-shadow-panel);
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+  border-radius:var(--vx-ui-card-radius);
+  background:var(--vx-color-canvas);
+  box-shadow:var(--vx-ui-card-shadow);
+  font-family:var(--vx-ui-row-font);
 }
 
+/* Beide Spalten liegen auf der Canvas-Fläche, damit die weissen Karten
+   darin als Karten lesbar sind — dieselbe Schichtung wie auf Heute und im
+   Detailpanel (.vx-dv2-shell hat schon immer Canvas als Grund). */
 body.vx-customer-design-foundation .vx-requests-panel,
 body.vx-customer-design-foundation .vx-requests-detail-panel{
   min-width:0;
@@ -6455,14 +6473,14 @@ body.vx-customer-design-foundation .vx-requests-detail-panel{
   overflow:hidden;
   border:0;
   border-radius:0;
-  background:var(--vx-surface);
+  background:var(--vx-color-canvas);
   box-shadow:none;
 }
 
 body.vx-customer-design-foundation .vx-requests-panel{
   display:flex;
   flex-direction:column;
-  border-right:1px solid var(--vx-line);
+  border-right:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
 }
 
 /* Filter-Pills und "Nur ungelesene" teilen sich jetzt eine Zeile statt zwei
@@ -6472,8 +6490,9 @@ body.vx-customer-design-foundation .vx-requests-filter-row{
   display:flex;
   flex-wrap:wrap;
   align-items:center;
-  gap:4px;
-  padding:10px 10px 10px;
+  gap:6px;
+  padding:12px 14px 10px;
+  background:var(--vx-ui-row-bg);
 }
 
 body.vx-customer-design-foundation .vx-requests-filters{
@@ -6500,16 +6519,14 @@ body.vx-customer-design-foundation .vx-requests-subfilters{
   padding:0;
 }
 
-/* Dünner Trenner vor "Nur ungelesene", statt einer eigenen Zeile. Als
-   Pseudo-Element, damit er automatisch mitverschwindet, wenn die Gruppe
-   selbst (per JS) auf display:none gesetzt wird. */
-body.vx-customer-design-foundation .vx-requests-subfilters::before{
-  content:"";
-  flex:0 0 auto;
-  width:1px;
-  height:16px;
-  margin-right:2px;
-  background:var(--vx-line);
+/* Der frühere 1px-Trenner vor "Nur ungelesene" ist ersatzlos entfernt: er
+   sollte die Gruppe abgrenzen, solange sie in derselben Zeile wie die
+   Status-Pillen stand. Die vier Status-Pillen füllen die 380px breite Spalte
+   jetzt genau aus, "Nur ungelesene" rutscht dadurch immer in die zweite
+   Zeile — dort stand der Strich als loser Stummel am linken Rand, ohne
+   etwas zu trennen. Der Zeilenumbruch übernimmt die Abgrenzung. */
+body.vx-customer-design-foundation .vx-requests-subfilters{
+  margin-top:2px;
 }
 
 /* Padding/Hintergrund/Schriftgrösse braucht dieser Chip nicht eigens: die
@@ -6525,11 +6542,13 @@ body.vx-customer-design-foundation .vx-requests-subfilters::before{
    knapper). 36px hier angleicht alle fünf Pills auf dieselbe Höhe. */
 body.vx-customer-design-foundation .vx-requests-subfilters .vx-ap-filter{
   flex:0 1 auto;
-  min-height:36px;
+  min-height:32px;
 }
 
 body.vx-customer-design-foundation .vx-requests-search{
-  padding:0 14px 14px;
+  padding:0 14px 12px;
+  background:var(--vx-ui-row-bg);
+  border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
 }
 
 body.vx-customer-design-foundation .vx-requests-search-box{
@@ -6538,48 +6557,59 @@ body.vx-customer-design-foundation .vx-requests-search-box{
   align-items:center;
   gap:10px;
   box-sizing:border-box;
-  min-height:48px;
-  padding:0 13px;
-  border:1px solid var(--vx-line-strong);
-  border-radius:var(--vx-radius-control);
-  background:var(--vx-surface-soft);
+  min-height:40px;
+  padding:0 12px;
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+  border-radius:var(--vx-radius-pill);
+  background:var(--vx-color-surface-soft);
 }
 
+/* Fokusring in Night statt im helleren Blau — dieselbe Akzentfarbe wie die
+   aktive Filter-Pille und die primären Buttons. */
 body.vx-customer-design-foundation .vx-requests-search-box:focus-within{
-  border-color:var(--vx-brand);
-  background:var(--vx-surface);
-  box-shadow:0 0 0 3px var(--vx-focus-ring);
+  border-color:var(--vx-color-night);
+  background:var(--vx-ui-row-bg);
+  box-shadow:0 0 0 3px rgba(13,31,60,.10);
 }
 
 body.vx-customer-design-foundation .vx-requests-search-icon{
-  color:var(--vx-subtle);
-  font-size:19px;
+  color:var(--vx-ui-row-icon-color);
+  font-size:16px;
 }
 
 body.vx-customer-design-foundation .vx-requests-search-input{
   min-width:0;
-  min-height:44px;
+  min-height:38px;
   padding:0;
   border:0;
   outline:0;
   background:transparent;
   box-shadow:none;
+  color:var(--vx-ui-row-title-color);
+  font-family:var(--vx-ui-row-font);
+  font-size:13px;
+}
+
+body.vx-customer-design-foundation .vx-requests-search-input::placeholder{
+  color:var(--vx-ui-row-time-color);
 }
 
 body.vx-customer-design-foundation .vx-requests-search-clear{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  width:34px;
-  height:34px;
+  width:26px;
+  height:26px;
   padding:0;
   border:0;
-  border-radius:10px;
-  background:#eef2f7;
-  color:var(--vx-muted);
+  border-radius:var(--vx-radius-pill);
+  background:rgba(13,31,60,.06);
+  color:var(--vx-ui-row-desc-color);
   cursor:pointer;
 }
 
+/* Die Liste selbst liegt auf der Canvas-Fläche; die Karten darin bringen
+   ihren eigenen Rahmen mit, deshalb hier keine Trennlinie mehr. */
 body.vx-customer-design-foundation .vx-requests-scroll{
   display:flex;
   flex:1;
@@ -6587,7 +6617,8 @@ body.vx-customer-design-foundation .vx-requests-scroll{
   min-height:0;
   max-height:720px;
   overflow:auto;
-  border-top:1px solid var(--vx-line);
+  padding:0 12px 12px;
+  background:var(--vx-color-canvas);
   overscroll-behavior:contain;
 }
 
@@ -6599,19 +6630,61 @@ body.vx-customer-design-foundation .vx-requests-panel .vx-requests-list{
   display:flex;
   flex:1;
   flex-direction:column;
-  gap:0;
+  gap:var(--vx-ui-row-gap);
   margin-top:0;
 }
 
-body.vx-customer-design-foundation .vx-requests-date{
+/* Datums-Gruppenkopf im Heute-Abschnittsstil: Punkt + Label + Zähler,
+   statt der früheren grauen Vollbreiten-Leiste. Sticky, damit er beim
+   Scrollen lesbar bleibt; der Canvas-Hintergrund verhindert, dass Karten
+   darunter durchscheinen. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-date{
+  position:sticky;
+  top:0;
+  z-index:2;
   display:flex;
   align-items:center;
   gap:7px;
   margin:0;
-  padding:10px var(--vx-space-4);
-  border-bottom:1px solid var(--vx-line);
-  background:var(--vx-surface-soft);
-  font-weight:700;
+  padding:12px 2px 8px;
+  border:0;
+  background:var(--vx-color-canvas);
+  color:var(--vx-ui-section-label-color);
+  font-family:var(--vx-ui-row-font);
+  font-size:var(--vx-ui-section-label-size);
+  font-weight:var(--vx-ui-section-label-weight);
+  letter-spacing:0;
+  text-transform:none;
+}
+
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-date-dot{
+  flex:0 0 auto;
+  width:var(--vx-ui-section-dot-size);
+  height:var(--vx-ui-section-dot-size);
+  border-radius:50%;
+  background:var(--vx-ui-row-icon-color);
+}
+
+/* Der heutige Tag ist die einzige Gruppe, die aktiv Aufmerksamkeit
+   verdient — sie bekommt den Night-Punkt, ältere Tage den stillen Grauton. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-date.is-today .vx-requests-date-dot{
+  background:var(--vx-color-night);
+}
+
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-date-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  min-width:16px;
+  height:16px;
+  padding:0 5px;
+  border:0.5px solid var(--vx-ui-section-count-border);
+  border-radius:8px;
+  background:var(--vx-ui-section-count-bg);
+  color:var(--vx-ui-section-count-color);
+  font-size:11px;
+  font-weight:600;
 }
 
 /* .vx-requests-panel vorangestellt, um die generische .vx-ops-item-Kartenoptik
@@ -6624,94 +6697,153 @@ body.vx-customer-design-foundation .vx-requests-date{
    als "Unb..." statt "Unbekannter Anrufer" trotz korrektem CSS-Ellipsis. */
 body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item{
   padding:0;
-  border:0;
-  border-bottom:1px solid var(--vx-line);
-  border-radius:0;
-  background:var(--vx-surface);
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+  border-radius:var(--vx-ui-row-radius);
+  background:var(--vx-ui-row-bg);
   box-shadow:none;
-  transition:background .16s ease,box-shadow .16s ease;
+  transition:border-color .15s ease,box-shadow .15s ease;
 }
 
-body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item:last-child{border-bottom:0;}
-body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item:hover{background:var(--vx-surface-soft);}
-body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active{
-  background:#eef4ff;
-  box-shadow:inset 3px 0 0 var(--vx-brand);
+/* Hover exakt wie die "Braucht dich"-Karte: kräftigerer Rahmen plus der
+   flache Night-Schatten, kein Farbwechsel der Fläche. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item:hover{
+  border-color:var(--vx-ui-row-border-hover);
+  box-shadow:var(--vx-ui-row-shadow-hover);
 }
-body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.is-unread{background:#fbfdff;}
+
+/* Auswahl: Night-Rahmen plus Night-Kante links. Bewusst KEINE hellblaue
+   Füllung mehr — die Markierung sitzt auf dem Rahmen, damit sie auch dann
+   sichtbar bleibt, wenn die Zeile zusätzlich ungelesen ist.
+
+   Drei ältere Regelblöcke weiter unten in dieser Datei greifen über
+   #anrufe-list .sp-active auf dieselbe Klasse zu und hätten diese Markierung
+   durch ihre ID-Spezifität wieder abgeräumt. Sie sind dort jeweils per
+   :not(.vx-requests-item) auf die älteren .dpr-card-Zeilen eingegrenzt, für
+   die sie gedacht sind — deshalb kommt diese Regel ohne !important aus. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active{
+  border-color:var(--vx-color-night);
+  box-shadow:inset 3px 0 0 var(--vx-color-night);
+  background:var(--vx-ui-row-bg);
+}
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.sp-active:hover{
+  border-color:var(--vx-color-night);
+  box-shadow:inset 3px 0 0 var(--vx-color-night),var(--vx-ui-row-shadow-hover);
+}
+
+/* Ungelesen trägt keine eigene Flächenfarbe mehr — das Signal ist der
+   Night-Punkt vor dem Namen plus der "Neu"-Chip, beides in der Zeile
+   selbst. So kollidiert es nicht mit der Auswahl-Markierung. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-item.is-unread{
+  background:var(--vx-ui-row-bg);
+}
 
 body.vx-customer-design-foundation .vx-requests-row{
   display:grid;
   grid-template-columns:auto minmax(0,1fr) auto;
   align-items:flex-start;
-  gap:var(--vx-space-3);
+  gap:12px;
   min-width:0;
-  padding:var(--vx-space-4);
+  padding:var(--vx-ui-row-padding);
   cursor:pointer;
 }
 
 body.vx-customer-design-foundation .vx-requests-row:focus-visible{
-  outline:3px solid var(--vx-focus-ring);
-  outline-offset:-3px;
+  outline:2px solid var(--vx-color-night);
+  outline-offset:-2px;
+  border-radius:var(--vx-ui-row-radius);
 }
 
-body.vx-customer-design-foundation .vx-requests-icon{
-  width:42px;
-  height:42px;
-  margin-top:1px;
-  border-radius:var(--vx-radius-control);
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon{
+  width:var(--vx-ui-row-icon-size);
+  height:var(--vx-ui-row-icon-size);
+  margin-top:0;
+  border-radius:50%;
+  background:var(--vx-ui-row-icon-bg);
+  color:var(--vx-ui-row-icon-color);
+  font-size:var(--vx-ui-row-icon-font-size);
+  box-shadow:none;
 }
 
-body.vx-customer-design-foundation .vx-requests-icon.is-call{
-  background:#eef4ff;
-  color:var(--vx-brand);
+/* Der Anruf-Typ bekommt keinen eigenen blauen Kreis mehr: auf Heute ist das
+   Icon durchgehend der stille graue Kreis, die Farbe in der Zeile gehört
+   den Badges. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon.is-call{
+  background:var(--vx-ui-row-icon-bg);
+  color:var(--vx-ui-row-icon-color);
 }
 
 body.vx-customer-design-foundation .vx-requests-copy{min-width:0;}
 body.vx-customer-design-foundation .vx-requests-title-line{
   display:flex;
-  align-items:flex-start;
+  align-items:baseline;
   justify-content:space-between;
-  gap:var(--vx-space-3);
+  gap:8px;
   min-width:0;
 }
-body.vx-customer-design-foundation .vx-requests-title{
+/* Die folgenden Typografie-Regeln tragen den .vx-requests-panel-Präfix aus
+   demselben Grund wie .vx-requests-item/.vx-requests-list (siehe #827): jede
+   Zeile trägt zusätzlich die generischen Klassen .vx-ops-title/.vx-ops-meta/
+   .vx-ops-message, deren Regeln in customer-assistant-components.css stehen.
+   Diese Datei wird zur Laufzeit ans <head>-Ende gehängt und gewinnt damit bei
+   gleicher Spezifität durch spätere Deklaration — .vx-ops-title{font-size:18px}
+   hat auf diesem Weg schon vor dieser Änderung das font-weight hier
+   überstimmt. Der Präfix hebt die Spezifität um eine Klasse an. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-title{
+  flex:1 1 auto;
   min-width:0;
   overflow:hidden;
-  color:var(--vx-ink);
-  font-weight:720;
+  color:var(--vx-ui-row-title-color);
+  font-family:var(--vx-ui-row-font);
+  font-size:var(--vx-ui-row-title-size);
+  font-weight:var(--vx-ui-row-title-weight);
+  line-height:1.35;
+  letter-spacing:0;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-body.vx-customer-design-foundation .vx-requests-time{
+
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-time{
   flex:0 0 auto;
-  margin-top:1px;
-  color:var(--vx-subtle);
-  font-size:12px;
+  margin-top:0;
+  color:var(--vx-ui-row-time-color);
+  font-family:var(--vx-ui-row-font);
+  font-size:var(--vx-ui-row-time-size);
+  font-weight:400;
+  letter-spacing:0;
   white-space:nowrap;
 }
-body.vx-customer-design-foundation .vx-requests-company{
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-company{
   margin-top:2px;
-  color:var(--vx-muted);
+  color:var(--vx-ui-row-time-color);
+  font-family:var(--vx-ui-row-font);
+  font-size:var(--vx-ui-row-time-size);
+  letter-spacing:0;
 }
-body.vx-customer-design-foundation .vx-requests-pills{
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-pills{
   display:flex;
   flex-wrap:wrap;
   gap:6px;
-  margin-top:var(--vx-space-2);
+  margin-top:8px;
 }
-body.vx-customer-design-foundation .vx-requests-preview{
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-preview{
   display:-webkit-box;
   overflow:hidden;
-  margin-top:var(--vx-space-2);
-  color:var(--vx-muted);
-  line-height:1.5;
+  margin-top:6px;
+  color:var(--vx-ui-row-desc-color);
+  font-family:var(--vx-ui-row-font);
+  font-size:var(--vx-ui-row-desc-size);
+  font-weight:400;
+  line-height:var(--vx-ui-row-desc-leading);
+  letter-spacing:0;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
 }
-body.vx-customer-design-foundation .vx-requests-meta{
-  margin-top:7px;
-  color:var(--vx-subtle);
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-meta{
+  margin-top:6px;
+  color:var(--vx-ui-row-time-color);
+  font-family:var(--vx-ui-row-font);
+  font-size:var(--vx-ui-row-time-size);
+  letter-spacing:0;
 }
 
 body.vx-customer-design-foundation .vx-requests-actions{
@@ -6725,26 +6857,32 @@ body.vx-customer-design-foundation .vx-requests-actions{
 /* Dezente Icon-Buttons statt gefüllter 40px-Boxen: kein Rahmen, keine
    Füllung im Ruhezustand, nur das Icon in Akzentfarbe — damit Haken und
    Mehr-Menü neben Name/Zeit/Badges nicht mehr Gewicht ziehen als der Inhalt. */
-body.vx-customer-design-foundation .vx-requests-icon-action{
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon-action{
   display:inline-flex;
   align-items:center;
   justify-content:center;
   box-sizing:border-box;
   width:28px;
   height:28px;
+  /* min-height muss mit: eine generische Button-Regel klammert Steuerelemente
+     sonst auf 44px auf, wodurch der Icon-Button hoch und schmal wird statt
+     quadratisch (die 28px aus #827 galten bis hierher nur für die Breite). */
+  min-height:28px;
   padding:0;
   border:0;
   border-radius:8px;
   background:transparent;
-  color:var(--vx-brand);
+  color:var(--vx-color-night);
   font-size:15px;
   cursor:pointer;
   transition:background .12s ease;
 }
-body.vx-customer-design-foundation .vx-requests-icon-action:hover{background:var(--vx-surface-soft);}
-body.vx-customer-design-foundation .vx-requests-icon-action.is-call{color:var(--vx-brand);}
-body.vx-customer-design-foundation .vx-requests-icon-action.is-done{color:var(--vx-green);}
-body.vx-customer-design-foundation .vx-requests-icon-action.is-overflow{color:var(--vx-subtle);}
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon-action:hover{background:rgba(13,31,60,.06);}
+/* Night statt des helleren Blaus — dieselbe Aktionsfarbe wie der
+   "Zurückrufen"-Button auf Heute. */
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon-action.is-call{color:var(--vx-color-night);}
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon-action.is-done{color:var(--vx-color-success);}
+body.vx-customer-design-foundation .vx-requests-panel .vx-requests-icon-action.is-overflow{color:var(--vx-ui-row-icon-color);}
 body.vx-customer-design-foundation .vx-requests-actions>.vx-row-menu{display:none;}
 
 body.vx-customer-design-foundation .vx-requests-empty{
@@ -6755,12 +6893,13 @@ body.vx-customer-design-foundation .vx-requests-empty{
   justify-content:center;
   gap:var(--vx-space-2);
   min-height:260px;
-  margin:var(--vx-space-4);
+  margin:12px 0;
   padding:var(--vx-space-5);
-  border:1px dashed var(--vx-line-strong);
-  border-radius:var(--vx-radius-control);
-  background:var(--vx-surface-soft);
-  color:var(--vx-muted);
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+  border-radius:var(--vx-ui-row-radius);
+  background:var(--vx-ui-row-bg);
+  color:var(--vx-ui-row-desc-color);
+  font-size:var(--vx-ui-row-desc-size);
   text-align:center;
 }
 
@@ -6776,8 +6915,8 @@ body.vx-customer-design-foundation .vx-requests-detail-empty{
   padding:var(--vx-space-6);
   border:0;
   border-radius:0;
-  background:var(--vx-surface);
-  color:var(--vx-muted);
+  background:var(--vx-color-canvas);
+  color:var(--vx-ui-row-desc-color);
   text-align:center;
 }
 
@@ -6786,24 +6925,24 @@ body.vx-customer-design-foundation .vx-requests-detail-empty > :not(i){
 }
 
 body.vx-customer-design-foundation .vx-requests-detail-empty::before{
-  color:var(--vx-ink);
-  font-size:14px;
-  font-weight:720;
+  color:var(--vx-ui-row-title-color);
+  font-size:var(--vx-ui-row-title-size);
+  font-weight:var(--vx-ui-row-title-weight);
   line-height:1.4;
   content:"Keine Anfrage ausgewählt";
 }
 
 body.vx-customer-design-foundation .vx-requests-detail-empty::after{
   max-width:34ch;
-  color:var(--vx-subtle);
-  font-size:13px;
+  color:var(--vx-ui-row-desc-color);
+  font-size:var(--vx-ui-row-desc-size);
   line-height:1.5;
   content:"Wähle links eine Anfrage aus, um Details und nächste Schritte zu sehen.";
 }
 
 body.vx-customer-design-foundation .vx-requests-empty i,
 body.vx-customer-design-foundation .vx-requests-detail-empty i{
-  color:var(--vx-brand);
+  color:var(--vx-ui-row-icon-color);
   font-size:28px;
 }
 
@@ -6836,46 +6975,91 @@ body.vx-customer-design-foundation .vx-requests-resizer{display:none;}
     background:transparent;
     box-shadow:none;
   }
-  body.vx-customer-design-foundation .vx-requests-panel{
-    border:1px solid var(--vx-line);
-    border-radius:var(--vx-radius-panel);
-    box-shadow:var(--vx-shadow-panel);
+  /* Mobil trägt der Panel-Rahmen nichts mehr bei: die Karten sind selbst
+     abgegrenzt, ein zusätzlicher Rahmen um die ganze Spalte wäre eine
+     zweite Kante um dieselbe Liste. Nur der Canvas-Grund bleibt.
+
+     padding:0 ist der eigentliche Gewinn: die Spalte trug über .vx-ops-card
+     noch 18px generische Kartenpolsterung. Zusammen mit dem Seitenabstand
+     von #tab-anrufe und .content blieben von 390px Bildschirmbreite nur
+     275px für die Zeile übrig — Namen wie "Sandra Meier" wurden dadurch auf
+     zwei Zeichen gekürzt. Der Panel-Prefix hebt die Spezifität über die
+     generische Kartenregel. */
+  body.vx-customer-design-foundation .vx-requests-layout .vx-requests-panel{
+    padding:0;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    box-shadow:none;
   }
-  /* Mobile layout of the "Anfragen" status tabs is owned by the canonical pill
-     tab component. The previous two-column grid + width:100% belonged to the
-     replaced layout and made every tab fill the row, so only the first one was
-     reachable once the container became a flex row. */
   body.vx-customer-design-foundation .vx-requests-filter-row{
-    padding:14px 14px 10px;
+    padding:12px 12px 8px;
+    background:transparent;
   }
-  body.vx-customer-design-foundation .vx-requests-search{padding:0 14px 14px;}
+  body.vx-customer-design-foundation .vx-requests-search{
+    padding:0 12px 12px;
+    background:transparent;
+    border-bottom:0;
+  }
+  body.vx-customer-design-foundation .vx-requests-scroll{
+    padding:0 12px 12px;
+    background:transparent;
+  }
+  body.vx-customer-design-foundation .vx-requests-panel .vx-requests-date{
+    background:var(--vx-color-canvas);
+  }
   body.vx-customer-design-foundation .vx-requests-row{
-    grid-template-columns:auto minmax(0,1fr);
+    grid-template-columns:auto minmax(0,1fr) auto;
     gap:11px;
-    padding:15px 14px;
+    padding:12px 14px;
   }
   body.vx-customer-design-foundation .vx-requests-actions{
-    grid-column:2;
+    grid-column:auto;
     justify-content:flex-end;
-    padding-top:2px;
+    padding-top:0;
   }
+  /* Name und Zeit bleiben mobil in EINER Zeile, so wie auf Heute. Vorher
+     brach ein Grid mit einer Spalte die Zeit unter den Namen — das Ergebnis
+     las sich wie zwei Titelzeilen statt wie Name + Zeitstempel. */
   body.vx-customer-design-foundation .vx-requests-title-line{
-    display:grid;
-    grid-template-columns:minmax(0,1fr);
-    gap:2px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:8px;
   }
-  body.vx-customer-design-foundation .vx-requests-time{white-space:normal;}
+  body.vx-customer-design-foundation .vx-requests-time{white-space:nowrap;}
   body.vx-customer-design-foundation .vx-requests-empty{
     min-height:132px;
-    margin:var(--vx-space-3);
+    margin:12px 0;
     padding:var(--vx-space-4);
   }
 }
 
+/* Die Filter-Pillen brechen mobil bewusst um und scrollen NICHT horizontal:
+   eine weggescrollte Pille hat keine Affordanz und liest sich als fehlend —
+   genau so gingen Geplant/Erledigt/Archiv auf dem Handy schon einmal
+   verloren (siehe Kommentar in shared/customer-ui-components.css). Die
+   Status-Gruppe bekommt hier die volle Zeile, damit sie sich nicht mit der
+   Unread-Gruppe verzahnt und die Pillen versetzt umbrechen. */
+@media (max-width:560px){
+  body.vx-customer-design-foundation .vx-requests-filters{
+    flex:1 1 100%;
+  }
+
+  /* Bei sehr langen Zeitangaben (Fälligkeit geplanter Einträge, z.B.
+     "09.08.2026, 10:20") rutscht die Zeit unter den Namen, statt ihn auf
+     wenige Zeichen zusammenzudrücken. Kurze Uhrzeiten bleiben daneben. */
+  body.vx-customer-design-foundation .vx-requests-title-line{
+    flex-wrap:wrap;
+  }
+  body.vx-customer-design-foundation .vx-requests-panel .vx-requests-title{
+    flex:1 1 60%;
+  }
+}
+
 @media (max-width:390px){
-  body.vx-customer-design-foundation .vx-requests-icon{width:38px;height:38px;}
   body.vx-customer-design-foundation .vx-requests-row{
-    gap:9px;
+    gap:10px;
     padding-right:12px;
     padding-left:12px;
   }
@@ -6907,9 +7091,11 @@ body.vx-customer-design-foundation .vx-report-week-bar{width:100%;height:calc(5p
 body.vx-customer-design-foundation .vx-report-week-foot{display:flex;justify-content:space-between;gap:12px;padding-top:12px;border-top:1px solid var(--vx-line);color:var(--vx-muted);font-size:12px;}
 body.vx-customer-design-foundation .vx-report-bars,body.vx-customer-design-foundation .vx-report-leads{display:grid;gap:12px;}
 body.vx-customer-design-foundation .vx-report-bar-row{display:grid;grid-template-columns:minmax(74px,.55fr) minmax(100px,1fr) 32px;align-items:center;gap:10px;} body.vx-customer-design-foundation .vx-report-bar-label,body.vx-customer-design-foundation .vx-report-bar-count{color:var(--vx-muted);font-size:13px;} body.vx-customer-design-foundation .vx-report-bar-count{text-align:right;font-weight:700;color:var(--vx-ink);}
-body.vx-customer-design-foundation .vx-report-progress{width:100%;height:8px;border:0;border-radius:999px;overflow:hidden;accent-color:var(--vx-report-accent,var(--vx-brand));} body.vx-customer-design-foundation .vx-report-progress.tone-blue{--vx-report-accent:var(--vx-brand);} body.vx-customer-design-foundation .vx-report-progress.tone-soft{--vx-report-accent:#94a3b8;} body.vx-customer-design-foundation .vx-report-progress.tone-hot{--vx-report-accent:#dc2626;} body.vx-customer-design-foundation .vx-report-progress.tone-warm{--vx-report-accent:#d97706;} body.vx-customer-design-foundation .vx-report-progress.tone-cold{--vx-report-accent:#64748b;}
+body.vx-customer-design-foundation .vx-report-progress{width:100%;height:8px;border:0;border-radius:999px;overflow:hidden;accent-color:var(--vx-report-accent,var(--vx-brand));} body.vx-customer-design-foundation .vx-report-progress.tone-blue{--vx-report-accent:var(--vx-brand);} body.vx-customer-design-foundation .vx-report-progress.tone-soft{--vx-report-accent:#94a3b8;} /* Lead-Qualität zieht dieselbe Gold-Rampe wie die Badges in Anfragen —
+   sonst wäre "Heiss" hier rot und dort gold. */
+body.vx-customer-design-foundation .vx-report-progress.tone-hot{--vx-report-accent:var(--vx-ui-lead-hot);} body.vx-customer-design-foundation .vx-report-progress.tone-warm{--vx-report-accent:var(--vx-ui-lead-warm);} body.vx-customer-design-foundation .vx-report-progress.tone-cold{--vx-report-accent:var(--vx-ui-lead-cold);}
 body.vx-customer-design-foundation .vx-report-progress::-webkit-progress-bar{background:#f1f5f9;border-radius:999px;} body.vx-customer-design-foundation .vx-report-progress::-webkit-progress-value{background:var(--vx-report-accent,var(--vx-brand));border-radius:999px;} body.vx-customer-design-foundation .vx-report-progress::-moz-progress-bar{background:var(--vx-report-accent,var(--vx-brand));border-radius:999px;}
-body.vx-customer-design-foundation .vx-report-lead-row{display:grid;grid-template-columns:auto minmax(72px,.4fr) minmax(100px,1fr) 28px 42px;align-items:center;gap:10px;color:var(--vx-muted);font-size:12px;} body.vx-customer-design-foundation .vx-report-lead-label{color:var(--vx-ink);font-size:13px;} body.vx-customer-design-foundation .vx-report-dot{width:9px;height:9px;border-radius:50%;background:var(--vx-report-accent,#94a3b8);} body.vx-customer-design-foundation .vx-report-dot.tone-hot{--vx-report-accent:#dc2626;} body.vx-customer-design-foundation .vx-report-dot.tone-warm{--vx-report-accent:#d97706;} body.vx-customer-design-foundation .vx-report-dot.tone-cold{--vx-report-accent:#64748b;}
+body.vx-customer-design-foundation .vx-report-lead-row{display:grid;grid-template-columns:auto minmax(72px,.4fr) minmax(100px,1fr) 28px 42px;align-items:center;gap:10px;color:var(--vx-muted);font-size:12px;} body.vx-customer-design-foundation .vx-report-lead-label{color:var(--vx-ink);font-size:13px;} body.vx-customer-design-foundation .vx-report-dot{width:9px;height:9px;border-radius:50%;background:var(--vx-report-accent,#94a3b8);} body.vx-customer-design-foundation .vx-report-dot.tone-hot{--vx-report-accent:var(--vx-ui-lead-hot);} body.vx-customer-design-foundation .vx-report-dot.tone-warm{--vx-report-accent:var(--vx-ui-lead-warm);} body.vx-customer-design-foundation .vx-report-dot.tone-cold{--vx-report-accent:var(--vx-ui-lead-cold);}
 @media (max-width:820px){body.vx-customer-design-foundation .vx-report-kpis{grid-template-columns:repeat(2,minmax(0,1fr));} body.vx-customer-design-foundation .vx-report-breakdowns{grid-template-columns:1fr;}}
 @media (max-width:520px){body.vx-customer-design-foundation .vx-report-stack{gap:12px;} body.vx-customer-design-foundation .vx-report-kpi{min-height:124px;} body.vx-customer-design-foundation .vx-report-section{gap:12px;padding:16px;} body.vx-customer-design-foundation .vx-report-section .vx-ops-title{font-size:17px;} body.vx-customer-design-foundation .vx-report-section .vx-ops-sub{font-size:13px;line-height:1.45;} body.vx-customer-design-foundation .vx-report-section .vx-ops-list{gap:8px;margin-top:2px;} body.vx-customer-design-foundation .vx-report-section .vx-ops-empty{padding:14px 8px;} body.vx-customer-design-foundation .vx-report-highlights{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;} body.vx-customer-design-foundation .vx-report-highlight{padding:12px;} body.vx-customer-design-foundation .vx-report-highlight-value{font-size:17px;} body.vx-customer-design-foundation .vx-report-week-chart{min-height:88px;gap:5px;} body.vx-customer-design-foundation .vx-report-week-col{height:84px;gap:4px;} body.vx-customer-design-foundation .vx-report-week-bar{height:calc(4px + 48px * var(--vx-report-level));} body.vx-customer-design-foundation .vx-report-week-foot{padding-top:10px;} body.vx-customer-design-foundation .vx-report-bars{gap:9px;} body.vx-customer-design-foundation .vx-report-bar-row{grid-template-columns:58px minmax(0,1fr) 24px;gap:8px;} body.vx-customer-design-foundation .vx-report-leads{gap:0;} body.vx-customer-design-foundation .vx-report-lead-row{grid-template-columns:auto minmax(0,1fr) auto auto;column-gap:8px;row-gap:6px;padding:11px 0;border-bottom:1px solid var(--vx-line);} body.vx-customer-design-foundation .vx-report-lead-row:last-child{border-bottom:0;} body.vx-customer-design-foundation .vx-report-lead-row .vx-report-progress{grid-column:2/-1;height:6px;}}
 
@@ -7326,13 +7512,17 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             font-family:var(--vx-font-serif); font-weight:400; font-size:18px;
             line-height:1.48; color:var(--vx-color-night,#0D1F3C); margin:0;
           }
-          .vx-lara-meta { margin-top:10px; font-size:12px; color:#8A93A6; font-family:var(--vx-font-handover-ui); }
+          /* Diese Zeile liegt als einzige Meta-Angabe auf der getoenten Bubble
+             (#EEF1F6), wo --vx-ui-meta-color nur 4.27:1 erreicht. Sie nimmt
+             deshalb die Sekundaer-Rolle (5.28:1 auf der Bubble) — inhaltlich
+             ist sie ohnehin die Signatur der Nachricht und keine Listenzeit. */
+          .vx-lara-meta { margin-top:10px; font-size:12px; color:var(--vx-ui-text-secondary); font-family:var(--vx-font-handover-ui); }
 
           .vx-handover-section { margin-top:22px; }
           .vx-handover-eyebrow {
             display:flex; align-items:center; gap:7px; margin-bottom:10px;
             font-family:var(--vx-font-handover-ui);
-            font-size:12px; font-weight:600; color:#8A93A6; letter-spacing:0; text-transform:none;
+            font-size:12px; font-weight:600; color:var(--vx-ui-meta-color); letter-spacing:0; text-transform:none;
           }
           .vx-handover-eyebrow-dot {
             flex:0 0 auto; width:7px; height:7px; border-radius:50%;
@@ -7342,7 +7532,9 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           .vx-handover-count {
             display:inline-flex; align-items:center; justify-content:center;
             min-width:16px; height:16px; padding:0 5px; border-radius:8px;
-            font-size:11px; font-weight:600; color:#8A93A6; background:#F0F1F4;
+            font-size:11px; font-weight:600; color:var(--vx-ui-section-count-color);
+            background:var(--vx-ui-section-count-bg);
+            border:0.5px solid var(--vx-ui-section-count-border);
           }
 
           .vx-handover-rail { position:relative; padding-left:16px; display:flex; flex-direction:column; gap:12px; }
@@ -7379,13 +7571,13 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           .vx-handover-card-body { display:flex; align-items:flex-start; gap:12px; }
           .vx-handover-card-icon {
             flex:0 0 auto; width:36px; height:36px; border-radius:50%;
-            background:#F1F5F9; color:#94A3B8;
+            background:var(--vx-ui-row-icon-bg); color:var(--vx-ui-icon-quiet);
             display:flex; align-items:center; justify-content:center; font-size:15px;
           }
           .vx-handover-card-main { flex:1; min-width:0; }
           .vx-handover-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
           .vx-handover-card-title { font-weight:700; font-size:14px; color:var(--vx-color-night,#0D1F3C); }
-          .vx-handover-card-time { font-size:12px; color:#8A93A6; white-space:nowrap; flex:0 0 auto; }
+          .vx-handover-card-time { font-size:12px; color:var(--vx-ui-meta-color); white-space:nowrap; flex:0 0 auto; }
           .vx-handover-card-desc { margin-top:4px; font-size:13px; color:#5B6472; line-height:1.42; }
           .vx-handover-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:16px; margin-top:12px; }
           .vx-handover-btn {
@@ -7410,7 +7602,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           body.vx-customer-design-foundation .vx-all-clear-title { font-family:var(--vx-font-serif); font-weight:600; font-size:25px; color:var(--vx-color-night,#0D1F3C); margin:0 0 8px; }
           .vx-all-clear-text { font-size:14px; color:#5B6472; max-width:320px; margin:0 auto; line-height:1.5; }
 
-          .vx-handover-footlink { margin-top:18px; font-size:12px; color:#8A93A6; text-align:center; font-family:var(--vx-font-handover-ui); }
+          .vx-handover-footlink { margin-top:18px; font-size:12px; color:var(--vx-ui-meta-color); text-align:center; font-family:var(--vx-font-handover-ui); }
           .vx-handover-footlink a { color:var(--vx-color-night,#0D1F3C); font-weight:600; text-decoration:underline; cursor:pointer; }
         </style>
         <div class="tab-page active" id="tab-dashboard">
@@ -23204,6 +23396,19 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
     groups[label].push(rec);
   });
 
+  // Die Zeile steht bereits unter einem Gruppenkopf, der den Tag nennt
+  // ("Heute 5" / "Gestern 3"). Ein zusätzliches "Heute, " vor jeder Uhrzeit
+  // wiederholt diese Information und kostet in der 380px schmalen Spalte
+  // rund 45px, die dem Namen fehlen. Nur der Tages-Präfix fällt weg — ein
+  // abweichendes Fälligkeitsdatum (geplante Einträge) bleibt vollständig.
+  function stripRedundantDayPrefix(text, groupLabel) {
+    var value = String(text || '');
+    if (groupLabel !== 'Heute' && groupLabel !== 'Gestern') return value;
+    return value.replace(/^(Heute|Gestern),\s*/i, function(match, day) {
+      return day.toLowerCase() === groupLabel.toLowerCase() ? '' : match;
+    });
+  }
+
   function resolveDueText(rec) {
     var fields = (rec && rec.fields) || {};
     if (vxInquiryIsArchived(rec) || vxInquiryIsCompleted(rec)) {
@@ -23220,9 +23425,13 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
 
   var html = '';
   groupOrder.forEach(function(label) {
-    html += '<div class="vx-ops-meta vx-requests-date">'
-      + '<i class="ph-bold ph-calendar-dots" aria-hidden="true"></i>'
-      + _esc(label)
+    // Abschnittskopf im Heute-Stil: Punkt + Label + Zähler, wie
+    // "Braucht dich 2". Der heutige Tag bekommt den Night-Punkt, ältere
+    // Gruppen den stillen Grauton (siehe .vx-requests-date.is-today).
+    html += '<div class="vx-ops-meta vx-requests-date' + (label === 'Heute' ? ' is-today' : '') + '">'
+      + '<span class="vx-requests-date-dot" aria-hidden="true"></span>'
+      + '<span>' + _esc(label) + '</span>'
+      + '<span class="vx-requests-date-count">' + groups[label].length + '</span>'
       + '</div>';
 
     groups[label].forEach(function(rec) {
@@ -23263,17 +23472,26 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
         : stateMeta.state === 'processing' || stateMeta.state === 'checking' ? 'Wird verarbeitet'
         : isUnread ? 'Neu'
         : 'Offen';
-      // Rot / Blau / Grau per the canonical status-badge scheme.
-      var statusTone = isArchived || isDone ? 'neutral'
+      // Status-Familie: kühl und strukturell. Rot ist ausschliesslich dem
+      // Echtzeit-Zustand "Live" vorbehalten, "Neu" ist der einzige gefüllte
+      // Night-Chip, "Offen" als häufigster Zustand der leiseste.
+      var statusTone = isArchived ? 'neutral'
+        : isDone ? 'success'
         : stateMeta.state === 'live' ? 'danger'
-        : isPlanned || isUnread ? 'info'
-        : 'info';
+        : isPlanned ? 'info'
+        : isUnread ? 'night'
+        : 'quiet';
+      // Lead-Qualität: eigene Familie (Gold-Rampe mit führendem Punkt).
+      // "Heiss" lief vorher im Danger-Rot und las sich damit wie eine
+      // Fehlermeldung statt wie das positive Verkaufssignal, das es ist.
       var leadQuality = String(fields.lead_quality || '').toLowerCase();
       var leadPill = leadQuality === 'hot'
-        ? vxUiBadge('Heiss', 'danger')
+        ? vxUiBadge('Heiss', 'lead-hot')
         : leadQuality === 'warm'
-          ? vxUiBadge('Warm', 'warning')
-          : '';
+          ? vxUiBadge('Warm', 'lead-warm')
+          : leadQuality === 'cold'
+            ? vxUiBadge('Kalt', 'lead-cold')
+            : '';
       var primary = typeof vxTodayGetPrimaryAction === 'function'
         ? vxTodayGetPrimaryAction(rec, typeMeta, phone)
         : { action: phone ? 'call' : 'open', title: phone ? 'Anrufen' : 'Öffnen', icon: phone ? 'phone-call' : 'arrow-square-out' };
@@ -23283,7 +23501,7 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
         : '<button type="button" data-action="fulldetail" data-rec-id="' + _esc(recordId) + '">Details öffnen</button>';
       var activeClass = String(window._vxActiveRecordId || window._vxLastAnfragenRecordId || '') === recordId ? ' sp-active' : '';
       var unreadClass = isUnread ? ' is-unread' : '';
-      var dueText = resolveDueText(rec);
+      var dueText = stripRedundantDayPrefix(resolveDueText(rec), label);
       var taskText = linkedTasks.length === 1 ? '1 offene Aufgabe' : linkedTasks.length > 1 ? linkedTasks.length + ' offene Aufgaben' : '';
 
       html += '<article class="vx-ops-item vx-requests-item' + activeClass + unreadClass + '"'
@@ -30823,11 +31041,16 @@ function toggleCallRow(event, row) {
 #dash-priority-list .vx-heute-row.rail-overdue {
   border-left: none !important;
 }
+/* Auswahl-Kante der aelteren Kartenzeilen. Night statt --blue (#1A6FE8):
+   dieselbe Akzentfarbe wie die aktive Filter-Pille und die primaeren Buttons.
+   .vx-requests-item ist ausgenommen — die Anfragen-Karte markiert ihre
+   Auswahl ueber Rahmenfarbe + inset-Schatten (siehe .vx-requests-item.sp-active),
+   ein zusaetzlicher 3px-Rahmen wuerde ihren Inhalt beim Auswaehlen verschieben. */
 #anrufe-list .dpr-card.sp-active,
 #dash-priority-list .dpr-card.sp-active,
-#anrufe-list .sp-active,
-#dash-priority-list .sp-active {
-  border-left: 3px solid var(--blue) !important;
+#anrufe-list .sp-active:not(.vx-requests-item),
+#dash-priority-list .sp-active:not(.vx-requests-item) {
+  border-left: 3px solid var(--vx-color-night) !important;
 }
 #anrufe-list .dpr-card.sp-active .vx-anf-row,
 #dash-priority-list .dpr-card.sp-active .vx-heute-row {
@@ -34869,7 +35092,9 @@ button.vx-cd-qa-success:hover,
 }
 
 .sp-active .dpr-row { background: rgba(26,111,232,0.08); }
-.sp-active { border-left: none !important; }
+/* Gilt den aelteren .dpr-card-Zeilen; die Anfragen-Karte behaelt ihre
+   linke Rahmenkante, sonst fehlt der ausgewaehlten Karte eine Seite. */
+.sp-active:not(.vx-requests-item) { border-left: none !important; }
 .vx-zone-label { font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#7A8599;margin-bottom:10px;display:flex;align-items:center;gap:8px; }
 .vx-zone-line { flex:1;height:0.5px;background:#E4E8F0; }
 .vx-focus-header { background:#0D1F3C; }
@@ -35327,11 +35552,15 @@ button.vx-cd-qa-success:hover,
 #anrufe-list .dpr-card.sp-active .dpr-row{
   background:rgba(26,111,232,.05) !important;
 }
-#dash-priority-list .sp-active,
-#anrufe-list .sp-active,
+/* Legacy-Auswahlkante der .dpr-card-Zeilen. Night statt --blue (#1A6FE8) und
+   ohne die Anfragen-Karte: die markiert ihre Auswahl selbst
+   (.vx-requests-item.sp-active), ein zusaetzlicher 3px-Rahmen wuerde ihren
+   Inhalt beim Auswaehlen verschieben. */
+#dash-priority-list .sp-active:not(.vx-requests-item),
+#anrufe-list .sp-active:not(.vx-requests-item),
 #dash-priority-list .dpr-card.sp-active,
 #anrufe-list .dpr-card.sp-active{
-  border-left:3px solid var(--blue) !important;
+  border-left:3px solid var(--vx-color-night) !important;
 }
 
 /* Icon scales */
@@ -40884,11 +41113,16 @@ body #call-detail-page.is-open.is-fullscreen #call-detail-content{
 
 <style id="vx-row-state-followup-read-fix">
 /* [PR-A/B] Apple-like Selection — kein Balken, nur Background-Tint */
+/* .vx-requests-item ausgenommen: dieses !important-Paar hat die
+   Auswahl-Markierung der Anfragen-Karte abgeraeumt (Night-Rahmen +
+   inset-Kante), weil #anrufe-list .sp-active durch die ID-Spezifitaet gegen
+   jede Klassen-Regel gewinnt. Fuer die aelteren .dpr-card-Zeilen, fuer die
+   dieser Block gedacht ist, bleibt er unveraendert. */
 #dash-priority-list .dpr-card.sp-active,
 #anrufe-list .dpr-card.sp-active,
 #anrufe-split-left .dpr-card.sp-active,
-#dash-priority-list .sp-active,
-#anrufe-list .sp-active{
+#dash-priority-list .sp-active:not(.vx-requests-item),
+#anrufe-list .sp-active:not(.vx-requests-item){
   border-left:none !important;
   box-shadow:none !important;
 }
@@ -41028,9 +41262,11 @@ body #call-detail-page.is-open.is-fullscreen #call-detail-content{
   width:280px !important;
   min-width:280px !important;
   max-width:280px !important;
-  background:#fff !important;
-  border-right:0.5px solid rgba(0,0,0,.07) !important;
-  border-radius:10px 0 0 10px !important;
+  /* Canvas statt Weiss: die Zeilen sind jetzt weisse Karten und brauchen
+     eine Fläche, gegen die sie sich absetzen. */
+  background:var(--vx-color-canvas) !important;
+  border-right:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color) !important;
+  border-radius:var(--vx-ui-card-radius) 0 0 var(--vx-ui-card-radius) !important;
   overflow:hidden !important;
 }
 
@@ -41041,26 +41277,46 @@ body #call-detail-page.is-open.is-fullscreen #call-detail-content{
   border-bottom:0.5px solid rgba(0,0,0,.07) !important;
 }
 
+/* Filter-Pillen der Anfragen-Seite. Form und Farbe folgen dem Heute-Screen:
+   volle Pillenrundung wie der "Zurückrufen"-Button, Night als aktive Farbe.
+   Die aktive Pille nutzte bis hierher #1A6FE8 — ein helleres Blau als der
+   Rest der App und der einzige Ort, an dem dieser Ton als Flächenfarbe
+   auftauchte. */
 #tab-anrufe .vx-chip,
 #tab-anrufe .vxfb-chip{
-  height:24px !important;
-  padding:0 6px !important;
-  border-radius:14px !important;
-  font-size:11px !important;
-  font-weight:500 !important;
+  height:32px !important;
+  min-height:32px !important;
+  /* 10px innen statt 14px: die linke Spalte ist 380px breit und muss die
+     vier Status-Pillen inklusive Zähler ("Offen (7)") in einer Zeile
+     tragen, sonst bricht die Leiste auf drei Zeilen um. */
+  padding:0 10px !important;
+  border-radius:999px !important;
+  font-family:var(--vx-ui-row-font) !important;
+  font-size:12px !important;
+  font-weight:600 !important;
   letter-spacing:0 !important;
-  background:#F7F8FA !important;
-  color:#4A5568 !important;
-  border:0.5px solid rgba(0,0,0,.07) !important;
+  background:var(--vx-ui-row-bg) !important;
+  color:var(--vx-ui-row-desc-color) !important;
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color) !important;
+  transition:background .12s ease,border-color .12s ease,color .12s ease;
+}
+
+#tab-anrufe .vx-chip:hover,
+#tab-anrufe .vxfb-chip:hover{
+  background:var(--vx-color-surface-soft) !important;
+  border-color:var(--vx-ui-row-border-hover) !important;
+  color:var(--vx-ui-row-title-color) !important;
 }
 
 #tab-anrufe .vx-chip--active,
 #tab-anrufe .vxfb-chip--active,
 #tab-anrufe .vx-chip.vx-chip--active,
-#tab-anrufe .vxfb-chip.vxfb-chip--active{
-  background:#1A6FE8 !important;
+#tab-anrufe .vxfb-chip.vxfb-chip--active,
+#tab-anrufe .vx-chip.vx-chip--active:hover,
+#tab-anrufe .vxfb-chip.vxfb-chip--active:hover{
+  background:var(--vx-color-night) !important;
   color:#fff !important;
-  border-color:#1A6FE8 !important;
+  border-color:var(--vx-color-night) !important;
 }
 
 /* Tablet/Mobile: keine Hover-Abhängigkeit */
@@ -41227,8 +41483,11 @@ body:has(#tab-archiv.active) .content{
 
   function rowId(el){
     if(!el) return '';
-    var card = el.closest && el.closest('.dpr-card');
-    var row = el.closest && el.closest('.vx-heute-row,.vx-anf-row,.dpr-row');
+    // .vx-requests-item/.vx-requests-row sind die Zeilen, die
+    // renderAnrufeInbox() tatsaechlich erzeugt; .dpr-card/.vx-heute-row sind
+    // die aelteren Kartenzeilen und bleiben als Fallback stehen.
+    var card = el.closest && el.closest('.vx-requests-item,.dpr-card');
+    var row = el.closest && el.closest('.vx-requests-row,.vx-heute-row,.vx-anf-row,.dpr-row');
     return str(
       (card && card.dataset && (card.dataset.id || card.dataset.recordId)) ||
       (row && row.dataset && (row.dataset.id || row.dataset.recordId)) ||
@@ -41251,7 +41510,7 @@ body:has(#tab-archiv.active) .content{
       el.classList.remove('sp-active');
     });
 
-    qsa('#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row').forEach(function(el){
+    qsa('#anrufe-list .vx-requests-item,#anrufe-split-left .vx-requests-item,#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row').forEach(function(el){
       if(rowId(el) === id) el.classList.add('sp-active');
     });
   }
@@ -41318,14 +41577,14 @@ body:has(#tab-archiv.active) .content{
   }
 
   document.addEventListener('pointerdown', function(e){
-    var row = e.target && e.target.closest && e.target.closest('#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row');
+    var row = e.target && e.target.closest && e.target.closest('#anrufe-list .vx-requests-item,#anrufe-split-left .vx-requests-item,#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row');
     if(!row || (e.target.closest && e.target.closest('button,.vx-row-menu,.vx-ibtn'))) return;
     var id = rowId(row);
     if(id) scheduleApply(id);
   }, true);
 
   document.addEventListener('click', function(e){
-    var row = e.target && e.target.closest && e.target.closest('#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row');
+    var row = e.target && e.target.closest && e.target.closest('#anrufe-list .vx-requests-item,#anrufe-split-left .vx-requests-item,#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row');
     if(!row || (e.target.closest && e.target.closest('button,.vx-row-menu,.vx-ibtn'))) return;
     var id = rowId(row);
     if(id) scheduleApply(id);
@@ -41392,8 +41651,8 @@ body:has(#tab-archiv.active) .content{
   function qsa(sel, root){ return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function rowId(el){
     if(!el) return '';
-    var card = el.closest && el.closest('.dpr-card');
-    var row = el.closest && el.closest('.vx-heute-row,.vx-anf-row,.dpr-row');
+    var card = el.closest && el.closest('.vx-requests-item,.dpr-card');
+    var row = el.closest && el.closest('.vx-requests-row,.vx-heute-row,.vx-anf-row,.dpr-row');
     return str((card && card.dataset && (card.dataset.id || card.dataset.recordId)) || (row && row.dataset && (row.dataset.id || row.dataset.recordId)) || (el.dataset && (el.dataset.id || el.dataset.recordId)) || '');
   }
   function applyActive(id){
@@ -41402,7 +41661,7 @@ body:has(#tab-archiv.active) .content{
     window._vxActiveRecordId = id;
     window._vxLastAnfragenRecordId = id;
     qsa('#anrufe-list .sp-active,#anrufe-split-left .sp-active').forEach(function(el){ el.classList.remove('sp-active'); });
-    qsa('#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row').forEach(function(el){
+    qsa('#anrufe-list .vx-requests-item,#anrufe-split-left .vx-requests-item,#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row,#anrufe-list .vx-anf-row,#anrufe-split-left .vx-anf-row').forEach(function(el){
       if(rowId(el) === id) el.classList.add('sp-active');
     });
   }
@@ -41410,7 +41669,7 @@ body:has(#tab-archiv.active) .content{
   window.vxSyncActiveRequestRows = function(){ applyActive(window._vxActiveRecordId || window._vxLastAnfragenRecordId || window._vxCurrentCallId || window._vxCurrentTaskId || ''); };
 
   document.addEventListener('pointerdown', function(e){
-    var row = e.target && e.target.closest && e.target.closest('#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row');
+    var row = e.target && e.target.closest && e.target.closest('#anrufe-list .vx-requests-item,#anrufe-split-left .vx-requests-item,#anrufe-list .dpr-card,#anrufe-split-left .dpr-card,#anrufe-list .vx-heute-row,#anrufe-split-left .vx-heute-row');
     if(!row || (e.target.closest && e.target.closest('button,.vx-row-menu,.vx-ibtn'))) return;
     var id = rowId(row);
     if(id) applyActive(id);
@@ -42127,7 +42386,13 @@ body:has(#tab-archiv.active) .content{
       blue:'background:var(--vx-blue-light,#EFF6FF);color:var(--vx-blue,#1A6FE8);border-color:var(--vx-blue-bd,#BFDBFE);',
       red:'background:var(--vx-red-light,#FEF2F2);color:var(--vx-red,#DC2626);border-color:var(--vx-red-bd,#FECACA);',
       gold:'background:var(--vx-gold-light,#FFFBEB);color:#B45309;border-color:var(--vx-gold-bd,#FDE68A);',
-      green:'background:var(--vx-green-light,#EAF3DE);color:var(--vx-green,#3B6D11);border-color:var(--vx-green-bd,#97C459);'
+      green:'background:var(--vx-green-light,#EAF3DE);color:var(--vx-green,#3B6D11);border-color:var(--vx-green-bd,#97C459);',
+      // Lead-Qualität teilt sich die Gold-Rampe mit den Listen-Badges
+      // (--vx-ui-badge-lead-*). Reine Farbangleichung — Aufbau und
+      // Typografie der Chip-Zeile bleiben unverändert.
+      leadHot:'background:var(--vx-ui-badge-lead-hot-bg,#E8C547);color:var(--vx-ui-badge-lead-hot-text,#0D1F3C);border-color:#D9B637;',
+      leadWarm:'background:var(--vx-ui-badge-lead-warm-bg,#FBF1D8);color:var(--vx-ui-badge-lead-warm-text,#7A5C00);border-color:#EFDDAE;',
+      leadCold:'background:var(--vx-ui-badge-lead-cold-bg,#EEF2F7);color:var(--vx-ui-badge-lead-cold-text,#5B6472);border-color:#DDE5F0;'
     };
     return '<span class="vx-dv2-chip" style="'+(palette[kind]||palette.status)+'">'+esc(text)+'</span>';
   }
@@ -42362,7 +42627,10 @@ body:has(#tab-archiv.active) .content{
     var leadQual = firstNonEmpty(f.lead_quality, f.lead_quality_label, f.priority);
     var done = isCompleted(record);
     var leadKey = String(leadQual).toLowerCase();
-    var leadKind = (leadKey === 'hot' || leadKey === 'heiss') ? 'red' : (leadKey === 'warm' ? 'gold' : 'status');
+    var leadKind = (leadKey === 'hot' || leadKey === 'heiss') ? 'leadHot'
+      : (leadKey === 'warm') ? 'leadWarm'
+      : (leadKey === 'cold' || leadKey === 'kalt') ? 'leadCold'
+      : 'status';
 
     var chips = [chipHtml(statusLabelOf(record), done ? 'green' : 'status')];
     if (category) chips.push(chipHtml(label(category), 'blue'));

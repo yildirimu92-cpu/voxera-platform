@@ -285,9 +285,11 @@ body.vx-customer-design-foundation :where(.vx-ui-badge, .vx-ops-pill, .vxdr-pill
   white-space: nowrap;
 }
 
+/* Rot ist ab jetzt ausschliesslich der Echtzeit-/Fehlerzustand. Die früher
+   hier mitgeführten .vx-requests-pill.is-hot/.is-warm gehören zur
+   Lead-Qualität und stehen weiter unten bei der Gold-Rampe. */
 body.vx-customer-design-foundation :where(
   .vx-ui-badge--danger,
-  .vx-requests-pill.is-hot,
   .vx-ops-pill.expired
 ) {
   background: var(--vx-ui-badge-danger-bg);
@@ -296,7 +298,6 @@ body.vx-customer-design-foundation :where(
 
 body.vx-customer-design-foundation :where(
   .vx-ui-badge--info,
-  .vx-requests-pill.is-warm,
   .vxdr-pill--status
 ) {
   background: var(--vx-ui-badge-info-bg);
@@ -323,6 +324,42 @@ body.vx-customer-design-foundation :where(
 body.vx-customer-design-foundation .vx-ui-badge--warning {
   background: var(--vx-ui-badge-warning-bg);
   color: var(--vx-ui-badge-warning-text);
+}
+
+/* "Neu"/ungelesen — the single filled chip in the status family, in the
+   same Night as the primary buttons. */
+body.vx-customer-design-foundation .vx-ui-badge--night {
+  background: var(--vx-ui-badge-night-bg);
+  color: var(--vx-ui-badge-night-text);
+}
+
+/* "Offen" — the most frequent state, therefore the quietest chip. */
+body.vx-customer-design-foundation .vx-ui-badge--quiet {
+  background: var(--vx-ui-badge-quiet-bg);
+  color: var(--vx-ui-badge-quiet-text);
+}
+
+/* Lead-Qualität: gold ramp, its own family. .vx-requests-pill.is-hot/.is-warm
+   are the legacy class names for the same two states and move with it. */
+body.vx-customer-design-foundation :where(
+  .vx-ui-badge--lead-hot,
+  .vx-requests-pill.is-hot
+) {
+  background: var(--vx-ui-badge-lead-hot-bg);
+  color: var(--vx-ui-badge-lead-hot-text);
+}
+
+body.vx-customer-design-foundation :where(
+  .vx-ui-badge--lead-warm,
+  .vx-requests-pill.is-warm
+) {
+  background: var(--vx-ui-badge-lead-warm-bg);
+  color: var(--vx-ui-badge-lead-warm-text);
+}
+
+body.vx-customer-design-foundation .vx-ui-badge--lead-cold {
+  background: var(--vx-ui-badge-lead-cold-bg);
+  color: var(--vx-ui-badge-lead-cold-text);
 }
 
 body.vx-customer-design-foundation .vx-ui-badge-dot {
