@@ -8797,7 +8797,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
 <!-- COMMERCIAL REQUEST MODAL -->
     <div class="overlay overlay--sheet vx-commercial-overlay" id="vx-commercial-overlay" aria-hidden="true">
-      <div class="modal modal--wide vx-commercial-modal" role="dialog" aria-modal="true" aria-labelledby="vx-commercial-title">
+      <div class="modal modal--wide vx-commercial-modal" role="dialog" aria-modal="true" aria-labelledby="vx-commercial-title" tabindex="-1">
         <div class="modal-shell">
           <div class="modal-head">
             <div><div id="vx-commercial-title" class="modal-title">Plan & Optionen</div><div id="vx-commercial-subtitle" class="modal-sub">Auswahl prüfen und verbindlich übermitteln.</div></div>
@@ -8816,8 +8816,8 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 <!-- Willkommens-Hinweis: einmalig beim ersten Login, kein Tutorial/Deep-Links
      mehr — siehe Backlog "Onboarding-Wizard-Redesign" für eine vollständige
      Neugestaltung. Diese Version ist bewusst minimal. -->
-<div id="vx-onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.6);backdrop-filter:blur(4px);z-index:9000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)vxOnboardingSkip()">
-  <div style="position:relative;background:var(--surface);border-radius:var(--vx-radius-modal);width:100%;max-width:440px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);">
+<div id="vx-onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.6);backdrop-filter:blur(4px);z-index:9000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)vxOnboardingSkip()" role="dialog" aria-modal="true" aria-labelledby="vx-onboarding-title" aria-hidden="true">
+  <div style="position:relative;background:var(--surface);border-radius:var(--vx-radius-modal);width:100%;max-width:440px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);" tabindex="-1">
     <button type="button" onclick="vxOnboardingSkip()" aria-label="Schliessen" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;">
       <i class="ph-bold ph-x" aria-hidden="true"></i>
     </button>
@@ -8828,7 +8828,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <i class="ph-bold ph-sparkle" style="color:#E8C547;font-size:20px;" aria-hidden="true"></i>
         </div>
         <div>
-          <div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;">Willkommen bei Voxera</div>
+          <h2 id="vx-onboarding-title" style="margin:0;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;">Willkommen bei Voxera</h2>
           <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:1px;">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
         </div>
       </div>
@@ -8849,15 +8849,15 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 <div id="account-overlay" style="display:none"></div>
 
 <!-- SETUP HELP OVERLAY -->
-<div class="overlay overlay--sheet" id="setup-help-overlay" onclick="if(event.target===this)closeSetupHelpOverlay()">
-  <div class="modal setup-help-modal">
+<div class="overlay overlay--sheet" id="setup-help-overlay" onclick="if(event.target===this)closeSetupHelpOverlay()" role="dialog" aria-modal="true" aria-labelledby="setup-help-title" aria-hidden="true">
+  <div class="modal setup-help-modal" tabindex="-1">
     <div id="setup-help-content"></div>
   </div>
 </div>
 
 <!-- ACTIVATION FLOW MODAL -->
-<div class="overlay overlay--sheet" id="activation-flow-overlay" onclick="if(event.target===this)closeActivationFlowModal()">
-  <div class="modal activation-flow-modal">
+<div class="overlay overlay--sheet" id="activation-flow-overlay" onclick="if(event.target===this)closeActivationFlowModal()" role="dialog" aria-modal="true" aria-labelledby="activation-flow-title" aria-hidden="true">
+  <div class="modal activation-flow-modal" tabindex="-1">
     <div id="activation-flow-content"></div>
   </div>
 </div>
@@ -8984,7 +8984,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
 <!-- MANUELLE AUFGABE MODAL -->
 <div class="overlay overlay--sheet" id="manual-task-overlay" onclick="if(event.target===this)closeManualTaskModal()" role="dialog" aria-modal="true" aria-labelledby="manual-task-title-heading" aria-hidden="true">
-  <div class="modal followup-modal">
+  <div class="modal followup-modal" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top">
@@ -9056,7 +9056,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 </div>
 
 <div class="overlay overlay--sheet" id="manual-request-overlay" onclick="if(event.target===this)closeManualRequestModal()" role="dialog" aria-modal="true" aria-labelledby="manual-request-title-heading" aria-hidden="true">
-  <div class="modal followup-modal">
+  <div class="modal followup-modal" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top">
@@ -16428,7 +16428,10 @@ function vxOnboardingInit() {
   // Modal zeigen
   const overlay = document.getElementById('vx-onboarding-overlay');
   if (overlay) {
+    rememberOverlayFocusReturn('vx-onboarding-overlay');
     overlay.style.display = 'flex';
+    setOverlayAriaHidden('vx-onboarding-overlay', false);
+    vxFocusDialog('vx-onboarding-overlay');
     /* phosphor: no init needed */
   }
 }
@@ -16436,6 +16439,8 @@ function vxOnboardingInit() {
 function vxOnboardingSkip() {
   const overlay = document.getElementById('vx-onboarding-overlay');
   if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('vx-onboarding-overlay', true);
+  restoreOverlayFocus('vx-onboarding-overlay');
   // Beim nächsten Login nicht mehr zeigen
   vxOnboardingDismissNow();
 }
@@ -16443,6 +16448,8 @@ function vxOnboardingSkip() {
 async function vxOnboardingFinish() {
   const overlay = document.getElementById('vx-onboarding-overlay');
   if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('vx-onboarding-overlay', true);
+  restoreOverlayFocus('vx-onboarding-overlay');
   await vxOnboardingDismissNow();
 }
 
@@ -17560,14 +17567,17 @@ function vxCommercialPlanLabel(value) {
 function vxCommercialOpen() {
   const overlay = document.getElementById('vx-commercial-overlay');
   if (!overlay) return;
+  rememberOverlayFocusReturn('vx-commercial-overlay');
   overlay.classList.add('open');
   overlay.setAttribute('aria-hidden', 'false');
   syncOverlayScrollLock();
+  vxFocusDialog('vx-commercial-overlay');
 }
 
 function vxCommercialClose() {
   const overlay = document.getElementById('vx-commercial-overlay');
   if (overlay) { overlay.classList.remove('open'); overlay.setAttribute('aria-hidden', 'true'); }
+  restoreOverlayFocus('vx-commercial-overlay');
   vxCommercialState = { type: '', selected: '', options: [], estimatedAmount: null, submitting: false };
   syncOverlayScrollLock();
 }
@@ -23661,10 +23671,38 @@ function restoreOverlayFocus(overlayId) {
   }
 }
 
+window.rememberOverlayFocusReturn = rememberOverlayFocusReturn;
+window.restoreOverlayFocus = restoreOverlayFocus;
+
 function setOverlayAriaHidden(overlayId, hidden) {
   var overlay = document.getElementById(overlayId);
   if (overlay) overlay.setAttribute('aria-hidden', hidden ? 'true' : 'false');
 }
+
+// Fokus beim Oeffnen in den Dialog setzen. Ohne das bleibt der Fokus auf dem
+// ausloesenden Element hinter dem Overlay: Tastaturnutzer tabben durch die
+// Seite dahinter, und dialog-eigene keydown-Listener feuern nie (die
+// Support-Anfrage hatte genau deshalb einen wirkungslosen Escape-Handler).
+function vxFocusDialog(overlayId, preferredSelector) {
+  var overlay = document.getElementById(overlayId);
+  if (!overlay) return;
+  // Mehrere Anlaeufe statt eines einzigen: ein focus() auf ein Element, das im
+  // selben Frame noch display:none traegt, verpufft folgenlos — und die Dialoge
+  // werden unterschiedlich sichtbar gemacht (Klasse, inline style, teils erst
+  // nach einem Render). Der Versuch endet, sobald der Fokus im Dialog liegt.
+  var attempts = 0;
+  function tryFocus() {
+    attempts++;
+    if (overlay.contains(document.activeElement) && document.activeElement !== document.body) return;
+    var target = preferredSelector ? overlay.querySelector(preferredSelector) : null;
+    if (!target) target = overlay.querySelector('[tabindex="-1"], .modal, [role="dialog"]');
+    if (!target) target = overlay;
+    try { target.focus({ preventScroll: true }); } catch(e) { try { target.focus(); } catch(_) {} }
+    if (!overlay.contains(document.activeElement) && attempts < 4) setTimeout(tryFocus, 40);
+  }
+  setTimeout(tryFocus, 0);
+}
+window.vxFocusDialog = vxFocusDialog;
 
 
 window.vxScrollLocks = window.vxScrollLocks || new Set();
@@ -23894,6 +23932,7 @@ function openConfirmModal(config) {
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.add('open');
   setOverlayAriaHidden('confirm-overlay', false);
+  vxFocusDialog('confirm-overlay');
   syncOverlayScrollLock();
 }
 
@@ -24192,6 +24231,7 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
   }
   document.getElementById('followup-overlay').classList.add('open');
   setOverlayAriaHidden('followup-overlay', false);
+  vxFocusDialog('followup-overlay');
   syncOverlayScrollLock();
 }
 
@@ -24485,6 +24525,7 @@ function openManualTaskModal() {
   }
   document.getElementById('manual-task-overlay').classList.add('open');
   setOverlayAriaHidden('manual-task-overlay', false);
+  vxFocusDialog('manual-task-overlay');
   syncOverlayScrollLock();
 }
 
@@ -24561,6 +24602,7 @@ function openManualTaskEditModal(recordId) {
   }
   document.getElementById('manual-task-overlay').classList.add('open');
   setOverlayAriaHidden('manual-task-overlay', false);
+  vxFocusDialog('manual-task-overlay');
   syncOverlayScrollLock();
 }
 
@@ -24586,6 +24628,7 @@ function openManualRequestModal() {
   document.getElementById('manual-request-inbox').checked = true;
   document.getElementById('manual-request-overlay').classList.add('open');
   setOverlayAriaHidden('manual-request-overlay', false);
+  vxFocusDialog('manual-request-overlay');
   syncOverlayScrollLock();
 }
 
@@ -25360,6 +25403,7 @@ function openNotiz(recordId, existingNotiz, callerName) {
   document.getElementById('notiz-save-btn').textContent = 'Speichern';
   document.getElementById('notiz-overlay').classList.add('open');
   setOverlayAriaHidden('notiz-overlay', false);
+  // Fokus setzt openNotiz selbst auf die Textarea — gezielter als der Container.
   syncOverlayScrollLock();
   setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }, 150);
 }
@@ -25411,6 +25455,38 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
 (function initOverlayEscapeHandling(){
   if (window.__VOXERA_OVERLAY_ESC_BOUND__) return;
   window.__VOXERA_OVERLAY_ESC_BOUND__ = true;
+
+  // Escape schliesst den obersten offenen Dialog. Reihenfolge = Layer-Reihenfolge
+  // (z-index), nicht Markup-Reihenfolge: der Bestaetigen-Dialog liegt regelmaessig
+  // ueber einem anderen Modal und muss zuerst weichen.
+  // Vorher war das eine fest verdrahtete if-Kette ueber vier der dreizehn Dialoge;
+  // die uebrigen neun reagierten gar nicht auf Escape.
+  var ESCAPE_DIALOGS = [
+    { id: 'vox-support-request-overlay', close: function(){
+        var btn = document.querySelector('#vox-support-request-overlay .vox-support-close, #vox-support-request-overlay [data-close]');
+        if (btn) btn.click();
+      } },
+    { id: 'confirm-overlay', close: function(){ closeConfirmModal(); }, busy: function(){ return !!confirmModalBusy; } },
+    { id: 'manual-task-overlay', close: function(){ closeManualTaskModal(); } },
+    { id: 'manual-request-overlay', close: function(){ closeManualRequestModal(); } },
+    { id: 'followup-overlay', close: function(){ closeFollowup(); } },
+    { id: 'notiz-overlay', close: function(){ closeNotiz(); } },
+    { id: 'vx-preview-modal', close: function(){ vxClosePendingPreview(); } },
+    { id: 'vx-commercial-overlay', close: function(){ vxCommercialClose(); } },
+    { id: 'setup-help-overlay', close: function(){ closeSetupHelpOverlay(); } },
+    { id: 'activation-flow-overlay', close: function(){ closeActivationFlowModal(); } },
+    { id: 'tour-overlay', close: function(){ tourSkip(); } },
+    { id: 'vx-onboarding-overlay', close: function(){ vxOnboardingSkip(); } }
+  ];
+
+  // Die Dialoge zeigen sich uneinheitlich: teils ueber die Klasse 'open',
+  // teils ueber inline display. Der berechnete Wert deckt beides ab.
+  function isDialogVisible(el) {
+    if (!el) return false;
+    var cs = window.getComputedStyle(el);
+    return cs.display !== 'none' && cs.visibility !== 'hidden';
+  }
+
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     var active = document.activeElement;
@@ -25419,11 +25495,16 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
       e.preventDefault();
       return;
     }
-    if (confirmModalBusy && document.getElementById('confirm-overlay').classList.contains('open')) return;
-    if (document.getElementById('confirm-overlay').classList.contains('open')) { closeConfirmModal(); return; }
-    if (document.getElementById('manual-task-overlay').classList.contains('open')) { closeManualTaskModal(); return; }
-    if (document.getElementById('followup-overlay').classList.contains('open')) { closeFollowup(); return; }
-    if (document.getElementById('notiz-overlay').classList.contains('open')) { closeNotiz(); return; }
+    for (var i = 0; i < ESCAPE_DIALOGS.length; i++) {
+      var entry = ESCAPE_DIALOGS[i];
+      var el = document.getElementById(entry.id);
+      if (!isDialogVisible(el)) continue;
+      // Waehrend eines laufenden Speichervorgangs bleibt der Dialog stehen —
+      // und faellt nicht auf den naechsten darunter durch.
+      if (entry.busy && entry.busy()) return;
+      try { entry.close(); } catch(err) { console.warn('[Voxera Escape] close failed', entry.id, err); }
+      return;
+    }
   });
 })();
 
@@ -25891,6 +25972,7 @@ function openSetupHelpOverlay(event, sectionId) {
   var overlay = document.getElementById('setup-help-overlay');
   var target = document.getElementById('setup-help-content');
   if (!overlay || !target) return;
+  rememberOverlayFocusReturn('setup-help-overlay');
 
   var sections = {
     forwarding: {
@@ -25937,7 +26019,7 @@ function openSetupHelpOverlay(event, sectionId) {
   var section = sections[sectionId] || sections.forwarding;
   target.innerHTML =
     '<div class="setup-help-header">' +
-      '<div><div class="setup-help-title">' + section.title + '</div><div class="setup-help-sub">' + section.sub + '</div></div>' +
+      '<div><div class="setup-help-title" id="setup-help-title">' + section.title + '</div><div class="setup-help-sub">' + section.sub + '</div></div>' +
       '<button class="btn btn--secondary" onclick="closeSetupHelpOverlay()">Schliessen</button>' +
     '</div>' +
     section.html +
@@ -25946,6 +26028,8 @@ function openSetupHelpOverlay(event, sectionId) {
     '</div>';
 
   overlay.style.display = 'flex';
+  setOverlayAriaHidden('setup-help-overlay', false);
+  vxFocusDialog('setup-help-overlay');
   renderForwardingCodes();
   var overlayFallback = document.getElementById('setup-forwarding-fallback');
   if (overlayFallback) overlayFallback.style.display = getDialableVoxeraNumber() ? 'none' : 'inline-flex';
@@ -25954,6 +26038,8 @@ function openSetupHelpOverlay(event, sectionId) {
 function closeSetupHelpOverlay() {
   var overlay = document.getElementById('setup-help-overlay');
   if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('setup-help-overlay', true);
+  restoreOverlayFocus('setup-help-overlay');
 }
 
 function openFullHelpFromWizard(anchorId) {
@@ -26933,18 +27019,21 @@ function hasDetectedActivationTestCall() {
 function closeActivationFlowModal() {
   var overlay = document.getElementById('activation-flow-overlay');
   if (overlay) overlay.classList.remove('open');
+  setOverlayAriaHidden('activation-flow-overlay', true);
   syncOverlayScrollLock();
+  restoreOverlayFocus('activation-flow-overlay');
 }
 
 function openActivationFlowModal(type) {
   var overlay = document.getElementById('activation-flow-overlay');
   var content = document.getElementById('activation-flow-content');
   if (!overlay || !content) return;
+  rememberOverlayFocusReturn('activation-flow-overlay');
   var modeLabel = getForwardingModeLabel(customerMeta && customerMeta.forwardingMode);
   if (type === 'success') {
     content.innerHTML = ''
       + '<div class="activation-flow-step">Schritt 2 von 2 · Verbindung wird bestätigt</div>'
-      + '<h3>Verbindung wird final bestätigt…</h3>'
+      + '<h3 id="activation-flow-title">Verbindung wird final bestätigt…</h3>'
       + '<div class="activation-flow-lead">Der Testanruf wurde erkannt. Voxera übernimmt jetzt automatisch die finale Aktivierung.</div>'
       + '<ul class="activation-flow-list">'
       + '<li><strong>Was wurde erkannt?</strong>Der eingegangene Testanruf wurde dem Aktivierungsprozess eindeutig zugeordnet.</li>'
@@ -26958,7 +27047,7 @@ function openActivationFlowModal(type) {
   } else {
     content.innerHTML = ''
       + '<div class="activation-flow-step">Schritt 1 von 2 · Testanruf starten</div>'
-      + '<h3>Testanruf durchführen</h3>'
+      + '<h3 id="activation-flow-title">Testanruf durchführen</h3>'
       + '<div class="activation-flow-lead">Die Aktivierung wurde gestartet' + (modeLabel ? ' (<strong>' + escapeHtml(modeLabel) + '</strong>)' : '') + '. Wir rufen jetzt Ihre hinterlegte Hauptnummer an.</div>'
       + '<ul class="activation-flow-list">'
       + '<li><strong>Was passiert gerade?</strong>Wir prüfen automatisch, ob Ihre Weiterleitung den Testanruf korrekt zu Voxera übergibt.</li>'
@@ -26972,7 +27061,9 @@ function openActivationFlowModal(type) {
       + '</div>';
   }
   overlay.classList.add('open');
+  setOverlayAriaHidden('activation-flow-overlay', false);
   syncOverlayScrollLock();
+  vxFocusDialog('activation-flow-overlay');
 }
 
 function maybeOpenActivationGuideModal() {
@@ -29984,9 +30075,9 @@ function toggleCallRow(event, row) {
 <!-- ═══════════════════════════════════════
      SPOTLIGHT TOUR
 ═══════════════════════════════════════ -->
-<div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:10000;pointer-events:none;">
-  <canvas id="tour-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
-  <div id="tour-card" style="
+<div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:10000;pointer-events:none;" aria-hidden="true">
+  <canvas id="tour-canvas" style="position:absolute;inset:0;width:100%;height:100%;" aria-hidden="true"></canvas>
+  <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" tabindex="-1" style="
     position:absolute;background:var(--surface);border-radius:20px;
     padding:28px 28px 22px;max-width:320px;width:calc(100vw - 40px);
     box-shadow:0 20px 60px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.15);
@@ -31356,10 +31447,13 @@ function tourStart() {
   _tourActive = true;
   // Flag sofort beim Start setzen — Abbrechen = auch "gesehen", nie mehr auto-starten
   try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
+  rememberOverlayFocusReturn('tour-overlay');
   var overlay = document.getElementById('tour-overlay');
   overlay.style.display = 'block';
   overlay.style.pointerEvents = 'all';
+  setOverlayAriaHidden('tour-overlay', false);
   tourGoToStep(0);
+  vxFocusDialog('tour-overlay', '#tour-card');
 }
 
 function tourNext() {
@@ -31384,6 +31478,8 @@ function tourDone() {
   _tourActive = false;
   var overlay = document.getElementById('tour-overlay');
   if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('tour-overlay', true);
+  restoreOverlayFocus('tour-overlay');
   try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
   var navEl = document.querySelector('.nav-item');
   showTab('dashboard', navEl, { historyMode: 'none' });
@@ -38925,6 +39021,12 @@ body:has(#tab-archiv.active) .content{
     shell = document.createElement('div');
     shell.id = 'vx-detail-v2-fullscreen';
     shell.setAttribute('aria-hidden','true');
+    // Die Vollansicht pflegte aria-hidden, trug aber keine Dialog-Rolle:
+    // Screenreader kuendigten sie als beliebigen Container an.
+    shell.setAttribute('role','dialog');
+    shell.setAttribute('aria-modal','true');
+    shell.setAttribute('aria-labelledby','vx-dv2-full-title');
+    shell.setAttribute('tabindex','-1');
     shell.innerHTML = '' +
       '<div class="vx-dv2-full-head">' +
         '<button type="button" class="vx-dv2-full-back" onclick="vxCloseDetailV2Fullscreen()" aria-label="Zurück"><i class="ph-bold ph-arrow-left"></i></button>' +
@@ -38950,6 +39052,8 @@ body:has(#tab-archiv.active) .content{
     shell.setAttribute('aria-hidden','false');
     document.body.classList.add('vx-dv2-fullscreen-open');
     try { shell.scrollTop = 0; if (content) content.scrollTop = 0; } catch(e) {}
+    if (typeof window.rememberOverlayFocusReturn === 'function') window.rememberOverlayFocusReturn('vx-detail-v2-fullscreen');
+    if (typeof window.vxFocusDialog === 'function') window.vxFocusDialog('vx-detail-v2-fullscreen', '.vx-dv2-full-back');
     return true;
   }
 
@@ -39051,6 +39155,7 @@ body:has(#tab-archiv.active) .content{
     var shell = document.getElementById('vx-detail-v2-fullscreen');
     if (shell) { shell.classList.remove('is-open'); shell.setAttribute('aria-hidden','true'); }
     document.body.classList.remove('vx-dv2-fullscreen-open');
+    if (typeof window.restoreOverlayFocus === 'function') window.restoreOverlayFocus('vx-detail-v2-fullscreen');
     window._vxCurrentDetailType = null;
     window._vxCurrentCallId = null;
     window._vxCurrentTaskId = null;

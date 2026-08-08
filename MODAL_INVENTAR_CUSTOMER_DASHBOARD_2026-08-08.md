@@ -329,7 +329,7 @@ Override-Regel.
 - Akzentrollen unverändert: `.btn--secondary`, `.vx-modal-chip.is-active`,
   Fokusring und Fortschritt tragen weiterhin Blau.
 
-### Phase 2 — Barrierefreiheit *(unabhängig von Phase 1, eigener PR)*
+### Phase 2 — Barrierefreiheit — **erledigt**
 
 **S3 · Die vier Overlays auf den vollen Dialog-Vertrag heben:**
 Setup-Hilfe, Aktivierungs-Flow, Onboarding, Tour erhalten `role="dialog"`,
@@ -343,6 +343,52 @@ braucht eine echte Überschrift statt eines `div`; die Tour hat mit
 Dialog-Rolle haben, aber nicht im Escape-Handler stehen: `manual-request`,
 `vx-commercial`, `vox-support-request`. Die Detail-Vollansicht bringt ein
 eigenes Escape mit und braucht nur die Rolle.
+
+**Ergebnisse von S3/S4:**
+
+- Der Escape-Handler war eine fest verdrahtete `if`-Kette über vier der
+  dreizehn Dialoge — neun reagierten gar nicht. Er ist jetzt eine nach
+  Layer-Reihenfolge sortierte Tabelle: der oberste offene Dialog schliesst
+  zuerst, der Bestätigen-Dialog vor dem Modal darunter. Neue Dialoge sind eine
+  Zeile.
+- **Anfangsfokus fehlte in zwölf von dreizehn Dialogen.** Nur die
+  Support-Anfrage setzte den Fokus beim Öffnen selbst (auf ihr Nachrichtenfeld)
+  und gab ihn beim Schliessen zurück. Überall sonst blieb der Fokus auf dem
+  auslösenden Element hinter dem Overlay. Neuer Helfer `vxFocusDialog()`,
+  einheitlich an allen Dialogen; `openNotiz` behält seinen eigenen, gezielteren
+  Fokus auf die Textarea.
+- **`vxCommercialOpen`/`vxCommercialClose` in `index.html` sind toter Code.**
+  `customer-runtime-commercial-controller.js` überschreibt beide Namen beim
+  Installieren (`root.vxCommercialOpen = open`). Dieselbe Falle wie bei den
+  CSS-`!important`-Regeln, nur in JavaScript: die sichtbare Definition ist
+  nicht die wirksame. Der Dialog-Vertrag steht jetzt in der Runtime; die
+  Fassung in `index.html` bleibt als Fallback konsistent gepflegt.
+- `focus()` in einem `requestAnimationFrame`-Callback läuft noch vor dem
+  Layout und verpufft auf einem gerade erst eingeblendeten Element.
+  `vxFocusDialog` versucht es deshalb über mehrere Ticks und hört auf, sobald
+  der Fokus im Dialog liegt.
+- `manual-task-overlay` und `manual-request-overlay` fehlte `tabindex="-1"` am
+  `.modal`; ein `focus()` darauf lief ins Leere.
+- Die Detail-Vollansicht hat jetzt `role="dialog"`, `aria-modal`,
+  `aria-labelledby` und Fokus-Rückgabe. Der Fokus landet auf dem
+  Zurück-Button.
+
+**Geprüft:** alle elf Dialoge liefern jetzt Rolle, `aria-modal`, ein
+auflösbares `aria-labelledby`, gepflegtes `aria-hidden`, Anfangsfokus im
+Dialog, Schliessen per Escape und Fokus-Rückgabe an das auslösende Element.
+Der zwölfte (Support-Anfrage) erfüllte den Vertrag bereits. Keine
+JS-Fehler; Teil A und S1 unverändert.
+
+### S4b · Fokusfalle — vorgeschlagen, nicht umgesetzt
+
+Gemessen im Nachfassen-Dialog: nach dem letzten Element springt der Fokus beim
+**17. Tab** aus dem Dialog auf die Seite dahinter (Glocke in der Seitenleiste)
+und wandert dort weiter. `aria-modal="true"` sagt Screenreadern, der Dialog sei
+modal — für die Tastatur stimmt das nicht. Das betrifft alle dreizehn Dialoge
+gleichermassen und ist ein eigener, zentral lösbarer Schritt: eine
+`keydown`-Behandlung für Tab im obersten offenen Dialog, analog zur
+Escape-Tabelle. Bewusst nicht in S3/S4 mitgenommen, weil es Tastaturverhalten
+in allen Dialogen ändert und eine eigene Prüfung verdient.
 
 ### Phase 3 — Form und Struktur
 
@@ -365,6 +411,15 @@ klären: Toast über die Support-Anfrage (`100000`) heben oder Support senken.
 **S9 · `#vx-preview-modal` entkoppeln** und als tot dokumentieren.
 **S10 · Löschung als eigener Mini-PR.**
 
+### Nach Phase 3 vorgemerkt
+
+**S11 · Zweites Akzent-Blau zusammenführen.** `--vx-brand: #3478ED` in
+`customer-design-system.css` gegen das kanonische `--vx-color-brand: #1A6FE8`,
+21 Nutzungen (Filter-Pillen, Auswahl-Rahmen, Icon-Flächen, Fokusring).
+Dieselbe Drift-Mechanik wie bei `#0F2347`, eine Ebene weiter — in der Akzent-
+statt der Aktionsfarbe. Bewusst aus S1 herausgehalten, weil S1 die
+Aktionsfarbe zusammenführt und Blau unberührt lässt.
+
 ### Entschieden
 
 - **Grün ist Zustandston, kein Aktionston.** `.vx-dv2-btn-done` („Erledigen“)
@@ -380,10 +435,13 @@ klären: Toast über die Support-Anfrage (`100000`) heben oder Support senken.
 
 ### Neu aufgefallen, ausserhalb des Umfangs
 
-- **Zwei Akzent-Blau nebeneinander:** `--vx-color-brand: #1A6FE8` (Tokendatei,
-  kanonisch) gegen `--vx-brand: #3478ed` (`customer-design-system.css`, 21
-  Nutzungen: Filter-Pillen, Auswahl-Rahmen, Icon-Flächen, Fokusring). Dieselbe
-  Drift-Mechanik wie bei `#0F2347`, nur eine Ebene weiter — diesmal in der
-  Akzent- statt in der Aktionsfarbe. Nicht Teil von S1, weil S1 die
-  Aktionsfarbe zusammenführt und Blau bewusst unberührt lässt. Kandidat für
-  einen eigenen Schritt nach Phase 3.
+- **Zwei Akzent-Blau nebeneinander** — als **S11** nach Phase 3 vorgemerkt,
+  siehe oben.
+- **Keine Fokusfalle in irgendeinem Dialog** — als **S4b** vorgeschlagen,
+  siehe Phase 2.
+- **Dialog-Funktionen, die von Runtime-Dateien überschrieben werden.**
+  `vxCommercialOpen`/`-Close` in `index.html` sind wirkungslos, weil
+  `customer-runtime-commercial-controller.js` dieselben Namen auf `window`
+  setzt. Ob es weitere solche Paare gibt, wurde nicht systematisch geprüft —
+  lohnt einen eigenen Durchgang, weil jede Änderung an der wirkungslosen
+  Fassung stillschweigend nichts tut.
