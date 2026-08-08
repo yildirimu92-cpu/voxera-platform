@@ -128,10 +128,10 @@
     };
   }
 
-  // The page-level status node sits above the whole form. When the user edits a
-  // field further down, a message rendered there is off-screen. Actions that
-  // belong to a specific field therefore pass an inline anchor next to that
-  // field, and the message is scrolled into view either way.
+  // The save button itself carries the saving/done state (see
+  // vxInlineSaveStatus). These status nodes are reserved for messages that
+  // outlive that brief animation — sync warnings and errors — so they are
+  // written to, but the page is never scrolled to reveal them.
   function statusNodes(page) {
     return {
       page: document.getElementById(page === 'business' ? 'vx-business-profile-status' : 'vx-assistant-profile-status'),
@@ -155,9 +155,6 @@
     // Only one of the two ever carries the message.
     paintStatus(nodes.page, target === nodes.page ? message : '', tone, false);
     paintStatus(document.getElementById(nodes.anchorId), target === anchor ? message : '', tone, true);
-    if (message && target && typeof target.scrollIntoView === 'function') {
-      target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
   }
 
   function restoreStatus(page) {
@@ -288,17 +285,38 @@
     return loadPromise;
   }
 
-  async function updateAssistant(payload, page, loadingMessage, anchored) {
+  // Without the full-page re-render that used to run at the start of every
+  // save, the `busy` guard on updateAssistant() no longer shows up as
+  // `disabled` on the *other* assistant controls (voice select/preview,
+  // the sibling save button). Toggle them directly so a voice change or a
+  // second save can't be triggered mid-request and get silently dropped by
+  // the `busy` check below.
+  function setAssistantActionsDisabled(disabled) {
+    ['vx-assistant-name-save', 'vx-business-profile-save', 'vx-open-business-profile'].forEach((id) => {
+      const node = document.getElementById(id);
+      if (node) node.disabled = disabled;
+    });
+    document.querySelectorAll('[data-vx-select-voice], [data-vx-preview]').forEach((node) => { node.disabled = disabled; });
+  }
+
+  // button: the save button to animate (Speichert … → Gespeichert ✓ → its
+  // original label). Pass null when the action has no persistent button of
+  // its own (e.g. the voice-change confirm dialog, which closes before the
+  // request completes) — the section still gets a brief, self-clearing
+  // inline note instead.
+  async function updateAssistant(payload, page, button, savingLabel) {
     if (busy) return null;
     busy = true;
-    page === 'business' ? renderBusiness() : renderAssistant();
-    setStatus(page, loadingMessage, 'loading', anchored);
+    setAssistantActionsDisabled(true);
     let result = null;
     let finalMessage = '';
-    let finalTone = 'success';
+    let finalTone = null;
     try {
-      result = await request('customer-update-assistant', { method: 'POST', body: payload });
-      await reloadProfile();
+      result = await root.vxInlineSaveStatus(button, async () => {
+        const response = await request('customer-update-assistant', { method: 'POST', body: payload });
+        await reloadProfile();
+        return response;
+      }, { savingLabel: savingLabel || 'Speichert …', doneLabel: 'Gespeichert ✓' });
       const syncStatus = String(result.sync_status || '');
       if (syncStatus === 'failed') {
         finalMessage = 'Gespeichert, aber noch nicht mit dem Assistenten synchronisiert. Bitte später erneut versuchen.';
@@ -306,8 +324,6 @@
       } else if (syncStatus === 'skipped_no_agent') {
         finalMessage = 'Gespeichert. Der Assistent ist noch nicht eingerichtet.';
         finalTone = 'warning';
-      } else {
-        finalMessage = '✓ Änderung gespeichert und verarbeitet.';
       }
     } catch (error) {
       finalMessage = error?.message || 'Änderung konnte nicht gespeichert werden.';
@@ -315,7 +331,19 @@
     } finally {
       busy = false;
       page === 'business' ? renderBusiness() : renderAssistant();
-      setStatus(page, finalMessage, finalTone, anchored);
+      if (finalTone) {
+        setStatus(page, finalMessage, finalTone, true);
+      } else if (button) {
+        // Clean, button-confirmed success: clear any stale error/warning
+        // left over from an earlier attempt so restoreStatus() (called by
+        // the render above) doesn't resurrect it.
+        setStatus(page, '', null, true);
+      } else {
+        setStatus(page, '✓ Gespeichert.', 'success', true);
+        root.setTimeout(() => {
+          if (pageStatus[page] && pageStatus[page].message === '✓ Gespeichert.') setStatus(page, '', null, true);
+        }, 2500);
+      }
     }
     return result;
   }
@@ -327,7 +355,7 @@
 
   async function saveName() {
     const value = String(document.getElementById('vx-assistant-name')?.value || '').trim();
-    await updateAssistant({ assistant_name: value }, 'assistant', 'Name wird gespeichert …', true);
+    await updateAssistant({ assistant_name: value }, 'assistant', document.getElementById('vx-assistant-name-save'));
   }
 
   async function saveBusiness() {
@@ -337,7 +365,7 @@
       ai_location_hours: document.getElementById('vx-business-location-hours')?.value || '',
       ai_booking_faq: document.getElementById('vx-business-booking-faq')?.value || ''
     };
-    await updateAssistant(payload, 'business', 'Geschäftsprofil wird gespeichert …', true);
+    await updateAssistant(payload, 'business', document.getElementById('vx-business-profile-save'));
   }
 
   function openVoiceModal(voiceId) {
@@ -358,7 +386,7 @@
     const voiceId = pendingVoiceId;
     closeVoiceModal();
     if (!voiceId) return;
-    await updateAssistant({ voice_id: voiceId }, 'assistant', 'Stimme wird übernommen …');
+    await updateAssistant({ voice_id: voiceId }, 'assistant', null);
   }
 
   function stopAudio() {

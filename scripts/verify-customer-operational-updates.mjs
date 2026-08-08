@@ -58,7 +58,7 @@ for (const forbidden of [
   if (source.runtime.includes(forbidden)) failures.push('Operational runtime still owns presentation: ' + forbidden);
 }
 assert.doesNotMatch(source.runtime, /Aktuelle Betriebsinfos/);
-assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=20260803-1/);
+assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=20260808-1/);
 for (const key of ['api','assistant','proxy']) {
   if (!source[key].includes('Authorization')) failures.push('Customer authorization forwarding missing in ' + files[key]);
 }
