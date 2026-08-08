@@ -194,9 +194,17 @@ existieren im Repo nicht. Die tatsächlichen sind:
 
 | Layer | Quelle | Zustand |
 |---|---|---|
-| **1 — Voxera-Kern** | `system_config`, Zeile `key = 'prompt_master_l1'`, Feld `value` | vorhanden; Fallback-Grundgerüst im Code, falls leer |
-| **2 — Branche** | `industry_templates.prompt_block` über `customers.industry_template_id` | Mechanik fertig, **Tabelle leer** → Layer rendert als `_(kein Branchen-Layer definiert)_` |
+| **1 — Voxera-Kern** | `system_config`, Zeile `key = 'prompt_master_l1'`, Feld `value` | befüllt (9'140 Zeichen); Fallback-Grundgerüst im Code, falls leer |
+| **2 — Branche** | `industry_templates.prompt_block` über `customers.industry_template_id` | **19 vollständig befüllte Vorlagen** (siehe Korrektur unten) |
 | **3 — Kunde** | `customers.ai_*` + `customer_operational_updates` (nur `status='published'` und `ends_at > jetzt`, max. 20) | vollständig in Betrieb |
+
+> **Korrektur zum Tab „Masterassistent" (Live-Abgleich 08.08.):** Der Tab hält fest,
+> `industry_templates` habe „0 Zeilen" und sei „die grösste konkrete Lücke in diesem Bereich".
+> Das ist überholt. Die Tabelle enthält **19 Vorlagen, alle mit gefülltem `prompt_block`,
+> `default_instructions`, `default_services` und `default_booking_faq`.** Layer 2 ist
+> inhaltlich fertig. Die verbleibende Lücke ist die **Zuordnung**: nur 1 von 4 Kunden hat
+> `industry_template_id` gesetzt — die übrigen laufen ohne Branchen-Layer, obwohl eine
+> passende Vorlage existiert. Das ist ein Betriebs-, kein Inhaltsproblem.
 
 Zusammenbau: Layer 1 ist das Gerüst mit den Platzhaltern `{{INDUSTRY_LAYER}}` und
 `{{CUSTOMER_LAYER}}`; fehlen sie im Text, werden beide Layer angehängt. Variablen:
@@ -333,9 +341,10 @@ mitbringt und was Voxera unverhandelbar festlegt. Der Screen sollte das zeigen:
 
 - **Immer gültig — von Voxera gesetzt** (Layer 1): die Grundregeln in Kategorien, ausdrücklich
   als nicht überschreibbar markiert.
-- **Ihre Branche** (Layer 2): heute ehrlich „noch keine Vorlage hinterlegt", weil
-  `industry_templates` leer ist. Das ist keine Schwäche der Anzeige — es macht die grösste
-  bekannte Inhaltslücke intern sichtbar, statt sie zu kaschieren.
+- **Ihre Branche** (Layer 2): die zugeordnete Branchenvorlage im Klartext. 19 Vorlagen sind
+  vorhanden und befüllt; ist beim Kunden keine zugeordnet, sagt der Screen genau das — und
+  macht damit die tatsächliche Lücke (fehlende Zuordnung, nicht fehlender Inhalt) sichtbar,
+  statt sie zu kaschieren.
 - **Von Ihnen gesetzt** (Layer 3): alles Übrige, editierbar.
 
 Doppelter Nutzen: Es beantwortet die Vertrauensfrage („kann ich meiner KI etwas verbieten und
@@ -378,7 +387,7 @@ dringend wird" sagen — heute steht diese Erklärung nur im versteckten Alt-Blo
 | Daumen hoch/runter | Inline-Feedback (Prinzip 2) gehört an Anrufeinträge, nicht an einen Konfigurationsscreen. |
 | Sprachnotiz / Freitext-Anweisung an die Assistentin | Der riskante Teil der Zukunftsidee. Braucht Governance-Klärung; kein Launch-Thema. |
 | Prompt-Wortlaut im Kunden-UI | Angriffsfläche, siehe P2-11. Bleibt Admin. |
-| Branchenvorlagen befüllen | Inhaltsarbeit, nicht Design-Etappe. Der Screen zeigt die Lücke, füllt sie aber nicht. |
+| Branchen den Kunden zuordnen | Betriebsarbeit, nicht Design-Etappe. Der Screen zeigt die fehlende Zuordnung, behebt sie aber nicht. |
 | Navigation auf 3 Destinationen reduzieren | Struktureller Umbau — verstösst gegen „schrittweise, nie als grosser Umbau". |
 
 ## 2.4 Design-Sprache
