@@ -18285,12 +18285,23 @@ window.vxEnsureNoOrphanDetailView = vxEnsureNoOrphanDetailView;
 window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
 
-async function buildCallHistory(phoneNumber) {
+// options.strict = true: Fehler werden geworfen statt als leere Liste
+// zurueckgegeben. Der Normalfall (ohne Option) bleibt unveraendert, weil die
+// Timeline eine leere Liste sauber rendert und dort kein Aufrufer zwischen
+// "nichts da" und "nicht geladen" unterscheiden muss. Wer eine Zaehlangabe
+// anzeigt, muss das sehr wohl — sonst meldet ein fehlgeschlagener Ladevorgang
+// "0 Kontakte".
+async function buildCallHistory(phoneNumber, options) {
+  var strict = !!(options && options.strict);
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
-  if (!sb) { return []; }
-  if (!phoneNumber || phoneNumber === 'undefined') { 
+  if (!sb) {
+    if (strict) throw new Error('buildCallHistory: kein Auth-Client verfügbar');
+    return [];
+  }
+  if (!phoneNumber || phoneNumber === 'undefined') {
     console.warn('buildCallHistory: phoneNumber is empty');
-    return []; 
+    if (strict) throw new Error('buildCallHistory: keine Telefonnummer');
+    return [];
   }
   try {
     // calls table only has 'caller_phone' field (no phone_number column)
@@ -18347,6 +18358,7 @@ async function buildCallHistory(phoneNumber) {
     return history;
   } catch (error) {
     console.error('Error building call history:', error);
+    if (strict) throw error;
     return [];
   }
 }
@@ -37504,13 +37516,28 @@ body:has(#tab-archiv.active) .content{
     var stateEl = details.querySelector('.vx-summary-acc-state');
     function setState(text) { if (stateEl) stateEl.textContent = text; }
 
+    // Der offene Eintrag selbst steckt mit in der Liste, die
+    // buildCallHistory() für diese Nummer liefert. Für die Timeline ist das
+    // richtig, für die Zählangabe nicht: ein Erstanrufer stünde sonst mit
+    // "1 Kontakt" da, gemeint ist aber der Eintrag, den man gerade liest.
+    var shell = details.closest ? details.closest('.vx-dv2-shell') : null;
+    var currentId = String((shell && shell.getAttribute('data-record-id')) || window._vxActiveRecordId || '').trim();
+    function isCurrentEntry(entry) {
+      if (!currentId || !entry) return false;
+      return String(entry.call_id || '') === currentId || String(entry.task_id || '') === currentId;
+    }
+
     body.innerHTML = vxUiSkeleton({ lines: 3, label: 'Verlauf' });
     setState('Wird geladen…');
-    buildCallHistory(phone).then(function(history) {
+    // strict: sonst liefert der Helfer bei jedem Fehler eine leere Liste und
+    // die Kopfzeile meldete "Keine früheren" statt "Nicht geladen".
+    buildCallHistory(phone, { strict: true }).then(function(history) {
       if (body.dataset.loaded !== '1') return;
       body.innerHTML = renderTimelineHTML(history);
-      var n = Array.isArray(history) ? history.length : 0;
-      setState(n === 1 ? '1 Kontakt' : n + ' Kontakte');
+      var n = (Array.isArray(history) ? history : []).filter(function(entry) {
+        return !isCurrentEntry(entry);
+      }).length;
+      setState(n === 0 ? 'Keine früheren' : (n === 1 ? '1 früherer Kontakt' : n + ' frühere Kontakte'));
     }).catch(function() {
       body.innerHTML = '<div class="vx-dv2-muted">Verlauf konnte nicht geladen werden.</div>';
       setState('Nicht geladen');
