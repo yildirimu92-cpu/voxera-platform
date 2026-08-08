@@ -6850,9 +6850,16 @@ body.vx-customer-design-foundation .vx-report-periods{display:flex;flex-wrap:wra
 body.vx-customer-design-foundation .vx-report-period{min-width:0;}
 body.vx-customer-design-foundation .vx-report-kpis{grid-template-columns:repeat(4,minmax(0,1fr));}
 body.vx-customer-design-foundation .vx-report-kpi{display:flex;flex-direction:column;min-height:148px;}
-body.vx-customer-design-foundation .vx-report-label{color:var(--vx-subtle);font-size:11px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;}
+/* Label-Stufe der Typo-Leiter aus PR #848 (12px/600, Meta-Rolle, keine
+   Versalien, keine Sperrung). --vx-subtle (#8a98ae) kam auf Weiss nur auf
+   2.9:1 und lag damit unter AA; --vx-ui-meta-color liegt bei 4.83:1. */
+body.vx-customer-design-foundation .vx-report-label{color:var(--vx-ui-meta-color);font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);letter-spacing:0;text-transform:none;}
 body.vx-customer-design-foundation .vx-report-value{margin-top:10px;color:var(--vx-brand);font-size:30px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums;}
-body.vx-customer-design-foundation .vx-report-value.tone-green{color:#047857;} body.vx-customer-design-foundation .vx-report-value.tone-gold{color:#b45309;}
+body.vx-customer-design-foundation .vx-report-value.tone-green{color:#047857;}
+/* "Hot Leads" IST Lead-Qualitaet und gehoert damit an die Gold-Rampe, die
+   genau dafuer da ist. Vorher ein Amber-Literal ohne Verbindung zu den
+   Heiss-Badges derselben Daten in der Anfragen-Liste. */
+body.vx-customer-design-foundation .vx-report-value.tone-gold{color:var(--vx-ui-lead-hot);}
 body.vx-customer-design-foundation .vx-report-trend{min-height:18px;margin-top:8px;color:var(--vx-subtle);font-size:12px;font-weight:700;} body.vx-customer-design-foundation .vx-report-trend.up{color:#047857;} body.vx-customer-design-foundation .vx-report-trend.down{color:#b91c1c;}
 body.vx-customer-design-foundation .vx-report-spark{display:flex;align-items:flex-end;gap:4px;height:26px;margin-top:auto;padding-top:8px;}
 body.vx-customer-design-foundation .vx-report-spark-bar{flex:1;height:calc(3px + 21px * var(--vx-report-level));border-radius:4px 4px 1px 1px;background:#dbeafe;} body.vx-customer-design-foundation .vx-report-spark-bar.current{background:var(--vx-brand);}
@@ -6860,6 +6867,14 @@ body.vx-customer-design-foundation .vx-report-spark-bar{flex:1;height:calc(3px +
 body.vx-customer-design-foundation .vx-report-section{display:grid;gap:16px;}
 body.vx-customer-design-foundation .vx-report-highlights,body.vx-customer-design-foundation .vx-report-breakdowns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
 body.vx-customer-design-foundation .vx-report-highlight-value{margin-top:6px;color:var(--vx-ink);font-size:18px;font-weight:730;}
+/* Der Stimmen-Ort des Berichts (2026-08-08), Gegenstueck zu .vx-dv2-concern
+   im Anfrage-Detail-Panel: Laras Zusammenfassung ist der einzige Text auf
+   diesem Screen, den nicht die Oberflaeche, sondern die Assistentin
+   formuliert. Er stand als 15px-Sans zwischen lauter Kennzahlen und war als
+   eigene Stimme nicht lesbar. Genau EIN solcher Ort pro Screen — sonst wird
+   die Serife zur Dekoration. */
+body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-family:var(--vx-font-serif);font-size:19px;line-height:1.55;color:var(--vx-ui-row-title-color);}
+@media (max-width:430px){body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-size:17px;}}
 body.vx-customer-design-foundation .vx-report-insight{display:flex;align-items:flex-start;gap:12px;} body.vx-customer-design-foundation .vx-report-insight-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:32px;height:32px;border-radius:10px;}
 body.vx-customer-design-foundation .vx-report-insight.tone-warning{background:#fff7ed;color:#9a3412;} body.vx-customer-design-foundation .vx-report-insight.tone-warning .vx-report-insight-icon{background:#fed7aa;} body.vx-customer-design-foundation .vx-report-insight.tone-info{background:#eff6ff;color:#1d4ed8;} body.vx-customer-design-foundation .vx-report-insight.tone-info .vx-report-insight-icon{background:#dbeafe;} body.vx-customer-design-foundation .vx-report-insight.tone-success{background:#ecfdf5;color:#047857;} body.vx-customer-design-foundation .vx-report-insight.tone-success .vx-report-insight-icon{background:#d1fae5;}
 body.vx-customer-design-foundation .vx-report-week-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:end;gap:8px;min-height:120px;}
@@ -7668,7 +7683,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               </article>
             </section>
 
-            <section class="vx-ops-card vx-report-section">
+            <section class="vx-ops-card vx-report-section vx-report-voice vx-ui-brand-rule">
               <div class="vx-ops-head">
                 <div>
                   <div class="vx-ops-title" id="au2-ai-title">Laras Zusammenfassung</div>
@@ -7777,31 +7792,37 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <!-- HILFE -->
           <div id="mehr-sub-hilfe" style="display:none;">
             <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen" onclick="vxScreenBack('vxMehrBack')"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Hilfe &amp; Support</h1></header>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
-              <a href="mailto:info@voxera.ch" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:#fff;border:0.5px solid var(--line);border-radius:12px;text-decoration:none;"><div style="width:34px;height:34px;background:#EEF4FF;border-radius:9px;display:flex;align-items:center;justify-content:center;"><i class="ph-bold ph-envelope-simple" style="color:#1A6FE8;" style="font-size:16px;" aria-hidden="true"></i></div><span style="font-size:11px;font-weight:600;color:var(--ink);">E-Mail</span></a>
-              <a href="tel:+41800123456" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:#fff;border:0.5px solid var(--line);border-radius:12px;text-decoration:none;"><div style="width:34px;height:34px;background:#EEF4FF;border-radius:9px;display:flex;align-items:center;justify-content:center;"><i class="ph-bold ph-phone" style="color:#1A6FE8;" style="font-size:16px;" aria-hidden="true"></i></div><span style="font-size:11px;font-weight:600;color:var(--ink);">Anruf</span></a>
-              <a href="https://voxera.ch" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:#fff;border:0.5px solid var(--line);border-radius:12px;text-decoration:none;"><div style="width:34px;height:34px;background:#EEF4FF;border-radius:9px;display:flex;align-items:center;justify-content:center;"><i class="ph-bold ph-globe" style="color:#1A6FE8;" style="font-size:16px;" aria-hidden="true"></i></div><span style="font-size:11px;font-weight:600;color:var(--ink);">Website</span></a>
-            </div>
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;"><i class="ph-bold ph-lightning" style="color:rgba(255,255,255,.7);" style="font-size:14px;" aria-hidden="true"></i><span style="font-size:13px;font-weight:700;color:#fff;">Erste Schritte</span></div>
-              <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
-                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</div><div style="font-size:12px;color:var(--ink2);line-height:1.55;">Rufumleitung einrichten — wir helfen Ihnen dabei beim Onboarding.</div></div>
-                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</div><div id="vx-help-step2" style="font-size:12px;color:var(--ink2);line-height:1.55;">Lara ist eingerichtet und übernimmt Ihre Anrufe. Eingehende Anfragen erscheinen sofort im Dashboard.</div></div>
-                <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0D1F3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</div><div id="vx-help-step3" style="font-size:12px;color:var(--ink2);line-height:1.55;">Geschäftsnummer anrufen — Lara nimmt ab. Anruf erscheint im Dashboard.</div></div>
+            <section class="vx-settings-card vx-ui-brand-rule">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Direkte Hilfe</h2><p class="vx-settings-card-meta">Der kürzeste Weg zu einer Antwort.</p></div></div>
+              <div class="vx-help-action-grid">
+                <a class="vx-help-action" href="mailto:info@voxera.ch"><span><i class="ph-bold ph-envelope-simple" aria-hidden="true"></i></span><strong>E-Mail</strong></a>
+                <a class="vx-help-action" href="tel:+41800123456"><span><i class="ph-bold ph-phone" aria-hidden="true"></i></span><strong>Anruf</strong></a>
+                <a class="vx-help-action" href="https://voxera.ch" target="_blank" rel="noopener"><span><i class="ph-bold ph-globe" aria-hidden="true"></i></span><strong>Website</strong></a>
               </div>
-            </div>
-            <div style="background:#fff;border:0.5px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;">
-              <div style="background:#0D1F3C;padding:11px 14px;display:flex;align-items:center;gap:8px;"><i class="ph-bold ph-question" style="color:rgba(255,255,255,.7);" style="font-size:14px;" aria-hidden="true"></i><span style="font-size:13px;font-weight:700;color:#fff;">Häufige Fragen</span></div>
-              <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
-                <div><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Wie schnell sind Änderungen aktiv?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Nach "Live schalten" sofort — innerhalb von Sekunden.</div></div>
-                <div><div id="vx-help-faq-lang-q" style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Kann Lara mehrere Sprachen?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Ja — Deutsch, Französisch, Italienisch und Englisch automatisch erkannt.</div></div>
-                <div><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;">Was passiert bei Ferien?</div><div style="font-size:12px;color:var(--slate2);line-height:1.5;">Feiertage & Ferien-Modus kommt bald — kontaktieren Sie uns für eine manuelle Anpassung.</div></div>
+            </section>
+
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Erste Schritte</h2></div></div>
+              <ol class="vx-help-step-list">
+                <li class="vx-help-step"><span>1</span><div><small>Rufumleitung einrichten — wir helfen Ihnen dabei beim Onboarding.</small></div></li>
+                <li class="vx-help-step"><span>2</span><div><small id="vx-help-step2">Lara ist eingerichtet und übernimmt Ihre Anrufe. Eingehende Anfragen erscheinen sofort im Dashboard.</small></div></li>
+                <li class="vx-help-step"><span>3</span><div><small id="vx-help-step3">Geschäftsnummer anrufen — Lara nimmt ab. Anruf erscheint im Dashboard.</small></div></li>
+              </ol>
+            </section>
+
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Häufige Fragen</h2></div></div>
+              <div class="vx-help-qa">
+                <div><strong>Wie schnell sind Änderungen aktiv?</strong><p>Nach "Live schalten" sofort — innerhalb von Sekunden.</p></div>
+                <div><strong id="vx-help-faq-lang-q">Kann Lara mehrere Sprachen?</strong><p>Ja — Deutsch, Französisch, Italienisch und Englisch automatisch erkannt.</p></div>
+                <div><strong>Was passiert bei Ferien?</strong><p>Feiertage &amp; Ferien-Modus kommt bald — kontaktieren Sie uns für eine manuelle Anpassung.</p></div>
               </div>
-            </div>
-            <div style="background:#0D1F3C;border-radius:var(--r-lg);padding:16px;text-align:center;">
-              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">Noch Fragen?</div>
-              <div style="font-size:11px;color:rgba(255,255,255,.45);margin-bottom:12px;">Unser Team hilft gerne weiter.</div>
-              <a href="mailto:info@voxera.ch" style="display:inline-block;background:#1A6FE8;color:#fff;text-decoration:none;border-radius:9px;padding:8px 20px;font-size:12px;font-weight:600;">info@voxera.ch</a>
+            </section>
+
+            <div class="vx-help-cta">
+              <strong>Noch Fragen?</strong>
+              <small>Unser Team hilft gerne weiter.</small>
+              <a href="mailto:info@voxera.ch">info@voxera.ch</a>
             </div>
           </div>
 
@@ -7810,7 +7831,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen" onclick="vxScreenBack('vxMehrBack')"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Profil</h1></header>
 
             <section class="vx-settings-card">
-              <div class="vx-settings-identity">
+              <div class="vx-settings-identity vx-ui-brand-rule">
                 <div id="profil-avatar-preview" class="vx-settings-avatar">U</div>
                 <div><div id="profil-name-display" class="vx-settings-identity-name">–</div><div id="profil-email-display" class="vx-settings-card-meta">–</div></div>
               </div>
@@ -7866,7 +7887,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <div id="mehr-sub-abonnement" class="vx-settings-subpage" style="display:none;">
             <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen" onclick="vxScreenBack('vxMehrBack')"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Abonnement</h1></header>
 
-            <section class="vx-abo-hero" aria-labelledby="abo-plan-heading">
+            <section class="vx-abo-hero vx-ui-brand-rule" aria-labelledby="abo-plan-heading">
               <div id="abo-plan-heading" class="vx-abo-eyebrow">Aktueller Plan</div>
               <div class="vx-abo-plan-row">
                 <div id="abo-plan-name" class="vx-abo-plan-name">–</div>
@@ -31492,9 +31513,30 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 ═══════════════════════════════════════ */
 
 /* Lists / Row containers: Design-System List-Container */
+/* #anrufe-list ist hier bewusst NICHT mehr aufgefuehrt (2026-08-08).
+
+   Die Anfragen-Spalte liegt seit dem Listen-Neubau absichtlich auf der
+   Canvas-Flaeche — .vx-requests-panel setzt sie, "damit die weissen Karten
+   darin als Karten lesbar sind" (Kommentar weiter oben in dieser Datei).
+   Diese Regel aus Patch v2.17 stammt aus der Zeit davor, als die Liste noch
+   der weisse .dpr-command-center-Container war, und uebermalte die Canvas
+   mit !important wieder weiss. Ergebnis: ein weisses Blatt unter weissen
+   Zeilenkarten, die sich davon nur noch durch ihre 0.5px-Haarlinie
+   abhoben — Karte in Karte.
+
+   Dass Canvas gemeint war, steht schon im Code: der klebrige Datumskopf
+   .vx-requests-date traegt selbst var(--vx-color-canvas), "damit Karten
+   darunter nicht durchscheinen" — auf einem weissen Blatt war genau dieser
+   Chip die einzige graue Flaeche der Liste.
+
+   Der aeussere Rahmen (#anrufe-split / .vx-requests-layout) bleibt: er ist
+   nicht weiss, sondern Canvas, und traegt die Naht zwischen Listen- und
+   Detailspalte im Desktop-Split. Weg muss nur das zweite weisse Blatt.
+
+   #anrufe-list.dpr-command-center bleibt fuer die Alt-Variante stehen;
+   die Klasse wird beim Listenaufbau ohnehin entfernt. */
 #dash-priority-list,
-#anrufe-list.dpr-command-center,
-#anrufe-list{
+#anrufe-list.dpr-command-center{
   background:var(--surface)!important;
   border-color:var(--line)!important;
 }
@@ -36052,6 +36094,38 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
 #anrufe-split-right{
   min-width:0 !important;
   flex:1 1 auto !important;
+}
+
+/* Der leere Streifen ueber Einstellungen, allen Einstellungen-Unterseiten
+   und der Benachrichtigungs-Vollseite (2026-08-08).
+
+   Ursache: ein verirrtes </div> schliesst <div class="content"> schon nach
+   #tab-assistent. #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
+   liegen dadurch NEBEN .content statt darin, als Geschwister in der
+   Flex-Spalte <main class="main">. .content traegt flex:1 und waechst als
+   leere Box in die Resthoehe — gemessen 732px auf der Kalenderintegration,
+   308px auf Hilfe & Support, 48px (die eigene Polsterung) auf Profil und
+   Abonnement. Der Bericht liegt innerhalb von .content und war nie
+   betroffen.
+
+   Hier steht bewusst nur die Wirkung ab: sobald .content keinen aktiven Tab
+   mehr enthaelt, hoert sie auf zu wachsen und gibt ihre vertikale Polsterung
+   ab. Das verirrte </div> selbst zu verschieben haengt drei grosse Screens
+   um und wuerde nebenbei #tab-hilfe aus #tab-einstellungen loesen — das ist
+   eine Strukturaenderung und gehoert in einen eigenen Auftrag.
+
+   #incoming-banner bleibt sichtbar: er liegt zwar in .content, ist aber
+   position:fixed und damit nicht Teil des Flusses.
+
+   Das !important gilt nur der vertikalen Polsterung — die Mobile-Regeln
+   weiter oben setzen padding-bottom ihrerseits mit !important. div#app steht
+   im Selektor, weil eine dieser Regeln (`div#app .content, .content`) eine
+   ID traegt: ohne sie verliert diese Regel auf Mobil trotz !important und
+   der Streifen bliebe dort als 80px stehen. */
+body.vx-customer-design-foundation div#app .content:not(:has(> .tab-page.active)){
+  flex:0 0 auto;
+  padding-top:0 !important;
+  padding-bottom:0 !important;
 }
 
 /* Content-Wrapper: kein Overflow wenn Archiv aktiv */
