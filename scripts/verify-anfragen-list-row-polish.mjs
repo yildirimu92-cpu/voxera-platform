@@ -133,8 +133,14 @@ for (const forbidden of [
     '--vx-ui-row-time-color: var(--vx-ui-meta-color);',
     '--vx-ui-section-label-color: var(--vx-ui-meta-color);',
     '--vx-ui-section-count-color: var(--vx-ui-meta-color);',
-    '--vx-ui-row-desc-color: var(--vx-ui-text-secondary);'
+    '--vx-ui-row-desc-color: var(--vx-ui-text-secondary);',
+    '--vx-ui-row-icon-color: var(--vx-ui-icon-quiet);'
   ]) assert.ok(tokens.includes(alias), 'Anfragen-Token hängt nicht mehr am gemeinsamen Wert: ' + alias);
+
+  // Ruhige Icons: dieselbe Kopplung, eigene Schwelle. Der Heute-Block trug
+  // #94A3B8 als Literal, bevor beide Screens auf --vx-ui-icon-quiet liefen.
+  assert.ok(source.includes('background:var(--vx-ui-row-icon-bg); color:var(--vx-ui-icon-quiet);'),
+    'das Karten-Icon auf Heute zieht die ruhige Icon-Farbe nicht mehr aus dem Token');
 
   // WCAG AA (4.5:1) auf den Flächen, auf denen diese Rollen tatsächlich liegen.
   const luminance = (hex) => {
@@ -174,6 +180,27 @@ for (const forbidden of [
   // Die Hierarchie muss lesbar bleiben: Meta sichtbar leichter als Fliesstext.
   assert.ok(luminance(meta) > luminance(secondary) * 1.25,
     'ruhige Textfarbe ist so dunkel geworden, dass sie sich nicht mehr vom Sekundärtext abhebt');
+
+  // Nicht-Text (Icons) trägt die 3:1-Schwelle — auf allen vier Flächen, auf
+  // denen diese Icons tatsächlich sitzen.
+  const icon = value('--vx-ui-icon-quiet');
+  const ICON_CIRCLE = value('--vx-ui-row-icon-bg');
+  const FIELD = value('--vx-color-surface-soft');
+  for (const [label, bg] of [
+    ['Icon-Kreis', ICON_CIRCLE],
+    ['Suchfeld', FIELD],
+    ['Karte', CARD],
+    ['Canvas', CANVAS]
+  ]) {
+    const measured = ratio(icon, bg);
+    assert.ok(measured >= 3,
+      `Ruhiges Icon auf ${label}: ${icon} auf ${bg} erreicht nur ${measured.toFixed(2)}:1 — WCAG verlangt 3:1 für Nicht-Text`);
+  }
+
+  // Icons dürfen leichter sein als Text, aber nicht dunkler — sonst zieht das
+  // Beiwerk mehr Aufmerksamkeit als der Inhalt daneben.
+  assert.ok(luminance(icon) > luminance(meta),
+    'ruhige Icon-Farbe ist dunkler als die Meta-Textfarbe geworden');
 }
 
 console.log('Anfragen list row polish verification passed.');

@@ -374,6 +374,19 @@
   --vx-ui-meta-color: #697285;       /* Zeit, Labels, Zähler: 4.83:1 auf Weiss */
   --vx-ui-text-secondary: #5B6472;   /* Beschreibungs-/Fliesstext: 5.98:1 auf Weiss */
 
+  /* Ruhige Icons (Zeilen-Icon, Suche, Überlauf-Menü) — dieselbe Geschichte
+     wie bei --vx-ui-meta-color: #94A3B8 stand als Literal im Heute-Block und
+     als Kopie im Anfragen-Token, ohne Verbindung. Als Nicht-Text-Element
+     gilt hier die 3:1-Schwelle; #94A3B8 erreichte auf dem Icon-Kreis nur
+     2.34:1. #7C8CA4 liegt bei 3.10–3.42:1 auf allen vier Flächen, auf denen
+     diese Icons tatsächlich sitzen (Icon-Kreis, Suchfeld, Karte, Canvas).
+
+     Gilt NUR für die Icon-Rolle. --vx-color-text-subtle trägt denselben
+     Altwert für ganz andere Zwecke und bleibt bewusst unberührt — ein
+     globales Ersetzen von #94A3B8 würde rund hundert Stellen quer durch die
+     App treffen, die hier niemand geprüft hat. */
+  --vx-ui-icon-quiet: #7C8CA4;
+
   /* ---- List row (Heute card language) ------------------------- */
   /* The "Braucht dich" cards on Heute are the agreed reference for every
      scannable list in the product. These tokens carry their measured
@@ -398,7 +411,7 @@
   --vx-ui-row-desc-color: var(--vx-ui-text-secondary);
   --vx-ui-row-icon-size: 36px;
   --vx-ui-row-icon-bg: #F1F5F9;
-  --vx-ui-row-icon-color: #94A3B8;
+  --vx-ui-row-icon-color: var(--vx-ui-icon-quiet);
   --vx-ui-row-icon-font-size: 15px;
   /* Section header: dot + label + count, exactly like "Braucht dich 2". */
   --vx-ui-section-label-size: 12px;
