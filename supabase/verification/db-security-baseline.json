@@ -1,0 +1,103 @@
+{
+  "$comment": [
+    "Eingefrorener Ist-Zustand der Produktions-DB, aufgenommen am 2026-08-08.",
+    "",
+    "Zweck: Alt-Schuld dokumentieren statt ignorieren. Ein CI-Check, der am ersten",
+    "Tag rot ist, wird abgeschaltet und schuetzt dann gar nichts mehr. Also wird der",
+    "bestehende Zustand hier festgeschrieben und ab sofort jede VERSCHLECHTERUNG rot",
+    "gemeldet -- ein neuer anon-Grant, eine Tabelle ohne RLS.",
+    "",
+    "Verbesserungen (weniger Grants als hier) sind kein Fehler; der Runner meldet sie",
+    "als Hinweis, damit die Baseline nachgezogen werden kann.",
+    "",
+    "WICHTIG zu anonTableGrants: anon haelt auf diesen Tabellen weiterhin breite",
+    "DML-Rechte aus Supabase-Defaults. Dass daraus kein Datenabfluss wird, haengt",
+    "allein an RLS. Die Verhaltensproben B und D in",
+    "db_security_invariants_behavior.sql messen genau das bei jedem Lauf nach. Diese",
+    "Baseline ersetzt kein Aufraeumen -- sie verhindert nur, dass es schlimmer wird."
+  ],
+
+  "anonTableGrants": {
+    "admin_emails": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "admins": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "credit_note_sequences": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "customer_tasks": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "elevenlabs_sync_log": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "feature_flags": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "industry_templates": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "invoice_financial_actions": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "invoice_items": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "invoice_refunds": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "invoice_sequences": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "kantonale_notfallnummern": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "minutes_topups": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "offer_acceptances": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "offer_events": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "offer_sequences": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "onboarding": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "outbox_events": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "plan_config": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "push_subscriptions": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "system_config": ["DELETE", "INSERT", "REFERENCES", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "telephony_number_assignment_audit": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "telephony_numbers": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "users": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE"],
+    "voxera_addons": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "voxera_cases": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "voxera_voices": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+  },
+
+  "$comment_authenticated": [
+    "Rechte von `authenticated` auf den Mandantentabellen. Anders als bei anon ist",
+    "hier ein Teil AUSDRUECKLICH gewollt: das Admin-Panel arbeitet als",
+    "`authenticated` und loescht Kunden ueber die Policy `admins_delete_customers`.",
+    "Aus dem Katalog laesst sich nicht ablesen, welcher Grant Absicht und welcher",
+    "Supabase-Default ist -- deshalb wird der Ist-Zustand eingefroren und nur die",
+    "Ausweitung gemeldet. Ob die Grants tatsaechlich halten, misst Probe D2",
+    "(DELETE unter RLS) bei jedem Lauf nach."
+  ],
+  "authenticatedTableGrants": {
+    "ai_change_requests": ["DELETE", "INSERT", "SELECT", "UPDATE"],
+    "calls": ["DELETE", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE"],
+    "contracts": ["SELECT"],
+    "customer_addons": ["SELECT"],
+    "customer_tasks": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "customers": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE"],
+    "invoices": ["SELECT", "UPDATE"],
+    "notifications": ["SELECT"],
+    "offers": ["SELECT"],
+    "subscriptions": ["SELECT"],
+    "system_config": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+    "users": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE"],
+    "voxera_cases": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+  },
+
+  "tablesWithoutRls": [],
+
+  "preLedgerMigrations": {
+    "$comment": [
+      "supabase_migrations.schema_migrations wurde erst am 2026-08-08 angelegt. Diese",
+      "Dateien liegen davor und haben deshalb keine Ledger-Zeile -- ihr Fehlen im",
+      "Ledger sagt NICHTS darueber aus, ob sie angewandt wurden. Genau diese",
+      "Ungewissheit war die Ursache des P0-Vorfalls.",
+      "",
+      "Sie werden hier ausdruecklich als 'nicht nachweisbar' gefuehrt und vom",
+      "Drift-Check ausgenommen. Bewusst NICHT nachtraeglich als 'applied' ins Ledger",
+      "eingetragen: das waere dieselbe unbelegte Behauptung, die den Vorfall",
+      "ermoeglicht hat. Ab 2026-08-08 ist der Abgleich strikt in beide Richtungen."
+    ],
+    "files": [
+      "2026-05-24_customer_in_app_notification_settings.sql",
+      "2026-05-24_notifications_target_fields.sql",
+      "2026-07-28_p0_security_foundation.sql",
+      "2026-07-29_manual_admin_go_live_gate.sql",
+      "2026-08-01_calendar_integrations_foundation.sql",
+      "2026-08-01_customer_operational_updates.sql",
+      "2026-08-01_fix_twilio_assignment_customer_schema.sql",
+      "2026-08-01_twilio_number_assignments.sql",
+      "2026-08-02_admin_voice_catalog_previews.sql",
+      "2026-08-06_p0_rls_tenant_isolation_hardening.sql",
+      "2026-08-07_customers_onboarding_completed_column_grant.sql"
+    ]
+  }
+}

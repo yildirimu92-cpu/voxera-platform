@@ -1,0 +1,68 @@
+# Prueft die Security-Invarianten gegen die ECHTE Produktions-Datenbank.
+#
+# Abgrenzung zu p0-security-verification.yml: der dortige Check liest Repo-
+# Dateien. Die P0-Migration vom 2026-07-28 lag korrekt im Repo, war auf der
+# Datenbank aber nie angewandt -- der Check blieb wochenlang gruen, obwohl
+# keine der Policies existierte. Dieser Workflow oeffnet stattdessen eine echte
+# Session gegen die Produktions-DB und misst nach, was `anon` und
+# `authenticated` tatsaechlich duerfen.
+name: DB Security Invariants (Produktion)
+
+on:
+  # Nach dem Merge -- der Moment, in dem eine Migration angewandt sein muesste.
+  push:
+    branches:
+      - main
+  # Der eigentliche Schutz: Drift entsteht auch OHNE Commit (manuelle Aenderung,
+  # nie angewandte Migration, zurueckgesetzte Policy). Nur ein zeitgesteuerter
+  # Lauf gegen die echte DB findet das.
+  schedule:
+    - cron: '17 */6 * * *'
+  # Vor dem Merge: der PR-Inhalt steht noch nicht auf der DB, aber ein bereits
+  # bestehender Drift faellt auf, bevor darauf aufgebaut wird.
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-security-invariants-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Security-Invarianten gegen die Produktions-DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Fork-PRs bekommen keine Secrets. Ohne diese Bedingung stuende der Check
+    # bei ihnen dauerhaft rot und wuerde damit als Signal wertlos.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    # Eigenes Environment: der Zugriff auf die Produktions-Zugangsdaten ist
+    # dadurch einzeln auditierbar und kann unabhaengig entzogen werden.
+    environment: production-db-readonly
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js 20 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: psql bereitstellen
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+
+      - name: Invarianten gegen die Produktions-DB pruefen
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_CI_VERIFIER }}
+        run: node scripts/verify-db-security-invariants.mjs
