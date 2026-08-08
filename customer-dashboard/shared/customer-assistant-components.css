@@ -447,10 +447,14 @@ body.vx-customer-design-foundation .vx-ap-field {
   margin-top: var(--vx-space-4);
 }
 
+/* Label-Stufe der Typo-Leiter (12px/600, Meta-Rolle). 13px/700 in Ink war
+   die vierte Beschriftungssprache im Produkt und stand im selben Gewicht wie
+   die Kartentitel darueber — die vier Felder des Geschaeftsprofils lasen
+   sich dadurch als vier gleichwertige Ueberschriften ohne Rangfolge. */
 body.vx-customer-design-foundation .vx-ap-field label {
-  color: var(--vx-ink);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--vx-ui-meta-color);
+  font-size: var(--vx-ui-section-label-size);
+  font-weight: var(--vx-ui-section-label-weight);
 }
 
 body.vx-customer-design-foundation .vx-ap-field :where(input, textarea) {
@@ -747,7 +751,7 @@ body.vx-customer-design-foundation .vx-ops-rules {
   margin-top: 12px;
   padding: 12px;
   border-radius: 12px;
-  background: #f8fafc;
+  background: var(--vx-color-canvas);
 }
 
 body.vx-customer-design-foundation .vx-ops-rule {
@@ -804,6 +808,15 @@ body.vx-customer-design-foundation .vx-ops-field {
   gap: 7px;
 }
 
+/* Wie im Kalender: diese Beschriftungen trugen keine eigene Regel und
+   liefen als Fliesstext mit. */
+body.vx-customer-design-foundation .vx-ops-field > label {
+  color: var(--vx-ui-meta-color);
+  font-size: var(--vx-ui-section-label-size);
+  font-weight: var(--vx-ui-section-label-weight);
+  line-height: 1.35;
+}
+
 body.vx-customer-design-foundation .vx-ops-field :where(input, select, textarea) {
   width: 100%;
 }
@@ -818,16 +831,20 @@ body.vx-customer-design-foundation .vx-ops-grid {
   gap: 12px;
 }
 
+/* Die Boxen dieses Screens trugen neun Farbliterale und keine einzige
+   Rolle — das war der Grund fuer den Eindruck "reine graue Boxen".
+   #fbfcfe war ein eigener, sonst nirgends benutzter Grauton knapp neben
+   Canvas. */
 body.vx-customer-design-foundation .vx-ops-section {
   padding: 16px;
   border: 1px solid var(--vx-line);
   border-radius: 14px;
-  background: #fbfcfe;
+  background: var(--vx-color-canvas);
 }
 
 body.vx-customer-design-foundation .vx-ops-section-title {
   margin-bottom: 8px;
-  color: var(--vx-ink);
+  color: var(--vx-ui-row-title-color);
   font-size: 15px;
   font-weight: 730;
   line-height: 1.35;
@@ -839,18 +856,24 @@ body.vx-customer-design-foundation .vx-ops-summary {
   line-height: 1.55;
 }
 
+/* Die Vorschau ist die einzige Flaeche des Screens, die zeigt, was
+   Anrufende tatsaechlich hoeren — sie behaelt ihren Informations-Ton, zieht
+   ihn aber aus der benannten Info-Rolle statt aus drei eigenen Blauwerten
+   (#f1f7ff / #dbeafe / #1d4ed8). #1d4ed8 war zudem ein drittes Blau neben
+   dem kanonischen --vx-color-brand. */
 body.vx-customer-design-foundation .vx-ops-preview {
   padding: 14px;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--vx-ui-badge-info-bg);
   border-radius: 14px;
-  background: #f1f7ff;
+  background: var(--vx-ui-badge-info-bg);
 }
 
 body.vx-customer-design-foundation .vx-ops-preview strong {
   display: block;
   margin-bottom: 6px;
-  color: #1d4ed8;
-  font-size: 12px;
+  color: var(--vx-ui-badge-info-text);
+  font-size: var(--vx-ui-section-label-size);
+  font-weight: var(--vx-ui-section-label-weight);
 }
 
 body.vx-customer-design-foundation .vx-ops-preview p {
@@ -861,7 +884,7 @@ body.vx-customer-design-foundation .vx-ops-preview p {
 }
 
 body.vx-customer-design-foundation .vx-ops-details summary {
-  color: #1a6fe8;
+  color: var(--vx-color-brand);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
@@ -884,14 +907,14 @@ body.vx-customer-design-foundation .vx-ops-fixed-line {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  color: #475569;
+  color: var(--vx-ui-text-secondary);
   font-size: 13px;
   line-height: 1.5;
 }
 
 body.vx-customer-design-foundation .vx-ops-fixed-line i {
   margin-top: 2px;
-  color: #047857;
+  color: var(--vx-color-success);
 }
 
 body.vx-customer-design-foundation .vx-ops-status {
@@ -937,8 +960,8 @@ body.vx-customer-design-foundation .vx-ops-note {
   margin-top: 14px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--vx-color-canvas);
+  color: var(--vx-ui-meta-color);
   font-size: 13px;
   line-height: 1.5;
 }

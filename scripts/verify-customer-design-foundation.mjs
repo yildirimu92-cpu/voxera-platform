@@ -470,13 +470,24 @@ for (const forbidden of [
   assert.ok(!foundationCss.includes(forbidden), `foundation CSS still contains mixed, broad or component-owned rule: ${forbidden}`);
 }
 
+// Klassen werden als Klassen geprüft, nicht als exakter Attributwert:
+// class="vx-abo-hero vx-ui-brand-rule" ist derselbe Baustein wie
+// class="vx-abo-hero". Die frühere Fassung verglich die Zeichenkette und
+// schlug fehl, sobald eine Rolle danebengesetzt wurde — geprüft werden soll
+// aber, DASS der kanonische Baustein da ist, nicht dass er allein steht.
+for (const className of [
+  'vx-settings-list',
+  'vx-settings-entry',
+  'vx-abo-hero',
+  'vx-abo-contract-grid',
+  'vx-abo-addon-grid'
+]) {
+  const present = new RegExp(`class="[^"]*\\b${className}\\b[^"]*"`).test(dashboard);
+  assert.ok(present, `dashboard missing canonical settings markup: class ${className}`);
+}
+
 for (const token of [
-  'class="vx-settings-list"',
-  'class="vx-settings-entry"',
-  'class="vx-abo-hero"',
   '<progress id="abo-minutes-bar"',
-  'class="vx-abo-contract-grid"',
-  'class="vx-abo-addon-grid"',
   "barEl.classList.toggle('warning'",
   "onclick=\"vxMehrShow('abonnement')\"",
   'onclick="vxAboUpgrade()"',
@@ -562,9 +573,15 @@ for (const token of [
 }
 
 // The component layer must resolve every value from the token contract.
-assert.equal((uiComponentsCss.match(/!important/g) || []).length, 0, 'UI component CSS must not add !important overrides');
-assert.ok(!uiComponentsCss.includes('<style'), 'UI component CSS must not contain an embedded style tag');
-assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(uiComponentsCss.replace(/#vx-assistant-root-switch/g, '')), 'UI component CSS must not hardcode colors; use the tokens');
+// Geprüft wird ausschliesslich echtes CSS, ohne Kommentare: die Hex-Regex
+// unten liest sonst jede PR-Nummer im Fliesstext ("PR #848") als Farbwert
+// und meldet einen Verstoss, den es nicht gibt. Dieselbe Vorsichtsmassnahme
+// wie in verify-anfragen-list-row-polish.mjs, die dort schon aus demselben
+// Grund getroffen wurde.
+const uiComponentsRules = uiComponentsCss.replace(/\/\*[\s\S]*?\*\//g, ' ');
+assert.equal((uiComponentsRules.match(/!important/g) || []).length, 0, 'UI component CSS must not add !important overrides');
+assert.ok(!uiComponentsRules.includes('<style'), 'UI component CSS must not contain an embedded style tag');
+assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(uiComponentsRules.replace(/#vx-assistant-root-switch/g, '')), 'UI component CSS must not hardcode colors; use the tokens');
 
 // --- Block 7: form field contract ------------------------------------------
 for (const token of [
