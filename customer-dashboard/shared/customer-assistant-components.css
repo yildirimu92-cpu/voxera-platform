@@ -22,8 +22,11 @@ body.vx-customer-design-foundation #vx-assistant-profile-body .vx-ap-card:first-
 }
 
 /* ── Kopfbereich "So meldet sich Ihr Assistent" (Etappe 6 / S2) ──────────
-   Der Begruessungssatz ist das visuelle Zentrum des Screens: Serife, weil er
-   die Stimme des Assistenten ist. Alles Uebrige darum herum bleibt Sans.
+   Der Begruessungssatz ist das visuelle Zentrum des Screens: er ist die
+   Stimme des Assistenten und traegt deshalb die Stimmenrolle
+   (--vx-ui-voice-*) — seit 2026-08-08 in derselben Sans wie alles uebrige,
+   abgehoben ueber Groesse, Gewicht und Weissraum statt ueber die frueher
+   hier stehende Newsreader-Serife.
    Bewusst ohne linke Akzentkante — die gestapelten Akzentraender sind die
    offene Layout-Kritik des Heute-Screens und werden hier nicht wiederholt. */
 body.vx-customer-design-foundation .vx-ap-hero-label {
@@ -37,17 +40,20 @@ body.vx-customer-design-foundation .vx-ap-hero-label {
 
 body.vx-customer-design-foundation .vx-ap-hero-greeting {
   margin: var(--vx-space-3) 0 0;
-  color: var(--vx-ink);
-  font-family: var(--vx-font-serif);
-  font-size: 20px;
-  font-weight: 400;
-  line-height: 1.55;
+  color: var(--vx-ui-voice-color);
+  font-family: var(--vx-ui-voice-font);
+  font-size: var(--vx-ui-voice-size);
+  font-weight: var(--vx-ui-voice-weight);
+  line-height: var(--vx-ui-voice-leading);
+  letter-spacing: var(--vx-ui-voice-tracking);
+  max-width: var(--vx-ui-voice-measure);
   text-wrap: pretty;
 }
 
 body.vx-customer-design-foundation .vx-ap-hero-greeting.is-pending {
   color: var(--vx-muted);
   font-style: italic;
+  font-weight: var(--vx-weight-regular);
 }
 
 body.vx-customer-design-foundation .vx-ap-hero-note {
@@ -165,7 +171,7 @@ body.vx-customer-design-foundation .vx-ap-hero-status.error {
 
 @media (max-width: 560px) {
   body.vx-customer-design-foundation .vx-ap-hero-greeting {
-    font-size: 18px;
+    font-size: var(--vx-ui-voice-size-sm);
   }
 
   body.vx-customer-design-foundation .vx-ap-hero .vx-ap-hero-foot > .vx-ap-btn {

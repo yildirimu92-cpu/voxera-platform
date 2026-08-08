@@ -92,12 +92,12 @@
   /* ---- Typography -------------------------------------------- */
   --vx-font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   --vx-font-display: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
-  /* Serife = Stimme/Inhalt, Sans = Bedienelemente (Design-System-Regel).
-     Die Serife war bisher nur lokal in #dash-content definiert, weshalb jeder
-     weitere Screen sie über eine eigene Fallback-Kette nachbauen musste. Hier
-     ist sie ein Token wie die übrigen Schriftrollen auch. Die ältere lokale
-     Definition im Heute-Screen ist wertgleich und bleibt vorerst bestehen. */
-  --vx-font-serif: 'Newsreader', Fraunces, Georgia, 'Times New Roman', serif;
+  /* Kein --vx-font-serif mehr (2026-08-08). Die frühere Regel "Serife =
+     Stimme/Inhalt, Sans = Bedienelemente" ist zurückgenommen: das Produkt
+     ist durchgehend Sans. Die Stimme hebt sich weiterhin ab, aber über
+     Grösse, Gewicht und Weissraum statt über einen Schriftwechsel — siehe
+     --vx-ui-voice-* weiter unten. Ein Wächter in
+     verify-customer-design-foundation.mjs hält die Serife draussen. */
 
   --vx-text-xs: 11px;
   --vx-text-sm: 12px;
@@ -505,6 +505,37 @@
   --vx-ui-section-count-bg: #FFFFFF;
   --vx-ui-section-count-border: #D9E1EC;
   --vx-ui-section-count-color: var(--vx-ui-meta-color);
+
+  /* ---- Voice (Stimme der Assistentin) ------------------------- */
+  /* Die vier Orte im Produkt, an denen nicht die Oberfläche spricht,
+     sondern Lara: Lara-Karte auf Heute, Anliegen/Aufgaben-Zusammenfassung
+     im Anfrage-Detail, "Laras Zusammenfassung" im Bericht und der
+     Begrüssungssatz im Assistent-Tab. Bis 2026-08-08 trug diese Rolle die
+     Newsreader-Serife; jetzt trägt sie dieselbe Sans wie das übrige UI und
+     hebt sich über drei andere Grössen ab:
+
+     - 20px ist 1.54x Fliesstext (13px) — dieselbe Sprungweite, die die
+       Serife optisch hatte, und weit genug über der 15px-Titelstufe, dass
+       keine vierte Grösse zwischen 15 und 20 nötig wird. 22px hätte auf
+       390px nur noch ~30 Zeichen pro Zeile ergeben.
+     - Gewicht 500 trägt im ganzen Produkt sonst kein Element: Titel stehen
+       auf 700, Karten- und Abschnittsköpfe auf 600, Fliesstext auf 400.
+       Die Stimme bekommt damit ein eigenes Gewicht statt eines geliehenen.
+       Plus Jakarta Sans auf 400 wirkt bei 20px auf Weiss dünn und verliert
+       genau die Präsenz, für die die Serife da war.
+     - Zeilenhöhe 1.5 statt der 1.55 der Serife: Sans braucht bei gleicher
+       Grösse etwas weniger Durchschuss.
+     - measure begrenzt die Zeilenlänge. Im breiten Detail-Panel und im
+       Bericht liefe der Text sonst randlos durch — der Weissraum ist der
+       Teil, der die Abhebung nach dem Wegfall der Serife mitträgt. */
+  --vx-ui-voice-font: var(--vx-font-display);
+  --vx-ui-voice-size: 20px;
+  --vx-ui-voice-size-sm: 18px;
+  --vx-ui-voice-weight: 500;
+  --vx-ui-voice-leading: 1.5;
+  --vx-ui-voice-tracking: -.01em;
+  --vx-ui-voice-color: var(--vx-ui-row-title-color);
+  --vx-ui-voice-measure: 62ch;
 
   /* ---- Skeleton ---------------------------------------------- */
   --vx-ui-skeleton-base: #E9EEF5;

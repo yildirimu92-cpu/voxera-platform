@@ -18,9 +18,9 @@
 <meta name="theme-color" content="#1A6FE8">
 
 
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
-<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260807-3">
+<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260808-4">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
 <script src="/shared/customer-ui-components.js?v=20260807-2"></script>
 <script src="/shared/offer-brand.js?v=20260807-4"></script>
@@ -6951,9 +6951,13 @@ body.vx-customer-design-foundation .vx-report-highlight-value{margin-top:6px;col
    diesem Screen, den nicht die Oberflaeche, sondern die Assistentin
    formuliert. Er stand als 15px-Sans zwischen lauter Kennzahlen und war als
    eigene Stimme nicht lesbar. Genau EIN solcher Ort pro Screen — sonst wird
-   die Serife zur Dekoration. */
-body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-family:var(--vx-font-serif);font-size:19px;line-height:1.55;color:var(--vx-ui-row-title-color);}
-@media (max-width:430px){body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-size:17px;}}
+   die Hervorhebung zur Dekoration.
+
+   Traegt seit 2026-08-08 die Sans-Stimmenrolle (--vx-ui-voice-*) statt der
+   Newsreader-Serife; die Abhebung von den Kennzahlen daneben kommt jetzt
+   aus Groesse, Gewicht 500 und der begrenzten Zeilenlaenge. */
+body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-family:var(--vx-ui-voice-font);font-size:var(--vx-ui-voice-size);font-weight:var(--vx-ui-voice-weight);line-height:var(--vx-ui-voice-leading);letter-spacing:var(--vx-ui-voice-tracking);color:var(--vx-ui-voice-color);max-width:var(--vx-ui-voice-measure);}
+@media (max-width:560px){body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-size:var(--vx-ui-voice-size-sm);}}
 body.vx-customer-design-foundation .vx-report-insight{display:flex;align-items:flex-start;gap:12px;} body.vx-customer-design-foundation .vx-report-insight-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:32px;height:32px;border-radius:10px;}
 body.vx-customer-design-foundation .vx-report-insight.tone-warning{background:#fff7ed;color:#9a3412;} body.vx-customer-design-foundation .vx-report-insight.tone-warning .vx-report-insight-icon{background:#fed7aa;} body.vx-customer-design-foundation .vx-report-insight.tone-info{background:#eff6ff;color:#1d4ed8;} body.vx-customer-design-foundation .vx-report-insight.tone-info .vx-report-insight-icon{background:#dbeafe;} body.vx-customer-design-foundation .vx-report-insight.tone-success{background:#ecfdf5;color:#047857;} body.vx-customer-design-foundation .vx-report-insight.tone-success .vx-report-insight-icon{background:#d1fae5;}
 body.vx-customer-design-foundation .vx-report-week-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:end;gap:8px;min-height:120px;}
@@ -7342,7 +7346,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
              Card-Grundwerte (12px Radius, 0.5px Border) aus Etappe 1 bleiben
              unverändert — vx-ui-card-* Tokens werden weiterverwendet. */
           #dash-content {
-            --vx-font-serif: 'Newsreader', Fraunces, Georgia, 'Times New Roman', serif;
             --vx-font-handover-ui: 'Plus Jakarta Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
           }
 
@@ -7371,7 +7374,11 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             flex:0 0 auto; width:40px; height:40px; border-radius:50%;
             background:var(--vx-color-night,#0D1F3C); color:#fff;
             display:flex; align-items:center; justify-content:center;
-            font-family:var(--vx-font-serif); font-size:16px; font-weight:600;
+            /* Dieselben Werte wie die Initialen im Detail-Panel
+               (.vx-dv2-avatar, 15px/700 Sans). Die Initiale stand bis
+               2026-08-08 als einziges Zeichen des Screens in der Serife —
+               ein Rest der zurückgenommenen Regel, ohne eigene Aussage. */
+            font-family:var(--vx-font-handover-ui); font-size:15px; font-weight:700;
           }
           /* ── Sprechblase wird Karte (2026-08-08) ──────────────────────────
              Vorher: getoente Flaeche (#EEF1F6) plus 3px Night-Kante links.
@@ -7379,20 +7386,30 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
              zweite von drei gestapelten Akzent-Raendern auf diesem Screen.
              Jetzt dieselbe Karte wie jede andere Flaeche in Heute und
              Anfragen (--vx-ui-row-*). Die Stimme traegt allein die
-             Newsreader-Serife im Text — genau die Rollenverteilung, die
-             gelten soll: Serif = Stimme, Sans = UI. Der Night-Avatar bleibt
+             Typografie des Textes (--vx-ui-voice-*). Der Night-Avatar bleibt
              als Absenderzeichen und ist damit das einzige Signal, das die
-             Nachricht von einer Listenzeile unterscheidet. */
+             Nachricht von einer Listenzeile unterscheidet.
+
+             Polsterung 16px rundum statt 14px 16px (2026-08-08): nach dem
+             Wegfall der Serife traegt der Weissraum einen Teil der
+             Abhebung mit, und die Karte ist die einzige auf dem Screen,
+             die nur einen einzigen Textblock enthaelt. */
           .vx-lara-bubble {
             flex:1; min-width:0;
             background:var(--vx-ui-row-bg);
             border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
             border-radius:var(--vx-ui-row-radius);
-            padding:14px 16px;
+            padding:16px;
           }
+          /* Stimmenrolle des Screens — siehe --vx-ui-voice-* im Token-Satz. */
           .vx-lara-text {
-            font-family:var(--vx-font-serif); font-weight:400; font-size:18px;
-            line-height:1.48; color:var(--vx-color-night,#0D1F3C); margin:0;
+            font-family:var(--vx-ui-voice-font); font-weight:var(--vx-ui-voice-weight);
+            font-size:var(--vx-ui-voice-size); line-height:var(--vx-ui-voice-leading);
+            letter-spacing:var(--vx-ui-voice-tracking); color:var(--vx-ui-voice-color);
+            max-width:var(--vx-ui-voice-measure); margin:0;
+          }
+          @media (max-width:560px){
+            .vx-lara-text { font-size:var(--vx-ui-voice-size-sm); }
           }
           /* Auf der weissen Karte gilt wieder die regulaere Meta-Rolle
              (4.83:1). Die frueher hier noetige Ausnahme auf die dunklere
@@ -7494,7 +7511,12 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             width:56px; height:56px; border-radius:50%; background:#E7F8EE; color:#059669;
             display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:22px;
           }
-          body.vx-customer-design-foundation .vx-all-clear-title { font-family:var(--vx-font-serif); font-weight:600; font-size:25px; color:var(--vx-color-night,#0D1F3C); margin:0 0 8px; }
+          /* Ueberschrift, keine Stimme: der Leerzustand ist ein Satz der
+             Oberflaeche ueber sich selbst, nicht einer von Lara. Deshalb
+             die Display-Sans auf 700 statt der Voice-Rolle. 22px statt der
+             frueheren 25px, weil Sans bei gleicher Punktzahl groesser
+             wirkt als die abgeloeste Serife. */
+          body.vx-customer-design-foundation .vx-all-clear-title { font-family:var(--vx-font-display); font-weight:700; font-size:22px; letter-spacing:-.01em; color:var(--vx-color-night,#0D1F3C); margin:0 0 8px; }
           .vx-all-clear-text { font-size:14px; color:var(--vx-ui-text-secondary); max-width:320px; margin:0 auto; line-height:1.5; }
 
           .vx-handover-footlink { margin-top:18px; font-size:12px; color:var(--vx-ui-meta-color); text-align:center; font-family:var(--vx-font-handover-ui); }
@@ -36960,8 +36982,9 @@ body:has(#tab-archiv.active) .content{
 
    Ab hier zieht das Panel dieselben --vx-ui-row-*/--vx-ui-card-* Werte wie
    die Liste. Struktur, Reihenfolge und Bestand der Blöcke sind unverändert;
-   es ändern sich Rahmung, Abstände und Farbrollen. Geschützt bleibt die
-   Newsreader-Serife im Anliegen (.vx-dv2-concern) — Serif = Stimme. */
+   es ändern sich Rahmung, Abstände und Farbrollen. Der Stimmen-Ort des
+   Panels (.vx-dv2-concern) behält seine Sonderstellung — seit 2026-08-08
+   allerdings in der Sans-Stimmenrolle statt in der Newsreader-Serife. */
 .vx-dv2-shell{
   overflow-y:auto;height:100%;
   background:var(--vx-color-canvas,#F7F8FA);color:var(--vx-ui-row-title-color,#0D1F3C);
@@ -37048,18 +37071,24 @@ body:has(#tab-archiv.active) .content{
 .vx-dv2-related-meta{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);line-height:1.45;}
 .vx-dv2-related-btn{min-height:30px;padding:0 12px;border-radius:var(--vx-radius-pill,999px);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-ui-row-bg);color:var(--vx-color-night,#0D1F3C);font-size:12px;font-weight:700;font-family:var(--vx-ui-row-font);cursor:pointer;white-space:nowrap;}
 .vx-dv2-task-note-empty{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);font-style:italic;}
-/* Anliegen in der Newsreader-Serife — gleiche Sprache wie der Heute-Screen.
-   Die Serife stand hier schon vorher, aber auf 15px/400: nur 2px über dem
-   Fliesstext daneben und damit als eigene Stimme nicht lesbar. Auf 19px
-   gehoben — das ist die zweite Stufe der Leiter, direkt unter dem Namen.
+/* Anliegen in der Stimmenrolle (--vx-ui-voice-*) — gleiche Sprache wie der
+   Heute-Screen. Der Ort war schon vorher hervorgehoben, bis 2026-08-08 über
+   die Newsreader-Serife, jetzt über Grösse/Gewicht/Weissraum in derselben
+   Sans wie das übrige Panel.
    Gilt auch für die Aufgaben-Zusammenfassung: EIN Stimmen-Ort pro Panel,
-   in beiden Zweigen derselbe, sonst hat der Aufgaben-Zweig gar keinen. */
+   in beiden Zweigen derselbe, sonst hat der Aufgaben-Zweig gar keinen.
+
+   20px trifft hier die Grösse von .vx-dv2-title im Kopf. Das ist gewollt:
+   der Name führt über Gewicht (700 gegen 500), nicht über Grösse, und die
+   beiden stehen durch Chips, Aktionsleiste und Kartenrand ohnehin nicht
+   nebeneinander. Eine eigene Grösse für die Stimme hätte eine vierte Stufe
+   zwischen 15 und 20px erzwungen. */
 .vx-dv2-concern,
-.vx-dv2-task-summary{font-family:var(--vx-font-serif,'Newsreader',Georgia,serif);font-size:19px;line-height:1.55;color:var(--vx-ui-row-title-color);}
+.vx-dv2-task-summary{font-family:var(--vx-ui-voice-font);font-size:var(--vx-ui-voice-size);font-weight:var(--vx-ui-voice-weight);line-height:var(--vx-ui-voice-leading);letter-spacing:var(--vx-ui-voice-tracking);color:var(--vx-ui-voice-color);max-width:var(--vx-ui-voice-measure);}
 /* Fehlt die Zusammenfassung, bleibt der Block trotzdem in der Stimme —
    vorher fiel er auf 12px-Sans in Grau zurück und der Kopf des Panels
    verlor seinen Ankerpunkt. */
-.vx-dv2-concern--empty{font-style:italic;font-size:17px;color:var(--vx-ui-meta-color);}
+.vx-dv2-concern--empty{font-style:italic;font-weight:400;font-size:var(--vx-ui-voice-size-sm);color:var(--vx-ui-meta-color);}
 /* Herkunft steht jetzt UNTER dem Text statt als Etikett darüber. */
 .vx-dv2-concern-origin{margin-top:8px;font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);}
 .vx-dv2-next-step{margin-top:10px;padding-top:10px;border-top:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);}
@@ -37088,11 +37117,17 @@ body:has(#tab-archiv.active) .content{
 .vx-summary-acc--media .vx-summary-acc-body{background:var(--vx-color-canvas,#F7F8FA);}
 @media(max-width:1180px){.vx-dv2-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:760px){.vx-dv2-info-grid{grid-template-columns:1fr;}.vx-dv2-actions{position:sticky;top:0;z-index:2;}}
+/* Die Stimmenrolle stuft produktweit an derselben Stelle ab (560px), damit
+   Lara-Karte, Panel, Bericht und Assistent-Hero auf einem Geraet nie in
+   zwei verschiedenen Stimmengroessen stehen. Die uebrige Leiter des Panels
+   stuft weiterhin erst auf 430px. */
+@media(max-width:560px){
+  .vx-dv2-concern,.vx-dv2-task-summary{font-size:var(--vx-ui-voice-size-sm);}
+  .vx-dv2-concern--empty{font-size:17px;}
+}
 /* Auf 390px trägt die Leiter dieselben Verhältnisse, eine Stufe kleiner. */
 @media(max-width:430px){
   .vx-dv2-title{font-size:18px;}
-  .vx-dv2-concern,.vx-dv2-task-summary{font-size:17px;}
-  .vx-dv2-concern--empty{font-size:16px;}
   /* Kürzen statt ausblenden — die Zustandsangabe IST die Unterscheidung. */
   .vx-summary-acc-state{max-width:104px;overflow:hidden;text-overflow:ellipsis;}
 }
