@@ -1,0 +1,87 @@
+# Prueft die Security-Invarianten gegen die ECHTE Produktions-Datenbank.
+#
+# Abgrenzung zu p0-security-verification.yml: der dortige Check liest Repo-
+# Dateien. Die P0-Migration vom 2026-07-28 lag korrekt im Repo, war auf der
+# Datenbank aber nie angewandt -- der Check blieb wochenlang gruen, obwohl
+# keine der Policies existierte. Dieser Workflow oeffnet stattdessen eine echte
+# Session gegen die Produktions-DB und misst nach, was `anon` und
+# `authenticated` tatsaechlich duerfen.
+name: DB Security Invariants (Produktion)
+
+# BEWUSST OHNE `pull_request`. Zwei Gruende, beide aus dem Review von PR #835:
+#
+# 1. Zugangsdaten. `actions/checkout` holt bei einem PR den PR-Stand, und erst
+#    danach bekommt der Job das Produktions-Secret in die Umgebung. Der PR
+#    koennte also den Runner oder eine der SQL-Dateien so aendern, dass sie den
+#    Connection-String ausgibt oder DML ausserhalb des Rollbacks ausfuehrt. Der
+#    Fork-Filter half dagegen nicht: bei Same-Repo-PRs greift er nicht, und
+#    genau die sind der Fall. Review-CI darf kein Weg zu Produktionszugriff
+#    sein -- schon gar nicht bei einem Security-Check.
+#
+# 2. Der Ledger-Check wuerde jeden Migrations-PR rot faerben. Eine Migration
+#    liegt im PR-Baum, ist auf Produktion aber korrekt noch nicht angewandt --
+#    der Drift-Check meldet zutreffend "nicht angewandt" und der PR waere nur
+#    gruen zu bekommen, indem man ungemergten Code vorab einspielt. Genau
+#    verkehrt herum.
+#
+# Der Verlust ist gering: der PR-Lauf haette ohnehin nur bereits bestehenden
+# Drift gefunden, und den findet der 6-Stunden-Lauf auch.
+on:
+  # Nach dem Merge -- der Moment, in dem eine Migration angewandt sein muesste.
+  push:
+    branches:
+      - main
+  # Der eigentliche Schutz: Drift entsteht auch OHNE Commit (manuelle Aenderung,
+  # nie angewandte Migration, zurueckgesetzte Policy). Nur ein zeitgesteuerter
+  # Lauf gegen die echte DB findet das.
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-security-invariants-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Security-Invarianten gegen die Produktions-DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Eigenes Environment: der Zugriff auf die Produktions-Zugangsdaten ist
+    # dadurch einzeln auditierbar und kann unabhaengig entzogen werden. In
+    # Kombination mit den Triggern oben laeuft dieser Job ausschliesslich auf
+    # Code, der bereits in main steht -- nie auf ungeprueftem PR-Stand.
+    environment: production-db-readonly
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js 20 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: psql bereitstellen
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+
+      - name: Invarianten gegen die Produktions-DB pruefen
+        env:
+          # Zwei Wege, das Skript nimmt was da ist. Die Einzelfelder haben
+          # Vorrang und sind der robustere Weg: beim Connection-String muessen
+          # Sonderzeichen im Passwort URL-kodiert werden, und "/" oder "@"
+          # zerlegen ihn falsch -- `openssl rand -base64 32` erzeugt genau
+          # solche Zeichen. Ueber PGPASSWORD wird nichts geparst.
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_CI_VERIFIER }}
+        run: node scripts/verify-db-security-invariants.mjs
