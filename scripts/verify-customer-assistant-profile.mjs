@@ -54,6 +54,13 @@ for (const token of [
   'vx-ap-hero-greeting',
   'vx-ap-hero-status',
   'sobald Ihr Assistent aktiviert ist',
+  // Etappe 6 / S3 — Ansprache und Ton sind wieder bedienbar, und zwar dort, wo
+  // ihre Wirkung steht. Die Sperre haengt allein an permissions.can_change_tone;
+  // ein Plan-Name im Frontend waere ein Rueckschritt zur verdrahteten Regel.
+  'function toneEditor',
+  'data-vx-tone-edit',
+  'async function saveTune',
+  'can_change_tone === true',
   'let loadPromise = null',
   'let loadSequence = 0',
   'if (loadPromise) return loadPromise',
@@ -136,7 +143,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260808-3/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260808-4/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -147,6 +154,15 @@ assert.match(source.profile, /requireCustomerCaller/);
 assert.match(source.profile, /customer_name/);
 assert.doesNotMatch(source.profile, /'company_name'/);
 assert.match(source.profile, /allow_custom_assistant_name,voice_selection_enabled/);
+// Etappe 6 / S3 + A1: Die Ton-Sperre lebt in plan_config und wird serverseitig
+// durchgesetzt, nicht nur in der Oberflaeche. Ohne die zweite Zusicherung waere
+// sie wieder blosse Optik und per direktem Aufruf umgehbar.
+assert.match(source.profile, /allow_custom_tone/);
+assert.match(source.profile, /can_change_tone/);
+assert.match(source.update, /allow_custom_tone/);
+assert.match(source.update, /tone_not_allowed_on_plan/);
+// Die Anrede bleibt bewusst fuer alle Plaene frei.
+assert.doesNotMatch(source.update, /address_form_not_allowed_on_plan/);
 assert.match(source.profile, /ai_business_description/);
 assert.match(source.profile, /ai_booking_faq/);
 assert.match(source.profile, /promptProfile/);

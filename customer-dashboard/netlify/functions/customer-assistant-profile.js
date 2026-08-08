@@ -252,7 +252,7 @@ exports.handler = async (event) => {
   const planCode = String(customer.plan_code || customer.plan || 'starter').toLowerCase();
   const { data: planConfig, error: planError } = await sbAdmin
     .from('plan_config')
-    .select('allow_custom_assistant_name,voice_selection_enabled')
+    .select('allow_custom_assistant_name,voice_selection_enabled,allow_custom_tone')
     .eq('id', planCode)
     .maybeSingle();
 
@@ -349,7 +349,11 @@ exports.handler = async (event) => {
     },
     permissions: {
       can_change_voice: planConfig?.voice_selection_enabled === true,
-      can_change_name: planConfig?.allow_custom_assistant_name === true
+      can_change_name: planConfig?.allow_custom_assistant_name === true,
+      // Etappe 6 / S3: einzige Schaltstelle fuer die Ton-Sperre. Das Frontend
+      // kennt keinen Plan-Namen — Freischalten ist ein Update auf
+      // plan_config.allow_custom_tone, kein Deploy.
+      can_change_tone: planConfig?.allow_custom_tone === true
     },
     capabilities: buildCapabilities(customer, parsedProfile, calendarReady, calendarAttention),
     technical_status: buildTechnicalStatus(customer, calendarReady, calendarAttention, activeProvider),

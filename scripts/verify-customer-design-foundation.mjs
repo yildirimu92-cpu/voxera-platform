@@ -46,10 +46,11 @@ const lineCount = (value) => value.split(/\r?\n/).length;
 assert.ok(lineCount(runtime) <= 55, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
 // Etappe 6 / S2: +83 Zeilen fuer den Kopfbereich "So meldet sich Ihr
-// Assistent" — eine neue Komponente, nicht Wildwuchs. Budget mit demselben
-// Spielraum wie zuvor (~65 Zeilen) neu gesetzt, damit der Waechter weiterhin
-// anschlaegt, bevor die Datei unbemerkt waechst.
-assert.ok(lineCount(assistantCss) <= 1050, 'assistant component CSS exceeded its consolidated size budget');
+// Assistent". S3: +50 fuer den Ansprache-/Ton-Editor darin. Beides neue
+// Komponenten, kein Wildwuchs. Budget behaelt denselben Spielraum wie zuvor
+// (~65 Zeilen), damit der Waechter weiterhin anschlaegt, bevor die Datei
+// unbemerkt waechst.
+assert.ok(lineCount(assistantCss) <= 1130, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 assert.ok(lineCount(settingsCss) <= 740, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
@@ -58,7 +59,7 @@ assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded it
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260807-2',
-  '/shared/customer-assistant-components.css?v=20260808-1',
+  '/shared/customer-assistant-components.css?v=20260808-2',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260807-3',
   '/shared/customer-support-components.css?v=20260802-2',
@@ -734,5 +735,5 @@ assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'),
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260808-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
 for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
+const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

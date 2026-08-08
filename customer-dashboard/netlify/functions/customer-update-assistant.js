@@ -58,13 +58,14 @@ exports.handler = async (event) => {
 
   const { data: planCfg, error: planError } = await sbAdmin
     .from('plan_config')
-    .select('allow_custom_assistant_name,voice_selection_enabled')
+    .select('allow_custom_assistant_name,voice_selection_enabled,allow_custom_tone')
     .eq('id', planCode)
     .maybeSingle();
   if (planError) return response(500, buildContractPayload({ error: 'plan_config_load_failed' }));
 
   const canEditName = planCfg?.allow_custom_assistant_name === true;
   const canEditVoice = planCfg?.voice_selection_enabled === true;
+  const canEditTone = planCfg?.allow_custom_tone === true;
   const canEditForwarding = planCode === 'professional';
 
   const {
@@ -111,7 +112,18 @@ exports.handler = async (event) => {
   if (blockedFields.length) errors.push('blocked_customer_fields_present');
 
   if (ai_greeting !== undefined) patch.ai_greeting = text(ai_greeting, 1000);
-  if (ai_tone !== undefined) patch.ai_tone = text(ai_tone, 120);
+  // A1 (Etappe 6 / S3): Die Ton-Sperre wird hier durchgesetzt, nicht nur in der
+  // Oberflaeche — vorher genuegte ein direkter Aufruf, um sie zu umgehen. Die
+  // Regel selbst lebt in plan_config.allow_custom_tone, damit ein Freischalten
+  // ein DB-Update ohne Deploy bleibt.
+  // ai_address_form ist bewusst NICHT gesperrt: Sie oder Du ist eine Frage der
+  // Grundhoeflichkeit, kein Premium-Merkmal.
+  if (ai_tone !== undefined) {
+    if (!canEditTone) {
+      return response(403, buildContractPayload({ error: 'tone_not_allowed_on_plan', errors: ['tone_not_allowed_on_plan'] }));
+    }
+    patch.ai_tone = text(ai_tone, 120);
+  }
   if (ai_address_form !== undefined) patch.ai_address_form = text(ai_address_form, 40);
 
   if (voice_id !== undefined) {

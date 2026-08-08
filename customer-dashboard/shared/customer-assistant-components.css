@@ -74,6 +74,56 @@ body.vx-customer-design-foundation .vx-ap-hero-meta {
   line-height: 1.5;
 }
 
+/* Ansprache und Ton (Etappe 6 / S3): Der Editor sitzt im Kopfbereich, weil er
+   den Satz darueber veraendert. Geschlossen ist er eine Textzeile, offen ein
+   ruhiges Zweispaltenfeld — kein Kasten im Kasten. */
+body.vx-customer-design-foundation .vx-ap-hero-tune {
+  margin-top: var(--vx-space-3);
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-tune-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vx-brand);
+  font-family: var(--vx-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-tune-toggle:focus-visible {
+  outline: 3px solid var(--vx-focus-ring);
+  outline-offset: 2px;
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-tune.is-open {
+  margin-top: var(--vx-space-4);
+  padding-top: var(--vx-space-4);
+  border-top: 1px solid var(--vx-line);
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-tune-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--vx-space-3);
+}
+
+/* Gold ist im Tokenset die Plan-/Badge-Farbe — dieselbe Rolle wie beim
+   bestehenden Plan-Hinweis. Gesperrtes wird markiert, nicht versteckt. */
+body.vx-customer-design-foundation .vx-ap-plan-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--vx-gold);
+  color: var(--vx-night);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  vertical-align: middle;
+}
+
 body.vx-customer-design-foundation .vx-ap-hero-status {
   margin-top: var(--vx-space-4);
   padding-top: var(--vx-space-3);
