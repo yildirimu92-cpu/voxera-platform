@@ -1,0 +1,24 @@
+# Supabase-CLI-Projektbindung.
+#
+# Bis 2026-08-08 gab es diese Datei nicht — deshalb war das Repo nie an ein
+# Projekt gebunden und Migrationen wurden von Hand im SQL-Editor eingespielt.
+# Genau daraus entstand die Ledger-Luecke, die den P0-Vorfall ermoeglicht hat
+# (siehe docs/DB_SECURITY_CI_SETUP.md).
+#
+# project_id ist die Produktions-Referenz. Fuer Staging nicht diese Datei
+# aendern, sondern beim Aufruf --db-url oder --project-ref uebergeben:
+#
+#   Produktion  ulcofbgrovgcvowdjrge
+#   Staging     hzqiyyqfchvfcmmbemvd
+#
+# Siehe docs/STAGING_AUFBAU_RUNBOOK.md.
+
+project_id = "ulcofbgrovgcvowdjrge"
+
+[db]
+# Muss zur Server-Version passen, sonst weicht ein lokaler Stack ab.
+# Produktion und Staging laufen beide auf PostgreSQL 17.
+major_version = 17
+
+[db.migrations]
+schema_paths = []
