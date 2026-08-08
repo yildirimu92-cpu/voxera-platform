@@ -61,7 +61,7 @@
   if (!root || !root.document || root.__vxCustomerSupplementalRuntimeLoaderInstalled) return;
   root.__vxCustomerSupplementalRuntimeLoaderInstalled = true;
   [
-    '/shared/customer-runtime-notifications.js?v=20260808-1',
+    '/shared/customer-runtime-notifications.js?v=20260808-2',
     '/shared/customer-runtime-commercial-controller.js?v=20260804-2',
     '/shared/customer-runtime-modal-cancellation.js?v=20260804-2',
     '/shared/customer-runtime-cancellation-contract-owner.js?v=20260804-4'

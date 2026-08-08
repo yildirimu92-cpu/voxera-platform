@@ -5,6 +5,8 @@
 
   const doc = root.document;
   let previousPageId = 'tab-dashboard';
+  let lastActivationAt = 0;
+  const ACTIVATION_DEDUPE_MS = 500;
   const EXPLICIT_SELECTOR = [
     '[data-notifications-trigger]','[data-notification-trigger]','#notification-button','#notifications-button',
     '#notification-bell','#notifications-bell','[aria-label*="Benachrichtigung" i]',
@@ -140,6 +142,13 @@
     event.preventDefault();
     event.stopPropagation();
     if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    // pointerdown/click/touchend fire in sequence for the same physical
+    // click/tap — without this guard each one re-triggers activation and a
+    // stateful toggle (vxBellToggle) opens then immediately closes again
+    // within the same interaction, so nothing appears to happen.
+    const now = Date.now();
+    if (now - lastActivationAt < ACTIVATION_DEDUPE_MS) return;
+    lastActivationAt = now;
     // IA-Entscheidung (Fahrplan 08.08.): Notifications als anchored Popover,
     // nicht als Vollseite. Die native Glocke rendert/öffnet #vx-notif-panel;
     // dieser Bridge-Handler bleibt nur für Keyboard-/ARIA-Härtung (bindTrigger)
