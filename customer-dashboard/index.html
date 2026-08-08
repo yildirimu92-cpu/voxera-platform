@@ -23683,9 +23683,88 @@ function setOverlayAriaHidden(overlayId, hidden) {
 // ausloesenden Element hinter dem Overlay: Tastaturnutzer tabben durch die
 // Seite dahinter, und dialog-eigene keydown-Listener feuern nie (die
 // Support-Anfrage hatte genau deshalb einen wirkungslosen Escape-Handler).
+// ── Fokusfalle ───────────────────────────────────────────────────────────
+// aria-modal="true" sagt Screenreadern, der Dialog sei modal. Fuer die
+// Tastatur stimmte das nicht: der Fokus lief nach dem letzten Element in die
+// Seite dahinter. Statt Tab per preventDefault abzufangen — was die
+// Segmentnavigation in input[type=datetime-local] zerstoert, weil dort jeder
+// Tab-Schritt innerhalb desselben Elements passiert — stehen am Anfang und am
+// Ende jedes Dialogs zwei fokussierbare Marker. Wer einen erreicht, hat den
+// Dialog gerade verlassen wollen und wird ans andere Ende gesetzt. Die
+// natuerliche Tab-Reihenfolge bleibt dabei vollstaendig unangetastet.
+var VX_FOCUSABLE_SELECTOR = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),summary,audio[controls],video[controls],[tabindex]:not([tabindex="-1"])';
+
+function vxVisibleFocusable(root) {
+  if (!root) return [];
+  return Array.prototype.filter.call(root.querySelectorAll(VX_FOCUSABLE_SELECTOR), function(el) {
+    if (el.hasAttribute('data-vx-focus-sentinel')) return false;
+    // Inhalt eines zugeklappten <details> ueberspringt der Browser in der
+    // Tab-Reihenfolge, liefert aber weiterhin Rechtecke. Wuerde der Sprung am
+    // Rand des Dialogs dort landen, faende er kein fokussierbares Ziel und der
+    // Fokus fiele auf den Body — also genau wieder aus dem Dialog heraus.
+    var details = el.closest ? el.closest('details') : null;
+    if (details && !details.open && el.tagName !== 'SUMMARY') return false;
+    var cs = window.getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  });
+}
+
+function vxEnsureFocusSentinels(root) {
+  if (!root || !root.appendChild) return;
+  function make(position) {
+    var el = document.createElement('span');
+    el.setAttribute('data-vx-focus-sentinel', position);
+    el.setAttribute('aria-hidden', 'true');
+    el.tabIndex = 0;
+    el.style.cssText = 'position:absolute;width:1px;height:1px;padding:0;margin:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;';
+    return el;
+  }
+  var start = null, end = null;
+  for (var i = 0; i < root.children.length; i++) {
+    var mark = root.children[i].getAttribute && root.children[i].getAttribute('data-vx-focus-sentinel');
+    if (mark === 'start') start = root.children[i];
+    else if (mark === 'end') end = root.children[i];
+  }
+  // Beide muessen aussen liegen, auch wenn der Dialog seinen Inhalt neu baut.
+  root.insertBefore(start || make('start'), root.firstChild);
+  root.appendChild(end || make('end'));
+}
+
+(function initDialogFocusTrap(){
+  if (window.__VOXERA_FOCUS_TRAP_BOUND__) return;
+  window.__VOXERA_FOCUS_TRAP_BOUND__ = true;
+  document.addEventListener('focusin', function(e) {
+    var target = e.target;
+    if (!target || !target.getAttribute) return;
+
+    var position = target.getAttribute('data-vx-focus-sentinel');
+    if (position) {
+      var root = target.parentElement;
+      var items = vxVisibleFocusable(root);
+      if (!items.length) return;
+      var next = position === 'start' ? items[items.length - 1] : items[0];
+      try { next.focus({ preventScroll: true }); } catch(err) { try { next.focus(); } catch(_) {} }
+      return;
+    }
+
+    // Selbstheilung: Dialoge, die ihren Fokus selbst setzen, laufen nie durch
+    // vxFocusDialog und haetten sonst keine Marker — genau so entkam der Fokus
+    // aus der Notiz und der Support-Anfrage. Sobald der Fokus in irgendeinen
+    // Dialog faellt, bekommt der seine Marker. Damit greift die Falle auch fuer
+    // Dialoge, die spaeter dazukommen.
+    if (!target.closest) return;
+    var host = target.closest('[role="dialog"]');
+    if (!host) return;
+    if (host.querySelector('[data-vx-focus-sentinel]')) return;
+    vxEnsureFocusSentinels(host);
+  });
+})();
+
 function vxFocusDialog(overlayId, preferredSelector) {
   var overlay = document.getElementById(overlayId);
   if (!overlay) return;
+  vxEnsureFocusSentinels(overlay);
   // Mehrere Anlaeufe statt eines einzigen: ein focus() auf ein Element, das im
   // selben Frame noch display:none traegt, verpufft folgenlos — und die Dialoge
   // werden unterschiedlich sichtbar gemacht (Klasse, inline style, teils erst
@@ -23703,6 +23782,8 @@ function vxFocusDialog(overlayId, preferredSelector) {
   setTimeout(tryFocus, 0);
 }
 window.vxFocusDialog = vxFocusDialog;
+window.vxEnsureFocusSentinels = vxEnsureFocusSentinels;
+window.vxVisibleFocusable = vxVisibleFocusable;
 
 
 window.vxScrollLocks = window.vxScrollLocks || new Set();

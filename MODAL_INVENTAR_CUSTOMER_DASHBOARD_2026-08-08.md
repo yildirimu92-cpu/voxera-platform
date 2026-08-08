@@ -379,16 +379,47 @@ Dialog, Schliessen per Escape und Fokus-Rückgabe an das auslösende Element.
 Der zwölfte (Support-Anfrage) erfüllte den Vertrag bereits. Keine
 JS-Fehler; Teil A und S1 unverändert.
 
-### S4b · Fokusfalle — vorgeschlagen, nicht umgesetzt
+### S4b · Fokusfalle — **erledigt**
 
-Gemessen im Nachfassen-Dialog: nach dem letzten Element springt der Fokus beim
-**17. Tab** aus dem Dialog auf die Seite dahinter (Glocke in der Seitenleiste)
-und wandert dort weiter. `aria-modal="true"` sagt Screenreadern, der Dialog sei
-modal — für die Tastatur stimmt das nicht. Das betrifft alle dreizehn Dialoge
-gleichermassen und ist ein eigener, zentral lösbarer Schritt: eine
-`keydown`-Behandlung für Tab im obersten offenen Dialog, analog zur
-Escape-Tabelle. Bewusst nicht in S3/S4 mitgenommen, weil es Tastaturverhalten
-in allen Dialogen ändert und eine eigene Prüfung verdient.
+Ausgangslage, gemessen: im Nachfassen-Dialog sprang der Fokus beim **17. Tab**
+aus dem Dialog auf die Seite dahinter (Glocke in der Seitenleiste) und wanderte
+dort weiter. `aria-modal="true"` sagte Screenreadern, der Dialog sei modal —
+für die Tastatur stimmte das nicht.
+
+**Umsetzung: Marker statt `preventDefault`.** Der naheliegende Weg, Tab
+abzufangen und umzuleiten, zerstört die Segmentnavigation in
+`input[type="datetime-local"]`: dort passiert jeder Tab-Schritt *innerhalb*
+desselben Elements, von aussen nicht unterscheidbar vom Verlassen des Feldes.
+Das Nachfassen-Modal hat genau so ein Feld, mit sieben internen Tab-Stopps.
+
+Stattdessen steht am Anfang und am Ende jedes Dialogs ein unsichtbares,
+fokussierbares Markerelement. Wer einen erreicht, wollte den Dialog gerade
+verlassen und wird ans andere Ende gesetzt. Die natürliche Tab-Reihenfolge
+bleibt vollständig unangetastet, zusammengesetzte Felder funktionieren normal.
+
+**Selbstheilung statt Registrierungspflicht.** Die Marker werden beim Öffnen
+gesetzt — aber Dialoge, die ihren Fokus selbst setzen, laufen nie durch
+`vxFocusDialog`: Notiz und Support-Anfrage entkamen deshalb im ersten Anlauf
+weiterhin. Jetzt setzt ein `focusin`-Fallback die Marker, sobald der Fokus in
+irgendeinen Dialog fällt. Damit greift die Falle auch für Dialoge, die später
+dazukommen, ohne dass jemand daran denken muss.
+
+**Dabei gefunden:** `vxVisibleFocusable` zählte Elemente in einem
+zugeklappten `<details>` mit. Der Browser überspringt die in der
+Tab-Reihenfolge, liefert aber weiterhin Rechtecke. Wäre der Sprung am
+Dialogrand dort gelandet, hätte er kein fokussierbares Ziel gefunden und der
+Fokus wäre auf den Body gefallen — also genau wieder aus dem Dialog heraus.
+
+**Geprüft** (Chromium, je 45× Tab und 45× Shift+Tab pro Dialog):
+
+- Alle zwölf Dialoge halten den Fokus, vorwärts wie rückwärts.
+- Jedes bedienbare Element bleibt per Tab erreichbar — die Falle ist nicht zu
+  eng: 10/10, 4/4, 13/13, 9/9, 4/4, 2/2, 2/2, 2/2, 2/2, 2/2, 8/8, 5/5.
+- Nachträglich aufgeklapptes Accordion: 8 → 10 bedienbare Elemente, alle 10
+  erreichbar.
+- Bestätigen-Dialog über dem Nachfassen-Dialog: 20 von 20 Tabs bleiben im
+  oberen Dialog; Escape schliesst den oberen zuerst und gibt den Fokus an den
+  darunter zurück.
 
 ### Phase 3 — Form und Struktur
 
@@ -437,8 +468,8 @@ Aktionsfarbe zusammenführt und Blau unberührt lässt.
 
 - **Zwei Akzent-Blau nebeneinander** — als **S11** nach Phase 3 vorgemerkt,
   siehe oben.
-- **Keine Fokusfalle in irgendeinem Dialog** — als **S4b** vorgeschlagen,
-  siehe Phase 2.
+- ~~Keine Fokusfalle in irgendeinem Dialog~~ — als **S4b** erledigt, siehe
+  Phase 2.
 - **Dialog-Funktionen, die von Runtime-Dateien überschrieben werden.**
   `vxCommercialOpen`/`-Close` in `index.html` sind wirkungslos, weil
   `customer-runtime-commercial-controller.js` dieselben Namen auf `window`
