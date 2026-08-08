@@ -42298,6 +42298,18 @@ body:has(#tab-archiv.active) .content{
     var s = lifecycleOf(record);
     return s === 'archived' ? 'Archiviert' : s === 'done' ? 'Erledigt' : s === 'planned' ? 'Geplant' : 'Offen';
   }
+  // Chip-Farbe für den Status-Wert — dieselbe Vier-Wege-Ableitung wie
+  // statusLabelOf(), damit Label und Farbe niemals auseinanderlaufen (siehe
+  // chipHtml()-Palette weiter unten: statusInfo/-Success/-Neutral/-Quiet).
+  // Ersetzt die frühere `done ? 'green' : 'status'`-Zweiteilung, die nur
+  // "abgeschlossen-oder-archiviert" von "alles andere" unterscheiden konnte:
+  // ein archivierter Datensatz zeigte dadurch "Archiviert" in derselben
+  // grünen Farbe wie "Erledigt", und "Geplant" hatte in diesem Zweig gar
+  // keine eigene Farbe.
+  function statusToneOf(record){
+    var s = lifecycleOf(record);
+    return s === 'archived' ? 'statusNeutral' : s === 'done' ? 'statusSuccess' : s === 'planned' ? 'statusInfo' : 'statusQuiet';
+  }
 
   // ── Typ-Erkennung ───────────────────────────────────────────────────────
   function isTaskRecord(record){
@@ -42392,7 +42404,20 @@ body:has(#tab-archiv.active) .content{
       // Typografie der Chip-Zeile bleiben unverändert.
       leadHot:'background:var(--vx-ui-badge-lead-hot-bg,#E8C547);color:var(--vx-ui-badge-lead-hot-text,#0D1F3C);border-color:#D9B637;',
       leadWarm:'background:var(--vx-ui-badge-lead-warm-bg,#FBF1D8);color:var(--vx-ui-badge-lead-warm-text,#7A5C00);border-color:#EFDDAE;',
-      leadCold:'background:var(--vx-ui-badge-lead-cold-bg,#EEF2F7);color:var(--vx-ui-badge-lead-cold-text,#5B6472);border-color:#DDE5F0;'
+      leadCold:'background:var(--vx-ui-badge-lead-cold-bg,#EEF2F7);color:var(--vx-ui-badge-lead-cold-text,#5B6472);border-color:#DDE5F0;',
+      // Status-Rolle (Offen/Geplant/Erledigt/Archiviert): dieselben vier
+      // Tokens, die auch das Listen-Badge (vxUiBadge/statusTone in
+      // renderAnrufeInbox) für exakt dieselben vier Werte zieht. Vorher
+      // hatte dieser Chip hier eine eigene, unabhängige Palette
+      // ('status'/'green'/'gold') — "Geplant" erschien dadurch in der Liste
+      // gefüllt hellblau und im Detail grau/weiss mit Rand, obwohl beide
+      // denselben Datensatz zeigten. Struktur/Radius/Rahmen dieses Chips
+      // bleiben unverändert (0.5px Rahmen, 20px Radius) — reine
+      // Farbangleichung, wie schon bei der Lead-Qualität oben.
+      statusInfo:'background:var(--vx-ui-badge-info-bg,#EEF4FF);color:var(--vx-ui-badge-info-text,#1558BF);border-color:#BFDBFE;',
+      statusSuccess:'background:var(--vx-ui-badge-success-bg,#ECFDF5);color:var(--vx-ui-badge-success-text,#047857);border-color:#A7F3D0;',
+      statusNeutral:'background:var(--vx-ui-badge-neutral-bg,#F1F4F9);color:var(--vx-ui-badge-neutral-text,#5B6472);border-color:#DDE5F0;',
+      statusQuiet:'background:var(--vx-ui-badge-quiet-bg,#EEF1F6);color:var(--vx-ui-badge-quiet-text,#5B6472);border-color:#DDE5F0;'
     };
     return '<span class="vx-dv2-chip" style="'+(palette[kind]||palette.status)+'">'+esc(text)+'</span>';
   }
@@ -42625,14 +42650,13 @@ body:has(#tab-archiv.active) .content{
     var dur = duration(firstNonEmpty(f.duration_seconds, f.duration, f.call_duration_seconds));
     var category = firstNonEmpty(f.category, f.intent, f.topic);
     var leadQual = firstNonEmpty(f.lead_quality, f.lead_quality_label, f.priority);
-    var done = isCompleted(record);
     var leadKey = String(leadQual).toLowerCase();
     var leadKind = (leadKey === 'hot' || leadKey === 'heiss') ? 'leadHot'
       : (leadKey === 'warm') ? 'leadWarm'
       : (leadKey === 'cold' || leadKey === 'kalt') ? 'leadCold'
       : 'status';
 
-    var chips = [chipHtml(statusLabelOf(record), done ? 'green' : 'status')];
+    var chips = [chipHtml(statusLabelOf(record), statusToneOf(record))];
     if (category) chips.push(chipHtml(label(category), 'blue'));
     if (leadQual) chips.push(chipHtml(label(leadQual), leadKind));
     if (truthy(f.callback_requested)) chips.push(chipHtml('Rückruf', 'blue'));
@@ -42656,9 +42680,8 @@ body:has(#tab-archiv.active) .content{
     var callback = isCallbackTask(record);
     var taskType = callback ? 'Rückruf' : (human(firstNonEmpty(f.task_type, f.type, f.category)) || 'Aufgabe');
     var status = statusLabelOf(record);
-    var done = isCompleted(record);
 
-    var chips = [chipHtml(status, done ? 'green' : (status === 'Geplant' ? 'gold' : 'status'))];
+    var chips = [chipHtml(status, statusToneOf(record))];
     chips.push(chipHtml(taskType, callback ? 'blue' : 'status'));
     if (due) chips.push(chipHtml('Fällig', 'gold'));
 

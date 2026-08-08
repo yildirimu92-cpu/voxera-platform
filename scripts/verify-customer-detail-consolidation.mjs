@@ -159,4 +159,35 @@ for (const forbidden of [
 ]) assert.ok(!source.includes(forbidden),
   'die Detailansicht wird nach dem Rendern wieder im DOM nachkorrigiert: ' + forbidden);
 
+// ── 8. Status-Chip im Header: gleicher Wert, gleiche Farbe wie die Liste ────
+// Bug (2026-08-08): "Geplant" erschien in der Anfragen-Liste gefüllt
+// hellblau (vxUiBadge/'info'), im Detailpanel dagegen grau/weiss mit Rand
+// (chipHtml()'s eigene 'status'-Palette) — derselbe Datensatz, zwei
+// unabhängige Farbquellen. Die zweite, gröbere Ursache: chipHtml() wählte
+// die Farbe über `done ? 'green' : 'status'`, also nur zweiwertig — ein
+// ARCHIVIERTER Datensatz (isCompleted() ist für 'done' UND 'archived' wahr)
+// bekam dadurch "Archiviert" als Text in derselben grünen Farbe wie
+// "Erledigt". statusToneOf() leitet wie statusLabelOf() alle vier Werte aus
+// derselben lifecycleOf()-Ableitung ab und zieht die Farbe aus denselben
+// --vx-ui-badge-* Tokens, die auch das Listen-Badge verwendet.
+assert.ok(source.includes("function statusToneOf(record){"),
+  'statusToneOf() fehlt — der Status-Chip im Detailpanel hat keine token-gebundene Farbableitung mehr');
+assert.match(source, /function statusToneOf\(record\)\{\s*var s = lifecycleOf\(record\);\s*return s === 'archived' \? 'statusNeutral' : s === 'done' \? 'statusSuccess' : s === 'planned' \? 'statusInfo' : 'statusQuiet';\s*\}/,
+  'statusToneOf() deckt nicht mehr alle vier lifecycleOf()-Werte (archived/done/planned/offen) ab');
+for (const tone of ['statusInfo', 'statusSuccess', 'statusNeutral', 'statusQuiet']) {
+  assert.ok(source.includes(`      ${tone}:'background:var(--vx-ui-badge-`),
+    `chipHtml()-Palette hat kein ${tone}-Eintrag mehr, oder er zieht nicht mehr aus --vx-ui-badge-* (derselben Quelle wie die Liste)`);
+}
+// Beide Aufrufstellen (Anruf- und Aufgaben-Header) müssen den Status-Chip
+// über statusToneOf() einfärben statt über eine eigene done/gold-Fallunterscheidung.
+assert.ok(source.includes("var chips = [chipHtml(statusLabelOf(record), statusToneOf(record))];"),
+  'buildCallHeaderHtml() färbt den Status-Chip wieder über eine eigene done/status-Fallunterscheidung statt über statusToneOf()');
+assert.ok(source.includes("var chips = [chipHtml(status, statusToneOf(record))];"),
+  'buildTaskHeaderHtml() färbt den Status-Chip wieder über eine eigene done/gold-Fallunterscheidung statt über statusToneOf()');
+// Die alte, zu grobe done-basierte Status-Einfärbung darf nicht zurückkehren.
+for (const forbidden of [
+  "chipHtml(statusLabelOf(record), done ? 'green' : 'status')",
+  "chipHtml(status, done ? 'green' : (status === 'Geplant' ? 'gold' : 'status'))"
+]) assert.ok(!source.includes(forbidden), 'die alte, nur zweiwertige Status-Chip-Einfärbung ist zurück: ' + forbidden);
+
 console.log('Customer request detail consolidation verification passed.');
