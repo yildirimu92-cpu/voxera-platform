@@ -177,7 +177,7 @@ body.vx-customer-design-foundation .vx-ap-btn:disabled {
 
 body.vx-customer-design-foundation .vx-ap-btn.secondary {
   border-color: #cfe0f8;
-  background: #eef4ff;
+  background: var(--vx-ui-badge-info-bg);
   color: var(--vx-brand);
 }
 
@@ -602,7 +602,7 @@ body.vx-customer-design-foundation .vx-ops-btn {
 }
 
 body.vx-customer-design-foundation .vx-ops-btn.secondary {
-  background: #eef4ff;
+  background: var(--vx-ui-badge-info-bg);
   color: #1a6fe8;
 }
 

@@ -1,8 +1,13 @@
 # Modal-Inventar Customer Dashboard — 2026-08-08
 
-Bestandsaufnahme aller Modal- und Dialog-Komponenten im Customer Dashboard.
-**Reine Bestandsaufnahme — es wurde nichts davon geändert.** Grundlage für die
-gemeinsame Planung, was in welcher Reihenfolge vereinheitlicht wird.
+Bestandsaufnahme aller Modal- und Dialog-Komponenten im Customer Dashboard,
+plus Protokoll der daraus abgeleiteten Umsetzung.
+
+> **Zum Lesen:** die Abschnitte bis einschliesslich *Querschnittliche
+> Beobachtungen* beschreiben den **Ist-Zustand vom 08.08.2026, vor den
+> Änderungen** — sie sind die Bestandsaufnahme und bleiben als Ausgangsbild
+> stehen. Was daraus geworden ist, steht im *Umsetzungsplan* darunter, Schritt
+> für Schritt. Wer den heutigen Stand sucht, liest dort.
 
 Farbwerte sind die *berechneten* Werte aus dem laufenden Dashboard (Chromium,
 Desktop 1440px), nicht die im Quelltext notierten Tokens. Wo ein Token
@@ -227,7 +232,7 @@ Ein einziges Markup, neun Aufrufer:
 | Element | Was es ist | Werte |
 |---|---|---|
 | `#account-overlay` | **kein Modal** — versteckter Datenspeicher für `customerRecordId`, `display:none`. Der Kommentar im Quelltext sagt das auch. Konto-Inhalte liegen im Einstellungen-Tab. | – |
-| `#vx-preview-modal` | **toter Code** — „Assistent Vorschau". Markup und `vxClosePendingPreview()` existieren, es gibt aber **keine Stelle, die den Dialog öffnet**. | Kopf `#0D1F3C`, nur „Schliessen" `.btn--secondary btn--sm` |
+| ~~`#vx-preview-modal`~~ | **entfernt (S10).** Toter Dialog ohne Aufrufer. Nicht zu verwechseln mit `vxPendingPreview()`, das weiterhin die Sprachprobe im Assistent-Tab abspielt. | – |
 | `.vx-row-menu` / `#vx-ctx-menu` | Popover-Menüs, kein Dialog | Radius 12px, z-index 12050 / 13050 / 99999 |
 | `.toast` | Bestätigungsleiste | bg `rgba(15,23,42,.88)`, fg `#FFFFFF`, Radius `--r-xl` |
 
@@ -505,19 +510,66 @@ Dabei zwei Dinge gelernt:
   Bestätigungen aus diesem Dialog waren unsichtbar. Sie steht jetzt in der
   Skala unter dem Toast. Gemessen: die Ebenenfolge ist lückenlos aufsteigend.
 
-### Phase 4 — Aufräumen
+### Phase 4 — Aufräumen — **erledigt**
 
-**S9 · `#vx-preview-modal` entkoppeln** und als tot dokumentieren.
-**S10 · Löschung als eigener Mini-PR.**
+**S9 · `#vx-preview-modal` entkoppelt und dokumentiert.**
 
-### Nach Phase 3 vorgemerkt
+Der Totbefund hielt der genauen Prüfung stand: kein Codepfad setzt `.open`,
+keiner ruft `setOverlayAriaHidden(…, false)` dafür. Nur die drei
+Bedienelemente im Dialog rufen `vxClosePendingPreview()`.
 
-**S11 · Zweites Akzent-Blau zusammenführen.** `--vx-brand: #3478ED` in
-`customer-design-system.css` gegen das kanonische `--vx-color-brand: #1A6FE8`,
-21 Nutzungen (Filter-Pillen, Auswahl-Rahmen, Icon-Flächen, Fokusring).
-Dieselbe Drift-Mechanik wie bei `#0F2347`, eine Ebene weiter — in der Akzent-
-statt der Aktionsfarbe. Bewusst aus S1 herausgehalten, weil S1 die
-Aktionsfarbe zusammenführt und Blau unberührt lässt.
+**Aber daneben lebt `vxPendingPreview()`** — eine aktive Funktion am Button
+`.vx-btn-preview` im Assistent-Tab, die eine Sprachprobe von `/preview-voice`
+holt und über ein `Audio`-Objekt abspielt. Der Dialog kommt darin nicht vor.
+Die beiden Namen sehen aus wie Öffnen und Schliessen desselben Dialogs und
+haben nichts miteinander zu tun. Beide Fundstellen tragen jetzt einen
+Kommentar, der genau das festhält — das war der Grund, die Löschung als
+eigenen Schritt zu führen.
+
+**Dabei gefunden:** der Overlay-Guard `_anyOverlayOpen()`, der das
+Kontextmenü unterdrückt, solange ein Dialog offen ist, prüfte acht fest
+verdrahtete IDs. **Fünf davon zeigten ins Leere** (`detail-overlay`,
+`vx-detail-v2`, `vx-upgrade-modal`, `vx-minutes-modal` und der tote
+`vx-preview-modal`), während die meisten echten Dialoge fehlten. Bei offenem
+Nachfassen-, Aufgaben-, Support-, Commercial-, Setup-Hilfe- oder Tour-Dialog
+liess er das Kontextmenü also durch. Ersetzt durch eine Abfrage über
+`role="dialog"` — das trägt seit Phase 2 jeder Dialog. Geprüft über
+`getClientRects()`, weil `getComputedStyle` den eigenen `display`-Wert auch
+dann liefert, wenn ein Vorfahr `display:none` trägt; bei den Dialogen mit
+`role` am inneren `.modal` wäre das immer „offen".
+
+**S10 · Gelöscht**, als eigener Commit. `vxPendingPreview()` unangetastet.
+
+### S11 · Zweites Akzent-Blau — **erledigt**
+
+`--vx-brand: #3478ED` gegen das kanonische `--vx-color-brand: #1A6FE8`:
+18 `var(--vx-brand)`-Nutzungen (7× `color`, 6× `background`, 4×
+`border-color`) plus drei abgeleitete `rgba(52,120,237,…)`-Werte.
+
+**Es war nicht nur eine Inkonsistenz.** `#3478ED` erreicht gegen Weiss
+**4.15:1** und lag damit unter der 4.5:1-Schwelle; der kanonische Ton
+erreicht **4.68:1**. Bei 13 der 18 Nutzungen ist der Wert Textfarbe oder
+Hintergrund unter weisser Schrift — die Zusammenführung behebt dort einen
+Kontrastfehler.
+
+- `--vx-brand` ist jetzt Alias auf `--vx-color-brand`, dieselbe Mechanik wie
+  bei `--vx-brand-dark` in S1.
+- Die drei abgeleiteten Alphawerte (Fokusring, Navigations-Hover,
+  Auswahl-Schatten) auf den kanonischen Ton gezogen.
+- Vier Streu-Literale `#eef4ff` zeigen jetzt auf das bereits benannte Token
+  `--vx-ui-badge-info-bg` — gleicher Wert, keine sichtbare Änderung, nur ein
+  Literal weniger.
+
+### Noch offen
+
+- **Ein zweites Geometrie-Tokenpaar.** `--vx-control-min-height: 46px` und
+  `--vx-radius-control: 12px` in `customer-design-system.css` gegen die in S5
+  eingeführten `--vx-btn-height: 44px` und `--vx-btn-radius: 10px`. Die Regel,
+  die sie anwendet, steht in `:where(…)` und hat damit Spezifität null: für
+  `.btn` gewinnen die S5-Werte, für Klassen ohne eigene Geometrie —
+  `.vx-ops-btn`, `.vx-as-capability-toggle` — greifen die 46/12. Dieselbe
+  Drift-Mechanik wie bei `#0F2347` und `#3478ED`, diesmal in der Geometrie.
+  Ausserhalb der Dialoge und damit ausserhalb des bisherigen Umfangs.
 
 ### Entschieden
 
@@ -534,8 +586,7 @@ Aktionsfarbe zusammenführt und Blau unberührt lässt.
 
 ### Neu aufgefallen, ausserhalb des Umfangs
 
-- **Zwei Akzent-Blau nebeneinander** — als **S11** nach Phase 3 vorgemerkt,
-  siehe oben.
+- ~~Zwei Akzent-Blau nebeneinander~~ — als **S11** erledigt, siehe oben.
 - ~~Keine Fokusfalle in irgendeinem Dialog~~ — als **S4b** erledigt, siehe
   Phase 2.
 - **Dialog-Funktionen, die von Runtime-Dateien überschrieben werden.**
