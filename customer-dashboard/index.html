@@ -151,7 +151,9 @@
   --z-overlay:200;
   --z-overlay-detail:220;
   --z-login:999;
-  --z-toast:9000;
+  /* Toast liegt über Modals (10200) und der Detail-Vollansicht (10040) —
+     sonst bleibt die Bestätigung nach dem Speichern unsichtbar. */
+  --z-toast:13060;
   --z-vx-overlay:9001;
   --z-tour:10000;
 }
@@ -1966,8 +1968,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .followup-field select:focus,.followup-field input:focus,.followup-field textarea:focus{border-color:var(--blue);background:var(--surface);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
 .followup-section{padding:8px 10px;border:1px solid var(--surface2);border-radius:12px;background:#FCFDFF;margin-bottom:8px;}
 .followup-section.followup-section-note{padding-top:10px;}
-.followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:4px;padding:5px 9px;border:1px solid var(--surface2);border-radius:9px;background:#FBFDFF;}
-.followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);color:var(--slate);}
 /* Choice control box owned by shared/customer-ui-components.css */
 #followup-overlay .modal,
 #followup-overlay .modal-shell,
@@ -8920,14 +8920,15 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <div class="vx-modal-grid followup-action-grid">
             <div class="vx-modal-field" id="followup-next-action-field" style="margin-bottom:0;">
               <label for="followup-next-action">Nächste Aktion</label>
+              <!-- Drei Aktionen, dazu der technische Leerzustand. "Erneut versuchen"
+                   geht in "Zurückrufen" auf, "Information senden" in "Offerte senden".
+                   "Kein Bedarf" entfaellt: Abschliessen ist der eigenstaendige
+                   "Erledigen"-Button in der Aktionszeile, nicht dieses Dropdown. -->
               <select id="followup-next-action">
                 <option value="">Keine Auswahl</option>
                 <option value="Zurückrufen">Zurückrufen</option>
                 <option value="Termin bestätigen">Termin bestätigen</option>
                 <option value="Offerte senden">Offerte senden</option>
-                <option value="Information senden">Information senden</option>
-                <option value="Erneut versuchen">Erneut versuchen</option>
-                <option value="Kein Bedarf">Kein Bedarf</option>
               </select>
             </div>
             <div class="vx-modal-field" style="margin-bottom:0;">
@@ -8943,11 +8944,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           </div>
           <div class="vx-modal-field">
             <label for="followup-input">Notiz</label>
-            <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf…" style="min-height:72px;"></textarea>
-          </div>
-          <div class="followup-mark-row vx-modal-check-row" id="followup-mark-row">
-            <input type="checkbox" id="followup-mark-complete">
-            <span>Als erledigt markieren</span>
+            <textarea id="followup-input" placeholder="Kurze Notiz zum nächsten Schritt…" style="min-height:72px;"></textarea>
           </div>
         </div>
       </div>
@@ -12741,12 +12738,62 @@ function sortOpenCallbacksOldestFirst(records) {
 
 // Nachfassen ist ein Workflow-/Task-Lifecycle und getrennt vom Telephony-Lifecycle.
 // next_action ist die Source of Truth für die nächste konkrete Aktion.
+
+// Die drei Aktionen des Nachfassen-Modals. Altbestand aus der früheren
+// Sieben-Optionen-Liste wird beim Lesen auf die übernehmende Aktion gemappt,
+// damit bestehende Einträge weiterhin eine Auswahl zeigen.
+const FOLLOW_UP_ACTION_ALIASES = Object.freeze({
+  'Erneut versuchen': 'Zurückrufen',
+  'Information senden': 'Offerte senden'
+});
+
+// Bestätigungs-/Schritt-Text je Aktion. Vorher stand an beiden Stellen fest
+// "Rückruf geplant", unabhängig davon was gewählt wurde.
+const FOLLOW_UP_ACTION_PLANNED_LABELS = Object.freeze({
+  'Zurückrufen': 'Rückruf geplant',
+  'Termin bestätigen': 'Terminbestätigung geplant',
+  'Offerte senden': 'Offerte geplant'
+});
+
+// Zuordnung Aktion → manuelle Aufgabe, wenn aus einem bereits erledigten
+// Eintrag heraus nachgefasst wird (dort entsteht ein neuer Task statt eines
+// Updates am abgeschlossenen Eintrag).
+const FOLLOW_UP_ACTION_TASK_SPEC = Object.freeze({
+  'Zurückrufen': { type: 'callback', title: 'Rückruf für ', fallbackTitle: 'Rückruf planen', toast: 'Rückruf als neue Aufgabe geplant' },
+  'Termin bestätigen': { type: 'termin', title: 'Termin bestätigen für ', fallbackTitle: 'Termin bestätigen', toast: 'Terminbestätigung als neue Aufgabe geplant' },
+  'Offerte senden': { type: 'offerte', title: 'Offerte senden an ', fallbackTitle: 'Offerte senden', toast: 'Offerte als neue Aufgabe geplant' }
+});
+const FOLLOW_UP_DEFAULT_TASK_SPEC = Object.freeze({ type: 'follow_up', title: 'Nachfassen für ', fallbackTitle: 'Nachfassen planen', toast: 'Nachfassen als neue Aufgabe geplant' });
+
+function normalizeFollowUpAction(rawAction) {
+  const action = String(rawAction || '').trim();
+  return FOLLOW_UP_ACTION_ALIASES[action] || action;
+}
+
+// Meldung nach dem Speichern im Nachfassen-Modal.
+function followUpSaveToastMessage(nextAction, followUpAt) {
+  if (!followUpAt) return 'Gespeichert';
+  return FOLLOW_UP_ACTION_PLANNED_LABELS[normalizeFollowUpAction(nextAction)] || 'Nachfassen geplant';
+}
+
+// Label des "geplant"-Schritts in der Detailansicht.
+function followUpPlannedStepLabel(record) {
+  const f = (record && record.fields) || record || {};
+  return FOLLOW_UP_ACTION_PLANNED_LABELS[normalizeFollowUpAction(f.next_action)] || 'Nachfassen geplant';
+}
+
+function followUpTaskSpecForAction(nextAction) {
+  return FOLLOW_UP_ACTION_TASK_SPEC[normalizeFollowUpAction(nextAction)] || FOLLOW_UP_DEFAULT_TASK_SPEC;
+}
+
 function getFollowUpTaskType(record) {
   const f = (record && record.fields) || record || {};
-  const action = String(f.next_action || '').trim();
+  const action = normalizeFollowUpAction(f.next_action);
   if (!action) return 'generic';
-  if (action === 'Zurückrufen' || action === 'Erneut versuchen') return 'callback';
-  if (action === 'Termin bestätigen' || action === 'Offerte senden' || action === 'Information senden') return 'task';
+  if (action === 'Zurückrufen') return 'callback';
+  if (action === 'Termin bestätigen' || action === 'Offerte senden') return 'task';
+  // Altbestand: "Kein Bedarf" ist als Auswahl entfallen, bestehende Einträge
+  // behalten aber ihre Einordnung.
   if (action === 'Kein Bedarf') return 'closed';
   return 'generic';
 }
@@ -12869,6 +12916,9 @@ if (typeof window !== 'undefined') {
   window.fmtFollowUpDateTime = fmtFollowUpDateTime;
   window.buildFollowUpMetaText = buildFollowUpMetaText;
   window.compareFollowUpPriority = compareFollowUpPriority;
+  window.normalizeFollowUpAction = normalizeFollowUpAction;
+  window.followUpSaveToastMessage = followUpSaveToastMessage;
+  window.vxFollowUpPlannedStepLabel = followUpPlannedStepLabel;
 }
 
 function extractCustomerHint(authUser) {
@@ -13390,8 +13440,7 @@ async function patchCallRecord(recordId, fields) {
     call_id: recordId,
     notes_customer_voxera: fields.notes_customer_voxera,
     next_action: fields.next_action,
-    follow_up_at: fields.follow_up_at,
-    mark_complete: fields.mark_complete === true
+    follow_up_at: fields.follow_up_at
   });
   return json.call || null;
 }
@@ -24111,16 +24160,13 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
       : 'Plane einen Rückruf oder Folgekontakt.';
   }
   document.getElementById('followup-input').value = existingNotiz || '';
-  document.getElementById('followup-next-action').value = (mode === 'due') ? '' : (nextAction || '');
+  // Altbestand ("Erneut versuchen" / "Information senden") auf die übernehmende
+  // Aktion mappen. Alles was keiner Option entspricht (z.B. freier KI-Text)
+  // landet im Leerzustand "Keine Auswahl".
+  document.getElementById('followup-next-action').value = (mode === 'due') ? '' : normalizeFollowUpAction(nextAction);
   document.getElementById('followup-datetime').value = fmtDateTimeLocal(followUpAt || '');
   var nextActionField = document.getElementById('followup-next-action-field');
   if (nextActionField) nextActionField.style.display = (mode === 'due') ? 'none' : '';
-  const markComplete = document.getElementById('followup-mark-complete');
-  if (markComplete) {
-    markComplete.checked = false;
-    var markRow = document.getElementById('followup-mark-row') || markComplete.closest('.followup-mark-row');
-    if (markRow) markRow.style.display = (mode === 'due' || done) ? 'none' : '';
-  }
   const lockWarning = document.getElementById('followup-locked-warning');
   const editableSection = document.getElementById('followup-editable');
   const saveBtn = document.getElementById('followup-save-btn');
@@ -24130,7 +24176,7 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
       lockWarning.style.display = 'block';
       lockWarning.childNodes[0].nodeValue = mode === 'due'
         ? 'Dieser Eintrag bleibt erledigt. Die Fälligkeit wird als neue geplante Aufgabe erstellt. '
-        : 'Dieser Eintrag bleibt erledigt. Der Rückruf wird als neue geplante Aufgabe erstellt. ';
+        : 'Dieser Eintrag bleibt erledigt. Der nächste Schritt wird als neue geplante Aufgabe erstellt. ';
     }
   } else if (lockWarning) {
     lockWarning.style.display = 'none';
@@ -24141,7 +24187,7 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
   if (saveBtn) {
     saveBtn.disabled = false;
     if (mode === 'due') saveBtn.textContent = 'Fälligkeit speichern';
-    else saveBtn.textContent = done ? 'Rückruf erstellen' : 'Nachfassen speichern';
+    else saveBtn.textContent = done ? 'Nachfassen erstellen' : 'Nachfassen speichern';
   }
   document.getElementById('followup-overlay').classList.add('open');
   setOverlayAriaHidden('followup-overlay', false);
@@ -24203,12 +24249,6 @@ function closeFollowup() {
   document.getElementById('followup-datetime').value = '';
   followupCallerName = '';
   followupModalMode = 'callback';
-  const mc = document.getElementById('followup-mark-complete');
-  if (mc) {
-    mc.checked = false;
-    var mcRow = document.getElementById('followup-mark-row') || mc.closest('.followup-mark-row');
-    if (mcRow) mcRow.style.display = '';
-  }
   var nextActionField = document.getElementById('followup-next-action-field');
   if (nextActionField) nextActionField.style.display = '';
   const editableSection = document.getElementById('followup-editable');
@@ -24231,16 +24271,15 @@ async function saveFollowup() {
   const followUpAt = _followUpAtRaw && /T00:00$/.test(_followUpAtRaw)
     ? _followUpAtRaw.replace(/T00:00$/, 'T09:00')
     : _followUpAtRaw;
-  const markComplete = document.getElementById('followup-mark-complete');
   vxSetActionButtonLoading(btn, true, 'Speichern...');
 
+  // Abschliessen läuft ausschliesslich über den "Erledigen"-Button der
+  // Aktionszeile; dieses Modal plant nur den nächsten Schritt.
   const fields = {
     notes_customer_voxera: text,
     next_action: nextAction || null,
-    follow_up_at: serializeFollowUpLocal(followUpAt) || null,
-    mark_complete: !!(markComplete && markComplete.checked)
+    follow_up_at: serializeFollowUpLocal(followUpAt) || null
   };
-  if (fields.mark_complete) fields.follow_up_at = null;
 
   try {
     var recordId = notizRecordId;
@@ -24251,14 +24290,17 @@ async function saveFollowup() {
     var sourceFields = (sourceRec && sourceRec.fields) || {};
     var sourceLifecycle = (sourceRec && typeof vxGetEntryLifecycleStatus === 'function') ? vxGetEntryLifecycleStatus(sourceRec) : '';
     var sourceIsDone = sourceLifecycle === 'done' || sourceLifecycle === 'archived' || isClosedStatus(sourceFields.dashboard_status || sourceFields.status || currentStatus || '');
-    if (sourceIsDone && followUpAt && !fields.mark_complete) {
+    if (sourceIsDone && followUpAt) {
       var dueAt = String(followUpAt || '').slice(0, 10);
       var dueTime = String(followUpAt || '').slice(11, 16) || '09:00';
       var caller = String(sourceFields.caller_name || sourceFields.company_name || followupCallerName || '').trim();
       var phone = String(sourceFields.caller_phone || sourceFields.phone_number || sourceFields.tel_link || '').trim();
+      // Die neue Aufgabe erbt die gewählte Aktion. Vorher entstand hier immer
+      // ein Rückruf, auch wenn "Offerte senden" gewählt war.
+      var taskSpec = followUpTaskSpecForAction(nextAction);
       var createdTask = await createManualTask({
-        title: caller ? ('Rückruf für ' + caller) : 'Rückruf planen',
-        type: 'callback',
+        title: caller ? (taskSpec.title + caller) : taskSpec.fallbackTitle,
+        type: taskSpec.type,
         due_at: dueAt,
         due_time: dueTime,
         status: 'new',
@@ -24277,37 +24319,26 @@ async function saveFollowup() {
         modal: 'followup'
       });
       notizRecordId = null;
-      toast('Rückruf als neue Aufgabe geplant');
+      toast(taskSpec.toast);
       vxScheduleSingleDataRefresh(500);
       return;
     }
     await patchCallRecord(recordId, fields);
     vxNotifMarkReadByRecord(recordId);
 
-    var localFields = {
+    vxUpdateLocalCallRecord(recordId, {
       notes_customer_voxera: fields.notes_customer_voxera,
       next_action: fields.next_action,
       follow_up_at: fields.follow_up_at
-    };
-    if (fields.mark_complete) localFields.follow_up_at = null;
-    var localRec = vxUpdateLocalCallRecord(recordId, localFields);
-
-    if (fields.mark_complete) {
-      await applyStatusTransition(recordId, CALL_STATUS.NEW, CALL_STATUS.CLOSED);
-      vxUpdateLocalCallRecord(recordId, {
-        dashboard_status: CALL_STATUS.CLOSED,
-        completed_at: (localRec && localRec.fields && localRec.fields.completed_at) || new Date().toISOString(),
-        follow_up_at: null
-      });
-    }
+    });
 
     rerenderFollowupMetaForCallRow(recordId);
     vxAfterActionSuccess({ recordId: recordId, modal: 'followup' });
     notizRecordId = null;
 
-    toast(fields.mark_complete ? 'Erledigt' : followUpAt ? 'Rückruf geplant' : 'Gespeichert');
+    // Bestätigung folgt der gewählten Aktion statt immer "Rückruf geplant".
+    toast(followUpSaveToastMessage(nextAction, followUpAt));
 
-    if (fields.mark_complete && typeof vxCloseAfterSuccessfulCompletion === 'function') vxCloseAfterSuccessfulCompletion();
     vxScheduleSingleDataRefresh(500);
   } catch(e) {
     const detail = e && e.message ? String(e.message) : '';
@@ -38065,7 +38096,13 @@ body:has(#tab-archiv.active) .content{
     var steps = [];
     if (planned) {
       if (rawDate) steps.push({ label: 'Eingegangen', current: false });
-      steps.push({ label: 'Rückruf geplant', current: !done });
+      // Der geplante Schritt trägt die gewählte Aktion. Vorher stand hier
+      // immer "Rückruf geplant", auch bei "Offerte senden".
+      var plannedLabel = 'Nachfassen geplant';
+      try {
+        if (typeof window.vxFollowUpPlannedStepLabel === 'function') plannedLabel = window.vxFollowUpPlannedStepLabel(record);
+      } catch(e) {}
+      steps.push({ label: plannedLabel, current: !done });
       if (done) steps.push({ label: 'Erledigt', current: true });
     }
     if (steps.length > 1) {
