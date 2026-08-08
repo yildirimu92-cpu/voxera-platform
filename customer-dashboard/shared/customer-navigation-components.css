@@ -97,6 +97,13 @@ body.vx-customer-design-foundation .vx-appbar-back + .vx-appbar-title {
   padding-left: 4px;
 }
 
+/* Auf schmalen Geraeten eine Stufe kleiner, dieselben Verhaeltnisse. */
+@media (max-width: 640px) {
+  body.vx-customer-design-foundation .vx-appbar-title {
+    font-size: var(--vx-ui-appbar-title-size-mobile);
+  }
+}
+
 /* The only place an app bar is suppressed: inside the Anfragen split, the
    request detail is a pane of the Anfragen screen, not a screen of its own —
    the screen's own bar is already at the top of the tab. Expressed in CSS
