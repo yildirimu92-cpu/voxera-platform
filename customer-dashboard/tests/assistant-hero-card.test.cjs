@@ -39,11 +39,21 @@ function extractFunction(name) {
   throw new Error('Funktionsende fuer ' + name + ' nicht gefunden');
 }
 
-function renderHero(profile, voices) {
+function extractConst(name) {
+  const start = source.indexOf('const ' + name + ' = [');
+  assert.notEqual(start, -1, name + ' nicht in customer-runtime-assistant-profile.js gefunden');
+  const end = source.indexOf('];', start);
+  assert.notEqual(end, -1, 'Ende von ' + name + ' nicht gefunden');
+  return source.slice(start, end + 2);
+}
+
+function renderHero(profile, voices, options) {
   const context = {
     profile,
     voices: voices || [],
     previewLoading: false,
+    busy: false,
+    toneEditorOpen: Boolean(options && options.toneEditorOpen),
     // Bewusst ein eigener, minimaler Escaper: laeuft ein Wert nicht durch esc(),
     // taucht er hier unveraendert auf und der Test schlaegt an.
     esc: (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
@@ -55,10 +65,14 @@ function renderHero(profile, voices) {
     String
   };
   const code = [
+    extractConst('ADDRESS_OPTIONS'),
+    extractConst('TONE_OPTIONS'),
     extractFunction('toneLabel'),
     extractFunction('selectedVoice'),
     extractFunction('formatDay'),
     extractFunction('statusSummary'),
+    extractFunction('optionList'),
+    extractFunction('toneEditor'),
     extractFunction('heroCard'),
     'result = heroCard();'
   ].join('\n');
@@ -166,4 +180,72 @@ test('das Datum des letzten Syncs wird angehaengt, wenn vorhanden', () => {
   });
   assert.match(html, /Zuletzt aktualisiert am/);
   assert.match(html, /2026/);
+});
+
+// ── Etappe 6 / S3: Ansprache und Ton im Kopfbereich ─────────────────────────
+// Die Sperre darf ausschliesslich an permissions.can_change_tone haengen. Steht
+// im Frontend wieder ein Plan-Name, ist das Freischalten kein DB-Update mehr,
+// sondern ein Deploy — genau der Zustand, den S3 abloest.
+
+const baseProfile = (permissions) => ({
+  assistant: { tone: 'professional', address_form: 'sie' },
+  greeting: { text: 'Guten Tag.', source: 'effective' },
+  technical_status: {},
+  permissions: permissions || {}
+});
+
+test('geschlossen ist der Editor nur eine Zeile', () => {
+  const html = renderHero(baseProfile({ can_change_tone: true }));
+  assert.match(html, /data-vx-tone-edit/);
+  assert.match(html, /Ansprache und Ton anpassen/);
+  assert.doesNotMatch(html, /vx-hero-tune-save/);
+});
+
+test('freigeschaltet sind beide Felder bedienbar', () => {
+  const html = renderHero(baseProfile({ can_change_tone: true }), [], { toneEditorOpen: true });
+  assert.match(html, /<select id="vx-hero-address"[^>]*>/);
+  assert.match(html, /<select id="vx-hero-tone">/);
+  assert.doesNotMatch(html, /vx-ap-plan-badge/);
+  assert.match(html, /vx-hero-tune-save/);
+});
+
+test('gesperrt bleibt der Ton lesbar, die Anrede aber aenderbar', () => {
+  const html = renderHero(baseProfile({ can_change_tone: false }), [], { toneEditorOpen: true });
+  // Kein deaktiviertes Feld: das zoege die kanonischen Disabled-Tokens und
+  // faerbte grau, was lesbar bleiben soll. Der Wert steht als Text da.
+  assert.doesNotMatch(html, /id="vx-hero-tone"/);
+  assert.match(html, /vx-ap-hero-locked-value">warm-professionell</);
+  assert.match(html, /vx-ap-plan-badge">ab Business</);
+  assert.match(html, /ab dem Business-Paket/);
+  // Die Anrede ist eine Frage der Grundhoeflichkeit und bleibt frei.
+  assert.match(html, /<select id="vx-hero-address">/);
+});
+
+test('fehlende Berechtigungen sperren, statt versehentlich zu oeffnen', () => {
+  const html = renderHero(baseProfile(), [], { toneEditorOpen: true });
+  assert.doesNotMatch(html, /id="vx-hero-tone"/);
+  assert.match(html, /vx-ap-hero-locked-value/);
+});
+
+test('der offene Editor bringt seinen eigenen Meldungsanker mit', () => {
+  // Ohne ihn landet ein Fehler am Namensfeld zwei Karten weiter unten.
+  const html = renderHero(baseProfile({ can_change_tone: true }), [], { toneEditorOpen: true });
+  assert.match(html, /id="vx-hero-tune-status"/);
+  assert.match(html, /id="vx-hero-tune-cancel"/);
+});
+
+test('die aktuellen Werte sind vorausgewaehlt', () => {
+  const profile = baseProfile({ can_change_tone: true });
+  profile.assistant = { tone: 'casual', address_form: 'du' };
+  const html = renderHero(profile, [], { toneEditorOpen: true });
+  assert.match(html, /<option value="du" selected>/);
+  assert.match(html, /<option value="casual" selected>/);
+  assert.doesNotMatch(html, /<option value="sie" selected>/);
+});
+
+test('kein Plan-Name im gerenderten Kopfbereich', () => {
+  for (const permissions of [{ can_change_tone: true }, { can_change_tone: false }]) {
+    const html = renderHero(baseProfile(permissions), [], { toneEditorOpen: true });
+    assert.doesNotMatch(html, /starter|professional_plan|plan_code/i);
+  }
 });
