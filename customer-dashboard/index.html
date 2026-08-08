@@ -7917,7 +7917,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <section class="vx-ops-card vx-report-section">
               <div class="vx-ops-head">
                 <div>
-                  <div class="vx-ops-title">Laras Zusammenfassung</div>
+                  <div class="vx-ops-title" id="au2-ai-title">Laras Zusammenfassung</div>
                   <div class="vx-ops-message" id="au2-ai-text"></div>
                 </div>
                 <span class="vx-ops-pill">Automatisch erstellt</span>
@@ -18452,6 +18452,12 @@ function _auBuildSparkCalls(all) {
 function _auAiSummary(records, total, hotCount, closed) {
   var el = document.getElementById('au2-ai-text');
   if (!el) return;
+  var titleEl = document.getElementById('au2-ai-title');
+  if (titleEl) {
+    var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
+    var possessive = /[sxzß]$/i.test(assistantName) ? assistantName + '’' : assistantName + 's';
+    titleEl.textContent = possessive + ' Zusammenfassung';
+  }
   var periodLabel = {week:'in den letzten 7 Tagen', month:'in den letzten 30 Tagen', all:'insgesamt'}[_auPeriod] || '';
   if (!total) {
     el.textContent = 'Noch keine Anrufe ' + periodLabel + '.';
