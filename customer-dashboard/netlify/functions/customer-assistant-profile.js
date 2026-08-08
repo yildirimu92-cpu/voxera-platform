@@ -148,17 +148,22 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
 }
 
 function buildUrgent(customer) {
+  // Selbe Bedingung wie prompt-builder-v2.js (Zeile ~236-238): der Agent nutzt
+  // ein Weiterleitungsziel nur, wenn Name UND Nummer gesetzt sind. Ein Ziel mit
+  // nur einer Nummer (moeglich durch unabhaengige Schreibzugriffe im
+  // Admin-Panel) darf hier nicht als konfiguriert erscheinen, sonst behauptet
+  // die Karte eine Sicherheitsfunktion, die der Assistent gar nicht kennt.
   const forwarding = [];
-  if (hasAssignedNumber(customer.ai_forwarding_1_number)) {
+  if (text(customer.ai_forwarding_1_name) && hasAssignedNumber(customer.ai_forwarding_1_number)) {
     forwarding.push({
-      name: text(customer.ai_forwarding_1_name) || 'Weiterleitungsziel 1',
+      name: text(customer.ai_forwarding_1_name),
       number: text(customer.ai_forwarding_1_number),
       trigger: text(customer.ai_forwarding_1_trigger)
     });
   }
-  if (hasAssignedNumber(customer.ai_forwarding_2_number)) {
+  if (text(customer.ai_forwarding_2_name) && hasAssignedNumber(customer.ai_forwarding_2_number)) {
     forwarding.push({
-      name: text(customer.ai_forwarding_2_name) || 'Weiterleitungsziel 2',
+      name: text(customer.ai_forwarding_2_name),
       number: text(customer.ai_forwarding_2_number),
       trigger: text(customer.ai_forwarding_2_trigger)
     });
