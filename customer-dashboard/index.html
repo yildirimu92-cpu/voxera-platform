@@ -17708,30 +17708,68 @@ function vxAudioEscapeAttr(value){
 function vxAudioEscapeText(value){
   return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+// Etappe 5 (2026-08-08): Richtung B "Night-Konsole".
+//
+// Die Aufnahme ist der Beweis, dass Voxera das Gespraech gefuehrt hat, und
+// bekommt dafuer die einzige dunkle Flaeche im Panel — dieselbe Night+Gold-
+// Paarung wie der Avatar im Panelkopf und wie .activation-panel--night im
+// Assistenten. Drei Gold-Orte, alle drei zustandsfrei: die Kopfleiste
+// (--vx-ui-brand-rule, unveraendert aus dem Panelkopf), der Abspielknopf und
+// der Abspielkopf in der Spur.
+//
+// Was hier NICHT steht und vorher stand:
+//   - kein zweiter Statustext. "Bereit zum Abspielen" stand frueher
+//     gleichzeitig oben neben dem gruenen Punkt und unten rechts in
+//     [data-vx-audio-status]; beim Tempo-Wechsel schrieb nur der untere
+//     mit und die beiden widersprachen sich. Der Zustand steht ab hier an
+//     genau zwei Orten, die ihn ohnehin zeigen: Symbol und Spur.
+//   - kein Lautstaerkeregler. Er nahm die breiteste Zelle der unteren Zeile
+//     und dupliziert die Systemlautstaerke.
+//   - keine Textglyphen (▶ Ⅱ ↺ ↻ ⌁). Sie rendern je Geraet anders. Play und
+//     Pause liegen als Inline-SVG hier, weil die Seite von Phosphor nur
+//     "light" und "bold" laedt — ein gefuelltes ph-fill ph-play gibt es in
+//     diesem Build nicht, und ein gestricheltes Play auf Gold traegt nicht.
+//
+// metaText ist eine HERKUNFTSNOTIZ ("Gerade sicher abgerufen" aus den beiden
+// Bruecken in shared/offer-brand*.js), kein Zustand. Der direkte Pfad
+// uebergibt nichts mehr.
 function vxRenderModernAudioPlayerHtml(audioUrl, metaText){
   var safeUrl = vxAudioEscapeAttr(audioUrl);
-  var safeMeta = vxAudioEscapeText(metaText || 'Bereit zum Abspielen');
-  var bars = '';
-  for (var i = 0; i < 42; i++) {
-    var h = 18 + ((i * 7) % 28);
-    if (i % 5 === 0) h += 12;
-    if (i > 24) h = Math.max(12, h - 10);
-    bars += '<span style="height:'+h+'%"></span>';
-  }
+  var note = vxAudioEscapeText(metaText || '');
+  var glyphPlay = '<svg class="vx-audio-modern__glyph vx-audio-modern__glyph--play" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2v13.6a.8.8 0 0 0 1.22.68l11-6.8a.8.8 0 0 0 0-1.36l-11-6.8A.8.8 0 0 0 8 5.2Z"/></svg>';
+  var glyphPause = '<svg class="vx-audio-modern__glyph vx-audio-modern__glyph--pause" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4.6" width="4.2" height="14.8" rx="1.3"/><rect x="13.8" y="4.6" width="4.2" height="14.8" rx="1.3"/></svg>';
+  var glyphBack = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.5 5.5 9 11 13.5"/><path d="M5.5 9H13a5.5 5.5 0 0 1 0 11h-1.5"/></svg>';
+  var glyphForward = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 4.5 5.5 4.5L13 13.5"/><path d="M18.5 9H11a5.5 5.5 0 0 0 0 11h1.5"/></svg>';
+
   return '<div class="vx-audio-modern" data-vx-audio-player data-audio-url="'+safeUrl+'">'
-    + '<div class="vx-audio-modern__top"><div class="vx-audio-modern__meta"><div class="vx-audio-modern__title">Audioaufnahme</div><div class="vx-audio-modern__sub"><span></span>'+safeMeta+'</div></div></div>'
-    + '<div class="vx-audio-modern__surface">'
-    + '<div class="vx-audio-modern__controls">'
-    + '<button class="vx-audio-modern__btn" type="button" data-vx-audio-action="back" aria-label="10 Sekunden zurück">↺</button>'
-    + '<button class="vx-audio-modern__btn vx-audio-modern__btn--primary" type="button" data-vx-audio-action="play" aria-label="Audio abspielen">▶</button>'
-    + '<div class="vx-audio-modern__timeline"><div class="vx-audio-modern__wave" aria-hidden="true">'+bars+'</div><div class="vx-audio-modern__seek-feedback" data-vx-audio-seek-feedback aria-hidden="true"></div><input class="vx-audio-modern__range" data-vx-audio-range type="range" min="0" max="1000" value="0"><div class="vx-audio-modern__time"><span data-vx-audio-current>0:00</span><span data-vx-audio-duration>0:00</span></div></div>'
-    + '<button class="vx-audio-modern__btn" type="button" data-vx-audio-action="forward" aria-label="10 Sekunden vor">↻</button>'
-    + '</div><div class="vx-audio-modern__bottom"><div class="vx-audio-modern__volume"><span aria-hidden="true">⌁</span><input type="range" min="0" max="1" step="0.05" value="1" data-vx-audio-volume aria-label="Lautstärke"></div><div class="vx-audio-modern__speed">'
-    + '<button class="vx-audio-modern__speed-btn is-active" type="button" data-vx-audio-speed="1">1x</button>'
-    + '<button class="vx-audio-modern__speed-btn" type="button" data-vx-audio-speed="1.25">1.25x</button>'
-    + '<button class="vx-audio-modern__speed-btn" type="button" data-vx-audio-speed="1.5">1.5x</button>'
-    + '</div><div class="vx-audio-modern__status" data-vx-audio-status>Bereit zum Abspielen</div></div>'
-    + '</div><audio class="vx-audio-modern__audio" preload="metadata" playsinline src="'+safeUrl+'"></audio>'
+    + '<div class="vx-audio-modern__head">'
+    +   '<span class="vx-audio-modern__kicker">Aufnahme</span>'
+    +   '<span class="vx-audio-modern__note" data-vx-audio-note aria-live="polite">'+note+'</span>'
+    + '</div>'
+    + '<div class="vx-audio-modern__row">'
+    +   '<button type="button" class="vx-audio-modern__play" data-vx-audio-action="play" aria-label="Aufnahme abspielen">'+glyphPlay+glyphPause+'</button>'
+    +   '<div class="vx-audio-modern__track">'
+    +     '<div class="vx-audio-modern__scrub">'
+    // Der Platzhalter ist bewusst eine glatte Leiste und keine erfundene
+    // Wellenform: solange keine echten Amplituden vorliegen, darf die
+    // Flaeche nicht so aussehen, als haette jemand das Gespraech gemessen.
+    // Liegen sie vor, ersetzt vxAudioDrawPeaks() die Leiste durch Balken.
+    +       '<div class="vx-audio-modern__wave" data-vx-audio-wave aria-hidden="true"><span class="vx-audio-modern__plain"></span></div>'
+    +       '<span class="vx-audio-modern__playhead" aria-hidden="true"></span>'
+    +       '<input class="vx-audio-modern__range" data-vx-audio-range type="range" min="0" max="1000" step="1" value="0" aria-label="Position im Gespräch" aria-valuetext="0:00">'
+    +       '<span class="vx-audio-modern__feedback" data-vx-audio-seek-feedback aria-hidden="true"></span>'
+    +     '</div>'
+    +     '<div class="vx-audio-modern__meta">'
+    +       '<span class="vx-audio-modern__time"><span data-vx-audio-current>0:00</span> / <span data-vx-audio-duration>0:00</span></span>'
+    +       '<span class="vx-audio-modern__tools">'
+    +         '<button type="button" class="vx-audio-modern__tool" data-vx-audio-action="back" aria-label="15 Sekunden zurück">'+glyphBack+'<span>15</span></button>'
+    +         '<button type="button" class="vx-audio-modern__tool" data-vx-audio-action="forward" aria-label="15 Sekunden vor">'+glyphForward+'<span>15</span></button>'
+    +         '<button type="button" class="vx-audio-modern__tool vx-audio-modern__tool--speed" data-vx-audio-action="speed" data-vx-audio-speed="1" aria-label="Wiedergabetempo, aktuell einfach">1,0×</button>'
+    +       '</span>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+    + '<audio class="vx-audio-modern__audio" preload="metadata" playsinline src="'+safeUrl+'"></audio>'
     + '</div>';
 }
 
@@ -17753,7 +17791,7 @@ function vxRenderCallAudioCardHtml(callOrFields) {
   var audioUrl = vxGetCallAudioUrl(callOrFields);
   var conversationId = (typeof vxGetElevenLabsConversationId === 'function') ? vxGetElevenLabsConversationId(callOrFields) : '';
   if (audioUrl) {
-    return '<div id="vx-call-audio-card" class="vx-audio-host">' + vxRenderModernAudioPlayerHtml(audioUrl, 'Bereit zum Abspielen') + '</div>';
+    return '<div id="vx-call-audio-card" class="vx-audio-host">' + vxRenderModernAudioPlayerHtml(audioUrl, '') + '</div>';
   }
   if (conversationId) {
     return vxRenderAudioStateCardHtml('loading', 'Aufnahme wird geladen …', conversationId);
@@ -17787,7 +17825,7 @@ async function vxTryLoadElevenLabsAudioFromDashboard(trigger) {
         url = URL.createObjectURL(blob);
       }
       if (url && card) {
-        card.outerHTML = '<div id="vx-call-audio-card" class="vx-audio-host">' + vxRenderModernAudioPlayerHtml(url, 'Bereit zum Abspielen') + '</div>';
+        card.outerHTML = '<div id="vx-call-audio-card" class="vx-audio-host">' + vxRenderModernAudioPlayerHtml(url, '') + '</div>';
         if (window.vxHydrateModernAudioPlayers) window.vxHydrateModernAudioPlayers(document);
         return true;
       }
@@ -17819,91 +17857,187 @@ window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
 (function initVoxeraModernAudioPlayer(){
   if (window.__vxModernAudioPlayerInit) return;
   window.__vxModernAudioPlayerInit = true;
+
   var BOOST_GAIN = 1.7;
+  var SKIP_SECONDS = 15;
+  // Tempo als Durchschalter statt Segment-Pille: drei Werte, ein Knopf.
+  var SPEEDS = [
+    { value: 1,    label: '1,0×',  spoken: 'einfach' },
+    { value: 1.25, label: '1,25×', spoken: 'eineinviertelfach' },
+    { value: 1.5,  label: '1,5×',  spoken: 'eineinhalbfach' }
+  ];
+  var WAVE_BARS = 64;
+
   function formatTime(seconds){
     if (!isFinite(seconds) || seconds < 0) return '0:00';
     var mins = Math.floor(seconds / 60);
     var secs = Math.floor(seconds % 60);
     return mins + ':' + String(secs).padStart(2,'0');
   }
-  function setStatus(player, text){
-    var el = player && player.querySelector('[data-vx-audio-status]');
+
+  // Einzige Stelle, die eine Notiz schreibt. Sie traegt Ausnahmen
+  // (Ladefehler, blockierte Wiedergabe, Herkunft), NIE den Normalzustand —
+  // sonst steht derselbe Zustand wieder doppelt auf der Flaeche.
+  function setNote(player, text){
+    var el = player && player.querySelector('[data-vx-audio-note]');
     if (el) el.textContent = text || '';
   }
-  function updateProgressNow(player, audio){
+
+  // Ein Schreibvorgang pro Bild: die Fortschrittsvariable versorgt
+  // Platzhalter-Leiste, Balken-Ueberlagerung und Abspielkopf gleichzeitig.
+  function syncProgress(player, audio, options){
     if (!player || !audio) return;
+    var opts = options || {};
+    var duration = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+    var current = audio.currentTime || 0;
+    var ratio = duration ? Math.max(0, Math.min(1, current / duration)) : 0;
+
     var cur = player.querySelector('[data-vx-audio-current]');
+    if (cur) cur.textContent = formatTime(current);
+    player.style.setProperty('--vx-audio-progress', (ratio * 100).toFixed(3) + '%');
+
     var range = player.querySelector('[data-vx-audio-range]');
-    if (cur) cur.textContent = formatTime(audio.currentTime || 0);
-    if (range && isFinite(audio.duration) && audio.duration > 0) {
-      var progress = Math.max(0, Math.min(1000, Math.round(((audio.currentTime || 0) / audio.duration) * 1000)));
-      range.value = String(progress);
-      range.style.setProperty('--vx-audio-progress', String(Math.round(progress / 10)) + '%');
-    }
+    if (range && opts.skipRange !== true) range.value = String(Math.round(ratio * 1000));
+    if (range) range.setAttribute('aria-valuetext', formatTime(current) + ' von ' + formatTime(duration));
+
+    // Der Abspielkopf erscheint erst, wenn es eine Position gibt, die er
+    // zeigen kann. Bei 0:00 und nie gestartet waere er eine Behauptung.
+    if (ratio > 0 || !audio.paused) player.classList.add('is-active');
   }
-  function showSeekFeedback(player, label, direction, button){
-    if (!player) return;
-    var el = player.querySelector('[data-vx-audio-seek-feedback]');
-    if (el) {
-      el.textContent = label;
-      el.classList.remove('is-back','is-forward','is-visible');
-      void el.offsetWidth;
-      if (direction) el.classList.add(direction === 'back' ? 'is-back' : 'is-forward');
-      el.classList.add('is-visible');
-      clearTimeout(el.__vxSeekTimer);
-      el.__vxSeekTimer = setTimeout(function(){ el.classList.remove('is-visible'); }, 720);
-    }
-    if (button) {
-      button.classList.add('is-tap-feedback');
-      clearTimeout(button.__vxTapTimer);
-      button.__vxTapTimer = setTimeout(function(){ button.classList.remove('is-tap-feedback'); }, 260);
-    }
+
+  function showSeekFeedback(player, label, direction){
+    var el = player && player.querySelector('[data-vx-audio-seek-feedback]');
+    if (!el) return;
+    el.textContent = label;
+    el.classList.remove('is-back','is-forward','is-visible');
+    void el.offsetWidth;
+    if (direction) el.classList.add(direction === 'back' ? 'is-back' : 'is-forward');
+    el.classList.add('is-visible');
+    clearTimeout(el.__vxSeekTimer);
+    el.__vxSeekTimer = setTimeout(function(){ el.classList.remove('is-visible'); }, 720);
   }
+
+  /* ── Echte Wellenform ────────────────────────────────────────────────
+     Nur wo die Datei ohne zweiten Netzabruf und ohne CORS-Risiko lesbar
+     ist: der Bruecken-Pfad in shared/offer-brand*.js legt ein Blob an, das
+     ist in der Praxis der Normalfall. Fremde signierte URLs werden NICHT
+     angefasst — ein fehlschlagender Abruf brauechte Bandbreite und brachte
+     nichts. Dann bleibt die glatte Platzhalter-Leiste stehen, die
+     erkennbar keine Messung behauptet. */
+  function canDecode(url){
+    if (!url) return false;
+    if (/^blob:|^data:/i.test(url)) return true;
+    try { return new URL(url, window.location.href).origin === window.location.origin; }
+    catch(e) { return false; }
+  }
+
+  function renderBars(player, peaks){
+    var wave = player.querySelector('[data-vx-audio-wave]');
+    if (!wave || !peaks || !peaks.length) return;
+    function layer(cls){
+      var el = document.createElement('div');
+      el.className = 'vx-audio-modern__bars ' + cls;
+      var frag = document.createDocumentFragment();
+      for (var i = 0; i < peaks.length; i++) {
+        var bar = document.createElement('span');
+        bar.style.height = Math.round(peaks[i] * 100) + '%';
+        frag.appendChild(bar);
+      }
+      el.appendChild(frag);
+      return el;
+    }
+    wave.textContent = '';
+    wave.appendChild(layer('vx-audio-modern__bars--rest'));
+    wave.appendChild(layer('vx-audio-modern__bars--played'));
+    player.classList.add('has-peaks');
+  }
+
+  function drawPeaks(player, url){
+    if (!player || player.__vxPeaksTried) return;
+    player.__vxPeaksTried = true;
+    if (!canDecode(url) || !window.fetch) return;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    fetch(url).then(function(res){
+      if (!res.ok) throw new Error('peaks_fetch_' + res.status);
+      return res.arrayBuffer();
+    }).then(function(buffer){
+      var ctx = new Ctx();
+      return ctx.decodeAudioData(buffer).then(function(decoded){
+        try { ctx.close(); } catch(e) {}
+        return decoded;
+      }, function(err){
+        try { ctx.close(); } catch(e) {}
+        throw err;
+      });
+    }).then(function(decoded){
+      var data = decoded.getChannelData(0);
+      var block = Math.floor(data.length / WAVE_BARS) || 1;
+      var peaks = [], max = 0;
+      for (var i = 0; i < WAVE_BARS; i++) {
+        var start = i * block, sum = 0, taken = 0;
+        for (var j = 0; j < block; j += 16) {
+          var v = data[start + j] || 0;
+          sum += v * v; taken++;
+        }
+        var rms = Math.sqrt(sum / Math.max(1, taken));
+        peaks.push(rms);
+        if (rms > max) max = rms;
+      }
+      if (!max) return;
+      renderBars(player, peaks.map(function(p){
+        return Math.max(0.12, Math.min(1, p / max));
+      }));
+    }).catch(function(){
+      /* Platzhalter bleibt — kein Ersatzbild, das wie eine Messung aussieht. */
+    });
+  }
+
   function hydratePlayer(player){
     if (!player || player.__vxAudioHydrated) return player && player.__vxAudioState;
     var audio = player.querySelector('audio');
     if (!audio) return null;
     player.__vxAudioHydrated = true;
-    player.__vxAudioState = { audio: audio, audioContext: null, source: null, gain: null };
+    player.__vxAudioState = { audio: audio, audioContext: null, source: null, gain: null, speedIndex: 0 };
     audio.playsInline = true;
     audio.preload = 'metadata';
+
     audio.addEventListener('loadedmetadata', function(){
       var dur = player.querySelector('[data-vx-audio-duration]');
       if (dur) dur.textContent = formatTime(audio.duration);
-      setStatus(player, 'Bereit zum Abspielen');
+      syncProgress(player, audio);
     });
-    audio.addEventListener('timeupdate', function(){
-      var cur = player.querySelector('[data-vx-audio-current]');
-      var range = player.querySelector('[data-vx-audio-range]');
-      if (cur) cur.textContent = formatTime(audio.currentTime);
-      if (range && isFinite(audio.duration) && audio.duration > 0) {
-        range.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
-        range.style.setProperty('--vx-audio-progress', String(Math.round((audio.currentTime / audio.duration) * 100)) + '%');
-      }
-    });
+    audio.addEventListener('timeupdate', function(){ syncProgress(player, audio); });
+    audio.addEventListener('seeked', function(){ syncProgress(player, audio); });
     audio.addEventListener('play', function(){
+      player.classList.add('is-playing','is-active');
       var btn = player.querySelector('[data-vx-audio-action="play"]');
-      if (btn) btn.textContent = 'Ⅱ';
-      setStatus(player, 'Wird abgespielt');
+      if (btn) btn.setAttribute('aria-label', 'Aufnahme anhalten');
+      setNote(player, '');
     });
     audio.addEventListener('pause', function(){
+      player.classList.remove('is-playing');
       var btn = player.querySelector('[data-vx-audio-action="play"]');
-      if (btn) btn.textContent = '▶';
-      if (!audio.ended) setStatus(player, 'Pausiert');
+      if (btn) btn.setAttribute('aria-label', 'Aufnahme abspielen');
     });
     audio.addEventListener('ended', function(){
+      player.classList.remove('is-playing');
       var btn = player.querySelector('[data-vx-audio-action="play"]');
-      if (btn) btn.textContent = '▶';
-      setStatus(player, 'Abgeschlossen');
+      if (btn) btn.setAttribute('aria-label', 'Aufnahme erneut abspielen');
     });
-    audio.addEventListener('error', function(){ setStatus(player, 'Audio konnte nicht geladen werden'); });
+    audio.addEventListener('error', function(){
+      setNote(player, 'Aufnahme konnte nicht geladen werden');
+    });
+
+    drawPeaks(player, player.getAttribute('data-audio-url') || audio.currentSrc || audio.src);
     return player.__vxAudioState;
   }
+
   function ensureBoost(player){
     var state = hydratePlayer(player);
     if (!state || state.gain) return state;
     var AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) { setStatus(player, 'Bereit'); return state; }
+    if (!AudioContextClass) return state;
     try {
       state.audioContext = new AudioContextClass();
       state.source = state.audioContext.createMediaElementSource(state.audio);
@@ -17911,63 +18045,68 @@ window.vxRenderCallAudioCardHtml = vxRenderCallAudioCardHtml;
       state.gain.gain.value = BOOST_GAIN;
       state.source.connect(state.gain);
       state.gain.connect(state.audioContext.destination);
-      setStatus(player, 'Bereit zum Abspielen');
     } catch(e) {
-      setStatus(player, 'Bereit');
+      /* Ohne Verstaerkung spielt die Aufnahme trotzdem. */
     }
     return state;
   }
+
   function closestPlayer(el){ return el && el.closest ? el.closest('[data-vx-audio-player]') : null; }
+
   document.addEventListener('click', async function(ev){
     var actionBtn = ev.target && ev.target.closest ? ev.target.closest('[data-vx-audio-action]') : null;
-    var speedBtn = ev.target && ev.target.closest ? ev.target.closest('[data-vx-audio-speed]') : null;
-    if (!actionBtn && !speedBtn) return;
-    var player = closestPlayer(actionBtn || speedBtn);
+    if (!actionBtn) return;
+    var player = closestPlayer(actionBtn);
     if (!player) return;
     var state = ensureBoost(player);
     if (!state || !state.audio) return;
     var audio = state.audio;
-    if (actionBtn) {
-      var action = actionBtn.getAttribute('data-vx-audio-action');
-      if (action === 'play') {
-        try {
-          if (state.audioContext && state.audioContext.state === 'suspended') await state.audioContext.resume();
-          if (audio.paused) await audio.play(); else audio.pause();
-        } catch(e) { setStatus(player, 'Wiedergabe blockiert · erneut tippen'); }
-      } else if (action === 'back') {
-        audio.currentTime = Math.max(0, (audio.currentTime || 0) - 10);
-        updateProgressNow(player, audio);
-        showSeekFeedback(player, '−10s', 'back', actionBtn);
-      } else if (action === 'forward') {
-        var dur = isFinite(audio.duration) ? audio.duration : (audio.currentTime || 0) + 10;
-        audio.currentTime = Math.min(dur, (audio.currentTime || 0) + 10);
-        updateProgressNow(player, audio);
-        showSeekFeedback(player, '+10s', 'forward', actionBtn);
+    var action = actionBtn.getAttribute('data-vx-audio-action');
+
+    if (action === 'play') {
+      try {
+        if (state.audioContext && state.audioContext.state === 'suspended') await state.audioContext.resume();
+        if (audio.paused) await audio.play(); else audio.pause();
+      } catch(e) {
+        setNote(player, 'Wiedergabe blockiert · erneut tippen');
       }
-    }
-    if (speedBtn) {
-      var speed = Number(speedBtn.getAttribute('data-vx-audio-speed') || '1') || 1;
-      audio.playbackRate = speed;
-      player.querySelectorAll('[data-vx-audio-speed]').forEach(function(btn){ btn.classList.remove('is-active'); });
-      speedBtn.classList.add('is-active');
-      setStatus(player, speed + 'x');
-    }
-  });
-  document.addEventListener('input', function(ev){
-    var range = ev.target && ev.target.matches && ev.target.matches('[data-vx-audio-range]') ? ev.target : null;
-    var volume = ev.target && ev.target.matches && ev.target.matches('[data-vx-audio-volume]') ? ev.target : null;
-    if (!range && !volume) return;
-    var player = closestPlayer(range || volume);
-    var state = hydratePlayer(player);
-    if (!state || !state.audio) return;
-    if (volume) {
-      state.audio.volume = Math.max(0, Math.min(1, Number(volume.value) || 0));
       return;
     }
+
+    if (action === 'back' || action === 'forward') {
+      var duration = isFinite(audio.duration) ? audio.duration : (audio.currentTime || 0) + SKIP_SECONDS;
+      var target = action === 'back'
+        ? Math.max(0, (audio.currentTime || 0) - SKIP_SECONDS)
+        : Math.min(duration, (audio.currentTime || 0) + SKIP_SECONDS);
+      audio.currentTime = target;
+      syncProgress(player, audio);
+      showSeekFeedback(player, (action === 'back' ? '−' : '+') + SKIP_SECONDS + 's', action);
+      return;
+    }
+
+    if (action === 'speed') {
+      state.speedIndex = (state.speedIndex + 1) % SPEEDS.length;
+      var speed = SPEEDS[state.speedIndex];
+      audio.playbackRate = speed.value;
+      actionBtn.textContent = speed.label;
+      actionBtn.setAttribute('data-vx-audio-speed', String(speed.value));
+      actionBtn.setAttribute('aria-label', 'Wiedergabetempo, aktuell ' + speed.spoken);
+    }
+  });
+
+  document.addEventListener('input', function(ev){
+    var range = ev.target && ev.target.matches && ev.target.matches('[data-vx-audio-range]') ? ev.target : null;
+    if (!range) return;
+    var player = closestPlayer(range);
+    var state = hydratePlayer(player);
+    if (!state || !state.audio) return;
     if (!isFinite(state.audio.duration) || state.audio.duration <= 0) return;
     state.audio.currentTime = (Number(range.value) / 1000) * state.audio.duration;
-    updateProgressNow(player, state.audio);
+    // skipRange: der Regler steht bereits dort, wo der Finger ihn hingezogen
+    // hat — ihn zurueckzuschreiben ruckelt beim Ziehen.
+    syncProgress(player, state.audio, { skipRange: true });
   });
+
   window.vxHydrateModernAudioPlayers = function(root){
     (root || document).querySelectorAll('[data-vx-audio-player]').forEach(hydratePlayer);
     if (window.vxAutoLoadAudioCards) window.vxAutoLoadAudioCards(root || document);
@@ -18816,124 +18955,199 @@ function saveFollowUpV2(callId) {
 }
 window.saveFollowUpV2 = saveFollowUpV2;
 
-function renderTimelineHTML(history) {
-  const eventCount = history ? history.length : 0;
-  const maxInitialEvents = 5;
-  let inner = '';
+/* ── Verlauf: Kontaktzeilen (Etappe 5 / V2, 2026-08-08) ───────────────────
+   Vorher war das hier eine eigene Darstellung derselben Sache: Zeitachse mit
+   Punkten, 8px-Radien, graue Fuellungen, 10px-Versalien mit Sperrung fuer das
+   Datum und #1A6FE8 fuer Punkte und "Detail →" — also genau die Sperrung, die
+   PR #848 abgeschafft, und genau das Blau, das die Liste beim Neubau verlassen
+   hat. Farben kamen aus --slate/--ink/--ink2/--surface2, nicht aus --vx-ui-*.
 
-  function vxTimelineDateLabel(date) {
-    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
-    var tz = 'Europe/Zurich';
-    var fmt = function(d) { return new Intl.DateTimeFormat('de-CH', {timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d); };
+   Ab hier benutzt der Verlauf die Zeilenform, die seit PR #849 in der
+   Anfragen-Liste steht: 36px-Icon, 14px/700-Titel, 13px-Beschreibung,
+   Zeitangabe rechts in der Meta-Rolle, Abschnitts-Label wie "Braucht dich 2"
+   auf Heute. Ein frueherer Kontakt liest sich damit mit demselben Blick wie
+   ein aktueller.
+
+   Zwei Fehler nebenbei behoben:
+   1. Die Karte hatte eine eigene Kopfzeile ("Kontakt-Historie") mit eigener
+      Zaehlung. Die zaehlte den offenen Eintrag mit, die Kopfzeile des
+      Aufklappers rechnet ihn seit Review #848 bewusst heraus — ein
+      Erstanrufer las "Keine frueheren" neben "1 Ereignis". Es gibt jetzt nur
+      noch eine Zaehlung, die im Aufklapper.
+   2. summary und notes gingen ungefiltert ins HTML. Beide stammen aus
+      Transkript-Auswertung bzw. freier Eingabe.
+
+   options.currentId markiert den gerade geoeffneten Eintrag. Er bleibt in der
+   Liste — er ist der Ankerpunkt der Chronologie —, wird aber als "Dieser
+   Eintrag" gekennzeichnet und nicht mitgezaehlt. */
+function renderTimelineHTML(history, options) {
+  var opts = options || {};
+  var currentId = String(opts.currentId || '').trim();
+  var items = Array.isArray(history) ? history : [];
+  var maxInitial = 5;
+
+  function esc(v) {
+    return (typeof escapeHtml === 'function')
+      ? escapeHtml(v == null ? '' : v)
+      : String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+          return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+        });
+  }
+  function isCurrent(entry) {
+    if (!currentId || !entry) return false;
+    return String(entry.call_id || '') === currentId || String(entry.task_id || '') === currentId;
+  }
+
+  if (!items.length) {
+    return '<div class="vx-vl-empty">Für diese Nummer ist kein weiterer Kontakt hinterlegt.</div>';
+  }
+
+  var TZ = 'Europe/Zurich';
+  function dayKey(d) {
+    try { return new Intl.DateTimeFormat('de-CH', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit' }).format(d); }
+    catch(e) { return String(d.getTime()); }
+  }
+  // Rechte Spalte: so kurz wie moeglich, ohne mehrdeutig zu werden.
+  function shortWhen(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
     var now = new Date();
-    if (fmt(date) === fmt(now)) return 'Heute';
-    if (fmt(date) === fmt(new Date(now.getTime() - 86400000))) return 'Gestern';
-    return fmtDate(date);
-  }
-
-  if (!history || history.length === 0) {
-    inner = '<div style="padding:20px 16px;text-align:center;color:var(--slate);font-size:13px;">Keine weitere Historie für diese Nummer.</div>';
-  } else {
-    inner = '<div style="padding:14px 16px;">';
-    inner += '<div style="position:relative;padding-left:24px;">';
-    inner += '<div style="position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:var(--line);"></div>';
-
-    history.forEach(function(e, idx) {
-      const t = (typeof parseCallTimestamp === 'function')
-        ? (parseCallTimestamp(e.timestamp) || new Date(e.timestamp))
-        : new Date(e.timestamp);
-      const hiddenStyle = idx >= maxInitialEvents ? 'display:none;' : '';
-      const extraClass = idx >= maxInitialEvents ? ' vx-timeline-extra' : '';
-      const whenLabel = vxTimelineDateLabel(t) + (Number.isNaN(t.getTime()) ? '' : ' · ' + formatTimeCH(t) + ' Uhr');
-
-      if (e.type === 'call_inbound') {
-        const dur = e.duration || 0;
-        const isClickable = !!e.call_id;
-        const clickHandler = isClickable
-          ? 'onclick="vxOpenCallFromHistory(\'' + e.call_id + '\')" style="cursor:pointer;"'
-          : '';
-        const hoverStyle = isClickable ? 'background:var(--surface2);border-radius:8px;padding:10px 12px;transition:background .15s;' : 'background:var(--surface2);border-radius:8px;padding:10px 12px;';
-
-        inner += '<div class="vx-timeline-item' + extraClass + '" style="position:relative;padding-bottom:16px;' + hiddenStyle + '">';
-        inner += '<div style="position:absolute;left:-23px;top:4px;width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #1A6FE8;box-shadow:0 0 0 2px var(--surface);"></div>';
-        inner += '<div ' + clickHandler + ' style="' + hoverStyle + '">';
-        inner += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">';
-        inner += '<div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;font-weight:600;">' + whenLabel + '</div>';
-        if (isClickable) inner += '<div style="font-size:10px;color:#1A6FE8;font-weight:600;">Detail →</div>';
-        inner += '</div>';
-        inner += '<div style="font-size:13px;font-weight:700;color:var(--ink);">Eingehender Anruf · ' + Math.floor(dur/60) + ' Min ' + (dur%60) + ' Sek</div>';
-
-        const metaParts = [];
-        if (e.category) metaParts.push(vxFormatCategoryLabelSafe(e.category));
-        if (e.lead_quality) metaParts.push('Lead: ' + e.lead_quality);
-        if (metaParts.length > 0) {
-          inner += '<div style="font-size:11px;color:var(--slate);margin-top:3px;">' + metaParts.join(' · ') + '</div>';
-        }
-        var _transcriptText = e.transcription || e.transcript || "";
-        var _historySummary = (e.summary || '').trim();
-        if (!_historySummary && _transcriptText) _historySummary = 'Transkript vorhanden';
-        inner += '<div style="font-size:12px;color:var(--ink2);margin-top:6px;line-height:1.5;">' + (_historySummary || '<em style="color:var(--slate);">Keine Zusammenfassung</em>') + '</div>';
-        inner += '</div></div>';
-      } else {
-        const typeMap = { callback: 'Rückruf', information: 'Offerte', offerte: 'Offerte', appointment: 'Termin', termin: 'Termin', general: 'Aufgabe', task: 'Aufgabe', follow_up: 'Nachfassen' };
-        const actionLabel = typeMap[e.action] || typeMap[e.status] || 'Nachfassen';
-        const isDone = e.status === 'closed' || e.status === 'resolved' || e.status === 'completed' || e.status === 'done';
-        const dueLabel = e.due_at ? formatTaskDueLabel({ due_at: e.due_at }, { emptyLabel: '' }) : '';
-        const dueDate = e.due_at ? new Date(e.due_at) : null;
-        const isOverdue = dueDate && dueDate < new Date() && !isDone;
-        const dotColor = isDone ? '#059669' : (isOverdue ? '#DC2626' : '#D97706');
-        const statusBadge = isDone
-          ? '<span style="font-size:10px;font-weight:700;color:#059669;background:#D1FAE5;border-radius:4px;padding:1px 6px;margin-left:6px;">✓ Erledigt</span>'
-          : (isOverdue ? '<span style="font-size:10px;font-weight:700;color:#DC2626;background:#FEE2E2;border-radius:4px;padding:1px 6px;margin-left:6px;">Überfällig</span>' : '');
-
-        inner += '<div class="vx-timeline-item' + extraClass + '" style="position:relative;padding-bottom:16px;' + hiddenStyle + '">';
-        inner += '<div style="position:absolute;left:-23px;top:4px;width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid ' + dotColor + ';box-shadow:0 0 0 2px var(--surface);' + (isDone ? 'opacity:.6;' : '') + '"></div>';
-        inner += '<div style="background:' + (isDone ? 'var(--surface)' : 'var(--surface2)') + ';border-radius:8px;padding:10px 12px;' + (isDone ? 'opacity:.75;' : '') + '">';
-        inner += '<div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:3px;">' + whenLabel + '</div>';
-        inner += '<div style="display:flex;align-items:center;gap:4px;"><span style="font-size:13px;font-weight:700;color:var(--ink);">Nachfassen: ' + actionLabel + '</span>' + statusBadge + '</div>';
-        if (dueLabel) {
-          const dueColor = isOverdue ? '#DC2626' : 'var(--slate)';
-          inner += '<div style="font-size:11px;color:' + dueColor + ';margin-top:3px;">Fällig: ' + dueLabel + '</div>';
-        }
-        const autoTitles = ['Rückruf', 'Offerte', 'Termin', 'Sonstiges', 'Aufgabe', 'Nachfassen'];
-        const noteText = (e.notes || '').trim();
-        const titleText = (e.title || '').trim();
-        const showNote = noteText && !autoTitles.some(function(t) { return noteText === t || titleText === noteText; });
-        if (showNote) inner += '<div style="font-size:12px;color:var(--ink2);margin-top:6px;line-height:1.5;font-style:italic;">"' + noteText + '"</div>';
-        inner += '</div></div>';
-      }
-    });
-
-    inner += '</div>'; // /timeline
-    if (eventCount > maxInitialEvents) {
-      inner += '<button type="button" onclick="vxTimelineShowAll(this)" style="margin:2px 0 0 24px;padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--blue);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;">Alle ' + eventCount + ' Ereignisse anzeigen</button>';
+    if (dayKey(d) === dayKey(now)) {
+      return (typeof formatTimeCH === 'function') ? formatTimeCH(d) : '';
     }
-    inner += '</div>'; // /padding
+    if (dayKey(d) === dayKey(new Date(now.getTime() - 86400000))) return 'Gestern';
+    try {
+      var sameYear = d.getFullYear() === now.getFullYear();
+      return new Intl.DateTimeFormat('de-CH', sameYear
+        ? { timeZone: TZ, day:'numeric', month:'short' }
+        : { timeZone: TZ, day:'2-digit', month:'2-digit', year:'numeric' }).format(d);
+    } catch(e) { return (typeof fmtDate === 'function') ? fmtDate(d) : ''; }
+  }
+  // Abschnitte statt Zeitachse: die Achse zeigte Abstaende, die niemand
+  // ablas; die Buendel beantworten die Frage "wie lange ist das her".
+  function bucketOf(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return 'Ohne Datum';
+    var now = new Date();
+    if (dayKey(d) === dayKey(now)) return 'Heute';
+    var days = (now.getTime() - d.getTime()) / 86400000;
+    if (days < 7) return 'Diese Woche';
+    if (days < 31) return 'Diesen Monat';
+    return 'Älter';
   }
 
-  // Karte und Kopfzeile ziehen dieselben Werte wie die Anfragen-Liste und der
-  // Rest des Detailpanels (2026-08-08): 0.5px/#D9E1EC bei 12px statt eigenem
-  // Schatten, Icon im stillen Grau statt #1A6FE8, und der Zähler ohne
-  // Versalien/Sperrung in der Meta-Rolle.
-  let html = '<div style="background:var(--vx-ui-row-bg);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);border-radius:var(--vx-ui-row-radius);overflow:hidden;">';
-  html +=   '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);">';
-  html +=     '<i class="ph-bold ph-clock-counter-clockwise" style="color:var(--vx-ui-icon-quiet);flex-shrink:0;font-size:15px;" aria-hidden="true"></i>';
-  html +=     '<div style="font-size:13px;font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);letter-spacing:0;">Kontakt-Historie</div>';
-  html +=     '<span style="margin-left:auto;font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);color:var(--vx-ui-section-label-color);text-transform:none;letter-spacing:0;">' + eventCount + ' Ereignis' + (eventCount !== 1 ? 'se' : '') + '</span>';
-  html +=   '</div>';
-  html +=   '<div style="background:var(--surface);">' + inner + '</div>';
-  html += '</div>';
+  var PHONE_ICON = '<i class="ph-bold ph-phone-incoming" aria-hidden="true"></i>';
+  var TASK_ICONS = {
+    callback: 'ph-phone-outgoing', offerte: 'ph-file-text', information: 'ph-file-text',
+    appointment: 'ph-calendar-check', termin: 'ph-calendar-check', follow_up: 'ph-arrow-bend-up-right'
+  };
+  var TYPE_LABELS = {
+    callback: 'Rückruf', information: 'Offerte', offerte: 'Offerte', appointment: 'Termin',
+    termin: 'Termin', general: 'Aufgabe', task: 'Aufgabe', follow_up: 'Nachfassen'
+  };
+  function chip(label, tone) {
+    if (window.VoxeraUI && typeof window.VoxeraUI.badge === 'function') {
+      return window.VoxeraUI.badge(label, tone);
+    }
+    return '<span class="vx-ui-badge vx-ui-badge--' + tone + '">' + esc(label) + '</span>';
+  }
 
+  function row(entry, idx) {
+    var when = (typeof parseCallTimestamp === 'function')
+      ? (parseCallTimestamp(entry.timestamp) || new Date(entry.timestamp))
+      : new Date(entry.timestamp);
+    var mine = isCurrent(entry);
+    var hidden = idx >= maxInitial;
+    var cls = 'vx-vl-row' + (hidden ? ' vx-timeline-extra' : '') + (mine ? ' is-current' : '');
+    var attrs = '';
+    var icon, title, badges = '', desc = '', meta = '';
+
+    if (entry.type === 'call_inbound') {
+      var dur = Number(entry.duration || 0);
+      icon = '<span class="vx-vl-icon vx-vl-icon--call">' + PHONE_ICON + '</span>';
+      title = 'Eingehender Anruf'
+        + (dur > 0 ? ' · ' + Math.floor(dur / 60) + ':' + String(Math.floor(dur % 60)).padStart(2, '0') : '');
+      var summary = String(entry.summary || '').trim();
+      if (!summary && (entry.transcription || entry.transcript)) summary = 'Transkript vorhanden';
+      desc = summary;
+      var parts = [];
+      if (entry.category && typeof vxFormatCategoryLabelSafe === 'function') parts.push(vxFormatCategoryLabelSafe(entry.category));
+      else if (entry.category) parts.push(String(entry.category));
+      if (entry.lead_quality) parts.push('Lead: ' + entry.lead_quality);
+      meta = parts.join(' · ');
+      if (!mine && entry.call_id) {
+        attrs = ' role="button" tabindex="0"'
+          + ' onclick="vxOpenCallFromHistory(\'' + esc(entry.call_id) + '\')"'
+          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();vxOpenCallFromHistory(\'' + esc(entry.call_id) + '\');}"';
+      }
+    } else {
+      var actionKey = String(entry.action || entry.status || '').toLowerCase();
+      var label = TYPE_LABELS[actionKey] || TYPE_LABELS[String(entry.action || '').toLowerCase()] || 'Nachfassen';
+      var done = ['closed','resolved','completed','done'].indexOf(String(entry.status || '')) !== -1;
+      var dueDate = entry.due_at ? new Date(entry.due_at) : null;
+      var overdue = dueDate && !Number.isNaN(dueDate.getTime()) && dueDate < new Date() && !done;
+      icon = '<span class="vx-vl-icon">'
+        + '<i class="ph-bold ' + (TASK_ICONS[actionKey] || 'ph-arrow-bend-up-right') + '" aria-hidden="true"></i></span>';
+      title = label;
+      if (done) badges = chip('Erledigt', 'success');
+      else if (overdue) badges = chip('Überfällig', 'danger');
+      var note = String(entry.notes || '').trim();
+      var autoTitles = ['Rückruf','Offerte','Termin','Sonstiges','Aufgabe','Nachfassen'];
+      if (note && autoTitles.indexOf(note) === -1 && String(entry.title || '').trim() !== note) desc = '„' + note + '“';
+      if (entry.due_at && typeof formatTaskDueLabel === 'function') {
+        var dueLabel = formatTaskDueLabel({ due_at: entry.due_at }, { emptyLabel: '' });
+        if (dueLabel) meta = 'Fällig: ' + dueLabel;
+      }
+    }
+
+    if (mine) badges = chip('Dieser Eintrag', 'quiet');
+
+    return '<div class="' + cls + '"' + attrs + (hidden ? ' hidden' : '') + '>'
+      + icon
+      + '<div class="vx-vl-main">'
+      +   '<div class="vx-vl-title">' + esc(title) + badges + '</div>'
+      +   (desc ? '<div class="vx-vl-desc">' + esc(desc) + '</div>' : '')
+      +   (meta ? '<div class="vx-vl-meta">' + esc(meta) + '</div>' : '')
+      + '</div>'
+      + '<div class="vx-vl-time">' + esc(shortWhen(when)) + '</div>'
+      + '</div>';
+  }
+
+  var html = '<div class="vx-vl">';
+  var lastBucket = '';
+  items.forEach(function(entry, idx) {
+    var when = (typeof parseCallTimestamp === 'function')
+      ? (parseCallTimestamp(entry.timestamp) || new Date(entry.timestamp))
+      : new Date(entry.timestamp);
+    var bucket = bucketOf(when);
+    if (bucket !== lastBucket) {
+      lastBucket = bucket;
+      html += '<div class="vx-vl-section' + (idx >= maxInitial ? ' vx-timeline-extra' : '')
+        + '"' + (idx >= maxInitial ? ' hidden' : '') + '>' + esc(bucket) + '</div>';
+    }
+    html += row(entry, idx);
+  });
+  // Der Knopf nennt nur, was er aufdeckt. Eine absolute Gesamtzahl hier
+  // waere die zweite Zahl im selben Aufklapper — genau der Widerspruch,
+  // den dieser Umbau beseitigt.
+  if (items.length > maxInitial) {
+    html += '<button type="button" class="vx-vl-more" onclick="vxTimelineShowAll(this)">Weitere '
+      + (items.length - maxInitial) + ' anzeigen</button>';
+  }
+  html += '</div>';
   return html;
 }
 
 function vxTimelineShowAll(btn) {
-  var card = btn && btn.closest ? btn.closest('div') : null;
+  // Die zurueckgehaltenen Zeilen tragen seit dem V2-Umbau das hidden-Attribut
+  // statt display:none per Inline-Stil — sonst muesste das Aufdecken den
+  // urspruenglichen display-Wert der Zeile erraten.
   var root = btn && btn.parentNode ? btn.parentNode : document;
   try {
-    root.querySelectorAll('.vx-timeline-extra').forEach(function(el) { el.style.display = ''; });
+    root.querySelectorAll('.vx-timeline-extra').forEach(function(el) {
+      el.hidden = false;
+      el.style.display = '';
+    });
   } catch(e) {}
-  if (btn) btn.style.display = 'none';
+  if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
 }
 window.vxTimelineShowAll = vxTimelineShowAll;
 
@@ -36943,6 +37157,77 @@ body:has(#tab-archiv.active) .content{
   /* Kürzen statt ausblenden — die Zustandsangabe IST die Unterscheidung. */
   .vx-summary-acc-state{max-width:104px;overflow:hidden;text-overflow:ellipsis;}
 }
+
+/* ── Verlauf: Kontaktzeilen (Etappe 5 / V2, 2026-08-08) ──────────────────
+   Dieselben Werte wie die Anfragen-Zeile aus PR #849 — bewusst über die
+   geteilten --vx-ui-row-* Tokens statt über eigene Zahlen, damit ein
+   früherer Kontakt und ein aktueller nicht auseinanderlaufen. Was der
+   Verlauf NICHT übernimmt, ist der Night+Gold-Avatar der Liste: dort steht
+   er für den Anrufer, hier steht in jeder Zeile derselbe Anrufer, und ein
+   pro Zeile wiederholtes Markenzeichen wäre Dekoration ohne Aussage.
+   Stattdessen trägt nur das Anruf-Icon den Night-Kreis. */
+.vx-vl{display:flex;flex-direction:column;gap:var(--vx-ui-row-gap,8px);}
+.vx-vl-empty{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);line-height:1.5;}
+/* Abschnitts-Label exakt wie "Braucht dich 2" auf Heute. */
+.vx-vl-section{
+  display:flex;align-items:center;gap:7px;margin:6px 2px 0;
+  font-size:var(--vx-ui-section-label-size);
+  font-weight:var(--vx-ui-section-label-weight);
+  color:var(--vx-ui-section-label-color);
+  letter-spacing:0;text-transform:none;
+}
+.vx-vl-section::before{content:'';width:var(--vx-ui-section-dot-size,7px);height:var(--vx-ui-section-dot-size,7px);border-radius:50%;background:var(--vx-ui-row-border-color);flex:0 0 auto;}
+.vx-vl-section:first-child{margin-top:0;}
+.vx-vl-row{
+  display:grid;grid-template-columns:var(--vx-ui-row-icon-size,36px) minmax(0,1fr) auto;
+  gap:12px;align-items:start;
+  padding:var(--vx-ui-row-padding);
+  background:var(--vx-ui-row-bg);
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+  border-radius:var(--vx-ui-row-radius);
+}
+.vx-vl-row[role="button"]{cursor:pointer;transition:border-color .14s ease,box-shadow .14s ease;}
+.vx-vl-row[role="button"]:hover{border-color:var(--vx-ui-row-border-hover);box-shadow:var(--vx-ui-row-shadow-hover);}
+.vx-vl-row[role="button"]:focus-visible{outline:2px solid var(--vx-color-night,#0D1F3C);outline-offset:2px;}
+/* Der offene Eintrag: erkennbar, aber nicht hervorgehoben — er ist Anker,
+   nicht Ziel. Canvas statt weiss, sonst identisch. */
+.vx-vl-row.is-current{background:var(--vx-color-canvas,#F7F8FA);}
+.vx-vl-icon{
+  width:var(--vx-ui-row-icon-size,36px);height:var(--vx-ui-row-icon-size,36px);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--vx-ui-row-icon-bg);color:var(--vx-ui-row-icon-color);
+  font-size:var(--vx-ui-row-icon-font-size,15px);flex:0 0 auto;
+}
+.vx-vl-icon--call{background:var(--vx-color-night,#0D1F3C);color:var(--vx-ui-brand-initials,#E8C547);}
+.vx-vl-main{min-width:0;}
+.vx-vl-title{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  font-size:var(--vx-ui-list-title-size,15px);
+  font-weight:var(--vx-ui-row-title-weight);
+  color:var(--vx-ui-row-title-color);line-height:1.3;
+}
+.vx-vl-desc{
+  font-size:var(--vx-ui-row-desc-size);line-height:var(--vx-ui-row-desc-leading);
+  color:var(--vx-ui-row-desc-color);margin-top:3px;
+}
+.vx-vl-meta{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);margin-top:3px;line-height:1.4;}
+.vx-vl-time{
+  font-size:var(--vx-ui-row-time-size);font-weight:var(--vx-ui-section-label-weight);
+  color:var(--vx-ui-row-time-color);white-space:nowrap;
+  font-variant-numeric:tabular-nums;flex:0 0 auto;padding-top:1px;
+}
+.vx-vl-more{
+  align-self:flex-start;margin-top:2px;
+  min-height:32px;padding:0 14px;border-radius:var(--vx-radius-pill,999px);
+  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
+  background:var(--vx-ui-row-bg);color:var(--vx-ui-row-title-color);
+  font-family:var(--vx-ui-row-font);font-size:13px;font-weight:700;cursor:pointer;
+}
+.vx-vl-more:hover{border-color:var(--vx-ui-row-border-hover);}
+@media(max-width:430px){
+  .vx-vl-row{gap:10px;}
+  .vx-vl-title{font-size:14px;}
+}
 </style>
 
 <script id="vx-entry-detail-component">
@@ -37538,9 +37823,17 @@ body:has(#tab-archiv.active) .content{
     function setState(text) { if (stateEl) stateEl.textContent = text; }
 
     // Der offene Eintrag selbst steckt mit in der Liste, die
-    // buildCallHistory() für diese Nummer liefert. Für die Timeline ist das
-    // richtig, für die Zählangabe nicht: ein Erstanrufer stünde sonst mit
-    // "1 Kontakt" da, gemeint ist aber der Eintrag, den man gerade liest.
+    // buildCallHistory() für diese Nummer liefert. Für die Darstellung ist das
+    // richtig — er ist der Ankerpunkt der Chronologie —, für die Zählangabe
+    // nicht: ein Erstanrufer stünde sonst mit "1 Kontakt" da, gemeint ist aber
+    // der Eintrag, den man gerade liest.
+    //
+    // Seit Etappe 5 gibt es nur noch DIESE eine Zählung. Vorher schrieb
+    // renderTimelineHTML zusätzlich "N Ereignisse" in eine eigene Kopfzeile
+    // und zählte den offenen Eintrag mit — die beiden Zahlen im selben
+    // Aufklapper widersprachen sich damit bei jedem Eintrag. currentId geht
+    // jetzt an den Renderer, der den Eintrag als "Dieser Eintrag" markiert,
+    // statt eine zweite Zahl daneben zu stellen.
     var shell = details.closest ? details.closest('.vx-dv2-shell') : null;
     var currentId = String((shell && shell.getAttribute('data-record-id')) || window._vxActiveRecordId || '').trim();
     function isCurrentEntry(entry) {
@@ -37554,7 +37847,7 @@ body:has(#tab-archiv.active) .content{
     // die Kopfzeile meldete "Keine früheren" statt "Nicht geladen".
     buildCallHistory(phone, { strict: true }).then(function(history) {
       if (body.dataset.loaded !== '1') return;
-      body.innerHTML = renderTimelineHTML(history);
+      body.innerHTML = renderTimelineHTML(history, { currentId: currentId });
       var n = (Array.isArray(history) ? history : []).filter(function(entry) {
         return !isCurrentEntry(entry);
       }).length;
@@ -39545,51 +39838,190 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
    auf der Karte schweben, und #2f6df6 war der letzte grosse blaue Fleck im
    sonst durchgehend Night-farbigen Panel. Aufbau, Bedienelemente und
    Verhalten des Players sind unverändert — nur Rahmung und Akzentfarbe. */
+/* ── Audio-Player: Night-Konsole (Etappe 5, 2026-08-08) ──────────────────
+   Die Aufnahme ist die einzige dunkle Flaeche im Panel. Begruendung und die
+   drei zustandsfreien Gold-Orte stehen bei vxRenderModernAudioPlayerHtml().
+
+   Vorher: weisse Karte -> Canvas-Flaeche -> Bedienzeile, drei Rahmen um
+   dieselbe Sache, dazu ein Aufklapper darum. Jetzt ein Block. */
 .vx-audio-modern{
-  --vx-audio-navy:var(--vx-color-night,#0D1F3C);
-  --vx-audio-accent:var(--vx-color-night,#0D1F3C);
-  --vx-audio-soft:#F1F5F9;
-  --vx-audio-line:var(--vx-ui-row-border-color,#D9E1EC);
-  --vx-audio-meta:var(--vx-ui-meta-color,#697285);
-  width:100%;box-sizing:border-box;margin:0;padding:12px 14px;border:var(--vx-ui-row-border-width) solid var(--vx-audio-line);border-radius:var(--vx-ui-row-radius,12px);background:var(--vx-ui-row-bg,#fff);color:var(--vx-ui-row-title-color,#0D1F3C);font-family:var(--vx-ui-row-font);
+  --vx-audio-played:#FFFFFF;
+  --vx-audio-rest:rgba(255,255,255,.24);
+  --vx-audio-quiet:rgba(255,255,255,.62);   /* ≈7:1 auf Night */
+  --vx-audio-progress:0%;
+  position:relative;width:100%;box-sizing:border-box;margin:0;
+  padding:14px 16px 12px;
+  border-radius:var(--vx-ui-row-radius,12px);
+  background:var(--vx-color-night,#0D1F3C);
+  color:#fff;
+  font-family:var(--vx-ui-row-font);
+  overflow:hidden;
 }
 .vx-audio-modern *{box-sizing:border-box;}
-.vx-audio-modern__top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:10px;}
-.vx-audio-modern__title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:var(--vx-ui-row-title-weight);letter-spacing:0;text-transform:none;color:var(--vx-ui-row-title-color);line-height:1.3;}
-.vx-audio-modern__title:before{content:"";width:16px;height:16px;flex:0 0 auto;background:var(--vx-ui-icon-quiet);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 10v4'/%3E%3Cpath d='M7 7v10'/%3E%3Cpath d='M11 4v16'/%3E%3Cpath d='M15 8v8'/%3E%3Cpath d='M19 11v2'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 10v4'/%3E%3Cpath d='M7 7v10'/%3E%3Cpath d='M11 4v16'/%3E%3Cpath d='M15 8v8'/%3E%3Cpath d='M19 11v2'/%3E%3C/svg%3E") center/contain no-repeat;}
-.vx-audio-modern__sub{display:flex;align-items:center;gap:7px;margin-top:4px;font-size:var(--vx-ui-row-time-size);font-weight:400;color:var(--vx-audio-meta);}
-.vx-audio-modern__sub span{width:7px;height:7px;border-radius:50%;background:var(--vx-color-success,#047857);}
-.vx-audio-modern__surface{border:var(--vx-ui-row-border-width) solid var(--vx-audio-line);border-radius:10px;background:var(--vx-color-canvas,#F7F8FA);padding:12px;}
-.vx-audio-modern__controls{display:grid;grid-template-columns:38px 50px minmax(120px,1fr) 38px;align-items:center;gap:12px;}
-.vx-audio-modern__btn{appearance:none;-webkit-appearance:none;width:38px;height:38px;border:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--vx-ui-row-icon-bg,#F1F5F9);color:var(--vx-ui-row-title-color,#0D1F3C);font-size:16px;font-weight:900;line-height:1;cursor:pointer;transition:transform .14s ease,background .14s ease,color .14s ease;}
-.vx-audio-modern__btn:hover{background:#E4EAF2;}.vx-audio-modern__btn:active{transform:scale(.96);}
-.vx-audio-modern__btn--primary{width:46px;height:46px;border-radius:50%;background:var(--vx-audio-navy);color:#fff;font-size:17px;box-shadow:none;}
-.vx-audio-modern__btn--primary:hover{background:var(--vx-action-primary-hover);color:#fff;}
-.vx-audio-modern__timeline{position:relative;min-width:0;width:100%;padding:1px 0 0;}
-.vx-audio-modern__wave{height:38px;display:flex;align-items:center;gap:3px;padding:0 4px;overflow:hidden;}
-.vx-audio-modern__wave span{width:3px;min-width:3px;border-radius:999px;background:var(--vx-audio-accent);opacity:.28;}
-.vx-audio-modern__wave span:nth-child(-n+15){opacity:.8;}
-.vx-audio-modern__range{appearance:none;-webkit-appearance:none;position:absolute;left:0;right:0;top:0;width:100%;height:38px;margin:0;background:transparent;cursor:pointer;opacity:.01;}
-.vx-audio-modern__range::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:38px;}.vx-audio-modern__range::-moz-range-thumb{width:22px;height:38px;border:0;background:transparent;}
-.vx-audio-modern__time{display:flex;justify-content:space-between;gap:12px;margin-top:2px;font-size:12px;font-weight:600;color:var(--vx-audio-meta);font-variant-numeric:tabular-nums;}
-.vx-audio-modern__bottom{display:grid;grid-template-columns:minmax(100px,190px) auto minmax(90px,1fr);align-items:center;gap:12px;margin-top:10px;}
-.vx-audio-modern__volume{display:flex;align-items:center;gap:8px;color:var(--vx-audio-meta);}
-.vx-audio-modern__volume input{width:100%;accent-color:var(--vx-audio-accent);}
-.vx-audio-modern__speed{justify-self:center;display:inline-flex;align-items:center;gap:3px;padding:3px;border-radius:999px;background:var(--vx-ui-row-icon-bg,#F1F5F9);}
-.vx-audio-modern__speed-btn{appearance:none;-webkit-appearance:none;border:0;border-radius:999px;min-width:44px;padding:7px 11px;background:transparent;color:var(--vx-audio-meta);font-size:12px;font-weight:700;line-height:1;cursor:pointer;}
-.vx-audio-modern__speed-btn.is-active{background:var(--vx-ui-row-bg,#fff);color:var(--vx-ui-row-title-color,#0D1F3C);box-shadow:0 1px 2px rgba(13,31,60,.10);}
-.vx-audio-modern__status{text-align:right;font-size:12px;font-weight:400;color:var(--vx-audio-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Gold-Ort 1: dieselbe Leiste wie im Panelkopf, gleicher Token, konstant. */
+.vx-audio-modern::before{
+  content:'';position:absolute;top:0;left:0;right:0;
+  height:var(--vx-ui-brand-rule-height,3px);
+  background:var(--vx-ui-brand-rule);
+}
+.vx-audio-modern__head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;}
+/* Bewusst OHNE Versalien und Sperrung, obwohl .activation-night-kicker das
+   auf Night so macht: PR #848 hat die Versalien-Mikrolabel abgeschafft, und
+   dieselbe Runde raeumt sie im Verlauf darunter gerade weg. Das Etikett
+   folgt der Label-Stufe der Leiter, nur in Gold statt in der Meta-Rolle. */
+.vx-audio-modern__kicker{
+  font-size:var(--vx-ui-section-label-size,12px);
+  font-weight:var(--vx-ui-section-label-weight,600);
+  letter-spacing:0;text-transform:none;
+  color:var(--vx-ui-brand-initials,#E8C547);
+}
+.vx-audio-modern__note{
+  min-width:0;font-size:12px;font-weight:600;color:var(--vx-audio-quiet);
+  text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.vx-audio-modern__note:empty{display:none;}
 
-.vx-audio-modern__seek-feedback{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%) scale(.92);z-index:3;display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:32px;padding:0 12px;border-radius:999px;background:rgba(13,31,60,.92);color:#fff;font-size:12px;font-weight:700;letter-spacing:.01em;box-shadow:0 6px 18px rgba(13,31,60,.20);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;font-variant-numeric:tabular-nums;}
-.vx-audio-modern__seek-feedback.is-visible{opacity:1;transform:translate(-50%,-52%) scale(1);}
-.vx-audio-modern__seek-feedback.is-back{left:36%;}
-.vx-audio-modern__seek-feedback.is-forward{left:64%;}
-.vx-audio-modern__btn.is-tap-feedback{background:#DFE8F4;color:var(--vx-color-night,#0D1F3C);box-shadow:0 2px 8px rgba(13,31,60,.12);}
-.vx-audio-modern__btn--primary.is-tap-feedback{background:var(--vx-action-primary-hover);color:#fff;}
+/* align-items:start statt center: bei center zentriert sich der Knopf gegen
+   die ganze rechte Spalte (Spur + Zeitzeile) und sein Mittelpunkt liegt
+   sichtbar unter der Spur. Der Versatz hebt ihn auf die Mitte der Spur —
+   Knopf und Spur lesen sich als ein Instrument. */
+.vx-audio-modern__row{display:grid;grid-template-columns:46px minmax(0,1fr);gap:14px;align-items:start;}
+.vx-audio-modern__play{margin-top:-3px;}   /* (Spur 40 − Knopf 46) / 2 */
+/* Gold-Ort 2: der Abspielknopf. Gold auf Night = 8,9:1, derselbe geprüfte
+   Wert wie die Initialen im Panelkopf; das Symbol traegt Night auf Gold. */
+.vx-audio-modern__play{
+  appearance:none;-webkit-appearance:none;
+  width:46px;height:46px;border:0;border-radius:50%;
+  background:var(--vx-ui-brand-initials,#E8C547);
+  color:var(--vx-color-night,#0D1F3C);
+  display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;padding:0;
+  transition:transform .14s ease,filter .14s ease;
+}
+.vx-audio-modern__play:hover{filter:brightness(1.07);}
+.vx-audio-modern__play:active{transform:scale(.96);}
+.vx-audio-modern__glyph{display:block;}
+.vx-audio-modern__glyph--pause{display:none;}
+.vx-audio-modern.is-playing .vx-audio-modern__glyph--play{display:none;}
+.vx-audio-modern.is-playing .vx-audio-modern__glyph--pause{display:block;}
+
+.vx-audio-modern__track{min-width:0;}
+.vx-audio-modern__scrub{position:relative;height:40px;}
+.vx-audio-modern__wave{position:absolute;inset:0;display:flex;align-items:center;}
+/* Neutraler Platzhalter: eine glatte Leiste. Sie behauptet keine Messung —
+   im Gegensatz zur alten Zierwellenform, die ueber nth-child(-n+15) 15 von
+   42 Balken dauerhaft hervorhob und damit konstant "36 % abgespielt" las. */
+.vx-audio-modern__plain{
+  position:relative;display:block;width:100%;height:4px;
+  border-radius:999px;background:var(--vx-audio-rest);overflow:hidden;
+}
+.vx-audio-modern__plain::after{
+  content:'';position:absolute;left:0;top:0;bottom:0;
+  width:var(--vx-audio-progress);
+  background:var(--vx-audio-played);border-radius:999px;
+}
+/* Echte Amplituden: zwei identische Balkenlagen, die obere auf den
+   abgespielten Teil beschnitten. Ein Stilschreibvorgang je Bild statt 64. */
+.vx-audio-modern__bars{position:absolute;inset:0;display:flex;align-items:center;gap:2px;}
+.vx-audio-modern__bars span{flex:1 1 0;min-width:2px;border-radius:999px;background:var(--vx-audio-rest);}
+.vx-audio-modern__bars--played{clip-path:inset(0 calc(100% - var(--vx-audio-progress)) 0 0);}
+.vx-audio-modern__bars--played span{background:var(--vx-audio-played);}
+
+/* Gold-Ort 3: der Abspielkopf. Er markiert eine Stelle und misst nichts —
+   siehe die Standing Rule bei --vx-ui-brand-playhead. */
+.vx-audio-modern__playhead{
+  position:absolute;top:-2px;bottom:-2px;left:var(--vx-audio-progress);
+  width:2px;margin-left:-1px;border-radius:2px;
+  background:var(--vx-ui-brand-playhead,#E8C547);
+  opacity:0;pointer-events:none;transition:opacity .18s ease;
+}
+.vx-audio-modern__playhead::after{
+  content:'';position:absolute;left:50%;top:-3px;transform:translateX(-50%);
+  width:6px;height:6px;border-radius:50%;
+  background:var(--vx-ui-brand-playhead,#E8C547);
+}
+.vx-audio-modern.is-active .vx-audio-modern__playhead{opacity:1;}
+/* Solange die glatte Platzhalter-Leiste steht, ist die Spur 4px hoch — ein
+   Abspielkopf ueber die volle Scrub-Hoehe stuende dann als 44px-Strich auf
+   einem 4px-Band. Er nimmt erst die volle Hoehe an, wenn es echte Balken
+   gibt, die er auch durchschneidet. */
+.vx-audio-modern:not(.has-peaks) .vx-audio-modern__playhead{top:50%;bottom:auto;height:18px;transform:translateY(-50%);}
+
+/* Der Regler bleibt die bedienbare Ebene (Tastatur, Screenreader), liegt
+   aber unsichtbar ueber der Spur. opacity:.01 statt 0, weil einzelne
+   Browser vollstaendig transparente Regler nicht mehr treffen lassen. */
+.vx-audio-modern__range{
+  appearance:none;-webkit-appearance:none;
+  position:absolute;inset:0;width:100%;height:100%;
+  margin:0;padding:0;background:transparent;cursor:pointer;opacity:.01;
+}
+.vx-audio-modern__range::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:40px;}
+.vx-audio-modern__range::-moz-range-thumb{width:24px;height:40px;border:0;background:transparent;}
+
+.vx-audio-modern__meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;}
+.vx-audio-modern__time{
+  font-size:12px;font-weight:600;color:var(--vx-audio-quiet);
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.vx-audio-modern__time [data-vx-audio-current]{color:#fff;}
+.vx-audio-modern__tools{display:inline-flex;align-items:center;gap:2px;}
+.vx-audio-modern__tool{
+  appearance:none;-webkit-appearance:none;border:0;background:transparent;
+  display:inline-flex;align-items:center;gap:4px;
+  height:30px;padding:0 9px;border-radius:999px;
+  color:var(--vx-audio-quiet);font-family:inherit;font-size:12px;font-weight:600;
+  line-height:1;cursor:pointer;font-variant-numeric:tabular-nums;
+  transition:background .14s ease,color .14s ease;
+}
+.vx-audio-modern__tool:hover{color:#fff;background:rgba(255,255,255,.10);}
+.vx-audio-modern__tool--speed{color:#fff;background:rgba(255,255,255,.12);font-weight:700;}
+.vx-audio-modern__tool svg{display:block;}
+.vx-audio-modern__play:focus-visible,
+.vx-audio-modern__tool:focus-visible,
+.vx-audio-modern__range:focus-visible{outline:2px solid #fff;outline-offset:2px;}
+
+.vx-audio-modern__feedback{
+  position:absolute;left:50%;top:50%;z-index:3;
+  transform:translate(-50%,-50%) scale(.92);
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:56px;height:30px;padding:0 12px;border-radius:999px;
+  background:rgba(255,255,255,.18);color:#fff;
+  font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
+  opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;
+}
+.vx-audio-modern__feedback.is-visible{opacity:1;transform:translate(-50%,-50%) scale(1);}
+.vx-audio-modern__feedback.is-back{left:34%;}
+.vx-audio-modern__feedback.is-forward{left:66%;}
+
 .vx-audio-modern__audio{position:absolute !important;width:1px !important;height:1px !important;opacity:0 !important;pointer-events:none !important;overflow:hidden !important;}
-@media (min-width:900px){.vx-audio-modern{max-width:820px;margin:0 auto;padding:12px 14px;}.vx-audio-modern__surface{padding:12px 14px;}}
-@media (max-width:720px){.vx-audio-modern{padding:12px;border-radius:var(--vx-ui-row-radius,12px);box-shadow:none;}.vx-audio-modern__top{margin-bottom:10px;}.vx-audio-modern__title{font-size:13px;letter-spacing:0;}.vx-audio-modern__sub{font-size:12px;}.vx-audio-modern__surface{padding:11px;border-radius:10px;}.vx-audio-modern__controls{grid-template-columns:38px 50px minmax(0,1fr) 38px;gap:8px;}.vx-audio-modern__wave{height:34px;gap:2px;}.vx-audio-modern__wave span{width:2px;min-width:2px;}.vx-audio-modern__bottom{grid-template-columns:1fr;gap:10px;}.vx-audio-modern__speed{justify-self:start;}.vx-audio-modern__status{text-align:left;}.vx-audio-modern__volume input{max-width:160px;}}
-@media (max-width:420px){.vx-audio-modern__controls{grid-template-columns:36px 46px minmax(0,1fr) 36px;gap:7px;}.vx-audio-modern__btn{width:36px;height:36px;}.vx-audio-modern__btn--primary{width:44px;height:44px;}.vx-audio-modern__speed-btn{min-width:40px;padding:7px 10px;}}
+
+/* 390px: der Block ist die lauteste Flaeche im Panel und die einzige, die
+   auf dem Handy wirklich eng wird. Zeit und Werkzeuge duerfen umbrechen,
+   statt sich zu ueberlagern, und die Werkzeuge werden fingergerecht. */
+@media(max-width:430px){
+  .vx-audio-modern{padding:12px 12px 10px;}
+  .vx-audio-modern__row{grid-template-columns:44px minmax(0,1fr);gap:11px;}
+  .vx-audio-modern__play{width:44px;height:44px;margin-top:-4px;}   /* (36 − 44) / 2 */
+  .vx-audio-modern__scrub{height:36px;}
+  .vx-audio-modern__meta{flex-wrap:wrap;row-gap:6px;}
+  .vx-audio-modern__tools{margin-left:auto;}
+  .vx-audio-modern__tool{height:36px;padding:0 11px;}
+  .vx-audio-modern__note{max-width:58%;}
+}
+@media(prefers-reduced-motion:reduce){
+  .vx-audio-modern__play,
+  .vx-audio-modern__tool,
+  .vx-audio-modern__playhead,
+  .vx-audio-modern__feedback{transition:none;}
+}
+/* Die drei Media-Queries, die hier standen, schrieben ausschliesslich auf
+   Teile der alten Struktur (__surface, __top, __controls, __bottom, __speed,
+   __status, __volume) und liefen ab Etappe 5 ins Leere. Was davon eine
+   eigene Aussage hatte, ist die Breitenbegrenzung in der Vollansicht: ohne
+   sie zieht sich der Block über die ganze Fensterbreite. */
+@media (min-width:900px){
+  .vx-audio-modern{max-width:820px;margin:0 auto;}
+}
 
 </style>
 

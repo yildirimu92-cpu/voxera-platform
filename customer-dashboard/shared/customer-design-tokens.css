@@ -402,11 +402,30 @@
      carrying two meanings again.
 
      Rule of thumb for new uses: if the value could ever differ between two
-     records on the same screen, it belongs to the ramp, not here. */
+     records on the same screen, it belongs to the ramp, not here.
+
+     STANDING RULE (Etappe 5, 2026-08-08) — "markieren, nicht füllen":
+     Gold may mark a POSITION. Gold may not fill a QUANTITY.
+
+     A playhead, a rule along a card's top edge, a set of initials — fixed
+     appearance, no gradation, exactly one per surface — stay ornamental
+     even when they move, because what varies is where they sit, not how
+     they look or what they are worth. The moment gold's area, length or
+     saturation grows with a value, it has become a measurement and belongs
+     to the lead ramp above, where gold already means something.
+
+     This is what rules out the obvious move on the audio player: a gold
+     progress fill would encode "how much has been played" in the same hue
+     that encodes "how hot is this lead", two screens apart. The played part
+     of the waveform is therefore Night (or white on Night); gold marks only
+     the position within it. */
   --vx-ui-brand-rule: linear-gradient(90deg, var(--vx-color-gold) 0%, rgba(232, 197, 71, .38) 46%, rgba(232, 197, 71, 0) 100%);
   --vx-ui-brand-rule-height: 3px;
   /* Initials on the Night avatar: 8.9:1 against #0D1F3C. */
   --vx-ui-brand-initials: var(--vx-color-gold);
+  /* The audio playhead: one per player, same appearance on every record,
+     marks a position and measures nothing. See the standing rule above. */
+  --vx-ui-brand-playhead: var(--vx-color-gold);
 
   /* ---- Quiet text roles (single source for both screens) ------ */
   /* Bis hierher stand #8A93A6 achtmal unverbunden im Code: fünfmal als
