@@ -11,14 +11,23 @@
   --vx-ink: #101828;
   --vx-muted: #667085;
   --vx-subtle: #8a98ae;
-  --vx-brand: #3478ed;
-  --vx-brand-dark: #0f2347;
+  /* War #3478ed — ein zweiter Akzent-Blauton neben dem kanonischen
+     --vx-color-brand (#1A6FE8). Ausser dieser Datei kannte ihn niemand.
+     Er lag mit 4.15:1 gegen Weiss zudem unter der 4.5:1-Schwelle, waehrend
+     der kanonische Ton 4.68:1 erreicht — die Zusammenfuehrung behebt also
+     einen Kontrastfehler und nicht nur eine Inkonsistenz. */
+  --vx-brand: var(--vx-color-brand, #1A6FE8);
+  /* War #0f2347 — ein eigener Navy-Ton, den ausser dieser Datei niemand
+     kannte. Jetzt Alias auf Night, damit die sieben dunklen Flaechen und
+     Buttons dieser Familie denselben Wert tragen wie der Rest des
+     Produkts. */
+  --vx-brand-dark: var(--vx-color-night, #0D1F3C);
   --vx-surface: #ffffff;
   --vx-surface-soft: #f9fbfd;
   --vx-canvas: #f6f8fb;
   --vx-line: #e4eaf2;
   --vx-line-strong: #d5deea;
-  --vx-focus-ring: rgba(52, 120, 237, 0.24);
+  --vx-focus-ring: rgba(26, 111, 232, 0.24);
   --vx-overlay: rgba(15, 35, 71, 0.42);
   --vx-success: #178a55;
   --vx-warning: #b76a00;

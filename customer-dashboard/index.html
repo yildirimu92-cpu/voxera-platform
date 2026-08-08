@@ -146,14 +146,34 @@
   --surface-shadow-soft:0 1px 4px rgba(13,31,60,0.04);
   --btn-height:44px;
   --btn-radius:10px;
-  /* Layering tokens */
+  /* ── Layering ────────────────────────────────────────────────────────────
+     Eine Ebene pro Rolle, von unten nach oben. Die Zahlen sind die bisher
+     tatsächlich gerenderten Werte — bewusst nicht auf eine kleine Skala
+     umnummeriert, weil im Dashboard weitere hartkodierte z-index-Werte
+     zwischen diesen Stufen liegen und ein Umnummerieren sie stillschweigend
+     nach oben schieben würde. Wer aufräumt, fängt bei diesen Namen an.
+
+     Vorher standen hier --z-overlay:200 und --z-overlay-detail:220, während
+     dieselben Overlays per !important auf 10200 lagen — die Tokens
+     beschrieben die Realität nicht mehr. --z-vx-overlay:9001 hatte keinen
+     einzigen Nutzer. */
   --z-mobile-nav:50;
-  --z-overlay:200;
-  --z-overlay-detail:220;
   --z-login:999;
-  --z-toast:9000;
-  --z-vx-overlay:9001;
+  --z-onboarding:9000;
+  --z-commercial:9800;
   --z-tour:10000;
+  --z-detail-fullscreen:10040;
+  --z-overlay:10200;          /* Modalfamilie: alle .overlay-Dialoge */
+  --z-overlay-detail:10200;   /* Bestandsname, gleiche Ebene */
+  --z-row-menu:12050;
+  --z-row-menu-floating:13050;
+  --z-context-menu:13055;
+  --z-support:13058;
+  /* Der Toast liegt über allem: er bestätigt Aktionen, die aus jeder dieser
+     Ebenen ausgelöst werden. Vorher lag er auf 9000 und damit unter der
+     Detail-Vollansicht und der Support-Anfrage — die Bestätigung war dort
+     unsichtbar. */
+  --z-toast:13060;
 }
 
 /* ── Voxera Dark Mode Tokens ── */
@@ -392,10 +412,10 @@
 .vx-ibtn.is-ghost-call:hover{background:var(--vx-color-brand);color:#fff;}
 .vx-ibtn.is-done:hover{background:var(--vx-color-success-bg);border-color:var(--vx-color-success-border);color:var(--vx-color-success);}
 .vx-ibtn.is-overflow{background:#fff;color:var(--vx-color-text-muted);}
-.vx-row-menu{position:absolute;right:10px;top:46px;min-width:210px;background:#fff;border:1px solid rgba(15,33,63,.12);border-radius:12px;box-shadow:0 18px 36px rgba(13,31,60,.18);padding:6px;z-index:12050;display:none;pointer-events:auto;}
+.vx-row-menu{position:absolute;right:10px;top:46px;min-width:210px;background:#fff;border:1px solid rgba(15,33,63,.12);border-radius:12px;box-shadow:0 18px 36px rgba(13,31,60,.18);padding:6px;z-index:var(--z-row-menu);display:none;pointer-events:auto;}
 .vx-row-menu.is-open{display:block;}
 /* Floating row menu: avoids clipping inside split/list rows */
-.vx-row-menu.is-floating{position:fixed!important;right:auto!important;top:auto;z-index:13050;max-width:min(260px,calc(100vw - 24px));}
+.vx-row-menu.is-floating{position:fixed!important;right:auto!important;top:auto;z-index:var(--z-row-menu-floating);max-width:min(260px,calc(100vw - 24px));}
 .vx-row-menu button{width:100%;text-align:left;border:0;background:#fff;border-radius:9px;padding:9px 10px;font-size:12px;color:#23314D;cursor:pointer;font-family:inherit;}
 .vx-row-menu button:hover{background:#F2F7FF;}
 
@@ -1518,7 +1538,7 @@ body{
   align-items: center;
   gap: 5px;
   padding: 0 var(--space-4);
-  border-radius: var(--btn-radius);
+  border-radius: var(--vx-btn-radius);
   border: 1px solid transparent;
   font-size: var(--text-md);
   font-weight: var(--fw-semibold);
@@ -1527,7 +1547,7 @@ body{
   white-space: nowrap;
   text-decoration: none;
   transition: all var(--transition-fast);
-  min-height: var(--btn-height);
+  min-height: var(--vx-btn-height);
 }
 .btn:disabled {
   opacity: .45;
@@ -1538,16 +1558,16 @@ body{
   box-shadow: 0 0 0 3px rgba(26,111,232,.18);
 }
 
-/* PRIMARY */
+/* PRIMARY — bestaetigende Aktion, Night. Siehe --vx-action-primary. */
 .btn--primary {
-  background: var(--blue);
-  color: #fff;
-  border-color: var(--blue);
-  box-shadow: 0 1px 3px rgba(26,111,232,.12);
+  background: var(--vx-action-primary);
+  color: var(--vx-action-primary-text);
+  border-color: var(--vx-action-primary);
+  box-shadow: var(--vx-action-primary-shadow);
 }
 .btn--primary:hover:not(:disabled) {
-  background: var(--blue-dark);
-  border-color: var(--blue-dark);
+  background: var(--vx-action-primary-hover);
+  border-color: var(--vx-action-primary-hover);
   transform: translateY(-0.5px);
 }
 /* Safety: Primary Button bleibt in allen Kontexten + Dark Mode weiss */
@@ -1609,17 +1629,10 @@ body{
   text-decoration-color: var(--gray400);
 }
 
-/* NEUTRAL (für modale Aktionen die weder primary noch danger sind) */
-.btn--neutral {
-  background: #94A3B8;
-  color: #fff;
-  border-color: #94A3B8;
-  box-shadow: 0 1px 3px rgba(71,85,105,.2);
-}
-.btn--neutral:hover:not(:disabled) {
-  background: #13284D;
-  border-color: #13284D;
-}
+/* .btn--neutral entfernt: einziger Nutzer war der Bestaetigen-Dialog, dessen
+   Tonwerte jetzt aus confirm-tone-* kommen. Sein Hover #13284D war zudem
+   identisch mit dem Primaer-Hover — ein grauer Button, der beim Ueberfahren
+   aussah wie die primaere Aktion. */
 
 /* UTILITIES */
 .btn--full {
@@ -1735,12 +1748,44 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .overlay.overlay--sheet{align-items:center;}
 .overlay.confirm-variant .modal{max-width:430px;}
 .confirm-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;}
-.confirm-icon{
-  width:38px;height:38px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  background:var(--blue-light);color:var(--blue);border:1px solid #CFE0FF;
+/* .confirm-icon entfernt: kein Element im Markup traegt diese Klasse. */
+
+/* ── Tonwerte des Bestaetigen-Dialogs ─────────────────────────────────────
+   Ein Steuerpfad: die Klasse confirm-tone-* am Modal faerbt den Button.
+   Vorher lief die Buttonfarbe ueber einen zweiten Zweig in
+   openConfirmModal(), waehrend die Tone-Klasse nur Symbolregeln trug —
+   die auf .confirm-icon zielten, eine Klasse, die das Symbol gar nicht hat
+   (es traegt id="confirm-icon" und die Klassen modal-head-icon
+   vx-modal-icon). Die Tone-Klasse steuerte damit faktisch nichts.
+
+   Das Symbol bleibt bewusst neutral: es sitzt im Night-Kopfbereich und ist
+   dort ein durchscheinendes weisses Feld. Eine rote oder graue Flaeche waere
+   auf Night falsch, und .modal-head-icon setzt den Hintergrund ohnehin mit
+   !important. Die Tonunterscheidung traegt der Button.
+
+   Gruen ist bewusst kein Ton dieses Dialogs: es bezeichnet den Abschluss
+   eines Eintrags, nicht eine Handlung. Der "Erledigen"-Button bleibt gruen,
+   die Bestaetigung darin bleibt Night — die bestaetigende Handlung erbt
+   nicht die Farbe ihres Ausloesers. */
+.confirm-tone-primary #confirm-ok-btn{
+  background:var(--vx-action-primary);color:var(--vx-action-primary-text);
+  border-color:var(--vx-action-primary);box-shadow:var(--vx-action-primary-shadow);
 }
-.confirm-tone-danger .confirm-icon{background:#FEF2F2;color:#DC2626;border-color:#FECACA;}
-.confirm-tone-neutral .confirm-icon{background:var(--surface2);color:#94A3B8;border-color:var(--surface-border);}
+.confirm-tone-primary #confirm-ok-btn:hover:not(:disabled){
+  background:var(--vx-action-primary-hover);border-color:var(--vx-action-primary-hover);
+}
+
+.confirm-tone-danger #confirm-ok-btn{
+  background:var(--vx-color-danger-bg);color:var(--vx-color-danger);
+  border-color:var(--vx-color-danger-border);box-shadow:none;
+}
+.confirm-tone-danger #confirm-ok-btn:hover:not(:disabled){background:#FEE2E2;border-color:var(--vx-color-danger);}
+
+.confirm-tone-neutral #confirm-ok-btn{
+  background:var(--surface2);color:var(--ink);
+  border-color:var(--surface-border);box-shadow:none;
+}
+.confirm-tone-neutral #confirm-ok-btn:hover:not(:disabled){background:var(--line2);border-color:var(--slate2);}
 .confirm-copy{flex:1;}
 .confirm-copy h3{margin-bottom:3px;}
 .modal{
@@ -1767,7 +1812,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .modal-body{padding:18px 20px;overflow:auto;overflow-x:hidden;min-height:0;flex:1;background:var(--surface);}
 /* Footer */
 .modal-footer{padding:12px 20px calc(var(--space-3) + env(safe-area-inset-bottom));border-top:0.5px solid var(--line);display:flex;gap:8px;justify-content:flex-end;background:var(--surface);}
-.modal-btn-p{height:42px;padding:0 22px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-md);font-size:14px;font-weight:var(--fw-semibold);cursor:pointer;font-family:inherit;letter-spacing:-.01em;}
+.modal-btn-p{height:42px;padding:0 22px;background:var(--vx-action-primary);color:var(--vx-action-primary-text);border:none;border-radius:var(--r-md);font-size:14px;font-weight:var(--fw-semibold);cursor:pointer;font-family:inherit;letter-spacing:-.01em;}
 .modal-btn-s{height:42px;padding:0 16px;background:transparent;color:var(--slate2);border:0.5px solid var(--line);border-radius:var(--r-md);font-size:14px;font-weight:var(--fw-medium);cursor:pointer;font-family:inherit;}
 .modal-btn-danger{height:42px;padding:0 22px;background:var(--red);color:#fff;border:none;border-radius:var(--r-md);font-size:14px;font-weight:var(--fw-semibold);cursor:pointer;font-family:inherit;}
 /* Form elements inside modal */
@@ -1966,8 +2011,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .followup-field select:focus,.followup-field input:focus,.followup-field textarea:focus{border-color:var(--blue);background:var(--surface);box-shadow:0 0 0 3px rgba(26,111,232,.06);}
 .followup-section{padding:8px 10px;border:1px solid var(--surface2);border-radius:12px;background:#FCFDFF;margin-bottom:8px;}
 .followup-section.followup-section-note{padding-top:10px;}
-.followup-mark-row{display:flex;align-items:center;gap:9px;margin-top:4px;padding:5px 9px;border:1px solid var(--surface2);border-radius:9px;background:#FBFDFF;}
-.followup-mark-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);color:var(--slate);}
 /* Choice control box owned by shared/customer-ui-components.css */
 #followup-overlay .modal,
 #followup-overlay .modal-shell,
@@ -4478,9 +4521,9 @@ body,.main{background:var(--vx-bg);}
 }
 .dpr-btn:hover { background: #EEF2FF; border-color: var(--blue); color: var(--blue); }
 .dpr-btn-primary {
-  background: var(--blue); color: #fff; border-color: var(--blue);
+  background: var(--vx-action-primary); color: var(--vx-action-primary-text); border-color: var(--vx-action-primary);
 }
-.dpr-btn-primary:hover { background: #1560C8; border-color: #1560C8; color: #fff; }
+.dpr-btn-primary:hover { background: var(--vx-action-primary-hover); border-color: var(--vx-action-primary-hover); color: var(--vx-action-primary-text); }
 
 
 /* ═══════════════════════════════════════
@@ -5728,15 +5771,16 @@ body,.main{background:var(--vx-bg);}
 #tab-assistent [id^="accbody-"] .vxr-row {
   border-bottom-color: rgba(255,255,255,.08) !important;
 }
-/* btn--primary im dunklen Accordion-Body: immer blau/weiss */
+/* Sanktionierte Ausnahme von der Night-Primaeraktion: der Accordion-Body
+   steht selbst auf #0D1F3C, Night auf Night waere unsichtbar. */
 #tab-assistent [id^="accbody-"] .btn--primary {
-  background: #1A6FE8 !important;
-  color: #fff !important;
-  border-color: #1A6FE8 !important;
+  background: var(--vx-action-primary-on-night) !important;
+  color: var(--vx-action-primary-text) !important;
+  border-color: var(--vx-action-primary-on-night) !important;
 }
 #tab-assistent [id^="accbody-"] .btn--primary:hover:not(:disabled) {
-  background: #1560C8 !important;
-  border-color: #1560C8 !important;
+  background: var(--vx-action-primary-on-night-hover) !important;
+  border-color: var(--vx-action-primary-on-night-hover) !important;
 }
 /* btn--secondary im dunklen Accordion-Body: ghost */
 #tab-assistent [id^="accbody-"] .btn--secondary,
@@ -6246,7 +6290,7 @@ body,.main{background:var(--vx-bg);}
 .modal-body{padding:18px 20px!important;background:var(--surface)!important;}
 .modal-footer{padding:13px 20px calc(13px + env(safe-area-inset-bottom))!important;border-top:1px solid rgba(13,31,60,.08)!important;background:#fff!important;display:flex!important;gap:9px!important;justify-content:flex-end!important;}
 .modal-btn-p,.modal-btn-s,.modal-btn-danger{height:42px!important;border-radius:11px!important;font-size:13px!important;font-weight:700!important;}
-.modal-btn-p{background:var(--vx-blue)!important;color:#fff!important;box-shadow:0 6px 16px rgba(26,111,232,.20)!important;}
+.modal-btn-p{background:var(--vx-action-primary)!important;color:var(--vx-action-primary-text)!important;box-shadow:0 6px 16px rgba(13,31,60,.20)!important;}
 .modal-btn-s{background:#F8FAFC!important;color:#334155!important;border:1px solid #E2E8F0!important;}
 .modal-btn-danger{background:#DC2626!important;color:#fff!important;}
 .modal-body input,.modal-body select,.modal-body textarea{border-radius:11px!important;border:1px solid #E2E8F0!important;background:#F8FAFC!important;font-size:14px!important;}
@@ -7585,9 +7629,9 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             font-family:var(--vx-ui-row-font);
           }
           .vx-handover-btn--primary {
-            flex:0 0 auto; background:var(--vx-color-night,#0D1F3C); border-color:var(--vx-color-night,#0D1F3C); color:#fff;
+            flex:0 0 auto; background:var(--vx-action-primary); border-color:var(--vx-action-primary); color:var(--vx-action-primary-text);
           }
-          .vx-handover-btn--primary:hover { background:#132a52; }
+          .vx-handover-btn--primary:hover { background:var(--vx-action-primary-hover); border-color:var(--vx-action-primary-hover); }
 
           .vx-handover-cards { display:flex; flex-direction:column; gap:var(--vx-ui-row-gap); }
           .vx-handover-card--resolved { opacity:.72; }
@@ -8796,7 +8840,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
 <!-- COMMERCIAL REQUEST MODAL -->
     <div class="overlay overlay--sheet vx-commercial-overlay" id="vx-commercial-overlay" aria-hidden="true">
-      <div class="modal modal--wide vx-commercial-modal" role="dialog" aria-modal="true" aria-labelledby="vx-commercial-title">
+      <div class="modal modal--wide vx-commercial-modal" role="dialog" aria-modal="true" aria-labelledby="vx-commercial-title" tabindex="-1">
         <div class="modal-shell">
           <div class="modal-head">
             <div><div id="vx-commercial-title" class="modal-title">Plan & Optionen</div><div id="vx-commercial-subtitle" class="modal-sub">Auswahl prüfen und verbindlich übermitteln.</div></div>
@@ -8815,31 +8859,27 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 <!-- Willkommens-Hinweis: einmalig beim ersten Login, kein Tutorial/Deep-Links
      mehr — siehe Backlog "Onboarding-Wizard-Redesign" für eine vollständige
      Neugestaltung. Diese Version ist bewusst minimal. -->
-<div id="vx-onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,31,60,.6);backdrop-filter:blur(4px);z-index:9000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)vxOnboardingSkip()">
-  <div style="position:relative;background:var(--surface);border-radius:var(--vx-radius-modal);width:100%;max-width:440px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);">
-    <button type="button" onclick="vxOnboardingSkip()" aria-label="Schliessen" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+<div id="vx-onboarding-overlay" onclick="if(event.target===this)vxOnboardingSkip()" role="dialog" aria-modal="true" aria-labelledby="vx-onboarding-title" aria-hidden="true">
+  <div class="vx-onboarding-card" tabindex="-1">
+    <button type="button" class="vx-onboarding-close" onclick="vxOnboardingSkip()" aria-label="Schliessen">
       <i class="ph-bold ph-x" aria-hidden="true"></i>
     </button>
-    <!-- Header -->
-    <div style="background:var(--vx-color-night);padding:28px 52px 24px 24px;">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <i class="ph-bold ph-sparkle" style="color:#E8C547;font-size:20px;" aria-hidden="true"></i>
-        </div>
+    <div class="vx-onboarding-head">
+      <div class="vx-onboarding-head-row">
+        <div class="vx-onboarding-icon"><i class="ph-bold ph-sparkle" aria-hidden="true"></i></div>
         <div>
-          <div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;">Willkommen bei Voxera</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:1px;">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
+          <h2 id="vx-onboarding-title" class="vx-onboarding-title">Willkommen bei Voxera</h2>
+          <div class="vx-onboarding-sub">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
         </div>
       </div>
     </div>
 
-    <!-- Body -->
-    <div style="padding:20px 24px 24px;">
-      <p style="margin:0;font-size:14px;line-height:1.6;color:var(--slate2);">
+    <div class="vx-onboarding-body">
+      <p class="vx-onboarding-text">
         Lara nimmt Anrufe für Sie entgegen. Anfragen finden Sie unter <strong>Anfragen</strong>,
         Einstellungen zu Rufumleitung und Benachrichtigungen unter <strong>Mehr</strong>.
       </p>
-      <button onclick="vxOnboardingFinish()" style="width:100%;margin-top:20px;background:var(--vx-color-brand,#1A6FE8);color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Verstanden</button>
+      <button type="button" class="btn btn--primary btn--full" onclick="vxOnboardingFinish()">Verstanden</button>
     </div>
   </div>
 </div>
@@ -8848,15 +8888,15 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 <div id="account-overlay" style="display:none"></div>
 
 <!-- SETUP HELP OVERLAY -->
-<div class="overlay overlay--sheet" id="setup-help-overlay" onclick="if(event.target===this)closeSetupHelpOverlay()">
-  <div class="modal setup-help-modal">
+<div class="overlay overlay--sheet" id="setup-help-overlay" onclick="if(event.target===this)closeSetupHelpOverlay()" role="dialog" aria-modal="true" aria-labelledby="setup-help-title" aria-hidden="true">
+  <div class="modal setup-help-modal" tabindex="-1">
     <div id="setup-help-content"></div>
   </div>
 </div>
 
 <!-- ACTIVATION FLOW MODAL -->
-<div class="overlay overlay--sheet" id="activation-flow-overlay" onclick="if(event.target===this)closeActivationFlowModal()">
-  <div class="modal activation-flow-modal">
+<div class="overlay overlay--sheet" id="activation-flow-overlay" onclick="if(event.target===this)closeActivationFlowModal()" role="dialog" aria-modal="true" aria-labelledby="activation-flow-title" aria-hidden="true">
+  <div class="modal activation-flow-modal" tabindex="-1">
     <div id="activation-flow-content"></div>
   </div>
 </div>
@@ -8886,7 +8926,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeNotiz()">Abbrechen</button>
+        <button class="btn btn--secondary" onclick="closeNotiz()">Abbrechen</button>
         <button class="btn btn--primary" id="notiz-save-btn" onclick="saveNotiz()">Speichern</button>
       </div>
     </div>
@@ -8920,14 +8960,15 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <div class="vx-modal-grid followup-action-grid">
             <div class="vx-modal-field" id="followup-next-action-field" style="margin-bottom:0;">
               <label for="followup-next-action">Nächste Aktion</label>
+              <!-- Drei Aktionen, dazu der technische Leerzustand. "Erneut versuchen"
+                   geht in "Zurückrufen" auf, "Information senden" in "Offerte senden".
+                   "Kein Bedarf" entfaellt: Abschliessen ist der eigenstaendige
+                   "Erledigen"-Button in der Aktionszeile, nicht dieses Dropdown. -->
               <select id="followup-next-action">
                 <option value="">Keine Auswahl</option>
                 <option value="Zurückrufen">Zurückrufen</option>
                 <option value="Termin bestätigen">Termin bestätigen</option>
                 <option value="Offerte senden">Offerte senden</option>
-                <option value="Information senden">Information senden</option>
-                <option value="Erneut versuchen">Erneut versuchen</option>
-                <option value="Kein Bedarf">Kein Bedarf</option>
               </select>
             </div>
             <div class="vx-modal-field" style="margin-bottom:0;">
@@ -8943,42 +8984,13 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           </div>
           <div class="vx-modal-field">
             <label for="followup-input">Notiz</label>
-            <textarea id="followup-input" placeholder="Kurze Notiz zum Rückruf…" style="min-height:72px;"></textarea>
-          </div>
-          <div class="followup-mark-row vx-modal-check-row" id="followup-mark-row">
-            <input type="checkbox" id="followup-mark-complete">
-            <span>Als erledigt markieren</span>
+            <textarea id="followup-input" placeholder="Kurze Notiz zum nächsten Schritt…" style="min-height:72px;"></textarea>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeFollowup()">Abbrechen</button>
+        <button class="btn btn--secondary" onclick="closeFollowup()">Abbrechen</button>
         <button class="btn btn--primary" id="followup-save-btn" onclick="saveFollowup()">Speichern</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ASSISTENT VORSCHAU MODAL -->
-<div class="overlay overlay--sheet" id="vx-preview-modal" onclick="if(event.target===this)vxClosePendingPreview()" role="dialog" aria-modal="true" aria-labelledby="vx-preview-title" aria-hidden="true">
-  <div class="modal followup-modal" tabindex="-1">
-    <div class="modal-shell">
-      <div class="modal-head">
-        <div class="modal-head-top">
-          <div class="modal-drag"></div>
-          <div class="modal-head-row">
-            <div class="modal-head-icon"><i class="ph-bold ph-phone" style="color:rgba(255,255,255,.8);" style="font-size:16px;" aria-hidden="true"></i></div>
-            <h3 id="vx-preview-title">Vorschau</h3>
-            <button class="modal-close-btn" onclick="vxClosePendingPreview()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div id="vx-preview-text" style="font-size:13px;color:var(--ink2);line-height:1.6;margin-bottom:12px;"></div>
-        <div id="vx-preview-widget-wrap"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="vxClosePendingPreview()">Schliessen</button>
       </div>
     </div>
   </div>
@@ -8986,7 +8998,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
 <!-- MANUELLE AUFGABE MODAL -->
 <div class="overlay overlay--sheet" id="manual-task-overlay" onclick="if(event.target===this)closeManualTaskModal()" role="dialog" aria-modal="true" aria-labelledby="manual-task-title-heading" aria-hidden="true">
-  <div class="modal followup-modal">
+  <div class="modal followup-modal" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top">
@@ -9050,7 +9062,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeManualTaskModal()">Abbrechen</button>
+        <button class="btn btn--secondary" onclick="closeManualTaskModal()">Abbrechen</button>
         <button class="btn btn--primary" id="manual-task-save-btn" onclick="saveManualTask()">Aufgabe erstellen</button>
       </div>
     </div>
@@ -9058,7 +9070,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 </div>
 
 <div class="overlay overlay--sheet" id="manual-request-overlay" onclick="if(event.target===this)closeManualRequestModal()" role="dialog" aria-modal="true" aria-labelledby="manual-request-title-heading" aria-hidden="true">
-  <div class="modal followup-modal">
+  <div class="modal followup-modal" tabindex="-1">
     <div class="modal-shell">
       <div class="modal-head">
         <div class="modal-head-top">
@@ -9087,7 +9099,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <label class="vx-modal-check-row"><input id="manual-request-inbox" type="checkbox" checked><span>Direkt in Inbox anzeigen</span></label>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeManualRequestModal()">Abbrechen</button>
+        <button class="btn btn--secondary" onclick="closeManualRequestModal()">Abbrechen</button>
         <button class="btn btn--primary" id="manual-request-save-btn" onclick="saveManualRequest()">+ Neu anlegen</button>
       </div>
     </div>
@@ -9115,8 +9127,9 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <label id="confirm-checkbox-wrap" class="confirm-checkbox-wrap" style="display:none;"><input type="checkbox" id="confirm-checkbox"> <span id="confirm-checkbox-label"></span></label>
       </div>
       <div class="modal-footer">
-        <button class="btn btn--secondary btn--sm" onclick="closeConfirmModal()">Abbrechen</button>
-        <button class="btn btn--primary" id="confirm-ok-btn" onclick="runConfirmModalAction()">Bestätigen</button>
+        <button class="btn btn--secondary" onclick="closeConfirmModal()">Abbrechen</button>
+        <!-- Keine Variantenklasse: die Farbe kommt aus confirm-tone-* am Modal. -->
+        <button class="btn" id="confirm-ok-btn" onclick="runConfirmModalAction()">Bestätigen</button>
       </div>
     </div>
   </div>
@@ -12741,12 +12754,62 @@ function sortOpenCallbacksOldestFirst(records) {
 
 // Nachfassen ist ein Workflow-/Task-Lifecycle und getrennt vom Telephony-Lifecycle.
 // next_action ist die Source of Truth für die nächste konkrete Aktion.
+
+// Die drei Aktionen des Nachfassen-Modals. Altbestand aus der früheren
+// Sieben-Optionen-Liste wird beim Lesen auf die übernehmende Aktion gemappt,
+// damit bestehende Einträge weiterhin eine Auswahl zeigen.
+const FOLLOW_UP_ACTION_ALIASES = Object.freeze({
+  'Erneut versuchen': 'Zurückrufen',
+  'Information senden': 'Offerte senden'
+});
+
+// Bestätigungs-/Schritt-Text je Aktion. Vorher stand an beiden Stellen fest
+// "Rückruf geplant", unabhängig davon was gewählt wurde.
+const FOLLOW_UP_ACTION_PLANNED_LABELS = Object.freeze({
+  'Zurückrufen': 'Rückruf geplant',
+  'Termin bestätigen': 'Terminbestätigung geplant',
+  'Offerte senden': 'Offerte geplant'
+});
+
+// Zuordnung Aktion → manuelle Aufgabe, wenn aus einem bereits erledigten
+// Eintrag heraus nachgefasst wird (dort entsteht ein neuer Task statt eines
+// Updates am abgeschlossenen Eintrag).
+const FOLLOW_UP_ACTION_TASK_SPEC = Object.freeze({
+  'Zurückrufen': { type: 'callback', title: 'Rückruf für ', fallbackTitle: 'Rückruf planen', toast: 'Rückruf als neue Aufgabe geplant' },
+  'Termin bestätigen': { type: 'termin', title: 'Termin bestätigen für ', fallbackTitle: 'Termin bestätigen', toast: 'Terminbestätigung als neue Aufgabe geplant' },
+  'Offerte senden': { type: 'offerte', title: 'Offerte senden an ', fallbackTitle: 'Offerte senden', toast: 'Offerte als neue Aufgabe geplant' }
+});
+const FOLLOW_UP_DEFAULT_TASK_SPEC = Object.freeze({ type: 'follow_up', title: 'Nachfassen für ', fallbackTitle: 'Nachfassen planen', toast: 'Nachfassen als neue Aufgabe geplant' });
+
+function normalizeFollowUpAction(rawAction) {
+  const action = String(rawAction || '').trim();
+  return FOLLOW_UP_ACTION_ALIASES[action] || action;
+}
+
+// Meldung nach dem Speichern im Nachfassen-Modal.
+function followUpSaveToastMessage(nextAction, followUpAt) {
+  if (!followUpAt) return 'Gespeichert';
+  return FOLLOW_UP_ACTION_PLANNED_LABELS[normalizeFollowUpAction(nextAction)] || 'Nachfassen geplant';
+}
+
+// Label des "geplant"-Schritts in der Detailansicht.
+function followUpPlannedStepLabel(record) {
+  const f = (record && record.fields) || record || {};
+  return FOLLOW_UP_ACTION_PLANNED_LABELS[normalizeFollowUpAction(f.next_action)] || 'Nachfassen geplant';
+}
+
+function followUpTaskSpecForAction(nextAction) {
+  return FOLLOW_UP_ACTION_TASK_SPEC[normalizeFollowUpAction(nextAction)] || FOLLOW_UP_DEFAULT_TASK_SPEC;
+}
+
 function getFollowUpTaskType(record) {
   const f = (record && record.fields) || record || {};
-  const action = String(f.next_action || '').trim();
+  const action = normalizeFollowUpAction(f.next_action);
   if (!action) return 'generic';
-  if (action === 'Zurückrufen' || action === 'Erneut versuchen') return 'callback';
-  if (action === 'Termin bestätigen' || action === 'Offerte senden' || action === 'Information senden') return 'task';
+  if (action === 'Zurückrufen') return 'callback';
+  if (action === 'Termin bestätigen' || action === 'Offerte senden') return 'task';
+  // Altbestand: "Kein Bedarf" ist als Auswahl entfallen, bestehende Einträge
+  // behalten aber ihre Einordnung.
   if (action === 'Kein Bedarf') return 'closed';
   return 'generic';
 }
@@ -12869,6 +12932,9 @@ if (typeof window !== 'undefined') {
   window.fmtFollowUpDateTime = fmtFollowUpDateTime;
   window.buildFollowUpMetaText = buildFollowUpMetaText;
   window.compareFollowUpPriority = compareFollowUpPriority;
+  window.normalizeFollowUpAction = normalizeFollowUpAction;
+  window.followUpSaveToastMessage = followUpSaveToastMessage;
+  window.vxFollowUpPlannedStepLabel = followUpPlannedStepLabel;
 }
 
 function extractCustomerHint(authUser) {
@@ -13390,8 +13456,7 @@ async function patchCallRecord(recordId, fields) {
     call_id: recordId,
     notes_customer_voxera: fields.notes_customer_voxera,
     next_action: fields.next_action,
-    follow_up_at: fields.follow_up_at,
-    mark_complete: fields.mark_complete === true
+    follow_up_at: fields.follow_up_at
   });
   return json.call || null;
 }
@@ -14860,16 +14925,6 @@ async function vxPendingPreview() {
     window._vxPreviewAudio = null;
     if (btn) { btn.innerHTML = '<i class="ph-bold ph-play" style="margin-right:5px;" aria-hidden="true"></i>Vorschau'; }
     if (typeof showToast === 'function') showToast('⚠️ Vorschau konnte nicht geladen werden.');
-  }
-}
-
-function vxClosePendingPreview() {
-  var overlay = document.getElementById('vx-preview-modal');
-  var wrap = document.getElementById('vx-preview-widget-wrap');
-  if (wrap) wrap.innerHTML = '';
-  if (overlay) {
-    overlay.classList.remove('open');
-    setOverlayAriaHidden('vx-preview-modal', true);
   }
 }
 
@@ -16375,17 +16430,28 @@ function vxOnboardingInit() {
   // vxOnboardingInit() durch nachfolgende Polls erneut aufgerufen wird.
   if (window._vxOnboardingDismissedThisSession) return;
 
-  // Modal zeigen
+  vxOnboardingShow();
+}
+
+// Einziger Weg, das Onboarding zu oeffnen. Vorher setzte jeder Einstieg das
+// display selbst — vxOnboardingRestart() (Hilfe → Einrichtung) liess dabei
+// aria-hidden="true" stehen und zeigte den Dialog sichtbar, aber fuer
+// Screenreader nicht vorhanden. Ein weiterer Einstieg soll das nicht
+// wiederholen koennen.
+function vxOnboardingShow() {
   const overlay = document.getElementById('vx-onboarding-overlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
-    /* phosphor: no init needed */
-  }
+  if (!overlay) return;
+  rememberOverlayFocusReturn('vx-onboarding-overlay');
+  overlay.style.display = 'flex';
+  setOverlayAriaHidden('vx-onboarding-overlay', false);
+  vxFocusDialog('vx-onboarding-overlay');
 }
 
 function vxOnboardingSkip() {
   const overlay = document.getElementById('vx-onboarding-overlay');
   if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('vx-onboarding-overlay', true);
+  restoreOverlayFocus('vx-onboarding-overlay');
   // Beim nächsten Login nicht mehr zeigen
   vxOnboardingDismissNow();
 }
@@ -16393,6 +16459,8 @@ function vxOnboardingSkip() {
 async function vxOnboardingFinish() {
   const overlay = document.getElementById('vx-onboarding-overlay');
   if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('vx-onboarding-overlay', true);
+  restoreOverlayFocus('vx-onboarding-overlay');
   await vxOnboardingDismissNow();
 }
 
@@ -16426,11 +16494,7 @@ function vxOnboardingRestart() {
   customerMeta.onboardingCompleted = false;
   window._vxOnboardingDismissedThisSession = false;
   try { window.localStorage.removeItem(vxOnboardingDismissedKey()); } catch(e) {}
-  const overlay = document.getElementById('vx-onboarding-overlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
-    /* phosphor: no init needed */
-  }
+  vxOnboardingShow();
 }
 
 // Dark Mode für Onboarding Modal
@@ -17510,14 +17574,17 @@ function vxCommercialPlanLabel(value) {
 function vxCommercialOpen() {
   const overlay = document.getElementById('vx-commercial-overlay');
   if (!overlay) return;
+  rememberOverlayFocusReturn('vx-commercial-overlay');
   overlay.classList.add('open');
   overlay.setAttribute('aria-hidden', 'false');
   syncOverlayScrollLock();
+  vxFocusDialog('vx-commercial-overlay');
 }
 
 function vxCommercialClose() {
   const overlay = document.getElementById('vx-commercial-overlay');
   if (overlay) { overlay.classList.remove('open'); overlay.setAttribute('aria-hidden', 'true'); }
+  restoreOverlayFocus('vx-commercial-overlay');
   vxCommercialState = { type: '', selected: '', options: [], estimatedAmount: null, submitting: false };
   syncOverlayScrollLock();
 }
@@ -21876,7 +21943,7 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
     el.setAttribute('role', 'menu');
     el.style.cssText = [
       'position:fixed',
-      'z-index:99999',
+      'z-index:var(--z-context-menu)',
       'min-width:200px',
       'background:#ffffff',
       'border:0.5px solid #E4E8F0',
@@ -22131,19 +22198,23 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
   }
 
   // ── Guard: prüft ob ein Modal/Overlay/Detail-Page offen ist ─────────────
+  // Seit Phase 2 traegt jeder Dialog role="dialog" — eine Abfrage deckt alle ab
+  // und bleibt richtig, wenn einer dazukommt.
+  //
+  // Vorher stand hier eine feste Liste aus acht IDs. Fuenf davon zeigten ins
+  // Leere (detail-overlay, vx-detail-v2, vx-upgrade-modal, vx-minutes-modal
+  // und der inzwischen geloeschte vx-preview-modal) — und die meisten echten
+  // Dialoge fehlten. Bei offenem Nachfassen-, Aufgaben-,
+  // Support- oder Commercial-Dialog liess der Guard das Kontextmenue durch.
+  //
+  // Geprueft wird ueber getClientRects(): getComputedStyle liefert den eigenen
+  // display-Wert eines Elements auch dann, wenn ein Vorfahr display:none
+  // traegt — bei den Dialogen, deren role="dialog" am inneren .modal haengt,
+  // waere das immer "offen".
   function _anyOverlayOpen() {
-    var overlayIds = [
-      'detail-overlay', 'followup-overlay',
-      'confirm-overlay', 'vx-detail-v2', 'vx-onboarding-overlay',
-      'vx-preview-modal', 'vx-upgrade-modal', 'vx-minutes-modal'
-    ];
-    for (var i = 0; i < overlayIds.length; i++) {
-      var el = document.getElementById(overlayIds[i]);
-      if (!el) continue;
-      var s = el.style;
-      if (s.display === 'block' || s.display === 'flex') return true;
-      if (el.classList.contains('open')) return true;
-      if (el.getAttribute('aria-hidden') === 'false') return true;
+    var dialogs = document.querySelectorAll('[role="dialog"]');
+    for (var i = 0; i < dialogs.length; i++) {
+      if (dialogs[i].getClientRects().length) return true;
     }
     // call-detail-page: nur als Overlay werten wenn Fullscreen (nicht Split-Panel)
     var cdp = document.getElementById('call-detail-page');
@@ -23611,10 +23682,119 @@ function restoreOverlayFocus(overlayId) {
   }
 }
 
+window.rememberOverlayFocusReturn = rememberOverlayFocusReturn;
+window.restoreOverlayFocus = restoreOverlayFocus;
+
 function setOverlayAriaHidden(overlayId, hidden) {
   var overlay = document.getElementById(overlayId);
   if (overlay) overlay.setAttribute('aria-hidden', hidden ? 'true' : 'false');
 }
+
+// Fokus beim Oeffnen in den Dialog setzen. Ohne das bleibt der Fokus auf dem
+// ausloesenden Element hinter dem Overlay: Tastaturnutzer tabben durch die
+// Seite dahinter, und dialog-eigene keydown-Listener feuern nie (die
+// Support-Anfrage hatte genau deshalb einen wirkungslosen Escape-Handler).
+// ── Fokusfalle ───────────────────────────────────────────────────────────
+// aria-modal="true" sagt Screenreadern, der Dialog sei modal. Fuer die
+// Tastatur stimmte das nicht: der Fokus lief nach dem letzten Element in die
+// Seite dahinter. Statt Tab per preventDefault abzufangen — was die
+// Segmentnavigation in input[type=datetime-local] zerstoert, weil dort jeder
+// Tab-Schritt innerhalb desselben Elements passiert — stehen am Anfang und am
+// Ende jedes Dialogs zwei fokussierbare Marker. Wer einen erreicht, hat den
+// Dialog gerade verlassen wollen und wird ans andere Ende gesetzt. Die
+// natuerliche Tab-Reihenfolge bleibt dabei vollstaendig unangetastet.
+var VX_FOCUSABLE_SELECTOR = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),summary,audio[controls],video[controls],[tabindex]:not([tabindex="-1"])';
+
+function vxVisibleFocusable(root) {
+  if (!root) return [];
+  return Array.prototype.filter.call(root.querySelectorAll(VX_FOCUSABLE_SELECTOR), function(el) {
+    if (el.hasAttribute('data-vx-focus-sentinel')) return false;
+    // Inhalt eines zugeklappten <details> ueberspringt der Browser in der
+    // Tab-Reihenfolge, liefert aber weiterhin Rechtecke. Wuerde der Sprung am
+    // Rand des Dialogs dort landen, faende er kein fokussierbares Ziel und der
+    // Fokus fiele auf den Body — also genau wieder aus dem Dialog heraus.
+    var details = el.closest ? el.closest('details') : null;
+    if (details && !details.open && el.tagName !== 'SUMMARY') return false;
+    var cs = window.getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  });
+}
+
+function vxEnsureFocusSentinels(root) {
+  if (!root || !root.appendChild) return;
+  function make(position) {
+    var el = document.createElement('span');
+    el.setAttribute('data-vx-focus-sentinel', position);
+    el.setAttribute('aria-hidden', 'true');
+    el.tabIndex = 0;
+    el.style.cssText = 'position:absolute;width:1px;height:1px;padding:0;margin:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;';
+    return el;
+  }
+  var start = null, end = null;
+  for (var i = 0; i < root.children.length; i++) {
+    var mark = root.children[i].getAttribute && root.children[i].getAttribute('data-vx-focus-sentinel');
+    if (mark === 'start') start = root.children[i];
+    else if (mark === 'end') end = root.children[i];
+  }
+  // Beide muessen aussen liegen, auch wenn der Dialog seinen Inhalt neu baut.
+  root.insertBefore(start || make('start'), root.firstChild);
+  root.appendChild(end || make('end'));
+}
+
+(function initDialogFocusTrap(){
+  if (window.__VOXERA_FOCUS_TRAP_BOUND__) return;
+  window.__VOXERA_FOCUS_TRAP_BOUND__ = true;
+  document.addEventListener('focusin', function(e) {
+    var target = e.target;
+    if (!target || !target.getAttribute) return;
+
+    var position = target.getAttribute('data-vx-focus-sentinel');
+    if (position) {
+      var root = target.parentElement;
+      var items = vxVisibleFocusable(root);
+      if (!items.length) return;
+      var next = position === 'start' ? items[items.length - 1] : items[0];
+      try { next.focus({ preventScroll: true }); } catch(err) { try { next.focus(); } catch(_) {} }
+      return;
+    }
+
+    // Selbstheilung: Dialoge, die ihren Fokus selbst setzen, laufen nie durch
+    // vxFocusDialog und haetten sonst keine Marker — genau so entkam der Fokus
+    // aus der Notiz und der Support-Anfrage. Sobald der Fokus in irgendeinen
+    // Dialog faellt, bekommt der seine Marker. Damit greift die Falle auch fuer
+    // Dialoge, die spaeter dazukommen.
+    if (!target.closest) return;
+    var host = target.closest('[role="dialog"]');
+    if (!host) return;
+    if (host.querySelector('[data-vx-focus-sentinel]')) return;
+    vxEnsureFocusSentinels(host);
+  });
+})();
+
+// Synchron, ohne Verzoegerung: jede Aufrufstelle macht den Dialog vorher
+// sichtbar, also ist er hier fokussierbar. Hier stand eine Kette aus bis zu
+// vier Versuchen ueber 120 ms. Ihr Anlass war ein Dialog, der den Fokus nicht
+// annahm — die Ursache dafuer war aber eine andere: die Runtime ueberschreibt
+// vxCommercialOpen, weshalb dieser Helfer dort gar nicht aufgerufen wurde.
+// Nach der Behebung blieb die Kette ohne Grund stehen. Sie liess den Fokus
+// mindestens einen Task lang hinter dem Overlay und konnte ihn zurueckholen,
+// wenn inzwischen ein anderer Dialog oben lag.
+//
+// Ein Dialog, dessen Inhalt erst asynchron entsteht, ruft diesen Helfer nach
+// seinem eigenen Render auf — nicht der Helfer wartet auf ihn.
+function vxFocusDialog(overlayId, preferredSelector) {
+  var overlay = document.getElementById(overlayId);
+  if (!overlay) return;
+  vxEnsureFocusSentinels(overlay);
+  var target = preferredSelector ? overlay.querySelector(preferredSelector) : null;
+  if (!target) target = overlay.querySelector('[tabindex="-1"], .modal, [role="dialog"]');
+  if (!target) target = overlay;
+  try { target.focus({ preventScroll: true }); } catch(e) { try { target.focus(); } catch(_) {} }
+}
+window.vxFocusDialog = vxFocusDialog;
+window.vxEnsureFocusSentinels = vxEnsureFocusSentinels;
+window.vxVisibleFocusable = vxVisibleFocusable;
 
 
 window.vxScrollLocks = window.vxScrollLocks || new Set();
@@ -23829,10 +24009,8 @@ function openConfirmModal(config) {
   }
   if (okBtn) {
     okBtn.textContent = (config && config.confirmLabel) || 'Bestätigen';
+    // Farbe kommt ausschliesslich ueber confirm-tone-* am Modal (siehe oben).
     okBtn.classList.remove('danger', 'neutral', 'btn--primary', 'btn--danger', 'btn--neutral');
-    if (config && config.tone === 'danger') okBtn.classList.add('btn--danger');
-    else if (config && config.tone === 'neutral') okBtn.classList.add('btn--neutral');
-    else okBtn.classList.add('btn--primary');
     okBtn.dataset.loadingLabel = (config && config.loadingLabel) || 'Bitte warten...';
     okBtn.disabled = false;
     okBtn.setAttribute('aria-disabled', 'false');
@@ -23844,6 +24022,7 @@ function openConfirmModal(config) {
   const overlay = document.getElementById('confirm-overlay');
   if (overlay) overlay.classList.add('open');
   setOverlayAriaHidden('confirm-overlay', false);
+  vxFocusDialog('confirm-overlay');
   syncOverlayScrollLock();
 }
 
@@ -24111,16 +24290,13 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
       : 'Plane einen Rückruf oder Folgekontakt.';
   }
   document.getElementById('followup-input').value = existingNotiz || '';
-  document.getElementById('followup-next-action').value = (mode === 'due') ? '' : (nextAction || '');
+  // Altbestand ("Erneut versuchen" / "Information senden") auf die übernehmende
+  // Aktion mappen. Alles was keiner Option entspricht (z.B. freier KI-Text)
+  // landet im Leerzustand "Keine Auswahl".
+  document.getElementById('followup-next-action').value = (mode === 'due') ? '' : normalizeFollowUpAction(nextAction);
   document.getElementById('followup-datetime').value = fmtDateTimeLocal(followUpAt || '');
   var nextActionField = document.getElementById('followup-next-action-field');
   if (nextActionField) nextActionField.style.display = (mode === 'due') ? 'none' : '';
-  const markComplete = document.getElementById('followup-mark-complete');
-  if (markComplete) {
-    markComplete.checked = false;
-    var markRow = document.getElementById('followup-mark-row') || markComplete.closest('.followup-mark-row');
-    if (markRow) markRow.style.display = (mode === 'due' || done) ? 'none' : '';
-  }
   const lockWarning = document.getElementById('followup-locked-warning');
   const editableSection = document.getElementById('followup-editable');
   const saveBtn = document.getElementById('followup-save-btn');
@@ -24130,7 +24306,7 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
       lockWarning.style.display = 'block';
       lockWarning.childNodes[0].nodeValue = mode === 'due'
         ? 'Dieser Eintrag bleibt erledigt. Die Fälligkeit wird als neue geplante Aufgabe erstellt. '
-        : 'Dieser Eintrag bleibt erledigt. Der Rückruf wird als neue geplante Aufgabe erstellt. ';
+        : 'Dieser Eintrag bleibt erledigt. Der nächste Schritt wird als neue geplante Aufgabe erstellt. ';
     }
   } else if (lockWarning) {
     lockWarning.style.display = 'none';
@@ -24141,10 +24317,11 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
   if (saveBtn) {
     saveBtn.disabled = false;
     if (mode === 'due') saveBtn.textContent = 'Fälligkeit speichern';
-    else saveBtn.textContent = done ? 'Rückruf erstellen' : 'Nachfassen speichern';
+    else saveBtn.textContent = done ? 'Nachfassen erstellen' : 'Nachfassen speichern';
   }
   document.getElementById('followup-overlay').classList.add('open');
   setOverlayAriaHidden('followup-overlay', false);
+  vxFocusDialog('followup-overlay');
   syncOverlayScrollLock();
 }
 
@@ -24203,12 +24380,6 @@ function closeFollowup() {
   document.getElementById('followup-datetime').value = '';
   followupCallerName = '';
   followupModalMode = 'callback';
-  const mc = document.getElementById('followup-mark-complete');
-  if (mc) {
-    mc.checked = false;
-    var mcRow = document.getElementById('followup-mark-row') || mc.closest('.followup-mark-row');
-    if (mcRow) mcRow.style.display = '';
-  }
   var nextActionField = document.getElementById('followup-next-action-field');
   if (nextActionField) nextActionField.style.display = '';
   const editableSection = document.getElementById('followup-editable');
@@ -24231,16 +24402,15 @@ async function saveFollowup() {
   const followUpAt = _followUpAtRaw && /T00:00$/.test(_followUpAtRaw)
     ? _followUpAtRaw.replace(/T00:00$/, 'T09:00')
     : _followUpAtRaw;
-  const markComplete = document.getElementById('followup-mark-complete');
   vxSetActionButtonLoading(btn, true, 'Speichern...');
 
+  // Abschliessen läuft ausschliesslich über den "Erledigen"-Button der
+  // Aktionszeile; dieses Modal plant nur den nächsten Schritt.
   const fields = {
     notes_customer_voxera: text,
     next_action: nextAction || null,
-    follow_up_at: serializeFollowUpLocal(followUpAt) || null,
-    mark_complete: !!(markComplete && markComplete.checked)
+    follow_up_at: serializeFollowUpLocal(followUpAt) || null
   };
-  if (fields.mark_complete) fields.follow_up_at = null;
 
   try {
     var recordId = notizRecordId;
@@ -24251,14 +24421,17 @@ async function saveFollowup() {
     var sourceFields = (sourceRec && sourceRec.fields) || {};
     var sourceLifecycle = (sourceRec && typeof vxGetEntryLifecycleStatus === 'function') ? vxGetEntryLifecycleStatus(sourceRec) : '';
     var sourceIsDone = sourceLifecycle === 'done' || sourceLifecycle === 'archived' || isClosedStatus(sourceFields.dashboard_status || sourceFields.status || currentStatus || '');
-    if (sourceIsDone && followUpAt && !fields.mark_complete) {
+    if (sourceIsDone && followUpAt) {
       var dueAt = String(followUpAt || '').slice(0, 10);
       var dueTime = String(followUpAt || '').slice(11, 16) || '09:00';
       var caller = String(sourceFields.caller_name || sourceFields.company_name || followupCallerName || '').trim();
       var phone = String(sourceFields.caller_phone || sourceFields.phone_number || sourceFields.tel_link || '').trim();
+      // Die neue Aufgabe erbt die gewählte Aktion. Vorher entstand hier immer
+      // ein Rückruf, auch wenn "Offerte senden" gewählt war.
+      var taskSpec = followUpTaskSpecForAction(nextAction);
       var createdTask = await createManualTask({
-        title: caller ? ('Rückruf für ' + caller) : 'Rückruf planen',
-        type: 'callback',
+        title: caller ? (taskSpec.title + caller) : taskSpec.fallbackTitle,
+        type: taskSpec.type,
         due_at: dueAt,
         due_time: dueTime,
         status: 'new',
@@ -24277,37 +24450,26 @@ async function saveFollowup() {
         modal: 'followup'
       });
       notizRecordId = null;
-      toast('Rückruf als neue Aufgabe geplant');
+      toast(taskSpec.toast);
       vxScheduleSingleDataRefresh(500);
       return;
     }
     await patchCallRecord(recordId, fields);
     vxNotifMarkReadByRecord(recordId);
 
-    var localFields = {
+    vxUpdateLocalCallRecord(recordId, {
       notes_customer_voxera: fields.notes_customer_voxera,
       next_action: fields.next_action,
       follow_up_at: fields.follow_up_at
-    };
-    if (fields.mark_complete) localFields.follow_up_at = null;
-    var localRec = vxUpdateLocalCallRecord(recordId, localFields);
-
-    if (fields.mark_complete) {
-      await applyStatusTransition(recordId, CALL_STATUS.NEW, CALL_STATUS.CLOSED);
-      vxUpdateLocalCallRecord(recordId, {
-        dashboard_status: CALL_STATUS.CLOSED,
-        completed_at: (localRec && localRec.fields && localRec.fields.completed_at) || new Date().toISOString(),
-        follow_up_at: null
-      });
-    }
+    });
 
     rerenderFollowupMetaForCallRow(recordId);
     vxAfterActionSuccess({ recordId: recordId, modal: 'followup' });
     notizRecordId = null;
 
-    toast(fields.mark_complete ? 'Erledigt' : followUpAt ? 'Rückruf geplant' : 'Gespeichert');
+    // Bestätigung folgt der gewählten Aktion statt immer "Rückruf geplant".
+    toast(followUpSaveToastMessage(nextAction, followUpAt));
 
-    if (fields.mark_complete && typeof vxCloseAfterSuccessfulCompletion === 'function') vxCloseAfterSuccessfulCompletion();
     vxScheduleSingleDataRefresh(500);
   } catch(e) {
     const detail = e && e.message ? String(e.message) : '';
@@ -24453,6 +24615,7 @@ function openManualTaskModal() {
   }
   document.getElementById('manual-task-overlay').classList.add('open');
   setOverlayAriaHidden('manual-task-overlay', false);
+  vxFocusDialog('manual-task-overlay');
   syncOverlayScrollLock();
 }
 
@@ -24529,6 +24692,7 @@ function openManualTaskEditModal(recordId) {
   }
   document.getElementById('manual-task-overlay').classList.add('open');
   setOverlayAriaHidden('manual-task-overlay', false);
+  vxFocusDialog('manual-task-overlay');
   syncOverlayScrollLock();
 }
 
@@ -24554,6 +24718,7 @@ function openManualRequestModal() {
   document.getElementById('manual-request-inbox').checked = true;
   document.getElementById('manual-request-overlay').classList.add('open');
   setOverlayAriaHidden('manual-request-overlay', false);
+  vxFocusDialog('manual-request-overlay');
   syncOverlayScrollLock();
 }
 
@@ -25328,6 +25493,7 @@ function openNotiz(recordId, existingNotiz, callerName) {
   document.getElementById('notiz-save-btn').textContent = 'Speichern';
   document.getElementById('notiz-overlay').classList.add('open');
   setOverlayAriaHidden('notiz-overlay', false);
+  // Fokus setzt openNotiz selbst auf die Textarea — gezielter als der Container.
   syncOverlayScrollLock();
   setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }, 150);
 }
@@ -25379,6 +25545,37 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
 (function initOverlayEscapeHandling(){
   if (window.__VOXERA_OVERLAY_ESC_BOUND__) return;
   window.__VOXERA_OVERLAY_ESC_BOUND__ = true;
+
+  // Escape schliesst den obersten offenen Dialog. Reihenfolge = Layer-Reihenfolge
+  // (z-index), nicht Markup-Reihenfolge: der Bestaetigen-Dialog liegt regelmaessig
+  // ueber einem anderen Modal und muss zuerst weichen.
+  // Vorher war das eine fest verdrahtete if-Kette ueber vier der dreizehn Dialoge;
+  // die uebrigen neun reagierten gar nicht auf Escape.
+  var ESCAPE_DIALOGS = [
+    { id: 'vox-support-request-overlay', close: function(){
+        var btn = document.querySelector('#vox-support-request-overlay .vox-support-close, #vox-support-request-overlay [data-close]');
+        if (btn) btn.click();
+      } },
+    { id: 'confirm-overlay', close: function(){ closeConfirmModal(); }, busy: function(){ return !!confirmModalBusy; } },
+    { id: 'manual-task-overlay', close: function(){ closeManualTaskModal(); } },
+    { id: 'manual-request-overlay', close: function(){ closeManualRequestModal(); } },
+    { id: 'followup-overlay', close: function(){ closeFollowup(); } },
+    { id: 'notiz-overlay', close: function(){ closeNotiz(); } },
+    { id: 'vx-commercial-overlay', close: function(){ vxCommercialClose(); } },
+    { id: 'setup-help-overlay', close: function(){ closeSetupHelpOverlay(); } },
+    { id: 'activation-flow-overlay', close: function(){ closeActivationFlowModal(); } },
+    { id: 'tour-overlay', close: function(){ tourSkip(); } },
+    { id: 'vx-onboarding-overlay', close: function(){ vxOnboardingSkip(); } }
+  ];
+
+  // Die Dialoge zeigen sich uneinheitlich: teils ueber die Klasse 'open',
+  // teils ueber inline display. Der berechnete Wert deckt beides ab.
+  function isDialogVisible(el) {
+    if (!el) return false;
+    var cs = window.getComputedStyle(el);
+    return cs.display !== 'none' && cs.visibility !== 'hidden';
+  }
+
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     var active = document.activeElement;
@@ -25387,11 +25584,16 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
       e.preventDefault();
       return;
     }
-    if (confirmModalBusy && document.getElementById('confirm-overlay').classList.contains('open')) return;
-    if (document.getElementById('confirm-overlay').classList.contains('open')) { closeConfirmModal(); return; }
-    if (document.getElementById('manual-task-overlay').classList.contains('open')) { closeManualTaskModal(); return; }
-    if (document.getElementById('followup-overlay').classList.contains('open')) { closeFollowup(); return; }
-    if (document.getElementById('notiz-overlay').classList.contains('open')) { closeNotiz(); return; }
+    for (var i = 0; i < ESCAPE_DIALOGS.length; i++) {
+      var entry = ESCAPE_DIALOGS[i];
+      var el = document.getElementById(entry.id);
+      if (!isDialogVisible(el)) continue;
+      // Waehrend eines laufenden Speichervorgangs bleibt der Dialog stehen —
+      // und faellt nicht auf den naechsten darunter durch.
+      if (entry.busy && entry.busy()) return;
+      try { entry.close(); } catch(err) { console.warn('[Voxera Escape] close failed', entry.id, err); }
+      return;
+    }
   });
 })();
 
@@ -25859,6 +26061,7 @@ function openSetupHelpOverlay(event, sectionId) {
   var overlay = document.getElementById('setup-help-overlay');
   var target = document.getElementById('setup-help-content');
   if (!overlay || !target) return;
+  rememberOverlayFocusReturn('setup-help-overlay');
 
   var sections = {
     forwarding: {
@@ -25905,7 +26108,7 @@ function openSetupHelpOverlay(event, sectionId) {
   var section = sections[sectionId] || sections.forwarding;
   target.innerHTML =
     '<div class="setup-help-header">' +
-      '<div><div class="setup-help-title">' + section.title + '</div><div class="setup-help-sub">' + section.sub + '</div></div>' +
+      '<div><div class="setup-help-title" id="setup-help-title">' + section.title + '</div><div class="setup-help-sub">' + section.sub + '</div></div>' +
       '<button class="btn btn--secondary" onclick="closeSetupHelpOverlay()">Schliessen</button>' +
     '</div>' +
     section.html +
@@ -25914,6 +26117,8 @@ function openSetupHelpOverlay(event, sectionId) {
     '</div>';
 
   overlay.style.display = 'flex';
+  setOverlayAriaHidden('setup-help-overlay', false);
+  vxFocusDialog('setup-help-overlay');
   renderForwardingCodes();
   var overlayFallback = document.getElementById('setup-forwarding-fallback');
   if (overlayFallback) overlayFallback.style.display = getDialableVoxeraNumber() ? 'none' : 'inline-flex';
@@ -25922,6 +26127,8 @@ function openSetupHelpOverlay(event, sectionId) {
 function closeSetupHelpOverlay() {
   var overlay = document.getElementById('setup-help-overlay');
   if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('setup-help-overlay', true);
+  restoreOverlayFocus('setup-help-overlay');
 }
 
 function openFullHelpFromWizard(anchorId) {
@@ -26901,18 +27108,21 @@ function hasDetectedActivationTestCall() {
 function closeActivationFlowModal() {
   var overlay = document.getElementById('activation-flow-overlay');
   if (overlay) overlay.classList.remove('open');
+  setOverlayAriaHidden('activation-flow-overlay', true);
   syncOverlayScrollLock();
+  restoreOverlayFocus('activation-flow-overlay');
 }
 
 function openActivationFlowModal(type) {
   var overlay = document.getElementById('activation-flow-overlay');
   var content = document.getElementById('activation-flow-content');
   if (!overlay || !content) return;
+  rememberOverlayFocusReturn('activation-flow-overlay');
   var modeLabel = getForwardingModeLabel(customerMeta && customerMeta.forwardingMode);
   if (type === 'success') {
     content.innerHTML = ''
       + '<div class="activation-flow-step">Schritt 2 von 2 · Verbindung wird bestätigt</div>'
-      + '<h3>Verbindung wird final bestätigt…</h3>'
+      + '<h3 id="activation-flow-title">Verbindung wird final bestätigt…</h3>'
       + '<div class="activation-flow-lead">Der Testanruf wurde erkannt. Voxera übernimmt jetzt automatisch die finale Aktivierung.</div>'
       + '<ul class="activation-flow-list">'
       + '<li><strong>Was wurde erkannt?</strong>Der eingegangene Testanruf wurde dem Aktivierungsprozess eindeutig zugeordnet.</li>'
@@ -26926,7 +27136,7 @@ function openActivationFlowModal(type) {
   } else {
     content.innerHTML = ''
       + '<div class="activation-flow-step">Schritt 1 von 2 · Testanruf starten</div>'
-      + '<h3>Testanruf durchführen</h3>'
+      + '<h3 id="activation-flow-title">Testanruf durchführen</h3>'
       + '<div class="activation-flow-lead">Die Aktivierung wurde gestartet' + (modeLabel ? ' (<strong>' + escapeHtml(modeLabel) + '</strong>)' : '') + '. Wir rufen jetzt Ihre hinterlegte Hauptnummer an.</div>'
       + '<ul class="activation-flow-list">'
       + '<li><strong>Was passiert gerade?</strong>Wir prüfen automatisch, ob Ihre Weiterleitung den Testanruf korrekt zu Voxera übergibt.</li>'
@@ -26940,7 +27150,9 @@ function openActivationFlowModal(type) {
       + '</div>';
   }
   overlay.classList.add('open');
+  setOverlayAriaHidden('activation-flow-overlay', false);
   syncOverlayScrollLock();
+  vxFocusDialog('activation-flow-overlay');
 }
 
 function maybeOpenActivationGuideModal() {
@@ -29952,31 +30164,112 @@ function toggleCallRow(event, row) {
 <!-- ═══════════════════════════════════════
      SPOTLIGHT TOUR
 ═══════════════════════════════════════ -->
-<div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:10000;pointer-events:none;">
-  <canvas id="tour-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
-  <div id="tour-card" style="
-    position:absolute;background:var(--surface);border-radius:20px;
-    padding:28px 28px 22px;max-width:320px;width:calc(100vw - 40px);
-    box-shadow:0 20px 60px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.15);
-    pointer-events:all;transition:top .35s cubic-bezier(.16,1,.3,1),left .35s cubic-bezier(.16,1,.3,1);
-    animation:tourCardIn .3s cubic-bezier(.16,1,.3,1);
-  ">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;">
-      <div id="tour-progress" style="font-size:12px;font-weight:700;color:#94A3B8;line-height:1.2;">1 / 7</div>
-      <button onclick="tourSkip()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#CBD5E1;padding:0;font-family:inherit;">Überspringen</button>
+<div id="tour-overlay" aria-hidden="true">
+  <canvas id="tour-canvas" aria-hidden="true"></canvas>
+  <!-- top/left setzt tourRender() zur Laufzeit; alles Uebrige kommt aus CSS. -->
+  <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" tabindex="-1">
+    <div class="vx-tour-head">
+      <div id="tour-progress" class="vx-tour-progress">1 / 7</div>
+      <button type="button" class="vx-tour-skip" onclick="tourSkip()">Überspringen</button>
     </div>
-    <div style="height:3px;background:#E2E8F0;border-radius:999px;margin-bottom:14px;overflow:hidden;"><div id="tour-progress-bar" style="height:100%;width:14%;background:#1A6FE8;border-radius:999px;transition:width .25s ease;"></div></div>
-    <div id="tour-icon" style="width:48px;height:48px;border-radius:14px;background:#EEF4FF;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"></div>
-    <div id="tour-title" style="font-size:17px;font-weight:800;color:#0D1F3C;letter-spacing:-0.02em;margin-bottom:8px;"></div>
-    <div id="tour-text" style="font-size:14px;color:#94A3B8;line-height:1.65;margin-bottom:18px;"></div>
-    <div style="display:flex;gap:8px;">
-      <button id="tour-back-btn" onclick="tourBack()" style="flex:0;padding:10px 14px;border-radius:10px;border:none;background:transparent;font-size:13px;font-weight:600;color:#94A3B8;cursor:pointer;font-family:inherit;display:none;">Zurück</button>
-      <button id="tour-next-btn" onclick="tourNext()" style="flex:1;padding:11px 16px;border-radius:12px;border:none;background:#0D1F3C;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Weiter</button>
+    <div class="vx-tour-bar"><div id="tour-progress-bar" class="vx-tour-bar-fill"></div></div>
+    <div id="tour-icon" class="vx-tour-icon"></div>
+    <div id="tour-title" class="vx-tour-title"></div>
+    <div id="tour-text" class="vx-tour-text"></div>
+    <div class="vx-tour-actions">
+      <button type="button" id="tour-back-btn" class="btn btn--secondary vx-tour-back" onclick="tourBack()">Zurück</button>
+      <button type="button" id="tour-next-btn" class="btn btn--primary vx-tour-next" onclick="tourNext()">Weiter</button>
     </div>
   </div>
 </div>
 <style>
 @keyframes tourCardIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+
+/* ── Onboarding und Tour: aus Inline-Stilen auf Klassen und Tokens ──────────
+   Beide Dialoge trugen ihre gesamte Gestaltung im style-Attribut und waren
+   damit die einzigen, die an keinem Token haengen: eigener Button-Radius,
+   eigene Hoehen, eigene Farbliterale. Die Werte bleiben, sie stehen nur
+   nicht mehr im Markup.
+
+   Alle Regeln sind ueber die Overlay-ID gescopt. Die Runtime-Stylesheets
+   werden erst zur Laufzeit an <head> gehaengt und liegen damit hinter diesem
+   Block; sie praefixen durchgehend mit body.vx-customer-design-foundation
+   und traegen dadurch (0,1,1). Eine reine Klassenregel hier (0,1,0) verlaere
+   gegen sie — die ID hebt uns auf (1,1,0). */
+#vx-onboarding-overlay{
+  display:none;position:fixed;inset:0;
+  background:var(--vx-color-overlay,rgba(13,31,60,.42));
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  z-index:var(--z-onboarding);
+  align-items:center;justify-content:center;padding:var(--vx-spacing-lg,16px);
+}
+#vx-onboarding-overlay .vx-onboarding-card{
+  position:relative;background:var(--surface);
+  border-radius:var(--vx-radius-modal);
+  width:100%;max-width:440px;overflow:hidden;
+  box-shadow:var(--vx-shadow-modal);
+}
+#vx-onboarding-overlay .vx-onboarding-close{
+  position:absolute;top:16px;right:16px;width:32px;height:32px;min-height:32px;
+  border:0;border-radius:var(--vx-btn-radius);
+  background:rgba(255,255,255,.12);color:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+#vx-onboarding-overlay .vx-onboarding-close:hover{background:rgba(255,255,255,.2);}
+#vx-onboarding-overlay .vx-onboarding-head{background:var(--vx-color-night);padding:28px 52px 24px 24px;}
+#vx-onboarding-overlay .vx-onboarding-head-row{display:flex;align-items:center;gap:12px;}
+#vx-onboarding-overlay .vx-onboarding-icon{
+  width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.1);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  color:var(--vx-color-gold);font-size:20px;
+}
+#vx-onboarding-overlay .vx-onboarding-title{margin:0;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;}
+#vx-onboarding-overlay .vx-onboarding-sub{font-size:12px;color:var(--vx-color-text-on-dark-muted);margin-top:1px;}
+#vx-onboarding-overlay .vx-onboarding-body{padding:20px 24px 24px;}
+#vx-onboarding-overlay .vx-onboarding-text{margin:0 0 20px;font-size:14px;line-height:1.6;color:var(--slate2);}
+#vx-onboarding-overlay .btn--full{width:100%;justify-content:center;}
+
+#tour-overlay{display:none;position:fixed;inset:0;z-index:var(--z-tour);pointer-events:none;}
+#tour-overlay #tour-canvas{position:absolute;inset:0;width:100%;height:100%;}
+#tour-overlay #tour-card{
+  position:absolute;background:var(--surface);
+  border-radius:var(--vx-radius-xl,16px);
+  padding:28px 28px 22px;max-width:320px;width:calc(100vw - 40px);
+  box-shadow:var(--vx-shadow-modal);
+  pointer-events:all;
+  transition:top .35s var(--vx-ease),left .35s var(--vx-ease);
+  animation:tourCardIn .3s var(--vx-ease);
+}
+#tour-overlay .vx-tour-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;}
+#tour-overlay .vx-tour-progress{font-size:12px;font-weight:700;color:var(--vx-color-text-subtle);line-height:1.2;}
+/* Sieht aus wie ein Textlink, bleibt aber ein Button: die globale
+   44px-Untergrenze wird bewusst nicht ueberschrieben, sonst schrumpft das
+   Tippziel auf Texthoehe. */
+#tour-overlay .vx-tour-skip{
+  display:inline-flex;align-items:center;
+  background:none;border:0;padding:0 2px;
+  font-size:11px;color:var(--vx-color-text-subtle);cursor:pointer;font-family:inherit;
+}
+#tour-overlay .vx-tour-skip:hover{color:var(--vx-color-text-muted);}
+#tour-overlay .vx-tour-bar{height:3px;background:var(--surface-border,#E2E8F0);border-radius:var(--vx-radius-pill);margin-bottom:14px;overflow:hidden;}
+#tour-overlay .vx-tour-bar-fill{height:100%;width:14%;background:var(--vx-color-brand);border-radius:var(--vx-radius-pill);transition:width .25s ease;}
+#tour-overlay .vx-tour-icon{
+  width:48px;height:48px;border-radius:14px;background:var(--vx-color-info-bg);
+  display:flex;align-items:center;justify-content:center;margin-bottom:12px;
+}
+#tour-overlay .vx-tour-title{font-size:17px;font-weight:800;color:var(--vx-color-text);letter-spacing:-.02em;margin-bottom:8px;}
+#tour-overlay .vx-tour-text{font-size:14px;color:var(--vx-color-text-subtle);line-height:1.65;margin-bottom:18px;}
+#tour-overlay .vx-tour-actions{display:flex;gap:8px;}
+#tour-overlay .vx-tour-back{flex:0 0 auto;display:none;}
+#tour-overlay .vx-tour-next{flex:1;justify-content:center;}
+
+/* Dialog-Container erhalten den Fokus nur programmatisch und sind kein
+   Tab-Stopp — ein Fokusring um die ganze Flaeche waere Rauschen. Die
+   Bedienelemente darin behalten ihren Ring. */
+.overlay [tabindex="-1"]:focus,
+#vx-onboarding-overlay [tabindex="-1"]:focus,
+#tour-overlay [tabindex="-1"]:focus,
+#vx-detail-v2-fullscreen:focus{outline:none;}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    FOCUS MODE — Single-task focus view
@@ -31288,7 +31581,7 @@ function tourRender() {
   tourPositionCard(rect, isMobile);
 
   var iconEl = document.getElementById('tour-icon');
-  if (iconEl) { iconEl.innerHTML = step.icon; iconEl.style.background = step.iconBg || '#EEF4FF'; }
+  if (iconEl) { iconEl.innerHTML = step.icon; iconEl.style.background = step.iconBg || 'var(--vx-color-info-bg)'; }
   if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
   document.getElementById('tour-title').textContent = step.title;
   var textEl = document.getElementById('tour-text');
@@ -31324,10 +31617,13 @@ function tourStart() {
   _tourActive = true;
   // Flag sofort beim Start setzen — Abbrechen = auch "gesehen", nie mehr auto-starten
   try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
+  rememberOverlayFocusReturn('tour-overlay');
   var overlay = document.getElementById('tour-overlay');
   overlay.style.display = 'block';
   overlay.style.pointerEvents = 'all';
+  setOverlayAriaHidden('tour-overlay', false);
   tourGoToStep(0);
+  vxFocusDialog('tour-overlay', '#tour-card');
 }
 
 function tourNext() {
@@ -31352,6 +31648,8 @@ function tourDone() {
   _tourActive = false;
   var overlay = document.getElementById('tour-overlay');
   if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('tour-overlay', true);
+  restoreOverlayFocus('tour-overlay');
   try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
   var navEl = document.querySelector('.nav-item');
   showTab('dashboard', navEl, { historyMode: 'none' });
@@ -31826,16 +32124,16 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 }
 .dpr-btn-primary,
 .dpr-btn.btn--primary{
-  background:var(--blue);
-  color:#fff;
-  border-color:var(--blue);
-  box-shadow:0 1px 3px rgba(26,111,232,.12);
+  background:var(--vx-action-primary);
+  color:var(--vx-action-primary-text);
+  border-color:var(--vx-action-primary);
+  box-shadow:var(--vx-action-primary-shadow);
 }
 .dpr-btn-primary:hover:not(:disabled),
 .dpr-btn.btn--primary:hover:not(:disabled){
-  background:var(--blue-dark);
-  border-color:var(--blue-dark);
-  color:#fff;
+  background:var(--vx-action-primary-hover);
+  border-color:var(--vx-action-primary-hover);
+  color:var(--vx-action-primary-text);
   transform:translateY(-0.5px);
 }
 .dpr-btn.btn--danger{
@@ -32287,7 +32585,7 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
   box-shadow:none;
 }
 .dpr-action-panel-premium .btn i{width:15px;height:15px;stroke-width:2;opacity:.78;}
-.dpr-action-panel-premium .btn--primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.dpr-action-panel-premium .btn--primary{background:var(--vx-action-primary);border-color:var(--vx-action-primary);color:var(--vx-action-primary-text);}
 .dpr-action-panel-premium .btn--secondary{background:var(--surface);border-color:var(--surface-border);color:var(--ink2);}
 .dpr-action-panel-premium .btn--ghost{background:transparent;border-color:transparent;color:var(--slate);text-decoration:none;}
 .dpr-action-panel-premium .btn--danger{background:var(--surface);border-color:var(--surface-border);color:var(--red);}
@@ -32590,13 +32888,13 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
 }
 .dpr-action-panel-premium .btn--primary,
 .dpr-btn-primary{
-  background:var(--blue)!important;
-  border-color:var(--blue)!important;
-  color:#fff!important;
-  box-shadow:0 1px 3px rgba(26,111,232,.12)!important;
+  background:var(--vx-action-primary)!important;
+  border-color:var(--vx-action-primary)!important;
+  color:var(--vx-action-primary-text)!important;
+  box-shadow:var(--vx-action-primary-shadow)!important;
 }
 .dpr-action-panel-premium .btn--primary:hover:not(:disabled),
-.dpr-btn-primary:hover:not(:disabled){background:var(--blue-dark)!important;border-color:var(--blue-dark)!important;transform:translateY(-0.5px)!important;}
+.dpr-btn-primary:hover:not(:disabled){background:var(--vx-action-primary-hover)!important;border-color:var(--vx-action-primary-hover)!important;transform:translateY(-0.5px)!important;}
 .dpr-action-panel-premium .btn--secondary,
 .dpr-btn:not(.btn--primary):not(.btn--ghost):not(.btn--danger){
   background:var(--surface)!important;
@@ -32765,13 +33063,13 @@ textarea { border-radius: 8px !important; }
   border: 1px solid transparent !important;
 }
 .modal-btn-p {
-  background: var(--blue) !important;
-  color: #fff !important;
-  border-color: var(--blue) !important;
+  background: var(--vx-action-primary) !important;
+  color: var(--vx-action-primary-text) !important;
+  border-color: var(--vx-action-primary) !important;
 }
 .modal-btn-p:hover:not(:disabled) {
-  background: var(--blue-dark) !important;
-  border-color: var(--blue-dark) !important;
+  background: var(--vx-action-primary-hover) !important;
+  border-color: var(--vx-action-primary-hover) !important;
 }
 .modal-btn-s {
   background: var(--surface) !important;
@@ -37637,7 +37935,8 @@ body:has(#tab-archiv.active) .content{
    wie "Zurückrufen" auf Heute und die Filter-Pillen der Liste. */
 .vx-dv2-btn{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 14px;border-radius:var(--vx-radius-pill,999px);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--vx-ui-row-font);border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);background:var(--vx-ui-row-bg);color:var(--vx-ui-row-title-color);}
 .vx-dv2-btn:hover{border-color:var(--vx-ui-row-border-hover);}
-.vx-dv2-btn-primary{background:var(--vx-color-night,#0D1F3C);color:#fff;border-color:var(--vx-color-night,#0D1F3C);}
+.vx-dv2-btn-primary{background:var(--vx-action-primary);color:var(--vx-action-primary-text);border-color:var(--vx-action-primary);}
+.vx-dv2-btn-primary:hover{background:var(--vx-action-primary-hover);border-color:var(--vx-action-primary-hover);}
 .vx-dv2-btn-done{background:var(--vx-ui-badge-success-bg,#ECFDF5);color:var(--vx-ui-badge-success-text,#047857);border-color:var(--vx-ui-badge-success-text,#047857);}
 .vx-dv2-body{display:flex;flex-direction:column;gap:var(--vx-ui-row-gap);padding:12px 14px 14px;}
 /* Karte exakt wie die Listenzeile: 0.5px #D9E1EC statt der deutlich
@@ -38065,7 +38364,13 @@ body:has(#tab-archiv.active) .content{
     var steps = [];
     if (planned) {
       if (rawDate) steps.push({ label: 'Eingegangen', current: false });
-      steps.push({ label: 'Rückruf geplant', current: !done });
+      // Der geplante Schritt trägt die gewählte Aktion. Vorher stand hier
+      // immer "Rückruf geplant", auch bei "Offerte senden".
+      var plannedLabel = 'Nachfassen geplant';
+      try {
+        if (typeof window.vxFollowUpPlannedStepLabel === 'function') plannedLabel = window.vxFollowUpPlannedStepLabel(record);
+      } catch(e) {}
+      steps.push({ label: plannedLabel, current: !done });
       if (done) steps.push({ label: 'Erledigt', current: true });
     }
     if (steps.length > 1) {
@@ -38322,8 +38627,9 @@ body:has(#tab-archiv.active) .content{
   padding:14px 30px 18px!important;
   background:#fff!important;
 }
-#followup-overlay .modal-footer .btn,
-#manual-task-overlay .modal-footer .btn{height:48px!important;min-height:48px!important;}
+/* Entfernt: setzte die Footer-Buttons dieser beiden Dialoge auf 48px, waehrend
+   alle anderen 44px trugen — und hob dabei .btn--sm auf. Die Hoehe kommt jetzt
+   ueberall aus --vx-btn-height. */
 
 @media(max-width:768px){
   #followup-overlay .modal,
@@ -38886,6 +39192,12 @@ body:has(#tab-archiv.active) .content{
     shell = document.createElement('div');
     shell.id = 'vx-detail-v2-fullscreen';
     shell.setAttribute('aria-hidden','true');
+    // Die Vollansicht pflegte aria-hidden, trug aber keine Dialog-Rolle:
+    // Screenreader kuendigten sie als beliebigen Container an.
+    shell.setAttribute('role','dialog');
+    shell.setAttribute('aria-modal','true');
+    shell.setAttribute('aria-labelledby','vx-dv2-full-title');
+    shell.setAttribute('tabindex','-1');
     shell.innerHTML = '' +
       '<div class="vx-dv2-full-head">' +
         '<button type="button" class="vx-dv2-full-back" onclick="vxCloseDetailV2Fullscreen()" aria-label="Zurück"><i class="ph-bold ph-arrow-left"></i></button>' +
@@ -38911,6 +39223,8 @@ body:has(#tab-archiv.active) .content{
     shell.setAttribute('aria-hidden','false');
     document.body.classList.add('vx-dv2-fullscreen-open');
     try { shell.scrollTop = 0; if (content) content.scrollTop = 0; } catch(e) {}
+    if (typeof window.rememberOverlayFocusReturn === 'function') window.rememberOverlayFocusReturn('vx-detail-v2-fullscreen');
+    if (typeof window.vxFocusDialog === 'function') window.vxFocusDialog('vx-detail-v2-fullscreen', '.vx-dv2-full-back');
     return true;
   }
 
@@ -39012,6 +39326,7 @@ body:has(#tab-archiv.active) .content{
     var shell = document.getElementById('vx-detail-v2-fullscreen');
     if (shell) { shell.classList.remove('is-open'); shell.setAttribute('aria-hidden','true'); }
     document.body.classList.remove('vx-dv2-fullscreen-open');
+    if (typeof window.restoreOverlayFocus === 'function') window.restoreOverlayFocus('vx-detail-v2-fullscreen');
     window._vxCurrentDetailType = null;
     window._vxCurrentCallId = null;
     window._vxCurrentTaskId = null;
@@ -39048,7 +39363,7 @@ body:has(#tab-archiv.active) .content{
   display:none;
   position:fixed;
   inset:0;
-  z-index:10040;
+  z-index:var(--z-detail-fullscreen);
   background:var(--vx-bg,#F7F8FA);
   color:var(--vx-text,#0D1F3C);
   flex-direction:column;
@@ -39185,7 +39500,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 #manual-request-overlay.open,
 #notiz-overlay.open,
 #confirm-overlay.open{
-  z-index:10200!important;
+  z-index:var(--z-overlay)!important;
   pointer-events:auto!important;
 }
 #followup-overlay.open .modal,
@@ -39217,7 +39532,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-modal-grid {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
 @media (max-width: 480px) {.vx-modal-grid {grid-template-columns:1fr;}}
 .vx-modal-chips {display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;margin-bottom:14px;}
-.vx-modal-chip {padding:5px 11px;border-radius:7px;border:1.5px solid var(--line);background:var(--vx-surface);color:var(--vx-text2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+.vx-modal-chip {display:inline-flex;align-items:center;height:var(--vx-chip-height);min-height:var(--vx-chip-height);padding:0 11px;border-radius:var(--vx-chip-radius);border:1.5px solid var(--line);background:var(--vx-surface);color:var(--vx-text2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
 .vx-modal-chip:hover,.vx-modal-chip.is-active {border-color:var(--vx-blue);background:var(--vx-blue-light);color:var(--vx-blue);}
 .vx-modal-check-row {display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:var(--vx-r-lg);border:1.5px solid var(--line);background:var(--vx-bg);cursor:pointer;transition:border-color 0.15s;}
 .vx-modal-check-row:hover { border-color: var(--vx-blue); }
@@ -40225,7 +40540,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-audio-modern__btn{appearance:none;-webkit-appearance:none;width:38px;height:38px;border:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--vx-ui-row-icon-bg,#F1F5F9);color:var(--vx-ui-row-title-color,#0D1F3C);font-size:16px;font-weight:900;line-height:1;cursor:pointer;transition:transform .14s ease,background .14s ease,color .14s ease;}
 .vx-audio-modern__btn:hover{background:#E4EAF2;}.vx-audio-modern__btn:active{transform:scale(.96);}
 .vx-audio-modern__btn--primary{width:46px;height:46px;border-radius:50%;background:var(--vx-audio-navy);color:#fff;font-size:17px;box-shadow:none;}
-.vx-audio-modern__btn--primary:hover{background:#132a52;color:#fff;}
+.vx-audio-modern__btn--primary:hover{background:var(--vx-action-primary-hover);color:#fff;}
 .vx-audio-modern__timeline{position:relative;min-width:0;width:100%;padding:1px 0 0;}
 .vx-audio-modern__wave{height:38px;display:flex;align-items:center;gap:3px;padding:0 4px;overflow:hidden;}
 .vx-audio-modern__wave span{width:3px;min-width:3px;border-radius:999px;background:var(--vx-audio-accent);opacity:.28;}
@@ -40246,7 +40561,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-audio-modern__seek-feedback.is-back{left:36%;}
 .vx-audio-modern__seek-feedback.is-forward{left:64%;}
 .vx-audio-modern__btn.is-tap-feedback{background:#DFE8F4;color:var(--vx-color-night,#0D1F3C);box-shadow:0 2px 8px rgba(13,31,60,.12);}
-.vx-audio-modern__btn--primary.is-tap-feedback{background:#132a52;color:#fff;}
+.vx-audio-modern__btn--primary.is-tap-feedback{background:var(--vx-action-primary-hover);color:#fff;}
 .vx-audio-modern__audio{position:absolute !important;width:1px !important;height:1px !important;opacity:0 !important;pointer-events:none !important;overflow:hidden !important;}
 @media (min-width:900px){.vx-audio-modern{max-width:820px;margin:0 auto;padding:12px 14px;}.vx-audio-modern__surface{padding:12px 14px;}}
 @media (max-width:720px){.vx-audio-modern{padding:12px;border-radius:var(--vx-ui-row-radius,12px);box-shadow:none;}.vx-audio-modern__top{margin-bottom:10px;}.vx-audio-modern__title{font-size:13px;letter-spacing:0;}.vx-audio-modern__sub{font-size:12px;}.vx-audio-modern__surface{padding:11px;border-radius:10px;}.vx-audio-modern__controls{grid-template-columns:38px 50px minmax(0,1fr) 38px;gap:8px;}.vx-audio-modern__wave{height:34px;gap:2px;}.vx-audio-modern__wave span{width:2px;min-width:2px;}.vx-audio-modern__bottom{grid-template-columns:1fr;gap:10px;}.vx-audio-modern__speed{justify-self:start;}.vx-audio-modern__status{text-align:left;}.vx-audio-modern__volume input{max-width:160px;}}

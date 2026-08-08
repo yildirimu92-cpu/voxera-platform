@@ -181,12 +181,17 @@
     setActionMode(false);
   }
 
+  // Diese beiden ersetzen die gleichnamigen Funktionen aus index.html (siehe
+  // install(): root.vxCommercialOpen = open). Der Dialog-Vertrag muss deshalb
+  // hier stehen — in index.html laeuft er nie.
   function open() {
     const overlay = root.document.getElementById('vx-commercial-overlay');
     if (!overlay) return;
+    if (typeof root.rememberOverlayFocusReturn === 'function') root.rememberOverlayFocusReturn('vx-commercial-overlay');
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
     if (typeof root.syncOverlayScrollLock === 'function') root.syncOverlayScrollLock();
+    if (typeof root.vxFocusDialog === 'function') root.vxFocusDialog('vx-commercial-overlay');
   }
 
   function close() {
@@ -196,6 +201,7 @@
     state();
     setActionMode(false);
     if (typeof root.syncOverlayScrollLock === 'function') root.syncOverlayScrollLock();
+    if (typeof root.restoreOverlayFocus === 'function') root.restoreOverlayFocus('vx-commercial-overlay');
   }
 
   function select(value) {
